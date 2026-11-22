@@ -16,8 +16,7 @@ import (
 )
 
 func TestWorkflowRepositoryActivatesImmutableRevisionsAndRollsBackBatch(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repo := &workflowRepository{db: db, log: logrus.New()}
 	ctx := context.Background()
 	first := workflowRevision("owner/flow", "sha256:first", "1.0.0")
@@ -49,8 +48,7 @@ func TestWorkflowRepositoryActivatesImmutableRevisionsAndRollsBackBatch(t *testi
 }
 
 func TestWorkflowRepositoryReactivationIsIdempotent(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repo := &workflowRepository{db: db, log: logrus.New()}
 	ctx := context.Background()
 	revision := workflowRevision("owner/flow", "sha256:same", "1.0.0")
@@ -78,8 +76,7 @@ func TestWorkflowRepositoryReactivationIsIdempotent(t *testing.T) {
 }
 
 func TestWorkflowExecutionRevisionPinSurvivesCutoverRestartAndRollback(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	ctx := context.Background()
 	catalog := &workflowRepository{db: db, log: logrus.New()}
 	oldRevision := workflowRevision("owner/investigate", "sha256:old", "1.0.0")
@@ -137,8 +134,7 @@ func TestWorkflowExecutionRevisionPinSurvivesCutoverRestartAndRollback(t *testin
 }
 
 func TestWorkflowExecutionRepositoryCASAndJournalSurviveReload(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	ctx := context.Background()
 	catalog := &workflowRepository{db: db, log: logrus.New()}
 	revision := workflowRevision("owner/flow", "sha256:execution", "1.0.0")
@@ -195,8 +191,7 @@ func TestWorkflowExecutionRepositoryCASAndJournalSurviveReload(t *testing.T) {
 }
 
 func TestWorkflowAttemptCommitRejectsInvalidTransitionAndRecoversWaitingAttempt(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	ctx := context.Background()
 	catalog := &workflowRepository{db: db, log: logrus.New()}
 	revision := workflowRevision("owner/attempt-lifecycle", "sha256:attempt-lifecycle", "1.0.0")
@@ -245,8 +240,7 @@ func TestWorkflowAttemptCommitRejectsInvalidTransitionAndRecoversWaitingAttempt(
 }
 
 func TestWorkflowExecutionCancellationFenceSerializesStartAdmission(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	ctx := context.Background()
 	catalog := &workflowRepository{db: db, log: logrus.New()}
 	revision := workflowRevision("owner/staged-message", "sha256:cancel-fence", "1.0.0")
@@ -288,8 +282,7 @@ func TestWorkflowExecutionCancellationFenceSerializesStartAdmission(t *testing.T
 }
 
 func TestWorkflowExecutionRepositoryRejectsInvalidLifecycleTransition(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	ctx := context.Background()
 	catalog := &workflowRepository{db: db, log: logrus.New()}
 	revision := workflowRevision("owner/lifecycle", "sha256:lifecycle", "1.0.0")
@@ -322,8 +315,7 @@ func TestWorkflowExecutionRepositoryRejectsInvalidLifecycleTransition(t *testing
 }
 
 func TestWorkflowExecutionRepositoryPersistsEngagementGrantAcrossReload(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	ctx := context.Background()
 	repo := &workflowExecutionRepository{db: db, log: logrus.New()}
 	now := time.Now().UTC()
@@ -350,8 +342,7 @@ func TestWorkflowExecutionRepositoryPersistsEngagementGrantAcrossReload(t *testi
 }
 
 func TestWorkflowExecutionRepositoryPersistsExecutionPreferencesAcrossReload(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	ctx := context.Background()
 	repo := &workflowExecutionRepository{db: db, log: logrus.New()}
 	catalog := &workflowRepository{db: db, log: logrus.New()}
@@ -375,8 +366,7 @@ func TestWorkflowExecutionRepositoryPersistsExecutionPreferencesAcrossReload(t *
 }
 
 func TestWorkflowExecutionRepositoryListsLegacyAttemptWithNullOptionalFields(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	ctx := context.Background()
 	repo := &workflowExecutionRepository{db: db, log: logrus.New()}
 	catalog := &workflowRepository{db: db, log: logrus.New()}
@@ -403,8 +393,7 @@ func TestWorkflowExecutionRepositoryListsLegacyAttemptWithNullOptionalFields(t *
 }
 
 func TestWorkflowExecutionRepositoryExecutionIDForRun(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	ctx := context.Background()
 	catalog := &workflowRepository{db: db, log: logrus.New()}
 	revision := workflowRevision("owner/flow", "sha256:reverse", "1.0.0")
@@ -448,8 +437,7 @@ func TestWorkflowExecutionRepositoryExecutionIDForRun(t *testing.T) {
 }
 
 func TestWorkflowExecutionRepositoryRecoveryUsesCurrentCleanupGeneration(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	ctx := context.Background()
 	catalog := &workflowRepository{db: db, log: logrus.New()}
 	revision := workflowRevision("owner/flow", "sha256:cleanup-generation", "1.0.0")
@@ -489,8 +477,7 @@ func TestWorkflowExecutionRepositoryRecoveryUsesCurrentCleanupGeneration(t *test
 }
 
 func TestWorkflowExecutionRepositoryExcludesFinalizedUnknownAccounting(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	ctx := context.Background()
 	catalog := &workflowRepository{db: db, log: logrus.New()}
 	revision := workflowRevision("owner/flow", "sha256:finalized-unknown", "1.0.0")

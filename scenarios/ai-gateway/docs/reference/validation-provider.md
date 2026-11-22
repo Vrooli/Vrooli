@@ -32,7 +32,7 @@ The phase answers the core AI conformance questions:
 | `ai.direct_openrouter_http` | Scenario calls OpenRouter HTTP directly. | high | Route through AI Gateway or `resource-openrouter`. |
 | `ai.invalid_provider_secret_env` | Scenario declares provider secrets such as `OPENROUTER_API_KEY`. | high | Move secret handling to the resource. |
 | `ai.invalid_provider_url_env` | Scenario declares provider URLs such as `OLLAMA_URL`. | medium/high | Use resource discovery/gateway commands. |
-| `ai.concrete_model_slug` | Executable scenario code/configuration hard-codes a concrete model outside resource policy. | high | Replace with role/profile request. |
+| `ai.concrete_model_slug` | Executable caller code/configuration hard-codes a concrete model outside resource policy. Typed model registries are exempt only when their seed is loaded through validation, generated output has drift coverage, and owner tests compare roles/fallbacks with the resource policy; provider catalogs and their generated UI may reference only IDs in that registry. Requirements are declarative evidence, not runtime selection. | high | Replace caller selection with a role/profile request; keep governed model facts in the validated registry. |
 | `ai.hardcoded_context_window` | Scenario hard-codes context limits as provider truth. | medium | Query policy/capacity metadata or declare caller constraint. |
 | `ai.hardcoded_embedding_dimensions` | Scenario hard-codes embedding length without role/model metadata. | high for vector stores | Store role/model/dimensions and migration strategy. |
 | `ai.embedding_metadata_missing` | Vector store lacks embedding role/model/version metadata. | high | Add metadata columns/collection config before changing models. |

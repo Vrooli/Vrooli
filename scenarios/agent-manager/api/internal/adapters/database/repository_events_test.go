@@ -15,9 +15,7 @@ import (
 )
 
 func TestCheckpointRepository(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 
@@ -112,9 +110,7 @@ func TestCheckpointRepository(t *testing.T) {
 // ============================================================================
 
 func TestIdempotencyRepository(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 
@@ -190,9 +186,7 @@ func TestIdempotencyRepository(t *testing.T) {
 }
 
 func TestIdempotencyExpiration(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 
@@ -223,9 +217,7 @@ func TestIdempotencyExpiration(t *testing.T) {
 }
 
 func TestContinuationIdempotencySurvivesExpiryAndRejectsCollisions(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	runID := uuid.New()
@@ -310,8 +302,7 @@ func TestContinuationIdempotencySurvivesExpiryAndRejectsCollisions(t *testing.T)
 }
 
 func TestContinuationIdempotencyFailsClosedOnLegacyPendingAndMissingComplete(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	continuations := repos.Idempotency.(repository.ContinuationIdempotencyRepository)
@@ -361,9 +352,7 @@ func TestContinuationIdempotencyFailsClosedOnLegacyPendingAndMissingComplete(t *
 // ============================================================================
 
 func TestPolicyCRUD(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 
@@ -459,9 +448,7 @@ func TestPolicyCRUD(t *testing.T) {
 // ============================================================================
 
 func TestJSONBTypes(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 
@@ -509,9 +496,7 @@ func TestJSONBTypes(t *testing.T) {
 }
 
 func TestRunWithComplexFields(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 
@@ -670,9 +655,7 @@ func TestRunWithComplexFields(t *testing.T) {
 }
 
 func TestIdempotencyReserveReclaimsExpiredAndFailed(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 

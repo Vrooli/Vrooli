@@ -139,12 +139,10 @@ func (s *Service) accumulateStored(ctx context.Context, since, until time.Time) 
 // that model's temperature and compared with that model's measured threshold.
 // An observation with nothing to score is neither positive nor negative here.
 func (s *Service) frictionPositive(label Label, row Annotation) bool {
-	compiled, ok := s.pack.Label(label.ID)
-	if !ok || !label.Friction.Enabled {
+	if _, ok := s.pack.Label(label.ID); !ok || !label.Friction.Enabled {
 		return false
 	}
-	model, role := ProofKey(row)
-	temperature, measured := label.Gate.Calibration(compiled.hash, model, role)
+	temperature, measured := calibrationOf(label, row)
 	return isFrictionPositive(label, row, temperature, measured)
 }
 

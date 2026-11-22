@@ -24,13 +24,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
-import { Input } from "./ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { Label } from "./ui/label";
 import { RoleSelector } from "./RoleSelector";
 import { AttachmentPreview } from "./AttachmentPreview";
 import { ScopePathsManager } from "./ScopePathsManager";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { Textarea } from "./ui/textarea";
+import { Tabs as RclTabs } from "@vrooli/react-component-library/Tabs/1";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1.1.1";
 import { useAttachments, type PersistedAttachment } from "../hooks/useAttachments";
 import { usePersistedFormState } from "../hooks/usePersistedFormState";
 import { overlayActions } from "../lib/overlayActions";
@@ -488,27 +488,20 @@ export function QuickRunDialog({
           {/* Step 2: Agent Config */}
           {currentStep === 2 && (
             <div className="space-y-4">
-              <Tabs
-                value={agentConfig.mode}
-                onValueChange={(v) =>
-                  setAgentConfig({
-                    ...agentConfig,
-                    mode: v as "profile" | "custom",
-                  })
-                }
-              >
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="profile" className="gap-2">
-                    <Settings2 className="h-4 w-4" />
-                    Use Profile
-                  </TabsTrigger>
-                  <TabsTrigger value="custom" className="gap-2">
-                    <Bot className="h-4 w-4" />
-                    Custom Config
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="profile" className="mt-4 space-y-4">
+              <RclTabs
+                mode="controlled"
+                active={agentConfig.mode}
+                onChange={(mode) => setAgentConfig({ ...agentConfig, mode: mode as "profile" | "custom" })}
+                ariaLabel="Agent configuration mode"
+                density="compact"
+                variant="segmented"
+                items={[
+                  { id: "profile", label: "Use Profile", icon: <Settings2 className="h-4 w-4" /> },
+                  { id: "custom", label: "Custom Config", icon: <Bot className="h-4 w-4" /> },
+                ]}
+                testId="quick-run-config-tabs"
+                panels={{
+                  profile: <div className="mt-4 space-y-4">
                   {profiles.length === 0 ? (
                     <div className="rounded-lg border border-dashed border-border p-6 text-center">
                       <Bot className="mx-auto h-10 w-10 text-muted-foreground opacity-50" />
@@ -576,9 +569,8 @@ export function QuickRunDialog({
                       )}
                     </div>
                   )}
-                </TabsContent>
-
-                <TabsContent value="custom" className="mt-4 space-y-4">
+                  </div>,
+                  custom: <div className="mt-4 space-y-4">
                   <RoleSelector
                     catalog={rolePolicyCatalog}
                     value={agentConfig.roleRef}
@@ -746,8 +738,9 @@ export function QuickRunDialog({
                       Only applies to sandboxed runs. The sandbox must match the task scope.
                     </p>
                   </div>
-                </TabsContent>
-              </Tabs>
+                  </div>,
+                }}
+              />
             </div>
           )}
 

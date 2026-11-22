@@ -687,11 +687,21 @@ func newSandboxLaunchedProcess(ctx context.Context, l *SandboxLauncher, pid int,
 	streamsWg.Add(2)
 	go p.runStream(ctx, "stdout", p.stdoutW, &streamsWg)
 	go p.runStream(ctx, "stderr", p.stderrW, &streamsWg)
+	cancellationCleanupDone := make(chan struct{})
+	stopCancellationCleanup := context.AfterFunc(ctx, func() {
+		defer close(cancellationCleanupDone)
+		if !p.exitInfoAlreadyRecorded() {
+			p.Kill()
+		}
+	})
 
 	// Coordinator: closes pipes + waitCh once both SSE streams have
 	// terminated.
 	go func() {
 		streamsWg.Wait()
+		if !stopCancellationCleanup() {
+			<-cancellationCleanupDone
+		}
 		_ = p.stdoutW.Close()
 		_ = p.stderrW.Close()
 		p.reconcileExitInfo()

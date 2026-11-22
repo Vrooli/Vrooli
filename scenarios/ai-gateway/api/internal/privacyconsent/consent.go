@@ -71,9 +71,9 @@ func normalize(user, source string) (string, string, error) {
 		return "", "", errors.New("verified user subject is required")
 	}
 	switch source {
-	case "own-key", "vrooli-credits":
+	case "own-key", "vrooli-credits", "audio-tools-openai-gpt-live":
 	default:
-		return "", "", errors.New("consent source must be own-key or vrooli-credits")
+		return "", "", errors.New("consent source is unsupported")
 	}
 	return user, source, nil
 }
@@ -118,7 +118,7 @@ func (s *Store) Verify(ctx context.Context, receipt, source string) error {
 }
 
 func validRemoteSource(source string) bool {
-	return source == "own-key" || source == "vrooli-credits"
+	return source == "own-key" || source == "vrooli-credits" || source == "audio-tools-openai-gpt-live"
 }
 
 func validReceipt(receipt string) bool {

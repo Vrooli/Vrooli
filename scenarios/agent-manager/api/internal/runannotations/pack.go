@@ -305,10 +305,10 @@ type Friction struct {
 	Enabled        bool     `json:"enabled"`
 	MinProbability *float64 `json:"min_probability,omitempty"`
 	// MaxScore makes a low-is-bad signed score a friction positive only at or
-	// below this value (operator.valence -1 = frustrated).
+	// below this value (a signed valence of -1 = negative).
 	MaxScore *float64 `json:"max_score,omitempty"`
 	// MinScore makes a high-is-bad score a friction positive only at or above
-	// this value (agent.stalled 2 = noticeable repetition). Exactly one of
+	// this value (a stall score of 2 = noticeable repetition). Exactly one of
 	// MinScore/MaxScore is required for an enabled score label: without a
 	// direction even a mild score would count as friction when confident.
 	MinScore   *float64 `json:"min_score,omitempty"`

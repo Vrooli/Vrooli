@@ -51,8 +51,7 @@ func requireDepths(t *testing.T, repos *Repositories, chain []*domain.Run, want 
 // Every insert path (create, import, attach) derives depth from the parent row,
 // and a full-row update that keeps the parent keeps the depth.
 func TestRunDepthIsDerivedFromTheParentRowOnInsert(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	chain := insertLineage(t, repos, 4)
 	requireDepths(t, repos, chain, 0, 1, 2, 3)
@@ -78,8 +77,7 @@ func TestRunDepthIsDerivedFromTheParentRowOnInsert(t *testing.T) {
 // Children created before runs.depth existed are backfilled from their lineage;
 // a child whose parent row is gone starts a new chain at depth 1.
 func TestRunDepthBackfillFollowsLineage(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	chain := insertLineage(t, repos, 3)

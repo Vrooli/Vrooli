@@ -22,8 +22,8 @@ func writeFile(t *testing.T, name, body string) string {
 func TestGoldRowsSelectTheNamedLabelOnly(t *testing.T) {
 	rows := []goldFileRow{
 		{RunID: "run-1", Label: "work.blocked_by_tool", Positive: boolPtr(true)},
-		{RunID: "run-2", Label: "operator.frustrated", Positive: boolPtr(true)},
-		{RunID: "run-3", Labels: map[string]bool{"work.blocked_by_tool": false, "operator.frustrated": true}},
+		{RunID: "run-2", Label: "operator.dissatisfied", Positive: boolPtr(true)},
+		{RunID: "run-3", Labels: map[string]bool{"work.blocked_by_tool": false, "operator.dissatisfied": true}},
 	}
 	got := goldRowsFor(rows, "work.blocked_by_tool")
 	if len(got) != 2 || got[0].RunID != "run-1" || !got[0].Positive || got[1].RunID != "run-3" || got[1].Positive {
@@ -34,7 +34,7 @@ func TestGoldRowsSelectTheNamedLabelOnly(t *testing.T) {
 func TestSingleGoldLabelRejectsAmbiguity(t *testing.T) {
 	rows := []goldFileRow{
 		{RunID: "run-1", Labels: map[string]bool{"work.blocked_by_tool": true}},
-		{RunID: "run-2", Labels: map[string]bool{"operator.frustrated": true}},
+		{RunID: "run-2", Labels: map[string]bool{"operator.dissatisfied": true}},
 	}
 	if _, err := singleGoldLabel(rows); err == nil {
 		t.Fatal("ambiguous labels were accepted")
@@ -88,7 +88,7 @@ func TestBenchmarkRequestCarriesTheSplitTheFitFileAndTheCandidate(t *testing.T) 
 func TestBenchmarkRequestRefusesInconsistentFlags(t *testing.T) {
 	gold := writeFile(t, "gold.jsonl", `{"run_id":"r1","label":"work.blocked_by_tool","positive":true}
 `)
-	other := writeFile(t, "other.jsonl", `{"run_id":"r2","label":"operator.frustrated","positive":true}
+	other := writeFile(t, "other.jsonl", `{"run_id":"r2","label":"operator.dissatisfied","positive":true}
 `)
 	if _, err := benchmarkRequestFrom("", gold, "", "tuning", gold, "", "", "", ""); err == nil || !strings.Contains(err.Error(), "--fit-from") {
 		t.Fatalf("err = %v, want --fit-from refused for a tuning split", err)
@@ -96,7 +96,7 @@ func TestBenchmarkRequestRefusesInconsistentFlags(t *testing.T) {
 	if _, err := benchmarkRequestFrom("", gold, "", "holdout", other, "", "", "", ""); err == nil || !strings.Contains(err.Error(), "no row for label") {
 		t.Fatalf("err = %v, want a fit file for another label refused", err)
 	}
-	if _, err := benchmarkRequestFrom("", gold, "operator.frustrated", "tuning", "", "", "", "", ""); err == nil || !strings.Contains(err.Error(), "no gold row names label") {
+	if _, err := benchmarkRequestFrom("", gold, "operator.dissatisfied", "tuning", "", "", "", "", ""); err == nil || !strings.Contains(err.Error(), "no gold row names label") {
 		t.Fatalf("err = %v, want an unnamed label refused", err)
 	}
 	for _, bad := range []string{"0", "1.5", "abc"} {
@@ -159,7 +159,7 @@ func TestCalibrationRequestUnionsGoldFilesAndCountsARunOnce(t *testing.T) {
 	if request.Split != "tuning" || request.Model != "laya:en" {
 		t.Fatalf("request = %+v", request)
 	}
-	if _, err := calibrationRequestFrom("", []string{first}, "operator.frustrated", "", "", ""); err == nil {
+	if _, err := calibrationRequestFrom("", []string{first}, "operator.dissatisfied", "", "", ""); err == nil {
 		t.Fatal("a file with no row for the label was accepted")
 	}
 }
@@ -193,7 +193,7 @@ func TestRenderCalibrationPrintsBothTablesAndTheStoredTemperature(t *testing.T) 
 func TestRenderBenchmarkNamesUnobservedRowsInsteadOfDroppingThem(t *testing.T) {
 	var out bytes.Buffer
 	renderBenchmark(&out, benchmarkResult{
-		Label: "operator.frustrated", Split: "holdout", Source: "pinned", Labelled: 4, Gold: 0,
+		Label: "operator.dissatisfied", Split: "holdout", Source: "pinned", Labelled: 4, Gold: 0,
 		Unobserved: 2, UnobservedSubjects: []string{"r1-m2", "r1-m5"},
 	})
 	text := out.String()
@@ -206,7 +206,7 @@ func TestRenderBenchmarkNamesUnobservedRowsInsteadOfDroppingThem(t *testing.T) {
 
 func TestGoldDraftRowsForMessagesCarryTheScopeID(t *testing.T) {
 	var out bytes.Buffer
-	draft := goldDraft{Label: "operator.frustrated", Runs: []goldDraftRun{{RunID: "run-1", ScopeID: "run-1-m3", Digest: `{"message":{}}`}}}
+	draft := goldDraft{Label: "operator.dissatisfied", Runs: []goldDraftRun{{RunID: "run-1", ScopeID: "run-1-m3", Digest: `{"message":{}}`}}}
 	if err := writeGoldDraft(&out, draft); err != nil {
 		t.Fatal(err)
 	}

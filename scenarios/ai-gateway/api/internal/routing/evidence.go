@@ -87,6 +87,7 @@ func (s *Service) evidence(req *sharedv1.GatewayRequest, plan routePlan, status 
 		PromptRedacted:   detectPassRan(req, status),
 		ResponseRedacted: false,
 		LatencyMs:        latency.Milliseconds(),
+		TotalDurationNs:  max(int64(latency), 0),
 		CreatedAt:        s.now().UTC().Format(time.RFC3339Nano),
 	}
 	populateAttachmentEvidence(ev, req.GetAttachments())

@@ -217,9 +217,20 @@ type RunUpdate struct {
 	StartedAt time.Time
 	EndedAt   time.Time
 	Active    bool
+	// Unknown settles a nonterminal run to unknown instead of complete: its
+	// source is gone without a trustworthy terminal signal. A terminal run is
+	// left as it is.
+	Unknown bool
 	// Recorded counts the events this tick appended to the run's recall. An
 	// idle run that gained events was re-imported and must be re-derived.
 	Recorded int
+	// TranscriptPath, when set, is the file that now carries the run's
+	// transcript: one that grew, or the new path of a moved file.
+	TranscriptPath string
+	// LineagePaths are the paths of the run's other files. A replacement of
+	// one of a lineage's files leaves the run's transcript path alone when
+	// another of its files carries it.
+	LineagePaths []string
 }
 
 // Host is the run, event and search side of capture, implemented by the

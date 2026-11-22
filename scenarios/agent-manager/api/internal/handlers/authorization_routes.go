@@ -228,6 +228,12 @@ func AgentOperationMiddleware(next http.Handler) http.Handler {
 				next.ServeHTTP(w, r)
 				return
 			}
+			if isBrowserTabConsentRoute(r) && p.IsVerified() && p.Subject == BrowserTabConsentBrokerServiceSubject {
+				if _, err := authn.RequireCapability(r.Context(), BrowserTabConsentBrokerScope); err == nil {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
 			// BAS may reach only the run-specific evidence authorization request.
 			// The handler independently checks its signed run token, persisted browser
 			// capability, opaque grant receipt, and exact one-run operation grant.
@@ -580,6 +586,13 @@ func agentOperationRoute(r *http.Request, interactive bool) bool {
 	if r.Method != http.MethodPost {
 		return false
 	}
+	switch r.URL.Path {
+	case "/api/v1/browser/authorize-open", "/api/v1/browser/resolve-caller", "/api/v1/browser/resolve-profile", "/api/v1/browser/resolve-context":
+		// These exact run-scoped routes authenticate the signed run token and
+		// persisted browser grant inside their handlers. Tab-consent issue and
+		// verification use a separate BAS service role below.
+		return true
+	}
 	if strings.HasPrefix(r.URL.Path, "/api/v1/annotations/") {
 		// Annotations are derived evidence, not run state or an operator
 		// decision. Writing them does not approve, stop or re-task a run, so an
@@ -682,6 +695,10 @@ func agentOperationRoute(r *http.Request, interactive bool) bool {
 		return true
 	}
 	return false
+}
+
+func isBrowserTabConsentRoute(r *http.Request) bool {
+	return r != nil && r.Method == http.MethodPost && (r.URL.Path == "/api/v1/browser/tab-consent/issue" || r.URL.Path == "/api/v1/browser/tab-consent/verify" || r.URL.Path == "/api/v1/browser/tab-consent/revoke")
 }
 
 // signedEventWebhookRoute lists the Vrooli Events webhook targets. They are

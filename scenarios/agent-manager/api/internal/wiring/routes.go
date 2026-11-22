@@ -229,6 +229,7 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		handlers.WithEffortEnrollments(deps.SupervisionService),
 		handlers.WithFrictionBoard(frictionBoard),
 		handlers.WithBrowserEvidenceProofVerifier(handlers.NewDiscoveredBrowserEvidenceProofVerifier()),
+		handlers.WithBrowserSessionSettlementClient(handlers.NewDiscoveredBrowserSessionSettlementClient()),
 		handlers.WithBrowserPaneReceiptIssuer(handlers.NewDiscoveredBrowserPaneReceiptIssuer()),
 	}
 	topicDir, topicErr := model_eval.ResolveTopicDir()

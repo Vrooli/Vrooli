@@ -39,8 +39,7 @@ func derivedRowCount(t *testing.T, db *DB, runID string) int {
 }
 
 func TestDeletingARunOrItsTaskRemovesItsDerivedRows(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 
@@ -82,8 +81,7 @@ func TestDeletingARunOrItsTaskRemovesItsDerivedRows(t *testing.T) {
 }
 
 func TestOrphanRepairRemovesOnlyDeletedRunsRowsAndCompletes(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	task := &domain.Task{ID: uuid.New(), Title: "t", ScopePath: ".", Status: domain.TaskStatusQueued}

@@ -926,27 +926,27 @@ func (a *stderrAccumulator) String() string {
 	return a.buf.String()
 }
 
+func (a *stderrAccumulator) Write(p []byte) (int, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.buf.Write(p)
+}
+
 // wait blocks until the drainer goroutine has consumed everything from
-// proc.Stderr() (which happens when the producer closes the pipe). The
-// caller MUST invoke this after proc.Wait() returns and before reading
-// String(); otherwise the captured stderr may be incomplete.
+// proc.Stderr() (which happens when the producer closes the pipe). Callers
+// wait before proc.Wait() so the child cannot block on a full stderr pipe,
+// then read String() only after wait returns.
 func (a *stderrAccumulator) wait() { <-a.done }
 
 // spawnStderrAccumulator launches a goroutine that drains proc.Stderr()
-// into an internal buffer. Use [stderrAccumulator.wait] after
-// proc.Wait() to ensure the drainer has finished before reading.
+// into an internal buffer. Use [stderrAccumulator.wait] before proc.Wait()
+// to ensure the child can finish writing stderr before it is waited on.
 func (r *Runner) spawnStderrAccumulator(proc runner.LaunchedProcess) *stderrAccumulator {
 	a := &stderrAccumulator{done: make(chan struct{})}
 	go func() {
 		defer close(a.done)
 		defer obs.RecoverToFailure("stderr accumulator", nil)
-		scanner := bufio.NewScanner(proc.Stderr())
-		for scanner.Scan() {
-			a.mu.Lock()
-			a.buf.WriteString(scanner.Text())
-			a.buf.WriteString("\n")
-			a.mu.Unlock()
-		}
+		_, _ = io.Copy(a, proc.Stderr())
 	}()
 	return a
 }

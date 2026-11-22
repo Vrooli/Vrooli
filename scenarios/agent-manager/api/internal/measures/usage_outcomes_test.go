@@ -2,6 +2,8 @@ package measures
 
 import (
 	"context"
+	"errors"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -164,6 +166,113 @@ func TestOutcomesReuseTheWindowScanAndRefreshInTheBackground(t *testing.T) {
 	read("model")
 	if got := scans.Load(); got != 3 {
 		t.Fatalf("an expired entry must be read again: %d scans", got)
+	}
+}
+
+func TestInputCacheReleasesGatesForDistinctHistoricalWindows(t *testing.T) {
+	now := time.Date(2026, 10, 29, 6, 0, 0, 0, time.UTC)
+	cache := newInputCache()
+	load := func(context.Context) (outcomeInputs, error) { return outcomeInputs{}, nil }
+	for day := 1; day <= 32; day++ {
+		to := now.Add(-time.Duration(day) * 24 * time.Hour)
+		if _, err := cache.get(context.Background(), now, to.Add(-time.Hour), to, load); err != nil {
+			t.Fatalf("load window %d: %v", day, err)
+		}
+	}
+	failedTo := now.Add(-100 * 24 * time.Hour)
+	attempts := 0
+	if _, err := cache.get(context.Background(), now, failedTo.Add(-time.Hour), failedTo, func(context.Context) (outcomeInputs, error) {
+		attempts++
+		return outcomeInputs{}, errors.New("ledger read unavailable")
+	}); err == nil {
+		t.Fatal("first load should expose the ledger failure")
+	}
+	cache.mu.Lock()
+	retainedAfterFailure := len(cache.loading)
+	cache.mu.Unlock()
+	if retainedAfterFailure != 0 {
+		t.Fatalf("failed load retained %d gates before retry, want 0", retainedAfterFailure)
+	}
+	if _, err := cache.get(context.Background(), now, failedTo.Add(-time.Hour), failedTo, func(context.Context) (outcomeInputs, error) {
+		attempts++
+		return outcomeInputs{}, nil
+	}); err != nil {
+		t.Fatalf("retry after failed load: %v", err)
+	}
+	if attempts != 2 {
+		t.Fatalf("failed window load attempts = %d, want two", attempts)
+	}
+
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	if got := len(cache.entries); got > inputEntries {
+		t.Fatalf("cached windows = %d, want at most %d", got, inputEntries)
+	}
+	if got := len(cache.loading); got != 0 {
+		t.Fatalf("idle load gates retained = %d after 32 distinct windows, want 0", got)
+	}
+}
+
+func TestInputCacheSharesConcurrentLoadAndReleasesItsGate(t *testing.T) {
+	const readers = 8
+	now := time.Date(2026, 10, 29, 6, 0, 0, 0, time.UTC)
+	from, to := now.Add(-48*time.Hour), now.Add(-47*time.Hour)
+	key := inputKeyFor(now, from, to)
+	cache := newInputCache()
+	var loads atomic.Int64
+	loadStarted, releaseLoad := make(chan struct{}), make(chan struct{})
+	ready, start := make(chan struct{}, readers), make(chan struct{})
+	results := make(chan error, readers)
+	for i := 0; i < readers; i++ {
+		go func() {
+			ready <- struct{}{}
+			<-start
+			_, err := cache.get(context.Background(), now, from, to, func(context.Context) (outcomeInputs, error) {
+				if loads.Add(1) == 1 {
+					close(loadStarted)
+				}
+				<-releaseLoad
+				return outcomeInputs{}, nil
+			})
+			results <- err
+		}()
+	}
+	for i := 0; i < readers; i++ {
+		<-ready
+	}
+	close(start)
+	<-loadStarted
+	deadline := time.Now().Add(time.Second)
+	for {
+		cache.mu.Lock()
+		gate := cache.loading[key]
+		refs := 0
+		if gate != nil {
+			refs = gate.refs
+		}
+		cache.mu.Unlock()
+		if refs == readers {
+			break
+		}
+		if time.Now().After(deadline) {
+			close(releaseLoad)
+			t.Fatalf("load gate references = %d, want %d waiting readers", refs, readers)
+		}
+		runtime.Gosched()
+	}
+	close(releaseLoad)
+	for i := 0; i < readers; i++ {
+		if err := <-results; err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := loads.Load(); got != 1 {
+		t.Fatalf("concurrent first reads scanned %d times, want one", got)
+	}
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	if got := len(cache.loading); got != 0 {
+		t.Fatalf("completed load retained %d gates, want 0", got)
 	}
 }
 

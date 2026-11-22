@@ -22,6 +22,8 @@ type lifecycleChildLauncher struct {
 	mu      sync.Mutex
 	states  map[uuid.UUID]workflowruntime.ChildState
 	prompts map[uuid.UUID]string
+	nodes   map[uuid.UUID]string
+	stops   map[uuid.UUID]int
 }
 
 // replayChildLauncher adapts the scriptable transcript fake to the workflow
@@ -63,7 +65,7 @@ func (l *replayChildLauncher) StartFresh(ctx context.Context, request workflowru
 }
 
 func newLifecycleChildLauncher() *lifecycleChildLauncher {
-	return &lifecycleChildLauncher{states: make(map[uuid.UUID]workflowruntime.ChildState), prompts: make(map[uuid.UUID]string)}
+	return &lifecycleChildLauncher{states: make(map[uuid.UUID]workflowruntime.ChildState), prompts: make(map[uuid.UUID]string), nodes: make(map[uuid.UUID]string), stops: make(map[uuid.UUID]int)}
 }
 
 func (l *lifecycleChildLauncher) StartFresh(_ context.Context, request workflowruntime.ChildRequest) (workflowruntime.ChildState, error) {
@@ -72,6 +74,7 @@ func (l *lifecycleChildLauncher) StartFresh(_ context.Context, request workflowr
 	state := workflowruntime.ChildState{RunID: uuid.New(), ConversationID: "deterministic-workflow-child"}
 	l.states[state.RunID] = state
 	l.prompts[state.RunID] = request.Prompt
+	l.nodes[state.RunID] = request.NodeID
 	return state, nil
 }
 
@@ -91,6 +94,7 @@ func (l *lifecycleChildLauncher) Stop(_ context.Context, id uuid.UUID) error {
 	state := l.states[id]
 	state.Terminal, state.Failed = true, true
 	l.states[id] = state
+	l.stops[id]++
 	return nil
 }
 
@@ -118,6 +122,73 @@ func (l *lifecycleChildLauncher) onlyRun(t *testing.T) uuid.UUID {
 		return id
 	}
 	return uuid.Nil
+}
+
+type anyJoinLifecycleFixture struct {
+	Harness   *orchestratorHarness
+	Engine    *workflowruntime.Engine
+	Execution *domain.WorkflowExecution
+	Launcher  *lifecycleChildLauncher
+	WinnerID  uuid.UUID
+	LoserID   uuid.UUID
+}
+
+// newAnyJoinLifecycleFixture owns the shared deterministic parallel workflow
+// setup; each test keeps its provider and durable-state expectations local.
+func newAnyJoinLifecycleFixture(t *testing.T, childProvider workflowruntime.ChildLauncher, launcher *lifecycleChildLauncher) *anyJoinLifecycleFixture {
+	t.Helper()
+	ctx := context.Background()
+	harness := newOrchestratorHarness(t)
+	t.Cleanup(harness.Cleanup)
+	definition := lifecycleRevision()
+	definition.Key = "integration/parallel-any-lifecycle"
+	definition.Definition.Key = definition.Key
+	definition.Definition.Budgets.MaxConcurrency = 2
+	definition.Definition.OutputSchema = json.RawMessage(`{"type":"object"}`)
+	definition.Definition.EntryNode = "fanout"
+	definition.Definition.Nodes = []domain.WorkflowNode{
+		{ID: "fanout", Kind: domain.WorkflowNodeBranch, Branch: &domain.WorkflowBranchNode{Parallel: true}},
+		{ID: "loser", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "still running"}},
+		{ID: "winner", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "finished successfully"}},
+		{ID: "joined", Kind: domain.WorkflowNodeJoin, Join: &domain.WorkflowJoinNode{Strategy: "any"}},
+		{ID: "end", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}},
+	}
+	definition.Definition.Edges = []domain.WorkflowEdge{
+		{From: "fanout", To: "loser"}, {From: "fanout", To: "winner"},
+		{From: "loser", To: "joined"}, {From: "winner", To: "joined"}, {From: "joined", To: "end"},
+	}
+	if err := harness.Repos.Workflows.ActivateBatch(ctx, []*domain.WorkflowRevision{definition}); err != nil {
+		t.Fatalf("activate workflow: %v", err)
+	}
+	expressions, err := workflowruntime.NewExpressionEvaluator()
+	if err != nil {
+		t.Fatalf("new expression evaluator: %v", err)
+	}
+	engine := &workflowruntime.Engine{Store: harness.Repos.WorkflowExecutions, Catalog: harness.Repos.Workflows, Children: childProvider, Expressions: expressions, Now: harness.Clock.Now}
+	execution, err := engine.Start(ctx, definition, json.RawMessage(`{"subject":"release"}`), "workflow-any-join-stop")
+	if err != nil {
+		t.Fatalf("start workflow: %v", err)
+	}
+	for _, step := range []string{"create parallel attempts", "dispatch first child", "dispatch second child"} {
+		if _, err := engine.Advance(ctx, execution.ID); err != nil {
+			t.Fatalf("%s: %v", step, err)
+		}
+	}
+	fixture := &anyJoinLifecycleFixture{Harness: harness, Engine: engine, Execution: execution, Launcher: launcher}
+	launcher.mu.Lock()
+	for id, node := range launcher.nodes {
+		switch node {
+		case "winner":
+			fixture.WinnerID = id
+		case "loser":
+			fixture.LoserID = id
+		}
+	}
+	launcher.mu.Unlock()
+	if fixture.WinnerID == uuid.Nil || fixture.LoserID == uuid.Nil {
+		t.Fatalf("parallel children missing: winner=%s loser=%s", fixture.WinnerID, fixture.LoserID)
+	}
+	return fixture
 }
 
 func lifecycleRevision() *domain.WorkflowRevision {
@@ -263,5 +334,55 @@ func TestWorkflowLifecycle_ApprovalGateDoesNotConsumeWallTime(t *testing.T) {
 	}
 	if !harness.Clock.Now().Equal(initialClock) {
 		t.Fatalf("approval wait advanced wall clock: before=%s after=%s", initialClock, harness.Clock.Now())
+	}
+}
+
+// TestWorkflowLifecycle_AnyJoinStopsActiveSibling verifies the provider-side
+// lifecycle contract across real workflow repositories: once one member of an
+// `any` join succeeds, every still-active member is stopped and durably marked
+// as short-circuited before the workflow advances past the join.
+func TestWorkflowLifecycle_AnyJoinStopsActiveSibling(t *testing.T) {
+	ctx := context.Background()
+	launcher := newLifecycleChildLauncher()
+	fixture := newAnyJoinLifecycleFixture(t, launcher, launcher)
+	harness, engine, execution := fixture.Harness, fixture.Engine, fixture.Execution
+	launcher.complete(fixture.WinnerID)
+	if _, err := engine.Advance(ctx, execution.ID); err != nil { // persist winner result
+		t.Fatalf("persist winner: %v", err)
+	}
+	if _, err := engine.Advance(ctx, execution.ID); err != nil { // stop active sibling and enter join
+		t.Fatalf("short-circuit any join: %v", err)
+	}
+	launcher.mu.Lock()
+	stopCount, loser := launcher.stops[fixture.LoserID], launcher.states[fixture.LoserID]
+	winnerStops := launcher.stops[fixture.WinnerID]
+	launcher.mu.Unlock()
+	if stopCount != 1 || !loser.Terminal || !loser.Failed || winnerStops != 0 {
+		t.Fatalf("provider stop results: loser=%+v stops=%d winner-stops=%d", loser, stopCount, winnerStops)
+	}
+	attempts, err := harness.Repos.WorkflowExecutions.ListAttempts(ctx, execution.ID)
+	if err != nil {
+		t.Fatalf("list attempts: %v", err)
+	}
+	var winnerCompleted, loserShortCircuited bool
+	for _, attempt := range attempts {
+		switch attempt.NodeID {
+		case "winner":
+			winnerCompleted = attempt.Status == domain.WorkflowAttemptCompleted
+		case "loser":
+			loserShortCircuited = attempt.Status == domain.WorkflowAttemptFailed && attempt.ErrorCode == "parallel_join_short_circuit"
+		}
+	}
+	if !winnerCompleted || !loserShortCircuited {
+		t.Fatalf("join did not preserve winner and durable loser disposition: %+v", attempts)
+	}
+	for _, step := range []string{"complete join", "complete end node"} {
+		if _, err := engine.Advance(ctx, execution.ID); err != nil {
+			t.Fatalf("%s: %v", step, err)
+		}
+	}
+	final, err := harness.Repos.WorkflowExecutions.Get(ctx, execution.ID)
+	if err != nil || final.Status != domain.WorkflowExecutionSucceeded {
+		t.Fatalf("final workflow status=%v err=%v, want succeeded", final, err)
 	}
 }

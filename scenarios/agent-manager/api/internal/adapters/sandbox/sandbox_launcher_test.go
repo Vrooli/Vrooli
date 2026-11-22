@@ -26,8 +26,6 @@ import (
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
-
-	"github.com/google/uuid"
 )
 
 func TestSandboxLauncherPolicyFiles(t *testing.T) {
@@ -36,9 +34,8 @@ func TestSandboxLauncherPolicyFiles(t *testing.T) {
 			mock := newSandboxTestServer(707)
 			mock.hostMergedDir = "/sandbox/merged"
 			mock.policyFilesSupported = supported
-			server := mock.startServer(t)
-			defer server.Close()
-			launcher := NewSandboxLauncher(NewWorkspaceSandboxProvider(server.URL), uuid.New())
+			fixture := newSandboxLauncherFixture(t, mock)
+			launcher := fixture.launcher
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			file := runner.PolicyFile{Source: "/owner/policy", Target: "/etc/consumer/policy", SHA256: strings.Repeat("a", 64)}
@@ -71,11 +68,8 @@ func TestSandboxLauncherPolicyFiles(t *testing.T) {
 // all the bytes and Wait returns nil.
 func TestSandboxLauncher_LaunchAndStreamLog(t *testing.T) {
 	mock := newSandboxTestServer(99)
-	server := mock.startServer(t)
-	defer server.Close()
-
-	provider := NewWorkspaceSandboxProvider(server.URL)
-	launcher := NewSandboxLauncher(provider, uuid.New())
+	fixture := newSandboxLauncherFixture(t, mock)
+	launcher := fixture.launcher
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -125,11 +119,8 @@ func TestSandboxLauncher_LaunchAndStreamLog(t *testing.T) {
 // old .am-prompts file-staging path).
 func TestSandboxLauncher_StdinPostedNotStaged(t *testing.T) {
 	mock := newSandboxTestServer(101)
-	server := mock.startServer(t)
-	defer server.Close()
-
-	provider := NewWorkspaceSandboxProvider(server.URL)
-	launcher := NewSandboxLauncher(provider, uuid.New())
+	fixture := newSandboxLauncherFixture(t, mock)
+	launcher := fixture.launcher
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -194,11 +185,8 @@ func TestLaunchNetworkOverrideHonorsExplicitDeny(t *testing.T) {
 
 func TestSandboxLauncher_PostsExplicitNetworkDeny(t *testing.T) {
 	mock := newSandboxTestServer(103)
-	server := mock.startServer(t)
-	defer server.Close()
-
-	provider := NewWorkspaceSandboxProvider(server.URL)
-	launcher := NewSandboxLauncher(provider, uuid.New())
+	fixture := newSandboxLauncherFixture(t, mock)
+	launcher := fixture.launcher
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	proc, err := launcher.Launch(ctx, runner.LaunchRequest{
@@ -245,11 +233,8 @@ func TestRunRuntimeMounts_DeclaresSingleRunRuntimeFolder(t *testing.T) {
 // DELETE and Wait unblocks promptly.
 func TestSandboxLauncher_KillReturnsThroughDelete(t *testing.T) {
 	mock := newSandboxTestServer(202)
-	server := mock.startServer(t)
-	defer server.Close()
-
-	provider := NewWorkspaceSandboxProvider(server.URL)
-	launcher := NewSandboxLauncher(provider, uuid.New())
+	fixture := newSandboxLauncherFixture(t, mock)
+	launcher := fixture.launcher
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -280,11 +265,8 @@ func TestSandboxLauncher_KillReturnsThroughDelete(t *testing.T) {
 // triggers the SSE streams to close so Wait returns.
 func TestSandboxLauncher_ContextCancelKills(t *testing.T) {
 	mock := newSandboxTestServer(303)
-	server := mock.startServer(t)
-	defer server.Close()
-
-	provider := NewWorkspaceSandboxProvider(server.URL)
-	launcher := NewSandboxLauncher(provider, uuid.New())
+	fixture := newSandboxLauncherFixture(t, mock)
+	launcher := fixture.launcher
 
 	ctx, cancel := context.WithCancel(context.Background())
 	proc, err := launcher.Launch(ctx, runner.LaunchRequest{Command: "sleep", Args: []string{"30"}})
@@ -294,7 +276,7 @@ func TestSandboxLauncher_ContextCancelKills(t *testing.T) {
 	go io.Copy(io.Discard, proc.Stdout())
 	go io.Copy(io.Discard, proc.Stderr())
 
-	time.Sleep(80 * time.Millisecond)
+	mock.waitForStreams(t)
 	cancel()
 
 	done := make(chan struct{})
@@ -303,6 +285,9 @@ func TestSandboxLauncher_ContextCancelKills(t *testing.T) {
 	case <-done:
 	case <-time.After(2 * time.Second):
 		t.Fatal("Wait did not return within 2s of ctx.Cancel")
+	}
+	if !mock.killSeen.Load() || mock.procRunning.Load() {
+		t.Fatalf("context cancellation left remote PID active: deleteSeen=%t running=%t", mock.killSeen.Load(), mock.procRunning.Load())
 	}
 }
 
@@ -313,11 +298,8 @@ func TestSandboxLauncher_StartProcess403ReturnsLaunchBlocked(t *testing.T) {
 	mock := newSandboxTestServer(404)
 	mock.startProcessCode = http.StatusForbidden
 	mock.startProcessReply = `{"error":"git_verb_blocked","verb":"push","message":"git verb 'push' is not in the allowlist"}`
-	server := mock.startServer(t)
-	defer server.Close()
-
-	provider := NewWorkspaceSandboxProvider(server.URL)
-	launcher := NewSandboxLauncher(provider, uuid.New())
+	fixture := newSandboxLauncherFixture(t, mock)
+	launcher := fixture.launcher
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -358,9 +340,8 @@ func TestSandboxLauncherTypesOnlyExactLifecycleAdmissionRefusal(t *testing.T) {
 			mock := newSandboxTestServer(404)
 			mock.startProcessCode = test.status
 			mock.startProcessReply = test.body
-			server := mock.startServer(t)
-			defer server.Close()
-			launcher := NewSandboxLauncher(NewWorkspaceSandboxProvider(server.URL), uuid.New())
+			fixture := newSandboxLauncherFixture(t, mock)
+			launcher := fixture.launcher
 			_, err := launcher.startProcess(context.Background(), startProcessBody{Command: "codex"})
 			if err == nil {
 				t.Fatal("startProcess returned nil for refusal")
@@ -380,10 +361,8 @@ func TestSandboxLauncherPreflightsKnownClosedProviderAdmission(t *testing.T) {
 		Phase:           commonv1.LifecycleMaintenancePhase_LIFECYCLE_MAINTENANCE_PHASE_CLOSING,
 		AdmissionClosed: true, ObservedAt: timestamppb.Now(),
 	}
-	server := mock.startServer(t)
-	defer server.Close()
-
-	launcher := NewSandboxLauncher(NewWorkspaceSandboxProvider(server.URL), uuid.New())
+	fixture := newSandboxLauncherFixture(t, mock)
+	launcher := fixture.launcher
 	_, err := launcher.Launch(context.Background(), runner.LaunchRequest{Command: "codex"})
 	if err == nil || !domain.IsPreEffectRefusal(err) || !errors.Is(err, domain.ErrProviderAdmissionMaintenance) {
 		t.Fatalf("Launch error = %v, want typed pre-effect maintenance refusal", err)
@@ -402,10 +381,8 @@ func TestSandboxLauncherDispatchStillClassifiesMaintenanceRace(t *testing.T) {
 	}
 	mock.startProcessCode = http.StatusConflict
 	mock.startProcessReply = `{"error":"provider admission is closed for lifecycle maintenance","code":409,"success":false}`
-	server := mock.startServer(t)
-	defer server.Close()
-
-	launcher := NewSandboxLauncher(NewWorkspaceSandboxProvider(server.URL), uuid.New())
+	fixture := newSandboxLauncherFixture(t, mock)
+	launcher := fixture.launcher
 	_, err := launcher.Launch(context.Background(), runner.LaunchRequest{Command: "codex"})
 	if err == nil || !domain.IsPreEffectRefusal(err) || !errors.Is(err, domain.ErrProviderAdmissionMaintenance) {
 		t.Fatalf("Launch error = %v, want typed pre-effect maintenance refusal after preflight race", err)
@@ -419,11 +396,8 @@ func TestSandboxLauncherDispatchStillClassifiesMaintenanceRace(t *testing.T) {
 // stderr stream is wired through to proc.Stderr() (not a closed pipe).
 func TestSandboxLauncher_StderrStreamPopulates(t *testing.T) {
 	mock := newSandboxTestServer(505)
-	server := mock.startServer(t)
-	defer server.Close()
-
-	provider := NewWorkspaceSandboxProvider(server.URL)
-	launcher := NewSandboxLauncher(provider, uuid.New())
+	fixture := newSandboxLauncherFixture(t, mock)
+	launcher := fixture.launcher
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -473,11 +447,8 @@ func TestSandboxLauncher_StderrStreamPopulates(t *testing.T) {
 // OOMKilled flag.
 func TestSandboxLauncher_ExitInfoSurfaces(t *testing.T) {
 	mock := newSandboxTestServer(606)
-	server := mock.startServer(t)
-	defer server.Close()
-
-	provider := NewWorkspaceSandboxProvider(server.URL)
-	launcher := NewSandboxLauncher(provider, uuid.New())
+	fixture := newSandboxLauncherFixture(t, mock)
+	launcher := fixture.launcher
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -519,11 +490,8 @@ func TestSandboxLauncher_ExitInfoSurfaces(t *testing.T) {
 func TestSandboxLauncher_NoExitInfo_ReportsFailure(t *testing.T) {
 	mock := newSandboxTestServer(909)
 	mock.hostMergedDir = "/var/lib/workspace-sandbox/sb-no-exit/merged"
-	server := mock.startServer(t)
-	defer server.Close()
-
-	provider := NewWorkspaceSandboxProvider(server.URL)
-	launcher := NewSandboxLauncher(provider, uuid.New())
+	fixture := newSandboxLauncherFixture(t, mock)
+	launcher := fixture.launcher
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -577,11 +545,8 @@ func TestSandboxLauncher_ReconcilesExitInfoAfterStreamDisconnect(t *testing.T) {
 	mock := newSandboxTestServer(910)
 	mock.hostMergedDir = "/var/lib/workspace-sandbox/sb-reconcile/merged"
 	mock.listProcessExit = &remoteExitInfo{ExitCode: 23, Signal: 0}
-	server := mock.startServer(t)
-	defer server.Close()
-
-	provider := NewWorkspaceSandboxProvider(server.URL)
-	launcher := NewSandboxLauncher(provider, uuid.New())
+	fixture := newSandboxLauncherFixture(t, mock)
+	launcher := fixture.launcher
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	proc, err := launcher.Launch(ctx, runner.LaunchRequest{Command: "claude"})
@@ -632,11 +597,8 @@ func TestSandboxLauncher_LogStreamSurvivesPast30s(t *testing.T) {
 	}
 
 	mock := newSandboxTestServer(911)
-	server := mock.startServer(t)
-	defer server.Close()
-
-	provider := NewWorkspaceSandboxProvider(server.URL)
-	launcher := NewSandboxLauncher(provider, uuid.New())
+	fixture := newSandboxLauncherFixture(t, mock)
+	launcher := fixture.launcher
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()

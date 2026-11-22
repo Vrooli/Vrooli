@@ -12,8 +12,8 @@ import (
 )
 
 // A composite label is a rule over other labels. Its inputs are named in the
-// rule as literal keys (labels['operator.pleased'], present['x'],
-// message_labels['operator.frustrated']), so the pack can be checked before it
+// rule as literal keys (labels['a.b'], present['a.b'],
+// message_labels['a.b']), so the pack can be checked before it
 // runs: every input exists, lives in a scope the composite can see, and the
 // composites form no cycle. The same names drive three behaviours: the order a
 // pass evaluates labels in, the inputs a requested composite pulls in, and the
@@ -257,8 +257,10 @@ func (m MessageStats) activation() map[string]float64 {
 }
 
 // messageStats folds a run's message observations of one label: the value of
-// each on the label's own scale (calibrated where the observation's proof
-// exists, raw otherwise) and how many are friction positives.
+// each on the label's own scale, tempered as the annotation view tempers it (see
+// calibrationOf), and how many are friction positives. The measured friction
+// threshold applies only to a proven observation; an unproven one is judged by
+// the label's declared threshold.
 func (cp *CompiledPack) messageStats(compiled *compiledLabel, rows []Annotation) (MessageStats, bool) {
 	var (
 		stats  MessageStats
@@ -270,10 +272,9 @@ func (cp *CompiledPack) messageStats(compiled *compiledLabel, rows []Annotation)
 			continue
 		}
 		stats.Count++
-		temperature, threshold := 1.0, 0.0
-		if cp.StatusFor(compiled, row).State == GateProven {
-			model, role := ProofKey(row)
-			temperature, threshold = compiled.label.Gate.Calibration(row.DefinitionHash, model, role)
+		temperature, threshold := calibrationOf(compiled.label, row)
+		if cp.StatusFor(compiled, row).State != GateProven {
+			threshold = 0
 		}
 		if isFrictionPositive(compiled.label, row, temperature, threshold) {
 			stats.Positives++

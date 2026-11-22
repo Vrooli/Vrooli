@@ -169,7 +169,7 @@ func rightsContextSource() internalrouting.RightsContextSource {
 	}
 }
 
-func loadInferenceRuntime(db *database.RoutedDB, consentStore *privacyconsent.Store, rightsSource internalrouting.RightsContextSource) (inference.Repository, rolecatalog.RoleCatalog) {
+func loadInferenceRuntime(db *database.RoutedDB, consentStore *privacyconsent.Store, rightsSource internalrouting.RightsContextSource, resourceRunner providers.CommandRunner) (inference.Repository, rolecatalog.RoleCatalog) {
 	// A malformed inference catalog degrades typed inference to a stated
 	// reason; it does not take down routing, measures, or conformance. Those
 	// domains have no dependency on the inference role catalog, and failing
@@ -189,7 +189,7 @@ func loadInferenceRuntime(db *database.RoutedDB, consentStore *privacyconsent.St
 		inferenceRepository = inference.UnavailableRepository{Reason: err.Error()}
 		roleCatalog = rolecatalog.RoleCatalog{}
 	} else {
-		adapters := providers.NewDefaultAdapters(nil)
+		adapters := providers.NewDefaultAdapters(resourceRunner)
 		if repoRoot() == "" {
 			adapters = providers.NewPackagedAdapters(bundle)
 		}
@@ -221,7 +221,7 @@ func loadPrivateFeatures(root string) ([]internalrouting.PrivateFeature, monetiz
 	return privateAIFeatures, owners
 }
 
-func buildGatewayServer(db *database.RoutedDB, consentStore *privacyconsent.Store, measuresModule module.Module, inferenceRepository inference.Repository, roleCatalog rolecatalog.RoleCatalog, privateAIFeatures []internalrouting.PrivateFeature, rightsSource internalrouting.RightsContextSource, lpbsConsumerProvider *internalidentity.LPBSConsumerProvider) http.Handler {
+func buildGatewayServer(db *database.RoutedDB, consentStore *privacyconsent.Store, measuresModule module.Module, inferenceRepository inference.Repository, roleCatalog rolecatalog.RoleCatalog, privateAIFeatures []internalrouting.PrivateFeature, rightsSource internalrouting.RightsContextSource, lpbsConsumerProvider *internalidentity.LPBSConsumerProvider, resourceRunner providers.CommandRunner) http.Handler {
 	routeEvidenceRepository := internalrouting.NewSQLRepository(db.Primary())
 	profileCatalog, profileCatalogErr := loadProfileCatalog(repoRoot())
 	if profileCatalogErr != nil {
@@ -234,11 +234,11 @@ func buildGatewayServer(db *database.RoutedDB, consentStore *privacyconsent.Stor
 		catalogH.Module(profileCatalog, roleCatalog),
 		gatewayH.Module(),
 		inferenceH.Module(inferenceH.Deps{Service: inference.NewService(inferenceRepository)}),
-		inventoryH.Module(inventoryH.Deps{InferenceRoles: roleCatalog.RoleNames()}),
+		inventoryH.Module(inventoryH.Deps{Runner: resourceRunner, InferenceRoles: roleCatalog.RoleNames()}),
 		measuresModule,
 		routingH.Module(routingH.Deps{
 			DB:                  db.Primary(),
-			Service:             internalrouting.NewSQLService(db.Primary(), providers.NewDefaultAdapters(nil), internalrouting.WithRightsContextSource(rightsSource), internalrouting.WithRemoteConsentVerifier(consentStore)),
+			Service:             internalrouting.NewSQLService(db.Primary(), providers.NewDefaultAdapters(resourceRunner), internalrouting.WithRightsContextSource(rightsSource), internalrouting.WithRemoteConsentVerifier(consentStore)),
 			MediaExecutor:       internalrouting.NewResourceOpenRouterMediaExecutor(nil),
 			ProviderDecisionHub: internalrouting.NewDefaultProviderDecisionHubClient(),
 			PrivatePolicy:       internalrouting.NewResourcePrivatePolicyService(db.Primary(), privateAIFeatures, repoRoot(), internalrouting.NewDefaultProviderDecisionHubClient()),
@@ -290,9 +290,17 @@ func main() {
 	db := openGatewayDatabase()
 	consentStore, measuresModule := initializeConsentAndMeasures(db)
 	rightsSource := rightsContextSource()
-	inferenceRepository, roleCatalog := loadInferenceRuntime(db, consentStore, rightsSource)
+	// One fact cache serves routing, typed inference and inventory, so a
+	// resource's policy and inventory answers are read once per lifetime
+	// window instead of once per request and per domain.
+	resourceRunner := providers.NewFactCache(providers.ExecRunner{}, providers.DefaultFactLifetime)
+	// Fill the cache before the first request needs it, then keep facts that
+	// callers use from expiring during quiet spells.
+	go providers.WarmFacts(context.Background(), providers.NewDefaultAdapters(resourceRunner))
+	go resourceRunner.KeepWarm(context.Background())
+	inferenceRepository, roleCatalog := loadInferenceRuntime(db, consentStore, rightsSource, resourceRunner)
 	lpbsConsumerProvider := internalidentity.NewLPBSConsumerProvider(os.Getenv("LPBS_CONSUMER_TOKEN_ISSUER"))
 	privateFeatures, _ := loadPrivateFeatures(repoRoot())
-	apiHandler := buildGatewayServer(db, consentStore, measuresModule, inferenceRepository, roleCatalog, privateFeatures, rightsSource, lpbsConsumerProvider)
+	apiHandler := buildGatewayServer(db, consentStore, measuresModule, inferenceRepository, roleCatalog, privateFeatures, rightsSource, lpbsConsumerProvider, resourceRunner)
 	serveGateway(db, buildRootHandler(db, consentStore, apiHandler), lpbsConsumerProvider)
 }

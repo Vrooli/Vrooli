@@ -151,7 +151,7 @@ func (s *Service) messageWorks(ctx context.Context, run *runWork, opts AnnotateO
 		features.MessageText, features.MessageIndex, features.MessageCount = message.Text, index, total
 		work := &runWork{
 			scopeKind: ScopeMessage, scopeID: message.EventID, runID: run.runID, occurredAt: message.At,
-			pass: run.pass, parent: run, force: run.force, facts: facts, features: features, digest: digest, build: build,
+			pass: run.pass, parent: run, forced: run.forced, facts: facts, features: features, digest: digest, build: build,
 			evidenceHash: evidenceFingerprint(digest, RunFacts{}), subjectEvidence: []string{message.EventID},
 			activation:   features.Activation(),
 			observations: map[string]Annotation{}, evidence: map[string][]string{},

@@ -86,16 +86,16 @@ func TestExplicitSubjectsUnionNamedRunsAndGoldFilesWithoutDuplicates(t *testing.
 }
 
 func TestExplicitSubjectsCarryTheMessagesAMessageGoldNames(t *testing.T) {
-	gold := writeFile(t, "mood.jsonl", `{"run_id":"r1","scope_id":"r1-m2","label":"operator.frustrated","positive":true}
-{"run_id":"r1","scope_id":"r1-m5","labels":{"operator.pleased":false,"operator.frustrated":true}}
-{"run_id":"r4","scope_id":"r4-m1","label":"operator.frustrated","positive":false}
+	gold := writeFile(t, "mood.jsonl", `{"run_id":"r1","scope_id":"r1-m2","label":"operator.dissatisfied","positive":true}
+{"run_id":"r1","scope_id":"r1-m5","labels":{"operator.pleased":false,"operator.dissatisfied":true}}
+{"run_id":"r4","scope_id":"r4-m1","label":"operator.dissatisfied","positive":false}
 `)
 	got, err := explicitSubjects("", nil, []string{gold})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if strings.Join(got.RunIDs, ",") != "r1,r4" || strings.Join(got.MessageIDs, ",") != "r1-m2,r1-m5,r4-m1" ||
-		strings.Join(got.Labels, ",") != "operator.frustrated,operator.pleased" {
+		strings.Join(got.Labels, ",") != "operator.dissatisfied,operator.pleased" {
 		t.Fatalf("subjects = %+v", got)
 	}
 	body, err := evaluateBody(evaluateParams{Limit: 3, RunIDs: got.RunIDs, MessageIDs: got.MessageIDs, PinResourceRole: "decide.local.accurate"})
@@ -105,7 +105,7 @@ func TestExplicitSubjectsCarryTheMessagesAMessageGoldNames(t *testing.T) {
 	if ids := body["message_ids"].([]string); len(ids) != 3 || ids[0] != "r1-m2" {
 		t.Fatalf("body = %+v, want the named messages sent so the API answers only them", body)
 	}
-	rows := goldRowsFor([]goldFileRow{{RunID: "r1", ScopeID: "r1-m2", Label: "operator.frustrated", Positive: boolPtr(true)}}, "operator.frustrated")
+	rows := goldRowsFor([]goldFileRow{{RunID: "r1", ScopeID: "r1-m2", Label: "operator.dissatisfied", Positive: boolPtr(true)}}, "operator.dissatisfied")
 	if len(rows) != 1 || rows[0].ScopeID != "r1-m2" {
 		t.Fatalf("wire rows = %+v, want the message id carried to the API", rows)
 	}
@@ -152,7 +152,7 @@ func TestSeriesRenderingLabelsAnUnprovenMeanAsEvidence(t *testing.T) {
 	mean := -0.4
 	var out bytes.Buffer
 	renderSeries(&out, seriesResult{
-		Label: "operator.frustrated", Bucket: "day", Messages: 3,
+		Label: "operator.dissatisfied", Bucket: "day", Messages: 3,
 		Points: []seriesPoint{{Start: "2026-11-17T00:00:00Z", Messages: 3, Mean: &mean, FrictionPositives: 1}},
 		Note:   "3 of 3 message(s) come from a model with no clearing hold-out proof for this definition; the mean is evidence of mood, not a measurement",
 	})
@@ -232,13 +232,13 @@ func TestRunRenderingShowsStateGateAndEvidence(t *testing.T) {
 			Probability: &probability, GateState: "unmeasured", EvidenceEventIDs: []string{"event-1"},
 		}},
 		Counts:  stateCounts{Observed: 1},
-		Missing: []string{"operator.frustrated"},
+		Missing: []string{"operator.dissatisfied"},
 	})
 	text := out.String()
 	if !strings.HasPrefix(text, "Coverage:") {
 		t.Fatalf("run coverage line is not first:\n%s", text)
 	}
-	for _, want := range []string{"work.blocked_by_tool", "observed", "p=0.72", "gate=unmeasured", "event-1", "operator.frustrated", "unknown, not absent"} {
+	for _, want := range []string{"work.blocked_by_tool", "observed", "p=0.72", "gate=unmeasured", "event-1", "operator.dissatisfied", "unknown, not absent"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("run text missing %q:\n%s", want, text)
 		}
@@ -284,5 +284,25 @@ func TestAccumulateEvaluateAddsPassesAndKeepsTheLastSnapshot(t *testing.T) {
 	}
 	if total.Truncated || total.Coverage != 0.9 {
 		t.Fatalf("accumulated = %+v, want a completed pass at 90%% coverage", total)
+	}
+}
+
+func TestEvaluateBodyForcesOnlyTheLabelsItNames(t *testing.T) {
+	body, err := evaluateBody(evaluateParams{Limit: 5, ForceLabels: []string{"a.b"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := body["force_labels"].([]string); len(got) != 1 || got[0] != "a.b" {
+		t.Fatalf("force_labels = %v", body["force_labels"])
+	}
+	if _, bare := body["force"]; bare {
+		t.Fatal("a bare force is gone: it re-asked every label a composite reads")
+	}
+	none, err := evaluateBody(evaluateParams{Limit: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := none["force_labels"]; ok {
+		t.Fatalf("an evaluation that forces nothing sent %v", none["force_labels"])
 	}
 }

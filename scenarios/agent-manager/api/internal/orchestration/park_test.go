@@ -75,6 +75,24 @@ func newParkableRun(t *testing.T, ctx context.Context, svc *orchestration.Orches
 	return run
 }
 
+// newParkTestRepositories owns the in-memory repository lifecycle shared by
+// park/wake behavior tests.
+func newParkTestRepositories(t *testing.T) (*database.Repositories, event.Store) {
+	t.Helper()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	return repos, eventStore
+}
+
+// newParkTestService builds on the shared repositories and event store while
+// keeping per-test runner and policy options visible at each caller.
+func newParkTestService(t *testing.T, options ...orchestration.Option) (*database.Repositories, *orchestration.Orchestrator) {
+	t.Helper()
+	repos, eventStore := newParkTestRepositories(t)
+	options = append([]orchestration.Option{orchestration.WithEvents(eventStore)}, options...)
+	return repos, orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, options...)
+}
+
 type parkedCurrentDenyResolver struct{}
 
 func (parkedCurrentDenyResolver) Resolve(_ context.Context, runnerType domain.RunnerType, role string) (rolepolicy.ResolvedRole, error) {
@@ -139,9 +157,7 @@ func TestWakeRunRejectsCurrentModelExclusionBeforeClearingAwaitHandle(t *testing
 // identity token (Phase 0 assembler), and resets the heartbeat.
 func TestParkRunRegisteredChildrenProducerIsAccepted(t *testing.T) {
 	ctx := context.Background()
-	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
-	t.Cleanup(cleanup)
-	svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, orchestration.WithEvents(eventStore))
+	repos, svc := newParkTestService(t)
 	waiter := mocks.NewFakeWaiter(orchestration.ProducerChildren)
 	registry := orchestration.NewAwaitRegistry(svc, waiter)
 	svc.SetAwaitRegistry(registry)
@@ -162,9 +178,7 @@ func TestParkRunRegisteredChildrenProducerIsAccepted(t *testing.T) {
 
 func TestParkRunReviewTimerValidationBeforeTransition(t *testing.T) {
 	ctx := context.Background()
-	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
-	t.Cleanup(cleanup)
-	svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, orchestration.WithEvents(eventStore))
+	repos, svc := newParkTestService(t)
 	registry := orchestration.NewAwaitRegistry(svc, orchestration.NewReviewTimerWaiter())
 	svc.SetAwaitRegistry(registry)
 	defer registry.Stop()
@@ -191,15 +205,13 @@ func TestParkRunReviewTimerValidationBeforeTransition(t *testing.T) {
 // This is an in-process owner test, not a managed-harness lifecycle proof.
 func TestReviewTimerParksAndContinuesAtChosenTime(t *testing.T) {
 	ctx := context.Background()
-	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
-	t.Cleanup(cleanup)
 	mockRunner, captured, captureMu, done := newContinuationRunner(t)
 	runners := runner.NewRegistry()
 	if err := runners.Register(mockRunner); err != nil {
 		t.Fatal(err)
 	}
-	svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs,
-		orchestration.WithEvents(eventStore), orchestration.WithRunners(runners),
+	repos, svc := newParkTestService(t,
+		orchestration.WithRunners(runners),
 		orchestration.WithIdentitySecret([]byte("review-timer-integration-secret-0123456789")),
 		orchestration.WithRunStateRoot(t.TempDir()), newTestRolePolicyOption(t))
 	waiters := orchestration.NewAwaitRegistry(svc, orchestration.NewReviewTimerWaiter())
@@ -331,8 +343,7 @@ func TestReviewTimerRecoveryContinuesPersistedRunOnce(t *testing.T) {
 
 func TestParkRunWithoutRegistryRetainsIsolatedSeam(t *testing.T) {
 	ctx := context.Background()
-	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
-	t.Cleanup(cleanup)
+	repos, eventStore := newParkTestRepositories(t)
 	svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, orchestration.WithEvents(eventStore))
 	run := newParkableRun(t, ctx, svc, repos)
 
@@ -499,8 +510,7 @@ func TestParkRun_AndWake_PreservesIdentityEnvAndResetsHeartbeat(t *testing.T) {
 
 func TestWakeEffortCheckinCommitsQueuedCursorWithRetainedRunWake(t *testing.T) {
 	ctx := context.Background()
-	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
-	t.Cleanup(cleanup)
+	repos, eventStore := newParkTestRepositories(t)
 
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
 	mockRunner.SetAvailable(true, "available")
@@ -620,8 +630,7 @@ func TestWakeEffortCheckinCommitsQueuedCursorWithRetainedRunWake(t *testing.T) {
 // control) rather than presenting a fake success.
 func TestWakeRun_Timeout_TypedResult(t *testing.T) {
 	ctx := context.Background()
-	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
-	t.Cleanup(cleanup)
+	repos, eventStore := newParkTestRepositories(t)
 
 	mockRunner, captured, captureMu, done := newContinuationRunner(t)
 	registry := runner.NewRegistry()
@@ -668,8 +677,7 @@ func TestWakeRun_Timeout_TypedResult(t *testing.T) {
 // moves the parked run to cancelled and clears the handle (no process to kill).
 func TestStopRun_Parked_CancelsAndClearsHandle(t *testing.T) {
 	ctx := context.Background()
-	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
-	t.Cleanup(cleanup)
+	repos, eventStore := newParkTestRepositories(t)
 
 	svc := orchestration.New(
 		repos.Profiles, repos.Tasks, repos.Runs,
@@ -903,13 +911,7 @@ func TestWakeRunRefusesCancelledTaskAndDifferentCurrentOwner(t *testing.T) {
 // than re-resuming it — so a waiter double-resolve cannot double-wake.
 func TestWakeRun_Idempotent(t *testing.T) {
 	ctx := context.Background()
-	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
-	t.Cleanup(cleanup)
-
-	svc := orchestration.New(
-		repos.Profiles, repos.Tasks, repos.Runs,
-		orchestration.WithEvents(eventStore),
-	)
+	repos, svc := newParkTestService(t)
 
 	run := newParkableRun(t, ctx, svc, repos)
 	// Run is currently RUNNING (never parked). Wake must be a no-op.
@@ -924,8 +926,6 @@ func TestWakeRun_Idempotent(t *testing.T) {
 
 func TestWakeRun_ConcurrentNotificationsStartOneContinuation(t *testing.T) {
 	ctx := context.Background()
-	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
-	t.Cleanup(cleanup)
 
 	var continueCalls atomic.Int32
 	continued := make(chan struct{})
@@ -942,9 +942,7 @@ func TestWakeRun_ConcurrentNotificationsStartOneContinuation(t *testing.T) {
 	if err := registry.Register(mockRunner); err != nil {
 		t.Fatalf("register runner: %v", err)
 	}
-	svc := orchestration.New(
-		repos.Profiles, repos.Tasks, repos.Runs,
-		orchestration.WithEvents(eventStore),
+	repos, svc := newParkTestService(t,
 		orchestration.WithRunners(registry),
 		orchestration.WithRunStateRoot(t.TempDir()),
 		newTestRolePolicyOption(t),
@@ -979,13 +977,7 @@ func TestWakeRun_ConcurrentNotificationsStartOneContinuation(t *testing.T) {
 // already-parked run is rejected.
 func TestParkRun_RejectsDoublePark(t *testing.T) {
 	ctx := context.Background()
-	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
-	t.Cleanup(cleanup)
-
-	svc := orchestration.New(
-		repos.Profiles, repos.Tasks, repos.Runs,
-		orchestration.WithEvents(eventStore),
-	)
+	repos, svc := newParkTestService(t)
 
 	run := newParkableRun(t, ctx, svc, repos)
 	if _, err := svc.ParkRun(ctx, orchestration.ParkRunInput{RunID: run.ID, Producer: "test-genie", Key: "k1"}); err != nil {
@@ -1000,9 +992,7 @@ func TestParkRun_RejectsDoublePark(t *testing.T) {
 // relies on it instead of scanning a client-side page of runs.
 func TestParkedRunsOnHandleMatchesProducerAndKey(t *testing.T) {
 	ctx := context.Background()
-	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
-	t.Cleanup(cleanup)
-	svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, orchestration.WithEvents(eventStore))
+	repos, svc := newParkTestService(t)
 	running := newParkableRun(t, ctx, svc, repos)
 	park := func(producer, key string) *domain.Run {
 		t.Helper()

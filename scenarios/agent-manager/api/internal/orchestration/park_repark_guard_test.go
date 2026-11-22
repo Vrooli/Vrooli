@@ -9,7 +9,6 @@ import (
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
-	"agent-manager/internal/orchestration/testutil"
 )
 
 // TestWakeRun_RecordsAwaitResultForRefetch verifies the durable re-fetch SSOT:
@@ -17,17 +16,13 @@ import (
 // woken agent can re-read it via GetAwaitResult without re-running the producer.
 func TestWakeRun_RecordsAwaitResultForRefetch(t *testing.T) {
 	ctx := context.Background()
-	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
-	t.Cleanup(cleanup)
 
 	mockRunner, _, _, done := newContinuationRunner(t)
 	registry := runner.NewRegistry()
 	if err := registry.Register(mockRunner); err != nil {
 		t.Fatalf("register runner: %v", err)
 	}
-	svc := orchestration.New(
-		repos.Profiles, repos.Tasks, repos.Runs,
-		orchestration.WithEvents(eventStore),
+	repos, svc := newParkTestService(t,
 		orchestration.WithRunners(registry),
 		orchestration.WithRunStateRoot(t.TempDir()),
 		newTestRolePolicyOption(t),

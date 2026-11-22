@@ -1,10 +1,15 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
+	"net"
+	"net/url"
 	"strings"
 	"time"
+
+	"agent-manager/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliutil"
 	"google.golang.org/protobuf/proto"
@@ -218,8 +223,9 @@ func (a *App) profileCreate(args []string) error {
 	allowedTools := fs.String("allowed-tools", "", "Comma-separated list of allowed tools")
 	deniedTools := fs.String("denied-tools", "", "Comma-separated list of denied tools")
 	createdBy := fs.String("created-by", "", "Creator identifier")
+	browserLocalOrigin := fs.String("browser-local-origin", "", "Enable a bounded observe/control browser task scoped to one exact localhost origin (requires role-ref browser.agent)")
 
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
 
@@ -241,6 +247,57 @@ func (a *App) profileCreate(args []string) error {
 	}
 	if req.ProfileKey == "" {
 		req.ProfileKey = strings.TrimSpace(*name)
+	}
+	if strings.TrimSpace(*browserLocalOrigin) != "" {
+		if req.RoleRef != "browser.agent" {
+			return fmt.Errorf("--browser-local-origin requires --role-ref browser.agent")
+		}
+		if *skipPermissions {
+			return fmt.Errorf("browser task profiles cannot skip runner permission prompts")
+		}
+		if *sandboxConfig != "" || *sandboxConfigFile != "" || *sandboxMode != "" || *sandboxRetentionMode != "" || *sandboxRetentionTTL != "" {
+			return fmt.Errorf("browser task profiles use the fixed protected, read-only sandbox policy")
+		}
+		if *allowedTools != "" {
+			for _, tool := range strings.Split(*allowedTools, ",") {
+				switch strings.TrimSpace(tool) {
+				case "read", "glob", "grep", "shell":
+				default:
+					return fmt.Errorf("browser task profiles allow only read, glob, grep, and shell tools")
+				}
+			}
+		} else {
+			req.AllowedTools = []string{"read", "glob", "grep", "shell"}
+		}
+		req.NetworkAccess = domainpb.NetworkAccess_NETWORK_ACCESS_LOCALHOST
+		req.SandboxConfig = &domainpb.SandboxConfig{
+			Mode:        domainpb.SandboxMode_SANDBOX_MODE_PROTECTED,
+			NetworkMode: domainpb.NetworkAccess_NETWORK_ACCESS_LOCALHOST,
+			WritePolicy: &domainpb.WorkspaceWritePolicy{},
+		}
+		if req.MaxTurns == 0 {
+			req.MaxTurns = 8
+		} else if req.MaxTurns > 12 {
+			return fmt.Errorf("browser task profile max-turns cannot exceed 12")
+		} else if req.MaxTurns < 0 {
+			return fmt.Errorf("browser task profile max-turns must be positive")
+		}
+		if *timeout == "" {
+			req.Timeout = durationpb.New(15 * time.Minute)
+		} else {
+			requestedTimeout, err := time.ParseDuration(*timeout)
+			if err != nil {
+				return fmt.Errorf("invalid timeout: %w", err)
+			}
+			if requestedTimeout <= 0 || requestedTimeout > 15*time.Minute {
+				return fmt.Errorf("browser task profile timeout must be positive and cannot exceed 15m")
+			}
+		}
+		capabilityJSON, err := buildLocalBrowserTaskCapability(req.ProfileKey, *browserLocalOrigin)
+		if err != nil {
+			return err
+		}
+		req.Features = &domainpb.FeatureFlags{BrowserCapabilityJson: capabilityJSON}
 	}
 	if *timeout != "" {
 		parsed, err := time.ParseDuration(*timeout)
@@ -286,6 +343,115 @@ func (a *App) profileCreate(args []string) error {
 	}
 
 	fmt.Printf("Created profile: %s (%s)\n", profile.Name, profile.Id)
+	return nil
+}
+
+// localBrowserTaskCapability is deliberately narrower than the general BAS
+// capability contract. The CLI exposes one exact loopback origin, view/control,
+// and fixed budgets; callers cannot supply grants, identity overrides, history,
+// extensions, or additional effects through this owner path.
+type localBrowserTaskCapability struct {
+	Enabled      bool   `json:"enabled"`
+	Mode         string `json:"mode"`
+	GrantReceipt string `json:"grantReceipt,omitempty"`
+	Candidates   []struct {
+		Harness      string `json:"harness"`
+		ResourceRole string `json:"resourceRole"`
+	} `json:"candidates"`
+	Permissions struct {
+		ProfileID         string    `json:"profileId"`
+		Level             string    `json:"level"`
+		AllowedOrigins    []string  `json:"allowedOrigins"`
+		View              bool      `json:"view"`
+		Control           bool      `json:"control"`
+		AllowHistory      bool      `json:"allowHistory,omitempty"`
+		CredentialRefs    []string  `json:"credentialRefs,omitempty"`
+		ExtensionIDs      []string  `json:"extensionIds,omitempty"`
+		ExtensionInstall  bool      `json:"extensionInstall,omitempty"`
+		ExtensionLoad     bool      `json:"extensionLoad,omitempty"`
+		PerformanceTrace  bool      `json:"performanceTrace,omitempty"`
+		AppMonitorMetrics bool      `json:"appMonitorMetrics,omitempty"`
+		AppMonitorTrace   bool      `json:"appMonitorTrace,omitempty"`
+		AudioMode         string    `json:"audioMode,omitempty"`
+		IdentityProfile   *struct{} `json:"identity_profile,omitempty"`
+	} `json:"permissions"`
+	Budget struct {
+		SessionMinutes  int64 `json:"sessionMinutes"`
+		Actions         int64 `json:"actions"`
+		Bytes           int64 `json:"bytes"`
+		InferenceTokens int64 `json:"inferenceTokens"`
+	} `json:"budget"`
+}
+
+func buildLocalBrowserTaskCapability(profileKey, origin string) (string, error) {
+	parsed, err := url.Parse(strings.TrimSpace(origin))
+	if err != nil || parsed == nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" || parsed.User != nil || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return "", fmt.Errorf("--browser-local-origin must be one exact http(s) origin without a path, query, fragment, or credentials")
+	}
+	host := parsed.Hostname()
+	if !strings.EqualFold(host, "localhost") {
+		ip := net.ParseIP(host)
+		if ip == nil || !ip.IsLoopback() {
+			return "", fmt.Errorf("--browser-local-origin must use localhost or a loopback IP address")
+		}
+	}
+	if profileKey == "" {
+		return "", fmt.Errorf("browser task profile requires a stable profile key")
+	}
+
+	capability := localBrowserTaskCapability{Enabled: true, Mode: "managed"}
+	capability.Candidates = []struct {
+		Harness      string `json:"harness"`
+		ResourceRole string `json:"resourceRole"`
+	}{{Harness: "codex", ResourceRole: "browser.session"}}
+	capability.Permissions.ProfileID = profileKey
+	capability.Permissions.Level = "act"
+	capability.Permissions.AllowedOrigins = []string{parsed.Scheme + "://" + parsed.Host}
+	capability.Permissions.View = true
+	capability.Permissions.Control = true
+	capability.Budget.SessionMinutes = 10
+	capability.Budget.Actions = 100
+	capability.Budget.Bytes = 4 << 20
+	capability.Budget.InferenceTokens = 0
+	if err := validateLocalBrowserTaskCapability(capability); err != nil {
+		return "", err
+	}
+	data, err := json.Marshal(capability)
+	if err != nil {
+		return "", fmt.Errorf("encode browser task capability: %w", err)
+	}
+	return string(data), nil
+}
+
+func validateLocalBrowserTaskCapability(capability localBrowserTaskCapability) error {
+	if !capability.Enabled || capability.Mode != "managed" || capability.GrantReceipt != "" {
+		return fmt.Errorf("browser task capability must be enabled, managed, and contain no caller-supplied grant")
+	}
+	if len(capability.Candidates) != 1 || capability.Candidates[0].Harness != "codex" || capability.Candidates[0].ResourceRole != "browser.session" {
+		return fmt.Errorf("browser task capability requires the single qualified codex browser.session candidate")
+	}
+	permissions := capability.Permissions
+	if strings.TrimSpace(permissions.ProfileID) == "" || permissions.Level != "act" || !permissions.View || !permissions.Control || len(permissions.AllowedOrigins) != 1 {
+		return fmt.Errorf("browser task capability requires act-level view/control rights for one exact origin")
+	}
+	if permissions.AllowHistory || len(permissions.CredentialRefs) != 0 || len(permissions.ExtensionIDs) != 0 || permissions.ExtensionInstall || permissions.ExtensionLoad || permissions.PerformanceTrace || permissions.AppMonitorMetrics || permissions.AppMonitorTrace || permissions.AudioMode != "" || permissions.IdentityProfile != nil {
+		return fmt.Errorf("browser task capability cannot include history, credentials, extensions, traces, audio, or identity overrides")
+	}
+	parsed, err := url.Parse(permissions.AllowedOrigins[0])
+	if err != nil || parsed == nil || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.User != nil {
+		return fmt.Errorf("browser task capability origin must be exact")
+	}
+	host := parsed.Hostname()
+	if !strings.EqualFold(host, "localhost") {
+		ip := net.ParseIP(host)
+		if ip == nil || !ip.IsLoopback() {
+			return fmt.Errorf("browser task capability cannot include a non-loopback origin")
+		}
+	}
+	budget := capability.Budget
+	if budget.SessionMinutes <= 0 || budget.SessionMinutes > 10 || budget.Actions <= 0 || budget.Actions > 100 || budget.Bytes <= 0 || budget.Bytes > 4<<20 || budget.InferenceTokens != 0 {
+		return fmt.Errorf("browser task capability exceeds its fixed session, action, byte, or inference budget")
+	}
 	return nil
 }
 

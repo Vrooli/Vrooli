@@ -69,9 +69,7 @@ func makeFullRun(taskID uuid.UUID, profileID *uuid.UUID) *domain.Run {
 // TestList_OmitsHeavyFields inserts a run with all fields set, then verifies
 // that List() returns nil for the heavy fields that are pruned from list queries.
 func TestList_OmitsHeavyFields(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, db.log)
 	ctx := context.Background()
 
@@ -141,9 +139,7 @@ func TestList_OmitsHeavyFields(t *testing.T) {
 
 // TestList_PopulatesLightFields verifies all non-pruned columns are correctly populated.
 func TestList_PopulatesLightFields(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, db.log)
 	ctx := context.Background()
 
@@ -224,9 +220,7 @@ func TestList_PopulatesLightFields(t *testing.T) {
 // existed. SQLite does not backfill a DEFAULT into those rows, so both list and
 // get must normalize NULL to the domain's empty-string representation.
 func TestRunRepository_LegacyNullCommitHash(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, db.log)
 	ctx := context.Background()
 	task := &domain.Task{
@@ -267,9 +261,7 @@ func TestRunRepository_LegacyNullCommitHash(t *testing.T) {
 // TestList_PromptPreviewStillWorks verifies that the prompt preview JOIN is
 // still functional with the pruned column set.
 func TestList_PromptPreviewStillWorks(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, db.log)
 	ctx := context.Background()
 
@@ -315,9 +307,7 @@ func TestList_PromptPreviewStillWorks(t *testing.T) {
 // TestGet_StillReturnsFullFields is a regression guard ensuring Get() still
 // returns all heavy fields that List() now omits.
 func TestGet_StillReturnsFullFields(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, db.log)
 	ctx := context.Background()
 
@@ -376,9 +366,7 @@ func TestGet_StillReturnsFullFields(t *testing.T) {
 }
 
 func TestListIncludesSandboxIDWithoutHydratingHeavyFields(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, db.log)
 	ctx := context.Background()
 	task := &domain.Task{ID: uuid.New(), Title: "review-list-test", Description: "", ScopePath: "src/", CreatedAt: time.Now(), UpdatedAt: time.Now()}

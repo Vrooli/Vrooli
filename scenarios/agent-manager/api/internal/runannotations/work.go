@@ -22,8 +22,8 @@ type runWork struct {
 	// children are a run's message units, evaluated before the run's own
 	// composites so those can read their observations.
 	children []*runWork
-	// force re-evaluates cached answers.
-	force bool
+	// forced names the labels whose cached answers this unit ignores.
+	forced map[string]bool
 
 	facts    RunFacts
 	features RunFeatures
@@ -61,6 +61,9 @@ type runWork struct {
 	pending         []string
 	skipped         []SkippedLabel
 }
+
+// forces reports whether the label's cached answer is ignored for this unit.
+func (w *runWork) forces(labelID string) bool { return w.forced[labelID] }
 
 // sizedState keys one rendering of a unit's state.
 type sizedState struct {

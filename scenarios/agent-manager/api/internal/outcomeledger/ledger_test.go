@@ -394,6 +394,25 @@ func TestResolveMode(t *testing.T) {
 			}
 		})
 	}
+
+	roleScoped := period
+	roleScoped.Role = "code.economy.delivery"
+	matchingRole := run(t0.Add(time.Hour), "gpt-6-luna")
+	matchingRole.Role = roleScoped.Role
+	if got := ResolveMode(matchingRole, []ModePeriod{roleScoped}); got.Relation != ModeOnTarget || got.ID != roleScoped.ID {
+		t.Fatalf("matching role-scoped period = %+v, want on-target mode %q", got, roleScoped.ID)
+	}
+	otherRole := matchingRole
+	otherRole.Role = "code.default"
+	if got := ResolveMode(otherRole, []ModePeriod{roleScoped}); got.Relation != ModeNone || got.ID != "" {
+		t.Fatalf("unrelated role inherited scoped mode: %+v", got)
+	}
+
+	profileScoped := period
+	profileScoped.Profile = "review-profile"
+	if got := ResolveMode(run(t0.Add(time.Hour), "gpt-6-luna"), []ModePeriod{profileScoped}); got.Relation != ModeNone || got.ID != "" {
+		t.Fatalf("period with unavailable profile identity was inferred: %+v", got)
+	}
 }
 
 func TestActiveTimeExcludesLongGaps(t *testing.T) {

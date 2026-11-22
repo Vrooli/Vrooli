@@ -22,8 +22,35 @@ func New(authority *store.Store) http.Handler {
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/ai/privacy-consent", h.list).Methods(http.MethodGet)
 	router.HandleFunc("/api/v1/ai/privacy-consent", h.grant).Methods(http.MethodPost)
+	router.HandleFunc("/api/v1/ai/privacy-consent/verify", h.verify).Methods(http.MethodPost)
 	router.HandleFunc("/api/v1/ai/privacy-consent/{id}", h.revoke).Methods(http.MethodDelete)
 	return router
+}
+
+// verify is a bounded online check for services that must gate an external
+// dispatch. The receipt is accepted only in the request body, never echoed.
+func (h *Handler) verify(w http.ResponseWriter, r *http.Request) {
+	principal, ok := humanPrincipal(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "verified human identity required")
+		return
+	}
+	var input struct {
+		Source  string `json:"source"`
+		Receipt string `json:"receipt"`
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 4096)
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(&input) != nil || h.authority == nil {
+		writeError(w, http.StatusBadRequest, "invalid consent verification request")
+		return
+	}
+	if err := h.authority.Verify(identity.WithPrincipal(r.Context(), principal), input.Receipt, input.Source); err != nil {
+		writeError(w, http.StatusForbidden, "consent is not valid for this source")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"valid": true})
 }
 
 func (h *Handler) list(w http.ResponseWriter, r *http.Request) {

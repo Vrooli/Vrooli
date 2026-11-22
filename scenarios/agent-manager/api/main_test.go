@@ -143,6 +143,17 @@ func TestDatabaseConfigUsesGovernedPoolLevers(t *testing.T) {
 // empty project root, but otherwise exercises the same graph construction,
 // recovery ordering, middleware, and cleanup path as production startup.
 func TestNewServerBuildsAndShutsDownTheRealCompositionRoot(t *testing.T) {
+	// The run-state root refuses /tmp (runstate.ValidateRoot), and every temp dir
+	// below, including storagetest's root, comes from TMPDIR. Anchor them on the
+	// operator's durable Go scratch location when /tmp is the default.
+	if parent := durableTestParent(); parent != "" {
+		dir, err := os.MkdirTemp(parent, "am-composition-")
+		if err != nil {
+			t.Fatalf("create durable temp root: %v", err)
+		}
+		t.Cleanup(func() { _ = os.RemoveAll(dir) })
+		t.Setenv("TMPDIR", dir)
+	}
 	// Use the current storage identity seam. AM_SQLITE_PATH is no longer read.
 	t.Setenv("SCENARIO_NAME", "agent-manager")
 	t.Setenv("VROOLI_SCENARIO", "agent-manager")
@@ -304,4 +315,19 @@ func TestNewServerRejectsInvalidRootBeforeStorage(t *testing.T) {
 	if _, err := os.Stat(data); !os.IsNotExist(err) {
 		t.Fatalf("invalid root reached storage: %v", err)
 	}
+}
+
+// durableTestParent returns GOTMPDIR, or ~/.vrooli/tmp when it exists, so that
+// a test whose state must pass runstate.ValidateRoot does not land under /tmp.
+func durableTestParent() string {
+	if dir := os.Getenv("GOTMPDIR"); dir != "" {
+		return dir
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		dir := filepath.Join(home, ".vrooli", "tmp")
+		if info, statErr := os.Stat(dir); statErr == nil && info.IsDir() {
+			return dir
+		}
+	}
+	return ""
 }

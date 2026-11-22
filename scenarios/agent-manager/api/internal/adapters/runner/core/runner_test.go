@@ -127,6 +127,7 @@ func (p *fakeProcess) Wait() error {
 	if p.stdoutClosed != nil {
 		<-p.stdoutClosed
 	}
+	_ = p.stderr.Close()
 	p.once.Do(func() { close(p.done) })
 	return p.exitErr
 }
@@ -802,6 +803,92 @@ func TestContinue_ClassifiesSessionExpired(t *testing.T) {
 	if rerr.Code() != domain.ErrCodeRunnerSessionExpired {
 		t.Errorf("Code = %s, want RUNNER_SESSION_EXPIRED", rerr.Code())
 	}
+}
+
+func TestContinueClassifiesSessionFailureAfterLongStderrLine(t *testing.T) {
+	for _, durable := range []bool{false, true} {
+		t.Run(fmt.Sprintf("durable=%t", durable), func(t *testing.T) {
+			codec := newFakeCodec()
+			codec.expirePhrase = "session expired"
+			longStderr := strings.Repeat("diagnostic ", 7000) + "session expired and gone\n"
+			launcher := &fakeLauncher{
+				stderr:  longStderr,
+				exitErr: &fakeExitError{code: 1},
+			}
+			r := newRunnerForTest(t, codec, launcher)
+			request := runner.ContinueRequest{
+				RunID: uuid.New(), SessionID: "sess-long-stderr", WorkingDir: "/tmp",
+				ResolvedConfig: domain.DefaultRunConfig(),
+			}
+			stderrPath := ""
+			if durable {
+				stdout, err := os.CreateTemp(t.TempDir(), "stderr-classification-*.ndjson")
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer stdout.Close()
+				stderr, err := os.CreateTemp(t.TempDir(), "stderr-classification-*.log")
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer stderr.Close()
+				stderrPath = stderr.Name()
+				request.Transcript = &runner.TranscriptConfig{TranscriptPath: stdout.Name(), StdoutFile: stdout, StderrPath: stderr.Name(), StderrFile: stderr}
+			}
+
+			result, err := r.Continue(t.Context(), request)
+			var got *domain.RunnerError
+			if durable {
+				if err != nil {
+					t.Fatalf("durable continuation returned transport error: %v", err)
+				}
+				if result == nil || !errors.As(result.TerminalError, &got) {
+					t.Fatalf("durable terminal error = %+v, want typed session-expired error", result)
+				}
+			} else if !errors.As(err, &got) {
+				t.Fatalf("streaming continuation error = %v, want typed session-expired error", err)
+			}
+			if got.Code() != domain.ErrCodeRunnerSessionExpired {
+				t.Fatalf("terminal code = %s, want %s", got.Code(), domain.ErrCodeRunnerSessionExpired)
+			}
+			if durable {
+				captured, err := os.ReadFile(stderrPath)
+				if err != nil || string(captured) != longStderr {
+					t.Fatalf("durable stderr bytes = %d, err=%v; want exact %d-byte output", len(captured), err, len(longStderr))
+				}
+			}
+		})
+	}
+}
+
+func TestBestEffortMirrorKeepsDrainingAfterShortWrite(t *testing.T) {
+	input := strings.Repeat("stderr output ", 32)
+	var drained strings.Builder
+	var reported error
+	calls := 0
+	mirror := &bestEffortMirror{
+		writer:  shortWriter{onWrite: func() { calls++ }},
+		onError: func(err error) { reported = err },
+	}
+	if _, err := io.Copy(&drained, io.TeeReader(strings.NewReader(input), mirror)); err != nil {
+		t.Fatalf("stderr drain returned error: %v", err)
+	}
+	if drained.String() != input {
+		t.Fatalf("drained stderr = %q, want complete input", drained.String())
+	}
+	if !errors.Is(reported, io.ErrShortWrite) {
+		t.Fatalf("reported mirror error = %v, want %v", reported, io.ErrShortWrite)
+	}
+	if calls != 1 {
+		t.Fatalf("mirror writes = %d, want one attempt after failure", calls)
+	}
+}
+
+type shortWriter struct{ onWrite func() }
+
+func (w shortWriter) Write(p []byte) (int, error) {
+	w.onWrite()
+	return len(p) / 2, nil
 }
 
 func TestStop_NotFoundForUnknownRun(t *testing.T) {

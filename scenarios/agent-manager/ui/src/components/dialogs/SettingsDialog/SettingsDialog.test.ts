@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createElement } from "react";
+import { createPortal } from "react-dom";
 import { test, vi } from "vitest";
 import { SettingsDialog } from "./index.js";
 import { renderWithProviders } from "../../../test-utils/index.js";
@@ -20,12 +21,13 @@ vi.mock("./PermissionPolicyTab.js", () => ({ PermissionPolicyTab: () => "permiss
 vi.mock("./ModelPricingTab.js", () => ({ ModelPricingTab: () => "pricing" }));
 vi.mock("@vrooli/react-component-library/AppNotificationSettings/1", () => ({ AppNotificationSettings: () => "app notification settings" }));
 vi.mock("./MaintenanceTab.js", () => ({ MaintenanceTab: ({ onPurgePreview }: { onPurgePreview: (targets: number[], label: string) => void }) => createElement("button", { onClick: () => onPurgePreview([1, 3], "Delete selected test data") }, "Preview purge") }));
-vi.mock("../PurgeConfirmDialog.js", () => ({ PurgeConfirmDialog: ({ open, actionLabel, preview, onConfirm }: { open: boolean; actionLabel: string; preview?: { runs?: number }; onConfirm: () => void }) => open ? createElement("div", null, actionLabel, createElement("span", null, `runs=${preview?.runs}`), createElement("button", { onClick: onConfirm }, "Confirm purge")) : null }));
+vi.mock("../PurgeConfirmDialog.js", () => ({ PurgeConfirmDialog: ({ open, actionLabel, preview, onConfirm }: { open: boolean; actionLabel: string; preview?: { runs?: number }; onConfirm: () => void }) => open ? createPortal(createElement("div", { role: "dialog", "aria-modal": true }, actionLabel, createElement("span", null, `runs=${preview?.runs}`), createElement("button", { onClick: onConfirm }, "Confirm purge")), document.body) : null }));
 
 test("SettingsDialog exposes every settings category with an accurate operator description and close control", async () => {
   const user = userEvent.setup();
   const onOpenChange = vi.fn();
   renderWithProviders(createElement(SettingsDialog, { open: true, onOpenChange, onPurgeComplete: vi.fn() }));
+  assert.ok(screen.getByTestId("settings-dialog-tabs").hasAttribute("data-rcl-tabs"));
   assert.ok(screen.getByText("Inspect the active Git-managed role policy catalog and activation state"));
   for (const [tab, description] of [
     ["Permissions", "Inspect and reconcile global portable coding-agent permissions"],

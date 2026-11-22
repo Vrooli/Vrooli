@@ -14,6 +14,7 @@ import (
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
+	"github.com/vrooli/cli-core/agenttranscript"
 
 	"github.com/google/uuid"
 )
@@ -716,32 +717,5 @@ func codexRolloutToolResult(runID uuid.UUID, pl codexRolloutPayload) []*domain.R
 // caller; content itself is intentionally reduced to text, never attachments
 // or tool metadata.
 func codexRolloutMessageText(raw json.RawMessage) string {
-	if len(raw) == 0 {
-		return ""
-	}
-	var value any
-	if json.Unmarshal(raw, &value) != nil {
-		return ""
-	}
-	var collect func(any)
-	parts := []string{}
-	collect = func(item any) {
-		switch value := item.(type) {
-		case string:
-			if strings.TrimSpace(value) != "" {
-				parts = append(parts, value)
-			}
-		case []any:
-			for _, child := range value {
-				collect(child)
-			}
-		case map[string]any:
-			if text, ok := value["text"].(string); ok && strings.TrimSpace(text) != "" {
-				parts = append(parts, text)
-				return
-			}
-		}
-	}
-	collect(value)
-	return strings.Join(parts, "\n")
+	return agenttranscript.ExtractTextContent(raw)
 }

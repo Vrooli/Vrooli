@@ -124,7 +124,7 @@ func finishDecision(request DecisionRequest, response *inferencev1.DecideRespons
 	if strings.HasPrefix(strings.TrimSpace(request.Role), "browser.") && browserNoRouteOnly(response.Candidates) {
 		code = inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_NO_ELIGIBLE_ROUTE
 		construct = "source_or_route_eligibility"
-		message = "no eligible route is configured for this browser source and profile; select an available source or ask the account owner to enable an eligible route. No model inference was dispatched and funding was not changed"
+		message = "no eligible route is configured for this browser source and profile; select an available source or ask the account owner to enable or upgrade an eligible route. No model inference was dispatched and funding was not changed"
 	}
 	return decideError(response, code, message, construct)
 }

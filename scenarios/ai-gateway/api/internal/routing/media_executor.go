@@ -148,6 +148,12 @@ func validateResourceImageRequest(req *routingv1.SubmitMediaRequest) (string, st
 
 func (e *ResourceOpenRouterMediaExecutor) runImageGeneration(ctx context.Context, req *routingv1.SubmitMediaRequest, role string) (providers.Result, error) {
 	args := []string{"images", "generate", "--role", role, "--output-count", "1", "--result-format", "gateway-v1"}
+	// The caller's per-request USD ceiling must reach the provider owner: OpenRouter
+	// reserves a request's worst-case cost up front, so only a bound sent with the
+	// request keeps the reservation within what the caller authorized.
+	if maxCost := req.GetRequest().GetMaxCostUsd(); maxCost > 0 {
+		args = append(args, "--max-cost-usd", strconv.FormatFloat(maxCost, 'f', -1, 64))
+	}
 	if len(req.GetInputs()) > 0 {
 		inputPath := strings.TrimSpace(req.GetInputs()[0].GetReference())
 		if !filepath.IsAbs(inputPath) {

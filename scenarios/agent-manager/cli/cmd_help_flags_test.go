@@ -16,17 +16,18 @@ func TestHelpListsTheFlagsHandlersParse(t *testing.T) {
 		help["run "+command.Name] = command.HelpText
 	}
 	for _, group := range domains.SubcommandGroups(app.dependencies()) {
-		if group.Name != "workflow" {
+		if group.Name != "workflow" && group.Name != "profile" {
 			continue
 		}
 		for _, command := range group.Subcommands {
-			help["workflow "+command.Name] = command.HelpText
+			help[group.Name+" "+command.Name] = command.HelpText
 		}
 	}
 	for command, flags := range map[string][]string{
 		"run list":       {"--limit", "--status", "--tag-prefix", "--origin"},
 		"run create":     {"--task-id", "--profile-id", "--until", "--until-file", "--local-owner"},
 		"workflow start": {"--owner", "--input-file", "--idempotency-key"},
+		"profile create": {"--browser-local-origin", "--role-ref", "--max-turns", "--timeout"},
 	} {
 		for _, flag := range flags {
 			if !strings.Contains(help[command], flag) {

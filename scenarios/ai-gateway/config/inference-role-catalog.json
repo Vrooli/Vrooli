@@ -35,6 +35,11 @@
         "temperature": 0.0,
         "overridable": false
       },
+      "embedding": {
+        "normalization": "l2",
+        "max_batch_inputs": 64,
+        "max_batch_bytes": 1048576
+      },
       "candidates": [
         {
           "provider": "ollama",
@@ -395,6 +400,36 @@
             "reason": "LM4 compact faithful-summary candidate; not dispatched until a real caller validates factual fidelity."
           },
           "status": "pending"
+        }
+      ]
+    },
+    "summarize.audio_tools": {
+      "description": "Compact local summaries for Audio Tools speech output. This application-scoped role uses Qwen3 1.7B; callers should preserve important facts and use a separately selected quality route for fact-dense content.",
+      "timeout_ms": 120000,
+      "sampling": {
+        "temperature": 0.0,
+        "overridable": false
+      },
+      "candidates": [
+        {
+          "provider": "ollama",
+          "resource_role": "summarize.audio_tools",
+          "reason": "Audio Tools owns this compact summary role; generic summarize.faithful remains governed by summarize.default."
+        }
+      ]
+    },
+    "summarize.audio_tools.quality": {
+      "description": "Fact-dense local summary alternative for Audio Tools using Qwen3.5 4B. Evidence is limited to one 300-word report; it is not broad qualification.",
+      "timeout_ms": 120000,
+      "sampling": {
+        "temperature": 0.0,
+        "overridable": false
+      },
+      "candidates": [
+        {
+          "provider": "ollama",
+          "resource_role": "summarize.audio_tools.quality",
+          "reason": "Audio Tools quality alternative. The compact 1.7B default retained 14/22 facts on one 300-word report; preserve this option for fact-dense input."
         }
       ]
     },

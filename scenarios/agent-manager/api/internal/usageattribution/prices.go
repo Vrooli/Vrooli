@@ -24,10 +24,11 @@ const priceTTL = 10 * time.Minute
 // them; a price older than priceTTL still serves while it is refreshed in the
 // background. A nil PriceBook prices every model by its tier prior.
 type PriceBook struct {
-	pricer  ModelPricer
-	now     func() time.Time
-	mu      sync.Mutex
-	entries map[string]priceEntry
+	pricer     ModelPricer
+	now        func() time.Time
+	mu         sync.Mutex
+	entries    map[string]priceEntry
+	refreshing map[string]struct{}
 }
 
 type priceEntry struct {
@@ -37,7 +38,7 @@ type priceEntry struct {
 
 // NewPriceBook memoizes pricer; a nil pricer prices by tier priors.
 func NewPriceBook(pricer ModelPricer) *PriceBook {
-	return &PriceBook{pricer: pricer, now: time.Now, entries: map[string]priceEntry{}}
+	return &PriceBook{pricer: pricer, now: time.Now, entries: map[string]priceEntry{}, refreshing: map[string]struct{}{}}
 }
 
 // prices returns the request's lookup, after fetching the models the turns
@@ -59,7 +60,7 @@ func (b *PriceBook) prices(ctx context.Context, turns []Turn, outcomes []Outcome
 			continue
 		} else if known {
 			// A stale price serves this request; it is refreshed for the next.
-			go b.lookup(context.WithoutCancel(ctx), pair[0], pair[1])
+			b.refresh(context.WithoutCancel(ctx), pair[0], pair[1])
 			continue
 		}
 		wg.Add(1)
@@ -87,26 +88,62 @@ func (b *PriceBook) cached(runner, model string) (Price, bool, bool) {
 }
 
 func (b *PriceBook) lookup(ctx context.Context, runner, model string) Price {
-	var price Price
-	if b.pricer != nil && model != "" && model != "unknown" {
-		if book, err := b.pricer.GetModelPricing(ctx, model, runner); err == nil && book != nil && book.InputTokenPrice != nil {
-			price = Price{Input: *book.InputTokenPrice, Known: true}
-			if book.OutputTokenPrice != nil {
-				price.Output = *book.OutputTokenPrice
-			}
-			if book.CacheReadPrice != nil {
-				price.CacheRead = *book.CacheReadPrice
-			}
-			if book.CacheCreationPrice != nil {
-				price.CacheCreation = *book.CacheCreationPrice
-			}
-		}
-	}
-	if !price.Known {
+	price, err := b.fetch(ctx, runner, model)
+	if err != nil {
 		price = TierPrice(model)
 	}
 	b.mu.Lock()
 	b.entries[runner+"\x00"+model] = priceEntry{price: price, at: b.now()}
 	b.mu.Unlock()
 	return price
+}
+
+// refresh serves the previous price until a background lookup succeeds. A
+// failed lookup leaves its old timestamp in place so the next request retries.
+func (b *PriceBook) refresh(ctx context.Context, runner, model string) {
+	key := runner + "\x00" + model
+	b.mu.Lock()
+	if _, active := b.refreshing[key]; active {
+		b.mu.Unlock()
+		return
+	}
+	b.refreshing[key] = struct{}{}
+	b.mu.Unlock()
+
+	go func() {
+		price, err := b.fetch(ctx, runner, model)
+		b.mu.Lock()
+		defer b.mu.Unlock()
+		delete(b.refreshing, key)
+		if err == nil {
+			b.entries[key] = priceEntry{price: price, at: b.now()}
+		}
+	}()
+}
+
+func (b *PriceBook) fetch(ctx context.Context, runner, model string) (Price, error) {
+	if b.pricer == nil || model == "" || model == "unknown" {
+		return TierPrice(model), nil
+	}
+	book, err := b.pricer.GetModelPricing(ctx, model, runner)
+	if err != nil {
+		return Price{}, err
+	}
+	var price Price
+	if book != nil && book.InputTokenPrice != nil {
+		price = Price{Input: *book.InputTokenPrice, Known: true}
+		if book.OutputTokenPrice != nil {
+			price.Output = *book.OutputTokenPrice
+		}
+		if book.CacheReadPrice != nil {
+			price.CacheRead = *book.CacheReadPrice
+		}
+		if book.CacheCreationPrice != nil {
+			price.CacheCreation = *book.CacheCreationPrice
+		}
+	}
+	if !price.Known {
+		price = TierPrice(model)
+	}
+	return price, nil
 }

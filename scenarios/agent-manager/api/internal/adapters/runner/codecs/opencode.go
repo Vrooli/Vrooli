@@ -35,6 +35,7 @@ import (
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/fallback"
+	"github.com/vrooli/cli-core/agenttranscript"
 
 	"github.com/google/uuid"
 	coredb "github.com/vrooli/api-core/database"
@@ -382,10 +383,14 @@ func (c *OpenCode) BuildArgs(state State, req runner.ExecuteRequest) []string {
 // attachments via `-f/--file`.
 func (c *OpenCode) BuildContinueArgs(state State, req runner.ContinueRequest) []string {
 	caps := c.capabilities()
+	format, ok := agenttranscript.FormatFor("opencode")
+	if !ok {
+		panic("missing shared OpenCode transcript format")
+	}
 	args := []string{
 		"run",
 		req.Prompt,
-		"--session", req.SessionID,
+		format.ResumeFlag, req.SessionID,
 		"--format", "json",
 		"--print-logs",
 	}

@@ -246,7 +246,7 @@ func ResolveMode(run RunFacts, periods []ModePeriod) ModeRelation {
 	}
 	predates := ModeRelation{}
 	for _, period := range periods {
-		if period.Kind == "learn" || !period.matchesRunner(run.Harness) {
+		if period.Kind == "learn" || !period.matchesRun(run) {
 			continue
 		}
 		if period.Contains(start) {
@@ -272,6 +272,12 @@ func (m ModePeriod) matchesRunner(harness string) bool {
 		return true
 	}
 	return strings.Contains(strings.ToLower(harness), strings.ToLower(strings.TrimSuffix(m.Runner, "-code")))
+}
+
+// matchesRun is for period inference, which has the run's role but no profile
+// identity. A scoped period is not evidence when its scope cannot be matched.
+func (m ModePeriod) matchesRun(run RunFacts) bool {
+	return m.matchesRunner(run.Harness) && (m.Role == "" || m.Role == run.Role) && m.Profile == ""
 }
 
 // activeGap is the longest silence between usage reports still counted as work.

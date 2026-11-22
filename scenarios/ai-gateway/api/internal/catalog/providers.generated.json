@@ -1902,17 +1902,17 @@
             }
           },
           "summarize.default": {
-            "model": "qwen3:1.7b",
+            "model": "qwen3.5:4b",
             "fallbacks": [
-              "qwen3.5:4b",
-              "llama3.2:3b"
+              "llama3.2:3b",
+              "qwen3:1.7b"
             ],
             "required_capabilities": [
               "generate",
               "chat",
               "summarize"
             ],
-            "description": "Default summarization role for text-heavy scenario outputs. Pinned to the 1.7B Apache-2.0 tier for footprint; the 4B tier remains a quality escalation for long or fact-dense reports.",
+            "description": "Default summarization role for text-heavy scenario outputs. Uses the 4B tier, which shares its loaded runner with chat.small and classify.routing, so summaries load no extra model.",
             "preference": 40,
             "sampling_support": {
               "temperature": "honored"
@@ -1921,8 +1921,54 @@
             "provenance": {
               "source_kind": "manual_policy",
               "confidence": "medium",
-              "source": "Operator choice 2026-11-20; audio-tools measured 8/8 facts on a short report and 14/22 on a 300-word report",
-              "observed_at": "2026-11-20",
+              "source": "One-host evaluations: qwen3.5:4b kept 22/22 facts on a 300-word report where qwen3:1.7b kept 14/22, and matched qwen3.5:9b summary quality at p50 1.47 s versus 1.98 s (24 calls). qwen3:1.7b echoed prompt labels in 3 of 5 samples.",
+              "observed_at": "2026-11-21",
+              "sample_count": 0
+            }
+          },
+          "summarize.audio_tools": {
+            "model": "qwen3:1.7b",
+            "fallbacks": [
+              "qwen3.5:4b"
+            ],
+            "required_capabilities": [
+              "generate",
+              "chat",
+              "summarize"
+            ],
+            "description": "Audio Tools compact summary route. Uses Qwen3 1.7B for ordinary speech summaries; qwen3.5:4b remains an explicit quality route for fact-dense content.",
+            "preference": 40,
+            "sampling_support": {
+              "temperature": "honored"
+            },
+            "max_tokens": 1024,
+            "provenance": {
+              "source_kind": "manual_policy",
+              "confidence": "medium",
+              "source": "Audio Tools operator-selected compact summary model; one-host evidence preserved 8/8 facts on a short report but 14/22 on a 300-word report.",
+              "observed_at": "2026-11-21",
+              "sample_count": 0
+            }
+          },
+          "summarize.audio_tools.quality": {
+            "model": "qwen3.5:4b",
+            "fallbacks": [],
+            "required_capabilities": [
+              "generate",
+              "chat",
+              "summarize"
+            ],
+            "description": "Audio Tools fact-dense summary alternative using Qwen3.5 4B. The compact default has short-report evidence only and kept 14/22 facts on one 300-word report.",
+            "preference": 40,
+            "sampling_support": {
+              "temperature": "honored"
+            },
+            "max_tokens": 1024,
+            "provenance": {
+              "source_kind": "manual_policy",
+              "confidence": "medium",
+              "source": "One-host comparison: qwen3.5:4b retained 22/22 facts on a 300-word report; qwen3:1.7b retained 14/22. This is limited evidence, not broad qualification.",
+              "observed_at": "2026-11-21",
               "sample_count": 0
             }
           },
@@ -2085,14 +2131,14 @@
             }
           },
           "image.quality.judge": {
-            "model": "qwen3-vl:4b",
+            "model": "gemma4:12b",
             "fallbacks": [],
             "required_capabilities": [
               "generate",
               "chat",
               "vision"
             ],
-            "description": "Fixed local Apache-2.0 visual judge for Image Tools reference evaluation; no hosted or model fallback.",
+            "description": "Local visual judge for Image Tools reference evaluation; no hosted or model fallback. NOT qualified to give verdicts: on guinea-pig-v1 gemma4:12b (accept/reject 10/12, pairwise 0.65) accepted the different-animal park case and the SD 1.5 anime, so Image Tools never uses it as a fallback for the hosted judge; a report scored by it is labelled a screen. qwen3-vl:4b is also unqualified.",
             "preference": 66,
             "sampling_defaults": {
               "temperature": 0.0
@@ -2100,13 +2146,13 @@
             "sampling_support": {
               "temperature": "honored"
             },
-            "max_tokens": 768,
+            "max_tokens": 3500,
             "provenance": {
               "source_kind": "manual_policy",
               "confidence": "medium",
-              "source": "https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct (Apache-2.0); Image Tools IT7 evaluator role",
-              "observed_at": "2026-11-09",
-              "sample_count": 0
+              "source": "Image Tools quality-judge agreement run on the guinea-pig-v1 corpus, 2026-11-21",
+              "observed_at": "2026-11-21",
+              "sample_count": 15
             }
           }
         },
@@ -2159,7 +2205,7 @@
                 "vector"
               ]
             },
-            "context_window_tokens": 8192,
+            "context_window_tokens": 2048,
             "embedding_dimensions": 768,
             "disk_size_gb_estimate": 0.3,
             "ram_gb_estimate": 0.8,
@@ -2454,6 +2500,7 @@
               "generate",
               "chat",
               "code",
+              "vision",
               "tools"
             ],
             "modalities": {
@@ -2465,7 +2512,7 @@
                 "text"
               ]
             },
-            "context_window_tokens": 32768,
+            "context_window_tokens": 16384,
             "disk_size_gb_estimate": 7.0,
             "ram_gb_estimate": 12.0,
             "vram_gb_estimate": 12.0,
@@ -2500,8 +2547,8 @@
             },
             "rights": {
               "artifact_id": "registry.ollama.ai/library/gemma4:12b",
-              "revision": "ollama-manifest:sha256:6114515d63c17436a7c0417d82820ac65ad643e2806c5a3c89cb62846436ed0b",
-              "sha256": "6114515d63c17436a7c0417d82820ac65ad643e2806c5a3c89cb62846436ed0b",
+              "revision": "ollama-manifest:sha256:4eb23ef187e2c5462566d6a1d3bbbc2f1346d0b4327cbb66d58fffbcc9b2b05c",
+              "sha256": "4eb23ef187e2c5462566d6a1d3bbbc2f1346d0b4327cbb66d58fffbcc9b2b05c",
               "license_id": "Apache-2.0",
               "classification": "unrestricted",
               "evidence": {
@@ -2522,6 +2569,16 @@
                 "business_context_changed",
                 "use_changed"
               ]
+            },
+            "runtime_identity": {
+              "provider": "ollama",
+              "model": "gemma4:12b",
+              "artifact_id": "registry.ollama.ai/library/gemma4:12b",
+              "artifact_revision": "ollama-manifest:sha256:4eb23ef187e2c5462566d6a1d3bbbc2f1346d0b4327cbb66d58fffbcc9b2b05c",
+              "digest_kind": "ollama_model_contents",
+              "digest": "4eb23ef187e2c5462566d6a1d3bbbc2f1346d0b4327cbb66d58fffbcc9b2b05c",
+              "source": "ollama /api/tags",
+              "observed_at": "2026-11-21"
             }
           },
           "llama3.2:1b": {
@@ -2889,12 +2946,12 @@
                 "text"
               ]
             },
-            "context_window_tokens": 32768,
+            "context_window_tokens": 8192,
             "disk_size_gb_estimate": 1.4,
             "ram_gb_estimate": 3.0,
             "vram_gb_estimate": 3.0,
-            "default_eligible": false,
-            "use_case_notes": "Small LLM rerank/classify fallback candidate observed in health/search manifests.",
+            "default_eligible": true,
+            "use_case_notes": "Primary model for Audio Tools' scoped summarize.audio_tools role. The generic summarize.default role remains on qwen3.5:4b. Evidence is 8/8 facts on one short report and 14/22 on one 300-word report; this does not establish general fact-faithfulness.",
             "caveats": [
               "Prior search quality notes report weak discrimination for some reranking workloads."
             ],
@@ -2970,7 +3027,7 @@
                 "text"
               ]
             },
-            "context_window_tokens": 32768,
+            "context_window_tokens": 8192,
             "disk_size_gb_estimate": 2.6,
             "ram_gb_estimate": 5.0,
             "vram_gb_estimate": 5.0,
@@ -3156,7 +3213,7 @@
                 "text"
               ]
             },
-            "context_window_tokens": 32768,
+            "context_window_tokens": 8192,
             "disk_size_gb_estimate": 4.7,
             "ram_gb_estimate": 8.0,
             "vram_gb_estimate": 5.0,
@@ -3255,7 +3312,7 @@
               ]
             },
             "coordinate_convention": "normalized_1000",
-            "context_window_tokens": 32768,
+            "context_window_tokens": 8192,
             "disk_size_gb_estimate": 1.9,
             "ram_gb_estimate": 4.0,
             "vram_gb_estimate": 1.9,
@@ -3535,6 +3592,18 @@
             "on_expiry": "deny"
           },
           "hosted_routes": []
+        },
+        "retention": {
+          "pinned": [],
+          "rationale": "Disk eviction keeps every role's primary model plus any model listed in pinned. Fallbacks and models no role names are eligible for storage-manager's fenced eviction once idle; resource-ollama models reacquire brings one back."
+        },
+        "residency": {
+          "resident_roles": [
+            "embedding.default",
+            "chat.small"
+          ],
+          "idle_unload_seconds": 600,
+          "rationale": "Primary models of resident roles stay loaded: they serve constant traffic and are shared by several roles. Every other model unloads after 10 minutes without a request, so a large, occasionally used model does not hold GPU memory between uses."
         }
       }
     },
@@ -3716,6 +3785,33 @@
               "source": "multimodal-inference-in-ai-gateway-one-provider-boundary Phase 6 hosted vision fallback",
               "observed_at": "2026-08-10",
               "sample_count": 1
+            }
+          },
+          "image.quality.judge": {
+            "model": "google/gemini-3.5-flash",
+            "fallbacks": [
+              "google/gemini-3.7-flash"
+            ],
+            "endpoint": "chat",
+            "required_capabilities": [
+              "chat",
+              "vision"
+            ],
+            "description": "Hosted visual judge for Image Tools output evaluation. Best agreement with human verdicts on the guinea-pig-v1 corpus (binary 12/12, pairwise 0.92-0.94, every miss a tie). A caller reaches it only by naming the hosted judge in its evaluation manifest.",
+            "preference": 66,
+            "request_defaults": {
+              "temperature": 0.0,
+              "max_tokens": 4000
+            },
+            "sampling_support": {
+              "temperature": "ignored"
+            },
+            "provenance": {
+              "source_kind": "manual_policy",
+              "confidence": "medium",
+              "source": "Image Tools quality-judge agreement run on the guinea-pig-v1 corpus, 2026-11-21",
+              "observed_at": "2026-11-21",
+              "sample_count": 15
             }
           },
           "extract.structured": {
@@ -3950,7 +4046,9 @@
             "request_defaults": {
               "output_format": "png",
               "aspect_ratio": "1:1",
-              "quality": "high"
+              "quality": "high",
+              "resolution": "1K",
+              "max_tokens": 2048
             },
             "provenance": {
               "source_kind": "chatgpt_survey",
@@ -4028,7 +4126,9 @@
             "description": "Identity-preserving image-edit role for edits that must keep a subject's likeness or structure.",
             "preference": 150,
             "request_defaults": {
-              "output_format": "png"
+              "output_format": "png",
+              "resolution": "1K",
+              "max_tokens": 2048
             },
             "provenance": {
               "source_kind": "chatgpt_survey",
@@ -5909,6 +6009,11 @@
           "temperature": 0.0,
           "overridable": false
         },
+        "embedding": {
+          "normalization": "l2",
+          "max_batch_inputs": 64,
+          "max_batch_bytes": 1048576
+        },
         "candidates": [
           {
             "provider": "ollama",
@@ -6269,6 +6374,36 @@
               "reason": "LM4 compact faithful-summary candidate; not dispatched until a real caller validates factual fidelity."
             },
             "status": "pending"
+          }
+        ]
+      },
+      "summarize.audio_tools": {
+        "description": "Compact local summaries for Audio Tools speech output. This application-scoped role uses Qwen3 1.7B; callers should preserve important facts and use a separately selected quality route for fact-dense content.",
+        "timeout_ms": 120000,
+        "sampling": {
+          "temperature": 0.0,
+          "overridable": false
+        },
+        "candidates": [
+          {
+            "provider": "ollama",
+            "resource_role": "summarize.audio_tools",
+            "reason": "Audio Tools owns this compact summary role; generic summarize.faithful remains governed by summarize.default."
+          }
+        ]
+      },
+      "summarize.audio_tools.quality": {
+        "description": "Fact-dense local summary alternative for Audio Tools using Qwen3.5 4B. Evidence is limited to one 300-word report; it is not broad qualification.",
+        "timeout_ms": 120000,
+        "sampling": {
+          "temperature": 0.0,
+          "overridable": false
+        },
+        "candidates": [
+          {
+            "provider": "ollama",
+            "resource_role": "summarize.audio_tools.quality",
+            "reason": "Audio Tools quality alternative. The compact 1.7B default retained 14/22 facts on one 300-word report; preserve this option for fact-dense input."
           }
         ]
       },

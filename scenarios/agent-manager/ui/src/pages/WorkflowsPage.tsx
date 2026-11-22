@@ -7,7 +7,7 @@ import { WorkflowExecutionStatus } from "@vrooli/proto-types/agent-manager/v1/do
 import { useWorkflowExecutions, type WorkflowTraceView } from "../hooks/useApi";
 import { Badge } from "../components/ui/badge";
 import { Button } from "@vrooli/react-component-library/Button/2";
-import { Input } from "../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { DataState } from "../components/feedback/DataState";
 import { ErrorNotice } from "../components/feedback/ErrorNotice";
 import { useViewportSize } from "../hooks/useViewportSize";

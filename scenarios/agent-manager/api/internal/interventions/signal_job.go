@@ -136,9 +136,18 @@ func (j *SignalJob) Pass(ctx context.Context) (SignalStats, error) {
 		if ctx.Err() != nil {
 			break
 		}
+		if !j.enabled() {
+			stats.Disabled = true
+			return stats, firstErr
+		}
 		records, err := j.processRun(ctx, runID, byRun[runID], runs, now)
-		if saveErr := j.Store.SaveSignals(ctx, SignalVersion, records, now); saveErr != nil {
+		saved, saveErr := j.Store.saveSignalsIfEnabled(ctx, SignalVersion, records, now, j.enabled)
+		if saveErr != nil {
 			return stats, saveErr
+		}
+		if !saved {
+			stats.Disabled = true
+			return stats, firstErr
 		}
 		for _, r := range records {
 			if r.Answer.Status == StatusClassified {
@@ -194,6 +203,9 @@ func (j *SignalJob) processRun(ctx context.Context, runID string, candidates []S
 		records = append(records, SignalRecord{SignalCandidate: c})
 	}
 	if len(messages) == 0 {
+		return records, nil
+	}
+	if !j.enabled() {
 		return records, nil
 	}
 	answers, classifyErr := j.Classifier.ClassifySignals(ctx, messages)

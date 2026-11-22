@@ -10,8 +10,7 @@ import (
 )
 
 func TestManagedRunProcessProjectionPreservesCandidatePopulation(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, db.log)
 	ctx := context.Background()
 	task := &domain.Task{ID: uuid.New(), Title: "process candidates", ScopePath: "/test", Status: domain.TaskStatusQueued}

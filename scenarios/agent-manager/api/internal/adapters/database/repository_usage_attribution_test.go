@@ -45,8 +45,7 @@ func TestUsageRunKeepsExplicitWorkloadOnImportedTranscript(t *testing.T) {
 // run's own usage events, a legacy Codex event without a cumulative counter —
 // are never counted.
 func TestUsageTurnsCountEachReportOnceFromTranscriptUsage(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	ctx := context.Background()
 	start := time.Date(2026, 10, 28, 9, 0, 0, 0, time.UTC)
 	imported, owned, legacy := uuid.NewString(), uuid.NewString(), uuid.NewString()

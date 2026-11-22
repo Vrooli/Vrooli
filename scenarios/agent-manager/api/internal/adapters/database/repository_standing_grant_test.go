@@ -29,8 +29,7 @@ func runCreationStandingGrant(id, subject, owner string, exp time.Time) *domain.
 }
 
 func TestStandingGrantStorePutAndActiveForSubject(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repo := NewStandingGrantRepository(db)
 	ctx := context.Background()
 	now := time.Now()
@@ -56,8 +55,7 @@ func TestStandingGrantStorePutAndActiveForSubject(t *testing.T) {
 }
 
 func TestStandingGrantStoreExcludesExpired(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repo := NewStandingGrantRepository(db)
 	ctx := context.Background()
 	now := time.Now()
@@ -76,8 +74,7 @@ func TestStandingGrantStoreExcludesExpired(t *testing.T) {
 }
 
 func TestStandingGrantStoreRevokeDeniesNextLookup(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repo := NewStandingGrantRepository(db)
 	ctx := context.Background()
 	now := time.Now()
@@ -100,8 +97,7 @@ func TestStandingGrantStoreRevokeDeniesNextLookup(t *testing.T) {
 }
 
 func TestStandingGrantListForApproverFiltersBeforeLimit(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repo := NewStandingGrantRepository(db)
 	ctx := context.Background()
 	now := time.Now().UTC()

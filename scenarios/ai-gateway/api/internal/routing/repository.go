@@ -116,8 +116,9 @@ selected_model, image_count, attachment_bytes, attachment_sha256,
 attachments_redacted, attachment_dimensions_json,
 sampling_temperature, sampling_temperature_support,
 preparation_duration_ns, route_plan_duration_ns, role_resolution_duration_ns,
-eligibility_duration_ns, capacity_admission_duration_ns, provider_execution_duration_ns
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+eligibility_duration_ns, capacity_admission_duration_ns, provider_execution_duration_ns,
+provider_runtime_duration_ns, provider_admission_wait_ns, total_duration_ns, overhead_duration_ns
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		ev.GetEventId(),
 		ev.GetRequestId(),
 		ev.GetScenario(),
@@ -163,6 +164,10 @@ eligibility_duration_ns, capacity_admission_duration_ns, provider_execution_dura
 		ev.GetEligibilityDurationNs(),
 		ev.GetCapacityAdmissionDurationNs(),
 		ev.GetProviderExecutionDurationNs(),
+		ev.GetProviderRuntimeDurationNs(),
+		ev.GetProviderAdmissionWaitNs(),
+		ev.GetTotalDurationNs(),
+		ev.GetOverheadDurationNs(),
 	)
 	return err
 }
@@ -225,7 +230,8 @@ input_tokens, output_tokens, cost_estimate, selected_model, image_count,
 attachment_bytes, attachment_sha256, attachments_redacted,
 attachment_dimensions_json, sampling_temperature, sampling_temperature_support,
 preparation_duration_ns, route_plan_duration_ns, role_resolution_duration_ns,
-eligibility_duration_ns, capacity_admission_duration_ns, provider_execution_duration_ns
+eligibility_duration_ns, capacity_admission_duration_ns, provider_execution_duration_ns,
+provider_runtime_duration_ns, provider_admission_wait_ns, total_duration_ns, overhead_duration_ns
 FROM route_events`
 
 type scanner interface {
@@ -287,6 +293,10 @@ func scanEvidence(s scanner) (*routingv1.RouteEvidence, error) {
 		&ev.EligibilityDurationNs,
 		&ev.CapacityAdmissionDurationNs,
 		&ev.ProviderExecutionDurationNs,
+		&ev.ProviderRuntimeDurationNs,
+		&ev.ProviderAdmissionWaitNs,
+		&ev.TotalDurationNs,
+		&ev.OverheadDurationNs,
 	)
 	if err != nil {
 		return nil, err

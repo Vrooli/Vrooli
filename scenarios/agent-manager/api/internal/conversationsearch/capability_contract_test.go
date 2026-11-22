@@ -16,7 +16,7 @@ func TestConversationRecallCapabilityLayers(t *testing.T) {
 	// The skill's guidance spans SKILL.md and the references it loads on demand.
 	usage := readSkillWithReferences(t, filepath.Join(scenarioRoot, "skills", "agent-manager"))
 	for _, expected := range []string{
-		"unknown run id", "agent-manager conversation search", "agent-manager conversation context",
+		"unknown run", "agent-manager conversation search", "agent-manager conversation context",
 		"copied text", "provenance", "agent-manager.conversation-recall", "do not paste snippets",
 	} {
 		require.Contains(t, strings.ToLower(usage), strings.ToLower(expected))

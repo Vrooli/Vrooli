@@ -256,6 +256,9 @@ func (p *AgentProfile) Validate() error {
 		return err
 	}
 	if capability := p.Features.BrowserCapability; capability != nil {
+		if strings.TrimSpace(capability.GrantReceipt) != "" {
+			return NewValidationError("features.browserCapability.grantReceipt", "browser grants are minted per run and cannot be stored in an agent profile")
+		}
 		if err := browsercapability.Validate(*capability); err != nil {
 			return NewValidationErrorWithHint("features.browserCapability", err.Error(), "choose an eligible browser mode, permission profile and bounded budget")
 		}

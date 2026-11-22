@@ -28,8 +28,7 @@ func TestModelPricingDomainRowRoundTripPreservesOptionalComponents(t *testing.T)
 }
 
 func TestPricingRepositoryPersistsAndQueriesModelPricing(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	t.Cleanup(cleanup)
+	db := setupTestDB(t)
 	repo := NewPricingRepository(db, logrus.New())
 	now := time.Now().UTC()
 	model := &pricing.ModelPricing{ID: uuid.New(), CanonicalModelName: "model", Provider: "provider", InputTokenPrice: floatPtr(1.5), FetchedAt: now, ExpiresAt: now.Add(-time.Hour), CreatedAt: now, UpdatedAt: now}
@@ -53,8 +52,7 @@ func TestPricingRepositoryPersistsAndQueriesModelPricing(t *testing.T) {
 }
 
 func TestPricingRepositoryPersistsQuotaObservationWithoutInventingAmounts(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	t.Cleanup(cleanup)
+	db := setupTestDB(t)
 	repo := NewPricingRepository(db, logrus.New())
 	when := time.Date(2026, 9, 13, 12, 0, 0, 0, time.UTC)
 	observation, err := pricing.FromRateLimitEvent("openai", "codex", "codex-native-rate-limit", when, &domain.RateLimitEventData{LimitType: "5h", Message: "limit reached"})
@@ -78,8 +76,7 @@ func TestPricingRepositoryPersistsQuotaObservationWithoutInventingAmounts(t *tes
 }
 
 func TestPricingRepositoryBulkAliasesOverridesAndSettings(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	t.Cleanup(cleanup)
+	db := setupTestDB(t)
 	repo := NewPricingRepository(db, logrus.New())
 	ctx := t.Context()
 	now := time.Now().UTC()

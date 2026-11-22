@@ -420,6 +420,68 @@ func TestOrchestrationSettingsStore_RoundTrip(t *testing.T) {
 	}
 }
 
+func TestOrchestrationSettingsStore_AtomicWriteDoesNotFollowStaleTempSymlink(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "orchestration.json")
+	store, err := NewOrchestrationSettingsStore(path)
+	if err != nil {
+		t.Fatalf("NewOrchestrationSettingsStore: %v", err)
+	}
+
+	sentinel := filepath.Join(dir, "unrelated.txt")
+	const sentinelContents = "preserve unrelated file"
+	if err := os.WriteFile(sentinel, []byte(sentinelContents), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(sentinel, path+".tmp"); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+
+	updated := DefaultOrchestrationSettings()
+	updated.RunExecution.RunTimeoutMinutes = 73
+	if err := store.Update(updated); err != nil {
+		t.Fatalf("Update with stale temp symlink: %v", err)
+	}
+	if got, err := os.ReadFile(sentinel); err != nil || string(got) != sentinelContents {
+		t.Fatalf("unrelated symlink target = %q, err=%v; want %q", got, err, sentinelContents)
+	}
+	if target, err := os.Readlink(path + ".tmp"); err != nil || target != sentinel {
+		t.Fatalf("stale temp symlink target = %q, err=%v; want %q", target, err, sentinel)
+	}
+	info, err := os.Lstat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		t.Fatal("settings path became a symlink")
+	}
+	if got := info.Mode().Perm(); got != 0o644 {
+		t.Fatalf("settings file permissions = %04o, want 0644", got)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var persisted OrchestrationSettings
+	if err := json.Unmarshal(data, &persisted); err != nil {
+		t.Fatal(err)
+	}
+	if persisted.RunExecution.RunTimeoutMinutes != 73 || store.Get().RunExecution.RunTimeoutMinutes != 73 {
+		t.Fatalf("disk/memory run timeout = %d/%d, want 73", persisted.RunExecution.RunTimeoutMinutes, store.Get().RunExecution.RunTimeoutMinutes)
+	}
+	reopened, err := NewOrchestrationSettingsStore(path)
+	if err != nil {
+		t.Fatalf("reopen updated settings: %v", err)
+	}
+	if reopened.Get().RunExecution.RunTimeoutMinutes != 73 {
+		t.Fatalf("reopened run timeout = %d, want 73", reopened.Get().RunExecution.RunTimeoutMinutes)
+	}
+	leftovers, err := filepath.Glob(path + ".tmp-*")
+	if err != nil || len(leftovers) != 0 {
+		t.Fatalf("temporary files left after update = %v, err=%v", leftovers, err)
+	}
+}
+
 // =============================================================================
 // STORE: MISSING FILE
 // =============================================================================

@@ -18,10 +18,17 @@ import (
 
 // [REQ:REQ-P0-005] Tests for sandbox integration with workspace-sandbox
 
+func newWorkspaceSandboxTestProvider(t *testing.T, handler http.Handler) *sandbox.WorkspaceSandboxProvider {
+	t.Helper()
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+	return sandbox.NewWorkspaceSandboxProvider(server.URL)
+}
+
 func TestWorkspaceSandboxProvider_Create(t *testing.T) {
 	sandboxID := uuid.New()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	provider := newWorkspaceSandboxTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" || r.URL.Path != "/api/v1/sandboxes" {
 			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}
@@ -48,9 +55,6 @@ func TestWorkspaceSandboxProvider_Create(t *testing.T) {
 			"createdAt":   time.Now().Format(time.RFC3339),
 		})
 	}))
-	defer server.Close()
-
-	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
 
 	result, err := provider.Create(context.Background(), sandbox.CreateRequest{
 		ScopePath:      "src/",
@@ -77,7 +81,7 @@ func TestWorkspaceSandboxProvider_Create(t *testing.T) {
 func TestWorkspaceSandboxProvider_Get(t *testing.T) {
 	sandboxID := uuid.New()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	provider := newWorkspaceSandboxTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		expectedPath := "/api/v1/sandboxes/" + sandboxID.String()
 		if r.Method != "GET" || r.URL.Path != expectedPath {
 			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
@@ -92,9 +96,6 @@ func TestWorkspaceSandboxProvider_Get(t *testing.T) {
 			"createdAt":   time.Now().Format(time.RFC3339),
 		})
 	}))
-	defer server.Close()
-
-	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
 
 	result, err := provider.Get(context.Background(), sandboxID)
 	if err != nil {
@@ -114,7 +115,7 @@ func TestWorkspaceSandboxProvider_Get_DecodesWorkspaceLayout(t *testing.T) {
 	sandboxID := uuid.New()
 	const merged = "/tmp/sandbox/merged"
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	provider := newWorkspaceSandboxTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"id":            sandboxID.String(),
 			"status":        "active",
@@ -130,9 +131,6 @@ func TestWorkspaceSandboxProvider_Get_DecodesWorkspaceLayout(t *testing.T) {
 			"createdAt": time.Now().Format(time.RFC3339),
 		})
 	}))
-	defer server.Close()
-
-	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
 
 	sb, err := provider.Get(context.Background(), sandboxID)
 	if err != nil {
@@ -182,7 +180,7 @@ func TestWorkspaceSandboxProvider_Get_LayoutFallback(t *testing.T) {
 	sandboxID := uuid.New()
 	const merged = "/tmp/sandbox/legacy/merged"
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	provider := newWorkspaceSandboxTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"id":        sandboxID.String(),
 			"status":    "active",
@@ -190,9 +188,6 @@ func TestWorkspaceSandboxProvider_Get_LayoutFallback(t *testing.T) {
 			"createdAt": time.Now().Format(time.RFC3339),
 		})
 	}))
-	defer server.Close()
-
-	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
 
 	sb, err := provider.Get(context.Background(), sandboxID)
 	if err != nil {
@@ -212,13 +207,10 @@ func TestWorkspaceSandboxProvider_Get_LayoutFallback(t *testing.T) {
 func TestWorkspaceSandboxProvider_Get_NotFound(t *testing.T) {
 	sandboxID := uuid.New()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	provider := newWorkspaceSandboxTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "not found"})
 	}))
-	defer server.Close()
-
-	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
 
 	_, err := provider.Get(context.Background(), sandboxID)
 
@@ -230,7 +222,7 @@ func TestWorkspaceSandboxProvider_Get_NotFound(t *testing.T) {
 func TestWorkspaceSandboxProvider_Delete(t *testing.T) {
 	sandboxID := uuid.New()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	provider := newWorkspaceSandboxTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		expectedPath := "/api/v1/sandboxes/" + sandboxID.String()
 		if r.Method != "DELETE" || r.URL.Path != expectedPath {
 			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
@@ -238,9 +230,6 @@ func TestWorkspaceSandboxProvider_Delete(t *testing.T) {
 
 		w.WriteHeader(http.StatusNoContent)
 	}))
-	defer server.Close()
-
-	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
 
 	err := provider.Delete(context.Background(), sandboxID)
 	if err != nil {
@@ -252,7 +241,7 @@ func TestWorkspaceSandboxProviderLifecycleValidationAndConflictContracts(t *test
 	sandboxID := uuid.New()
 	deleted := make([]string, 0)
 	now := time.Now().UTC()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	provider := newWorkspaceSandboxTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/sandboxes/"+sandboxID.String()+"/stop":
 			w.WriteHeader(http.StatusOK)
@@ -287,8 +276,6 @@ func TestWorkspaceSandboxProviderLifecycleValidationAndConflictContracts(t *test
 			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}
 	}))
-	defer server.Close()
-	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
 	ctx := context.Background()
 	if err := provider.Stop(ctx, sandboxID); err != nil {
 		t.Fatalf("stop: %v", err)
@@ -329,7 +316,7 @@ func TestWorkspaceSandboxProvider_GetDiff(t *testing.T) {
 	sandboxID := uuid.New()
 	fileID := uuid.New()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	provider := newWorkspaceSandboxTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		expectedPath := "/api/v1/sandboxes/" + sandboxID.String() + "/diff"
 		if r.Method != "GET" || r.URL.Path != expectedPath {
 			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
@@ -363,9 +350,6 @@ func TestWorkspaceSandboxProvider_GetDiff(t *testing.T) {
 			},
 		})
 	}))
-	defer server.Close()
-
-	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
 
 	result, err := provider.GetDiff(context.Background(), sandboxID)
 	if err != nil {
@@ -415,15 +399,12 @@ func TestWorkspaceSandboxProvider_GetDiff(t *testing.T) {
 
 func TestWorkspaceSandboxProvider_GetDiffRejectsPatchDigestMismatch(t *testing.T) {
 	sandboxID := uuid.New()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	provider := newWorkspaceSandboxTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"files": []any{}, "unifiedDiff": "diff bytes", "patchSha256": strings.Repeat("0", 64),
 			"stats": map[string]any{},
 		})
 	}))
-	defer server.Close()
-
-	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
 	if _, err := provider.GetDiff(context.Background(), sandboxID); err == nil {
 		t.Fatal("GetDiff accepted a digest that does not identify the returned unified diff")
 	}
@@ -433,7 +414,7 @@ func TestWorkspaceSandboxProvider_GetDiff_ArchiveStateComplete(t *testing.T) {
 	sandboxID := uuid.New()
 	fileID := uuid.New()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	provider := newWorkspaceSandboxTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		unifiedDiff := "diff --git a/src/main.go b/src/main.go\n@@ -1 +1 @@\n+x\n"
 		digest := sha256.Sum256([]byte(unifiedDiff))
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
@@ -464,9 +445,6 @@ func TestWorkspaceSandboxProvider_GetDiff_ArchiveStateComplete(t *testing.T) {
 			"archiveState": "complete",
 		})
 	}))
-	defer server.Close()
-
-	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
 	result, err := provider.GetDiff(context.Background(), sandboxID)
 	if err != nil {
 		t.Fatalf("GetDiff: %v", err)
@@ -491,7 +469,7 @@ func TestWorkspaceSandboxProvider_GetDiff_ArchiveStateComplete(t *testing.T) {
 func TestWorkspaceSandboxProvider_GetDiff_ArchiveStateNotCaptured(t *testing.T) {
 	sandboxID := uuid.New()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	provider := newWorkspaceSandboxTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"sandboxId":    sandboxID.String(),
 			"files":        []map[string]interface{}{},
@@ -501,9 +479,6 @@ func TestWorkspaceSandboxProvider_GetDiff_ArchiveStateNotCaptured(t *testing.T) 
 			"archiveState": "not_captured",
 		})
 	}))
-	defer server.Close()
-
-	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
 	result, err := provider.GetDiff(context.Background(), sandboxID)
 	if err != nil {
 		t.Fatalf("GetDiff: %v", err)
@@ -525,14 +500,11 @@ func TestWorkspaceSandboxProvider_GetDiff_Empty(t *testing.T) {
 	// This is the captured current Workspace Sandbox /diff wire shape
 	// (A237logs/current-wsb-empty-diff-wire.json), with only the sandbox ID
 	// replaced so the provider still checks the exact requested identity.
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	provider := newWorkspaceSandboxTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		const captured = `{"sandboxId":"8bc153c3-3822-4bdf-9b34-a628c2070328","files":[],"unifiedDiff":"","patchSha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","generated":"2026-10-18T06:25:16.876583678-04:00","stats":{"filesChanged":0,"filesAdded":0,"filesModified":0,"filesDeleted":0,"linesAdded":0,"linesRemoved":0,"totalBytes":0},"mode":"diff"}`
 		wire := strings.Replace(captured, "8bc153c3-3822-4bdf-9b34-a628c2070328", sandboxID.String(), 1)
 		_, _ = w.Write([]byte(wire))
 	}))
-	defer server.Close()
-
-	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
 	result, err := provider.GetDiff(context.Background(), sandboxID)
 	if err != nil {
 		t.Fatalf("GetDiff failed: %v", err)
@@ -551,15 +523,12 @@ func TestWorkspaceSandboxProvider_GetDiff_Empty(t *testing.T) {
 func TestWorkspaceSandboxProvider_GetDiffDoesNotTreatOmittedFieldsAsEmptyEvidence(t *testing.T) {
 	sandboxID := uuid.New()
 	digest := sha256.Sum256(nil)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	provider := newWorkspaceSandboxTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"sandboxId": sandboxID.String(), "patchSha256": hex.EncodeToString(digest[:]),
 			"unifiedDiff": "", "files": []any{},
 		})
 	}))
-	defer server.Close()
-
-	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
 	result, err := provider.GetDiff(context.Background(), sandboxID)
 	if err != nil {
 		t.Fatalf("GetDiff: %v", err)
@@ -598,11 +567,9 @@ func TestWorkspaceSandboxProvider_GetDiffRejectsNullEvidenceScalars(t *testing.T
 				t.Fatalf("captured wire fixture lacks target %q", tc.old)
 			}
 			body := strings.Replace(valid, tc.old, tc.new, 1)
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			provider := newWorkspaceSandboxTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				_, _ = w.Write([]byte(body))
 			}))
-			defer server.Close()
-			provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
 			result, err := provider.GetDiff(context.Background(), sandboxID)
 			if err != nil {
 				t.Fatalf("GetDiff: %v", err)
@@ -616,12 +583,9 @@ func TestWorkspaceSandboxProvider_GetDiffRejectsNullEvidenceScalars(t *testing.T
 
 func TestWorkspaceSandboxProvider_GetDiffRejectsMismatchedResponseSandboxID(t *testing.T) {
 	sandboxID := uuid.New()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	provider := newWorkspaceSandboxTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"sandboxId": uuid.New().String(), "files": []any{}, "unifiedDiff": ""})
 	}))
-	defer server.Close()
-
-	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
 	if _, err := provider.GetDiff(context.Background(), sandboxID); err == nil {
 		t.Fatal("GetDiff accepted a response for a different sandbox ID")
 	}
@@ -631,7 +595,7 @@ func TestWorkspaceSandboxProvider_Approve(t *testing.T) {
 	sandboxID := uuid.New()
 
 	expectedPatch := strings.Repeat("a", 64)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	provider := newWorkspaceSandboxTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		expectedPath := "/api/v1/sandboxes/" + sandboxID.String() + "/approve"
 		if r.Method != "POST" || r.URL.Path != expectedPath {
 			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
@@ -661,9 +625,6 @@ func TestWorkspaceSandboxProvider_Approve(t *testing.T) {
 			"appliedAt":        time.Now().Format(time.RFC3339),
 		})
 	}))
-	defer server.Close()
-
-	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
 
 	result, err := provider.Approve(context.Background(), sandbox.ApproveRequest{
 		SandboxID:           sandboxID,
@@ -692,7 +653,7 @@ func TestWorkspaceSandboxProvider_Approve(t *testing.T) {
 func TestWorkspaceSandboxProvider_RejectReviewedSendsExpectedPatch(t *testing.T) {
 	sandboxID := uuid.New()
 	const expected = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	provider := newWorkspaceSandboxTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		expectedPath := "/api/v1/sandboxes/" + sandboxID.String() + "/reject-reviewed"
 		if r.Method != "POST" || r.URL.Path != expectedPath {
 			t.Errorf("unexpected reviewed reject request: %s %s", r.Method, r.URL.Path)
@@ -706,8 +667,6 @@ func TestWorkspaceSandboxProvider_RejectReviewedSendsExpectedPatch(t *testing.T)
 		}
 		w.WriteHeader(http.StatusOK)
 	}))
-	defer server.Close()
-	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
 	if err := provider.RejectReviewed(context.Background(), sandbox.RejectRequest{
 		SandboxID: sandboxID, Actor: "reviewer", ExpectedPatchSHA256: expected,
 	}); err != nil {
@@ -718,7 +677,7 @@ func TestWorkspaceSandboxProvider_RejectReviewedSendsExpectedPatch(t *testing.T)
 func TestWorkspaceSandboxProvider_RejectReviewedDoesNotFallbackToLegacyRoute(t *testing.T) {
 	sandboxID := uuid.New()
 	var paths []string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	provider := newWorkspaceSandboxTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		paths = append(paths, r.URL.Path)
 		if strings.HasSuffix(r.URL.Path, "/reject") {
 			w.WriteHeader(http.StatusOK)
@@ -726,8 +685,6 @@ func TestWorkspaceSandboxProvider_RejectReviewedDoesNotFallbackToLegacyRoute(t *
 		}
 		http.NotFound(w, r)
 	}))
-	defer server.Close()
-	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
 	err := provider.RejectReviewed(context.Background(), sandbox.RejectRequest{
 		SandboxID: sandboxID, Actor: "reviewer", ExpectedPatchSHA256: strings.Repeat("a", 64),
 	})
@@ -740,16 +697,13 @@ func TestWorkspaceSandboxProvider_RejectReviewedDoesNotFallbackToLegacyRoute(t *
 func TestWorkspaceSandboxProvider_Reject(t *testing.T) {
 	sandboxID := uuid.New()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	provider := newWorkspaceSandboxTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		expectedPath := "/api/v1/sandboxes/" + sandboxID.String() + "/reject"
 		if r.Method != "POST" || r.URL.Path != expectedPath {
 			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}
 		w.WriteHeader(http.StatusOK)
 	}))
-	defer server.Close()
-
-	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
 
 	err := provider.Reject(context.Background(), sandboxID, "test-user")
 	if err != nil {
@@ -794,15 +748,12 @@ func TestWorkspaceSandboxProvider_IsAvailable(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			provider := newWorkspaceSandboxTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Path != "/health" {
 					t.Errorf("expected /health path, got %s", r.URL.Path)
 				}
 				tt.response(w)
 			}))
-			defer server.Close()
-
-			provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
 			avail, _ := provider.IsAvailable(context.Background())
 
 			if avail != tt.wantAvail {
@@ -833,7 +784,7 @@ func TestWorkspaceSandboxProvider_IsAvailableReportsMissingEndpoint(t *testing.T
 func TestWorkspaceSandboxProvider_ApplyAtRunEnd(t *testing.T) {
 	sandboxID := uuid.New()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	provider := newWorkspaceSandboxTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		expectedPath := "/api/v1/sandboxes/" + sandboxID.String() + "/apply-at-run-end"
 		if r.Method != "POST" || r.URL.Path != expectedPath {
 			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
@@ -871,9 +822,6 @@ func TestWorkspaceSandboxProvider_ApplyAtRunEnd(t *testing.T) {
 			"appliedAt":  time.Now().Format(time.RFC3339),
 		})
 	}))
-	defer server.Close()
-
-	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
 
 	result, err := provider.ApplyAtRunEnd(context.Background(), sandbox.ApplyAtRunEndRequest{
 		SandboxID:      sandboxID,
@@ -904,7 +852,7 @@ func TestWorkspaceSandboxProvider_ApplyAtRunEnd(t *testing.T) {
 func TestWorkspaceSandboxProvider_ApplyAtRunEnd_PartialAcceptance(t *testing.T) {
 	sandboxID := uuid.New()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	provider := newWorkspaceSandboxTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"sandboxId": sandboxID.String(),
 			"status":    "checkpointed",
@@ -915,9 +863,6 @@ func TestWorkspaceSandboxProvider_ApplyAtRunEnd_PartialAcceptance(t *testing.T) 
 			"appliedAt": time.Now().Format(time.RFC3339),
 		})
 	}))
-	defer server.Close()
-
-	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
 	result, err := provider.ApplyAtRunEnd(context.Background(), sandbox.ApplyAtRunEndRequest{
 		SandboxID:  sandboxID,
 		RunID:      "run-1",
@@ -940,13 +885,10 @@ func TestWorkspaceSandboxProvider_ApplyAtRunEnd_PartialAcceptance(t *testing.T) 
 func TestWorkspaceSandboxProvider_ApplyAtRunEnd_NotFound(t *testing.T) {
 	sandboxID := uuid.New()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	provider := newWorkspaceSandboxTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": "sandbox not found"})
 	}))
-	defer server.Close()
-
-	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
 	_, err := provider.ApplyAtRunEnd(context.Background(), sandbox.ApplyAtRunEndRequest{
 		SandboxID: sandboxID,
 		RunID:     "run-1",
@@ -966,16 +908,13 @@ func TestWorkspaceSandboxProvider_ApplyAtRunEnd_NotFound(t *testing.T) {
 func TestWorkspaceSandboxProvider_ApplyAtRunEnd_ConflictReturnsTypedError(t *testing.T) {
 	sandboxID := uuid.New()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	provider := newWorkspaceSandboxTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusConflict)
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"error": "repo conflict",
 			"hint":  "rebase the sandbox before applying",
 		})
 	}))
-	defer server.Close()
-
-	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
 	_, err := provider.ApplyAtRunEnd(context.Background(), sandbox.ApplyAtRunEndRequest{
 		SandboxID: sandboxID,
 		RunID:     "run-1",
@@ -998,7 +937,7 @@ func TestWorkspaceSandboxProvider_ApplyAtRunEnd_ConflictReturnsTypedError(t *tes
 func TestWorkspaceSandboxProvider_ApplyAtRunEnd_BadRequestRejectsBogusSource(t *testing.T) {
 	sandboxID := uuid.New()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	provider := newWorkspaceSandboxTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body map[string]interface{}
 		_ = json.NewDecoder(r.Body).Decode(&body)
 		if got := body["source"]; got != "agent-manager-auto-apply" {
@@ -1013,9 +952,6 @@ func TestWorkspaceSandboxProvider_ApplyAtRunEnd_BadRequestRejectsBogusSource(t *
 			"success": true, "appliedAt": time.Now().Format(time.RFC3339),
 		})
 	}))
-	defer server.Close()
-
-	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
 	// Happy path — adapter sets source correctly.
 	if _, err := provider.ApplyAtRunEnd(context.Background(), sandbox.ApplyAtRunEndRequest{
 		SandboxID: sandboxID,
@@ -1030,7 +966,7 @@ func TestWorkspaceSandboxProvider_PartialApprove(t *testing.T) {
 	fileID1 := uuid.New()
 	fileID2 := uuid.New()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	provider := newWorkspaceSandboxTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		expectedPath := "/api/v1/sandboxes/" + sandboxID.String() + "/partial-approve"
 		if r.Method != "POST" || r.URL.Path != expectedPath {
 			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
@@ -1057,9 +993,6 @@ func TestWorkspaceSandboxProvider_PartialApprove(t *testing.T) {
 			"appliedAt":  time.Now().Format(time.RFC3339),
 		})
 	}))
-	defer server.Close()
-
-	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
 
 	result, err := provider.PartialApprove(context.Background(), sandbox.PartialApproveRequest{
 		SandboxID: sandboxID,

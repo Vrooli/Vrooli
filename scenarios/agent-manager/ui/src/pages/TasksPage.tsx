@@ -25,11 +25,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../components/ui/dialog";
-import { Input } from "../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { Label } from "../components/ui/label";
 import { RoleSelector } from "../components/RoleSelector";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { Textarea } from "../components/ui/textarea";
+import { Tabs as RclTabs } from "@vrooli/react-component-library/Tabs/1";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1.1.1";
 import type { RolePolicyCatalog } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
 import type { AgentProfile, ProfileFormData, Run, RunFormData, Task, TaskFormData } from "../types";
 import { RunMode, TaskStatus } from "../types";
@@ -693,19 +693,20 @@ export function TasksPage({
             </DialogDescription>
           </DialogHeader>
           <DialogBody className="space-y-4">
-            <Tabs value={runConfigMode} onValueChange={(v) => setRunConfigMode(v as "profile" | "custom")}>
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="profile" className="gap-2">
-                  <Settings2 className="h-4 w-4" />
-                  Use Profile
-                </TabsTrigger>
-                <TabsTrigger value="custom" className="gap-2">
-                  <Play className="h-4 w-4" />
-                  Quick Run
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="profile" className="space-y-4 mt-4">
+            <RclTabs
+              mode="controlled"
+              active={runConfigMode}
+              onChange={(mode) => setRunConfigMode(mode as "profile" | "custom")}
+              ariaLabel="Run configuration mode"
+              density="compact"
+              variant="segmented"
+              items={[
+                { id: "profile", label: "Use Profile", icon: <Settings2 className="h-4 w-4" /> },
+                { id: "custom", label: "Quick Run", icon: <Play className="h-4 w-4" /> },
+              ]}
+              testId="tasks-run-config-tabs"
+              panels={{
+                profile: <div className="space-y-4 mt-4">
                 {profiles.length === 0 ? (
                   <div className="text-center py-4 space-y-3">
                     <p className="text-sm text-muted-foreground">
@@ -763,9 +764,8 @@ export function TasksPage({
                     </div>
                   </>
                 )}
-              </TabsContent>
-
-              <TabsContent value="custom" className="space-y-4 mt-4">
+                </div>,
+                custom: <div className="space-y-4 mt-4">
                 <p className="text-xs text-muted-foreground">
                   Run with custom settings without saving a profile.
                 </p>
@@ -879,8 +879,9 @@ export function TasksPage({
                     Only applies to sandboxed runs. The sandbox must match the task scope.
                   </p>
                 </div>
-              </TabsContent>
-            </Tabs>
+                </div>,
+              }}
+            />
           </DialogBody>
           <DialogFooter>
             <OverlayActionBar className="flex-row-reverse" actions={[

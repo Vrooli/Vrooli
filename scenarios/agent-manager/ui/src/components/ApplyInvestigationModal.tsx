@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from "./ui/dialog";
 import { Label } from "./ui/label";
-import { Textarea } from "./ui/textarea";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1.1.1";
 import { RecommendationItem } from "./RecommendationItem";
 import { AttachmentPreview } from "./AttachmentPreview";
 import { getInvestigationFindings } from "../hooks/useApi";

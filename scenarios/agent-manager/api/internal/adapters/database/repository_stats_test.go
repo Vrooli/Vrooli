@@ -15,8 +15,7 @@ import (
 // model; placeholder models never appear as choices.
 func TestStatsRepositoryRanksModelsFromDurableRuns(t *testing.T) {
 	ctx := context.Background()
-	db, cleanup := setupTestDB(t)
-	t.Cleanup(cleanup)
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	readModel := repos.InvocationReadModel.(invocationreadmodel.RunStore)
 	now := time.Date(2026, 1, 2, 12, 0, 0, 0, time.UTC)

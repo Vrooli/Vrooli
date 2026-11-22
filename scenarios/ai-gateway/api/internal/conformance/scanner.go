@@ -186,6 +186,12 @@ type scenarioScanState struct {
 
 func scanScenarioTree(ctx context.Context, root string) (scenarioScanState, error) {
 	state := scenarioScanState{}
+	// A scenario may own a typed model registry for cataloguing model facts.
+	// Those facts are only exempt when the registry has an executable loader,
+	// validation, generated-document drift coverage, and a test tying its
+	// policy roles to the owning resource. Provider catalogs may then reference
+	// IDs from that registry, but arbitrary caller literals remain findings.
+	registry := governedModelRegistryIDs(root)
 	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -199,16 +205,16 @@ func scanScenarioTree(ctx context.Context, root string) (scenarioScanState, erro
 			}
 			return nil
 		}
-		return state.scanFile(root, path)
+		return state.scanFile(root, path, registry)
 	})
 	return state, err
 }
 
-func (state *scenarioScanState) scanFile(root, path string) error {
+func (state *scenarioScanState) scanFile(root, path string, registry governedModelRegistry) error {
 	if !scanFile(path) {
 		return nil
 	}
-	fileFindings, fileUsesGateway, fileAISignal, err := scanOneFile(root, path)
+	fileFindings, fileUsesGateway, fileAISignal, err := scanOneFile(root, path, registry)
 	if err != nil {
 		return err
 	}
@@ -241,7 +247,7 @@ func buildScenarioScanReport(scenario, root string, state scenarioScanState) Sca
 	}
 }
 
-func scanOneFile(root, path string) ([]*conformancev1.ConformanceFinding, bool, bool, error) {
+func scanOneFile(root, path string, registry governedModelRegistry) ([]*conformancev1.ConformanceFinding, bool, bool, error) {
 	rel, err := filepath.Rel(root, path)
 	if err != nil {
 		return nil, false, false, err
@@ -268,7 +274,7 @@ func scanOneFile(root, path string) ([]*conformancev1.ConformanceFinding, bool, 
 		lower := strings.ToLower(line)
 		usesGateway = usesGateway || lineUsesGateway(lower)
 		aiSignal = aiSignal || lineAISignal(lower)
-		findings = append(findings, lineFindings(rel, lineNo, line)...)
+		findings = append(findings, lineFindings(rel, lineNo, line, registry)...)
 	}
 	return findings, usesGateway, aiSignal, scanner.Err()
 }
@@ -286,7 +292,7 @@ func lineAISignal(lower string) bool {
 		strings.Contains(lower, "ollama")
 }
 
-func lineFindings(rel string, lineNo int, line string) []*conformancev1.ConformanceFinding {
+func lineFindings(rel string, lineNo int, line string, registry governedModelRegistry) []*conformancev1.ConformanceFinding {
 	location := fmt.Sprintf("%s:%d", rel, lineNo)
 	findings := make([]*conformancev1.ConformanceFinding, 0, 4)
 	if hasUnreviewedException(line) {
@@ -316,10 +322,10 @@ func lineFindings(rel string, lineNo int, line string) []*conformancev1.Conforma
 			"Persist embedding role, resolved model evidence, dimensions, content version, and retarget strategy beside stored vectors.",
 		))
 	}
-	return append(findings, ruleFindings(rel, location, line)...)
+	return append(findings, ruleFindings(rel, location, line, registry)...)
 }
 
-func ruleFindings(rel, location, line string) []*conformancev1.ConformanceFinding {
+func ruleFindings(rel, location, line string, registry governedModelRegistry) []*conformancev1.ConformanceFinding {
 	findings := make([]*conformancev1.ConformanceFinding, 0, len(rules))
 	for _, r := range rules {
 		// Documentation may name a provider secret while describing migration
@@ -334,6 +340,18 @@ func ruleFindings(rel, location, line string) []*conformancev1.ConformanceFindin
 				continue
 			}
 			matchLine = codePortion(line)
+			if rel == "api/internal/modelcatalog/models.seed.json" && len(registry.ids) > 0 {
+				matchLine = removeKnownRegistryIDs(matchLine, registry.ids)
+			}
+			if rel == "api/internal/modelcatalog/catalog.go" && len(registry.ids) > 0 {
+				matchLine = removeKnownRegistryIDs(matchLine, registry.ids)
+			}
+			if rel == "api/internal/providercatalog/catalog.seed.json" && registry.providerCatalogChecked {
+				matchLine = removeKnownRegistryIDs(matchLine, registry.ids)
+			}
+			if rel == "ui/src/features/providers/providerCatalog.generated.ts" && registry.providerCatalogRendered {
+				matchLine = removeKnownRegistryIDs(matchLine, registry.ids)
+			}
 		}
 		if r.match(matchLine) {
 			findings = append(findings, conformanceFinding(r.id, r.severity, location, r.message, r.remediation))
@@ -342,15 +360,34 @@ func ruleFindings(rel, location, line string) []*conformancev1.ConformanceFindin
 	return findings
 }
 
+func removeKnownRegistryIDs(line string, registryIDs map[string]struct{}) string {
+	matches := modelSlugPattern.FindAllStringIndex(line, -1)
+	if len(matches) == 0 {
+		return line
+	}
+	var result strings.Builder
+	last := 0
+	for _, match := range matches {
+		result.WriteString(line[last:match[0]])
+		if _, known := registryIDs[line[match[0]:match[1]]]; !known {
+			result.WriteString(line[match[0]:match[1]])
+		}
+		last = match[1]
+	}
+	result.WriteString(line[last:])
+	return result.String()
+}
+
 // modelTagRuntimeFile limits the blocking tag rule to executable/configured
-// caller surfaces. Documentation, tests, generated fixtures, and evaluation
-// snapshots may name models as evidence without selecting them at runtime.
+// caller surfaces. Documentation, requirements, tests, generated fixtures,
+// and evaluation snapshots may name models as evidence without selecting
+// them at runtime.
 func modelTagRuntimeFile(rel string) bool {
 	normalized := filepath.ToSlash(rel)
 	lower := strings.ToLower(normalized)
 	for _, part := range strings.Split(lower, "/") {
 		switch part {
-		case "docs", "test", "tests", "testdata", "fixtures", "evals":
+		case "docs", "test", "tests", "testdata", "fixtures", "evals", "requirements":
 			return false
 		}
 	}

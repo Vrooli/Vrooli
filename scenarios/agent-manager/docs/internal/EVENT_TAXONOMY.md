@@ -53,6 +53,13 @@ emission used before — those `EmitSystemEvent` calls have been deleted.
 | `checkpoint.failure`           | `CheckpointFailurePayload`           | `checkpoint.go` "failed to persist phase update", "failed to save checkpoint" |
 | `retry.attempt`                | `RetryAttemptPayload`                | (reserved — Phase 2 emits)                                     |
 
+Browser session lifecycle and action events use the same typed eventlog
+payloads with schema version 1. A closed `browser.session` may include an
+optional path-free runtime identity only when Agent Manager derives it from
+the authenticated BAS broker proof callback. Run-agent self-reports cannot
+set this field. Its offline receipt/source labels describe the checked
+installation route and do not establish archive supplier authenticity.
+
 Imported conversation messages with `role: "user"` are retained as the
 typed `operator_turn` evidence kind. Live runs keep prompt suppression; the
 operator-turn kind is reserved for historical user/operator input so

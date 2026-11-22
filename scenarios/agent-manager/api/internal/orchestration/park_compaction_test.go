@@ -11,7 +11,6 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/identity"
 	"agent-manager/internal/orchestration"
-	"agent-manager/internal/orchestration/testutil"
 
 	"github.com/google/uuid"
 )
@@ -46,8 +45,7 @@ func newCompactionFixture(t *testing.T, delay time.Duration) *compactionFixture 
 
 func newCompactionFixtureWith(t *testing.T, delay time.Duration, declaresCompaction bool) *compactionFixture {
 	t.Helper()
-	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
-	t.Cleanup(cleanup)
+	repos, eventStore := newParkTestRepositories(t)
 	f := &compactionFixture{repos: repos, continued: make(chan struct{}, 4)}
 	mock := runner.NewMockRunner(domain.RunnerTypeCodex)
 	mock.SetAvailable(true, "available")

@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { Checkbox } from "./ui/checkbox";
-import { Textarea } from "./ui/textarea";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1.1.1";
 import { CodeBlock } from "./markdown/components/CodeBlock";
 import { MarkdownRenderer } from "./markdown";
 import { AttachmentPreview } from "./AttachmentPreview";

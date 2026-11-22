@@ -1961,8 +1961,9 @@ per-run views. Dollars exist only for per-token (metered) runs, apportioned to
 the window by the share of the run's tokens requested in it; subscription work
 reports quota points. Run statistics (success rate, throughput, run time) count
 runs Agent Manager executed unless a scope selects operator sessions or all; an
-imported or attached session with no usage, and a session copied into several
-harness homes, never count as runs. Subscription periods are operator-owned records with micro-USD
+imported or attached session with no usage never counts as a run, and a
+session copied into several harness homes is one run because the transcript
+indexer gives a lineage's files one run. Subscription periods are operator-owned records with micro-USD
 amounts, quota metadata, and overlap rejection. Runner policies declare
 billing mode/provider/plan metadata; the default is explicitly `unknown`.
 Allocation requests require an explicit allocation basis and remain

@@ -79,3 +79,24 @@ func TestConsentHTTPIssuesOnceListsAndRevokesOnlyOwnerGrant(t *testing.T) {
 	require.Equal(t, http.StatusNoContent, revoke.Code)
 	require.ErrorIs(t, authority.Verify(ctx, body.Receipt, "own-key"), store.ErrInvalidGrant)
 }
+
+func TestConsentHTTPVerifyRequiresExactOwnerAndSourceWithoutEchoingReceipt(t *testing.T) {
+	authority, handler := consentHTTPFixture(t)
+	alice := identity.WithPrincipal(context.Background(), identity.Principal{Kind: identity.ActorHuman, Subject: "alice", Verified: true})
+	receipt, grant, err := authority.Grant(alice, "alice", "audio-tools-openai-gpt-live", time.Hour)
+	require.NoError(t, err)
+	verify := func(ctx context.Context, r, source string) *httptest.ResponseRecorder {
+		body, _ := json.Marshal(map[string]string{"receipt": r, "source": source})
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/api/v1/ai/privacy-consent/verify", bytes.NewReader(body)).WithContext(ctx))
+		return w
+	}
+	w := verify(alice, receipt, "audio-tools-openai-gpt-live")
+	require.Equal(t, http.StatusOK, w.Code)
+	require.NotContains(t, w.Body.String(), receipt)
+	bob := identity.WithPrincipal(context.Background(), identity.Principal{Kind: identity.ActorHuman, Subject: "bob", Verified: true})
+	require.Equal(t, http.StatusForbidden, verify(bob, receipt, "audio-tools-openai-gpt-live").Code)
+	require.Equal(t, http.StatusForbidden, verify(alice, receipt, "own-key").Code)
+	require.NoError(t, authority.Revoke(alice, "alice", grant.ID))
+	require.Equal(t, http.StatusForbidden, verify(alice, receipt, "audio-tools-openai-gpt-live").Code)
+}

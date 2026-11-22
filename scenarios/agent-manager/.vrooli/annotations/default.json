@@ -1,7 +1,7 @@
 {
   "pack": {
     "name": "default",
-    "version": "2026-11-21.1",
+    "version": "2026-11-21.2",
     "runtime": {
       "mode": "passive",
       "default_role": "decide.fast",
@@ -844,6 +844,102 @@
               "split": "holdout",
               "gold_file": "operator.frustrated.holdout2.jsonl.superseded",
               "measured_at": "2026-11-21T05:01:20Z"
+            },
+            {
+              "definition_hash": "22408df606695d268a6fc60ac169095ef70c62a8d2a7d025b93dc53b0f2dee4d",
+              "model": "coba:400m@sha256:99c4f5b9e23aef32e9ea990a192a6990f5679a9b095ffde4dd7889839405b9e6",
+              "resource_role": "decide.local.coba-400m",
+              "precision": 1,
+              "recall": 0.8,
+              "gold": 133,
+              "positives": 15,
+              "threshold": 0.899448,
+              "temperature": 0.650088,
+              "ece": 0.0848,
+              "brier": 0.0556,
+              "split": "tuning",
+              "gold_file": "operator.dissatisfied.tuning.jsonl",
+              "measured_at": "2026-11-21T06:01:01Z"
+            },
+            {
+              "definition_hash": "22408df606695d268a6fc60ac169095ef70c62a8d2a7d025b93dc53b0f2dee4d",
+              "model": "coba:400m@sha256:99c4f5b9e23aef32e9ea990a192a6990f5679a9b095ffde4dd7889839405b9e6",
+              "resource_role": "decide.local.coba-400m",
+              "precision": 0.7692,
+              "recall": 0.6667,
+              "gold": 124,
+              "positives": 15,
+              "threshold": 0.899448,
+              "temperature": 0.650088,
+              "ece": 0.09,
+              "brier": 0.0793,
+              "split": "holdout",
+              "gold_file": "operator.dissatisfied.holdout.jsonl",
+              "measured_at": "2026-11-21T06:01:02Z"
+            },
+            {
+              "definition_hash": "22408df606695d268a6fc60ac169095ef70c62a8d2a7d025b93dc53b0f2dee4d",
+              "model": "coba:400m@sha256:99c4f5b9e23aef32e9ea990a192a6990f5679a9b095ffde4dd7889839405b9e6",
+              "resource_role": "decide.local.coba-400m",
+              "precision": 0.6842,
+              "recall": 0.5652,
+              "gold": 91,
+              "positives": 23,
+              "threshold": 0.899448,
+              "temperature": 0.650088,
+              "ece": 0.1797,
+              "brier": 0.1829,
+              "split": "holdout",
+              "gold_file": "operator.dissatisfied.holdout2.jsonl",
+              "measured_at": "2026-11-21T06:01:10Z"
+            },
+            {
+              "definition_hash": "22408df606695d268a6fc60ac169095ef70c62a8d2a7d025b93dc53b0f2dee4d",
+              "model": "coba:1b@sha256:7aaf4eaed0da754d7766714cd5b661c33f5f22476001f7e8fb0bd11f12eeacde",
+              "resource_role": "decide.local.coba-1b",
+              "precision": 1,
+              "recall": 0.7333,
+              "gold": 133,
+              "positives": 15,
+              "threshold": 0.924972,
+              "temperature": 0.675405,
+              "ece": 0.1166,
+              "brier": 0.0795,
+              "split": "tuning",
+              "gold_file": "operator.dissatisfied.tuning.jsonl",
+              "measured_at": "2026-11-21T06:06:49Z"
+            },
+            {
+              "definition_hash": "22408df606695d268a6fc60ac169095ef70c62a8d2a7d025b93dc53b0f2dee4d",
+              "model": "coba:1b@sha256:7aaf4eaed0da754d7766714cd5b661c33f5f22476001f7e8fb0bd11f12eeacde",
+              "resource_role": "decide.local.coba-1b",
+              "precision": 0.8889,
+              "recall": 0.5333,
+              "gold": 124,
+              "positives": 15,
+              "threshold": 0.924972,
+              "temperature": 0.675405,
+              "ece": 0.0964,
+              "brier": 0.0881,
+              "split": "holdout",
+              "gold_file": "operator.dissatisfied.holdout.jsonl",
+              "measured_at": "2026-11-21T06:06:51Z"
+            },
+            {
+              "definition_hash": "22408df606695d268a6fc60ac169095ef70c62a8d2a7d025b93dc53b0f2dee4d",
+              "model": "coba:1b@sha256:7aaf4eaed0da754d7766714cd5b661c33f5f22476001f7e8fb0bd11f12eeacde",
+              "resource_role": "decide.local.coba-1b",
+              "precision": 0.6111,
+              "recall": 0.4783,
+              "gold": 91,
+              "positives": 23,
+              "threshold": 0.924972,
+              "temperature": 0.675405,
+              "ece": 0.2302,
+              "brier": 0.2021,
+              "split": "holdout",
+              "gold_file": "operator.dissatisfied.holdout2.jsonl",
+              "measured_at": "2026-11-21T06:07:03Z"
             }
           ]
         },
@@ -1435,7 +1531,7 @@
       {
         "id": "operator.dissatisfied_run",
         "group": "operator",
-        "description": "The share of the run's human messages that showed dissatisfaction: the mean calibrated probability over the run's dissatisfied messages, so it does not rise with how many messages the run has (a maximum did: 0 of 6 runs with two messages or fewer scored positive against 15 of 19 with three or more). Derived from operator.dissatisfied, never asked. The search and friction thresholds are declared, not measured: about twice the message-level base rate in gold (11 percent).",
+        "description": "The share of the run's human messages that showed dissatisfaction: the mean calibrated probability over the run's dissatisfied messages, so it does not rise with how many messages the run has (a maximum did: 0 of 6 runs with two messages or fewer scored positive against 15 of 19 with three or more). Derived from operator.dissatisfied, never asked. The search and friction threshold is 0.10. A single message is a moment, not the run's character; two or more are. The threshold is a share, not a model score: it is the value at which as many gold runs fire (10 of 23) as have two or more gold positives (10 of 23), and it agrees with that two-positive rule on 21 of 23 gold runs (it misses one run with 3 positives of 33 and fires on one with 1 of 5). A share holds across models only on calibrated probabilities. The composite reads each message at its model's fitted temperature when that model is proven for the message label and raw (T=1) otherwise; raw means can run above the true share (message base rate in gold: 15 percent), so a composite built on unproven messages fires too often and is not a verdict.",
         "scope": "run",
         "method": "composite",
         "population": "human_operator",
@@ -1464,11 +1560,11 @@
         },
         "search": {
           "facet": "label:operator.dissatisfied_run",
-          "min_probability": 0.2
+          "min_probability": 0.1
         },
         "friction": {
           "enabled": true,
-          "min_probability": 0.2,
+          "min_probability": 0.1,
           "cost_unit": "run",
           "importance": "high"
         },
@@ -1480,7 +1576,7 @@
       {
         "id": "operator.pleased_run",
         "group": "operator",
-        "description": "The share of the run's human messages that showed praise or satisfaction: the mean calibrated probability over the run's pleased messages, so it does not rise with how many messages the run has (a maximum did: 0 of 6 runs with two messages or fewer scored positive against 15 of 19 with three or more). Derived from operator.pleased, never asked. The search and friction thresholds are declared, not measured: about twice the message-level base rate in gold (12 percent).",
+        "description": "The share of the run's human messages that showed praise or satisfaction: the mean calibrated probability over the run's pleased messages, so it does not rise with how many messages the run has (a maximum did: 0 of 6 runs with two messages or fewer scored positive against 15 of 19 with three or more). Derived from operator.pleased, never asked. The search threshold is 0.14. A single message is a moment, not the run's character; two or more are. The threshold is a share, not a model score: it is the value at which as many gold runs fire (8 of 23) as have two or more gold positives (8 of 23), and it agrees with that two-positive rule on 21 of 23 gold runs (it misses one run with 3 positives of 38 and fires on one with 1 of 4). A share holds across models only on calibrated probabilities. The composite reads each message at its model's fitted temperature when that model is proven for the message label and raw (T=1) otherwise; raw means can run above the true share (message base rate in gold: 14 percent), so a composite built on unproven messages fires too often and is not a verdict.",
         "scope": "run",
         "method": "composite",
         "population": "human_operator",
@@ -1509,7 +1605,7 @@
         },
         "search": {
           "facet": "label:operator.pleased_run",
-          "min_probability": 0.2
+          "min_probability": 0.14
         },
         "friction": {
           "enabled": false
@@ -1522,7 +1618,7 @@
       {
         "id": "operator.impatient_run",
         "group": "operator",
-        "description": "The share of the run's human messages that showed impatience: the mean calibrated probability over the run's impatient messages, so it does not rise with how many messages the run has (a maximum did: 0 of 6 runs with two messages or fewer scored positive against 15 of 19 with three or more). Derived from operator.impatient, never asked. The search and friction thresholds are declared, not measured: about twice the message-level base rate in gold (6 percent).",
+        "description": "The share of the run's human messages that showed impatience: the mean calibrated probability over the run's impatient messages, so it does not rise with how many messages the run has (a maximum did: 0 of 6 runs with two messages or fewer scored positive against 15 of 19 with three or more). Derived from operator.impatient, never asked. The search and friction threshold is 0.12. A single message is a moment, not the run's character; two or more are. The threshold is a share, not a model score: it is the value at which as many gold runs fire (4 of 23) as have two or more gold positives (4 of 23), and it agrees with that two-positive rule on 19 of 23 gold runs (it misses two runs with 3 positives of 37 and of 39 and fires on two tiny runs, 1 of 2 and 1 of 5). A share holds across models only on calibrated probabilities. The composite reads each message at its model's fitted temperature when that model is proven for the message label and raw (T=1) otherwise; raw means run above the true share (about 15 percent against a message base rate of 5 percent in gold), so a composite built on unproven messages fires too often and is not a verdict.",
         "scope": "run",
         "method": "composite",
         "population": "human_operator",
@@ -1551,11 +1647,11 @@
         },
         "search": {
           "facet": "label:operator.impatient_run",
-          "min_probability": 0.1
+          "min_probability": 0.12
         },
         "friction": {
           "enabled": true,
-          "min_probability": 0.1,
+          "min_probability": 0.12,
           "cost_unit": "run",
           "importance": "medium"
         },

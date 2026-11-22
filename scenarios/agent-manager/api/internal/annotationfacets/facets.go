@@ -1,6 +1,6 @@
 // Package annotationfacets projects gated annotation labels into the
 // conversation-search catalog's existing tags. It deliberately does not add a
-// new search filter: `--tags label:agent.stalled` already works, and the
+// new search filter: `--tags label:<label id>` already works, and the
 // catalog is the one place conversation search reads.
 //
 // The projection is a convenience, not the source of truth. The annotation

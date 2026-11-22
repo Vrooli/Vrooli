@@ -62,7 +62,7 @@ func TestJourneyGatewayServer(t *testing.T) {
 		t.Fatal(err)
 	}
 	routes := []policy.Route{{ID: "fixture-route", Supplier: supplier, Plan: "fixture", Model: "fixture-model", Endpoint: "chat", Profile: "balanced", QuoteRef: "fixture-price", QuotedCredits: 1000, StreamQuote: policy.StreamQuote{MaxInputBytes: 1 << 20, MaxOutputTokens: 65536, MaxCostMicros: 2, TokenLimitField: "max_tokens"}}}
-	for _, harness := range []string{"opencode", "codex", "claude-code"} {
+	for _, harness := range []string{"opencode", "codex", "claude-code", "grok", "antigravity"} {
 		route := routes[0]
 		route.ID += "-" + harness
 		route.Harness = harness
@@ -100,8 +100,11 @@ func TestJourneyGatewayServer(t *testing.T) {
 	for scope, digest := range map[string]string{policy.ProviderDecisionScopeRule: ruleDigest, policy.ProviderDecisionScopeAgreement: agreementDigest} {
 		addDecision("fixture-human-approved", digest, scope)
 	}
-	for _, harness := range []string{"opencode", "codex", "claude-code"} {
-		launcherAllowed := harness != "claude-code"
+	for _, harness := range []string{"opencode", "codex", "claude-code", "grok", "antigravity"} {
+		launcherAllowed := harness != "claude-code" || os.Getenv("VROOLI_JOURNEY_CLAUDE_CREDITS") == "1"
+		if harness == "antigravity" {
+			launcherAllowed = os.Getenv("VROOLI_JOURNEY_ANTIGRAVITY_CREDITS") == "1"
+		}
 		source := policy.HarnessBillingSource{ID: "vrooli-credits", LauncherConfigAllowed: &launcherAllowed, CustomerConfigAllowed: policy.PermissionAllowed, Review: policy.Review{Status: policy.ReviewApproved, DecisionRef: "fixture-harness-" + harness}}
 		digest, err := policy.HarnessBillingSourceDigest(harness, source)
 		if err != nil {

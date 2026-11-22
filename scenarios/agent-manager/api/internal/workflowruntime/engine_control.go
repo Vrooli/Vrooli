@@ -45,18 +45,20 @@ func (e *Engine) Signal(ctx context.Context, id uuid.UUID, signal string, payloa
 	if err != nil {
 		return x, false, err
 	}
+	intent, _ := activeWaitIntent(journal, node.ID, x.EdgeTraversals)
+	if intent != nil && !intent.Deadline.IsZero() && !e.now().Before(intent.Deadline) {
+		return x, false, fmt.Errorf("workflow wait deadline has elapsed")
+	}
 	if len(node.Wait.PayloadSchema) > 0 {
 		if err := structuredresult.ValidateValue(node.Wait.PayloadSchema, payload); err != nil {
 			return x, false, fmt.Errorf("signal payload: %w", err)
 		}
 	}
-	var intent waitIntent
-	for i := len(journal) - 1; i >= 0; i-- {
-		if journal[i].Kind == domain.WorkflowJournalWait && journal[i].NodeID == node.ID && json.Unmarshal(journal[i].Payload, &intent) == nil {
-			break
-		}
+	correlationKey := ""
+	if intent != nil {
+		correlationKey = intent.CorrelationKey
 	}
-	record := signalRecord{Signal: signal, WaitNodeID: node.ID, CorrelationKey: intent.CorrelationKey, IdempotencyKey: idempotencyKey, Payload: append(json.RawMessage(nil), payload...)}
+	record := signalRecord{Signal: signal, WaitNodeID: node.ID, CorrelationKey: correlationKey, IdempotencyKey: idempotencyKey, Payload: append(json.RawMessage(nil), payload...)}
 	data, _ := json.Marshal(record)
 	now := e.now()
 	entry := nextJournal(x.ID, journal, domain.WorkflowJournalSignal, node.ID, nil, data, now)

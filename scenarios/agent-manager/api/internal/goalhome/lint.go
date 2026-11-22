@@ -201,14 +201,5 @@ func projectionFindings(goal Goal, status []byte) []Finding {
 			}
 		}
 	}
-	if s, ok := doc.section("active"); ok {
-		for _, item := range s.items() {
-			fields := inlineFields(item.Text)
-			unit := fields["unit"]
-			if unit == "" || strings.ContainsAny(unit, " \t;`|") {
-				add("projection-active", "active unit needs a stable unit ID, status and workers fields; put handoff prose outside the unit field", item.Line, true)
-			}
-		}
-	}
 	return findings
 }

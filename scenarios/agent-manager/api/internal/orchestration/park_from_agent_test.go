@@ -14,7 +14,6 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/identity"
 	"agent-manager/internal/orchestration"
-	"agent-manager/internal/orchestration/testutil"
 	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
@@ -98,8 +97,7 @@ func newParkFromAgentSvcWithRepos(t *testing.T) (*orchestration.Orchestrator, *d
 func newParkFromAgentSvcWithStopObserver(t *testing.T) (*orchestration.Orchestrator, *domain.Run, *database.Repositories, *atomic.Int32) {
 	t.Helper()
 	ctx := context.Background()
-	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
-	t.Cleanup(cleanup)
+	repos, eventStore := newParkTestRepositories(t)
 
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
 	stopCalls := &atomic.Int32{}
@@ -200,8 +198,7 @@ func TestParkRunFromAgent_OwningTokenParks(t *testing.T) {
 
 func TestParkRunFromAgent_ImmediateWaiterWaitsForOriginalProcessExit(t *testing.T) {
 	ctx := context.Background()
-	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
-	t.Cleanup(cleanup)
+	repos, eventStore := newParkTestRepositories(t)
 	continued := make(chan struct{}, 1)
 	stopCalled := make(chan struct{}, 1)
 	baseRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -281,8 +278,7 @@ func TestParkRunFromAgent_ImmediateWaiterWaitsForOriginalProcessExit(t *testing.
 
 func TestParkRunFromAgent_InstallsProcessBarrierBeforePublishingParkedRun(t *testing.T) {
 	ctx := context.Background()
-	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
-	t.Cleanup(cleanup)
+	repos, eventStore := newParkTestRepositories(t)
 	continued := make(chan struct{}, 1)
 	baseRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
 	baseRunner.SetAvailable(true, "available")
@@ -341,8 +337,7 @@ func TestParkRunFromAgent_InstallsProcessBarrierBeforePublishingParkedRun(t *tes
 
 func TestParkRunFromAgent_RefusesWhenRunnerIsUnavailableBeforePark(t *testing.T) {
 	ctx := context.Background()
-	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
-	t.Cleanup(cleanup)
+	repos, eventStore := newParkTestRepositories(t)
 	svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs,
 		orchestration.WithEvents(eventStore), orchestration.WithIdentitySecret(parkFromAgentSecret),
 		newTestRolePolicyOption(t))
@@ -365,8 +360,7 @@ func TestParkRunFromAgent_RefusesWhenRunnerIsUnavailableBeforePark(t *testing.T)
 
 func TestParkRunFromAgent_CompletesObligationsAfterStatusEventAppendFailure(t *testing.T) {
 	ctx := context.Background()
-	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
-	t.Cleanup(cleanup)
+	repos, eventStore := newParkTestRepositories(t)
 	continued := make(chan struct{}, 1)
 	stopCalled := make(chan struct{}, 1)
 	baseRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -456,8 +450,7 @@ func TestParkRunFromAgent_CompletesObligationsAfterStatusEventAppendFailure(t *t
 
 func TestParkRun_RegistersWaiterAfterCommittedStatusEventAppendFailure(t *testing.T) {
 	ctx := context.Background()
-	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
-	t.Cleanup(cleanup)
+	repos, eventStore := newParkTestRepositories(t)
 	eventErr := errors.New("status event append unavailable")
 	failNextStatus := &atomic.Int32{}
 	failNextStatus.Store(1)
@@ -642,8 +635,7 @@ func TestParkRunFromAgent_NonRunningRejected(t *testing.T) {
 // and Codex refuses the second writer outright.
 func TestWakeRun_WaitsForParkedTurnToEnd(t *testing.T) {
 	ctx := context.Background()
-	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
-	t.Cleanup(cleanup)
+	repos, eventStore := newParkTestRepositories(t)
 
 	var stopped atomic.Bool
 	continued := make(chan bool, 1)

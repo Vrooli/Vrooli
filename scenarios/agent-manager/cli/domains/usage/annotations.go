@@ -224,8 +224,8 @@ func inferredAnnotationLines(section *measurepb.UsageInferredAnnotations) []stri
 	quoted, silent := 0, 0
 	for _, label := range section.GetLabels() {
 		if !label.GetFriction() {
-			// The friction lens reports friction labels only; run.type and
-			// run.outcome are useful facets but not friction signals.
+			// The friction lens reports friction labels only; labels the pack
+			// does not enable for friction are useful facets, not friction signals.
 			continue
 		}
 		if label.GetObserved() == 0 && label.GetGateState() != "proven" {

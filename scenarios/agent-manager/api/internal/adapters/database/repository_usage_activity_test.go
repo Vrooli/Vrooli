@@ -6,8 +6,7 @@ import (
 )
 
 func TestLastProviderActivityIsNowWhileLiveAndOtherwiseTheNewestIndexedUsage(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repo := NewUsageActivityRepository(db)
 	ctx := t.Context()
 

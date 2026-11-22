@@ -82,6 +82,24 @@ func TestProfileCatalogOrderIsStable(t *testing.T) {
 	}
 }
 
+func TestAudioToolsSummaryRoleIsScopedFromGenericFaithfulSummary(t *testing.T) {
+	_, roles, _ := loadCommitted(t)
+	audio, ok := roles.Roles["summarize.audio_tools"]
+	if !ok {
+		t.Fatal("missing Audio Tools scoped summarize role")
+	}
+	if len(audio.Candidates) != 1 {
+		t.Fatalf("Audio Tools summary candidates = %+v, want one local resource role", audio.Candidates)
+	}
+	if got := audio.Candidates[0]; got.Provider != "ollama" || got.ResourceRole != "summarize.audio_tools" {
+		t.Fatalf("Audio Tools summary candidate = %+v, want scoped Ollama role", got)
+	}
+	faithful, ok := roles.Roles["summarize.faithful"]
+	if !ok || len(faithful.Candidates) != 1 || faithful.Candidates[0].ResourceRole != "summarize.default" {
+		t.Fatalf("generic faithful summary route changed: %+v", faithful)
+	}
+}
+
 func TestValidateRejectsCatalogDrift(t *testing.T) {
 	base := func() *ProfileCatalog {
 		profiles, _, _ := loadCommitted(t)

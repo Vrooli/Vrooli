@@ -22,7 +22,7 @@ import {
 } from "./ui/dialog";
 import { Label } from "./ui/label";
 import { RoleSelector } from "./RoleSelector";
-import { Textarea } from "./ui/textarea";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1.1.1";
 import { ScopePathsManager } from "./ScopePathsManager";
 import { AttachmentPreview } from "./AttachmentPreview";
 import type {

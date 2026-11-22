@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -603,4 +604,43 @@ func newMediaSchemaDB(t *testing.T) *sql.DB {
 	db := testdb.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(Schema)))
 	return db
+}
+
+// OpenRouter reserves a request's worst-case cost up front, so the caller's USD
+// ceiling has to reach the resource command or the reservation stays unbounded.
+func TestResourceOpenRouterMediaExecutorForwardsCallerCostCeiling(t *testing.T) {
+	cases := []struct {
+		name    string
+		maxCost float64
+		want    []string
+	}{
+		{name: "ceiling forwarded", maxCost: 0.25, want: []string{"--max-cost-usd", "0.25"}},
+		{name: "no ceiling sends no flag", maxCost: 0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var generateArgs []string
+			runner := mediaCommandRunnerFunc(func(_ context.Context, command providers.Command) (providers.Result, error) {
+				if len(command.Args) > 0 && command.Args[0] == "policy" {
+					return providers.Result{Stdout: `{"role":"media.generate","model":"fixture/model"}`}, nil
+				}
+				generateArgs = command.Args
+				return providers.Result{Stdout: `{"schema_version":1,"images":[{"data_b64":"aGVsbG8=","media_type":"image/png"}],"actual_cost_usd":0}`}, nil
+			})
+			executor := NewResourceOpenRouterMediaExecutor(runner)
+			executor.resolveCredential = func(context.Context) (string, error) { return "fixture", nil }
+			request := mediaRequest("cost-ceiling")
+			request.OutputReference = filepath.Join(t.TempDir(), "out.png")
+			request.Request.MaxCostUsd = tc.maxCost
+			_, err := executor.Execute(context.Background(), request)
+			require.NoError(t, err)
+			if len(tc.want) == 0 {
+				require.NotContains(t, generateArgs, "--max-cost-usd")
+				return
+			}
+			require.Subset(t, generateArgs, tc.want)
+			flag := slices.Index(generateArgs, "--max-cost-usd")
+			require.Equal(t, tc.want[1], generateArgs[flag+1])
+		})
+	}
 }

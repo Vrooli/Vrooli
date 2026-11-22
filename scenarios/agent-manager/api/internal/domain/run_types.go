@@ -830,6 +830,11 @@ type RunAdmission struct {
 // RunConfig contains the resolved configuration for a run.
 // This can be loaded from a profile, provided inline, or a combination of both.
 type RunConfig struct {
+	// WorkspaceBinding pins the effective checkout and filesystem scope selected
+	// when this run was admitted. A retained run may outlive its Task's mutable
+	// mapping, so continuation must use this snapshot when a deleted sandbox is
+	// replaced. Nil is reserved for legacy rows without a recoverable binding.
+	WorkspaceBinding *RunWorkspaceBinding `json:"workspaceBinding,omitempty"`
 	// CodexAccountScope is an owner-written opaque identity bound through the
 	// app-server account/rateLimits/read API while using this run's CODEX_HOME.
 	// Empty means unknown; it is never inferred from the host profile.
@@ -930,6 +935,14 @@ type RunConfig struct {
 	// Admission records the requested-versus-effective configuration proven
 	// for this admitted run. Nil on historical rows created before adoption.
 	Admission *RunAdmission `json:"admission,omitempty"`
+}
+
+// RunWorkspaceBinding is the resolved project checkout and sandbox scope for
+// one admitted run. It is part of RunConfig so existing durable config storage
+// carries it without a parallel schema field or migration.
+type RunWorkspaceBinding struct {
+	ProjectRoot string `json:"projectRoot"`
+	ScopePath   string `json:"scopePath"`
 }
 
 // InteractiveContinuationPolicy records a narrowly scoped tail completion

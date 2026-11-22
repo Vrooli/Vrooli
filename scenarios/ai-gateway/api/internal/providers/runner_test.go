@@ -190,3 +190,25 @@ func TestNormalizeProviderErrorCodeRejectsUnclaimedCodes(t *testing.T) {
 		t.Fatalf("marker protocol must stay namespaced, got %q", ProviderErrorMarker)
 	}
 }
+
+// A resource CLI whose sources changed rebuilds itself before answering unless
+// the invocation is latency-bound. Inside a request deadline that rebuild took
+// tens of seconds and failed the request, so every resource command the
+// gateway runs is latency-bound.
+func TestExecRunnerRunsResourceCommandsLatencyBound(t *testing.T) {
+	dir := t.TempDir()
+	script := "#!/bin/sh\necho \"latency_bound=$VROOLI_CLI_LATENCY_BOUND\"\n"
+	path := filepath.Join(dir, "resource-ollama")
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	result, err := (ExecRunner{}).Run(context.Background(), Command{Name: "resource-ollama", Args: []string{"policy", "roles", "--json"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(result.Stdout) != "latency_bound=1" {
+		t.Fatalf("resource saw %q; want a latency-bound invocation", result.Stdout)
+	}
+}

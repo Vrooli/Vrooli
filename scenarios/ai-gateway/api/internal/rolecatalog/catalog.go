@@ -61,6 +61,28 @@ type InferenceRole struct {
 	// caller may override it. A role is deterministic unless its author
 	// deliberately opened it, so Overridable is false by default.
 	Sampling *RoleSampling `json:"sampling,omitempty"`
+	// Embedding declares the vector contract of an embedding role: what its
+	// vectors look like and how many texts one resource call may carry. Callers
+	// read it from the response instead of assuming it.
+	Embedding *RoleEmbedding `json:"embedding,omitempty"`
+}
+
+// NormalizationL2 declares vectors scaled to unit Euclidean length, so a dot
+// product equals cosine similarity.
+const NormalizationL2 = "l2"
+
+// RoleEmbedding is an embedding role's vector contract. MaxBatchInputs and
+// MaxBatchBytes mirror the bounds of the serving resource's batch command
+// (resource-ollama gateway embed): the gateway splits a request into calls
+// that fit them, so one resource call answers up to MaxBatchInputs texts.
+type RoleEmbedding struct {
+	// Normalization is the scale every returned vector has. The gateway checks
+	// it on each vector and refuses a candidate that does not keep the promise.
+	Normalization string `json:"normalization"`
+	// MaxBatchInputs bounds the texts in one resource call.
+	MaxBatchInputs int `json:"max_batch_inputs"`
+	// MaxBatchBytes bounds the encoded request body of one resource call.
+	MaxBatchBytes int `json:"max_batch_bytes"`
 }
 
 // RoleSampling is the role's own sampling stance. It replaces the global
@@ -270,7 +292,27 @@ func validateRoleKindAndOptions(role string, definition InferenceRole) error {
 	if err := validateDecisionRoleOptions(role, definition); err != nil {
 		return err
 	}
-	return validateRoleSampling(role, definition.Sampling)
+	if err := validateRoleSampling(role, definition.Sampling); err != nil {
+		return err
+	}
+	return validateRoleEmbedding(role, definition)
+}
+
+func validateRoleEmbedding(role string, definition InferenceRole) error {
+	embedding := definition.Embedding
+	if embedding == nil {
+		return nil
+	}
+	if definition.IsDecision() {
+		return fmt.Errorf("inference role %q is a decision role; it has no embedding contract", role)
+	}
+	if embedding.Normalization != NormalizationL2 {
+		return fmt.Errorf("inference role %q embedding.normalization %q is not %q", role, embedding.Normalization, NormalizationL2)
+	}
+	if embedding.MaxBatchInputs < 1 || embedding.MaxBatchBytes < 1 {
+		return fmt.Errorf("inference role %q embedding batch bounds must be positive", role)
+	}
+	return nil
 }
 
 func validateDecisionRoleOptions(role string, definition InferenceRole) error {

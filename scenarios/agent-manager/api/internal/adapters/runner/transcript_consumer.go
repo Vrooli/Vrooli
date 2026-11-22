@@ -27,8 +27,10 @@ var transcriptPollInterval = config.DefaultLevers().Recovery.TranscriptPollInter
 type ConsumeArgs struct {
 	RunID      uuid.UUID
 	Transcript string
-	// Snapshot supplies an already bounded immutable source for a non-live
-	// read beginning at zero. Transcript remains its logical path.
+	// Snapshot supplies an immutable source for a non-live read: the
+	// transcript's bytes from StartAt onward (a decoded compressed transcript
+	// or a staged copy). Transcript remains its logical path, so offsets and
+	// event identities are those of the transcript itself.
 	Snapshot io.Reader
 	StartAt  int64
 	// EndAt bounds a non-live inspection to an immutable observed file extent.
@@ -127,8 +129,8 @@ func Consume(ctx context.Context, args ConsumeArgs) (int64, *TranscriptTerminal,
 	var source io.Reader
 	var file *os.File
 	if args.Snapshot != nil {
-		if args.Live || args.StartAt != 0 {
-			return args.StartAt, nil, fmt.Errorf("snapshot requires a non-live read starting at zero")
+		if args.Live || args.StartAt < 0 {
+			return args.StartAt, nil, fmt.Errorf("snapshot requires a non-live read from a valid offset")
 		}
 		source = args.Snapshot
 	} else {

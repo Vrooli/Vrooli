@@ -5,15 +5,17 @@
 package orchestration
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
@@ -22,6 +24,7 @@ import (
 	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/pricing"
+	"agent-manager/internal/repository"
 	"agent-manager/internal/runsignal"
 	"agent-manager/internal/transcriptindex"
 	"agent-manager/internal/transcriptredact"
@@ -122,7 +125,7 @@ func (h *transcriptIndexHost) runnerType(file transcriptindex.FileRow) (domain.R
 	if runnerType, ok := familyRunner(file.Harness); ok {
 		return runnerType, 1, nil
 	}
-	source, err := os.Open(file.Path)
+	source, err := transcriptindex.OpenTranscript(file.Path)
 	if err != nil {
 		return "", 0, err
 	}
@@ -220,9 +223,25 @@ func (h *transcriptIndexHost) Adopt(ctx context.Context, file transcriptindex.Fi
 			h.rememberRedact(existing.ID.String(), redact)
 			return transcriptindex.Adoption{RunID: existing.ID.String(), LegacyRelink: true, LegacyPath: existing.TranscriptPath}, nil
 		default:
-			// Another file already carries this session id (a resumed
-			// rollout): provenance stays unique per file.
+			// Another file already carries this session id and is not in
+			// its lineage (a Codex copy joins its lineage's run before
+			// adoption): provenance stays unique per file.
 			provenance = file.SessionID + "#" + file.Key
+			// The run is created before the indexer's first checkpoint names
+			// it, so a failed checkpoint or a restart in between leaves this
+			// file's run unnamed. It is the same file's run: recognise it, as
+			// the session-id branch above does, instead of colliding with it.
+			own, err := o.runs.GetByImportProvenance(ctx, file.Harness, provenance)
+			if err != nil {
+				return transcriptindex.Adoption{}, err
+			}
+			if own != nil {
+				if own.TranscriptPath != file.Path || own.ExecutionMode.Normalized() != domain.ExecutionModeImported {
+					return transcriptindex.Adoption{}, fmt.Errorf("run %s holds this file's import provenance for %q; reconciliation required", own.ID, own.TranscriptPath)
+				}
+				h.rememberRedact(own.ID.String(), redact)
+				return transcriptindex.Adoption{RunID: own.ID.String()}, nil
+			}
 		}
 	}
 	task, err := o.ensureImportedTranscriptTask(ctx)
@@ -352,8 +371,9 @@ func (h *transcriptIndexHost) Record(ctx context.Context, runID string, events [
 
 // UpdateRun applies a tick's activity: the event window, the harness title,
 // and the status rule for external runs — running while the file grew within
-// the active window, complete once idle. Going idle, or gaining events while
-// idle (a re-import), marks the run for the durable projection sweep.
+// the active window, complete once idle, unknown once its source is gone
+// without a terminal signal. Going idle, or gaining events while idle (a
+// re-import), marks the run for the durable projection sweep.
 func (h *transcriptIndexHost) UpdateRun(ctx context.Context, runID string, update transcriptindex.RunUpdate) error {
 	o := h.o
 	id, err := uuid.Parse(runID)
@@ -380,6 +400,9 @@ func (h *transcriptIndexHost) applyRunUpdate(run *domain.Run, update transcripti
 	if update.SessionID != "" && run.SessionID == "" {
 		run.SessionID = update.SessionID
 	}
+	if update.TranscriptPath != "" {
+		run.TranscriptPath = update.TranscriptPath
+	}
 	if update.Label != "" && run.LabelSource != domain.RunLabelSourceManual {
 		run.Label, run.LabelSource = shortenTranscriptLabel(update.Label), domain.RunLabelSourceHarness
 	}
@@ -387,11 +410,24 @@ func (h *transcriptIndexHost) applyRunUpdate(run *domain.Run, update transcripti
 		started := update.StartedAt
 		run.StartedAt = &started
 	}
+	wasActive := !run.Status.IsTerminal()
+	if update.Unknown {
+		// A source gone without a terminal signal settles only a nonterminal
+		// run; a run already terminal keeps its outcome and times.
+		if wasActive {
+			if !update.EndedAt.IsZero() {
+				ended := update.EndedAt
+				run.EndedAt = &ended
+			}
+			run.Status, run.Phase = domain.RunStatusUnknown, domain.RunPhaseCompleted
+			run.UpdatedAt = o.now()
+		}
+		return wasActive
+	}
 	if !update.Active && !update.EndedAt.IsZero() && (run.EndedAt == nil || update.EndedAt.After(*run.EndedAt)) {
 		ended := update.EndedAt
 		run.EndedAt = &ended
 	}
-	wasActive := !run.Status.IsTerminal()
 	if update.Active {
 		run.Status, run.Phase = domain.RunStatusRunning, domain.RunPhaseExecuting
 		run.EndedAt = nil
@@ -404,6 +440,29 @@ func (h *transcriptIndexHost) applyRunUpdate(run *domain.Run, update transcripti
 	}
 	run.UpdatedAt = o.now()
 	return wasActive
+}
+
+// UnlinkedImports lists the nonterminal imported runs that no transcript row
+// names, for the indexer to settle once their source is gone.
+func (h *transcriptIndexHost) UnlinkedImports(ctx context.Context, linked map[string]bool) ([]transcriptindex.UnlinkedImport, error) {
+	runs, err := h.o.runs.List(ctx, repository.RunListFilter{NonTerminalOnly: true, TagPrefix: importedRunTag})
+	if err != nil {
+		return nil, err
+	}
+	var out []transcriptindex.UnlinkedImport
+	for _, run := range runs {
+		if run == nil || run.Status.IsTerminal() || run.ExecutionMode.Normalized() != domain.ExecutionModeImported || linked[run.ID.String()] {
+			continue
+		}
+		last := run.CreatedAt
+		for _, at := range []*time.Time{run.ImportedAt, run.StartedAt, &run.UpdatedAt} {
+			if at != nil && at.After(last) {
+				last = *at
+			}
+		}
+		out = append(out, transcriptindex.UnlinkedImport{RunID: run.ID.String(), Path: run.TranscriptPath, LastActivity: last})
+	}
+	return out, nil
 }
 
 func (h *transcriptIndexHost) afterRunUpdate(ctx context.Context, run *domain.Run, update transcriptindex.RunUpdate, wasActive bool) {
@@ -461,7 +520,7 @@ func (h *transcriptIndexHost) ReplacementTokens(ctx context.Context, store trans
 	return fileToken, eventToken, err
 }
 
-func (h *transcriptIndexHost) CommitReplacement(ctx context.Context, store transcriptindex.Store, oldKey, fileToken, eventToken string, file transcriptindex.FileRow, usage []transcriptindex.UsageRow, events []*domain.RunEvent, retain bool, update transcriptindex.RunUpdate) (bool, error) {
+func (h *transcriptIndexHost) CommitReplacement(ctx context.Context, store transcriptindex.Store, previous transcriptindex.FileRow, fileToken, eventToken string, file transcriptindex.FileRow, usage []transcriptindex.UsageRow, events []*domain.RunEvent, retain bool, update transcriptindex.RunUpdate) (bool, error) {
 	reject := func(err error) (bool, error) { return false, &transcriptindex.ReplacementPrecommitError{Err: err} }
 	owner, ok := store.(replacementStore)
 	if !ok {
@@ -525,6 +584,7 @@ func (h *transcriptIndexHost) CommitReplacement(ctx context.Context, store trans
 	if len(observations) > 0 && !quotaAtomic {
 		return reject(fmt.Errorf("atomic quota observation owner unavailable"))
 	}
+	oldKey := previous.Key
 	fileToken, err = owner.MarkReplacementIntent(ctx, oldKey, fileToken)
 	if err != nil {
 		return false, fmt.Errorf("replacement intent failed or outcome uncertain: %w", err)
@@ -532,13 +592,18 @@ func (h *transcriptIndexHost) CommitReplacement(ctx context.Context, store trans
 	guard := eventOwner.LockReplacement()
 	var legacyPath string
 	err = owner.CommitTranscriptReplacement(ctx, oldKey, fileToken, file, usage, func(current *domain.Run) error {
-		if current.TranscriptPath != file.Path {
-			if file.Child() || !h.isLegacyCopy(ctx, current) || current.ImportSourceHarness != file.Harness || current.ImportSourceSessionID != file.SessionID {
-				return fmt.Errorf("replacement run source changed during staging")
-			}
+		switch {
+		case current.TranscriptPath == file.Path, slices.Contains(update.LineagePaths, current.TranscriptPath):
+			// The file, or another file of the run's lineage, carries it.
+		case current.TranscriptPath == previous.Path:
+			// The run's file moved: archived, renamed or recompressed.
+			current.TranscriptPath = file.Path
+		case !file.Child() && h.isLegacyCopy(ctx, current) && current.ImportSourceHarness == file.Harness && current.ImportSourceSessionID == file.SessionID:
 			legacyPath = current.TranscriptPath
 			current.TranscriptPath, current.TranscriptCursor, current.TranscriptLastSeq = file.Path, 0, 0
 			current.WebConsoleSessionID = file.WebConsoleSessionID
+		default:
+			return fmt.Errorf("replacement run source changed during staging")
 		}
 		h.applyRunUpdate(current, update)
 		return nil
@@ -647,6 +712,44 @@ func (h *transcriptIndexHost) EvictRecall(ctx context.Context, store transcripti
 	return true, nil
 }
 
+// MergeTranscriptRun moves a copy of a transcript onto its lineage's run
+// (transcriptindex.lineageMerger). A former run the merge retired loses its
+// events and search projection, as DeleteRun does; the lineage's run is
+// re-projected with the usage it gained.
+func (h *transcriptIndexHost) MergeTranscriptRun(ctx context.Context, store transcriptindex.Store, file transcriptindex.FileRow, runID string) (transcriptindex.FileRow, error) {
+	owner, ok := store.(interface {
+		MergeTranscriptCopy(context.Context, transcriptindex.FileRow, string) (transcriptindex.FileRow, bool, error)
+	})
+	if !ok {
+		return file, fmt.Errorf("atomic transcript copy merge unavailable")
+	}
+	former, err := uuid.Parse(file.RunID)
+	if err != nil {
+		return file, err
+	}
+	target, err := uuid.Parse(runID)
+	if err != nil {
+		return file, err
+	}
+	merged, retired, err := owner.MergeTranscriptCopy(ctx, file, runID)
+	if err != nil {
+		return file, err
+	}
+	if retired {
+		h.o.notifyConversationSearch(ctx, "delete_run", former.String(), "")
+		if h.o.events != nil {
+			if err := h.o.events.Delete(ctx, former); err != nil {
+				return merged, fmt.Errorf("merged run %s was retired but event cleanup failed: %w", former, err)
+			}
+		}
+	}
+	if run, err := h.o.runs.Get(ctx, target); err == nil && run != nil && run.Status.IsTerminal() {
+		h.o.projectTerminalInvocationReadModel(ctx, run)
+		h.o.notifyConversationSearch(ctx, "upsert_run", runID, "")
+	}
+	return merged, nil
+}
+
 func (h *transcriptIndexHost) DropRecall(ctx context.Context, runID string) error {
 	id, err := uuid.Parse(runID)
 	if err != nil {
@@ -724,23 +827,27 @@ func (h *transcriptIndexHost) ReplaceRecall(ctx context.Context, store transcrip
 	return true, nil
 }
 
-// summaryUsageEvents returns an imported run's usage rebuilt from durable
-// summaries when its retained events carry none (recall evicted or never
-// written), so projection and accounting keep its tokens.
+// summaryUsageEvents makes an imported run's durable usage summaries the one
+// source of its usage. They hold every report of every file of the run exactly
+// once, while retained events may be evicted, partial (a file whose recall was
+// never written) or absent for a copy merged into its lineage's run. A run with
+// no summaries keeps the usage its events carry.
 func (o *Orchestrator) summaryUsageEvents(ctx context.Context, run *domain.Run, events []*domain.RunEvent) []*domain.RunEvent {
 	if o.transcriptIndex == nil || run == nil || run.ExecutionMode.Normalized() != domain.ExecutionModeImported {
 		return events
-	}
-	for _, event := range events {
-		if _, ok := event.Data.(*domain.UsageEventData); ok {
-			return events
-		}
 	}
 	rows, err := o.transcriptIndex.store.TranscriptUsageForRun(ctx, run.ID.String())
 	if err != nil || len(rows) == 0 {
 		return events
 	}
-	return append(events, transcriptindex.UsageEvents(rows)...)
+	kept := make([]*domain.RunEvent, 0, len(events)+len(rows))
+	for _, event := range events {
+		if usage, ok := event.Data.(*domain.UsageEventData); ok && usage.PayloadKind != domain.PayloadKindCharge {
+			continue
+		}
+		kept = append(kept, event)
+	}
+	return append(kept, transcriptindex.UsageEvents(rows)...)
 }
 
 // transcriptHead is what a file's first bytes say about its label and goal.
@@ -755,16 +862,18 @@ const transcriptHeadBytes = 4 << 20
 
 func readTranscriptHead(path string, markers runner.GoalMarkerProvider) transcriptHead {
 	var head transcriptHead
-	file, err := os.Open(path)
+	file, err := transcriptindex.OpenTranscript(path)
 	if err != nil {
 		return head
 	}
-	defer file.Close()
-	if evidence, err := readTranscriptLabelEvidence(io.LimitReader(file, transcriptHeadBytes)); err == nil {
+	data, err := io.ReadAll(io.LimitReader(file, transcriptHeadBytes))
+	file.Close()
+	if err != nil {
+		return head
+	}
+	if evidence, err := readTranscriptLabelEvidence(bytes.NewReader(data)); err == nil {
 		head.label = evidence
 	}
-	if _, err := file.Seek(0, 0); err == nil {
-		head.goalID, _ = transcriptGoalMetadata(io.LimitReader(file, transcriptHeadBytes), markers)
-	}
+	head.goalID, _ = transcriptGoalMetadata(bytes.NewReader(data), markers)
 	return head
 }

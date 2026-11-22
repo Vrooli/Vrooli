@@ -612,7 +612,7 @@ type transcriptDetection struct {
 	Score      float64
 }
 
-func (o *Orchestrator) detectTranscriptRunner(source *os.File, requested domain.RunnerType) (transcriptDetection, error) {
+func (o *Orchestrator) detectTranscriptRunner(source io.Reader, requested domain.RunnerType) (transcriptDetection, error) {
 	if requested != "" {
 		if _, err := o.runners.Get(requested); err != nil {
 			return transcriptDetection{}, fmt.Errorf("unsupported transcript format: %w", err)

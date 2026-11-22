@@ -29,6 +29,7 @@ import (
 	"agent-manager/internal/fallback"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/cli-core/agenttranscript"
 )
 
 // =============================================================================
@@ -210,6 +211,10 @@ func (c *Codex) BuildArgs(state State, req runner.ExecuteRequest) []string {
 // session-id positional argument and accepts an optional follow-up prompt
 // inline (rather than via stdin).
 func (c *Codex) BuildContinueArgs(state State, req runner.ContinueRequest) []string {
+	format, ok := agenttranscript.FormatFor(agenttranscript.HarnessCodex)
+	if !ok {
+		panic("missing shared Codex transcript format")
+	}
 	model := strings.TrimSpace(req.GetConfig().Model)
 	if s, ok := state.(*codexState); ok {
 		s.runModel = model
@@ -218,7 +223,7 @@ func (c *Codex) BuildContinueArgs(state State, req runner.ContinueRequest) []str
 		s.SetTranscriptSession(req.SessionID, false)
 	}
 	args := []string{
-		"exec", "resume",
+		"exec", format.ResumeCommand,
 		"--json",
 		"--skip-git-repo-check",
 	}

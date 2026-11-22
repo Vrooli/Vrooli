@@ -54,7 +54,14 @@ CREATE TABLE IF NOT EXISTS route_events (
   role_resolution_duration_ns INTEGER NOT NULL DEFAULT 0,
   eligibility_duration_ns INTEGER NOT NULL DEFAULT 0,
   capacity_admission_duration_ns INTEGER NOT NULL DEFAULT 0,
-  provider_execution_duration_ns INTEGER NOT NULL DEFAULT 0
+  provider_execution_duration_ns INTEGER NOT NULL DEFAULT 0,
+  -- Provider-reported runtime and admission wait, the route's total wall time
+  -- and the overhead outside provider work (see RouteEvidence). Zero means not
+  -- observed; rows recorded before these columns existed read as zero.
+  provider_runtime_duration_ns INTEGER NOT NULL DEFAULT 0,
+  provider_admission_wait_ns INTEGER NOT NULL DEFAULT 0,
+  total_duration_ns INTEGER NOT NULL DEFAULT 0,
+  overhead_duration_ns INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_route_events_created_at ON route_events(created_at DESC);

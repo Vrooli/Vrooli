@@ -22,6 +22,13 @@ func SubcommandGroups(deps support.Dependencies) []cliapp.SubcommandGroup {
 	spaceCommand := spacecli.CommandGroup(spacecli.Config{Owner: "agent-manager", Projection: spacedoc.ProjectionAgentThroughput}).Commands[0]
 	spaceCommand.Name = "get"
 	space := cliapp.SubcommandGroup{Name: "space", Description: "Inspect the coverage-space denominator", DefaultSubcommand: "get", Subcommands: []cliapp.Command{spaceCommand}}
+	profile := support.SubcommandGroup("profile", "Manage agent profiles", deps.Profile,
+		[2]string{"list", "List all agent profiles"}, [2]string{"get", "Get profile details by id or key"}, [2]string{"create", "Create a new profile"}, [2]string{"update", "Update an existing profile"}, [2]string{"delete", "Delete a profile"}, [2]string{"ensure", "Resolve a profile key, creating defaults if needed"}, [2]string{"reconcile-scenario", "Reconcile profiles declared by a scenario"})
+	for i := range profile.Subcommands {
+		if profile.Subcommands[i].Name == "create" {
+			profile.Subcommands[i].HelpText = support.FlagHelp(deps.Profile, "create")
+		}
+	}
 	subscription := support.SubcommandGroup("subscription", "Manage subscription billing periods and quota observations", deps.Subscription,
 		[2]string{"periods", "Create, list, or remove billing periods"}, [2]string{"quota", "List provider quota observations"})
 	for i := range subscription.Subcommands {
@@ -31,8 +38,7 @@ func SubcommandGroups(deps support.Dependencies) []cliapp.SubcommandGroup {
 		}
 	}
 	return []cliapp.SubcommandGroup{
-		support.SubcommandGroup("profile", "Manage agent profiles", deps.Profile,
-			[2]string{"list", "List all agent profiles"}, [2]string{"get", "Get profile details by id or key"}, [2]string{"create", "Create a new profile"}, [2]string{"update", "Update an existing profile"}, [2]string{"delete", "Delete a profile"}, [2]string{"ensure", "Resolve a profile key, creating defaults if needed"}, [2]string{"reconcile-scenario", "Reconcile profiles declared by a scenario"}),
+		profile,
 		support.SubcommandGroup("role-policy", "Inspect portable role policy", deps.Policy,
 			[2]string{"status", "Show activation state and latest diagnostic"}, [2]string{"catalog", "Inspect the active portable role catalog"}, [2]string{"validate", "Validate declared state without activation"}, [2]string{"reload", "Validate and atomically activate declared state"}, [2]string{"explain", "Explain profile or run role resolution"}),
 		support.SubcommandGroup("settings", "Manage runtime settings", deps.Settings,

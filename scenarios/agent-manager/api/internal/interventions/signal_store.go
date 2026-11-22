@@ -59,6 +59,24 @@ WHERE i.classifier_version = ? AND i.status IN ('classified', 'unclassified')
 
 // SaveSignals upserts records. Labels and probabilities are stored, never text.
 func (s *Store) SaveSignals(ctx context.Context, version string, records []SignalRecord, now time.Time) error {
+	s.signalWriteMu.Lock()
+	defer s.signalWriteMu.Unlock()
+	return s.saveSignals(ctx, version, records, now)
+}
+
+// saveSignalsIfEnabled makes the final switch check and batch write atomic
+// with PurgeSignals. A pass that finishes classification after an operator
+// turns signals off therefore cannot restore the rows that purge removed.
+func (s *Store) saveSignalsIfEnabled(ctx context.Context, version string, records []SignalRecord, now time.Time, enabled func() bool) (bool, error) {
+	s.signalWriteMu.Lock()
+	defer s.signalWriteMu.Unlock()
+	if enabled != nil && !enabled() {
+		return false, nil
+	}
+	return true, s.saveSignals(ctx, version, records, now)
+}
+
+func (s *Store) saveSignals(ctx context.Context, version string, records []SignalRecord, now time.Time) error {
 	for _, r := range records {
 		probabilities := "{}"
 		if len(r.Answer.Probabilities) > 0 {
@@ -111,6 +129,8 @@ func (s *Store) CountSignals(ctx context.Context) (int64, error) {
 // PurgeSignals deletes every stored signal: what the off switch's owner runs to
 // remove the derived labels as well as stop producing them.
 func (s *Store) PurgeSignals(ctx context.Context) (int64, error) {
+	s.signalWriteMu.Lock()
+	defer s.signalWriteMu.Unlock()
 	result, err := s.db.ExecContext(ctx, `DELETE FROM operator_signals`)
 	if err != nil {
 		return 0, fmt.Errorf("purge signals: %w", err)

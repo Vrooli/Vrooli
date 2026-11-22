@@ -3,6 +3,7 @@ package routing
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -24,6 +25,7 @@ type executionState struct {
 	eligibilityDurationNS       int64
 	capacityAdmissionDurationNS int64
 	providerExecutionDurationNS int64
+	providerTiming              providers.ProviderTiming
 }
 
 type candidateAttempt struct {
@@ -42,6 +44,7 @@ type candidateAttempt struct {
 	eligibilityDurationNS       int64
 	capacityAdmissionDurationNS int64
 	providerExecutionDurationNS int64
+	providerTiming              providers.ProviderTiming
 }
 
 func (s *Service) execute(ctx context.Context, req *sharedv1.GatewayRequest, input string) (*routingv1.ExecuteRouteResponse, error) {
@@ -191,8 +194,9 @@ func (s *Service) admitExecutionCapacity(ctx context.Context, req *sharedv1.Gate
 func (s *Service) dispatchCandidate(ctx context.Context, req *sharedv1.GatewayRequest, input string, plan routePlan, candidate *routingv1.RouteCandidate, role providers.ResolvedRole, temperature *float64, capacity CapacityEvaluation) candidateAttempt {
 	key := candidateKey(candidate.GetProvider(), candidate.GetRole())
 	rights := plan.rights[key]
+	adapter := s.adapters[candidate.GetProvider()]
 	started := s.now()
-	result, err := s.adapters[candidate.GetProvider()].Execute(ctx, providers.ExecutionRequest{
+	result, err := adapter.Execute(ctx, providers.ExecutionRequest{
 		Kind: req.GetKind(), Role: req.GetRole(), ExpectedModel: role.Model, ExpectedArtifactDigest: rights.runtimeDigest,
 		ExpectedRightsDecisionSHA256: rights.decision.DecisionSHA256, ExpectedRightsEvaluatedAt: rights.decision.EvaluatedAt,
 		ExpectedRightsReceiptSHA256: rights.receiptSHA256, ExpectedPolicyFileSHA256: rights.policyFileSHA256,
@@ -203,11 +207,15 @@ func (s *Service) dispatchCandidate(ctx context.Context, req *sharedv1.GatewayRe
 	s.releaseCapacity(ctx, capacity)
 	if err != nil {
 		failure := ClassifyProviderFailure(err)
+		// The resource may have refused evidence planned from a fact that has
+		// since changed; the next request plans from fresh facts.
+		adapter.InvalidateFacts(providers.AnyFact)
+		logExecutionFailure(req, candidate, failure, err)
 		s.recordOutcome(ctx, candidate.GetProvider(), candidate.GetRole(), req.GetKind(), failure, false)
 		return candidateAttempt{capacity: capacity, capacitySeen: capacity.RequiredBytes > 0, failureReason: failureReasonExecute, failureClass: failure.Class, dispatched: true, providerExecutionDurationNS: providerDurationNS}
 	}
 	s.recordOutcome(ctx, candidate.GetProvider(), candidate.GetRole(), req.GetKind(), ProviderFailure{}, true)
-	return candidateAttempt{result: &result, role: role, temperature: temperature, capacity: capacity, capacitySeen: capacity.RequiredBytes > 0, dispatched: true, providerExecutionDurationNS: providerDurationNS}
+	return candidateAttempt{result: &result, role: role, temperature: temperature, capacity: capacity, capacitySeen: capacity.RequiredBytes > 0, dispatched: true, providerExecutionDurationNS: providerDurationNS, providerTiming: result.Timing}
 }
 
 func (s *Service) persistSuccessfulExecution(ctx context.Context, req *sharedv1.GatewayRequest, plan routePlan, candidate *routingv1.RouteCandidate, attempt candidateAttempt, state executionState, started time.Time, fallbackUsed bool) (*routingv1.ExecuteRouteResponse, error) {
@@ -284,6 +292,8 @@ func (s *executionState) absorb(attempt candidateAttempt) {
 	s.eligibilityDurationNS += attempt.eligibilityDurationNS
 	s.capacityAdmissionDurationNS += attempt.capacityAdmissionDurationNS
 	s.providerExecutionDurationNS += attempt.providerExecutionDurationNS
+	s.providerTiming.AdmissionWaitNS += attempt.providerTiming.AdmissionWaitNS
+	s.providerTiming.RuntimeNS += attempt.providerTiming.RuntimeNS
 }
 
 func applyExecutionTimings(ev *routingv1.RouteEvidence, state executionState) {
@@ -293,6 +303,29 @@ func applyExecutionTimings(ev *routingv1.RouteEvidence, state executionState) {
 	ev.EligibilityDurationNs = state.eligibilityDurationNS
 	ev.CapacityAdmissionDurationNs = state.capacityAdmissionDurationNS
 	ev.ProviderExecutionDurationNs = state.providerExecutionDurationNS
+	ev.ProviderRuntimeDurationNs = state.providerTiming.RuntimeNS
+	ev.ProviderAdmissionWaitNs = state.providerTiming.AdmissionWaitNS
+	ev.OverheadDurationNs = overheadDurationNS(ev.GetTotalDurationNs(), state)
+}
+
+// overheadDurationNS is the route time that was neither provider work nor a
+// wait for provider admission. A resource that reports its provider runtime
+// lets its own start-up and verification count as overhead; otherwise the
+// whole resource command is counted as provider time.
+func overheadDurationNS(totalNS int64, state executionState) int64 {
+	provider := state.providerExecutionDurationNS
+	if state.providerTiming.RuntimeNS > 0 {
+		provider = state.providerTiming.RuntimeNS + state.providerTiming.AdmissionWaitNS
+	}
+	return max(totalNS-provider, 0)
+}
+
+// logExecutionFailure keeps the resource's own reason for a failed dispatch.
+// Route evidence stores only the stable failure class; without this line the
+// cause of a provider failure is lost.
+func logExecutionFailure(req *sharedv1.GatewayRequest, candidate *routingv1.RouteCandidate, failure ProviderFailure, err error) {
+	log.Printf("route execution failed scenario=%s provider=%s role=%s kind=%s class=%s: %s",
+		firstNonEmpty(req.GetScenario(), "unknown"), candidate.GetProvider(), candidate.GetRole(), req.GetKind(), failure.Class, providers.FailureDetail(err))
 }
 
 func durationNS(started, ended time.Time) int64 {

@@ -385,7 +385,7 @@ func (h *mutationReplacementHost) Parser(context.Context, transcriptindex.FileRo
 func (h *mutationReplacementHost) ReplacementTokens(context.Context, transcriptindex.Store, transcriptindex.FileRow) (string, string, error) {
 	return "file", "events", nil
 }
-func (h *mutationReplacementHost) CommitReplacement(context.Context, transcriptindex.Store, string, string, string, transcriptindex.FileRow, []transcriptindex.UsageRow, []*domain.RunEvent, bool, transcriptindex.RunUpdate) (bool, error) {
+func (h *mutationReplacementHost) CommitReplacement(context.Context, transcriptindex.Store, transcriptindex.FileRow, string, string, transcriptindex.FileRow, []transcriptindex.UsageRow, []*domain.RunEvent, bool, transcriptindex.RunUpdate) (bool, error) {
 	h.promoted = true
 	return true, nil
 }
@@ -440,11 +440,18 @@ func TestReplacementSourceMutationDuringStagingPreservesEvidence(t *testing.T) {
 	if host.promoted {
 		t.Fatal("changed source was promoted")
 	}
-	if after := r.row(path); after.Offset != before.Offset || after.Status != transcriptindex.StatusUnreadable {
-		t.Fatalf("checkpoint lost: %+v", after)
+	// A source that moved while it was staged defers the replacement: the
+	// prior checkpoint and events stand unlocked, and a later tick retries.
+	if after := r.row(path); after.Offset != before.Offset || after.Status != before.Status || after.Error != "" {
+		t.Fatalf("checkpoint lost or locked: %+v", after)
 	}
 	if count, err := r.events.Count(context.Background(), uuid.MustParse(before.RunID)); err != nil || count != oldCount {
 		t.Fatalf("events lost: %d %v", count, err)
+	}
+	write(t, path, sessionMeta(parentID), turnContext(), tokenCount(2000, 0, 200, 2000, 0, 200, 2)) // the writer settles
+	r.tick()
+	if after := r.row(path); after.Status != transcriptindex.StatusIndexed || after.Error != "" || r.tokens(after.RunID) != 2200 {
+		t.Fatalf("stable source was not replaced on retry: %+v tokens=%d", after, r.tokens(after.RunID))
 	}
 }
 
@@ -1159,7 +1166,7 @@ func TestUncertainRecordingDoesNotReplayRewriteBeyondHead(t *testing.T) {
 	if err := os.Chtimes(path, info.ModTime(), info.ModTime()); err != nil {
 		t.Fatal(err)
 	}
-	if got := transcriptindex.HeadHash(path, before.Offset); got != before.HeadHash {
+	if got, err := transcriptindex.HeadHash(path, before.Offset); err != nil || got != before.HeadHash {
 		t.Fatal("fixture unexpectedly changed the head fingerprint")
 	}
 	host.fail = false

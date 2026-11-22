@@ -9,7 +9,9 @@ import (
 	"net/http/httptest"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	eventstore "agent-manager/internal/adapters/event"
 	"agent-manager/internal/browsercapability"
@@ -25,6 +27,34 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 )
 
+func TestTrustedBrowserRuntimeEvidenceRequiresMatchingOfflineProvenance(t *testing.T) {
+	valid := &BrowserEvidenceRuntime{
+		BundleVersion: "br1-chromium-1169-rebrowser-playwright-core-1.52.0", BrowserVersion: "1169",
+		ClosureSHA256: strings.Repeat("a", 64), Driver: "rebrowser-playwright-core", DriverVersion: "1.52.0",
+		Source: "offline-install-receipt", Channel: "offline-transfer",
+	}
+	got, err := trustedBrowserRuntimeEvidence(valid)
+	if err != nil || got == nil || got.ClosureSHA256 != valid.ClosureSHA256 {
+		t.Fatalf("valid proof identity rejected: got=%#v err=%v", got, err)
+	}
+	for name, mutate := range map[string]func(*BrowserEvidenceRuntime){
+		"missing source": func(value *BrowserEvidenceRuntime) { value.Source = "" },
+		"wrong channel":  func(value *BrowserEvidenceRuntime) { value.Channel = "online-acquisition" },
+		"bundle mismatch": func(value *BrowserEvidenceRuntime) {
+			value.BundleVersion = "br1-chromium-latest-rebrowser-playwright-core-1.52.0"
+		},
+		"bad digest": func(value *BrowserEvidenceRuntime) { value.ClosureSHA256 = "../host/path" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			copy := *valid
+			mutate(&copy)
+			if result, err := trustedBrowserRuntimeEvidence(&copy); err == nil || result != nil {
+				t.Fatalf("invalid provenance accepted: %#v", result)
+			}
+		})
+	}
+}
+
 type browserIdentityFake struct {
 	orchestration.IdentityService
 	result *orchestration.IdentityVerifyResult
@@ -37,6 +67,28 @@ func (f browserIdentityFake) VerifyIdentityToken(context.Context, string) (*orch
 type browserRunFake struct {
 	orchestration.RunService
 	run *domain.Run
+}
+
+type countedBrowserIdentityFake struct {
+	orchestration.IdentityService
+	result *orchestration.IdentityVerifyResult
+	calls  atomic.Int64
+}
+
+func (f *countedBrowserIdentityFake) VerifyIdentityToken(context.Context, string) (*orchestration.IdentityVerifyResult, error) {
+	f.calls.Add(1)
+	return f.result, nil
+}
+
+type countedBrowserRunFake struct {
+	orchestration.RunService
+	run   *domain.Run
+	calls atomic.Int64
+}
+
+func (f *countedBrowserRunFake) GetRun(context.Context, uuid.UUID) (*domain.Run, error) {
+	f.calls.Add(1)
+	return f.run, nil
 }
 
 type browserEvidenceFake struct {
@@ -95,7 +147,7 @@ func browserHandlerForTest(id uuid.UUID) *Handler {
 		Permissions:  browsercapability.PermissionProfileSpec{ProfileID: "profile-browser-act", ProfileMode: browsercapability.SessionProfileUserAttached, Level: browsercapability.ProfileAct, AllowedOrigins: []string{"https://example.test"}, ExtensionIDs: []string{"extension-safe"}},
 		Budget:       browsercapability.Budget{SessionMinutes: 10, Actions: 80, Bytes: 2_000_000, InferenceTokens: 15_000},
 	}
-	return &Handler{svc: orchestration.HandlerServices{
+	return &Handler{browserTabConsents: browsercapability.NewTabConsentAuthority(), svc: orchestration.HandlerServices{
 		IdentityService: browserIdentityFake{result: &orchestration.IdentityVerifyResult{
 			Valid: true, Claims: &identity.Claims{RunID: id}, RunStatus: domain.RunStatusRunning,
 		}},
@@ -105,10 +157,25 @@ func browserHandlerForTest(id uuid.UUID) *Handler {
 	}}
 }
 
+func browserRunWithPermissions(id uuid.UUID, view, control bool) browserRunFake {
+	run := &domain.Run{ID: id, Status: domain.RunStatusRunning, ResolvedConfig: &domain.RunConfig{
+		RunnerType: domain.RunnerTypeClaudeCode, Features: domain.FeatureFlags{BrowserCapability: &browsercapability.Capability{
+			Enabled: true, GrantReceipt: browserTestGrantReceipt(id), Mode: browsercapability.ModeAttached, Candidates: []browsercapability.Candidate{{Harness: "claude-code", ResourceRole: "browser.session"}},
+			Permissions: browsercapability.PermissionProfileSpec{ProfileID: "profile-browser-act", ProfileMode: browsercapability.SessionProfileUserAttached, Level: browsercapability.ProfileAct, AllowedOrigins: []string{"https://example.test"}, View: view, Control: control},
+		}},
+	}}
+	return browserRunFake{run: run}
+}
+
 func browserTestGrantReceipt(id uuid.UUID) string { return "browser-grant:test-" + id.String() }
 
 func withBrowserRunAgent(req *http.Request, runID uuid.UUID) *http.Request {
 	principal := coreidentity.Principal{Kind: coreidentity.ActorAgent, Subject: runID.String(), Verified: true, Scopes: []string{"agent-manager:write"}}
+	return req.WithContext(coreidentity.WithPrincipal(req.Context(), principal))
+}
+
+func withBrowserTabConsentBroker(req *http.Request) *http.Request {
+	principal := coreidentity.Principal{Kind: coreidentity.ActorService, Subject: BrowserTabConsentBrokerServiceSubject, Verified: true, Scopes: []string{BrowserTabConsentBrokerScope}}
 	return req.WithContext(coreidentity.WithPrincipal(req.Context(), principal))
 }
 
@@ -358,13 +425,63 @@ func TestRecordBASBrowserEvidenceRequiresExactGrantAndBrokerProof(t *testing.T) 
 	if got := call(nil, &browserEvidenceProofFake{err: errors.New("revoked proof")}); got.Code != http.StatusForbidden || evidence.called {
 		t.Fatalf("revoked broker proof status=%d body=%s append=%v", got.Code, got.Body.String(), evidence.called)
 	}
-	proof := &browserEvidenceProofFake{observation: BrowserEvidenceObservation{Kind: "session", SessionID: "broker-session-1", State: "closed", SessionMinutes: 2, Actions: 2, Bytes: 128}}
+	proof := &browserEvidenceProofFake{observation: BrowserEvidenceObservation{Kind: "session", SessionID: "broker-session-1", State: "closed", SessionMinutes: 2, Actions: 2, Bytes: 128, Runtime: &BrowserEvidenceRuntime{BundleVersion: "br1-chromium-1169-rebrowser-playwright-core-1.52.0", BrowserVersion: "1169", ClosureSHA256: strings.Repeat("a", 64), Driver: "rebrowser-playwright-core", DriverVersion: "1.52.0", Source: "offline-install-receipt", Channel: "offline-transfer"}}}
 	if got := call(nil, proof); got.Code != http.StatusAccepted || !evidence.called || !proof.called {
 		t.Fatalf("valid grant and broker observation status=%d body=%s append=%v proof=%v", got.Code, got.Body.String(), evidence.called, proof.called)
 	}
 	payload, ok := evidence.payload.(eventlog.BrowserSessionPayload)
-	if !ok || payload.ReportedBy != "browser-automation-studio-broker" || payload.SessionID != "broker-session-1" || payload.State != "closed" || payload.Actions != 2 || !proof.consumed {
+	if !ok || payload.ReportedBy != "browser-automation-studio-broker" || payload.SessionID != "broker-session-1" || payload.State != "closed" || payload.Actions != 2 || payload.Runtime == nil || payload.Runtime.BundleVersion != proof.observation.Runtime.BundleVersion || !proof.consumed {
 		t.Fatalf("trusted payload did not come from broker observation: %#v", evidence.payload)
+	}
+}
+
+type browserSessionSettlementFake struct {
+	called    bool
+	runID     uuid.UUID
+	sessionID string
+	grant     string
+	proof     string
+	receipt   BrowserSessionReceipt
+	err       error
+}
+
+func (f *browserSessionSettlementFake) SettleBrowserSession(_ context.Context, runID uuid.UUID, sessionID, grant, proof string) (BrowserSessionReceipt, error) {
+	f.called, f.runID, f.sessionID, f.grant, f.proof = true, runID, sessionID, grant, proof
+	return f.receipt, f.err
+}
+
+func TestRecordBASBrowserEvidenceReturnsTheLPBSReceiptFromTheSettlementOwner(t *testing.T) {
+	runID := uuid.New()
+	server := browserHandlerForTest(runID)
+	server.svc.BrowserEvidenceService = &browserEvidenceFake{}
+	server.svc.EventService = browserEventReaderFake{}
+	proof := &browserEvidenceProofFake{observation: BrowserEvidenceObservation{Kind: "session", SessionID: "broker-session-receipt", State: "closed", SessionMinutes: 3, Actions: 4, Bytes: 512}}
+	settler := &browserSessionSettlementFake{receipt: BrowserSessionReceipt{ReservationID: "reservation-1", Status: "settled", Provider: "multiple", Model: "multiple", SessionMinutes: 3, Actions: 4, Bytes: 512, InferenceOperations: []BrowserInferenceReceipt{{RootOperationID: "root-1", Provider: "hosted-provider", Model: "hosted-model", PromptTokens: 10, CompletionTokens: 5}}}}
+	server.browserEvidenceProof = proof
+	server.browserSessionSettlement = settler
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/browser/bas-evidence/"+runID.String(), strings.NewReader(`{"proof_reference":"opaque-proof-ref"}`))
+	req = withBASBrowserEvidenceService(req, runID, nil)
+	req.Header.Set(cliutil.HeaderAgentIdentityToken, "signed-run-token")
+	req.Header.Set(browserGrantReceiptHeader, browserTestGrantReceipt(runID))
+	response := httptest.NewRecorder()
+	server.RecordBASBrowserEvidence(response, req)
+	if response.Code != http.StatusAccepted || !settler.called || settler.runID != runID || settler.sessionID != "broker-session-receipt" || settler.grant != browserTestGrantReceipt(runID) || settler.proof != "opaque-proof-ref" {
+		t.Fatalf("response=%d body=%s settlement=%+v", response.Code, response.Body.String(), settler)
+	}
+	var body struct {
+		Settlement struct {
+			Status  string                `json:"status"`
+			Receipt BrowserSessionReceipt `json:"receipt"`
+		} `json:"settlement"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+	if body.Settlement.Status != "settled" || body.Settlement.Receipt.ReservationID != "reservation-1" || body.Settlement.Receipt.SessionMinutes != 3 || body.Settlement.Receipt.Actions != 4 || body.Settlement.Receipt.Bytes != 512 || len(body.Settlement.Receipt.InferenceOperations) != 1 || body.Settlement.Receipt.InferenceOperations[0].Provider != "hosted-provider" || body.Settlement.Receipt.InferenceOperations[0].PromptTokens != 10 {
+		t.Fatalf("settlement receipt was not passed through: %+v", body.Settlement)
+	}
+	if proof.consumed {
+		t.Fatal("AM consumed the proof locally after delegating consumption to LPBS")
 	}
 }
 
@@ -450,6 +567,81 @@ func TestAuthorizeBrowserOpenUsesRunTokenAndPersistedCapability(t *testing.T) {
 	}
 }
 
+func TestBrowserOpenRouteRejectsTenantSelectorsBeforeIdentityOrRunReads(t *testing.T) {
+	runAID, runBID := uuid.New(), uuid.New()
+	identityA := &countedBrowserIdentityFake{result: &orchestration.IdentityVerifyResult{
+		Valid: true, Claims: &identity.Claims{RunID: runAID, Subject: "member-a", WorkspaceID: "workspace-a"}, RunStatus: domain.RunStatusRunning,
+	}}
+	identityB := &countedBrowserIdentityFake{result: &orchestration.IdentityVerifyResult{
+		Valid: true, Claims: &identity.Claims{RunID: runBID, Subject: "member-b", WorkspaceID: "workspace-b"}, RunStatus: domain.RunStatusRunning,
+	}}
+	runA := &countedBrowserRunFake{run: &domain.Run{ID: runAID, Status: domain.RunStatusRunning}}
+	runB := &countedBrowserRunFake{run: &domain.Run{ID: runBID, Status: domain.RunStatusRunning}}
+
+	for _, fixture := range []struct {
+		name     string
+		token    string
+		grant    string
+		identity *countedBrowserIdentityFake
+		run      *countedBrowserRunFake
+		body     string
+	}{
+		{name: "tenant A request cannot select tenant B", token: "run-a", grant: browserTestGrantReceipt(runAID), identity: identityA, run: runA,
+			body: `{"mode":"user-attached","profile_id":"profile-browser-act","initial_url":"https://example.test/","business_account_id":"tenant-b"}`},
+		{name: "tenant B request cannot select tenant A", token: "run-b", grant: browserTestGrantReceipt(runBID), identity: identityB, run: runB,
+			body: `{"mode":"user-attached","profile_id":"profile-browser-act","initial_url":"https://example.test/","workspace_id":"tenant-a"}`},
+	} {
+		t.Run(fixture.name, func(t *testing.T) {
+			server := browserHandlerForTest(runAID)
+			server.svc.IdentityService = fixture.identity
+			server.svc.RunService = fixture.run
+			router := mux.NewRouter()
+			server.RegisterRoutes(router)
+			request := httptest.NewRequest(http.MethodPost, "/api/v1/browser/authorize-open", strings.NewReader(fixture.body))
+			request.Header.Set(cliutil.HeaderAgentIdentityToken, fixture.token)
+			request.Header.Set(browserGrantReceiptHeader, fixture.grant)
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+			if response.Code != http.StatusBadRequest {
+				t.Fatalf("caller-selected account response=%d body=%s", response.Code, response.Body.String())
+			}
+			if fixture.identity.calls.Load() != 0 || fixture.run.calls.Load() != 0 {
+				t.Fatalf("forged tenant selector crossed owner reads: identity=%d run=%d", fixture.identity.calls.Load(), fixture.run.calls.Load())
+			}
+		})
+	}
+
+	// Concurrent A→B and B→A selector attempts remain request-local and are
+	// refused before either trusted identity or persisted run owner is read.
+	server := browserHandlerForTest(runAID)
+	server.svc.IdentityService = identityA
+	server.svc.RunService = runA
+	router := mux.NewRouter()
+	server.RegisterRoutes(router)
+	var wg sync.WaitGroup
+	for i := 0; i < 40; i++ {
+		for _, fixture := range []struct{ token, account string }{{"run-a", "tenant-b"}, {"run-b", "tenant-a"}} {
+			wg.Add(1)
+			go func(token, account string) {
+				defer wg.Done()
+				body := `{"mode":"user-attached","profile_id":"profile-browser-act","initial_url":"https://example.test/","business_account_id":"` + account + `"}`
+				request := httptest.NewRequest(http.MethodPost, "/api/v1/browser/authorize-open", strings.NewReader(body))
+				request.Header.Set(cliutil.HeaderAgentIdentityToken, token)
+				request.Header.Set(browserGrantReceiptHeader, browserTestGrantReceipt(runAID))
+				response := httptest.NewRecorder()
+				router.ServeHTTP(response, request)
+				if response.Code != http.StatusBadRequest {
+					t.Errorf("racing caller-selected account response=%d body=%s", response.Code, response.Body.String())
+				}
+			}(fixture.token, fixture.account)
+		}
+	}
+	wg.Wait()
+	if identityA.calls.Load() != 0 || runA.calls.Load() != 0 || identityB.calls.Load() != 0 || runB.calls.Load() != 0 {
+		t.Fatalf("racing selectors crossed an owner boundary: identity A/B=%d/%d run A/B=%d/%d", identityA.calls.Load(), identityB.calls.Load(), runA.calls.Load(), runB.calls.Load())
+	}
+}
+
 func TestAuthorizeBrowserOpenRequiresVerifiedRunIdentity(t *testing.T) {
 	id := uuid.New()
 	server := browserHandlerForTest(id)
@@ -458,6 +650,110 @@ func TestAuthorizeBrowserOpenRequiresVerifiedRunIdentity(t *testing.T) {
 	server.AuthorizeBrowserOpen(response, req)
 	if response.Code != http.StatusUnauthorized {
 		t.Fatalf("missing run identity response = %d %s", response.Code, response.Body.String())
+	}
+}
+
+func TestBrowserTabConsentRequiresRunGrantAndExactLeaseBinding(t *testing.T) {
+	id := uuid.New()
+	server := browserHandlerForTest(id)
+	server.svc.RunService = browserRunWithPermissions(id, true, true)
+	server.svc.IdentityService = browserIdentityFake{result: &orchestration.IdentityVerifyResult{Valid: true, Claims: &identity.Claims{RunID: id}, RunStatus: domain.RunStatusRunning}}
+	issue := `{"session_id":"session-1","lease_id":"lease-1","owner_id":"run:` + id.String() + `","profile_id":"profile-browser-act","tab_id":"tab-5","url":"https://example.test/form","pairing_nonce":"nonce-1","expires_at":"` + time.Now().UTC().Add(time.Minute).Format(time.RFC3339Nano) + `"}`
+	issueReq := httptest.NewRequest(http.MethodPost, "/api/v1/browser/tab-consent/issue", strings.NewReader(issue))
+	issueReq = withBrowserTabConsentBroker(issueReq)
+	issueReq.Header.Set(cliutil.HeaderAgentIdentityToken, "signed-run-token")
+	issueReq.Header.Set(browserGrantReceiptHeader, browserTestGrantReceipt(id))
+	issueResp := httptest.NewRecorder()
+	server.IssueBrowserTabConsent(issueResp, issueReq)
+	if issueResp.Code != http.StatusOK {
+		t.Fatalf("issue status=%d body=%s", issueResp.Code, issueResp.Body.String())
+	}
+	var issued struct {
+		Receipt string `json:"consent_receipt"`
+	}
+	if err := json.Unmarshal(issueResp.Body.Bytes(), &issued); err != nil || issued.Receipt == "" {
+		t.Fatalf("issued receipt missing: response=%s error=%v", issueResp.Body.String(), err)
+	}
+	verify := func(tabID, currentURL string) *httptest.ResponseRecorder {
+		body, _ := json.Marshal(map[string]string{
+			"consent_receipt": issued.Receipt, "session_id": "session-1", "lease_id": "lease-1",
+			"owner_id": "run:" + id.String(), "tab_id": tabID, "current_url": currentURL,
+		})
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/browser/tab-consent/verify", bytes.NewReader(body))
+		req = withBrowserTabConsentBroker(req)
+		req.Header.Set(cliutil.HeaderAgentIdentityToken, "signed-run-token")
+		req.Header.Set(browserGrantReceiptHeader, browserTestGrantReceipt(id))
+		response := httptest.NewRecorder()
+		server.VerifyBrowserTabConsent(response, req)
+		return response
+	}
+	if got := verify("tab-5", "https://example.test/next"); got.Code != http.StatusNoContent {
+		t.Fatalf("exact receipt should verify, got %d %s", got.Code, got.Body.String())
+	}
+	if got := verify("tab-6", "https://example.test/next"); got.Code != http.StatusForbidden {
+		t.Fatalf("wrong tab should deny, got %d %s", got.Code, got.Body.String())
+	}
+	if got := verify("tab-5", "https://outside.test/"); got.Code != http.StatusForbidden {
+		t.Fatalf("out-of-scope URL should deny, got %d %s", got.Code, got.Body.String())
+	}
+	revokeBody, _ := json.Marshal(map[string]string{"consent_receipt": issued.Receipt, "run_id": id.String(), "session_id": "session-1"})
+	revokeReq := httptest.NewRequest(http.MethodPost, "/api/v1/browser/tab-consent/revoke", bytes.NewReader(revokeBody))
+	revokeReq = withBrowserTabConsentBroker(revokeReq)
+	revokeResp := httptest.NewRecorder()
+	server.RevokeBrowserTabConsent(revokeResp, revokeReq)
+	if revokeResp.Code != http.StatusNoContent {
+		t.Fatalf("bound consent revoke status=%d body=%s", revokeResp.Code, revokeResp.Body.String())
+	}
+	if got := verify("tab-5", "https://example.test/next"); got.Code != http.StatusForbidden {
+		t.Fatalf("revoked receipt should deny, got %d %s", got.Code, got.Body.String())
+	}
+}
+
+func TestBrowserTabConsentRejectsMissingIdentityAndForeignGrant(t *testing.T) {
+	id := uuid.New()
+	server := browserHandlerForTest(id)
+	server.svc.RunService = browserRunWithPermissions(id, true, true)
+	body := `{"session_id":"session-1","lease_id":"lease-1","owner_id":"run:` + id.String() + `","profile_id":"profile-browser-act","tab_id":"tab-5","url":"https://example.test/","pairing_nonce":"nonce-1","expires_at":"` + time.Now().UTC().Add(time.Minute).Format(time.RFC3339Nano) + `"}`
+	call := func(token, grant string) int {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/browser/tab-consent/issue", strings.NewReader(body))
+		if token != "" {
+			req.Header.Set(cliutil.HeaderAgentIdentityToken, token)
+		}
+		if grant != "" {
+			req.Header.Set(browserGrantReceiptHeader, grant)
+		}
+		req = withBrowserTabConsentBroker(req)
+		response := httptest.NewRecorder()
+		server.IssueBrowserTabConsent(response, req)
+		return response.Code
+	}
+	if got := call("", browserTestGrantReceipt(id)); got != http.StatusUnauthorized {
+		t.Fatalf("missing identity status=%d, want unauthorized", got)
+	}
+	if got := call("signed-run-token", browserTestGrantReceipt(uuid.New())); got != http.StatusForbidden {
+		t.Fatalf("foreign grant status=%d, want forbidden", got)
+	}
+	for _, tc := range []struct {
+		name      string
+		principal *coreidentity.Principal
+	}{
+		{name: "no service identity"},
+		{name: "run agent", principal: &coreidentity.Principal{Kind: coreidentity.ActorAgent, Subject: id.String(), Verified: true, Scopes: []string{"agent-manager:write"}}},
+		{name: "wrong service", principal: &coreidentity.Principal{Kind: coreidentity.ActorService, Subject: "browser-automation-studio-agent-manager", Verified: true, Scopes: []string{BrowserTabConsentBrokerScope}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/browser/tab-consent/issue", strings.NewReader(body))
+			req.Header.Set(cliutil.HeaderAgentIdentityToken, "signed-run-token")
+			req.Header.Set(browserGrantReceiptHeader, browserTestGrantReceipt(id))
+			if tc.principal != nil {
+				req = req.WithContext(coreidentity.WithPrincipal(req.Context(), *tc.principal))
+			}
+			response := httptest.NewRecorder()
+			server.IssueBrowserTabConsent(response, req)
+			if response.Code != http.StatusForbidden {
+				t.Fatalf("untrusted consent issuer status=%d body=%s", response.Code, response.Body.String())
+			}
+		})
 	}
 }
 
@@ -537,6 +833,10 @@ func TestRecordBrowserEvidenceRequiresTrustedRunAndRejectsContentFields(t *testi
 	got = call(`{"kind":"action","session_id":"s-1","mode":"user-attached","permission_profile":"profile-browser-act","action":"click","outcome":"completed","page_text":"secret"}`)
 	if got.Code != http.StatusBadRequest || evidence.called {
 		t.Fatalf("content field response = %d %s, called=%v", got.Code, got.Body.String(), evidence.called)
+	}
+	got = call(`{"kind":"session","session_id":"s-1","mode":"managed","permission_profile":"profile-browser-act","state":"opened","runtime":{"bundle_version":"br1-chromium-1169-rebrowser-playwright-core-1.52.0"}}`)
+	if got.Code != http.StatusBadRequest || evidence.called {
+		t.Fatalf("run-agent runtime identity claim response = %d %s, called=%v", got.Code, got.Body.String(), evidence.called)
 	}
 	got = call(`{"kind":"session","session_id":"s-1","mode":"user-attached","permission_profile":"profile-browser-act","state":"closed","session_minutes":11,"actions":1,"bytes":1}`)
 	if got.Code != http.StatusBadRequest || evidence.called {

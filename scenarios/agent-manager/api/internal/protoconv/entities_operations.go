@@ -5,6 +5,8 @@ import (
 	"agent-manager/internal/domain"
 	"github.com/google/uuid"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 )
@@ -269,17 +271,17 @@ func OrchestratorRunnerStatusToProto(r *OrchestratorRunnerStatus) *pb.RunnerStat
 			SupportsSessionCompaction: r.Capabilities.SupportsSessionCompaction,
 			SupportsImageAttachments:  r.Capabilities.SupportsImageAttachments,
 			SupportsEffort:            r.Capabilities.SupportsEffort,
-			EffortMappings:            r.Capabilities.EffortMappings,
+			EffortMappings:            maps.Clone(r.Capabilities.EffortMappings),
 			EffortModelSpecific:       r.Capabilities.EffortModelSpecific,
 			SupportsRunnerDefault:     r.Capabilities.SupportsRunnerDefault,
-			DynamicModelPrefixes:      r.Capabilities.DynamicModelPrefixes,
+			DynamicModelPrefixes:      slices.Clone(r.Capabilities.DynamicModelPrefixes),
 			MaxTurns:                  int32(r.Capabilities.MaxTurns),
-			SupportedFeatures:         r.Capabilities.SupportedFeatures,
-			AllowedExtraFlags:         r.Capabilities.AllowedExtraFlags,
+			SupportedFeatures:         slices.Clone(r.Capabilities.SupportedFeatures),
+			AllowedExtraFlags:         slices.Clone(r.Capabilities.AllowedExtraFlags),
 			SupportsToolRestriction:   r.Capabilities.SupportsToolRestriction,
-			ToolRestrictionMappings:   r.Capabilities.ToolRestrictionMappings,
+			ToolRestrictionMappings:   maps.Clone(r.Capabilities.ToolRestrictionMappings),
 		},
-		SupportedModels: r.Capabilities.SupportedModels,
+		SupportedModels: slices.Clone(r.Capabilities.SupportedModels),
 	}
 }
 
@@ -288,7 +290,7 @@ func SpawnCapabilitiesToProto(capabilities []SpawnCapability) []*pb.SpawnCapabil
 	for _, capability := range capabilities {
 		result = append(result, &pb.SpawnCapability{
 			ExecutionMode:   capability.ExecutionMode,
-			SandboxModes:    capability.SandboxModes,
+			SandboxModes:    slices.Clone(capability.SandboxModes),
 			NativeObjective: capability.NativeObjective,
 		})
 	}
@@ -303,7 +305,7 @@ func spawnCapabilitiesFromProto(capabilities []*pb.SpawnCapability) []SpawnCapab
 		}
 		result = append(result, SpawnCapability{
 			ExecutionMode:   capability.ExecutionMode,
-			SandboxModes:    capability.SandboxModes,
+			SandboxModes:    slices.Clone(capability.SandboxModes),
 			NativeObjective: capability.NativeObjective,
 		})
 	}
@@ -315,7 +317,7 @@ func spawnCapabilitiesFromProto(capabilities []*pb.SpawnCapability) []SpawnCapab
 // caller supplies that adjacent field for a lossless round trip.
 func RunnerCapabilitiesFromProto(capabilities *pb.RunnerCapabilities, supportedModels []string) RunnerCapabilities {
 	if capabilities == nil {
-		return RunnerCapabilities{SupportedModels: supportedModels}
+		return RunnerCapabilities{SupportedModels: slices.Clone(supportedModels)}
 	}
 	return RunnerCapabilities{
 		SpawnCapabilities:         spawnCapabilitiesFromProto(capabilities.SpawnCapabilities),
@@ -329,16 +331,16 @@ func RunnerCapabilitiesFromProto(capabilities *pb.RunnerCapabilities, supportedM
 		SupportsSessionCompaction: capabilities.SupportsSessionCompaction,
 		SupportsImageAttachments:  capabilities.SupportsImageAttachments,
 		SupportsToolRestriction:   capabilities.SupportsToolRestriction,
-		ToolRestrictionMappings:   capabilities.ToolRestrictionMappings,
+		ToolRestrictionMappings:   maps.Clone(capabilities.ToolRestrictionMappings),
 		SupportsEffort:            capabilities.SupportsEffort,
-		EffortMappings:            capabilities.EffortMappings,
+		EffortMappings:            maps.Clone(capabilities.EffortMappings),
 		EffortModelSpecific:       capabilities.EffortModelSpecific,
 		MaxTurns:                  int(capabilities.MaxTurns),
-		SupportedModels:           supportedModels,
+		SupportedModels:           slices.Clone(supportedModels),
 		SupportsRunnerDefault:     capabilities.SupportsRunnerDefault,
-		DynamicModelPrefixes:      capabilities.DynamicModelPrefixes,
-		SupportedFeatures:         capabilities.SupportedFeatures,
-		AllowedExtraFlags:         capabilities.AllowedExtraFlags,
+		DynamicModelPrefixes:      slices.Clone(capabilities.DynamicModelPrefixes),
+		SupportedFeatures:         slices.Clone(capabilities.SupportedFeatures),
+		AllowedExtraFlags:         slices.Clone(capabilities.AllowedExtraFlags),
 	}
 }
 

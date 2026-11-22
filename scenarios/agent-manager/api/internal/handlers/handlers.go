@@ -31,6 +31,7 @@ import (
 	"strings"
 	"time"
 
+	"agent-manager/internal/browsercapability"
 	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/investigation"
@@ -57,30 +58,70 @@ import (
 
 // Handler provides HTTP handlers for all API endpoints.
 type Handler struct {
-	runtimeActivity       RuntimeActivityReader
-	svc                   orchestration.HandlerServices
-	profiles              orchestration.ProfileService
-	hub                   *WebSocketHub
-	validator             protovalidate.Validator
-	storage               storage.Service
-	rolePolicy            *rolepolicy.State
-	permissionPolicyState *permissionpolicy.State
-	permissionPolicy      *permissionpolicy.Service
-	receipts              eventbus.Client
-	receiptAvailability   ReceiptAvailabilityReader
-	transcriptImporter    TranscriptImportRunner
-	frictionBoard         FrictionBoard
-	investigations        investigation.Repository
-	effortEnrollments     EffortEnrollmentReader
-	modelEvalRunner       model_eval.Runner
-	browserEvidenceProof  BrowserEvidenceProofVerifier
-	browserPaneReceipts   BrowserPaneReceiptIssuer
+	runtimeActivity          RuntimeActivityReader
+	svc                      orchestration.HandlerServices
+	profiles                 orchestration.ProfileService
+	hub                      *WebSocketHub
+	validator                protovalidate.Validator
+	storage                  storage.Service
+	rolePolicy               *rolepolicy.State
+	permissionPolicyState    *permissionpolicy.State
+	permissionPolicy         *permissionpolicy.Service
+	receipts                 eventbus.Client
+	receiptAvailability      ReceiptAvailabilityReader
+	transcriptImporter       TranscriptImportRunner
+	frictionBoard            FrictionBoard
+	investigations           investigation.Repository
+	effortEnrollments        EffortEnrollmentReader
+	modelEvalRunner          model_eval.Runner
+	browserEvidenceProof     BrowserEvidenceProofVerifier
+	browserSessionSettlement BrowserSessionSettlementClient
+	browserPaneReceipts      BrowserPaneReceiptIssuer
+	browserTabConsents       *browsercapability.TabConsentAuthority
 }
 
 // WithBrowserEvidenceProofVerifier installs BAS's authenticated broker proof
 // client. A nil verifier leaves the broker evidence route fail-closed.
 func WithBrowserEvidenceProofVerifier(verifier BrowserEvidenceProofVerifier) HandlerOption {
 	return func(h *Handler) { h.browserEvidenceProof = verifier }
+}
+
+// BrowserSessionSettlementClient delegates finalized browser time and the
+// corresponding LPBS accounting receipt to the LPBS owner.
+type BrowserSessionSettlementClient interface {
+	SettleBrowserSession(context.Context, uuid.UUID, string, string, string) (BrowserSessionReceipt, error)
+}
+
+// BrowserSessionReceipt preserves LPBS's customer-facing receipt shape.
+type BrowserSessionReceipt struct {
+	ReservationID       string                    `json:"reservation_id"`
+	Status              string                    `json:"status"`
+	BusinessAccountID   string                    `json:"business_account_id"`
+	Provider            string                    `json:"provider"`
+	Model               string                    `json:"model"`
+	CostMicros          int64                     `json:"cost_micros"`
+	PromptTokens        int64                     `json:"prompt_tokens"`
+	CompletionTokens    int64                     `json:"completion_tokens"`
+	CreditsCharged      int64                     `json:"credits_charged"`
+	SessionMinutes      int64                     `json:"browser_session_minutes"`
+	Actions             int64                     `json:"browser_actions"`
+	Bytes               int64                     `json:"browser_bytes"`
+	SettledAt           *time.Time                `json:"settled_at,omitempty"`
+	InferenceOperations []BrowserInferenceReceipt `json:"inference_operations,omitempty"`
+}
+
+type BrowserInferenceReceipt struct {
+	RootOperationID  string `json:"root_operation_id"`
+	Provider         string `json:"provider"`
+	Model            string `json:"model"`
+	CreditsCharged   int64  `json:"credits_charged"`
+	CostMicros       int64  `json:"cost_micros"`
+	PromptTokens     int64  `json:"prompt_tokens"`
+	CompletionTokens int64  `json:"completion_tokens"`
+}
+
+func WithBrowserSessionSettlementClient(client BrowserSessionSettlementClient) HandlerOption {
+	return func(h *Handler) { h.browserSessionSettlement = client }
 }
 
 // WithBrowserPaneReceiptIssuer installs BAS's exact-active-session receipt
@@ -194,7 +235,7 @@ func New(svc orchestration.HandlerServices, opts ...HandlerOption) *Handler {
 	if err != nil {
 		panic(fmt.Sprintf("failed to initialize protovalidate: %v", err))
 	}
-	h := &Handler{svc: svc, profiles: svc.ProfileService, validator: validator}
+	h := &Handler{svc: svc, profiles: svc.ProfileService, validator: validator, browserTabConsents: browsercapability.NewTabConsentAuthority()}
 	for _, opt := range opts {
 		opt(h)
 	}
@@ -338,6 +379,9 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/identity/verify", h.VerifyIdentityToken).Methods("POST")
 	r.HandleFunc("/api/v1/identity/mint", h.MintDelegatedIdentity).Methods("POST")
 	r.HandleFunc("/api/v1/browser/authorize-open", h.AuthorizeBrowserOpen).Methods("POST")
+	r.HandleFunc("/api/v1/browser/tab-consent/issue", h.IssueBrowserTabConsent).Methods("POST")
+	r.HandleFunc("/api/v1/browser/tab-consent/verify", h.VerifyBrowserTabConsent).Methods("POST")
+	r.HandleFunc("/api/v1/browser/tab-consent/revoke", h.RevokeBrowserTabConsent).Methods("POST")
 	r.HandleFunc("/api/v1/browser/resolve-caller", h.ResolveBrowserCaller).Methods("POST")
 	r.HandleFunc("/api/v1/browser/record-evidence", h.RecordBrowserEvidence).Methods("POST")
 	r.HandleFunc("/api/v1/browser/bas-evidence/{run_id}", h.RecordBASBrowserEvidence).Methods("POST")

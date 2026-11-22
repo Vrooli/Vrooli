@@ -2,6 +2,7 @@ package goalhome
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"regexp"
 	"slices"
@@ -94,6 +95,14 @@ func parseV2(home *Home, charter, status, feedback, logData []byte, tolerateLogG
 	home.WorkaroundsKnown = statusWorkaroundsKnown(status)
 	home.Scoreboard = st.scoreboard
 	home.Warnings = append(home.Warnings, projectionFindings(home.Goal, status)...)
+	home.Warnings = append(home.Warnings, st.activeFindings...)
+	if len(st.activeFindings) > 0 {
+		// STATUS.md is the sole source of live units. Once one active row is
+		// ambiguous, suppress every active fact and mark the epoch projection
+		// partial so consumers cannot treat the remaining rows as complete.
+		home.EpochsComplete = false
+		home.IncompleteEpochFiles = append(home.IncompleteEpochFiles, StatusFile)
+	}
 	if st.current != nil {
 		home.Goal.Current = st.current
 	}
@@ -195,11 +204,12 @@ func parseBudgetSeconds(raw string) int64 {
 // v1 split across QUEUE.md + WORKAROUNDS.md, the live Current reading, the one
 // active Epoch, and the gradient scoreboard (new in Phase 2).
 type statusFacts struct {
-	queue       Queue
-	workarounds Workarounds
-	active      []EpochFile
-	current     *Measurement
-	scoreboard  []SurfaceProgress
+	queue          Queue
+	workarounds    Workarounds
+	active         []EpochFile
+	activeFindings []Finding
+	current        *Measurement
+	scoreboard     []SurfaceProgress
 }
 
 // parseStatus reads STATUS.md into statusFacts.
@@ -207,12 +217,14 @@ func parseStatus(data []byte) statusFacts {
 	doc := parseDocument(data)
 	queue := Queue{Bytes: len(data)}
 	parseQueueSections(doc, &queue)
+	active, activeFindings := parseActive(doc)
 	return statusFacts{
-		queue:       queue,
-		workarounds: parseStatusWorkarounds(doc),
-		active:      parseActive(doc),
-		current:     parseStatusCurrent(doc),
-		scoreboard:  parseScoreboard(doc),
+		queue:          queue,
+		workarounds:    parseStatusWorkarounds(doc),
+		active:         active,
+		activeFindings: activeFindings,
+		current:        parseStatusCurrent(doc),
+		scoreboard:     parseScoreboard(doc),
 	}
 }
 
@@ -323,20 +335,31 @@ func parseStatusCurrent(doc *document) *Measurement {
 // "status" and "workers", so the board's active_units and selected active_unit/active_status/
 // active_workers resolve exactly as from a v1 active epoch file. The section
 // body is a list of "unit: <id>  status: <text>  workers: <uuids>" cells.
-func parseActive(doc *document) []EpochFile {
+func parseActive(doc *document) ([]EpochFile, []Finding) {
 	s, ok := doc.section("active")
 	if !ok {
-		return nil
+		return nil, nil
 	}
 	var active []EpochFile
+	var findings []Finding
+	seen := make(map[string]struct{}, len(s.items()))
 	for _, item := range s.items() {
 		fields := inlineFields(item.Text)
 		unit := fields["unit"]
 		status := fields["status"]
 		workers := fields["workers"]
 		if unit == "" || strings.ContainsAny(unit, " \t;`|") {
+			findings = append(findings, Finding{Code: "projection-active", Detail: "active unit needs a stable unit ID, status and workers fields; put handoff prose outside the unit field", File: StatusFile, Line: item.Line, Blocking: true})
 			continue
 		}
+		if _, exists := seen[unit]; exists {
+			// More than one status row for a unit has no safe merge rule: each
+			// row can carry a different owner or status. Discard the whole active
+			// projection instead of silently making the last row authoritative.
+			findings = append(findings, Finding{Code: "projection-active-duplicate", Detail: fmt.Sprintf("duplicate active unit ID %s; make one STATUS.md row authoritative before projecting active work", unit), File: StatusFile, Line: item.Line, Blocking: true})
+			continue
+		}
+		seen[unit] = struct{}{}
 		epoch := &Epoch{Fields: map[string]string{}}
 		if status != "" {
 			epoch.Fields["status"] = status
@@ -350,7 +373,10 @@ func parseActive(doc *document) []EpochFile {
 		}
 		active = append(active, unitFile(unit, epoch))
 	}
-	return active
+	if len(findings) > 0 {
+		return nil, findings
+	}
+	return active, nil
 }
 
 func mergeActiveUnits(units, active []EpochFile) []EpochFile {

@@ -151,7 +151,8 @@ type StreamOptions struct {
 	// Use 0 to start from the beginning.
 	FromSequence int64
 
-	// EventTypes filters to specific event types.
+	// EventTypes limits replayed and live events to these types. An empty filter
+	// includes every event.
 	EventTypes []domain.RunEventType
 
 	// BufferSize is the channel buffer size.

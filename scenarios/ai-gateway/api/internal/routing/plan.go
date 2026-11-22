@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing"
@@ -119,16 +120,17 @@ func hasVerifiedRuntimeArtifactIdentity(provider, model string, rights *policy.A
 	return RuntimeArtifactIdentityMatches(binding, rights, provider, model, observedDigest)
 }
 
-// classifyCandidate resolves one provider into a route candidate and reports
-// whether it is eligible. Rejected candidates carry a stable rejection_reason.
-// The evaluation order is hard policy first (role/capability/locality), then
-// provider breaker state, then local capacity — never opaque scoring.
-func (s *Service) classifyCandidate(ctx context.Context, req *sharedv1.GatewayRequest, providerName string) (*routingv1.RouteCandidate, bool) {
+// classifyCandidate resolves one provider into a route candidate and the
+// policy role it matched, and reports whether it is eligible. Rejected
+// candidates carry a stable rejection_reason. The evaluation order is hard
+// policy first (role/capability/locality), then provider breaker state, then
+// local capacity — never opaque scoring.
+func (s *Service) classifyCandidate(ctx context.Context, req *sharedv1.GatewayRequest, providerName string) (*routingv1.RouteCandidate, providers.Role, bool) {
 	adapter := s.adapters[providerName]
 	allowConsent := s.remoteConsentAllowed(ctx, req, providerName, adapter.Locality)
 	role, rejected := policyCandidate(ctx, req, providerName, adapter, allowConsent)
 	if rejected != nil {
-		return rejected, false
+		return rejected, providers.Role{}, false
 	}
 	candidate := &routingv1.RouteCandidate{
 		Provider: providerName,
@@ -137,15 +139,15 @@ func (s *Service) classifyCandidate(ctx context.Context, req *sharedv1.GatewayRe
 		Reasons:  []string{"eligible by role capability and profile policy"},
 	}
 	if requiresLocalModelRights(providerName, role) && !s.localModelRightsAdmit(ctx, providerName, role, candidate) {
-		return candidate, false
+		return candidate, role, false
 	}
 	if !s.applyCandidateBreaker(ctx, req, role, candidate) {
-		return candidate, false
+		return candidate, role, false
 	}
 	if !s.capacityAdmits(ctx, req, candidate) {
-		return candidate, false
+		return candidate, role, false
 	}
-	return candidate, true
+	return candidate, role, true
 }
 
 func (s *Service) localModelRightsAdmit(ctx context.Context, provider string, role providers.Role, candidate *routingv1.RouteCandidate) bool {
@@ -248,8 +250,8 @@ func rejectedCandidate(provider, role, locality, reason, code string) *routingv1
 func (s *Service) plan(ctx context.Context, req *sharedv1.GatewayRequest) routePlan {
 	plan := routePlan{id: newID("plan"), policyReasons: []string{profileReason(req.GetProfile())}, rights: map[string]plannedLocalRight{}}
 	var eligible []*routingv1.RouteCandidate
-	for _, providerName := range s.order {
-		candidate, ok := s.planProvider(ctx, req, providerName, &plan)
+	for _, classified := range s.classifyAll(ctx, req) {
+		candidate, ok := s.planProvider(ctx, req, classified, &plan)
 		if ok {
 			eligible = append(eligible, candidate)
 		} else {
@@ -289,25 +291,47 @@ func (s *Service) plan(ctx context.Context, req *sharedv1.GatewayRequest) routeP
 	return plan
 }
 
-func (s *Service) planProvider(ctx context.Context, req *sharedv1.GatewayRequest, provider string, plan *routePlan) (*routingv1.RouteCandidate, bool) {
-	candidate, eligible := s.classifyCandidate(ctx, req, provider)
-	if !eligible || !strings.EqualFold(candidate.GetLocality(), "local") {
+// classifiedProvider is one provider's classification within a plan.
+type classifiedProvider struct {
+	provider  string
+	candidate *routingv1.RouteCandidate
+	role      providers.Role
+	eligible  bool
+}
+
+// classifyAll classifies every provider at once and returns them in routing
+// order. Classification reads each provider's facts, and on a cold cache those
+// are resource processes; reading them one provider after another made the
+// first plan after a restart or an idle spell take seconds.
+func (s *Service) classifyAll(ctx context.Context, req *sharedv1.GatewayRequest) []classifiedProvider {
+	out := make([]classifiedProvider, len(s.order))
+	var wg sync.WaitGroup
+	for i, provider := range s.order {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			candidate, role, eligible := s.classifyCandidate(ctx, req, provider)
+			out[i] = classifiedProvider{provider: provider, candidate: candidate, role: role, eligible: eligible}
+		}()
+	}
+	wg.Wait()
+	return out
+}
+
+func (s *Service) planProvider(ctx context.Context, req *sharedv1.GatewayRequest, classified classifiedProvider, plan *routePlan) (*routingv1.RouteCandidate, bool) {
+	provider, candidate, role, eligible := classified.provider, classified.candidate, classified.role, classified.eligible
+	if !eligible || !strings.EqualFold(candidate.GetLocality(), "local") || !requiresLocalModelRights(provider, role) {
 		return candidate, eligible
 	}
-	allowConsent := s.remoteConsentAllowed(ctx, req, provider, s.adapters[provider].Locality)
-	role, rejected := policyCandidate(ctx, req, provider, s.adapters[provider], allowConsent)
-	if rejected == nil && !requiresLocalModelRights(provider, role) {
-		return candidate, true
-	}
-	return candidate, s.planLocalRights(ctx, provider, role, rejected, candidate, plan)
+	return candidate, s.planLocalRights(ctx, provider, role, candidate, plan)
 }
 
 // planLocalRights captures an auditable rights decision for a local model
 // candidate. The receipt is later rechecked immediately before provider
 // dispatch, so a stale policy or changed runtime artifact fails closed.
-func (s *Service) planLocalRights(ctx context.Context, provider string, role providers.Role, rejected *routingv1.RouteCandidate, candidate *routingv1.RouteCandidate, plan *routePlan) bool {
+func (s *Service) planLocalRights(ctx context.Context, provider string, role providers.Role, candidate *routingv1.RouteCandidate, plan *routePlan) bool {
 	currentContext, decision, valid := s.evaluatePlanRights(ctx, provider, role)
-	if rejected != nil || !valid {
+	if !valid {
 		candidate.RejectionReason = "local_model_rights_unknown"
 		candidate.Reasons = append(candidate.Reasons, "local model rights or trusted context changed while planning")
 		return false

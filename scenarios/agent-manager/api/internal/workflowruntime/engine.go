@@ -389,15 +389,14 @@ type signalRecord struct {
 	Payload        json.RawMessage `json:"payload"`
 }
 
-func (e *Engine) advanceWait(ctx context.Context, x *domain.WorkflowExecution, r *domain.WorkflowRevision, node *domain.WorkflowNode) (*domain.WorkflowExecution, error) {
-	journal, err := e.Store.ListJournal(ctx, x.ID, 0, 0)
-	if err != nil {
-		return nil, err
-	}
+// activeWaitIntent resolves the latest armed visit for a wait node. Completed
+// traversals invalidate its prior intent so revisiting the node cannot inherit
+// a stale correlation or deadline.
+func activeWaitIntent(journal []*domain.WorkflowJournalEntry, nodeID string, edgeTraversals map[string]int) (*waitIntent, int) {
 	var intent *waitIntent
 	waitVisits := 0
 	for _, entry := range journal {
-		if entry.NodeID != node.ID || entry.Kind != domain.WorkflowJournalWait {
+		if entry.NodeID != nodeID || entry.Kind != domain.WorkflowJournalWait {
 			continue
 		}
 		waitVisits++
@@ -407,14 +406,23 @@ func (e *Engine) advanceWait(ctx context.Context, x *domain.WorkflowExecution, r
 		}
 	}
 	completedVisits := 0
-	for edge, traversals := range x.EdgeTraversals {
-		if strings.HasPrefix(edge, node.ID+"->") {
+	for edge, traversals := range edgeTraversals {
+		if strings.HasPrefix(edge, nodeID+"->") {
 			completedVisits += traversals
 		}
 	}
 	if waitVisits <= completedVisits {
-		intent = nil
+		return nil, completedVisits
 	}
+	return intent, completedVisits
+}
+
+func (e *Engine) advanceWait(ctx context.Context, x *domain.WorkflowExecution, r *domain.WorkflowRevision, node *domain.WorkflowNode) (*domain.WorkflowExecution, error) {
+	journal, err := e.Store.ListJournal(ctx, x.ID, 0, 0)
+	if err != nil {
+		return nil, err
+	}
+	intent, completedVisits := activeWaitIntent(journal, node.ID, x.EdgeTraversals)
 	if intent == nil {
 		limit := node.Wait.TimeoutSeconds
 		if limit > r.Definition.Budgets.MaxWaitSeconds {

@@ -285,8 +285,8 @@ agent-manager annotations packs [--json]
 agent-manager annotations labels [--pack NAME] [--window 7d] [--json]
 agent-manager annotations coverage [--window 7d] [--json]
 agent-manager annotations show <run-id> [--json]
-agent-manager annotations run <run-id> [--force] [--include-optional] [--labels a,b] [--max-labels N] [--json]
-agent-manager annotations evaluate [--since RFC3339] [--limit N] [--run-id ID]... [--include-optional] [--force] [--json]
+agent-manager annotations run <run-id> [--force-labels a,b] [--include-optional] [--labels a,b] [--max-labels N] [--json]
+agent-manager annotations evaluate [--since RFC3339] [--limit N] [--run-id ID]... [--include-optional] [--force-labels a,b] [--json]
 ```
 
 Human output always prints coverage and gate state. An empty window prints

@@ -207,6 +207,8 @@ their harness identity.
 ```bash
 # Profile management
 agent-manager profile create --name "default" --role-ref code.default
+# Bounded local browser task: one exact loopback origin with view/control
+agent-manager profile create --name "local browser task" --profile-key "portal/local-browser-task" --role-ref browser.agent --browser-local-origin "http://127.0.0.1:24965"
 agent-manager profile list
 
 # Task management
@@ -262,6 +264,14 @@ make smoke
 # Or select the profile and Workspace Sandbox endpoint explicitly:
 agent-manager scenario-smoke --profile-id <id> --workspace-sandbox-url http://127.0.0.1:<port>
 ```
+
+`--browser-local-origin` creates an owner-authorized, task-only browser
+capability for exactly one loopback origin. It sets view/control, no history,
+credentials, extensions, traces, audio, or identity overrides; a 10-minute
+session, 100-action, 4 MiB browser budget; an 8-turn/15-minute run bound;
+localhost network access; and a protected read-only workspace. Agent Manager
+mints the run grant from the saved profile. The option cannot accept a grant
+receipt.
 
 See [docs/reference/configuration.md](docs/reference/configuration.md#role-policy-catalog)
 for catalog update, validation, rollback, and failure-recovery guidance.

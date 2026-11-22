@@ -343,13 +343,27 @@ ORDER BY observed_at DESC, rowid DESC LIMIT 1`, annotationColumns, s.table, plac
 	return scanAnnotation(row)
 }
 
+// latestOrder ranks the rows of one (scope, label) newest first, except that an
+// unavailable row never outranks an answer of the same definition: a transient
+// failure (a gateway deadline, an exhausted budget) leaves what is already known
+// standing. A row of a newer definition is a different answer and still wins.
+// The query it orders must read the table as alias a.
+func (s *Store) latestOrder() string {
+	return fmt.Sprintf(`CASE WHEN a.state = 'unavailable' AND EXISTS (
+    SELECT 1 FROM %s settled
+    WHERE settled.scope_kind = a.scope_kind AND settled.scope_id = a.scope_id
+      AND settled.label_id = a.label_id AND settled.definition_hash = a.definition_hash
+      AND settled.state IN ('observed', 'compatible')
+  ) THEN 1 ELSE 0 END, a.observed_at DESC, a.rowid DESC`, s.table)
+}
+
 // LatestForScope returns the newest row per label for one scope.
 func (s *Store) LatestForScope(ctx context.Context, scopeKind Scope, scopeID string) ([]Annotation, error) {
 	return s.queryAnnotations(ctx, fmt.Sprintf(`
 SELECT %[1]s FROM (
-  SELECT %[1]s, ROW_NUMBER() OVER (PARTITION BY label_id ORDER BY observed_at DESC, rowid DESC) AS rn
-  FROM %[2]s WHERE scope_kind = ? AND scope_id = ?
-) WHERE rn = 1 ORDER BY label_id`, annotationColumns, s.table), string(scopeKind), scopeID)
+  SELECT %[1]s, ROW_NUMBER() OVER (PARTITION BY label_id ORDER BY %[3]s) AS rn
+  FROM %[2]s AS a WHERE scope_kind = ? AND scope_id = ?
+) WHERE rn = 1 ORDER BY label_id`, annotationColumns, s.table, s.latestOrder()), string(scopeKind), scopeID)
 }
 
 // LatestMessagesForRun returns the newest row per (message, label) for the
@@ -357,9 +371,9 @@ SELECT %[1]s FROM (
 func (s *Store) LatestMessagesForRun(ctx context.Context, runID string) ([]Annotation, error) {
 	return s.queryAnnotations(ctx, fmt.Sprintf(`
 SELECT %[1]s FROM (
-  SELECT %[1]s, ROW_NUMBER() OVER (PARTITION BY scope_id, label_id ORDER BY observed_at DESC, rowid DESC) AS rn
-  FROM %[2]s WHERE scope_kind = 'message' AND run_id = ?
-) WHERE rn = 1 ORDER BY occurred_at, scope_id, label_id`, annotationColumns, s.table), runID)
+  SELECT %[1]s, ROW_NUMBER() OVER (PARTITION BY scope_id, label_id ORDER BY %[3]s) AS rn
+  FROM %[2]s AS a WHERE scope_kind = 'message' AND run_id = ?
+) WHERE rn = 1 ORDER BY occurred_at, scope_id, label_id`, annotationColumns, s.table, s.latestOrder()), runID)
 }
 
 func (s *Store) queryAnnotations(ctx context.Context, query string, args ...any) ([]Annotation, error) {
@@ -402,10 +416,10 @@ func (s *Store) ForEachLatest(ctx context.Context, since, until time.Time, wantV
 	rows, err := s.db.QueryxContext(ctx, fmt.Sprintf(`
 SELECT %[1]s FROM (
   SELECT %[1]s, ROW_NUMBER() OVER (
-    PARTITION BY scope_kind, scope_id, label_id ORDER BY observed_at DESC, rowid DESC
+    PARTITION BY scope_kind, scope_id, label_id ORDER BY %[4]s
   ) AS rn
-  FROM %[2]s WHERE 1 = 1%[3]s
-) WHERE rn = 1`, annotationColumns, s.table, clause), args...)
+  FROM %[2]s AS a WHERE 1 = 1%[3]s
+) WHERE rn = 1`, annotationColumns, s.table, clause, s.latestOrder()), args...)
 	if err != nil {
 		return fmt.Errorf("annotation coverage: %w", err)
 	}
@@ -454,10 +468,10 @@ SELECT COUNT(DISTINCT scope_id),
   COUNT(DISTINCT CASE WHEN state IN ('observed', 'compatible') AND %s THEN scope_id END)
 FROM (
   SELECT scope_id, label_id, state, definition_hash, ROW_NUMBER() OVER (
-    PARTITION BY scope_id, label_id ORDER BY observed_at DESC, rowid DESC
+    PARTITION BY scope_id, label_id ORDER BY %s
   ) AS rn
-  FROM %s WHERE scope_kind = ?%s
-) WHERE rn = 1`, currentMatch, s.table, clause), args...).Scan(&eligible, &observed)
+  FROM %s AS a WHERE scope_kind = ?%s
+) WHERE rn = 1`, currentMatch, s.latestOrder(), s.table, clause), args...).Scan(&eligible, &observed)
 	if err != nil {
 		return 0, 0, fmt.Errorf("run annotation coverage: %w", err)
 	}
@@ -493,11 +507,11 @@ func (s *Store) ObservedScopes(ctx context.Context, scopeKind Scope, since, unti
 	err := s.db.SelectContext(ctx, &scopes, fmt.Sprintf(`
 SELECT scope_id, CASE WHEN run_id = '' THEN scope_id ELSE run_id END AS run_id FROM (
   SELECT scope_id, run_id, state, definition_hash, observed_at, ROW_NUMBER() OVER (
-    PARTITION BY scope_id ORDER BY observed_at DESC, rowid DESC
+    PARTITION BY scope_id ORDER BY %s
   ) AS rn
-  FROM %s WHERE scope_kind = ? AND label_id = ?%s
+  FROM %s AS a WHERE scope_kind = ? AND label_id = ?%s
 ) WHERE rn = 1 AND state IN ('observed', 'compatible') AND definition_hash = ?
-ORDER BY observed_at DESC, scope_id LIMIT ?`, s.table, clause), args...)
+ORDER BY observed_at DESC, scope_id LIMIT ?`, s.latestOrder(), s.table, clause), args...)
 	if err != nil {
 		return nil, fmt.Errorf("list observed scopes for %s: %w", labelID, err)
 	}

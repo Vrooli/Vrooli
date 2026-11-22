@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"syscall"
 
 	corestorage "github.com/vrooli/api-core/storage"
+	"github.com/vrooli/cli-core/agenttranscript"
 )
 
 // RootConfig names the directories discovery starts from.
@@ -42,15 +44,6 @@ func ResolveWebConsoleCodexRoot(cfg corestorage.ResolverConfig) (string, error) 
 	return resolver.Path(corestorage.Options{ScenarioID: "web-console"}, corestorage.ClassState, filepath.Join("sessions", "codex"))
 }
 
-// runHomeTranscriptDirs are the harness homes an Agent Manager run directory
-// can hold (codec-pipe and interactive runs).
-var runHomeTranscriptDirs = []struct{ rel, harness string }{
-	{filepath.Join("runtime", "codex", "sessions"), HarnessCodex},
-	{filepath.Join("codex", "sessions"), HarnessCodex},
-	{filepath.Join("runtime", "claude", "projects"), HarnessClaude},
-	{filepath.Join("claude", "projects"), HarnessClaude},
-}
-
 // Roots lists every transcript root on this host: web-console Codex homes,
 // the default Codex and Claude homes, Agent Manager run homes, and configured
 // extra roots. An extra root equal to or inside another root is dropped so no
@@ -63,32 +56,51 @@ func Roots(cfg RootConfig) []Root {
 			if !entry.IsDir() {
 				continue
 			}
-			dir := filepath.Join(cfg.WebConsoleCodexRoot, entry.Name(), "sessions")
-			if isDir(dir) {
-				roots = append(roots, Root{Path: dir, Kind: RootWebConsoleCodex, Harness: HarnessCodex, WebConsoleSessionID: entry.Name()})
+			for _, format := range agenttranscript.Formats() {
+				harness := Family(format.Harness)
+				for _, rel := range format.WebConsoleRoots {
+					dir := filepath.Join(cfg.WebConsoleCodexRoot, entry.Name(), filepath.FromSlash(rel))
+					if isDir(dir) {
+						roots = append(roots, Root{Path: dir, Kind: RootWebConsoleCodex, Harness: harness, WebConsoleSessionID: entry.Name()})
+					}
+				}
 			}
 		}
 	}
-	roots = append(roots,
-		Root{Path: filepath.Join(cfg.Home, ".codex", "sessions"), Kind: RootCodexHome, Harness: HarnessCodex},
-		Root{Path: filepath.Join(cfg.Home, ".claude", "projects"), Kind: RootClaudeHome, Harness: HarnessClaude},
-	)
+	for _, format := range agenttranscript.Formats() {
+		harness := Family(format.Harness)
+		for _, rel := range format.HomeRoots {
+			kind := RootCodexHome
+			if harness == HarnessClaude {
+				kind = RootClaudeHome
+			}
+			roots = append(roots, Root{Path: filepath.Join(cfg.Home, filepath.FromSlash(rel)), Kind: kind, Harness: harness})
+		}
+	}
 	if cfg.RunStateRoot != "" {
 		if entries, err := os.ReadDir(cfg.RunStateRoot); err == nil {
 			for _, entry := range entries {
 				if !entry.IsDir() {
 					continue
 				}
-				for _, sub := range runHomeTranscriptDirs {
-					dir := filepath.Join(cfg.RunStateRoot, entry.Name(), sub.rel)
-					if isDir(dir) {
-						roots = append(roots, Root{Path: dir, Kind: RootRunHome, Harness: sub.harness, RunID: entry.Name()})
+				for _, format := range agenttranscript.Formats() {
+					harness := Family(format.Harness)
+					for _, rel := range format.RunRoots {
+						dir := filepath.Join(cfg.RunStateRoot, entry.Name(), filepath.FromSlash(rel))
+						if isDir(dir) {
+							roots = append(roots, Root{Path: dir, Kind: RootRunHome, Harness: harness, RunID: entry.Name()})
+						}
 					}
 				}
 			}
 		}
 	}
-	covered := []string{filepath.Join(cfg.Home, ".codex", "sessions"), filepath.Join(cfg.Home, ".claude", "projects")}
+	var covered []string
+	for _, format := range agenttranscript.Formats() {
+		for _, rel := range format.HomeRoots {
+			covered = append(covered, filepath.Join(cfg.Home, filepath.FromSlash(rel)))
+		}
+	}
 	if cfg.WebConsoleCodexRoot != "" {
 		covered = append(covered, filepath.Clean(cfg.WebConsoleCodexRoot))
 	}
@@ -153,7 +165,7 @@ type Candidate struct {
 	MtimeUnixNano int64
 }
 
-// Walk lists the .jsonl files under root. A root that does not exist yields
+// Walk lists the transcript files (any transcriptEncodings suffix) under root. A root that does not exist yields
 // nothing; any other failure is returned so coverage can name it.
 func Walk(root Root) ([]Candidate, error) {
 	if _, err := os.Stat(root.Path); err != nil {
@@ -170,7 +182,7 @@ func Walk(root Root) ([]Candidate, error) {
 			}
 			return nil
 		}
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".jsonl") || isTestRollout(root, entry.Name()) {
+		if entry.IsDir() || !IsTranscriptName(entry.Name()) || isTestRollout(root, entry.Name()) {
 			return nil
 		}
 		if candidate, ok := Identify(root, path); ok {
@@ -189,17 +201,27 @@ func isTestRollout(root Root, name string) bool {
 	return root.Kind == RootWebConsoleCodex && !uuidPattern.MatchString(name)
 }
 
-// Identify stats one file into a Candidate keyed by device and inode.
+// Identify stats one file into a Candidate keyed by device and inode. Size is
+// the decoded length, the unit of every offset the indexer keeps.
 func Identify(root Root, path string) (Candidate, bool) {
 	info, err := os.Stat(path)
 	if err != nil || !info.Mode().IsRegular() {
 		return Candidate{}, false
 	}
-	key := "path:" + path
-	if stat, ok := info.Sys().(*syscall.Stat_t); ok {
-		key = fmt.Sprintf("%d:%d", uint64(stat.Dev), stat.Ino) //nolint:unconvert // Dev width differs by platform
+	key := fileKey(path, info)
+	size, err := transcriptSize(path, key, info)
+	if err != nil {
+		return Candidate{}, false
 	}
-	return Candidate{Root: root, Path: path, Key: key, Size: info.Size(), MtimeUnixNano: info.ModTime().UnixNano()}, true
+	return Candidate{Root: root, Path: path, Key: key, Size: size, MtimeUnixNano: info.ModTime().UnixNano()}, true
+}
+
+// fileKey is a file's identity: device and inode, so a rename keeps it.
+func fileKey(path string, info os.FileInfo) string {
+	if stat, ok := info.Sys().(*syscall.Stat_t); ok {
+		return fmt.Sprintf("%d:%d", uint64(stat.Dev), stat.Ino) //nolint:unconvert // Dev width differs by platform
+	}
+	return "path:" + path
 }
 
 var uuidPattern = regexp.MustCompile(`[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}`)
@@ -220,7 +242,7 @@ type Identity struct {
 // their header; Claude sidechains live at <project>/<session>/subagents/.
 func ReadIdentity(path, harness string) Identity {
 	id := Identity{Harness: harness}
-	stem := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+	stem := TranscriptStem(filepath.Base(path))
 	id.HeaderSessionID = headerSessionID(path)
 	family := Family(harness)
 	if family == HarnessConfigured {
@@ -269,7 +291,7 @@ var codexSpawnPattern = regexp.MustCompile(`"thread_spawn":\{"parent_thread_id":
 // thread, so only the header links them to the parent. The source object sits
 // at the start of the session_meta line, ahead of its large instructions.
 func codexSpawnParent(path string) string {
-	file, err := os.Open(path)
+	file, err := OpenTranscript(path)
 	if err != nil {
 		return ""
 	}
@@ -285,7 +307,7 @@ func codexSpawnParent(path string) string {
 // headerSessionID reads the session id from the first lines of a transcript:
 // a Codex session_meta id, or a session_id/sessionId/thread_id field.
 func headerSessionID(path string) string {
-	file, err := os.Open(path)
+	file, err := OpenTranscript(path)
 	if err != nil {
 		return ""
 	}
@@ -333,7 +355,7 @@ func headerSessionID(path string) string {
 // sniffHarness tells a Codex rollout from a Claude project file for a
 // configured root by their header shapes.
 func sniffHarness(path string) string {
-	file, err := os.Open(path)
+	file, err := OpenTranscript(path)
 	if err != nil {
 		return HarnessConfigured
 	}
@@ -353,19 +375,24 @@ func sniffHarness(path string) string {
 // headHashBytes is how much of a file's already-read prefix is fingerprinted.
 const headHashBytes = 4096
 
-// HeadHash fingerprints the first min(4 KiB, readOffset) bytes of a file so
-// a rewrite in place (same inode, different content) re-indexes from offset
-// 0. The length is derived from the stored offset, so a hash written after a
-// tick is checked against exactly the same prefix on the next one.
-func HeadHash(path string, readOffset int64) string {
-	file, err := os.Open(path)
+// HeadHash fingerprints the first min(4 KiB, readOffset) decoded bytes of a
+// transcript so a rewrite in place (same inode, different content) re-indexes
+// from offset 0. The length is derived from the stored offset, so a hash
+// written after a tick is checked against exactly the same prefix on the next
+// one. An error means the bytes could not be read, which says nothing about
+// whether they changed: callers retry rather than treat it as a rewrite.
+func HeadHash(path string, readOffset int64) (string, error) {
+	file, err := OpenTranscript(path)
 	if err != nil {
-		return ""
+		return "", err
 	}
 	defer file.Close()
 	head := make([]byte, min(int64(headHashBytes), readOffset))
-	n, _ := io.ReadFull(file, head)
-	return hashHead(head[:n])
+	n, err := io.ReadFull(file, head)
+	if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) && !errors.Is(err, io.EOF) {
+		return "", err
+	}
+	return hashHead(head[:n]), nil
 }
 
 func hashHead(data []byte) string {

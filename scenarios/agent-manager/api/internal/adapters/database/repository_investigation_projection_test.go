@@ -13,8 +13,7 @@ import (
 )
 
 func TestInvocationReadModelReplaceIsAtomicAndIdempotent(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repo := &invocationReadModelRepository{db: db}
 	now := time.Now().UTC()
 	watermark := invocationreadmodel.Watermark{RunID: "run-1", LastEventID: "event-1", LastEventAt: now, ClassifierVersion: runsignal.InvocationFactVersion, ProjectedAt: now}
@@ -36,8 +35,7 @@ func TestInvocationReadModelReplaceIsAtomicAndIdempotent(t *testing.T) {
 }
 
 func TestInvocationReadModelFactRoundTripsTokenFactors(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repo := &invocationReadModelRepository{db: db}
 	now := time.Now().UTC()
 	fact := invocationreadmodel.Fact{
@@ -66,8 +64,7 @@ func TestInvocationReadModelFactRoundTripsTokenFactors(t *testing.T) {
 }
 
 func TestTokenAttributionGroupsEveryDimensionAndView(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repo := &invocationReadModelRepository{db: db}
 	now := time.Now().UTC()
 	facts := []invocationreadmodel.Fact{
@@ -100,8 +97,7 @@ func TestTokenAttributionGroupsEveryDimensionAndView(t *testing.T) {
 }
 
 func TestInvocationReadModelProjectionRollsBackEveryArtifactWhenSpanWriteFails(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	ctx := context.Background()
 	repo := &invocationReadModelRepository{db: db}
 	now := time.Date(2026, 7, 30, 12, 0, 0, 0, time.UTC)
@@ -139,8 +135,7 @@ func TestInvocationReadModelProjectionRollsBackEveryArtifactWhenSpanWriteFails(t
 }
 
 func TestInvocationReadModelReplaceRunUpsertsTerminalSummary(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repo := &invocationReadModelRepository{db: db}
 	created := time.Date(2026, 7, 29, 18, 0, 0, 0, time.UTC)
 	started, ended := created.Add(time.Minute), created.Add(3*time.Minute)
@@ -170,8 +165,7 @@ func TestInvocationReadModelReplaceRunUpsertsTerminalSummary(t *testing.T) {
 }
 
 func TestInvocationReadModelRunMetricsUseDurableTerminalFactsAndSharedFilters(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	ctx := context.Background()
 	repo := &invocationReadModelRepository{db: db}
 	now := time.Date(2026, 7, 29, 20, 0, 0, 0, time.UTC)
@@ -220,8 +214,7 @@ func TestInvocationReadModelRunMetricsUseDurableTerminalFactsAndSharedFilters(t 
 func ptrTime(value time.Time) *time.Time { return &value }
 
 func TestInvocationReadModelCohortFiltersByFactDimensions(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	ctx := context.Background()
 	repo := &invocationReadModelRepository{db: db}
 	now := time.Now().UTC()
@@ -242,8 +235,7 @@ func TestInvocationReadModelCohortFiltersByFactDimensions(t *testing.T) {
 }
 
 func TestReceiptEvidenceRepositoryRebuildKeepsOnlyVerifiedIDs(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repo := &receiptEvidenceRepository{db: db}
 	runID := uuid.New()
 
@@ -263,8 +255,7 @@ func TestReceiptEvidenceRepositoryRebuildKeepsOnlyVerifiedIDs(t *testing.T) {
 }
 
 func TestSelfReportSpansForRunIgnoresRetiredClassifierVersions(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	ctx := context.Background()
 	repo := &invocationReadModelRepository{db: db}
 	now := time.Date(2026, 7, 30, 12, 0, 0, 0, time.UTC)

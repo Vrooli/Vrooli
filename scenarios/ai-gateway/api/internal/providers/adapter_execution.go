@@ -37,7 +37,24 @@ func (a Adapter) Execute(ctx context.Context, req ExecutionRequest) (ExecutionRe
 			return ExecutionResult{}, err
 		}
 	}
-	return ExecutionResult{OutputText: output, ExitCode: result.ExitCode, SpendAuthorization: spendAuthorization}, nil
+	return ExecutionResult{OutputText: output, ExitCode: result.ExitCode, SpendAuthorization: spendAuthorization, Timing: reportedProviderTiming(output)}, nil
+}
+
+// reportedProviderTiming reads the timing a resource command reports beside
+// its answer (`admission_wait_ns`, `provider_duration_ns`). Output that is not
+// a JSON object, or that reports nothing, yields zero timing.
+func reportedProviderTiming(output string) ProviderTiming {
+	if !strings.HasPrefix(output, "{") {
+		return ProviderTiming{}
+	}
+	var reported struct {
+		AdmissionWaitNS    int64 `json:"admission_wait_ns"`
+		ProviderDurationNS int64 `json:"provider_duration_ns"`
+	}
+	if err := json.Unmarshal([]byte(output), &reported); err != nil {
+		return ProviderTiming{}
+	}
+	return ProviderTiming{AdmissionWaitNS: max(reported.AdmissionWaitNS, 0), RuntimeNS: max(reported.ProviderDurationNS, 0)}
 }
 
 func (a Adapter) executeMetered(ctx context.Context, req ExecutionRequest) (ExecutionResult, error) {

@@ -38,6 +38,7 @@ request JSON cannot choose an owner. `source` must be exactly `own-key` or
 | `GET /api/v1/ai/privacy-consent` | Verified human LPBS consumer | `{ "grants": [{ "id", "source", "created_at", "expires_at", "revoked_at?" }] }`; no receipt is returned. |
 | `POST /api/v1/ai/privacy-consent` | Verified human LPBS consumer | JSON body `{ "source": "own-key" | "vrooli-credits", "lifetime_days"?: number }`; returns `201 { "grant": <metadata>, "receipt": <opaque bearer> }`. The receipt is shown once. |
 | `DELETE /api/v1/ai/privacy-consent/{id}` | Verified human LPBS consumer who owns the grant | Returns `204`; unknown or other-user IDs return `404`. |
+| `POST /api/v1/ai/privacy-consent/verify` | Verified human LPBS consumer | JSON `{ "source": "audio-tools-openai-gpt-live", "receipt": "…" }`; returns `{ "valid": true }` only for that owner's active grant. The receipt is never echoed. |
 
 Inference callers attach the receipt as `X-Vrooli-AI-Consent-Grant` and the
 selected source as `X-Vrooli-AI-Source`. Gateway checks the receipt digest,
@@ -288,7 +289,9 @@ role resolution or provider execution.
 | | |
 |---|---|
 | **Request** | `EmbedRequest { texts, role, profile: LOCAL_ONLY, privacy_class, privacy_provenance }` |
-| **Response** | `EmbedResponse { vectors, provider, model, dimension, usage, error }` |
+| **Response** | `EmbedResponse { vectors, provider, model, dimension, usage, error, normalization }` |
+| **Scale** | `normalization` is the scale the role declares for every vector, read from the role's `embedding` block in `config/inference-role-catalog.json`; `l2` means unit length, so a dot product equals cosine similarity. The gateway checks each vector against it and refuses a candidate that breaks it. One text and many texts take the same path and share the scale. |
+| **Batching** | A request authorizes the role once and sends its texts to the resource in as few calls as the role's `max_batch_inputs` and `max_batch_bytes` allow (the bounds of `resource-ollama gateway embed --input-json-stdin`). One response always comes from one candidate. |
 | **Locality** | Any profile other than explicit `LOCAL_ONLY` is refused. There is no remote embedding fallback. |
 | **Privacy** | `privacy_class` must be one of public, internal, confidential, or secret; `privacy_provenance` names the non-sensitive source and basis. Neither is inferred by AI Gateway. |
 | **CLI** | `ai-gateway inference embed --texts <path> --role embedding.default --profile local-only --privacy-class <class> --privacy-provenance <source.basis>` |

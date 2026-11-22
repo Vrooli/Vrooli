@@ -5,13 +5,13 @@
 package codecs
 
 import (
-	"encoding/json"
 	"strings"
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/cli-core/agenttranscript"
 )
 
 const (
@@ -95,7 +95,11 @@ func (c *Antigravity) BuildArgs(_ State, req runner.ExecuteRequest) []string {
 }
 
 func (c *Antigravity) BuildContinueArgs(_ State, req runner.ContinueRequest) []string {
-	args := []string{"--conversation", req.SessionID, "--print", req.Prompt}
+	format, ok := agenttranscript.FormatFor("antigravity")
+	if !ok {
+		panic("missing shared Antigravity transcript format")
+	}
+	args := []string{format.ResumeFlag, req.SessionID, "--print", req.Prompt}
 	if cfg := req.GetConfig(); cfg != nil {
 		if cfg.Model != "" && !isAntigravityDefaultModel(cfg.Model) {
 			args = append(args, "--model", cfg.Model)
@@ -131,11 +135,14 @@ func (c *Antigravity) DecodeStreamLine(state State, runID uuid.UUID, line string
 	if !ok {
 		return nil, domain.NewInternalError("antigravity: invalid state type", nil)
 	}
-	text, sessionID := antigravityText(line)
-	if sessionID != "" && s.sessionID == "" {
-		s.sessionID = sessionID
+	messages := agenttranscript.ParseMessages("antigravity", []byte(line))
+	if len(messages) == 0 {
+		return nil, nil
 	}
-	text = runner.StripANSI(strings.TrimSpace(text))
+	if messages[0].SessionID != "" && s.sessionID == "" {
+		s.sessionID = messages[0].SessionID
+	}
+	text := runner.StripANSI(strings.TrimSpace(messages[0].Text))
 	if text == "" {
 		return nil, nil
 	}
@@ -145,46 +152,6 @@ func (c *Antigravity) DecodeStreamLine(state State, runID uuid.UUID, line string
 		ProviderEventType: "print",
 		RawEvidenceRef:    "antigravity:print",
 	})}, nil
-}
-
-func antigravityText(line string) (text, sessionID string) {
-	trimmed := strings.TrimSpace(line)
-	if trimmed == "" || !strings.HasPrefix(trimmed, "{") {
-		return trimmed, ""
-	}
-	var payload struct {
-		Text           string `json:"text"`
-		Content        string `json:"content"`
-		Message        string `json:"message"`
-		Output         string `json:"output"`
-		SessionID      string `json:"sessionId"`
-		SnakeSessionID string `json:"session_id"`
-		ConversationID string `json:"conversationId"`
-	}
-	if err := json.Unmarshal([]byte(trimmed), &payload); err != nil {
-		return trimmed, ""
-	}
-	for _, candidate := range []string{payload.Text, payload.Content, payload.Message, payload.Output} {
-		if strings.TrimSpace(candidate) != "" {
-			if payload.SessionID != "" {
-				return candidate, payload.SessionID
-			}
-			if payload.SnakeSessionID != "" {
-				return candidate, payload.SnakeSessionID
-			}
-			return candidate, payload.ConversationID
-		}
-	}
-	return "", firstNonEmpty(payload.SessionID, payload.SnakeSessionID, payload.ConversationID)
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return value
-		}
-	}
-	return ""
 }
 
 func (c *Antigravity) NewTranscriptParser() runner.TranscriptParser {

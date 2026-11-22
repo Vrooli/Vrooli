@@ -18,8 +18,7 @@ import (
 )
 
 func TestConcurrentTranscriptCaptureClaimsOneExactIntent(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, db.log)
 	ctx := context.Background()
 	task := &domain.Task{ID: uuid.New(), Title: "capture", ScopePath: "."}
@@ -101,8 +100,7 @@ func TestConcurrentTranscriptCaptureClaimsOneExactIntent(t *testing.T) {
 }
 
 func TestConcurrentLegacyRelinkAdmissionHasOneOwner(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, db.log)
 	ctx := context.Background()
 	task := &domain.Task{ID: uuid.New(), Title: "import", ScopePath: "."}
@@ -134,8 +132,7 @@ func TestConcurrentLegacyRelinkAdmissionHasOneOwner(t *testing.T) {
 }
 
 func TestLegacyCleanupObligationRollsBackWithPromotion(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, db.log)
 	ctx := context.Background()
 	task := &domain.Task{ID: uuid.New(), Title: "import", ScopePath: "."}
@@ -196,8 +193,7 @@ func TestLegacyCleanupObligationRollsBackWithPromotion(t *testing.T) {
 }
 
 func TestTranscriptReplacementRollsBackEventsRunAndUsage(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, db.log)
 	events := event.NewSQLiteStore(db, db.log)
 	ctx := context.Background()
@@ -326,8 +322,7 @@ func TestTranscriptReplacementRollsBackEventsRunAndUsage(t *testing.T) {
 }
 
 func TestCommitTranscriptAndRunRollsBackBothOwners(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, db.log)
 	ctx := context.Background()
 	task := &domain.Task{ID: uuid.New(), Title: "import", ScopePath: "src/", CreatedAt: time.Now(), UpdatedAt: time.Now()}
@@ -399,8 +394,7 @@ func TestCommitTranscriptAndRunRollsBackBothOwners(t *testing.T) {
 }
 
 func TestListByWebConsoleSessionIDsReturnsEveryReferencingRun(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, db.log)
 	ctx := context.Background()
 	task := &domain.Task{ID: uuid.New(), Title: "web-console lookup", ScopePath: "src/", CreatedAt: time.Now(), UpdatedAt: time.Now()}
@@ -444,8 +438,7 @@ func TestListByWebConsoleSessionIDsReturnsEveryReferencingRun(t *testing.T) {
 }
 
 func TestListByWebConsoleSessionIDsSpansLookupChunks(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, db.log)
 	ctx := context.Background()
 	task := &domain.Task{ID: uuid.New(), Title: "web-console chunked lookup", ScopePath: "src/", CreatedAt: time.Now(), UpdatedAt: time.Now()}
@@ -478,8 +471,7 @@ func TestListByWebConsoleSessionIDsSpansLookupChunks(t *testing.T) {
 }
 
 func TestFindImportProvenancePreservesAmbiguityAndHarnessIdentity(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, db.log)
 	ctx := context.Background()
 	task := &domain.Task{ID: uuid.New(), Title: "import lookup", ScopePath: "src/", CreatedAt: time.Now(), UpdatedAt: time.Now()}

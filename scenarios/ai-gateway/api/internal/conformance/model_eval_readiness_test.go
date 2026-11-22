@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -35,12 +36,13 @@ func TestAcceptedCallerCaseAllowsAgentManagerSequenceZero(t *testing.T) {
 }
 
 type modelEvalClientStub struct {
-	suites          []*evalv1.EvalSuite
-	denominator     map[string]*evalv1.GetFixedDenominatorResponse
-	validation      map[string]*evalv1.GetLatestCorpusValidationResponse
-	listErr         error
-	getCalls        int
-	validationCalls int
+	suites      []*evalv1.EvalSuite
+	denominator map[string]*evalv1.GetFixedDenominatorResponse
+	validation  map[string]*evalv1.GetLatestCorpusValidationResponse
+	listErr     error
+	// The source reads suites concurrently, so the call counters are atomic.
+	getCalls        atomic.Int32
+	validationCalls atomic.Int32
 }
 
 func (s *modelEvalClientStub) ListSuites(context.Context, *connect.Request[evalv1.ListSuitesRequest]) (*connect.Response[evalv1.ListSuitesResponse], error) {
@@ -51,7 +53,7 @@ func (s *modelEvalClientStub) ListSuites(context.Context, *connect.Request[evalv
 }
 
 func (s *modelEvalClientStub) GetFixedDenominator(_ context.Context, req *connect.Request[evalv1.GetFixedDenominatorRequest]) (*connect.Response[evalv1.GetFixedDenominatorResponse], error) {
-	s.getCalls++
+	s.getCalls.Add(1)
 	response, ok := s.denominator[req.Msg.GetSuiteId()]
 	if !ok {
 		return connect.NewResponse(&evalv1.GetFixedDenominatorResponse{}), nil
@@ -60,7 +62,7 @@ func (s *modelEvalClientStub) GetFixedDenominator(_ context.Context, req *connec
 }
 
 func (s *modelEvalClientStub) GetLatestCorpusValidation(_ context.Context, req *connect.Request[evalv1.GetLatestCorpusValidationRequest]) (*connect.Response[evalv1.GetLatestCorpusValidationResponse], error) {
-	s.validationCalls++
+	s.validationCalls.Add(1)
 	response, ok := s.validation[req.Msg.GetSuiteId()]
 	if !ok {
 		return connect.NewResponse(&evalv1.GetLatestCorpusValidationResponse{}), nil
@@ -82,8 +84,8 @@ func TestModelEvalReadinessListsExactMissingDenominatorAndRoleFloor(t *testing.T
 	if got.Ready || got.RegisteredSuites != 1 || got.RequiredRetrievalSuites != modelEvalMinimumRetrievalSuites {
 		t.Fatalf("unexpected readiness: %+v", got)
 	}
-	if client.getCalls != 1 {
-		t.Fatalf("fixed denominator API calls = %d, want 1", client.getCalls)
+	if client.getCalls.Load() != 1 {
+		t.Fatalf("fixed denominator API calls = %d, want 1", client.getCalls.Load())
 	}
 	if len(got.MissingDenominatorIDs) != 1 || got.MissingDenominatorIDs[0] != "knowledge-observatory.docs.starter" || got.SuiteInventoryDeficit != 34 {
 		t.Fatalf("missing denominator evidence = %v", got.MissingDenominatorIDs)
@@ -117,11 +119,11 @@ func TestModelEvalReadinessPropagatesSearchHubInventoryFailure(t *testing.T) {
 	if err == nil || !errors.Is(err, want) {
 		t.Fatalf("Readiness error = %v, want %v", err, want)
 	}
-	if client.getCalls != 0 {
-		t.Fatalf("denominator reads after inventory failure = %d, want 0", client.getCalls)
+	if client.getCalls.Load() != 0 {
+		t.Fatalf("denominator reads after inventory failure = %d, want 0", client.getCalls.Load())
 	}
-	if client.validationCalls != 0 {
-		t.Fatalf("corpus validation reads after inventory failure = %d, want 0", client.validationCalls)
+	if client.validationCalls.Load() != 0 {
+		t.Fatalf("corpus validation reads after inventory failure = %d, want 0", client.validationCalls.Load())
 	}
 }
 

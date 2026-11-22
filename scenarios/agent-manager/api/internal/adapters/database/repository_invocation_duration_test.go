@@ -9,8 +9,7 @@ import (
 )
 
 func TestRunDurationStatisticsUsesNearestRankPercentiles(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repo := &invocationReadModelRepository{db: db}
 	occurred := time.Date(2026, time.September, 14, 12, 0, 0, 0, time.UTC)
 	for _, duration := range []int64{10, 20, 100} {

@@ -365,3 +365,55 @@ func TestDefaultPackDissatisfactionIsNamedAndAskedForPushback(t *testing.T) {
 		}
 	}
 }
+
+// goldRuns is, per mood, the gold's {positives, rows} for each of the 23 runs
+// that have gold rows (tuning, holdout1 and holdout2 together, counts only).
+// The run mood thresholds are shares read off it: the value at which as many
+// gold runs fire as have two or more gold positives, because one message is a
+// moment and two are the run's character. A threshold that drifts from the gold
+// fails here, not on the live data.
+var goldRuns = map[string][][2]int{
+	"dissatisfied": {{9, 38}, {7, 36}, {7, 14}, {7, 9}, {6, 38}, {4, 39}, {3, 33}, {3, 28}, {2, 9}, {2, 3}, {1, 16}, {1, 11}, {1, 5}, {0, 33}, {0, 12}, {0, 9}, {0, 4}, {0, 3}, {0, 2}, {0, 2}, {0, 2}, {0, 1}, {0, 1}},
+	"pleased":      {{12, 39}, {11, 34}, {7, 37}, {5, 34}, {3, 38}, {3, 13}, {3, 12}, {3, 10}, {1, 30}, {1, 9}, {1, 4}, {0, 39}, {0, 17}, {0, 14}, {0, 9}, {0, 4}, {0, 3}, {0, 3}, {0, 2}, {0, 2}, {0, 2}, {0, 1}, {0, 1}},
+	"impatient":    {{4, 30}, {3, 39}, {3, 37}, {3, 14}, {1, 39}, {1, 34}, {1, 13}, {1, 10}, {1, 5}, {1, 2}, {0, 37}, {0, 34}, {0, 17}, {0, 12}, {0, 9}, {0, 8}, {0, 4}, {0, 3}, {0, 3}, {0, 2}, {0, 2}, {0, 1}, {0, 1}},
+}
+
+func TestDefaultPackRunMoodThresholdsFireAsOftenAsTheGoldImplies(t *testing.T) {
+	pack := loadDefaultPack(t)
+	want := map[string]struct{ fire, agree int }{
+		"dissatisfied": {10, 21}, "pleased": {8, 21}, "impatient": {4, 19},
+	}
+	for name, runs := range goldRuns {
+		run := defaultLabel(t, pack, "operator."+name+"_run")
+		threshold := *run.Search.MinProbability
+		fire, twoPositives, agree := 0, 0, 0
+		for _, gold := range runs {
+			fires := float64(gold[0])/float64(gold[1]) >= threshold
+			twoOrMore := gold[0] >= 2
+			if fires {
+				fire++
+			}
+			if twoOrMore {
+				twoPositives++
+			}
+			if fires == twoOrMore {
+				agree++
+			}
+		}
+		if len(runs) != 23 {
+			t.Fatalf("%s: the gold table has %d runs, want 23", name, len(runs))
+		}
+		if fire != twoPositives {
+			t.Fatalf("%s_run threshold %v fires on %d of 23 gold runs, but %d have two or more gold positives", name, threshold, fire, twoPositives)
+		}
+		if got := want[name]; fire != got.fire || agree != got.agree {
+			t.Fatalf("%s_run threshold %v: fires %d (want %d), agrees with the two-positive rule on %d (want %d)", name, threshold, fire, got.fire, agree, got.agree)
+		}
+		// The description is the reasoning; it must state what the number rests on.
+		for _, phrase := range []string{"two or more gold positives", "calibrated", "raw"} {
+			if !strings.Contains(run.Description, phrase) {
+				t.Fatalf("%s_run description must explain its threshold (missing %q)", name, phrase)
+			}
+		}
+	}
+}

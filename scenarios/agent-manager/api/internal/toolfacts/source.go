@@ -79,23 +79,20 @@ func (r *Reader) events(ctx context.Context, runID string) (eventStream, error) 
 		return r.storedEvents(ctx, runID), nil
 	case found.transcriptOpen:
 		return r.transcriptStream(ctx, found)
+	default:
+		return noEvents(), nil
 	}
-	return eventStream{
-		Source:      SourceNone,
-		Events:      func(func(*domain.RunEvent, error) bool) {},
-		Diagnostics: func() (int, int) { return 0, 0 },
-	}, nil
 }
 
 func (r *Reader) transcriptStream(ctx context.Context, found evidence) (eventStream, error) {
 	parser, err := r.Parsers(found.harness)
-	if err != nil {
+	if err != nil || parser == nil {
 		// A harness with no transcript parser has nothing observable.
-		return eventStream{Source: SourceNone, Events: func(func(*domain.RunEvent, error) bool) {}, Diagnostics: func() (int, int) { return 0, 0 }}, nil
+		return noEvents(), nil
 	}
 	file, err := os.Open(found.path)
 	if err != nil {
-		return eventStream{Source: SourceNone, Events: func(func(*domain.RunEvent, error) bool) {}, Diagnostics: func() (int, int) { return 0, 0 }}, nil
+		return noEvents(), nil
 	}
 	es := transcriptEvents(ctx, r.Rules, file, parser)
 	inner := es.Events
@@ -104,6 +101,17 @@ func (r *Reader) transcriptStream(ctx context.Context, found evidence) (eventStr
 		inner(yield)
 	}
 	return es, nil
+}
+
+// noEvents is the empty, diagnostic-free stream used when no tool evidence is
+// observable. A missing transcript or an unsupported/vanished source says
+// nothing about the run's tool activity.
+func noEvents() eventStream {
+	return eventStream{
+		Source:      SourceNone,
+		Events:      func(func(*domain.RunEvent, error) bool) {},
+		Diagnostics: func() (int, int) { return 0, 0 },
+	}
 }
 
 // storedEvents streams the run's tool rows in order, one row at a time.

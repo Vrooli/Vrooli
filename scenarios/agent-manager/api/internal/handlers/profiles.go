@@ -36,6 +36,10 @@ func (h *Handler) CreateProfile(w http.ResponseWriter, r *http.Request) {
 		writeSimpleError(w, r, "profile", "profile is required")
 		return
 	}
+	if err := protoconv.ValidateProfileBrowserCapability(req.Profile.GetFeatures()); err != nil {
+		writeError(w, r, err)
+		return
+	}
 
 	profile := protoconv.AgentProfileFromProto(req.Profile)
 
@@ -71,6 +75,12 @@ func (h *Handler) EnsureProfile(w http.ResponseWriter, r *http.Request) {
 	}
 	if !h.validateProto(w, r, &req) {
 		return
+	}
+	if req.Defaults != nil {
+		if err := protoconv.ValidateProfileBrowserCapability(req.Defaults.GetFeatures()); err != nil {
+			writeError(w, r, err)
+			return
+		}
 	}
 
 	result, err := h.profiles.EnsureProfile(r.Context(), orchestration.EnsureProfileRequest{
@@ -301,6 +311,10 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Profile == nil {
 		writeSimpleError(w, r, "profile", "profile is required")
+		return
+	}
+	if err := protoconv.ValidateProfileBrowserCapability(req.Profile.GetFeatures()); err != nil {
+		writeError(w, r, err)
 		return
 	}
 	if req.ProfileId != "" {

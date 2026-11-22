@@ -232,7 +232,7 @@ func applyProviderError(response *inferencev1.RunResponse, request ProviderReque
 		message = fmt.Sprintf("provider outcome is uncertain; reuse root_operation_id %q for reconciliation and do not switch funding source", request.RootOperationID)
 	} else if errors.Is(err, ErrNoEligibleRoute) {
 		code, construct = inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_NO_ELIGIBLE_ROUTE, "source_or_route_eligibility"
-		message = "no eligible route is configured for this browser source and profile; select an available source or ask the account owner to enable an eligible route. No model inference was dispatched and funding was not changed"
+		message = "no eligible route is configured for this browser source and profile; select an available source or ask the account owner to enable or upgrade an eligible route. No model inference was dispatched and funding was not changed"
 	}
 	if errors.Is(err, ErrRootConflict) || errors.Is(err, ErrRootRequired) {
 		code, construct = inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, "root_operation_id"
@@ -500,13 +500,43 @@ func validateEmbeddingRequest(request EmbeddingRequest) *requestValidation {
 	if len(request.Texts) == 0 {
 		return &requestValidation{"texts are required", "texts"}
 	}
-	if request.Profile != sharedv1.Profile_PROFILE_LOCAL_ONLY {
-		return &requestValidation{"typed embeddings require an explicit local-only profile", "profile"}
+	return validateEmbeddingContract(request)
+}
+
+// validateEmbeddingContract checks the fields every typed embedding must state.
+// None has a default: locality and privacy attribution are the caller's
+// declarations, and inferring them would let a caller that never thought
+// about either pass as one that did. A refusal names every field to fix, and
+// what to send, so the caller corrects its request in one step.
+func validateEmbeddingContract(request EmbeddingRequest) *requestValidation {
+	type problem struct{ field, fix string }
+	var problems []problem
+	switch request.Profile {
+	case sharedv1.Profile_PROFILE_LOCAL_ONLY:
+	case sharedv1.Profile_PROFILE_UNSPECIFIED:
+		problems = append(problems, problem{"profile", "missing; send PROFILE_LOCAL_ONLY"})
+	default:
+		problems = append(problems, problem{"profile", request.Profile.String() + " is not allowed; embeddings run only on local models, send PROFILE_LOCAL_ONLY"})
 	}
-	if err := validateEmbeddingPrivacy(request.PrivacyClass, request.PrivacyProvenance); err != nil {
-		return &requestValidation{err.Error(), "privacy_provenance"}
+	switch request.PrivacyClass {
+	case sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC, sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
+		sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL, sharedv1.PrivacyClass_PRIVACY_CLASS_SECRET:
+	case sharedv1.PrivacyClass_PRIVACY_CLASS_UNSPECIFIED:
+		problems = append(problems, problem{"privacy_class", "missing; send PRIVACY_CLASS_PUBLIC, _INTERNAL, _CONFIDENTIAL or _SECRET"})
+	default:
+		problems = append(problems, problem{"privacy_class", "unknown value; send PRIVACY_CLASS_PUBLIC, _INTERNAL, _CONFIDENTIAL or _SECRET"})
 	}
-	return nil
+	if err := validatePrivacyProvenance(request.PrivacyProvenance); err != nil {
+		problems = append(problems, problem{"privacy_provenance", err.Error()})
+	}
+	if len(problems) == 0 {
+		return nil
+	}
+	parts := make([]string, 0, len(problems))
+	for _, p := range problems {
+		parts = append(parts, p.field+": "+p.fix)
+	}
+	return &requestValidation{"typed embedding request contract is incomplete (" + strings.Join(parts, "; ") + ")", problems[0].field}
 }
 
 func finishEmbeddingResponse(response *inferencev1.EmbedResponse, request EmbeddingRequest, result EmbeddingResult, err error) *inferencev1.EmbedResponse {
@@ -524,6 +554,7 @@ func finishEmbeddingResponse(response *inferencev1.EmbedResponse, request Embedd
 		return embedError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_VALIDATION_FAILED, "embedding repository returned an incomplete vector batch", "vectors")
 	}
 	response.Provider, response.Model, response.Dimension = result.Provider, result.Model, int32(result.Dimension)
+	response.Normalization = result.Normalization
 	response.Usage.InputTokens, response.Usage.CostMicros = result.InputTokens, result.CostMicros
 	response.Usage.InputTokensProvenance = nonUnknownProvenance(result.InputTokensProvenance)
 	response.Usage.OutputTokensProvenance = inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN

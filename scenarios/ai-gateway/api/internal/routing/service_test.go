@@ -111,7 +111,9 @@ func TestConditionalLocalRightsReevaluatedAfterPreviewBeforeExecution(t *testing
 
 func TestChangedOllamaRuntimeArtifactAfterPlanningBlocksExecution(t *testing.T) {
 	base := roleRunner()
-	runner := &inventoryMutatingRunner{inner: base, mutateAt: 3, replacement: providers.Result{Stdout: `{"source":"ollama /api/tags","models":[{"name":"qwen3.5:9b","digest":"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"},{"name":"nomic-embed-text:latest","digest":"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"}]}`}}
+	// The first inventory read plans the route; the second is the role
+	// re-resolution immediately before dispatch, and it sees a new digest.
+	runner := &inventoryMutatingRunner{inner: base, mutateAt: 2, replacement: providers.Result{Stdout: `{"source":"ollama /api/tags","models":[{"name":"qwen3.5:9b","digest":"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"},{"name":"nomic-embed-text:latest","digest":"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"}]}`}}
 	svc := newService(testAdapters(runner), routing.NewSQLRepository(newSchemaDB(t)))
 	resp, err := svc.Execute(context.Background(), baseRequest(sharedv1.Profile_PROFILE_LOCAL_ONLY), "hello")
 	require.NoError(t, err)

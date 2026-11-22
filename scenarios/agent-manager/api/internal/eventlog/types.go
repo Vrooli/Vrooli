@@ -241,14 +241,27 @@ type RetryAttemptPayload struct {
 // not trusted usage evidence until BAS attests it through an owner-controlled
 // service identity.
 type BrowserSessionPayload struct {
-	SessionID         string `json:"session_id"`
-	Mode              string `json:"mode"`
-	PermissionProfile string `json:"permission_profile"`
-	State             string `json:"state"`
-	SessionMinutes    int64  `json:"session_minutes,omitempty"`
-	Actions           int64  `json:"actions,omitempty"`
-	Bytes             int64  `json:"bytes,omitempty"`
-	ReportedBy        string `json:"reported_by"`
+	SessionID         string                  `json:"session_id"`
+	Mode              string                  `json:"mode"`
+	PermissionProfile string                  `json:"permission_profile"`
+	State             string                  `json:"state"`
+	SessionMinutes    int64                   `json:"session_minutes,omitempty"`
+	Actions           int64                   `json:"actions,omitempty"`
+	Bytes             int64                   `json:"bytes,omitempty"`
+	Runtime           *BrowserRuntimeEvidence `json:"runtime,omitempty"`
+	ReportedBy        string                  `json:"reported_by"`
+}
+
+// BrowserRuntimeEvidence is copied only from the BAS-authenticated closed
+// session proof. It names a verified bundle route and contains no host path.
+type BrowserRuntimeEvidence struct {
+	BundleVersion  string `json:"bundle_version"`
+	BrowserVersion string `json:"browser_version"`
+	ClosureSHA256  string `json:"closure_sha256"`
+	Driver         string `json:"driver"`
+	DriverVersion  string `json:"driver_version"`
+	Source         string `json:"source"`
+	Channel        string `json:"channel"`
 }
 
 // BrowserActionPayload records a run-reported bounded action category and outcome only.

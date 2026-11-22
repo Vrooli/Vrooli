@@ -285,6 +285,10 @@ func TestPolicyValidationAndPreviewReadsDoNotOpenMutationRoutes(t *testing.T) {
 		{name: "permission policy validate Connect", path: apiconnect.AgentManagerServiceValidatePermissionPolicyCatalogProcedure, wantStatus: http.StatusNoContent},
 		{name: "permission policy plan Connect", path: apiconnect.AgentManagerServicePlanPermissionPolicyProcedure, wantStatus: http.StatusNoContent},
 		{name: "permission policy doctor Connect", path: apiconnect.AgentManagerServiceDoctorPermissionPolicyProcedure, wantStatus: http.StatusNoContent},
+		{name: "browser open admission reaches grant owner", path: "/api/v1/browser/authorize-open", wantStatus: http.StatusNoContent},
+		{name: "browser caller resolution reaches grant owner", path: "/api/v1/browser/resolve-caller", wantStatus: http.StatusNoContent},
+		{name: "browser profile resolution reaches grant owner", path: "/api/v1/browser/resolve-profile", wantStatus: http.StatusNoContent},
+		{name: "browser context resolution reaches grant owner", path: "/api/v1/browser/resolve-context", wantStatus: http.StatusNoContent},
 		{name: "role policy reload Connect stays protected", path: apiconnect.AgentManagerServiceReloadRolePolicyCatalogProcedure, wantStatus: http.StatusForbidden},
 		{name: "permission policy reconcile Connect stays protected", path: apiconnect.AgentManagerServiceReconcilePermissionPolicyProcedure, wantStatus: http.StatusForbidden},
 		{name: "unknown route stays protected", path: "/api/v1/permission-policy/future", wantStatus: http.StatusForbidden},
@@ -305,6 +309,36 @@ func TestPolicyValidationAndPreviewReadsDoNotOpenMutationRoutes(t *testing.T) {
 				t.Fatalf("status=%d reached=%v want status=%d", w.Code, reached, tc.wantStatus)
 			}
 		})
+	}
+}
+
+func TestBrowserTabConsentRoutesRequireDedicatedBASServiceRole(t *testing.T) {
+	for _, path := range []string{"/api/v1/browser/tab-consent/issue", "/api/v1/browser/tab-consent/verify", "/api/v1/browser/tab-consent/revoke"} {
+		for _, tc := range []struct {
+			name    string
+			kind    identity.ActorKind
+			subject string
+			scopes  []string
+			want    int
+		}{
+			{name: "dedicated BAS role", kind: identity.ActorService, subject: BrowserTabConsentBrokerServiceSubject, scopes: []string{BrowserTabConsentBrokerScope}, want: http.StatusNoContent},
+			{name: "wrong service scope", kind: identity.ActorService, subject: BrowserTabConsentBrokerServiceSubject, scopes: []string{"agent-manager:write"}, want: http.StatusForbidden},
+			{name: "run agent", kind: identity.ActorAgent, subject: "run-1", scopes: []string{"agent-manager:write"}, want: http.StatusForbidden},
+			{name: "other service", kind: identity.ActorService, subject: "browser-automation-studio-agent-manager", scopes: []string{BrowserTabConsentBrokerScope}, want: http.StatusForbidden},
+		} {
+			t.Run(path+"/"+tc.name, func(t *testing.T) {
+				reached := false
+				h := AgentOperationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { reached = true; w.WriteHeader(http.StatusNoContent) }))
+				req := httptest.NewRequest(http.MethodPost, path, nil)
+				principal := identity.Principal{Kind: tc.kind, Subject: tc.subject, Verified: true, Scopes: tc.scopes}
+				req = req.WithContext(identity.WithPrincipal(req.Context(), principal))
+				response := httptest.NewRecorder()
+				h.ServeHTTP(response, req)
+				if response.Code != tc.want || reached != (tc.want == http.StatusNoContent) {
+					t.Fatalf("status=%d reached=%v want=%d", response.Code, reached, tc.want)
+				}
+			})
+		}
 	}
 }
 

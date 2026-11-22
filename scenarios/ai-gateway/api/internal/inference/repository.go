@@ -111,10 +111,13 @@ func canonicalRequestDigest(request ProviderRequest) string {
 }
 
 type EmbeddingResult struct {
-	Vectors               [][]float64
-	Provider              string
-	Model                 string
-	Dimension             int
+	Vectors   [][]float64
+	Provider  string
+	Model     string
+	Dimension int
+	// Normalization is the vector scale the role declares and the gateway
+	// verified on every vector, for example rolecatalog.NormalizationL2.
+	Normalization         string
 	InputTokens           int64
 	CostMicros            int64
 	InputTokensProvenance inferencev1.UsageProvenance

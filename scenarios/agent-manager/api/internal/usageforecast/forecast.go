@@ -864,22 +864,35 @@ type ActivitySource interface {
 	LastProviderActivity(ctx context.Context, provider string) (time.Time, error)
 }
 
+type activityResult struct {
+	last time.Time
+	err  error
+}
+
 // CurrentWithActivity is Current, except that a stale window with no activity
 // for its provider since the last reading is idle, not unknown. Where the
 // source is absent or fails, unmetered use cannot be ruled out and the window
-// stays unknown.
+// stays unknown. One provider-wide activity result is shared across its stale
+// scopes in this evaluation; each scope still compares it with its own reading.
 func CurrentWithActivity(ctx context.Context, spans []pricing.QuotaReadingSpan, now time.Time, source ActivitySource) []Forecast {
 	forecasts := Current(spans, now)
 	if source == nil {
 		return forecasts
 	}
+	activityByProvider := make(map[string]activityResult)
 	for i, f := range forecasts {
 		if !f.stale || f.Window.AccountScope != "" {
 			// Provider-wide activity cannot establish that a specific account
 			// has been idle; keep its stale standing unknown.
 			continue
 		}
-		if last, err := source.LastProviderActivity(ctx, f.Window.Provider); err == nil && !last.After(f.Window.LastAt) {
+		provider := f.Window.Provider
+		activity, checked := activityByProvider[provider]
+		if !checked {
+			activity.last, activity.err = source.LastProviderActivity(ctx, provider)
+			activityByProvider[provider] = activity
+		}
+		if activity.err == nil && !activity.last.After(f.Window.LastAt) {
 			forecasts[i].Status, forecasts[i].Reason = StatusIdle, "no work has used this provider since the last reading, so it lasts at this pace"
 		}
 	}

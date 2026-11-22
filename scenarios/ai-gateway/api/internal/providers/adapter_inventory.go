@@ -109,7 +109,7 @@ func (a Adapter) runPolicyRoles(ctx context.Context) (Result, error) {
 }
 
 func (a Adapter) ollamaModelDigests(ctx context.Context) (map[string]string, error) {
-	result, err := a.runner().Run(ctx, Command{Name: a.CommandName, Args: []string{"models", "inventory", "--json"}, Timeout: DefaultCommandTimeout})
+	result, err := a.runner().Run(ctx, Command{Name: a.CommandName, Args: []string{"models", "inventory", "--json"}, Timeout: DefaultCommandTimeout, Fact: true})
 	if err != nil {
 		return nil, mapCommandError(a.Provider, err)
 	}

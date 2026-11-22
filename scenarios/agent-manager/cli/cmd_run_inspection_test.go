@@ -12,13 +12,51 @@ import (
 
 	clitest "agent-manager/cli/internal/testutil"
 
-	"github.com/vrooli/cli-core/cliutil"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
+
+func newCLIAppForServer(t *testing.T, url string) *App {
+	t.Helper()
+	app, err := NewApp()
+	if err != nil {
+		t.Fatal(err)
+	}
+	app.core.APIOverride = url
+	return app
+}
+
+func runResponseJSON(t *testing.T, run *domainpb.Run) string {
+	t.Helper()
+	encoded, err := protojson.Marshal(&apipb.GetRunResponse{Run: run})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(encoded)
+}
+
+func newRunMessagesFixture(t *testing.T, run *domainpb.Run, events []*domainpb.RunEvent) (*App, *clitest.RecordingServer) {
+	t.Helper()
+	runJSON := runResponseJSON(t, run)
+	eventsJSON, err := protojson.Marshal(&apipb.GetRunEventsResponse{Events: events})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := clitest.NewRecordingServerForRequests(t, func(request clitest.Request) string {
+		switch request.Path {
+		case "/api/v1/runs/" + run.GetId():
+			return runJSON
+		case "/api/v1/runs/" + run.GetId() + "/events":
+			return string(eventsJSON)
+		default:
+			return `{}`
+		}
+	})
+	return newCLIAppForServer(t, server.URL()), server
+}
 
 func TestRunReportDisplaysInt64ProtoJSONTokens(t *testing.T) {
 	for _, test := range []struct {
@@ -39,10 +77,7 @@ func TestRunReportDisplaysInt64ProtoJSONTokens(t *testing.T) {
 				}
 				return `{}`
 			})
-			api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions {
-				return cliutil.APIBaseOptions{DefaultBase: server.URL()}
-			}, nil)
-			app := &App{services: NewServices(api)}
+			app := appForServer(t, server.URL())
 			if test.wantError != "" {
 				err := app.runReport([]string{"run-1"})
 				if err == nil || !strings.Contains(err.Error(), test.wantError) {
@@ -108,10 +143,7 @@ func TestRunInspectionCommandsEmitNextSteps(t *testing.T) {
 			return `{}`
 		}
 	})
-	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions {
-		return cliutil.APIBaseOptions{DefaultBase: server.URL()}
-	}, nil)
-	app := &App{services: NewServices(api)}
+	app := appForServer(t, server.URL())
 	commands := []struct {
 		name string
 		run  func() error
@@ -151,10 +183,7 @@ func TestDefaultMessagesAndToolsRejectMalformedEventResponses(t *testing.T) {
 		}
 		return `{}`
 	})
-	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions {
-		return cliutil.APIBaseOptions{DefaultBase: server.URL()}
-	}, nil)
-	app := &App{services: NewServices(api)}
+	app := appForServer(t, server.URL())
 
 	for name, call := range map[string]func() error{
 		"messages": func() error { return app.runMessages([]string{runID}) },
@@ -175,35 +204,12 @@ func TestRunMessagesRangeUsesBoundedEventSequencePageAndPreservesSelection(t *te
 		Selection:  &domainpb.FinalOutputSelection{SelectedCandidateId: "candidate-final"},
 		Candidates: []*domainpb.FinalOutputCandidate{{Id: "candidate-final", Sequence: 13}},
 	}}
-	runJSON, err := protojson.Marshal(&apipb.GetRunResponse{Run: selectedRun})
-	if err != nil {
-		t.Fatal(err)
-	}
-	eventJSON, err := protojson.Marshal(&apipb.GetRunEventsResponse{Events: []*domainpb.RunEvent{
+	app, server := newRunMessagesFixture(t, selectedRun, []*domainpb.RunEvent{
 		{Sequence: 10, EventType: domainpb.RunEventType_RUN_EVENT_TYPE_MESSAGE, Data: &domainpb.RunEvent_Message{Message: &domainpb.MessageEventData{Role: "user", Content: "ordinary prompt"}}},
 		{Sequence: 11, EventType: domainpb.RunEventType_RUN_EVENT_TYPE_MESSAGE, Data: &domainpb.RunEvent_Message{Message: &domainpb.MessageEventData{Role: "assistant", Content: "needle evidence", EvidenceOnly: true}}},
 		{Sequence: 12, EventType: domainpb.RunEventType_RUN_EVENT_TYPE_TOOL_CALL, Data: &domainpb.RunEvent_ToolCall{ToolCall: &domainpb.ToolCallEventData{ToolName: "bash"}}},
 		{Sequence: 13, EventType: domainpb.RunEventType_RUN_EVENT_TYPE_MESSAGE, Data: &domainpb.RunEvent_Message{Message: &domainpb.MessageEventData{Role: "assistant", Content: "needle selected"}}},
-	}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	server := clitest.NewRecordingServerForRequests(t, func(request clitest.Request) string {
-		switch request.Path {
-		case "/api/v1/runs/" + runID:
-			return string(runJSON)
-		case "/api/v1/runs/" + runID + "/events":
-			return string(eventJSON)
-		default:
-			return `{}`
-		}
 	})
-	app, err := NewApp()
-	if err != nil {
-		t.Fatal(err)
-	}
-	app.core.APIOverride = server.URL()
-
 	allOutput := captureStdout(t, func() error {
 		return app.core.CLI.RunWithWriters([]string{"run", "messages", runID, "--range=10:13", "--all", "--grep=needle"}, &strings.Builder{}, &strings.Builder{})
 	})
@@ -238,13 +244,10 @@ func TestRunMessagesRangeUsesBoundedEventSequencePageAndPreservesSelection(t *te
 
 func TestRunMessagesRangePaginatesBySequenceAndStopsAtInclusiveEnd(t *testing.T) {
 	const runID = "33333333-3333-4333-8333-333333333333"
-	runJSON, err := protojson.Marshal(&apipb.GetRunResponse{Run: &domainpb.Run{Id: runID}})
-	if err != nil {
-		t.Fatal(err)
-	}
+	runJSON := runResponseJSON(t, &domainpb.Run{Id: runID})
 	server := clitest.NewRecordingServerForRequests(t, func(request clitest.Request) string {
 		if request.Path == "/api/v1/runs/"+runID {
-			return string(runJSON)
+			return runJSON
 		}
 		if request.Path != "/api/v1/runs/"+runID+"/events" {
 			return `{}`
@@ -272,11 +275,7 @@ func TestRunMessagesRangePaginatesBySequenceAndStopsAtInclusiveEnd(t *testing.T)
 		}
 		return string(response)
 	})
-	app, err := NewApp()
-	if err != nil {
-		t.Fatal(err)
-	}
-	app.core.APIOverride = server.URL()
+	app := newCLIAppForServer(t, server.URL())
 	output := captureStdout(t, func() error {
 		return app.core.CLI.RunWithWriters([]string{"run", "messages", runID, "--range=5:1005", "--grep=needle"}, &strings.Builder{}, &strings.Builder{})
 	})
@@ -301,28 +300,7 @@ func TestRunMessagesRangePaginatesBySequenceAndStopsAtInclusiveEnd(t *testing.T)
 
 func TestRunMessagesExactSequenceRangeRequestsOneEvent(t *testing.T) {
 	const runID = "33333333-3333-4333-8333-333333333333"
-	runJSON, err := protojson.Marshal(&apipb.GetRunResponse{Run: &domainpb.Run{Id: runID}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	eventJSON, err := protojson.Marshal(&apipb.GetRunEventsResponse{Events: []*domainpb.RunEvent{{Sequence: 207, EventType: domainpb.RunEventType_RUN_EVENT_TYPE_MESSAGE, Data: &domainpb.RunEvent_Message{Message: &domainpb.MessageEventData{Role: "assistant", Content: "selected body"}}}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	server := clitest.NewRecordingServerForRequests(t, func(request clitest.Request) string {
-		if request.Path == "/api/v1/runs/"+runID {
-			return string(runJSON)
-		}
-		if request.Path == "/api/v1/runs/"+runID+"/events" {
-			return string(eventJSON)
-		}
-		return `{}`
-	})
-	app, err := NewApp()
-	if err != nil {
-		t.Fatal(err)
-	}
-	app.core.APIOverride = server.URL()
+	app, server := newRunMessagesFixture(t, &domainpb.Run{Id: runID}, []*domainpb.RunEvent{{Sequence: 207, EventType: domainpb.RunEventType_RUN_EVENT_TYPE_MESSAGE, Data: &domainpb.RunEvent_Message{Message: &domainpb.MessageEventData{Role: "assistant", Content: "selected body"}}}})
 	output := captureStdout(t, func() error {
 		return app.core.CLI.RunWithWriters([]string{"run", "messages", runID, "--range=207:207"}, &strings.Builder{}, &strings.Builder{})
 	})
@@ -356,28 +334,7 @@ func TestRunMessagesRangePageWidthIsOverflowSafeAtSequenceBounds(t *testing.T) {
 		{name: "maximum singleton", rangeArg: "9223372036854775807:9223372036854775807", sequence: 9223372036854775807, wantAfter: "9223372036854775806", wantLimit: "1"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			runJSON, err := protojson.Marshal(&apipb.GetRunResponse{Run: &domainpb.Run{Id: runID}})
-			if err != nil {
-				t.Fatal(err)
-			}
-			eventJSON, err := protojson.Marshal(&apipb.GetRunEventsResponse{Events: []*domainpb.RunEvent{{Sequence: test.sequence, EventType: domainpb.RunEventType_RUN_EVENT_TYPE_MESSAGE, Data: &domainpb.RunEvent_Message{Message: &domainpb.MessageEventData{Role: "assistant", Content: "boundary"}}}}})
-			if err != nil {
-				t.Fatal(err)
-			}
-			server := clitest.NewRecordingServerForRequests(t, func(request clitest.Request) string {
-				if request.Path == "/api/v1/runs/"+runID {
-					return string(runJSON)
-				}
-				if request.Path == "/api/v1/runs/"+runID+"/events" {
-					return string(eventJSON)
-				}
-				return `{}`
-			})
-			app, err := NewApp()
-			if err != nil {
-				t.Fatal(err)
-			}
-			app.core.APIOverride = server.URL()
+			app, server := newRunMessagesFixture(t, &domainpb.Run{Id: runID}, []*domainpb.RunEvent{{Sequence: test.sequence, EventType: domainpb.RunEventType_RUN_EVENT_TYPE_MESSAGE, Data: &domainpb.RunEvent_Message{Message: &domainpb.MessageEventData{Role: "assistant", Content: "boundary"}}}})
 			if err := app.core.CLI.RunWithWriters([]string{"run", "messages", runID, "--range=" + test.rangeArg}, &strings.Builder{}, &strings.Builder{}); err != nil {
 				t.Fatal(err)
 			}
@@ -401,32 +358,11 @@ func TestRunMessagesRangePageWidthIsOverflowSafeAtSequenceBounds(t *testing.T) {
 
 func TestRunMessagesRangeRejectsDuplicateOrOutOfOrderPage(t *testing.T) {
 	const runID = "33333333-3333-4333-8333-333333333333"
-	runJSON, err := protojson.Marshal(&apipb.GetRunResponse{Run: &domainpb.Run{Id: runID}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	eventJSON, err := protojson.Marshal(&apipb.GetRunEventsResponse{Events: []*domainpb.RunEvent{
+	app, _ := newRunMessagesFixture(t, &domainpb.Run{Id: runID}, []*domainpb.RunEvent{
 		{Sequence: 10, EventType: domainpb.RunEventType_RUN_EVENT_TYPE_MESSAGE, Data: &domainpb.RunEvent_Message{Message: &domainpb.MessageEventData{Role: "assistant", Content: "first"}}},
 		{Sequence: 10, EventType: domainpb.RunEventType_RUN_EVENT_TYPE_MESSAGE, Data: &domainpb.RunEvent_Message{Message: &domainpb.MessageEventData{Role: "assistant", Content: "duplicate"}}},
-	}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	server := clitest.NewRecordingServerForRequests(t, func(request clitest.Request) string {
-		if request.Path == "/api/v1/runs/"+runID {
-			return string(runJSON)
-		}
-		if request.Path == "/api/v1/runs/"+runID+"/events" {
-			return string(eventJSON)
-		}
-		return `{}`
 	})
-	app, err := NewApp()
-	if err != nil {
-		t.Fatal(err)
-	}
-	app.core.APIOverride = server.URL()
-	err = app.core.CLI.RunWithWriters([]string{"run", "messages", runID, "--range=10:11"}, &strings.Builder{}, &strings.Builder{})
+	err := app.core.CLI.RunWithWriters([]string{"run", "messages", runID, "--range=10:11"}, &strings.Builder{}, &strings.Builder{})
 	if err == nil || !strings.Contains(err.Error(), "not strictly ordered") {
 		t.Fatalf("duplicate sequence error=%v, want strict-order refusal", err)
 	}
@@ -434,28 +370,7 @@ func TestRunMessagesRangeRejectsDuplicateOrOutOfOrderPage(t *testing.T) {
 
 func TestRunMessagesWithoutRangeKeepsExistingUnboundedRequest(t *testing.T) {
 	const runID = "33333333-3333-4333-8333-333333333333"
-	runJSON, err := protojson.Marshal(&apipb.GetRunResponse{Run: &domainpb.Run{Id: runID}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	eventJSON, err := protojson.Marshal(&apipb.GetRunEventsResponse{Events: []*domainpb.RunEvent{{Sequence: 1, EventType: domainpb.RunEventType_RUN_EVENT_TYPE_MESSAGE, Data: &domainpb.RunEvent_Message{Message: &domainpb.MessageEventData{Role: "assistant", Content: "complete default history"}}}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	server := clitest.NewRecordingServerForRequests(t, func(request clitest.Request) string {
-		if request.Path == "/api/v1/runs/"+runID {
-			return string(runJSON)
-		}
-		if request.Path == "/api/v1/runs/"+runID+"/events" {
-			return string(eventJSON)
-		}
-		return `{}`
-	})
-	app, err := NewApp()
-	if err != nil {
-		t.Fatal(err)
-	}
-	app.core.APIOverride = server.URL()
+	app, server := newRunMessagesFixture(t, &domainpb.Run{Id: runID}, []*domainpb.RunEvent{{Sequence: 1, EventType: domainpb.RunEventType_RUN_EVENT_TYPE_MESSAGE, Data: &domainpb.RunEvent_Message{Message: &domainpb.MessageEventData{Role: "assistant", Content: "complete default history"}}}})
 	output := captureStdout(t, func() error {
 		return app.core.CLI.RunWithWriters([]string{"run", "messages", runID}, &strings.Builder{}, &strings.Builder{})
 	})
@@ -518,21 +433,14 @@ func TestRunResultSuggestsExactSelectedMessageRangeWhenAvailable(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			response, err := protojson.Marshal(&apipb.GetRunResponse{Run: test.run})
-			if err != nil {
-				t.Fatal(err)
-			}
+			response := runResponseJSON(t, test.run)
 			server := clitest.NewRecordingServerForRequests(t, func(request clitest.Request) string {
 				if request.Path == "/api/v1/runs/"+runID {
 					return string(response)
 				}
 				return `{}`
 			})
-			app, err := NewApp()
-			if err != nil {
-				t.Fatal(err)
-			}
-			app.core.APIOverride = server.URL()
+			app := newCLIAppForServer(t, server.URL())
 			output := captureStdout(t, func() error {
 				return app.core.CLI.RunWithWriters([]string{"run", "result", runID}, &strings.Builder{}, &strings.Builder{})
 			})
@@ -560,27 +468,20 @@ func TestRunResultLabelsStoredResultWhenCurrentExecutionHasNoTerminalResult(t *t
 		{name: "needs review with completed execution", status: domainpb.RunStatus_RUN_STATUS_NEEDS_REVIEW, endedAt: ended},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			runJSON, err := protojson.Marshal(&apipb.GetRunResponse{Run: &domainpb.Run{
+			runJSON := runResponseJSON(t, &domainpb.Run{
 				Id: runID, Status: tc.status, EndedAt: tc.endedAt,
 				Result: &domainpb.RunResult{
 					TerminalReason: "failed",
 					Selection:      &domainpb.FinalOutputSelection{Status: domainpb.FinalOutputSelectionStatus_FINAL_OUTPUT_SELECTION_STATUS_UNAVAILABLE, Rule: "no_viable_assistant_candidate"},
 				},
-			}})
-			if err != nil {
-				t.Fatal(err)
-			}
+			})
 			server := clitest.NewRecordingServerForRequests(t, func(request clitest.Request) string {
 				if request.Path == "/api/v1/runs/"+runID {
-					return string(runJSON)
+					return runJSON
 				}
 				return `{}`
 			})
-			app, err := NewApp()
-			if err != nil {
-				t.Fatal(err)
-			}
-			app.core.APIOverride = server.URL()
+			app := newCLIAppForServer(t, server.URL())
 			output := captureStdout(t, func() error {
 				return app.core.CLI.RunWithWriters([]string{"run", "result", runID}, &strings.Builder{}, &strings.Builder{})
 			})
@@ -648,8 +549,7 @@ func TestNativeToolConsumersKeepUnknownOutOfFailureFilters(t *testing.T) {
 		}
 		return string(events)
 	})
-	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions { return cliutil.APIBaseOptions{DefaultBase: server.URL()} }, nil)
-	a := &App{services: NewServices(api)}
+	a := appForServer(t, server.URL())
 	for _, command := range []struct {
 		name string
 		run  func() error

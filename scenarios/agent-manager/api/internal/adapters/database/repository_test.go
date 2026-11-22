@@ -13,9 +13,9 @@ import (
 	"testing"
 )
 
-// setupTestDB creates a fresh SQLite database for testing.
-// Returns the DB wrapper and a cleanup function.
-func setupTestDB(t *testing.T) (*DB, func()) {
+// setupTestDB creates a fresh SQLite database and closes it with the test.
+// Cleanup belongs to testing.T so it runs after early failures as well.
+func setupTestDB(t *testing.T) *DB {
 	t.Helper()
 
 	// Unit repositories need isolated durable semantics, not host disk fsyncs.
@@ -39,14 +39,14 @@ func setupTestDB(t *testing.T) (*DB, func()) {
 		t.Fatalf("init schema: %v", err)
 	}
 
-	return wrapped, func() {
+	t.Cleanup(func() {
 		_ = sqlDB.Close()
-	}
+	})
+	return wrapped
 }
 
 func TestInitSchemaCreatesRoleOnlyProfileTable(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 
 	var roleRefColumns int
 	if err := db.Get(&roleRefColumns, "SELECT COUNT(*) FROM pragma_table_info('agent_profiles') WHERE name = 'role_ref'"); err != nil {

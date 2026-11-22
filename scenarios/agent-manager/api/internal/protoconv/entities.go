@@ -2,6 +2,7 @@ package protoconv
 
 import (
 	"encoding/json"
+	"io"
 	"strings"
 
 	"agent-manager/internal/browsercapability"
@@ -255,6 +256,35 @@ func FeatureFlagsToProto(f domain.FeatureFlags) *pb.FeatureFlags {
 		}
 	}
 	return &pb.FeatureFlags{EnableBrowser: f.EnableBrowser, BrowserCapabilityJson: encoded}
+}
+
+// ValidateProfileBrowserCapability validates the serialized browser capability
+// at the profile API boundary before the compatibility conversion can discard
+// malformed input. Run grants are issued later from trusted run context and may
+// never be supplied or persisted by a profile caller.
+func ValidateProfileBrowserCapability(flags *pb.FeatureFlags) error {
+	if flags == nil || strings.TrimSpace(flags.GetBrowserCapabilityJson()) == "" {
+		return nil
+	}
+	decoder := json.NewDecoder(strings.NewReader(flags.GetBrowserCapabilityJson()))
+	decoder.DisallowUnknownFields()
+	var capability browsercapability.Capability
+	if err := decoder.Decode(&capability); err != nil {
+		return domain.NewValidationError("features.browserCapability", err.Error())
+	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
+		if err == nil {
+			return domain.NewValidationError("features.browserCapability", "browser capability must contain exactly one JSON value")
+		}
+		return domain.NewValidationError("features.browserCapability", err.Error())
+	}
+	if strings.TrimSpace(capability.GrantReceipt) != "" {
+		return domain.NewValidationError("features.browserCapability.grantReceipt", "browser grants are minted per run and cannot be stored in an agent profile")
+	}
+	if err := browsercapability.Validate(capability); err != nil {
+		return domain.NewValidationErrorWithHint("features.browserCapability", err.Error(), "choose an eligible browser mode, permission profile and bounded budget")
+	}
+	return nil
 }
 
 // FeatureFlagsFromProto converts proto FeatureFlags to domain FeatureFlags.

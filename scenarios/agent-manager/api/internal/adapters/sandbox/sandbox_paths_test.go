@@ -5,7 +5,6 @@ import (
 	"agent-manager/internal/adapters/runner"
 	"context"
 	"errors"
-	"github.com/google/uuid"
 	"io"
 	"strings"
 	"testing"
@@ -150,11 +149,8 @@ func TestSandboxLauncher_LaunchTranslatesHostMergedPath(t *testing.T) {
 
 	mock := newSandboxTestServer(707)
 	mock.hostMergedDir = host
-	server := mock.startServer(t)
-	defer server.Close()
-
-	provider := NewWorkspaceSandboxProvider(server.URL)
-	launcher := NewSandboxLauncher(provider, uuid.New())
+	fixture := newSandboxLauncherFixture(t, mock)
+	launcher := fixture.launcher
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -183,8 +179,8 @@ func TestSandboxLauncher_LaunchTranslatesHostMergedPath(t *testing.T) {
 	if got, _ := envAny["VROOLI_SANDBOX_MERGED_HOST"].(string); got != host {
 		t.Errorf("env VROOLI_SANDBOX_MERGED_HOST = %q; want host path %q", got, host)
 	}
-	if got, _ := envAny["VROOLI_HOST_LIFECYCLE_BASE"].(string); got != server.URL {
-		t.Errorf("env VROOLI_HOST_LIFECYCLE_BASE = %q; want %q", got, server.URL)
+	if got, _ := envAny["VROOLI_HOST_LIFECYCLE_BASE"].(string); got != fixture.server.URL {
+		t.Errorf("env VROOLI_HOST_LIFECYCLE_BASE = %q; want %q", got, fixture.server.URL)
 	}
 	if _, ok := envAny["PATH"]; ok {
 		t.Errorf("env PATH should be omitted; workspace-sandbox owns vrooli-aware PATH construction")
@@ -215,11 +211,8 @@ func TestSandboxLauncher_LaunchIdentityLayoutKeepsHostPath(t *testing.T) {
 	mock := newSandboxTestServer(717)
 	mock.hostMergedDir = host
 	mock.identityLayout = true
-	server := mock.startServer(t)
-	defer server.Close()
-
-	provider := NewWorkspaceSandboxProvider(server.URL)
-	launcher := NewSandboxLauncher(provider, uuid.New())
+	fixture := newSandboxLauncherFixture(t, mock)
+	launcher := fixture.launcher
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -522,11 +515,8 @@ func TestSandboxLauncher_LaunchPreservesEnvShimArgs(t *testing.T) {
 
 	mock := newSandboxTestServer(910)
 	mock.hostMergedDir = host
-	server := mock.startServer(t)
-	defer server.Close()
-
-	provider := NewWorkspaceSandboxProvider(server.URL)
-	launcher := NewSandboxLauncher(provider, uuid.New())
+	fixture := newSandboxLauncherFixture(t, mock)
+	launcher := fixture.launcher
 
 	t.Setenv("HOME", "/home/testuser")
 
@@ -589,11 +579,8 @@ func TestSandboxLauncher_LaunchBasenameFallback(t *testing.T) {
 
 	mock := newSandboxTestServer(909)
 	mock.hostMergedDir = host
-	server := mock.startServer(t)
-	defer server.Close()
-
-	provider := NewWorkspaceSandboxProvider(server.URL)
-	launcher := NewSandboxLauncher(provider, uuid.New())
+	fixture := newSandboxLauncherFixture(t, mock)
+	launcher := fixture.launcher
 
 	// $HOME doesn't matter here — the test path is /opt/* which has no
 	// known sandbox mapping, so it falls through to the basename rule.
@@ -638,11 +625,8 @@ func TestSandboxLauncher_LaunchBasenameFallback(t *testing.T) {
 func TestSandboxLauncher_LaunchRejectsUntranslatableHostPath(t *testing.T) {
 	mock := newSandboxTestServer(808)
 	mock.hostMergedDir = "/var/lib/workspace-sandbox/sb-test/merged"
-	server := mock.startServer(t)
-	defer server.Close()
-
-	provider := NewWorkspaceSandboxProvider(server.URL)
-	launcher := NewSandboxLauncher(provider, uuid.New())
+	fixture := newSandboxLauncherFixture(t, mock)
+	launcher := fixture.launcher
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()

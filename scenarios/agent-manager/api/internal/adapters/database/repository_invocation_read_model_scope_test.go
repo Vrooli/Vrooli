@@ -13,8 +13,7 @@ import (
 // one operator session; with a scope set the cohort returns only runs in it,
 // and without one both.
 func TestInvocationReadModelReadersHonourRunScope(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	ctx := context.Background()
 	repo := &invocationReadModelRepository{db: db}
 	now := time.Date(2026, 10, 29, 12, 0, 0, 0, time.UTC)

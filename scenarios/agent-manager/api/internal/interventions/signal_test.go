@@ -120,9 +120,19 @@ type fakeSignals struct {
 	calls      int
 	seen       []Message
 	probablity float64
+	started    chan struct{}
+	release    chan struct{}
 }
 
-func (f *fakeSignals) ClassifySignals(_ context.Context, messages []Message) ([]SignalAnswer, error) {
+func (f *fakeSignals) ClassifySignals(ctx context.Context, messages []Message) ([]SignalAnswer, error) {
+	if f.started != nil {
+		close(f.started)
+		select {
+		case <-f.release:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
 	f.calls++
 	answers := make([]SignalAnswer, len(messages))
 	for i, m := range messages {
@@ -160,7 +170,7 @@ type signalFixture struct {
 
 // signalFixture records one run (opening message, a failure report, a teammate
 // report and thanks) and lets the intervention job derive its rows.
-func newSignalFixture(t *testing.T) (*signalFixture, *Job) {
+func newSignalFixture(t *testing.T) *signalFixture {
 	db := newTestDB(t)
 	events := event.NewSQLiteStore(db, logrus.New())
 	now := time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)
@@ -177,7 +187,7 @@ func newSignalFixture(t *testing.T) (*signalFixture, *Job) {
 	if _, err := job.Pass(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	return f, job
+	return f
 }
 
 func signalRows(t *testing.T, f *signalFixture) map[string]map[string]any {
@@ -199,7 +209,7 @@ func signalRows(t *testing.T, f *signalFixture) map[string]map[string]any {
 }
 
 func TestSignalJobLabelsOnlyOperatorMessagesWithContextAndStoresNoText(t *testing.T) {
-	f, _ := newSignalFixture(t)
+	f := newSignalFixture(t)
 	classifier := &fakeSignals{labels: map[string]Signal{"it is still broken on mobile": ReportedFailure, "great, that works": Satisfaction}}
 	job := &SignalJob{Store: f.store, Events: f.events, Classifier: classifier, Now: func() time.Time { return f.now }}
 	stats, err := job.Pass(context.Background())
@@ -239,7 +249,7 @@ func TestSignalJobLabelsOnlyOperatorMessagesWithContextAndStoresNoText(t *testin
 // The back-fill is bounded per pass and marker-gated: once the marker exists
 // only recently recorded interventions are classified.
 func TestSignalJobBackfillIsBoundedAndMarkerGated(t *testing.T) {
-	f, _ := newSignalFixture(t)
+	f := newSignalFixture(t)
 	classifier := &fakeSignals{}
 	job := &SignalJob{Store: f.store, Events: f.events, Classifier: classifier, Now: func() time.Time { return f.now }, PassMessages: 1}
 	first, err := job.Pass(context.Background())
@@ -270,7 +280,7 @@ VALUES ('old', ?, 'run-old', 1, '2026-01-01T00:00:00Z', 'k', 'classified', '2026
 }
 
 func TestSignalJobOffSwitchReadsNothingAndSendsNothing(t *testing.T) {
-	f, _ := newSignalFixture(t)
+	f := newSignalFixture(t)
 	classifier := &fakeSignals{}
 	on := false
 	job := &SignalJob{Store: f.store, Events: f.events, Classifier: classifier, Now: func() time.Time { return f.now }, Enabled: func() bool { return on }}
@@ -281,6 +291,52 @@ func TestSignalJobOffSwitchReadsNothingAndSendsNothing(t *testing.T) {
 	on = true
 	if stats, _ := job.Pass(context.Background()); stats.Classified != 2 {
 		t.Fatalf("switched on: %+v", stats)
+	}
+}
+
+func TestSignalJobDoesNotRestorePurgedRowsWhenDisabledMidPass(t *testing.T) {
+	isolatedHome(t)
+	f := newSignalFixture(t)
+	old := SignalRecord{
+		SignalCandidate: SignalCandidate{EventID: "prior-signal", RunID: "prior-run", OccurredAt: f.now.Format(time.RFC3339Nano)},
+		Answer:          SignalAnswer{Status: StatusClassified, Signal: Neutral},
+	}
+	if err := f.store.SaveSignals(context.Background(), SignalVersion, []SignalRecord{old}, f.now); err != nil {
+		t.Fatal(err)
+	}
+	classifier := &fakeSignals{started: make(chan struct{}), release: make(chan struct{})}
+	job := &SignalJob{Store: f.store, Events: f.events, Classifier: classifier, Now: func() time.Time { return f.now }, Enabled: SignalsEnabled}
+	passDone := make(chan struct{})
+	var stats SignalStats
+	var passErr error
+	go func() {
+		stats, passErr = job.Pass(context.Background())
+		close(passDone)
+	}()
+	select {
+	case <-classifier.started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("signal classifier did not start")
+	}
+
+	control := SignalControl{Store: f.store}
+	if err := control.Set(false, "operator"); err != nil {
+		t.Fatal(err)
+	}
+	if purged, err := control.Purge(context.Background()); err != nil || purged != 1 {
+		t.Fatalf("purge before the in-flight pass saved rows = %d, err %v; want the one prior row", purged, err)
+	}
+	close(classifier.release)
+	select {
+	case <-passDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("signal pass did not finish after classifier release")
+	}
+	if passErr != nil || !stats.Disabled {
+		t.Fatalf("in-flight pass = %+v, err %v; want disabled with no save", stats, passErr)
+	}
+	if status, err := control.Status(context.Background()); err != nil || status.Stored != 0 {
+		t.Fatalf("stored signals after off-and-purge = %d, err %v; want zero", status.Stored, err)
 	}
 }
 
@@ -297,7 +353,7 @@ func TestSignalsEnabledReadsTheEnvironment(t *testing.T) {
 // A gateway outage records unclassified rows with a retry time; they are never
 // read as neutral, and are retried when due.
 func TestSignalJobGatewayOutageIsUnclassifiedThenRetried(t *testing.T) {
-	f, _ := newSignalFixture(t)
+	f := newSignalFixture(t)
 	classifier := &fakeSignals{down: true}
 	job := &SignalJob{Store: f.store, Events: f.events, Classifier: classifier, Now: func() time.Time { return f.now }}
 	if _, err := job.Pass(context.Background()); err == nil || !strings.Contains(err.Error(), "connection refused") {

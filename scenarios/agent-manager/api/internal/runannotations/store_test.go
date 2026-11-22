@@ -353,3 +353,63 @@ func TestEnsureSchemaAddsEvidenceHashToAnOlderTable(t *testing.T) {
 		t.Fatalf("current = %+v, want the stored fingerprint", current)
 	}
 }
+
+// A gateway deadline or an exhausted budget writes an unavailable row after an
+// answer already stands. Every read of "what is known about this subject" must
+// keep the answer, or coverage and the mood card report a message as lost that
+// was answered.
+func TestATransientUnavailableRowNeverShadowsAnAnswerOfTheSameDefinition(t *testing.T) {
+	store, _ := testStore(t)
+	ctx := context.Background()
+	at := time.Date(2026, 11, 18, 12, 0, 0, 0, time.UTC)
+	message := func(hash string, state State, when time.Time) Annotation {
+		row := annotation("msg-1", "m.label", hash, when, floatPointer(0.4))
+		row.ScopeKind, row.RunID, row.OccurredAt, row.State = ScopeMessage, "run-1", at, state
+		if state == StateUnavailable {
+			row.Model, row.ModelVersion, row.Probability, row.Value, row.Reason = "", "", nil, Value{}, "decision_unavailable: deadline"
+		}
+		return row
+	}
+	if err := store.Save(ctx, []Annotation{
+		message("hash-1", StateObserved, at),
+		message("hash-1", StateUnavailable, at.Add(time.Hour)),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	stateOf := func(rows []Annotation) State {
+		t.Helper()
+		if len(rows) != 1 {
+			t.Fatalf("rows = %d, want one per label", len(rows))
+		}
+		return rows[0].State
+	}
+	forScope, err := store.LatestForScope(ctx, ScopeMessage, "msg-1")
+	if err != nil || stateOf(forScope) != StateObserved {
+		t.Fatalf("LatestForScope = %v %v, want the answer", forScope, err)
+	}
+	forRun, err := store.LatestMessagesForRun(ctx, "run-1")
+	if err != nil || stateOf(forRun) != StateObserved {
+		t.Fatalf("LatestMessagesForRun = %v %v, want the answer", forRun, err)
+	}
+	var streamed []Annotation
+	if err := store.ForEachLatest(ctx, time.Time{}, time.Time{}, func(string) bool { return false }, func(row Annotation) error {
+		streamed = append(streamed, row)
+		return nil
+	}); err != nil || stateOf(streamed) != StateObserved {
+		t.Fatalf("ForEachLatest = %v %v, want the answer", streamed, err)
+	}
+	scopes, err := store.ObservedScopes(ctx, ScopeMessage, time.Time{}, time.Time{}, "m.label", "hash-1", 10)
+	if err != nil || len(scopes) != 1 {
+		t.Fatalf("ObservedScopes = %v %v, want the answered message", scopes, err)
+	}
+
+	// A newer definition that could not be answered is a different matter: the
+	// old answer belongs to a definition nobody asks any more.
+	if err := store.Save(ctx, []Annotation{message("hash-2", StateUnavailable, at.Add(2*time.Hour))}); err != nil {
+		t.Fatal(err)
+	}
+	forScope, err = store.LatestForScope(ctx, ScopeMessage, "msg-1")
+	if err != nil || stateOf(forScope) != StateUnavailable || forScope[0].DefinitionHash != "hash-2" {
+		t.Fatalf("LatestForScope after a newer definition = %v %v, want its unavailable row", forScope, err)
+	}
+}

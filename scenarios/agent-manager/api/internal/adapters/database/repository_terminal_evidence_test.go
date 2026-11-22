@@ -30,8 +30,7 @@ func allowTerminalEvidence(context.Context, TerminalEvidenceSelector) error { re
 func TestTerminalEvidenceExactMinimizedSelection(t *testing.T) {
 	for _, status := range []domain.RunStatus{domain.RunStatusComplete, domain.RunStatusFailed, domain.RunStatusCancelled, domain.RunStatusUnknown} {
 		t.Run(string(status), func(t *testing.T) {
-			db, done := setupTestDB(t)
-			defer done()
+			db := setupTestDB(t)
 			r := receiptRepos(t, db)
 			run := receiptRun(t, r)
 			finishReceiptRun(t, r, run, status)
@@ -74,8 +73,7 @@ func TestTerminalEvidenceExactMinimizedSelection(t *testing.T) {
 	}
 }
 func TestTerminalEvidenceDisabled(t *testing.T) {
-	db, done := setupTestDB(t)
-	defer done()
+	db := setupTestDB(t)
 	if _, err := NewTerminalEvidenceReader(receiptRepos(t, db), nil); err == nil {
 		t.Fatal("no authority accepted")
 	}
@@ -84,8 +82,7 @@ func TestTerminalEvidenceDisabled(t *testing.T) {
 	}
 }
 func TestTerminalEvidenceScopeJoinAndRevocation(t *testing.T) {
-	db, done := setupTestDB(t)
-	defer done()
+	db := setupTestDB(t)
 	r := receiptRepos(t, db)
 	run := receiptRun(t, r)
 	finishReceiptRun(t, r, run, domain.RunStatusComplete)
@@ -145,8 +142,7 @@ func TestTerminalEvidenceScopeJoinAndRevocation(t *testing.T) {
 	}
 }
 func TestTerminalEvidenceMissingReceiptOrAck(t *testing.T) {
-	db, done := setupTestDB(t)
-	defer done()
+	db := setupTestDB(t)
 	r := receiptRepos(t, db)
 	run := receiptRun(t, r)
 	finishReceiptRun(t, r, run, domain.RunStatusComplete)
@@ -201,8 +197,7 @@ func TestTerminalEvidenceCrossOwnerFixture(t *testing.T) {
 	}
 }
 func TestTerminalEvidenceCorruptSourceBinding(t *testing.T) {
-	db, done := setupTestDB(t)
-	defer done()
+	db := setupTestDB(t)
 	r := receiptRepos(t, db)
 	run := receiptRun(t, r)
 	finishReceiptRun(t, r, run, domain.RunStatusComplete)
@@ -220,8 +215,7 @@ func TestTerminalEvidenceCorruptSourceBinding(t *testing.T) {
 func TestTerminalEvidenceCorruptAckAndMismatchedIntent(t *testing.T) {
 	for _, mode := range []string{"ack", "intent"} {
 		t.Run(mode, func(t *testing.T) {
-			db, done := setupTestDB(t)
-			defer done()
+			db := setupTestDB(t)
 			r := receiptRepos(t, db)
 			run := receiptRun(t, r)
 			finishReceiptRun(t, r, run, domain.RunStatusComplete)

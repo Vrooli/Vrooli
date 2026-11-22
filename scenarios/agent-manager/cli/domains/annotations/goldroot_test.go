@@ -13,7 +13,7 @@ func TestGoldRootResolvesRelativePathsAndKeepsAbsoluteOnes(t *testing.T) {
 	if got, err := root.resolve("work.blocked_by_tool.holdout.jsonl"); err != nil || got != filepath.Join(string(root), "work.blocked_by_tool.holdout.jsonl") {
 		t.Fatalf("relative resolved to %q, %v; want it under the root", got, err)
 	}
-	if got, err := root.resolve("mood/frustrated.tuning.jsonl"); err != nil || got != filepath.Join(string(root), "mood", "frustrated.tuning.jsonl") {
+	if got, err := root.resolve("mood/dissatisfied.tuning.jsonl"); err != nil || got != filepath.Join(string(root), "mood", "dissatisfied.tuning.jsonl") {
 		t.Fatalf("nested relative resolved to %q, %v", got, err)
 	}
 	if got, err := root.resolve(" " + absolute + " "); err != nil || got != absolute {

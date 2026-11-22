@@ -296,15 +296,11 @@ func profileEvidence(events []*routingv1.RouteEvidence) []string {
 			buckets[key] = bucket
 		}
 		bucket.latencies = append(bucket.latencies, ev.GetLatencyMs())
-		for name, value := range map[string]int64{
-			"prepare": ev.GetPreparationDurationNs(), "plan": ev.GetRoutePlanDurationNs(),
-			"role": ev.GetRoleResolutionDurationNs(), "eligibility": ev.GetEligibilityDurationNs(),
-			"capacity": ev.GetCapacityAdmissionDurationNs(), "provider": ev.GetProviderExecutionDurationNs(),
-		} {
-			if value > 0 {
-				bucket.stageNS[name] = append(bucket.stageNS[name], value)
+		for _, stage := range evidenceStages {
+			if value := stage.value(ev); value > 0 {
+				bucket.stageNS[stage.name] = append(bucket.stageNS[stage.name], value)
 			} else {
-				bucket.stageMissing[name]++
+				bucket.stageMissing[stage.name]++
 			}
 		}
 		switch strings.ToLower(ev.GetStatus()) {
@@ -348,10 +344,28 @@ func profileEvidence(events []*routingv1.RouteEvidence) []string {
 	return lines
 }
 
+// evidenceStages are the recorded route timings, in reporting order: the
+// gateway's own stages, the resource command, what the resource measured
+// inside it, and the overhead outside provider work.
+var evidenceStages = []struct {
+	name  string
+	value func(*routingv1.RouteEvidence) int64
+}{
+	{"prepare", (*routingv1.RouteEvidence).GetPreparationDurationNs},
+	{"plan", (*routingv1.RouteEvidence).GetRoutePlanDurationNs},
+	{"role", (*routingv1.RouteEvidence).GetRoleResolutionDurationNs},
+	{"eligibility", (*routingv1.RouteEvidence).GetEligibilityDurationNs},
+	{"capacity", (*routingv1.RouteEvidence).GetCapacityAdmissionDurationNs},
+	{"provider", (*routingv1.RouteEvidence).GetProviderExecutionDurationNs},
+	{"provider_runtime", (*routingv1.RouteEvidence).GetProviderRuntimeDurationNs},
+	{"admission_wait", (*routingv1.RouteEvidence).GetProviderAdmissionWaitNs},
+	{"overhead", (*routingv1.RouteEvidence).GetOverheadDurationNs},
+}
+
 func formatStageProfile(bucket *evidenceProfileBucket) string {
-	names := []string{"prepare", "plan", "role", "eligibility", "capacity", "provider"}
-	parts := make([]string, 0, len(names))
-	for _, name := range names {
+	parts := make([]string, 0, len(evidenceStages))
+	for _, stage := range evidenceStages {
+		name := stage.name
 		values := append([]int64(nil), bucket.stageNS[name]...)
 		if len(values) == 0 {
 			parts = append(parts, fmt.Sprintf("%s=unavailable(%d/%d)", name, bucket.stageMissing[name], bucket.stageMissing[name]))

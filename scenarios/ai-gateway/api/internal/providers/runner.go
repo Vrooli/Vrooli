@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/vrooli/ai-provider-go/providererror"
+	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/envkit-go"
 )
 
@@ -36,6 +37,10 @@ type Command struct {
 	// included in Command.String or error messages.
 	Env     map[string]string
 	Timeout time.Duration
+	// Fact marks a read-only policy or inventory query whose result a
+	// FactCache may reuse. Commands that act (execute, pull, mutate) are never
+	// facts.
+	Fact bool
 }
 
 type Result struct {
@@ -78,6 +83,33 @@ func (e *CommandError) Error() string {
 
 func (e *CommandError) Unwrap() error { return e.Err }
 
+// maxFailureDetail bounds a logged failure reason.
+const maxFailureDetail = 600
+
+// FailureDetail is a failure's reason on one bounded line for operator logs.
+// A resource command failure is reduced to its code, exit status and the
+// resource's own message, which the runner has already redacted; the command
+// line is left out because it carries no reason.
+func FailureDetail(err error) string {
+	if err == nil {
+		return ""
+	}
+	detail := err.Error()
+	var cmdErr *CommandError
+	if errors.As(err, &cmdErr) {
+		reason := strings.TrimSpace(cmdErr.Stderr)
+		if reason == "" && cmdErr.Err != nil {
+			reason = cmdErr.Err.Error()
+		}
+		detail = fmt.Sprintf("code=%s exit=%d %s", cmdErr.Code, cmdErr.ExitCode, reason)
+	}
+	detail = strings.Join(strings.Fields(detail), " ")
+	if len(detail) > maxFailureDetail {
+		detail = detail[:maxFailureDetail] + "..."
+	}
+	return detail
+}
+
 type ExecRunner struct{}
 
 var _ CommandRunner = ExecRunner{}
@@ -95,6 +127,11 @@ func (ExecRunner) Run(ctx context.Context, command Command) (Result, error) {
 
 	cmd := exec.CommandContext(ctx, command.Name, command.Args...) // #nosec G204 -- command.Name is restricted by allowedResourceCommand; args are fixed by adapters, prompt data is passed via stdin.
 	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil)
+	// Every resource command runs inside a request deadline. A resource CLI
+	// whose sources changed would otherwise rebuild itself in the request
+	// path (tens of seconds), so commands run latency-bound: a stale CLI
+	// answers as-is and refreshes in the background for the next call.
+	cmd.Env = append(cmd.Env, cliutil.LatencyBoundEnvVar+"=1")
 	for key, value := range command.Env {
 		cmd.Env = append(cmd.Env, key+"="+value)
 	}

@@ -74,6 +74,24 @@ type sandboxTestServer struct {
 	listProcessExit *remoteExitInfo
 }
 
+// sandboxLauncherFixture owns the repeated httptest server/provider/launcher
+// wiring used by launcher integration tests. Callers configure the server
+// first, then keep their launch inputs and expected behavior local.
+type sandboxLauncherFixture struct {
+	server   *httptest.Server
+	launcher *SandboxLauncher
+}
+
+func newSandboxLauncherFixture(t *testing.T, mock *sandboxTestServer) *sandboxLauncherFixture {
+	t.Helper()
+	server := mock.startServer(t)
+	t.Cleanup(server.Close)
+	return &sandboxLauncherFixture{
+		server:   server,
+		launcher: NewSandboxLauncher(NewWorkspaceSandboxProvider(server.URL), uuid.New()),
+	}
+}
+
 type sseChunk struct {
 	event string
 	data  []byte

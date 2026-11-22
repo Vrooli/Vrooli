@@ -19,6 +19,12 @@ func onlyForecast(t *testing.T, readings []pricing.QuotaReadingSpan, now time.Ti
 	return forecasts[0]
 }
 
+type activitySourceFunc func(context.Context, string) (time.Time, error)
+
+func (f activitySourceFunc) LastProviderActivity(ctx context.Context, provider string) (time.Time, error) {
+	return f(ctx, provider)
+}
+
 // The real Codex window on 2026-10-29 runs out ~Oct 30–31, days before its
 // Nov 4 reset; Agent Manager must say will_exhaust with a band around that.
 func TestForecastProjectsTheOct28CodexWindowToExhaustBeforeReset(t *testing.T) {
@@ -508,6 +514,42 @@ func TestStaleWindowIsIdleOnlyWhenNoWorkSinceTheLastReading(t *testing.T) {
 	}
 	if got := CurrentWithActivity(context.Background(), readings, reset.Add(time.Minute), stubActivity{}); got[0].Status != StatusUnknown {
 		t.Fatalf("reset passed: %s", got[0].Status)
+	}
+}
+
+func TestCurrentWithActivityReadsProviderActivityOnceForAllStaleScopes(t *testing.T) {
+	now := at("2026-11-20T15:00:00Z")
+	last := now.Add(-7 * time.Hour)
+	start := last.Add(-24 * time.Hour)
+	reset := start.Add(7 * 24 * time.Hour)
+	primary := codexWindow(reset, last, ramp(start.Add(time.Hour), last, 1, 40))
+	secondary := codexWindow(reset, last.Add(-2*time.Hour), ramp(start.Add(time.Hour), last.Add(-2*time.Hour), 1, 40))
+	secondary.pool = "secondary"
+	readings := spans(primary, secondary)
+
+	calls := 0
+	source := activitySourceFunc(func(_ context.Context, provider string) (time.Time, error) {
+		calls++
+		if provider != "openai" {
+			t.Fatalf("provider=%q want openai", provider)
+		}
+		if calls == 1 {
+			return last.Add(-time.Hour), nil
+		}
+		return time.Time{}, context.DeadlineExceeded
+	})
+	forecasts := CurrentWithActivity(context.Background(), readings, now, source)
+	if len(forecasts) != 2 {
+		t.Fatalf("forecasts=%d want both quota pools", len(forecasts))
+	}
+	wantStatus := map[string]string{"primary": StatusIdle, "secondary": StatusUnknown}
+	for _, forecast := range forecasts {
+		if want := wantStatus[forecast.Window.Pool]; forecast.Status != want {
+			t.Errorf("%s status=%s want %s from shared provider activity compared with its own reading", forecast.Window.Pool, forecast.Status, want)
+		}
+	}
+	if calls != 1 {
+		t.Fatalf("provider activity lookups=%d want one shared lookup", calls)
 	}
 }
 

@@ -11,8 +11,7 @@ import (
 )
 
 func TestNarrowRunMutationsAdvanceCommittedRevisionWithoutTrigger(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	effortRef := "effort:revision-owner"
 	run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusParked, WorkReferences: []*eventdomain.WorkReference{{Kind: "effort", Id: effortRef, Relationship: "orchestrator", Verified: true, Visibility: eventdomain.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC, State: eventdomain.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE}}}
@@ -60,8 +59,7 @@ func TestNarrowRunMutationsAdvanceCommittedRevisionWithoutTrigger(t *testing.T) 
 }
 
 func TestUpdateRunWorkloadRejectsUnknownKindAndEmptyKey(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	for _, workload := range []domain.WorkloadRef{{Kind: "guessed", Key: "x"}, {Kind: domain.WorkloadKindInteractive}} {
 		if err := repos.Runs.(repository.RunWorkloadUpdater).UpdateRunWorkload(t.Context(), uuid.New(), workload); err == nil {

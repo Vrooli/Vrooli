@@ -211,6 +211,70 @@ func TestCreateRun_Success(t *testing.T) {
 	}
 }
 
+func TestCreateRunUsesSavedBrowserCapabilityAndMintsGrantPerRun(t *testing.T) {
+	_, router := setupTestHandlerWithRunner(t, runner.NewMockRunner(domain.RunnerTypeCodex))
+	capabilityJSON := `{"enabled":true,"mode":"managed","candidates":[{"harness":"codex","resourceRole":"browser.session"}],"permissions":{"profileId":"portal/browser-task","level":"act","allowedOrigins":["http://127.0.0.1:24965"],"view":true,"control":true},"budget":{"sessionMinutes":10,"actions":100,"bytes":4194304,"inferenceTokens":0}}`
+	profileBody := encodeProtoJSON(t, &apipb.CreateProfileRequest{Profile: &pb.AgentProfile{
+		Name: "Portal browser task", ProfileKey: "portal/browser-task", RoleRef: "browser.agent",
+		Features: &pb.FeatureFlags{BrowserCapabilityJson: capabilityJSON}, MaxTurns: 8,
+	}})
+	profileResponse := httptest.NewRecorder()
+	router.ServeHTTP(profileResponse, httptest.NewRequest(http.MethodPost, "/api/v1/profiles", bytes.NewReader(profileBody)))
+	if profileResponse.Code != http.StatusCreated {
+		t.Fatalf("create browser profile status=%d body=%s", profileResponse.Code, profileResponse.Body.String())
+	}
+	var profileResult apipb.CreateProfileResponse
+	decodeProtoJSON(t, profileResponse.Body.Bytes(), &profileResult)
+	profile := profileResult.GetProfile()
+	if profile == nil || profile.GetFeatures() == nil {
+		t.Fatal("created profile did not retain browser capability")
+	}
+	profileCapability := profile.GetFeatures().GetBrowserCapabilityJson()
+	if strings.Contains(profileCapability, "grantReceipt") {
+		t.Fatal("persisted profile contains a run grant")
+	}
+
+	taskBody := encodeProtoJSON(t, &apipb.CreateTaskRequest{Task: &pb.Task{Title: "Portal browser task", Description: "Inspect App Library, the selected conversation widget, retry retention and accessibility.", ScopePath: "scenarios/portal"}})
+	taskResponse := httptest.NewRecorder()
+	router.ServeHTTP(taskResponse, httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewReader(taskBody)))
+	if taskResponse.Code != http.StatusCreated {
+		t.Fatalf("create task status=%d body=%s", taskResponse.Code, taskResponse.Body.String())
+	}
+	var taskResult apipb.CreateTaskResponse
+	decodeProtoJSON(t, taskResponse.Body.Bytes(), &taskResult)
+
+	profileID := profile.GetId()
+	runBody := encodeProtoJSON(t, &apipb.CreateRunRequest{TaskId: taskResult.GetTask().GetId(), AgentProfileId: &profileID})
+	runResponse := httptest.NewRecorder()
+	request := authenticatedRunTestRequest(bytes.NewReader(runBody))
+	request.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(runResponse, request)
+	if runResponse.Code != http.StatusCreated {
+		t.Fatalf("create run status=%d body=%s", runResponse.Code, runResponse.Body.String())
+	}
+	var runResult apipb.CreateRunResponse
+	decodeProtoJSON(t, runResponse.Body.Bytes(), &runResult)
+	resolvedJSON := runResult.GetRun().GetResolvedConfig().GetFeatures().GetBrowserCapabilityJson()
+	if resolvedJSON == "" {
+		t.Fatal("run did not resolve the saved browser capability")
+	}
+	var resolved map[string]any
+	if err := json.Unmarshal([]byte(resolvedJSON), &resolved); err != nil {
+		t.Fatal(err)
+	}
+	permissions, ok := resolved["permissions"].(map[string]any)
+	if !ok || permissions["profileId"] != "portal/browser-task" || permissions["level"] != "act" || permissions["view"] != true || permissions["control"] != true {
+		t.Fatalf("resolved browser permissions = %v", permissions)
+	}
+	origins, ok := permissions["allowedOrigins"].([]any)
+	if !ok || len(origins) != 1 || origins[0] != "http://127.0.0.1:24965" {
+		t.Fatalf("resolved allowed origins = %v", permissions["allowedOrigins"])
+	}
+	if receipt, ok := resolved["grantReceipt"].(string); !ok || !strings.HasPrefix(receipt, "browser-grant:") {
+		t.Fatal("Agent Manager did not mint the browser grant for the run")
+	}
+}
+
 func TestCreateRunReplayConflictUsesTypedOwnerStatus(t *testing.T) {
 	_, router, repos, _ := setupTestHandlerWithRunnerAndRepos(t, runner.NewMockRunner(domain.RunnerTypeClaudeCode))
 	profileBody := encodeProtoJSON(t, &apipb.CreateProfileRequest{Profile: &pb.AgentProfile{

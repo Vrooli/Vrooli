@@ -13,7 +13,7 @@ import (
 )
 
 // A mood pack: two decision labels answered per human message, a message-scope
-// composite over them (valence = pleased - frustrated), a run composite over the
+// composite over them (valence = pleased - dissatisfied), a run composite over the
 // message labels, and a composite over facts only.
 func moodLabels(t *testing.T, proven ...string) string {
 	t.Helper()
@@ -45,9 +45,9 @@ func moodLabels(t *testing.T, proven ...string) string {
 		}
 		return `[` + strings.Join([]string{
 			decision("operator.pleased", "is the operator pleased?"),
-			decision("operator.frustrated", "is the operator frustrated?"),
-			rule("operator.valence", "message", "composite", "labels['operator.pleased'] - labels['operator.frustrated']", `"population":"human_operator",`),
-			rule("operator.frustrated_run", "run", "composite", "message_labels['operator.frustrated'].max", `"population":"human_operator","require":"human_message_count > 0",`),
+			decision("operator.dissatisfied", "is the operator dissatisfied?"),
+			rule("operator.valence", "message", "composite", "labels['operator.pleased'] - labels['operator.dissatisfied']", `"population":"human_operator",`),
+			rule("operator.dissatisfied_run", "run", "composite", "message_labels['operator.dissatisfied'].max", `"population":"human_operator","require":"human_message_count > 0",`),
 			rule("run.long", "run", "composite", "duration_min > 20.0 ? 1.0 : 0.0", ``),
 		}, ",") + `]`
 	}
@@ -66,11 +66,11 @@ func moodLabels(t *testing.T, proven ...string) string {
 	return build(hashes)
 }
 
-// moodAnswers answers pleased and frustrated from the message text, so a test
+// moodAnswers answers pleased and dissatisfied from the message text, so a test
 // controls each message's observation.
 type moodAnswers struct {
-	mu         sync.Mutex
-	frustrated map[string]float64 // substring of the message -> probability
+	mu           sync.Mutex
+	dissatisfied map[string]float64 // substring of the message -> probability
 }
 
 func (m *moodAnswers) answer(request *inferencev1.DecideBatchRequest, item int, question *inferencev1.DecisionQuestion) *inferencev1.DecisionAnswer {
@@ -83,10 +83,10 @@ func (m *moodAnswers) answer(request *inferencev1.DecideBatchRequest, item int, 
 		if strings.Contains(state, "thanks") {
 			probability = 0.9
 		}
-	case "operator.frustrated":
+	case "operator.dissatisfied":
 		// Map order is random, so a message matching several fragments takes
 		// the strongest, never whichever the iteration reached last.
-		for text, value := range m.frustrated {
+		for text, value := range m.dissatisfied {
 			if strings.Contains(state, text) && value > probability {
 				probability = value
 			}
@@ -96,7 +96,7 @@ func (m *moodAnswers) answer(request *inferencev1.DecideBatchRequest, item int, 
 }
 
 func newMoodAnswers() *moodAnswers {
-	return &moodAnswers{frustrated: map[string]float64{"failing": 0.9, "wrong": 0.9}}
+	return &moodAnswers{dissatisfied: map[string]float64{"failing": 0.9, "wrong": 0.9}}
 }
 
 // tickingClock advances a second per reading, so a rewritten row is visible.
@@ -151,7 +151,7 @@ func TestAMessageCompositeIsComputedFromThatMessagesOwnLabels(t *testing.T) {
 	for index, message := range view.Messages {
 		got := numberOf(t, findLabel(t, message.Labels, "operator.valence"))
 		if math.Abs(got-want[index]) > 1e-9 {
-			t.Fatalf("message %d valence = %v, want %v (pleased - frustrated of that message)", index, got, want[index])
+			t.Fatalf("message %d valence = %v, want %v (pleased - dissatisfied of that message)", index, got, want[index])
 		}
 	}
 	// The composite is stored per message, so it is a series like any message label.
@@ -174,7 +174,7 @@ func TestARunCompositeReadsItsMessagesLabels(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := numberOf(t, findLabel(t, view.Labels, "operator.frustrated_run")); math.Abs(got-0.9) > 1e-9 {
+	if got := numberOf(t, findLabel(t, view.Labels, "operator.dissatisfied_run")); math.Abs(got-0.9) > 1e-9 {
 		t.Fatalf("run composite = %v, want the max frustration of its messages, 0.9", got)
 	}
 }
@@ -184,8 +184,8 @@ func TestACompositeIsRewrittenOnlyWhenItsInputsChange(t *testing.T) {
 	service, store := testService(t, moodLabels(t), []RunFacts{moodConversation()}, &fakeDecision{answer: answers.answer}, Options{Clock: tickingClock()})
 	ctx := context.Background()
 	runComposite := func() (float64, time.Time) {
-		compiled, _ := service.pack.Label("operator.frustrated_run")
-		row, err := store.Current(ctx, ScopeRun, "chat", "operator.frustrated_run", compiled.hash)
+		compiled, _ := service.pack.Label("operator.dissatisfied_run")
+		row, err := store.Current(ctx, ScopeRun, "chat", "operator.dissatisfied_run", compiled.hash)
 		if err != nil || row == nil {
 			t.Fatalf("run composite row = %v (%v)", row, err)
 		}
@@ -210,7 +210,7 @@ func TestACompositeIsRewrittenOnlyWhenItsInputsChange(t *testing.T) {
 	facts.OperatorHistory = append(facts.OperatorHistory, extra)
 	facts.OperatorMessages = facts.OperatorHistory
 	service.features.(*FixtureSource).Set(facts)
-	answers.frustrated["awful"] = 0.99
+	answers.dissatisfied["awful"] = 0.99
 	if _, err := service.Annotate(ctx, "chat", AnnotateOptions{}); err != nil {
 		t.Fatal(err)
 	}
@@ -220,8 +220,8 @@ func TestACompositeIsRewrittenOnlyWhenItsInputsChange(t *testing.T) {
 	}
 
 	// A message's answer changes: the composite follows it.
-	answers.frustrated["awful"] = 0.5
-	if _, err := service.Annotate(ctx, "chat", AnnotateOptions{Force: true}); err != nil {
+	answers.dissatisfied["awful"] = 0.5
+	if _, err := service.Annotate(ctx, "chat", AnnotateOptions{ForceLabels: []string{"operator.dissatisfied"}}); err != nil {
 		t.Fatal(err)
 	}
 	if lowered, _ := runComposite(); math.Abs(lowered-0.9) > 1e-9 {
@@ -241,11 +241,11 @@ func TestAskingForACompositeAsksForItsInputs(t *testing.T) {
 	}
 	for _, message := range view.Messages {
 		findLabel(t, message.Labels, "operator.pleased")
-		findLabel(t, message.Labels, "operator.frustrated")
+		findLabel(t, message.Labels, "operator.dissatisfied")
 		numberOf(t, findLabel(t, message.Labels, "operator.valence"))
 	}
 	for _, label := range view.Labels {
-		if label.ID == "run.long" || label.ID == "operator.frustrated_run" {
+		if label.ID == "run.long" || label.ID == "operator.dissatisfied_run" {
 			t.Fatalf("a composite that was not asked for ran: %+v", label)
 		}
 	}
@@ -260,8 +260,8 @@ func TestACompositeOverLabelsIsProvenOnlyWhenEveryInputIsProven(t *testing.T) {
 		reasonMentions    string
 		provenValenceRows int
 	}{
-		{"both inputs proven", []string{"operator.pleased", "operator.frustrated"}, GateProven, GateProven, "", 3},
-		{"one input unproven", []string{"operator.pleased"}, GateUnproven, GateUnproven, "operator.frustrated", 0},
+		{"both inputs proven", []string{"operator.pleased", "operator.dissatisfied"}, GateProven, GateProven, "", 3},
+		{"one input unproven", []string{"operator.pleased"}, GateUnproven, GateUnproven, "operator.dissatisfied", 0},
 		{"no input proven", nil, GateUnproven, GateUnproven, "operator.", 0},
 	}
 	for _, tc := range cases {
@@ -287,13 +287,13 @@ func TestACompositeOverLabelsIsProvenOnlyWhenEveryInputIsProven(t *testing.T) {
 			if tc.reasonMentions != "" && !strings.Contains(valence.Gate.Reason, tc.reasonMentions) {
 				t.Fatalf("reason = %q, want it to name %q", valence.Gate.Reason, tc.reasonMentions)
 			}
-			run := findLabel(t, view.Labels, "operator.frustrated_run")
+			run := findLabel(t, view.Labels, "operator.dissatisfied_run")
 			runWant := GateProven
-			if !contains(tc.proven, "operator.frustrated") {
+			if !contains(tc.proven, "operator.dissatisfied") {
 				runWant = GateUnproven
 			}
 			if run.GateState != runWant {
-				t.Fatalf("run composite gate = %s (%s), want %s: it reads only frustrated", run.GateState, run.Gate.Reason, runWant)
+				t.Fatalf("run composite gate = %s (%s), want %s: it reads only dissatisfied", run.GateState, run.Gate.Reason, runWant)
 			}
 			coverage, err := service.Coverage(ctx, "7d")
 			if err != nil {
@@ -393,15 +393,46 @@ func TestAMessageLabelAcceptsAComposite(t *testing.T) {
 		t.Fatal(err)
 	}
 	valence, _ := compiled.Label("operator.valence")
-	if !valence.derived() || strings.Join(valence.refs.Labels, ",") != "operator.frustrated,operator.pleased" {
+	if !valence.derived() || strings.Join(valence.refs.Labels, ",") != "operator.dissatisfied,operator.pleased" {
 		t.Fatalf("valence refs = %+v", valence.refs)
 	}
-	run, _ := compiled.Label("operator.frustrated_run")
-	if strings.Join(run.refs.Messages, ",") != "operator.frustrated" || len(run.refs.Labels) != 0 {
+	run, _ := compiled.Label("operator.dissatisfied_run")
+	if strings.Join(run.refs.Messages, ",") != "operator.dissatisfied" || len(run.refs.Labels) != 0 {
 		t.Fatalf("run composite refs = %+v", run.refs)
 	}
 	order := compiled.compositeOrder(ScopeMessage)
 	if len(order) != 1 || order[0] != "operator.valence" {
 		t.Fatalf("message composite order = %v", order)
+	}
+}
+
+// A run composite reads each message on the scale its own model was calibrated
+// to, exactly as the message's own view does, whether or not that model has
+// cleared the gate: otherwise a share threshold set from calibrated values
+// fires on raw ones.
+func TestARunCompositeReadsTheSameCalibratedValueAsTheMessageView(t *testing.T) {
+	labels := moodLabels(t, "operator.dissatisfied", "operator.pleased")
+	// Fitted on tuning gold only, at a temperature that visibly moves the answer.
+	labels = strings.ReplaceAll(labels, `"temperature":1,`, `"temperature":2.5,`)
+	labels = strings.ReplaceAll(labels, `"split":"holdout"`, `"split":"tuning"`)
+	service, _ := testService(t, labels, []RunFacts{moodConversation()}, &fakeDecision{answer: newMoodAnswers().answer}, Options{Clock: tickingClock()})
+	view, err := service.Annotate(context.Background(), "chat", AnnotateOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var strongest float64
+	for _, message := range view.Messages {
+		own := findLabel(t, message.Labels, "operator.dissatisfied")
+		if own.Proven {
+			t.Fatalf("a tuning measurement must not prove: %+v", own.Gate)
+		}
+		if own.CalibratedProbability == nil || own.Probability == nil || math.Abs(*own.CalibratedProbability-*own.Probability) < 1e-6 {
+			t.Fatalf("the view did not temper an unproven answer: raw %v calibrated %v", own.Probability, own.CalibratedProbability)
+		}
+		strongest = math.Max(strongest, *own.CalibratedProbability)
+	}
+	run := findLabel(t, view.Labels, "operator.dissatisfied_run")
+	if got := numberOf(t, run); math.Abs(got-strongest) > 1e-9 {
+		t.Fatalf("run composite = %v, want %v: the strongest of what the message views report", got, strongest)
 	}
 }

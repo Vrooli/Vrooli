@@ -748,7 +748,7 @@ func TestIndexerDoesNotCompleteAnUnresolvedOrMissingTranscript(t *testing.T) {
 	}{
 		{"unreadable", func(t *testing.T, r *rig, path string, row *transcriptindex.FileRow) {
 			row.Status = transcriptindex.StatusUnreadable
-			row.Error = "event recording outcome uncertain; cursor preserved: source changed"
+			row.Error = "event recording outcome uncertain; cursor preserved: event store refused the batch"
 			if err := r.repos.TranscriptIndex.SaveTranscriptFile(context.Background(), *row, nil); err != nil {
 				t.Fatal(err)
 			}

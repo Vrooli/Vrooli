@@ -21,10 +21,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../components/ui/dialog";
-import { Input } from "../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { Label } from "../components/ui/label";
 import { RoleSelector } from "../components/RoleSelector";
-import { Textarea } from "../components/ui/textarea";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1.1.1";
 import { durationMs, type Duration } from "@bufbuild/protobuf/wkt";
 import { profileSandboxModeFormValue } from "../lib/utils";
 import type { RolePolicyCatalog } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";

@@ -15,8 +15,7 @@ import (
 // name the earliest one, the run whose physical presence the inventory
 // probes. Terminal runs and other harnesses never match.
 func TestAttachedSessionRunResolverNamesTheEarliestLiveRunOfTheSession(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	base := time.Date(2026, 11, 20, 14, 0, 0, 0, time.UTC)

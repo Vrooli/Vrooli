@@ -99,10 +99,23 @@ type eventSubscriber struct {
 	ch          chan *domain.RunEvent
 	done        chan struct{}
 	historyDone chan struct{}
+	eventTypes  []domain.RunEventType
 	once        sync.Once
 }
 
 func (s *eventSubscriber) stop() { s.once.Do(func() { close(s.done) }) }
+
+func (s *eventSubscriber) accepts(event *domain.RunEvent) bool {
+	if len(s.eventTypes) == 0 {
+		return true
+	}
+	for _, eventType := range s.eventTypes {
+		if event.EventType == eventType {
+			return true
+		}
+	}
+	return false
+}
 
 // eventRow is the database row representation for run_events.
 type eventRow struct {
@@ -556,6 +569,9 @@ func (s *SQLiteStore) notifySubscribers(runID uuid.UUID, events []*domain.RunEve
 // A full live buffer invalidates the stream: close it so the subscriber can
 // resume from its last cursor rather than silently missing an event.
 func deliverSubscriber(sub *eventSubscriber, event *domain.RunEvent) {
+	if !sub.accepts(event) {
+		return
+	}
 	select {
 	case <-sub.done:
 		return
@@ -791,7 +807,12 @@ func (s *SQLiteStore) Stream(ctx context.Context, runID uuid.UUID, opts StreamOp
 		bufSize = 100
 	}
 
-	sub := &eventSubscriber{ch: make(chan *domain.RunEvent, bufSize), done: make(chan struct{}), historyDone: make(chan struct{})}
+	sub := &eventSubscriber{
+		ch:          make(chan *domain.RunEvent, bufSize),
+		done:        make(chan struct{}),
+		historyDone: make(chan struct{}),
+		eventTypes:  append([]domain.RunEventType(nil), opts.EventTypes...),
+	}
 
 	// Register subscriber
 	s.mu.Lock()
@@ -801,16 +822,10 @@ func (s *SQLiteStore) Stream(ctx context.Context, runID uuid.UUID, opts StreamOp
 	// Send existing events from the database in a goroutine
 	go func() {
 		defer close(sub.historyDone)
-		// Build type filter if needed
-		var typeFilter []domain.RunEventType
-		if len(opts.EventTypes) > 0 {
-			typeFilter = opts.EventTypes
-		}
-
 		// Query events from the starting sequence
 		events, err := s.Get(ctx, runID, GetOptions{
 			AfterSequence: opts.FromSequence - 1, // Get events >= FromSequence
-			EventTypes:    typeFilter,
+			EventTypes:    sub.eventTypes,
 		})
 		if err != nil {
 			s.log.WithError(err).Error("Failed to get historical events for stream")

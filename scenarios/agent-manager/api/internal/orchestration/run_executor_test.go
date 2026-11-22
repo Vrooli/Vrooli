@@ -96,6 +96,12 @@ func newMockSandboxProvider() *mocks.FakeSandboxProvider {
 	return mocks.NewFakeSandboxProvider()
 }
 
+// newRunExecutorForTest owns the stable repository and prompt wiring shared by
+// executor behavior tests; each caller still selects its registry and sandbox.
+func newRunExecutorForTest(repos *database.Repositories, registry runner.Registry, sandboxProvider sandbox.Provider, events event.Store, f *testFixtures) *orchestration.RunExecutor {
+	return orchestration.NewRunExecutor(repos.Runs, registry, sandboxProvider, events, f.run, f.task, f.profile, "test prompt", "")
+}
+
 type testBroadcaster struct {
 	*mocks.FakeBroadcaster
 }
@@ -139,17 +145,7 @@ func TestNewRunExecutor(t *testing.T) {
 
 	sandboxProvider := newMockSandboxProvider()
 
-	executor := orchestration.NewRunExecutor(
-		repos.Runs,
-		registry,
-		sandboxProvider,
-		eventStore,
-		f.run,
-		f.task,
-		f.profile,
-		"test prompt",
-		"", // no system prompt
-	)
+	executor := newRunExecutorForTest(repos, registry, sandboxProvider, eventStore, f)
 
 	if executor == nil {
 		t.Fatal("expected executor, got nil")
@@ -166,17 +162,7 @@ func TestRunExecutor_WithLevers(t *testing.T) {
 	customLevers.Heartbeat.RunHeartbeatInterval = 10 * time.Second
 	customLevers.Heartbeat.MaxRetriesPerPhase = 5
 
-	executor := orchestration.NewRunExecutor(
-		repos.Runs,
-		registry,
-		nil,
-		eventStore,
-		f.run,
-		f.task,
-		f.profile,
-		"test prompt",
-		"", // no system prompt
-	).WithLevers(customLevers)
+	executor := newRunExecutorForTest(repos, registry, nil, eventStore, f).WithLevers(customLevers)
 
 	if executor == nil {
 		t.Fatal("expected executor, got nil")
@@ -213,17 +199,7 @@ func TestRunExecutor_Execute_SandboxedMode_Success(t *testing.T) {
 	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 	levers.Heartbeat.MaxRetriesPerPhase = 1
 
-	executor := orchestration.NewRunExecutor(
-		repos.Runs,
-		registry,
-		sandboxProvider,
-		eventStore,
-		f.run,
-		f.task,
-		f.profile,
-		"test prompt",
-		"", // no system prompt
-	).WithLevers(levers)
+	executor := newRunExecutorForTest(repos, registry, sandboxProvider, eventStore, f).WithLevers(levers)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -267,17 +243,7 @@ func TestRunExecutor_Execute_InPlaceMode_Success(t *testing.T) {
 	levers.Execution.DefaultTimeout = 5 * time.Second
 	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
-	executor := orchestration.NewRunExecutor(
-		repos.Runs,
-		registry,
-		nil, // No sandbox provider for in-place
-		eventStore,
-		f.run,
-		f.task,
-		f.profile,
-		"test prompt",
-		"", // no system prompt
-	).WithLevers(levers)
+	executor := newRunExecutorForTest(repos, registry, nil, eventStore, f).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -314,17 +280,7 @@ func TestRunExecutor_Execute_SandboxCreationFailure(t *testing.T) {
 	levers.Execution.DefaultTimeout = 5 * time.Second
 	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
-	executor := orchestration.NewRunExecutor(
-		repos.Runs,
-		registry,
-		sandboxProvider,
-		eventStore,
-		f.run,
-		f.task,
-		f.profile,
-		"test prompt",
-		"", // no system prompt
-	).WithLevers(levers)
+	executor := newRunExecutorForTest(repos, registry, sandboxProvider, eventStore, f).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -361,17 +317,7 @@ func TestRunExecutor_Execute_NoSandboxProvider(t *testing.T) {
 	levers.Execution.DefaultTimeout = 5 * time.Second
 	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
-	executor := orchestration.NewRunExecutor(
-		repos.Runs,
-		registry,
-		nil, // No sandbox provider
-		eventStore,
-		f.run,
-		f.task,
-		f.profile,
-		"test prompt",
-		"", // no system prompt
-	).WithLevers(levers)
+	executor := newRunExecutorForTest(repos, registry, nil, eventStore, f).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -401,17 +347,7 @@ func TestRunExecutor_Execute_RunnerNotAvailable(t *testing.T) {
 	levers.Execution.DefaultTimeout = 5 * time.Second
 	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
-	executor := orchestration.NewRunExecutor(
-		repos.Runs,
-		registry,
-		nil,
-		eventStore,
-		f.run,
-		f.task,
-		f.profile,
-		"test prompt",
-		"", // no system prompt
-	).WithLevers(levers)
+	executor := newRunExecutorForTest(repos, registry, nil, eventStore, f).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -435,17 +371,7 @@ func TestRunExecutor_Execute_RunnerNotRegistered(t *testing.T) {
 	levers.Execution.DefaultTimeout = 5 * time.Second
 	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
-	executor := orchestration.NewRunExecutor(
-		repos.Runs,
-		registry,
-		nil,
-		eventStore,
-		f.run,
-		f.task,
-		f.profile,
-		"test prompt",
-		"", // no system prompt
-	).WithLevers(levers)
+	executor := newRunExecutorForTest(repos, registry, nil, eventStore, f).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -478,17 +404,7 @@ func TestRunExecutor_Execute_RunnerReturnsError(t *testing.T) {
 	levers.Execution.DefaultTimeout = 5 * time.Second
 	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
-	executor := orchestration.NewRunExecutor(
-		repos.Runs,
-		registry,
-		nil,
-		eventStore,
-		f.run,
-		f.task,
-		f.profile,
-		"test prompt",
-		"", // no system prompt
-	).WithLevers(levers)
+	executor := newRunExecutorForTest(repos, registry, nil, eventStore, f).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -521,17 +437,7 @@ func TestRunExecutor_Execute_RunnerReturnsNonZeroExit(t *testing.T) {
 	levers.Execution.DefaultTimeout = 5 * time.Second
 	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
-	executor := orchestration.NewRunExecutor(
-		repos.Runs,
-		registry,
-		nil,
-		eventStore,
-		f.run,
-		f.task,
-		f.profile,
-		"test prompt",
-		"", // no system prompt
-	).WithLevers(levers)
+	executor := newRunExecutorForTest(repos, registry, nil, eventStore, f).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -577,17 +483,7 @@ func TestRunExecutor_Execute_ContextCancelled(t *testing.T) {
 	levers.Execution.DefaultTimeout = 30 * time.Second
 	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
-	executor := orchestration.NewRunExecutor(
-		repos.Runs,
-		registry,
-		nil,
-		eventStore,
-		f.run,
-		f.task,
-		f.profile,
-		"test prompt",
-		"", // no system prompt
-	).WithLevers(levers)
+	executor := newRunExecutorForTest(repos, registry, nil, eventStore, f).WithLevers(levers)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -644,17 +540,7 @@ func TestRunExecutor_Execute_ContextTimeout(t *testing.T) {
 	levers.Execution.DefaultTimeout = 200 * time.Millisecond
 	levers.Heartbeat.RunHeartbeatInterval = 50 * time.Millisecond
 
-	executor := orchestration.NewRunExecutor(
-		repos.Runs,
-		registry,
-		nil,
-		eventStore,
-		f.run,
-		f.task,
-		f.profile,
-		"test prompt",
-		"", // no system prompt
-	).WithLevers(levers)
+	executor := newRunExecutorForTest(repos, registry, nil, eventStore, f).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -684,7 +570,7 @@ func TestRunExecutor_Execute_UsesResolvedRunTimeout(t *testing.T) {
 	levers := cfgpkg.DefaultLevers()
 	levers.Execution.DefaultTimeout = 5 * time.Second
 	levers.Heartbeat.RunHeartbeatInterval = 25 * time.Millisecond
-	executor := orchestration.NewRunExecutor(repos.Runs, registry, nil, eventStore, f.run, f.task, f.profile, "test prompt", "").WithLevers(levers).WithRunStateRoot(t.TempDir())
+	executor := newRunExecutorForTest(repos, registry, nil, eventStore, f).WithLevers(levers).WithRunStateRoot(t.TempDir())
 
 	started := time.Now()
 	executor.Execute(context.Background())
@@ -720,17 +606,7 @@ func TestRunExecutor_Execute_TimeoutPreservesSessionID(t *testing.T) {
 	levers.Execution.DefaultTimeout = 200 * time.Millisecond
 	levers.Heartbeat.RunHeartbeatInterval = 50 * time.Millisecond
 
-	executor := orchestration.NewRunExecutor(
-		repos.Runs,
-		registry,
-		nil,
-		eventStore,
-		f.run,
-		f.task,
-		f.profile,
-		"test prompt",
-		"",
-	).WithLevers(levers)
+	executor := newRunExecutorForTest(repos, registry, nil, eventStore, f).WithLevers(levers)
 
 	executor.Execute(context.Background())
 
@@ -781,17 +657,7 @@ func TestRunExecutor_Execute_TimeoutNoSessionID(t *testing.T) {
 	levers.Execution.DefaultTimeout = 200 * time.Millisecond
 	levers.Heartbeat.RunHeartbeatInterval = 50 * time.Millisecond
 
-	executor := orchestration.NewRunExecutor(
-		repos.Runs,
-		registry,
-		nil,
-		eventStore,
-		f.run,
-		f.task,
-		f.profile,
-		"test prompt",
-		"",
-	).WithLevers(levers)
+	executor := newRunExecutorForTest(repos, registry, nil, eventStore, f).WithLevers(levers)
 
 	executor.Execute(context.Background())
 
@@ -833,17 +699,7 @@ func TestRunExecutor_WithCheckpointRepository(t *testing.T) {
 	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 	levers.Heartbeat.CheckpointInterval = 50 * time.Millisecond
 
-	executor := orchestration.NewRunExecutor(
-		repos.Runs,
-		registry,
-		nil,
-		eventStore,
-		f.run,
-		f.task,
-		f.profile,
-		"test prompt",
-		"", // no system prompt
-	).WithLevers(levers).WithCheckpointRepository(repos.Checkpoints)
+	executor := newRunExecutorForTest(repos, registry, nil, eventStore, f).WithLevers(levers).WithCheckpointRepository(repos.Checkpoints)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -903,17 +759,7 @@ func TestRunExecutor_WithResumeFrom(t *testing.T) {
 	levers.Execution.DefaultTimeout = 5 * time.Second
 	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
-	executor := orchestration.NewRunExecutor(
-		repos.Runs,
-		registry,
-		sandboxProvider,
-		eventStore,
-		f.run,
-		f.task,
-		f.profile,
-		"test prompt",
-		"", // no system prompt
-	).WithLevers(levers).WithResumeFrom(checkpoint)
+	executor := newRunExecutorForTest(repos, registry, sandboxProvider, eventStore, f).WithLevers(levers).WithResumeFrom(checkpoint)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -953,17 +799,7 @@ func TestRunExecutor_EmitsEvents(t *testing.T) {
 	levers.Execution.DefaultTimeout = 5 * time.Second
 	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
-	executor := orchestration.NewRunExecutor(
-		repos.Runs,
-		registry,
-		nil,
-		eventStore,
-		f.run,
-		f.task,
-		f.profile,
-		"test prompt",
-		"", // no system prompt
-	).WithLevers(levers)
+	executor := newRunExecutorForTest(repos, registry, nil, eventStore, f).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -1008,17 +844,7 @@ func TestRunExecutor_EmitsErrorEventOnFailure(t *testing.T) {
 	levers.Execution.DefaultTimeout = 5 * time.Second
 	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
-	executor := orchestration.NewRunExecutor(
-		repos.Runs,
-		registry,
-		nil,
-		eventStore,
-		f.run,
-		f.task,
-		f.profile,
-		"test prompt",
-		"", // no system prompt
-	).WithLevers(levers)
+	executor := newRunExecutorForTest(repos, registry, nil, eventStore, f).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -1054,17 +880,7 @@ func TestRunExecutor_UpdatesRunStatus(t *testing.T) {
 	levers.Execution.DefaultTimeout = 5 * time.Second
 	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
-	executor := orchestration.NewRunExecutor(
-		repos.Runs,
-		registry,
-		nil,
-		eventStore,
-		f.run,
-		f.task,
-		f.profile,
-		"test prompt",
-		"", // no system prompt
-	).WithLevers(levers)
+	executor := newRunExecutorForTest(repos, registry, nil, eventStore, f).WithLevers(levers)
 	terminal := make(chan *domain.Run, 1)
 	executor.WithTerminalObserver(func(_ context.Context, run *domain.Run) { terminal <- run })
 
@@ -1114,17 +930,7 @@ func TestRunExecutor_SetsApprovalStateOnSuccess(t *testing.T) {
 	levers.Execution.DefaultTimeout = 5 * time.Second
 	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
-	executor := orchestration.NewRunExecutor(
-		repos.Runs,
-		registry,
-		nil,
-		eventStore,
-		f.run,
-		f.task,
-		f.profile,
-		"test prompt",
-		"", // no system prompt
-	).WithLevers(levers)
+	executor := newRunExecutorForTest(repos, registry, nil, eventStore, f).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -1157,17 +963,7 @@ func TestRunExecutor_InPlaceMode_MissingProjectRoot(t *testing.T) {
 	levers.Execution.DefaultTimeout = 5 * time.Second
 	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
-	executor := orchestration.NewRunExecutor(
-		repos.Runs,
-		registry,
-		nil,
-		eventStore,
-		f.run,
-		f.task,
-		f.profile,
-		"test prompt",
-		"", // no system prompt
-	).WithLevers(levers)
+	executor := newRunExecutorForTest(repos, registry, nil, eventStore, f).WithLevers(levers)
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -1370,10 +1166,7 @@ func TestRunExecutor_BroadcastsStatusOnSuccess(t *testing.T) {
 	levers.Execution.DefaultTimeout = 5 * time.Second
 	levers.Heartbeat.RunHeartbeatInterval = 100 * time.Millisecond
 
-	executor := orchestration.NewRunExecutor(
-		repos.Runs, registry, nil, eventStore,
-		f.run, f.task, f.profile, "test prompt", "",
-	).WithLevers(levers).WithBroadcaster(broadcaster)
+	executor := newRunExecutorForTest(repos, registry, nil, eventStore, f).WithLevers(levers).WithBroadcaster(broadcaster)
 
 	executor.Execute(context.Background())
 

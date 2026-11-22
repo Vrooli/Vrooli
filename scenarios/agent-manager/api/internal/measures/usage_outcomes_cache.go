@@ -43,11 +43,17 @@ type inputCache struct {
 	mu      sync.Mutex
 	entries map[inputKey]*inputEntry
 	// loading serializes a first read per key, so parallel views scan once.
-	loading map[inputKey]*sync.Mutex
+	// refs counts both the active loader and waiters, allowing idle gates to go.
+	loading map[inputKey]*inputLoadGate
+}
+
+type inputLoadGate struct {
+	mu   sync.Mutex
+	refs int
 }
 
 func newInputCache() *inputCache {
-	return &inputCache{entries: map[inputKey]*inputEntry{}, loading: map[inputKey]*sync.Mutex{}}
+	return &inputCache{entries: map[inputKey]*inputEntry{}, loading: map[inputKey]*inputLoadGate{}}
 }
 
 func inputKeyFor(now, from, to time.Time) inputKey {
@@ -66,12 +72,13 @@ func (c *inputCache) get(ctx context.Context, now, from, to time.Time, load func
 	c.mu.Lock()
 	gate := c.loading[key]
 	if gate == nil {
-		gate = &sync.Mutex{}
+		gate = &inputLoadGate{}
 		c.loading[key] = gate
 	}
+	gate.refs++
 	c.mu.Unlock()
-	gate.Lock()
-	defer gate.Unlock()
+	gate.mu.Lock()
+	defer c.releaseLoadGate(key, gate)
 	if inputs, ok := c.lookup(key, now, load); ok {
 		return inputs, nil
 	}
@@ -81,6 +88,16 @@ func (c *inputCache) get(ctx context.Context, now, from, to time.Time, load func
 	}
 	c.store(key, now, inputs)
 	return inputs, nil
+}
+
+func (c *inputCache) releaseLoadGate(key inputKey, gate *inputLoadGate) {
+	gate.mu.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	gate.refs--
+	if gate.refs == 0 && c.loading[key] == gate {
+		delete(c.loading, key)
+	}
 }
 
 func (c *inputCache) lookup(key inputKey, now time.Time, load func(context.Context) (outcomeInputs, error)) (outcomeInputs, bool) {

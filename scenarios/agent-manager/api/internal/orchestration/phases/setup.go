@@ -63,10 +63,18 @@ func SetupWorkspace(ctx context.Context, in SetupWorkspaceInput) (SetupWorkspace
 
 	if in.ExistingSandboxID != nil {
 		workDir := in.ExistingWorkDir
-		if workDir == "" && in.Sandbox != nil {
-			if got, err := in.Sandbox.GetWorkspacePath(ctx, *in.ExistingSandboxID); err == nil {
-				workDir = got
+		if workDir == "" {
+			if err := ensureWorkspaceSandboxAvailable(ctx, in.Deps, in.Run, in.Sandbox, "get_workspace_path"); err != nil {
+				if sandboxErr, ok := err.(*domain.SandboxError); ok {
+					sandboxErr.SandboxID = in.ExistingSandboxID
+				}
+				return SetupWorkspaceOutput{}, err
 			}
+			got, err := resolveSandboxWorkspacePath(ctx, in.Sandbox, *in.ExistingSandboxID)
+			if err != nil {
+				return SetupWorkspaceOutput{}, err
+			}
+			workDir = got
 		}
 		if workDir == "" {
 			return SetupWorkspaceOutput{}, domain.NewValidationErrorWithHint(
@@ -106,7 +114,7 @@ func CreateSandboxWorkspace(ctx context.Context, in SetupWorkspaceInput) (SetupW
 		"agent_manager_run_id": in.Run.ID.String(),
 	}
 
-	if err := ensureWorkspaceSandboxAvailable(ctx, in.Deps, in.Run, in.Sandbox); err != nil {
+	if err := ensureWorkspaceSandboxAvailable(ctx, in.Deps, in.Run, in.Sandbox, "create"); err != nil {
 		return SetupWorkspaceOutput{}, err
 	}
 
@@ -161,22 +169,35 @@ func CreateSandboxWorkspace(ctx context.Context, in SetupWorkspaceInput) (SetupW
 		}
 	}
 
-	workDir, err := in.Sandbox.GetWorkspacePath(ctx, sbx.ID)
+	workDir, err := resolveSandboxWorkspacePath(ctx, in.Sandbox, sbx.ID)
 	if err != nil {
-		sbxID := sbx.ID
-		return SetupWorkspaceOutput{}, &domain.SandboxError{
-			SandboxID:   &sbxID,
-			Operation:   "get_workspace_path",
-			Cause:       err,
-			IsTransient: true,
-			CanRetry:    true,
-		}
+		return SetupWorkspaceOutput{}, err
 	}
 
 	return SetupWorkspaceOutput{
 		SandboxID: &sbx.ID,
 		WorkDir:   workDir,
 	}, nil
+}
+
+// resolveSandboxWorkspacePath classifies workspace-path failures consistently
+// for both newly created and resumed sandboxes. Callers must verify provider
+// availability before resolving a persisted sandbox ID.
+func resolveSandboxWorkspacePath(ctx context.Context, provider sandbox.Provider, sandboxID uuid.UUID) (string, error) {
+	workDir, err := provider.GetWorkspacePath(ctx, sandboxID)
+	if err == nil && workDir != "" {
+		return workDir, nil
+	}
+	if err == nil {
+		err = fmt.Errorf("provider returned an empty workspace path")
+	}
+	return "", &domain.SandboxError{
+		SandboxID:   &sandboxID,
+		Operation:   "get_workspace_path",
+		Cause:       err,
+		IsTransient: true,
+		CanRetry:    true,
+	}
 }
 
 // cleanupFreshSandboxAfterCancelledRun handles the narrow case where the

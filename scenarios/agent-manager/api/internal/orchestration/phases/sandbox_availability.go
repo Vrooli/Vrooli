@@ -12,7 +12,10 @@ import (
 	"agent-manager/internal/domain"
 )
 
-func ensureWorkspaceSandboxAvailable(ctx context.Context, deps Deps, run *domain.Run, provider sandbox.Provider) error {
+func ensureWorkspaceSandboxAvailable(ctx context.Context, deps Deps, run *domain.Run, provider sandbox.Provider, operation string) error {
+	if operation == "" {
+		operation = "create"
+	}
 	if provider == nil {
 		return domain.NewConfigMissingError("sandbox", "provider not configured", nil)
 	}
@@ -27,16 +30,16 @@ func ensureWorkspaceSandboxAvailable(ctx context.Context, deps Deps, run *domain
 			fmt.Sprintf("workspace-sandbox unavailable; attempting lifecycle start: %s", reason))
 	}
 	if deps.WorkspaceSandbox == nil {
-		return workspaceSandboxUnavailableError("create", reason, nil)
+		return workspaceSandboxUnavailableError(operation, reason, nil)
 	}
 
 	if err := deps.WorkspaceSandbox.EnsureAvailable(ctx); err != nil {
-		return workspaceSandboxUnavailableError("create", reason, err)
+		return workspaceSandboxUnavailableError(operation, reason, err)
 	}
 
 	ok, reason = checkSandboxAvailable(ctx, deps.Levers.Sandbox, provider)
 	if !ok {
-		return workspaceSandboxUnavailableError("create", reason, nil)
+		return workspaceSandboxUnavailableError(operation, reason, nil)
 	}
 	if run != nil {
 		EmitSystemEvent(ctx, deps, run.ID, "info", "workspace-sandbox is available after lifecycle ensure")

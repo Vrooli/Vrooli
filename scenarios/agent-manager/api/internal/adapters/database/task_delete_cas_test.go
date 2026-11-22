@@ -9,8 +9,7 @@ import (
 )
 
 func TestDeleteTaskRequiresCancelledStateAndTerminalAttachedRuns(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	open := &domain.Task{ID: uuid.New(), Title: "open", ScopePath: ".", Status: domain.TaskStatusQueued}

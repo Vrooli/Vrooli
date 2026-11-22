@@ -18,8 +18,7 @@ import (
 // for a parked or terminal run — so a heartbeat racing a park/stop transition
 // can never resurrect the run.
 func TestFreshRecoveryClaimFencesLifecycleWriters(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	db.DB.SetMaxOpenConns(1)
 	repos := NewRepositories(db, logrus.New())
 	claims := repos.Runs.(repository.RunFreshRecoveryClaimer)
@@ -101,8 +100,7 @@ func TestFreshRecoveryClaimFencesLifecycleWriters(t *testing.T) {
 }
 
 func TestFreshRecoveryClaimRejectsAutomaticCancellation(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	claims := repos.Runs.(repository.RunFreshRecoveryClaimer)
 	for _, status := range []domain.RunStatus{domain.RunStatusFailed, domain.RunStatusCancelled} {
@@ -122,8 +120,7 @@ func TestFreshRecoveryClaimRejectsAutomaticCancellation(t *testing.T) {
 }
 
 func TestFreshRecoveryClaimReleaseCannotForgetAcceptance(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	claims := repos.Runs.(repository.RunFreshRecoveryClaimer)
 	for _, accepted := range []bool{false, true} {
@@ -174,8 +171,7 @@ func TestFreshRecoveryClaimReleaseCannotForgetAcceptance(t *testing.T) {
 }
 
 func TestRecoveryAttachmentRepairsOnlyCurrentTurnMetadata(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := t.Context()
 	task := &domain.Task{ID: uuid.New(), Title: "recovery attachment", ScopePath: "/test", Status: domain.TaskStatusQueued}
@@ -239,8 +235,7 @@ func TestRecoveryAttachmentRepairsOnlyCurrentTurnMetadata(t *testing.T) {
 }
 
 func TestRecoveryOwnershipEpochFencesReplacedOwnerWrites(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := t.Context()
 	run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusRunning, RunMode: domain.RunModeInPlace}
@@ -278,8 +273,7 @@ func TestRecoveryOwnershipEpochFencesReplacedOwnerWrites(t *testing.T) {
 }
 
 func TestClearTerminalRunnerProcessIdentityIsGuarded(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := t.Context()
 	run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusFailed, RunMode: domain.RunModeInPlace, RunnerPID: 111, RunnerPGID: 222}
@@ -303,8 +297,7 @@ func TestClearTerminalRunnerProcessIdentityIsGuarded(t *testing.T) {
 }
 
 func TestRunLifecycleFencesOldAttemptWriters(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := t.Context()
 	run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusRunning, RunMode: domain.RunModeInPlace, ApprovalState: domain.ApprovalStateNone}

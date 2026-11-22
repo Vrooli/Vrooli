@@ -16,9 +16,7 @@ import (
 )
 
 func TestSQLiteStoreReadsLegacyTypedPayloadRow(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	store := event.NewSQLiteStore(db, logrus.New())
 	ctx := context.Background()
@@ -53,8 +51,7 @@ func TestSQLiteStoreReadsLegacyTypedPayloadRow(t *testing.T) {
 }
 
 func TestInitializeSchemaPreservesLegacyEventBytesAndReadsThem(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	store := event.NewSQLiteStore(db, logrus.New())
 	ctx := context.Background()
@@ -95,8 +92,7 @@ func TestInitializeSchemaPreservesLegacyEventBytesAndReadsThem(t *testing.T) {
 // ============================================================================
 
 func TestSQLiteStoreMalformedPayloadFailsFilteredAndUnfilteredGet(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	store := event.NewSQLiteStore(db, logrus.New())
 	ctx := context.Background()

@@ -83,206 +83,92 @@ func newOpenCodeRunner(t *testing.T) runner.Runner {
 	return runnercore.NewRunner(codec, runner.NewHostLauncher(), nil)
 }
 
-// TestIntegration_ClaudeCode_FileWrite verifies Claude Code can create
-// files and produces proper events.
+type providerIntegrationCase struct {
+	newRunner       func(*testing.T) runner.Runner
+	fileName        string
+	content         string
+	toolName        string
+	requireMessage  bool
+	messageOptional bool
+}
+
+var fileWriteCases = map[string]providerIntegrationCase{
+	"ClaudeCode": {newRunner: newClaudeRunner, fileName: "test-claude.txt", content: "Hello from Claude Code integration test", toolName: "Write", requireMessage: true},
+	"Codex":      {newRunner: newCodexRunner, fileName: "test-codex.txt", content: "Hello from Codex integration test", toolName: "file_change", messageOptional: true},
+	"OpenCode":   {newRunner: newOpenCodeRunner, fileName: "test-opencode.txt", content: "Hello from OpenCode integration test", toolName: "write"},
+}
+
 func TestIntegration_ClaudeCode_FileWrite(t *testing.T) {
-	r := newClaudeRunner(t)
-
-	available, msg := r.IsAvailable(context.Background())
-	if !available {
-		t.Skipf("Claude Code runner not available: %s", msg)
-	}
-
-	cfg := setupTest(t)
-	testFile := filepath.Join(cfg.tempDir, "test-claude.txt")
-	expectedContent := "Hello from Claude Code integration test"
-
-	collector := &eventCollector{}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-
-	result, err := r.Execute(ctx, runner.ExecuteRequest{
-		RunID:      uuid.New(),
-		Prompt:     "Create a file called test-claude.txt with the content: " + expectedContent,
-		WorkingDir: cfg.tempDir,
-		EventSink:  collector,
-	})
-	if err != nil {
-		t.Fatalf("execution failed: %v", err)
-	}
-
-	if !result.Success {
-		t.Errorf("expected success, got failure: %s", result.ErrorMessage)
-	}
-
-	content, err := os.ReadFile(testFile)
-	if err != nil {
-		t.Errorf("failed to read created file: %v", err)
-	}
-	if string(content) != expectedContent+"\n" && string(content) != expectedContent {
-		t.Errorf("expected content '%s', got '%s'", expectedContent, string(content))
-	}
-
-	assertHasToolCallEvent(t, collector.events, "Write")
-	assertHasMessageEventRequired(t, collector.events, "assistant")
-	assertHasMetricEvent(t, collector.events)
+	runFileWriteIntegration(t, fileWriteCases["ClaudeCode"])
 }
-
-// TestIntegration_Codex_FileWrite verifies the Codex runner can create
-// files and produces proper events.
 func TestIntegration_Codex_FileWrite(t *testing.T) {
-	r := newCodexRunner(t)
-
-	available, msg := r.IsAvailable(context.Background())
-	if !available {
-		t.Skipf("Codex runner not available: %s", msg)
-	}
-
-	cfg := setupTest(t)
-	testFile := filepath.Join(cfg.tempDir, "test-codex.txt")
-	expectedContent := "Hello from Codex integration test"
-
-	collector := &eventCollector{}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-
-	result, err := r.Execute(ctx, runner.ExecuteRequest{
-		RunID:      uuid.New(),
-		Prompt:     "Create a file called test-codex.txt with the content: " + expectedContent,
-		WorkingDir: cfg.tempDir,
-		EventSink:  collector,
-	})
-	if err != nil {
-		t.Fatalf("execution failed: %v", err)
-	}
-
-	if !result.Success {
-		t.Errorf("expected success, got failure: %s", result.ErrorMessage)
-	}
-
-	content, err := os.ReadFile(testFile)
-	if err != nil {
-		t.Errorf("failed to read created file: %v", err)
-	}
-	if string(content) != expectedContent+"\n" && string(content) != expectedContent {
-		t.Errorf("expected content '%s', got '%s'", expectedContent, string(content))
-	}
-
-	assertHasToolCallEvent(t, collector.events, "file_change")
-	assertHasMessageEvent(t, collector.events, "assistant")
-	assertHasMetricEvent(t, collector.events)
+	runFileWriteIntegration(t, fileWriteCases["Codex"])
 }
-
-// TestIntegration_OpenCode_FileWrite verifies the OpenCode runner can
-// create files and produces proper events.
 func TestIntegration_OpenCode_FileWrite(t *testing.T) {
-	r := newOpenCodeRunner(t)
+	runFileWriteIntegration(t, fileWriteCases["OpenCode"])
+}
 
-	available, msg := r.IsAvailable(context.Background())
-	if !available {
-		t.Skipf("OpenCode runner not available: %s", msg)
+func runFileWriteIntegration(t *testing.T, tc providerIntegrationCase) {
+	t.Helper()
+	r := tc.newRunner(t)
+	if available, msg := r.IsAvailable(context.Background()); !available {
+		t.Skipf("runner not available: %s", msg)
 	}
-
 	cfg := setupTest(t)
-	testFile := filepath.Join(cfg.tempDir, "test-opencode.txt")
-	expectedContent := "Hello from OpenCode integration test"
-
 	collector := &eventCollector{}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-
 	result, err := r.Execute(ctx, runner.ExecuteRequest{
-		RunID:      uuid.New(),
-		Prompt:     "Create a file called test-opencode.txt with the content: " + expectedContent,
-		WorkingDir: cfg.tempDir,
-		EventSink:  collector,
+		RunID: uuid.New(), Prompt: "Create a file called " + tc.fileName + " with the content: " + tc.content,
+		WorkingDir: cfg.tempDir, EventSink: collector,
 	})
 	if err != nil {
 		t.Fatalf("execution failed: %v", err)
 	}
-
 	if !result.Success {
 		t.Errorf("expected success, got failure: %s", result.ErrorMessage)
 	}
-
-	content, err := os.ReadFile(testFile)
+	content, err := os.ReadFile(filepath.Join(cfg.tempDir, tc.fileName))
 	if err != nil {
-		t.Errorf("failed to read created file: %v", err)
+		t.Fatalf("failed to read created file: %v", err)
 	}
-	if string(content) != expectedContent+"\n" && string(content) != expectedContent {
-		t.Errorf("expected content '%s', got '%s'", expectedContent, string(content))
+	if string(content) != tc.content+"\n" && string(content) != tc.content {
+		t.Errorf("expected content %q, got %q", tc.content, content)
 	}
-
-	assertHasToolCallEvent(t, collector.events, "write")
+	assertHasToolCallEvent(t, collector.events, tc.toolName)
+	assertProviderMessage(t, collector.events, tc)
 	assertHasMetricEvent(t, collector.events)
 }
 
-// TestIntegration_ClaudeCode_SandboxDiff verifies sandbox diff capture
-// with Claude Code.
+var sandboxDiffCases = map[string]providerIntegrationCase{
+	"ClaudeCode": {newRunner: newClaudeRunner, fileName: "tmp/integration-claude.txt", content: "Hello from Claude Code sandbox integration test", toolName: "Write", requireMessage: true},
+	"Codex":      {newRunner: newCodexRunner, fileName: "tmp/integration-codex.txt", content: "Hello from Codex sandbox integration test", toolName: "file_change", messageOptional: true},
+	"OpenCode":   {newRunner: newOpenCodeRunner, fileName: "tmp/integration-opencode.txt", content: "Hello from OpenCode sandbox integration test", toolName: "write"},
+}
+
 func TestIntegration_ClaudeCode_SandboxDiff(t *testing.T) {
-	r := newClaudeRunner(t)
-
-	available, msg := r.IsAvailable(context.Background())
-	if !available {
-		t.Skipf("Claude Code runner not available: %s", msg)
-	}
-
-	provider, sandboxRef := setupWorkspaceSandbox(t, "tmp")
-	testFile := "tmp/integration-claude.txt"
-	expectedContent := "Hello from Claude Code sandbox integration test"
-
-	collector := &eventCollector{}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-
-	result, err := r.Execute(ctx, runner.ExecuteRequest{
-		RunID:      uuid.New(),
-		Prompt:     "Create a file called " + testFile + " with the content: " + expectedContent,
-		WorkingDir: sandboxRef.WorkDir,
-		EventSink:  collector,
-	})
-	if err != nil {
-		t.Fatalf("execution failed: %v", err)
-	}
-	if !result.Success {
-		t.Errorf("expected success, got failure: %s", result.ErrorMessage)
-	}
-
-	diff, err := provider.GetDiff(ctx, sandboxRef.ID)
-	if err != nil {
-		t.Fatalf("failed to get diff: %v", err)
-	}
-	if !strings.Contains(diff.UnifiedDiff, testFile) {
-		t.Errorf("expected diff to include %s", testFile)
-	}
-
-	assertHasToolCallEvent(t, collector.events, "Write")
-	assertHasMessageEventRequired(t, collector.events, "assistant")
-	assertHasMetricEvent(t, collector.events)
+	runSandboxDiffIntegration(t, sandboxDiffCases["ClaudeCode"])
 }
-
-// TestIntegration_Codex_SandboxDiff verifies sandbox diff capture with Codex.
 func TestIntegration_Codex_SandboxDiff(t *testing.T) {
-	r := newCodexRunner(t)
+	runSandboxDiffIntegration(t, sandboxDiffCases["Codex"])
+}
+func TestIntegration_OpenCode_SandboxDiff(t *testing.T) {
+	runSandboxDiffIntegration(t, sandboxDiffCases["OpenCode"])
+}
 
-	available, msg := r.IsAvailable(context.Background())
-	if !available {
-		t.Skipf("Codex runner not available: %s", msg)
+func runSandboxDiffIntegration(t *testing.T, tc providerIntegrationCase) {
+	t.Helper()
+	r := tc.newRunner(t)
+	if available, msg := r.IsAvailable(context.Background()); !available {
+		t.Skipf("runner not available: %s", msg)
 	}
-
 	provider, sandboxRef := setupWorkspaceSandbox(t, "tmp")
-	testFile := "tmp/integration-codex.txt"
-	expectedContent := "Hello from Codex sandbox integration test"
-
 	collector := &eventCollector{}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-
 	result, err := r.Execute(ctx, runner.ExecuteRequest{
-		RunID:      uuid.New(),
-		Prompt:     "Create a file called " + testFile + " with the content: " + expectedContent,
-		WorkingDir: sandboxRef.WorkDir,
-		EventSink:  collector,
+		RunID: uuid.New(), Prompt: "Create a file called " + tc.fileName + " with the content: " + tc.content,
+		WorkingDir: sandboxRef.WorkDir, EventSink: collector,
 	})
 	if err != nil {
 		t.Fatalf("execution failed: %v", err)
@@ -290,62 +176,25 @@ func TestIntegration_Codex_SandboxDiff(t *testing.T) {
 	if !result.Success {
 		t.Errorf("expected success, got failure: %s", result.ErrorMessage)
 	}
-
 	diff, err := provider.GetDiff(ctx, sandboxRef.ID)
 	if err != nil {
 		t.Fatalf("failed to get diff: %v", err)
 	}
-	if !strings.Contains(diff.UnifiedDiff, testFile) {
-		t.Errorf("expected diff to include %s", testFile)
+	if !strings.Contains(diff.UnifiedDiff, tc.fileName) {
+		t.Errorf("expected diff to include %s", tc.fileName)
 	}
-
-	assertHasToolCallEvent(t, collector.events, "file_change")
-	assertHasMessageEvent(t, collector.events, "assistant")
+	assertHasToolCallEvent(t, collector.events, tc.toolName)
+	assertProviderMessage(t, collector.events, tc)
 	assertHasMetricEvent(t, collector.events)
 }
 
-// TestIntegration_OpenCode_SandboxDiff verifies sandbox diff capture
-// with OpenCode.
-func TestIntegration_OpenCode_SandboxDiff(t *testing.T) {
-	r := newOpenCodeRunner(t)
-
-	available, msg := r.IsAvailable(context.Background())
-	if !available {
-		t.Skipf("OpenCode runner not available: %s", msg)
+func assertProviderMessage(t *testing.T, events []*domain.RunEvent, tc providerIntegrationCase) {
+	t.Helper()
+	if tc.requireMessage {
+		assertHasMessageEventRequired(t, events, "assistant")
+	} else if tc.messageOptional {
+		assertHasMessageEvent(t, events, "assistant")
 	}
-
-	provider, sandboxRef := setupWorkspaceSandbox(t, "tmp")
-	testFile := "tmp/integration-opencode.txt"
-	expectedContent := "Hello from OpenCode sandbox integration test"
-
-	collector := &eventCollector{}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-
-	result, err := r.Execute(ctx, runner.ExecuteRequest{
-		RunID:      uuid.New(),
-		Prompt:     "Create a file called " + testFile + " with the content: " + expectedContent,
-		WorkingDir: sandboxRef.WorkDir,
-		EventSink:  collector,
-	})
-	if err != nil {
-		t.Fatalf("execution failed: %v", err)
-	}
-	if !result.Success {
-		t.Errorf("expected success, got failure: %s", result.ErrorMessage)
-	}
-
-	diff, err := provider.GetDiff(ctx, sandboxRef.ID)
-	if err != nil {
-		t.Fatalf("failed to get diff: %v", err)
-	}
-	if !strings.Contains(diff.UnifiedDiff, testFile) {
-		t.Errorf("expected diff to include %s", testFile)
-	}
-
-	assertHasToolCallEvent(t, collector.events, "write")
-	assertHasMessageEvent(t, collector.events, "assistant")
-	assertHasMetricEvent(t, collector.events)
 }
 
 // Assertion helpers

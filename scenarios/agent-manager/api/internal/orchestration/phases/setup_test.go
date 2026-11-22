@@ -148,6 +148,153 @@ func TestSetupWorkspace_ExistingSandboxDoesNotEnsureDependency(t *testing.T) {
 	}
 }
 
+func TestSetupWorkspace_ExistingSandboxRestoresWorkspaceAfterProviderRecovery(t *testing.T) {
+	run, task, profile := setupWorkspaceFixture(t)
+	provider := mocks.NewFakeSandboxProvider()
+	available := atomic.Bool{}
+	provider.IsAvailableFunc = func(context.Context) (bool, string) {
+		if available.Load() {
+			return true, "ok"
+		}
+		return false, "connection refused"
+	}
+	var resolvedID uuid.UUID
+	provider.GetWorkspacePathFn = func(_ context.Context, id uuid.UUID) (string, error) {
+		resolvedID = id
+		return "/workspace/recovered", nil
+	}
+	ensurer := &fakeWorkspaceSandboxEnsurer{fn: func(context.Context) error {
+		available.Store(true)
+		return nil
+	}}
+	sandboxID := uuid.New()
+
+	out, err := SetupWorkspace(context.Background(), SetupWorkspaceInput{
+		Deps:              Deps{Levers: config.DefaultLevers(), WorkspaceSandbox: ensurer},
+		Run:               run,
+		Task:              task,
+		Profile:           profile,
+		Sandbox:           provider,
+		ExistingSandboxID: &sandboxID,
+	})
+	if err != nil {
+		t.Fatalf("SetupWorkspace returned error: %v", err)
+	}
+	if out.SandboxID == nil || *out.SandboxID != sandboxID || resolvedID != sandboxID {
+		t.Fatalf("setup changed existing sandbox identity: output=%+v resolved=%s want=%s", out, resolvedID, sandboxID)
+	}
+	if out.WorkDir != "/workspace/recovered" {
+		t.Fatalf("workdir = %q, want recovered path", out.WorkDir)
+	}
+	if ensurer.CallCount() != 1 {
+		t.Fatalf("lifecycle ensure calls = %d, want 1", ensurer.CallCount())
+	}
+	if len(provider.CreateRequests()) != 0 {
+		t.Fatalf("recovery allocated a replacement sandbox: %+v", provider.CreateRequests())
+	}
+}
+
+func TestSetupWorkspace_ExistingSandboxRecoveryFailureRefusesFallback(t *testing.T) {
+	run, task, profile := setupWorkspaceFixture(t)
+	provider := mocks.NewFakeSandboxProvider()
+	provider.IsAvailableFunc = func(context.Context) (bool, string) {
+		return false, "connection refused"
+	}
+	pathCalls := 0
+	provider.GetWorkspacePathFn = func(context.Context, uuid.UUID) (string, error) {
+		pathCalls++
+		return "", errors.New("must not resolve while unavailable")
+	}
+	recoveryErr := errors.New("lifecycle ensure refused")
+	ensurer := &fakeWorkspaceSandboxEnsurer{fn: func(context.Context) error { return recoveryErr }}
+	sandboxID := uuid.New()
+
+	out, err := SetupWorkspace(context.Background(), SetupWorkspaceInput{
+		Deps:              Deps{Levers: config.DefaultLevers(), WorkspaceSandbox: ensurer},
+		Run:               run,
+		Task:              task,
+		Profile:           profile,
+		Sandbox:           provider,
+		ExistingSandboxID: &sandboxID,
+	})
+	var sandboxErr *domain.SandboxError
+	if !errors.As(err, &sandboxErr) || !errors.Is(err, recoveryErr) {
+		t.Fatalf("expected retryable sandbox recovery error, got output=%+v err=%v", out, err)
+	}
+	if sandboxErr.SandboxID == nil || *sandboxErr.SandboxID != sandboxID || !sandboxErr.Retryable() {
+		t.Fatalf("error lost existing sandbox identity or retryability: %+v", sandboxErr)
+	}
+	if out.SandboxID != nil || out.WorkDir != "" || run.SandboxID != nil {
+		t.Fatalf("failed recovery admitted workspace or mutated run: output=%+v run=%+v", out, run)
+	}
+	if ensurer.CallCount() != 1 || pathCalls != 0 || len(provider.CreateRequests()) != 0 {
+		t.Fatalf("recovery failure attempted effects: ensure=%d path=%d create=%d", ensurer.CallCount(), pathCalls, len(provider.CreateRequests()))
+	}
+}
+
+func TestSetupWorkspace_ExistingSandboxRemainsUnavailableAfterEnsure(t *testing.T) {
+	run, task, profile := setupWorkspaceFixture(t)
+	provider := mocks.NewFakeSandboxProvider()
+	provider.IsAvailableFunc = func(context.Context) (bool, string) {
+		return false, "still unavailable"
+	}
+	pathCalls := 0
+	provider.GetWorkspacePathFn = func(context.Context, uuid.UUID) (string, error) {
+		pathCalls++
+		return "/workspace/must-not-open", nil
+	}
+	ensurer := &fakeWorkspaceSandboxEnsurer{}
+	sandboxID := uuid.New()
+
+	out, err := SetupWorkspace(context.Background(), SetupWorkspaceInput{
+		Deps:              Deps{Levers: config.DefaultLevers(), WorkspaceSandbox: ensurer},
+		Run:               run,
+		Task:              task,
+		Profile:           profile,
+		Sandbox:           provider,
+		ExistingSandboxID: &sandboxID,
+	})
+	var sandboxErr *domain.SandboxError
+	if !errors.As(err, &sandboxErr) || sandboxErr.SandboxID == nil || *sandboxErr.SandboxID != sandboxID {
+		t.Fatalf("expected existing sandbox unavailable error, got output=%+v err=%v", out, err)
+	}
+	if ensurer.CallCount() != 1 || pathCalls != 0 || len(provider.CreateRequests()) != 0 {
+		t.Fatalf("still-unavailable provider crossed workspace boundary: ensure=%d path=%d create=%d", ensurer.CallCount(), pathCalls, len(provider.CreateRequests()))
+	}
+	if out.SandboxID != nil || out.WorkDir != "" {
+		t.Fatalf("still-unavailable provider returned workspace: %+v", out)
+	}
+}
+
+func TestSetupWorkspace_ExistingSandboxWorkspaceLookupFailureIsRetryable(t *testing.T) {
+	run, task, profile := setupWorkspaceFixture(t)
+	provider := mocks.NewFakeSandboxProvider()
+	lookupErr := errors.New("workspace path endpoint temporarily unavailable")
+	provider.GetWorkspacePathFn = func(_ context.Context, id uuid.UUID) (string, error) {
+		return "", lookupErr
+	}
+	sandboxID := uuid.New()
+
+	out, err := SetupWorkspace(context.Background(), SetupWorkspaceInput{
+		Deps:              Deps{Levers: config.DefaultLevers()},
+		Run:               run,
+		Task:              task,
+		Profile:           profile,
+		Sandbox:           provider,
+		ExistingSandboxID: &sandboxID,
+	})
+	var sandboxErr *domain.SandboxError
+	if !errors.As(err, &sandboxErr) || !errors.Is(err, lookupErr) {
+		t.Fatalf("expected typed workspace lookup failure, got output=%+v err=%v", out, err)
+	}
+	if sandboxErr.SandboxID == nil || *sandboxErr.SandboxID != sandboxID || !sandboxErr.Retryable() {
+		t.Fatalf("lookup error lost existing sandbox identity or retryability: %+v", sandboxErr)
+	}
+	if out.SandboxID != nil || out.WorkDir != "" || len(provider.CreateRequests()) != 0 {
+		t.Fatalf("lookup failure changed workspace or allocated replacement: output=%+v creates=%d", out, len(provider.CreateRequests()))
+	}
+}
+
 type updateCountingRunRepo struct {
 	repository.RunRepository
 	calls int

@@ -3,6 +3,7 @@ package maintenance
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -22,6 +23,7 @@ type LifecycleService struct {
 	provider, scenario, instance string
 	mu                           sync.Mutex
 	operation                    string
+	fenceToken                   string
 	revision                     int64
 }
 
@@ -63,7 +65,7 @@ func (s *LifecycleService) Prepare(ctx context.Context, req *connect.Request[com
 		if err != nil {
 			return nil, err
 		}
-		s.operation, s.revision = req.Msg.GetOperationId(), state.Revision
+		s.operation, s.fenceToken, s.revision = req.Msg.GetOperationId(), standing.GetFenceToken(), state.Revision
 		return connect.NewResponse(&commonv1.LifecyclePrepareResponse{Standing: standing}), nil
 	}
 	state, err := s.gate.Enter(ctx, "control-plane", req.Msg.GetReason())
@@ -74,7 +76,7 @@ func (s *LifecycleService) Prepare(ctx context.Context, req *connect.Request[com
 	if err != nil {
 		return nil, err
 	}
-	s.operation, s.revision = req.Msg.GetOperationId(), state.Revision
+	s.operation, s.fenceToken, s.revision = req.Msg.GetOperationId(), standing.GetFenceToken(), state.Revision
 	return connect.NewResponse(&commonv1.LifecyclePrepareResponse{Standing: standing}), nil
 }
 
@@ -87,8 +89,11 @@ func (s *LifecycleService) Status(ctx context.Context, req *connect.Request[comm
 }
 
 func (s *LifecycleService) Drain(ctx context.Context, req *connect.Request[commonv1.LifecycleDrainRequest]) (*connect.Response[commonv1.LifecycleDrainResponse], error) {
-	if req.Msg.GetRevision() <= 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("revision is required"))
+	s.mu.Lock()
+	err := s.validateFenceLocked(ctx, req.Msg.GetOperationId(), req.Msg.GetFenceToken(), req.Msg.GetRevision())
+	s.mu.Unlock()
+	if err != nil {
+		return nil, err
 	}
 	timeout := 120 * time.Second
 	if req.Msg.GetTimeout() != nil && req.Msg.GetTimeout().AsDuration() > 0 {
@@ -110,14 +115,14 @@ func (s *LifecycleService) Drain(ctx context.Context, req *connect.Request[commo
 func (s *LifecycleService) Resume(ctx context.Context, req *connect.Request[commonv1.LifecycleResumeRequest]) (*connect.Response[commonv1.LifecycleResumeResponse], error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.operation != req.Msg.GetOperationId() || s.revision != req.Msg.GetRevision() {
-		return nil, connect.NewError(connect.CodeAborted, fmt.Errorf("lifecycle fence does not match"))
+	if err := s.validateFenceLocked(ctx, req.Msg.GetOperationId(), req.Msg.GetFenceToken(), req.Msg.GetRevision()); err != nil {
+		return nil, err
 	}
 	state, err := s.gate.Resume(ctx, "control-plane", req.Msg.GetRevision())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeAborted, err)
 	}
-	s.operation, s.revision = "", 0
+	s.operation, s.fenceToken, s.revision = "", "", 0
 	standing, err := s.standing(ctx, req.Msg.GetOperationId(), state.Revision)
 	if err != nil {
 		// Resume already reopened admission. Return an explicit open/unknown
@@ -148,6 +153,26 @@ func (s *LifecycleService) Resume(ctx context.Context, req *connect.Request[comm
 		}
 	}
 	return connect.NewResponse(&commonv1.LifecycleResumeResponse{Standing: standing}), nil
+}
+
+// validateFenceLocked applies the caller identity required by the lifecycle
+// protocol. Callers hold s.mu so operation adoption and resume cannot race the
+// comparison; Drain releases it only after the current durable gate is checked.
+func (s *LifecycleService) validateFenceLocked(ctx context.Context, operation, token string, revision int64) error {
+	if strings.TrimSpace(operation) == "" || strings.TrimSpace(token) == "" || revision <= 0 {
+		return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("operation_id, fence_token and revision are required"))
+	}
+	if s.operation != operation || s.fenceToken == "" || s.fenceToken != token || s.revision != revision {
+		return connect.NewError(connect.CodeAborted, fmt.Errorf("lifecycle fence identity mismatch"))
+	}
+	state, err := s.gate.Status(ctx)
+	if err != nil {
+		return connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	if !state.Closed || state.Revision != revision {
+		return connect.NewError(connect.CodeAborted, fmt.Errorf("lifecycle fence identity mismatch"))
+	}
+	return nil
 }
 
 func (s *LifecycleService) gateRemaining(ctx context.Context) (int, error) {

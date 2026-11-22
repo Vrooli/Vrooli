@@ -31,8 +31,7 @@ func authorizationNotificationSnapshot(g *domain.AuthorizationGrant) *domain.Aut
 }
 
 func TestAuthorizationRepositoryNotificationCodecIsDurableAndRedacted(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	t.Cleanup(cleanup)
+	db := setupTestDB(t)
 	repo := NewAuthorizationRepository(db)
 	ctx := context.Background()
 	g := authorizationGrantFixture(time.Now())
@@ -66,8 +65,7 @@ func TestAuthorizationRepositoryNotificationCodecIsDurableAndRedacted(t *testing
 }
 
 func TestAuthorizationRepositoryNotificationRetryScanPageIsBoundedAndKeysetOrdered(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	t.Cleanup(cleanup)
+	db := setupTestDB(t)
 	repo := &authorizationRepository{db: db}
 	ctx := context.Background()
 	now := time.Date(2026, 10, 18, 8, 0, 0, 0, time.UTC)
@@ -106,8 +104,7 @@ func TestAuthorizationRepositoryNotificationRetryScanPageIsBoundedAndKeysetOrder
 }
 
 func TestAuthorizationReplacePreservesReceiptInterleavingAndCASRejectsLateReceipt(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	t.Cleanup(cleanup)
+	db := setupTestDB(t)
 	repo := NewAuthorizationRepository(db)
 	ctx := context.Background()
 	grant := authorizationGrantFixture(time.Now())
@@ -146,8 +143,7 @@ func TestAuthorizationReplacePreservesReceiptInterleavingAndCASRejectsLateReceip
 }
 
 func TestAuthorizationSupersessionPreservesSnapshotAndRejectsLateReceipt(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	t.Cleanup(cleanup)
+	db := setupTestDB(t)
 	repo := NewAuthorizationRepository(db)
 	ctx := context.Background()
 	grant := authorizationGrantFixture(time.Now())
@@ -180,8 +176,7 @@ func TestAuthorizationSupersessionPreservesSnapshotAndRejectsLateReceipt(t *test
 }
 
 func TestAuthorizationNotificationUpdateCannotChangeGrantTerms(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	t.Cleanup(cleanup)
+	db := setupTestDB(t)
 	repo := NewAuthorizationRepository(db)
 	ctx := context.Background()
 	grant := authorizationGrantFixture(time.Now())
@@ -202,8 +197,7 @@ func TestAuthorizationNotificationUpdateCannotChangeGrantTerms(t *testing.T) {
 }
 
 func TestAuthorizationRepositoryKeepsRequesterContextPrivateAndGenerationStable(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	t.Cleanup(cleanup)
+	db := setupTestDB(t)
 	repo := NewAuthorizationRepository(db)
 	ctx := context.Background()
 	grant := authorizationGrantFixture(time.Now())

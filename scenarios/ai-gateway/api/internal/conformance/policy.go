@@ -18,6 +18,11 @@ var (
 	ollamaModelPattern     = regexp.MustCompile(`\b(nomic-embed-text(?::latest)?|qwen3:[0-9]+(?:\.[0-9]+)?b|llama3\.2(?::[0-9]+b)?|qwen2\.5(?::[0-9]+b)?|codellama(?::[0-9]+b)?|mistral(?::[0-9]+b)?)\b`)
 	openRouterSlugPattern  = regexp.MustCompile(`"(?:openai|anthropic|google|x-ai|deepseek|mistralai|meta-llama|qwen|z-ai|minimax|bytedance-seed|moonshotai|recraft|sourceful|black-forest-labs|inception|microsoft|alibaba)/[a-z0-9._:-]*(?:gpt|claude|gemini|llama|grok|deepseek|mixtral|mistral|qwen|glm|kimi|seedream|flux|recraft|riverflow|mercury|nano-banana|veo|seed-2)[a-z0-9._:-]*"`)
 	openRouterModelEnv     = regexp.MustCompile(`\b[A-Z0-9]*_?OPENROUTER_[A-Z0-9_]*MODEL\b`)
+	// ollamaRuntimeOptionPattern matches Ollama runner load options (the
+	// api.Runner fields) and the retired per-request gateway flags. A caller
+	// that sets one forces Ollama to restart the shared runner whenever it
+	// disagrees with another caller; resources/ollama runtimeprofile owns them.
+	ollamaRuntimeOptionPattern = regexp.MustCompile(`"(num_ctx|num_batch|num_gpu|main_gpu|use_mmap|num_thread)"|--num-(ctx|thread|batch|gpu)\b`)
 )
 
 // ScanProject runs the three model-policy checks formerly owned by the
@@ -47,6 +52,9 @@ func policyLineFindings(rel, line string, lineNo int) []*conformancev1.Conforman
 	var findings []*conformancev1.ConformanceFinding
 	if isScenarioRuntime(rel) {
 		findings = append(findings, ollamaPolicyFindings(rel, code, lineNo)...)
+	}
+	if isOllamaRuntimeOptionSurface(rel) && ollamaRuntimeOptionPattern.MatchString(code) {
+		findings = append(findings, policyFinding("AI_OLLAMA_RUNTIME_OPTIONS", "high", rel, lineNo, "An Ollama runner load option is set by a caller; differing values make Ollama restart the shared runner.", "Remove it. resource-ollama's runtime profile applies runner options to every caller; use gateway --context-budget for admission limits."))
 	}
 	if isOpenRouterRuntime(rel) && hasOpenRouterPolicyFact(code) {
 		findings = append(findings, policyFinding("AI_OPENROUTER_POLICY_FACTS", "high", rel, lineNo, "Concrete OpenRouter model policy is hard-coded in a runtime surface.", "Resolve a role through resource-openrouter policy instead of selecting a concrete model."))
@@ -182,6 +190,13 @@ func policyFile(rel string) bool {
 func isScenarioRuntime(rel string) bool {
 	parts := strings.Split(rel, "/")
 	return len(parts) >= 3 && parts[0] == "scenarios" && (parts[2] == "api" || parts[2] == "cli")
+}
+
+// isOllamaRuntimeOptionSurface covers every caller that can reach Ollama:
+// scenario api/cli code and other resources (resources/ollama is skipped by
+// the walk because its runtime profile is the authority).
+func isOllamaRuntimeOptionSurface(rel string) bool {
+	return isScenarioRuntime(rel) || strings.HasPrefix(rel, "resources/")
 }
 
 func isOpenRouterRuntime(rel string) bool {

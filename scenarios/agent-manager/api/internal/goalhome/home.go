@@ -29,11 +29,12 @@ type Home struct {
 	Epochs      []EpochFile
 	Missing     []string
 	Warnings    []Finding
-	// EpochsComplete is false only for the bounded board projection when one or
-	// more epoch files could not be safely read or parsed. Strict Load remains
+	// EpochsComplete is false for the bounded board projection when accepted or
+	// active epoch facts could not be safely read or parsed. Strict Load remains
 	// all-or-nothing for epoch read failures.
 	EpochsComplete bool
-	// IncompleteEpochFiles names bounded E<n>.md files whose facts are unknown.
+	// IncompleteEpochFiles names bounded LOG/STATUS sources whose epoch facts
+	// are unknown.
 	IncompleteEpochFiles []string
 	// QueueData is STATUS.md exactly as read (QUEUE.md during legacy import).
 	QueueData []byte

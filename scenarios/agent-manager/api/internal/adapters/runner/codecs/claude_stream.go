@@ -8,6 +8,7 @@ import (
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/fallback"
+	"github.com/vrooli/cli-core/agenttranscript"
 
 	"github.com/google/uuid"
 )
@@ -121,21 +122,17 @@ func (m *ClaudeMessage) ExtractTextContent() string {
 	if len(m.Content) == 0 {
 		return ""
 	}
-	var simpleString string
-	if err := json.Unmarshal(m.Content, &simpleString); err == nil {
-		return runner.StripANSI(simpleString)
+	blocks, ok := agenttranscript.ClaudeContentParts(m.Content)
+	if !ok {
+		return ""
 	}
-	var contentBlocks []ClaudeContentItem
-	if err := json.Unmarshal(m.Content, &contentBlocks); err == nil {
-		var textParts []string
-		for _, block := range contentBlocks {
-			if block.Type == "text" && block.Text != "" {
-				textParts = append(textParts, runner.StripANSI(block.Text))
-			}
+	var textParts []string
+	for _, block := range blocks {
+		if block.Type == "text" && block.Text != "" {
+			textParts = append(textParts, runner.StripANSI(block.Text))
 		}
-		return strings.Join(textParts, "\n")
 	}
-	return ""
+	return strings.Join(textParts, "\n")
 }
 
 // ExtractToolUses extracts tool_use blocks from a content array.

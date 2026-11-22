@@ -62,3 +62,40 @@ func TestValidateRejectsUnknownInferenceRoleKind(t *testing.T) {
 		t.Fatalf("Validate() error = %v, want unsupported role kind", err)
 	}
 }
+
+func TestValidateEmbeddingContract(t *testing.T) {
+	candidate := []Candidate{{Provider: "ollama", ResourceRole: "embedding.default", Reason: "fixture"}}
+	valid := RoleEmbedding{Normalization: NormalizationL2, MaxBatchInputs: 64, MaxBatchBytes: 1 << 20}
+	cases := map[string]struct {
+		role    InferenceRole
+		wantErr string
+	}{
+		"declared": {role: InferenceRole{Candidates: candidate, Embedding: &valid}},
+		"undeclared normalization": {
+			role:    InferenceRole{Candidates: candidate, Embedding: &RoleEmbedding{MaxBatchInputs: 1, MaxBatchBytes: 1}},
+			wantErr: "embedding.normalization",
+		},
+		"batch bound missing": {
+			role:    InferenceRole{Candidates: candidate, Embedding: &RoleEmbedding{Normalization: NormalizationL2, MaxBatchInputs: 64}},
+			wantErr: "batch bounds",
+		},
+		"decision role": {
+			role:    InferenceRole{Kind: RoleKindDecision, Candidates: candidate, Embedding: &valid},
+			wantErr: "no embedding contract",
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := validateRole("embedding.sample", tc.role)
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatalf("validateRole() error = %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("validateRole() error = %v, want it to mention %q", err, tc.wantErr)
+			}
+		})
+	}
+}

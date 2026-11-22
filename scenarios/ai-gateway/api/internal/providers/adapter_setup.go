@@ -29,7 +29,7 @@ func (a Adapter) family() string {
 }
 
 func (a Adapter) command() Command {
-	return Command{Name: a.CommandName, Args: []string{"policy", "roles", "--json"}, Timeout: DefaultCommandTimeout}
+	return Command{Name: a.CommandName, Args: []string{"policy", "roles", "--json"}, Timeout: DefaultCommandTimeout, Fact: true}
 }
 
 func (a Adapter) runner() CommandRunner {

@@ -25,8 +25,7 @@ func pendingRequest(id, subject string, now time.Time) *domain.PendingAuthorizat
 }
 
 func TestPendingAuthorizationStorePutGetAndCount(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repo := NewPendingAuthorizationRepository(db)
 	ctx := context.Background()
 	now := time.Now()
@@ -58,8 +57,7 @@ func TestPendingAuthorizationStorePutGetAndCount(t *testing.T) {
 }
 
 func TestPendingAuthorizationCountExcludesDecidedAndExpired(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repo := NewPendingAuthorizationRepository(db)
 	ctx := context.Background()
 	now := time.Now()
@@ -87,8 +85,7 @@ func TestPendingAuthorizationCountExcludesDecidedAndExpired(t *testing.T) {
 }
 
 func TestPendingAuthorizationPutReplacesByID(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repo := NewPendingAuthorizationRepository(db)
 	ctx := context.Background()
 	now := time.Now()

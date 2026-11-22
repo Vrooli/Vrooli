@@ -17,9 +17,7 @@ import (
 )
 
 func TestRunCRUD(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 
@@ -141,8 +139,7 @@ func TestRunCRUD(t *testing.T) {
 }
 
 func TestRunUpdateRejectsIllegalPersistedStatusTransition(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	run := &domain.Run{ID: uuid.New(), Tag: "illegal-transition", RunMode: domain.RunModeInPlace, Status: domain.RunStatusPending, Phase: domain.RunPhaseQueued, ApprovalState: domain.ApprovalStateNone}
@@ -166,9 +163,7 @@ func TestRunUpdateRejectsIllegalPersistedStatusTransition(t *testing.T) {
 // column so the continue/wake path can re-inject it. Before Phase 0 there was
 // no column at all, so a continued turn could never recover custom env.
 func TestRunCustomEnvRoundTrip(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 
@@ -226,9 +221,7 @@ func TestRunCustomEnvRoundTrip(t *testing.T) {
 }
 
 func TestRunAwaitHandleRoundTrip(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 
@@ -295,9 +288,7 @@ func TestRunAwaitHandleRoundTrip(t *testing.T) {
 }
 
 func TestTouchHeartbeat_StatusGuarded(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 
@@ -381,8 +372,7 @@ func TestTouchHeartbeat_StatusGuarded(t *testing.T) {
 }
 
 func TestBeginInteractiveInvocationUpdatesOnlyExactRunningOwnerFence(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	task := createQueuedTask(t, repos, "interactive continuation fence")
@@ -462,8 +452,7 @@ func TestBeginInteractiveInvocationUpdatesOnlyExactRunningOwnerFence(t *testing.
 }
 
 func TestUpdateInteractiveContinuationAtomicallyReplacesTerminalInvocationFence(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	task := createQueuedTask(t, repos, "terminal interactive continuation CAS")
@@ -548,9 +537,7 @@ func TestUpdateInteractiveContinuationAtomicallyReplacesTerminalInvocationFence(
 // intent), and a terminal run is never stamped. The status guard is applied in
 // SQL so a stale caller cannot resurrect or re-stamp a run.
 func TestRequestCancellation_StatusGuardedAndIdempotent(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 
@@ -634,9 +621,7 @@ func TestRequestCancellation_StatusGuardedAndIdempotent(t *testing.T) {
 // must not advance that run after cancellation has started. Replaying the same
 // intent is idempotent and does not consume another version.
 func TestRequestCancellationAdvancesLifecycleVersionRejectingStaleUpdates(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	task := &domain.Task{ID: uuid.New(), Title: "Cancel version fence", ScopePath: "/test", Status: domain.TaskStatusQueued}
@@ -717,9 +702,7 @@ func TestRequestCancellationAdvancesLifecycleVersionRejectingStaleUpdates(t *tes
 // parked/terminal run is never resurrected. (Found by the local-inference
 // park/resume e2e; the prior detectParked-only guard was structurally too late.)
 func TestUpdateRunnerStreamState_StatusGuarded(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 
@@ -799,9 +782,7 @@ func TestUpdateRunnerStreamState_StatusGuarded(t *testing.T) {
 // guard bookkeeping (last_await_key/result/resolved_at, last_wake_seq,
 // same_key_park_streak) persist and reload through Create/Update/Get.
 func TestRunLastAwaitFieldsRoundTrip(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 
@@ -855,9 +836,7 @@ func TestRunLastAwaitFieldsRoundTrip(t *testing.T) {
 }
 
 func TestRenewalAnchorPreservesAttachedBindingAcrossStaleFullRowUpdate(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	run := &domain.Run{
@@ -948,9 +927,7 @@ func TestRenewalAnchorPreservesAttachedBindingAcrossStaleFullRowUpdate(t *testin
 }
 
 func TestUnanchoredAttachedFullRowUpdateRetainsLegacyBindingBehavior(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	run := &domain.Run{
@@ -986,9 +963,7 @@ func TestUnanchoredAttachedFullRowUpdateRetainsLegacyBindingBehavior(t *testing.
 }
 
 func TestRunListFilters(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 
@@ -1085,9 +1060,7 @@ func TestRunListFilters(t *testing.T) {
 }
 
 func TestRunListNonTerminalOnlyExcludesTerminalHistory(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	task := &domain.Task{ID: uuid.New(), Title: "authorization lookup", ScopePath: "/test", Status: domain.TaskStatusQueued}
@@ -1164,8 +1137,7 @@ func TestRunListNonTerminalOnlyExcludesTerminalHistory(t *testing.T) {
 // ============================================================================
 
 func TestRenewAttachedIdentityLosesToCancellationIntent(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	run := &domain.Run{
@@ -1201,8 +1173,7 @@ func TestRenewAttachedIdentityLosesToCancellationIntent(t *testing.T) {
 }
 
 func TestRunListRunnerPIDFilterNarrowsNonterminalRows(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	pid := 424242
@@ -1238,8 +1209,7 @@ func TestRunListRunnerPIDFilterNarrowsNonterminalRows(t *testing.T) {
 }
 
 func TestRunUpdateDoesNotAdvanceCallerVersionWhenTaskProjectionRollsBack(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	task := &domain.Task{ID: uuid.New(), Title: "projection rollback", ScopePath: "/test", Status: domain.TaskStatusQueued}

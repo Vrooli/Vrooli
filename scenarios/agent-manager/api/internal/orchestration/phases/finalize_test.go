@@ -90,6 +90,16 @@ func newFinalizeFixtureWithRun(t *testing.T, cfg *domain.SandboxConfig, run *dom
 	}
 }
 
+func finalizeWithFixture(t *testing.T, fx *finalizeFixture) {
+	t.Helper()
+	Finalize(t.Context(), FinalizeInput{Deps: fx.deps, Run: fx.run, SandboxID: &fx.sandboxID, Sandbox: fx.sandbox})
+}
+
+func applyAtRunEndWithFixture(t *testing.T, fx *finalizeFixture, outcome domain.ContractRunOutcome) bool {
+	t.Helper()
+	return ApplyAtRunEnd(context.Background(), ApplyAtRunEndInput{Deps: fx.deps, Run: fx.run, SandboxID: &fx.sandboxID, Sandbox: fx.sandbox, Outcome: outcome})
+}
+
 // sandboxedRunCfg returns a SandboxConfig that mirrors what
 // resolveSandboxConfig produces for an auto-apply protected run:
 // DeleteOn=[terminal] so finalize will issue Delete on terminal events.
@@ -140,12 +150,7 @@ func TestFinalize_AdvancesPhaseToCompleted(t *testing.T) {
 	fx := newFinalizeFixture(t, sandboxedRunCfg(), stub)
 	fx.run.Status = domain.RunStatusComplete
 
-	Finalize(t.Context(), FinalizeInput{
-		Deps:      fx.deps,
-		Run:       fx.run,
-		SandboxID: &fx.sandboxID,
-		Sandbox:   fx.sandbox,
-	})
+	finalizeWithFixture(t, fx)
 
 	assertx.RunPhase(t, fx.run, domain.RunPhaseCompleted)
 }
@@ -156,12 +161,7 @@ func TestFinalize_DeletesSandboxOnSuccess(t *testing.T) {
 	fx.run.Status = domain.RunStatusComplete
 	fx.run.FinalizationStatus = domain.RunFinalizationStatusSucceeded // cleanup follows completed effects
 
-	Finalize(t.Context(), FinalizeInput{
-		Deps:      fx.deps,
-		Run:       fx.run,
-		SandboxID: &fx.sandboxID,
-		Sandbox:   fx.sandbox,
-	})
+	finalizeWithFixture(t, fx)
 
 	if stub.DeleteCallCount() != 1 {
 		t.Errorf("expected 1 Delete on successful run, got %d", stub.DeleteCallCount())
@@ -177,12 +177,7 @@ func TestFinalize_DeletesSandboxOnFailure(t *testing.T) {
 	fx.run.Status = domain.RunStatusFailed
 	fx.run.FinalizationStatus = domain.RunFinalizationStatusSucceeded // cleanup follows completed effects
 
-	Finalize(t.Context(), FinalizeInput{
-		Deps:      fx.deps,
-		Run:       fx.run,
-		SandboxID: &fx.sandboxID,
-		Sandbox:   fx.sandbox,
-	})
+	finalizeWithFixture(t, fx)
 
 	if stub.DeleteCallCount() != 1 {
 		t.Errorf("expected 1 Delete on failed run (DeleteOn=[terminal] matches RunFailed), got %d", stub.DeleteCallCount())
@@ -196,12 +191,7 @@ func TestFinalize_DeleteFailureDoesNotBlockPhaseAdvance(t *testing.T) {
 	fx.run.Status = domain.RunStatusComplete
 	fx.run.FinalizationStatus = domain.RunFinalizationStatusSucceeded // cleanup follows completed effects
 
-	Finalize(t.Context(), FinalizeInput{
-		Deps:      fx.deps,
-		Run:       fx.run,
-		SandboxID: &fx.sandboxID,
-		Sandbox:   fx.sandbox,
-	})
+	finalizeWithFixture(t, fx)
 
 	assertx.RunPhase(t, fx.run, domain.RunPhaseCompleted)
 	ops := fx.events.TypedEvents(fx.run.ID, domain.EventTypeSandboxOperation)
@@ -233,12 +223,7 @@ func TestFinalize_NoOpForInPlaceRun(t *testing.T) {
 	fx.run.RunMode = domain.RunModeInPlace
 	fx.run.Status = domain.RunStatusComplete
 
-	Finalize(t.Context(), FinalizeInput{
-		Deps:      fx.deps,
-		Run:       fx.run,
-		SandboxID: &fx.sandboxID,
-		Sandbox:   fx.sandbox,
-	})
+	finalizeWithFixture(t, fx)
 
 	if stub.DeleteCallCount() != 0 || stub.StopCallCount() != 0 {
 		t.Errorf("in-place run should not touch sandbox: deleteHits=%d stopHits=%d", stub.DeleteCallCount(), stub.StopCallCount())
@@ -256,12 +241,7 @@ func TestFinalize_StopsSandboxWhenLifecycleSaysStop(t *testing.T) {
 	fx.run.Status = domain.RunStatusComplete
 	fx.run.FinalizationStatus = domain.RunFinalizationStatusSucceeded // cleanup follows completed effects
 
-	Finalize(t.Context(), FinalizeInput{
-		Deps:      fx.deps,
-		Run:       fx.run,
-		SandboxID: &fx.sandboxID,
-		Sandbox:   fx.sandbox,
-	})
+	finalizeWithFixture(t, fx)
 
 	if stub.StopCallCount() != 1 {
 		t.Errorf("expected 1 Stop call when StopOn=[terminal] and DeleteOn empty, got %d", stub.StopCallCount())
@@ -324,13 +304,7 @@ func TestLifecycleEventForStatus_MapsAllTerminalStatuses(t *testing.T) {
 // pre-2026-04-24 silent-fallthrough bug carried over from tryAutoApproval.
 func TestApplyAtRunEnd_NilConfigEmitsWarning(t *testing.T) {
 	fx := newFinalizeFixture(t, nil, mocks.NewFakeSandboxProvider())
-	got := ApplyAtRunEnd(context.Background(), ApplyAtRunEndInput{
-		Deps:      fx.deps,
-		Run:       fx.run,
-		SandboxID: &fx.sandboxID,
-		Sandbox:   fx.sandbox,
-		Outcome:   domain.ContractRunOutcomeSuccess,
-	})
+	got := applyAtRunEndWithFixture(t, fx, domain.ContractRunOutcomeSuccess)
 	if got {
 		t.Errorf("ApplyAtRunEnd with nil config should return false, got true")
 	}
@@ -346,13 +320,7 @@ func TestApplyAtRunEnd_SuccessApplies(t *testing.T) {
 	cfg := domain.DefaultSandboxConfig()
 	fx := newFinalizeFixture(t, cfg, stub)
 
-	if !ApplyAtRunEnd(context.Background(), ApplyAtRunEndInput{
-		Deps:      fx.deps,
-		Run:       fx.run,
-		SandboxID: &fx.sandboxID,
-		Sandbox:   fx.sandbox,
-		Outcome:   domain.ContractRunOutcomeSuccess,
-	}) {
+	if !applyAtRunEndWithFixture(t, fx, domain.ContractRunOutcomeSuccess) {
 		t.Fatal("expected ApplyAtRunEnd to succeed")
 	}
 	if stub.ApplyAtRunEndCallCount() != 1 {
@@ -383,13 +351,7 @@ func TestApplyAtRunEnd_FailureApplies(t *testing.T) {
 	cfg := domain.DefaultSandboxConfig()
 	fx := newFinalizeFixture(t, cfg, stub)
 
-	if !ApplyAtRunEnd(context.Background(), ApplyAtRunEndInput{
-		Deps:      fx.deps,
-		Run:       fx.run,
-		SandboxID: &fx.sandboxID,
-		Sandbox:   fx.sandbox,
-		Outcome:   domain.ContractRunOutcomeFailure,
-	}) {
+	if !applyAtRunEndWithFixture(t, fx, domain.ContractRunOutcomeFailure) {
 		t.Fatal("expected apply on failure when ApplyOnFailure=true")
 	}
 	if stub.ApplyAtRunEndCallCount() != 1 {
@@ -411,13 +373,7 @@ func TestApplyAtRunEnd_FailureSkipsWhenApplyOnFailureFalse(t *testing.T) {
 	cfg.ApplyOnFailure = &off
 	fx := newFinalizeFixture(t, cfg, stub)
 
-	if ApplyAtRunEnd(context.Background(), ApplyAtRunEndInput{
-		Deps:      fx.deps,
-		Run:       fx.run,
-		SandboxID: &fx.sandboxID,
-		Sandbox:   fx.sandbox,
-		Outcome:   domain.ContractRunOutcomeFailure,
-	}) {
+	if applyAtRunEndWithFixture(t, fx, domain.ContractRunOutcomeFailure) {
 		t.Error("expected apply skipped when ApplyOnFailure=false on failure outcome")
 	}
 	if stub.ApplyAtRunEndCallCount() != 0 {
@@ -443,13 +399,7 @@ func TestApplyAtRunEnd_PartialAcceptanceSplit(t *testing.T) {
 	cfg := domain.DefaultSandboxConfig()
 	fx := newFinalizeFixture(t, cfg, stub)
 
-	if !ApplyAtRunEnd(context.Background(), ApplyAtRunEndInput{
-		Deps:      fx.deps,
-		Run:       fx.run,
-		SandboxID: &fx.sandboxID,
-		Sandbox:   fx.sandbox,
-		Outcome:   domain.ContractRunOutcomeSuccess,
-	}) {
+	if !applyAtRunEndWithFixture(t, fx, domain.ContractRunOutcomeSuccess) {
 		t.Fatal("expected partial apply to count as success")
 	}
 	if fx.run.Status != domain.RunStatusComplete {
@@ -473,13 +423,7 @@ func TestApplyAtRunEnd_ManualReviewDeferred(t *testing.T) {
 	cfg.ManualReview = true
 	fx := newFinalizeFixture(t, cfg, stub)
 
-	if ApplyAtRunEnd(context.Background(), ApplyAtRunEndInput{
-		Deps:      fx.deps,
-		Run:       fx.run,
-		SandboxID: &fx.sandboxID,
-		Sandbox:   fx.sandbox,
-		Outcome:   domain.ContractRunOutcomeSuccess,
-	}) {
+	if applyAtRunEndWithFixture(t, fx, domain.ContractRunOutcomeSuccess) {
 		t.Error("manualReview=true must defer apply (return false)")
 	}
 	if stub.ApplyAtRunEndCallCount() != 0 {
@@ -549,9 +493,7 @@ func TestApplyAtRunEnd_ManualReviewVerifiedEmptyDoesNotRequestApproval(t *testin
 			notifier := &approvalNotificationRecorder{}
 			fx.deps.ApprovalNotifier = notifier
 
-			if ApplyAtRunEnd(context.Background(), ApplyAtRunEndInput{
-				Deps: fx.deps, Run: fx.run, SandboxID: &fx.sandboxID, Sandbox: fx.sandbox, Outcome: test.outcome,
-			}) {
+			if applyAtRunEndWithFixture(t, fx, test.outcome) {
 				t.Fatal("verified empty diff must not be reported as applied")
 			}
 			if fx.run.Status != test.status || fx.run.ApprovalState != domain.ApprovalStateNone {
@@ -592,7 +534,7 @@ func TestApplyAtRunEnd_ManualReviewVerifiedEmptyKeepsPendingWhenWithdrawalUnveri
 			fx := newFinalizeFixture(t, cfg, stub)
 			fx.run.Status = domain.RunStatusComplete
 			fx.deps.ApprovalNotifier = tc.notifier
-			if ApplyAtRunEnd(context.Background(), ApplyAtRunEndInput{Deps: fx.deps, Run: fx.run, SandboxID: &fx.sandboxID, Sandbox: fx.sandbox, Outcome: domain.ContractRunOutcomeSuccess}) {
+			if applyAtRunEndWithFixture(t, fx, domain.ContractRunOutcomeSuccess) {
 				t.Fatal("verified empty diff with unverified withdrawal must not report an apply")
 			}
 			if fx.run.Status != domain.RunStatusNeedsReview || fx.run.ApprovalState != domain.ApprovalStatePending {
@@ -629,9 +571,7 @@ func TestApplyAtRunEnd_ManualReviewUnavailableOrNonemptyStillRequestsApproval(t 
 			fx := newFinalizeFixture(t, cfg, stub)
 			notifier := &approvalNotificationRecorder{}
 			fx.deps.ApprovalNotifier = notifier
-			if ApplyAtRunEnd(context.Background(), ApplyAtRunEndInput{
-				Deps: fx.deps, Run: fx.run, SandboxID: &fx.sandboxID, Sandbox: fx.sandbox, Outcome: domain.ContractRunOutcomeSuccess,
-			}) {
+			if applyAtRunEndWithFixture(t, fx, domain.ContractRunOutcomeSuccess) {
 				t.Fatal("manual review must defer")
 			}
 			if fx.run.Status != domain.RunStatusNeedsReview || fx.run.ApprovalState != domain.ApprovalStatePending || notifier.reviewCalls != 1 || notifier.withdrawCalls != 0 {
@@ -648,13 +588,7 @@ func TestApplyAtRunEnd_NoOpEmptyProvenance(t *testing.T) {
 	cfg := domain.DefaultSandboxConfig()
 	fx := newFinalizeFixture(t, cfg, stub)
 
-	if !ApplyAtRunEnd(context.Background(), ApplyAtRunEndInput{
-		Deps:      fx.deps,
-		Run:       fx.run,
-		SandboxID: &fx.sandboxID,
-		Sandbox:   fx.sandbox,
-		Outcome:   domain.ContractRunOutcomeSuccess,
-	}) {
+	if !applyAtRunEndWithFixture(t, fx, domain.ContractRunOutcomeSuccess) {
 		t.Fatal("expected apply to succeed for no-op run")
 	}
 	if stub.ApplyAtRunEndCallCount() != 1 {
@@ -679,13 +613,7 @@ func TestApplyAtRunEnd_FailureWithEmptyProvenanceStaysFailed(t *testing.T) {
 	fx := newFinalizeFixture(t, cfg, stub)
 	fx.run.Status = domain.RunStatusFailed
 
-	got := ApplyAtRunEnd(context.Background(), ApplyAtRunEndInput{
-		Deps:      fx.deps,
-		Run:       fx.run,
-		SandboxID: &fx.sandboxID,
-		Sandbox:   fx.sandbox,
-		Outcome:   domain.ContractRunOutcomeFailure,
-	})
+	got := applyAtRunEndWithFixture(t, fx, domain.ContractRunOutcomeFailure)
 	if got {
 		t.Error("ApplyAtRunEnd must return false for empty-provenance failure (no change to apply)")
 	}
@@ -707,13 +635,7 @@ func TestApplyAtRunEnd_FailureWithPartialProvenancePreservesRunnerFailure(t *tes
 	fx := newFinalizeFixture(t, cfg, stub)
 	fx.run.Status = domain.RunStatusFailed
 
-	if !ApplyAtRunEnd(context.Background(), ApplyAtRunEndInput{
-		Deps:      fx.deps,
-		Run:       fx.run,
-		SandboxID: &fx.sandboxID,
-		Sandbox:   fx.sandbox,
-		Outcome:   domain.ContractRunOutcomeFailure,
-	}) {
+	if !applyAtRunEndWithFixture(t, fx, domain.ContractRunOutcomeFailure) {
 		t.Fatal("expected apply to succeed when failed run produced changes")
 	}
 	if fx.run.Status != domain.RunStatusFailed {
@@ -731,13 +653,7 @@ func TestApplyAtRunEnd_ConversationIDForwarded(t *testing.T) {
 	run := &domain.Run{ConversationID: "conv-thread-123"}
 	fx := newFinalizeFixtureWithRun(t, cfg, run, stub)
 
-	ApplyAtRunEnd(context.Background(), ApplyAtRunEndInput{
-		Deps:      fx.deps,
-		Run:       fx.run,
-		SandboxID: &fx.sandboxID,
-		Sandbox:   fx.sandbox,
-		Outcome:   domain.ContractRunOutcomeSuccess,
-	})
+	applyAtRunEndWithFixture(t, fx, domain.ContractRunOutcomeSuccess)
 	applyReqs := stub.ApplyAtRunEndRequests()
 	if len(applyReqs) != 1 {
 		t.Fatalf("expected 1 ApplyAtRunEnd request, got %d", len(applyReqs))
@@ -754,13 +670,7 @@ func TestApplyAtRunEnd_CheckpointOnUsesTurnCheckpoint(t *testing.T) {
 	run := &domain.Run{ConversationID: "conv-thread-123"}
 	fx := newFinalizeFixtureWithRun(t, cfg, run, stub)
 
-	if !ApplyAtRunEnd(context.Background(), ApplyAtRunEndInput{
-		Deps:      fx.deps,
-		Run:       fx.run,
-		SandboxID: &fx.sandboxID,
-		Sandbox:   fx.sandbox,
-		Outcome:   domain.ContractRunOutcomeSuccess,
-	}) {
+	if !applyAtRunEndWithFixture(t, fx, domain.ContractRunOutcomeSuccess) {
 		t.Fatal("expected turn checkpoint to succeed")
 	}
 	if stub.TurnCheckpointCallCount() != 1 {
@@ -785,13 +695,7 @@ func TestApplyAtRunEnd_FailurePreservesSandbox(t *testing.T) {
 	fx := newFinalizeFixture(t, cfg, stub)
 	fx.run.Status = domain.RunStatusComplete
 
-	if ApplyAtRunEnd(context.Background(), ApplyAtRunEndInput{
-		Deps:      fx.deps,
-		Run:       fx.run,
-		SandboxID: &fx.sandboxID,
-		Sandbox:   fx.sandbox,
-		Outcome:   domain.ContractRunOutcomeSuccess,
-	}) {
+	if applyAtRunEndWithFixture(t, fx, domain.ContractRunOutcomeSuccess) {
 		t.Error("apply on transport error must return false (do not silently mark Approved)")
 	}
 	if fx.run.ApprovalState == domain.ApprovalStateApproved {
@@ -824,7 +728,7 @@ func TestApplyAtRunEnd_RejectsUnsuccessfulOwnerResult(t *testing.T) {
 		}
 		fx := newFinalizeFixture(t, cfg, stub)
 		fx.run.Status = domain.RunStatusComplete
-		if ApplyAtRunEnd(context.Background(), ApplyAtRunEndInput{Deps: fx.deps, Run: fx.run, SandboxID: &fx.sandboxID, Sandbox: stub, Outcome: domain.ContractRunOutcomeSuccess}) || fx.run.FinalizationStatus != domain.RunFinalizationStatusFailed {
+		if applyAtRunEndWithFixture(t, fx, domain.ContractRunOutcomeSuccess) || fx.run.FinalizationStatus != domain.RunFinalizationStatusFailed {
 			t.Fatalf("checkpoint=%t: unsuccessful owner result became success: %+v", checkpoint, fx.run)
 		}
 	}
@@ -862,13 +766,7 @@ func TestApplyAtRunEnd_RetriesCheckpointAfterEnsuringWorkspaceSandbox(t *testing
 	fx.deps.Levers = levers
 	fx.deps.WorkspaceSandbox = ensurer
 
-	if !ApplyAtRunEnd(context.Background(), ApplyAtRunEndInput{
-		Deps:      fx.deps,
-		Run:       fx.run,
-		SandboxID: &fx.sandboxID,
-		Sandbox:   fx.sandbox,
-		Outcome:   domain.ContractRunOutcomeSuccess,
-	}) {
+	if !applyAtRunEndWithFixture(t, fx, domain.ContractRunOutcomeSuccess) {
 		t.Fatal("expected ApplyAtRunEnd checkpoint retry to succeed")
 	}
 	if stub.TurnCheckpointCallCount() != 2 {
@@ -886,13 +784,7 @@ func TestApplyAtRunEnd_AutoApplyFalseSkipsApply(t *testing.T) {
 	cfg.AutoApply = &off
 	fx := newFinalizeFixture(t, cfg, stub)
 
-	if ApplyAtRunEnd(context.Background(), ApplyAtRunEndInput{
-		Deps:      fx.deps,
-		Run:       fx.run,
-		SandboxID: &fx.sandboxID,
-		Sandbox:   fx.sandbox,
-		Outcome:   domain.ContractRunOutcomeSuccess,
-	}) {
+	if applyAtRunEndWithFixture(t, fx, domain.ContractRunOutcomeSuccess) {
 		t.Error("expected apply skipped when AutoApply=false")
 	}
 	if stub.ApplyAtRunEndCallCount() != 0 {
@@ -910,9 +802,12 @@ func TestFinalizePreservesSandboxUntilRequiredEffectsRecover(t *testing.T) {
 			fx := newFinalizeFixture(t, sandboxedRunCfg(), stub)
 			fx.run.Status = domain.RunStatusComplete
 			fx.run.FinalizationStatus = status
-			Finalize(t.Context(), FinalizeInput{Deps: fx.deps, Run: fx.run, SandboxID: &fx.sandboxID, Sandbox: stub})
+			finalizeWithFixture(t, fx)
 			if stub.DeleteCallCount() != 0 || stub.StopCallCount() != 0 {
 				t.Fatal("unapplied sandbox destroyed before original-run recovery")
+			}
+			if _, ok := fx.events.FindLogMessage("sandbox preserved: required finalization is unresolved"); !ok {
+				t.Fatal("expected a warning explaining why the sandbox was preserved")
 			}
 			if fx.run.Status != domain.RunStatusComplete || fx.run.FinalizationStatus != status || fx.run.Phase != domain.RunPhaseCompleted {
 				t.Fatalf("runner evidence changed: %+v", fx.run)

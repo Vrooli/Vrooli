@@ -287,7 +287,8 @@ with "source exceeds replacement staging": an older parser read them, their prio
 
 Mode relations: `applied` and `skipped` are exact. `ran_during_on_target` (the session began in a mode
 period and its actual model is the mode's target) and `ran_during_not_changed` are inferred. `predates_mode`
-(already running when the mode began) and `no_mode` are by time.
+(already running when the mode began) and `no_mode` are by time. Inference respects a mode's role scope;
+profile-scoped periods remain `no_mode` because run facts do not retain a profile identity.
 
 ### Work units
 

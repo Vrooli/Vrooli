@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"agent-manager/internal/domain"
@@ -16,7 +17,12 @@ import (
 
 // Store persists classifications in operator_interventions and reads the
 // candidate operator messages from run_events.
-type Store struct{ db sqlcompat.DB }
+type Store struct {
+	db sqlcompat.DB
+	// signalWriteMu orders signal persistence checks/writes with purge, so an
+	// in-flight pass cannot repopulate rows after the off-and-purge sequence.
+	signalWriteMu sync.Mutex
+}
 
 func NewStore(db sqlcompat.DB) *Store { return &Store{db: db} }
 

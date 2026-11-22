@@ -180,6 +180,55 @@ const fixtureModel = "gpt-4o-mini"
 	require.Equal(t, "api/model.go:2", slugFindings[0].GetPath())
 }
 
+func TestConcreteModelTagGateAllowsOnlyValidatedRegistryAndKnownProviderReferences(t *testing.T) {
+	repo := t.TempDir()
+	writeFile(t, repo, "scenarios/demo/api/internal/modelcatalog/models.seed.json", `{"schema_version":"1.0.0","models":[{"id":"qwen3:1.7b","notes":"unregistered qwen3:9b"}]}`)
+	writeFile(t, repo, "scenarios/demo/api/internal/modelcatalog/catalog.go", `const SupportedSchemaVersion = "1.0.0"\nfunc Load(raw []byte) { c.Validate() }\n//go:generate render\nvar legacyDefaultExceptions = map[string]string{"qwen3:1.7b": "preserve existing role"}`)
+	writeFile(t, repo, "scenarios/demo/api/internal/modelcatalog/validate.go", `func (c *Catalog) ValidationIssues() {}`)
+	writeFile(t, repo, "scenarios/demo/api/internal/modelcatalog/catalog_test.go", `func TestEmbeddedSeedIsValid() {}\nfunc TestDocsMatchRenderer() {}\nfunc TestSummarizeRecordsMirrorResourceOllamaPolicy() { _ = "model-policy.json"; _ = "resource-ollama"; _ = "Fallbacks []string"; _ = "Model     string"; _ = "summarize.default" }`)
+	writeFile(t, repo, "scenarios/demo/api/internal/providercatalog/catalog.go", `func Load() { r.validate() }\nfunc (r *Registry) validate() error {}`)
+	writeFile(t, repo, "scenarios/demo/api/internal/providercatalog/catalog.seed.json", `{"models":["qwen3:1.7b","qwen3:9b"]}`)
+	writeFile(t, repo, "scenarios/demo/api/internal/providercatalog/conformance_test.go", `func TestEveryProviderModelReferenceResolves() { _ = models.ByID(modelID) }`)
+	writeFile(t, repo, "scenarios/demo/api/internal/providercatalog/render.go", `func RenderTS() { _ = "catalog.seed.json" }`)
+	writeFile(t, repo, "scenarios/demo/api/internal/providercatalog/render_test.go", `func TestGeneratedTSProviderCatalogIsNotStale() { _ = RenderTS() }`)
+	writeFile(t, repo, "scenarios/demo/ui/src/features/providers/providerCatalog.generated.ts", `models: ["qwen3:1.7b", "qwen3:9b"]`)
+	writeFile(t, repo, "scenarios/demo/requirements/02-post-launch/module.json", `{"description":"qualified qwen3:1.7b route"}`)
+	writeFile(t, repo, "scenarios/demo/api/runtime.go", `package api\nconst selectedModel = "qwen3:1.7b"`)
+
+	report, err := conformance.NewScanner().Scan(context.Background(), conformance.ScanRequest{
+		Scenario: "demo",
+		Path:     filepath.Join(repo, "scenarios", "demo"),
+	})
+	require.NoError(t, err)
+	var slugPaths []string
+	for _, finding := range report.Findings {
+		if finding.GetRuleId() == "ai.concrete_model_slug" {
+			slugPaths = append(slugPaths, finding.GetPath())
+		}
+	}
+	require.Equal(t, []string{
+		"api/internal/modelcatalog/models.seed.json:1",
+		"api/internal/providercatalog/catalog.seed.json:1",
+		"api/runtime.go:1",
+		"ui/src/features/providers/providerCatalog.generated.ts:1",
+	}, slugPaths)
+}
+
+func TestConcreteModelTagGateDoesNotTrustUnvalidatedRegistrySeed(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "api/internal/modelcatalog/models.seed.json", `{"schema_version":"1.0.0","models":[{"id":"qwen3:1.7b"}]}`)
+	writeFile(t, root, "api/internal/providercatalog/catalog.seed.json", `{"models":["qwen3:1.7b"]}`)
+	report, err := conformance.NewScanner().Scan(context.Background(), conformance.ScanRequest{Scenario: "fixture", Path: root})
+	require.NoError(t, err)
+	var slugPaths []string
+	for _, finding := range report.Findings {
+		if finding.GetRuleId() == "ai.concrete_model_slug" {
+			slugPaths = append(slugPaths, finding.GetPath())
+		}
+	}
+	require.Equal(t, []string{"api/internal/modelcatalog/models.seed.json:1", "api/internal/providercatalog/catalog.seed.json:1"}, slugPaths)
+}
+
 func TestScannerSkipsDocumentationTestsAndLargeEvidenceBeforeOpening(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "api/main.go", `package api
@@ -248,6 +297,22 @@ func TestBrowserAutomationStudioHasNoHighConformanceFindings(t *testing.T) { // 
 	require.NoError(t, err)
 	for _, finding := range report.Findings {
 		require.NotEqual(t, "high", finding.GetSeverity(), "%s: %s", finding.GetPath(), finding.GetMessage())
+	}
+}
+
+func TestAudioToolsGovernedModelCatalogIsNotMistakenForCallerSelection(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", "..", "..", "..", "audio-tools"))
+	require.NoError(t, err)
+	report, err := conformance.NewScanner().Scan(context.Background(), conformance.ScanRequest{Scenario: "audio-tools", Path: root})
+	require.NoError(t, err)
+	for _, finding := range report.Findings {
+		if finding.GetRuleId() == "ai.concrete_model_slug" {
+			require.NotContains(t, finding.GetPath(), "api/internal/modelcatalog/models.seed.json")
+			require.NotContains(t, finding.GetPath(), "api/internal/modelcatalog/catalog.go")
+			require.NotContains(t, finding.GetPath(), "api/internal/providercatalog/catalog.seed.json")
+			require.NotContains(t, finding.GetPath(), "requirements/02-post-launch/module.json")
+			require.NotContains(t, finding.GetPath(), "ui/src/features/providers/providerCatalog.generated.ts")
+		}
 	}
 }
 

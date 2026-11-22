@@ -94,14 +94,7 @@ func TestSignalBuffersBeforeWaitArmsAndConsumesOnArrival(t *testing.T) {
 }
 
 func TestBoundedWaitRoutesTimeoutAndPreservesReason(t *testing.T) {
-	definition := baseDefinition()
-	definition.Nodes = []domain.WorkflowNode{
-		{ID: "approval", Kind: domain.WorkflowNodeWait, Wait: &domain.WorkflowWaitNode{Signal: "approved", TimeoutSeconds: 10, OnTimeout: "timed-out"}},
-		{ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}},
-		{ID: "timed-out", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "blocked"}},
-	}
-	definition.EntryNode = "approval"
-	definition.Edges = []domain.WorkflowEdge{{From: "approval", To: "done"}}
+	definition := boundedWaitDefinition()
 	engine, store, _ := testEngine(t, definition)
 	now := time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC)
 	engine.Now = func() time.Time { return now }
@@ -122,6 +115,68 @@ func TestBoundedWaitRoutesTimeoutAndPreservesReason(t *testing.T) {
 	if journal[len(journal)-1].Kind != domain.WorkflowJournalWaitTimeout {
 		t.Fatalf("timeout journal missing: %+v", journal)
 	}
+}
+
+func TestExpiredWaitRejectsSignalsAtAndAfterDeadlineAndRoutesTimeout(t *testing.T) {
+	definition := boundedWaitDefinition()
+	engine, store, _ := testEngine(t, definition)
+	now := time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC)
+	engine.Now = func() time.Time { return now }
+	execution, _ := engine.Start(context.Background(), revision(definition), json.RawMessage(`{}`), "late-wait-signal")
+	waiting := mustAdvance(t, engine, execution.ID)
+	now = now.Add(10 * time.Second)
+	if _, duplicate, err := engine.Signal(context.Background(), execution.ID, "approved", json.RawMessage(`{}`), "after-deadline", waiting.Version); err == nil || duplicate {
+		t.Fatalf("signal at deadline accepted: duplicate=%t err=%v", duplicate, err)
+	}
+	now = now.Add(time.Second)
+	if _, duplicate, err := engine.Signal(context.Background(), execution.ID, "approved", json.RawMessage(`{}`), "well-after-deadline", waiting.Version); err == nil || duplicate {
+		t.Fatalf("signal after deadline accepted: duplicate=%t err=%v", duplicate, err)
+	}
+	journal, err := store.ListJournal(context.Background(), execution.ID, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range journal {
+		if entry.Kind == domain.WorkflowJournalSignal {
+			t.Fatalf("rejected late signal was persisted: %+v", entry)
+		}
+	}
+	routed := mustAdvance(t, engine, execution.ID)
+	if routed.CurrentNodeID != "timed-out" || routed.TerminalReason == nil || routed.TerminalReason.Code != "wait_timeout" {
+		t.Fatalf("expired wait did not take timeout edge: %+v", routed)
+	}
+}
+
+func TestSignalAcceptedBeforeDeadlineSurvivesDelayedAdvance(t *testing.T) {
+	definition := boundedWaitDefinition()
+	engine, _, _ := testEngine(t, definition)
+	now := time.Date(2026, 7, 17, 12, 0, 0, 0, time.UTC)
+	engine.Now = func() time.Time { return now }
+	execution, _ := engine.Start(context.Background(), revision(definition), json.RawMessage(`{}`), "on-time-wait-signal")
+	waiting := mustAdvance(t, engine, execution.ID)
+	now = now.Add(9 * time.Second)
+	if _, duplicate, err := engine.Signal(context.Background(), execution.ID, "approved", json.RawMessage(`{}`), "before-deadline", waiting.Version); err != nil || duplicate {
+		t.Fatalf("signal before deadline failed: duplicate=%t err=%v", duplicate, err)
+	}
+	// The accepted signal is durable. A delayed progression must still honor it
+	// even though the wall clock has since crossed the deadline.
+	now = now.Add(2 * time.Second)
+	advanced := mustAdvance(t, engine, execution.ID)
+	if advanced.CurrentNodeID != "done" || advanced.Status != domain.WorkflowExecutionRunning {
+		t.Fatalf("on-time signal lost to delayed timeout processing: %+v", advanced)
+	}
+}
+
+func boundedWaitDefinition() domain.WorkflowDefinition {
+	definition := baseDefinition()
+	definition.Nodes = []domain.WorkflowNode{
+		{ID: "approval", Kind: domain.WorkflowNodeWait, Wait: &domain.WorkflowWaitNode{Signal: "approved", TimeoutSeconds: 10, OnTimeout: "timed-out"}},
+		{ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}},
+		{ID: "timed-out", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "blocked"}},
+	}
+	definition.EntryNode = "approval"
+	definition.Edges = []domain.WorkflowEdge{{From: "approval", To: "done"}}
+	return definition
 }
 
 func TestIndefiniteWaitAndWallTimeExcludePausedDuration(t *testing.T) {

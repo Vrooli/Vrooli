@@ -83,7 +83,8 @@ target behavior separately.
 ### T-1 Capture
 
 One per-file incremental indexer reads every transcript root: Codex rollouts
-(including `<parent>_<child>` fork files), Claude Code project files and their
+under `sessions/` and `archived_sessions/` (including `<parent>_<child>` fork
+files and compressed `.jsonl.zst` rollouts), Claude Code project files and their
 `subagents/` sidechains, Agent Manager run homes and web-console homes. A file
 is identified by device and inode, not by the session id in its header, so
 forks and sidechains no longer collide with their parent. The indexer tails
@@ -118,6 +119,36 @@ Implementation (`api/internal/transcriptindex`, host side in
   A session the retired snapshot importer adopted is relinked to its source
   file, its copy is deleted and it is re-read from zero, so the projection
   sweep replaces its stale read model.
+- **Sources.** Every reader opens a transcript through
+  `transcriptindex.OpenTranscript`; offsets, sizes and head hashes are in
+  decoded bytes. The encodings are one table in `source.go`: `.jsonl` (plain)
+  and `.jsonl.zst` (sealed, never appended to; its decoded size comes from the
+  zstd frame header). Adding an encoding is one table entry.
+- **Lineage.** The files of one Codex session (same thread id) are one
+  transcript: web-console recovery copies a session's Codex home and Codex
+  resumes the thread in the copy, and Codex later archives or compresses a
+  rollout under a new device/inode. A new file joins the run of the file
+  already indexed for that session and starts reading where it stops repeating
+  that file's indexed bytes. The shared prefix is proven from the earlier
+  checkpoint alone (its 4 KiB head hash plus every usage report's line offset
+  and timestamp), so the earlier file may already be gone. Usage is therefore
+  counted once per session at the source, and a moved or compressed rollout
+  finishes its run from its real final bytes instead of leaving it `unknown`.
+  A run stays `running` while any of its files is active. Copies adopted
+  before lineage existed are merged on each pass into the earliest file's run:
+  usage rows repeating a row of that run are deleted, the rest move, child runs
+  are re-parented and the emptied run is retired (`merged_copies` in the pass
+  summary). Readers of `transcript_usage` need no copy filter. Imported runs'
+  read-model usage comes only from their durable usage rows. A replacement
+  (newer parser) of a moved file keeps its run and moves the run's transcript
+  path with it; one of a lineage's other files leaves the path alone.
+- **Reused inodes.** Codex deletes a rollout when it compresses it, and the
+  filesystem can give the compressed rollout of one session the inode an
+  older session's deleted rollout had. A file whose device and inode match a
+  checkpoint whose path is gone, and whose header names another session, is
+  not a move: the old checkpoint moves to a retired key
+  (`<device>:<inode>~<first seen ns>`) with its usage, keeping every byte it
+  read, and the new file is indexed as itself.
 - **Durable summaries.** `transcript_usage` keeps one row per provider usage
   report: raw cumulative counter, the report's own amount, model, session,
   message id, and the non-text work the request consumed since the previous
@@ -144,6 +175,15 @@ Implementation (`api/internal/transcriptindex`, host side in
   A source or promotion failure preserves prior evidence. Guarded replacements
   can be inspected and explicitly retried through the exact-target owner route
   described in [DATA.md](DATA.md); uncertain event-recording outcomes cannot.
+  A live source keeps growing while it is staged: the snapshot takes the
+  source as it is at read time up to its last complete line, verification
+  accepts growth past it but not a changed prefix, and the checkpoint covers
+  the snapshot so the rest is tailed next pass. A source that moves under the
+  snapshot (changed, unreadable) defers the replacement instead of locking the
+  row, and rows locked for that reason before 2026-11-21 are released. Only a
+  staging limit, malformed JSON or a lost owner token locks a replacement.
+  Files over the 32 MiB staging limit keep their older parser's events rather
+  than being locked by a parser-version bump.
 - **Coverage.** `transcriptindex.CoverageReader.Coverage(since)` walks the
   roots and joins them with the rows: per root kind and harness, files,
   indexed, with usage, run-owned, excluded, pending, unreadable (with
@@ -169,6 +209,10 @@ Implementation (`api/internal/transcriptindex`, host side in
   those unresolved cases: preserve the transcript and run evidence and seek
   an owner-level reconciliation; importing it again does not clear the guard.
   Files marked unreadable by contention before 2026-10-29 are re-read.
+  An unreadable head (permissions, I/O) is a retry, never a rewrite. Until
+  2026-11-21 it was taken for one, so a capture locked as "source changed"
+  whose source still extends its checkpoint (same head hash, not shorter)
+  retries from its cursor; a really rewritten source stays locked.
 
 ### T-2 Accounting
 
@@ -424,10 +468,11 @@ opus:sonnet:haiku by list-price ratio, categories cached:input:creation:output
 with an off-disk rate (it priced terra at zero on the live window), so the
 models share one scale per window. Prices are looked up concurrently per
 request and memoized for 10 minutes across requests (`usageattribution.PriceBook`);
-a stale price serves while it refreshes. A component neither the price book
-nor a manual override prices stays unpriced; the retired historical-average
-fallback (a JSON scan of `run_events` for cost fields no codec writes) is
-deleted.
+a stale price serves while it refreshes. A transient refresh failure preserves
+the stale price and lets a later request retry; concurrent requests share that
+refresh. A component neither the price book nor a manual override prices stays
+unpriced; the retired historical-average fallback (a JSON scan of `run_events`
+for cost fields no codec writes) is deleted.
 
 **Calibration.** Off-disk use only ever adds to a block's increase, so the
 window's scale is the 25th percentile (increase-weighted) of each block's
@@ -1062,14 +1107,20 @@ Every token total over a time window (`RunCost`, the runner/model/profile/
 workload breakdowns, the per-run distribution, `WorkloadEfficiency`) sums
 `transcript_usage` rows by `observed_at` (request time). A run that started 30
 days ago and ended today contributes only its last-7-day requests to a 7-day
-total, so Details agrees with the provider's readings and with a plain `SUM`
-over the transcript rows. The lifetime counters on `invocation_read_model_runs`
+total, so Details agrees with the provider's readings and with the attributed
+usage over the same transcript rows. The lifetime counters on `invocation_read_model_runs`
 serve per-run views (run detail, cohort rows) only.
 
-Two rules keep the sums honest. A harness session copied into several harness
-homes (the same Codex rollout under two web-console homes) is several
-transcript files with identical requests; a request equal to one in an earlier
-file of the same session counts once. And dollars exist only for per-token
+Three rules keep the sums honest. Each provider request counts once however
+many usage rows report it, by the rule `runsignal.AccountUsage` applies: within
+a file, one cumulative counter value is one request (a Codex `task_complete`
+receipt repeats its last report's counter with the turn's sum), and one Claude
+message id is one request (its usage repeats on every content block, and its
+final block is the turn's receipt). A receipt counts only when it is all that
+was kept of its request. A harness session copied into several harness homes
+(the same Codex rollout under two web-console homes) is one lineage: the
+indexer reads each repeated request once at the source (see the Lineage note
+under T-1), so the sum needs no copy filter. And dollars exist only for per-token
 (`metered`) runs: a run's charge is apportioned to the window by the share of
 its tokens requested in it. Subscription work reports quota points, not dollars.
 

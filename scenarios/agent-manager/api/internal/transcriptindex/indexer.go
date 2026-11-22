@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -34,6 +35,11 @@ type Config struct {
 	// ActiveWindow is how recently a file must have grown for its run to be
 	// `running`; after it the run is `complete`. Default 10m.
 	ActiveWindow time.Duration
+	// SourceGoneGrace is how long after its last modification an active file
+	// whose source no longer exists must stay missing before its run settles
+	// to `unknown`; an imported run with no transcript row waits as long after
+	// its last update. Default 24h.
+	SourceGoneGrace time.Duration
 	// RecallWindow limits the optional full-event recall layer to files
 	// modified this recently. Older files get durable summaries only and are
 	// rebuilt from source on demand. Default 30 days.
@@ -59,6 +65,7 @@ const (
 	defaultInterval       = time.Minute
 	defaultTickBytes      = 512 << 20
 	defaultActiveWindow   = 10 * time.Minute
+	defaultGoneGrace      = 24 * time.Hour
 	defaultRecallWindow   = 30 * 24 * time.Hour
 	DefaultRecallMaxBytes = 4 << 30
 	defaultReimportBytes  = 64 << 20
@@ -103,6 +110,9 @@ func New(store Store, host Host, cfg Config) *Indexer {
 	if cfg.ActiveWindow <= 0 {
 		cfg.ActiveWindow = defaultActiveWindow
 	}
+	if cfg.SourceGoneGrace <= 0 {
+		cfg.SourceGoneGrace = defaultGoneGrace
+	}
 	if cfg.RecallWindow <= 0 {
 		cfg.RecallWindow = defaultRecallWindow
 	}
@@ -126,6 +136,8 @@ type Summary struct {
 	Deferred   int      `json:"deferred"`
 	Evicted    int      `json:"evicted"`
 	Completed  int      `json:"completed"`
+	Unknown    int      `json:"settled_unknown"` // runs settled to unknown: source gone, no terminal signal
+	Merged     int      `json:"merged_copies"`   // copies of a transcript moved onto their lineage's run
 	Failures   []string `json:"failures,omitempty"`
 }
 
@@ -177,6 +189,7 @@ type tick struct {
 	byKey      map[string]*FileRow
 	byPath     map[string]*FileRow
 	candidates map[string]Candidate
+	paths      map[string]bool // paths of this tick's candidates
 	codexByID  map[string]string
 	owned      map[string]string
 	budget     int64
@@ -202,7 +215,7 @@ func (ix *Indexer) RunOnce(ctx context.Context) (Summary, error) {
 	if err != nil {
 		return summary, fmt.Errorf("list run-owned transcripts: %w", err)
 	}
-	t := &tick{now: ix.cfg.Now(), byKey: map[string]*FileRow{}, byPath: map[string]*FileRow{}, candidates: map[string]Candidate{}, codexByID: map[string]string{}, owned: owned, budget: ix.cfg.TickBytes, reimport: ix.cfg.ReimportBytes, versions: map[string]int{}, summary: &summary, inFlight: map[string]bool{}, done: map[string]bool{}}
+	t := &tick{now: ix.cfg.Now(), byKey: map[string]*FileRow{}, byPath: map[string]*FileRow{}, candidates: map[string]Candidate{}, paths: map[string]bool{}, codexByID: map[string]string{}, owned: owned, budget: ix.cfg.TickBytes, reimport: ix.cfg.ReimportBytes, versions: map[string]int{}, summary: &summary, inFlight: map[string]bool{}, done: map[string]bool{}}
 	for index := range rows {
 		row := &rows[index]
 		t.byKey[row.Key], t.byPath[row.Path] = row, row
@@ -226,6 +239,7 @@ func (ix *Indexer) RunOnce(ctx context.Context) (Summary, error) {
 		}
 		for _, candidate := range found {
 			t.candidates[candidate.Key] = candidate
+			t.paths[candidate.Path] = true
 			if id, ok := topLevelCodexID(candidate); ok {
 				t.codexByID[id] = candidate.Key
 			}
@@ -249,7 +263,9 @@ func (ix *Indexer) RunOnce(ctx context.Context) (Summary, error) {
 			summary.Failures = append(summary.Failures, candidate.Path+": "+err.Error())
 		}
 	}
+	ix.reconcileLineage(ctx, t)
 	ix.completeIdle(ctx, t)
+	ix.settleUnlinkedImports(ctx, t)
 	ix.evictRecall(ctx, t)
 	return summary, ctx.Err()
 }
@@ -257,14 +273,14 @@ func (ix *Indexer) RunOnce(ctx context.Context) (Summary, error) {
 // changed is the cheap stat-based change test.
 func (ix *Indexer) changed(candidate Candidate, t *tick) bool {
 	row := t.byKey[candidate.Key]
-	if row == nil {
+	if row == nil || keyReused(row, candidate) {
 		return true
 	}
 	if row.Status == StatusUnreadable && strings.HasPrefix(row.Error, uncertainRecordPrefix) {
-		return retriesInterruptedCapture(row) // anything else requires explicit reconciliation
+		return retriesInterruptedCapture(row, candidate.Path, candidate.Size) // anything else requires explicit reconciliation
 	}
 	if row.Status == StatusUnreadable && strings.HasPrefix(row.Error, sourceReconcilePrefix) {
-		return false
+		return releasableReplacement(row, candidate.Path, candidate.Size) // anything else requires explicit reconciliation
 	}
 	if row.Owner == OwnerIndexer && t.owned[candidate.Path] != "" {
 		return true // an Agent Manager run now reads this file itself
@@ -281,16 +297,42 @@ func (ix *Indexer) changed(candidate Candidate, t *tick) bool {
 // 2026-10-30: unreadable until an operator acted. Such a row retries once.
 const legacyInterruptedCapture = uncertainRecordPrefix + "source changed or cannot be verified; manual reconciliation required"
 
+// sourceMismatchLocks are the reasons an interrupted capture was locked for:
+// its source no longer matching the checkpoint. Until 2026-11-21 an unreadable
+// head was taken for such a mismatch.
+var sourceMismatchLocks = []string{"source changed", "source no longer matches the checkpoint"}
+
 // retriesInterruptedCapture reports an unreadable row left by those older rules:
 // also one whose retry met an event store that refused a payload a resumed parser
-// derived differently, which the store now resolves for transcript events.
-func retriesInterruptedCapture(row *FileRow) bool {
-	return row.Error == legacyInterruptedCapture || (strings.HasPrefix(row.Error, uncertainRecordPrefix) && strings.Contains(row.Error, "replay_event_conflict"))
+// derived differently, which the store now resolves for transcript events, and
+// one locked because its source seemed not to match the checkpoint when the
+// source at path (size bytes) in fact still matches it.
+func retriesInterruptedCapture(row *FileRow, path string, size int64) bool {
+	if !strings.HasPrefix(row.Error, uncertainRecordPrefix) {
+		return false
+	}
+	if row.Error == legacyInterruptedCapture || strings.Contains(row.Error, "replay_event_conflict") {
+		return true
+	}
+	if row.Status != StatusUnreadable || !claimsSourceMismatch(row.Error) {
+		return false
+	}
+	rewritten, err := sourceRewritten(path, row, size)
+	return err == nil && !rewritten
+}
+
+func claimsSourceMismatch(errText string) bool {
+	for _, reason := range sourceMismatchLocks {
+		if strings.Contains(errText, reason) {
+			return true
+		}
+	}
+	return false
 }
 
 // interruptedCapture reports a capture that did not reach its commit.
-func interruptedCapture(row *FileRow) bool {
-	return (row.Status == StatusPending && strings.HasPrefix(row.Error, uncertainRecordPrefix)) || retriesInterruptedCapture(row)
+func interruptedCapture(row *FileRow, path string, size int64) bool {
+	return (row.Status == StatusPending && strings.HasPrefix(row.Error, uncertainRecordPrefix)) || retriesInterruptedCapture(row, path, size)
 }
 
 // recalls reports whether a file's full events belong in the recall layer.
@@ -300,10 +342,12 @@ func (ix *Indexer) recalls(row *FileRow, now time.Time) bool {
 
 // stale reports an adopted recall file whose events an older parser version
 // derived. Only recall is re-imported: a file outside it keeps summaries and
-// no events, and is rebuilt from source on demand.
+// no events, and is rebuilt from source on demand. A file larger than the
+// staging limit cannot be re-imported atomically, so it keeps the older
+// parser's events and goes on being tailed instead of locking.
 func (ix *Indexer) stale(row *FileRow, t *tick) bool {
 	return row.RunID != "" && row.Offset > 0 && row.Error == "" && (row.Status == StatusIndexed || row.Status == StatusPending) &&
-		ix.recalls(row, t.now) && row.ParserVersion < ix.parserVersion(t, row.Harness)
+		row.Size <= rebuildLimit && ix.recalls(row, t.now) && row.ParserVersion < ix.parserVersion(t, row.Harness)
 }
 
 // parserVersion asks the host for a harness's parser version once a tick.
@@ -330,7 +374,7 @@ func topLevelCodexID(candidate Candidate) (string, bool) {
 	if Family(candidate.Root.Harness) != HarnessCodex {
 		return "", false
 	}
-	stem := strings.TrimSuffix(filepath.Base(candidate.Path), ".jsonl")
+	stem := TranscriptStem(filepath.Base(candidate.Path))
 	ids := uuidPattern.FindAllString(stem, -1)
 	if strings.Contains(stem, "_") || len(ids) == 0 {
 		return "", false
@@ -358,6 +402,12 @@ func (ix *Indexer) process(ctx context.Context, t *tick, candidate Candidate) (e
 		}
 	}()
 	row := t.byKey[key]
+	if row != nil && keyReused(row, candidate) {
+		if err := ix.retireKey(ctx, t, row); err != nil {
+			return err
+		}
+		row = nil
+	}
 	existed := row != nil
 	if row == nil {
 		if prior := t.byPath[candidate.Path]; prior != nil && prior.Key != candidate.Key && prior.Owner == OwnerIndexer {
@@ -371,7 +421,19 @@ func (ix *Indexer) process(ctx context.Context, t *tick, candidate Candidate) (e
 		}
 		t.byKey[row.Key] = row
 	}
-	if row.Status == StatusUnreadable && !retriesInterruptedCapture(row) && strings.HasPrefix(row.Error, uncertainRecordPrefix) {
+	if existed && releasableReplacement(row, candidate.Path, candidate.Size) {
+		// A replacement refused only because its source moved while it was
+		// staged (a live rollout keeps growing), or an oversized reimport of a
+		// source that still extends its checkpoint, is retried, never locked.
+		released := *row
+		released.Status, released.Error = StatusPending, ""
+		if err := ix.saveIfUnchanged(ctx, row, released); err != nil {
+			return err
+		}
+		*row = released
+	}
+	retrying := interruptedCapture(row, candidate.Path, candidate.Size)
+	if row.Status == StatusUnreadable && !retrying && strings.HasPrefix(row.Error, uncertainRecordPrefix) {
 		return errors.New(row.Error)
 	}
 	if row.Status == StatusUnreadable && strings.HasPrefix(row.Error, sourceReconcilePrefix) {
@@ -385,8 +447,7 @@ func (ix *Indexer) process(ctx context.Context, t *tick, candidate Candidate) (e
 	if existed {
 		expected = &checkpoint
 	}
-	retrying := false
-	if interruptedCapture(row) {
+	if retrying {
 		// The checkpoint did not move: its commit is atomic and consumes the
 		// intent. A prefix of events may be stored, but events have stable ids
 		// and the event store refuses changed evidence, so reading again from
@@ -395,7 +456,11 @@ func (ix *Indexer) process(ctx context.Context, t *tick, candidate Candidate) (e
 		// lands here, so live sessions must not need an operator. Only a source
 		// that no longer matches the cursor stops.
 		intent := row.Error
-		if row.Offset > candidate.Size || (row.Offset > 0 && HeadHash(candidate.Path, row.Offset) != row.HeadHash) {
+		rewritten, err := sourceRewritten(candidate.Path, row, candidate.Size)
+		if err != nil {
+			return err
+		}
+		if rewritten {
 			row.Status = StatusUnreadable
 			row.Error = uncertainRecordPrefix + "source no longer matches the checkpoint; manual reconciliation required"
 			delete(ix.tails, row.Key)
@@ -426,7 +491,12 @@ func (ix *Indexer) process(ctx context.Context, t *tick, candidate Candidate) (e
 		row.Offset = candidate.Size
 		return ix.saveIfUnchanged(ctx, expected, *row)
 	}
-	if row.Offset > candidate.Size || (row.Offset > 0 && HeadHash(row.Path, row.Offset) != row.HeadHash) || (row.Owner == OwnerRun && row.IndexedAt == nil) {
+	rewritten, err := sourceRewritten(row.Path, row, candidate.Size)
+	if err != nil {
+		*row = checkpoint
+		return err
+	}
+	if rewritten || (row.Owner == OwnerRun && row.IndexedAt == nil) {
 		if checkpoint.Owner == OwnerIndexer && checkpoint.Offset > 0 {
 			*row = checkpoint
 			if ownerRun(candidate, t.owned) != "" {
@@ -482,6 +552,11 @@ func (ix *Indexer) process(ctx context.Context, t *tick, candidate Candidate) (e
 	}
 	// Every read is admitted by the host's visibility policy, so a rule added
 	// after a file was adopted stops further capture.
+	if row.RunID == "" && row.Offset == 0 {
+		if err := ix.continueLineage(ctx, t, row, candidate); err != nil {
+			return err
+		}
+	}
 	parentRunID := ""
 	if row.RunID == "" {
 		var ok bool
@@ -540,258 +615,6 @@ func (ix *Indexer) newRow(ctx context.Context, t *tick, candidate Candidate) (*F
 		}
 	}
 	return row, nil
-}
-
-func (ix *Indexer) refuseReplacement(ctx context.Context, row *FileRow, reason string) error {
-	if row.Status == StatusUnreadable && strings.HasPrefix(row.Error, sourceReconcilePrefix) {
-		return errors.New(row.Error)
-	}
-	expected := *row
-	row.Status, row.Error = StatusUnreadable, sourceReconcilePrefix+reason
-	delete(ix.tails, row.Key)
-	if err := ix.saveIfUnchanged(ctx, &expected, *row); err != nil {
-		return err
-	}
-	return errors.New(row.Error)
-}
-
-type replacementHost interface {
-	ReplacementTokens(context.Context, Store, FileRow) (string, string, error)
-	CommitReplacement(context.Context, Store, string, string, string, FileRow, []UsageRow, []*domain.RunEvent, bool, RunUpdate) (bool, error)
-}
-
-// stageReplacement reads a bounded immutable snapshot and promotes its event,
-// usage, checkpoint and run state together only if both old owner tokens still
-// match. Any pre-promotion failure preserves the old evidence.
-func (ix *Indexer) stageReplacement(ctx context.Context, t *tick, previous *FileRow, candidate Candidate, reimport bool) error {
-	if strings.HasPrefix(previous.Error, uncertainRecordPrefix) {
-		return errors.New(previous.Error)
-	}
-	if previous.Status == StatusUnreadable && strings.HasPrefix(previous.Error, sourceReconcilePrefix) && !t.reconcile {
-		return errors.New(previous.Error)
-	}
-	if candidate.Size > rebuildLimit {
-		return ix.refuseReplacement(ctx, previous, "source exceeds replacement staging limit")
-	}
-	if candidate.Size > t.budget {
-		t.summary.Deferred++
-		return nil
-	}
-	host, ok := ix.host.(replacementHost)
-	if !ok {
-		return ix.refuseReplacement(ctx, previous, "atomic replacement owner unavailable")
-	}
-	adoption, err := ix.host.Adopt(ctx, *previous, "")
-	if err != nil {
-		return ix.refuseReplacement(ctx, previous, "visibility check failed: "+err.Error())
-	}
-	if adoption.Excluded {
-		return ErrExcluded
-	}
-	fileToken, eventToken, err := host.ReplacementTokens(ctx, ix.store, *previous)
-	if err != nil {
-		return ix.refuseReplacement(ctx, previous, "evidence token unavailable: "+err.Error())
-	}
-	source, err := os.Open(candidate.Path)
-	if err != nil {
-		return ix.refuseReplacement(ctx, previous, "open replacement: "+err.Error())
-	}
-	before, err := source.Stat()
-	if err != nil {
-		source.Close()
-		return ix.refuseReplacement(ctx, previous, "stat replacement: "+err.Error())
-	}
-	if !before.Mode().IsRegular() || before.Size() != candidate.Size || before.ModTime().UnixNano() != candidate.MtimeUnixNano {
-		source.Close()
-		return ix.refuseReplacement(ctx, previous, "replacement source changed before snapshot")
-	}
-	data, readErr := io.ReadAll(io.LimitReader(source, candidate.Size))
-	after, statErr := source.Stat()
-	closeErr := source.Close()
-	if int64(len(data)) != candidate.Size && readErr == nil {
-		readErr = io.ErrUnexpectedEOF
-	}
-	if err := errors.Join(readErr, statErr, closeErr); err != nil {
-		return ix.refuseReplacement(ctx, previous, "read replacement: "+err.Error())
-	}
-	pathInfo, err := os.Stat(candidate.Path)
-	if err != nil || after.Size() != before.Size() || !after.ModTime().Equal(before.ModTime()) || !os.SameFile(before, after) || !os.SameFile(before, pathInfo) {
-		return ix.refuseReplacement(ctx, previous, "replacement source changed during snapshot")
-	}
-	for _, line := range bytes.Split(data, []byte{'\n'}) {
-		line = bytes.TrimSpace(line)
-		if len(line) != 0 && !json.Valid(line) {
-			return ix.refuseReplacement(ctx, previous, "replacement contains malformed JSON")
-		}
-	}
-	file := *previous
-	file.Key, file.Path, file.Size, file.MtimeUnixNano = candidate.Key, candidate.Path, candidate.Size, candidate.MtimeUnixNano
-	file.Offset, file.Turns, file.UsageReports, file.RecallBytes = 0, 0, 0, 0
-	file.HeadHash, file.PendingFacts, file.Error = "", "", ""
-	file.LastObservedEventAt = nil
-	parser, err := ix.host.Parser(ctx, file)
-	if err != nil {
-		return ix.refuseReplacement(ctx, previous, "replacement parser: "+err.Error())
-	}
-	if setter, ok := parser.(runner.TranscriptSessionSetter); ok && file.HeaderSessionID != "" {
-		setter.SetTranscriptSession(file.HeaderSessionID, true)
-	}
-	runID, err := uuid.Parse(file.RunID)
-	if err != nil {
-		return ix.refuseReplacement(ctx, previous, "replacement run identity: "+err.Error())
-	}
-	state := &tailState{parser: parser}
-	staged := &stagedRecall{Host: ix.host}
-	result, err := ix.readSource(ctx, &file, runID, state, 0, candidate.Size, true, true, staged, bytes.NewReader(data))
-	if err != nil {
-		return ix.refuseReplacement(ctx, previous, "replacement parse: "+err.Error())
-	}
-	if result.cursor != candidate.Size {
-		return ix.refuseReplacement(ctx, previous, "replacement has an incomplete final record")
-	}
-	if err := verifySnapshot(candidate.Path, before, data); err != nil {
-		return ix.refuseReplacement(ctx, previous, "replacement source changed during staging: "+err.Error())
-	}
-	if result.sessionID != "" && file.HeaderSessionID != "" && result.sessionID != file.HeaderSessionID {
-		return ix.refuseReplacement(ctx, previous, "replacement session identity changed")
-	}
-	file.Offset, file.Turns, file.UsageReports = result.cursor, result.turns, int64(len(result.usage))
-	file.PendingFacts, file.HeadHash = state.facts.encode(), hashHead(data)
-	file.ParserVersion = ix.parserVersion(t, file.Harness)
-	file.Status, file.Error = StatusPending, ReplacementEffectsPending
-	file.Active = t.now.Sub(file.Mtime()) < ix.cfg.ActiveWindow
-	if !result.ended.IsZero() {
-		observed := result.ended
-		file.LastObservedEventAt = &observed
-	}
-	now := ix.cfg.Now()
-	file.IndexedAt = &now
-	update := RunUpdate{SessionID: result.sessionID, Label: result.label, StartedAt: result.started, EndedAt: result.ended, Active: file.Active, Recorded: len(staged.events)}
-	retain := ix.recalls(&file, t.now)
-	if !retain {
-		update.Recorded = 0
-	}
-	committed, err := host.CommitReplacement(ctx, ix.store, previous.Key, fileToken, eventToken, file, result.usage, staged.events, retain, update)
-	if !committed {
-		var precommit *ReplacementPrecommitError
-		if errors.As(err, &precommit) {
-			return ix.refuseReplacement(ctx, previous, precommit.Error())
-		}
-		// A commit error may be ambiguous. Never overwrite either checkpoint
-		// while determining whether promotion took effect.
-		previous.Status, previous.Error = StatusPending, sourceReconcilePrefix+"replacement outcome uncertain; inspect owner before retry"
-		return err
-	}
-	delete(t.byKey, previous.Key)
-	delete(ix.tails, previous.Key)
-	if err == nil {
-		file.Status, file.Error = StatusIndexed, ""
-	}
-	if retainedBytes, measureErr := ix.store.RecallBytes(ctx, file.RunID); measureErr == nil {
-		file.RecallBytes = retainedBytes
-	}
-	*previous = file
-	t.byKey[file.Key], t.byPath[file.Path] = previous, previous
-	t.budget -= candidate.Size
-	t.summary.Read++
-	t.summary.BytesRead += candidate.Size
-	if reimport {
-		t.summary.Reimported++
-		t.reimport -= candidate.Size
-	}
-	return err
-}
-
-type ReplacementIssue struct {
-	FileKey string `json:"fileKey"`
-	Path    string `json:"path"`
-	Reason  string `json:"reason"`
-}
-
-type ReplacementIssues struct {
-	Items     []ReplacementIssue `json:"items"`
-	Truncated bool               `json:"truncated"`
-}
-
-// ReplacementIssues reports exact guarded file keys for a single run.
-func (ix *Indexer) ReplacementIssues(ctx context.Context, runID string) (ReplacementIssues, error) {
-	if _, err := uuid.Parse(runID); err != nil {
-		return ReplacementIssues{}, errors.New("valid run ID is required")
-	}
-	rows, err := ix.store.ListTranscriptFiles(ctx)
-	if err != nil {
-		return ReplacementIssues{}, err
-	}
-	out := ReplacementIssues{Items: []ReplacementIssue{}}
-	if owner, ok := ix.store.(interface {
-		LegacyCleanupIssue(context.Context, string) (*ReplacementIssue, error)
-	}); ok {
-		issue, err := owner.LegacyCleanupIssue(ctx, runID)
-		if err != nil {
-			return out, err
-		}
-		if issue != nil {
-			out.Items = append(out.Items, *issue)
-		}
-	}
-	for _, row := range rows {
-		if row.RunID != runID || row.Status != StatusUnreadable || !strings.HasPrefix(row.Error, sourceReconcilePrefix) {
-			continue
-		}
-		if len(out.Items) == 50 {
-			out.Truncated = true
-			break
-		}
-		out.Items = append(out.Items, ReplacementIssue{FileKey: row.Key, Path: row.Path, Reason: row.Error})
-	}
-	return out, nil
-}
-
-// ReconcileReplacement retries only a specific, explicitly guarded source
-// replacement. It never clears uncertain event-recording outcomes.
-func (ix *Indexer) ReconcileReplacement(ctx context.Context, runID, fileKey string) error {
-	if _, err := uuid.Parse(runID); err != nil || strings.TrimSpace(fileKey) == "" {
-		return errors.New("exact run ID and file key are required")
-	}
-	ix.mu.Lock()
-	defer ix.mu.Unlock()
-	rows, err := ix.store.ListTranscriptFiles(ctx)
-	if err != nil {
-		return err
-	}
-	var target *FileRow
-	for i := range rows {
-		row := &rows[i]
-		if row.Key == fileKey && row.RunID == runID {
-			target = row
-			break
-		}
-	}
-	if target == nil {
-		return errors.New("replacement checkpoint not found for exact run and file key")
-	}
-	if target.Status != StatusUnreadable || !strings.HasPrefix(target.Error, sourceReconcilePrefix) {
-		return errors.New("checkpoint is not awaiting replacement reconciliation")
-	}
-	root := Root{Path: target.RootPath, Kind: target.RootKind, Harness: target.Harness, WebConsoleSessionID: target.WebConsoleSessionID}
-	candidate, ok := Identify(root, target.Path)
-	if !ok {
-		return errors.New("replacement source unavailable")
-	}
-	owned, err := ix.host.OwnedTranscripts(ctx)
-	if err != nil {
-		return err
-	}
-	if ownerRun(candidate, owned) != "" {
-		return errors.New("replacement source is now owned by a managed run")
-	}
-	var summary Summary
-	t := &tick{now: ix.cfg.Now(), byKey: map[string]*FileRow{}, byPath: map[string]*FileRow{}, candidates: map[string]Candidate{candidate.Key: candidate}, owned: owned, budget: rebuildLimit, reimport: rebuildLimit, versions: map[string]int{}, summary: &summary, inFlight: map[string]bool{}, done: map[string]bool{}, reconcile: true}
-	for i := range rows {
-		row := &rows[i]
-		t.byKey[row.Key], t.byPath[row.Path] = row, row
-	}
-	return ix.stageReplacement(ctx, t, target, candidate, false)
 }
 
 func ownerRun(candidate Candidate, owned map[string]string) string {
@@ -912,7 +735,7 @@ func (ix *Indexer) tail(ctx context.Context, t *tick, row *FileRow, expected *Fi
 		state = &tailState{parser: parser, offset: row.Offset, facts: decodeFacts(row.PendingFacts)}
 		ix.tails[row.Key] = state
 	}
-	end := min(row.Size, row.Offset+t.budget)
+	end := min(row.Size, row.Offset+max(t.budget, 0))
 	owned := row.Owner == OwnerRun
 	intentToken := ""
 	if !owned {
@@ -963,6 +786,16 @@ func (ix *Indexer) tail(ctx context.Context, t *tick, row *FileRow, expected *Fi
 		}
 		return errors.New(row.Error)
 	}
+	head, err := HeadHash(row.Path, read.cursor)
+	if err != nil {
+		// The stored intent stays: the next tick retries from the unmoved
+		// cursor, as after an interrupted capture.
+		delete(ix.tails, row.Key)
+		*row = previous
+		row.Status, row.Error = StatusPending, intentToken
+		return fmt.Errorf("fingerprint transcript head; capture retries from its cursor: %w", err)
+	}
+	consumed := read.cursor > row.Offset
 	t.budget -= read.cursor - row.Offset
 	t.summary.Read++
 	t.summary.BytesRead += read.cursor - row.Offset
@@ -975,7 +808,7 @@ func (ix *Indexer) tail(ctx context.Context, t *tick, row *FileRow, expected *Fi
 		observed := read.ended
 		row.LastObservedEventAt = &observed
 	}
-	row.HeadHash = HeadHash(row.Path, row.Offset)
+	row.HeadHash = head
 	row.Status, row.Error = StatusIndexed, ""
 	if owned {
 		row.Status = StatusOwned
@@ -991,9 +824,14 @@ func (ix *Indexer) tail(ctx context.Context, t *tick, row *FileRow, expected *Fi
 		// Keep the import nonterminal until its entire observed source has
 		// been consumed, even when the tick's byte budget ended mid-file.
 		row.Active = row.Offset < row.Size || t.now.Sub(row.Mtime()) < ix.cfg.ActiveWindow
-		update = RunUpdate{SessionID: read.sessionID, Label: read.label, StartedAt: read.started, EndedAt: read.ended, Active: row.Active, Recorded: read.events}
-		if row.LastObservedEventAt != nil {
-			update.EndedAt = *row.LastObservedEventAt
+		// A run recorded by several files (a moved, compressed or copied
+		// transcript) is active while any of them is.
+		update = RunUpdate{SessionID: read.sessionID, Label: read.label, StartedAt: read.started, EndedAt: read.ended, Active: row.Active || t.runActiveElsewhere(row), Recorded: read.events}
+		if ended := t.runLastObserved(row); !ended.IsZero() {
+			update.EndedAt = ended
+		}
+		if consumed || expected == nil || expected.Path != row.Path {
+			update.TranscriptPath = row.Path // the file that carries the transcript now
 		}
 	}
 	if recall && read.events > 0 {
@@ -1076,6 +914,15 @@ func (ix *Indexer) read(ctx context.Context, row *FileRow, runID uuid.UUID, stat
 
 func (ix *Indexer) readSource(ctx context.Context, row *FileRow, runID uuid.UUID, state *tailState, start, end int64, recall, keepUsage bool, host Host, snapshot io.Reader) (readResult, error) {
 	result := readResult{cursor: start}
+	if snapshot == nil && Sealed(row.Path) {
+		// A compressed transcript is read through its decoded bytes.
+		decoded, err := OpenTranscriptAt(row.Path, start)
+		if err != nil {
+			return result, err
+		}
+		defer decoded.Close()
+		snapshot = decoded
+	}
 	sink := &recordSink{ctx: ctx, host: host, runID: row.RunID, recall: recall, discard: row.Owner == OwnerRun}
 	lineOffset := start
 	parse := func(id uuid.UUID, line string) runner.TranscriptParseResult {
@@ -1186,14 +1033,21 @@ func (ix *Indexer) completeIdle(ctx context.Context, t *tick) {
 		// incompletely captured source is idle. In particular, uncertain event
 		// writes and deferred reads must not become an imported completion.
 		candidate, observed := t.candidates[row.Key]
-		if !observed || row.Status != StatusIndexed || row.Error != "" || row.Offset < candidate.Size ||
+		if !observed {
+			ix.settleVanished(ctx, t, row)
+			continue
+		}
+		if row.Status != StatusIndexed || row.Error != "" || row.Offset < candidate.Size ||
 			row.Path != candidate.Path || row.Size != candidate.Size || row.MtimeUnixNano != candidate.MtimeUnixNano || ix.stale(row, t) {
 			continue
 		}
-		update := RunUpdate{Active: false}
-		if row.LastObservedEventAt != nil {
-			update.EndedAt = *row.LastObservedEventAt
+		if t.runActiveElsewhere(row) {
+			// Another file of the run still carries it: this file goes idle,
+			// the run does not.
+			ix.deactivate(ctx, t, row, "complete idle run")
+			continue
 		}
+		update := RunUpdate{Active: false, EndedAt: t.runLastObserved(row)}
 		if owner, ok := ix.host.(interface {
 			CommitTranscript(context.Context, Store, FileRow, []UsageRow, *FileRow, string, RunUpdate) error
 		}); ok {
@@ -1208,6 +1062,129 @@ func (ix *Indexer) completeIdle(ctx context.Context, t *tick) {
 			continue
 		}
 		t.summary.Failures = append(t.summary.Failures, row.Path+": complete idle run: atomic transcript/run update unavailable")
+	}
+}
+
+// transcriptCommitter commits a checkpoint and its run update atomically.
+type transcriptCommitter interface {
+	CommitTranscript(context.Context, Store, FileRow, []UsageRow, *FileRow, string, RunUpdate) error
+}
+
+// settleVanished settles the run of an active file whose source is definitively
+// gone. completeIdle rightly refuses to call it complete, but the file can
+// never be read again, so nothing else would ever end the run. It settles to
+// unknown — no trustworthy terminal signal — and the row keeps its evidence,
+// inactive. Only a not-exist answer about the exact path counts as gone; a
+// permission or I/O error, a recent file, an uncertain recording and a
+// replacement awaiting effects are left alone.
+func (ix *Indexer) settleVanished(ctx context.Context, t *tick, row *FileRow) {
+	if !settlesWhenGone(row) || t.paths[row.Path] || !sourceGone(row.Path) {
+		return
+	}
+	if t.runObservedElsewhere(row) {
+		// The transcript lives on in another file of the same run (compressed
+		// or copied under a new identity); that file settles the run.
+		ix.deactivate(ctx, t, row, "settle vanished run")
+		return
+	}
+	if t.now.Sub(row.Mtime()) < ix.cfg.SourceGoneGrace {
+		return
+	}
+	owner, ok := ix.host.(transcriptCommitter)
+	if !ok {
+		t.summary.Failures = append(t.summary.Failures, row.Path+": settle vanished run: atomic transcript/run update unavailable")
+		return
+	}
+	update := RunUpdate{Unknown: true}
+	if row.LastObservedEventAt != nil {
+		update.EndedAt = *row.LastObservedEventAt
+	}
+	checkpoint := *row
+	checkpoint.Active = false
+	if err := owner.CommitTranscript(ctx, ix.store, checkpoint, nil, row, "", update); err != nil {
+		t.summary.Failures = append(t.summary.Failures, row.Path+": settle vanished run: "+err.Error())
+		return
+	}
+	row.Active = false
+	t.summary.Unknown++
+}
+
+// deactivate marks a file idle without changing its run, which another file of
+// the run still carries.
+func (ix *Indexer) deactivate(ctx context.Context, t *tick, row *FileRow, action string) {
+	idle := *row
+	idle.Active = false
+	if err := ix.saveIfUnchanged(ctx, row, idle); err != nil {
+		t.summary.Failures = append(t.summary.Failures, row.Path+": "+action+": "+err.Error())
+		return
+	}
+	row.Active = false
+}
+
+// settlesWhenGone reports a checkpoint whose run may settle once its source is
+// gone: a captured or partially captured file with no capture in flight, or
+// one locked awaiting a source replacement that can no longer arrive.
+func settlesWhenGone(row *FileRow) bool {
+	switch row.Status {
+	case StatusIndexed, StatusPending:
+		return row.Error == ""
+	case StatusUnreadable:
+		return strings.HasPrefix(row.Error, sourceReconcilePrefix)
+	}
+	return false
+}
+
+// sourceGone reports that path definitively does not exist.
+func sourceGone(path string) bool {
+	if path == "" {
+		return false
+	}
+	_, err := os.Lstat(path)
+	return errors.Is(err, fs.ErrNotExist)
+}
+
+// UnlinkedImport is a nonterminal imported run no transcript row names.
+type UnlinkedImport struct {
+	RunID string
+	Path  string
+	// LastActivity is the run's latest lifecycle timestamp.
+	LastActivity time.Time
+}
+
+// unlinkedImportHost lists the nonterminal imported runs outside linked.
+type unlinkedImportHost interface {
+	UnlinkedImports(ctx context.Context, linked map[string]bool) ([]UnlinkedImport, error)
+}
+
+// settleUnlinkedImports settles an imported run that no transcript row names
+// and whose source is gone. Such a run was created by an adoption whose first
+// checkpoint never landed; while its source exists the next adoption links it,
+// but once the source is gone nothing ever would.
+func (ix *Indexer) settleUnlinkedImports(ctx context.Context, t *tick) {
+	host, ok := ix.host.(unlinkedImportHost)
+	if !ok {
+		return
+	}
+	linked := map[string]bool{}
+	for _, row := range t.byKey {
+		if row.RunID != "" {
+			linked[row.RunID] = true
+		}
+	}
+	runs, err := host.UnlinkedImports(ctx, linked)
+	if err != nil {
+		t.summary.Failures = append(t.summary.Failures, "list unlinked imported runs: "+err.Error())
+		return
+	}
+	for _, run := range runs {
+		if linked[run.RunID] || t.paths[run.Path] || t.now.Sub(run.LastActivity) < ix.cfg.SourceGoneGrace || !sourceGone(run.Path) {
+			continue
+		}
+		if err := ix.host.UpdateRun(ctx, run.RunID, RunUpdate{Unknown: true}); err != nil {
+			t.summary.Failures = append(t.summary.Failures, run.Path+": settle unlinked imported run: "+err.Error())
+			continue
+		}
+		t.summary.Unknown++
 	}
 }
 
@@ -1314,55 +1291,6 @@ func (ix *Indexer) IndexPath(ctx context.Context, path, harness string) (string,
 	}
 }
 
-const rebuildLimit = 32 << 20
-
-// verifySnapshot detects additional source changes before promotion. A matching
-// reread still cannot prove atomicity against a cooperating concurrent writer.
-func verifySnapshot(path string, expected os.FileInfo, data []byte) error {
-	return verifySnapshotWithHook(path, expected, data, nil)
-}
-
-func verifySnapshotWithHook(path string, expected os.FileInfo, data []byte, afterRead func()) error {
-	f, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	before, err := f.Stat()
-	if err != nil {
-		return err
-	}
-	if !os.SameFile(expected, before) || before.Size() != expected.Size() || !before.ModTime().Equal(expected.ModTime()) {
-		return errors.New("source metadata changed")
-	}
-	buf := make([]byte, 64<<10)
-	for at := 0; at < len(data); {
-		n := min(len(buf), len(data)-at)
-		if _, err := io.ReadFull(f, buf[:n]); err != nil {
-			return err
-		}
-		if !bytes.Equal(buf[:n], data[at:at+n]) {
-			return errors.New("source bytes changed")
-		}
-		at += n
-	}
-	if afterRead != nil {
-		afterRead()
-	}
-	after, err := f.Stat()
-	if err != nil {
-		return err
-	}
-	if !os.SameFile(before, after) || before.Size() != after.Size() || !before.ModTime().Equal(after.ModTime()) {
-		return errors.New("source metadata changed during verification")
-	}
-	pathInfo, err := os.Stat(path)
-	if err != nil || !os.SameFile(after, pathInfo) {
-		return errors.New("source path changed during verification")
-	}
-	return nil
-}
-
 type stagedRecall struct {
 	Host
 	events []*domain.RunEvent
@@ -1424,31 +1352,18 @@ func (ix *Indexer) RebuildRecall(ctx context.Context, runID string) error {
 		if row.Offset <= 0 || row.Offset > rebuildLimit {
 			return errors.New("recall rebuild exceeds source staging limit or has no captured bytes")
 		}
-		source, err := os.Open(row.Path)
-		if err != nil {
-			return err
-		}
-		before, err := source.Stat()
-		if err != nil {
-			source.Close()
-			return err
-		}
-		if !before.Mode().IsRegular() || before.Size() != row.Size || before.ModTime().UnixNano() != row.MtimeUnixNano {
-			source.Close()
+		candidate, ok := Identify(Root{Path: row.RootPath, Kind: row.RootKind, Harness: row.Harness}, row.Path)
+		if !ok || candidate.Key != row.Key || candidate.Size != row.Size || candidate.MtimeUnixNano != row.MtimeUnixNano {
 			return errors.New("recall source differs from checkpoint or is not a regular file")
 		}
-		data, copyErr := io.ReadAll(io.LimitReader(source, row.Offset))
-		if int64(len(data)) != row.Offset && copyErr == nil {
-			copyErr = io.ErrUnexpectedEOF
-		}
-		after, statErr := source.Stat()
-		closeErr := source.Close()
-		if err := errors.Join(copyErr, statErr, closeErr); err != nil {
+		snapshot, err := snapshotTranscript(candidate)
+		if err != nil {
 			return err
 		}
-		if after.Size() != before.Size() || !after.ModTime().Equal(before.ModTime()) || !os.SameFile(before, after) {
-			return errors.New("recall source changed during snapshot")
+		if int64(len(snapshot.data)) < row.Offset {
+			return errors.New("recall source ends before its checkpoint")
 		}
+		data := snapshot.data[:row.Offset]
 		fingerprint, decodeErr := hex.DecodeString(row.HeadHash)
 		if decodeErr != nil || len(fingerprint) != 32 {
 			return errors.New("recall checkpoint head fingerprint unavailable or invalid; reconciliation required")
@@ -1465,7 +1380,7 @@ func (ix *Indexer) RebuildRecall(ctx context.Context, runID string) error {
 		if result.cursor != row.Offset {
 			return errors.New("recall snapshot was not fully parsed")
 		}
-		if err := verifySnapshot(row.Path, before, data); err != nil {
+		if err := snapshot.verify(); err != nil {
 			return fmt.Errorf("recall source changed during staging: %w", err)
 		}
 		row.RecallEvicted, row.ParserVersion = false, ix.host.ParserVersion(row.Harness)

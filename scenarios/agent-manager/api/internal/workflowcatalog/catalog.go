@@ -329,7 +329,13 @@ func validateParallelBranches(nodes map[string]*domain.WorkflowNode, adj map[str
 			continue
 		}
 		joinID := ""
+		members := make(map[string]struct{}, len(adj[id]))
 		for _, edge := range adj[id] {
+			if _, duplicate := members[edge.To]; duplicate {
+				add("parallel_members", "nodes."+id, "parallel branch members must target distinct nodes")
+				continue
+			}
+			members[edge.To] = struct{}{}
 			member := nodes[edge.To]
 			if member == nil || (member.Kind != domain.WorkflowNodeRun && member.Kind != domain.WorkflowNodeContinue && member.Kind != domain.WorkflowNodeChild) {
 				add("parallel_member", "nodes."+id, "parallel members must be run, continue, or child_workflow nodes")
@@ -345,10 +351,14 @@ func validateParallelBranches(nodes map[string]*domain.WorkflowNode, adj map[str
 				add("parallel_join", "nodes."+id, "all parallel members must converge on one join")
 			}
 		}
+		if len(members) < 2 {
+			add("parallel_members", "nodes."+id, "parallel branch requires at least two distinct members")
+			continue
+		}
 		join := nodes[joinID]
 		if join == nil || join.Kind != domain.WorkflowNodeJoin {
 			add("parallel_join", "nodes."+id, "parallel members must converge on a join node")
-		} else if join.Join.Strategy == "quorum" && join.Join.Quorum > len(adj[id]) {
+		} else if join.Join.Strategy == "quorum" && join.Join.Quorum > len(members) {
 			add("parallel_quorum", "nodes."+joinID, "quorum cannot exceed parallel member count")
 		}
 	}

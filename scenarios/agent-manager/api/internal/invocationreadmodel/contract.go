@@ -150,9 +150,9 @@ type Filter struct {
 
 // RunScope is the origin filter of a statistic (P2-D8). Agent Manager runs
 // are those Agent Manager executed itself (codec-pipe); operator sessions are
-// imported, attached and interactive sessions. A session copied into several
-// harness homes, and an imported or attached session with no usage, never
-// counts as a run of its own.
+// imported, attached and interactive sessions. An imported or attached session
+// with no usage never counts as a run; a session copied into several harness
+// homes is one run because its copies share their lineage's run.
 type RunScope string
 
 const (

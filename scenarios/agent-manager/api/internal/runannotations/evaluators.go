@@ -343,7 +343,7 @@ func (s *Service) evaluateComposites(ctx context.Context, work *runWork) {
 // replay does not look newer.
 func (s *Service) recordComposite(ctx context.Context, work *runWork, observation Annotation, fingerprint string) {
 	observation.EvidenceHash = fingerprint
-	if !work.force && !work.pass.pinned() {
+	if !work.forces(observation.LabelID) && !work.pass.pinned() {
 		prior, err := work.pass.store.Current(ctx, work.scopeKind, work.scopeID, observation.LabelID, observation.DefinitionHash)
 		if err == nil && reusableObservation(prior) && prior.EvidenceHash == fingerprint {
 			if _, exists := work.observations[observation.LabelID]; !exists {

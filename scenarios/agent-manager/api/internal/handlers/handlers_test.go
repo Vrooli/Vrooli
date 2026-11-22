@@ -143,6 +143,11 @@ func setupTestHandlerWithRunnerAndReposOverride(t *testing.T, mock *runner.MockR
 	// alternative runners or silently falling through to another provider.
 	catalog := rolepolicy.Catalog{SchemaVersion: rolepolicy.CurrentSchemaVersion, Metadata: rolepolicy.Metadata{CatalogID: "handler-fixture", UpdatedAt: "2026-10-27"}, DefaultRole: "code.default", Roles: map[string]rolepolicy.Role{
 		"code.default": {Description: "Endpoint fixture", Intent: "test endpoint contracts", Candidates: []rolepolicy.Candidate{{Runner: mock.Type(), ResourceRole: "code.default"}}},
+		"browser.agent": {
+			Description: "Browser task endpoint fixture", Intent: "test bounded BAS capability flow",
+			Candidates:        []rolepolicy.Candidate{{Runner: mock.Type(), ResourceRole: "code.default"}},
+			BrowserCandidates: []rolepolicy.BrowserCandidate{{Runner: mock.Type(), ResourceRole: "browser.session"}},
+		},
 	}}
 	catalogBytes, err := json.Marshal(catalog)
 	if err != nil {

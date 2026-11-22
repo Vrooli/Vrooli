@@ -19,8 +19,7 @@ import (
 // code, never a fact the profiles do not read) with the features stored at
 // projection, without touching run_events.
 func TestToolCallsReadStoredFeaturesOfTheWindow(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	ctx := context.Background()
 	now := time.Date(2026, 10, 30, 6, 0, 0, 0, time.UTC)
 	stored := toolfriction.Features{
@@ -72,8 +71,7 @@ func TestToolCallsReadStoredFeaturesOfTheWindow(t *testing.T) {
 // transcript record is marked as having none, not as older: its parser is
 // unknown. RunToolFriction joins one run's record the same way.
 func TestToolCallsMarkRunsAnOlderParserRead(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	ctx := context.Background()
 	now := time.Date(2026, 10, 30, 6, 0, 0, 0, time.UTC)
 	runs := []struct {
@@ -139,8 +137,7 @@ func TestToolCallsMarkRunsAnOlderParserRead(t *testing.T) {
 // were not made for) but counts their runs and command calls, so the coverage
 // line says what awaits re-derivation instead of reading it as absent.
 func TestToolCallsReadOnlyTheCurrentFactVersionAndCountTheRest(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	ctx := context.Background()
 	now := time.Date(2026, 10, 30, 6, 0, 0, 0, time.UTC)
 	repo := &invocationReadModelRepository{db: db}
@@ -183,8 +180,7 @@ func TestToolCallsReadOnlyTheCurrentFactVersionAndCountTheRest(t *testing.T) {
 // searched for the runs in scope (never a scan aggregating every run's), and
 // the stale count reads the window's facts once.
 func TestToolCallReadsAreBoundedByTheWindow(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	plan := func(query string, args ...any) []string {
 		t.Helper()
 		rows, err := db.QueryContext(context.Background(), "EXPLAIN QUERY PLAN "+query, args...)
@@ -237,8 +233,7 @@ func TestToolCallReadsAreBoundedByTheWindow(t *testing.T) {
 // scenario's (outside its data directory). The reads of a run that works on
 // another scenario stay bypasses.
 func TestToolCallsMarkReadsOfTheScenarioARunWorksOn(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	ctx := context.Background()
 	now := time.Date(2026, 10, 30, 6, 0, 0, 0, time.UTC)
 	repo := &invocationReadModelRepository{db: db}
@@ -448,8 +443,7 @@ func TestToolCallMemoSkipsLongWindowsAndSupersededSlots(t *testing.T) {
 // ToolOutputs reads the text fields a result holds (error, output, block
 // text), never its raw JSON copies, cut at MaxOutputChars.
 func TestToolOutputsReadTextFieldsOnly(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	ctx := context.Background()
 	long := strings.Repeat("x", MaxOutputChars+500)
 	for id, payload := range map[string]string{
@@ -479,8 +473,7 @@ func TestToolOutputsReadTextFieldsOnly(t *testing.T) {
 // A run's score carries how far its events are projected at the current fact
 // version; a watermark of another version is no projection at it.
 func TestRunToolFrictionSaysHowFarTheRunIsProjected(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	ctx := context.Background()
 	now := time.Date(2026, 10, 30, 6, 0, 0, 0, time.UTC)
 	repo := &invocationReadModelRepository{db: db}

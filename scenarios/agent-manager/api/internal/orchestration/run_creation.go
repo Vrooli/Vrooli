@@ -658,6 +658,10 @@ func (f *createRunFlow) freezeRunContract(ctx context.Context) error {
 	// Native controls depend on the final sandbox policy, including retained
 	// recovery grants. Attach it before recording admission, not afterward.
 	resolvedConfig.SandboxConfig = f.sandboxConfig
+	resolvedConfig.WorkspaceBinding = &domain.RunWorkspaceBinding{
+		ProjectRoot: strings.TrimSpace(task.ProjectRoot),
+		ScopePath:   strings.TrimSpace(task.ScopePath),
+	}
 	resolvedConfig.Admission = buildRunAdmission(req, resolvedConfig)
 	identityScopes := admittedIdentityScopes(req, f.profile)
 	resolvedConfig.Admission.FrozenIdentityScopes = &identityScopes

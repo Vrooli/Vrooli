@@ -127,8 +127,12 @@ type ExecutionRequest struct {
 	ExpectedPolicyFileSHA256     string
 	Profile                      sharedv1.Profile
 	InputText                    string
-	MaxOutputTokens              int32
-	Timeout                      time.Duration
+	// InputTexts are the texts of one embedding call. The resource embeds them
+	// in a single upstream request and answers one vector per text, in order.
+	// When empty, an embedding call carries InputText alone.
+	InputTexts      []string
+	MaxOutputTokens int32
+	Timeout         time.Duration
 	// Temperature requests a specific sampling temperature. It is a pointer so
 	// that an explicit 0 (deterministic) is distinguishable from "unset, use
 	// the resource default". Whether the resolved role's provider actually
@@ -154,6 +158,17 @@ type ExecutionResult struct {
 	ExitCode           int
 	SpendAuthorization *inferencev1.SpendAuthorization
 	Recovery           *inferencev1.RecoveryReceipt
+	// Timing is what the resource measured inside its own command. It is how
+	// callers separate provider work from everything around it.
+	Timing ProviderTiming
+}
+
+// ProviderTiming is a resource's own measurement of one command: how long it
+// waited for its host admission slot and how long the provider call took.
+// Zero means the resource did not report the value, not that it cost nothing.
+type ProviderTiming struct {
+	AdmissionWaitNS int64
+	RuntimeNS       int64
 }
 
 type ResolvedRole struct {
@@ -258,6 +273,15 @@ type rolePolicyEntry struct {
 	Status   string `json:"status"`
 }
 
+// inputs are the texts a request carries: the batch of an embedding call, or
+// the single input text of every other call.
+func (r ExecutionRequest) inputs() []string {
+	if r.Kind == sharedv1.RequestKind_REQUEST_KIND_TEXT_EMBEDDING && len(r.InputTexts) > 0 {
+		return r.InputTexts
+	}
+	return []string{r.InputText}
+}
+
 func (a Adapter) executionCommand(req ExecutionRequest) (Command, error) {
 	timeout := req.Timeout
 	if timeout <= 0 {
@@ -268,8 +292,10 @@ func (a Adapter) executionCommand(req ExecutionRequest) (Command, error) {
 		return Command{}, &CommandError{Code: "invalid_request", Command: a.Provider, ExitCode: -1, Err: errors.New("role is required")}
 	}
 	input := req.InputText
-	if strings.TrimSpace(input) == "" {
-		return Command{}, &CommandError{Code: "invalid_request", Command: a.Provider, ExitCode: -1, Err: errors.New("input_text is required")}
+	for _, text := range req.inputs() {
+		if strings.TrimSpace(text) == "" {
+			return Command{}, &CommandError{Code: "invalid_request", Command: a.Provider, ExitCode: -1, Err: errors.New("input_text is required")}
+		}
 	}
 	switch a.family() {
 	case FamilyOllama:
@@ -290,7 +316,7 @@ func (a Adapter) ollamaExecutionCommand(req ExecutionRequest, role string, input
 	localOnlyArgs := ollamaLocalityArgs(req)
 	switch req.Kind {
 	case sharedv1.RequestKind_REQUEST_KIND_TEXT_EMBEDDING:
-		return ollamaEmbeddingCommand(a.CommandName, role, input, timeout, modelArgs, localOnlyArgs), nil
+		return ollamaEmbeddingCommand(a.CommandName, role, req.inputs(), timeout, modelArgs, localOnlyArgs)
 	case sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION,
 		sharedv1.RequestKind_REQUEST_KIND_STRUCTURED_EXTRACTION:
 		return ollamaGenerationCommand(a, req, role, input, timeout, modelArgs, localOnlyArgs)
@@ -329,9 +355,18 @@ func ollamaLocalityArgs(req ExecutionRequest) []string {
 	return nil
 }
 
-func ollamaEmbeddingCommand(name, role, input string, timeout time.Duration, modelArgs, localityArgs []string) Command {
-	args := append(append(append([]string{"gateway", "embed", "--role", role}, modelArgs...), localityArgs...), "--json", "--input-stdin")
-	return Command{Name: name, Args: args, Stdin: input, Timeout: timeout}
+// ollamaEmbeddingCommand embeds every text in one resource call. Single and
+// batched requests share this form, so one input and many inputs produce
+// vectors of the same scale.
+func ollamaEmbeddingCommand(name, role string, texts []string, timeout time.Duration, modelArgs, localityArgs []string) (Command, error) {
+	stdin, err := json.Marshal(struct {
+		Inputs []string `json:"inputs"`
+	}{Inputs: texts})
+	if err != nil {
+		return Command{}, &CommandError{Code: "invalid_request", Command: name, ExitCode: -1, Err: fmt.Errorf("encode embedding inputs: %w", err)}
+	}
+	args := append(append(append([]string{"gateway", "embed", "--role", role}, modelArgs...), localityArgs...), "--json", "--input-json-stdin")
+	return Command{Name: name, Args: args, Stdin: string(stdin), Timeout: timeout}, nil
 }
 
 func ollamaGenerationCommand(a Adapter, req ExecutionRequest, role, input string, timeout time.Duration, modelArgs, localityArgs []string) (Command, error) {

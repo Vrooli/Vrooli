@@ -42,6 +42,8 @@ type windowTarget struct {
 // providers by normalized runner.
 var runnerProvider = map[string]string{"claude": "anthropic", "codex": "openai"}
 
+const maxWholeDayDuration = int64(1<<63-1) / int64(24*time.Hour)
+
 // StartRequest is one operator start.
 type StartRequest struct {
 	Preset             string
@@ -247,6 +249,9 @@ func (s *Service) parseUntil(ctx context.Context, raw, runner string, now time.T
 	}
 	if days, ok := strings.CutSuffix(raw, "d"); ok { // 90d: a comparison runs for weeks
 		if n, err := strconv.Atoi(days); err == nil && n > 0 {
+			if int64(n) > maxWholeDayDuration {
+				return usagemode.NewModeOptions{}, invalid("--until %q exceeds the maximum %d-day duration; use an RFC 3339 time", raw, maxWholeDayDuration)
+			}
 			return usagemode.NewModeOptions{Duration: time.Duration(n) * 24 * time.Hour}, nil
 		}
 	}

@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -21,7 +20,7 @@ import (
 func TestWorkspaceSandboxProvider_ExecProcess_Success(t *testing.T) {
 	sandboxID := uuid.New()
 	var got map[string]any
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	prov := newWorkspaceSandboxTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasSuffix(r.URL.Path, "/exec") {
 			t.Errorf("unexpected path %s", r.URL.Path)
 		}
@@ -33,9 +32,6 @@ func TestWorkspaceSandboxProvider_ExecProcess_Success(t *testing.T) {
 			"pid":      4242,
 		})
 	}))
-	defer server.Close()
-
-	prov := sandbox.NewWorkspaceSandboxProvider(server.URL)
 	res, err := prov.ExecProcess(context.Background(), sandbox.ExecProcessRequest{
 		SandboxID:   sandboxID,
 		Command:     "echo",
@@ -61,7 +57,7 @@ func TestWorkspaceSandboxProvider_ExecProcess_Success(t *testing.T) {
 }
 
 func TestWorkspaceSandboxProvider_ExecProcess_GitBlockedSurfaces403(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	prov := newWorkspaceSandboxTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusForbidden)
 		_ = json.NewEncoder(w).Encode(map[string]any{
@@ -70,9 +66,6 @@ func TestWorkspaceSandboxProvider_ExecProcess_GitBlockedSurfaces403(t *testing.T
 			"message": "git verb \"commit\" is not in the protected-mode allowlist",
 		})
 	}))
-	defer server.Close()
-
-	prov := sandbox.NewWorkspaceSandboxProvider(server.URL)
 	res, err := prov.ExecProcess(context.Background(), sandbox.ExecProcessRequest{
 		SandboxID: uuid.New(),
 		Command:   "git",
@@ -91,13 +84,10 @@ func TestWorkspaceSandboxProvider_ExecProcess_GitBlockedSurfaces403(t *testing.T
 
 func TestWorkspaceSandboxProvider_ExecProcess_FullNetworkOpensNetwork(t *testing.T) {
 	var got map[string]any
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	prov := newWorkspaceSandboxTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewDecoder(r.Body).Decode(&got)
 		_ = json.NewEncoder(w).Encode(map[string]any{"exitCode": 0})
 	}))
-	defer server.Close()
-
-	prov := sandbox.NewWorkspaceSandboxProvider(server.URL)
 	if _, err := prov.ExecProcess(context.Background(), sandbox.ExecProcessRequest{
 		SandboxID:   uuid.New(),
 		Command:     "curl",

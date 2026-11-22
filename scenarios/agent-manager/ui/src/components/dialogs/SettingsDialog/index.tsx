@@ -2,17 +2,9 @@
 
 import { useCallback, useRef, useState } from "react";
 import { AppNotificationSettings } from "@vrooli/react-component-library/AppNotificationSettings/1";
-import { Button } from "@vrooli/react-component-library/Button/2";
 import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "../../ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../ui/tabs";
+import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
+import { Tabs as RclTabs } from "@vrooli/react-component-library/Tabs/1";
 import { PurgeConfirmDialog, type PurgePreview } from "../PurgeConfirmDialog";
 import { InvestigationTab } from "./InvestigationTab";
 import type { InvestigationTabHandle } from "./InvestigationTab";
@@ -114,94 +106,61 @@ export function SettingsDialog({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange} fullScreenMobile>
-        <DialogContent fullScreenMobile className="sm:max-w-[90vw] xl:max-w-7xl">
-          <DialogHeader onClose={() => onOpenChange(false)} className="p-4 sm:p-6">
-            <DialogTitle>Settings</DialogTitle>
-            <DialogDescription>{TAB_DESCRIPTIONS[activeTab]}</DialogDescription>
-          </DialogHeader>
-
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
-            {/* Tab bar — sticky, scrollable on mobile */}
-            <div className="px-4 sm:px-6 pb-2 pt-1 shrink-0 border-b border-border">
-              <TabsList className="flex w-full overflow-x-auto no-scrollbar sm:grid sm:grid-cols-7">
-                <TabsTrigger value="roles" className="shrink-0">Role Policy</TabsTrigger>
-                <TabsTrigger value="permissions" className="shrink-0">Permissions</TabsTrigger>
-                <TabsTrigger value="pricing" className="shrink-0">Model Pricing</TabsTrigger>
-                <TabsTrigger value="investigation" className="shrink-0">Investigation</TabsTrigger>
-                <TabsTrigger value="orchestration" className="shrink-0">Orchestration</TabsTrigger>
-                <TabsTrigger value="notifications" className="shrink-0">Notifications</TabsTrigger>
-                <TabsTrigger value="maintenance" className="shrink-0">Maintenance</TabsTrigger>
-              </TabsList>
-            </div>
-
-            {/* Scrollable tab content */}
-            <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-4">
-              <TabsContent value="roles" className="mt-0">
-                <RolePolicyTab data={rolePolicy.data} loading={rolePolicy.loading} error={rolePolicy.error} />
-              </TabsContent>
-              <TabsContent value="permissions" className="mt-0">
-                <PermissionPolicyTab policy={permissionPolicy} />
-              </TabsContent>
-              <TabsContent value="pricing" className="mt-0">
-                <ModelPricingTab />
-              </TabsContent>
-              <TabsContent value="investigation" className="mt-0">
-                <InvestigationTab
-                  ref={investigationRef}
-                  settings={investigationSettings.data}
-                  loading={investigationSettings.loading}
-                  error={investigationSettings.error}
-                  onSave={investigationSettings.updateSettings}
-                  onReset={investigationSettings.resetSettings}
-                  onDirtyChange={setInvestigationDirty}
-                />
-              </TabsContent>
-              <TabsContent value="orchestration" className="mt-0">
-                <OrchestrationTab
-                  ref={orchestrationRef}
-                  settings={orchestrationSettings.data}
-                  loading={orchestrationSettings.loading}
-                  error={orchestrationSettings.error}
-                  onSave={orchestrationSettings.updateSettings}
-                  onReset={orchestrationSettings.resetSettings}
-                  onDirtyChange={setOrchestrationDirty}
-                />
-              </TabsContent>
-              <TabsContent value="notifications" className="mt-0">
-                <AppNotificationSettings />
-              </TabsContent>
-              <TabsContent value="maintenance" className="mt-0">
-                <MaintenanceTab
-                  purgePattern={purgePattern}
-                  onPurgePatternChange={setPurgePattern}
-                  loading={purgeLoading}
-                  error={purgeError}
-                  onPurgePreview={handlePurgePreview}
-                />
-              </TabsContent>
-            </div>
-          </Tabs>
-
-          <DialogFooter>
-            <OverlayActionBar className="flex-row-reverse" actions={
-              activeTab === "orchestration" && orchestrationDirty
+      <ResponsiveDialog
+        open={open}
+        onOpenChange={onOpenChange}
+        title="Settings"
+        closeLabel="Close"
+        size="lg"
+        testId="settings-dialog"
+        panelClassName="sm:!w-[90vw] xl:!w-[80rem]"
+        contentClassName="flex min-h-0 flex-col p-0"
+        subheader={<p className="px-4 py-2 text-sm text-muted-foreground sm:px-6">{TAB_DESCRIPTIONS[activeTab]}</p>}
+        footer={(
+          <OverlayActionBar className="flex-row-reverse" actions={
+            activeTab === "orchestration" && orchestrationDirty
+              ? overlayActions(
+                  { id: "save", label: orchestrationRef.current?.saving ? "Saving..." : "Save", onSelect: () => orchestrationRef.current?.save(), disabled: orchestrationRef.current?.saving, primary: true },
+                  { id: "reset", label: "Reset to Defaults", onSelect: () => orchestrationRef.current?.reset(), disabled: orchestrationRef.current?.saving },
+                  { id: "close", label: "Close", onSelect: () => onOpenChange(false) },
+                )
+              : activeTab === "investigation" && investigationDirty
                 ? overlayActions(
-                    { id: "save", label: orchestrationRef.current?.saving ? "Saving..." : "Save", onSelect: () => orchestrationRef.current?.save(), disabled: orchestrationRef.current?.saving, primary: true },
-                    { id: "reset", label: "Reset to Defaults", onSelect: () => orchestrationRef.current?.reset(), disabled: orchestrationRef.current?.saving },
+                    { id: "save", label: investigationRef.current?.saving ? "Saving..." : "Save", onSelect: () => investigationRef.current?.save(), disabled: investigationRef.current?.saving, primary: true },
+                    { id: "reset", label: "Reset to Defaults", onSelect: () => investigationRef.current?.reset(), disabled: investigationRef.current?.saving },
                     { id: "close", label: "Close", onSelect: () => onOpenChange(false) },
                   )
-                : activeTab === "investigation" && investigationDirty
-                  ? overlayActions(
-                      { id: "save", label: investigationRef.current?.saving ? "Saving..." : "Save", onSelect: () => investigationRef.current?.save(), disabled: investigationRef.current?.saving, primary: true },
-                      { id: "reset", label: "Reset to Defaults", onSelect: () => investigationRef.current?.reset(), disabled: investigationRef.current?.saving },
-                      { id: "close", label: "Close", onSelect: () => onOpenChange(false) },
-                    )
-                  : overlayActions({ id: "close", label: "Close", onSelect: () => onOpenChange(false), primary: true })
-            } />
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+                : overlayActions({ id: "close", label: "Close", onSelect: () => onOpenChange(false), primary: true })
+          } />
+        )}
+      >
+          <RclTabs
+            active={activeTab}
+            onChange={setActiveTab}
+            ariaLabel="Settings categories"
+            className="flex min-h-0 flex-1 flex-col [&_[data-rcl-tab-panel]]:min-h-0 [&_[data-rcl-tab-panel]]:flex-1 [&_[data-rcl-tab-panel]]:overflow-y-auto"
+            items={[
+              { id: "roles", label: "Role Policy" },
+              { id: "permissions", label: "Permissions" },
+              { id: "pricing", label: "Model Pricing" },
+              { id: "investigation", label: "Investigation" },
+              { id: "orchestration", label: "Orchestration" },
+              { id: "notifications", label: "Notifications" },
+              { id: "maintenance", label: "Maintenance" },
+            ]}
+            testId="settings-dialog-tabs"
+            panels={{
+              roles: <div className="px-4 py-4 sm:px-6"><RolePolicyTab data={rolePolicy.data} loading={rolePolicy.loading} error={rolePolicy.error} /></div>,
+              permissions: <div className="px-4 py-4 sm:px-6"><PermissionPolicyTab policy={permissionPolicy} /></div>,
+              pricing: <div className="px-4 py-4 sm:px-6"><ModelPricingTab /></div>,
+              investigation: <div className="px-4 py-4 sm:px-6"><InvestigationTab ref={investigationRef} settings={investigationSettings.data} loading={investigationSettings.loading} error={investigationSettings.error} onSave={investigationSettings.updateSettings} onReset={investigationSettings.resetSettings} onDirtyChange={setInvestigationDirty} /></div>,
+              orchestration: <div className="px-4 py-4 sm:px-6"><OrchestrationTab ref={orchestrationRef} settings={orchestrationSettings.data} loading={orchestrationSettings.loading} error={orchestrationSettings.error} onSave={orchestrationSettings.updateSettings} onReset={orchestrationSettings.resetSettings} onDirtyChange={setOrchestrationDirty} /></div>,
+              notifications: <div className="px-4 py-4 sm:px-6"><AppNotificationSettings /></div>,
+              maintenance: <div className="px-4 py-4 sm:px-6"><MaintenanceTab purgePattern={purgePattern} onPurgePatternChange={setPurgePattern} loading={purgeLoading} error={purgeError} onPurgePreview={handlePurgePreview} /></div>,
+            }}
+          />
+
+      </ResponsiveDialog>
 
       <PurgeConfirmDialog
         open={purgeConfirmOpen}

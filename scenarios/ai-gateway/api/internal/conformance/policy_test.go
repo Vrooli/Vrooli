@@ -44,6 +44,8 @@ func TestScanProjectPolicyNegativeFixtures(t *testing.T) {
 		{"ollama gateway", "AI_OLLAMA_GATEWAY_ONLY", "package main\nconst endpoint = \"/api/chat\"\n"},
 		{"ollama facts", "AI_OLLAMA_POLICY_FACTS", "package main\nconst vectorSize = 768\n"},
 		{"openrouter facts", "AI_OPENROUTER_POLICY_FACTS", "package main\nconst model = \"openai/gpt-4o\"\n"},
+		{"ollama runner option key", "AI_OLLAMA_RUNTIME_OPTIONS", "package main\nvar options = map[string]any{\"num_ctx\": 32768}\n"},
+		{"ollama runner gateway flag", "AI_OLLAMA_RUNTIME_OPTIONS", "package main\nvar args = []string{\"gateway\", \"generate\", \"--num-thread\", \"8\"}\n"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -123,5 +125,25 @@ func TestScanProjectIgnoresCommentsAndNonOllamaCatalogIdentifiers(t *testing.T) 
 	}
 	if len(report.Findings) != 0 {
 		t.Fatalf("comments and non-Ollama catalog names are not runtime model selection: %+v", report.Findings)
+	}
+}
+
+func TestScanProjectFlagsOllamaRuntimeOptionsInOtherResourcesButNotSimilarKeys(t *testing.T) {
+	root := t.TempDir()
+	writePolicyFixture(t, root, "resources/opencode/cli/internal/config/config.go", "package config\nvar inner = map[string]any{\"num_ctx\": 16384}\n")
+	writePolicyFixture(t, root, "resources/sherpa-onnx/server/asr.go", "package server\nvar opts = map[string]any{\"num_threads\": 2}\n")
+	writePolicyFixture(t, root, "resources/ollama/cli/internal/runtimeprofile/profile.go", "package runtimeprofile\nvar keys = []string{\"num_ctx\"}\n")
+	report, err := NewScanner().ScanProject(t.Context(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var paths []string
+	for _, finding := range report.Findings {
+		if finding.GetRuleId() == "AI_OLLAMA_RUNTIME_OPTIONS" {
+			paths = append(paths, finding.GetPath())
+		}
+	}
+	if len(paths) != 1 || !strings.HasPrefix(paths[0], "resources/opencode/") {
+		t.Fatalf("AI_OLLAMA_RUNTIME_OPTIONS findings = %v, want only the opencode caller", paths)
 	}
 }

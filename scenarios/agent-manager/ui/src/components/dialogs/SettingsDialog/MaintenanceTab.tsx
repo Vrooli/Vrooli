@@ -2,7 +2,7 @@
 
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { Card, CardContent } from "../../ui/card";
-import { Input } from "../../ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { Label } from "../../ui/label";
 import { PurgeTarget } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
 

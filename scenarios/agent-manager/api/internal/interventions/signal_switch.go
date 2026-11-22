@@ -153,7 +153,9 @@ func (c SignalControl) Set(enabled bool, by string) error {
 	return os.Rename(name, path)
 }
 
-// Purge deletes every stored signal and returns how many rows went.
+// Purge deletes every stored signal and returns how many rows went. It does
+// not change the switch; call Set(false, ...) first when the goal is to stop
+// future signal rows as well as remove the existing derived labels.
 func (c SignalControl) Purge(ctx context.Context) (int64, error) {
 	if c.Store == nil {
 		return 0, errors.New("operator signal store is unavailable")

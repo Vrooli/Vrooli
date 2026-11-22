@@ -14,8 +14,7 @@ import (
 // Count describes the same population as List, with paging ignored.
 func TestRunCountMatchesListFiltersIgnoringPaging(t *testing.T) {
 	ctx := context.Background()
-	db, cleanup := setupTestDB(t)
-	t.Cleanup(cleanup)
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	tasks := map[string]*domain.Task{}
 	for _, scope := range []string{"scenarios/agent-manager", "scenarios/other"} {

@@ -164,7 +164,7 @@ func TestRoundTrip_PerEventType(t *testing.T) {
 		{"heartbeat.miss", HeartbeatMissPayload{Target: HeartbeatTargetRun, AttemptNo: 1, Message: "db locked"}},
 		{"checkpoint.failure", CheckpointFailurePayload{Phase: "running", Step: CheckpointFailureSavePhase, Message: "io error"}},
 		{"retry.attempt", RetryAttemptPayload{Operation: "execute", AttemptNo: 1, MaxAttempts: 3, Reason: "network_transient"}},
-		{"browser.session", BrowserSessionPayload{SessionID: "session-1", Mode: "managed", PermissionProfile: "observe", State: "opened", ReportedBy: "browser-automation-studio"}},
+		{"browser.session", BrowserSessionPayload{SessionID: "session-1", Mode: "managed", PermissionProfile: "observe", State: "closed", Runtime: &BrowserRuntimeEvidence{BundleVersion: "br1-chromium-1169-rebrowser-playwright-core-1.52.0", BrowserVersion: "1169", ClosureSHA256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", Driver: "rebrowser-playwright-core", DriverVersion: "1.52.0", Source: "offline-install-receipt", Channel: "offline-transfer"}, ReportedBy: "browser-automation-studio"}},
 		{"browser.action", BrowserActionPayload{SessionID: "session-1", Mode: "managed", PermissionProfile: "observe", Action: "observe", Outcome: "completed", ReportedBy: "browser-automation-studio"}},
 	}
 

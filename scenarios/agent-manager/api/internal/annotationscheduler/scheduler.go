@@ -164,7 +164,6 @@ func Start(ctx context.Context, opts Options) (*Runner, error) {
 			Since: since,
 			Until: started,
 			Limit: limit,
-			Force: false,
 		})
 		actual := time.Since(started).Seconds()
 		if evalErr != nil {

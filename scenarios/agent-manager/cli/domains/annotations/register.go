@@ -431,12 +431,12 @@ func runCommand() cliapp.Command {
 	return cliapp.Command{
 		Name: "run", NeedsAPI: true,
 		Description: "Evaluate the pack for one run and show what was observed",
-		Usage:       "agent-manager annotations run <run-id> [--force] [--include-optional] [--labels a,b] [--json]",
+		Usage:       "agent-manager annotations run <run-id> [--force-labels a,b] [--include-optional] [--labels a,b] [--json]",
 		Args: cliapp.ArgSchema{
 			Positionals: []cliapp.Positional{{Name: "run-id", Required: true, Description: "Run id"}},
 			Flags: []cliapp.Flag{
-				{Name: "force", Bool: true, LocalOnly: true, Description: "Re-evaluate even when a cached observation exists"},
-				{Name: "include-optional", Bool: true, LocalOnly: true, Description: "Include optional labels such as agent.discovery_slow"},
+				{Name: "force-labels", Description: "Comma-separated label ids whose cached answers are asked again (never every label)"},
+				{Name: "include-optional", Bool: true, LocalOnly: true, Description: "Include labels the pack marks optional"},
 				{Name: "labels", Description: "Comma-separated label ids (default: every active label)"},
 				{Name: "max-labels", Description: "Maximum labels to evaluate"},
 			},
@@ -447,7 +447,7 @@ func runCommand() cliapp.Command {
 				return err
 			}
 			body, err := json.Marshal(map[string]any{
-				"force":            ctx.BoolFlag("force"),
+				"force_labels":     parseLabels(ctx.Flag("force-labels")),
 				"include_optional": ctx.BoolFlag("include-optional"),
 				"labels":           parseLabels(ctx.Flag("labels")),
 				"max_labels":       maxLabels,
@@ -491,7 +491,7 @@ func evaluateCommand() cliapp.Command {
 			{Name: "role", Description: "Decision role walked for a pinned evaluation (default: the pack's runtime.bakeoff_role, then each label's role)"},
 			{Name: "labels", Description: "Comma-separated label ids (default: every active label)"},
 			{Name: "include-optional", Bool: true, LocalOnly: true, Description: "Include optional labels"},
-			{Name: "force", Bool: true, LocalOnly: true, Description: "Ignore cached observations"},
+			{Name: "force-labels", Description: "Comma-separated label ids whose cached answers are asked again; a composite is recomputed without it, so name only labels a model should answer anew"},
 		}},
 		RunCtx: func(ctx cliapp.RunContext) error {
 			limit, err := parsePositiveInt(ctx.Flag("limit"), "limit")
@@ -500,7 +500,7 @@ func evaluateCommand() cliapp.Command {
 			}
 			params := evaluateParams{
 				Since: ctx.Flag("since"), Labels: parseLabels(ctx.Flag("labels")),
-				IncludeOptional: ctx.BoolFlag("include-optional"), Force: ctx.BoolFlag("force"),
+				IncludeOptional: ctx.BoolFlag("include-optional"), ForceLabels: parseLabels(ctx.Flag("force-labels")),
 				PinResourceRole: strings.TrimSpace(ctx.Flag("pin-resource-role")), Role: strings.TrimSpace(ctx.Flag("role")),
 			}
 			if params.Role != "" && params.PinResourceRole == "" {
@@ -715,7 +715,7 @@ type evaluateParams struct {
 	RunIDs          []string
 	Labels          []string
 	IncludeOptional bool
-	Force           bool
+	ForceLabels     []string
 	PinResourceRole string
 	Role            string
 	MessageIDs      []string
@@ -730,7 +730,10 @@ func evaluateBody(params evaluateParams) (map[string]any, error) {
 		}
 	}
 	body := map[string]any{
-		"limit": params.Limit, "include_optional": params.IncludeOptional, "force": params.Force,
+		"limit": params.Limit, "include_optional": params.IncludeOptional,
+	}
+	if len(params.ForceLabels) > 0 {
+		body["force_labels"] = append([]string(nil), params.ForceLabels...)
 	}
 	if since != "" {
 		body["since"] = since

@@ -3,7 +3,6 @@
 package core
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -308,21 +307,45 @@ func (d *durableRun) teeOutput() {
 	go func() {
 		defer close(d.stderrDone)
 		defer obs.RecoverToFailure("stderr transcript drainer", nil)
-		scanner := bufio.NewScanner(d.proc.Stderr())
-		for scanner.Scan() {
-			line := scanner.Text()
-			d.errorOutput.WriteString(line)
-			d.errorOutput.WriteString("\n")
-			if in.transcript.StderrFile != nil {
-				if _, err := io.WriteString(in.transcript.StderrFile, line+"\n"); err != nil {
+		var stderr io.Reader = d.proc.Stderr()
+		if in.transcript.StderrFile != nil {
+			stderr = io.TeeReader(stderr, &bestEffortMirror{
+				writer: in.transcript.StderrFile,
+				onError: func(err error) {
 					r.reportTranscriptError(in.runID, in.sink, "stderr transcript tee", err)
-				}
-			}
+				},
+			})
 		}
-		if err := scanner.Err(); err != nil {
-			r.reportTranscriptError(in.runID, in.sink, "stderr transcript scan", err)
+		if _, err := io.Copy(&d.errorOutput, stderr); err != nil {
+			r.reportTranscriptError(in.runID, in.sink, "stderr transcript read", err)
 		}
 	}()
+}
+
+// bestEffortMirror records transcript-copy failures without stopping the
+// stderr drain; leaving a child pipe unread can block the process being waited.
+type bestEffortMirror struct {
+	writer  io.Writer
+	onError func(error)
+	failed  bool
+}
+
+func (w *bestEffortMirror) Write(p []byte) (int, error) {
+	if w.failed {
+		return len(p), nil
+	}
+	n, err := w.writer.Write(p)
+	if err == nil && n != len(p) {
+		err = io.ErrShortWrite
+	}
+	if err != nil {
+		w.failed = true
+		if w.onError != nil {
+			w.onError(err)
+		}
+		return len(p), nil
+	}
+	return n, nil
 }
 
 // startLiveTail parses the transcript as it grows, dispatching events.

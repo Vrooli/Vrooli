@@ -34,7 +34,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        inferenceconnect.InferenceServiceEmbedProcedure,
 		Method:      "POST",
 		Summary:     "Return gateway-owned embedding vectors",
-		Description: "Resolves the requested embedding role locally and returns one vector per input text in request order. Embeddings always use the local-only profile (LOCAL_ONLY); new callers send profile, privacy_class, and privacy_provenance. Omitted legacy contracts remain local-only.",
+		Description: "Resolves the requested embedding role locally and returns one vector per input text in request order. Embeddings run only under the local-only profile: every request must send profile=PROFILE_LOCAL_ONLY, privacy_class and privacy_provenance, and a request missing any of them is rejected with INVALID_REQUEST naming each missing field.",
 		Category:    "inference",
 		Request:     &module.Schema{Type: "EmbedRequest", Properties: map[string]string{"texts": "string[]", "role": "string", "sampling": "SamplingControls", "profile": "Profile", "privacy_class": "PrivacyClass", "privacy_provenance": "string"}},
 		Response:    &module.Schema{Type: "EmbedResponse", Properties: map[string]string{"vectors": "EmbeddingVector[]", "provider": "string", "model": "string", "dimension": "int32", "usage": "Usage", "error": "InferenceError"}},

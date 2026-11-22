@@ -15,8 +15,7 @@ import (
 // Codex repeats one reading on every token_count frame and jitters resets_at
 // by seconds; the forecaster's read collapses that to one span per reading.
 func TestQuotaReadingSpansCollapseRepeatedFramesPerReading(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repo := NewPricingRepository(db, logrus.New())
 	store := repo.(pricing.QuotaObservationRepository)
 	base := time.Date(2026, 10, 29, 1, 0, 0, 0, time.UTC)
@@ -91,8 +90,7 @@ func quotaRowCount(t *testing.T, db *DB) int64 {
 // and otherwise at most once per heartbeat, also when concurrent sessions'
 // files are indexed out of time order (each file is tailed forward).
 func TestRecordQuotaObservationStoresStateChangesAndHeartbeatsOnly(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	store := NewPricingRepository(db, logrus.New()).(pricing.QuotaObservationRepository)
 	start := time.Date(2026, 10, 29, 1, 0, 0, 0, time.UTC)
 	reset := start.Add(5 * time.Hour)
@@ -140,8 +138,7 @@ func legacyQuotaRows(t *testing.T, db *DB, frames []*pricing.QuotaObservation) {
 // deduplication without changing any reading span, so the forecast and its
 // backtest read the same history; a second pass deletes nothing.
 func TestCompactQuotaObservationsPreservesSpansAndBacktestAndIsIdempotent(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repo := NewPricingRepository(db, logrus.New())
 	source := repo.(pricing.QuotaReadingSource)
 	start := time.Date(2026, 10, 1, 8, 0, 0, 0, time.UTC)
@@ -201,8 +198,7 @@ func TestCompactQuotaObservationsPreservesSpansAndBacktestAndIsIdempotent(t *tes
 // The default reading read returns every scope, each span labelled with its own
 // scope and never merged into another account's history.
 func TestScopedQuotaObservationsRemainIsolated(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repo := NewPricingRepository(db, logrus.New())
 	store := repo.(pricing.QuotaObservationRepository)
 	scoped := repo.(pricing.ScopedQuotaObservationRepository)
@@ -261,8 +257,7 @@ func TestScopedQuotaObservationsRemainIsolated(t *testing.T) {
 }
 
 func TestQuotaScopeMigrationPreservesLegacyUnknownRows(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	// Recreate the pre-scope table shape with existing evidence in place.
 	if _, err := db.Exec(`DROP INDEX idx_quota_observations_account_scope_time`); err != nil {
 		t.Fatal(err)
@@ -286,8 +281,7 @@ func TestQuotaScopeMigrationPreservesLegacyUnknownRows(t *testing.T) {
 }
 
 func TestCompactionDoesNotMergeAccountScopes(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repo := NewPricingRepository(db, logrus.New())
 	base := time.Date(2026, 10, 29, 1, 0, 0, 0, time.UTC)
 	// Insert pre-compaction rows directly to model repeated historical frames.

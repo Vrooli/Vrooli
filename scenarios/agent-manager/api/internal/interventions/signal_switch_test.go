@@ -71,7 +71,7 @@ func TestACorruptSwitchFileFailsClosedBecauseItIsAPrivacyControl(t *testing.T) {
 
 func TestPurgeDeletesEveryStoredSignalAndStatusCountsThem(t *testing.T) {
 	isolatedHome(t)
-	f, _ := newSignalFixture(t)
+	f := newSignalFixture(t)
 	now := f.now
 	records := []SignalRecord{
 		{SignalCandidate: SignalCandidate{EventID: "e1", RunID: "r1", OccurredAt: now.Format(time.RFC3339Nano)}, Answer: SignalAnswer{Status: StatusClassified, Signal: ReportedFailure}},

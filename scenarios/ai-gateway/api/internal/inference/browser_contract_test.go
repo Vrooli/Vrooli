@@ -144,6 +144,16 @@ func TestBrowserRolesFailClosedWhenSelectedSourceHasNoCandidate(t *testing.T) {
 	}
 }
 
+func TestBrowserNoEligibleRouteOffersNextStepWithoutInferenceOrFunding(t *testing.T) {
+	response := applyProviderError(&inferencev1.RunResponse{Usage: &inferencev1.Usage{}}, validBrowserRunRequest("browser.extract", `{"type":"object"}`), ErrNoEligibleRoute)
+	require.Equal(t, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_NO_ELIGIBLE_ROUTE, response.GetError().GetCode())
+	require.Contains(t, response.GetError().GetMessage(), "select an available source or ask the account owner to enable or upgrade an eligible route")
+	require.Contains(t, response.GetError().GetMessage(), "No model inference was dispatched and funding was not changed")
+	require.Empty(t, response.GetProvider())
+	require.Empty(t, response.GetModel())
+	require.Zero(t, response.GetUsage().GetCreditsCharged())
+}
+
 func TestBrowserRunRolesDoNotFallbackAfterUncertainMeteredOutcome(t *testing.T) {
 	for _, test := range []struct {
 		role        string

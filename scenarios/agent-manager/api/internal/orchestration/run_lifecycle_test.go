@@ -1028,9 +1028,13 @@ func TestContinueRun_ReplacesEachDeletedSandboxIncarnation(t *testing.T) {
 		Status: domain.RunStatusPending, Phase: domain.RunPhaseQueued,
 		SessionID: "session-incarnation", StartedAt: &now,
 		ResolvedConfig: &domain.RunConfig{
-			RunnerType:    domain.RunnerTypeClaudeCode,
-			Model:         "mock-model",
-			RoleRef:       "code.default",
+			RunnerType: domain.RunnerTypeClaudeCode,
+			Model:      "mock-model",
+			RoleRef:    "code.default",
+			WorkspaceBinding: &domain.RunWorkspaceBinding{
+				ProjectRoot: task.ProjectRoot,
+				ScopePath:   task.ScopePath,
+			},
 			NetworkAccess: domain.NetworkAccessNone,
 			SandboxConfig: &domain.SandboxConfig{
 				Mode:        domain.SandboxModeProtected,

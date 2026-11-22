@@ -769,16 +769,20 @@ func (o *Orchestrator) prepareContinuationSandbox(ctx context.Context, run *doma
 		return "", nil
 	}
 	if o.sandbox == nil {
-		return "", domain.NewConfigMissingError("sandbox", "provider not configured", nil)
+		return "", domain.RefuseBeforeEffects(domain.NewConfigMissingError("sandbox", "provider not configured", nil))
 	}
 
 	sb, err := o.sandbox.Get(ctx, *run.SandboxID)
 	if err != nil {
-		return "", err
+		// Get is the read-only admission step. Until it resolves the saved
+		// workspace, no resume/start/create or runner dispatch can have occurred.
+		// Mark only this boundary as pre-effect so a durable continuation receipt
+		// can be retried with the exact same request after provider recovery.
+		return "", domain.RefuseBeforeEffects(err)
 	}
 	runStateRoot, err := o.resolveRunStateRoot(ctx)
 	if err != nil {
-		return "", err
+		return "", domain.RefuseBeforeEffects(err)
 	}
 	switch sb.Status {
 	case sandbox.SandboxStatusCheckpointed:
@@ -802,6 +806,19 @@ func (o *Orchestrator) prepareContinuationSandbox(ctx context.Context, run *doma
 		// Scope the create key to this deleted sandbox incarnation: retries of
 		// this replacement reuse one resource, while a later deleted replacement
 		// receives a new key instead of replaying its tombstone.
+		var binding *domain.RunWorkspaceBinding
+		if run.ResolvedConfig != nil {
+			binding = run.ResolvedConfig.WorkspaceBinding
+		}
+		if binding == nil || strings.TrimSpace(binding.ProjectRoot) == "" || strings.TrimSpace(binding.ScopePath) == "" {
+			return "", domain.RefuseBeforeEffects(domain.NewStateError(
+				"Sandbox", "workspace_binding_unknown", "continue",
+				"this retained run predates its immutable workspace binding; start a new run to avoid silently switching projects",
+			))
+		}
+		pinnedTask := *task
+		pinnedTask.ProjectRoot = binding.ProjectRoot
+		pinnedTask.ScopePath = binding.ScopePath
 		deletedSandboxID := *run.SandboxID
 		out, createErr := phases.SetupWorkspace(ctx, phases.SetupWorkspaceInput{
 			Deps: phases.Deps{
@@ -812,7 +829,7 @@ func (o *Orchestrator) prepareContinuationSandbox(ctx context.Context, run *doma
 				WorkspaceSandbox: o.workspaceSandbox,
 			},
 			Run:                      run,
-			Task:                     task,
+			Task:                     &pinnedTask,
 			Sandbox:                  o.sandbox,
 			RunStateRoot:             runStateRoot,
 			SandboxIdempotencySuffix: ":continuation:" + run.SessionID + ":" + deletedSandboxID.String(),

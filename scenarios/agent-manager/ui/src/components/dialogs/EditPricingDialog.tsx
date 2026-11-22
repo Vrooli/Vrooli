@@ -12,7 +12,7 @@ import {
   DialogDescription,
   DialogBody,
 } from "../ui/dialog";
-import { Input } from "../ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import {
   useModelOverrides,
   useSetOverride,

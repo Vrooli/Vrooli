@@ -37,7 +37,7 @@ func seriesCommand() cliapp.Command {
 			"Mean is the calibrated expected score (or probability) over every message in the bucket; proven_mean averages only messages from a model whose hold-out proof clears the gate. " +
 			"Until a model is proven the series is evidence of mood, not a measurement, and the output says so.",
 		Args: cliapp.ArgSchema{Flags: []cliapp.Flag{
-			{Name: "label", Required: true, Description: "Message-scope label id (for example operator.dissatisfied)"},
+			{Name: "label", Required: true, Description: "Message-scope label id (see `annotations labels`)"},
 			{Name: "window", Default: "30d", Description: "Window: 24h, 7d, 30d, all or RFC3339"},
 			{Name: "bucket", Default: "day", Description: "hour, day or week"},
 		}},

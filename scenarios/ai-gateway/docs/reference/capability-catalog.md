@@ -70,6 +70,8 @@ Each selectable proto request kind declares its required input modalities, outpu
 | `research.unrestricted` | typed_value | 240000 | 1 |
 | `research.unrestricted.flash` | typed_value | 240000 | 1 |
 | `research.unrestricted.large` | typed_value | 240000 | 1 |
+| `summarize.audio_tools` | typed_value | 120000 | 1 |
+| `summarize.audio_tools.quality` | typed_value | 120000 | 1 |
 | `summarize.faithful` | typed_value | 120000 | 1 |
 | `ux.visual-critique` | typed_value | 90000 | 1 |
 | `write.default` | typed_value | 240000 | 4 |
@@ -168,6 +170,8 @@ Each selectable proto request kind declares its required input modalities, outpu
 | `research.unrestricted` | `abliteration` | `research.unrestricted.default` | Abliteration.ai is an explicit research/red-team provider, never a fleet default. Selecting this role is the authorization signal; the credential still gates the call. |
 | `research.unrestricted.flash` | `abliteration` | `research.unrestricted.flash` | Explicit research/red-team route. Never selected unless the caller names this role. (role `research.unrestricted.flash`, provider `abliteration`) |
 | `research.unrestricted.large` | `abliteration` | `research.unrestricted.large` | Explicit research/red-team route. Never selected unless the caller names this role. (role `research.unrestricted.large`, provider `abliteration`) |
+| `summarize.audio_tools` | `ollama` | `summarize.audio_tools` | Audio Tools owns this compact summary role; generic summarize.faithful remains governed by summarize.default. |
+| `summarize.audio_tools.quality` | `ollama` | `summarize.audio_tools.quality` | Audio Tools quality alternative. The compact 1.7B default retained 14/22 facts on one 300-word report; preserve this option for fact-dense input. |
 | `summarize.faithful` | `ollama` | `summarize.default` | Resource-owned summarization policy; concrete model and fallback remain governed by resource policy. |
 | `ux.visual-critique` | `ollama` | `vision.default` | Keep UX screenshots on the local, resource-governed vision model; preserve the caller's finding schema. |
 | `write.default` | `ollama` | `write.default` | Local prose keeps drafts on the host and is the BYOK path a self-hoster gets with no credential. |

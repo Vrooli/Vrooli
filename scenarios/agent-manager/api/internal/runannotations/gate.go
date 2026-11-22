@@ -314,6 +314,17 @@ func (g Gate) Calibration(hash, model, role string) (temperature, threshold floa
 	return temperature, measurement.Threshold
 }
 
+// calibrationOf is the one reading of how an observation is tempered: the
+// temperature fitted for the model that answered it, and the threshold measured
+// for that model. A measurement of any split counts for the temperature, proven
+// or not: the answer is read on its own model's scale, never on the raw one just
+// because the gate has not cleared. The threshold is a separate matter, which
+// callers apply only where they treat the answer as proven.
+func calibrationOf(label Label, row Annotation) (temperature, threshold float64) {
+	model, role := ProofKey(row)
+	return label.Gate.Calibration(row.DefinitionHash, model, role)
+}
+
 func (g Gate) hasLegacy(hash string) bool {
 	for _, m := range g.Measurements {
 		if m.Split == SplitLegacy && m.DefinitionHash == hash {

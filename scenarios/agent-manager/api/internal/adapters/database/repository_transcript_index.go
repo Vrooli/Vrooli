@@ -653,6 +653,129 @@ func (r *TranscriptIndexRepository) CommitTranscriptReplacement(ctx context.Cont
 	return nil
 }
 
+// RetireTranscriptKey moves a checkpoint whose file is gone off its file key,
+// so a new file the filesystem gave the same device and inode is indexed as
+// itself: the checkpoint, its usage reports and references to it move to
+// retiredKey in one transaction, and the retired checkpoint keeps every byte
+// it read. expected must still be the stored checkpoint.
+func (r *TranscriptIndexRepository) RetireTranscriptKey(ctx context.Context, expected, retired transcriptindex.FileRow) error {
+	if retired.Key == expected.Key || retired.Key == "" {
+		return fmt.Errorf("retiring a transcript key requires a distinct key")
+	}
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return wrapDBError("retire_transcript_key", "TranscriptFile", expected.Key, err)
+	}
+	defer tx.Rollback()
+	current, err := r.transcriptFileTx(ctx, tx, expected.Key)
+	if err != nil {
+		return err
+	}
+	if !reflect.DeepEqual(current, &expected) {
+		return fmt.Errorf("transcript checkpoint changed before its key was retired")
+	}
+	for _, statement := range []string{
+		`UPDATE transcript_usage SET file_key = ? WHERE file_key = ?`,
+		`UPDATE transcript_files SET parent_file_key = ? WHERE parent_file_key = ?`,
+		`UPDATE transcript_legacy_cleanup SET file_key = ? WHERE file_key = ?`,
+	} {
+		if _, err := tx.ExecContext(ctx, statement, retired.Key, expected.Key); err != nil {
+			return wrapDBError("retire_transcript_key", "TranscriptFile", expected.Key, err)
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM transcript_files WHERE file_key = ?`, expected.Key); err != nil {
+		return wrapDBError("retire_transcript_key", "TranscriptFile", expected.Key, err)
+	}
+	if err := r.saveTranscriptFileTx(ctx, tx, retired, nil); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// MergeTranscriptCopy moves a file of a transcript lineage onto the lineage's
+// run in one transaction: its usage reports that repeat a report another file
+// of the same session recorded on that run (same line, ordinal and time) are
+// dropped, the rest follow the file, sub-agent runs follow their parent, and a
+// former run no file names any more is retired with its derived rows; the
+// caller then deletes its events, as every run deletion does. The file's
+// events left with the former run, so its recall is marked evicted. retired
+// reports whether the former run was deleted.
+func (r *TranscriptIndexRepository) MergeTranscriptCopy(ctx context.Context, expected transcriptindex.FileRow, runID string) (merged transcriptindex.FileRow, retired bool, err error) {
+	former := expected.RunID
+	if expected.Owner != transcriptindex.OwnerIndexer || former == "" || former == runID {
+		return expected, false, fmt.Errorf("transcript copy merge requires an indexed file on another run")
+	}
+	target, err := uuid.Parse(runID)
+	if err != nil {
+		return expected, false, err
+	}
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return expected, false, wrapDBError("merge_transcript_copy", "TranscriptFile", expected.Key, err)
+	}
+	defer tx.Rollback()
+	current, err := r.transcriptFileTx(ctx, tx, expected.Key)
+	if err != nil {
+		return expected, false, err
+	}
+	if !reflect.DeepEqual(current, &expected) {
+		return expected, false, fmt.Errorf("transcript checkpoint changed before copy merge")
+	}
+	runs := &runRepository{db: r.db}
+	run, err := runs.getTx(ctx, tx, target)
+	if err != nil {
+		return expected, false, err
+	}
+	if run == nil || run.ExecutionMode.Normalized() != domain.ExecutionModeImported {
+		return expected, false, fmt.Errorf("transcript copy merge requires the lineage's imported run")
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM transcript_usage WHERE file_key = ? AND EXISTS (
+		SELECT 1 FROM transcript_files g JOIN transcript_usage v ON v.file_key = g.file_key
+		WHERE g.run_id = ? AND g.file_key <> ? AND g.session_id = ? AND g.harness = ?
+		AND v.line_offset = transcript_usage.line_offset AND v.ordinal = transcript_usage.ordinal AND v.observed_at = transcript_usage.observed_at)`,
+		expected.Key, runID, expected.Key, expected.SessionID, expected.Harness); err != nil {
+		return expected, false, wrapDBError("merge_transcript_copy_usage", "TranscriptUsage", expected.Key, err)
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE transcript_usage SET run_id = ? WHERE file_key = ?`, runID, expected.Key); err != nil {
+		return expected, false, wrapDBError("merge_transcript_copy_usage", "TranscriptUsage", expected.Key, err)
+	}
+	merged = expected
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM transcript_usage WHERE file_key = ?`, expected.Key).Scan(&merged.UsageReports); err != nil {
+		return expected, false, err
+	}
+	merged.RunID, merged.RecallBytes, merged.RecallEvicted = runID, 0, true
+	if err := r.saveTranscriptFileTx(ctx, tx, merged, nil); err != nil {
+		return expected, false, err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE runs SET parent_run_id = ? WHERE parent_run_id = ?`, runID, former); err != nil {
+		return expected, false, wrapDBError("merge_transcript_copy_children", "Run", former, err)
+	}
+	var remaining int
+	if err := tx.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM transcript_files WHERE run_id = ?) + (SELECT COUNT(*) FROM transcript_usage WHERE run_id = ?)`, former, former).Scan(&remaining); err != nil {
+		return expected, false, err
+	}
+	var formerImported int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM runs WHERE id = ? AND COALESCE(execution_mode, '') = ?`, former, string(domain.ExecutionModeImported)).Scan(&formerImported); err != nil {
+		return expected, false, err
+	}
+	if remaining == 0 && formerImported == 1 {
+		if _, err := tx.ExecContext(ctx, `UPDATE tasks SET current_run_id = NULL WHERE current_run_id = ?`, former); err != nil {
+			return expected, false, wrapDBError("retire_merged_run", "Run", former, err)
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM runs WHERE id = ?`, former); err != nil {
+			return expected, false, wrapDBError("retire_merged_run", "Run", former, err)
+		}
+		if err := deleteRunDerivedRowsTx(ctx, tx, former); err != nil {
+			return expected, false, wrapDBError("retire_merged_run", "Run", former, err)
+		}
+		retired = true
+	}
+	if err := tx.Commit(); err != nil {
+		return expected, false, wrapDBError("merge_transcript_copy", "TranscriptFile", expected.Key, err)
+	}
+	return merged, retired, nil
+}
+
 // FinishReplacementEffects clears the durable marker only for the exact
 // checkpoint whose derived effects were delivered.
 func (r *TranscriptIndexRepository) FinishReplacementEffects(ctx context.Context, file transcriptindex.FileRow) error {

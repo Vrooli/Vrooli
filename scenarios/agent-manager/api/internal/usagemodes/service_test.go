@@ -156,6 +156,26 @@ func TestStartUntilRFC3339(t *testing.T) {
 	}
 }
 
+func TestStartRejectsDayCountThatOverflowsItsExpiryDuration(t *testing.T) {
+	s := newService(t)
+	nearLimit, err := s.Start(context.Background(), StartRequest{Preset: PresetOneTierDown, Runner: "codex", Until: "106751d"})
+	if err != nil {
+		t.Fatalf("largest whole-day duration that fits should start: %v", err)
+	}
+	if want := t0.Add(106751 * 24 * time.Hour); nearLimit.Mode.ExpiresAt == nil || !nearLimit.Mode.ExpiresAt.Equal(want) {
+		t.Fatalf("near-limit expiry = %v, want %v", nearLimit.Mode.ExpiresAt, want)
+	}
+
+	_, err = s.Start(context.Background(), StartRequest{Preset: PresetOneTierDown, Runner: "claude", Until: "292472d"})
+	if !errors.Is(err, ErrInvalid) || !strings.Contains(err.Error(), "106751-day") || !strings.Contains(err.Error(), "RFC 3339") {
+		t.Fatalf("unrepresentable duration error = %v, want ErrInvalid with the supported limit and alternate format", err)
+	}
+	active := s.List()
+	if len(active) != 1 || active[0].ID != nearLimit.Mode.ID {
+		t.Fatalf("rejected duration changed the active modes: %+v", active)
+	}
+}
+
 func TestWindowResetUsesLatestReading(t *testing.T) {
 	reset := t0.Add(51 * time.Hour)
 	s := newService(t, span("openai", 10080, reset, t0.Add(-time.Hour), t0.Add(-time.Minute), 53))

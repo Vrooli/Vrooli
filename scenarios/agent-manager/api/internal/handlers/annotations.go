@@ -73,7 +73,7 @@ type labelsResponse struct {
 }
 
 type annotateRequest struct {
-	Force           bool     `json:"force"`
+	ForceLabels     []string `json:"force_labels"`
 	IncludeOptional bool     `json:"include_optional"`
 	Labels          []string `json:"labels"`
 	MaxLabels       int      `json:"max_labels"`
@@ -87,7 +87,7 @@ type evaluateRequest struct {
 	RunIDs          []string `json:"run_ids"`
 	Labels          []string `json:"labels"`
 	IncludeOptional bool     `json:"include_optional"`
-	Force           bool     `json:"force"`
+	ForceLabels     []string `json:"force_labels"`
 	DryRun          bool     `json:"dry_run"`
 	// PinResourceRole restricts every decision to one declared candidate and
 	// stores the answers apart from production; Role is the role walked for it.
@@ -165,7 +165,7 @@ func (h *AnnotationsHandler) Annotate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	view, err := h.service.Annotate(r.Context(), runID, runannotations.AnnotateOptions{
-		Force: request.Force, IncludeOptional: request.IncludeOptional,
+		ForceLabels: request.ForceLabels, IncludeOptional: request.IncludeOptional,
 		Labels: request.Labels, MaxLabels: request.MaxLabels, DryRun: request.DryRun,
 	})
 	if err != nil {
@@ -215,7 +215,7 @@ func (h *AnnotationsHandler) Evaluate(w http.ResponseWriter, r *http.Request) {
 	}
 	options := runannotations.EvaluateOptions{
 		Limit: request.Limit, RunIDs: request.RunIDs, Labels: request.Labels,
-		IncludeOptional: request.IncludeOptional, Force: request.Force, DryRun: request.DryRun,
+		IncludeOptional: request.IncludeOptional, ForceLabels: request.ForceLabels, DryRun: request.DryRun,
 		PinResourceRole: request.PinResourceRole, Role: request.Role, MessageIDs: request.MessageIDs,
 	}
 	if strings.TrimSpace(request.Since) != "" {

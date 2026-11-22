@@ -306,7 +306,7 @@
       "path": "/vrooli.ai_gateway.v1.inference.InferenceService/Embed",
       "method": "POST",
       "summary": "Return gateway-owned embedding vectors",
-      "description": "Resolves the requested embedding role locally and returns one vector per input text in request order. Embeddings always use the local-only profile (LOCAL_ONLY); new callers send profile, privacy_class, and privacy_provenance. Omitted legacy contracts remain local-only.",
+      "description": "Resolves the requested embedding role locally and returns one vector per input text in request order. Embeddings run only under the local-only profile: every request must send profile=PROFILE_LOCAL_ONLY, privacy_class and privacy_provenance, and a request missing any of them is rejected with INVALID_REQUEST naming each missing field.",
       "category": "inference",
       "request": {
         "type": "EmbedRequest",

@@ -13,8 +13,7 @@ import (
 
 // A run's facts come from its durable rows, and the job reads no run_events.
 func TestRunLedgerReadsDurableRowsAcrossPaths(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	ctx := context.Background()
 	now := time.Now().UTC().Truncate(time.Second)
 	at := func(minutes int) string {
@@ -91,8 +90,7 @@ func TestRunLedgerReadsDurableRowsAcrossPaths(t *testing.T) {
 // by the classifier's measured precision, and a signal recorded after the row
 // was built refreshes it.
 func TestRunLedgerFeedsOperatorSignalsIntoEstimates(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	ctx := context.Background()
 	original := interventions.SignalHoldout
 	interventions.SignalHoldout = interventions.SignalMeasurements{"winnow:e4b": {interventions.ReportedFailure: {TP: 6, Pred: 10, Gold: 11}}}
@@ -172,8 +170,7 @@ func TestRunLedgerFeedsOperatorSignalsIntoEstimates(t *testing.T) {
 // fact, the operator session's arm is inferred from the opted-in day-block
 // calendar, and the learn period keeps how it randomizes.
 func TestRunLedgerRecordsLearnArmsFromCanaryAndCalendar(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	ctx := context.Background()
 	now := time.Now().UTC().Truncate(time.Second)
 	created := now.Add(-time.Hour).Format("2006-01-02 15:04:05")
@@ -223,8 +220,7 @@ func TestRunLedgerRecordsLearnArmsFromCanaryAndCalendar(t *testing.T) {
 // A change the sandbox policy applied at run end was never judged; only a
 // person's approval of a run in review is acceptance.
 func TestRunLedgerCountsOnlyAnOperatorApprovalAsAcceptance(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	ctx := context.Background()
 	now := time.Now().UTC().Truncate(time.Second)
 	at := func(minutes int) string {

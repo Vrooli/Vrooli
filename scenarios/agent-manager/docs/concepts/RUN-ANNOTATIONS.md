@@ -80,6 +80,18 @@ detail. The order is part of the definition hash (with a digest-format version f
 makes stored answers and measurements of that label stale rather than mistaking them for answers to the new input.
 Message-scope labels read their own message digest and are unaffected.
 
+Asking again is always scoped. `--force-labels a,b` (API `force_labels`) ignores the cached answers of exactly the labels
+named; there is no flag that forces everything. A composite recomputes from stored answers on every pass and is rewritten
+only when its inputs changed, so recomputing one never asks a model anything: naming a composite rewrites it (for
+instance after a calibration measurement arrives) and leaves the messages it reads alone. A name that is not a label of
+the pack, or not evaluated by the request, is refused.
+
+A read of what is known about a message or run never lets a transient `unavailable` row (a gateway deadline, an
+exhausted budget) outrank an answer of the same definition, so coverage and the mood card keep counting an answered
+message as answered. A row of a newer definition still wins. A composite tempers each message answer with its answering
+model's measured temperature whenever a measurement exists, proven or not, the same reading the message's own view
+gives; only the measured friction threshold waits for proof.
+
 ## Decision calls
 
 One `DecideBatch` call answers up to 32 states × 64 questions. Questions come from the

@@ -20,8 +20,7 @@ type usageFixture struct {
 
 func newUsageFixture(t *testing.T) *usageFixture {
 	t.Helper()
-	db, cleanup := setupTestDB(t)
-	t.Cleanup(cleanup)
+	db := setupTestDB(t)
 	return &usageFixture{t: t, repo: &invocationReadModelRepository{db: db}, db: db}
 }
 
@@ -137,38 +136,6 @@ func TestRunScopeSeparatesRunStatisticsFromTokenTotals(t *testing.T) {
 		if runs.TotalRuns != wantRuns || usage.TotalTokens != tc.wantTokens {
 			t.Fatalf("scope %q: runs=%d tokens=%d, want runs=%d tokens=%d (attached run with no usage never counts)", tc.scope, runs.TotalRuns, usage.TotalTokens, wantRuns, tc.wantTokens)
 		}
-	}
-}
-
-// One harness session copied into two harness homes is two imported runs with
-// the same requests; they count once in tokens and once in throughput.
-func TestSessionCopiesAreNotCountedTwice(t *testing.T) {
-	f := newUsageFixture(t)
-	ended := usageNow.Add(-time.Hour)
-	f.run(fixtureRun{id: "orig", mode: "imported", started: ended.Add(-time.Hour), ended: ended, lifetimeTokens: 300})
-	f.run(fixtureRun{id: "copy", mode: "imported", started: ended.Add(-time.Hour), ended: ended, lifetimeTokens: 300})
-	for _, observed := range []time.Duration{-150 * time.Minute, -100 * time.Minute, -70 * time.Minute} {
-		f.request("orig", "k1-orig", "same-session", usageNow.Add(observed), 100)
-	}
-	// The copy holds the identical requests under its own file key.
-	for offset, observed := range []time.Duration{-150 * time.Minute, -100 * time.Minute, -70 * time.Minute} {
-		f.exec(`INSERT OR IGNORE INTO transcript_files (file_key, path, root_kind, root_path, harness, session_id, run_id, first_seen_at) VALUES ('k2-copy', '/p/k2', 'codex', '/r', 'codex', 'same-session', 'copy', '2026-10-01T00:00:00Z')`)
-		f.exec(`INSERT INTO transcript_usage (file_key, line_offset, ordinal, run_id, observed_at, model, turn_index, input_tokens) VALUES ('k2-copy', ?, 0, 'copy', ?, 'gpt-test', ?, 100)`,
-			offset, usageNow.Add(observed).UTC().Format(time.RFC3339Nano), offset+1)
-	}
-	// turn_index of the original rows follows f.seq (1..3), matching the copy.
-	filter := usageFilter
-	filter.Scope = invocationreadmodel.ScopeOperatorSessions
-	usage, err := f.repo.WindowedUsage(context.Background(), filter)
-	if err != nil {
-		t.Fatal(err)
-	}
-	runs, err := f.repo.RunMetrics(context.Background(), filter)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if usage.TotalTokens != 300 || runs.TotalRuns != 1 {
-		t.Fatalf("tokens=%d runs=%d, want 300 tokens and 1 run for one session seen twice", usage.TotalTokens, runs.TotalRuns)
 	}
 }
 
@@ -315,4 +282,61 @@ func TestFallbackInsightsWindowUsesThePartialIndex(t *testing.T) {
 		}
 	}
 	t.Fatal("no run_events step in the query plan")
+}
+
+// usageRow seeds one transcript usage row as the indexer writes it.
+type usageRow struct {
+	run, file, harness, message string
+	offset, ordinal             int
+	input, output               int
+	cumulative                  []int // input, output when the harness reports a counter
+	receipt                     bool
+}
+
+func (f *usageFixture) usage(r usageRow) {
+	f.t.Helper()
+	f.exec(`INSERT OR IGNORE INTO transcript_files (file_key, path, root_kind, root_path, harness, session_id, run_id, first_seen_at) VALUES (?, ?, 'manual', '/r', ?, ?, ?, '2026-10-01T00:00:00Z')`, r.file, "/p/"+r.file, r.harness, "s-"+r.file, r.run)
+	cumIn, cumOut, has := 0, 0, 0
+	if len(r.cumulative) == 2 {
+		cumIn, cumOut, has = r.cumulative[0], r.cumulative[1], 1
+	}
+	receipt := 0
+	if r.receipt {
+		receipt = 1
+	}
+	f.exec(`INSERT INTO transcript_usage (file_key, line_offset, ordinal, run_id, observed_at, message_id, model, input_tokens, output_tokens, has_cumulative, cum_input_tokens, cum_output_tokens, reconciliation_authority) VALUES (?, ?, ?, ?, ?, ?, 'm', ?, ?, ?, ?, ?, ?)`,
+		r.file, r.offset, r.ordinal, r.run, usageNow.Add(-time.Hour).Format(time.RFC3339Nano), r.message, r.input, r.output, has, cumIn, cumOut, receipt)
+}
+
+// Each provider request counts once however many rows report it: a Codex
+// task_complete receipt repeats the turn's sum under its last report's
+// counter, and a Claude message repeats its usage on every content block, its
+// final block being the turn's receipt. A receipt that is all that was kept of
+// a request (an interrupted Codex turn) still counts.
+func TestWindowedUsageCountsEachProviderRequestOnce(t *testing.T) {
+	f := newUsageFixture(t)
+	for _, id := range []string{"codex", "claude", "interrupted"} {
+		f.run(fixtureRun{id: id, mode: "imported", started: usageNow.Add(-2 * time.Hour), ended: usageNow.Add(-time.Hour), lifetimeTokens: 1})
+	}
+	// Codex turn: two token_count reports, then task_complete's receipt.
+	f.usage(usageRow{run: "codex", file: "rollout", harness: "codex", offset: 100, input: 1000, output: 10, cumulative: []int{1000, 10}})
+	f.usage(usageRow{run: "codex", file: "rollout", harness: "codex", offset: 200, input: 2000, output: 20, cumulative: []int{3000, 30}})
+	f.usage(usageRow{run: "codex", file: "rollout", harness: "codex", offset: 300, input: 3000, output: 30, cumulative: []int{3000, 30}, receipt: true})
+	// Claude message msg_1 split over thinking, text and tool_use lines; msg_2
+	// ends the turn, so its line is the receipt.
+	for i, offset := range []int{10, 20, 30} {
+		f.usage(usageRow{run: "claude", file: "project", harness: "claude-code", message: "msg_1", offset: offset, ordinal: i % 2, input: 500, output: 5})
+	}
+	f.usage(usageRow{run: "claude", file: "project", harness: "claude-code", message: "msg_2", offset: 40, input: 700, output: 7, receipt: true})
+	// An interrupted Codex turn whose reports were not retained.
+	f.usage(usageRow{run: "interrupted", file: "cut", harness: "codex", offset: 50, input: 400, output: 4, cumulative: []int{400, 4}, receipt: true})
+
+	got, err := f.repo.WindowedUsage(context.Background(), usageFilter)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := int64(1010+2020) + (505 + 707) + 404
+	if got.TotalTokens != want || got.Requests != 5 {
+		t.Fatalf("windowed usage = %+v, want %d tokens in 5 requests", got, want)
+	}
 }

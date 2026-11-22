@@ -17,8 +17,7 @@ import (
 )
 
 func TestRunOwnerAttenuationRoundTrip(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	expires := time.Now().UTC().Truncate(time.Second).Add(time.Hour)
@@ -48,8 +47,7 @@ func TestRunOwnerAttenuationRoundTrip(t *testing.T) {
 }
 
 func TestEffortSignalCursorIsPerRunMonotonicAndWakeReceiptIsAtomic(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	effortRef := "effort:cursor-owner"
@@ -106,8 +104,7 @@ func TestEffortSignalCursorIsPerRunMonotonicAndWakeReceiptIsAtomic(t *testing.T)
 }
 
 func TestInteractiveContinuationPolicyRepositoryRoundTrip(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	started := time.Date(2026, 10, 18, 19, 30, 0, 123456000, time.UTC)
@@ -150,8 +147,7 @@ func TestInteractiveContinuationPolicyRepositoryRoundTrip(t *testing.T) {
 func TestOwnedRunDeletionRetainsReplayEvidence(t *testing.T) {
 	for _, mode := range []string{"run", "task-cascade", "missing-expiry", "expired", "ordinary"} {
 		t.Run(mode, func(t *testing.T) {
-			db, cleanup := setupTestDB(t)
-			defer cleanup()
+			db := setupTestDB(t)
 			repos := NewRepositories(db, logrus.New())
 			ctx := context.Background()
 			task := &domain.Task{ID: uuid.New(), Title: "dispatch-retention", ScopePath: ".", Status: domain.TaskStatusQueued}
@@ -204,8 +200,7 @@ func TestOwnedRunDeletionRetainsReplayEvidence(t *testing.T) {
 }
 
 func TestRunCreationReceiptAbsentAfterProvenPreEffectFailure(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	run := &domain.Run{ID: uuid.New(), TaskID: uuid.New(), Tag: "missing-task", Status: domain.RunStatusPending, Phase: domain.RunPhaseQueued, IdempotencyKey: "pre-effect"}
@@ -228,8 +223,7 @@ func TestRunCreationReceiptAbsentAfterProvenPreEffectFailure(t *testing.T) {
 }
 
 func TestRunCreationReceiptSchemaAdoptsExistingRunWithoutReplacingIdentity(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	run := &domain.Run{ID: uuid.New(), Tag: "legacy-accepted", Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted, IdempotencyKey: "legacy-accepted"}
@@ -264,9 +258,7 @@ func TestRunCreationReceiptSchemaAdoptsExistingRunWithoutReplacingIdentity(t *te
 // run-state additions (execution_mode + web_console_session_id) persist and
 // read back through Create/Get/Update/List.
 func TestRunExecutionModeRoundTrip(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 
@@ -347,9 +339,7 @@ func TestRunExecutionModeRoundTrip(t *testing.T) {
 // explicit ExecutionMode reads back as codec_pipe (the default), so existing
 // callers are unaffected.
 func TestRunExecutionModeDefaultsToCodecPipe(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 
@@ -380,9 +370,7 @@ func TestRunExecutionModeDefaultsToCodecPipe(t *testing.T) {
 }
 
 func TestAttachedRunAllowsUnboundTaskAndPersistsHarnessIdentity(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	run := &domain.Run{
@@ -490,8 +478,7 @@ func TestAdditiveColumnMigrationAddsMissingRunColumns(t *testing.T) {
 }
 
 func TestInteractiveInvocationBoundaryPersistsWithLifecycleAndKeepsOriginalStart(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	original, attempt := time.Now().UTC().Add(-time.Hour), time.Now().UTC()
 	run := &domain.Run{ID: uuid.New(), Tag: "invocation-boundary", RunMode: domain.RunModeInPlace, ExecutionMode: domain.ExecutionModeInteractive, Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted, StartedAt: &original}

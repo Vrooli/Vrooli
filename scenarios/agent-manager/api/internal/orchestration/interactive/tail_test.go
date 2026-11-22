@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -46,6 +47,13 @@ func (s *collectSink) count(typ domain.RunEventType) int {
 		}
 	}
 	return n
+}
+
+func recordCursorAdvances(cursor *atomic.Int64) func(int64, int64) error {
+	return func(nextCursor, _ int64) error {
+		cursor.Store(nextCursor)
+		return nil
+	}
 }
 
 // codecParserResolver maps runner types to their real codec transcript parser,
@@ -118,6 +126,7 @@ func TestTailerLiveReplayPerAgent(t *testing.T) {
 			}
 
 			sink := &collectSink{}
+			var cursor atomic.Int64
 			tailer := NewTailer(codecParserResolver, WithTailPollInterval(10*time.Millisecond))
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
@@ -134,6 +143,7 @@ func TestTailerLiveReplayPerAgent(t *testing.T) {
 					TranscriptPath: path,
 					RunDir:         dir,
 					Sink:           sink,
+					OnAdvance:      recordCursorAdvances(&cursor),
 				})
 				done <- outcome{term, err}
 			}()
@@ -149,7 +159,8 @@ func TestTailerLiveReplayPerAgent(t *testing.T) {
 				}
 			}
 			_ = f.Sync()
-			time.Sleep(30 * time.Millisecond)
+			completeHead := strings.Join(lines[:len(lines)-1], "\n") + "\n"
+			waitFor(t, 2*time.Second, func() bool { return cursor.Load() >= int64(len(completeHead)) })
 			// Truncated trailing line: write the terminal line in two
 			// fragments so a poll observes it half-written.
 			last := lines[len(lines)-1]
@@ -250,18 +261,20 @@ func TestTailerCodexIgnoresChildRollout(t *testing.T) {
 		t.Fatal(err)
 	}
 	sink := &collectSink{}
+	var cursor atomic.Int64
 	tailer := NewTailer(codecParserResolver, WithTailPollInterval(10*time.Millisecond))
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	done := make(chan *runner.TranscriptTerminal, 1)
 	go func() {
-		term, err := tailer.Tail(ctx, TailParams{RunID: uuid.New(), RunnerType: domain.RunnerTypeCodex, TranscriptPath: parent, RunDir: runDir, Sink: sink})
+		term, err := tailer.Tail(ctx, TailParams{RunID: uuid.New(), RunnerType: domain.RunnerTypeCodex, TranscriptPath: parent, RunDir: runDir, Sink: sink, OnAdvance: recordCursorAdvances(&cursor)})
 		if err != nil {
 			t.Errorf("Tail error: %v", err)
 		}
 		done <- term
 	}()
-	time.Sleep(60 * time.Millisecond)
+	parentHead := strings.Join(fixture[:len(fixture)-2], "\n") + "\n"
+	waitFor(t, 2*time.Second, func() bool { return cursor.Load() >= int64(len(parentHead)) })
 	if err := os.WriteFile(child, []byte(strings.Join(fixture, "\n")+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -310,6 +323,7 @@ func TestTailerCodexRotation(t *testing.T) {
 	_ = os.Chtimes(rolloutA, old, old)
 
 	sink := &collectSink{}
+	var cursor atomic.Int64
 	tailer := NewTailer(codecParserResolver, WithTailPollInterval(10*time.Millisecond))
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -322,6 +336,7 @@ func TestTailerCodexRotation(t *testing.T) {
 			TranscriptPath: rolloutA,
 			RunDir:         runDir,
 			Sink:           sink,
+			OnAdvance:      recordCursorAdvances(&cursor),
 		})
 		if err != nil {
 			t.Errorf("Tail error: %v", err)
@@ -330,7 +345,7 @@ func TestTailerCodexRotation(t *testing.T) {
 	}()
 
 	// After the head is drained, a newer rollout file appears (rotation).
-	time.Sleep(60 * time.Millisecond)
+	waitFor(t, 2*time.Second, func() bool { return cursor.Load() >= int64(len(strings.Join(head, "\n")+"\n")) })
 	rolloutB := filepath.Join(sessDir, "rollout-2026-07-13T11-00-00-019f46b3-b60d-7373-bf64-b8748b8d5992.jsonl")
 	if err := os.WriteFile(rolloutB, []byte(strings.Join(tail, "\n")+"\n"), 0o644); err != nil {
 		t.Fatalf("write rollout B: %v", err)

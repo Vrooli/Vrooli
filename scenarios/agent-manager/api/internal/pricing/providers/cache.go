@@ -12,8 +12,8 @@ type pricingCacheSnapshot func() (map[string]*pricing.ModelPricing, time.Time, t
 
 func ensurePricingCache(ctx context.Context, mu *sync.RWMutex, snapshot pricingCacheSnapshot, refresh func(context.Context) error) error {
 	mu.RLock()
-	cache, fetchedAt, ttl := snapshot()
-	fresh := len(cache) > 0 && time.Since(fetchedAt) < ttl
+	_, fetchedAt, ttl := snapshot()
+	fresh := !fetchedAt.IsZero() && time.Since(fetchedAt) < ttl
 	mu.RUnlock()
 	if fresh {
 		return nil

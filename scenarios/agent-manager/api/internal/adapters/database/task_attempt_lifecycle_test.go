@@ -19,8 +19,7 @@ import (
 )
 
 func TestRunUpdateCannotChangeCreationWorkReferences(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	task := createQueuedTask(t, repos, "immutable run identity")
@@ -56,8 +55,7 @@ func TestRunUpdateCannotChangeCreationWorkReferences(t *testing.T) {
 }
 
 func TestQueuedBriefMutationAndAttemptAdmissionFenceBothOrderings(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	creator := uuid.NewString()
@@ -185,8 +183,7 @@ func setRunStatus(t *testing.T, repos *Repositories, run *domain.Run, status dom
 }
 
 func TestEffortOrchestratorAdmissionCoordinatesCreateAndContinue(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	const effortID = "effort:shared-owner"
@@ -248,8 +245,7 @@ func TestEffortOrchestratorAdmissionCoordinatesCreateAndContinue(t *testing.T) {
 }
 
 func TestEffortOrchestratorCreateRacesTerminalOwnerUpdateAtomically(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	const effortID = "effort:admission-race"
@@ -318,8 +314,7 @@ func TestEffortOrchestratorCreateRacesTerminalOwnerUpdateAtomically(t *testing.T
 }
 
 func TestEffortOrchestratorCreateRacesTerminalOwnerAdmissionAtomically(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	const effortID = "effort:admission-api-race"
@@ -447,8 +442,7 @@ func TestEffortOrchestratorContinuationWaitsForWALWriterWithoutReadUpgrade(t *te
 }
 
 func TestTaskAttemptAdmissionProjectsExactCurrentRunAndFencesOldOutcome(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	task := &domain.Task{ID: uuid.New(), Title: "attempt lifecycle", ScopePath: ".", Status: domain.TaskStatusQueued}
@@ -533,8 +527,7 @@ func TestTaskAttemptAdmissionProjectsExactCurrentRunAndFencesOldOutcome(t *testi
 }
 
 func TestTaskAttemptAdmissionAllowsUnambiguousLegacyHistoryOnly(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	makeTask := func() *domain.Task {
@@ -575,8 +568,7 @@ func TestTaskAttemptAdmissionAllowsUnambiguousLegacyHistoryOnly(t *testing.T) {
 }
 
 func TestConcurrentTaskAttemptAdmissionsHaveOneExactWinner(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	task := &domain.Task{ID: uuid.New(), Title: "concurrent admission", ScopePath: ".", Status: domain.TaskStatusQueued}
@@ -628,8 +620,7 @@ func TestConcurrentTaskAttemptAdmissionsHaveOneExactWinner(t *testing.T) {
 }
 
 func TestEnsureCurrentRunBindsOnlyTheExactUnambiguousLegacyRun(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	makeTask := func(status domain.TaskStatus) *domain.Task {
@@ -694,8 +685,7 @@ func pendingTaskRun(taskID uuid.UUID) *domain.Run {
 }
 
 func TestCancelQueuedLegacyTaskRefusesUnownedNonterminalRun(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	task := &domain.Task{ID: uuid.New(), Title: "legacy queued task", ScopePath: ".", Status: domain.TaskStatusQueued}
@@ -721,8 +711,7 @@ func TestCancelQueuedLegacyTaskRefusesUnownedNonterminalRun(t *testing.T) {
 }
 
 func TestCancelQueuedLegacyTaskWithOnlyTerminalHistory(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	task := &domain.Task{ID: uuid.New(), Title: "terminal legacy history", ScopePath: ".", Status: domain.TaskStatusQueued}
@@ -745,8 +734,7 @@ func TestCancelQueuedLegacyTaskWithOnlyTerminalHistory(t *testing.T) {
 }
 
 func TestTaskCancellationAndRunProjectionShareExactCurrentRunFence(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	task := &domain.Task{ID: uuid.New(), Title: "cancel fence", ScopePath: ".", Status: domain.TaskStatusQueued}
@@ -780,8 +768,7 @@ func TestTaskCancellationAndRunProjectionShareExactCurrentRunFence(t *testing.T)
 }
 
 func TestResumeAdmissionAdvancesRunLifecycleVersionAndFencesOldFinalizer(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	task := &domain.Task{ID: uuid.New(), Title: "resume lifecycle version", ScopePath: ".", Status: domain.TaskStatusQueued}
@@ -831,8 +818,7 @@ func TestResumeAdmissionAdvancesRunLifecycleVersionAndFencesOldFinalizer(t *test
 }
 
 func TestResumeAdmissionRollbackCannotOverwriteCancellation(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	task := &domain.Task{ID: uuid.New(), Title: "cancel resumed attempt", ScopePath: ".", Status: domain.TaskStatusQueued}
@@ -862,8 +848,7 @@ func TestResumeAdmissionRollbackCannotOverwriteCancellation(t *testing.T) {
 }
 
 func TestCancelPendingAttemptIsDurableBeforeRecovery(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	task := &domain.Task{ID: uuid.New(), Title: "pending cancel", ScopePath: ".", Status: domain.TaskStatusQueued}
@@ -889,8 +874,7 @@ func TestCancelPendingAttemptIsDurableBeforeRecovery(t *testing.T) {
 }
 
 func TestCancelPendingAttemptWithExecutorClaimPersistsCancellationIntent(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	task := &domain.Task{ID: uuid.New(), Title: "claimed pending cancel", ScopePath: ".", Status: domain.TaskStatusQueued}
@@ -940,8 +924,7 @@ func TestInitSchemaAddsCurrentRunIDToLegacyTasksBeforeContractValidation(t *test
 }
 
 func TestDeleteTerminalRunRequiresExactLifecycleSnapshot(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	task := &domain.Task{ID: uuid.New(), Title: "delete fence", ScopePath: ".", Status: domain.TaskStatusQueued}

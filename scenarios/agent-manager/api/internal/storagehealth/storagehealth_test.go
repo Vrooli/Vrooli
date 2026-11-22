@@ -487,6 +487,41 @@ func TestLoadDeclaredBudgetReadsTheOwnerManifest(t *testing.T) {
 	}
 }
 
+func TestDeclaredBudgetRecoversAfterInventoryFailure(t *testing.T) {
+	root := t.TempDir()
+	manifestPath := filepath.Join(root, "scenarios", "agent-manager", ".vrooli", "service.json")
+	if err := os.MkdirAll(filepath.Dir(manifestPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := `{"service":{"name":"agent-manager"},"storage":{"rationale":"test","entries":{"data":{"rung":"owned","kind":"dir","class":"data","regenerable":false,"rationale":"db","budget":{"max_bytes":"12GiB","rationale":"alarm"}}}}}`
+	if err := os.WriteFile(manifestPath, []byte(manifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	now := time.Date(2026, 11, 21, 12, 0, 0, 0, time.UTC)
+	budget := DeclaredBudget(root, "agent-manager", "data", func() time.Time { return now })
+	want := Budget{Bytes: 12 << 30, Source: manifestPath + "#storage.entries.data.budget.max_bytes"}
+	if got := budget(); got != want {
+		t.Fatalf("initial budget=%+v, want %+v", got, want)
+	}
+
+	// Force a refresh, then make the owner inventory unavailable for one read.
+	now = now.Add(declaredBudgetRefresh)
+	if err := os.Remove(manifestPath); err != nil {
+		t.Fatal(err)
+	}
+	if got := budget(); !strings.HasPrefix(got.Source, "unavailable: ") {
+		t.Fatalf("failure should be surfaced as unavailable, got %+v", got)
+	}
+	if err := os.WriteFile(manifestPath, []byte(manifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	now = now.Add(time.Minute)
+	if got := budget(); got != want {
+		t.Fatalf("budget did not recover promptly after inventory returned: got %+v, want %+v", got, want)
+	}
+}
+
 func TestHTTPContract(t *testing.T) {
 	db, path := openFileDB(t, true)
 	fill(t, db, 60, 3)

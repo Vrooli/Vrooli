@@ -9,6 +9,7 @@ import (
 	"hash/fnv"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -34,14 +35,25 @@ type browserRunReader interface {
 // which resolves an opaque proof reference against the active broker entry.
 // Agent Manager never copies measurements from the BAS append request body.
 type BrowserEvidenceObservation struct {
-	Kind           string `json:"kind"`
-	SessionID      string `json:"session_id"`
-	State          string `json:"state"`
-	Action         string `json:"action,omitempty"`
-	Outcome        string `json:"outcome,omitempty"`
-	SessionMinutes int64  `json:"session_minutes"`
-	Actions        int64  `json:"actions"`
-	Bytes          int64  `json:"bytes"`
+	Kind           string                  `json:"kind"`
+	SessionID      string                  `json:"session_id"`
+	State          string                  `json:"state"`
+	Action         string                  `json:"action,omitempty"`
+	Outcome        string                  `json:"outcome,omitempty"`
+	SessionMinutes int64                   `json:"session_minutes"`
+	Actions        int64                   `json:"actions"`
+	Bytes          int64                   `json:"bytes"`
+	Runtime        *BrowserEvidenceRuntime `json:"runtime,omitempty"`
+}
+
+type BrowserEvidenceRuntime struct {
+	BundleVersion  string `json:"bundle_version"`
+	BrowserVersion string `json:"browser_version"`
+	ClosureSHA256  string `json:"closure_sha256"`
+	Driver         string `json:"driver"`
+	DriverVersion  string `json:"driver_version"`
+	Source         string `json:"source"`
+	Channel        string `json:"channel"`
 }
 
 // BrowserEvidenceProofVerifier is the authenticated Agent Manager → BAS
@@ -455,6 +467,20 @@ func (h *Handler) RecordBASBrowserEvidence(w http.ResponseWriter, r *http.Reques
 		writeSimpleError(w, r, "evidence", "BAS broker observation is invalid")
 		return
 	}
+	if observation.Runtime != nil {
+		runtime, err := trustedBrowserRuntimeEvidence(observation.Runtime)
+		if err != nil {
+			writeJSON(w, http.StatusForbidden, map[string]any{"error": "browser_runtime_provenance_invalid"})
+			return
+		}
+		browserSession, ok := payload.(eventlog.BrowserSessionPayload)
+		if !ok || browserSession.State != "closed" {
+			writeJSON(w, http.StatusForbidden, map[string]any{"error": "browser_runtime_provenance_invalid"})
+			return
+		}
+		browserSession.Runtime = runtime
+		payload = browserSession
+	}
 	lock := browserEvidenceWriteLock(runID, request.SessionID)
 	lock.Lock()
 	defer lock.Unlock()
@@ -464,22 +490,71 @@ func (h *Handler) RecordBASBrowserEvidence(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	if duplicate {
-		if err := h.browserEvidenceProof.ConsumeBrowserEvidenceProof(r.Context(), runID, strings.TrimSpace(proof.ProofReference)); err != nil {
+		settlement, err := h.settleBASBrowserEvidence(r.Context(), runID, request.SessionID, capability.GrantReceipt, proof.ProofReference)
+		if err != nil {
 			writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "browser_broker_proof_consumption_pending", "recorded": true})
 			return
 		}
-		writeJSON(w, http.StatusAccepted, map[string]any{"recorded": true, "idempotent": true, "run_id": runID.String(), "session_id": request.SessionID, "reported_by": "browser-automation-studio-broker"})
+		writeJSON(w, http.StatusAccepted, map[string]any{"recorded": true, "idempotent": true, "run_id": runID.String(), "session_id": request.SessionID, "reported_by": "browser-automation-studio-broker", "settlement": settlement})
 		return
 	}
 	if err := h.svc.RecordBrowserEvidence(r.Context(), runID, payload); err != nil {
 		writeSimpleError(w, r, "evidence", "BAS broker evidence could not be recorded")
 		return
 	}
-	if err := h.browserEvidenceProof.ConsumeBrowserEvidenceProof(r.Context(), runID, strings.TrimSpace(proof.ProofReference)); err != nil {
+	settlement, err := h.settleBASBrowserEvidence(r.Context(), runID, request.SessionID, capability.GrantReceipt, proof.ProofReference)
+	if err != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "browser_broker_proof_consumption_pending", "recorded": true})
 		return
 	}
-	writeJSON(w, http.StatusAccepted, map[string]any{"recorded": true, "run_id": runID.String(), "session_id": request.SessionID, "reported_by": "browser-automation-studio-broker"})
+	writeJSON(w, http.StatusAccepted, map[string]any{"recorded": true, "run_id": runID.String(), "session_id": request.SessionID, "reported_by": "browser-automation-studio-broker", "settlement": settlement})
+}
+
+// trustedBrowserRuntimeEvidence accepts only the closed, current BAS offline
+// receipt contract. The ordinary run-agent evidence route cannot populate this
+// value; it is derived from the authenticated BAS proof observation above.
+func trustedBrowserRuntimeEvidence(runtime *BrowserEvidenceRuntime) (*eventlog.BrowserRuntimeEvidence, error) {
+	if runtime == nil || runtime.Source != "offline-install-receipt" || runtime.Channel != "offline-transfer" ||
+		runtime.Driver != "rebrowser-playwright-core" || !regexpRuntimeVersion.MatchString(runtime.BrowserVersion) ||
+		!regexpRuntimeVersion.MatchString(runtime.DriverVersion) || len(runtime.ClosureSHA256) != 64 || strings.ToLower(runtime.ClosureSHA256) != runtime.ClosureSHA256 {
+		return nil, errors.New("browser runtime provenance is incomplete or unsupported")
+	}
+	if _, err := hex.DecodeString(runtime.ClosureSHA256); err != nil {
+		return nil, errors.New("browser runtime closure digest is invalid")
+	}
+	wantBundle := "br1-chromium-" + runtime.BrowserVersion + "-" + runtime.Driver + "-" + runtime.DriverVersion
+	if runtime.BundleVersion != wantBundle {
+		return nil, errors.New("browser runtime bundle version does not match its identity")
+	}
+	return &eventlog.BrowserRuntimeEvidence{
+		BundleVersion: runtime.BundleVersion, BrowserVersion: runtime.BrowserVersion,
+		ClosureSHA256: runtime.ClosureSHA256, Driver: runtime.Driver,
+		DriverVersion: runtime.DriverVersion, Source: runtime.Source, Channel: runtime.Channel,
+	}, nil
+}
+
+var regexpRuntimeVersion = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9.+_-]{0,63}$`)
+
+func (h *Handler) settleBASBrowserEvidence(ctx context.Context, runID uuid.UUID, sessionID, grantReceipt, proofReference string) (map[string]any, error) {
+	if h.browserSessionSettlement == nil {
+		if err := h.browserEvidenceProof.ConsumeBrowserEvidenceProof(ctx, runID, proofReference); err != nil {
+			return nil, err
+		}
+		return map[string]any{"status": "settlement_client_unavailable"}, nil
+	}
+	receipt, err := h.browserSessionSettlement.SettleBrowserSession(ctx, runID, sessionID, grantReceipt, proofReference)
+	if errors.Is(err, ErrBrowserSessionReservationNotFound) {
+		if consumeErr := h.browserEvidenceProof.ConsumeBrowserEvidenceProof(ctx, runID, proofReference); consumeErr != nil {
+			return nil, consumeErr
+		}
+		return map[string]any{"status": "not_applicable"}, nil
+	}
+	if err != nil {
+		// Keep the proof available for an idempotent retry when LPBS could not
+		// confirm settlement. No new inference or reservation is attempted here.
+		return map[string]any{"status": "pending"}, nil
+	}
+	return map[string]any{"status": "settled", "receipt": receipt}, nil
 }
 
 func browserEvidencePayload(req browserEvidenceRequest, capability *browsercapability.Capability, reportedBy string) (eventlog.Payload, error) {
@@ -824,7 +899,9 @@ func (h *Handler) ResolveBrowserCaller(w http.ResponseWriter, r *http.Request) {
 // AuthorizeBrowserOpen is the run-scoped Agent Manager decision called by BAS
 // before it creates a managed, installed, attached or remote browser session.
 // The caller identity comes only from the verified X-Agent-Identity-Token;
-// request JSON has no run, owner, caller identity, or grant receipt field.
+// request JSON has no run, owner, tenant/account selector, caller identity, or
+// grant receipt field. LPBS membership is not currently carried by this open
+// contract, so body selectors cannot stand in for tenant authority.
 func (h *Handler) AuthorizeBrowserOpen(w http.ResponseWriter, r *http.Request) {
 	if h == nil || h.svc.IdentityService == nil || h.svc.RunService == nil {
 		writeSimpleError(w, r, "unavailable", "browser capability authorization is unavailable")

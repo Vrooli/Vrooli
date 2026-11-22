@@ -105,11 +105,23 @@ func (s *OrchestrationSettingsStore) writeToDisk(settings OrchestrationSettings)
 		return NewInvalid("orchestrationSettings", "failed to marshal settings", err)
 	}
 	payload = append(payload, '\n')
-	tmp := s.path + ".tmp"
-	if err := os.WriteFile(tmp, payload, 0o644); err != nil {
+	tmp, err := os.CreateTemp(dir, filepath.Base(s.path)+".tmp-*")
+	if err != nil {
+		return NewInvalid("orchestrationSettings", "failed to create temp file", err)
+	}
+	defer os.Remove(tmp.Name())
+	if err := tmp.Chmod(0o644); err != nil {
+		_ = tmp.Close()
+		return NewInvalid("orchestrationSettings", "failed to set temp file permissions", err)
+	}
+	if _, err := tmp.Write(payload); err != nil {
+		_ = tmp.Close()
 		return NewInvalid("orchestrationSettings", "failed to write temp file", err)
 	}
-	if err := os.Rename(tmp, s.path); err != nil {
+	if err := tmp.Close(); err != nil {
+		return NewInvalid("orchestrationSettings", "failed to close temp file", err)
+	}
+	if err := os.Rename(tmp.Name(), s.path); err != nil {
 		return NewInvalid("orchestrationSettings", "failed to rename temp file", err)
 	}
 	return nil

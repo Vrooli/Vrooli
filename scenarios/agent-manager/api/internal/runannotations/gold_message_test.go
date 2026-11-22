@@ -26,7 +26,7 @@ func TestMessageGoldIsScoredBySubjectAndUnobservedRowsAreReportedNotDropped(t *t
 		{RunID: "chat", ScopeID: "chat-m3", Positive: false},
 		{RunID: "chat", ScopeID: "chat-m9", Positive: true}, // never observed under this definition
 	}
-	result, err := service.Benchmark(ctx, BenchmarkRequest{Label: "operator.frustrated", Rows: rows})
+	result, err := service.Benchmark(ctx, BenchmarkRequest{Label: "operator.dissatisfied", Rows: rows})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +44,7 @@ func TestMessageGoldIsScoredBySubjectAndUnobservedRowsAreReportedNotDropped(t *t
 		t.Fatalf("confusion = %+v, want 2 positives and 1 negative scored", result)
 	}
 
-	allUnobserved, err := service.Benchmark(ctx, BenchmarkRequest{Label: "operator.frustrated", Rows: []GoldRow{{RunID: "chat", ScopeID: "chat-m8", Positive: true}}})
+	allUnobserved, err := service.Benchmark(ctx, BenchmarkRequest{Label: "operator.dissatisfied", Rows: []GoldRow{{RunID: "chat", ScopeID: "chat-m8", Positive: true}}})
 	if err != nil || allUnobserved.Gold != 0 || allUnobserved.Unobserved != 1 || allUnobserved.Measurement != nil || !strings.Contains(allUnobserved.Note, "annotate them") {
 		t.Fatalf("a gold set with nothing observed = %+v (%v), want it accepted and explained", allUnobserved, err)
 	}
@@ -53,19 +53,19 @@ func TestMessageGoldIsScoredBySubjectAndUnobservedRowsAreReportedNotDropped(t *t
 func TestMessageGoldRowsMustNameTheMessageAndStayDisjoint(t *testing.T) {
 	service, _ := evaluatedMoodService(t)
 	ctx := context.Background()
-	if _, err := service.Benchmark(ctx, BenchmarkRequest{Label: "operator.frustrated", Rows: []GoldRow{{RunID: "chat", Positive: true}}}); !errors.Is(err, ErrInvalidRequest) ||
+	if _, err := service.Benchmark(ctx, BenchmarkRequest{Label: "operator.dissatisfied", Rows: []GoldRow{{RunID: "chat", Positive: true}}}); !errors.Is(err, ErrInvalidRequest) ||
 		!strings.Contains(err.Error(), "scope_id") {
 		t.Fatalf("a message gold row with only a run: %v", err)
 	}
 	tuning := []GoldRow{{RunID: "chat", ScopeID: "chat-m1", Positive: true}, {RunID: "chat", ScopeID: "chat-m3", Positive: false}}
 	holdout := []GoldRow{{RunID: "chat", ScopeID: "chat-m2", Positive: true}, {RunID: "chat", ScopeID: "chat-m3", Positive: false}}
-	_, err := service.Benchmark(ctx, BenchmarkRequest{Label: "operator.frustrated", Split: SplitHoldout, Rows: holdout, FitRows: tuning})
+	_, err := service.Benchmark(ctx, BenchmarkRequest{Label: "operator.dissatisfied", Split: SplitHoldout, Rows: holdout, FitRows: tuning})
 	if !errors.Is(err, ErrInvalidRequest) || !strings.Contains(err.Error(), "chat-m3") {
 		t.Fatalf("a hold-out sharing a message with the tuning rows: %v", err)
 	}
 	// Messages of the same run are different subjects: a disjoint split is accepted.
 	disjointHoldout := []GoldRow{{RunID: "chat", ScopeID: "chat-m2", Positive: true}}
-	if _, err := service.Benchmark(ctx, BenchmarkRequest{Label: "operator.frustrated", Split: SplitHoldout, Rows: disjointHoldout, FitRows: tuning}); err != nil {
+	if _, err := service.Benchmark(ctx, BenchmarkRequest{Label: "operator.dissatisfied", Split: SplitHoldout, Rows: disjointHoldout, FitRows: tuning}); err != nil {
 		t.Fatalf("a split by message of one run: %v", err)
 	}
 	if _, err := service.Benchmark(ctx, BenchmarkRequest{Label: "operator.valence", Rows: tuning}); !errors.Is(err, ErrInvalidRequest) ||
@@ -76,7 +76,7 @@ func TestMessageGoldRowsMustNameTheMessageAndStayDisjoint(t *testing.T) {
 
 func TestMessageGoldDraftIsBlindAndNamesTheMessage(t *testing.T) {
 	service, _ := evaluatedMoodService(t)
-	draft, err := service.GoldDraft(context.Background(), "operator.frustrated", "30d", 10)
+	draft, err := service.GoldDraft(context.Background(), "operator.dissatisfied", "30d", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,26 +104,26 @@ func TestPinnedEvaluationAnswersOnlyTheNamedMessages(t *testing.T) {
 	service, store := testService(t, moodLabels(t), []RunFacts{moodConversation()}, decision, Options{Clock: tickingClock()})
 	ctx := context.Background()
 	if _, err := service.Evaluate(ctx, EvaluateOptions{
-		RunIDs: []string{"chat"}, Labels: []string{"operator.frustrated"}, MessageIDs: []string{"chat-m2"},
+		RunIDs: []string{"chat"}, Labels: []string{"operator.dissatisfied"}, MessageIDs: []string{"chat-m2"},
 		PinResourceRole: "decide.local.candidate", TimeBudget: -1,
 	}); err != nil {
 		t.Fatal(err)
 	}
-	hash := service.Pack().LabelHashes["operator.frustrated"]
+	hash := service.Pack().LabelHashes["operator.dissatisfied"]
 	ids := []string{"chat-m1", "chat-m2", "chat-m3"}
-	trial, err := store.Trials().LatestObservations(ctx, ScopeMessage, ids, "operator.frustrated", hash, "", "")
+	trial, err := store.Trials().LatestObservations(ctx, ScopeMessage, ids, "operator.dissatisfied", hash, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(trial) != 1 || trial["chat-m2"].Model != "candidate-model" || trial["chat-m2"].ModelVersion != "decide.local.candidate" {
 		t.Fatalf("trial rows = %+v, want only the named message, answered by the pinned candidate", trial)
 	}
-	if production, err := store.LatestObservations(ctx, ScopeMessage, ids, "operator.frustrated", hash, "", ""); err != nil || len(production) != 0 {
+	if production, err := store.LatestObservations(ctx, ScopeMessage, ids, "operator.dissatisfied", hash, "", ""); err != nil || len(production) != 0 {
 		t.Fatalf("production rows = %+v (%v): a pinned pass wrote production", production, err)
 	}
 	// The named message is judged by the same benchmark, from the trials.
 	result, err := service.Benchmark(ctx, BenchmarkRequest{
-		Label: "operator.frustrated", Source: SourcePinned, ResourceRole: "decide.local.candidate",
+		Label: "operator.dissatisfied", Source: SourcePinned, ResourceRole: "decide.local.candidate",
 		Rows: []GoldRow{{RunID: "chat", ScopeID: "chat-m2", Positive: true}, {RunID: "chat", ScopeID: "chat-m1", Positive: true}},
 	})
 	if err != nil || result.Gold != 1 || result.Unobserved != 1 || result.Model != "candidate-model" {

@@ -115,11 +115,10 @@ func (s *Service) annotationView(annotation Annotation) AnnotationView {
 	if !ok {
 		return view
 	}
-	model, role := ProofKey(annotation)
 	status := s.pack.StatusFor(compiled, annotation)
 	view.Gate, view.GateState, view.Proven = status, status.State, status.State == GateProven
 	view.Friction = compiled.label.Friction
-	temperature, measured := compiled.label.Gate.Calibration(annotation.DefinitionHash, model, role)
+	temperature, measured := calibrationOf(compiled.label, annotation)
 	if sample, usable := sampleFor(compiled.label, annotation); usable {
 		score := sample.Score(temperature)
 		view.CalibratedProbability = &score

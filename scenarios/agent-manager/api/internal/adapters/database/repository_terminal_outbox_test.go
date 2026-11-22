@@ -67,8 +67,7 @@ func ackCount(t *testing.T, db *DB) int {
 }
 
 func TestTerminalOutboxDisabledAndEmpty(t *testing.T) {
-	db, done := setupTestDB(t)
-	defer done()
+	db := setupTestDB(t)
 	if _, err := NewTerminalOutbox(NewRepositories(db, logrus.New()), terminalAcceptorFunc(codecAck)); err == nil {
 		t.Fatal("enabled default constructor")
 	}
@@ -150,8 +149,7 @@ func TestTerminalOutboxRetainsExactAcknowledgmentAndReplay(t *testing.T) {
 func TestTerminalOutboxUncertainAndMismatchedAcknowledgmentsStayPending(t *testing.T) {
 	for _, mode := range []string{"lost_response", "zero", "wrong_id", "wrong_digest", "cancelled"} {
 		t.Run(mode, func(t *testing.T) {
-			db, done := setupTestDB(t)
-			defer done()
+			db := setupTestDB(t)
 			r := receiptRepos(t, db)
 			run := receiptRun(t, r)
 			finishReceiptRun(t, r, run, domain.RunStatusFailed)
@@ -213,8 +211,7 @@ func TestTerminalOutboxAcknowledgmentStatementAndCommitFailure(t *testing.T) {
 }
 
 func TestTerminalOutboxFiniteBatchAndSourceFence(t *testing.T) {
-	db, done := setupTestDB(t)
-	defer done()
+	db := setupTestDB(t)
 	r := receiptRepos(t, db)
 	for i := 0; i < 3; i++ {
 		run := receiptRun(t, r)
@@ -274,8 +271,7 @@ func TestTerminalOutboxConcurrentIndependentConnections(t *testing.T) {
 }
 
 func TestTerminalOutboxCorruptionStopsBeforeAcceptor(t *testing.T) {
-	db, done := setupTestDB(t)
-	defer done()
+	db := setupTestDB(t)
 	r := receiptRepos(t, db)
 	run := receiptRun(t, r)
 	finishReceiptRun(t, r, run, domain.RunStatusComplete)
@@ -441,8 +437,7 @@ func TestTerminalOutboxCrossOwnerFixture(t *testing.T) {
 }
 
 func TestTerminalOutboxImmutabilityIncludesSQLiteReplace(t *testing.T) {
-	db, done := setupTestDB(t)
-	defer done()
+	db := setupTestDB(t)
 	r := receiptRepos(t, db)
 	run := receiptRun(t, r)
 	finishReceiptRun(t, r, run, domain.RunStatusComplete)
@@ -484,8 +479,7 @@ func TestTerminalOutboxInvalidRepositoryAndCorruptAcknowledgmentFailClosed(t *te
 	if _, err := NewTerminalOutbox(missing, terminalAcceptorFunc(codecAck)); err == nil {
 		t.Fatal("accepted missing database")
 	}
-	db, done := setupTestDB(t)
-	defer done()
+	db := setupTestDB(t)
 	r := receiptRepos(t, db)
 	run := receiptRun(t, r)
 	finishReceiptRun(t, r, run, domain.RunStatusComplete)

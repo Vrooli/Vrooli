@@ -21,21 +21,33 @@ const (
 	// in any other mode is an operator session Agent Manager only observed.
 	operatorSessionModes = "('imported','attached','interactive')"
 
-	// windowUsageSelect aggregates the window's requests per run and model. A
-	// harness session copied into several harness homes appears as several
-	// transcript files holding the same requests; a request identical to one in
-	// an earlier file of the same session counts once.
-	windowUsageSelect = `uw AS (SELECT u.run_id AS uw_run_id, u.model AS uw_model,
-		SUM(u.input_tokens) AS uw_in, SUM(u.output_tokens) AS uw_out,
-		SUM(u.cache_read_tokens) AS uw_cr, SUM(u.cache_creation_tokens) AS uw_cc, COUNT(*) AS uw_requests
-		FROM transcript_usage u LEFT JOIN transcript_files f ON f.file_key = u.file_key
-		WHERE u.observed_at >= ? AND u.observed_at < ? AND NOT EXISTS (
-			SELECT 1 FROM transcript_usage v JOIN transcript_files g ON g.file_key = v.file_key
-			WHERE v.observed_at = u.observed_at AND f.sidechain = 0 AND g.sidechain = 0 AND f.session_id <> ''
-			AND g.session_id = f.session_id AND g.harness = f.harness AND v.file_key < u.file_key
-			AND v.turn_index = u.turn_index AND v.input_tokens = u.input_tokens AND v.output_tokens = u.output_tokens
-			AND v.cache_read_tokens = u.cache_read_tokens AND v.cache_creation_tokens = u.cache_creation_tokens)
-		GROUP BY u.run_id, u.model)`
+	// windowRequestKey names the provider request a usage row reports, within
+	// its file. One request can have several rows, and is counted once, by the
+	// rule runsignal.AccountUsage applies: a cumulative counter value is one
+	// request (a Codex turn receipt repeats its last report's counter), and a
+	// Claude message is one request however many content blocks repeat its
+	// usage or whether its final block is the turn's receipt. Copies of a
+	// harness session need no rule here: the Transcript Indexer reads each
+	// repeated byte once (its lineage rule).
+	windowRequestKey = `CASE WHEN u.has_cumulative = 1 THEN printf('c:%d:%d:%d:%d', u.cum_input_tokens, u.cum_output_tokens, u.cum_cache_read_tokens, u.cum_cache_creation_tokens)
+		WHEN u.message_id <> '' THEN 'm:' || u.message_id ELSE printf('l:%d:%d', u.line_offset, u.ordinal) END`
+	// windowAmounts are a request's amounts: its own report's, or a receipt's
+	// when the receipt is all that was retained of it.
+	windowAmounts = `COALESCE(MAX(CASE WHEN u.reconciliation_authority = 0 THEN u.input_tokens END), MAX(u.input_tokens)) AS input_tokens,
+		COALESCE(MAX(CASE WHEN u.reconciliation_authority = 0 THEN u.output_tokens END), MAX(u.output_tokens)) AS output_tokens,
+		COALESCE(MAX(CASE WHEN u.reconciliation_authority = 0 THEN u.cache_read_tokens END), MAX(u.cache_read_tokens)) AS cache_read_tokens,
+		COALESCE(MAX(CASE WHEN u.reconciliation_authority = 0 THEN u.cache_creation_tokens END), MAX(u.cache_creation_tokens)) AS cache_creation_tokens`
+
+	// windowUsageSelect aggregates the window's requests per run and model.
+	windowUsageSelect = `uw AS (SELECT q.run_id AS uw_run_id, q.model AS uw_model,
+		SUM(q.input_tokens) AS uw_in, SUM(q.output_tokens) AS uw_out,
+		SUM(q.cache_read_tokens) AS uw_cr, SUM(q.cache_creation_tokens) AS uw_cc, COUNT(*) AS uw_requests
+		FROM (SELECT MAX(u.run_id) AS run_id, MAX(u.model) AS model,
+			` + windowAmounts + `
+			FROM transcript_usage u
+			WHERE u.observed_at >= ? AND u.observed_at < ?
+			GROUP BY u.file_key, ` + windowRequestKey + `) q
+		GROUP BY q.run_id, q.model)`
 
 	windowVolume = "(uw_in + uw_out + uw_cr + uw_cc)"
 	// windowShare is the part of a run's lifetime tokens requested in the
@@ -63,11 +75,8 @@ func windowedUsageCTE(filter invocationreadmodel.Filter) (string, []any) {
 func runScopeClause(scope invocationreadmodel.RunScope, tokens bool) string {
 	const runs = "invocation_read_model_runs.run_id"
 	executed := runs + " NOT IN (SELECT id FROM runs WHERE execution_mode IN " + operatorSessionModes + ")"
-	// An observed session with no usage is not a run, and a session copy is
-	// not a second one.
-	operator := "(" + runs + " IN (SELECT id FROM runs WHERE execution_mode IN " + operatorSessionModes + ") AND invocation_read_model_runs.total_tokens > 0" +
-		" AND NOT EXISTS (SELECT 1 FROM transcript_files f JOIN transcript_files g ON g.harness = f.harness AND g.session_id = f.session_id" +
-		" AND g.sidechain = 0 AND g.file_key < f.file_key AND g.run_id <> '' WHERE f.run_id = " + runs + " AND f.sidechain = 0 AND f.session_id <> ''))"
+	// An observed session with no usage is not a run.
+	operator := "(" + runs + " IN (SELECT id FROM runs WHERE execution_mode IN " + operatorSessionModes + ") AND invocation_read_model_runs.total_tokens > 0)"
 	switch scope {
 	case invocationreadmodel.ScopeAll:
 		return "(" + executed + " OR " + operator + ")"

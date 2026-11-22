@@ -18,8 +18,7 @@ import (
 
 func associationFixture(t *testing.T) (*DB, *Repositories, EvidenceAssociationProposal) {
 	t.Helper()
-	db, done := setupTestDB(t)
-	t.Cleanup(done)
+	db := setupTestDB(t)
 	r := receiptRepos(t, db)
 	run := receiptRun(t, r)
 	finishReceiptRun(t, r, run, domain.RunStatusComplete)

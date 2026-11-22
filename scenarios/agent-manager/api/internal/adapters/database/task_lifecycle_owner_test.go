@@ -12,8 +12,7 @@ import (
 )
 
 func TestTaskRepositoryRejectsInvalidInitialAndUnknownPersistedStatus(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 
@@ -36,8 +35,7 @@ func TestTaskRepositoryRejectsInvalidInitialAndUnknownPersistedStatus(t *testing
 }
 
 func TestRunProjectionUsesTaskTransitionOwnerAndExactObservedState(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 	taskID, runID := uuid.New(), uuid.New()

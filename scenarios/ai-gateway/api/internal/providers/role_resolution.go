@@ -30,7 +30,7 @@ func (a Adapter) ResolveRole(ctx context.Context, role string) (ResolvedRole, er
 		}
 		return ResolvedRole{Provider: a.Provider, Role: role, Model: "policy-resolved", CanonicalModel: "policy-resolved", Locality: "remote"}, nil
 	}
-	result, err := a.runner().Run(ctx, Command{Name: a.CommandName, Args: []string{"policy", "resolve", "--role", role, "--json"}, Timeout: DefaultCommandTimeout})
+	result, err := a.runner().Run(ctx, Command{Name: a.CommandName, Args: []string{"policy", "resolve", "--role", role, "--json"}, Timeout: DefaultCommandTimeout, Fact: true})
 	if err != nil {
 		return ResolvedRole{}, mapCommandError(a.Provider, err)
 	}

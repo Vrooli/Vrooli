@@ -57,6 +57,23 @@ stale owner from advancing or finalizing a run after reattachment.
 
 This means the durable record belongs to `agent-manager`, not to an in-memory stdout pipe.
 
+## Workspace-provider loss before continuation
+
+A sandboxed continuation first reads the saved workspace identity with the
+read-only workspace-sandbox `Get` operation. If that provider read is
+unavailable, Agent Manager refuses before dispatch, does not append the new user
+message, and leaves the prior run, session, sandbox binding and transcript
+unchanged. When the provider returns, the caller may retry the exact same
+continuation and idempotency key; the request is accepted once and the durable
+receipt completes.
+
+This retry guarantee is limited to the read-only lookup and local run-state-root
+resolution before any sandbox resume/start/create. A failure after a mutating
+sandbox operation or runner dispatch may have effects; keep its receipt pending
+for owner reconciliation instead of replaying the request. The current regression
+uses the production orchestration service, SQLite repositories and a fake
+provider. It does not establish live workspace-sandbox outage behavior.
+
 ## Restart recovery
 
 On startup, the reconciler runs `RecoverInFlightRuns` before the normal loop starts.
@@ -193,6 +210,18 @@ There is no equivalent historical fallback for Codex or OpenCode.
 ## Retention
 
 The reconciler deletes run state directories for terminal runs older than 7 days.
+
+## Workspace mapping across continuation
+
+Each new run persists its resolved `projectRoot` and `scopePath` in its
+immutable run configuration. If terminal retention has deleted that run's
+sandbox, continuation creates a replacement from the pinned mapping, even when
+the task has since been edited to point at another project. A new run uses the
+task's current mapping. A legacy run without a saved binding cannot safely
+recreate a deleted sandbox; continuation refuses before effects and asks the
+operator to start a new run instead of guessing which checkout owned its
+native session. The provider create retry uses one stable idempotency key for
+that deleted-sandbox incarnation.
 
 ## Continuity evidence
 

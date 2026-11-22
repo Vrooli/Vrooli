@@ -71,8 +71,7 @@ func mustReceiptExec(t *testing.T, db *DB, q string) {
 }
 
 func TestTerminalReceiptDisabledDoesNotTouchReceiptStorage(t *testing.T) {
-	db, done := setupTestDB(t)
-	defer done()
+	db := setupTestDB(t)
 	r := NewRepositories(db, logrus.New())
 	mustReceiptExec(t, db, `DROP TABLE run_terminal_receipts; DROP TABLE run_terminal_receipt_source`)
 	run := receiptRun(t, r)
@@ -84,8 +83,7 @@ func TestTerminalReceiptDisabledDoesNotTouchReceiptStorage(t *testing.T) {
 func TestTerminalReceiptStatusesAndMinimization(t *testing.T) {
 	for _, status := range []domain.RunStatus{domain.RunStatusComplete, domain.RunStatusFailed, domain.RunStatusCancelled, domain.RunStatusUnknown} {
 		t.Run(string(status), func(t *testing.T) {
-			db, done := setupTestDB(t)
-			defer done()
+			db := setupTestDB(t)
 			r := receiptRepos(t, db)
 			run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusRunning, Label: "secret title", ErrorMsg: "secret error", WorkReferences: []*eventdomain.WorkReference{{Kind: "flywheel", Id: "invented-work", Verified: true}}}
 			if e := r.Runs.Create(t.Context(), run); e != nil {
@@ -120,8 +118,7 @@ func TestTerminalReceiptStatusesAndMinimization(t *testing.T) {
 func TestTerminalReceiptNoBackfillOrImportedCapture(t *testing.T) {
 	for _, kind := range []string{"terminal_create", "terminal_correction", "imported_mode", "import_marker", "needs_review"} {
 		t.Run(kind, func(t *testing.T) {
-			db, done := setupTestDB(t)
-			defer done()
+			db := setupTestDB(t)
 			r := receiptRepos(t, db)
 			run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusRunning}
 			switch kind {
@@ -162,8 +159,7 @@ func TestTerminalReceiptNoBackfillOrImportedCapture(t *testing.T) {
 func TestTerminalReceiptFailureRollsBackRunTaskAndSource(t *testing.T) {
 	for _, target := range []string{"receipt", "task"} {
 		t.Run(target, func(t *testing.T) {
-			db, done := setupTestDB(t)
-			defer done()
+			db := setupTestDB(t)
 			r := receiptRepos(t, db)
 			task := createQueuedTask(t, r, "receipt atomicity")
 			run := pendingTaskRun(task.ID)
@@ -201,8 +197,7 @@ func TestTerminalReceiptFailureRollsBackRunTaskAndSource(t *testing.T) {
 	}
 }
 func TestTerminalReceiptReplayContinuationCorrectionAndDeletion(t *testing.T) {
-	db, done := setupTestDB(t)
-	defer done()
+	db := setupTestDB(t)
 	r := receiptRepos(t, db)
 	at := time.Now().Add(-time.Hour).UTC()
 	run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusRunning, ExecutionMode: domain.ExecutionModeInteractive, InteractiveInvocationStartedAt: &at}
@@ -254,8 +249,7 @@ func TestTerminalReceiptReplayContinuationCorrectionAndDeletion(t *testing.T) {
 	}
 }
 func TestTerminalReceiptConcurrentAndStaleWriters(t *testing.T) {
-	db, done := setupTestDB(t)
-	defer done()
+	db := setupTestDB(t)
 	db.DB.SetMaxOpenConns(1)
 	r := receiptRepos(t, db)
 	run := receiptRun(t, r)
@@ -287,8 +281,7 @@ func TestTerminalReceiptConcurrentAndStaleWriters(t *testing.T) {
 func TestTerminalReceiptCancellation(t *testing.T) {
 	for _, kind := range []string{"pending", "active_fence", "capture_failure"} {
 		t.Run(kind, func(t *testing.T) {
-			db, done := setupTestDB(t)
-			defer done()
+			db := setupTestDB(t)
 			r := receiptRepos(t, db)
 			task := createQueuedTask(t, r, "cancel receipt")
 			run := pendingTaskRun(task.ID)
@@ -396,8 +389,7 @@ func TestTerminalReceiptInvalidScopeWithoutStorage(t *testing.T) {
 }
 
 func TestTerminalReceiptConflictingRecordRollsBackInsteadOfIgnoring(t *testing.T) {
-	db, done := setupTestDB(t)
-	defer done()
+	db := setupTestDB(t)
 	r := receiptRepos(t, db)
 	run := receiptRun(t, r)
 	_, e := db.Exec(`INSERT INTO run_terminal_receipts (run_id,lifecycle_version,source_instance,source_epoch,observation_json,observation_sha256,event_intent_json,event_intent_id) VALUES (?,1,'bad','bad','{}','bad','{}','bad')`, run.ID)
@@ -418,8 +410,7 @@ func TestTerminalReceiptConflictingRecordRollsBackInsteadOfIgnoring(t *testing.T
 }
 
 func TestTerminalReceiptDetectsRetainedByteCorruption(t *testing.T) {
-	db, done := setupTestDB(t)
-	defer done()
+	db := setupTestDB(t)
 	r := receiptRepos(t, db)
 	run := receiptRun(t, r)
 	finishReceiptRun(t, r, run, domain.RunStatusComplete)
@@ -480,8 +471,7 @@ func TestTerminalReceiptConcurrentConnectionsHaveOneWinner(t *testing.T) {
 }
 
 func TestTerminalReceiptCommitFailureRollsBack(t *testing.T) {
-	db, done := setupTestDB(t)
-	defer done()
+	db := setupTestDB(t)
 	db.DB.SetMaxOpenConns(1)
 	r := receiptRepos(t, db)
 	run := receiptRun(t, r)

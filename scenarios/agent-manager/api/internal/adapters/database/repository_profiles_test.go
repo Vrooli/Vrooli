@@ -14,9 +14,7 @@ import (
 )
 
 func TestProfileCRUD(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 
@@ -116,9 +114,7 @@ func TestProfileCRUD(t *testing.T) {
 }
 
 func TestProfileListPagination(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 
@@ -161,9 +157,7 @@ func TestProfileListPagination(t *testing.T) {
 // ============================================================================
 
 func TestProfileWithFeatureFlags(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 
@@ -207,9 +201,7 @@ func TestProfileWithFeatureFlags(t *testing.T) {
 }
 
 func TestProfileWithZeroFeatureFlags(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 
@@ -240,9 +232,7 @@ func TestProfileWithZeroFeatureFlags(t *testing.T) {
 }
 
 func TestProfileWithExtraFlags(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 
@@ -299,9 +289,7 @@ func TestProfileWithExtraFlags(t *testing.T) {
 }
 
 func TestProfileWithNilExtraFlags(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 
@@ -333,9 +321,7 @@ func TestProfileWithNilExtraFlags(t *testing.T) {
 }
 
 func TestProfileWithFeaturesAndExtraFlags(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 
@@ -379,9 +365,7 @@ func TestProfileWithFeaturesAndExtraFlags(t *testing.T) {
 // ============================================================================
 
 func TestTaskCRUD(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
+	db := setupTestDB(t)
 	repos := NewRepositories(db, logrus.New())
 	ctx := context.Background()
 

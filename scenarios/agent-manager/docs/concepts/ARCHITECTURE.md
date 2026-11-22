@@ -2,42 +2,27 @@
 
 ## Effort supervision contract
 
-[Effort supervision](../../../../docs/agent-system/EFFORT_SUPERVISION.md) defines
-the extension of existing supervision to portable effort enrollment, bounded
-boards and attributable cost. Agent Manager owns those monitoring records and run
-effects; product acceptance remains with its existing owner. General effort
-subjects must not require a fabricated plan family or weaken an actual family's
-validation. CLI, UI and programs consume the same typed projection.
+[Effort supervision policy](../../../../docs/agent-system/EFFORT_SUPERVISION.md)
+extends existing supervision to portable effort enrollment, bounded boards and
+attributable cost. Agent Manager owns effort enrollment and observation records;
+product acceptance remains with each effort's owning domain. The SQL-backed
+supervision repository keeps plan-family cohort watches distinct from general
+efforts; general effort subjects do not invent family topology or weaken an
+actual family's validation. CLI, UI and programs consume the same typed projection.
 
-Implementation design (2026-09-12, narrowed 2026-09-30): `internal/supervision`
-holds an engine-neutral effort repository implemented by its existing SQL
-repository. Domain-owned tables retain enrollment revisions and discovery
-coverage; family watches and their topology checks remain intact. A workspace
-declaration grants only observation; operator-authenticated enrollment records
-who owns the effort. The board carries no steering: delivery goals are steered
-through their goal home files (`FEEDBACK.md` and the epoch `## Directives`), and a
-stopped orchestrator is relaunched by its Prompt Manager team heartbeat.
+The supervision service persists operator-authenticated enrollment separately
+from bounded workspace observation. A workspace declaration grants observation
+only; it does not grant authority or accept a result. The board is read-only;
+enrollment, reconciliation and delivery actions remain explicit owner operations.
+Goal steering stays with each effort's goal home (`FEEDBACK.md` and epoch
+`## Directives`), and a stopped orchestrator is relaunched through its Prompt
+Manager team heartbeat.
 
-The existing scheduler owns bounded discovery ticks. `effort.json`
-schema 1 normalizes its stable explicit reference (or repository plus slug),
-source digest, acceptance reference and declared owner subjects. Version 2 is a
-typed portable manifest. Only immediate effort directories and bounded declared
-checkpoint/requirements files are read. Path components and files reject symlinks;
-file opens are rooted to prevent escapes. A complete scan can mark missing sources
-unavailable; partial scans cannot infer removal. Identical scans preserve change
-identity. Persisted withdrawal survives rediscovery and restart.
-
-The typed `AgentManagerService` effort RPCs expose a read-only board and explicit
-enrollment/reconciliation. Board projections read current owner runs and
-attributed workspace evidence; runtime completion cannot accept an outcome.
-Optional usage values retain unknown cost and censored coverage.
-
-Canonical public, verified AM work references with `kind=effort` join runs
-through the bounded run registry scan. Observed work references confer no
-authority. Row `change_identity` is the subject/evidence trigger, excluding
-supervisor assignments and aggregate accounting; `visibility_change_identity`
-also tracks those board-visible changes. Board read time and workspace evidence
-capture time are distinct; fresh run reads have their own assignment timestamps.
+The maintained [effort supervision reference](../reference/effort-supervision.md)
+owns manifest schemas, rooted bounded reads, partial-scan and withdrawal behavior,
+run discovery, attribution, observation identities, and native delivery
+commissions. This architecture page keeps the cross-domain authority boundary; it
+does not restate those detailed protocols.
 
 This document describes the architectural patterns, invariants, and design decisions that make agent-manager robust, maintainable, and extensible.
 

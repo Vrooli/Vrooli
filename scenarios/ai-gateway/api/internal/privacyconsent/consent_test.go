@@ -70,3 +70,14 @@ func TestRevocationRequiresOwningSubject(t *testing.T) {
 	require.NoError(t, err)
 	require.Error(t, store.Revoke(context.Background(), "user-b", grant.ID))
 }
+
+func TestAudioToolsConsentIsSourceBoundAndExpires(t *testing.T) {
+	store, _, now := newConsentFixture(t)
+	ctx := identity.WithPrincipal(context.Background(), identity.Principal{Kind: identity.ActorHuman, Subject: "audio-owner", Verified: true})
+	receipt, _, err := store.Grant(ctx, "audio-owner", "audio-tools-openai-gpt-live", time.Minute)
+	require.NoError(t, err)
+	require.NoError(t, store.Verify(ctx, receipt, "audio-tools-openai-gpt-live"))
+	require.ErrorIs(t, store.Verify(ctx, receipt, "own-key"), ErrInvalidGrant)
+	*now = now.Add(time.Minute)
+	require.ErrorIs(t, store.Verify(ctx, receipt, "audio-tools-openai-gpt-live"), ErrInvalidGrant)
+}

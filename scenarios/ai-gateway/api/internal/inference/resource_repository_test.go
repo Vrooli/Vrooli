@@ -137,7 +137,7 @@ func TestTypedEmbeddingRequiresLocalOnlyAndCarriesItToResourceBoundary(t *testin
 			runner.Default = providers.Result{Stdout: `{"embedding":[1,0]}`}
 			configureQualifiedLocalRole(runner, "embed.resource", "embed-model", tc.locality)
 			catalog := rolecatalog.RoleCatalog{SchemaVersion: 1, Roles: map[string]rolecatalog.InferenceRole{
-				"embedding.default": {Candidates: []rolecatalog.Candidate{{Provider: providers.ProviderOllama, ResourceRole: "embed.resource", Reason: "fixture"}}},
+				"embedding.default": {Embedding: embeddingContract, Candidates: []rolecatalog.Candidate{{Provider: providers.ProviderOllama, ResourceRole: "embed.resource", Reason: "fixture"}}},
 			}}
 			repository, err := NewResourceRepositoryWithRightsContextSource(catalog, []providers.Adapter{{Provider: providers.ProviderOllama, CommandName: "resource-ollama", Locality: tc.locality, Runner: runner}}, fixtureRightsContext)
 			require.NoError(t, err)
@@ -185,7 +185,7 @@ func TestTypedEmbeddingRejectsMissingOrChangedRuntimeDigestBeforeExecute(t *test
 				"resource-ollama models inventory --json":                     {Stdout: `{"models":[{"name":"embed-model","digest":"` + tc.inventory + `"}]}`},
 			}}
 			catalog := rolecatalog.RoleCatalog{SchemaVersion: 1, Roles: map[string]rolecatalog.InferenceRole{
-				"embedding.default": {Candidates: []rolecatalog.Candidate{{Provider: providers.ProviderOllama, ResourceRole: "embed.resource", Reason: "fixture"}}},
+				"embedding.default": {Embedding: embeddingContract, Candidates: []rolecatalog.Candidate{{Provider: providers.ProviderOllama, ResourceRole: "embed.resource", Reason: "fixture"}}},
 			}}
 			repository, err := NewResourceRepositoryWithRightsContextSource(catalog, []providers.Adapter{{Provider: providers.ProviderOllama, Locality: "local", CommandName: "resource-ollama", Runner: runner}}, fixtureRightsContext)
 			require.NoError(t, err)
@@ -499,7 +499,7 @@ func (r failGatewayExecutionRunner) Run(ctx context.Context, command providers.C
 func TestTypedEmbeddingRejectsMissingLocalOnlyContractBeforeResolve(t *testing.T) {
 	runner := &providermocks.FakeRunner{DefaultOK: true}
 	catalog := rolecatalog.RoleCatalog{SchemaVersion: 1, Roles: map[string]rolecatalog.InferenceRole{
-		"embedding.default": {Candidates: []rolecatalog.Candidate{{Provider: "ollama", ResourceRole: "embedding.default", Reason: "fixture"}}},
+		"embedding.default": {Embedding: embeddingContract, Candidates: []rolecatalog.Candidate{{Provider: "ollama", ResourceRole: "embedding.default", Reason: "fixture"}}},
 	}}
 	repository, err := NewResourceRepository(catalog, []providers.Adapter{{Provider: "ollama", CommandName: "resource-ollama", Locality: "local", Runner: runner}})
 	require.NoError(t, err)

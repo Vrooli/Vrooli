@@ -193,7 +193,11 @@ type RunView struct {
 
 // AnnotateOptions bounds one run's evaluation.
 type AnnotateOptions struct {
-	Force           bool
+	// ForceLabels names the labels whose cached answers are ignored and asked
+	// again. Force is always scoped: a composite is recomputed from stored
+	// answers on its own, and forcing it never re-asks the messages it reads
+	// unless their labels are named too.
+	ForceLabels     []string
 	IncludeOptional bool
 	Labels          []string
 	MaxLabels       int
@@ -218,7 +222,7 @@ type EvaluateOptions struct {
 	RunIDs          []string
 	Labels          []string
 	IncludeOptional bool
-	Force           bool
+	ForceLabels     []string
 	DryRun          bool
 	PinResourceRole string
 	Role            string

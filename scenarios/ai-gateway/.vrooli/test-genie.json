@@ -181,7 +181,7 @@
             "id": "L1",
             "name": "Model policy coupled",
             "status_label": "Coupled",
-            "description": "Scenario code hard-codes concrete model slugs or direct resource roles without reviewed policy.",
+            "description": "Caller code hard-codes concrete model slugs or direct resource roles without reviewed policy; governed model registries require typed validation, generated-output drift coverage, and tests against the owning resource policy.",
             "capability_summary": "Provider catalog changes can break the scenario.",
             "next_unlock": "Use role/profile requests or resource-owned policy."
           },

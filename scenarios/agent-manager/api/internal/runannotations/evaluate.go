@@ -12,8 +12,39 @@ import (
 // (and each human message of it) into a unit of work, answering decisions in
 // shared batches, and persisting finished groups.
 
+// forceSet is the labels a caller named to be asked again.
+func forceSet(ids []string) map[string]bool {
+	if len(ids) == 0 {
+		return nil
+	}
+	set := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		set[id] = true
+	}
+	return set
+}
+
+// checkForce refuses a force that names no label of the pack, or one the
+// request does not evaluate, so a forced re-ask is always exactly what the
+// caller named.
+func (s *Service) checkForce(labels, force []string) error {
+	requested := s.pack.requested(labels)
+	for _, id := range force {
+		if _, ok := s.pack.Label(id); !ok {
+			return fmt.Errorf("%w: force_labels names %q, which is not a label of the pack", ErrInvalidRequest, id)
+		}
+		if requested != nil && !requested[id] {
+			return fmt.Errorf("%w: force_labels names %q, which this request does not evaluate", ErrInvalidRequest, id)
+		}
+	}
+	return nil
+}
+
 // Annotate evaluates one run and persists new observations.
 func (s *Service) Annotate(ctx context.Context, runID string, opts AnnotateOptions) (RunView, error) {
+	if err := s.checkForce(opts.Labels, opts.ForceLabels); err != nil {
+		return RunView{}, err
+	}
 	views, errs, _, _ := s.annotateRunsBounded(ctx, []string{runID}, opts, time.Time{})
 	if len(errs) > 0 {
 		return RunView{}, errors.New(errs[0].Reason)
@@ -27,6 +58,9 @@ func (s *Service) Annotate(ctx context.Context, runID string, opts AnnotateOptio
 // Evaluate selects a bounded run set (or uses the caller's ids) and annotates
 // it, sharing decision batches across runs.
 func (s *Service) Evaluate(ctx context.Context, opts EvaluateOptions) (EvaluateResult, error) {
+	if err := s.checkForce(opts.Labels, opts.ForceLabels); err != nil {
+		return EvaluateResult{}, err
+	}
 	limit := opts.Limit
 	budget := s.pack.Pack.Runtime.Budgets.MaxRunsPerPass
 	explicit := len(opts.RunIDs) > 0
@@ -79,7 +113,7 @@ func (s *Service) Evaluate(ctx context.Context, opts EvaluateOptions) (EvaluateR
 		deadline = time.Now().Add(budget)
 	}
 	views, errs, remaining, pass := s.annotateRunsBounded(ctx, runIDs, AnnotateOptions{
-		Force: opts.Force, IncludeOptional: opts.IncludeOptional,
+		ForceLabels: opts.ForceLabels, IncludeOptional: opts.IncludeOptional,
 		Labels: opts.Labels, DryRun: opts.DryRun,
 		PinResourceRole: opts.PinResourceRole, Role: opts.Role, MessageIDs: opts.MessageIDs,
 	}, deadline)
@@ -259,7 +293,7 @@ func (s *Service) prepare(ctx context.Context, runID string, opts AnnotateOption
 		return nil, err
 	}
 	work := &runWork{
-		scopeKind: ScopeRun, scopeID: runID, runID: facts.RunID, pass: pass, force: opts.Force,
+		scopeKind: ScopeRun, scopeID: runID, runID: facts.RunID, pass: pass, forced: forceSet(opts.ForceLabels),
 		facts: facts, features: features, digest: digest, build: build,
 		evidenceHash: evidenceFingerprint(digest, facts),
 		activation:   features.Activation(),
@@ -324,7 +358,7 @@ func (s *Service) prepareLabels(ctx context.Context, work *runWork, opts Annotat
 			}
 			if !ok {
 				work.skipped = append(work.skipped, SkippedLabel{LabelID: label.ID, Reason: "not_a_candidate"})
-				s.supersedeIfAnswered(ctx, work, label, compiled.hash, "not_a_candidate", opts.Force)
+				s.supersedeIfAnswered(ctx, work, label, compiled.hash, "not_a_candidate", work.forces(label.ID))
 				continue
 			}
 		}
@@ -340,7 +374,7 @@ func (s *Service) prepareLabels(ctx context.Context, work *runWork, opts Annotat
 				// about an empty digest returns a plausible-looking number,
 				// which is worse than no observation.
 				work.skipped = append(work.skipped, SkippedLabel{LabelID: label.ID, Reason: "insufficient_evidence"})
-				s.supersedeIfAnswered(ctx, work, label, compiled.hash, "insufficient_evidence", opts.Force)
+				s.supersedeIfAnswered(ctx, work, label, compiled.hash, "insufficient_evidence", work.forces(label.ID))
 				continue
 			}
 		}
@@ -354,6 +388,6 @@ func (s *Service) prepareLabels(ctx context.Context, work *runWork, opts Annotat
 		} else {
 			work.evidence[label.ID] = evidenceIDsFor(label, work.facts)
 		}
-		s.evaluateLabel(ctx, work, compiled, label, opts.Force)
+		s.evaluateLabel(ctx, work, compiled, label, work.forces(label.ID))
 	}
 }

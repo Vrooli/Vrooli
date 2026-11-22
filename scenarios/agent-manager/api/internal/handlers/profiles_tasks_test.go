@@ -78,6 +78,16 @@ func TestCreateProfile_ValidationError(t *testing.T) {
 			profile: &pb.AgentProfile{Name: "test", ProfileKey: "test-key", MaxTurns: -1, RoleRef: "code.default"},
 			errCode: "VALIDATION",
 		},
+		{
+			name:    "profile cannot persist a caller supplied browser grant",
+			profile: &pb.AgentProfile{Name: "test", ProfileKey: "test-key", RoleRef: "browser.agent", Features: &pb.FeatureFlags{BrowserCapabilityJson: `{"enabled":true,"grantReceipt":"caller-grant","mode":"managed","candidates":[{"harness":"codex","resourceRole":"browser.session"}],"permissions":{"profileId":"test","level":"act","allowedOrigins":["http://127.0.0.1:24965"],"view":true,"control":true},"budget":{"sessionMinutes":10,"actions":100,"bytes":4194304}}`}},
+			errCode: "VALIDATION",
+		},
+		{
+			name:    "profile cannot silently discard malformed browser capability",
+			profile: &pb.AgentProfile{Name: "test", ProfileKey: "test-key", RoleRef: "browser.agent", Features: &pb.FeatureFlags{BrowserCapabilityJson: `{"enabled":`}},
+			errCode: "VALIDATION",
+		},
 	}
 
 	for _, tt := range tests {
@@ -322,7 +332,6 @@ func TestCreateTask_Success(t *testing.T) {
 		t.Errorf("expected status TASK_STATUS_QUEUED, got '%s'", response.Task.GetStatus())
 	}
 }
-
 
 func TestListTasksAppliesQueryFiltersAndRejectsInvalidValues(t *testing.T) {
 	_, router := setupTestHandler(t)

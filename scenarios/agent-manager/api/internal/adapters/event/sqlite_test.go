@@ -986,30 +986,46 @@ func TestSQLiteStore_Stream(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	runID := uuid.New()
-
-	// Start streaming
-	ch, err := store.Stream(ctx, runID, event.StreamOptions{BufferSize: 10})
-	if err != nil {
-		t.Fatalf("Stream failed: %v", err)
+	historical := domain.NewMetricEvent(runID, "tokens", 3, "tokens")
+	if err := store.Append(ctx, runID, historical); err != nil {
+		t.Fatal(err)
 	}
 
-	// Append event after stream started
-	go func() {
-		time.Sleep(50 * time.Millisecond)
-		evt := domain.NewLogEvent(runID, "info", "streamed")
-		if err := store.Append(context.Background(), runID, evt); err != nil {
-			t.Errorf("Append failed: %v", err)
-		}
-	}()
+	ch, err := store.Stream(ctx, runID, event.StreamOptions{
+		FromSequence: 0,
+		EventTypes:   []domain.RunEventType{domain.EventTypeMetric},
+		BufferSize:   10,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := awaitStreamEvent(t, ctx, ch); got.ID != historical.ID {
+		t.Fatalf("historical event = %s, want %s", got.ID, historical.ID)
+	}
 
-	// Wait for event
+	if err := store.Append(ctx, runID, domain.NewLogEvent(runID, "info", "filtered live event")); err != nil {
+		t.Fatal(err)
+	}
+	liveMetric := domain.NewMetricEvent(runID, "tokens", 7, "tokens")
+	if err := store.Append(ctx, runID, liveMetric); err != nil {
+		t.Fatal(err)
+	}
+	if got := awaitStreamEvent(t, ctx, ch); got.ID != liveMetric.ID || got.EventType != domain.EventTypeMetric {
+		t.Fatalf("live event = (%s, %s), want metric %s", got.ID, got.EventType, liveMetric.ID)
+	}
+}
+
+func awaitStreamEvent(t *testing.T, ctx context.Context, stream <-chan *domain.RunEvent) *domain.RunEvent {
+	t.Helper()
 	select {
-	case evt := <-ch:
-		if evt == nil {
-			t.Error("received nil event")
+	case got, open := <-stream:
+		if !open || got == nil {
+			t.Fatal("event stream closed before expected event")
 		}
+		return got
 	case <-ctx.Done():
-		t.Error("timeout waiting for streamed event")
+		t.Fatal("timed out waiting for event stream")
+		return nil
 	}
 }
 

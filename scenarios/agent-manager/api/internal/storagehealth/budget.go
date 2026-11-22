@@ -9,9 +9,12 @@ import (
 	corestorage "github.com/vrooli/api-core/storage"
 )
 
-// declaredBudgetRefresh bounds how stale a cached declaration may be; the
-// manifest changes only by review, so an hour is ample.
-const declaredBudgetRefresh = time.Hour
+// Successful owner manifests change only by review, so this hourly cache is
+// ample. Errors use a shorter retry because an inventory read may recover.
+const (
+	declaredBudgetRefresh      = time.Hour
+	declaredBudgetFailureRetry = time.Minute
+)
 
 // LoadDeclaredBudget reads the max_bytes budget an owner declares for one
 // storage entry through api-core's owner inventory, the same parse
@@ -43,28 +46,32 @@ func LoadDeclaredBudget(repoRoot, owner, entry string) (Budget, error) {
 	return Budget{}, fmt.Errorf("no scenario manifest for %s under %s", owner, repoRoot)
 }
 
-// DeclaredBudget caches LoadDeclaredBudget. A failed read reports an
-// unbudgeted file rather than failing measurement.
+// DeclaredBudget caches successful declarations for an hour. A failed read
+// reports an unbudgeted file rather than failing measurement, then retries
+// after a short interval so a transient inventory failure does not hide the
+// budget for the full success-cache lifetime.
 func DeclaredBudget(repoRoot, owner, entry string, clock func() time.Time) func() Budget {
 	if clock == nil {
 		clock = time.Now
 	}
 	var (
-		mu      sync.Mutex
-		cached  Budget
-		fetched time.Time
+		mu           sync.Mutex
+		cached       Budget
+		fetched      time.Time
+		refreshAfter time.Duration
 	)
 	return func() Budget {
 		mu.Lock()
 		defer mu.Unlock()
-		if !fetched.IsZero() && clock().Sub(fetched) < declaredBudgetRefresh {
+		now := clock()
+		if !fetched.IsZero() && now.Sub(fetched) < refreshAfter {
 			return cached
 		}
-		fetched = clock()
+		fetched = now
 		if budget, err := LoadDeclaredBudget(repoRoot, owner, entry); err == nil {
-			cached = budget
+			cached, refreshAfter = budget, declaredBudgetRefresh
 		} else {
-			cached = Budget{Source: "unavailable: " + err.Error()}
+			cached, refreshAfter = Budget{Source: "unavailable: " + err.Error()}, declaredBudgetFailureRetry
 		}
 		return cached
 	}

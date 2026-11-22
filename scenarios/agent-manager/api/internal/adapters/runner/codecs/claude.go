@@ -20,6 +20,8 @@ import (
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
+
+	"github.com/vrooli/cli-core/agenttranscript"
 )
 
 // ClaudeCLICommand is the binary name resolved on the host PATH.
@@ -194,11 +196,15 @@ func (c *Claude) BuildArgs(state State, req runner.ExecuteRequest) []string {
 // BuildContinueArgs satisfies [Codec]. Claude has no per-run state to
 // stash; the state argument is unused.
 func (c *Claude) BuildContinueArgs(_ State, req runner.ContinueRequest) []string {
+	format, ok := agenttranscript.FormatFor(agenttranscript.HarnessClaude)
+	if !ok {
+		panic("missing shared Claude transcript format")
+	}
 	args := []string{
 		"--print",
 		"--output-format", "stream-json",
 		"--verbose",
-		"--resume", req.SessionID,
+		format.ResumeFlag, req.SessionID,
 	}
 	cfg := req.GetConfig()
 	if cfg.MaxTurns > 0 {

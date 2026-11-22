@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -312,7 +313,9 @@ func TestOpenRouterProvider_FetchAllPricing_InvalidJSON(t *testing.T) {
 }
 
 func TestOpenRouterProvider_FetchAllPricing_EmptyResponse(t *testing.T) {
+	var callCount atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callCount.Add(1)
 		response := openRouterResponseFixture{Data: []openRouterModelFixture{}}
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(response); err != nil {
@@ -321,11 +324,27 @@ func TestOpenRouterProvider_FetchAllPricing_EmptyResponse(t *testing.T) {
 	}))
 	defer server.Close()
 
-	p := NewOpenRouterProvider(WithBaseURL(server.URL))
+	p := NewOpenRouterProvider(WithBaseURL(server.URL), WithTTL(time.Hour))
 
 	pricingList, err := p.FetchAllPricing(context.Background())
 	require.NoError(t, err)
 	assert.Empty(t, pricingList)
+
+	pricingList, err = p.FetchAllPricing(context.Background())
+	require.NoError(t, err)
+	assert.Empty(t, pricingList)
+	assert.Equal(t, int32(1), callCount.Load(), "a successful empty catalog is cached during its TTL")
+
+	modelPricing, err := p.FetchModelPricing(context.Background(), "unlisted/model")
+	require.NoError(t, err)
+	assert.Nil(t, modelPricing)
+	assert.Equal(t, int32(1), callCount.Load(), "model lookups reuse the same empty catalog")
+
+	p.ClearCache()
+	modelPricing, err = p.FetchModelPricing(context.Background(), "unlisted/model")
+	require.NoError(t, err)
+	assert.Nil(t, modelPricing)
+	assert.Equal(t, int32(2), callCount.Load(), "clearing an empty catalog forces the next fetch")
 }
 
 func TestOpenRouterProvider_FetchAllPricing_ZeroPriceOmitted(t *testing.T) {

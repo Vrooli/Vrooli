@@ -3,7 +3,7 @@ import { Activity, AlertTriangle, Database, ShieldCheck } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { listProviderRoles, listRouteEvidence, scanScenario } from "../api/gateway";
-import { StatusChip } from "../components/StatusChip";
+import { StatusBadge as StatusChip } from "@vrooli/react-component-library/StatusBadge/1";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";

@@ -266,6 +266,20 @@ func TestAgentProfile_Validate_WithFeatures(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "browser profile cannot persist caller-supplied grant",
+			profile: &AgentProfile{
+				Name: "test", RoleRef: "browser.agent",
+				Features: FeatureFlags{BrowserCapability: &browsercapability.Capability{
+					Enabled: true, GrantReceipt: "caller-grant",
+					Mode:        browsercapability.ModeAttached,
+					Candidates:  []browsercapability.Candidate{{Harness: "claude-code", ResourceRole: "browser.session"}},
+					Permissions: browsercapability.PermissionProfileSpec{ProfileID: "profile-act", Level: browsercapability.ProfileAct, AllowedOrigins: []string{"https://example.test"}},
+					Budget:      browsercapability.Budget{SessionMinutes: 10, Actions: 100, Bytes: 1_000_000},
+				}},
+			},
+			wantErr: true,
+		},
+		{
 			name: "browser capability without bounded session budget is rejected",
 			profile: &AgentProfile{
 				Name: "test", RoleRef: "code.default",
