@@ -656,9 +656,17 @@ func TestStagedMessageReadOnlyWorkflowDeclaration(t *testing.T) {
 			if run["profileKey"] != "git-control-tower/staged-message" {
 				t.Fatal("wrong identity ceiling")
 			}
-			spec := run["resultSpec"].(map[string]any)
-			if spec["extractionMode"] != "deterministic_only" {
-				t.Fatal("result completion could trigger inference")
+			if schema := asset["outputSchema"].(map[string]any); schema["type"] != "object" {
+				t.Fatal("workflow output contract is missing")
+			}
+			result := asset["outputSchema"].(map[string]any)["properties"].(map[string]any)["result"].(map[string]any)
+			if result["type"] != "string" {
+				t.Fatal("workflow result must remain raw text for deterministic XML extraction")
+			}
+			end := asset["nodes"].([]any)[1].(map[string]any)["end"].(map[string]any)
+			binding := end["bindings"].([]any)[0].(map[string]any)
+			if binding["source"] != "final_handoff" || binding["selector"] != "node=draft;$.text" {
+				t.Fatal("workflow must expose only the drafting node's final handoff")
 			}
 		}
 		if config["mode"] != wantMode || config["autoApply"] != false || config["applyOnFailure"] != false || len(config["writePolicy"].(map[string]any)["paths"].([]any)) != 0 {

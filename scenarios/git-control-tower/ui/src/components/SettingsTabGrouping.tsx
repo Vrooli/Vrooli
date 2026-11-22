@@ -1,5 +1,5 @@
 import { Plus, Trash2 } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import type { GroupingRule } from "./FileList";
 import type { ChangeGroupAPI } from "../lib/api";
 
@@ -100,10 +100,11 @@ export function SettingsTabGrouping({
               </p>
             </div>
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={() => onChangeRules([...rules, createRule()])}
               className="h-10 px-4 touch-target"
+              style={{ background: "transparent" }}
             >
               <Plus className="h-4 w-4 mr-1" />
               Add
@@ -181,7 +182,7 @@ export function SettingsTabGrouping({
                       <div className="flex items-center justify-between">
                         <div className="text-xs font-semibold text-slate-300">Prefixes</div>
                         <Button
-                          variant="outline"
+                          variant="secondary"
                           size="sm"
                           onClick={() => {
                             const nextRules = rules.map((item) =>
@@ -192,6 +193,7 @@ export function SettingsTabGrouping({
                             onChangeRules(nextRules);
                           }}
                           className="h-9 px-3"
+                          style={{ background: "transparent" }}
                         >
                           <Plus className="h-4 w-4 mr-1" />
                           Add prefix
@@ -286,10 +288,11 @@ export function SettingsTabGrouping({
             </p>
           </div>
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={() => onChangeRules([...rules, createRule()])}
             className="h-7 px-2"
+            style={{ background: "transparent" }}
           >
             <Plus className="h-3 w-3 mr-1" />
             Add group
@@ -367,7 +370,7 @@ export function SettingsTabGrouping({
                       <div className="flex items-center justify-between mb-1">
                         <div className="text-[11px] font-semibold text-slate-300">Prefixes</div>
                         <Button
-                          variant="outline"
+                          variant="secondary"
                           size="sm"
                           onClick={() => {
                             const nextRules = rules.map((item) =>
@@ -378,6 +381,7 @@ export function SettingsTabGrouping({
                             onChangeRules(nextRules);
                           }}
                           className="h-7 px-2"
+                          style={{ background: "transparent" }}
                         >
                           <Plus className="h-3 w-3 mr-1" />
                           Add prefix

@@ -3,8 +3,9 @@
 // Types + API Functions
 // ============================================================================
 
-import { API_BASE, handleResponse, buildApiUrl } from "./api-internals";
 import { create } from "@bufbuild/protobuf";
+import { GetCapabilitiesRequestSchema } from "@vrooli/proto-types/git-control-tower/v1/integration/integration_pb";
+import { integrationClient } from "./connect";
 import {
 	CloneRepositoryRequestSchema,
 	DeleteCredentialRequestSchema,
@@ -209,12 +210,8 @@ export interface SSHDeleteKeyResponse {
 // ── Capabilities API ───────────────────────────────────────────────────
 
 export async function fetchCapabilities(): Promise<CapabilitiesResponse> {
-  const url = buildApiUrl("/capabilities", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store"
-  });
-  return handleResponse<CapabilitiesResponse>(res);
+  const response = await integrationClient.getCapabilities(create(GetCapabilitiesRequestSchema, {}));
+  return { capabilities: response.capabilities as unknown as CapabilityState[], timestamp: response.timestamp };
 }
 
 // ── Grouping Rules API ─────────────────────────────────────────────────

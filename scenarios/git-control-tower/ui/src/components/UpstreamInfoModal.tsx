@@ -2,7 +2,7 @@ import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1
 import { GitBranch, Info, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { useIsMobile } from "../hooks";
 import { runUpstreamAction, type UpstreamActionRequest } from "../lib/api";
 import { queryKeys } from "../lib/hooks";
@@ -241,10 +241,11 @@ export function UpstreamInfoModal({
             Tracking looks correct and the remote is not ahead. Actions are hidden by default.
             <div className="mt-2">
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 onClick={() => setShowActionsOverride(true)}
                 className="h-7 px-2 text-xs"
+                style={{ background: "transparent" }}
               >
                 Show actions anyway
               </Button>
@@ -268,16 +269,17 @@ export function UpstreamInfoModal({
         footer={
           <div className="flex w-full items-center gap-3">
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={handleCopy}
               disabled={!selectedAction}
               className="flex-1 h-12 text-sm touch-target"
+              style={{ background: "transparent" }}
             >
               Copy
             </Button>
             <Button
-              variant="default"
+              variant="primary"
               size="sm"
               onClick={handleRun}
               disabled={!selectedAction || runState.status === "running"}
@@ -286,10 +288,11 @@ export function UpstreamInfoModal({
               {runState.status === "running" ? "Running..." : "Run now"}
             </Button>
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={onClose}
               className="flex-1 h-12 text-sm touch-target"
+              style={{ background: "transparent" }}
             >
               Close
             </Button>
@@ -333,22 +336,28 @@ export function UpstreamInfoModal({
 
         <div className="flex items-center justify-end gap-2 border-t border-slate-800 px-4 py-3">
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={handleCopy}
             disabled={!selectedAction}
+            style={{ background: "transparent" }}
           >
             Copy
           </Button>
           <Button
-            variant="default"
+            variant="primary"
             size="sm"
             onClick={handleRun}
             disabled={!selectedAction || runState.status === "running"}
           >
             {runState.status === "running" ? "Running..." : "Run now"}
           </Button>
-          <Button variant="outline" size="sm" onClick={onClose}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onClose}
+            style={{ background: "transparent" }}
+          >
             Close
           </Button>
         </div>

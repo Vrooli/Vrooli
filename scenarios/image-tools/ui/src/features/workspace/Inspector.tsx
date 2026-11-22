@@ -1,10 +1,10 @@
 import { useState } from "react";
 
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { ColorField } from "../../components/ui/color-field";
 import { FilterThumbnailGrid } from "../../components/ui/filter-thumbnail-grid";
 import { FormatPills } from "../../components/ui/format-pills";
-import { Input } from "../../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { PositionPicker, type PositionToken } from "../../components/ui/position-picker";
 import { SegmentedControl } from "../../components/ui/segmented-control";
 import { Slider } from "../../components/ui/slider";
@@ -318,6 +318,7 @@ export function Inspector({
             data-testid={selectors.workspace.applyButton}
             type="submit"
             disabled={!hasBase || !operation || applying}
+            shape="square"
           >
             {applying ? t(strings.workspace.running) : t(strings.workspace.run)}
           </Button>

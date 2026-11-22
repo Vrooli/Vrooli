@@ -100,35 +100,36 @@ export function useAgentRuns(slug: string, enabled = true, repoId?: string | nul
   });
 }
 
-export function useAgentRun(runId: string | null, enabled = true, repoId?: string | null) {
+export function useAgentRun(runId: string | null, scenarioSlug: string, enabled = true, repoId?: string | null) {
   return useQuery<AgentRun, Error>({
-    queryKey: queryKeys.agentRun(runId ?? "", repoId),
-    queryFn: () => fetchAgentRun(runId as string, repoId ?? undefined),
-    enabled: enabled && Boolean(runId),
+    queryKey: queryKeys.agentRun(runId ?? "", scenarioSlug, repoId),
+    queryFn: () => fetchAgentRun(runId as string, scenarioSlug, repoId ?? undefined),
+    enabled: enabled && Boolean(runId) && Boolean(scenarioSlug),
     refetchInterval: (query) => agentPollingInterval(query.state.data?.status),
   });
 }
 
 export function useAgentRunEvents(
   runId: string | null,
+  scenarioSlug: string,
   afterSequence: number,
   enabled = true,
   repoId?: string | null,
   status?: string,
 ) {
   return useQuery<AgentRunEventsResponse, Error>({
-    queryKey: [...queryKeys.agentRunEvents(runId ?? "", repoId), afterSequence],
-    queryFn: () => fetchAgentRunEvents(runId as string, afterSequence, repoId ?? undefined),
-    enabled: enabled && Boolean(runId),
+    queryKey: [...queryKeys.agentRunEvents(runId ?? "", scenarioSlug, repoId), afterSequence],
+    queryFn: () => fetchAgentRunEvents(runId as string, scenarioSlug, afterSequence, repoId ?? undefined),
+    enabled: enabled && Boolean(runId) && Boolean(scenarioSlug),
     refetchInterval: agentPollingInterval(status),
   });
 }
 
-export function useAgentRunDiff(runId: string | null, enabled = true, repoId?: string | null) {
+export function useAgentRunDiff(runId: string | null, scenarioSlug: string, enabled = true, repoId?: string | null) {
   return useQuery<AgentRunDiffResponse, Error>({
-    queryKey: queryKeys.agentRunDiff(runId ?? "", repoId),
-    queryFn: () => fetchAgentRunDiff(runId as string, repoId ?? undefined),
-    enabled: enabled && Boolean(runId),
+    queryKey: queryKeys.agentRunDiff(runId ?? "", scenarioSlug, repoId),
+    queryFn: () => fetchAgentRunDiff(runId as string, scenarioSlug, repoId ?? undefined),
+    enabled: enabled && Boolean(runId) && Boolean(scenarioSlug),
     staleTime: 10_000,
   });
 }

@@ -22,21 +22,19 @@ Paths below are repository-relative. Registry skills are read through `prompt-ma
 |---|---|
 | `docs/concepts/RECURSIVE_SELF_IMPROVEMENT.md`, especially section 4 | Three-speed stack and the requirement to simplify skills/programs after scenario promotion. |
 | `docs/agent-system/SKILL_AUTHORING.md`, especially Scenario skill sets and Universal quality bars | Usage/improve/feature roles, step rungs, learning spine, programs as steps, conditioning defects and contract prompts. |
-| `docs/agent-system/LAYERS.md` and `PRIMITIVES.md` | Separate authoritative truth, judgment, execution, and captured learning. |
-| `docs/agent-system/PROMOTION_LADDER.md` | What earns promotion; what prose should be retired or retained. |
-| `docs/agent-system/TARGET_MODEL.md` and `FRAMEWORK_HEALTH.md` | Setpoints, sensors, ownership, deadbands, and control-loop boundaries. |
+| `docs/agent-system/README.md#where-does-this-paragraph-go` and `docs/agent-system/README.md` | Separate authoritative truth, judgment, execution, and captured learning. |
+| `docs/agent-system/SKILL_AUTHORING.md#promotion-ladder` | What earns promotion; what prose should be retired or retained. |
+| `docs/agent-system/STANDING_TEAMS.md` and `RULES.md` | Setpoints, sensors, ownership, deadbands, and control-loop boundaries. |
 | `docs/concepts/ECOSYSTEM.md` | Placement of integration infrastructure, interface enablers, products, and reusable capabilities. |
 
 ### Authoring and quality skills
 
 | Skill | Use |
 |---|---|
-| `skill-set-authoring` | Derive owed roles, inventory real sensors/programs, declare the set and honest waivers. |
+| `scenario-skill-setup` | Derive owed roles, inventory sensors and programs, declare the set and waivers, and set up measured improvement. |
 | `skill-authoring-tools` | Usage decisions and operational feature skills. |
-| `skill-authoring-practice`, `skill-authoring-search` | Review/curation practices and provenance retrieval where their category applies. |
-| `improve-skill-authoring` | Measured setpoint, sensor board, routes, anti-gaming, evidence, stop rules. |
-| `skill-validation` | Executability, real references, capability map, failure behavior, and the divergence probe. |
-| `skill-improvement-suggestions` | Conditioning cost, redundant instructions, compression and promotion candidates. |
+| `skill-authoring` | Skill-kind authoring guidance, including review practices and provenance retrieval. |
+| `skill-validation` | Executability, real references, capability map, failure behavior, divergence probe, conditioning cost and compression candidates. |
 | `program-runtime` | Governed composition, binding selection, typed inference/delegation, budgets and result interpretation. |
 | `vrooli-memory` | Scoped recall, outcome-linked attempt capture, advice supersession, comparable learning measurements. |
 | `measures-adoption`, `improvement-do-and-dont` | Real instruments and resistance to improving scores by weakening evidence. |
@@ -56,7 +54,7 @@ Some prose still describes programs validation as planned; the current provider 
 
 ### Maturity and future planning
 
-Read `scenario-work-ladder`, `prd-authoring`, `requirements-traceability-steer`, `scenario-maturity-ladder`, `storage-steer`, `ecosystem-fit`, and `scenario-readiness-review`. The eventual planning workflow uses `implementation-plan-authoring`; execution uses `implementation-plan-execution`. This assessment does not run the maturity gates or claim to pass them.
+Read `scenario-work-ladder`, `prd-authoring`, `requirements-traceability-steer`, `storage-steer`, `ecosystem-fit`, and `scenario-readiness-review`. The eventual planning workflow uses `implementation-plan-authoring`; execution uses `implementation-plan-execution`. This assessment does not run the maturity gates or claim to pass them.
 
 Examples worth borrowing selectively: BAS and Device Control usage/improve skills and `author-flow` programs for exact identity and evidence-preserving repair; Deployment Manager for exact candidate evidence; Command Center for bounded briefings and operator feedback; Plan Manager for routing friction across all three layers; Web Search for structured advisory results and retained uncertainty. They are examples to validate, not blanket certifications.
 
@@ -107,6 +105,241 @@ These are source observations and design consequences, not a complete security a
 - Existing `ui/src/features/baselines/` already has shared primitives. Preserve that consolidation. Inspect legacy visual/workflow capture routes against the newer descriptor-based evidence surface before retiring any route: existence alone does not prove duplication, but two competing baseline/artifact authorities must not survive.
 - The security posture and coherence docs contain placeholders; PROBLEMS includes historical scaffold statements alongside later shipped work. Update these to evidence-backed current contracts and retain dated findings as history.
 - Check pagination, cancellation, bounded output, cache identity, accessibility, mobile layouts, safe diff rendering, and large repositories with meaningful representative fixtures. Recorded tidiness budgets are not a current measured score.
+
+### Repository status and diff scale budget — 2026-11-21
+
+The production `GetRepoStatus` path starts with porcelain-v2 status, classifies
+files, computes staged/unstaged numstat, reads untracked-file stats, and returns
+all changed paths. `GetDiff` is a one-file view; the existing API read context
+is 10 seconds, and diff content reads reject a file above 4 MiB. These are the
+current behavior limits, not a general status-response byte limit: status has
+no aggregate pagination or truncation contract. A 4 MiB per-file content limit
+does not cap annotation or JSON expansion, nor the total status response.
+
+The reproducible owner benchmark is
+[`repo_status_scale_benchmark_test.go`](../../api/repo_status_scale_benchmark_test.go).
+It builds disposable 256- and 4,096-tracked-file repositories (one quarter
+modified, plus one quarter as untracked), runs the actual status assembler and
+one-file diff service, and records JSON bytes. Ten one-operation repetitions
+are reported; p50 is the median, and p95 uses nearest-rank (the maximum for ten
+samples). Run with:
+
+```sh
+go -C scenarios/git-control-tower/api test . -run '^$' -bench '^BenchmarkRepoStatusScale' -benchtime=1x -count=10
+GCT_BENCH_REAL_REPO=/absolute/path/to/checkout go -C scenarios/git-control-tower/api test . -run '^$' -bench '^BenchmarkRepoStatusRealWorktree' -benchtime=1x -count=10
+```
+
+Environment for the recorded run: Linux/amd64, AMD Ryzen 9 7950X, Go 1.26.0,
+Git 2.43.0, local NVMe filesystem. Synthetic results after the bounded
+untracked-stat worker change:
+
+| Workload | Status p50 / p95 | Status JSON bytes | One-file diff p50 / p95 | Diff JSON bytes |
+| --- | ---: | ---: | ---: | ---: |
+| 256 tracked, 64 modified, 64 untracked | 7.74 / 8.70 ms | 20,028–20,029 | 1.52 / 1.66 ms | 930–931 |
+| 4,096 tracked, 1,024 modified, 1,024 untracked | 88.77 / 99.68 ms | 312,833–312,834 | 2.24 / 2.52 ms | 931–932 |
+
+The actual read-only Vrooli worktree had 7,886 changed entries (5,742 tracked
+changes, 2,144 untracked) and a 2,591,403–2,591,404-byte status JSON body. The
+baseline sample had six fewer entries and a 2,590,172–2,590,257-byte body, so
+the shared worktree was not byte-identical between runs. Its first ten samples
+had 4.50 s median and 13.19 s nearest-rank p95, exceeding the
+10-second request context in two samples; these overlapped a Test Genie unit
+run. After untracked stats were moved to a fixed eight-worker pool, a fresh
+ten-sample run measured 3.44 s median and 3.62 s p95. A later serial diagnostic
+on the shared worktree showed 10.14 s for the first cold sample, 6.54 s for the
+second, and 3.42–3.94 s for the remaining warm samples; the tree had changed
+again, so this is not a controlled A/B comparison. The selected changed-file
+diff measured 14.25 ms median and 15.03 ms p95 (10,709 JSON bytes). These real
+worktree observations are sensitive to cache state and shared host load, not a
+portable SLA. The synthetic 4,096-file workload stayed well under the existing
+request deadline, with its measured output under the reference-fixture
+regression budget of 350,000 bytes.
+
+At the original measurement, synthetic scale met the 10-second context; the
+pool-mode real-worktree samples also met it. The serial cold-cache diagnostic
+exceeded it, which supports retaining bounded concurrency for untracked reads
+but does not prove a same-state speedup. The aggregate-output gap is addressed
+by bounded continuation below. Paired synthetic page traversal now measures
+reduced repeated status assembly and latency; large actual repositories and
+live UI rendering remain open.
+
+#### Bounded status continuation — 2026-11-21
+
+`GetRepoStatusRequest` now accepts `page_size` (1–512) and `page_token`;
+`GetRepoStatusResponse.page` reports the global category-entry total, entries
+returned, semantic snapshot id, continuation token, completion, and measured
+response bytes. Category order is staged, unstaged, untracked, conflicts,
+ignored, preserving order within each source list. A path staged and unstaged
+is counted in both categories. Summary counts stay global on every page;
+path-indexed maps and stats are projected to paths present on that page. The
+server shrinks the selected count until both protobuf wire size (including the
+Connect envelope) and proto JSON are at most 256 KiB. A single entry above that
+limit returns ResourceExhausted. A no-size legacy request preserves the old
+complete shape only below the same cap; over-cap legacy requests receive an
+actionable ResourceExhausted response.
+
+Continuation tokens bind an HMAC-authenticated snapshot id, canonical repository
+path and absolute entry offset. The server materializes the complete response
+once into a bounded in-memory LRU (64 MiB / 128 entries; no wall-clock TTL).
+Continuation verifies fresh porcelain-v2 bytes, the index digest, all changed
+path content digests, author configuration, and worktree identity, then projects
+from the stored response. A mismatch returns FailedPrecondition and invalidates
+the snapshot; capacity eviction has the same restart behavior. This removes
+repeated full status assembly while retaining fresh change detection. Browser
+`fetchRepoStatus` collects pages before exposing
+a `RepoStatus`, discards a changed partial aggregate and retries from page one
+at most twice. CLI `repo status` follows all pages and validates snapshot and
+completion; its display uses exact global summary counts. Internal in-process
+status consumers remain full-result calls and are not subject to the Connect
+cap. The old `handleRepoStatus` function is not registered in `routes.go`, so
+there is no active REST status consumer to migrate.
+
+The prior fresh-status-per-page benchmark on the 4,096 tracked / 1,024 modified
+/ 1,024 untracked fixture measured
+312,833–312,834 B for the prior full JSON response. With preferred page size
+512, page encoding/client aggregation produced 4 pages, 238,800 B aggregate
+serialized page payload, and 396.49–430.69 ms including a fresh full status
+assembly on each page in three runs. It is superseded as the continuation path
+but remains useful historical evidence. A controlled paired benchmark now
+alternates the prior four-fresh-assemblies path and the materialized-snapshot
+path on the same disposable fixture and cache/load conditions. Each one-op
+sample traverses all pages; the optimized path performs one full status
+assembly, then checks porcelain, index, path hashes and identity on each
+continuation. Ten samples (`-benchtime=1x -count=10`) measured:
+
+| Path | Pages | Full assemblies | Total page bytes | Largest page | Traversal ms p50 / p95 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Fresh status per page | 4 | 4 | 251,016 | 68,927 | 418.7 / 427.4 |
+| Materialized snapshot + fresh guard | 4 | 1 | 251,597 | 69,121 | 262.45 / 274.5 |
+
+Both largest pages are below the 262,144-byte cap. Cached-path metadata adds
+581 aggregate bytes across four pages. Median end-to-end traversal latency fell
+37.31% (418.7 to 262.45 ms) on this synthetic run. The benchmark includes
+fresh Git status assembly and worktree-identity checks; it excludes HTTP/Connect
+transport. It does not establish a real-worktree speedup, and earlier noisy
+shared-worktree measurements remain noncausal.
+
+The reusable size matrix runs 10 / 5 / 3 one-operation paired samples at
+4,096 / 16,384 / 32,768 tracked files. Each fixture has one quarter modified
+and an equal number of untracked paths. The order alternates between the
+fresh-status-per-page baseline and materialized snapshot; each traversal
+asserts exact category membership, exact global totals, stable snapshot,
+duplicate-free paths, equal page count and the 262,144-byte response bound.
+Fresh/cached pages and full status assemblies were 4/4 vs 4/1, 16/16 vs 16/1,
+and 32/32 vs 32/1. Traversal p50/p95 (ms) was 450.15/508.8 vs 293.0/400.0,
+9,531/9,826 vs 2,663/2,789, and 55,543/56,483 vs 7,927/8,174. Aggregate
+serialized bytes (fresh/cached) were 245,896/246,505, 983,952/987,012, and
+1,968,008/1,974,289; maximum page bytes were 67,391/67,594, 67,393/67,597,
+and 67,394/67,596. Cached resident bytes were 818,434, 3,269,894 and
+6,538,498, below the 64 MiB / 128-entry cap. The harness is reusable with
+`GOWORK=off go -C scenarios/git-control-tower/api test . -run '^$' -bench '^BenchmarkRepoStatusPageMatrix/tracked_<SIZE>$' -benchtime=1x -count=<N>`
+using sizes `4096,16384,32768` and counts `10,5,3`. Per-sample receipts:
+`evidence/pt2-gct-status-matrix-{4096,16384,32768}.log`.
+
+Browser consumer proof runs production `fetchRepoStatus` in Chrome through Vite
+and a same-origin test proxy to the generated RepoService Connect handler. A
+disposable 4,096 / 1,024 modified / 1,024 untracked repository is changed after
+the first page; the UI discards/restarts, displays exact final membership for
+2,049 entries, and reaches visible completion. A second refresh mutates at
+each attempt and the UI displays the exhausted-retry error. The proxy observed
+five initial requests, four failed continuations, nine successful pages, and
+no page over the byte budget. This is browser-backed local API evidence; it is
+not a shared production service sample. Reproduce with:
+
+```sh
+GOWORK=off GCT_STATUS_BROWSER_E2E=1 go -C scenarios/git-control-tower/api test . -run '^TestRepoStatusBrowserConsumerTraversesRetriesAndShowsError$' -count=1
+```
+
+The source pointer remains open until a comparable large real-worktree sample
+and clean focused Test Genie receipt are available. PT2's three-window
+showcase, sampled closure audit, and PT5 ratchet remain separate requirements.
+
+### PT5 owner measurement adapter
+
+`scripts/problem_owner_metrics.py` validates Git Control Tower's owner row from
+the canonical portfolio index against the live `docs/internal/PROBLEMS.md`
+size, SHA-256 fingerprint, and modification age. It emits counts and digests,
+not problem text, and refuses a stale index or a missing/closed/misowned source
+pointer. The current checked row is 1 active source file, 174,957 B, modified
+age 0.0 days (the index rounds age to tenths; exact observed age was 0.016
+days). This age is the file's modification age; dates inside the problem log
+are not parsed as individual issue ages. It makes no closure claim and has not
+recorded a PT5 real-window ratchet receipt. Run:
+
+```sh
+python3 scenarios/git-control-tower/scripts/problem_owner_metrics.py ~/.vrooli/portfolio/steward/state/problems.json
+python3 -m unittest scenarios/git-control-tower/scripts/test_problem_owner_metrics.py -v
+```
+
+The owner tests cover exact source agreement, stale bytes/fingerprint/age,
+missing closure state, and rejection of an understated fractional age from the
+canonical ratchet. Full evidence: `steward-free-problems-20261121/evidence/pt5-gct-owner-measurement.json`.
+
+The attempted read-only target was the shared Vrooli worktree, HEAD
+`a75277a48e0eee9cdd7ee8add417314c6c139152`. One status observation had 6,155
+tracked category entries (149 staged, 6,006 unstaged, five paths in both),
+2,215 untracked paths, 8,370 category entries / 8,365 porcelain records, and
+2,754,571 full-status JSON bytes at 4.246 s. Its
+porcelain digest stayed `626727a5…` before/after; `git status` refreshed index
+stat-cache data and the index digest changed, so it is not a paired unchanged-
+index observation. The paged path was refused by the existing guard because
+at least one changed symlink resolves outside the repository. No path or
+content was included in the receipt and the guard was not relaxed. Further
+real status reads stopped after observing Git's index refresh.
+
+The disposable fallback matches the repository's 75,908 tracked-file scale
+and changed composition: 149 staged, 6,006 unstaged, five category overlaps,
+and 2,215 untracked paths. Five alternating paired page traversals (fixture
+setup outside the custom timers) returned 17 pages; fresh status was assembled
+17 times and cached status once. Fixture regular-file bytes were 7,710,595.
+Traversal p50/p95 was 40,794/44,398 ms versus 4,696/5,150 ms. Aggregate
+response bytes were 960,393 / 963,465; maximum page bytes 67,388 / 67,580;
+cache residency 3,481,515 B. Every run compared exact expected category membership,
+totals, order between paths, snapshot stability, duplicate absence and the
+262,144-byte cap. This is a matched synthetic composition, not a live-repo
+latency result. Receipt: `evidence/pt2-gct-real-composition-paged-pair-75908-20261121.log`.
+
+The comparable live-worktree page contract remains unverified: the shared
+tree is actively changing, normal Git status refreshed index cache data, and
+the external-symlink guard correctly prevents continuation. Do not close the
+source pointer from this fallback.
+
+The prepared-status serializer/client aggregation run at page size 256 produced
+8 pages, 240,366 B and 36.76 ms. This is not end-to-end latency. Neither that
+run nor the old single-response measurement is an apples-to-apples comparison
+with the paired continuation benchmark. Reproduce the paired result with:
+
+```sh
+GOWORK=off go -C scenarios/git-control-tower/api test . -run '^$' -bench '^BenchmarkRepoStatusScale/files_4096/status_page_comparable_pair$' -benchtime=1x -count=10
+```
+
+The corresponding owner regressions cover content changes within the same
+porcelain category, index and untracked changes, cursor tampering/replay,
+invalidation and capacity expiry, concurrent first-page requests, exact
+category/path traversal, and protobuf/JSON response-byte limits. Focused owner
+tests pass, and the UI API aggregation suite passes 16/16. Test
+Genie structure passed L3; focused unit phase `20261121-134031-83740cf9` ended
+failed/L0 on UI type-check and three broad API test commands, plus existing
+architecture/coverage findings. A concurrently active unit run
+(`20261121-125406-9fb4b98c`) failed on existing UI missing `ui/card` and Vite
+5/6 type conflicts, broad API failures, and coverage debt; no status-page test
+failure was reported. The browser proof above covers the local consumer and
+generated API; a large actual-repository workload and a shared production UI
+request remain unmeasured, so the owner problem and source pointer remain open.
+prepared-status serializer/client aggregation run at page size 256 produced 8
+pages, 240,366 B and 36.76 ms. Neither run includes Connect transport or
+worktree identity lookup; the earlier single-response measurement is not an
+apples-to-apples latency comparison. Dense 4,096-entry tests use long paths and assert each response,
+including metadata, stays <=262,144 bytes; pages shrink below requested count.
+The same tests assert each category path occurs once and changed worktree data
+rejects continuation.
+
+End-to-end multi-page latency against a large actual repository remains
+unbenchmarked. Shared-repository sampling and production requests were not performed. The
+response cap and continuation correctness are owner-tested, but the broader
+performance obligation and source pointer remain open pending end-to-end scale
+measurements and PT2 showcase conditions. Earlier noisy read-only worktree
+results are not causal evidence.
 
 ## 5. Proposed skill and program set
 

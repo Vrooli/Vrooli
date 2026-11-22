@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
@@ -106,6 +106,7 @@ export function ImportModelWizard() {
               data-testid={selectors.models.import.inspect}
               type="submit"
               disabled={!source.trim() || inspectMutation.isPending}
+              shape="square"
             >
               {inspectMutation.isPending ? t(strings.models.import.inspecting) : t(strings.models.import.inspect)}
             </Button>
@@ -130,7 +131,23 @@ export function ImportModelWizard() {
             <dd>{`~${Number(preview.sizeBytes / BigInt(1024 * 1024))} MB`}</dd>
             <dt className="text-app-muted-foreground">{t(strings.models.import.offeredOpsLabel)}</dt>
             <dd>{preview.offeredOperations.join(", ")}</dd>
+            {preview.runtimeFamily ? (
+              <>
+                <dt className="text-app-muted-foreground">{t(strings.models.import.adapterLabel)}</dt>
+                <dd data-testid={selectors.models.import.adapter}>{preview.runtimeFamily}</dd>
+              </>
+            ) : null}
           </dl>
+          {preview.needs.length > 0 ? (
+            <div data-testid={selectors.models.import.needs} className="text-xs text-app-warning">
+              <p className="font-medium">{t(strings.models.import.needsLabel)}</p>
+              <ul className="list-disc pl-5">
+                {preview.needs.map((need) => (
+                  <li key={need}>{need}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
 
           <div className="flex flex-col gap-1">
             <label htmlFor={fieldId("id")} className="text-xs text-app-muted-foreground">
@@ -178,13 +195,14 @@ export function ImportModelWizard() {
             />
             {t(strings.models.import.attestLabel)}
           </label>
-          <p className="text-xs text-app-warning">{t(strings.models.import.attestRequired)}</p>
+          <p className="text-xs text-app-muted-foreground">{t(strings.models.import.attestOptional)}</p>
 
           <Button
             data-testid={selectors.models.import.submit}
             type="button"
             onClick={() => importMutation.mutate()}
-            disabled={!id.trim() || !attest || needsArchitecture || importMutation.isPending}
+            disabled={!id.trim() || needsArchitecture || importMutation.isPending}
+            shape="square"
           >
             {importMutation.isPending ? t(strings.models.import.importing) : t(strings.models.import.import)}
           </Button>

@@ -1,7 +1,8 @@
-import { fetchDiff, fetchHealth, fetchBranches, createBranch, fetchGroupingRules, fetchRepoGroups, fetchRepoHistory, fetchRepoStatus, fetchPrecommitConfig, savePrecommitConfig, pushToRemote, pullFromRemote, RemoteOperationError } from "./api";
+import { fetchBlame, fetchCapabilities, fetchDiff, fetchHealth, fetchBranches, createBranch, fetchGroupingRules, fetchRepoGroups, fetchRepoHistory, fetchRepoStatus, fetchPrecommitConfig, savePrecommitConfig, pushToRemote, pullFromRemote, RemoteOperationError } from "./api";
 import { mockFetchJson, textResponse } from "../test-utils";
 
 const connectMocks = vi.hoisted(() => ({
+  integrationClient: { getCapabilities: vi.fn(), getCollaborationStatus: vi.fn() },
   branchClient: {
     listBranches: vi.fn(),
     createBranch: vi.fn(),
@@ -17,6 +18,7 @@ const connectMocks = vi.hoisted(() => ({
     createCommit: vi.fn(), getRepoDiff: vi.fn(), getRepoGroups: vi.fn(), getRepoStatus: vi.fn(), getSyncStatus: vi.fn(),
     getGroupingRules: vi.fn(), getRepoHistory: vi.fn(), pushToRemote: vi.fn(), pullFromRemote: vi.fn(),
     getPrecommitConfig: vi.fn(), savePrecommitConfig: vi.fn(),
+    getBlame: vi.fn(),
   },
 }));
 
@@ -29,11 +31,47 @@ vi.mock("@vrooli/api-base", () => ({
   buildApiUrl: (path: string, opts: { baseUrl: string }) => `${opts.baseUrl}${path}`
 }));
 
+test("fetchBlame uses RepoService and preserves enriched evidence", async () => {
+  connectMocks.repoClient.getBlame.mockResolvedValue({
+    revision: "abc", truncated: false, warnings: [],
+    files: [{
+      path: "src/main.go", status: "attributed", contentDigest: "sha256:abc", reason: "",
+      standing: "verified", downgradeReasons: [],
+      lines: [{ line: 1, content: "package main", commit: "abc", author: "A", authorTime: "today", subject: "initial" }],
+      evidence: [{
+        runId: "run-1", sandboxId: "sandbox-1", applicationReceipt: "receipt", contentDigest: "sha256:abc",
+        commitId: "abc", visibility: "public", commitState: "present", runOutcome: "success",
+        conversationId: "conversation-1", costUsd: 0.2, committedAt: "today", unavailable: [],
+        workReferences: [{ kind: "task", id: "task-1", revision: "r1", relationship: "caused", verified: true, visibility: "public", state: "active", unavailableReason: "" }],
+      }],
+    }],
+    changeBundles: [{ runId: "run-1", sandboxId: "sandbox-1", files: ["src/main.go"], runOutcome: "success", conversationId: "conversation-1", costUsd: 0.2, gaps: [], workReferences: [] }],
+  });
+
+  const result = await fetchBlame(["src/main.go"], "repo-1");
+  expect(connectMocks.repoClient.getBlame).toHaveBeenCalledOnce();
+  expect(connectMocks.repoClient.getBlame.mock.calls[0]?.[0]).toMatchObject({ repositoryId: "repo-1", paths: ["src/main.go"], maxPaths: 1, maxLines: 300, maxBytes: 1 << 20, enrich: true });
+  expect(result.files[0]?.evidence[0]?.workReferences?.[0]?.id).toBe("task-1");
+  expect(result.changeBundles[0]?.files).toEqual(["src/main.go"]);
+});
+
 test("fetchHealth returns parsed JSON on success", async () => {
   mockFetchJson({ status: "healthy", service: "x", timestamp: "t" });
 
   const result = await fetchHealth();
   expect(result.status).toBe("healthy");
+});
+
+test("fetchCapabilities uses the generated IntegrationService client", async () => {
+  connectMocks.integrationClient.getCapabilities.mockResolvedValue({
+    capabilities: [{ id: "test-genie", name: "Test Genie", status: "available", uses: [{ id: "tests", name: "Tests", description: "Execute", group: "quality" }] }],
+    timestamp: "2026-05-01T00:00:00Z",
+  });
+
+  const result = await fetchCapabilities();
+  expect(connectMocks.integrationClient.getCapabilities).toHaveBeenCalledOnce();
+  expect(result.capabilities[0]?.id).toBe("test-genie");
+  expect(result.capabilities[0]?.uses?.[0]?.name).toBe("Tests");
 });
 
 test("fetchHealth throws when API returns non-200", async () => {
@@ -69,6 +107,28 @@ test("fetchRepoStatus uses the typed RepoService response", async () => {
   expect(result.branch.upstream).toBe("origin/main");
   expect(result.summary.staged).toBe(1);
   expect(connectMocks.repoClient.getRepoStatus).toHaveBeenCalledOnce();
+});
+
+test("fetchRepoStatus aggregates every page from one snapshot", async () => {
+  connectMocks.repoClient.getRepoStatus
+    .mockResolvedValueOnce({
+      repoDir:"/repo", branchStatus:{head:"main"},
+      files:{staged:["a"],unstaged:[],untracked:[],conflicts:[],ignored:[],binary:["a"],statuses:{a:"M"},renames:{}},
+      fileStats:{staged:{},unstaged:{},untracked:{}},fileHotspots:{},scopes:{},summary:{staged:2,unstaged:0,untracked:0,conflicts:0,ignored:0},
+      page:{returnedEntries:1,totalEntries:2,snapshotId:"snap",nextPageToken:"cursor",complete:false},
+    })
+    .mockResolvedValueOnce({
+      repoDir:"/repo",files:{staged:["b"],unstaged:[],untracked:[],conflicts:[],ignored:[],binary:["b"],statuses:{b:"A"},renames:{}},
+      fileStats:{staged:{},unstaged:{},untracked:{}},fileHotspots:{},scopes:{},summary:{staged:2,unstaged:0,untracked:0,conflicts:0,ignored:0},
+      page:{returnedEntries:1,totalEntries:2,snapshotId:"snap",nextPageToken:"",complete:true},
+    });
+  const result=await fetchRepoStatus("repo-1");
+  expect(result.files.staged).toEqual(["a","b"]);
+  expect(result.files.binary).toEqual(["a","b"]);
+  expect(result.files.statuses).toEqual({a:"M",b:"A"});
+  expect(result.summary.staged).toBe(2);
+  expect(connectMocks.repoClient.getRepoStatus).toHaveBeenCalledTimes(2);
+  expect(connectMocks.repoClient.getRepoStatus.mock.calls[1]?.[0]).toMatchObject({pageToken:"cursor",pageSize:512});
 });
 
 test("fetchDiff uses the typed RepoService response", async () => {

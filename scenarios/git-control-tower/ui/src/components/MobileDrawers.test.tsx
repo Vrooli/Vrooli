@@ -8,7 +8,7 @@ import { ScenarioPickerModal } from "./ScenarioPickerModal";
 import { StageSameNameConfirmationModal } from "./StageSameNameConfirmationModal";
 
 vi.mock("../lib/hooks", () => ({
-  useScenarios: () => ({ data: [{ name: "demo", display_name: "Demo", description: "Test scenario", status: "running", health_status: "healthy", runtime: "registry" }], isLoading: false, isError: false }),
+  useScenarios: () => ({ data: [{ name: "demo", displayName: "Demo", description: "Test scenario", status: "running", healthStatus: "healthy", runtime: "registry" }], isLoading: false, isError: false }),
 }));
 
 const cases = [

@@ -4,14 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
+	"image-tools/cli/internal/jobstate"
+	"image-tools/cli/internal/verdictfmt"
 
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai"
 	aiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai/ai_v1connect"
@@ -34,18 +38,36 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 	}
 	results := make([]string, 0, len(resp.Msg.Operations))
 	for _, op := range resp.Msg.Operations {
-		results = append(results, fmt.Sprintf("%-18s [%s] %s (default: %s)", op.Name, op.Category, op.Summary, op.DefaultModelId))
+		results = append(results, formatOperation(op))
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
 		Summary:        []string{fmt.Sprintf("%d AI operations.", len(resp.Msg.Operations))},
 		ResultsHeading: "Operations",
 		Results:        results,
+		RetrievalHints: []string{
+			"the default is the model a submit would run now (`models select <op>` agrees); the label after it is its verdict",
+			"`models get <id>` — see the evidence behind a verdict",
+		},
 	})
+}
+
+// formatOperation renders one discovery row: the model a submit would run now
+// with its verdict, or why no model can run the operation.
+func formatOperation(op *aiv1.AIOperationInfo) string {
+	row := fmt.Sprintf("%-18s [%s] %s", op.Name, op.Category, op.Summary)
+	if op.DefaultModelId == "" {
+		reason := op.DefaultUnavailable
+		if reason == "" {
+			reason = "no model selected"
+		}
+		return row + " (no default: " + reason + ")"
+	}
+	return fmt.Sprintf("%s (default: %s, %s)", row, op.DefaultModelId, verdictfmt.Label(op.DefaultVerdict.GetGrade()))
 }
 
 // submit returns a RunCtx handler for one AI op. inputField/maskField name the
 // positional/flag the op reads (empty when the op needs none).
-func (h *handlers) submit(operation string, needsInput, needsMask bool) func(cliapp.RunContext) error {
+func (h *handlers) submit(operation string, needsInput, needsMask, needsReference bool) func(cliapp.RunContext) error {
 	return func(ctx cliapp.RunContext) error {
 		if boolOr(ctx, "pose-control") && !needsInput {
 			return fmt.Errorf("--pose-control requires an input-image command such as ai img2img or ai edit")
@@ -69,9 +91,25 @@ func (h *handlers) submit(operation string, needsInput, needsMask bool) func(cli
 				return fmt.Errorf("--mask is required for %s", operation)
 			}
 		}
+		reference := ""
+		if needsReference {
+			reference = ctx.Flag("reference")
+			if reference == "" {
+				return fmt.Errorf("--reference is required for %s: the image that supplies the face", operation)
+			}
+		}
 		params, err := buildParams(ctx)
 		if err != nil {
 			return err
+		}
+		if operation == "face_swap" {
+			faceParams, err := faceSwapParams(ctx)
+			if err != nil {
+				return err
+			}
+			if err := mergeOpParams(params, faceParams); err != nil {
+				return err
+			}
 		}
 		if operation == "inpaint" {
 			contextRaw, edgeRaw := flagOr(ctx, "crop-context-pixels"), flagOr(ctx, "crop-max-edge-px")
@@ -143,6 +181,14 @@ func (h *handlers) submit(operation string, needsInput, needsMask bool) func(cli
 				return err
 			}
 		}
+		if phrase := flagOr(ctx, "text"); phrase != "" {
+			if flagOr(ctx, "selection") != "" {
+				return fmt.Errorf("--text and --selection cannot be combined")
+			}
+			if err := mergeOpParams(params, map[string]any{"segmentation": map[string]any{"text": phrase}}); err != nil {
+				return err
+			}
+		}
 		if raw := flagOr(ctx, "support-roi"); raw != "" {
 			var box map[string]any
 			if err := json.Unmarshal([]byte(raw), &box); err != nil {
@@ -165,7 +211,7 @@ func (h *handlers) submit(operation string, needsInput, needsMask bool) func(cli
 				return err
 			}
 		}
-		resp, err := submitAI(h.core, operation, input, mask, params, flagOr(ctx, "operation-id"))
+		resp, err := submitAI(h.core, operation, input, mask, reference, params, flagOr(ctx, "operation-id"))
 		if err != nil {
 			return err
 		}
@@ -228,7 +274,7 @@ func (h *handlers) submit(operation string, needsInput, needsMask bool) func(cli
 				Model      string   `json:"model,omitempty"`
 			}{
 				JobId:      job.GetId(),
-				State:      stateName(job.GetState()),
+				State:      jobstate.DisplayName(job.GetState()),
 				OutputPath: written,
 				ResultRefs: job.GetResultRefs(),
 				Warnings:   warnings,
@@ -241,7 +287,7 @@ func (h *handlers) submit(operation string, needsInput, needsMask bool) func(cli
 		if written != "" {
 			changes = append(changes, fmt.Sprintf("wrote %s (job=%s)", written, job.GetId()))
 		}
-		resultLines := []string{fmt.Sprintf("%s %s on %s/%s", operation, stateName(job.GetState()), resp.ModelId, resp.Tier)}
+		resultLines := []string{fmt.Sprintf("%s %s on %s/%s", operation, jobstate.DisplayName(job.GetState()), resp.ModelId, resp.Tier)}
 		if caption != nil {
 			resultLines = append(resultLines, caption.Caption)
 		}
@@ -278,6 +324,19 @@ func captionValue[T any](caption *captionOutput, pick func(captionOutput) T) T {
 	return pick(*caption)
 }
 
+// consentLine states whether a submit of this request would need --consent and
+// why, in the words the server's rule gave.
+func consentLine(r *modelsv1.Resolution) string {
+	if !r.GetConsentRequired() {
+		return "consent: not required"
+	}
+	line := "consent: required — pass --consent to affirm it"
+	if reason := r.GetConsentReason(); reason != "" {
+		line += " (" + reason + ")"
+	}
+	return line
+}
+
 // explainResolution renders the read-only resolution for an op (the `--explain`
 // dry-run): which model/technique would run, native-vs-derived, tier, safety
 // weight — without submitting a job.
@@ -311,6 +370,7 @@ func (h *handlers) explainResolution(ctx cliapp.RunContext, operation string) er
 	results = append(results,
 		fmt.Sprintf("gpu_viable: %t", r.GetGpuViable()),
 		"safety_weight: "+r.GetWeight(),
+		consentLine(r),
 	)
 	if r.GetCaveat() != "" {
 		results = append(results, "caveat: "+r.GetCaveat())
@@ -331,6 +391,38 @@ func (h *handlers) explainResolution(ctx cliapp.RunContext, operation string) er
 // buildParams assembles AIParams from whichever flags the command declared.
 // mergeOpParams merges operation-specific values into AIParams.op_params,
 // preserving anything already provided by --op-params.
+// faceSwapParams turns the face_swap flags into the operation's op_params.
+// Only flags the person set are sent, so the server's defaults stay the
+// defaults; the capability schema is the contract for ranges.
+func faceSwapParams(ctx cliapp.RunContext) (map[string]any, error) {
+	out := map[string]any{}
+	for flag, key := range map[string]string{"target-face": "target_face", "source-face": "source_face"} {
+		raw := flagOr(ctx, flag)
+		if raw == "" {
+			continue
+		}
+		index, err := strconv.ParseUint(raw, 10, 32)
+		if err != nil || index > 63 {
+			return nil, fmt.Errorf("invalid --%s %q: expected a face index 0..63 (largest face first)", flag, raw)
+		}
+		out[key] = float64(index)
+	}
+	if boolOr(ctx, "all-faces") {
+		out["all_faces"] = true
+	}
+	if boolOr(ctx, "no-occlusion") {
+		out["occlusion"] = false
+	}
+	if raw := flagOr(ctx, "color-match"); raw != "" {
+		strength, err := strconv.ParseFloat(raw, 64)
+		if err != nil || strength < 0 || strength > 1 {
+			return nil, fmt.Errorf("invalid --color-match %q: expected 0..1", raw)
+		}
+		out["color_match"] = strength
+	}
+	return out, nil
+}
+
 func mergeOpParams(p *aiv1.AIParams, extra map[string]any) error {
 	if len(extra) == 0 {
 		return nil
@@ -352,30 +444,42 @@ func mergeOpParams(p *aiv1.AIParams, extra map[string]any) error {
 
 func buildParams(ctx cliapp.RunContext) (*aiv1.AIParams, error) {
 	p := &aiv1.AIParams{
-		Prompt:          flagOr(ctx, "prompt"),
-		NegativePrompt:  flagOr(ctx, "negative"),
-		Seed:            i64(flagOr(ctx, "seed")),
-		Width:           i32(flagOr(ctx, "width")),
-		Height:          i32(flagOr(ctx, "height")),
-		Steps:           i32(flagOr(ctx, "steps")),
-		CfgScale:        f64(flagOr(ctx, "cfg-scale")),
-		Variations:      i32(flagOr(ctx, "variations")),
-		Strength:        f64(flagOr(ctx, "strength")),
-		Scale:           i32(flagOr(ctx, "scale")),
-		Realism:         f64(flagOr(ctx, "realism")),
-		FaceAware:       boolOr(ctx, "face-aware"),
-		ModelOverride:   flagOr(ctx, "model"),
-		AllowByok:       boolOr(ctx, "byok"),
-		QualityPolicy:   flagOr(ctx, "quality-policy"),
-		FallbackPolicy:  flagOr(ctx, "fallback-policy"),
-		OpenrouterRole:  flagOr(ctx, "role"),
-		Priority:        flagOr(ctx, "priority"),
-		AllowReclaim:    optionalReclaim(ctx),
-		RequireGpu:      boolOr(ctx, "require-gpu"),
-		ForceCpu:        boolOr(ctx, "force-cpu"),
-		AutoScanNsfw:    boolOr(ctx, "auto-scan"),
-		ConsentAffirmed: boolOr(ctx, "consent"),
-		Adapters:        adapterRefs(ctx),
+		Prompt:           flagOr(ctx, "prompt"),
+		NegativePrompt:   flagOr(ctx, "negative"),
+		Seed:             i64(flagOr(ctx, "seed")),
+		Width:            i32(flagOr(ctx, "width")),
+		Height:           i32(flagOr(ctx, "height")),
+		Steps:            i32(flagOr(ctx, "steps")),
+		CfgScale:         f64(flagOr(ctx, "cfg-scale")),
+		Variations:       i32(flagOr(ctx, "variations")),
+		Strength:         f64(flagOr(ctx, "strength")),
+		Scale:            i32(flagOr(ctx, "scale")),
+		Realism:          f64(flagOr(ctx, "realism")),
+		FaceAware:        boolOr(ctx, "face-aware"),
+		ModelOverride:    flagOr(ctx, "model"),
+		AllowByok:        boolOr(ctx, "byok"),
+		QualityPolicy:    flagOr(ctx, "quality-policy"),
+		FallbackPolicy:   flagOr(ctx, "fallback-policy"),
+		OpenrouterRole:   flagOr(ctx, "role"),
+		Priority:         flagOr(ctx, "priority"),
+		AllowReclaim:     optionalReclaim(ctx),
+		AutoAcquire:      optionalAutoAcquire(ctx),
+		RequireGpu:       boolOr(ctx, "require-gpu"),
+		ForceCpu:         boolOr(ctx, "force-cpu"),
+		AutoScanNsfw:     boolOr(ctx, "auto-scan"),
+		ConsentAffirmed:  boolOr(ctx, "consent"),
+		Adapters:         adapterRefs(ctx),
+		PreserveIdentity: optionalPreserveIdentity(ctx),
+	}
+	var err error
+	if p.MaxWaitSeconds, err = optionalMaxWait(ctx); err != nil {
+		return nil, err
+	}
+	if p.MaxCostUsd, err = optionalMaxCost(ctx); err != nil {
+		return nil, err
+	}
+	if p.EditStyle, err = editStyle(ctx); err != nil {
+		return nil, err
 	}
 	if raw := flagOr(ctx, "op-params"); raw != "" {
 		var values map[string]any
@@ -389,6 +493,79 @@ func buildParams(ctx cliapp.RunContext) (*aiv1.AIParams, error) {
 		p.OpParams = structured
 	}
 	return p, nil
+}
+
+// optionalPreserveIdentity sends false only when the caller opted out; unset
+// keeps the service default (identity preservation on for edit_instruct).
+func optionalPreserveIdentity(ctx cliapp.RunContext) *bool {
+	if boolOr(ctx, "no-preserve-identity") {
+		v := false
+		return &v
+	}
+	return nil
+}
+
+// optionalMaxWait parses --max-wait (a Go duration such as 90s or 10m, or a bare
+// number of seconds; 0 means no limit). Unset keeps the deployment default.
+func optionalMaxWait(ctx cliapp.RunContext) (*int32, error) {
+	raw := strings.TrimSpace(flagOr(ctx, "max-wait"))
+	if raw == "" {
+		return nil, nil
+	}
+	seconds, err := parseWaitSeconds(raw)
+	if err != nil {
+		return nil, fmt.Errorf("invalid --max-wait %q: %w", raw, err)
+	}
+	return &seconds, nil
+}
+
+func parseWaitSeconds(raw string) (int32, error) {
+	var seconds float64
+	if d, err := time.ParseDuration(raw); err == nil {
+		seconds = d.Seconds()
+	} else if n, nerr := strconv.ParseFloat(raw, 64); nerr == nil {
+		seconds = n
+	} else {
+		return 0, fmt.Errorf("use a duration such as 90s or 10m, or a number of seconds")
+	}
+	if seconds < 0 || seconds > math.MaxInt32 {
+		return 0, fmt.Errorf("must be between 0 and %d seconds", math.MaxInt32)
+	}
+	return int32(math.Ceil(seconds)), nil
+}
+
+// optionalMaxCost parses --max-cost in USD. Unset keeps the deployment default.
+func optionalMaxCost(ctx cliapp.RunContext) (*float64, error) {
+	raw := strings.TrimSpace(strings.TrimPrefix(flagOr(ctx, "max-cost"), "$"))
+	if raw == "" {
+		return nil, nil
+	}
+	v, err := strconv.ParseFloat(raw, 64)
+	if err != nil || v < 0 || math.IsNaN(v) || math.IsInf(v, 0) {
+		return nil, fmt.Errorf("invalid --max-cost %q: use a non-negative dollar amount such as 0.25", flagOr(ctx, "max-cost"))
+	}
+	return &v, nil
+}
+
+func editStyle(ctx cliapp.RunContext) (string, error) {
+	switch v := strings.ToLower(strings.TrimSpace(flagOr(ctx, "edit-style"))); v {
+	case "", "identity", "stylized":
+		return v, nil
+	case "stylised":
+		return "stylized", nil
+	default:
+		return "", fmt.Errorf("invalid --edit-style %q: use identity or stylized", v)
+	}
+}
+
+// optionalAutoAcquire sends false only when the caller opted out; unset keeps
+// the service default (acquire missing governed weights).
+func optionalAutoAcquire(ctx cliapp.RunContext) *bool {
+	if boolOr(ctx, "no-auto-acquire") {
+		v := false
+		return &v
+	}
+	return nil
 }
 
 func optionalReclaim(ctx cliapp.RunContext) *bool {
@@ -548,7 +725,7 @@ func (h *handlers) submitStored(ctx cliapp.RunContext) error {
 		}
 	}
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(h.core)
-	response, err := aiconnect.NewAIServiceClient(httpClient, baseURL).SubmitStoredAI(context.Background(), connect.NewRequest(&aiv1.SubmitStoredAIRequest{Operation: ctx.Positional("operation"), Params: params, InputRef: ctx.Flag("input-ref"), MaskRef: ctx.Flag("mask-ref"), OperationId: ctx.Flag("operation-id")}))
+	response, err := aiconnect.NewAIServiceClient(httpClient, baseURL).SubmitStoredAI(context.Background(), connect.NewRequest(&aiv1.SubmitStoredAIRequest{Operation: ctx.Positional("operation"), Params: params, InputRef: ctx.Flag("input-ref"), MaskRef: ctx.Flag("mask-ref"), ReferenceRef: ctx.Flag("reference-ref"), OperationId: ctx.Flag("operation-id")}))
 	if err != nil {
 		return cliapp.WrapAPIError("submit stored AI operation", err, nil)
 	}

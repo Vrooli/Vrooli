@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Loader2, Play, Save, XCircle } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { usePrecommitConfig, useSavePrecommitConfig, useStreamPrecommit } from "../lib/hooks-core";
 import type { PrecommitConfig } from "../lib/api";
 
@@ -170,12 +170,13 @@ export function SettingsTabPrecommit({ repoId, isMobile = false }: SettingsTabPr
         )}
         <Button
           size="sm"
-          variant="outline"
+          variant="secondary"
           onClick={() => {
             void precommitStream.run({}).catch(() => {});
           }}
           disabled={streamRunning || !draft.command.trim()}
           className="h-8 gap-2"
+          style={{ background: "transparent" }}
         >
           <Play className="h-3.5 w-3.5" />
           Run
@@ -183,9 +184,10 @@ export function SettingsTabPrecommit({ repoId, isMobile = false }: SettingsTabPr
         {streamRunning && (
           <Button
             size="sm"
-            variant="outline"
+            variant="secondary"
             onClick={() => precommitStream.cancel()}
             className="h-8 gap-2 text-red-300 hover:text-red-200"
+            style={{ background: "transparent" }}
           >
             <XCircle className="h-3.5 w-3.5" />
             Cancel

@@ -9,6 +9,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -18,12 +20,14 @@ import (
 	sharedpolicy "github.com/vrooli/ai-provider-go/policy"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/ensure"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/policy"
+	"github.com/vrooli/vrooli/resources/ollama/cli/internal/runtimeprofile"
 
 	"github.com/vrooli/cli-core/cliutil/hostsem"
 )
 
 type fakeClient struct {
 	embed        func(ctx context.Context, model, input string) ([]float64, error)
+	embedBatch   func(ctx context.Context, model string, inputs []string, options map[string]any) (ensure.EmbedResponse, error)
 	generate     func(ctx context.Context, in ensure.GenerateRequest) (ensure.GenerateResponse, error)
 	chat         func(ctx context.Context, in ensure.ChatRequest) (ensure.ChatResponse, error)
 	inventory    []ensure.ModelInfo
@@ -45,8 +49,24 @@ func TestRequireExpectedModelFailsClosedOnRoleReresolutionChangeAndAllowsDirectM
 	}
 }
 
-func (f *fakeClient) Embed(ctx context.Context, model, input string) ([]float64, error) {
-	return f.embed(ctx, model, input)
+// EmbedBatch serves the gateway's only embedding path. Tests that care about a
+// single vector set embed; it is applied per input.
+func (f *fakeClient) EmbedBatch(ctx context.Context, model string, inputs []string, options map[string]any) (ensure.EmbedResponse, error) {
+	if f.embedBatch != nil {
+		return f.embedBatch(ctx, model, inputs, options)
+	}
+	if f.embed == nil {
+		return ensure.EmbedResponse{}, errors.New("fake embed unavailable")
+	}
+	var out ensure.EmbedResponse
+	for _, input := range inputs {
+		vector, err := f.embed(ctx, model, input)
+		if err != nil {
+			return ensure.EmbedResponse{}, err
+		}
+		out.Embeddings = append(out.Embeddings, vector)
+	}
+	return out, nil
 }
 
 func (f *fakeClient) Generate(ctx context.Context, in ensure.GenerateRequest) (ensure.GenerateResponse, error) {
@@ -413,7 +433,21 @@ func TestRoleSelectionFallsBackOnCurrentRightsAndRestoresPrimary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(env["VROOLI_MODEL_RIGHTS_CONTEXT_PATH"], canonicalContext, 0o600); err != nil {
+	// This test proves license-bound local inference follows the context, so it
+	// copies the canonical context without the operator's standing normal-use
+	// answer (which would otherwise allow every license class).
+	var strictDocument map[string]any
+	if err := json.Unmarshal(canonicalContext, &strictDocument); err != nil {
+		t.Fatal(err)
+	}
+	strictFields := strictDocument["context"].(map[string]any)
+	delete(strictFields, "normal_use_licensing")
+	delete(strictFields, "normal_use_licensing_evidence")
+	strictContext, err := json.Marshal(strictDocument)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(env["VROOLI_MODEL_RIGHTS_CONTEXT_PATH"], strictContext, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	var served []string
@@ -826,6 +860,70 @@ func TestEmbedRoleResolvesModel(t *testing.T) {
 	}
 }
 
+func TestEmbedBatchSendsOnlyTheProfileVariantAndAdmissionTimings(t *testing.T) {
+	wantOptions, err := runtimeprofile.Current().VariantOptions(runtimeprofile.VariantCPUOnly)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := &fakeClient{embedBatch: func(_ context.Context, model string, inputs []string, options map[string]any) (ensure.EmbedResponse, error) {
+		if model != "nomic-embed-text:latest" {
+			t.Errorf("model = %q", model)
+		}
+		if !reflect.DeepEqual(inputs, []string{"first document", "second document"}) {
+			t.Errorf("inputs = %#v", inputs)
+		}
+		if !reflect.DeepEqual(options, wantOptions) {
+			t.Errorf("runtime options = %#v, want only the cpu-only variant %#v", options, wantOptions)
+		}
+		return ensure.EmbedResponse{Embeddings: [][]float64{{0.1, 0.2}, {0.3, 0.4}}, TotalDuration: 900, LoadDuration: 100, PromptEvalCount: 2}, nil
+	}}
+	h, stdout, _ := newHandlers(t, client, policyEnv(t))
+	h.Stdin = strings.NewReader(`{"inputs":["first document","second document"]}`)
+	if err := h.Embed([]string{"--role", "embedding.default", "--input-json-stdin", "--cpu-only", "--json"}); err != nil {
+		t.Fatalf("Embed batch: %v", err)
+	}
+	var got struct {
+		Embeddings             [][]float64 `json:"embeddings"`
+		AdmissionWaitNS        int64       `json:"admission_wait_ns"`
+		ProviderDurationNS     int64       `json:"provider_duration_ns"`
+		RuntimeTotalDurationNS int64       `json:"runtime_total_duration_ns"`
+		RuntimeLoadDurationNS  int64       `json:"runtime_load_duration_ns"`
+		RuntimePromptEvalCount int         `json:"runtime_prompt_eval_count"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
+		t.Fatalf("decode stdout %q: %v", stdout.String(), err)
+	}
+	if len(got.Embeddings) != 2 || got.AdmissionWaitNS < 0 || got.ProviderDurationNS < 0 || got.RuntimeTotalDurationNS != 900 || got.RuntimeLoadDurationNS != 100 || got.RuntimePromptEvalCount != 2 {
+		t.Fatalf("unexpected batch output: %+v", got)
+	}
+}
+
+func TestEmbedBatchRejectsExcessInputsBeforeProvider(t *testing.T) {
+	called := false
+	client := &fakeClient{embedBatch: func(context.Context, string, []string, map[string]any) (ensure.EmbedResponse, error) {
+		called = true
+		return ensure.EmbedResponse{}, nil
+	}}
+	h, _, _ := newHandlers(t, client, policyEnv(t))
+	var inputs strings.Builder
+	inputs.WriteString(`{"inputs":[`)
+	for i := 0; i <= maxEmbedInputs; i++ {
+		if i > 0 {
+			inputs.WriteByte(',')
+		}
+		inputs.WriteString(`"doc"`)
+	}
+	inputs.WriteString(`]}`)
+	h.Stdin = strings.NewReader(inputs.String())
+	err := h.Embed([]string{"--role", "embedding.default", "--input-json-stdin", "--json"})
+	if err == nil || !strings.Contains(err.Error(), "input count") {
+		t.Fatalf("expected bounded input refusal, got %v", err)
+	}
+	if called {
+		t.Fatal("provider called for an oversized batch")
+	}
+}
+
 func TestEmbedRejectsGenerateRole(t *testing.T) {
 	h, _, _ := newHandlers(t, &fakeClient{}, policyEnv(t))
 	err := h.Embed([]string{"--role", "chat.default", "--input", "hello"})
@@ -878,14 +976,14 @@ func TestGenerateJSONOutput(t *testing.T) {
 			if in.Think == nil || *in.Think {
 				t.Errorf("think = %v, want false", in.Think)
 			}
-			if in.NumCtx == nil || *in.NumCtx != 4096 || in.NumThread == nil || *in.NumThread != defaultCPUThreadBudget || in.NumBatch == nil || *in.NumBatch != 256 {
-				t.Errorf("runtime controls = ctx:%v thread:%v batch:%v", in.NumCtx, in.NumThread, in.NumBatch)
+			if len(in.RuntimeOptions) != 0 {
+				t.Errorf("generate carried runner load options %#v; the daemon profile owns them", in.RuntimeOptions)
 			}
 			return ensure.GenerateResponse{Response: "hello!", EvalCount: 7}, nil
 		},
 	}
 	h, stdout, _ := newHandlers(t, client, nil)
-	if err := h.Generate([]string{"--model", "llama3.2:1b", "--prompt", "hi", "--max-tokens", "123", "--temperature", "0.25", "--num-ctx", "4096", "--num-batch", "256", "--json"}); err != nil {
+	if err := h.Generate([]string{"--model", "llama3.2:1b", "--prompt", "hi", "--max-tokens", "123", "--temperature", "0.25", "--context-budget", "4096", "--json"}); err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
 	var got struct {
@@ -900,21 +998,6 @@ func TestGenerateJSONOutput(t *testing.T) {
 	}
 	if got.EvalCount != 7 {
 		t.Fatalf("eval_count = %d, want 7", got.EvalCount)
-	}
-}
-
-func TestApplyCPUThreadBudgetDefaultsAndRejectsOversizedOverrides(t *testing.T) {
-	controls := runtimeControls{}
-	if err := applyCPUThreadBudget(&controls); err != nil {
-		t.Fatalf("apply default CPU thread budget: %v", err)
-	}
-	if controls.NumThread == nil || *controls.NumThread != 4 {
-		t.Fatalf("default NumThread = %v, want 4", controls.NumThread)
-	}
-	tooMany := 5
-	controls.NumThread = &tooMany
-	if err := applyCPUThreadBudget(&controls); err == nil || !strings.Contains(err.Error(), "budget 4") {
-		t.Fatalf("oversized thread override error = %v, want resource budget refusal", err)
 	}
 }
 
@@ -1169,11 +1252,15 @@ func TestGenerateInputJSONStdinForwardsImagesWithoutArgvData(t *testing.T) {
 	}
 }
 
-func TestGenerateCPUOnlySetsZeroGPUOption(t *testing.T) {
+func TestGenerateCPUOnlyUsesTheProfileVariant(t *testing.T) {
+	want, err := runtimeprofile.Current().VariantOptions(runtimeprofile.VariantCPUOnly)
+	if err != nil {
+		t.Fatal(err)
+	}
 	client := &fakeClient{
 		generate: func(_ context.Context, in ensure.GenerateRequest) (ensure.GenerateResponse, error) {
-			if in.NumGPU == nil || *in.NumGPU != 0 {
-				t.Fatalf("num_gpu = %v, want pointer to zero", in.NumGPU)
+			if !reflect.DeepEqual(in.RuntimeOptions, want) {
+				t.Fatalf("runtime options = %#v, want cpu-only variant %#v", in.RuntimeOptions, want)
 			}
 			return ensure.GenerateResponse{Response: "cpu"}, nil
 		},
@@ -1184,26 +1271,45 @@ func TestGenerateCPUOnlySetsZeroGPUOption(t *testing.T) {
 	}
 }
 
-func TestGenerateRejectsUnsafeRuntimeControlsBeforeUpstream(t *testing.T) {
+func TestGatewayNoLongerAcceptsRunnerLoadFlags(t *testing.T) {
 	called := false
 	client := &fakeClient{generate: func(context.Context, ensure.GenerateRequest) (ensure.GenerateResponse, error) {
 		called = true
 		return ensure.GenerateResponse{}, nil
 	}}
 	h, _, _ := newHandlers(t, client, policyEnv(t))
-	if err := h.Generate([]string{"--model", "qwen3-vl:2b", "--prompt", "describe", "--num-batch", "4097"}); err == nil || !strings.Contains(err.Error(), "--num-batch") {
-		t.Fatalf("expected num-batch validation error, got %v", err)
+	for _, flagName := range []string{"--num-ctx", "--num-thread", "--num-batch"} {
+		if err := h.Generate([]string{"--model", "qwen3-vl:2b", "--prompt", "describe", flagName, "256"}); err == nil || !strings.Contains(err.Error(), "flag provided but not defined") {
+			t.Fatalf("%s error = %v, want an undefined flag", flagName, err)
+		}
 	}
 	if called {
-		t.Fatal("upstream called after unsafe runtime control rejection")
+		t.Fatal("upstream called with a removed runner load flag")
 	}
 }
 
-func TestGenerateRejectsContextControlAboveModelPolicy(t *testing.T) {
+func TestGenerateRejectsContextBudgetAboveRunnerContext(t *testing.T) {
 	h, _, _ := newHandlers(t, &fakeClient{}, policyEnv(t))
-	err := h.Generate([]string{"--role", "vision.default", "--prompt", "describe", "--num-ctx", "40000"})
+	runner := runtimeprofile.Current().ContextTokens("llama3.2:1b")
+	err := h.Generate([]string{"--model", "llama3.2:1b", "--prompt", "describe", "--context-budget", strconv.Itoa(runner + 1)})
+	if err == nil || !strings.Contains(err.Error(), "runner context") {
+		t.Fatalf("expected runner context refusal, got %v", err)
+	}
+}
+
+func TestGenerateContextBudgetRefusesOversizedPromptWithoutLoadOptions(t *testing.T) {
+	called := false
+	h, _, _ := newHandlers(t, &fakeClient{generate: func(context.Context, ensure.GenerateRequest) (ensure.GenerateResponse, error) {
+		called = true
+		return ensure.GenerateResponse{}, nil
+	}}, policyEnv(t))
+	prompt := strings.Repeat("abcd", 1000)
+	err := h.Generate([]string{"--role", "vision.default", "--prompt", prompt, "--max-tokens", "64", "--context-budget", "512"})
 	if err == nil || !strings.Contains(err.Error(), "exceeds context window") {
-		t.Fatalf("expected context control rejection, got %v", err)
+		t.Fatalf("expected budget refusal, got %v", err)
+	}
+	if called {
+		t.Fatal("upstream called for a prompt over the caller's context budget")
 	}
 }
 
@@ -1217,10 +1323,19 @@ func TestGenerateInputJSONStdinRejectsRoleWithoutImageModality(t *testing.T) {
 }
 
 func TestChatRoleResolvesModelAndForwardsControls(t *testing.T) {
+	env := policyEnv(t)
+	p, _, err := policy.LoadDefaultFile(func(key string) string { return env[key] })
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantModel := p.Roles["summarize.default"].Model
+	if wantModel == "" {
+		t.Fatal("policy has no summarize.default model")
+	}
 	client := &fakeClient{
 		chat: func(_ context.Context, in ensure.ChatRequest) (ensure.ChatResponse, error) {
-			if in.Model != "qwen3.5:9b" {
-				t.Errorf("model = %q", in.Model)
+			if in.Model != wantModel {
+				t.Errorf("model = %q, want policy summarize.default %q", in.Model, wantModel)
 			}
 			if len(in.Messages) != 2 {
 				t.Fatalf("messages len = %d, want 2", len(in.Messages))
@@ -1247,7 +1362,7 @@ func TestChatRoleResolvesModelAndForwardsControls(t *testing.T) {
 			return out, nil
 		},
 	}
-	h, stdout, _ := newHandlers(t, client, policyEnv(t))
+	h, stdout, _ := newHandlers(t, client, env)
 	if err := h.Chat([]string{"--role", "summarize.default", "--system", "be concise", "--prompt", "hello", "--max-tokens", "123", "--temperature", "0.25", "--json"}); err != nil {
 		t.Fatalf("Chat: %v", err)
 	}
@@ -1712,5 +1827,64 @@ func TestGenerateJSONPreservesOptionalCompletionMetadata(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestEmbedLongInputReachesProviderAndReportsTruncation(t *testing.T) {
+	limit := runtimeprofile.Current().ContextTokens("nomic-embed-text:latest")
+	long := strings.Repeat("token ", limit*4)
+	client := &fakeClient{embedBatch: func(_ context.Context, _ string, inputs []string, options map[string]any) (ensure.EmbedResponse, error) {
+		if len(inputs) != 1 || inputs[0] != long {
+			t.Errorf("gateway altered or split the input before the provider")
+		}
+		if len(options) != 0 {
+			t.Errorf("default embed sent runner load options %#v", options)
+		}
+		return ensure.EmbedResponse{Embeddings: [][]float64{{0.6, 0.8}}, PromptEvalCount: limit}, nil
+	}}
+	h, stdout, _ := newHandlers(t, client, policyEnv(t))
+	if err := h.Embed([]string{"--role", "embedding.default", "--input", long, "--json"}); err != nil {
+		t.Fatalf("long input must embed its head instead of failing: %v", err)
+	}
+	var got struct {
+		Embedding        []float64 `json:"embedding"`
+		InputLimitTokens int       `json:"input_limit_tokens"`
+		Truncated        *bool     `json:"truncated"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
+		t.Fatalf("decode %q: %v", stdout.String(), err)
+	}
+	if got.InputLimitTokens != limit || got.Truncated == nil || !*got.Truncated || len(got.Embedding) != 2 {
+		t.Fatalf("output = %+v, want truncated=true at limit %d", got, limit)
+	}
+}
+
+func TestEmbedShortInputIsNotReportedTruncated(t *testing.T) {
+	client := &fakeClient{embedBatch: func(context.Context, string, []string, map[string]any) (ensure.EmbedResponse, error) {
+		return ensure.EmbedResponse{Embeddings: [][]float64{{1}}, PromptEvalCount: 3}, nil
+	}}
+	h, stdout, _ := newHandlers(t, client, policyEnv(t))
+	if err := h.Embed([]string{"--role", "embedding.default", "--input", "short text", "--json"}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stdout.String(), `"truncated":false`) {
+		t.Fatalf("stdout = %s", stdout.String())
+	}
+}
+
+func TestChatSendsTheDeclaredRunnerContextForTheResolvedModel(t *testing.T) {
+	client := &fakeClient{chat: func(_ context.Context, in ensure.ChatRequest) (ensure.ChatResponse, error) {
+		want := runtimeprofile.Current().RequestOptions(in.Model)
+		if !reflect.DeepEqual(in.RuntimeOptions, want) {
+			t.Errorf("runtime options for %s = %#v, want the profile's %#v", in.Model, in.RuntimeOptions, want)
+		}
+		if len(want) == 0 {
+			t.Errorf("fixture model %s declares no request options; pick one that does", in.Model)
+		}
+		return ensure.ChatResponse{}, nil
+	}}
+	h, _, _ := newHandlers(t, client, policyEnv(t))
+	if err := h.Chat([]string{"--model", "qwen3.5:9b", "--prompt", "hi"}); err != nil {
+		t.Fatal(err)
 	}
 }

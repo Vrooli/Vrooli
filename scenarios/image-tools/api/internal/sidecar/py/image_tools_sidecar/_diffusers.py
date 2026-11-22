@@ -33,8 +33,10 @@ from . import _adapters, _common
 
 
 class Params(NamedTuple):
-    """Normalized, family-agnostic edit-instruct parameters (the Go arg-builder
-    emits exactly these; every adapter maps from here)."""
+    """Normalized, family-agnostic parameters (the Go arg-builders emit exactly
+    these; every adapter maps from here). A family adapter serves every op its
+    model declares — edit_instruct, and for unified families also text_to_image
+    (no input image) and image_to_image (reference-conditioned transform)."""
 
     prompt: str
     steps: int = 0  # 0 → use the family default
@@ -42,6 +44,8 @@ class Params(NamedTuple):
     image_guidance: Optional[float] = None  # identity-preservation knob (strength)
     negative_prompt: Optional[str] = None
     seed: int = 0
+    width: int = 0  # 0 → family default (input-derived for edits, native for generate)
+    height: int = 0
 
 
 class Adapter(NamedTuple):
@@ -54,6 +58,18 @@ class Adapter(NamedTuple):
     ready: bool  # adapter is proven runnable; False ⇒ refuse to run
     build: Callable[["Params"], dict]  # → scalar call kwargs (no image/generator)
     pending: str = ""
+    generates: bool = False  # pipeline also runs text-only (no input image) → text_to_image
+    # staged: the pipeline can run from precomputed prompt_embeds, so a one-shot
+    # job encodes the prompt with only the text encoder resident, frees it, then
+    # runs the denoiser + VAE on the GPU. Peak host RAM and VRAM are each about one
+    # component instead of the whole pipeline (model offload keeps every
+    # component in host RAM for reuse a one-shot process never gets).
+    staged: bool = False
+    # staged only: the text-side pipeline components (loaded alone for the encode
+    # stage, dropped for the denoise stage) and how the encode_prompt output maps
+    # to precomputed-embedding call kwargs.
+    text_components: tuple = ("text_encoder", "tokenizer")
+    embed_kwargs: Callable[[tuple], dict] = lambda out: {"prompt_embeds": out[0]}
 
 
 def _ip2p_kwargs(p: "Params") -> dict:
@@ -77,6 +93,42 @@ def _qwen_edit_plus_kwargs(p: "Params") -> dict:
         "guidance_scale": 1.0 if p.guidance is None else p.guidance,
         "num_images_per_prompt": 1,
     }
+
+
+def _flux2_klein_kwargs(p: "Params") -> dict:
+    # FLUX.2 [klein] 4B (Flux2KleinPipeline) is step-distilled: the model card
+    # drives it at 4 steps with guidance_scale=1.0, and the pipeline ignores
+    # classifier-free guidance on distilled checkpoints (no negative prompt).
+    # Reference images ride `image`; without one the same pipeline generates.
+    # Output size defaults to the (<=1MP, multiple-of-16) reference size for an
+    # edit and to 1024x1024 for a generate; an explicit size snaps to 16.
+    out = {
+        "prompt": p.prompt,
+        "num_inference_steps": p.steps or 4,
+        "guidance_scale": 1.0 if p.guidance is None else p.guidance,
+    }
+    if p.width:
+        out["width"] = max(16, p.width - (p.width % 16))
+    if p.height:
+        out["height"] = max(16, p.height - (p.height % 16))
+    return out
+
+
+def _flux1_kontext_kwargs(p: "Params") -> dict:
+    # FLUX.1 Kontext [dev] (FluxKontextPipeline) is guidance-distilled: the model
+    # card edits at guidance_scale=2.5 for 28 steps and takes one reference image
+    # (`image`). There is no negative prompt or true CFG. The output size follows
+    # the reference at a preferred Kontext resolution (<=1MP) unless overridden.
+    out = {
+        "prompt": p.prompt,
+        "num_inference_steps": p.steps or 28,
+        "guidance_scale": 2.5 if p.guidance is None else p.guidance,
+    }
+    if p.width:
+        out["width"] = max(16, p.width - (p.width % 16))
+    if p.height:
+        out["height"] = max(16, p.height - (p.height % 16))
+    return out
 
 
 def _unproven(_p: "Params") -> dict:  # pragma: no cover - guarded before call
@@ -111,12 +163,23 @@ _ADAPTERS = {
         multi_image=True,
         offload=True,
         disable_safety=False,
-        ready=False,
-        build=_unproven,
-        pending=(
-            "diffusers Flux2KleinPipeline is install-from-git as of 2026-06; pin a "
-            "released version + prove an attended run before enabling."
-        ),
+        ready=True,
+        build=_flux2_klein_kwargs,
+        generates=True,
+        staged=True,
+    ),
+    "flux-1-kontext": Adapter(
+        family="flux-1-kontext",
+        pipeline_class="FluxKontextPipeline",
+        dtype="bfloat16",
+        multi_image=False,
+        offload=True,
+        disable_safety=False,
+        ready=True,
+        build=_flux1_kontext_kwargs,
+        staged=True,
+        text_components=("text_encoder", "tokenizer", "text_encoder_2", "tokenizer_2"),
+        embed_kwargs=lambda out: {"prompt_embeds": out[0], "pooled_prompt_embeds": out[1]},
     ),
     "longcat-image-edit": Adapter(
         family="longcat-image-edit",
@@ -139,7 +202,7 @@ _ADAPTERS = {
 # imports this and asserts name/pipeline_class/ready parity, so the registry, the
 # Go doctor, and this runner cannot drift.
 FAMILIES = {
-    name: {"pipeline_class": a.pipeline_class, "ready": a.ready}
+    name: {"pipeline_class": a.pipeline_class, "ready": a.ready, "generates": a.generates}
     for name, a in _ADAPTERS.items()
 }
 
@@ -294,48 +357,159 @@ def smoke(*, family: str, model_dir: str, deep: bool = False) -> str:
     return f"diffusers smoke OK (deep): constructed {got} from {model_dir}"
 
 
-def run(*, family: str, model_dir: str, image_paths, out_path: str, params: "Params") -> None:
-    """Load the family's pipeline from model_dir and run one edit, writing a PNG.
+def run(
+    *,
+    family: str,
+    model_dir: str,
+    image_paths,
+    out_path: str,
+    params: "Params",
+    op: str = "edit_instruct",
+) -> None:
+    """Load the family's pipeline from model_dir and run one op, writing a PNG.
+
+    ``image_paths`` are the reference/source images (EXIF-oriented on load). A
+    family whose pipeline also generates (``generates=True``) accepts none and
+    then serves text_to_image; every other family requires at least one.
 
     Supports both diffusers install shapes: a repo tree (model_index.json →
     from_pretrained, class auto-resolved) and a single-file checkpoint
     (from_single_file with the declared pipeline_class). FAILS LOUD on a missing
     backend, an unproven family, or a class mismatch — never a fabricated success.
+    The PNG carries a ``vrooli_diffusers_provenance`` receipt (call kwargs,
+    offload mode, wall time and the CUDA allocator peak).
     """
+    started = time.perf_counter()
+    images = []
+    source_rasters = []
+    for path in image_paths or []:
+        try:
+            image, raster = _common.load_oriented_image(path, 16_000_000, mode="RGB")
+        except Exception as exc:  # noqa: BLE001
+            _common.fail(f"failed to open input image: {exc}", code=6)
+            raise
+        images.append(image)
+        source_rasters.append(raster)
+
+    result, receipt = run_family_images(
+        family=family, model_dir=model_dir, images=images, params=params, op=op, started=started
+    )
+    receipt["source_rasters"] = source_rasters
+    try:
+        info = PngInfo()
+        info.add_text("vrooli_diffusers_provenance", json.dumps(receipt, sort_keys=True, separators=(",", ":")))
+        result.save(out_path, format="PNG", pnginfo=info)
+    except Exception as exc:  # noqa: BLE001
+        _common.fail(f"failed to write output {out_path!r}: {exc}", code=7)
+
+
+def run_family_images(
+    *,
+    family: str,
+    model_dir: str,
+    images,
+    params: "Params",
+    op: str,
+    started: Optional[float] = None,
+):
+    """Run one family op on already-decoded PIL ``images`` and return
+    ``(result_image, receipt)``. The shared core of ``run`` (which decodes and
+    writes a PNG) and the masked edit (which crops, runs, then composites)."""
+    started = time.perf_counter() if started is None else started
     adapter = adapter_for(family)
     if not adapter.ready:
         _common.fail(
             f"diffusers family {family!r} adapter is not yet proven: {adapter.pending}",
             code=4,
         )
+    if not images and not adapter.generates:
+        _common.fail(f"{op} on family {family!r} requires at least one input image", code=2)
 
-    try:
-        import diffusers  # noqa: WPS433
-        import torch  # noqa: WPS433
-        from PIL import Image  # noqa: WPS433
-    except ImportError as exc:  # pragma: no cover - exercised on un-provisioned hosts
-        _common.fail(
-            f"missing diffusers backend ({exc}); the Python venv is not provisioned. "
-            "Ensure `vrooli host install uv`, then restart image-tools to build/repair "
-            "the lock-pinned venv (versions come from internal/pydeps/requirements.lock; "
-            "GPU strongly recommended — see docs/reference/backends.md).",
-            code=3,
-        )
-        raise
-
-    if not image_paths:
-        _common.fail("edit_instruct requires at least one input image", code=2)
-    try:
-        images = [Image.open(p).convert("RGB") for p in image_paths]
-    except Exception as exc:  # noqa: BLE001
-        _common.fail(f"failed to open input image: {exc}", code=6)
+    diffusers, torch, _Image = _import_diffusers_backend()
 
     use_cuda = _common.use_cuda(torch)
+    cuda_device = _begin_cuda_peak_measurement(torch, use_cuda)
     dtype = _resolve_dtype(torch, adapter.dtype, use_cuda)
     load_kwargs = {"torch_dtype": dtype}
     if adapter.disable_safety:
         load_kwargs["safety_checker"] = None
 
+    kwargs = adapter.build(params)
+    if images:
+        kwargs["image"] = images if adapter.multi_image else images[0]
+    if params.seed:
+        kwargs["generator"] = torch.Generator(
+            device="cuda" if use_cuda else "cpu"
+        ).manual_seed(params.seed)
+
+    repo_index = os.path.isfile(os.path.join(model_dir, "model_index.json"))
+    if adapter.staged and use_cuda and repo_index:
+        on_gpu = _free_vram(torch) >= staged_min_free_bytes(model_dir)
+        pipe, placement = _load_staged(diffusers, torch, adapter, model_dir, load_kwargs, kwargs, on_gpu=on_gpu)
+    else:
+        pipe = _load_family_pipe(diffusers, adapter, family, model_dir, load_kwargs)
+        placement = _place_family_pipe(pipe, torch, use_cuda, adapter.offload)
+    loaded_s = time.perf_counter() - started
+
+    try:
+        result = pipe(**kwargs).images[0]
+    except Exception as exc:  # noqa: BLE001
+        _common.fail(f"{family!r} {op} failed: {exc}", code=8)
+        raise
+
+    if "prompt_embeds" in kwargs:
+        kwargs["prompt"] = params.prompt  # receipt records the prompt, not the tensors
+        kwargs.pop("prompt_embeds")
+        kwargs.pop("pooled_prompt_embeds", None)
+    receipt = {
+        "op": op,
+        "family": family,
+        "pipeline_class": adapter.pipeline_class,
+        "call": {k: v for k, v in kwargs.items() if k not in ("image", "generator")},
+        "seed": params.seed or None,
+        "reference_images": len(images),
+        "output_size": list(result.size),
+        "placement": placement,
+        "load_s": round(loaded_s, 3),
+        "elapsed_ms": round((time.perf_counter() - started) * 1000, 3),
+        "process_peak_rss_bytes": int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024),
+        "execution_device": "cuda" if use_cuda else "cpu",
+        **_cuda_peak_receipt(torch, cuda_device, scope=f"{family} {op}"),
+    }
+    return result, receipt
+
+
+# A staged stage runs GPU-resident when this much VRAM is free (one ~8GB
+# component plus activations); below it each stage streams its weights with
+# sequential CPU offload (a few GB of VRAM, slower). Host RAM peaks at one
+# component either way. A larger model raises the bar to its largest staged
+# component plus headroom (the 9B's 18GB transformer never fits a 16GB card
+# resident), so the floor below only applies to the ~8GB 4B components.
+_STAGED_MIN_FREE_BYTES = 10 * 1024**3
+_STAGED_HEADROOM_BYTES = 2 * 1024**3
+
+
+def staged_min_free_bytes(model_dir: str) -> int:
+    """Free VRAM needed to keep one staged stage GPU-resident for this install."""
+    largest = 0
+    for component in ("text_encoder", "text_encoder_2", "transformer"):
+        root = os.path.join(model_dir, component)
+        total = 0
+        if os.path.isdir(root):
+            for name in os.listdir(root):
+                path = os.path.join(root, name)
+                if name.endswith(".safetensors") and os.path.isfile(path):
+                    total += os.path.getsize(path)
+        largest = max(largest, total)
+    return max(_STAGED_MIN_FREE_BYTES, largest + _STAGED_HEADROOM_BYTES)
+
+
+def _free_vram(torch) -> int:
+    free_bytes, _ = torch.cuda.mem_get_info()
+    return int(free_bytes)
+
+
+def _load_family_pipe(diffusers, adapter: "Adapter", family: str, model_dir: str, load_kwargs: dict):
     try:
         single = _find_single_file(model_dir) if os.path.isdir(model_dir) else None
         repo_index = os.path.isfile(os.path.join(model_dir, "model_index.json"))
@@ -361,46 +535,107 @@ def run(*, family: str, model_dir: str, image_paths, out_path: str, params: "Par
     except Exception as exc:  # noqa: BLE001
         _common.fail(f"failed to load {family!r} model {model_dir!r}: {exc}", code=5)
         raise
+    _assert_pipeline_class(pipe, adapter, model_dir)
+    return pipe
 
+
+def _assert_pipeline_class(pipe, adapter: "Adapter", model_dir: str) -> None:
     got = type(pipe).__name__
     if got != adapter.pipeline_class:
         _common.fail(
             f"model at {model_dir!r} loaded as {got}, expected {adapter.pipeline_class} "
-            f"for family {family!r} (registry runtime descriptor mismatch)",
+            f"for family {adapter.family!r} (registry runtime descriptor mismatch)",
             code=5,
         )
 
-    if use_cuda and adapter.offload:
-        # Big models stream layers to fit consumer VRAM. Pick the offload mode from
-        # the ACTUAL free VRAM: model-level offload (one whole component resident,
-        # faster) when there is comfortable headroom, else sequential offload
-        # (per-submodule streaming, ~1-2GB peak, slower) so a contended 16GB GPU
-        # still completes instead of OOMing.
-        free_bytes, _ = torch.cuda.mem_get_info()
-        if free_bytes < 10 * 1024**3:
-            pipe.enable_sequential_cpu_offload()
+
+def _load_staged(diffusers, torch, adapter: "Adapter", model_dir: str, load_kwargs: dict, kwargs: dict, on_gpu: bool = True):
+    """Encode the prompt with only the text encoder loaded, free it, then load
+    the denoiser + VAE. Each stage is GPU-resident when on_gpu, else streamed
+    with sequential CPU offload. Mutates kwargs: `prompt` becomes
+    `prompt_embeds`. Returns (pipeline, placement)."""
+    import gc
+
+    def place(stage_pipe, modules):
+        if on_gpu:
+            for module in modules:
+                module.to("cuda")
         else:
-            pipe.enable_model_cpu_offload()
-    else:
-        pipe = pipe.to("cuda" if use_cuda else "cpu")
+            stage_pipe.enable_sequential_cpu_offload()
 
-    kwargs = adapter.build(params)
-    kwargs["image"] = images if adapter.multi_image else images[0]
-    if params.seed:
-        kwargs["generator"] = torch.Generator(
-            device="cuda" if use_cuda else "cpu"
-        ).manual_seed(params.seed)
-
+    cls = getattr(diffusers, adapter.pipeline_class, None)
+    if cls is None:
+        _common.fail(f"diffusers has no pipeline class {adapter.pipeline_class!r} (runtime too old?)", code=5)
     try:
-        result = pipe(**kwargs).images[0]
-    except Exception as exc:  # noqa: BLE001
-        _common.fail(f"{family!r} instruction edit failed: {exc}", code=8)
+        encoder = cls.from_pretrained(model_dir, transformer=None, vae=None, **load_kwargs)
+        place(encoder, [getattr(encoder, name) for name in adapter.text_components if name.startswith("text_encoder")])
+        with torch.no_grad():
+            encoded = encoder.encode_prompt(prompt=kwargs.pop("prompt"), device="cuda")
+        embeds = adapter.embed_kwargs(encoded)
+        del encoder, encoded
+        gc.collect()
+        torch.cuda.empty_cache()
+        pipe = cls.from_pretrained(model_dir, **{name: None for name in adapter.text_components}, **load_kwargs)
+        place(pipe, [pipe])
+    except SystemExit:
         raise
-
-    try:
-        result.save(out_path, format="PNG")
     except Exception as exc:  # noqa: BLE001
-        _common.fail(f"failed to write output {out_path!r}: {exc}", code=7)
+        _common.fail(f"failed to stage {adapter.family!r} model {model_dir!r}: {exc}", code=5)
+        raise
+    _assert_pipeline_class(pipe, adapter, model_dir)
+    kwargs.update(embeds)
+    stage = "gpu_resident" if on_gpu else "sequential_cpu_offload"
+    return pipe, f"staged_text_encoder_then_denoiser:{stage}"
+
+
+def run_family_op(args, *, op: str, image_paths) -> None:
+    """Shared CLI tail for the unified-family route of text_to_image /
+    image_to_image: a model whose registry row names a runtime.family is loaded
+    by that family adapter for every op it declares (never by the base-checkpoint
+    AutoPipeline path, which cannot resolve unified pipelines). The conditioning
+    adapter stack is not proven on family pipelines, so it is refused rather than
+    silently dropped."""
+    for flag in ("lora", "controlnet", "ip_adapter"):
+        if getattr(args, flag, None):
+            _common.fail(
+                f"{op} on family {args.family!r}: --{flag.replace('_', '-')} conditioning is not "
+                "supported on family adapters",
+                code=2,
+            )
+    params = Params(
+        prompt=args.prompt,
+        steps=args.steps,
+        guidance=args.guidance,
+        image_guidance=getattr(args, "strength", None),
+        negative_prompt=args.negative_prompt or None,
+        seed=args.seed,
+        width=getattr(args, "width", 0) or 0,
+        height=getattr(args, "height", 0) or 0,
+    )
+    run(family=args.family, model_dir=args.model, image_paths=image_paths, out_path=args.out, params=params, op=op)
+
+
+def _place_family_pipe(pipe, torch, use_cuda: bool, offload: bool) -> str:
+    """Place a family pipeline and return the placement mode used.
+
+    Big models stream layers to fit consumer VRAM. The mode follows the ACTUAL
+    free VRAM: model-level offload (one whole component resident, faster) when
+    there is comfortable headroom, else sequential offload (per-submodule
+    streaming, ~1-2GB peak, slower) so a contended 16GB GPU still completes
+    instead of OOMing.
+    """
+    if not use_cuda:
+        pipe.to("cpu")
+        return "cpu"
+    if not offload:
+        pipe.to("cuda")
+        return "cuda"
+    free_bytes, _ = torch.cuda.mem_get_info()
+    if free_bytes < 10 * 1024**3:
+        pipe.enable_sequential_cpu_offload()
+        return "sequential_cpu_offload"
+    pipe.enable_model_cpu_offload()
+    return "model_cpu_offload"
 
 
 # =============================================================================
@@ -695,7 +930,7 @@ def _begin_cuda_peak_measurement(torch, use_cuda: bool):
     return device
 
 
-def _cuda_peak_receipt(torch, device):
+def _cuda_peak_receipt(torch, device, scope: str = "inpaint"):
     if device is None:
         return {"gpu_uuid": None, "gpu_peak_allocated_bytes": None, "gpu_peak_reserved_bytes": None}
     return {
@@ -703,7 +938,7 @@ def _cuda_peak_receipt(torch, device):
         "gpu_logical_device": int(device),
         "gpu_peak_allocated_bytes": int(torch.cuda.max_memory_allocated(device)),
         "gpu_peak_reserved_bytes": int(torch.cuda.max_memory_reserved(device)),
-        "gpu_peak_scope": "torch CUDA allocator peak reset before inpaint model load",
+        "gpu_peak_scope": f"torch CUDA allocator peak reset before {scope} model load",
     }
 
 
@@ -869,7 +1104,7 @@ def _controlnet_class(architecture: str, class_map: dict, op: str) -> str:
     return cls  # type: ignore[return-value]
 
 
-def _load_controlnet_pipe(diffusers, torch, architecture, model_dir, repo_index, single, class_map, op, controlnets):
+def _load_controlnet_pipe(diffusers, torch, architecture, model_dir, repo_index, single, class_map, op, controlnets, variant=""):
     """Construct a ControlNet pipeline for the base checkpoint with the given
     ControlNetModel(s) attached. Mirrors _load_generate_pipe's repo/single-file
     branch but uses the concrete ControlNet class (the AutoPipeline does not take a
@@ -882,6 +1117,8 @@ def _load_controlnet_pipe(diffusers, torch, architecture, model_dir, repo_index,
     # the >1-vs-1 shape the call-site uses for image/controlnet_conditioning_scale.
     controlnet = controlnets[0] if len(controlnets) == 1 else controlnets
     load_kwargs = {"torch_dtype": dtype, "controlnet": controlnet}
+    if repo_index and variant:
+        load_kwargs["variant"] = variant
     if architecture == "sd15":
         load_kwargs["safety_checker"] = None
     cls = getattr(diffusers, _controlnet_class(architecture, class_map, op))
@@ -941,10 +1178,12 @@ def _generate_class(architecture: str, single_file_map: dict, op: str) -> str:
     return cls  # type: ignore[return-value]
 
 
-def _load_generate_pipe(diffusers, torch, architecture, model_dir, repo_index, single, auto_cls, single_file_map, op):
+def _load_generate_pipe(diffusers, torch, architecture, model_dir, repo_index, single, auto_cls, single_file_map, op, variant=""):
     use_cuda = _common.use_cuda(torch)
     dtype = _resolve_dtype(torch, "float16", use_cuda)
     load_kwargs = {"torch_dtype": dtype}
+    if repo_index and variant:
+        load_kwargs["variant"] = variant
     if architecture == "sd15":
         # The scenario owns its NSFW gate; disable the in-pipeline SD-1.5 checker.
         load_kwargs["safety_checker"] = None
@@ -969,6 +1208,7 @@ def run_txt2img(
     model_dir: str,
     out_path: str,
     params: "GenerateParams",
+    variant: str = "",
     lora_specs: Optional[Sequence[str]] = None,
     controlnet_specs: Optional[Sequence[str]] = None,
     ip_adapter_specs: Optional[Sequence[str]] = None,
@@ -993,12 +1233,12 @@ def run_txt2img(
     if cn_models:
         pipe = _load_controlnet_pipe(
             diffusers, torch, architecture, model_dir, repo_index, single,
-            _CONTROLNET_TXT2IMG, "text_to_image", cn_models,
+            _CONTROLNET_TXT2IMG, "text_to_image", cn_models, variant,
         )
     else:
         pipe = _load_generate_pipe(
             diffusers, torch, architecture, model_dir, repo_index, single,
-            "AutoPipelineForText2Image", _TXT2IMG_SINGLE_FILE, "text_to_image",
+            "AutoPipelineForText2Image", _TXT2IMG_SINGLE_FILE, "text_to_image", variant,
         )
     _adapters.apply_loras(pipe, lora_specs or [])
     ip_image = _adapters.apply_ip_adapter(pipe, ip_adapter_specs or [])
@@ -1030,6 +1270,7 @@ def run_img2img(
     image_path: str,
     out_path: str,
     params: "GenerateParams",
+    variant: str = "",
     lora_specs: Optional[Sequence[str]] = None,
     controlnet_specs: Optional[Sequence[str]] = None,
     ip_adapter_specs: Optional[Sequence[str]] = None,
@@ -1060,12 +1301,12 @@ def run_img2img(
     if cn_models:
         pipe = _load_controlnet_pipe(
             diffusers, torch, architecture, model_dir, repo_index, single,
-            _CONTROLNET_IMG2IMG, "image_to_image", cn_models,
+            _CONTROLNET_IMG2IMG, "image_to_image", cn_models, variant,
         )
     else:
         pipe = _load_generate_pipe(
             diffusers, torch, architecture, model_dir, repo_index, single,
-            "AutoPipelineForImage2Image", _IMG2IMG_SINGLE_FILE, "image_to_image",
+            "AutoPipelineForImage2Image", _IMG2IMG_SINGLE_FILE, "image_to_image", variant,
         )
     _adapters.apply_loras(pipe, lora_specs or [])
     ip_image = _adapters.apply_ip_adapter(pipe, ip_adapter_specs or [])

@@ -19,8 +19,8 @@ import {
   type BranchWarning as ProtoBranchWarning,
 } from "@vrooli/proto-types/git-control-tower/v1/branch/branch_pb";
 import { branchClient, humanControlClient, repoClient } from "./connect";
-import type { GetRepoDiffResponse } from "@vrooli/proto-types/git-control-tower/v1/repo/repo_pb";
-import { CreateCommitRequestSchema, DeletePathRequestSchema, DiscardFilesRequestSchema, GetApprovedChangesRequestSchema, GetDirectoryContentsRequestSchema, GetFilesRequestSchema, GetPrecommitConfigRequestSchema, GetProvenanceRequestSchema, GetRelatedFilesRequestSchema, GetRepoDiffRequestSchema, GetRepoHistoryRequestSchema, GetRepoStatusRequestSchema, GetSyncStatusRequestSchema, IgnorePathRequestSchema, PullFromRemoteRequestSchema, PushToRemoteRequestSchema, RunPrecommitRequestSchema, RunUpstreamActionRequestSchema, SaveFileContentRequestSchema, SavePrecommitConfigRequestSchema, SearchContentRequestSchema, StageFilesRequestSchema, UnstageFilesRequestSchema } from "@vrooli/proto-types/git-control-tower/v1/repo/repo_pb";
+import type { GetRepoDiffResponse, GetRepoStatusResponse } from "@vrooli/proto-types/git-control-tower/v1/repo/repo_pb";
+import { CreateCommitRequestSchema, DeletePathRequestSchema, DiscardFilesRequestSchema, GetApprovedChangesRequestSchema, GetBlameRequestSchema, GetDirectoryContentsRequestSchema, GetFilesRequestSchema, GetPrecommitConfigRequestSchema, GetProvenanceRequestSchema, GetRelatedFilesRequestSchema, GetRepoDiffRequestSchema, GetRepoHistoryRequestSchema, GetRepoStatusRequestSchema, GetRepoStatusResponseSchema, GetSyncStatusRequestSchema, IgnorePathRequestSchema, PullFromRemoteRequestSchema, PushToRemoteRequestSchema, RunPrecommitRequestSchema, RunUpstreamActionRequestSchema, SaveFileContentRequestSchema, SavePrecommitConfigRequestSchema, SearchContentRequestSchema, StageFilesRequestSchema, UnstageFilesRequestSchema } from "@vrooli/proto-types/git-control-tower/v1/repo/repo_pb";
 import type { HealthResponse, RepoStatus, RepoHistoryResponse, RepoBranchesResponse, BranchInfo, BranchWarning, BranchCreateResponse, BranchSwitchResponse, BranchPublishResponse, CreateBranchRequest, SwitchBranchRequest, PublishBranchRequest, CommitCheckKind, CommitCheckStatus } from "./api-types-repo";
 import {
   FileContentConflictError,
@@ -79,10 +79,36 @@ export async function fetchHealth(): Promise<HealthResponse> {
 }
 
 export async function fetchRepoStatus(repoId?: string, hotspots = false): Promise<RepoStatus> {
-  const response = await repoClient.getRepoStatus(create(GetRepoStatusRequestSchema, {
-    repositoryId: repoId ?? "",
-    includeHotspots: hotspots,
-  }));
+  let response: GetRepoStatusResponse = create(GetRepoStatusResponseSchema);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    response = await repoClient.getRepoStatus(create(GetRepoStatusRequestSchema, {
+      repositoryId: repoId ?? "", includeHotspots: hotspots, pageSize: 512,
+    }));
+    const initial = response;
+    let token = response.page?.nextPageToken ?? "";
+    let returnedEntries = response.page?.returnedEntries ?? 0;
+    try {
+      while (token) {
+        const next = await repoClient.getRepoStatus(create(GetRepoStatusRequestSchema, {
+          repositoryId: repoId ?? "", includeHotspots: hotspots, pageSize: 512, pageToken: token,
+        }));
+        if (!next.page || next.page.snapshotId !== initial.page?.snapshotId || next.page.totalEntries !== initial.page?.totalEntries) throw new Error("repository status changed between pages");
+        for (const key of ["staged", "unstaged", "untracked", "conflicts", "ignored"] as const) initial.files![key].push(...(next.files?.[key] ?? []));
+        initial.files!.binary = [...new Set([...initial.files!.binary, ...(next.files?.binary ?? [])])];
+        Object.assign(initial.files!.statuses, next.files?.statuses ?? {}); Object.assign(initial.files!.renames, next.files?.renames ?? {});
+        Object.assign(initial.fileStats!.staged, next.fileStats?.staged ?? {}); Object.assign(initial.fileStats!.unstaged, next.fileStats?.unstaged ?? {}); Object.assign(initial.fileStats!.untracked, next.fileStats?.untracked ?? {});
+        Object.assign(initial.fileHotspots, next.fileHotspots); Object.assign(initial.scopes, next.scopes);
+        returnedEntries += next.page.returnedEntries;
+        token = next.page.nextPageToken;
+      }
+      if (initial.page && returnedEntries !== initial.page.totalEntries) throw new Error("repository status page sequence was incomplete");
+      response = initial;
+      break;
+    } catch (error) {
+      if (!(error instanceof ConnectError && error.code === Code.FailedPrecondition) && !(error instanceof Error && error.message === "repository status changed between pages")) throw error;
+      if (attempt === 2) throw new Error("repository status kept changing while loading pages; retry status");
+    }
+  }
   const branch = response.branchStatus;
   const files = response.files;
   const summary = response.summary;
@@ -551,51 +577,42 @@ export async function fetchProvenance(repoId?: string): Promise<ProvenanceRespon
 }
 
 export async function fetchBlame(paths: string[], repoId?: string): Promise<BlameResponse> {
-  const params = new URLSearchParams();
-  paths.forEach((path) => params.append("path", path));
-  params.set("max_paths", "1");
-  params.set("max_lines", "300");
-  params.set("max_bytes", String(1 << 20));
-  params.set("enrich", "true");
-  const response = await handleResponse<{
-    revision: string;
-    truncated: boolean;
-    warnings?: string[];
-    files?: Array<Record<string, unknown>>;
-    change_bundles?: Array<Record<string, unknown>>;
-  }>(await fetch(buildApiUrl(`/repo/blame?${params.toString()}`, { baseUrl: API_BASE }), { headers: buildRepoHeaders(repoId), cache: "no-store" }));
+  const response = await repoClient.getBlame(create(GetBlameRequestSchema, {
+    repositoryId: repoId ?? "", paths, maxPaths: 1, maxLines: 300,
+    maxBytes: 1 << 20, enrich: true,
+  }));
   return {
     revision: response.revision,
     truncated: response.truncated,
-    warnings: response.warnings ?? [],
-    files: (response.files ?? []).map((rawFile) => {
-      const file = rawFile as { path?: string; status?: string; content_digest?: string; reason?: string; standing?: string; downgrade_reasons?: string[]; lines?: Array<{ line: number; content: string; commit?: string; author?: string; author_time?: string; subject?: string }>; evidence?: Array<Record<string, unknown>> };
+    warnings: [...response.warnings],
+    files: response.files.map((file) => {
       return {
-        path: file.path ?? "",
-        status: file.status ?? "unavailable",
-        contentDigest: file.content_digest || undefined,
+        path: file.path,
+        status: file.status || "unavailable",
+        contentDigest: file.contentDigest || undefined,
         reason: file.reason || undefined,
         standing: file.standing || "unknown",
-        downgradeReasons: file.downgrade_reasons ?? [],
-        lines: (file.lines ?? []).map((line) => ({
-          line: line.line, content: line.content, commit: line.commit || undefined, author: line.author || undefined, authorTime: line.author_time || undefined, subject: line.subject || undefined,
+        downgradeReasons: [...file.downgradeReasons],
+        lines: file.lines.map((line) => ({
+          line: line.line, content: line.content, commit: line.commit || undefined, author: line.author || undefined, authorTime: line.authorTime || undefined, subject: line.subject || undefined,
         })),
-        evidence: (file.evidence ?? []).map((rawEvidence) => {
-          const evidence = rawEvidence as { run_id?: string; runId?: string; sandbox_id?: string; sandboxId?: string; content_digest?: string; contentDigest?: string; commit_id?: string; commitId?: string; visibility?: string; commit_state?: string; commitState?: string; run_outcome?: string; runOutcome?: string; conversation_id?: string; conversationId?: string; cost_usd?: number; costUsd?: number; committed_at?: string; committedAt?: string; unavailable?: string[]; work_references?: Array<Record<string, unknown>>; workReferences?: Array<Record<string, unknown>> };
-          return {
-            runId: evidence.run_id || evidence.runId || undefined, sandboxId: evidence.sandbox_id || evidence.sandboxId || undefined, contentDigest: evidence.content_digest || evidence.contentDigest || undefined, commitId: evidence.commit_id || evidence.commitId || undefined, visibility: evidence.visibility || undefined, commitState: evidence.commit_state || evidence.commitState || undefined, runOutcome: evidence.run_outcome || evidence.runOutcome || undefined, conversationId: evidence.conversation_id || evidence.conversationId || undefined, costUsd: evidence.cost_usd ?? evidence.costUsd, committedAt: evidence.committed_at || evidence.committedAt || undefined, unavailable: evidence.unavailable,
-            workReferences: (evidence.work_references ?? evidence.workReferences ?? []).map((rawRef) => { const ref = rawRef as { kind?: string; id?: string; revision?: string; relationship?: string; verified?: boolean; visibility?: string; state?: string; unavailable_reason?: string; unavailableReason?: string }; return { kind: ref.kind ?? "unknown", id: ref.id ?? "", revision: ref.revision || undefined, relationship: ref.relationship || undefined, verified: ref.verified, visibility: ref.visibility || undefined, state: ref.state || undefined, unavailableReason: ref.unavailable_reason || ref.unavailableReason || undefined }; }),
-          };
-        }),
+        evidence: file.evidence.map((evidence) => ({
+          runId: evidence.runId || undefined, sandboxId: evidence.sandboxId || undefined, applicationReceipt: evidence.applicationReceipt || undefined, contentDigest: evidence.contentDigest || undefined, commitId: evidence.commitId || undefined, visibility: evidence.visibility || undefined, commitState: evidence.commitState || undefined, runOutcome: evidence.runOutcome || undefined, conversationId: evidence.conversationId || undefined, costUsd: evidence.costUsd, committedAt: evidence.committedAt || undefined, unavailable: [...evidence.unavailable],
+          workReferences: evidence.workReferences.map((ref) => ({ kind: ref.kind, id: ref.id, revision: ref.revision || undefined, relationship: ref.relationship || undefined, verified: ref.verified, visibility: ref.visibility || undefined, state: ref.state || undefined, unavailableReason: ref.unavailableReason || undefined })),
+        })),
       };
     }),
-    changeBundles: (response.change_bundles ?? []).map((rawBundle) => {
-      const bundle = rawBundle as { run_id?: string; runId?: string; sandbox_id?: string; sandboxId?: string; files?: string[]; run_outcome?: string; runOutcome?: string; conversation_id?: string; conversationId?: string; cost_usd?: number; costUsd?: number; gaps?: string[]; work_references?: Array<Record<string, unknown>>; workReferences?: Array<Record<string, unknown>> };
-      return {
-        runId: bundle.run_id || bundle.runId || undefined, sandboxId: bundle.sandbox_id || bundle.sandboxId || undefined, files: bundle.files ?? [], runOutcome: bundle.run_outcome || bundle.runOutcome || undefined, conversationId: bundle.conversation_id || bundle.conversationId || undefined, costUsd: bundle.cost_usd ?? bundle.costUsd, gaps: bundle.gaps ?? [],
-        workReferences: (bundle.work_references ?? bundle.workReferences ?? []).map((rawRef) => { const ref = rawRef as { kind?: string; id?: string; revision?: string; relationship?: string; verified?: boolean; visibility?: string; state?: string; unavailable_reason?: string; unavailableReason?: string }; return { kind: ref.kind ?? "unknown", id: ref.id ?? "", revision: ref.revision || undefined, relationship: ref.relationship || undefined, verified: ref.verified, visibility: ref.visibility || undefined, state: ref.state || undefined, unavailableReason: ref.unavailable_reason || ref.unavailableReason || undefined }; }),
-      };
-    }),
+    changeBundles: response.changeBundles.map((bundle) => ({
+      runId: bundle.runId || undefined, sandboxId: bundle.sandboxId || undefined,
+      files: [...bundle.files], runOutcome: bundle.runOutcome || undefined,
+      conversationId: bundle.conversationId || undefined, costUsd: bundle.costUsd,
+      gaps: [...bundle.gaps], workReferences: bundle.workReferences.map((ref) => ({
+        kind: ref.kind, id: ref.id, revision: ref.revision || undefined,
+        relationship: ref.relationship || undefined, verified: ref.verified,
+        visibility: ref.visibility || undefined, state: ref.state || undefined,
+        unavailableReason: ref.unavailableReason || undefined,
+      })),
+    })),
   };
 }
 

@@ -54,29 +54,27 @@ func (h *Deps) preflightAdmission(ctx context.Context, op string, params *aiv1.A
 	if !h.Gate.AllowRate() {
 		return safety.Decision{}, rejectAdmission(http.StatusTooManyRequests, httpx.CodeRateLimited, "rate limit exceeded for this deployment tier; retry shortly")
 	}
+	// The consent rules that depend on where the work runs are applied after the
+	// route is planned (admitStored); this first pass carries the tier-wide
+	// refusals (minor-safety, a public deployment's tier rule) that need no plan.
 	decision := h.Gate.Evaluate(op, params.GetConsentAffirmed())
 	if !decision.Allowed {
 		return safety.Decision{}, rejectAdmission(http.StatusForbidden, httpx.CodeForbidden, decision.Reason+" — "+decision.RecoveryHint)
-	}
-	if decision.RecordConsent {
-		if err := h.Gate.RecordConsent(ctx, op, decision.Weight); err != nil {
-			h.logf("ai.submit consent log: %v", err)
-		}
 	}
 	return decision, nil
 }
 
 // admitStored receives only owned blob references, never filesystem paths or
 // remote URLs. A retained admission is reconciled before current model selection.
-func (h *Deps) admitStored(ctx context.Context, op string, params *aiv1.AIParams, inputKey, maskKey, operationID string, gate safety.Decision) (*aiv1.SubmitAIResponse, error) {
+func (h *Deps) admitStored(ctx context.Context, op string, params *aiv1.AIParams, inputKey, maskKey, referenceKey, operationID string, gate safety.Decision) (*aiv1.SubmitAIResponse, error) {
 	meta, ok := internalai.Get(op)
 	if !ok {
 		return nil, rejectAdmission(http.StatusNotFound, httpx.CodeNotFound, "unknown AI operation")
 	}
-	if (meta.RequiresImage && inputKey == "") || (meta.RequiresMask && maskKey == "") {
-		return nil, rejectAdmission(http.StatusBadRequest, httpx.CodeInvalidRequest, "operation requires its input image and removal mask references")
+	if (meta.RequiresImage && inputKey == "") || (meta.RequiresMask && maskKey == "") || (meta.RequiresReference && referenceKey == "") {
+		return nil, rejectAdmission(http.StatusBadRequest, httpx.CodeInvalidRequest, "operation requires its input image, mask and reference image references")
 	}
-	for _, ref := range []string{inputKey, maskKey} {
+	for _, ref := range []string{inputKey, maskKey, referenceKey} {
 		if ref == "" {
 			continue
 		}
@@ -86,13 +84,13 @@ func (h *Deps) admitStored(ctx context.Context, op string, params *aiv1.AIParams
 		}
 		_ = reader.Close()
 	}
-	if err := h.reviewMinorInput(ctx, op, gate, inputKey); err != nil {
+	if err := h.reviewMinorInput(ctx, op, gate, inputKey, referenceKey); err != nil {
 		return nil, err
 	}
 	fingerprint := ""
 	if operationID != "" {
 		var err error
-		fingerprint, err = h.requestFingerprint(ctx, op, params, inputKey, maskKey)
+		fingerprint, err = h.requestFingerprint(ctx, op, params, inputKey, maskKey, referenceKey)
 		if err != nil {
 			h.logf("ai.submit fingerprint: %v", err)
 			return nil, rejectAdmission(http.StatusInternalServerError, httpx.CodeInternal, "failed to inspect retained input identity")
@@ -108,7 +106,7 @@ func (h *Deps) admitStored(ctx context.Context, op string, params *aiv1.AIParams
 			return nil, rejectAdmission(http.StatusServiceUnavailable, httpx.CodeInternal, "failed to inspect retained operation")
 		}
 	}
-	plan, err := h.Engine.Plan(ctx, internalai.PlanRequest{Operation: op, ModelOverride: params.GetModelOverride(), AllowBYOK: allowBYOKForParams(params), QualityPolicy: qualityPolicyForParams(params), FallbackPolicy: fallbackPolicyForParams(params), Priority: priorityForParams(params), AllowReclaim: allowReclaimForParams(params), RequireGPU: params.GetRequireGpu(), ForceCPU: params.GetForceCpu(), Role: params.GetOpenrouterRole(), Adapters: adapterRequests(params)})
+	plan, err := h.Engine.Plan(ctx, internalai.PlanRequest{Operation: op, ModelOverride: params.GetModelOverride(), AllowBYOK: allowBYOKForParams(params), QualityPolicy: qualityPolicyForParams(params), FallbackPolicy: fallbackPolicyForParams(params), Priority: priorityForParams(params), AllowReclaim: allowReclaimForParams(params), RequireGPU: params.GetRequireGpu(), ForceCPU: params.GetForceCpu(), Role: params.GetOpenrouterRole(), Adapters: adapterRequests(params), AutoAcquire: autoAcquireForParams(params), Prompt: params.GetPrompt(), Variations: int(params.GetVariations()), EditStyle: params.GetEditStyle(), MaxWaitSeconds: maxWaitForParams(params), MaxCostUSD: maxCostForParams(params), ConsentAffirmed: params.GetConsentAffirmed()})
 	if err != nil {
 		return nil, planAdmissionError(err)
 	}
@@ -121,18 +119,22 @@ func (h *Deps) admitStored(ctx context.Context, op string, params *aiv1.AIParams
 	if hasBackgroundRepair(params) && plan.ModelID != "big-lama" {
 		return nil, rejectAdmission(http.StatusUnprocessableEntity, httpx.CodeInvalidRequest, "background repair controls require the qualified big-lama model; select it explicitly")
 	}
-	if h.Gate != nil && len(plan.Adapters) > 0 && plan.Weight != "" {
-		decision := h.Gate.EvaluateWeight(safety.Weight(plan.Weight), op, params.GetConsentAffirmed())
+	if h.Gate != nil {
+		// The route is known now: the consent rules apply to what will actually
+		// run. The weight is the plan's (raised by any adapter stack, decision C4)
+		// and never below the operation's own.
+		weight := safety.MaxWeight(safety.OpWeight(op), safety.Weight(plan.Weight))
+		decision := h.Gate.EvaluateRoute(weight, op, plan.Tier, params.GetConsentAffirmed())
 		if !decision.Allowed {
 			return nil, rejectAdmission(http.StatusForbidden, httpx.CodeForbidden, decision.Reason+" — "+decision.RecoveryHint)
 		}
 		if decision.RecordConsent {
-			if err := h.Gate.RecordConsent(ctx, op, decision.Weight); err != nil {
-				h.logf("ai.submit consent log (adapter-elevated): %v", err)
+			if err := h.Gate.RecordConsent(ctx, op, decision.Weight, plan.Tier+":"+plan.ModelID); err != nil {
+				h.logf("ai.submit consent log: %v", err)
 			}
 		}
 	}
-	payload := internalai.Payload{Operation: op, InputKey: inputKey, MaskKey: maskKey, ModelID: plan.ModelID, Backend: plan.Provider, Tier: plan.Tier, GPU: plan.GPUViable, RequireGPU: params.GetRequireGpu(), AllowBYOK: allowBYOKForParams(params), CapacityPriority: priorityForParams(params), AllowReclaim: allowReclaimForParams(params), AutoScanNSFW: params.GetAutoScanNsfw() || gate.ForceNSFWScan, Variations: int(params.GetVariations()), Params: paramsMap(params), Adapters: plan.Adapters}
+	payload := internalai.Payload{Operation: op, InputKey: inputKey, MaskKey: maskKey, ReferenceKey: referenceKey, ConsentAffirmed: params.GetConsentAffirmed(), ModelID: plan.ModelID, Backend: plan.Provider, Tier: plan.Tier, GPU: plan.GPUViable, RequireGPU: params.GetRequireGpu(), AllowBYOK: plan.AllowBYOK, CapacityPriority: priorityForParams(params), AllowReclaim: allowReclaimForParams(params), AutoScanNSFW: params.GetAutoScanNsfw() || gate.ForceNSFWScan, Variations: int(params.GetVariations()), Params: paramsWithPlan(paramsMap(params), plan.Params), Adapters: plan.Adapters, AutoAcquire: plan.AutoAcquire, Route: plan.Route, PreserveIdentity: params.PreserveIdentity}
 	raw, err := json.Marshal(payload)
 	if err != nil {
 		return nil, rejectAdmission(http.StatusInternalServerError, httpx.CodeInternal, "failed to prepare job")
@@ -215,11 +217,23 @@ func savedAdmission(job internaljobs.Job, warnings []string) (*aiv1.SubmitAIResp
 	return &aiv1.SubmitAIResponse{JobId: job.ID, EstimatedSeconds: int32(job.EstimatedSeconds), ModelId: payload.ModelID, Tier: payload.Tier, Warnings: warnings}, nil
 }
 
+// autoAcquireForParams returns the caller's explicit auto-acquire choice, or
+// nil to use the service default.
+func autoAcquireForParams(params *aiv1.AIParams) *bool {
+	if params == nil || params.AutoAcquire == nil {
+		return nil
+	}
+	v := params.GetAutoAcquire()
+	return &v
+}
+
 func planAdmissionError(err error) error {
 	status, code := http.StatusUnprocessableEntity, httpx.CodeInvalidRequest
 	switch {
 	case errors.Is(err, internalai.ErrModelNotInstalled):
 		status = http.StatusConflict
+	case errors.Is(err, internalai.ErrSpendCap):
+		status = http.StatusPaymentRequired
 	case errors.Is(err, backends.ErrNoneAvailable), errors.Is(err, backends.ErrNoProvider):
 		status, code = http.StatusServiceUnavailable, httpx.CodeInternal
 	case errors.Is(err, models.ErrUnknownOperation):
@@ -243,5 +257,5 @@ func (h *Deps) submitStored(ctx context.Context, request *aiv1.SubmitStoredAIReq
 	if err != nil {
 		return nil, err
 	}
-	return h.admitStored(ctx, request.GetOperation(), params, strings.TrimSpace(request.GetInputRef()), strings.TrimSpace(request.GetMaskRef()), operationID, gate)
+	return h.admitStored(ctx, request.GetOperation(), params, strings.TrimSpace(request.GetInputRef()), strings.TrimSpace(request.GetMaskRef()), strings.TrimSpace(request.GetReferenceRef()), operationID, gate)
 }

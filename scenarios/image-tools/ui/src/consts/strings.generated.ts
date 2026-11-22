@@ -94,6 +94,12 @@ export const strings = {
       },
       empty: "settings.responsibleUse.empty",
     },
+    sensitiveImages: {
+      label: "settings.sensitiveImages.label",
+      description: "settings.sensitiveImages.description",
+      blur: "settings.sensitiveImages.blur",
+      show: "settings.sensitiveImages.show",
+    },
   },
   pages: {
     home: {
@@ -187,6 +193,7 @@ export const strings = {
       linkPlaceholder: "home.entry.linkPlaceholder",
       importLink: "home.entry.importLink",
       importingLink: "home.entry.importingLink",
+      sampleLoadError: "home.entry.sampleLoadError",
     },
     group: {
       quickEdits: "home.group.quickEdits",
@@ -210,6 +217,10 @@ export const strings = {
       blurry: "home.samples.blurry",
       receipt: "home.samples.receipt",
     },
+  },
+  sensitive: {
+    reveal: "sensitive.reveal",
+    hide: "sensitive.hide",
   },
   library: {
     description: "library.description",
@@ -325,6 +336,8 @@ export const strings = {
       licenseLabel: "models.blocklist.licenseLabel",
       reasonLabel: "models.blocklist.reasonLabel",
       operationsLabel: "models.blocklist.operationsLabel",
+      licenseGate: "models.blocklist.licenseGate",
+      exclusion: "models.blocklist.exclusion",
       onnxWarning: "models.blocklist.onnxWarning",
     },
     addCustom: {
@@ -428,11 +441,30 @@ export const strings = {
       architectureLabel: "models.import.architectureLabel",
       selectArchitecture: "models.import.selectArchitecture",
       attestLabel: "models.import.attestLabel",
-      attestRequired: "models.import.attestRequired",
       import: "models.import.import",
       importing: "models.import.importing",
       success: "models.import.success",
       needsArchitecture: "models.import.needsArchitecture",
+      attestOptional: "models.import.attestOptional",
+      adapterLabel: "models.import.adapterLabel",
+      needsLabel: "models.import.needsLabel",
+    },
+    verdict: {
+      label: "models.verdict.label",
+      recommended: "models.verdict.recommended",
+      works: "models.verdict.works",
+      experimental: "models.verdict.experimental",
+      untested: "models.verdict.untested",
+      notRecommended: "models.verdict.notRecommended",
+      broken: "models.verdict.broken",
+      forOperation: "models.verdict.forOperation",
+      evidenceLabel: "models.verdict.evidenceLabel",
+      overrideLine: "models.verdict.overrideLine",
+      overrideEnabled: "models.verdict.overrideEnabled",
+      overrideDisabled: "models.verdict.overrideDisabled",
+      overridePinned: "models.verdict.overridePinned",
+      overrideContradicts: "models.verdict.overrideContradicts",
+      overrideSuperseded: "models.verdict.overrideSuperseded",
     },
   },
   workspace: {
@@ -703,7 +735,13 @@ export const strings = {
       warningsLabel: "workspace.create.warningsLabel",
       consent: {
         label: "workspace.create.consent.label",
+        labelOffMachine: "workspace.create.consent.labelOffMachine",
         required: "workspace.create.consent.required",
+      },
+      reference: {
+        label: "workspace.create.reference.label",
+        needed: "workspace.create.reference.needed",
+        staged: "workspace.create.reference.staged",
       },
       result: {
         heading: "workspace.create.result.heading",
@@ -883,6 +921,19 @@ export const strings = {
       tolerance: "workspace.field.tolerance",
       maxTrimPercent: "workspace.field.maxTrimPercent",
       padding: "workspace.field.padding",
+    },
+    rating: {
+      title: "workspace.rating.title",
+      scoreLabel: "workspace.rating.scoreLabel",
+      groupLabel: "workspace.rating.groupLabel",
+      noteLabel: "workspace.rating.noteLabel",
+      notePlaceholder: "workspace.rating.notePlaceholder",
+      save: "workspace.rating.save",
+      saving: "workspace.rating.saving",
+      saved: "workspace.rating.saved",
+      clear: "workspace.rating.clear",
+      error: "workspace.rating.error",
+      hint: "workspace.rating.hint",
     },
   },
   errors: {

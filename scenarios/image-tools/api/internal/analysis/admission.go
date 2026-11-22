@@ -20,7 +20,9 @@ func (s *Service) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, erro
 	var scope *sharedcapacity.Scope
 	var releaseUse func()
 	var once sync.Once
-	admission := jobs.Admission{Context: ctx}
+	// The use gate releases once and Scope.Release is retry-safe, so a contended
+	// ledger call is retried by the scheduler rather than failing finished work.
+	admission := jobs.Admission{Context: ctx, ReleaseRetryable: true}
 	admission.Release = func(cleanup context.Context) error {
 		once.Do(func() {
 			if releaseUse != nil {
@@ -40,6 +42,35 @@ func (s *Service) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, erro
 		modelID := "adamcodd-vit-nsfw"
 		if job.Operation == OpOCR {
 			modelID = "tesseract"
+		}
+		if s.acquireModel != nil {
+			// Acquire (or revalidate weights already on disk) before the shared
+			// use lease: the installer needs the model's exclusive lease and a
+			// download or smoke must not hold capacity. An installed model that is
+			// not runtime-ready takes the same path the AI engine uses: the
+			// installer revalidates the reasons it can resolve (a pending or stale
+			// smoke, a missing build, a backend provisioned since) and leaves the
+			// rest to the readiness refusal below.
+			installed := s.modelInstalled(modelID)
+			needsAcquire := !installed
+			if installed && s.modelReady != nil {
+				ready, _ := s.modelReady(ctx, modelID)
+				needsAcquire = !ready
+			}
+			if needsAcquire {
+				if err := s.acquireModel(ctx, modelID, job.ID, jobs.AdmissionProgress(ctx)); err != nil {
+					if errors.Is(err, jobs.ErrCapacityBusy) {
+						return admission, err
+					}
+					if errors.Is(err, sharedcapacity.ErrAssetInUse) {
+						return admission, fmt.Errorf("%w: %v", jobs.ErrCapacityBusy, err)
+					}
+					if installed {
+						return admission, fmt.Errorf("%w: model %q is not runtime-ready and could not be revalidated: %v", ErrBackendUnavailable, modelID, err)
+					}
+					return admission, fmt.Errorf("%w: model %q is not installed and could not be acquired: %v", ErrBackendUnavailable, modelID, err)
+				}
+			}
 		}
 		if s.acquireModelUse != nil {
 			var err error

@@ -19,8 +19,10 @@ import (
 type reviewStartServer struct {
 	reviewconnect.UnimplementedReviewServiceHandler
 	repoconnect.UnimplementedRepoServiceHandler
-	repoID       int64
-	startRequest *reviewv1.StartReviewRequest
+	repoID         int64
+	startRequest   *reviewv1.StartReviewRequest
+	summaryRequest *reviewv1.GetReviewSummaryRequest
+	statusRequest  *reviewv1.GetReviewJobStatusRequest
 }
 
 func (s *reviewStartServer) GetActiveRepository(context.Context, *connect.Request[repov1.GetActiveRepositoryRequest]) (*connect.Response[repov1.GetActiveRepositoryResponse], error) {
@@ -30,6 +32,16 @@ func (s *reviewStartServer) GetActiveRepository(context.Context, *connect.Reques
 func (s *reviewStartServer) Start(_ context.Context, request *connect.Request[reviewv1.StartReviewRequest]) (*connect.Response[reviewv1.StartReviewResponse], error) {
 	s.startRequest = request.Msg
 	return connect.NewResponse(&reviewv1.StartReviewResponse{JobId: "review-job-1"}), nil
+}
+
+func (s *reviewStartServer) GetSummary(_ context.Context, request *connect.Request[reviewv1.GetReviewSummaryRequest]) (*connect.Response[reviewv1.ReviewSummary], error) {
+	s.summaryRequest = request.Msg
+	return connect.NewResponse(&reviewv1.ReviewSummary{ScenarioName: request.Msg.GetScenarioName(), Readiness: "green", Capabilities: map[string]bool{"tests": true}}), nil
+}
+
+func (s *reviewStartServer) GetJobStatus(_ context.Context, request *connect.Request[reviewv1.GetReviewJobStatusRequest]) (*connect.Response[reviewv1.ReviewJobStatus], error) {
+	s.statusRequest = request.Msg
+	return connect.NewResponse(&reviewv1.ReviewJobStatus{JobId: request.Msg.GetJobId(), Status: "completed", Checks: map[string]string{"tests": "passed"}}), nil
 }
 
 func TestRunUsesTypedReviewAdmissionAndActiveRepository(t *testing.T) {
@@ -72,6 +84,34 @@ func TestRunUsesTypedReviewAdmissionAndActiveRepository(t *testing.T) {
 	}
 	if got := serverImpl.startRequest.GetChecks(); len(got) != 2 || got[0] != "tidiness" || got[1] != "tests" {
 		t.Fatalf("checks = %v", got)
+	}
+}
+
+func TestReviewSummaryAndStatusUseTypedReviewReads(t *testing.T) {
+	serverImpl := &reviewStartServer{}
+	reviewPath, reviewHandler := reviewconnect.NewReviewServiceHandler(serverImpl)
+	mux := http.NewServeMux()
+	mux.Handle(reviewPath, reviewHandler)
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	previousReview := reviewClientFactory
+	reviewClientFactory = func(*cliapp.ScenarioApp) reviewconnect.ReviewServiceClient {
+		return reviewconnect.NewReviewServiceClient(server.Client(), server.URL)
+	}
+	t.Cleanup(func() { reviewClientFactory = previousReview })
+
+	if err := runSummary(nil, []string{"example", "--details=0", "--json"}); err != nil {
+		t.Fatalf("runSummary() error = %v", err)
+	}
+	if serverImpl.summaryRequest == nil || serverImpl.summaryRequest.GetScenarioName() != "example" || serverImpl.summaryRequest.GetDetails() != 0 {
+		t.Fatalf("typed summary request = %#v", serverImpl.summaryRequest)
+	}
+	if err := runStatus(nil, []string{"job-7", "--json"}); err != nil {
+		t.Fatalf("runStatus() error = %v", err)
+	}
+	if serverImpl.statusRequest == nil || serverImpl.statusRequest.GetJobId() != "job-7" {
+		t.Fatalf("typed status request = %#v", serverImpl.statusRequest)
 	}
 }
 

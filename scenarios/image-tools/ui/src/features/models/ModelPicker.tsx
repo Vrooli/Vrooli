@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Check, Loader2 } from "lucide-react";
 
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { Sheet } from "../../components/ui/sheet";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
@@ -15,6 +15,8 @@ import {
   type PickerStringKey,
 } from "./modelPickerPresentation";
 import type { UseModelPicker } from "./useModelPicker";
+import { cn } from "../../lib/utils";
+import { VerdictBadge } from "./VerdictBadge";
 
 export interface ModelPickerProps {
   open: boolean;
@@ -170,6 +172,7 @@ function ModelRow({
             </span>
           </div>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            <VerdictBadge verdict={candidate.verdict} testId={selectors.models.pickerVerdict({ id })} />
             <Chip
               keyText={view.fit.key}
               values={view.fit.values}
@@ -193,6 +196,9 @@ function ModelRow({
               </span>
             ) : null}
           </div>
+          {candidate.verdict?.reason ? (
+            <p className="mt-1 text-[11px] text-app-muted-foreground">{candidate.verdict.reason}</p>
+          ) : null}
           {view.caveat ? (
             <p
               data-testid={selectors.models.pickerCaveat({ id })}
@@ -309,6 +315,7 @@ function RowAction({
           data-testid={selectors.models.pickerSelect({ id })}
           onClick={onSelect}
           className="px-2 py-1 text-xs"
+          shape="square"
         >
           {/* A derived (via-workflow) candidate reads "Use anyway" — same action,
               but an explicit opt-in past the default native model. */}
@@ -319,10 +326,11 @@ function RowAction({
       return (
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           data-testid={selectors.models.pickerInstallModel({ id })}
           onClick={installModel}
-          className="px-2 py-1 text-xs"
+          className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted", "px-2 py-1 text-xs")}
+          shape="square"
         >
           {t(strings.models.picker.action.installModel)}
         </Button>
@@ -331,10 +339,11 @@ function RowAction({
       return (
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           data-testid={selectors.models.pickerInstallBackend({ id })}
           onClick={installBackend}
-          className="px-2 py-1 text-xs"
+          className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted", "px-2 py-1 text-xs")}
+          shape="square"
         >
           {t(strings.models.picker.action.installBackend)}
         </Button>
@@ -343,10 +352,11 @@ function RowAction({
       return (
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           data-testid={selectors.models.pickerEnable({ id })}
           onClick={enable}
-          className="px-2 py-1 text-xs"
+          className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted", "px-2 py-1 text-xs")}
+          shape="square"
         >
           {t(strings.models.picker.action.enable)}
         </Button>
@@ -355,10 +365,11 @@ function RowAction({
       return (
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           data-testid={selectors.models.pickerManualToggle({ id })}
           onClick={onToggleManual}
-          className="px-2 py-1 text-xs"
+          className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted", "px-2 py-1 text-xs")}
+          shape="square"
         >
           {t(strings.models.picker.action.manualSteps)}
         </Button>

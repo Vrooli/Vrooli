@@ -216,10 +216,11 @@
       "OLLAMA_MODELS": "${RESOURCE_DATA_DIR}/models",
       "OLLAMA_LIBRARY_PATH": "${RESOURCE_ARTIFACT_DIR}/lib/ollama",
       "OLLAMA_NUM_PARALLEL": "1",
-      "OLLAMA_MAX_LOADED_MODELS": "2",
+      "OLLAMA_MAX_LOADED_MODELS": "3",
       "OLLAMA_FLASH_ATTENTION": "1",
       "OLLAMA_KEEP_ALIVE": "-1",
       "OLLAMA_CONTEXT_LENGTH": "8192",
+      "LLAMA_ARG_THREADS": "4",
       "OLLAMA_ORIGINS": "*"
     }
   },

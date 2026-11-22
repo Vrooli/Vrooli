@@ -22,6 +22,7 @@ import (
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/optimize"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/policy"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/policycmd"
+	"github.com/vrooli/vrooli/resources/ollama/cli/internal/runtimeprofile"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/vrooli/packages/capacity/activityedge"
@@ -140,6 +141,9 @@ func activityNetworkRequiredForOllamaCommand(args []string) bool {
 	switch args[0] {
 	case "ensure", "capacity":
 		return true
+	case "models":
+		// evict reaches the private daemon; reacquire runs ensure.
+		return len(args) > 1 && (args[1] == "evict" || args[1] == "reacquire")
 	default:
 		return false
 	}
@@ -184,21 +188,22 @@ func newApp() (*cliapp.ResourceApp, error) {
 		return nil, err
 	}
 	edge.Wake = runOllamaWake
+	edgeLog := func(format string, args ...any) { fmt.Fprintf(os.Stderr, format, args...) }
+	normalizer := runtimeprofile.NewEdgeNormalizer(edgeLog)
+	if path, err := policy.DefaultPolicyPath(os.Getenv); err == nil {
+		normalizer.KeepAlive = policy.NewLive(path, edgeLog).KeepAliveSeconds
+	} else {
+		edgeLog("ollama model policy unavailable to the activity edge; keep_alive stays at the daemon default: %v\n", err)
+	}
+	edge.Rewrite = normalizer.Rewrite
 	app.SetCommandsWithSubgroups(
 		append(app.StandardLifecycleCommands(), cliapp.CommandGroup{Title: "Health", Commands: []cliapp.Command{{Name: "health-ready", Description: "Succeed only when at least one model is installed", Run: healthReady}}}, ensure.CommandGroup(newAdmissionValidator()),
 			cliapp.CommandGroup{Title: "Capacity", Commands: []cliapp.Command{capacitysync.Command(nil), activityedge.Command(edge), activityedge.BridgeCommand()}}),
 		[]cliapp.SubcommandGroup{gateway.Commands(nil), companion.LifecycleCapacityCommands(companion.LifecycleVerbsConfig{
-			Resource: appName,
-			Steps: []companion.LifecycleStep{
-				{Label: "gemma4:12b", Action: "restart", Env: []string{"VROOLI_GPU=on"}},
-				{Label: "qwen3.5:9b", Action: "restart", Env: []string{"VROOLI_GPU=on"}},
-				{Label: "qwen3.5:4b", Action: "restart", Env: []string{"VROOLI_GPU=on"}},
-				{Label: "qwen3-vl:4b", Action: "restart", Env: []string{"VROOLI_GPU=on"}},
-				{Label: "nomic-embed-text:latest", Action: "restart", Env: []string{"VROOLI_GPU=on"}},
-				{Label: "cpu", Action: "restart", Env: []string{"VROOLI_GPU=off"}},
-			},
-			Apply: applyOllamaCapacityRungManaged,
-		}), policycmd.Commands(nil), models.Commands(nil), optimize.Commands(nil)},
+			Resource:      appName,
+			DeclaredSteps: companion.ProfileSteps(os.Getenv, appName, ollamaCapacityStep),
+			Apply:         applyOllamaCapacityRungManaged,
+		}), policycmd.Commands(nil), models.Commands(nil), optimize.Commands(nil), runtimeprofile.Commands(nil)},
 	)
 	return app, nil
 }
@@ -288,19 +293,33 @@ func newOllamaCapacityClient() (ollamaCapacityClient, error) {
 	return client, nil
 }
 
-func ollamaCapacityTarget(label string) (int64, error) {
-	if label == "cpu" {
-		return 0, nil
+// ollamaCapacityStep maps a rung of resource.json's claim profile (the
+// footprint-ordered materialization of model-policy.json) to its lifecycle
+// action: a model rung keeps the GPU, the zero-byte cpu rung leaves it.
+func ollamaCapacityStep(step companion.DeclaredStep) companion.LifecycleStep {
+	if step.AmountBytes <= 0 {
+		return companion.LifecycleStep{Action: "restart", Env: []string{"VROOLI_GPU=off"}, Description: "Unload every model and run on the CPU, holding no device memory"}
 	}
-	p, _, err := policy.LoadDefaultFile(os.Getenv)
+	return companion.LifecycleStep{Action: "restart", Env: []string{"VROOLI_GPU=on"}, Description: fmt.Sprintf("Unload models until at most %d bytes stay resident on the GPU", step.AmountBytes)}
+}
+
+// ollamaCapacityTarget is the resident footprint a rung allows: the bytes the
+// broker reserved for that rung in the declared claim profile.
+func ollamaCapacityTarget(label string) (int64, error) {
+	profile, err := companion.DeclaredProfile(os.Getenv, appName)
 	if err != nil {
 		return 0, err
 	}
-	model, ok := p.Models[label]
-	if !ok || model.VRAMGBEstimate <= 0 {
-		return 0, fmt.Errorf("capacity rung %q is not declared by the Ollama model policy", label)
+	return ollamaRungBytes(profile.Steps, label)
+}
+
+func ollamaRungBytes(steps []companion.DeclaredStep, label string) (int64, error) {
+	for _, step := range steps {
+		if step.Label == label {
+			return step.AmountBytes, nil
+		}
 	}
-	return int64(model.VRAMGBEstimate * 1024 * 1024 * 1024), nil
+	return 0, fmt.Errorf("capacity rung %q is not declared by the Ollama claim profile", label)
 }
 
 func applyOllamaCapacityRungWith(ctx context.Context, label string, target func(string) (int64, error), client ollamaCapacityClient) error {

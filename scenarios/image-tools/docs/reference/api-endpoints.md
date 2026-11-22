@@ -225,20 +225,46 @@ facts come from `vrooli host inventory` via `vrooli-cli-go`.
 
 ### `POST /vrooli.image_tools.v1.models.ModelsService/SetModelEnabled`
 
-Toggle a model's runtime-enabled state, persisted in the SQLite overlay
-over the read-only seed catalog.
+Override a model's enabled state over the read-only seed catalog. The override
+records its author (`actor`, default `api`), time, `reason` and the seed's flag at
+that moment; a later seed change supersedes it unless `pinned` (a pin needs a
+`reason`). The returned `Model.override` carries the provenance and its relation to
+the seed (`agrees`, `contradicts_seed`, `superseded`).
 
 | | |
 |---|---|
-| **Request** | `SetModelEnabledRequest { id: string, enabled: bool }` |
+| **Request** | `SetModelEnabledRequest { id: string, enabled: bool, actor: string, reason: string, pinned: bool }` |
 | **Response** | `SetModelEnabledResponse { model: Model }` |
-| **Errors** | `not_found` — no model with that id<br>`internal` — model-state persistence failure |
-| **CLI** | `image-tools models enable <id>` / `image-tools models enable <id> --disable` |
+| **Errors** | `not_found` — no model with that id<br>`invalid_argument` — a pin with no reason<br>`internal` — override persistence failure |
+| **CLI** | `image-tools models enable <id> [--disable] [--reason ...] [--pin]` |
+
+### `POST /vrooli.image_tools.v1.models.ModelsService/ClearModelOverride`
+
+Drop a model's override so it follows the seed again.
+
+| | |
+|---|---|
+| **Request** | `ClearModelOverrideRequest { id: string }` |
+| **Response** | `ClearModelOverrideResponse { model: Model }` |
+| **Errors** | `not_found` — no such model, or it has no override |
+| **CLI** | `image-tools models reset <id>` |
+
+### Verdicts and ratings
+
+Every `Model` carries `verdict` (roll-up) and `verdicts` (one per operation, with a
+grade, a one-line reason and evidence pointers); `CandidateModel`, `Resolution` and
+`SelectModelResponse` carry the verdict of the model they name, and
+`AIOperationInfo.default_model_id` / `default_verdict` come from the same selection
+code as `SelectModel`. `JobsService` adds `RateJob`, `ClearJobRating` and
+`ListJobRatings`; `Job.rating` is set when the job is rated. See
+[Verdicts](model-registry.md#verdicts-what-works-and-what-is-not-recommended).
 
 ### `POST /vrooli.image_tools.v1.models.ModelsService/ListBlocklist`
 
-Return the license-encumbered models excluded from the catalog, with the
-reason each is excluded.
+Return every catalog gate with its reason: `gate: "license"` entries refuse
+only the rights uses in `gated_uses` (never normal local inference);
+`gate: "exclusion"` entries are never seeded (`exclusion_kind`: `safety`,
+`technical`, `hardware_fit`).
 
 | | |
 |---|---|
@@ -250,13 +276,61 @@ reason each is excluded.
 Return model-catalog integrity findings. The doctor checks that enabled
 weight-backed seed models have direct `source.assets[]` entries with artifact
 `kind` and positive `min_bytes`, every operation has at least one installable
-enabled model, commercial-use policy is clean, seed ids do not overlap the
-blocklist, and checksum metadata is coherent.
+enabled model, seed ids do not overlap an exclusion, license-gated seed rows
+keep the gated uses refused in their rights record, and checksum metadata is
+coherent. A restrictive license on an enabled model is an `info` finding:
+normal local use is allowed and only monetized, hosted and redistributed use
+stay refused.
 
 | | |
 |---|---|
 | **Response** | `DoctorCatalogResponse { ok: bool, findings: CatalogFinding[] }` |
 | **CLI** | `image-tools models doctor` |
+
+### `POST /vrooli.image_tools.v1.models.ModelsService/GetModelStorage`
+
+Report model-weight storage (read-only): free bytes on the models filesystem,
+headroom above the 120 GiB shared disk floor, the pressure mode
+(`ample`/`adaptive`/`reserve_deficit`), the adaptive idle threshold
+(`-1` when ample), every installed weight-backed model in offload-priority
+order with its bytes, last-use basis, idle time, re-acquisition estimate,
+protections and current selection, and the newest offload receipts. See
+[model-registry.md](model-registry.md#weight-lifecycle-auto-acquire-and-adaptive-offload).
+
+| | |
+|---|---|
+| **Request** | `GetModelStorageRequest { receipt_limit?: int32 }` (default 20) |
+| **Response** | `GetModelStorageResponse { report: ModelStorageReport, receipts: ModelOffloadReceipt[] }` |
+| **Errors** | `internal` — storage facts unreadable<br>`unimplemented` — storage owner not wired |
+| **CLI** | `image-tools models storage [--receipts N]` |
+
+### `POST /vrooli.image_tools.v1.models.ModelsService/OffloadModels`
+
+Evaluate the adaptive offload policy. `apply=false` (the default) is a
+dry-run returning the plan. `apply=true` removes the selected weights through
+the installer (the model's exclusive use lease is the final in-use guard) and
+returns one durable receipt per attempt (`removed`/`skipped`/`failed`).
+`model_ids` restricts the pass to named models, bypassing the idle threshold
+but never a protection. `need_bytes` previews making room for an acquisition.
+
+| | |
+|---|---|
+| **Request** | `OffloadModelsRequest { apply: bool, model_ids: string[], need_bytes: uint64 }` |
+| **Response** | `OffloadModelsResponse { report: ModelStorageReport, receipts: ModelOffloadReceipt[], applied: bool }` |
+| **Errors** | `not_found` — a named model does not exist<br>`internal` — policy evaluation failed |
+| **CLI** | `image-tools models offload [--model <id>]... [--need-bytes N] [--apply]` |
+
+### `POST /vrooli.image_tools.v1.models.ModelsService/SetModelKeep`
+
+Pin (`keep=true`) or unpin a model. A kept model is never offloaded by the
+adaptive policy or a targeted offload; explicit `RemoveModel` still works.
+
+| | |
+|---|---|
+| **Request** | `SetModelKeepRequest { id: string, keep: bool, reason?: string }` |
+| **Response** | `SetModelKeepResponse { id: string, kept: bool }` |
+| **Errors** | `not_found` — no model with that id |
+| **CLI** | `image-tools models keep <id> [--reason …]` / `image-tools models unkeep <id>` (or `keep --unkeep`) |
 
 ### `POST /vrooli.image_tools.v1.models.ModelsService/DoctorBackends`
 

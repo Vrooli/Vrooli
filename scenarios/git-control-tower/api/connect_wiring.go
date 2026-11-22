@@ -17,11 +17,18 @@ import (
 	repoD "git-control-tower/internal/repo"
 	worktreeD "git-control-tower/internal/worktree"
 	advisoryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/advisory/advisory_v1connect"
+	agentreadsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/agent_reads/agent_reads_v1connect"
+	auditconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/audit/audit_v1connect"
 	auditorconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/auditor/auditor_v1connect"
 	authconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/auth/auth_v1connect"
 	humancontrolconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/human_control/human_control_v1connect"
+	integrationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/integration/integration_v1connect"
 	proposalsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/proposals/proposals_v1connect"
 	reviewconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/review/review_v1connect"
+	scenariosconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/scenarios/scenarios_v1connect"
+	source_distributionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/source_distributions/source_distributions_v1connect"
+	tidinessconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/tidiness/tidiness_v1connect"
+	visualcapturesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/visual_captures/visual_captures_v1connect"
 )
 
 // gctGitRunner adapts os/exec to the narrow worktree.GitRunner seam.
@@ -67,7 +74,11 @@ func (s *Server) mountConnectHandlers() {
 	// authorize a human mutation.
 	policyOpt := connect.WithInterceptors(ownerReadInterceptor(), policygate.NewInterceptor(s.policy.Policy, policygate.StdAuditLogger()))
 
-	wtPath, wtHandler := worktreeH.NewHandler(worktreeH.Deps{Service: worktreeSvc, Logger: s.Logger}, policyOpt)
+	wtPath, wtHandler := worktreeH.NewHandler(worktreeH.Deps{
+		Service: worktreeSvc,
+		Logger:  s.Logger,
+		Audit:   s.auditWorktreeMutation,
+	}, policyOpt)
 	repoPath, repoHandler := repoH.NewHandler(repoH.Deps{
 		Logger:                        s.Logger,
 		Service:                       repoSvc,
@@ -151,10 +162,17 @@ func (s *Server) mountConnectHandlers() {
 	advisoryPath, advisoryHandler := advisoryconnect.NewAdvisoryServiceHandler(advisoryConnectServer{server: s}, policyOpt)
 	auditorPath, auditorHandler := auditorconnect.NewAuditorServiceHandler(auditorConnectServer{server: s}, policyOpt)
 	reviewPath, reviewHandler := reviewconnect.NewReviewServiceHandler(reviewConnectServer{server: s}, policyOpt)
+	scenariosPath, scenariosHandler := scenariosconnect.NewScenarioServiceHandler(scenarioConnectServer{server: s}, policyOpt)
 	authPath, authHandler := authconnect.NewAuthServiceHandler(authConnectServer{client: s.httpDoer}, policyOpt)
 	// Proposals: draft writes go to GCT's database only; ApplyProposal is
 	// handler-managed human intent (see policygate.HandlerManagedIntentProcedures).
 	proposalsPath, proposalsHandler := proposalsconnect.NewProposalServiceHandler(proposalConnectServer{server: s}, policyOpt)
+	sourceDistributionsPath, sourceDistributionsHandler := source_distributionsconnect.NewSourceDistributionServiceHandler(sourceDistributionConnectServer{server: s}, policyOpt)
+	tidinessPath, tidinessHandler := tidinessconnect.NewTidinessServiceHandler(tidinessConnectServer{server: s}, policyOpt)
+	agentReadsPath, agentReadsHandler := agentreadsconnect.NewAgentReadServiceHandler(agentReadConnectServer{server: s}, policyOpt)
+	integrationPath, integrationHandler := integrationconnect.NewIntegrationServiceHandler(integrationConnectServer{server: s}, policyOpt)
+	auditPath, auditHandler := auditconnect.NewAuditServiceHandler(auditConnectServer{server: s}, policyOpt)
+	visualCapturesPath, visualCapturesHandler := visualcapturesconnect.NewVisualCaptureServiceHandler(visualCaptureConnectServer{server: s}, policyOpt)
 
 	browserObservationPath, browserObservation := browserObservationHandler()
 
@@ -168,8 +186,15 @@ func (s *Server) mountConnectHandlers() {
 		connectx.ServiceMount{Path: humanControlPath, Handler: humanControlHandler},
 		connectx.ServiceMount{Path: advisoryPath, Handler: advisoryHandler},
 		connectx.ServiceMount{Path: authPath, Handler: authHandler},
+		connectx.ServiceMount{Path: scenariosPath, Handler: scenariosHandler},
 		connectx.ServiceMount{Path: auditorPath, Handler: auditorHandler},
 		connectx.ServiceMount{Path: reviewPath, Handler: reviewHandler},
 		connectx.ServiceMount{Path: proposalsPath, Handler: proposalsHandler},
+		connectx.ServiceMount{Path: sourceDistributionsPath, Handler: sourceDistributionsHandler},
+		connectx.ServiceMount{Path: tidinessPath, Handler: tidinessHandler},
+		connectx.ServiceMount{Path: agentReadsPath, Handler: agentReadsHandler},
+		connectx.ServiceMount{Path: integrationPath, Handler: integrationHandler},
+		connectx.ServiceMount{Path: auditPath, Handler: auditHandler},
+		connectx.ServiceMount{Path: visualCapturesPath, Handler: visualCapturesHandler},
 	)
 }

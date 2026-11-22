@@ -5,10 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"github.com/vrooli/vrooli/packages/capacity"
+	"image-tools/internal/diskpolicy"
+	"image-tools/internal/modelenv"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -89,7 +92,7 @@ func TestDiskGrowthObserverExtendsOrRefusesBeforeAdditionalWrites(t *testing.T) 
 		t.Fatalf("expected an extension before continued writes, got %+v", lease.extended)
 	}
 	lease.reject = true
-	if err := guard.Observe(context.Background(), "artifact", 9000, -1); err == nil || !strings.Contains(err.Error(), "extension denied") {
+	if err := guard.Observe(context.Background(), "artifact", 2<<30, -1); err == nil || !strings.Contains(err.Error(), "extension denied") {
 		t.Fatalf("denied extension error=%v", err)
 	}
 }
@@ -117,130 +120,124 @@ func TestObservedHTTPDownloaderRefusesChunkBeforePersistingIt(t *testing.T) {
 	}
 }
 
-func TestInstallPlanIncludesAndPinsDefaultHuggingFaceCache(t *testing.T) {
-	t.Setenv("HF_HOME", "")
-	t.Setenv("HF_HUB_CACHE", "")
-	t.Setenv("HUGGINGFACE_HUB_CACHE", "")
-	t.Setenv("TRANSFORMERS_CACHE", "")
+// useManagedRoot gives a test an isolated managed model root; library caches
+// are pinned beneath it, never to an inherited HF_HOME or the home directory.
+func useManagedRoot(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	t.Cleanup(modelenv.SwapRoot(root))
+	return root
+}
+
+func TestInstallPlanChargesTheManagedHubCacheNotAnInheritedOne(t *testing.T) {
+	managed := useManagedRoot(t)
+	// An operator's shell exporting its own cache must not move the charge.
+	t.Setenv("HF_HOME", filepath.Join(t.TempDir(), "operator-cache"))
+	t.Setenv("HF_HUB_CACHE", filepath.Join(t.TempDir(), "operator-hub"))
 	request, err := PlanInstallDiskJob(context.Background(), "image-tools:model-install", "job-1", t.TempDir(), 8, Source{DownloadURL: "https://models.example/weights.bin"}, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	cache := HuggingFaceCachePath(request)
-	if !strings.HasSuffix(cache, "/.cache/huggingface/hub") {
-		t.Fatalf("default hub cache=%q", cache)
+	wantHub := filepath.Join(managed, "cache", "huggingface", "hub")
+	if cache := HuggingFaceCachePath(request); cache != wantHub {
+		t.Fatalf("hub cache=%q, want the managed %q", cache, wantHub)
 	}
 	for _, role := range []string{"huggingface-home-cache", "huggingface-hub-cache"} {
 		found := false
 		for _, path := range request.Paths {
-			if path.Role == role {
+			if diskJobPathHasRole(path.Role, role) {
 				found = true
+				if !strings.HasPrefix(path.Path, managed) {
+					t.Fatalf("%s charged outside the managed root: %s", role, path.Path)
+				}
 			}
 		}
 		if !found {
 			t.Fatalf("disk plan omitted %s", role)
 		}
 	}
-	fetcher, ok := PinHuggingFaceCache(&HFSnapshotFetcher{Python: "python3"}, cache).(*HFSnapshotFetcher)
+	fetcher, ok := PinHuggingFaceCache(&HFSnapshotFetcher{Python: "python3"}, wantHub).(*HFSnapshotFetcher)
 	if !ok {
 		t.Fatal("expected pinned production snapshot fetcher")
 	}
 	joined := strings.Join(fetcher.Env, "\n")
-	if !strings.Contains(joined, "HF_HUB_CACHE="+cache) || !strings.Contains(joined, "HUGGINGFACE_HUB_CACHE="+cache) {
-		t.Fatalf("snapshot fetcher did not use admitted cache path %q", cache)
+	if !strings.Contains(joined, "HF_HUB_CACHE="+wantHub) || !strings.Contains(joined, "HUGGINGFACE_HUB_CACHE="+wantHub) {
+		t.Fatalf("snapshot fetcher did not use admitted cache path %q", wantHub)
 	}
 }
 
-func TestInstallPlanMergesSameHomeAndHubCacheWithLargestPeak(t *testing.T) {
-	root := t.TempDir()
-	cache := filepath.Join(root, "shared-cache")
-	alias := filepath.Join(root, "shared-cache-alias")
-	if err := os.Mkdir(cache, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Symlink(cache, alias); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("HF_HOME", alias)
-	t.Setenv("HF_HUB_CACHE", cache)
-	t.Setenv("HUGGINGFACE_HUB_CACHE", "")
-	t.Setenv("TRANSFORMERS_CACHE", "")
-	request, err := PlanInstallDiskJob(context.Background(), "image-tools:model-install", "job-shared-cache", t.TempDir(), 8, Source{DownloadURL: "https://models.example/weights.bin"}, 1)
+func TestInstallPlanGrowthExtendsTheManagedHubCacheBound(t *testing.T) {
+	managed := useManagedRoot(t)
+	request, err := PlanInstallDiskJob(context.Background(), "image-tools:model-install", "job-growth", managed, 8, Source{DownloadURL: "https://models.example/weights.bin"}, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var cachePath *capacity.DiskJobPath
-	for i := range request.Paths {
-		if request.Paths[i].Path == cache {
-			cachePath = &request.Paths[i]
-			break
-		}
-	}
-	if cachePath == nil || cachePath.PeakBytes < 8<<20 || !diskJobPathHasRole(cachePath.Role, "huggingface-home-cache") || !diskJobPathHasRole(cachePath.Role, "huggingface-hub-cache") {
-		t.Fatalf("shared home/hub cache plan lost its full bound or role: %+v", request.Paths)
-	}
-
+	hub := filepath.Join(managed, "cache", "huggingface", "hub")
 	lease := &growthTestLease{}
 	guard, err := NewDiskGrowthGuard(lease, request, 1, InstallOwnerCeilingBytes)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := guard.Observe(context.Background(), "artifact", 16<<20+1, -1); err != nil {
+	// Writing past the planned root peak (8 MiB + 64 MiB slack) extends before the next chunk.
+	if err := guard.Observe(context.Background(), "artifact", 80<<20, -1); err != nil {
 		t.Fatal(err)
 	}
-	foundExtension := false
+	foundExtension, rootGrown := false, false
 	for _, path := range lease.extended {
-		if path.Path == cache && path.PeakBytes >= 32<<20 && diskJobPathHasRole(path.Role, "huggingface-hub-cache") {
+		if path.Path == hub && diskJobPathHasRole(path.Role, "huggingface-hub-cache") && path.PeakBytes > 8<<20 {
 			foundExtension = true
 		}
+		if diskJobPathHasRole(path.Role, "model-adapter-staging-and-final") && path.PeakBytes >= 80<<20 {
+			rootGrown = true
+		}
 	}
-	if !foundExtension {
-		t.Fatalf("growth extension omitted merged Hub cache bound: %+v", lease.extended)
+	if !foundExtension || !rootGrown {
+		t.Fatalf("growth extension must track observed bytes at the root and keep the Hub cache bound: %+v", lease.extended)
 	}
 }
 
-func TestInstallPlanSumsDistinctWriteRolesWhenModelRootIsCache(t *testing.T) {
-	root := t.TempDir()
-	t.Setenv("HF_HOME", root)
-	t.Setenv("HF_HUB_CACHE", root)
-	t.Setenv("HUGGINGFACE_HUB_CACHE", "")
-	t.Setenv("TRANSFORMERS_CACHE", "")
-	request, err := PlanInstallDiskJob(context.Background(), "image-tools:model-install", "job-colocated-cache", root, 8, Source{DownloadURL: "https://models.example/weights.bin"}, 1)
+// The extension follows what was actually written (a quarter beyond, at least
+// 1 GiB) rather than jumping to a multiple of it.
+func TestGrowthExtensionTracksObservedBytes(t *testing.T) {
+	managed := useManagedRoot(t)
+	request, err := PlanInstallDiskJob(context.Background(), "image-tools:model-install", "job-track", managed, 100, Source{DownloadURL: "https://models.example/weights.bin"}, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(request.Paths) != 2 {
-		t.Fatalf("co-located path plan=%+v, want one combined root plus temp path", request.Paths)
-	}
-	var rootPath *capacity.DiskJobPath
-	for i := range request.Paths {
-		if request.Paths[i].Path == root {
-			rootPath = &request.Paths[i]
-		}
-	}
-	if rootPath == nil || rootPath.PeakBytes < 24<<20 || !diskJobPathHasRole(rootPath.Role, "model-adapter-staging-and-final") || !diskJobPathHasRole(rootPath.Role, "huggingface-hub-cache") {
-		t.Fatalf("co-located writes did not sum their role peaks: %+v", request.Paths)
-	}
-	if cache := HuggingFaceCachePath(request); cache != root {
-		t.Fatalf("merged Hub cache path=%q, want %q", cache, root)
-	}
-
 	lease := &growthTestLease{}
 	guard, err := NewDiskGrowthGuard(lease, request, 1, InstallOwnerCeilingBytes)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := guard.Observe(context.Background(), "artifact", 24<<20+1, -1); err != nil {
+	observed := int64(10 << 30)
+	if err := guard.Observe(context.Background(), "artifact", observed, -1); err != nil {
 		t.Fatal(err)
 	}
-	var rootExtension *capacity.DiskJobPath
-	for i := range lease.extended {
-		if lease.extended[i].Path == root {
-			rootExtension = &lease.extended[i]
+	for _, path := range lease.extended {
+		if diskJobPathHasRole(path.Role, "model-adapter-staging-and-final") {
+			if path.PeakBytes < observed || path.PeakBytes > observed+observed/4+(1<<30) {
+				t.Fatalf("root extension %d for %d observed bytes is not tracking real bytes", path.PeakBytes, observed)
+			}
 		}
 	}
-	if len(lease.extended) != 2 || rootExtension == nil || rootExtension.PeakBytes < 96<<20 {
-		t.Fatalf("co-located root+cache growth extension=%+v", lease.extended)
+}
+
+func TestInstallPlanFloorIsTheSharedPolicyAndSmallWritesUseTheSmallClass(t *testing.T) {
+	managed := useManagedRoot(t)
+	request, err := PlanInstallDiskJob(context.Background(), "image-tools:model-install", "job-floor", managed, 8, Source{DownloadURL: "https://models.example/weights.bin"}, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if request.Class != "" || request.FloorBytes != diskpolicy.HostMinimumFloorBytes {
+		t.Fatalf("an 8 MiB install writes more than a small write and is held to the host floor, got class=%q floor=%d", request.Class, request.FloorBytes)
+	}
+	t.Setenv(diskpolicy.EnvFloor, "200GiB")
+	request, err = PlanInstallDiskJob(context.Background(), "image-tools:model-install", "job-floor", managed, 8, Source{DownloadURL: "https://models.example/weights.bin"}, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if request.FloorBytes != 200<<30 {
+		t.Fatalf("operator floor not applied: %d", request.FloorBytes)
 	}
 }
 
@@ -257,5 +254,73 @@ func TestProbeSourceSizeRejectsUnboundedResponse(t *testing.T) {
 	defer server.Close()
 	if _, err := ProbeSourceSize(context.Background(), Source{DownloadURL: server.URL + "/weights.bin"}); err == nil {
 		t.Fatal("probe without a bounded range/content length was accepted")
+	}
+}
+
+// A catalog-declared size above the probe ceiling is planned (and left to the
+// shared host disk admission), while an undeclared probed estimate stays capped.
+func TestInstallPlanBoundsDeclaredSizesByHostAdmissionNotTheProbeCeiling(t *testing.T) {
+	useManagedRoot(t)
+	const declaredMB = 23000 // a large diffusers tree
+	request, err := PlanInstallDiskJob(context.Background(), "image-tools:model-install", "job-large", t.TempDir(), declaredMB,
+		Source{Repo: RepoSpec{RepoID: "org/large", Revision: strings.Repeat("a", 40)}}, 1)
+	if err != nil {
+		t.Fatalf("declared 16 GB model must plan: %v", err)
+	}
+	var total int64
+	for _, path := range request.Paths {
+		total += path.PeakBytes
+	}
+	if total <= InstallOwnerCeilingBytes {
+		t.Fatalf("expected a planned peak above the probe ceiling, got %d", total)
+	}
+	if request.FloorBytes != diskpolicy.HostMinimumFloorBytes {
+		t.Fatalf("host admission floor = %d, want %d", request.FloorBytes, diskpolicy.HostMinimumFloorBytes)
+	}
+
+	oversized := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Length", strconv.FormatInt(InstallOwnerCeilingBytes+1, 10))
+	}))
+	defer oversized.Close()
+	if _, err := PlanInstallDiskJob(context.Background(), "image-tools:model-install", "job-probed", t.TempDir(), 0,
+		Source{DownloadURL: oversized.URL + "/weights.bin"}, 1); err == nil || !strings.Contains(err.Error(), "owner planning ceiling") {
+		t.Fatalf("undeclared probed estimate above the ceiling must be refused, got %v", err)
+	}
+}
+
+func TestInstallPlanChargesOneStagedCopyAndBoundedHubCache(t *testing.T) {
+	useManagedRoot(t)
+	const declaredMB = 7350 // instruct-pix2pix diffusers tree (~7.7 GB)
+	size := int64(declaredMB) << 20
+	request, err := PlanInstallDiskJob(context.Background(), "image-tools:model-install", "job-ip2p", t.TempDir(), declaredMB,
+		Source{Repo: RepoSpec{RepoID: "org/ip2p", Revision: strings.Repeat("b", 40)}}, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var total int64
+	for _, path := range request.Paths {
+		total += path.PeakBytes
+		if diskJobPathHasRole(path.Role, "huggingface-hub-cache") && path.PeakBytes > HuggingFaceCacheAllowanceBytes {
+			t.Fatalf("hub cache charged %d bytes; local_dir snapshots write under staging", path.PeakBytes)
+		}
+		if diskJobPathHasRole(path.Role, "model-adapter-staging-and-final") && path.PeakBytes != size+size/10 {
+			t.Fatalf("root peak %d, want one staged copy with 10%% slack %d", path.PeakBytes, size+size/10)
+		}
+	}
+	// One copy, 10% slack, bounded scratch and the bounded cache: about 1.2×,
+	// not the former 3.25× (25,025,000,001 bytes for this model).
+	if total > size*125/100 {
+		t.Fatalf("planned peak %d for a %d-byte model is inflated", total, size)
+	}
+	if ceiling := GrowthCeilingBytes(request); ceiling != max(InstallOwnerCeilingBytes, 2*total) {
+		t.Fatalf("growth ceiling %d, want twice the %d-byte plan or the probe ceiling", ceiling, total)
+	}
+	small := capacity.DiskJobRequest{Paths: []capacity.DiskJobPath{{PeakBytes: 1 << 30}}}
+	if GrowthCeilingBytes(small) != InstallOwnerCeilingBytes {
+		t.Fatalf("a small plan keeps the probe ceiling as its growth floor")
+	}
+	large := capacity.DiskJobRequest{Paths: []capacity.DiskJobPath{{PeakBytes: 30_000_000_000}}}
+	if GrowthCeilingBytes(large) != 60_000_000_000 {
+		t.Fatalf("growth ceiling must scale with a large declared plan")
 	}
 }

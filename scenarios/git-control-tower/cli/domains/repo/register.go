@@ -287,9 +287,28 @@ func isFullCommitID(commit string) bool {
 }
 
 func runStatus(core *cliapp.ScenarioApp, _ []string) error {
-	response, err := repoClientFactory(core).GetRepoStatus(context.Background(), connect.NewRequest(&repov1.GetRepoStatusRequest{}))
+	client := repoClientFactory(core)
+	request := &repov1.GetRepoStatusRequest{PageSize: 512}
+	response, err := client.GetRepoStatus(context.Background(), connect.NewRequest(request))
 	if err != nil {
 		return err
+	}
+	first := response.Msg
+	token := first.GetPage().GetNextPageToken()
+	returned := int(first.GetPage().GetReturnedEntries())
+	for token != "" {
+		page, pageErr := client.GetRepoStatus(context.Background(), connect.NewRequest(&repov1.GetRepoStatusRequest{PageSize: 512, PageToken: token}))
+		if pageErr != nil {
+			return pageErr
+		}
+		if page.Msg.GetPage().GetSnapshotId() != first.GetPage().GetSnapshotId() {
+			return fmt.Errorf("repository status changed between pages; retry status")
+		}
+		returned += int(page.Msg.GetPage().GetReturnedEntries())
+		token = page.Msg.GetPage().GetNextPageToken()
+	}
+	if first.GetPage() != nil && returned != int(first.GetPage().GetTotalEntries()) {
+		return fmt.Errorf("repository status response was incomplete (%d of %d entries)", returned, first.GetPage().GetTotalEntries())
 	}
 
 	parsed := statusResponse{RepoDir: response.Msg.RepoDir}

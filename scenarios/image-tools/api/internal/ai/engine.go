@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -47,6 +48,29 @@ type ScanVerdict struct {
 	NSFW        bool
 	Score       float64
 	HardRefusal string
+	// Detail is the reviewer's one-line account of what it measured (never the
+	// image). It is recorded on the job so a pass is auditable, not just a refusal.
+	Detail string
+}
+
+// ReviewSource describes what produced the bytes under review, so the reviewer can
+// ask a harder question of output that came from a model able to make explicit
+// images. It rides the context because the review hook is a plain bytes-in function.
+type ReviewSource struct {
+	NSFWCapable bool
+}
+
+type reviewSourceKey struct{}
+
+// WithReviewSource returns a context carrying the producing model's review facts.
+func WithReviewSource(ctx context.Context, src ReviewSource) context.Context {
+	return context.WithValue(ctx, reviewSourceKey{}, src)
+}
+
+// ReviewSourceFromContext returns the review facts set by the engine (zero when none).
+func ReviewSourceFromContext(ctx context.Context) ReviewSource {
+	src, _ := ctx.Value(reviewSourceKey{}).(ReviewSource)
+	return src
 }
 
 // OutputScanner classifies generated image bytes. Both hooks are injected so
@@ -86,6 +110,19 @@ type Deps struct {
 	// the engine refuses to launch a job for an uninstalled model with an
 	// actionable hint instead of failing opaquely mid-run.
 	ModelInstalled func(modelID string) bool
+	// AutoAcquirable reports nil when an uninstalled model may be acquired
+	// automatically by its job, or the reason it cannot (switch off, manual or
+	// custom source, disabled, rights). nil disables auto-acquisition.
+	AutoAcquirable func(ctx context.Context, model models.Model) error
+	// AcquireModel makes the model's weights present before admission takes
+	// any lease, reporting progress. Required when AutoAcquirable is set.
+	AcquireModel func(ctx context.Context, modelID, jobID string, emit func(progress int, message string)) error
+	// Revalidatable reports nil when an installed model that is not
+	// runtime-ready (reason is its lifecycle reason) may be revalidated by
+	// AcquireModel before the job runs.
+	Revalidatable func(ctx context.Context, model models.Model, reason string) error
+	// InstallEstimateSeconds estimates an acquisition for the submit ETA.
+	InstallEstimateSeconds func(sizeMBApprox int) int
 	// ModelRuntimeReadiness reports whether the model has a complete built artifact
 	// and, when applicable, a provisioned Python environment with passing load-smoke.
 	ModelRuntimeReadiness func(ctx context.Context, modelID string) (bool, string)
@@ -121,6 +158,11 @@ type Deps struct {
 	// asked for, and fails the job when it returns a HardRefusal. A deployment
 	// that serves other people wires this; a local install may leave it nil.
 	ReviewOutput OutputScanner
+	// ReviewModels are the registry ids ReviewOutput reads from disk. The engine
+	// makes them present (governed acquisition, like any model) and holds their use
+	// lease around the review, so adaptive offload cannot remove a weight between the
+	// admission check and the review, which would otherwise fail the job closed.
+	ReviewModels []string
 	// PosePreprocessor derives OpenPose maps for ControlNet under the same AI job
 	// admission. Optional until the governed CPU runtime and pinned model are ready.
 	PosePreprocessor PosePreprocessor
@@ -138,6 +180,16 @@ type Deps struct {
 	// Disk reserves measured output and temporary peak bytes on their actual
 	// filesystems through the shared host capacity owner for the full job.
 	Disk capacity.DiskAdmission
+	// Route is the cloud routing policy (see route.go). The zero value is inactive.
+	Route RouteConfig
+	// RouteConsent is the consent rule routing and admission obey (see
+	// RouteConsentFunc). nil means no consent rule.
+	RouteConsent RouteConsentFunc
+	// Jobs is the durable job history the cloud spend ledger reads. Required
+	// when Route is active.
+	Jobs JobSource
+	// Now is the clock the wait budget and the rolling spend window use.
+	Now func() time.Time
 	// Logger for diagnostics. Defaults to log.Default().
 	Logger *log.Logger
 }
@@ -168,6 +220,12 @@ func NewEngine(deps Deps) (*Engine, error) {
 	}
 	return &Engine{deps: deps}, nil
 }
+
+// CapacityManagedGPU reports the GPU-fit rule jobs use: true when the host
+// capacity broker arbitrates GPU memory, so a model fits by the GPU's total
+// VRAM and transient contention is decided at admission. Previews must read it
+// from here rather than choose their own.
+func (e *Engine) CapacityManagedGPU() bool { return e.deps.Capacity != nil }
 
 // ModelByID returns a registry model by id for submit-edge trace enrichment,
 // resolving user-imported custom models as well as the seed catalog.
@@ -204,7 +262,10 @@ type Payload struct {
 	Operation string `json:"operation"`
 	InputKey  string `json:"input_key,omitempty"`
 	MaskKey   string `json:"mask_key,omitempty"`
-	ModelID   string `json:"model_id"`
+	// ReferenceKey is the reference image of an op that takes one (the source
+	// face of face_swap).
+	ReferenceKey string `json:"reference_key,omitempty"`
+	ModelID      string `json:"model_id"`
 	// Backend is the selected provider identity pinned at submission. Jobs stored
 	// before this contract used the model's declared backend; restart recovery
 	// fails their nonterminal rows before this runner can admit them.
@@ -221,6 +282,19 @@ type Payload struct {
 	// Adapters is the validated conditioning stack pinned at submit time (typed,
 	// not in Params — decision C2). Empty for an unconditioned op.
 	Adapters []adapters.ResolvedAdapter `json:"adapters,omitempty"`
+	// AutoAcquire lets admission acquire the pinned model's weights when they
+	// are missing (resolved at submission from the caller's opt-out and the
+	// model's eligibility).
+	AutoAcquire bool `json:"auto_acquire,omitempty"`
+	// Route is the cloud routing record: where the job runs, why, and its caps.
+	// The jobs scheduler reads it to re-route a job that waited past its budget.
+	Route *RouteState `json:"route,omitempty"`
+	// PreserveIdentity is the caller's choice for edit_instruct; nil means on.
+	PreserveIdentity *bool `json:"preserve_identity,omitempty"`
+	// ConsentAffirmed records that the caller affirmed consent at submit. A route
+	// that leaves this machine needs it for a high-weight operation, including a
+	// re-route chosen after the job was queued.
+	ConsentAffirmed bool `json:"consent_affirmed,omitempty"`
 	// Execution-only binding selected from a fresh inventory before admission.
 	GPUUUID string `json:"-"`
 }
@@ -241,6 +315,19 @@ type Plan struct {
 	// Adapters is the validated, execution-ready conditioning stack to pin into the
 	// job payload (empty for an unconditioned op).
 	Adapters []adapters.ResolvedAdapter
+	// AutoAcquire is true when the model's weights are missing and the job will
+	// acquire them during admission (pin into Payload.AutoAcquire).
+	AutoAcquire bool
+	// AllowBYOK is the effective cloud permission to pin into the payload: the
+	// caller's own, or true when the plan chose the cloud so admission may
+	// revalidate it.
+	AllowBYOK bool
+	// Route is the routing record to pin into Payload.Route (nil when the
+	// routing policy is inactive or has nothing to say about this operation).
+	Route *RouteState
+	// Params are request params the plan decided (for example the cloud role);
+	// merge them over the caller's params when they are not already set.
+	Params map[string]string
 }
 
 // PlanRequest drives pre-submit selection.
@@ -260,10 +347,26 @@ type PlanRequest struct {
 	// Adapters is the requested conditioning stack (resolved + validated here so an
 	// incompatible/not-Ready/uninstalled adapter is rejected before any job).
 	Adapters []adapters.AdapterRequest
+	// AutoAcquire is the caller's choice; nil uses the service default (on).
+	// false keeps the "not installed" refusal for missing weights.
+	AutoAcquire *bool
+	// Prompt, Variations and EditStyle feed the cloud role choice and the cost
+	// estimate. MaxWaitSeconds and MaxCostUSD are the caller's routing limits;
+	// nil uses the deployment default (see RouteConfig).
+	Prompt         string
+	Variations     int
+	EditStyle      string
+	MaxWaitSeconds *int
+	MaxCostUSD     *float64
+	// ConsentAffirmed is the caller's consent affirmation. Automatic cloud
+	// routing of a high-weight operation is only considered when it is set.
+	ConsentAffirmed bool
 }
 
 // ErrModelNotInstalled is returned by Plan when the selected model's weights are
-// not yet on disk (the operator must install it via the model management layer).
+// not on disk and the job cannot acquire them automatically (caller opt-out,
+// service switch off, manual/custom source, disabled or rights refusal), and by
+// admission when an automatic acquisition fails.
 var (
 	ErrModelNotInstalled    = errors.New("ai: selected model is not installed")
 	ErrModelNotRuntimeReady = errors.New("ai: selected model is not runtime-ready")
@@ -282,61 +385,38 @@ func (e *Engine) Plan(ctx context.Context, req PlanRequest) (Plan, error) {
 	if req.RequireGPU && req.ForceCPU {
 		return Plan{}, errors.New("ai: require_gpu and force_cpu cannot both be set")
 	}
-	host, err := e.deps.Probe.Inventory(ctx)
-	if err != nil {
-		return Plan{}, fmt.Errorf("ai: host probe: %w", err)
-	}
-	enabledOverlay, err := e.enabledOverlay(ctx)
+	base, err := e.resolverRequest(ctx, req)
 	if err != nil {
 		return Plan{}, err
 	}
-	override := req.ModelOverride
-	if override == "" && e.deps.DefaultOverride != nil {
-		pinned, derr := e.deps.DefaultOverride(ctx, req.Operation)
-		if derr != nil {
-			return Plan{}, fmt.Errorf("ai: load op default: %w", derr)
-		}
-		override = pinned
-	}
-	// The Resolver is the single home for op→model→technique→backend resolution
-	// (it does model selection + native/derived technique derivation + backend-tier
-	// selection + the consent weight). The engine adds only the install gate and
-	// the ETA, which are submit-edge concerns the read-only explain surface omits.
-	adapterEnabled, err := e.adapterEnabledFunc(ctx)
+	res, resolveErr := resolver.New(e.effectiveRegistry(ctx), e.deps.Backends, e.deps.RightsEvaluator).Resolve(ctx, base)
+	routed, err := e.planRoute(ctx, req, base, res, resolveErr, base.ModelOverride != "")
 	if err != nil {
-		return Plan{}, err
+		return Plan{}, err // already actionable (no enabled model / VRAM shortfall / override invalid / no provider / adapter incompatible|not-ready|uninstalled / spend cap)
 	}
-	registry := e.effectiveRegistry(ctx)
-	enabled := registry.EnabledWithOverlay(enabledOverlay)
-	res, err := resolver.New(registry, e.deps.Backends, e.deps.RightsEvaluator).Resolve(ctx, resolver.Request{
-		Operation:          req.Operation,
-		ModelOverride:      override,
-		Host:               host,
-		AllowBYOK:          req.AllowBYOK,
-		FallbackPolicy:     req.FallbackPolicy,
-		QualityPolicy:      req.QualityPolicy,
-		PreferRemote:       strings.TrimSpace(req.Role) != "",
-		CapacityManagedGPU: e.deps.Capacity != nil,
-		ForceCPU:           req.ForceCPU,
-		IsEnabled:          enabled,
-		RightsEvaluator:    e.deps.RightsEvaluator,
-		Adapters:           req.Adapters,
-		AdapterByID:        e.deps.AdapterByID,
-		AdapterEnabled:     adapterEnabled,
-		AdapterInstalled:   e.deps.AdapterInstalled,
-	})
-	if err != nil {
-		return Plan{}, err // already actionable (no enabled model / VRAM shortfall / override invalid / no provider / adapter incompatible|not-ready|uninstalled)
-	}
+	res = routed.res
 	if req.RequireGPU && (res.Tier != backends.TierLocalGPU.String() || !res.GPUViable) {
 		return Plan{}, fmt.Errorf("%w for operation %q with model %q", ErrGPURequired, req.Operation, res.Model.ID)
 	}
+	estimate := estimateSecondsForTier(req.Operation, res.GPUViable, res.Tier)
+	warnings := res.Warnings
+	autoAcquire := false
 	if !e.deps.ModelInstalled(res.Model.ID) {
-		return Plan{}, fmt.Errorf("%w: %q — run `image-tools models install %s`", ErrModelNotInstalled, res.Model.ID, res.Model.ID)
-	}
-	if e.deps.ModelRuntimeReadiness != nil {
+		if err := e.autoAcquireDecision(ctx, req, res.Model); err != nil {
+			return Plan{}, err
+		}
+		autoAcquire = true
+		if e.deps.InstallEstimateSeconds != nil {
+			estimate += e.deps.InstallEstimateSeconds(res.Model.SizeMBApprox)
+		}
+		warnings = append(append([]string(nil), warnings...), fmt.Sprintf("model %s is not installed; the job will acquire its weights (~%d MB) before running", res.Model.ID, res.Model.SizeMBApprox))
+	} else if e.deps.ModelRuntimeReadiness != nil {
 		if ready, state := e.deps.ModelRuntimeReadiness(ctx, res.Model.ID); !ready {
-			return Plan{}, fmt.Errorf("%w: %q (%s) — re-run `image-tools models install %s` and resolve the reported runtime issue", ErrModelNotRuntimeReady, res.Model.ID, state, res.Model.ID)
+			if err := e.revalidateDecision(ctx, req, res.Model, state); err != nil {
+				return Plan{}, err
+			}
+			autoAcquire = true
+			warnings = append(append([]string(nil), warnings...), fmt.Sprintf("model %s is installed but not runtime-ready (%s); the job will revalidate it before running", res.Model.ID, state))
 		}
 	}
 	// Fill each resolved adapter's on-disk dir so the pinned payload is execution-
@@ -346,16 +426,106 @@ func (e *Engine) Plan(ctx context.Context, req PlanRequest) (Plan, error) {
 		a.Dir = e.absAdapterDir(a.ID)
 		resolved[i] = a
 	}
+	if len(routed.warnings) > 0 {
+		warnings = append(append([]string(nil), warnings...), routed.warnings...)
+	}
 	return Plan{
 		ModelID:          res.Model.ID,
 		Provider:         res.Provider,
 		Tier:             res.Tier,
-		Warnings:         res.Warnings,
-		EstimatedSeconds: estimateSecondsForTier(req.Operation, res.GPUViable, res.Tier),
+		Warnings:         warnings,
+		EstimatedSeconds: estimate,
 		GPUViable:        res.GPUViable,
 		Weight:           res.Weight,
 		Adapters:         resolved,
+		AutoAcquire:      autoAcquire,
+		AllowBYOK:        req.AllowBYOK || routed.allowBYOK,
+		Route:            routed.state,
+		Params:           routed.params,
 	}, nil
+}
+
+// resolverRequest builds the resolver input for req from the probed host, the
+// enabled-state overlay and the operator's pinned op default. It is the one
+// place the request is assembled, shared by planning and by the scheduler's
+// re-route, so both see the same host.
+func (e *Engine) resolverRequest(ctx context.Context, req PlanRequest) (resolver.Request, error) {
+	host, err := e.deps.Probe.Inventory(ctx)
+	if err != nil {
+		return resolver.Request{}, fmt.Errorf("ai: host probe: %w", err)
+	}
+	enabledOverlay, err := e.enabledOverlay(ctx)
+	if err != nil {
+		return resolver.Request{}, err
+	}
+	override := req.ModelOverride
+	if override == "" && e.deps.DefaultOverride != nil {
+		pinned, derr := e.deps.DefaultOverride(ctx, req.Operation)
+		if derr != nil {
+			return resolver.Request{}, fmt.Errorf("ai: load op default: %w", derr)
+		}
+		override = pinned
+	}
+	// The Resolver is the single home for op→model→technique→backend resolution
+	// (it does model selection + native/derived technique derivation + backend-tier
+	// selection + the consent weight). The engine adds only the install gate and
+	// the ETA, which are submit-edge concerns the read-only explain surface omits.
+	adapterEnabled, err := e.adapterEnabledFunc(ctx)
+	if err != nil {
+		return resolver.Request{}, err
+	}
+	registry := e.effectiveRegistry(ctx)
+	return resolver.Request{
+		Operation:          req.Operation,
+		ModelOverride:      override,
+		Host:               host,
+		AllowBYOK:          req.AllowBYOK,
+		FallbackPolicy:     req.FallbackPolicy,
+		QualityPolicy:      req.QualityPolicy,
+		PreferRemote:       strings.TrimSpace(req.Role) != "",
+		CapacityManagedGPU: e.deps.Capacity != nil,
+		ForceCPU:           req.ForceCPU,
+		IsEnabled:          registry.EnabledWithOverlay(enabledOverlay),
+		RightsEvaluator:    e.deps.RightsEvaluator,
+		Adapters:           req.Adapters,
+		AdapterByID:        e.deps.AdapterByID,
+		AdapterEnabled:     adapterEnabled,
+		AdapterInstalled:   e.deps.AdapterInstalled,
+	}, nil
+}
+
+// autoAcquireDecision returns nil when the job may acquire the missing model,
+// or an ErrModelNotInstalled refusal naming why it cannot and how to recover.
+func (e *Engine) autoAcquireDecision(ctx context.Context, req PlanRequest, model models.Model) error {
+	if req.AutoAcquire != nil && !*req.AutoAcquire {
+		return fmt.Errorf("%w: %q (automatic acquisition was declined by the caller) — run `image-tools models install %s`", ErrModelNotInstalled, model.ID, model.ID)
+	}
+	if e.deps.AutoAcquirable == nil || e.deps.AcquireModel == nil {
+		return fmt.Errorf("%w: %q — run `image-tools models install %s`", ErrModelNotInstalled, model.ID, model.ID)
+	}
+	if err := e.deps.AutoAcquirable(ctx, model); err != nil {
+		return fmt.Errorf("%w: %w", ErrModelNotInstalled, err)
+	}
+	return nil
+}
+
+// revalidateDecision accepts an installed, not-ready model when the caller
+// allows automatic acquisition and its lifecycle reason is one revalidation
+// resolves; otherwise it returns the actionable not-runtime-ready refusal.
+func (e *Engine) revalidateDecision(ctx context.Context, req PlanRequest, model models.Model, state string) error {
+	refuse := func(detail string) error {
+		return fmt.Errorf("%w: %q (%s)%s — re-run `image-tools models install %s` and resolve the reported runtime issue", ErrModelNotRuntimeReady, model.ID, state, detail, model.ID)
+	}
+	if req.AutoAcquire != nil && !*req.AutoAcquire {
+		return refuse(" (automatic revalidation was declined by the caller)")
+	}
+	if e.deps.Revalidatable == nil || e.deps.AcquireModel == nil {
+		return refuse("")
+	}
+	if err := e.deps.Revalidatable(ctx, model, state); err != nil {
+		return fmt.Errorf("%w: %q (%s): %w", ErrModelNotRuntimeReady, model.ID, state, err)
+	}
+	return nil
 }
 
 func (e *Engine) adapterEnabledFunc(ctx context.Context) (func(id string) bool, error) {
@@ -455,6 +625,9 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 	nextVariation := 0
 	var gatewayVariations []aigateway.EvidenceVariation
 	gatewayEvidenceObserved := false
+	// routeEvidence is the routing record, kept even when the run fails so a
+	// failed job still says where it ran and what it was allowed to spend.
+	var routeEvidence map[string]string
 	defer func() {
 		if runErr != nil {
 			if cause := context.Cause(ctx); cause != nil && cause != context.Canceled {
@@ -467,19 +640,28 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 				}
 			}
 		}
-		if runErr != nil && gatewayEvidenceObserved {
-			for index := nextVariation; index < requestedVariations; index++ {
-				gatewayVariations = append(gatewayVariations, aigateway.EvidenceVariation{
-					Index: index, Outcome: "not_started", CostState: "unknown",
-				})
+		if runErr != nil && (gatewayEvidenceObserved || len(routeEvidence) > 0) {
+			// A failed job keeps exactly its routing record and the gateway's
+			// partial execution evidence; never output, cost or admission facts.
+			failed := make(map[string]string, len(routeEvidence)+1)
+			for k, v := range routeEvidence {
+				failed[k] = v
 			}
-			evidence := aigateway.Evidence{
-				SchemaVersion: 1, Complete: false, RequestedVariations: requestedVariations,
-				Variations: gatewayVariations,
+			if gatewayEvidenceObserved {
+				for index := nextVariation; index < requestedVariations; index++ {
+					gatewayVariations = append(gatewayVariations, aigateway.EvidenceVariation{
+						Index: index, Outcome: "not_started", CostState: "unknown",
+					})
+				}
+				evidence := aigateway.Evidence{
+					SchemaVersion: 1, Complete: false, RequestedVariations: requestedVariations,
+					Variations: gatewayVariations,
+				}
+				if encoded, err := json.Marshal(evidence); err == nil {
+					failed[internaljobs.MetaGatewayExecutionEvidence] = string(encoded)
+				}
 			}
-			if encoded, err := json.Marshal(evidence); err == nil {
-				result = internaljobs.Result{Meta: map[string]string{internaljobs.MetaGatewayExecutionEvidence: string(encoded)}}
-			}
+			result = internaljobs.Result{Meta: failed}
 		}
 	}()
 	prepared, ok := ctx.Value(executionAdmissionKey{}).(*preparedExecution)
@@ -515,6 +697,13 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 		return internaljobs.Result{}, errors.New("ai: execution was not admitted")
 	}
 	model, bsel, pl := prepared.model, prepared.selection, prepared.payload
+	routeEvidence = routeMeta(pl.Route, e.deps.Route)
+	// An instruction edit keeps its subject by default; the effective prompt is
+	// reported in the meta so the added wording is never hidden.
+	var promptMeta map[string]string
+	if op == "edit_instruct" {
+		pl.Params, promptMeta = editPromptParams(pl.Params, pl.PreserveIdentity)
+	}
 	emit(5, fmt.Sprintf("selected %s on %s", model.ID, bsel.Tier))
 
 	tmpDir, err := os.MkdirTemp("", "imgtools-ai-*")
@@ -601,6 +790,24 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 				gatewayVariations = append(gatewayVariations, aigateway.EvidenceVariation{Index: i, Outcome: "failed", CostState: "unknown"})
 			}
 			nextVariation = i + 1
+			if i == 0 && bsel.Tier == backends.TierBYOK {
+				// The first call was refused before any billing (no credits, bad
+				// credentials, provider unreachable). A job the policy moved here
+				// returns to its local route; a caller who demanded the cloud
+				// gets the honest error, and either way the refusal is recorded
+				// so the cloud is paused for everyone else.
+				if code, refused := cloudRefusal(err); refused {
+					if back := e.fellBackLocal(pl, code, err); back != nil {
+						return internaljobs.Result{}, back
+					}
+					if routeEvidence == nil {
+						routeEvidence = map[string]string{}
+					}
+					for k, v := range e.refusalMeta(code, err) {
+						routeEvidence[k] = v
+					}
+				}
+			}
 			return internaljobs.Result{}, err
 		}
 		nextVariation = i + 1
@@ -639,11 +846,25 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 		delete(meta, aigateway.MetaCostUSD)
 		delete(meta, aigateway.MetaCostProvenance)
 	}
+	if len(promptMeta) > 0 || len(routeEvidence) > 0 {
+		if meta == nil {
+			meta = map[string]string{}
+		}
+		for k, v := range routeEvidence {
+			meta[k] = v
+		}
+		for k, v := range promptMeta {
+			meta[k] = v
+		}
+		if pl.Route != nil && allVariationCostsKnown && pl.Tier == backends.TierBYOK.String() && aggregatedCost > pl.Route.MaxCostUSD+1e-9 {
+			meta["route_cost_over_cap"] = "true"
+		}
+	}
 	primary := outKeys[0]
 	// The hard-refusal review is unconditional when it is configured: it must not
 	// depend on a request flag, because the caller cannot opt out of the one
 	// non-configurable boundary. The advisory NSFW scan stays opt-in.
-	reviewRequired := e.deps.ReviewOutput != nil && op != "scene_geometry" && op != "image_to_object"
+	reviewRequired := e.reviewRequired(op)
 	advisoryScan := e.deps.AutoScan != nil && pl.AutoScanNSFW && op != "scene_geometry" && op != "image_to_object"
 	if reviewRequired || advisoryScan {
 		// Relinquish execution claims before the next model is admitted. A warm
@@ -657,9 +878,14 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 	}
 	if reviewRequired {
 		emit(92, "reviewing output for the non-configurable safety boundary")
-		if err := e.reviewOutputs(ctx, outKeys); err != nil {
+		report, err := e.reviewOutputs(ctx, job.ID, outKeys, ReviewSource{NSFWCapable: model.CapabilityLabels.NSFWCapable}, emit)
+		if err != nil {
 			return internaljobs.Result{}, err
 		}
+		if meta == nil {
+			meta = map[string]string{}
+		}
+		report.addTo(meta)
 	}
 	if advisoryScan {
 		emit(96, "auto-scanning output for NSFW content")
@@ -695,6 +921,16 @@ func removeVerifiedAITempDir(path string, removeAll func(string) error) error {
 	return nil
 }
 
+// modelResidentVRAMClaimBytes is the larger claim that keeps a staged model's
+// stages GPU-resident. It is zero unless the registry declares one above the
+// streamed floor.
+func modelResidentVRAMClaimBytes(model models.Model) int64 {
+	if model.Hardware.ResidentVRAMGB > model.Hardware.MinVRAMGB {
+		return int64(model.Hardware.ResidentVRAMGB) << 30
+	}
+	return 0
+}
+
 func modelVRAMClaimBytes(model models.Model) int64 {
 	if model.Hardware.MinVRAMGB > 0 {
 		return int64(model.Hardware.MinVRAMGB) << 30
@@ -703,8 +939,9 @@ func modelVRAMClaimBytes(model models.Model) int64 {
 }
 
 type inputFiles struct {
-	image string
-	mask  string
+	image     string
+	mask      string
+	reference string
 }
 
 func (e *Engine) materializeInputs(ctx context.Context, tmpDir string, pl Payload) (inputFiles, error) {
@@ -722,6 +959,13 @@ func (e *Engine) materializeInputs(ctx context.Context, tmpDir string, pl Payloa
 			return in, err
 		}
 		in.mask = p
+	}
+	if pl.ReferenceKey != "" {
+		p, err := e.fetchToFile(ctx, tmpDir, "reference", pl.ReferenceKey)
+		if err != nil {
+			return in, err
+		}
+		in.reference = p
 	}
 	return in, nil
 }
@@ -848,6 +1092,13 @@ func (e *Engine) runOnce(ctx context.Context, op string, model models.Model, bse
 	for k, v := range pl.Params {
 		params[k] = v
 	}
+	// A cloud generation is bounded by the job's spend cap: the provider reserves a
+	// request's worst-case cost before it runs, so the ceiling has to travel with
+	// the request. The cap covers every variation, so each image gets its share.
+	if pl.Route != nil && pl.Route.MaxCostUSD > 0 && bsel.Provider.IsCloud() {
+		share := pl.Route.MaxCostUSD / float64(max(pl.Variations, 1))
+		params[aigateway.ParamMaxCostUSD] = strconv.FormatFloat(share, 'f', -1, 64)
+	}
 	// Vary the seed per variation so multiple outputs differ deterministically.
 	if base, ok := params["seed"]; ok && variation > 0 {
 		if n, err := strconv.Atoi(base); err == nil {
@@ -906,11 +1157,17 @@ func (e *Engine) runOnce(ctx context.Context, op string, model models.Model, bse
 	return key, res.Meta, nil
 }
 
+// collectInputs orders the operation inputs the way backends.Request.InputKeys
+// documents them: image, mask, reference. A reference without a mask leaves the
+// mask slot empty so a provider reads each role by position, never by guessing.
 func collectInputs(in inputFiles) []string {
 	if in.image == "" {
 		return nil
 	}
-	if in.mask != "" {
+	switch {
+	case in.reference != "":
+		return []string{in.image, in.mask, in.reference}
+	case in.mask != "":
 		return []string{in.image, in.mask}
 	}
 	return []string{in.image}
@@ -970,34 +1227,131 @@ type HardRefusalError struct{ Reason string }
 
 func (e *HardRefusalError) Error() string { return "ai: output refused: " + e.Reason }
 
+// Job result_meta keys the output review records. `sensitive` is the flag the API
+// and UI act on (blur, tap to reveal); the rest make a pass auditable.
+const (
+	MetaSensitive         = "sensitive"
+	MetaSensitiveRefs     = "sensitive_refs"
+	MetaSensitiveReason   = "sensitive_reason"
+	MetaNSFWScore         = "nsfw_score"
+	MetaSafetyReview      = "safety_review"
+	MetaSafetyReviewNotes = "safety_review_detail"
+)
+
+// reviewReport is what the mandatory review learned about the produced outputs.
+type reviewReport struct {
+	sensitive []string
+	// reasons records why outputs were flagged: "classifier" (the output scored as
+	// sexual) and/or "model" (an NSFW-capable model produced it, so every output of
+	// that model is treated as sensitive whatever the classifier said).
+	reasons  []string
+	maxScore float64
+	details  []string
+}
+
+// addTo records the review on the job's result meta. A refusal never reaches here
+// (the job fails and the bytes are deleted), so the record always reads "passed".
+func (r reviewReport) addTo(meta map[string]string) {
+	meta[MetaSafetyReview] = "passed"
+	meta[MetaNSFWScore] = strconv.FormatFloat(r.maxScore, 'f', 4, 64)
+	if len(r.details) > 0 {
+		meta[MetaSafetyReviewNotes] = strings.Join(r.details, " | ")
+	}
+	if len(r.sensitive) > 0 {
+		meta[MetaSensitive] = "true"
+		meta[MetaSensitiveRefs] = strings.Join(r.sensitive, ",")
+		meta[MetaSensitiveReason] = strings.Join(r.reasons, ",")
+	}
+}
+
+// flag marks one output sensitive for a reason, once per output and reason.
+func (r *reviewReport) flag(key, reason string) {
+	if !slices.Contains(r.sensitive, key) {
+		r.sensitive = append(r.sensitive, key)
+	}
+	if !slices.Contains(r.reasons, reason) {
+		r.reasons = append(r.reasons, reason)
+	}
+}
+
+// holdReviewModels makes the review's model weights present and holds their use
+// leases until the returned release runs. A weight that was offloaded since the
+// last job is re-acquired here, so a reviewer that is configured can always run.
+func (e *Engine) holdReviewModels(ctx context.Context, jobID string, emit func(int, string)) (func(), error) {
+	var releases []func()
+	release := func() {
+		for i := len(releases) - 1; i >= 0; i-- {
+			releases[i]()
+		}
+	}
+	for _, id := range e.deps.ReviewModels {
+		if e.deps.ModelInstalled != nil && !e.deps.ModelInstalled(id) {
+			if e.deps.AcquireModel == nil {
+				release()
+				return nil, fmt.Errorf("%w: %q (needed by the safety review)", ErrModelNotInstalled, id)
+			}
+			if err := e.deps.AcquireModel(ctx, id, jobID, func(p int, m string) { emit(p, "safety review weights: "+m) }); err != nil {
+				release()
+				return nil, fmt.Errorf("%w: %q (needed by the safety review): %w", ErrModelNotInstalled, id, err)
+			}
+		}
+		if e.deps.AcquireModelUse != nil {
+			held, err := e.deps.AcquireModelUse(id)
+			if err != nil {
+				release()
+				return nil, fmt.Errorf("ai: hold safety review model %q: %w", id, err)
+			}
+			releases = append(releases, held)
+		}
+	}
+	return release, nil
+}
+
 // reviewOutputs runs the configured review on every produced variation. Any
 // review failure deletes the artifacts: a deployment that promised the boundary
 // cannot leave unreviewed bytes addressable because its classifier crashed.
-func (e *Engine) reviewOutputs(ctx context.Context, keys []string) error {
+func (e *Engine) reviewOutputs(ctx context.Context, jobID string, keys []string, source ReviewSource, emit func(int, string)) (reviewReport, error) {
+	var report reviewReport
+	release, err := e.holdReviewModels(ctx, jobID, emit)
+	if err != nil {
+		return report, errors.Join(err, e.deleteOutputs(ctx, keys))
+	}
+	defer release()
+	ctx = WithReviewSource(ctx, source)
 	for _, key := range keys {
 		rc, _, err := e.deps.Store.Get(ctx, key)
 		if err != nil {
-			return errors.Join(fmt.Errorf("ai: read output for safety review: %w", err), e.deleteOutputs(ctx, keys))
+			return report, errors.Join(fmt.Errorf("ai: read output for safety review: %w", err), e.deleteOutputs(ctx, keys))
 		}
 		// Bound the read: a provider that produced an oversized file must not turn
 		// the mandatory review into an unbounded allocation.
 		data, readErr := io.ReadAll(io.LimitReader(rc, maxReviewBytes+1))
 		closeErr := rc.Close()
 		if readErr != nil || closeErr != nil {
-			return errors.Join(fmt.Errorf("ai: read output for safety review: %w", errors.Join(readErr, closeErr)), e.deleteOutputs(ctx, keys))
+			return report, errors.Join(fmt.Errorf("ai: read output for safety review: %w", errors.Join(readErr, closeErr)), e.deleteOutputs(ctx, keys))
 		}
 		if len(data) > maxReviewBytes {
-			return errors.Join(fmt.Errorf("ai: output exceeds the %d-byte review limit", maxReviewBytes), e.deleteOutputs(ctx, keys))
+			return report, errors.Join(fmt.Errorf("ai: output exceeds the %d-byte review limit", maxReviewBytes), e.deleteOutputs(ctx, keys))
 		}
 		verdict, err := e.deps.ReviewOutput(ctx, data)
 		if err != nil {
-			return errors.Join(fmt.Errorf("ai: required output review failed: %w", err), e.deleteOutputs(ctx, keys))
+			return report, errors.Join(fmt.Errorf("ai: required output review failed: %w", err), e.deleteOutputs(ctx, keys))
 		}
 		if verdict.HardRefusal != "" {
-			return errors.Join(&HardRefusalError{Reason: verdict.HardRefusal}, e.deleteOutputs(ctx, keys))
+			return report, errors.Join(&HardRefusalError{Reason: verdict.HardRefusal}, e.deleteOutputs(ctx, keys))
+		}
+		report.maxScore = max(report.maxScore, verdict.Score)
+		if verdict.NSFW {
+			report.flag(key, "classifier")
+		}
+		if source.NSFWCapable {
+			report.flag(key, "model")
+		}
+		if verdict.Detail != "" {
+			report.details = append(report.details, verdict.Detail)
 		}
 	}
-	return nil
+	return report, nil
 }
 
 func (e *Engine) deleteOutputs(ctx context.Context, keys []string) error {

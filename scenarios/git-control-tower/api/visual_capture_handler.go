@@ -90,68 +90,6 @@ func (s *Server) handleVisualCapture(w http.ResponseWriter, r *http.Request) {
 	hctx.Resp.OK(meta)
 }
 
-// handleVisualCaptureList handles GET /api/v1/repo/visual-captures?scenarioSlug=...
-func (s *Server) handleVisualCaptureList(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
-	if hctx == nil {
-		return
-	}
-	defer hctx.Cancel()
-
-	slug := strings.TrimSpace(r.URL.Query().Get("scenarioSlug"))
-	if slug == "" {
-		hctx.Resp.BadRequest("scenarioSlug query parameter is required")
-		return
-	}
-
-	snapshots, err := s.visualCaptureStorage.ListSnapshotSets(hctx.RepoID, slug)
-	if err != nil {
-		hctx.Resp.InternalError(err.Error())
-		return
-	}
-
-	resp := map[string]interface{}{
-		"snapshots": snapshots,
-		"total":     len(snapshots),
-	}
-
-	// Compute staleness for the most recent capture-role snapshot
-	for _, snap := range snapshots {
-		if snap.Status == "complete" && snap.EffectiveRole() == SnapshotRoleCapture {
-			staleness := CheckCaptureStaleness(hctx.RepoDir, slug, snap.CreatedAt)
-			resp["staleness"] = staleness
-			break
-		}
-	}
-
-	hctx.Resp.OK(resp)
-}
-
-// handleVisualCaptureDetail handles GET /api/v1/repo/visual-captures/{id}?scenarioSlug=...
-func (s *Server) handleVisualCaptureDetail(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
-	if hctx == nil {
-		return
-	}
-	defer hctx.Cancel()
-
-	vars := mux.Vars(r)
-	id := vars["id"]
-	slug := strings.TrimSpace(r.URL.Query().Get("scenarioSlug"))
-	if slug == "" {
-		hctx.Resp.BadRequest("scenarioSlug query parameter is required")
-		return
-	}
-
-	detail, err := s.visualCaptureStorage.GetSnapshotSet(hctx.RepoID, slug, id)
-	if err != nil {
-		hctx.Resp.InternalError(err.Error())
-		return
-	}
-
-	hctx.Resp.OK(detail)
-}
-
 // handleVisualCaptureScreenshot handles GET /api/v1/repo/visual-captures/{id}/screenshot/{filename}
 func (s *Server) handleVisualCaptureScreenshot(w http.ResponseWriter, r *http.Request) {
 	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
@@ -187,37 +125,6 @@ func (s *Server) handleVisualCaptureScreenshot(w http.ResponseWriter, r *http.Re
 	}
 }
 
-// handleVisualCaptureScreenshotPath handles GET /api/v1/repo/visual-captures/{id}/screenshot/{filename}/path
-// Returns the absolute filesystem path to a screenshot instead of its bytes.
-func (s *Server) handleVisualCaptureScreenshotPath(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
-	if hctx == nil {
-		return
-	}
-	defer hctx.Cancel()
-
-	vars := mux.Vars(r)
-	id := vars["id"]
-	filename := vars["filename"]
-	slug := strings.TrimSpace(r.URL.Query().Get("scenarioSlug"))
-	if slug == "" {
-		hctx.Resp.BadRequest("scenarioSlug query parameter is required")
-		return
-	}
-
-	fp, err := s.visualCaptureStorage.GetScreenshotFilePath(hctx.RepoID, slug, id, filename)
-	if err != nil {
-		if strings.Contains(err.Error(), "path traversal") {
-			hctx.Resp.BadRequest(err.Error())
-			return
-		}
-		hctx.Resp.NotFound("screenshot not found")
-		return
-	}
-
-	hctx.Resp.OK(map[string]string{"path": fp})
-}
-
 // handleVisualCaptureVideo handles GET /api/v1/repo/visual-captures/{id}/video/{filename}
 func (s *Server) handleVisualCaptureVideo(w http.ResponseWriter, r *http.Request) {
 	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
@@ -251,23 +158,6 @@ func (s *Server) handleVisualCaptureVideo(w http.ResponseWriter, r *http.Request
 		hctx.Resp.InternalError("failed to write video response")
 		return
 	}
-}
-
-// handleVisualCaptureStorageStats handles GET /api/v1/repo/visual-capture-storage
-func (s *Server) handleVisualCaptureStorageStats(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
-	if hctx == nil {
-		return
-	}
-	defer hctx.Cancel()
-
-	stats, err := s.visualCaptureStorage.GetStorageStats(hctx.RepoID)
-	if err != nil {
-		hctx.Resp.InternalError(err.Error())
-		return
-	}
-
-	hctx.Resp.OK(stats)
 }
 
 // handleVisualCaptureDelete handles DELETE /api/v1/repo/visual-captures/{id}?scenarioSlug=...

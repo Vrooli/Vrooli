@@ -142,6 +142,31 @@ func TestQueueSelectionCapturesWithoutStartingAndFinalizesExactStagedContent(t *
 	}
 }
 
+func TestQueueSelectionAcceptsLargeExactStagedSelection(t *testing.T) {
+	s, _, _, provider := serviceFixture(t)
+	dir, git := fixtureGit(t)
+	s.snapshots = GitSnapshotter{}
+	paths := make([]string, 40)
+	for i := range paths {
+		paths[i] = fmt.Sprintf("queued-%02d.txt", i)
+		writeFixture(t, dir, paths[i], strings.Repeat("x", 100<<10))
+		git("", "add", "--", paths[i])
+	}
+
+	queued, err := s.QueueWorktreeSelection(context.Background(), "repo", dir, &v1.QueueWorktreeSelectionRequest{
+		SelectionId: "large-selection", Source: v1.WorktreeSelectionSource_WORKTREE_SELECTION_SOURCE_HEAD_TO_INDEX, Paths: paths,
+	})
+	if err != nil {
+		t.Fatalf("queue full staged selection: %v", err)
+	}
+	if len(queued.Paths) != len(paths) {
+		t.Fatalf("queued paths = %d, want all %d", len(queued.Paths), len(paths))
+	}
+	if provider.starts != 0 || provider.searches != 0 {
+		t.Fatalf("queueing started suggestion work: starts=%d searches=%d", provider.starts, provider.searches)
+	}
+}
+
 func TestFailedQueueEntryCanRetryWhenItsSuggestionJobWasDeleted(t *testing.T) {
 	s, store, _, provider, db := serviceFixtureWithDB(t)
 	dir, git := fixtureGit(t)
@@ -497,7 +522,7 @@ func TestClassifyDispatchErrorsByRecoveryAction(t *testing.T) {
 		{name: "invalid request", code: connect.CodeInvalidArgument, first: true, wantCode: "invalid_request"},
 		{name: "authentication", code: connect.CodeUnauthenticated, first: true, wantCode: "authentication_required", wantRetry: true},
 		{name: "policy denial", code: connect.CodePermissionDenied, first: true, wantCode: "policy_denied"},
-		{name: "provider precondition", code: connect.CodeFailedPrecondition, first: true, wantCode: "provider_precondition_failed", wantRetry: true},
+		{name: "workflow precondition", code: connect.CodeFailedPrecondition, first: true, wantCode: "workflow_precondition_failed"},
 		{name: "unsupported operation", code: connect.CodeUnimplemented, first: true, wantCode: "unsupported_operation"},
 		{name: "unavailable after attempt", code: connect.CodeUnavailable, first: true, wantCode: "dispatch_unconfirmed"},
 		{name: "status unavailable after acceptance", code: connect.CodeUnavailable, first: false, wantCode: "execution_status_unavailable", wantRetry: true},

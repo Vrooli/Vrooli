@@ -6,7 +6,7 @@ import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1
 
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Anchor, Loader2, X } from "lucide-react";
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { MutationErrorBanner } from "../../components/ScenarioReviewPanelShared";
 import { useIsMobile } from "../../hooks";
 import { useRepoStatus } from "../../lib/hooks-core";
@@ -119,7 +119,14 @@ export function SetBaselineModal({
 
   const footer = (
     <>
-      <Button variant="outline" size="sm" onClick={onClose} disabled={create.isPending} className="h-8 px-3">
+      <Button
+        variant="secondary"
+        size="sm"
+        onClick={onClose}
+        disabled={create.isPending}
+        className="h-8 px-3"
+        style={{ background: "transparent" }}
+      >
         Cancel
       </Button>
       <Button size="sm" onClick={handleCapture} disabled={!canSubmit} className="h-8 px-3 gap-1.5">

@@ -3,6 +3,7 @@ package models
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,10 +13,65 @@ import (
 	"image-tools/internal/capabilities"
 )
 
-func TestSharedAdapterUsesCanonicalContextAndAllowsVerifiedOpenRAILLocalInference(t *testing.T) {
+// strictRightsContextPath copies the canonical operator context without the
+// standing normal-use licensing answer, so the fail-closed evidence-gap
+// behavior stays proven independently of the operator's answer.
+func strictRightsContextPath(t *testing.T, repoRoot string) string {
+	t.Helper()
+	canonical := filepath.Join(repoRoot, "scenarios", "ai-gateway", "config", "model-rights-context.json")
+	data, err := os.ReadFile(canonical)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document map[string]any
+	if err := json.Unmarshal(data, &document); err != nil {
+		t.Fatal(err)
+	}
+	contextFields, _ := document["context"].(map[string]any)
+	delete(contextFields, "normal_use_licensing")
+	delete(contextFields, "normal_use_licensing_evidence")
+	out, err := json.Marshal(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "strict-model-rights-context.json")
+	if err := os.WriteFile(path, out, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func TestCanonicalOperatorContextAllowsUnverifiedSeedModelsForNormalUseOnly(t *testing.T) {
 	repoRoot := repositoryRoot(t)
 	t.Setenv("VROOLI_SOURCE_ROOT", repoRoot)
 	t.Setenv(policy.RightsContextPathEnv, "")
+	evaluator := AdaptRightsEvaluator(policy.NewDefaultRightsEvaluator(os.Getenv))
+	registry, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	candidate, ok := registry.ByID("depth-anything-v2-small")
+	if !ok {
+		t.Fatal("depth-anything-v2-small missing from seed")
+	}
+	decision, err := EvaluateCurrentModelRights(context.Background(), evaluator, candidate, RightsUseLocalInference)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decision.Status != string(policy.RightsAllowed) || decision.Reason != "operator_normal_use_any_license_class" || len(decision.Obligations) == 0 {
+		t.Fatalf("canonical operator context local-use rights = %+v, want operator normal-use allow with obligations", decision)
+	}
+	for _, use := range []string{RightsUseMonetizedUse, RightsUseHostedInference, RightsUseRedistributeWeights} {
+		if leaked, _ := EvaluateCurrentModelRights(context.Background(), evaluator, candidate, use); leaked.Status == string(policy.RightsAllowed) {
+			t.Fatalf("operator normal-use answer leaked to %s: %+v", use, leaked)
+		}
+	}
+}
+
+func TestSharedAdapterUsesCanonicalContextAndAllowsVerifiedOpenRAILLocalInference(t *testing.T) {
+	repoRoot := repositoryRoot(t)
+	t.Setenv("VROOLI_SOURCE_ROOT", repoRoot)
+	t.Setenv(policy.RightsContextPathEnv, strictRightsContextPath(t, repoRoot))
 	evaluator := AdaptRightsEvaluator(policy.NewDefaultRightsEvaluator(os.Getenv))
 	registry, err := Load()
 	if err != nil {
@@ -50,6 +106,21 @@ func TestSharedAdapterUsesCanonicalContextAndAllowsVerifiedOpenRAILLocalInferenc
 				if candidate.Source.Checksum.Status != "pinned" || candidate.Source.Checksum.Value != artifact.SHA256 {
 					t.Errorf("U2-Net-p artifact checksum %q/%s does not match rights digest %s", candidate.Source.Checksum.Value, candidate.Source.Checksum.Status, artifact.SHA256)
 				}
+			} else if candidate.ID == "flux-2-klein-4b" {
+				if decision.Status != string(policy.RightsAllowed) || decision.Reason != "verified_unrestricted_grant" {
+					t.Errorf("verified FLUX.2 klein 4B local-use rights = %+v, want allowed from pinned Apache-2.0 evidence", decision)
+				}
+				var artifact policy.ArtifactRights
+				if err := json.Unmarshal(candidate.Rights, &artifact); err != nil {
+					t.Fatalf("decode FLUX.2 klein rights evidence: %v", err)
+				}
+				if candidate.Source.Repo.FileSHA256["transformer/diffusion_pytorch_model.safetensors"] != artifact.SHA256 {
+					t.Errorf("FLUX.2 klein rights digest %s is not the pinned transformer weights digest", artifact.SHA256)
+				}
+			} else if candidate.CapabilityLabels.CommercialUse == CommercialUseNo {
+				if decision.Status != string(policy.RightsDenied) || decision.Reason != "license_prohibits_use" {
+					t.Errorf("non-commercial %s rights without the operator's normal-use answer = %+v, want denied by its license", candidate.ID, decision)
+				}
 			} else if decision.Status != string(policy.RightsUnknown) {
 				t.Errorf("unverified seed candidate %s rights = %q (%s), want unknown from source facts", candidate.ID, decision.Status, decision.Reason)
 			}
@@ -61,7 +132,7 @@ func TestSharedAdapterUsesCanonicalContextAndAllowsVerifiedOpenRAILLocalInferenc
 	}
 	for _, operation := range registry.SortedOperations() {
 		for _, candidate := range registry.ForOperation(operation) {
-			if !candidate.Enabled || candidate.Backend == BackendOpenRouter || candidate.ID == "sd-1.5" || candidate.ID == "u2netp" {
+			if !candidate.Enabled || candidate.Backend == BackendOpenRouter || candidate.ID == "sd-1.5" || candidate.ID == "u2netp" || candidate.ID == "flux-2-klein-4b" {
 				continue
 			}
 			_, err := registry.Select(SelectRequest{Operation: operation, OverrideID: candidate.ID, Host: capabilities.Host{OS: "linux", Arch: "amd64", Cores: 8}, RightsEvaluator: evaluator}, nil)
@@ -202,5 +273,98 @@ func TestSharedAdapterRefusesOnContextFlipAndRestoresPermittedCandidate(t *testi
 	selected, err = registry.Select(request, func(string) bool { return true })
 	if err != nil || selected.Model.ID != "gpu-quality" {
 		t.Fatalf("restored selection = %+v, %v; want source-permitted preferred candidate", selected, err)
+	}
+}
+
+// nonCommercialModel is a registry-shaped model whose license forbids
+// commercial use: the rights record is classified prohibited, as the seed
+// requires for every commercial_use=no entry.
+func nonCommercialModel() Model {
+	rights, _ := json.Marshal(policy.ArtifactRights{
+		ArtifactID: "nc-model", Revision: "weights-rev-1", SHA256: strings.Repeat("a", 64),
+		LicenseID: "LicenseRef-non-commercial", Classification: policy.RightsProhibited,
+		Evidence:    policy.RightsEvidence{URL: "https://example.invalid/LICENSE", Revision: "license-rev-1", SHA256: strings.Repeat("b", 64), ObservedAt: "2026-11-21"},
+		Obligations: []string{"non-commercial use only"}, ReviewTriggers: []string{"license_source_changed"},
+	})
+	return Model{ID: "nc-model", Rights: rights, CapabilityLabels: CapabilityLabels{CommercialUse: CommercialUseNo, CommercialUseNotes: "non-commercial license"}}
+}
+
+func TestNonCommercialModelIsAllowedForNormalUseButNotMonetizationOrRedistribution(t *testing.T) {
+	repoRoot := repositoryRoot(t)
+	t.Setenv("VROOLI_SOURCE_ROOT", repoRoot)
+	t.Setenv(policy.RightsContextPathEnv, "")
+	canonical := AdaptRightsEvaluator(policy.NewDefaultRightsEvaluator(os.Getenv))
+	model := nonCommercialModel()
+	if err := RequireLocalUsePermitted(context.Background(), canonical, model); err != nil {
+		t.Fatalf("non-commercial model refused for normal use under the operator stance: %v", err)
+	}
+	for _, use := range []string{RightsUseMonetizedUse, RightsUseHostedInference, RightsUseRedistributeWeights} {
+		if err := RequireUsePermitted(context.Background(), canonical, model, use); !errors.Is(err, ErrLocalUseNotPermitted) {
+			t.Fatalf("non-commercial model use %s = %v, want refusal", use, err)
+		}
+	}
+	// Without the standing answer even normal use stays license-bound.
+	t.Setenv(policy.RightsContextPathEnv, strictRightsContextPath(t, repoRoot))
+	strict := AdaptRightsEvaluator(policy.NewDefaultRightsEvaluator(os.Getenv))
+	if err := RequireLocalUsePermitted(context.Background(), strict, model); !errors.Is(err, ErrLocalUseNotPermitted) {
+		t.Fatalf("non-commercial model without the standing answer = %v, want refusal", err)
+	}
+	if err := RequireLocalUsePermitted(context.Background(), nil, model); !errors.Is(err, ErrLocalUseNotPermitted) {
+		t.Fatalf("no rights evaluator = %v, want fail-closed refusal", err)
+	}
+}
+
+func TestSelectionAllowsNonCommercialModelForNormalUse(t *testing.T) {
+	repoRoot := repositoryRoot(t)
+	t.Setenv("VROOLI_SOURCE_ROOT", repoRoot)
+	t.Setenv(policy.RightsContextPathEnv, "")
+	evaluator := AdaptRightsEvaluator(policy.NewDefaultRightsEvaluator(os.Getenv))
+	model := nonCommercialModel()
+	if !EffectiveEnabled(model, nil) && model.Enabled {
+		t.Fatal("non-commercial label masked an enabled model")
+	}
+	decision, err := EvaluateCurrentModelRights(context.Background(), evaluator, model, RightsUseLocalInference)
+	if err != nil || decision.Status != string(policy.RightsAllowed) || decision.Reason != "operator_normal_use_any_license_class" {
+		t.Fatalf("selection-time rights for a non-commercial model = %+v, %v", decision, err)
+	}
+}
+
+// Under the operator's standing normal-use answer every enabled local seed model
+// is allowed for local inference whatever its license class, and none of them is
+// allowed for monetized use, hosted inference or redistribution unless its own
+// verified license says so.
+func TestCanonicalContextAllowsEveryEnabledLocalSeedModelForNormalUse(t *testing.T) {
+	repoRoot := repositoryRoot(t)
+	t.Setenv("VROOLI_SOURCE_ROOT", repoRoot)
+	t.Setenv(policy.RightsContextPathEnv, "")
+	evaluator := AdaptRightsEvaluator(policy.NewDefaultRightsEvaluator(os.Getenv))
+	registry, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	checked := 0
+	for _, operation := range registry.SortedOperations() {
+		for _, candidate := range registry.ForOperation(operation) {
+			if !candidate.Enabled || candidate.Backend == BackendOpenRouter {
+				continue
+			}
+			decision, err := EvaluateCurrentModelRights(context.Background(), evaluator, candidate, RightsUseLocalInference)
+			if err != nil || decision.Status != string(policy.RightsAllowed) {
+				t.Errorf("%s/%s normal-use rights = %+v, %v; want allowed", operation, candidate.ID, decision, err)
+			}
+			if candidate.CapabilityLabels.CommercialUse != CommercialUseNo {
+				checked++
+				continue
+			}
+			for _, use := range []string{RightsUseMonetizedUse, RightsUseHostedInference, RightsUseRedistributeWeights} {
+				if leaked, _ := EvaluateCurrentModelRights(context.Background(), evaluator, candidate, use); leaked.Status == string(policy.RightsAllowed) {
+					t.Errorf("non-commercial %s allowed for %s: %+v", candidate.ID, use, leaked)
+				}
+			}
+			checked++
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no enabled local seed candidates checked")
 	}
 }

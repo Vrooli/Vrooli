@@ -1,22 +1,44 @@
 import { act, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useStageFiles, usePendingWorkspaceChanges, useUnstageFiles, useCommit } from "./hooks-core";
+import { useStageFiles, usePendingWorkspaceChanges, useUnstageFiles, useCommit, useRepoStatus } from "./hooks-core";
 import { queryKeys } from "./hooks-query-keys";
 import { renderHookWithQueryClient } from "../test-utils";
 
 const mockStageFiles = vi.fn();
 const mockUnstageFiles = vi.fn();
 const mockCommit = vi.fn();
+const mockFetchRepoStatus = vi.fn();
 
 vi.mock("./api", () => ({
   stageFiles: (...args: unknown[]) => mockStageFiles(...args),
   unstageFiles: (...args: unknown[]) => mockUnstageFiles(...args),
   createCommit: (...args: unknown[]) => mockCommit(...args),
+  fetchRepoStatus: (...args: unknown[]) => mockFetchRepoStatus(...args),
 }));
 
 describe("core repo hooks", () => {
   beforeEach(() => {
     mockStageFiles.mockResolvedValue({ success: true, staged: ["src/App.tsx"], timestamp: "t" });
+    mockFetchRepoStatus.mockResolvedValue({
+      repo_dir: "/repo",
+      branch: { head: "main", upstream: "", ahead: 0, behind: 0, oid: "" },
+      files: { staged: [], unstaged: ["visible.ts"], untracked: [], conflicts: [], binary: [], ignored: [], statuses: {}, renames: {} },
+      summary: { staged: 0, unstaged: 1, untracked: 0, conflicts: 0, ignored: 0 },
+      author: { name: "", email: "" }, timestamp: "now",
+    });
+  });
+
+  it("loads initial status while a workspace mutation is already pending", async () => {
+    let finishStage: (value: { success: boolean; staged: string[]; timestamp: string }) => void = () => {};
+    mockStageFiles.mockImplementationOnce(() => new Promise(resolve => { finishStage = resolve; }));
+    const writer = renderHookWithQueryClient(() => useStageFiles("status-load"));
+    act(() => { writer.result.current.mutate({ paths: ["other.ts"] }); });
+    await waitFor(() => expect(mockStageFiles).toHaveBeenCalledTimes(1));
+
+    const reader = renderHookWithQueryClient(() => useRepoStatus("status-load"), { queryClient: writer.queryClient });
+    await waitFor(() => expect(reader.result.current.data?.files.unstaged).toEqual(["visible.ts"]));
+    expect(mockFetchRepoStatus).toHaveBeenCalledWith("status-load");
+    act(() => finishStage({ success: true, staged: ["other.ts"], timestamp: "now" }));
   });
 
   it("useStageFiles forwards repo context and invalidates repo status", async () => {

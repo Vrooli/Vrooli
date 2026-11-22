@@ -3,11 +3,13 @@ package stagedmessages
 import (
 	"bytes"
 	"context"
+	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash"
 	"io"
 	"os"
 	"os/exec"
@@ -50,6 +52,10 @@ func CaptureWorktreeSnapshot(ctx context.Context, repo, dir string, paths []stri
 
 func captureWorktreeSnapshot(ctx context.Context, repo, dir string, paths []string, now func() time.Time) (Captured, error) {
 	selected, err := normalizeWorktreePaths(paths)
+	if err != nil {
+		return Captured{}, err
+	}
+	objectFormat, err := gitObjectFormat(ctx, dir)
 	if err != nil {
 		return Captured{}, err
 	}
@@ -102,7 +108,7 @@ func captureWorktreeSnapshot(ctx context.Context, repo, dir string, paths []stri
 			if info.Mode()&0111 != 0 {
 				newMode = "100755"
 			}
-			newID, e = hashBytes(ctx, dir, after)
+			newID, e = gitBlobID(objectFormat, after)
 			if e != nil {
 				return Captured{}, e
 			}
@@ -207,6 +213,33 @@ func hashBytes(ctx context.Context, dir string, data []byte) (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
+func gitObjectFormat(ctx context.Context, dir string) (string, error) {
+	format, err := gitRead(ctx, dir, "rev-parse", "--show-object-format")
+	if err != nil {
+		return "", err
+	}
+	value := strings.TrimSpace(string(format))
+	if value != "sha1" && value != "sha256" {
+		return "", fmt.Errorf("unsupported Git object format %q", value)
+	}
+	return value, nil
+}
+
+func gitBlobID(format string, data []byte) (string, error) {
+	var digest hash.Hash
+	switch format {
+	case "sha1":
+		digest = sha1.New()
+	case "sha256":
+		digest = sha256.New()
+	default:
+		return "", fmt.Errorf("unsupported Git object format %q", format)
+	}
+	_, _ = io.WriteString(digest, "blob "+strconv.Itoa(len(data))+"\x00")
+	_, _ = digest.Write(data)
+	return hex.EncodeToString(digest.Sum(nil)), nil
+}
+
 // WorktreeSelectionApplicable accepts the captured unstaged state or the same
 // content staged exactly as captured. It scopes identity to selected paths and
 // intentionally ignores HEAD movement.
@@ -220,9 +253,162 @@ func WorktreeSelectionUnstagedApplicable(ctx context.Context, dir string, snapsh
 	return worktreeSelectionApplicable(ctx, dir, snapshot, false)
 }
 
+// WorktreeSelectionStagedApplicable requires the saved selection's exact
+// post-stage contents to be present in Git's stage-0 index entries. The
+// worktree may contain later edits; those edits are not part of the commit.
+func WorktreeSelectionStagedApplicable(ctx context.Context, dir string, snapshot *v1.StagedMessageSnapshot) (bool, error) {
+	if snapshot == nil || len(snapshot.Files) == 0 {
+		return false, nil
+	}
+	wanted := make(map[string]*v1.StagedMessageFile, len(snapshot.Files))
+	paths := make([]string, 0, len(snapshot.Files))
+	for _, file := range snapshot.Files {
+		if file == nil || file.Path == "" {
+			return false, nil
+		}
+		if _, exists := wanted[file.Path]; exists {
+			return false, nil
+		}
+		wanted[file.Path] = file
+		paths = append(paths, file.Path)
+	}
+	index := make(map[string]stagedIndexEntry, len(paths))
+	for start := 0; start < len(paths); start += 128 {
+		end := min(start+128, len(paths))
+		args := []string{"ls-files", "--stage", "-z", "--"}
+		for _, path := range paths[start:end] {
+			args = append(args, ":(literal)"+path)
+		}
+		idx, err := gitRead(ctx, dir, args...)
+		if err != nil {
+			return false, err
+		}
+		for _, row := range bytes.Split(idx, []byte{0}) {
+			if len(row) == 0 {
+				continue
+			}
+			meta, path, ok := strings.Cut(string(row), "\t")
+			fields := strings.Fields(meta)
+			if !ok || wanted[path] == nil || len(fields) != 3 || fields[2] != "0" {
+				return false, nil
+			}
+			if _, duplicate := index[path]; duplicate {
+				return false, nil
+			}
+			index[path] = stagedIndexEntry{mode: fields[0], oid: fields[1], stage: fields[2]}
+		}
+	}
+	for path, file := range wanted {
+		entry, exists := index[path]
+		if file.NewBlobId == "" {
+			if exists {
+				return false, nil
+			}
+		} else if !exists || entry.oid != file.NewBlobId || entry.mode != file.NewMode {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+// WorktreeSelectionCommittedAtHead checks a single Git tree read for every
+// selected path. Queue retirement therefore records success only after HEAD
+// contains the immutable file versions that were reserved for commit.
+func WorktreeSelectionCommittedAtHead(ctx context.Context, dir string, snapshot *v1.StagedMessageSnapshot) (bool, error) {
+	if snapshot == nil || len(snapshot.Files) == 0 {
+		return false, nil
+	}
+	wanted := make(map[string]*v1.StagedMessageFile, len(snapshot.Files))
+	paths := make([]string, 0, len(snapshot.Files))
+	for _, file := range snapshot.Files {
+		if file == nil || file.Path == "" {
+			return false, nil
+		}
+		wanted[file.Path] = file
+		paths = append(paths, file.Path)
+	}
+	found := make(map[string]struct{}, len(wanted))
+	for start := 0; start < len(paths); start += 128 {
+		end := min(start+128, len(paths))
+		args := []string{"ls-tree", "-rz", "--full-tree", "HEAD", "--"}
+		for _, path := range paths[start:end] {
+			args = append(args, ":(literal)"+path)
+		}
+		output, err := gitRead(ctx, dir, args...)
+		if err != nil {
+			return false, err
+		}
+		for _, row := range bytes.Split(output, []byte{0}) {
+			if len(row) == 0 {
+				continue
+			}
+			meta, path, ok := strings.Cut(string(row), "\t")
+			fields := strings.Fields(meta)
+			if !ok || len(fields) != 3 || fields[1] != "blob" {
+				return false, nil
+			}
+			file := wanted[path]
+			if file == nil || file.NewBlobId == "" || fields[0] != file.NewMode || fields[2] != file.NewBlobId {
+				return false, nil
+			}
+			found[path] = struct{}{}
+		}
+	}
+	for path, file := range wanted {
+		_, exists := found[path]
+		if file.NewBlobId == "" {
+			if exists {
+				return false, nil
+			}
+		} else if !exists {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
 func worktreeSelectionApplicable(ctx context.Context, dir string, snapshot *v1.StagedMessageSnapshot, allowStaged bool) (bool, error) {
 	if snapshot == nil || len(snapshot.Files) == 0 {
 		return false, nil
+	}
+	objectFormat, err := gitObjectFormat(ctx, dir)
+	if err != nil {
+		return false, err
+	}
+	paths := make([]string, 0, len(snapshot.Files))
+	wanted := make(map[string]*v1.StagedMessageFile, len(snapshot.Files))
+	for _, file := range snapshot.Files {
+		if file == nil || file.Path == "" || wanted[file.Path] != nil {
+			return false, nil
+		}
+		wanted[file.Path] = file
+		paths = append(paths, file.Path)
+	}
+	index := make(map[string]stagedIndexEntry, len(paths))
+	for start := 0; start < len(paths); start += 128 {
+		end := min(start+128, len(paths))
+		args := []string{"ls-files", "--stage", "-z", "--"}
+		for _, path := range paths[start:end] {
+			args = append(args, ":(literal)"+path)
+		}
+		idx, readErr := gitRead(ctx, dir, args...)
+		if readErr != nil {
+			return false, readErr
+		}
+		for _, row := range bytes.Split(idx, []byte{0}) {
+			if len(row) == 0 {
+				continue
+			}
+			meta, path, ok := strings.Cut(string(row), "\t")
+			fields := strings.Fields(meta)
+			if !ok || wanted[path] == nil || len(fields) != 3 || fields[2] != "0" {
+				return false, nil
+			}
+			if _, duplicate := index[path]; duplicate {
+				return false, nil
+			}
+			index[path] = stagedIndexEntry{mode: fields[0], oid: fields[1], stage: fields[2]}
+		}
 	}
 	for _, f := range snapshot.Files {
 		parent := dir
@@ -237,22 +423,7 @@ func worktreeSelectionApplicable(ctx context.Context, dir string, snapshot *v1.S
 				return false, nil
 			}
 		}
-		idx, err := gitRead(ctx, dir, "ls-files", "--stage", "-z", "--", f.Path)
-		if err != nil {
-			return false, err
-		}
-		var indexID, indexMode string
-		for _, row := range bytes.Split(idx, []byte{0}) {
-			if len(row) == 0 {
-				continue
-			}
-			meta, path, ok := strings.Cut(string(row), "\t")
-			fields := strings.Fields(meta)
-			if !ok || path != f.Path || len(fields) != 3 || fields[2] != "0" {
-				return false, nil
-			}
-			indexMode, indexID = fields[0], fields[1]
-		}
+		indexEntry, indexExists := index[f.Path]
 		full := filepath.Join(dir, filepath.FromSlash(f.Path))
 		data, info, err := readRegularFileBounded(full, maxFileBytes)
 		var workID, workMode string
@@ -260,7 +431,7 @@ func worktreeSelectionApplicable(ctx context.Context, dir string, snapshot *v1.S
 			if len(data) > maxFileBytes {
 				return false, nil
 			}
-			workID, err = hashBytes(ctx, dir, data)
+			workID, err = gitBlobID(objectFormat, data)
 			if err != nil {
 				return false, err
 			}
@@ -271,8 +442,17 @@ func worktreeSelectionApplicable(ctx context.Context, dir string, snapshot *v1.S
 		} else if !errors.Is(err, os.ErrNotExist) {
 			return false, err
 		}
-		unstaged := indexID == f.OldBlobId && indexMode == f.OldMode && workID == f.NewBlobId && workMode == f.NewMode
-		staged := indexID == f.NewBlobId && indexMode == f.NewMode && workID == f.NewBlobId && workMode == f.NewMode
+		// A newly added path has no stage-0 entry after it is unstaged. A staged
+		// deletion also has no stage-0 entry, but that only matches the staged
+		// form when the new side of the snapshot is empty.
+		unstaged := !indexExists && f.OldBlobId == "" && f.OldMode == "" && workID == f.NewBlobId && workMode == f.NewMode
+		if indexExists {
+			unstaged = indexEntry.oid == f.OldBlobId && indexEntry.mode == f.OldMode && workID == f.NewBlobId && workMode == f.NewMode
+		}
+		staged := !indexExists && f.NewBlobId == "" && f.NewMode == "" && workID == "" && workMode == ""
+		if indexExists {
+			staged = indexEntry.oid == f.NewBlobId && indexEntry.mode == f.NewMode && workID == f.NewBlobId && workMode == f.NewMode
+		}
 		if !unstaged && !(allowStaged && staged) {
 			return false, nil
 		}
@@ -285,9 +465,16 @@ func worktreeSelectionApplicable(ctx context.Context, dir string, snapshot *v1.S
 type GitSnapshotter struct{ Now func() time.Time }
 
 func gitRead(ctx context.Context, dir string, args ...string) ([]byte, error) {
+	return gitReadInput(ctx, dir, nil, args...)
+}
+
+func gitReadInput(ctx context.Context, dir string, input []byte, args ...string) ([]byte, error) {
 	all := append([]string{"--no-optional-locks", "--literal-pathspecs", "-C", dir, "-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null"}, args...)
 	cmd := exec.CommandContext(ctx, "git", all...)
 	cmd.Env = append(os.Environ(), "GIT_OPTIONAL_LOCKS=0")
+	if input != nil {
+		cmd.Stdin = bytes.NewReader(input)
+	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, err

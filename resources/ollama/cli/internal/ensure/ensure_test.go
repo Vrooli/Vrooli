@@ -17,6 +17,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/artifactlock"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/policy"
+	"github.com/vrooli/vrooli/resources/ollama/cli/internal/runtimeprofile"
 )
 
 type fakeOllama struct {
@@ -668,7 +669,7 @@ func TestNewLoopbackClientDisablesProxyAndRedirectFollowing(t *testing.T) {
 	}
 }
 
-func TestGeneratePassesOptionsAndReturnsEvalCount(t *testing.T) {
+func TestGeneratePassesSamplingAndProfileVariantOnly(t *testing.T) {
 	var got struct {
 		Model   string         `json:"model"`
 		Prompt  string         `json:"prompt"`
@@ -697,22 +698,20 @@ func TestGeneratePassesOptionsAndReturnsEvalCount(t *testing.T) {
 	maxTokens := 123
 	temperature := 0.25
 	think := false
-	numGPU := 0
-	numCtx := 4096
-	numThread := 2
-	numBatch := 256
+	profile := runtimeprofile.Current()
+	cpuOnly, err := profile.VariantOptions(runtimeprofile.VariantCPUOnly)
+	if err != nil {
+		t.Fatal(err)
+	}
 	client := &Client{BaseURL: srv.URL, HTTP: http.DefaultClient}
 	resp, err := client.Generate(context.Background(), GenerateRequest{
 		Model:       "llama3.2:1b",
 		Prompt:      "hello",
 		Think:       &think,
-		Images:      []string{"aGVsbG8="},
-		NumGPU:      &numGPU,
-		NumPredict:  &maxTokens,
-		Temperature: &temperature,
-		NumCtx:      &numCtx,
-		NumThread:   &numThread,
-		NumBatch:    &numBatch,
+		Images:         []string{"aGVsbG8="},
+		NumPredict:     &maxTokens,
+		Temperature:    &temperature,
+		RuntimeOptions: cpuOnly,
 	})
 	if err != nil {
 		t.Fatalf("Generate: %v", err)
@@ -738,15 +737,21 @@ func TestGeneratePassesOptionsAndReturnsEvalCount(t *testing.T) {
 	if got.Options["temperature"] != 0.25 {
 		t.Fatalf("temperature = %#v, want 0.25", got.Options["temperature"])
 	}
-	if got.Options["num_gpu"] != float64(0) {
-		t.Fatalf("num_gpu = %#v, want 0", got.Options["num_gpu"])
+	for key, value := range cpuOnly {
+		if got.Options[key] != float64(value.(int)) {
+			t.Fatalf("variant option %s = %#v, want %v", key, got.Options[key], value)
+		}
 	}
-	if got.Options["num_ctx"] != float64(4096) || got.Options["num_thread"] != float64(2) || got.Options["num_batch"] != float64(256) {
-		t.Fatalf("runtime options = %#v", got.Options)
+	for key := range got.Options {
+		if profile.IsLoadOption(key) {
+			if _, ok := cpuOnly[key]; !ok {
+				t.Fatalf("generate sent load option %s outside the runtime profile variant: %#v", key, got.Options)
+			}
+		}
 	}
 }
 
-func TestChatSendsMessagesOptionsAndThink(t *testing.T) {
+func TestChatSendsMessagesSamplingAndNoLoadOptions(t *testing.T) {
 	var got struct {
 		Model    string `json:"model"`
 		Messages []struct {
@@ -795,9 +800,6 @@ func TestChatSendsMessagesOptionsAndThink(t *testing.T) {
 		NumPredict:  &maxTokens,
 		Temperature: &temperature,
 		Think:       &think,
-		NumCtx:      func() *int { v := 4096; return &v }(),
-		NumThread:   func() *int { v := 2; return &v }(),
-		NumBatch:    func() *int { v := 256; return &v }(),
 	})
 	if err != nil {
 		t.Fatalf("Chat: %v", err)
@@ -823,8 +825,10 @@ func TestChatSendsMessagesOptionsAndThink(t *testing.T) {
 	if got.Options["temperature"] != 0.25 {
 		t.Fatalf("temperature = %#v, want 0.25", got.Options["temperature"])
 	}
-	if got.Options["num_ctx"] != float64(4096) || got.Options["num_thread"] != float64(2) || got.Options["num_batch"] != float64(256) {
-		t.Fatalf("runtime options = %#v", got.Options)
+	for key := range got.Options {
+		if runtimeprofile.Current().IsLoadOption(key) {
+			t.Fatalf("chat sent runner load option %s; the daemon profile owns it: %#v", key, got.Options)
+		}
 	}
 }
 

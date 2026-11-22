@@ -11,7 +11,7 @@ import {
   Image,
   ArrowDown,
 } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import {
   useAgentProfiles,
   useAgentRuns,
@@ -163,12 +163,12 @@ export function AgentTab({
   const profiles = useAgentProfiles(agentManagerAvailable);
   const envelopeQuery = useScenarioEnvelope(scenarioSlug, agentManagerAvailable);
   const runs = useAgentRuns(scenarioSlug, agentManagerAvailable, repoId);
-  const activeRun = useAgentRun(activeRunId, agentManagerAvailable, repoId);
+  const activeRun = useAgentRun(activeRunId, scenarioSlug, agentManagerAvailable, repoId);
 
   const isActiveRun = activeRun.data && ([...ACTIVE_STATUSES, RUN_STATUS.NEEDS_REVIEW] as string[]).includes(activeRun.data.status);
   const shouldPollDiff = activeRun.data?.status === RUN_STATUS.NEEDS_REVIEW && agentManagerAvailable;
-  const runEvents = useAgentRunEvents(activeRunId, lastEventSequence, agentManagerAvailable && !!activeRunId, repoId, activeRun.data?.status);
-  const runDiff = useAgentRunDiff(activeRunId, shouldPollDiff, repoId);
+  const runEvents = useAgentRunEvents(activeRunId, scenarioSlug, lastEventSequence, agentManagerAvailable && !!activeRunId, repoId, activeRun.data?.status);
+  const runDiff = useAgentRunDiff(activeRunId, scenarioSlug, shouldPollDiff, repoId);
 
   const createRun = useCreateAgentRun(repoId);
   const continueRun = useContinueAgentRun(repoId);
@@ -435,11 +435,12 @@ export function AgentTab({
           )}
           {activeRun.data?.actions?.canStop && (
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={() => activeRunId && stop.mutate(activeRunId)}
               disabled={stop.isPending}
               className="h-6 text-[11px] gap-1 text-red-400 border-red-800 hover:bg-red-950/50"
+              style={{ background: "transparent" }}
             >
               <Square className="h-3 w-3" />
               Stop
@@ -447,7 +448,7 @@ export function AgentTab({
           )}
           {!isActiveRun && activeRunId && activeRun.data?.status !== RUN_STATUS.NEEDS_REVIEW && (
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={() => {
                 setActiveRunId(null);
@@ -455,6 +456,7 @@ export function AgentTab({
                 setLastEventSequence(-1);
               }}
               className="h-6 text-[11px] gap-1"
+              style={{ background: "transparent" }}
             >
               New Run
             </Button>
@@ -643,7 +645,7 @@ export function AgentTab({
               rows={1}
             />
             <Button
-              variant="default"
+              variant="primary"
               size="sm"
               onClick={handleInputSend}
               aria-label={canContinue ? "Send follow-up" : "Send message"}
@@ -661,7 +663,7 @@ export function AgentTab({
       ) : (
         <div className="shrink-0 border-t border-slate-800 px-4 py-2 flex justify-center">
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={() => {
               setActiveRunId(null);
@@ -669,6 +671,7 @@ export function AgentTab({
               setLastEventSequence(-1);
             }}
             className="h-8 text-xs gap-1"
+            style={{ background: "transparent" }}
           >
             Start New Run
           </Button>

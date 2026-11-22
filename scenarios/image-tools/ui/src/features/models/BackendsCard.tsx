@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
@@ -135,6 +135,7 @@ export function BackendsCard() {
                       data-testid={selectors.backends.installButton}
                       onClick={() => ensureMutation.mutate(b.hostTool)}
                       disabled={ensureMutation.isPending && ensureMutation.variables === b.hostTool}
+                      shape="square"
                     >
                       {ensureMutation.isPending && ensureMutation.variables === b.hostTool
                         ? t(strings.backends.installing)

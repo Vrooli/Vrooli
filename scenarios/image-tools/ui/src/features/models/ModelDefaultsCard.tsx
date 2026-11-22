@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
@@ -124,6 +124,7 @@ export function ModelDefaultsCard() {
                       setDefaultMutation.mutate({ operation: d.operation, modelId: "" })
                     }
                     disabled={setDefaultMutation.isPending}
+                    shape="square"
                   >
                     {t(strings.models.defaults.clear)}
                   </Button>

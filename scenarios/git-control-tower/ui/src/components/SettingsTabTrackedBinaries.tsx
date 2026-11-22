@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Check, HardDrive, Info } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { useTrackedBinaries, useUntrackBinary } from "../lib/hooks";
 import type { TrackedBinary } from "../lib/api";
 
@@ -135,11 +135,12 @@ export function TrackedBinariesSection({ isMobile, repoId }: TrackedBinariesSect
               </p>
               <div className="flex justify-end">
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   className={`h-8 px-3 text-xs ${isMobile ? "w-full" : ""}`}
                   onClick={() => handleUntrack(binary)}
                   disabled={busy}
+                  style={{ background: "transparent" }}
                 >
                   {pendingPath === binary.path ? "Untracking…" : "Keep local & untrack"}
                 </Button>

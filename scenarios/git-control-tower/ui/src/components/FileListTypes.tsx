@@ -17,6 +17,9 @@ export type GroupingRule = {
 };
 
 export interface FileListProps {
+  loading?: boolean;
+  loadError?: string | null;
+  onRetryLoad?: () => void;
   files?: RepoFilesStatus;
   fileStats?: RepoFileStats;
   selectedFiles?: SelectedFileEntry[];

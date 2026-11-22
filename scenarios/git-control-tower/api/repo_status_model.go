@@ -11,6 +11,7 @@ type RepoStatusDeps struct {
 	ConfigCache     *GitConfigCache  // optional; falls back to direct git calls if nil
 	StatusCache     *RepoStatusCache // optional; short-lived cache for polling callers
 	IncludeHotspots bool             // when false, skip the expensive LogFileFrequency call
+	FastStatus      bool             // path-list status only; detailed file statistics load on demand
 }
 
 type RepoHistoryDeps struct {
@@ -24,16 +25,17 @@ type RepoHistoryDeps struct {
 }
 
 type RepoStatus struct {
-	RepoDir      string                 `json:"repo_dir"`
-	Branch       RepoBranchStatus       `json:"branch"`
-	Files        RepoFilesStatus        `json:"files"`
-	FileStats    RepoFileStats          `json:"file_stats,omitempty"`
-	FileHotspots map[string]int         `json:"file_hotspots,omitempty"`
-	Scopes       map[string][]string    `json:"scopes"`
-	Summary      RepoStatusSummary      `json:"summary"`
-	Author       RepoAuthorStatus       `json:"author"`
-	Timestamp    time.Time              `json:"timestamp"`
-	Raw          map[string]interface{} `json:"raw,omitempty"`
+	RepoDir         string                 `json:"repo_dir"`
+	Branch          RepoBranchStatus       `json:"branch"`
+	Files           RepoFilesStatus        `json:"files"`
+	FileStats       RepoFileStats          `json:"file_stats,omitempty"`
+	FileHotspots    map[string]int         `json:"file_hotspots,omitempty"`
+	Scopes          map[string][]string    `json:"scopes"`
+	Summary         RepoStatusSummary      `json:"summary"`
+	Author          RepoAuthorStatus       `json:"author"`
+	Timestamp       time.Time              `json:"timestamp"`
+	Raw             map[string]interface{} `json:"raw,omitempty"`
+	statusPorcelain []byte
 }
 
 type RepoHistory struct {

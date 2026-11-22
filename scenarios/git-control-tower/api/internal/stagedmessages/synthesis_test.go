@@ -155,6 +155,18 @@ func TestTargetedSynthesisEvidenceCanRereadPriorCoverageAndRejectInvalidSelectio
 	}
 }
 
+func TestEvidenceRejectsDigestFromAnotherSubjectWithActionableError(t *testing.T) {
+	s, _, snapshot, _, prior := continuationFixture(t, 2)
+	job, err := s.Start(t.Context(), "repo", "fixture", &v1.StartStagedMessageRequest{ContinuationOfJobId: prior.ID, SnapshotDigest: snapshot.identity, RequestKey: "wrong-subject-digest"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = s.ReadEvidence(t.Context(), "repo", "fixture", &v1.ReadStagedMessageEvidenceRequest{JobId: job.Id, SnapshotDigest: "another-subject", InventoryOnly: true}, "deep-execution")
+	if err == nil || !strings.Contains(err.Error(), "snapshot_digest returned with this job") {
+		t.Fatalf("wrong subject digest did not explain the required identifier: %v", err)
+	}
+}
+
 func TestTargetedSynthesisPageRetriesOnlyUndeliveredIDs(t *testing.T) {
 	s, _, snapshot, runner, prior := continuationFixture(t, 285)
 	runner.execute = false

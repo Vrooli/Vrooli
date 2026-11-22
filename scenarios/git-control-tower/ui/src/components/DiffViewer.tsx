@@ -5,7 +5,7 @@ import { FileDiff, Plus, Minus, Loader2, AlertTriangle, Copy, Check, ChevronLeft
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { ViewModeSelector } from "./ViewModeSelector";
 import { FilePath } from "@vrooli/react-component-library/FilePath/1";
 import { ImagePreview } from "./ImagePreview";
@@ -1100,18 +1100,19 @@ function DiffViewerImpl({
             {isFullscreen && selectedFile && !isLoading && !error && isEditing && (
               <>
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   onClick={handleCancelEditing}
                   className={isMobile ? "h-9 px-3" : "h-7 px-2"}
                   disabled={isSavingFile}
                   data-testid="cancel-editing-button"
+                  style={{ background: "transparent" }}
                 >
                   <RotateCcw className="h-3.5 w-3.5 mr-1" />
                   Cancel
                 </Button>
                 <Button
-                  variant="default"
+                  variant="primary"
                   size="sm"
                   onClick={handleSaveContent}
                   className={`${isMobile ? "h-9 px-3" : "h-7 px-2"} bg-emerald-600 hover:bg-emerald-700`}
@@ -1224,18 +1225,19 @@ function DiffViewerImpl({
                 {selectedFile && !isLoading && !error && isEditing && (
                   <>
                     <Button
-                      variant="outline"
+                      variant="secondary"
                       size="sm"
                       onClick={handleCancelEditing}
                       className="h-7 px-2"
                       disabled={isSavingFile}
                       data-testid="cancel-editing-button"
+                      style={{ background: "transparent" }}
                     >
                       <RotateCcw className="h-3.5 w-3.5 mr-1" />
                       Cancel
                     </Button>
                     <Button
-                      variant="default"
+                      variant="primary"
                       size="sm"
                       onClick={handleSaveContent}
                       className="h-7 px-2 bg-emerald-600 hover:bg-emerald-700"
@@ -1249,12 +1251,13 @@ function DiffViewerImpl({
                 )}
                 {selectedFile && !isLoading && !error && !isEditing && onDeletePath && (
                   <Button
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     onClick={() => onDeletePath(selectedFile, false)}
                     className="h-7 px-2 text-red-400 border-red-400/50 hover:bg-red-950/50 hover:text-red-300"
                     disabled={isDeleting}
                     data-testid="delete-file-button"
+                    style={{ background: "transparent" }}
                   >
                     <Trash2 className="h-3.5 w-3.5 mr-1" />
                     Delete
@@ -1293,18 +1296,19 @@ function DiffViewerImpl({
             {isEditing && (
               <>
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   onClick={handleCancelEditing}
                   className="h-9 px-3"
                   disabled={isSavingFile}
                   data-testid="cancel-editing-button"
+                  style={{ background: "transparent" }}
                 >
                   <RotateCcw className="h-3.5 w-3.5 mr-1" />
                   Cancel
                 </Button>
                 <Button
-                  variant="default"
+                  variant="primary"
                   size="sm"
                   onClick={handleSaveContent}
                   className="h-9 px-3 bg-emerald-600 hover:bg-emerald-700"
@@ -1499,10 +1503,11 @@ function DiffViewerImpl({
                 The file is not displayed in the text editor because it is either binary or uses an unsupported text encoding.
               </p>
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 className="mt-4"
                 onClick={() => setShowBinary(true)}
+                style={{ background: "transparent" }}
               >
                 Show Anyway
               </Button>
@@ -1590,11 +1595,12 @@ function DiffViewerImpl({
           <div className="sticky bottom-0 z-20 flex-none p-3 bg-slate-900/95 backdrop-blur-sm border-t border-slate-800" data-testid="diff-mobile-actions-history">
             <div className="flex items-center gap-2">
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 className="flex-1 h-10 touch-target text-red-400 border-red-400/50 hover:bg-red-950/50"
                 onClick={() => onDeletePath(selectedFile, false)}
                 disabled={isDeleting}
+                style={{ background: "transparent" }}
               >
                 <Trash2 className="h-4 w-4 mr-2" />
                 {isDeleting ? "Deleting..." : "Delete"}
@@ -1612,17 +1618,18 @@ function DiffViewerImpl({
                   {isUntracked ? "Delete this file?" : "Discard changes?"}
                 </span>
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   className="h-10 px-4 touch-target"
                   onClick={() => setConfirmingDiscard(false)}
                   disabled={isDiscarding}
+                  style={{ background: "transparent" }}
                 >
                   <X className="h-4 w-4 mr-1" />
                   Cancel
                 </Button>
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   className="h-10 px-4 touch-target bg-red-600 border-red-600 hover:bg-red-700 text-white"
                   onClick={() => {
@@ -1630,6 +1637,7 @@ function DiffViewerImpl({
                     setConfirmingDiscard(false);
                   }}
                   disabled={isDiscarding}
+                  style={{ background: "transparent" }}
                 >
                   <Trash2 className="h-4 w-4 mr-1" />
                   {isDiscarding ? "..." : isUntracked ? "Delete" : "Discard"}
@@ -1640,18 +1648,19 @@ function DiffViewerImpl({
                 {/* Stage/Unstage button */}
                 {isStaged ? (
                   <Button
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     className="flex-1 h-10 touch-target"
                     onClick={() => onUnstage?.(selectedFile)}
                     disabled={isStaging}
+                    style={{ background: "transparent" }}
                   >
                     <Download className="h-4 w-4 mr-2" />
                     {isStaging ? "Unstaging..." : "Unstage"}
                   </Button>
                 ) : (
                   <Button
-                    variant="default"
+                    variant="primary"
                     size="sm"
                     className="flex-1 h-10 touch-target bg-emerald-600 hover:bg-emerald-700"
                     onClick={() => onStage?.(selectedFile)}
@@ -1665,11 +1674,12 @@ function DiffViewerImpl({
                 {/* Discard button - only for unstaged/untracked files */}
                 {!isStaged && (
                   <Button
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     className="h-10 px-4 touch-target text-red-400 border-red-400/50 hover:bg-red-950/50"
                     onClick={() => setConfirmingDiscard(true)}
                     disabled={isDiscarding}
+                    style={{ background: "transparent" }}
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
                     {isUntracked ? "Delete" : "Discard"}

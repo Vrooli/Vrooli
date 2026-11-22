@@ -71,16 +71,16 @@ describe("agent, auditor, and review hooks", () => {
   });
 
   it("does not fetch an agent run until a run id is available", () => {
-    renderHookWithQueryClient(() => useAgentRun(null, true, "repo-1"));
+    renderHookWithQueryClient(() => useAgentRun(null, "git-control-tower", true, "repo-1"));
 
     expect(mockFetchAgentRun).not.toHaveBeenCalled();
   });
 
   it("fetches agent run events with cursor and repo context", async () => {
-    renderHookWithQueryClient(() => useAgentRunEvents("run-1", 12, true, "repo-1", "running"));
+    renderHookWithQueryClient(() => useAgentRunEvents("run-1", "git-control-tower", 12, true, "repo-1", "running"));
 
     await waitFor(() => {
-      expect(mockFetchAgentRunEvents).toHaveBeenCalledWith("run-1", 12, "repo-1");
+      expect(mockFetchAgentRunEvents).toHaveBeenCalledWith("run-1", "git-control-tower", 12, "repo-1");
     });
   });
 

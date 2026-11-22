@@ -1,14 +1,21 @@
 package audit
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"net/url"
+	"strconv"
 	"strings"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
-	"github.com/vrooli/cli-core/cliutil"
+	auditv1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/audit"
+	auditconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/audit/audit_v1connect"
 )
+
+var auditClientFactory = func(core *cliapp.ScenarioApp) auditconnect.AuditServiceClient {
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	return auditconnect.NewAuditServiceClient(httpClient, baseURL)
+}
 
 type entry struct {
 	ID            int64    `json:"id"`
@@ -21,11 +28,6 @@ type entry struct {
 	Success       bool     `json:"success"`
 	Error         string   `json:"error,omitempty"`
 	Timestamp     string   `json:"timestamp"`
-}
-
-type response struct {
-	Entries []entry `json:"entries"`
-	Total   int     `json:"total"`
 }
 
 type flags struct {
@@ -83,30 +85,35 @@ func formatEntry(e *entry) {
 
 func runList(core *cliapp.ScenarioApp, args []string) error {
 	f := parseFlags(args)
-	query := url.Values{}
-	if f.operation != "" {
-		query.Set("operation", f.operation)
-	}
+	limit := int64(50)
 	if f.limit != "" {
-		query.Set("limit", f.limit)
+		parsed, err := strconv.ParseInt(f.limit, 10, 32)
+		if err != nil || parsed <= 0 {
+			return fmt.Errorf("--limit must be a positive integer")
+		}
+		limit = parsed
 	}
-	body, err := core.Get("/audit", query)
+	result, err := auditClientFactory(core).ListEntries(context.Background(), connect.NewRequest(&auditv1.ListAuditEntriesRequest{
+		Operation: f.operation,
+		Limit:     int32(limit),
+	}))
 	if err != nil {
 		return err
 	}
-	var resp response
-	if unmarshalErr := json.Unmarshal(body, &resp); unmarshalErr == nil && resp.Entries != nil {
-		if len(resp.Entries) == 0 {
-			fmt.Println("No audit entries found")
-			return nil
-		}
-		fmt.Printf("Audit Log (%d of %d entries)\n", len(resp.Entries), resp.Total)
-		fmt.Println(strings.Repeat("-", 60))
-		for i := range resp.Entries {
-			formatEntry(&resp.Entries[i])
-		}
+	if result == nil || result.Msg == nil {
+		return fmt.Errorf("audit query returned no result")
+	}
+	if len(result.Msg.GetEntries()) == 0 {
+		fmt.Println("No audit entries found")
 		return nil
 	}
-	cliutil.PrintJSON(body)
+	fmt.Printf("Audit Log (%d of %d entries)\n", len(result.Msg.GetEntries()), result.Msg.GetTotal())
+	fmt.Println(strings.Repeat("-", 60))
+	for _, item := range result.Msg.GetEntries() {
+		if item == nil {
+			continue
+		}
+		formatEntry(&entry{ID: item.GetId(), Operation: item.GetOperation(), RepoDir: item.GetRepoDir(), Branch: item.GetBranch(), Paths: item.GetPaths(), CommitHash: item.GetCommitHash(), CommitMessage: item.GetCommitMessage(), Success: item.GetSuccess(), Error: item.GetError(), Timestamp: item.GetTimestamp()})
+	}
 	return nil
 }

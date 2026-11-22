@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { CommercialUse, modelsClient, type Model } from "../../api/models";
 import { errorMessage } from "../../lib/errorMessage";
 import { hardwareFitChips, type HardwareFitTone } from "./hardwareFit";
+import { VerdictBadge } from "./VerdictBadge";
+import { gradeView } from "./verdictPresentation";
 
 const MODELS_QUERY_KEY = ["models"] as const;
 
@@ -159,6 +161,7 @@ export function ModelsCard() {
                       {t(strings.models.defaultForBadge)}
                     </span>
                   )}
+                  <VerdictBadge verdict={model.verdict} testId={selectors.models.verdict} />
                   {model.custom && (
                     <span
                       data-testid={selectors.models.customBadge}
@@ -177,6 +180,41 @@ export function ModelsCard() {
                   )}
                 </div>
                 <div className="mt-1 text-xs text-app-muted-foreground">{model.id}</div>
+                {model.verdict?.reason ? (
+                  <p data-testid={selectors.models.verdictReason} className="mt-1 text-xs text-app-foreground">
+                    {model.verdict.reason}
+                  </p>
+                ) : null}
+                {model.verdicts.length > 1 ? (
+                  <ul
+                    data-testid={selectors.models.verdictOperations}
+                    aria-label={t(strings.models.verdict.label)}
+                    className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-app-muted-foreground"
+                  >
+                    {model.verdicts.map((v) => (
+                      <li key={v.operation} title={v.reason}>
+                        {v.operation}: {t(gradeView(v.grade).label)}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                {model.override ? (
+                  <p data-testid={selectors.models.override} className="mt-1 text-[11px] text-app-muted-foreground">
+                    {t(strings.models.verdict.overrideLine, {
+                      state: model.override.enabled
+                        ? t(strings.models.verdict.overrideEnabled)
+                        : t(strings.models.verdict.overrideDisabled),
+                      by: model.override.setBy,
+                      reason: model.override.reason ? `: ${model.override.reason}` : "",
+                    })}
+                    {model.override.pinned ? ` (${t(strings.models.verdict.overridePinned)})` : ""}
+                    {model.override.relation === "contradicts_seed"
+                      ? ` · ${t(strings.models.verdict.overrideContradicts)}`
+                      : model.override.relation === "superseded"
+                        ? ` · ${t(strings.models.verdict.overrideSuperseded)}`
+                        : ""}
+                  </p>
+                ) : null}
 
                 <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-app-muted-foreground">
                   <div data-testid={selectors.models.tier}>
@@ -277,6 +315,7 @@ export function ModelsCard() {
                       data-testid={selectors.models.installButton}
                       onClick={() => installMutation.mutate(model.id)}
                       disabled={installMutation.isPending}
+                      shape="square"
                     >
                       {installMutation.isPending && installMutation.variables === model.id
                         ? t(strings.models.installing)
@@ -290,6 +329,7 @@ export function ModelsCard() {
                       setEnabledMutation.mutate({ id: model.id, enabled: !model.enabled })
                     }
                     disabled={setEnabledMutation.isPending}
+                    shape="square"
                   >
                     {model.enabled ? t(strings.models.disable) : t(strings.models.enable)}
                   </Button>
@@ -297,6 +337,7 @@ export function ModelsCard() {
                     data-testid={selectors.models.removeButton}
                     onClick={() => removeMutation.mutate(model.id)}
                     disabled={removeMutation.isPending}
+                    shape="square"
                   >
                     {removeMutation.isPending && removeMutation.variables === model.id
                       ? t(strings.models.removing)

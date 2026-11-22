@@ -29,7 +29,7 @@ import { DiscardConfirmationModal, type DiscardFile } from "./components/Discard
 import { DeleteConfirmationModal } from "./components/DeleteConfirmationModal";
 import { StageSameNameConfirmationModal } from "./components/StageSameNameConfirmationModal";
 import { StageDuringSuggestionModal } from "./components/StageDuringSuggestionModal";
-import { queuedHeadIncludedInIndex, queuedSelectionAwaitingUnstage, toQueuedStageSelection, type QueuedCommitTarget, type QueuedStageSelection } from "./features/commit-message/stageQueue";
+import { inspectQueueCommitReadiness, queueCommitBlockMessage, toQueuedStageSelection, type QueuedCommitTarget, type QueuedStageSelection } from "./features/commit-message/stageQueue";
 import { listWorktreeSuggestionQueue } from "./features/commit-message/api";
 import { useWorktreeSuggestionQueue, type PendingSuggestionStage } from "./features/commit-message/useWorktreeSuggestionQueue";
 import { UpstreamInfoModal } from "./components/UpstreamInfoModal";
@@ -590,8 +590,13 @@ export default function App() {
   useEffect(() => () => stageBatcher.dispose(), [stageBatcher]);
   const [pendingSuggestionStage, setPendingSuggestionStage] = useState<PendingSuggestionStage>(null);
   const queueController = useWorktreeSuggestionQueue({ repoId: repoId ?? undefined, notify, stageBatcher, pendingSuggestionStage, setPendingSuggestionStage, statusQuery, refreshRepoStatus });
-  const { stageQueueRepo, suggestionStageQueue, pendingCommitQueueSelectionId, completeQueuedStageSelection, resolveQueuedCommit, stageNextQueuedSelection, retryQueuedSuggestion, refreshQueuedSuggestion, queueSelection, finalizeQueuedSelection, startQueuedSuggestion, requestStage, handleConfirmSuggestionStage, handleQueueSuggestionStage, markQueuedCommitPending, restoreQueuedCommitAfterFailure, stageQueueAfterCommit } = queueController;
+  const { stageQueueRepo, stageQueueReady, suggestionStageQueue, queueRecoveryPendingId, pendingCommitQueueSelectionId, completeQueuedStageSelection, resolveQueuedCommit, stageNextQueuedSelection, retryQueuedSuggestion, refreshQueuedSuggestion, queueSelection, finalizeQueuedSelection, markQueuedSelectionStale, startQueuedSuggestion, requestStage, stageQueuedSelectionNow, handleConfirmSuggestionStage, handleQueueSuggestionStage, markQueuedCommitPending, restoreQueuedCommitAfterFailure, stageQueueAfterCommit } = queueController;
   const stagedPaths = statusQuery.data?.files.staged;
+  const worktreeChangedPaths = useMemo(() => [...new Set([...(statusQuery.data?.files.unstaged ?? []), ...(statusQuery.data?.files.untracked ?? [])])], [statusQuery.data?.files.unstaged, statusQuery.data?.files.untracked]);
+  const queueCommitReadiness = useMemo(() => inspectQueueCommitReadiness(suggestionStageQueue, stagedPaths), [stagedPaths, suggestionStageQueue]);
+  const queueCommitBlockReason = !stageQueueReady
+    ? "Queue status is still loading. Wait for it to load before committing."
+    : queueCommitReadiness.ready ? undefined : queueCommitBlockMessage(queueCommitReadiness.reason);
   const isStaging = workspaceChanges.count > 0 || queuedStagePaths.length > 0;
   const pendingPaths = useMemo(
     () => new Set([...workspaceChanges.paths, ...queuedStagePaths]),
@@ -1104,19 +1109,17 @@ export default function App() {
         notify({ tone: "warning", title: "Repository changed", message: "Review the staged files in the current repository before queueing them." });
         return false;
       }
-      const latestStatus = await fetchRepoStatus(targetRepo);
       if ((repoId ?? "") !== targetRepo || stageQueueRepo !== targetRepo) {
         notify({ tone: "warning", title: "Repository changed", message: "The staged selection belongs to a different repository now. Review it before queueing." });
-        return false;
-      }
-      const staged = new Set(latestStatus.files.staged ?? []);
-      if (paths.some(path => !staged.has(path))) {
-        notify({ tone: "warning", title: "Staged selection changed", message: "The extra files are no longer all staged. Refresh the suggestion and review the current index." });
         return false;
       }
       const saved = await queueSelection(paths, WorktreeSelectionSource.HEAD_TO_INDEX);
       if (!saved || typeof saved === "string") return false;
       savedSelection = saved;
+      if ((repoId ?? "") !== targetRepo || stageQueueRepo !== targetRepo) {
+        notify({ tone: "warning", title: "Selection saved; review queue", message: "The files were saved, but the active repository changed before they could be unstaged. Review the saved selection before continuing." });
+        return false;
+      }
       await handleUnstagePathsAsync(paths);
       if ((repoId ?? "") !== targetRepo || stageQueueRepo !== targetRepo) {
         notify({ tone: "warning", title: "Repository changed", message: "The files were unstaged, but the repository changed before they could be queued. Review them in the file list." });
@@ -1143,9 +1146,20 @@ export default function App() {
       const finalized = await finalizeQueuedSelection(selection.selectionId, selection.snapshotDigest, targetRepo);
       if (!finalized) throw new Error("The saved files changed before queue handoff finished. Review them and try again.");
     } catch (error) {
-      notify({ tone: "error", title: "Could not finish queueing", message: error instanceof Error ? error.message : String(error) });
+      const message = error instanceof Error ? error.message : String(error);
+      if (/selected content does not match saved snapshot/i.test(message)) {
+        try {
+          await markQueuedSelectionStale(selection, "The saved staged version no longer matches the current file contents.");
+          notify({ tone: "warning", title: "Saved version changed", message: "The selection was unstaged, but its files changed since capture. Review the current files, then use “Stage current files into this commit” to stage those versions." });
+          return;
+        } catch (queueError) {
+          notify({ tone: "error", title: "Could not finish queueing", message: `${message} The queue could not save its recovery state: ${queueError instanceof Error ? queueError.message : String(queueError)}` });
+          return;
+        }
+      }
+      notify({ tone: "error", title: "Could not finish queueing", message });
     }
-  }, [finalizeQueuedSelection, handleUnstagePathsAsync, notify, repoId, stageQueueRepo]);
+  }, [finalizeQueuedSelection, handleUnstagePathsAsync, markQueuedSelectionStale, notify, repoId, stageQueueRepo]);
 
   const handleStartQueuedSuggestion = useCallback((selection: QueuedStageSelection, mode: StagedMessageMode) => {
     void startQueuedSuggestion(selection, mode);
@@ -1406,12 +1420,12 @@ export default function App() {
         const latestQueue = await listWorktreeSuggestionQueue(repoId ?? "");
         const preview = await fetchMutationPreview({ repositoryId: repoId ?? "", operation: "repo.commit" }, repoId ?? undefined);
         const queueEntries = latestQueue.entries.map(toQueuedStageSelection);
-        const awaitingUnstage = queuedSelectionAwaitingUnstage(queueEntries, preview.stagedFiles);
-        if (awaitingUnstage) {
-          setCommitError("Finish queueing the saved selection before committing; some of its files are still staged.");
+        const queueReadiness = inspectQueueCommitReadiness(queueEntries, preview.stagedFiles);
+        if (!queueReadiness.ready) {
+          setCommitError(queueCommitBlockMessage(queueReadiness.reason));
           return;
         }
-        const queuedSelection = queuedHeadIncludedInIndex(queueEntries, preview.stagedFiles);
+        const queuedSelection = queueReadiness.target;
         const pending = {
           message,
           options,
@@ -1463,13 +1477,13 @@ export default function App() {
         setCommitError("The repository changed after this preview. Review the updated commit before authorizing it.");
         return;
       }
-      const queuedSelection = queuedHeadIncludedInIndex(latestQueue.entries.map(toQueuedStageSelection), currentPreview.stagedFiles);
-      const awaitingUnstage = queuedSelectionAwaitingUnstage(latestQueue.entries.map(toQueuedStageSelection), currentPreview.stagedFiles);
-      if (awaitingUnstage) {
+      const queueReadiness = inspectQueueCommitReadiness(latestQueue.entries.map(toQueuedStageSelection), currentPreview.stagedFiles);
+      if (!queueReadiness.ready) {
         setPendingCommitAuthorization(null);
-        setCommitError("Finish queueing the saved selection before committing; some of its files are still staged.");
+        setCommitError(queueCommitBlockMessage(queueReadiness.reason));
         return;
       }
+      const queuedSelection = queueReadiness.target;
       if (dontAskAgain) {
         writeCommitConfirmationPreference(true);
         setSkipCommitConfirmation(true);
@@ -1497,12 +1511,12 @@ export default function App() {
       const latestStatus = await refreshRepoStatus();
       commitStagedPaths = latestStatus.data?.files.staged ?? [];
       const latestQueue = await listWorktreeSuggestionQueue(stageQueueRepo);
-      const awaitingUnstage = queuedSelectionAwaitingUnstage(latestQueue.entries.map(toQueuedStageSelection), commitStagedPaths);
-      if (awaitingUnstage) {
-        setCommitError("Finish queueing the saved selection before committing; some of its files are still staged.");
+      const queueReadiness = inspectQueueCommitReadiness(latestQueue.entries.map(toQueuedStageSelection), commitStagedPaths);
+      if (!queueReadiness.ready) {
+        setCommitError(queueCommitBlockMessage(queueReadiness.reason));
         return;
       }
-      pendingCommitQueueSelectionId.current = queuedHeadIncludedInIndex(latestQueue.entries.map(toQueuedStageSelection), commitStagedPaths);
+      pendingCommitQueueSelectionId.current = queueReadiness.target;
     } catch (error) {
       setCommitError(error instanceof Error ? error.message : "Could not refresh repository status before committing.");
       return;
@@ -2467,6 +2481,9 @@ export default function App() {
         return (
           <FileList
             files={statusQuery.data?.files}
+            loading={statusQuery.isLoading && !statusQuery.data}
+            loadError={statusQuery.error?.message ?? null}
+            onRetryLoad={() => { void statusQuery.refetch(); }}
             runIndex={runIndex}
             onRevealInTree={handleRevealChangeInTree}
             fileStats={statusQuery.data?.file_stats}
@@ -2575,9 +2592,12 @@ export default function App() {
               isCommitting={isAuthorizingCommit || commitMutation.isPending}
               isUpdatingIndex={isStaging}
               stagedPaths={stagedPaths}
+              worktreeChangedPaths={worktreeChangedPaths}
               onUnstagePaths={handleUnstagePathsAsync}
               onQueueStagedExtras={handleQueueStagedExtras}
               commitProgressLabel={isAuthorizingCommit ? "Preparing commit…" : undefined}
+              queueCommitBlockReason={queueCommitBlockReason}
+              queueRecoveryPendingId={queueRecoveryPendingId}
               precommitNotice={precommitNoticeProps}
               commitError={commitError}
               onRetryWithoutPrecommit={handleCommitSkipPrecommit}
@@ -2607,6 +2627,7 @@ export default function App() {
               onRetryQueuedSuggestion={retryQueuedSuggestion}
               onRefreshQueuedSuggestion={refreshQueuedSuggestion}
               onStartQueuedSuggestion={handleStartQueuedSuggestion}
+              onStageQueuedSelectionNow={stageQueuedSelectionNow}
               onFinishQueuedUnstage={selection => void handleFinishQueuedUnstage(selection)}
             />
           </ProposalsSection>
@@ -2755,6 +2776,9 @@ export default function App() {
         return (
           <FileList
             files={statusQuery.data?.files}
+            loading={statusQuery.isLoading && !statusQuery.data}
+            loadError={statusQuery.error?.message ?? null}
+            onRetryLoad={() => { void statusQuery.refetch(); }}
             runIndex={runIndex}
             onRevealInTree={handleRevealChangeInTree}
             fileStats={statusQuery.data?.file_stats}
@@ -2851,9 +2875,12 @@ export default function App() {
               isCommitting={isAuthorizingCommit || commitMutation.isPending}
               isUpdatingIndex={isStaging}
               stagedPaths={stagedPaths}
+              worktreeChangedPaths={worktreeChangedPaths}
               onUnstagePaths={handleUnstagePathsAsync}
               onQueueStagedExtras={handleQueueStagedExtras}
               commitProgressLabel={isAuthorizingCommit ? "Preparing commit…" : undefined}
+              queueCommitBlockReason={queueCommitBlockReason}
+              queueRecoveryPendingId={queueRecoveryPendingId}
               precommitNotice={precommitNoticeProps}
               commitError={commitError}
               onRetryWithoutPrecommit={handleCommitSkipPrecommit}
@@ -2885,6 +2912,7 @@ export default function App() {
               onRetryQueuedSuggestion={retryQueuedSuggestion}
               onRefreshQueuedSuggestion={refreshQueuedSuggestion}
               onStartQueuedSuggestion={handleStartQueuedSuggestion}
+              onStageQueuedSelectionNow={stageQueuedSelectionNow}
               onFinishQueuedUnstage={selection => void handleFinishQueuedUnstage(selection)}
             />
           </ProposalsSection>
@@ -2995,7 +3023,6 @@ export default function App() {
 
           onOpenUpstreamInfo={() => setIsUpstreamInfoOpen(true)}
           onOpenFileSearch={() => setIsFileSearchOpen(true)}
-          onOpenReview={() => setMobileActivePanel("review")}
           viewingCommit={viewingCommit}
           onExitHistoryMode={handleExitHistoryMode}
           viewingFileBlame={viewingFileBlame}
@@ -3096,7 +3123,8 @@ export default function App() {
           paths={pendingSuggestionStage?.paths ?? []}
           queuedConflicts={pendingSuggestionStage?.queuedConflicts ?? []}
           onConfirm={handleConfirmSuggestionStage}
-          onQueue={pendingSuggestionStage?.hold ? handleQueueSuggestionStage : undefined}
+          isQueueRecovery={Boolean(pendingSuggestionStage?.retireSelection)}
+          onQueue={pendingSuggestionStage?.hold && pendingSuggestionStage.allowQueueInstead !== false ? handleQueueSuggestionStage : undefined}
           queuedSelections={suggestionStageQueue.length}
           onCancel={() => setPendingSuggestionStage(null)}
         />
@@ -3265,7 +3293,8 @@ export default function App() {
         paths={pendingSuggestionStage?.paths ?? []}
         queuedConflicts={pendingSuggestionStage?.queuedConflicts ?? []}
         onConfirm={handleConfirmSuggestionStage}
-        onQueue={pendingSuggestionStage?.hold ? handleQueueSuggestionStage : undefined}
+        isQueueRecovery={Boolean(pendingSuggestionStage?.retireSelection)}
+        onQueue={pendingSuggestionStage?.hold && pendingSuggestionStage.allowQueueInstead !== false ? handleQueueSuggestionStage : undefined}
         queuedSelections={suggestionStageQueue.length}
         onCancel={() => setPendingSuggestionStage(null)}
       />

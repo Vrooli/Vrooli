@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -19,29 +18,11 @@ import (
 
 type actionAgentManagerStub struct {
 	apiconnect.UnimplementedAgentManagerServiceHandler
-	events    *apipb.GetRunEventsResponse
-	diff      *apipb.GetRunDiffResponse
 	continued *ampb.ContinueRunResponse
 	approved  *apipb.ApproveRunResponse
 	rejected  *apipb.RejectRunResponse
 	stopped   *apipb.StopRunResponse
 	err       error
-	gotAfter  int64
-	gotLimit  int32
-}
-
-func (s *actionAgentManagerStub) GetRunEvents(_ context.Context, req *connect.Request[apipb.GetRunEventsRequest]) (*connect.Response[apipb.GetRunEventsResponse], error) {
-	s.gotAfter, s.gotLimit = req.Msg.GetAfterSequence(), req.Msg.GetLimit()
-	if s.err != nil {
-		return nil, s.err
-	}
-	return connect.NewResponse(s.events), nil
-}
-func (s *actionAgentManagerStub) GetRunDiff(context.Context, *connect.Request[apipb.GetRunDiffRequest]) (*connect.Response[apipb.GetRunDiffResponse], error) {
-	if s.err != nil {
-		return nil, s.err
-	}
-	return connect.NewResponse(s.diff), nil
 }
 func (s *actionAgentManagerStub) ContinueRun(context.Context, *connect.Request[ampb.ContinueRunRequest]) (*connect.Response[ampb.ContinueRunResponse], error) {
 	if s.err != nil {
@@ -89,38 +70,6 @@ func actionRequest(t *testing.T, s *Server, method, path, body, id string, call 
 	return w
 }
 
-func TestAgentRunEventsBoundsAndProjection(t *testing.T) {
-	stub := &actionAgentManagerStub{events: &apipb.GetRunEventsResponse{Events: []*ampb.RunEvent{{Id: "evt-1", RunId: "run-a", Sequence: 7, EventType: ampb.RunEventType_RUN_EVENT_TYPE_MESSAGE, Data: &ampb.RunEvent_Message{Message: &ampb.MessageEventData{Role: "assistant", Content: "hello"}}}}}}
-	s := actionTestServer(t, StatusAvailable, stub)
-	w := actionRequest(t, s, http.MethodGet, "/events?afterSequence=0&limit=900", "", "run-a", s.handleAgentRunEvents)
-	if w.Code != http.StatusOK {
-		t.Fatalf("status=%d body=%s", w.Code, w.Body)
-	}
-	if stub.gotAfter != 0 || stub.gotLimit != 500 {
-		t.Fatalf("forwarded bounds after=%d limit=%d", stub.gotAfter, stub.gotLimit)
-	}
-	if !strings.Contains(w.Body.String(), `"eventType":"message"`) || !strings.Contains(w.Body.String(), `"content":"hello"`) {
-		t.Fatalf("projection=%s", w.Body)
-	}
-}
-
-func TestAgentRunDiffProjectsFiles(t *testing.T) {
-	stub := &actionAgentManagerStub{diff: &apipb.GetRunDiffResponse{Diff: &ampb.RunDiff{Content: "diff --git", Files: []*ampb.FileDiff{{Path: "main.go", ChangeType: "modified", Additions: 3, Deletions: 1, Patch: "+x"}}}}}
-	s := actionTestServer(t, StatusAvailable, stub)
-	w := actionRequest(t, s, http.MethodGet, "/diff", "", "run-1", s.handleAgentRunDiff)
-	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"additions":3`) {
-		t.Fatalf("status=%d body=%s", w.Code, w.Body)
-	}
-}
-
-func TestAgentRunEventsRejectInvalidQueryBounds(t *testing.T) {
-	s := actionTestServer(t, StatusAvailable, &actionAgentManagerStub{})
-	w := actionRequest(t, s, http.MethodGet, "/events?limit=0", "", "run-a", s.handleAgentRunEvents)
-	if w.Code != http.StatusBadRequest {
-		t.Fatalf("status=%d body=%s", w.Code, w.Body)
-	}
-}
-
 func TestAgentRunActionsRejectUnavailableAndMissingRunID(t *testing.T) {
 	s := actionTestServer(t, StatusUnavailable, &actionAgentManagerStub{})
 	w := actionRequest(t, s, http.MethodPost, "/continue", `{"message":"next"}`, "run-a", s.handleAgentRunContinue)
@@ -160,12 +109,4 @@ func TestAgentRunActionResponseProjections(t *testing.T) {
 			t.Fatalf("stop status=%d body=%s", w.Code, w.Body)
 		}
 	})
-}
-
-func TestAgentRunActionsMapOwnerErrors(t *testing.T) {
-	s := actionTestServer(t, StatusAvailable, &actionAgentManagerStub{err: connect.NewError(connect.CodeNotFound, errors.New("missing"))})
-	w := actionRequest(t, s, http.MethodGet, "/diff", "", "r1", s.handleAgentRunDiff)
-	if w.Code != http.StatusInternalServerError {
-		t.Fatalf("status=%d body=%s", w.Code, w.Body)
-	}
 }

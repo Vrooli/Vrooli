@@ -2,10 +2,8 @@ package capacitysync
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/vrooli/vrooli/packages/capacity/companion"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/ensure"
@@ -85,59 +83,23 @@ func TestObserveSurfacesAPollFailureRatherThanReportingZero(t *testing.T) {
 	}
 }
 
-// Scenario: the declared ladder comes from the model policy, not from the
-// currently loaded set.
-func TestConfigDeclaresTheModelPolicyLadder(t *testing.T) {
+// Scenario: ollama declares only its observation. The claim's tier, ladder and
+// idle policy come from resource.json through the shared companion, so there is
+// no per-resource copy to fall out of step with the manifest.
+func TestConfigDeclaresOnlyTheObservation(t *testing.T) {
 	// Given the default handlers
 	h := handlersFor(fakePS{})
 
 	// When the companion declaration is built
 	cfg := h.config()
 
-	// Then it names ollama at the service tier, yielding when idle
-	if cfg.Resource != resourceName || cfg.Priority != "service" || !cfg.YieldWhenIdle {
-		t.Fatalf("config = %+v, want ollama/service/yield-when-idle", cfg)
+	// Then it names ollama and carries no claim policy of its own
+	if cfg.Resource != resourceName {
+		t.Fatalf("resource = %q, want %q", cfg.Resource, resourceName)
 	}
-	if cfg.IdleGrace != 0 {
-		t.Fatalf("companion IdleGrace = %s, want no owner-local grace timer; resource claim owns the shared reclaim grace", cfg.IdleGrace)
-	}
-	// And it carries a degrade ladder that ends at the floor
-	var profile degradeProfile
-	if err := json.Unmarshal([]byte(cfg.Profile), &profile); err != nil {
-		t.Fatalf("profile is not valid JSON: %v", err)
-	}
-	if len(profile.Steps) == 0 {
-		t.Fatal("the declared profile has no steps; the broker could never ask ollama to step down")
-	}
-	if profile.Steps[0].AmountBytes != cfg.PreferredBytes {
-		t.Fatalf("first step = %d, want it to equal preferred %d", profile.Steps[0].AmountBytes, cfg.PreferredBytes)
-	}
-	if profile.Steps[len(profile.Steps)-1].AmountBytes != cfg.FloorBytes {
-		t.Fatalf("last step = %d, want it to equal floor %d", profile.Steps[len(profile.Steps)-1].AmountBytes, cfg.FloorBytes)
-	}
-	// And the apply verb is the shared one, so the broker calls every resource
-	// the same way
-	if profile.Apply.Verb != "capacity" {
-		t.Fatalf("apply verb = %q, want capacity", profile.Apply.Verb)
+	if cfg.Priority != "" || cfg.YieldWhenIdle || cfg.IdleGrace != 0 || cfg.IdleUnloadTTL != 0 || cfg.PreferredBytes != 0 || cfg.FloorBytes != 0 || cfg.Profile != "" {
+		t.Fatalf("config = %+v, want the claim policy left to resource.json", cfg)
 	}
 	// And ollama satisfies the shared observer contract
 	var _ companion.Observer = h
-}
-
-// Scenario: an environment override changes the poll cadence.
-func TestConfigHonoursTheIntervalOverride(t *testing.T) {
-	// Given an operator-set interval
-	h := handlersFor(fakePS{})
-	h.GetEnv = func(key string) string {
-		if key == intervalEnv {
-			return "90s"
-		}
-		return ""
-	}
-
-	// When the declaration is built
-	// Then the override wins over the default
-	if got := h.config().Interval; got != 90*time.Second {
-		t.Fatalf("Interval = %s, want 90s", got)
-	}
 }

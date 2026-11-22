@@ -2,47 +2,78 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
 	"connectrpc.com/connect"
 	repodomain "git-control-tower/internal/repo"
 	repov1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/repo"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 func (s *Server) getRepoStatusConnect(ctx context.Context, req *repov1.GetRepoStatusRequest) (*repov1.GetRepoStatusResponse, error) {
+	if req.GetPageSize() > 512 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("page_size must be at most 512"))
+	}
+	if req.GetPageToken() != "" && req.GetPageSize() == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("page_size is required with page_token"))
+	}
 	resolved, err := s.resolveRepoForConnect(ctx, req.GetRepositoryId(), req.GetRepoPath())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-
+	pageCache := s.statusPageCache
+	if pageCache == nil {
+		pageCache = defaultRepoStatusPageCache
+	}
+	if req.GetPageToken() != "" {
+		return pageCache.Continue(ctx, resolved.Path, req.GetPageToken(), req.GetPageSize())
+	}
+	statusCache := s.statusCache
+	configCache := s.configCache
+	if req.GetPageSize() > 0 {
+		statusCache = s.statusPageAssemblyCache
+		if statusCache == nil {
+			statusCache = NewRepoStatusCache(0)
+		}
+		configCache = nil // Page snapshots must observe current author configuration.
+	}
 	status, err := GetRepoStatus(ctx, RepoStatusDeps{
 		Git:             s.git,
 		RepoDir:         resolved.Path,
-		ConfigCache:     s.configCache,
-		StatusCache:     s.statusCache,
+		ConfigCache:     configCache,
+		StatusCache:     statusCache,
 		IncludeHotspots: req.GetIncludeHotspots(),
+		FastStatus:      req.GetPageSize() > 0,
 	})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-
 	identity, err := repodomain.NewService(newWorktreeInspector()).GetRepoStatus(ctx, resolved.Path)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, connect.NewError(connect.CodeUnavailable, err)
 	}
+	response := repoStatusResponseProto(status, identity)
+	if req.GetPageSize() == 0 {
+		return boundRepoStatusResponse(response, resolved.Path, 0, "")
+	}
+	if statusEntryCount(response.GetFiles()) <= int(req.GetPageSize()) && statusResponseBytes(response) <= repoStatusResponseBudget {
+		return boundRepoStatusResponse(response, resolved.Path, req.GetPageSize(), "")
+	}
+	return pageCache.Store(ctx, resolved.Path, response, req.GetPageSize())
+}
 
-	return &repov1.GetRepoStatusResponse{
+func repoStatusResponseProto(status *RepoStatus, identity repodomain.Status) *repov1.GetRepoStatusResponse {
+	response := &repov1.GetRepoStatusResponse{
 		Branch:   status.Branch.Head,
 		Detached: status.Branch.Head == "" || identity.Detached,
-		Worktree: &repov1.WorktreeIdentity{
-			IsLinkedWorktree:    identity.Identity.IsLinkedWorktree,
-			CommonRepoRoot:      identity.Identity.CommonRepoRoot,
-			WorktreeName:        identity.Identity.WorktreeName,
-			WorktreeHead:        identity.Identity.WorktreeHead,
-			LinkedWorktreeCount: int32(identity.Identity.LinkedWorktreeCount),
-		},
+		Worktree: repoWorktreeIdentityProto(identity),
 		BranchStatus: &repov1.BranchStatus{
 			Head:     status.Branch.Head,
 			Upstream: status.Branch.Upstream,
@@ -67,7 +98,184 @@ func (s *Server) getRepoStatusConnect(ctx context.Context, req *repov1.GetRepoSt
 		},
 		RepoDir:   status.RepoDir,
 		Timestamp: status.Timestamp.Format("2006-01-02T15:04:05.999999999Z07:00"),
-	}, nil
+	}
+	return response
+}
+
+func repoWorktreeIdentityProto(identity repodomain.Status) *repov1.WorktreeIdentity {
+	return &repov1.WorktreeIdentity{IsLinkedWorktree: identity.Identity.IsLinkedWorktree, CommonRepoRoot: identity.Identity.CommonRepoRoot, WorktreeName: identity.Identity.WorktreeName, WorktreeHead: identity.Identity.WorktreeHead, LinkedWorktreeCount: int32(identity.Identity.LinkedWorktreeCount)}
+}
+
+const repoStatusResponseBudget = 256 * 1024
+
+type repoStatusCursor struct {
+	Snapshot string `json:"s"`
+	Offset   int    `json:"o"`
+}
+
+// boundRepoStatusResponse paginates the stable category-entry sequence. The
+// cursor fingerprints the full semantic response (excluding request timestamp)
+// so a caller cannot combine pages from different worktree states.
+func boundRepoStatusResponse(full *repov1.GetRepoStatusResponse, repoPath string, requested uint32, token string) (*repov1.GetRepoStatusResponse, error) {
+	semantic := proto.Clone(full).(*repov1.GetRepoStatusResponse)
+	semantic.Timestamp = ""
+	canonical, err := proto.MarshalOptions{Deterministic: true}.Marshal(semantic)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	h := sha256.Sum256(append([]byte(repoPath+"\x00"), canonical...))
+	snapshot := fmt.Sprintf("%x", h[:])
+	total := statusEntryCount(full.GetFiles())
+	offset := 0
+	if token != "" {
+		decoded, e := base64.RawURLEncoding.DecodeString(token)
+		var cursor repoStatusCursor
+		if e != nil || json.Unmarshal(decoded, &cursor) != nil || cursor.Offset < 0 || cursor.Offset > total {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid repo status page token"))
+		}
+		if cursor.Snapshot != snapshot {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("repository status changed between pages; restart from the first page"))
+		}
+		offset = cursor.Offset
+	}
+	pageSize := int(requested)
+	if pageSize == 0 {
+		pageSize = total
+	}
+	if requested == 0 && statusResponseBytes(full) > repoStatusResponseBudget {
+		return nil, connect.NewError(connect.CodeResourceExhausted, errors.New("repository status exceeds 256 KiB; retry with page_size and follow page.next_page_token"))
+	}
+	if pageSize > total-offset {
+		pageSize = total - offset
+	}
+	var page *repov1.GetRepoStatusResponse
+	for {
+		page = projectRepoStatusPage(full, snapshot, offset, pageSize, total)
+		// Reserve the encoded width of this field before checking the cap.
+		page.Page.ResponseBytes = repoStatusResponseBudget
+		pageBytes := statusResponseBytes(page)
+		if pageBytes <= repoStatusResponseBudget {
+			page.Page.ResponseBytes = uint32(pageBytes)
+			return page, nil
+		}
+		if requested == 0 {
+			return nil, connect.NewError(connect.CodeResourceExhausted, errors.New("repository status exceeds 256 KiB with pagination metadata; retry with page_size and follow page.next_page_token"))
+		}
+		if pageSize <= 1 {
+			return nil, connect.NewError(connect.CodeResourceExhausted, errors.New("a single repository status entry exceeds the 256 KiB response budget"))
+		}
+		pageSize /= 2
+	}
+}
+
+func statusResponseBytes(response *repov1.GetRepoStatusResponse) int {
+	protobufBytes := proto.Size(response) + 5 // Connect envelope
+	jsonBytes, err := protojson.Marshal(response)
+	if err == nil && len(jsonBytes) > protobufBytes {
+		protobufBytes = len(jsonBytes)
+	}
+	return protobufBytes
+}
+
+func statusEntryCount(files *repov1.FilesStatus) int {
+	return len(files.GetStaged()) + len(files.GetUnstaged()) + len(files.GetUntracked()) + len(files.GetConflicts()) + len(files.GetIgnored())
+}
+
+func projectRepoStatusPage(full *repov1.GetRepoStatusResponse, snapshot string, offset, limit, total int) *repov1.GetRepoStatusResponse {
+	// Build a page projection directly. Cloning the full response here copied
+	// every path and map for every page (N pages × the entire worktree), even
+	// though each response contains only a small slice of paths.
+	out := &repov1.GetRepoStatusResponse{
+		RepoDir: full.GetRepoDir(), Branch: full.GetBranch(), Detached: full.GetDetached(),
+		BranchStatus: full.GetBranchStatus(), FileStats: &repov1.FileStats{},
+		FileHotspots: map[string]int32{}, Scopes: map[string]*repov1.StringList{},
+		Summary: full.GetSummary(), Author: full.GetAuthor(), Timestamp: full.GetTimestamp(),
+		Worktree: full.GetWorktree(),
+	}
+	f := &repov1.FilesStatus{}
+	out.Files = f
+	source := full.GetFiles()
+	remainingSkip, remainingTake := offset, limit
+	selectPart := func(paths []string) []string {
+		if remainingSkip >= len(paths) {
+			remainingSkip -= len(paths)
+			return []string{}
+		}
+		start := remainingSkip
+		remainingSkip = 0
+		n := len(paths) - start
+		if n > remainingTake {
+			n = remainingTake
+		}
+		remainingTake -= n
+		return append([]string(nil), paths[start:start+n]...)
+	}
+	f.Staged = selectPart(source.GetStaged())
+	f.Unstaged = selectPart(source.GetUnstaged())
+	f.Untracked = selectPart(source.GetUntracked())
+	f.Conflicts = selectPart(source.GetConflicts())
+	f.Ignored = selectPart(source.GetIgnored())
+	selected := map[string]bool{}
+	for _, group := range [][]string{f.Staged, f.Unstaged, f.Untracked, f.Conflicts, f.Ignored} {
+		for _, p := range group {
+			selected[p] = true
+		}
+	}
+	filterString := func(src map[string]string) map[string]string {
+		dst := map[string]string{}
+		for k, v := range src {
+			if selected[k] {
+				dst[k] = v
+			}
+		}
+		return dst
+	}
+	f.Statuses = filterString(source.GetStatuses())
+	f.Renames = filterString(source.GetRenames())
+	filterStats := func(src map[string]*repov1.DiffStats, paths []string) map[string]*repov1.DiffStats {
+		dst := map[string]*repov1.DiffStats{}
+		for _, p := range paths {
+			if v := src[p]; v != nil {
+				dst[p] = v
+			}
+		}
+		return dst
+	}
+	out.FileStats = &repov1.FileStats{Staged: filterStats(full.GetFileStats().GetStaged(), f.Staged), Unstaged: filterStats(full.GetFileStats().GetUnstaged(), f.Unstaged), Untracked: filterStats(full.GetFileStats().GetUntracked(), f.Untracked)}
+	f.Binary = filterPaths(source.GetBinary(), selected)
+	out.FileHotspots = map[string]int32{}
+	for p, v := range full.GetFileHotspots() {
+		if selected[p] {
+			out.FileHotspots[p] = v
+		}
+	}
+	out.Scopes = map[string]*repov1.StringList{}
+	for p, v := range full.GetScopes() {
+		if selected[p] {
+			out.Scopes[p] = v
+		}
+	}
+	end := offset + limit
+	if end > total {
+		end = total
+	}
+	complete := end >= total
+	out.Page = &repov1.RepoStatusPage{ReturnedEntries: uint32(end - offset), TotalEntries: uint32(total), SnapshotId: snapshot, Complete: complete}
+	if !complete {
+		raw, _ := json.Marshal(repoStatusCursor{Snapshot: snapshot, Offset: end})
+		out.Page.NextPageToken = base64.RawURLEncoding.EncodeToString(raw)
+	}
+	return out
+}
+
+func filterPaths(paths []string, selected map[string]bool) []string {
+	var out []string
+	for _, p := range paths {
+		if selected[p] {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 func (s *Server) resolveRepoForConnect(ctx context.Context, repositoryID, repoPath string) (ResolvedRepo, error) {

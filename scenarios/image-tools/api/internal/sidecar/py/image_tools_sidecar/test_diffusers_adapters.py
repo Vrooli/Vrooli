@@ -199,10 +199,233 @@ def test_qwen_overrides():
 def test_unproven_family_refuses():
     raised = False
     try:
-        build_call_kwargs("flux-2-klein", Params(prompt="p"))
+        build_call_kwargs("longcat-image-edit", Params(prompt="p"))
     except RuntimeError:
         raised = True
     assert raised, "unproven family build must raise rather than guess kwargs"
+
+
+def test_flux2_klein_defaults_follow_distilled_model_card():
+    k = build_call_kwargs("flux-2-klein", Params(prompt="the same guinea pig wearing a hat"))
+    _eq(
+        k,
+        {"prompt": "the same guinea pig wearing a hat", "num_inference_steps": 4, "guidance_scale": 1.0},
+        "klein defaults (4 steps, guidance 1.0, size left to the reference/native)",
+    )
+    adapter = _diffusers.adapter_for("flux-2-klein")
+    assert adapter.ready and adapter.generates and adapter.multi_image, "klein is a proven unified multi-reference family"
+
+
+def test_flux2_klein_overrides_snap_size_to_16():
+    k = build_call_kwargs(
+        "flux-2-klein",
+        Params(prompt="p", steps=8, guidance=2.5, width=1030, height=770, negative_prompt="ignored", image_guidance=3.0),
+    )
+    _eq(k["num_inference_steps"], 8, "klein steps override")
+    _eq(k["guidance_scale"], 2.5, "klein guidance override")
+    _eq((k["width"], k["height"]), (1024, 768), "klein size snaps down to a multiple of 16")
+    for absent in ("negative_prompt", "true_cfg_scale", "image_guidance_scale"):
+        assert absent not in k, f"klein pipeline takes no {absent}"
+
+
+def test_flux1_kontext_defaults_follow_the_model_card_and_stage_both_encoders():
+    k = build_call_kwargs("flux-1-kontext", Params(prompt="make the hat red"))
+    _eq(k, {"prompt": "make the hat red", "num_inference_steps": 28, "guidance_scale": 2.5}, "kontext defaults (28 steps, guidance 2.5)")
+    adapter = _diffusers.adapter_for("flux-1-kontext")
+    assert adapter.ready and adapter.staged and not adapter.generates and not adapter.multi_image
+    _eq(adapter.text_components, ("text_encoder", "tokenizer", "text_encoder_2", "tokenizer_2"), "kontext text components")
+    _eq(adapter.embed_kwargs(("EMB", "POOLED", "IDS")), {"prompt_embeds": "EMB", "pooled_prompt_embeds": "POOLED"}, "kontext embedding kwargs")
+
+    events = []
+
+    class Module:
+        def __init__(self, name):
+            self.name = name
+
+        def to(self, device):
+            events.append(f"{self.name}->{device}")
+            return self
+
+    class FluxKontextPipeline:
+        @classmethod
+        def from_pretrained(cls, path, **kwargs):
+            pipe = cls()
+            if kwargs.get("transformer", "x") is None:
+                events.append("load encoders-only")
+                pipe.text_encoder, pipe.text_encoder_2 = Module("clip"), Module("t5")
+            else:
+                for name in ("text_encoder", "tokenizer", "text_encoder_2", "tokenizer_2"):
+                    assert kwargs.get(name, "x") is None, f"denoiser stage must not reload {name}"
+                events.append("load denoiser")
+            return pipe
+
+        def encode_prompt(self, prompt, device):
+            events.append("encode")
+            return "EMB", "POOLED", "IDS"
+
+        def to(self, device):
+            events.append(f"denoiser->{device}")
+            return self
+
+    class NoGrad:
+        def __enter__(self):
+            return None
+
+        def __exit__(self, *exc):
+            return False
+
+    class Cuda:
+        @staticmethod
+        def empty_cache():
+            events.append("empty_cache")
+
+    fake_torch = type("T", (), {"no_grad": staticmethod(lambda: NoGrad()), "cuda": Cuda})
+    fake_diffusers = type("D", (), {"FluxKontextPipeline": FluxKontextPipeline})
+    kwargs = {"prompt": "p", "num_inference_steps": 28}
+    _diffusers._load_staged(fake_diffusers, fake_torch, adapter, "/m", {"torch_dtype": "bf16"}, kwargs)
+    _eq(kwargs, {"num_inference_steps": 28, "prompt_embeds": "EMB", "pooled_prompt_embeds": "POOLED"}, "kontext prompt replaced by both embeddings")
+    _eq(
+        events,
+        ["load encoders-only", "clip->cuda", "t5->cuda", "encode", "empty_cache", "load denoiser", "denoiser->cuda"],
+        "both encoders run before the denoiser loads",
+    )
+
+
+def test_staged_placement_encodes_then_runs_denoiser_from_embeddings():
+    events = []
+
+    class Module:
+        def __init__(self, name):
+            self.name = name
+
+        def to(self, device):
+            events.append(f"{self.name}->{device}")
+            return self
+
+    class Flux2KleinPipeline:
+        @classmethod
+        def from_pretrained(cls, path, **kwargs):
+            pipe = cls()
+            if kwargs.get("transformer", "x") is None:
+                events.append("load encoder-only")
+                pipe.text_encoder = Module("text_encoder")
+            else:
+                assert kwargs.get("text_encoder", "x") is None, "denoiser stage must not reload the text encoder"
+                events.append("load denoiser")
+            return pipe
+
+        def encode_prompt(self, prompt, device):
+            events.append(f"encode {prompt!r} on {device}")
+            return "EMBEDS", "IDS"
+
+        def to(self, device):
+            events.append(f"denoiser->{device}")
+            return self
+
+    class NoGrad:
+        def __enter__(self):
+            return None
+
+        def __exit__(self, *exc):
+            return False
+
+    class Cuda:
+        @staticmethod
+        def empty_cache():
+            events.append("empty_cache")
+
+    fake_torch = type("T", (), {"no_grad": staticmethod(lambda: NoGrad()), "cuda": Cuda})
+    fake_diffusers = type("D", (), {"Flux2KleinPipeline": Flux2KleinPipeline})
+    kwargs = {"prompt": "a hat", "num_inference_steps": 4}
+    pipe, placement = _diffusers._load_staged(
+        fake_diffusers, fake_torch, _diffusers.adapter_for("flux-2-klein"), "/m", {"torch_dtype": "bf16"}, kwargs
+    )
+    _eq(placement, "staged_text_encoder_then_denoiser:gpu_resident", "placement label")
+    _eq(kwargs, {"num_inference_steps": 4, "prompt_embeds": "EMBEDS"}, "prompt replaced by embeddings")
+    _eq(
+        events,
+        ["load encoder-only", "text_encoder->cuda", "encode 'a hat' on cuda", "empty_cache", "load denoiser", "denoiser->cuda"],
+        "encoder is freed before the denoiser loads",
+    )
+    assert isinstance(pipe, Flux2KleinPipeline)
+
+
+def test_staged_placement_streams_each_stage_when_vram_is_contended():
+    events = []
+
+    class Stage:
+        def __init__(self, encoder):
+            self.text_encoder = object() if encoder else None
+
+        def enable_sequential_cpu_offload(self):
+            events.append("sequential " + ("encoder" if self.text_encoder else "denoiser"))
+
+        def encode_prompt(self, prompt, device):
+            events.append("encode")
+            return "EMBEDS", "IDS"
+
+    class Flux2KleinPipeline(Stage):
+        @classmethod
+        def from_pretrained(cls, path, **kwargs):
+            pipe = cls(kwargs.get("transformer", "x") is None)
+            return pipe
+
+    class NoGrad:
+        def __enter__(self):
+            return None
+
+        def __exit__(self, *exc):
+            return False
+
+    fake_torch = type("T", (), {"no_grad": staticmethod(lambda: NoGrad()), "cuda": type("C", (), {"empty_cache": staticmethod(lambda: None)})})
+    kwargs = {"prompt": "p"}
+    _, placement = _diffusers._load_staged(
+        type("D", (), {"Flux2KleinPipeline": Flux2KleinPipeline}), fake_torch,
+        _diffusers.adapter_for("flux-2-klein"), "/m", {}, kwargs, on_gpu=False,
+    )
+    _eq(placement, "staged_text_encoder_then_denoiser:sequential_cpu_offload", "contended placement label")
+    _eq(events, ["sequential encoder", "encode", "sequential denoiser"], "each stage streams with sequential offload")
+
+
+def test_text_only_run_refused_for_edit_only_family():
+    raised = None
+    try:
+        _diffusers.run(family="instruct-pix2pix", model_dir="/nonexistent", image_paths=[], out_path="/dev/null", params=Params(prompt="p"), op="text_to_image")
+    except SystemExit as exc:
+        raised = exc.code
+    _eq(raised, 2, "an edit-only family refuses a text-only run before loading anything")
+
+
+def test_family_cli_refuses_conditioning_adapters():
+    import argparse
+
+    args = argparse.Namespace(
+        family="flux-2-klein", model="/m", out="/o", prompt="p", negative_prompt="", steps=0,
+        guidance=None, seed=0, width=0, height=0, lora=["/l.safetensors:0.8"], controlnet=[], ip_adapter=[],
+    )
+    raised = None
+    with patch.object(_diffusers, "run") as run:
+        try:
+            _diffusers.run_family_op(args, op="text_to_image", image_paths=[])
+        except SystemExit as exc:
+            raised = exc.code
+    _eq(raised, 2, "family route refuses LoRA rather than dropping it")
+    assert not run.called, "refused request must not reach the pipeline"
+
+
+def test_family_cli_maps_generate_args_onto_params():
+    import argparse
+
+    args = argparse.Namespace(
+        family="flux-2-klein", model="/m", out="/o", prompt="a fox", negative_prompt="", steps=6,
+        guidance=None, seed=7, width=1024, height=768, lora=[], controlnet=[], ip_adapter=[],
+    )
+    with patch.object(_diffusers, "run") as run:
+        _diffusers.run_family_op(args, op="text_to_image", image_paths=[])
+    kwargs = run.call_args.kwargs
+    _eq(kwargs["op"], "text_to_image", "op threaded to the runner")
+    _eq(kwargs["image_paths"], [], "text_to_image has no reference image")
+    _eq(kwargs["params"], Params(prompt="a fox", steps=6, seed=7, width=1024, height=768), "generate params")
 
 
 def test_unknown_family_exits():
@@ -424,6 +647,29 @@ def test_apply_ip_adapter_empty_is_none():
     from ._adapters import apply_ip_adapter
 
     assert apply_ip_adapter(_FakePipe(), []) is None, "no ip-adapter specs → None"
+
+
+def _sparse_component(root, component, size):
+    os.makedirs(os.path.join(root, component), exist_ok=True)
+    with open(os.path.join(root, component, "model.safetensors"), "wb") as handle:
+        handle.truncate(size)  # sparse: only the size matters
+
+
+def test_staged_gpu_residency_floor_follows_the_largest_component():
+    import tempfile
+
+    gib = 1024**3
+    with tempfile.TemporaryDirectory() as small, tempfile.TemporaryDirectory() as large:
+        # klein 4B: ~8GB components keep the historical 10 GiB floor.
+        _sparse_component(small, "text_encoder", 8 * 10**9)
+        _sparse_component(small, "transformer", 7_750_000_000)
+        _eq(_diffusers.staged_min_free_bytes(small), 10 * gib, "4B floor")
+        # klein 9B: an 18.2GB transformer needs more than any 16GB card holds.
+        _sparse_component(large, "text_encoder", 16_400_000_000)
+        _sparse_component(large, "transformer", 18_157_190_880)
+        need = _diffusers.staged_min_free_bytes(large)
+        assert need > 16 * gib, f"9B residency floor {need} must exceed a 16 GiB card"
+    _eq(_diffusers.staged_min_free_bytes("/nonexistent/model"), 10 * gib, "missing dir floor")
 
 
 def main() -> int:

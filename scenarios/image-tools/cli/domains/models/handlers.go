@@ -12,6 +12,9 @@ import (
 	jobsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/jobs/jobs_v1connect"
 	modelsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/models"
 	modelsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/models/models_v1connect"
+	"image-tools/cli/internal/actor"
+	"image-tools/cli/internal/jobstate"
+	"image-tools/cli/internal/verdictfmt"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -103,9 +106,11 @@ func (h *handlers) selectModel(ctx cliapp.RunContext) error {
 	}
 	results := []string{
 		formatModel(resp.Msg.Model),
+		"verdict: " + verdictfmt.Line(resp.Msg.Verdict),
 		"reason: " + resp.Msg.Reason,
 		fmt.Sprintf("gpu_viable: %t", resp.Msg.GpuViable),
 	}
+	results = append(results, verdictfmt.Evidence(resp.Msg.Verdict, "evidence: ")...)
 	for _, w := range resp.Msg.Warnings {
 		results = append(results, "warning: "+w)
 	}
@@ -149,6 +154,7 @@ func (h *handlers) explain(ctx cliapp.RunContext) error {
 		results = append(results, "tier: "+r.Tier)
 	}
 	results = append(results,
+		"verdict: "+verdictfmt.Line(r.Verdict),
 		fmt.Sprintf("gpu_viable: %t", r.GpuViable),
 		"safety_weight: "+r.Weight,
 	)
@@ -171,6 +177,9 @@ func (h *handlers) setEnabled(ctx cliapp.RunContext) error {
 	resp, err := h.client.SetModelEnabled(context.Background(), connect.NewRequest(&modelsv1.SetModelEnabledRequest{
 		Id:      id,
 		Enabled: enabled,
+		Actor:   actor.Name(),
+		Reason:  strings.TrimSpace(ctx.Flag("reason")),
+		Pinned:  ctx.BoolFlag("pin"),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError(fmt.Sprintf("set model %q enabled=%t", id, enabled), err, nil)
@@ -184,10 +193,27 @@ func (h *handlers) setEnabled(ctx cliapp.RunContext) error {
 	}
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
 		Result:  []string{fmt.Sprintf("%s model %s.", verb, resp.Msg.Model.Id)},
-		Changes: []string{formatModel(resp.Msg.Model)},
+		Changes: []string{formatModel(resp.Msg.Model), verdictfmt.Override(resp.Msg.Model.Override)},
 		NextCommand: []string{
 			fmt.Sprintf("`models get %s` — confirm the new state", resp.Msg.Model.Id),
+			fmt.Sprintf("`models reset %s` — drop the override so it follows the seed again", resp.Msg.Model.Id),
 		},
+	})
+}
+
+// reset mirrors ModelsService.ClearModelOverride.
+func (h *handlers) reset(ctx cliapp.RunContext) error {
+	id := ctx.Positional("id")
+	resp, err := h.client.ClearModelOverride(context.Background(), connect.NewRequest(&modelsv1.ClearModelOverrideRequest{Id: id}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("reset model %q", id), err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Model == nil {
+		return fmt.Errorf("server returned no model")
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:  []string{fmt.Sprintf("Model %s follows the seed again.", resp.Msg.Model.Id)},
+		Changes: []string{formatModel(resp.Msg.Model)},
 	})
 }
 
@@ -200,12 +226,21 @@ func (h *handlers) blocklist(ctx cliapp.RunContext) error {
 		return fmt.Errorf("server returned no blocklist response")
 	}
 	results := make([]string, 0, len(resp.Msg.Entries))
+	gates, exclusions := 0, 0
 	for _, b := range resp.Msg.Entries {
-		results = append(results, fmt.Sprintf("%s — %s (%s)", b.Id, b.Reason, b.License))
+		results = append(results, formatGate(b))
+		if b.GetGate() == "exclusion" {
+			exclusions++
+		} else {
+			gates++
+		}
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("%d blocklisted model(s).", len(resp.Msg.Entries))},
-		ResultsHeading: "Blocklist",
+		Summary: []string{
+			fmt.Sprintf("%d license gate(s): normal local use is allowed; only the listed monetized, hosted or redistributed uses are refused.", gates),
+			fmt.Sprintf("%d exclusion(s): kept out of the catalog for a safety, technical or hardware-fit reason.", exclusions),
+		},
+		ResultsHeading: "Gates",
 		Results:        results,
 	})
 }
@@ -233,9 +268,20 @@ func (h *handlers) doctor(ctx cliapp.RunContext) error {
 	if len(results) == 0 {
 		results = append(results, "no findings")
 	}
+	issues, notes := 0, 0
+	for _, f := range resp.Msg.Findings {
+		if f.GetSeverity() == modelsv1.CatalogFindingSeverity_CATALOG_FINDING_SEVERITY_INFO {
+			notes++
+		} else {
+			issues++
+		}
+	}
 	status := "Catalog doctor passed."
 	if !resp.Msg.Ok {
-		status = fmt.Sprintf("Catalog doctor found %d issue(s).", len(resp.Msg.Findings))
+		status = fmt.Sprintf("Catalog doctor found %d issue(s).", issues)
+	}
+	if notes > 0 {
+		status += fmt.Sprintf(" %d informational note(s) need no action for normal use.", notes)
 	}
 	if err := cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
 		Summary:        []string{status, fmt.Sprintf("Model lifecycle: %d ready / %d catalog entries.", ready, len(resp.Msg.Models))},
@@ -287,7 +333,7 @@ func (h *handlers) provision(ctx cliapp.RunContext) error {
 	if err := json.Unmarshal([]byte(job.GetResultMeta()["provisioning_evidence_v1"]), &report); err != nil {
 		return errors.Join(waitErr, fmt.Errorf("read provisioning evidence: %w", err))
 	}
-	results := report.resultLines(stateName(job.State), job.Id)
+	results := report.resultLines(jobstate.DisplayName(job.State), job.Id)
 	err = cliapp.RenderProtoMutation(ctx, job, cliapp.MutationReport{Result: results, NextCommand: []string{"image-tools doctor"}})
 	return errors.Join(waitErr, err)
 }
@@ -396,7 +442,7 @@ func (h *handlers) install(ctx cliapp.RunContext) error {
 		return werr
 	}
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:  []string{fmt.Sprintf("Install of %s %s (job %s).", id, stateName(job.GetState()), job.GetId())},
+		Result:  []string{fmt.Sprintf("Install of %s %s (job %s).", id, jobstate.DisplayName(job.GetState()), job.GetId())},
 		Changes: []string{submitted},
 		NextCommand: []string{
 			fmt.Sprintf("`models get %s` — confirm the install state", id),
@@ -477,9 +523,15 @@ func (h *handlers) inspect(ctx cliapp.RunContext) error {
 	if m.GetProposed() != nil {
 		lines = append(lines, fmt.Sprintf("proposed id:   %s", m.GetProposed().GetId()))
 	}
-	next := fmt.Sprintf("`models import %s --architecture %s` — register + install", source, arch.GetArchitecture())
+	if fam := m.GetRuntimeFamily(); fam != "" {
+		lines = append(lines, fmt.Sprintf("adapter:       %s (found from pipeline class %s)", fam, m.GetPipelineClass()))
+	}
+	next := fmt.Sprintf("`models import %s` — register + install; it is selectable as untested once installed", source)
 	if arch.GetConfidence() == "none" {
 		next = fmt.Sprintf("`models import %s --architecture <sd15|sdxl|flux>` — confirm the architecture, then install", source)
+	}
+	for _, need := range m.GetNeeds() {
+		lines = append(lines, "needs:         "+need)
 	}
 	lines = append(lines, "", "next: "+next)
 	return cliapp.RenderProtoList(ctx, m, cliapp.ListReport{
@@ -605,26 +657,9 @@ func (h *handlers) waitJob(jobID string) (*jobsv1.Job, error) {
 	}
 	job := resp.Msg.GetJob()
 	if job.GetState() != jobsv1.JobState_JOB_STATE_SUCCEEDED {
-		return job, fmt.Errorf("install job %s %s: %s", jobID, stateName(job.GetState()), job.GetError())
+		return job, fmt.Errorf("install job %s %s: %s", jobID, jobstate.DisplayName(job.GetState()), job.GetError())
 	}
 	return job, nil
-}
-
-func stateName(s jobsv1.JobState) string {
-	switch s {
-	case jobsv1.JobState_JOB_STATE_SUCCEEDED:
-		return "succeeded"
-	case jobsv1.JobState_JOB_STATE_FAILED:
-		return "failed"
-	case jobsv1.JobState_JOB_STATE_CANCELED:
-		return "canceled"
-	case jobsv1.JobState_JOB_STATE_RUNNING:
-		return "running"
-	case jobsv1.JobState_JOB_STATE_QUEUED:
-		return "queued"
-	default:
-		return "unknown"
-	}
 }
 
 func formatModel(m *modelsv1.Model) string {
@@ -639,8 +674,8 @@ func formatModel(m *modelsv1.Model) string {
 	if m.Custom {
 		tags += " custom"
 	}
-	return fmt.Sprintf("%s — %s [tier=%s backend=%s ops=%s %s %s]",
-		m.Id, m.Name, m.Tier, m.Backend, strings.Join(m.Operations, ","), state, tags)
+	return fmt.Sprintf("%s %s — %s [tier=%s backend=%s ops=%s %s %s]",
+		verdictfmt.Badge(m.Verdict), m.Id, m.Name, m.Tier, m.Backend, strings.Join(m.Operations, ","), state, tags)
 }
 
 // installLabel renders the on-disk install state in one token.
@@ -656,6 +691,14 @@ func formatModelDetail(m *modelsv1.Model) string {
 		return "(nil)"
 	}
 	lines := []string{formatModel(m)}
+	lines = append(lines, "  verdict: "+verdictfmt.Line(m.Verdict))
+	for _, v := range m.Verdicts {
+		lines = append(lines, fmt.Sprintf("    %s: %s", v.Operation, verdictfmt.Line(v)))
+		lines = append(lines, verdictfmt.Evidence(v, "      evidence: ")...)
+	}
+	if o := verdictfmt.Override(m.Override); o != "" {
+		lines = append(lines, "  "+o)
+	}
 	if m.Hardware != nil {
 		lines = append(lines, fmt.Sprintf("  hardware: cpu_capable=%t gpu_required=%t min_vram_gb=%d min_ram_gb=%d",
 			m.Hardware.CpuCapable, m.Hardware.GpuRequired, m.Hardware.MinVramGb, m.Hardware.MinRamGb))
@@ -689,6 +732,14 @@ func commercialUseLabel(c modelsv1.CommercialUse) string {
 	}
 }
 
+// formatGate renders one blocklist entry with what it actually restricts.
+func formatGate(b *modelsv1.BlocklistEntry) string {
+	if b.GetGate() == "exclusion" {
+		return fmt.Sprintf("%s — excluded (%s): %s [%s]", b.GetId(), b.GetExclusionKind(), b.GetReason(), b.GetLicense())
+	}
+	return fmt.Sprintf("%s — license gate, refuses %s only: %s [%s]", b.GetId(), strings.Join(b.GetGatedUses(), ", "), b.GetReason(), b.GetLicense())
+}
+
 func formatFinding(f *modelsv1.CatalogFinding) string {
 	if f == nil {
 		return "(nil)"
@@ -710,6 +761,8 @@ func findingSeverityLabel(s modelsv1.CatalogFindingSeverity) string {
 		return "error"
 	case modelsv1.CatalogFindingSeverity_CATALOG_FINDING_SEVERITY_WARNING:
 		return "warning"
+	case modelsv1.CatalogFindingSeverity_CATALOG_FINDING_SEVERITY_INFO:
+		return "info"
 	default:
 		return "unknown"
 	}

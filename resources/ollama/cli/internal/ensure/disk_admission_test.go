@@ -392,6 +392,10 @@ func TestDiskAdmissionRunsPinnedPullAndCompletesOnlyAfterAliasRemoval(t *testing
 		_, _ = fmt.Fprintln(w, `{"status":"success"}`)
 	})
 	mux.HandleFunc("/api/delete", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed) // live Ollama 0.30.10 behavior
+			return
+		}
 		var req struct {
 			Name string `json:"name"`
 		}

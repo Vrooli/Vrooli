@@ -3,7 +3,6 @@ import {
   AlertCircle,
   CheckCircle,
   Circle,
-  ClipboardCheck,
   Menu,
   RefreshCw,
   Settings,
@@ -34,7 +33,6 @@ interface MobileHeaderProps {
   onOpenSettings: () => void;
   onOpenUpstreamInfo?: () => void;
   onOpenFileSearch?: () => void;
-  onOpenReview?: () => void;
   onOpenSourceDistributions?: () => void;
   viewingCommit?: ViewingCommit | null;
   onExitHistoryMode?: () => void;
@@ -60,7 +58,6 @@ export function MobileHeader({
   onOpenSettings,
   onOpenUpstreamInfo,
   onOpenFileSearch,
-  onOpenReview,
   onOpenSourceDistributions,
   viewingCommit,
   onExitHistoryMode,
@@ -93,7 +90,7 @@ export function MobileHeader({
   return (
     <>
       <header
-        className="flex items-center justify-between px-2 py-0 border-b border-slate-800 bg-slate-900"
+        className="gct-mobile-header relative z-40 flex items-center justify-between px-2 py-0 border-b border-slate-800"
         data-testid="mobile-header"
       >
         {/* Left: Branch info */}
@@ -127,35 +124,9 @@ export function MobileHeader({
             />
           )}
 
-          {onOpenReview && (
-            <IconButton
-              onClick={onOpenReview}
-              aria-label="Scenario review"
-              size="xs"
-              surface="ghost"
-              data-testid="mobile-review-button"
-            >
-              <ClipboardCheck className="h-5 w-5 text-slate-400" />
-            </IconButton>
-          )}
-
-          {onOpenSourceDistributions && <IconButton onClick={onOpenSourceDistributions} aria-label="Source distributions" size="xs" surface="ghost" data-testid="mobile-source-distributions-button"><Share2 className="h-5 w-5 text-cyan-400" /></IconButton>}
-
-          {onOpenFileSearch && (
-            <IconButton
-              onClick={onOpenFileSearch}
-              aria-label="Search files"
-              size="xs"
-              surface="ghost"
-              data-testid="mobile-search-button"
-            >
-              <Search className="h-5 w-5 text-slate-400" />
-            </IconButton>
-          )}
-
           <IconButton
             onClick={() => setMenuOpen(true)}
-            aria-label="Open menu"
+            aria-label="More repository actions"
             size="xs"
             surface="ghost"
             data-testid="mobile-menu-button"
@@ -169,7 +140,7 @@ export function MobileHeader({
       <BottomSheet
         isOpen={menuOpen}
         onClose={() => setMenuOpen(false)}
-        title="Settings & Info"
+        title="Repository tools"
       >
         <div className="space-y-2">
           {/* Repository info section */}
@@ -238,6 +209,33 @@ export function MobileHeader({
               </span>
             </div>
           </div>
+
+          {/* Less frequent actions live here to keep the mobile chrome compact. */}
+          {onOpenFileSearch && (
+            <BottomSheetAction
+              icon={<Search className="h-5 w-5 text-slate-300" />}
+              label="Search files"
+              description="Find a file in this repository"
+              onClick={() => {
+                setMenuOpen(false);
+                onOpenFileSearch();
+              }}
+              testId="mobile-menu-search"
+            />
+          )}
+
+          {onOpenSourceDistributions && (
+            <BottomSheetAction
+              icon={<Share2 className="h-5 w-5 text-cyan-400" />}
+              label="Source distributions"
+              description="Manage source package distributions"
+              onClick={() => {
+                setMenuOpen(false);
+                onOpenSourceDistributions();
+              }}
+              testId="mobile-menu-source-distributions"
+            />
+          )}
 
           {/* Action buttons */}
           <BottomSheetAction

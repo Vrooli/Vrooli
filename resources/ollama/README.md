@@ -65,7 +65,8 @@ instead of hard-coding concrete model names:
 | `embedding.default` | `nomic-embed-text:latest` | semantic search embeddings |
 | `chat.small` | `qwen3.5:4b` | low-memory local generation |
 | `chat.default` | `qwen3.5:9b` | default local chat/synthesis |
-| `summarize.default` | `qwen3:1.7b` | text distillation and summaries (4B/3B fallbacks) |
+| `summarize.default` | `qwen3.5:4b` | text distillation and summaries (3B/1.7B fallbacks) |
+| `summarize.audio_tools` | `qwen3:1.7b` | Audio Tools compact summaries; Qwen3.5 4B is the quality fallback |
 | `rerank.llm_fallback` | `qwen3.5:4b` | fallback reranking when the reranker resource is unavailable |
 | `classify.routing` | `qwen3.5:4b` | structured routing and classification |
 | `code.local` | `gemma4:12b` | local code-specialized generation (tool-calling capable) |
@@ -196,16 +197,32 @@ Defaults are tuned for a single-host workstation:
 | Host memory budget | `8192 MiB` | `requirements.ram_mb` and model policy | Select a smaller model role or adjust the declared policy after measurement |
 | Concurrent requests in-flight | `1` | `managed_service.environment.OLLAMA_NUM_PARALLEL` and the gateway semaphore fallback | Same — edit and restart |
 | CPU threads per gateway request | `4` | Gateway resource budget; applied when omitted and larger overrides are rejected | Change the budget constant and tests after measurement |
-| Models kept resident | `2` | `managed_service.environment.OLLAMA_MAX_LOADED_MODELS` | Same |
-| Ollama internal model timeout | `-1` (never unload) | `managed_service.environment.OLLAMA_KEEP_ALIVE` | Shared capacity `idle_unload_ttl_seconds` owns reclaim timing |
+| Loaded-model slots | resident models + 1 (`3`) | `managed_service.environment.OLLAMA_MAX_LOADED_MODELS`, derived from `residency` in `model-policy.json` (a test fails when they disagree) | Change `residency.resident_roles`, update the slot count, restart |
+| Per-model idle unload | resident roles stay loaded; other models unload after `600` s idle | `residency` in `model-policy.json`, applied to every request by the activity edge | Edit the policy; the edge reloads it within 5 s |
 
 The 12 GiB VRAM cap is intended to keep one 7-8B model resident plus headroom;
 the separate 8 GiB host RAM requirement is the resource's audited reservation.
 Keep `OLLAMA_NUM_PARALLEL` in step with the gateway semaphore — they are
 deliberately tied. The gateway sends a four-thread default to Ollama for each
 generation request and refuses a larger override unless the resource budget is
-raised explicitly. Ollama's own keep-alive timer is disabled so the shared
-capacity state machine is the only owner of idle model unload timing.
+raised explicitly. Per-model residency comes from the policy's `residency`
+block: the activity edge sets each request's `keep_alive` to `-1` for the
+primary models of `resident_roles` and to `idle_unload_seconds` for every other
+model, so a large model unloads once it goes unused while the shared small
+models stay loaded. A caller's explicit `keep_alive: 0` is honored.
+OpenAI-compatible `/v1` requests ignore a body `keep_alive` (Ollama 0.30.10
+leaves them at the daemon default), so after each burst of them the edge sends
+one native load-only request that sets the model's policy `keep_alive`; it
+never reloads a model that has already left `/api/ps`. The daemon default
+(`OLLAMA_KEEP_ALIVE=-1`) covers only requests the edge cannot read, and the
+shared capacity `idle_unload_ttl_seconds` still reclaims the whole runtime when
+it is idle.
+
+`resource-ollama models callers [--model <name>] [--json]` shows who sends
+requests for each model: the activity edge names each loopback caller by its
+Vrooli scope and executable (for example
+`scenario:ai-gateway-start-api/ai-gateway-api` or `agent:codex/opencode`) and
+records counts and last-seen in the shared `model-usage.json`.
 The shipped policy also supplies conservative default output budgets for every
 generation role (512 for small/vision, 1024 for summarize, 2048 for default
 chat, 256 for routing/rerank, 4096 for code, and 8192 for writing). An explicit
@@ -245,27 +262,50 @@ resource-ollama gateway generate --role chat.default      --json --prompt "say h
 resource-ollama gateway chat     --role summarize.default --json --system "Be concise" --prompt "summarize this"
 ```
 
+For a bounded indexing batch, `gateway embed --input-json-stdin` accepts
+`{"inputs":[...]}` with at most 64 inputs and 1 MiB total. It sends one
+request through the same host-wide semaphore. Every embed call uses Ollama's
+`/api/embed`, which returns L2-normalized vectors (same direction as the retired
+`/api/embeddings` vectors, so cosine search is unchanged). An input longer than
+the model's runner context is truncated at the tail rather than failing; the
+JSON response reports `input_limit_tokens`, and for a single input `truncated`.
+The response retains `embeddings` plus `admission_wait_ns`,
+`provider_duration_ns`, and Ollama's total/load/prompt timings.
+
+### Runner options are owned here
+
+Ollama restarts a model's runner whenever a request carries different load
+options (`num_ctx`, `num_batch`, `num_gpu`, `main_gpu`, `use_mmap`,
+`num_thread`). Callers therefore never send them. The values live in
+`cli/internal/runtimeprofile/profile.json`; the daemon applies them to every
+runner through `managed_service.environment` (`OLLAMA_CONTEXT_LENGTH`, and
+`LLAMA_ARG_THREADS` for the four-thread CPU budget), and a test binds the two.
+A model that needs a larger runner context declares it in the profile; the
+gateway sends it and the public activity edge replaces whatever load options a
+caller sent (OpenCode included) with exactly that, so every path shares one
+runner. Clients that reach the daemon without either path (OpenAI-compatible
+`/v1` requests cannot carry options) get the server default; `runtime status`
+shows the resulting restarts.
+`--cpu-only` is the one sanctioned variant; it replaces a loaded GPU runner for
+that model, so use it only for deliberate CPU runs. `resource-ollama runtime
+profile` prints the declared values and `resource-ollama runtime status
+[--window 1h] [--fail-on-drift]` counts runner starts, option-drift restarts,
+evictions, thread-budget misses and oversized embedding inputs from the daemon
+log. The AI Gateway conformance rule `AI_OLLAMA_RUNTIME_OPTIONS` flags callers
+that set these options.
+
 These gateway inference commands always verify a direct loopback Ollama
 endpoint, including when called without `--require-loopback`. A configured
 non-loopback `OLLAMA_BASE_URL` or `OLLAMA_HOST` is refused before a provider
 request; the compatibility flag does not enable or disable that check.
 
-For bounded experiments or a known CPU-sensitive workload, the gateway accepts
-per-request Ollama runtime controls. Each is validated before admission;
-context is checked against the selected model policy, while thread and batch
-values are bounded by host-safe ceilings:
-
-```bash
-resource-ollama gateway generate --role chat.small --prompt "say hi" \
-  --max-tokens 128 --num-ctx 4096 --num-thread 8 --num-batch 256 --json
-```
-
-`--num-thread` is the primary CPU control, while `--num-ctx` and `--num-batch`
-bound memory and prompt-evaluation work. The JSON response includes Ollama's
-`total_duration_ns`, `load_duration_ns`, `prompt_eval_*`, and `eval_duration_ns`
-fields so a benchmark can distinguish model-load cost from token-generation
-cost. The gateway remains serialized by the host-wide semaphore before any
-request reaches Ollama.
+`gateway generate` and `gateway chat` accept `--context-budget <n>` to refuse a
+request whose estimated prompt plus `--max-tokens` exceeds `n` tokens. It is an
+admission limit only: it never changes the runner, and it may not exceed the
+runner context the profile declares. The JSON response includes Ollama's
+`total_duration_ns`, `load_duration_ns`, `prompt_eval_*`, and
+`eval_duration_ns` fields so a benchmark can distinguish model-load cost from
+token-generation cost.
 
 For an isolated local inference, add `--one-shot --timeout 90s`. Loopback is
 verified by default. The command refuses a model already resident, sends

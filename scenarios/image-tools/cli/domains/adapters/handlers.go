@@ -13,6 +13,7 @@ import (
 	adaptersconnect "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/adapters/adapters_v1connect"
 	jobsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/jobs"
 	jobsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/jobs/jobs_v1connect"
+	"image-tools/cli/internal/jobstate"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -138,9 +139,20 @@ func (h *handlers) doctor(ctx cliapp.RunContext) error {
 	if len(results) == 0 {
 		results = append(results, "no findings")
 	}
+	issues, notes := 0, 0
+	for _, f := range resp.Msg.Findings {
+		if f.GetSeverity() == adaptersv1.CatalogFindingSeverity_CATALOG_FINDING_SEVERITY_INFO {
+			notes++
+		} else {
+			issues++
+		}
+	}
 	status := "Catalog doctor passed."
 	if !resp.Msg.Ok {
-		status = fmt.Sprintf("Catalog doctor found %d issue(s).", len(resp.Msg.Findings))
+		status = fmt.Sprintf("Catalog doctor found %d issue(s).", issues)
+	}
+	if notes > 0 {
+		status += fmt.Sprintf(" %d informational note(s) need no action for normal use.", notes)
 	}
 	if err := cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
 		Summary:        []string{status},
@@ -220,7 +232,7 @@ func (h *handlers) install(ctx cliapp.RunContext) error {
 		return werr
 	}
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:  []string{fmt.Sprintf("Install of %s %s (job %s).", id, stateName(job.GetState()), job.GetId())},
+		Result:  []string{fmt.Sprintf("Install of %s %s (job %s).", id, jobstate.DisplayName(job.GetState()), job.GetId())},
 		Changes: []string{submitted},
 		NextCommand: []string{
 			fmt.Sprintf("`adapters get %s` — confirm the install state", id),
@@ -337,26 +349,9 @@ func (h *handlers) waitJob(jobID string) (*jobsv1.Job, error) {
 	}
 	job := resp.Msg.GetJob()
 	if job.GetState() != jobsv1.JobState_JOB_STATE_SUCCEEDED {
-		return job, fmt.Errorf("install job %s %s: %s", jobID, stateName(job.GetState()), job.GetError())
+		return job, fmt.Errorf("install job %s %s: %s", jobID, jobstate.DisplayName(job.GetState()), job.GetError())
 	}
 	return job, nil
-}
-
-func stateName(s jobsv1.JobState) string {
-	switch s {
-	case jobsv1.JobState_JOB_STATE_SUCCEEDED:
-		return "succeeded"
-	case jobsv1.JobState_JOB_STATE_FAILED:
-		return "failed"
-	case jobsv1.JobState_JOB_STATE_CANCELED:
-		return "canceled"
-	case jobsv1.JobState_JOB_STATE_RUNNING:
-		return "running"
-	case jobsv1.JobState_JOB_STATE_QUEUED:
-		return "queued"
-	default:
-		return "unknown"
-	}
 }
 
 func formatAdapter(a *adaptersv1.Adapter) string {
@@ -445,6 +440,8 @@ func findingSeverityLabel(s adaptersv1.CatalogFindingSeverity) string {
 		return "error"
 	case adaptersv1.CatalogFindingSeverity_CATALOG_FINDING_SEVERITY_WARNING:
 		return "warning"
+	case adaptersv1.CatalogFindingSeverity_CATALOG_FINDING_SEVERITY_INFO:
+		return "info"
 	default:
 		return "unknown"
 	}

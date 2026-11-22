@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
@@ -129,6 +129,7 @@ export function AddCustomModelForm() {
           data-testid={selectors.models.addCustom.submit}
           type="submit"
           disabled={!id.trim() || addMutation.isPending}
+          shape="square"
         >
           {addMutation.isPending
             ? t(strings.models.addCustom.submitting)

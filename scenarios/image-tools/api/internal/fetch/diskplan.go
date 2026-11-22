@@ -17,20 +17,33 @@ import (
 	"time"
 
 	"github.com/vrooli/envkit-go"
+
 	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
+	"image-tools/internal/diskpolicy"
+	"image-tools/internal/modelenv"
 )
 
 const (
-	InstallDiskFloorBytes    = int64(120 << 30)
 	InstallOwnerCeilingBytes = int64(25_000_000_000)
-	sizeProbeTimeout         = 5 * time.Second
-	sizeProbeBodyLimit       = 1 << 20
+	// HuggingFaceCacheAllowanceBytes bounds the Hub cache charge. Repo
+	// snapshots use snapshot_download(local_dir=staging), which writes files
+	// and incomplete downloads under the staging directory (charged to the
+	// model root); the Hub cache only receives metadata and any small configs a
+	// runtime smoke resolves.
+	HuggingFaceCacheAllowanceBytes = int64(512 << 20)
+	sizeProbeTimeout               = 5 * time.Second
+	sizeProbeBodyLimit             = 1 << 20
 )
 
-// PlanInstallDiskJob creates a conservative, bounded peak for one model or
-// adapter install. A missing catalog size invokes bounded public metadata
-// probes before any acquisition begins; an unknown or over-ceiling result is
-// rejected before the caller writes.
+// PlanInstallDiskJob creates a bounded peak sized by the model's real bytes
+// for one model or adapter install: the artifact once at the model root (staging
+// is renamed into place on the same filesystem) plus 10% slack, bounded tool
+// temporaries and a bounded Hub cache allowance (library caches are pinned under
+// the managed root, see internal/modelenv). It is admitted by shared host disk
+// admission against the floor internal/diskpolicy resolves. A missing catalog
+// size invokes bounded public metadata probes before any acquisition begins; an
+// unknown or over-ceiling result is rejected before the caller writes. Growth
+// beyond the slack extends the lease before the next chunk is written.
 func PlanInstallDiskJob(ctx context.Context, ownerID, jobID, root string, sizeMB int, source Source, buildExpansion int) (sharedcapacity.DiskJobRequest, error) {
 	if strings.TrimSpace(ownerID) == "" || strings.TrimSpace(jobID) == "" || strings.TrimSpace(root) == "" {
 		return sharedcapacity.DiskJobRequest{}, errors.New("image-tools disk plan requires owner, job, and model root")
@@ -50,6 +63,14 @@ func PlanInstallDiskJob(ctx context.Context, ownerID, jobID, root string, sizeMB
 			size = a.MinBytes
 		}
 	}
+	// The fixed owner ceiling bounds an estimate the catalog does not declare
+	// (a bounded metadata probe). A catalog-declared size is a reviewed fact: its
+	// derived peak is bounded by that declaration, by the growth guard (which
+	// refuses writes past the planned root peak beyond the owner ceiling), and by
+	// the shared host disk admission (free space above the diskpolicy floor).
+	// Capping declared sizes too made every catalog model above ~7.7 GB
+	// uninstallable regardless of free disk.
+	declared := size > 0
 	if size <= 0 {
 		probed, err := ProbeSourceSize(ctx, source)
 		if err != nil {
@@ -60,20 +81,26 @@ func PlanInstallDiskJob(ctx context.Context, ownerID, jobID, root string, sizeMB
 	if size <= 0 {
 		return sharedcapacity.DiskJobRequest{}, errors.New("size probe returned no positive artifact size")
 	}
-	if size > InstallOwnerCeilingBytes {
+	if !declared && size > InstallOwnerCeilingBytes {
 		return sharedcapacity.DiskJobRequest{}, fmt.Errorf("image-tools install estimate %d bytes exceeds the 25 GB owner planning ceiling", size)
 	}
 	if size > math.MaxInt64/2 {
 		return sharedcapacity.DiskJobRequest{}, errors.New("install peak overflows bytes")
 	}
-	rootPeak := size * 2
+	// Staging lives beside the destination and is renamed into place on the
+	// same filesystem, so the root writes one copy; a replaced install already
+	// occupies its bytes. Ten percent covers approximate catalog sizes; the
+	// growth guard extends the lease before any byte beyond it is written.
+	rootPeak := size + max(size/10, int64(64<<20))
 	if buildExpansion > 1 {
 		if rootPeak > math.MaxInt64/int64(buildExpansion) {
 			return sharedcapacity.DiskJobRequest{}, errors.New("model build peak overflows bytes")
 		}
 		rootPeak *= int64(buildExpansion)
 	}
-	tempPeak := max(int64(128<<20), size/4)
+	// Installers hash and verify in place; the temp directory only holds tool
+	// scratch (archive listings, partial index files), never a second copy.
+	tempPeak := max(int64(128<<20), min(size/16, int64(2<<30)))
 	canonicalRoot, err := canonicalDiskJobPath(root)
 	if err != nil {
 		return sharedcapacity.DiskJobRequest{}, fmt.Errorf("resolve model install root for disk admission: %w", err)
@@ -105,20 +132,13 @@ func PlanInstallDiskJob(ctx context.Context, ownerID, jobID, root string, sizeMB
 		}
 		return nil
 	}
-	hfHome := strings.TrimSpace(os.Getenv("HF_HOME"))
-	if hfHome == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return sharedcapacity.DiskJobRequest{}, err
-		}
-		hfHome = filepath.Join(home, ".cache", "huggingface")
-	}
-	hubCache := firstNonEmptyPath(os.Getenv("HF_HUB_CACHE"), os.Getenv("HUGGINGFACE_HUB_CACHE"), filepath.Join(hfHome, "hub"))
+	// Library caches are pinned under the managed root (internal/modelenv), so
+	// the admitted cache charge is that directory, never an inherited HF_HOME.
+	pins := modelenv.MustLoad().Pins(modelenv.Root())
 	for _, item := range []struct{ path, role string }{
-		{hfHome, "huggingface-home-cache"}, {hubCache, "huggingface-hub-cache"},
-		{os.Getenv("TRANSFORMERS_CACHE"), "huggingface-transformers-cache"},
+		{pins["HF_HOME"], "huggingface-home-cache"}, {pins["HF_HUB_CACHE"], "huggingface-hub-cache"},
 	} {
-		peak := size
+		peak := min(size, HuggingFaceCacheAllowanceBytes)
 		if item.role == "huggingface-home-cache" {
 			peak = 1
 		}
@@ -138,10 +158,10 @@ func PlanInstallDiskJob(ctx context.Context, ownerID, jobID, root string, sizeMB
 		}
 		total += p.PeakBytes
 	}
-	if total > InstallOwnerCeilingBytes {
+	if !declared && total > InstallOwnerCeilingBytes {
 		return sharedcapacity.DiskJobRequest{}, fmt.Errorf("complete model/adapter install peak %d bytes exceeds the 25 GB owner planning ceiling", total)
 	}
-	return sharedcapacity.DiskJobRequest{OwnerID: ownerID, JobID: jobID, FloorBytes: InstallDiskFloorBytes, Paths: paths}, nil
+	return diskpolicy.Resolve(os.Getenv).Request(ownerID, jobID, paths), nil
 }
 
 func canonicalDiskJobPath(path string) (string, error) {
@@ -219,7 +239,6 @@ func PinHuggingFaceCache(repo RepoFetcher, cachePath string) RepoFetcher {
 	values["HF_HOME"] = filepath.Dir(cachePath)
 	values["HF_HUB_CACHE"] = cachePath
 	values["HUGGINGFACE_HUB_CACHE"] = cachePath
-	values["TRANSFORMERS_CACHE"] = cachePath
 	keys := make([]string, 0, len(values))
 	for key := range values {
 		keys = append(keys, key)
@@ -232,16 +251,21 @@ func PinHuggingFaceCache(repo RepoFetcher, cachePath string) RepoFetcher {
 	return &clone
 }
 
-// HuggingFaceCachePath selects the cache declared by the admitted request.
-func firstNonEmptyPath(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return value
+// GrowthCeilingBytes bounds lease extensions for a planned request: twice the
+// plan, and never less than the fixed probe ceiling. Shared admission still
+// refuses any extension the host cannot hold.
+func GrowthCeilingBytes(request sharedcapacity.DiskJobRequest) int64 {
+	var total int64
+	for _, p := range request.Paths {
+		if total > math.MaxInt64/2-p.PeakBytes {
+			return math.MaxInt64 / 2
 		}
+		total += p.PeakBytes
 	}
-	return ""
+	return max(InstallOwnerCeilingBytes, 2*total)
 }
 
+// HuggingFaceCachePath selects the cache declared by the admitted request.
 func HuggingFaceCachePath(request sharedcapacity.DiskJobRequest) string {
 	for _, path := range request.Paths {
 		if diskJobPathHasRole(path.Role, "huggingface-hub-cache") {

@@ -27,6 +27,8 @@ type Policy struct {
 	Models        map[string]Model      `json:"models"`
 	Constraints   Constraints           `json:"constraints"`
 	Provenance    map[string]Provenance `json:"provenance"`
+	Retention     Retention             `json:"retention"`
+	Residency     Residency             `json:"residency"`
 	loadedSHA256  string
 }
 
@@ -984,6 +986,8 @@ func (p Policy) Validate() error {
 	if len(modalityVocab) == 0 {
 		errs = append(errs, errors.New("constraints.modality_vocabulary must not be empty"))
 	}
+	errs = append(errs, p.Retention.validate(p)...)
+	errs = append(errs, p.Residency.validate(p)...)
 	for name, role := range p.Roles {
 		if strings.TrimSpace(role.Model) == "" {
 			errs = append(errs, fmt.Errorf("roles.%s.model is required", name))

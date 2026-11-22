@@ -39,12 +39,17 @@ func commonFlags() []cliapp.Flag {
 		{Name: "quality-policy", Description: "Candidate ordering policy: quality, balanced, or fast"},
 		{Name: "fallback-policy", Description: "Provider fallback policy: any, cloud_allowed, or local_only"},
 		{Name: "role", Description: "OpenRouter model role (e.g. image.vector.default, image.generate.logo) for the gateway"},
+		{Name: "max-wait", Description: "Longest to wait for local capacity before re-routing to the cloud, e.g. 90s or 10m (0 = wait locally without limit; default: deployment, 10m). Needs the cloud to be permitted and within the spend caps"},
+		{Name: "max-cost", Description: "Per-job cloud spend cap in USD, e.g. 0.25 (0 = no cloud spend for this job; default: deployment, $0.25). The daily cap is set by the deployment"},
+		{Name: "edit-style", Description: "Cloud role choice for edits: identity (keep the subject recognisable) or stylized (restyle it). Default: detected from the prompt"},
+		{Name: "no-preserve-identity", Bool: true, Description: "Send the edit instruction exactly as written (by default edit_instruct adds an identity-preservation sentence; the effective prompt is in the job meta)"},
 		{Name: "priority", Description: "Capacity priority: service, interactive, or batch"},
 		{Name: "no-reclaim", Bool: true, Description: "Do not reclaim cold-idle local resources for this job"},
 		{Name: "require-gpu", Bool: true, Description: "Require local GPU execution; fail if capacity would degrade this job to CPU"},
 		{Name: "force-cpu", Bool: true, Description: "Force a declared CPU model/backend even when a GPU is available"},
+		{Name: "no-auto-acquire", Bool: true, Description: "Fail instead of downloading the selected model's weights when they are not installed"},
 		{Name: "explain", Bool: true, Description: "Print which model/technique would run (native-vs-derived) and exit without submitting"},
-		{Name: "consent", Bool: true, Description: "Affirm you have the right to edit the people in this image (required for identity-altering ops on a public deployment)"},
+		{Name: "consent", Bool: true, Description: "Affirm you have the right to edit the people in these images. Needed only when the request would leave this machine (cloud provider or remote node) or the deployment is public; local runs never need it. --explain says whether it applies"},
 		{Name: "lora", Description: "Conditioning LoRA to apply: id[:scale] (repeatable)"},
 		{Name: "controlnet", Description: "Conditioning ControlNet: id[:scale[:conditioning_image_key]] (repeatable)"},
 		{Name: "pose-control", Bool: true, Description: "Use the input image's detected pose with controlnet-openpose-sd15 (requires that adapter to be enabled and installed)"},
@@ -63,7 +68,10 @@ type submitSpec struct {
 	Desc       string
 	NeedsInput bool
 	NeedsMask  bool
-	Flags      []string
+	// NeedsReference marks an op that takes a reference image (the source face of
+	// face_swap), supplied with --reference.
+	NeedsReference bool
+	Flags          []string
 }
 
 // submitFlagDefs is the flag vocabulary referenced by manifests. A manifest
@@ -91,8 +99,15 @@ var submitFlagDefs = map[string]cliapp.Flag{
 	"support-roi":              {Name: "support-roi", Description: "Optional normalized support-plane region JSON {\"supportRoi\":{\"x\":0,\"y\":0.85,\"width\":1,\"height\":0.15}}"},
 	"mesh-resolution":          {Name: "mesh-resolution", Description: "Marching-cubes resolution: 128 or 256 (default 256)"},
 	"selection":                {Name: "selection", Description: "JSON normalized points and/or box, e.g. {\"points\":[{\"x\":0.7,\"y\":0.5}]}"},
+	"text":                     {Name: "text", Description: "Select by phrase, e.g. \"the jacket\" or \"her hair\" (needs a grounded segmentation model; cannot combine with --selection)"},
 	"realism":                  {Name: "realism", Description: "Fidelity↔realism knob 0..1 (default 0.5)"},
 	"face-aware":               {Name: "face-aware", Bool: true, Description: "Bias texture/grain toward midtone (skin) regions"},
+	"reference":                {Name: "reference", Description: "Path to the reference image: the face to put on the input image"},
+	"target-face":              {Name: "target-face", Description: "Which face of the input image to replace, largest first from 0 (default 0)"},
+	"source-face":              {Name: "source-face", Description: "Which face of the reference image to use, largest first from 0 (default 0)"},
+	"all-faces":                {Name: "all-faces", Bool: true, Description: "Replace every detected face of the input image, not only one"},
+	"color-match":              {Name: "color-match", Description: "How strongly the swapped face takes the colour of the face it replaces, 0..1 (default 1)"},
+	"no-occlusion":             {Name: "no-occlusion", Bool: true, Description: "Do not protect hands, hair and glasses in front of the face (skip the occlusion mask)"},
 }
 
 // submitCommands builds the submit command table from the generated specs. All
@@ -121,7 +136,7 @@ func (h *handlers) submitCommands() []cliapp.Command {
 			Description: s.Desc,
 			NeedsAPI:    true,
 			Args:        cliapp.ArgSchema{Positionals: positionals, Flags: flags},
-			RunCtx:      h.submit(s.Op, s.NeedsInput, s.NeedsMask),
+			RunCtx:      h.submit(s.Op, s.NeedsInput, s.NeedsMask, s.NeedsReference),
 		})
 	}
 	return out

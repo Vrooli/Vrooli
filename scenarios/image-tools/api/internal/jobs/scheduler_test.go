@@ -350,3 +350,159 @@ func TestSchedulerWakesQueuedLocalWorkWhenLocalJobFinishes(t *testing.T) {
 		t.Fatalf("queued local job not admitted after capacity was freed: %+v err=%v", final, err)
 	}
 }
+
+func TestRetryableReleaseSurvivesTransientContentionAndNeverDiscardsFinishedWork(t *testing.T) {
+	oldBudget, oldBackoff := releaseRetryBudget, releaseRetryBackoff
+	releaseRetryBudget, releaseRetryBackoff = 200*time.Millisecond, []time.Duration{10 * time.Millisecond}
+	t.Cleanup(func() { releaseRetryBudget, releaseRetryBackoff = oldBudget, oldBackoff })
+	cases := []struct {
+		name       string
+		retryable  bool
+		failures   int32
+		wantState  State
+		wantResult string
+		// wantRelease is the capacity_release meta a succeeded job must carry.
+		wantRelease string
+		leaks       bool
+	}{
+		{name: "transient lock contention clears", retryable: true, failures: 2, wantState: StateSucceeded, wantResult: "result"},
+		{name: "contention outlasts the budget keeps the finished result", retryable: true, failures: 1 << 20, wantState: StateSucceeded, wantResult: "result", wantRelease: "unconfirmed"},
+		{name: "non-idempotent release is attempted once and fails the job", retryable: false, failures: 1, wantState: StateFailed},
+		{name: "release that leaks work fails even a retryable job", retryable: true, failures: 1 << 20, leaks: true, wantState: StateFailed},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var attempts atomic.Int32
+			m := startManager(t, Config{
+				Admit: func(ctx context.Context, _ Job) (Admission, error) {
+					return Admission{Context: ctx, ReleaseRetryable: tc.retryable, Release: func(context.Context) error {
+						if attempts.Add(1) <= tc.failures {
+							err := errors.New("lock capacity-admission: context deadline exceeded")
+							if tc.leaks {
+								err = fmt.Errorf("%w: %w", ErrReleaseLeaksWork, err)
+							}
+							return err
+						}
+						return nil
+					}}, nil
+				},
+				Runner: func(context.Context, Job, func(int, string)) (Result, error) {
+					return Result{Ref: "result"}, nil
+				},
+			})
+			job, err := m.Submit(context.Background(), Spec{Operation: "model"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			final, err := m.Wait(context.Background(), job.ID)
+			if err != nil || final.State != tc.wantState || final.ResultRef != tc.wantResult {
+				t.Fatalf("final = %+v err=%v attempts=%d", final, err, attempts.Load())
+			}
+			if !tc.retryable && attempts.Load() != 1 {
+				t.Fatalf("non-retryable release attempted %d times", attempts.Load())
+			}
+			if got := final.Meta[MetaCapacityRelease]; got != tc.wantRelease {
+				t.Fatalf("capacity_release meta = %q, want %q (meta %v)", got, tc.wantRelease, final.Meta)
+			}
+			if tc.wantState == StateFailed && !strings.Contains(final.Error, "resource cleanup failed") {
+				t.Fatalf("an unrecoverable release must stay a visible cleanup failure: %+v", final)
+			}
+			if tc.wantRelease != "" && !strings.Contains(final.Meta[MetaCapacityReleaseWarning], "context deadline exceeded") {
+				t.Fatalf("unconfirmed release must carry its cause in meta: %v", final.Meta)
+			}
+		})
+	}
+}
+
+func TestReleaseFailureAfterFailedOrCanceledWorkStaysAVisibleCleanupFailure(t *testing.T) {
+	oldBudget, oldBackoff := releaseRetryBudget, releaseRetryBackoff
+	releaseRetryBudget, releaseRetryBackoff = 50*time.Millisecond, []time.Duration{5 * time.Millisecond}
+	t.Cleanup(func() { releaseRetryBudget, releaseRetryBackoff = oldBudget, oldBackoff })
+	m := startManager(t, Config{
+		Admit: func(ctx context.Context, _ Job) (Admission, error) {
+			return Admission{Context: ctx, ReleaseRetryable: true, Release: func(context.Context) error {
+				return errors.New("lock capacity-admission: context deadline exceeded")
+			}}, nil
+		},
+		Runner: func(context.Context, Job, func(int, string)) (Result, error) {
+			return Result{}, errors.New("inference failed")
+		},
+	})
+	job, err := m.Submit(context.Background(), Spec{Operation: "model"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	final, err := m.Wait(context.Background(), job.ID)
+	if err != nil || final.State != StateFailed {
+		t.Fatalf("final = %+v err=%v", final, err)
+	}
+	for _, want := range []string{"inference failed", "resource cleanup failed"} {
+		if !strings.Contains(final.Error, want) {
+			t.Fatalf("failed job error %q must name %q", final.Error, want)
+		}
+	}
+}
+
+func TestAdmissionProgressIsVisibleWhileAdmitting(t *testing.T) {
+	reported, proceed := make(chan struct{}), make(chan struct{})
+	m := startManager(t, Config{
+		Admit: func(ctx context.Context, _ Job) (Admission, error) {
+			AdmissionProgress(ctx)(40, "acquiring weights for dncnn: downloading")
+			close(reported)
+			<-proceed
+			return Admission{Context: ctx}, nil
+		},
+		Runner: func(context.Context, Job, func(int, string)) (Result, error) { return Result{}, nil },
+	})
+	job, err := m.Submit(context.Background(), Spec{Operation: "model"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	<-reported
+	stored, err := m.Get(context.Background(), job.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	close(proceed)
+	if stored.State != StateAdmitting || stored.Progress != 40 || stored.Message != "acquiring weights for dncnn: downloading" {
+		t.Fatalf("admitting job = state %s progress %d message %q", stored.State, stored.Progress, stored.Message)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+	defer cancel()
+	if final, err := m.Wait(ctx, job.ID); err != nil || final.State != StateSucceeded {
+		t.Fatalf("final=%+v err=%v", final, err)
+	}
+	AdmissionProgress(context.Background())(1, "no reporter is a no-op")
+}
+
+func TestOnlyTheJobsOwnTimeLimitIsReportedAsExecutionTimeLimit(t *testing.T) {
+	cases := []struct {
+		name      string
+		timeout   int
+		runner    func(context.Context) error
+		wantError string
+	}{
+		{name: "own execution timeout", timeout: 1, runner: func(ctx context.Context) error { <-ctx.Done(); return ctx.Err() }, wantError: "execution time limit exceeded"},
+		{name: "inner capacity deadline keeps its cause", timeout: 0, runner: func(context.Context) error {
+			return fmt.Errorf("renew disk lease: %w", context.DeadlineExceeded)
+		}, wantError: "renew disk lease"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := startManager(t, Config{Runner: func(ctx context.Context, _ Job, _ func(int, string)) (Result, error) {
+				return Result{}, tc.runner(ctx)
+			}})
+			job, err := m.Submit(context.Background(), Spec{Operation: "model", ExecutionTimeoutSeconds: tc.timeout})
+			if err != nil {
+				t.Fatal(err)
+			}
+			final, err := m.Wait(context.Background(), job.ID)
+			if err != nil || final.State != StateFailed || !strings.Contains(final.Error, tc.wantError) {
+				t.Fatalf("final = %+v err=%v, want failed with %q", final, err, tc.wantError)
+			}
+			if tc.timeout == 0 && strings.Contains(final.Error, "execution time limit") {
+				t.Fatalf("inner deadline mislabelled as the job time limit: %q", final.Error)
+			}
+		})
+	}
+}

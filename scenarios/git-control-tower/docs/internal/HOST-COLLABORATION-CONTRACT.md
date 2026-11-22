@@ -8,8 +8,9 @@ Current implementation status: the host collaboration endpoint returns
 `unavailable` with reason `Integration Hub host adapter is not active`, and
 the review panel labels the Hub `not active`. This contract describes the
 adapter boundary to implement; it is not evidence that a provider is currently
-connected. See [`collaboration_handler.go`](../../api/collaboration_handler.go)
-and [`ScenarioReviewPanelOverview.tsx`](../../ui/src/components/ScenarioReviewPanelOverview.tsx).
+connected. The host-neutral projection lives in
+[`integration_connect.go`](../../api/integration_connect.go) and
+[`ScenarioReviewPanelOverview.tsx`](../../ui/src/components/ScenarioReviewPanelOverview.tsx).
 
 | Capability | GitHub | GitLab | Bitbucket | GCT behavior when unavailable |
 |---|---|---|---|---|

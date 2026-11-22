@@ -29,9 +29,6 @@ var lifecycleEdges = map[State]map[State]struct{}{
 	Cancelling: {
 		Failed: {}, Cancelled: {}, Stale: {},
 	},
-	// Failed -> Queued is used only by the staged-message owner's guarded
-	// recovery for legacy dispatches whose acceptance was never confirmed.
-	Failed: {Queued: {}},
 }
 
 // Valid reports whether state is part of the durable review-job lifecycle.

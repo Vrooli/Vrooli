@@ -23,6 +23,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
 	"google.golang.org/protobuf/encoding/protojson"
+	"image-tools/cli/internal/jobstate"
 
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai"
 	jobsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/jobs"
@@ -35,9 +36,9 @@ import (
 const GroupName = "ai"
 
 // submitAI posts the optional input/mask images + protojson params to the REST
-// submit edge and returns the parsed SubmitAIResponse. inputPath/maskPath may be
-// empty (text_to_image needs neither).
-func submitAI(core *cliapp.ScenarioApp, operation, inputPath, maskPath string, params *aiv1.AIParams, operationID string) (*aiv1.SubmitAIResponse, error) {
+// submit edge and returns the parsed SubmitAIResponse. inputPath, maskPath and
+// referencePath may each be empty (text_to_image needs none of them).
+func submitAI(core *cliapp.ScenarioApp, operation, inputPath, maskPath, referencePath string, params *aiv1.AIParams, operationID string) (*aiv1.SubmitAIResponse, error) {
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
 	if inputPath != "" {
@@ -47,6 +48,11 @@ func submitAI(core *cliapp.ScenarioApp, operation, inputPath, maskPath string, p
 	}
 	if maskPath != "" {
 		if err := addFilePart(mw, "mask", maskPath); err != nil {
+			return nil, err
+		}
+	}
+	if referencePath != "" {
+		if err := addFilePart(mw, "reference", referencePath); err != nil {
 			return nil, err
 		}
 	}
@@ -139,7 +145,7 @@ func waitAndDownload(core *cliapp.ScenarioApp, jobID, outPath string) (*jobsv1.J
 	}
 	job := resp.Msg.GetJob()
 	if job.GetState() != jobsv1.JobState_JOB_STATE_SUCCEEDED {
-		return job, "", fmt.Errorf("job %s %s: %s", jobID, stateName(job.GetState()), job.GetError())
+		return job, "", fmt.Errorf("job %s %s: %s", jobID, jobstate.DisplayName(job.GetState()), job.GetError())
 	}
 	written := ""
 	if outPath != "" && job.GetResultRef() != "" {
@@ -243,21 +249,4 @@ func sniffImageFormat(data []byte) string {
 		return "gif"
 	}
 	return ""
-}
-
-func stateName(s jobsv1.JobState) string {
-	switch s {
-	case jobsv1.JobState_JOB_STATE_SUCCEEDED:
-		return "succeeded"
-	case jobsv1.JobState_JOB_STATE_FAILED:
-		return "failed"
-	case jobsv1.JobState_JOB_STATE_CANCELED:
-		return "canceled"
-	case jobsv1.JobState_JOB_STATE_RUNNING:
-		return "running"
-	case jobsv1.JobState_JOB_STATE_QUEUED:
-		return "queued"
-	default:
-		return "unknown"
-	}
 }

@@ -26,6 +26,7 @@ type recordingOwner struct {
 	worktree *v1.StartWorktreeStagedMessageRequest
 	job      *v1.StagedMessageJobRequest
 	evidence *v1.ReadStagedMessageEvidenceRequest
+	metrics  bool
 	caller   string
 }
 
@@ -33,6 +34,11 @@ func (o *recordingOwner) CollectStagedMessage(_ context.Context, r *connect.Requ
 	o.calls = append(o.calls, "collect")
 	o.caller = r.Header().Get("X-Vrooli-Caller")
 	return connect.NewResponse(&v1.StagedMessageCollection{Id: "collection-1", Status: "no_suggestions", Snapshot: &v1.StagedMessageSnapshot{Digest: "snapshot-1", RepositoryId: r.Msg.GetRepositoryId()}}), nil
+}
+func (o *recordingOwner) GetStagedMessageMetrics(context.Context, *connect.Request[v1.GetStagedMessageMetricsRequest]) (*connect.Response[v1.StagedMessageMetrics], error) {
+	o.calls = append(o.calls, "metrics")
+	o.metrics = true
+	return connect.NewResponse(&v1.StagedMessageMetrics{ObservedAt: "2026-11-21T00:00:00Z", Jobs: 7, FailedJobs: 2, FailuresByCode: map[string]int64{"provider_precondition_failed": 2}}), nil
 }
 func (o *recordingOwner) CheckStagedMessage(_ context.Context, r *connect.Request[v1.CheckStagedMessageRequest]) (*connect.Response[v1.CheckStagedMessageResponse], error) {
 	o.calls = append(o.calls, "check")
@@ -278,6 +284,24 @@ func TestMessageManifestCoversTypedAdvisorySurface(t *testing.T) {
 		t.Fatal(err)
 	}
 	cliapp.RequireProtoServiceCoverage(t, raw, v1.File_git_control_tower_v1_advisory_advisory_proto, "AdvisoryService")
+}
+
+func TestMessageMetricsUsesTypedReadAndReportsOwnerValues(t *testing.T) {
+	owner, group := fixture(t)
+	out, err := invoke(group, "metrics", "--json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got struct {
+		Jobs           string            `json:"jobs"`
+		FailuresByCode map[string]string `json:"failures_by_code"`
+	}
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatal(err)
+	}
+	if !owner.metrics || strings.Join(owner.calls, ",") != "metrics" || got.Jobs != "7" || got.FailuresByCode["provider_precondition_failed"] != "2" {
+		t.Fatalf("typed metrics read or owner values lost: calls=%v output=%s", owner.calls, out)
+	}
 }
 
 func TestEvidenceInventoryAndTargetedReadsRemainSingleTypedOperations(t *testing.T) {

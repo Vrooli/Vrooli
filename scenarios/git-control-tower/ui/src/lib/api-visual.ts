@@ -3,6 +3,16 @@
 // ============================================================================
 
 import { API_BASE, buildRepoHeaders, handleResponse, buildApiUrl } from "./api-internals";
+import { create } from "@bufbuild/protobuf";
+import {
+  GetCaptureDetailRequestSchema,
+  GetScreenshotPathRequestSchema,
+  GetStorageStatsRequestSchema,
+  ListCapturesRequestSchema,
+  type SnapshotFile as SnapshotFileMessage,
+  type SnapshotMeta as SnapshotMetaMessage,
+} from "@vrooli/proto-types/git-control-tower/v1/visual_captures/visual_captures_pb";
+import { visualCaptureClient } from "./connect";
 
 // ── Visual Capture Types ───────────────────────────────────────────────
 
@@ -147,32 +157,45 @@ export async function triggerVisualCapture(scenarioSlug: string, repoId?: string
 }
 
 export async function fetchVisualCaptures(scenarioSlug: string, repoId?: string): Promise<VisualCaptureListResponse> {
-  const params = new URLSearchParams({ scenarioSlug });
-  const url = buildApiUrl(`/repo/visual-captures?${params.toString()}`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: buildRepoHeaders(repoId),
-    cache: "no-store"
-  });
-  return handleResponse<VisualCaptureListResponse>(res);
+  const response = await visualCaptureClient.listCaptures(create(ListCapturesRequestSchema, {
+    repositoryId: toRepositoryId(repoId), scenarioSlug,
+  }));
+  return {
+    snapshots: response.snapshots.map(snapshotMetaFromMessage),
+    total: response.total,
+    staleness: response.staleness ? {
+      isStale: response.staleness.isStale,
+      lastFileChange: response.staleness.lastFileChange || undefined,
+      captureCreatedAt: response.staleness.captureCreatedAt || undefined,
+    } : undefined,
+  };
 }
 
 export async function fetchVisualCaptureDetail(id: string, scenarioSlug: string, repoId?: string): Promise<SnapshotSetDetail> {
-  const params = new URLSearchParams({ scenarioSlug });
-  const url = buildApiUrl(`/repo/visual-captures/${encodeURIComponent(id)}?${params.toString()}`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: buildRepoHeaders(repoId),
-    cache: "no-store"
-  });
-  return handleResponse<SnapshotSetDetail>(res);
+  const response = await visualCaptureClient.getCaptureDetail(create(GetCaptureDetailRequestSchema, {
+    repositoryId: toRepositoryId(repoId), scenarioSlug, captureId: id,
+  }));
+  if (!response.snapshot) throw new Error("Visual capture detail returned no snapshot");
+  return {
+    ...snapshotMetaFromMessage(response.snapshot),
+    screenshots: response.screenshots.map(snapshotFileFromMessage),
+    videos: response.videos.map(snapshotFileFromMessage),
+  };
 }
 
 export async function fetchCaptureStorageStats(repoId?: string): Promise<CaptureStorageStats> {
-  const url = buildApiUrl("/repo/visual-capture-storage", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: buildRepoHeaders(repoId),
-    cache: "no-store"
-  });
-  return handleResponse<CaptureStorageStats>(res);
+  const response = await visualCaptureClient.getStorageStats(create(GetStorageStatsRequestSchema, {
+    repositoryId: toRepositoryId(repoId),
+  }));
+  return {
+    totalSizeBytes: Number(response.totalSizeBytes),
+    snapshotCount: response.snapshotCount,
+    perScenario: response.perScenario.map((item) => ({
+      scenarioSlug: item.scenarioSlug,
+      snapshotCount: item.snapshotCount,
+      sizeBytes: Number(item.sizeBytes),
+    })),
+  };
 }
 
 export async function deleteVisualCapture(id: string, scenarioSlug: string, repoId?: string): Promise<void> {
@@ -200,15 +223,58 @@ export function buildCaptureScreenshotUrl(captureId: string, scenarioSlug: strin
 }
 
 export async function fetchScreenshotPath(captureId: string, scenarioSlug: string, filename: string, repoId?: string): Promise<string> {
-  const params = new URLSearchParams({ scenarioSlug });
-  const url = buildApiUrl(`/repo/visual-captures/${encodeURIComponent(captureId)}/screenshot/${encodeURIComponent(filename)}/path?${params.toString()}`, { baseUrl: API_BASE });
-  const res = await fetch(url, { headers: buildRepoHeaders(repoId) });
-  const data = await handleResponse<{ path: string }>(res);
-  return data.path;
+  const response = await visualCaptureClient.getScreenshotPath(create(GetScreenshotPathRequestSchema, {
+    repositoryId: toRepositoryId(repoId), scenarioSlug, captureId, filename,
+  }));
+  return response.path;
 }
 
 export function buildCaptureVideoUrl(captureId: string, scenarioSlug: string, filename: string): string {
   const params = new URLSearchParams({ scenarioSlug });
   return buildApiUrl(`/repo/visual-captures/${encodeURIComponent(captureId)}/video/${encodeURIComponent(filename)}?${params.toString()}`, { baseUrl: API_BASE });
+}
+
+function toRepositoryId(repoId?: string): bigint {
+  const value = (repoId ?? "").trim();
+  return value ? BigInt(value) : 0n;
+}
+
+function snapshotMetaFromMessage(value: SnapshotMetaMessage): SnapshotSetMeta {
+  return {
+    id: value.id,
+    scenarioSlug: value.scenarioSlug,
+    role: (value.role || "capture") as SnapshotRole,
+    commitHash: value.commitHash || undefined,
+    triggerType: (value.triggerType || "manual") as CaptureTrigger,
+    pages: [...value.pages],
+    screenshotCount: value.screenshotCount,
+    videoCount: value.videoCount,
+    videoStatus: value.videoStatus as SnapshotSetMeta["videoStatus"] || undefined,
+    createdAt: value.createdAt,
+    sizeBytes: Number(value.sizeBytes),
+    status: value.status as CaptureStatus,
+    error: value.error || undefined,
+    presets: value.presets.map((preset) => ({
+      name: preset.name,
+      width: preset.width,
+      height: preset.height,
+      theme: preset.theme === "dark" ? "dark" : "light",
+    })),
+    pageDiscoveryMethod: value.pageDiscoveryMethod as SnapshotSetMeta["pageDiscoveryMethod"] || undefined,
+  };
+}
+
+function snapshotFileFromMessage(value: SnapshotFileMessage): SnapshotFile {
+  return {
+    filename: value.filename,
+    pagePath: value.pagePath || undefined,
+    pageLabel: value.pageLabel || undefined,
+    width: value.width || undefined,
+    height: value.height || undefined,
+    viewportWidth: value.viewportWidth || undefined,
+    viewportHeight: value.viewportHeight || undefined,
+    theme: value.theme || undefined,
+    sizeBytes: Number(value.sizeBytes),
+  };
 }
 

@@ -198,6 +198,9 @@ func (p *stagedMessageAgent) Start(ctx context.Context, in stagedmessages.DraftI
 	req := stagedMessageRequest(ctx, &apipb.StartWorkflowExecutionRequest{Owner: "git-control-tower", WorkflowKey: stagedMessageInputWorkflowKey(in), Input: value, IdempotencyKey: key})
 	response, err := p.workflow(base).StartWorkflowExecution(ctx, req)
 	if err != nil {
+		if in.FormatVersion != 2 && connect.CodeOf(err) == connect.CodeInternal && strings.Contains(strings.ToLower(err.Error()), "missing format_version") {
+			return stagedmessages.Execution{}, connect.NewError(connect.CodeFailedPrecondition, errors.New("legacy staged-message input is not accepted by the current workflow; refresh the staged selection and try again"))
+		}
 		return stagedmessages.Execution{}, fmt.Errorf("start message workflow: %w", err)
 	}
 	if response == nil || response.Msg == nil || response.Msg.GetExecution() == nil {

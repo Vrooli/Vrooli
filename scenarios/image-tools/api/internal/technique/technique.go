@@ -109,6 +109,15 @@ func MaskPath(req backends.Request) (string, error) {
 	return req.InputKeys[1], nil
 }
 
+// ReferencePath returns the third input (the reference image: the source face of
+// face_swap), erroring when none is present.
+func ReferencePath(req backends.Request) (string, error) {
+	if len(req.InputKeys) < 3 || req.InputKeys[2] == "" {
+		return "", fmt.Errorf("missing reference image")
+	}
+	return req.InputKeys[2], nil
+}
+
 // IntParam reads an int param, falling back to def when absent or zero/invalid.
 func IntParam(req backends.Request, key string, def int) int {
 	if v, ok := req.Params[key]; ok {
@@ -356,6 +365,12 @@ func DiffusersInpaint(req backends.Request, modelDir string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	// A unified instruction-edit family (FLUX.2 [klein], ...) has no inpaint
+	// pipeline of its own: it serves the masked ops by editing a crop around the
+	// selection and pasting it back through the feathered mask.
+	if family := strings.TrimSpace(req.Model.Runtime.Family); family != "" {
+		return diffusersMaskedEditArgs(req, modelDir, family, in, mask)
+	}
 	arch := strings.TrimSpace(string(req.Model.Architecture))
 	if arch == "" {
 		return nil, fmt.Errorf("diffusers inpaint: model %q has no architecture (cannot resolve inpaint pipeline)", req.Model.ID)
@@ -422,36 +437,47 @@ func DiffusersInpaint(req backends.Request, modelDir string) ([]string, error) {
 	return args, nil
 }
 
-// DiffusersEditInstruct assembles a diffusers instruction-edit invocation
-// (InstructPix2Pix / Qwen-Image-Edit class). The op is identity-preserving and
-// prompt-only: there is no mask, and `prompt` is the natural-language instruction
-// ("make it winter"). cfg_scale maps to the text guidance scale; image_guidance
-// (faithfulness to the source) defaults inside the sidecar but can be overridden
-// via the `strength` param. The concrete pipeline class is selected by the
-// model's registry runtime family (passed via --family), not hardcoded — so the
-// diffusers backend runs every registered edit family.
-// Shape: python3 -m image_tools_sidecar.edit_instruct --model <dir> --family <fam>
-// --image <in> --prompt <instruction> --out <out> [--steps n] [--guidance x]
-// [--image-guidance x] [--negative-prompt p] [--seed s].
-func DiffusersEditInstruct(req backends.Request, modelDir string) ([]string, error) {
-	in, err := Input0(req)
-	if err != nil {
-		return nil, err
-	}
-	family := strings.TrimSpace(req.Model.Runtime.Family)
-	if family == "" {
-		return nil, fmt.Errorf("diffusers edit_instruct: model %q has no runtime.family (not runnable)", req.Model.ID)
+// diffusersMaskedEditArgs assembles the selected-area edit for an instruction
+// family: the sidecar crops to the mask plus context, runs the family edit with
+// the prompt as the instruction, and blends the result back through the grown,
+// feathered mask so everything outside it stays the source's own pixels.
+// Shape: python3 -m image_tools_sidecar.masked_edit --model <dir> --family <fam>
+// --image <in> --mask <mask> --prompt <instruction> --out <out> [--grow-px n]
+// [--feather-px n] [--crop-context-pixels n] [--crop-max-edge-px n] [--full-frame]
+// [--steps n] [--guidance x] [--negative-prompt p] [--seed s].
+func diffusersMaskedEditArgs(req backends.Request, modelDir, family, in, mask string) ([]string, error) {
+	if len(req.Adapters) > 0 {
+		return nil, fmt.Errorf("diffusers %s: conditioning adapters are not supported on family %q (model %q)", req.Operation, family, req.Model.ID)
 	}
 	args := []string{
-		"-m", "image_tools_sidecar.edit_instruct",
+		"-m", "image_tools_sidecar.masked_edit",
 		"--model", modelDir,
+		"--model-id", req.Model.ID,
 		"--family", family,
 		"--image", in,
+		"--mask", mask,
 		"--prompt", StrParam(req, "prompt"),
 		"--out", req.Output.LocalPath,
 	}
-	// Pass --steps only when explicitly requested so each family applies its own
-	// default (e.g. 20 for InstructPix2Pix, 40 for Qwen-Image-Edit).
+	p, err := opparams.DecodeInpaintParams(req.Params)
+	if err != nil {
+		return nil, err
+	}
+	if p.GrowPx != nil {
+		args = append(args, "--grow-px", strconv.Itoa(*p.GrowPx))
+	}
+	if p.FeatherPx != nil {
+		args = append(args, "--feather-px", strconv.Itoa(*p.FeatherPx))
+	}
+	if p.CropToMask != nil && !*p.CropToMask {
+		args = append(args, "--full-frame")
+	}
+	if p.ContextPixels != nil && *p.ContextPixels > 0 {
+		args = append(args, "--crop-context-pixels", strconv.Itoa(*p.ContextPixels))
+	}
+	if p.MaxEdgePx != nil && *p.MaxEdgePx > 0 {
+		args = append(args, "--crop-max-edge-px", strconv.Itoa(*p.MaxEdgePx))
+	}
 	if s := IntParam(req, "steps", 0); s > 0 {
 		args = append(args, "--steps", strconv.Itoa(s))
 	}
@@ -470,27 +496,114 @@ func DiffusersEditInstruct(req backends.Request, modelDir string) ([]string, err
 	return args, nil
 }
 
-// DiffusersText2Image assembles a diffusers python-sidecar text2image generate
-// invocation. It serves text_to_image for a base checkpoint on the diffusers
-// backend — the path a diffusers-REPO model takes (sharded weights sd.cpp cannot
-// load); a single-file checkpoint generates via stable-diffusion.cpp instead. The
-// concrete pipeline class is resolved from the model's architecture
-// (--architecture: sd15 → StableDiffusionPipeline, sdxl → StableDiffusionXLPipeline).
-// Shape: python3 -m image_tools_sidecar.text_to_image --model <dir>
-// --architecture <arch> --prompt <p> --out <out> [--width n] [--height n]
-// [--steps n] [--guidance x] [--negative-prompt p] [--seed s].
-func DiffusersText2Image(req backends.Request, modelDir string) ([]string, error) {
+// DiffusersEditInstruct assembles a diffusers instruction-edit invocation
+// (InstructPix2Pix / Qwen-Image-Edit class). The op is identity-preserving and
+// prompt-only: there is no mask, and `prompt` is the natural-language instruction
+// ("make it winter"). cfg_scale maps to the text guidance scale; image_guidance
+// (faithfulness to the source) defaults inside the sidecar but can be overridden
+// via the `strength` param. The concrete pipeline class is selected by the
+// model's registry runtime family (passed via --family), not hardcoded — so the
+// diffusers backend runs every registered edit family.
+// Shape: python3 -m image_tools_sidecar.edit_instruct --model <dir> --family <fam>
+// --image <in> --prompt <instruction> --out <out> [--width n] [--height n]
+// [--steps n] [--guidance x] [--image-guidance x] [--negative-prompt p] [--seed s].
+func DiffusersEditInstruct(req backends.Request, modelDir string) ([]string, error) {
+	in, err := Input0(req)
+	if err != nil {
+		return nil, err
+	}
+	family := strings.TrimSpace(req.Model.Runtime.Family)
+	if family == "" {
+		return nil, fmt.Errorf("diffusers edit_instruct: model %q has no runtime.family (not runnable)", req.Model.ID)
+	}
+	args := []string{
+		"-m", "image_tools_sidecar.edit_instruct",
+		"--model", modelDir,
+		"--family", family,
+		"--image", in,
+		"--prompt", StrParam(req, "prompt"),
+		"--out", req.Output.LocalPath,
+	}
+	// An explicit output size is threaded for families whose pipeline takes one
+	// (FLUX.2 [klein]); without it the family keeps its reference-derived size.
+	if w := IntParam(req, "width", 0); w > 0 {
+		args = append(args, "--width", strconv.Itoa(w))
+	}
+	if h := IntParam(req, "height", 0); h > 0 {
+		args = append(args, "--height", strconv.Itoa(h))
+	}
+	// Pass --steps only when explicitly requested so each family applies its own
+	// default (e.g. 20 for InstructPix2Pix, 40 for Qwen-Image-Edit, 4 for klein).
+	if s := IntParam(req, "steps", 0); s > 0 {
+		args = append(args, "--steps", strconv.Itoa(s))
+	}
+	if g := StrParam(req, "cfg_scale"); g != "" {
+		args = append(args, "--guidance", g)
+	}
+	if ig := StrParam(req, "strength"); ig != "" {
+		args = append(args, "--image-guidance", ig)
+	}
+	if np := StrParam(req, "negative_prompt"); np != "" {
+		args = append(args, "--negative-prompt", np)
+	}
+	if seed := StrParam(req, "seed"); seed != "" {
+		args = append(args, "--seed", seed)
+	}
+	return args, nil
+}
+
+// diffusersPipelineArgs selects how the generate/transform sidecar resolves the
+// pipeline. A model naming a runtime.family is loaded by that family adapter (a
+// unified pipeline the base-checkpoint AutoPipeline cannot resolve); every other
+// diffusers model resolves its pipeline class from the architecture. The
+// conditioning adapter stack is proven only on base checkpoints, so a family
+// request carrying adapters is refused here rather than dropped downstream.
+func diffusersPipelineArgs(req backends.Request, op string) ([]string, error) {
+	if family := strings.TrimSpace(req.Model.Runtime.Family); family != "" {
+		if len(req.Adapters) > 0 {
+			return nil, fmt.Errorf("diffusers %s: conditioning adapters are not supported on family %q (model %q)", op, family, req.Model.ID)
+		}
+		return []string{"--family", family}, nil
+	}
 	arch := strings.TrimSpace(string(req.Model.Architecture))
 	if arch == "" {
-		return nil, fmt.Errorf("diffusers text_to_image: model %q has no architecture (cannot resolve pipeline)", req.Model.ID)
+		return nil, fmt.Errorf("diffusers %s: model %q has no architecture (cannot resolve pipeline)", op, req.Model.ID)
+	}
+	args := []string{"--architecture", arch}
+	// A repo that ships only reduced-precision files (name.fp16.safetensors) loads
+	// through diffusers' variant selector; the registry declares it, never the caller.
+	if variant := strings.TrimSpace(req.Model.Runtime.Variant); variant != "" {
+		args = append(args, "--variant", variant)
+	}
+	return args, nil
+}
+
+// DiffusersText2Image assembles a diffusers python-sidecar text2image generate
+// invocation. It serves text_to_image on the diffusers backend for two model
+// shapes, chosen by diffusersPipelineArgs:
+//   - a base checkpoint (diffusers-REPO weights sd.cpp cannot load; a single-file
+//     checkpoint generates via stable-diffusion.cpp instead), whose pipeline class
+//     is resolved from the architecture (--architecture sd15/sdxl);
+//   - a unified family model (runtime.family, e.g. FLUX.2 [klein]), which its
+//     family adapter loads for every op it declares (--family).
+//
+// Shape: python3 -m image_tools_sidecar.text_to_image --model <dir>
+// (--architecture <arch> | --family <fam>) --prompt <p> --out <out> [--width n]
+// [--height n] [--steps n] [--guidance x] [--negative-prompt p] [--seed s].
+func DiffusersText2Image(req backends.Request, modelDir string) ([]string, error) {
+	pipeline, err := diffusersPipelineArgs(req, "text_to_image")
+	if err != nil {
+		return nil, err
 	}
 	args := []string{
 		"-m", "image_tools_sidecar.text_to_image",
 		"--model", modelDir,
-		"--architecture", arch,
+	}
+	args = append(args, pipeline...)
+	args = append(args,
 		"--prompt", StrParam(req, "prompt"),
 		"--out", req.Output.LocalPath,
-	}
+	)
 	cond, err := conditioningArgs(req)
 	if err != nil {
 		return nil, err
@@ -518,31 +631,33 @@ func DiffusersText2Image(req backends.Request, modelDir string) ([]string, error
 }
 
 // DiffusersImg2Img assembles a diffusers python-sidecar img2img transform
-// invocation — the architecture-derived image_to_image for a base checkpoint on
-// the diffusers backend, for diffusers-REPO models (a single-file checkpoint takes
-// the stable-diffusion.cpp sd-img2img path). `strength` controls how far the
-// output may drift from the init image. The concrete pipeline class is resolved
-// from the model's architecture.
+// invocation on the diffusers backend, for the same two model shapes as
+// DiffusersText2Image: a base checkpoint's architecture-derived img2img
+// (`strength` = how far the output may drift from the init image; a single-file
+// checkpoint takes the stable-diffusion.cpp sd-img2img path instead), or a
+// unified family model that transforms with the init image as its reference.
 // Shape: python3 -m image_tools_sidecar.image_to_image --model <dir>
-// --architecture <arch> --image <in> --prompt <p> --out <out> [--strength x]
-// [--steps n] [--guidance x] [--negative-prompt p] [--seed s].
+// (--architecture <arch> | --family <fam>) --image <in> --prompt <p> --out <out>
+// [--strength x] [--steps n] [--guidance x] [--negative-prompt p] [--seed s].
 func DiffusersImg2Img(req backends.Request, modelDir string) ([]string, error) {
 	in, err := Input0(req)
 	if err != nil {
 		return nil, err
 	}
-	arch := strings.TrimSpace(string(req.Model.Architecture))
-	if arch == "" {
-		return nil, fmt.Errorf("diffusers image_to_image: model %q has no architecture (cannot resolve pipeline)", req.Model.ID)
+	pipeline, err := diffusersPipelineArgs(req, "image_to_image")
+	if err != nil {
+		return nil, err
 	}
 	args := []string{
 		"-m", "image_tools_sidecar.image_to_image",
 		"--model", modelDir,
-		"--architecture", arch,
+	}
+	args = append(args, pipeline...)
+	args = append(args,
 		"--image", in,
 		"--prompt", StrParam(req, "prompt"),
 		"--out", req.Output.LocalPath,
-	}
+	)
 	cond, err := conditioningArgs(req)
 	if err != nil {
 		return nil, err
@@ -591,6 +706,19 @@ func Iopaint(req backends.Request, modelDir string) ([]string, error) {
 	}, nil
 }
 
+// realesrganModel picks the bundled model. A 4x upscale uses realesrgan-x4plus:
+// on the guinea-pig-v1 photo (4x of a 756x1008 downscale against the real
+// 3024x4032 original) its LPIPS is 0.187 against 0.263 for bicubic, while
+// realesr-animevideov3 reaches only 0.246 and realesrgan-x4plus-anime 0.302. It
+// costs about 27 s on the leased GPU against 5 s. realesr-animevideov3 stays for
+// the variable scales (2x, 3x) that x4plus cannot do, and for denoise.
+func realesrganModel(operation string, scale int) string {
+	if operation == "upscale" && scale == 4 {
+		return "realesrgan-x4plus"
+	}
+	return "realesr-animevideov3"
+}
+
 // Realesrgan assembles a realesrgan-ncnn-vulkan invocation. The prebuilt release
 // ships its own `models/` directory (realesr-animevideov3 at -s 2/3/4 and
 // realesrgan-x4plus), which the binary resolves relative to its own location — so
@@ -607,12 +735,19 @@ func Realesrgan(req backends.Request, _ string) ([]string, error) {
 	if scale < 2 || scale > 4 {
 		scale = 4
 	}
-	return []string{
+	args := []string{
 		"-i", in,
 		"-o", req.Output.LocalPath,
 		"-s", strconv.Itoa(scale),
-		"-n", "realesr-animevideov3",
-	}, nil
+		"-n", realesrganModel(req.Operation, scale),
+	}
+	// The tool opens the first Vulkan GPU unless told otherwise, so the device
+	// must follow the admission: the leased GPU, or the software device on CPU.
+	device, err := NcnnDeviceArgs(req.GPU, req.GPUUUID)
+	if err != nil {
+		return nil, err
+	}
+	return append(args, device...), nil
 }
 
 // Rembg assembles a rembg invocation. background_removal writes an RGBA cutout.
@@ -713,6 +848,11 @@ func OnnxSidecar(req backends.Request, modelDir string) ([]string, error) {
 		module = "image_tools_sidecar.colorize"
 	case "depth_map":
 		module = "image_tools_sidecar.depth"
+	case "face_restore":
+		// The model dir carries the restorer and its YuNet face detector; the
+		// sidecar tells them apart by ONNX signature.
+		module = "image_tools_sidecar.face_restore"
+		model = modelDir
 	case "scene_geometry":
 		module = "image_tools_sidecar.geometry"
 	case "object_detection":
@@ -726,6 +866,12 @@ func OnnxSidecar(req backends.Request, modelDir string) ([]string, error) {
 		module = "image_tools_sidecar.nsfw"
 	case "embedding":
 		module = "image_tools_sidecar.embedding"
+	case "face_swap":
+		// The model dir carries the swapper, the ArcFace embedder, the YuNet
+		// detector and the XSeg occluder; the sidecar tells them apart by ONNX
+		// signature.
+		module = "image_tools_sidecar.face_swap"
+		model = modelDir
 	default:
 		return nil, fmt.Errorf("onnxruntime sidecar: unsupported operation %q", req.Operation)
 	}
@@ -753,6 +899,21 @@ func OnnxSidecar(req backends.Request, modelDir string) ([]string, error) {
 			}
 			args = append(args, "--params", string(raw))
 		}
+	}
+	if req.Operation == "face_swap" {
+		reference, err := ReferencePath(req)
+		if err != nil {
+			return nil, err
+		}
+		swap, err := opparams.DecodeFaceSwapParams(req.Params)
+		if err != nil {
+			return nil, err
+		}
+		raw, err := json.Marshal(swap)
+		if err != nil {
+			return nil, fmt.Errorf("face_swap: encode params: %w", err)
+		}
+		args = append(args, "--reference", reference, "--params", string(raw))
 	}
 	if req.Operation == "segment" {
 		seg, err := opparams.DecodeSegmentParams(req.Params)
@@ -797,7 +958,7 @@ func PythonSidecar(req backends.Request, modelDir string) ([]string, error) {
 	switch req.Operation {
 	case "colorize":
 		module = "image_tools_sidecar.colorize"
-	case "face_restore", "old_photo_restore":
+	case "old_photo_restore":
 		module = "image_tools_sidecar.restore"
 	default:
 		return nil, fmt.Errorf("python-sidecar: unsupported operation %q", req.Operation)
@@ -813,6 +974,8 @@ func PythonSidecar(req backends.Request, modelDir string) ([]string, error) {
 // SAM2Sidecar assembles the isolated Transformers SAM 2 image adapter. The
 // model folder contains pinned HF config and weights; processor defaults are
 // explicit in the sidecar because upstream processor metadata is sub-kilobyte.
+// A text prompt selects the grounded adapter instead (the model folder then
+// holds detector/ and segmenter/).
 func SAM2Sidecar(req backends.Request, modelDir string) ([]string, error) {
 	in, err := Input0(req)
 	if err != nil {
@@ -822,11 +985,17 @@ func SAM2Sidecar(req backends.Request, modelDir string) ([]string, error) {
 	if req.GPU {
 		device = "cuda"
 	}
-	args := []string{"-m", "image_tools_sidecar.sam2", "--model", modelDir, "--image", in, "--out", req.Output.LocalPath, "--device", device}
 	seg, err := opparams.DecodeSegmentParams(req.Params)
 	if err != nil {
 		return nil, err
 	}
+	// A text phrase is resolved by the grounded model (detector + SAM 2.1); a
+	// point or box prompt goes straight to SAM 2.1.
+	module := "image_tools_sidecar.sam2"
+	if seg.Segmentation != nil && seg.Segmentation.Text != nil {
+		module = "image_tools_sidecar.grounded_segment"
+	}
+	args := []string{"-m", module, "--model", modelDir, "--image", in, "--out", req.Output.LocalPath, "--device", device}
 	if seg.Segmentation != nil {
 		raw, err := json.Marshal(seg.Segmentation)
 		if err != nil {

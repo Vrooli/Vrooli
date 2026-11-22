@@ -1,5 +1,5 @@
 import type { LayoutPreset, LayoutSection } from "./LayoutSettingsModal";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 
 interface SettingsTabLayoutProps {
   preset: LayoutPreset;
@@ -86,10 +86,11 @@ export function SettingsTabLayout({
 
         <div className="pt-2">
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={onReset}
             className="w-full h-11 text-sm"
+            style={{ background: "transparent" }}
           >
             Reset to Default
           </Button>
@@ -148,7 +149,13 @@ export function SettingsTabLayout({
       </div>
 
       <div className="pt-1">
-        <Button variant="outline" size="sm" onClick={onReset} className="h-8 px-3">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={onReset}
+          className="h-8 px-3"
+          style={{ background: "transparent" }}
+        >
           Reset to default
         </Button>
       </div>

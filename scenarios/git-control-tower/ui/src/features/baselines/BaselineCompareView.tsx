@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AlertTriangle, ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, GitCompare, Loader2 } from "lucide-react";
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { AttachToAgentButton } from "../../components/AgentTab";
 import { MutationErrorBanner } from "../../components/ScenarioReviewPanelShared";
 import { useCompareOnDemand } from "../../lib/hooks-baselines";

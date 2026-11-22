@@ -1,6 +1,6 @@
 import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
 import { AlertTriangle, FolderX, FileX, X } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { useIsMobile } from "../hooks";
 
 interface DeleteConfirmationModalProps {
@@ -73,16 +73,17 @@ export function DeleteConfirmationModal({
         footer={
           <div className="flex w-full items-center gap-3">
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={onCancel}
               disabled={isLoading}
               className="flex-1 h-12 text-sm touch-target"
+              style={{ background: "transparent" }}
             >
               Cancel
             </Button>
             <Button
-              variant="destructive"
+              variant="danger"
               size="sm"
               onClick={onConfirm}
               disabled={isLoading}
@@ -128,10 +129,17 @@ export function DeleteConfirmationModal({
         <div className="px-4 py-4">{content}</div>
 
         <div className="flex items-center justify-end gap-2 border-t border-slate-800 px-4 py-3">
-          <Button variant="outline" size="sm" onClick={onCancel} disabled={isLoading} className="h-8 px-3">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onCancel}
+            disabled={isLoading}
+            className="h-8 px-3"
+            style={{ background: "transparent" }}
+          >
             Cancel
           </Button>
-          <Button variant="destructive" size="sm" onClick={onConfirm} disabled={isLoading} className="h-8 px-3">
+          <Button variant="danger" size="sm" onClick={onConfirm} disabled={isLoading} className="h-8 px-3">
             {isLoading ? "Deleting..." : "Delete"}
           </Button>
         </div>

@@ -1,7 +1,7 @@
 import { usePushSafety } from "./PushSafetyIndicators";
 import { GitCommit, History, ShieldAlert, X } from "lucide-react";
 import { Badge } from "./ui/badge";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import type { CommitCheckRun } from "../lib/api";
 
 export interface ViewingCommit {
@@ -22,9 +22,16 @@ interface HistoryModeHeaderProps {
 export function HistoryModeHeader({ commit, onExit, compact }: HistoryModeHeaderProps) {
   const { review, label } = usePushSafety();
   const recoveryAction = review && label && (
-    <Button type="button" variant="outline" size="sm" onClick={() => review()}
+    <Button
+      type="button"
+      variant="secondary"
+      size="sm"
+      onClick={() => review()}
       className="shrink-0 gap-1 border-amber-600/50 text-amber-200 hover:bg-amber-900/30"
-      aria-label="Review push recovery options" title={`${label}. Opens a read-only review; no history is changed.`}>
+      aria-label="Review push recovery options"
+      title={`${label}. Opens a read-only review; no history is changed.`}
+      style={{ background: "transparent" }}
+    >
       <ShieldAlert className="h-3.5 w-3.5" />
       {compact ? "Push warning" : label}
     </Button>
@@ -32,7 +39,7 @@ export function HistoryModeHeader({ commit, onExit, compact }: HistoryModeHeader
   if (compact) {
     return (
       <header
-        className="flex items-center justify-between px-3 py-2 border-b border-amber-800/50 bg-amber-950/30 backdrop-blur-sm"
+        className="gct-mobile-header relative z-40 flex items-center justify-between px-3 py-2 border-b border-amber-800/50"
         data-testid="mobile-header"
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -48,10 +55,11 @@ export function HistoryModeHeader({ commit, onExit, compact }: HistoryModeHeader
 
         {recoveryAction}
         <Button
-          variant="outline"
+          variant="secondary"
           size="sm"
           onClick={onExit}
           className="gap-1 border-amber-600/50 text-amber-200 hover:bg-amber-900/30 text-xs px-2"
+          style={{ background: "transparent" }}
         >
           <X className="h-3.5 w-3.5" />
           Exit
@@ -95,11 +103,12 @@ export function HistoryModeHeader({ commit, onExit, compact }: HistoryModeHeader
         )}
 
         <Button
-          variant="outline"
+          variant="secondary"
           size="sm"
           onClick={onExit}
           className="gap-1.5 border-amber-600/50 text-amber-200 hover:bg-amber-900/30"
           data-testid="exit-history-mode"
+          style={{ background: "transparent" }}
         >
           <X className="h-3.5 w-3.5" />
           Back to Working Directory

@@ -4,7 +4,7 @@ import { getPushRecovery, inspectPushSafety, preparePushRecovery } from "../lib/
 import { useUntrackBinary } from "../lib/hooks";
 import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
 import { AlertTriangle, ArrowRight, GitBranch, HardDrive, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 
 interface Props { repoId?: string; focus?: "staged" | "outgoing"; onClose: () => void; onPush: () => void }
 const mib = (n: bigint) => `${(Number(n) / 1048576).toFixed(2)} MiB`;
@@ -31,8 +31,13 @@ function UntrackKeepLocalButton({ repoId, path, onDone }: { repoId?: string; pat
   const untrack = useUntrackBinary(repoId);
   const target = ignoreTargetForPath(path);
   return <div className="mt-1">
-    <Button variant="outline" className="h-7 rounded-lg px-2 text-[11px]" disabled={untrack.isPending}
-      onClick={() => untrack.mutate({ path, owner_dir: target.ownerDir, ignore_pattern: target.pattern }, { onSuccess: onDone })}>
+    <Button
+      variant="secondary"
+      className="h-7 rounded-lg px-2 text-[11px]"
+      disabled={untrack.isPending}
+      onClick={() => untrack.mutate({ path, owner_dir: target.ownerDir, ignore_pattern: target.pattern }, { onSuccess: onDone })}
+      style={{ background: "transparent" }}
+    >
       {untrack.isPending ? "Untracking…" : "Untrack (keep local)"}
     </Button>
     {untrack.isError && <p className="mt-1 text-[11px] text-red-400">Untrack failed: {untrack.error.message}</p>}
@@ -105,8 +110,20 @@ export function PushSafetyDialog({ repoId, focus = "outgoing", onClose, onPush }
     testId="push-safety-dialog"
     footer={
       <div className="flex flex-nowrap items-center justify-end gap-2">
-        <Button variant="outline" className="mr-auto h-9 gap-2 rounded-xl border-transparent px-2 text-xs text-slate-400" disabled={Boolean(busy)} onClick={() => void refresh()} aria-label="Refresh inspection"><RefreshCw className="h-3.5 w-3.5" /><span className="hidden sm:inline">Refresh inspection</span></Button>
-        <Button variant="outline" className="h-9 shrink-0 rounded-xl text-xs" onClick={onClose}>Close</Button>
+        <Button
+          variant="secondary"
+          className="mr-auto h-9 gap-2 rounded-xl border-transparent px-2 text-xs text-slate-400"
+          disabled={Boolean(busy)}
+          onClick={() => void refresh()}
+          aria-label="Refresh inspection"
+          style={{ background: "transparent" }}
+        ><RefreshCw className="h-3.5 w-3.5" /><span className="hidden sm:inline">Refresh inspection</span></Button>
+        <Button
+          variant="secondary"
+          className="h-9 shrink-0 rounded-xl text-xs"
+          onClick={onClose}
+          style={{ background: "transparent" }}
+        >Close</Button>
         {report?.canPrepare && artifact?.fingerprint !== report.fingerprint && <Button className="h-9 shrink-0 gap-2 rounded-xl bg-blue-600 text-xs text-white shadow-lg shadow-blue-950/40 hover:bg-blue-500" disabled={Boolean(busy) || !consent} onClick={() => void prepare()}>Prepare recovery<ArrowRight className="h-3.5 w-3.5" /></Button>}
         {!showStaged && report?.complete && report.state !== "blocked" && <Button className="h-9 shrink-0 gap-2 rounded-xl bg-blue-600 text-xs text-white shadow-lg shadow-blue-950/40 hover:bg-blue-500" disabled={Boolean(busy)} onClick={onPush}>Continue to push</Button>}
       </div>
@@ -228,7 +245,13 @@ export function PushSafetyDialog({ repoId, focus = "outgoing", onClose, onPush }
           <input className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 font-mono text-xs text-slate-200 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={operationId} disabled={Boolean(busy)} onChange={(event) => setOperationId(event.target.value)} />
         </label>
         <p className="text-[11px] text-slate-500">Leave blank to find this repository’s most recently updated preparation, even after new commits. Enter a saved operation ID to check an older one. Checking status does not start or apply recovery.</p>
-        <Button variant="outline" className="h-8 rounded-lg text-xs" disabled={Boolean(busy)} onClick={() => void checkPreparation()}>Check preparation status</Button>
+        <Button
+          variant="secondary"
+          className="h-8 rounded-lg text-xs"
+          disabled={Boolean(busy)}
+          onClick={() => void checkPreparation()}
+          style={{ background: "transparent" }}
+        >Check preparation status</Button>
         </div>
       </details>
       </div>

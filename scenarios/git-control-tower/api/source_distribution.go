@@ -7,12 +7,10 @@ package main
 import (
 	"context"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/discovery"
 	sourcev1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-repository/v1/source"
 	sourceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-repository/v1/source/source_v1connect"
@@ -41,24 +39,6 @@ type SourceDistribution struct {
 	Freshness                 string `json:"freshness"`
 	UpdatedAt                 string `json:"updated_at"`
 	WorkflowURL               string `json:"workflow_url"`
-}
-
-type DistributionContent struct {
-	Path, SourcePath, Category, Digest string
-	SizeBytes                          uint64
-}
-type DistributionExclusion struct{ Path, Category, SafeReason string }
-
-type SourceDistributionDetails struct {
-	Distribution          SourceDistribution      `json:"distribution"`
-	Contents              []DistributionContent   `json:"contents"`
-	Exclusions            []DistributionExclusion `json:"exclusions"`
-	UnresolvedObligations []string                `json:"unresolved_obligations"`
-	RuntimeRequirements   []string                `json:"runtime_requirements"`
-	Handoff               *PublicationHandoff     `json:"handoff,omitempty"`
-	Drift                 *DistributionDrift      `json:"drift,omitempty"`
-	Available             bool                    `json:"available"`
-	UnavailableReason     string                  `json:"unavailable_reason,omitempty"`
 }
 
 type PublicationHandoff struct {
@@ -169,66 +149,6 @@ func (r *sourceRampReader) Drift(ctx context.Context, id string) (*sourcev1.Dist
 	return resp.Msg, nil
 }
 
-func (s *Server) sourceDistributionList(w http.ResponseWriter, r *http.Request) {
-	if s.sourceDistributions == nil {
-		NewResponse(w).ServiceUnavailable(map[string]any{"available": false, "source_of_truth": "scenario-to-repository", "unavailable_reason": "source-ramp reader is not configured"})
-		return
-	}
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-	if limit <= 0 {
-		limit = 50
-	}
-	items, owner, freshness, err := s.sourceDistributions.List(r.Context(), r.URL.Query().Get("scenario"), r.URL.Query().Get("repository_context"), limit)
-	if err != nil {
-		NewResponse(w).ServiceUnavailable(map[string]any{"available": false, "source_of_truth": owner, "freshness": "unavailable", "unavailable_reason": safeSourceError(err)})
-		return
-	}
-	out := make([]SourceDistribution, 0, len(items))
-	for _, item := range items {
-		out = append(out, mapDistribution(item, owner, freshness))
-	}
-	NewResponse(w).OK(map[string]any{"available": true, "source_of_truth": owner, "freshness": freshness, "distributions": out})
-}
-
-func (s *Server) sourceDistributionDetail(w http.ResponseWriter, r *http.Request) {
-	id := strings.TrimSpace(mux.Vars(r)["id"])
-	if id == "" {
-		NewResponse(w).BadRequest("distribution id is required")
-		return
-	}
-	if s.sourceDistributions == nil {
-		NewResponse(w).ServiceUnavailable(map[string]any{"available": false, "unavailable_reason": "source-ramp reader is not configured"})
-		return
-	}
-	d, err := s.sourceDistributions.Get(r.Context(), id)
-	if err != nil {
-		NewResponse(w).ServiceUnavailable(map[string]any{"available": false, "distribution_id": id, "unavailable_reason": safeSourceError(err)})
-		return
-	}
-	detail := SourceDistributionDetails{Distribution: mapDistribution(d, d.SourceOfTruth, d.Freshness), Available: true}
-	if detail.Distribution.SourceOfTruth == "" {
-		detail.Distribution.SourceOfTruth = "scenario-to-repository"
-	}
-	if contents, e := s.sourceDistributions.Contents(r.Context(), id); e == nil {
-		detail.Contents, detail.Exclusions = mapContents(contents)
-		detail.UnresolvedObligations = contents.UnresolvedObligations
-		detail.RuntimeRequirements = contents.RuntimeRequirements
-	} else {
-		detail.UnavailableReason = "contents unavailable: " + safeSourceError(e)
-	}
-	if handoff, e := s.sourceDistributions.Handoff(r.Context(), id); e == nil {
-		detail.Handoff = mapHandoff(handoff)
-	} else if detail.UnavailableReason == "" {
-		detail.UnavailableReason = "publication handoff unavailable: " + safeSourceError(e)
-	}
-	if drift, e := s.sourceDistributions.Drift(r.Context(), id); e == nil {
-		detail.Drift = mapDrift(drift)
-	} else if detail.UnavailableReason == "" {
-		detail.UnavailableReason = "drift unavailable: " + safeSourceError(e)
-	}
-	NewResponse(w).OK(detail)
-}
-
 func mapDistribution(d *sourcev1.Distribution, owner, freshness string) SourceDistribution {
 	if d == nil {
 		return SourceDistribution{}
@@ -248,17 +168,6 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
-}
-func mapContents(c *sourcev1.DistributionContentsResponse) ([]DistributionContent, []DistributionExclusion) {
-	var contents []DistributionContent
-	for _, x := range c.Contents {
-		contents = append(contents, DistributionContent{Path: x.Path, SourcePath: x.SourcePath, Category: x.Category, Digest: x.Digest, SizeBytes: x.SizeBytes})
-	}
-	var exclusions []DistributionExclusion
-	for _, x := range c.Exclusions {
-		exclusions = append(exclusions, DistributionExclusion{Path: x.Path, Category: x.Category, SafeReason: x.SafeReason})
-	}
-	return contents, exclusions
 }
 func mapHandoff(h *sourcev1.PublicationHandoffResponse) *PublicationHandoff {
 	if h == nil {

@@ -109,10 +109,10 @@
         "class": "data",
         "regenerable": false,
         "subpath": "models",
-        "rationale": "Downloaded model weights are expensive, user-selected durable assets and are never candidates for blob-output cleanup.",
+        "rationale": "Downloaded model weights are never candidates for blob-output cleanup or generic pruning. The image-tools owner (internal/modelstorage) acquires governed catalog weights on demand and offloads idle ones adaptively by headroom above the 120GiB shared disk floor, protecting in-use, job-held, kept, freshly installed, use-unknown, locally built and non-reacquirable (manual/custom/imported) weights; every offload writes a model_offload_receipt row (`image-tools models storage`).",
         "budget": {
           "max_bytes": "160GiB",
-          "rationale": "Observed model weights are approximately 88GiB; the ceiling allows catalog growth while surfacing runaway downloads without authorizing deletion."
+          "rationale": "Observed model weights are approximately 45GiB (2026-11-21); the ceiling surfaces runaway downloads. It is alarm-only: reclaim is owner-driven by disk headroom, not by this ceiling."
         }
       },
       "adapters": {
@@ -125,6 +125,21 @@
         "budget": {
           "max_bytes": "32GiB",
           "rationale": "Observed adapters are approximately 8GiB; the ceiling bounds future growth without permitting automatic deletion."
+        }
+      },
+      "model_staging": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": true,
+        "subpath": "staging",
+        "rationale": "Partial model and adapter downloads (staging/models, staging/adapters, `.acquiring-*`) are published into models/ or adapters/ by rename only after verification, so a leftover is never served. It sits beside those directories, not inside them, because the durable declarations above them would otherwise govern it. The image-tools owner (internal/modelstorage) reclaims directories with no owning install and no write for IMAGE_TOOLS_MODEL_STAGING_GRACE (2h) at boot, every periodic pass and before a pre-acquisition offload, and resumes a partial snapshot of the same repository revision instead of restarting it.",
+        "budget": {
+          "max_bytes": "64GiB",
+          "rationale": "One in-flight staged copy is the largest installable model plus slack; the ceiling surfaces abandoned or runaway downloads. No age bound and no generic pruner: a live download's directory mtime does not change while one large file grows, so an age pruner would delete an install in progress."
+        },
+        "reclaim": {
+          "pruner": "custom"
         }
       },
       "input_blobs": {

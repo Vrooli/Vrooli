@@ -4,8 +4,8 @@
   "source": "2026-06-16 design workshop + license-verified web research",
   "notes": [
     "This is the v1 SEED for the declarative model registry (OT-P0-006).",
-    "Every operation has a commercial-clean, CPU-capable DEFAULT plus one higher-quality tier.",
-    "Policy (DECISIONS.md): stay gate-free (no Stability $1M-gated SD3.5/Turbo); GFPGAN excluded (RestoreFormer++ only); optional Python sidecar allowed for quality tiers; defaults + one quality tier per op.",
+    "Every operation has a CPU-capable DEFAULT chosen for the best normal-use quality on evidence, regardless of license class (operator stance 2026-11-21); license-clean rows stay selectable for monetized, hosted or redistributed use.",
+    "Policy: licenses gate only monetized, hosted and redistributed use; the shared rights evaluator (ai-provider-go/policy) applies them from each row's rights record. blocklist[] entries are either gate=license (gated_uses lists the refused uses; a seeded row with that id must carry rights that keep those uses refused) or gate=exclusion (exclusion_kind safety | technical | hardware_fit; never seeded).",
     "Sizes and VRAM are APPROXIMATE (size_mb_approx, min_vram_gb) from public sources; verify at ingest.",
     "New weight entries start with no checksum; after an acquired artifact is independently verified, pin its digest. Do NOT fabricate hashes.",
     "Library-backed ops (Tesseract, goimagehash, gozxing, OpenCV) have no downloadable weights; checksum.status = 'n/a-library'."
@@ -90,6 +90,16 @@
             "kind": "safetensors",
         "sha256": "6ce0161689b3853acaa03779ec93eafe75a02f4ced659bee03f50797806fa2fa",
         "min_bytes": 4000000000
+          }
+        ],
+        "hub_companions": [
+          {
+            "repo_id": "stable-diffusion-v1-5/stable-diffusion-v1-5",
+            "revision": "451f4fe16113bff5a5d2269ed5ad43b0592e9a14",
+            "allow_patterns": [
+              "*.json",
+              "*.txt"
+            ]
           }
         ],
         "checksum": {
@@ -294,6 +304,8 @@
       "name": "FLUX.2 [klein] 4B",
       "operations": [
         "edit_instruct",
+        "inpaint",
+        "garment_replace",
         "image_to_image",
         "text_to_image"
       ],
@@ -303,26 +315,27 @@
       "backend": "diffusers",
       "alt_backends": [],
       "requires_comfyui": false,
-      "size_mb_approx": 9000,
+      "size_mb_approx": 16000,
       "quant_variants": [
-        "bf16 ~8-9GB transformer (+ separate VLM text encoder)",
+        "bf16 diffusers repo: transformer 7.75GB + Qwen3 text encoder 8.05GB + VAE 0.17GB (~16GB installed; the duplicate root single-file checkpoint is not fetched)",
         "fp8/fp4 community quants"
       ],
       "hardware": {
         "cpu_capable": false,
         "gpu_required": true,
-        "min_vram_gb": 13,
-        "min_ram_gb": 16,
+        "min_vram_gb": 6,
+        "resident_vram_gb": 12,
+        "min_ram_gb": 11,
         "os_arch": [
           "linux/amd64",
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "4B rectified-flow transformer; runs on consumer GPUs (~13GB VRAM, RTX 3090/4070+). Sub-second multi-reference edits. diffusers Flux2KleinPipeline — requires a bleeding-edge diffusers (install-from-git as of 2026-06); PIN the version at ingest."
+        "speed_note": "4B step-distilled rectified-flow transformer + Qwen3 text encoder via diffusers Flux2KleinPipeline (released in diffusers 0.37; lock pins 0.38.0). 4 steps. Staged placement: the prompt is encoded with only the text encoder loaded, then the denoiser + VAE run, so host RAM peaks at ~8.4 GiB; each stage is GPU-resident with >=10 GiB free VRAM, else streamed with sequential offload (~2.5 GiB VRAM, ~40-110 s per image on an RTX 4070 Ti SUPER beside Ollama)."
       },
       "io": {
         "native_resolution": "1024x1024",
-        "notes": "Unified generate + edit + multi-reference editing in one compact model; instruction edit via `prompt` + reference image(s). Use the 4B (Apache) build ONLY — not the 9B."
+        "notes": "Unified generate + edit + multi-reference editing in one compact model. edit_instruct and image_to_image pass the source as a reference image and drive the change with `prompt`; output follows the reference aspect at <=1MP. text_to_image generates at 1024x1024 by default (width/height snap to 16). Use the 4B (Apache) build ONLY — not the 9B or dev."
       },
       "capability_labels": {
         "nsfw_capable": false,
@@ -333,8 +346,7 @@
         "known_risks": "Sibling 9B/dev weights are a non-commercial trap — verify the exact repo at ingest; brand-new architecture needs current diffusers; NSFW unlikely but not guaranteed-safe. size_mb_approx is approximate (VLM text encoder adds to disk/VRAM) — verify at ingest."
       },
       "source": {
-        "manual": true,
-        "download_url": "https://huggingface.co/black-forest-labs/FLUX.2-klein-4B",
+        "download_url": "",
         "source_repo": "https://github.com/black-forest-labs/flux2",
         "docs_url": "https://bfl.ai/blog/flux2-klein-towards-interactive-visual-intelligence",
         "update_source": "https://huggingface.co/black-forest-labs/FLUX.2-klein-4B",
@@ -342,26 +354,367 @@
           "algo": "sha256",
           "value": "",
           "status": "unverified-capture-on-download"
+        },
+        "repo": {
+          "repo_id": "black-forest-labs/FLUX.2-klein-4B",
+          "revision": "e7b7dc27f91deacad38e78976d1f2b499d76a294",
+          "allow_patterns": [
+            "model_index.json",
+            "LICENSE.md",
+            "scheduler/*",
+            "text_encoder/*",
+            "tokenizer/*",
+            "transformer/*",
+            "vae/*"
+          ],
+          "file_sha256": {
+            "transformer/diffusion_pytorch_model.safetensors": "9f29f9edcfdae452a653ffb51a534ca4decd389952c225724ff3b94042612a6e",
+            "text_encoder/model-00001-of-00002.safetensors": "8c0506e7f4936fa7e26183a4fd8da4e2bdbc5990ba64ae441f965d51228f36ea",
+            "text_encoder/model-00002-of-00002.safetensors": "82f2bd839378541b0557bfabaf37c7d3d637071fdcb73302dedd7cf61162ce07",
+            "vae/diffusion_pytorch_model.safetensors": "ca70d2202afe6415bdbcb8793ba8cd99fd159cfe6192381504d6c4d3036e0f04"
+          }
         }
       },
       "runtime": {
         "family": "flux-2-klein",
         "pipeline_class": "Flux2KleinPipeline",
         "dtype": "bfloat16",
-        "min_runtime": "diffusers @ git (Flux2KleinPipeline unreleased as of 2026-06)"
+        "min_runtime": "diffusers>=0.37.0"
       },
-      "enabled": false,
+      "enabled": true,
       "rights": {
         "artifact_id": "flux-2-klein-4b",
-        "revision": "",
-        "sha256": "",
+        "revision": "e7b7dc27f91deacad38e78976d1f2b499d76a294",
+        "sha256": "9f29f9edcfdae452a653ffb51a534ca4decd389952c225724ff3b94042612a6e",
         "license_id": "Apache-2.0",
-        "classification": "unknown",
-        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "classification": "unrestricted",
+        "evidence": {
+          "url": "https://huggingface.co/black-forest-labs/FLUX.2-klein-4B/blob/e7b7dc27f91deacad38e78976d1f2b499d76a294/LICENSE.md",
+          "revision": "e7b7dc27f91deacad38e78976d1f2b499d76a294",
+          "sha256": "ca02bc51900ab07789d1b70283329e7137f5af98f5161c23a1c81fc38a4af1fe",
+          "observed_at": "2026-11-21"
+        },
+        "obligations": [
+          "Preserve the Apache-2.0 license and required notices if redistributing the model weights or derivatives."
+        ],
         "review_triggers": [
           "artifact_changed",
           "license_source_changed",
           "review_due"
+        ],
+        "lineage": [
+          {
+            "kind": "model_card",
+            "identity": "https://huggingface.co/black-forest-labs/FLUX.2-klein-4B/blob/e7b7dc27f91deacad38e78976d1f2b499d76a294/README.md",
+            "revision": "e7b7dc27f91deacad38e78976d1f2b499d76a294",
+            "sha256": "bd447051cf2db4bf67b992e563d89c35ebf1123f009c063361a222ab14e1c4f7"
+          },
+          {
+            "kind": "text_encoder",
+            "identity": "https://huggingface.co/black-forest-labs/FLUX.2-klein-4B/blob/e7b7dc27f91deacad38e78976d1f2b499d76a294/text_encoder/model-00001-of-00002.safetensors",
+            "revision": "e7b7dc27f91deacad38e78976d1f2b499d76a294",
+            "sha256": "8c0506e7f4936fa7e26183a4fd8da4e2bdbc5990ba64ae441f965d51228f36ea"
+          },
+          {
+            "kind": "text_encoder",
+            "identity": "https://huggingface.co/black-forest-labs/FLUX.2-klein-4B/blob/e7b7dc27f91deacad38e78976d1f2b499d76a294/text_encoder/model-00002-of-00002.safetensors",
+            "revision": "e7b7dc27f91deacad38e78976d1f2b499d76a294",
+            "sha256": "82f2bd839378541b0557bfabaf37c7d3d637071fdcb73302dedd7cf61162ce07"
+          },
+          {
+            "kind": "vae",
+            "identity": "https://huggingface.co/black-forest-labs/FLUX.2-klein-4B/blob/e7b7dc27f91deacad38e78976d1f2b499d76a294/vae/diffusion_pytorch_model.safetensors",
+            "revision": "e7b7dc27f91deacad38e78976d1f2b499d76a294",
+            "sha256": "ca70d2202afe6415bdbcb8793ba8cd99fd159cfe6192381504d6c4d3036e0f04"
+          }
+        ]
+      }
+    },
+    {
+      "id": "flux-2-klein-9b",
+      "name": "FLUX.2 [klein] 9B",
+      "operations": [
+        "edit_instruct",
+        "image_to_image",
+        "text_to_image"
+      ],
+      "architecture": "flux",
+      "default_for": [],
+      "tier": "nice-to-have",
+      "backend": "diffusers",
+      "alt_backends": [],
+      "requires_comfyui": false,
+      "size_mb_approx": 34700,
+      "quant_variants": [
+        "bf16 diffusers repo: transformer 18.2GB (2 shards) + Qwen3-8B text encoder 16.4GB (4 shards) + VAE 0.17GB (~34.7GB installed; the duplicate 18GB root single-file checkpoint is not fetched)",
+        "fp8 (black-forest-labs/FLUX.2-klein-9b-fp8) and community GGUF quants"
+      ],
+      "hardware": {
+        "cpu_capable": false,
+        "gpu_required": true,
+        "min_vram_gb": 4,
+        "min_ram_gb": 22,
+        "os_arch": [
+          "linux/amd64"
+        ],
+        "speed_note": "9B step-distilled rectified-flow transformer + Qwen3-8B text encoder via diffusers Flux2KleinPipeline, 4 steps. Staged placement like the 4B (one ~18GB component in host RAM at a time); a stage is GPU-resident only when the free VRAM holds that component plus headroom, otherwise it streams with sequential CPU offload."
+      },
+      "io": {
+        "native_resolution": "1024x1024",
+        "notes": "Same unified generate + edit + multi-reference contract as the 4B (same Flux2KleinPipeline adapter): edit_instruct and image_to_image pass the source as a reference image, output follows the reference aspect at <=1MP, text_to_image defaults to 1024x1024 (width/height snap to 16)."
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "FLUX Non-Commercial License v2.1",
+        "commercial_use": "no",
+        "commercial_use_notes": "FLUX Non-Commercial License v2.1: weights and derivatives are for Non-Commercial Purposes only; use for revenue-generating activity, in direct interactions with end users, or to train other models for commercial use is not permitted without a BFL commercial license (https://bfl.ai/licensing). Operator stance 2026-11-21: normal local use ignores the license class; monetized, hosted-for-others and redistributed use stay refused by the rights owner. Outputs are not Derivatives and may be used for any purpose, subject to the Content Filters / AI-disclosure terms.",
+        "base_model_lineage": "FLUX.2 [klein] 9B distilled (Black Forest Labs; Qwen3-8B text encoder)",
+        "known_risks": "Non-commercial license (see commercial_use_notes); the license requires content filtering or output review and AI-generated-content disclosure where law requires; installed from an unmodified, ungated Hub mirror (the official repo needs a license-accepting token); ~35GB disk and ~20GB host RAM per staged component."
+      },
+      "source": {
+        "download_url": "",
+        "source_repo": "https://github.com/black-forest-labs/flux2",
+        "docs_url": "https://huggingface.co/black-forest-labs/FLUX.2-klein-9B",
+        "update_source": "https://huggingface.co/black-forest-labs/FLUX.2-klein-9B",
+        "checksum": {
+          "algo": "sha256",
+          "value": "",
+          "status": "unverified-capture-on-download"
+        },
+        "repo": {
+          "repo_id": "unsloth/FLUX.2-klein-9B",
+          "revision": "455f1273c2f08f1fc93d725c2e6f1d7fc681cd94",
+          "allow_patterns": [
+            "model_index.json",
+            "LICENSE.md",
+            "NOTICE",
+            "scheduler/*",
+            "text_encoder/*",
+            "tokenizer/*",
+            "transformer/*",
+            "vae/*"
+          ],
+          "file_sha256": {
+            "transformer/diffusion_pytorch_model-00001-of-00002.safetensors": "cb942a7072865a1d06e47a3361f9ba8746e68ad207c8499083bcb735869f5102",
+            "transformer/diffusion_pytorch_model-00002-of-00002.safetensors": "ca568a31d19c03ddbcfd8b2d4ec7dbd16dcefbaa50b7aef1b8ceefd6e6eb0970",
+            "text_encoder/model-00001-of-00004.safetensors": "c0dc64934ae0f730ddc80d99af44968d01a89e8454df07d762096ea1356446bc",
+            "text_encoder/model-00002-of-00004.safetensors": "d58533b468c31caa0222540a8aefddea1d74dc6e1fee928da8556d3d85729d6e",
+            "text_encoder/model-00003-of-00004.safetensors": "74927fec432e050365bf757bb30348f560a44394efac89f492680b7c910b64fd",
+            "text_encoder/model-00004-of-00004.safetensors": "cb73f466fade5716702bda38d4e3b321c9358c39889e46fb9d613fb038bfcb2f",
+            "tokenizer/tokenizer.json": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4",
+            "vae/diffusion_pytorch_model.safetensors": "ca70d2202afe6415bdbcb8793ba8cd99fd159cfe6192381504d6c4d3036e0f04"
+          }
+        }
+      },
+      "runtime": {
+        "family": "flux-2-klein",
+        "pipeline_class": "Flux2KleinPipeline",
+        "dtype": "bfloat16",
+        "min_runtime": "diffusers>=0.37.0"
+      },
+      "enabled": true,
+      "rights": {
+        "artifact_id": "flux-2-klein-9b",
+        "revision": "455f1273c2f08f1fc93d725c2e6f1d7fc681cd94",
+        "sha256": "cb942a7072865a1d06e47a3361f9ba8746e68ad207c8499083bcb735869f5102",
+        "license_id": "FLUX-Non-Commercial-License-v2.1",
+        "classification": "prohibited",
+        "evidence": {
+          "url": "https://huggingface.co/black-forest-labs/FLUX.2-klein-9B/blob/1498bcb8aaebb230bae82c34b02ecc4087beebac/LICENSE.md",
+          "revision": "1498bcb8aaebb230bae82c34b02ecc4087beebac",
+          "sha256": "468d9f4332c0c895e9132c035982a40a12750092603a2e910913cb49aa887d3b",
+          "observed_at": "2026-11-21"
+        },
+        "obligations": [
+          "FLUX Non-Commercial License v2.1 limits the weights and derivatives to Non-Commercial Purposes; revenue-generating use, use in direct interaction with end users, and training models for commercial use are outside it. Obtain a BFL commercial license before any monetized or hosted-for-others use.",
+          "Keep content filtering (or output review for unlawful or infringing content) and AI-generation disclosure where law requires, per license section 2(e).",
+          "If redistributing the weights or derivatives: provide the license, the Attribution Notice, and a modification statement for derivatives (license section 3), and obtain owner attestation first."
+        ],
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "use_purpose_changed",
+          "review_due"
+        ],
+        "lineage": [
+          {
+            "kind": "upstream_model",
+            "identity": "black-forest-labs/FLUX.2-klein-9B",
+            "revision": "1498bcb8aaebb230bae82c34b02ecc4087beebac"
+          },
+          {
+            "kind": "mirror",
+            "identity": "unsloth/FLUX.2-klein-9B (unmodified, ungated; per-file sizes and LICENSE.md blob equal the official repo)",
+            "revision": "455f1273c2f08f1fc93d725c2e6f1d7fc681cd94"
+          },
+          {
+            "kind": "transformer",
+            "identity": "unsloth/FLUX.2-klein-9B/transformer/diffusion_pytorch_model-00002-of-00002.safetensors",
+            "revision": "455f1273c2f08f1fc93d725c2e6f1d7fc681cd94",
+            "sha256": "ca568a31d19c03ddbcfd8b2d4ec7dbd16dcefbaa50b7aef1b8ceefd6e6eb0970"
+          },
+          {
+            "kind": "text_encoder",
+            "identity": "unsloth/FLUX.2-klein-9B/text_encoder (4 shards, Qwen3-8B)",
+            "revision": "455f1273c2f08f1fc93d725c2e6f1d7fc681cd94",
+            "sha256": "c0dc64934ae0f730ddc80d99af44968d01a89e8454df07d762096ea1356446bc"
+          },
+          {
+            "kind": "vae",
+            "identity": "unsloth/FLUX.2-klein-9B/vae/diffusion_pytorch_model.safetensors",
+            "revision": "455f1273c2f08f1fc93d725c2e6f1d7fc681cd94",
+            "sha256": "ca70d2202afe6415bdbcb8793ba8cd99fd159cfe6192381504d6c4d3036e0f04"
+          }
+        ]
+      }
+    },
+    {
+      "id": "flux-1-kontext-dev",
+      "name": "FLUX.1 Kontext [dev]",
+      "operations": [
+        "edit_instruct"
+      ],
+      "architecture": "flux",
+      "default_for": [],
+      "tier": "nice-to-have",
+      "backend": "diffusers",
+      "alt_backends": [],
+      "requires_comfyui": false,
+      "size_mb_approx": 33700,
+      "quant_variants": [
+        "bf16 diffusers repo: transformer 23.8GB (3 shards) + T5-XXL text_encoder_2 9.5GB + CLIP-L 0.25GB + VAE 0.17GB (~33.7GB installed; the duplicate 23.8GB root single-file checkpoint and ae.safetensors are not fetched)",
+        "fp8 / GGUF / SVDQuant community quants"
+      ],
+      "hardware": {
+        "cpu_capable": false,
+        "gpu_required": true,
+        "min_vram_gb": 4,
+        "min_ram_gb": 28,
+        "os_arch": [
+          "linux/amd64"
+        ],
+        "speed_note": "12B guidance-distilled flow transformer (FluxKontextPipeline), 28 steps at guidance 2.5, one reference image. Staged placement (CLIP-L + T5-XXL encode first, then the transformer + VAE); a stage is GPU-resident only when the free VRAM holds the largest staged component (the 23.8GB transformer never fits a 16GB card), otherwise it streams with sequential CPU offload. Live proof status 2026-11-21: installed and load-smoked, but never admitted for a run on the 16GB GPU / 60GB RAM dev host: the 28GB host-RAM floor (one 23.8GB bf16 component resident in RAM while streaming) exceeded the 23-25GB left free by other services, so the capacity broker correctly refused it. Floor is an estimate, not a measurement; a quantized (GGUF/fp8) variant needs a new loader and a gguf dependency."
+      },
+      "io": {
+        "native_resolution": "1024x1024",
+        "notes": "Instruction-based, identity-preserving image editing (edit_instruct only): drive with `prompt`, pass one reference image. Output follows the reference at a preferred Kontext resolution (<=~1MP)."
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "FLUX.1 [dev] Non-Commercial License v1.1.1",
+        "commercial_use": "no",
+        "commercial_use_notes": "FLUX.1 [dev] Non-Commercial License: weights and derivatives are for non-commercial purposes only; a commercial license from Black Forest Labs is required for commercial use. Operator stance 2026-11-21: normal local use ignores the license class; monetized, hosted-for-others and redistributed use stay refused by the rights owner. Outputs may be used commercially under the license's output terms, subject to its filter and notice conditions.",
+        "base_model_lineage": "FLUX.1 [dev] -> FLUX.1 Kontext [dev] (Black Forest Labs, June 2025)",
+        "known_risks": "Non-commercial license (see commercial_use_notes); installed from an unmodified, ungated Hub mirror (the official repo needs a license-accepting token); ~34GB disk and ~26GB host RAM for the staged transformer; 28-step sampling is much slower than the 4-step klein models on a shared 16GB GPU."
+      },
+      "source": {
+        "download_url": "",
+        "source_repo": "https://github.com/black-forest-labs/flux",
+        "docs_url": "https://huggingface.co/black-forest-labs/FLUX.1-Kontext-dev",
+        "update_source": "https://huggingface.co/black-forest-labs/FLUX.1-Kontext-dev",
+        "checksum": {
+          "algo": "sha256",
+          "value": "",
+          "status": "unverified-capture-on-download"
+        },
+        "repo": {
+          "repo_id": "unsloth/FLUX.1-Kontext-dev",
+          "revision": "ed585f929575da3142d1cdd7a49ef25db6f12161",
+          "allow_patterns": [
+            "model_index.json",
+            "LICENSE.md",
+            "NOTICE",
+            "scheduler/*",
+            "text_encoder/*",
+            "text_encoder_2/*",
+            "tokenizer/*",
+            "tokenizer_2/*",
+            "transformer/*",
+            "vae/*"
+          ],
+          "file_sha256": {
+            "text_encoder/model.safetensors": "893d67a23f4693ed42cdab4cbad7fe3e727cf59609c40da28a46b5470f9ed082",
+            "text_encoder_2/model-00001-of-00002.safetensors": "ec87bffd1923e8b2774a6d240c922a41f6143081d52cf83b8fe39e9d838c893e",
+            "text_encoder_2/model-00002-of-00002.safetensors": "a5640855b301fcdbceddfa90ae8066cd9414aff020552a201a255ecf2059da00",
+            "tokenizer_2/spiece.model": "d60acb128cf7b7f2536e8f38a5b18a05535c9e14c7a355904270e15b0945ea86",
+            "transformer/diffusion_pytorch_model-00001-of-00003.safetensors": "5414f9ba3d3945512769b1b5ecd41122c8bcfebb7ec906a3ac60daf371d38946",
+            "transformer/diffusion_pytorch_model-00002-of-00003.safetensors": "a6fa67a12833c30040f794365a187cac8eef2e467152b84319034ae2828d9d03",
+            "transformer/diffusion_pytorch_model-00003-of-00003.safetensors": "464f5343b6b06a2337d8c34b72ebec38219ebbfb7aafecbc9b342dc031417e7a",
+            "vae/diffusion_pytorch_model.safetensors": "f5b59a26851551b67ae1fe58d32e76486e1e812def4696a4bea97f16604d40a3"
+          }
+        }
+      },
+      "runtime": {
+        "family": "flux-1-kontext",
+        "pipeline_class": "FluxKontextPipeline",
+        "dtype": "bfloat16",
+        "min_runtime": "diffusers>=0.34.0"
+      },
+      "enabled": true,
+      "rights": {
+        "artifact_id": "flux-1-kontext-dev",
+        "revision": "ed585f929575da3142d1cdd7a49ef25db6f12161",
+        "sha256": "5414f9ba3d3945512769b1b5ecd41122c8bcfebb7ec906a3ac60daf371d38946",
+        "license_id": "FLUX.1-dev-Non-Commercial-License-v1.1.1",
+        "classification": "prohibited",
+        "evidence": {
+          "url": "https://huggingface.co/black-forest-labs/FLUX.1-Kontext-dev/blob/5b73edc910e96f4bf9588a4708e2b9a6d0755123/LICENSE.md",
+          "revision": "5b73edc910e96f4bf9588a4708e2b9a6d0755123",
+          "sha256": "6f7b3d94ddd94380a4dc2d1211ed57883d320dea96f4393b34d4a454041029e1",
+          "observed_at": "2026-11-21"
+        },
+        "obligations": [
+          "FLUX.1 [dev] Non-Commercial License limits the weights and derivatives to non-commercial purposes; obtain a Black Forest Labs commercial license before any monetized or hosted-for-others use.",
+          "Keep the license's content-filtering or output-review and AI-disclosure conditions where they apply.",
+          "If redistributing the weights or derivatives: provide the license and Attribution Notice and obtain owner attestation first."
+        ],
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "use_purpose_changed",
+          "review_due"
+        ],
+        "lineage": [
+          {
+            "kind": "upstream_model",
+            "identity": "black-forest-labs/FLUX.1-Kontext-dev",
+            "revision": "5b73edc910e96f4bf9588a4708e2b9a6d0755123"
+          },
+          {
+            "kind": "mirror",
+            "identity": "unsloth/FLUX.1-Kontext-dev (ungated; per-file sizes and LICENSE.md blob equal the official repo)",
+            "revision": "ed585f929575da3142d1cdd7a49ef25db6f12161"
+          },
+          {
+            "kind": "weights",
+            "identity": "unsloth/FLUX.1-Kontext-dev/text_encoder_2/model-00001-of-00002.safetensors",
+            "revision": "ed585f929575da3142d1cdd7a49ef25db6f12161",
+            "sha256": "ec87bffd1923e8b2774a6d240c922a41f6143081d52cf83b8fe39e9d838c893e"
+          },
+          {
+            "kind": "weights",
+            "identity": "unsloth/FLUX.1-Kontext-dev/text_encoder_2/model-00002-of-00002.safetensors",
+            "revision": "ed585f929575da3142d1cdd7a49ef25db6f12161",
+            "sha256": "a5640855b301fcdbceddfa90ae8066cd9414aff020552a201a255ecf2059da00"
+          },
+          {
+            "kind": "weights",
+            "identity": "unsloth/FLUX.1-Kontext-dev/transformer/diffusion_pytorch_model-00001-of-00003.safetensors",
+            "revision": "ed585f929575da3142d1cdd7a49ef25db6f12161",
+            "sha256": "5414f9ba3d3945512769b1b5ecd41122c8bcfebb7ec906a3ac60daf371d38946"
+          },
+          {
+            "kind": "weights",
+            "identity": "unsloth/FLUX.1-Kontext-dev/transformer/diffusion_pytorch_model-00002-of-00003.safetensors",
+            "revision": "ed585f929575da3142d1cdd7a49ef25db6f12161",
+            "sha256": "a6fa67a12833c30040f794365a187cac8eef2e467152b84319034ae2828d9d03"
+          },
+          {
+            "kind": "weights",
+            "identity": "unsloth/FLUX.1-Kontext-dev/transformer/diffusion_pytorch_model-00003-of-00003.safetensors",
+            "revision": "ed585f929575da3142d1cdd7a49ef25db6f12161",
+            "sha256": "464f5343b6b06a2337d8c34b72ebec38219ebbfb7aafecbc9b342dc031417e7a"
+          }
         ]
       }
     },
@@ -765,9 +1118,7 @@
       "operations": [
         "object_removal"
       ],
-      "default_for": [
-        "object_removal"
-      ],
+      "default_for": [],
       "tier": "default",
       "backend": "iopaint",
       "alt_backends": [
@@ -789,7 +1140,7 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "Fastest CPU/edge eraser; cleanest deploy (MIT + ONNX + tiny)."
+        "speed_note": "Fastest CPU/edge eraser; cleanest deploy (MIT + ONNX + tiny). DISABLED 2026-11-21: the backend is the IOPaint CLI, which is a manual pip/pipx install (raw package managers are not used here), so the model stayed installed-but-needs_backend and the default object_removal selection failed at run time. big-lama (ONNX, onnxruntime) is the object_removal default instead. Re-enable once IOPaint is provisioned through a supported route."
       },
       "io": {
         "notes": "Prompt-free mask inpaint. Slightly below Big-LaMa on very large masks."
@@ -821,7 +1172,7 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": true,
+      "enabled": false,
       "rights": {
         "artifact_id": "mi-gan",
         "revision": "",
@@ -842,7 +1193,9 @@
       "operations": [
         "object_removal"
       ],
-      "default_for": [],
+      "default_for": [
+        "object_removal"
+      ],
       "tier": "quality",
       "backend": "onnxruntime",
       "alt_backends": [],
@@ -862,7 +1215,7 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "CPU ONNX adapter with fixed 512×512 contextual repair crops; latency requires local qualification."
+        "speed_note": "CPU ONNX adapter with fixed 512×512 contextual repair crops; latency requires local qualification. Default object_removal model since 2026-11-21 (replaces mi-gan, whose IOPaint backend is not provisioned)."
       },
       "io": {
         "notes": "White mask pixels are removed. The adapter preserves unmasked source pixels and returns source-size output; mask must include superseded shadows/reflections when appropriate."
@@ -871,7 +1224,7 @@
         "nsfw_capable": false,
         "license": "Apache-2.0 for repository code; pretrained-weight grant unverified",
         "commercial_use": "conditional",
-        "commercial_use_notes": "The upstream advimman/lama repository has open unanswered requests about whether the separately distributed pretrained Big-LaMa weights are covered by Apache-2.0. Third-party ONNX mirror metadata is not authoritative for the original weights. Keep disabled until the upstream weight grant is explicit: https://github.com/advimman/lama/issues/366 and https://github.com/advimman/lama/issues/368.",
+        "commercial_use_notes": "The upstream advimman/lama repository has open unanswered requests about whether the separately distributed pretrained Big-LaMa weights are covered by Apache-2.0. Third-party ONNX mirror metadata is not authoritative for the original weights. https://github.com/advimman/lama/issues/366 and https://github.com/advimman/lama/issues/368. Enabled 2026-11-21 under the operator stance that normal local use ignores the license class; monetized, hosted-for-others and redistributed use stay refused until the upstream weight grant is explicit.",
         "base_model_lineage": "LaMa / Big-LaMa (Samsung AI / advimman)",
         "known_risks": "Weak on faces/text regions."
       },
@@ -895,7 +1248,7 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": false,
+      "enabled": true,
       "rights": {
         "artifact_id": "big-lama",
         "revision": "",
@@ -1075,7 +1428,9 @@
         "upscale",
         "denoise"
       ],
-      "default_for": [],
+      "default_for": [
+        "upscale"
+      ],
       "tier": "default",
       "backend": "realesrgan-ncnn-vulkan",
       "alt_backends": [
@@ -1092,7 +1447,7 @@
       "hardware": {
         "cpu_capable": true,
         "gpu_required": false,
-        "min_vram_gb": 0,
+        "min_vram_gb": 2,
         "min_ram_gb": 4,
         "os_arch": [
           "linux/amd64",
@@ -1100,7 +1455,7 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "ncnn-vulkan binary is GPU/Vulkan-first (cross-vendor); ship ONNX for CPU machines (slower). denoise via realesr-general-x4v3 -dn is coupled to 4x upscale, not pure 1x."
+        "speed_note": "ncnn-vulkan runs on the leased GPU (admission claims 2 GiB; measured peak +1.4 GiB for a 756x1008 input) and falls back to the software Vulkan device (llvmpipe) on the CPU tier. A 4x upscale of that photo runs the bundled realesrgan-x4plus in about 27 s on the GPU (realesr-animevideov3, used for 2x/3x and denoise, takes about 5 s). The llvmpipe tier is several times slower. denoise via realesr-general-x4v3 -dn is coupled to 4x upscale, not pure 1x."
       },
       "io": {
         "native_scale": "4x (also 2x models)",
@@ -1139,7 +1494,7 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": false,
+      "enabled": true,
       "rights": {
         "artifact_id": "real-esrgan",
         "revision": "",
@@ -1298,9 +1653,7 @@
       "operations": [
         "denoise"
       ],
-      "default_for": [
-        "denoise"
-      ],
+      "default_for": [],
       "tier": "default",
       "backend": "onnxruntime",
       "alt_backends": [
@@ -1322,7 +1675,7 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "Fully CPU-capable and fast; trivial ONNX export. Great lightweight CPU fallback."
+        "speed_note": "Fully CPU-capable and fast; trivial ONNX export. Great lightweight CPU fallback. DISABLED 2026-11-21: the only published weight is a KAIR .pth checkpoint, but this entry runs on the onnxruntime backend, which needs an .onnx file (its install ends smoke_unsupported and can never be Ready). Re-enable after an ONNX export exists as a pinned asset; real-esrgan and scunet cover denoise meanwhile."
       },
       "io": {
         "notes": "2017 model, Gaussian/known-noise oriented; weaker on blind real-world noise (use SCUNet for that)."
@@ -1354,7 +1707,7 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": true,
+      "enabled": false,
       "rights": {
         "artifact_id": "dncnn",
         "revision": "",
@@ -1375,50 +1728,69 @@
       "operations": [
         "denoise"
       ],
-      "default_for": [],
-      "tier": "quality",
-      "backend": "python-sidecar",
-      "alt_backends": [
-        "onnxruntime (DIY export)"
+      "default_for": [
+        "denoise"
       ],
+      "tier": "quality",
+      "backend": "onnxruntime",
+      "alt_backends": [],
       "requires_comfyui": false,
-      "size_mb_approx": 70,
+      "size_mb_approx": 77,
       "quant_variants": [
-        "~18M params, ~70MB"
+        "fp32 ONNX graph 3.8MB + external weights 73MB (color, blind real-world, PSNR-oriented)",
+        "color_real_gan, gaussian sigma 15/25/50 and gray variants exist in the same bundle"
       ],
       "hardware": {
         "cpu_capable": true,
         "gpu_required": false,
-        "min_vram_gb": 4,
+        "min_vram_gb": 2,
         "min_ram_gb": 8,
         "os_arch": [
           "linux/amd64",
           "windows/amd64"
         ],
-        "speed_note": "Best real-world blind denoiser here; GPU preferred, CPU slow (Swin blocks). No official ONNX."
+        "speed_note": "SCUNet color real-world PSNR variant as ONNX (fixed-op graph, dynamic H/W). Processed as 512px tiles with 32px context margins so seams do not show; about 25 s for a 768x1024 image on this CPU (measured, +11.5 dB PSNR on sigma-25 Gaussian noise). Runs through onnxruntime on CPU, or CUDA when admitted. Replaces the DnCNN entry as the denoise default."
       },
-      "io": {},
+      "io": {
+        "native_resolution": "any (tiled)",
+        "notes": "Input [1,3,H,W] float32 RGB in 0..1, H and W multiples of 8; output the same shape. Blind real-world noise (Gaussian, JPEG, downsampling mixes); PSNR-oriented so it stays faithful to the input rather than inventing texture."
+      },
       "capability_labels": {
         "nsfw_capable": false,
-        "license": "Apache-2.0",
-        "commercial_use": "yes",
-        "commercial_use_notes": "Permissive (verified).",
-        "base_model_lineage": "SCUNet (cszn)",
-        "known_risks": "No first-party ONNX; export yourself."
+        "license": "Apache-2.0 (upstream SCUNet code and weights per the cszn/SCUNet repository; the ONNX is a third-party re-export)",
+        "commercial_use": "conditional",
+        "commercial_use_notes": "Upstream SCUNet is Apache-2.0 but this ONNX is a third-party re-export (Heliosoph/scunet-onnx, torch.onnx.export per checkpoint) whose weight lineage is not independently pinned, so rights stay unverified. Normal local use is allowed (operator stance 2026-11-21); monetized, hosted and redistributed use stay refused until the artifact is verified.",
+        "base_model_lineage": "SCUNet color_real_psnr (cszn / Kai Zhang et al., 2022) -> ONNX export by Heliosoph at 6d11417e",
+        "known_risks": "CPU is slow for large images (Swin blocks); a third-party ONNX conversion."
       },
       "source": {
-        "manual": true,
-        "download_url": "https://github.com/cszn/SCUNet",
+        "download_url": "https://huggingface.co/Heliosoph/scunet-onnx",
         "source_repo": "https://github.com/cszn/SCUNet",
-        "docs_url": "https://github.com/cszn/SCUNet",
-        "update_source": "https://github.com/cszn/SCUNet",
+        "docs_url": "https://huggingface.co/Heliosoph/scunet-onnx/blob/6d11417ee2fbcc73783c502a238ac115097754fe/README.md",
+        "update_source": "https://huggingface.co/Heliosoph/scunet-onnx",
+        "assets": [
+          {
+            "url": "https://huggingface.co/Heliosoph/scunet-onnx/resolve/6d11417ee2fbcc73783c502a238ac115097754fe/scunet_color_real_psnr.onnx",
+            "filename": "scunet_color_real_psnr.onnx",
+            "kind": "onnx",
+            "min_bytes": 3700000,
+            "sha256": "231be201ab413dbc999d7951caa9844846b93a12a40a41e037d6b5888ed4e88c"
+          },
+          {
+            "url": "https://huggingface.co/Heliosoph/scunet-onnx/resolve/6d11417ee2fbcc73783c502a238ac115097754fe/scunet_color_real_psnr.onnx.data",
+            "filename": "scunet_color_real_psnr.onnx.data",
+            "kind": "binary",
+            "min_bytes": 73000000,
+            "sha256": "98825ea1210b641c71e5f052f582c70c49fd44b35387ebe2c034268c17df3feb"
+          }
+        ],
         "checksum": {
           "algo": "sha256",
-          "value": "",
-          "status": "unverified-capture-on-download"
+          "value": "231be201ab413dbc999d7951caa9844846b93a12a40a41e037d6b5888ed4e88c",
+          "status": "pinned"
         }
       },
-      "enabled": false,
+      "enabled": true,
       "rights": {
         "artifact_id": "scunet",
         "revision": "",
@@ -1580,16 +1952,17 @@
         "colorize"
       ],
       "tier": "default",
-      "backend": "python-sidecar",
+      "backend": "onnxruntime",
       "alt_backends": [
         "openvino",
         "onnxruntime (DIY export)"
       ],
       "requires_comfyui": false,
-      "size_mb_approx": 215,
+      "size_mb_approx": 122,
       "quant_variants": [
-        "tiny ~215MB .pth",
-        "quant w8a8 ~55MB"
+        "fp16-weights ONNX ~121MB, float32 I/O (installed)",
+        "int8 ONNX community builds",
+        "tiny ~215MB .pth (upstream, not loadable by onnxruntime)"
       ],
       "hardware": {
         "cpu_capable": true,
@@ -1602,34 +1975,38 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "CPU-feasible via ONNX/OpenVINO (esp. tiny/quantized). Official ONNX available."
+        "speed_note": "DDColor paper-tiny ONNX (fp16 weights, fixed 512x512 input, ab output joined with the full-resolution L channel). Runs on the CPU through onnxruntime. Since 2026-11-21 it is the ONNX conversion by ipsilondev (converted from piddnad/ddcolor_paper_tiny with the pinned upstream DDColor code); the earlier .pth entry could not load on this backend and never became Ready."
       },
-      "io": {},
+      "io": {
+        "native_resolution": "512x512",
+        "notes": "Input: a (1,3,512,512) float32 grey RGB built from the image's CIE Lab L channel. Output: (1,2,512,512) Lab a/b chroma, resized to the source size and joined with the original full-resolution L before Lab to sRGB, so detail comes from the source."
+      },
       "capability_labels": {
         "nsfw_capable": false,
         "license": "Apache-2.0",
         "commercial_use": "yes",
-        "commercial_use_notes": "Best license + deployment story for colorization.",
-        "base_model_lineage": "DDColor (DAMO Academy / piddnad)",
+        "commercial_use_notes": "Upstream DDColor code and piddnad/ddcolor_paper_tiny weights are Apache-2.0 per their cards; this artifact is a third-party ONNX conversion whose license and weight lineage are not independently pinned, so rights stay unverified: normal local use is allowed (operator stance 2026-11-21), monetized, hosted and redistributed use stay refused until verified.",
+        "base_model_lineage": "DDColor paper-tiny (DAMO Academy / piddnad) -> ONNX fp16 conversion by ipsilondev at 25624f3d",
         "known_risks": "None notable."
       },
       "source": {
-        "download_url": "https://huggingface.co/piddnad/DDColor-models",
+        "download_url": "https://huggingface.co/ipsilondev/ddcolor-onnx",
         "source_repo": "https://github.com/piddnad/DDColor",
-        "docs_url": "https://github.com/piddnad/DDColor",
-        "update_source": "https://huggingface.co/piddnad/DDColor-models",
+        "docs_url": "https://huggingface.co/ipsilondev/ddcolor-onnx/blob/25624f3dcd76ad520b30b4369dbe313c3a8ed97b/README.md",
+        "update_source": "https://huggingface.co/ipsilondev/ddcolor-onnx",
         "assets": [
           {
-            "url": "https://huggingface.co/piddnad/DDColor-models/resolve/main/ddcolor_paper_tiny.pth",
-            "filename": "ddcolor_paper_tiny.pth",
-            "kind": "binary",
-            "min_bytes": 220000000
+            "url": "https://huggingface.co/ipsilondev/ddcolor-onnx/resolve/25624f3dcd76ad520b30b4369dbe313c3a8ed97b/ddcolor_paper_tiny.onnx",
+            "filename": "ddcolor_paper_tiny.onnx",
+            "kind": "onnx",
+            "min_bytes": 121000000,
+            "sha256": "324c626acebe624c3f10fcdf1ca85f3c1ba9e896f1457b2ad5072237e34b5c87"
           }
         ],
         "checksum": {
           "algo": "sha256",
-          "value": "",
-          "status": "unverified-capture-on-download"
+          "value": "324c626acebe624c3f10fcdf1ca85f3c1ba9e896f1457b2ad5072237e34b5c87",
+          "status": "pinned"
         }
       },
       "enabled": true,
@@ -1716,64 +2093,78 @@
       "id": "restoreformer-plus-plus",
       "name": "RestoreFormer++ (face restoration)",
       "operations": [
-        "face_restore",
-        "old_photo_restore"
+        "face_restore"
       ],
-      "default_for": [],
-      "tier": "default",
-      "backend": "python-sidecar",
-      "alt_backends": [],
+      "default_for": [
+        "face_restore"
+      ],
+      "tier": "quality",
+      "backend": "onnxruntime",
+      "alt_backends": [
+        "pytorch"
+      ],
       "requires_comfyui": false,
-      "size_mb_approx": 290,
+      "size_mb_approx": 281,
       "quant_variants": [
-        "~290MB (approx)"
+        "fp32 ONNX 294MB (FaceFusion export of the official RestoreFormer++.ckpt v1.0.0) + YuNet 0.23MB"
       ],
       "hardware": {
         "cpu_capable": true,
         "gpu_required": false,
-        "min_vram_gb": 4,
-        "min_ram_gb": 8,
+        "min_vram_gb": 3,
+        "min_ram_gb": 4,
         "os_arch": [
           "linux/amd64",
+          "linux/arm64",
+          "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "Apache-2.0 repository code; commercial rights for the released checkpoint are unresolved because the upstream paper/repository says training used FFHQ, whose image collection includes CC-BY-NC material and whose dataset is CC-BY-NC-SA. PyTorch-only (no ONNX/ncnn), CPU slow. Keep disabled pending rights review."
+        "speed_note": "Measured 2026-11-21: CUDA 0.1-0.3s per portrait, 1.9s for a 29-face 1920px group photo, 2.3GB process VRAM; CPU 1.4s per portrait, 32s for the group photo, 2.4GB peak RSS."
       },
       "io": {
-        "notes": "Used standalone for face_restore and as the face stage of the old_photo_restore pipeline (with real-esrgan + ddcolor)."
+        "native_resolution": "512x512 per face",
+        "notes": "Detects every face with the bundled YuNet ONNX, aligns each to the FFHQ 512 five-point template, restores it and feathers it back into the source raster at the source size; pixels outside faces are untouched. A monochrome source keeps only the restored luminance (FFHQ-trained restorers otherwise invent skin and eye colour). Exit 9 when no face is detected. old_photo_restore (scratch repair + colour + faces) is a separate pipeline and is not served by this row."
       },
       "capability_labels": {
         "nsfw_capable": false,
         "license": "Apache-2.0",
         "commercial_use": "conditional",
-        "commercial_use_notes": "The repository code is Apache-2.0, but its README says the released model was trained on FFHQ. The official FFHQ README says image licenses include CC-BY-NC and that the dataset itself is CC-BY-NC-SA 4.0. No reviewed source explicitly grants commercial use for this checkpoint or resolves the training-data rights chain. Keep disabled until an explicit weight/provenance grant or operator decision: https://github.com/wzhouxiff/RestoreFormerPlusPlus https://github.com/NVlabs/ffhq-dataset",
+        "commercial_use_notes": "The repository code is Apache-2.0, but its README says the released model was trained on FFHQ, whose image licenses include CC-BY-NC and whose dataset is CC-BY-NC-SA 4.0. No reviewed source explicitly grants commercial use for this checkpoint. Operator stance 2026-11-21: normal local use ignores the license class; monetized, hosted-for-others and redistributed use stay refused by the shared rights evaluator until an explicit weight/provenance grant exists: https://github.com/wzhouxiff/RestoreFormerPlusPlus https://github.com/NVlabs/ffhq-dataset",
         "base_model_lineage": "RestoreFormer++ (wzhouxiff)",
-        "known_risks": "Unclear checkpoint/training-data commercial rights; heavier to self-host (PyTorch); no ONNX path yet."
+        "known_risks": "Unresolved checkpoint/training-data commercial rights. Chosen as the face_restore default on 2026-11-21 real-photo comparisons over CodeFormer: it kept wrinkles, eye shape and expression (identity) where CodeFormer smoothed them; it leaves slightly more texture/noise."
       },
       "source": {
-        "download_url": "https://github.com/wzhouxiff/RestoreFormerPlusPlus",
+        "download_url": "",
         "source_repo": "https://github.com/wzhouxiff/RestoreFormerPlusPlus",
         "docs_url": "https://github.com/wzhouxiff/RestoreFormerPlusPlus",
-        "update_source": "https://github.com/wzhouxiff/RestoreFormerPlusPlus/releases/tag/v1.0.0",
+        "update_source": "https://github.com/facefusion/facefusion-assets/releases/tag/models-3.0.0",
         "assets": [
           {
-            "url": "https://github.com/wzhouxiff/RestoreFormerPlusPlus/releases/download/v1.0.0/RestoreFormer%2B%2B.ckpt",
-            "filename": "RestoreFormer++.ckpt",
-            "kind": "binary",
-            "min_bytes": 294000000
+            "url": "https://github.com/facefusion/facefusion-assets/releases/download/models-3.0.0/restoreformer_plus_plus.onnx",
+            "filename": "restoreformer_plus_plus.onnx",
+            "kind": "onnx",
+            "min_bytes": 294000000,
+            "sha256": "164818b70d1745da4108a45c9263b05452236d14ac0ffab2202af0ac4a438195"
+          },
+          {
+            "url": "https://media.githubusercontent.com/media/opencv/opencv_zoo/f12e12798e8314f7c074a6656816c048dcc95b7a/models/face_detection_yunet/face_detection_yunet_2023mar.onnx",
+            "filename": "face_detection_yunet_2023mar.onnx",
+            "kind": "onnx",
+            "min_bytes": 230000,
+            "sha256": "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4"
           }
         ],
         "checksum": {
           "algo": "sha256",
-          "value": "",
-          "status": "unverified-capture-on-download"
+          "value": "164818b70d1745da4108a45c9263b05452236d14ac0ffab2202af0ac4a438195",
+          "status": "pinned"
         }
       },
-      "enabled": false,
+      "enabled": true,
       "rights": {
         "artifact_id": "restoreformer-plus-plus",
-        "revision": "",
-        "sha256": "",
+        "revision": "models-3.0.0",
+        "sha256": "164818b70d1745da4108a45c9263b05452236d14ac0ffab2202af0ac4a438195",
         "license_id": "Apache-2.0",
         "classification": "unknown",
         "unverified_reason": "model_weight_or_license_grant_requires_source_review",
@@ -1782,6 +2173,138 @@
           "license_source_changed",
           "revenue_threshold_crossed",
           "review_due"
+        ],
+        "lineage": [
+          {
+            "kind": "upstream_model",
+            "identity": "wzhouxiff/RestoreFormerPlusPlus release v1.0.0 RestoreFormer++.ckpt",
+            "revision": "59d250f45d6b11a3e620d62e6e067ca1288f93a9"
+          },
+          {
+            "kind": "onnx_export",
+            "identity": "facefusion/facefusion-assets release models-3.0.0 restoreformer_plus_plus.onnx",
+            "revision": "541aa332bf61f13fbc26b98e1b0c59c4e7ebf137",
+            "sha256": "164818b70d1745da4108a45c9263b05452236d14ac0ffab2202af0ac4a438195"
+          },
+          {
+            "kind": "face_detector",
+            "identity": "opencv/opencv_zoo models/face_detection_yunet/face_detection_yunet_2023mar.onnx (MIT)",
+            "revision": "f12e12798e8314f7c074a6656816c048dcc95b7a",
+            "sha256": "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4"
+          }
+        ]
+      }
+    },
+    {
+      "id": "codeformer",
+      "name": "CodeFormer (face restoration)",
+      "operations": [
+        "face_restore"
+      ],
+      "default_for": [],
+      "tier": "default-variant",
+      "backend": "onnxruntime",
+      "alt_backends": [
+        "pytorch"
+      ],
+      "requires_comfyui": false,
+      "size_mb_approx": 360,
+      "quant_variants": [
+        "fp32 ONNX 377MB (FaceFusion export of the official codeformer.pth v0.1.0) + YuNet 0.23MB"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 3,
+        "min_ram_gb": 4,
+        "os_arch": [
+          "linux/amd64",
+          "linux/arm64",
+          "darwin/arm64",
+          "windows/amd64"
+        ],
+        "speed_note": "Measured 2026-11-21: CUDA 0.1s per portrait, 2.3s for a 29-face 1920px group photo, 2.3GB process VRAM; CPU 1.3s per portrait, 37s for the group photo, 2.1GB peak RSS. Fidelity weight 0.5 (official default)."
+      },
+      "io": {
+        "native_resolution": "512x512 per face",
+        "notes": "Detects every face with the bundled YuNet ONNX, aligns each to the FFHQ 512 five-point template, restores it and feathers it back into the source raster at the source size; pixels outside faces are untouched. A monochrome source keeps only the restored luminance (FFHQ-trained restorers otherwise invent skin and eye colour). Exit 9 when no face is detected. old_photo_restore (scratch repair + colour + faces) is a separate pipeline and is not served by this row."
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "S-Lab License 1.0",
+        "commercial_use": "no",
+        "commercial_use_notes": "S-Lab License 1.0 permits non-commercial use only; commercial use needs permission from the authors. Operator stance 2026-11-21: normal local use ignores the license class; monetized, hosted-for-others and redistributed use stay refused by the shared rights evaluator.",
+        "base_model_lineage": "CodeFormer (sczhou, NTU S-Lab), VQGAN codebook + transformer",
+        "known_risks": "Non-commercial weights. On 2026-11-21 real-photo comparisons it smoothed age lines and changed eye shape more than RestoreFormer++ (weaker identity preservation); on monochrome photos it invents iris and lip colour unless the luminance-only paste-back is applied (the sidecar does this)."
+      },
+      "source": {
+        "download_url": "",
+        "source_repo": "https://github.com/sczhou/CodeFormer",
+        "docs_url": "https://github.com/sczhou/CodeFormer",
+        "update_source": "https://github.com/facefusion/facefusion-assets/releases/tag/models-3.0.0",
+        "assets": [
+          {
+            "url": "https://github.com/facefusion/facefusion-assets/releases/download/models-3.0.0/codeformer.onnx",
+            "filename": "codeformer.onnx",
+            "kind": "onnx",
+            "min_bytes": 376000000,
+            "sha256": "21710e7ab61c82683576c428e9c1b6fe1ed419586b7b39e394c3449c294b550f"
+          },
+          {
+            "url": "https://media.githubusercontent.com/media/opencv/opencv_zoo/f12e12798e8314f7c074a6656816c048dcc95b7a/models/face_detection_yunet/face_detection_yunet_2023mar.onnx",
+            "filename": "face_detection_yunet_2023mar.onnx",
+            "kind": "onnx",
+            "min_bytes": 230000,
+            "sha256": "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4"
+          }
+        ],
+        "checksum": {
+          "algo": "sha256",
+          "value": "21710e7ab61c82683576c428e9c1b6fe1ed419586b7b39e394c3449c294b550f",
+          "status": "pinned"
+        }
+      },
+      "enabled": true,
+      "rights": {
+        "artifact_id": "codeformer",
+        "revision": "models-3.0.0",
+        "sha256": "21710e7ab61c82683576c428e9c1b6fe1ed419586b7b39e394c3449c294b550f",
+        "license_id": "LicenseRef-S-Lab-1.0",
+        "classification": "prohibited",
+        "evidence": {
+          "url": "https://github.com/sczhou/CodeFormer/blob/b33cc7d639d6545bfcccc7e0bc6ae51f24e79c2b/LICENSE",
+          "revision": "b33cc7d639d6545bfcccc7e0bc6ae51f24e79c2b",
+          "sha256": "cfd654022bdc44fdd809670d50239bcb1ebf2f4a661dca7e328f93c269538246",
+          "observed_at": "2026-11-21"
+        },
+        "obligations": [
+          "S-Lab License 1.0 grants non-commercial use only; obtain the authors' permission before any monetized or hosted-for-others use.",
+          "If redistributing the weights or derivatives: include the S-Lab License 1.0 text and copyright notice, and obtain owner attestation first."
+        ],
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "use_purpose_changed",
+          "review_due"
+        ],
+        "lineage": [
+          {
+            "kind": "upstream_model",
+            "identity": "sczhou/CodeFormer release v0.1.0 codeformer.pth",
+            "revision": "v0.1.0"
+          },
+          {
+            "kind": "onnx_export",
+            "identity": "facefusion/facefusion-assets release models-3.0.0 codeformer.onnx",
+            "revision": "541aa332bf61f13fbc26b98e1b0c59c4e7ebf137",
+            "sha256": "21710e7ab61c82683576c428e9c1b6fe1ed419586b7b39e394c3449c294b550f"
+          },
+          {
+            "kind": "face_detector",
+            "identity": "opencv/opencv_zoo models/face_detection_yunet/face_detection_yunet_2023mar.onnx (MIT)",
+            "revision": "f12e12798e8314f7c074a6656816c048dcc95b7a",
+            "sha256": "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4"
+          }
         ]
       }
     },
@@ -2103,10 +2626,8 @@
       "operations": [
         "segment"
       ],
-      "default_for": [
-        "segment"
-      ],
-      "tier": "default",
+      "default_for": [],
+      "tier": "default-variant",
       "backend": "onnxruntime",
       "alt_backends": [
         "pytorch",
@@ -2415,6 +2936,303 @@
       }
     },
     {
+      "id": "grounded-sam-2",
+      "name": "Grounded SAM 2 (text-prompted segmentation: Grounding DINO base + SAM 2.1 Base+)",
+      "operations": [
+        "segment"
+      ],
+      "default_for": [
+        "segment"
+      ],
+      "tier": "default",
+      "backend": "sam2-transformers",
+      "alt_backends": [],
+      "requires_comfyui": false,
+      "size_mb_approx": 1270,
+      "quant_variants": [
+        "Grounding DINO base 233M + SAM 2.1 Hiera Base+ 80M, one bundle (detector/ and segmenter/)"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 3,
+        "min_ram_gb": 12,
+        "os_arch": [
+          "linux/amd64",
+          "linux/arm64",
+          "darwin/arm64",
+          "windows/amd64"
+        ],
+        "speed_note": "Text phrase -> Grounding DINO boxes -> SAM 2.1 box prompts -> one mask. Measured numbers are recorded in the capability verdict, not here."
+      },
+      "io": {
+        "notes": "One still image per request. Accepts a text phrase (\"the jacket\"), or the explicit normalized points/box prompts of plain SAM 2.1."
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "Apache-2.0",
+        "commercial_use": "yes",
+        "commercial_use_notes": "Grounding DINO (IDEA-Research) and SAM 2.1 (Meta) weights are Apache-2.0.",
+        "base_model_lineage": "Grounding DINO base + Segment Anything 2.1 Hiera Base+",
+        "known_risks": "Open-vocabulary boxes can pick the wrong instance or a group for ambiguous phrases (\"top\" under a jacket); thin structures need review."
+      },
+      "source": {
+        "download_url": "https://huggingface.co/IDEA-Research/grounding-dino-base",
+        "source_repo": "https://github.com/IDEA-Research/GroundingDINO",
+        "docs_url": "https://huggingface.co/docs/transformers/model_doc/grounding-dino",
+        "update_source": "https://huggingface.co/IDEA-Research/grounding-dino-base",
+        "assets": [
+          {
+            "url": "https://huggingface.co/IDEA-Research/grounding-dino-base/resolve/12bdfa3120f3e7ec7b434d90674b3396eccf88eb/config.json",
+            "filename": "detector/config.json",
+            "kind": "binary",
+            "min_bytes": 1737
+          },
+          {
+            "url": "https://huggingface.co/IDEA-Research/grounding-dino-base/resolve/12bdfa3120f3e7ec7b434d90674b3396eccf88eb/model.safetensors",
+            "filename": "detector/model.safetensors",
+            "kind": "safetensors",
+            "sha256": "5548f844c928c4b6f411fa8cbcc2bfa8dbbba437cb1d513975519f93c2a9ed21",
+            "min_bytes": 933400872
+          },
+          {
+            "url": "https://huggingface.co/IDEA-Research/grounding-dino-base/resolve/12bdfa3120f3e7ec7b434d90674b3396eccf88eb/preprocessor_config.json",
+            "filename": "detector/preprocessor_config.json",
+            "kind": "binary",
+            "min_bytes": 457
+          },
+          {
+            "url": "https://huggingface.co/IDEA-Research/grounding-dino-base/resolve/12bdfa3120f3e7ec7b434d90674b3396eccf88eb/special_tokens_map.json",
+            "filename": "detector/special_tokens_map.json",
+            "kind": "binary",
+            "min_bytes": 125
+          },
+          {
+            "url": "https://huggingface.co/IDEA-Research/grounding-dino-base/resolve/12bdfa3120f3e7ec7b434d90674b3396eccf88eb/tokenizer.json",
+            "filename": "detector/tokenizer.json",
+            "kind": "binary",
+            "min_bytes": 711396
+          },
+          {
+            "url": "https://huggingface.co/IDEA-Research/grounding-dino-base/resolve/12bdfa3120f3e7ec7b434d90674b3396eccf88eb/tokenizer_config.json",
+            "filename": "detector/tokenizer_config.json",
+            "kind": "binary",
+            "min_bytes": 1237
+          },
+          {
+            "url": "https://huggingface.co/IDEA-Research/grounding-dino-base/resolve/12bdfa3120f3e7ec7b434d90674b3396eccf88eb/vocab.txt",
+            "filename": "detector/vocab.txt",
+            "kind": "binary",
+            "min_bytes": 231508
+          },
+          {
+            "url": "https://huggingface.co/facebook/sam2.1-hiera-base-plus/resolve/47b9e36ec942f6ff9900555727478a1c96f63225/config.json",
+            "filename": "segmenter/config.json",
+            "kind": "binary",
+            "min_bytes": 5705
+          },
+          {
+            "url": "https://huggingface.co/facebook/sam2.1-hiera-base-plus/resolve/47b9e36ec942f6ff9900555727478a1c96f63225/model.safetensors",
+            "filename": "segmenter/model.safetensors",
+            "kind": "safetensors",
+            "sha256": "2012733a0de5d03efd1bba550a2847c4551be9ef2e0d497c83074df66189f780",
+            "min_bytes": 323476296
+          }
+        ],
+        "checksum": {
+          "algo": "sha256",
+          "value": "",
+          "status": "unverified-capture-on-download"
+        }
+      },
+      "enabled": true,
+      "rights": {
+        "artifact_id": "grounded-sam-2",
+        "revision": "12bdfa3120f3e7ec7b434d90674b3396eccf88eb",
+        "sha256": "5548f844c928c4b6f411fa8cbcc2bfa8dbbba437cb1d513975519f93c2a9ed21",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "bundle_of_two_checkpoints_licence_source_per_component_not_yet_verified_against_pinned_digests",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
+    },
+    {
+      "id": "segformer-b2-clothes",
+      "name": "SegFormer B2 clothes/human parser",
+      "operations": [
+        "segment"
+      ],
+      "default_for": [],
+      "tier": "quality",
+      "backend": "segformer-transformers",
+      "alt_backends": [],
+      "requires_comfyui": false,
+      "size_mb_approx": 110,
+      "quant_variants": [
+        "SegFormer, fp32 safetensors"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 1,
+        "min_ram_gb": 4,
+        "os_arch": [
+          "linux/amd64",
+          "linux/arm64",
+          "darwin/arm64",
+          "windows/amd64"
+        ],
+        "speed_note": "Semantic parser; one forward pass at the processor's native size, upsampled to the source."
+      },
+      "io": {
+        "notes": "18 labels: background, hat, hair, sunglasses, upper-clothes, skirt, pants, dress, belt, shoes, face, legs, arms, bag, scarf."
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "other (model card)",
+        "commercial_use": "conditional",
+        "commercial_use_notes": "Model card declares licence 'other'; trained on a research-use parsing dataset. Normal local use only; monetized or hosted use stays refused until the terms are verified.",
+        "base_model_lineage": "SegFormer (NVIDIA mit-b*) fine-tuned for human/clothes parsing",
+        "known_risks": "Closed label set; classes it was not trained on cannot be selected."
+      },
+      "source": {
+        "download_url": "https://huggingface.co/mattmdjaga/segformer_b2_clothes",
+        "source_repo": "https://huggingface.co/mattmdjaga/segformer_b2_clothes",
+        "docs_url": "https://huggingface.co/mattmdjaga/segformer_b2_clothes",
+        "update_source": "https://huggingface.co/mattmdjaga/segformer_b2_clothes",
+        "assets": [
+          {
+            "url": "https://huggingface.co/mattmdjaga/segformer_b2_clothes/resolve/584abc1e1d260e23c0fc627c5217a09b2b461046/config.json",
+            "filename": "config.json",
+            "kind": "binary",
+            "min_bytes": 1000
+          },
+          {
+            "url": "https://huggingface.co/mattmdjaga/segformer_b2_clothes/resolve/584abc1e1d260e23c0fc627c5217a09b2b461046/model.safetensors",
+            "filename": "model.safetensors",
+            "kind": "safetensors",
+            "sha256": "8f86fd90c567afd4370b3cc3a7e81ed767a632b2832a738331af660acc0c4c68",
+            "min_bytes": 109493236
+          },
+          {
+            "url": "https://huggingface.co/mattmdjaga/segformer_b2_clothes/resolve/584abc1e1d260e23c0fc627c5217a09b2b461046/preprocessor_config.json",
+            "filename": "preprocessor_config.json",
+            "kind": "binary",
+            "min_bytes": 200
+          }
+        ],
+        "checksum": {
+          "algo": "sha256",
+          "value": "",
+          "status": "unverified-capture-on-download"
+        }
+      },
+      "enabled": true,
+      "rights": {
+        "artifact_id": "segformer-b2-clothes",
+        "revision": "584abc1e1d260e23c0fc627c5217a09b2b461046",
+        "sha256": "8f86fd90c567afd4370b3cc3a7e81ed767a632b2832a738331af660acc0c4c68",
+        "license_id": "other (model card)",
+        "classification": "unknown",
+        "unverified_reason": "model_card_license_other_training_data_terms_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
+    },
+    {
+      "id": "segformer-b3-fashion",
+      "name": "SegFormer B3 fashion parser",
+      "operations": [
+        "segment"
+      ],
+      "default_for": [],
+      "tier": "quality",
+      "backend": "segformer-transformers",
+      "alt_backends": [],
+      "requires_comfyui": false,
+      "size_mb_approx": 190,
+      "quant_variants": [
+        "SegFormer, fp32 safetensors"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 1,
+        "min_ram_gb": 4,
+        "os_arch": [
+          "linux/amd64",
+          "linux/arm64",
+          "darwin/arm64",
+          "windows/amd64"
+        ],
+        "speed_note": "Semantic parser; one forward pass at the processor's native size, upsampled to the source."
+      },
+      "io": {
+        "notes": "47 Fashionpedia labels: shirt, top, sweater, cardigan, jacket, vest, pants, skirt, coat, dress, accessories and garment parts."
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "other (model card)",
+        "commercial_use": "conditional",
+        "commercial_use_notes": "Model card declares licence 'other'; trained on a research-use parsing dataset. Normal local use only; monetized or hosted use stays refused until the terms are verified.",
+        "base_model_lineage": "SegFormer (NVIDIA mit-b*) fine-tuned for human/clothes parsing",
+        "known_risks": "Closed label set; classes it was not trained on cannot be selected."
+      },
+      "source": {
+        "download_url": "https://huggingface.co/sayeed99/segformer-b3-fashion",
+        "source_repo": "https://huggingface.co/sayeed99/segformer-b3-fashion",
+        "docs_url": "https://huggingface.co/sayeed99/segformer-b3-fashion",
+        "update_source": "https://huggingface.co/sayeed99/segformer-b3-fashion",
+        "assets": [
+          {
+            "url": "https://huggingface.co/sayeed99/segformer-b3-fashion/resolve/e2474a9e7643d349ac6c525549b736b736e7e216/config.json",
+            "filename": "config.json",
+            "kind": "binary",
+            "min_bytes": 1000
+          },
+          {
+            "url": "https://huggingface.co/sayeed99/segformer-b3-fashion/resolve/e2474a9e7643d349ac6c525549b736b736e7e216/model.safetensors",
+            "filename": "model.safetensors",
+            "kind": "safetensors",
+            "sha256": "f3f5b30179f1480d329224d089f6d286580142c2b12846d08de814a48a81f42f",
+            "min_bytes": 189118204
+          },
+          {
+            "url": "https://huggingface.co/sayeed99/segformer-b3-fashion/resolve/e2474a9e7643d349ac6c525549b736b736e7e216/preprocessor_config.json",
+            "filename": "preprocessor_config.json",
+            "kind": "binary",
+            "min_bytes": 200
+          }
+        ],
+        "checksum": {
+          "algo": "sha256",
+          "value": "",
+          "status": "unverified-capture-on-download"
+        }
+      },
+      "enabled": true,
+      "rights": {
+        "artifact_id": "segformer-b3-fashion",
+        "revision": "e2474a9e7643d349ac6c525549b736b736e7e216",
+        "sha256": "f3f5b30179f1480d329224d089f6d286580142c2b12846d08de814a48a81f42f",
+        "license_id": "other (model card)",
+        "classification": "unknown",
+        "unverified_reason": "model_card_license_other_training_data_terms_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
+    },
+    {
       "id": "hq-sam",
       "name": "HQ-SAM (high-quality mask edges)",
       "operations": [
@@ -2501,7 +3319,7 @@
         "os_arch": [
           "linux/amd64"
         ],
-        "speed_note": "Upstream default mesh extraction uses a 256^3 field; CPU execution is not qualified. GPU requirement is a conservative model-level floor, not a measured peak-memory claim."
+        "speed_note": "Upstream default mesh extraction uses a 256^3 field; CPU execution is not qualified. GPU requirement is a conservative model-level floor, not a measured peak-memory claim. Disabled 2026-11-21: the triposr backend has no load-smoke contract for the model.ckpt + pinned-source build profile, so enabling it only produced an install that ends unsupported_load_smoke_contract. Enable after a TripoSR smoke probe exists."
       },
       "io": {
         "native_resolution": "single square-conditioned image; 128 or 256 marching-cubes grid",
@@ -2635,9 +3453,7 @@
       "operations": [
         "depth_map"
       ],
-      "default_for": [
-        "depth_map"
-      ],
+      "default_for": [],
       "tier": "default",
       "backend": "onnxruntime",
       "alt_backends": [
@@ -2659,16 +3475,16 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "CPU ~100ms/frame via ONNX (onnxruntime + OpenCV, no PyTorch). Relative depth."
+        "speed_note": "Measured 2026-11-21: CUDA ~9ms/inference at 518x518 (0.75GB process VRAM), CPU ~0.2s (0.6GB RSS) via ONNX (onnxruntime, no PyTorch). Relative depth. Softer than V2 Large on thin structures (fewer sky gaps between branches, coarser fur edges); kept for CPU-light and monetized use."
       },
       "io": {},
       "capability_labels": {
         "nsfw_capable": false,
         "license": "Apache-2.0",
         "commercial_use": "yes",
-        "commercial_use_notes": "ONLY the Small (vits) checkpoint is Apache. Base/Large/Giant are CC-BY-NC-4.0 — do NOT silently upgrade.",
+        "commercial_use_notes": "Only the Small (vits) checkpoint is Apache-2.0; Base/Large/Giant are CC-BY-NC-4.0. Small stays the license-clean depth model for monetized, hosted or redistributed use.",
         "base_model_lineage": "Depth Anything V2 (TikTok/HKU)",
-        "known_risks": "Per-size license trap: never auto-upgrade to V2 Base/Large/Giant (non-commercial)."
+        "known_risks": "Per-size license split: the depth_map default is now depth-anything-v2-large (CC-BY-NC-4.0, normal use only); select this row for any monetized use."
       },
       "source": {
         "download_url": "",
@@ -2705,8 +3521,110 @@
       }
     },
     {
+      "id": "depth-anything-v2-large",
+      "name": "Depth Anything V2 Large",
+      "operations": [
+        "depth_map"
+      ],
+      "default_for": [
+        "depth_map"
+      ],
+      "tier": "quality",
+      "backend": "onnxruntime",
+      "alt_backends": [
+        "pytorch"
+      ],
+      "requires_comfyui": false,
+      "size_mb_approx": 1276,
+      "quant_variants": [
+        "vitl fp32 ONNX 1.34GB (335M params), static 518x518 input (fabio-sim/Depth-Anything-ONNX v2.0.0)"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 3,
+        "min_ram_gb": 4,
+        "os_arch": [
+          "linux/amd64",
+          "linux/arm64",
+          "darwin/arm64",
+          "windows/amd64"
+        ],
+        "speed_note": "Measured 2026-11-21 on the RTX 16GB host (Ollama resident): CUDA ~60ms/inference at 518x518, 2.3GB process VRAM, 5s cold load; CPU ~1.9s/inference, 2.6GB peak RSS. Small is ~9ms CUDA / ~0.2s CPU. Relative depth."
+      },
+      "io": {
+        "native_resolution": "518x518",
+        "notes": "Same pre/post-processing as depth-anything-v2-small (ImageNet-normalized 518x518 input, min-max normalized near=bright output resized to the source)."
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "CC-BY-NC-4.0",
+        "commercial_use": "no",
+        "commercial_use_notes": "Depth Anything V2 Base/Large/Giant weights are CC-BY-NC-4.0 (only Small is Apache-2.0). Operator stance 2026-11-21: normal local use ignores the license class; monetized, hosted-for-others and redistributed use stay refused by the shared rights evaluator. For a monetized large tier use depth-anything-v1-large (Apache-2.0) or depth-anything-v2-small.",
+        "base_model_lineage": "Depth Anything V2 (TikTok/HKU), ViT-L encoder",
+        "known_risks": "Non-commercial weights (see commercial_use_notes); 13x the Small model's size and ~7x its GPU latency."
+      },
+      "source": {
+        "download_url": "",
+        "source_repo": "https://github.com/DepthAnything/Depth-Anything-V2",
+        "docs_url": "https://github.com/fabio-sim/Depth-Anything-ONNX",
+        "update_source": "https://github.com/fabio-sim/Depth-Anything-ONNX/releases",
+        "assets": [
+          {
+            "url": "https://github.com/fabio-sim/Depth-Anything-ONNX/releases/download/v2.0.0/depth_anything_v2_vitl.onnx",
+            "filename": "depth_anything_v2_vitl.onnx",
+            "kind": "onnx",
+            "min_bytes": 1337000000,
+            "sha256": "36ab02ffa2094c74e00ec3fd85ca6641811a91ac4f494a5812d193a3764a359b"
+          }
+        ],
+        "checksum": {
+          "algo": "sha256",
+          "value": "36ab02ffa2094c74e00ec3fd85ca6641811a91ac4f494a5812d193a3764a359b",
+          "status": "pinned"
+        }
+      },
+      "enabled": true,
+      "rights": {
+        "artifact_id": "depth-anything-v2-large",
+        "revision": "v2.0.0",
+        "sha256": "36ab02ffa2094c74e00ec3fd85ca6641811a91ac4f494a5812d193a3764a359b",
+        "license_id": "CC-BY-NC-4.0",
+        "classification": "prohibited",
+        "evidence": {
+          "url": "https://huggingface.co/depth-anything/Depth-Anything-V2-Large/blob/cbbb86a30ce19b5684b7a05155dc7e6cbc7685b9/README.md",
+          "revision": "cbbb86a30ce19b5684b7a05155dc7e6cbc7685b9",
+          "sha256": "b7123cecb2b04be09bbe6043b33ab8efe0e71d5c689ac7d6582d8b085a274d3d",
+          "observed_at": "2026-11-21"
+        },
+        "obligations": [
+          "CC-BY-NC-4.0: no commercial use of the weights or their adaptations; obtain a commercial grant from the Depth Anything authors before any monetized or hosted-for-others use.",
+          "If redistributing the weights: keep attribution, the license link and a modification notice (CC-BY-NC-4.0 section 3), and obtain owner attestation first."
+        ],
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "use_purpose_changed",
+          "review_due"
+        ],
+        "lineage": [
+          {
+            "kind": "upstream_model",
+            "identity": "depth-anything/Depth-Anything-V2-Large",
+            "revision": "cbbb86a30ce19b5684b7a05155dc7e6cbc7685b9"
+          },
+          {
+            "kind": "onnx_export",
+            "identity": "fabio-sim/Depth-Anything-ONNX release v2.0.0 depth_anything_v2_vitl.onnx",
+            "revision": "v2.0.0",
+            "sha256": "36ab02ffa2094c74e00ec3fd85ca6641811a91ac4f494a5812d193a3764a359b"
+          }
+        ]
+      }
+    },
+    {
       "id": "depth-anything-v1-large",
-      "name": "Depth Anything V1 Large (commercial-safe large)",
+      "name": "Depth Anything V1 Large (Apache large tier)",
       "operations": [
         "depth_map"
       ],
@@ -2731,16 +3649,16 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "Commercial-safe large tier — V1 is Apache across ALL sizes (unlike V2). Use this instead of V2-Large."
+        "speed_note": "V1 is Apache-2.0 at every size: the large depth model for monetized use. For normal use depth-anything-v2-large gives better quality."
       },
       "io": {},
       "capability_labels": {
         "nsfw_capable": false,
         "license": "Apache-2.0",
         "commercial_use": "yes",
-        "commercial_use_notes": "V1 is Apache at all sizes — the safe 'large' fallback since V2-Large is non-commercial.",
+        "commercial_use_notes": "V1 is Apache-2.0 at all sizes, so it is the large tier for monetized, hosted or redistributed use; V2 Large is CC-BY-NC-4.0 and serves normal use only.",
         "base_model_lineage": "Depth Anything V1 (TikTok/HKU)",
-        "known_risks": "Slightly behind V2 quality, but license-clean at large size."
+        "known_risks": "Behind V2 Large in quality; license-clean at large size."
       },
       "source": {
         "manual": true,
@@ -4027,6 +4945,77 @@
       }
     },
     {
+      "id": "lpips-alexnet",
+      "name": "LPIPS AlexNet backbone (full-reference perceptual metric)",
+      "operations": [
+        "quality_assessment"
+      ],
+      "default_for": [],
+      "tier": "quality",
+      "backend": "python-sidecar",
+      "alt_backends": [],
+      "requires_comfyui": false,
+      "size_mb_approx": 233,
+      "quant_variants": [
+        "torchvision AlexNet ImageNet state dict (fp32); the LPIPS v0.1 linear heads ship inside the lpips wheel"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 2,
+        "os_arch": [
+          "linux/amd64"
+        ],
+        "speed_note": "Evaluator support asset, not an image operation. reference.lpips scores a 3024x4032 pair on CPU in 1024-pixel tiles inside about 2 GiB and two cores."
+      },
+      "io": {
+        "notes": "Provides the AlexNet backbone file the quality evaluator's reference.lpips metric loads. Nothing here runs as an inference operation."
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "BSD-3-Clause (torchvision code); ImageNet-trained weights",
+        "commercial_use": "conditional",
+        "commercial_use_notes": "Used only to compute an evaluation metric, never to generate or transform user images. The ImageNet dataset terms apply to the weights; reviewed for evaluation use only.",
+        "base_model_lineage": "AlexNet (Krizhevsky) trained on ImageNet-1k by torchvision; LPIPS (Zhang et al., CVPR 2018)",
+        "known_risks": "LPIPS measures learned perceptual distance, not fidelity to the scene; it can reward plausible but invented texture."
+      },
+      "source": {
+        "download_url": "https://download.pytorch.org/models/alexnet-owt-7be5be79.pth",
+        "source_repo": "https://github.com/pytorch/vision",
+        "docs_url": "https://github.com/richzhang/PerceptualSimilarity",
+        "update_source": "https://download.pytorch.org/models/alexnet-owt-7be5be79.pth",
+        "assets": [
+          {
+            "url": "https://download.pytorch.org/models/alexnet-owt-7be5be79.pth",
+            "filename": "alexnet-owt-7be5be79.pth",
+            "kind": "binary",
+            "min_bytes": 244000000,
+            "sha256": "7be5be791159472b1fbf3c69796f7cb30dca7ad8466c2df70058c37116cdee02"
+          }
+        ],
+        "checksum": {
+          "algo": "sha256",
+          "value": "7be5be791159472b1fbf3c69796f7cb30dca7ad8466c2df70058c37116cdee02",
+          "status": "pinned"
+        }
+      },
+      "enabled": true,
+      "rights": {
+        "artifact_id": "lpips-alexnet",
+        "revision": "torchvision-alexnet-owt-7be5be79",
+        "sha256": "7be5be791159472b1fbf3c69796f7cb30dca7ad8466c2df70058c37116cdee02",
+        "license_id": "BSD-3-Clause (torchvision); ImageNet weights",
+        "classification": "unknown",
+        "unverified_reason": "imagenet_weight_terms_not_reviewed_for_this_use",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
+    },
+    {
       "id": "goimagehash",
       "name": "goimagehash (perceptual hash, pure Go)",
       "operations": [
@@ -4368,7 +5357,8 @@
       "operations": [
         "text_to_image",
         "image_to_image",
-        "edit_instruct"
+        "edit_instruct",
+        "face_swap"
       ],
       "default_for": [],
       "tier": "nice-to-have",
@@ -4494,6 +5484,538 @@
       }
     },
     {
+      "id": "hyperswap-1a-256",
+      "name": "HyperSwap 1a (face swap, 256 px)",
+      "operations": [
+        "face_swap"
+      ],
+      "default_for": [
+        "face_swap"
+      ],
+      "tier": "quality",
+      "backend": "onnxruntime",
+      "alt_backends": [],
+      "requires_comfyui": false,
+      "size_mb_approx": 646,
+      "quant_variants": [
+        "fp32 ONNX 402MB swapper + ArcFace w600k_r50 174MB (identity embedding) + YuNet 0.23MB (detector) + XSeg-1 70MB (occlusion mask)"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 2,
+        "min_ram_gb": 4,
+        "os_arch": [
+          "linux/amd64",
+          "linux/arm64",
+          "darwin/arm64",
+          "windows/amd64"
+        ],
+        "speed_note": "Not yet measured."
+      },
+      "io": {
+        "native_resolution": "256x256 aligned face",
+        "notes": "Takes a target image and a reference (source) face image. Detects faces with the bundled YuNet ONNX, embeds the source face with ArcFace, swaps each selected target face (largest first, or a chosen index / all) and pastes it back through a feathered box mask intersected with an XSeg occlusion mask. Exit 9 when no face is found in either image."
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "ResearchRAIL",
+        "commercial_use": "no",
+        "commercial_use_notes": "FaceFusion HyperSwap is labelled ResearchRAIL; the ArcFace embedder (InsightFace buffalo_l w600k_r50) is non-commercial research only, XSeg is DeepFaceLab-derived. Operator stance 2026-11-21: normal local use ignores the license class; monetized, hosted-for-others and redistributed use stay refused by the shared rights evaluator until explicit grants exist.",
+        "base_model_lineage": "FaceFusion HyperSwap via facefusion/facefusion-assets models-3.3.0",
+        "known_risks": "Identity substitution of real people: face swap is SFW-only in this tool's policy and non-local routes need a consent affirmation. Weights are non-commercial."
+      },
+      "source": {
+        "download_url": "",
+        "source_repo": "https://github.com/facefusion/facefusion",
+        "docs_url": "https://docs.facefusion.io",
+        "update_source": "https://github.com/facefusion/facefusion-assets/releases/tag/models-3.3.0",
+        "assets": [
+          {
+            "url": "https://github.com/facefusion/facefusion-assets/releases/download/models-3.3.0/hyperswap_1a_256.onnx",
+            "filename": "hyperswap_1a_256.onnx",
+            "kind": "onnx",
+            "min_bytes": 400000000,
+            "sha256": "c0e98a8a03a238f461ed3d2570e426b49f46745ee400854a60dceeb70c246add"
+          },
+          {
+            "url": "https://github.com/facefusion/facefusion-assets/releases/download/models-3.0.0/arcface_w600k_r50.onnx",
+            "filename": "arcface_w600k_r50.onnx",
+            "kind": "onnx",
+            "min_bytes": 174000000,
+            "sha256": "f1f79dc3b0b79a69f94799af1fffebff09fbd78fd96a275fd8f0cbbea23270d1"
+          },
+          {
+            "url": "https://media.githubusercontent.com/media/opencv/opencv_zoo/f12e12798e8314f7c074a6656816c048dcc95b7a/models/face_detection_yunet/face_detection_yunet_2023mar.onnx",
+            "filename": "face_detection_yunet_2023mar.onnx",
+            "kind": "onnx",
+            "min_bytes": 230000,
+            "sha256": "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4"
+          },
+          {
+            "url": "https://github.com/facefusion/facefusion-assets/releases/download/models-3.1.0/xseg_1.onnx",
+            "filename": "xseg_1.onnx",
+            "kind": "onnx",
+            "min_bytes": 70000000,
+            "sha256": "c4d1498b8a03b5fe2a3a5d2ef2a0402ab03bd51edaf5b2d8d5fb764702a97dd3"
+          }
+        ],
+        "checksum": {
+          "algo": "sha256",
+          "value": "c0e98a8a03a238f461ed3d2570e426b49f46745ee400854a60dceeb70c246add",
+          "status": "pinned"
+        }
+      },
+      "enabled": true,
+      "rights": {
+        "artifact_id": "hyperswap-1a-256",
+        "revision": "models-3.3.0",
+        "sha256": "c0e98a8a03a238f461ed3d2570e426b49f46745ee400854a60dceeb70c246add",
+        "license_id": "ResearchRAIL",
+        "classification": "prohibited",
+        "evidence": {
+          "url": "https://github.com/facefusion/facefusion/blob/358f169e95e2b02431722cc287db8acda6658df1/facefusion/processors/modules/face_swapper/core.py",
+          "revision": "358f169e95e2b02431722cc287db8acda6658df1",
+          "sha256": "e756d860282d9ef6e30d101af9f4d4ae546b5c41d639d7ac0846011e28a95596",
+          "observed_at": "2026-11-21"
+        },
+        "obligations": [
+          "FaceFusion HyperSwap is licensed ResearchRAIL (FaceFusion's model metadata); the bundled ArcFace embedder is InsightFace non-commercial research only. Obtain the owners' grants before any monetized or hosted-for-others use.",
+          "If redistributing the weights: carry each owner's license terms and obtain owner attestation first."
+        ],
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "use_purpose_changed",
+          "review_due"
+        ]
+      }
+    },
+    {
+      "id": "hyperswap-1b-256",
+      "name": "HyperSwap 1b (face swap, 256 px)",
+      "operations": [
+        "face_swap"
+      ],
+      "default_for": [],
+      "tier": "default-variant",
+      "backend": "onnxruntime",
+      "alt_backends": [],
+      "requires_comfyui": false,
+      "size_mb_approx": 646,
+      "quant_variants": [
+        "fp32 ONNX 402MB swapper + ArcFace w600k_r50 174MB (identity embedding) + YuNet 0.23MB (detector) + XSeg-1 70MB (occlusion mask)"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 2,
+        "min_ram_gb": 4,
+        "os_arch": [
+          "linux/amd64",
+          "linux/arm64",
+          "darwin/arm64",
+          "windows/amd64"
+        ],
+        "speed_note": "Not yet measured."
+      },
+      "io": {
+        "native_resolution": "256x256 aligned face",
+        "notes": "Takes a target image and a reference (source) face image. Detects faces with the bundled YuNet ONNX, embeds the source face with ArcFace, swaps each selected target face (largest first, or a chosen index / all) and pastes it back through a feathered box mask intersected with an XSeg occlusion mask. Exit 9 when no face is found in either image."
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "ResearchRAIL",
+        "commercial_use": "no",
+        "commercial_use_notes": "FaceFusion HyperSwap is labelled ResearchRAIL; the ArcFace embedder (InsightFace buffalo_l w600k_r50) is non-commercial research only, XSeg is DeepFaceLab-derived. Operator stance 2026-11-21: normal local use ignores the license class; monetized, hosted-for-others and redistributed use stay refused by the shared rights evaluator until explicit grants exist.",
+        "base_model_lineage": "FaceFusion HyperSwap via facefusion/facefusion-assets models-3.3.0",
+        "known_risks": "Identity substitution of real people: face swap is SFW-only in this tool's policy and non-local routes need a consent affirmation. Weights are non-commercial."
+      },
+      "source": {
+        "download_url": "",
+        "source_repo": "https://github.com/facefusion/facefusion",
+        "docs_url": "https://docs.facefusion.io",
+        "update_source": "https://github.com/facefusion/facefusion-assets/releases/tag/models-3.3.0",
+        "assets": [
+          {
+            "url": "https://github.com/facefusion/facefusion-assets/releases/download/models-3.3.0/hyperswap_1b_256.onnx",
+            "filename": "hyperswap_1b_256.onnx",
+            "kind": "onnx",
+            "min_bytes": 400000000,
+            "sha256": "5124031789c42f71b9558fb71954ef7aedb6da7ed9fac79293e23c61a792a73e"
+          },
+          {
+            "url": "https://github.com/facefusion/facefusion-assets/releases/download/models-3.0.0/arcface_w600k_r50.onnx",
+            "filename": "arcface_w600k_r50.onnx",
+            "kind": "onnx",
+            "min_bytes": 174000000,
+            "sha256": "f1f79dc3b0b79a69f94799af1fffebff09fbd78fd96a275fd8f0cbbea23270d1"
+          },
+          {
+            "url": "https://media.githubusercontent.com/media/opencv/opencv_zoo/f12e12798e8314f7c074a6656816c048dcc95b7a/models/face_detection_yunet/face_detection_yunet_2023mar.onnx",
+            "filename": "face_detection_yunet_2023mar.onnx",
+            "kind": "onnx",
+            "min_bytes": 230000,
+            "sha256": "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4"
+          },
+          {
+            "url": "https://github.com/facefusion/facefusion-assets/releases/download/models-3.1.0/xseg_1.onnx",
+            "filename": "xseg_1.onnx",
+            "kind": "onnx",
+            "min_bytes": 70000000,
+            "sha256": "c4d1498b8a03b5fe2a3a5d2ef2a0402ab03bd51edaf5b2d8d5fb764702a97dd3"
+          }
+        ],
+        "checksum": {
+          "algo": "sha256",
+          "value": "5124031789c42f71b9558fb71954ef7aedb6da7ed9fac79293e23c61a792a73e",
+          "status": "pinned"
+        }
+      },
+      "enabled": true,
+      "rights": {
+        "artifact_id": "hyperswap-1b-256",
+        "revision": "models-3.3.0",
+        "sha256": "5124031789c42f71b9558fb71954ef7aedb6da7ed9fac79293e23c61a792a73e",
+        "license_id": "ResearchRAIL",
+        "classification": "prohibited",
+        "evidence": {
+          "url": "https://github.com/facefusion/facefusion/blob/358f169e95e2b02431722cc287db8acda6658df1/facefusion/processors/modules/face_swapper/core.py",
+          "revision": "358f169e95e2b02431722cc287db8acda6658df1",
+          "sha256": "e756d860282d9ef6e30d101af9f4d4ae546b5c41d639d7ac0846011e28a95596",
+          "observed_at": "2026-11-21"
+        },
+        "obligations": [
+          "FaceFusion HyperSwap is licensed ResearchRAIL (FaceFusion's model metadata); the bundled ArcFace embedder is InsightFace non-commercial research only. Obtain the owners' grants before any monetized or hosted-for-others use.",
+          "If redistributing the weights: carry each owner's license terms and obtain owner attestation first."
+        ],
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "use_purpose_changed",
+          "review_due"
+        ]
+      }
+    },
+    {
+      "id": "hyperswap-1c-256",
+      "name": "HyperSwap 1c (face swap, 256 px)",
+      "operations": [
+        "face_swap"
+      ],
+      "default_for": [],
+      "tier": "default-variant",
+      "backend": "onnxruntime",
+      "alt_backends": [],
+      "requires_comfyui": false,
+      "size_mb_approx": 646,
+      "quant_variants": [
+        "fp32 ONNX 402MB swapper + ArcFace w600k_r50 174MB (identity embedding) + YuNet 0.23MB (detector) + XSeg-1 70MB (occlusion mask)"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 2,
+        "min_ram_gb": 4,
+        "os_arch": [
+          "linux/amd64",
+          "linux/arm64",
+          "darwin/arm64",
+          "windows/amd64"
+        ],
+        "speed_note": "Not yet measured."
+      },
+      "io": {
+        "native_resolution": "256x256 aligned face",
+        "notes": "Takes a target image and a reference (source) face image. Detects faces with the bundled YuNet ONNX, embeds the source face with ArcFace, swaps each selected target face (largest first, or a chosen index / all) and pastes it back through a feathered box mask intersected with an XSeg occlusion mask. Exit 9 when no face is found in either image."
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "ResearchRAIL",
+        "commercial_use": "no",
+        "commercial_use_notes": "FaceFusion HyperSwap is labelled ResearchRAIL; the ArcFace embedder (InsightFace buffalo_l w600k_r50) is non-commercial research only, XSeg is DeepFaceLab-derived. Operator stance 2026-11-21: normal local use ignores the license class; monetized, hosted-for-others and redistributed use stay refused by the shared rights evaluator until explicit grants exist.",
+        "base_model_lineage": "FaceFusion HyperSwap via facefusion/facefusion-assets models-3.3.0",
+        "known_risks": "Identity substitution of real people: face swap is SFW-only in this tool's policy and non-local routes need a consent affirmation. Weights are non-commercial."
+      },
+      "source": {
+        "download_url": "",
+        "source_repo": "https://github.com/facefusion/facefusion",
+        "docs_url": "https://docs.facefusion.io",
+        "update_source": "https://github.com/facefusion/facefusion-assets/releases/tag/models-3.3.0",
+        "assets": [
+          {
+            "url": "https://github.com/facefusion/facefusion-assets/releases/download/models-3.3.0/hyperswap_1c_256.onnx",
+            "filename": "hyperswap_1c_256.onnx",
+            "kind": "onnx",
+            "min_bytes": 400000000,
+            "sha256": "5528c2d76fe9986c99d829278987ef9f3a630cb606db7628d02b57b330f406a5"
+          },
+          {
+            "url": "https://github.com/facefusion/facefusion-assets/releases/download/models-3.0.0/arcface_w600k_r50.onnx",
+            "filename": "arcface_w600k_r50.onnx",
+            "kind": "onnx",
+            "min_bytes": 174000000,
+            "sha256": "f1f79dc3b0b79a69f94799af1fffebff09fbd78fd96a275fd8f0cbbea23270d1"
+          },
+          {
+            "url": "https://media.githubusercontent.com/media/opencv/opencv_zoo/f12e12798e8314f7c074a6656816c048dcc95b7a/models/face_detection_yunet/face_detection_yunet_2023mar.onnx",
+            "filename": "face_detection_yunet_2023mar.onnx",
+            "kind": "onnx",
+            "min_bytes": 230000,
+            "sha256": "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4"
+          },
+          {
+            "url": "https://github.com/facefusion/facefusion-assets/releases/download/models-3.1.0/xseg_1.onnx",
+            "filename": "xseg_1.onnx",
+            "kind": "onnx",
+            "min_bytes": 70000000,
+            "sha256": "c4d1498b8a03b5fe2a3a5d2ef2a0402ab03bd51edaf5b2d8d5fb764702a97dd3"
+          }
+        ],
+        "checksum": {
+          "algo": "sha256",
+          "value": "5528c2d76fe9986c99d829278987ef9f3a630cb606db7628d02b57b330f406a5",
+          "status": "pinned"
+        }
+      },
+      "enabled": true,
+      "rights": {
+        "artifact_id": "hyperswap-1c-256",
+        "revision": "models-3.3.0",
+        "sha256": "5528c2d76fe9986c99d829278987ef9f3a630cb606db7628d02b57b330f406a5",
+        "license_id": "ResearchRAIL",
+        "classification": "prohibited",
+        "evidence": {
+          "url": "https://github.com/facefusion/facefusion/blob/358f169e95e2b02431722cc287db8acda6658df1/facefusion/processors/modules/face_swapper/core.py",
+          "revision": "358f169e95e2b02431722cc287db8acda6658df1",
+          "sha256": "e756d860282d9ef6e30d101af9f4d4ae546b5c41d639d7ac0846011e28a95596",
+          "observed_at": "2026-11-21"
+        },
+        "obligations": [
+          "FaceFusion HyperSwap is licensed ResearchRAIL (FaceFusion's model metadata); the bundled ArcFace embedder is InsightFace non-commercial research only. Obtain the owners' grants before any monetized or hosted-for-others use.",
+          "If redistributing the weights: carry each owner's license terms and obtain owner attestation first."
+        ],
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "use_purpose_changed",
+          "review_due"
+        ]
+      }
+    },
+    {
+      "id": "inswapper-128",
+      "name": "InsightFace inswapper 128 (face swap, 128 px)",
+      "operations": [
+        "face_swap"
+      ],
+      "default_for": [],
+      "tier": "default-variant",
+      "backend": "onnxruntime",
+      "alt_backends": [],
+      "requires_comfyui": false,
+      "size_mb_approx": 799,
+      "quant_variants": [
+        "fp32 ONNX 555MB swapper + ArcFace w600k_r50 174MB (identity embedding) + YuNet 0.23MB (detector) + XSeg-1 70MB (occlusion mask)"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 2,
+        "min_ram_gb": 4,
+        "os_arch": [
+          "linux/amd64",
+          "linux/arm64",
+          "darwin/arm64",
+          "windows/amd64"
+        ],
+        "speed_note": "Not yet measured."
+      },
+      "io": {
+        "native_resolution": "128x128 aligned face",
+        "notes": "Takes a target image and a reference (source) face image. Detects faces with the bundled YuNet ONNX, embeds the source face with ArcFace, swaps each selected target face (largest first, or a chosen index / all) and pastes it back through a feathered box mask intersected with an XSeg occlusion mask. Exit 9 when no face is found in either image."
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "InsightFace non-commercial research terms",
+        "commercial_use": "no",
+        "commercial_use_notes": "InsightFace inswapper_128 is labelled InsightFace non-commercial research terms; the ArcFace embedder (InsightFace buffalo_l w600k_r50) is non-commercial research only, XSeg is DeepFaceLab-derived. Operator stance 2026-11-21: normal local use ignores the license class; monetized, hosted-for-others and redistributed use stay refused by the shared rights evaluator until explicit grants exist.",
+        "base_model_lineage": "InsightFace inswapper_128 via facefusion/facefusion-assets models-3.0.0",
+        "known_risks": "Identity substitution of real people: face swap is SFW-only in this tool's policy and non-local routes need a consent affirmation. Weights are non-commercial."
+      },
+      "source": {
+        "download_url": "",
+        "source_repo": "https://github.com/facefusion/facefusion",
+        "docs_url": "https://docs.facefusion.io",
+        "update_source": "https://github.com/facefusion/facefusion-assets/releases/tag/models-3.0.0",
+        "assets": [
+          {
+            "url": "https://github.com/facefusion/facefusion-assets/releases/download/models-3.0.0/inswapper_128.onnx",
+            "filename": "inswapper_128.onnx",
+            "kind": "onnx",
+            "min_bytes": 553000000,
+            "sha256": "a290273ed497312095dac48cdef20feec9d5208298223dd01288ab202b54bea7"
+          },
+          {
+            "url": "https://github.com/facefusion/facefusion-assets/releases/download/models-3.0.0/arcface_w600k_r50.onnx",
+            "filename": "arcface_w600k_r50.onnx",
+            "kind": "onnx",
+            "min_bytes": 174000000,
+            "sha256": "f1f79dc3b0b79a69f94799af1fffebff09fbd78fd96a275fd8f0cbbea23270d1"
+          },
+          {
+            "url": "https://media.githubusercontent.com/media/opencv/opencv_zoo/f12e12798e8314f7c074a6656816c048dcc95b7a/models/face_detection_yunet/face_detection_yunet_2023mar.onnx",
+            "filename": "face_detection_yunet_2023mar.onnx",
+            "kind": "onnx",
+            "min_bytes": 230000,
+            "sha256": "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4"
+          },
+          {
+            "url": "https://github.com/facefusion/facefusion-assets/releases/download/models-3.1.0/xseg_1.onnx",
+            "filename": "xseg_1.onnx",
+            "kind": "onnx",
+            "min_bytes": 70000000,
+            "sha256": "c4d1498b8a03b5fe2a3a5d2ef2a0402ab03bd51edaf5b2d8d5fb764702a97dd3"
+          }
+        ],
+        "checksum": {
+          "algo": "sha256",
+          "value": "a290273ed497312095dac48cdef20feec9d5208298223dd01288ab202b54bea7",
+          "status": "pinned"
+        }
+      },
+      "enabled": true,
+      "rights": {
+        "artifact_id": "inswapper-128",
+        "revision": "models-3.0.0",
+        "sha256": "a290273ed497312095dac48cdef20feec9d5208298223dd01288ab202b54bea7",
+        "license_id": "InsightFace non-commercial research terms",
+        "classification": "prohibited",
+        "evidence": {
+          "url": "https://github.com/facefusion/facefusion/blob/358f169e95e2b02431722cc287db8acda6658df1/facefusion/processors/modules/face_swapper/core.py",
+          "revision": "358f169e95e2b02431722cc287db8acda6658df1",
+          "sha256": "e756d860282d9ef6e30d101af9f4d4ae546b5c41d639d7ac0846011e28a95596",
+          "observed_at": "2026-11-21"
+        },
+        "obligations": [
+          "InsightFace inswapper_128 is licensed InsightFace non-commercial research terms (FaceFusion's model metadata); the bundled ArcFace embedder is InsightFace non-commercial research only. Obtain the owners' grants before any monetized or hosted-for-others use.",
+          "If redistributing the weights: carry each owner's license terms and obtain owner attestation first."
+        ],
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "use_purpose_changed",
+          "review_due"
+        ]
+      }
+    },
+    {
+      "id": "alphaface-256",
+      "name": "AlphaFace (face swap, 256 px)",
+      "operations": [
+        "face_swap"
+      ],
+      "default_for": [],
+      "tier": "default-variant",
+      "backend": "onnxruntime",
+      "alt_backends": [],
+      "requires_comfyui": false,
+      "size_mb_approx": 799,
+      "quant_variants": [
+        "fp32 ONNX 555MB swapper + ArcFace w600k_r50 174MB (identity embedding) + YuNet 0.23MB (detector) + XSeg-1 70MB (occlusion mask)"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 2,
+        "min_ram_gb": 4,
+        "os_arch": [
+          "linux/amd64",
+          "linux/arm64",
+          "darwin/arm64",
+          "windows/amd64"
+        ],
+        "speed_note": "Not yet measured."
+      },
+      "io": {
+        "native_resolution": "256x256 aligned face",
+        "notes": "Takes a target image and a reference (source) face image. Detects faces with the bundled YuNet ONNX, embeds the source face with ArcFace, swaps each selected target face (largest first, or a chosen index / all) and pastes it back through a feathered box mask intersected with an XSeg occlusion mask. Exit 9 when no face is found in either image."
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "Non-commercial (FaceFusion model metadata)",
+        "commercial_use": "no",
+        "commercial_use_notes": "AlphaFace is labelled Non-commercial (FaceFusion model metadata); the ArcFace embedder (InsightFace buffalo_l w600k_r50) is non-commercial research only, XSeg is DeepFaceLab-derived. Operator stance 2026-11-21: normal local use ignores the license class; monetized, hosted-for-others and redistributed use stay refused by the shared rights evaluator until explicit grants exist.",
+        "base_model_lineage": "AlphaFace via facefusion/facefusion-assets models-3.9.0",
+        "known_risks": "Identity substitution of real people: face swap is SFW-only in this tool's policy and non-local routes need a consent affirmation. Weights are non-commercial."
+      },
+      "source": {
+        "download_url": "",
+        "source_repo": "https://github.com/facefusion/facefusion",
+        "docs_url": "https://docs.facefusion.io",
+        "update_source": "https://github.com/facefusion/facefusion-assets/releases/tag/models-3.9.0",
+        "assets": [
+          {
+            "url": "https://github.com/facefusion/facefusion-assets/releases/download/models-3.9.0/alphaface_256.onnx",
+            "filename": "alphaface_256.onnx",
+            "kind": "onnx",
+            "min_bytes": 553000000,
+            "sha256": "efcca3ffa1c28b75a007f689b39f7d4716c02810e7fa72d892e175f0b058a2e2"
+          },
+          {
+            "url": "https://github.com/facefusion/facefusion-assets/releases/download/models-3.0.0/arcface_w600k_r50.onnx",
+            "filename": "arcface_w600k_r50.onnx",
+            "kind": "onnx",
+            "min_bytes": 174000000,
+            "sha256": "f1f79dc3b0b79a69f94799af1fffebff09fbd78fd96a275fd8f0cbbea23270d1"
+          },
+          {
+            "url": "https://media.githubusercontent.com/media/opencv/opencv_zoo/f12e12798e8314f7c074a6656816c048dcc95b7a/models/face_detection_yunet/face_detection_yunet_2023mar.onnx",
+            "filename": "face_detection_yunet_2023mar.onnx",
+            "kind": "onnx",
+            "min_bytes": 230000,
+            "sha256": "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4"
+          },
+          {
+            "url": "https://github.com/facefusion/facefusion-assets/releases/download/models-3.1.0/xseg_1.onnx",
+            "filename": "xseg_1.onnx",
+            "kind": "onnx",
+            "min_bytes": 70000000,
+            "sha256": "c4d1498b8a03b5fe2a3a5d2ef2a0402ab03bd51edaf5b2d8d5fb764702a97dd3"
+          }
+        ],
+        "checksum": {
+          "algo": "sha256",
+          "value": "efcca3ffa1c28b75a007f689b39f7d4716c02810e7fa72d892e175f0b058a2e2",
+          "status": "pinned"
+        }
+      },
+      "enabled": true,
+      "rights": {
+        "artifact_id": "alphaface-256",
+        "revision": "models-3.9.0",
+        "sha256": "efcca3ffa1c28b75a007f689b39f7d4716c02810e7fa72d892e175f0b058a2e2",
+        "license_id": "Non-commercial (FaceFusion model metadata)",
+        "classification": "prohibited",
+        "evidence": {
+          "url": "https://github.com/facefusion/facefusion/blob/358f169e95e2b02431722cc287db8acda6658df1/facefusion/processors/modules/face_swapper/core.py",
+          "revision": "358f169e95e2b02431722cc287db8acda6658df1",
+          "sha256": "e756d860282d9ef6e30d101af9f4d4ae546b5c41d639d7ac0846011e28a95596",
+          "observed_at": "2026-11-21"
+        },
+        "obligations": [
+          "AlphaFace is licensed Non-commercial (FaceFusion model metadata) (FaceFusion's model metadata); the bundled ArcFace embedder is InsightFace non-commercial research only. Obtain the owners' grants before any monetized or hosted-for-others use.",
+          "If redistributing the weights: carry each owner's license terms and obtain owner attestation first."
+        ],
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "use_purpose_changed",
+          "review_due"
+        ]
+      }
+    },
+    {
       "id": "ip-adapter-faceid-sd15",
       "name": "IP-Adapter FaceID face-transfer stack (SD 1.5)",
       "operations": [
@@ -4560,6 +6082,452 @@
           "review_due"
         ]
       }
+    },
+    {
+      "id": "lustify-sdxl-v9",
+      "name": "LUSTIFY! SDXL NSFW v9 (Zenith)",
+      "operations": [
+        "text_to_image",
+        "image_to_image",
+        "inpaint"
+      ],
+      "architecture": "sdxl",
+      "default_for": [],
+      "tier": "nice-to-have",
+      "backend": "diffusers",
+      "alt_backends": [],
+      "requires_comfyui": false,
+      "size_mb_approx": 6900,
+      "quant_variants": [
+        "fp16 diffusers repo (~6.9GB). GGUF/fp8 community quants exist but are not used."
+      ],
+      "hardware": {
+        "cpu_capable": false,
+        "gpu_required": true,
+        "min_vram_gb": 6,
+        "min_ram_gb": 12,
+        "os_arch": [
+          "linux/amd64",
+          "windows/amd64"
+        ],
+        "speed_note": "SDXL fp16 on an RTX 4070 Ti SUPER with ~6GB free streams the UNet with sequential CPU offload; tens of seconds per 1024px image."
+      },
+      "io": {
+        "native_resolution": "1024x1024",
+        "notes": "Photorealistic NSFW/SFW SDXL checkpoint. Prompt in natural sentences or tags; CFG 4-7, 30 steps. inpaint is the derived StableDiffusionXLInpaintPipeline over these base weights."
+      },
+      "capability_labels": {
+        "nsfw_capable": true,
+        "explicit_use_only": true,
+        "license": "CreativeML OpenRAIL++-M (SDXL derivative; the community mirror carries no licence file)",
+        "commercial_use": "conditional",
+        "commercial_use_notes": "Community checkpoint; licence not reviewed. Local use is unrestricted; hosting or selling outputs needs a review.",
+        "base_model_lineage": "SDXL 1.0 fine-tune (LUSTIFY by coyotte508, CivitAI zenithV9); diffusers mirror kkkkk26/lustify_v9",
+        "known_risks": "Uncensored: generates explicit adult content when asked. Fictional adults only; the scenario's bundled minor-safety reviewer refuses sexual output with a minor-appearing subject on every tier. Runs only when named (explicit_use_only)."
+      },
+      "source": {
+        "download_url": "https://huggingface.co/kkkkk26/lustify_v9",
+        "source_repo": "https://huggingface.co/kkkkk26/lustify_v9",
+        "docs_url": "https://civitai.com/models/573152/lustify-sdxl-nsfw-checkpoint",
+        "update_source": "https://huggingface.co/kkkkk26/lustify_v9",
+        "checksum": {
+          "algo": "sha256",
+          "value": "",
+          "status": "unverified-capture-on-download"
+        },
+        "repo": {
+          "repo_id": "kkkkk26/lustify_v9",
+          "revision": "7587dc094840a60851b073d85e9c27c6a56479b0",
+          "allow_patterns": [
+            "model_index.json",
+            "scheduler/*",
+            "text_encoder/*",
+            "text_encoder_2/*",
+            "tokenizer/*",
+            "tokenizer_2/*",
+            "unet/*",
+            "vae/*"
+          ],
+          "file_sha256": {
+            "unet/diffusion_pytorch_model.safetensors": "bc8fbc07097bcb0c3d158ad0035f2f844930363c20ae316089fe186fd1fd63a6",
+            "text_encoder/model.safetensors": "e2067aa5c75fc74dbfac23737b1b761be97a4f64b7c53f206f797b555ec75c7d",
+            "text_encoder_2/model.safetensors": "ae2c5a9d7c2ce654247a4573f03668bcacc36cc1a902d6df0fe2ea11a3bf23b5",
+            "vae/diffusion_pytorch_model.safetensors": "873ed731f4ab2c76df0e3f31df9dfb91a56e96185e7d2212a08e3ed08a1c476f"
+          }
+        }
+      },
+      "enabled": true,
+      "rights": {
+        "artifact_id": "lustify-sdxl-v9",
+        "revision": "7587dc094840a60851b073d85e9c27c6a56479b0",
+        "sha256": "bc8fbc07097bcb0c3d158ad0035f2f844930363c20ae316089fe186fd1fd63a6",
+        "license_id": "CreativeML OpenRAIL++-M (SDXL derivative; the community mirror carries no licence file)",
+        "classification": "unknown",
+        "unverified_reason": "community_checkpoint_license_not_reviewed",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
+    },
+    {
+      "id": "big-lust-v16",
+      "name": "BigLust v1.6 (SDXL)",
+      "operations": [
+        "text_to_image",
+        "image_to_image",
+        "inpaint"
+      ],
+      "architecture": "sdxl",
+      "default_for": [],
+      "tier": "nice-to-have",
+      "backend": "diffusers",
+      "alt_backends": [],
+      "requires_comfyui": false,
+      "size_mb_approx": 6900,
+      "quant_variants": [
+        "fp16 diffusers repo (~6.9GB). GGUF/fp8 community quants exist but are not used."
+      ],
+      "hardware": {
+        "cpu_capable": false,
+        "gpu_required": true,
+        "min_vram_gb": 6,
+        "min_ram_gb": 12,
+        "os_arch": [
+          "linux/amd64",
+          "windows/amd64"
+        ],
+        "speed_note": "Same footprint and speed class as the other SDXL checkpoints (fp16 UNet ~5.1GB)."
+      },
+      "io": {
+        "native_resolution": "1024x1024",
+        "notes": "Photorealistic NSFW SDXL merge. Natural-language or tag prompts; CFG 4-6."
+      },
+      "capability_labels": {
+        "nsfw_capable": true,
+        "explicit_use_only": true,
+        "license": "CreativeML OpenRAIL-M",
+        "commercial_use": "conditional",
+        "commercial_use_notes": "Community merge; licence not reviewed (the conversion repo declares CreativeML OpenRAIL-M).",
+        "base_model_lineage": "SDXL 1.0 merge (BigLust v1.6 by lustlord, CivitAI); diffusers conversion John6666/big-lust-v16-sdxl",
+        "known_risks": "Uncensored: generates explicit adult content when asked. Fictional adults only; the scenario's bundled minor-safety reviewer refuses sexual output with a minor-appearing subject on every tier. Runs only when named (explicit_use_only)."
+      },
+      "source": {
+        "download_url": "https://huggingface.co/John6666/big-lust-v16-sdxl",
+        "source_repo": "https://huggingface.co/John6666/big-lust-v16-sdxl",
+        "docs_url": "https://civitai.com/models/575395/bigger-lust",
+        "update_source": "https://huggingface.co/John6666/big-lust-v16-sdxl",
+        "checksum": {
+          "algo": "sha256",
+          "value": "",
+          "status": "unverified-capture-on-download"
+        },
+        "repo": {
+          "repo_id": "John6666/big-lust-v16-sdxl",
+          "revision": "3085a3b2e0aa7a62cb0ad42b1111ec47d1f6d8cd",
+          "allow_patterns": [
+            "model_index.json",
+            "scheduler/*",
+            "text_encoder/*",
+            "text_encoder_2/*",
+            "tokenizer/*",
+            "tokenizer_2/*",
+            "unet/*",
+            "vae/*"
+          ],
+          "file_sha256": {
+            "unet/diffusion_pytorch_model.safetensors": "04d4f1eb18ffbbc06e680ac20897feaa1ab8becad3c106f692375b6339caa6e9",
+            "text_encoder/model.safetensors": "945238b56b4cef8c5311701d30ad66818277b607ad791278fdba0a7ef6fec5e6",
+            "text_encoder_2/model.safetensors": "56b8c6e0279c1bdaefa72429afbf71659c4b7d01821e3163808b055a266b7d1e",
+            "vae/diffusion_pytorch_model.safetensors": "6353737672c94b96174cb590f711eac6edf2fcce5b6e91aa9d73c5adc589ee48"
+          }
+        }
+      },
+      "enabled": true,
+      "rights": {
+        "artifact_id": "big-lust-v16",
+        "revision": "3085a3b2e0aa7a62cb0ad42b1111ec47d1f6d8cd",
+        "sha256": "04d4f1eb18ffbbc06e680ac20897feaa1ab8becad3c106f692375b6339caa6e9",
+        "license_id": "CreativeML OpenRAIL-M",
+        "classification": "unknown",
+        "unverified_reason": "community_checkpoint_license_not_reviewed",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
+    },
+    {
+      "id": "juggernaut-xl-v9",
+      "name": "Juggernaut XL v9 (RunDiffusion Photo v2)",
+      "operations": [
+        "text_to_image",
+        "image_to_image",
+        "inpaint"
+      ],
+      "architecture": "sdxl",
+      "default_for": [],
+      "tier": "nice-to-have",
+      "backend": "diffusers",
+      "alt_backends": [],
+      "requires_comfyui": false,
+      "size_mb_approx": 6900,
+      "quant_variants": [
+        "fp16 diffusers repo (~6.9GB). GGUF/fp8 community quants exist but are not used."
+      ],
+      "hardware": {
+        "cpu_capable": false,
+        "gpu_required": true,
+        "min_vram_gb": 6,
+        "min_ram_gb": 12,
+        "os_arch": [
+          "linux/amd64",
+          "windows/amd64"
+        ],
+        "speed_note": "Same footprint and speed class as the other SDXL checkpoints (fp16 UNet ~5.1GB)."
+      },
+      "io": {
+        "native_resolution": "1024x1024",
+        "notes": "General-purpose photoreal SDXL; the strongest SFW realism of the SDXL set and only mildly permissive on explicit content. Prompt with sentences; CFG 3-6."
+      },
+      "capability_labels": {
+        "nsfw_capable": true,
+        "explicit_use_only": true,
+        "license": "CreativeML OpenRAIL-M",
+        "commercial_use": "conditional",
+        "commercial_use_notes": "RunDiffusion publishes the repo under CreativeML OpenRAIL-M; commercial terms for the checkpoint itself are on the RunDiffusion page.",
+        "base_model_lineage": "SDXL 1.0 fine-tune (Juggernaut XL v9 by KandooAI, RunDiffusion)",
+        "known_risks": "Uncensored: generates explicit adult content when asked. Fictional adults only; the scenario's bundled minor-safety reviewer refuses sexual output with a minor-appearing subject on every tier. Runs only when named (explicit_use_only)."
+      },
+      "source": {
+        "download_url": "https://huggingface.co/RunDiffusion/Juggernaut-XL-v9",
+        "source_repo": "https://huggingface.co/RunDiffusion/Juggernaut-XL-v9",
+        "docs_url": "https://huggingface.co/RunDiffusion/Juggernaut-XL-v9",
+        "update_source": "https://huggingface.co/RunDiffusion/Juggernaut-XL-v9",
+        "checksum": {
+          "algo": "sha256",
+          "value": "",
+          "status": "unverified-capture-on-download"
+        },
+        "repo": {
+          "repo_id": "RunDiffusion/Juggernaut-XL-v9",
+          "revision": "cf419233522daa0b9ea36c3aff98fa2cab1fb0fb",
+          "allow_patterns": [
+            "model_index.json",
+            "scheduler/*",
+            "text_encoder/config.json",
+            "text_encoder/*.fp16.safetensors",
+            "text_encoder_2/config.json",
+            "text_encoder_2/*.fp16.safetensors",
+            "unet/config.json",
+            "unet/*.fp16.safetensors",
+            "vae/config.json",
+            "vae/*.fp16.safetensors",
+            "tokenizer/*",
+            "tokenizer_2/*"
+          ],
+          "file_sha256": {
+            "unet/diffusion_pytorch_model.fp16.safetensors": "cf1ee18eb36712683f50c1e674634875e2adf7413d7492d5f9aa7e69e1a8c17a",
+            "text_encoder/model.fp16.safetensors": "698656aa4f452e1f8f38287240054a9b8d339b3051ec17d77d63bdb5605db01a",
+            "text_encoder_2/model.fp16.safetensors": "9962c194f50a9c580ebe573f2a4756d76dcd29abe15bffb0a5905509eb6a8dda",
+            "vae/diffusion_pytorch_model.fp16.safetensors": "6353737672c94b96174cb590f711eac6edf2fcce5b6e91aa9d73c5adc589ee48"
+          }
+        }
+      },
+      "runtime": {
+        "variant": "fp16"
+      },
+      "enabled": true,
+      "rights": {
+        "artifact_id": "juggernaut-xl-v9",
+        "revision": "cf419233522daa0b9ea36c3aff98fa2cab1fb0fb",
+        "sha256": "cf1ee18eb36712683f50c1e674634875e2adf7413d7492d5f9aa7e69e1a8c17a",
+        "license_id": "CreativeML OpenRAIL-M",
+        "classification": "unknown",
+        "unverified_reason": "community_checkpoint_license_not_reviewed",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
+    },
+    {
+      "id": "illustrious-xl-v0.1",
+      "name": "Illustrious XL v0.1 (anime/illustration)",
+      "operations": [
+        "text_to_image",
+        "image_to_image",
+        "inpaint"
+      ],
+      "architecture": "sdxl",
+      "default_for": [],
+      "tier": "nice-to-have",
+      "backend": "diffusers",
+      "alt_backends": [],
+      "requires_comfyui": false,
+      "size_mb_approx": 6900,
+      "quant_variants": [
+        "fp16 diffusers repo (~6.9GB). GGUF/fp8 community quants exist but are not used."
+      ],
+      "hardware": {
+        "cpu_capable": false,
+        "gpu_required": true,
+        "min_vram_gb": 6,
+        "min_ram_gb": 12,
+        "os_arch": [
+          "linux/amd64",
+          "windows/amd64"
+        ],
+        "speed_note": "Same footprint and speed class as the other SDXL checkpoints (fp16 UNet ~5.1GB)."
+      },
+      "io": {
+        "native_resolution": "1024x1024",
+        "notes": "Anime/illustration style option. Danbooru-style tag prompts work best (comma separated tags, e.g. '1woman, adult, ...'); CFG 5-7, 28-30 steps. Not photorealistic."
+      },
+      "capability_labels": {
+        "nsfw_capable": true,
+        "explicit_use_only": true,
+        "license": "Illustrious TERM_OF_USE (Fair AI Public License 1.0-SD derivative)",
+        "commercial_use": "conditional",
+        "commercial_use_notes": "Illustrious TERM_OF_USE restricts some commercial use; not reviewed. Local use is unrestricted.",
+        "base_model_lineage": "SDXL 1.0 continued-training on Danbooru-style data (Onoma AI Illustrious XL v0.1)",
+        "known_risks": "Uncensored: generates explicit adult content when asked. Fictional adults only; the scenario's bundled minor-safety reviewer refuses sexual output with a minor-appearing subject on every tier. Runs only when named (explicit_use_only)."
+      },
+      "source": {
+        "download_url": "https://huggingface.co/OnomaAIResearch/Illustrious-xl-early-release-v0",
+        "source_repo": "https://huggingface.co/OnomaAIResearch/Illustrious-xl-early-release-v0",
+        "docs_url": "https://huggingface.co/OnomaAIResearch/Illustrious-xl-early-release-v0/blob/main/TERM_OF_USE",
+        "update_source": "https://huggingface.co/OnomaAIResearch/Illustrious-xl-early-release-v0",
+        "checksum": {
+          "algo": "sha256",
+          "value": "",
+          "status": "unverified-capture-on-download"
+        },
+        "repo": {
+          "repo_id": "OnomaAIResearch/Illustrious-xl-early-release-v0",
+          "revision": "dca0dac303e6dc4b0c31d8001bc685b89b5d0204",
+          "allow_patterns": [
+            "model_index.json",
+            "scheduler/*",
+            "text_encoder/config.json",
+            "text_encoder/model.safetensors",
+            "text_encoder_2/config.json",
+            "text_encoder_2/model.safetensors",
+            "tokenizer/*",
+            "tokenizer_2/*",
+            "unet/config.json",
+            "unet/diffusion_pytorch_model.safetensors",
+            "vae/config.json",
+            "vae/diffusion_pytorch_model.safetensors"
+          ],
+          "file_sha256": {
+            "unet/diffusion_pytorch_model.safetensors": "29c786282e39bc85776ec7581a1722d0ec3e931e8fae65ea55b7c0c52b72005e",
+            "text_encoder/model.safetensors": "f8480c7d1b3ee29a5a9922d5c088dfbfc6d5b94c8d7312892eacfe7a880052cc",
+            "text_encoder_2/model.safetensors": "b3869d29e594963c7638f6259e739f11a811b0dd9eb3e354f2c348a5f8fc4c7b",
+            "vae/diffusion_pytorch_model.safetensors": "6353737672c94b96174cb590f711eac6edf2fcce5b6e91aa9d73c5adc589ee48"
+          }
+        }
+      },
+      "enabled": true,
+      "rights": {
+        "artifact_id": "illustrious-xl-v0.1",
+        "revision": "dca0dac303e6dc4b0c31d8001bc685b89b5d0204",
+        "sha256": "29c786282e39bc85776ec7581a1722d0ec3e931e8fae65ea55b7c0c52b72005e",
+        "license_id": "Illustrious TERM_OF_USE (Fair AI Public License 1.0-SD derivative)",
+        "classification": "unknown",
+        "unverified_reason": "community_checkpoint_license_not_reviewed",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
+    },
+    {
+      "id": "fairface-vit-age",
+      "name": "FairFace ViT age classifier (minor-safety reviewer)",
+      "operations": [
+        "age_estimate"
+      ],
+      "default_for": [
+        "age_estimate"
+      ],
+      "tier": "default",
+      "backend": "onnxruntime",
+      "alt_backends": [],
+      "requires_comfyui": false,
+      "size_mb_approx": 344,
+      "quant_variants": [
+        "f32 ~343MB (fp16 172MB / int8 87MB exports exist; the f32 is used so the age finding is not degraded)"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 2,
+        "os_arch": [
+          "linux/amd64",
+          "linux/arm64",
+          "darwin/arm64",
+          "windows/amd64"
+        ],
+        "speed_note": "ViT-base at 224px; a few hundred ms per face crop on the CPU."
+      },
+      "io": {
+        "native_resolution": "224x224",
+        "notes": "Takes a face crop and returns nine FairFace age-bin probabilities (0-2, 3-9, 10-19, 20-29, 30-39, 40-49, 50-59, 60-69, 70+). Age BINS, not identity: it never recognises anyone. Used by the bundled minor-safety reviewer, not a general age tool; the 10-19 bin cannot separate 17 from 19, which is why the reviewer treats the whole bin as minor mass."
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "Apache-2.0",
+        "commercial_use": "yes",
+        "commercial_use_notes": "Apache-2.0 per the dima806/fairface_age_image_detection card (ViT-base-in21k fine-tuned on FairFace, CC BY 4.0).",
+        "base_model_lineage": "google/vit-base-patch16-224-in21k fine-tuned on FairFace (dima806/fairface_age_image_detection); ONNX export by onnx-community",
+        "known_risks": "About 59% nine-bin accuracy on FairFace; weaker on adults 20-29 vs the 10-19 bin and on faces unlike its training data. The reviewer ensembles it with face-size and unassessable-image rules and measured recall/false-positive numbers are in docs/internal/SECURITY.md."
+      },
+      "source": {
+        "download_url": "https://huggingface.co/onnx-community/fairface_age_image_detection-ONNX",
+        "source_repo": "https://huggingface.co/dima806/fairface_age_image_detection",
+        "docs_url": "https://huggingface.co/dima806/fairface_age_image_detection",
+        "update_source": "https://huggingface.co/onnx-community/fairface_age_image_detection-ONNX",
+        "assets": [
+          {
+            "url": "https://huggingface.co/onnx-community/fairface_age_image_detection-ONNX/resolve/fd04cddf04982f6acc1ac76fb1a31b44c9285596/onnx/model.onnx",
+            "filename": "model.onnx",
+            "kind": "onnx",
+            "min_bytes": 340000000,
+            "sha256": "7f28fc7e890b4c21bf48f65d9985cefaea3430c28df1391e4f91293c0d89555a"
+          },
+          {
+            "url": "https://huggingface.co/onnx-community/fairface_age_image_detection-ONNX/resolve/fd04cddf04982f6acc1ac76fb1a31b44c9285596/config.json",
+            "filename": "config.json",
+            "kind": "config",
+            "min_bytes": 500
+          }
+        ],
+        "checksum": {
+          "algo": "sha256",
+          "value": "",
+          "status": "unverified-capture-on-download"
+        }
+      },
+      "enabled": true,
+      "rights": {
+        "artifact_id": "fairface-vit-age",
+        "revision": "fd04cddf04982f6acc1ac76fb1a31b44c9285596",
+        "sha256": "7f28fc7e890b4c21bf48f65d9985cefaea3430c28df1391e4f91293c0d89555a",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
     }
   ],
   "blocklist": [
@@ -4569,7 +6537,13 @@
         "face_restore"
       ],
       "license": "S-Lab License 1.0",
-      "reason": "NON-COMMERCIAL. The most-recommended face restorer online; ships in countless web UIs — high accidental-adoption risk. Use restoreformer-plus-plus.",
+      "gate": "license",
+      "gated_uses": [
+        "monetized_use",
+        "hosted_inference",
+        "redistribute_weights"
+      ],
+      "reason": "S-Lab License 1.0 is non-commercial. Seeded as the `codeformer` face_restore row for normal use; monetized, hosted and redistributed use stay refused until the authors grant them.",
       "exporting_onnx_removes_restriction": false
     },
     {
@@ -4578,7 +6552,13 @@
         "face_restore"
       ],
       "license": "Apache-2.0 (deceptive)",
-      "reason": "Embeds StyleGAN2 (NVIDIA non-commercial) + DFDNet (CC-BY-NC-SA). ncnn-vulkan port is GPL-3.0. Excluded by policy in favor of restoreformer-plus-plus.",
+      "gate": "license",
+      "gated_uses": [
+        "monetized_use",
+        "hosted_inference",
+        "redistribute_weights"
+      ],
+      "reason": "Repository says Apache-2.0, but the weights embed StyleGAN2 (NVIDIA non-commercial) and DFDNet (CC-BY-NC-SA); the ncnn-vulkan port is GPL-3.0. Normal use is fine if seeded; monetized use needs a clean grant. Not seeded: RestoreFormer++ and CodeFormer already cover face_restore.",
       "exporting_onnx_removes_restriction": false
     },
     {
@@ -4587,7 +6567,13 @@
         "background_removal"
       ],
       "license": "CC-BY-NC-4.0",
-      "reason": "Non-commercial; BUNDLED inside rembg's model zoo, so block explicitly. Commercial needs a paid BRIA agreement. Use isnet/u2netp/birefnet.",
+      "gate": "license",
+      "gated_uses": [
+        "monetized_use",
+        "hosted_inference",
+        "redistribute_weights"
+      ],
+      "reason": "CC-BY-NC-4.0, bundled inside rembg's model zoo. Normal use is fine; monetized use needs a paid BRIA agreement (license-clean alternatives: isnet, u2netp, birefnet).",
       "exporting_onnx_removes_restriction": false
     },
     {
@@ -4596,7 +6582,13 @@
         "segment"
       ],
       "license": "AGPL-3.0",
-      "reason": "Built on Ultralytics YOLOv8 (AGPL). README's stray 'Apache' line is wrong. Use mobilesam/sam2.",
+      "gate": "license",
+      "gated_uses": [
+        "hosted_inference",
+        "redistribute_weights",
+        "distribute_runtime"
+      ],
+      "reason": "Built on Ultralytics YOLOv8 (AGPL-3.0; the README's stray 'Apache' line is wrong). Normal local use is fine; hosting it for others or shipping it brings AGPL source obligations (license-clean alternatives: mobilesam, sam2).",
       "exporting_onnx_removes_restriction": false
     },
     {
@@ -4605,7 +6597,13 @@
         "object_detection"
       ],
       "license": "AGPL-3.0",
-      "reason": "Forces open-sourcing your whole backend (or a paid Enterprise license). Exporting to ONNX does NOT remove AGPL. Use yolox/nanodet.",
+      "gate": "license",
+      "gated_uses": [
+        "hosted_inference",
+        "redistribute_weights",
+        "distribute_runtime"
+      ],
+      "reason": "AGPL-3.0: hosting for others or shipping it requires open-sourcing the serving stack or a paid Enterprise license; exporting to ONNX does not remove AGPL. Normal local use is fine (license-clean alternatives: yolox, nanodet).",
       "exporting_onnx_removes_restriction": false
     },
     {
@@ -4614,7 +6612,13 @@
         "object_detection"
       ],
       "license": "lib Apache / weights Deci non-commercial",
-      "reason": "Weights are non-commercial even though the lib is Apache. Check weights separately from code.",
+      "gate": "license",
+      "gated_uses": [
+        "monetized_use",
+        "hosted_inference",
+        "redistribute_weights"
+      ],
+      "reason": "Library is Apache-2.0 but the pretrained weights are Deci non-commercial; check weights separately from code. Normal use is fine; monetized use needs a weights grant.",
       "exporting_onnx_removes_restriction": false
     },
     {
@@ -4623,7 +6627,13 @@
         "face_detection"
       ],
       "license": "code Apache/MIT / weights non-commercial",
-      "reason": "Pretrained weights are research-only; commercial needs a paid license from insightface.ai. Use yunet.",
+      "gate": "license",
+      "gated_uses": [
+        "monetized_use",
+        "hosted_inference",
+        "redistribute_weights"
+      ],
+      "reason": "Code is Apache/MIT but the pretrained weights are research-only; monetized use needs a paid insightface.ai license. Normal use is fine (license-clean alternative: yunet).",
       "exporting_onnx_removes_restriction": false
     },
     {
@@ -4632,7 +6642,12 @@
         "ocr"
       ],
       "license": "code Apache / weights OpenRAIL-M revenue-capped (<$5M)",
-      "reason": "LICENSE file shows only Apache; revenue cap hidden in README. Use tesseract/paddleocr.",
+      "gate": "license",
+      "gated_uses": [
+        "monetized_use",
+        "hosted_inference"
+      ],
+      "reason": "Code is Apache-2.0 but the weights are OpenRAIL-M with a revenue cap (<$5M) stated only in the README. Normal use is fine; monetized use above the cap needs a grant (alternatives: tesseract, paddleocr).",
       "exporting_onnx_removes_restriction": false
     },
     {
@@ -4641,7 +6656,13 @@
         "upscale"
       ],
       "license": "CC-BY-NC-SA-4.0",
-      "reason": "Most popular community ESRGAN .pth (4x-UltraSharp, Remacri, etc.) are non-commercial despite 'mit' mislabels on mirrors. Use official Real-ESRGAN weights only; audit every .pth.",
+      "gate": "license",
+      "gated_uses": [
+        "monetized_use",
+        "hosted_inference",
+        "redistribute_weights"
+      ],
+      "reason": "Most popular community ESRGAN .pth files (4x-UltraSharp, Remacri, ...) are CC-BY-NC-SA-4.0 despite 'mit' labels on mirrors; audit every .pth. Normal use is fine; monetized use needs the official Real-ESRGAN weights.",
       "exporting_onnx_removes_restriction": false
     },
     {
@@ -4650,7 +6671,13 @@
         "upscale"
       ],
       "license": "custom non-commercial",
-      "reason": "Non-commercial AND GPU-only (~12-30GB VRAM). Commercial needs a paid SupPixel license.",
+      "gate": "license",
+      "gated_uses": [
+        "monetized_use",
+        "hosted_inference",
+        "redistribute_weights"
+      ],
+      "reason": "Custom non-commercial license; monetized use needs a paid SupPixel license. Normal use is fine. Not seeded yet: it is GPU-only (~12-30GB VRAM), which is a fit question for the 16GB shared GPU, not a license one.",
       "exporting_onnx_removes_restriction": false
     },
     {
@@ -4659,7 +6686,13 @@
         "upscale"
       ],
       "license": "GPL-3.0 + academic-only weights",
-      "reason": "GPL is copyleft-viral; weights are academic-only.",
+      "gate": "license",
+      "gated_uses": [
+        "monetized_use",
+        "hosted_inference",
+        "redistribute_weights"
+      ],
+      "reason": "Code is GPL-3.0 and the weights are academic-only. Normal use is fine; monetized use and redistribution need a grant.",
       "exporting_onnx_removes_restriction": false
     },
     {
@@ -4668,7 +6701,13 @@
         "object_removal"
       ],
       "license": "CC-BY-NC-4.0",
-      "reason": "IOPaint marks it 'recommended' but it's non-commercial. Use mi-gan/big-lama.",
+      "gate": "license",
+      "gated_uses": [
+        "monetized_use",
+        "hosted_inference",
+        "redistribute_weights"
+      ],
+      "reason": "CC-BY-NC-4.0 (IOPaint marks it 'recommended'). Normal use is fine; monetized use needs a grant (license-clean alternatives: mi-gan, big-lama).",
       "exporting_onnx_removes_restriction": false
     },
     {
@@ -4678,16 +6717,9 @@
         "inpaint"
       ],
       "license": "FLUX [dev] non-commercial",
-      "reason": "Needs a paid BFL license. Use flux-1-schnell (Apache) for generation; commercial inpaint stays on SD checkpoints.",
-      "exporting_onnx_removes_restriction": false
-    },
-    {
-      "id": "flux-1-kontext-dev",
-      "operations": [
-        "edit_instruct"
-      ],
-      "license": "FLUX.1 Kontext [dev] Non-Commercial",
-      "reason": "The most-recommended local instruction editor, but the [dev] weights are non-commercial (commercial needs a paid BFL license). High accidental-adoption risk. Use qwen-image-edit (Apache) for the GPU quality tier; instruct-pix2pix (OpenRAIL) for the CPU default.",
+      "gate": "exclusion",
+      "exclusion_kind": "hardware_fit",
+      "reason": "Size/fit: FLUX.1 [dev] and Fill are 12B transformers plus T5-XXL (~33GB bf16), far beyond the 16GB GPU shared with Ollama (~8GB held); they could run only through staged CPU offload, as FLUX.1 Kontext [dev] does, at multi-minute latency, while FLUX.2 [klein] covers the same generation work faster. Their license (FLUX.1 [dev] Non-Commercial) would gate only monetized, hosted and redistributed use.",
       "exporting_onnx_removes_restriction": false
     },
     {
@@ -4696,7 +6728,13 @@
         "text_to_image"
       ],
       "license": "non-commercial",
-      "reason": "Non-commercial; also not supported by stable-diffusion.cpp.",
+      "gate": "license",
+      "gated_uses": [
+        "monetized_use",
+        "hosted_inference",
+        "redistribute_weights"
+      ],
+      "reason": "Stability non-commercial license. Normal use is fine; monetized use needs a Stability grant. Not seeded yet: stable-diffusion.cpp has no Stable Cascade support, so it would need a diffusers row.",
       "exporting_onnx_removes_restriction": false
     },
     {
@@ -4705,7 +6743,13 @@
         "background_replace"
       ],
       "license": "non-commercial (Flux-based)",
-      "reason": "V2 is non-commercial. Use IC-Light V1 (Apache) only.",
+      "gate": "license",
+      "gated_uses": [
+        "monetized_use",
+        "hosted_inference",
+        "redistribute_weights"
+      ],
+      "reason": "IC-Light V2 (Flux-based) is non-commercial; normal use is fine. Monetized use needs a grant (license-clean alternative: IC-Light V1, Apache).",
       "exporting_onnx_removes_restriction": false
     },
     {
@@ -4714,7 +6758,13 @@
         "depth_map"
       ],
       "license": "CC-BY-NC-4.0",
-      "reason": "Only V2 Small is Apache. For a commercial large tier use Depth-Anything V1 Large (Apache).",
+      "gate": "license",
+      "gated_uses": [
+        "monetized_use",
+        "hosted_inference",
+        "redistribute_weights"
+      ],
+      "reason": "Base/Large/Giant weights are CC-BY-NC-4.0 (only Small is Apache). Large is seeded as `depth-anything-v2-large`, the depth_map default for normal use; monetized use goes to depth-anything-v2-small or depth-anything-v1-large (Apache).",
       "exporting_onnx_removes_restriction": false
     },
     {
@@ -4723,7 +6773,13 @@
         "normal_map"
       ],
       "license": "custom non-commercial",
-      "reason": "Non-commercial with a 10-year expiry. Use normals-from-depth or marigold-normals.",
+      "gate": "license",
+      "gated_uses": [
+        "monetized_use",
+        "hosted_inference",
+        "redistribute_weights"
+      ],
+      "reason": "Custom non-commercial license with a 10-year expiry. Normal use is fine; monetized use needs a grant (alternatives: normals-from-depth, marigold-normals).",
       "exporting_onnx_removes_restriction": false
     },
     {
@@ -4732,7 +6788,12 @@
         "text_to_image"
       ],
       "license": "Stability Community (<$1M revenue gate)",
-      "reason": "EXCLUDED BY POLICY (stay gate-free). Usable only under $1M total org revenue. SD 1.5/SDXL/Flux-schnell have no cap.",
+      "gate": "license",
+      "gated_uses": [
+        "monetized_use",
+        "hosted_inference"
+      ],
+      "reason": "Stability Community License: free under $1M total annual organisation revenue, paid above it. Normal use is fine; monetized use above the cap needs an Enterprise license (no cap: SD 1.5, SDXL, FLUX.1 schnell).",
       "exporting_onnx_removes_restriction": false
     },
     {
@@ -4741,7 +6802,13 @@
         "caption"
       ],
       "license": "Qwen Research (non-commercial)",
-      "reason": "The 3B is non-commercial; the 7B is Apache. Never bundle the 3B. moondream2 is the default anyway.",
+      "gate": "license",
+      "gated_uses": [
+        "monetized_use",
+        "hosted_inference",
+        "redistribute_weights"
+      ],
+      "reason": "Qwen Research license (non-commercial) for the 3B; the 7B is Apache-2.0. Normal use is fine; never bundle the 3B in anything monetized or redistributed.",
       "exporting_onnx_removes_restriction": false
     },
     {
@@ -4750,7 +6817,13 @@
         "caption"
       ],
       "license": "wrapper Apache / weights Llama-Vicuna non-commercial",
-      "reason": "Weights are not freely commercial. Use moondream2/smolvlm.",
+      "gate": "license",
+      "gated_uses": [
+        "monetized_use",
+        "hosted_inference",
+        "redistribute_weights"
+      ],
+      "reason": "Wrapper is Apache-2.0 but the weights inherit Llama/Vicuna non-commercial terms. Normal use is fine; monetized use needs clean weights (alternatives: moondream2, smolvlm).",
       "exporting_onnx_removes_restriction": false
     },
     {
@@ -4759,7 +6832,13 @@
         "quality_assessment"
       ],
       "license": "PolyForm / NTU non-commercial",
-      "reason": "pyiqa toolbox weights are non-commercial despite CLIP being MIT. Use BRISQUE (opencv_contrib).",
+      "gate": "license",
+      "gated_uses": [
+        "monetized_use",
+        "hosted_inference",
+        "redistribute_weights"
+      ],
+      "reason": "pyiqa toolbox weights are PolyForm / NTU non-commercial even though CLIP is MIT. Normal use is fine; monetized use needs a grant (alternative: BRISQUE).",
       "exporting_onnx_removes_restriction": false
     },
     {
@@ -4768,7 +6847,12 @@
         "duplicate_detect"
       ],
       "license": "GPL-3.0",
-      "reason": "Copyleft. Use goimagehash (BSD-2).",
+      "gate": "license",
+      "gated_uses": [
+        "redistribute_weights",
+        "distribute_runtime"
+      ],
+      "reason": "GPL-3.0 library: linking it into a distributed binary makes that binary GPL. Normal local use is fine; the shipped binary uses goimagehash (BSD-2).",
       "exporting_onnx_removes_restriction": false
     },
     {
@@ -4777,7 +6861,12 @@
         "qr_barcode_read"
       ],
       "license": "GPL-3.0",
-      "reason": "Copyleft. Use gozxing (MIT).",
+      "gate": "license",
+      "gated_uses": [
+        "redistribute_weights",
+        "distribute_runtime"
+      ],
+      "reason": "GPL-3.0 library: linking it into a distributed binary makes that binary GPL. Normal local use is fine; the shipped binary uses gozxing (MIT).",
       "exporting_onnx_removes_restriction": false
     }
   ]

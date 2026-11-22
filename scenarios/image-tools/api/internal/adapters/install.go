@@ -173,6 +173,42 @@ func (in *Installer) useGate() *capacity.UseGate {
 	return &capacity.UseGate{Root: filepath.Join(in.Root, "adapters")}
 }
 
+// AdoptExisting records the install receipt for a catalog adapter whose files
+// already sit at <Root>/adapters/<id> without one, after validating them against
+// the catalog source. Nothing is moved or downloaded.
+func (in *Installer) AdoptExisting(ctx context.Context, id string) (InstallRecord, error) {
+	release, err := in.useGate().AcquireExclusive(id)
+	if err != nil {
+		return InstallRecord{}, err
+	}
+	defer release()
+	a, err := in.Resolve(ctx, id)
+	if err != nil {
+		return InstallRecord{}, err
+	}
+	if in.State == nil {
+		return InstallRecord{}, errors.New("adapters: durable install state is required to record a receipt")
+	}
+	if existing, ok, err := in.State.Get(ctx, id); err != nil {
+		return InstallRecord{}, err
+	} else if ok && existing.Installed && pathExists(existing.Path) {
+		return InstallRecord{}, fmt.Errorf("adapters: %q already has an install receipt", id)
+	}
+	dir := in.adapterDir(id)
+	if !dirExists(dir) {
+		return InstallRecord{}, fmt.Errorf("adapters: no files for %q at %s", id, dir)
+	}
+	sum, size, err := fetch.TreeManifestHash(dir)
+	if err != nil {
+		return InstallRecord{}, fmt.Errorf("adapters: hash %s: %w", dir, err)
+	}
+	if err := (fetch.Acquirer{}).ValidateInstalled(a.Source, dir, ""); err != nil {
+		return InstallRecord{}, fmt.Errorf("adapters: files at %s do not match the catalog source for %q: %w", dir, id, err)
+	}
+	rec := InstallRecord{ID: id, Installed: true, Path: dir, Checksum: sum, SizeBytes: size, InstalledAt: in.now()}
+	return rec, in.State.Set(ctx, rec)
+}
+
 func (in *Installer) Install(ctx context.Context, id string, emit func(int, string)) (InstallRecord, error) {
 	return in.InstallForJob(ctx, id, "", emit)
 }
@@ -225,7 +261,7 @@ func (in *Installer) InstallForJob(ctx context.Context, id, jobID string, emit f
 		if lease == nil {
 			return InstallRecord{}, fmt.Errorf("adapters: shared host disk admission returned no lease")
 		}
-		growthGuard, growthErr := fetch.NewDiskGrowthGuard(lease, request, 1, fetch.InstallOwnerCeilingBytes)
+		growthGuard, growthErr := fetch.NewDiskGrowthGuard(lease, request, 1, fetch.GrowthCeilingBytes(request))
 		if growthErr != nil {
 			return InstallRecord{}, fmt.Errorf("adapters: create bounded disk growth observer: %w", growthErr)
 		}

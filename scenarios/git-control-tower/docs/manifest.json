@@ -76,7 +76,7 @@
         {"path": "internal/RESEARCH.md", "docType": "research", "title": "Research", "description": "Research findings and open questions", "maturity": "draft", "requiredBy": ["oriented"], "completion": "optional"},
         {"path": "internal/CHANGES_LIST_REDESIGN.md", "docType": "redesign", "title": "Changes List Redesign", "description": "Diff-first workspace design evidence", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
         {"path": "internal/MOBILE_REGRESSION_ORACLE.md", "docType": "mobile-oracle", "title": "Mobile Regression Oracle", "description": "Responsive regression cases and expected behavior", "maturity": "active", "requiredBy": ["validated"], "completion": "required"},
-        {"path": "internal/CLOUDFLARE-ACCESS-INTEGRATION.md", "docType": "integration", "title": "Cloudflare Access Integration", "description": "Provider binding, authority behavior, and operator verification", "maturity": "active", "requiredBy": ["validated"], "completion": "required"}
+        {"path": "internal/CLOUDFLARE-ACCESS-INTEGRATION.md", "docType": "cloudflare-access-integration", "title": "Cloudflare Access Integration", "description": "Provider binding, authority behavior, and operator verification", "maturity": "active", "requiredBy": ["validated"], "completion": "required"}
       ]
     },
     {
@@ -84,7 +84,7 @@
       "title": "Performance",
       "documents": [
         {"path": "perf/2026-05-03-after-fixes.md", "docType": "performance-audit", "title": "Performance After Fixes", "description": "Measured performance comparison", "maturity": "active", "requiredBy": ["validated"], "completion": "required"},
-        {"path": "perf/2026-05-03-history-markdown-resize.md", "docType": "performance-audit", "title": "History Markdown Resize Audit", "description": "History and resize performance findings", "maturity": "active", "requiredBy": ["validated"], "completion": "required"}
+        {"path": "perf/2026-05-03-history-markdown-resize.md", "docType": "history-markdown-resize-audit", "title": "History Markdown Resize Audit", "description": "History and resize performance findings", "maturity": "active", "requiredBy": ["validated"], "completion": "required"}
       ]
     }
   ]

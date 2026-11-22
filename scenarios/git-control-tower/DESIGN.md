@@ -52,9 +52,10 @@ Do not stage, commit, push, reset or rewrite the real shared repository while
 implementing or validating this feature. Tests use isolated fixtures and routed
 test storage. Existing unrelated dirty files belong to their current authors.
 
-The source mockups are the approved `flow.html`/`flow-storyboard.png` concept in
-`/home/matthalloran8/.codex/artifacts/gct-staged-context-design/`. They illustrate
-the interaction, not a backend or a promise about production latency.
+The source mockups are the operator-approved `flow.html` and
+`flow-storyboard.png` files in the Codex artifact bundle
+`gct-staged-context-design`. They illustrate the interaction, not a backend or
+a promise about production latency.
 
 ### Desired behavior
 
@@ -474,8 +475,8 @@ links/uncertainty without rewriting historical commits. Continue retains work
 links and adds `Vrooli-Continues: <previous hash>`. Keep P/pN as a legacy display
 convention, not the authoritative relationship. Combined candidates retain source
 manifests via proposal links and every source work/evidence relationship.
-Wire owning effort/epoch/run/plan/backlog reads with truthful unavailable/private/
-deleted states. A supplied run ID is not a verified creator identity.
+Wire owning effort/epoch/run/plan/backlog reads with truthful `unavailable`,
+`private`, or `deleted` states. A supplied run ID is not a verified creator identity.
 
 ### Sequence, cleanup and acceptance
 
@@ -672,3 +673,82 @@ Blocked means a missing decision, credential or approval; name it. Keep going
 through friction, stepping back when an experiment stops providing information.
 Before handoff, review the boundary twice for correctness and unnecessary code.
 Report changed, verified and unverified behavior without claiming device proof.
+
+## Worktree surfaces — concept proposal awaiting ratification (2026-11-21)
+
+### Owner recommendation
+
+Extend the existing Rigel diff-first workspace with a **worktree ledger**: a
+calm, repository-scoped inventory where each checkout is a distinct workspace
+with an inspectable branch, path, current state, and safe next action. Keep the
+diff central on desktop. Use the existing header's repository context to open
+the ledger; selecting a checkout reveals its detail beside the list on desktop
+and as a sequential full-width detail view on mobile. Creation is an explicit
+short form, not an automatic checkout. No new top-level worktree route is
+proposed.
+
+### Shared content model and actions
+
+Each row/detail carries repository identity, canonical worktree path, branch,
+HEAD commit, main/linked identity, dirty/clean state, lock plus reason, and
+prunable/stale/unavailable state when known. Unknown or partial owner data must
+remain labeled unknown/stale/unavailable; it must not appear clean. Actions are
+Create (existing branch, new branch, or detached commit), Inspect, Lock,
+Unlock, Move, Remove, and report-only/Prune. A branch already present in
+`checked_out_in_worktree` disables switching and explains the owning path. All
+mutations keep the existing human authorization, dry-run, and confirmation
+behavior.
+
+Desktop composes the checkout list and selected details side by side. Mobile
+starts with the same full list and drills into one checkout at a time; its
+action bar stays within thumb reach. The mobile flow re-sequences all content,
+it does not omit state or actions. Confirmation states retain the exact
+repository, path, and action being approved.
+
+### Evidence and constraints
+
+- `docs/internal/PROBLEMS.md`, “Worktree Domain Follow-ups”: the UI feature
+  surface and claimed-branch tooltip remain open; only the audit item is
+  resolved in this batch.
+- `docs/concepts/ARCHITECTURE.md`, “Worktree Connect surface”: the generated
+  WorktreeService already exposes list/get/create/remove/lock/unlock/move/prune
+  at L3, and BranchService already returns `checked_out_in_worktree`.
+- `packages/proto/gen/typescript/git-control-tower/v1/worktree/worktree_pb.ts`
+  is the generated contract source for all list/detail/create fields and RPCs;
+  UI must consume the generated Connect-Web client, never hand-written types or
+  the REST migration residue.
+- Exact UI targets: `ui/src/components/StatusHeader.tsx` for entry point and
+  status badge; missing `WorktreeSidebar`, `WorktreeRow`, and
+  `CreateWorktreeModal`; `ui/src/components/BranchSelector.tsx` and its tests
+  for the claimed-branch guard. Preserve its active shared edits.
+- Existing design rules in this file keep repo identity and stale-state truth,
+  keep the diff as the primary desktop subject, and retain separate operator
+  authorization for human-control actions. Use current UI library primitives;
+  this proposal does not alter tokens or component-library primitives.
+
+### Consequences of alternatives
+
+- **Recommended: contextual ledger.** It completes the existing Worktree
+  domain with low navigation cost and keeps its list, detail, and actions
+  attached to the selected repository. On mobile, drill-in avoids squeezing a
+  second panel into the narrow workspace.
+- **New top-level Worktrees route.** It offers more room but makes checkout
+  management a separate destination, displaces the diff-first workspace, and
+  adds navigation/context switching for a bounded repository utility.
+- **Branch-selector-only tooltip.** It cheaply prevents one invalid switch,
+  but still leaves users unable to inspect, create, lock, move, prune, or remove
+  worktrees; the source surface explicitly tracks those missing capabilities.
+
+### Ratification sequence
+
+This is the concept checkpoint only. If the operator ratifies the recommended
+contextual ledger, the next artifact is a side-by-side desktop/mobile mockup
+for review. UI product code begins only after the operator also ratifies those
+mockups. No mockup or UI implementation is represented as approved here.
+
+Operator stance, verbatim: "we should be pointing a large amount of this two
+helping us increase our odds of success in the different opportunities that
+we are trying to pursue" (source: the operator to the agent building the
+portfolio steward in OPERATOR_BRIEF-2026-11-12.md (CHARTER.md § Stance) on
+2026-11-12 · quoted by the portfolio steward as context and never a verdict on
+this topic).

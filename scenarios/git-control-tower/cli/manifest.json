@@ -384,7 +384,42 @@
             "permissions": [
               "filesystem:read"
             ]
-          }
+          },
+          "flags": [
+            {
+              "name": "path",
+              "required": false,
+              "description": "Path to diff",
+              "bind": {
+                "field": "path"
+              }
+            },
+            {
+              "name": "staged",
+              "required": false,
+              "bool": true,
+              "description": "Show staged diff",
+              "bind": {
+                "field": "staged"
+              }
+            },
+            {
+              "name": "commit",
+              "required": false,
+              "description": "Full commit object ID for immutable source reads",
+              "bind": {
+                "field": "commit"
+              }
+            },
+            {
+              "name": "mode",
+              "required": false,
+              "description": "Source mode for immutable content reads",
+              "bind": {
+                "field": "mode"
+              }
+            }
+          ]
         },
         {
           "name": "blame",
@@ -401,7 +436,48 @@
               "filesystem:read",
               "network:internal"
             ]
-          }
+          },
+          "flags": [
+            {
+              "name": "path",
+              "required": true,
+              "repeatable": true,
+              "description": "Repository-relative path to attribute",
+              "bind": {
+                "field": "paths"
+              }
+            },
+            {
+              "name": "revision",
+              "required": false,
+              "description": "Commit or reference to blame",
+              "bind": {
+                "field": "revision"
+              }
+            },
+            {
+              "name": "start",
+              "required": false,
+              "description": "First line in the requested range",
+              "bind": {
+                "field": "start_line"
+              }
+            },
+            {
+              "name": "end",
+              "required": false,
+              "description": "Last line in the requested range",
+              "bind": {
+                "field": "end_line"
+              }
+            },
+            {
+              "name": "enrich",
+              "required": false,
+              "bool": true,
+              "description": "Add linked GCT evidence standings"
+            }
+          ]
         },
         {
           "name": "stage",
@@ -647,7 +723,14 @@
             "permissions": [
               "network:internal"
             ]
-          }
+          },
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario to summarize (for example git-control-tower)"
+            }
+          ]
         },
         {
           "name": "run",
@@ -661,7 +744,14 @@
             "permissions": [
               "network:internal"
             ]
-          }
+          },
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario to review"
+            }
+          ]
         },
         {
           "name": "status",
@@ -675,7 +765,14 @@
             "permissions": [
               "network:internal"
             ]
-          }
+          },
+          "positionals": [
+            {
+              "name": "job",
+              "required": true,
+              "description": "Review job ID"
+            }
+          ]
         }
       ]
     },
@@ -945,7 +1042,25 @@
             "permissions": [
               "filesystem:read"
             ]
-          }
+          },
+          "flags": [
+            {
+              "name": "effort",
+              "required": true,
+              "description": "Agent Manager effort reference"
+            },
+            {
+              "name": "epoch",
+              "required": true,
+              "description": "Epoch label such as E27"
+            },
+            {
+              "name": "scope",
+              "required": true,
+              "repeatable": true,
+              "description": "Path or glob in scope"
+            }
+          ]
         },
         {
           "name": "create",
@@ -961,7 +1076,110 @@
             "permissions": [
               "filesystem:read"
             ]
-          }
+          },
+          "flags": [
+            {
+              "name": "request-file",
+              "required": false,
+              "description": "CreateProposalRequest proto JSON"
+            },
+            {
+              "name": "effort",
+              "required": false,
+              "description": "Agent Manager effort reference"
+            },
+            {
+              "name": "effort-revision",
+              "required": false,
+              "description": "Effort revision"
+            },
+            {
+              "name": "epoch",
+              "required": false,
+              "description": "Epoch label"
+            },
+            {
+              "name": "anchor",
+              "required": false,
+              "description": "Existing anchor ID"
+            },
+            {
+              "name": "subject",
+              "required": false,
+              "description": "Proposal subject"
+            },
+            {
+              "name": "body",
+              "required": false,
+              "description": "Proposal body"
+            },
+            {
+              "name": "body-file",
+              "required": false,
+              "description": "Read proposal body from a file"
+            },
+            {
+              "name": "epoch-file",
+              "required": false,
+              "description": "Epoch acceptance file"
+            },
+            {
+              "name": "accepted-line-sha256",
+              "required": false,
+              "description": "SHA-256 of the accepted line"
+            },
+            {
+              "name": "metric-before",
+              "required": false,
+              "description": "Metric before the epoch"
+            },
+            {
+              "name": "metric-after",
+              "required": false,
+              "description": "Metric after the epoch"
+            },
+            {
+              "name": "repo-id",
+              "required": false,
+              "description": "Repository ID"
+            },
+            {
+              "name": "validate-only",
+              "required": false,
+              "bool": true,
+              "description": "Validate without storing"
+            },
+            {
+              "name": "path",
+              "required": false,
+              "repeatable": true,
+              "description": "Path to capture"
+            },
+            {
+              "name": "run",
+              "required": false,
+              "repeatable": true,
+              "description": "Agent Manager run ID"
+            },
+            {
+              "name": "plan",
+              "required": false,
+              "repeatable": true,
+              "description": "Plan Manager reference"
+            },
+            {
+              "name": "trailer",
+              "required": false,
+              "repeatable": true,
+              "description": "Extra trailer KEY=VALUE"
+            },
+            {
+              "name": "gate",
+              "required": false,
+              "repeatable": true,
+              "description": "Gate receipt digest or ID"
+            }
+          ]
         },
         {
           "name": "list",
@@ -1544,6 +1762,25 @@
           "architecture": {
             "primitive": "operational"
           }
+        },
+        {
+          "name": "metrics",
+          "description": "Read durable staged-message lifecycle and failure metrics",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdvisoryService",
+            "method": "GetStagedMessageMetrics"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
         }
       ]
     },
@@ -1556,26 +1793,78 @@
           "name": "ux-capture",
           "description": "Capture a running scenario, public page, or local HTML file into a versioned UX bundle",
           "flags": [
-            { "name": "scenario", "description": "Name of a running local scenario" },
-            { "name": "path", "description": "Scenario path; defaults to /" },
-            { "name": "step", "repeatable": true, "description": "State step such as click:Branches" },
-            { "name": "wait-selector", "description": "Visible scenario CSS selector required before capture; scenario captures only" },
-            { "name": "url", "description": "Public HTTP(S) page URL" },
-            { "name": "file", "description": "Local HTML or HTM file, including an exported claude.ai artifact" },
-            { "name": "width", "description": "Viewport width, 320–2560; default 1280" },
-            { "name": "height", "description": "Viewport height, 240–1600; default 720" },
-            { "name": "theme", "description": "Color scheme: light, dark, or no-preference; default light" },
-            { "name": "strict-tokens", "type": "bool", "description": "Run the CSS custom-property sentinel diagnostic in the same scenario capture" },
-            { "name": "evidence-profile", "description": "Optional scenario evidence profile: componenttests" },
-            { "name": "region-selector", "description": "CSS region for the componenttests crop and style sample; scenario captures only" },
-            { "name": "artifact-kind", "description": "Download one declared artifact from BAS through its artifact owner" },
-            { "name": "artifact-output", "description": "Destination file for --artifact-kind; both flags are required together" }
+            {
+              "name": "scenario",
+              "description": "Name of a running local scenario"
+            },
+            {
+              "name": "path",
+              "description": "Scenario path; defaults to /"
+            },
+            {
+              "name": "step",
+              "repeatable": true,
+              "description": "State step such as click:Branches"
+            },
+            {
+              "name": "wait-selector",
+              "description": "Visible scenario CSS selector required before capture; scenario captures only"
+            },
+            {
+              "name": "url",
+              "description": "Public HTTP(S) page URL"
+            },
+            {
+              "name": "file",
+              "description": "Local HTML or HTM file, including an exported claude.ai artifact"
+            },
+            {
+              "name": "width",
+              "description": "Viewport width, 320\u20132560; default 1280"
+            },
+            {
+              "name": "height",
+              "description": "Viewport height, 240\u20131600; default 720"
+            },
+            {
+              "name": "theme",
+              "description": "Color scheme: light, dark, or no-preference; default light"
+            },
+            {
+              "name": "strict-tokens",
+              "type": "bool",
+              "description": "Run the CSS custom-property sentinel diagnostic in the same scenario capture"
+            },
+            {
+              "name": "evidence-profile",
+              "description": "Optional scenario evidence profile: componenttests"
+            },
+            {
+              "name": "region-selector",
+              "description": "CSS region for the componenttests crop and style sample; scenario captures only"
+            },
+            {
+              "name": "artifact-kind",
+              "description": "Download one declared artifact from BAS through its artifact owner"
+            },
+            {
+              "name": "artifact-output",
+              "description": "Destination file for --artifact-kind; both flags are required together"
+            }
           ],
-          "binding": { "kind": "local", "handler": "ux-capture" },
+          "binding": {
+            "kind": "local",
+            "handler": "ux-capture"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": true,
-            "permissions": ["network:internal", "network:external", "filesystem:read", "filesystem:write"]
+            "permissions": [
+              "network:internal",
+              "network:external",
+              "filesystem:read",
+              "filesystem:write"
+            ]
           }
         }
       ]

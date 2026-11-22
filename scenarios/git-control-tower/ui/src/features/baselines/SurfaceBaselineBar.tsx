@@ -10,7 +10,7 @@
 
 import type { ReactNode } from "react";
 import { Anchor, GitCompare, X } from "lucide-react";
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { BaselineSelector } from "./BaselineSelector";
 import type { CompareOnDemand } from "../../lib/hooks-baselines";
 
@@ -48,18 +48,25 @@ export function SurfaceBaselineBar({
       <div className="flex flex-wrap items-center gap-2 shrink-0">
         <BaselineSelector scenario={scenario} repoId={repoId} onOpenBaselines={onOpenBaselines} />
         {comparing ? (
-          <Button variant="outline" size="sm" onClick={exit} className="h-7 px-3 gap-1.5">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={exit}
+            className="h-7 px-3 gap-1.5"
+            style={{ background: "transparent" }}
+          >
             <X className="h-3.5 w-3.5" />
             Exit compare
           </Button>
         ) : (
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={start}
             disabled={!baselineName}
             className="h-7 px-3 gap-1.5"
             title={baselineName ? "Compare what's shown against the selected baseline" : "Select a baseline first"}
+            style={{ background: "transparent" }}
           >
             <GitCompare className="h-3.5 w-3.5" />
             Compare

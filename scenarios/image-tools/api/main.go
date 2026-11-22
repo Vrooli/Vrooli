@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	internaladapters "image-tools/internal/adapters"
@@ -20,14 +22,18 @@ import (
 	"image-tools/internal/backends"
 	"image-tools/internal/capabilities"
 	"image-tools/internal/capacity"
+	"image-tools/internal/catalogstate"
 	internalcleanup "image-tools/internal/cleanup"
 	localdb "image-tools/internal/database"
+	"image-tools/internal/diskpolicy"
 	"image-tools/internal/fetch"
 	internalhosttool "image-tools/internal/hosttool"
 	"image-tools/internal/jobrunner"
 	internaljobs "image-tools/internal/jobs"
 	internalmeasures "image-tools/internal/measures"
+	"image-tools/internal/modelenv"
 	internalmodels "image-tools/internal/models"
+	"image-tools/internal/modelstorage"
 	"image-tools/internal/modules"
 	"image-tools/internal/provision"
 	"image-tools/internal/pydeps"
@@ -35,6 +41,7 @@ import (
 	"image-tools/internal/safety"
 	"image-tools/internal/server"
 	"image-tools/internal/sidecar"
+	"image-tools/internal/verdicts"
 
 	"github.com/vrooli/api-core/schedule"
 	"github.com/vrooli/pyenv-go"
@@ -65,6 +72,7 @@ import (
 	qualityH "image-tools/handlers/quality"
 	safetyH "image-tools/handlers/safety"
 	selectionH "image-tools/handlers/selection"
+	straysH "image-tools/handlers/strays"
 
 	internalstorage "image-tools/internal/storage"
 )
@@ -203,7 +211,10 @@ func main() {
 	if err := localdb.Migrate(bootCtx, db.Primary()); err != nil {
 		log.Fatalf("schema migration failed: %v", err)
 	}
-	if err := database.VerifyDeclaredColumns(bootCtx, db.Primary(), modules.AllSchemas()...); err != nil {
+	// Reconcile (not just verify): a column added to a declared table is replayed
+	// as an additive ALTER TABLE ... ADD COLUMN, so a new column never needs a
+	// hand-written migration. Anything not safely addable still fails boot loudly.
+	if err := database.ReconcileDeclaredColumns(bootCtx, db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema drift check failed: %v", err)
 	}
 
@@ -238,9 +249,28 @@ func main() {
 	// + outcome for every finalized job via the Manager's OnComplete hook. Recorded
 	// under the server-lifetime context so it is independent of any caller.
 	measureRec := internalmeasures.NewRecorder(db)
+	// The cloud routing policy is read once at boot; a malformed spending limit
+	// stops the service rather than silently becoming a different limit. The AI
+	// engine is built after the job manager (it needs the model store), so the
+	// scheduler's re-route hook binds to it late.
+	routeCfg, err := internalai.RouteConfigFromEnv(os.Getenv)
+	if err != nil {
+		log.Fatalf("cloud routing configuration failed: %v", err)
+	}
+	var rerouteEngine atomic.Pointer[internalai.Engine]
 	jobManager := internaljobs.New(db, internaljobs.Config{
-		Runner:         dispatcher.Run,
-		Admit:          dispatcher.Admit,
+		Runner: dispatcher.Run,
+		Admit:  dispatcher.Admit,
+		// Work that computed nothing is returned to the queue when the process
+		// drains for a restart, and resumes from its stored payload afterwards.
+		Resumable: dispatcher.Handles,
+		Reroute: func(ctx context.Context, job internaljobs.Job) (*internaljobs.Reroute, error) {
+			engine := rerouteEngine.Load()
+			if engine == nil {
+				return nil, nil
+			}
+			return engine.RerouteToCloud(ctx, job)
+		},
 		Clock:          schedule.System(),
 		CPUWorkers:     runtimeCfg.CPUWorkers,
 		NetworkWorkers: runtimeCfg.NetworkWorkers,
@@ -292,10 +322,19 @@ func main() {
 
 	// Model weights live alongside the blob root (outside the repo): the blob
 	// store roots at <dataDir>/blobs, so the models root is <dataDir>/models.
-	// Model download-on-first-use (IMG-P0-007, Phase 4) populates it; until a
-	// model is installed, modelInstalled returns false and AI ops refuse with an
-	// actionable hint rather than launching a doomed job.
+	// Explicit installs and job-time auto-acquisition (internal/modelstorage)
+	// populate it; a missing model that cannot be acquired automatically is
+	// refused at submit with an actionable hint rather than a doomed job.
 	modelsRoot := filepath.Dir(blobStore.Root())
+	// Containment: every cache and home variable of every model-loading process
+	// is pinned under <modelsRoot>/cache, hubs run offline during jobs, and only
+	// the governed acquisition step may fetch (internal/modelenv).
+	if err := modelenv.SetRoot(modelsRoot); err != nil {
+		log.Fatalf("model containment: %v", err)
+	}
+	modelenv.EnsureDirs()
+	containment := modelenv.Describe()
+	log.Printf("model containment: %d cache variables pinned under %s; inference runs with %s; governed acquisition runs with %s", len(containment.Pins), containment.CacheRoot, strings.Join(containment.Inference, " "), strings.Join(containment.Acquisition, " "))
 
 	// Materialize the embedded Python sidecar (image_tools_sidecar) under the
 	// cache dir and put it on PYTHONPATH, so the onnxruntime backend's
@@ -359,7 +398,12 @@ func main() {
 	// model fails the install instead of surfacing as a late job crash.
 	modelUseGate := internalmodels.NewModelUseGate(modelsRoot)
 	imageCapacity := &capacity.CLIBroker{}
+	// The shared policy evaluator reads the canonical operator-owned business
+	// context on every evaluation, including execution-time rechecks and the
+	// install/enable/pin lifecycle gate.
+	rightsEvaluator := internalmodels.AdaptRightsEvaluator(sharedpolicy.NewDefaultRightsEvaluator(os.Getenv))
 	installer := &internalmodels.Installer{
+		Rights:        rightsEvaluator,
 		Root:          modelsRoot,
 		Reg:           registry,
 		Custom:        internalmodels.NewCustomStore(db),
@@ -427,6 +471,13 @@ func main() {
 	// root the installer uses (<dataDir>/adapters/<id>) is threaded so resolved
 	// adapters carry their on-disk dir.
 	adapterStore := internaladapters.NewStore(db)
+	{
+		customs, cErr := adapterInstaller.Custom.List(bootCtx)
+		if cErr != nil {
+			log.Fatalf("adapter override reconcile: list custom adapters: %v", cErr)
+		}
+		reconcileOverrides(bootCtx, "adapter", adapterStore, adapterRegistry.SeedState(customs))
+	}
 	adapterByID := func(id string) (internaladapters.Adapter, bool) {
 		a, err := adapterInstaller.Resolve(context.Background(), id)
 		return a, err == nil
@@ -540,10 +591,37 @@ func main() {
 	// selection so runtime enable/disable changes take effect immediately.
 	modelStore := internalmodels.NewStore(db)
 	enabled := modelStore.LoadOverlay
+	// A seed that moved on since an override was written wins over it (see
+	// internal/catalogstate/overlay.go). The seed only changes with this binary,
+	// so boot is when to apply the rule.
+	{
+		customs, cErr := installer.Custom.List(bootCtx)
+		if cErr != nil {
+			log.Fatalf("model override reconcile: list custom models: %v", cErr)
+		}
+		reconcileOverrides(bootCtx, "model", modelStore, registry.SeedState(customs))
+	}
+	verdictSvc, err := verdicts.NewService(db)
+	if err != nil {
+		log.Fatalf("verdict service init failed: %v", err)
+	}
 
 	// Per-operation default-model pins (settings surface): selection applies a
 	// pin when a request gives no explicit override.
 	opDefaults := internalmodels.NewOpDefaultStore(db)
+
+	// Model-weight storage lifecycle: jobs acquire missing governed weights on
+	// demand, and an adaptive policy offloads idle weights as free-disk
+	// headroom above the shared floor shrinks (see docs/internal/DECISIONS.md).
+	modelStorage, err := newModelStorage(modelStorageDeps{
+		root: modelsRoot, installer: installer, registry: registry, overlay: modelStore,
+		usage: measureRec, jobs: jobManager, useGate: modelUseGate, rights: rightsEvaluator,
+		db: db, installMBPerSecond: runtimeCfg.InstallMBPerSecond,
+	})
+	if err != nil {
+		log.Fatalf("model storage init failed: %v", err)
+	}
+	modelStorage.Start(jobCtx)
 
 	// Analysis service (OCR / NSFW / probe). Its NSFW path also backs the AI
 	// generation auto-scan hook.
@@ -558,6 +636,7 @@ func main() {
 			return int64(model.Hardware.MinRAMGB) << 30, nil
 		},
 		ModelInstalled:  modelInstalled,
+		AcquireModel:    modelStorage.EnsureInstalled,
 		AcquireModelUse: modelUseGate.Acquire,
 		ModelsRoot:      modelsRoot,
 		PythonProgram:   pythonInterpreter,
@@ -570,30 +649,71 @@ func main() {
 	for _, op := range internalanalysis.List() {
 		dispatcher.RegisterAdmission(op.Name, analysisService.Admit)
 	}
-	qualityRunner := &internalquality.Runner{Evaluator: &internalquality.Evaluator{Judge: internalquality.NewGatewayJudge()}, Store: blobStore}
+	qualityRunner := &internalquality.Runner{Evaluator: &internalquality.Evaluator{
+		Judge:      internalquality.NewGatewayJudge(),
+		Perceptual: &internalquality.SidecarLPIPS{Python: pythonInterpreter, Backbone: filepath.Join(modelsRoot, "models", "lpips-alexnet", "alexnet-owt-7be5be79.pth")},
+	}, Store: blobStore}
 	dispatcher.Register(internalquality.Operation, qualityRunner.Run)
 	dispatcher.RegisterAdmission(internalquality.Operation, internalquality.Admit)
 
 	// AI engine: probe → hardware-fit model select → backend select → execute →
 	// persist, with the optional NSFW auto-scan on generated output.
-	// The shared policy evaluator reads the canonical operator-owned business
-	// context on every evaluation, including execution-time rechecks.
-	rightsEvaluator := internalmodels.AdaptRightsEvaluator(sharedpolicy.NewDefaultRightsEvaluator(os.Getenv))
-	// The minor-safety reviewer is operator-supplied: no bundled model answers
-	// "how old is this person". A configured reviewer runs on every generated
-	// image; the one non-configurable refusal fails the job and deletes the bytes.
+	// The minor-safety boundary is enforced on every tier by the reviewer the scenario
+	// bundles (NSFW classifier + face detector + age model, all local and CPU-only).
+	// IMAGE_TOOLS_MINOR_SAFETY_CMD replaces it with an operator-supplied program that
+	// speaks the same contract. Either way every generated image is reviewed and the
+	// one non-configurable refusal fails the job and deletes the bytes; a reviewer
+	// that cannot run fails closed.
 	minorReviewer, err := safety.MinorReviewerFromEnv()
 	if err != nil {
 		log.Fatalf("%s: %v", safety.MinorSafetyEnv, err)
 	}
+	var reviewModels []string
+	if minorReviewer == nil {
+		bundled, bundledErr := safety.NewBundledReviewer(safety.BundledReviewerConfig{
+			Python:      pythonInterpreter,
+			SidecarPath: sidecarPath,
+			ModelsRoot:  modelsRoot,
+			Libraries:   sidecar.RuntimeLibraries(pythonInterpreter),
+		})
+		if bundledErr != nil {
+			// Never run without the boundary: an unbuildable reviewer refuses every
+			// image instead of silently disabling the review.
+			log.Printf("WARNING: bundled minor-safety reviewer unavailable (%v); generated images will be refused", bundledErr)
+			minorReviewer = safety.UnavailableReviewer(bundledErr)
+		} else {
+			minorReviewer = bundled
+			reviewModels = safety.BundledReviewerModels
+		}
+	}
+	// Responsible-Use deployment gate (IMG-P1-015): the tier is chosen at deploy
+	// time (IMAGE_TOOLS_DEPLOYMENT_TIER), defaulting to local/unrestricted, and
+	// each harm-protection control can be overridden individually
+	// (IMAGE_TOOLS_REQUIRE_CONSENT / _NSFW_SCAN / _REQUIRE_PROVENANCE /
+	// _RATE_LIMIT_PER_MIN). The same resolved policy drives enforcement (the gate
+	// on the AI submit edge) and discovery (SafetyService.GetPolicy), so the two
+	// cannot disagree.
+	safetyPolicy := safety.ResolvePolicy()
+	safetyGate := safety.NewGateFromPolicy(safetyPolicy, safety.NewConsentLog(db.Primary()))
+	safetyGate.SetMinorReviewer(minorReviewer)
+	// Discovery reads the gate's resolved policy so it reports the detector that
+	// enforcement actually has, rather than the one the environment implied.
+	safetyPolicy = safetyGate.Policy()
+
 	aiEngine, err := internalai.NewEngineWithRightsEvaluator(internalai.Deps{
-		Registry:              registry,
-		Backends:              backendReg,
-		Probe:                 probe,
-		Store:                 blobStore,
-		Enabled:               enabled,
-		DefaultOverride:       opDefaults.Get,
-		ModelInstalled:        modelInstalled,
+		Registry:        registry,
+		Backends:        backendReg,
+		Probe:           probe,
+		Store:           blobStore,
+		Enabled:         enabled,
+		DefaultOverride: opDefaults.Get,
+		ModelInstalled:  modelInstalled,
+		AutoAcquirable:  modelStorage.AutoAcquirable,
+		Revalidatable:   modelStorage.Revalidatable,
+		AcquireModel:    modelStorage.EnsureInstalled,
+		InstallEstimateSeconds: func(sizeMBApprox int) int {
+			return internalmodels.EstimateInstallSecondsAt(sizeMBApprox, runtimeCfg.InstallMBPerSecond)
+		},
 		ModelRuntimeReadiness: modelRuntimeReady,
 		AcquireModelUse:       modelUseGate.Acquire,
 		CustomModels:          installer.Custom.List,
@@ -609,35 +729,26 @@ func main() {
 			return internalai.ScanVerdict{NSFW: nsfw, Score: score}, err
 		},
 		ReviewOutput: minorOutputReviewer(minorReviewer),
+		ReviewModels: reviewModels,
 		Capacity:     imageCapacity,
 		Disk:         imageCapacity,
 		Memory:       capacity.AcquireLocalRAM,
 		CPU:          capacity.AcquireLocalCPU,
+		Route:        routeCfg,
+		RouteConsent: routeConsent(safetyGate),
+		Jobs:         jobManager,
 		Logger:       log.Default(),
 	}, rightsEvaluator)
 	if err != nil {
 		log.Fatalf("ai engine init failed: %v", err)
 	}
+	rerouteEngine.Store(aiEngine)
 	// Register the AI op runners on the dispatcher (the jobs Manager fans its
 	// single Runner out to these per-operation handlers).
 	for op, run := range aiEngine.BuildRunners() {
 		dispatcher.Register(op, run)
 		dispatcher.RegisterAdmission(op, aiEngine.Admit)
 	}
-
-	// Responsible-Use deployment gate (IMG-P1-015): the tier is chosen at deploy
-	// time (IMAGE_TOOLS_DEPLOYMENT_TIER), defaulting to local/unrestricted, and
-	// each harm-protection control can be overridden individually
-	// (IMAGE_TOOLS_REQUIRE_CONSENT / _NSFW_SCAN / _REQUIRE_PROVENANCE /
-	// _RATE_LIMIT_PER_MIN). The same resolved policy drives enforcement (the gate
-	// on the AI submit edge) and discovery (SafetyService.GetPolicy), so the two
-	// cannot disagree.
-	safetyPolicy := safety.ResolvePolicy()
-	safetyGate := safety.NewGateFromPolicy(safetyPolicy, safety.NewConsentLog(db.Primary()))
-	safetyGate.SetMinorReviewer(minorReviewer)
-	// Discovery reads the gate's resolved policy so it reports the detector that
-	// enforcement actually has, rather than the one the environment implied.
-	safetyPolicy = safetyGate.Policy()
 
 	// Non-critical health summary: an enabled model whose install-time load-smoke
 	// FAILED (installed but not runnable) degrades /health so the standard probe
@@ -668,32 +779,50 @@ func main() {
 		return nil
 	}
 
+	// One selection preview for every read surface: `models select`, the model
+	// picker's selected marker and `ai list` all ask it, so none can show a
+	// default a submit would not run.
+	previewer := &internalmodels.Previewer{
+		Registry:           registry,
+		Probe:              probe,
+		Overlay:            modelStore.LoadOverlay,
+		Customs:            installer.Custom.List,
+		Pin:                opDefaults.Get,
+		RightsEvaluator:    rightsEvaluator,
+		CapacityManagedGPU: aiEngine.CapacityManagedGPU(),
+	}
+
+	strayScanner, err := newStrayScanner(modelsRoot, installer, adapterInstaller)
+	if err != nil {
+		log.Fatalf("model containment scan init failed: %v", err)
+	}
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "image-tools-api", "1.0.0", healthModelRuntime),
 		adaptersH.Module(db, adapterRegistry, registry, adapterInstaller, jobManager, func(sizeMBApprox int) int {
 			return internaladapters.EstimateInstallSeconds(sizeMBApprox)
 		}, log.Default()),
-		aiH.Module(aiEngine, registry, blobStore, jobManager, safetyGate, log.Default()),
+		aiH.Module(aiEngine, previewer, verdictSvc, blobStore, jobManager, safetyGate, log.Default()),
 		analysisH.Module(analysisService, blobStore, jobManager, log.Default()),
 		catalogH.Module(),
 		internalcleanup.Module(internalcleanup.Deps{Jobs: jobManager, Store: blobStore}),
 		diffH.Module(blobStore, jobManager, log.Default()),
-		jobsH.Module(jobManager, log.Default()),
+		jobsH.Module(jobManager, verdictSvc.Ratings, log.Default()),
 		looksH.Module(db, blobStore, log.Default()),
 		measuresH.Module(measureRec),
 		preparationH.Module(db, blobStore),
 		qualityH.Module(blobStore, jobManager),
-		modelsH.Module(db, registry, probe, installer, backendReg, jobManager, func(sizeMBApprox int) int {
+		modelsH.Module(db, registry, previewer, verdictSvc, probe, installer, backendReg, jobManager, func(sizeMBApprox int) int {
 			return internalmodels.EstimateInstallSecondsAt(sizeMBApprox, runtimeCfg.InstallMBPerSecond)
 		}, backendEnsurer, modelsH.AdapterSeams{
 			ByID:      adapterByID,
 			Enabled:   adapterEnabled,
 			Installed: adapterInstalled,
-		}, rightsEvaluator, log.Default()),
+		}, rightsEvaluator, modelStorage, aiEngine.CapacityManagedGPU(), explainConsent(safetyGate), log.Default()),
 		opsH.Module(blobStore, jobManager, imageCapacity, log.Default()),
 		safetyH.Module(safetyPolicy),
 		selectionH.Module(blobStore, jobManager, log.Default()),
+		straysH.Module(strayScanner, log.Default()),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -711,6 +840,9 @@ func main() {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
+		// A restart drain waits only for jobs that are computing (reported with
+		// their progress); waiting jobs go back on the queue.
+		LifecycleHooks: jobDrainHooks(jobManager),
 		Cleanup: func(ctx context.Context) error {
 			// Stop the job manager (waits for in-flight jobs to observe
 			// cancellation) and release its server-lifetime context before
@@ -735,6 +867,112 @@ func configureTestPoolSchemas(db *database.RoutedDB) {
 	})
 }
 
+type modelStorageDeps struct {
+	root      string
+	installer *internalmodels.Installer
+	registry  *internalmodels.Registry
+	overlay   *internalmodels.Store
+	usage     *internalmeasures.Recorder
+	jobs      *internaljobs.Manager
+	useGate   *internalmodels.ModelUseGate
+	rights    internalmodels.RightsEvaluator
+	db        *database.RoutedDB
+	// installMBPerSecond is the operator's measured install throughput.
+	installMBPerSecond int
+}
+
+// newModelStorage wires the model-storage owner to the facts it reads: install
+// receipts, durable successful use, active jobs, the shared use lease, the
+// enabled overlay, rights and the install disk plan.
+func newModelStorage(d modelStorageDeps) (*modelstorage.Service, error) {
+	cfg, err := modelstorage.ConfigFromEnv(os.Getenv, diskpolicy.Resolve(os.Getenv).Bytes)
+	if err != nil {
+		return nil, err
+	}
+	if d.installMBPerSecond > 0 {
+		cfg.Policy.ThroughputBytesPerSecond = int64(d.installMBPerSecond) << 20
+	}
+	return modelstorage.New(modelstorage.Deps{
+		Root:      d.root,
+		Installer: d.installer,
+		Seed:      d.registry.ByID,
+		Custom:    d.installer.Custom.List,
+		RuntimeReady: func(ctx context.Context, id string) (bool, string) {
+			return d.installer.RuntimeReadiness(ctx, id)
+		},
+		BackendReady: func(ctx context.Context, m internalmodels.Model) error {
+			if d.installer.BackendReadiness == nil {
+				return nil
+			}
+			return d.installer.BackendReadiness(ctx, m)
+		},
+		InstallRecords: d.installer.State.List,
+		LastSuccessfulUse: func(ctx context.Context) (map[string]time.Time, error) {
+			usage, err := d.usage.ModelUsageSummary(ctx, "")
+			if err != nil {
+				return nil, err
+			}
+			out := make(map[string]time.Time, len(usage))
+			for _, u := range usage {
+				if at, err := time.Parse(time.RFC3339Nano, u.LastSuccessfulAt); err == nil {
+					out[u.ModelID] = at
+				}
+			}
+			return out, nil
+		},
+		ActiveModelIDs: func(ctx context.Context) (map[string]bool, error) {
+			active, err := d.jobs.ListActive(ctx)
+			if err != nil {
+				return nil, err
+			}
+			out := map[string]bool{}
+			for _, job := range active {
+				var ref struct {
+					ModelID string `json:"model_id"`
+				}
+				if json.Unmarshal(job.Payload, &ref) == nil && ref.ModelID != "" {
+					out[ref.ModelID] = true
+				}
+			}
+			return out, nil
+		},
+		InUse: func(id string) bool {
+			release, err := d.useGate.AcquireExclusive(id)
+			if err != nil {
+				return errors.Is(err, internalmodels.ErrModelInUse)
+			}
+			release()
+			return false
+		},
+		Enabled: func(ctx context.Context, m internalmodels.Model) (bool, error) {
+			overlay, err := d.overlay.LoadOverlay(ctx)
+			if err != nil {
+				return false, err
+			}
+			return internalmodels.EffectiveEnabled(m, overlay), nil
+		},
+		Rights:    d.rights,
+		DiskAvail: fetch.DefaultDiskAvail,
+		Store:     modelstorage.NewStore(d.db),
+		AcquireNeedBytes: func(ctx context.Context, m internalmodels.Model) (int64, error) {
+			expansion := 1
+			if m.BuildProfile != nil {
+				expansion = 2
+			}
+			request, err := fetch.PlanInstallDiskJob(ctx, "image-tools:model-install", "auto-acquire-plan-"+m.ID, d.root, m.SizeMBApprox, m.Source, expansion)
+			if err != nil {
+				return 0, err
+			}
+			total := int64(0)
+			for _, path := range request.Paths {
+				total += path.PeakBytes
+			}
+			return total, nil
+		},
+		Logger: log.Default(),
+	}, cfg)
+}
+
 // hostModelRuntimeReadiness reads lifecycle evidence from the host catalog.
 // The model weights, their smoke verdicts and runtime readiness are shared
 // host artifacts; a routed test database must isolate user/job rows without
@@ -745,13 +983,36 @@ func hostModelRuntimeReadiness(installer *internalmodels.Installer) func(context
 	}
 }
 
+// explainConsent hands the same rule to the explain surface, in the shape the
+// models handler reports it.
+func explainConsent(gate *safety.Gate) modelsH.ConsentRule {
+	return func(op, weight, tier string) (bool, string, string) {
+		need := gate.ConsentFor(safety.Weight(weight), op, tier)
+		return need.Required, need.Basis, need.Reason
+	}
+}
+
+// routeConsent hands the gate's consent rule to the engine so automatic cloud
+// routing and execution admission obey the rule the submit edge enforces.
+func routeConsent(gate *safety.Gate) internalai.RouteConsentFunc {
+	return func(op, weight, tier string) (bool, string) {
+		need := gate.ConsentFor(safety.Weight(weight), op, tier)
+		return need.Required, need.Reason
+	}
+}
+
 // minorOutputReviewer adapts the deployment's reviewer to the engine's output
-// hook. A nil reviewer leaves the hook nil, which is the local default.
+// hook. Output from a model able to make explicit images is reviewed strictly. The
+// verdict also reports whether the image is sexual, which the engine records as the
+// job's sensitive flag.
 func minorOutputReviewer(reviewer safety.MinorReviewer) internalai.OutputScanner {
 	if reviewer == nil {
 		return nil
 	}
 	return func(ctx context.Context, img []byte) (internalai.ScanVerdict, error) {
+		if internalai.ReviewSourceFromContext(ctx).NSFWCapable {
+			ctx = safety.WithStrictReview(ctx)
+		}
 		verdict, err := reviewer.Review(ctx, [][]byte{img})
 		if err != nil {
 			return internalai.ScanVerdict{}, err
@@ -763,6 +1024,19 @@ func minorOutputReviewer(reviewer safety.MinorReviewer) internalai.OutputScanner
 			}
 			return internalai.ScanVerdict{HardRefusal: detail}, nil
 		}
-		return internalai.ScanVerdict{}, nil
+		sexual, score := verdict.Sensitive()
+		return internalai.ScanVerdict{NSFW: sexual, Score: score, Detail: strings.TrimSpace(verdict.Detail)}, nil
+	}
+}
+
+// reconcileOverrides applies the override supersession rule at boot and logs
+// every change it makes, so an override that stops applying is never silent.
+func reconcileOverrides(ctx context.Context, kind string, store *catalogstate.Overlay, seed catalogstate.SeedState) {
+	changes, err := store.Reconcile(ctx, seed, time.Now())
+	if err != nil {
+		log.Fatalf("%s override reconcile failed: %v", kind, err)
+	}
+	for _, c := range changes {
+		log.Printf("%s override %s %s: %s", kind, c.ID, c.Action, c.Detail)
 	}
 }

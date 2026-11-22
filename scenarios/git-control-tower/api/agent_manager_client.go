@@ -153,6 +153,16 @@ func (c *AgentManagerClient) CreateTask(ctx context.Context, task *ampb.Task) (*
 	})
 }
 
+func (c *AgentManagerClient) GetTask(ctx context.Context, taskID string) (*apipb.GetTaskResponse, error) {
+	return callConnect(ctx, c, func(client apiconnect.AgentManagerServiceClient) (*apipb.GetTaskResponse, error) {
+		response, err := client.GetTask(ctx, agentManagerRequest(ctx, &apipb.GetTaskRequest{TaskId: taskID}))
+		if err != nil {
+			return nil, err
+		}
+		return response.Msg, nil
+	})
+}
+
 func (c *AgentManagerClient) CreateRun(ctx context.Context, request *apipb.CreateRunRequest) (*apipb.CreateRunResponse, error) {
 	return callConnect(ctx, c, func(client apiconnect.AgentManagerServiceClient) (*apipb.CreateRunResponse, error) {
 		response, err := client.CreateRun(ctx, agentManagerRequest(ctx, request))

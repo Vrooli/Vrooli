@@ -9,7 +9,7 @@
 
 import type { ReactNode } from "react";
 import { Anchor, Camera, Loader2 } from "lucide-react";
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 
 export function SurfaceCaptureEmptyState({
   label,
@@ -47,11 +47,12 @@ export function SurfaceCaptureEmptyState({
           </p>
           <div className="flex flex-wrap items-center justify-center gap-2">
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={onCaptureLoose}
               disabled={isCapturing}
               className="h-7 text-xs gap-1.5"
+              style={{ background: "transparent" }}
             >
               {isCapturing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
               {looseLabel}

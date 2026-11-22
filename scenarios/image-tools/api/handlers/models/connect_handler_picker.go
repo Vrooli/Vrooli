@@ -12,6 +12,7 @@ import (
 	internalcaps "image-tools/internal/capabilities"
 	internalmodels "image-tools/internal/models"
 	internalresolver "image-tools/internal/resolver"
+	"image-tools/internal/verdicts"
 
 	"connectrpc.com/connect"
 
@@ -44,26 +45,17 @@ func (h *connectHandler) ListOperationModels(ctx context.Context, req *connect.R
 		return nil, connect.NewError(connect.CodeInvalidArgument, internalmodels.ErrUnknownOperation)
 	}
 
-	host, err := h.deps.Probe.Inventory(ctx)
+	preview, err := h.previewer().Load(ctx)
 	if err != nil {
-		h.deps.Logger.Printf("models.ListOperationModels probe: %v", err)
-		return nil, connect.NewError(connect.CodeInternal, errors.New("probe host hardware"))
-	}
-	overlay, err := h.overlay(ctx)
-	if err != nil {
-		h.deps.Logger.Printf("models.ListOperationModels overlay: %v", err)
+		h.deps.Logger.Printf("models.ListOperationModels: %v", err)
 		return nil, connect.NewError(connect.CodeInternal, errors.New("load model state"))
 	}
-	installs, err := h.installStates(ctx)
+	st, err := h.loadViewState(ctx)
 	if err != nil {
-		h.deps.Logger.Printf("models.ListOperationModels installs: %v", err)
-		return nil, connect.NewError(connect.CodeInternal, errors.New("load install state"))
+		h.deps.Logger.Printf("models.ListOperationModels state: %v", err)
+		return nil, connect.NewError(connect.CodeInternal, errors.New("load model state"))
 	}
-	registry, customIDs, err := h.effectiveRegistry(ctx)
-	if err != nil {
-		h.deps.Logger.Printf("models.ListOperationModels custom registry: %v", err)
-		return nil, connect.NewError(connect.CodeInternal, errors.New("load custom model catalog"))
-	}
+	host, registry, customIDs, overlay, installs := preview.Host, preview.Registry, preview.CustomIDs, st.overlay, st.installs
 
 	// Backend software readiness, keyed by provider/backend family name.
 	providerStatus := map[string]internalbackends.BackendStatus{}
@@ -80,15 +72,11 @@ func (h *connectHandler) ListOperationModels(ctx context.Context, req *connect.R
 	candidates := registry.OpCandidates(op)
 
 	// The model that would actually be selected on this host (for the "selected"
-	// flag + reason). A selection error (nothing runnable) leaves it empty.
+	// flag + reason): the same preview `models select` and `ai list` use, so the
+	// operator's pin and every other selection input apply here too. A selection
+	// error (nothing runnable) leaves it empty.
 	selectedID, selectedReason := "", ""
-	if sel, serr := registry.Select(internalmodels.SelectRequest{
-		Operation:       op,
-		Host:            host,
-		ForceCPU:        req.Msg.GetForceCpu(),
-		RightsEvaluator: h.deps.RightsEvaluator,
-		Context:         ctx,
-	}, registry.EnabledWithOverlay(overlay)); serr == nil {
+	if sel, serr := preview.Select(ctx, internalmodels.PreviewRequest{Operation: op, ForceCPU: req.Msg.GetForceCpu()}); serr == nil {
 		selectedID, selectedReason = sel.Model.ID, sel.Reason
 	}
 
@@ -102,7 +90,7 @@ func (h *connectHandler) ListOperationModels(ctx context.Context, req *connect.R
 	}
 	for _, cand := range candidates {
 		m := cand.Model
-		fit := internalmodels.Fit(m, host)
+		fit := internalmodels.FitCapacityManaged(m, host, h.deps.CapacityManagedGPU)
 		// Fit's CPU/GPU calculation is separate from the registry's declared
 		// OS/architecture support. ModelFit.runnable is host-level, so don't let a
 		// CPU-capable entry advertise runnable when its declared build excludes
@@ -135,11 +123,11 @@ func (h *connectHandler) ListOperationModels(ctx context.Context, req *connect.R
 		if eo.Support == "derived" && !eo.Ready {
 			ready = "derived_pipeline_unproven"
 		}
-		if m.CapabilityLabels.CommercialUse != internalmodels.CommercialUseYes {
+		if internalmodels.RequireLocalUsePermitted(ctx, h.deps.RightsEvaluator, m) != nil {
 			ready = "commercial_rights_review_required"
 		}
 		out.Candidates = append(out.Candidates, &modelsv1.CandidateModel{
-			Model:      domainToProto(m, h.viewFor(m, customIDs[m.ID], overlay, installs)),
+			Model:      domainToProto(m, h.viewFor(m, customIDs[m.ID], st)),
 			Fit:        fitToProto(fit, fitClass),
 			Backend:    backend,
 			ReadyState: ready,
@@ -147,6 +135,7 @@ func (h *connectHandler) ListOperationModels(ctx context.Context, req *connect.R
 			Support:    eo.Support,
 			Technique:  eo.Technique,
 			Caveat:     eo.Caveat,
+			Verdict:    verdicts.ToProto(st.verdictFor(m.ID, op)),
 		})
 	}
 	sortCandidates(out.Candidates)
@@ -203,11 +192,24 @@ func (h *connectHandler) ExplainResolution(ctx context.Context, req *connect.Req
 		AdapterByID:      h.deps.AdapterByID,
 		AdapterEnabled:   adapterEnabled,
 		AdapterInstalled: h.deps.AdapterInstalled,
+		// The rule real jobs use: total VRAM when the capacity broker owns GPU
+		// admission (see Deps.CapacityManagedGPU).
+		CapacityManagedGPU: h.deps.CapacityManagedGPU,
 	})
 	if err != nil {
 		return nil, selectError(err)
 	}
-	return connect.NewResponse(&modelsv1.ExplainResolutionResponse{Resolution: resolutionToProto(res)}), nil
+	st, err := h.loadViewState(ctx)
+	if err != nil {
+		h.deps.Logger.Printf("models.ExplainResolution state: %v", err)
+		return nil, connect.NewError(connect.CodeInternal, errors.New("load model state"))
+	}
+	resolution := resolutionToProto(res)
+	resolution.Verdict = verdicts.ToProto(st.verdictFor(res.Model.ID, op))
+	if h.deps.Consent != nil {
+		resolution.ConsentRequired, resolution.ConsentBasis, resolution.ConsentReason = h.deps.Consent(op, res.Weight, res.Tier)
+	}
+	return connect.NewResponse(&modelsv1.ExplainResolutionResponse{Resolution: resolution}), nil
 }
 
 // explainAdapterRequests converts the explain request's AdapterRef list to the

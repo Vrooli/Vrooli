@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { TFunction } from "i18next";
 import { Cloud, Cpu, Layers, ListOrdered } from "lucide-react";
 
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { EmptyState } from "../../components/ui/empty-state";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
@@ -13,6 +13,9 @@ import { errorMessage } from "../../lib/errorMessage";
 import { useJobProgress } from "../jobs/useJobProgress";
 import { operationLabelKey } from "../workspace/operationLabel";
 import { useReopenOutput } from "../library/useReopenOutput";
+import { cn } from "../../lib/utils";
+import { SensitiveImage } from "../sensitive/SensitiveImage";
+import { isSensitiveRef } from "../../lib/sensitiveMedia";
 
 const JOBS_QUERY_KEY = ["jobs"] as const;
 
@@ -76,10 +79,13 @@ function JobRow({ job, index, onCancel, onOpen, cancelPending }: JobRowProps) {
   return (
     <li className="flex gap-3 rounded-lg border border-app-border p-3">
       {succeeded ? (
-        <img
+        <SensitiveImage
           src={blobUrl(job.resultRef)}
+          sensitive={isSensitiveRef(job, job.resultRef)}
+          compact
           alt={t(strings.activity.thumbnailAlt, { operation: label })}
           loading="lazy"
+          wrapperClassName="h-16 w-16 shrink-0 rounded-control"
           className="h-16 w-16 shrink-0 rounded-control border border-app-border object-cover"
           onError={(e) => {
             e.currentTarget.style.display = "none";
@@ -141,9 +147,11 @@ function JobRow({ job, index, onCancel, onOpen, cancelPending }: JobRowProps) {
           {succeeded ? (
             <Button
               size="sm"
-              variant="outline"
+              variant="ghost"
               data-testid={selectors.activity.openOutput({ index })}
               onClick={() => onOpen(job)}
+              shape="square"
+              className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
             >
               {t(strings.activity.openOutput)}
             </Button>
@@ -154,6 +162,7 @@ function JobRow({ job, index, onCancel, onOpen, cancelPending }: JobRowProps) {
               data-testid={selectors.jobs.cancelButton}
               onClick={() => onCancel(job.id)}
               disabled={cancelPending || state === JobState.CANCELING}
+              shape="square"
             >
               {t(strings.jobs.cancel)}
             </Button>
@@ -259,6 +268,7 @@ export function ActivityCard() {
                   operation: j.operation,
                   resultRef: j.resultRef,
                   createdAtMs: 0,
+                  sensitive: isSensitiveRef(j, j.resultRef),
                 })
               }
               cancelPending={cancelJobMutation.isPending}

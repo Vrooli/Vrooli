@@ -37,9 +37,12 @@ import (
 	qualityH "image-tools/handlers/quality"
 	safetyH "image-tools/handlers/safety"
 	selectionH "image-tools/handlers/selection"
+	straysH "image-tools/handlers/strays"
 	internalcleanup "image-tools/internal/cleanup"
 	localdb "image-tools/internal/database"
 	internalmeasures "image-tools/internal/measures"
+	internalmodelstorage "image-tools/internal/modelstorage"
+	internalverdicts "image-tools/internal/verdicts"
 
 	adaptersv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/adapters"
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai"
@@ -78,6 +81,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, qualityH.Endpoints...)
 	out = append(out, safetyH.Endpoints...)
 	out = append(out, selectionH.Endpoints...)
+	out = append(out, straysH.Endpoints...)
 	return out
 }
 
@@ -138,6 +142,8 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(looksH.Schema),
 		apidb.SchemaProviderFunc(internalmeasures.Schema),
 		apidb.SchemaProviderFunc(modelsH.Schema),
+		apidb.SchemaProviderFunc(internalmodelstorage.Schema),
+		apidb.SchemaProviderFunc(internalverdicts.Schema),
 		apidb.SchemaProviderFunc(opsH.Schema),
 		apidb.SchemaProviderFunc(preparationH.Schema),
 		apidb.SchemaProviderFunc(safetyH.Schema),

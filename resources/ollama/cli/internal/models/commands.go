@@ -22,6 +22,8 @@ type Handlers struct {
 	GetEnv            func(string) string
 	Stdout            io.Writer
 	Stderr            io.Writer
+	// Retention holds the seams for retention, evict and reacquire.
+	Retention RetentionDeps
 }
 
 // Default returns Handlers wired to the real Ollama daemon client (the gateway
@@ -77,6 +79,30 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 				Description: "Run a live image-input smoke against a model or role",
 				Usage:       "resource-ollama models probe-vision (--model <ref> | --role <role>) --image <path> [--json]",
 				Run:         h.ProbeVision,
+			},
+			{
+				Name:        "retention",
+				Description: "Report each installed model's size, unique bytes, residency and whether disk eviction must keep it",
+				Usage:       "resource-ollama models retention [--json]",
+				Run:         h.RetentionInventory,
+			},
+			{
+				Name:        "callers",
+				Description: "Show which scenarios, resources, agents and processes send requests for each model",
+				Usage:       "resource-ollama models callers [--model <name>] [--json]",
+				Run:         h.Callers,
+			},
+			{
+				Name:        "evict",
+				Description: "Fenced disk eviction of one idle, non-required model; records the reacquire command first",
+				Usage:       "resource-ollama models evict <name> --digest <digest> --size <bytes> [--reason <text>] [--requested-by <who>] [--json]",
+				Run:         h.Evict,
+			},
+			{
+				Name:        "reacquire",
+				Description: "Pull an evicted model back through ensure's disk admission",
+				Usage:       "resource-ollama models reacquire <name> [--timeout-seconds <n>]",
+				Run:         h.Reacquire,
 			},
 			{
 				Name:        "doctor",

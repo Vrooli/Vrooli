@@ -258,7 +258,8 @@
     "usage": {
       "source": "skills/git-control-tower/SKILL.md",
       "programs": [
-        "git-control-tower.change-evidence"
+        "git-control-tower.change-evidence",
+        "git-control-tower.advisory"
       ]
     },
     "improve": {
@@ -267,50 +268,7 @@
         "git-control-tower.setpoint-read"
       ]
     },
-    "feature": [
-      {
-        "source": "skills/git-control-tower-summarize/SKILL.md",
-        "programs": [
-          "git-control-tower.change-evidence",
-          "git-control-tower.advisory"
-        ]
-      },
-      {
-        "source": "skills/git-control-tower-draft-commit/SKILL.md",
-        "programs": [
-          "git-control-tower.change-evidence",
-          "git-control-tower.advisory"
-        ]
-      },
-      {
-        "source": "skills/git-control-tower-draft-pr/SKILL.md",
-        "programs": [
-          "git-control-tower.change-evidence",
-          "git-control-tower.advisory"
-        ]
-      },
-      {
-        "source": "skills/git-control-tower-review/SKILL.md",
-        "programs": [
-          "git-control-tower.change-evidence",
-          "git-control-tower.advisory"
-        ]
-      },
-      {
-        "source": "skills/git-control-tower-draft-release/SKILL.md",
-        "programs": [
-          "git-control-tower.change-evidence",
-          "git-control-tower.advisory"
-        ]
-      },
-      {
-        "source": "skills/git-control-tower-provenance/SKILL.md",
-        "programs": [
-          "git-control-tower.change-evidence",
-          "git-control-tower.advisory"
-        ]
-      }
-    ],
+    "feature": [],
     "learning": {
       "scope": "git-control-tower-usage"
     },

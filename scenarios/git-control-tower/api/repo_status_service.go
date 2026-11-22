@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -34,6 +35,9 @@ func GetRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 		key := deps.RepoDir
 		if deps.IncludeHotspots {
 			key += "\x00hotspots"
+		}
+		if deps.FastStatus {
+			key += "\x00fast"
 		}
 		return deps.StatusCache.Get(ctx, key, func(ctx context.Context) (*RepoStatus, error) {
 			deps.StatusCache = nil
@@ -67,10 +71,15 @@ func getRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 	}
 
 	// Phase 1: git status (must complete before anything else).
-	parsed, err := readRepoStatusSnapshot(ctx, deps.Git, repoDir)
+	statusPorcelain, err := deps.Git.StatusPorcelainV2(ctx, repoDir)
 	if err != nil {
 		return nil, err
 	}
+	parsed, err := ParsePorcelainV2Status(statusPorcelain)
+	if err != nil {
+		return nil, err
+	}
+	parsed.statusPorcelain = append([]byte(nil), statusPorcelain...)
 	parsed.RepoDir = repoDir
 	parsed.Timestamp = time.Now().UTC()
 
@@ -82,6 +91,15 @@ func getRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 		Ignored:   len(parsed.Files.Ignored),
 	}
 	parsed.Scopes = detectScopes(repoDir, parsed.Files)
+	if deps.FastStatus {
+		// The Changes panel needs paths and status categories immediately. Diff
+		// line counts and untracked-file scans are presentation enrichment and
+		// can dominate latency on a large dirty worktree, so defer them to the
+		// selected-file/diff-stat requests.
+		parsed.Author = resolveAuthor(ctx, deps, repoDir)
+		sortFileStatus(&parsed.Files, parsed.Scopes)
+		return parsed, nil
+	}
 
 	// Pre-detect binary files so we can exclude them from git diff --numstat.
 	// This is a critical performance optimization: git diff --numstat must read
@@ -128,8 +146,9 @@ func getRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 	})
 
 	g.Go(func() error {
-		untrackedStats = collectUntrackedStats(repoDir, parsed.Files.Untracked)
-		return nil
+		var collectErr error
+		untrackedStats, collectErr = collectUntrackedStats(gctx, repoDir, parsed.Files.Untracked)
+		return collectErr
 	})
 
 	if deps.IncludeHotspots {
@@ -194,16 +213,47 @@ func collectDiffStats(ctx context.Context, deps RepoStatusDeps, repoDir string, 
 	return parseNumstatOutput(numstat)
 }
 
-func collectUntrackedStats(repoDir string, untracked []string) map[string]DiffStats {
+func collectUntrackedStats(ctx context.Context, repoDir string, untracked []string) (map[string]DiffStats, error) {
 	stats := map[string]DiffStats{}
-	for _, path := range untracked {
-		s, err := buildUntrackedStats(repoDir, path)
-		if err != nil {
-			continue
-		}
-		stats[path] = s
+	if len(untracked) == 0 {
+		return stats, nil
 	}
-	return stats
+	// Counting untracked files is an independent local read for every path.
+	// A small fixed pool bounds concurrent file descriptors and disk pressure
+	// while avoiding a serial full-file scan on repositories with large
+	// untracked sets.
+	workers := min(8, len(untracked))
+	jobs := make(chan string)
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for path := range jobs {
+				s, err := buildUntrackedStats(repoDir, path)
+				if err == nil {
+					mu.Lock()
+					stats[path] = s
+					mu.Unlock()
+				}
+			}
+		}()
+	}
+send:
+	for _, path := range untracked {
+		select {
+		case jobs <- path:
+		case <-ctx.Done():
+			break send
+		}
+	}
+	close(jobs)
+	wg.Wait()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return stats, nil
 }
 
 func collectBinaryFiles(stagedBinaries, unstagedBinaries []string, untrackedStats map[string]DiffStats) []string {

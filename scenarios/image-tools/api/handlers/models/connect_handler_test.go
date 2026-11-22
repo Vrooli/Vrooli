@@ -7,12 +7,14 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	apidb "github.com/vrooli/api-core/database"
 
 	internalbackends "image-tools/internal/backends"
 	"image-tools/internal/capabilities"
+	"image-tools/internal/catalogstate"
 	internalhosttool "image-tools/internal/hosttool"
 	"image-tools/internal/jobs"
 	internalmodels "image-tools/internal/models"
@@ -45,6 +47,12 @@ func newTestHandler(t *testing.T, host capabilities.Host) (*connectHandler, *int
 
 func allowRightsForHandlerTest(_ context.Context, _ json.RawMessage, _ string) (internalmodels.RightsDecision, error) {
 	return internalmodels.RightsDecision{Status: "allowed", Reason: "test fixture"}, nil
+}
+
+// unverifiedRightsForHandlerTest models a trusted context without the
+// operator's standing acceptance: unverified evidence stays unknown.
+func unverifiedRightsForHandlerTest(_ context.Context, _ json.RawMessage, _ string) (internalmodels.RightsDecision, error) {
+	return internalmodels.RightsDecision{Status: "unknown", Reason: "rights_evidence_unverified"}, nil
 }
 
 type captureProvisionJob struct {
@@ -198,7 +206,7 @@ func testBackendRegistry(t *testing.T) *internalbackends.Registry {
 	if err := reg.Register(testProvider{name: "builtin", ops: []string{"naturalize"}, available: true}); err != nil {
 		t.Fatalf("register backend: %v", err)
 	}
-	if err := reg.Register(testProvider{name: "python-sidecar", ops: []string{"colorize"}, available: true}); err != nil {
+	if err := reg.Register(testProvider{name: "python-sidecar", ops: []string{"quality_assessment"}, available: true}); err != nil {
 		t.Fatalf("register backend: %v", err)
 	}
 	if err := reg.Register(testProvider{name: "python-sidecar", ops: []string{"face_restore", "old_photo_restore"}, available: false}); err != nil {
@@ -307,9 +315,84 @@ func TestSetModelEnabledCannotEnableConditionalRightsModel(t *testing.T) {
 	if conditional.ID == "" {
 		t.Fatal("seed should include a conditional-rights model for this regression")
 	}
+	h.deps.RightsEvaluator = unverifiedRightsForHandlerTest
 	_, err := h.SetModelEnabled(context.Background(), connect.NewRequest(&modelsv1.SetModelEnabledRequest{Id: conditional.ID, Enabled: true}))
 	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("enable conditional model error = %v, want FailedPrecondition", err)
+	}
+	// The shared rights owner, not the label, decides: an operator-accepted
+	// local-use decision lets the same conditional model be enabled.
+	h.deps.RightsEvaluator = allowRightsForHandlerTest
+	if _, err := h.SetModelEnabled(context.Background(), connect.NewRequest(&modelsv1.SetModelEnabledRequest{Id: conditional.ID, Enabled: true})); err != nil {
+		t.Fatalf("enable conditional model with allowed local-use rights: %v", err)
+	}
+}
+
+// The shared rights owner, not the non-commercial label, decides enabling:
+// allowed local-use rights (the operator's normal-use answer) enable a
+// non-commercial model; a refusal still blocks it.
+func TestSetModelEnabledDefersNonCommercialModelsToTheRightsOwner(t *testing.T) {
+	h, reg := newTestHandler(t, cpuOnlyHost)
+	var nonCommercial internalmodels.Model
+	for _, model := range reg.Models() {
+		if model.CapabilityLabels.CommercialUse == internalmodels.CommercialUseNo {
+			nonCommercial = model
+			break
+		}
+	}
+	if nonCommercial.ID == "" {
+		t.Fatal("seed should include a non-commercial model for this regression")
+	}
+	h.deps.RightsEvaluator = unverifiedRightsForHandlerTest
+	_, err := h.SetModelEnabled(context.Background(), connect.NewRequest(&modelsv1.SetModelEnabledRequest{Id: nonCommercial.ID, Enabled: true}))
+	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("enable non-commercial model with refused rights = %v, want FailedPrecondition", err)
+	}
+	h.deps.RightsEvaluator = allowRightsForHandlerTest
+	resp, err := h.SetModelEnabled(context.Background(), connect.NewRequest(&modelsv1.SetModelEnabledRequest{Id: nonCommercial.ID, Enabled: true}))
+	if err != nil {
+		t.Fatalf("enable non-commercial model with allowed normal-use rights: %v", err)
+	}
+	if !resp.Msg.Model.Enabled {
+		t.Fatal("non-commercial model stayed disabled despite allowed rights")
+	}
+}
+
+// A model that downloads no weights has nothing to install, so list/get report
+// it installed, agreeing with InstallModel's already-installed answer.
+func TestListAndGetReportWeightlessModelsInstalled(t *testing.T) {
+	h, reg := newTestHandler(t, cpuOnlyHost)
+	ctx := context.Background()
+	list, err := h.ListModels(ctx, connect.NewRequest(&modelsv1.ListModelsRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	weightless, weighted := 0, 0
+	for _, wire := range list.Msg.Models {
+		m, _ := reg.ByID(wire.Id)
+		if m.RequiresWeights() {
+			weighted++
+			if wire.GetInstall().GetInstalled() {
+				t.Errorf("%s needs weights, none are installed in this harness, yet list reports installed", wire.Id)
+			}
+			continue
+		}
+		weightless++
+		if !wire.GetInstall().GetInstalled() {
+			t.Errorf("%s needs no weights yet list reports not installed", wire.Id)
+		}
+		got, err := h.GetModel(ctx, connect.NewRequest(&modelsv1.GetModelRequest{Id: wire.Id}))
+		if err != nil {
+			t.Errorf("%s get: %v", wire.Id, err)
+		} else if !got.Msg.Model.GetInstall().GetInstalled() {
+			t.Errorf("%s get install state = %+v, want installed", wire.Id, got.Msg.Model.GetInstall())
+		}
+	}
+	if weightless == 0 || weighted == 0 {
+		t.Fatalf("seed should hold weightless and weighted models, got %d/%d", weightless, weighted)
+	}
+	if m, ok := reg.ByID("openrouter-image"); !ok || m.RequiresWeights() {
+		t.Fatal("openrouter-image should be a weightless seed model")
 	}
 }
 
@@ -438,7 +521,7 @@ func TestDoctorCatalogCannotPassWithoutLifecycleOrHostEvidence(t *testing.T) {
 func TestDefaultProvisionAndDoctorRejectEmptyEnabledCapabilityScope(t *testing.T) {
 	h, reg := newTestHandler(t, cpuOnlyHost)
 	for _, model := range reg.Models() {
-		if err := h.deps.Store.SetEnabled(context.Background(), model.ID, false); err != nil {
+		if err := h.deps.Store.SetOverride(context.Background(), catalogstate.Override{ID: model.ID, Enabled: false, SetBy: "test"}, model.Enabled, time.Now()); err != nil {
 			t.Fatalf("disable %s: %v", model.ID, err)
 		}
 	}
@@ -489,7 +572,7 @@ func TestDoctorBackendsReportsCatalogDeclaredBackendReadiness(t *testing.T) {
 			}
 		case "python-sidecar":
 			sawPythonSidecar = true
-			ops := containsStr(b.Operations, "colorize") || containsStr(b.Operations, "face_restore")
+			ops := containsStr(b.Operations, "quality_assessment") || containsStr(b.Operations, "face_restore")
 			if !ops || b.Detail != "test backend readiness" {
 				t.Fatalf("python-sidecar row should come from registered runtime providers: %+v", b)
 			}

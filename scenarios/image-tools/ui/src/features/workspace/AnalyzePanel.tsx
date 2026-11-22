@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Check, Copy, Loader2 } from "lucide-react";
 
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
@@ -19,6 +19,7 @@ import { listAIOperations } from "../../api/ai";
 import { capabilityPresentation, familyIcon } from "./capabilityCatalog";
 import { MODE_LABEL } from "./modeLabels";
 import { isAnalyzeActive, type UseAnalyze } from "./useAnalyze";
+import { cn } from "../../lib/utils";
 
 const ANALYSIS_OPS_QUERY_KEY = ["analysis-operations"] as const;
 const AI_OPS_QUERY_KEY = ["ai-operations"] as const;
@@ -144,12 +145,14 @@ function OcrView({ result }: { result: AnalyzeOcr }) {
             : ""}
         </span>
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
           type="button"
           data-testid={selectors.workspace.analyze.copy}
           onClick={onCopy}
           disabled={!result.fullText}
+          shape="square"
+          className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
         >
           {copied ? (
             <Check aria-hidden="true" className="mr-1 h-3.5 w-3.5 text-app-success" />
@@ -260,7 +263,7 @@ function HashRow({
           {value || "—"}
         </code>
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
           type="button"
           onClick={onCopy}
@@ -270,6 +273,8 @@ function HashRow({
               ? t(strings.workspace.analyze.duplicate.copied)
               : t(strings.workspace.analyze.duplicate.copy)
           }
+          shape="square"
+          className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
         >
           {copied ? (
             <Check aria-hidden="true" className="h-3.5 w-3.5 text-app-success" />
@@ -512,6 +517,7 @@ export function AnalyzePanel({ analyze, input, initialAction }: AnalyzePanelProp
                 type="button"
                 data-testid={selectors.workspace.analyze.install}
                 onClick={analyze.installAndRun}
+                shape="square"
               >
                 {t(strings.workspace.enhance.install.run)}
               </Button>
@@ -527,7 +533,15 @@ export function AnalyzePanel({ analyze, input, initialAction }: AnalyzePanelProp
                   ? t(strings.workspace.enhance.install.installing)
                   : t(strings.workspace.analyze.running)}
               </span>
-              <Button variant="outline" size="sm" type="button" data-testid={selectors.workspace.analyze.cancel} onClick={analyze.cancel}>
+              <Button
+                variant="ghost"
+                size="sm"
+                type="button"
+                data-testid={selectors.workspace.analyze.cancel}
+                onClick={analyze.cancel}
+                shape="square"
+                className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
+              >
                 {t(strings.workspace.analyze.cancel)}
               </Button>
             </div>
@@ -541,6 +555,7 @@ export function AnalyzePanel({ analyze, input, initialAction }: AnalyzePanelProp
                   analyze.run(operation, input, selected?.modelBacked ?? false);
                 }
               }}
+              shape="square"
             >
               {t(strings.workspace.analyze.run)}
             </Button>
@@ -555,10 +570,12 @@ export function AnalyzePanel({ analyze, input, initialAction }: AnalyzePanelProp
                 {analyze.error ?? t(strings.workspace.analyze.failed)}
               </p>
               <Button
-                variant="outline"
+                variant="ghost"
                 type="button"
                 data-testid={selectors.workspace.analyze.retry}
                 onClick={analyze.retry}
+                shape="square"
+                className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
               >
                 {t(strings.workspace.analyze.retry)}
               </Button>

@@ -2,17 +2,20 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { SegmentedControl } from "../../components/ui/segmented-control";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { listAIOperations, type AIParamsInput } from "../../api/ai";
 import { ModelPickerButton } from "../models/ModelPickerButton";
+import { VerdictBadge } from "../models/VerdictBadge";
 import { TIER_LABEL, UPSCALE_SCALES } from "./aiCatalog";
 import { capabilityPresentation, capabilitySummary, familyIcon, isPanelOperation } from "./capabilityCatalog";
 import { MODE_LABEL } from "./modeLabels";
+import { JobRatingControl } from "./JobRatingControl";
 import { isEnhanceActive, type UseEnhance } from "./useEnhance";
+import { cn } from "../../lib/utils";
 
 const AI_OPS_QUERY_KEY = ["ai-operations"] as const;
 
@@ -181,8 +184,13 @@ export function EnhancePanel({
                 >
                   <Icon aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-app-brand" />
                   <span className="flex flex-col">
-                    <span className="text-sm font-medium text-app-foreground">
-                      {meta?.labelKey ? t(meta.labelKey) : op.name}
+                    <span className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-medium text-app-foreground">
+                        {meta?.labelKey ? t(meta.labelKey) : op.name}
+                      </span>
+                      {op.defaultModelId ? (
+                        <VerdictBadge verdict={op.defaultVerdict} testId={selectors.workspace.opVerdict({ name: op.name })} />
+                      ) : null}
                     </span>
                     {meta?.descKey ? (
                       <span className="text-xs text-app-muted-foreground">{t(meta.descKey)}</span>
@@ -275,12 +283,14 @@ export function EnhancePanel({
                 {t(strings.workspace.enhance.naturalize.suggestTitle)}
               </p>
               <Button
-                variant="outline"
+                variant="ghost"
                 type="button"
                 onClick={() => {
                   enhance.dismiss();
                   setOperation("naturalize");
                 }}
+                shape="square"
+                className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
               >
                 {t(strings.workspace.enhance.naturalize.suggest)}
               </Button>
@@ -325,6 +335,7 @@ export function EnhancePanel({
                   setLastRunOp(operation);
                   enhance.installAndRun();
                 }}
+                shape="square"
               >
                 {t(strings.workspace.enhance.install.run)}
               </Button>
@@ -354,10 +365,12 @@ export function EnhancePanel({
                 </>
               )}
               <Button
-                variant="outline"
+                variant="ghost"
                 type="button"
                 data-testid={selectors.workspace.enhance.cancel}
                 onClick={enhance.cancel}
+                shape="square"
+                className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
               >
                 {t(strings.workspace.enhance.cancel)}
               </Button>
@@ -373,6 +386,7 @@ export function EnhancePanel({
                   enhance.start(operation, params, input);
                 }
               }}
+              shape="square"
             >
               {t(strings.workspace.enhance.run)}
             </Button>
@@ -393,12 +407,15 @@ export function EnhancePanel({
           )}
 
           {enhance.phase === "succeeded" && (
-            <p
-              data-testid={selectors.workspace.enhance.succeeded}
-              className="text-sm text-app-success"
-            >
-              {t(strings.workspace.enhance.succeeded)}
-            </p>
+            <>
+              <p
+                data-testid={selectors.workspace.enhance.succeeded}
+                className="text-sm text-app-success"
+              >
+                {t(strings.workspace.enhance.succeeded)}
+              </p>
+              {enhance.resultJobId ? <JobRatingControl jobId={enhance.resultJobId} /> : null}
+            </>
           )}
 
           {enhance.phase === "failed" && (
@@ -410,10 +427,12 @@ export function EnhancePanel({
                 {enhance.error ?? t(strings.workspace.enhance.failed)}
               </p>
               <Button
-                variant="outline"
+                variant="ghost"
                 type="button"
                 data-testid={selectors.workspace.enhance.retry}
                 onClick={enhance.retry}
+                shape="square"
+                className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
               >
                 {t(strings.workspace.enhance.retry)}
               </Button>

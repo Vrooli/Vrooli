@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -222,55 +223,51 @@ func containsBuild(name string) bool {
 // It reads and caches the scenario's .vrooli/service.json file.
 func (s *Server) handleScenarioEnvelope(w http.ResponseWriter, r *http.Request) {
 	slug := mux.Vars(r)["slug"]
-	if slug == "" {
-		http.Error(w, "missing scenario slug", http.StatusBadRequest)
-		return
-	}
-
-	// Check cache first.
-	if cached, ok := s.envelopeCache.Get(slug); ok {
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(cached); err != nil {
-			s.logf("ERROR: encoding cached envelope for %q: %v", slug, err)
-		}
-		return
-	}
-
-	// Resolve the service.json path via the repo root.
-	repoRoot := s.git.ResolveRepoRoot(r.Context())
-	if repoRoot == "" {
-		http.Error(w, "unable to determine repository root", http.StatusInternalServerError)
-		return
-	}
-
-	serviceJSONPath, err := repocontract.ResolveScenarioFile(repoRoot, slug, "service")
+	envelope, err := s.getScenarioEnvelope(r.Context(), slug)
 	if err != nil {
-		http.Error(w, "failed to resolve scenario metadata path", http.StatusInternalServerError)
+		http.Error(w, err.message, err.status)
 		return
 	}
-	data, err := os.ReadFile(serviceJSONPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			http.Error(w, fmt.Sprintf("scenario %q not found (no service.json)", slug), http.StatusNotFound)
-			return
-		}
-		s.logf("ERROR: reading service.json for %q: %v", slug, err)
-		http.Error(w, "failed to read scenario metadata", http.StatusInternalServerError)
-		return
-	}
-
-	envelope, err := parseServiceJSON(data, repoRoot, slug)
-	if err != nil {
-		s.logf("ERROR: parsing service.json for %q: %v", slug, err)
-		http.Error(w, "failed to parse scenario metadata", http.StatusInternalServerError)
-		return
-	}
-
-	// Cache for future requests.
-	s.envelopeCache.Set(slug, envelope)
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(envelope); err != nil {
 		s.logf("ERROR: encoding envelope for %q: %v", slug, err)
 	}
+}
+
+type scenarioEnvelopeLookupError struct {
+	status  int
+	message string
+}
+
+func (s *Server) getScenarioEnvelope(ctx context.Context, slug string) (*ScenarioEnvelopeResponse, *scenarioEnvelopeLookupError) {
+	if slug == "" {
+		return nil, &scenarioEnvelopeLookupError{status: http.StatusBadRequest, message: "missing scenario slug"}
+	}
+	if cached, ok := s.envelopeCache.Get(slug); ok {
+		return cached, nil
+	}
+	repoRoot := s.git.ResolveRepoRoot(ctx)
+	if repoRoot == "" {
+		return nil, &scenarioEnvelopeLookupError{status: http.StatusInternalServerError, message: "unable to determine repository root"}
+	}
+	serviceJSONPath, err := repocontract.ResolveScenarioFile(repoRoot, slug, "service")
+	if err != nil {
+		return nil, &scenarioEnvelopeLookupError{status: http.StatusInternalServerError, message: "failed to resolve scenario metadata path"}
+	}
+	data, err := os.ReadFile(serviceJSONPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, &scenarioEnvelopeLookupError{status: http.StatusNotFound, message: fmt.Sprintf("scenario %q not found (no service.json)", slug)}
+		}
+		s.logf("ERROR: reading service.json for %q: %v", slug, err)
+		return nil, &scenarioEnvelopeLookupError{status: http.StatusInternalServerError, message: "failed to read scenario metadata"}
+	}
+	envelope, err := parseServiceJSON(data, repoRoot, slug)
+	if err != nil {
+		s.logf("ERROR: parsing service.json for %q: %v", slug, err)
+		return nil, &scenarioEnvelopeLookupError{status: http.StatusInternalServerError, message: "failed to parse scenario metadata"}
+	}
+	s.envelopeCache.Set(slug, envelope)
+	return envelope, nil
 }

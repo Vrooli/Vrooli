@@ -1,7 +1,7 @@
 import { PushSafetyNotice } from "./PushSafetyIndicators";
 import { useState, useRef, useEffect } from "react";
 import { ArrowUpDown, ArrowUp, ArrowDown, Loader2 } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 
 interface SyncButtonProps {
   ahead: number;
@@ -59,7 +59,6 @@ export function SyncButton({
 
   return (
     <div className="relative" ref={ref} data-testid="sync-button">
-      <PushSafetyNotice />
       <button
         className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-slate-800 transition-colors text-sm"
         onClick={() => setOpen((prev) => !prev)}
@@ -87,15 +86,17 @@ export function SyncButton({
 
       {open && (
         <div className="absolute left-0 mt-2 w-56 rounded-lg border border-slate-800 bg-slate-950/95 p-2 shadow-xl z-50">
+          <PushSafetyNotice />
           <div className="space-y-1">
             {(ahead > 0 || isPushing) && (
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 onClick={() => { onPush(); setOpen(false); }}
                 disabled={isActive || !canPush}
                 className="w-full justify-start gap-2 h-8 text-xs"
                 data-testid="sync-push-button"
+                style={{ background: "transparent" }}
               >
                 {isPushing ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -107,12 +108,13 @@ export function SyncButton({
             )}
             {(behind > 0 || isPulling) && (
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 onClick={() => { onPull(); setOpen(false); }}
                 disabled={isActive || !canPull}
                 className="w-full justify-start gap-2 h-8 text-xs"
                 data-testid="sync-pull-button"
+                style={{ background: "transparent" }}
               >
                 {isPulling ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />

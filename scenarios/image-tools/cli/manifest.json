@@ -105,6 +105,95 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "rate",
+          "description": "Rate a succeeded job's output 1-5 with an optional note; ratings feed the model verdicts",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Job id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "score",
+              "description": "Rating from 1 (poor) to 5 (excellent)"
+            },
+            {
+              "name": "note",
+              "description": "Optional remark (up to 1000 characters)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "JobsService",
+            "method": "RateJob"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "unrate",
+          "description": "Remove a job's rating",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Job id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "JobsService",
+            "method": "ClearJobRating"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "ratings",
+          "description": "List operator ratings, newest first (--model, --operation, --limit); the evidence behind a verdict's operator-rating line",
+          "flags": [
+            {
+              "name": "model",
+              "description": "Only ratings for this model",
+              "bind": {
+                "field": "model_id"
+              }
+            },
+            {
+              "name": "operation",
+              "description": "Only ratings for this operation"
+            },
+            {
+              "name": "limit",
+              "description": "How many to list (default 50)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "JobsService",
+            "method": "ListJobRatings"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -256,7 +345,7 @@
         },
         {
           "name": "enable",
-          "description": "Enable or disable a model (--disable to turn off); persisted overlay over the seed catalog",
+          "description": "Enable or disable a model (--disable to turn off) as an override over the seed, recording who, when and why; a later seed change supersedes an unpinned override",
           "positionals": [
             {
               "name": "id",
@@ -272,12 +361,47 @@
               "bind": {
                 "field": "enabled"
               }
+            },
+            {
+              "name": "reason",
+              "description": "Why (recorded as provenance; required with --pin)"
+            },
+            {
+              "name": "pin",
+              "bool": true,
+              "description": "Keep this override even when the seed's enabled flag later changes",
+              "bind": {
+                "field": "pinned"
+              }
             }
           ],
           "binding": {
             "kind": "connect-rpc",
             "service": "ModelsService",
             "method": "SetModelEnabled"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reset",
+          "description": "Drop a model's enabled-state override so it follows the seed again",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Model id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ModelsService",
+            "method": "ClearModelOverride"
           },
           "governance": {
             "effect": "write",
@@ -403,6 +527,102 @@
           }
         },
         {
+          "name": "storage",
+          "description": "Show model-weight storage: disk headroom above the shared floor, the adaptive idle threshold, ranked offload candidates with protections, and recent offload receipts",
+          "flags": [
+            {
+              "name": "receipts",
+              "description": "Number of recent offload receipts to show (default 20)",
+              "bind": {
+                "field": "receipt_limit"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ModelsService",
+            "method": "GetModelStorage"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "offload",
+          "description": "Dry-run the adaptive model offload (default) or --apply it; offloaded catalog weights are re-acquired automatically on next use",
+          "flags": [
+            {
+              "name": "apply",
+              "bool": true,
+              "description": "Remove the selected weights and write receipts (default is a dry-run)"
+            },
+            {
+              "name": "model",
+              "description": "Offload only this model (repeatable); bypasses the idle threshold, never a protection",
+              "bind": {
+                "field": "model_ids"
+              }
+            },
+            {
+              "name": "need-bytes",
+              "description": "Preview making room for an acquisition needing this many bytes"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ModelsService",
+            "method": "OffloadModels"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "keep",
+          "description": "Pin a model so offload never removes its weights (--unkeep, or `models unkeep`, removes the pin)",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Model id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "reason",
+              "description": "Why the weights must stay installed"
+            },
+            {
+              "name": "unkeep",
+              "bool": true,
+              "description": "Remove the keep pin instead of adding it",
+              "bind": {
+                "field": "keep"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ModelsService",
+            "method": "SetModelKeep"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "add-custom",
           "description": "Register a custom/local model (repeat --operation per served op; --local-path or --download-url for weights)",
           "positionals": [
@@ -503,7 +723,7 @@
             },
             {
               "name": "attest-commercial-rights",
-              "description": "Required: attest you hold commercial rights before model registration or weight download",
+              "description": "Optional: attest you hold commercial rights, lifting the hosted/monetized-use refusal (local use never needs it)",
               "bool": true
             }
           ],
@@ -918,6 +1138,10 @@
             {
               "name": "mask-ref",
               "description": "Owned mask blob reference"
+            },
+            {
+              "name": "reference-ref",
+              "description": "Owned reference image blob reference (the face for face_swap)"
             },
             {
               "name": "operation-id",

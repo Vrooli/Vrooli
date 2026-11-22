@@ -31,7 +31,7 @@ canonical perf-build infra (vite profile mode, lib/profiler.ts, top-level
 - Reproduction trigger: open the app pointing at the Vrooli repo (76
   visible file rows, multi-thousand-commit history). Phase A wheels the
   history panel up/down. Phase B clicks the first `.md` row
-  (`docs/agent-system/INTAKE_PIPELINE.md`) then clicks the "Preview" tab.
+  (`scenarios/prompt-manager/docs/internal/INTAKE_PIPELINE.md`) then clicks the "Preview" tab.
   Phase C drags the first `cursor-col-resize` divider ±80 px three times.
 
 ## Methodology

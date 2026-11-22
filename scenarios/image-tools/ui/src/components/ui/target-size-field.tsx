@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { Input } from "./input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { SegmentedControl } from "./segmented-control";
 
 const KB = 1024;

@@ -37,6 +37,8 @@ def _parse_args() -> argparse.Namespace:
         default=None,
         help="image-guidance / edit-strength scale (higher = stay closer to the source)",
     )
+    p.add_argument("--width", type=int, default=0, help="output width (0 = family default; honored by families that take a size)")
+    p.add_argument("--height", type=int, default=0, help="output height (0 = family default)")
     p.add_argument("--seed", type=int, default=0, help="RNG seed (0 = nondeterministic)")
     return _common.parse_device_args(p)
 
@@ -54,6 +56,8 @@ def main() -> None:
         image_guidance=args.image_guidance,
         negative_prompt=args.negative_prompt or None,
         seed=args.seed,
+        width=args.width,
+        height=args.height,
     )
     _diffusers.run(
         family=args.family,
@@ -61,6 +65,7 @@ def main() -> None:
         image_paths=args.image,
         out_path=args.out,
         params=params,
+        op="edit_instruct",
     )
 
 

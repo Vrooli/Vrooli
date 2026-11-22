@@ -1,28 +1,6 @@
 package main
 
-import (
-	"net/http"
-	"net/http/httptest"
-	"testing"
-)
-
-func TestHandleVisualCaptureList_Empty(t *testing.T) {
-	t.Parallel()
-
-	_ = httptest.NewRequest(http.MethodGet, "/api/v1/repo/visual-captures?scenarioSlug=nonexistent", nil)
-	rr := httptest.NewRecorder()
-
-	resp := NewResponse(rr)
-	// Without a full server setup, just test response formatting
-	resp.OK(map[string]interface{}{
-		"snapshots": []SnapshotSetMeta{},
-		"total":     0,
-	})
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d", rr.Code)
-	}
-}
+import "testing"
 
 func TestHandleVisualCaptureScreenshot_PathTraversal(t *testing.T) {
 	t.Parallel()
@@ -40,26 +18,5 @@ func TestHandleVisualCaptureScreenshot_PathTraversal(t *testing.T) {
 	err = validateFilename("file\\with\\backslash")
 	if err == nil {
 		t.Error("expected error for backslash in filename")
-	}
-}
-
-func TestHandleVisualCaptureStorageStats_Format(t *testing.T) {
-	t.Parallel()
-
-	rr := httptest.NewRecorder()
-	resp := NewResponse(rr)
-	resp.OK(&VisualCaptureStorageStats{
-		TotalSizeBytes: 1024,
-		SnapshotCount:  5,
-		PerScenario: []ScenarioStorageBreakdown{
-			{ScenarioSlug: "test", SnapshotCount: 5, SizeBytes: 1024},
-		},
-	})
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d", rr.Code)
-	}
-	if ct := rr.Header().Get("Content-Type"); ct != "application/json" {
-		t.Errorf("expected application/json, got %s", ct)
 	}
 }

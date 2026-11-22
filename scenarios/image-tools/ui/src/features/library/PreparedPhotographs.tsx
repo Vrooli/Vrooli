@@ -6,9 +6,10 @@ import { blobUrl } from "../../api/client";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { errorMessage } from "../../lib/errorMessage";
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { Textarea } from "../../components/ui/textarea";
+import { cn } from "../../lib/utils";
 
 const queryKey = ["prepared-photographs"] as const;
 
@@ -60,7 +61,15 @@ export function PreparedPhotographs() {
     {list.error && <p role="alert">{errorMessage(list.error, t)}</p>}
     {list.data?.photographs.length === 0 && <p className="rounded-card border border-app-border p-6 text-app-muted-foreground">{t(k.empty)}</p>}
     <div className="flex flex-wrap gap-2" aria-label={t(k.choose)}>
-      {list.data?.photographs.map((p) => <Button key={p.id} variant={p.id === selected ? "default" : "outline"} aria-pressed={p.id === selected} disabled={review.isPending} onClick={() => changeSelection(p.id)}>
+      {list.data?.photographs.map((p) => <Button
+        key={p.id}
+        variant={p.id === selected ? "primary" : "ghost"}
+        aria-pressed={p.id === selected}
+        disabled={review.isPending}
+        onClick={() => changeSelection(p.id)}
+        shape="square"
+        className={cn(p.id === selected ? undefined : "border border-app-border text-app-foreground hover:bg-app-surface-muted")}
+      >
         {p.label} · {t(k.status[p.manifest?.review?.decision === "accepted" ? "accepted" : p.manifest?.review?.decision === "rejected" ? "rejected" : "pending"])}
       </Button>)}
     </div>
@@ -87,8 +96,16 @@ export function PreparedPhotographs() {
         <label className="flex items-start gap-2 md:col-span-2"><input type="checkbox" checked={overscan} onChange={(event) => setOverscan(event.target.checked)} disabled={review.isPending} /><span>{t(k.overscan)}</span></label>
         {review.error && <p role="alert" className="md:col-span-2">{errorMessage(review.error, t)}</p>}
         <div className="flex gap-2 md:col-span-2">
-          <Button type="button" disabled={!ready} onClick={() => review.mutate("accepted")}>{t(k.accept)}</Button>
-          <Button type="button" variant="outline" disabled={!ready} onClick={() => review.mutate("rejected")}>{t(k.reject)}</Button>
+          <Button type="button" disabled={!ready} onClick={() => review.mutate("accepted")}
+            shape="square">{t(k.accept)}</Button>
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={!ready}
+            onClick={() => review.mutate("rejected")}
+            shape="square"
+            className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
+          >{t(k.reject)}</Button>
           {review.isPending && <span role="status">{t(k.saving)}</span>}
         </div>
       </form>

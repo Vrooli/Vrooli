@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"net/url"
 	"os"
 	"sort"
 	"strings"
@@ -18,6 +17,7 @@ import (
 	repoconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/repo/repo_v1connect"
 	reviewv1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/review"
 	reviewconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/review/review_v1connect"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 var reviewClientFactory = func(core *cliapp.ScenarioApp) reviewconnect.ReviewServiceClient {
@@ -54,12 +54,17 @@ func runSummary(core *cliapp.ScenarioApp, args []string) error {
 		return fmt.Errorf("usage: review summary <scenario> [--details=N] [--json]")
 	}
 	scenario := fs.Arg(0)
-	query := url.Values{}
-	query.Set("scenarioName", scenario)
-	if *details > 0 {
-		query.Set("details", fmt.Sprintf("%d", *details))
+	response, err := reviewClientFactory(core).GetSummary(context.Background(), connect.NewRequest(&reviewv1.GetReviewSummaryRequest{
+		ScenarioName: scenario,
+		Details:      int32(*details),
+	}))
+	if err != nil {
+		return err
 	}
-	body, err := core.Get("/review/summary", query)
+	if response == nil || response.Msg == nil {
+		return fmt.Errorf("review summary returned no result")
+	}
+	body, err := protojson.Marshal(response.Msg)
 	if err != nil {
 		return err
 	}
@@ -137,13 +142,19 @@ func pollJob(core *cliapp.ScenarioApp, jobID, scenario string) (*jobStatusRespon
 	var jobStatus jobStatusResponse
 	for {
 		time.Sleep(3 * time.Second)
-		statusBody, pollErr := core.Get("/review/run/"+jobID, nil)
+		status, pollErr := reviewClientFactory(core).GetJobStatus(context.Background(), connect.NewRequest(&reviewv1.GetReviewJobStatusRequest{JobId: jobID}))
 		if pollErr != nil {
 			return nil, fmt.Errorf("polling job status: %w", pollErr)
 		}
+		if status == nil || status.Msg == nil {
+			return nil, fmt.Errorf("polling job status: review service returned no result")
+		}
+		statusBody, marshalErr := protojson.Marshal(status.Msg)
+		if marshalErr != nil {
+			return nil, marshalErr
+		}
 		if err := json.Unmarshal(statusBody, &jobStatus); err != nil {
-			cliutil.PrintJSON(statusBody)
-			return nil, nil
+			return nil, fmt.Errorf("decoding review job status: %w", err)
 		}
 		if jobStatus.Status == "completed" || jobStatus.Status == "failed" {
 			break
@@ -201,7 +212,14 @@ func runStatus(core *cliapp.ScenarioApp, args []string) error {
 		return fmt.Errorf("usage: review status <jobId> [--json]")
 	}
 	jobID := fs.Arg(0)
-	body, err := core.Get("/review/run/"+jobID, nil)
+	response, err := reviewClientFactory(core).GetJobStatus(context.Background(), connect.NewRequest(&reviewv1.GetReviewJobStatusRequest{JobId: jobID}))
+	if err != nil {
+		return err
+	}
+	if response == nil || response.Msg == nil {
+		return fmt.Errorf("review job status returned no result")
+	}
+	body, err := protojson.Marshal(response.Msg)
 	if err != nil {
 		return err
 	}

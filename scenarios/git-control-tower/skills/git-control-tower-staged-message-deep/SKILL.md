@@ -36,8 +36,12 @@ infer a new contract from the selection's size.
 ## Version 4: inventory, choose details, synthesize
 
 For both initial and continuation requests, first obtain the complete immutable
-metadata inventory using the supported command below, quoting each supplied
-opaque value. Follow `nextCursor` with
+metadata inventory using the supported command below. Take `evidence_job_id`,
+`repository_id`, and `snapshot_digest` from the *same returned deep draft job*:
+the job's ID, repository ID, and snapshot digest (also shown as
+`snapshot.digest`). Do not substitute the collection ID, continuation parent
+ID, workflow execution ID, a general change-subject digest, or a digest from a
+different job. Quote each supplied opaque value. Follow `nextCursor` with
 `--inventory` until the inventory is complete. These small pages list stable
 file IDs, paths and available change metadata; they do not read file bodies.
 

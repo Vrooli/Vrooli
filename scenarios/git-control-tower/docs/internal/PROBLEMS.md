@@ -645,7 +645,7 @@ glance to you understand what they do."
   all browser checks and lifecycle activation. All browser model responses are
   fixtures; no paid drafting execution or repository mutation was used.
 
-## Active correction — drawer clarity and drafting admission (2026-10-22)
+## Delivered — drawer clarity and drafting admission (2026-10-22); physical iOS acceptance remains unverified
 
 Operator feedback (verbatim): "The new drawer doesn’t look that great I feel like
 it could look a lot more professional and polished right now it’s a bit messy.
@@ -779,7 +779,7 @@ like you know just needs more polishing and testing and cleanup and stuff."
   is unchanged across browser acceptance. No real commit, staging, paid model
   execution, grant expansion or Agent Manager production change was required.
 
-## Active correction — large staged selections (2026-10-22)
+## Delivered — large staged selections (2026-10-22)
 
 - Rung: scoped W3 under GCT-OT-P1-002. Operator screenshot IMG_1818.png shows
   `[failed_precondition] staged selection exceeds 256 files; narrow selection`.
@@ -946,7 +946,7 @@ like you know just needs more polishing and testing and cleanup and stuff."
   interaction on the repaired build remains unverified; the native observations
   cited above establish the original failure, not a post-fix device verdict.
 
-## Active delivery — staged commit messages (2026-10-21)
+## Delivered — staged commit messages (2026-10-21)
 
 - Authority: operator approved the evidence-first composer and full implementation,
   validation, orchestration through sub-agents and a dedicated post-validation
@@ -1119,7 +1119,7 @@ like you know just needs more polishing and testing and cleanup and stuff."
 - Final work record: `8bf4d742-413f-442a-835b-fb5fc59eb264` (trigger, approach,
   evidence and outcome). Final scoped whitespace checks passed.
 
-## Active delivery — proposal review (2026-10-08)
+## Delivered — proposal review (2026-10-08); broader scenario gates remain open
 
 Current status: delivered and feature acceptance verified. Final API/UI/CLI checks,
 proto owner verification, lifecycle rebuild, and desktop/mobile observer evidence
@@ -1181,73 +1181,156 @@ in the appended delivery checkpoints.
 - Checkpoints: append decisions and receipts here as slices land; this entry is
   the continuation source after compaction. No separate session audit document.
 
-## Open Issues
+## Current owner obligations — triaged 2026-11-21
 
-### Scenario-level
+The former generic scenario issue block was rechecked against the current
+manifest, owner docs, and Test Genie source. The dispositions below separate
+closed stale statements from current work.
 
-- The scenario has been re-scaffolded from the `react-vite` template; OT-P0-001
-  has initial implementation + tests, but most operational targets remain
-  unimplemented.
-- Git operations are inherently risky; design must enforce repo-root path
-  validation, explicit allowlists, and safe defaults for any mutating endpoint.
-- Repository size and file counts can cause slow status/diff calls; plan
-  pagination and caching before claiming "production-ready".
-- Some `test-genie` phases (smoke/performance) require a running Browser
-  Automation Studio (BAS) workflow engine; when BAS is unreachable, smoke
-  routes through the runnability resolver and SKIPs rather than hard-failing.
-- `vrooli scenario status git-control-tower` currently fails its optional
-  `test-genie` structure probe due to an unsupported `-no-record` flag; the
-  core scenario test lifecycle still uses `test-genie execute`.
+### Resolved or superseded
 
-### React stability internals
+- **Template maturity statement.** The 2025 scaffold note and claim that most
+  operational targets were unimplemented no longer describe this scenario.
+  Current service status is healthy, `template_drifted=false`, and the service
+  exposes the deployed API/UI/CLI and current feature declarations. The
+  historical scaffold milestones remain in [PROGRESS](PROGRESS.md).
+- **Status probe `-no-record` failure.** Not current:
+  `vrooli scenario status git-control-tower --json` returned a healthy runtime
+  and `rg` found no current source caller for this obsolete flag. This only
+  resolves that status-command symptom; it is not a Test Genie certification.
+- **React stability lint/type baseline.** The former configuration and indexing
+  findings are recorded as resolved in this file and are not current open work.
+  The dated 2026-02 receipt remains historical evidence; later feature receipts
+  record their own focused checks.
 
-- ESLint React stability config added with safety-critical rules and import
-  cycle detection.
-- TypeScript safety rules enforced (strict + noUncheckedIndexedAccess) with
-  protective comments.
-- Guarded array indexing and optional values in App selection logic,
-  FileList grouping, GitHistory scopes, file search helpers, mobile search
-  selection, and bottom sheet touch handling.
-- No remaining lint or type-check failures after `pnpm lint` and
-  `pnpm type-check` (2026-02-04).
+### Retained owner work
 
-### Proto-first transport convergence (2026-09-06)
+- **Mutation safety is an invariant, not a new defect.** Keep path and authority
+  checks at the owner boundary; see [AUTHORITY-MATRIX](AUTHORITY-MATRIX.md),
+  [HUMAN-CONTROL-CONTRACT](HUMAN-CONTROL-CONTRACT.md), and
+  [api-endpoints](../reference/api-endpoints.md).
+  Owner: Git Control Tower. Next: maintain these contracts as mutation APIs
+  evolve; no broad policy change is authorized here.
+- **Repository-size performance budget — measured; bounded pages landed, scale obligation remains open.**
+  The 4,096-file staged-selection and 285-file real-index receipts are not
+  status/diff evidence. The production status assembler now has a reproducible
+  disposable-repository benchmark and an opt-in read-only real-worktree case in
+  `api/repo_status_scale_benchmark_test.go`. On Linux/amd64, Ryzen 9 7950X,
+  Go 1.26.0 and Git 2.43.0, ten one-operation samples at 4,096 tracked / 1,024
+  modified / 1,024 untracked files measured 88.77 ms median, 99.68 ms p95 and
+  312,833–312,834 JSON bytes; one-file diff measured 2.24 ms median, 2.52 ms
+  p95 and 931–932 bytes. The read-only worktree sample (7,886 changed entries,
+  about 2.59 MB JSON) measured 4.50 s median / 13.19 s p95 before and 3.44 s /
+  3.62 s in pool mode. The first run overlapped Test Genie; a later serial
+  diagnostic on a changed tree measured 10.14 s on its cold first sample and
+  3.42–3.94 s warm, so cache and shared-host effects prevent a causal A/B claim.
+  `GetRepoStatus` now has `page_size`/opaque `page_token` and `RepoStatusPage`
+  metadata. Each response is capped at 256 KiB across Connect protobuf and JSON
+  encodings; dense pages shrink below requested count. Totals remain global and
+  exact and category entry order is preserved. The first page materializes one
+  complete response in a 64 MiB / 128-entry LRU. Each continuation binds an
+  HMAC cursor to repo, snapshot and offset and verifies fresh porcelain-v2,
+  index digest, changed-path content digests, author configuration and worktree
+  identity before projecting from that response. A semantic change invalidates
+  the snapshot and returns FailedPrecondition; capacity eviction requires a
+  restart. There is no wall-clock TTL. A no-page-size legacy request succeeds
+  only when the whole result fits; otherwise ResourceExhausted explains how to paginate. Browser
+  fetch aggregates all pages before exposing status and retries a changed
+  snapshot twice; CLI status follows and validates the full continuation.
+  Owner tests cover 4,096 dense entries, byte bounds, no duplicate/missing
+  category paths, and mutation between pages. With the preferred 512-entry
+  page size, the 4,096-file page-encoding benchmark returned 4 pages / 238,800
+  serialized bytes aggregate in 396.49–430.69 ms including fresh Git status assembly
+  on each page (three runs). A prepared-status serialization/client-aggregation
+  run returned 8 pages / 240,366 B in 36.76 ms at page size 256; this is not
+  end-to-end latency. Existing full-response baseline remains 312,833–312,834 B.
+  A controlled paired 10-sample `-benchtime=1x -count=10` run traversed the
+  same 4,096-file / 1,024-modified / 1,024-untracked fixture, alternating the
+  prior fresh-status-per-page path and the materialized-snapshot path. Both
+  returned 4 pages; full status assemblies fell from 4 to 1. Traversal latency
+  was 418.7 ms p50 / 427.4 ms p95 versus 262.45 / 274.5 ms. Aggregate page
+  response bytes were 251,016 versus 251,597 (signed cursor metadata adds 581
+  bytes); largest individual pages were 68,927 and 69,121 B, below 262,144 B.
+  This synthetic paired result includes fresh identity checks, excludes
+  Connect transport, and does not validate a real-worktree speedup. Current
+  owner tests cover tracked content changed within one status category, index,
+  untracked additions, exact all-category traversal, forged/replayed cursors,
+  capacity expiry/invalidation, concurrent first pages and bounded bytes. The
+  UI aggregation suite passes 16/16 and CLI page-follow test passes. Focused
+  owner tests pass, including matrix capacity/invalidation, exact traversal,
+  cursor replay, concurrency, changed-snapshot rejection and response limits.
+  Chrome/generated-API consumer proof passed as described below. Test Genie
+  structure run `20261121-125547-b54f4449` passed L3. The focused unit phase
+  `20261121-134031-83740cf9` ended failed/L0: UI type-check and three broad API
+  test commands failed, plus existing architecture/coverage findings; this is
+  not a focused status regression result. A concurrently active
+  broad unit run `20261121-125406-9fb4b98c` failed on missing UI `ui/card`,
+  Vite 5/6 type conflicts, broad API findings and coverage debt; no status page
+  regression failure was reported. A reusable paired size matrix now exercises
+  the same composition at 4,096, 16,384 and 32,768 tracked files (25% modified
+  plus an equal number of untracked paths), alternating baseline/cached order
+  and comparing exact category membership, totals, snapshot identity,
+  duplicate-free traversal, page count and <=262,144-byte responses on every
+  sample. With 10 / 5 / 3 one-operation samples respectively, pages and
+  assemblies were 4/4, 16/16, and 32/32 for fresh-per-page status versus 4/1,
+  16/1, and 32/1 for the snapshot path. Fresh/cached traversal p50/p95 was
+  450.15/508.8 ms vs 293.0/400.0 ms at 4,096; 9,531/9,826 ms vs 2,663/2,789
+  ms at 16,384; and 55,543/56,483 ms vs 7,927/8,174 ms at 32,768. Aggregate
+  bytes were 245,896/246,505 B, 983,952/987,012 B, and 1,968,008/1,974,289 B;
+  largest pages were 67,391/67,594 B, 67,393/67,597 B, and 67,394/67,596 B.
+  Snapshot resident bytes were 818,434 B, 3,269,894 B, and 6,538,498 B, all
+  within the 64 MiB / 128-entry cache. These disposable fixtures show lower
+  repeated traversal cost, not a production SLA or causal real-worktree gain.
+  A browser-backed proving ground runs the actual `fetchRepoStatus` aggregator
+  in Chrome against the generated RepoService Connect handler over same-origin
+  HTTP. On a disposable 4,096 tracked / 1,024 modified / 1,024 untracked repo,
+  the harness changes the repo after the first response, verifies restart and
+  complete exact 2,049-entry membership in the visible complete state, then
+  changes each refresh attempt and observes the visible exhausted-retry error.
+  It observed 5 initial requests, 4 failed continuations, and 9 successful
+  pages with no response over the cap. This exercises a local generated API
+  and browser, not a shared production service. Reproduce the matrix with
+  `GOWORK=off go -C scenarios/git-control-tower/api test . -run '^$' -bench '^BenchmarkRepoStatusPageMatrix/tracked_<SIZE>$' -benchtime=1x -count=<N>`
+  for sizes `4096,16384,32768` and counts `10,5,3`; browser proof with
+  `GOWORK=off GCT_STATUS_BROWSER_E2E=1 go -C scenarios/git-control-tower/api test . -run '^TestRepoStatusBrowserConsumerTraversesRetriesAndShowsError$' -count=1`.
+  Receipts are `evidence/pt2-gct-status-matrix-{4096,16384,32768}.log` and
+  `evidence/pt2-gct-status-matrix-browser.log`.
+  A read-only sample of the shared GCT checkout at HEAD `a75277a48e0eee9cdd7ee8add417314c6c139152` reported 6,155 tracked category entries (149 staged, 6,006 unstaged, with 5 paths in both), 2,215 untracked paths, 8,370 total category entries / 8,365 porcelain records, and 2,754,571 full-status JSON bytes in 4.246 s. Porcelain SHA-256 was unchanged across that one sample (`626727a5…`); Git refreshed index stat-cache data, changing the index file hash, so this is not an unchanged-index paired benchmark. The paged attempt correctly failed closed because at least one changed symlink resolves outside the repository; the guard was not weakened. Exact counts/fingerprints without paths, failure log and limitations are in the linked run archive.
+  A disposable fixture now matches the observed 75,908 tracked-file repository scale and changed-category composition, including 5 staged/unstaged overlaps, 2,215 untracked paths, and 7,710,595 regular-file bytes. Five alternating paired traversals returned 17 pages and exact category membership each time. Full assemblies fell 17→1; traversal p50/p95 fell from 40,794/44,398 ms to 4,696/5,150 ms. Aggregate bytes were 960,393/963,465 B; maximum page 67,388/67,580 B; snapshot residency 3,481,515 B. These matched synthetic results are not live GCT latency. Reproduce with `GOWORK=off go -C scenarios/git-control-tower/api test . -run '^$' -bench '^BenchmarkRepoStatusGCTComposition$' -benchtime=1x -count=5`.
+  The live target is therefore not accepted as safely comparable: its dirty shared state is concurrent, `git status` refreshes index stat data, and its external changed symlink is rejected by continuation guards. Preserve this limitation instead of attributing synthetic results to the live repo.
+  Reproduce the prior controlled 4,096 result with:
+  `GOWORK=off go -C scenarios/git-control-tower/api test . -run '^$' -bench '^BenchmarkRepoStatusScale/files_4096/status_page_comparable_pair$' -benchtime=1x -count=10`.
+  The measured scale and local browser-consumer evidence now exist. The source
+  pointer remains open pending a comparable large actual-worktree sample and
+  clean focused Test Genie terminal receipt; PT2's three-window showcase and
+  PT5 ratchet evidence are separate acceptance requirements. Owner: Git Control Tower. Full contract,
+  commands, methodology, and limitations: [MATURITY-SCOPE-ASSESSMENT](MATURITY-SCOPE-ASSESSMENT.md).
+- **BAS-dependent phases are conditional.** Smoke/performance paths can require
+  Browser Automation Studio and must remain skipped with an honest runnability
+  reason while BAS is unavailable. This is an environment contract, not license
+  to report those phases as passed. Owner: Test Genie plus Git Control Tower;
+  next step: retain this dependency in the phase descriptor and certify on a
+  BAS-ready window.
+- **Typed transport migration remains incomplete.** The live inventory now
+  records num[sot]:15 REST registrations (5 GET / 10 non-GET) and num[sot]:18 GCT Connect services / num[sot]:155 RPCs, plus the
+  external ui-health VisualHealth mount. ReviewService owns typed summary and
+  job-status reads; ScenarioService owns scenario list, envelope and isolation reads;
+  SourceDistributionService owns source-ramp list and detail projections;
+  TidinessService owns tidiness-manager projections; AgentReadService owns
+  Agent Manager profile/run/event/diff projections, with exact GCT scenario-tag
+  and Agent Manager task-scope checks for run binding.
+  Duplicate REST registrations/UI calls are gone for those domains.
+  The owner references in [api-endpoints](../reference/api-endpoints.md) and
+  [DESIGN](../../DESIGN.md) describe the current generated Connect boundary and
+  documented exceptions. Owner: Git Control Tower. Next: continue endpoint-level
+  migration only where route/caller evidence shows an eligible owner path; retain
+  documented operational and external-owner exceptions. This is progress, not
+  completion of the transport migration.
 
-The scenario is greenfield and must converge on Connect-RPC for all typed UI,
-CLI, and inter-scenario operations. The current inventory is 38 hand-wired
-REST registrations in `api/routes.go`, 9 mounted Connect services, 9
-production UI `api-*.ts` modules with 31 direct REST calls, and no remaining
-repo-domain REST callsites in the CLI. `repo status`, `repo stage`, `repo
-groups`, `repo diff`, `repo sync-status`, `repo unstage`, `repo commit`, and
-all four `branch` commands now use generated Connect clients. The UI repository
-file tree, directory listing, related-file lookup, content search, credentials,
-remote URL, SSH keys, grouping rules, gitignore health/remediation, tracked-binary
-health/remediation, file save, and path delete now use the typed `RepoService` as
-well. Discard, ignore,
-push, pull, upstream actions, and precommit configuration/execution now use the
-same typed service and exact intent path where they write repository state.
-
-REST is retained during convergence for read-only UI/CLI surfaces and documented
-transport exceptions (`ops_probe`, `multipart_upload`, `webhook_receiver`, or
-`third_party_shape`). Independent legacy writers must not receive incremental
-authorization patches; they must be migrated to Connect-RPC/generated clients or
-removed, with transport-independent domain logic beneath the boundary. Evidence: plan execution
-decision `3db32287-012a-4a9f-a1b8-974b6aec97ca` and note
-`73c794a8-8aff-4612-aa54-0d6278b4b4ec`.
-
-The latest slices also migrated repository history, approved-change previews,
-provenance, provenance search, and evidence-bound advisory drafts to generated
-Connect methods (`RepoService` methods
-`GetRepoHistory`, `GetApprovedChanges`, `GetProvenance`, and
-`SearchProvenance`, plus `AdvisoryService.Draft`,
-`AuditorService.StartCheck`, `GetJobStatus`, `ListRules`, `ListViolations`,
-`PreviewFix`, `ApplyFix`, and `ReviewService.Start`);
-their REST registrations
-and UI fetches are retired. The remaining 38 REST registrations are not
-completion evidence: each typed
-operation still needs a domain-aligned Connect contract, or an explicit
-`multipart_upload`, `webhook_receiver`, `third_party_shape`, or `ops_probe`
-exception.
+The terminal review-job retention policy remains the single unresolved
+operator-owned decision at the top of this file. Preserve all terminal records
+until the recovery/idempotency horizon and inspectability requirement are
+settled. This triage made no retention or terminal-data changes.
 
 ## Engagement overwrite (resolved 2026-09-02)
 
@@ -1288,11 +1371,15 @@ here:
   should disable the switch action and show a tooltip when
   `checked_out_in_worktree` is non-empty. The typed BranchService shape already
   carries the field.
-- **Audit events for worktree mutations.** `WorktreeCreated`,
-  `WorktreeRemoved`, `WorktreeLocked`, `WorktreeUnlocked`,
-  `WorktreeMoved`, `WorktreePruned` event types are not yet wired
-  through `audit_logger.go`. The Connect handlers should call the
-  `Audit` seam on success (and on dry-run with `dry_run=true`).
+- **Resolved 2026-11-21 — audit events for worktree mutations.** The Connect
+  handlers emit `WorktreeCreated`, `WorktreeRemoved`, `WorktreeLocked`,
+  `WorktreeUnlocked`, `WorktreeMoved`, and `WorktreePruned` through GCT's
+  asynchronous audit logger after successful operations and validated dry-runs
+  (`dry_run=true`). Invalid dry-runs emit no success event. Coverage is in
+  `api/handlers/worktree/connect_handler_test.go` and
+  `api/worktree_audit_test.go`; `GOWORK=off go test ./...` passes in `api`.
+  Test Genie unit `20261121-142344-2c854b7a` remains failed on shared missing
+  `ui/card` imports and UI coverage collection, unrelated to this API slice.
 - **gen-endpoints / EndpointDescriptor parity for new domain.** The
   worktree and repo Connect services are mounted directly in
   `connect_wiring.go` without `Module.Endpoints` / `EndpointDescriptor`
@@ -1300,9 +1387,11 @@ here:
   port both domains to `module.Module` + `validateTransport`.
 - **Remaining incremental-migration candidates.** Per
   `feedback_incremental_template_migration`, retrofit one domain at a
-  time. Branch is now on BranchService; the remaining REST-backed
-  repository writers, review, and audit surfaces still need typed contracts
-  or an explicit RESTException record.
+  time. Branch is now on BranchService; review and audit callers are typed.
+  The remaining routes are listed with owner/authority notes under the REST
+  exception and compatibility sections in `docs/reference/api-endpoints.md`.
+  Migrate only after confirming a typed owner contract, otherwise record a
+  route-specific RESTException; the overall pointer remains open.
 - **Tier 3 worktree features (research candidate).** Agent-session ↔
   worktree mapping; worktree-aware commit composer; cross-worktree
   conflict pre-flight; worktree health overview (stale detection);
@@ -1323,10 +1412,53 @@ landing and are tracked here:
 
 - **REST-backed domain coverage.** The Connect-RPC interceptor now covers
   WorktreeService's context-intent mutations and the handler-managed
-  RepoService commit plus BranchService mutations. The remaining REST-backed
-  repository writers, review, and audit writes still carry their own paths;
-  migrate each to Connect-RPC or document it as a RESTException before
-  calling the scenario greenfield-complete.
+  RepoService commit plus BranchService mutations. Repository writes and
+  review/audit operations use their typed owner services. The remaining REST
+  registrations are operational health, webhook ingress, external visual
+  capture/media, opaque artifact streaming, and Agent Manager compatibility
+  operations; see the endpoint reference for their individual owner and
+  authority boundaries. Keep the scenario-level migration pointer open until
+  every remaining registration and caller has a verified typed migration or
+  an explicit RESTException disposition.
+
+- **2026-11-21 transport follow-up — review/audit CLI residue resolved.** The
+  API registers neither `/api/v1/review/summary`, `/api/v1/review/run/{jobId}`,
+  nor `/audit`; those owner contracts are ReviewService and AuditService. The
+  CLI still had four callers on the retired review/audit REST paths. Summary,
+  job polling/status, and audit listing now call the generated owner clients;
+  HTTP-backed CLI regressions verify request values, usable owner totals and
+  completion status. Current router inventory is 15 routes (5 GET, 8 POST, 2 DELETE). This resolves the CLI
+  residue only: repository mutation REST exceptions and foreign-owner/binary
+  compatibility routes still require per-endpoint disposition, so the overall
+  transport migration and canonical source pointer remain open.
+
+- **2026-11-21 transport follow-up — visual-capture read group resolved.** Four
+  metadata/path GET routes now use the generated `VisualCaptureService` and its
+  repository-scoped read methods. The four corresponding UI callers use the
+  generated client. The remaining GCT/BAS routes are trigger and deletion
+  mutations plus screenshot/video byte delivery. The current trigger and delete
+  handlers use `RepoRead`, directly call BAS/storage, and do not invoke typed
+  mutation intents or GCT audit; retain them until authority/audit semantics are
+  specified. Screenshot/video stay REST until an owner streaming contract exists. Owner tests
+  cover scoped list/detail/stats/path behavior and traversal rejection. The
+  overall transport pointer remains open; see [API reference](../reference/api-endpoints.md)
+  and run evidence in `steward-free-problems-20261121`.
+- **2026-11-21 transport follow-up — residual route/caller inventory.** The
+  router has 15 REST registrations (5 GET / 8 POST / 2 DELETE) and 18 GCT
+  services / 155 RPCs. A fresh caller map found no safe independent GCT-owned
+  group to migrate: health remains an unauthenticated probe (zero runtime UI callers; lifecycle
+  probes are external); webhook ingress has no GCT UI/CLI caller; visual capture
+  has three mutation-hook callers, two screenshot-URL consumers and no video-URL
+  caller; Test Genie artifacts have three UI consumers and preserve Range
+  streaming; six Agent Manager routes map to six UI calls. No GCT CLI caller
+  uses these routes; the CLI UX-capture commands target BAS directly.
+  Agent Manager's five run operations have upstream Connect RPCs, but the GCT
+  browser facade has no GCT request-bound mutation-intent contract; attachment
+  upload remains multipart. The relevant GCT Agent Manager API/UI files have
+  concurrent uncommitted edits, so they were left untouched. Review evidence:
+  `steward-free-problems-20261121/checkpoints/2026-11-21-pt2-gct-residual-rest.md`.
+  No route, service, RPC, or PROBLEMS item closed; the one transport pointer
+  stays open pending a safe eligible contract and callers.
 
 - **Global `--i-was-explicitly-authorized` CLI flag.** Today the
   override is wired via the `VROOLI_GCT_AUTHORIZED` env var that the
@@ -2221,3 +2353,25 @@ This is the same scenario/behavior and does not change the mutation boundary.
 - No real repository index mutation, commit, push or discard was used for
   verification. Queue tombstones remain durable to preserve request-key replay;
   a finite idempotency-retention horizon is still undefined.
+
+
+### 2026-11-21 — Test Genie docs and unit batch disposition
+
+- Docs errors from Test Genie run `20261121-132033-6660342d` were corrected in
+  canonical GCT docs and CLI manifest. Docs run `20261121-135007-f735c583`
+  passes with no blocking errors; the original eight broken command examples
+  are valid. Four separate partial-validation warnings remain for global
+  `vrooli scenario start/port/restart/stop` because the global argument schemas
+  are unavailable; route those to the Vrooli CLI metadata owner.
+- GCT API and CLI `GOWORK=off go test ./...` pass after proposal/lifecycle/legacy
+  admission fixtures were aligned with current owner contracts and the new typed
+  metrics command was added to CLI primitive evidence. The focused tracked-binary
+  UI tests pass 6/6.
+- Test Genie unit run `20261121-135941-8aa81463` still reports two errors, both
+  shared UI boundaries: eight suites cannot collect because the active shared
+  `components/ui/card` deletion is unresolved, and type-check also finds the
+  React Component Library Vite 6.4.6 / GCT Vite 5.4.21 plugin mismatch. The
+  other 70 UI suites pass (560/560 assertions); preserve the deletion and route
+  imports to GCT UI ownership and Vite compatibility to the package owner.
+  Evidence and hashes are in the PT2 GCT batch checkpoint. No PROBLEMS issue
+  bullet or source pointer was closed by this test disposition.

@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { AlertTriangle, ArrowRight, Check, ChevronDown, ChevronRight, Info, X } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { useGitignoreHealth, useGitignoreMove, useGroupingRules } from "../lib/hooks";
 import type { GitignoreSuggestion } from "../lib/api";
 import { TrackedBinariesSection } from "./SettingsTabTrackedBinaries";
@@ -164,11 +164,12 @@ function GitignoreHealthSection({ isMobile, repoId }: SettingsTabHealthProps) {
               </div>
               <div className="flex items-center gap-1 shrink-0">
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   className="h-7 px-2 text-xs"
                   onClick={() => handleMove(s)}
                   disabled={movingLine === s.line || moveMutation.isPending}
+                  style={{ background: "transparent" }}
                 >
                   {movingLine === s.line ? "Moving..." : "Move"}
                 </Button>

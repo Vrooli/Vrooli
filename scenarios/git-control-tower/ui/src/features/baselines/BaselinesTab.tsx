@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Anchor, Plus } from "lucide-react";
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { MutationErrorBanner } from "../../components/ScenarioReviewPanelShared";
 import { useBaselines, useDeleteBaseline, useDefaultBaseline } from "../../lib/hooks-baselines";
 import { BaselineRow } from "./BaselineRow";

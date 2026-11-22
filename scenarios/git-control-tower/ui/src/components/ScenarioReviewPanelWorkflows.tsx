@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Loader2, Minus, Play, XCircle } from "lucide-react";
 import type { ArtifactRef, RunInfo } from "@vrooli/proto-types/test-genie/v1/runs/runs_pb";
 import type { AgentContextItem } from "../lib/api";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { MediaLightbox, MutationErrorBanner, formatDuration, formatRelativeTime, type LightboxItem } from "./ScenarioReviewPanelShared";
 import { useEvidence, useStartRun } from "../lib/hooks-evidence";
 import { runArtifactUrl } from "../lib/api-evidence";
@@ -63,10 +63,22 @@ export function WorkflowsTab({ scenarioSlug, repoId, testGenieAvailable, agentMa
       : runs.length === 0 ? <SurfaceCaptureEmptyState label="Workflows" hasService={testGenieAvailable} onCaptureLoose={runWorkflows} onCaptureBaseline={openCaptureBaseline} isCapturing={triggerRun.isPending} />
       : <>
         <SurfaceComparePanel scenario={scenarioSlug} contextLabel="Workflows" repoId={repoId} onOpenBaselines={onOpenBaselines} onCaptureBaseline={openCaptureBaseline} viewingLabel={`${evidenceQuery.data?.total ?? 0} workflow artifact${evidenceQuery.data?.total === 1 ? "" : "s"} across ${runs.length} run${runs.length === 1 ? "" : "s"}`} />
-        <div className="flex items-center justify-between gap-2"><p className="text-xs text-slate-500">Recordings, traces, logs, HAR, and network evidence are discovered by kind across every producing phase. Media loads only when previewed.</p><Button variant="outline" size="sm" onClick={runWorkflows} disabled={triggerRun.isPending} className="h-7 px-3 gap-1.5 shrink-0">{triggerRun.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}Capture workflows</Button></div>
+        <div className="flex items-center justify-between gap-2"><p className="text-xs text-slate-500">Recordings, traces, logs, HAR, and network evidence are discovered by kind across every producing phase. Media loads only when previewed.</p><Button
+          variant="secondary"
+          size="sm"
+          onClick={runWorkflows}
+          disabled={triggerRun.isPending}
+          className="h-7 px-3 gap-1.5 shrink-0"
+          style={{ background: "transparent" }}
+        >{triggerRun.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}Capture workflows</Button></div>
         {evidenceQuery.data?.degradedReasons.map((reason) => <p key={reason} className="text-xs text-amber-400">Evidence unavailable: {reason}</p>)}
         <div className="space-y-2">{runs.map((entry) => <RunRow key={entry.run.runId} entry={entry} scenario={scenarioSlug} agentManagerAvailable={agentManagerAvailable} onAttachToAgent={onAttachToAgent} onOpenTests={onOpenTests} />)}</div>
-        {evidenceQuery.data?.hasMore && <Button variant="outline" size="sm" onClick={() => setEvidenceLimit((limit) => limit + EVIDENCE_PAGE_SIZE)}>Load {Math.min(EVIDENCE_PAGE_SIZE, Math.max(0, evidenceQuery.data.total - evidenceLimit))} more workflow artifacts</Button>}
+        {evidenceQuery.data?.hasMore && <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => setEvidenceLimit((limit) => limit + EVIDENCE_PAGE_SIZE)}
+          style={{ background: "transparent" }}
+        >Load {Math.min(EVIDENCE_PAGE_SIZE, Math.max(0, evidenceQuery.data.total - evidenceLimit))} more workflow artifacts</Button>}
       </>}
   </div>;
 }

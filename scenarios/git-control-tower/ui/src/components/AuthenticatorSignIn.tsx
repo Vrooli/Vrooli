@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { create } from "@bufbuild/protobuf";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { LoginRequestSchema } from "@vrooli/proto-types/git-control-tower/v1/auth/auth_pb";
 import { authClient } from "../lib/connect";
 
@@ -73,7 +73,13 @@ export function AuthenticatorSignIn({ onSignedIn, onContinueReadOnly }: Authenti
           <Button disabled={submitting} onClick={() => void submit()} size="sm" type="button" data-testid="authenticator-submit">
             {submitting ? "Signing in…" : "Sign in"}
           </Button>
-          <Button onClick={onContinueReadOnly} size="sm" type="button" variant="outline">
+          <Button
+            onClick={onContinueReadOnly}
+            size="sm"
+            type="button"
+            variant="secondary"
+            style={{ background: "transparent" }}
+          >
             Continue read-only
           </Button>
         </div>

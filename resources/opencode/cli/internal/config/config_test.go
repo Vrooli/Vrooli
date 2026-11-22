@@ -70,8 +70,8 @@ func TestRender_FreshConfig(t *testing.T) {
 	}
 	entry := prov["models"].(map[string]any)["gemma4:12b"].(map[string]any)
 	inner := entry["options"].(map[string]any)["options"].(map[string]any)
-	if inner["num_ctx"].(float64) != 16384 {
-		t.Errorf("num_ctx=%v", inner["num_ctx"])
+	if _, ok := inner["num_ctx"]; ok {
+		t.Errorf("runner load option num_ctx written to the OpenCode provider: %v", inner)
 	}
 	if inner["temperature"].(float64) != 0.1 || inner["top_p"].(float64) != 0.9 || inner["top_k"].(float64) != 40 {
 		t.Errorf("sampling not written: %v", inner)
@@ -189,12 +189,12 @@ func TestRender_SamplingOmittedWhenAbsent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	inner := parse(t, out)["provider"].(map[string]any)["ollama"].(map[string]any)["models"].(map[string]any)["gemma4:12b"].(map[string]any)["options"].(map[string]any)["options"].(map[string]any)
-	if _, ok := inner["temperature"]; ok {
-		t.Errorf("temperature must be omitted when not pinned: %v", inner)
+	entry := parse(t, out)["provider"].(map[string]any)["ollama"].(map[string]any)["models"].(map[string]any)["gemma4:12b"].(map[string]any)
+	if _, ok := entry["options"]; ok {
+		t.Errorf("provider options must be omitted when no sampling is pinned: %v", entry)
 	}
-	if inner["num_ctx"].(float64) != 16384 {
-		t.Errorf("num_ctx still required: %v", inner)
+	if entry["limit"].(map[string]any)["context"].(float64) != 16384 {
+		t.Errorf("context budget lost: %v", entry)
 	}
 }
 
@@ -464,7 +464,7 @@ func TestRender_ProjectsExtraOllamaModels(t *testing.T) {
 		t.Fatalf("extra model missing from provider block: %v", models)
 	}
 	inner := entry["options"].(map[string]any)["options"].(map[string]any)
-	if inner["num_ctx"].(float64) != 8192 || inner["temperature"].(float64) != 0.7 || inner["top_p"].(float64) != 0.95 {
+	if _, ok := inner["num_ctx"]; ok || inner["temperature"].(float64) != 0.7 || inner["top_p"].(float64) != 0.95 {
 		t.Errorf("extra model options = %v", inner)
 	}
 	limit := entry["limit"].(map[string]any)

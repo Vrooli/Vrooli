@@ -7,14 +7,17 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	internaladapters "image-tools/internal/adapters"
 	internalbackends "image-tools/internal/backends"
 	internalcaps "image-tools/internal/capabilities"
+	"image-tools/internal/catalogstate"
 	internalhfmeta "image-tools/internal/hfmeta"
 	internalhosttool "image-tools/internal/hosttool"
 	internaljobs "image-tools/internal/jobs"
 	internalmodels "image-tools/internal/models"
+	"image-tools/internal/verdicts"
 
 	"connectrpc.com/connect"
 
@@ -38,10 +41,26 @@ type EstimateInstallSecondsFunc func(sizeMBApprox int) int
 
 // Deps wires the seams the Connect models handler needs.
 type Deps struct {
+	// CapacityManagedGPU is the same GPU-fit rule the AI submit path uses: true
+	// when the host capacity broker arbitrates GPU memory, so a model fits by
+	// the GPU's total VRAM and transient contention is decided at admission.
+	// Previews (`models select`, `ai --explain`, the picker) must set it from the
+	// AI engine (internalai.Engine.CapacityManagedGPU) so they judge the GPU the
+	// way a real job does.
+	CapacityManagedGPU bool
 	// Registry is the loaded, validated seed catalog.
 	Registry *internalmodels.Registry
-	// Store persists the runtime enabled-state overlay.
+	// Store persists the runtime enabled-state overrides with their provenance.
 	Store *internalmodels.Store
+	// Verdicts derives each model's per-operation verdict from the evidence seed,
+	// job history and operator ratings. Nil leaves every model untested.
+	Verdicts *verdicts.Service
+	// Previewer answers "which model would run" for SelectModel; the AI discovery
+	// handler asks the same previewer, so `models select` and `ai list` cannot
+	// disagree. Defaults to one assembled from this Deps.
+	Previewer *internalmodels.Previewer
+	// Now stamps override provenance. Defaults to time.Now.
+	Now func() time.Time
 	// Probe reports host hardware facts for SelectModel's hardware-fit preview.
 	Probe internalcaps.Probe
 	// Installer manages on-disk weights (install/remove/custom) and install state.
@@ -76,8 +95,21 @@ type Deps struct {
 	AdapterByID      func(id string) (internaladapters.Adapter, bool)
 	AdapterEnabled   func(ctx context.Context) (func(id string) bool, error)
 	AdapterInstalled func(id string) bool
-	Logger           *log.Logger
+	// Storage is the model-weight storage lifecycle owner (status, offload,
+	// keep pins). nil leaves the storage RPCs unimplemented.
+	Storage ModelStorage
+	// Consent is the deployment's consent rule (the gate's, shared with the submit
+	// edge). ExplainResolution reports through it whether a request resolved to
+	// this route needs a consent affirmation, so the UI shows its checkbox exactly
+	// when the submit edge would ask. nil reports "not required".
+	Consent ConsentRule
+	Logger  *log.Logger
 }
+
+// ConsentRule reports whether an operation at consent weight (none|low|high),
+// resolved to a route tier, needs a consent affirmation: which rule asks
+// ("tier" or "route") and a plain-language reason.
+type ConsentRule func(op, weight, tier string) (required bool, basis, reason string)
 
 type connectHandler struct {
 	deps Deps
@@ -92,6 +124,9 @@ func NewConnectHandler(d Deps) *connectHandler {
 	if d.EstimateInstallSeconds == nil {
 		d.EstimateInstallSeconds = internalmodels.EstimateInstallSeconds
 	}
+	if d.Now == nil {
+		d.Now = time.Now
+	}
 	if d.EnsureEtaSeconds <= 0 {
 		d.EnsureEtaSeconds = 90
 	}
@@ -99,6 +134,34 @@ func NewConnectHandler(d Deps) *connectHandler {
 		d.Hfmeta = &internalhfmeta.HFClient{}
 	}
 	return &connectHandler{deps: d}
+}
+
+// previewer is the shared previewer main.go wired, or one assembled from the
+// handler's current seams (read at use, so a test that adjusts a seam after
+// construction is previewed against it).
+func (h *connectHandler) previewer() *internalmodels.Previewer {
+	if h.deps.Previewer != nil {
+		return h.deps.Previewer
+	}
+	return h.defaultPreviewer()
+}
+
+// defaultPreviewer assembles the shared previewer from this handler's own seams
+// (main.go wires one explicitly so the AI discovery handler shares it).
+func (h *connectHandler) defaultPreviewer() *internalmodels.Previewer {
+	d := h.deps
+	p := &internalmodels.Previewer{
+		Registry:           d.Registry,
+		Probe:              d.Probe,
+		Overlay:            h.overlay,
+		Customs:            h.customModels,
+		RightsEvaluator:    d.RightsEvaluator,
+		CapacityManagedGPU: d.CapacityManagedGPU,
+	}
+	if d.OpDefaults != nil {
+		p.Pin = d.OpDefaults.Get
+	}
+	return p
 }
 
 func (h *connectHandler) overlay(ctx context.Context) (map[string]bool, error) {
@@ -163,26 +226,35 @@ func (h *connectHandler) effectiveRegistry(ctx context.Context) (*internalmodels
 	return registry, customIDs, nil
 }
 
-// viewFor builds the runtime modelView for one model.
-func (h *connectHandler) viewFor(m internalmodels.Model, custom bool, overlay map[string]bool, installs map[string]internalmodels.InstallRecord) modelView {
-	v := modelView{custom: custom, enabled: internalmodels.EffectiveEnabled(m, overlay)}
-	if r, ok := installs[m.ID]; ok {
+// viewFor builds the runtime modelView for one model from the request's
+// viewState: effective enabled state, override provenance, install record and
+// verdicts.
+func (h *connectHandler) viewFor(m internalmodels.Model, custom bool, st *viewState) modelView {
+	v := modelView{custom: custom, enabled: internalmodels.EffectiveEnabled(m, st.overlay)}
+	if o, ok := st.overrides[m.ID]; ok {
+		v.override = overrideToProto(&o, m.Enabled)
+	}
+	r, ok := st.installs[m.ID]
+	if !ok {
+		r, ok = internalmodels.WeightlessInstallRecord(m)
+	}
+	if ok {
 		rec, _ := h.publicInstallState(m, r, true)
 		v.install = &rec
+	}
+	per, rollup := st.modelVerdicts(m)
+	v.verdict = verdicts.ToProto(rollup)
+	for _, p := range per {
+		v.verdicts = append(v.verdicts, verdicts.ToProto(p))
 	}
 	return v
 }
 
 func (h *connectHandler) ListModels(ctx context.Context, req *connect.Request[modelsv1.ListModelsRequest]) (*connect.Response[modelsv1.ListModelsResponse], error) {
-	overlay, err := h.overlay(ctx)
+	st, err := h.loadViewState(ctx)
 	if err != nil {
-		h.deps.Logger.Printf("models.ListModels overlay: %v", err)
+		h.deps.Logger.Printf("models.ListModels state: %v", err)
 		return nil, connect.NewError(connect.CodeInternal, errors.New("load model state"))
-	}
-	installs, err := h.installStates(ctx)
-	if err != nil {
-		h.deps.Logger.Printf("models.ListModels installs: %v", err)
-		return nil, connect.NewError(connect.CodeInternal, errors.New("load install state"))
 	}
 
 	op := req.Msg.GetOperation()
@@ -198,7 +270,7 @@ func (h *connectHandler) ListModels(ctx context.Context, req *connect.Request[mo
 
 	resp := &modelsv1.ListModelsResponse{Models: make([]*modelsv1.Model, 0, len(entries))}
 	for _, m := range entries {
-		resp.Models = append(resp.Models, domainToProto(m, h.viewFor(m, false, overlay, installs)))
+		resp.Models = append(resp.Models, domainToProto(m, h.viewFor(m, false, st)))
 	}
 
 	// Merge operator-registered custom entries (filtered to the op when set).
@@ -211,7 +283,7 @@ func (h *connectHandler) ListModels(ctx context.Context, req *connect.Request[mo
 		if op != "" && !m.ServesOperation(op) {
 			continue
 		}
-		resp.Models = append(resp.Models, domainToProto(m, h.viewFor(m, true, overlay, installs)))
+		resp.Models = append(resp.Models, domainToProto(m, h.viewFor(m, true, st)))
 	}
 	return connect.NewResponse(resp), nil
 }
@@ -240,18 +312,13 @@ func (h *connectHandler) GetModel(ctx context.Context, req *connect.Request[mode
 	if !ok {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("model not found"))
 	}
-	overlay, err := h.overlay(ctx)
+	st, err := h.loadViewState(ctx)
 	if err != nil {
-		h.deps.Logger.Printf("models.GetModel overlay: %v", err)
+		h.deps.Logger.Printf("models.GetModel state: %v", err)
 		return nil, connect.NewError(connect.CodeInternal, errors.New("load model state"))
 	}
-	installs, err := h.installStates(ctx)
-	if err != nil {
-		h.deps.Logger.Printf("models.GetModel installs: %v", err)
-		return nil, connect.NewError(connect.CodeInternal, errors.New("load install state"))
-	}
 	return connect.NewResponse(&modelsv1.GetModelResponse{
-		Model: domainToProto(m, h.viewFor(m, custom, overlay, installs)),
+		Model: domainToProto(m, h.viewFor(m, custom, st)),
 	}), nil
 }
 
@@ -262,56 +329,41 @@ func (h *connectHandler) ListOperations(_ context.Context, _ *connect.Request[mo
 }
 
 func (h *connectHandler) SelectModel(ctx context.Context, req *connect.Request[modelsv1.SelectModelRequest]) (*connect.Response[modelsv1.SelectModelResponse], error) {
-	host, err := h.deps.Probe.Inventory(ctx)
+	// The shared previewer merges the catalog, the enabled overlay, the operator's
+	// pin, rights and hardware fit exactly as a submit does, and is the same code
+	// `ai list` asks for each operation's default, so the two cannot disagree.
+	preview, err := h.previewer().Load(ctx)
 	if err != nil {
-		h.deps.Logger.Printf("models.SelectModel probe: %v", err)
-		return nil, connect.NewError(connect.CodeInternal, errors.New("probe host hardware"))
-	}
-	overlay, err := h.overlay(ctx)
-	if err != nil {
-		h.deps.Logger.Printf("models.SelectModel overlay: %v", err)
+		h.deps.Logger.Printf("models.SelectModel: %v", err)
 		return nil, connect.NewError(connect.CodeInternal, errors.New("load model state"))
 	}
-	installs, err := h.installStates(ctx)
+	st, err := h.loadViewState(ctx)
 	if err != nil {
-		h.deps.Logger.Printf("models.SelectModel installs: %v", err)
-		return nil, connect.NewError(connect.CodeInternal, errors.New("load install state"))
+		h.deps.Logger.Printf("models.SelectModel state: %v", err)
+		return nil, connect.NewError(connect.CodeInternal, errors.New("load model state"))
 	}
-	registry, customIDs, err := h.effectiveRegistry(ctx)
-	if err != nil {
-		h.deps.Logger.Printf("models.SelectModel custom registry: %v", err)
-		return nil, connect.NewError(connect.CodeInternal, errors.New("load custom model catalog"))
-	}
-
-	override := req.Msg.GetOverrideId()
-	if override == "" && h.deps.OpDefaults != nil {
-		if pinned, derr := h.deps.OpDefaults.Get(ctx, req.Msg.GetOperation()); derr == nil {
-			override = pinned
-		}
-	}
-	sel, err := registry.Select(internalmodels.SelectRequest{
-		Operation:       req.Msg.GetOperation(),
-		Host:            host,
-		RightsEvaluator: h.deps.RightsEvaluator,
-		Context:         ctx,
+	op := req.Msg.GetOperation()
+	sel, err := preview.Select(ctx, internalmodels.PreviewRequest{
+		Operation: op,
 		// The caller's routing policy, so the preview resolves the model a
 		// submit with the same policy would resolve. Without it a BYOK-routed
 		// caller was previewed the local default's identity and geometry, and
 		// sized its request from a model that was never going to draw it.
 		QualityPolicy: req.Msg.GetQualityPolicy(),
 		AllowBYOK:     req.Msg.GetAllowByok(),
-		OverrideID:    override,
+		OverrideID:    req.Msg.GetOverrideId(),
 		ForceCPU:      req.Msg.GetForceCpu(),
-	}, registry.EnabledWithOverlay(overlay))
+	})
 	if err != nil {
 		return nil, selectError(err)
 	}
 
 	return connect.NewResponse(&modelsv1.SelectModelResponse{
-		Model:     domainToProto(sel.Model, h.viewFor(sel.Model, customIDs[sel.Model.ID], overlay, installs)),
+		Model:     domainToProto(sel.Model, h.viewFor(sel.Model, preview.CustomIDs[sel.Model.ID], st)),
 		GpuViable: sel.GPUViable,
 		Reason:    sel.Reason,
 		Warnings:  sel.Warnings,
+		Verdict:   verdicts.ToProto(st.verdictFor(sel.Model.ID, op)),
 	}), nil
 }
 
@@ -321,26 +373,64 @@ func (h *connectHandler) SetModelEnabled(ctx context.Context, req *connect.Reque
 	if !ok {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("model not found"))
 	}
-	if req.Msg.GetEnabled() && m.CapabilityLabels.CommercialUse != internalmodels.CommercialUseYes {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("model cannot be enabled until its commercial rights are verified"))
+	if req.Msg.GetEnabled() {
+		if err := internalmodels.RequireLocalUsePermitted(ctx, h.deps.RightsEvaluator, m); err != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("model cannot be enabled: %w", err))
+		}
 	}
 	if h.deps.Store == nil {
 		return nil, connect.NewError(connect.CodeInternal, errors.New("model state store unavailable"))
 	}
-	if err := h.deps.Store.SetEnabled(ctx, id, req.Msg.GetEnabled()); err != nil {
+	actor := strings.TrimSpace(req.Msg.GetActor())
+	if actor == "" {
+		actor = "api"
+	}
+	reason := strings.TrimSpace(req.Msg.GetReason())
+	if req.Msg.GetPinned() && reason == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("a pinned override is a standing choice: say why with a reason"))
+	}
+	override := catalogstate.Override{ID: id, Enabled: req.Msg.GetEnabled(), SetBy: actor, Reason: reason, Pinned: req.Msg.GetPinned()}
+	if err := h.deps.Store.SetOverride(ctx, override, m.Enabled, h.deps.Now()); err != nil {
 		h.deps.Logger.Printf("models.SetModelEnabled: %v", err)
 		return nil, connect.NewError(connect.CodeInternal, errors.New("persist model state"))
 	}
-	installs, err := h.installStates(ctx)
-	if err != nil {
-		h.deps.Logger.Printf("models.SetModelEnabled installs: %v", err)
-		return nil, connect.NewError(connect.CodeInternal, errors.New("load install state"))
+	return modelResponse(h, ctx, m, custom, "SetModelEnabled", func(m *modelsv1.Model) *modelsv1.SetModelEnabledResponse {
+		return &modelsv1.SetModelEnabledResponse{Model: m}
+	})
+}
+
+// ClearModelOverride deletes an override so the model follows the seed again.
+func (h *connectHandler) ClearModelOverride(ctx context.Context, req *connect.Request[modelsv1.ClearModelOverrideRequest]) (*connect.Response[modelsv1.ClearModelOverrideResponse], error) {
+	id := req.Msg.GetId()
+	m, custom, ok := h.resolve(ctx, id)
+	if !ok {
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("model not found"))
 	}
-	v := h.viewFor(m, custom, nil, installs)
-	v.enabled = req.Msg.GetEnabled()
-	return connect.NewResponse(&modelsv1.SetModelEnabledResponse{
-		Model: domainToProto(m, v),
-	}), nil
+	if h.deps.Store == nil {
+		return nil, connect.NewError(connect.CodeInternal, errors.New("model state store unavailable"))
+	}
+	existed, err := h.deps.Store.ClearOverride(ctx, id)
+	if err != nil {
+		h.deps.Logger.Printf("models.ClearModelOverride: %v", err)
+		return nil, connect.NewError(connect.CodeInternal, errors.New("persist model state"))
+	}
+	if !existed {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("model %q has no override: it already follows the seed", id))
+	}
+	return modelResponse(h, ctx, m, custom, "ClearModelOverride", func(m *modelsv1.Model) *modelsv1.ClearModelOverrideResponse {
+		return &modelsv1.ClearModelOverrideResponse{Model: m}
+	})
+}
+
+// modelResponse re-reads the catalog state after a write and wraps the model's
+// fresh view, so the response shows the state the next read will.
+func modelResponse[T any](h *connectHandler, ctx context.Context, m internalmodels.Model, custom bool, op string, wrap func(*modelsv1.Model) *T) (*connect.Response[T], error) {
+	st, err := h.loadViewState(ctx)
+	if err != nil {
+		h.deps.Logger.Printf("models.%s state: %v", op, err)
+		return nil, connect.NewError(connect.CodeInternal, errors.New("load model state"))
+	}
+	return connect.NewResponse(wrap(domainToProto(m, h.viewFor(m, custom, st)))), nil
 }
 
 func (h *connectHandler) ListBlocklist(_ context.Context, _ *connect.Request[modelsv1.ListBlocklistRequest]) (*connect.Response[modelsv1.ListBlocklistResponse], error) {
@@ -361,8 +451,8 @@ func (h *connectHandler) InstallModel(ctx context.Context, req *connect.Request[
 	if !ok {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("model not found"))
 	}
-	if m.CapabilityLabels.CommercialUse != internalmodels.CommercialUseYes {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("model cannot be installed until its commercial rights are verified"))
+	if err := internalmodels.RequireLocalUsePermitted(ctx, h.deps.RightsEvaluator, m); err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("model cannot be installed: %w", err))
 	}
 
 	lifecycle, err := h.deps.Installer.Lifecycle(ctx, id)
@@ -436,14 +526,20 @@ func (h *connectHandler) AddCustomModel(ctx context.Context, req *connect.Reques
 	m := protoToDomain(pm)
 	m.Source.LocalPath = req.Msg.GetLocalPath()
 	m.Source.DownloadURL = req.Msg.GetDownloadUrl()
+	// Complete what the caller left out so the response shows what was stored
+	// (AddCustom completes idempotently).
+	m = internalmodels.CompleteCustom(m)
 
 	if err := h.deps.Installer.AddCustom(ctx, m); err != nil {
 		return nil, addCustomError(err)
 	}
-	overlay, _ := h.overlay(ctx)
-	installs, _ := h.installStates(ctx)
+	st, err := h.loadViewState(ctx)
+	if err != nil {
+		h.deps.Logger.Printf("models.AddCustomModel state: %v", err)
+		return nil, connect.NewError(connect.CodeInternal, errors.New("load model state"))
+	}
 	return connect.NewResponse(&modelsv1.AddCustomModelResponse{
-		Model: domainToProto(m, h.viewFor(m, true, overlay, installs)),
+		Model: domainToProto(m, h.viewFor(m, true, st)),
 	}), nil
 }
 
@@ -464,8 +560,8 @@ func (h *connectHandler) SetDefaultModel(ctx context.Context, req *connect.Reque
 		if !m.ServesOperation(op) {
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("model does not serve that operation"))
 		}
-		if m.CapabilityLabels.CommercialUse != internalmodels.CommercialUseYes {
-			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("model cannot be pinned until its commercial rights are verified"))
+		if err := internalmodels.RequireLocalUsePermitted(ctx, h.deps.RightsEvaluator, m); err != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("model cannot be pinned: %w", err))
 		}
 	}
 	if err := h.deps.OpDefaults.Set(ctx, op, id); err != nil {
@@ -501,6 +597,17 @@ func (h *connectHandler) ListDefaults(ctx context.Context, _ *connect.Request[mo
 
 func (h *connectHandler) DoctorCatalog(ctx context.Context, _ *connect.Request[modelsv1.DoctorCatalogRequest]) (*connect.Response[modelsv1.DoctorCatalogResponse], error) {
 	report := h.deps.Registry.DoctorCatalog()
+	if h.deps.Store != nil {
+		overrides, err := h.deps.Store.LoadOverrides(ctx)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("load model overrides: %w", err))
+		}
+		custom, err := h.customModels(ctx)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+		report.Findings = append(report.Findings, internalmodels.DoctorOverrides(overrides, h.deps.Registry.SeedState(custom))...)
+	}
 	if h.deps.Installer == nil {
 		report.Findings = append(report.Findings, internalmodels.CatalogFinding{
 			Severity: internalmodels.FindingError,

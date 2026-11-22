@@ -112,23 +112,24 @@ func (s *Server) handleScenarioIsolation(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	writeIsolationJSON(w, s.getScenarioIsolation(r.Context(), slug))
+}
+
+func (s *Server) getScenarioIsolation(ctx context.Context, slug string) IsolationResponse {
 	if s.isolationCache != nil {
 		if cached, ok := s.isolationCache.Get(slug); ok {
-			writeIsolationJSON(w, cached)
-			return
+			return cached
 		}
 	}
-
 	var checker eligibilityChecker
 	if s.testGenieEligibility != nil {
 		checker = s.testGenieEligibility
 	}
-	resp := resolveIsolation(r.Context(), checker, slug)
-
+	resp := resolveIsolation(ctx, checker, slug)
 	if s.isolationCache != nil {
 		s.isolationCache.Put(slug, resp)
 	}
-	writeIsolationJSON(w, resp)
+	return resp
 }
 
 // resolveIsolation runs the eligibility check and normalizes the response.

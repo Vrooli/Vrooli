@@ -1,5 +1,5 @@
 import { StagedSafetyNotice } from "./PushSafetyIndicators";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId } from "react";
 import {
   GitCommit,
   Loader2,
@@ -12,7 +12,7 @@ import {
   Check
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import type { AuthorityStatus, CommitCheckRun, PrecommitRunResult, RepoHistoryEntry } from "../lib/api";
 import { XCircle } from "lucide-react";
 import { AuthenticatorSignIn } from "./AuthenticatorSignIn";
@@ -46,11 +46,14 @@ interface CommitPanelProps {
   isCommitting: boolean;
   isUpdatingIndex?: boolean;
   stagedPaths?: readonly string[];
+  worktreeChangedPaths?: readonly string[];
   /** Narrows the index back to a commit suggestion's staged selection. */
   onUnstagePaths?: (paths: string[]) => Promise<void>;
   onQueueStagedExtras?: (paths: string[]) => Promise<boolean>;
   commitProgressLabel?: string;
   commitError?: string;
+  queueCommitBlockReason?: string;
+  queueRecoveryPendingId?: string | null;
   // Reuse a passed pre-commit after a post-pass failure (e.g. index lock) — commit
   // again with --no-verify instead of re-streaming the ~1-minute pre-commit.
   onRetryWithoutPrecommit?: () => void;
@@ -85,6 +88,7 @@ interface CommitPanelProps {
   onRetryQueuedSuggestion?: (selection: QueuedStageSelection) => void;
   onRefreshQueuedSuggestion?: (selection: QueuedStageSelection) => void;
   onStartQueuedSuggestion?: (selection: QueuedStageSelection, mode: StagedMessageMode) => void;
+  onStageQueuedSelectionNow?: (selection: QueuedStageSelection) => void;
   onFinishQueuedUnstage?: (selection: QueuedStageSelection) => void;
 }
 
@@ -214,10 +218,13 @@ export function CommitPanel({
   isCommitting,
   isUpdatingIndex = false,
   stagedPaths,
+  worktreeChangedPaths,
   onUnstagePaths,
   onQueueStagedExtras,
   commitProgressLabel,
   commitError,
+  queueCommitBlockReason,
+  queueRecoveryPendingId,
   defaultAuthorName,
   defaultAuthorEmail,
   canAmend = false,
@@ -246,8 +253,10 @@ export function CommitPanel({
   onRetryQueuedSuggestion,
   onRefreshQueuedSuggestion,
   onStartQueuedSuggestion,
+  onStageQueuedSelectionNow,
   onFinishQueuedUnstage,
 }: CommitPanelProps) {
+  const queueBlockerId = useId();
   const [signInOpen, setSignInOpen] = useState(false);
   const [useConventional, setUseConventional] = useState(false);
   const [skipHooks, setSkipHooks] = useState(false);
@@ -267,7 +276,7 @@ export function CommitPanel({
   const trimmedMessage = commitMessage.trim();
   const hasTitle = Boolean(parseMessage(commitMessage).title.trim());
   const canCommit = stagedCount > 0 && !isCommitting && !isUpdatingIndex && (hasTitle || (amendLast && !trimmedMessage)) &&
-    (!authorityStatus || authorityStatus.canMutate);
+    (!authorityStatus || authorityStatus.canMutate) && !queueCommitBlockReason;
   const showPushAction = Boolean(onPush && aheadCount > 0);
   const pushDisabled = isPushing || !canPush;
   const handlePushClick = onPush ?? (() => {});
@@ -353,14 +362,22 @@ export function CommitPanel({
             onQueueStagedExtras={onQueueStagedExtras}
           />
 
-          {queuedStageSelections.length > 0 && <section className="space-y-2 rounded-lg border border-cyan-900/70 bg-cyan-950/20 p-3" aria-label="Queued commit selections" data-testid="queued-stage-selections">
-            <div className="flex items-center justify-between gap-2"><p className="text-xs font-semibold text-cyan-100">{queuedStageSelections.length} next commit {queuedStageSelections.length === 1 ? "selection" : "selections"} queued</p>
-              {onStageQueuedSelection && queuedStageSelections[0]?.state === "stage_failed" && <button type="button" disabled={isUpdatingIndex} className="min-h-9 rounded border border-cyan-800 px-2 text-[11px] text-cyan-100 disabled:opacity-50" onClick={onStageQueuedSelection}>Retry staging next</button>}
-            </div>
-            <p className="text-[11px] text-slate-400">Each selection has its own suggestion job and stays unstaged while the current commit is active. After this commit succeeds, the next unchanged selection is staged for review.{queuedStageSelections[0]?.state === "stage_failed" ? " The last staging attempt failed or was incomplete; retry it or remove this selection." : queuedStageSelections[0]?.state === "commit_pending" ? " The commit outcome needs confirmation before this queue can continue." : ""}</p>
-            <ol className="space-y-1">{queuedStageSelections.map((selection, index) => <li key={selection.id} className="flex items-start gap-2 text-[11px] text-slate-300">
-              <span className="shrink-0 font-mono text-cyan-300">{index + 1}.</span><div className="min-w-0 flex-1"><p className="break-all">{selection.paths.join(", ")}</p>{selection.stageError && <p role="alert" className="my-1 text-xs text-amber-200">{selection.stageError}</p>}{selection.state === "commit_pending" && onResolveQueuedCommit && <div className="mt-1 flex flex-wrap gap-2"><button type="button" disabled={isCommitting} className="text-cyan-200 underline disabled:opacity-50" onClick={() => onResolveQueuedCommit(selection.id, true)}>I committed these files</button><button type="button" disabled={isCommitting} className="text-slate-300 underline disabled:opacity-50" onClick={() => onResolveQueuedCommit(selection.id, false)}>The commit did not happen</button></div>}<QueuedStageSuggestionStatus repositoryId={repoId ?? ""} selection={selection} isStaged={selection.state === "staged"} onUse={useQueuedSuggestion} onRetry={onRetryQueuedSuggestion} onRefresh={onRefreshQueuedSuggestion} onStartSuggestion={onStartQueuedSuggestion} onFinishUnstage={onFinishQueuedUnstage} /></div>
-              {onRemoveQueuedStageSelection && selection.state !== "commit_pending" && <button type="button" disabled={isUpdatingIndex} className="min-h-8 shrink-0 px-1 text-slate-400 hover:text-white disabled:opacity-50" onClick={() => onRemoveQueuedStageSelection(selection.id)} aria-label={`Remove queued selection ${index + 1}`}>Remove</button>}
+          {queuedStageSelections.length > 0 && <section className="space-y-3" aria-label="Queued commit selections" data-testid="queued-stage-selections">
+            <header className="flex items-center justify-between gap-3 border-b border-slate-800 pb-2">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-100">Follow-up queue</h3>
+                <p className="mt-0.5 text-xs text-slate-400">{queuedStageSelections.length} saved {queuedStageSelections.length === 1 ? "selection" : "selections"} · staged after this commit</p>
+              </div>
+              {onStageQueuedSelection && queuedStageSelections[0]?.state === "stage_failed" && <button type="button" disabled={isUpdatingIndex} className="min-h-9 rounded-md border border-slate-700 px-3 text-xs text-slate-200 transition-colors hover:bg-slate-800 disabled:opacity-50" onClick={onStageQueuedSelection}>Retry staging</button>}
+            </header>
+            <ol className="space-y-2">{queuedStageSelections.map((selection, index) => <li key={selection.id} className="flex items-start gap-2">
+              <span className="mt-3 w-5 shrink-0 text-center font-mono text-xs text-slate-500">{index + 1}</span>
+              <div className="min-w-0 flex-1 space-y-2">
+                {selection.stageError && <p role="alert" className="text-xs text-amber-200">{selection.stageError}</p>}
+                {selection.state === "commit_pending" && onResolveQueuedCommit && <div className="flex flex-wrap gap-3 rounded-md border border-amber-800/50 bg-amber-950/20 px-3 py-2 text-xs"><span className="w-full text-amber-100">Did the commit finish?</span><button type="button" disabled={isCommitting} className="text-cyan-200 underline disabled:opacity-50" onClick={() => onResolveQueuedCommit(selection.id, true)}>Yes, it committed</button><button type="button" disabled={isCommitting} className="text-slate-300 underline disabled:opacity-50" onClick={() => onResolveQueuedCommit(selection.id, false)}>No, it did not</button></div>}
+                <QueuedStageSuggestionStatus repositoryId={repoId ?? ""} selection={selection} isStaged={selection.state === "staged"} stagedPaths={stagedPaths} worktreeChangedPaths={worktreeChangedPaths} isQueueRecoveryBusy={queueRecoveryPendingId === selection.id} onRemove={onRemoveQueuedStageSelection} onUse={useQueuedSuggestion} onRetry={onRetryQueuedSuggestion} onRefresh={onRefreshQueuedSuggestion} onStartSuggestion={onStartQueuedSuggestion} onStageNow={onStageQueuedSelectionNow} onFinishUnstage={onFinishQueuedUnstage} />
+              </div>
+              {onRemoveQueuedStageSelection && selection.state !== "commit_pending" && selection.state !== "stale" && <button type="button" disabled={isUpdatingIndex} title="Removes this saved queue entry; staged and worktree files are unchanged." className="mt-2 min-h-9 shrink-0 rounded-md px-2 text-xs text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-100 disabled:opacity-50" onClick={() => onRemoveQueuedStageSelection(selection.id)} aria-label={`Remove selection ${index + 1} from queue`}>Remove from queue</button>}
             </li>)}</ol>
           </section>}
 
@@ -419,6 +436,8 @@ export function CommitPanel({
             </div>
           )}
 
+          {queueCommitBlockReason && <p id={queueBlockerId} role="status" className="rounded-md border border-amber-800/50 bg-amber-950/20 px-3 py-2 text-xs leading-relaxed text-amber-100">{queueCommitBlockReason}</p>}
+
           <div className="flex items-center justify-between gap-2 min-w-0">
             <button
               type="button"
@@ -437,12 +456,13 @@ export function CommitPanel({
               {showPushAction && (
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   onClick={handlePushClick}
                   disabled={pushDisabled}
                   title={!canPush && aheadCount > 0 ? "Pull required first" : undefined}
                   data-testid="push-button"
+                  style={{ background: "transparent" }}
                 >
                   {isPushing ? (
                     <span className="flex items-center">
@@ -461,11 +481,13 @@ export function CommitPanel({
               )}
               <Button
                 type="submit"
-                variant="default"
+                variant="primary"
                 size="sm"
                 disabled={!canCommit}
-                className="min-w-0 max-w-full"
+                className="min-w-0 max-w-full disabled:cursor-not-allowed disabled:opacity-45 disabled:saturate-50"
                 data-testid="commit-button"
+                title={queueCommitBlockReason}
+                aria-describedby={queueCommitBlockReason ? queueBlockerId : undefined}
               >
                 {isCommitting || isUpdatingIndex ? (
                   <span className="flex items-center min-w-0">
@@ -661,7 +683,12 @@ export function CommitPanel({
         size="lg"
         contentPadding="comfortable"
         testId="queued-suggestion-comparison"
-        footer={<div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setQueuedSuggestionToApply(undefined)}>Keep current</Button><Button type="button" onClick={() => { onCommitMessageChange(queuedSuggestionToApply); setQueuedSuggestionToApply(undefined); }}>Replace with suggestion</Button></div>}
+        footer={<div className="flex justify-end gap-2"><Button
+          type="button"
+          variant="secondary"
+          onClick={() => setQueuedSuggestionToApply(undefined)}
+          style={{ background: "transparent" }}
+        >Keep current</Button><Button type="button" onClick={() => { onCommitMessageChange(queuedSuggestionToApply); setQueuedSuggestionToApply(undefined); }}>Replace with suggestion</Button></div>}
       >
         <div className="grid gap-3 md:grid-cols-2"><section><h3 className="mb-2 text-xs font-semibold text-slate-300">Current message</h3><pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-lg border border-slate-700 bg-slate-950 p-3 text-xs">{commitMessage}</pre></section><section><h3 className="mb-2 text-xs font-semibold text-cyan-200">Queued suggestion</h3><pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-lg border border-cyan-900 bg-slate-950 p-3 text-xs">{queuedSuggestionToApply}</pre></section></div>
       </ResponsiveDialog>}

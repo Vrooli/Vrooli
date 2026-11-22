@@ -4,12 +4,13 @@ import { Sparkles, Wand } from "lucide-react";
 
 import { blobUrl } from "../../api/client";
 import { LookKind, looksClient, type Look } from "../../api/looks";
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { EmptyState } from "../../components/ui/empty-state";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { errorMessage } from "../../lib/errorMessage";
+import { cn } from "../../lib/utils";
 
 const LOOKS_QUERY_KEY = ["looks"] as const;
 
@@ -138,10 +139,12 @@ export function LooksView({ client = defaultLooksClient }: LooksViewProps) {
               </div>
               <Button
                 size="sm"
-                variant="outline"
+                variant="ghost"
                 data-testid={selectors.looks.preview({ index: index + 1 })}
                 disabled={rendering}
                 onClick={() => previewMutation.mutate(look.id)}
+                shape="square"
+                className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
               >
                 <Wand aria-hidden="true" className="me-2 h-4 w-4" />
                 {rendering ? t(strings.looks.rendering) : thumbRef ? t(strings.looks.refresh) : t(strings.looks.preview)}

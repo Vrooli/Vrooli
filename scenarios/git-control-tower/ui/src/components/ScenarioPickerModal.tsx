@@ -91,7 +91,7 @@ export function ScenarioPickerModal({ isOpen, onClose, currentScenario, onSelect
       list = list.filter(
         (s) =>
           s.name.toLowerCase().includes(q) ||
-          s.display_name.toLowerCase().includes(q) ||
+          s.displayName.toLowerCase().includes(q) ||
           s.description.toLowerCase().includes(q)
       );
     }
@@ -100,11 +100,11 @@ export function ScenarioPickerModal({ isOpen, onClose, currentScenario, onSelect
     const sorted = [...list];
     switch (sortBy) {
       case "name":
-        sorted.sort((a, b) => a.display_name.localeCompare(b.display_name));
+        sorted.sort((a, b) => a.displayName.localeCompare(b.displayName));
         break;
       case "status":
         sorted.sort((a, b) => {
-          if (a.status === b.status) return a.display_name.localeCompare(b.display_name);
+          if (a.status === b.status) return a.displayName.localeCompare(b.displayName);
           return a.status === "running" ? -1 : 1;
         });
         break;
@@ -114,7 +114,7 @@ export function ScenarioPickerModal({ isOpen, onClose, currentScenario, onSelect
           const ai = recentIndex.get(a.name) ?? Infinity;
           const bi = recentIndex.get(b.name) ?? Infinity;
           if (ai !== bi) return ai - bi;
-          return a.display_name.localeCompare(b.display_name);
+          return a.displayName.localeCompare(b.displayName);
         });
         break;
       }
@@ -276,9 +276,9 @@ export function ScenarioPickerModal({ isOpen, onClose, currentScenario, onSelect
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
-                          <StatusDot status={scenario.status} healthStatus={scenario.health_status} />
+                          <StatusDot status={scenario.status} healthStatus={scenario.healthStatus ?? null} />
                           <span className="font-medium text-sm text-slate-100 truncate">
-                            {scenario.display_name}
+                            {scenario.displayName}
                           </span>
                           {isCurrent && (
                             <CheckCircle2 className="h-3.5 w-3.5 text-blue-400 shrink-0" />

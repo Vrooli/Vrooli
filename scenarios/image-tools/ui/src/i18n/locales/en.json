@@ -81,6 +81,12 @@
         "high": "High"
       },
       "empty": "No operation weights are configured."
+    },
+    "sensitiveImages": {
+      "label": "Sensitive images",
+      "description": "Images flagged as sensitive are blurred until you tap to reveal them.",
+      "blur": "Blur",
+      "show": "Show"
     }
   },
   "pages": {
@@ -174,7 +180,8 @@
       "linkLabel": "Public image URL",
       "linkPlaceholder": "Paste a public image link",
       "importLink": "Import link",
-      "importingLink": "Importing…"
+      "importingLink": "Importing…",
+      "sampleLoadError": "That sample could not be opened. Choose a file or try again."
     },
     "group": {
       "quickEdits": "Quick edits",
@@ -198,6 +205,10 @@
       "blurry": "Blurry shot",
       "receipt": "Receipt"
     }
+  },
+  "sensitive": {
+    "reveal": "Sensitive image. Tap to reveal",
+    "hide": "Hide"
   },
   "library": {
     "description": "Every image you've created or edited. Open one to keep working on it.",
@@ -307,12 +318,14 @@
     "enable": "Enable",
     "disable": "Disable",
     "blocklist": {
-      "title": "Blocked models",
+      "title": "Restricted models",
       "loading": "Loading blocklist…",
-      "empty": "No models are blocked.",
+      "empty": "No models are restricted.",
       "licenseLabel": "License:",
       "reasonLabel": "Reason:",
       "operationsLabel": "Operations:",
+      "licenseGate": "License gate — normal local use is allowed; refused only for:",
+      "exclusion": "Excluded from the catalog:",
       "onnxWarning": "Exporting to ONNX/GGUF would falsely appear to lift this restriction — it does not."
     },
     "addCustom": {
@@ -415,12 +428,31 @@
       "nameLabel": "Display name",
       "architectureLabel": "Confirm architecture",
       "selectArchitecture": "Select an architecture…",
-      "attestLabel": "I hold commercial rights for these model weights",
-      "attestRequired": "A rights attestation is required before Image Tools registers the model or downloads its weights.",
+      "attestLabel": "I hold commercial rights for these model weights (optional)",
       "import": "Import & install",
       "importing": "Importing…",
       "success": "Import started — the model will appear once its download finishes.",
-      "needsArchitecture": "No architecture detected — select one to import."
+      "needsArchitecture": "No architecture detected — select one to import.",
+      "attestOptional": "Optional. Without it the model works locally; hosted or commercial use stays refused until the licence is checked.",
+      "adapterLabel": "Adapter",
+      "needsLabel": "Still needed"
+    },
+    "verdict": {
+      "label": "Verdict",
+      "recommended": "Recommended",
+      "works": "Works",
+      "experimental": "Experimental",
+      "untested": "Untested",
+      "notRecommended": "Not recommended",
+      "broken": "Broken",
+      "forOperation": "{{op}}: {{reason}}",
+      "evidenceLabel": "Evidence",
+      "overrideLine": "{{state}} by {{by}}{{reason}}",
+      "overrideEnabled": "Enabled",
+      "overrideDisabled": "Disabled",
+      "overridePinned": "pinned",
+      "overrideContradicts": "Contradicts the catalog default",
+      "overrideSuperseded": "Superseded by the catalog"
     }
   },
   "workspace": {
@@ -691,7 +723,13 @@
       "warningsLabel": "Heads up",
       "consent": {
         "label": "I have the right to edit the people in this image.",
+        "labelOffMachine": "I have the right to edit the people in these images, and I agree to send them outside this machine.",
         "required": "Confirm you have the right to edit the people in this image before continuing."
+      },
+      "reference": {
+        "label": "Face to use (the photo that supplies the face)",
+        "needed": "Add the photo that supplies the face.",
+        "staged": "Using the face from: {{name}}"
       },
       "result": {
         "heading": "Variations",
@@ -871,6 +909,19 @@
       "tolerance": "Colour tolerance",
       "maxTrimPercent": "Max trim per side",
       "padding": "Keep padding"
+    },
+    "rating": {
+      "title": "Rate this result",
+      "scoreLabel": "{{score}} of 5",
+      "groupLabel": "Rating from 1 to 5",
+      "noteLabel": "Note (optional)",
+      "notePlaceholder": "What was good or wrong?",
+      "save": "Save rating",
+      "saving": "Saving",
+      "saved": "Rated {{score}} of 5",
+      "clear": "Remove rating",
+      "error": "Could not save the rating",
+      "hint": "Ratings feed the model verdicts"
     }
   },
   "errors": {

@@ -46,8 +46,11 @@ func (h *connectHandler) ProvisionModels(ctx context.Context, req *connect.Reque
 		if err != nil {
 			return nil, connect.NewError(connect.CodeNotFound, err)
 		}
-		if m.CapabilityLabels.CommercialUse != internalmodels.CommercialUseYes || m.Backend == internalmodels.BackendOpenRouter {
-			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("model %s is not a verified commercial-clean local model", id))
+		if m.Backend == internalmodels.BackendOpenRouter {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("model %s is remote; local provisioning cannot supply credentials", id))
+		}
+		if err := internalmodels.RequireLocalUsePermitted(ctx, h.deps.RightsEvaluator, m); err != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("model %s cannot be provisioned: %w", id, err))
 		}
 		seen[id] = true
 		selected = append(selected, id)

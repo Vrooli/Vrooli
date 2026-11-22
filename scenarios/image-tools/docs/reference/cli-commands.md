@@ -130,6 +130,19 @@ Cancel a running or queued job. Calls `JobsService/CancelJob`. Uses the
 image-tools jobs cancel <job-id>
 ```
 
+### `image-tools jobs rate <id> --score <1-5> [--note <text>]`
+
+Rate a succeeded job's output from 1 (poor) to 5 (excellent) with an optional note
+(`JobsService/RateJob`). One rating per job; rating again replaces it. Ratings feed
+the model verdicts. Uses the **mutation contract**. `jobs unrate <id>` removes it
+(`ClearJobRating`) and `jobs ratings [--model <id>] [--operation <op>] [--limit <n>]`
+lists them, newest first (`ListJobRatings`).
+
+```bash
+image-tools jobs rate 7f3c --score 4 --note "kept the face, hair colour drifted"
+image-tools jobs ratings --model flux-2-klein-4b
+```
+
 ### `image-tools jobs watch <id>`
 
 Stream a job's progress until it reaches a terminal state. Consumes the
@@ -179,8 +192,18 @@ image-tools ai normal-map in.png --wait --out normal.png
 `naturalize` uses the built-in provider and `normal-map` uses the computed
 provider, so neither command requires model downloads or host AI packages.
 Model-backed commands such as `generate`, `upscale`, `bg-removal`, `depth`, and
-`colorize` keep the same submit/wait shape but correctly refuse with actionable
-install/provisioning guidance until their weights and backend runtime are ready.
+`colorize` keep the same submit/wait shape. When the selected model is an
+enabled, rights-permitted catalog entry with a governed (non-manual) source and
+its weights are missing, the job acquires them before it runs: the submit
+response warns, the ETA includes the download, and `jobs get` shows
+`acquiring weights for <id>: …` while the job is admitting. Pass
+`--no-auto-acquire` to refuse instead. An installed model stuck at
+`smoke_pending` (or `build_not_ready` / `needs_backend`) is revalidated by the
+job the same way, without re-downloading valid weights. If other jobs' disk reservations block
+the download, the job returns to the queue and retries. Manual, custom and
+imported models, models whose artifacts cannot pass the load smoke, and models
+whose backend is not provisioned still refuse at submit with actionable
+install/provisioning guidance.
 
 Two identity/appearance verbs follow the same shape:
 
@@ -243,6 +266,77 @@ image-tools ai generate --model sd-1.5 --prompt "a serene mountain lake" \
   --lora lcm-lora-sdv1-5:1.0 --wait --out lake.png
 image-tools ai generate --model sd-1.5 --prompt "a stone castle" \
   --controlnet controlnet-canny-sd15:1.0:<control-image-key> --explain
+```
+
+### Cloud routing: wait budget and spend caps
+
+Image Tools is local first. For `ai edit`, `ai img2img` and `ai generate` the
+cloud (AI Gateway / OpenRouter) is used in three cases, always inside a spend
+cap:
+
+1. The host has no usable GPU, so the best local answer is a weak CPU model: the
+   job goes to the cloud instead.
+2. The job waited for local admission (queue, host capacity, or a model being
+   prepared) longer than its wait budget and has not started running: its local
+   admission is cancelled and it is re-routed once. A job that is already
+   running is never moved, so it never runs or bills twice.
+3. You asked for it (`--byok`, `--role`, `--model openrouter-image`).
+
+| Flag | Meaning |
+|---|---|
+| `--max-wait <dur>` | Longest local wait before the re-route, for example `90s` or `10m`. `0` waits locally without limit. Default: the deployment's `IMAGE_TOOLS_CLOUD_WAIT_BUDGET` (10m). |
+| `--max-cost <usd>` | Per-job cloud spend cap, for example `0.25`. `0` allows no cloud spend for this job. Default: `IMAGE_TOOLS_CLOUD_MAX_JOB_USD` ($0.25). |
+| `--fallback-policy local_only` | Never use the cloud for this job. `--require-gpu`, `--force-cpu`, an explicit local `--model` and conditioning adapters also keep it local. |
+| `--edit-style identity\|stylized` | Steers the cloud role for edits (below). Default: detected from the prompt. |
+| `--no-preserve-identity` | Send an `edit` instruction exactly as written (below). |
+
+The rolling daily cap ($3, `IMAGE_TOOLS_CLOUD_MAX_DAILY_USD`) belongs to the
+deployment and cannot be set per request. Both caps are read from recorded
+`cost_usd` in the job history; a refusal at submit is HTTP 402 and queues
+nothing, and a cap that has filled by the time a re-route or the cloud call
+would happen leaves the job waiting locally.
+
+**Which role.** A role you pass wins. Generation uses `image.generate.quality`
+under `--quality-policy quality`, otherwise `image.generate.default`. Edits use
+`image.edit.identity` (Gemini, keeps the subject recognisable) unless the prompt
+restyles the image (anime, manga, cartoon, illustration, cel-shaded, watercolor,
+painting, sketch, line art, pixel art, vector, 3D render, "in the style of"),
+which uses `image.edit.default` (Seedream). `--edit-style` overrides the
+detection; with no signal the identity role is used.
+
+**When the cloud refuses.** A job the policy re-routed to the cloud goes back to
+exactly its original local route, instead of failing, if the cloud refuses it
+before any billing (out of credits, bad credentials, provider unreachable, rate
+limited) or the caps fill before the call. Its meta then reads
+`route_choice=local`, `route_reason=cloud_unavailable_fell_back_local`,
+`route_cloud_refusal` (the provider's error) and `route_cloud_refused_at`.
+The refusal also pauses automatic cloud routing for 30 minutes
+(`IMAGE_TOOLS_CLOUD_COOLDOWN`), so other waiting jobs stay local rather than
+meeting the same refusal. A job you sent to the cloud yourself (`--byok`, `--role`)
+is not held back and gets the honest error. A failure that may have been billed
+is never retried locally.
+
+**Where a job ran.** `image-tools jobs get <id>` shows these in the result meta:
+`route_choice` (`local` or `cloud`), `route_reason` (`no_usable_gpu`,
+`no_local_model`, `wait_budget_exceeded`, `caller_requested_cloud`),
+`route_rerouted`, `route_waited_seconds`, `route_local_model` and
+`route_local_tier` (what it would have run on), `route_role`, `route_max_cost_usd`,
+`route_estimated_cost_usd`, `route_daily_cap_usd`, and the backend's `cost_usd`.
+A local job with the fallback available reports `route_fallback=armed`. A failed
+job keeps the `route_*` keys.
+
+**Identity preservation.** `ai edit` appends one sentence asking the model to keep
+the subject's exact pose, face and markings (and, unless the instruction restyles
+the image, its colors), unless your prompt already says so. The prompt the
+backend received is always in the meta as `effective_prompt` (with
+`prompt_original` and `identity_preservation` = `applied`, `already_present` or
+`off`). `--no-preserve-identity` sends the instruction verbatim.
+
+```bash
+# Re-route to the cloud if local capacity is not free within 90 seconds, spending at most $0.20
+image-tools ai edit in.png --prompt "put a small knitted hat on it" --max-wait 90s --max-cost 0.20 --wait --out edited.png
+# Stay local no matter what
+image-tools ai edit in.png --prompt "put a small knitted hat on it" --fallback-policy local_only --wait --out edited.png
 ```
 
 ### OpenRouter role selection (`--role`)
@@ -315,20 +409,31 @@ image-tools models select upscale
 image-tools models select upscale --override real-esrgan
 ```
 
-### `image-tools models enable <id> [--disable]`
+### `image-tools models enable <id> [--disable] [--reason <why>] [--pin]`
 
-Enable (default) or disable (`--disable`) a model. Calls
-`ModelsService/SetModelEnabled`, persisting the overlay. Uses the
-**mutation contract**.
+Enable (default) or disable (`--disable`) a model as an **override** over the seed.
+Calls `ModelsService/SetModelEnabled`. The override records who set it (from
+`IMAGE_TOOLS_ACTOR`, `AI_AGENT` or `USER`), when, and `--reason`. Without `--pin`
+a later change of the seed's flag supersedes it at the next boot; `--pin` keeps it
+and requires a reason. Uses the **mutation contract**. See
+[Enabled-state overrides](model-registry.md#enabled-state-overrides).
 
 ```bash
 image-tools models enable real-esrgan
 image-tools models enable real-esrgan --disable
+image-tools models enable restoreformer-plus-plus --disable --pin --reason "judge flagged skin artifacts"
 ```
+
+### `image-tools models reset <id>`
+
+Drop a model's override so it follows the seed again (`ModelsService/ClearModelOverride`;
+`not_found` when it has none). Uses the **mutation contract**.
 
 ### `image-tools models blocklist`
 
-List license-encumbered models excluded from the catalog. Calls
+List restricted models: license gates (normal local use allowed; only the
+listed monetized, hosted or redistributed uses refused) and exclusions (kept
+out of the catalog for a safety, technical or hardware-fit reason). Calls
 `ModelsService/ListBlocklist`.
 
 ```bash
@@ -345,6 +450,41 @@ commercial/checksum policy is incoherent.
 ```bash
 image-tools models doctor
 image-tools models doctor --json
+```
+
+### `image-tools models storage [--receipts N]`
+
+Show model-weight storage. Calls `ModelsService/GetModelStorage`: free bytes,
+headroom above the shared disk floor, mode, the adaptive idle threshold, every
+installed weight-backed model in offload order (bytes, idle time and its basis,
+re-acquisition estimate, protections, selection) and recent offload receipts.
+
+```bash
+image-tools models storage
+image-tools models storage --json
+```
+
+### `image-tools models offload [--model <id>]... [--need-bytes N] [--apply]`
+
+Dry-run the adaptive offload (default) or apply it. Calls
+`ModelsService/OffloadModels`. `--model` (repeatable or comma-separated)
+targets named models, bypassing the idle threshold but never a protection.
+`--apply` removes the selection and prints one receipt per attempt. Offloaded
+catalog weights are re-acquired automatically by the next job that needs them.
+
+```bash
+image-tools models offload                       # what would go now, and why
+image-tools models offload --model dncnn --apply # offload one idle model
+```
+
+### `image-tools models keep <id> [--reason <text>] [--unkeep]` / `image-tools models unkeep <id>`
+
+Pin a model so offload never removes its weights, or remove the pin. Calls
+`ModelsService/SetModelKeep`.
+
+```bash
+image-tools models keep sd-1.5 --reason "showcase renders"
+image-tools models unkeep sd-1.5
 ```
 
 ### `image-tools models inspect <source>`
@@ -364,14 +504,18 @@ image-tools models inspect ./my-finetune.safetensors --json
 ### `image-tools models import <source> [--architecture <arch>] [--id <id>] [--name <name>] [--operation <op>] [--attest-commercial-rights]`
 
 Register and install an imported model add-only at local tier. Calls
-`ModelsService/ImportModel`. `--architecture` is required when inference
-returned no confidence (never guessed silently). The entry carries a
-`user-imported` provenance label; public/BYOK serving of an unverified-license
-import is blocked until `--attest-commercial-rights` is passed. Uses the
-**mutation contract**.
+`ModelsService/ImportModel`. A diffusers repo finds its adapter from its pipeline
+class and offers that family's operations; `--architecture` is needed only when
+inference returned no confidence (never guessed silently). The entry is enabled
+and graded `untested`, carries a `user-imported` provenance label, and a repo
+whose pipeline class has no adapter is refused with the missing piece named.
+`--attest-commercial-rights` is optional: without it the model runs locally and
+hosted, monetized and redistributed use stays refused. Uses the
+**mutation contract**. `models inspect <source>` is the dry run and prints the
+adapter found and any `needs:` lines.
 
 ```bash
-image-tools models import runwayml/stable-diffusion-v1-5 --architecture sd15
+image-tools models import runwayml/stable-diffusion-v1-5
 image-tools models import ./my-finetune.safetensors --architecture sdxl --attest-commercial-rights
 ```
 

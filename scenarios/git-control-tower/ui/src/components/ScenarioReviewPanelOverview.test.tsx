@@ -105,9 +105,9 @@ beforeEach(() => {
     data: [
       {
         name: "git-control-tower",
-        display_name: "Git Control Tower",
+        displayName: "Git Control Tower",
         status: "running",
-        health_status: "healthy",
+        healthStatus: "healthy",
       },
     ],
   });

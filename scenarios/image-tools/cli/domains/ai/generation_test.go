@@ -332,3 +332,106 @@ func findCommand(t *testing.T, cmds []cliapp.Command, name string) cliapp.Comman
 	t.Fatalf("command %q not found", name)
 	return cliapp.Command{}
 }
+
+func TestGenerate_NoAutoAcquireOptsOut(t *testing.T) {
+	sent := make(chan *aiv1.AIParams, 2)
+	server := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseMultipartForm(1 << 20); err != nil {
+			t.Fatal(err)
+		}
+		defer r.MultipartForm.RemoveAll()
+		var p aiv1.AIParams
+		if err := protojson.Unmarshal([]byte(r.FormValue("params")), &p); err != nil {
+			t.Fatal(err)
+		}
+		sent <- &p
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = w.Write([]byte(`{"jobId":"gen-job","modelId":"sd-1.5","tier":"local-cpu"}`))
+	})
+	core := testutil.NewTestApp(t, server)
+	cmd := findCommand(t, newHandlers(core).submitCommands(), "generate")
+	for _, flags := range []map[string]string{{"prompt": "a lighthouse"}, {"prompt": "a lighthouse", "no-auto-acquire": "true"}} {
+		var output bytes.Buffer
+		ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{Schema: cmd.Args, Flags: flags, Core: core, Stdout: &output, Stderr: &output})
+		if err := cmd.RunCtx(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if def := <-sent; def.AutoAcquire != nil {
+		t.Fatalf("default submission set auto_acquire=%v; the service default must apply", def.GetAutoAcquire())
+	}
+	if opt := <-sent; opt.AutoAcquire == nil || opt.GetAutoAcquire() {
+		t.Fatal("--no-auto-acquire did not send auto_acquire=false")
+	}
+}
+
+// The routing flags travel as typed AIParams fields, unset unless given, so the
+// deployment defaults (wait budget, spend cap, identity preservation) apply to a
+// caller who says nothing.
+func TestEdit_RoutingFlagsAreTypedAndUnsetByDefault(t *testing.T) {
+	sent := make(chan *aiv1.AIParams, 3)
+	server := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseMultipartForm(1 << 20); err != nil {
+			t.Fatal(err)
+		}
+		defer r.MultipartForm.RemoveAll()
+		var p aiv1.AIParams
+		if err := protojson.Unmarshal([]byte(r.FormValue("params")), &p); err != nil {
+			t.Fatal(err)
+		}
+		sent <- &p
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = w.Write([]byte(`{"jobId":"edit-job","modelId":"flux-2-klein-4b","tier":"local-gpu"}`))
+	})
+	core := testutil.NewTestApp(t, server)
+	cmd := findCommand(t, newHandlers(core).submitCommands(), "edit")
+	in := filepath.Join(t.TempDir(), "source.png")
+	if err := os.WriteFile(in, []byte("input"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, flags := range []map[string]string{
+		{"prompt": "a hat"},
+		{"prompt": "a hat", "max-wait": "90s", "max-cost": "$0.10", "edit-style": "Stylised", "no-preserve-identity": "true"},
+		{"prompt": "a hat", "max-wait": "0", "max-cost": "0"},
+	} {
+		var output bytes.Buffer
+		ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{Schema: cmd.Args, Flags: flags, Positionals: map[string]string{"input": in}, Core: core, Stdout: &output, Stderr: &output})
+		if err := cmd.RunCtx(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if def := <-sent; def.MaxWaitSeconds != nil || def.MaxCostUsd != nil || def.PreserveIdentity != nil || def.GetEditStyle() != "" {
+		t.Fatalf("default submission must leave every routing knob unset: %s", protojson.Format(def))
+	}
+	set := <-sent
+	if set.MaxWaitSeconds == nil || set.GetMaxWaitSeconds() != 90 || set.MaxCostUsd == nil || set.GetMaxCostUsd() != 0.10 || set.GetEditStyle() != "stylized" || set.PreserveIdentity == nil || set.GetPreserveIdentity() {
+		t.Fatalf("flags not sent: %s", protojson.Format(set))
+	}
+	zero := <-sent
+	if zero.MaxWaitSeconds == nil || zero.GetMaxWaitSeconds() != 0 || zero.MaxCostUsd == nil || zero.GetMaxCostUsd() != 0 {
+		t.Fatalf("an explicit 0 means no limit / no spend and must be sent, not dropped: %s", protojson.Format(zero))
+	}
+}
+
+func TestEdit_RejectsMalformedRoutingFlagsBeforeSubmitting(t *testing.T) {
+	core := testutil.NewTestApp(t, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Error("a malformed routing flag must not reach the server")
+	}))
+	cmd := findCommand(t, newHandlers(core).submitCommands(), "edit")
+	in := filepath.Join(t.TempDir(), "source.png")
+	if err := os.WriteFile(in, []byte("input"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, flags := range []map[string]string{
+		{"max-wait": "soon"}, {"max-wait": "-5s"}, {"max-cost": "cheap"}, {"max-cost": "-1"}, {"edit-style": "pretty"},
+	} {
+		flags["prompt"] = "a hat"
+		var output bytes.Buffer
+		ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{Schema: cmd.Args, Flags: flags, Positionals: map[string]string{"input": in}, Core: core, Stdout: &output, Stderr: &output})
+		if err := cmd.RunCtx(ctx); err == nil {
+			t.Fatalf("%v was accepted", flags)
+		}
+	}
+}

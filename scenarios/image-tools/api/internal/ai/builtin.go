@@ -15,46 +15,6 @@ import (
 	"image-tools/internal/technique"
 )
 
-// builtinExec runs an op entirely in-process (no external program, no model
-// weights). It reads the request's inputs, computes the result, and writes it to
-// req.Output.LocalPath by the same contract execProvider follows.
-type builtinExec func(ctx context.Context, req backends.Request) error
-
-// builtinProvider is a backends.Provider whose work is deterministic Go code
-// shipped in the binary — the always-runnable Local-CPU tier. Unlike
-// execProvider it has no PATH dependency: Available() is always true, so an op
-// backed by a builtin provider runs on any host with zero provisioning. It is
-// CPU-only and never claims the GPU.
-type builtinProvider struct {
-	name string
-	ops  []string
-	exec builtinExec
-}
-
-func (p *builtinProvider) Name() string                   { return p.name }
-func (p *builtinProvider) Operations() []string           { return append([]string(nil), p.ops...) }
-func (p *builtinProvider) Standalone() bool               { return true }
-func (p *builtinProvider) IsCloud() bool                  { return false }
-func (p *builtinProvider) GPUCapable() bool               { return false }
-func (p *builtinProvider) Available(context.Context) bool { return true }
-func (p *builtinProvider) Availability(context.Context) backends.Availability {
-	return backends.Availability{
-		Available: true,
-		Detail:    fmt.Sprintf("%s provider built into image-tools API binary", p.name),
-		Provision: "no host provisioning required",
-	}
-}
-
-func (p *builtinProvider) Execute(ctx context.Context, req backends.Request) (backends.Result, error) {
-	if req.Output.LocalPath == "" {
-		return backends.Result{}, fmt.Errorf("ai: builtin backend %q requires a local output path", p.name)
-	}
-	if err := p.exec(ctx, req); err != nil {
-		return backends.Result{}, fmt.Errorf("ai: builtin backend %q execution failed: %w", p.name, err)
-	}
-	return backends.Result{OutputRef: req.Output.LocalPath, Meta: map[string]string{"backend": p.name}}, nil
-}
-
 // normalMapParams controls gradient strength. Larger values produce stronger
 // X/Y components; default is intentionally conservative for depth maps.
 type normalMapParams struct {
@@ -109,11 +69,11 @@ func normalByte(v float64) uint8 {
 // builtinProviderSpecs declares the in-process providers, keyed by the registry
 // backend name so the selector's match-by-backend path lines up with the
 // weightless seed models that name these backend families.
-func builtinProviderSpecs() []*builtinProvider {
-	return []*builtinProvider{
-		{name: models.BackendBuiltin, ops: []string{"naturalize"}, exec: runBuiltin},
-		{name: models.BackendComputed, ops: []string{"normal_map"}, exec: runBuiltin},
-		{name: models.BackendMaskFill, ops: []string{"object_removal"}, exec: runBuiltin},
+func builtinProviderSpecs() []*backends.BuiltinProvider {
+	return []*backends.BuiltinProvider{
+		backends.NewBuiltinProvider(models.BackendBuiltin, "ai", []string{"naturalize"}, runBuiltin),
+		backends.NewBuiltinProvider(models.BackendComputed, "ai", []string{"normal_map"}, runBuiltin),
+		backends.NewBuiltinProvider(models.BackendMaskFill, "ai", []string{"object_removal"}, runBuiltin),
 	}
 }
 

@@ -1,6 +1,7 @@
 package stagedmessages
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/sha256"
@@ -9,7 +10,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -20,14 +23,13 @@ import (
 func queuedSnapshotDigest(snapshot *v1.StagedMessageSnapshot) (string, error) {
 	type fileIdentity struct {
 		Path, OldMode, NewMode, OldBlobID, NewBlobID, Status string
-		Binary                                               bool
 	}
 	canonical := struct {
 		RepositoryID, BaseHead string
 		Files                  []fileIdentity
 	}{RepositoryID: snapshot.GetRepositoryId(), BaseHead: snapshot.GetBaseHead()}
 	for _, file := range snapshot.GetFiles() {
-		canonical.Files = append(canonical.Files, fileIdentity{Path: file.GetPath(), OldMode: file.GetOldMode(), NewMode: file.GetNewMode(), OldBlobID: file.GetOldBlobId(), NewBlobID: file.GetNewBlobId(), Status: file.GetStatus(), Binary: file.GetBinary()})
+		canonical.Files = append(canonical.Files, fileIdentity{Path: file.GetPath(), OldMode: file.GetOldMode(), NewMode: file.GetNewMode(), OldBlobID: file.GetOldBlobId(), NewBlobID: file.GetNewBlobId(), Status: file.GetStatus()})
 	}
 	data, err := json.Marshal(canonical)
 	if err != nil {
@@ -50,7 +52,7 @@ func (s *Service) QueueWorktreeSelection(ctx context.Context, repo, dir string, 
 	case v1.WorktreeSelectionSource_WORKTREE_SELECTION_SOURCE_INDEX_TO_WORKTREE:
 		captured, err = captureWorktreeSnapshot(ctx, repo, dir, paths, s.now)
 	case v1.WorktreeSelectionSource_WORKTREE_SELECTION_SOURCE_HEAD_TO_INDEX:
-		captured, err = s.captureSelectedStaged(ctx, repo, dir, paths)
+		captured, err = s.captureSelectedStaged(ctx, repo, dir, paths, true)
 	default:
 		return nil, fmt.Errorf("selection source is required")
 	}
@@ -66,7 +68,9 @@ func (s *Service) QueueWorktreeSelection(ctx context.Context, repo, dir string, 
 	}
 	var current Captured
 	if req.Source == v1.WorktreeSelectionSource_WORKTREE_SELECTION_SOURCE_HEAD_TO_INDEX {
-		current, err = s.captureSelectedStaged(ctx, repo, dir, paths)
+		// The second pass only confirms the exact index identities. The first
+		// capture already has the immutable bytes, so do not reread every blob.
+		current, err = s.captureSelectedStaged(ctx, repo, dir, paths, false)
 	} else {
 		current, err = captureWorktreeSnapshot(ctx, repo, dir, paths, s.now)
 	}
@@ -100,7 +104,7 @@ func (s *Service) QueueWorktreeSelection(ctx context.Context, repo, dir string, 
 	return queuedSelection(queued), nil
 }
 
-func (s *Service) captureSelectedStaged(ctx context.Context, repo, dir string, paths []string) (Captured, error) {
+func (s *Service) captureSelectedStaged(ctx context.Context, repo, dir string, paths []string, captureContent bool) (Captured, error) {
 	head, err := gitRead(ctx, dir, "rev-parse", "--verify", "HEAD")
 	if err != nil {
 		head = nil
@@ -119,6 +123,10 @@ func (s *Service) captureSelectedStaged(ctx context.Context, repo, dir string, p
 	if err != nil {
 		return Captured{}, err
 	}
+	selected := make(map[string]struct{}, len(paths))
+	for _, path := range paths {
+		selected[path] = struct{}{}
+	}
 	rows := bytes.Split(raw, []byte{0})
 	for i := 0; i < len(rows) && len(rows[i]) > 0; i += 2 {
 		if i+1 >= len(rows) {
@@ -129,50 +137,84 @@ func (s *Service) captureSelectedStaged(ctx context.Context, repo, dir string, p
 		if len(fields) != 5 || !utf8.ValidString(path) {
 			return Captured{}, fmt.Errorf("invalid selected staged diff entry")
 		}
+		if _, ok := selected[path]; !ok {
+			return Captured{}, fmt.Errorf("git returned an unexpected selected staged path")
+		}
 		f := &v1.StagedMessageFile{Path: path, OldPath: path, OldMode: fields[0], NewMode: fields[1], OldBlobId: fields[2], NewBlobId: fields[3], Status: fields[4]}
 		if zeroOID(f.OldBlobId) {
 			f.OldBlobId = ""
+			f.OldMode = ""
 		}
 		if zeroOID(f.NewBlobId) {
 			f.NewBlobId = ""
+			f.NewMode = ""
 		}
-		idx, readErr := gitRead(ctx, dir, "ls-files", "--stage", "-z", "--", path)
-		if readErr != nil {
-			return Captured{}, readErr
-		}
-		for _, row := range bytes.Split(idx, []byte{0}) {
-			if len(row) == 0 {
-				continue
-			}
-			meta, got, ok := strings.Cut(string(row), "\t")
-			idxFields := strings.Fields(meta)
-			if !ok || got != path || len(idxFields) != 3 || idxFields[2] != "0" {
-				return Captured{}, fmt.Errorf("selected path %q has an unmerged or invalid index entry", path)
-			}
-		}
-		var before, after []byte
-		if f.OldBlobId != "" {
-			before, err = gitRead(ctx, dir, "cat-file", "blob", f.OldBlobId)
-			if err != nil {
-				return Captured{}, err
-			}
-		}
-		if f.NewBlobId != "" {
-			after, err = gitRead(ctx, dir, "cat-file", "blob", f.NewBlobId)
-			if err != nil {
-				return Captured{}, err
-			}
-		}
-		if len(before) > maxFileBytes || len(after) > maxFileBytes || total+len(before)+len(after) > maxTotalBytes {
-			return Captured{}, fmt.Errorf("selected staged content exceeds immutable capture bounds")
-		}
-		total += len(before) + len(after)
-		f.Binary = bytes.IndexByte(after, 0) >= 0 || !utf8.Valid(after)
 		snap.Files = append(snap.Files, f)
-		data[path] = FileBytes{Before: before, After: after}
+		if f.NewBlobId == "" {
+			continue // Staged deletion; it has no stage-0 index entry or new blob.
+		}
 	}
 	if len(snap.Files) != len(paths) {
 		return Captured{}, fmt.Errorf("selected paths are not all staged")
+	}
+	// Validate stage-0 index ownership in one Git process rather than one
+	// process per path. This also rejects unresolved merge entries and catches
+	// index changes between the diff and index reads.
+	indexArgs := append([]string{"ls-files", "--stage", "-z", "--"}, paths...)
+	indexRaw, err := gitRead(ctx, dir, indexArgs...)
+	if err != nil {
+		return Captured{}, err
+	}
+	indexEntries := make(map[string][]stagedIndexEntry, len(paths))
+	for _, row := range bytes.Split(indexRaw, []byte{0}) {
+		if len(row) == 0 {
+			continue
+		}
+		meta, path, ok := strings.Cut(string(row), "\t")
+		fields := strings.Fields(meta)
+		if !ok || len(fields) != 3 || !utf8.ValidString(path) {
+			return Captured{}, fmt.Errorf("invalid selected staged index entry")
+		}
+		if _, ok := selected[path]; !ok {
+			return Captured{}, fmt.Errorf("git returned an unexpected staged index path")
+		}
+		indexEntries[path] = append(indexEntries[path], stagedIndexEntry{mode: fields[0], oid: fields[1], stage: fields[2]})
+	}
+	for _, file := range snap.Files {
+		entries := indexEntries[file.Path]
+		if file.NewBlobId == "" {
+			if len(entries) != 0 {
+				return Captured{}, fmt.Errorf("selected deletion %q changed in the index during capture", file.Path)
+			}
+			continue
+		}
+		if len(entries) != 1 || entries[0].stage != "0" || entries[0].oid != file.NewBlobId || entries[0].mode != file.NewMode {
+			return Captured{}, fmt.Errorf("selected path %q has an unmerged or changed index entry", file.Path)
+		}
+	}
+	if captureContent {
+		var oids []string
+		for _, file := range snap.Files {
+			if file.OldBlobId != "" {
+				oids = append(oids, file.OldBlobId)
+			}
+			if file.NewBlobId != "" {
+				oids = append(oids, file.NewBlobId)
+			}
+		}
+		blobs, sizes, readErr := readQueuedBlobs(ctx, dir, oids)
+		if readErr != nil {
+			return Captured{}, readErr
+		}
+		for _, file := range snap.Files {
+			before, after := blobs[file.OldBlobId], blobs[file.NewBlobId]
+			if total+sizes[file.OldBlobId]+sizes[file.NewBlobId] > maxQueuedCaptureBytes {
+				return Captured{}, fmt.Errorf("selected staged content exceeds the %d MiB immutable queue capture limit", maxQueuedCaptureBytes>>20)
+			}
+			total += sizes[file.OldBlobId] + sizes[file.NewBlobId]
+			file.Binary = bytes.IndexByte(after, 0) >= 0 || !utf8.Valid(after)
+			data[file.Path] = FileBytes{Before: before, After: after}
+		}
 	}
 	snap.CapturedAt = snapshotTime(s.now)
 	snap.Digest, err = queuedSnapshotDigest(snap)
@@ -180,6 +222,78 @@ func (s *Service) captureSelectedStaged(ctx context.Context, repo, dir string, p
 		return Captured{}, err
 	}
 	return Captured{Snapshot: snap, Bytes: data}, nil
+}
+
+type stagedIndexEntry struct{ mode, oid, stage string }
+
+// maxQueuedCaptureBytes bounds exact staged content independently of the much
+// smaller explanatory evidence budget used by suggestion snapshots. Keeping
+// this below the JSON input ceiling leaves room for base64 and file metadata.
+const maxQueuedCaptureBytes = 12 << 20
+
+func readQueuedBlobs(ctx context.Context, dir string, oids []string) (map[string][]byte, map[string]int, error) {
+	if len(oids) == 0 {
+		return map[string][]byte{}, map[string]int{}, nil
+	}
+	input := make([]byte, 0, len(oids)*42)
+	for _, oid := range oids {
+		input = append(input, oid...)
+		input = append(input, '\n')
+	}
+	checked, err := gitReadInput(ctx, dir, input, "cat-file", "--batch-check=%(objectname) %(objecttype) %(objectsize)")
+	if err != nil {
+		return nil, nil, err
+	}
+	checks := bytes.Split(bytes.TrimSpace(checked), []byte{'\n'})
+	if len(checks) != len(oids) {
+		return nil, nil, fmt.Errorf("git returned an incomplete staged blob inventory")
+	}
+	sizesByOID := make(map[string]int, len(oids))
+	var batchInput []byte
+	total := 0
+	for i, row := range checks {
+		fields := strings.Fields(string(row))
+		if len(fields) != 3 || fields[0] != oids[i] || fields[1] != "blob" {
+			return nil, nil, fmt.Errorf("selected staged content contains an unsupported Git object")
+		}
+		size, parseErr := strconv.Atoi(fields[2])
+		if parseErr != nil || size < 0 || total+size > maxQueuedCaptureBytes {
+			return nil, nil, fmt.Errorf("selected staged content exceeds the %d MiB immutable queue capture limit", maxQueuedCaptureBytes>>20)
+		}
+		total += size
+		sizesByOID[oids[i]] = size
+		batchInput = append(batchInput, oids[i]...)
+		batchInput = append(batchInput, '\n')
+	}
+	output, err := gitReadInput(ctx, dir, batchInput, "cat-file", "--batch")
+	if err != nil {
+		return nil, nil, err
+	}
+	reader := bufio.NewReader(bytes.NewReader(output))
+	blobs := make(map[string][]byte, len(oids))
+	for _, oid := range oids {
+		header, readErr := reader.ReadString('\n')
+		if readErr != nil {
+			return nil, nil, fmt.Errorf("incomplete staged blob capture")
+		}
+		fields := strings.Fields(header)
+		if len(fields) != 3 || fields[0] != oid || fields[1] != "blob" || fields[2] != strconv.Itoa(sizesByOID[oid]) {
+			return nil, nil, fmt.Errorf("staged blob identity changed during capture")
+		}
+		blob := make([]byte, sizesByOID[oid])
+		if _, readErr = io.ReadFull(reader, blob); readErr != nil {
+			return nil, nil, fmt.Errorf("incomplete staged blob content")
+		}
+		separator, readErr := reader.ReadByte()
+		if readErr != nil || separator != '\n' {
+			return nil, nil, fmt.Errorf("invalid staged blob framing")
+		}
+		blobs[oid] = blob
+	}
+	if _, err := reader.ReadByte(); err != io.EOF {
+		return nil, nil, fmt.Errorf("staged blob capture contains trailing data")
+	}
+	return blobs, sizesByOID, nil
 }
 
 func queuedSelection(e reviewjobs.WorktreeQueueEntry) *v1.QueuedWorktreeSelection {
@@ -383,6 +497,66 @@ func (s *Service) ListWorktreeQueue(ctx context.Context, repo string) (*v1.Workt
 	return protoQueue(q), nil
 }
 
+// ValidateQueueCommitAdmission is the server-side commit fence. A queued
+// selection may enter a commit only after it is the reserved head and its
+// immutable versions still match Git's stage-0 index.
+func (s *Service) ValidateQueueCommitAdmission(ctx context.Context, repo, dir string, stagedPaths []string) error {
+	queue, err := s.store.ListWorktreeQueue(ctx, repo)
+	if err != nil {
+		return err
+	}
+	if len(queue.Entries) == 0 {
+		return nil
+	}
+	staged := make(map[string]struct{}, len(stagedPaths))
+	for _, path := range stagedPaths {
+		staged[path] = struct{}{}
+	}
+	if queue.Entries[0].State == reviewjobs.WorktreeQueueCommitPending {
+		entry := queue.Entries[0]
+		snapshotEntry, snapshot, snapshotErr := s.worktreeQueueSnapshot(ctx, repo, entry.ID)
+		if snapshotErr != nil {
+			return snapshotErr
+		}
+		if len(entry.Paths) == 0 || !allPathsIncluded(entry.Paths, staged) {
+			return fmt.Errorf("reserved queue head is no longer fully staged: %w", ErrConflict)
+		}
+		matches, verifyErr := WorktreeSelectionStagedApplicable(ctx, dir, snapshot)
+		if verifyErr != nil {
+			return verifyErr
+		}
+		if !matches || snapshotEntry.ID != entry.ID {
+			return fmt.Errorf("reserved queue head no longer matches the Git index: %w", ErrConflict)
+		}
+		return nil
+	}
+	for index, entry := range queue.Entries {
+		stagedCount := 0
+		for _, path := range entry.Paths {
+			if _, ok := staged[path]; ok {
+				stagedCount++
+			}
+		}
+		if stagedCount == 0 {
+			continue
+		}
+		if index != 0 || stagedCount != len(entry.Paths) {
+			return fmt.Errorf("staged files overlap an unresolved queued selection: %w", ErrConflict)
+		}
+		return fmt.Errorf("queue head must be reserved before its staged files can be committed: %w", ErrConflict)
+	}
+	return nil
+}
+
+func allPathsIncluded(paths []string, included map[string]struct{}) bool {
+	for _, path := range paths {
+		if _, ok := included[path]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
 func (s *Service) EnqueueWorktreeQueue(ctx context.Context, repo string, req *v1.EnqueueWorktreeSuggestionRequest) (*v1.WorktreeSuggestionQueueEntry, error) {
 	if req == nil || req.RepositoryId != repo || strings.TrimSpace(req.RequestKey) == "" {
 		return nil, fmt.Errorf("repository and request key are required")
@@ -430,7 +604,7 @@ func (s *Service) queueEntryForJob(ctx context.Context, repo, jobID, digest stri
 	return reviewjobs.WorktreeQueueEntry{ID: entryID, RepositoryID: repo, JobID: job.ID, SnapshotDigest: digest, Paths: manifest, Mode: int32(normalizeMode(mode)), RequestKey: requestKey}, nil
 }
 
-func (s *Service) UpdateWorktreeQueue(ctx context.Context, repo string, req *v1.UpdateWorktreeSuggestionQueueEntryRequest) (*v1.WorktreeSuggestionQueueMutationResponse, error) {
+func (s *Service) UpdateWorktreeQueue(ctx context.Context, repo, dir string, req *v1.UpdateWorktreeSuggestionQueueEntryRequest) (*v1.WorktreeSuggestionQueueMutationResponse, error) {
 	if req == nil || req.RepositoryId != repo {
 		return nil, fmt.Errorf("repository id is required")
 	}
@@ -444,7 +618,32 @@ func (s *Service) UpdateWorktreeQueue(ctx context.Context, repo string, req *v1.
 		}
 		q, e, err = s.store.ReplaceWorktreeQueueEntry(ctx, repo, req.EntryId, req.ExpectedRevision, replacement)
 	} else {
-		q, e, err = s.store.UpdateWorktreeQueueEntry(ctx, repo, req.EntryId, req.ExpectedHeadEntryId, req.ExpectedRevision, reviewjobs.WorktreeQueueState(req.State), req.FailureReason)
+		target := reviewjobs.WorktreeQueueState(req.State)
+		failureReason := req.FailureReason
+		if target == reviewjobs.WorktreeQueueStaged || target == reviewjobs.WorktreeQueueCommitPending || target == reviewjobs.WorktreeQueueQueued {
+			entry, snapshot, snapshotErr := s.worktreeQueueSnapshot(ctx, repo, req.EntryId)
+			if snapshotErr != nil {
+				return nil, snapshotErr
+			}
+			var matches bool
+			switch target {
+			case reviewjobs.WorktreeQueueStaged, reviewjobs.WorktreeQueueCommitPending:
+				matches, err = WorktreeSelectionStagedApplicable(ctx, dir, snapshot)
+			case reviewjobs.WorktreeQueueQueued:
+				matches, err = WorktreeSelectionUnstagedApplicable(ctx, dir, snapshot)
+			}
+			if err != nil {
+				return nil, err
+			}
+			if !matches {
+				if target == reviewjobs.WorktreeQueueCommitPending {
+					return nil, fmt.Errorf("queue state does not match the current Git index for %q: %w", entry.ID, ErrConflict)
+				}
+				target = reviewjobs.WorktreeQueueStale
+				failureReason = "The saved file versions no longer match the Git index. Review the files and stage the current versions or remove this selection."
+			}
+		}
+		q, e, err = s.store.UpdateWorktreeQueueEntry(ctx, repo, req.EntryId, req.ExpectedHeadEntryId, req.ExpectedRevision, target, failureReason)
 	}
 	if err != nil {
 		return nil, err
@@ -452,9 +651,78 @@ func (s *Service) UpdateWorktreeQueue(ctx context.Context, repo string, req *v1.
 	return &v1.WorktreeSuggestionQueueMutationResponse{Queue: protoQueue(q), ChangedEntry: protoQueueEntry(*e)}, nil
 }
 
-func (s *Service) RetireWorktreeQueueHead(ctx context.Context, repo string, req *v1.RetireWorktreeSuggestionQueueHeadRequest) (*v1.WorktreeSuggestionQueueMutationResponse, error) {
+// worktreeQueueSnapshot resolves the immutable snapshot owned by a queue row.
+// Rows can be backed by either a saved captured selection or a suggestion job;
+// state transitions must validate both forms against the same manifest.
+func (s *Service) worktreeQueueSnapshot(ctx context.Context, repo, id string) (reviewjobs.WorktreeQueueEntry, *v1.StagedMessageSnapshot, error) {
+	queue, err := s.store.ListWorktreeQueue(ctx, repo)
+	if err != nil {
+		return reviewjobs.WorktreeQueueEntry{}, nil, err
+	}
+	for _, entry := range queue.Entries {
+		if entry.ID != id {
+			continue
+		}
+		var input DraftInput
+		if entry.SelectionPayload != "" {
+			input, err = decodeDraftInput([]byte(entry.SelectionPayload))
+		} else if entry.JobID != "" {
+			var job reviewjobs.Job
+			job, err = s.store.Get(ctx, entry.JobID)
+			if err == nil && (job.Operation != operation || job.RepositoryID != repo) {
+				err = ErrNotFound
+			}
+			if err == nil {
+				input, err = decodeDraftInput([]byte(job.InputJSON))
+			}
+		} else {
+			err = ErrNotFound
+		}
+		if err != nil {
+			return reviewjobs.WorktreeQueueEntry{}, nil, err
+		}
+		if !input.WorktreeCapture || input.Snapshot == nil || input.Snapshot.Digest != entry.SnapshotDigest {
+			return reviewjobs.WorktreeQueueEntry{}, nil, fmt.Errorf("queue entry has no matching immutable snapshot: %w", ErrConflict)
+		}
+		paths := make([]string, 0, len(input.Snapshot.Files))
+		for _, file := range input.Snapshot.Files {
+			paths = append(paths, file.Path)
+		}
+		sort.Strings(paths)
+		if strings.Join(paths, "\x00") != strings.Join(entry.Paths, "\x00") {
+			return reviewjobs.WorktreeQueueEntry{}, nil, fmt.Errorf("queue entry paths do not match its immutable snapshot: %w", ErrConflict)
+		}
+		return entry, input.Snapshot, nil
+	}
+	return reviewjobs.WorktreeQueueEntry{}, nil, ErrNotFound
+}
+
+func (s *Service) RetireWorktreeQueueHead(ctx context.Context, repo, dir string, req *v1.RetireWorktreeSuggestionQueueHeadRequest) (*v1.WorktreeSuggestionQueueMutationResponse, error) {
 	if req == nil || req.RepositoryId != repo {
 		return nil, fmt.Errorf("repository id is required")
+	}
+	if reviewjobs.WorktreeQueueDisposition(req.Disposition) == reviewjobs.WorktreeQueueDispositionCommitted {
+		entry, snapshot, err := s.worktreeQueueSnapshot(ctx, repo, req.ExpectedHeadEntryId)
+		if err != nil {
+			return nil, err
+		}
+		if entry.State != reviewjobs.WorktreeQueueCommitPending {
+			return nil, fmt.Errorf("only a reserved queue head can be committed: %w", ErrConflict)
+		}
+		committed, err := WorktreeSelectionCommittedAtHead(ctx, dir, snapshot)
+		if err != nil {
+			return nil, err
+		}
+		if !committed {
+			q, e, err := s.store.UpdateWorktreeQueueEntry(ctx, repo, req.ExpectedHeadEntryId, req.ExpectedHeadEntryId, req.ExpectedRevision,
+				reviewjobs.WorktreeQueueStale,
+				"The commit completed without the exact saved file versions. Review this selection before staging or removing it.",
+			)
+			if err != nil {
+				return nil, err
+			}
+			return &v1.WorktreeSuggestionQueueMutationResponse{Queue: protoQueue(q), ChangedEntry: protoQueueEntry(*e)}, nil
+		}
 	}
 	q, e, err := s.store.RetireWorktreeQueueHead(ctx, repo, req.ExpectedHeadEntryId, req.ExpectedRevision, reviewjobs.WorktreeQueueDisposition(req.Disposition))
 	if err != nil {

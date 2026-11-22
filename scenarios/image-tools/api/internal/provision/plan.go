@@ -263,9 +263,8 @@ func tierPreference(tier models.Tier) int {
 }
 
 func hostFitExclusion(m models.Model, host capabilities.Host) string {
-	if m.CapabilityLabels.CommercialUse != models.CommercialUseYes {
-		return "commercial_use_not_verified"
-	}
+	// Rights are not a host-fit question; the shared rights owner decides at
+	// install, so a non-commercial model is planned like any other.
 	if m.Backend == models.BackendOpenRouter {
 		return "remote_model_requires_credentials"
 	}

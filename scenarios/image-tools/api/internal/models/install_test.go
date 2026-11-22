@@ -136,8 +136,8 @@ func TestInstallRejectsConditionalCommercialRightsBeforeAcquisition(t *testing.T
 	if conditionalID == "" {
 		t.Fatal("seed should include a conditional-rights model for this regression")
 	}
-	if _, err := f.in.Install(context.Background(), conditionalID, nil); err == nil || !strings.Contains(err.Error(), "commercial rights") {
-		t.Fatalf("install error = %v, want commercial-rights rejection", err)
+	if _, err := f.in.Install(context.Background(), conditionalID, nil); !errors.Is(err, ErrLocalUseNotPermitted) {
+		t.Fatalf("install error = %v, want local-use rights rejection", err)
 	}
 	if f.downloads != 0 {
 		t.Fatalf("conditional model caused %d artifact downloads", f.downloads)
@@ -640,16 +640,35 @@ func TestAddCustomValidationErrors(t *testing.T) {
 	if err := f.in.AddCustom(ctx, Model{}); err == nil {
 		t.Fatal("expected empty custom id error")
 	}
-	base := Model{ID: "unclear-license", Name: "Unclear License", Operations: []string{"upscale"}, Tier: TierNiceToHave, Backend: "onnxruntime", Enabled: true, Hardware: Hardware{CPUCapable: true}}
-	missingLicense := base
-	missingLicense.CapabilityLabels.CommercialUse = CommercialUseYes
-	if err := f.in.AddCustom(ctx, missingLicense); err == nil || !strings.Contains(err.Error(), "license is required") {
-		t.Fatalf("expected custom model without license to be rejected, got %v", err)
+	// A missing licence or an unattested commercial label never blocks a local
+	// model: it is completed and recorded as unverified / conditional.
+	bare := Model{ID: "unclear-license", Name: "Unclear License", Operations: []string{"upscale"}, Backend: "onnxruntime", Hardware: Hardware{CPUCapable: true}}
+	if err := f.in.AddCustom(ctx, bare); err != nil {
+		t.Fatalf("a model with no licence facts must register: %v", err)
 	}
-	conditional := base
-	conditional.CapabilityLabels = CapabilityLabels{License: "unknown", CommercialUse: CommercialUseConditional}
-	if err := f.in.AddCustom(ctx, conditional); err == nil || !strings.Contains(err.Error(), "explicitly commercial-clean") {
-		t.Fatalf("expected conditional custom license to be rejected, got %v", err)
+	customs, err := f.in.Custom.List(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stored Model
+	for _, c := range customs {
+		if c.ID == "unclear-license" {
+			stored = c
+		}
+	}
+	if stored.ID == "" {
+		t.Fatal("registered custom model not found")
+	}
+	if stored.CapabilityLabels.License != "unverified" || stored.CapabilityLabels.CommercialUse != CommercialUseConditional ||
+		!strings.Contains(stored.CapabilityLabels.CommercialUseNotes, "hosted, monetized or redistributed") ||
+		stored.CapabilityLabels.Provenance != ProvenanceUserImported {
+		t.Fatalf("completed labels = %+v", stored.CapabilityLabels)
+	}
+	if err := RequireUsePermitted(ctx, nil, stored, RightsUseLocalInference); err != nil {
+		t.Fatalf("local use of an operator-added model must be permitted: %v", err)
+	}
+	if err := RequireUsePermitted(ctx, nil, stored, RightsUseHostedInference); err == nil {
+		t.Fatal("hosted use of an unverified model must stay refused")
 	}
 	if err := f.in.AddCustom(ctx, Model{ID: "missing-local", Source: Source{LocalPath: filepath.Join(t.TempDir(), "missing.bin")}}); !errors.Is(err, ErrLocalPathMissing) {
 		t.Fatalf("expected ErrLocalPathMissing, got %v", err)
@@ -685,5 +704,40 @@ func TestInstall_WeightlessModelsAlwaysInstalled(t *testing.T) {
 				t.Fatalf("weightless model must not download anything; got %d downloads", f.downloads)
 			}
 		})
+	}
+}
+
+// A catalog model whose files sit at its managed location without a receipt
+// (for example after a state loss) is adopted in place: validated against the
+// catalog, hashed, recorded. Mismatching files are refused.
+func TestAdoptExistingRecordsAReceiptWithoutMovingBytes(t *testing.T) {
+	f := newInstallFixture(t)
+	ctx := context.Background()
+	dir := filepath.Join(f.root, "models", installTestModelID)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.in.AdoptExisting(ctx, installTestModelID); err == nil {
+		t.Fatal("an empty model directory must not be adopted")
+	}
+	file := filepath.Join(dir, "install-test-model.bin")
+	if err := os.WriteFile(file, f.payload, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rec, err := f.in.AdoptExisting(ctx, installTestModelID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !rec.Installed || rec.Path != dir || rec.SizeBytes != int64(len(f.payload)) || rec.Checksum == "" {
+		t.Fatalf("receipt %+v", rec)
+	}
+	if !f.in.Installed(ctx, installTestModelID) {
+		t.Fatal("an adopted model must count as installed")
+	}
+	if _, err := os.Stat(file); err != nil {
+		t.Fatalf("adoption must not move bytes: %v", err)
+	}
+	if _, err := f.in.AdoptExisting(ctx, installTestModelID); err == nil || !strings.Contains(err.Error(), "already has an install receipt") {
+		t.Fatalf("second adoption: %v", err)
 	}
 }

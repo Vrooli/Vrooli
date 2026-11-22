@@ -770,7 +770,7 @@ by `test-genie runs compare` vs `20260618-230047` + isolated re-runs):
 
 ## Architecture Drift
 
-Use this section for deferred findings from `screaming-architecture-audit`.
+Use this section for deferred findings from `architecture-lenses`.
 Do not create a standalone architecture-audit report unless the work is
 a migration handoff with a planned retirement path back into
 `ARCHITECTURE.md`, `SEAMS.md`, or this file.
@@ -1069,3 +1069,54 @@ Boot order is now `ApplySchemas → Migrate → VerifyDeclaredColumns`, which le
 migration repair drift that the declarative schema alone cannot express before the
 drift check runs. `migrations/0001_drop_template_tables.sql` drops the two orphan
 tables. Tests cover application, idempotence, ordering, and rollback-on-failure.
+
+### 2026-11-21 — Local GPU jobs wait minutes on host RAM held by other owners
+
+**Symptom:** FLUX.2 klein proof jobs sat in `admitting`/`queued` for 4–30 minutes. The message was `insufficient ram: floor … exceeds the … free (no-reclaim request: other owners' claims were not counted)`.
+
+**Root cause:** Image Tools' local RAM claim is made with `NoReclaim: true` (internal/capacity `acquireLocalResources`). It therefore competes with every active claim in the shared ledger. On 2026-11-21, 28–50 `cli-install:pid-N:*` claims of 0.38 GiB each (Vrooli root `internal/cliinstall/build_admission.go`, one per CLI rebuild) were still `active` after their owner processes had exited, holding 10–21 GiB. The first fix in this scenario was to cut klein's real need (staged placement, `min_ram_gb` 16 → 11). The leak itself belongs to the root CLI installer and the ledger reconciler.
+
+**Workaround:** Wait for TTL expiry, or reconcile dead-owner claims through `vrooli capacity`. Do not kill owners.
+
+**Fix path:** Root `cliinstall` should release on every exit path, and the ledger should expire claims whose owner pid is gone. Separately, consider letting Image Tools' RAM admission honour `allow_reclaim` for idle-yielding service claims.
+
+### 2026-11-21 — `ai … --explain` and `models select` judge GPU fit on free VRAM; job planning uses total VRAM
+
+**Symptom:** With a contended GPU, `--explain` can name a different model from the one the job actually runs.
+
+**Root cause:** Job planning sets `CapacityManagedGPU` (engine.go), so fit uses total VRAM and leaves contention to the broker. The explain and select paths do not set it. With klein's `min_vram_gb` at 6 the two agree on this host today. A model whose floor exceeds the current free VRAM would still diverge.
+
+**Fix path:** Have explain/select set `CapacityManagedGPU` whenever the engine has a capacity broker, and report the free-VRAM shortfall as an admission note rather than a different choice.
+
+### 2026-11-21 — Runtime venv carried kornia 0.5.0 for the Big-LaMa exporter (resolved)
+
+**Symptom:** Every diffusers load that touched `diffusers.guiders` (FLUX.2 klein) failed with `cannot import name 'build_laplacian_pyramid' from 'kornia.geometry.transform'`.
+
+**Root cause:** `kornia==0.5.0` was the Big-LaMa exporter's pin, and diffusers 0.38 treats any installed kornia as usable.
+
+**Fix:** kornia is now 0.9.2 (SDA approval widened to `>=0.8,<1`, lock updated through `deps install`). The exporter was re-run on it against the pinned reference ONNX and produced a byte-identical `lama_1024.onnx` (sha256 `ed44a7c0...b7a2b0`, parity max abs 0.01458, same as the 0.5.0 build). `_diffusers._hide_incompatible_kornia()` is deleted and `TestKorniaSupportsDiffusersGuiders` holds the floor.
+
+
+### 2026-11-21 — A hosted judge's scores arrive inside the provider's raw chat-completion JSON
+
+**Symptom:** `quality evaluate` with `judge_model: openrouter:...` failed every case with `invalid judge JSON: unknown field "choices"`.
+
+**Root cause:** The AI Gateway returns a hosted provider's reply verbatim as `output_text`; the scores sit in `choices[0].message.content`. A local resource returns bare text.
+
+**Workaround (in place):** `quality.chatCompletionText` unwraps the envelope. Fix path: have the gateway's hosted text route return the assistant text, then delete the unwrap.
+
+### 2026-11-21 — The local gemma4:12b judge was refused by the Ollama resource (resolved)
+
+**Symptom:** `resource-ollama gateway generate --role image.quality.judge` with `gemma4:12b` failed with `runtime artifact identity binding is missing or does not match current Ollama inventory`.
+
+**Root cause:** The policy entry had no `runtime_identity`, and its rights revision named an older manifest digest (`6114515d...`) than the installed model's (`4eb23ef1...`, from `/api/tags`).
+
+**Fix:** `resources/ollama/model-policy.json` now records the installed digest in the rights revision and in a new `runtime_identity` (no `resource-ollama` command binds identities; the file is the owner). `models probe-vision --role image.quality.judge` passes and a gateway call returns. The model is now usable but unqualified as a judge (see DECISIONS). The rights license evidence (Apache-2.0 blob `0d542e0c...`) is unchanged; the rights owner should confirm the new revision.
+
+### 2026-11-21 — FLUX keeps the GPU-resident footprint only while Ollama is idle
+
+**Symptom:** An edit submitted while Ollama holds its model (warm-idle, 8 GiB) runs streamed in about 140 s instead of about 55 s.
+
+**Root cause:** The resident claim is correctly refused: an Ollama claim only yields once cold-idle (15-minute grace), and the broker never reclaims an active or warm-idle owner. Other agents poll Ollama, so on a busy host it rarely goes cold.
+
+**Fix path:** Have Ollama report idle sooner or unload its model on idle (owner's decision), or let a resident step down to a smaller profile rung while warm-idle.

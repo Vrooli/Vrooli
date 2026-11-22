@@ -56,33 +56,35 @@ type Server struct {
 	repos        *RepoService
 	precommit    *PrecommitService
 	// candidateSecurity remains unset until the RH2 commit-policy proposal is approved.
-	candidateSecurity    *CandidateSecurityClient
-	commitChecks         *CommitCheckStore
-	credStore            *CredentialsStore
-	storageResolver      *storage.Resolver
-	fileRoots            *filerouting.RoutedRoots
-	basClient            *BrowserAutomationClient
-	visualCaptureStorage *VisualCaptureStorage
-	periodicCapture      *PeriodicCapture
-	testGenieClient      *TestGenieClient
-	testGenieEligibility *TestGenieEligibilityClient
-	isolationCache       *IsolationCache
-	tidinessClient       *TidinessManagerClient
-	agentManagerClient   *AgentManagerClient
-	auditorClient        *AuditorClient
-	scenarioLocator      *ScenarioLocator
-	envelopeCache        *EnvelopeCache
-	reviewJobStore       *ReviewJobStore
-	configCache          *GitConfigCache
-	statusCache          *RepoStatusCache
-	sourceDistributions  SourceDistributionReader
-	baselineService      *baseline.Service
-	authVerifier         policygate.PrincipalVerifier
-	authConfig           authn.Config
-	intentService        *policygate.IntentService
-	proposalService      *proposals.Service
-	stagedMessages       *stagedmessages.Service
-	notifier             *gctNotifier
+	candidateSecurity       *CandidateSecurityClient
+	commitChecks            *CommitCheckStore
+	credStore               *CredentialsStore
+	storageResolver         *storage.Resolver
+	fileRoots               *filerouting.RoutedRoots
+	basClient               *BrowserAutomationClient
+	visualCaptureStorage    *VisualCaptureStorage
+	periodicCapture         *PeriodicCapture
+	testGenieClient         *TestGenieClient
+	testGenieEligibility    *TestGenieEligibilityClient
+	isolationCache          *IsolationCache
+	tidinessClient          TidinessManagerAPI
+	agentManagerClient      *AgentManagerClient
+	auditorClient           *AuditorClient
+	scenarioLocator         *ScenarioLocator
+	envelopeCache           *EnvelopeCache
+	reviewJobStore          *ReviewJobStore
+	configCache             *GitConfigCache
+	statusCache             *RepoStatusCache
+	statusPageCache         *RepoStatusPageCache
+	statusPageAssemblyCache *RepoStatusCache
+	sourceDistributions     SourceDistributionReader
+	baselineService         *baseline.Service
+	authVerifier            policygate.PrincipalVerifier
+	authConfig              authn.Config
+	intentService           *policygate.IntentService
+	proposalService         *proposals.Service
+	stagedMessages          *stagedmessages.Service
+	notifier                *gctNotifier
 }
 
 // NewServer initializes configuration, database, and routes
@@ -129,6 +131,9 @@ func NewServer() (*Server, error) {
 	srv.commitChecks = NewCommitCheckStore(db)
 	srv.configCache = NewGitConfigCache(60 * time.Second)
 	srv.statusCache = NewRepoStatusCache(5 * time.Second)
+	srv.statusPageCache = NewRepoStatusPageCache(repoStatusPageCacheMaxBytes, repoStatusPageCacheMaxEntries)
+	srv.statusPageAssemblyCache = NewRepoStatusCache(0)
+	srv.statusCache.SetPageSnapshots(srv.statusPageCache)
 	srv.repos.SetStatusCache(srv.statusCache)
 	SetDefaultRepoStatusCache(srv.statusCache)
 

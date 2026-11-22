@@ -5,6 +5,7 @@ package message
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -23,7 +24,8 @@ var clientFactory = func(core *cliapp.ScenarioApp) advisory_v1connect.AdvisorySe
 
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	bindings := map[string]cliapp.PrimitiveHandler{
-		"AdvisoryService.CollectStagedMessage": cliapp.ProtoOperational(collect, collectionReport),
+		"AdvisoryService.CollectStagedMessage":    cliapp.ProtoOperational(collect, collectionReport),
+		"AdvisoryService.GetStagedMessageMetrics": cliapp.ProtoOperational(metrics, metricsReport),
 		"AdvisoryService.CheckStagedMessage": cliapp.ProtoOperational(check, func(_ cliapp.OperationContext, r *v1.CheckStagedMessageResponse) cliapp.OperationalReport {
 			return cliapp.OperationalReport{Status: []string{fmt.Sprintf("Applicable: %t", r.GetApplicable()), "Current snapshot: " + r.GetCurrentSnapshotDigest(), r.GetReason()}}
 		}),
@@ -96,6 +98,14 @@ func collect(ctx cliapp.OperationContext) (*v1.StagedMessageCollection, error) {
 		return nil, err
 	}
 	return r.Msg, nil
+}
+
+func metrics(ctx cliapp.OperationContext) (*v1.StagedMessageMetrics, error) {
+	response, err := clientFactory(ctx.Core()).GetStagedMessageMetrics(context.Background(), connect.NewRequest(&v1.GetStagedMessageMetricsRequest{}))
+	if err != nil {
+		return nil, err
+	}
+	return response.Msg, nil
 }
 
 func check(ctx cliapp.OperationContext) (*v1.CheckStagedMessageResponse, error) {
@@ -234,6 +244,28 @@ func collectionReport(_ cliapp.OperationContext, r *v1.StagedMessageCollection) 
 	}
 	for _, o := range r.GetOmissions() {
 		report.Triage = append(report.Triage, cliapp.TriageGroup{Heading: "Evidence limitation", Items: []string{o.GetPath(), o.GetReason()}})
+	}
+	return report
+}
+
+func metricsReport(_ cliapp.OperationContext, r *v1.StagedMessageMetrics) cliapp.OperationalReport {
+	report := cliapp.OperationalReport{Status: []string{
+		"Observed at: " + r.GetObservedAt(),
+		fmt.Sprintf("Jobs: %d; terminal: %d; awaiting provider: %d; failed: %d", r.GetJobs(), r.GetTerminalJobs(), r.GetAwaitingProviderJobs(), r.GetFailedJobs()),
+		fmt.Sprintf("Terminal duration: %d samples / %d ms total", r.GetTerminalDurationCount(), r.GetTerminalDurationMillisTotal()),
+		fmt.Sprintf("Proven zero-work refusals: %d; duplicate retries: %d", r.GetProvenZeroWorkRefusals(), r.GetDuplicateRetries()),
+		fmt.Sprintf("Stuck dispatch: %d; stuck reconciliation: %d (threshold %d seconds)", r.GetStuckDispatch(), r.GetStuckReconciliation(), r.GetStuckThresholdSeconds()),
+	}}
+	if r.FailureRate != nil {
+		report.Status = append(report.Status, fmt.Sprintf("Failure rate: %.4f", r.GetFailureRate()))
+	}
+	codes := make([]string, 0, len(r.GetFailuresByCode()))
+	for code := range r.GetFailuresByCode() {
+		codes = append(codes, code)
+	}
+	sort.Strings(codes)
+	for _, code := range codes {
+		report.Status = append(report.Status, fmt.Sprintf("Failures %s: %d", code, r.GetFailuresByCode()[code]))
 	}
 	return report
 }

@@ -88,7 +88,7 @@ export function StatusHeader({
 
   return (
     <header
-      className="relative z-30 flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-900/80 backdrop-blur-sm"
+      className="relative z-30 flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-900"
       data-testid="status-header"
     >
       <div className="flex items-center gap-4">

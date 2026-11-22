@@ -74,10 +74,16 @@ export function useHealth() {
 
 export function useRepoStatus(repoId?: string | null) {
   const pending = useIsMutating({ mutationKey: workspaceMutationKey(repoId) });
+  const queryClient = useQueryClient();
+  const queryKey = queryKeys.repoStatus(repoId);
+  const hasCachedStatus = queryClient.getQueryData(queryKey) !== undefined;
   return useQuery({
-    queryKey: queryKeys.repoStatus(repoId),
+    queryKey,
     queryFn: () => fetchRepoStatus(repoId ?? undefined),
-    enabled: pending === 0,
+    // A fresh Changes panel must always make its first status request. If a
+    // write is already pending, pause automatic refreshes only when there is
+    // cached data to display; a disabled query with no cache appears blank.
+    enabled: pending === 0 || !hasCachedStatus,
     refetchInterval: pending ? false : 15_000,
     staleTime: 5_000,
   });

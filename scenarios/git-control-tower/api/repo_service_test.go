@@ -54,6 +54,26 @@ func TestRepoService_ResolveWithRepoID(t *testing.T) {
 	}
 }
 
+func TestRepoService_ResolveIDMatchesExplicitAndDefaultSelection(t *testing.T) {
+	store := newTestRepoStore(t)
+	git := NewFakeGitRunner()
+	git.RepoRoot = "/fallback"
+	service := NewRepoService(store, git)
+
+	opened, err := service.Open(authorizedHumanContext(), "/demo")
+	if err != nil {
+		t.Fatalf("open repo: %v", err)
+	}
+	explicit, err := service.ResolveID(context.Background(), opened.ID)
+	if err != nil || explicit.ID != opened.ID || explicit.Path != opened.Path || explicit.Source != "explicit" {
+		t.Fatalf("ResolveID explicit = %#v, %v", explicit, err)
+	}
+	active, err := service.ResolveID(context.Background(), 0)
+	if err != nil || active.ID != opened.ID || active.Path != opened.Path || active.Source != "active" {
+		t.Fatalf("ResolveID active = %#v, %v", active, err)
+	}
+}
+
 func TestRepoService_ResolveFallbackDoesNotMutateRegistry(t *testing.T) {
 	store := newTestRepoStore(t)
 	git := NewFakeGitRunner()

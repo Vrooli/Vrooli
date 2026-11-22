@@ -179,13 +179,17 @@ func TestStagedMessageRetainedReaderUses4096ExactIdentitiesWithoutOpeningOmitted
 	}
 	snapshot := &v1.StagedMessageSnapshot{RepositoryId: "repo"}
 	for source := 0; source < 4; source++ {
-		p := proposals.Proposal{ID: fmt.Sprintf("source-%d", source), RepositoryID: "repo", State: proposals.StateWithdrawn, Revision: 1, CreatedAt: time.Now(), UpdatedAt: time.Now(), Message: proposals.Message{Subject: "Retained scoped update"}}
+		p := proposals.Proposal{ID: fmt.Sprintf("source-%d", source), RepositoryID: "repo", State: proposals.StateOpen, Revision: 1, CreatedAt: time.Now(), UpdatedAt: time.Now(), Message: proposals.Message{Subject: "Retained scoped update"}}
 		for i := 0; i < 1024; i++ {
 			path := fmt.Sprintf("scenarios/scope-%d/file-%04d.go", source, i)
 			p.Files = append(p.Files, proposals.File{Path: path, BaseBlobID: "base", BlobID: "candidate", BaseMode: "100644", Mode: "100644", Captured: true})
 			snapshot.Files = append(snapshot.Files, &v1.StagedMessageFile{Path: path, OldBlobId: "base", NewBlobId: "candidate", OldMode: "100644", NewMode: "100644", OmissionReason: "detail omitted"})
 		}
 		if err := store.Insert(ctx, p); err != nil {
+			t.Fatal(err)
+		}
+		p.State = proposals.StateWithdrawn
+		if err := store.Update(ctx, p, p.Revision, proposals.StateOpen); err != nil {
 			t.Fatal(err)
 		}
 	}

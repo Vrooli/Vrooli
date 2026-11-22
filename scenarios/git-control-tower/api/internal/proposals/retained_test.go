@@ -11,12 +11,22 @@ func TestRetainedCandidatesIncludeClosedSourcesNewestFirstWithoutReopening(t *te
 	s := testService(t)
 	ctx := context.Background()
 	base := time.Unix(1700000000, 0)
-	for i, p := range []Proposal{{ID: "older-open", RepositoryID: "repo", State: StateOpen}, {ID: "closed", RepositoryID: "repo", State: StateWithdrawn}, {ID: "newest", RepositoryID: "repo", State: StateCommitted}, {ID: "other", RepositoryID: "other", State: StateOpen}} {
+	for i, p := range []Proposal{{ID: "older-open", RepositoryID: "repo", State: StateOpen}, {ID: "closed", RepositoryID: "repo", State: StateOpen}, {ID: "newest", RepositoryID: "repo", State: StateOpen}, {ID: "other", RepositoryID: "other", State: StateOpen}} {
 		p.Revision = 1
 		p.CreatedAt = base.Add(time.Duration(i) * time.Minute)
 		p.UpdatedAt = p.CreatedAt
 		if e := s.store.Insert(ctx, p); e != nil {
 			t.Fatal(e)
+		}
+		if p.ID == "closed" || p.ID == "newest" {
+			closedState := StateWithdrawn
+			if p.ID == "newest" {
+				closedState = StateCommitted
+			}
+			p.State = closedState
+			if e := s.store.Update(ctx, p, p.Revision, StateOpen); e != nil {
+				t.Fatal(e)
+			}
 		}
 	}
 	got, e := s.RetainedCandidates(ctx, "repo", 2)

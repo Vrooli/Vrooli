@@ -88,11 +88,8 @@ Delivery orchestrators run `anchor` when they admit an epoch and `create` when
 they accept it:
 
 ```bash
-git-control-tower proposal anchor --effort effort:<slug> --epoch E<n> \
-  --scope 'scenarios/<scenario>/**' --scope 'packages/proto/**' --json
-git-control-tower proposal create --effort effort:<slug> --epoch E<n> \
-  --subject '<scenario>: <outcome> (E<n>)' --body-file <body.txt> \
-  --path <file> [--path <file>...] --run <worker-run-id> --run <orchestrator-run-id> --json
+git-control-tower proposal anchor --effort effort:example --epoch E27 --scope 'scenarios/git-control-tower/**' --scope 'packages/proto/**' --json
+git-control-tower proposal create --effort effort:example --epoch E27 --subject 'gct: update scenario docs (E27)' --body-file "proposal-body.md" --path "scenarios/git-control-tower/docs/QUICKSTART.md" --run "worker-run-id" --run "orchestrator-run-id" --json
 ```
 
 `create` takes the newest anchor for the effort and epoch. A listed path that

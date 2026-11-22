@@ -13,12 +13,6 @@ type AgentProfile struct {
 	RoleRef     string `json:"roleRef,omitempty"`
 }
 
-// AgentProfileListResponse wraps a list of profiles.
-type AgentProfileListResponse struct {
-	Profiles []AgentProfile `json:"profiles"`
-	Total    int            `json:"total"`
-}
-
 // AgentRunRequest is the composite request sent from the UI to create a Task + Run.
 type AgentRunRequest struct {
 	ScenarioSlug  string   `json:"scenarioSlug"`
@@ -79,12 +73,6 @@ type AgentRun struct {
 	EndedAt         string           `json:"endedAt,omitempty"`
 }
 
-// AgentRunListResponse wraps a list of runs.
-type AgentRunListResponse struct {
-	Runs  []AgentRun `json:"runs"`
-	Total int        `json:"total"`
-}
-
 // AgentRunEvent represents a single event in an agent run's event stream.
 type AgentRunEvent struct {
 	ID        string      `json:"id"`
@@ -95,11 +83,6 @@ type AgentRunEvent struct {
 	Data      interface{} `json:"data,omitempty"`
 }
 
-// AgentRunEventsResponse wraps a list of events.
-type AgentRunEventsResponse struct {
-	Events []AgentRunEvent `json:"events"`
-}
-
 // AgentRunDiffFile represents a single file in a diff.
 type AgentRunDiffFile struct {
 	Path       string `json:"path"`
@@ -108,13 +91,6 @@ type AgentRunDiffFile struct {
 	Deletions  int    `json:"deletions"`
 	IsBinary   bool   `json:"isBinary,omitempty"`
 	Patch      string `json:"patch,omitempty"`
-}
-
-// AgentRunDiffResponse wraps the diff output for a run.
-type AgentRunDiffResponse struct {
-	RunID   string             `json:"runId"`
-	Content string             `json:"content,omitempty"`
-	Files   []AgentRunDiffFile `json:"files"`
 }
 
 // AgentContinueRequest sends a follow-up message to an agent run.

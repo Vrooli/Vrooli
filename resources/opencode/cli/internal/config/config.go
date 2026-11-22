@@ -359,12 +359,13 @@ func writeOpenAIProvider(top map[string]json.RawMessage, provider OpenAIProvider
 }
 
 // ollamaModelEntry builds one models[<model>] entry: nested
-// options.options.{num_ctx,sampling} (the native provider reads
-// providerOptions.ollama.options.*) plus a matching limit budget.
+// options.options.{sampling} (the native provider reads
+// providerOptions.ollama.options.*) plus a matching limit budget. It never
+// writes runner load options such as the context size: resource-ollama's
+// runtime profile applies them to every caller (and its activity edge strips
+// caller copies), because a differing value restarts the shared runner.
 func ollamaModelEntry(numCtx int, sampling Sampling, maxOutput int) json.RawMessage {
-	inner := map[string]json.RawMessage{
-		"num_ctx": mustRaw(numCtx),
-	}
+	inner := map[string]json.RawMessage{}
 	if sampling.Temperature != nil {
 		inner["temperature"] = mustRaw(*sampling.Temperature)
 	}
@@ -382,8 +383,10 @@ func ollamaModelEntry(numCtx int, sampling Sampling, maxOutput int) json.RawMess
 		maxOutput = 1
 	}
 	entry := map[string]json.RawMessage{
-		"options": mustRaw(map[string]json.RawMessage{"options": mustRaw(inner)}),
-		"limit":   mustRaw(map[string]int{"context": numCtx, "output": maxOutput}),
+		"limit": mustRaw(map[string]int{"context": numCtx, "output": maxOutput}),
+	}
+	if len(inner) > 0 {
+		entry["options"] = mustRaw(map[string]json.RawMessage{"options": mustRaw(inner)})
 	}
 	return mustRaw(entry)
 }

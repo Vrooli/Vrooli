@@ -2,11 +2,71 @@ package audit
 
 import (
 	"bytes"
+	"context"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
+
+	"connectrpc.com/connect"
+	"github.com/vrooli/cli-core/cliapp"
+	auditv1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/audit"
+	auditconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/audit/audit_v1connect"
 )
+
+type auditCLIHandler struct {
+	auditconnect.UnimplementedAuditServiceHandler
+	request *auditv1.ListAuditEntriesRequest
+}
+
+func (h *auditCLIHandler) ListEntries(_ context.Context, request *connect.Request[auditv1.ListAuditEntriesRequest]) (*connect.Response[auditv1.ListAuditEntriesResponse], error) {
+	h.request = request.Msg
+	return connect.NewResponse(&auditv1.ListAuditEntriesResponse{
+		Total:   127,
+		Entries: []*auditv1.AuditEntry{{Operation: "commit", Success: true, Timestamp: "2026-11-21T00:00:00Z"}},
+	}), nil
+}
+
+func TestRunListUsesTypedAuditQueryAndReportsOwnerTotal(t *testing.T) {
+	impl := &auditCLIHandler{}
+	path, handler := auditconnect.NewAuditServiceHandler(impl)
+	mux := http.NewServeMux()
+	mux.Handle(path, handler)
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	previous := auditClientFactory
+	auditClientFactory = func(*cliapp.ScenarioApp) auditconnect.AuditServiceClient {
+		return auditconnect.NewAuditServiceClient(server.Client(), server.URL)
+	}
+	t.Cleanup(func() { auditClientFactory = previous })
+
+	output := captureStdout(t, func() {
+		if err := runList(nil, []string{"--operation=commit", "--limit=25"}); err != nil {
+			t.Fatalf("runList() error = %v", err)
+		}
+	})
+	if impl.request == nil || impl.request.GetOperation() != "commit" || impl.request.GetLimit() != 25 {
+		t.Fatalf("typed audit request = %#v", impl.request)
+	}
+	if !strings.Contains(output, "Audit Log (1 of 127 entries)") {
+		t.Fatalf("CLI did not preserve owner total in output: %q", output)
+	}
+}
+
+func TestRunListRejectsInvalidLimitBeforeTransport(t *testing.T) {
+	previous := auditClientFactory
+	auditClientFactory = func(*cliapp.ScenarioApp) auditconnect.AuditServiceClient {
+		t.Fatal("invalid limit should not create a transport client")
+		return nil
+	}
+	t.Cleanup(func() { auditClientFactory = previous })
+	if err := runList(nil, []string{"--limit=-1"}); err == nil || !strings.Contains(err.Error(), "positive integer") {
+		t.Fatalf("runList invalid limit error = %v", err)
+	}
+}
 
 func TestParseFlags(t *testing.T) {
 	got := parseFlags([]string{

@@ -10,7 +10,7 @@ import {
   Wrench,
   ExternalLink,
 } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import type {
   AgentRun,
   AgentRunDiffFile,
@@ -258,7 +258,7 @@ export function ActionButtons({
       {actions.canApprove && (
         <>
           <Button
-            variant="default"
+            variant="primary"
             size="sm"
             onClick={() => approve.mutate({ runId, request: {} })}
             disabled={approve.isPending}
@@ -272,11 +272,12 @@ export function ActionButtons({
             Approve
           </Button>
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={() => reject.mutate({ runId, request: {} })}
             disabled={reject.isPending}
             className="h-8 text-xs gap-1 text-red-400 border-red-800 hover:bg-red-950/50"
+            style={{ background: "transparent" }}
           >
             {reject.isPending ? (
               <Loader2 className="h-3 w-3 animate-spin" />

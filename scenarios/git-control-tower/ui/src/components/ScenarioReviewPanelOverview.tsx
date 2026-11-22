@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { RefreshCw, Loader2, CheckCircle2, XCircle, AlertTriangle, Plus, Minus, Camera, ExternalLink } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { useTidinessScore, useTidinessStaleness, useScenarios, useReviewSummary, useTriggerReviewRun, useReviewJobStatus } from "../lib/hooks";
 import { useEvidence, useRuns } from "../lib/hooks-evidence";
 import { fetchExternalUrl } from "../lib/api-internals";
@@ -123,7 +123,7 @@ export function OverviewTab({
           </div>
         </div>
         <p className="text-sm font-medium text-slate-200 mb-2">
-          {scenarioInfo?.display_name || scenarioSlug}
+          {scenarioInfo?.displayName || scenarioSlug}
         </p>
         <div className="flex items-center gap-2">
           <span className="text-[11px] text-slate-500 truncate flex-1 font-mono">{proxyUrl}</span>
@@ -142,10 +142,10 @@ export function OverviewTab({
             Open
           </a>
         </div>
-        {scenarioInfo?.health_status && scenarioInfo.health_status !== "healthy" && (
+        {scenarioInfo?.healthStatus && scenarioInfo.healthStatus !== "healthy" && (
           <div className="flex items-center gap-2 mt-2 text-[11px] text-amber-400">
             <AlertTriangle className="h-3 w-3" />
-            {scenarioInfo.health_status}
+            {scenarioInfo.healthStatus}
           </div>
         )}
       </div>
@@ -157,11 +157,12 @@ export function OverviewTab({
           <span className="text-sm font-medium text-slate-200">{readinessLabels[readiness]}</span>
         </div>
         <Button
-          variant="outline"
+          variant="secondary"
           size="sm"
           onClick={handleRerunAll}
           disabled={isRerunning}
           className="h-7 text-xs gap-1"
+          style={{ background: "transparent" }}
         >
           {isRerunning ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
           Rerun All Checks
@@ -228,7 +229,14 @@ export function OverviewTab({
         ) : latestVisualItems.length === 0 ? (
           <div className="space-y-2">
             <p className="text-xs text-slate-500">No screenshots captured yet</p>
-            <Button variant="outline" size="sm" onClick={onCapture} disabled={isCapturing} className="h-7 text-xs gap-1">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={onCapture}
+              disabled={isCapturing}
+              className="h-7 text-xs gap-1"
+              style={{ background: "transparent" }}
+            >
               {isCapturing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
               Capture screenshots
             </Button>
@@ -243,7 +251,14 @@ export function OverviewTab({
               <span className="text-slate-400">Screenshots</span>
               <span className="text-slate-200">{latestVisualItems.length}</span>
             </div>
-            <Button variant="outline" size="sm" onClick={onCapture} disabled={isCapturing} className="h-7 text-xs gap-1 mt-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={onCapture}
+              disabled={isCapturing}
+              className="h-7 text-xs gap-1 mt-2"
+              style={{ background: "transparent" }}
+            >
               {isCapturing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
               Re-capture
             </Button>

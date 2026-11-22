@@ -4,9 +4,13 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	domainadvisory "git-control-tower/internal/advisory"
+	"git-control-tower/internal/reviewjobs"
+	"git-control-tower/internal/stagedmessages"
+	testdb "github.com/vrooli/api-core/databasetest"
 	advisoryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/advisory"
 )
 
@@ -35,6 +39,21 @@ func TestAdvisoryConnectDraftValidatesAndReturnsDraft(t *testing.T) {
 	}
 	if len(got.EvidenceRefs) != 1 || got.EvidenceRefs[0] != "hunk:1" || len(got.Unknowns) != 1 || got.Coverage.GetOmittedFiles() != 1 || len(got.Coverage.GetOmissions()) != 1 {
 		t.Fatalf("draft evidence was not preserved: %+v", got)
+	}
+}
+
+func TestAdvisoryConnectGetStagedMessageMetricsUsesDurableOwner(t *testing.T) {
+	store, err := reviewjobs.New(testdb.OpenSQLiteMemory(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := advisoryConnectServer{server: &Server{stagedMessages: stagedmessages.New(store, nil, nil, nil)}}
+	response, err := server.GetStagedMessageMetrics(context.Background(), connect.NewRequest(&advisoryv1.GetStagedMessageMetricsRequest{}))
+	if err != nil {
+		t.Fatalf("GetStagedMessageMetrics returned error: %v", err)
+	}
+	if response.Msg.GetObservedAt() == "" || response.Msg.GetJobs() != 0 || response.Msg.FailureRate != nil || response.Msg.GetStuckThresholdSeconds() != int64((5*time.Minute).Seconds()) {
+		t.Fatalf("unexpected empty durable metrics: %+v", response.Msg)
 	}
 }
 

@@ -540,6 +540,7 @@ func TestInstallModelBlocksConditionalBuildDespiteStoredAssets(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	h.deps.RightsEvaluator = unverifiedRightsForHandlerTest
 	_, err := h.InstallModel(context.Background(), connect.NewRequest(&modelsv1.InstallModelRequest{Id: modelID}))
 	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("conditional install error = %v, want FailedPrecondition", err)
@@ -598,6 +599,7 @@ func TestInstallModelCannotAcquireUnverifiedCommercialWeights(t *testing.T) {
 	if conditionalID == "" {
 		t.Fatal("seed should include a conditional-rights model for this regression")
 	}
+	h.deps.RightsEvaluator = unverifiedRightsForHandlerTest
 	_, err := h.InstallModel(context.Background(), connect.NewRequest(&modelsv1.InstallModelRequest{Id: conditionalID}))
 	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("install conditional model error = %v, want FailedPrecondition", err)

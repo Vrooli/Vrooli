@@ -176,15 +176,23 @@ func (s *RepoService) Resolve(ctx context.Context, r *http.Request) (ResolvedRep
 	if err != nil {
 		return ResolvedRepo{}, newRepoError(RepoErrorInvalid, "invalid repo id", err)
 	}
+	if !hasRepoID {
+		repoID = 0
+	}
+	return s.ResolveID(ctx, repoID)
+}
 
-	if hasRepoID {
+// ResolveID applies the normal explicit/active/root resolution policy to a
+// typed caller's repository id. Zero means use the active repository and then
+// the repository-root fallback, matching Resolve when the header is omitted.
+func (s *RepoService) ResolveID(ctx context.Context, repoID int64) (ResolvedRepo, error) {
+	if repoID > 0 {
 		repo, err := s.resolveByID(ctx, repoID)
 		if err != nil {
 			return ResolvedRepo{}, err
 		}
 		return ResolvedRepo{ID: repo.ID, Path: repo.Path, Source: "explicit"}, nil
 	}
-
 	if resolved, tried, resolveErr := s.resolveFromActive(ctx); tried {
 		return resolved, resolveErr
 	}

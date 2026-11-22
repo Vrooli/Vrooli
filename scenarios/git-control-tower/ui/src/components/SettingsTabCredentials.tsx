@@ -8,7 +8,7 @@ import {
   RefreshCw,
   Lock,
 } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { Badge } from "./ui/badge";
 import {
   useCredentials,
@@ -211,11 +211,12 @@ export function SettingsTabCredentials({
             </div>
           </div>
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={handleSwitchProtocol}
             disabled={updateUrlMutation.isPending}
             className={`${buttonHeight} ${isMobile ? "w-full" : "shrink-0"}`}
+            style={{ background: "transparent" }}
           >
             {updateUrlMutation.isPending ? (
               <RefreshCw className="h-3 w-3 animate-spin mr-2" />
@@ -354,7 +355,7 @@ export function SettingsTabCredentials({
 
             <div className={`flex gap-2 ${isMobile ? "flex-col" : "flex-row"}`}>
               <Button
-                variant="default"
+                variant="primary"
                 size="sm"
                 onClick={handleSave}
                 disabled={!username.trim() || !token.trim() || saveMutation.isPending}
@@ -369,11 +370,12 @@ export function SettingsTabCredentials({
               </Button>
 
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 onClick={handleTest}
                 disabled={testMutation.isPending}
                 className={`${buttonHeight} ${isMobile ? "w-full" : ""}`}
+                style={{ background: "transparent" }}
               >
                 {testMutation.isPending ? (
                   <RefreshCw className="h-3 w-3 animate-spin mr-2" />

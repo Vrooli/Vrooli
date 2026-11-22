@@ -98,8 +98,10 @@ func (s *Service) Run(ctx context.Context, job jobs.Job, emit func(int, string))
 		}
 		start := time.Now()
 		m, err := s.Installer.Resolve(ctx, id)
-		if err == nil && m.CapabilityLabels.CommercialUse != models.CommercialUseYes {
-			err = fmt.Errorf("model %s has no verified commercial-use rights", id)
+		if err == nil {
+			if rightsErr := models.RequireLocalUsePermitted(ctx, s.Installer.Rights, m); rightsErr != nil {
+				err = fmt.Errorf("model %s cannot be provisioned: %w", id, rightsErr)
+			}
 		}
 		if err == nil && m.Backend == models.BackendOpenRouter {
 			err = fmt.Errorf("model %s is remote; local provisioning cannot supply credentials", id)

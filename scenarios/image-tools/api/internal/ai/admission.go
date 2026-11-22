@@ -12,6 +12,7 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/google/uuid"
@@ -19,7 +20,10 @@ import (
 	"image-tools/internal/adapters"
 	"image-tools/internal/backends"
 	"image-tools/internal/capabilities"
+	"image-tools/internal/capability"
 	"image-tools/internal/capacity"
+	"image-tools/internal/diskpolicy"
+	"image-tools/internal/fetch"
 	"image-tools/internal/jobs"
 	"image-tools/internal/models"
 )
@@ -54,7 +58,10 @@ func (e *Engine) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, error
 	ctx = capacity.WithPriority(ctx, string(job.Priority))
 	group := newLeaseGroup(ctx)
 	meta := map[string]string{}
-	admission := jobs.Admission{Context: ctx, Release: group.release, Meta: meta}
+	// leaseGroup releases each part once and retries only the parts that failed,
+	// so every outcome of this admission, including a refused or partial one,
+	// is safe for the scheduler to release again after a contended ledger call.
+	admission := jobs.Admission{Context: ctx, Release: group.release, ReleaseRetryable: true, Meta: meta}
 	var pl Payload
 	if err := json.Unmarshal(job.Payload, &pl); err != nil {
 		return admission, fmt.Errorf("ai: decode payload: %w", err)
@@ -66,8 +73,35 @@ func (e *Engine) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, error
 	if !ok {
 		return admission, fmt.Errorf("ai: model %q not in registry", pl.ModelID)
 	}
-	if !e.deps.ModelInstalled(model.ID) {
-		return admission, fmt.Errorf("%w: %q", ErrModelNotInstalled, model.ID)
+	installed := e.deps.ModelInstalled(model.ID)
+	revalidate := false
+	if installed && pl.AutoAcquire && e.deps.ModelRuntimeReadiness != nil {
+		ready, _ := e.deps.ModelRuntimeReadiness(ctx, model.ID)
+		revalidate = !ready
+	}
+	if !installed || revalidate {
+		if !pl.AutoAcquire || e.deps.AcquireModel == nil {
+			return admission, fmt.Errorf("%w: %q", ErrModelNotInstalled, model.ID)
+		}
+		// Acquisition (or revalidation of weights already on disk) precedes
+		// every lease: it must not hold RAM, CPU or GPU claims, and the
+		// installer needs the model's exclusive lease.
+		if err := e.deps.AcquireModel(ctx, model.ID, job.ID, jobs.AdmissionProgress(ctx)); err != nil {
+			if errors.Is(err, jobs.ErrCapacityBusy) {
+				return admission, err
+			}
+			if errors.Is(err, models.ErrModelInUse) {
+				return admission, fmt.Errorf("%w: %w", jobs.ErrCapacityBusy, err)
+			}
+			return admission, fmt.Errorf("%w: %q: %w", ErrModelNotInstalled, model.ID, err)
+		}
+	}
+	// The safety review reads weights of its own. They are acquired here, in
+	// admission and before any lease, so waiting for them (or for the smoke
+	// capacity that checks them) reads as admitting, can be returned to the
+	// queue for a restart, and never happens after output already exists.
+	if err := e.acquireReviewModels(ctx, job); err != nil {
+		return admission, err
 	}
 	if e.deps.ModelRuntimeReadiness != nil {
 		if ready, state := e.deps.ModelRuntimeReadiness(ctx, model.ID); !ready {
@@ -96,6 +130,19 @@ func (e *Engine) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, error
 	}
 	if pl.RequireGPU && bsel.Tier != backends.TierLocalGPU {
 		return admission, fmt.Errorf("%w for operation %q with model %q", ErrGPURequired, job.Operation, model.ID)
+	}
+	if bsel.Tier == backends.TierBYOK {
+		// The consent rule is checked again at execution: the route may have been
+		// pinned, re-routed or recovered since submit, and sending an
+		// identity-altering request to another party is not undoable either.
+		if blocked, why := e.consentBlocks(job.Operation, string(capability.ConsentWeightFor(job.Operation)), pl.ConsentAffirmed); blocked {
+			return admission, fmt.Errorf("%w: %s", ErrConsentRequired, why)
+		}
+		// Billing is the one effect that cannot be rolled back, so the caps are
+		// checked again here, at the moment before it can happen.
+		if err := e.admitCloudSpend(ctx, job, pl); err != nil {
+			return admission, err
+		}
 	}
 	if bsel.Tier == backends.TierLocalCPU && !model.Hardware.CPUCapable {
 		return admission, fmt.Errorf("ai: model %q has no CPU execution path on the current backend", model.ID)
@@ -140,19 +187,20 @@ func (e *Engine) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, error
 		if err != nil {
 			return admission, err
 		}
-		lease, err := e.deps.Disk.ReserveDiskJob(ctx, sharedcapacity.DiskJobRequest{
+		floor := diskpolicy.Resolve(os.Getenv)
+		lease, err := e.deps.Disk.ReserveDiskJob(ctx, floor.Request(
 			// The jobs scheduler can re-run admission for the same durable job
 			// after a capacity-busy refusal. Disk receipts are immutable and
 			// owner/job keys are unique, so give each admission attempt a distinct
 			// job key while keeping the owner tied to the durable image job.
-			OwnerID: "image-tools:" + job.ID, JobID: job.ID + "/admission/" + uuid.NewString(), FloorBytes: 120 << 30,
-			Paths: []sharedcapacity.DiskJobPath{
+			"image-tools:"+job.ID, job.ID+"/admission/"+uuid.NewString(),
+			[]sharedcapacity.DiskJobPath{
 				{Path: outputRoot, Role: "generated-output-and-publication", PeakBytes: outputPeak},
 				{Path: os.TempDir(), Role: "worker-temporary-files", PeakBytes: tempPeak},
 			},
-		})
+		))
 		if err != nil {
-			return admission, fmt.Errorf("ai: reserve complete disk job peak: %w", err)
+			return admission, diskAdmissionError(err, outputRoot, outputPeak+tempPeak, floor)
 		}
 		if lease == nil {
 			return admission, errors.New("ai: disk admission returned no job lease")
@@ -322,12 +370,35 @@ func (e *Engine) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, error
 		if err != nil {
 			return admission, err
 		}
-		lease, err := e.deps.Capacity.Claim(ctx, "image-tools:"+job.ID, modelVRAMClaimBytes(model), capacity.ClaimOptions{
-			Priority: pl.CapacityPriority, AllowReclaim: pl.AllowReclaim, GPUUUID: gpu.UUID,
-		})
-		if err != nil {
-			return admission, fmt.Errorf("ai: GPU capacity admission failed: %w", err)
+		claimOptions := capacity.ClaimOptions{Priority: pl.CapacityPriority, AllowReclaim: pl.AllowReclaim, GPUUUID: gpu.UUID}
+		claimBytes := modelVRAMClaimBytes(model)
+		var lease capacity.Lease
+		// A model that runs faster with every stage GPU-resident asks for that
+		// footprint first. With reclaim allowed the broker may take it from idle
+		// resident models that yield when idle (never an active owner's claim); if
+		// it is not granted, the job still runs, streamed, on the streamed floor.
+		if resident := modelResidentVRAMClaimBytes(model); resident > claimBytes {
+			residentLease, err := e.deps.Capacity.Claim(ctx, "image-tools:"+job.ID, resident, claimOptions)
+			if err != nil {
+				return admission, fmt.Errorf("ai: GPU capacity admission failed: %w", err)
+			}
+			if residentLease.DegradeToCPU {
+				meta["gpu_residency"] = "streamed"
+				meta["gpu_residency_unavailable"] = strings.Join(residentLease.Warnings, "; ")
+			} else {
+				lease, claimBytes = residentLease, resident
+				meta["gpu_residency"] = "resident"
+				meta["gpu_residency_reclaim_bytes"] = strconv.FormatInt(residentLease.ReclaimBytes, 10)
+			}
 		}
+		if lease.ClaimID == "" {
+			var err error
+			lease, err = e.deps.Capacity.Claim(ctx, "image-tools:"+job.ID, claimBytes, claimOptions)
+			if err != nil {
+				return admission, fmt.Errorf("ai: GPU capacity admission failed: %w", err)
+			}
+		}
+		meta["gpu_claim_bytes"] = strconv.FormatInt(claimBytes, 10)
 		group.releases = append(group.releases, func(cleanup context.Context) error { return e.deps.Capacity.Release(cleanup, lease) })
 		if lease.DegradeToCPU {
 			if pl.RequireGPU {
@@ -394,6 +465,23 @@ const imageToolsDiskPlanningCeiling int64 = 25 << 30
 // pixel area; all arithmetic is checked before admission.
 func estimateDiskPeak(pl Payload) (outputBytes, tempBytes int64, err error) {
 	return estimateDiskPeakForInputs(pl, nil)
+}
+
+// diskAdmissionError separates the two reasons the shared ledger denies a job.
+// When the disk itself is too full for this job above the floor, the job fails
+// with the numbers. When raw free space would have been enough and the denial is
+// other owners' in-flight reservations (a large model install, another
+// scenario's job), nothing is wrong with this job: it waits and is admitted
+// again like any busy capacity claim instead of failing.
+func diskAdmissionError(err error, outputRoot string, peak int64, floor diskpolicy.Floor) error {
+	if !errors.Is(err, sharedcapacity.ErrDiskAdmissionDenied) {
+		return fmt.Errorf("ai: reserve complete disk job peak: %w", err)
+	}
+	free, statErr := fetch.DefaultDiskAvail(outputRoot)
+	if statErr == nil && free-floor.Bytes >= peak {
+		return fmt.Errorf("%w: waiting for other disk reservations to finish (%d bytes free, floor %d, this job needs %d): %w", jobs.ErrCapacityBusy, free, floor.Bytes, peak, err)
+	}
+	return fmt.Errorf("ai: reserve complete disk job peak: the disk is too full for this job above the %.1f GiB floor: %w", float64(floor.Bytes)/float64(1<<30), err)
 }
 
 func estimateDiskPeakForInputs(pl Payload, inputPixels []int64) (outputBytes, tempBytes int64, err error) {
@@ -614,7 +702,8 @@ func (g *leaseGroup) releaseWithDisk(ctx context.Context, includeDisk bool) erro
 			continue
 		}
 		if err := g.finish[i](ctx); err != nil {
-			errs = append(errs, err)
+			// A worker that did not stop is running work, not an expiring claim.
+			errs = append(errs, fmt.Errorf("%w: %w", jobs.ErrReleaseLeaksWork, err))
 		} else {
 			g.finish[i] = nil
 		}
@@ -639,7 +728,7 @@ func (g *leaseGroup) releaseWithDisk(ctx context.Context, includeDisk bool) erro
 				g.diskStopRenew()
 				g.diskStopRenew = nil
 			}
-			errs = append(errs, fmt.Errorf("%w: disk job lease %s remains active", ErrDiskOutputCleanupUnverified, g.diskLeaseID))
+			errs = append(errs, fmt.Errorf("%w: %w: disk job lease %s remains active", jobs.ErrReleaseLeaksWork, ErrDiskOutputCleanupUnverified, g.diskLeaseID))
 		} else if err := g.diskRelease(ctx); err != nil {
 			errs = append(errs, err)
 		} else {
@@ -648,4 +737,36 @@ func (g *leaseGroup) releaseWithDisk(ctx context.Context, includeDisk bool) erro
 		}
 	}
 	return errors.Join(errs...)
+}
+
+// reviewRequired reports whether the hard-refusal review runs on this
+// operation's output. It never depends on a request flag.
+func (e *Engine) reviewRequired(operation string) bool {
+	return e.deps.ReviewOutput != nil && operation != "scene_geometry" && operation != "image_to_object"
+}
+
+// acquireReviewModels makes the review's weights present during admission. A
+// weight that is offloaded between admission and the review is still
+// re-acquired by holdReviewModels, so a configured reviewer can always run.
+func (e *Engine) acquireReviewModels(ctx context.Context, job jobs.Job) error {
+	if !e.reviewRequired(job.Operation) || e.deps.AcquireModel == nil || e.deps.ModelInstalled == nil {
+		return nil
+	}
+	report := jobs.AdmissionProgress(ctx)
+	for _, id := range e.deps.ReviewModels {
+		if e.deps.ModelInstalled(id) {
+			continue
+		}
+		err := e.deps.AcquireModel(ctx, id, job.ID, func(progress int, message string) { report(progress, "safety review weights: "+message) })
+		switch {
+		case err == nil:
+		case errors.Is(err, jobs.ErrCapacityBusy):
+			return err
+		case errors.Is(err, models.ErrModelInUse):
+			return fmt.Errorf("%w: %w", jobs.ErrCapacityBusy, err)
+		default:
+			return fmt.Errorf("%w: %q (needed by the safety review): %w", ErrModelNotInstalled, id, err)
+		}
+	}
+	return nil
 }

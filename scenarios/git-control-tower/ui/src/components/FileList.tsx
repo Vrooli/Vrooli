@@ -31,7 +31,7 @@ import {
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { BottomSheet, BottomSheetAction } from "./ui/bottom-sheet";
 import { useIsMobile } from "../hooks";
 import type { DiffStats, RepoFileStats } from "../lib/api";
@@ -100,6 +100,9 @@ function FileListImpl({
   onMobileSelectFile,
   fileHotspots,
   runIndex,
+  loading = false,
+  loadError,
+  onRetryLoad,
 }: FileListProps) {
   const isMobile = useIsMobile();
   const hasStaged = (files?.staged?.length ?? 0) > 0;
@@ -681,12 +684,13 @@ function FileListImpl({
                   aria-label="Stage all files in group"
                   title="Stage All"
                 ><Plus className="h-4 w-4" /></IconButton> : <Button
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   onClick={() => onStagePaths(stageable)}
                   disabled={false}
                   className="h-7 px-2"
                   title="Stage All"
+                  style={{ background: "transparent" }}
                 >Stage All</Button>
               )}
             {!mobileSelectionMode &&
@@ -703,12 +707,13 @@ function FileListImpl({
                   aria-label="Discard all files in group"
                   title="Discard All"
                 ><Trash2 className="h-4 w-4" /></IconButton> : <Button
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   onClick={() => setConfirmingGroup(group.id)}
                   disabled={isDiscarding}
                   className="h-7 border-red-400/40 px-2 text-red-200 hover:bg-red-900/20"
                   title="Discard All"
+                  style={{ background: "transparent" }}
                 >Discard All</Button>
               )}
           </div>
@@ -900,7 +905,14 @@ function FileListImpl({
               <div className="mt-1 flex items-center justify-between gap-2 pl-1 text-xs text-slate-500">
                 <span>{allScopedPaths.length} changed files</span>
                 {stageable.length > 0 && onStagePaths && (
-                  <Button variant="outline" size="sm" className="h-8 px-2 text-emerald-200" onClick={() => onStagePaths(stageable)} data-testid="change-group-scope-stage">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="h-8 px-2 text-emerald-200"
+                    onClick={() => onStagePaths(stageable)}
+                    data-testid="change-group-scope-stage"
+                    style={{ background: "transparent" }}
+                  >
                     <Plus className="mr-1 h-3.5 w-3.5" />Stage {segments.length ? "folder" : "group"}
                   </Button>
                 )}
@@ -1096,7 +1108,7 @@ function FileListImpl({
                 <div className="flex items-center gap-1">
                   {selectionHasUnstaged && (
                     <Button
-                      variant="outline"
+                      variant="secondary"
                       size="sm"
                       className="h-7 px-2 border-emerald-500/40 text-emerald-200 hover:bg-emerald-900/20"
                       onClick={() => {
@@ -1104,13 +1116,14 @@ function FileListImpl({
                         if (unstaged.length > 0) onStagePaths?.(unstaged);
                       }}
                       disabled={false}
+                      style={{ background: "transparent" }}
                     >
                       Stage
                     </Button>
                   )}
                   {selectionHasStaged && (
                     <Button
-                      variant="outline"
+                      variant="secondary"
                       size="sm"
                       className="h-7 px-2"
                       onClick={() => {
@@ -1118,13 +1131,14 @@ function FileListImpl({
                         staged.forEach((p) => onUnstageFile(p));
                       }}
                       disabled={false}
+                      style={{ background: "transparent" }}
                     >
                       Unstage
                     </Button>
                   )}
                   {selectionHasDiscardable && (
                     <Button
-                      variant="outline"
+                      variant="secondary"
                       size="sm"
                       className="h-7 px-2 border-red-400/40 text-red-200 hover:bg-red-900/20"
                       onClick={() => {
@@ -1139,6 +1153,7 @@ function FileListImpl({
                         if (untracked.length > 0) onDiscardPaths?.(untracked, true);
                       }}
                       disabled={isDiscarding}
+                      style={{ background: "transparent" }}
                     >
                       Discard
                     </Button>
@@ -1199,8 +1214,28 @@ function FileListImpl({
                     />
                 )}
 
+                {loading && !files && (
+                  <div role="status" aria-label="Loading repository changes" data-testid="changes-loading" className="space-y-3 p-4 animate-pulse">
+                    {[0, 1, 2, 3, 4].map((row) => <div key={row} className="flex items-center gap-3"><div className="h-4 w-4 rounded bg-slate-800" /><div className="h-3 rounded bg-slate-800" style={{ width: `${42 + row * 9}%` }} /></div>)}
+                    <span className="sr-only">Loading repository changes…</span>
+                  </div>
+                )}
+                {loadError && !loading && (
+                  <div role="alert" data-testid="changes-load-error" className="m-4 rounded-lg border border-rose-900/70 bg-rose-950/30 p-4 text-sm">
+                    <p className="text-rose-200">{files ? "Could not refresh repository changes." : "Could not load repository changes."}</p>
+                    {files && <p className="mt-1 text-xs text-slate-400">The list may be out of date. Retry to check the current files.</p>}
+                    <p className="mt-1 break-words text-xs text-slate-400">{loadError}</p>
+                    <Button size="sm" className="mt-3" onClick={onRetryLoad}>Retry</Button>
+                  </div>
+                )}
+                {!files && !loading && !loadError && (
+                  <div role="status" data-testid="changes-status-idle" className="m-4 rounded-lg border border-slate-800 bg-slate-900/60 p-4 text-sm text-slate-300">
+                    <p>Repository status is not available yet.</p>
+                    <Button size="sm" className="mt-3" onClick={onRetryLoad}>Load changes</Button>
+                  </div>
+                )}
                 {/* Empty State - only show for flat/grouped views */}
-                {fileViewMode !== "tree" && files && totalFilesCount === 0 && (
+                {fileViewMode !== "tree" && files && !loadError && totalFilesCount === 0 && (
                   <div
                     className="flex flex-col items-center justify-center py-12 text-center"
                     data-testid="empty-state"

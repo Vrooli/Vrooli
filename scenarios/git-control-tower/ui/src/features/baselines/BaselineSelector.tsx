@@ -4,7 +4,7 @@
 // to a single "Open Baselines" affordance so empty states stay actionable.
 
 import { Anchor } from "lucide-react";
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { useBaselines, useDefaultBaseline } from "../../lib/hooks-baselines";
 
 export function BaselineSelector({
@@ -27,10 +27,11 @@ export function BaselineSelector({
   if (baselines.length === 0) {
     return (
       <Button
-        variant="outline"
+        variant="secondary"
         size="sm"
         onClick={onOpenBaselines}
         className="h-7 px-3 gap-1.5 shrink-0"
+        style={{ background: "transparent" }}
       >
         <Anchor className="h-3.5 w-3.5" />
         Open Baselines

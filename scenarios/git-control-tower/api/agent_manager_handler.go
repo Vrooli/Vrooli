@@ -3,11 +3,9 @@ package main
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	ampb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
@@ -36,36 +34,6 @@ func (s *Server) handleAttachmentUpload(w http.ResponseWriter, r *http.Request) 
 		FileName:    wireResp.FileName,
 		ContentType: wireResp.ContentType,
 		FileSize:    wireResp.FileSize,
-	})
-}
-
-// handleAgentProfiles proxies GET /api/v1/agent/profiles to agent-manager.
-func (s *Server) handleAgentProfiles(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
-	if hctx == nil {
-		return
-	}
-	defer hctx.Cancel()
-
-	if !s.capabilities.IsAvailable(hctx.Ctx, "agent-manager") {
-		hctx.Resp.ServiceUnavailable("agent-manager is not available")
-		return
-	}
-
-	wireResp, err := s.agentManagerClient.ListProfiles(hctx.Ctx)
-	if err != nil {
-		hctx.Resp.InternalError(err.Error())
-		return
-	}
-
-	profiles := make([]AgentProfile, 0, len(wireResp.Profiles))
-	for i := range wireResp.Profiles {
-		profiles = append(profiles, agentProfileToAPI(wireResp.Profiles[i]))
-	}
-
-	hctx.Resp.OK(AgentProfileListResponse{
-		Profiles: profiles,
-		Total:    int(wireResp.Total),
 	})
 }
 
@@ -147,84 +115,4 @@ func buildAgentRunRequest(taskID string, req AgentRunRequest) *apipb.CreateRunRe
 		runReq.ProfileRef = &apipb.ProfileRef{ProfileKey: "git-control-tower/reviewer"}
 	}
 	return runReq
-}
-
-// handleAgentRunList proxies GET /api/v1/agent/runs to agent-manager.
-func (s *Server) handleAgentRunList(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
-	if hctx == nil {
-		return
-	}
-	defer hctx.Cancel()
-
-	if !s.capabilities.IsAvailable(hctx.Ctx, "agent-manager") {
-		hctx.Resp.ServiceUnavailable("agent-manager is not available")
-		return
-	}
-
-	scenarioSlug := strings.TrimSpace(r.URL.Query().Get("scenarioSlug"))
-	if scenarioSlug == "" {
-		hctx.Resp.BadRequest("scenarioSlug query parameter is required")
-		return
-	}
-
-	limit := 5
-	if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
-		parsed, err := strconv.Atoi(raw)
-		if err != nil || parsed <= 0 {
-			hctx.Resp.BadRequest("limit must be a positive integer")
-			return
-		}
-		if parsed > 50 {
-			parsed = 50
-		}
-		limit = parsed
-	}
-
-	tagPrefix := fmt.Sprintf("gct-%s", scenarioSlug)
-	wireResp, err := s.agentManagerClient.ListRuns(hctx.Ctx, tagPrefix, limit)
-	if err != nil {
-		hctx.Resp.InternalError(err.Error())
-		return
-	}
-
-	runs := make([]AgentRun, 0, len(wireResp.Runs))
-	for i := range wireResp.Runs {
-		runs = append(runs, agentRunToAPI(wireResp.Runs[i]))
-	}
-
-	hctx.Resp.OK(AgentRunListResponse{
-		Runs:  runs,
-		Total: int(wireResp.Total),
-	})
-}
-
-// handleAgentRunDetail proxies GET /api/v1/agent/runs/{id} to agent-manager.
-func (s *Server) handleAgentRunDetail(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
-	if hctx == nil {
-		return
-	}
-	defer hctx.Cancel()
-
-	if !s.capabilities.IsAvailable(hctx.Ctx, "agent-manager") {
-		hctx.Resp.ServiceUnavailable("agent-manager is not available")
-		return
-	}
-
-	vars := mux.Vars(r)
-	id := vars["id"]
-	if strings.TrimSpace(id) == "" {
-		hctx.Resp.BadRequest("run ID is required")
-		return
-	}
-
-	wireResp, err := s.agentManagerClient.GetRun(hctx.Ctx, id)
-	if err != nil {
-		hctx.Resp.InternalError(err.Error())
-		return
-	}
-
-	apiRun := agentRunToAPI(wireResp.Run)
-	hctx.Resp.OK(apiRun)
 }

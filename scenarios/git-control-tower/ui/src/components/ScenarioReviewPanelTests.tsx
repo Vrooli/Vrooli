@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Loader2, Play, Search, XCircle } from "lucide-react";
 import type { ArtifactRef, PhaseInfo, RunInfo, RunPhaseDescriptor } from "@vrooli/proto-types/test-genie/v1/runs/runs_pb";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { useRun, useRuns, useStartRun } from "../lib/hooks-evidence";
 import type { AgentContextItem } from "../lib/api";
 import { AttachToAgentButton } from "./AgentTab";
@@ -102,7 +102,14 @@ function RunContent({ run, history, scenarioSlug, repoId, isStarting, runTests, 
     <SurfaceComparePanel scenario={scenarioSlug} contextLabel="Tests" repoId={repoId} onOpenBaselines={openBaselines} onCaptureBaseline={openCaptureBaseline} viewingLabel={run.completedAt ? `run ${run.runId} · ${formatRelativeTime(run.completedAt)}` : `run ${run.runId}`} />
     <div className="flex items-center justify-between gap-3">
       <h3 className="text-xs font-medium text-slate-400">Test Runs</h3>
-      <Button variant="outline" size="sm" onClick={runTests} disabled={isStarting} className="h-7 text-xs gap-1">
+      <Button
+        variant="secondary"
+        size="sm"
+        onClick={runTests}
+        disabled={isStarting}
+        className="h-7 text-xs gap-1"
+        style={{ background: "transparent" }}
+      >
         {isStarting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}Run Tests
       </Button>
     </div>
@@ -120,7 +127,12 @@ function RunContent({ run, history, scenarioSlug, repoId, isStarting, runTests, 
           <span className="flex items-center gap-2"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />Clean phases</span><span>{clean.length}</span>
         </button>
         {(showClean || filterActive) && visibleClean.map((phase) => <PhaseRow key={phase.name} run={run} phase={phase} descriptor={descriptors.get(phase.name)} scenario={scenarioSlug} repoId={repoId} expanded={expandedPhase === phase.name} onToggle={() => setExpandedPhase(expandedPhase === phase.name ? null : phase.name)} agentManagerAvailable={agentManagerAvailable} onAttachToAgent={onAttachToAgent} />)}
-        {(showClean || filterActive) && cleanLimit < clean.length && <Button variant="outline" size="sm" onClick={() => setCleanLimit((limit) => limit + CLEAN_PAGE_SIZE)}>Show {Math.min(CLEAN_PAGE_SIZE, clean.length - cleanLimit)} more clean phases</Button>}
+        {(showClean || filterActive) && cleanLimit < clean.length && <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => setCleanLimit((limit) => limit + CLEAN_PAGE_SIZE)}
+          style={{ background: "transparent" }}
+        >Show {Math.min(CLEAN_PAGE_SIZE, clean.length - cleanLimit)} more clean phases</Button>}
       </section>
     </div>}
     <RunHistory runs={history} selectedRunId={run.runId} onSelect={onSelectRun} />

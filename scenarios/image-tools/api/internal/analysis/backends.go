@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"image-tools/internal/modelenv"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,40 +13,6 @@ import (
 	"image-tools/internal/backends"
 	"image-tools/internal/models"
 )
-
-// builtinProvider exposes analysis-style pure-Go operations through the shared
-// backend doctor/selection seam. These operations produce structured JSON, so
-// their public REST/CLI path remains handlers/analysis; the provider makes the
-// catalog-declared backend families honest and probeable.
-type builtinProvider struct {
-	name string
-	ops  []string
-	exec func(context.Context, backends.Request) error
-}
-
-func (p *builtinProvider) Name() string                   { return p.name }
-func (p *builtinProvider) Operations() []string           { return append([]string(nil), p.ops...) }
-func (p *builtinProvider) Standalone() bool               { return true }
-func (p *builtinProvider) IsCloud() bool                  { return false }
-func (p *builtinProvider) GPUCapable() bool               { return false }
-func (p *builtinProvider) Available(context.Context) bool { return true }
-func (p *builtinProvider) Availability(context.Context) backends.Availability {
-	return backends.Availability{
-		Available: true,
-		Detail:    fmt.Sprintf("%s provider built into image-tools API binary", p.name),
-		Provision: "no host provisioning required",
-	}
-}
-
-func (p *builtinProvider) Execute(ctx context.Context, req backends.Request) (backends.Result, error) {
-	if req.Output.LocalPath == "" {
-		return backends.Result{}, fmt.Errorf("analysis: builtin backend %q requires a local output path", p.name)
-	}
-	if err := p.exec(ctx, req); err != nil {
-		return backends.Result{}, fmt.Errorf("analysis: builtin backend %q execution failed: %w", p.name, err)
-	}
-	return backends.Result{OutputRef: req.Output.LocalPath, Meta: map[string]string{"backend": p.name}}, nil
-}
 
 type tesseractProvider struct {
 	lookPath lookPathFunc
@@ -195,9 +162,9 @@ func (p *yuNetProvider) resolvePython() (string, error) {
 // backend registry. It has no external dependencies and performs no host
 // provisioning.
 func RegisterBackendProviders(reg *backends.Registry) error {
-	for _, p := range []*builtinProvider{
-		{name: models.BackendComputed, ops: []string{OpQuality}, exec: runQualityProvider},
-		{name: models.BackendLibraryGo, ops: []string{OpDuplicate, "qr_barcode_read"}, exec: runLibraryGoProvider},
+	for _, p := range []*backends.BuiltinProvider{
+		backends.NewBuiltinProvider(models.BackendComputed, "analysis", []string{OpQuality}, runQualityProvider),
+		backends.NewBuiltinProvider(models.BackendLibraryGo, "analysis", []string{OpDuplicate, "qr_barcode_read"}, runLibraryGoProvider),
 	} {
 		if err := reg.Register(p); err != nil {
 			return fmt.Errorf("analysis: register backend provider %q: %w", p.Name(), err)
@@ -279,6 +246,7 @@ func modelAssetPath(req backends.Request, kind models.ArtifactKind) string {
 func defaultCheckPythonModules(ctx context.Context, python string, modules []string) error {
 	script := "import " + strings.Join(modules, ", ")
 	cmd := exec.CommandContext(ctx, python, "-c", script)
+	cmd.Env = modelenv.Apply(nil, modelenv.ModeInference)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("%s: %w", strings.TrimSpace(string(out)), err)
@@ -288,6 +256,7 @@ func defaultCheckPythonModules(ctx context.Context, python string, modules []str
 
 func defaultRunOutput(ctx context.Context, name string, args []string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Env = modelenv.Apply(nil, modelenv.ModeInference)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("%s %v: %w (%s)", name, args, err, string(out))

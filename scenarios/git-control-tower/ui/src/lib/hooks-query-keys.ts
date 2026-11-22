@@ -65,12 +65,12 @@ export const queryKeys = {
   agentProfiles: ["agent", "profiles"] as const,
   agentRuns: (slug: string, repoId?: string | null) =>
     ["agent", "runs", repoId ?? "default", slug] as const,
-  agentRun: (runId: string, repoId?: string | null) =>
-    ["agent", "runs", repoId ?? "default", "detail", runId] as const,
-  agentRunEvents: (runId: string, repoId?: string | null) =>
-    ["agent", "runs", repoId ?? "default", "events", runId] as const,
-  agentRunDiff: (runId: string, repoId?: string | null) =>
-    ["agent", "runs", repoId ?? "default", "diff", runId] as const,
+  agentRun: (runId: string, scenarioSlug: string, repoId?: string | null) =>
+    ["agent", "runs", repoId ?? "default", scenarioSlug, "detail", runId] as const,
+  agentRunEvents: (runId: string, scenarioSlug: string, repoId?: string | null) =>
+    ["agent", "runs", repoId ?? "default", scenarioSlug, "events", runId] as const,
+  agentRunDiff: (runId: string, scenarioSlug: string, repoId?: string | null) =>
+    ["agent", "runs", repoId ?? "default", scenarioSlug, "diff", runId] as const,
   rulesRun: (scenarioName: string, repoId?: string | null) =>
     ["repo", "rules-run", repoId ?? "default", scenarioName] as const,
   rulesJob: (jobId: string, repoId?: string | null) =>

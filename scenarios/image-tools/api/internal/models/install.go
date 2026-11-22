@@ -138,6 +138,9 @@ type Installer struct {
 	// DiskAdmission is the shared host owner used for full model job peaks.
 	// A nil owner refuses weight acquisition; snapshot checks are not admission.
 	DiskAdmission sharedcapacity.DiskJobAdmitter
+	// Rights is the shared current-context rights owner consulted before any
+	// weight acquisition (nil leaves only verified commercial labels installable).
+	Rights RightsEvaluator
 	// Now sources timestamps (defaults to time.Now).
 	Now func() time.Time
 	// Smoke, when set, runs an install-time load-smoke after a successful fetch
@@ -228,8 +231,11 @@ func (in *Installer) Installed(ctx context.Context, id string) bool {
 // present; weightless builtins do not need a filesystem record.
 func (in *Installer) installedRecord(ctx context.Context, id string) (InstallRecord, bool) {
 	if in.Reg != nil {
-		if m, ok := in.Reg.ByID(id); ok && !m.RequiresWeights() {
-			return InstallRecord{ID: id, Installed: true, Path: in.modelDir(id)}, true
+		if m, ok := in.Reg.ByID(id); ok {
+			if rec, weightless := WeightlessInstallRecord(m); weightless {
+				rec.Path = in.modelDir(id)
+				return rec, true
+			}
 		}
 	}
 	if in.State == nil {
@@ -274,8 +280,8 @@ func (in *Installer) install(ctx context.Context, id, jobID string, emit func(in
 	if err != nil {
 		return rec, err
 	}
-	if m.CapabilityLabels.CommercialUse != CommercialUseYes {
-		return rec, fmt.Errorf("models: %q cannot be installed until its commercial rights are verified", id)
+	if err := RequireLocalUsePermitted(ctx, in.Rights, m); err != nil {
+		return rec, fmt.Errorf("models: %q cannot be installed: %w", id, err)
 	}
 	if jobID == "" {
 		jobID = fmt.Sprintf("%s-%d", id, in.now().UnixNano())
@@ -284,7 +290,16 @@ func (in *Installer) install(ctx context.Context, id, jobID string, emit func(in
 	var diskGuard *fetch.DiskLeaseGuard
 	repoFetch := in.RepoFetch
 	var diskProgress func(context.Context, string, int64, int64) error
-	if m.RequiresWeights() && m.Source.LocalPath == "" {
+	// Revalidating weights already on disk (for example after a pending smoke)
+	// writes nothing, so it must not plan or reserve a full acquisition peak.
+	// Only a missing local build output still needs build disk.
+	prior, err := in.priorInstall(ctx, m)
+	if err != nil {
+		return rec, err
+	}
+	validated, valid := prior.validated(m)
+	writesNothing := valid && (m.BuildProfile == nil || buildOutputReadyAt(m.BuildProfile, validated.Path))
+	if m.RequiresWeights() && m.Source.LocalPath == "" && !writesNothing {
 		if in.DiskAdmission == nil {
 			return rec, fmt.Errorf("models: shared host disk admission is unavailable; refusing acquisition")
 		}
@@ -304,7 +319,7 @@ func (in *Installer) install(ctx context.Context, id, jobID string, emit func(in
 		if diskLease == nil {
 			return rec, fmt.Errorf("models: shared host disk admission returned no lease")
 		}
-		growthGuard, growthErr := fetch.NewDiskGrowthGuard(diskLease, request, buildExpansion, fetch.InstallOwnerCeilingBytes)
+		growthGuard, growthErr := fetch.NewDiskGrowthGuard(diskLease, request, buildExpansion, fetch.GrowthCeilingBytes(request))
 		if growthErr != nil {
 			return rec, fmt.Errorf("models: create bounded disk growth observer: %w", growthErr)
 		}
@@ -346,8 +361,16 @@ func (in *Installer) install(ctx context.Context, id, jobID string, emit func(in
 		installErr = errors.Join(installErr, in.advance(cleanup, &current, ModelFailed, "install_failed"))
 	}()
 
-	rec, err = in.acquireArtifacts(ctx, m, repoFetch, diskProgress, emit)
-	if err != nil {
+	if valid {
+		rec = validated
+		emit(10, "installed weights verified; revalidating runtime")
+		// Weights are fine but a companion (a Hub config repo the runtime reads
+		// by id) may be missing from the managed cache: place it, nothing else.
+		repair := fetch.Acquirer{Root: in.Root, RepoFetch: in.RepoFetch}
+		if err := fetch.RepairCompanions(ctx, in.DiskAdmission, "image-tools:model-install", jobID+"/companions", repair, m.Source, emit); err != nil {
+			return rec, fmt.Errorf("models: hub companions for %q: %w", id, err)
+		}
+	} else if rec, err = in.acquireArtifactsFrom(ctx, m, prior, repoFetch, diskProgress, emit); err != nil {
 		return rec, err
 	}
 	if err := in.advance(ctx, &current, ModelInstalled, "installed"); err != nil {
@@ -390,35 +413,70 @@ func (in *Installer) install(ctx context.Context, id, jobID string, emit func(in
 	return rec, nil
 }
 
+// priorInstallRecord is the durable install claim looked up once per install.
+type priorInstallRecord struct {
+	record InstallRecord
+	found  bool
+}
+
+func (in *Installer) priorInstall(ctx context.Context, m Model) (priorInstallRecord, error) {
+	if !m.RequiresWeights() {
+		return priorInstallRecord{}, nil
+	}
+	if in.State == nil {
+		rec, ok := in.installedRecord(ctx, m.ID)
+		return priorInstallRecord{record: rec, found: ok}, nil
+	}
+	rec, ok, err := in.State.Get(ctx, m.ID)
+	if err != nil {
+		return priorInstallRecord{}, err
+	}
+	return priorInstallRecord{record: rec, found: ok}, nil
+}
+
+// validated returns the prior record when the weights on disk still validate
+// against the source (and its build inputs are present): the idempotent path
+// that writes no artifacts.
+func (p priorInstallRecord) validated(m Model) (InstallRecord, bool) {
+	if !m.RequiresWeights() || !p.found || !p.record.Installed || !pathExists(p.record.Path) {
+		return InstallRecord{}, false
+	}
+	if (fetch.Acquirer{}).ValidateInstalled(m.Source, p.record.Path, p.record.Checksum) != nil {
+		return InstallRecord{}, false
+	}
+	if m.BuildProfile != nil && !buildInputsReady(m.BuildProfile, p.record.Path) {
+		return InstallRecord{}, false
+	}
+	return p.record, true
+}
+
+func buildOutputReadyAt(profile *BuildProfile, dir string) bool {
+	_, ready := buildOutputReady(profile, dir)
+	return ready
+}
+
 // acquireArtifacts has one publication boundary for downloaded, repo and local
 // artifacts. Every path then passes the same build/smoke/lifecycle completion.
 func (in *Installer) acquireArtifacts(ctx context.Context, m Model, repoFetch fetch.RepoFetcher, diskProgress func(context.Context, string, int64, int64) error, emit func(int, string)) (InstallRecord, error) {
+	prior, err := in.priorInstall(ctx, m)
+	if err != nil {
+		return InstallRecord{}, err
+	}
+	if validated, ok := prior.validated(m); ok {
+		return validated, nil
+	}
+	return in.acquireArtifactsFrom(ctx, m, prior, repoFetch, diskProgress, emit)
+}
+
+// acquireArtifactsFrom acquires after the caller found no valid prior install.
+func (in *Installer) acquireArtifactsFrom(ctx context.Context, m Model, prior priorInstallRecord, repoFetch fetch.RepoFetcher, diskProgress func(context.Context, string, int64, int64) error, emit func(int, string)) (InstallRecord, error) {
 	id := m.ID
 	acquirer := fetch.Acquirer{Root: in.Root, Download: in.Download, RepoFetch: repoFetch, DiskAvail: in.DiskAvail, DiskProgressObserver: diskProgress}
 	if !m.RequiresWeights() {
 		rec, _ := in.installedRecord(ctx, id)
 		return rec, nil
 	}
-	var previous InstallRecord
-	var hasPrevious bool
-	if in.State != nil {
-		var err error
-		previous, hasPrevious, err = in.State.Get(ctx, id)
-		if err != nil {
-			return InstallRecord{}, err
-		}
-	} else {
-		previous, hasPrevious = in.installedRecord(ctx, id)
-	}
-	if hasPrevious && previous.Installed && pathExists(previous.Path) {
-		// Installed is a durable claim, not current proof: source manifests can
-		// change and files can be truncated or replaced after the first install.
-		// Revalidate before taking the idempotent path so bad old artifacts are
-		// reacquired through the same staged, atomic publication boundary.
-		if acquirer.ValidateInstalled(m.Source, previous.Path, previous.Checksum) == nil && (m.BuildProfile == nil || buildInputsReady(m.BuildProfile, previous.Path)) {
-			return previous, nil
-		}
-	}
+	previous, hasPrevious := prior.record, prior.found
 	if m.RequiresWeights() && m.Source.Manual && m.Source.LocalPath == "" {
 		return InstallRecord{}, fmt.Errorf("%w: %q must be installed manually per its docs_url", ErrManualInstall, id)
 	}
@@ -438,6 +496,44 @@ func (in *Installer) acquireArtifacts(ctx context.Context, m Model, repoFetch fe
 		}
 	}
 	return rec, nil
+}
+
+// AdoptExisting records the install receipt for a catalog model whose files
+// already sit at its managed location (<Root>/models/<id>) without one, after
+// checking them against the catalog source (pinned file hashes, repo file pins
+// and a declared tree checksum). Nothing is moved or downloaded; the caller
+// should run Install afterwards to revalidate the runtime.
+func (in *Installer) AdoptExisting(ctx context.Context, id string) (InstallRecord, error) {
+	release, err := in.useGate().AcquireExclusive(id)
+	if err != nil {
+		return InstallRecord{}, err
+	}
+	defer release()
+	m, err := in.Resolve(ctx, id)
+	if err != nil {
+		return InstallRecord{}, err
+	}
+	if in.State == nil {
+		return InstallRecord{}, errors.New("models: durable install state is required to record a receipt")
+	}
+	if existing, ok, err := in.State.Get(ctx, id); err != nil {
+		return InstallRecord{}, err
+	} else if ok && existing.Installed && pathExists(existing.Path) {
+		return InstallRecord{}, fmt.Errorf("models: %q already has an install receipt", id)
+	}
+	dir := in.modelDir(id)
+	if !dirExists(dir) {
+		return InstallRecord{}, fmt.Errorf("models: no files for %q at %s", id, dir)
+	}
+	sum, size, err := fetch.TreeManifestHash(dir)
+	if err != nil {
+		return InstallRecord{}, fmt.Errorf("models: hash %s: %w", dir, err)
+	}
+	if err := (fetch.Acquirer{}).ValidateInstalled(m.Source, dir, ""); err != nil {
+		return InstallRecord{}, fmt.Errorf("models: files at %s do not match the catalog source for %q: %w", dir, id, err)
+	}
+	rec := InstallRecord{ID: id, Installed: true, Path: dir, Checksum: sum, SizeBytes: size, InstalledAt: in.now()}
+	return rec, in.State.Set(ctx, rec)
 }
 
 // Remove deletes a model's downloaded weights and clears its install record. A
@@ -488,7 +584,10 @@ func (in *Installer) removeExistingPath(path string) error {
 }
 
 // AddCustom registers a custom/local model entry. The id must not collide with a
-// seed model, and a declared local path must exist.
+// seed model, and a declared local path must exist. What the operator leaves out
+// (licence, commercial label, hardware, asset from a download URL) is completed by
+// CompleteCustom and recorded, never refused: licensing only gates hosted,
+// monetized and redistributed use.
 func (in *Installer) AddCustom(ctx context.Context, m Model) error {
 	if in.Custom == nil {
 		return errors.New("models: custom store unavailable")
@@ -505,12 +604,7 @@ func (in *Installer) AddCustom(ctx context.Context, m Model) error {
 	if m.Source.LocalPath != "" && !pathExists(m.Source.LocalPath) {
 		return fmt.Errorf("%w: %q", ErrLocalPathMissing, m.Source.LocalPath)
 	}
-	if strings.TrimSpace(m.CapabilityLabels.License) == "" {
-		return errors.New("models: custom model license is required")
-	}
-	if m.CapabilityLabels.CommercialUse != CommercialUseYes {
-		return errors.New("models: custom models must be explicitly commercial-clean")
-	}
+	m = CompleteCustom(m)
 	if _, err := in.Reg.WithCustom([]Model{m}); err != nil {
 		return fmt.Errorf("models: invalid custom model: %w", err)
 	}

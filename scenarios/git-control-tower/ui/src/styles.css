@@ -38,6 +38,21 @@ body {
   background: var(--rcl-status-fill, var(--gct-chrome-color));
 }
 
+.gct-mobile-header {
+  background-color: var(--rcl-status-fill, var(--gct-chrome-color));
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.gct-mobile-chrome,
+.gct-mobile-chrome * {
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 .gct-status-bar-fill {
   min-height: 0;
   background: var(--rcl-status-fill, var(--gct-chrome-color));

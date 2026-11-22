@@ -84,6 +84,7 @@ func TestHostFitPlanMinimizesModelSetAndExplainsUnsupportedCandidates(t *testing
 		{ID: "edit-alone", Operations: []string{"edit"}, Tier: models.TierQuality, SizeMBApprox: 50, Enabled: true, CapabilityLabels: models.CapabilityLabels{CommercialUse: models.CommercialUseYes}, Hardware: models.Hardware{CPUCapable: true, MinRAMGB: 4}},
 		{ID: "impossible-large", Operations: []string{"edit"}, Enabled: true, CapabilityLabels: models.CapabilityLabels{CommercialUse: models.CommercialUseYes}, Hardware: models.Hardware{GPURequired: true, MinVRAMGB: 24, MinRAMGB: 32}},
 		{ID: "unverified", Operations: []string{"remove"}, Enabled: true, CapabilityLabels: models.CapabilityLabels{CommercialUse: models.CommercialUseConditional}},
+		{ID: "non-commercial", Operations: []string{"remove"}, Enabled: true, CapabilityLabels: models.CapabilityLabels{CommercialUse: models.CommercialUseNo}, Hardware: models.Hardware{CPUCapable: true}},
 		{ID: "disabled", Operations: []string{"edit", "remove"}, Enabled: false, CapabilityLabels: models.CapabilityLabels{CommercialUse: models.CommercialUseYes}, Hardware: models.Hardware{CPUCapable: true}},
 	}
 	host := capabilities.Host{OS: "linux", Arch: "amd64", TotalMemoryBytes: 20 * gib, AvailableMemoryBytes: 18 * gib, GPUs: []capabilities.GPU{{VRAMBytes: 16 * gib}}}
@@ -107,8 +108,12 @@ func TestHostFitPlanMinimizesModelSetAndExplainsUnsupportedCandidates(t *testing
 	if excluded["impossible-large"] != "requires_32_gib_ram_host_has_18_gib_available" {
 		t.Fatalf("large model exclusion not explained: %v", excluded)
 	}
-	if excluded["unverified"] != "commercial_use_not_verified" {
-		t.Fatalf("rights gate not preserved: %v", excluded)
+	// License labels are not a planning exclusion (operator stance 2026-11-21:
+	// best models for normal use); the shared rights owner decides at install.
+	for _, id := range []string{"non-commercial", "unverified"} {
+		if excluded[id] == "commercial_use_not_permitted" {
+			t.Fatalf("%s excluded by label instead of rights owner: %v", id, excluded)
+		}
 	}
 	if _, ok := excluded["edit-alone"]; !ok {
 		t.Fatalf("candidate omitted by minimal set not reported: %v", excluded)

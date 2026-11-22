@@ -3,15 +3,16 @@ import { useQuery } from "@tanstack/react-query";
 import { NavLink } from "react-router-dom";
 import { Download, Images } from "lucide-react";
 
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { EmptyState } from "../../components/ui/empty-state";
-import { Input } from "../../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { blobUrl, fetchBlob } from "../../api/client";
 import { jobsClient } from "../../api/jobs";
 import { errorMessage } from "../../lib/errorMessage";
 import { useTranslation } from "../../i18n";
+import { SensitiveImage } from "../sensitive/SensitiveImage";
 import { operationLabelKey } from "../workspace/operationLabel";
 import { imageOutputs, type OutputItem } from "./outputs";
 import { useReopenOutput } from "./useReopenOutput";
@@ -113,9 +114,12 @@ export function LibraryView() {
         Icon={Images}
         title={t(strings.library.empty)}
         action={
-          <Button asChild variant="outline">
-            <NavLink to="/workspace">{t(strings.library.tryWorkspace)}</NavLink>
-          </Button>
+          <NavLink
+            to="/workspace"
+            className="inline-flex items-center justify-center rounded-control text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50 disabled:pointer-events-none disabled:opacity-60 border border-app-border text-app-foreground hover:bg-app-surface-muted h-11 px-5"
+          >
+            {t(strings.library.tryWorkspace)}
+          </NavLink>
         }
       />
     );
@@ -141,10 +145,12 @@ export function LibraryView() {
               className="flex flex-col gap-2 rounded-panel border border-app-border bg-app-surface p-2"
             >
               <div className="relative">
-                <img
+                <SensitiveImage
                   src={blobUrl(item.resultRef)}
+                  sensitive={item.sensitive}
                   alt={t(strings.library.thumbnailAlt, { operation: label })}
                   loading="lazy"
+                  wrapperClassName="rounded-control"
                   className="aspect-square w-full rounded-control object-cover animate-develop"
                   onError={(e) => {
                     e.currentTarget.closest("li")?.setAttribute("hidden", "true");
@@ -218,7 +224,8 @@ export function LibraryView() {
               >
                 {t(strings.library.clearSelection)}
               </button>
-              <Button size="sm" data-testid={selectors.library.downloadSelected} onClick={downloadSelected}>
+              <Button size="sm" data-testid={selectors.library.downloadSelected} onClick={downloadSelected}
+                shape="square">
                 <Download aria-hidden="true" className="me-2 h-4 w-4" />
                 {t(strings.library.downloadSelected)}
               </Button>

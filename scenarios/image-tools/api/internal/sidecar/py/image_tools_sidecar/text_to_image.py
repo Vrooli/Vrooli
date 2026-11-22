@@ -8,6 +8,10 @@ single-file checkpoint takes the sd.cpp path instead. The concrete pipeline clas
 is resolved by ``--architecture`` (the registry's Model.architecture), not
 hardcoded, so every base architecture generates through one runner.
 
+A model whose registry row names a runtime.family (a unified generate+edit
+pipeline such as FLUX.2 [klein]) passes ``--family`` instead and generates
+through its family adapter with no reference image (``_diffusers.run``).
+
 Thin CLI: argv → _diffusers.GenerateParams → _diffusers.run_txt2img.
 """
 
@@ -21,7 +25,9 @@ from . import _common, _diffusers
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="diffusers base-checkpoint text2image generate")
     p.add_argument("--model", required=True, help="path to the diffusers model dir or single-file checkpoint")
-    p.add_argument("--architecture", required=True, help="model weight-lineage architecture (sd15|sdxl)")
+    p.add_argument("--architecture", default="", help="model weight-lineage architecture (sd15|sdxl); base-checkpoint path")
+    p.add_argument("--family", default="", help="registered diffusers family adapter (runtime.family); unified-family path")
+    p.add_argument("--variant", default="", help="diffusers weight variant of a repo that ships only reduced-precision files (e.g. fp16)")
     p.add_argument("--out", required=True, help="output image path")
     p.add_argument("--prompt", required=True, help="text prompt")
     p.add_argument("--negative-prompt", dest="negative_prompt", default="", help="optional negative prompt")
@@ -40,6 +46,11 @@ def main() -> None:
     args = _parse_args()
     if not args.prompt.strip():
         _common.fail("text_to_image requires a non-empty --prompt", code=2)
+    if args.family:
+        _diffusers.run_family_op(args, op="text_to_image", image_paths=[])
+        return
+    if not args.architecture:
+        _common.fail("text_to_image requires --architecture or --family", code=2)
 
     params = _diffusers.GenerateParams(
         prompt=args.prompt,
@@ -52,6 +63,7 @@ def main() -> None:
     )
     _diffusers.run_txt2img(
         architecture=args.architecture,
+        variant=args.variant,
         model_dir=args.model,
         out_path=args.out,
         params=params,

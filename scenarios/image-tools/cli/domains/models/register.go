@@ -27,6 +27,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"ModelsService.SelectModel":        h.selectModel,
 		"ModelsService.ExplainResolution":  h.explain,
 		"ModelsService.SetModelEnabled":    h.setEnabled,
+		"ModelsService.ClearModelOverride": h.reset,
 		"ModelsService.ListBlocklist":      h.blocklist,
 		"ModelsService.DoctorCatalog":      h.doctor,
 		"ModelsService.InstallModel":       h.install,
@@ -35,6 +36,9 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"ModelsService.AddCustomModel":     h.addCustom,
 		"ModelsService.InspectModelSource": h.inspect,
 		"ModelsService.ImportModel":        h.importModel,
+		"ModelsService.GetModelStorage":    h.storage,
+		"ModelsService.OffloadModels":      h.offload,
+		"ModelsService.SetModelKeep":       h.keep,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {
@@ -60,6 +64,45 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		Description: "Reconcile installed model and adapter receipts with physical storage and recorded successful use",
 		NeedsAPI:    true,
 		RunCtx:      h.inventory,
+	})
+	group.Subcommands = append(group.Subcommands,
+		cliapp.Command{
+			Name:        "strays",
+			Description: "Find model bytes outside image-tools' receipts (library default caches, untracked managed files); changes nothing",
+			NeedsAPI:    true,
+			RunCtx:      h.strays,
+		},
+		cliapp.Command{
+			Name:        "adopt-stray",
+			Description: "Move a stray finding into managed storage and record a receipt",
+			NeedsAPI:    true,
+			Args:        cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "Finding id from `models strays`"}}},
+			RunCtx:      h.strayAction("adopt"),
+		},
+		cliapp.Command{
+			Name:        "reclaim-stray",
+			Description: "Delete a stray finding that is safe to delete (a duplicate of a managed copy, or old untracked managed bytes)",
+			NeedsAPI:    true,
+			Args:        cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "Finding id from `models strays`"}}},
+			RunCtx:      h.strayAction("reclaim"),
+		},
+		cliapp.Command{
+			Name:        "containment",
+			Description: "Show the sidecar environment pins, offline flags and the disk floor with its reasons",
+			NeedsAPI:    true,
+			RunCtx:      h.containment,
+		},
+	)
+	// `unkeep` is the explicit spelling of `keep --unkeep`; it reuses the
+	// SetModelKeep binding that `keep` owns in the manifest.
+	group.Subcommands = append(group.Subcommands, cliapp.Command{
+		Name:        "unkeep",
+		Description: "Remove a model's keep pin so the adaptive offload policy may remove it when idle",
+		NeedsAPI:    true,
+		Args: cliapp.ArgSchema{
+			Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "Model id"}},
+		},
+		RunCtx: h.unkeep,
 	})
 	return group, nil
 }

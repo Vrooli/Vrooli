@@ -1,7 +1,7 @@
 import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
 import { X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { useIsMobile } from "../hooks";
 
 export interface HistoryScopeOption {
@@ -181,15 +181,16 @@ export function HistoryFiltersModal({
         footer={
           <div className="flex w-full items-center gap-3">
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={onClearFilters}
               className="flex-1 h-12 text-sm touch-target"
+              style={{ background: "transparent" }}
             >
               Clear
             </Button>
             <Button
-              variant="default"
+              variant="primary"
               size="sm"
               onClick={onClose}
               className="flex-1 h-12 text-sm touch-target"
@@ -235,10 +236,22 @@ export function HistoryFiltersModal({
         </div>
 
         <div className="flex items-center justify-between border-t border-slate-800 px-4 py-3">
-          <Button variant="outline" size="sm" onClick={onClearFilters} className="h-8 px-3">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onClearFilters}
+            className="h-8 px-3"
+            style={{ background: "transparent" }}
+          >
             Clear filters
           </Button>
-          <Button variant="outline" size="sm" onClick={onClose} className="h-8 px-3">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onClose}
+            className="h-8 px-3"
+            style={{ background: "transparent" }}
+          >
             Done
           </Button>
         </div>

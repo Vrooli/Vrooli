@@ -9,6 +9,7 @@ import (
 	internalcaps "image-tools/internal/capabilities"
 	internalmodels "image-tools/internal/models"
 	"image-tools/internal/module"
+	"image-tools/internal/verdicts"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -30,11 +31,14 @@ type AdapterSeams struct {
 	Installed func(id string) bool
 }
 
-func Module(db *database.RoutedDB, reg *internalmodels.Registry, probe internalcaps.Probe, installer *internalmodels.Installer, backendReg *internalbackends.Registry, jobs JobSubmitter, estimateInstallSeconds EstimateInstallSecondsFunc, ensurer BackendEnsurer, adapterSeams AdapterSeams, rightsEvaluator internalmodels.RightsEvaluator, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, reg *internalmodels.Registry, previewer *internalmodels.Previewer, verdictSvc *verdicts.Service, probe internalcaps.Probe, installer *internalmodels.Installer, backendReg *internalbackends.Registry, jobs JobSubmitter, estimateInstallSeconds EstimateInstallSecondsFunc, ensurer BackendEnsurer, adapterSeams AdapterSeams, rightsEvaluator internalmodels.RightsEvaluator, storage ModelStorage, capacityManagedGPU bool, consent ConsentRule, logger *log.Logger) module.Module {
 	store := internalmodels.NewStore(db)
 	connectPath, connectHandler := modelsconnect.NewModelsServiceHandler(NewConnectHandler(Deps{
+		CapacityManagedGPU:     capacityManagedGPU,
 		Registry:               reg,
 		Store:                  store,
+		Verdicts:               verdictSvc,
+		Previewer:              previewer,
 		Probe:                  probe,
 		Installer:              installer,
 		Backends:               backendReg,
@@ -46,6 +50,8 @@ func Module(db *database.RoutedDB, reg *internalmodels.Registry, probe internalc
 		AdapterByID:            adapterSeams.ByID,
 		AdapterEnabled:         adapterSeams.Enabled,
 		AdapterInstalled:       adapterSeams.Installed,
+		Storage:                storage,
+		Consent:                consent,
 		Logger:                 logger,
 	}))
 	return module.Module{
@@ -69,7 +75,7 @@ var Endpoints = []module.EndpointDescriptor{
 	{
 		ID: "models_provision", Path: modelsconnect.ModelsServiceProvisionModelsProcedure, Method: "POST",
 		Summary: "Provision local model capabilities", Category: "models",
-		Description: "Prepares a minimal host-fit model set for every effectively enabled capability, including private runtime, backend tools, model artifacts and load-smoke evidence in one durable timed job. Unsupported, unready or non-commercial-clean capability routes remain visible as gaps and keep the overall readiness result incomplete. Explicit model_ids prepares only the requested models.",
+		Description: "Prepares a minimal host-fit model set for every effectively enabled capability, including private runtime, backend tools, model artifacts and load-smoke evidence in one durable timed job. Unsupported or unready capability routes remain visible as gaps and keep the overall readiness result incomplete. Explicit model_ids prepares only the requested models.",
 		Request:     &module.Schema{Type: "object", Properties: map[string]string{"model_ids": "array<string> (optional)"}},
 		Response:    &module.Schema{Type: "object", Properties: map[string]string{"job_id": "string", "model_ids": "array<string>"}},
 		Errors:      []module.ErrorDesc{{Status: 404, Code: "not_found", Description: "Unknown model"}, {Status: 412, Code: "failed_precondition", Description: "Model is not commercial-clean local content"}},
@@ -169,17 +175,36 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 	},
 	{
+		ID:          "models_override_clear",
+		Path:        modelsconnect.ModelsServiceClearModelOverrideProcedure,
+		Method:      "POST",
+		Summary:     "Clear a model's override",
+		Description: "Deletes the model's enabled-state override so it follows the seed again.",
+		Category:    "models",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"id": "string"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"model": "Model"}},
+		Errors: []module.ErrorDesc{
+			{Status: 404, Code: "not_found", Description: "No such model, or the model has no override"},
+		},
+		Examples: []module.Example{
+			{Name: "Follow the seed again", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ClearModelOverride -H 'Content-Type: application/json' -d '{\"id\":\"restoreformer-plus-plus\"}'"},
+		},
+	},
+	{
 		ID:          "models_set_enabled",
 		Path:        modelsconnect.ModelsServiceSetModelEnabledProcedure,
 		Method:      "POST",
 		Summary:     "Enable or disable a model",
-		Description: "Toggles a model's runtime-enabled state, persisted in the SQLite overlay over the read-only seed catalog. Models without verified commercial rights cannot be enabled.",
+		Description: "Records an enabled-state override over the read-only seed catalog, with who set it, when, why and whether it is pinned. An unpinned override stops applying when the seed's enabled flag later changes (it is marked superseded); a pinned one always wins. Models whose rights the evaluator refuses for local use cannot be enabled.",
 		Category:    "models",
 		Request: &module.Schema{
 			Type: "object",
 			Properties: map[string]string{
 				"id":      "string",
 				"enabled": "bool",
+				"actor":   "string (optional; who is setting it, default \"api\")",
+				"reason":  "string (optional; required when pinned)",
+				"pinned":  "bool (optional; keep the override against later seed changes)",
 			},
 		},
 		Response: &module.Schema{
@@ -199,8 +224,8 @@ var Endpoints = []module.EndpointDescriptor{
 		ID:          "models_blocklist",
 		Path:        modelsconnect.ModelsServiceListBlocklistProcedure,
 		Method:      "POST",
-		Summary:     "List blocklisted models",
-		Description: "Returns the license-encumbered models that must never be seeded or adopted, with the reason each is excluded.",
+		Summary:     "List license gates and exclusions",
+		Description: "Returns every catalog gate: license gates refuse only the listed monetized, hosted or redistributed uses (normal local use is allowed); exclusions keep a model out of the catalog for a safety, technical or hardware-fit reason.",
 		Category:    "models",
 		Response: &module.Schema{
 			Type:       "object",
@@ -215,7 +240,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        modelsconnect.ModelsServiceDoctorCatalogProcedure,
 		Method:      "POST",
 		Summary:     "Diagnose model catalog integrity",
-		Description: "Checks seed catalog installability, operation coverage, commercial-use policy, blocklist overlap, and checksum/source metadata coherence.",
+		Description: "Checks seed catalog installability, operation coverage, license-gate agreement (informational for normal use), exclusion overlap, and checksum/source metadata coherence.",
 		Category:    "models",
 		Response: &module.Schema{
 			Type: "object",
@@ -410,6 +435,49 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 	},
 	{
+		ID:          "models_storage",
+		Path:        modelsconnect.ModelsServiceGetModelStorageProcedure,
+		Method:      "POST",
+		Summary:     "Report model-weight storage and the adaptive offload plan",
+		Description: "Returns free-disk headroom above the shared disk floor, the adaptive idle threshold it implies, every installed weight-backed model ranked by offload value with its protections and selection, and recent offload receipts. Read-only.",
+		Category:    "models",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"receipt_limit": "int32 (optional; default 20)"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"report": "ModelStorageReport", "receipts": "array<ModelOffloadReceipt>"}},
+		Errors:      []module.ErrorDesc{{Status: 500, Code: "internal", Description: "Storage facts could not be read"}, {Status: 501, Code: "unimplemented", Description: "Model storage management is not wired"}},
+		Examples: []module.Example{
+			{Name: "Storage status", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/GetModelStorage -H 'Content-Type: application/json' -d '{}'"},
+		},
+	},
+	{
+		ID:          "models_offload",
+		Path:        modelsconnect.ModelsServiceOffloadModelsProcedure,
+		Method:      "POST",
+		Summary:     "Dry-run or apply the adaptive model offload",
+		Description: "Evaluates the adaptive offload policy. Without apply it returns the plan only; with apply it removes the selected weights through the installer and writes one durable receipt per attempt. model_ids restricts the pass to named models (bypassing the idle threshold, never a protection). need_bytes previews making room for an acquisition.",
+		Category:    "models",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"apply": "bool (default false = dry-run)", "model_ids": "array<string> (optional)", "need_bytes": "uint64 (optional)"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"report": "ModelStorageReport", "receipts": "array<ModelOffloadReceipt>", "applied": "bool"}},
+		Errors:      []module.ErrorDesc{{Status: 404, Code: "not_found", Description: "A named model does not exist"}, {Status: 500, Code: "internal", Description: "The policy could not be evaluated"}},
+		Examples: []module.Example{
+			{Name: "Dry-run", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/OffloadModels -H 'Content-Type: application/json' -d '{}'"},
+			{Name: "Offload one idle model", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/OffloadModels -H 'Content-Type: application/json' -d '{\"apply\":true,\"model_ids\":[\"dncnn\"]}'"},
+		},
+	},
+	{
+		ID:          "models_keep",
+		Path:        modelsconnect.ModelsServiceSetModelKeepProcedure,
+		Method:      "POST",
+		Summary:     "Pin or unpin a model against offload",
+		Description: "keep=true records an operator keep pin so neither the adaptive policy nor a targeted offload removes the model's weights; keep=false removes the pin.",
+		Category:    "models",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"id": "string", "keep": "bool", "reason": "string (optional)"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"id": "string", "kept": "bool"}},
+		Errors:      []module.ErrorDesc{{Status: 404, Code: "not_found", Description: "No model with that id exists"}, {Status: 500, Code: "internal", Description: "The pin could not be stored"}},
+		Examples: []module.Example{
+			{Name: "Keep sd-1.5", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/SetModelKeep -H 'Content-Type: application/json' -d '{\"id\":\"sd-1.5\",\"keep\":true}'"},
+		},
+	},
+	{
 		ID:          "models_add_custom",
 		Path:        modelsconnect.ModelsServiceAddCustomModelProcedure,
 		Method:      "POST",
@@ -476,7 +544,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        modelsconnect.ModelsServiceImportModelProcedure,
 		Method:      "POST",
 		Summary:     "Import a model by source (confirm + install)",
-		Description: "Composes inspect → operator-confirmed fields (architecture/operations/attestation) → an add-only custom entry → a durable install job (mirrors InstallModel: returns job id + ETA; block once on jobs wait). A positive attest_commercial_rights is required before registration or weight download; it records the operator's rights claim.",
+		Description: "Composes inspect → operator-confirmed fields (architecture/operations/attestation) → an add-only custom entry → a durable install job (mirrors InstallModel: returns job id + ETA; block once on jobs wait). attest_commercial_rights is optional: an unattested import runs locally and keeps hosted, monetized and redistributed use refused; attesting records the rights claim and lifts that. A diffusers repo finds its adapter from its pipeline class; one with no adapter is refused with the missing piece named.",
 		Category:    "models",
 		Request: &module.Schema{
 			Type: "object",
@@ -486,7 +554,7 @@ var Endpoints = []module.EndpointDescriptor{
 				"name":                     "string (optional display name)",
 				"architecture":             "string (required when inference is none; else overrides)",
 				"operations":               "array<string> (optional; defaults to the architecture's base ops)",
-				"attest_commercial_rights": "bool (required true to register or download model weights; decision D4)",
+				"attest_commercial_rights": "bool (optional; lifts the hosted/monetized-use refusal; decision D4)",
 			},
 		},
 		Response: &module.Schema{
@@ -504,7 +572,7 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 501, Code: "unimplemented", Description: "Custom models / import unavailable (read-only wiring)"},
 		},
 		Examples: []module.Example{
-			{Name: "Import an SDXL checkpoint", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ImportModel -H 'Content-Type: application/json' -d '{\"source\":\"stabilityai/stable-diffusion-xl-base-1.0\",\"id\":\"imported-sdxl\",\"architecture\":\"sdxl\",\"attest_commercial_rights\":true}'"},
+			{Name: "Import an SDXL checkpoint", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ImportModel -H 'Content-Type: application/json' -d '{\"source\":\"stabilityai/stable-diffusion-xl-base-1.0\",\"id\":\"imported-sdxl\",\"architecture\":\"sdxl\"}'"},
 		},
 	},
 	{

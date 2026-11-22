@@ -6,6 +6,7 @@ import type { LayoutPreset, LayoutSection } from "./LayoutSettingsModal";
 import type { GroupingRule } from "./FileList";
 
 const connectMocks = vi.hoisted(() => ({
+  integrationClient: { getCapabilities: vi.fn() },
   repoClient: {
     listCredentials: vi.fn(),
     getPrecommitConfig: vi.fn(),
@@ -99,8 +100,7 @@ describe("SettingsModal", () => {
   });
 
   it("switches to the integrations tab and renders capability status from the API", async () => {
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL) => {
-      return jsonResponse({
+    connectMocks.integrationClient.getCapabilities.mockResolvedValue({
         capabilities: [
           {
             id: "test-genie",
@@ -128,7 +128,6 @@ describe("SettingsModal", () => {
         ],
         timestamp: "2026-05-01T00:00:00Z",
       });
-    });
     connectMocks.repoClient.listCredentials.mockResolvedValue({
       credentials: [{
         id: "credential-1",
@@ -143,18 +142,13 @@ describe("SettingsModal", () => {
       }],
       timestamp: "2026-05-01T00:00:00Z",
     });
-    globalThis.fetch = fetchMock as unknown as typeof fetch;
-
     renderWithQueryClient(<SettingsModal {...settingsProps()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Integrations" }));
 
     // Counts the credential and both apps; only the running ones are ready.
     expect(await screen.findByText("2 of 3 ready")).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledWith(
-      "https://git-control-tower.test/api/v1/capabilities",
-      expect.objectContaining({ cache: "no-store" }),
-    );
+    expect(connectMocks.integrationClient.getCapabilities).toHaveBeenCalledOnce();
 
     // Apps are named for what they do, and the one that is off is called out with its consequence.
     expect(screen.getByText("Tests")).toBeInTheDocument();
@@ -177,7 +171,7 @@ describe("SettingsModal", () => {
   });
 
   it("reports a failed integrations check without hiding repository accounts", async () => {
-    globalThis.fetch = vi.fn(async () => new Response("boom", { status: 500 })) as unknown as typeof fetch;
+    connectMocks.integrationClient.getCapabilities.mockRejectedValue(new Error("boom"));
     connectMocks.repoClient.listCredentials.mockResolvedValue({ credentials: [], timestamp: "2026-05-01T00:00:00Z" });
 
     renderWithQueryClient(<SettingsModal {...settingsProps()} />);
@@ -188,7 +182,7 @@ describe("SettingsModal", () => {
   });
 
   it("treats a remote with nothing stored as using the system login, not as a problem", async () => {
-    globalThis.fetch = vi.fn(async () => jsonResponse({ capabilities: [], timestamp: "2026-05-01T00:00:00Z" })) as unknown as typeof fetch;
+    connectMocks.integrationClient.getCapabilities.mockResolvedValue({ capabilities: [], timestamp: "2026-05-01T00:00:00Z" });
     connectMocks.repoClient.listCredentials.mockResolvedValue({
       credentials: [{
         id: "origin",

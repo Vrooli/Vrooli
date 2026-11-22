@@ -143,8 +143,11 @@ func (s *Service) ReadEvidence(ctx context.Context, repo, dir string, req *v1.Re
 	if err != nil {
 		return nil, err
 	}
-	if !input.supportsDeepEvidence() || input.Snapshot == nil || input.Snapshot.Digest != req.SnapshotDigest {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("deep evidence requires its exact immutable draft subject"))
+	if !input.supportsDeepEvidence() || input.Snapshot == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("evidence job is not a deep draft; use the job ID returned by the deep draft"))
+	}
+	if input.Snapshot.Digest != req.SnapshotDigest {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("snapshot digest does not match this draft; use the snapshot_digest returned with this job"))
 	}
 	if execution != "" {
 		if terminal(job.State) {

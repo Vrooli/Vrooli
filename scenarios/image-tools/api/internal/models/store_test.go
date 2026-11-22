@@ -4,6 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"testing"
+	"time"
+
+	"image-tools/internal/catalogstate"
 
 	apidb "github.com/vrooli/api-core/database"
 
@@ -30,11 +33,11 @@ func TestStoreOverlayDefaultsToSeed(t *testing.T) {
 	}
 }
 
-func TestStoreSetEnabledPersistsAndUpserts(t *testing.T) {
+func TestStoreSetOverridePersistsAndUpserts(t *testing.T) {
 	ctx := context.Background()
 	st := NewStore(newStateDB(t))
 
-	if err := st.SetEnabled(ctx, "sd-1.5", false); err != nil {
+	if err := st.SetOverride(ctx, catalogstate.Override{ID: "sd-1.5", Enabled: false, SetBy: "test"}, true, time.Now()); err != nil {
 		t.Fatalf("set enabled false: %v", err)
 	}
 	overlay, err := st.LoadOverlay(ctx)
@@ -46,7 +49,7 @@ func TestStoreSetEnabledPersistsAndUpserts(t *testing.T) {
 	}
 
 	// Re-toggle: upsert must replace, not insert a duplicate.
-	if err := st.SetEnabled(ctx, "sd-1.5", true); err != nil {
+	if err := st.SetOverride(ctx, catalogstate.Override{ID: "sd-1.5", Enabled: true, SetBy: "test"}, true, time.Now()); err != nil {
 		t.Fatalf("set enabled true: %v", err)
 	}
 	overlay, err = st.LoadOverlay(ctx)
@@ -61,9 +64,9 @@ func TestStoreSetEnabledPersistsAndUpserts(t *testing.T) {
 	}
 }
 
-func TestStoreSetEnabledRejectsEmptyID(t *testing.T) {
+func TestStoreSetOverrideRejectsEmptyID(t *testing.T) {
 	st := NewStore(newStateDB(t))
-	if err := st.SetEnabled(context.Background(), "", true); err == nil {
+	if err := st.SetOverride(context.Background(), catalogstate.Override{ID: "", Enabled: true, SetBy: "test"}, true, time.Now()); err == nil {
 		t.Fatal("expected error for empty model id")
 	}
 }
@@ -105,7 +108,11 @@ func TestEnabledWithOverlayPrecedence(t *testing.T) {
 	}
 }
 
-func TestEffectiveEnabledKeepsConditionalRightsBlockedDespiteOverlay(t *testing.T) {
+// The overlay is honoured for every license class: the shared rights owner
+// (RequireLocalUsePermitted, selection and execution) is the gate, so a stored
+// enable must not be silently masked, including for non-commercial weights
+// (operator stance 2026-11-21: best models for normal use).
+func TestEffectiveEnabledHonoursOverlayForEveryLicenseClass(t *testing.T) {
 	r, err := Load()
 	if err != nil {
 		t.Fatalf("load registry: %v", err)
@@ -121,10 +128,18 @@ func TestEffectiveEnabledKeepsConditionalRightsBlockedDespiteOverlay(t *testing.
 		t.Fatal("seed should include a conditional-rights model for this regression")
 	}
 	overlay := map[string]bool{conditional.ID: true}
-	if EffectiveEnabled(conditional, overlay) {
-		t.Fatalf("overlay must not enable unverified-rights model %q", conditional.ID)
+	if !EffectiveEnabled(conditional, overlay) {
+		t.Fatalf("stored enable for conditional-rights model %q was masked", conditional.ID)
 	}
-	if r.EnabledWithOverlay(overlay)(conditional.ID) {
-		t.Fatalf("registry selector gate must not enable unverified-rights model %q", conditional.ID)
+	if !r.EnabledWithOverlay(overlay)(conditional.ID) {
+		t.Fatalf("registry selector ignored stored enable for %q", conditional.ID)
+	}
+	nonCommercial := conditional
+	nonCommercial.CapabilityLabels.CommercialUse = CommercialUseNo
+	if !EffectiveEnabled(nonCommercial, overlay) {
+		t.Fatalf("stored enable for a non-commercial model was masked")
+	}
+	if EffectiveEnabled(nonCommercial, map[string]bool{conditional.ID: false}) {
+		t.Fatalf("stored disable for a non-commercial model was ignored")
 	}
 }

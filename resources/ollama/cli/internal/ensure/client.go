@@ -455,17 +455,18 @@ func (c *Client) pull(ctx context.Context, modelRef string, insecure bool, onPro
 	return nil
 }
 
-// DeleteModel removes only the temporary alias after the requested manifest is published.
+// DeleteModel removes only the temporary alias after the requested manifest is
+// published. Ollama serves /api/delete only on DELETE (POST returns 405).
 func (c *Client) DeleteModel(ctx context.Context, name string) error {
-	return c.modelMutation(ctx, "/api/delete", map[string]string{"name": name})
+	return c.modelMutation(ctx, http.MethodDelete, "/api/delete", map[string]string{"name": name})
 }
 
-func (c *Client) modelMutation(ctx context.Context, path string, payload any) error {
+func (c *Client) modelMutation(ctx context.Context, method, path string, payload any) error {
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+path, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, method, c.BaseURL+path, bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
@@ -482,51 +483,66 @@ func (c *Client) modelMutation(ctx context.Context, path string, payload any) er
 	return nil
 }
 
-// EmbedRequest mirrors the relevant subset of POST /api/embeddings.
-type EmbedRequest struct {
-	Model  string `json:"model"`
-	Prompt string `json:"prompt"`
-}
-
-// EmbedResponse is the float vector returned by Ollama's embedding endpoint.
-// We accept either the legacy `embedding` (singular) or `embeddings[0]` shape
-// so this client survives both Ollama 0.1.x and 0.5.x+.
+// EmbedResponse is Ollama's /api/embed response: one L2-normalized vector per
+// input plus runtime timings.
 type EmbedResponse struct {
-	Embedding  []float64   `json:"embedding,omitempty"`
-	Embeddings [][]float64 `json:"embeddings,omitempty"`
+	Embeddings      [][]float64 `json:"embeddings,omitempty"`
+	Model           string      `json:"model,omitempty"`
+	TotalDuration   int64       `json:"total_duration,omitempty"`
+	LoadDuration    int64       `json:"load_duration,omitempty"`
+	PromptEvalCount int         `json:"prompt_eval_count,omitempty"`
 }
 
-// Embed calls /api/embeddings and returns the resulting vector.
-func (c *Client) Embed(ctx context.Context, model, input string) ([]float64, error) {
-	body, err := json.Marshal(EmbedRequest{Model: model, Prompt: input})
-	if err != nil {
-		return nil, err
+// BatchEmbedRequest mirrors Ollama's /api/embed request surface. Truncate is
+// always true: an input longer than the runner context keeps its head and drops
+// the tail (runtimeprofile.OverflowTruncateTail), so a long input never fails
+// deterministically. Options carries only runtime-profile variant options.
+type BatchEmbedRequest struct {
+	Model    string         `json:"model"`
+	Input    []string       `json:"input"`
+	Truncate bool           `json:"truncate"`
+	Options  map[string]any `json:"options,omitempty"`
+}
+
+// EmbedBatch calls /api/embed for one or more texts and preserves the runtime
+// timing fields needed by owner-side admission and performance receipts. It is
+// the only embedding path; the legacy single-input /api/embeddings endpoint
+// neither truncates nor normalizes and is not used.
+func (c *Client) EmbedBatch(ctx context.Context, model string, inputs []string, options map[string]any) (EmbedResponse, error) {
+	if len(inputs) == 0 {
+		return EmbedResponse{}, fmt.Errorf("embed batch requires at least one input")
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+"/api/embeddings", bytes.NewReader(body))
+	body, err := json.Marshal(BatchEmbedRequest{Model: model, Input: inputs, Truncate: true, Options: options})
 	if err != nil {
-		return nil, err
+		return EmbedResponse{}, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+"/api/embed", bytes.NewReader(body))
+	if err != nil {
+		return EmbedResponse{}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("embed: %w", err)
+		return EmbedResponse{}, fmt.Errorf("embed batch: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
-		return nil, fmt.Errorf("embed: HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
+		return EmbedResponse{}, fmt.Errorf("embed batch: HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
 	}
 	var parsed EmbedResponse
 	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
-		return nil, fmt.Errorf("decode embed response: %w", err)
+		return EmbedResponse{}, fmt.Errorf("decode embed batch response: %w", err)
 	}
-	if len(parsed.Embedding) > 0 {
-		return parsed.Embedding, nil
+	if len(parsed.Embeddings) != len(inputs) {
+		return EmbedResponse{}, fmt.Errorf("embed batch: response vector count %d differs from input count %d", len(parsed.Embeddings), len(inputs))
 	}
-	if len(parsed.Embeddings) > 0 {
-		return parsed.Embeddings[0], nil
+	for i, vector := range parsed.Embeddings {
+		if len(vector) == 0 {
+			return EmbedResponse{}, fmt.Errorf("embed batch: response vector %d is empty", i)
+		}
 	}
-	return nil, fmt.Errorf("embed: response contained no embedding vector")
+	return parsed, nil
 }
 
 // Unload asks Ollama to evict a loaded model from VRAM immediately by issuing a
@@ -572,11 +588,10 @@ type GenerateRequest struct {
 	Format      json.RawMessage `json:"format,omitempty"`
 	NumPredict  *int            `json:"num_predict,omitempty"`
 	Temperature *float64        `json:"temperature,omitempty"`
-	NumGPU      *int            `json:"num_gpu,omitempty"`
-	NumCtx      *int            `json:"num_ctx,omitempty"`
-	NumThread   *int            `json:"num_thread,omitempty"`
-	NumBatch    *int            `json:"num_batch,omitempty"`
 	KeepAlive   *int            `json:"keep_alive,omitempty"`
+	// RuntimeOptions carries only runtimeprofile.GatewayOptions output; callers
+	// never choose runner load options themselves.
+	RuntimeOptions map[string]any `json:"-"`
 }
 
 // GenerateResponse captures the buffered (stream=false) shape.
@@ -605,17 +620,8 @@ func (c *Client) Generate(ctx context.Context, in GenerateRequest) (GenerateResp
 	if in.Temperature != nil {
 		options["temperature"] = *in.Temperature
 	}
-	if in.NumGPU != nil {
-		options["num_gpu"] = *in.NumGPU
-	}
-	if in.NumCtx != nil {
-		options["num_ctx"] = *in.NumCtx
-	}
-	if in.NumThread != nil {
-		options["num_thread"] = *in.NumThread
-	}
-	if in.NumBatch != nil {
-		options["num_batch"] = *in.NumBatch
+	for key, value := range in.RuntimeOptions {
+		options[key] = value
 	}
 	requestBody := struct {
 		Model   string          `json:"model"`
@@ -702,9 +708,8 @@ type ChatRequest struct {
 	Temperature *float64
 	Think       *bool
 	Tools       []ChatTool
-	NumCtx      *int
-	NumThread   *int
-	NumBatch    *int
+	// RuntimeOptions carries only runtimeprofile.GatewayOptions output.
+	RuntimeOptions map[string]any
 }
 
 // ChatResponse captures the buffered (stream=false) chat response shape,
@@ -732,14 +737,8 @@ func (c *Client) Chat(ctx context.Context, in ChatRequest) (ChatResponse, error)
 	if in.Temperature != nil {
 		options["temperature"] = *in.Temperature
 	}
-	if in.NumCtx != nil {
-		options["num_ctx"] = *in.NumCtx
-	}
-	if in.NumThread != nil {
-		options["num_thread"] = *in.NumThread
-	}
-	if in.NumBatch != nil {
-		options["num_batch"] = *in.NumBatch
+	for key, value := range in.RuntimeOptions {
+		options[key] = value
 	}
 	requestBody := struct {
 		Model    string         `json:"model"`

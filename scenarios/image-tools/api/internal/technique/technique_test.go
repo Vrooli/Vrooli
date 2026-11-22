@@ -1,6 +1,7 @@
 package technique
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -16,6 +17,9 @@ import (
 // TestArgBuilders pins each technique's argv assembly (the part testable without
 // the real binary).
 func TestArgBuilders(t *testing.T) {
+	// These argv pins are about the tool's own flags; device selection has its
+	// own tests, and an unenumerable host adds no `-g`.
+	withDevices(t, nil, errors.New("not enumerated in the arg-shape test"))
 	req := func(op string, in []string, params map[string]string) backends.Request {
 		return backends.Request{
 			Operation: op,
@@ -51,6 +55,11 @@ func TestArgBuilders(t *testing.T) {
 			// binary), not a -m dir or the image-tools model id.
 			args: mustArgs(t, Realesrgan, req("upscale", []string{"/in.png"}, map[string]string{"scale": "2"})),
 			want: []string{"-i", "/in.png", "-o", "/out.png", "-s", "2", "-n", "realesr-animevideov3"},
+		},
+		{
+			name: "realesrgan 4x upscale uses the perceptually best bundled model",
+			args: mustArgs(t, Realesrgan, req("upscale", []string{"/in.png"}, nil)),
+			want: []string{"-i", "/in.png", "-o", "/out.png", "-s", "4", "-n", "realesrgan-x4plus"},
 		},
 		{
 			name: "realesrgan denoise",
@@ -94,13 +103,13 @@ func TestArgBuilders(t *testing.T) {
 		{
 			name: "diffusers edit_instruct",
 			args: mustArgs(t, DiffusersEditInstruct, func() backends.Request {
-				r := req("edit_instruct", []string{"/in.png"}, map[string]string{"prompt": "make it winter", "cfg_scale": "7.5", "strength": "1.5", "seed": "42", "steps": "30", "negative_prompt": "blurry"})
+				r := req("edit_instruct", []string{"/in.png"}, map[string]string{"prompt": "make it winter", "cfg_scale": "7.5", "strength": "1.5", "seed": "42", "steps": "30", "negative_prompt": "blurry", "width": "896", "height": "1152"})
 				r.Model.Runtime.Family = "instruct-pix2pix"
 				return r
 			}()),
 			// The pipeline class is selected by --family, not hardcoded. --steps and
 			// --negative-prompt are passed only when explicitly requested.
-			want: []string{"-m", "image_tools_sidecar.edit_instruct", "--model", "/models/m1", "--family", "instruct-pix2pix", "--image", "/in.png", "--prompt", "make it winter", "--out", "/out.png", "--steps", "30", "--guidance", "7.5", "--image-guidance", "1.5", "--negative-prompt", "blurry", "--seed", "42"},
+			want: []string{"-m", "image_tools_sidecar.edit_instruct", "--model", "/models/m1", "--family", "instruct-pix2pix", "--image", "/in.png", "--prompt", "make it winter", "--out", "/out.png", "--width", "896", "--height", "1152", "--steps", "30", "--guidance", "7.5", "--image-guidance", "1.5", "--negative-prompt", "blurry", "--seed", "42"},
 		},
 		{
 			name: "diffusers edit_instruct needs input",
@@ -229,9 +238,23 @@ func TestArgBuilders(t *testing.T) {
 			want: []string{"-m", "image_tools_sidecar.colorize", "--model", "/models/m1", "--image", "/in.png", "--out", "/out.png"},
 		},
 		{
-			name: "python-sidecar face restore dispatch",
-			args: mustArgs(t, PythonSidecar, req("face_restore", []string{"/in.png"}, nil)),
-			want: []string{"-m", "image_tools_sidecar.restore", "--model", "/models/m1", "--image", "/in.png", "--out", "/out.png"},
+			// The restorer and its face detector live in one model dir; the
+			// sidecar receives the dir, not a single ONNX file.
+			name: "onnx face restore dispatch",
+			args: mustArgs(t, OnnxSidecar, req("face_restore", []string{"/in.png"}, nil)),
+			want: []string{"-m", "image_tools_sidecar.face_restore", "--model", "/models/m1", "--image", "/in.png", "--out", "/out.png", "--device", "cpu"},
+		},
+		{
+			// The swapper, embedder, detector and occluder share one model dir; the
+			// face comes from the third input (after the empty mask slot) and the
+			// typed options travel as JSON.
+			name: "onnx face swap dispatch",
+			args: mustArgs(t, OnnxSidecar, req("face_swap", []string{"/in.png", "", "/face.png"}, map[string]string{"all_faces": "true", "color_match": "0.5"})),
+			want: []string{"-m", "image_tools_sidecar.face_swap", "--model", "/models/m1", "--image", "/in.png", "--out", "/out.png", "--device", "cpu", "--reference", "/face.png", "--params", `{"all_faces":true,"color_match":0.5}`},
+		},
+		{
+			name: "onnx face swap without a reference face",
+			err:  argErr(OnnxSidecar, req("face_swap", []string{"/in.png"}, nil)),
 		},
 		{
 			name: "python-sidecar old photo restore dispatch",
@@ -521,6 +544,49 @@ func TestDiffusersBuildersEmitLoRA(t *testing.T) {
 	}
 }
 
+// A repo that ships only reduced-precision files (Juggernaut XL's fp16 variant)
+// cannot be loaded without the variant selector, so every architecture-resolved
+// generate path must pass the registry's declared variant, and a model with none
+// must not gain one.
+func TestDiffusersGeneratePathsPassTheDeclaredWeightVariant(t *testing.T) {
+	mk := func(op string, in []string, variant string) backends.Request {
+		return backends.Request{
+			Operation: op,
+			Model:     models.Model{ID: "juggernaut-xl-v9", Architecture: "sdxl", Runtime: models.Runtime{Variant: variant}},
+			InputKeys: in,
+			Params:    map[string]string{"prompt": "p"},
+			Output:    storage.OutputTarget{LocalPath: "/out.png"},
+		}
+	}
+	for _, tc := range []struct {
+		name  string
+		build func(variant string) ([]string, error)
+	}{
+		{"text_to_image", func(v string) ([]string, error) {
+			return DiffusersText2Image(mk("text_to_image", nil, v), "/models/m")
+		}},
+		{"image_to_image", func(v string) ([]string, error) {
+			return DiffusersImg2Img(mk("image_to_image", []string{"/in.png"}, v), "/models/m")
+		}},
+	} {
+		with, err := tc.build("fp16")
+		if err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		i := slices.Index(with, "--variant")
+		if i < 0 || i+1 >= len(with) || with[i+1] != "fp16" {
+			t.Errorf("%s: want --variant fp16, got %v", tc.name, with)
+		}
+		without, err := tc.build("")
+		if err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		if slices.Contains(without, "--variant") {
+			t.Errorf("%s: a model with no declared variant must not pass one: %v", tc.name, without)
+		}
+	}
+}
+
 func TestDiffusersInpaintPinsRepoRevisionAndWeightVariant(t *testing.T) {
 	r := backends.Request{
 		Operation: "inpaint",
@@ -550,6 +616,66 @@ func TestDiffusersInpaintPinsRepoRevisionAndWeightVariant(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Fatalf("repo inpaint args %q missing %q", got, want)
 		}
+	}
+}
+
+func TestInpaintOnInstructionFamilyRunsTheMaskedEdit(t *testing.T) {
+	r := backends.Request{
+		Operation: "inpaint",
+		Model:     models.Model{ID: "flux-2-klein-4b", Architecture: "flux", Runtime: models.Runtime{Family: "flux-2-klein"}},
+		InputKeys: []string{"/source.png", "/mask.png"},
+		Output:    storage.OutputTarget{LocalPath: "/out.png"},
+		Params: map[string]string{
+			"prompt": "replace the book with a tablet", "seed": "7",
+			"inpaint_grow_px": "8", "inpaint_feather_px": "20",
+		},
+	}
+	args, err := DiffusersInpaint(r, "/models/flux-2-klein-4b")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := strings.Join(args, " ")
+	for _, want := range []string{
+		"-m image_tools_sidecar.masked_edit", "--family flux-2-klein", "--mask /mask.png",
+		"--prompt replace the book with a tablet", "--grow-px 8", "--feather-px 20", "--seed 7",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("masked-edit args %q missing %q", got, want)
+		}
+	}
+	if strings.Contains(got, "--full-frame") || strings.Contains(got, "image_tools_sidecar.inpaint") {
+		t.Fatalf("a family inpaint must crop by default and never use the base-checkpoint inpaint module: %s", got)
+	}
+	r.Params["inpaint_crop_to_mask"] = "false"
+	args, err = DiffusersInpaint(r, "/models/flux-2-klein-4b")
+	if err != nil || !slices.Contains(args, "--full-frame") {
+		t.Fatalf("crop_to_mask=false must request the full frame: %v %v", args, err)
+	}
+	r.Adapters = []adapters.ResolvedAdapter{{ID: "any-lora"}}
+	if _, err := DiffusersInpaint(r, "/models/flux-2-klein-4b"); err == nil {
+		t.Fatal("conditioning adapters on an instruction family must be refused, not dropped")
+	}
+}
+
+func TestSegmentTextPromptUsesTheGroundedAdapter(t *testing.T) {
+	segment := func(prompt string) []string {
+		t.Helper()
+		args, err := SAM2Sidecar(backends.Request{
+			Operation: "segment", InputKeys: []string{"/in.png"},
+			Output: storage.OutputTarget{LocalPath: "/mask.png"},
+			Params: map[string]string{"segmentation": prompt},
+		}, "/models/grounded-sam-2")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return args
+	}
+	text := strings.Join(segment(`{"text":"the jacket"}`), " ")
+	if !strings.Contains(text, "-m image_tools_sidecar.grounded_segment") || !strings.Contains(text, `{"text":"the jacket"}`) {
+		t.Fatalf("text prompt args: %s", text)
+	}
+	if point := strings.Join(segment(`{"points":[{"x":0.4,"y":0.7}]}`), " "); !strings.Contains(point, "-m image_tools_sidecar.sam2") {
+		t.Fatalf("point prompt must stay on the SAM 2.1 adapter: %s", point)
 	}
 }
 
@@ -597,5 +723,56 @@ func TestOnnxModelPathUsesValidatedBuildProfileOutput(t *testing.T) {
 	}}
 	if got, want := OnnxModelPath(req, "/models/big-lama-1024-export"), "/models/big-lama-1024-export/lama_1024.onnx"; got != want {
 		t.Fatalf("derived ONNX path = %q, want %q", got, want)
+	}
+}
+
+// TestDiffusersFamilyModelsRouteGenerateAndTransformThroughTheirAdapter pins that
+// a unified family model (runtime.family, e.g. FLUX.2 [klein]) runs text_to_image
+// and image_to_image through its family adapter (--family), never the
+// base-checkpoint --architecture path whose AutoPipeline cannot resolve it, and
+// that conditioning adapters are refused on that route rather than dropped.
+func TestDiffusersFamilyModelsRouteGenerateAndTransformThroughTheirAdapter(t *testing.T) {
+	mk := func(op string, in []string, params map[string]string) backends.Request {
+		return backends.Request{
+			Operation: op,
+			Model: models.Model{
+				ID: "flux-2-klein-4b", Architecture: models.ArchFlux,
+				Runtime: models.Runtime{Family: "flux-2-klein"},
+			},
+			InputKeys: in,
+			Output:    storage.OutputTarget{LocalPath: "/out.png"},
+			Params:    params,
+		}
+	}
+	t2i, err := DiffusersText2Image(mk("text_to_image", nil, map[string]string{
+		"prompt": "a fox", "width": "1024", "height": "768", "steps": "4", "seed": "7",
+	}), "/models/klein")
+	if err != nil {
+		t.Fatalf("text_to_image: %v", err)
+	}
+	wantT2I := []string{
+		"-m", "image_tools_sidecar.text_to_image", "--model", "/models/klein", "--family", "flux-2-klein",
+		"--prompt", "a fox", "--out", "/out.png", "--width", "1024", "--height", "768", "--steps", "4", "--seed", "7",
+	}
+	if !slices.Equal(t2i, wantT2I) {
+		t.Fatalf("text_to_image argv\n got %v\nwant %v", t2i, wantT2I)
+	}
+
+	i2i, err := DiffusersImg2Img(mk("image_to_image", []string{"/in.png"}, map[string]string{"prompt": "anime style"}), "/models/klein")
+	if err != nil {
+		t.Fatalf("image_to_image: %v", err)
+	}
+	wantI2I := []string{
+		"-m", "image_tools_sidecar.image_to_image", "--model", "/models/klein", "--family", "flux-2-klein",
+		"--image", "/in.png", "--prompt", "anime style", "--out", "/out.png",
+	}
+	if !slices.Equal(i2i, wantI2I) {
+		t.Fatalf("image_to_image argv\n got %v\nwant %v", i2i, wantI2I)
+	}
+
+	conditioned := mk("text_to_image", nil, map[string]string{"prompt": "x"})
+	conditioned.Adapters = []adapters.ResolvedAdapter{{ID: "style", Kind: adapters.KindLoRA, Dir: t.TempDir()}}
+	if _, err := DiffusersText2Image(conditioned, "/models/klein"); err == nil || !strings.Contains(err.Error(), "not supported on family") {
+		t.Fatalf("family route must refuse conditioning adapters, got %v", err)
 	}
 }

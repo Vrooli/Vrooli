@@ -768,7 +768,7 @@ func checkEngagement(core *cliapp.ScenarioApp, scenario, slug string) (checkResu
 	}, nil
 }
 
-// guidanceFor is the mode-aware steering surface (signal-and-feedback-surface-design).
+// guidanceFor is the mode-aware steering surface (resilience-lenses).
 func guidanceFor(mode, verdict string) string {
 	switch verdict {
 	case "regression":

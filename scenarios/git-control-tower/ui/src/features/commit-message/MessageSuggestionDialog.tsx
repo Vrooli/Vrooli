@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
 import { ArrowLeft, Check, ChevronDown, GitCommitHorizontal, Eye, FileSearch, Info, Loader2, MessageSquarePlus, RefreshCw, Search, Sparkles, Trash2, Undo2, X, type LucideIcon } from "lucide-react";
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { isMessageJobActive, type useMessageSuggestions } from "./useMessageSuggestions";
 import { getDraftScope, isLimitedDraft, mergeSuggestionTrailers, parseMessage, serializeMessage } from "./message";
 import type { StagedMessageContinuation, StagedMessageSuggestion } from "./api";
@@ -276,12 +276,12 @@ export function MessageSuggestionDialog({ suggestions: s, message, disabled, onA
   const showInvestigation = s.canInvestigate && !comparison && !s.staleReason;
   const canPrepare = !collecting && !starting && !recovering && !unknownAdmission && !missingAdmission && !active && !unavailable && !comparison && !agent;
   const canStartDeep = Boolean(collection?.snapshot?.files.length && canPrepare && !s.staleReason);
-  const PrimaryIcon = primary.icon;
+  const PrimaryIcon = queueingExtras ? Loader2 : primary.icon;
   return <ResponsiveDialog open={s.open} onClose={close}
     title={<span className="flex items-center gap-2 text-slate-100"><Sparkles className="h-4 w-4 text-cyan-300" aria-hidden="true" />Commit suggestions</span>}
     ariaLabel="Commit message suggestions" closeLabel="Hide suggestions" size="lg" contentPadding="comfortable" avoidKeyboard
     testId="commit-message-suggestions" panelClassName="!border-slate-700 !bg-slate-900 !text-slate-200"
-    footer={<div className="flex w-full flex-col gap-2"><span className="text-[11px] text-slate-400">Fills the editor. You commit separately.</span><div data-testid="commit-message-actions" className="flex flex-col gap-2 sm:flex-row sm:justify-end"><Button type="button" data-testid="commit-message-primary" className={`${primaryClass} sm:order-last`} disabled={primary.disabled} onClick={primary.run}><PrimaryIcon className={`h-4 w-4 ${primary.icon === Loader2 ? "animate-spin" : ""}`} aria-hidden="true" />{primary.label}</Button>{canStartDeep && <button type="button" data-testid="commit-message-start-deep" className={actionClass} disabled={busy} onClick={() => void s.start(StagedMessageMode.DEEP)}><Search className="h-4 w-4" aria-hidden="true" />Start deep investigation</button>}{showInvestigation && <button type="button" data-testid="commit-message-investigate" className={actionClass} disabled={busy} onClick={() => void s.investigateRemaining()}><Search className="h-4 w-4" aria-hidden="true" />{candidate && getDraftScope(candidate) === "limited" ? "Investigate unresolved themes" : "Investigate remaining changes"}</button>}</div></div>}
+    footer={<div className="flex w-full flex-col gap-2"><span className="text-[11px] text-slate-400">Fills the editor. You commit separately.</span><div data-testid="commit-message-actions" className="flex flex-col gap-2 sm:flex-row sm:justify-end"><Button type="button" data-testid="commit-message-primary" className={`${primaryClass} sm:order-last`} disabled={primary.disabled} onClick={primary.run}><PrimaryIcon className={`h-4 w-4 ${queueingExtras || primary.icon === Loader2 ? "animate-spin" : ""}`} aria-hidden="true" />{queueingExtras ? "Queueing extras…" : primary.label}</Button>{canStartDeep && <button type="button" data-testid="commit-message-start-deep" className={actionClass} disabled={busy} onClick={() => void s.start(StagedMessageMode.DEEP)}><Search className="h-4 w-4" aria-hidden="true" />Start deep investigation</button>}{showInvestigation && <button type="button" data-testid="commit-message-investigate" className={actionClass} disabled={busy} onClick={() => void s.investigateRemaining()}><Search className="h-4 w-4" aria-hidden="true" />{candidate && getDraftScope(candidate) === "limited" ? "Investigate unresolved themes" : "Investigate remaining changes"}</button>}</div></div>}
   >
     <div className="space-y-4 text-sm leading-relaxed">
       <p className="text-xs text-slate-400">{s.snapshot ? `Staged selection: ${count(s.snapshot.files.length)} ${s.snapshot.files.length === 1 ? "file" : "files"}` : "Staged selection"}</p>

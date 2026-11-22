@@ -63,7 +63,7 @@ describe("TrackedBinariesSection", () => {
     // Size shows twice on purpose: once as the row's own cost, once in the
     // header total, so the panel answers "how big is this problem" at a glance.
     expect(screen.getAllByText(/8\.1 MB/).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/scenarios\/tidiness-manager\/\.gitignore/)).toBeInTheDocument();
+    expect(screen.getAllByText(/scenarios\/tidiness-manager\/\.gitignore/).length).toBeGreaterThanOrEqual(1);
   });
 
   // Untracking never shrinks the repo. If the panel omitted this, users would
@@ -77,7 +77,7 @@ describe("TrackedBinariesSection", () => {
   it("posts the untrack request with the owning gitignore target", async () => {
     renderWithQueryClient(<TrackedBinariesSection isMobile={false} repoId="repo-1" />);
 
-    fireEvent.click(await screen.findByRole("button", { name: /untrack & ignore/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /keep local & untrack/i }));
 
     await waitFor(() => {
       expect(connectMocks.repoClient.untrackBinary).toHaveBeenCalledWith(expect.objectContaining({

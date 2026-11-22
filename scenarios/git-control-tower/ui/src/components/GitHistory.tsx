@@ -5,7 +5,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { onProfilerRender } from "../lib/profiler";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { BottomSheet, BottomSheetAction } from "./ui/bottom-sheet";
 import type { RepoHistoryEntry } from "../lib/api";
 import type { GroupingRule } from "./FileList";
@@ -509,13 +509,14 @@ function GitHistoryImpl({
               </div>
             )}
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               className={`h-7 px-2 text-[10px] ${
                 hasActiveFilters ? "bg-white/10 text-white" : ""
               }`}
               onClick={handleOpenFilters}
               type="button"
+              style={{ background: "transparent" }}
             >
               <SlidersHorizontal className="h-3 w-3 mr-1" />
               Filters

@@ -51,8 +51,7 @@ edit. It exists so a caller can ask for unrestricted local generation by name.
 - The declared 20480-token context is the measured host fit: 11.13 GiB VRAM
   with no CPU offload and ~99 tok/s. 24K needs CPU offload and previously
   caused a CUDA OOM under the old `OLLAMA_NUM_PARALLEL=2` default, so the
-  resource now runs with `OLLAMA_NUM_PARALLEL=1` and
-  `OLLAMA_MAX_LOADED_MODELS=2`.
+  resource now runs with `OLLAMA_NUM_PARALLEL=1`.
 - The default was chosen by the 2026-10-21 abliterated bake-off: Granite 4.1
   8B scored 13/14 on instruction, formatting, and arithmetic checks, with a
   live tool smoke pass and ~99 tok/s at 20K. The Qwen3.5-9B, Hermes-9B,
@@ -104,9 +103,10 @@ curl http://localhost:11434/api/pull -d '{"name":"<model>","stream":false}'
 ```
 
 The raw delete example is an upstream API operation, not a Vrooli retention
-workflow. It does not verify the tag digest or serialize policy references and
-active requests; see [Retention owner boundary](#retention-owner-boundary)
-before considering model removal.
+workflow (and Ollama accepts it only as `DELETE`). It does not verify the tag
+digest or serialize policy references and active requests; use
+`resource-ollama models evict` instead (see
+[Disk retention](#disk-retention)).
 
 The raw pull example also bypasses Vrooli's shared disk admission. Use
 `resource-ollama ensure` for managed model acquisition; direct `/api/pull`
@@ -126,10 +126,8 @@ provenance. Successful `resource-ollama ensure` pulls write a receipt for the
 pinned public-registry source and verified installed digest; Storage Manager
 reports it as matched only while the current tag digest agrees. Policy
 reachability and this source history do not prove the registry still serves
-the same artifact or authorize deletion, so the inventory keeps
-`regenerable: false` and the cleanup provider holds every model. A future
-owner-authorized deletion must revalidate digest, size, policy references, and
-recent residency. Do not infer model identity by walking the `blobs/`
+the same artifact, so the inventory keeps `regenerable: false`; disk eviction
+uses the separate retention view below. Do not infer model identity by walking the `blobs/`
 directory: Ollama shares blobs between models, so filesystem paths cannot
 safely attribute bytes to a single tag.
 
@@ -140,27 +138,39 @@ service-reported tag sizes. Allocated physical bytes remain unknown: the walk
 uses file lengths and may count sparse files or hardlinks differently from
 allocated blocks, while Ollama shares blobs across model tags.
 
-### Retention owner boundary
+### Disk retention
 
-Ollama's documented `POST /api/delete` accepts a model name; it has no expected
-digest, size, or conditional-match field. Reading `/api/tags`, `/api/ps`, and
-`model-policy.json` before that request does not serialize the delete with a
-new load, request, policy change, or pull. The managed
-`resource-lifecycle:ollama` lock serializes Vrooli-managed lifecycle and
-missing-model ensure work, but direct calls to the loopback Ollama API are not
-covered by that lock. It is therefore not a retention fence.
+Storage Manager decides when downloaded models leave disk (free-space bands,
+store budget, real use); this resource owns the one operation that deletes.
 
-Storage Manager's retention provider is intentionally inventory-only: it has
-no delete method and skips every model at Apply, including operator-approved
-or stale preview items. Do not add name-only deletion as a cleanup fallback.
-Automated retention remains unavailable until the serving owner provides one
-atomic operation that checks the expected installed digest, current policy
-references and active use while excluding competing loads, pulls, policy
-writes, and lifecycle changes, then returns a durable operation receipt and an
-authoritative allocated-byte delta for the model root. Ollama's current API and
-Vrooli's current owner boundary provide none of those together; shared blob
-storage also means tag logical sizes cannot stand in for reclaimed physical
-bytes.
+```bash
+resource-ollama models retention --json      # per-model facts for the decision
+resource-ollama models evict <name> --digest <sha256> --size <bytes> --json
+resource-ollama models reacquire <name>      # bring an evicted model back
+```
+
+`models retention` lists each installed tag with its digest, total bytes and
+unique bytes (blobs no other tag references, read from the manifests), pull
+time, whether it is loaded, and whether it is required. Required means a
+role's primary model or a name in `retention.pinned` in `model-policy.json`;
+fallbacks and models no role names are eligible once idle.
+
+`models evict` holds the `resource-lifecycle:ollama` lock and the per-model
+request fence (`~/.vrooli/processes/resources/ollama/model-fence/`), which
+every request through the activity edge holds while in flight. Under both it
+re-reads the private tag list (refusing a digest or size change), `/api/ps`
+(refusing a loaded model) and `model-policy.json` (refusing a model that
+became required), appends an `evicting` receipt with the reacquire command and
+expected size to `~/.vrooli/state/resources/ollama/model-evictions.jsonl`, then
+deletes and confirms the tag is gone. A request that arrives during eviction
+gets a 503 instead of triggering a re-pull. The policy file has no programmatic
+writer, so a hand edit between the re-read and the delete is the one window
+the fence does not cover.
+
+The activity edge records each request's model, time and caller in
+`~/.vrooli/state/resources/ollama/model-usage.json` (`models callers` reads
+it); a keep-alive-0 unload and a delete are not use. Reacquisition re-resolves the registry tag, so it may not reproduce
+the evicted digest; the receipt says so (`reacquire_exact: false`).
 
 ## Performance by model size
 
@@ -182,10 +192,11 @@ estimates and `resource-ollama capacity` enforce the declared host/runtime budge
 
 ### Memory / concurrency
 
-Concurrency and loaded-model limits are declared in
-[`resource.json`](../resource.json) under `managed_service.environment`
-(`OLLAMA_NUM_PARALLEL`, `OLLAMA_MAX_LOADED_MODELS`). Edit those and
-`vrooli resource restart ollama`.
+Concurrency (`OLLAMA_NUM_PARALLEL`) is declared in
+[`resource.json`](../resource.json) under `managed_service.environment`.
+`OLLAMA_MAX_LOADED_MODELS` there is derived, not tuned: the resident models of
+`residency` in `model-policy.json` plus one turnover slot, so a non-resident
+load never evicts a resident. A test fails when the two disagree.
 
 ### Custom models
 

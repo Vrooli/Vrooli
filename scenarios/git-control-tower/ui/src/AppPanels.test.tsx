@@ -184,6 +184,9 @@ function baseDeps(overrides: Partial<PanelDeps> = {}): PanelDeps {
   const deps: PanelDeps = {
     repoId: "repo-1",
     statusData: repoStatus(),
+    statusIsLoading: false,
+    statusError: null,
+    onRefreshStatus: () => {},
     diffData: diffResponse(),
     diffIsLoading: false,
     diffError: null,

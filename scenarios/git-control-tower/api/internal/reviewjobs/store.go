@@ -312,9 +312,9 @@ func (s *Store) RequeueUnconfirmedDispatch(ctx context.Context, previous Job) (J
 		return previous, false, nil
 	}
 	next := previous
-	if err := next.Transition(Queued); err != nil {
-		return Job{}, false, err
-	}
+	// This guarded recovery is the only authority allowed to requeue a failed
+	// dispatch. Keep Failed -> Queued out of the generic lifecycle graph.
+	next.State = Queued
 	next.ErrorCode = ""
 	next.Error = ""
 	next.Retryable = false

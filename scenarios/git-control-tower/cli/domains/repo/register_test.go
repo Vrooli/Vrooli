@@ -23,6 +23,43 @@ type diffClientStub struct {
 	err      error
 }
 
+type statusClientStub struct {
+	repoconnect.RepoServiceClient
+	requests  []*repov1.GetRepoStatusRequest
+	responses []*repov1.GetRepoStatusResponse
+}
+
+func (s *statusClientStub) GetRepoStatus(_ context.Context, req *connect.Request[repov1.GetRepoStatusRequest]) (*connect.Response[repov1.GetRepoStatusResponse], error) {
+	s.requests = append(s.requests, req.Msg)
+	if len(s.responses) == 0 {
+		return nil, errors.New("unexpected status page")
+	}
+	response := s.responses[0]
+	s.responses = s.responses[1:]
+	return connect.NewResponse(response), nil
+}
+
+func TestRunStatusFollowsCompleteSnapshotPages(t *testing.T) {
+	client := &statusClientStub{responses: []*repov1.GetRepoStatusResponse{
+		{RepoDir: "/repo", BranchStatus: &repov1.BranchStatus{Head: "main"}, Summary: &repov1.StatusSummary{Staged: 2}, Page: &repov1.RepoStatusPage{ReturnedEntries: 1, TotalEntries: 2, SnapshotId: "same", NextPageToken: "next"}},
+		{RepoDir: "/repo", Page: &repov1.RepoStatusPage{ReturnedEntries: 1, TotalEntries: 2, SnapshotId: "same", Complete: true}},
+	}}
+	oldFactory := repoClientFactory
+	repoClientFactory = func(*cliapp.ScenarioApp) repoconnect.RepoServiceClient { return client }
+	t.Cleanup(func() { repoClientFactory = oldFactory })
+	output := captureStdout(t, func() {
+		if err := runStatus(nil, nil); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if len(client.requests) != 2 || client.requests[0].GetPageSize() != 512 || client.requests[1].GetPageToken() != "next" {
+		t.Fatalf("unexpected status page requests: %#v", client.requests)
+	}
+	if !strings.Contains(output, "Staged: 2") {
+		t.Fatalf("summary disappeared from CLI status output: %s", output)
+	}
+}
+
 func (s *diffClientStub) GetRepoDiff(_ context.Context, req *connect.Request[repov1.GetRepoDiffRequest]) (*connect.Response[repov1.GetRepoDiffResponse], error) {
 	s.request = req.Msg
 	if s.err != nil {

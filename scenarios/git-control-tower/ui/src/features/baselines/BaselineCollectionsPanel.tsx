@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Layers, RefreshCw } from "lucide-react";
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { diffBaselineCollection, getBaselineCollection } from "../../lib/api-baseline-collections";
 import type {
   BaselineCollection,
@@ -84,7 +84,14 @@ export function BaselineCollectionsPanel({ repoId }: BaselineCollectionsPanelPro
           <div className="flex flex-wrap items-center justify-between gap-2 text-slate-300">
             <span>{collection.name} · {collection.branch}</span>
             <span>coverage: {collection.coverage ? `${collection.coverage.ready}/${collection.coverage.required} ready` : "unavailable"}</span>
-            <Button size="sm" variant="outline" className="h-7" disabled={loading} onClick={() => void compare()}>Diff complete set</Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-7"
+              disabled={loading}
+              onClick={() => void compare()}
+              style={{ background: "transparent" }}
+            >Diff complete set</Button>
           </div>
           <div className="grid gap-1 rounded bg-slate-900/70 p-2 text-slate-400 sm:grid-cols-2">
             {collection.members.map((member) => <span key={member.scenario}>{member.scenario}: {member.status}{member.required ? " (required)" : ""}</span>)}

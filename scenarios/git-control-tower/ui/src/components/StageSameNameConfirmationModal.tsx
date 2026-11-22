@@ -1,6 +1,6 @@
 import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
 import { FileStack, X } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { useIsMobile } from "../hooks";
 
 interface StageSameNameConfirmationModalProps {
@@ -57,11 +57,12 @@ export function StageSameNameConfirmationModal({
         footer={
           <div className="flex w-full items-center gap-3">
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={onCancel}
               disabled={isLoading}
               className="flex-1 h-12"
+              style={{ background: "transparent" }}
             >
               Cancel
             </Button>
@@ -90,7 +91,13 @@ export function StageSameNameConfirmationModal({
         </div>
         <div className="px-4 py-4">{content}</div>
         <div className="flex items-center justify-end gap-2 border-t border-slate-800 px-4 py-3">
-          <Button variant="outline" size="sm" onClick={onCancel} disabled={isLoading}>Cancel</Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onCancel}
+            disabled={isLoading}
+            style={{ background: "transparent" }}
+          >Cancel</Button>
           <Button size="sm" onClick={onConfirm} disabled={isLoading}>{isLoading ? "Staging..." : "Stage Files"}</Button>
         </div>
       </div>

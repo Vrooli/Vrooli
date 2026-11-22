@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
@@ -10,6 +10,8 @@ import { BeforeAfter } from "./BeforeAfter";
 import { CropOverlay } from "./CropOverlay";
 import { DetectionOverlay, type DetectionBox } from "./DetectionOverlay";
 import type { Rect, Size } from "./cropMath";
+import { cn } from "../../lib/utils";
+import { SensitiveImage } from "../sensitive/SensitiveImage";
 
 /** Live progress for an async op resolving in the canvas (Enhance / Create). */
 export interface CanvasProgress {
@@ -140,13 +142,15 @@ export function WorkspaceCanvas({
     >
       <div className="flex flex-wrap items-center gap-1">
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
           type="button"
           data-testid={selectors.workspace.canvas.zoomOut}
           aria-label={t(strings.workspace.canvas.zoomOut)}
           onClick={zoomOut}
           disabled={baseUrl === null}
+          shape="square"
+          className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
         >
           <span aria-hidden="true">−</span>
         </Button>
@@ -154,55 +158,65 @@ export function WorkspaceCanvas({
           {t(strings.workspace.canvas.zoomLevel, { percent })}
         </span>
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
           type="button"
           data-testid={selectors.workspace.canvas.zoomIn}
           aria-label={t(strings.workspace.canvas.zoomIn)}
           onClick={zoomIn}
           disabled={baseUrl === null}
+          shape="square"
+          className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
         >
           <span aria-hidden="true">+</span>
         </Button>
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
           type="button"
           data-testid={selectors.workspace.canvas.zoomActual}
           onClick={actualSize}
           disabled={baseUrl === null}
+          shape="square"
+          className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
         >
           {t(strings.workspace.canvas.zoomActual)}
         </Button>
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
           type="button"
           data-testid={selectors.workspace.canvas.zoomFit}
           onClick={toFit}
           disabled={baseUrl === null}
+          shape="square"
+          className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
         >
           {t(strings.workspace.canvas.zoomFit)}
         </Button>
         {hasSteps && (
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
             type="button"
             data-testid={selectors.workspace.canvas.compareToggle}
             aria-pressed={comparing}
             onClick={() => setComparing((c) => !c)}
+            shape="square"
+            className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
           >
             {t(strings.workspace.canvas.compareToggle)}
           </Button>
         )}
         {baseUrl !== null && (
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
             type="button"
             data-testid={selectors.workspace.canvas.replace}
             onClick={openPicker}
+            shape="square"
+            className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
           >
             {t(strings.workspace.canvas.replace)}
           </Button>
@@ -226,8 +240,9 @@ export function WorkspaceCanvas({
           <BeforeAfter beforeUrl={baseUrl} afterUrl={previewUrl} />
         ) : (
           <div className="relative inline-block">
-            <img
+            <SensitiveImage
               ref={imgRef}
+              wrapperClassName="inline-block"
               data-testid={selectors.workspace.canvas.image}
               src={previewUrl ?? baseUrl}
               alt={hasSteps ? t(strings.workspace.resultLabel) : t(strings.workspace.originalLabel)}

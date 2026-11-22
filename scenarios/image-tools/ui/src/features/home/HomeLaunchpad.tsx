@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { NavLink } from "react-router-dom";
 import { Camera, ImageUp, Link2, ScanText, Sparkles, Upload } from "lucide-react";
 
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { EmptyState } from "../../components/ui/empty-state";
 import { LumeMark } from "../../components/ui/lume-mark";
 import { selectors } from "../../consts/selectors";
@@ -16,9 +16,11 @@ import { HealthCard } from "../health/HealthCard";
 import { capabilityPresentation } from "../workspace/capabilityCatalog";
 import type { WorkspaceMode } from "../workspace/useWorkspace";
 import { imageOutputs } from "../library/outputs";
+import { SensitiveImage } from "../sensitive/SensitiveImage";
 import { useReopenOutput } from "../library/useReopenOutput";
 import { useOpenInWorkspace } from "./useOpenInWorkspace";
 import { DEFAULT_SAMPLE, SAMPLES, loadSampleFile, type SampleImage } from "./samples";
+import { cn } from "../../lib/utils";
 
 const JOBS_QUERY_KEY = ["jobs"] as const;
 const FIRST_RUN_KEY = "lume.home.seen";
@@ -105,6 +107,7 @@ export function HomeLaunchpad() {
   const [imageURL, setImageURL] = useState("");
   const [importingLink, setImportingLink] = useState(false);
   const [linkError, setLinkError] = useState("");
+  const [sampleError, setSampleError] = useState(false);
 
   const jobsQuery = useQuery({
     queryKey: JOBS_QUERY_KEY,
@@ -120,6 +123,7 @@ export function HomeLaunchpad() {
       if (!file) {
         return;
       }
+      setSampleError(false);
       markSeen();
       setFirstRun(false);
       openInWorkspace({ file, mode });
@@ -143,7 +147,10 @@ export function HomeLaunchpad() {
 
   const onSample = useCallback(
     (sample: SampleImage) => {
-      void loadSampleFile(sample).then((file) => openFile(file, sample.mode));
+      setSampleError(false);
+      void loadSampleFile(sample)
+        .then((file) => openFile(file, sample.mode))
+        .catch(() => setSampleError(true));
     },
     [openFile],
   );
@@ -222,23 +229,27 @@ export function HomeLaunchpad() {
           </span>
         </button>
         <div className="flex flex-wrap items-center justify-center gap-2">
-          <Button data-testid={selectors.home.chooseButton} onClick={() => fileInputRef.current?.click()}>
+          <Button data-testid={selectors.home.chooseButton} onClick={() => fileInputRef.current?.click()}
+            shape="square">
             <Upload aria-hidden="true" className="me-2 h-4 w-4" />
             {t(strings.home.entry.choose)}
           </Button>
           <Button
-            variant="outline"
+            variant="ghost"
             data-testid={selectors.home.cameraButton}
             onClick={() => cameraInputRef.current?.click()}
+            shape="square"
+            className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
           >
             <Camera aria-hidden="true" className="me-2 h-4 w-4" />
             {t(strings.home.entry.camera)}
           </Button>
           <Button
-            variant="outline"
+            variant="ghost"
             data-testid={selectors.home.sampleButton}
             onClick={() => onSample(DEFAULT_SAMPLE)}
-            className={showFirstRun ? "animate-pulse-gold" : undefined}
+            className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted", showFirstRun ? "animate-pulse-gold" : undefined)}
+            shape="square"
           >
             <Sparkles aria-hidden="true" className="me-2 h-4 w-4" />
             {t(strings.home.entry.sample)}
@@ -261,7 +272,8 @@ export function HomeLaunchpad() {
             disabled={importingLink}
             className="min-h-touch min-w-0 flex-1 rounded-control border border-app-border bg-app-background px-3 text-sm text-app-foreground placeholder:text-app-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50"
           />
-          <Button type="submit" disabled={!imageURL.trim() || importingLink}>
+          <Button type="submit" disabled={!imageURL.trim() || importingLink}
+            shape="square">
             <Link2 aria-hidden="true" className="me-2 h-4 w-4" />
             {importingLink ? t(strings.home.entry.importingLink) : t(strings.home.entry.importLink)}
           </Button>
@@ -359,6 +371,11 @@ export function HomeLaunchpad() {
         <h3 className="text-xs font-semibold uppercase tracking-wide text-app-muted-foreground">
           {t(strings.home.samples.heading)}
         </h3>
+        {sampleError ? (
+          <p role="alert" className="text-sm text-app-danger">
+            {t(strings.home.entry.sampleLoadError)}
+          </p>
+        ) : null}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {SAMPLES.map((sample) => (
             <button
@@ -402,7 +419,12 @@ export function HomeLaunchpad() {
             Icon={Sparkles}
             title={t(strings.home.recent.empty)}
             action={
-              <Button variant="outline" onClick={() => onSample(DEFAULT_SAMPLE)}>
+              <Button
+                variant="ghost"
+                onClick={() => onSample(DEFAULT_SAMPLE)}
+                shape="square"
+                className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
+              >
                 {t(strings.home.entry.sample)}
               </Button>
             }
@@ -417,8 +439,10 @@ export function HomeLaunchpad() {
                   onClick={() => void reopen(item)}
                   className="block w-full overflow-hidden rounded-control border border-app-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50"
                 >
-                  <img
+                  <SensitiveImage
                     src={blobUrl(item.resultRef)}
+                    sensitive={item.sensitive}
+                    interactive={false}
                     alt={t(strings.home.recent.alt, { operation: item.operation })}
                     loading="lazy"
                     className="aspect-square w-full object-cover"

@@ -39,6 +39,9 @@ func TestListOperationModelsMarksConditionalRightsAsReviewRequired(t *testing.T)
 	if conditional.ID == "" {
 		t.Fatal("seed should include a conditional-rights model for this regression")
 	}
+	// Without the operator's standing acceptance the shared rights owner keeps
+	// unverified evidence unknown, so the picker must ask for review.
+	h.deps.RightsEvaluator = unverifiedRightsForHandlerTest
 	resp, err := h.ListOperationModels(context.Background(), connect.NewRequest(&modelsv1.ListOperationModelsRequest{Operation: conditional.Operations[0]}))
 	if err != nil {
 		t.Fatalf("list operation models: %v", err)

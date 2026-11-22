@@ -29,13 +29,18 @@ populated with the current working-tree changes.
 The CLI installs alongside (`git-control-tower --help`). Common flows:
 
 ```bash
-git-control-tower repo status                    # working-tree status
-git-control-tower repo diff --path=src/App.tsx    # unified diff for a file
+# Show working-tree status.
+git-control-tower repo status
+# Show the working-tree diff for one file.
+git-control-tower repo diff --path="src/App.tsx"
+# Read source at an immutable commit.
 git-control-tower repo diff --path=src/App.tsx --commit=0123456789abcdef0123456789abcdef01234567 --mode=source --json
-                                                  # source at an immutable commit, with the returned hash and byte length
-git-control-tower repo blame <path>              # native blame; add --enrich for linked evidence
-git-control-tower branch list                    # branches + ahead/behind
-git-control-tower review <slug>                  # scenario review report
+# Show native line attribution with linked evidence.
+git-control-tower repo blame --path="src/App.tsx" --enrich
+# List branches and ahead/behind state.
+git-control-tower branch list
+# Show scenario readiness.
+git-control-tower review summary "git-control-tower"
 ```
 
 The historical source form requires a full 40- or 64-character hexadecimal

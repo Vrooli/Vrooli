@@ -7,6 +7,16 @@ import (
 	"time"
 )
 
+// TidinessManagerAPI is the owner-client seam shared by the typed GCT service
+// and isolated tests. Tidiness Manager remains authoritative for every result.
+type TidinessManagerAPI interface {
+	GetTidinessScore(context.Context, string) (*TidinessScoreResponse, error)
+	GetIssues(context.Context, string, string, string, string, int) ([]TidinessIssue, error)
+	GetStaleness(context.Context, string) (*TidinessStalenessInfo, error)
+	TriggerLightScan(context.Context, TidinessLightScanRequest) (*TidinessLightScanResult, error)
+	GetScenarioDetail(context.Context, string) (*TidinessScenarioDetail, error)
+}
+
 // TidinessManagerClient is a lightweight HTTP client for tidiness-manager APIs.
 type TidinessManagerClient struct {
 	BaseClient

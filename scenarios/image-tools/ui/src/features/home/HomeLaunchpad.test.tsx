@@ -195,6 +195,22 @@ describe("HomeLaunchpad", () => {
     });
   });
 
+  it("keeps the launchpad usable and reports an accessible error when a sample cannot load", async () => {
+    const user = userEvent.setup();
+    loadSampleFile.mockRejectedValueOnce(new Error("bundled sample unavailable"));
+    renderWithProviders(<HomeLaunchpad />);
+
+    await user.click(screen.getByTestId(selectors.home.sampleButton));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("home.entry.sampleLoadError");
+    expect(takeWorkspaceIntent()).toBeNull();
+    expect(screen.getByTestId(selectors.home.chooseButton)).toBeInTheDocument();
+
+    await user.upload(screen.getByTestId(selectors.home.fileInput), pngFile());
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(takeWorkspaceIntent()?.file).toBeInstanceOf(File);
+  });
+
   it("a sample tile loads that sample (here: the analyze receipt opens analyze mode)", async () => {
     const user = userEvent.setup();
     const receipt = SAMPLES.find((s) => s.key === "receipt");

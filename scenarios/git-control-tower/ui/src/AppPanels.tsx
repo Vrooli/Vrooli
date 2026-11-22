@@ -18,6 +18,9 @@ export interface PanelDeps {
 
   // Queries
   statusData: RepoStatus | undefined;
+  statusIsLoading: boolean;
+  statusError: Error | null;
+  onRefreshStatus: () => void;
   diffData: DiffResponse | undefined;
   diffIsLoading: boolean;
   diffError: Error | null;
@@ -186,6 +189,9 @@ export function renderPanel(
       return (
         <FileList
           files={deps.statusData?.files}
+          loading={deps.statusIsLoading && !deps.statusData}
+          loadError={deps.statusError?.message ?? null}
+          onRetryLoad={deps.onRefreshStatus}
           runIndex={deps.runIndex}
           onRevealInTree={deps.onRevealInTree}
           onOpenRun={deps.onOpenRun}

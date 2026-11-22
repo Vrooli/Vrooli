@@ -8,6 +8,7 @@
 package gateway
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -17,7 +18,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -28,6 +28,7 @@ import (
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/ensure"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/policy"
+	"github.com/vrooli/vrooli/resources/ollama/cli/internal/runtimeprofile"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil/hostsem"
@@ -35,7 +36,6 @@ import (
 
 var (
 	defaultParallel        = 1
-	defaultCPUThreadBudget = 4
 	defaultAcquire         = tuning.ResourceHTTPTimeout()
 	charsPerToken          = 4
 	envNumParallel         = "OLLAMA_NUM_PARALLEL"
@@ -45,9 +45,8 @@ var (
 	defaultLockChild       = "vrooli/resources/ollama/sem"
 	defaultMaxImageBytes   = 10 * 1024 * 1024
 	defaultMaxImages       = 4
-	maxGatewayContext      = 131072
-	maxGatewayThreads      = 128
-	maxGatewayBatch        = 4096
+	maxEmbedInputs         = 64
+	maxEmbedInputBytes     = 1 << 20
 	envMaxImageBytes       = "OLLAMA_GATEWAY_MAX_IMAGE_BYTES"
 	envMaxImages           = "OLLAMA_GATEWAY_MAX_IMAGES"
 )
@@ -73,7 +72,7 @@ type imageInputEnvelope struct {
 // Client is the upstream-facing surface used by the gateway handlers. It is
 // satisfied by *ensure.Client in production and by fakes in tests.
 type Client interface {
-	Embed(ctx context.Context, model, input string) ([]float64, error)
+	EmbedBatch(ctx context.Context, model string, inputs []string, options map[string]any) (ensure.EmbedResponse, error)
 	Generate(ctx context.Context, in ensure.GenerateRequest) (ensure.GenerateResponse, error)
 	Chat(ctx context.Context, in ensure.ChatRequest) (ensure.ChatResponse, error)
 }
@@ -138,19 +137,19 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 			{
 				Name:        "embed",
 				Description: "Compute an embedding vector for --input (or stdin) using --role or --model",
-				Usage:       "resource-ollama gateway embed --role embedding.default [--require-loopback] [--expected-model <ref> --expected-artifact-digest <sha256>] [--expected-rights-decision-sha256 <sha256> --expected-rights-evaluated-at <timestamp> --expected-rights-receipt-sha256 <sha256> --expected-policy-file-sha256 <sha256>] [--json] [--input <text> | --input-stdin]",
+				Usage:       "resource-ollama gateway embed --role embedding.default [--require-loopback] [--expected-model <ref> --expected-artifact-digest <sha256>] [--expected-rights-decision-sha256 <sha256> --expected-rights-evaluated-at <timestamp> --expected-rights-receipt-sha256 <sha256> --expected-policy-file-sha256 <sha256>] [--json] [--cpu-only] [--input <text> | --input-stdin | --input-json-stdin]",
 				Run:         h.Embed,
 			},
 			{
 				Name:        "generate",
 				Description: "Generate a completion for --prompt (or stdin) using --role or --model",
-				Usage:       "resource-ollama gateway generate --role chat.default [--json] [--require-loopback] [--expected-model <ref> --expected-artifact-digest <sha256>] [--expected-rights-decision-sha256 <sha256> --expected-rights-evaluated-at <timestamp> --expected-rights-receipt-sha256 <sha256> --expected-policy-file-sha256 <sha256>] [--require-worker-digest <sha256>] [--one-shot --timeout 90s] [--cpu-only] [--max-tokens <n>] [--temperature <f>] [--num-ctx <n>] [--num-thread <n>] [--num-batch <n>] [--prompt <text> | --prompt-stdin | --input-json-stdin]",
+				Usage:       "resource-ollama gateway generate --role chat.default [--json] [--require-loopback] [--expected-model <ref> --expected-artifact-digest <sha256>] [--expected-rights-decision-sha256 <sha256> --expected-rights-evaluated-at <timestamp> --expected-rights-receipt-sha256 <sha256> --expected-policy-file-sha256 <sha256>] [--require-worker-digest <sha256>] [--one-shot --timeout 90s] [--cpu-only] [--max-tokens <n>] [--temperature <f>] [--context-budget <n>] [--prompt <text> | --prompt-stdin | --input-json-stdin]",
 				Run:         h.Generate,
 			},
 			{
 				Name:        "chat",
 				Description: "Generate a chat response for --prompt (or stdin) using --role or --model",
-				Usage:       "resource-ollama gateway chat --role summarize.default --system <text> [--require-loopback] [--expected-model <ref> --expected-artifact-digest <sha256>] [--expected-rights-decision-sha256 <sha256> --expected-rights-evaluated-at <timestamp> --expected-rights-receipt-sha256 <sha256> --expected-policy-file-sha256 <sha256>] [--json] [--think=false] [--max-tokens <n>] [--temperature <f>] [--num-ctx <n>] [--num-thread <n>] [--num-batch <n>] [--prompt <text> | --prompt-stdin]",
+				Usage:       "resource-ollama gateway chat --role summarize.default --system <text> [--require-loopback] [--expected-model <ref> --expected-artifact-digest <sha256>] [--expected-rights-decision-sha256 <sha256> --expected-rights-evaluated-at <timestamp> --expected-rights-receipt-sha256 <sha256> --expected-policy-file-sha256 <sha256>] [--json] [--think=false] [--max-tokens <n>] [--temperature <f>] [--context-budget <n>] [--prompt <text> | --prompt-stdin]",
 				Run:         h.Chat,
 			},
 		},
@@ -173,6 +172,8 @@ func (h *Handlers) Embed(args []string) error {
 	fs.Bool("require-loopback", false, "Compatibility assertion; gateway inference always requires verified loopback transport")
 	input := fs.String("input", "", "Inline text to embed")
 	fromStdin := fs.Bool("input-stdin", false, "Read input text from stdin")
+	inputJSONStdin := fs.Bool("input-json-stdin", false, "Read {\"inputs\":[...]} from stdin for a bounded batch")
+	cpuOnly := fs.Bool("cpu-only", false, "Run on the runtime profile's cpu-only variant (replaces a loaded GPU runner for this model)")
 	asJSON := fs.Bool("json", false, "Emit a single JSON object {\"embedding\":[...]} on stdout")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -187,16 +188,27 @@ func (h *Handlers) Embed(args []string) error {
 	if err := policy.CheckExpectedLocalInferenceEvidence(h.GetEnv, selected.Role, selected.Ref, *expectedRightsDecision, *expectedRightsEvaluatedAt, *expectedRightsReceipt, *expectedPolicyFileSHA256); err != nil {
 		return err
 	}
-	text, err := h.resolveInput(*input, *fromStdin, "input")
+	inputs, err := h.resolveEmbedInputs(*input, *fromStdin, *inputJSONStdin)
 	if err != nil {
 		return err
 	}
+	if len(inputs) > 1 && !*asJSON {
+		return fmt.Errorf("batch embedding requires --json")
+	}
+	profile := runtimeprofile.Current()
+	options, err := profile.GatewayOptions(selected.Ref, variantFor(*cpuOnly))
+	if err != nil {
+		return err
+	}
+	inputLimit := profile.ContextTokens(selected.Ref)
 
+	admissionStarted := time.Now()
 	ctx, release, err := h.acquire(context.Background())
 	if err != nil {
 		return err
 	}
 	defer release()
+	admissionWaitNS := time.Since(admissionStarted).Nanoseconds()
 
 	client, err := h.newLoopbackClient()
 	if err != nil {
@@ -207,17 +219,45 @@ func (h *Handlers) Embed(args []string) error {
 	if err := h.requireLocalRights(ctx, selected, client, *expectedArtifactDigest, *expectedRightsDecision, *expectedRightsEvaluatedAt, *expectedRightsReceipt, *expectedPolicyFileSHA256); err != nil {
 		return err
 	}
-	vec, err := client.Embed(ctx, selected.Ref, text)
+	providerStarted := time.Now()
+	// Inputs longer than the runner context are truncated at the tail by
+	// Ollama (runtime profile embedding overflow policy), so a long document
+	// embeds its head instead of failing on every retry.
+	runtimeResponse, err := client.EmbedBatch(ctx, selected.Ref, inputs, options)
 	if err != nil {
 		return err
 	}
-	if *asJSON {
-		return cliout.NewCompactEncoder(h.Stdout).Encode(struct {
-			Embedding []float64 `json:"embedding"`
-		}{Embedding: vec})
+	vectors := runtimeResponse.Embeddings
+	if len(vectors) != len(inputs) {
+		return fmt.Errorf("embed: response vector count %d differs from input count %d", len(vectors), len(inputs))
 	}
-	parts := make([]string, len(vec))
-	for i, f := range vec {
+	providerDurationNS := time.Since(providerStarted).Nanoseconds()
+	if *asJSON {
+		out := struct {
+			Embedding              []float64   `json:"embedding,omitempty"`
+			Embeddings             [][]float64 `json:"embeddings,omitempty"`
+			InputLimitTokens       int         `json:"input_limit_tokens"`
+			Truncated              *bool       `json:"truncated,omitempty"`
+			AdmissionWaitNS        int64       `json:"admission_wait_ns"`
+			ProviderDurationNS     int64       `json:"provider_duration_ns"`
+			RuntimeTotalDurationNS int64       `json:"runtime_total_duration_ns,omitempty"`
+			RuntimeLoadDurationNS  int64       `json:"runtime_load_duration_ns,omitempty"`
+			RuntimePromptEvalCount int         `json:"runtime_prompt_eval_count,omitempty"`
+		}{InputLimitTokens: inputLimit, AdmissionWaitNS: admissionWaitNS, ProviderDurationNS: providerDurationNS}
+		if len(vectors) == 1 {
+			out.Embedding = vectors[0]
+			truncated := runtimeResponse.PromptEvalCount >= inputLimit
+			out.Truncated = &truncated
+		} else {
+			out.Embeddings = vectors
+		}
+		out.RuntimeTotalDurationNS = runtimeResponse.TotalDuration
+		out.RuntimeLoadDurationNS = runtimeResponse.LoadDuration
+		out.RuntimePromptEvalCount = runtimeResponse.PromptEvalCount
+		return cliout.NewCompactEncoder(h.Stdout).Encode(out)
+	}
+	parts := make([]string, len(vectors[0]))
+	for i, f := range vectors[0] {
 		parts[i] = strconv.FormatFloat(f, 'g', -1, 64)
 	}
 	_, err = fmt.Fprintln(h.Stdout, strings.Join(parts, " "))
@@ -245,9 +285,7 @@ func (h *Handlers) Generate(args []string) error {
 	cpuOnly := fs.Bool("cpu-only", false, "Force Ollama to run this request without GPU layers")
 	maxTokens := fs.Int("max-tokens", 0, "Maximum tokens to generate; omitted when <= 0")
 	temperature := fs.Float64("temperature", -1, "Sampling temperature; omitted when < 0")
-	numCtx := fs.Int("num-ctx", 0, "Per-request context size; bounded by the selected model policy")
-	numThread := fs.Int("num-thread", 0, "Per-request CPU thread limit (1-128)")
-	numBatch := fs.Int("num-batch", 0, "Per-request prompt batch size (1-4096)")
+	contextBudget := fs.Int("context-budget", 0, "Refuse the request unless estimated prompt plus max tokens fit in n tokens; n may not exceed the runner context, which the runtime profile owns")
 	oneShot := fs.Bool("one-shot", false, "Require target model absent before generation, unload after, and verify it left /api/ps")
 	requestTimeout := fs.Duration("timeout", 0, "Generation timeout (e.g. 90s); requires --one-shot")
 	format := fs.String("format", "", "Ollama JSON format (json or a JSON Schema object)")
@@ -287,14 +325,11 @@ func (h *Handlers) Generate(args []string) error {
 		return err
 	}
 	budget := effectiveMaxTokens(*maxTokens, selected)
-	controls, err := validateRuntimeControls(*numCtx, *numThread, *numBatch, selected)
+	window, err := admissionContext(*contextBudget, selected)
 	if err != nil {
 		return err
 	}
-	if err := applyCPUThreadBudget(&controls); err != nil {
-		return err
-	}
-	if err := validateContextWindow(text, budget, selected, controls.NumCtx); err != nil {
+	if err := validateContextWindow(text, budget, selected, window); err != nil {
 		return err
 	}
 	if *requestTimeout < 0 {
@@ -349,9 +384,8 @@ func (h *Handlers) Generate(args []string) error {
 	// caller's output budget on hidden reasoning and return an empty response.
 	think := false
 	req := ensure.GenerateRequest{Model: selected.Ref, Prompt: text, Images: images, Think: &think, Format: formatJSON}
-	if *cpuOnly {
-		numGPU := 0
-		req.NumGPU = &numGPU
+	if req.RuntimeOptions, err = runtimeprofile.Current().GatewayOptions(selected.Ref, variantFor(*cpuOnly)); err != nil {
+		return err
 	}
 	if budget > 0 {
 		req.NumPredict = &budget
@@ -359,9 +393,6 @@ func (h *Handlers) Generate(args []string) error {
 	if *temperature >= 0 {
 		req.Temperature = temperature
 	}
-	req.NumCtx = controls.NumCtx
-	req.NumThread = controls.NumThread
-	req.NumBatch = controls.NumBatch
 	if *oneShot {
 		keepAlive := 0
 		req.KeepAlive = &keepAlive
@@ -572,9 +603,7 @@ func (h *Handlers) Chat(args []string) error {
 	fromStdin := fs.Bool("prompt-stdin", false, "Read user prompt from stdin")
 	maxTokens := fs.Int("max-tokens", 0, "Maximum tokens to generate; omitted when <= 0")
 	temperature := fs.Float64("temperature", -1, "Sampling temperature; omitted when < 0")
-	numCtx := fs.Int("num-ctx", 0, "Per-request context size; bounded by the selected model policy")
-	numThread := fs.Int("num-thread", 0, "Per-request CPU thread limit (1-128)")
-	numBatch := fs.Int("num-batch", 0, "Per-request prompt batch size (1-4096)")
+	contextBudget := fs.Int("context-budget", 0, "Refuse the request unless estimated prompt plus max tokens fit in n tokens; n may not exceed the runner context, which the runtime profile owns")
 	think := fs.Bool("think", false, "Allow model thinking output when supported")
 	asJSON := fs.Bool("json", false, "Emit a single JSON object {\"response\":\"...\",\"done_reason\":\"...\",\"eval_count\":0} on stdout")
 	if err := fs.Parse(args); err != nil {
@@ -595,14 +624,11 @@ func (h *Handlers) Chat(args []string) error {
 		return err
 	}
 	budget := effectiveMaxTokens(*maxTokens, selected)
-	controls, err := validateRuntimeControls(*numCtx, *numThread, *numBatch, selected)
+	window, err := admissionContext(*contextBudget, selected)
 	if err != nil {
 		return err
 	}
-	if err := applyCPUThreadBudget(&controls); err != nil {
-		return err
-	}
-	if err := validateContextWindow(*system+"\n"+text, budget, selected, controls.NumCtx); err != nil {
+	if err := validateContextWindow(*system+"\n"+text, budget, selected, window); err != nil {
 		return err
 	}
 
@@ -618,15 +644,15 @@ func (h *Handlers) Chat(args []string) error {
 	}
 	messages = append(messages, ensure.ChatMessage{Role: "user", Content: text})
 	req := ensure.ChatRequest{Model: selected.Ref, Messages: messages, Think: think}
+	if req.RuntimeOptions, err = runtimeprofile.Current().GatewayOptions(selected.Ref, ""); err != nil {
+		return err
+	}
 	if budget > 0 {
 		req.NumPredict = &budget
 	}
 	if *temperature >= 0 {
 		req.Temperature = temperature
 	}
-	req.NumCtx = controls.NumCtx
-	req.NumThread = controls.NumThread
-	req.NumBatch = controls.NumBatch
 	client, err := h.newLoopbackClient()
 	if err != nil {
 		return err
@@ -833,53 +859,33 @@ func (h *Handlers) maxImages() int {
 	return defaultMaxImages
 }
 
-type runtimeControls struct {
-	NumCtx    *int
-	NumThread *int
-	NumBatch  *int
+// variantFor names the runtime profile variant a gateway flag selects.
+func variantFor(cpuOnly bool) string {
+	if cpuOnly {
+		return runtimeprofile.VariantCPUOnly
+	}
+	return ""
 }
 
-func applyCPUThreadBudget(controls *runtimeControls) error {
-	if controls == nil {
-		return fmt.Errorf("runtime controls are required")
+// admissionContext returns the caller's context budget for admission checks,
+// or nil to use the model policy window. A budget never reaches Ollama: the
+// runner context is owned by the runtime profile so every caller shares one
+// runner, and a budget above it would be silently truncated by the runner.
+func admissionContext(budget int, selected selectedModel) (*int, error) {
+	if budget < 0 {
+		return nil, fmt.Errorf("--context-budget cannot be negative")
 	}
-	if controls.NumThread != nil && *controls.NumThread > defaultCPUThreadBudget {
-		return fmt.Errorf("--num-thread %d exceeds the Ollama resource CPU thread budget %d", *controls.NumThread, defaultCPUThreadBudget)
+	if budget == 0 {
+		return nil, nil
 	}
-	if controls.NumThread == nil {
-		budget := defaultCPUThreadBudget
-		controls.NumThread = &budget
+	runner := runtimeprofile.Current().ContextTokens(selected.Ref)
+	if budget > runner {
+		return nil, fmt.Errorf("--context-budget %d exceeds the %d-token runner context the Ollama runtime profile declares for %s", budget, runner, selected.Ref)
 	}
-	return nil
-}
-
-func validateRuntimeControls(numCtx, numThread, numBatch int, selected selectedModel) (runtimeControls, error) {
-	controls := runtimeControls{}
-	if numCtx < 0 || numCtx > maxGatewayContext {
-		return controls, fmt.Errorf("--num-ctx must be between 1 and %d when provided", maxGatewayContext)
+	if selected.ContextWindowTokens > 0 && budget > selected.ContextWindowTokens {
+		return nil, fmt.Errorf("--context-budget %d exceeds context window for %s (%d)", budget, selected.Ref, selected.ContextWindowTokens)
 	}
-	if numThread < 0 || numThread > maxGatewayThreads {
-		return controls, fmt.Errorf("--num-thread must be between 1 and %d when provided", maxGatewayThreads)
-	}
-	if numBatch < 0 || numBatch > maxGatewayBatch {
-		return controls, fmt.Errorf("--num-batch must be between 1 and %d when provided", maxGatewayBatch)
-	}
-	if numCtx > 0 {
-		if selected.ContextWindowTokens > 0 && numCtx > selected.ContextWindowTokens {
-			return controls, fmt.Errorf("--num-ctx %d exceeds context window for %s (%d)", numCtx, selected.Ref, selected.ContextWindowTokens)
-		}
-		controls.NumCtx = &numCtx
-	}
-	if numThread > 0 {
-		if n := runtime.NumCPU(); n > 0 && numThread > n {
-			return controls, fmt.Errorf("--num-thread %d exceeds host CPU count %d", numThread, n)
-		}
-		controls.NumThread = &numThread
-	}
-	if numBatch > 0 {
-		controls.NumBatch = &numBatch
-	}
-	return controls, nil
+	return &budget, nil
 }
 
 func validateContextWindow(prompt string, maxTokens int, selected selectedModel, numCtx *int) error {
@@ -930,6 +936,63 @@ func (h *Handlers) resolveInput(inline string, fromStdin bool, name string) (str
 		return "", fmt.Errorf("--%s or --%s-stdin is required", name, name)
 	}
 	return inline, nil
+}
+
+func (h *Handlers) resolveEmbedInputs(inline string, fromStdin, fromJSONStdin bool) ([]string, error) {
+	if fromJSONStdin {
+		if inline != "" || fromStdin {
+			return nil, fmt.Errorf("--input-json-stdin cannot be combined with --input or --input-stdin")
+		}
+		encoded, err := io.ReadAll(io.LimitReader(h.Stdin, int64(maxEmbedInputBytes+1)))
+		if err != nil {
+			return nil, fmt.Errorf("read embedding batch from stdin: %w", err)
+		}
+		if len(encoded) > maxEmbedInputBytes {
+			return nil, fmt.Errorf("embedding batch exceeds the %d-byte input limit", maxEmbedInputBytes)
+		}
+		decoder := json.NewDecoder(bytes.NewReader(encoded))
+		decoder.DisallowUnknownFields()
+		var request struct {
+			Inputs []string `json:"inputs"`
+		}
+		if err := decoder.Decode(&request); err != nil {
+			return nil, fmt.Errorf("decode embedding batch from stdin: %w", err)
+		}
+		var trailing any
+		if err := decoder.Decode(&trailing); err != io.EOF {
+			return nil, fmt.Errorf("embedding batch stdin must contain one JSON object")
+		}
+		if err := validateEmbedInputCount(request.Inputs); err != nil {
+			return nil, err
+		}
+		return request.Inputs, nil
+	}
+	text, err := h.resolveInput(inline, fromStdin, "input")
+	if err != nil {
+		return nil, err
+	}
+	inputs := []string{text}
+	if err := validateEmbedInputCount(inputs); err != nil {
+		return nil, err
+	}
+	return inputs, nil
+}
+
+func validateEmbedInputCount(inputs []string) error {
+	if len(inputs) < 1 || len(inputs) > maxEmbedInputs {
+		return fmt.Errorf("embedding input count must be between 1 and %d", maxEmbedInputs)
+	}
+	totalBytes := 0
+	for _, input := range inputs {
+		if strings.TrimSpace(input) == "" {
+			return fmt.Errorf("embedding inputs must be non-empty")
+		}
+		totalBytes += len(input)
+		if totalBytes > maxEmbedInputBytes {
+			return fmt.Errorf("embedding batch exceeds the %d-byte input limit", maxEmbedInputBytes)
+		}
+	}
+	return nil
 }
 
 // acquire builds a context bounded by the gateway acquire timeout and waits

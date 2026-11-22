@@ -22,11 +22,12 @@ type GitConfigCache struct {
 // and hotspot mode are part of the key, and callers without this dependency
 // continue to get a fresh read.
 type RepoStatusCache struct {
-	mu      sync.RWMutex
-	entries map[string]repoStatusCacheEntry
-	ttl     time.Duration
-	now     func() time.Time
-	flight  singleflight.Group
+	mu            sync.RWMutex
+	entries       map[string]repoStatusCacheEntry
+	ttl           time.Duration
+	now           func() time.Time
+	flight        singleflight.Group
+	pageSnapshots *RepoStatusPageCache
 }
 
 type repoStatusCacheEntry struct {
@@ -38,6 +39,14 @@ func NewRepoStatusCache(ttl time.Duration) *RepoStatusCache {
 	return &RepoStatusCache{entries: make(map[string]repoStatusCacheEntry), ttl: ttl, now: time.Now}
 }
 
+func (c *RepoStatusCache) SetPageSnapshots(cache *RepoStatusPageCache) {
+	if c != nil {
+		c.mu.Lock()
+		c.pageSnapshots = cache
+		c.mu.Unlock()
+	}
+}
+
 // Invalidate removes all cached views for a repository after a mutation. The
 // hotspot, non-hotspot and lightweight-snapshot variants are separate keys
 // because their payloads differ.
@@ -46,10 +55,14 @@ func (c *RepoStatusCache) Invalidate(repoDir string) {
 		return
 	}
 	c.mu.Lock()
+	pageSnapshots := c.pageSnapshots
 	defer c.mu.Unlock()
 	delete(c.entries, repoDir)
 	delete(c.entries, repoDir+"\x00hotspots")
 	delete(c.entries, repoDir+"\x00snapshot")
+	if pageSnapshots != nil {
+		pageSnapshots.InvalidateRepo(repoDir)
+	}
 }
 
 func (c *RepoStatusCache) Get(ctx context.Context, key string, load func(context.Context) (*RepoStatus, error)) (*RepoStatus, error) {

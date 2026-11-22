@@ -12,7 +12,7 @@ import {
   ChevronDown,
   ChevronUp
 } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { Badge } from "./ui/badge";
 import type { SSHKeyInfo } from "../lib/api";
 import {
@@ -258,7 +258,7 @@ export function SettingsTabCredentialsSSH({
         <div className={isMobile ? "space-y-3" : "space-y-2"}>
           <div className={`flex gap-2 ${isMobile ? "flex-col" : "flex-row flex-wrap"}`}>
             <Button
-              variant="default"
+              variant="primary"
               size="sm"
               onClick={handleSaveSSHKey}
               disabled={saveMutation.isPending}
@@ -273,11 +273,12 @@ export function SettingsTabCredentialsSSH({
             </Button>
 
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={() => handleCopyPublicKey(selectedKey.path)}
               disabled={getPublicKeyMutation.isPending || !selectedKey.has_public}
               className={`${buttonHeight} ${isMobile ? "w-full" : ""}`}
+              style={{ background: "transparent" }}
             >
               {getPublicKeyMutation.isPending ? (
                 <RefreshCw className="h-3 w-3 animate-spin mr-2" />
@@ -290,11 +291,12 @@ export function SettingsTabCredentialsSSH({
             </Button>
 
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={() => handleTestSSHConnection(selectedKey.path)}
               disabled={testSSHMutation.isPending}
               className={`${buttonHeight} ${isMobile ? "w-full" : ""}`}
+              style={{ background: "transparent" }}
             >
               {testSSHMutation.isPending ? (
                 <RefreshCw className="h-3 w-3 animate-spin mr-2" />
@@ -474,7 +476,7 @@ export function SettingsTabCredentialsSSH({
             </div>
 
             <Button
-              variant="default"
+              variant="primary"
               size="sm"
               onClick={handleGenerateKey}
               disabled={generateKeyMutation.isPending}

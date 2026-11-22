@@ -56,7 +56,7 @@ func TestDoctorCatalogReportsActionableFindings(t *testing.T) {
 	      "source": {"checksum": {"algo": "sha256", "status": "pinned"}}
 	    }
 	  ],
-	  "blocklist": [{"id": "conditional", "operations": ["naturalize"], "license": "test", "reason": "blocked"}]
+	  "blocklist": [{"id": "conditional", "operations": ["naturalize"], "license": "test", "reason": "blocked", "gate": "exclusion", "exclusion_kind": "technical"}]
 	}`
 	r, err := Parse([]byte(seed))
 	if err != nil {
@@ -81,7 +81,7 @@ func TestDoctorCatalogReportsActionableFindings(t *testing.T) {
 		"checksum_bad_sha256",
 		"checksum_pinned_without_value",
 		"enabled_conditional_commercial_use",
-		"seed_blocklist_overlap",
+		"seed_exclusion_overlap",
 		"operation_without_installable_enabled_model",
 	} {
 		if !codes[code] {
@@ -126,7 +126,7 @@ func TestDoctorDiffusersEditRunnableInvariant(t *testing.T) {
 		    "hardware": {"gpu_required": true}, "capability_labels": {"commercial_use": "yes"},
 		    "source": {"local_path": "/tmp/x"}, "enabled": true` + runtime + `
 		  }],
-		  "blocklist": [{"id": "x", "operations": ["edit_instruct"], "license": "t", "reason": "r"}]
+		  "blocklist": [{"id": "x", "operations": ["edit_instruct"], "license": "t", "reason": "r", "gate": "license", "gated_uses": ["monetized_use"]}]
 		}`
 	}
 	cases := []struct {
@@ -136,7 +136,7 @@ func TestDoctorDiffusersEditRunnableInvariant(t *testing.T) {
 		want   string
 	}{
 		{"no family", "", "", "enabled_edit_model_without_family"},
-		{"not ready family", "flux-2-klein", "diffusers>=1", "enabled_edit_model_family_not_ready"},
+		{"not ready family", "longcat-image-edit", "diffusers>=1", "enabled_edit_model_family_not_ready"},
 		{"no min_runtime", "instruct-pix2pix", "", "enabled_edit_model_without_min_runtime"},
 	}
 	for _, tc := range cases {
@@ -167,5 +167,57 @@ func TestDoctorDiffusersEditRunnableInvariant(t *testing.T) {
 		if f.ModelID == "good-edit" && f.Code != "checksum_pinned_without_value" {
 			t.Errorf("unexpected finding on a well-formed edit model: %+v", f)
 		}
+	}
+}
+
+// A restrictive license on an enabled model is informational under the shared
+// rights evaluator: normal local use is allowed for every license class, and
+// only monetized, hosted and redistributed use stay refused. A license gate on a
+// seeded row whose rights would grant the gated uses is a catalog error.
+func TestDoctorLicenseFindingsFollowSharedRightsEvaluator(t *testing.T) {
+	seed := `{
+	  "schema_version": "1.0.0",
+	  "models": [
+	    {"id": "nc", "name": "NC", "operations": ["naturalize"], "default_for": ["naturalize"], "tier": "default", "backend": "builtin",
+	     "hardware": {"cpu_capable": true}, "capability_labels": {"commercial_use": "no", "commercial_use_notes": "non-commercial"},
+	     "rights": {"artifact_id": "nc", "classification": "prohibited"}, "enabled": true},
+	    {"id": "cond", "name": "Cond", "operations": ["naturalize"], "default_for": [], "tier": "default", "backend": "builtin",
+	     "hardware": {"cpu_capable": true}, "capability_labels": {"commercial_use": "conditional", "commercial_use_notes": "review"},
+	     "rights": {"artifact_id": "cond", "classification": "unknown"}, "enabled": true},
+	    {"id": "mislabelled", "name": "Mislabelled", "operations": ["naturalize"], "default_for": [], "tier": "default", "backend": "builtin",
+	     "hardware": {"cpu_capable": true}, "capability_labels": {"commercial_use": "yes"},
+	     "rights": {"artifact_id": "mislabelled", "classification": "unrestricted"}, "enabled": true}
+	  ],
+	  "blocklist": [
+	    {"id": "nc", "operations": ["naturalize"], "license": "NC", "reason": "non-commercial", "gate": "license", "gated_uses": ["monetized_use", "hosted_inference"]},
+	    {"id": "mislabelled", "operations": ["naturalize"], "license": "NC", "reason": "non-commercial", "gate": "license", "gated_uses": ["monetized_use"]}
+	  ]
+	}`
+	r, err := Parse([]byte(seed))
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	report := r.DoctorCatalog()
+	got := map[string]CatalogFinding{}
+	for _, f := range report.Findings {
+		got[f.ModelID+"/"+f.Code] = f
+	}
+	for _, key := range []string{"nc/enabled_non_commercial_license", "cond/enabled_conditional_commercial_use"} {
+		f, ok := got[key]
+		if !ok {
+			t.Fatalf("missing %s in %+v", key, report.Findings)
+		}
+		if f.Severity != FindingInfo || !strings.Contains(f.Message, "normal local use is allowed") {
+			t.Fatalf("%s should be informational for normal use, got %+v", key, f)
+		}
+	}
+	if _, ok := got["nc/license_gate_rights_disagree"]; ok {
+		t.Fatalf("a prohibited row agrees with its license gate: %+v", report.Findings)
+	}
+	if f, ok := got["mislabelled/license_gate_rights_disagree"]; !ok || f.Severity != FindingError {
+		t.Fatalf("a commercial-labelled row under a license gate must be an error, got %+v", report.Findings)
+	}
+	if report.OK {
+		t.Fatal("doctor must fail while a license gate disagrees with its row's rights")
 	}
 }

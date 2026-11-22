@@ -14,7 +14,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { BundledLanguage, Highlighter } from "shiki";
 import { onProfilerRender } from "../lib/profiler";
-import { MermaidDiagram } from "./MermaidDiagram";
+import { MermaidDiagram } from "@vrooli/react-component-library/markdown-renderer/0";
 import { ResizableMarkdownTable } from "@vrooli/react-component-library/markdown-renderer/0";
 
 interface MarkdownPreviewProps {

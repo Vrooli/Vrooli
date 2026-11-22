@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image-tools/internal/modelenv"
 	"log"
 	"os"
 	"os/exec"
@@ -21,6 +22,9 @@ type Config struct {
 	// ModelInstalled reports whether a model's weights are on disk. Required for
 	// the model-backed ops (ocr/nsfw); probe never consults it.
 	ModelInstalled func(modelID string) bool
+	// AcquireModel makes a missing model's governed weights present before
+	// admission takes any lease (nil keeps the "not installed" refusal).
+	AcquireModel func(ctx context.Context, modelID, jobID string, emit func(progress int, message string)) error
 	// AcquireModelUse holds shared ownership while NSFW inference reads model
 	// files; production shares this gate with the Installer and AI engine.
 	AcquireModelUse func(modelID string) (release func(), err error)
@@ -50,6 +54,7 @@ type Config struct {
 // function (no deps).
 type Service struct {
 	modelInstalled  func(string) bool
+	acquireModel    func(context.Context, string, string, func(int, string)) error
 	acquireCapacity func(context.Context, sharedcapacity.Request) (*sharedcapacity.Scope, error)
 	modelRAMBytes   func(string) (int64, error)
 	modelReady      func(context.Context, string) (bool, string)
@@ -77,6 +82,7 @@ func NewService(cfg Config) (*Service, error) {
 	}
 	return &Service{
 		modelInstalled:  cfg.ModelInstalled,
+		acquireModel:    cfg.AcquireModel,
 		acquireCapacity: cfg.AcquireCapacity,
 		modelRAMBytes:   cfg.ModelRAMBytes,
 		modelReady:      cfg.ModelReady,
@@ -103,7 +109,7 @@ func (s *Service) resolveRun() cmdOutput {
 	}
 	return func(ctx context.Context, name string, args []string) ([]byte, error) {
 		cmd := exec.CommandContext(ctx, name, args...)
-		cmd.Env = append(os.Environ(), "CUDA_VISIBLE_DEVICES=", "OMP_NUM_THREADS=1", "MKL_NUM_THREADS=1", "OPENBLAS_NUM_THREADS=1", "IMAGE_TOOLS_CPU_THREADS=1")
+		cmd.Env = modelenv.Apply(append(os.Environ(), "CUDA_VISIBLE_DEVICES=", "OMP_NUM_THREADS=1", "MKL_NUM_THREADS=1", "OPENBLAS_NUM_THREADS=1", "IMAGE_TOOLS_CPU_THREADS=1"), modelenv.ModeInference)
 		return cmd.Output()
 	}
 }

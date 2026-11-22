@@ -1,6 +1,6 @@
 import { FileText, X } from "lucide-react";
 import { Badge } from "./ui/badge";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 
 export interface ViewingFileBlame {
   path: string;
@@ -17,7 +17,7 @@ export function BlameModeHeader({ file, onExit, compact }: BlameModeHeaderProps)
   if (compact) {
     return (
       <header
-        className="flex items-center justify-between px-3 py-2 border-b border-blue-800/50 bg-blue-950/30 backdrop-blur-sm"
+        className="gct-mobile-header relative z-40 flex items-center justify-between px-3 py-2 border-b border-blue-800/50"
         data-testid="mobile-header"
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -31,10 +31,11 @@ export function BlameModeHeader({ file, onExit, compact }: BlameModeHeaderProps)
         </div>
 
         <Button
-          variant="outline"
+          variant="secondary"
           size="sm"
           onClick={onExit}
           className="gap-1 border-blue-600/50 text-blue-200 hover:bg-blue-900/30 text-xs px-2"
+          style={{ background: "transparent" }}
         >
           <X className="h-3.5 w-3.5" />
           Exit
@@ -68,11 +69,12 @@ export function BlameModeHeader({ file, onExit, compact }: BlameModeHeaderProps)
 
       <div className="flex items-center gap-3 flex-shrink-0">
         <Button
-          variant="outline"
+          variant="secondary"
           size="sm"
           onClick={onExit}
           className="gap-1.5 border-blue-600/50 text-blue-200 hover:bg-blue-900/30"
           data-testid="exit-blame-mode"
+          style={{ background: "transparent" }}
         >
           <X className="h-3.5 w-3.5" />
           Back to Working Directory

@@ -964,6 +964,98 @@
       ]
     },
     {
+      "id": "jobs_rate",
+      "path": "/vrooli.image_tools.v1.jobs.JobsService/RateJob",
+      "method": "POST",
+      "summary": "Rate a job's output",
+      "description": "Records the operator's 1-5 rating and optional note for a succeeded job, replacing an earlier rating. Ratings feed the evidence-derived model verdicts.",
+      "category": "jobs",
+      "request": {
+        "type": "object",
+        "properties": {
+          "actor": "string (optional; who is rating)",
+          "job_id": "string",
+          "note": "string (optional, max 1000 chars)",
+          "score": "int32 (1-5)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "rating": "JobRating"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Score outside 1-5 or note too long"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "The job has no recorded result"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Only a succeeded job has an output to rate"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Rate a result 4 of 5",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.jobs.JobsService/RateJob -H 'Content-Type: application/json' -d '{\"job_id\":\"<job-id>\",\"score\":4,\"note\":\"kept the face\"}'"
+        }
+      ]
+    },
+    {
+      "id": "jobs_rating_clear",
+      "path": "/vrooli.image_tools.v1.jobs.JobsService/ClearJobRating",
+      "method": "POST",
+      "summary": "Clear a job's rating",
+      "description": "Removes the operator's rating for a job.",
+      "category": "jobs",
+      "request": {
+        "type": "object",
+        "properties": {
+          "job_id": "string"
+        }
+      },
+      "response": {
+        "type": "object"
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "The job has no rating"
+        }
+      ]
+    },
+    {
+      "id": "jobs_ratings_list",
+      "path": "/vrooli.image_tools.v1.jobs.JobsService/ListJobRatings",
+      "method": "POST",
+      "summary": "List job ratings",
+      "description": "Returns the operator's ratings newest first, optionally narrowed to a model and/or operation. This is the evidence behind a verdict's operator-rating line.",
+      "category": "jobs",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int32 (default 50)",
+          "model_id": "string (optional)",
+          "operation": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "ratings": "array<JobRating>"
+        }
+      }
+    },
+    {
       "id": "looks_list",
       "path": "/vrooli.image_tools.v1.looks.LooksService/ListLooks",
       "method": "POST",
@@ -1220,7 +1312,7 @@
       "path": "/vrooli.image_tools.v1.models.ModelsService/ProvisionModels",
       "method": "POST",
       "summary": "Provision local model capabilities",
-      "description": "Prepares a minimal host-fit model set for every effectively enabled capability, including private runtime, backend tools, model artifacts and load-smoke evidence in one durable timed job. Unsupported, unready or non-commercial-clean capability routes remain visible as gaps and keep the overall readiness result incomplete. Explicit model_ids prepares only the requested models.",
+      "description": "Prepares a minimal host-fit model set for every effectively enabled capability, including private runtime, backend tools, model artifacts and load-smoke evidence in one durable timed job. Unsupported or unready capability routes remain visible as gaps and keep the overall readiness result incomplete. Explicit model_ids prepares only the requested models.",
       "category": "models",
       "request": {
         "type": "object",
@@ -1396,17 +1488,53 @@
       ]
     },
     {
-      "id": "models_set_enabled",
-      "path": "/vrooli.image_tools.v1.models.ModelsService/SetModelEnabled",
+      "id": "models_override_clear",
+      "path": "/vrooli.image_tools.v1.models.ModelsService/ClearModelOverride",
       "method": "POST",
-      "summary": "Enable or disable a model",
-      "description": "Toggles a model's runtime-enabled state, persisted in the SQLite overlay over the read-only seed catalog. Models without verified commercial rights cannot be enabled.",
+      "summary": "Clear a model's override",
+      "description": "Deletes the model's enabled-state override so it follows the seed again.",
       "category": "models",
       "request": {
         "type": "object",
         "properties": {
-          "enabled": "bool",
           "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "model": "Model"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such model, or the model has no override"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Follow the seed again",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ClearModelOverride -H 'Content-Type: application/json' -d '{\"id\":\"restoreformer-plus-plus\"}'"
+        }
+      ]
+    },
+    {
+      "id": "models_set_enabled",
+      "path": "/vrooli.image_tools.v1.models.ModelsService/SetModelEnabled",
+      "method": "POST",
+      "summary": "Enable or disable a model",
+      "description": "Records an enabled-state override over the read-only seed catalog, with who set it, when, why and whether it is pinned. An unpinned override stops applying when the seed's enabled flag later changes (it is marked superseded); a pinned one always wins. Models whose rights the evaluator refuses for local use cannot be enabled.",
+      "category": "models",
+      "request": {
+        "type": "object",
+        "properties": {
+          "actor": "string (optional; who is setting it, default \"api\")",
+          "enabled": "bool",
+          "id": "string",
+          "pinned": "bool (optional; keep the override against later seed changes)",
+          "reason": "string (optional; required when pinned)"
         }
       },
       "response": {
@@ -1443,8 +1571,8 @@
       "id": "models_blocklist",
       "path": "/vrooli.image_tools.v1.models.ModelsService/ListBlocklist",
       "method": "POST",
-      "summary": "List blocklisted models",
-      "description": "Returns the license-encumbered models that must never be seeded or adopted, with the reason each is excluded.",
+      "summary": "List license gates and exclusions",
+      "description": "Returns every catalog gate: license gates refuse only the listed monetized, hosted or redistributed uses (normal local use is allowed); exclusions keep a model out of the catalog for a safety, technical or hardware-fit reason.",
       "category": "models",
       "response": {
         "type": "object",
@@ -1464,7 +1592,7 @@
       "path": "/vrooli.image_tools.v1.models.ModelsService/DoctorCatalog",
       "method": "POST",
       "summary": "Diagnose model catalog integrity",
-      "description": "Checks seed catalog installability, operation coverage, commercial-use policy, blocklist overlap, and checksum/source metadata coherence.",
+      "description": "Checks seed catalog installability, operation coverage, license-gate agreement (informational for normal use), exclusion overlap, and checksum/source metadata coherence.",
       "category": "models",
       "response": {
         "type": "object",
@@ -1759,6 +1887,132 @@
       ]
     },
     {
+      "id": "models_storage",
+      "path": "/vrooli.image_tools.v1.models.ModelsService/GetModelStorage",
+      "method": "POST",
+      "summary": "Report model-weight storage and the adaptive offload plan",
+      "description": "Returns free-disk headroom above the shared disk floor, the adaptive idle threshold it implies, every installed weight-backed model ranked by offload value with its protections and selection, and recent offload receipts. Read-only.",
+      "category": "models",
+      "request": {
+        "type": "object",
+        "properties": {
+          "receipt_limit": "int32 (optional; default 20)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "receipts": "array<ModelOffloadReceipt>",
+          "report": "ModelStorageReport"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Storage facts could not be read"
+        },
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Model storage management is not wired"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Storage status",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/GetModelStorage -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "models_offload",
+      "path": "/vrooli.image_tools.v1.models.ModelsService/OffloadModels",
+      "method": "POST",
+      "summary": "Dry-run or apply the adaptive model offload",
+      "description": "Evaluates the adaptive offload policy. Without apply it returns the plan only; with apply it removes the selected weights through the installer and writes one durable receipt per attempt. model_ids restricts the pass to named models (bypassing the idle threshold, never a protection). need_bytes previews making room for an acquisition.",
+      "category": "models",
+      "request": {
+        "type": "object",
+        "properties": {
+          "apply": "bool (default false = dry-run)",
+          "model_ids": "array<string> (optional)",
+          "need_bytes": "uint64 (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "bool",
+          "receipts": "array<ModelOffloadReceipt>",
+          "report": "ModelStorageReport"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "A named model does not exist"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "The policy could not be evaluated"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Dry-run",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/OffloadModels -H 'Content-Type: application/json' -d '{}'"
+        },
+        {
+          "name": "Offload one idle model",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/OffloadModels -H 'Content-Type: application/json' -d '{\"apply\":true,\"model_ids\":[\"dncnn\"]}'"
+        }
+      ]
+    },
+    {
+      "id": "models_keep",
+      "path": "/vrooli.image_tools.v1.models.ModelsService/SetModelKeep",
+      "method": "POST",
+      "summary": "Pin or unpin a model against offload",
+      "description": "keep=true records an operator keep pin so neither the adaptive policy nor a targeted offload removes the model's weights; keep=false removes the pin.",
+      "category": "models",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string",
+          "keep": "bool",
+          "reason": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "id": "string",
+          "kept": "bool"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No model with that id exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "The pin could not be stored"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Keep sd-1.5",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/SetModelKeep -H 'Content-Type: application/json' -d '{\"id\":\"sd-1.5\",\"keep\":true}'"
+        }
+      ]
+    },
+    {
       "id": "models_add_custom",
       "path": "/vrooli.image_tools.v1.models.ModelsService/AddCustomModel",
       "method": "POST",
@@ -1851,13 +2105,13 @@
       "path": "/vrooli.image_tools.v1.models.ModelsService/ImportModel",
       "method": "POST",
       "summary": "Import a model by source (confirm + install)",
-      "description": "Composes inspect → operator-confirmed fields (architecture/operations/attestation) → an add-only custom entry → a durable install job (mirrors InstallModel: returns job id + ETA; block once on jobs wait). A positive attest_commercial_rights is required before registration or weight download; it records the operator's rights claim.",
+      "description": "Composes inspect → operator-confirmed fields (architecture/operations/attestation) → an add-only custom entry → a durable install job (mirrors InstallModel: returns job id + ETA; block once on jobs wait). attest_commercial_rights is optional: an unattested import runs locally and keeps hosted, monetized and redistributed use refused; attesting records the rights claim and lifts that. A diffusers repo finds its adapter from its pipeline class; one with no adapter is refused with the missing piece named.",
       "category": "models",
       "request": {
         "type": "object",
         "properties": {
           "architecture": "string (required when inference is none; else overrides)",
-          "attest_commercial_rights": "bool (required true to register or download model weights; decision D4)",
+          "attest_commercial_rights": "bool (optional; lifts the hosted/monetized-use refusal; decision D4)",
           "id": "string (new entry id; must not collide with a seed model)",
           "name": "string (optional display name)",
           "operations": "array<string> (optional; defaults to the architecture's base ops)",
@@ -1893,7 +2147,7 @@
       "examples": [
         {
           "name": "Import an SDXL checkpoint",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ImportModel -H 'Content-Type: application/json' -d '{\"source\":\"stabilityai/stable-diffusion-xl-base-1.0\",\"id\":\"imported-sdxl\",\"architecture\":\"sdxl\",\"attest_commercial_rights\":true}'"
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ImportModel -H 'Content-Type: application/json' -d '{\"source\":\"stabilityai/stable-diffusion-xl-base-1.0\",\"id\":\"imported-sdxl\",\"architecture\":\"sdxl\"}'"
         }
       ]
     },
@@ -2438,6 +2692,202 @@
             "proto_full_name": "vrooli.image_tools.v1.selection.SegmentResult",
             "transport": "json",
             "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.image_tools.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "model_containment",
+      "path": "/api/v1/models/containment",
+      "method": "GET",
+      "summary": "Report the sidecar environment pins and the disk floor",
+      "description": "Lists every cache/home variable pinned under the managed model root, the offline flags inference runs with, the floor value with its reasons and the room above it.",
+      "category": "models",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "disk": "object",
+          "env": "object"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "The disk policy could not be read"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Operator diagnostic for model-storage containment; the payload is the scan/receipt shape, not a Connect procedure.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "proto_full_name": "vrooli.image_tools.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "model_strays",
+      "path": "/api/v1/models/strays",
+      "method": "GET",
+      "summary": "Scan for model bytes outside image-tools' receipts",
+      "description": "Scans library default cache locations and the managed root; changes nothing. Each finding carries bytes and one action: adopt, reclaim or report_only.",
+      "category": "models",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "findings": "array",
+          "scanned": "array",
+          "totals": "object"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "The scan failed"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Operator diagnostic for model-storage containment; the payload is the scan/receipt shape, not a Connect procedure.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "proto_full_name": "vrooli.image_tools.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "model_strays_adopt",
+      "path": "/api/v1/models/strays/adopt",
+      "method": "POST",
+      "summary": "Adopt a stray finding into managed storage",
+      "description": "Moves the finding into the managed root (or records its receipt in place) and appends an adoption receipt.",
+      "category": "models",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "action": "string",
+          "bytes": "integer",
+          "destination": "string",
+          "path": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_request",
+          "description": "No finding id"
+        },
+        {
+          "status": 409,
+          "code": "invalid_request",
+          "description": "The finding is gone or cannot be adopted"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Operator diagnostic for model-storage containment; the payload is the scan/receipt shape, not a Connect procedure.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "proto_full_name": "vrooli.image_tools.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "model_strays_reclaim",
+      "path": "/api/v1/models/strays/reclaim",
+      "method": "POST",
+      "summary": "Reclaim a stray finding that is safe to delete",
+      "description": "Deletes a duplicate of an already-managed copy or untracked managed bytes old enough that no install can own them, and appends a reclaim receipt. Other software's files are never reclaimed.",
+      "category": "models",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "action": "string",
+          "bytes": "integer",
+          "path": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_request",
+          "description": "No finding id"
+        },
+        {
+          "status": 409,
+          "code": "invalid_request",
+          "description": "The finding is gone or cannot be reclaimed"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Operator diagnostic for model-storage containment; the payload is the scan/receipt shape, not a Connect procedure.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
           },
           "error": {
             "proto_full_name": "vrooli.image_tools.v1.shared.ErrorEnvelope",

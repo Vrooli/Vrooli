@@ -1,7 +1,7 @@
 import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
 import { useEffect, useState } from "react";
 import { Settings, X } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { useIsMobile } from "../hooks";
 import { useHealthIssueCount } from "../lib/hooks";
 import { SettingsTabLayout } from "./SettingsTabLayout";
@@ -125,7 +125,7 @@ export function SettingsModal({
         }
         footer={
           <Button
-            variant="default"
+            variant="primary"
             size="sm"
             onClick={onClose}
             className="w-full h-12 text-sm touch-target"
@@ -314,7 +314,13 @@ export function SettingsModal({
 
         {/* Footer */}
         <div className="flex items-center justify-end border-t border-slate-800 px-4 py-3">
-          <Button variant="outline" size="sm" onClick={onClose} className="h-8 px-3">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onClose}
+            className="h-8 px-3"
+            style={{ background: "transparent" }}
+          >
             Done
           </Button>
         </div>

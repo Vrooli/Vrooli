@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { SegmentedControl } from "../../components/ui/segmented-control";
 import { Textarea } from "../../components/ui/textarea";
 import { Toggle } from "../../components/ui/toggle";
@@ -11,6 +11,7 @@ import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { listAIOperations, type AIOperationInfo, type AIParamsInput } from "../../api/ai";
+import { modelsClient } from "../../api/models";
 import { needsConsent } from "../../api/safety";
 import { useSafetyPolicy } from "../safety/useSafetyPolicy";
 import { TIER_LABEL } from "./aiCatalog";
@@ -23,10 +24,13 @@ import {
 import { capabilityPresentation, familyIcon, isPanelOperation } from "./capabilityCatalog";
 import type { InpaintOpParams } from "./opParams.generated";
 import { ModelPickerButton } from "../models/ModelPickerButton";
+import { VerdictBadge } from "../models/VerdictBadge";
+import { JobRatingControl } from "./JobRatingControl";
 import { MaskBrush } from "./MaskBrush";
 import { MODE_LABEL } from "./modeLabels";
 import { isCreateActive, type CreateVariation, type UseCreate } from "./useCreate";
 import { VariationGrid } from "./VariationGrid";
+import { cn } from "../../lib/utils";
 
 const AI_OPS_QUERY_KEY = ["ai-operations"] as const;
 
@@ -83,6 +87,7 @@ export function CreatePanel({
   const [cropContextPixels, setCropContextPixels] = useState("96");
   const [mask, setMask] = useState<File | null>(null);
   const [poseSource, setPoseSource] = useState<File | null>(null);
+  const [reference, setReference] = useState<File | null>(null);
   const [openRailMAccepted, setOpenRailMAccepted] = useState(false);
 
   const generationOps = useMemo(
@@ -117,6 +122,7 @@ export function CreatePanel({
   // A new op means a new input contract; drop a stale mask and re-affirm consent.
   useEffect(() => {
     setMask(null);
+    setReference(null);
     setPoseSource(null);
     setOpenRailMAccepted(false);
     setConsentAffirmed(false);
@@ -129,13 +135,31 @@ export function CreatePanel({
   const requiresImage = opInfo?.requiresImage ?? false;
   const requiresMask = opInfo?.requiresMask ?? false;
   const promptDriven = opInfo?.promptDriven ?? false;
-  // Public-tier identity-altering ops need an affirmed-consent checkbox; on the
-  // local tier `requireConsent` is false so this is always false (no checkbox).
-  const requiresConsent = needsConsent(policyQuery.data, operation);
+  const requiresReference = opInfo?.requiresReference ?? false;
+  // Whether this request needs a consent affirmation is the server's answer for
+  // the route it would take (the same rule the submit edge enforces): a
+  // high-weight op that stays on this machine asks for nothing, one that would
+  // leave it (cloud provider, remote node) or run on a public deployment asks.
+  // Until that answer arrives the deployment tier's own rule stands in.
+  const consentQuery = useQuery({
+    queryKey: ["create-consent", operation, modelOverride, allowByok, forceCpu],
+    queryFn: () =>
+      modelsClient.explainResolution({ operation, modelId: modelOverride, allowByok, forceCpu }),
+    enabled: !!operation && !!opInfo,
+    retry: false,
+    staleTime: 30_000,
+  });
+  const explained = consentQuery.data?.resolution;
+  const requiresConsent = explained
+    ? explained.consentRequired
+    : needsConsent(policyQuery.data, operation);
+  const consentOffMachine = !!explained?.consentRequired && explained.consentBasis === "route";
   const showSize = operation === "text_to_image";
   const showVariations = !requiresMask;
 
   const busy = isCreateActive(create.phase);
+  // Every variation of a run belongs to one job, and the rating attaches to it.
+  const ratedJobId = create.results[0]?.result.jobId ?? "";
   const { model } = create;
   const tierKey = TIER_LABEL[create.tier];
 
@@ -229,6 +253,7 @@ export function CreatePanel({
 
   const missingImage = requiresImage && !input;
   const missingMask = requiresMask && !mask;
+  const missingReference = requiresReference && !reference;
   const missingPrompt = promptDriven && !prompt.trim();
   const missingConsent = requiresConsent && !consentAffirmed;
   // Keep this route staged while the adapter and its pinned pose runtime are
@@ -236,7 +261,7 @@ export function CreatePanel({
   // in the typed request for any future submission.
   const poseRouteUnavailable = operation === "text_to_image" && !!poseSource;
   const canRun =
-    !busy && !!operation && !missingImage && !missingMask && !missingPrompt && !missingConsent && !poseRouteUnavailable;
+    !busy && !!operation && !missingImage && !missingMask && !missingReference && !missingPrompt && !missingConsent && !poseRouteUnavailable;
 
   const randomizeSeed = () => {
     setSeed(String(Math.floor(Math.random() * 1_000_000_000)));
@@ -247,12 +272,11 @@ export function CreatePanel({
     if (!canRun) {
       return;
     }
-    create.start(
-      operation,
-      params,
-      requiresImage ? input ?? undefined : operation === "text_to_image" ? poseSource ?? undefined : undefined,
-      requiresMask ? mask ?? undefined : undefined,
-    );
+    create.start(operation, params, {
+      input: requiresImage ? input ?? undefined : operation === "text_to_image" ? poseSource ?? undefined : undefined,
+      mask: requiresMask ? mask ?? undefined : undefined,
+      reference: requiresReference ? reference ?? undefined : undefined,
+    });
   };
 
   return (
@@ -308,8 +332,13 @@ export function CreatePanel({
                   }
                 >
                   <Icon aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-app-brand" />
-                  <span className="text-xs font-medium text-app-foreground">
-                    {meta?.labelKey ? t(meta.labelKey) : op.name}
+                  <span className="flex flex-col items-start gap-1">
+                    <span className="text-xs font-medium text-app-foreground">
+                      {meta?.labelKey ? t(meta.labelKey) : op.name}
+                    </span>
+                    {op.defaultModelId ? (
+                      <VerdictBadge verdict={op.defaultVerdict} testId={selectors.workspace.opVerdict({ name: op.name })} />
+                    ) : null}
                   </span>
                 </button>
               );
@@ -397,6 +426,25 @@ export function CreatePanel({
                 </p>
               )}
             </>
+          )}
+
+          {requiresReference && (
+            <label className="flex flex-col gap-1 text-xs text-app-muted-foreground">
+              <span>{t(strings.workspace.create.reference.label)}</span>
+              <input
+                data-testid={selectors.workspace.create.reference}
+                type="file"
+                accept="image/*"
+                onChange={(event) => setReference(event.currentTarget.files?.[0] ?? null)}
+              />
+              {missingReference ? (
+                <span data-testid={selectors.workspace.create.needsReference} className="text-app-warning">
+                  {t(strings.workspace.create.reference.needed)}
+                </span>
+              ) : (
+                <span>{t(strings.workspace.create.reference.staged, { name: reference?.name ?? "" })}</span>
+              )}
+            </label>
           )}
 
           {showSize && (
@@ -559,8 +607,17 @@ export function CreatePanel({
 
           {requiresConsent && (
             <div className="flex flex-col gap-1 rounded-control border border-app-warning/50 bg-app-surface-muted p-3">
+              {explained?.consentReason && (
+                <p data-testid={selectors.workspace.create.consentReason} className="text-xs text-app-foreground">
+                  {explained.consentReason}
+                </p>
+              )}
               <Toggle
-                label={t(strings.workspace.create.consent.label)}
+                label={t(
+                  consentOffMachine
+                    ? strings.workspace.create.consent.labelOffMachine
+                    : strings.workspace.create.consent.label,
+                )}
                 checked={consentAffirmed}
                 onChange={setConsentAffirmed}
                 data-testid={selectors.workspace.create.consent}
@@ -608,6 +665,7 @@ export function CreatePanel({
                 type="button"
                 data-testid={selectors.workspace.create.install}
                 onClick={create.installAndRun}
+                shape="square"
               >
                 {t(strings.workspace.enhance.install.run)}
               </Button>
@@ -641,10 +699,12 @@ export function CreatePanel({
                 </>
               )}
               <Button
-                variant="outline"
+                variant="ghost"
                 type="button"
                 data-testid={selectors.workspace.create.cancel}
                 onClick={create.cancel}
+                shape="square"
+                className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
               >
                 {t(strings.workspace.create.cancel)}
               </Button>
@@ -655,6 +715,7 @@ export function CreatePanel({
               data-testid={selectors.workspace.create.run}
               disabled={!canRun}
               onClick={run}
+              shape="square"
             >
               {t(strings.workspace.create.run)}
             </Button>
@@ -697,10 +758,12 @@ export function CreatePanel({
                 </p>
               )}
               <Button
-                variant="outline"
+                variant="ghost"
                 type="button"
                 data-testid={selectors.workspace.create.retry}
                 onClick={create.retry}
+                shape="square"
+                className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
               >
                 {t(strings.workspace.create.retry)}
               </Button>
@@ -714,6 +777,8 @@ export function CreatePanel({
             onSendToCanvas={onSendToCanvas}
             onSendToEnhance={onSendToEnhance}
           />
+
+          {create.phase === "succeeded" && ratedJobId ? <JobRatingControl jobId={ratedJobId} /> : null}
         </div>
       )}
     </section>

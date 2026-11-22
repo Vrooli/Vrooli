@@ -9,7 +9,7 @@ import { MediaLightbox, MutationErrorBanner, formatRelativeTime, type LightboxIt
 import { SurfaceComparePanel } from "../features/baselines/SurfaceComparePanel";
 import { SurfaceCaptureEmptyState } from "../features/baselines/SurfaceCaptureEmptyState";
 import { useSurfaceBaselineModal } from "../features/baselines/useSurfaceBaselineModal";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 
 const SCREENSHOT_KINDS = ["screenshot", "image", "visual.diff"];
 const EVIDENCE_PAGE_SIZE = 40;
@@ -47,7 +47,12 @@ export function ScreenshotsTab({ scenarioSlug, repoId, testGenieAvailable, agent
         {startRun.isPending && <div role="status" className="flex items-center gap-2 text-xs text-blue-300"><Loader2 className="h-3.5 w-3.5 animate-spin" />Screenshot run accepted by Test Genie…</div>}
         {evidenceQuery.data?.degradedReasons.map((reason) => <p key={reason} className="text-xs text-amber-400"><AlertTriangle className="inline h-3 w-3 mr-1" />{reason}</p>)}
         {runs.map((entry) => <VisualRunGallery key={entry.run.runId} entry={entry} scenario={scenarioSlug} agentManagerAvailable={agentManagerAvailable} onAttachToAgent={onAttachToAgent} onOpenTests={onOpenTests} />)}
-        {evidenceQuery.data?.hasMore && <Button variant="outline" size="sm" onClick={() => setEvidenceLimit((limit) => limit + EVIDENCE_PAGE_SIZE)}>Load {Math.min(EVIDENCE_PAGE_SIZE, Math.max(0, evidenceQuery.data.total - evidenceLimit))} more visual artifacts</Button>}
+        {evidenceQuery.data?.hasMore && <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => setEvidenceLimit((limit) => limit + EVIDENCE_PAGE_SIZE)}
+          style={{ background: "transparent" }}
+        >Load {Math.min(EVIDENCE_PAGE_SIZE, Math.max(0, evidenceQuery.data.total - evidenceLimit))} more visual artifacts</Button>}
       </>}
   </div>;
 }

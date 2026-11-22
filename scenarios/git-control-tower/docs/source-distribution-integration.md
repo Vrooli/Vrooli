@@ -20,14 +20,14 @@ publication state. The authoritative owner is the
 
 The typed source-ramp contract is
 `packages/proto/schemas/scenario-to-repository/v1/source/source.proto`.
-GCT consumes its Connect read methods through the following REST projection:
+GCT consumes its Connect read methods through the same-origin typed
+`SourceDistributionService` projection (`ListDistributions` and
+`GetDistributionDetails`). The detail method preserves the source-ramp's four
+separate reads: distribution, contents, publication handoff, and drift.
+List accepts context/scenario filters, defaults to 50 candidates, and caps the
+request at 200.
 
-| GCT route | Source-ramp read | Purpose |
-| --- | --- | --- |
-| `GET /api/v1/source-distributions` | `ListDistributions` | List durable candidates, preserving the exact tuple. |
-| `GET /api/v1/source-distributions/{id}` | `GetDistribution`, `GetDistributionContents`, `GetPublicationHandoff`, `GetDistributionDrift` | Open one candidate and show contents, handoff, and drift as separate evidence. |
-
-The `repository_context` and `scenario` query values are filters/context only;
+The `repository_context` and `scenario` request values are filters/context only;
 they do not change source-ramp authority or create a new record.
 
 ## Evidence and operator journey

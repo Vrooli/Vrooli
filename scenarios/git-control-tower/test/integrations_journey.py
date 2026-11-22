@@ -16,10 +16,10 @@ with sync_playwright() as p:
         page.get_by_role("button",name="Integrations",exact=True).first.click()
         panel=page.locator('[data-rcl-integrations]')
         expect(panel.get_by_role("button",name="By capability",exact=True)).to_be_visible(timeout=30000)
-        response=page.request.get(url+"/api/v1/capabilities")
+        response=page.request.post(url+"/vrooli.git_control_tower.v1.integration.IntegrationService/GetCapabilities", data={}, headers={"Content-Type":"application/json"})
         assert response.ok,response.text()
         body=response.json()
-        dependencies=body.get("data",body)["capabilities"]
+        dependencies=body["capabilities"]
         assert dependencies
         for dep in dependencies:
             for use in dep.get("uses",[]):

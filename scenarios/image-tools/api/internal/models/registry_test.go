@@ -3,6 +3,7 @@ package models
 import (
 	"encoding/json"
 	"fmt"
+	"image-tools/internal/capabilities"
 	"image-tools/internal/capability"
 	"reflect"
 	"strings"
@@ -10,8 +11,8 @@ import (
 )
 
 // TestLoadSeed asserts the bundled catalog loads, validates, and upholds the
-// seed-integrity invariants (commercial-clean, ComfyUI-optional, every op has a
-// default, blocklist disjoint).
+// seed-integrity invariants (restrictive licenses annotated, ComfyUI-optional,
+// every op has a default, exclusions disjoint, license gates agree with rows).
 func TestLoadSeed(t *testing.T) {
 	r, err := Load()
 	if err != nil {
@@ -66,8 +67,8 @@ func TestLoadSeed(t *testing.T) {
 		}
 	}
 
-	// Commercial-clean gate across the whole catalog: no outright non-commercial
-	// models, and any "conditional" entry must be opt-in (disabled) + annotated.
+	// License-label hygiene across the whole catalog: a restrictive label (non-
+	// commercial or conditional) must be annotated; non-commercial must be prohibited.
 	for _, m := range r.Models() {
 		var rights struct {
 			ArtifactID       string   `json:"artifact_id"`
@@ -88,28 +89,91 @@ func TestLoadSeed(t *testing.T) {
 				t.Errorf("model %s rights has no review triggers", m.ID)
 			}
 		}
-		if m.CapabilityLabels.CommercialUse == CommercialUseNo {
-			t.Errorf("model %s is commercial_use=no", m.ID)
-		}
-		if m.CapabilityLabels.CommercialUse == CommercialUseConditional {
-			if m.Enabled {
-				t.Errorf("conditional model %s must not be enabled by default", m.ID)
-			}
+		if m.CapabilityLabels.CommercialUse == CommercialUseNo || m.CapabilityLabels.CommercialUse == CommercialUseConditional {
 			if m.CapabilityLabels.CommercialUseNotes == "" {
-				t.Errorf("conditional model %s lacks commercial_use_notes", m.ID)
+				t.Errorf("restricted-license model %s lacks commercial_use_notes", m.ID)
 			}
 		}
-		if _, blocked := r.IsBlocked(m.ID); blocked {
-			t.Errorf("model %s is also blocklisted", m.ID)
+		if m.CapabilityLabels.CommercialUse == CommercialUseNo && rights.Classification != "prohibited" {
+			t.Errorf("non-commercial model %s rights classification = %q, want prohibited so monetized and redistributed use stay refused", m.ID, rights.Classification)
+		}
+		if gate, ok := r.Gate(m.ID); ok && gate.IsExclusion() {
+			t.Errorf("model %s is seeded but excluded (%s)", m.ID, gate.ExclusionKind)
 		}
 	}
 
+	// Licenses gate only monetized, hosted and redistributed use (operator stance
+	// 2026-11-21); only a safety, technical or hardware-fit reason excludes.
 	if len(r.Blocklist()) == 0 {
 		t.Error("expected a non-empty blocklist")
 	}
+	for _, b := range r.Blocklist() {
+		switch b.Gate {
+		case GateLicense:
+			for _, use := range b.GatedUses {
+				if use == RightsUseLocalInference {
+					t.Errorf("license gate %s restricts normal local use", b.ID)
+				}
+			}
+		case GateExclusion:
+			if b.ExclusionKind == "" {
+				t.Errorf("exclusion %s has no non-license reason kind", b.ID)
+			}
+		default:
+			t.Errorf("blocklist entry %s has gate %q", b.ID, b.Gate)
+		}
+	}
+	if gate, ok := r.Gate("codeformer"); !ok || gate.IsExclusion() {
+		t.Errorf("codeformer should be a license gate, got %+v ok=%v", gate, ok)
+	}
+	if gate, ok := r.Gate("flux-dev-and-fill"); !ok || gate.ExclusionKind != ExclusionHardwareFit {
+		t.Errorf("flux-dev-and-fill should be a hardware-fit exclusion, got %+v ok=%v", gate, ok)
+	}
 }
 
-func TestBigLamaPretrainedWeightsRequireRightsConfirmation(t *testing.T) {
+// The 2026-11-21 evaluation picked the best normal-use models regardless of
+// license: Depth Anything V2 Large for depth_map and RestoreFormer++ for
+// face_restore, with the license-clean or runner-up rows still selectable.
+func TestBestNormalUseDefaults(t *testing.T) {
+	r, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	for op, want := range map[string]string{"depth_map": "depth-anything-v2-large", "face_restore": "restoreformer-plus-plus"} {
+		def, ok := r.DefaultFor(op)
+		if !ok || def.ID != want {
+			t.Errorf("default for %s = %q, want %q", op, def.ID, want)
+		}
+	}
+	for _, id := range []string{"depth-anything-v2-small", "depth-anything-v2-large", "codeformer", "restoreformer-plus-plus"} {
+		m, ok := r.ByID(id)
+		if !ok || !m.Enabled {
+			t.Errorf("%s should be an enabled catalog row", id)
+			continue
+		}
+		for _, a := range m.Source.Assets {
+			if a.SHA256 == "" && id != "depth-anything-v2-small" {
+				t.Errorf("%s asset %s has no pinned sha256", id, a.Filename)
+			}
+		}
+	}
+	// Selection prefers the higher tier among GPU-viable candidates, so the
+	// defaults must also out-rank their alternatives.
+	large, _ := r.ByID("depth-anything-v2-large")
+	small, _ := r.ByID("depth-anything-v2-small")
+	rf, _ := r.ByID("restoreformer-plus-plus")
+	cf, _ := r.ByID("codeformer")
+	if large.Tier.rank() <= small.Tier.rank() || rf.Tier.rank() <= cf.Tier.rank() {
+		t.Errorf("defaults must out-rank alternatives: large=%s small=%s rf=%s cf=%s", large.Tier, small.Tier, rf.Tier, cf.Tier)
+	}
+}
+
+// Big-LaMa's pretrained-weight grant is unresolved upstream, so its rights facts
+// stay conditional/unknown and monetized use stays refused. That no longer keeps
+// it disabled (operator stance 2026-11-21: normal local use ignores the license
+// class): the ONNX variant is the enabled object_removal default, while the
+// experimental 1024 export stays disabled until its visual qualification.
+func TestBigLamaKeepsUnresolvedRightsFactsButServesNormalUse(t *testing.T) {
 	r, err := Load()
 	if err != nil {
 		t.Fatalf("Load: %v", err)
@@ -119,13 +183,23 @@ func TestBigLamaPretrainedWeightsRequireRightsConfirmation(t *testing.T) {
 		if !ok {
 			t.Fatalf("model %q not found", id)
 		}
-		if model.Enabled || model.CapabilityLabels.CommercialUse != CommercialUseConditional {
-			t.Errorf("%s rights = enabled:%t commercial_use:%q, want disabled/conditional until the upstream weight grant is confirmed", id, model.Enabled, model.CapabilityLabels.CommercialUse)
+		if model.CapabilityLabels.CommercialUse != CommercialUseConditional {
+			t.Errorf("%s commercial_use = %q, want conditional while the upstream weight grant is unresolved", id, model.CapabilityLabels.CommercialUse)
 		}
 		notes := strings.ToLower(model.CapabilityLabels.CommercialUseNotes)
 		if !strings.Contains(notes, "pretrained") || !strings.Contains(notes, "upstream") || !strings.Contains(notes, "issues/366") {
 			t.Errorf("%s rights notes = %q, want the unresolved upstream pretrained-weight grant", id, model.CapabilityLabels.CommercialUseNotes)
 		}
+	}
+	lama, _ := r.ByID("big-lama")
+	if !lama.Enabled || !lama.IsDefaultFor("object_removal") {
+		t.Errorf("big-lama enabled=%t default=%t, want the enabled object_removal default", lama.Enabled, lama.IsDefaultFor("object_removal"))
+	}
+	if export, _ := r.ByID("big-lama-1024-export"); export.Enabled {
+		t.Error("big-lama-1024-export must stay disabled until its visual qualification")
+	}
+	if migan, _ := r.ByID("mi-gan"); migan.Enabled || migan.IsDefaultFor("object_removal") {
+		t.Error("mi-gan needs an unprovisioned IOPaint backend and must not be an enabled default")
 	}
 }
 
@@ -151,7 +225,10 @@ func TestSwinIRWeightsRequireSeparateRightsConfirmation(t *testing.T) {
 	}
 }
 
-func TestRestoreFormerPlusPlusWeightsRequireRightsConfirmation(t *testing.T) {
+// RestoreFormer++'s checkpoint rights stay unresolved (FFHQ training data), so
+// its rights record keeps monetized use refused; that no longer keeps it out of
+// normal use, where it is the face_restore default.
+func TestRestoreFormerPlusPlusServesNormalUseWithUnresolvedRights(t *testing.T) {
 	r, err := Load()
 	if err != nil {
 		t.Fatal(err)
@@ -160,8 +237,14 @@ func TestRestoreFormerPlusPlusWeightsRequireRightsConfirmation(t *testing.T) {
 	if !ok {
 		t.Fatal("RestoreFormer++ model not found")
 	}
-	if model.Enabled || model.CapabilityLabels.CommercialUse != CommercialUseConditional {
-		t.Errorf("RestoreFormer++ rights = enabled:%t commercial_use:%q, want disabled/conditional until checkpoint rights are clear", model.Enabled, model.CapabilityLabels.CommercialUse)
+	if !model.Enabled || model.CapabilityLabels.CommercialUse != CommercialUseConditional {
+		t.Errorf("RestoreFormer++ = enabled:%t commercial_use:%q, want enabled/conditional", model.Enabled, model.CapabilityLabels.CommercialUse)
+	}
+	var rights struct {
+		Classification string `json:"classification"`
+	}
+	if err := json.Unmarshal(model.Rights, &rights); err != nil || rights.Classification == "unrestricted" {
+		t.Errorf("RestoreFormer++ rights classification = %q (%v), want a non-granting class until checkpoint rights are clear", rights.Classification, err)
 	}
 	notes := strings.ToLower(model.CapabilityLabels.CommercialUseNotes)
 	for _, want := range []string{"ffhq", "cc-by-nc", "cc-by-nc-sa", "restoreformerplusplus", "nvlabs/ffhq-dataset"} {
@@ -403,65 +486,82 @@ func parseSeedWithEnabled(t *testing.T, ids ...string) *Registry {
 
 // TestNewEditInstructModelsInstallabilityContract pins the per-model doctor
 // verdict for the three diffusers instruction-edit models:
-//   - qwen-image-edit ships ENABLED: it has a repo fetch strategy with a PINNED
-//     revision (Phase 2) and a proven (Ready) family adapter, and was validated
-//     end-to-end on a GPU host. It is doctor-clean.
-//   - flux-2-klein-4b and longcat-image-edit-turbo ship DISABLED: they have no
-//     fetch strategy yet AND their family adapters are not proven, so force-enabling
-//     either fires both `enabled_model_without_assets` and
-//     `enabled_edit_model_family_not_ready`.
+//   - qwen-image-edit and flux-2-klein-4b ship ENABLED: each has a repo fetch
+//     strategy with a PINNED revision and a proven (Ready) family adapter, and was
+//     validated end-to-end on a GPU host. flux-2-klein-4b additionally pins its
+//     weight files and fetches only the diffusers tree (not the duplicate root
+//     single-file checkpoint).
+//   - longcat-image-edit-turbo ships DISABLED: it has no fetch strategy yet AND
+//     its family adapter is not proven, so force-enabling it fires both
+//     `enabled_model_without_assets` and `enabled_edit_model_family_not_ready`.
 //
-// The shipped seed (with qwen enabled) is clean.
+// The shipped seed is clean.
 func TestNewEditInstructModelsInstallabilityContract(t *testing.T) {
-	enabledProven := "qwen-image-edit"
-	pending := []string{"flux-2-klein-4b", "longcat-image-edit-turbo"}
+	enabledProven := []string{"qwen-image-edit", "flux-2-klein-4b"}
+	pending := "longcat-image-edit-turbo"
 
 	base, err := Load()
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 	if !base.DoctorCatalog().OK {
-		t.Fatal("shipped seed catalog should be clean with qwen enabled")
+		t.Fatalf("shipped seed catalog should be clean: %+v", base.DoctorCatalog().Findings)
 	}
 
-	// qwen ships enabled, weight-backed, with a pinned repo revision.
-	qwen, ok := base.ByID(enabledProven)
-	if !ok || !qwen.Enabled {
-		t.Fatalf("%s should ship enabled after the e2e proof", enabledProven)
-	}
-	if strings.TrimSpace(qwen.Source.Repo.Revision) == "" {
-		t.Fatalf("%s repo source must pin a revision", enabledProven)
-	}
-
-	// flux/longcat ship disabled and must stay so until their adapters are proven.
-	for _, id := range pending {
+	for _, id := range enabledProven {
 		m, ok := base.ByID(id)
-		if !ok {
-			t.Fatalf("seed missing %q", id)
+		if !ok || !m.Enabled {
+			t.Fatalf("%s should ship enabled after the e2e proof", id)
 		}
-		if m.Enabled {
-			t.Fatalf("%s ships enabled but its family adapter is not proven", id)
+		if strings.TrimSpace(m.Source.Repo.Revision) == "" {
+			t.Fatalf("%s repo source must pin a revision", id)
+		}
+		if fam, ok := DiffusersFamilyByName(m.Runtime.Family); !ok || !fam.Ready {
+			t.Fatalf("%s family %q must be a proven adapter", id, m.Runtime.Family)
 		}
 	}
 
-	// Force-enabling the pending pair fires both invariants.
-	r := parseSeedWithEnabled(t, pending...)
+	klein, _ := base.ByID("flux-2-klein-4b")
+	if klein.Source.Manual {
+		t.Fatal("flux-2-klein-4b must be auto-installable (repo snapshot), not manual")
+	}
+	if got := klein.Source.Repo.RepoID; got != "black-forest-labs/FLUX.2-klein-4B" {
+		t.Fatalf("flux-2-klein-4b must fetch the Apache 4B repo, got %q", got)
+	}
+	if len(klein.Source.Repo.FileSHA256) == 0 {
+		t.Fatal("flux-2-klein-4b must pin its weight file digests")
+	}
+	for _, pattern := range klein.Source.Repo.AllowPatterns {
+		if pattern == "*" || strings.HasSuffix(pattern, ".safetensors") && !strings.Contains(pattern, "/") {
+			t.Fatalf("flux-2-klein-4b allow pattern %q would fetch the duplicate root checkpoint", pattern)
+		}
+	}
+
+	m, ok := base.ByID(pending)
+	if !ok {
+		t.Fatalf("seed missing %q", pending)
+	}
+	if m.Enabled {
+		t.Fatalf("%s ships enabled but its family adapter is not proven", pending)
+	}
+
+	// Force-enabling the pending model fires both invariants.
+	r := parseSeedWithEnabled(t, pending)
 	report := r.DoctorCatalog()
 	if report.OK {
-		t.Fatal("DoctorCatalog should not be OK with the pending models enabled")
+		t.Fatal("DoctorCatalog should not be OK with the pending model enabled")
 	}
-	byModel := make(map[string][]string)
+	var codes []string
 	for _, f := range report.Findings {
-		byModel[f.ModelID] = append(byModel[f.ModelID], f.Code)
+		if f.ModelID == pending {
+			codes = append(codes, f.Code)
+		}
 	}
-	for _, id := range pending {
-		codes := byModel[id]
-		if !containsCode(codes, "enabled_model_without_assets") {
-			t.Errorf("%s: expected enabled_model_without_assets, got %v", id, codes)
-		}
-		if !containsCode(codes, "enabled_edit_model_family_not_ready") {
-			t.Errorf("%s: expected enabled_edit_model_family_not_ready, got %v", id, codes)
-		}
+	if !containsCode(codes, "enabled_model_without_assets") {
+		t.Errorf("%s: expected enabled_model_without_assets, got %v", pending, codes)
+	}
+	if !containsCode(codes, "enabled_edit_model_family_not_ready") {
+		t.Errorf("%s: expected enabled_edit_model_family_not_ready, got %v", pending, codes)
 	}
 }
 
@@ -508,7 +608,7 @@ const validSeed = `{
     }
   ],
   "blocklist": [
-    {"id": "bad-model", "operations": ["upscale"], "license": "NC", "reason": "non-commercial"}
+    {"id": "bad-model", "operations": ["upscale"], "license": "NC", "reason": "non-commercial", "gate": "license", "gated_uses": ["monetized_use"]}
   ]
 }`
 
@@ -520,8 +620,8 @@ func TestParseValid(t *testing.T) {
 	if got, ok := r.DefaultFor("upscale"); !ok || got.ID != "good-default" {
 		t.Fatalf("default upscale: %+v ok=%v", got, ok)
 	}
-	if _, ok := r.IsBlocked("bad-model"); !ok {
-		t.Fatal("bad-model should be blocked")
+	if gate, ok := r.Gate("bad-model"); !ok || gate.Gate != GateLicense {
+		t.Fatalf("bad-model should be license-gated, got %+v ok=%v", gate, ok)
 	}
 	if !r.IsOperation("upscale") || r.IsOperation("teleport") {
 		t.Fatalf("operation membership mismatch")
@@ -563,6 +663,9 @@ func TestParseRejectsMalformed(t *testing.T) {
 	firstModel := func(doc map[string]any) map[string]any {
 		return doc["models"].([]any)[0].(map[string]any)
 	}
+	firstGate := func(doc map[string]any) map[string]any {
+		return doc["blocklist"].([]any)[0].(map[string]any)
+	}
 
 	cases := []struct {
 		name string
@@ -589,6 +692,22 @@ func TestParseRejectsMalformed(t *testing.T) {
 		})},
 		{"unrunnable model", "neither cpu_capable nor gpu_required", mutate(func(d map[string]any) {
 			firstModel(d)["hardware"] = map[string]any{"cpu_capable": false, "gpu_required": false}
+		})},
+		{"gate missing", "want license or exclusion", mutate(func(d map[string]any) {
+			delete(firstGate(d), "gate")
+		})},
+		{"license gate restricting normal use", "never normal local inference", mutate(func(d map[string]any) {
+			firstGate(d)["gated_uses"] = []any{"monetized_use", "local_inference"}
+		})},
+		{"license gate without uses", "no gated_uses", mutate(func(d map[string]any) {
+			delete(firstGate(d), "gated_uses")
+		})},
+		{"exclusion with a license-only reason", "license-only reason is a license gate", mutate(func(d map[string]any) {
+			firstGate(d)["gate"] = "exclusion"
+			delete(firstGate(d), "gated_uses")
+		})},
+		{"gate without reason", "has no reason", mutate(func(d map[string]any) {
+			firstGate(d)["reason"] = ""
 		})},
 	}
 	for _, tc := range cases {
@@ -663,17 +782,10 @@ func TestSeedInvariantPolicyFailures(t *testing.T) {
 		reg  *Registry
 	}{
 		{
-			name: "commercial no",
-			want: "commercial_use=no",
+			name: "commercial no missing notes",
+			want: "commercial_use=no but carries no commercial_use_notes",
 			reg: mutate(func(m map[string]any, _ map[string]any) {
 				m["capability_labels"] = map[string]any{"commercial_use": "no"}
-			}),
-		},
-		{
-			name: "enabled conditional",
-			want: "conditional",
-			reg: mutate(func(m map[string]any, _ map[string]any) {
-				m["capability_labels"] = map[string]any{"commercial_use": "conditional", "commercial_use_notes": "requires review"}
 			}),
 		},
 		{
@@ -685,11 +797,24 @@ func TestSeedInvariantPolicyFailures(t *testing.T) {
 			}),
 		},
 		{
-			name: "blocklist overlap",
-			want: "blocklist",
+			name: "exclusion overlap",
+			want: "is excluded",
 			reg: mutate(func(m map[string]any, doc map[string]any) {
 				doc["blocklist"] = append(doc["blocklist"].([]any), map[string]any{
-					"id": m["id"], "operations": []any{"upscale"}, "license": "blocked", "reason": "test overlap",
+					"id": m["id"], "operations": []any{"upscale"}, "license": "any", "reason": "test overlap",
+					"gate": "exclusion", "exclusion_kind": "technical",
+				})
+			}),
+		},
+		{
+			// A license gate may cover a seeded row, but the row must not claim
+			// the rights the gate refuses.
+			name: "license gate on a commercial row",
+			want: "license-gated but labelled commercial_use=yes",
+			reg: mutate(func(m map[string]any, doc map[string]any) {
+				doc["blocklist"] = append(doc["blocklist"].([]any), map[string]any{
+					"id": m["id"], "operations": []any{"upscale"}, "license": "NC", "reason": "test gate",
+					"gate": "license", "gated_uses": []any{"monetized_use"},
 				})
 			}),
 		},
@@ -707,5 +832,36 @@ func TestSeedInvariantPolicyFailures(t *testing.T) {
 				t.Fatalf("expected invariant error containing %q, got %v", tc.want, err)
 			}
 		})
+	}
+}
+
+// FLUX.2 klein is the default generate/transform/edit model wherever a GPU can
+// hold one streamed stage, and CPU-only hosts keep their CPU-capable defaults.
+// The default comes from tier ranking (klein is the enabled quality-tier
+// candidate), not a default_for entry, so it must never reach a host that
+// cannot run it.
+func TestFluxKleinIsTheGPUDefaultAndCPUHostsKeepCPUDefaults(t *testing.T) {
+	registry, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	gpuHost := capabilities.Host{OS: "linux", Arch: "amd64", Cores: 16, TotalMemoryBytes: 64 << 30, AvailableMemoryBytes: 32 << 30,
+		GPUs: []capabilities.GPU{{Name: "rtx-4070-ti-super", VRAMBytes: 16 << 30, VRAMUsedBytes: 9 << 30}}}
+	cpuOnly := capabilities.Host{OS: "linux", Arch: "amd64", Cores: 8, TotalMemoryBytes: 32 << 30, AvailableMemoryBytes: 16 << 30}
+	for _, operation := range []string{"text_to_image", "image_to_image", "edit_instruct"} {
+		gpu, err := registry.Select(SelectRequest{Operation: operation, Host: gpuHost, CapacityManagedGPU: true, RightsEvaluator: allowRightsForTest}, nil)
+		if err != nil {
+			t.Fatalf("%s on a 16 GB GPU host: %v", operation, err)
+		}
+		if gpu.Model.ID != "flux-2-klein-4b" {
+			t.Errorf("%s GPU default = %s, want flux-2-klein-4b", operation, gpu.Model.ID)
+		}
+		cpu, err := registry.Select(SelectRequest{Operation: operation, Host: cpuOnly, RightsEvaluator: allowRightsForTest}, nil)
+		if err != nil {
+			t.Fatalf("%s on a CPU-only host: %v", operation, err)
+		}
+		if cpu.Model.ID == "flux-2-klein-4b" || !cpu.Model.Hardware.CPUCapable {
+			t.Errorf("%s CPU-only default = %s, want a CPU-capable model", operation, cpu.Model.ID)
+		}
 	}
 }

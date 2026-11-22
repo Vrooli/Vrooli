@@ -3,6 +3,7 @@ package analysis
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -87,5 +88,130 @@ func TestAnalysisAdmissionDenialRollsBackModelReader(t *testing.T) {
 	}
 	if readers.Load() != 0 {
 		t.Fatal("failed admission leaked artifact reader")
+	}
+}
+
+func TestAnalysisAdmissionAcquiresMissingModelBeforeReaderLease(t *testing.T) {
+	var events []string
+	installed := false
+	service, err := NewService(Config{
+		ModelInstalled: func(string) bool { return installed },
+		ModelRAMBytes:  func(string) (int64, error) { return 1 << 30, nil },
+		AcquireModel: func(ctx context.Context, id, jobID string, emit func(int, string)) error {
+			emit(5, "acquiring weights for "+id)
+			events = append(events, "acquire:"+id+"@"+jobID)
+			installed = true
+			return nil
+		},
+		AcquireModelUse: func(id string) (func(), error) { events = append(events, "use:"+id); return func() {}, nil },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var progress []string
+	ctx := jobs.WithAdmissionProgress(t.Context(), func(_ int, m string) { progress = append(progress, m) })
+	admission, err := service.Admit(ctx, jobs.Job{ID: "scan-1", Operation: OpNSFW})
+	if admission.Release != nil {
+		defer func() { _ = admission.Release(context.Background()) }()
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(events) != 2 || events[0] != "acquire:adamcodd-vit-nsfw@scan-1" || events[1] != "use:adamcodd-vit-nsfw" {
+		t.Fatalf("events=%v, want acquisition before the reader lease", events)
+	}
+	if len(progress) != 1 {
+		t.Fatalf("progress=%v", progress)
+	}
+
+	installed = false
+	service.acquireModel = func(context.Context, string, string, func(int, string)) error { return errors.New("manual source") }
+	if _, err := service.Admit(t.Context(), jobs.Job{ID: "scan-2", Operation: OpNSFW}); !errors.Is(err, ErrBackendUnavailable) {
+		t.Fatalf("err=%v, want ErrBackendUnavailable", err)
+	}
+}
+
+func TestAnalysisAdmissionRevalidatesInstalledModelBeforeReaderLease(t *testing.T) {
+	var events []string
+	state := "smoke_pending"
+	service, err := NewService(Config{
+		ModelInstalled: func(string) bool { return true },
+		ModelRAMBytes:  func(string) (int64, error) { return 1 << 30, nil },
+		ModelReady: func(context.Context, string) (bool, string) {
+			events = append(events, "ready?"+state)
+			return state == "ready", state
+		},
+		AcquireModel: func(_ context.Context, id, jobID string, emit func(int, string)) error {
+			emit(5, "revalidating "+id)
+			events = append(events, "revalidate:"+id+"@"+jobID)
+			state = "ready"
+			return nil
+		},
+		AcquireModelUse: func(id string) (func(), error) { events = append(events, "use:"+id); return func() {}, nil },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	admission, err := service.Admit(t.Context(), jobs.Job{ID: "scan-1", Operation: OpNSFW})
+	if admission.Release != nil {
+		defer func() { _ = admission.Release(context.Background()) }()
+	}
+	if err != nil {
+		t.Fatalf("a smoke_pending model must be revalidated and admitted: %v", err)
+	}
+	want := []string{"ready?smoke_pending", "revalidate:adamcodd-vit-nsfw@scan-1", "use:adamcodd-vit-nsfw", "ready?ready"}
+	if len(events) != len(want) {
+		t.Fatalf("events=%v, want %v", events, want)
+	}
+	for i := range want {
+		if events[i] != want[i] {
+			t.Fatalf("events=%v, want %v", events, want)
+		}
+	}
+}
+
+func TestAnalysisAdmissionRefusesWhatRevalidationCannotResolve(t *testing.T) {
+	cases := []struct {
+		name      string
+		acquire   func(context.Context, string, string, func(int, string)) error
+		wantBusy  bool
+		wantInErr string
+	}{
+		{name: "installer leaves a failed smoke untouched", acquire: func(context.Context, string, string, func(int, string)) error { return nil }, wantInErr: "smoke_failed"},
+		{name: "revalidation itself fails", acquire: func(context.Context, string, string, func(int, string)) error { return errors.New("smoke crashed") }, wantInErr: "could not be revalidated"},
+		{name: "exclusive model lease is busy", acquire: func(context.Context, string, string, func(int, string)) error {
+			return sharedcapacity.ErrAssetInUse
+		}, wantBusy: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var held atomic.Int32
+			service, err := NewService(Config{
+				ModelInstalled:  func(string) bool { return true },
+				ModelRAMBytes:   func(string) (int64, error) { return 1 << 30, nil },
+				ModelReady:      func(context.Context, string) (bool, string) { return false, "smoke_failed" },
+				AcquireModel:    tc.acquire,
+				AcquireModelUse: func(string) (func(), error) { held.Add(1); return func() { held.Add(-1) }, nil },
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			admission, err := service.Admit(t.Context(), jobs.Job{ID: "scan", Operation: OpOCR})
+			if admission.Release != nil {
+				_ = admission.Release(context.Background())
+			}
+			if held.Load() != 0 {
+				t.Fatal("a refused model must not keep its reader lease")
+			}
+			if tc.wantBusy {
+				if !errors.Is(err, jobs.ErrCapacityBusy) {
+					t.Fatalf("err=%v, want capacity busy so the scheduler retries", err)
+				}
+				return
+			}
+			if !errors.Is(err, ErrBackendUnavailable) || !strings.Contains(err.Error(), tc.wantInErr) {
+				t.Fatalf("err=%v, want ErrBackendUnavailable naming %q", err, tc.wantInErr)
+			}
+		})
 	}
 }

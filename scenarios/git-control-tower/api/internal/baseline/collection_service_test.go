@@ -26,6 +26,34 @@ func collectionService(t *testing.T) (*Service, *fakeExecutor) {
 	}}), exec
 }
 
+// startCollectionCaptureForTest keeps the common owner, repo-root and baseline
+// request wiring in one place while leaving each test's member identity and
+// requiredness visible at its call site.
+func startCollectionCaptureForTest(t *testing.T, svc *Service, name string, targets ...CollectionTarget) StartCollectionCaptureResult {
+	t.Helper()
+	started, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
+		RepoID: 1, RepoDir: t.TempDir(), Name: name, Targets: targets,
+	})
+	if err != nil {
+		t.Fatalf("StartCollectionCapture(%s): %v", name, err)
+	}
+	return started
+}
+
+func finalizeCaptureForTest(t *testing.T, svc *Service, pending PendingCollectionCapture) {
+	t.Helper()
+	if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, pending); err != nil {
+		t.Fatalf("FinalizeCollectionCapture(%s): %v", pending.Scenario, err)
+	}
+}
+
+func finalizeCapturesForTest(t *testing.T, svc *Service, pending []PendingCollectionCapture) {
+	t.Helper()
+	for _, capture := range pending {
+		finalizeCaptureForTest(t, svc, capture)
+	}
+}
+
 func typedSaturationError(t *testing.T) error {
 	t.Helper()
 	err := connect.NewError(connect.CodeResourceExhausted, errors.New("capacity is full"))
@@ -85,13 +113,7 @@ func TestCollectionCaptureReusesExistingImmutableBaseline(t *testing.T) {
 		t.Fatalf("existing baseline runs = %d, want 1", exec.calls)
 	}
 
-	started, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
-		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
-		Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}},
-	})
-	if err != nil {
-		t.Fatalf("StartCollectionCapture: %v", err)
-	}
+	started := startCollectionCaptureForTest(t, svc, "before", CollectionTarget{Scenario: "plan-manager", BaselineName: "before", Required: true})
 	if exec.calls != 1 || len(started.Pending) != 0 {
 		t.Fatalf("collection started another run: calls=%d pending=%#v", exec.calls, started.Pending)
 	}
@@ -113,16 +135,10 @@ func TestCollectionCaptureCommitsTerminalMemberWhileSiblingWaits(t *testing.T) {
 		Storage: newTestStorage(t), Exec: exec, Runs: &fakeRuns{},
 		CaptureGit: fixedGit(git.State{Sha: "abc", Branch: "agi"}),
 	})
-	started, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
-		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
-		Targets: []CollectionTarget{
-			{Scenario: "blocked", BaselineName: "before", Required: true},
-			{Scenario: "terminal", BaselineName: "before", Required: true},
-		},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	started := startCollectionCaptureForTest(t, svc, "before",
+		CollectionTarget{Scenario: "blocked", BaselineName: "before", Required: true},
+		CollectionTarget{Scenario: "terminal", BaselineName: "before", Required: true},
+	)
 	if len(started.Pending) != 2 {
 		t.Fatalf("pending captures = %#v", started.Pending)
 	}
@@ -185,21 +201,18 @@ func TestCollectionCaptureAdmissionSaturationDefersMemberUntilSiblingCompletes(t
 		typedSaturationError(t),
 		nil,
 	}
-	started, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
-		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
-		Targets: []CollectionTarget{
-			{Scenario: "first", BaselineName: "before", Required: true},
-			{Scenario: "deferred", BaselineName: "before", Required: true},
-		},
-	})
-	if err != nil || len(started.Pending) != 1 || started.Collection.Coverage().Pending != 2 {
-		t.Fatalf("capture = %#v err=%v", started, err)
+	started := startCollectionCaptureForTest(t, svc, "before",
+		CollectionTarget{Scenario: "first", BaselineName: "before", Required: true},
+		CollectionTarget{Scenario: "deferred", BaselineName: "before", Required: true},
+	)
+	if len(started.Pending) != 1 || started.Collection.Coverage().Pending != 2 {
+		t.Fatalf("capture = %#v", started)
 	}
 	if started.Collection.Members[0].Status == CollectionMemberFailed || started.Collection.Members[1].Status == CollectionMemberFailed {
 		t.Fatalf("admission saturation became terminal: %#v", started.Collection)
 	}
 	if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, started.Pending[0]); err != nil {
-		t.Fatal(err)
+		t.Fatalf("finalize first admitted member: %v", err)
 	}
 	deferred, dispatched, err := svc.StartDeferredCollectionCapture(context.Background(), 1, started.Pending[0])
 	if err != nil || !dispatched || deferred.Pending.Run.RunID == "" {
@@ -263,12 +276,9 @@ func TestCollectionCaptureAdmissionSaturationRetriesWithoutSibling(t *testing.T)
 
 func TestFinalizeCollectionCaptureRequeuesAdmissionSaturatedRun(t *testing.T) {
 	svc, exec := collectionService(t)
-	started, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
-		RepoID: 1, RepoDir: t.TempDir(), Name: "terminal-admission-saturation",
-		Targets: []CollectionTarget{{Scenario: "calendar", BaselineName: "terminal-admission-saturation", Required: true}},
-	})
-	if err != nil || len(started.Pending) != 1 {
-		t.Fatalf("capture = %#v err=%v", started, err)
+	started := startCollectionCaptureForTest(t, svc, "terminal-admission-saturation", CollectionTarget{Scenario: "calendar", BaselineName: "terminal-admission-saturation", Required: true})
+	if len(started.Pending) != 1 {
+		t.Fatalf("capture = %#v", started)
 	}
 
 	// The run already has a durable handoff, but Test Genie reports admission
@@ -304,15 +314,12 @@ func TestDeferredCollectionCaptureStopsAfterRequiredFailure(t *testing.T) {
 		nil,
 		typedSaturationError(t),
 	}
-	started, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
-		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
-		Targets: []CollectionTarget{
-			{Scenario: "failed", BaselineName: "before", Required: true},
-			{Scenario: "still-pending", BaselineName: "before", Required: true},
-		},
-	})
-	if err != nil || len(started.Pending) != 1 {
-		t.Fatalf("capture = %#v err=%v", started, err)
+	started := startCollectionCaptureForTest(t, svc, "before",
+		CollectionTarget{Scenario: "failed", BaselineName: "before", Required: true},
+		CollectionTarget{Scenario: "still-pending", BaselineName: "before", Required: true},
+	)
+	if len(started.Pending) != 1 {
+		t.Fatalf("capture = %#v", started)
 	}
 	if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, started.Pending[0]); err != nil {
 		t.Fatal(err)
@@ -342,9 +349,9 @@ func TestDeferredCollectionCaptureStopsAfterRequiredFailure(t *testing.T) {
 
 func TestResumeCollectionCaptureReattachesDurablePendingMembers(t *testing.T) {
 	svc, exec := collectionService(t)
-	started, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{RepoID: 1, RepoDir: t.TempDir(), Name: "before", Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}}})
-	if err != nil || len(started.Pending) != 1 {
-		t.Fatalf("start = %#v err=%v", started, err)
+	started := startCollectionCaptureForTest(t, svc, "before", CollectionTarget{Scenario: "plan-manager", BaselineName: "before", Required: true})
+	if len(started.Pending) != 1 {
+		t.Fatalf("start = %#v", started)
 	}
 	resumed, err := svc.ResumeCollectionCapture(context.Background(), 1, "agi", "before")
 	if err != nil || !resumed.Coverage().Complete() || exec.calls != 1 {
@@ -354,9 +361,9 @@ func TestResumeCollectionCaptureReattachesDurablePendingMembers(t *testing.T) {
 
 func TestResumeCollectionCaptureRepairsPendingProjectionFromReadyChild(t *testing.T) {
 	svc, _ := collectionService(t)
-	started, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{RepoID: 1, RepoDir: t.TempDir(), Name: "before", Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}}})
-	if err != nil || len(started.Pending) != 1 {
-		t.Fatalf("start = %#v err=%v", started, err)
+	started := startCollectionCaptureForTest(t, svc, "before", CollectionTarget{Scenario: "plan-manager", BaselineName: "before", Required: true})
+	if len(started.Pending) != 1 {
+		t.Fatalf("start = %#v", started)
 	}
 	// Simulate a crash after the child commit and before the parent member
 	// projection, followed by retention cleanup of the completed intent.
@@ -379,12 +386,9 @@ func TestResumeCollectionCaptureRepairsPendingProjectionFromReadyChild(t *testin
 
 func TestCollectionCaptureStatusReconcilesTerminalFailureWithoutWait(t *testing.T) {
 	svc, exec := collectionService(t)
-	started, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
-		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
-		Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}},
-	})
-	if err != nil || len(started.Pending) != 1 {
-		t.Fatalf("start collection capture = %#v err=%v", started, err)
+	started := startCollectionCaptureForTest(t, svc, "before", CollectionTarget{Scenario: "plan-manager", BaselineName: "before", Required: true})
+	if len(started.Pending) != 1 {
+		t.Fatalf("start collection capture = %#v", started)
 	}
 	// Simulate the lost async finalizer boundary: Test Genie has already made
 	// the run terminal, but no client invokes the blocking collection wait.
@@ -419,16 +423,10 @@ func TestCollectionCaptureStandingWaitsForAdmittedChildrenAfterSiblingFailure(t 
 
 func TestCollectionReanchorCannotNarrowExistingTargetSelection(t *testing.T) {
 	svc, _ := collectionService(t)
-	_, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
-		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
-		Targets: []CollectionTarget{
-			{Scenario: "first", BaselineName: "before", Required: true},
-			{Scenario: "second", BaselineName: "before", Required: true},
-		},
-	})
-	if err != nil {
-		t.Fatalf("start collection capture: %v", err)
-	}
+	startCollectionCaptureForTest(t, svc, "before",
+		CollectionTarget{Scenario: "first", BaselineName: "before", Required: true},
+		CollectionTarget{Scenario: "second", BaselineName: "before", Required: true},
+	)
 	if _, err := svc.storage.UpdateCollectionMember(1, "agi", "before", "first", func(member *CollectionMember) error {
 		member.Status = CollectionMemberFailed
 		member.Error = "source drift"
@@ -437,7 +435,7 @@ func TestCollectionReanchorCannotNarrowExistingTargetSelection(t *testing.T) {
 		t.Fatalf("seed failed member: %v", err)
 	}
 
-	_, err = svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
+	_, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
 		RepoID: 1, RepoDir: t.TempDir(), Name: "before", AcknowledgeReanchor: true,
 		Targets: []CollectionTarget{{Scenario: "first", BaselineName: "before", Required: true}},
 	})
@@ -457,12 +455,12 @@ func TestResumeCollectionCaptureWaitsConcurrentlyAndReturnsTypedIncomplete(t *te
 	secondDone := make(chan struct{})
 	exec := &blockingFinalizeExecutor{firstAwaitStarted: make(chan struct{}), releaseFirst: make(chan struct{}), secondAwaitDone: secondDone}
 	svc := NewService(Deps{Storage: newTestStorage(t), Exec: exec, Runs: &fakeRuns{}, CaptureGit: fixedGit(git.State{Sha: "abc", Branch: "agi"})})
-	started, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
-		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
-		Targets: []CollectionTarget{{Scenario: "blocked", BaselineName: "before", Required: true}, {Scenario: "terminal", BaselineName: "before", Required: true}},
-	})
-	if err != nil || len(started.Pending) != 2 {
-		t.Fatalf("start = %#v err=%v", started, err)
+	started := startCollectionCaptureForTest(t, svc, "before",
+		CollectionTarget{Scenario: "blocked", BaselineName: "before", Required: true},
+		CollectionTarget{Scenario: "terminal", BaselineName: "before", Required: true},
+	)
+	if len(started.Pending) != 2 {
+		t.Fatalf("start = %#v", started)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	type resumeResult struct {
@@ -478,7 +476,7 @@ func TestResumeCollectionCaptureWaitsConcurrentlyAndReturnsTypedIncomplete(t *te
 	<-secondDone
 	cancel()
 	result := <-done
-	err = result.err
+	err := result.err
 	var incomplete *CollectionIncompleteError
 	if !errors.As(err, &incomplete) || len(incomplete.PendingRunIDs) != 1 || incomplete.PendingRunIDs[0] != "run-1" {
 		t.Fatalf("typed incomplete = %#v err=%v", incomplete, err)
@@ -535,11 +533,7 @@ func TestCollectionDiffOperationIsDurableAndSelectionIdempotent(t *testing.T) { 
 	if _, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{RepoID: 1, RepoDir: t.TempDir(), Name: "before", ParentReceiptID: "other-receipt", Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}}}); err == nil || !strings.Contains(err.Error(), "parent receipt") {
 		t.Fatalf("conflicting collection parent receipt error = %v", err)
 	}
-	for _, pending := range captured.Pending {
-		if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, pending); err != nil {
-			t.Fatal(err)
-		}
-	}
+	finalizeCapturesForTest(t, svc, captured.Pending)
 	started, err := svc.StartCollectionDiff(context.Background(), StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "phase-1", ParentReceiptID: "receipt-2", Scenarios: []string{"plan-manager"}})
 	if err != nil || len(started.Pending) != 1 || started.Operation.ID != "phase-1" || started.Operation.Members[0].Lifecycle != CollectionDiffChildAwaiting {
 		t.Fatalf("start collection diff = %#v err=%v", started, err)
@@ -565,16 +559,8 @@ func TestCollectionDiffOperationIsDurableAndSelectionIdempotent(t *testing.T) { 
 
 func TestCollectionDiffResumesPreDispatchGraphExactlyOnceAcrossConcurrentAgents(t *testing.T) {
 	svc, exec := collectionService(t)
-	captured, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
-		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
-		Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, captured.Pending[0]); err != nil {
-		t.Fatal(err)
-	}
+	captured := startCollectionCaptureForTest(t, svc, "before", CollectionTarget{Scenario: "plan-manager", BaselineName: "before", Required: true})
+	finalizeCaptureForTest(t, svc, captured.Pending[0])
 	collection, err := svc.storage.LoadCollection(1, "agi", "before")
 	if err != nil {
 		t.Fatal(err)
@@ -623,13 +609,8 @@ func TestCollectionDiffResumesPreDispatchGraphExactlyOnceAcrossConcurrentAgents(
 
 func TestCollectionDiffDispatchLeaseIsAtomicAcrossServiceInstances(t *testing.T) {
 	svc, exec := collectionService(t)
-	captured, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{RepoID: 1, RepoDir: t.TempDir(), Name: "before", Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, captured.Pending[0]); err != nil {
-		t.Fatal(err)
-	}
+	captured := startCollectionCaptureForTest(t, svc, "before", CollectionTarget{Scenario: "plan-manager", BaselineName: "before", Required: true})
+	finalizeCaptureForTest(t, svc, captured.Pending[0])
 	peer := NewService(Deps{Storage: svc.storage, Exec: exec, Runs: &fakeRuns{}, CaptureGit: fixedGit(git.State{Sha: "abc", Branch: "agi"})})
 	request := StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "two-servers"}
 	var wg sync.WaitGroup
@@ -659,16 +640,8 @@ func TestCollectionDiffDispatchLeaseIsAtomicAcrossServiceInstances(t *testing.T)
 
 func TestCollectionDiffStatusRetriesExpiredDispatchLease(t *testing.T) {
 	svc, exec := collectionService(t)
-	captured, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
-		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
-		Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, captured.Pending[0]); err != nil {
-		t.Fatal(err)
-	}
+	captured := startCollectionCaptureForTest(t, svc, "before", CollectionTarget{Scenario: "plan-manager", BaselineName: "before", Required: true})
+	finalizeCaptureForTest(t, svc, captured.Pending[0])
 	exec.startErr = errors.New("temporary test-genie outage")
 	started, err := svc.StartCollectionDiff(context.Background(), StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "retry-dispatch"})
 	if err != nil || started.Operation.Members[0].Status != "pending" || started.Operation.Members[0].RunID != "" || started.Operation.Members[0].DispatchAttempts != 1 {
@@ -691,16 +664,8 @@ func TestCollectionDiffStatusRetriesExpiredDispatchLease(t *testing.T) {
 
 func TestCollectionDiffTerminalizesUnrecoverablePreDispatchOperation(t *testing.T) {
 	svc, _ := collectionService(t)
-	captured, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
-		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
-		Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, captured.Pending[0]); err != nil {
-		t.Fatal(err)
-	}
+	captured := startCollectionCaptureForTest(t, svc, "before", CollectionTarget{Scenario: "plan-manager", BaselineName: "before", Required: true})
+	finalizeCaptureForTest(t, svc, captured.Pending[0])
 	collection, err := svc.storage.LoadCollection(1, "agi", "before")
 	if err != nil {
 		t.Fatal(err)
@@ -722,13 +687,8 @@ func TestCollectionDiffTerminalizesUnrecoverablePreDispatchOperation(t *testing.
 
 func TestCollectionDiffTerminalizesAfterBoundedDispatchFailures(t *testing.T) {
 	svc, exec := collectionService(t)
-	captured, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{RepoID: 1, RepoDir: t.TempDir(), Name: "before", Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, captured.Pending[0]); err != nil {
-		t.Fatal(err)
-	}
+	captured := startCollectionCaptureForTest(t, svc, "before", CollectionTarget{Scenario: "plan-manager", BaselineName: "before", Required: true})
+	finalizeCaptureForTest(t, svc, captured.Pending[0])
 	exec.startErr = errors.New("test-genie unavailable")
 	request := StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "bounded-dispatch"}
 	for attempt := 1; attempt <= maxCollectionDiffDispatchAttempts; attempt++ {
@@ -766,9 +726,7 @@ func TestCollectionDiffAdmissionSaturationRemainsPendingUntilCapacityReturns(t *
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, captured.Pending[0]); err != nil {
-		t.Fatal(err)
-	}
+	finalizeCaptureForTest(t, svc, captured.Pending[0])
 	exec.startErr = typedSaturationError(t)
 	request := StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "admission-saturation"}
 	started, err := svc.StartCollectionDiff(context.Background(), request)
@@ -823,16 +781,11 @@ func TestTransientAdmissionSaturationReadsTypedDetail(t *testing.T) {
 
 func TestCollectionDiffStatusUsesImmutableSnapshotAfterCollectionDeletion(t *testing.T) {
 	svc, _ := collectionService(t)
-	captured, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
-		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
-		Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}},
-	})
-	if err != nil || len(captured.Pending) != 1 {
-		t.Fatalf("capture = %#v err=%v", captured, err)
+	captured := startCollectionCaptureForTest(t, svc, "before", CollectionTarget{Scenario: "plan-manager", BaselineName: "before", Required: true})
+	if len(captured.Pending) != 1 {
+		t.Fatalf("capture = %#v", captured)
 	}
-	if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, captured.Pending[0]); err != nil {
-		t.Fatal(err)
-	}
+	finalizeCaptureForTest(t, svc, captured.Pending[0])
 	started, err := svc.StartCollectionDiff(context.Background(), StartCollectionDiffRequest{
 		RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "survives-delete",
 	})
@@ -854,16 +807,11 @@ func TestCollectionDiffStatusUsesImmutableSnapshotAfterCollectionDeletion(t *tes
 
 func TestCollectionDiffStatusDoesNotAdoptLaterCollectionMembers(t *testing.T) {
 	svc, _ := collectionService(t)
-	captured, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
-		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
-		Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}},
-	})
-	if err != nil || len(captured.Pending) != 1 {
-		t.Fatalf("capture = %#v err=%v", captured, err)
+	captured := startCollectionCaptureForTest(t, svc, "before", CollectionTarget{Scenario: "plan-manager", BaselineName: "before", Required: true})
+	if len(captured.Pending) != 1 {
+		t.Fatalf("capture = %#v", captured)
 	}
-	if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, captured.Pending[0]); err != nil {
-		t.Fatal(err)
-	}
+	finalizeCaptureForTest(t, svc, captured.Pending[0])
 	if _, err := svc.StartCollectionDiff(context.Background(), StartCollectionDiffRequest{
 		RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "does-not-expand",
 	}); err != nil {
@@ -887,16 +835,11 @@ func TestCollectionDiffStatusDoesNotAdoptLaterCollectionMembers(t *testing.T) {
 
 func TestCollectionDiffStatusReconcilesTerminalChildAfterFinalizerLoss(t *testing.T) {
 	svc, _ := collectionService(t)
-	captured, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
-		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
-		Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}},
-	})
-	if err != nil || len(captured.Pending) != 1 {
-		t.Fatalf("capture = %#v err=%v", captured, err)
+	captured := startCollectionCaptureForTest(t, svc, "before", CollectionTarget{Scenario: "plan-manager", BaselineName: "before", Required: true})
+	if len(captured.Pending) != 1 {
+		t.Fatalf("capture = %#v", captured)
 	}
-	if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, captured.Pending[0]); err != nil {
-		t.Fatal(err)
-	}
+	finalizeCaptureForTest(t, svc, captured.Pending[0])
 	started, err := svc.StartCollectionDiff(context.Background(), StartCollectionDiffRequest{
 		RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "recover-terminal",
 	})
@@ -915,16 +858,8 @@ func TestCollectionDiffStatusReconcilesTerminalChildAfterFinalizerLoss(t *testin
 
 func TestCollectionDiffStatusTerminalizesMissingDurableChildIntent(t *testing.T) {
 	svc, _ := collectionService(t)
-	captured, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
-		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
-		Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, captured.Pending[0]); err != nil {
-		t.Fatal(err)
-	}
+	captured := startCollectionCaptureForTest(t, svc, "before", CollectionTarget{Scenario: "plan-manager", BaselineName: "before", Required: true})
+	finalizeCaptureForTest(t, svc, captured.Pending[0])
 	started, err := svc.StartCollectionDiff(context.Background(), StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "missing-intent"})
 	if err != nil || len(started.Pending) != 1 {
 		t.Fatalf("start diff = %#v err=%v", started, err)
@@ -944,16 +879,8 @@ func TestCollectionDiffStatusTerminalizesMissingDurableChildIntent(t *testing.T)
 
 func TestCollectionDiffStatusTerminalizesMissingTestGenieRun(t *testing.T) {
 	svc, exec := collectionService(t)
-	captured, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
-		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
-		Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, captured.Pending[0]); err != nil {
-		t.Fatal(err)
-	}
+	captured := startCollectionCaptureForTest(t, svc, "before", CollectionTarget{Scenario: "plan-manager", BaselineName: "before", Required: true})
+	finalizeCaptureForTest(t, svc, captured.Pending[0])
 	started, err := svc.StartCollectionDiff(context.Background(), StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "missing-run"})
 	if err != nil || len(started.Pending) != 1 {
 		t.Fatalf("start diff = %#v err=%v", started, err)
@@ -967,13 +894,8 @@ func TestCollectionDiffStatusTerminalizesMissingTestGenieRun(t *testing.T) {
 
 func TestCollectionDiffStatusProjectsChildStanding(t *testing.T) {
 	svc, exec := collectionService(t)
-	captured, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{RepoID: 1, RepoDir: t.TempDir(), Name: "before", Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, captured.Pending[0]); err != nil {
-		t.Fatal(err)
-	}
+	captured := startCollectionCaptureForTest(t, svc, "before", CollectionTarget{Scenario: "plan-manager", BaselineName: "before", Required: true})
+	finalizeCaptureForTest(t, svc, captured.Pending[0])
 	started, err := svc.StartCollectionDiff(context.Background(), StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "project-child"})
 	if err != nil {
 		t.Fatal(err)
@@ -990,13 +912,8 @@ func TestCollectionDiffStatusProjectsChildStanding(t *testing.T) {
 
 func TestCollectionDiffStatusNeverProjectsRunBackedChildAsQueued(t *testing.T) {
 	svc, exec := collectionService(t)
-	captured, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{RepoID: 1, RepoDir: t.TempDir(), Name: "before", Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, captured.Pending[0]); err != nil {
-		t.Fatal(err)
-	}
+	captured := startCollectionCaptureForTest(t, svc, "before", CollectionTarget{Scenario: "plan-manager", BaselineName: "before", Required: true})
+	finalizeCaptureForTest(t, svc, captured.Pending[0])
 	started, err := svc.StartCollectionDiff(context.Background(), StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "normalize-queued"})
 	if err != nil {
 		t.Fatal(err)
@@ -1010,18 +927,11 @@ func TestCollectionDiffStatusNeverProjectsRunBackedChildAsQueued(t *testing.T) {
 
 func TestCollectionDiffWaitsConcurrentlyAndReturnsTypedIncomplete(t *testing.T) { // [REQ:GCT-DURABLE-OPS-P0]
 	svc, _ := collectionService(t)
-	captured, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
-		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
-		Targets: []CollectionTarget{{Scenario: "blocked", BaselineName: "before", Required: true}, {Scenario: "terminal", BaselineName: "before", Required: true}},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, pending := range captured.Pending {
-		if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, pending); err != nil {
-			t.Fatal(err)
-		}
-	}
+	captured := startCollectionCaptureForTest(t, svc, "before",
+		CollectionTarget{Scenario: "blocked", BaselineName: "before", Required: true},
+		CollectionTarget{Scenario: "terminal", BaselineName: "before", Required: true},
+	)
+	finalizeCapturesForTest(t, svc, captured.Pending)
 	secondDone := make(chan struct{})
 	exec := &blockingFinalizeExecutor{
 		fakeExecutor:      fakeExecutor{calls: 2, result: terminalResult()},
@@ -1068,15 +978,8 @@ func TestCollectionDiffWaitsConcurrentlyAndReturnsTypedIncomplete(t *testing.T) 
 
 func TestExtendCollectionIsAppendOnlyAndStartsOnlyNewMembers(t *testing.T) {
 	svc, exec := collectionService(t)
-	started, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{RepoID: 1, RepoDir: t.TempDir(), Name: "before", Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, pending := range started.Pending {
-		if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, pending); err != nil {
-			t.Fatal(err)
-		}
-	}
+	started := startCollectionCaptureForTest(t, svc, "before", CollectionTarget{Scenario: "plan-manager", BaselineName: "before", Required: true})
+	finalizeCapturesForTest(t, svc, started.Pending)
 	extended, err := svc.ExtendCollection(context.Background(), ExtendCollectionRequest{RepoID: 1, RepoDir: t.TempDir(), Name: "before", Targets: []CollectionTarget{{Scenario: "git-control-tower", BaselineName: "before", Required: true}}})
 	if err != nil {
 		t.Fatalf("extend: %v", err)
@@ -1086,5 +989,67 @@ func TestExtendCollectionIsAppendOnlyAndStartsOnlyNewMembers(t *testing.T) {
 	}
 	if _, err := svc.ExtendCollection(context.Background(), ExtendCollectionRequest{RepoID: 1, RepoDir: t.TempDir(), Name: "before", Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "replacement", Required: true}}}); err == nil {
 		t.Fatal("existing member mutation unexpectedly accepted")
+	}
+}
+
+func TestExtendCollectionDefersAdmissionSaturatedMemberAndRecovers(t *testing.T) {
+	svc, exec := collectionService(t)
+	now := time.Date(2026, 11, 21, 12, 0, 0, 0, time.UTC)
+	svc.now = func() time.Time { return now }
+
+	captured := startCollectionCaptureForTest(t, svc, "before", CollectionTarget{Scenario: "plan-manager", BaselineName: "before", Required: true})
+	finalizeCaptureForTest(t, svc, captured.Pending[0])
+
+	// The original collection has one admitted baseline. The second admission is
+	// rejected by Test Genie's caller queue, which is transient backpressure.
+	exec.startErrs = []error{nil, typedSaturationError(t)}
+	extended, err := svc.ExtendCollection(context.Background(), ExtendCollectionRequest{
+		RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before",
+		Targets: []CollectionTarget{{Scenario: "git-control-tower", BaselineName: "before", Required: true}},
+	})
+	if err != nil {
+		t.Fatalf("ExtendCollection under queue saturation: %v", err)
+	}
+	if len(extended.AddedScenarios) != 1 || extended.AddedScenarios[0] != "git-control-tower" {
+		t.Fatalf("added scenarios = %v, want only git-control-tower", extended.AddedScenarios)
+	}
+	if len(extended.Pending) != 0 || extended.Collection.Coverage().Ready != 1 || extended.Collection.Coverage().Pending != 1 || extended.Collection.Coverage().Failed != 0 {
+		t.Fatalf("saturated extension should remain recoverably pending: %#v", extended.Collection)
+	}
+	memberFor := func(collection CollectionManifest, scenario string) CollectionMember {
+		t.Helper()
+		for _, member := range collection.Members {
+			if member.Scenario == scenario {
+				return member
+			}
+		}
+		t.Fatalf("collection member %q missing from %#v", scenario, collection.Members)
+		return CollectionMember{}
+	}
+	deferred := memberFor(extended.Collection, "git-control-tower")
+	if deferred.Status != CollectionMemberPending || deferred.RunID != "" || !strings.HasPrefix(deferred.Error, "deferred:") {
+		t.Fatalf("new member lost deferred admission state: %#v", deferred)
+	}
+
+	// Restore capacity and expire the retry lease. The existing status path owns
+	// the deferred retry and should publish a complete collection exactly once.
+	exec.startErrs = nil
+	if _, err := svc.storage.UpdateCollectionMember(1, "agi", "before", "git-control-tower", func(member *CollectionMember) error {
+		member.UpdatedAt = now.Add(-collectionCaptureDispatchLease)
+		return nil
+	}); err != nil {
+		t.Fatalf("expire deferred admission lease: %v", err)
+	}
+	recovered, err := svc.GetCollectionCaptureStatus(context.Background(), 1, "agi", "before")
+	if err != nil || !recovered.Coverage().Complete() || recovered.Coverage().Ready != 2 || exec.calls != 3 {
+		t.Fatalf("recovered extension = %#v calls=%d err=%v", recovered, exec.calls, err)
+	}
+	original := memberFor(recovered, "plan-manager")
+	if original.Status != CollectionMemberReady || original.RunID != captured.Pending[0].Pending.Run.RunID {
+		t.Fatalf("existing baseline changed during extension recovery: %#v", original)
+	}
+	updated := memberFor(recovered, "git-control-tower")
+	if updated.Status != CollectionMemberReady || updated.RunID == "" {
+		t.Fatalf("extended baseline did not recover: %#v", updated)
 	}
 }

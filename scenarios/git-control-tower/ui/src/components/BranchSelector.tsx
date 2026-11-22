@@ -11,7 +11,7 @@ import {
   Info
 } from "lucide-react";
 import { Badge } from "./ui/badge";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { BottomSheet } from "./ui/bottom-sheet";
 import { RepoSelector, type RepoActions } from "./RepoSelector";
 import type {
@@ -379,12 +379,13 @@ export function BranchSelector({
         </div>
         {showPublish && (
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={() => handlePublish(false)}
             disabled={actions.isPublishing}
             className="gap-1"
             data-testid="branch-publish-button"
+            style={{ background: "transparent" }}
           >
             <Upload className="h-3.5 w-3.5" />
             Publish
@@ -541,10 +542,11 @@ export function BranchSelector({
                 pendingAction && (
                   <Button
                     size="sm"
-                    variant="outline"
+                    variant="secondary"
                     onClick={handleConfirmWarning}
                     className="border-amber-600/70 text-amber-100 hover:bg-amber-900/40"
                     data-testid="branch-warning-confirm"
+                    style={{ background: "transparent" }}
                   >
                     {warning.requires_tracking
                       ? "Track and switch"

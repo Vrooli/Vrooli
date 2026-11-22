@@ -81,6 +81,12 @@
         "high": "高"
       },
       "empty": "操作ウェイトは設定されていません。"
+    },
+    "sensitiveImages": {
+      "label": "センシティブな画像",
+      "description": "センシティブと判定された画像は、タップするまでぼかして表示されます。",
+      "blur": "ぼかす",
+      "show": "表示する"
     }
   },
   "pages": {
@@ -171,7 +177,8 @@
       "linkLabel": "公開画像 URL",
       "linkPlaceholder": "公開画像のリンクを貼り付け",
       "importLink": "リンクを読み込む",
-      "importingLink": "読み込み中…"
+      "importingLink": "読み込み中…",
+      "sampleLoadError": "サンプルを開けませんでした。ファイルを選択するか、もう一度お試しください。"
     },
     "group": {
       "quickEdits": "クイック編集",
@@ -195,6 +202,10 @@
       "blurry": "ぼやけた写真",
       "receipt": "レシート"
     }
+  },
+  "sensitive": {
+    "reveal": "センシティブな画像。タップして表示",
+    "hide": "隠す"
   },
   "library": {
     "description": "作成・編集したすべての画像。開いて作業を続けられます。",
@@ -303,12 +314,14 @@
     "remove": "削除",
     "removing": "削除中…",
     "blocklist": {
-      "title": "ブロック済みモデル",
+      "title": "制限付きモデル",
       "loading": "ブロックリストを読み込み中…",
-      "empty": "ブロックされたモデルはありません。",
+      "empty": "制限付きのモデルはありません。",
       "licenseLabel": "ライセンス:",
       "reasonLabel": "理由:",
       "operationsLabel": "操作:",
+      "licenseGate": "ライセンス制限 — 通常のローカル利用は可能。次の用途のみ不可:",
+      "exclusion": "カタログから除外:",
       "onnxWarning": "ONNX/GGUF へのエクスポートでこの制限が解除されるように見えますが、実際には解除されません。"
     },
     "addCustom": {
@@ -411,12 +424,31 @@
       "nameLabel": "表示名",
       "architectureLabel": "アーキテクチャを確認",
       "selectArchitecture": "アーキテクチャを選択…",
-      "attestLabel": "商用権利を保有しています（公開/BYOK 提供を許可）",
-      "attestRequired": "Image Tools がモデルを登録または重みをダウンロードする前に、商用利用権の確認が必要です。",
+      "attestLabel": "これらのモデルの重みの商用権利を保有しています（任意）",
       "import": "インポートとインストール",
       "importing": "インポート中…",
       "success": "インポートを開始しました — ダウンロード完了後にモデルが表示されます。",
-      "needsArchitecture": "アーキテクチャが検出されません — 選択してインポートしてください。"
+      "needsArchitecture": "アーキテクチャが検出されません — 選択してインポートしてください。",
+      "attestOptional": "任意です。確認しなくてもローカルでは使えます。ライセンスを確認するまで、公開・商用での利用は拒否されたままです。",
+      "adapterLabel": "アダプター",
+      "needsLabel": "必要な作業"
+    },
+    "verdict": {
+      "label": "評価",
+      "recommended": "推奨",
+      "works": "動作する",
+      "experimental": "実験的",
+      "untested": "未検証",
+      "notRecommended": "非推奨",
+      "broken": "動作不良",
+      "forOperation": "{{op}}: {{reason}}",
+      "evidenceLabel": "根拠",
+      "overrideLine": "{{state}}（{{by}}）{{reason}}",
+      "overrideEnabled": "有効",
+      "overrideDisabled": "無効",
+      "overridePinned": "固定",
+      "overrideContradicts": "カタログの既定値と異なります",
+      "overrideSuperseded": "カタログにより置き換えられました"
     }
   },
   "workspace": {
@@ -687,7 +719,13 @@
       "warningsLabel": "注意",
       "consent": {
         "label": "この画像内の人物を編集する権利を持っています。",
+        "labelOffMachine": "これらの画像内の人物を編集する権利を持っており、画像をこのマシンの外へ送信することに同意します。",
         "required": "続行する前に、この画像内の人物を編集する権利があることを確認してください。"
+      },
+      "reference": {
+        "label": "使用する顔（顔を提供する写真）",
+        "needed": "顔を提供する写真を追加してください。",
+        "staged": "使用する顔の画像: {{name}}"
       },
       "result": {
         "heading": "バリエーション",
@@ -867,6 +905,19 @@
       "tolerance": "色の許容差",
       "maxTrimPercent": "片側の最大トリム",
       "padding": "残す余白"
+    },
+    "rating": {
+      "title": "この結果を評価",
+      "scoreLabel": "5段階中{{score}}",
+      "groupLabel": "1から5の評価",
+      "noteLabel": "メモ（任意）",
+      "notePlaceholder": "良かった点・問題点",
+      "save": "評価を保存",
+      "saving": "保存中",
+      "saved": "5段階中{{score}}で評価済み",
+      "clear": "評価を削除",
+      "error": "評価を保存できませんでした",
+      "hint": "評価はモデルの評価判定に反映されます"
     }
   },
   "errors": {

@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"connectrpc.com/connect"
 
 	domainadvisory "git-control-tower/internal/advisory"
+	"git-control-tower/internal/stagedmessages"
 	advisoryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/advisory"
 	advisoryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/advisory/advisory_v1connect"
 )
@@ -39,6 +41,34 @@ func (advisoryConnectServer) Draft(_ context.Context, req *connect.Request[advis
 		Coverage:      advisoryCoverageToProto(response.Coverage),
 		EvidenceRefs:  append([]string(nil), response.EvidenceRefs...),
 	}), nil
+}
+
+func (s advisoryConnectServer) GetStagedMessageMetrics(ctx context.Context, _ *connect.Request[advisoryv1.GetStagedMessageMetricsRequest]) (*connect.Response[advisoryv1.StagedMessageMetrics], error) {
+	if s.server.stagedMessages == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("staged-message metrics unavailable"))
+	}
+	metrics, err := s.server.stagedMessages.Metrics(ctx, time.Now(), 5*time.Minute)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to read staged-message metrics"))
+	}
+	return connect.NewResponse(stagedMessageMetricsToProto(metrics)), nil
+}
+
+func stagedMessageMetricsToProto(metrics stagedmessages.OperationalMetrics) *advisoryv1.StagedMessageMetrics {
+	failuresByCode := make(map[string]int64, len(metrics.FailuresByCode))
+	for code, count := range metrics.FailuresByCode {
+		failuresByCode[code] = count
+	}
+	return &advisoryv1.StagedMessageMetrics{
+		ObservedAt: metrics.ObservedAt.UTC().Format(time.RFC3339Nano),
+		Jobs:       metrics.Jobs, TerminalJobs: metrics.TerminalJobs,
+		AwaitingProviderJobs: metrics.AwaitingProviderJobs, FailedJobs: metrics.FailedJobs,
+		FailureRate: metrics.FailureRate, FailuresByCode: failuresByCode,
+		TerminalDurationCount: metrics.TerminalDurationCount, TerminalDurationMillisTotal: metrics.TerminalDurationMillis,
+		ProvenZeroWorkRefusals: metrics.ZeroWorkRefusals, DuplicateRetries: metrics.DuplicateRetries,
+		StuckDispatch: metrics.StuckDispatch, StuckReconciliation: metrics.StuckReconciliation,
+		StuckThresholdSeconds: metrics.StuckThresholdSeconds,
+	}
 }
 
 func advisorySubjectFromProto(subject *advisoryv1.ChangeSubject) domainadvisory.ChangeSubject {
