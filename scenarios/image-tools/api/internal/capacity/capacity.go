@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
@@ -105,7 +106,51 @@ func (l *memoryLease) Release(ctx context.Context) error {
 	return l.broker.Release(ctx, l.lease)
 }
 
+// ActivityBroker is the optional Broker capability for reporting a claim's
+// idleness. The broker never infers it: a claim nobody reports on reads idle
+// while its job runs, which makes it reclaimable by higher-priority work.
+type ActivityBroker interface {
+	Activity(ctx context.Context, lease Lease, active bool) error
+}
+
+// ActivityLease is the renewal-surface counterpart: a lease whose owner can say
+// whether it is serving work.
+type ActivityLease = sharedcapacity.ActivityReporter
+
+// ReportActivity reports a GPU claim active or idle through broker, which must
+// support it. A broker that does not (a test double, an advisory broker) is not
+// an error: there is nothing to report to.
+func ReportActivity(ctx context.Context, broker Broker, lease Lease, active bool) error {
+	reporter, ok := broker.(ActivityBroker)
+	if !ok || lease.ClaimID == "" {
+		return nil
+	}
+	return reporter.Activity(ctx, lease, active)
+}
+
+func (l *memoryLease) ReportActivity(ctx context.Context, active bool) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return ReportActivity(ctx, l.broker, l.lease, active)
+}
+
+func (l *localMemoryLease) ReportActivity(ctx context.Context, active bool) error {
+	if reporter, ok := l.RenewableLease.(ActivityLease); ok {
+		return reporter.ReportActivity(ctx, active)
+	}
+	return nil
+}
+
 type CLIBroker struct{ Client *vroolicli.Client }
+
+// Activity reports the exact claim active or idle through the shared client,
+// which adopts the generation the broker advances on every report.
+func (b *CLIBroker) Activity(ctx context.Context, lease Lease, active bool) error {
+	if lease.native == nil {
+		return fmt.Errorf("capacity activity %s: no owned GPU lease", lease.ClaimID)
+	}
+	return lease.native.ReportActivity(ctx, active)
+}
 
 func (b *CLIBroker) Claim(ctx context.Context, ownerID string, preferredBytes int64, opts ClaimOptions) (Lease, error) {
 	client := b.Client
@@ -200,6 +245,55 @@ func (b *CLIBroker) ReserveDiskJob(ctx context.Context, request sharedcapacity.D
 	return &diskJobLeaseWithBroker{DiskJobLease: lease, broker: broker}, nil
 }
 
+// SupersedeDiskJobs closes every active lease of the owner whose job key
+// ownsKey accepts and whose producer has exited. Each is reattached to this
+// process (the ledger refuses while the recorded producer still runs) and then
+// completed, so the reservation moves to the new attempt instead of being
+// counted twice until the heartbeat lapses. It returns how many it closed.
+func (b *CLIBroker) SupersedeDiskJobs(ctx context.Context, ownerID string, ownsKey func(string) bool) (int, error) {
+	if ownsKey == nil {
+		return 0, errors.New("supersede disk jobs requires a job key matcher")
+	}
+	broker, err := sharedcapacity.NewBroker(ctx, "")
+	if err != nil {
+		return 0, fmt.Errorf("open shared disk capacity broker: %w", err)
+	}
+	closed, supersedeErr := supersedeDiskJobs(ctx, broker, ownerID, ownsKey)
+	return closed, errors.Join(supersedeErr, broker.Close())
+}
+
+// diskJobLedger is the part of the shared broker that superseding needs.
+type diskJobLedger interface {
+	ListDiskJobs(ctx context.Context, ownerID string, activeOnly bool) ([]sharedcapacity.DiskJobReceipt, error)
+	ReattachDiskJob(ctx context.Context, ownerID, jobID, leaseID string) (sharedcapacity.DiskJobLease, error)
+}
+
+func supersedeDiskJobs(ctx context.Context, ledger diskJobLedger, ownerID string, ownsKey func(string) bool) (int, error) {
+	active, err := ledger.ListDiskJobs(ctx, ownerID, true)
+	if err != nil {
+		return 0, fmt.Errorf("list active disk jobs: %w", err)
+	}
+	var errs []error
+	closed := 0
+	for _, receipt := range active {
+		if !ownsKey(receipt.JobID) {
+			continue
+		}
+		lease, err := ledger.ReattachDiskJob(ctx, ownerID, receipt.JobID, receipt.ID)
+		if err != nil {
+			// A producer that is still running owns its lease; leave it.
+			errs = append(errs, fmt.Errorf("reattach disk job %s: %w", receipt.ID, err))
+			continue
+		}
+		if _, err := lease.Complete(ctx); err != nil {
+			errs = append(errs, fmt.Errorf("complete superseded disk job %s: %w", receipt.ID, err))
+			continue
+		}
+		closed++
+	}
+	return closed, errors.Join(errs...)
+}
+
 type diskJobLeaseWithBroker struct {
 	sharedcapacity.DiskJobLease
 	broker *sharedcapacity.Broker
@@ -292,22 +386,39 @@ func capacityPriority(ctx context.Context) string {
 	return normalizeCapacityPriority(priority)
 }
 
-// AdmitCPUWork is the shared scheduler's floor for local support work. Model
-// operations override it with declared model RAM and CPU profiles in Admit.
+// AdmitCPUWork is the shared scheduler's floor for local support work. Each
+// operation's RAM and CPU come from its profile in support_profiles.json (the
+// default is one core and 256 MiB). Model operations override it with declared
+// model RAM and CPU profiles in Admit.
 func AdmitCPUWork(ctx context.Context, job jobs.Job) (jobs.Admission, error) {
 	if job.Lane == jobs.LaneNetwork {
 		return jobs.Admission{Context: ctx}, nil
 	}
 	ctx = WithPriority(ctx, string(job.Priority))
-	lease, err := acquireLocalResources(ctx, "image-tools:"+job.ID+":support", 256<<20, 1000)
+	profile := SupportProfileFor(job.Operation)
+	lease, err := acquireLocalResources(ctx, "image-tools:"+job.ID+":support", profile.RAMBytes, profile.CPUMilli)
 	if err != nil {
 		return jobs.Admission{}, err
 	}
 	scope := sharedcapacity.Maintain(ctx, lease)
+	meta := map[string]string{
+		"ram_capacity_claim_bytes": strconv.FormatInt(profile.RAMBytes, 10),
+		"cpu_capacity_milli":       strconv.FormatInt(profile.CPUMilli, 10),
+		"capacity_activity":        "active",
+	}
+	// The scheduler starts the work next, so the claim is serving it. A failed
+	// report leaves the claim reading idle and never stops the work.
+	if reporter, ok := lease.(ActivityLease); ok {
+		if err := reporter.ReportActivity(context.WithoutCancel(ctx), true); err != nil {
+			meta["capacity_activity"] = "unreported: " + err.Error()
+		}
+	}
 	return jobs.Admission{
 		Context: scope.Context(),
-		Release: func(cleanup context.Context) error { return scope.Release(cleanup) },
-		Meta:    map[string]string{"ram_capacity_claim_bytes": "268435456", "cpu_capacity_milli": "1000"},
+		// Scope.Release is idempotent and retry-safe after a ledger failure.
+		ReleaseRetryable: true,
+		Release:          func(cleanup context.Context) error { return scope.Release(cleanup) },
+		Meta:             meta,
 	}, nil
 }
 

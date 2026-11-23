@@ -12,6 +12,7 @@ vi.mock("@connectrpc/connect", () => ({
 
 import { fetchAICaptionResult, fetchAIResult, listAIOperations, submitAI } from "./ai";
 import { ApiError } from "./client";
+import { isSensitiveFile, isSensitiveUrl } from "../lib/sensitiveMedia";
 
 /**
  * Controllable fake `Image`. The most recently constructed instance is captured
@@ -214,6 +215,20 @@ describe("api/ai.fetchAIResult", () => {
     expect(out.outputFile).toBeInstanceOf(File);
     expect(out.outputFile.name).toBe("enhanced.png");
     expect(out.outputFile.type).toBe("image/png");
+  });
+
+  it("marks the url and the file sensitive only when the job flagged the output", async () => {
+    for (const flagged of [true, false]) {
+      vi.mocked(fetch).mockResolvedValueOnce(blobResponse(new Blob(["x"], { type: "image/png" })));
+      vi.mocked(URL.createObjectURL).mockReturnValueOnce(`blob:flag-${flagged}`);
+      FakeImage.last = null;
+      const promise = fetchAIResult("out/f.png", flagged);
+      const img = await waitForImage();
+      img.onload?.();
+      const out = await promise;
+      expect(isSensitiveUrl(out.url)).toBe(flagged);
+      expect(isSensitiveFile(out.outputFile)).toBe(flagged);
+    }
   });
 
   it("falls back to the mime subtype for the format when the ref has no usable extension", async () => {

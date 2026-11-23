@@ -15,6 +15,7 @@
 //	enum
 //	items (for arrays), with the same scalar keywords
 //	maxItems (for arrays)
+//	minLength, maxLength (for strings, counted in characters)
 //	requiresTrue (map field -> [boolean fields that must be true when <field> is present])
 //	withinFrame (true: an object with x,y,width,height has positive area inside 0..1)
 //
@@ -36,6 +37,7 @@ import (
 	"math"
 	"sort"
 	"strings"
+	"unicode/utf8"
 )
 
 // Schema is a compiled parameter contract for one operation.
@@ -114,6 +116,13 @@ func checkSchemaShape(sch map[string]any, path string) error {
 		}
 		if err := checkSchemaShape(child, path+".items"); err != nil {
 			return err
+		}
+	}
+	for _, key := range []string{"minLength", "maxLength"} {
+		if bound, ok := sch[key]; ok {
+			if n, isNum := bound.(float64); !isNum || n < 0 || n != math.Trunc(n) {
+				return fmt.Errorf("paramschema: %s.%s must be a non-negative integer", path, key)
+			}
 		}
 	}
 	if enum, ok := sch["enum"]; ok {
@@ -291,8 +300,16 @@ func validateValue(value any, sch map[string]any, path string) error {
 		}
 		return nil
 	case "string":
-		if _, ok := value.(string); !ok {
+		text, ok := value.(string)
+		if !ok {
 			return fmt.Errorf("paramschema: %s must be a string", path)
+		}
+		length := float64(utf8.RuneCountInString(text))
+		if min, ok := sch["minLength"].(float64); ok && length < min {
+			return fmt.Errorf("paramschema: %s must be at least %v characters", path, min)
+		}
+		if max, ok := sch["maxLength"].(float64); ok && length > max {
+			return fmt.Errorf("paramschema: %s must be at most %v characters", path, max)
 		}
 		return nil
 	default:

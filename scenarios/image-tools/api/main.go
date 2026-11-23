@@ -163,6 +163,7 @@ func jobSampleAndTrace(j internaljobs.Job) (internalmeasures.Sample, internalmea
 		QueueWaitMS: queueMS,
 		ResultRef:   j.ResultRef,
 		Error:       j.Error,
+		FailureKind: j.Meta[internaljobs.MetaFailureKind],
 	}
 
 	var payload internalai.Payload
@@ -264,6 +265,14 @@ func main() {
 		// Work that computed nothing is returned to the queue when the process
 		// drains for a restart, and resumes from its stored payload afterwards.
 		Resumable: dispatcher.Handles,
+		// Operation handlers register after Start, so jobs a previous process
+		// left behind are settled by Recover once every handler is known.
+		DeferRecovery: true,
+		// A download resumes from its staging directory, so a drain stops it
+		// instead of waiting for it, and the next process continues it.
+		Restartable: func(operation string) bool {
+			return operation == internalmodels.InstallJobOperation || operation == internaladapters.InstallJobOperation
+		},
 		Reroute: func(ctx context.Context, job internaljobs.Job) (*internaljobs.Reroute, error) {
 			engine := rerouteEngine.Load()
 			if engine == nil {
@@ -398,6 +407,21 @@ func main() {
 	// model fails the install instead of surfacing as a late job crash.
 	modelUseGate := internalmodels.NewModelUseGate(modelsRoot)
 	imageCapacity := &capacity.CLIBroker{}
+	// A previous process's warm residents (RAM and VRAM claims) outlive it when
+	// its shutdown release timed out or it was killed; the ledger would keep that
+	// memory refused until the claims' heartbeats lapse. Give back every resident
+	// whose holder is gone, off the boot path so a slow ledger cannot delay it.
+	go func() {
+		ctx, cancel := context.WithTimeout(jobCtx, 2*time.Minute)
+		defer cancel()
+		released, err := imageCapacity.ReleaseOrphanedResidents(ctx)
+		if err != nil {
+			log.Printf("capacity: orphaned resident reconciliation: %v", err)
+		}
+		if released > 0 {
+			log.Printf("capacity: released %d orphaned resident claim(s) of a previous process", released)
+		}
+	}()
 	// The shared policy evaluator reads the canonical operator-owned business
 	// context on every evaluation, including execution-time rechecks and the
 	// install/enable/pin lifecycle gate.
@@ -568,7 +592,7 @@ func main() {
 		Installer: installer, EnsureRuntime: ensureRuntime,
 		RuntimeNeeded: func(model internalmodels.Model) bool {
 			tool, _ := internalai.HostToolForProvider(model.Backend)
-			return model.Source.HasRepo() || tool == "uv" || model.Backend == "python-sidecar" || model.Backend == "sam2-transformers"
+			return model.Source.HasRepo() || tool == "uv" || model.Backend == "python-sidecar" || internalmodels.IsTransformersBackend(model.Backend)
 		},
 		EnsureBackend: func(ctx context.Context, model internalmodels.Model) error {
 			tool, ok := internalai.HostToolForProvider(model.Backend)
@@ -625,7 +649,17 @@ func main() {
 
 	// Analysis service (OCR / NSFW / probe). Its NSFW path also backs the AI
 	// generation auto-scan hook.
+	// The catalog selector is built further down (it needs the AI engine's GPU
+	// rule); analysis asks it lazily, on each admitted run.
+	var previewer *internalmodels.Previewer
 	analysisService, err := internalanalysis.NewService(internalanalysis.Config{
+		SelectModel: func(ctx context.Context, operation string) (internalmodels.Model, error) {
+			selection, _, err := previewer.Select(ctx, internalmodels.PreviewRequest{Operation: operation, AllowBYOK: false})
+			if err != nil {
+				return internalmodels.Model{}, err
+			}
+			return selection.Model, nil
+		},
 		AcquireCapacity: sharedcapacity.AcquireScoped,
 		ModelReady:      installer.RuntimeReadiness,
 		ModelRAMBytes: func(id string) (int64, error) {
@@ -668,7 +702,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("%s: %v", safety.MinorSafetyEnv, err)
 	}
-	var reviewModels []string
+	var reviewModels, reviewEscalationModels []string
 	if minorReviewer == nil {
 		bundled, bundledErr := safety.NewBundledReviewer(safety.BundledReviewerConfig{
 			Python:      pythonInterpreter,
@@ -684,6 +718,7 @@ func main() {
 		} else {
 			minorReviewer = bundled
 			reviewModels = safety.BundledReviewerModels
+			reviewEscalationModels = safety.BundledReviewerEscalationModels
 		}
 	}
 	// Responsible-Use deployment gate (IMG-P1-015): the tier is chosen at deploy
@@ -696,6 +731,19 @@ func main() {
 	safetyPolicy := safety.ResolvePolicy()
 	safetyGate := safety.NewGateFromPolicy(safetyPolicy, safety.NewConsentLog(db.Primary()))
 	safetyGate.SetMinorReviewer(minorReviewer)
+	// The people check behind low-weight consent: a caption, tags, boxes or a
+	// colourisation sent to a provider asks for consent only when the image shows
+	// someone. Without a counter the requirement stands (fail closed).
+	if faceCounter, faceErr := safety.NewBundledFaceCounter(safety.BundledReviewerConfig{
+		Python:      pythonInterpreter,
+		SidecarPath: sidecarPath,
+		ModelsRoot:  modelsRoot,
+		Libraries:   sidecar.RuntimeLibraries(pythonInterpreter),
+	}); faceErr != nil {
+		log.Printf("WARNING: face counter unavailable (%v); cloud routes will ask for consent on every image", faceErr)
+	} else {
+		safetyGate.SetFaceCounter(faceCounter)
+	}
 	// Discovery reads the gate's resolved policy so it reports the detector that
 	// enforcement actually has, rather than the one the environment implied.
 	safetyPolicy = safetyGate.Policy()
@@ -728,16 +776,17 @@ func main() {
 			nsfw, score, err := analysisService.ScanNSFW(ctx, img)
 			return internalai.ScanVerdict{NSFW: nsfw, Score: score}, err
 		},
-		ReviewOutput: minorOutputReviewer(minorReviewer),
-		ReviewModels: reviewModels,
-		Capacity:     imageCapacity,
-		Disk:         imageCapacity,
-		Memory:       capacity.AcquireLocalRAM,
-		CPU:          capacity.AcquireLocalCPU,
-		Route:        routeCfg,
-		RouteConsent: routeConsent(safetyGate),
-		Jobs:         jobManager,
-		Logger:       log.Default(),
+		ReviewOutput:           minorOutputReviewer(minorReviewer),
+		ReviewModels:           reviewModels,
+		ReviewEscalationModels: reviewEscalationModels,
+		Capacity:               imageCapacity,
+		Disk:                   imageCapacity,
+		Memory:                 capacity.AcquireLocalRAM,
+		CPU:                    capacity.AcquireLocalCPU,
+		Route:                  routeCfg,
+		RouteConsent:           routeConsent(safetyGate),
+		Jobs:                   jobManager,
+		Logger:                 log.Default(),
 	}, rightsEvaluator)
 	if err != nil {
 		log.Fatalf("ai engine init failed: %v", err)
@@ -748,6 +797,12 @@ func main() {
 	for op, run := range aiEngine.BuildRunners() {
 		dispatcher.Register(op, run)
 		dispatcher.RegisterAdmission(op, aiEngine.Admit)
+	}
+	// Every operation handler is registered: settle the jobs the previous
+	// process left queued, admitting or running (see jobs.Manager.Recover).
+	if err := jobManager.Recover(); err != nil {
+		cancelJobs()
+		log.Fatalf("job recovery failed: %v", err)
 	}
 
 	// Non-critical health summary: an enabled model whose install-time load-smoke
@@ -782,7 +837,7 @@ func main() {
 	// One selection preview for every read surface: `models select`, the model
 	// picker's selected marker and `ai list` all ask it, so none can show a
 	// default a submit would not run.
-	previewer := &internalmodels.Previewer{
+	previewer = &internalmodels.Previewer{
 		Registry:           registry,
 		Probe:              probe,
 		Overlay:            modelStore.LoadOverlay,
@@ -995,8 +1050,8 @@ func explainConsent(gate *safety.Gate) modelsH.ConsentRule {
 // routeConsent hands the gate's consent rule to the engine so automatic cloud
 // routing and execution admission obey the rule the submit edge enforces.
 func routeConsent(gate *safety.Gate) internalai.RouteConsentFunc {
-	return func(op, weight, tier string) (bool, string) {
-		need := gate.ConsentFor(safety.Weight(weight), op, tier)
+	return func(ctx context.Context, op, weight, tier string, faces func(context.Context) (int, error)) (bool, string) {
+		need := gate.ConsentForInput(ctx, safety.Weight(weight), op, tier, faces)
 		return need.Required, need.Reason
 	}
 }
@@ -1014,6 +1069,10 @@ func minorOutputReviewer(reviewer safety.MinorReviewer) internalai.OutputScanner
 			ctx = safety.WithStrictReview(ctx)
 		}
 		verdict, err := reviewer.Review(ctx, [][]byte{img})
+		var missing *safety.MissingWeightsError
+		if errors.As(err, &missing) {
+			return internalai.ScanVerdict{}, &internalai.ReviewWeightsMissing{IDs: missing.IDs}
+		}
 		if err != nil {
 			return internalai.ScanVerdict{}, err
 		}

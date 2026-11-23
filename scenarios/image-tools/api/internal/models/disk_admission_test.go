@@ -5,33 +5,10 @@ import (
 	"errors"
 	"testing"
 
+	"image-tools/internal/disktest"
+
 	"github.com/vrooli/vrooli/packages/capacity"
 )
-
-type testDiskAdmitter struct{}
-
-func (testDiskAdmitter) ReserveDiskJob(_ context.Context, r capacity.DiskJobRequest) (capacity.DiskJobLease, error) {
-	return &testDiskLease{receipt: capacity.DiskJobReceipt{ID: r.JobID, OwnerID: r.OwnerID, JobID: r.JobID, Status: "active"}}, nil
-}
-
-type testDiskLease struct{ receipt capacity.DiskJobReceipt }
-
-func (l *testDiskLease) Heartbeat(context.Context) error { return nil }
-func (l *testDiskLease) Observe(context.Context) (capacity.DiskJobHeadroom, error) {
-	return capacity.DiskJobHeadroom{LeaseID: l.receipt.ID, Status: "active"}, nil
-}
-func (l *testDiskLease) Extend(context.Context, []capacity.DiskJobPath) (capacity.DiskJobReceipt, error) {
-	return l.receipt, nil
-}
-func (l *testDiskLease) SamplePath(context.Context, string, int64, int64) (capacity.DiskJobReceipt, error) {
-	return l.receipt, nil
-}
-func (l *testDiskLease) Complete(context.Context) (capacity.DiskJobReceipt, error) {
-	l.receipt.Status = "completed"
-	return l.receipt, nil
-}
-func (l *testDiskLease) Release(ctx context.Context) error    { _, err := l.Complete(ctx); return err }
-func (l *testDiskLease) Reservation() capacity.DiskJobReceipt { return l.receipt }
 
 // refusingDiskAdmitter fails the test if an install reserves disk.
 type refusingDiskAdmitter struct{ t *testing.T }
@@ -57,5 +34,53 @@ func TestRevalidatingValidWeightsReservesNoDiskPeak(t *testing.T) {
 	}
 	if f.downloads != downloads {
 		t.Fatalf("revalidation downloaded again: %d -> %d", downloads, f.downloads)
+	}
+}
+
+// TestInstallResumesWithItsInterruptedLeaseRowsStillInTheLedger is the live
+// restart failure: a drain interrupts a download, the durable job is requeued,
+// and the resumed attempt reserves its disk peak while the ledger still holds
+// the row the first attempt left. Every shape that row can take must resume.
+func TestInstallResumesWithItsInterruptedLeaseRowsStillInTheLedger(t *testing.T) {
+	const durableJob = "e8402392"
+	const owner = "image-tools:model-install"
+	cases := []struct {
+		name   string
+		seed   func(l *disktest.Ledger)
+		active int // leases still holding a reservation after the install
+	}{
+		{"active lease of the exited producer under the durable key", func(l *disktest.Ledger) { l.Seed(owner, durableJob, "active", false) }, 0},
+		{"completed lease under the durable key", func(l *disktest.Ledger) { l.Seed(owner, durableJob, "completed", false) }, 0},
+		{"active lease of an exited earlier attempt", func(l *disktest.Ledger) { l.Seed(owner, durableJob+"/attempt/earlier", "active", false) }, 0},
+		{"lease of an unrelated live job", func(l *disktest.Ledger) { l.Seed(owner, "other-job/attempt/x", "active", true) }, 1},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newInstallFixture(t)
+			tc.seed(f.ledger)
+			if _, err := f.in.InstallForJob(context.Background(), installTestModelID, durableJob, nil); err != nil {
+				t.Fatalf("resumed install failed with the old lease row present: %v", err)
+			}
+			if !f.in.Installed(context.Background(), installTestModelID) {
+				t.Fatal("resumed install finished but the model is not installed")
+			}
+			if got := f.ledger.Active(); got != tc.active {
+				t.Fatalf("%d leases still hold a reservation after the install, want %d: %+v", got, tc.active, f.ledger.Rows())
+			}
+		})
+	}
+}
+
+func TestSecondInstallAttemptOfTheSameJobReserves(t *testing.T) {
+	f := newInstallFixture(t)
+	ctx := context.Background()
+	if _, err := f.in.InstallForJob(ctx, installTestModelID, "retry-job", nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.in.Remove(ctx, installTestModelID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.in.InstallForJob(ctx, installTestModelID, "retry-job", nil); err != nil {
+		t.Fatalf("requeued job could not reserve again: %v", err)
 	}
 }

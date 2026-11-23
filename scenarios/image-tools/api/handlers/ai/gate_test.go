@@ -49,6 +49,9 @@ func newGatedServerWithReviewer(t *testing.T, tier safety.Tier, reviewer safety.
 	if err := backendReg.Register(&fakeProvider{name: "stable-diffusion.cpp", ops: []string{"text_to_image", "inpaint", "image_to_image"}}); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
+	if err := backendReg.Register(&fakeProvider{name: "onnxruntime", ops: []string{"face_swap"}}); err != nil {
+		t.Fatalf("register face swap provider: %v", err)
+	}
 	store := storage.NewWithBlobStore(blobstore.NewMemoryBlobStore(), t.TempDir())
 	eng, err := internalai.NewEngineWithRightsEvaluator(internalai.Deps{
 		Registry:       registry,
@@ -66,7 +69,7 @@ func newGatedServerWithReviewer(t *testing.T, tier safety.Tier, reviewer safety.
 	gate.SetMinorReviewer(reviewer)
 	deps := &Deps{Engine: eng, Store: store, Jobs: sub, Guard: storage.DefaultGuard(), Gate: gate}
 	r := mux.NewRouter()
-	path, handler := aiconnect.NewAIServiceHandler(NewConnectHandler(registry, deps))
+	path, handler := aiconnect.NewAIServiceHandler(NewConnectHandler(nil, nil, deps))
 	r.PathPrefix(path).Handler(handler)
 	r.HandleFunc("/api/v1/ai/{operation}", deps.submitHandler).Methods(http.MethodPost)
 	return r, sub

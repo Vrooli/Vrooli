@@ -1,15 +1,24 @@
--- Model runtime-state overlay — owned by internal/models/. Embedded by
+-- Model enabled-state overrides — owned by internal/models/. Embedded by
 -- schema.go and applied via database.EnsureSchemas at boot through the
 -- modules.AllSchemas registry.
 --
 -- The seed catalog (registry.seed.json) is the read-only baseline; this table
--- records ONLY explicit operator overrides of a model's enabled state. A model
--- with no row here uses its seed default — so an empty table means "ship the
--- seed defaults", and toggling a model writes exactly one row. Heavier runtime
--- state (installed/checksum) joins this table in a later phase.
-CREATE TABLE IF NOT EXISTS model_state (
-  id      TEXT PRIMARY KEY,
-  enabled INTEGER NOT NULL
+-- records ONLY explicit overrides of a model's enabled state, each with its
+-- provenance (who, when, why, whether pinned) and the seed's enabled flag at the
+-- moment it was written. A model with no row uses its seed default. The rule that
+-- decides when a later seed change supersedes an override is documented in
+-- internal/catalogstate/overlay.go and docs/reference/model-registry.md.
+-- seed_enabled is -1 until a pre-provenance row is adopted at boot.
+CREATE TABLE IF NOT EXISTS model_override (
+  id              TEXT PRIMARY KEY,
+  enabled         INTEGER NOT NULL,
+  set_by          TEXT NOT NULL,
+  set_at          TEXT NOT NULL DEFAULT '',
+  reason          TEXT NOT NULL DEFAULT '',
+  pinned          INTEGER NOT NULL DEFAULT 0,
+  seed_enabled    INTEGER NOT NULL DEFAULT -1,
+  superseded_at   TEXT NOT NULL DEFAULT '',
+  superseded_note TEXT NOT NULL DEFAULT ''
 );
 
 -- Model install state (IMG-P0-007). A model's weights are downloaded on opt-in
@@ -18,7 +27,7 @@ CREATE TABLE IF NOT EXISTS model_state (
 -- first real download (NEVER hand-written — see DECISIONS), and the on-disk
 -- byte size. Absence of a row (or installed=0) means "not installed", and AI ops
 -- refuse with an actionable hint rather than launching a doomed job. Forward-only
--- declarative; a new table (not an ALTER of model_state) so existing overlays are
+-- declarative; a new table (not an ALTER of the override table) so existing overlays are
 -- untouched.
 CREATE TABLE IF NOT EXISTS model_install (
   id           TEXT PRIMARY KEY,

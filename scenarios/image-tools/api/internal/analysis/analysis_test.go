@@ -317,3 +317,193 @@ func mustService(t *testing.T, cfg Config) *Service {
 	}
 	return svc
 }
+
+// ocrPaddleModel is the selected model for the detector + recogniser path.
+var ocrPaddleModel = models.Model{ID: "paddleocr", Backend: "onnxruntime"}
+
+// TestOCR_RunsTheModelTheCatalogSelects: with PaddleOCR selected, OCR runs the
+// sidecar's ocr module over the model directory and decodes its lines with
+// confidence and boxes; Tesseract is not touched.
+func TestOCR_RunsTheModelTheCatalogSelects(t *testing.T) {
+	const isolatedPython = "/runtime/pyenv/bin/python"
+	var gotArgs []string
+	svc := mustService(t, Config{
+		ModelInstalled: func(string) bool { return true },
+		PythonProgram:  isolatedPython,
+		ModelsRoot:     "/data",
+		SelectModel:    func(context.Context, string) (models.Model, error) { return ocrPaddleModel, nil },
+		LookPath:       func(program string) (string, error) { return program, nil },
+		Run: func(_ context.Context, program string, args []string) ([]byte, error) {
+			if program != isolatedPython {
+				t.Fatalf("ran %q, want the isolated interpreter", program)
+			}
+			gotArgs = args
+			out := args[indexOf(t, args, "--out")+1]
+			payload := `{"full_text":"HARDWARE AND METAL\nYour stock","language":"english","blocks":[{"text":"HARDWARE AND METAL","confidence":0.99,"box":{"x":10,"y":20,"width":300,"height":40}},{"text":"Your stock","confidence":0.97,"box":{"x":12,"y":90,"width":200,"height":60}}]}`
+			return nil, os.WriteFile(out, []byte(payload), 0o600)
+		},
+	})
+	res, err := svc.OCR(context.Background(), []byte("img"))
+	if err != nil {
+		t.Fatalf("ocr: %v", err)
+	}
+	if args := strings.Join(gotArgs, " "); !strings.Contains(args, "-m image_tools_sidecar.ocr") || !strings.Contains(args, filepath.Join("/data", "models", "paddleocr")) {
+		t.Fatalf("sidecar args = %s", args)
+	}
+	if res.FullText != "HARDWARE AND METAL\nYour stock" || res.Language != "english" || len(res.Blocks) != 2 {
+		t.Fatalf("result = %+v", res)
+	}
+	if b := res.Blocks[1]; b.Text != "Your stock" || b.Confidence != 0.97 || b.Box != (Box{X: 12, Y: 90, Width: 200, Height: 60}) {
+		t.Fatalf("second block = %+v", b)
+	}
+}
+
+func TestOCR_ReportsAModelThatIsNotInstalled(t *testing.T) {
+	svc := mustService(t, Config{
+		ModelInstalled: func(string) bool { return false },
+		PythonProgram:  "/runtime/pyenv/bin/python",
+		SelectModel:    func(context.Context, string) (models.Model, error) { return ocrPaddleModel, nil },
+		LookPath:       func(program string) (string, error) { return program, nil },
+	})
+	_, err := svc.OCR(context.Background(), []byte("img"))
+	if !errors.Is(err, ErrBackendUnavailable) || !strings.Contains(err.Error(), "models install paddleocr") {
+		t.Fatalf("err = %v, want an unavailable error naming `models install paddleocr`", err)
+	}
+}
+
+// TestOperationsReportTheLiveOCRDefault: discovery shows the model a run would
+// use, so `analyze list` cannot disagree with `analyze ocr` (the ai list bug).
+func TestOperationsReportTheLiveOCRDefault(t *testing.T) {
+	svc := mustService(t, Config{
+		ModelInstalled: func(string) bool { return true },
+		SelectModel:    func(context.Context, string) (models.Model, error) { return ocrPaddleModel, nil },
+	})
+	defaults := map[string]string{}
+	for _, op := range svc.Operations(context.Background()) {
+		defaults[op.Name] = op.DefaultModelID
+	}
+	if defaults[OpOCR] != "paddleocr" || defaults[OpNSFW] != "adamcodd-vit-nsfw" {
+		t.Fatalf("defaults = %v", defaults)
+	}
+	failing := mustService(t, Config{
+		ModelInstalled: func(string) bool { return true },
+		SelectModel:    func(context.Context, string) (models.Model, error) { return models.Model{}, errors.New("none") },
+	})
+	for _, op := range failing.Operations(context.Background()) {
+		if op.Name == OpOCR && op.DefaultModelID != "" {
+			t.Fatalf("an unselectable ocr op reports default %q", op.DefaultModelID)
+		}
+	}
+}
+
+func indexOf(t *testing.T, args []string, flag string) int {
+	t.Helper()
+	for i, a := range args {
+		if a == flag {
+			return i
+		}
+	}
+	t.Fatalf("no %s in %v", flag, args)
+	return -1
+}
+
+// TestDefaultRunnerExposesVenvNvidiaLibraries pins the sidecar loader contract:
+// the default runner puts the interpreter's venv NVIDIA library directories on
+// LD_LIBRARY_PATH (CUDA wheels load them at import time even for CPU work) and
+// keeps the run on the CPU with the model containment overlay applied.
+func TestDefaultRunnerExposesVenvNvidiaLibraries(t *testing.T) {
+	venv := t.TempDir()
+	libDir := filepath.Join(venv, "lib", "python3.12", "site-packages", "nvidia", "cuda_runtime", "lib")
+	if err := os.MkdirAll(libDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	bin := filepath.Join(venv, "bin")
+	if err := os.MkdirAll(bin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	fake := filepath.Join(bin, "python")
+	script := "#!/bin/sh\necho \"$LD_LIBRARY_PATH|$CUDA_VISIBLE_DEVICES|$HF_HUB_OFFLINE\"\n"
+	if err := os.WriteFile(fake, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	out, err := (&Service{}).resolveRun()(context.Background(), fake, nil)
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	parts := strings.Split(strings.TrimSpace(string(out)), "|")
+	if len(parts) != 3 {
+		t.Fatalf("unexpected output %q", out)
+	}
+	if !strings.HasPrefix(parts[0], libDir) {
+		t.Errorf("LD_LIBRARY_PATH %q does not start with the venv NVIDIA dir %q", parts[0], libDir)
+	}
+	if parts[1] != "" {
+		t.Errorf("CUDA_VISIBLE_DEVICES = %q, want empty (CPU run)", parts[1])
+	}
+	if parts[2] != "1" {
+		t.Errorf("HF_HUB_OFFLINE = %q, want 1 (containment overlay)", parts[2])
+	}
+}
+
+// TestRunnerThreadsMatchTheAdmittedCPUReservation pins that the process starts
+// with exactly the threads admission reserved: OCR reserves four cores and must
+// use four (one thread made a 12 s read take 52 s), and an unadmitted call or a
+// light op stays on one.
+func TestRunnerThreadsMatchTheAdmittedCPUReservation(t *testing.T) {
+	bin := t.TempDir()
+	fake := filepath.Join(bin, "python")
+	if err := os.WriteFile(fake, []byte("#!/bin/sh\necho \"$IMAGE_TOOLS_CPU_THREADS|$OMP_NUM_THREADS\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	run := (&Service{}).resolveRun()
+	for _, tc := range []struct {
+		name string
+		ctx  context.Context
+		want string
+	}{
+		{"unadmitted", context.Background(), "1|1"},
+		{"ocr", context.WithValue(context.Background(), admittedThreads{}, cpuThreadsFor(OpOCR)), "4|4"},
+		{"light op", context.WithValue(context.Background(), admittedThreads{}, cpuThreadsFor(OpNSFW)), "1|1"},
+	} {
+		out, err := run(tc.ctx, fake, nil)
+		if err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		if got := strings.TrimSpace(string(out)); got != tc.want {
+			t.Errorf("%s: threads = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+	if cpuThreadsFor(OpOCR) < 2 {
+		t.Errorf("OCR must reserve more than one core, got %d", cpuThreadsFor(OpOCR))
+	}
+}
+
+// TestEveryAnalysisPythonLaunchPathExposesVenvNvidiaLibraries is the class guard
+// for the libcudart exit-3 failure: the module probe and the backend runner start
+// the same venv interpreter as the OCR runner and need the same loader path.
+func TestEveryAnalysisPythonLaunchPathExposesVenvNvidiaLibraries(t *testing.T) {
+	venv := t.TempDir()
+	libDir := filepath.Join(venv, "lib", "python3.12", "site-packages", "nvidia", "cuda_runtime", "lib")
+	if err := os.MkdirAll(libDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(venv, "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	fake := filepath.Join(venv, "bin", "python")
+	if err := os.WriteFile(fake, []byte("#!/bin/sh\necho \"$LD_LIBRARY_PATH\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	out, err := defaultRunOutput(context.Background(), fake, nil)
+	if err != nil || !strings.HasPrefix(strings.TrimSpace(string(out)), libDir) {
+		t.Errorf("defaultRunOutput LD_LIBRARY_PATH = %q (err %v), want prefix %q", out, err, libDir)
+	}
+	failing := filepath.Join(venv, "bin", "python-probe")
+	script := "#!/bin/sh\ncase \"$LD_LIBRARY_PATH\" in " + libDir + "*) exit 0;; *) echo missing libs; exit 3;; esac\n"
+	if err := os.WriteFile(failing, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := defaultCheckPythonModules(context.Background(), failing, []string{"os"}); err != nil {
+		t.Errorf("module probe did not get the venv NVIDIA libraries: %v", err)
+	}
+}

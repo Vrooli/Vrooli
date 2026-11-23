@@ -13,6 +13,8 @@ type FindingSeverity string
 const (
 	FindingError   FindingSeverity = "error"
 	FindingWarning FindingSeverity = "warning"
+	// FindingInfo needs no action for normal use (see models.FindingInfo).
+	FindingInfo FindingSeverity = "info"
 )
 
 // CatalogFinding is one actionable adapter-catalog integrity finding.
@@ -32,9 +34,11 @@ type CatalogDoctorReport struct {
 // DoctorCatalog checks installability + policy invariants that must hold for the
 // adapter catalog to be production-ready. It mirrors the model doctor: an enabled
 // adapter must declare a concrete, auto-resolvable fetch strategy (and a repo
-// source must pin its revision); a conditional-commercial adapter must not be
-// enabled; and an adapter offered for execution must be Ready (no vaporware). A
-// disabled offender is a warning (fix before enabling); an enabled one an error.
+// source must pin its revision); and an adapter offered for execution must be
+// Ready (no vaporware). A disabled offender is a warning (fix before enabling);
+// an enabled one an error. A restrictive license is informational only: the
+// shared rights evaluator allows every license class for normal local use and
+// keeps monetized, hosted and redistributed use refused.
 func (r *Registry) DoctorCatalog() CatalogDoctorReport {
 	var findings []CatalogFinding
 	add := func(f CatalogFinding) {
@@ -45,12 +49,22 @@ func (r *Registry) DoctorCatalog() CatalogDoctorReport {
 	}
 
 	for _, a := range r.adapters {
-		if a.CapabilityLabels.CommercialUse == models.CommercialUseConditional && a.Enabled {
-			add(CatalogFinding{
-				Code:      "enabled_conditional_commercial_use",
-				AdapterID: a.ID,
-				Message:   "enabled adapter has conditional commercial-use terms",
-			})
+		if a.Enabled {
+			code := ""
+			switch a.CapabilityLabels.CommercialUse {
+			case models.CommercialUseConditional:
+				code = "enabled_conditional_commercial_use"
+			case models.CommercialUseNo:
+				code = "enabled_non_commercial_license"
+			}
+			if code != "" {
+				add(CatalogFinding{
+					Severity:  FindingInfo,
+					Code:      code,
+					AdapterID: a.ID,
+					Message:   "normal local use is allowed; monetized, hosted and redistributed use stay refused by the shared rights evaluator until a license grant covers them",
+				})
+			}
 		}
 		// A Ready adapter that is enabled but not installable would be offered yet
 		// un-runnable; readiness without a fetch strategy is incoherent.

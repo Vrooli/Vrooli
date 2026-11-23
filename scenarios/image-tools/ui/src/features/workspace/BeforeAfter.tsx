@@ -3,6 +3,7 @@ import { useState } from "react";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
+import { SensitiveImage } from "../sensitive/SensitiveImage";
 
 export interface BeforeAfterProps {
   beforeUrl: string;
@@ -22,13 +23,16 @@ export function BeforeAfter({ beforeUrl, afterUrl }: BeforeAfterProps) {
   return (
     <div data-testid={selectors.workspace.compare.root} className="flex flex-col gap-2">
       <div className="relative max-h-64 w-full overflow-hidden rounded-lg border border-app-border">
-        <img
+        <SensitiveImage
+          interactive={false}
           data-testid={selectors.workspace.compare.before}
           src={beforeUrl}
           alt={t(strings.workspace.compare.before)}
           className="block max-h-64 w-full object-contain"
         />
-        <img
+        <SensitiveImage
+          interactive={false}
+          wrapperClassName="absolute inset-0"
           data-testid={selectors.workspace.compare.after}
           src={afterUrl}
           alt={t(strings.workspace.compare.after)}

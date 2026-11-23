@@ -585,6 +585,10 @@
       "testId": "models-blocklist-onnx-warning",
       "selector": "[data-testid=\"models-blocklist-onnx-warning\"]"
     },
+    "models.blocklist.gate": {
+      "testId": "models-blocklist-gate",
+      "selector": "[data-testid=\"models-blocklist-gate\"]"
+    },
     "models.addCustom.form": {
       "testId": "models-add-custom-form",
       "selector": "[data-testid=\"models-add-custom-form\"]"
@@ -653,6 +657,14 @@
       "testId": "models-import-attest",
       "selector": "[data-testid=\"models-import-attest\"]"
     },
+    "models.import.adapter": {
+      "testId": "models-import-adapter",
+      "selector": "[data-testid=\"models-import-adapter\"]"
+    },
+    "models.import.needs": {
+      "testId": "models-import-needs",
+      "selector": "[data-testid=\"models-import-needs\"]"
+    },
     "models.import.submit": {
       "testId": "models-import-submit",
       "selector": "[data-testid=\"models-import-submit\"]"
@@ -705,9 +717,29 @@
       "testId": "models-defaults-clear-button",
       "selector": "[data-testid=\"models-defaults-clear-button\"]"
     },
+    "models.verdict": {
+      "testId": "models-verdict",
+      "selector": "[data-testid=\"models-verdict\"]"
+    },
+    "models.verdictReason": {
+      "testId": "models-verdict-reason",
+      "selector": "[data-testid=\"models-verdict-reason\"]"
+    },
+    "models.verdictOperations": {
+      "testId": "models-verdict-operations",
+      "selector": "[data-testid=\"models-verdict-operations\"]"
+    },
+    "models.override": {
+      "testId": "models-override",
+      "selector": "[data-testid=\"models-override\"]"
+    },
     "models.pickerTrigger": {
       "testId": "models-picker-trigger",
       "selector": "[data-testid=\"models-picker-trigger\"]"
+    },
+    "models.pickerTriggerVerdict": {
+      "testId": "models-picker-trigger-verdict",
+      "selector": "[data-testid=\"models-picker-trigger-verdict\"]"
     },
     "models.pickerTriggerCaveat": {
       "testId": "models-picker-trigger-caveat",
@@ -772,6 +804,10 @@
     "workspace.operationSelect": {
       "testId": "workspace-operation-select",
       "selector": "[data-testid=\"workspace-operation-select\"]"
+    },
+    "workspace.capacityNote": {
+      "testId": "workspace-capacity-note",
+      "selector": "[data-testid=\"workspace-capacity-note\"]"
     },
     "workspace.opDescription": {
       "testId": "workspace-op-description",
@@ -989,6 +1025,30 @@
       "testId": "workspace-enhance-install",
       "selector": "[data-testid=\"workspace-enhance-install\"]"
     },
+    "workspace.rating.root": {
+      "testId": "workspace-rating",
+      "selector": "[data-testid=\"workspace-rating\"]"
+    },
+    "workspace.rating.note": {
+      "testId": "workspace-rating-note",
+      "selector": "[data-testid=\"workspace-rating-note\"]"
+    },
+    "workspace.rating.save": {
+      "testId": "workspace-rating-save",
+      "selector": "[data-testid=\"workspace-rating-save\"]"
+    },
+    "workspace.rating.saved": {
+      "testId": "workspace-rating-saved",
+      "selector": "[data-testid=\"workspace-rating-saved\"]"
+    },
+    "workspace.rating.clear": {
+      "testId": "workspace-rating-clear",
+      "selector": "[data-testid=\"workspace-rating-clear\"]"
+    },
+    "workspace.rating.error": {
+      "testId": "workspace-rating-error",
+      "selector": "[data-testid=\"workspace-rating-error\"]"
+    },
     "workspace.create.panel": {
       "testId": "workspace-create-panel",
       "selector": "[data-testid=\"workspace-create-panel\"]"
@@ -1137,6 +1197,34 @@
       "testId": "workspace-create-consent-blocked",
       "selector": "[data-testid=\"workspace-create-consent-blocked\"]"
     },
+    "workspace.create.consentReason": {
+      "testId": "workspace-create-consent-reason",
+      "selector": "[data-testid=\"workspace-create-consent-reason\"]"
+    },
+    "workspace.create.reference": {
+      "testId": "workspace-create-reference",
+      "selector": "[data-testid=\"workspace-create-reference\"]"
+    },
+    "workspace.create.extent": {
+      "testId": "workspace-create-extent",
+      "selector": "[data-testid=\"workspace-create-extent\"]"
+    },
+    "workspace.create.extentPresets": {
+      "testId": "workspace-create-extent-presets",
+      "selector": "[data-testid=\"workspace-create-extent-presets\"]"
+    },
+    "workspace.create.extentStage": {
+      "testId": "workspace-create-extent-stage",
+      "selector": "[data-testid=\"workspace-create-extent-stage\"]"
+    },
+    "workspace.create.extentStrength": {
+      "testId": "workspace-create-extent-strength",
+      "selector": "[data-testid=\"workspace-create-extent-strength\"]"
+    },
+    "workspace.create.needsReference": {
+      "testId": "workspace-create-needs-reference",
+      "selector": "[data-testid=\"workspace-create-needs-reference\"]"
+    },
     "workspace.mask.root": {
       "testId": "workspace-mask",
       "selector": "[data-testid=\"workspace-mask\"]"
@@ -1160,6 +1248,26 @@
     "workspace.mask.status": {
       "testId": "workspace-mask-status",
       "selector": "[data-testid=\"workspace-mask-status\"]"
+    },
+    "workspace.mask.selectRoot": {
+      "testId": "workspace-mask-select",
+      "selector": "[data-testid=\"workspace-mask-select\"]"
+    },
+    "workspace.mask.selectInput": {
+      "testId": "workspace-mask-select-input",
+      "selector": "[data-testid=\"workspace-mask-select-input\"]"
+    },
+    "workspace.mask.selectRun": {
+      "testId": "workspace-mask-select-run",
+      "selector": "[data-testid=\"workspace-mask-select-run\"]"
+    },
+    "workspace.mask.selectBusy": {
+      "testId": "workspace-mask-select-busy",
+      "selector": "[data-testid=\"workspace-mask-select-busy\"]"
+    },
+    "workspace.mask.selectError": {
+      "testId": "workspace-mask-select-error",
+      "selector": "[data-testid=\"workspace-mask-select-error\"]"
     },
     "workspace.analyze.panel": {
       "testId": "workspace-analyze-panel",
@@ -1458,6 +1566,39 @@
         }
       ]
     },
+    "workspace.opVerdict": {
+      "description": "Verdict badge of an operation's default model, by operation name",
+      "selectorPattern": "[data-testid=\"workspace-op-verdict-${name}\"]",
+      "testIdPattern": "workspace-op-verdict-${name}",
+      "params": [
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    },
+    "workspace.maskQuickSelect": {
+      "description": "Mask tool quick select-by-name button by phrase",
+      "selectorPattern": "[data-testid=\"workspace-mask-select-quick-${phrase}\"]",
+      "testIdPattern": "workspace-mask-select-quick-${phrase}",
+      "params": [
+        {
+          "name": "phrase",
+          "type": "string"
+        }
+      ]
+    },
+    "workspace.ratingScore": {
+      "description": "Rating control score button by score (1-5)",
+      "selectorPattern": "[data-testid=\"workspace-rating-score-${score}\"]",
+      "testIdPattern": "workspace-rating-score-${score}",
+      "params": [
+        {
+          "name": "score",
+          "type": "number"
+        }
+      ]
+    },
     "workspace.createVariation": {
       "description": "Create result-grid variation slot by 1-based index",
       "selectorPattern": "[data-testid=\"workspace-create-variation-${index}\"]",
@@ -1610,6 +1751,17 @@
         {
           "name": "index",
           "type": "number"
+        }
+      ]
+    },
+    "models.pickerVerdict": {
+      "description": "Model-picker verdict badge by model id",
+      "selectorPattern": "[data-testid=\"models-picker-verdict-${id}\"]",
+      "testIdPattern": "models-picker-verdict-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
         }
       ]
     },
@@ -1818,11 +1970,26 @@
           ]
         }
       ]
+    },
+    "settingsPage.sensitiveImagesOption": {
+      "description": "Sensitive-image display choice (blur or show) radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-sensitive-images-${choice}\"]",
+      "testIdPattern": "page-settings-sensitive-images-${choice}",
+      "params": [
+        {
+          "name": "choice",
+          "type": "enum",
+          "values": [
+            "blur",
+            "show"
+          ]
+        }
+      ]
     }
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "f32319b4f20977779fe5bca6416d524a062d3247d963df70661fc945c716c2ad",
-    "ui/src/consts/selectors.ts": "27057082f40b3010726774c6287d4964996c70a87fa793617ae863f0a3181bae",
+    "ui/src/consts/selectors.ts": "2194f08fadd99c79682cd34b75c9c70ba1cd3e57afb7eacf68d24825875f7a44",
     "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

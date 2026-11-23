@@ -195,7 +195,19 @@ the rule and `derive_test.go` the table):
    or `experimental` (some success); repeated failure with no success earns
    `broken`; a curated `recommended` or `works` is demoted to `experimental` after
    five jobs at under 50 percent success; a curated `broken` with a recent run of
-   successes is lifted to `experimental` ("re-qualify").
+   successes is lifted to `experimental` ("re-qualify"). Only a fault of the model or
+   the runtime counts as a failure. Each failed job records a `failure_kind`
+   (`api/internal/jobs/failure.go`): `fault` (the default, and what a record from before
+   the kind existed reads as), `refused` (consent, spend cap or the output safety
+   review), `invalid_input` (a request the model cannot serve as given, such as a
+   phrase a SegFormer parser has no label for; the sidecar signals it with
+   `_common.InputError` and exit status 65), `interrupted` (a restart) or `capacity` (GPU
+   memory another service took mid-run). The last four say nothing about the model and
+   are left out of the history. A run that ends in `capacity` (a model with no CPU path
+   whose GPU memory was taken) goes back to the queue once, after 16 s, and keeps
+   `capacity_retries` and `capacity_retry_reason` in its meta; a second loss fails the
+   job as `capacity`, and its error names the processes that held the GPU
+   (`GPU memory held when it failed: pid ...`, read from NVML at that moment).
 3. **Operator ratings** (below): from three ratings, a mean of 4.0 or more lifts to
    `recommended` and a mean of 2.0 or less drops to `not recommended`; in between,
    ratings lift an untested or experimental model to `works`. A rating never lifts a
@@ -265,6 +277,31 @@ This is the rule that fixes the 2026-11-10 case where an agent's override left
 RestoreFormer++ disabled after the seed enabled it: the override had no provenance
 and nothing ever compared it with the seed again.
 
+## Why a row is off
+
+Every seed row with `"enabled": false` carries `"disabled": {"kind": ..., "reason": "one line"}`;
+the seed refuses a disabled row without one and an enabled row that still has one
+(`validateSeedInvariants`). The reason shows as the verdict reason of a disabled model
+that has no other evidence (`models get|list|explain`, the Models card and the picker).
+A runtime reason reads **broken**, the others **untested** with "disabled: ..."; a model
+that has real evidence keeps its grade and carries the reason as one more evidence
+entry. The reason is hidden once an operator override enables the model, because it
+described the seed's state.
+
+| Kind | Meaning | Re-enable when |
+|---|---|---|
+| `runtime` | cannot run on this build (no runner, backend, or loadable weight format) | the runner or a pinned loadable weight exists |
+| `needs_install` | weights or backend need a manual download, export or install the catalog cannot do | a pinned asset or supported provisioning route exists |
+| `hardware` | does not fit this host's GPU or memory | the host changes |
+| `superseded` | a recommended model covers the operation and nobody has measured a gain from this one | a comparison shows a gain |
+| `candidate` | registered for comparison and not yet judged | it is judged (add a claim in `evidence.seed.json`) |
+
+**Licensing is never a kind.** A model is not switched off for an unverified or
+restrictive licence: the operator's rule is the best model for normal local use, and
+rights gate monetized, hosted or redistributed use through the rights record and
+`commercial_use` notes. An import of an adapter that is registered but not proven also
+starts disabled with a `runtime` reason (the family's own pending note).
+
 ## Add a model
 
 Pick the row that matches what you have. Each is the shortest honest path; the
@@ -275,7 +312,8 @@ declare quality up front.
 |---|---|
 | A **Hugging Face diffusers repo** of a known family (a Flux.2 klein variant, Qwen-Image-Edit, an SD or SDXL checkpoint) | `image-tools models import <org/repo> --wait` |
 | An **ONNX** (or other single-file) model for an operation that already has a script | `image-tools models add-custom <id> --operation <op> --backend onnxruntime --download-url <url> --wait`, or `--local-path <file>` |
-| A model that should ship **in the seed** | One row in `registry.seed.json` plus, once judged, a claim in `evidence.seed.json` |
+| A model that should ship **in the seed** | One row in `registry.seed.json` plus, once judged, a claim in `evidence.seed.json`. For weights on the Hugging Face Hub, `python3 scripts/pin_hf_assets.py <org/repo> --include <glob>` prints the commit-pinned `source.assets[]` rows (URL, sha256, size) so nobody types a digest; see [Seed rows](#seed-rows) |
+| A **Transformers** checkpoint (torch + `transformers`, no diffusers pipeline) for an operation that has a sidecar module | The seed row with `backend: "<name>-transformers"`, then the [Transformers backend](#add-a-transformers-backend) steps |
 | A repo whose pipeline class has **no adapter** | [Add a diffusers family](#add-a-diffusers-family), then the first row |
 
 **Diffusers import, what it does for you.** `models inspect <repo>` is the dry run
@@ -311,7 +349,7 @@ needs no code. A model with a different contract needs that script extended, and
 is the verdict (broken after repeated failed jobs) that tells you, not a doctor
 finding.
 
-**Seed rows** follow the checklist below for the data a shipped entry needs.
+<a id="seed-rows"></a>**Seed rows** follow the checklist below for the data a shipped entry needs.
 
 1. Edit [`api/internal/models/registry.seed.json`](../../api/internal/models/registry.seed.json)
    by hand. Do not mass-edit the seed.
@@ -325,7 +363,11 @@ finding.
    `source.repo`):
    - use a direct artifact URL, not a model-card or HTML page;
    - set `filename`, `kind`, and positive `min_bytes`;
-   - include a published `sha256` only when the upstream publishes one. Otherwise
+   - pin every asset's `sha256`. For a Hugging Face repo, `python3
+     scripts/pin_hf_assets.py <org/repo> --include <glob>` prints the rows (LFS
+     digests come from the Hub listing, small files are hashed once); for a GitHub
+     release asset that publishes no digest, stream it once through `sha256sum`
+     (`curl -sL <url> | sha256sum`; nothing is saved). Only when neither is possible
      leave `checksum.status` as capture-on-download so install records pin the
      verified bytes;
    - declare everything the runtime reads at load time (see
@@ -350,6 +392,67 @@ image-tools backends doctor --json
 may stay red for missing host provisioning, but it must identify a registered
 provider and concrete provisioning path rather than a catalog-only gap.
 
+### Add a Transformers backend
+
+For a torch + `transformers` model that is not a diffusers pipeline (SAM 2, SegFormer,
+Florence-2). Every file the model loads is a pinned asset: Transformers resolves its
+config, tokenizer and processor from the model directory with `local_files_only`, so a
+file that is not declared is a failed job, not a download.
+
+1. **The seed row**: `backend: "<name>-transformers"` and `source.assets[]` from
+   `scripts/pin_hf_assets.py` (weights as `safetensors`, every small JSON/txt file as
+   `config`). Load the community port that needs no `trust_remote_code`; the sidecar
+   never executes code from a model repository.
+2. **The sidecar module** (`image_tools_sidecar/<name>.py`) with `--model --image --out
+   --device`, and a `smoke(model_dir, deep)` function.
+3. **One row in each of three tables**, all data:
+   `transformersSmokeKinds` in `api/internal/models/smoke.go` (backend to smoke kind),
+   a `--kind` in `smoke.py`, and a provider spec in `api/internal/ai/provider_catalog.go`
+   (`hostTool: "uv"`, `gpuProbe: "torch"`, `warmSidecar: true`, one technique per
+   operation). The lifecycle gate, the provisioner and the GPU-device binding read the
+   smoke table, so there is no fourth list.
+4. **The manifest**: add the backend to each served operation's `backends` in
+   `manifests.seed.json`, then `make capability-gen backends-doc`.
+5. Install it, run one live job on a real image, and add the claim. `models doctor`
+   must read `ready` (the install-time smoke loaded the checkpoint).
+
+### Add a gateway-served vision model
+
+For a general vision-language model (Qwen3-VL, Gemma, Gemini, GPT) that should answer
+`caption`, `object_detection` and `tagging` next to the Florence-2 specialist. It is **one
+row and no code**: image-tools asks the model in words and parses the answer, and the AI
+Gateway decides which concrete model a role means, on this machine through Ollama or
+hosted.
+
+1. **Choose a gateway role** that the gateway's resource policy already maps to the
+   model. `resources/ollama/model-policy.json` maps `vision.default` to a local vision
+   model; `resources/openrouter/model-policy.json` maps it to a hosted one. To use a model
+   no role covers, add a role there, not here.
+2. **Add the row** to `registry.seed.json`, copying `qwen3-vl-4b` (local) or
+   `gemini-flash-lite-vision` (hosted):
+   - `backend: "gateway-vision"` for a model the gateway runs through Ollama (no consent
+     needed, nothing leaves the machine), or `backend: "openrouter"` for a hosted model
+     (BYOK: needs `--byok`, a spend cap and, when the image shows people, the consent
+     affirmation, because the image is sent).
+   - `operations`: any of `caption`, `object_detection`, `tagging`.
+   - `runtime.gateway_role`: the role from step 1.
+   - for `object_detection`, `runtime.box_order` and `runtime.box_scale`: how the model
+     writes a box. Qwen writes `[x1,y1,x2,y2]` (`xyxy`) and Gemini `[y1,x1,y2,x2]`
+     (`yxyx`), both on a 0..1000 grid (`box_scale: 1000`; `0` means source pixels). Look at
+     one raw answer to tell. A wrong order shows as boxes that are transposed.
+   - no `source.assets`: the weights belong to the gateway's Ollama or to the provider, so
+     the row reads installed from the start and `models install` has nothing to fetch.
+3. **Prove it**: `image-tools ai caption|detect|tag <img> --model <id> --wait` on a real
+   photograph (a hosted row needs `--byok`, and `--consent` only when the photo shows people), compare with the Florence-2
+   output, and add a claim to `evidence.seed.json` with the numbers. The default does not
+   move unless the new model wins on quality, then speed.
+
+The answer's `model` and the job's meta record the concrete model the gateway chose, so a
+role remapped in the gateway policy is visible in every result. Image-tools holds no CPU,
+RAM or GPU claim for such a job: it waits on the call, and the gateway's capacity broker
+places the model. A cold local model on a busy GPU can take minutes to load; the call
+allows ten.
+
 ### Add a diffusers family
 
 Only when a repo's pipeline class has no adapter. Two files, one test:
@@ -366,6 +469,17 @@ Only when a repo's pipeline class has no adapter. Two files, one test:
    family's imports become selectable. The sidecar is embedded in the Go binary, so
    the change needs a restart.
 
+**Repo repairs the loader makes for you.** Community SDXL repos often arrive with a
+component the declared pipeline cannot use. `repo_component_overrides` in
+`_diffusers.py` fixes the two seen so far at every `from_pretrained` site, so the
+registry row needs nothing extra: a tokenizer saved as `tokenizer.json` alone
+(LUSTIFY; transformers 5 layout) is rebuilt as the slow `CLIPTokenizer` diffusers
+expects, and an `EDMDPMSolverMultistepScheduler` declared beside an
+epsilon-prediction UNet (Big Lust v1.6, which otherwise samples pure noise) becomes
+`EulerDiscreteScheduler`. A new component fault is one more function there with a
+unit test in `test_diffusers_adapters.py`. A checkpoint whose images come out as
+structureless noise is the signature of a scheduler or VAE mismatch, not a bad seed.
+
 ## Add a capability
 
 An operation is **declared once**, as a capability manifest row; everything else is
@@ -378,7 +492,11 @@ generated or looked up. The steps by how new the capability is
    `consent_weight`, the `params_schema` for its knobs and, if it appears in the
    workspace, its `panel`. `go test ./internal/capability` names what is missing
    (an undeclared input or output, a backend no model uses, a consent weight that
-   disagrees with the safety policy).
+   disagrees with the safety policy). `engine: "ai"` makes it a job the AI engine
+   runs (give it a `cli` row so `image-tools ai <verb>` exists); `unwired` is only
+   for an operation with no runner yet. `io.output.kind` also decides the safety
+   review: `image` and `mask` outputs are reviewed as rasters, `text`, `data` and
+   `mesh` outputs (a caption, detections, an embedding) are not.
 2. **Generate.** `make capability-gen` regenerates the UI catalog, CLI table, typed
    parameter views and wire binding from the manifests and proto; the drift gates
    fail until you run it. No per-op proto field, command or form is hand-written.
@@ -497,8 +615,8 @@ Legend: **D**=default · **Q**=quality tier · **V**=size/CPU variant · **N**=n
 | denoise | 🟢 D | SCUNet (ONNX re-export, `Heliosoph/scunet-onnx`; default, tiled onnxruntime sidecar) | Apache-2.0 ✅ | ~70MB | [repo](https://github.com/cszn/SCUNet) |
 | deblur | 🟢 D | NAFNet | MIT ✅ | ~92MB ONNX | [OpenCV ONNX export](https://huggingface.co/opencv/deblurring_nafnet/resolve/main/deblurring_nafnet_2025may.onnx) · [repo](https://github.com/megvii-research/NAFNet) |
 | deblur | 🔴 Q | Restormer | MIT ✅ | ~135MB | [repo](https://github.com/swz30/Restormer) |
-| colorize | 🟢 D | DDColor tiny | Apache-2.0 ✅ | ~220MB | [direct weight](https://huggingface.co/piddnad/DDColor-models/resolve/main/ddcolor_paper_tiny.pth) · [repo](https://github.com/piddnad/DDColor) |
-| colorize | 🔴 Q | DDColor large | Apache-2.0 ✅ | ~912MB | [repo](https://github.com/piddnad/DDColor) |
+| colorize | 🟢 V | DDColor tiny (fp16 ONNX, ipsilondev conversion) | Apache-2.0 ✅ | ~121MB | [ONNX](https://huggingface.co/ipsilondev/ddcolor-onnx) · [repo](https://github.com/piddnad/DDColor). Oversaturates next to large. |
+| colorize | 🟢 D | DDColor large (fp32 ONNX, mindhash export) | Apache-2.0 per cards; third-party export, lineage unverified | ~912MB | [ONNX](https://huggingface.co/mindhash/ddcolor) pinned, digest pinned · [repo](https://github.com/piddnad/DDColor). Default since 2026-11-23: beat tiny on CIEDE2000 against real colour originals. |
 | face_restore | 🟢 D | RestoreFormer++ (ONNX + YuNet alignment) | code Apache-2.0; checkpoint rights unresolved (FFHQ) — normal use | ~294MB | [ONNX export](https://github.com/facefusion/facefusion-assets/releases/download/models-3.0.0/restoreformer_plus_plus.onnx) · [repo](https://github.com/wzhouxiff/RestoreFormerPlusPlus) |
 | face_restore | 🟢 V | CodeFormer (ONNX + YuNet alignment) | S-Lab 1.0 (non-commercial) — normal use | ~377MB | [ONNX export](https://github.com/facefusion/facefusion-assets/releases/download/models-3.0.0/codeformer.onnx) · [repo](https://github.com/sczhou/CodeFormer) |
 | old_photo_restore | — | pipeline: Real-ESRGAN + DDColor + face restore | — | — | not promoted |
@@ -515,7 +633,7 @@ Legend: **D**=default · **Q**=quality tier · **V**=size/CPU variant · **N**=n
 | segment | 🟢 N | HQ-SAM (sharpest edges) | Apache-2.0 ✅ | ~40MB (Light) | [repo](https://github.com/SysCV/sam-hq) |
 | depth_map | 🟢 D | Depth-Anything-V2 Large | CC-BY-NC-4.0 — normal use | ~1.34GB | [direct ONNX](https://github.com/fabio-sim/Depth-Anything-ONNX/releases/download/v2.0.0/depth_anything_v2_vitl.onnx) · [HF](https://huggingface.co/depth-anything/Depth-Anything-V2-Large) |
 | depth_map | 🟢 V | Depth-Anything-V2 Small | Apache-2.0 ✅ (monetized use) | ~99MB | [direct ONNX](https://github.com/fabio-sim/Depth-Anything-ONNX/releases/download/v2.0.0/depth_anything_v2_vits.onnx) · [HF](https://huggingface.co/depth-anything/Depth-Anything-V2-Small) |
-| depth_map | 🔴 Q | Depth-Anything **V1** Large | Apache-2.0 ✅ (monetized large tier) | ~1.3GB | [repo](https://github.com/LiheYoung/Depth-Anything) |
+| depth_map | 🟢 V | Depth-Anything **V1** Large | Apache-2.0 ✅ (monetized large tier) | ~1.3GB | [fabio-sim ONNX v1.0.0](https://github.com/fabio-sim/Depth-Anything-ONNX/releases/download/v1.0.0/depth_anything_vitl14.onnx) digest pinned · [repo](https://github.com/LiheYoung/Depth-Anything). Behind V2 Large (blurrier edges). |
 | normal_map | 🟢 D | normals-from-depth (computed) | n/a ✅ | 0 | (math) |
 | normal_map | 🔴 Q | Marigold-Normals v1-1 | Apache-2.0 ⚠️ | ~2GB | [HF](https://huggingface.co/prs-eth/marigold-normals-v1-1) — *verify weight card at bundle* |
 
@@ -523,16 +641,16 @@ Legend: **D**=default · **Q**=quality tier · **V**=size/CPU variant · **N**=n
 | Op | Tier | Model/lib | License (commercial) | Approx size | Source / updates |
 |---|---|---|---|---|---|
 | ocr | 🟢 D | Tesseract (gosseract) | Apache/MIT ✅ | ~4MB English data | [eng.traineddata](https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main/eng.traineddata) · [gosseract](https://github.com/otiai10/gosseract) |
-| ocr | 🟢 Q | PaddleOCR | Apache-2.0 ✅ | ~140MB | [repo](https://github.com/PaddlePaddle/PaddleOCR) |
+| ocr | 🟢 D | PaddleOCR PP-OCRv5 (ONNX detector + English and Latin recognisers) | Apache-2.0 ✅ | ~104MB | [`monkt/paddleocr-onnx`](https://huggingface.co/monkt/paddleocr-onnx) pinned, digests pinned · [repo](https://github.com/PaddlePaddle/PaddleOCR). Default; reads display type and scene text. Detection runs at a short scale pyramid. |
 | nsfw_classify | 🟢 D | AdamCodd ViT-base NSFW | Apache-2.0 ✅ | ~345MB f32 | [pinned full-precision ONNX](https://huggingface.co/AdamCodd/vit-base-nsfw-detector/resolve/8587de998f441aac03fdd57a85d2e4cb808c7d64/onnx/model.onnx) |
 
 The NSFW sidecar follows the pinned ViT processor profile: 384×384 bilinear resize, pixel rescale by `1/255`, and channel mean/std `0.5`. The ONNX graph exposes dynamic spatial axes while its positional embeddings require the 384×384 patch grid; its sidecar uses that model-specific fallback.
 | nsfw_classify | 🟢 Q | Falconsai NSFW | Apache-2.0 ✅ | ~85MB | [HF](https://huggingface.co/Falconsai/nsfw_image_detection) |
 | age_estimate | 🟢 D | FairFace ViT age (ONNX) | Apache-2.0 ✅ (dima806 fine-tune of ViT-base on FairFace) | ~0.35GB | [`onnx-community/fairface_age_image_detection-ONNX`](https://huggingface.co/onnx-community/fairface_age_image_detection-ONNX) pinned. Age **bins** from a face crop; not an identity model. One of the three models of the bundled minor-safety reviewer (with `adamcodd-vit-nsfw` and `yunet`); the 10-19 bin cannot separate 17 from 19. |
-| caption | 🟢 D | moondream2 | Apache-2.0 ✅ | ~3.7GB GGUF pair | [text](https://huggingface.co/ggml-org/moondream2-20250414-GGUF/resolve/main/moondream2-text-model-f16_ct-vicuna.gguf) · [mmproj](https://huggingface.co/ggml-org/moondream2-20250414-GGUF/resolve/main/moondream2-mmproj-f16-20250414.gguf) |
+| caption | 🟢 V | moondream2 (not installed; no longer default) | Apache-2.0 ✅ | ~3.7GB GGUF pair | [text](https://huggingface.co/ggml-org/moondream2-20250414-GGUF/resolve/main/moondream2-text-model-f16_ct-vicuna.gguf) · [mmproj](https://huggingface.co/ggml-org/moondream2-20250414-GGUF/resolve/main/moondream2-mmproj-f16-20250414.gguf) |
 | caption | 🟢 V | SmolVLM-256M | Apache-2.0 ✅ | ~279MB GGUF pair | [model](https://huggingface.co/ggml-org/SmolVLM-256M-Instruct-GGUF/resolve/main/SmolVLM-256M-Instruct-Q8_0.gguf) · [mmproj](https://huggingface.co/ggml-org/SmolVLM-256M-Instruct-GGUF/resolve/main/mmproj-SmolVLM-256M-Instruct-Q8_0.gguf) |
-| caption / detect / tag | 🟢 Q | Florence-2 | MIT ✅ | ~460MB | [HF](https://huggingface.co/microsoft/Florence-2-large) |
-| object_detection | 🟢 D | YOLOX-Tiny | Apache-2.0 ✅ | ~20MB | [direct ONNX](https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_tiny.onnx) |
+| caption / object_detection | 🟢 D | Florence-2 large (Transformers port) | MIT ✅ | ~1.55GB | [`florence-community/Florence-2-large`](https://huggingface.co/florence-community/Florence-2-large) pinned, digests pinned. Default for both since 2026-11-23 (beat SmolVLM-256M and YOLOX-Tiny on real photos). No tagging task: tagging stays with wd14. |
+| object_detection | 🔴 broken | YOLOX-Tiny (verdict `broken`: zero detections, the sidecar does not decode the raw head) | Apache-2.0 ✅ | ~20MB | [direct ONNX](https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_tiny.onnx) |
 | object_detection | 🟢 V | NanoDet | Apache-2.0 ✅ | ~1–5MB | [repo](https://github.com/RangiLyu/nanodet) |
 | object_detection | 🟢 Q | RT-DETRv2 (official) | Apache-2.0 ✅ | ~76MB | [repo](https://github.com/lyuwenyu/RT-DETR) |
 | tagging | 🟢 D | WD14 wd-vit-v3 | Apache-2.0 ✅ | ~379MB | [direct ONNX](https://huggingface.co/SmilingWolf/wd-vit-tagger-v3/resolve/main/model.onnx) |
@@ -542,8 +660,8 @@ The NSFW sidecar follows the pinned ViT processor profile: 384×384 bilinear res
 | quality_assessment | 🟢 Q | BRISQUE | OpenCV Apache + attribution ✅ | ~25KB | [opencv_contrib](https://github.com/opencv/opencv_contrib) |
 | quality_assessment | 🟢 N | LAION aesthetic (+CLIP) | MIT ✅ | ~350MB | [repo](https://github.com/christophschuhmann/improved-aesthetic-predictor) |
 | duplicate_detect | 🟢 D | goimagehash (pure Go) | BSD-2 ✅ | ~0 | [repo](https://github.com/corona10/goimagehash) |
-| embedding | 🟢 D | nomic-embed-vision-v1.5 | Apache-2.0 ✅ | ~97MB int8 | [direct ONNX](https://huggingface.co/nomic-ai/nomic-embed-vision-v1.5/resolve/main/onnx/model_int8.onnx) |
-| embedding | 🟢 Q | SigLIP2 base | Apache-2.0 ✅ | ~375MB | [HF](https://huggingface.co/google/siglip2-base-patch16-224) |
+| embedding | 🟢 V | nomic-embed-vision-v1.5 (class-token embedding) | Apache-2.0 ✅ | ~97MB int8 | [direct ONNX](https://huggingface.co/nomic-ai/nomic-embed-vision-v1.5/resolve/main/onnx/model_int8.onnx) |
+| embedding | 🟢 D | SigLIP2 base (vision tower, fp32 ONNX) | Apache-2.0 ✅ | ~372MB | [`onnx-community/siglip2-base-patch16-224-ONNX`](https://huggingface.co/onnx-community/siglip2-base-patch16-224-ONNX) pinned, digests pinned · [upstream](https://huggingface.co/google/siglip2-base-patch16-224). Default since 2026-11-23 (0.395 vs 0.191 same-minus-cross cosine margin). Image embeddings only (text tower not installed). |
 | qr_barcode_read | 🟢 D | gozxing (pure Go) | MIT ✅ | ~0 | [repo](https://github.com/makiuchi-d/gozxing) |
 
 ## Gates — license gates and exclusions

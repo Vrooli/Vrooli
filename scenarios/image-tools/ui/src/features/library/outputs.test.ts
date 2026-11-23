@@ -31,6 +31,7 @@ describe("imageOutputs", () => {
       operation: "crop",
       resultRef: "out/j1.png",
       createdAtMs: new Date("2026-01-01T00:00:00.000Z").getTime(),
+      sensitive: false,
     });
   });
 
@@ -57,5 +58,18 @@ describe("imageOutputs", () => {
     });
     const outputs = imageOutputs([old, recent]);
     expect(outputs.map((o) => o.jobId)).toEqual(["recent", "old"]);
+  });
+});
+
+describe("imageOutputs sensitivity", () => {
+  it("flags exactly the outputs the server marked sensitive", () => {
+    const jobs = [
+      makeJob({ id: "flagged", state: JobState.SUCCEEDED, resultRef: "out/a.png", resultMeta: { sensitive: "true", sensitive_refs: "out/a.png" } }),
+      makeJob({ id: "plain", state: JobState.SUCCEEDED, resultRef: "out/b.png", resultMeta: { nsfw_score: "0.0100", safety_review: "passed" } }),
+      // A flag that names a different ref does not taint this job's primary output.
+      makeJob({ id: "other", state: JobState.SUCCEEDED, resultRef: "out/c.png", resultMeta: { sensitive: "true", sensitive_refs: "out/c2.png" } }),
+    ];
+    const bySensitive = Object.fromEntries(imageOutputs(jobs).map((o) => [o.jobId, o.sensitive]));
+    expect(bySensitive).toEqual({ flagged: true, plain: false, other: false });
   });
 });

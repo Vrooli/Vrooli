@@ -6,7 +6,10 @@
 // local and remote work; capacity leases determine safe local concurrency.
 package jobs
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 // MetaGatewayExecutionEvidence is the only runner metadata the manager may
 // retain when an AI job finalizes as failed or canceled.
@@ -15,6 +18,62 @@ const MetaGatewayExecutionEvidence = "gateway_execution_evidence_v1"
 // MetaProvisioningEvidence retains the finalized per-model preparation report,
 // including partial outcomes when preparation fails or is canceled.
 const MetaProvisioningEvidence = "provisioning_evidence_v1"
+
+// MetaRoutePrefix prefixes the routing record (where a job ran, why, and its
+// spend caps). Failed and canceled jobs keep these keys; see failedExecutionEvidence.
+const MetaRoutePrefix = "route_"
+
+// MetaCapacityRelease and MetaCapacityReleaseWarning record the outcome of the
+// job's capacity cleanup. A job whose work succeeded keeps its result when the
+// release could not be confirmed; these keys carry what happened instead.
+const (
+	MetaCapacityRelease        = "capacity_release"
+	MetaCapacityReleaseWarning = "capacity_release_warning"
+)
+
+// Reroute is a Rerouter's decision to move a queued job onto another route
+// before it starts: its payload, lane and ETA are replaced and the job keeps
+// its identity, creation time and queue position rules.
+type Reroute struct {
+	Payload          []byte
+	Lane             Lane
+	EstimatedSeconds int
+	// Message is shown as the job's status when the move is applied.
+	Message string
+	// Meta is merged into the job's meta when the move is applied, so facts that
+	// must outlive the move (and be queryable while the job still waits) are
+	// durable at once.
+	Meta map[string]string
+}
+
+// RouteBackError is returned by an Admitter or Runner whose route was refused
+// before it did any work or billing (for example a cloud provider out of
+// credits). The manager releases the admission and puts the job back on the
+// route in Move instead of failing it. It is honoured only for a job that was
+// not canceled; it never moves a job that produced output.
+type RouteBackError struct {
+	Move  Reroute
+	Cause error
+}
+
+func (e *RouteBackError) Error() string {
+	if e.Cause == nil {
+		return "jobs: route refused; returning the job to its previous route"
+	}
+	return "jobs: route refused; returning the job to its previous route: " + e.Cause.Error()
+}
+
+func (e *RouteBackError) Unwrap() error { return e.Cause }
+
+// Rerouter inspects a job that has not started running, either queued or still
+// inside admission (waiting on capacity or preparing a model), and returns a
+// Reroute to move it, nil to leave it, or an error when it wanted to move it
+// but could not (the manager logs it and asks again later). It runs outside all
+// manager locks and must be idempotent: the manager applies the result only if
+// the job has still not started running, so a running job is never moved and a
+// route is never run twice. A job moved out of admission has its admission
+// cancelled and released first; the new route starts only after that cleanup.
+type Rerouter func(ctx context.Context, job Job) (*Reroute, error)
 
 // State is a job's lifecycle state.
 type State string

@@ -18,6 +18,13 @@ type modelView struct {
 	enabled bool
 	custom  bool
 	install *internalmodels.InstallRecord // nil when no install record exists
+	// override is the stored override with its provenance; nil when the model
+	// follows the seed.
+	override *modelsv1.StateOverride
+	// verdict is the roll-up and verdicts the per-operation grades, in the
+	// model's operation order. Empty when no verdict source is wired.
+	verdict  *modelsv1.Verdict
+	verdicts []*modelsv1.Verdict
 }
 
 // domainToProto converts a registry Model to its wire shape. enabled is the
@@ -42,6 +49,9 @@ func domainToProto(m internalmodels.Model, v modelView) *modelsv1.Model {
 		Custom:           v.custom,
 		Install:          installToProto(v.install),
 		Geometry:         geometryToProto(m.Geometry()),
+		Override:         v.override,
+		Verdict:          v.verdict,
+		Verdicts:         v.verdicts,
 	}
 }
 
@@ -166,6 +176,9 @@ func blocklistToProto(b internalmodels.BlocklistEntry) *modelsv1.BlocklistEntry 
 		License:                         b.License,
 		Reason:                          b.Reason,
 		ExportingOnnxRemovesRestriction: b.ExportingONNXRemovesRestriction,
+		Gate:                            string(b.Gate),
+		GatedUses:                       append([]string(nil), b.GatedUses...),
+		ExclusionKind:                   string(b.ExclusionKind),
 	}
 }
 
@@ -231,6 +244,8 @@ func findingSeverityToProto(s internalmodels.FindingSeverity) modelsv1.CatalogFi
 		return modelsv1.CatalogFindingSeverity_CATALOG_FINDING_SEVERITY_WARNING
 	case internalmodels.FindingError:
 		return modelsv1.CatalogFindingSeverity_CATALOG_FINDING_SEVERITY_ERROR
+	case internalmodels.FindingInfo:
+		return modelsv1.CatalogFindingSeverity_CATALOG_FINDING_SEVERITY_INFO
 	default:
 		return modelsv1.CatalogFindingSeverity_CATALOG_FINDING_SEVERITY_UNSPECIFIED
 	}

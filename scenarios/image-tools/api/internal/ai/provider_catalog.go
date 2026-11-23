@@ -20,7 +20,7 @@ type providerSpec struct {
 	program        string                // binary/interpreter resolved on PATH
 	programAliases []string              // preferred GPU-build commands tried before program (e.g. "sd-gpu")
 	techniques     []technique.Technique // per-op technique rows this backend serves
-	gpuCapable     bool                  // backend can use the GPU (false for the CPU-only onnx sidecar)
+	gpuCapable     bool                  // backend can use the GPU (a per-operation allow-list can narrow it, see gpuQualifiedOps)
 	// hostTool is the platform host-tool NAME this backend depends on (the
 	// cross-module contract: the scenario declares it in service.json hostTools
 	// and the platform defines it in internal/tools/<hostTool>/tool.json). The
@@ -32,6 +32,15 @@ type providerSpec struct {
 	// "onnx", "sd", or "" (no accelerator claim). Data, not a name comparison in
 	// RegisterProviders.
 	gpuProbe string
+	// gpuQualifiedOps, when set, limits the GPU claim to operations whose CUDA
+	// path has been qualified on this backend; every other op runs on CPU even
+	// when the backend can reach the GPU. Nil means every served op may use it.
+	gpuQualifiedOps []string
+	// cpuRetryAfterOOM lets a GPU run that dies of GPU memory exhaustion repeat
+	// once on the CPU in the same job (the card is shared, so another service can
+	// take the memory a lease promised). Only for backends whose CPU path is a
+	// sane substitute: a diffusion model on the CPU is not a retry, it is hours.
+	cpuRetryAfterOOM bool
 	// warmSidecar keeps a bounded persistent JSONL worker for this backend.
 	warmSidecar bool
 	// progressScan selects a stdout progress parser ("sd" for stable-diffusion.cpp).
@@ -92,18 +101,28 @@ func HostToolForProvider(provider string) (string, bool) {
 	return "", false
 }
 
-// HostToolForOperation returns the host tool of the backend that serves an
-// operation, matched against the provider bindings. Reports false when no
-// host-tool-backed provider serves the op.
+// HostToolForOperation returns the host tool an operator must ensure for an
+// operation, matched against the provider bindings. An operation several backends
+// serve (caption: llama.cpp and the Florence-2 worker) resolves to the external
+// tool, because "uv" is the scenario's own runtime and is always provisioned; the
+// first binding wins among equals. Reports false when no host-tool-backed provider
+// serves the op.
 func HostToolForOperation(operation string) (string, bool) {
+	fallback := ""
 	for _, b := range HostToolBindings() {
 		for _, op := range b.Ops {
-			if op == operation && b.HostTool != "" {
+			if op != operation || b.HostTool == "" {
+				continue
+			}
+			if b.HostTool != "uv" {
 				return b.HostTool, true
+			}
+			if fallback == "" {
+				fallback = b.HostTool
 			}
 		}
 	}
-	return "", false
+	return fallback, fallback != ""
 }
 
 // HostToolBindings returns the provider→host-tool bindings for every standalone
@@ -166,12 +185,12 @@ func providerSpecs() []providerSpec {
 				conditioningTechnique("diffusers-outpaint", "outpaint", technique.DiffusersInpaint),
 				conditioningTechnique("diffusers-background-replace", "background_replace", technique.DiffusersInpaint),
 				nativeTechnique("diffusers-edit-instruct", "edit_instruct", technique.DiffusersEditInstruct),
-				// Identity/appearance substitution. Both reuse an existing builder:
-				// face swap is img2img driven by a reference-identity IP-Adapter, and
-				// garment replace is a masked inpaint driven by a prompt. The model
-				// rows declare which weights back them; the technique is the same
-				// pipeline. See DECISIONS.md 2026-07-04 for the capability policy.
-				conditioningTechnique("diffusers-face-swap", "face_swap", technique.DiffusersImg2Img),
+				// Garment replace is a masked inpaint driven by a prompt; the model
+				// row declares which weights back it. See DECISIONS.md 2026-07-04 for
+				// the capability policy. The dedicated face swappers are onnxruntime
+				// models; a reference-editing family (FLUX.2 [klein]) also serves
+				// face_swap as a general-model route, picked only by naming it.
+				nativeTechnique("diffusers-face-swap", "face_swap", technique.DiffusersFaceSwapInstruct),
 				conditioningTechnique("diffusers-garment-replace", "garment_replace", technique.DiffusersInpaint),
 			},
 		},
@@ -196,7 +215,22 @@ func providerSpecs() []providerSpec {
 			},
 		},
 		{
-			name: "onnxruntime", program: pythonProgram, gpuCapable: true, hostTool: "uv", gpuProbe: "onnx", warmSidecar: true, imports: []string{"onnxruntime", "PIL", "numpy"},
+			name: "onnxruntime", program: pythonProgram, gpuCapable: true, hostTool: "uv", gpuProbe: "onnx", warmSidecar: true, cpuRetryAfterOOM: true, imports: []string{"onnxruntime", "PIL", "numpy"},
+			// CUDA qualified per op: background_removal and segment by the speedup
+			// e2e; depth_map (Depth Anything V2 Small/Large) and face_restore
+			// (RestoreFormer++/CodeFormer) by the 2026-11-21 licence-gated model
+			// evaluation (same sidecar modules on CUDAExecutionProvider, 2.3GB VRAM).
+			// colorize and denoise join them on the 2026-11-23 warm-session measurement
+			// (same sidecar module, CPU 4 threads vs CUDA, steady state): ddcolor-large
+			// 2.4-2.9 s vs 0.95-1.2 s, ddcolor-tiny 1.9-2.8 s vs 1.35-1.6 s, SCUNet on a
+			// 768x1024 photo 18-20 s vs 1.0 s (it needs about 6 GB; a GPU run that runs
+			// out of memory repeats on the CPU, cpuRetryAfterOOM). The small classifiers
+			// (nsfw_classify, age_estimate, embedding, object_detection) gain 0.02-0.2 s,
+			// less than a GPU lease and a held warm residency cost, so they stay on the
+			// CPU. ocr stays on the CPU too: its detector pyramid needs 1.8 GB buffers and
+			// failed on CUDA with 3-7 GB free. deblur stays: the NAFNet export is int8 and
+			// ONNX Runtime's CUDA provider has no DequantizeLinear kernel for it.
+			gpuQualifiedOps: []string{"background_removal", "segment", "depth_map", "face_restore", "face_swap", "colorize", "denoise"},
 			techniques: []technique.Technique{
 				nativeTechnique("onnx-denoise", "denoise", technique.OnnxSidecar),
 				nativeTechnique("onnx-deblur", "deblur", technique.OnnxSidecar),
@@ -204,11 +238,15 @@ func providerSpecs() []providerSpec {
 				nativeTechnique("onnx-object-removal", "object_removal", technique.OnnxSidecar),
 				nativeTechnique("onnx-colorize", "colorize", technique.OnnxSidecar),
 				nativeTechnique("onnx-depth-map", "depth_map", technique.OnnxSidecar),
+				nativeTechnique("onnx-face-restore", "face_restore", technique.OnnxSidecar),
+				nativeTechnique("onnx-face-swap", "face_swap", technique.OnnxSidecar),
 				nativeTechnique("moge-scene-geometry", "scene_geometry", technique.OnnxSidecar),
 				nativeTechnique("onnx-object-detection", "object_detection", technique.OnnxSidecar),
 				nativeTechnique("onnx-segment", "segment", technique.OnnxSidecar),
 				nativeTechnique("onnx-tagging", "tagging", technique.OnnxSidecar),
 				nativeTechnique("onnx-nsfw-classify", "nsfw_classify", technique.OnnxSidecar),
+				nativeTechnique("onnx-ocr", "ocr", technique.OnnxSidecar),
+				nativeTechnique("onnx-age-estimate", "age_estimate", technique.OnnxSidecar),
 				nativeTechnique("onnx-embedding", "embedding", technique.OnnxSidecar),
 			},
 		},
@@ -221,7 +259,6 @@ func providerSpecs() []providerSpec {
 			imports: []string{"onnxruntime", "torch", "basicsr", "facexlib", "PIL", "numpy"},
 			techniques: []technique.Technique{
 				nativeTechnique("python-sidecar-colorize", "colorize", technique.PythonSidecar),
-				nativeTechnique("python-sidecar-face-restore", "face_restore", technique.PythonSidecar),
 				nativeTechnique("python-sidecar-old-photo-restore", "old_photo_restore", technique.PythonSidecar),
 			},
 		},
@@ -229,6 +266,25 @@ func providerSpecs() []providerSpec {
 			name: "sam2-transformers", program: pythonProgram, gpuCapable: true, hostTool: "uv", gpuProbe: "torch", warmSidecar: true, imports: []string{"torch", "transformers", "PIL"},
 			techniques: []technique.Technique{
 				nativeTechnique("sam2-transformers-segment", "segment", technique.SAM2Sidecar),
+			},
+		},
+		{
+			// SegFormer human/clothes parsers: a phrase ("hair", "the jacket") or a point
+			// becomes the pixels of a parser label. Same torch + transformers runtime and
+			// warm worker as SAM 2; a separate backend because the technique differs.
+			name: "segformer-transformers", program: pythonProgram, gpuCapable: true, hostTool: "uv", gpuProbe: "torch", warmSidecar: true, imports: []string{"torch", "transformers", "PIL", "scipy"},
+			techniques: []technique.Technique{
+				nativeTechnique("segformer-semantic-segment", "segment", technique.SemanticSegmentSidecar),
+			},
+		},
+		{
+			// Florence-2: one pass yields a short caption, a paragraph caption and
+			// labelled boxes. Transformers checkpoint (no remote code), warm worker like
+			// SAM 2; the caption and detection techniques share the florence module.
+			name: "florence-transformers", program: pythonProgram, gpuCapable: true, hostTool: "uv", gpuProbe: "torch", warmSidecar: true, imports: []string{"torch", "transformers", "PIL"},
+			techniques: []technique.Technique{
+				nativeTechnique("florence-caption", "caption", technique.FlorenceSidecar),
+				nativeTechnique("florence-object-detection", "object_detection", technique.FlorenceSidecar),
 			},
 		},
 		{
@@ -278,7 +334,7 @@ func RegisterProviders(reg *backends.Registry, lookPath lookPathFunc, run comman
 		return onnxCUDA
 	}
 	for _, s := range providerSpecs() {
-		p := &execProvider{backendProcess: backendProcess{name: s.name, program: s.program, programAliases: s.programAliases, gpuCapable: s.gpuCapable, provision: s.provision(), imports: s.imports, lookPath: lookPath, run: run}, techniques: technique.NewSet(s.techniques...)}
+		p := &execProvider{backendProcess: backendProcess{name: s.name, program: s.program, programAliases: s.programAliases, gpuCapable: s.gpuCapable, provision: s.provision(), imports: s.imports, lookPath: lookPath, run: run}, techniques: technique.NewSet(s.techniques...), gpuOps: opSet(s.gpuQualifiedOps), cpuRetry: s.cpuRetryAfterOOM}
 		if s.isPython() {
 			p.pythonInterpreter = pythonInterpreter
 			p.probe.TTL = 30 * time.Second
@@ -319,7 +375,13 @@ func RegisterProviders(reg *backends.Registry, lookPath lookPathFunc, run comman
 	// BYOK cloud provider (last tier). The provider is registered unconditionally
 	// so selection and readiness remain explicit, but all remote transport,
 	// credentials, model policy, receipts, and retries belong to AI Gateway.
-	if err := reg.Register(aigateway.NewProvider(aigateway.NewMediaClient())); err != nil {
+	vision := aigateway.NewVisionClient()
+	// General vision models served by the gateway: the local rung (Ollama behind a
+	// gateway role) and, below, the hosted rung that shares the BYOK provider.
+	if err := reg.Register(aigateway.NewVisionProvider(vision)); err != nil {
+		return fmt.Errorf("ai: register provider %q: %w", models.BackendGatewayVision, err)
+	}
+	if err := reg.Register(aigateway.NewProvider(aigateway.NewMediaClient(), vision)); err != nil {
 		return fmt.Errorf("ai: register provider %q: %w", models.BackendOpenRouter, err)
 	}
 	return nil

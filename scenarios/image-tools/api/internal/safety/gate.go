@@ -14,6 +14,7 @@ type Gate struct {
 	log     *ConsentLog
 	limiter *RateLimiter
 	minor   MinorReviewer
+	faces   FaceCounter
 }
 
 // NewGateFromPolicy builds the gate from an already-resolved policy (which may
@@ -91,12 +92,26 @@ func (g *Gate) EvaluateWeight(weight Weight, op string, consentAffirmed bool) De
 	return g.policy.EvaluateWeight(weight, op, consentAffirmed)
 }
 
+// EvaluateRoute decides a submit once its route tier is resolved (see
+// Policy.EvaluateRoute).
+func (g *Gate) EvaluateRoute(weight Weight, op, tier string, consentAffirmed bool) Decision {
+	return g.policy.EvaluateRoute(weight, op, tier, consentAffirmed)
+}
+
+// ConsentFor reports whether a request resolved to tier needs a consent
+// affirmation (see Policy.ConsentFor).
+func (g *Gate) ConsentFor(weight Weight, op, tier string) ConsentRequirement {
+	return g.policy.ConsentFor(weight, op, tier)
+}
+
 // AllowRate reports whether the tier's abuse throttle permits one more submit
 // (always true on the local tier / when unlimited).
 func (g *Gate) AllowRate() bool { return g.limiter.Allow() }
 
 // RecordConsent appends a consent-affirmation audit row for an allowed
-// high-weight op. Best-effort: the caller logs but does not fail on an error.
-func (g *Gate) RecordConsent(ctx context.Context, op string, weight Weight) error {
-	return g.log.Record(ctx, op, weight, g.policy.Tier)
+// high-weight op. route names where the work was sent (tier and model, "" when
+// the affirmation was taken before a route existed). Best-effort: the caller
+// logs but does not fail on an error.
+func (g *Gate) RecordConsent(ctx context.Context, op string, weight Weight, route string) error {
+	return g.log.Record(ctx, op, weight, g.policy.Tier, route)
 }

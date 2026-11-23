@@ -1,4 +1,5 @@
 import { cn } from "../../lib/utils";
+import { SensitiveImage } from "../../features/sensitive/SensitiveImage";
 
 export interface FilterOption {
   value: string;
@@ -56,8 +57,9 @@ export function FilterThumbnailGrid({
             )}
           >
             {previewUrl ? (
-              <img
+              <SensitiveImage
                 src={previewUrl}
+                interactive={false}
                 alt={option.label}
                 style={{ filter: option.css }}
                 className="h-12 w-full rounded-control object-cover"

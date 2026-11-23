@@ -24,7 +24,7 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--model", required=True, help="path to the ONNX weight file (or model dir)")
     p.add_argument("--image", required=True, help="input image path")
     p.add_argument("--out", help="optional JSON output path; stdout when omitted")
-    return p.parse_args()
+    return _common.parse_device_args(p)
 
 
 def _softmax(np, logits):

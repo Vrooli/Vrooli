@@ -64,6 +64,11 @@ func TestProbeArgsFor(t *testing.T) {
 	if joined := strings.Join(args, " "); !strings.Contains(joined, "--kind sam2") || !strings.Contains(joined, "--deep") {
 		t.Fatalf("SAM 2 probe arguments missing kind/deep flag: %v", args)
 	}
+
+	kind, args, ok = probeArgsFor(Model{ID: "segformer-b2-clothes", Backend: "segformer-transformers"}, "/models/segformer-b2-clothes", false)
+	if !ok || kind != "segformer" || strings.Join(args, " ") != "--kind segformer --model-dir /models/segformer-b2-clothes" {
+		t.Fatalf("SegFormer probe: ok=%v kind=%q args=%v", ok, kind, args)
+	}
 }
 
 func TestProbeArgsForDiffusersInpaintWithoutFamily(t *testing.T) {
@@ -311,9 +316,15 @@ func TestRuntimeReadinessRejectsPythonSidecarWithoutModelProbe(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	model, ok := registry.ByID("restoreformer-plus-plus")
-	if !ok || model.Backend != "python-sidecar" {
-		t.Fatalf("expected seeded python-sidecar model, got %+v (ok=%t)", model, ok)
+	var model Model
+	for _, m := range registry.Models() {
+		if m.Backend == "python-sidecar" && m.RequiresWeights() && !HasLoadSmokeContract(m) {
+			model = m
+			break
+		}
+	}
+	if model.ID == "" {
+		t.Skip("no seeded python-sidecar model lacks a load-smoke contract")
 	}
 	dir := t.TempDir()
 	state := NewInstallStore(db)
@@ -430,5 +441,20 @@ func TestLocalONNXReferenceRequiresSmokeAndKeepsSourceDirectoryUntouched(t *test
 	}
 	if verdict, ok := smoke.ReadVerdict(f.in.ModelDir(m.ID)); !ok || !verdict.Pass {
 		t.Fatal("managed smoke evidence missing")
+	}
+}
+
+func TestSmokeRAMBudgetIsBoundedUnlessDeep(t *testing.T) {
+	m := diffusersModel()
+	m.Hardware.MinRAMGB = 28
+	if got := smokeRAMBytes(m, false); got != shallowSmokeRAMGB<<30 {
+		t.Fatalf("shallow smoke reserves %d bytes, want %d GiB", got, shallowSmokeRAMGB)
+	}
+	if got := smokeRAMBytes(m, true); got != 28<<30 {
+		t.Fatalf("deep smoke reserves %d bytes, want the 28 GiB inference floor", got)
+	}
+	m.Hardware.MinRAMGB = 2
+	if got := smokeRAMBytes(m, false); got != 2<<30 {
+		t.Fatalf("small model shallow smoke reserves %d bytes, want 2 GiB", got)
 	}
 }

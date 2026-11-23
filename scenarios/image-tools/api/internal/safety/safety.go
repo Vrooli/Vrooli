@@ -112,6 +112,10 @@ const (
 	ProvenanceEnv = "IMAGE_TOOLS_REQUIRE_PROVENANCE"
 	// RateLimitEnv sets the AI-submit rate cap (requests/minute, 0 = unlimited).
 	RateLimitEnv = "IMAGE_TOOLS_RATE_LIMIT_PER_MIN"
+	// ConsentNonLocalEnv toggles the route-locality consent rule: a high-weight
+	// operation whose resolved route leaves this machine needs a consent
+	// affirmation on every tier, local included. On by default.
+	ConsentNonLocalEnv = "IMAGE_TOOLS_REQUIRE_CONSENT_NONLOCAL"
 )
 
 // publicRateLimitPerMin is the default AI-submit rate cap on the public tier
@@ -176,14 +180,22 @@ func ParseTier(raw string) Tier {
 
 // Policy is the resolved Responsible-Use policy for a tier.
 type Policy struct {
-	Tier              Tier
-	RequireConsent    bool
+	Tier           Tier
+	RequireConsent bool
+	// ConsentNonLocal is the route-locality consent rule (see Locality). Unlike
+	// RequireConsent it is on for every tier: local OSS use stays unrestricted,
+	// but sending an identity-altering request to someone else's machine is a
+	// different act and asks for the affirmation.
+	ConsentNonLocal   bool
 	ForceNSFWScan     bool
 	RequireProvenance bool
 	RateLimitPerMin   int
-	// MinorSafetyRequired is the one non-configurable control: a deployment that
-	// serves other people must review for sexual content involving minors. It is
-	// on for the public tier and is not overridable, unlike every other control.
+	// MinorSafetyRequired is the one non-configurable control: every produced image
+	// is reviewed for sexual content involving minors, on every tier, and it is not
+	// overridable, unlike every other control. The scenario bundles the reviewer, so
+	// a personal install is protected without configuring anything. The public tier
+	// additionally reviews source images at the submit edge and refuses to run with
+	// no reviewer at all.
 	MinorSafetyRequired bool
 	// MinorSafetyDetector reports whether the deployment actually configured a
 	// reviewer. Required-but-absent is a refusal, never a silent pass: the policy
@@ -200,13 +212,14 @@ func PolicyFor(t Tier) Policy {
 		return Policy{
 			Tier:                TierPublic,
 			RequireConsent:      true,
+			ConsentNonLocal:     true,
 			ForceNSFWScan:       true,
 			RequireProvenance:   true,
 			RateLimitPerMin:     publicRateLimitPerMin,
 			MinorSafetyRequired: true,
 		}
 	}
-	return Policy{Tier: TierLocal}
+	return Policy{Tier: TierLocal, ConsentNonLocal: true, MinorSafetyRequired: true}
 }
 
 // ResolvePolicy returns the effective policy for this process: the tier preset
@@ -221,6 +234,9 @@ func ResolvePolicy() Policy {
 func ApplyOverrides(base Policy, lookup func(string) (string, bool)) Policy {
 	if v, ok := parseBoolEnv(lookup, ConsentEnv); ok {
 		base.RequireConsent = v
+	}
+	if v, ok := parseBoolEnv(lookup, ConsentNonLocalEnv); ok {
+		base.ConsentNonLocal = v
 	}
 	if v, ok := parseBoolEnv(lookup, NSFWScanEnv); ok {
 		base.ForceNSFWScan = v
@@ -291,16 +307,20 @@ func (p Policy) controlsSummary() string {
 	minor := "minor-safety review off"
 	if p.MinorSafetyRequired {
 		minor = "minor-safety review required"
-		if p.MinorSafetyDetector {
+		switch {
+		case p.MinorSafetyDetector:
 			minor += " (detector configured)"
-		} else {
+		case p.Tier == TierPublic:
 			minor += " (NO DETECTOR — image-output submissions are refused)"
+		default:
+			minor += " (NO DETECTOR — generated images are not being reviewed)"
 		}
 	}
 	return on(p.RequireConsent, "consent affirmation") + ", " +
+		on(p.ConsentNonLocal, "consent for non-local routes") + ", " +
 		on(p.ForceNSFWScan, "content scan") + ", " +
 		on(p.RequireProvenance, "provenance marking") + ", " + rate + ", " + minor +
-		". Override with " + ConsentEnv + " / " + NSFWScanEnv + " / " + ProvenanceEnv + " / " + RateLimitEnv
+		". Override with " + ConsentEnv + " / " + ConsentNonLocalEnv + " / " + NSFWScanEnv + " / " + ProvenanceEnv + " / " + RateLimitEnv
 }
 
 // ImportServeFacts are the catalog facts the import serve gate keys on (a
@@ -352,6 +372,9 @@ type Decision struct {
 	RequireMinorReview bool
 	// Weight is the resolved consent weight of the op (for logging/telemetry).
 	Weight Weight
+	// ConsentBasis is why consent was or was not needed (ConsentRequirement.Detail),
+	// recorded on the job as consent_basis. Empty when the weight never asks.
+	ConsentBasis string
 }
 
 // Evaluate decides whether an AI submit for op may proceed under the policy,
@@ -397,9 +420,13 @@ func (p Policy) EvaluateWeight(w Weight, op string, consentAffirmed bool) Decisi
 	return d
 }
 
-// RequiresMinorReview reports whether producing this operation's output must be
-// reviewed for sexual content involving minors. It is scoped to image output:
-// an operation that returns data or a mesh cannot depict a person.
+// RequiresMinorReview reports whether this operation's SOURCE images must be
+// reviewed at the submit edge before the job is admitted. That edge review is the
+// public tier's: a personal install reviews every produced image in the AI engine
+// instead (see ai.Deps.ReviewOutput), which also acquires the reviewer's weights, so
+// a first submit never fails closed on weights the job itself would have fetched.
+// It is scoped to image output: an operation that returns data or a mesh cannot
+// depict a person.
 func (p Policy) RequiresMinorReview(op string) bool {
 	if p.Tier != TierPublic {
 		return false

@@ -44,6 +44,9 @@ import {
   SelectModelResponseSchema,
   SetDefaultModelResponseSchema,
   SetModelEnabledResponseSchema,
+  StateOverrideSchema,
+  VerdictGrade,
+  VerdictSchema,
   type AddCustomModelResponse,
   type ImportModelResponse,
   type InspectModelSourceResponse,
@@ -207,6 +210,8 @@ export const makeBlocklistEntry = (
     license: "Proprietary",
     reason: "License forbids redistribution",
     exportingOnnxRemovesRestriction: false,
+    gate: "license",
+    gatedUses: ["monetized_use", "redistribute_weights"],
     ...overrides,
   });
 
@@ -280,6 +285,27 @@ export const makeBackendReadiness = (
     remediation: "",
     manualHint: "",
     detail: "",
+    ...overrides,
+  });
+
+/** A verdict with a plain-words reason; defaults to "recommended". */
+export const makeVerdict = (overrides: MessageInitShape<typeof VerdictSchema> = {}) =>
+  create(VerdictSchema, {
+    operation: "upscale",
+    grade: VerdictGrade.RECOMMENDED,
+    reason: "judged best of the field on the reference photo",
+    ...overrides,
+  });
+
+/** A stored enabled-state override with its provenance. */
+export const makeStateOverride = (overrides: MessageInitShape<typeof StateOverrideSchema> = {}) =>
+  create(StateOverrideSchema, {
+    enabled: false,
+    setBy: "agent-7",
+    setAt: "2026-11-10T04:00:00Z",
+    reason: "judge flagged skin artifacts",
+    relation: "contradicts_seed",
+    seedEnabled: true,
     ...overrides,
   });
 

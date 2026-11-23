@@ -19,7 +19,7 @@ reports them distinctly:
 A backend present but weights missing → `models install` hint. Weights present
 but backend program missing → "no available provider" / enable BYOK. Both must
 line up. The tier label (`local-gpu` / `local-cpu` / `byok-cloud`) reflects where
-the op *actually* ran — a CPU-only backend reports `local-cpu` even on a GPU host.
+the op *actually* ran — a CPU-only backend reports `local-cpu` even on a GPU host. A finished local job also carries `execution_tier` and `execution_device` (`gpu` or `cpu`) in its meta: the submit-time tier is the plan, and admission can still move a job to the CPU when the GPU lease is denied.
 GPU fit is based on live **free** VRAM from `vrooli host inventory --json`, not
 adapter total VRAM, so a busy shared GPU falls back to CPU instead of being
 optimistically scheduled into an OOM.
@@ -65,20 +65,35 @@ release-error behavior are covered by focused engine tests and the race-enabled
 AI package suite. This proof qualifies that selected execution path, not every
 catalog model's memory estimate.
 
+The broker never infers idleness: a claim reads idle until its work-owner reports
+otherwise, and an idle claim that is unprotected or yields can be reclaimed by
+higher-priority work. Image-tools therefore reports every claim it holds through
+`vrooli capacity activity`: active when admission completes and the job starts
+(RAM, CPU, GPU and support claims alike), and for a warm worker's resident claims
+active while a job serves on the worker and idle during its 30-second idle window.
+Each report advances the claim generation, which the shared lease adopts so
+heartbeats stay valid. A failed report is recorded in the job meta
+(`capacity_activity`, `capacity_resident_activity`) and never stops the work.
+The ledger cannot attribute observed GPU bytes to the sidecar processes, so these
+claims still read `observed=0`; only the reported activity distinguishes a running
+job from an idle one.
+
 ## Backends
 
 | Backend | Program | Ops | GPU-capable | Management decision |
 |---|---|---|---|---|
-| `onnxruntime` (sidecar) | `python3` + onnxruntime | `background_removal`, `denoise`, `deblur`, `colorize`, `depth_map`, `object_detection`, `segment`, `tagging`, `nsfw_classify`, `embedding` | no (CPU) | Embedded sidecar code; Python runtime deps managed through Scenario Dependency Analyzer (SDA). The provider probes ONNX Runtime execution providers and requires `CPUExecutionProvider`; `CUDAExecutionProvider` presence is reported in doctor output, but this row stays CPU-labeled until a separate GPU-capable ONNX provider is promoted. The provider uses the JSONL sidecar protocol, reports failures once, and starts fresh on the next request. Production local calls reap the worker before releasing operation-scoped RAM; the unleased control benchmark retains bounded warm reuse. |
-| `python-sidecar` | `python3` modules | `colorize`, `face_restore`, `old_photo_restore` | no (CPU for registered rows) | Registered embedded sidecar providers. `colorize` uses the ONNX/Pillow/numpy sidecar path; restoration probes the heavier RestoreFormer++ stack (`torch`, `basicsr`, `facexlib`) and stays red until provisioned through SDA. |
+| `onnxruntime` (sidecar) | `python3` + onnxruntime | `background_removal`, `denoise`, `deblur`, `colorize`, `depth_map`, `face_restore`, `object_detection`, `segment`, `tagging`, `nsfw_classify`, `embedding` | CUDA only for qualified ops (`providerSpec.gpuQualifiedOps`): `background_removal`, `segment`, `depth_map`, `face_restore`, `face_swap`, `colorize`, `denoise`; CPU for the rest. Measured 2026-11-23 (warm session, CPU 4 threads vs CUDA): depth-anything-v2-large 2.9 s vs 0.11 s, ddcolor-large 2.4-2.9 s vs 0.95-1.2 s, bg removal 0.67 s vs 0.45 s; SCUNet denoise on 768x1024 18-20 s vs 1.0 s (needs about 6 GB); the small classifiers (nsfw, age, embedding, detection) gain 0.02-0.2 s, less than a lease costs; OCR stays on the CPU (its detector pyramid needs 1.8 GB buffers and failed on CUDA with 3-7 GB free), and deblur stays too (the NAFNet export is int8, which the CUDA provider cannot run). A job that cannot get its GPU lease runs on the CPU (`capacity_fallback=cpu`), and one whose GPU run dies of GPU memory exhaustion repeats once on the CPU in the same job (`capacity_fallback=cpu_after_oom`, `execution_device=cpu`). The ledger counts every claim, including the VRAM an idle warm worker keeps for cached weights, so when a GPU claim is denied the engine first unloads this service's own idle warm workers on that GPU (least recently used first, retrying the claim after each) and records `evicted_residents=<models>`; a worker serving a job and any other owner's claim are never touched | Embedded sidecar code; Python runtime deps managed through Scenario Dependency Analyzer (SDA). The provider probes ONNX Runtime execution providers and requires `CPUExecutionProvider`; an op claims the GPU only when `CUDAExecutionProvider` is present and the op's CUDA path has been qualified. The provider uses the JSONL sidecar protocol, reports failures once, and starts fresh on the next request. Production local calls reap the worker before releasing operation-scoped RAM; the unleased control benchmark retains bounded warm reuse. |
+| `python-sidecar` | `python3` modules | `colorize`, `old_photo_restore` | no (CPU for registered rows) | Registered embedded sidecar providers. `colorize` uses the ONNX/Pillow/numpy sidecar path; `old_photo_restore` (scratch repair + colour + faces) has no promoted pipeline and stays red. |
 | `diffusers` (sidecar) | `python3` + diffusers | `edit_instruct`, `inpaint`, `outpaint`, `background_replace` | yes | Embedded sidecar pattern; `diffusers`/`torch` runtime deps managed through SDA. |
 | `stable-diffusion.cpp` | `sd` | `text_to_image`, `image_to_image` | yes | Standalone binary managed through SDA / host-tool provisioning. |
 | `iopaint` | `iopaint` | `object_removal` | yes (`--device cuda`) | Standalone CLI managed through SDA. |
 | `llama.cpp` | `llama-mtmd-cli` / compatible `llama-cli` | `caption` | yes | Registered runtime provider; standalone multimodal llama.cpp binary managed through SDA before caption E2E is promoted. |
+| `gateway-vision` | AI Gateway (`ExecuteRoute`) over Ollama | `caption`, `object_detection`, `tagging` | no (the gateway places the model) | General vision-language models next to the Florence-2 specialist, one registry row each (`runtime.gateway_role`, `box_order`, `box_scale`); see "Add a gateway-served vision model" in `model-registry.md`. Local, no consent; reports the `gateway-local` tier (the gateway owns the model's CPU, GPU and memory, so no CPU or GPU claim is made). Needs `ai-gateway` and its Ollama resource running. |
+| `openrouter` (vision rows) | AI Gateway (`ExecuteRoute`), remote-only | `caption`, `object_detection`, `tagging` (and the image operations) | no | The hosted rung of the same executor: BYOK, spend cap, and a consent affirmation when the image shows people (the people check runs at submit; a picture with nobody in it needs none, see `SECURITY.md`). |
 | `rembg` | `rembg` | `background_removal` (alt), `background_replace` (solid-color replace) | no (CPU) | Optional standalone CLI managed through SDA; ONNX sidecar remains the CPU floor for removal. |
 | `realesrgan-ncnn-vulkan` | `realesrgan-ncnn-vulkan` | `upscale`, `denoise` (`-dn` mode) | yes (Vulkan) | Standalone ncnn-vulkan release binary managed through SDA / host-tool provisioning. |
 | `realcugan-ncnn-vulkan` | `realcugan-ncnn-vulkan` | anime upscale variants | yes (Vulkan) | Standalone ncnn-vulkan release binary managed through SDA before enabling. |
-| `builtin` | in-process Go | `naturalize` | no (CPU) | Shipped in the API binary; no provisioning. |
+| `builtin` | in-process Go | `naturalize`, `color_transfer`, `mask_composite` | no (CPU) | Shipped in the API binary; no provisioning. |
 | `computed` | in-process math | `normal_map`, `quality_assessment` | no (CPU) | Registered runtime provider shipped in the API binary; no provisioning. |
 | `library-go` | linked Go library | `duplicate_detect`, `qr_barcode_read` | no (CPU) | Registered runtime provider shipped in the API binary; no model weights. |
 | `library-cgo` | host C/C++ library / binary | `ocr`, `face_detection` | no (CPU) | Registered Tesseract OCR and OpenCV YuNet providers; host binaries/libraries/data are managed through SDA. |
@@ -96,13 +111,15 @@ and surfaced (never auto-fetched) via `image-tools` `service.json` `hostTools`.
 | Backend (provider) | Host tool | Operations | Install / remediation |
 |---|---|---|---|
 | `diffusers` | `uv` | `text_to_image`, `image_to_image`, `inpaint`, `outpaint`, `background_replace`, `edit_instruct`, `face_swap`, `garment_replace` | `vrooli host install uv` |
+| `florence-transformers` | `uv` | `caption`, `object_detection` | `vrooli host install uv` |
 | `iopaint` | `iopaint` | `object_removal` | `vrooli host install iopaint` |
 | `llama.cpp` | `llama-cpp` | `caption` | `vrooli host install llama-cpp` |
-| `onnxruntime` | `uv` | `denoise`, `deblur`, `background_removal`, `object_removal`, `colorize`, `depth_map`, `scene_geometry`, `object_detection`, `segment`, `tagging`, `nsfw_classify`, `embedding` | `vrooli host install uv` |
-| `python-sidecar` | `uv` | `colorize`, `face_restore`, `old_photo_restore` | `vrooli host install uv` |
+| `onnxruntime` | `uv` | `denoise`, `deblur`, `background_removal`, `object_removal`, `colorize`, `depth_map`, `face_restore`, `face_swap`, `scene_geometry`, `object_detection`, `segment`, `tagging`, `nsfw_classify`, `ocr`, `age_estimate`, `embedding` | `vrooli host install uv` |
+| `python-sidecar` | `uv` | `colorize`, `old_photo_restore` | `vrooli host install uv` |
 | `realesrgan-ncnn-vulkan` | `realesrgan-ncnn-vulkan` | `upscale`, `denoise` | `vrooli host install realesrgan-ncnn-vulkan` |
 | `rembg` | `rembg` | `background_removal`, `background_replace` | `vrooli host install rembg` |
 | `sam2-transformers` | `uv` | `segment` | `vrooli host install uv` |
+| `segformer-transformers` | `uv` | `segment` | `vrooli host install uv` |
 | `stable-diffusion.cpp` | `sd` | `text_to_image`, `image_to_image` | `vrooli host install sd` |
 | `tesseract` | `tesseract` | `ocr` | `vrooli host install tesseract` |
 | `triposr` | `uv` | `image_to_object` | `vrooli host install uv` |
@@ -119,34 +136,36 @@ or backend reassignment.
 |---|---|---|---|---|
 | `background_removal` | `isnet-general-use` | `onnxruntime` | `default` | Isolated uv venv ONNX sidecar (onnxruntime/Pillow/numpy from the lock); CPU-capable. |
 | `background_replace` | `birefnet-general` | `rembg` | `quality` | `rembg` CLI; CPU-capable but GPU preferred for throughput. |
-| `caption` | `moondream2` | `llama.cpp` | `default` | `llama-mtmd-cli` or compatible multimodal `llama-cli`; CPU-capable GGUF path. |
-| `colorize` | `ddcolor-tiny` | `python-sidecar` | `default` | Isolated uv venv ONNX sidecar (onnxruntime/Pillow/numpy from the lock); CPU-capable. |
-| `deblur` | `nafnet` | `onnxruntime` | `default` | Embedded ONNX sidecar; CPU-capable, GPU preferred for large images. |
+| `caption` | `florence-2` | `florence-transformers` | `quality` | Isolated uv venv (torch + transformers from `internal/pydeps/requirements.lock`) and the pinned Florence-2 large checkpoint (~1.55GB); about 1 s warm on GPU, CPU-capable. `smolvlm-256m` / `moondream2` (`llama.cpp`, `llama-mtmd-cli`) remain selectable CPU options. |
+| `colorize` | `ddcolor-large` | `onnxruntime` | `quality` | Embedded ONNX sidecar; CUDA when the capacity lease grants about 4 GB (0.95-1.2 s warm), otherwise the CPU (2.4-2.9 s warm, 5-11 s cold). `ddcolor-tiny` is the fast, oversaturated tier. |
+| `deblur` | `nafnet` | `onnxruntime` | `default` | Embedded ONNX sidecar, CPU only (the NAFNet export is int8 and has no CUDA kernel). Runs at the image's own resolution in 1024 px tiles; works well on motion blur (PSNR +1.8 dB on a 15 px blur, whiskers and text recovered), only mildly on defocus/Gaussian blur. About 15 s for 768x1024. |
 | `denoise` | `dncnn` | `onnxruntime` | `default` | Embedded ONNX sidecar; CPU-capable. |
-| `depth_map` | `depth-anything-v2-small` | `onnxruntime` | `default` | Embedded ONNX sidecar; CPU-capable. |
+| `depth_map` | `depth-anything-v2-large` | `onnxruntime` | `quality` | Embedded ONNX sidecar; CPU-capable (~1.9s CPU, ~60ms CUDA, 2.3GB VRAM). CC-BY-NC-4.0: normal use only; `depth-anything-v2-small` (Apache) stays selectable for monetized use. Chosen on the 2026-11-21 evaluation (finer branch/sky and fur edges). |
 | `duplicate_detect` | `goimagehash` | `library-go` | `default` | In-process pure Go; no host provisioning. |
 | `edit_instruct` | `instruct-pix2pix` | `diffusers` | `default` | Isolated uv venv (diffusers/torch from `internal/pydeps/requirements.lock`); GPU recommended, CPU-capable but slow. |
-| `embedding` | `nomic-embed-vision-v1.5` | `onnxruntime` | `default` | Embedded ONNX sidecar; CPU-capable. |
+| `embedding` | `siglip2-base` | `onnxruntime` | `quality` | Embedded ONNX sidecar (reads the installed `preprocessor_config.json`); CPU-capable. |
 | `face_detection` | `yunet` | `library-cgo` | `default` | `python3` with OpenCV (`cv2`) and numpy; CPU-capable. |
-| `face_restore` | `restoreformer-plus-plus` | `python-sidecar` | `default` | **Gated (not yet promoted)** — its stack (`torch`, `basicsr`, `facexlib`) is deliberately excluded from the lock; the op fails loud until the Phase 2 restore path lands (DECISIONS.md). |
-| `face_swap` | `ip-adapter-faceid-sd15` | `diffusers` | `nice-to-have` | **Declared experimental, ships disabled.** Needs the SD1.5 base + IP-Adapter FaceID weight + InsightFace models provisioned manually (`source.manual`); blocked from commercial default use until the InsightFace terms review lands. Local-first policy: the capability is not blocked, only unprovisioned. |
+| `face_restore` | `restoreformer-plus-plus` | `onnxruntime` | `quality` | Embedded ONNX sidecar (`face_restore.py`): bundled YuNet detection, FFHQ-template alignment, 512px restore, feathered paste-back; no `basicsr`/`facexlib`. CPU-capable. `codeformer` (S-Lab non-commercial) is the selectable alternative; RestoreFormer++ won the 2026-11-21 identity comparison. |
+| `face_swap` | `hyperswap-1a-256` | `onnxruntime` | `quality` | Embedded ONNX sidecar (`face_swap.py`), no `insightface`/`cv2` and no `~/.insightface` download: bundled YuNet detection, ArcFace identity embedding, 256 px swapper, XSeg occlusion mask, feathered paste-back with LAB colour matching. One managed model directory holds all four graphs. Swapper alternatives (same pipeline, picked by filename): `hyperswap-1b-256`, `hyperswap-1c-256`, `inswapper-128`, `alphaface-256`. Non-commercial research weights: normal local use only. A cloud route (`openrouter-image`, role `image.edit.identity`, both images sent) exists and needs a consent affirmation, but it is not recommended: on the 2026-11-23 comparison Gemini returned the original face unchanged. Chosen on that comparison (five swappers, two SFW tests, ArcFace similarity plus by-eye blending): `hyperswap-1a-256` is the sharpest and cleanest; `inswapper-128` (128 px) shows hairline and lash artefacts; `alphaface-256` is smoother. Prefer the raw swap: RestoreFormer++ afterwards smooths skin and lowers identity similarity. Swap extent: the manifest's `extent` block declares independent stages (`face` with a 0..1 `face_strength` that mixes the two identity embeddings, `skin`, `hair_style`, `hair_colour`, and `head`, a whole-head swap through `flux-2-klein-4b` that replaces `face`) and presets over them (`face`, `face_skin`, `full_look`, `whole_head`). The UI panel, the CLI (`--extent`, `--match skin,hair-style,hair-colour`, `--face-strength`) and the engine all read that block. A restyle stage (`hair_style`) has `flux-2-klein-4b` redo the working image with the reference's hairstyle (a two-image edit; the reference should be a tight portrait), segments the hair of the working image and of the edit (`segformer-b2-clothes`), and lays only that union region of the edit into the working image with `mask_composite`, so the swapped face is not re-rendered. The `skin` stage takes a declared option, `skin_target` (CLI `--skin-target`): `source` (default) moves the parsed skin (face and neck, arms and hands) toward the reference person's skin tone with a wide feather, so the change fades into skin the parser has no class for (a V-neck chest); `body` instead matches the face to the working image's own hands and arms. `--face-strength` is met by measurement: the sidecar swaps at the two ends, measures the identity of each result with the same ArcFace embedder and bisects the embedding-mix weight until the result sits that fraction of the way between the target's identity and the source's (the swapper's response saturates differently for every pair of faces, so the raw mix weight is not linear); the job summary reports `identity_mix` and `identity_progress`. A recolour stage is `segment` (the `segformer-b2-clothes` parser, on both the working image and the reference) then `color_transfer`, each through the normal admission, safety review and persistence; the job meta lists the stages that ran (`extent_stages`) and each stage's mask model and seconds, and the intermediate images are deleted. Every stage after the swap is local. Evidence: `research:runs/capabilities-20261122/outputs/face-swap/README.md`. |
 | `garment_replace` | `sd-1.5-inpainting` | `diffusers` | `default` | Isolated uv venv (diffusers/torch from `internal/pydeps/requirements.lock`); masked inpaint driven by a prompt. GPU recommended, CPU-capable but slow. |
 | `image_to_image` | `sd-1.5` | `stable-diffusion.cpp` | `default` | `sd` binary; CPU-capable, GPU recommended. |
 | `inpaint` | `sd-1.5-inpainting` | `diffusers` | `default` | Isolated uv venv (diffusers/torch from `internal/pydeps/requirements.lock`); GPU recommended, CPU-capable but slow. |
 | `naturalize` | `naturalize-detail-v1` | `builtin` | `default` | In-process Go; no weights or host provisioning. |
+| `color_transfer` | `color-transfer-lab-v1` | `builtin` | `default` | In-process Go; CIELAB mean/spread transfer inside a mask onto the colour of a reference region (the reference's alpha selects its region), keeping the region's own shading. The skin-tone and hair-colour stages of a face swap run on it. |
+| `mask_composite` | `mask-composite-lab-v1` | `builtin` | `default` | In-process Go; lays a second image (resampled to the first's size) into the first through a mask, with a grown, feathered seam. The hair-style stage of a face swap runs on it. |
 | `normal_map` | `normals-from-depth` | `computed` | `default` | In-process Go math; no weights or host provisioning. |
 | `nsfw_classify` | `adamcodd-vit-nsfw` | `onnxruntime` | `default` | Embedded ONNX sidecar; CPU-capable. |
-| `object_detection` | `yolox-tiny` | `onnxruntime` | `default` | Embedded ONNX sidecar; CPU-capable. |
-| `object_removal` | `mi-gan` | `iopaint` | `default` | `iopaint` CLI; CPU-capable, GPU recommended. |
-| `ocr` | `tesseract` | `library-cgo` | `default` | Tesseract binary and language data; CPU-capable. |
-| `old_photo_restore` | `restoreformer-plus-plus` | `python-sidecar` | `default` | **Gated (not yet promoted)** — same excluded-from-lock stack as `face_restore`; fails loud until the Phase 2 restore path lands (DECISIONS.md). |
+| `object_detection` | `florence-2` | `florence-transformers` | `quality` | Same worker and checkpoint as `caption`. `yolox-tiny` is a fast fixed-vocabulary alternative (verdict `works`, 80 COCO labels, 0.2-0.3 s on the CPU; fixed 2026-11-23 by decoding the raw head in the sidecar). |
+| `object_removal` | `big-lama` | `onnxruntime` | `quality` | Embedded ONNX sidecar; CPU-capable. `mi-gan` (`iopaint` CLI) is disabled: the IOPaint backend needs a manual pip/pipx install. |
+| `ocr` | `paddleocr` | `onnxruntime` | `quality` | Embedded ONNX sidecar (`ocr.py`, PP-OCRv5 detector + recogniser, no OpenCV); CPU-capable (about 15-40 s on a large photo). Tesseract (`library-cgo`) stays selectable. |
+| `old_photo_restore` | `ms-bringing-old-photos` (disabled) | `python-sidecar` | `default` | **Not promoted** — needs a scratch-repair + colour + face pipeline; `face_restore` covers the face stage alone. |
 | `outpaint` | `sd-1.5-inpainting` | `diffusers` | `default` | Isolated uv venv (diffusers/torch from `internal/pydeps/requirements.lock`); GPU recommended, CPU-capable but slow. |
 | `qr_barcode_read` | `gozxing` | `library-go` | `default` | In-process pure Go; no host provisioning. |
 | `quality_assessment` | `laplacian-blur` | `computed` | `default` | In-process Go analysis; no weights or host provisioning. |
 | `segment` | `mobilesam` | `onnxruntime` | `default` | Embedded ONNX sidecar; CPU-capable. |
-| `tagging` | `wd14-vit-v3` | `onnxruntime` | `default` | Embedded ONNX sidecar; CPU-capable. |
+| `tagging` | `qwen3-vl-4b` | `gateway-vision` | `quality` | A general vision model served by AI Gateway's Ollama (role `vision.default`); 33-54 s a call on a shared GPU, one local call at a time. Default since 2026-11-23: `wd14-vit-v3` (`onnxruntime`) is not installed and its sidecar names tags `tag_<index>`. `gemini-flash-lite-vision` (hosted, BYOK, consent) answers in about 1 s. |
 | `text_to_image` | `sd-1.5` | `stable-diffusion.cpp` | `default` | `sd` binary; CPU-capable, GPU recommended. |
-| `upscale` | `real-esrgan` | `realesrgan-ncnn-vulkan` | `default` | `realesrgan-ncnn-vulkan` binary on a Vulkan-capable host; provision through SDA. |
+| `upscale` | `real-esrgan` | `realesrgan-ncnn-vulkan` | `default` | `realesrgan-ncnn-vulkan` binary on a Vulkan-capable host; provision through SDA. Runs on the leased GPU (the Vulkan device whose UUID matches the capacity lease, bound with `-g`) or, on the CPU tier, on the software Vulkan device (llvmpipe/lavapipe). 4x upscale uses the bundled `realesrgan-x4plus`; 2x/3x and denoise use `realesr-animevideov3`. |
 
 `object_removal` has a second, always-available provider: the builtin
 `mask-fill` backend (model `mask-fill`) is a pure-Go membrane fill — dilate the
@@ -178,9 +197,9 @@ until a governed installer is provisioned.
 > `deblur`, `object_detection`, `segment`, `tagging`, `nsfw_classify`, and
 > `embedding`, registered operation coverage for `realesrgan-ncnn-vulkan`
 > `denoise` and `rembg` `background_replace`, and a registered
-> `python-sidecar` row for `colorize`, `face_restore`, and
-> `old_photo_restore`. RestoreFormer++ restoration still requires SDA-managed
-> Python packages before its E2E vertical can turn green.
+> `python-sidecar` row for `colorize` and `old_photo_restore`. `face_restore`
+> moved to the ONNX sidecar on 2026-11-21 (RestoreFormer++ / CodeFormer ONNX
+> exports), so it needs no extra Python packages.
 
 > Status (2026-06-19): The first in-process Phase 2 promotion is complete.
 > `computed` now has a CPU provider for `normal_map` (depth/luma to normal-map
@@ -360,8 +379,8 @@ version source of truth. There is no separate `pip install` / per-package SDA
 `bg_removal.py` runs a U^2-Net / IS-Net family ONNX model on
 `CPUExecutionProvider` and writes an RGBA PNG (subject over transparency).
 `deblur.py` runs image-to-image restoration exports such as NAFNet and writes an
-RGB PNG. `detect.py` writes normalized bounding-box JSON for YOLOX-like detector
-exports. `segment.py` writes a single-channel PNG mask for generic mask-output
+RGB PNG. `detect.py` writes normalized bounding-box JSON (class id and COCO label) for YOLOX
+exports: it letterboxes, decodes the raw head, applies class-wise NMS and undoes the letterbox. `segment.py` writes a single-channel PNG mask for generic mask-output
 ONNX exports and MobileSAM-style encoder/decoder directories. `tagging.py`
 writes tag-score JSON; when no model-specific label asset is installed it emits
 stable anonymous tag ids rather than pretending to know a vocabulary.

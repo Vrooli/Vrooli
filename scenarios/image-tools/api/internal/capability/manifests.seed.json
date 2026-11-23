@@ -240,6 +240,16 @@
           },
           "inpaint_neutralize_masked_pixels": {
             "type": "boolean"
+          },
+          "inpaint_grow_px": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 128
+          },
+          "inpaint_feather_px": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 128
           }
         },
         "requiresTrue": {
@@ -559,13 +569,18 @@
     },
     {
       "id": "face_swap",
-      "summary": "Transfer a reference face onto a subject (reference supplied as a conditioning image)",
+      "summary": "Put the face from a reference image onto a target image (SFW only; local models, with a consent affirmation for non-local routes)",
       "family": "generate",
       "mechanism": "infer",
       "io": {
         "inputs": [
           {
             "name": "image",
+            "kind": "image",
+            "required": true
+          },
+          {
+            "name": "reference",
             "kind": "image",
             "required": true
           }
@@ -580,22 +595,168 @@
         "network": false
       },
       "backends": [
-        "diffusers"
+        "onnxruntime",
+        "diffusers",
+        "openrouter"
       ],
       "consent_weight": "high",
       "cli": {
         "group": "ai",
         "verb": "face-swap",
         "flags": [
+          "reference",
+          "target-face",
+          "source-face",
+          "all-faces",
+          "color-match",
+          "no-occlusion",
+          "extent",
+          "match",
+          "skin-target",
+          "face-strength",
           "prompt",
-          "negative",
           "seed",
-          "width",
-          "height",
-          "steps",
-          "cfg-scale",
-          "variations",
           "auto-scan"
+        ]
+      },
+      "params_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "source_face": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 63
+          },
+          "target_face": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 63
+          },
+          "all_faces": {
+            "type": "boolean"
+          },
+          "occlusion": {
+            "type": "boolean"
+          },
+          "color_match": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "Wording for a general image-editing route (a cloud editor or FLUX.2 klein); the dedicated swappers ignore it. Default: replace the face of the first image with the face of the second."
+          },
+          "seed": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "RNG seed for a general image-editing route (0 = random); the dedicated swappers are deterministic."
+          },
+          "face_strength": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "How much of the source person's face the swap puts on the target: 1 is the full swap, 0 keeps the target's own face. Mixes the two identities, so the result is a face between the two people."
+          },
+          "extent": {
+            "type": "string",
+            "enum": ["face", "face_skin", "full_look", "whole_head"],
+            "description": "How much of the person to carry over, as a named set of stages (see the extent declaration)."
+          },
+          "match": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "type": "string",
+              "enum": ["face", "skin", "hair_style", "hair_colour", "head"]
+            },
+            "description": "Stages to add to the extent, each independent: skin tone, hair style, hair colour, or the whole head."
+          },
+          "skin_target": {
+            "type": "string",
+            "enum": ["source", "body"],
+            "description": "Which way the skin stage matches tone: toward the source person's skin (default) or toward the target's own visible body skin (hands and arms), so the face matches the body it sits on."
+          }
+        }
+      },
+      "extent": {
+        "default_preset": "face",
+        "stages": [
+          {
+            "id": "face",
+            "kind": "swap",
+            "label_key": "workspace.extent.stage.face.label",
+            "desc_key": "workspace.extent.stage.face.desc",
+            "strength_param": "face_strength"
+          },
+          {
+            "id": "skin",
+            "kind": "recolour",
+            "label_key": "workspace.extent.stage.skin.label",
+            "desc_key": "workspace.extent.stage.skin.desc",
+            "mask_model": "segformer-b2-clothes",
+            "option": "skin_target",
+            "default_variant": "source",
+            "variants": {
+              "source": {
+                "label_key": "workspace.extent.skinTarget.source.label",
+                "desc_key": "workspace.extent.skinTarget.source.desc",
+                "region": "face arms",
+                "reference_region": "face arms",
+                "reference_from": "reference",
+                "transfer": { "strength": 0.8, "luminance": 0.3, "flatten": 0.4, "feather_px": 30 }
+              },
+              "body": {
+                "label_key": "workspace.extent.skinTarget.body.label",
+                "desc_key": "workspace.extent.skinTarget.body.desc",
+                "region": "face",
+                "reference_region": "arms",
+                "reference_from": "working",
+                "transfer": { "strength": 1, "luminance": 1, "flatten": 0.5, "feather_px": 30 }
+              }
+            }
+          },
+          {
+            "id": "hair_style",
+            "kind": "restyle",
+            "label_key": "workspace.extent.stage.hair_style.label",
+            "desc_key": "workspace.extent.stage.hair_style.desc",
+            "model": "flux-2-klein-4b",
+            "prompt": "Change only the hairstyle of the person in the first image so their hair has the cut, length, parting and texture of the hair of the person in the second image. Keep the face, expression, skin, clothes, pose and background of the first image exactly as they are.",
+            "region": "hair",
+            "mask_model": "segformer-b2-clothes",
+            "composite": {
+              "grow_px": 6,
+              "feather_px": 5
+            }
+          },
+          {
+            "id": "hair_colour",
+            "kind": "recolour",
+            "label_key": "workspace.extent.stage.hair_colour.label",
+            "desc_key": "workspace.extent.stage.hair_colour.desc",
+            "region": "hair",
+            "reference_region": "hair",
+            "mask_model": "segformer-b2-clothes",
+            "transfer": { "strength": 1, "luminance": 0.9, "flatten": 0.7, "feather_px": 2 }
+          },
+          {
+            "id": "head",
+            "kind": "swap",
+            "replaces": "face",
+            "label_key": "workspace.extent.stage.head.label",
+            "desc_key": "workspace.extent.stage.head.desc",
+            "model": "flux-2-klein-4b",
+            "prompt": "Replace the head of the person in the first image (face, hair, ears and neck) with the head of the person in the second image. Keep the body, clothes, pose and background of the first image."
+          }
+        ],
+        "presets": [
+          { "id": "face", "label_key": "workspace.extent.preset.face.label", "desc_key": "workspace.extent.preset.face.desc", "stages": ["face"] },
+          { "id": "face_skin", "label_key": "workspace.extent.preset.face_skin.label", "desc_key": "workspace.extent.preset.face_skin.desc", "stages": ["face", "skin"] },
+          { "id": "full_look", "label_key": "workspace.extent.preset.full_look.label", "desc_key": "workspace.extent.preset.full_look.desc", "stages": ["face", "skin", "hair_colour"] },
+          { "id": "whole_head", "label_key": "workspace.extent.preset.whole_head.label", "desc_key": "workspace.extent.preset.whole_head.desc", "stages": ["head"] }
         ]
       },
       "panel": "create",
@@ -642,6 +803,22 @@
         "diffusers"
       ],
       "consent_weight": "high",
+      "params_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "inpaint_grow_px": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 128
+          },
+          "inpaint_feather_px": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 128
+          }
+        }
+      },
       "cli": {
         "group": "ai",
         "verb": "garment-replace",
@@ -663,6 +840,162 @@
         "icon": "Shirt",
         "label_key": "workspace.createOp.garment_replace.label",
         "desc_key": "workspace.createOp.garment_replace.desc"
+      },
+      "engine": "ai"
+    },
+    {
+      "id": "color_transfer",
+      "summary": "Recolour a masked region of an image to match the colour of a reference (skin tone, hair colour), keeping its own shading and texture",
+      "family": "edit",
+      "mechanism": "compute",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          },
+          {
+            "name": "mask",
+            "kind": "mask",
+            "required": true
+          },
+          {
+            "name": "reference",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "image"
+        }
+      },
+      "requires": {
+        "process": false,
+        "weights": false,
+        "network": false
+      },
+      "backends": [
+        "builtin"
+      ],
+      "consent_weight": "low",
+      "params_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "strength": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "How much of the transferred colour is blended in (default 1)."
+          },
+          "luminance": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Share of the reference's lightness offset applied: 0 keeps the region's own brightness, 1 moves it to the reference's (default 0.5)."
+          },
+          "flatten": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "How far the region's colour variation may shrink toward the reference's (default 0.4)."
+          },
+          "feather_px": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 64,
+            "description": "Edge softening in pixels so the change fades into its surroundings (default 4)."
+          }
+        }
+      },
+      "cli": {
+        "group": "ai",
+        "verb": "color-transfer",
+        "flags": [
+          "mask",
+          "reference",
+          "strength",
+          "luminance",
+          "flatten",
+          "feather-px"
+        ]
+      },
+      "presentation": {
+        "icon": "Palette",
+        "label_key": "workspace.aiOp.color_transfer.label",
+        "desc_key": "workspace.aiOp.color_transfer.desc"
+      },
+      "engine": "ai"
+    },
+    {
+      "id": "mask_composite",
+      "summary": "Lay a second image into the first through a mask, with a grown, feathered seam (the changed hair of an edited photo onto the original)",
+      "family": "edit",
+      "mechanism": "compute",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          },
+          {
+            "name": "mask",
+            "kind": "mask",
+            "required": true
+          },
+          {
+            "name": "reference",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "image"
+        }
+      },
+      "requires": {
+        "process": false,
+        "weights": false,
+        "network": false
+      },
+      "backends": [
+        "builtin"
+      ],
+      "consent_weight": "low",
+      "params_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "grow_px": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 64,
+            "description": "How far to widen the mask before blending, in pixels, so the seam falls outside what changed (default 6)."
+          },
+          "feather_px": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 64,
+            "description": "Seam softening in pixels (default 5)."
+          }
+        }
+      },
+      "cli": {
+        "group": "ai",
+        "verb": "mask-composite",
+        "flags": [
+          "mask",
+          "reference",
+          "grow-px",
+          "feather-px"
+        ]
+      },
+      "presentation": {
+        "icon": "Layers",
+        "label_key": "workspace.aiOp.mask_composite.label",
+        "desc_key": "workspace.aiOp.mask_composite.desc"
       },
       "engine": "ai"
     },
@@ -847,9 +1180,9 @@
       },
       "backends": [
         "onnxruntime",
-        "python-sidecar"
+        "openrouter"
       ],
-      "consent_weight": "none",
+      "consent_weight": "low",
       "cli": {
         "group": "ai",
         "verb": "colorize",
@@ -920,7 +1253,7 @@
         "network": false
       },
       "backends": [
-        "python-sidecar"
+        "onnxruntime"
       ],
       "consent_weight": "none",
       "cli": {
@@ -955,14 +1288,16 @@
       },
       "backends": [
         "onnxruntime",
-        "sam2-transformers"
+        "sam2-transformers",
+        "segformer-transformers"
       ],
       "consent_weight": "none",
       "cli": {
         "group": "ai",
         "verb": "segment",
         "flags": [
-          "selection"
+          "selection",
+          "text"
         ]
       },
       "params_schema": {
@@ -973,6 +1308,11 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
               "points": {
                 "type": "array",
                 "items": {
@@ -1326,9 +1666,12 @@
         "network": false
       },
       "backends": [
-        "llama.cpp"
+        "llama.cpp",
+        "florence-transformers",
+        "gateway-vision",
+        "openrouter"
       ],
-      "consent_weight": "none",
+      "consent_weight": "low",
       "cli": {
         "group": "ai",
         "verb": "caption",
@@ -1367,10 +1710,18 @@
         "network": false
       },
       "backends": [
-        "onnxruntime"
+        "onnxruntime",
+        "florence-transformers",
+        "gateway-vision",
+        "openrouter"
       ],
-      "consent_weight": "none",
-      "engine": "unwired"
+      "consent_weight": "low",
+      "cli": {
+        "group": "ai",
+        "verb": "detect",
+        "flags": []
+      },
+      "engine": "ai"
     },
     {
       "id": "tagging",
@@ -1395,10 +1746,17 @@
         "network": false
       },
       "backends": [
-        "onnxruntime"
+        "onnxruntime",
+        "gateway-vision",
+        "openrouter"
       ],
-      "consent_weight": "none",
-      "engine": "unwired"
+      "consent_weight": "low",
+      "cli": {
+        "group": "ai",
+        "verb": "tag",
+        "flags": []
+      },
+      "engine": "ai"
     },
     {
       "id": "face_detection",
@@ -1424,6 +1782,34 @@
       },
       "backends": [
         "library-cgo"
+      ],
+      "consent_weight": "none",
+      "engine": "unwired"
+    },
+    {
+      "id": "age_estimate",
+      "summary": "Estimate the apparent age range of one face crop as nine age bins (the minor-safety reviewer's age stage; no identity)",
+      "family": "extract",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "data"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "onnxruntime"
       ],
       "consent_weight": "none",
       "engine": "unwired"
@@ -1552,7 +1938,12 @@
         "onnxruntime"
       ],
       "consent_weight": "none",
-      "engine": "unwired"
+      "cli": {
+        "group": "ai",
+        "verb": "embed",
+        "flags": []
+      },
+      "engine": "ai"
     },
     {
       "id": "qr_barcode_read",

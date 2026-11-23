@@ -672,6 +672,77 @@ def test_staged_gpu_residency_floor_follows_the_largest_component():
     _eq(_diffusers.staged_min_free_bytes("/nonexistent/model"), 10 * gib, "missing dir floor")
 
 
+def test_fast_only_tokenizers_are_found_by_missing_vocab_files():
+    """A tokenizer dir saved in the transformers 5 layout (tokenizer.json, no vocab.json)
+    cannot become a slow CLIPTokenizer, so the loader must supply a fast one."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as root:
+
+        def make(sub, *files):
+            os.makedirs(os.path.join(root, sub), exist_ok=True)
+            for name in files:
+                open(os.path.join(root, sub, name), "w").close()
+
+        make("tokenizer", "tokenizer.json", "tokenizer_config.json")  # fast only
+        make("tokenizer_2", "tokenizer.json", "vocab.json", "merges.txt")  # complete: leave alone
+        make("tokenizer_3", "spiece.model", "tokenizer.json")  # sentencepiece: leave alone
+        _eq(_diffusers.fast_only_tokenizers(root), ["tokenizer"], "fast-only tokenizers")
+        _eq(_diffusers.fast_only_tokenizers(os.path.join(root, "missing")), [], "missing dir")
+        _eq(_diffusers.repo_tokenizer_overrides(os.path.join(root, "tokenizer_2")), {}, "no override needed")
+
+
+def test_fast_only_clip_tokenizer_is_rebuilt_as_the_slow_class_diffusers_expects():
+    """diffusers rejects a fast tokenizer for a declared CLIPTokenizer; the override must be the
+    slow class carrying the same vocabulary and merges."""
+    import tempfile
+
+    try:
+        import transformers
+    except ImportError:  # the pure checks above run without the heavy backend
+        return
+    vocab = {"<|startoftext|>": 0, "<|endoftext|>": 1, "a</w>": 2, "b</w>": 3, "a": 4, "b": 5, "ab</w>": 6}
+    tokenizer_json = {"model": {"type": "BPE", "vocab": vocab, "merges": [["a", "b</w>"]]}}
+    config = {"unk_token": "<|endoftext|>", "bos_token": "<|startoftext|>", "eos_token": "<|endoftext|>", "pad_token": "<|endoftext|>", "model_max_length": 77}
+    with tempfile.TemporaryDirectory() as root:
+        os.makedirs(os.path.join(root, "tokenizer"))
+        with open(os.path.join(root, "tokenizer", "tokenizer.json"), "w") as fh:
+            json.dump(tokenizer_json, fh)
+        with open(os.path.join(root, "tokenizer", "tokenizer_config.json"), "w") as fh:
+            json.dump(config, fh)
+        got = _diffusers.repo_tokenizer_overrides(root)
+        _eq(list(got), ["tokenizer"], "override names")
+        assert isinstance(got["tokenizer"], transformers.CLIPTokenizer), type(got["tokenizer"])
+        _eq(got["tokenizer"]("ab").input_ids, [0, 6, 1], "merged token ids")
+        _eq(got["tokenizer"].model_max_length, 77, "CLIP context length kept (padding='max_length' depends on it)")
+
+
+def test_edm_scheduler_is_misdeclared_only_beside_an_epsilon_model():
+    _eq(_diffusers.edm_scheduler_misdeclared({"_class_name": "EDMDPMSolverMultistepScheduler", "prediction_type": "epsilon"}), True, "EDM + epsilon")
+    _eq(_diffusers.edm_scheduler_misdeclared({"_class_name": "EDMDPMSolverMultistepScheduler", "prediction_type": "v_prediction"}), False, "EDM + v_prediction (Playground)")
+    _eq(_diffusers.edm_scheduler_misdeclared({"_class_name": "EulerDiscreteScheduler", "prediction_type": "epsilon"}), False, "Euler")
+    _eq(_diffusers.edm_scheduler_misdeclared({}), False, "empty config")
+
+
+def test_misdeclared_edm_scheduler_is_replaced_by_euler():
+    import tempfile
+
+    try:
+        import diffusers
+    except ImportError:
+        return
+    config = {"_class_name": "EDMDPMSolverMultistepScheduler", "prediction_type": "epsilon", "beta_start": 0.00085, "beta_end": 0.012, "beta_schedule": "scaled_linear", "num_train_timesteps": 1000}
+    with tempfile.TemporaryDirectory() as root:
+        os.makedirs(os.path.join(root, "scheduler"))
+        with open(os.path.join(root, "scheduler", "scheduler_config.json"), "w") as fh:
+            json.dump(config, fh)
+        got = _diffusers.repo_component_overrides(diffusers, root)
+        _eq(type(got["scheduler"]).__name__, "EulerDiscreteScheduler", "replacement scheduler")
+        _eq(got["scheduler"].config.prediction_type, "epsilon", "prediction type kept")
+    with tempfile.TemporaryDirectory() as root:
+        _eq(_diffusers.repo_component_overrides(diffusers, root), {}, "no scheduler config, no override")
+
+
 def main() -> int:
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for t in tests:

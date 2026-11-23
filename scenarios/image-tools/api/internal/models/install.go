@@ -312,7 +312,7 @@ func (in *Installer) install(ctx context.Context, id, jobID string, emit func(in
 			return rec, fmt.Errorf("models: disk peak planning failed before acquisition: %w", planErr)
 		}
 		repoFetch = fetch.PinHuggingFaceCache(repoFetch, fetch.HuggingFaceCachePath(request))
-		diskLease, err = in.DiskAdmission.ReserveDiskJob(ctx, request)
+		diskLease, err = fetch.ReserveAttempt(ctx, in.DiskAdmission, request)
 		if err != nil {
 			return rec, fmt.Errorf("models: reserve complete install disk peak: %w", err)
 		}

@@ -10,11 +10,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
 	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
+	"image-tools/internal/models"
 	"image-tools/internal/posemap"
+	"image-tools/internal/sidecar"
 )
 
 // Config configures a Service.
@@ -36,6 +39,10 @@ type Config struct {
 	// ModelsRoot is the absolute directory model weights live under (per model:
 	// <ModelsRoot>/models/<id>).
 	ModelsRoot string
+	// SelectModel is the catalog's selection for an operation (the same code
+	// `models select` runs: effective enabled state, the operator's pin, rights and
+	// host fit). Nil keeps the built-in defaults, tesseract for OCR.
+	SelectModel func(ctx context.Context, operation string) (models.Model, error)
 	// PythonProgram is the absolute interpreter path from image-tools' private
 	// lock-pinned venv. An empty value leaves model-backed analysis unavailable;
 	// NSFW must never fall back to the host's shared Python installation.
@@ -60,6 +67,7 @@ type Service struct {
 	modelReady      func(context.Context, string) (bool, string)
 	acquireModelUse func(string) (func(), error)
 	modelsRoot      string
+	selectModel     func(context.Context, string) (models.Model, error)
 	pythonProgram   string
 	threshold       float64
 	lookPath        lookPathFunc
@@ -88,12 +96,35 @@ func NewService(cfg Config) (*Service, error) {
 		modelReady:      cfg.ModelReady,
 		acquireModelUse: cfg.AcquireModelUse,
 		modelsRoot:      cfg.ModelsRoot,
+		selectModel:     cfg.SelectModel,
 		pythonProgram:   strings.TrimSpace(cfg.PythonProgram),
 		threshold:       thr,
 		lookPath:        cfg.LookPath,
 		run:             cfg.Run,
 		logger:          logger,
 	}, nil
+}
+
+// Operations is the analysis catalog with each model-backed operation's default
+// taken from the catalog's live selection (the model a run would use), not from
+// the built-in table. An operation with no selectable model reports none.
+func (s *Service) Operations(ctx context.Context) []OpInfo {
+	ops := List()
+	if s == nil || s.selectModel == nil {
+		return ops
+	}
+	for i := range ops {
+		if !ops[i].ModelBacked || ops[i].Name != OpOCR {
+			continue
+		}
+		model, err := s.selectModel(ctx, ops[i].Name)
+		if err != nil {
+			ops[i].DefaultModelID = ""
+			continue
+		}
+		ops[i].DefaultModelID = model.ID
+	}
+	return ops
 }
 
 func (s *Service) resolveLookPath() lookPathFunc {
@@ -109,9 +140,33 @@ func (s *Service) resolveRun() cmdOutput {
 	}
 	return func(ctx context.Context, name string, args []string) ([]byte, error) {
 		cmd := exec.CommandContext(ctx, name, args...)
-		cmd.Env = modelenv.Apply(append(os.Environ(), "CUDA_VISIBLE_DEVICES=", "OMP_NUM_THREADS=1", "MKL_NUM_THREADS=1", "OPENBLAS_NUM_THREADS=1", "IMAGE_TOOLS_CPU_THREADS=1"), modelenv.ModeInference)
+		threads := 1
+		if admitted, _ := ctx.Value(admittedThreads{}).(int); admitted > 0 {
+			threads = admitted
+		}
+		count := strconv.Itoa(threads)
+		env := append(os.Environ(), "CUDA_VISIBLE_DEVICES=", "OMP_NUM_THREADS="+count, "MKL_NUM_THREADS="+count, "OPENBLAS_NUM_THREADS="+count, "IMAGE_TOOLS_CPU_THREADS="+count)
+		env = withRuntimeLibraries(env, name)
+		cmd.Env = modelenv.Apply(env, modelenv.ModeInference)
 		return cmd.Output()
 	}
+}
+
+// withRuntimeLibraries puts the NVIDIA runtime libraries of the venv that owns
+// python on LD_LIBRARY_PATH. CUDA-enabled wheels (onnxruntime-gpu) load them at
+// import time even for a CPU run, and they are not on the service's ambient loader
+// path; without them the sidecar exits 3 with "libcudart.so.13: cannot open shared
+// object file". Every analysis process that starts a venv interpreter goes through
+// this, so no launch path can forget it.
+func withRuntimeLibraries(env []string, python string) []string {
+	libraries := sidecar.RuntimeLibraries(python)
+	if len(libraries) == 0 {
+		return env
+	}
+	if current := strings.TrimSpace(os.Getenv("LD_LIBRARY_PATH")); current != "" {
+		libraries = append(libraries, current)
+	}
+	return append(env, "LD_LIBRARY_PATH="+strings.Join(libraries, string(os.PathListSeparator)))
 }
 
 const maxCommandStderrBytes = 4096
@@ -239,11 +294,48 @@ func (s *Service) OCR(ctx context.Context, src []byte) (result OCRResult, runErr
 		return result, err
 	}
 	defer func() { runErr = errors.Join(runErr, finish()) }()
+	model, err := s.ocrModel(ctx)
+	if err != nil {
+		return OCRResult{}, err
+	}
+	if model.Backend == models.BackendTesseract {
+		return s.ocrTesseract(ctx, src)
+	}
+	return s.ocrONNX(ctx, model, src)
+}
+
+// ocrModel is the model this OCR run uses: the one admission acquired (so the
+// model that was installed and leased is the model that runs), else the
+// catalog's current selection.
+func (s *Service) ocrModel(ctx context.Context) (models.Model, error) {
+	if admitted, ok := ctx.Value(admittedModel{}).(models.Model); ok {
+		return admitted, nil
+	}
+	return s.selectOperationModel(ctx, OpOCR)
+}
+
+// selectOperationModel asks the catalog which model serves operation, falling back
+// to the built-in OCR default when no selector is wired (tests, read-only wiring).
+func (s *Service) selectOperationModel(ctx context.Context, operation string) (models.Model, error) {
+	if s.selectModel != nil {
+		model, err := s.selectModel(ctx, operation)
+		if err != nil {
+			return models.Model{}, fmt.Errorf("%w: select %s model: %v", ErrBackendUnavailable, operation, err)
+		}
+		return model, nil
+	}
+	if operation == OpOCR {
+		return models.Model{ID: "tesseract", Backend: models.BackendTesseract}, nil
+	}
+	return models.Model{}, fmt.Errorf("%w: no model selector for %s", ErrBackendUnavailable, operation)
+}
+
+func (s *Service) ocrTesseract(ctx context.Context, src []byte) (OCRResult, error) {
 	if _, err := s.resolveLookPath()("tesseract"); err != nil {
-		return OCRResult{}, fmt.Errorf("%w: install tesseract (the `ocr` default backend)", ErrBackendUnavailable)
+		return OCRResult{}, fmt.Errorf("%w: install tesseract (the `ocr` backend of the selected model)", ErrBackendUnavailable)
 	}
 	var out []byte
-	err = withTempInput(src, func(path string) error {
+	err := withTempInput(src, func(path string) error {
 		args := ocrArgs(path)
 		if s.modelsRoot != "" {
 			args = append(args, "--tessdata-dir", s.modelDir("tesseract"))
@@ -261,8 +353,63 @@ func (s *Service) OCR(ctx context.Context, src []byte) (result OCRResult, runErr
 	return OCRResult{FullText: strings.TrimRight(string(out), "\n"), Language: "eng"}, nil
 }
 
-// ocrArgs is the documented tesseract invocation: read <path>, write plain text
-// to stdout, English. Pure for unit-testing.
+// ocrONNX runs a detector + recogniser model (PaddleOCR) through the sidecar's
+// ocr module and decodes its structured result: text lines with confidence and
+// pixel boxes in reading order.
+func (s *Service) ocrONNX(ctx context.Context, model models.Model, src []byte) (OCRResult, error) {
+	if s.pythonProgram == "" {
+		return OCRResult{}, fmt.Errorf("%w: isolated Python environment is not provisioned; install uv and restart image-tools", ErrBackendUnavailable)
+	}
+	python, err := s.resolveLookPath()(s.pythonProgram)
+	if err != nil {
+		return OCRResult{}, fmt.Errorf("%w: isolated Python interpreter is unavailable at %q", ErrBackendUnavailable, s.pythonProgram)
+	}
+	if !s.modelInstalled(model.ID) {
+		return OCRResult{}, fmt.Errorf("%w: model %q not installed — run `image-tools models install %s`", ErrBackendUnavailable, model.ID, model.ID)
+	}
+	var raw []byte
+	err = withTempInput(src, func(path string) error {
+		outPath := path + ".ocr.json"
+		defer func() { _ = os.Remove(outPath) }()
+		args := []string{"-m", "image_tools_sidecar.ocr", "--model", s.modelDir(model.ID), "--image", path, "--out", outPath}
+		if _, err := s.resolveRun()(ctx, python, args); err != nil {
+			return commandError("analysis: onnx ocr", err)
+		}
+		b, readErr := os.ReadFile(outPath)
+		if readErr != nil {
+			return fmt.Errorf("analysis: read ocr output: %w", readErr)
+		}
+		raw = b
+		return nil
+	})
+	if err != nil {
+		return OCRResult{}, err
+	}
+	return parseONNXOCR(raw)
+}
+
+func parseONNXOCR(raw []byte) (OCRResult, error) {
+	var payload struct {
+		FullText string `json:"full_text"`
+		Language string `json:"language"`
+		Blocks   []struct {
+			Text       string  `json:"text"`
+			Confidence float64 `json:"confidence"`
+			Box        struct {
+				X, Y, Width, Height int
+			} `json:"box"`
+		} `json:"blocks"`
+	}
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return OCRResult{}, fmt.Errorf("analysis: parse ocr output: %w", err)
+	}
+	res := OCRResult{FullText: payload.FullText, Language: payload.Language}
+	for _, b := range payload.Blocks {
+		res.Blocks = append(res.Blocks, OCRBlock{Text: b.Text, Confidence: b.Confidence, Box: Box{X: b.Box.X, Y: b.Box.Y, Width: b.Box.Width, Height: b.Box.Height}})
+	}
+	return res, nil
+}
+
 func ocrArgs(path string) []string {
 	return []string{path, "stdout", "-l", "eng"}
 }

@@ -79,6 +79,16 @@ func (d *Dispatcher) Register(operation string, run OpRunner) {
 	d.handlers[operation] = run
 }
 
+// Handles reports whether an operation has a registered handler. An operation
+// that does is started from its persisted payload alone, which is what lets the
+// job manager resume it in a later process.
+func (d *Dispatcher) Handles(operation string) bool {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	_, ok := d.handlers[operation]
+	return ok
+}
+
 // Operations returns the registered operation names (unordered).
 func (d *Dispatcher) Operations() []string {
 	d.mu.RLock()

@@ -124,6 +124,23 @@ func TestArgBuilders(t *testing.T) {
 			err:  argErr(DiffusersEditInstruct, req("edit_instruct", []string{"/in.png"}, map[string]string{"prompt": "x"})),
 		},
 		{
+			name: "diffusers face_swap sends target then face with the default instruction",
+			args: mustArgs(t, DiffusersFaceSwapInstruct, func() backends.Request {
+				r := req("face_swap", []string{"/target.png", "", "/face.png"}, map[string]string{"seed": "5"})
+				r.Model.Runtime.Family = "flux-2-klein"
+				return r
+			}()),
+			want: []string{"-m", "image_tools_sidecar.edit_instruct", "--model", "/models/m1", "--family", "flux-2-klein", "--image", "/target.png", "--image", "/face.png", "--prompt", FaceSwapInstruction, "--out", "/out.png", "--seed", "5"},
+		},
+		{
+			name: "diffusers face_swap keeps a caller prompt and needs a face image",
+			err: func() bool {
+				r := req("face_swap", []string{"/target.png"}, map[string]string{"prompt": "x"})
+				r.Model.Runtime.Family = "flux-2-klein"
+				return argErr(DiffusersFaceSwapInstruct, r)
+			}(),
+		},
+		{
 			name: "diffusers txt2img",
 			args: mustArgs(t, DiffusersText2Image, req("text_to_image", nil, map[string]string{
 				"prompt": "a castle", "width": "512", "height": "768", "steps": "28", "cfg_scale": "6.0", "negative_prompt": "blurry", "seed": "42",
@@ -226,6 +243,13 @@ func TestArgBuilders(t *testing.T) {
 			name: "onnx nsfw sidecar dispatch",
 			args: mustArgs(t, OnnxSidecar, req("nsfw_classify", []string{"/in.png"}, nil)),
 			want: []string{"-m", "image_tools_sidecar.nsfw", "--image", "/in.png", "--out", "/out.png"},
+		},
+		{
+			// The age head needs its config.json (bin names) beside the ONNX file, so the
+			// sidecar receives the model directory.
+			name: "onnx age estimate sidecar dispatch",
+			args: mustArgs(t, OnnxSidecar, req("age_estimate", []string{"/in.png"}, nil)),
+			want: []string{"-m", "image_tools_sidecar.age_estimate", "--model", "/models/m1", "--image", "/in.png", "--out", "/out.png", "--device", "cpu"},
 		},
 		{
 			name: "onnx embedding sidecar dispatch",
@@ -676,6 +700,24 @@ func TestSegmentTextPromptUsesTheGroundedAdapter(t *testing.T) {
 	}
 	if point := strings.Join(segment(`{"points":[{"x":0.4,"y":0.7}]}`), " "); !strings.Contains(point, "-m image_tools_sidecar.sam2") {
 		t.Fatalf("point prompt must stay on the SAM 2.1 adapter: %s", point)
+	}
+}
+
+func TestSemanticSegmentUsesTheParserAdapterForTextAndPoints(t *testing.T) {
+	for _, prompt := range []string{`{"text":"her hair"}`, `{"points":[{"x":0.4,"y":0.7}]}`} {
+		args, err := SemanticSegmentSidecar(backends.Request{
+			Operation: "segment", GPU: true, InputKeys: []string{"/in.png"},
+			Output: storage.OutputTarget{LocalPath: "/mask.png"},
+			Params: map[string]string{"segmentation": prompt},
+		}, "/models/segformer-b2-clothes")
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := strings.Join(args, " ")
+		want := "-m image_tools_sidecar.semantic_segment --model /models/segformer-b2-clothes --image /in.png --out /mask.png --device cuda --prompts " + prompt
+		if got != want {
+			t.Fatalf("args for %s:\n got %s\nwant %s", prompt, got, want)
+		}
 	}
 }
 

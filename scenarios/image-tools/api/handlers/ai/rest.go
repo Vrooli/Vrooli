@@ -44,9 +44,19 @@ type Submitter interface {
 // behaviour: unrestricted).
 type Gate interface {
 	Evaluate(op string, consentAffirmed bool) safety.Decision
-	EvaluateWeight(weight safety.Weight, op string, consentAffirmed bool) safety.Decision
+	// EvaluateRouteInput decides a submit once its route tier is resolved: the tier
+	// rule plus the route-locality rule (a high-weight op whose route leaves this
+	// machine needs a consent affirmation on every tier; a low-weight one only when
+	// its input shows people, which faces counts). The decision carries the
+	// consent_basis to record on the job.
+	EvaluateRouteInput(ctx context.Context, weight safety.Weight, op, tier string, consentAffirmed bool, faces safety.FaceCountFunc) safety.Decision
+	// CountFaces counts the people the images show; it fails closed when the
+	// deployment has no detector.
+	CountFaces(ctx context.Context, images [][]byte) (int, error)
 	AllowRate() bool
-	RecordConsent(ctx context.Context, op string, weight safety.Weight) error
+	// RecordConsent audits an affirmation that unlocked something. route names
+	// where the work was sent.
+	RecordConsent(ctx context.Context, op string, weight safety.Weight, route string) error
 	// ReviewMinor enforces the non-configurable boundary against the request's
 	// images. It is a no-op on a local deployment and fails closed when a hosted
 	// deployment has no configured reviewer.
@@ -124,7 +134,11 @@ func (h *Deps) submitHandler(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	response, err := h.admitStored(r.Context(), op, params, inputKey, maskKey, operationID, gate)
+	referenceKey, ok := h.storeOptionalInput(w, r, "reference", meta.RequiresReference, "reference")
+	if !ok {
+		return
+	}
+	response, err := h.admitStored(r.Context(), op, params, inputKey, maskKey, referenceKey, operationID, gate)
 	if err != nil {
 		writeAdmissionError(w, err)
 		return
@@ -141,7 +155,7 @@ func writeAdmissionError(w http.ResponseWriter, err error) {
 	httpx.WriteError(w, http.StatusInternalServerError, httpx.CodeInternal, "AI admission unavailable")
 }
 
-func (h *Deps) requestFingerprint(ctx context.Context, op string, params *aiv1.AIParams, inputKey, maskKey string) (string, error) {
+func (h *Deps) requestFingerprint(ctx context.Context, op string, params *aiv1.AIParams, inputKey, maskKey, referenceKey string) (string, error) {
 	canonical, err := (proto.MarshalOptions{Deterministic: true}).Marshal(params)
 	if err != nil {
 		return "", err
@@ -150,10 +164,10 @@ func (h *Deps) requestFingerprint(ctx context.Context, op string, params *aiv1.A
 	hash.Write([]byte(op + "\n"))
 	hash.Write(canonical)
 	hash.Write([]byte{0})
-	if inputKey != "" || maskKey != "" {
+	if inputKey != "" || maskKey != "" || referenceKey != "" {
 		// Fixed-size per-role digests are unambiguous and independent of random
 		// upload keys, multipart boundaries, filenames and filename extensions.
-		for _, key := range []string{inputKey, maskKey} {
+		for _, key := range []string{inputKey, maskKey, referenceKey} {
 			if key == "" {
 				hash.Write(make([]byte, sha256.Size))
 				continue

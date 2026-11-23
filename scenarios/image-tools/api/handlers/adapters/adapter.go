@@ -113,6 +113,8 @@ func findingSeverityToProto(s internaladapters.FindingSeverity) adaptersv1.Catal
 		return adaptersv1.CatalogFindingSeverity_CATALOG_FINDING_SEVERITY_WARNING
 	case internaladapters.FindingError:
 		return adaptersv1.CatalogFindingSeverity_CATALOG_FINDING_SEVERITY_ERROR
+	case internaladapters.FindingInfo:
+		return adaptersv1.CatalogFindingSeverity_CATALOG_FINDING_SEVERITY_INFO
 	default:
 		return adaptersv1.CatalogFindingSeverity_CATALOG_FINDING_SEVERITY_UNSPECIFIED
 	}

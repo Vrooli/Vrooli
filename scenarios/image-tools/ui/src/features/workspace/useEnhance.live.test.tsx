@@ -212,7 +212,7 @@ describe("liveEnhanceClient", () => {
     const out = await liveEnhanceClient.result("job-1");
 
     expect(mocks.client.getJob).toHaveBeenCalledWith({ id: "job-1" });
-    expect(out).toEqual({ ok: true, resultRef: "out/ok.png", error: "" });
+    expect(out).toEqual({ ok: true, resultRef: "out/ok.png", error: "", sensitiveRefs: [] });
   });
 
   it("result reports ok=false and surfaces the error for a non-succeeded job", async () => {
@@ -222,7 +222,7 @@ describe("liveEnhanceClient", () => {
 
     const out = await liveEnhanceClient.result("job-2");
 
-    expect(out).toEqual({ ok: false, resultRef: "", error: "backend exploded" });
+    expect(out).toEqual({ ok: false, resultRef: "", error: "backend exploded", sensitiveRefs: [] });
   });
 
   it("result defaults to empty fields when the job is missing", async () => {
@@ -230,7 +230,7 @@ describe("liveEnhanceClient", () => {
 
     const out = await liveEnhanceClient.result("job-3");
 
-    expect(out).toEqual({ ok: false, resultRef: "", error: "" });
+    expect(out).toEqual({ ok: false, resultRef: "", error: "", sensitiveRefs: [] });
   });
 
   it("fetchResult delegates to the AI edge", async () => {
@@ -245,8 +245,26 @@ describe("liveEnhanceClient", () => {
 
     const out = await liveEnhanceClient.fetchResult("out/ok.png");
 
-    expect(mocks.fetchAIResult).toHaveBeenCalledWith("out/ok.png");
+    expect(mocks.fetchAIResult).toHaveBeenCalledWith("out/ok.png", undefined);
     expect(out).toBe(image);
+  });
+
+  it("fetchResult passes the job's sensitive flag to the AI edge", async () => {
+    mocks.fetchAIResult.mockResolvedValueOnce({ url: "blob:s", width: 1, height: 1, format: "png", outputFile: PNG_FILE });
+    await liveEnhanceClient.fetchResult("out/s.png", true);
+    expect(mocks.fetchAIResult).toHaveBeenCalledWith("out/s.png", true);
+  });
+
+  it("result lists the outputs the server flagged sensitive", async () => {
+    mocks.client.getJob.mockResolvedValueOnce({
+      job: {
+        state: JobState.SUCCEEDED,
+        resultRef: "out/s.png",
+        error: "",
+        resultMeta: { sensitive: "true", sensitive_refs: "out/s.png" },
+      },
+    });
+    expect((await liveEnhanceClient.result("job-s")).sensitiveRefs).toEqual(["out/s.png"]);
   });
 
   it("install forwards the model id and returns the install job descriptor", async () => {

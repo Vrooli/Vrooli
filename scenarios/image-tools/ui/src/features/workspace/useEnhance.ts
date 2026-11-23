@@ -7,6 +7,7 @@ import {
   type AIParamsInput,
 } from "../../api/ai";
 import { JobState, jobsClient } from "../../api/jobs";
+import { sensitiveRefsOf } from "../../lib/sensitiveMedia";
 import { modelsClient } from "../../api/models";
 import type { RunOpImageResult } from "../../api/ops";
 
@@ -75,8 +76,9 @@ export interface EnhanceClient {
     signal: AbortSignal,
     onEvent: (event: EnhanceProgress) => void,
   ) => Promise<void>;
-  result: (jobId: string) => Promise<{ ok: boolean; resultRef: string; error: string }>;
-  fetchResult: (resultRef: string) => Promise<AIImageResult>;
+  /** `sensitiveRefs` lists the outputs the server flagged sensitive (blurred in the UI). */
+  result: (jobId: string) => Promise<{ ok: boolean; resultRef: string; error: string; sensitiveRefs?: string[] }>;
+  fetchResult: (resultRef: string, sensitive?: boolean) => Promise<AIImageResult>;
   install: (modelId: string) => Promise<{ jobId: string; alreadyInstalled: boolean }>;
   waitJob: (jobId: string) => Promise<{ ok: boolean; error: string }>;
   cancel: (jobId: string) => Promise<void>;
@@ -126,9 +128,10 @@ export const liveEnhanceClient: EnhanceClient = {
       ok: job?.state === JobState.SUCCEEDED,
       resultRef: job?.resultRef ?? "",
       error: job?.error ?? "",
+      sensitiveRefs: sensitiveRefsOf(job?.resultMeta),
     };
   },
-  fetchResult: (resultRef) => fetchAIResult(resultRef),
+  fetchResult: (resultRef, sensitive) => fetchAIResult(resultRef, sensitive),
   async install(modelId) {
     const resp = await modelsClient.installModel({ id: modelId });
     return { jobId: resp.jobId, alreadyInstalled: resp.alreadyInstalled };
@@ -183,6 +186,8 @@ export interface UseEnhance {
   tier: string;
   warnings: string[];
   error: string | null;
+  /** The succeeded run's job id (what the result's rating attaches to), else "". */
+  resultJobId: string;
   /** Fetch the op's selected-model badge without running (called on op select). */
   preview: (op: string) => void;
   /** Select the model, then run if installed, else open the install gate. */
@@ -221,6 +226,7 @@ export function useEnhance({ onResult, client = liveEnhanceClient }: UseEnhanceA
   const previewId = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
   const jobIdRef = useRef("");
+  const [resultJobId, setResultJobId] = useState("");
   const pending = useRef<{ op: string; params: AIParamsInput; input: File } | null>(null);
 
   useEffect(
@@ -254,6 +260,7 @@ export function useEnhance({ onResult, client = liveEnhanceClient }: UseEnhanceA
         return;
       }
       jobIdRef.current = submitted.jobId;
+      setResultJobId("");
       setTier(submitted.tier);
       setWarnings(submitted.warnings);
       setPhase("running");
@@ -269,7 +276,7 @@ export function useEnhance({ onResult, client = liveEnhanceClient }: UseEnhanceA
         return;
       }
 
-      let terminal: { ok: boolean; resultRef: string; error: string };
+      let terminal: { ok: boolean; resultRef: string; error: string; sensitiveRefs?: string[] };
       try {
         terminal = await client.result(submitted.jobId);
       } catch (err) {
@@ -289,7 +296,7 @@ export function useEnhance({ onResult, client = liveEnhanceClient }: UseEnhanceA
       }
 
       try {
-        const image = await client.fetchResult(terminal.resultRef);
+        const image = await client.fetchResult(terminal.resultRef, terminal.sensitiveRefs?.includes(terminal.resultRef));
         if (!live(id)) {
           return;
         }
@@ -305,6 +312,7 @@ export function useEnhance({ onResult, client = liveEnhanceClient }: UseEnhanceA
           },
           outputFile: image.outputFile,
         });
+        setResultJobId(submitted.jobId);
         setPhase("succeeded");
       } catch (err) {
         if (live(id)) {
@@ -441,6 +449,7 @@ export function useEnhance({ onResult, client = liveEnhanceClient }: UseEnhanceA
     abortRef.current?.abort();
     setPhase("idle");
     setError(null);
+    setResultJobId("");
     setProgress(IDLE_PROGRESS);
   }, []);
 
@@ -451,6 +460,7 @@ export function useEnhance({ onResult, client = liveEnhanceClient }: UseEnhanceA
     tier,
     warnings,
     error,
+    resultJobId,
     preview,
     start,
     installAndRun,

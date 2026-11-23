@@ -8,7 +8,7 @@ import { useTranslation } from "../../i18n";
 import { errorMessage } from "../../lib/errorMessage";
 import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { Input } from "@vrooli/react-component-library/Input/1.3.6";
-import { Textarea } from "../../components/ui/textarea";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1.1.1";
 import { cn } from "../../lib/utils";
 
 const queryKey = ["prepared-photographs"] as const;
@@ -91,8 +91,8 @@ export function PreparedPhotographs() {
       <a href={blobUrl(current.bundleRef)} download className="mt-3 inline-block underline">{t(k.download)}</a>
       <form className="mt-6 grid gap-4 md:grid-cols-2" onSubmit={(event) => event.preventDefault()}>
         <label className="flex flex-col gap-1">{t(k.reviewer)}<Input value={reviewer} maxLength={128} onChange={(event) => setReviewer(event.target.value)} disabled={review.isPending} /></label>
-        <label className="flex flex-col gap-1">{t(k.rationale)}<Textarea value={rationale} maxLength={2048} onChange={(event) => setRationale(event.target.value)} disabled={review.isPending} /></label>
-        <label className="flex flex-col gap-1 md:col-span-2">{t(k.evidence)}<Textarea value={evidence} maxLength={8192} onChange={(event) => setEvidence(event.target.value)} disabled={review.isPending} /></label>
+        <label className="flex flex-col gap-1">{t(k.rationale)}<Textarea className="image-tools-textarea" value={rationale} maxLength={2048} onChange={(event) => setRationale(event.target.value)} disabled={review.isPending} /></label>
+        <label className="flex flex-col gap-1 md:col-span-2">{t(k.evidence)}<Textarea className="image-tools-textarea" value={evidence} maxLength={8192} onChange={(event) => setEvidence(event.target.value)} disabled={review.isPending} /></label>
         <label className="flex items-start gap-2 md:col-span-2"><input type="checkbox" checked={overscan} onChange={(event) => setOverscan(event.target.checked)} disabled={review.isPending} /><span>{t(k.overscan)}</span></label>
         {review.error && <p role="alert" className="md:col-span-2">{errorMessage(review.error, t)}</p>}
         <div className="flex gap-2 md:col-span-2">

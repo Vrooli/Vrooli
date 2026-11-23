@@ -2,6 +2,7 @@ package ai
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,6 +12,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	internaljobs "image-tools/internal/jobs"
 )
 
 func TestWarmResidencyRetainsClaimsAcrossJobsAndReleasesOnIdle(t *testing.T) {
@@ -453,4 +456,104 @@ func importCount(tb testing.TB, path string) int {
 		tb.Fatalf("read import marker: %v", err)
 	}
 	return strings.Count(string(data), "import\n")
+}
+
+// A graceful shutdown closes the backend registry. A resident warm worker must
+// give back every claim it holds then, not leave them to the heartbeat expiry
+// (which keeps the memory refused for other work after the restart).
+func TestClosingTheWarmRunnerReleasesEveryResidentClaim(t *testing.T) {
+	root, _, outputs := writeSleepySidecarPackage(t)
+	setPythonPath(t, root)
+	runner := newWarmSidecarRunner()
+	t.Cleanup(func() { _ = runner.Close() })
+	var ram, vram atomic.Int32
+	acquire := func(ctx context.Context) (*leaseGroup, error) {
+		group := newLeaseGroup(ctx)
+		group.renew("RAM", &memoryTestLease{onRelease: func(context.Context) {
+			if runner.cmd != nil {
+				t.Error("resident RAM released before the worker was reaped")
+			}
+			ram.Add(1)
+		}})
+		group.renew("GPU residency", &memoryTestLease{onRelease: func(context.Context) { vram.Add(1) }})
+		return group, nil
+	}
+	admitted, err := runner.reserve(context.Background(), "model", "job", acquire, map[string]string{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.Run(admitted.Context, "python3", []string{"-m", "benchmark_sidecar.sleepy", "--out", filepath.Join(outputs, "one")}); err != nil {
+		t.Fatal(err)
+	}
+	if err := admitted.Release(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if ram.Load() != 0 || vram.Load() != 0 {
+		t.Fatalf("the idle window must keep the claims: ram=%d vram=%d", ram.Load(), vram.Load())
+	}
+	if err := runner.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if ram.Load() != 1 || vram.Load() != 1 {
+		t.Fatalf("Close left a resident claim held: ram=%d vram=%d", ram.Load(), vram.Load())
+	}
+	if runner.resident != nil || runner.cmd != nil {
+		t.Fatal("Close left the worker or its residency in place")
+	}
+}
+
+// A request the module rejects as given is the caller's fault, not the model's:
+// the worker's kind reaches the job as a failure kind, and an ordinary crash stays a fault.
+func TestWarmSidecarRunnerClassifiesAnInvalidRequestApartFromAFault(t *testing.T) {
+	root, _, outputs := writeSleepySidecarPackage(t)
+	setPythonPath(t, root)
+	moduleDir := filepath.Join(root, "benchmark_sidecar")
+	write := func(name, body string) {
+		if err := os.WriteFile(filepath.Join(moduleDir, name+".py"), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("rejects", "from image_tools_sidecar import _common\n\ndef main():\n    raise _common.InputError(\"this parser has no label for 'book'\")\n")
+	write("crashes", "def main():\n    raise RuntimeError('CUDA error: an illegal memory access')\n")
+	runner := newWarmSidecarRunner()
+	t.Cleanup(func() { _ = runner.Close() })
+
+	err := runner.Run(context.Background(), "python3", []string{"-m", "benchmark_sidecar.rejects", "--out", filepath.Join(outputs, "r")})
+	if err == nil || !strings.Contains(err.Error(), "no label for 'book'") || internaljobs.KindOf(err) != internaljobs.FailureInvalidInput {
+		t.Fatalf("invalid request: err=%v kind=%q", err, internaljobs.KindOf(err))
+	}
+	err = runner.Run(context.Background(), "python3", []string{"-m", "benchmark_sidecar.crashes", "--out", filepath.Join(outputs, "c")})
+	if err == nil || !strings.Contains(err.Error(), "illegal memory access") || internaljobs.KindOf(err) != internaljobs.FailureFault {
+		t.Fatalf("crash: err=%v kind=%q", err, internaljobs.KindOf(err))
+	}
+}
+
+func TestOneShotSidecarExitStatusSeparatesABadRequestFromACrash(t *testing.T) {
+	_, badRequest := defaultRunOutput(context.Background(), "sh", []string{"-c", fmt.Sprintf("echo no label >&2; exit %d", sidecarExitInvalidInput)})
+	if got := internaljobs.KindOf(classifySidecarFailure(badRequest)); got != internaljobs.FailureInvalidInput {
+		t.Fatalf("exit %d kind = %q", sidecarExitInvalidInput, got)
+	}
+	_, crash := defaultRunOutput(context.Background(), "sh", []string{"-c", "exit 1"})
+	if got := internaljobs.KindOf(classifySidecarFailure(crash)); got != internaljobs.FailureFault {
+		t.Fatalf("exit 1 kind = %q", got)
+	}
+	if classifySidecarFailure(nil) != nil {
+		t.Fatal("no failure must stay no failure")
+	}
+}
+
+func TestPolicyRefusalsAreNotFaultsOfTheModel(t *testing.T) {
+	for name, err := range map[string]error{
+		"consent":  fmt.Errorf("%w: the edit leaves this machine", ErrConsentRequired),
+		"spend":    fmt.Errorf("%w: $0.30 over the cap", ErrSpendCap),
+		"cooldown": ErrCloudCooldown,
+		"safety":   errors.Join(&HardRefusalError{Reason: "policy"}, errors.New("deleted outputs")),
+	} {
+		if got := internaljobs.KindOf(err); got != internaljobs.FailureRefused {
+			t.Errorf("%s kind = %q, want refused", name, got)
+		}
+		if !errors.Is(err, ErrConsentRequired) && name == "consent" {
+			t.Error("the consent sentinel must still match errors.Is")
+		}
+	}
 }

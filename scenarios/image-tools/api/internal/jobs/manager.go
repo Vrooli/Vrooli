@@ -79,6 +79,16 @@ type Config struct {
 	// restart, and only while they have not started computing. Inline task jobs
 	// (SubmitTask) carry a closure and are never resumable.
 	Resumable func(operation string) bool
+	// Restartable reports whether a job of this operation may be stopped while
+	// it is running and started again later with no loss: its work is idempotent
+	// and resumes from what it already wrote (a model download resumes from its
+	// staging directory). Such jobs are returned to the queue by a restart drain
+	// instead of holding it. It is meaningful only for Resumable operations.
+	Restartable func(operation string) bool
+	// DeferRecovery leaves restart recovery to an explicit Recover call. An owner
+	// whose operations register their handlers after Start (so Resumable cannot
+	// answer yet) sets it and calls Recover once every handler is registered.
+	DeferRecovery bool
 	// OnComplete, when set, is called once per job as it reaches a terminal state
 	// (succeeded/failed/canceled). The measures recorder uses it to capture op
 	// latency + queue-wait without coupling the Manager to the measures package.
@@ -90,18 +100,20 @@ type Config struct {
 // Manager owns durable jobs, their one priority queue, and admission lifetime.
 // Work survives client disconnects and is terminal only after cleanup returns.
 type Manager struct {
-	st         *store
-	runner     Runner
-	admit      Admitter
-	reroute    Rerouter
-	clock      schedule.Clock
-	cpuN       int
-	netN       int
-	onComplete func(Job)
-	resumable  func(string) bool
-	draining   atomic.Bool
-	baseCtx    context.Context
-	cancel     context.CancelFunc
+	st          *store
+	runner      Runner
+	admit       Admitter
+	reroute     Rerouter
+	clock       schedule.Clock
+	cpuN        int
+	netN        int
+	onComplete  func(Job)
+	resumable   func(string) bool
+	deferRecov  bool
+	restartable func(string) bool
+	draining    atomic.Bool
+	baseCtx     context.Context
+	cancel      context.CancelFunc
 
 	mu            sync.Mutex
 	entries       map[string]*jobEntry
@@ -180,17 +192,19 @@ func New(db SQLExecutor, cfg Config) *Manager {
 		netN = 4
 	}
 	return &Manager{
-		st:         newStore(db),
-		runner:     cfg.Runner,
-		admit:      cfg.Admit,
-		reroute:    cfg.Reroute,
-		clock:      clk,
-		cpuN:       n,
-		netN:       netN,
-		onComplete: cfg.OnComplete,
-		resumable:  cfg.Resumable,
-		entries:    make(map[string]*jobEntry),
-		wake:       make(chan struct{}, 1),
+		st:          newStore(db),
+		runner:      cfg.Runner,
+		admit:       cfg.Admit,
+		reroute:     cfg.Reroute,
+		clock:       clk,
+		cpuN:        n,
+		netN:        netN,
+		onComplete:  cfg.OnComplete,
+		resumable:   cfg.Resumable,
+		deferRecov:  cfg.DeferRecovery,
+		restartable: cfg.Restartable,
+		entries:     make(map[string]*jobEntry),
+		wake:        make(chan struct{}, 1),
 	}
 }
 
@@ -210,9 +224,11 @@ func (m *Manager) Start(ctx context.Context) error {
 		m.cancel()
 		return err
 	}
-	if err := m.recover(); err != nil {
-		m.cancel()
-		return err
+	if !m.deferRecov {
+		if err := m.recover(); err != nil {
+			m.cancel()
+			return err
+		}
 	}
 	m.started = true
 	m.wg.Add(1)
@@ -253,9 +269,13 @@ func (m *Manager) recover() error {
 	}
 	now := m.clock.Now()
 	for _, j := range orphans {
-		waiting := j.State == StateQueued || j.State == StateAdmitting
+		if _, live := m.entries[j.ID]; live {
+			continue // submitted by this process while recovery was deferred
+		}
+		waiting := j.State == StateQueued || j.State == StateAdmitting || (j.State == StateRunning && m.canRestart(j.Operation))
 		if waiting && !j.TestMode && m.canResume(j.Operation) {
-			if j.State == StateAdmitting {
+			if j.State != StateQueued {
+				j.StartedAt, j.Progress = nil, 0
 				if err := j.transition(StateQueued, now, "resumed after a restart"); err != nil {
 					return err
 				}
@@ -273,6 +293,10 @@ func (m *Manager) recover() error {
 			return err
 		}
 		j.Error = j.Message
+		if j.Meta == nil {
+			j.Meta = map[string]string{}
+		}
+		j.Meta[MetaFailureKind] = string(FailureInterrupted)
 		if err := m.st.update(m.baseCtx, j); err != nil {
 			return err
 		}
@@ -280,8 +304,31 @@ func (m *Manager) recover() error {
 	return nil
 }
 
+// Recover settles the jobs a previous process left non-terminal. It is only
+// needed (and only allowed once) with Config.DeferRecovery; call it after every
+// operation handler is registered, before the API serves requests.
+func (m *Manager) Recover() error {
+	m.mu.Lock()
+	if !m.started || !m.deferRecov {
+		m.mu.Unlock()
+		return errors.New("jobs: Recover requires a started manager configured with DeferRecovery")
+	}
+	m.deferRecov = false
+	err := m.recover()
+	m.mu.Unlock()
+	if err != nil {
+		return err
+	}
+	m.signal()
+	return nil
+}
+
 func (m *Manager) canResume(operation string) bool {
 	return m.resumable != nil && m.resumable(operation)
+}
+
+func (m *Manager) canRestart(operation string) bool {
+	return m.restartable != nil && m.restartable(operation) && m.canResume(operation)
 }
 
 // Submit persists a job and places it in the shared priority queue.
@@ -488,6 +535,7 @@ func (m *Manager) execute(entry *jobEntry) {
 		err = m.startRunning(entry)
 	}
 	var result Result
+	released := false
 	if err == nil && jobCtx.Err() == nil {
 		runCtx := jobCtx
 		if snapshot.ExecutionTimeoutSeconds > 0 {
@@ -500,7 +548,8 @@ func (m *Manager) execute(entry *jobEntry) {
 			run = entry.runner
 		}
 		result, err = runSafely(runCtx, snapshot, func(progress int, message string) { m.progress(entry, progress, message) }, run)
-		if runCtx.Err() != nil {
+		released = ownerReleased(err, requestCtx, runCtx)
+		if runCtx.Err() != nil && !released && cancellationExplainsFailure(err, requestCtx, runCtx) {
 			err = errors.Join(err, runCtx.Err())
 			if snapshot.ExecutionTimeoutSeconds > 0 && errors.Is(runCtx.Err(), context.DeadlineExceeded) && jobCtx.Err() == nil {
 				err = errors.Join(err, ErrExecutionTimeLimit)
@@ -508,7 +557,7 @@ func (m *Manager) execute(entry *jobEntry) {
 		}
 	}
 	wasCanceled := requestCtx.Err() != nil
-	if jobCtx.Err() != nil {
+	if jobCtx.Err() != nil && !released && cancellationExplainsFailure(err, requestCtx, jobCtx) && !errors.Is(err, context.Cause(jobCtx)) {
 		err = errors.Join(err, context.Cause(jobCtx))
 	}
 	retry := errors.Is(err, ErrCapacityBusy)
@@ -521,7 +570,7 @@ func (m *Manager) execute(entry *jobEntry) {
 		entry.move = &move
 	}
 	rerouting := entry.move != nil && (entry.job.State == StateAdmitting || entry.job.State == StateRunning)
-	pausing := entry.pause && entry.job.State == StateAdmitting
+	pausing := entry.pause && (entry.job.State == StateAdmitting || entry.job.State == StateRunning)
 	entry.mu.Unlock()
 	var unconfirmedRelease error
 	if admission.Release != nil {
@@ -564,6 +613,13 @@ func (m *Manager) execute(entry *jobEntry) {
 			return
 		}
 	}
+	if err != nil && !wasCanceled && !errors.Is(err, ErrReleaseFailed) && KindOf(err) == FailureCapacity {
+		// The run lost memory the lease had promised to another process: nothing the
+		// model did, and its leases are released, so it runs again once, later.
+		if m.requeueAfterRun(entry, err) {
+			return
+		}
+	}
 	if len(admission.Meta) > 0 || unconfirmedRelease != nil {
 		if result.Meta == nil {
 			result.Meta = map[string]string{}
@@ -581,6 +637,32 @@ func (m *Manager) execute(entry *jobEntry) {
 		}
 	}
 	m.complete(entry, result, err, wasCanceled)
+}
+
+// ownerReleased reports whether the runner finished cleanly and its owner then
+// ended the admitted context on purpose: a warm worker's reservation is released
+// once inference is done, before the output review, which cancels that context.
+// Only a plain cancellation with the request still live counts. A lost lease
+// carries its own cause, an execution limit is a deadline, and a canceled
+// request cancels the admitted context through its parent, so none of those
+// match and all still fail the job.
+func ownerReleased(runErr error, requestCtx, admitted context.Context) bool {
+	return runErr == nil && requestCtx.Err() == nil && admitted.Err() != nil &&
+		errors.Is(admitted.Err(), context.Canceled) && context.Cause(admitted) == context.Canceled
+}
+
+// cancellationExplainsFailure reports whether the cancelled admitted context
+// belongs in a failed job's error. A run that returned no error of its own is
+// explained by it. A run that already carries its reason is explained only by
+// a cancellation with a cause of its own (a deadline, a lost lease) or by the
+// request being cancelled; a plain cancellation with the request still live is
+// the owner releasing its reservation after the work, which says nothing about
+// why the run failed and would bury the real reason under "context canceled".
+func cancellationExplainsFailure(runErr error, requestCtx, admitted context.Context) bool {
+	if runErr == nil {
+		return true
+	}
+	return requestCtx.Err() != nil || !errors.Is(context.Cause(admitted), context.Canceled)
 }
 
 func runSafely(ctx context.Context, job Job, emit func(int, string), run Runner) (result Result, err error) {
@@ -708,6 +790,17 @@ func (m *Manager) complete(entry *jobEntry, result Result, runErr error, cancele
 		}
 		result.Meta = merged
 	}
+	if retried := capacityRetryMetaOf(entry.job.Meta); len(retried) > 0 {
+		// A retry after a lost run stays on the record of the attempt that finished.
+		merged := make(map[string]string, len(result.Meta)+len(retried))
+		for k, v := range result.Meta {
+			merged[k] = v
+		}
+		for k, v := range retried {
+			merged[k] = v
+		}
+		result.Meta = merged
+	}
 	state, message := StateSucceeded, "completed"
 	switch {
 	case errors.Is(runErr, ErrReleaseFailed):
@@ -726,6 +819,12 @@ func (m *Manager) complete(entry *jobEntry, result Result, runErr error, cancele
 		entry.job.ResultRef, entry.job.Meta, entry.job.Progress = result.Ref, result.Meta, 100
 	} else {
 		entry.job.Meta, entry.job.ResultRef = failedExecutionEvidence(result.Meta), ""
+		if state == StateFailed {
+			if entry.job.Meta == nil {
+				entry.job.Meta = map[string]string{}
+			}
+			entry.job.Meta[MetaFailureKind] = string(KindOf(runErr))
+		}
 	}
 	if err := entry.job.transition(state, m.clock.Now(), message); err != nil {
 		entry.persistErr = errors.Join(entry.persistErr, err)
@@ -770,6 +869,12 @@ func failedExecutionEvidence(meta map[string]string) map[string]string {
 			}
 			out[key] = value
 		}
+	}
+	for key, value := range capacityRetryMetaOf(meta) {
+		if out == nil {
+			out = map[string]string{}
+		}
+		out[key] = value
 	}
 	raw := strings.TrimSpace(meta[MetaProvisioningEvidence])
 	if raw != "" {

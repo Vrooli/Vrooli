@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/vrooli/envkit-go"
+
+	"image-tools/internal/modelenv"
 )
 
 // RepoSpec is a HuggingFace-style multi-file model repository — the install shape
@@ -73,6 +75,38 @@ allow = sys.argv[4:] or None
 snapshot_download(repo_id=repo, revision=revision, local_dir=dest, allow_patterns=allow)
 `
 
+// companionScript places a pinned repo in the Hub cache (cache_dir) with the
+// snapshot layout from_pretrained(repo_id) resolves offline.
+const companionScript = `import sys
+from huggingface_hub import snapshot_download
+repo, revision, cache = sys.argv[1], sys.argv[2], sys.argv[3]
+snapshot_download(repo_id=repo, revision=revision, cache_dir=cache, allow_patterns=sys.argv[4:] or None)
+`
+
+// Companion fetches repo into the managed Hub cache (see CompanionFetcher).
+func (f *HFSnapshotFetcher) Companion(ctx context.Context, repo RepoSpec, hubCache string) error {
+	if strings.TrimSpace(repo.RepoID) == "" || strings.TrimSpace(repo.Revision) == "" {
+		return fmt.Errorf("hf companion: repo_id and a pinned revision are required")
+	}
+	python := f.Python
+	if python == "" {
+		python = "python3"
+	}
+	args := append([]string{"-c", companionScript, repo.RepoID, repo.Revision, hubCache}, repo.AllowPatterns...)
+	cmd := exec.CommandContext(ctx, python, args...)
+	if f.Env != nil {
+		cmd.Env = modelenv.Overlay(f.Env, modelenv.ModeAcquisition)
+	} else {
+		cmd.Env = modelenv.Apply(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil), modelenv.ModeAcquisition)
+	}
+	output := &boundedCommandOutput{limit: 1 << 20}
+	cmd.Stdout, cmd.Stderr = output, output
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("hf companion %s@%s: %w: %s", repo.RepoID, ShortRev(repo.Revision), err, strings.TrimSpace(output.String()))
+	}
+	return nil
+}
+
 // Snapshot fetches repo into destDir. Progress is reported coarsely (huggingface
 // streams its own progress to stderr); emit is called once at completion so the
 // job layer advances. A non-zero exit surfaces the captured stderr.
@@ -100,11 +134,15 @@ func (f *HFSnapshotFetcher) SnapshotObserved(ctx context.Context, repo RepoSpec,
 	workCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	cmd := exec.CommandContext(workCtx, python, args...)
+	// The governed acquisition step may reach the network, but every cache and
+	// home variable is pinned under the managed root regardless of what the
+	// caller or the operator's shell exported.
 	if f.Env != nil {
-		cmd.Env = f.Env
+		cmd.Env = modelenv.Overlay(f.Env, modelenv.ModeAcquisition)
 	} else {
-		cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil)
+		cmd.Env = modelenv.Apply(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil), modelenv.ModeAcquisition)
 	}
+	modelenv.EnsureDirs()
 	if err := cmd.Start(); err != nil {
 		return err
 	}

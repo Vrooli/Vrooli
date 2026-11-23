@@ -11,6 +11,7 @@ import (
 	"image/png"
 	"io"
 	"math"
+	"strings"
 	"testing"
 )
 
@@ -166,5 +167,71 @@ func TestParallaxSequenceIsLosslessDeterministicAndCancellable(t *testing.T) {
 	p.Height = 1080
 	if _, err := Execute("parallax", source.Image, p); err == nil {
 		t.Fatal("unbounded total frame pixels accepted")
+	}
+}
+
+func TestParallaxPreflightAndExecutionRejectTheSameUnsafeRequests(t *testing.T) {
+	type invalidRequest struct {
+		name   string
+		change func(*Params)
+		want   string
+	}
+	invalid := []invalidRequest{
+		{
+			name:   "frame count",
+			change: func(p *Params) { p.Parallax.Frames = 181 },
+			want:   "2..180 frames",
+		},
+		{
+			name:   "output format",
+			change: func(p *Params) { p.Format = FormatPNG },
+			want:   "lossless PNG sequence ZIP",
+		},
+		{
+			name:   "camera must be explicit at the endpoints",
+			change: func(p *Params) { p.Camera = &LayeredCamera{} },
+			want:   "must omit camera",
+		},
+		{
+			name:   "endpoint bounds",
+			change: func(p *Params) { p.Parallax.Start.X = .09 },
+			want:   "nearby view permits translations",
+		},
+		{
+			name:   "opacity policy",
+			change: func(p *Params) { p.Parallax.End.RequireOpaque = false },
+			want:   "require_opaque policies must match",
+		},
+		{
+			name: "total frame pixel budget",
+			change: func(p *Params) {
+				p.Width, p.Height = 1920, 1080
+				p.Parallax.Frames = 120
+			},
+			want: "240 million frame pixels",
+		},
+	}
+
+	for _, tc := range invalid {
+		t.Run(tc.name, func(t *testing.T) {
+			plate := plane(t, color.NRGBA{R: 40, G: 60, B: 80, A: 255}, 2)
+			p := &Params{
+				Width: 80, Height: 60, Background: "#071422",
+				Plates: []PlateSpec{plate},
+				Parallax: &ParallaxSequence{
+					Start:  LayeredCamera{RequireOpaque: true},
+					End:    LayeredCamera{RequireOpaque: true},
+					Frames: 3, FPS: 30,
+				},
+			}
+			tc.change(p)
+
+			if err := ValidateParallaxRequest(p); err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("preflight error = %v, want rejection containing %q", err, tc.want)
+			}
+			if _, err := ExecuteContext(context.Background(), "parallax", plate.Image, p); err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("execution error = %v, want rejection containing %q", err, tc.want)
+			}
+		})
 	}
 }

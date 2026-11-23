@@ -196,6 +196,7 @@ func newApp() (*cliapp.ResourceApp, error) {
 		edgeLog("ollama model policy unavailable to the activity edge; keep_alive stays at the daemon default: %v\n", err)
 	}
 	edge.Rewrite = normalizer.Rewrite
+	edge.StartupReconcile = normalizer.ReconcileLoadedResidency
 	app.SetCommandsWithSubgroups(
 		append(app.StandardLifecycleCommands(), cliapp.CommandGroup{Title: "Health", Commands: []cliapp.Command{{Name: "health-ready", Description: "Succeed only when at least one model is installed", Run: healthReady}}}, ensure.CommandGroup(newAdmissionValidator()),
 			cliapp.CommandGroup{Title: "Capacity", Commands: []cliapp.Command{capacitysync.Command(nil), activityedge.Command(edge), activityedge.BridgeCommand()}}),

@@ -56,14 +56,13 @@ describe("liveCreateClient", () => {
     const out = await liveCreateClient.submit(
       "inpaint",
       { prompt: "x", variations: 2 },
-      PNG_FILE,
-      MASK_FILE,
+      { input: PNG_FILE, mask: MASK_FILE },
     );
 
     expect(mocks.submitAI).toHaveBeenCalledWith(
       "inpaint",
       { prompt: "x", variations: 2 },
-      { image: PNG_FILE, mask: MASK_FILE },
+      { image: PNG_FILE, mask: MASK_FILE, reference: undefined },
     );
     expect(out).toEqual({ jobId: "gen-1", tier: "local-cpu", warnings: ["w"] });
   });
@@ -77,12 +76,12 @@ describe("liveCreateClient", () => {
       warnings: [],
     });
 
-    await liveCreateClient.submit("text_to_image", { prompt: "a lake" });
+    await liveCreateClient.submit("text_to_image", { prompt: "a lake" }, {});
 
     expect(mocks.submitAI).toHaveBeenCalledWith(
       "text_to_image",
       { prompt: "a lake" },
-      { image: undefined, mask: undefined },
+      { image: undefined, mask: undefined, reference: undefined },
     );
   });
 
@@ -104,6 +103,7 @@ describe("liveCreateClient", () => {
       resultRef: "out/0.png",
       message: "variations: [out/0.png out/1.png]",
       error: "",
+      sensitiveRefs: [],
     });
   });
 
@@ -117,6 +117,7 @@ describe("liveCreateClient", () => {
       resultRef: "",
       message: "",
       error: "oom",
+      sensitiveRefs: [],
     });
   });
 
@@ -128,6 +129,7 @@ describe("liveCreateClient", () => {
       resultRef: "",
       message: "",
       error: "",
+      sensitiveRefs: [],
     });
   });
 
@@ -143,7 +145,7 @@ describe("liveCreateClient", () => {
 
     const out = await liveCreateClient.fetchResult("out/0.png");
 
-    expect(mocks.fetchAIResult).toHaveBeenCalledWith("out/0.png");
+    expect(mocks.fetchAIResult).toHaveBeenCalledWith("out/0.png", undefined);
     expect(out).toBe(image);
   });
 

@@ -33,9 +33,18 @@ describe("readStoredSettings", () => {
       reducedMotion: "always",
       textDirection: "rtl",
       handedness: "left",
+      sensitiveImages: "show",
     };
     writeStoredSettings(custom);
     expect(readStoredSettings()).toEqual(custom);
+  });
+
+  it("blurs sensitive images by default and keeps the choice per field", () => {
+    expect(DEFAULT_SETTINGS.sensitiveImages).toBe("blur");
+    window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({ sensitiveImages: "show" }));
+    expect(readStoredSettings().sensitiveImages).toBe("show");
+    window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({ sensitiveImages: "hidden-forever" }));
+    expect(readStoredSettings().sensitiveImages).toBe("blur");
   });
 
   it("falls back per-field for a partial blob", () => {

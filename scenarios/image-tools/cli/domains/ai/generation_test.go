@@ -2,11 +2,13 @@ package ai
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 
 	testutil "github.com/vrooli/cli-core/cliapptest"
@@ -18,13 +20,37 @@ import (
 )
 
 // TestSubmitCommandsCoverP0 asserts the CLI exposes one submit command per
-// AI-catalog operation. The command table is generated from the capability
-// manifests (`commands.generated.go`), so this guards the end-to-end wiring:
-// every manifest with a cli spec becomes a runnable command, and the three
-// restoration ops that previously had no headless verb are now reachable.
+// capability manifest that declares an `ai` CLI verb. The expected set is read
+// from the manifests themselves (the single declaration the command table is
+// generated from), so a new operation needs no edit here: the test fails only
+// when the generated table and the manifests disagree, or a command has no handler.
 func TestSubmitCommandsCoverP0(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", "..", "api", "internal", "capability", "manifests.seed.json"))
+	if err != nil {
+		t.Fatalf("read capability manifests: %v", err)
+	}
+	var seed struct {
+		Manifests []struct {
+			CLI *struct {
+				Group string `json:"group"`
+				Verb  string `json:"verb"`
+			} `json:"cli"`
+		} `json:"manifests"`
+	}
+	if err := json.Unmarshal(raw, &seed); err != nil {
+		t.Fatalf("parse capability manifests: %v", err)
+	}
+	want := make([]string, 0)
+	for _, m := range seed.Manifests {
+		if m.CLI != nil && m.CLI.Group == "ai" {
+			want = append(want, m.CLI.Verb)
+		}
+	}
+	sort.Strings(want)
+	if len(want) < 20 {
+		t.Fatalf("read only %d ai verbs from the manifests; the read is broken", len(want))
+	}
 	h := newHandlers(nil) // submitCommands only captures h in closures; not invoked here
-	want := []string{"background-replace", "bg-removal", "caption", "colorize", "deblur", "denoise", "depth", "edit", "face-restore", "face-swap", "garment-replace", "generate", "geometry", "image-to-object", "img2img", "inpaint", "naturalize", "normal-map", "object-removal", "old-photo-restore", "outpaint", "segment", "upscale"}
 	got := make([]string, 0)
 	for _, c := range h.submitCommands() {
 		if c.RunCtx == nil {
@@ -33,13 +59,8 @@ func TestSubmitCommandsCoverP0(t *testing.T) {
 		got = append(got, c.Name)
 	}
 	sort.Strings(got)
-	if len(got) != len(want) {
-		t.Fatalf("submit commands = %v, want %v", got, want)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("submit commands = %v, want %v", got, want)
-		}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("submit commands = %v, manifests declare %v (run `make capability-gen`)", got, want)
 	}
 }
 

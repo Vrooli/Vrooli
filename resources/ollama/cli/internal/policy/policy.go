@@ -235,7 +235,6 @@ type Constraints struct {
 	ResidentModelBudgetPercent         int      `json:"resident_model_budget_percent"`
 	MinimumHostMemoryHeadroomPercent   int      `json:"minimum_host_memory_headroom_percent"`
 	MinimumHostDiskHeadroomGB          int      `json:"minimum_host_disk_headroom_gb"`
-	MaxLoadedModelsPolicy              int      `json:"max_loaded_models_policy"`
 	DefaultParallelRequests            int      `json:"default_parallel_requests"`
 	RolePreferenceOrder                []string `json:"role_preference_order"`
 	DirectModelExceptionRequiredFields []string `json:"direct_model_exception_required_fields"`

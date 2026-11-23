@@ -1,9 +1,12 @@
 package fetch
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/vrooli/binaryfetch"
@@ -45,8 +48,9 @@ const (
 	ArtifactNCNNBin   ArtifactKind = "ncnn-bin"
 	// ArtifactBinary is a standalone executable artifact.
 	ArtifactBinary ArtifactKind = "binary"
-	// ArtifactConfig is a pinned small text config (for example a YAML model
-	// architecture file), not a weight blob. It has a separate 128-byte floor.
+	// ArtifactConfig is a pinned small text config (a YAML model architecture
+	// file, or a JSON config.json / preprocessor_config.json), not a weight blob.
+	// Its size floor is the declared min_bytes, or 128 bytes when none is declared.
 	ArtifactConfig ArtifactKind = "config"
 )
 
@@ -110,8 +114,11 @@ func validateConfigArtifact(path string, a Asset) error {
 	if err != nil {
 		return fmt.Errorf("fetch: stat config: %w", err)
 	}
+	// A declared min_bytes is a catalog fact about this exact file and wins;
+	// an undeclared one falls back to a floor that rejects empty or stub files.
+	// Content checks below catch HTML and hub error payloads either way.
 	minimum := a.MinBytes
-	if minimum < 128 {
+	if minimum <= 0 {
 		minimum = 128
 	}
 	if info.Size() < minimum {
@@ -131,8 +138,45 @@ func validateConfigArtifact(path string, a Asset) error {
 	for len(trimmed) > 0 && (trimmed[0] == ' ' || trimmed[0] == '\n' || trimmed[0] == '\r' || trimmed[0] == '\t') {
 		trimmed = trimmed[1:]
 	}
-	if len(trimmed) == 0 || trimmed[0] == '<' || trimmed[0] == '{' {
-		return fmt.Errorf("%w: %q is not the expected YAML config text", ErrArtifactNotWeight, a.Filename)
+	if len(trimmed) == 0 || trimmed[0] == '<' {
+		return fmt.Errorf("%w: %q is not the expected config text", ErrArtifactNotWeight, a.Filename)
+	}
+	// A JSON config is whatever the asset's name says it is. Sniffing the first
+	// byte misreads plain-text companions (a BERT vocab.txt opens with "[PAD]").
+	if strings.EqualFold(filepath.Ext(a.Filename), ".json") {
+		return validateJSONConfig(path, a)
+	}
+	return nil
+}
+
+// maxJSONConfigBytes bounds how much of a JSON config is read for validation.
+// Real configs are kilobytes; anything far larger is not a config.
+const maxJSONConfigBytes = 8 << 20
+
+// validateJSONConfig accepts a JSON config only when the whole file parses and
+// is not a hub error payload. A hub answering an expired or gated URL returns a
+// small JSON object such as {"error":"..."}; that must never be pinned as a
+// model's config.
+func validateJSONConfig(path string, a Asset) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("fetch: stat config: %w", err)
+	}
+	if info.Size() > maxJSONConfigBytes {
+		return fmt.Errorf("%w: %q is %d bytes, too large for a JSON config", ErrArtifactNotWeight, a.Filename, info.Size())
+	}
+	body, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("fetch: read config: %w", err)
+	}
+	if !json.Valid(body) {
+		return fmt.Errorf("%w: %q is not valid JSON", ErrArtifactNotWeight, a.Filename)
+	}
+	var obj map[string]json.RawMessage
+	if json.Unmarshal(body, &obj) == nil && len(obj) <= 2 {
+		if _, hasErr := obj["error"]; hasErr {
+			return fmt.Errorf("%w: %q is a hub error response, not a config", ErrArtifactNotWeight, a.Filename)
+		}
 	}
 	return nil
 }

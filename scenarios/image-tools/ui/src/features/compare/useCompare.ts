@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { blobUrl } from "../../api/client";
+import { inheritSensitivity } from "../../lib/sensitiveMedia";
 import { DiffMode, compare, type DiffResult } from "../../api/diff";
 
 /** Which input slot a chosen file belongs to. */
@@ -90,6 +91,7 @@ export function useCompare(client: CompareClient = liveCompareClient): UseCompar
 
   const setImage = useCallback((slot: CompareSlot, file: File) => {
     const url = URL.createObjectURL(file);
+    inheritSensitivity(file, { url });
     if (slot === "base") {
       if (baseUrlRef.current) {
         URL.revokeObjectURL(baseUrlRef.current);

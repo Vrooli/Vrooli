@@ -111,6 +111,15 @@ func (h *handlers) submit(operation string, needsInput, needsMask, needsReferenc
 				return err
 			}
 		}
+		if operation == "color_transfer" || operation == "mask_composite" {
+			transferParams, err := regionOpParams(ctx)
+			if err != nil {
+				return err
+			}
+			if err := mergeOpParams(params, transferParams); err != nil {
+				return err
+			}
+		}
 		if operation == "inpaint" {
 			contextRaw, edgeRaw := flagOr(ctx, "crop-context-pixels"), flagOr(ctx, "crop-max-edge-px")
 			neutralize := boolOr(ctx, "neutralize-masked-pixels")
@@ -419,6 +428,58 @@ func faceSwapParams(ctx cliapp.RunContext) (map[string]any, error) {
 			return nil, fmt.Errorf("invalid --color-match %q: expected 0..1", raw)
 		}
 		out["color_match"] = strength
+	}
+	if raw := flagOr(ctx, "face-strength"); raw != "" {
+		strength, err := strconv.ParseFloat(raw, 64)
+		if err != nil || strength < 0 || strength > 1 {
+			return nil, fmt.Errorf("invalid --face-strength %q: expected 0..1", raw)
+		}
+		out["face_strength"] = strength
+	}
+	// The extent and match vocabularies are the manifest's: the server validates
+	// the ids against its declaration and says what it accepts.
+	if extent := flagOr(ctx, "extent"); extent != "" {
+		out["extent"] = strings.ReplaceAll(strings.ToLower(extent), "-", "_")
+	}
+	if target := flagOr(ctx, "skin-target"); target != "" {
+		out["skin_target"] = strings.ReplaceAll(strings.ToLower(target), "-", "_")
+	}
+	if raw := flagOr(ctx, "match"); raw != "" {
+		var stages []any
+		for _, stage := range strings.Split(raw, ",") {
+			if stage = strings.TrimSpace(stage); stage != "" {
+				stages = append(stages, strings.ReplaceAll(strings.ToLower(stage), "-", "_"))
+			}
+		}
+		out["match"] = stages
+	}
+	return out, nil
+}
+
+// regionOpParams turns the flags of the region operations (colour transfer, mask
+// composite) into op_params. --strength is the shared AIParams field and travels
+// with the other common flags.
+func regionOpParams(ctx cliapp.RunContext) (map[string]any, error) {
+	out := map[string]any{}
+	for flag, spec := range map[string]struct {
+		key      string
+		max      float64
+		describe string
+	}{
+		"luminance":  {"luminance", 1, "0..1"},
+		"flatten":    {"flatten", 1, "0..1"},
+		"feather-px": {"feather_px", 64, "0..64"},
+		"grow-px":    {"grow_px", 64, "0..64"},
+	} {
+		raw := flagOr(ctx, flag)
+		if raw == "" {
+			continue
+		}
+		value, err := strconv.ParseFloat(raw, 64)
+		if err != nil || value < 0 || value > spec.max {
+			return nil, fmt.Errorf("invalid --%s %q: expected %s", flag, raw, spec.describe)
+		}
+		out[spec.key] = value
 	}
 	return out, nil
 }

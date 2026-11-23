@@ -212,11 +212,16 @@ Two identity/appearance verbs follow the same shape:
 # default, so it behaves like inpaint once the diffusers venv is provisioned.
 image-tools ai garment-replace photo.jpg --mask outfit.png --prompt "leather jacket" --wait --out restyled.png
 
-# Face transfer. The reference identity travels as an IP-Adapter conditioning
-# key, not a new positional. Declared experimental: the model ships disabled with
-# a manual fetch source, so this refuses with provisioning guidance until an
-# operator provisions and enables `ip-adapter-faceid-sd15`.
-image-tools ai face-swap subject.jpg --ip-adapter ip-adapter-faceid-sd15:0.8:ref_blob_key --wait --out swapped.png
+# Face swap: the input is the picture to edit, --reference is the photo that
+# supplies the face. Runs locally (no consent needed). Several faces: the largest
+# is replaced by default; --target-face N picks another, --all-faces swaps every
+# face, --source-face N picks a face in the reference photo.
+image-tools ai face-swap target.jpg --reference face.jpg --wait --out swapped.png
+image-tools ai face-swap group.jpg --reference face.jpg --target-face 1 --color-match 0.7
+
+# Where it would run, and whether it needs --consent (a cloud route does):
+image-tools ai face-swap target.jpg --reference face.jpg --byok --explain
+image-tools ai face-swap target.jpg --reference face.jpg --byok --consent --max-cost 0.25 --wait
 ```
 
 Operation-specific parameters travel as JSON through `--op-params` and are

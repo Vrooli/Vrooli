@@ -13,6 +13,7 @@ import (
 	"connectrpc.com/connect"
 	jobsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/jobs"
 	jobsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/jobs/jobs_v1connect"
+	"image-tools/cli/internal/actor"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -107,6 +108,92 @@ func (h *handlers) cancel(ctx cliapp.RunContext) error {
 	})
 }
 
+// rate mirrors JobsService.RateJob: the operator's 1-5 rating of an output.
+func (h *handlers) rate(ctx cliapp.RunContext) error {
+	id := ctx.Positional("id")
+	raw := strings.TrimSpace(ctx.Flag("score"))
+	if raw == "" {
+		return fmt.Errorf("--score is required: a whole number from 1 (poor) to 5 (excellent)")
+	}
+	score, err := strconv.Atoi(raw)
+	if err != nil || score < 1 || score > 5 {
+		return fmt.Errorf("invalid --score %q: expected a whole number from 1 to 5", raw)
+	}
+	resp, err := h.client.RateJob(context.Background(), connect.NewRequest(&jobsv1.RateJobRequest{
+		JobId: id, Score: int32(score), Note: ctx.Flag("note"), Actor: actor.Name(),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("rate job %q", id), err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Rating == nil {
+		return fmt.Errorf("server returned no rating")
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:  []string{fmt.Sprintf("Rated job %s %d of 5.", id, score)},
+		Changes: []string{formatRating(resp.Msg.Rating)},
+		NextCommand: []string{
+			"`jobs ratings --model <id>` — list the ratings behind a model's verdict",
+			fmt.Sprintf("`jobs unrate %s` — remove this rating", id),
+		},
+	})
+}
+
+// unrate mirrors JobsService.ClearJobRating.
+func (h *handlers) unrate(ctx cliapp.RunContext) error {
+	id := ctx.Positional("id")
+	resp, err := h.client.ClearJobRating(context.Background(), connect.NewRequest(&jobsv1.ClearJobRatingRequest{JobId: id}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("remove rating of job %q", id), err, nil)
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result: []string{fmt.Sprintf("Removed the rating of job %s.", id)},
+	})
+}
+
+// ratings mirrors JobsService.ListJobRatings.
+func (h *handlers) ratings(ctx cliapp.RunContext) error {
+	limit, err := parseLimit(ctx.Flag("limit"))
+	if err != nil {
+		return err
+	}
+	resp, err := h.client.ListJobRatings(context.Background(), connect.NewRequest(&jobsv1.ListJobRatingsRequest{
+		ModelId:   strings.TrimSpace(ctx.Flag("model")),
+		Operation: strings.TrimSpace(ctx.Flag("operation")),
+		Limit:     limit,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("list job ratings", err, nil)
+	}
+	results := make([]string, 0, len(resp.Msg.Ratings))
+	for _, r := range resp.Msg.Ratings {
+		results = append(results, formatRating(r))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Found %d rating(s).", len(resp.Msg.Ratings))},
+		ResultsHeading: "Ratings",
+		Results:        results,
+		RetrievalHints: []string{"`jobs rate <id> --score N --note ...` — rate a result", "`models get <id>` — see how ratings moved a verdict"},
+	})
+}
+
+func formatRating(r *jobsv1.JobRating) string {
+	line := fmt.Sprintf("%s — %d of 5 model=%s op=%s by %s", r.JobId, r.Score, orNone(r.ModelId), orNone(r.Operation), orNone(r.RatedBy))
+	if r.RatedAt != nil {
+		line += " at " + r.RatedAt.AsTime().Format(time.RFC3339)
+	}
+	if r.Note != "" {
+		line += " — " + r.Note
+	}
+	return line
+}
+
+func orNone(s string) string {
+	if s == "" {
+		return "(none)"
+	}
+	return s
+}
+
 // watch streams progress events until the job reaches a terminal state. Each
 // event is printed as it arrives; --json emits one ProgressEvent JSON object
 // per line.
@@ -162,6 +249,9 @@ func formatJob(j *jobsv1.Job) string {
 	}
 	if created != "" {
 		detail += " [created=" + created + "]"
+	}
+	if j.Rating != nil {
+		detail += fmt.Sprintf(" rating=%d/5", j.Rating.Score)
 	}
 	return detail
 }

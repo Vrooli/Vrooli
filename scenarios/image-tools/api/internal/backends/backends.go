@@ -34,6 +34,11 @@ const (
 	TierLocalCPU
 	// TierBYOK runs on a bring-your-own-key cloud provider (last resort).
 	TierBYOK
+	// TierGatewayLocal runs on a model the AI Gateway serves on this machine
+	// (Ollama and the like). The work stays here, but the gateway owns the model's
+	// CPU, GPU and memory, so this scenario claims no hardware for it and says
+	// nothing about which one it uses.
+	TierGatewayLocal
 )
 
 func (t Tier) String() string {
@@ -44,6 +49,8 @@ func (t Tier) String() string {
 		return "local-cpu"
 	case TierBYOK:
 		return "byok-cloud"
+	case TierGatewayLocal:
+		return "gateway-local"
 	default:
 		return "unknown"
 	}
@@ -66,6 +73,9 @@ type Request struct {
 	SourceProfileDir string
 	// GPU asks the provider to run on the GPU when true.
 	GPU bool
+	// GPURequired is the caller's explicit require_gpu. A provider must not move
+	// such a job to the CPU, however it fails.
+	GPURequired bool
 	// GPUUUID pins CUDA execution to the exact physical device reserved by the
 	// capacity owner. Providers must apply it before initializing CUDA.
 	GPUUUID string
@@ -73,7 +83,9 @@ type Request struct {
 	// reserved for this execution. Providers that size their own compute pool
 	// must bind it explicitly; zero means the caller holds no CPU admission.
 	CPUThreads int
-	// InputKeys are blob-store keys (or local paths) of the operation inputs.
+	// InputKeys are blob-store keys (or local paths) of the operation inputs, by
+	// role position: image, mask, reference. A role an operation does not use is
+	// an empty string when a later role is present, and absent otherwise.
 	InputKeys []string
 	// Params carries op-specific parameters (e.g. prompt, scale, seed).
 	Params map[string]string
@@ -204,6 +216,11 @@ func (r *Registry) Operations() []string {
 	}
 	sort.Strings(ops)
 	return ops
+}
+
+// All returns every registered provider once, in registration order.
+func (r *Registry) All() []Provider {
+	return append([]Provider(nil), r.providers...)
 }
 
 // Providers returns the providers registered for op, in registration order.

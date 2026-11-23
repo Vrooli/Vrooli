@@ -31,7 +31,7 @@ func TestPreparedAnalysisUsesDeclaredBudgetAndRetainsClaimsUntilCleanup(t *testi
 		Run:            func(context.Context, string, []string) ([]byte, error) { return []byte("synthetic fixture"), nil },
 		AcquireCapacity: func(ctx context.Context, request sharedcapacity.Request) (*sharedcapacity.Scope, error) {
 			acquisitions.Add(1)
-			if request.RAMBytes != 512<<20 || request.CPUMilli != 1000 || request.Priority != "interactive" || !request.NoReclaim {
+			if request.RAMBytes != 512<<20 || request.CPUMilli != int64(cpuThreadsFor(OpOCR))*1000 || request.Priority != "interactive" || !request.NoReclaim {
 				t.Fatalf("unbounded or wrong admission: %+v", request)
 			}
 			return sharedcapacity.Maintain(ctx, lease), nil

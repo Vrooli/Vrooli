@@ -162,7 +162,7 @@ func TestImportLinkStoresVerifiedImageAndReturnsOwnedReference(t *testing.T) {
 	if fetcher.url != "https://images.example/image.png" {
 		t.Fatalf("fetcher URL=%q", fetcher.url)
 	}
-	if admission.completed != 1 || admission.request.OwnerID != "image-tools:link-import" || admission.request.FloorBytes != importLinkFreeFloorBytes || len(admission.request.Paths) != 1 || admission.request.Paths[0].PeakBytes != importLinkPeakBytes {
+	if admission.completed != 1 || admission.request.OwnerID != "image-tools:link-import" || admission.request.Class != sharedcapacity.DiskJobClassMetadata || len(admission.request.Paths) != 1 || admission.request.Paths[0].PeakBytes != importLinkPeakBytes {
 		t.Fatalf("capacity lifecycle/request mismatch: completed=%d request=%+v", admission.completed, admission.request)
 	}
 	if res.Header().Get("Cache-Control") != "no-store" {

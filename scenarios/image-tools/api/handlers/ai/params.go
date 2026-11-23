@@ -58,6 +58,37 @@ func allowBYOKForParams(p *aiv1.AIParams) bool {
 	return p.GetAllowByok()
 }
 
+// maxWaitForParams returns the caller's wait budget in seconds, or nil to use
+// the deployment default. A negative value is treated as unset.
+func maxWaitForParams(p *aiv1.AIParams) *int {
+	if p == nil || p.MaxWaitSeconds == nil || p.GetMaxWaitSeconds() < 0 {
+		return nil
+	}
+	v := int(p.GetMaxWaitSeconds())
+	return &v
+}
+
+// maxCostForParams returns the caller's per-job spend cap in USD, or nil to use
+// the deployment default. A negative value is treated as unset.
+func maxCostForParams(p *aiv1.AIParams) *float64 {
+	if p == nil || p.MaxCostUsd == nil || p.GetMaxCostUsd() < 0 {
+		return nil
+	}
+	v := p.GetMaxCostUsd()
+	return &v
+}
+
+// paramsWithPlan merges the params the plan decided (for example the cloud
+// role) under the caller's: an explicit caller value always wins.
+func paramsWithPlan(params, planned map[string]string) map[string]string {
+	for k, v := range planned {
+		if _, set := params[k]; !set {
+			params[k] = v
+		}
+	}
+	return params
+}
+
 func priorityForParams(p *aiv1.AIParams) string {
 	switch strings.ToLower(strings.TrimSpace(p.GetPriority())) {
 	case "batch", "service", "interactive":
@@ -174,7 +205,7 @@ func hasInpaintControls(p *aiv1.AIParams) bool {
 
 // validateSegmentationSemantics covers the part of the segment contract that is
 // genuinely relational and therefore cannot be a JSON Schema constraint: the
-// prompt must contain a positive point or a box, and segmentation accepts no
+// prompt must be a text phrase alone, or contain a positive point or a box, and segmentation accepts no
 // variations or conditioning adapters. Types and coordinate ranges are enforced
 // by the operation's params_schema.
 func validateSegmentationSemantics(op string, p *aiv1.AIParams) error {
@@ -183,11 +214,17 @@ func validateSegmentationSemantics(op string, p *aiv1.AIParams) error {
 	}
 	raw, ok := p.GetOpParams().AsMap()["segmentation"]
 	if !ok {
-		return fmt.Errorf("segment requires a segmentation prompt (points or box)")
+		return fmt.Errorf("segment requires a segmentation prompt (a text phrase, points or a box)")
 	}
 	prompt, ok := raw.(map[string]any)
 	if !ok {
 		return fmt.Errorf("segment prompt must be an object")
+	}
+	if _, ok := prompt["text"].(string); ok {
+		if len(prompt) > 1 {
+			return fmt.Errorf("a text phrase cannot be combined with points or a box")
+		}
+		return nil
 	}
 	if _, ok := prompt["box"].(map[string]any); ok {
 		// Geometry (positive area inside the frame) is the operation's schema rule;

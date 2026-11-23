@@ -22,10 +22,12 @@
     "size_mb_approx": "approximate primary-artifact download size in MB",
     "quant_variants": "notable quantized/size variants and their approx sizes",
     "hardware": "cpu_capable, gpu_required, min_vram_gb, min_ram_gb, os_arch, speed_note",
+    "runtime": "diffusers rows: family, pipeline_class, dtype, variant, min_runtime. Gateway-served vision rows (backend gateway-vision, or openrouter with a vision op): gateway_role names the AI Gateway role the model runs through (the gateway policy maps it to a concrete model); an object_detection row also sets box_order (xyxy or yxyx) and box_scale (the grid the model writes boxes on: 1000 for 0..1000, 0 for pixels)",
     "io": "supported/native input-output dimensions and constraints",
     "capability_labels": "nsfw_capable, license, commercial_use(yes|no|conditional), commercial_use_notes, base_model_lineage, known_risks",
     "source": "download_url, source_repo, docs_url, update_source, checksum{algo,value,status}",
-    "enabled": "whether seeded enabled by default (heavy/optional models may seed disabled)"
+    "enabled": "whether seeded enabled by default (a row seeded disabled must carry \"disabled\")",
+    "disabled": "required on every enabled=false row, forbidden on enabled rows: {kind: runtime|needs_install|hardware|superseded|candidate, reason: one line}. Licensing is never a kind: it gates monetized, hosted or redistributed use through the rights record, not normal local use. Verdicts show the reason"
   },
   "models": [
     {
@@ -306,6 +308,7 @@
         "edit_instruct",
         "inpaint",
         "garment_replace",
+        "face_swap",
         "image_to_image",
         "text_to_image"
       ],
@@ -776,6 +779,10 @@
         "min_runtime": "diffusers (LongCatImageEditPipeline; recent/custom build)"
       },
       "enabled": false,
+      "disabled": {
+        "kind": "hardware",
+        "reason": "Needs about 18 GB of VRAM with CPU offload (34 GB download) and a manual weight download; this 16 GB GPU is shared with about 10 GB of other services."
+      },
       "rights": {
         "artifact_id": "longcat-image-edit-turbo",
         "revision": "",
@@ -855,6 +862,10 @@
         }
       },
       "enabled": false,
+      "disabled": {
+        "kind": "superseded",
+        "reason": "FLUX.2 klein 4B is the recommended text-to-image model here; SDXL base is a 6.9 GB download for a lower-ranked option nobody has measured as better."
+      },
       "rights": {
         "artifact_id": "sdxl-1.0",
         "revision": "",
@@ -926,6 +937,10 @@
         }
       },
       "enabled": false,
+      "disabled": {
+        "kind": "needs_install",
+        "reason": "The weights are a 23.8 GB manual GGUF download for stable-diffusion.cpp, and FLUX.2 klein 4B already covers text-to-image and image-to-image."
+      },
       "rights": {
         "artifact_id": "flux-1-schnell",
         "revision": "",
@@ -1098,6 +1113,10 @@
         "variant": "fp16"
       },
       "enabled": false,
+      "disabled": {
+        "kind": "candidate",
+        "reason": "Held as a candidate until its selected-area edits are visually qualified (four inpaint jobs succeeded, none judged); the operator-pinned override keeps it in use meanwhile."
+      },
       "rights": {
         "artifact_id": "sdxl-inpainting-0.1",
         "revision": "115134f363124c53c7d878647567d04daf26e41e",
@@ -1140,7 +1159,7 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "Fastest CPU/edge eraser; cleanest deploy (MIT + ONNX + tiny). DISABLED 2026-11-21: the backend is the IOPaint CLI, which is a manual pip/pipx install (raw package managers are not used here), so the model stayed installed-but-needs_backend and the default object_removal selection failed at run time. big-lama (ONNX, onnxruntime) is the object_removal default instead. Re-enable once IOPaint is provisioned through a supported route."
+        "speed_note": "Fastest CPU/edge eraser; cleanest deploy (MIT + ONNX + tiny)."
       },
       "io": {
         "notes": "Prompt-free mask inpaint. Slightly below Big-LaMa on very large masks."
@@ -1173,6 +1192,10 @@
         }
       },
       "enabled": false,
+      "disabled": {
+        "kind": "runtime",
+        "reason": "Its backend is the IOPaint command line, a manual pip install this repo does not do, so the model stays installed but cannot run; big-lama covers object removal."
+      },
       "rights": {
         "artifact_id": "mi-gan",
         "revision": "",
@@ -1291,13 +1314,13 @@
       },
       "io": {
         "native_resolution": "Pinned 1024x1024 fixed ONNX export; visual repair qualification pending.",
-        "notes": "Pinned 1024 ONNX artifact was generated and passed strict tensor parity, verified 512 reference probe, and native ONNX parity checks. Visual photographic repair qualification remains separate; candidate stays disabled."
+        "notes": "Pinned 1024 ONNX artifact was generated and passed strict tensor parity, verified 512 reference probe, and native ONNX parity checks. Visual photographic repair qualification remains separate; the entry is a candidate."
       },
       "capability_labels": {
         "nsfw_capable": false,
         "license": "Apache-2.0 for repository code; pretrained-weight grant unverified",
         "commercial_use": "conditional",
-        "commercial_use_notes": "The upstream advimman/lama repository has open unanswered requests about whether the separately distributed pretrained Big-LaMa weights are covered by Apache-2.0. Third-party ONNX and safetensors mirror metadata is not authoritative for the original weights. Keep disabled until the upstream weight grant is explicit: https://github.com/advimman/lama/issues/366 and https://github.com/advimman/lama/issues/368.",
+        "commercial_use_notes": "The upstream advimman/lama repository has open unanswered requests about whether the separately distributed pretrained Big-LaMa weights are covered by Apache-2.0. Third-party ONNX and safetensors mirror metadata is not authoritative for the original weights. Verify the upstream weight grant before any monetized, hosted or redistributed use; normal local use is allowed: https://github.com/advimman/lama/issues/366 and https://github.com/advimman/lama/issues/368.",
         "base_model_lineage": "LaMa / Big-LaMa (Samsung AI / advimman)",
         "known_risks": "1024 fixed-shape export is experimental; hidden-background reconstruction requires visual review."
       },
@@ -1340,6 +1363,10 @@
         "output_sha256": "ed44a7c0468b633e106078b3e700ed5e2b0187d87efbdf9e6b03e08fe1b7a2b0"
       },
       "enabled": false,
+      "disabled": {
+        "kind": "candidate",
+        "reason": "A fixed-resolution ONNX export of big-lama kept for comparison; it has not been judged on real photos and big-lama is the enabled object-removal default."
+      },
       "rights": {
         "artifact_id": "big-lama-1024-export",
         "revision": "",
@@ -1407,6 +1434,10 @@
         }
       },
       "enabled": false,
+      "disabled": {
+        "kind": "runtime",
+        "reason": "No IC-Light relighting pipeline exists in the sidecar and the weights are a manual download; birefnet-general serves background replace meanwhile."
+      },
       "rights": {
         "artifact_id": "ic-light-v1",
         "revision": "",
@@ -1465,7 +1496,7 @@
         "nsfw_capable": false,
         "license": "BSD-3-Clause (repository code); pretrained-weight grant unverified",
         "commercial_use": "conditional",
-        "commercial_use_notes": "The upstream repository license covers code, but does not state terms for the pretrained weights. Its model-zoo page lists the official weights, while issue #1016 asks whether realesr-general-x4v3 weights permit commercial use and whether training-data restrictions apply; no maintainer response is present. Keep disabled until the weight grant is explicit: https://github.com/xinntao/Real-ESRGAN/issues/1016.",
+        "commercial_use_notes": "The upstream repository license covers code, but does not state terms for the pretrained weights. Its model-zoo page lists the official weights, while issue #1016 asks whether realesr-general-x4v3 weights permit commercial use and whether training-data restrictions apply; no maintainer response is present. Enabled for local use under the operator's licensing rule (best quality for normal use); monetized, hosted or redistributed use stays gated until the weight grant is explicit: https://github.com/xinntao/Real-ESRGAN/issues/1016.",
         "base_model_lineage": "Real-ESRGAN (Tencent ARC / xinntao)",
         "known_risks": "Beware community model zoo: most popular ESRGAN .pth are non-commercial despite 'mit' mislabels."
       },
@@ -1548,7 +1579,7 @@
         "nsfw_capable": false,
         "license": "MIT for repository code; pretrained-weight grant unverified",
         "commercial_use": "conditional",
-        "commercial_use_notes": "Official source and ncnn wrapper repositories use MIT for code, but neither reviewed source establishes terms for the pretrained weight files. The seed has no exact release archive or pinned weight inventory. Keep disabled until an upstream grant covers the chosen artifacts.",
+        "commercial_use_notes": "Official source and ncnn wrapper repositories use MIT for code, but neither reviewed source establishes terms for the pretrained weight files. The seed has no exact release archive or pinned weight inventory. Verify that an upstream grant covers the chosen artifacts before any monetized, hosted or redistributed use.",
         "base_model_lineage": "Real-CUGAN (bilibili AI Lab)",
         "known_risks": "Anime/illustration domain; underperforms on natural photos."
       },
@@ -1565,6 +1596,10 @@
         }
       },
       "enabled": false,
+      "disabled": {
+        "kind": "needs_install",
+        "reason": "Its weights are a manual download from a release archive the catalog does not pin, and it is anime-tuned and weak on photos; real-esrgan covers upscale."
+      },
       "rights": {
         "artifact_id": "real-cugan",
         "revision": "",
@@ -1615,7 +1650,7 @@
         "nsfw_capable": false,
         "license": "Apache-2.0 (repository code); pretrained-weight grant and training-data terms unverified",
         "commercial_use": "conditional",
-        "commercial_use_notes": "The official repository states Apache-2.0 for the project and links separate pretrained weights, but does not state a model-weight grant in the reviewed README. Its listed classical SR training data includes DIV2K, whose dataset card says academic-research-only and that image copyrights remain with original owners. This does not establish the weight license; keep disabled until the exact weight and training-data rights are clarified. https://github.com/JingyunLiang/SwinIR https://huggingface.co/datasets/eugenesiow/Div2k",
+        "commercial_use_notes": "The official repository states Apache-2.0 for the project and links separate pretrained weights, but does not state a model-weight grant in the reviewed README. Its listed classical SR training data includes DIV2K, whose dataset card says academic-research-only and that image copyrights remain with original owners. This does not establish the weight license; clarify the exact weight and training-data rights before any monetized, hosted or redistributed use. https://github.com/JingyunLiang/SwinIR https://huggingface.co/datasets/eugenesiow/Div2k",
         "base_model_lineage": "SwinIR (ETH Zurich)",
         "known_risks": "PyTorch-only; no first-party ONNX/ncnn; GPU-bound."
       },
@@ -1632,6 +1667,10 @@
         }
       },
       "enabled": false,
+      "disabled": {
+        "kind": "needs_install",
+        "reason": "Its weights are a manual download and there is no pinned portable runner (PyTorch only, GPU bound); real-esrgan covers upscale."
+      },
       "rights": {
         "artifact_id": "swinir",
         "revision": "",
@@ -1675,7 +1714,7 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "Fully CPU-capable and fast; trivial ONNX export. Great lightweight CPU fallback. DISABLED 2026-11-21: the only published weight is a KAIR .pth checkpoint, but this entry runs on the onnxruntime backend, which needs an .onnx file (its install ends smoke_unsupported and can never be Ready). Re-enable after an ONNX export exists as a pinned asset; real-esrgan and scunet cover denoise meanwhile."
+        "speed_note": "Fully CPU-capable and fast; trivial ONNX export. Great lightweight CPU fallback."
       },
       "io": {
         "notes": "2017 model, Gaussian/known-noise oriented; weaker on blind real-world noise (use SCUNet for that)."
@@ -1708,6 +1747,10 @@
         }
       },
       "enabled": false,
+      "disabled": {
+        "kind": "runtime",
+        "reason": "The only published weight is a PyTorch .pth but the backend loads .onnx, so its install can never become ready; scunet and real-esrgan cover denoise until a pinned ONNX export exists."
+      },
       "rights": {
         "artifact_id": "dncnn",
         "revision": "",
@@ -1743,13 +1786,13 @@
       "hardware": {
         "cpu_capable": true,
         "gpu_required": false,
-        "min_vram_gb": 2,
+        "min_vram_gb": 6,
         "min_ram_gb": 8,
         "os_arch": [
           "linux/amd64",
           "windows/amd64"
         ],
-        "speed_note": "SCUNet color real-world PSNR variant as ONNX (fixed-op graph, dynamic H/W). Processed as 512px tiles with 32px context margins so seams do not show; about 25 s for a 768x1024 image on this CPU (measured, +11.5 dB PSNR on sigma-25 Gaussian noise). Runs through onnxruntime on CPU, or CUDA when admitted. Replaces the DnCNN entry as the denoise default."
+        "speed_note": "SCUNet color real-world PSNR variant as ONNX (fixed-op graph, dynamic H/W). Processed as 512px tiles with 32px context margins so seams do not show; about 25 s for a 768x1024 image on this CPU (measured, +11.5 dB PSNR on sigma-25 Gaussian noise). Runs through onnxruntime on CPU (18-20 s warm for 768x1024), or on CUDA when the lease grants about 6 GB (1.0 s warm, 18x; a run that runs out of GPU memory repeats on the CPU in the same job). Replaces the DnCNN entry as the denoise default."
       },
       "io": {
         "native_resolution": "any (tiled)",
@@ -1835,7 +1878,7 @@
           "linux/amd64",
           "windows/amd64"
         ],
-        "speed_note": "GPU preferred; CPU feasible (pure conv), width32 friendlier. 'Non-commercial' reputation is a MYTH — LICENSE is MIT."
+        "speed_note": "CPU only in practice: this int8 ONNX export has no CUDA kernel (DequantizeLinear), so it runs on the CPU at the image's own size in tiles (about 15 s for 768x1024). Trained for motion blur (GoPro). 'Non-commercial' reputation is a MYTH — LICENSE is MIT."
       },
       "io": {},
       "capability_labels": {
@@ -1928,6 +1971,10 @@
         }
       },
       "enabled": false,
+      "disabled": {
+        "kind": "needs_install",
+        "reason": "Its weights are a manual download and the python-sidecar runner needs a GPU; nafnet is the enabled deblur model."
+      },
       "rights": {
         "artifact_id": "restormer",
         "revision": "",
@@ -1948,9 +1995,7 @@
       "operations": [
         "colorize"
       ],
-      "default_for": [
-        "colorize"
-      ],
+      "default_for": [],
       "tier": "default",
       "backend": "onnxruntime",
       "alt_backends": [
@@ -1967,7 +2012,7 @@
       "hardware": {
         "cpu_capable": true,
         "gpu_required": false,
-        "min_vram_gb": 0,
+        "min_vram_gb": 2,
         "min_ram_gb": 4,
         "os_arch": [
           "linux/amd64",
@@ -1975,7 +2020,7 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "DDColor paper-tiny ONNX (fp16 weights, fixed 512x512 input, ab output joined with the full-resolution L channel). Runs on the CPU through onnxruntime. Since 2026-11-21 it is the ONNX conversion by ipsilondev (converted from piddnad/ddcolor_paper_tiny with the pinned upstream DDColor code); the earlier .pth entry could not load on this backend and never became Ready."
+        "speed_note": "DDColor paper-tiny ONNX (fp16 weights, fixed 512x512 input, ab output joined with the full-resolution L channel). Runs on the CPU through onnxruntime. Since 2026-11-21 it is the ONNX conversion by ipsilondev (converted from piddnad/ddcolor_paper_tiny with the pinned upstream DDColor code); the earlier .pth entry could not load on this backend and never became Ready. Oversaturates (pink and orange casts) next to ddcolor-large; the small, fast tier."
       },
       "io": {
         "native_resolution": "512x512",
@@ -2030,55 +2075,68 @@
       "operations": [
         "colorize"
       ],
-      "default_for": [],
+      "default_for": [
+        "colorize"
+      ],
       "tier": "quality",
       "backend": "onnxruntime",
       "alt_backends": [
         "python-sidecar"
       ],
       "requires_comfyui": false,
-      "size_mb_approx": 912,
+      "size_mb_approx": 870,
       "quant_variants": [
-        "large ~912MB"
+        "large fp32 ONNX 912MB (third-party export, Triton layout 1/model.onnx)"
       ],
       "hardware": {
-        "cpu_capable": false,
-        "gpu_required": true,
+        "cpu_capable": true,
+        "gpu_required": false,
         "min_vram_gb": 4,
-        "min_ram_gb": 8,
+        "min_ram_gb": 6,
         "os_arch": [
           "linux/amd64",
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "Highest colorization quality; GPU tier."
+        "speed_note": "Default colorize model since 2026-11-23: beat ddcolor-tiny on CIEDE2000 against two real colour photographs (8.05 vs 9.83 and 10.16 vs 10.89) and does not oversaturate. About 5-11 s cold and 2.4-2.9 s warm on 4 CPU threads, 0.95-1.2 s warm on CUDA (about 3.3 GB VRAM; the job falls back to the CPU when the GPU lease is denied), 912MB. Fixed 512x512 input, ab output joined with the full-resolution L channel (same contract as ddcolor-tiny)."
       },
-      "io": {},
+      "io": {
+        "native_resolution": "512x512",
+        "notes": "Same contract as ddcolor-tiny: (1,3,512,512) grey RGB from the CIE Lab L channel in, (1,2,512,512) Lab a/b out, joined with the source's full-resolution L."
+      },
       "capability_labels": {
         "nsfw_capable": false,
         "license": "Apache-2.0",
         "commercial_use": "yes",
-        "commercial_use_notes": "Permissive.",
-        "base_model_lineage": "DDColor large (DAMO Academy)",
+        "commercial_use_notes": "Upstream DDColor code and weights are Apache-2.0 per their cards; this artifact is a third-party ONNX export (mindhash/ddcolor, Apache-2.0 card) whose weight lineage is not independently pinned, so rights stay unverified: normal local use is allowed (operator stance 2026-11-21), monetized, hosted and redistributed use stay refused until verified.",
+        "base_model_lineage": "DDColor large (DAMO Academy / piddnad) -> ONNX fp32 export by mindhash at 0ba15e89",
         "known_risks": "None notable."
       },
       "source": {
-        "manual": true,
-        "download_url": "https://huggingface.co/piddnad/DDColor-models",
+        "download_url": "https://huggingface.co/mindhash/ddcolor",
         "source_repo": "https://github.com/piddnad/DDColor",
-        "docs_url": "https://github.com/piddnad/DDColor",
-        "update_source": "https://github.com/piddnad/DDColor",
+        "docs_url": "https://huggingface.co/mindhash/ddcolor",
+        "update_source": "https://huggingface.co/mindhash/ddcolor",
         "checksum": {
           "algo": "sha256",
-          "value": "",
-          "status": "unverified-capture-on-download"
-        }
+          "value": "0a8bc92e8289cb1ff782dca474c5f365cf6da1c009bb2b0d79f28125bc222cca",
+          "status": "pinned"
+        },
+        "assets": [
+          {
+            "url": "https://huggingface.co/mindhash/ddcolor/resolve/0ba15e896f8bcfb9cb66e5f284358f9ddfdc7c48/1/model.onnx",
+            "filename": "ddcolor_large.onnx",
+            "kind": "onnx",
+            "sha256": "0a8bc92e8289cb1ff782dca474c5f365cf6da1c009bb2b0d79f28125bc222cca",
+            "min_bytes": 912105703
+          }
+        ]
       },
-      "enabled": false,
+      "enabled": true,
       "rights": {
         "artifact_id": "ddcolor-large",
-        "revision": "",
-        "sha256": "",
+        "revision": "0ba15e896f8bcfb9cb66e5f284358f9ddfdc7c48",
+        "sha256": "0a8bc92e8289cb1ff782dca474c5f365cf6da1c009bb2b0d79f28125bc222cca",
         "license_id": "Apache-2.0",
         "classification": "unknown",
         "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
@@ -2356,6 +2414,10 @@
         }
       },
       "enabled": false,
+      "disabled": {
+        "kind": "needs_install",
+        "reason": "Its weights and multi-stage pipeline need a manual GPU-oriented setup; no model is enabled for old-photo restoration yet."
+      },
       "rights": {
         "artifact_id": "ms-bringing-old-photos",
         "revision": "",
@@ -2750,7 +2812,7 @@
           {
             "url": "https://huggingface.co/facebook/sam2.1-hiera-tiny/resolve/de431c4043854a71d8101e17995dfe596bf101a5/config.json",
             "filename": "config.json",
-            "kind": "binary",
+            "kind": "config",
             "sha256": "860aff9751b139d83a4ad7df1e5535416fded533e0ead02625edbefcb9953cce",
             "min_bytes": 5695
           },
@@ -2842,7 +2904,7 @@
           {
             "url": "https://huggingface.co/facebook/sam2.1-hiera-base-plus/resolve/47b9e36ec942f6ff9900555727478a1c96f63225/config.json",
             "filename": "config.json",
-            "kind": "binary",
+            "kind": "config",
             "min_bytes": 5705
           }
         ],
@@ -2852,7 +2914,7 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": false,
+      "enabled": true,
       "rights": {
         "artifact_id": "sam-2.1-base-plus",
         "revision": "47b9e36ec942f6ff9900555727478a1c96f63225",
@@ -2921,6 +2983,10 @@
         }
       },
       "enabled": false,
+      "disabled": {
+        "kind": "needs_install",
+        "reason": "No checkpoint is pinned for this size and it has not been tried with the SAM 2 adapter; sam-2.1-tiny and base-plus cover segmentation."
+      },
       "rights": {
         "artifact_id": "sam-2.1-large",
         "revision": "",
@@ -2944,7 +3010,7 @@
       "default_for": [
         "segment"
       ],
-      "tier": "default",
+      "tier": "quality",
       "backend": "sam2-transformers",
       "alt_backends": [],
       "requires_comfyui": false,
@@ -2974,7 +3040,7 @@
         "commercial_use": "yes",
         "commercial_use_notes": "Grounding DINO (IDEA-Research) and SAM 2.1 (Meta) weights are Apache-2.0.",
         "base_model_lineage": "Grounding DINO base + Segment Anything 2.1 Hiera Base+",
-        "known_risks": "Open-vocabulary boxes can pick the wrong instance or a group for ambiguous phrases (\"top\" under a jacket); thin structures need review."
+        "known_risks": "Open-vocabulary boxes can pick the wrong instance or a group for ambiguous phrases: a garment worn under another (\"top\" under a jacket) returns the whole torso; use a SegFormer parser for it. Thin structures need review."
       },
       "source": {
         "download_url": "https://huggingface.co/IDEA-Research/grounding-dino-base",
@@ -2985,7 +3051,7 @@
           {
             "url": "https://huggingface.co/IDEA-Research/grounding-dino-base/resolve/12bdfa3120f3e7ec7b434d90674b3396eccf88eb/config.json",
             "filename": "detector/config.json",
-            "kind": "binary",
+            "kind": "config",
             "min_bytes": 1737
           },
           {
@@ -2998,37 +3064,37 @@
           {
             "url": "https://huggingface.co/IDEA-Research/grounding-dino-base/resolve/12bdfa3120f3e7ec7b434d90674b3396eccf88eb/preprocessor_config.json",
             "filename": "detector/preprocessor_config.json",
-            "kind": "binary",
+            "kind": "config",
             "min_bytes": 457
           },
           {
             "url": "https://huggingface.co/IDEA-Research/grounding-dino-base/resolve/12bdfa3120f3e7ec7b434d90674b3396eccf88eb/special_tokens_map.json",
             "filename": "detector/special_tokens_map.json",
-            "kind": "binary",
+            "kind": "config",
             "min_bytes": 125
           },
           {
             "url": "https://huggingface.co/IDEA-Research/grounding-dino-base/resolve/12bdfa3120f3e7ec7b434d90674b3396eccf88eb/tokenizer.json",
             "filename": "detector/tokenizer.json",
-            "kind": "binary",
+            "kind": "config",
             "min_bytes": 711396
           },
           {
             "url": "https://huggingface.co/IDEA-Research/grounding-dino-base/resolve/12bdfa3120f3e7ec7b434d90674b3396eccf88eb/tokenizer_config.json",
             "filename": "detector/tokenizer_config.json",
-            "kind": "binary",
+            "kind": "config",
             "min_bytes": 1237
           },
           {
             "url": "https://huggingface.co/IDEA-Research/grounding-dino-base/resolve/12bdfa3120f3e7ec7b434d90674b3396eccf88eb/vocab.txt",
             "filename": "detector/vocab.txt",
-            "kind": "binary",
+            "kind": "config",
             "min_bytes": 231508
           },
           {
             "url": "https://huggingface.co/facebook/sam2.1-hiera-base-plus/resolve/47b9e36ec942f6ff9900555727478a1c96f63225/config.json",
             "filename": "segmenter/config.json",
-            "kind": "binary",
+            "kind": "config",
             "min_bytes": 5705
           },
           {
@@ -3067,7 +3133,7 @@
         "segment"
       ],
       "default_for": [],
-      "tier": "quality",
+      "tier": "nice-to-have",
       "backend": "segformer-transformers",
       "alt_backends": [],
       "requires_comfyui": false,
@@ -3089,7 +3155,7 @@
         "speed_note": "Semantic parser; one forward pass at the processor's native size, upsampled to the source."
       },
       "io": {
-        "notes": "18 labels: background, hat, hair, sunglasses, upper-clothes, skirt, pants, dress, belt, shoes, face, legs, arms, bag, scarf."
+        "notes": "18 labels: background, hat, hair, sunglasses, upper-clothes, skirt, pants, dress, belt, shoes, face, legs, arms, bag, scarf. Select with a phrase (--text hair, --text outfit, --text pants) or a point; a phrase it has no label for fails and lists what it can select. Use for hair and the whole outfit; Grounded SAM 2 has cleaner hair edges and finds objects."
       },
       "capability_labels": {
         "nsfw_capable": false,
@@ -3108,7 +3174,7 @@
           {
             "url": "https://huggingface.co/mattmdjaga/segformer_b2_clothes/resolve/584abc1e1d260e23c0fc627c5217a09b2b461046/config.json",
             "filename": "config.json",
-            "kind": "binary",
+            "kind": "config",
             "min_bytes": 1000
           },
           {
@@ -3121,7 +3187,7 @@
           {
             "url": "https://huggingface.co/mattmdjaga/segformer_b2_clothes/resolve/584abc1e1d260e23c0fc627c5217a09b2b461046/preprocessor_config.json",
             "filename": "preprocessor_config.json",
-            "kind": "binary",
+            "kind": "config",
             "min_bytes": 200
           }
         ],
@@ -3153,7 +3219,7 @@
         "segment"
       ],
       "default_for": [],
-      "tier": "quality",
+      "tier": "nice-to-have",
       "backend": "segformer-transformers",
       "alt_backends": [],
       "requires_comfyui": false,
@@ -3175,7 +3241,7 @@
         "speed_note": "Semantic parser; one forward pass at the processor's native size, upsampled to the source."
       },
       "io": {
-        "notes": "47 Fashionpedia labels: shirt, top, sweater, cardigan, jacket, vest, pants, skirt, coat, dress, accessories and garment parts."
+        "notes": "47 Fashionpedia labels: shirt, top, sweater, cardigan, jacket, vest, pants, skirt, coat, dress, accessories and garment parts (no hair or skin). Select with a phrase (--text top) or a point. Use for a garment worn under another (the top under a jacket), where Grounded SAM 2 returns the whole torso."
       },
       "capability_labels": {
         "nsfw_capable": false,
@@ -3194,7 +3260,7 @@
           {
             "url": "https://huggingface.co/sayeed99/segformer-b3-fashion/resolve/e2474a9e7643d349ac6c525549b736b736e7e216/config.json",
             "filename": "config.json",
-            "kind": "binary",
+            "kind": "config",
             "min_bytes": 1000
           },
           {
@@ -3207,7 +3273,7 @@
           {
             "url": "https://huggingface.co/sayeed99/segformer-b3-fashion/resolve/e2474a9e7643d349ac6c525549b736b736e7e216/preprocessor_config.json",
             "filename": "preprocessor_config.json",
-            "kind": "binary",
+            "kind": "config",
             "min_bytes": 200
           }
         ],
@@ -3284,6 +3350,10 @@
         }
       },
       "enabled": false,
+      "disabled": {
+        "kind": "needs_install",
+        "reason": "Its ONNX weights are a manual download or export; sam-2.1-tiny covers segmentation."
+      },
       "rights": {
         "artifact_id": "hq-sam",
         "revision": "",
@@ -3319,7 +3389,7 @@
         "os_arch": [
           "linux/amd64"
         ],
-        "speed_note": "Upstream default mesh extraction uses a 256^3 field; CPU execution is not qualified. GPU requirement is a conservative model-level floor, not a measured peak-memory claim. Disabled 2026-11-21: the triposr backend has no load-smoke contract for the model.ckpt + pinned-source build profile, so enabling it only produced an install that ends unsupported_load_smoke_contract. Enable after a TripoSR smoke probe exists."
+        "speed_note": "Upstream default mesh extraction uses a 256^3 field; CPU execution is not qualified. GPU requirement is a conservative model-level floor, not a measured peak-memory claim."
       },
       "io": {
         "native_resolution": "single square-conditioned image; 128 or 256 marching-cubes grid",
@@ -3359,6 +3429,10 @@
         }
       },
       "enabled": false,
+      "disabled": {
+        "kind": "runtime",
+        "reason": "The triposr backend has no load-smoke contract for this model, so its install cannot be proven ready; past jobs ran but the current smoke gate fails."
+      },
       "rights": {
         "artifact_id": "triposr-vision-to-mesh",
         "revision": "",
@@ -3635,23 +3709,26 @@
         "pytorch"
       ],
       "requires_comfyui": false,
-      "size_mb_approx": 1340,
+      "size_mb_approx": 1275,
       "quant_variants": [
-        "vitl ~335M params"
+        "vitl14 fp32 ONNX 1.34GB (335M params), static 518x518 input (fabio-sim/Depth-Anything-ONNX v1.0.0)"
       ],
       "hardware": {
-        "cpu_capable": false,
-        "gpu_required": true,
-        "min_vram_gb": 6,
-        "min_ram_gb": 8,
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 3,
+        "min_ram_gb": 4,
         "os_arch": [
           "linux/amd64",
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "V1 is Apache-2.0 at every size: the large depth model for monetized use. For normal use depth-anything-v2-large gives better quality."
+        "speed_note": "V1 is Apache-2.0 at every size: the large depth model for monetized use. For normal use depth-anything-v2-large gives better quality. Same ONNX contract and pre/post-processing as V2 Large (static 518x518, ImageNet-normalized)."
       },
-      "io": {},
+      "io": {
+        "native_resolution": "518x518",
+        "notes": "Same pre/post-processing as depth-anything-v2-large (ImageNet-normalized 518x518 input, min-max normalized near=bright output resized to the source)."
+      },
       "capability_labels": {
         "nsfw_capable": false,
         "license": "Apache-2.0",
@@ -3661,22 +3738,30 @@
         "known_risks": "Behind V2 Large in quality; license-clean at large size."
       },
       "source": {
-        "manual": true,
-        "download_url": "https://huggingface.co/LiheYoung/depth_anything_vitl14",
+        "download_url": "",
         "source_repo": "https://github.com/LiheYoung/Depth-Anything",
         "docs_url": "https://github.com/fabio-sim/Depth-Anything-ONNX",
-        "update_source": "https://github.com/LiheYoung/Depth-Anything",
+        "update_source": "https://github.com/fabio-sim/Depth-Anything-ONNX/releases",
         "checksum": {
           "algo": "sha256",
-          "value": "",
-          "status": "unverified-capture-on-download"
-        }
+          "value": "78b1605d4a1ed38bc03f5ace6996d0449974343171e65e26eedfb982bae07c15",
+          "status": "pinned"
+        },
+        "assets": [
+          {
+            "url": "https://github.com/fabio-sim/Depth-Anything-ONNX/releases/download/v1.0.0/depth_anything_vitl14.onnx",
+            "filename": "depth_anything_vitl14.onnx",
+            "kind": "onnx",
+            "sha256": "78b1605d4a1ed38bc03f5ace6996d0449974343171e65e26eedfb982bae07c15",
+            "min_bytes": 1336925717
+          }
+        ]
       },
-      "enabled": false,
+      "enabled": true,
       "rights": {
         "artifact_id": "depth-anything-v1-large",
-        "revision": "",
-        "sha256": "",
+        "revision": "v1.0.0",
+        "sha256": "78b1605d4a1ed38bc03f5ace6996d0449974343171e65e26eedfb982bae07c15",
         "license_id": "Apache-2.0",
         "classification": "unknown",
         "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
@@ -3684,6 +3769,19 @@
           "artifact_changed",
           "license_source_changed",
           "review_due"
+        ],
+        "lineage": [
+          {
+            "kind": "upstream_model",
+            "identity": "LiheYoung/depth_anything_vitl14",
+            "revision": "973948530e4e4f4afd6d1913f670d9f96071dcaa"
+          },
+          {
+            "kind": "onnx_export",
+            "identity": "fabio-sim/Depth-Anything-ONNX release v1.0.0 depth_anything_vitl14.onnx",
+            "revision": "v1.0.0",
+            "sha256": "78b1605d4a1ed38bc03f5ace6996d0449974343171e65e26eedfb982bae07c15"
+          }
         ]
       }
     },
@@ -3801,6 +3899,10 @@
         }
       },
       "enabled": false,
+      "disabled": {
+        "kind": "needs_install",
+        "reason": "Its weights are a manual download for a GPU-only diffusion model; normals-from-depth covers normal maps."
+      },
       "rights": {
         "artifact_id": "marigold-normals-v1-1",
         "revision": "",
@@ -3822,9 +3924,7 @@
       "operations": [
         "ocr"
       ],
-      "default_for": [
-        "ocr"
-      ],
+      "default_for": [],
       "tier": "default",
       "backend": "tesseract",
       "alt_backends": [
@@ -3901,16 +4001,18 @@
       "operations": [
         "ocr"
       ],
-      "default_for": [],
+      "default_for": [
+        "ocr"
+      ],
       "tier": "quality",
       "backend": "onnxruntime",
       "alt_backends": [
         "python-sidecar"
       ],
       "requires_comfyui": false,
-      "size_mb_approx": 140,
+      "size_mb_approx": 104,
       "quant_variants": [
-        "det+rec, 1.5M-34.5M params; quantized variants"
+        "PP-OCRv5 server detector (88 MB) + mobile recogniser per script (8 MB)"
       ],
       "hardware": {
         "cpu_capable": true,
@@ -3922,9 +4024,11 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "Best accuracy; CPU strong via ONNX (onnxruntime-go). Heavy unless ONNX path."
+        "speed_note": "PP-OCRv5 detector + recogniser pair on onnxruntime; about 12 s for a dense 1669x2770 book page on 4 CPU threads. Reads display type and scene text (book covers, ads, signs) that Tesseract misses. English and Latin-script (32 languages) recognisers installed."
       },
-      "io": {},
+      "io": {
+        "notes": "Returns text lines with confidence and pixel boxes in reading order. Language groups are the installed rec_<group>.onnx files (english, latin)."
+      },
       "capability_labels": {
         "nsfw_capable": false,
         "license": "Apache-2.0",
@@ -3934,21 +4038,57 @@
         "known_risks": "Default backend is Python/Paddle; use ONNX export for Go-native."
       },
       "source": {
-        "manual": true,
-        "download_url": "https://github.com/PaddlePaddle/PaddleOCR",
+        "download_url": "https://huggingface.co/monkt/paddleocr-onnx",
         "source_repo": "https://github.com/PaddlePaddle/PaddleOCR",
-        "docs_url": "https://github.com/PaddlePaddle/PaddleOCR",
-        "update_source": "https://github.com/PaddlePaddle/PaddleOCR/releases",
+        "docs_url": "https://huggingface.co/monkt/paddleocr-onnx",
+        "update_source": "https://huggingface.co/monkt/paddleocr-onnx/tree/7b02d0a30a07ba2b92ad1ff5a8941ae2c633de65",
+        "assets": [
+          {
+            "url": "https://huggingface.co/monkt/paddleocr-onnx/resolve/7b02d0a30a07ba2b92ad1ff5a8941ae2c633de65/detection/v5/det.onnx",
+            "filename": "det.onnx",
+            "kind": "onnx",
+            "sha256": "61824840edf6e74581898930b8091b1b2318f4b2705a2e8a40ad3de7ac480133",
+            "min_bytes": 88030804
+          },
+          {
+            "url": "https://huggingface.co/monkt/paddleocr-onnx/resolve/7b02d0a30a07ba2b92ad1ff5a8941ae2c633de65/languages/english/rec.onnx",
+            "filename": "rec_english.onnx",
+            "kind": "onnx",
+            "sha256": "4e16deb22c4da6468bdca539b2cd3c8687825538b67109177c47d359ab994cd7",
+            "min_bytes": 7830888
+          },
+          {
+            "url": "https://huggingface.co/monkt/paddleocr-onnx/resolve/7b02d0a30a07ba2b92ad1ff5a8941ae2c633de65/languages/english/dict.txt",
+            "filename": "dict_english.txt",
+            "kind": "config",
+            "sha256": "e025a66d31f327ba0c232e03f407ae8d105e1e709e7ccb3f408aa778c24e70d6",
+            "min_bytes": 1416
+          },
+          {
+            "url": "https://huggingface.co/monkt/paddleocr-onnx/resolve/7b02d0a30a07ba2b92ad1ff5a8941ae2c633de65/languages/latin/rec.onnx",
+            "filename": "rec_latin.onnx",
+            "kind": "onnx",
+            "sha256": "614ffc2d6d3902d360fad7f1b0dd455ee45e877069d14c4e51a99dc4ef144409",
+            "min_bytes": 7862832
+          },
+          {
+            "url": "https://huggingface.co/monkt/paddleocr-onnx/resolve/7b02d0a30a07ba2b92ad1ff5a8941ae2c633de65/languages/latin/dict.txt",
+            "filename": "dict_latin.txt",
+            "kind": "config",
+            "sha256": "3c0a8a79b612653c25f765271714f71281e4e955962c153e272b7b8c1d2b13ff",
+            "min_bytes": 1634
+          }
+        ],
         "checksum": {
           "algo": "sha256",
           "value": "",
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": false,
+      "enabled": true,
       "rights": {
         "artifact_id": "paddleocr",
-        "revision": "",
+        "revision": "7b02d0a30a07ba2b92ad1ff5a8941ae2c633de65",
         "sha256": "",
         "license_id": "Apache-2.0",
         "classification": "unknown",
@@ -4086,6 +4226,10 @@
         }
       },
       "enabled": false,
+      "disabled": {
+        "kind": "needs_install",
+        "reason": "Its weights need a manual ViT-to-ONNX export; adamcodd-vit-nsfw is the enabled classifier."
+      },
       "rights": {
         "artifact_id": "falconsai-nsfw",
         "revision": "",
@@ -4106,9 +4250,7 @@
       "operations": [
         "caption"
       ],
-      "default_for": [
-        "caption"
-      ],
+      "default_for": [],
       "tier": "default",
       "backend": "llama.cpp",
       "alt_backends": [],
@@ -4262,62 +4404,141 @@
     },
     {
       "id": "florence-2",
-      "name": "Florence-2 (caption / detection / grounding)",
+      "name": "Florence-2 large (caption / detection)",
       "operations": [
         "caption",
-        "object_detection",
-        "tagging"
+        "object_detection"
       ],
-      "default_for": [],
+      "default_for": [
+        "caption",
+        "object_detection"
+      ],
       "tier": "quality",
-      "backend": "python-sidecar",
-      "alt_backends": [
-        "onnxruntime (possible)"
-      ],
+      "backend": "florence-transformers",
+      "alt_backends": [],
       "requires_comfyui": false,
-      "size_mb_approx": 460,
+      "size_mb_approx": 1550,
       "quant_variants": [
-        "base 0.23B",
-        "large 0.77B"
+        "large 0.77B fp16 safetensors (florence-community Transformers port, no remote code)"
       ],
       "hardware": {
         "cpu_capable": true,
         "gpu_required": false,
-        "min_vram_gb": 0,
-        "min_ram_gb": 6,
+        "min_vram_gb": 3,
+        "min_ram_gb": 8,
         "os_arch": [
           "linux/amd64",
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "Best quality/param; multi-task (caption + open-vocab detection + OCR + grounding). Slow on CPU."
+        "speed_note": "Default caption and object_detection model since 2026-11-23 (beat SmolVLM-256M and YOLOX-Tiny on real photos). About 1 s warm on GPU (16 s cold load), fp32 on CPU is slower. One pass yields a short caption, a paragraph caption and labelled boxes."
       },
-      "io": {},
+      "io": {
+        "notes": "Florence-2 is steered by task tokens, not free text: the caption prompt is accepted and ignored. Output JSON carries caption, detailed and objects (label + box in source pixels). It has no tagging task; tagging stays with wd14."
+      },
       "capability_labels": {
         "nsfw_capable": false,
         "license": "MIT",
         "commercial_use": "yes",
         "commercial_use_notes": "Permissive (verified).",
-        "base_model_lineage": "Florence-2 (Microsoft)",
-        "known_risks": "Python sidecar by default."
+        "base_model_lineage": "Florence-2 large (Microsoft), community Transformers port by florence-community",
+        "known_risks": "Loads through the community Transformers port (no remote code); a prompt does not steer it."
       },
       "source": {
-        "manual": true,
-        "download_url": "https://huggingface.co/microsoft/Florence-2-large",
+        "download_url": "https://huggingface.co/florence-community/Florence-2-large",
         "source_repo": "https://huggingface.co/microsoft/Florence-2-large",
-        "docs_url": "https://huggingface.co/microsoft/Florence-2-large",
-        "update_source": "https://huggingface.co/microsoft/Florence-2-large",
+        "docs_url": "https://huggingface.co/florence-community/Florence-2-large",
+        "update_source": "https://huggingface.co/florence-community/Florence-2-large",
         "checksum": {
           "algo": "sha256",
-          "value": "",
-          "status": "unverified-capture-on-download"
-        }
+          "value": "7715423d6549bf1e71188bdd84f4ac960cc0597886af24a5ef7b66f128660685",
+          "status": "pinned"
+        },
+        "assets": [
+          {
+            "url": "https://huggingface.co/florence-community/Florence-2-large/resolve/4271c66b88cdbc05735372ec13b2360108de5317/added_tokens.json",
+            "filename": "added_tokens.json",
+            "kind": "config",
+            "sha256": "1d75deda84dfa81fb6c09301f3fed00f9695059568bbb1403a6bf299cd84fc37",
+            "min_bytes": 22430
+          },
+          {
+            "url": "https://huggingface.co/florence-community/Florence-2-large/resolve/4271c66b88cdbc05735372ec13b2360108de5317/config.json",
+            "filename": "config.json",
+            "kind": "config",
+            "sha256": "8412483f687f2f71587328a38c6fa70a68d9488f28e90607be3c182641f60f2c",
+            "min_bytes": 2396
+          },
+          {
+            "url": "https://huggingface.co/florence-community/Florence-2-large/resolve/4271c66b88cdbc05735372ec13b2360108de5317/generation_config.json",
+            "filename": "generation_config.json",
+            "kind": "config",
+            "sha256": "0251459c49cc358ac033b5d4b8569e61ac22bde5d76be404b97a44cfb33fb12e",
+            "min_bytes": 292
+          },
+          {
+            "url": "https://huggingface.co/florence-community/Florence-2-large/resolve/4271c66b88cdbc05735372ec13b2360108de5317/merges.txt",
+            "filename": "merges.txt",
+            "kind": "config",
+            "sha256": "1ce1664773c50f3e0cc8842619a93edc4624525b728b188a9e0be33b7726adc5",
+            "min_bytes": 456318
+          },
+          {
+            "url": "https://huggingface.co/florence-community/Florence-2-large/resolve/4271c66b88cdbc05735372ec13b2360108de5317/model.safetensors",
+            "filename": "model.safetensors",
+            "kind": "safetensors",
+            "sha256": "7715423d6549bf1e71188bdd84f4ac960cc0597886af24a5ef7b66f128660685",
+            "min_bytes": 1553541016
+          },
+          {
+            "url": "https://huggingface.co/florence-community/Florence-2-large/resolve/4271c66b88cdbc05735372ec13b2360108de5317/preprocessor_config.json",
+            "filename": "preprocessor_config.json",
+            "kind": "config",
+            "sha256": "1396ec5a0a7adfe1c04fb777b09e8ba753be6dbb5868212ab3c3ef39d91fe031",
+            "min_bytes": 603
+          },
+          {
+            "url": "https://huggingface.co/florence-community/Florence-2-large/resolve/4271c66b88cdbc05735372ec13b2360108de5317/processor_config.json",
+            "filename": "processor_config.json",
+            "kind": "config",
+            "sha256": "cd0e3bf41a39b1276503fbd273bc03b9afc70d7a15ea681a92a1b4b77f858ee6",
+            "min_bytes": 2264
+          },
+          {
+            "url": "https://huggingface.co/florence-community/Florence-2-large/resolve/4271c66b88cdbc05735372ec13b2360108de5317/special_tokens_map.json",
+            "filename": "special_tokens_map.json",
+            "kind": "config",
+            "sha256": "72ff172dc769bc1551b1b4211628ce3271643bc60379e4da45d85a9be9332c39",
+            "min_bytes": 146627
+          },
+          {
+            "url": "https://huggingface.co/florence-community/Florence-2-large/resolve/4271c66b88cdbc05735372ec13b2360108de5317/tokenizer.json",
+            "filename": "tokenizer.json",
+            "kind": "config",
+            "sha256": "3ad7001f773409abe6bba33eac92662611a73d72f459bda2f00d2a221dd31ce4",
+            "min_bytes": 3748144
+          },
+          {
+            "url": "https://huggingface.co/florence-community/Florence-2-large/resolve/4271c66b88cdbc05735372ec13b2360108de5317/tokenizer_config.json",
+            "filename": "tokenizer_config.json",
+            "kind": "config",
+            "sha256": "cb5f80bd9afa767bb1bb798ee5f0a79eae45239b8e72506166b4218175a16723",
+            "min_bytes": 197922
+          },
+          {
+            "url": "https://huggingface.co/florence-community/Florence-2-large/resolve/4271c66b88cdbc05735372ec13b2360108de5317/vocab.json",
+            "filename": "vocab.json",
+            "kind": "config",
+            "sha256": "ed19656ea1707df69134c4af35c8ceda2cc9860bf2c3495026153a133670ab5e",
+            "min_bytes": 798293
+          }
+        ]
       },
-      "enabled": false,
+      "enabled": true,
       "rights": {
         "artifact_id": "florence-2",
-        "revision": "",
-        "sha256": "",
+        "revision": "4271c66b88cdbc05735372ec13b2360108de5317",
+        "sha256": "7715423d6549bf1e71188bdd84f4ac960cc0597886af24a5ef7b66f128660685",
         "license_id": "MIT",
         "classification": "unknown",
         "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
@@ -4334,9 +4555,7 @@
       "operations": [
         "object_detection"
       ],
-      "default_for": [
-        "object_detection"
-      ],
+      "default_for": [],
       "tier": "default",
       "backend": "onnxruntime",
       "alt_backends": [],
@@ -4357,7 +4576,7 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "Excellent CPU; the clean AGPL-free YOLO (use instead of Ultralytics YOLOv8/v11)."
+        "speed_note": "Excellent CPU (0.2-0.3 s); the clean AGPL-free YOLO (use instead of Ultralytics YOLOv8/v11). 80 COCO labels; the sidecar decodes the raw head (letterbox, grid/stride decode, NMS)."
       },
       "io": {
         "notes": "Bounding boxes. Pair with WD14/RAM++ for tagging."
@@ -4455,6 +4674,10 @@
         }
       },
       "enabled": false,
+      "disabled": {
+        "kind": "needs_install",
+        "reason": "Its weights are a manual download; yolox-tiny is the enabled detector and is more accurate."
+      },
       "rights": {
         "artifact_id": "nanodet",
         "revision": "",
@@ -4520,6 +4743,10 @@
         }
       },
       "enabled": false,
+      "disabled": {
+        "kind": "needs_install",
+        "reason": "Its weights need a manual export from the official repo; yolox-tiny is the enabled detector."
+      },
       "rights": {
         "artifact_id": "rt-detrv2",
         "revision": "",
@@ -4540,9 +4767,7 @@
       "operations": [
         "tagging"
       ],
-      "default_for": [
-        "tagging"
-      ],
+      "default_for": [],
       "tier": "default",
       "backend": "onnxruntime",
       "alt_backends": [],
@@ -4654,6 +4879,10 @@
         }
       },
       "enabled": false,
+      "disabled": {
+        "kind": "needs_install",
+        "reason": "Its weights are a manual download for the python-sidecar runner; wd14-vit-v3 is the enabled tagger."
+      },
       "rights": {
         "artifact_id": "ram-plus-plus",
         "revision": "",
@@ -4867,6 +5096,10 @@
         }
       },
       "enabled": false,
+      "disabled": {
+        "kind": "needs_install",
+        "reason": "It needs an opencv_contrib build the catalog cannot provide; laplacian-blur is the enabled quality score."
+      },
       "rights": {
         "artifact_id": "brisque",
         "revision": "",
@@ -4930,6 +5163,10 @@
         }
       },
       "enabled": false,
+      "disabled": {
+        "kind": "needs_install",
+        "reason": "Its weights are a manual download and it needs a CLIP encoder; laplacian-blur is the enabled quality score."
+      },
       "rights": {
         "artifact_id": "laion-aesthetic",
         "revision": "",
@@ -5087,9 +5324,7 @@
       "operations": [
         "embedding"
       ],
-      "default_for": [
-        "embedding"
-      ],
+      "default_for": [],
       "tier": "default",
       "backend": "onnxruntime",
       "alt_backends": [],
@@ -5162,53 +5397,80 @@
       "operations": [
         "embedding"
       ],
-      "default_for": [],
+      "default_for": [
+        "embedding"
+      ],
       "tier": "quality",
       "backend": "onnxruntime",
       "alt_backends": [],
       "requires_comfyui": false,
-      "size_mb_approx": 375,
+      "size_mb_approx": 372,
       "quant_variants": [
-        "~0.4B params (~375MB+)"
+        "vision tower fp32 ONNX 372MB (the text tower is not installed: this serves image embeddings)"
       ],
       "hardware": {
         "cpu_capable": true,
         "gpu_required": false,
         "min_vram_gb": 0,
-        "min_ram_gb": 6,
+        "min_ram_gb": 4,
         "os_arch": [
           "linux/amd64",
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "Strong + multilingual; bigger/slower than nomic."
+        "speed_note": "Default embedding model since 2026-11-23: 768-dim pooled vector; separated two real subjects with a 0.395 same-minus-cross cosine margin against 0.191 for nomic-embed-vision-v1.5. About 0.1 s warm on CPU. Mean/std and size come from the installed preprocessor_config.json."
       },
-      "io": {},
+      "io": {
+        "native_resolution": "224x224",
+        "notes": "Image embedding only (pooler_output, 768 dimensions). The text tower is not installed, so there is no text-to-image search with this model."
+      },
       "capability_labels": {
         "nsfw_capable": false,
         "license": "Apache-2.0",
         "commercial_use": "yes",
         "commercial_use_notes": "Permissive. (DINOv2 is also Apache for image-only; DINOv3 has a custom non-standard license.)",
-        "base_model_lineage": "SigLIP2 (Google)",
+        "base_model_lineage": "SigLIP2 (Google) base patch16-224 -> ONNX export by onnx-community (Transformers.js)",
         "known_risks": "Larger footprint."
       },
       "source": {
-        "manual": true,
-        "download_url": "https://huggingface.co/google/siglip2-base-patch16-224",
+        "download_url": "https://huggingface.co/onnx-community/siglip2-base-patch16-224-ONNX",
         "source_repo": "https://huggingface.co/google/siglip2-base-patch16-224",
         "docs_url": "https://huggingface.co/google/siglip2-base-patch16-224",
-        "update_source": "https://huggingface.co/google/siglip2-base-patch16-224",
+        "update_source": "https://huggingface.co/onnx-community/siglip2-base-patch16-224-ONNX",
         "checksum": {
           "algo": "sha256",
-          "value": "",
-          "status": "unverified-capture-on-download"
-        }
+          "value": "c0573e3f4140c3a7c4e9cc5912bd6b26a033b46a6a8e8af26cbea262b163bcad",
+          "status": "pinned"
+        },
+        "assets": [
+          {
+            "url": "https://huggingface.co/onnx-community/siglip2-base-patch16-224-ONNX/resolve/ba1f3b0843f24bc5417d38e19c37b287d719b2f4/config.json",
+            "filename": "config.json",
+            "kind": "config",
+            "sha256": "e43a9f7692d3819886a82cb2097048258d444f123c67d37ec825f9345b019cf2",
+            "min_bytes": 435
+          },
+          {
+            "url": "https://huggingface.co/onnx-community/siglip2-base-patch16-224-ONNX/resolve/ba1f3b0843f24bc5417d38e19c37b287d719b2f4/onnx/vision_model.onnx",
+            "filename": "vision_model.onnx",
+            "kind": "onnx",
+            "sha256": "c0573e3f4140c3a7c4e9cc5912bd6b26a033b46a6a8e8af26cbea262b163bcad",
+            "min_bytes": 371807752
+          },
+          {
+            "url": "https://huggingface.co/onnx-community/siglip2-base-patch16-224-ONNX/resolve/ba1f3b0843f24bc5417d38e19c37b287d719b2f4/preprocessor_config.json",
+            "filename": "preprocessor_config.json",
+            "kind": "config",
+            "sha256": "9b36b57ebaf20f09bf4c22100ccc21877ea6bfe5aead0c00c59f8af8ccefacfc",
+            "min_bytes": 394
+          }
+        ]
       },
-      "enabled": false,
+      "enabled": true,
       "rights": {
         "artifact_id": "siglip2-base",
-        "revision": "",
-        "sha256": "",
+        "revision": "ba1f3b0843f24bc5417d38e19c37b287d719b2f4",
+        "sha256": "c0573e3f4140c3a7c4e9cc5912bd6b26a033b46a6a8e8af26cbea262b163bcad",
         "license_id": "Apache-2.0",
         "classification": "unknown",
         "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
@@ -5352,13 +5614,146 @@
       }
     },
     {
+      "id": "color-transfer-lab-v1",
+      "name": "Colour Transfer, CIELAB (built-in)",
+      "operations": [
+        "color_transfer"
+      ],
+      "default_for": [
+        "color_transfer"
+      ],
+      "tier": "default",
+      "backend": "builtin",
+      "alt_backends": [],
+      "requires_comfyui": false,
+      "size_mb_approx": 0,
+      "quant_variants": [],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 1,
+        "os_arch": [
+          "linux/amd64",
+          "linux/arm64",
+          "darwin/amd64",
+          "darwin/arm64",
+          "windows/amd64"
+        ],
+        "speed_note": "Deterministic in-process transform; under a second on CPU for a 1 MP image, no weights to download."
+      },
+      "io": {
+        "notes": "Moves the colour of a masked region of one image onto the colour of a reference region in CIELAB (mean and spread, lightness partly), keeping the region's own shading and texture. The reference's alpha channel selects its region. No network, no model weights."
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "N/A (deterministic, no model weights)",
+        "commercial_use": "yes",
+        "commercial_use_notes": "Pure deterministic image processing shipped in-repo; no third-party weights.",
+        "base_model_lineage": "n/a (deterministic image processing)",
+        "known_risks": "Changes colour only; it cannot invent detail, and a mask that misses part of the region (an ear, a strand of hair) leaves that part unchanged. Lighting differences between the two photos are not modelled."
+      },
+      "source": {
+        "download_url": "",
+        "source_repo": "",
+        "docs_url": "",
+        "update_source": "",
+        "checksum": {
+          "algo": "",
+          "value": "",
+          "status": "n/a-builtin"
+        }
+      },
+      "enabled": true,
+      "rights": {
+        "artifact_id": "color-transfer-lab-v1",
+        "revision": "",
+        "sha256": "",
+        "license_id": "N/A (deterministic, no model weights)",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
+    },
+    {
+      "id": "mask-composite-lab-v1",
+      "name": "Mask Composite (built-in)",
+      "operations": [
+        "mask_composite"
+      ],
+      "default_for": [
+        "mask_composite"
+      ],
+      "tier": "default",
+      "backend": "builtin",
+      "alt_backends": [],
+      "requires_comfyui": false,
+      "size_mb_approx": 0,
+      "quant_variants": [],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 1,
+        "os_arch": [
+          "linux/amd64",
+          "linux/arm64",
+          "darwin/amd64",
+          "darwin/arm64",
+          "windows/amd64"
+        ],
+        "speed_note": "Deterministic in-process transform; under a second on CPU for a 1 MP image, no weights to download."
+      },
+      "io": {
+        "notes": "Lays the second image into the first through a mask, resampling it to the first image's size, with a grown and feathered seam. No network, no model weights."
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "N/A (deterministic, no model weights)",
+        "commercial_use": "yes",
+        "commercial_use_notes": "Pure deterministic image processing shipped in-repo; no third-party weights.",
+        "base_model_lineage": "n/a (deterministic image processing)",
+        "known_risks": "Takes pixels from the reference wherever the mask is set, so a mask that is too generous pulls in unwanted detail; the two images must show the same scene for the seam to be invisible."
+      },
+      "source": {
+        "download_url": "",
+        "source_repo": "",
+        "docs_url": "",
+        "update_source": "",
+        "checksum": {
+          "algo": "",
+          "value": "",
+          "status": "n/a-builtin"
+        }
+      },
+      "enabled": true,
+      "rights": {
+        "artifact_id": "mask-composite-lab-v1",
+        "revision": "",
+        "sha256": "",
+        "license_id": "N/A (deterministic, no model weights)",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
+    },
+    {
       "id": "openrouter-image",
       "name": "OpenRouter Image (BYOK cloud)",
       "operations": [
         "text_to_image",
         "image_to_image",
         "edit_instruct",
-        "face_swap"
+        "face_swap",
+        "colorize"
       ],
       "default_for": [],
       "tier": "nice-to-have",
@@ -5511,7 +5906,7 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "Not yet measured."
+        "speed_note": "Measured 2026-11-23 on the RTX 4070 Ti SUPER host (onnxruntime on CPU): 4 to 8 s per swap end to end, review included, on 1 MP to 2 MP images; the warm worker keeps the weights for 30 s."
       },
       "io": {
         "native_resolution": "256x256 aligned face",
@@ -5617,7 +6012,7 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "Not yet measured."
+        "speed_note": "Measured 2026-11-23 on the RTX 4070 Ti SUPER host (onnxruntime on CPU): 4 to 8 s per swap end to end, review included, on 1 MP to 2 MP images; the warm worker keeps the weights for 30 s."
       },
       "io": {
         "native_resolution": "256x256 aligned face",
@@ -5723,7 +6118,7 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "Not yet measured."
+        "speed_note": "Measured 2026-11-23 on the RTX 4070 Ti SUPER host (onnxruntime on CPU): 4 to 8 s per swap end to end, review included, on 1 MP to 2 MP images; the warm worker keeps the weights for 30 s."
       },
       "io": {
         "native_resolution": "256x256 aligned face",
@@ -5829,7 +6224,7 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "Not yet measured."
+        "speed_note": "Measured 2026-11-23 on the RTX 4070 Ti SUPER host (onnxruntime on CPU): 4 to 8 s per swap end to end, review included, on 1 MP to 2 MP images; the warm worker keeps the weights for 30 s."
       },
       "io": {
         "native_resolution": "128x128 aligned face",
@@ -5935,7 +6330,7 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "Not yet measured."
+        "speed_note": "Measured 2026-11-23 on the RTX 4070 Ti SUPER host (onnxruntime on CPU): 4 to 8 s per swap end to end, review included, on 1 MP to 2 MP images; the warm worker keeps the weights for 30 s."
       },
       "io": {
         "native_resolution": "256x256 aligned face",
@@ -6011,74 +6406,6 @@
           "artifact_changed",
           "license_source_changed",
           "use_purpose_changed",
-          "review_due"
-        ]
-      }
-    },
-    {
-      "id": "ip-adapter-faceid-sd15",
-      "name": "IP-Adapter FaceID face-transfer stack (SD 1.5)",
-      "operations": [
-        "face_swap"
-      ],
-      "architecture": "sd15",
-      "default_for": [],
-      "tier": "nice-to-have",
-      "backend": "diffusers",
-      "alt_backends": [],
-      "requires_comfyui": false,
-      "size_mb_approx": 5600,
-      "quant_variants": [
-        "SD1.5 base + ip-adapter-faceid SD15 weight file",
-        "plus InsightFace detection/embedding models (buffalo_l)"
-      ],
-      "hardware": {
-        "cpu_capable": false,
-        "gpu_required": true,
-        "min_vram_gb": 8,
-        "min_ram_gb": 12,
-        "os_arch": [
-          "linux/amd64",
-          "darwin/arm64",
-          "windows/amd64"
-        ],
-        "speed_note": "Face-transfer profile: SD1.5 base + IP-Adapter FaceID reference conditioning. GPU recommended; CPU path is slow and not yet qualified."
-      },
-      "io": {
-        "native_resolution": "512x512",
-        "notes": "Needs the subject image plus a reference identity image supplied as a conditioning adapter (AdapterRef.conditioning_image_key). This is a stack profile, not a new base checkpoint."
-      },
-      "capability_labels": {
-        "nsfw_capable": true,
-        "license": "Apache-2.0 (IP-Adapter) + InsightFace model terms",
-        "commercial_use": "conditional",
-        "commercial_use_notes": "IP-Adapter code and weights are Apache-2.0, but the FaceID variant depends on InsightFace detection/embedding models whose published weights carry non-commercial research terms by default. Verify or replace the InsightFace component before any commercial deployment, and keep this entry disabled until that review is recorded.",
-        "base_model_lineage": "Stable Diffusion 1.5 + IP-Adapter FaceID",
-        "known_risks": "Identity substitution of real people. Local-first policy does not block the capability; a hosted deployment should keep the consent, provenance and content-scan controls on. Declared experimental and disabled until the InsightFace commercial review lands."
-      },
-      "source": {
-        "manual": true,
-        "download_url": "https://huggingface.co/h94/IP-Adapter-FaceID",
-        "source_repo": "https://github.com/tencent-ailab/IP-Adapter",
-        "docs_url": "https://github.com/tencent-ailab/IP-Adapter#faceid",
-        "update_source": "https://huggingface.co/h94/IP-Adapter-FaceID",
-        "checksum": {
-          "algo": "sha256",
-          "value": "",
-          "status": "unverified-capture-on-download"
-        }
-      },
-      "enabled": false,
-      "rights": {
-        "artifact_id": "ip-adapter-faceid-sd15",
-        "revision": "",
-        "sha256": "",
-        "license_id": "Apache-2.0 + InsightFace terms",
-        "classification": "unknown",
-        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
-        "review_triggers": [
-          "artifact_changed",
-          "license_source_changed",
           "review_due"
         ]
       }
@@ -6505,7 +6832,8 @@
             "url": "https://huggingface.co/onnx-community/fairface_age_image_detection-ONNX/resolve/fd04cddf04982f6acc1ac76fb1a31b44c9285596/config.json",
             "filename": "config.json",
             "kind": "config",
-            "min_bytes": 500
+            "min_bytes": 500,
+            "sha256": "b7ebbfec7938cc4db21d972bd1aecdaf084204e24ddc1d6bde8ada64bb768652"
           }
         ],
         "checksum": {
@@ -6520,6 +6848,152 @@
         "revision": "fd04cddf04982f6acc1ac76fb1a31b44c9285596",
         "sha256": "7f28fc7e890b4c21bf48f65d9985cefaea3430c28df1391e4f91293c0d89555a",
         "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
+    },
+    {
+      "id": "qwen3-vl-4b",
+      "name": "Qwen3-VL 4B (general vision model via AI Gateway, local)",
+      "operations": [
+        "caption",
+        "object_detection",
+        "tagging"
+      ],
+      "default_for": [
+        "tagging"
+      ],
+      "tier": "quality",
+      "backend": "gateway-vision",
+      "alt_backends": [],
+      "requires_comfyui": false,
+      "size_mb_approx": 3300,
+      "quant_variants": [],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 0,
+        "os_arch": [
+          "linux/amd64",
+          "linux/arm64",
+          "darwin/amd64",
+          "darwin/arm64",
+          "windows/amd64"
+        ],
+        "speed_note": "About 4.2 GB of GPU memory in Ollama (shared with other services); 10-130 s per call against about 1 s for Florence-2."
+      },
+      "io": {
+        "native_resolution": "any (sent at most 1536 px on the long side)",
+        "notes": "A general vision-language model, not an image specialist: caption, tags and boxes are asked for in words and the answer is parsed. Served by Ollama behind the AI Gateway role runtime.gateway_role, so the model that answers is whatever that role maps to on this host (the answer's meta records it). Boxes are [x1,y1,x2,y2] on a 0..1000 grid. The weights belong to the gateway's Ollama resource; image-tools downloads nothing."
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "Apache-2.0",
+        "commercial_use": "yes",
+        "commercial_use_notes": "Permissive.",
+        "base_model_lineage": "Qwen3-VL (Alibaba Qwen), served through Ollama",
+        "known_risks": "Thinks before it answers, so a call takes 10 to 130 s and a cold load shares the GPU with other services. Box accuracy is below a hosted model's. The model that runs is the gateway role's choice."
+      },
+      "source": {
+        "download_url": "https://ollama.com/library/qwen3-vl",
+        "source_repo": "",
+        "docs_url": "https://ollama.com/library/qwen3-vl",
+        "update_source": "",
+        "checksum": {
+          "algo": "",
+          "value": "",
+          "status": "n/a-gateway-served"
+        }
+      },
+      "runtime": {
+        "gateway_role": "vision.default",
+        "box_order": "xyxy",
+        "box_scale": 1000
+      },
+      "enabled": true,
+      "rights": {
+        "artifact_id": "qwen3-vl-4b",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
+    },
+    {
+      "id": "gemini-flash-lite-vision",
+      "name": "Gemini Flash-Lite (general vision model via AI Gateway, hosted)",
+      "operations": [
+        "caption",
+        "object_detection",
+        "tagging"
+      ],
+      "default_for": [],
+      "tier": "nice-to-have",
+      "backend": "openrouter",
+      "alt_backends": [],
+      "requires_comfyui": false,
+      "size_mb_approx": 0,
+      "quant_variants": [],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 0,
+        "os_arch": [
+          "linux/amd64",
+          "linux/arm64",
+          "darwin/amd64",
+          "darwin/arm64",
+          "windows/amd64"
+        ],
+        "speed_note": "Runs remotely; about 2 s per call. BYOK: opt-in and metered."
+      },
+      "io": {
+        "native_resolution": "any (sent at most 1536 px on the long side)",
+        "notes": "A general vision-language model on a hosted route: caption, tags and boxes are asked for in words and the answer is parsed. Runs on the AI Gateway role runtime.gateway_role with the remote-only profile; the concrete hosted model is the role's choice and is recorded in the answer's meta. Gemini writes boxes as [y1,x1,y2,x2] on a 0..1000 grid. BYOK: opt-in (allow_byok), metered, and the image leaves this machine."
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "Provider terms (OpenRouter + upstream model)",
+        "commercial_use": "yes",
+        "commercial_use_notes": "Billed per OpenRouter pricing with your own key; commercial use governed by OpenRouter and the upstream model's terms.",
+        "base_model_lineage": "OpenRouter-hosted vision model resolved by gateway role policy",
+        "known_risks": "Sends the image to a third-party cloud: not for private or local-only data. Each call costs a small amount of real money."
+      },
+      "source": {
+        "download_url": "https://openrouter.ai/docs",
+        "source_repo": "",
+        "docs_url": "https://openrouter.ai/docs",
+        "update_source": "",
+        "checksum": {
+          "algo": "",
+          "value": "",
+          "status": "n/a-gateway-served"
+        }
+      },
+      "runtime": {
+        "gateway_role": "vision.default",
+        "box_order": "yxyx",
+        "box_scale": 1000
+      },
+      "enabled": true,
+      "rights": {
+        "artifact_id": "gemini-flash-lite-vision",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Provider terms (OpenRouter + upstream model)",
         "classification": "unknown",
         "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
         "review_triggers": [

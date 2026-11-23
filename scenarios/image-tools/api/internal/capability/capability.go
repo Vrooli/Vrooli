@@ -90,6 +90,12 @@ func (w ConsentWeight) valid() bool {
 	}
 }
 
+// ReferencePort is the input name that marks an image port as a reference image
+// (the source face of face_swap) rather than the image being edited. The AI
+// engine, the REST edge and the CLI generator all key on it, so the name lives
+// once, here.
+const ReferencePort = "reference"
+
 // PortSpec is one typed input or output. Kind is one of image / mask / text /
 // data / audio / video / mesh (see docs/concepts/COMPOSITION.md).
 type PortSpec struct {
@@ -256,6 +262,10 @@ type Manifest struct {
 	// the old single `category` field lie — `background_removal` is an extraction
 	// but was filed as an enhancement because that is where it appears.
 	Panel string `json:"panel,omitempty"`
+	// Extent declares how much of a person the operation can transfer, as an
+	// ordered set of independent stages and the presets composed from them. See
+	// ExtentSpec.
+	Extent *ExtentSpec `json:"extent,omitempty"`
 }
 
 // seedDoc is the on-disk shape of manifests.seed.json.
@@ -407,6 +417,9 @@ func (r *Registry) validate() error {
 			if err := validateUIFields(m); err != nil {
 				return err
 			}
+		}
+		if err := validateExtent(m.ID, m.ParamsSchema, m.Extent); err != nil {
+			return fmt.Errorf("capability: %w", err)
 		}
 		if !validPanel(m.Panel) {
 			return fmt.Errorf("capability: manifest %q has unknown panel %q", m.ID, m.Panel)

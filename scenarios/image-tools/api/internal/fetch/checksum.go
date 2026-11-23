@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+
+	"image-tools/internal/smoke"
 )
 
 // ValidSHA256 reports whether value is a complete hexadecimal SHA-256 digest.
@@ -38,7 +40,7 @@ func HashFile(p string) (sum string, size int64, err error) {
 // file under dir: sha256 of the sorted "relpath\x00filesha256\n" lines. It is the
 // multi-file analogue of a single artifact's sha256 — stable across re-fetches of
 // the same immutable revision, sensitive to any changed/added/removed file. The
-// HuggingFace cache bookkeeping dir (.cache) is excluded. Returns the hash and
+// HuggingFace cache bookkeeping dir (.cache) and the root load-smoke verdict file are excluded. Returns the hash and
 // the total bytes of the hashed files.
 func TreeManifestHash(dir string) (string, int64, error) {
 	type entry struct {
@@ -58,6 +60,12 @@ func TreeManifestHash(dir string) (string, int64, error) {
 			return nil
 		}
 		if !d.Type().IsRegular() {
+			return nil
+		}
+		// The load-smoke verdict is written into the model directory after the
+		// install checksum is recorded; counting it would make every smoked
+		// repo-shaped model fail revalidation and force a re-download plan.
+		if d.Name() == smoke.VerdictFile && filepath.Dir(p) == dir {
 			return nil
 		}
 		sum, size, hErr := HashFile(p)

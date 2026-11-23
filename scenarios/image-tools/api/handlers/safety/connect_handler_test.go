@@ -27,8 +27,15 @@ func TestGetPolicy_Local(t *testing.T) {
 	if p.GetSummary() == "" {
 		t.Error("summary should be set")
 	}
-	if !strings.Contains(p.GetSummary(), "minor-safety review off") {
-		t.Errorf("local summary should report the minor-safety control off: %q", p.GetSummary())
+	// The boundary is on for every tier; a policy with no reviewer attached says so
+	// rather than implying generated images are being reviewed.
+	if !strings.Contains(p.GetSummary(), "minor-safety review required") || !strings.Contains(p.GetSummary(), "NO DETECTOR") {
+		t.Errorf("local summary should report the required minor-safety control and its missing detector: %q", p.GetSummary())
+	}
+	reviewed := internalsafety.PolicyFor(internalsafety.TierLocal)
+	reviewed.MinorSafetyDetector = true
+	if !strings.Contains(reviewed.Summary(), "minor-safety review required (detector configured)") {
+		t.Errorf("local summary with the bundled reviewer should report it: %q", reviewed.Summary())
 	}
 	if len(p.GetOpWeights()) == 0 {
 		t.Error("op weights table should be populated")

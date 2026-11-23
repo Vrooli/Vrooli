@@ -185,7 +185,7 @@ model, so size is the useful axis when choosing a role target:
 | 27B+       | 0.5–2 tok/s    | 8–15 tok/s   | 4–8 tok/s |
 
 Smaller roles (`chat.small`, `classify.routing`) favour latency; larger roles
-(`code.local`, `chat.default`) favour quality. The policy's `disk/ram/vram`
+(`code.local`, `chat.quality`) favour quality. The policy's `disk/ram/vram`
 estimates and `resource-ollama capacity` enforce the declared host/runtime budget.
 
 ## Advanced configuration

@@ -147,6 +147,20 @@ func TestTransformersCeilingHeld(t *testing.T) {
 	}
 }
 
+// TestKorniaSupportsDiffusersGuiders holds the kornia floor that lets diffusers
+// import its guiders (build_laplacian_pyramid arrived after 0.5.0). Pinning
+// kornia back to the Big-LaMa exporter's old 0.5.0 would break every FLUX.2 klein
+// load; the export itself was re-proved byte-identical on a current kornia.
+func TestKorniaSupportsDiffusersGuiders(t *testing.T) {
+	p, ok := parseLock(t)["kornia"]
+	if !ok {
+		t.Fatal("kornia must be pinned in the lock")
+	}
+	if !satisfies(t, p.version, ">=0.8,<1") {
+		t.Fatalf("kornia==%s must be >=0.8,<1 (diffusers.guiders needs build_laplacian_pyramid)", p.version)
+	}
+}
+
 // TestLockMatchesSDAGovernance cross-checks each direct dep against the Scenario
 // Dependency Analyzer approved-dependencies store: it must be approved and the
 // locked version must satisfy the approved (security/license) range. The store is

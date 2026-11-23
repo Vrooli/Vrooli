@@ -18,6 +18,7 @@ import {
 import { listAIOperations } from "../../api/ai";
 import { capabilityPresentation, familyIcon } from "./capabilityCatalog";
 import { MODE_LABEL } from "./modeLabels";
+import { ModelCapacityNote } from "./ModelCapacityNote";
 import { isAnalyzeActive, type UseAnalyze } from "./useAnalyze";
 import { cn } from "../../lib/utils";
 
@@ -490,6 +491,8 @@ export function AnalyzePanel({ analyze, input, initialAction }: AnalyzePanelProp
               {t(strings.workspace.analyze.modelNote)}
             </p>
           )}
+
+          {selected?.modelBacked && <ModelCapacityNote model={analyze.model} />}
 
           {!input && (
             <p className="text-sm text-app-muted-foreground">

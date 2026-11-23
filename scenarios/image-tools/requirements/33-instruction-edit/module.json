@@ -30,7 +30,7 @@
           "ref": "api/internal/models/registry_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Instruction-edit models (instruct-pix2pix default CPU-capable, qwen-image-edit GPU quality) seeded with hardware-fit + commercial-clean licenses; flux-1-kontext-dev blocklisted — seed-invariant validation in Load()."
+          "notes": "Instruction-edit models (instruct-pix2pix default CPU-capable, qwen-image-edit GPU quality) seeded with hardware-fit + commercial-clean licenses; flux-1-kontext-dev is seeded (non-commercial FLUX license, tier nice-to-have so it is never a default) and allowed for normal local use only — monetized, hosted and redistributed use stay refused by the shared rights evaluator."
         },
         {
           "type": "test",

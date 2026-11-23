@@ -91,6 +91,16 @@ func Fit(m Model, h capabilities.Host) HardwareFit {
 	return fitGPU(m, h, false)
 }
 
+// FitCapacityManaged is Fit under the rule real jobs use. When the host capacity
+// broker arbitrates GPU memory (capacityManaged), a model fits if the GPU's
+// TOTAL VRAM covers it and transient free memory is the broker's admission
+// decision at job start; otherwise only currently free VRAM counts. Read-only
+// previews (`models select`, `ai --explain`, the model picker) must pass the
+// same flag the submit path does, or they judge a different GPU than the job.
+func FitCapacityManaged(m Model, h capabilities.Host, capacityManaged bool) HardwareFit {
+	return fitGPU(m, h, capacityManaged)
+}
+
 func (req SelectRequest) fit(m Model) HardwareFit {
 	fit := fitGPU(m, req.Host, req.CapacityManagedGPU)
 	if req.ForceCPU {
@@ -102,6 +112,14 @@ func (req SelectRequest) fit(m Model) HardwareFit {
 }
 
 func fitGPU(m Model, h capabilities.Host, capacityManaged bool) HardwareFit {
+	// A host whose installed RAM is below the model's declared floor can never
+	// run it (a staged 9B/12B diffusers model holds one ~18-24GB component in
+	// host RAM), whatever its VRAM. Total RAM, not currently-available RAM:
+	// transient pressure is the capacity broker's admission decision. An
+	// unmeasured host (zero) is not penalised.
+	if ramNeed := uint64(m.Hardware.MinRAMGB) * bytesPerGB; ramNeed > 0 && h.TotalMemoryBytes > 0 && h.TotalMemoryBytes < ramNeed {
+		return HardwareFit{}
+	}
 	needBytes := uint64(m.Hardware.MinVRAMGB) * bytesPerGB
 	bestVRAM, known := h.MaxFreeVRAMBytes()
 	if capacityManaged {
@@ -226,6 +244,11 @@ func (r *Registry) SelectCandidates(req SelectRequest, isEnabled EnabledFunc) ([
 		if !r.enabled(m, isEnabled) {
 			continue
 		}
+		if m.CapabilityLabels.ExplicitUseOnly {
+			// Named use only: a request that did not name this entry (override or
+			// pinned default) never lands on it, however well it ranks.
+			continue
+		}
 		enabledCount++
 		if req.Context == nil {
 			req.Context = context.Background()
@@ -273,9 +296,14 @@ func (r *Registry) SelectCandidates(req SelectRequest, isEnabled EnabledFunc) ([
 
 	ranked := r.rankCandidates(runnable, req)
 	out := make([]Selection, 0, len(ranked))
-	for _, m := range ranked {
+	for i, m := range ranked {
 		sel := r.buildSelection(m, req)
 		sel.Rights = rightsByModel[m.ID]
+		if i == 0 {
+			if note := outrankedDefaultNote(ranked, req.Operation); note != "" {
+				sel.Reason += "; " + note
+			}
+		}
 		// A remote model uses no local GPU, so a local VRAM shortfall is not a
 		// caution about it.
 		if !sel.GPUViable && m.Backend != BackendOpenRouter {
@@ -288,6 +316,21 @@ func (r *Registry) SelectCandidates(req SelectRequest, isEnabled EnabledFunc) ([
 		out = append(out, sel)
 	}
 	return out, nil
+}
+
+// outrankedDefaultNote says why the top candidate is not the seeded default
+// when a higher tier won, so the choice is never a silent override of default_for.
+func outrankedDefaultNote(ranked []Model, operation string) string {
+	winner := ranked[0]
+	if winner.IsDefaultFor(operation) {
+		return ""
+	}
+	for _, m := range ranked[1:] {
+		if m.IsDefaultFor(operation) && winner.Tier.rank() > m.Tier.rank() {
+			return fmt.Sprintf("tier %s outranks the seeded default %q (tier %s) on this host", winner.Tier, m.ID, m.Tier)
+		}
+	}
+	return ""
 }
 
 // rankCandidates returns all candidates in descending preference order.
@@ -381,7 +424,7 @@ func (r *Registry) selectOverride(req SelectRequest, isEnabled EnabledFunc) (Sel
 	}
 	sel := r.buildSelection(m, req)
 	sel.Rights = rights
-	if !sel.GPUViable && !isRemoteBackend(m) {
+	if !sel.GPUViable && !isRemoteBackend(m) && !m.GatewayServed() {
 		appendFreeVRAMShortfallWarning(&sel, fit.VRAMShortfallGB)
 	}
 	sel.Reason = fmt.Sprintf("model %q selected by explicit override", m.ID)
@@ -397,11 +440,17 @@ func (r *Registry) buildSelection(m Model, req SelectRequest) Selection {
 		// A remote backend runs on the provider, not on this host's CPU: the
 		// local hardware-fit warning and ETA do not apply.
 		sel.Reason = fmt.Sprintf("model %q runs remotely via %s", m.ID, m.Backend)
+	case m.GatewayServed():
+		// The AI Gateway places the model on this machine's hardware and owns the
+		// capacity decision: a CPU/GPU fit warning from this host's probe would
+		// describe a placement this scenario does not make.
+		sel.Reason = fmt.Sprintf("model %q is served by the AI Gateway on this machine (role %s)", m.ID, m.Runtime.GatewayRole)
 	case fit.GPUViable:
 		sel.Reason = fmt.Sprintf("model %q runs on GPU (needs >=%d GB VRAM)", m.ID, m.Hardware.MinVRAMGB)
 		if req.CapacityManagedGPU {
+			// Standing information, not a caution: the clients say it in their own words
+			// from the model's hardware facts (a CPU path or none).
 			sel.Reason = fmt.Sprintf("model %q fits GPU hardware; capacity admission is pending", m.ID)
-			sel.Warnings = append(sel.Warnings, "GPU execution requires host capacity admission at job start; contention may select CPU")
 		}
 	case m.Hardware.CPUCapable:
 		sel.Reason = fmt.Sprintf("model %q runs on CPU", m.ID)

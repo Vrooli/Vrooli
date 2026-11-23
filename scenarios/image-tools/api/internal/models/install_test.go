@@ -14,6 +14,7 @@ import (
 	"time"
 
 	apidb "github.com/vrooli/api-core/database"
+	"image-tools/internal/disktest"
 
 	db "github.com/vrooli/api-core/databasetest"
 )
@@ -26,6 +27,7 @@ type installFixture struct {
 	payload   []byte // bytes the fake downloader writes
 	avail     int64  // bytes the fake disk reports
 	downloads int
+	ledger    *disktest.Ledger // shared disk-job ledger the installer reserves through
 }
 
 const installTestModelID = "install-test-model"
@@ -43,11 +45,11 @@ func newInstallFixture(t *testing.T) *installFixture {
 	root := t.TempDir()
 	// A realistic-sized generic artifact: above the 1 KiB validation floor and
 	// not HTML, so it passes artifact validation (the fake downloader writes it).
-	f := &installFixture{root: root, payload: bytes.Repeat([]byte("fake-model-weights\n"), 128), avail: int64(50) << 30}
+	f := &installFixture{root: root, payload: bytes.Repeat([]byte("fake-model-weights\n"), 128), avail: int64(50) << 30, ledger: &disktest.Ledger{}}
 	f.in = &Installer{
 		Root:          root,
 		Reg:           reg,
-		DiskAdmission: testDiskAdmitter{},
+		DiskAdmission: f.ledger,
 		Custom:        NewCustomStore(d),
 		State:         NewInstallStore(d),
 		Download: downloaderFunc(func(_ context.Context, _, dest string, _ func(int64, int64)) error {

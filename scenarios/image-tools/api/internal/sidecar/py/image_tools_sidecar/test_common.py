@@ -107,3 +107,18 @@ def test_cuda_session_fails_closed_when_provider_is_missing(monkeypatch):
 def test_onnx_thread_policy_handles_unknown_cpu_count(monkeypatch):
     monkeypatch.setattr(_common.os, "cpu_count", lambda: None)
     assert _common.onnx_thread_settings()["intra_op_num_threads"] == 1
+
+
+def test_onnxruntime_modules_accept_the_scheduler_device_flag():
+    """The scheduler appends --device cpu|cuda to every onnxruntime sidecar module,
+    so each one must accept it; a bare argparse parser exits 2 on the unknown flag."""
+    import subprocess
+    import sys
+
+    for module in ("lama", "geometry", "nsfw", "segment"):
+        out = subprocess.run(
+            [sys.executable, "-m", f"image_tools_sidecar.{module}", "--help"],
+            capture_output=True, text=True, timeout=120,
+        )
+        assert out.returncode == 0, f"{module}: {out.stderr[-400:]}"
+        assert "--device" in out.stdout, module

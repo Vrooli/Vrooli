@@ -617,6 +617,14 @@ export const strings = {
         label: "workspace.aiOp.depth_map.label",
         desc: "workspace.aiOp.depth_map.desc",
       },
+      color_transfer: {
+        label: "workspace.aiOp.color_transfer.label",
+        desc: "workspace.aiOp.color_transfer.desc",
+      },
+      mask_composite: {
+        label: "workspace.aiOp.mask_composite.label",
+        desc: "workspace.aiOp.mask_composite.desc",
+      },
     },
     enhance: {
       intro: "workspace.enhance.intro",
@@ -638,6 +646,7 @@ export const strings = {
         localGpu: "workspace.enhance.tier.localGpu",
         localCpu: "workspace.enhance.tier.localCpu",
         byokCloud: "workspace.enhance.tier.byokCloud",
+        gatewayLocal: "workspace.enhance.tier.gatewayLocal",
       },
       install: {
         title: "workspace.enhance.install.title",
@@ -693,6 +702,63 @@ export const strings = {
       garment_replace: {
         label: "workspace.createOp.garment_replace.label",
         desc: "workspace.createOp.garment_replace.desc",
+      },
+    },
+    extent: {
+      title: "workspace.extent.title",
+      presetsLabel: "workspace.extent.presetsLabel",
+      stagesLabel: "workspace.extent.stagesLabel",
+      strengthLabel: "workspace.extent.strengthLabel",
+      strengthHint: "workspace.extent.strengthHint",
+      stage: {
+        face: {
+          label: "workspace.extent.stage.face.label",
+          desc: "workspace.extent.stage.face.desc",
+        },
+        skin: {
+          label: "workspace.extent.stage.skin.label",
+          desc: "workspace.extent.stage.skin.desc",
+        },
+        hair_style: {
+          label: "workspace.extent.stage.hair_style.label",
+          desc: "workspace.extent.stage.hair_style.desc",
+        },
+        hair_colour: {
+          label: "workspace.extent.stage.hair_colour.label",
+          desc: "workspace.extent.stage.hair_colour.desc",
+        },
+        head: {
+          label: "workspace.extent.stage.head.label",
+          desc: "workspace.extent.stage.head.desc",
+        },
+      },
+      skinTarget: {
+        source: {
+          label: "workspace.extent.skinTarget.source.label",
+          desc: "workspace.extent.skinTarget.source.desc",
+        },
+        body: {
+          label: "workspace.extent.skinTarget.body.label",
+          desc: "workspace.extent.skinTarget.body.desc",
+        },
+      },
+      preset: {
+        face: {
+          label: "workspace.extent.preset.face.label",
+          desc: "workspace.extent.preset.face.desc",
+        },
+        face_skin: {
+          label: "workspace.extent.preset.face_skin.label",
+          desc: "workspace.extent.preset.face_skin.desc",
+        },
+        full_look: {
+          label: "workspace.extent.preset.full_look.label",
+          desc: "workspace.extent.preset.full_look.desc",
+        },
+        whole_head: {
+          label: "workspace.extent.preset.whole_head.label",
+          desc: "workspace.extent.preset.whole_head.desc",
+        },
       },
     },
     create: {
@@ -770,6 +836,17 @@ export const strings = {
       painted: "workspace.mask.painted",
       uploaded: "workspace.mask.uploaded",
       empty: "workspace.mask.empty",
+      select: {
+        title: "workspace.mask.select.title",
+        placeholder: "workspace.mask.select.placeholder",
+        run: "workspace.mask.select.run",
+        busy: "workspace.mask.select.busy",
+        working: "workspace.mask.select.working",
+        quick: "workspace.mask.select.quick",
+        hair: "workspace.mask.select.hair",
+        jacket: "workspace.mask.select.jacket",
+      },
+      selected: "workspace.mask.selected",
     },
     operationLabelGroup: "workspace.operationLabelGroup",
     op: {
@@ -934,6 +1011,10 @@ export const strings = {
       clear: "workspace.rating.clear",
       error: "workspace.rating.error",
       hint: "workspace.rating.hint",
+    },
+    capacity: {
+      gpuOnly: "workspace.capacity.gpuOnly",
+      cpuFallback: "workspace.capacity.cpuFallback",
     },
   },
   errors: {

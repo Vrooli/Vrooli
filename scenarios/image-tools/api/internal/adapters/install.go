@@ -254,7 +254,7 @@ func (in *Installer) InstallForJob(ctx context.Context, id, jobID string, emit f
 			return InstallRecord{}, fmt.Errorf("adapters: disk peak planning failed before acquisition: %w", planErr)
 		}
 		acquirer.RepoFetch = fetch.PinHuggingFaceCache(acquirer.RepoFetch, fetch.HuggingFaceCachePath(request))
-		lease, reserveErr := in.DiskAdmission.ReserveDiskJob(ctx, request)
+		lease, reserveErr := fetch.ReserveAttempt(ctx, in.DiskAdmission, request)
 		if reserveErr != nil {
 			return InstallRecord{}, fmt.Errorf("adapters: reserve complete install disk peak: %w", reserveErr)
 		}

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -357,29 +359,91 @@ func capacityBackoff(refusals int) time.Duration {
 }
 
 func (m *Manager) requeue(entry *jobEntry, message string) bool {
+	return m.requeueJob(entry, message, nil)
+}
+
+// requeueAfterRun returns a job whose run lost capacity to the queue, once, after a
+// backoff. It reports false when the retry is spent, so the failure stands.
+func (m *Manager) requeueAfterRun(entry *jobEntry, runErr error) bool {
+	return m.requeueJob(entry, "retrying after the run lost capacity: "+firstLine(runErr.Error()), runErr)
+}
+
+// requeueJob queues entry again. An admission refusal (ran == nil) retries on the
+// exponential admission backoff; a run that failed (ran != nil) restarts from scratch
+// after runCapacityBackoff, within maxRunCapacityRetries.
+func (m *Manager) requeueJob(entry *jobEntry, message string, ran error) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	entry.mu.Lock()
 	defer entry.mu.Unlock()
-	if !m.started || m.baseCtx.Err() != nil || entry.job.State != StateAdmitting {
+	if !m.started || m.baseCtx.Err() != nil {
 		return false
+	}
+	if ran == nil && entry.job.State != StateAdmitting {
+		return false
+	}
+	if ran != nil {
+		if entry.job.State != StateRunning || capacityRetriesOf(entry.job.Meta) >= maxRunCapacityRetries {
+			return false
+		}
 	}
 	if entry.move != nil && m.applyMoveLocked(entry) {
 		// A re-route claimed the job while this refusal was being handled: it
 		// rejoins the queue on its new route instead of retrying locally.
 		return true
 	}
+	previous := entry.job
 	if err := entry.job.transition(StateQueued, m.clock.Now(), message); err != nil {
 		return false
 	}
+	if ran != nil {
+		entry.job.Progress, entry.job.StartedAt = 0, nil
+		meta := make(map[string]string, len(previous.Meta)+2)
+		for k, v := range previous.Meta {
+			meta[k] = v
+		}
+		meta[MetaCapacityRetries] = strconv.Itoa(capacityRetriesOf(previous.Meta) + 1)
+		meta[MetaCapacityRetryReason] = firstLine(ran.Error())
+		entry.job.Meta = meta
+	}
 	if err := m.persistLocked(entry); err != nil {
+		entry.job = previous
 		return false
 	}
 	entry.cancel = nil
-	entry.retryAt = m.clock.Now().Add(capacityBackoff(entry.capacityRefusals))
-	entry.capacityRefusals++
+	if ran != nil {
+		entry.retryAt = m.clock.Now().Add(runCapacityBackoff)
+	} else {
+		entry.retryAt = m.clock.Now().Add(capacityBackoff(entry.capacityRefusals))
+		entry.capacityRefusals++
+	}
 	m.pending = append(m.pending, entry)
 	return true
+}
+
+// capacityRetriesOf reads how many times a job went back after its run lost capacity.
+func capacityRetriesOf(meta map[string]string) int {
+	n, _ := strconv.Atoi(meta[MetaCapacityRetries])
+	return n
+}
+
+// capacityRetryMetaOf is the retry record in a job's meta, nil when it never went back.
+func capacityRetryMetaOf(meta map[string]string) map[string]string {
+	if meta[MetaCapacityRetries] == "" {
+		return nil
+	}
+	return map[string]string{MetaCapacityRetries: meta[MetaCapacityRetries], MetaCapacityRetryReason: meta[MetaCapacityRetryReason]}
+}
+
+// firstLine is the first line of text, capped, for a status message or meta value.
+func firstLine(text string) string {
+	if i := strings.IndexByte(text, '\n'); i >= 0 {
+		text = text[:i]
+	}
+	if len(text) > 240 {
+		text = text[:240]
+	}
+	return text
 }
 
 func (m *Manager) cancelPending() {

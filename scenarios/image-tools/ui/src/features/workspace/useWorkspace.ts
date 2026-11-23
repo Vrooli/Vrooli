@@ -6,6 +6,7 @@ import {
   type RunOpImageResult,
   type RunOpResult,
 } from "../../api/ops";
+import { inheritSensitivity } from "../../lib/sensitiveMedia";
 import { defaultParamsFor, toRequestParams } from "./opParams";
 import { opSpec } from "./opSpecs";
 
@@ -146,7 +147,9 @@ export function useWorkspace(runner: WorkspaceRunner = liveRunner): Workspace {
       if (prev) {
         URL.revokeObjectURL(prev.url);
       }
-      return { file, url: URL.createObjectURL(file) };
+      const url = URL.createObjectURL(file);
+      inheritSensitivity(file, { url });
+      return { file, url };
     });
     setEntries([]);
     setRedoStack([]);
@@ -185,6 +188,8 @@ export function useWorkspace(runner: WorkspaceRunner = liveRunner): Workspace {
           setMetadata(run.json);
         } else {
           setMetadata(null);
+          // An edit of a sensitive image is sensitive: the mark follows the pixels.
+          inheritSensitivity(input, { url: run.result.url, file: run.outputFile });
           setEntries((prev) => [
             ...prev,
             { operation, params, result: run.result, outputFile: run.outputFile },

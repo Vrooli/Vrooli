@@ -12,6 +12,7 @@ import (
 
 	"github.com/vrooli/api-core/database"
 	testdb "github.com/vrooli/api-core/databasetest"
+	"github.com/vrooli/api-core/schedule"
 )
 
 type modeTrackingExecutor struct {
@@ -180,6 +181,106 @@ func TestExecutionTimeoutFailsInsteadOfReportingUserCancellation(t *testing.T) {
 	}
 }
 
+// releasingAdmit admits with a context its owner can end, the way a warm worker's
+// reservation does when the engine releases it before the output review.
+func releasingAdmit(end func(context.CancelCauseFunc)) func(context.Context, Job) (Admission, error) {
+	return func(ctx context.Context, _ Job) (Admission, error) {
+		admitted, cancel := context.WithCancelCause(ctx)
+		end(cancel)
+		return Admission{Context: admitted}, nil
+	}
+}
+
+func TestOwnerReleasingTheAdmittedContextAfterAFinishedRunDoesNotFailTheJob(t *testing.T) {
+	var cancel context.CancelCauseFunc
+	m := startManager(t, Config{
+		Admit: releasingAdmit(func(c context.CancelCauseFunc) { cancel = c }),
+		Runner: func(context.Context, Job, func(int, string)) (Result, error) {
+			cancel(context.Canceled) // inference done: the owner releases its reservation
+			return Result{Ref: "out/reviewed.png"}, nil
+		},
+	})
+	job, err := m.Submit(context.Background(), Spec{Operation: "face_swap", Lane: LaneCPU})
+	if err != nil {
+		t.Fatal(err)
+	}
+	final, err := m.Wait(context.Background(), job.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if final.State != StateSucceeded || final.ResultRef != "out/reviewed.png" {
+		t.Fatalf("a deliberate release failed the job: %+v", final)
+	}
+}
+
+// The reason a run failed is the whole error: the owner releasing its
+// reservation afterwards is not a second cause and must not be appended.
+func TestFailedRunKeepsItsOwnReasonWhenTheOwnerReleasesTheReservation(t *testing.T) {
+	var cancel context.CancelCauseFunc
+	m := startManager(t, Config{
+		Admit: releasingAdmit(func(c context.CancelCauseFunc) { cancel = c }),
+		Runner: func(context.Context, Job, func(int, string)) (Result, error) {
+			cancel(context.Canceled)
+			return Result{}, errors.New("this parser has no label for 'book'")
+		},
+	})
+	job, err := m.Submit(context.Background(), Spec{Operation: "segment", Lane: LaneCPU})
+	if err != nil {
+		t.Fatal(err)
+	}
+	final, err := m.Wait(context.Background(), job.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if final.State != StateFailed || final.Error != "this parser has no label for 'book'" {
+		t.Fatalf("the failure reason was altered: state=%s error=%q", final.State, final.Error)
+	}
+}
+
+func TestFailedRunStillReportsALostLeaseAsItsCause(t *testing.T) {
+	var cancel context.CancelCauseFunc
+	m := startManager(t, Config{
+		Admit: releasingAdmit(func(c context.CancelCauseFunc) { cancel = c }),
+		Runner: func(context.Context, Job, func(int, string)) (Result, error) {
+			cancel(errors.New("capacity renewal lost"))
+			return Result{}, errors.New("sidecar killed")
+		},
+	})
+	job, err := m.Submit(context.Background(), Spec{Operation: "segment", Lane: LaneCPU})
+	if err != nil {
+		t.Fatal(err)
+	}
+	final, err := m.Wait(context.Background(), job.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if final.State != StateFailed || !strings.Contains(final.Error, "sidecar killed") || !strings.Contains(final.Error, "capacity renewal lost") {
+		t.Fatalf("a lost lease must be named beside the failure: %q", final.Error)
+	}
+}
+
+func TestALostLeaseStillFailsAJobThatReturnedSuccess(t *testing.T) {
+	var cancel context.CancelCauseFunc
+	m := startManager(t, Config{
+		Admit: releasingAdmit(func(c context.CancelCauseFunc) { cancel = c }),
+		Runner: func(context.Context, Job, func(int, string)) (Result, error) {
+			cancel(errors.New("capacity renewal lost"))
+			return Result{Ref: "out/unreliable.png"}, nil
+		},
+	})
+	job, err := m.Submit(context.Background(), Spec{Operation: "face_swap", Lane: LaneCPU})
+	if err != nil {
+		t.Fatal(err)
+	}
+	final, err := m.Wait(context.Background(), job.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if final.State != StateFailed || !strings.Contains(final.Error, "capacity renewal lost") {
+		t.Fatalf("a lost lease must fail the job: %+v", final)
+	}
+}
+
 func TestHeavyJobSnapshotTracksLiveWaitAndWatchConsumers(t *testing.T) {
 	started := make(chan struct{})
 	finish := make(chan struct{})
@@ -323,7 +424,9 @@ func TestFailedRunnerPersistsOnlyGatewayExecutionEvidence(t *testing.T) {
 	if final.State != StateFailed || final.ResultRef != "" {
 		t.Fatalf("failed job state/ref = %s/%q", final.State, final.ResultRef)
 	}
-	if len(final.Meta) != 1 || final.Meta[MetaGatewayExecutionEvidence] != evidence {
+	// Runner metadata is narrowed to the gateway evidence; the only fact the
+	// manager adds is whose fault the failure was.
+	if len(final.Meta) != 2 || final.Meta[MetaGatewayExecutionEvidence] != evidence || final.Meta[MetaFailureKind] != string(FailureFault) {
 		t.Fatalf("failed metadata = %#v", final.Meta)
 	}
 	loaded, err := m.st.get(context.Background(), job.ID)
@@ -769,5 +872,98 @@ func TestListManagedOutputsReturnsOnlySucceededManagedResultsOldestFirst(t *test
 	}
 	if len(active) != 0 {
 		t.Fatalf("recorded jobs are terminal; active = %d", len(active))
+	}
+}
+
+// A run that loses GPU memory to another process says nothing about the model: the job
+// returns to the queue once, after a backoff, and runs again instead of failing for a
+// user who waited for it. A second loss fails it, as a capacity failure.
+func TestRunThatLosesCapacityRunsAgainOnceThenFails(t *testing.T) {
+	lost := Kinded(FailureCapacity, errors.New("CUDA out of memory\nGPU memory held when it failed: pid 7"))
+	var runs atomic.Int32
+	clock := schedule.NewFake(time.Date(2026, 11, 23, 9, 0, 0, 0, time.UTC))
+	m := startManager(t, Config{
+		Clock: clock,
+		Runner: func(context.Context, Job, func(int, string)) (Result, error) {
+			if runs.Add(1) <= 2 {
+				return Result{}, lost
+			}
+			return Result{Ref: "out/ok"}, nil
+		},
+	})
+	job, err := m.Submit(context.Background(), Spec{Operation: "model", Lane: LaneGPU})
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitFor := func(what string, ok func(Job) bool) Job {
+		t.Helper()
+		deadline := time.Now().Add(3 * time.Second)
+		for {
+			current, _ := m.Get(context.Background(), job.ID)
+			if ok(current) {
+				return current
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("%s: %+v (runs=%d)", what, current, runs.Load())
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+	}
+	queued := waitFor("not requeued after the lost run", func(j Job) bool { return j.State == StateQueued && runs.Load() == 1 })
+	if queued.Meta[MetaCapacityRetries] != "1" || !strings.Contains(queued.Meta[MetaCapacityRetryReason], "CUDA out of memory") || strings.Contains(queued.Meta[MetaCapacityRetryReason], "\n") {
+		t.Fatalf("retry not recorded: %+v", queued.Meta)
+	}
+	// Backoff: nothing runs until the wait has passed.
+	clock.Advance(runCapacityBackoff - time.Second)
+	clock.Tick()
+	time.Sleep(150 * time.Millisecond)
+	if runs.Load() != 1 {
+		t.Fatalf("the job ran again before its backoff (runs=%d)", runs.Load())
+	}
+	clock.Advance(time.Second)
+	clock.Tick()
+	failed := waitFor("second loss did not fail the job", func(j Job) bool { return j.State == StateFailed })
+	if runs.Load() != 2 || failed.Meta[MetaFailureKind] != string(FailureCapacity) {
+		t.Fatalf("want 2 runs and a capacity failure: runs=%d meta=%+v", runs.Load(), failed.Meta)
+	}
+	if failed.Meta[MetaCapacityRetries] != "1" {
+		t.Fatalf("the failed job lost its retry record: %+v", failed.Meta)
+	}
+}
+
+func TestRunThatLosesCapacityThenSucceedsKeepsTheRetryRecord(t *testing.T) {
+	var runs atomic.Int32
+	clock := schedule.NewFake(time.Date(2026, 11, 23, 9, 0, 0, 0, time.UTC))
+	m := startManager(t, Config{
+		Clock: clock,
+		Runner: func(context.Context, Job, func(int, string)) (Result, error) {
+			if runs.Add(1) == 1 {
+				return Result{}, Kinded(FailureCapacity, errors.New("CUDA out of memory"))
+			}
+			return Result{Ref: "out/ok", Meta: map[string]string{"backend": "diffusers"}}, nil
+		},
+	})
+	job, err := m.Submit(context.Background(), Spec{Operation: "model", Lane: LaneGPU})
+	if err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		current, _ := m.Get(context.Background(), job.ID)
+		if current.State == StateQueued && runs.Load() == 1 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("not requeued: %+v", current)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	clock.Advance(runCapacityBackoff)
+	clock.Tick()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	final, err := m.Wait(ctx, job.ID)
+	if err != nil || final.State != StateSucceeded || final.Meta[MetaCapacityRetries] != "1" || final.Meta["backend"] != "diffusers" {
+		t.Fatalf("final=%+v err=%v", final, err)
 	}
 }

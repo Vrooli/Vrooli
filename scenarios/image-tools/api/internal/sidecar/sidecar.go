@@ -22,7 +22,7 @@ import (
 // PackageName is the importable module name (and the embedded directory name).
 const PackageName = "image_tools_sidecar"
 
-//go:embed py/image_tools_sidecar/*.py
+//go:embed py/image_tools_sidecar/*.py py/sitecustomize.py
 var pyFS embed.FS
 
 // embedRoot is the path prefix inside pyFS the package lives under.
@@ -92,4 +92,24 @@ func pathContains(list, want string) bool {
 		}
 	}
 	return false
+}
+
+// RuntimeLibraries returns the NVIDIA library directories (cudart, cudnn, ...)
+// that live inside a private venv. CUDA-enabled wheels load them at import time
+// even for CPU work, and they are not on the service's ambient loader path, so
+// every process that imports torch from that venv puts them on LD_LIBRARY_PATH.
+// python is the venv's interpreter path.
+func RuntimeLibraries(python string) []string {
+	if strings.TrimSpace(python) == "" {
+		return nil
+	}
+	venv := filepath.Dir(filepath.Dir(python))
+	matches, _ := filepath.Glob(filepath.Join(venv, "lib", "python*", "site-packages", "nvidia", "*", "lib"))
+	var dirs []string
+	for _, path := range matches {
+		if info, err := os.Stat(path); err == nil && info.IsDir() {
+			dirs = append(dirs, path)
+		}
+	}
+	return dirs
 }

@@ -201,7 +201,7 @@ func undeclaredBackendStatuses(catalog []models.Model, registered map[string]map
 
 func declaredBackendGPUCapable(name string) bool {
 	switch name {
-	case models.BackendBuiltin, models.BackendComputed, models.BackendLibraryGo, "library-cgo", "onnxruntime", "rembg":
+	case models.BackendBuiltin, models.BackendComputed, models.BackendLibraryGo, "library-cgo", "rembg":
 		return false
 	default:
 		return true

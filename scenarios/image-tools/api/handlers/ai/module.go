@@ -10,6 +10,7 @@ import (
 	"image-tools/internal/module"
 	"image-tools/internal/safety"
 	"image-tools/internal/storage"
+	"image-tools/internal/verdicts"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -22,7 +23,7 @@ import (
 // Execution is asynchronous on the durable job Manager's serialized local
 // queue. Both submission transports enforce the same Responsible-Use deployment
 // gate.
-func Module(engine *internalai.Engine, registry *models.Registry, store *storage.Store, jobs *internaljobs.Manager, gate *safety.Gate, logger *log.Logger) module.Module {
+func Module(engine *internalai.Engine, previewer *models.Previewer, verdictSvc *verdicts.Service, store *storage.Store, jobs *internaljobs.Manager, gate *safety.Gate, logger *log.Logger) module.Module {
 	if logger == nil {
 		logger = log.Default()
 	}
@@ -34,7 +35,7 @@ func Module(engine *internalai.Engine, registry *models.Registry, store *storage
 		Gate:   gate,
 		Logger: logger,
 	}
-	connectPath, connectHandler := aiconnect.NewAIServiceHandler(NewConnectHandler(registry, rest))
+	connectPath, connectHandler := aiconnect.NewAIServiceHandler(NewConnectHandler(previewer, verdictSvc, rest))
 	return module.Module{
 		Name: "ai",
 		Mount: func(r *mux.Router) {

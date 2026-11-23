@@ -247,7 +247,19 @@ func (r *Registry) RevalidateProvider(ctx context.Context, req SelectRequest, pr
 	return Selection{}, fmt.Errorf("%w for %q: pinned provider %q no longer serves this operation", ErrNoneAvailable, req.Operation, providerName)
 }
 
+// localTierProvider is an optional Provider capability: a local backend whose
+// hardware this scenario does not manage (the AI Gateway's local models) declares
+// its own tier instead of being described as a CPU or GPU run.
+type localTierProvider interface {
+	LocalTier() Tier
+}
+
 func applyLocalTier(selection *Selection, provider Provider, operation string, gpuViable bool) {
+	if declared, ok := provider.(localTierProvider); ok {
+		selection.Tier = declared.LocalTier()
+		selection.Reason = fmt.Sprintf("local backend %q (%s)", provider.Name(), selection.Tier)
+		return
+	}
 	switch {
 	case gpuViable && providerGPUCapableFor(provider, operation):
 		selection.Tier = TierLocalGPU

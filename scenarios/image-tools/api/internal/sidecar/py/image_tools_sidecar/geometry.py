@@ -498,7 +498,7 @@ def main() -> None:
     parser.add_argument("--model-id", default="moge-2-vits-normal")
     parser.add_argument("--revision", default="e50ffda41565591092adea54c6ac83d6212e1e23")
     parser.add_argument("--support-roi", help='optional normalized JSON rectangle: {"x":0,"y":0.8,"width":1,"height":0.2}')
-    args = parser.parse_args()
+    args = _common.parse_device_args(parser)
     try:
         support_roi = json.loads(args.support_roi) if args.support_roi else None
         run_model(args.model, args.image, args.out, args.model_id, args.revision, support_roi)

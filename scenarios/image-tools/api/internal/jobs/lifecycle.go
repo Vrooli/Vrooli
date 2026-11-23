@@ -7,7 +7,9 @@ import (
 
 // CanTransition is the sole job-lifecycle transition table. A cancellation is
 // not completion: active jobs pass through canceling until their leases have
-// been released. Admission may requeue a contended job without executing it.
+// been released. Admission may requeue a contended job without executing it,
+// and a running job whose route was refused before it did any work (see
+// RouteBackError) goes back to the queue on its previous route.
 func (s State) CanTransition(next State) bool {
 	switch s {
 	case StateQueued:
@@ -15,7 +17,7 @@ func (s State) CanTransition(next State) bool {
 	case StateAdmitting:
 		return next == StateQueued || next == StateRunning || next == StateCanceling || next == StateFailed || next == StateCanceled
 	case StateRunning:
-		return next == StateSucceeded || next == StateFailed || next == StateCanceling || next == StateCanceled
+		return next == StateSucceeded || next == StateFailed || next == StateCanceling || next == StateCanceled || next == StateQueued
 	case StateCanceling:
 		return next == StateCanceled || next == StateFailed
 	default:

@@ -23,10 +23,13 @@ const GroupName = "jobs"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"JobsService.GetJob":    h.get,
-		"JobsService.WaitJob":   h.wait,
-		"JobsService.ListJobs":  h.list,
-		"JobsService.CancelJob": h.cancel,
+		"JobsService.GetJob":         h.get,
+		"JobsService.WaitJob":        h.wait,
+		"JobsService.ListJobs":       h.list,
+		"JobsService.CancelJob":      h.cancel,
+		"JobsService.RateJob":        h.rate,
+		"JobsService.ClearJobRating": h.unrate,
+		"JobsService.ListJobRatings": h.ratings,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

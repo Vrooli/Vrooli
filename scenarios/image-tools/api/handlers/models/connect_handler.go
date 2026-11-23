@@ -363,7 +363,7 @@ func (h *connectHandler) SelectModel(ctx context.Context, req *connect.Request[m
 		GpuViable: sel.GPUViable,
 		Reason:    sel.Reason,
 		Warnings:  sel.Warnings,
-		Verdict:   verdicts.ToProto(st.verdictFor(sel.Model.ID, op)),
+		Verdict:   verdicts.ToProto(st.verdictFor(sel.Model, op)),
 	}), nil
 }
 

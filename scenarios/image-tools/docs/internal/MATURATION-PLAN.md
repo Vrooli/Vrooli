@@ -225,8 +225,8 @@ boundary is now enforced by a real refusal path rather than a documented
 aspiration: the policy requires a reviewer for image output on a public
 deployment, refuses when none is configured, fails closed when a configured
 reviewer errors, and the engine deletes outputs that the reviewer flags. The
-reviewer itself is operator-supplied because no bundled model answers the age
-question — see SECURITY.md. D13 (one operation declaration set) is closed: the
+reviewer is now bundled and on by default (2026-11-22) — see SECURITY.md
+"Reviewer calibration". D13 (one operation declaration set) is closed: the
 manifest set is the declaration, `internal/ops` owns execution only, and both the
 AI and analysis catalogs are projections of it.
 

@@ -123,6 +123,35 @@ budgets. A comparison can describe model output, but changing a default requires
 a rights-clean model, adequate reference coverage, calibrated budgets and
 quality/judge evidence. One synthetic case is not a general operation upgrade.
 
+**The judge.** `judge_model` in the manifest names the judge and binds it: a bare
+name (`qwen3-vl:4b`) is a local Ollama model reached through the AI Gateway's
+local-only route; `openrouter:google/gemini-3.5-flash` is a hosted judge reached
+through a remote-only route that exists only because the manifest named it.
+The route evidence must report exactly that provider and model, so a silent
+fallback to another model cannot score a case. `judge_model` may be an ordered,
+comma-separated chain (a fallback must be in `qualifiedJudges`; today only the hosted judge is): the next
+judge is asked only when the previous one is refused or unavailable (hosted
+credits exhausted, breaker open, timeout, silent reroute), never because a reply
+was poor, and each case's judge result records which judge scored it. Every fallback must be a judge that passed the agreement bar (`qualifiedJudges` in `quality/judge.go`); when none is reachable the case is recorded as `judge_unavailable` with the refusal reasons and cannot pass, rather than being scored by a weaker model. The judge sees a labelled contact
+sheet (INPUT, REFERENCE, CANDIDATE) and writes a rationale that lists the source's
+distinguishing features before it scores, which is what makes it catch a
+different-looking animal.
+
+On the 15 human-graded cases of `guinea-pig-v1` (hat, park, anime, generate) the
+hosted `google/gemini-3.5-flash` judge agrees with the human accept/reject call on
+11 to 12 of 12 cases (12 of 12 through the gateway) and with 0.79-0.94 of the pairwise rankings across runs (the misses are ties among accepted outputs and
+swaps between two low tiers; it never accepted an output the human rejected). The
+local `gemma4:12b` judge (accept/reject 10/12, pairwise 0.65, and it missed 2 of 4 human rejects) is not qualified: it accepted the different-animal park case and the SD 1.5 anime. A report scored by an unqualified judge says so in its limits.
+The agreement record lives with the corpus, under
+`~/.vrooli/research/topics/image-tools-foundation/corpora/guinea-pig-v1/`.
+
+**Perceptual distance.** `reference.lpips` (lower is better) is LPIPS with an
+AlexNet backbone, scored at native size in 1024-pixel tiles by the sidecar. It is
+computed only when a budget names it, needs equal-sized candidate and reference,
+and needs the `lpips-alexnet` support asset installed
+(`image-tools models install lpips-alexnet`). PSNR and SSIM reward blur; LPIPS does
+not, so it is the metric to use when ranking upscalers.
+
 ### Import safety
 
 Model and adapter import separates inspection from registration and acquisition.

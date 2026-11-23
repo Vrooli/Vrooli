@@ -42,6 +42,20 @@ describe("useEnhance", () => {
 
     act(() => result.current.start("background_removal", {}, PNG));
 
+    expect(result.current.resultJobId).toBe("");
+    await waitFor(() => expect(result.current.phase).toBe("succeeded"));
+    // The succeeded run's job id is what the result's rating attaches to; it is
+    // cleared when the state is dismissed.
+    expect(result.current.resultJobId).toBe("job-1");
+    act(() => result.current.dismiss());
+    expect(result.current.resultJobId).toBe("");
+  });
+
+  it("runs an installed op to success and reports its tier", async () => {
+    const onResult = vi.fn();
+    const client = makeEnhanceClient();
+    const { result } = renderHook(() => useEnhance({ onResult, client }));
+    act(() => result.current.start("background_removal", {}, PNG));
     await waitFor(() => expect(result.current.phase).toBe("succeeded"));
     expect(result.current.tier).toBe("local-cpu");
     expect(onResult).toHaveBeenCalledWith(

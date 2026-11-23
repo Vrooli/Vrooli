@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"image-tools/internal/modelenv"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -94,10 +95,12 @@ func (c *HFClient) runProbe(ctx context.Context, repoID string) ([]byte, error) 
 		python = "python3"
 	}
 	cmd := exec.CommandContext(ctx, python, "-c", probeScript, repoID)
+	// A metadata probe talks to the hub but must not leave a cache outside the
+	// managed root.
 	if c.Env != nil {
-		cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env(c.Env))
+		cmd.Env = modelenv.Apply(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env(c.Env)), modelenv.ModeAcquisition)
 	} else {
-		cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil)
+		cmd.Env = modelenv.Apply(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil), modelenv.ModeAcquisition)
 	}
 	out, err := cmd.Output()
 	if err != nil {

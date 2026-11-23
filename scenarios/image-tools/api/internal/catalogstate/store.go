@@ -7,7 +7,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"time"
 )
 
@@ -132,36 +131,4 @@ func list[T any](ctx context.Context, t table, columns string, scan func(func(..
 		out = append(out, value)
 	}
 	return out, rows.Err()
-}
-
-type Overlay struct{ table }
-
-func NewOverlay(db SQLExecutor, kind Kind) *Overlay { return &Overlay{table{db, kind.table("state")}} }
-func (s *Overlay) SetEnabled(ctx context.Context, id string, enabled bool) error {
-	if id == "" {
-		return fmt.Errorf("%s: id is required", s.name)
-	}
-	_, err := s.db.ExecContext(ctx, "INSERT INTO "+s.name+" (id,enabled) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET enabled=excluded.enabled", id, enabled)
-	return err
-}
-func (s *Overlay) LoadOverlay(ctx context.Context) (map[string]bool, error) {
-	type entry struct {
-		id      string
-		enabled bool
-	}
-	entries, err := list(ctx, s.table, "id,enabled", func(scan func(...any) error) (r entry, err error) { err = scan(&r.id, &r.enabled); return })
-	if err != nil {
-		return nil, err
-	}
-	out := make(map[string]bool, len(entries))
-	for _, r := range entries {
-		out[r.id] = r.enabled
-	}
-	return out, nil
-}
-func EffectiveEnabled(id string, seed bool, overlay map[string]bool) bool {
-	if value, ok := overlay[id]; ok {
-		return value
-	}
-	return seed
 }

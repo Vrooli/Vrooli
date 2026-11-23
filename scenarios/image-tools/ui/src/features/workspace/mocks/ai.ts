@@ -70,6 +70,13 @@ export const makeListAIOperationsResponse = (
         promptDriven: true,
       }),
       makeAIOperationInfo({
+        name: "face_swap",
+        category: "generation",
+        summary: "Put the face from a reference image onto a target image",
+        requiresImage: true,
+        requiresReference: true,
+      }),
+      makeAIOperationInfo({
         name: "inpaint",
         category: "generation",
         summary: "Regenerate a masked region from a prompt",

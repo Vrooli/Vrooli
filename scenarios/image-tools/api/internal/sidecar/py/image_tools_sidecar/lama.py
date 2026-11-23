@@ -208,7 +208,7 @@ def main():
     parser.add_argument("--mask", required=True)
     parser.add_argument("--params", default="{}", help="JSON BackgroundRepairParams")
     parser.add_argument("--out", required=True)
-    args = parser.parse_args()
+    args = _common.parse_device_args(parser)
     model = _common.resolve_onnx_path(args.model)
     if os.path.basename(model) == "lama_1024.onnx":
         if not MODEL_1024_SHA256 or _sha256(model) != MODEL_1024_SHA256:

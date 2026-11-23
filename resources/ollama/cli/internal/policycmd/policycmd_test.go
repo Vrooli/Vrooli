@@ -33,7 +33,7 @@ func TestResolveRoleJSON(t *testing.T) {
 	if got.EmbeddingDimensions != 768 {
 		t.Fatalf("embedding_dimensions = %d", got.EmbeddingDimensions)
 	}
-	if got.ContextWindowTokens != 8192 {
+	if got.ContextWindowTokens != 2048 {
 		t.Fatalf("context_window_tokens = %d", got.ContextWindowTokens)
 	}
 	if got.PolicyPath == "" {

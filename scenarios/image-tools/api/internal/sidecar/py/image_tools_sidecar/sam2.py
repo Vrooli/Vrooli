@@ -11,6 +11,7 @@ import argparse
 from functools import lru_cache
 import json
 import math
+import os
 import platform
 import sys
 import time
@@ -110,24 +111,24 @@ def smoke(model_dir: str, deep: bool = False) -> str:
 def _prompts(raw: str, size: tuple[int, int]) -> dict:
     prompt = json.loads(raw)
     if not isinstance(prompt, dict) or set(prompt) - {"points", "box"}:
-        raise ValueError("SAM 2 prompt must contain only points and/or box")
+        raise _common.InputError("SAM 2 prompt must contain only points and/or box")
     points = prompt.get("points", [])
     if not isinstance(points, list) or len(points) > 64:
-        raise ValueError("SAM 2 requires at most 64 point prompts")
+        raise _common.InputError("SAM 2 requires at most 64 point prompts")
     width, height = size
 
     def unit(value):
         if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or not 0 <= value <= 1:
-            raise ValueError("SAM 2 coordinates must be finite numbers in 0..1")
+            raise _common.InputError("SAM 2 coordinates must be finite numbers in 0..1")
         return float(value)
 
     coords, labels = [], []
     for point in points:
         if not isinstance(point, dict) or set(point) - {"x", "y", "negative"} or "x" not in point or "y" not in point:
-            raise ValueError("SAM 2 point must contain x, y and optional negative")
+            raise _common.InputError("SAM 2 point must contain x, y and optional negative")
         negative = point.get("negative", False)
         if not isinstance(negative, bool):
-            raise ValueError("SAM 2 negative must be boolean")
+            raise _common.InputError("SAM 2 negative must be boolean")
         coords.append([unit(point["x"]) * width, unit(point["y"]) * height])
         labels.append(0 if negative else 1)
 
@@ -135,17 +136,17 @@ def _prompts(raw: str, size: tuple[int, int]) -> dict:
     result = {}
     if box is not None:
         if not isinstance(box, dict) or set(box) != {"x", "y", "width", "height"}:
-            raise ValueError("SAM 2 box must contain x, y, width and height")
+            raise _common.InputError("SAM 2 box must contain x, y, width and height")
         x, y, box_w, box_h = (unit(box[key]) for key in ("x", "y", "width", "height"))
         if box_w <= 0 or box_h <= 0 or x + box_w > 1 or y + box_h > 1:
-            raise ValueError("SAM 2 box must have positive area inside the image")
+            raise _common.InputError("SAM 2 box must have positive area inside the image")
         result["input_boxes"] = [[[x * width, y * height, (x + box_w) * width, (y + box_h) * height]]]
 
     if coords:
         result["input_points"] = [[coords]]
         result["input_labels"] = [[labels]]
     if not (any(label == 1 for label in labels) or box is not None):
-        raise ValueError("SAM 2 requires a positive point or an object box")
+        raise _common.InputError("SAM 2 requires a positive point or an object box")
     return result
 
 
@@ -166,8 +167,20 @@ def _max_rss_kib():
     return peak
 
 
+def segmenter_dir(model_dir: str) -> str:
+    """The SAM 2.1 checkpoint directory of a model install.
+
+    A plain SAM 2.1 install keeps its config and weights at the top level; a
+    grounded install (detector + segmenter) keeps them under ``segmenter/``.
+    """
+    nested = os.path.join(model_dir, "segmenter")
+    return nested if os.path.isdir(nested) else model_dir
+
+
 def run(model_dir: str, image_path: str, out_path: str, prompt_json: str, device_name: str) -> dict:
     import torch
+
+    model_dir = segmenter_dir(model_dir)
 
     if device_name not in {"cpu", "cuda"}:
         raise ValueError("SAM 2 device must be cpu or cuda")
@@ -239,7 +252,7 @@ def main() -> dict | None:
         return run(args.model, args.image, args.out, args.prompts, args.device)
     except Exception as exc:  # noqa: BLE001
         print(f"SAM 2 segmentation failed: {exc}")
-        raise SystemExit(1) from exc
+        raise SystemExit(_common.exit_status_for(exc)) from exc
 
 
 if __name__ == "__main__":

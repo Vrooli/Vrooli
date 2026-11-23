@@ -11,7 +11,8 @@
 // IF NOT EXISTS where possible). Applied versions are recorded in
 // `schema_migrations`; never edit or delete an applied migration — add a new one.
 //
-// Boot wiring: api/main.go calls ApplySchemas → Migrate → VerifyDeclaredColumns.
+// Boot wiring: api/main.go calls ApplySchemas → Migrate → ReconcileDeclaredColumns
+// (additive columns are added automatically; only non-additive changes need a migration).
 package database
 
 import (

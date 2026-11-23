@@ -7,9 +7,11 @@ import {
   FONT_SCALES,
   HANDEDNESS_CHOICES,
   REDUCED_MOTION_CHOICES,
+  SENSITIVE_IMAGES_CHOICES,
   TEXT_DIRECTION_CHOICES,
   type FontScale,
   type Handedness,
+  type SensitiveImages,
   type ReducedMotion,
   type TextDirection,
 } from "../features/settings/useSettings";
@@ -43,6 +45,11 @@ const HANDEDNESS_LABEL = {
   left: strings.settings.handedness.left,
   right: strings.settings.handedness.right,
 } satisfies Record<Handedness, string>;
+
+const SENSITIVE_IMAGES_LABEL = {
+  blur: strings.settings.sensitiveImages.blur,
+  show: strings.settings.sensitiveImages.show,
+} satisfies Record<SensitiveImages, string>;
 
 interface RadioGroupProps<T extends string> {
   /** Already-translated group label (drives `aria-label`). */
@@ -209,6 +216,21 @@ export function SettingsPage() {
             onChange={(handedness) => setSettings({ handedness })}
             labelFor={(c) => t(HANDEDNESS_LABEL[c])}
             testIdFor={(c) => selectors.settingsPage.handednessOption({ choice: c })}
+          />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <span className="text-sm text-app-foreground">{t(strings.settings.sensitiveImages.label)}</span>
+          <p className="text-xs text-app-muted-foreground">
+            {t(strings.settings.sensitiveImages.description)}
+          </p>
+          <SettingsRadioGroup
+            label={t(strings.settings.sensitiveImages.label)}
+            options={SENSITIVE_IMAGES_CHOICES}
+            value={settings.sensitiveImages}
+            onChange={(sensitiveImages) => setSettings({ sensitiveImages })}
+            labelFor={(c) => t(SENSITIVE_IMAGES_LABEL[c])}
+            testIdFor={(c) => selectors.settingsPage.sensitiveImagesOption({ choice: c })}
           />
         </div>
       </div>

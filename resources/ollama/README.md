@@ -64,7 +64,8 @@ instead of hard-coding concrete model names:
 |---|---|---|
 | `embedding.default` | `nomic-embed-text:latest` | semantic search embeddings |
 | `chat.small` | `qwen3.5:4b` | low-memory local generation |
-| `chat.default` | `qwen3.5:9b` | default local chat/synthesis |
+| `chat.default` | `qwen3.5:4b` | default local chat, synthesis and structured extraction; shares the resident 4B runner |
+| `chat.quality` | `qwen3.5:9b` | opt-in higher-quality generation; loads on demand and unloads when idle |
 | `summarize.default` | `qwen3.5:4b` | text distillation and summaries (3B/1.7B fallbacks) |
 | `summarize.audio_tools` | `qwen3:1.7b` | Audio Tools compact summaries; Qwen3.5 4B is the quality fallback |
 | `rerank.llm_fallback` | `qwen3.5:4b` | fallback reranking when the reranker resource is unavailable |
@@ -195,15 +196,14 @@ Defaults are tuned for a single-host workstation:
 | Setting | Default | Where set | Override path |
 |---|---|---|---|
 | Host memory budget | `8192 MiB` | `requirements.ram_mb` and model policy | Select a smaller model role or adjust the declared policy after measurement |
-| Concurrent requests in-flight | `1` | `managed_service.environment.OLLAMA_NUM_PARALLEL` and the gateway semaphore fallback | Same — edit and restart |
+| Concurrent requests per runner | `1` | `managed_service.environment.OLLAMA_NUM_PARALLEL`; the gateway gives each resident model and the shared turnover slot that many admission slots | Same — edit and restart |
 | CPU threads per gateway request | `4` | Gateway resource budget; applied when omitted and larger overrides are rejected | Change the budget constant and tests after measurement |
 | Loaded-model slots | resident models + 1 (`3`) | `managed_service.environment.OLLAMA_MAX_LOADED_MODELS`, derived from `residency` in `model-policy.json` (a test fails when they disagree) | Change `residency.resident_roles`, update the slot count, restart |
 | Per-model idle unload | resident roles stay loaded; other models unload after `600` s idle | `residency` in `model-policy.json`, applied to every request by the activity edge | Edit the policy; the edge reloads it within 5 s |
 
 The 12 GiB VRAM cap is intended to keep one 7-8B model resident plus headroom;
 the separate 8 GiB host RAM requirement is the resource's audited reservation.
-Keep `OLLAMA_NUM_PARALLEL` in step with the gateway semaphore — they are
-deliberately tied. The gateway sends a four-thread default to Ollama for each
+The gateway sends a four-thread default to Ollama for each
 generation request and refuses a larger override unless the resource budget is
 raised explicitly. Per-model residency comes from the policy's `residency`
 block: the activity edge sets each request's `keep_alive` to `-1` for the
@@ -252,9 +252,12 @@ exceed the configured runtime or host policy budget.
 
 Scenarios MUST reach Ollama through the resource CLI, not by constructing
 `/api/embeddings` / `/api/generate` URLs directly. The CLI fronts the daemon
-with a host-wide cross-process semaphore sized to `OLLAMA_NUM_PARALLEL`, so the
+with host-wide cross-process admission that mirrors the daemon's runners, so the
 fleet of scenarios cannot overwhelm the daemon even when individual scenarios
-forget to bound their own fan-out:
+forget to bound their own fan-out. Each resident model has its own pool of
+`OLLAMA_NUM_PARALLEL` slots, so an embed never waits behind a generate on
+another model; every non-resident model shares one turnover pool, so two large
+models never load at once:
 
 ```bash
 resource-ollama gateway embed    --role embedding.default --json --input "hello"
@@ -264,7 +267,7 @@ resource-ollama gateway chat     --role summarize.default --json --system "Be co
 
 For a bounded indexing batch, `gateway embed --input-json-stdin` accepts
 `{"inputs":[...]}` with at most 64 inputs and 1 MiB total. It sends one
-request through the same host-wide semaphore. Every embed call uses Ollama's
+request through the model's admission pool. Every embed call uses Ollama's
 `/api/embed`, which returns L2-normalized vectors (same direction as the retired
 `/api/embeddings` vectors, so cosine search is unchanged). An input longer than
 the model's runner context is truncated at the tail rather than failing; the

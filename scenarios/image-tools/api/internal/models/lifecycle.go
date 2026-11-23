@@ -224,7 +224,7 @@ func (in *Installer) observeLifecycle(ctx context.Context, m Model, r ModelLifec
 	}
 	st := in.smokeStatusFor(m, dir, artifactHash)
 	if !st.Applicable {
-		if m.Backend == "python-sidecar" || m.Backend == BackendDiffusers || m.Backend == "onnxruntime" || m.Backend == "sam2-transformers" || m.Backend == "triposr" {
+		if m.Backend == "python-sidecar" || m.Backend == BackendDiffusers || m.Backend == "onnxruntime" || m.Backend == "triposr" || IsTransformersBackend(m.Backend) {
 			return set(ModelInstalled, "smoke_unsupported")
 		}
 		return set(ModelReady, "ready")

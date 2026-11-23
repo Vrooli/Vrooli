@@ -2,6 +2,7 @@ package capability
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -28,6 +29,33 @@ func RenderTS() (string, error) {
 	b.WriteString("// have a hand-written presentation entry.\n\n")
 
 	b.WriteString("export type CapabilityEngine = \"ai\" | \"analysis\" | \"compute\" | \"unwired\";\n\n")
+	b.WriteString("export interface ExtentStageMeta {\n")
+	b.WriteString("  readonly id: string;\n")
+	b.WriteString("  readonly kind: string;\n")
+	b.WriteString("  readonly labelKey: string;\n")
+	b.WriteString("  readonly descKey: string;\n")
+	b.WriteString("  readonly replaces?: string;\n")
+	b.WriteString("  readonly strengthParam?: string;\n")
+	b.WriteString("  readonly option?: ExtentOptionMeta;\n")
+	b.WriteString("}\n\n")
+	b.WriteString("/** A stage's choice of how it runs (skin tone toward the source or toward the body). */\n")
+	b.WriteString("export interface ExtentOptionMeta {\n")
+	b.WriteString("  readonly param: string;\n")
+	b.WriteString("  readonly default: string;\n")
+	b.WriteString("  readonly values: readonly { readonly id: string; readonly labelKey: string; readonly descKey: string }[];\n")
+	b.WriteString("}\n\n")
+	b.WriteString("export interface ExtentPresetMeta {\n")
+	b.WriteString("  readonly id: string;\n")
+	b.WriteString("  readonly labelKey: string;\n")
+	b.WriteString("  readonly descKey: string;\n")
+	b.WriteString("  readonly stages: readonly string[];\n")
+	b.WriteString("}\n\n")
+	b.WriteString("/** How much of a person an operation carries over: its stages and the presets composed from them. */\n")
+	b.WriteString("export interface ExtentMeta {\n")
+	b.WriteString("  readonly stages: readonly ExtentStageMeta[];\n")
+	b.WriteString("  readonly presets: readonly ExtentPresetMeta[];\n")
+	b.WriteString("  readonly defaultPreset: string;\n")
+	b.WriteString("}\n\n")
 	b.WriteString("export interface CapabilityMeta {\n")
 	b.WriteString("  readonly id: string;\n")
 	b.WriteString("  readonly engine: CapabilityEngine;\n")
@@ -40,6 +68,7 @@ func RenderTS() (string, error) {
 	b.WriteString("  readonly labelKey?: string;\n")
 	b.WriteString("  readonly descKey?: string;\n")
 	b.WriteString("  readonly panel?: string;\n")
+	b.WriteString("  readonly extent?: ExtentMeta;\n")
 	b.WriteString("}\n\n")
 
 	b.WriteString("export const CAPABILITIES: Readonly<Record<string, CapabilityMeta>> = {\n")
@@ -59,6 +88,7 @@ func RenderTS() (string, error) {
 				strconv.Quote(m.Presentation.DescKey))
 
 		}
+		pres += renderExtentTS(m.Extent)
 		fmt.Fprintf(&b,
 			"  %s: { id: %s, engine: %s, family: %s, mechanism: %s, inputKinds: [%s], outputKind: %s, summary: %s%s },\n",
 			strconv.Quote(m.ID), strconv.Quote(m.ID), strconv.Quote(string(m.Engine)),
@@ -70,6 +100,48 @@ func RenderTS() (string, error) {
 	b.WriteString("export const capabilityIds: readonly string[] = Object.keys(CAPABILITIES);\n\n")
 	b.WriteString("export const capabilityMeta = (id: string): CapabilityMeta | undefined => CAPABILITIES[id];\n")
 	return b.String(), nil
+}
+
+// renderExtentTS renders an operation's swap-extent declaration as the TS object
+// literal the workspace builds its stage toggles and presets from.
+func renderExtentTS(e *ExtentSpec) string {
+	if e == nil {
+		return ""
+	}
+	q := strconv.Quote
+	stages := make([]string, 0, len(e.Stages))
+	for _, st := range e.Stages {
+		extra := ""
+		if st.Replaces != "" {
+			extra += ", replaces: " + q(st.Replaces)
+		}
+		if st.StrengthParam != "" {
+			extra += ", strengthParam: " + q(st.StrengthParam)
+		}
+		if st.Option != "" {
+			names := make([]string, 0, len(st.Variants))
+			for name := range st.Variants {
+				names = append(names, name)
+			}
+			slices.Sort(names)
+			values := make([]string, 0, len(names))
+			for _, name := range names {
+				v := st.Variants[name]
+				values = append(values, fmt.Sprintf("{ id: %s, labelKey: %s, descKey: %s }", q(name), q(v.LabelKey), q(v.DescKey)))
+			}
+			extra += fmt.Sprintf(", option: { param: %s, default: %s, values: [%s] }", q(st.Option), q(st.DefaultVariant), strings.Join(values, ", "))
+		}
+		stages = append(stages, fmt.Sprintf("{ id: %s, kind: %s, labelKey: %s, descKey: %s%s }", q(st.ID), q(st.Kind), q(st.LabelKey), q(st.DescKey), extra))
+	}
+	presets := make([]string, 0, len(e.Presets))
+	for _, p := range e.Presets {
+		ids := make([]string, 0, len(p.Stages))
+		for _, id := range p.Stages {
+			ids = append(ids, q(id))
+		}
+		presets = append(presets, fmt.Sprintf("{ id: %s, labelKey: %s, descKey: %s, stages: [%s] }", q(p.ID), q(p.LabelKey), q(p.DescKey), strings.Join(ids, ", ")))
+	}
+	return fmt.Sprintf(", extent: { stages: [%s], presets: [%s], defaultPreset: %s }", strings.Join(stages, ", "), strings.Join(presets, ", "), q(e.DefaultPreset))
 }
 
 // RenderCLI renders the generated Go command table for the CLI's `ai` group.
@@ -89,10 +161,14 @@ func RenderCLI() (string, error) {
 	b.WriteString("package ai\n\n")
 	b.WriteString("var generatedSubmitSpecs = []submitSpec{\n")
 	for _, m := range registry.CLICommands() {
-		needsInput, needsMask := false, false
+		needsInput, needsMask, needsReference := false, false, false
 		for _, in := range m.IO.Inputs {
 			switch in.Kind {
 			case "image":
+				if in.Name == ReferencePort {
+					needsReference = true
+					continue
+				}
 				needsInput = true
 			case "mask":
 				needsMask = true
@@ -103,9 +179,9 @@ func RenderCLI() (string, error) {
 			flags = append(flags, strconv.Quote(f))
 		}
 		fmt.Fprintf(&b,
-			"\t{Verb: %s, Op: %s, Desc: %s, NeedsInput: %t, NeedsMask: %t, Flags: []string{%s}},\n",
+			"\t{Verb: %s, Op: %s, Desc: %s, NeedsInput: %t, NeedsMask: %t, NeedsReference: %t, Flags: []string{%s}},\n",
 			strconv.Quote(m.CLI.Verb), strconv.Quote(m.ID), strconv.Quote(m.Summary),
-			needsInput, needsMask, strings.Join(flags, ", "),
+			needsInput, needsMask, needsReference, strings.Join(flags, ", "),
 		)
 	}
 	b.WriteString("}\n")

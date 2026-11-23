@@ -326,7 +326,13 @@ func Halftone(src image.Image, p Params) (image.Image, error) {
 	in := clone(src)
 	tone := toneMapper(in, p)
 	out := image.NewNRGBA(in.Bounds())
-	draw.Draw(out, out.Bounds(), &image.Uniform{C: light}, image.Point{}, draw.Src)
+	for y := 0; y < in.Bounds().Dy(); y++ {
+		for x := 0; x < in.Bounds().Dx(); x++ {
+			paper := light
+			paper.A = in.NRGBAAt(x, y).A
+			out.SetNRGBA(x, y, paper)
+		}
+	}
 	// LPI is lines across the image width, which is what makes the screen
 	// resolution-independent: the same LPI yields the same visual screen
 	// coarseness whether the frame is 400px or 4000px wide. Treating LPI as a
@@ -357,7 +363,9 @@ func Halftone(src image.Image, p Params) (image.Image, error) {
 					if p.Dot == "square" || float64(xx*xx+yy*yy) <= radius*radius {
 						px, py := x+xx, y+yy
 						if px >= 0 && py >= 0 && px < in.Bounds().Dx() && py < in.Bounds().Dy() {
-							out.SetNRGBA(px, py, dark)
+							ink := dark
+							ink.A = in.NRGBAAt(px, py).A
+							out.SetNRGBA(px, py, ink)
 						}
 					}
 				}

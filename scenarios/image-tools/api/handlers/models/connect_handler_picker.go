@@ -135,7 +135,7 @@ func (h *connectHandler) ListOperationModels(ctx context.Context, req *connect.R
 			Support:    eo.Support,
 			Technique:  eo.Technique,
 			Caveat:     eo.Caveat,
-			Verdict:    verdicts.ToProto(st.verdictFor(m.ID, op)),
+			Verdict:    verdicts.ToProto(st.verdictFor(m, op)),
 		})
 	}
 	sortCandidates(out.Candidates)
@@ -205,7 +205,7 @@ func (h *connectHandler) ExplainResolution(ctx context.Context, req *connect.Req
 		return nil, connect.NewError(connect.CodeInternal, errors.New("load model state"))
 	}
 	resolution := resolutionToProto(res)
-	resolution.Verdict = verdicts.ToProto(st.verdictFor(res.Model.ID, op))
+	resolution.Verdict = verdicts.ToProto(st.verdictFor(res.Model, op))
 	if h.deps.Consent != nil {
 		resolution.ConsentRequired, resolution.ConsentBasis, resolution.ConsentReason = h.deps.Consent(op, res.Weight, res.Tier)
 	}

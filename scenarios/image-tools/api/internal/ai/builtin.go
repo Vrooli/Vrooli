@@ -71,7 +71,7 @@ func normalByte(v float64) uint8 {
 // weightless seed models that name these backend families.
 func builtinProviderSpecs() []*backends.BuiltinProvider {
 	return []*backends.BuiltinProvider{
-		backends.NewBuiltinProvider(models.BackendBuiltin, "ai", []string{"naturalize"}, runBuiltin),
+		backends.NewBuiltinProvider(models.BackendBuiltin, "ai", []string{"naturalize", "color_transfer", "mask_composite"}, runBuiltin),
 		backends.NewBuiltinProvider(models.BackendComputed, "ai", []string{"normal_map"}, runBuiltin),
 		backends.NewBuiltinProvider(models.BackendMaskFill, "ai", []string{"object_removal"}, runBuiltin),
 	}
@@ -117,6 +117,53 @@ func runBuiltin(ctx context.Context, req backends.Request) error {
 			p.HaloThreshold = *removal.HaloThreshold
 		}
 		out = MaskFill(src, mask, p)
+	case "color_transfer":
+		maskPath, err := technique.MaskPath(req)
+		if err != nil {
+			return err
+		}
+		referencePath, err := technique.ReferencePath(req)
+		if err != nil {
+			return err
+		}
+		mask, err := readBuiltinImage(maskPath)
+		if err != nil {
+			return err
+		}
+		reference, err := readBuiltinImage(referencePath)
+		if err != nil {
+			return err
+		}
+		transfer, err := opparams.DecodeColorTransferParams(req.Params)
+		if err != nil {
+			return err
+		}
+		out, err = ColorTransfer(src, mask, reference, colorTransferParams(transfer))
+		if err != nil {
+			return err
+		}
+	case "mask_composite":
+		maskPath, err := technique.MaskPath(req)
+		if err != nil {
+			return err
+		}
+		referencePath, err := technique.ReferencePath(req)
+		if err != nil {
+			return err
+		}
+		mask, err := readBuiltinImage(maskPath)
+		if err != nil {
+			return err
+		}
+		reference, err := readBuiltinImage(referencePath)
+		if err != nil {
+			return err
+		}
+		composite, err := opparams.DecodeMaskCompositeParams(req.Params)
+		if err != nil {
+			return err
+		}
+		out = MaskComposite(src, mask, reference, maskCompositeParams(composite))
 	default:
 		return fmt.Errorf("unsupported builtin operation %q", req.Operation)
 	}
@@ -136,4 +183,28 @@ func readBuiltinImage(path string) (image.Image, error) {
 		return nil, err
 	}
 	return decodeNaturalizeInput(data)
+}
+
+// colorTransferParams applies the request's colour-transfer knobs over the
+// defaults.
+func colorTransferParams(p opparams.ColorTransferParams) ColorTransferParams {
+	out := DefaultColorTransferParams()
+	for target, value := range map[*float64]*float64{&out.Strength: p.Strength, &out.Luminance: p.Luminance, &out.Flatten: p.Flatten, &out.FeatherPx: p.FeatherPx} {
+		if value != nil {
+			*target = *value
+		}
+	}
+	return out
+}
+
+// maskCompositeParams applies the request's knobs over the defaults.
+func maskCompositeParams(p opparams.MaskCompositeParams) MaskCompositeParams {
+	out := DefaultMaskCompositeParams()
+	if p.GrowPx != nil {
+		out.GrowPx = *p.GrowPx
+	}
+	if p.FeatherPx != nil {
+		out.FeatherPx = *p.FeatherPx
+	}
+	return out
 }

@@ -6,6 +6,8 @@ import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { DiffMode, type DiffResult } from "../../api/diff";
+import { SensitiveImage } from "../sensitive/SensitiveImage";
+import { isSensitiveUrl } from "../../lib/sensitiveMedia";
 import { useCompare, type CompareClient, type CompareSlot } from "./useCompare";
 
 export interface CompareViewProps {
@@ -193,7 +195,7 @@ function Dropzone({
         className="flex flex-col items-center gap-3 rounded-card border border-dashed border-app-border bg-app-surface-muted p-6"
       >
         {imageUrl ? (
-          <img
+          <SensitiveImage
             data-testid={imageTestId}
             src={imageUrl}
             alt={alt}
@@ -251,9 +253,10 @@ function Results({ result, heatmapUrl, baseUrl, compareUrl }: ResultsProps) {
           <figcaption className="text-sm font-semibold text-app-muted-foreground">
             {t(strings.compare.heatmapHeading)}
           </figcaption>
-          <img
+          <SensitiveImage
             data-testid={selectors.compare.heatmap}
             src={heatmapUrl}
+            sensitive={isSensitiveUrl(baseUrl) || isSensitiveUrl(compareUrl)}
             alt={t(strings.compare.heatmapAlt)}
             className="block max-h-[50vh] w-auto rounded-card border border-app-border object-contain"
           />
@@ -264,7 +267,7 @@ function Results({ result, heatmapUrl, baseUrl, compareUrl }: ResultsProps) {
         {baseUrl ? (
           <figure className="flex flex-col gap-1">
             <figcaption className="text-xs text-app-muted-foreground">{t(strings.compare.baseLabel)}</figcaption>
-            <img
+            <SensitiveImage
               src={baseUrl}
               alt={t(strings.compare.baseAlt)}
               className="block max-h-64 w-full rounded-control border border-app-border object-contain"
@@ -274,7 +277,7 @@ function Results({ result, heatmapUrl, baseUrl, compareUrl }: ResultsProps) {
         {compareUrl ? (
           <figure className="flex flex-col gap-1">
             <figcaption className="text-xs text-app-muted-foreground">{t(strings.compare.compareLabel)}</figcaption>
-            <img
+            <SensitiveImage
               src={compareUrl}
               alt={t(strings.compare.compareAlt)}
               className="block max-h-64 w-full rounded-control border border-app-border object-contain"

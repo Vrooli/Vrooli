@@ -59,3 +59,27 @@ func findCode(fs []CatalogFinding, code string) *CatalogFinding {
 	}
 	return nil
 }
+
+// A restrictive adapter license is informational for normal use: the shared
+// rights evaluator allows every license class locally and keeps monetized,
+// hosted and redistributed use refused, so it never fails the catalog.
+func TestDoctorTreatsRestrictiveLicenseAsInformational(t *testing.T) {
+	for _, tc := range []struct{ commercialUse, code string }{
+		{"conditional", "enabled_conditional_commercial_use"},
+		{"no", "enabled_non_commercial_license"},
+	} {
+		doc := `{"schema_version":"1","adapters":[{"id":"x","name":"X","kind":"controlnet","architecture":"sd15","weight":"none","preprocessor":"canny","scale_range":{"min":0,"max":1,"default":0.5},"capability_labels":{"commercial_use":"` + tc.commercialUse + `","commercial_use_notes":"n"},"enabled":true,"ready":true,"source":{"repo":{"repo_id":"r","revision":"0123456789abcdef0123456789abcdef01234567"}}}]}`
+		r, err := Parse([]byte(doc))
+		if err != nil {
+			t.Fatalf("parse: %v", err)
+		}
+		rep := r.DoctorCatalog()
+		f := findCode(rep.Findings, tc.code)
+		if f == nil || f.Severity != FindingInfo {
+			t.Fatalf("%s: expected informational %s, got %+v", tc.commercialUse, tc.code, rep.Findings)
+		}
+		if !rep.OK {
+			t.Fatalf("%s: a license finding must not fail the catalog: %+v", tc.commercialUse, rep.Findings)
+		}
+	}
+}

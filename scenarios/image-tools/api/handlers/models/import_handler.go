@@ -34,8 +34,11 @@ func (h *connectHandler) InspectModelSource(ctx context.Context, req *connect.Re
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	prop := internalmodels.ProposeImport(meta)
-	overlay, _ := h.overlay(ctx)
-	installs, _ := h.installStates(ctx)
+	st, err := h.loadViewState(ctx)
+	if err != nil {
+		h.deps.Logger.Printf("models.InspectModelSource state: %v", err)
+		return nil, connect.NewError(connect.CodeInternal, errors.New("load model state"))
+	}
 
 	offered := make([]string, 0, len(prop.EffectiveOps))
 	for _, eo := range prop.EffectiveOps {
@@ -55,10 +58,12 @@ func (h *connectHandler) InspectModelSource(ctx context.Context, req *connect.Re
 		},
 		License:           meta.License,
 		Nsfw:              meta.NSFW,
-		SizeBytes:         uint64(maxInt64(0, meta.TotalSize())),
+		SizeBytes:         importDownloadBytes(meta, prop),
 		PipelineClass:     meta.PipelineClass,
 		OfferedOperations: offered,
-		Proposed:          domainToProto(prop.Entry, h.viewFor(prop.Entry, true, overlay, installs)),
+		Proposed:          domainToProto(prop.Entry, h.viewFor(prop.Entry, true, st)),
+		RuntimeFamily:     prop.Family,
+		Needs:             prop.Needs,
 	}), nil
 }
 
@@ -93,9 +98,12 @@ func (h *connectHandler) ImportModel(ctx context.Context, req *connect.Request[m
 		return nil, addCustomError(err)
 	}
 
-	overlay, _ := h.overlay(ctx)
-	installs, _ := h.installStates(ctx)
-	modelProto := domainToProto(entry, h.viewFor(entry, true, overlay, installs))
+	st, err := h.loadViewState(ctx)
+	if err != nil {
+		h.deps.Logger.Printf("models.ImportModel state: %v", err)
+		return nil, connect.NewError(connect.CodeInternal, errors.New("load model state"))
+	}
+	modelProto := domainToProto(entry, h.viewFor(entry, true, st))
 
 	if h.deps.Installer.Installed(ctx, entry.ID) {
 		return connect.NewResponse(&modelsv1.ImportModelResponse{Model: modelProto, AlreadyInstalled: true}), nil
@@ -126,6 +134,15 @@ func (h *connectHandler) ImportModel(ctx context.Context, req *connect.Request[m
 		JobId:      job.ID,
 		EtaSeconds: int32(eta),
 	}), nil
+}
+
+// importDownloadBytes is what the import would download: the planned file set's
+// size when the source is planned (a diffusers repo), else the listing total.
+func importDownloadBytes(meta internalhfmeta.Metadata, prop internalmodels.ImportProposal) uint64 {
+	if prop.Entry.Source.HasRepo() && prop.Entry.SizeMBApprox > 0 {
+		return uint64(prop.Entry.SizeMBApprox) << 20
+	}
+	return uint64(maxInt64(0, meta.TotalSize()))
 }
 
 func layoutToProto(l internalhfmeta.Layout) modelsv1.ModelLayout {

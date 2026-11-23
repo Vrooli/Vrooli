@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"path"
 	"strings"
 
 	"image-tools/internal/hfmeta"
@@ -36,6 +37,12 @@ type ImportProposal struct {
 	// EffectiveOps is the op set Entry would offer (native + proven-derived), so
 	// the wizard can show "you'll get text_to_image + derived img2img/inpaint".
 	EffectiveOps []EffectiveOp
+	// Family is the diffusers adapter the import resolved from the repo's pipeline
+	// class ("" when the source is not a diffusers repo or has no adapter yet).
+	Family string
+	// Needs lists, in plain words, what still stands between this proposal and a
+	// model that runs. Empty means the entry is selectable as soon as it installs.
+	Needs []string
 }
 
 // ImportConfirm carries the operator-confirmed fields ImportModel applies over a
@@ -52,6 +59,9 @@ type ImportConfirm struct {
 	Operations []string
 	// AttestCommercialRights records the operator's attestation that they hold
 	// commercial rights, lifting the public/BYOK serving block (decision D4).
+	// It is optional: an unattested import runs locally (normal use) and carries a
+	// conditional commercial label that keeps hosted, monetized and redistributed
+	// use refused.
 	AttestCommercialRights bool
 }
 
@@ -68,7 +78,61 @@ func ProposeImport(meta hfmeta.Metadata) ImportProposal {
 		Evidence:     evidence,
 		Entry:        entry,
 		EffectiveOps: entry.EffectiveOps(),
+		Family:       entry.Runtime.Family,
+		Needs:        importNeeds(meta, arch, conf, entry),
 	}
+}
+
+// importNeeds says in plain words what an import still lacks to be runnable, so a
+// source that cannot run says which piece is missing and where it goes instead of
+// registering a model that fails at its first job.
+func importNeeds(meta hfmeta.Metadata, arch Architecture, conf Confidence, entry Model) []string {
+	var needs []string
+	if arch == ArchNone || conf == ConfidenceNone {
+		needs = append(needs, "the architecture could not be inferred: pass --architecture (one of "+architectureNames()+")")
+	}
+	if entry.Backend == "" {
+		needs = append(needs, fmt.Sprintf("the source layout %q has no runnable backend: provide a single-file checkpoint or a diffusers repo", meta.Layout))
+	}
+	if gap := adapterGap(meta, arch, entry); gap != "" {
+		needs = append(needs, gap)
+	}
+	if fam, ok := DiffusersFamilyByName(entry.Runtime.Family); ok && !fam.Ready {
+		needs = append(needs, fmt.Sprintf("the %q adapter is not proven runnable yet: %s", fam.Name, fam.Pending))
+	}
+	return needs
+}
+
+// adapterGap names the missing adapter when a diffusers repo needs one and none
+// is registered for its pipeline class ("" otherwise).
+func adapterGap(meta hfmeta.Metadata, arch Architecture, entry Model) string {
+	if meta.Layout != hfmeta.LayoutDiffusersRepo || entry.Runtime.Family != "" || !wantsFamilyAdapter(arch, meta.PipelineClass) {
+		return ""
+	}
+	return fmt.Sprintf("no diffusers adapter is registered for pipeline class %q: add a DiffusersFamily row in api/internal/models/families.go and an Adapter in api/internal/sidecar/py/image_tools_sidecar/_diffusers.py (docs/reference/model-registry.md, \"Add a diffusers family\")", meta.PipelineClass)
+}
+
+// wantsFamilyAdapter reports whether a diffusers repo of this architecture runs
+// through a family adapter. Base SD/SDXL repos run through the derived
+// techniques (img2img, inpaint) and need none; edit-specialised and unified
+// architectures do.
+func wantsFamilyAdapter(arch Architecture, pipelineClass string) bool {
+	if strings.TrimSpace(pipelineClass) == "" {
+		return false
+	}
+	switch arch {
+	case ArchSD15, ArchSDXL, ArchNone:
+		return false
+	}
+	return true
+}
+
+func architectureNames() string {
+	names := make([]string, 0, len(architectures))
+	for _, a := range Architectures() {
+		names = append(names, string(a))
+	}
+	return strings.Join(names, "|")
 }
 
 // BuildImportEntry assembles the final add-only entry from inspected metadata and
@@ -89,9 +153,6 @@ func BuildImportEntry(meta hfmeta.Metadata, confirm ImportConfirm) (Model, error
 	if arch == "" || arch == ArchNone {
 		return Model{}, fmt.Errorf("import: architecture could not be inferred and was not confirmed — select one explicitly")
 	}
-	if !confirm.AttestCommercialRights {
-		return Model{}, fmt.Errorf("import: confirm that you hold commercial rights before registering or downloading model weights")
-	}
 	if !arch.valid() {
 		return Model{}, fmt.Errorf("import: unknown architecture %q", arch)
 	}
@@ -103,17 +164,26 @@ func BuildImportEntry(meta hfmeta.Metadata, confirm ImportConfirm) (Model, error
 	if entry.Backend == "" {
 		return Model{}, fmt.Errorf("import: source layout %q has no runnable backend (provide a single-file checkpoint or a diffusers repo)", meta.Layout)
 	}
-	// The final import flow only accepts an explicit rights attestation. Dry-run
-	// proposals remain conditional until the operator confirms in ImportConfirm.
-	entry.CapabilityLabels.CommercialUse = CommercialUseYes
-	entry.CapabilityLabels.CommercialUseNotes = "operator-attested commercial rights at import time"
+	// Never register a model whose first job is certain to fail: say what is
+	// missing instead.
+	if gap := adapterGap(meta, arch, entry); gap != "" {
+		return Model{}, fmt.Errorf("import: %s", gap)
+	}
+	// Licensing never blocks normal local use (operator stance 2026-11-21): an
+	// unattested import runs locally and keeps hosted, monetized and redistributed
+	// use refused by its conditional label; an attestation lifts that label.
+	if confirm.AttestCommercialRights {
+		entry.CapabilityLabels.CommercialUse = CommercialUseYes
+		entry.CapabilityLabels.CommercialUseNotes = "operator-attested commercial rights at import time"
+	}
 	return entry, nil
 }
 
 // assembleEntry builds the registry entry for an inspected source + architecture.
 // Operations default to the architecture's base ops unless overridden.
 func assembleEntry(meta hfmeta.Metadata, arch Architecture, id, name string, ops []string) Model {
-	if len(ops) == 0 {
+	defaultOps := len(ops) == 0
+	if defaultOps {
 		ops = baseOperationsFor(arch)
 	}
 	m := Model{
@@ -125,14 +195,61 @@ func assembleEntry(meta hfmeta.Metadata, arch Architecture, id, name string, ops
 		SizeMBApprox: int(meta.TotalSize() >> 20),
 		Hardware:     importHardwareFor(arch),
 		CapabilityLabels: CapabilityLabels{
-			NSFWCapable:      meta.NSFW,
-			License:          meta.LicenseLabel(),
-			BaseModelLineage: meta.BaseModel,
-			Provenance:       ProvenanceUserImported,
+			NSFWCapable:        meta.NSFW,
+			License:            meta.LicenseLabel(),
+			CommercialUse:      CommercialUseConditional,
+			CommercialUseNotes: unattestedImportNotes,
+			BaseModelLineage:   meta.BaseModel,
+			Provenance:         ProvenanceUserImported,
 		},
 	}
 	applyLayoutSource(&m, meta)
+	applyFamily(&m, meta, defaultOps)
+	// An import is selectable the moment its weights install, graded "untested"
+	// until evidence arrives; only an adapter that is not yet proven keeps it off.
+	m.Enabled = m.Backend != "" && !familyPending(m)
+	if !m.Enabled && m.Backend != "" {
+		m.Disabled = &DisabledReason{Kind: DisabledRuntime, Reason: pendingFamilyReason(m)}
+	}
 	return m
+}
+
+// pendingFamilyReason is the reason an import of a registered-but-unproven
+// adapter family stays off.
+func pendingFamilyReason(m Model) string {
+	fam, _ := DiffusersFamilyByName(m.Runtime.Family)
+	if fam.Pending != "" {
+		return fam.Pending
+	}
+	return "its diffusers adapter family (" + m.Runtime.Family + ") is registered but not yet proven to run"
+}
+
+// unattestedImportNotes explains the conditional label of an import whose
+// licence the operator has not vouched for. It is a recorded fact, not a gate on
+// local use.
+const unattestedImportNotes = "licence not verified at import: normal local use is allowed; hosted, monetized or redistributed use needs the licence checked and --attest-commercial-rights"
+
+// applyFamily binds a diffusers repo to the adapter its pipeline class names, so
+// the import runs with no operator-supplied runtime fields. When the operator did
+// not list operations, the family's operations replace the architecture's base
+// ones (a unified family also edits; an edit family only edits).
+func applyFamily(m *Model, meta hfmeta.Metadata, defaultOps bool) {
+	if m.Backend != BackendDiffusers {
+		return
+	}
+	fam, ok := DiffusersFamilyForPipelineClass(meta.PipelineClass)
+	if !ok {
+		return
+	}
+	m.Runtime = Runtime{Family: fam.Name, PipelineClass: fam.PipelineClass, MinRuntime: fam.MinRuntime, Variant: m.Runtime.Variant}
+	if defaultOps && len(fam.Operations) > 0 {
+		m.Operations = append([]string(nil), fam.Operations...)
+	}
+}
+
+func familyPending(m Model) bool {
+	fam, ok := DiffusersFamilyByName(m.Runtime.Family)
+	return ok && !fam.Ready
 }
 
 // importHardwareFor returns conservative, architecture-keyed hardware bounds for
@@ -166,7 +283,106 @@ func applyLayoutSource(m *Model, meta hfmeta.Metadata) {
 		return
 	}
 	m.Source = meta.ImportSource(".safetensors", ".ckpt", ".gguf")
+	if m.Source.HasRepo() {
+		plan := planRepoFetch(meta)
+		m.Source.Repo.AllowPatterns = plan.Files
+		m.Runtime.Variant = plan.Variant
+		if plan.Bytes > 0 {
+			m.SizeMBApprox = int(plan.Bytes >> 20)
+		}
+	}
 }
+
+// repoFetchPlan is what an imported diffusers repo actually downloads.
+type repoFetchPlan struct {
+	// Files are the exact repo paths to fetch (nil fetches the whole repo, used
+	// when the listing is unknown or has no component folders to prefer).
+	Files []string
+	// Variant is the diffusers weight variant the files are, "" for full precision.
+	Variant string
+	// Bytes is the size of Files (0 when the listing carries no sizes).
+	Bytes int64
+}
+
+// planRepoFetch chooses the files a diffusers repo needs so an import cannot end
+// up downloading three copies of the weights. A repo lists, beside its component
+// folders, a duplicate root checkpoint, alternate formats (.bin, .ckpt, .onnx,
+// .msgpack) and often both fp16 and full-precision copies of every component.
+// The plan keeps the component folders only, safetensors only, and one precision:
+// fp16 when every weight folder has an fp16 copy (loaded with variant="fp16"),
+// otherwise full precision.
+func planRepoFetch(meta hfmeta.Metadata) repoFetchPlan {
+	type entry struct {
+		path    string
+		size    int64
+		dir     string
+		weight  bool
+		variant bool
+	}
+	var all []entry
+	hasSafetensors, components := false, false
+	for _, f := range meta.Files {
+		p := strings.Trim(f.Path, "/")
+		if p == "" {
+			continue
+		}
+		e := entry{path: p, size: f.Size, dir: path.Dir(p)}
+		if e.dir != "." {
+			components = true
+		}
+		base := path.Base(p)
+		switch ext := strings.ToLower(path.Ext(base)); {
+		case ext == ".safetensors":
+			e.weight, hasSafetensors = true, true
+			e.variant = strings.Contains(base, ".fp16")
+		case strings.HasSuffix(base, ".safetensors.index.json"):
+			e.variant = strings.Contains(base, ".fp16")
+			e.weight = true
+		case altWeightExt[ext]:
+			e.weight = true // an alternate weight format, dropped below when safetensors exist
+		}
+		all = append(all, e)
+	}
+	if !components {
+		return repoFetchPlan{}
+	}
+
+	// Precision: fp16 only when every weight folder has it.
+	fp16Dirs, weightDirs := map[string]bool{}, map[string]bool{}
+	for _, e := range all {
+		if e.weight && e.dir != "." && strings.HasSuffix(strings.ToLower(e.path), ".safetensors") {
+			weightDirs[e.dir] = true
+			if e.variant {
+				fp16Dirs[e.dir] = true
+			}
+		}
+	}
+	useFP16 := len(fp16Dirs) > 0 && len(fp16Dirs) == len(weightDirs)
+
+	var plan repoFetchPlan
+	if useFP16 {
+		plan.Variant = "fp16"
+	}
+	for _, e := range all {
+		if e.weight {
+			if e.dir == "." {
+				continue // the duplicate root checkpoint
+			}
+			if hasSafetensors && (!strings.Contains(e.path, ".safetensors")) {
+				continue // alternate format beside safetensors
+			}
+			if e.variant != useFP16 {
+				continue // the other precision
+			}
+		}
+		plan.Files = append(plan.Files, e.path)
+		plan.Bytes += e.size
+	}
+	return plan
+}
+
+// altWeightExt are weight formats a diffusers repo ships beside safetensors.
+var altWeightExt = map[string]bool{".bin": true, ".ckpt": true, ".pt": true, ".pth": true, ".onnx": true, ".onnx_data": true, ".msgpack": true, ".h5": true, ".ot": true, ".gguf": true}
 
 // baseOperationsFor is the native op set an imported base model declares for its
 // architecture. Base txt2img checkpoints declare generate + transform and DERIVE

@@ -113,6 +113,25 @@ describe("SettingsPage display preferences", () => {
     });
   });
 
+  it("blurs sensitive images by default and persists the Show choice", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<SettingsPage />);
+    expect(screen.getByTestId(selectors.settingsPage.sensitiveImagesOption({ choice: "blur" }))).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+
+    await user.click(screen.getByTestId(selectors.settingsPage.sensitiveImagesOption({ choice: "show" })));
+
+    await waitFor(() => {
+      expect(JSON.parse(window.localStorage.getItem("vrooli.display-settings") ?? "{}").sensitiveImages).toBe("show");
+    });
+    expect(screen.getByTestId(selectors.settingsPage.sensitiveImagesOption({ choice: "show" }))).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+  });
+
   it("keeps the existing theme and locale controls", () => {
     renderWithProviders(<SettingsPage />);
     expect(screen.getByTestId(selectors.settingsPage.themeOption({ choice: "light" }))).toBeInTheDocument();

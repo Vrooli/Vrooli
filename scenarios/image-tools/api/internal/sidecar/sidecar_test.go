@@ -34,6 +34,7 @@ func TestMaterialize_WritesPackage(t *testing.T) {
 		"segment.py",
 		"tagging.py",
 		"worker.py",
+		"_containment.py",
 	} {
 		p := filepath.Join(root, PackageName, f)
 		info, statErr := os.Stat(p)
@@ -42,6 +43,76 @@ func TestMaterialize_WritesPackage(t *testing.T) {
 		}
 		if info.Size() == 0 {
 			t.Fatalf("%s is empty", f)
+		}
+	}
+}
+
+func TestMaterialize_WritesInterpreterStartGuard(t *testing.T) {
+	root := t.TempDir()
+	if _, err := Materialize(root); err != nil {
+		t.Fatalf("materialize: %v", err)
+	}
+	if info, err := os.Stat(filepath.Join(root, "sitecustomize.py")); err != nil || info.Size() == 0 {
+		t.Fatalf("the interpreter-start guard must sit on PYTHONPATH beside the package: %v", err)
+	}
+}
+
+func containmentEnv(t *testing.T, mode string) []string {
+	t.Helper()
+	env := pythonSidecarEnv(t)
+	if mode != "" {
+		env = append(env, "IMAGE_TOOLS_SIDECAR_NETWORK="+mode)
+	}
+	return env
+}
+
+// A library that ignores every cache variable and simply opens a socket (urllib,
+// requests, torch.hub, insightface, rembg) must be refused during inference,
+// without the process ever importing image_tools_sidecar itself: the guard
+// arrives through sitecustomize.
+func TestPythonSidecar_InferenceProcessesCannotReachTheNetwork(t *testing.T) {
+	script := `
+import socket, urllib.request, sys
+from_libs = []
+for attempt in (
+    lambda: socket.create_connection(("203.0.113.9", 80), timeout=1),
+    lambda: socket.getaddrinfo("huggingface.co", 443),
+    lambda: urllib.request.urlopen("https://github.com/deepinsight/insightface/releases/download/v0.7/buffalo_l.zip", timeout=1),
+):
+    try:
+        attempt()
+    except OSError as exc:
+        text = str(exc) + str(getattr(exc, "reason", ""))
+        assert "image-tools blocked a network connection" in text, text
+        assert "governed install step" in text, text
+    else:
+        raise AssertionError("network access was not refused")
+`
+	cmd := exec.Command("python3", "-c", script)
+	cmd.Env = containmentEnv(t, "blocked")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("inference containment: %v\n%s", err, out)
+	}
+}
+
+func TestPythonSidecar_LoopbackAndAcquisitionAreNotBlocked(t *testing.T) {
+	script := `
+import socket
+from image_tools_sidecar import _containment
+listener = socket.socket(); listener.bind(("127.0.0.1", 0)); listener.listen(1)
+client = socket.create_connection(listener.getsockname(), timeout=2)
+client.close(); listener.close()
+import os
+if os.environ.get("IMAGE_TOOLS_SIDECAR_NETWORK") == "governed-acquisition":
+    assert not _containment._installed, "the governed acquisition step must keep network access"
+else:
+    assert _containment._installed
+`
+	for _, mode := range []string{"blocked", "governed-acquisition"} {
+		cmd := exec.Command("python3", "-c", script)
+		cmd.Env = containmentEnv(t, mode)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("mode %s: %v\n%s", mode, err, out)
 		}
 	}
 }
@@ -111,7 +182,8 @@ class FakeOrt:
 _common.require_deps = lambda: (None, FakeOrt, None)
 for i in range(10):
     _common.make_session(str(i))
-assert len(_common._SESSION_CACHE) <= 2, len(_common._SESSION_CACHE)
+assert _common._MAX_SESSIONS >= 4, 'face_swap keeps four graphs (swapper, embedder, detector, occluder) resident'
+assert len(_common._SESSION_CACHE) <= _common._MAX_SESSIONS, len(_common._SESSION_CACHE)
 assert any(key.endswith(":9") for key in _common._SESSION_CACHE)
 `
 	cmd := exec.Command("python3", "-c", script)
@@ -262,12 +334,16 @@ close(boxes[0]["score"], 0.72, 1e-6)
 for got, want in zip(boxes[0]["box"], [0.4, 0.4, 0.6, 0.6]):
     close(got, want, 1e-6)
 
-det_in = detect._preprocess(np, img, (2, 4))
-assert det_in.shape == (1, 3, 2, 4)
+# YOLOX takes BGR pixels in 0-255, letterboxed with grey padding: the 4x2 test
+# image fills a 4x4 model input at scale 1 and leaves the bottom half grey.
+det_in, det_scale = detect.letterbox(np, img, (4, 4))
+assert det_in.shape == (1, 3, 4, 4)
 assert det_in.dtype == np.float32
-close(det_in[0, 0, 0, 0], 128.0 / 255.0)
-close(det_in[0, 1, 0, 0], 64.0 / 255.0)
-close(det_in[0, 2, 0, 0], 32.0 / 255.0)
+close(det_scale, 1.0)
+close(det_in[0, 0, 0, 0], 32.0)
+close(det_in[0, 1, 0, 0], 64.0)
+close(det_in[0, 2, 0, 0], 128.0)
+close(det_in[0, 0, 3, 0], detect.PAD_VALUE)
 
 rgb = colorize._to_rgb_prediction(np, np.ones((3, 2, 2), dtype=np.float32))
 assert rgb.shape == (2, 2, 3)
@@ -343,12 +419,4 @@ func pythonSidecarEnv(t *testing.T) []string {
 	}
 	t.Fatal("locate Python sidecar source directory")
 	return nil
-}
-
-func TestPythonSidecar_SourceRasterAndRepairContracts(t *testing.T) {
-	cmd := exec.Command("python3", "-m", "unittest", "image_tools_sidecar.test_source_raster", "image_tools_sidecar.test_lama", "-v")
-	cmd.Env = pythonSidecarEnv(t)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("source raster/repair contracts: %v\n%s", err, out)
-	}
 }

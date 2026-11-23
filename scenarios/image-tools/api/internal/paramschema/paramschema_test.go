@@ -154,3 +154,20 @@ func TestValidateMaxItems(t *testing.T) {
 		t.Fatal("three items should fail maxItems")
 	}
 }
+
+func TestValidateStringLength(t *testing.T) {
+	s := mustCompile(t, `{"type":"object","properties":{"text":{"type":"string","minLength":1,"maxLength":5}}}`)
+	for _, ok := range []string{"a", "abcde", "héllo"} {
+		if err := s.Validate(map[string]any{"text": ok}); err != nil {
+			t.Errorf("%q should pass: %v", ok, err)
+		}
+	}
+	for _, bad := range []string{"", "abcdef"} {
+		if err := s.Validate(map[string]any{"text": bad}); err == nil {
+			t.Errorf("%q should fail the length bounds", bad)
+		}
+	}
+	if _, err := Compile([]byte(`{"type":"object","properties":{"text":{"type":"string","minLength":-1}}}`)); err == nil {
+		t.Error("a negative minLength should not compile")
+	}
+}

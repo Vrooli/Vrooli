@@ -63,18 +63,21 @@ func TestGeneration_ImageToImageMaterializesInput(t *testing.T) {
 }
 
 // TestGeneration_EditInstructMaterializesInput proves the instruction-edit op
-// (identity-preserving, prompt-only, no mask) materializes its single input blob
-// and threads the natural-language instruction through to the backend.
+// (prompt-only, no mask) materializes its single input blob and threads the
+// natural-language instruction through to the backend. The caller opts out of
+// identity preservation so the instruction reaches the backend verbatim; the
+// default (instruction plus the identity sentence) is covered in route_test.go.
 func TestGeneration_EditInstructMaterializesInput(t *testing.T) {
 	fp := &fakeProvider{out: []byte("edited-image")}
 	eng, store, modelID := newTestEngine(t, "edit_instruct", fp)
 	storeInput(t, store, "input/x.png", []byte("source-pixels"))
 
 	ref, err := runJob(t, eng, "edit_instruct", Payload{
-		Operation: "edit_instruct",
-		ModelID:   modelID,
-		InputKey:  "input/x.png",
-		Params:    map[string]string{"prompt": "add a winter coat"},
+		Operation:        "edit_instruct",
+		ModelID:          modelID,
+		InputKey:         "input/x.png",
+		Params:           map[string]string{"prompt": "add a winter coat"},
+		PreserveIdentity: ptr(false),
 	})
 	if err != nil {
 		t.Fatalf("run edit_instruct: %v", err)

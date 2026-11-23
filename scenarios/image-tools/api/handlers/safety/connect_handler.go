@@ -40,6 +40,7 @@ func policyToProto(p internalsafety.Policy) *safetyv1.SafetyPolicy {
 	out := &safetyv1.SafetyPolicy{
 		Tier:              tierToProto(p.Tier),
 		RequireConsent:    p.RequireConsent,
+		ConsentNonLocal:   p.ConsentNonLocal,
 		ForceNsfwScan:     p.ForceNSFWScan,
 		RequireProvenance: p.RequireProvenance,
 		RateLimitPerMin:   int32(p.RateLimitPerMin),

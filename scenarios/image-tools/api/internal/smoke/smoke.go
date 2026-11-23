@@ -14,6 +14,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"image-tools/internal/modelenv"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -71,9 +72,12 @@ func (in Invoker) Probe(ctx context.Context, args []string) (string, error) {
 
 func defaultRunner(ctx context.Context, python string, args, extraEnv []string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, python, args...)
+	base := os.Environ()
 	if len(extraEnv) > 0 {
-		cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env(extraEnv))
+		base = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env(extraEnv))
 	}
+	// A smoke probe constructs an installed model; it must never fetch one.
+	cmd.Env = modelenv.Apply(base, modelenv.ModeInference)
 	return cmd.CombinedOutput()
 }
 

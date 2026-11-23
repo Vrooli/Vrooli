@@ -4,8 +4,10 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -26,7 +28,12 @@ type JudgeRequest struct {
 	Profile, Rubric, Instruction, ReferenceText, OutputText, ExpectedModel string
 	Input, Reference, Output                                               []byte
 }
-type Evaluator struct{ Judge Judge }
+type Evaluator struct {
+	Judge Judge
+	// Perceptual scores reference.lpips. It is consulted only for manifests that
+	// budget that metric.
+	Perceptual Perceptual
+}
 
 func Validate(m *qualityv1.EvaluationManifest) error {
 	if m == nil || m.SchemaVersion != 1 {
@@ -45,8 +52,10 @@ func Validate(m *qualityv1.EvaluationManifest) error {
 	if m.Judge != "" && m.Judge != "required" && m.Judge != "disabled" {
 		return fmt.Errorf("judge must be required or disabled")
 	}
-	if m.Judge != "disabled" && m.JudgeModel == "" {
-		return fmt.Errorf("judge_model is required to bind the local judge identity")
+	if m.Judge != "disabled" {
+		if _, err := ParseJudgeChain(m.JudgeModel); err != nil {
+			return fmt.Errorf("judge_model is required to bind the judge identity: %w", err)
+		}
 	}
 	seen := map[string]bool{}
 	for _, c := range m.Cases {
@@ -71,7 +80,7 @@ func Validate(m *qualityv1.EvaluationManifest) error {
 				return fmt.Errorf("case %s: reference hash provided without a reference image", c.Id)
 			}
 			if m.Judge == "disabled" {
-				return fmt.Errorf("case %s: image output without a pixel reference requires the local judge", c.Id)
+				return fmt.Errorf("case %s: image output without a pixel reference requires a judge", c.Id)
 			}
 			if m.Operation != "text_to_image" && c.Input == "" {
 				return fmt.Errorf("case %s: source image is required when scoring %s without a pixel reference", c.Id, m.Operation)
@@ -144,6 +153,8 @@ func (e *Evaluator) Evaluate(ctx context.Context, m *qualityv1.EvaluationManifes
 	if suite.Judge == "" {
 		suite.Judge = "required"
 	}
+	budgetMetrics := budgetMetricNames(m)
+	lpipsScored := false
 	for i, c := range m.Cases {
 		if ctx.Err() != nil {
 			return nil, context.Cause(ctx)
@@ -183,10 +194,22 @@ func (e *Evaluator) Evaluate(ctx context.Context, m *qualityv1.EvaluationManifes
 				if m.Operation == "text_to_image" {
 					s.Warnings = append(s.Warnings, "reference-image metrics omitted: text-to-image has no canonical pixel reference")
 				} else {
-					s.Warnings = append(s.Warnings, "reference-image metrics omitted: no canonical pixel reference; the local judge uses the supplied source image and instruction")
+					s.Warnings = append(s.Warnings, "reference-image metrics omitted: no canonical pixel reference; the judge uses the supplied source image and instruction")
 				}
 			} else {
 				s.Metrics, s.Warnings, err = imageMetrics(m.Profile, ref, out)
+				if err == nil && wantsMetric(budgetMetrics, MetricLPIPS) {
+					lpipsScored = true
+					if s.Metrics["dimensions_match"] != 1 {
+						s.Warnings = append(s.Warnings, MetricLPIPS+" omitted: candidate and reference sizes differ")
+					} else if e.Perceptual == nil {
+						err = fmt.Errorf("%s is budgeted but no perceptual scorer is configured", MetricLPIPS)
+					} else if d, derr := e.Perceptual.Distance(ctx, ref, out); derr != nil {
+						err = fmt.Errorf("%s: %w", MetricLPIPS, derr)
+					} else {
+						s.Metrics[MetricLPIPS] = d
+					}
+				}
 			}
 			if err != nil {
 				s.Errors = append(s.Errors, err.Error())
@@ -198,7 +221,11 @@ func (e *Evaluator) Evaluate(ctx context.Context, m *qualityv1.EvaluationManifes
 			} else {
 				j, err := e.Judge.Score(ctx, JudgeRequest{Profile: m.Profile, Rubric: rubric, Instruction: c.Instruction, ReferenceText: c.ReferenceText, OutputText: c.OutputText, ExpectedModel: m.JudgeModel, Input: input, Reference: ref, Output: out})
 				if err != nil {
-					s.Errors = append(s.Errors, "judge: "+err.Error())
+					prefix := "judge: "
+					if errors.Is(err, ErrJudgeUnavailable) {
+						prefix = "" // the message already begins judge_unavailable: the case abstains
+					}
+					s.Errors = append(s.Errors, prefix+err.Error())
 				} else if err = validateJudge(j, m.JudgeModel); err != nil {
 					s.Errors = append(s.Errors, err.Error())
 				} else {
@@ -249,6 +276,12 @@ func (e *Evaluator) Evaluate(ctx context.Context, m *qualityv1.EvaluationManifes
 	}
 	r.PromotionEligible = r.Passed && provesImprovement && m.Judge != "disabled" && baseline != nil && baseline.CandidateModel != "" && (baseline.CandidateModel != r.CandidateModel || baseline.CandidateRevision != r.CandidateRevision)
 	r.Limits = []string{"Reference metrics measure registered pixel/text agreement; learned judgments are model opinions and are not calibrated human preferences.", "Qualification applies only to these retained cases and the reported candidate/evaluator/judge identities."}
+	if lpipsScored {
+		r.Limits = append(r.Limits, "reference.lpips is LPIPS (AlexNet backbone, lpips 0.1.4 linear heads v0.1) in 1024-pixel tiles at native size: lower is better, and it measures learned perceptual distance to the reference, not fidelity to the scene.")
+	}
+	if chain, err := ParseJudgeChain(m.JudgeModel); m.Judge != "disabled" && err == nil && !chain[0].IsQualified() {
+		r.Limits = append(r.Limits, fmt.Sprintf("Judge %s/%s has not passed the guinea-pig-v1 agreement bar: its scores are a labelled screen, not a verdict.", chain[0].Provider, chain[0].Model))
+	}
 	if m.Judge == "disabled" {
 		r.Limits = append(r.Limits, "Judge disabled: deterministic regression evidence only; this report cannot qualify a model promotion.")
 	}
@@ -284,16 +317,30 @@ func readAsset(ctx context.Context, load Loader, key, expected, label string, s 
 	return b
 }
 
-func validateJudge(j *qualityv1.JudgeResult, model string) error {
-	if j == nil || !j.Validated || j.Provider != "ollama" || j.Model != model || strings.TrimSpace(j.Rationale) == "" {
-		return fmt.Errorf("judge result is unvalidated, incomplete, nonlocal or model identity differs")
+func validateJudge(j *qualityv1.JudgeResult, judgeModel string) error {
+	chain, err := ParseJudgeChain(judgeModel)
+	if err != nil {
+		return err
 	}
-	// Promotion evidence must identify the actual local route and the resource
-	// claim that admitted it. A Judge implementation's Validated bit alone is
-	// not an attestation: test doubles and alternate implementations must obey
-	// the same evidence contract as GatewayJudge.
-	if strings.TrimSpace(j.RouteEventId) == "" || strings.TrimSpace(j.CapacityClaimId) == "" || j.CapacityOwnership != "resource:ollama" || len(j.RubricSha256) != 64 {
-		return fmt.Errorf("judge result lacks route, capacity or rubric evidence")
+	if j == nil || !j.Validated || strings.TrimSpace(j.Rationale) == "" {
+		return fmt.Errorf("judge result is unvalidated or incomplete")
+	}
+	// The result names which judge in the manifest's chain produced it.
+	idx := slices.IndexFunc(chain, func(c JudgeSpec) bool { return c.Provider == j.Provider && c.Model == j.Model })
+	if idx < 0 {
+		return fmt.Errorf("judge result's provider/model identity is not one the manifest names")
+	}
+	spec := chain[idx]
+	// Promotion evidence must identify the actual route that served the case. A
+	// local judge also carries the resource claim that admitted it. A Judge
+	// implementation's Validated bit alone is not an attestation: test doubles
+	// and alternate implementations must obey the same evidence contract as
+	// GatewayJudge.
+	if strings.TrimSpace(j.RouteEventId) == "" || j.CapacityOwnership != spec.CapacityOwnership() || len(j.RubricSha256) != 64 {
+		return fmt.Errorf("judge result lacks route, ownership or rubric evidence")
+	}
+	if !spec.Hosted() && strings.TrimSpace(j.CapacityClaimId) == "" {
+		return fmt.Errorf("local judge result lacks the capacity claim that admitted it")
 	}
 	for _, v := range []float64{j.Fidelity, j.Instruction, j.Artifacts} {
 		if math.IsNaN(v) || math.IsInf(v, 0) || v < 0 || v > 1 {

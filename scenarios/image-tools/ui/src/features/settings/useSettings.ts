@@ -11,6 +11,10 @@
  *                     `prefers-reduced-motion` gate the design already honors).
  *   - textDirection → `dir` on <html> ("auto" follows the active locale).
  *   - handedness    → `data-handedness` on <html> (mobile primary-action side).
+ *   - sensitiveImages → read by `SensitiveImage` ("blur" by default, or "show"):
+ *                     whether images the server flagged sensitive are blurred
+ *                     behind a tap-to-reveal. No `<html>` attribute: the
+ *                     component reads it from context.
  *
  * The store is a tiny `useState` + `localStorage` adapter exposed through a
  * context provider so a single effect owns the document writes and tests can
@@ -22,12 +26,14 @@ export type FontScale = "small" | "default" | "large" | "xlarge";
 export type ReducedMotion = "system" | "always" | "never";
 export type TextDirection = "auto" | "ltr" | "rtl";
 export type Handedness = "left" | "right";
+export type SensitiveImages = "blur" | "show";
 
 export interface SettingsState {
   fontScale: FontScale;
   reducedMotion: ReducedMotion;
   textDirection: TextDirection;
   handedness: Handedness;
+  sensitiveImages: SensitiveImages;
 }
 
 export const DEFAULT_SETTINGS: SettingsState = {
@@ -35,12 +41,14 @@ export const DEFAULT_SETTINGS: SettingsState = {
   reducedMotion: "system",
   textDirection: "auto",
   handedness: "right",
+  sensitiveImages: "blur",
 };
 
 export const FONT_SCALES: readonly FontScale[] = ["small", "default", "large", "xlarge"];
 export const REDUCED_MOTION_CHOICES: readonly ReducedMotion[] = ["system", "always", "never"];
 export const TEXT_DIRECTION_CHOICES: readonly TextDirection[] = ["auto", "ltr", "rtl"];
 export const HANDEDNESS_CHOICES: readonly Handedness[] = ["left", "right"];
+export const SENSITIVE_IMAGES_CHOICES: readonly SensitiveImages[] = ["blur", "show"];
 
 export const SETTINGS_STORAGE_KEY = "vrooli.display-settings";
 
@@ -48,6 +56,7 @@ const FONT_SCALE_SET = new Set<string>(FONT_SCALES);
 const REDUCED_MOTION_SET = new Set<string>(REDUCED_MOTION_CHOICES);
 const TEXT_DIRECTION_SET = new Set<string>(TEXT_DIRECTION_CHOICES);
 const HANDEDNESS_SET = new Set<string>(HANDEDNESS_CHOICES);
+const SENSITIVE_IMAGES_SET = new Set<string>(SENSITIVE_IMAGES_CHOICES);
 
 /**
  * Read persisted settings, tolerating a missing/partial/corrupt blob: any
@@ -85,6 +94,9 @@ export function readStoredSettings(): SettingsState {
     handedness: HANDEDNESS_SET.has(record.handedness as string)
       ? (record.handedness as Handedness)
       : DEFAULT_SETTINGS.handedness,
+    sensitiveImages: SENSITIVE_IMAGES_SET.has(record.sensitiveImages as string)
+      ? (record.sensitiveImages as SensitiveImages)
+      : DEFAULT_SETTINGS.sensitiveImages,
   };
 }
 

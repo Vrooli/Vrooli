@@ -8,10 +8,20 @@
 -- and add-only custom/imported adapters. An adapter with no row uses its seed
 -- default. Forward-only declarative; re-runs are no-ops.
 
--- Enabled-state override over the seed default (one row per explicit toggle).
-CREATE TABLE IF NOT EXISTS adapter_state (
-  id      TEXT PRIMARY KEY,
-  enabled INTEGER NOT NULL
+-- Enabled-state override over the seed default (one row per explicit toggle),
+-- with the provenance and seed baseline the supersession rule needs (see
+-- internal/catalogstate/overlay.go). seed_enabled is -1 until a pre-provenance
+-- row is adopted at boot.
+CREATE TABLE IF NOT EXISTS adapter_override (
+  id              TEXT PRIMARY KEY,
+  enabled         INTEGER NOT NULL,
+  set_by          TEXT NOT NULL,
+  set_at          TEXT NOT NULL DEFAULT '',
+  reason          TEXT NOT NULL DEFAULT '',
+  pinned          INTEGER NOT NULL DEFAULT 0,
+  seed_enabled    INTEGER NOT NULL DEFAULT -1,
+  superseded_at   TEXT NOT NULL DEFAULT '',
+  superseded_note TEXT NOT NULL DEFAULT ''
 );
 
 -- Install state: an adapter's weights are downloaded on opt-in into

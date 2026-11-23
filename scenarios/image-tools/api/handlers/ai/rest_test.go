@@ -195,7 +195,7 @@ func newTestServerWithStore(t *testing.T, installed bool) (*mux.Router, *fakeSub
 	sub := &fakeSubmitter{}
 	deps := &Deps{Engine: eng, Store: store, Jobs: sub, Guard: storage.DefaultGuard()}
 	r := mux.NewRouter()
-	path, handler := aiconnect.NewAIServiceHandler(NewConnectHandler(registry, deps))
+	path, handler := aiconnect.NewAIServiceHandler(NewConnectHandler(nil, nil, deps))
 	r.PathPrefix(path).Handler(handler)
 	r.HandleFunc("/api/v1/ai/{operation}", deps.submitHandler).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/ai/operations/{operation_id}", deps.operationHandler).Methods(http.MethodGet)

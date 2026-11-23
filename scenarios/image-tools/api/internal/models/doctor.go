@@ -14,6 +14,9 @@ type FindingSeverity string
 const (
 	FindingError   FindingSeverity = "error"
 	FindingWarning FindingSeverity = "warning"
+	// FindingInfo records a fact worth knowing that needs no action for normal
+	// use (for example, which uses a license keeps refused).
+	FindingInfo FindingSeverity = "info"
 )
 
 // CatalogFinding is one actionable model-catalog integrity finding.
@@ -54,20 +57,24 @@ func (r *Registry) DoctorCatalog() CatalogDoctorReport {
 				disabledDeclaredByOp[op]++
 			}
 		}
-		if b, blocked := r.blockByID[m.ID]; blocked {
-			add(CatalogFinding{
-				Code:    "seed_blocklist_overlap",
-				ModelID: m.ID,
-				Message: fmt.Sprintf("seed model is also blocklisted: %s", b.Reason),
-			})
+		if b, gated := r.blockByID[m.ID]; gated {
+			if b.IsExclusion() {
+				add(CatalogFinding{
+					Code:    "seed_exclusion_overlap",
+					ModelID: m.ID,
+					Message: fmt.Sprintf("seed model is excluded (%s): %s", b.ExclusionKind, b.Reason),
+				})
+			} else if err := licenseGateAgrees(m); err != nil {
+				add(CatalogFinding{
+					Code:    "license_gate_rights_disagree",
+					ModelID: m.ID,
+					Message: err.Error(),
+				})
+			}
 		}
 
-		if m.CapabilityLabels.CommercialUse == CommercialUseConditional && m.Enabled {
-			add(CatalogFinding{
-				Code:    "enabled_conditional_commercial_use",
-				ModelID: m.ID,
-				Message: "enabled model has conditional commercial-use terms",
-			})
+		for _, f := range doctorLicenseGate(m) {
+			add(f)
 		}
 
 		for _, f := range doctorChecksumPolicy(m) {
@@ -115,6 +122,33 @@ func (r *Registry) DoctorCatalog() CatalogDoctorReport {
 		}
 	}
 	return CatalogDoctorReport{OK: ok, Findings: findings}
+}
+
+// doctorLicenseGate reports an enabled model whose license restricts some use.
+// The shared rights evaluator allows every license class for normal local use
+// (operator context normal_use_licensing: any_license_class), so this is never
+// a normal-use problem: it is informational and names the uses that stay
+// refused (monetized, hosted-for-others, redistributed) until a grant covers
+// them.
+func doctorLicenseGate(m Model) []CatalogFinding {
+	if !m.Enabled {
+		return nil
+	}
+	var code string
+	switch m.CapabilityLabels.CommercialUse {
+	case CommercialUseConditional:
+		code = "enabled_conditional_commercial_use"
+	case CommercialUseNo:
+		code = "enabled_non_commercial_license"
+	default:
+		return nil
+	}
+	return []CatalogFinding{{
+		Severity: FindingInfo,
+		Code:     code,
+		ModelID:  m.ID,
+		Message:  "normal local use is allowed; monetized, hosted and redistributed use stay refused by the shared rights evaluator until a license grant covers them",
+	}}
 }
 
 // fetchStrategyFinding returns a finding when a weight-backed model has no

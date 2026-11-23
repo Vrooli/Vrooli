@@ -30,13 +30,34 @@ var seedBytes []byte
 
 1. Parse `seedBytes` into the registry on boot.
 2. Validate every entry against the schema (malformed → reject, per `registry_test.go`).
-3. Overlay user-managed entries (enable/disable, custom/fine-tuned local models)
-   from persistent storage so the seed stays the read-only baseline.
+3. Overlay user-managed entries (enable/disable overrides with provenance,
+   custom/fine-tuned local models) from persistent storage so the seed stays the
+   read-only baseline. An override records who, when, why and the seed flag it was
+   written against, and is reconciled with the seed at every boot
+   (`internal/catalogstate`; rule in
+   [`model-registry.md`](../../../docs/reference/model-registry.md#enabled-state-overrides)).
 4. The selector picks the best-fit **enabled** model for the probed host
    (via the `internal/capabilities` `CapabilityProbe` seam, which reads
    `vrooli host inventory --json` through `packages/vrooli-cli-go` — **not**
    system-monitor), honoring per-op `default_for` and any user override
    (per `selector_test.go`).
+
+## Verdicts
+
+What works and what is not recommended is derived, not listed twice:
+`internal/verdicts` combines the curated claims in `internal/verdicts/evidence.seed.json`
+with job history and operator ratings (`verdicts.Derive`). A model added with
+`models import` or `models add-custom` starts `untested`. The rule and the one step
+for recording a finding are in
+[`model-registry.md`](../../../docs/reference/model-registry.md#verdicts-what-works-and-what-is-not-recommended).
+
+## Selection is one code path
+
+`Previewer` (`preview.go`) is the single selection implementation: seed plus custom
+models, the effective enabled overlay, the operator's pin, the shared rights
+evaluator and host fit. `models select`, the picker, `models explain` and `ai list`
+all call it, so the default shown by `ai list` is the model a submit runs
+(`handlers/models/ai_parity_test.go` pins it for every operation).
 
 ## Field schema
 
@@ -66,9 +87,9 @@ artifact `kind`, and positive `min_bytes`. A source repository, model card, or
 release page is documentation, not an install source, and `models doctor` reports
 it until the entry is migrated or disabled.
 
-## ⚠️ License discipline (commercial product)
+## License discipline
 
-`commercial_use` is `yes` for every seeded model and the verified traps live in
+Operator stance (2026-11-21): normal local use ignores the license class; the shared rights owner (`packages/ai-provider-go/policy`) still refuses monetized, hosted-for-others and redistributed use of non-commercial, conditional or unverified models. Enabled seed models may therefore carry `commercial_use` `no` or `conditional` (with notes, and a `prohibited` rights record for `no`). `commercial_use` is `yes` for most seeded models and the verified traps live in
 `blocklist` (CodeFormer, GFPGAN, bria-RMBG, Ultralytics-YOLO, FastSAM,
 InsightFace, SD3.5/Turbo, community-NC ESRGANs, …). Two rules from the research:
 

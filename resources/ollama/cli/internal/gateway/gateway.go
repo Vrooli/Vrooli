@@ -1,10 +1,12 @@
 // Package gateway provides the `resource-ollama gateway ...` subcommand group.
 //
 // It is the canonical entrypoint scenarios use to talk to the shared Ollama
-// daemon — never raw HTTP. Every invocation acquires a host-wide cross-process
-// semaphore (sized to OLLAMA_NUM_PARALLEL) before issuing the request, so the
-// fleet of scenarios cannot collectively exceed the daemon's parallelism even
-// when individual scenarios forget to bound their own concurrency.
+// daemon — never raw HTTP. Every invocation waits for a slot in a host-wide
+// cross-process semaphore before issuing the request, so the fleet of
+// scenarios cannot exceed what the daemon runs at once even when individual
+// scenarios forget to bound their own concurrency. Slots mirror the daemon's
+// runners: each resident model has its own pool of OLLAMA_NUM_PARALLEL slots,
+// and non-resident models share the turnover pool (policy.AdmissionPool).
 package gateway
 
 import (
@@ -20,6 +22,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/tuning"
@@ -35,20 +38,20 @@ import (
 )
 
 var (
-	defaultParallel        = 1
-	defaultAcquire         = tuning.ResourceHTTPTimeout()
-	charsPerToken          = 4
-	envNumParallel         = "OLLAMA_NUM_PARALLEL"
-	envAcquireTO           = "OLLAMA_GATEWAY_ACQUIRE_TIMEOUT"
-	envLockDir             = "OLLAMA_GATEWAY_LOCK_DIR"
-	envRuntimeDir          = "VROOLI_RUNTIME_DIR"
-	defaultLockChild       = "vrooli/resources/ollama/sem"
-	defaultMaxImageBytes   = 10 * 1024 * 1024
-	defaultMaxImages       = 4
-	maxEmbedInputs         = 64
-	maxEmbedInputBytes     = 1 << 20
-	envMaxImageBytes       = "OLLAMA_GATEWAY_MAX_IMAGE_BYTES"
-	envMaxImages           = "OLLAMA_GATEWAY_MAX_IMAGES"
+	defaultParallel      = 1
+	defaultAcquire       = tuning.ResourceHTTPTimeout()
+	charsPerToken        = 4
+	envNumParallel       = "OLLAMA_NUM_PARALLEL"
+	envAcquireTO         = "OLLAMA_GATEWAY_ACQUIRE_TIMEOUT"
+	envLockDir           = "OLLAMA_GATEWAY_LOCK_DIR"
+	envRuntimeDir        = "VROOLI_RUNTIME_DIR"
+	defaultLockChild     = "vrooli/resources/ollama/sem"
+	defaultMaxImageBytes = 10 * 1024 * 1024
+	defaultMaxImages     = 4
+	maxEmbedInputs       = 64
+	maxEmbedInputBytes   = 1 << 20
+	envMaxImageBytes     = "OLLAMA_GATEWAY_MAX_IMAGE_BYTES"
+	envMaxImages         = "OLLAMA_GATEWAY_MAX_IMAGES"
 )
 
 // ImageInputError is a typed, caller-actionable image transport error.
@@ -103,7 +106,8 @@ type WorkerAttestation struct {
 type Handlers struct {
 	NewClient         func() Client
 	NewLoopbackClient func() (Client, error)
-	Sem               *hostsem.Semaphore
+	semMu             sync.Mutex
+	sems              map[string]*hostsem.Semaphore
 	GetEnv            func(string) string
 	Stdin             io.Reader
 	Stdout            io.Writer
@@ -203,7 +207,7 @@ func (h *Handlers) Embed(args []string) error {
 	inputLimit := profile.ContextTokens(selected.Ref)
 
 	admissionStarted := time.Now()
-	ctx, release, err := h.acquire(context.Background())
+	ctx, release, err := h.acquire(context.Background(), selected)
 	if err != nil {
 		return err
 	}
@@ -349,7 +353,7 @@ func (h *Handlers) Generate(args []string) error {
 		}
 	}
 
-	ctx, release, err := h.acquire(context.Background())
+	ctx, release, err := h.acquire(context.Background(), selected)
 	if err != nil {
 		return err
 	}
@@ -632,7 +636,7 @@ func (h *Handlers) Chat(args []string) error {
 		return err
 	}
 
-	ctx, release, err := h.acquire(context.Background())
+	ctx, release, err := h.acquire(context.Background(), selected)
 	if err != nil {
 		return err
 	}
@@ -692,6 +696,9 @@ type selectedModel struct {
 	// RoleMaxTokens is the resolved role's declared output cap, or nil when the
 	// role declares none (or when the caller bypassed roles with --model).
 	RoleMaxTokens *int
+	// Pool and PoolRunners are the model's admission pool (policy.AdmissionPool).
+	Pool        string
+	PoolRunners int
 }
 
 // effectiveMaxTokens resolves the output cap: an explicit --max-tokens wins, an
@@ -732,6 +739,7 @@ func (h *Handlers) resolveModelSelection(model, role, requiredCapability string)
 		}
 		selected := selectedModel{Ref: resolved.Model, Source: "model", ContextWindowTokens: resolved.ContextWindowTokens}
 		selected.InputModalities = append([]policy.Modality{}, resolved.Modalities.Input...)
+		selected.Pool, selected.PoolRunners = p.AdmissionPool(resolved.Model)
 		return selected, nil
 	}
 
@@ -750,6 +758,7 @@ func (h *Handlers) resolveModelSelection(model, role, requiredCapability string)
 	if !hasCapability(resolved.Capabilities, requiredCapability) {
 		return selectedModel{}, fmt.Errorf("role %q resolves to %q without %s capability", role, resolved.Model, requiredCapability)
 	}
+	pool, runners := p.AdmissionPool(resolved.Model)
 	return selectedModel{
 		Ref:                 resolved.Model,
 		Source:              "role",
@@ -757,6 +766,8 @@ func (h *Handlers) resolveModelSelection(model, role, requiredCapability string)
 		ContextWindowTokens: resolved.ContextWindowTokens,
 		InputModalities:     append([]policy.Modality{}, resolved.Modalities.Input...),
 		RoleMaxTokens:       resolved.MaxTokens,
+		Pool:                pool,
+		PoolRunners:         runners,
 	}, nil
 }
 
@@ -996,19 +1007,17 @@ func validateEmbedInputCount(inputs []string) error {
 }
 
 // acquire builds a context bounded by the gateway acquire timeout and waits
-// for a slot in the host semaphore. The returned release MUST be called.
-func (h *Handlers) acquire(parent context.Context) (context.Context, func(), error) {
+// for a slot in the selected model's admission pool. The returned release
+// MUST be called.
+func (h *Handlers) acquire(parent context.Context, selected selectedModel) (context.Context, func(), error) {
 	timeout := h.acquireTimeout()
 	ctx, cancel := context.WithTimeout(parent, timeout)
-	if h.Sem == nil {
-		sem, err := hostsem.New(h.lockDir(), h.parallelism())
-		if err != nil {
-			cancel()
-			return nil, nil, fmt.Errorf("init host semaphore: %w", err)
-		}
-		h.Sem = sem
+	sem, err := h.semaphore(selected)
+	if err != nil {
+		cancel()
+		return nil, nil, fmt.Errorf("init host semaphore: %w", err)
 	}
-	release, err := h.Sem.Acquire(ctx)
+	release, err := sem.Acquire(ctx)
 	if err != nil {
 		cancel()
 		return nil, nil, fmt.Errorf("acquire host semaphore slot: %w", err)
@@ -1017,6 +1026,29 @@ func (h *Handlers) acquire(parent context.Context) (context.Context, func(), err
 		release()
 		cancel()
 	}, nil
+}
+
+// semaphore returns the host semaphore of the selected model's admission
+// pool: the pool's runners times the daemon's per-runner parallelism.
+func (h *Handlers) semaphore(selected selectedModel) (*hostsem.Semaphore, error) {
+	pool, runners := selected.Pool, selected.PoolRunners
+	if pool == "" || runners < 1 {
+		pool, runners = "turnover", 1
+	}
+	h.semMu.Lock()
+	defer h.semMu.Unlock()
+	if sem := h.sems[pool]; sem != nil {
+		return sem, nil
+	}
+	sem, err := hostsem.New(filepath.Join(h.lockDir(), pool), runners*h.parallelism())
+	if err != nil {
+		return nil, err
+	}
+	if h.sems == nil {
+		h.sems = map[string]*hostsem.Semaphore{}
+	}
+	h.sems[pool] = sem
+	return sem, nil
 }
 
 func (h *Handlers) parallelism() int {

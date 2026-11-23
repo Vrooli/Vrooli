@@ -194,7 +194,7 @@ def main() -> None:
     parser.add_argument("--image", required=True)
     parser.add_argument("--out", required=True)
     parser.add_argument("--prompts", default="{}", help="JSON normalized points and/or box for SAM1/MobileSAM")
-    args = parser.parse_args()
+    args = _common.parse_device_args(parser)
     np, _ort, Image = _common.require_deps()
 
     try:

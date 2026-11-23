@@ -22,6 +22,7 @@ import (
 	aigateway "image-tools/internal/aigateway"
 	"image-tools/internal/backends"
 	"image-tools/internal/capabilities"
+	"image-tools/internal/capability"
 	"image-tools/internal/capacity"
 	internaljobs "image-tools/internal/jobs"
 	"image-tools/internal/models"
@@ -163,6 +164,11 @@ type Deps struct {
 	// lease around the review, so adaptive offload cannot remove a weight between the
 	// admission check and the review, which would otherwise fail the job closed.
 	ReviewModels []string
+	// ReviewEscalationModels are the weights the review reads only for an output the
+	// classifier calls sexual (face finder, age model). They are acquired up front
+	// when the producing model is NSFW-capable, and on demand (ReviewWeightsMissing)
+	// otherwise, so a hair edit or a deblur never depends on them.
+	ReviewEscalationModels []string
 	// PosePreprocessor derives OpenPose maps for ControlNet under the same AI job
 	// admission. Optional until the governed CPU runtime and pinned model are ready.
 	PosePreprocessor PosePreprocessor
@@ -197,6 +203,9 @@ type Deps struct {
 // Engine builds and runs AI-op jobs over the configured seams.
 type Engine struct {
 	deps Deps
+	// yield bounds how long a GPU claim is retried after an idle resident was
+	// unloaded; see claimGPU. The zero value retries once, immediately.
+	yield yieldPacing
 }
 
 // NewEngineWithRightsEvaluator is the production constructor for model
@@ -218,7 +227,7 @@ func NewEngine(deps Deps) (*Engine, error) {
 	if deps.Logger == nil {
 		deps.Logger = log.Default()
 	}
-	return &Engine{deps: deps}, nil
+	return &Engine{deps: deps, yield: defaultYieldPacing}, nil
 }
 
 // CapacityManagedGPU reports the GPU-fit rule jobs use: true when the host
@@ -295,6 +304,15 @@ type Payload struct {
 	// that leaves this machine needs it for a high-weight operation, including a
 	// re-route chosen after the job was queued.
 	ConsentAffirmed bool `json:"consent_affirmed,omitempty"`
+	// ConsentWaived records that the submit edge looked at the input and found no
+	// people, which clears the consent rule for a low-weight operation. It is only
+	// ever set from that check, never from the caller, and lets a re-route chosen
+	// after the job was queued skip a second look.
+	ConsentWaived bool `json:"consent_waived,omitempty"`
+	// ConsentBasis is why consent was or was not needed (faces_detected=N,
+	// detector_unavailable, not_required_local, ...). It is reported as the job's
+	// consent_basis.
+	ConsentBasis string `json:"consent_basis,omitempty"`
 	// Execution-only binding selected from a fresh inventory before admission.
 	GPUUUID string `json:"-"`
 }
@@ -361,6 +379,12 @@ type PlanRequest struct {
 	// ConsentAffirmed is the caller's consent affirmation. Automatic cloud
 	// routing of a high-weight operation is only considered when it is set.
 	ConsentAffirmed bool
+	// InputFaces counts the people the request's input images show, for the
+	// consent rule of low-weight operations: a route that leaves this machine asks
+	// for consent only when someone is shown. It runs at most once per request (the
+	// submit edge memoises it) and only when a cloud route is being weighed. nil
+	// means nobody can look, which keeps the requirement.
+	InputFaces func(ctx context.Context) (int, error)
 }
 
 // ErrModelNotInstalled is returned by Plan when the selected model's weights are
@@ -612,8 +636,12 @@ func (e *Engine) BuildRunners() map[string]OpRunner {
 	runners := make(map[string]OpRunner, len(catalog))
 	for _, name := range Names() {
 		op := name
+		run := e.run
+		if manifest, ok := capability.Get(op); ok && manifest.Extent != nil {
+			run = e.runExtent
+		}
 		runners[op] = func(ctx context.Context, job internaljobs.Job, emit func(progress int, message string)) (internaljobs.Result, error) {
-			return e.run(ctx, op, job, emit)
+			return run(ctx, op, job, emit)
 		}
 	}
 	return runners
@@ -630,12 +658,12 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 	var routeEvidence map[string]string
 	defer func() {
 		if runErr != nil {
+			// A cancellation with its own cause (a deadline, a lost lease) explains
+			// the failure. A plain one is the job manager's to report: it knows
+			// whether the request was cancelled or the owner merely released the
+			// reservation, which must not be appended to a real reason.
 			if cause := context.Cause(ctx); cause != nil && cause != context.Canceled {
 				if !errors.Is(runErr, cause) {
-					runErr = errors.Join(runErr, cause)
-				}
-			} else if jobContext.Err() != nil {
-				if cause := context.Cause(jobContext); !errors.Is(runErr, cause) {
 					runErr = errors.Join(runErr, cause)
 				}
 			}
@@ -698,6 +726,12 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 	}
 	model, bsel, pl := prepared.model, prepared.selection, prepared.payload
 	routeEvidence = routeMeta(pl.Route, e.deps.Route)
+	if pl.ConsentBasis != "" {
+		if routeEvidence == nil {
+			routeEvidence = map[string]string{}
+		}
+		routeEvidence[MetaConsentBasis] = pl.ConsentBasis
+	}
 	// An instruction edit keeps its subject by default; the effective prompt is
 	// reported in the meta so the added wording is never hidden.
 	var promptMeta map[string]string
@@ -865,7 +899,7 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 	// depend on a request flag, because the caller cannot opt out of the one
 	// non-configurable boundary. The advisory NSFW scan stays opt-in.
 	reviewRequired := e.reviewRequired(op)
-	advisoryScan := e.deps.AutoScan != nil && pl.AutoScanNSFW && op != "scene_geometry" && op != "image_to_object"
+	advisoryScan := e.deps.AutoScan != nil && pl.AutoScanNSFW && outputIsRaster(op)
 	if reviewRequired || advisoryScan {
 		// Relinquish execution claims before the next model is admitted. A warm
 		// worker retains only its independently admitted resident ownership.
@@ -874,6 +908,14 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 		stop()
 		if err != nil {
 			return internaljobs.Result{}, err
+		}
+		// The admitted context belongs to the claims just released: a warm
+		// worker's reservation cancels it on release. The review and scan are
+		// the job's own work, so they continue on the context the job was
+		// admitted under, which ends only when the job is canceled or the
+		// server stops.
+		if prepared.jobContext != nil {
+			ctx = prepared.jobContext
 		}
 	}
 	if reviewRequired {
@@ -1130,6 +1172,7 @@ func (e *Engine) runOnce(ctx context.Context, op string, model models.Model, bse
 		ModelDir:         e.absModelDir(model.ID),
 		SourceProfileDir: sourceProfileDir,
 		GPU:              bsel.Tier == backends.TierLocalGPU,
+		GPURequired:      pl.RequireGPU,
 		GPUUUID:          pl.GPUUUID,
 		CPUThreads:       admittedCPUThreads(ctx),
 		InputKeys:        collectInputs(in),
@@ -1141,6 +1184,31 @@ func (e *Engine) runOnce(ctx context.Context, op string, model models.Model, bse
 	res, err := bsel.Provider.Execute(ctx, req)
 	if err != nil {
 		return "", res.Meta, err
+	}
+	res.Meta = withExecutionDevice(res.Meta, bsel.Tier)
+	// A family render stamps its receipt into the PNG; the measured peak belongs in
+	// the job record, read before anything rewrites the pixels.
+	for key, value := range receiptMeta(outPath) {
+		if res.Meta == nil {
+			res.Meta = map[string]string{}
+		}
+		if _, set := res.Meta[key]; !set {
+			res.Meta[key] = value
+		}
+	}
+	// An in-place edit keeps the source's frame whichever provider made it.
+	policy, rewritten, err := matchSourceFrame(op, in.image, outPath, params)
+	if err != nil {
+		return "", aigateway.MarkAttemptFailed(res.Meta), err
+	}
+	if policy != framePolicyModel {
+		if res.Meta == nil {
+			res.Meta = map[string]string{}
+		}
+		res.Meta["frame_policy"] = policy
+		if rewritten {
+			res.Meta["media_type"] = "image/png"
+		}
 	}
 	// A mesh bundle is a structured artifact, not a raster: validate it before it
 	// becomes addressable, so a malformed provider output fails the job instead of
@@ -1155,6 +1223,39 @@ func (e *Engine) runOnce(ctx context.Context, op string, model models.Model, bse
 		return "", aigateway.MarkAttemptFailed(res.Meta), err
 	}
 	return key, res.Meta, nil
+}
+
+// Job meta keys that say where a local job actually ran. The tier a submit
+// reports is the plan; admission can still move the job to the CPU when the GPU
+// lease is denied, so the result states what happened.
+const (
+	MetaExecutionTier   = "execution_tier"
+	MetaExecutionDevice = "execution_device"
+)
+
+// withExecutionDevice records the tier and device a local job ran on. Hosted and
+// gateway-served routes carry their own provider evidence and are left alone.
+func withExecutionDevice(meta map[string]string, tier backends.Tier) map[string]string {
+	device := ""
+	switch tier {
+	case backends.TierLocalGPU:
+		device = "gpu"
+	case backends.TierLocalCPU:
+		device = "cpu"
+	default:
+		return meta
+	}
+	if meta == nil {
+		meta = map[string]string{}
+	}
+	if _, ran := meta[MetaExecutionDevice]; ran {
+		// The provider already said where it ran (it moved the job to the CPU
+		// after the GPU run failed); the planned tier must not overwrite that.
+		return meta
+	}
+	meta[MetaExecutionTier] = tier.String()
+	meta[MetaExecutionDevice] = device
+	return meta
 }
 
 // collectInputs orders the operation inputs the way backends.Request.InputKeys
@@ -1199,11 +1300,17 @@ func outputFormat(data []byte, meta map[string]string) (mime, ext string) {
 		trimmed := strings.TrimSpace(string(data[:min(len(data), 256)]))
 		if strings.HasPrefix(trimmed, "<svg") || strings.HasPrefix(trimmed, "<?xml") && strings.Contains(trimmed, "<svg") {
 			mime = "image/svg+xml"
+		} else if (strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[")) && json.Valid(data) {
+			// Text and data outputs (a caption, detections, an embedding) are JSON
+			// documents, not rasters: name them so.
+			mime = "application/json"
 		} else {
 			mime = http.DetectContentType(data)
 		}
 	}
 	switch strings.ToLower(strings.Split(mime, ";")[0]) {
+	case "application/json":
+		return "application/json", ".json"
 	case "application/zip":
 		return "application/zip", ".zip"
 	case "image/svg+xml":
@@ -1220,12 +1327,36 @@ func outputFormat(data []byte, meta map[string]string) (mime, ext string) {
 // maxReviewBytes bounds what the mandatory review will read from one artifact.
 const maxReviewBytes = 64 << 20
 
+// ReviewWeightsMissing is what an OutputScanner returns when the review needs model
+// weights that are not installed. The engine acquires IDs through governed
+// acquisition and runs the review again once; if that fails the output is refused
+// like any other unavailable review (fail closed, for this output only).
+type ReviewWeightsMissing struct{ IDs []string }
+
+func (e *ReviewWeightsMissing) Error() string {
+	return "ai: the safety review needs model weights that are not installed: " + strings.Join(e.IDs, ", ")
+}
+
+// reviewModelIDs lists the weights a review of this producer's output needs now:
+// the classifier always, and the face and age models too when the producing model
+// can make explicit images (its output is very likely to need the age check).
+func (e *Engine) reviewModelIDs(nsfwCapable bool) []string {
+	ids := slices.Clone(e.deps.ReviewModels)
+	if nsfwCapable {
+		ids = append(ids, e.deps.ReviewEscalationModels...)
+	}
+	return ids
+}
+
 // HardRefusalError is returned when an output review identifies the one class
 // this project refuses to produce. It is a terminal job failure, not a warning:
 // the artifact is deleted before the error is returned.
 type HardRefusalError struct{ Reason string }
 
 func (e *HardRefusalError) Error() string { return "ai: output refused: " + e.Reason }
+
+// FailureKind marks the refusal as a policy decision, not a fault of the model.
+func (e *HardRefusalError) FailureKind() internaljobs.FailureKind { return internaljobs.FailureRefused }
 
 // Job result_meta keys the output review records. `sensitive` is the flag the API
 // and UI act on (blur, tap to reveal); the rest make a pass auditable.
@@ -1277,14 +1408,14 @@ func (r *reviewReport) flag(key, reason string) {
 // holdReviewModels makes the review's model weights present and holds their use
 // leases until the returned release runs. A weight that was offloaded since the
 // last job is re-acquired here, so a reviewer that is configured can always run.
-func (e *Engine) holdReviewModels(ctx context.Context, jobID string, emit func(int, string)) (func(), error) {
+func (e *Engine) holdReviewModels(ctx context.Context, jobID string, ids []string, emit func(int, string)) (func(), error) {
 	var releases []func()
 	release := func() {
 		for i := len(releases) - 1; i >= 0; i-- {
 			releases[i]()
 		}
 	}
-	for _, id := range e.deps.ReviewModels {
+	for _, id := range ids {
 		if e.deps.ModelInstalled != nil && !e.deps.ModelInstalled(id) {
 			if e.deps.AcquireModel == nil {
 				release()
@@ -1312,11 +1443,16 @@ func (e *Engine) holdReviewModels(ctx context.Context, jobID string, emit func(i
 // cannot leave unreviewed bytes addressable because its classifier crashed.
 func (e *Engine) reviewOutputs(ctx context.Context, jobID string, keys []string, source ReviewSource, emit func(int, string)) (reviewReport, error) {
 	var report reviewReport
-	release, err := e.holdReviewModels(ctx, jobID, emit)
+	release, err := e.holdReviewModels(ctx, jobID, e.reviewModelIDs(source.NSFWCapable), emit)
 	if err != nil {
 		return report, errors.Join(err, e.deleteOutputs(ctx, keys))
 	}
-	defer release()
+	releases := []func(){release}
+	defer func() {
+		for i := len(releases) - 1; i >= 0; i-- {
+			releases[i]()
+		}
+	}()
 	ctx = WithReviewSource(ctx, source)
 	for _, key := range keys {
 		rc, _, err := e.deps.Store.Get(ctx, key)
@@ -1334,6 +1470,17 @@ func (e *Engine) reviewOutputs(ctx context.Context, jobID string, keys []string,
 			return report, errors.Join(fmt.Errorf("ai: output exceeds the %d-byte review limit", maxReviewBytes), e.deleteOutputs(ctx, keys))
 		}
 		verdict, err := e.deps.ReviewOutput(ctx, data)
+		var missing *ReviewWeightsMissing
+		if errors.As(err, &missing) {
+			// The classifier called this output sexual and the face/age weights are
+			// not installed (or were offloaded): acquire exactly those, once.
+			extra, holdErr := e.holdReviewModels(ctx, jobID, missing.IDs, emit)
+			if holdErr != nil {
+				return report, errors.Join(holdErr, e.deleteOutputs(ctx, keys))
+			}
+			releases = append(releases, extra)
+			verdict, err = e.deps.ReviewOutput(ctx, data)
+		}
 		if err != nil {
 			return report, errors.Join(fmt.Errorf("ai: required output review failed: %w", err), e.deleteOutputs(ctx, keys))
 		}

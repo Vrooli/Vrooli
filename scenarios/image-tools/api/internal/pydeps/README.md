@@ -59,7 +59,8 @@ The lock intentionally covers only the **proven, runnable** Python backends:
   sd-1.5-inpainting;
 - **ONNX Runtime** inference stack — the CPU-floor onnx ops.
 
-The `basicsr`/`facexlib` RestoreFormer++ face-restore path is excluded: its
-execution adapter is gated (see `internal/sidecar/py/image_tools_sidecar/restore.py`)
-and its old stack would pin torch/torchvision down for the whole environment. Add
-and prove it when that vertical lands.
+Face restoration (RestoreFormer++, CodeFormer) runs on ONNX exports through
+the ONNX Runtime stack, so it needs no `basicsr`/`facexlib`. That old stack, which
+would pin torch/torchvision down for the whole environment, stays excluded; only
+the unpromoted old-photo pipeline (`internal/sidecar/py/image_tools_sidecar/restore.py`)
+still probes it.

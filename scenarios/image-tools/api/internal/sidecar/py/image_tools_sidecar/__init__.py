@@ -21,6 +21,11 @@ Modules:
   restore     — RestoreFormer++ dependency/weight gate for restoration verticals
 """
 
+from . import _containment
+
+# Inference processes refuse every non-loopback connection (see _containment).
+_containment.install()
+
 __all__ = [
     "bg_removal",
     "denoise",

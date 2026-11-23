@@ -42,17 +42,17 @@
       }
     },
     "chat.default": {
-      "model": "qwen3.5:9b",
+      "model": "qwen3.5:4b",
       "fallbacks": [
-        "qwen3.5:4b",
-        "llama3.1:8b"
+        "qwen3:4b",
+        "llama3.2:3b"
       ],
       "required_capabilities": [
         "generate",
         "chat",
         "summarize"
       ],
-      "description": "Default local generation role for synthesis, summarization, and lightweight agent workflows.",
+      "description": "Default local generation role for synthesis, summarization, structured extraction and lightweight agent workflows. Uses the resident 4B tier shared with chat.small, so it loads no extra model; callers that need more quality opt into chat.quality.",
       "preference": 30,
       "sampling_defaults": {
         "temperature": 0.7,
@@ -65,8 +65,36 @@
       "provenance": {
         "source_kind": "manual_policy",
         "confidence": "medium",
-        "source": "ChatGPT 2026-06-23 best-available local-model survey, mapped to existing roles (default general)",
-        "observed_at": "2026-06-23",
+        "source": "Caller report 2026-11-22 (resource-ollama models callers): nearly all qwen3.5:9b traffic was ai-gateway serving agent-manager transcript titles (~160 characters) through extract.structured, whose first candidate is chat.default. On this host qwen3.5:4b matched qwen3.5:9b summary quality at p50 1.47 s versus 1.98 s (24 calls), and it is resident for chat.small, so chat.default loads no extra model.",
+        "observed_at": "2026-11-22",
+        "sample_count": 0
+      }
+    },
+    "chat.quality": {
+      "model": "qwen3.5:9b",
+      "fallbacks": [
+        "qwen3.5:4b"
+      ],
+      "required_capabilities": [
+        "generate",
+        "chat",
+        "summarize"
+      ],
+      "description": "Opt-in higher-quality local generation for callers whose output measurably improves on the 9B tier. Not resident: it loads into the turnover slot and unloads after the policy idle time, so use it only where quality matters more than latency.",
+      "preference": 35,
+      "sampling_defaults": {
+        "temperature": 0.7,
+        "top_p": 0.95
+      },
+      "sampling_support": {
+        "temperature": "honored"
+      },
+      "max_tokens": 2048,
+      "provenance": {
+        "source_kind": "manual_policy",
+        "confidence": "medium",
+        "source": "Split from chat.default on 2026-11-22 when chat.default moved to qwen3.5:4b after the caller report; keeps the 9B tier available to callers that ask for it.",
+        "observed_at": "2026-11-22",
         "sample_count": 0
       }
     },
@@ -504,7 +532,7 @@
       "ram_gb_estimate": 6.0,
       "vram_gb_estimate": 6.0,
       "default_eligible": true,
-      "use_case_notes": "Tiny/fast general model \u2014 small chat, routing/classification, and LLM-rerank fallback. Recommended quant Q8_0 (~4.5 GB) when host capacity allows.",
+      "use_case_notes": "Resident fast general model: default chat, synthesis and summarization, small chat, routing/classification, and LLM-rerank fallback. Recommended quant Q8_0 (~4.5 GB) when host capacity allows.",
       "caveats": [
         "The bare ':4b' tag pulls Ollama's default quant; pin a quant-specific tag to force Q8_0."
       ],
@@ -630,7 +658,7 @@
       "ram_gb_estimate": 11.0,
       "vram_gb_estimate": 11.0,
       "default_eligible": true,
-      "use_case_notes": "Default general model for synthesis and summarization. Recommended quant Q6_K (~7.5 GB) or Q8_0 (~9.5 GB).",
+      "use_case_notes": "Higher-quality general model for opt-in synthesis and summarization (chat.quality). Recommended quant Q6_K (~7.5 GB) or Q8_0 (~9.5 GB).",
       "caveats": [
         "May exceed the default 12 GiB Ollama container budget at Q8_0 alongside other resident models."
       ],
@@ -1670,12 +1698,12 @@
     "resident_model_budget_percent": 70,
     "minimum_host_memory_headroom_percent": 20,
     "minimum_host_disk_headroom_gb": 20,
-    "max_loaded_models_policy": 2,
     "default_parallel_requests": 1,
     "role_preference_order": [
       "embedding.default",
       "chat.small",
       "chat.default",
+      "chat.quality",
       "summarize.default",
       "rerank.llm_fallback",
       "classify.routing",

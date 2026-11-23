@@ -13,7 +13,8 @@ import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../../test-utils";
 import { selectors } from "../../consts/selectors";
 import { setLocale } from "../../i18n";
-import { makeBackendReadiness, makeCandidateModel, makeHostSummary, makeModel } from "./mocks/factories";
+import { makeBackendReadiness, makeCandidateModel, makeHostSummary, makeModel, makeVerdict } from "./mocks/factories";
+import { VerdictGrade } from "../../api/models";
 import { ModelPicker } from "./ModelPicker";
 import type { UseModelPicker } from "./useModelPicker";
 
@@ -252,5 +253,22 @@ describe("ModelPicker", () => {
 
     renderPicker(fakePicker({ candidates: [candidate("a", "ready"), candidate("b", "ready")] }));
     expect(screen.getByTestId(selectors.models.picker.footer)).toBeInTheDocument();
+  });
+
+  it("grades every candidate so what is not recommended is visible before choosing", () => {
+    const reasonOfB = "ruins faces";
+    renderPicker(
+      fakePicker({
+        candidates: [
+          candidate("a", "ready", { verdict: makeVerdict({ grade: VerdictGrade.RECOMMENDED, reason: "best of the field" }) }),
+          candidate("b", "ready", { verdict: makeVerdict({ grade: VerdictGrade.NOT_RECOMMENDED, reason: reasonOfB }) }),
+          candidate("c", "ready", { verdict: undefined }),
+        ],
+      }),
+    );
+    expect(screen.getByTestId(selectors.models.pickerVerdict({ id: "a" }))).toHaveTextContent("Recommended");
+    expect(screen.getByTestId(selectors.models.pickerVerdict({ id: "b" }))).toHaveTextContent("Not recommended");
+    expect(screen.getByTestId(selectors.models.pickerVerdict({ id: "c" }))).toHaveTextContent("Untested");
+    expect(screen.getByTestId(selectors.models.pickerRow({ id: "b" }))).toHaveTextContent(reasonOfB);
   });
 });

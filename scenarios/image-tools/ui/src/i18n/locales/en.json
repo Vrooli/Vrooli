@@ -604,6 +604,14 @@
       "depth_map": {
         "label": "Depth map",
         "desc": "Estimate a depth map from the image."
+      },
+      "color_transfer": {
+        "label": "Match colour",
+        "desc": "Recolour a masked region to match a reference, keeping its own shading."
+      },
+      "mask_composite": {
+        "label": "Composite through mask",
+        "desc": "Lay a second image into the first through a mask, with a feathered seam."
       }
     },
     "enhance": {
@@ -625,7 +633,8 @@
       "tier": {
         "localGpu": "Running on your GPU",
         "localCpu": "Running on your CPU",
-        "byokCloud": "Running on cloud (BYOK)"
+        "byokCloud": "Running on cloud (BYOK)",
+        "gatewayLocal": "Running on this machine (AI Gateway)"
       },
       "install": {
         "title": "{{model}} isn't installed yet",
@@ -679,8 +688,65 @@
         "desc": "Transfer a reference face onto the subject image."
       },
       "garment_replace": {
-        "label": "Change outfit",
-        "desc": "Replace or restyle clothing, hair, or makeup in a masked area."
+        "label": "Change outfit or hair",
+        "desc": "Replace or restyle clothing or hair, or change makeup, in a masked area."
+      }
+    },
+    "extent": {
+      "title": "How much to swap",
+      "presetsLabel": "Preset",
+      "stagesLabel": "Carry over",
+      "strengthLabel": "Face strength",
+      "strengthHint": "1 is the full swap; lower keeps more of the target's own face.",
+      "stage": {
+        "face": {
+          "label": "Face",
+          "desc": "The inner face (eyes, nose, mouth), blended into the target."
+        },
+        "skin": {
+          "label": "Skin tone",
+          "desc": "Match skin colour across the face, neck, ears and arms, so the face does not look pasted on."
+        },
+        "hair_style": {
+          "label": "Hair style",
+          "desc": "Give the hair the source's cut, length and texture with a general image editor (local; the reference should be a tight portrait). Only the hair is taken from the edit, so the swapped face is untouched."
+        },
+        "hair_colour": {
+          "label": "Hair colour",
+          "desc": "Recolour the target's hair to the source's, keeping the target's style."
+        },
+        "head": {
+          "label": "Whole head",
+          "desc": "Swap face, hair, ears and jaw together with a general image editor (local; the reference should be a tight portrait). Re-renders the scene, so fine detail elsewhere can drift."
+        }
+      },
+      "skinTarget": {
+        "source": {
+          "label": "The source person",
+          "desc": "Move the face, neck and arms toward the source person's skin tone, fading into skin the parser cannot see (such as the chest)."
+        },
+        "body": {
+          "label": "The target's body",
+          "desc": "Match the face to the target's own visible hands and arms, so it sits on the body it is on. Needs hands or arms in view."
+        }
+      },
+      "preset": {
+        "face": {
+          "label": "Face only",
+          "desc": "Only the inner face changes."
+        },
+        "face_skin": {
+          "label": "Face + skin",
+          "desc": "The face, with the skin tone matched."
+        },
+        "full_look": {
+          "label": "Full look",
+          "desc": "Face, skin tone and hair colour."
+        },
+        "whole_head": {
+          "label": "Whole head",
+          "desc": "The whole head, face, hair and jaw."
+        }
       }
     },
     "create": {
@@ -757,7 +823,18 @@
       "uploadLabel": "Upload a mask image instead",
       "painted": "Mask ready.",
       "uploaded": "Mask uploaded: {{name}}",
-      "empty": "No mask yet."
+      "empty": "No mask yet.",
+      "select": {
+        "title": "Select by name",
+        "placeholder": "hair, the jacket, the book…",
+        "run": "Select",
+        "busy": "Selecting…",
+        "working": "Finding it in the picture…",
+        "quick": "Quick choices",
+        "hair": "Hair",
+        "jacket": "Jacket"
+      },
+      "selected": "Selected “{{phrase}}”. Paint to add more, or clear it."
     },
     "operationLabelGroup": "Operation",
     "op": {
@@ -922,6 +999,10 @@
       "clear": "Remove rating",
       "error": "Could not save the rating",
       "hint": "Ratings feed the model verdicts"
+    },
+    "capacity": {
+      "gpuOnly": "May wait for the graphics card if it's busy",
+      "cpuFallback": "Runs on the processor if the graphics card is busy (slower)"
     }
   },
   "errors": {

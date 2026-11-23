@@ -252,6 +252,94 @@ def build_call_kwargs(family: str, params: "Params") -> dict:
     return adapter_for(family).build(params)
 
 
+_TOKENIZER_SUBFOLDERS = ("tokenizer", "tokenizer_2", "tokenizer_3")
+_TOKENIZER_VOCAB_FILES = ("vocab.json", "spiece.model", "tokenizer.model", "vocab.txt")
+
+
+def fast_only_tokenizers(model_dir: str) -> list:
+    """Tokenizer subfolders that ship only the fast ``tokenizer.json``.
+
+    Some community repos (LUSTIFY) are saved in the transformers 5 layout: a
+    ``tokenizer.json`` and no ``vocab.json``/``merges.txt``. The pipeline's declared
+    slow ``CLIPTokenizer`` cannot be built from that, so the load fails with
+    "expected str, bytes or os.PathLike object, not NoneType". Pure file check.
+    """
+    names = []
+    for name in _TOKENIZER_SUBFOLDERS:
+        sub = os.path.join(model_dir, name)
+        if os.path.isfile(os.path.join(sub, "tokenizer.json")) and not any(
+            os.path.isfile(os.path.join(sub, vocab)) for vocab in _TOKENIZER_VOCAB_FILES
+        ):
+            names.append(name)
+    return names
+
+
+def repo_tokenizer_overrides(model_dir: str) -> dict:
+    """Pipeline kwargs holding a slow ``CLIPTokenizer`` rebuilt from ``tokenizer.json``.
+
+    diffusers type-checks each component against the class ``model_index.json``
+    declares, so a fast tokenizer is rejected. The BPE vocabulary and merges live in
+    ``tokenizer.json``; write them in the files the slow class reads and construct it
+    (the same tokens come out). Only CLIP BPE tokenizers are handled; any other
+    fast-only tokenizer is left to fail loudly.
+    """
+    names = fast_only_tokenizers(model_dir)
+    if not names:
+        return {}
+    import tempfile  # noqa: WPS433
+
+    import transformers  # noqa: WPS433
+
+    out = {}
+    for name in names:
+        sub = os.path.join(model_dir, name)
+        with open(os.path.join(sub, "tokenizer.json"), encoding="utf-8") as fh:
+            model = json.load(fh).get("model", {})
+        if model.get("type") != "BPE" or not model.get("merges"):
+            continue
+        specials = {}
+        cfg = os.path.join(sub, "tokenizer_config.json")
+        if os.path.isfile(cfg):
+            with open(cfg, encoding="utf-8") as fh:
+                loaded = json.load(fh)
+            specials = {k: loaded[k] for k in ("unk_token", "bos_token", "eos_token", "pad_token") if isinstance(loaded.get(k), str)}
+            if isinstance(loaded.get("model_max_length"), int):
+                specials["model_max_length"] = loaded["model_max_length"]  # CLIP's 77; unset it is effectively infinite
+        with tempfile.TemporaryDirectory() as tmp:
+            vocab_file, merges_file = os.path.join(tmp, "vocab.json"), os.path.join(tmp, "merges.txt")
+            with open(vocab_file, "w", encoding="utf-8") as fh:
+                json.dump(model["vocab"], fh, ensure_ascii=False)
+            with open(merges_file, "w", encoding="utf-8") as fh:
+                fh.write("#version: 0.2\n")
+                for merge in model["merges"]:
+                    fh.write((merge if isinstance(merge, str) else " ".join(merge)) + "\n")
+            out[name] = transformers.CLIPTokenizer(vocab_file, merges_file, **specials)
+    return out
+
+
+def edm_scheduler_misdeclared(config: dict) -> bool:
+    """True when a repo declares an EDM scheduler for an epsilon-prediction checkpoint.
+
+    ``EDMDPMSolverMultistepScheduler`` assumes an EDM-trained model. Some SDXL
+    finetune conversions (Big Lust v16) ship it beside a plain epsilon-prediction
+    UNet, and the sampler then returns structureless noise. Pure config check.
+    """
+    return str(config.get("_class_name", "")).startswith("EDM") and config.get("prediction_type", "epsilon") == "epsilon"
+
+
+def repo_component_overrides(diffusers, model_dir: str) -> dict:
+    """Pipeline kwargs that repair repo components diffusers cannot use as declared:
+    tokenizers saved without vocabulary files, and a mismatched EDM scheduler."""
+    out = repo_tokenizer_overrides(model_dir)
+    cfg_path = os.path.join(model_dir, "scheduler", "scheduler_config.json")
+    if os.path.isfile(cfg_path):
+        with open(cfg_path, encoding="utf-8") as fh:
+            config = json.load(fh)
+        if edm_scheduler_misdeclared(config):
+            out["scheduler"] = diffusers.EulerDiscreteScheduler.from_config(config)
+    return out
+
+
 def _resolve_dtype(torch, dtype: str, use_cuda: bool):
     if not use_cuda:
         return torch.float32
@@ -341,7 +429,9 @@ def smoke(*, family: str, model_dir: str, deep: bool = False) -> str:
         load_kwargs["safety_checker"] = None
     try:
         if repo_index:
-            pipe = diffusers.DiffusionPipeline.from_pretrained(model_dir, **load_kwargs)
+            pipe = diffusers.DiffusionPipeline.from_pretrained(
+                model_dir, **load_kwargs, **repo_component_overrides(diffusers, model_dir)
+            )
         else:
             pipe = cls.from_single_file(single, **load_kwargs)
     except Exception as exc:  # noqa: BLE001
@@ -514,7 +604,9 @@ def _load_family_pipe(diffusers, adapter: "Adapter", family: str, model_dir: str
         single = _find_single_file(model_dir) if os.path.isdir(model_dir) else None
         repo_index = os.path.isfile(os.path.join(model_dir, "model_index.json"))
         if repo_index:
-            pipe = diffusers.DiffusionPipeline.from_pretrained(model_dir, **load_kwargs)
+            pipe = diffusers.DiffusionPipeline.from_pretrained(
+                model_dir, **load_kwargs, **repo_component_overrides(diffusers, model_dir)
+            )
         elif single is not None:
             cls = getattr(diffusers, adapter.pipeline_class, None)
             if cls is None:
@@ -795,7 +887,9 @@ def _load_inpaint_pipe(diffusers, torch, architecture: str, model_dir: str, repo
         load_kwargs["safety_checker"] = None
     try:
         if repo_index:
-            pipe = diffusers.AutoPipelineForInpainting.from_pretrained(model_dir, **load_kwargs)
+            pipe = diffusers.AutoPipelineForInpainting.from_pretrained(
+                model_dir, **load_kwargs, **repo_component_overrides(diffusers, model_dir)
+            )
         else:
             cls = getattr(diffusers, _inpaint_class(architecture))
             pipe = cls.from_single_file(single, **load_kwargs)
@@ -1124,7 +1218,7 @@ def _load_controlnet_pipe(diffusers, torch, architecture, model_dir, repo_index,
     cls = getattr(diffusers, _controlnet_class(architecture, class_map, op))
     try:
         if repo_index:
-            pipe = cls.from_pretrained(model_dir, **load_kwargs)
+            pipe = cls.from_pretrained(model_dir, **load_kwargs, **repo_component_overrides(diffusers, model_dir))
         else:
             pipe = cls.from_single_file(single, **load_kwargs)
     except Exception as exc:  # noqa: BLE001
@@ -1189,7 +1283,9 @@ def _load_generate_pipe(diffusers, torch, architecture, model_dir, repo_index, s
         load_kwargs["safety_checker"] = None
     try:
         if repo_index:
-            pipe = getattr(diffusers, auto_cls).from_pretrained(model_dir, **load_kwargs)
+            pipe = getattr(diffusers, auto_cls).from_pretrained(
+                model_dir, **load_kwargs, **repo_component_overrides(diffusers, model_dir)
+            )
         else:
             cls = getattr(diffusers, _generate_class(architecture, single_file_map, op))
             pipe = cls.from_single_file(single, **load_kwargs)

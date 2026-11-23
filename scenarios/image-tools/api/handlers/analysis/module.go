@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	internalanalysis "image-tools/internal/analysis"
+	"image-tools/internal/httpx"
 	internaljobs "image-tools/internal/jobs"
 	"image-tools/internal/module"
 	"image-tools/internal/storage"
@@ -30,12 +31,12 @@ func Module(service *internalanalysis.Service, store *storage.Store, jobs *inter
 		Guard:   storage.DefaultGuard(),
 		Logger:  logger,
 	}
-	connectPath, connectHandler := analysisconnect.NewAnalysisServiceHandler(NewConnectHandler())
+	connectPath, connectHandler := analysisconnect.NewAnalysisServiceHandler(NewConnectHandler(service))
 	return module.Module{
 		Name: "analysis",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
-			r.HandleFunc("/api/v1/analysis/{operation}", rest.analyzeHandler).Methods(http.MethodPost)
+			r.Handle("/api/v1/analysis/{operation}", httpx.SyncBudgetFunc(rest.analyzeHandler)).Methods(http.MethodPost)
 		},
 		Endpoints: Endpoints,
 	}

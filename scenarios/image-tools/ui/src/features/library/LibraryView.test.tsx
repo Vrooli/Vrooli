@@ -7,6 +7,8 @@ import { JobState } from "../../api/jobs";
 import { makeJob, makeListJobsResponse } from "../jobs/mocks/factories";
 import { makeApiError } from "../../api/client";
 import { selectors } from "../../consts/selectors";
+import { strings } from "../../consts/strings";
+import { isSensitiveFile } from "../../lib/sensitiveMedia";
 import { resetWorkspaceIntent, takeWorkspaceIntent } from "../workspace/workspaceIntent";
 
 vi.mock("../../api/jobs", async (importOriginal) => {
@@ -54,6 +56,61 @@ describe("LibraryView", () => {
     expect(screen.getByTestId(selectors.library.item({ index: 2 }))).toBeInTheDocument();
     expect(screen.getByTestId(selectors.library.open({ index: 1 }))).toBeInTheDocument();
     expect(screen.getByTestId(selectors.library.count)).toBeInTheDocument();
+  });
+
+  it("blurs outputs the server flagged sensitive behind a tap-to-reveal and leaves the rest alone", async () => {
+    const user = userEvent.setup();
+    const flagged = makeJob({
+      id: "nsfw",
+      state: JobState.SUCCEEDED,
+      resultRef: "out/nsfw.png",
+      operation: "text_to_image",
+      resultMeta: { sensitive: "true", sensitive_refs: "out/nsfw.png", nsfw_score: "0.9100" },
+    });
+    vi.mocked(jobsClient.listJobs).mockResolvedValue(
+      makeListJobsResponse({ jobs: [flagged, succeeded("plain")] }),
+    );
+    renderWithProviders(<LibraryView />);
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.library.grid)).toBeInTheDocument();
+    });
+    const blurredItems = document.querySelectorAll('[data-sensitive="blurred"]');
+    expect(blurredItems).toHaveLength(1);
+    const flaggedItem = blurredItems[0]?.closest("li");
+    expect(flaggedItem?.querySelector("img")?.getAttribute("src")).toContain("out/nsfw.png");
+
+    await user.click(screen.getByRole("button", { name: strings.sensitive.reveal }));
+    expect(document.querySelectorAll('[data-sensitive="blurred"]')).toHaveLength(0);
+    expect(document.querySelectorAll('[data-sensitive="revealed"]')).toHaveLength(1);
+  });
+
+  it("marks the file it reopens from a sensitive output, and only from one", async () => {
+    const user = userEvent.setup();
+    vi.mocked(jobsClient.listJobs).mockResolvedValue(
+      makeListJobsResponse({
+        jobs: [
+          makeJob({ id: "s", state: JobState.SUCCEEDED, resultRef: "out/s.png", resultMeta: { sensitive: "true", sensitive_refs: "out/s.png" } }),
+          succeeded("plain"),
+        ],
+      }),
+    );
+    renderWithProviders(<LibraryView />);
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.library.open({ index: 2 }))).toBeInTheDocument();
+    });
+    await user.click(screen.getByTestId(selectors.library.open({ index: 1 })));
+    await waitFor(() => {
+      const file = takeWorkspaceIntent()?.file;
+      expect(file).toBeDefined();
+      expect(isSensitiveFile(file)).toBe(true);
+    });
+
+    await user.click(screen.getByTestId(selectors.library.open({ index: 2 })));
+    await waitFor(() => {
+      const file = takeWorkspaceIntent()?.file;
+      expect(file).toBeDefined();
+      expect(isSensitiveFile(file)).toBe(false);
+    });
   });
 
   it("shows an empty state when there are no outputs", async () => {

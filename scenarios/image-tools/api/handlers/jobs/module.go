@@ -7,6 +7,7 @@ import (
 
 	internaljobs "image-tools/internal/jobs"
 	"image-tools/internal/module"
+	"image-tools/internal/verdicts"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -35,9 +36,10 @@ func (h waitDeadlineClearer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // constructed and Started in main.go (it needs the server-lifetime context so a
 // client disconnect never destroys in-flight work); this module only exposes its
 // lifecycle verbs.
-func Module(mgr JobManager, logger *log.Logger) module.Module {
+func Module(mgr JobManager, ratings *verdicts.Ratings, logger *log.Logger) module.Module {
 	connectPath, connectHandler := jobsconnect.NewJobsServiceHandler(NewConnectHandler(Deps{
 		Manager: mgr,
+		Ratings: ratings,
 		Logger:  logger,
 	}))
 	return module.Module{
@@ -175,5 +177,47 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Watch a job", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.jobs.JobsService/WatchJob -H 'Content-Type: application/json' -d '{\"id\":\"<job-id>\"}'"},
 		},
+	},
+	{
+		ID:          "jobs_rate",
+		Path:        jobsconnect.JobsServiceRateJobProcedure,
+		Method:      "POST",
+		Summary:     "Rate a job's output",
+		Description: "Records the operator's 1-5 rating and optional note for a succeeded job, replacing an earlier rating. Ratings feed the evidence-derived model verdicts.",
+		Category:    "jobs",
+		Request: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"job_id": "string", "score": "int32 (1-5)", "note": "string (optional, max 1000 chars)", "actor": "string (optional; who is rating)"},
+		},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{"rating": "JobRating"}},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Score outside 1-5 or note too long"},
+			{Status: 404, Code: "not_found", Description: "The job has no recorded result"},
+			{Status: 412, Code: "failed_precondition", Description: "Only a succeeded job has an output to rate"},
+		},
+		Examples: []module.Example{
+			{Name: "Rate a result 4 of 5", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.jobs.JobsService/RateJob -H 'Content-Type: application/json' -d '{\"job_id\":\"<job-id>\",\"score\":4,\"note\":\"kept the face\"}'"},
+		},
+	},
+	{
+		ID:          "jobs_rating_clear",
+		Path:        jobsconnect.JobsServiceClearJobRatingProcedure,
+		Method:      "POST",
+		Summary:     "Clear a job's rating",
+		Description: "Removes the operator's rating for a job.",
+		Category:    "jobs",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"job_id": "string"}},
+		Response:    &module.Schema{Type: "object"},
+		Errors:      []module.ErrorDesc{{Status: 404, Code: "not_found", Description: "The job has no rating"}},
+	},
+	{
+		ID:          "jobs_ratings_list",
+		Path:        jobsconnect.JobsServiceListJobRatingsProcedure,
+		Method:      "POST",
+		Summary:     "List job ratings",
+		Description: "Returns the operator's ratings newest first, optionally narrowed to a model and/or operation. This is the evidence behind a verdict's operator-rating line.",
+		Category:    "jobs",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"model_id": "string (optional)", "operation": "string (optional)", "limit": "int32 (default 50)"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"ratings": "array<JobRating>"}},
 	},
 }

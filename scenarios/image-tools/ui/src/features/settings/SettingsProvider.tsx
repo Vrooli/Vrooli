@@ -1,5 +1,4 @@
 import {
-  createContext,
   useCallback,
   useContext,
   useEffect,
@@ -15,14 +14,8 @@ import {
   writeStoredSettings,
   type SettingsState,
 } from "./useSettings";
+import { SettingsContext, type SettingsContextValue } from "./settingsContext";
 
-interface SettingsContextValue {
-  settings: SettingsState;
-  /** Merge-update one or more preferences; persists and re-applies. */
-  setSettings: (patch: Partial<SettingsState>) => void;
-}
-
-const SettingsContext = createContext<SettingsContextValue | null>(null);
 
 interface SettingsProviderProps {
   children: ReactNode;

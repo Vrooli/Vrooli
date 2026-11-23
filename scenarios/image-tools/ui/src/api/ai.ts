@@ -17,6 +17,7 @@ import {
   uploadFile,
   type JsonValue,
 } from "./client";
+import { markSensitive } from "../lib/sensitiveMedia";
 
 /**
  * Typed Connect client for AI discovery. Execution is the REST multipart submit
@@ -49,7 +50,7 @@ export interface SubmitAIResult {
 
 /**
  * Submit one AI op. Builds the multipart request (`file` input bytes when the
- * op needs an image, optional `mask`, and `params` as AIParams protojson) and
+ * op needs an image, optional `mask` and `reference` image, and `params` as AIParams protojson) and
  * returns the parsed submit response (job id + ETA + resolved model/tier +
  * fallback warnings). A non-2xx (e.g. 409 "model not installed") becomes a
  * typed `ApiError` the caller branches on.
@@ -57,7 +58,7 @@ export interface SubmitAIResult {
 export async function submitAI(
   operation: string,
   params: AIParamsInput,
-  opts: { image?: File; mask?: File; operationId?: string; signal?: AbortSignal } = {},
+  opts: { image?: File; mask?: File; reference?: File; operationId?: string; signal?: AbortSignal } = {},
 ): Promise<SubmitAIResult> {
   const formData = new FormData();
   if (opts.image) {
@@ -65,6 +66,9 @@ export async function submitAI(
   }
   if (opts.mask) {
     formData.append("mask", opts.mask);
+  }
+  if (opts.reference) {
+    formData.append("reference", opts.reference);
   }
   formData.append("params", toJsonString(AIParamsSchema, create(AIParamsSchema, params)));
 
@@ -142,11 +146,12 @@ const imageSize = (url: string): Promise<{ width: number; height: number }> =>
   });
 
 /**
- * Fetch an AI op's result image by its job `result_ref`. Returns an object URL
+ * Fetch an AI op's result image by its job `result_ref`. `sensitive` is the job's
+ * sensitive flag for this ref. Returns an object URL
  * for the canvas, the natural dimensions (so upscale can show the new size),
  * and the bytes as a File so the result composes as the next history step.
  */
-export async function fetchAIResult(resultRef: string): Promise<AIImageResult> {
+export async function fetchAIResult(resultRef: string, sensitive = false): Promise<AIImageResult> {
   const blob = await fetchBlob(resultRef);
   const url = URL.createObjectURL(blob);
   const { width, height } = await imageSize(url);
@@ -154,6 +159,11 @@ export async function fetchAIResult(resultRef: string): Promise<AIImageResult> {
   const outputFile = new File([blob], `enhanced.${format || "png"}`, {
     type: blob.type || "image/png",
   });
+  if (sensitive) {
+    // The server flagged this output: the canvas, history and every file derived
+    // from it show blurred until revealed (features/sensitive).
+    markSensitive({ url, file: outputFile });
+  }
   return { url, width, height, format, outputFile };
 }
 

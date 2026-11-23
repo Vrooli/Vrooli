@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/packages/capacity"
+	"image-tools/internal/sidecar"
 	"image-tools/internal/smoke"
 )
 
@@ -43,6 +44,39 @@ type SmokeConfig struct {
 	Acquire func(context.Context, capacity.Request) (*capacity.Scope, error)
 }
 
+// shallowSmokeRAMGB bounds the RAM a non-deep smoke reserves. The shallow probe
+// resolves the pipeline class and checks the install shape; it never loads
+// weights, so reserving the model's inference floor (22-28 GiB for the 9B and
+// Kontext rows) only made installs wait on unrelated owners' RAM claims.
+const shallowSmokeRAMGB = 4
+
+// smokeRAMBytes is the RAM a load smoke reserves: the full inference floor for
+// a deep (weight-loading) smoke, a small bounded budget for the shallow one.
+func smokeRAMBytes(m Model, deep bool) int64 {
+	gb := m.Hardware.MinRAMGB
+	if !deep && gb > shallowSmokeRAMGB {
+		gb = shallowSmokeRAMGB
+	}
+	return int64(gb) << 30
+}
+
+// transformersSmokeKinds names the Transformers-backed sidecar backends and the
+// smoke.py probe kind that loads each one. Adding a backend of this shape is one
+// row here, one kind in smoke.py and one provider spec; the lifecycle gate, the
+// install-time smoke and the provisioner all read this table.
+var transformersSmokeKinds = map[string]string{
+	"sam2-transformers":      "sam2",
+	"segformer-transformers": "segformer",
+	"florence-transformers":  "florence",
+}
+
+// IsTransformersBackend reports whether backend is one of the Transformers-backed
+// sidecar backends (torch + transformers in the scenario venv, load-smoked).
+func IsTransformersBackend(backend string) bool {
+	_, ok := transformersSmokeKinds[backend]
+	return ok
+}
+
 // SmokeModule is the Python probe module the gate invokes in the venv.
 const SmokeModule = "image_tools_sidecar.smoke"
 
@@ -69,12 +103,12 @@ func probeArgsFor(m Model, dir string, deep bool) (kind string, args []string, o
 		}
 		return kind, args, true
 	}
-	if m.Backend == "sam2-transformers" {
-		args = []string{"--kind", "sam2", "--model-dir", dir}
+	if kind, ok := transformersSmokeKinds[m.Backend]; ok {
+		args = []string{"--kind", kind, "--model-dir", dir}
 		if deep {
 			args = append(args, "--deep")
 		}
-		return "sam2", args, true
+		return kind, args, true
 	}
 	if hasONNXWeight(dir) {
 		args = []string{"--kind", "onnx", "--model-dir", dir}
@@ -91,7 +125,8 @@ func HasLoadSmokeContract(m Model) bool {
 	switch m.Backend {
 	case BackendDiffusers:
 		return strings.TrimSpace(m.Runtime.Family) != "" || m.Architecture != "" && (m.ServesOperation("inpaint") || m.ServesOperation("outpaint"))
-	case "sam2-transformers":
+	}
+	if _, ok := transformersSmokeKinds[m.Backend]; ok {
 		return true
 	}
 	for _, asset := range m.Source.Assets {
@@ -105,8 +140,11 @@ func HasLoadSmokeContract(m Model) bool {
 // NeedsLoadSmokeContract identifies model backends whose lifecycle requires a
 // model-specific load-smoke before they can be Ready.
 func NeedsLoadSmokeContract(m Model) bool {
+	if _, ok := transformersSmokeKinds[m.Backend]; ok {
+		return true
+	}
 	switch m.Backend {
-	case BackendDiffusers, "python-sidecar", "onnxruntime", "sam2-transformers", "triposr":
+	case BackendDiffusers, "python-sidecar", "onnxruntime", "triposr":
 		return true
 	default:
 		return false
@@ -161,7 +199,7 @@ func (in *Installer) ensureSmoke(ctx context.Context, m Model, dir, modelHash st
 		if m.Hardware.MinRAMGB <= 0 || m.Hardware.MinRAMGB > 1024 {
 			return fmt.Errorf("models: smoke %q needs a bounded model RAM budget", m.ID)
 		}
-		request := capacity.Request{OwnerID: "image-tools:model-smoke:" + m.ID, RAMBytes: int64(m.Hardware.MinRAMGB) << 30, CPUMilli: int64(threads) * 1000, Priority: "service", NoReclaim: true}
+		request := capacity.Request{OwnerID: "image-tools:model-smoke:" + m.ID, RAMBytes: smokeRAMBytes(m, cfg.Deep), CPUMilli: int64(threads) * 1000, Priority: "service", NoReclaim: true}
 		var owned *capacity.Scope
 		for {
 			var err error
@@ -195,7 +233,7 @@ func (in *Installer) ensureSmoke(ctx context.Context, m Model, dir, modelHash st
 	// when this smoke intentionally selects CPU. Those libraries live inside the
 	// scenario venv and are not necessarily on the service's ambient loader path.
 	// Match inference/provider probes by exposing only this venv's NVIDIA dirs.
-	if libraries := pythonRuntimeLibraries(cfg.Python); len(libraries) > 0 {
+	if libraries := sidecar.RuntimeLibraries(cfg.Python); len(libraries) > 0 {
 		if current := strings.TrimSpace(os.Getenv("LD_LIBRARY_PATH")); current != "" {
 			libraries = append(libraries, current)
 		}
@@ -228,21 +266,6 @@ func (in *Installer) ensureSmoke(ctx context.Context, m Model, dir, modelHash st
 	}
 	emit(99, "smoke passed")
 	return nil
-}
-
-func pythonRuntimeLibraries(python string) []string {
-	if strings.TrimSpace(python) == "" {
-		return nil
-	}
-	venv := filepath.Dir(filepath.Dir(python))
-	matches, _ := filepath.Glob(filepath.Join(venv, "lib", "python*", "site-packages", "nvidia", "*", "lib"))
-	var dirs []string
-	for _, path := range matches {
-		if info, err := os.Stat(path); err == nil && info.IsDir() {
-			dirs = append(dirs, path)
-		}
-	}
-	return dirs
 }
 
 func fileExists(p string) bool {

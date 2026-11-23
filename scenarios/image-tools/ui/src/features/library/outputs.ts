@@ -1,6 +1,7 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 
 import { JobState, type Job } from "../../api/jobs";
+import { isSensitiveRef } from "../../lib/sensitiveMedia";
 
 /**
  * A library output — a succeeded job that produced a result blob. Derived from
@@ -12,6 +13,8 @@ export interface OutputItem {
   operation: string;
   resultRef: string;
   createdAtMs: number;
+  /** The server flagged this output sensitive: show it blurred behind a tap-to-reveal. */
+  sensitive: boolean;
 }
 
 /**
@@ -27,6 +30,7 @@ export function imageOutputs(jobs: readonly Job[]): OutputItem[] {
       operation: job.operation,
       resultRef: job.resultRef,
       createdAtMs: job.createdAt ? timestampDate(job.createdAt).getTime() : 0,
+      sensitive: isSensitiveRef(job, job.resultRef),
     }))
     .sort((a, b) => b.createdAtMs - a.createdAtMs);
 }

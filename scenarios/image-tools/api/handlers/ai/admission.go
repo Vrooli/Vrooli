@@ -106,7 +106,13 @@ func (h *Deps) admitStored(ctx context.Context, op string, params *aiv1.AIParams
 			return nil, rejectAdmission(http.StatusServiceUnavailable, httpx.CodeInternal, "failed to inspect retained operation")
 		}
 	}
-	plan, err := h.Engine.Plan(ctx, internalai.PlanRequest{Operation: op, ModelOverride: params.GetModelOverride(), AllowBYOK: allowBYOKForParams(params), QualityPolicy: qualityPolicyForParams(params), FallbackPolicy: fallbackPolicyForParams(params), Priority: priorityForParams(params), AllowReclaim: allowReclaimForParams(params), RequireGPU: params.GetRequireGpu(), ForceCPU: params.GetForceCpu(), Role: params.GetOpenrouterRole(), Adapters: adapterRequests(params), AutoAcquire: autoAcquireForParams(params), Prompt: params.GetPrompt(), Variations: int(params.GetVariations()), EditStyle: params.GetEditStyle(), MaxWaitSeconds: maxWaitForParams(params), MaxCostUSD: maxCostForParams(params), ConsentAffirmed: params.GetConsentAffirmed()})
+	faces := h.newInputFaces(inputKey, referenceKey)
+	requestParams := paramsMap(params)
+	modelOverride, err := h.extentDefaults(op, params, requestParams)
+	if err != nil {
+		return nil, rejectAdmission(http.StatusBadRequest, httpx.CodeInvalidRequest, err.Error())
+	}
+	plan, err := h.Engine.Plan(ctx, internalai.PlanRequest{Operation: op, ModelOverride: modelOverride, AllowBYOK: allowBYOKForParams(params), QualityPolicy: qualityPolicyForParams(params), FallbackPolicy: fallbackPolicyForParams(params), Priority: priorityForParams(params), AllowReclaim: allowReclaimForParams(params), RequireGPU: params.GetRequireGpu(), ForceCPU: params.GetForceCpu(), Role: params.GetOpenrouterRole(), Adapters: adapterRequests(params), AutoAcquire: autoAcquireForParams(params), Prompt: params.GetPrompt(), Variations: int(params.GetVariations()), EditStyle: params.GetEditStyle(), MaxWaitSeconds: maxWaitForParams(params), MaxCostUSD: maxCostForParams(params), ConsentAffirmed: params.GetConsentAffirmed(), InputFaces: faces.Func()})
 	if err != nil {
 		return nil, planAdmissionError(err)
 	}
@@ -119,22 +125,27 @@ func (h *Deps) admitStored(ctx context.Context, op string, params *aiv1.AIParams
 	if hasBackgroundRepair(params) && plan.ModelID != "big-lama" {
 		return nil, rejectAdmission(http.StatusUnprocessableEntity, httpx.CodeInvalidRequest, "background repair controls require the qualified big-lama model; select it explicitly")
 	}
+	consentBasis := ""
 	if h.Gate != nil {
 		// The route is known now: the consent rules apply to what will actually
 		// run. The weight is the plan's (raised by any adapter stack, decision C4)
 		// and never below the operation's own.
 		weight := safety.MaxWeight(safety.OpWeight(op), safety.Weight(plan.Weight))
-		decision := h.Gate.EvaluateRoute(weight, op, plan.Tier, params.GetConsentAffirmed())
+		decision := h.Gate.EvaluateRouteInput(ctx, weight, op, plan.Tier, params.GetConsentAffirmed(), faces.Func())
 		if !decision.Allowed {
 			return nil, rejectAdmission(http.StatusForbidden, httpx.CodeForbidden, decision.Reason+" — "+decision.RecoveryHint)
 		}
+		consentBasis = decision.ConsentBasis
 		if decision.RecordConsent {
 			if err := h.Gate.RecordConsent(ctx, op, decision.Weight, plan.Tier+":"+plan.ModelID); err != nil {
 				h.logf("ai.submit consent log: %v", err)
 			}
 		}
 	}
-	payload := internalai.Payload{Operation: op, InputKey: inputKey, MaskKey: maskKey, ReferenceKey: referenceKey, ConsentAffirmed: params.GetConsentAffirmed(), ModelID: plan.ModelID, Backend: plan.Provider, Tier: plan.Tier, GPU: plan.GPUViable, RequireGPU: params.GetRequireGpu(), AllowBYOK: plan.AllowBYOK, CapacityPriority: priorityForParams(params), AllowReclaim: allowReclaimForParams(params), AutoScanNSFW: params.GetAutoScanNsfw() || gate.ForceNSFWScan, Variations: int(params.GetVariations()), Params: paramsWithPlan(paramsMap(params), plan.Params), Adapters: plan.Adapters, AutoAcquire: plan.AutoAcquire, Route: plan.Route, PreserveIdentity: params.PreserveIdentity}
+	// A look that found nobody is remembered on the job, so a re-route chosen
+	// after it was queued does not have to ask again.
+	consentWaived := faces.Clear()
+	payload := internalai.Payload{Operation: op, InputKey: inputKey, MaskKey: maskKey, ReferenceKey: referenceKey, ConsentAffirmed: params.GetConsentAffirmed(), ModelID: plan.ModelID, Backend: plan.Provider, Tier: plan.Tier, GPU: plan.GPUViable, RequireGPU: params.GetRequireGpu(), AllowBYOK: plan.AllowBYOK, CapacityPriority: priorityForParams(params), AllowReclaim: allowReclaimForParams(params), AutoScanNSFW: params.GetAutoScanNsfw() || gate.ForceNSFWScan, ConsentWaived: consentWaived, ConsentBasis: consentBasis, Variations: int(params.GetVariations()), Params: paramsWithPlan(requestParams, plan.Params), Adapters: plan.Adapters, AutoAcquire: plan.AutoAcquire, Route: plan.Route, PreserveIdentity: params.PreserveIdentity}
 	raw, err := json.Marshal(payload)
 	if err != nil {
 		return nil, rejectAdmission(http.StatusInternalServerError, httpx.CodeInternal, "failed to prepare job")
@@ -154,6 +165,31 @@ func (h *Deps) admitStored(ctx context.Context, op string, params *aiv1.AIParams
 		return nil, rejectAdmission(http.StatusServiceUnavailable, httpx.CodeInternal, "failed to enqueue job")
 	}
 	return savedAdmission(job, plan.Warnings)
+}
+
+// extentDefaults applies what a swap extent pins to the request: the model a
+// stage needs (a general editor for the whole head) when the caller named none,
+// and the instruction that stage is given when the caller wrote none. It fails
+// for an extent the operation does not declare, before any job exists.
+func (h *Deps) extentDefaults(op string, params *aiv1.AIParams, requestParams map[string]string) (string, error) {
+	modelOverride := params.GetModelOverride()
+	model, err := internalai.ExtentModel(op, requestParams)
+	if err != nil {
+		return "", err
+	}
+	if modelOverride == "" {
+		modelOverride = model
+	}
+	if requestParams["prompt"] == "" {
+		prompt, err := internalai.ExtentPrompt(op, requestParams)
+		if err != nil {
+			return "", err
+		}
+		if prompt != "" && modelOverride == model {
+			requestParams["prompt"] = prompt
+		}
+	}
+	return modelOverride, nil
 }
 
 // bindPosePreprocessorInput links a multipart source image to a ControlNet pose

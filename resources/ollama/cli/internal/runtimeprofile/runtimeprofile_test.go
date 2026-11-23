@@ -2,6 +2,7 @@ package runtimeprofile
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -435,8 +437,9 @@ func TestEdgeNormalizerKeepAliveMatchLeavesBodyByteIdentical(t *testing.T) {
 // fakeDaemon serves the two endpoints residency reassertion uses and records
 // every load-only request it receives.
 type fakeDaemon struct {
-	loaded   []string
-	requests chan map[string]any
+	loaded       []string
+	capabilities map[string][]string
+	requests     chan map[string]any
 }
 
 func (d *fakeDaemon) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -447,6 +450,12 @@ func (d *fakeDaemon) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			models = append(models, map[string]string{"name": name, "model": name})
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{"models": models})
+	case "/api/show":
+		var body struct {
+			Model string `json:"model"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		_ = json.NewEncoder(w).Encode(map[string]any{"capabilities": d.capabilities[body.Model]})
 	case "/api/generate", "/api/embed":
 		body := map[string]any{"endpoint": r.URL.Path}
 		_ = json.NewDecoder(r.Body).Decode(&body)
@@ -454,6 +463,47 @@ func (d *fakeDaemon) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, `{"done":true}`)
 	default:
 		http.NotFound(w, r)
+	}
+}
+
+func TestReconcileLoadedResidencyRepairsOnlyLoadedManagedModels(t *testing.T) {
+	daemon := &fakeDaemon{
+		loaded:       []string{"gemma4:12b", "nomic-embed-text:latest", "unmanaged:1b"},
+		capabilities: map[string][]string{"nomic-embed-text:latest": {"embedding"}},
+		requests:     make(chan map[string]any, 4),
+	}
+	server := httptest.NewServer(daemon)
+	defer server.Close()
+	n := NewEdgeNormalizer(nil)
+	n.KeepAlive = func(model string) (int, bool) {
+		switch model {
+		case "gemma4:12b":
+			return 600, true
+		case "nomic-embed-text:latest":
+			return -1, true
+		default:
+			return 0, false
+		}
+	}
+	upstream := activityedge.Upstream{BaseURL: server.URL, Client: server.Client()}
+	if err := n.ReconcileLoadedResidency(context.Background(), upstream); err != nil {
+		t.Fatalf("ReconcileLoadedResidency() error = %v", err)
+	}
+	want := map[string]map[string]any{
+		"gemma4:12b":              {"endpoint": "/api/generate", "model": "gemma4:12b", "keep_alive": float64(600)},
+		"nomic-embed-text:latest": {"endpoint": "/api/embed", "model": "nomic-embed-text:latest", "keep_alive": float64(-1), "input": []any{}},
+	}
+	for range want {
+		got := <-daemon.requests
+		model, _ := got["model"].(string)
+		if !reflect.DeepEqual(got, want[model]) {
+			t.Errorf("reconciliation request = %v, want %v", got, want[model])
+		}
+	}
+	select {
+	case extra := <-daemon.requests:
+		t.Fatalf("reconciled an unmanaged or absent model: %v", extra)
+	default:
 	}
 }
 

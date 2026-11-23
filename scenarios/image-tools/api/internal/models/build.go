@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image-tools/internal/modelenv"
 	"io"
 	"os"
 	"path/filepath"
@@ -179,7 +180,8 @@ func (in *Installer) runOwnedBuild(ctx context.Context, jobID, modelID, dir, pyt
 	} else if ok && pending.JobID != jobID {
 		return nil, fmt.Errorf("models: build operation %s for %s remains unreconciled in state %s", pending.JobID, modelID, pending.State), false
 	}
-	env := envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env(extraEnv))
+	// Builds convert installed weights; like inference they never download.
+	env := envkit.Env(modelenv.Apply(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env(extraEnv)), modelenv.ModeInference))
 	spec := platform.OperationSpec{
 		Path: python, Args: append([]string(nil), args...), Env: []string(env), Dir: dir,
 		// CPUWeight is a relative systemd scheduling weight, not a quota. The

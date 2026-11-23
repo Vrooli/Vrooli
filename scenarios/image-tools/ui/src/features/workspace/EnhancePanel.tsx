@@ -8,6 +8,7 @@ import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { listAIOperations, type AIParamsInput } from "../../api/ai";
+import { ModelCapacityNote } from "./ModelCapacityNote";
 import { ModelPickerButton } from "../models/ModelPickerButton";
 import { VerdictBadge } from "../models/VerdictBadge";
 import { TIER_LABEL, UPSCALE_SCALES } from "./aiCatalog";
@@ -307,6 +308,8 @@ export function EnhancePanel({
               />
             </div>
           )}
+
+          <ModelCapacityNote model={operation && !modelOverride ? model : null} />
 
           {!input && (
             <p className="text-sm text-app-muted-foreground">

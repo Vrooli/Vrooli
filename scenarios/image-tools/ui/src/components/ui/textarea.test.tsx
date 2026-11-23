@@ -1,32 +1,32 @@
 /**
- * Unit tests for the Textarea primitive.
- *
- * Mirrors `input.test.tsx`: the contract is identical (forwardRef, cn
- * merge, prop pass-through, value-on-type). Kept as a separate file so
- * a regression in either primitive has a single locus and the failure
- * message names the primitive that broke.
+ * Image Tools adoption contract for the shared RCL Textarea asset.
+ * Keep the test beside the deleted local-kit path so this app's required
+ * attributes, custom classes, refs, and typing remain explicit.
  */
 import { useRef } from "react";
-import { describe, expect, it } from "vitest";
-import { screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, screen } from "@testing-library/react";
 import { renderWithProviders as render } from "../../test-utils";
 import userEvent from "@testing-library/user-event";
 
-import { Textarea } from "./textarea";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1.1.1";
 
-describe("Textarea", () => {
-  it("emits the base className chunk so the cn() merge contract holds", () => {
-    render(<Textarea data-testid="t" />);
+afterEach(() => cleanup());
+
+describe("Image Tools RCL Textarea", () => {
+  it("renders the shared textarea hook and preserves caller attributes", () => {
+    render(<Textarea data-testid="t" aria-label="Review rationale" disabled />);
     const el = screen.getByTestId("t");
-    expect(el.className).toMatch(/rounded-md/);
-    expect(el.className).toMatch(/border/);
+    expect(el).toHaveAttribute("data-rcl-textarea", "true");
+    expect(el).toHaveAttribute("aria-label", "Review rationale");
+    expect(el).toBeDisabled();
   });
 
-  it("merges a custom className with the base classes via cn()", () => {
-    render(<Textarea data-testid="t" className="custom-extra" />);
+  it("preserves scenario and custom classes", () => {
+    render(<Textarea data-testid="t" className="image-tools-textarea custom-extra" />);
     const el = screen.getByTestId("t");
+    expect(el.className).toMatch(/image-tools-textarea/);
     expect(el.className).toMatch(/custom-extra/);
-    expect(el.className).toMatch(/rounded-md/);
   });
 
   it("forwards ref to the underlying HTMLTextAreaElement", () => {

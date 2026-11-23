@@ -66,13 +66,13 @@ func (s *store) insert(ctx context.Context, j Job) error {
 }
 
 const updateJobSQL = `
-UPDATE jobs SET state=?, progress=?, message=?, error=?, result_ref=?, meta=?, started_at=?, finished_at=?
+UPDATE jobs SET state=?, progress=?, message=?, error=?, result_ref=?, meta=?, started_at=?, finished_at=?, lane=?, payload=?, estimated_seconds=?
 WHERE id=?`
 
 func (s *store) update(ctx context.Context, j Job) error {
 	_, err := s.db.ExecContext(ctx, updateJobSQL,
 		string(j.State), j.Progress, j.Message, j.Error, j.ResultRef, encodeMeta(j.Meta),
-		formatTimePtr(j.StartedAt), formatTimePtr(j.FinishedAt), j.ID,
+		formatTimePtr(j.StartedAt), formatTimePtr(j.FinishedAt), string(j.Lane), j.Payload, j.EstimatedSeconds, j.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("jobs: update: %w", err)
@@ -195,6 +195,58 @@ func (s *store) listManagedOutputs(ctx context.Context, limit int) ([]Job, error
 		return nil, fmt.Errorf("jobs: list managed outputs rows: %w", err)
 	}
 	return out, nil
+}
+
+// listCostRecords returns the newest finished jobs whose meta mentions a
+// recorded cost. The spend ledger reads it: a succeeded job carries cost_usd,
+// and a failed one may carry known per-attempt costs in its gateway evidence.
+// The time window is applied by the caller on parsed timestamps because stored
+// offsets vary and a lexical SQL comparison is only approximate.
+func (s *store) listCostRecords(ctx context.Context, limit int) ([]Job, error) {
+	if limit <= 0 {
+		limit = 1000
+	}
+	rows, err := s.db.QueryContext(ctx, "SELECT "+selectJobColumns+" FROM jobs WHERE finished_at<>'' AND meta LIKE '%cost_usd%' ORDER BY created_at DESC LIMIT ?", limit)
+	if err != nil {
+		return nil, fmt.Errorf("jobs: list cost records: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []Job
+	for rows.Next() {
+		j, err := scanJob(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, j)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("jobs: list cost records rows: %w", err)
+	}
+	return out, nil
+}
+
+// listRouteRefusals returns the newest jobs, in any state, whose meta records a
+// refused cloud route. The cloud cooldown reads it: the record is written to the
+// job when the refusal happens, so the pause survives restarts and is shared by
+// every waiting job. The time window is applied by the caller.
+func (s *store) listRouteRefusals(ctx context.Context, limit int) ([]Job, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	rows, err := s.db.QueryContext(ctx, "SELECT "+selectJobColumns+" FROM jobs WHERE meta LIKE '%route_cloud_refused_at%' ORDER BY created_at DESC LIMIT ?", limit)
+	if err != nil {
+		return nil, fmt.Errorf("jobs: list route refusals: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []Job
+	for rows.Next() {
+		j, err := scanJob(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, j)
+	}
+	return out, rows.Err()
 }
 
 // listNonTerminal returns jobs still queued/running (used at boot for recovery).

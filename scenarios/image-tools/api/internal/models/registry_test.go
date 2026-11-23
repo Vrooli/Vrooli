@@ -338,6 +338,26 @@ func TestLaMaBuildProfileIsClosedAndCannotEnableUnpinnedOutput(t *testing.T) {
 	}
 }
 
+func TestEveryDisabledSeedRowSaysWhy(t *testing.T) {
+	r, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	disabled := 0
+	for _, m := range r.Models() {
+		if m.Enabled {
+			continue
+		}
+		disabled++
+		if m.Disabled == nil || m.Disabled.Validate() != nil {
+			t.Errorf("%s is seeded disabled without a valid reason: %+v", m.ID, m.Disabled)
+		}
+	}
+	if disabled == 0 {
+		t.Fatal("expected disabled seed rows to check")
+	}
+}
+
 func TestSdxlInpaintUsesPinnedFp16RepositorySubsetAndRemainsDisabled(t *testing.T) {
 	r, err := Load()
 	if err != nil {
@@ -349,6 +369,9 @@ func TestSdxlInpaintUsesPinnedFp16RepositorySubsetAndRemainsDisabled(t *testing.
 	}
 	if model.Enabled {
 		t.Fatal("SDXL inpainting must remain opt-in until visual qualification passes")
+	}
+	if model.Disabled == nil || model.Disabled.Kind != DisabledCandidate {
+		t.Fatalf("SDXL inpainting is a candidate until visually qualified, got %+v", model.Disabled)
 	}
 	if model.Source.Repo.RepoID != "diffusers/stable-diffusion-xl-1.0-inpainting-0.1" || model.Source.Repo.Revision != "115134f363124c53c7d878647567d04daf26e41e" {
 		t.Fatalf("SDXL inpaint source is not pinned: %+v", model.Source.Repo)
@@ -793,7 +816,36 @@ func TestSeedInvariantPolicyFailures(t *testing.T) {
 			want: "commercial_use_notes",
 			reg: mutate(func(m map[string]any, _ map[string]any) {
 				m["enabled"] = false
+				m["disabled"] = map[string]any{"kind": "candidate", "reason": "kept for comparison"}
 				m["capability_labels"] = map[string]any{"commercial_use": "conditional"}
+			}),
+		},
+		{
+			name: "disabled with no reason",
+			want: "no \"disabled\" reason",
+			reg:  mutate(func(m map[string]any, _ map[string]any) { m["enabled"] = false }),
+		},
+		{
+			name: "enabled but still carrying a reason",
+			want: "still carries a \"disabled\" reason",
+			reg: mutate(func(m map[string]any, _ map[string]any) {
+				m["disabled"] = map[string]any{"kind": "runtime", "reason": "stale"}
+			}),
+		},
+		{
+			name: "licensing is never a reason to disable",
+			want: "licensing is never a reason",
+			reg: mutate(func(m map[string]any, _ map[string]any) {
+				m["enabled"] = false
+				m["disabled"] = map[string]any{"kind": "licence", "reason": "weights unverified"}
+			}),
+		},
+		{
+			name: "multi-line reason",
+			want: "one non-empty line",
+			reg: mutate(func(m map[string]any, _ map[string]any) {
+				m["enabled"] = false
+				m["disabled"] = map[string]any{"kind": "runtime", "reason": "a\nb"}
 			}),
 		},
 		{

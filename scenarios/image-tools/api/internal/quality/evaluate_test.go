@@ -243,7 +243,7 @@ func TestTextToImageUsesJudgeWithoutMisleadingPixelReferenceMetrics(t *testing.T
 	require.Len(t, got.Output, output.Len())
 
 	m.Judge = "disabled"
-	require.ErrorContains(t, Validate(m), "requires the local judge")
+	require.ErrorContains(t, Validate(m), "requires a judge")
 }
 
 func TestInstructionEditUsesJudgeAgainstSourceWithoutPixelReference(t *testing.T) {
@@ -275,14 +275,14 @@ func TestInstructionEditUsesJudgeAgainstSourceWithoutPixelReference(t *testing.T
 	require.NoError(t, err)
 	require.True(t, r.Passed)
 	require.NotContains(t, r.Means, "reference.ssim")
-	require.Contains(t, r.Cases[0].Warnings, "reference-image metrics omitted: no canonical pixel reference; the local judge uses the supplied source image and instruction")
+	require.Contains(t, r.Cases[0].Warnings, "reference-image metrics omitted: no canonical pixel reference; the judge uses the supplied source image and instruction")
 	require.Len(t, got.Input, source.Len())
 	require.Empty(t, got.Reference)
 	require.Len(t, got.Output, output.Len())
 	require.Equal(t, "Change the bright blue stars to warm coral.", got.Instruction)
 
 	m.Judge = "disabled"
-	require.ErrorContains(t, Validate(m), "requires the local judge")
+	require.ErrorContains(t, Validate(m), "requires a judge")
 	m.Judge = "required"
 	m.Cases[0].Input = ""
 	require.ErrorContains(t, Validate(m), "source image is required")

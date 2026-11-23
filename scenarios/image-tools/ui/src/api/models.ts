@@ -2,6 +2,7 @@ import { createClient } from "@connectrpc/connect";
 import {
   CommercialUse,
   ModelsService,
+  VerdictGrade,
   type AddCustomModelResponse,
   type BackendReadiness,
   type BackendStatus,
@@ -26,6 +27,9 @@ import {
   type RemoveModelResponse,
   type SetDefaultModelResponse,
   type SetModelEnabledResponse,
+  type StateOverride,
+  type Verdict,
+  type VerdictEvidence,
 } from "@vrooli/proto-types/image-tools/v1/models/models_pb";
 
 import { transport } from "./client";
@@ -51,7 +55,7 @@ export async function getHostSummary(): Promise<GetHostSummaryResponse> {
   return modelsClient.getHostSummary({});
 }
 
-export { CommercialUse };
+export { CommercialUse, VerdictGrade };
 export type {
   Model,
   ListModelsResponse,
@@ -77,4 +81,7 @@ export type {
   BackendReadiness,
   HostSummary,
   GetHostSummaryResponse,
+  StateOverride,
+  Verdict,
+  VerdictEvidence,
 };

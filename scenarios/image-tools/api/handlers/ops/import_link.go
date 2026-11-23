@@ -7,10 +7,12 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
 	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
+	"image-tools/internal/diskpolicy"
 	"image-tools/internal/fetch"
 	"image-tools/internal/httpx"
 	"image-tools/internal/storage"
@@ -42,7 +44,6 @@ type importLinkResponse struct {
 // storage. The URL is fetched server-side only after the fetcher's public-IP
 // checks; callers receive an opaque ref usable by existing image operations.
 const importLinkPeakBytes int64 = 64 << 20
-const importLinkFreeFloorBytes int64 = 120 << 30
 const importLinkHeartbeatInterval = 10 * time.Second
 
 func importLinkHandler(store ImportLinkStore, fetcher RemoteImageFetcher, guard storage.Guard, disk sharedcapacity.DiskJobAdmitter, reservationRoot func(context.Context) (string, error)) http.HandlerFunc {
@@ -74,12 +75,12 @@ func importLinkHandler(store ImportLinkStore, fetcher RemoteImageFetcher, guard 
 			httpx.WriteError(w, http.StatusServiceUnavailable, httpx.CodeInternal, "could not prepare import storage")
 			return
 		}
-		lease, err := disk.ReserveDiskJob(r.Context(), sharedcapacity.DiskJobRequest{
-			OwnerID:    "image-tools:link-import",
-			JobID:      uuid.NewString(),
-			Paths:      []sharedcapacity.DiskJobPath{{Path: root, Role: "imported-input-image", PeakBytes: importLinkPeakBytes}},
-			FloorBytes: importLinkFreeFloorBytes,
-		})
+		// A bounded 64 MiB import is a small write: the ledger holds it to its
+		// small-write floor, not the install-sized floor of a 40 GB download.
+		lease, err := disk.ReserveDiskJob(r.Context(), diskpolicy.Resolve(os.Getenv).Request(
+			"image-tools:link-import", uuid.NewString(),
+			[]sharedcapacity.DiskJobPath{{Path: root, Role: "imported-input-image", PeakBytes: importLinkPeakBytes}},
+		))
 		if err != nil {
 			httpx.WriteError(w, http.StatusServiceUnavailable, httpx.CodeInternal, "import storage capacity is unavailable")
 			return

@@ -34,15 +34,41 @@ type (
 	// warm worker does not double-claim.
 	operationMemoryContextKey struct{}
 	preparedExecution         struct {
-		model                   models.Model
-		selection               backends.Selection
-		payload                 Payload
+		model     models.Model
+		selection backends.Selection
+		payload   Payload
+		// jobContext is the context the job was admitted under, before any
+		// claim scoped its own: it outlives the claims' release.
+		jobContext              context.Context
 		finishInference         func(context.Context) error
 		markDiskCleanupVerified func(bool)
 	}
 )
 
 var ErrDiskOutputCleanupUnverified = errors.New("ai: output temporary-file cleanup is unverified")
+
+// capacityActivityMetadataKey records whether the job's claims were reported
+// active to the broker ("active"), or why not.
+const (
+	capacityActivityMetadataKey = "capacity_activity"
+	// residentActivityMetadataKey is the same record for a warm worker's
+	// long-lived resident claims.
+	residentActivityMetadataKey = "capacity_resident_activity"
+)
+
+// reportActivity reports a group active or idle and describes the outcome for
+// job meta. A failure is recorded, never returned: the work must not stop
+// because the broker could not be told about it.
+func reportActivity(ctx context.Context, group *leaseGroup, active bool) string {
+	state := "idle"
+	if active {
+		state = "active"
+	}
+	if err := group.setActivity(context.WithoutCancel(ctx), active); err != nil {
+		return "unreported: " + firstLine(err.Error())
+	}
+	return state
+}
 
 type warmGPUCapacityFallbackError struct{ detail string }
 
@@ -56,6 +82,7 @@ func (e *warmGPUCapacityFallbackError) Unwrap() error { return jobs.ErrCapacityB
 // every acquired resource is released before retry or terminal completion.
 func (e *Engine) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, error) {
 	ctx = capacity.WithPriority(ctx, string(job.Priority))
+	jobContext := ctx
 	group := newLeaseGroup(ctx)
 	meta := map[string]string{}
 	// leaseGroup releases each part once and retries only the parts that failed,
@@ -100,7 +127,7 @@ func (e *Engine) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, error
 	// admission and before any lease, so waiting for them (or for the smoke
 	// capacity that checks them) reads as admitting, can be returned to the
 	// queue for a restart, and never happens after output already exists.
-	if err := e.acquireReviewModels(ctx, job); err != nil {
+	if err := e.acquireReviewModels(ctx, job, model.CapabilityLabels.NSFWCapable); err != nil {
 		return admission, err
 	}
 	if e.deps.ModelRuntimeReadiness != nil {
@@ -135,7 +162,7 @@ func (e *Engine) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, error
 		// The consent rule is checked again at execution: the route may have been
 		// pinned, re-routed or recovered since submit, and sending an
 		// identity-altering request to another party is not undoable either.
-		if blocked, why := e.consentBlocks(job.Operation, string(capability.ConsentWeightFor(job.Operation)), pl.ConsentAffirmed); blocked {
+		if blocked, why := e.consentBlocks(ctx, job.Operation, string(capability.ConsentWeightFor(job.Operation)), pl.ConsentAffirmed || pl.ConsentWaived, nil); blocked {
 			return admission, fmt.Errorf("%w: %s", ErrConsentRequired, why)
 		}
 		// Billing is the one effect that cannot be rolled back, so the caps are
@@ -164,6 +191,9 @@ func (e *Engine) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, error
 		}
 	}
 
+	// A gateway-served model runs on the gateway's own capacity broker and has the
+	// gateway-local tier: this job only waits on the call, so it claims no CPU or
+	// RAM of its own.
 	local := bsel.Tier == backends.TierLocalCPU || bsel.Tier == backends.TierLocalGPU
 	if e.deps.Disk == nil {
 		return admission, errors.New("ai: shared host disk admission is unavailable; refusing output generation")
@@ -223,7 +253,7 @@ func (e *Engine) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, error
 	if local && e.deps.CPU != nil {
 		lease, err := e.deps.CPU(ctx, "image-tools:"+job.ID+":cpu", int64(threads)*1000)
 		if err != nil {
-			return admission, fmt.Errorf("ai: CPU capacity: %w", err)
+			return admission, fmt.Errorf("ai: CPU capacity: %w", busyIfTransient(err))
 		}
 		if lease == nil {
 			return admission, errors.New("ai: CPU admission returned no lease")
@@ -257,22 +287,23 @@ func (e *Engine) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, error
 		acquireResidency := func(tier backends.Tier, gpu capabilities.GPU) func(context.Context) (*leaseGroup, error) {
 			return func(residentCtx context.Context) (*leaseGroup, error) {
 				resident := newLeaseGroup(residentCtx)
-				if err := e.admitModelMemory(resident, model, "image-tools:resident:"+model.ID, true); err != nil {
+				if err := e.admitModelMemory(resident, model, capacity.ResidentOwnerID(model.ID), true); err != nil {
 					return resident, err
 				}
 				if tier == backends.TierLocalGPU {
-					lease, err := e.deps.Capacity.Claim(residentCtx, "image-tools:resident:"+model.ID+":"+gpu.UUID, modelVRAMClaimBytes(model), capacity.ClaimOptions{
+					lease, err := e.claimGPU(residentCtx, capacity.ResidentOwnerID(model.ID, gpu.UUID), modelVRAMClaimBytes(model), capacity.ClaimOptions{
 						Priority: pl.CapacityPriority, AllowReclaim: pl.AllowReclaim, GPUUUID: gpu.UUID,
-					})
+					}, meta)
 					if err != nil {
 						return resident, fmt.Errorf("ai: GPU residency admission failed: %w", err)
 					}
 					if lease.DegradeToCPU {
-						return resident, &warmGPUCapacityFallbackError{detail: "GPU capacity denied warm model residency"}
+						return resident, &warmGPUCapacityFallbackError{detail: "GPU capacity denied warm model residency: " + strings.Join(lease.Warnings, "; ")}
 					}
 					resident.renew("GPU residency", capacity.NewMemoryLease(e.deps.Capacity, lease))
 					meta["gpu_capacity_claim_id"] = lease.ClaimID
 					meta["gpu_uuid"] = gpu.UUID
+					meta[gpuCapacityClaimBytesMetadataKey] = strconv.FormatInt(modelVRAMClaimBytes(model), 10)
 					meta["gpu_capacity_policy"] = "held-for-warm-model-residency"
 				}
 				return resident, nil
@@ -380,7 +411,7 @@ func (e *Engine) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, error
 		if resident := modelResidentVRAMClaimBytes(model); resident > claimBytes {
 			residentLease, err := e.deps.Capacity.Claim(ctx, "image-tools:"+job.ID, resident, claimOptions)
 			if err != nil {
-				return admission, fmt.Errorf("ai: GPU capacity admission failed: %w", err)
+				return admission, fmt.Errorf("ai: GPU capacity admission failed: %w", busyIfTransient(err))
 			}
 			if residentLease.DegradeToCPU {
 				meta["gpu_residency"] = "streamed"
@@ -393,13 +424,21 @@ func (e *Engine) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, error
 		}
 		if lease.ClaimID == "" {
 			var err error
-			lease, err = e.deps.Capacity.Claim(ctx, "image-tools:"+job.ID, claimBytes, claimOptions)
+			lease, err = e.claimGPU(ctx, "image-tools:"+job.ID, claimBytes, claimOptions, meta)
 			if err != nil {
-				return admission, fmt.Errorf("ai: GPU capacity admission failed: %w", err)
+				return admission, fmt.Errorf("ai: GPU capacity admission failed: %w", busyIfTransient(err))
 			}
 		}
 		meta["gpu_claim_bytes"] = strconv.FormatInt(claimBytes, 10)
+		if lease.ReclaimBytes > 0 {
+			// What the broker took from idle lower-priority owners to admit this job;
+			// it never takes an active or protected owner's claim.
+			meta["gpu_reclaimed_bytes"] = strconv.FormatInt(lease.ReclaimBytes, 10)
+		}
 		group.releases = append(group.releases, func(cleanup context.Context) error { return e.deps.Capacity.Release(cleanup, lease) })
+		group.activity = append(group.activity, activityFunc(func(ctx context.Context, active bool) error {
+			return capacity.ReportActivity(ctx, e.deps.Capacity, lease, active)
+		}))
 		if lease.DegradeToCPU {
 			if pl.RequireGPU {
 				return admission, fmt.Errorf("%w: capacity admission denied or deferred GPU execution for model %q", jobs.ErrCapacityBusy, model.ID)
@@ -424,7 +463,10 @@ func (e *Engine) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, error
 			meta["gpu_uuid"] = gpu.UUID
 		}
 	}
-	admission.Context = context.WithValue(ctx, executionAdmissionKey{}, &preparedExecution{model: model, selection: bsel, payload: pl, finishInference: group.releaseInference, markDiskCleanupVerified: group.markDiskCleanupVerified})
+	// Admission is complete and the scheduler starts the work next: every claim
+	// this job holds is now serving it.
+	meta[capacityActivityMetadataKey] = reportActivity(ctx, group, true)
+	admission.Context = context.WithValue(ctx, executionAdmissionKey{}, &preparedExecution{model: model, selection: bsel, payload: pl, jobContext: jobContext, finishInference: group.releaseInference, markDiskCleanupVerified: group.markDiskCleanupVerified})
 	admission.Release = func(cleanup context.Context) error {
 		err := group.release(cleanup)
 		if err != nil {
@@ -611,6 +653,18 @@ func (e *Engine) diskInputPixelCounts(ctx context.Context, pl Payload) ([]int64,
 	return pixels, nil
 }
 
+// busyIfTransient classes a capacity-ledger call that timed out (the fleet-wide
+// admission lock was held longer than the call's bound) as capacity-busy: the
+// job goes back to the queue and retries with backoff instead of failing for a
+// condition that clears by itself. Any other error keeps its own class, and the
+// job's own cancellation is not a timeout.
+func busyIfTransient(err error) error {
+	if err != nil && errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, jobs.ErrCapacityBusy) {
+		return fmt.Errorf("%w: %w", jobs.ErrCapacityBusy, err)
+	}
+	return err
+}
+
 func (e *Engine) admitModelMemory(group *leaseGroup, model models.Model, owner string, local bool) error {
 	if e.deps.AcquireModelUse != nil {
 		release, err := e.deps.AcquireModelUse(model.ID)
@@ -631,7 +685,7 @@ func (e *Engine) admitModelMemory(group *leaseGroup, model models.Model, owner s
 		}
 		lease, err := e.deps.Memory(group.ctx, owner, int64(model.Hardware.MinRAMGB)<<30)
 		if err != nil {
-			return fmt.Errorf("ai: local RAM capacity: %w", err)
+			return fmt.Errorf("ai: local RAM capacity: %w", busyIfTransient(err))
 		}
 		if lease == nil {
 			return errors.New("ai: local RAM admission returned no lease")
@@ -653,6 +707,31 @@ type leaseGroup struct {
 	diskStopRenew       func()
 	diskLeaseID         string
 	diskCleanupVerified bool
+	// activity holds the leases whose owner reports idleness. The broker never
+	// infers it, so a claim nobody reports on reads idle while its job runs.
+	activity []capacity.ActivityLease
+}
+
+// activityFunc adapts a reporting function (a GPU claim held through the
+// broker seam) to the lease interface the group tracks.
+type activityFunc func(context.Context, bool) error
+
+func (f activityFunc) ReportActivity(ctx context.Context, active bool) error { return f(ctx, active) }
+
+// setActivity reports every claim in the group active or idle. It is best
+// effort for the caller: a report that fails leaves the claim reading idle, which
+// never stops the work.
+func (g *leaseGroup) setActivity(ctx context.Context, active bool) error {
+	g.mu.Lock()
+	leases := append([]capacity.ActivityLease(nil), g.activity...)
+	g.mu.Unlock()
+	var errs []error
+	for _, lease := range leases {
+		if err := lease.ReportActivity(ctx, active); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
 }
 
 func newLeaseGroup(ctx context.Context) *leaseGroup {
@@ -660,6 +739,11 @@ func newLeaseGroup(ctx context.Context) *leaseGroup {
 }
 
 func (g *leaseGroup) renew(kind string, lease capacity.MemoryLease) {
+	if reporter, ok := lease.(capacity.ActivityLease); ok {
+		g.mu.Lock()
+		g.activity = append(g.activity, reporter)
+		g.mu.Unlock()
+	}
 	scope := sharedcapacity.Maintain(g.ctx, lease)
 	g.ctx = scope.Context()
 	release := func(ctx context.Context) error {
@@ -742,18 +826,37 @@ func (g *leaseGroup) releaseWithDisk(ctx context.Context, includeDisk bool) erro
 // reviewRequired reports whether the hard-refusal review runs on this
 // operation's output. It never depends on a request flag.
 func (e *Engine) reviewRequired(operation string) bool {
-	return e.deps.ReviewOutput != nil && operation != "scene_geometry" && operation != "image_to_object"
+	return e.deps.ReviewOutput != nil && outputIsRaster(operation)
+}
+
+// outputIsRaster reports whether an operation's output is image bytes the
+// classifier and the age reviewer can read, from the operation's declared output
+// port: image and mask are rasters; text (a caption), data (detections, tags, an
+// embedding, scene geometry) and a mesh are not, and handing them to an image
+// reviewer fails the job on a decode error. An operation with no manifest is
+// treated as a raster, so the review stays on for anything undeclared.
+func outputIsRaster(operation string) bool {
+	manifest, ok := capability.Get(operation)
+	if !ok {
+		return true
+	}
+	switch manifest.IO.Output.Kind {
+	case "image", "mask":
+		return true
+	default:
+		return false
+	}
 }
 
 // acquireReviewModels makes the review's weights present during admission. A
 // weight that is offloaded between admission and the review is still
 // re-acquired by holdReviewModels, so a configured reviewer can always run.
-func (e *Engine) acquireReviewModels(ctx context.Context, job jobs.Job) error {
+func (e *Engine) acquireReviewModels(ctx context.Context, job jobs.Job, nsfwCapable bool) error {
 	if !e.reviewRequired(job.Operation) || e.deps.AcquireModel == nil || e.deps.ModelInstalled == nil {
 		return nil
 	}
 	report := jobs.AdmissionProgress(ctx)
-	for _, id := range e.deps.ReviewModels {
+	for _, id := range e.reviewModelIDs(nsfwCapable) {
 		if e.deps.ModelInstalled(id) {
 			continue
 		}

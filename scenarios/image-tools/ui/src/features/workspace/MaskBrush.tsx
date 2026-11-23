@@ -4,12 +4,19 @@ import { Slider } from "../../components/ui/slider";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
+import { SensitiveImage } from "../sensitive/SensitiveImage";
+import { MaskSelectByName } from "./MaskSelectByName";
+import type { NamedSelectionClient } from "./useNamedSelection";
 
 export interface MaskBrushProps {
   /** The image being masked (the current canvas image), or null. */
   imageUrl: string | null;
   /** Emits the painted/uploaded mask as a PNG File, or null when cleared. */
   onMask: (mask: File | null) => void;
+  /** The picture itself, so a part of it can be selected by name; omit to offer painting only. */
+  image?: File | null;
+  /** Injected seam for the by-name selection (tests); the live service otherwise. */
+  selectionClient?: NamedSelectionClient;
 }
 
 const MIN_BRUSH = 8;
@@ -24,7 +31,7 @@ const DEFAULT_BRUSH = 36;
  * fallback (the brush itself needs a 2D canvas, which a keyboard user or a
  * headless test can't drive), so no path is pointer-only.
  */
-export function MaskBrush({ imageUrl, onMask }: MaskBrushProps) {
+export function MaskBrush({ imageUrl, onMask, image = null, selectionClient }: MaskBrushProps) {
   const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const naturalRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
@@ -34,6 +41,7 @@ export function MaskBrush({ imageUrl, onMask }: MaskBrushProps) {
   const [brush, setBrush] = useState(DEFAULT_BRUSH);
   const [painted, setPainted] = useState(false);
   const [uploadedName, setUploadedName] = useState<string | null>(null);
+  const [selectedPhrase, setSelectedPhrase] = useState<string | null>(null);
 
   // Size the paint layer to the image's natural pixels so the exported mask
   // lines up with the backend's full-resolution input.
@@ -151,7 +159,46 @@ export function MaskBrush({ imageUrl, onMask }: MaskBrushProps) {
     }
     setPainted(false);
     setUploadedName(null);
+    setSelectedPhrase(null);
     onMask(null);
+  };
+
+  // A selection by name lands on the paint layer (white where it selects), so the
+  // brush can add to it; without a canvas it is simply the mask.
+  const applySelection = async (selected: File, phrase: string) => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    setSelectedPhrase(phrase);
+    setPainted(true);
+    if (!canvas || !ctx || canvas.width === 0 || typeof createImageBitmap !== "function") {
+      onMask(selected);
+      return;
+    }
+    try {
+      const bitmap = await createImageBitmap(selected);
+      const layer = document.createElement("canvas");
+      layer.width = canvas.width;
+      layer.height = canvas.height;
+      const layerCtx = layer.getContext("2d");
+      if (!layerCtx) {
+        onMask(selected);
+        return;
+      }
+      layerCtx.drawImage(bitmap, 0, 0, layer.width, layer.height);
+      const pixels = layerCtx.getImageData(0, 0, layer.width, layer.height);
+      const data = pixels.data;
+      for (let i = 0; i < data.length; i += 4) {
+        // White-on-black mask in, white-on-transparent paint out.
+        data[i + 3] = Math.round(((data[i] ?? 0) + (data[i + 1] ?? 0) + (data[i + 2] ?? 0)) / 3);
+        data[i] = data[i + 1] = data[i + 2] = 255;
+      }
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.putImageData(pixels, 0, 0);
+      bitmap.close();
+      exportMask();
+    } catch {
+      onMask(selected);
+    }
   };
 
   const onUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -165,7 +212,9 @@ export function MaskBrush({ imageUrl, onMask }: MaskBrushProps) {
 
   const status = uploadedName
     ? t(strings.workspace.mask.uploaded, { name: uploadedName })
-    : painted
+    : selectedPhrase
+      ? t(strings.workspace.mask.selected, { phrase: selectedPhrase })
+      : painted
       ? t(strings.workspace.mask.painted)
       : t(strings.workspace.mask.empty);
 
@@ -190,14 +239,21 @@ export function MaskBrush({ imageUrl, onMask }: MaskBrushProps) {
       </div>
       <p className="text-xs text-app-muted-foreground">{t(strings.workspace.mask.hint)}</p>
 
+      {!uploadedName && (
+        <MaskSelectByName image={image} client={selectionClient} onSelected={(selected, phrase) => void applySelection(selected, phrase)} />
+      )}
+
+      {/* The box hugs the picture so the paint layer (inset-0) covers exactly the pixels
+          it edits; a full-width box letterboxed portrait photos and skewed every stroke. */}
       {imageUrl && !uploadedName && (
-        <div className="relative overflow-hidden rounded-control border border-app-border">
-          <img
+        <div className="relative mx-auto w-fit max-w-full overflow-hidden rounded-control border border-app-border">
+          <SensitiveImage
             src={imageUrl}
+            interactive={false}
             alt=""
             aria-hidden="true"
             onLoad={onImageLoad}
-            className="block max-h-48 w-full object-contain"
+            className="block h-auto max-h-[55vh] w-auto max-w-full"
           />
           <canvas
             ref={canvasRef}

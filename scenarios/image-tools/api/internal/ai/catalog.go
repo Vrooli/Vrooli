@@ -34,7 +34,11 @@ type Op struct {
 	Summary       string
 	RequiresImage bool
 	RequiresMask  bool
-	PromptDriven  bool
+	// RequiresReference is true when the op takes a second image that supplies
+	// what to transfer (the face for face_swap). It is the image port named
+	// "reference"; the first image port is still the one being edited.
+	RequiresReference bool
+	PromptDriven      bool
 }
 
 // catalog is the AI engine's membership: every manifest whose declared engine is
@@ -56,6 +60,10 @@ func project(m capability.Manifest) Op {
 	for _, in := range m.IO.Inputs {
 		switch in.Kind {
 		case "image":
+			if in.Name == capability.ReferencePort {
+				op.RequiresReference = true
+				continue
+			}
 			op.RequiresImage = true
 		case "mask":
 			op.RequiresMask = true

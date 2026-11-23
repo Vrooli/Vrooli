@@ -10,7 +10,8 @@ import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../../test-utils";
-import { makeListModelsResponse, makeModel } from "./mocks/factories";
+import { makeListModelsResponse, makeModel, makeStateOverride, makeVerdict } from "./mocks/factories";
+import { VerdictGrade } from "@vrooli/proto-types/image-tools/v1/models/models_pb";
 import { makeModelsMocks } from "./mocks/models";
 
 vi.mock("../../api/models", async (importOriginal) => {
@@ -289,5 +290,52 @@ describe("ModelsCard", () => {
     await waitFor(() => {
       expect(modelsClient.removeModel).toHaveBeenCalledWith({ id: "m-del" });
     });
+  });
+
+  it("shows every model's verdict at a glance with its reason, per-operation grades and override provenance", async () => {
+    const { modelsClient } = await import("../../api/models");
+    vi.mocked(modelsClient.listModels).mockResolvedValueOnce(
+      makeListModelsResponse({
+        models: [
+          makeModel({
+            id: "good",
+            name: "Good",
+            operations: ["upscale", "face_restore"],
+            verdict: makeVerdict({ operation: "", grade: VerdictGrade.RECOMMENDED, reason: "upscale: kept the face" }),
+            verdicts: [
+              makeVerdict({ operation: "upscale", grade: VerdictGrade.RECOMMENDED }),
+              makeVerdict({ operation: "face_restore", grade: VerdictGrade.UNTESTED, reason: "no evidence yet" }),
+            ],
+          }),
+          makeModel({
+            id: "bad",
+            name: "Bad",
+            verdict: makeVerdict({ grade: VerdictGrade.NOT_RECOMMENDED, reason: "ruined faces in the judged comparison" }),
+            override: makeStateOverride(),
+          }),
+          // An older server sends no verdict at all: the card still says untested.
+          makeModel({ id: "bare", name: "Bare", verdict: undefined }),
+        ],
+      }),
+    );
+
+    renderWithProviders(<ModelsCard />);
+    await waitFor(() => expect(screen.getByTestId(selectors.models.list)).toBeInTheDocument());
+
+    const badges = screen.getAllByTestId(selectors.models.verdict);
+    expect(badges.map((b) => b.textContent)).toEqual(["Recommended", "Not recommended", "Untested"]);
+    expect(badges[1]).toHaveAttribute("title", "ruined faces in the judged comparison");
+
+    expect(screen.getAllByTestId(selectors.models.verdictReason).map((r) => r.textContent)).toEqual([
+      "upscale: kept the face",
+      "ruined faces in the judged comparison",
+    ]);
+    const operations = screen.getByTestId(selectors.models.verdictOperations);
+    expect(operations.textContent).toContain("upscale: Recommended");
+    expect(operations.textContent).toContain("face_restore: Untested");
+
+    const override = screen.getByTestId(selectors.models.override).textContent;
+    expect(override).toContain("Disabled by agent-7: judge flagged skin artifacts");
+    expect(override).toContain("Contradicts the catalog default");
   });
 });

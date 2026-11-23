@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"image"
 	"image/png"
 	"io"
 )
@@ -31,34 +32,11 @@ func (b *boundedArchive) Write(p []byte) (int, error) {
 
 func parallaxSequence(in RunInput) (RunResult, error) {
 	p := in.Params
-	q := p.Parallax
-	if q == nil || q.Frames < 2 || q.Frames > 180 || (q.FPS != 24 && q.FPS != 30) {
-		return RunResult{}, fmt.Errorf("ops: parallax requires 2..180 frames and 24 or 30 fps")
-	}
-	if p.Camera != nil {
-		return RunResult{}, fmt.Errorf("ops: parallax scene must omit camera; use explicit start/end cameras")
-	}
-	if p.Format != "" && p.Format != "zip" {
-		return RunResult{}, fmt.Errorf("ops: parallax produces a lossless PNG sequence ZIP")
-	}
-	plates, layers, w, h, err := prepareComposite(p)
+	plates, layers, w, h, err := prepareParallax(p)
 	if err != nil {
 		return RunResult{}, err
 	}
-	if int64(w)*int64(h)*int64(q.Frames) > 240_000_000 {
-		return RunResult{}, fmt.Errorf("ops: parallax exceeds 240 million frame pixels; reduce dimensions or frame count")
-	}
-	if err = validateLayeredCamera(q.Start, w, h, plates); err != nil {
-		return RunResult{}, err
-	}
-	if err = validateLayeredCamera(q.End, w, h, plates); err != nil {
-		return RunResult{}, err
-	}
-	// Start/end opacity policy must agree. Otherwise interpolation would hide a
-	// missing-scene check during part of the path.
-	if q.Start.RequireOpaque != q.End.RequireOpaque {
-		return RunResult{}, fmt.Errorf("ops: parallax start/end require_opaque policies must match")
-	}
+	q := p.Parallax
 	ctx := in.Context
 	if ctx == nil {
 		return RunResult{}, fmt.Errorf("ops: parallax context is required")
@@ -149,37 +127,47 @@ func parallaxSequence(in RunInput) (RunResult, error) {
 	return RunResult{Bytes: archive.Bytes(), Format: "zip", Mime: "application/zip", Width: w, Height: h}, nil
 }
 
+// prepareParallax owns the request invariants shared by queue-time validation
+// and execution. The caller uses its independent contract to avoid accepting a
+// job that execution would immediately reject.
+func prepareParallax(p *Params) ([]PlateSpec, []image.Image, int, int, error) {
+	if p == nil || p.Parallax == nil || p.Parallax.Frames < 2 || p.Parallax.Frames > 180 || (p.Parallax.FPS != 24 && p.Parallax.FPS != 30) {
+		return nil, nil, 0, 0, fmt.Errorf("ops: parallax requires 2..180 frames and 24 or 30 fps")
+	}
+	q := p.Parallax
+	if p.Camera != nil {
+		return nil, nil, 0, 0, fmt.Errorf("ops: parallax scene must omit camera; use explicit start/end cameras")
+	}
+	if p.Format != "" && p.Format != "zip" {
+		return nil, nil, 0, 0, fmt.Errorf("ops: parallax produces a lossless PNG sequence ZIP")
+	}
+	plates, layers, w, h, err := prepareComposite(p)
+	if err != nil {
+		return nil, nil, 0, 0, err
+	}
+	if int64(w)*int64(h)*int64(q.Frames) > 240_000_000 {
+		return nil, nil, 0, 0, fmt.Errorf("ops: parallax exceeds 240 million frame pixels; reduce dimensions or frame count")
+	}
+	if err = validateLayeredCamera(q.Start, w, h, plates); err != nil {
+		return nil, nil, 0, 0, err
+	}
+	if err = validateLayeredCamera(q.End, w, h, plates); err != nil {
+		return nil, nil, 0, 0, err
+	}
+	// Start/end opacity policy must agree. Otherwise interpolation would hide a
+	// missing-scene check during part of the path.
+	if q.Start.RequireOpaque != q.End.RequireOpaque {
+		return nil, nil, 0, 0, fmt.Errorf("ops: parallax start/end require_opaque policies must match")
+	}
+	return plates, layers, w, h, nil
+}
+
 // ValidateParallaxRequest checks preparation and bounded path endpoints before
-// the owner queues work. Every intermediate frame still checks coverage.
+// the owner queues work. Execution repeats these same checks before rendering.
 func ValidateParallaxRequest(p *Params) error {
 	if p == nil || p.Parallax == nil {
 		return fmt.Errorf("ops: prepared parallax parameters are required")
 	}
-	q := p.Parallax
-	if q.Frames < 2 || q.Frames > 180 || (q.FPS != 24 && q.FPS != 30) {
-		return fmt.Errorf("ops: parallax requires 2..180 frames and 24 or 30 fps")
-	}
-	if p.Camera != nil {
-		return fmt.Errorf("ops: parallax scene must omit camera")
-	}
-	if p.Format != "" && p.Format != "zip" {
-		return fmt.Errorf("ops: parallax produces a lossless PNG sequence ZIP")
-	}
-	plates, _, w, h, err := prepareComposite(p)
-	if err != nil {
-		return err
-	}
-	if int64(w)*int64(h)*int64(q.Frames) > 240_000_000 {
-		return fmt.Errorf("ops: parallax exceeds 240 million frame pixels")
-	}
-	if err = validateLayeredCamera(q.Start, w, h, plates); err != nil {
-		return err
-	}
-	if err = validateLayeredCamera(q.End, w, h, plates); err != nil {
-		return err
-	}
-	if q.Start.RequireOpaque != q.End.RequireOpaque {
-		return fmt.Errorf("ops: parallax opacity policies must match")
-	}
-	return nil
+	_, _, _, _, err := prepareParallax(p)
+	return err
 }

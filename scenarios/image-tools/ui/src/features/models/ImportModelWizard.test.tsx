@@ -44,9 +44,7 @@ describe("ImportModelWizard", () => {
       source: "stabilityai/stable-diffusion-xl-base-1.0",
     });
 
-    // Import is blocked until the user explicitly attests rights for the weights.
-    expect(screen.getByTestId(selectors.models.import.submit)).toBeDisabled();
-    await user.click(screen.getByTestId(selectors.models.import.attest));
+    // Licensing never blocks a local import: the attestation is optional.
     expect(screen.getByTestId(selectors.models.import.submit)).toBeEnabled();
 
     // Import uses the prefilled (confirmed) architecture + proposed id.
@@ -58,7 +56,7 @@ describe("ImportModelWizard", () => {
     expect(arg.source).toBe("stabilityai/stable-diffusion-xl-base-1.0");
     expect(arg.architecture).toBe("sdxl");
     expect(arg.id).toBe("imported-stable-diffusion-xl-base-1-0");
-    expect(arg.attestCommercialRights).toBe(true);
+    expect(arg.attestCommercialRights).toBe(false);
     expect(await screen.findByTestId(selectors.models.import.success)).toBeInTheDocument();
   });
 
@@ -80,8 +78,36 @@ describe("ImportModelWizard", () => {
     // Import is blocked until an architecture is chosen.
     expect(screen.getByTestId(selectors.models.import.submit)).toBeDisabled();
     await user.selectOptions(screen.getByTestId(selectors.models.import.architecture), "sd15");
-    expect(screen.getByTestId(selectors.models.import.submit)).toBeDisabled();
-    await user.click(screen.getByTestId(selectors.models.import.attest));
     expect(screen.getByTestId(selectors.models.import.submit)).toBeEnabled();
+  });
+
+  it("passes the optional rights attestation through when ticked", async () => {
+    const { modelsClient } = await import("../../api/models");
+    const user = userEvent.setup();
+    renderWithProviders(<ImportModelWizard />);
+    await user.type(screen.getByTestId(selectors.models.import.source), "Org/Model");
+    await user.click(screen.getByTestId(selectors.models.import.inspect));
+    await screen.findByTestId(selectors.models.import.preview);
+    await user.click(screen.getByTestId(selectors.models.import.attest));
+    await user.click(screen.getByTestId(selectors.models.import.submit));
+    await waitFor(() => expect(modelsClient.importModel).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(modelsClient.importModel).mock.calls[0]![0].attestCommercialRights).toBe(true);
+  });
+
+  it("shows the adapter it found and what is still needed in plain words", async () => {
+    const { modelsClient } = await import("../../api/models");
+    vi.mocked(modelsClient.inspectModelSource).mockResolvedValueOnce(
+      makeInspectModelSourceResponse({
+        runtimeFamily: "flux-2-klein",
+        needs: ["the flux-2-klein adapter is not proven runnable yet: pin the version"],
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<ImportModelWizard />);
+    await user.type(screen.getByTestId(selectors.models.import.source), "Org/Klein");
+    await user.click(screen.getByTestId(selectors.models.import.inspect));
+    await screen.findByTestId(selectors.models.import.preview);
+    expect(screen.getByTestId(selectors.models.import.adapter)).toHaveTextContent("flux-2-klein");
+    expect(screen.getByTestId(selectors.models.import.needs)).toHaveTextContent("not proven runnable yet");
   });
 });

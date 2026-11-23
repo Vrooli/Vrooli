@@ -6,7 +6,7 @@
  * useCreate.test).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { create, type MessageInitShape } from "@bufbuild/protobuf";
@@ -20,9 +20,10 @@ import {
 import { expectNoA11yViolations, renderWithProviders } from "../../test-utils";
 import { selectors } from "../../consts/selectors";
 import { setLocale } from "../../i18n";
-import { makeAIMocks, makeSelectedModel } from "./mocks/ai";
+import { makeAIMocks, makeAIOperationInfo, makeListAIOperationsResponse, makeSelectedModel } from "./mocks/ai";
+import { VerdictGrade } from "@vrooli/proto-types/image-tools/v1/models/models_pb";
 import { makeModelsMocks } from "../models/mocks/models";
-import { makeModel } from "../models/mocks/factories";
+import { makeExplainResolutionResponse, makeModel, makeResolution } from "../models/mocks/factories";
 
 vi.mock("../../api/ai", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/ai")>();
@@ -37,6 +38,18 @@ vi.mock("../../api/models", async (importOriginal) => {
   return { ...actual, ...makeModelsMocks() };
 });
 
+// The panel renders <JobRatingControl/> for a finished run, which reads the
+// job's existing rating. Mock the jobs API so the panel stays hermetic.
+const jobsMock = vi.hoisted(() => ({
+  getJob: vi.fn(),
+  rateJob: vi.fn(),
+  clearJobRating: vi.fn(),
+}));
+vi.mock("../../api/jobs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/jobs")>();
+  return { ...actual, jobsClient: jobsMock, rateJob: jobsMock.rateJob, clearJobRating: jobsMock.clearJobRating };
+});
+
 const policyMock = vi.hoisted(
   (): { data: SafetyPolicy | undefined; error: unknown; isLoading: boolean } => ({
     data: undefined,
@@ -49,6 +62,7 @@ vi.mock("../safety/useSafetyPolicy", () => ({
   SAFETY_POLICY_QUERY_KEY: ["safety-policy"],
 }));
 
+import { modelsClient } from "../../api/models";
 import { CreatePanel } from "./CreatePanel";
 import type { UseCreate } from "./useCreate";
 
@@ -87,6 +101,10 @@ const renderPanel = (create: UseCreate, input: File | null = null, inputUrl: str
 
 beforeEach(async () => {
   await setLocale("en");
+  jobsMock.getJob.mockResolvedValue({});
+  // Each test starts from "this route needs no consent"; tests that need the
+  // server to ask say so with explainConsent.
+  vi.mocked(modelsClient.explainResolution).mockResolvedValue(makeExplainResolutionResponse());
 });
 
 afterEach(() => {
@@ -161,8 +179,7 @@ describe("CreatePanel", () => {
     expect(create.start).toHaveBeenCalledWith(
       "text_to_image",
       expect.objectContaining({ prompt: "a serene lake" }),
-      undefined,
-      undefined,
+      {},
     );
   });
 
@@ -191,6 +208,11 @@ describe("CreatePanel", () => {
     expect(gate).toBeInTheDocument();
     await user.click(screen.getByTestId(selectors.workspace.create.install));
     expect(create.installAndRun).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the graphics-card note for the model the run would use, and not once a model is picked by hand", async () => {
+    renderPanel(fakeCreate({ model: makeSelectedModel({ gpuViable: true, cpuCapable: false }) }));
+    expect((await screen.findByTestId(selectors.workspace.capacityNote)).textContent).toBe("May wait for the graphics card if it's busy");
   });
 
   it("has no detectable accessibility violations", async () => {
@@ -238,8 +260,7 @@ describe("CreatePanel", () => {
         allowByok: true,
         forceCpu: true,
       }),
-      undefined,
-      undefined,
+      {},
     );
   });
 
@@ -259,8 +280,7 @@ describe("CreatePanel", () => {
     expect(create.start).toHaveBeenCalledWith(
       "edit_instruct",
       expect.objectContaining({ prompt: "recolor the stars", cfgScale: 10, strength: 2, forceCpu: true }),
-      PNG,
-      undefined,
+      { input: PNG },
     );
   });
 
@@ -286,8 +306,7 @@ describe("CreatePanel", () => {
         // zero max_edge_px is omitted because 0 is not one of its legal values.
         opParams: { inpaint_crop_to_mask: true, inpaint_context_pixels: 128 },
       }),
-      PNG,
-      MASK,
+      { input: PNG, mask: MASK },
     );
   });
 
@@ -315,8 +334,7 @@ describe("CreatePanel", () => {
     expect(create.start).toHaveBeenCalledWith(
       "text_to_image",
       expect.objectContaining({ seed: expect.any(BigInt) }),
-      undefined,
-      undefined,
+      {},
     );
   });
 
@@ -336,8 +354,7 @@ describe("CreatePanel", () => {
     expect(create.start).toHaveBeenCalledWith(
       "image_to_image",
       expect.objectContaining({ prompt: "watercolor style" }),
-      PNG,
-      undefined,
+      { input: PNG },
     );
   });
 
@@ -398,6 +415,37 @@ describe("CreatePanel", () => {
     expect(await screen.findByTestId(selectors.workspace.create.progress)).toBeInTheDocument();
   });
 
+  it("shows the default model's verdict on every operation tile that has a default", async () => {
+    const { listAIOperations } = await import("../../api/ai");
+    vi.mocked(listAIOperations).mockResolvedValueOnce(
+      makeListAIOperationsResponse({
+        operations: [
+          makeAIOperationInfo({ name: "text_to_image", defaultModelId: "flux-2-klein-4b", defaultVerdict: { operation: "text_to_image", grade: VerdictGrade.RECOMMENDED, reason: "best" } }),
+          makeAIOperationInfo({ name: "image_to_image", defaultUnavailable: "no enabled model" }),
+        ],
+      }),
+    );
+    renderPanel(fakeCreate());
+    expect(await screen.findByTestId(selectors.workspace.opVerdict({ name: "text_to_image" }))).toHaveTextContent("Recommended");
+    expect(screen.queryByTestId(selectors.workspace.opVerdict({ name: "image_to_image" }))).not.toBeInTheDocument();
+  });
+
+  it("offers a rating for the finished run's job, and not before it has finished", async () => {
+    const result = { kind: "image" as const, url: "blob:v0", width: 512, height: 512, format: "png", jobId: "gen-7" };
+    const variations = [{ index: 0, result, outputFile: PNG }];
+    const running = renderPanel(fakeCreate({ phase: "running", results: variations }));
+    expect(screen.queryByTestId(selectors.workspace.rating.root)).not.toBeInTheDocument();
+    running.unmount();
+
+    jobsMock.rateJob.mockResolvedValue({ jobId: "gen-7", score: 5, note: "" });
+    const user = userEvent.setup();
+    renderPanel(fakeCreate({ phase: "succeeded", results: variations }));
+    await user.click(await screen.findByTestId(selectors.workspace.ratingScore({ score: 5 })));
+
+    await waitFor(() => expect(jobsMock.rateJob).toHaveBeenCalledWith("gen-7", 5, ""));
+    expect(jobsMock.getJob).toHaveBeenCalledWith({ id: "gen-7" });
+  });
+
   it("lists fallback warnings, the success count, and the failure with retry", async () => {
     const user = userEvent.setup();
     const succeeded = fakeCreate({
@@ -440,6 +488,117 @@ describe("CreatePanel", () => {
     expect(await screen.findByTestId(selectors.workspace.create.error)).toBeInTheDocument();
   });
 
+  // The server answers "does this request need consent" for the route it would
+  // take; the panel shows its checkbox only when that answer says so.
+  const explainConsent = (resolution: Parameters<typeof makeResolution>[0]) =>
+    vi.mocked(modelsClient.explainResolution).mockResolvedValue(
+      makeExplainResolutionResponse({ resolution: makeResolution(resolution) }),
+    );
+
+  describe("reference image", () => {
+    it("takes a reference photo for face swap and sends it with the run", async () => {
+      const user = userEvent.setup();
+      const createHook = fakeCreate();
+      renderPanel(createHook, PNG, "blob:img");
+      await user.click(
+        await screen.findByTestId(selectors.workspace.createAction({ name: "face_swap" })),
+      );
+
+      expect(screen.getByTestId(selectors.workspace.create.needsReference)).toBeInTheDocument();
+      expect(screen.getByTestId(selectors.workspace.create.run)).toBeDisabled();
+
+      const face = new File(["face"], "face.png", { type: "image/png" });
+      await user.upload(screen.getByTestId(selectors.workspace.create.reference), face);
+      expect(screen.queryByTestId(selectors.workspace.create.needsReference)).not.toBeInTheDocument();
+      await user.click(screen.getByTestId(selectors.workspace.create.run));
+
+      expect(createHook.start).toHaveBeenCalledWith("face_swap", expect.anything(), {
+        input: PNG,
+        reference: face,
+      });
+    });
+
+    it("sends the swap extent the person picked: a preset, a custom mix, and the face strength", async () => {
+      const user = userEvent.setup();
+      const createHook = fakeCreate();
+      renderPanel(createHook, PNG, "blob:img");
+      await user.click(
+        await screen.findByTestId(selectors.workspace.createAction({ name: "face_swap" })),
+      );
+      const face = new File(["face"], "face.png", { type: "image/png" });
+      await user.upload(screen.getByTestId(selectors.workspace.create.reference), face);
+      const paramsOfLastRun = () => {
+        const call = vi.mocked(createHook.start).mock.calls.at(-1);
+        return (call?.[1] as { opParams?: unknown } | undefined)?.opParams;
+      };
+
+      // The default is the plain swap.
+      await user.click(screen.getByTestId(selectors.workspace.create.run));
+      expect(paramsOfLastRun()).toEqual({ extent: "face" });
+
+      // A preset names itself.
+      const presets = within(screen.getByTestId(selectors.workspace.create.extentPresets));
+      await user.click(presets.getByRole("radio", { name: "Full look" }));
+      await user.click(screen.getByTestId(selectors.workspace.create.run));
+      expect(paramsOfLastRun()).toEqual({ extent: "full_look" });
+
+      // Switching one stage off leaves a custom mix, sent as the stages.
+      await user.click(screen.getByTestId(`${selectors.workspace.create.extentStage}-skin`));
+      await user.click(screen.getByTestId(selectors.workspace.create.run));
+      expect(paramsOfLastRun()).toEqual({ match: ["face", "hair_colour"] });
+
+      // The whole head takes the face's place and hides the face strength.
+      await user.click(screen.getByTestId(`${selectors.workspace.create.extentStage}-head`));
+      expect(screen.queryByTestId(selectors.workspace.create.extentStrength)).not.toBeInTheDocument();
+      await user.click(screen.getByTestId(selectors.workspace.create.run));
+      expect(paramsOfLastRun()).toEqual({ match: ["hair_colour", "head"] });
+    });
+
+    it("offers the skin tone's direction while the skin stage runs and sends a non-default choice", async () => {
+      const user = userEvent.setup();
+      const createHook = fakeCreate();
+      renderPanel(createHook, PNG, "blob:img");
+      await user.click(
+        await screen.findByTestId(selectors.workspace.createAction({ name: "face_swap" })),
+      );
+      await user.upload(
+        screen.getByTestId(selectors.workspace.create.reference),
+        new File(["face"], "face.png", { type: "image/png" }),
+      );
+      const optionTestId = `${selectors.workspace.create.extentStage}-skin-skin_target`;
+      expect(screen.queryByTestId(optionTestId)).not.toBeInTheDocument(); // the skin stage is off
+      await user.click(screen.getByTestId(`${selectors.workspace.create.extentStage}-skin`));
+      const direction = within(screen.getByTestId(optionTestId));
+      await user.click(direction.getByRole("radio", { name: "The target's body" }));
+      await user.click(screen.getByTestId(selectors.workspace.create.run));
+      const call = vi.mocked(createHook.start).mock.calls.at(-1);
+      expect((call?.[1] as { opParams?: unknown }).opParams).toEqual({ extent: "face_skin", skin_target: "body" });
+    });
+
+    it("sends the face strength when it is below a full swap", async () => {
+      const user = userEvent.setup();
+      const createHook = fakeCreate();
+      renderPanel(createHook, PNG, "blob:img");
+      await user.click(
+        await screen.findByTestId(selectors.workspace.createAction({ name: "face_swap" })),
+      );
+      await user.upload(
+        screen.getByTestId(selectors.workspace.create.reference),
+        new File(["face"], "face.png", { type: "image/png" }),
+      );
+      fireEvent.change(screen.getByTestId(selectors.workspace.create.extentStrength), { target: { value: "0.6" } });
+      await user.click(screen.getByTestId(selectors.workspace.create.run));
+      const call = vi.mocked(createHook.start).mock.calls.at(-1);
+      expect((call?.[1] as { opParams?: unknown }).opParams).toEqual({ extent: "face", face_strength: 0.6 });
+    });
+
+    it("does not ask for a reference on other operations", async () => {
+      renderPanel(fakeCreate(), PNG, "blob:img");
+      await screen.findByTestId(selectors.workspace.createAction({ name: "edit_instruct" }));
+      expect(screen.queryByTestId(selectors.workspace.create.reference)).not.toBeInTheDocument();
+    });
+  });
+
   describe("consent gate", () => {
     it("shows no consent checkbox on the local tier (requireConsent off)", async () => {
       policyMock.data = publicPolicy({ tier: DeploymentTier.LOCAL, requireConsent: false });
@@ -454,6 +613,7 @@ describe("CreatePanel", () => {
 
     it("requires consent for a high-weight op on the public tier and threads it into params", async () => {
       policyMock.data = publicPolicy();
+      explainConsent({ consentRequired: true, consentBasis: "tier", consentReason: "This deployment asks for consent." });
       const user = userEvent.setup();
       const createHook = fakeCreate();
       renderPanel(createHook, PNG, "blob:img");
@@ -476,8 +636,45 @@ describe("CreatePanel", () => {
       expect(createHook.start).toHaveBeenCalledWith(
         "edit_instruct",
         expect.objectContaining({ consentAffirmed: true }),
-        PNG,
-        undefined,
+        { input: PNG },
+      );
+    });
+
+    it("asks for consent only when the route leaves this machine, in plain words", async () => {
+      policyMock.data = publicPolicy({ tier: DeploymentTier.LOCAL, requireConsent: false });
+      const user = userEvent.setup();
+      const createHook = fakeCreate();
+      renderPanel(createHook, PNG, "blob:img");
+      await user.click(
+        await screen.findByTestId(selectors.workspace.createAction({ name: "edit_instruct" })),
+      );
+      await user.type(screen.getByTestId(selectors.workspace.create.prompt), "make it sunset");
+
+      // A local run: the server says nothing is required, so no checkbox.
+      explainConsent({ consentRequired: false });
+      await waitFor(() => expect(screen.getByTestId(selectors.workspace.create.run)).toBeEnabled());
+      expect(screen.queryByTestId(selectors.workspace.create.consent)).not.toBeInTheDocument();
+
+      // Choosing the cloud route changes the answer; the checkbox appears with the reason.
+      explainConsent({
+        consentRequired: true,
+        consentBasis: "route",
+        consentReason: "This would run outside this machine.",
+        tier: "byok-cloud",
+      });
+      await user.click(screen.getByLabelText(/cloud/i));
+      const reason = await screen.findByTestId(selectors.workspace.create.consentReason);
+      expect(reason.textContent).toContain("outside this machine");
+      const consent = screen.getByTestId(selectors.workspace.create.consent);
+      expect(screen.getByLabelText(/send them outside this machine/i)).toBe(consent);
+      expect(screen.getByTestId(selectors.workspace.create.run)).toBeDisabled();
+
+      await user.click(consent);
+      await user.click(screen.getByTestId(selectors.workspace.create.run));
+      expect(createHook.start).toHaveBeenCalledWith(
+        "edit_instruct",
+        expect.objectContaining({ consentAffirmed: true, allowByok: true }),
+        { input: PNG },
       );
     });
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -194,6 +195,77 @@ func (n *EdgeNormalizer) reassertResidency(model, loadOnly string, upstream acti
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+	return reassertLoadedResidency(ctx, model, loadOnly, keepAlive, upstream)
+}
+
+// ReconcileLoadedResidency applies the current declaration to models that are
+// already loaded when the activity edge starts. It never loads an absent
+// model, and policy durations are set from now so old daemon-level keep-alive
+// values cannot pin an idle runner indefinitely.
+func (n *EdgeNormalizer) ReconcileLoadedResidency(ctx context.Context, upstream activityedge.Upstream) error {
+	if n == nil || n.KeepAlive == nil || upstream.Client == nil {
+		return nil
+	}
+	loaded, err := loadedModels(ctx, upstream)
+	if err != nil {
+		return err
+	}
+	models := make([]string, 0, len(loaded))
+	for model := range loaded {
+		models = append(models, model)
+	}
+	sort.Strings(models)
+	var reconcileErrors []error
+	for _, model := range models {
+		keepAlive, ok := n.KeepAlive(model)
+		if !ok {
+			continue
+		}
+		loadOnly, err := loadOnlyEndpoint(ctx, model, upstream)
+		if err != nil {
+			reconcileErrors = append(reconcileErrors, fmt.Errorf("inspect %s capabilities: %w", model, err))
+			continue
+		}
+		if err := reassertLoadedResidency(ctx, model, loadOnly, keepAlive, upstream); err != nil {
+			reconcileErrors = append(reconcileErrors, fmt.Errorf("reconcile %s: %w", model, err))
+		}
+	}
+	return errors.Join(reconcileErrors...)
+}
+
+func loadOnlyEndpoint(ctx context.Context, model string, upstream activityedge.Upstream) (string, error) {
+	body, err := json.Marshal(map[string]string{"model": model})
+	if err != nil {
+		return "", err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, upstream.BaseURL+"/api/show", bytes.NewReader(body))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := upstream.Client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("show returned %s", resp.Status)
+	}
+	var show struct {
+		Capabilities []string `json:"capabilities"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&show); err != nil {
+		return "", err
+	}
+	for _, capability := range show.Capabilities {
+		if strings.EqualFold(capability, "embedding") {
+			return "/api/embed", nil
+		}
+	}
+	return defaultLoadOnly, nil
+}
+
+func reassertLoadedResidency(ctx context.Context, model, loadOnly string, keepAlive int, upstream activityedge.Upstream) error {
 	loaded, err := loadedModels(ctx, upstream)
 	if err != nil {
 		return err

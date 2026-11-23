@@ -79,8 +79,13 @@ func (g *DiskGrowthGuard) Observe(ctx context.Context, path string, done, _ int6
 	if total > math.MaxInt64/4/g.expansion {
 		return fmt.Errorf("observed model acquisition size overflows its bounded lease")
 	}
-	newThreshold := total * 2
-	newRootPeak := newThreshold * 2 * g.expansion
+	// Extend by a quarter (at least 1 GiB) beyond what was actually written:
+	// the lease tracks real bytes instead of jumping to a multiple of them.
+	newThreshold := total + max(total/4, int64(1<<30))
+	if newThreshold > math.MaxInt64/2/g.expansion {
+		return fmt.Errorf("observed model acquisition size overflows its bounded lease")
+	}
+	newRootPeak := newThreshold * g.expansion
 	updated := append([]capacity.DiskJobPath(nil), g.paths...)
 	var estimate int64
 	for i := range updated {
@@ -89,17 +94,18 @@ func (g *DiskGrowthGuard) Observe(ctx context.Context, path string, done, _ int6
 			desiredPeak = newRootPeak
 		}
 		if diskJobPathHasRole(updated[i].Role, "installer-and-model-tool-temporary") {
-			tempPeak := max(int64(128<<20), newThreshold/4)
+			tempPeak := max(int64(128<<20), min(newThreshold/16, int64(2<<30)))
 			if desiredPeak > math.MaxInt64-tempPeak {
 				return errors.New("extended model install peak overflow")
 			}
 			desiredPeak += tempPeak
 		}
 		if diskJobPathHasRole(updated[i].Role, "huggingface-hub-cache") || diskJobPathHasRole(updated[i].Role, "huggingface-transformers-cache") {
-			if desiredPeak > math.MaxInt64-newThreshold {
+			cacheAllowance := min(newThreshold, HuggingFaceCacheAllowanceBytes)
+			if desiredPeak > math.MaxInt64-cacheAllowance {
 				return errors.New("extended model install peak overflow")
 			}
-			desiredPeak += newThreshold
+			desiredPeak += cacheAllowance
 		} else if diskJobPathHasRole(updated[i].Role, "huggingface-home-cache") && desiredPeak == 0 {
 			desiredPeak = 1
 		}

@@ -28,6 +28,18 @@ vi.mock("../../api/models", async (importOriginal) => {
   return { ...actual, ...makeModelsMocks() };
 });
 
+// The panel renders <JobRatingControl/> for a finished run, which reads the
+// job's existing rating. Mock the jobs API so the panel stays hermetic.
+const jobsMock = vi.hoisted(() => ({
+  getJob: vi.fn(),
+  rateJob: vi.fn(),
+  clearJobRating: vi.fn(),
+}));
+vi.mock("../../api/jobs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/jobs")>();
+  return { ...actual, jobsClient: jobsMock, rateJob: jobsMock.rateJob, clearJobRating: jobsMock.clearJobRating };
+});
+
 import { EnhancePanel } from "./EnhancePanel";
 import type { UseEnhance } from "./useEnhance";
 
@@ -40,6 +52,7 @@ const fakeEnhance = (overrides: Partial<UseEnhance> = {}): UseEnhance => ({
   tier: "",
   warnings: [],
   error: null,
+  resultJobId: "",
   preview: vi.fn(),
   start: vi.fn(),
   installAndRun: vi.fn(),
@@ -62,6 +75,13 @@ describe("EnhancePanel", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+  });
+
+  it("tells the user what a busy graphics card means for the selected model", async () => {
+    renderPanel(fakeEnhance({ model: makeSelectedModel({ gpuViable: true, cpuCapable: true }) }));
+    expect((await screen.findByTestId(selectors.workspace.capacityNote)).textContent).toBe(
+      "Runs on the processor if the graphics card is busy (slower)",
+    );
   });
 
   it("lists only the enhancement ops and runs the selected one with its input", async () => {
@@ -204,6 +224,20 @@ describe("EnhancePanel", () => {
     const enhance = fakeEnhance({ phase: "succeeded" });
     renderPanel(enhance);
     expect(await screen.findByTestId(selectors.workspace.enhance.succeeded)).toBeInTheDocument();
+  });
+
+  it("offers a rating for the succeeded run's job and none without one", async () => {
+    jobsMock.getJob.mockResolvedValue({});
+    jobsMock.rateJob.mockResolvedValue({ jobId: "enh-3", score: 3, note: "" });
+    const none = renderPanel(fakeEnhance({ phase: "succeeded", resultJobId: "" }));
+    expect(await screen.findByTestId(selectors.workspace.enhance.succeeded)).toBeInTheDocument();
+    expect(screen.queryByTestId(selectors.workspace.rating.root)).not.toBeInTheDocument();
+    none.unmount();
+
+    const user = userEvent.setup();
+    renderPanel(fakeEnhance({ phase: "succeeded", resultJobId: "enh-3" }));
+    await user.click(await screen.findByTestId(selectors.workspace.ratingScore({ score: 3 })));
+    await waitFor(() => expect(jobsMock.rateJob).toHaveBeenCalledWith("enh-3", 3, ""));
   });
 
   it("shows the failure with its error and retries on click", async () => {

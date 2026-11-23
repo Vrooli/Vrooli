@@ -109,3 +109,46 @@ func TestValidateArtifact_AcceptsGGUFAndSafetensors(t *testing.T) {
 		t.Fatalf("safetensors should validate, got %v", err)
 	}
 }
+
+func TestValidateSmallPinnedJSONConfigAndRejectHubErrors(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "config.json")
+	body := []byte(`{"architectures":["ViTForImageClassification"],"id2label":{"0":"0-2","1":"3-9","2":"10-19","3":"20-29"},"image_size":224,"model_type":"vit"` + strings.Repeat(" ", 200) + "}")
+	if err := os.WriteFile(p, body, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if len(body) >= int(binaryfetch.DefaultSizeFloor) {
+		t.Fatalf("fixture must stay below the generic weight floor: %d", len(body))
+	}
+	if err := ValidateArtifact(p, Asset{Filename: "config.json", Kind: ArtifactConfig, MinBytes: 128}); err != nil {
+		t.Fatalf("valid small JSON config rejected: %v", err)
+	}
+	for name, bad := range map[string]string{
+		"hub error": `{"error":"Access to model is restricted. You must have access to it and be authenticated."` + strings.Repeat(" ", 200) + "}",
+		"truncated": `{"architectures":["ViT"],"image_size":224,` + strings.Repeat(`"k":1,`, 40),
+	} {
+		if err := os.WriteFile(p, []byte(bad), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if err := ValidateArtifact(p, Asset{Filename: "config.json", Kind: ArtifactConfig, MinBytes: 128}); !errors.Is(err, ErrArtifactNotWeight) {
+			t.Fatalf("%s: expected ErrArtifactNotWeight, got %v", name, err)
+		}
+	}
+}
+
+func TestValidateTextConfigThatOpensWithABracketIsNotJSON(t *testing.T) {
+	vocab := []byte("[PAD]\n[unused1]\n[UNK]\n" + strings.Repeat("word\n", 400))
+	p := filepath.Join(t.TempDir(), "vocab.txt")
+	if err := os.WriteFile(p, vocab, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateArtifact(p, Asset{Filename: "detector/vocab.txt", Kind: ArtifactConfig, MinBytes: 128}); err != nil {
+		t.Fatalf("a bracket-led vocabulary file was treated as JSON: %v", err)
+	}
+	// The same bytes under a .json name are still refused.
+	if err := os.WriteFile(filepath.Join(filepath.Dir(p), "vocab.json"), vocab, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateArtifact(filepath.Join(filepath.Dir(p), "vocab.json"), Asset{Filename: "vocab.json", Kind: ArtifactConfig, MinBytes: 128}); !errors.Is(err, ErrArtifactNotWeight) {
+		t.Fatalf("invalid JSON under a .json name accepted: %v", err)
+	}
+}

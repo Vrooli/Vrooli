@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	apidb "github.com/vrooli/api-core/database"
+	"image-tools/internal/disktest"
 	"image-tools/internal/fetch"
 
 	db "github.com/vrooli/api-core/databasetest"
@@ -66,7 +67,7 @@ func newRepoInstaller(t *testing.T, fetch RepoFetcher) (*Installer, string) {
 	in := &Installer{
 		Root:          t.TempDir(),
 		Reg:           reg,
-		DiskAdmission: testDiskAdmitter{},
+		DiskAdmission: &disktest.Ledger{},
 		Custom:        NewCustomStore(d),
 		State:         NewInstallStore(d),
 		RepoFetch:     fetch,

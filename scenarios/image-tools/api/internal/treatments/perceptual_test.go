@@ -320,6 +320,22 @@ func TestHalftoneIsResolutionIndependent(t *testing.T) {
 	}
 }
 
+func TestHalftonePreservesFullyTransparentSource(t *testing.T) {
+	src := image.NewNRGBA(image.Rect(0, 0, 64, 48))
+	got, err := Halftone(src, Params{LPI: 8})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for y := 0; y < src.Bounds().Dy(); y++ {
+		for x := 0; x < src.Bounds().Dx(); x++ {
+			_, _, _, alpha := got.At(x, y).RGBA()
+			if alpha != 0 {
+				t.Fatalf("output alpha at (%d,%d) = %d, want transparent", x, y, alpha>>8)
+			}
+		}
+	}
+}
+
 // TestLightnessIsPerceptual pins the scale itself, so nobody re-points the tonal
 // ops at linear luminance later. luminance must stay linear — the legibility
 // gate and WCAG depend on it — and lightness must stay perceptual.

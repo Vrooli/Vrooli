@@ -9,6 +9,7 @@ import (
 
 	apidb "github.com/vrooli/api-core/database"
 
+	"image-tools/internal/disktest"
 	"image-tools/internal/fetch"
 
 	db "github.com/vrooli/api-core/databasetest"
@@ -34,6 +35,11 @@ func (fn downloaderFunc) DownloadObserved(ctx context.Context, rawURL, dest stri
 const installTestAdapterID = "install-test-adapter"
 
 func newInstaller(t *testing.T) (*Installer, *int) {
+	in, downloads, _ := newInstallerWithLedger(t)
+	return in, downloads
+}
+
+func newInstallerWithLedger(t *testing.T) (*Installer, *int, *disktest.Ledger) {
 	t.Helper()
 	d := db.NewSQLite(t)
 	if err := apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(Schema)); err != nil {
@@ -43,12 +49,13 @@ func newInstaller(t *testing.T) (*Installer, *int) {
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
+	ledger := &disktest.Ledger{}
 	downloads := 0
 	payload := bytes.Repeat([]byte("fake-adapter-weights\n"), 128)
 	in := &Installer{
 		Root:          t.TempDir(),
 		Reg:           reg,
-		DiskAdmission: testDiskAdmitter{},
+		DiskAdmission: ledger,
 		Custom:        NewCustomStore(d),
 		State:         NewInstallStore(d),
 		Download: downloaderFunc(func(_ context.Context, _, dest string, _ func(int64, int64)) error {
@@ -57,7 +64,7 @@ func newInstaller(t *testing.T) (*Installer, *int) {
 		}),
 		DiskAvail: func(string) (int64, error) { return int64(50) << 30, nil },
 	}
-	return in, &downloads
+	return in, &downloads, ledger
 }
 
 func TestInstallDownloadsAndIsIdempotent(t *testing.T) {
@@ -149,4 +156,36 @@ func (fn repoFetcherFunc) SnapshotObserved(ctx context.Context, repo fetch.RepoS
 		return err
 	}
 	return observe(size, size)
+}
+
+// TestInstallResumesWithItsInterruptedLeaseRowsStillInTheLedger covers the
+// restart path: the requeued adapter install reserves again while the ledger
+// still holds the row its interrupted attempt left.
+func TestInstallResumesWithItsInterruptedLeaseRowsStillInTheLedger(t *testing.T) {
+	const durableJob = "ad-job-1"
+	const owner = "image-tools:adapter-install"
+	for name, seed := range map[string]func(l *disktest.Ledger){
+		"active under the durable key":    func(l *disktest.Ledger) { l.Seed(owner, durableJob, "active", false) },
+		"completed under the durable key": func(l *disktest.Ledger) { l.Seed(owner, durableJob, "completed", false) },
+		"exited earlier attempt":          func(l *disktest.Ledger) { l.Seed(owner, durableJob+"/attempt/earlier", "active", false) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			ctx := context.Background()
+			in, _, ledger := newInstallerWithLedger(t)
+			if err := in.AddCustom(ctx, Adapter{
+				ID: installTestAdapterID, Name: "Install Test", Kind: KindLoRA, Architecture: "sd15", Weight: "none",
+				ScaleRange: ScaleRange{Min: 0, Max: 2, Default: 1}, SizeMBApprox: 8,
+				Source: Source{Assets: []fetch.Asset{{URL: "https://example.test/a.safetensors", Filename: "a.safetensors", Kind: fetch.ArtifactGeneric, MinBytes: 1}}},
+			}); err != nil {
+				t.Fatal(err)
+			}
+			seed(ledger)
+			if _, err := in.InstallForJob(ctx, installTestAdapterID, durableJob, nil); err != nil {
+				t.Fatalf("resumed adapter install failed with the old lease row present: %v", err)
+			}
+			if got := ledger.Active(); got != 0 {
+				t.Fatalf("%d leases still hold a reservation: %+v", got, ledger.Rows())
+			}
+		})
+	}
 }

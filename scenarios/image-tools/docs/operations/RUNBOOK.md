@@ -46,6 +46,26 @@ ports, health checks, logs, and `/ready` gating for on-demand resources.
 
 Record recurring failures in [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md).
 
+## Restarting with jobs in flight
+
+A restart drains the API first, and the drain waits only for work that is
+computing. What happens to each kind of job:
+
+| Job is | At drain | After the restart |
+|---|---|---|
+| Computing (`running`) | Given the drain time; reported with its progress in the lifecycle standing (`image_tools_job`). | Finished, or `failed: interrupted by server restart` if the drain ran out. Never resumed mid-run: it may already have billed or written output. |
+| A model or adapter download (`running`) | Stopped and returned to `queued`: the transfer resumes from its staging directory, so a restart does not wait for it. | Continues from the staged bytes (same repo revision within the 2 h staging grace). |
+| Waiting inside admission (`admitting`: capacity, model weights, safety-review weights, smoke capacity) | Its admission is cancelled, its leases released, and it returns to `queued` with "paused for a restart". | Resumes by itself from its stored payload. |
+| `queued` | Untouched. | Resumes by itself. |
+| An inline task (analysis scans) or a test-mode job | Not resumable. | `failed: interrupted by server restart`. |
+
+A client blocked in `jobs wait` or `jobs watch` is released at the start of the
+drain with an `unavailable` error that says the wait ended, not the job; read the
+job with `image-tools jobs get <id>`. Which operations resume is decided by
+whether a handler is registered for them (`jobrunner.Dispatcher.Handles`). A wait
+for model weights, including the safety review's, is part of admission, so it
+never keeps a restart waiting.
+
 ## Backup / Restore
 
 Two data classes back this scenario; both are covered by the standard

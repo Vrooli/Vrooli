@@ -7,6 +7,7 @@ import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { modelsClient } from "../../api/models";
 import { ModelPicker } from "./ModelPicker";
+import { VerdictBadge } from "./VerdictBadge";
 import { useModelPicker } from "./useModelPicker";
 
 export interface ModelPickerButtonProps {
@@ -97,6 +98,7 @@ export function ModelPickerButton({ operation, operationLabel, value, onChange, 
               <span className="block truncate text-[11px] text-app-muted-foreground">{t(fitKey)}</span>
             ) : null}
           </span>
+          {model ? <VerdictBadge verdict={selection.data?.verdict} testId={selectors.models.pickerTriggerVerdict} /> : null}
         </span>
         <span className="flex shrink-0 items-center gap-1 text-[11px] text-app-primary">
           {t(strings.models.picker.trigger.change)}

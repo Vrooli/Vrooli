@@ -272,16 +272,16 @@ func (p unavailableProvider) Execute(context.Context, backends.Request) (backend
 
 // newTestEngine builds an engine over the model registry, a memory-backed blob
 // store, a fake host probe, and a single fake provider registered for op under
-// the model's backend name (so selection matches it). Upscale uses an explicit
-// synthetic test-only default because the shipped catalog intentionally has no
-// enabled default while SwinIR's rights remain unverified.
+// the model's backend name (so selection matches it). The shipped default is
+// used whenever the catalog has one; upscale falls back to an explicit synthetic
+// test-only default only while the shipped catalog has no enabled upscale default.
 func newTestEngine(t *testing.T, op string, fp *fakeProvider) (*Engine, *storage.Store, string) {
 	t.Helper()
 	registry, err := models.Load()
 	if err != nil {
 		t.Fatalf("load registry: %v", err)
 	}
-	if op == "upscale" {
+	if _, shipped := registry.DefaultFor(op); !shipped && op == "upscale" {
 		registry = registryWithSyntheticUpscaleDefault(t, registry)
 	}
 	def, ok := registry.DefaultFor(op)

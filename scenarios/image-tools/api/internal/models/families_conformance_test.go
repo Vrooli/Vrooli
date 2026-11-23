@@ -167,8 +167,8 @@ func TestConditioningSpecParityPython(t *testing.T) {
 
 // TestDiffusersFamilyAdaptersMirrorPython asserts the Go family registry
 // (families.go) and the Python adapter table (_diffusers.FAMILIES) agree on the
-// set of families, their pipeline classes, and ready state — so the registry,
-// the Go catalog doctor, and the runner cannot drift apart.
+// set of families, their pipeline classes, ready state and whether the family
+// generates from text. Each failure says which file is missing which half.
 func TestDiffusersFamilyAdaptersMirrorPython(t *testing.T) {
 	py := python3(t)
 	root := sidecarPYPath(t)
@@ -182,31 +182,70 @@ func TestDiffusersFamilyAdaptersMirrorPython(t *testing.T) {
 	var pyFams map[string]struct {
 		PipelineClass string `json:"pipeline_class"`
 		Ready         bool   `json:"ready"`
+		Generates     bool   `json:"generates"`
 	}
 	if err := json.Unmarshal(out, &pyFams); err != nil {
 		t.Fatalf("decode python FAMILIES %q: %v", out, err)
 	}
 
-	goFams := diffusersFamilies
-	if len(pyFams) != len(goFams) {
-		t.Fatalf("family count mismatch: go=%d python=%d", len(goFams), len(pyFams))
-	}
-	for name, g := range goFams {
+	for name, g := range diffusersFamilies {
 		p, ok := pyFams[name]
 		if !ok {
-			t.Errorf("family %q registered in Go but missing in Python", name)
+			t.Errorf("family %q is registered in Go (internal/models/families.go) but has no Python adapter: add an Adapter(family=%q, ...) to _ADAPTERS in internal/sidecar/py/image_tools_sidecar/_diffusers.py", name, name)
 			continue
 		}
 		if p.PipelineClass != g.PipelineClass {
-			t.Errorf("family %q pipeline_class: go=%q python=%q", name, g.PipelineClass, p.PipelineClass)
+			t.Errorf("family %q loads %q in Python but %q in Go: make families.go and _diffusers.py name the same pipeline class", name, p.PipelineClass, g.PipelineClass)
 		}
 		if p.Ready != g.Ready {
-			t.Errorf("family %q ready: go=%v python=%v", name, g.Ready, p.Ready)
+			t.Errorf("family %q is ready=%v in Go but ready=%v in Python: flip both together once an attended run proves it", name, g.Ready, p.Ready)
+		}
+		servesGeneration := false
+		for _, op := range g.Operations {
+			if op == "text_to_image" {
+				servesGeneration = true
+			}
+		}
+		if servesGeneration != p.Generates {
+			t.Errorf("family %q lists text_to_image in Go operations=%v, Python adapter generates=%v: list text_to_image exactly when the adapter can generate without an input image", name, servesGeneration, p.Generates)
 		}
 	}
 	for name := range pyFams {
-		if _, ok := goFams[name]; !ok {
-			t.Errorf("family %q registered in Python but missing in Go", name)
+		if _, ok := diffusersFamilies[name]; !ok {
+			t.Errorf("family %q has a Python adapter (_diffusers.py) but no row in internal/models/families.go: add the DiffusersFamily row so models can name it", name)
 		}
+	}
+}
+
+// TestDiffusersFamiliesAreCompleteEnoughToImport asserts every family declares
+// what `models import` copies onto an imported entry, so a repo of a known
+// family becomes a runnable model with no operator-supplied fields.
+func TestDiffusersFamiliesAreCompleteEnoughToImport(t *testing.T) {
+	r, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range DiffusersFamilies() {
+		if len(f.Operations) == 0 {
+			t.Errorf("family %q declares no operations: list the ops its adapter serves in families.go", f.Name)
+		}
+		for _, op := range f.Operations {
+			if !r.IsOperation(op) {
+				t.Errorf("family %q lists %q, which is not an operation in the capability manifests", f.Name, op)
+			}
+		}
+		if f.MinRuntime == "" {
+			t.Errorf("family %q declares no min_runtime: say which diffusers version it needs", f.Name)
+		}
+		if !f.Ready && f.Pending == "" {
+			t.Errorf("family %q is not ready but says nothing about what blocks it: fill Pending", f.Name)
+		}
+		got, ok := DiffusersFamilyForPipelineClass(f.PipelineClass)
+		if !ok || got.Name != f.Name {
+			t.Errorf("pipeline class %q does not resolve back to family %q (two families share a pipeline class?)", f.PipelineClass, f.Name)
+		}
+	}
+	if _, ok := DiffusersFamilyForPipelineClass("NoSuchPipeline"); ok {
+		t.Error("an unknown pipeline class must not resolve to a family")
 	}
 }

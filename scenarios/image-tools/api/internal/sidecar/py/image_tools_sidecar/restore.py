@@ -1,8 +1,9 @@
-"""restore — RestoreFormer++ class face / old-photo restoration sidecar.
+"""restore — old-photo restoration sidecar (not yet promoted).
 
-This module is intentionally strict about dependencies. RestoreFormer++ is not
-an ONNX CPU-floor model; it needs the heavier PyTorch restoration stack. The Go
-backend doctor probes those imports before selection so operators see a clear
+old_photo_restore needs a scratch-repair + colour + face pipeline (Bringing Old
+Photos Back to Life class) on the heavier PyTorch restoration stack. Face
+restoration alone is served by the ONNX ``face_restore`` module. The Go backend
+doctor probes this stack's imports before selection so operators see a clear
 provisioning row instead of a late job failure.
 """
 
@@ -22,8 +23,8 @@ def _require_restore_deps() -> None:
         import torch  # noqa: F401,WPS433
     except ImportError as exc:  # pragma: no cover - exercised on un-provisioned hosts
         _common.fail(
-            f"missing RestoreFormer++ dependency ({exc}). This face/old-photo restore "
-            "path is NOT yet promoted: its extra stack (torch, basicsr, facexlib) is "
+            f"missing old-photo restoration dependency ({exc}). This path is NOT yet "
+            "promoted: its extra stack (torch, basicsr, facexlib) is "
             "deliberately excluded from internal/pydeps/requirements.lock, so the "
             "isolated venv does not carry it. The op stays gated until the Phase 2 "
             "restoration golden path lands (see docs/internal/DECISIONS.md).",
@@ -32,23 +33,23 @@ def _require_restore_deps() -> None:
 
 
 def main() -> None:
-    args = _common.parse_io_args("RestoreFormer++ face / old-photo restoration")
+    args = _common.parse_io_args("old-photo restoration")
     _require_restore_deps()
 
     if not os.path.isdir(args.model):
-        _common.fail(f"RestoreFormer++ model directory not found: {args.model!r}", code=4)
+        _common.fail(f"old-photo restoration model directory not found: {args.model!r}", code=4)
     weights = [
         f
         for f in sorted(os.listdir(args.model))
         if f.endswith((".ckpt", ".pth", ".pt", ".safetensors"))
     ]
     if not weights:
-        _common.fail(f"no RestoreFormer++ checkpoint found in {args.model!r}", code=4)
+        _common.fail(f"no old-photo restoration checkpoint found in {args.model!r}", code=4)
 
     _common.fail(
-        "RestoreFormer++ runtime dependencies are present, but the execution "
+        "old-photo restoration dependencies are present, but the execution "
         "adapter is not yet promoted to an E2E vertical. Keep this model gated "
-        "until the Phase 2 restoration golden path lands.",
+        "until the restoration pipeline lands.",
         code=8,
     )
 

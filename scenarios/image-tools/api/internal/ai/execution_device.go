@@ -4,10 +4,13 @@ import (
 	"context"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"image-tools/internal/modelenv"
+	"image-tools/internal/models"
+	"image-tools/internal/sidecar"
 )
 
 type (
@@ -16,28 +19,14 @@ type (
 	pythonLibrariesKey   struct{}
 )
 
-func pythonRuntimeLibraries(python string) []string {
-	if python == "" {
-		return nil
-	}
-	venv := filepath.Dir(filepath.Dir(python))
-	matches, _ := filepath.Glob(filepath.Join(venv, "lib", "python*", "site-packages", "nvidia", "*", "lib"))
-	var dirs []string
-	for _, path := range matches {
-		if info, err := os.Stat(path); err == nil && info.IsDir() {
-			dirs = append(dirs, path)
-		}
-	}
-	return dirs
-}
-
 func withPythonRuntimeLibraries(ctx context.Context, python string) context.Context {
-	return context.WithValue(ctx, pythonLibrariesKey{}, pythonRuntimeLibraries(python))
+	return context.WithValue(ctx, pythonLibrariesKey{}, sidecar.RuntimeLibraries(python))
 }
 
 func pythonProbeCommand(ctx context.Context, python string, args ...string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, python, args...)
-	return withLibraryPath(cmd, pythonRuntimeLibraries(python))
+	cmd.Env = modelenv.Apply(nil, modelenv.ModeInference)
+	return withLibraryPath(cmd, sidecar.RuntimeLibraries(python))
 }
 
 func probeTorchCUDA(ctx context.Context, python string) bool {
@@ -46,7 +35,9 @@ func probeTorchCUDA(ctx context.Context, python string) bool {
 	if python == "" {
 		return false
 	}
-	out, err := exec.CommandContext(ctx, python, "-c", "import torch; print('cuda-ready' if torch.cuda.is_available() else 'cpu-only')").Output()
+	cmd := exec.CommandContext(ctx, python, "-c", "import torch; print('cuda-ready' if torch.cuda.is_available() else 'cpu-only')")
+	cmd.Env = modelenv.Apply(nil, modelenv.ModeInference)
+	out, err := cmd.Output()
 	return err == nil && strings.TrimSpace(string(out)) == "cuda-ready"
 }
 
@@ -61,12 +52,17 @@ func probeONNXCUDA(ctx context.Context, python string) bool {
 	return err == nil && strings.TrimSpace(string(out)) == "cuda-ready"
 }
 
-// SupportsGPUUUID names backends whose CUDA runtime honors per-process visible
-// devices. Vulkan/NCNN selection must be qualified separately, rather than
-// pretending a CUDA environment variable binds those runtimes too.
+// SupportsGPUUUID names backends that can bind execution to the exact physical
+// device the capacity ledger leased. CUDA backends honor per-process visible
+// devices. The ncnn-vulkan backend does not read CUDA variables; it is qualified
+// separately because technique.NcnnDeviceArgs maps the leased UUID to the
+// Vulkan device index and passes it as `-g`.
 func (p *execProvider) SupportsGPUUUID() bool {
+	if models.IsTransformersBackend(p.name) {
+		return true
+	}
 	switch p.name {
-	case "diffusers", "iopaint", "onnxruntime", "sam2-transformers", "triposr":
+	case "diffusers", "iopaint", "onnxruntime", "triposr", "realesrgan-ncnn-vulkan":
 		return true
 	default:
 		return false
@@ -80,14 +76,15 @@ func admittedCPUThreads(ctx context.Context) int {
 	return max(threads, 0)
 }
 
+// inferenceCommand builds every job-time process: CUDA/CPU admission bindings
+// plus the model containment environment (cache variables pinned under the
+// managed root, hubs offline, non-loopback network refused). No inference
+// process is ever started without the containment overlay.
 func inferenceCommand(ctx context.Context, name string, args ...string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, name, args...)
 	uuid, _ := ctx.Value(gpuDeviceContextKey{}).(string)
 	threads := admittedCPUThreads(ctx)
 	pythonLibraries, _ := ctx.Value(pythonLibrariesKey{}).([]string)
-	if uuid == "" && threads <= 0 && len(pythonLibraries) == 0 {
-		return cmd
-	}
 	// Never mutate the serving process environment: concurrent jobs and probes
 	// must keep their own bindings. CUDA enumerates this one UUID as logical 0.
 	overrides := map[string]string{"CUDA_VISIBLE_DEVICES": ""}
@@ -99,6 +96,9 @@ func inferenceCommand(ctx context.Context, name string, args ...string) *exec.Cm
 		for _, key := range []string{"OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS", "IMAGE_TOOLS_CPU_THREADS"} {
 			overrides[key] = strconv.Itoa(threads)
 		}
+		// Software Vulkan (llvmpipe) sizes its own pool from this variable; a CPU
+		// job must stay inside the threads admission reserved.
+		overrides["LP_NUM_THREADS"] = strconv.Itoa(threads)
 	}
 	if len(pythonLibraries) > 0 {
 		current := strings.TrimSpace(os.Getenv("LD_LIBRARY_PATH"))
@@ -107,15 +107,23 @@ func inferenceCommand(ctx context.Context, name string, args ...string) *exec.Cm
 		}
 		overrides["LD_LIBRARY_PATH"] = strings.Join(pythonLibraries, string(os.PathListSeparator))
 	}
+	if uuid == "" && threads <= 0 && len(pythonLibraries) == 0 {
+		// No admission binding: keep the historical environment (CUDA hidden is
+		// only applied when a binding exists) and add containment alone.
+		cmd.Env = modelenv.Apply(nil, modelenv.ModeInference)
+		return cmd
+	}
+	var env []string
 	for _, value := range os.Environ() {
 		key, _, _ := strings.Cut(value, "=")
 		if _, overridden := overrides[key]; !overridden {
-			cmd.Env = append(cmd.Env, value)
+			env = append(env, value)
 		}
 	}
 	for key, value := range overrides {
-		cmd.Env = append(cmd.Env, key+"="+value)
+		env = append(env, key+"="+value)
 	}
+	cmd.Env = modelenv.Apply(env, modelenv.ModeInference)
 	return cmd
 }
 
@@ -127,12 +135,17 @@ func withLibraryPath(cmd *exec.Cmd, libraries []string) *exec.Cmd {
 	if current != "" {
 		libraries = append(libraries, current)
 	}
+	base := cmd.Env
+	if base == nil {
+		base = os.Environ()
+	}
 	key := "LD_LIBRARY_PATH="
-	for _, value := range os.Environ() {
+	env := make([]string, 0, len(base)+1)
+	for _, value := range base {
 		if !strings.HasPrefix(value, key) {
-			cmd.Env = append(cmd.Env, value)
+			env = append(env, value)
 		}
 	}
-	cmd.Env = append(cmd.Env, key+strings.Join(libraries, string(os.PathListSeparator)))
+	cmd.Env = append(env, key+strings.Join(libraries, string(os.PathListSeparator)))
 	return cmd
 }

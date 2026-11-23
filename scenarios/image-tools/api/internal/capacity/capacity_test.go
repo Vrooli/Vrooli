@@ -107,3 +107,35 @@ func TestMemoryLeaseRenewsAndReleasesThroughTheBroker(t *testing.T) {
 		t.Fatalf("broker calls = heartbeat %d release %d, want 1/1", broker.heartbeats, broker.releases)
 	}
 }
+
+type activityTestBroker struct {
+	fakeBroker
+	reported []bool
+}
+
+func (b *activityTestBroker) Activity(_ context.Context, _ Lease, active bool) error {
+	b.reported = append(b.reported, active)
+	return nil
+}
+
+func TestAResidentGPUClaimReportsActivityThroughTheBrokerAndPlainBrokersAreSkipped(t *testing.T) {
+	broker := &activityTestBroker{}
+	lease, ok := NewMemoryLease(broker, Lease{ClaimID: "claim"}).(ActivityLease)
+	if !ok {
+		t.Fatal("a resident GPU claim cannot report activity")
+	}
+	for _, active := range []bool{true, false} {
+		if err := lease.ReportActivity(context.Background(), active); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(broker.reported) != 2 || !broker.reported[0] || broker.reported[1] {
+		t.Fatalf("broker saw %v", broker.reported)
+	}
+	if err := ReportActivity(context.Background(), &fakeBroker{}, Lease{ClaimID: "claim"}, true); err != nil {
+		t.Fatalf("a broker without activity support is not an error: %v", err)
+	}
+	if err := ReportActivity(context.Background(), broker, Lease{}, true); err != nil || len(broker.reported) != 2 {
+		t.Fatalf("a denied (claimless) lease has nothing to report: %v %v", err, broker.reported)
+	}
+}

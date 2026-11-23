@@ -46,9 +46,29 @@ describe("useCreate", () => {
     expect(client.submit).toHaveBeenCalledWith(
       "text_to_image",
       expect.objectContaining({ prompt: "a lake" }),
-      undefined,
-      undefined,
+      {},
     );
+  });
+
+  it("asks for each variation with the server's sensitive flag for that ref", async () => {
+    const client = makeCreateClient({
+      result: vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          resultRef: "out/0.png",
+          message: "variations: [out/0.png out/1.png]",
+          error: "",
+          sensitiveRefs: ["out/1.png"],
+        }),
+      ),
+    });
+    const { result } = renderHook(() => useCreate({ client }));
+
+    act(() => result.current.start("text_to_image", { prompt: "a lake", variations: 2 }));
+
+    await waitFor(() => expect(result.current.phase).toBe("succeeded"));
+    expect(client.fetchResult).toHaveBeenCalledWith("out/0.png", false);
+    expect(client.fetchResult).toHaveBeenCalledWith("out/1.png", true);
   });
 
   it("fans out every key from a multi-variation job message", async () => {
@@ -76,14 +96,13 @@ describe("useCreate", () => {
     const client = makeCreateClient();
     const { result } = renderHook(() => useCreate({ client }));
 
-    act(() => result.current.start("image_to_image", { prompt: "x", variations: 1 }, PNG));
+    act(() => result.current.start("image_to_image", { prompt: "x", variations: 1 }, { input: PNG }));
 
     await waitFor(() => expect(result.current.phase).toBe("succeeded"));
     expect(client.submit).toHaveBeenCalledWith(
       "image_to_image",
       expect.objectContaining({ prompt: "x" }),
-      PNG,
-      undefined,
+      { input: PNG },
     );
   });
 
@@ -164,7 +183,7 @@ describe("useCreate", () => {
     });
     const { result } = renderHook(() => useCreate({ client }));
 
-    act(() => result.current.start("edit_instruct", { prompt: "edit", variations: 1 }, PNG));
+    act(() => result.current.start("edit_instruct", { prompt: "edit", variations: 1 }, { input: PNG }));
 
     await waitFor(() => expect(result.current.phase).toBe("failed"));
     expect(result.current.consentBlocked).toBe(true);
@@ -181,7 +200,7 @@ describe("useCreate", () => {
     });
     const { result } = renderHook(() => useCreate({ client }));
 
-    act(() => result.current.start("edit_instruct", { prompt: "edit", variations: 1 }, PNG));
+    act(() => result.current.start("edit_instruct", { prompt: "edit", variations: 1 }, { input: PNG }));
 
     await waitFor(() => expect(result.current.phase).toBe("failed"));
     expect(result.current.consentBlocked).toBe(false);

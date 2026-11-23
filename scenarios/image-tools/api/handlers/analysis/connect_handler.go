@@ -13,14 +13,19 @@ import (
 // connectHandler implements AnalysisServiceHandler — the discovery surface. Op
 // EXECUTION is the REST multipart analyze edge (rest.go); this Connect service
 // only answers "what analysis operations exist".
-type connectHandler struct{}
+type connectHandler struct {
+	service *internalanalysis.Service
+}
 
-// NewConnectHandler builds the AnalysisService discovery handler.
-func NewConnectHandler() *connectHandler { return &connectHandler{} }
+// NewConnectHandler builds the AnalysisService discovery handler. The service
+// supplies each operation's live default model; nil lists the built-in table.
+func NewConnectHandler(service *internalanalysis.Service) *connectHandler {
+	return &connectHandler{service: service}
+}
 
-func (h *connectHandler) ListAnalysisOperations(_ context.Context, _ *connect.Request[analysisv1.ListAnalysisOperationsRequest]) (*connect.Response[analysisv1.ListAnalysisOperationsResponse], error) {
+func (h *connectHandler) ListAnalysisOperations(ctx context.Context, _ *connect.Request[analysisv1.ListAnalysisOperationsRequest]) (*connect.Response[analysisv1.ListAnalysisOperationsResponse], error) {
 	resp := &analysisv1.ListAnalysisOperationsResponse{}
-	for _, op := range internalanalysis.List() {
+	for _, op := range h.service.Operations(ctx) {
 		resp.Operations = append(resp.Operations, &analysisv1.AnalysisOperationInfo{
 			Name:           op.Name,
 			Summary:        op.Summary,

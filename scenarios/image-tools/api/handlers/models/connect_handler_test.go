@@ -3,7 +3,9 @@ package models
 import (
 	"context"
 	"encoding/json"
+	"maps"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -203,7 +205,22 @@ func (p testProvider) Execute(context.Context, internalbackends.Request) (intern
 func testBackendRegistry(t *testing.T) *internalbackends.Registry {
 	t.Helper()
 	reg := internalbackends.New()
-	if err := reg.Register(testProvider{name: "builtin", ops: []string{"naturalize"}, available: true}); err != nil {
+	// The builtin provider serves whatever operations the catalog assigns to the
+	// builtin backend, so the stand-in follows the catalog instead of a list that
+	// goes stale each time an in-process operation is added.
+	catalog, err := internalmodels.Load()
+	if err != nil {
+		t.Fatalf("load catalog: %v", err)
+	}
+	builtinOps := map[string]bool{}
+	for _, m := range catalog.Models() {
+		if m.Backend == internalmodels.BackendBuiltin && m.Enabled {
+			for _, op := range m.Operations {
+				builtinOps[op] = true
+			}
+		}
+	}
+	if err := reg.Register(testProvider{name: "builtin", ops: slices.Sorted(maps.Keys(builtinOps)), available: true}); err != nil {
 		t.Fatalf("register backend: %v", err)
 	}
 	if err := reg.Register(testProvider{name: "python-sidecar", ops: []string{"quality_assessment"}, available: true}); err != nil {

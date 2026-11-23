@@ -109,14 +109,12 @@ func newHandlers(t *testing.T, client *fakeClient, env map[string]string) (*Hand
 	}
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
-	sem, err := hostsem.New(t.TempDir(), 4)
-	if err != nil {
-		t.Fatalf("hostsem.New: %v", err)
+	if env[envLockDir] == "" {
+		env[envLockDir] = t.TempDir()
 	}
 	h := &Handlers{
 		NewClient:         func() Client { return client },
 		NewLoopbackClient: func() (Client, error) { return client, nil },
-		Sem:               sem,
 		GetEnv:            func(k string) string { return env[k] },
 		Stdin:             strings.NewReader(""),
 		Stdout:            stdout,
@@ -387,7 +385,7 @@ func TestDirectAndRoleRequestsProceedOnlyWithQualifiedCurrentEvidence(t *testing
 	if err := h.Embed([]string{"--model", "nomic-embed-text", "--input", "hello", "--json"}); err != nil {
 		t.Fatalf("qualified direct embed: %v", err)
 	}
-	if err := h.Generate([]string{"--role", "chat.default", "--prompt", "hello", "--json"}); err != nil {
+	if err := h.Generate([]string{"--role", "chat.quality", "--prompt", "hello", "--json"}); err != nil {
 		t.Fatalf("qualified role generate: %v", err)
 	}
 	if embedCalls.Load() != 1 || generateCalls.Load() != 1 {
@@ -737,7 +735,7 @@ func TestGenerateRechecksRightsImmediatelyBeforeProviderAfterInputChange(t *test
 		},
 		{
 			name: "role resolves to another exact model",
-			args: []string{"--role", "chat.default", "--prompt-stdin"},
+			args: []string{"--role", "chat.quality", "--prompt-stdin"},
 			mutate: func(t *testing.T, env map[string]string) (string, []byte) {
 				data, err := os.ReadFile(env["OLLAMA_MODEL_POLICY_PATH"])
 				if err != nil {
@@ -747,7 +745,7 @@ func TestGenerateRechecksRightsImmediatelyBeforeProviderAfterInputChange(t *test
 				if err := json.Unmarshal(data, &document); err != nil {
 					t.Fatal(err)
 				}
-				role := document["roles"].(map[string]any)["chat.default"].(map[string]any)
+				role := document["roles"].(map[string]any)["chat.quality"].(map[string]any)
 				role["model"] = "qwen3.5:4b"
 				changed, err := json.Marshal(document)
 				if err != nil {
@@ -1102,7 +1100,7 @@ func TestGenerateRequireLoopbackUsesVerifiedClient(t *testing.T) {
 	client.inventory = []ensure.ModelInfo{{Name: "qwen3.5:9b", Digest: strings.Repeat("c", 64)}}
 	h, _, _ := newHandlers(t, &fakeClient{}, policyEnv(t))
 	h.NewLoopbackClient = func() (Client, error) { return client, nil }
-	if err := h.Generate([]string{"--role", "chat.default", "--prompt", "hello", "--require-loopback"}); err != nil {
+	if err := h.Generate([]string{"--role", "chat.quality", "--prompt", "hello", "--require-loopback"}); err != nil {
 		t.Fatalf("Generate() error = %v", err)
 	}
 	if !generated {
@@ -1137,7 +1135,7 @@ func TestGenerateRoleResolvesModel(t *testing.T) {
 		},
 	}
 	h, _, _ := newHandlers(t, client, policyEnv(t))
-	if err := h.Generate([]string{"--role", "chat.default", "--prompt", "hi", "--json"}); err != nil {
+	if err := h.Generate([]string{"--role", "chat.quality", "--prompt", "hi", "--json"}); err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
 }
@@ -1179,7 +1177,7 @@ func TestGenerateOneShotPinsKeepAliveZeroAndVerifiesCleanup(t *testing.T) {
 		return nil
 	}
 	h, stdout, _ := newHandlers(t, client, policyEnv(t))
-	if err := h.Generate([]string{"--role", "chat.default", "--prompt", "hi", "--json", "--require-loopback", "--one-shot", "--timeout", "90s"}); err != nil {
+	if err := h.Generate([]string{"--role", "chat.quality", "--prompt", "hi", "--json", "--require-loopback", "--one-shot", "--timeout", "90s"}); err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
 	if !generated {
@@ -1207,7 +1205,7 @@ func TestGenerateOneShotRefusesAlreadyLoadedTarget(t *testing.T) {
 		},
 	}
 	h, _, _ := newHandlers(t, client, policyEnv(t))
-	err := h.Generate([]string{"--role", "chat.default", "--prompt", "hi", "--json", "--require-loopback", "--one-shot"})
+	err := h.Generate([]string{"--role", "chat.quality", "--prompt", "hi", "--json", "--require-loopback", "--one-shot"})
 	if err == nil || !strings.Contains(err.Error(), "already loaded") || called {
 		t.Fatalf("Generate error=%v called=%v, want preflight refusal", err, called)
 	}
@@ -1406,11 +1404,7 @@ func TestEmbedStdinInput(t *testing.T) {
 func TestSemaphoreSerializesConcurrentInvocations(t *testing.T) {
 	const slots = 2
 	const callers = 8
-
-	sem, err := hostsem.New(t.TempDir(), slots)
-	if err != nil {
-		t.Fatalf("hostsem: %v", err)
-	}
+	lockDir := t.TempDir()
 
 	var (
 		current int32
@@ -1438,10 +1432,11 @@ func TestSemaphoreSerializesConcurrentInvocations(t *testing.T) {
 		go func(i int) {
 			defer wg.Done()
 			env := policyEnv(t)
+			env[envLockDir] = lockDir
+			env[envNumParallel] = strconv.Itoa(slots)
 			h := &Handlers{
 				NewClient:         func() Client { return client },
 				NewLoopbackClient: func() (Client, error) { return client, nil },
-				Sem:               sem,
 				GetEnv:            func(k string) string { return env[k] },
 				Stdin:             strings.NewReader(""),
 				Stdout:            io.Discard,
@@ -1460,43 +1455,55 @@ func TestSemaphoreSerializesConcurrentInvocations(t *testing.T) {
 }
 
 func TestAcquireRespectsContextDeadline(t *testing.T) {
-	sem, err := hostsem.New(t.TempDir(), 1)
-	if err != nil {
-		t.Fatalf("hostsem: %v", err)
-	}
-	hold, err := sem.Acquire(context.Background())
-	if err != nil {
-		t.Fatalf("priming: %v", err)
-	}
+	lockDir := t.TempDir()
+	hold := holdAdmissionPool(t, lockDir, "turnover")
 	defer hold()
 
-	h := &Handlers{
-		NewClient: func() Client { return &fakeClient{} },
-		Sem:       sem,
-		GetEnv: func(k string) string {
-			if k == envAcquireTO {
-				return "30ms"
-			}
-			return ""
-		},
-		Stdin:  strings.NewReader(""),
-		Stdout: io.Discard,
-		Stderr: io.Discard,
-	}
+	client := &fakeClient{}
 	env := policyEnv(t)
-	h.GetEnv = func(k string) string {
-		if value := env[k]; value != "" {
-			return value
-		}
-		if k == envAcquireTO {
-			return "30ms"
-		}
-		return ""
-	}
-	err = h.Embed([]string{"--model", "m", "--input", "x", "--json"})
+	env[envLockDir] = lockDir
+	env[envAcquireTO] = "30ms"
+	h, _, _ := newHandlers(t, client, env)
+	err := h.Embed([]string{"--model", "m", "--input", "x", "--json"})
 	if err == nil || !strings.Contains(err.Error(), "acquire host semaphore") {
 		t.Fatalf("expected acquire timeout error, got %v", err)
 	}
+}
+
+// A resident model has a runner of its own, so its embeds never wait behind a
+// generate (or a load) on a non-resident model in the turnover slot.
+func TestResidentModelAdmissionDoesNotWaitBehindTurnover(t *testing.T) {
+	lockDir := t.TempDir()
+	hold := holdAdmissionPool(t, lockDir, "turnover")
+	defer hold()
+
+	client := &fakeClient{embed: func(context.Context, string, string) ([]float64, error) { return []float64{1}, nil }}
+	env := policyEnv(t)
+	env[envLockDir] = lockDir
+	env[envAcquireTO] = "2s"
+	h, _, _ := newHandlers(t, client, env)
+	started := time.Now()
+	if err := h.Embed([]string{"--model", "nomic-embed-text:latest", "--input", "x", "--json"}); err != nil {
+		t.Fatalf("resident embed while turnover is held: %v", err)
+	}
+	if waited := time.Since(started); waited > time.Second {
+		t.Fatalf("resident embed waited %s behind the turnover slot", waited)
+	}
+}
+
+// holdAdmissionPool occupies every slot of one admission pool, as another
+// process's in-flight request would.
+func holdAdmissionPool(t *testing.T, lockDir, pool string) func() {
+	t.Helper()
+	sem, err := hostsem.New(filepath.Join(lockDir, pool), 1)
+	if err != nil {
+		t.Fatalf("hostsem: %v", err)
+	}
+	release, err := sem.Acquire(context.Background())
+	if err != nil {
+		t.Fatalf("hold %s: %v", pool, err)
+	}
+	return release
 }
 
 func policyEnv(t *testing.T) map[string]string {

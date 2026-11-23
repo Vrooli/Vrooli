@@ -166,11 +166,11 @@
           ],
           "validation": {
             "requiredHeadings": [
-              "\ud83c\udfaf Overview",
-              "\ud83c\udfaf Operational Targets",
-              "\ud83e\uddf1 Tech Direction Snapshot",
-              "\ud83e\udd1d Dependencies & Launch Plan",
-              "\ud83c\udfa8 UX & Branding"
+              "🎯 Overview",
+              "🎯 Operational Targets",
+              "🧱 Tech Direction Snapshot",
+              "🤝 Dependencies & Launch Plan",
+              "🎨 UX & Branding"
             ],
             "forbiddenPlaceholders": [
               "[Summarize the permanent capability this scenario adds]",
@@ -245,10 +245,10 @@
           "validation": {
             "requiredHeadings": [
               "Prerequisites",
-              "1 \u2014 Setup",
-              "2 \u2014 Start",
-              "3 \u2014 Open",
-              "5 \u2014 Run the tests"
+              "1 — Setup",
+              "2 — Start",
+              "3 — Open",
+              "5 — Run the tests"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -876,6 +876,32 @@
               "[TODO]"
             ]
           }
+        },
+        {
+          "path": "guides/edit-selected-area-hair-outfit.md",
+          "docType": "guide",
+          "title": "Edit a selected area, change hair, change an outfit",
+          "aliases": [
+            "masked-edit",
+            "hair-edit",
+            "outfit-edit"
+          ],
+          "description": "Mask a region, then edit it with the validated default models; what to avoid",
+          "audience": [
+            "users",
+            "operators",
+            "agents"
+          ],
+          "canonicalFor": [
+            "masked-edit",
+            "hair-edit",
+            "outfit-edit"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "required"
         }
       ]
     },
@@ -954,8 +980,8 @@
             "requiredHeadings": [
               "Global flags (provided by cli-core)",
               "Built-in commands (auto-provided by `cli-core`)",
-              "Scenario commands \u2014 `jobs` (durable async lifecycle)",
-              "Scenario commands \u2014 `models` (registry read + enable/disable)",
+              "Scenario commands — `jobs` (durable async lifecycle)",
+              "Scenario commands — `models` (registry read + enable/disable)",
               "Output contracts",
               "Adding a new command",
               "Cross-references"
@@ -1186,7 +1212,7 @@
             "boundaries",
             "boundary-registry"
           ],
-          "description": "Boundary registry \u2014 every interface and its production / test fake",
+          "description": "Boundary registry — every interface and its production / test fake",
           "audience": [
             "developers",
             "agents"
@@ -1491,7 +1517,7 @@
             "changelog",
             "handoff-log"
           ],
-          "description": "Lifecycle log \u2014 append a row whenever work lands",
+          "description": "Lifecycle log — append a row whenever work lands",
           "audience": [
             "developers",
             "agents"

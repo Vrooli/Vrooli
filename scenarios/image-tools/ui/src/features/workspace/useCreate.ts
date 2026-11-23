@@ -8,6 +8,7 @@ import {
 } from "../../api/ai";
 import { ApiError } from "../../api/client";
 import { JobState, jobsClient } from "../../api/jobs";
+import { sensitiveRefsOf } from "../../lib/sensitiveMedia";
 import type { RunOpImageResult } from "../../api/ops";
 import { parseVariationKeys } from "./createCatalog";
 import {
@@ -48,8 +49,7 @@ export interface CreateClient {
   submit: (
     op: string,
     params: AIParamsInput,
-    input?: File,
-    mask?: File,
+    inputs: CreateInputs,
   ) => Promise<{ jobId: string; tier: string; warnings: string[] }>;
   watch: (
     jobId: string,
@@ -58,11 +58,22 @@ export interface CreateClient {
   ) => Promise<void>;
   result: (
     jobId: string,
-  ) => Promise<{ ok: boolean; resultRef: string; message: string; error: string }>;
-  fetchResult: (resultRef: string) => Promise<AIImageResult>;
+  ) => Promise<{ ok: boolean; resultRef: string; message: string; error: string; sensitiveRefs?: string[] }>;
+  fetchResult: (resultRef: string, sensitive?: boolean) => Promise<AIImageResult>;
   install: (modelId: string) => Promise<{ jobId: string; alreadyInstalled: boolean }>;
   waitJob: (jobId: string) => Promise<{ ok: boolean; error: string }>;
   cancel: (jobId: string) => Promise<void>;
+}
+
+/**
+ * The images a run sends: the image being edited, the mask over it, and the
+ * reference image an op takes beside it (the face for a face swap). Each is
+ * present only when the operation takes it.
+ */
+export interface CreateInputs {
+  input?: File;
+  mask?: File;
+  reference?: File;
 }
 
 /** Production client: the AI submit edge + Jobs/Models clients (shared with Enhance). */
@@ -72,9 +83,9 @@ export const liveCreateClient: CreateClient = {
   install: liveEnhanceClient.install,
   waitJob: liveEnhanceClient.waitJob,
   cancel: liveEnhanceClient.cancel,
-  fetchResult: (resultRef) => fetchAIResult(resultRef),
-  async submit(op, params, input, mask) {
-    const res = await submitAI(op, params, { image: input, mask });
+  fetchResult: (resultRef, sensitive) => fetchAIResult(resultRef, sensitive),
+  async submit(op, params, { input, mask, reference }) {
+    const res = await submitAI(op, params, { image: input, mask, reference });
     return { jobId: res.jobId, tier: res.tier, warnings: res.warnings };
   },
   async result(jobId) {
@@ -85,6 +96,7 @@ export const liveCreateClient: CreateClient = {
       resultRef: job?.resultRef ?? "",
       message: job?.message ?? "",
       error: job?.error ?? "",
+      sensitiveRefs: sensitiveRefsOf(job?.resultMeta),
     };
   },
 };
@@ -97,8 +109,7 @@ const errorText = (err: unknown): string =>
 interface PendingRun {
   op: string;
   params: AIParamsInput;
-  input?: File;
-  mask?: File;
+  inputs: CreateInputs;
 }
 
 export interface UseCreateArgs {
@@ -125,7 +136,7 @@ export interface UseCreate {
   /** Fetch the op's selected-model badge without running (called on op select). */
   preview: (op: string) => void;
   /** Select the model, then run if installed, else open the install gate. */
-  start: (op: string, params: AIParamsInput, input?: File, mask?: File) => void;
+  start: (op: string, params: AIParamsInput, inputs?: CreateInputs) => void;
   installAndRun: () => void;
   cancel: () => void;
   retry: () => void;
@@ -180,7 +191,7 @@ export function useCreate({ client = liveCreateClient }: UseCreateArgs = {}): Us
 
       let submitted: { jobId: string; tier: string; warnings: string[] };
       try {
-        submitted = await client.submit(run.op, run.params, run.input, run.mask);
+        submitted = await client.submit(run.op, run.params, run.inputs);
       } catch (err) {
         if (live(id)) {
           setError(errorText(err));
@@ -208,7 +219,7 @@ export function useCreate({ client = liveCreateClient }: UseCreateArgs = {}): Us
         return;
       }
 
-      let terminal: { ok: boolean; resultRef: string; message: string; error: string };
+      let terminal: { ok: boolean; resultRef: string; message: string; error: string; sensitiveRefs?: string[] };
       try {
         terminal = await client.result(submitted.jobId);
       } catch (err) {
@@ -229,7 +240,7 @@ export function useCreate({ client = liveCreateClient }: UseCreateArgs = {}): Us
 
       const keys = parseVariationKeys(terminal.message, terminal.resultRef);
       try {
-        const images = await Promise.all(keys.map((key) => client.fetchResult(key)));
+        const images = await Promise.all(keys.map((key) => client.fetchResult(key, terminal.sensitiveRefs?.includes(key))));
         if (!live(id)) {
           return;
         }
@@ -258,10 +269,10 @@ export function useCreate({ client = liveCreateClient }: UseCreateArgs = {}): Us
   );
 
   const start = useCallback(
-    (op: string, params: AIParamsInput, input?: File, mask?: File) => {
+    (op: string, params: AIParamsInput, inputs: CreateInputs = {}) => {
       const id = ++runId.current;
       abortRef.current?.abort();
-      const run: PendingRun = { op, params, input, mask };
+      const run: PendingRun = { op, params, inputs };
       pending.current = run;
       setRequestedCount(Math.max(1, params.variations ?? 1));
       setError(null);
@@ -377,7 +388,7 @@ export function useCreate({ client = liveCreateClient }: UseCreateArgs = {}): Us
   const retry = useCallback(() => {
     const run = pending.current;
     if (run) {
-      start(run.op, run.params, run.input, run.mask);
+      start(run.op, run.params, run.inputs);
     }
   }, [start]);
 

@@ -552,6 +552,53 @@ func DiffusersEditInstruct(req backends.Request, modelDir string) ([]string, err
 	return args, nil
 }
 
+// ColorizeInstruction is the edit instruction a general image-editing model (a
+// cloud editor) receives for colorize when the caller gave none. A dedicated
+// colouriser (DDColor) has no prompt; a general editor is asked in words and
+// the result is judged as a colourisation, against the original colours.
+const ColorizeInstruction = "Colorize this photo naturally."
+
+// FaceSwapInstruction is the edit instruction a general image-editing model
+// (a cloud editor or a local reference-editing family) receives for a face swap
+// when the caller gave none: the first image is the one to edit, the second
+// supplies the face. These models have no swap primitive, so the swap is asked
+// for in words and the result is an identity edit, judged as one.
+const FaceSwapInstruction = "Replace the face of the person in the first image with the face of the person in the second image. " +
+	"Keep the first image exactly as it is: pose, body, clothing, hair, expression, lighting, background and framing. " +
+	"Change only the facial identity, so the result looks like the person from the second image in the scene of the first."
+
+// DiffusersFaceSwapInstruct runs a reference-editing diffusers family (FLUX.2
+// [klein]) as a general-model face swap: the target and the face image ride the
+// same multi-reference edit, steered by FaceSwapInstruction unless the caller
+// supplied a prompt. It is the general-model counterpart of the dedicated
+// onnxruntime swappers and is selected only by naming the model.
+func DiffusersFaceSwapInstruct(req backends.Request, modelDir string) ([]string, error) {
+	reference, err := ReferencePath(req)
+	if err != nil {
+		return nil, err
+	}
+	if StrParam(req, "prompt") == "" {
+		withPrompt := req
+		withPrompt.Params = make(map[string]string, len(req.Params)+1)
+		for k, v := range req.Params {
+			withPrompt.Params[k] = v
+		}
+		withPrompt.Params["prompt"] = FaceSwapInstruction
+		req = withPrompt
+	}
+	args, err := DiffusersEditInstruct(req, modelDir)
+	if err != nil {
+		return nil, err
+	}
+	// The sidecar takes every reference as a repeated --image, target first.
+	for i, a := range args {
+		if a == "--image" && i+1 < len(args) {
+			return append(args[:i+2:i+2], append([]string{"--image", reference}, args[i+2:]...)...), nil
+		}
+	}
+	return nil, fmt.Errorf("diffusers face_swap: edit invocation carries no --image")
+}
+
 // diffusersPipelineArgs selects how the generate/transform sidecar resolves the
 // pipeline. A model naming a runtime.family is loaded by that family adapter (a
 // unified pipeline the base-checkpoint AutoPipeline cannot resolve); every other
@@ -864,6 +911,14 @@ func OnnxSidecar(req backends.Request, modelDir string) ([]string, error) {
 		module = "image_tools_sidecar.tagging"
 	case "nsfw_classify":
 		module = "image_tools_sidecar.nsfw"
+	case "ocr":
+		// The model dir carries the detector, a recogniser and dictionary per
+		// script group; the sidecar picks the group.
+		module = "image_tools_sidecar.ocr"
+		model = modelDir
+	case "age_estimate":
+		module = "image_tools_sidecar.age_estimate"
+		model = modelDir
 	case "embedding":
 		module = "image_tools_sidecar.embedding"
 	case "face_swap":
@@ -996,6 +1051,47 @@ func SAM2Sidecar(req backends.Request, modelDir string) ([]string, error) {
 		module = "image_tools_sidecar.grounded_segment"
 	}
 	args := []string{"-m", module, "--model", modelDir, "--image", in, "--out", req.Output.LocalPath, "--device", device}
+	if seg.Segmentation != nil {
+		raw, err := json.Marshal(seg.Segmentation)
+		if err != nil {
+			return nil, fmt.Errorf("segment: encode prompts: %w", err)
+		}
+		args = append(args, "--prompts", string(raw))
+	}
+	return args, nil
+}
+
+// FlorenceSidecar assembles the Florence-2 description module. Florence is steered
+// by task tokens, not free text, so the caption prompt is not forwarded.
+func FlorenceSidecar(req backends.Request, modelDir string) ([]string, error) {
+	in, err := Input0(req)
+	if err != nil {
+		return nil, err
+	}
+	device := "cpu"
+	if req.GPU {
+		device = "cuda"
+	}
+	return []string{"-m", "image_tools_sidecar.florence", "--model", modelDir, "--image", in, "--out", req.Output.LocalPath, "--device", device}, nil
+}
+
+// SemanticSegmentSidecar assembles the SegFormer parser adapter: the same
+// --prompts contract as SAM 2 (a text phrase, or positive points), resolved to the
+// parser's own labels instead of boxes.
+func SemanticSegmentSidecar(req backends.Request, modelDir string) ([]string, error) {
+	in, err := Input0(req)
+	if err != nil {
+		return nil, err
+	}
+	device := "cpu"
+	if req.GPU {
+		device = "cuda"
+	}
+	seg, err := opparams.DecodeSegmentParams(req.Params)
+	if err != nil {
+		return nil, err
+	}
+	args := []string{"-m", "image_tools_sidecar.semantic_segment", "--model", modelDir, "--image", in, "--out", req.Output.LocalPath, "--device", device}
 	if seg.Segmentation != nil {
 		raw, err := json.Marshal(seg.Segmentation)
 		if err != nil {

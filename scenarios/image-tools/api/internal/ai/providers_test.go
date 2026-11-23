@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"image-tools/internal/modelenv"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -13,6 +14,7 @@ import (
 	"testing"
 
 	"image-tools/internal/backends"
+	internaljobs "image-tools/internal/jobs"
 	"image-tools/internal/models"
 	"image-tools/internal/storage"
 	"image-tools/internal/technique"
@@ -69,8 +71,53 @@ func TestGPUDeviceBindingIsPerProcess(t *testing.T) {
 	if len(visible) != 1 || visible[0] != "CUDA_VISIBLE_DEVICES=GPU-reserved" {
 		t.Fatalf("subprocess lost or duplicated its binding: %v", visible)
 	}
-	if os.Getenv("CUDA_VISIBLE_DEVICES") != "GPU-operator-default" || inferenceCommand(context.Background(), "/bin/true").Env != nil {
-		t.Fatal("per-request binding changed the serving process or unrelated requests")
+	unrelated := inferenceCommand(context.Background(), "/bin/true")
+	for _, value := range unrelated.Env {
+		if strings.Contains(value, "GPU-reserved") {
+			t.Fatal("per-request binding leaked into an unrelated request")
+		}
+	}
+	if os.Getenv("CUDA_VISIBLE_DEVICES") != "GPU-operator-default" {
+		t.Fatal("per-request binding changed the serving process")
+	}
+}
+
+// Contract: no inference process starts without the containment overlay, with
+// or without a GPU/CPU admission binding, and the overlay beats any cache the
+// serving process inherited.
+func TestInferenceCommandsCarryEveryModelCachePin(t *testing.T) {
+	root := t.TempDir()
+	t.Cleanup(modelenv.SwapRoot(root))
+	t.Setenv("HF_HOME", "/home/operator/.cache/huggingface")
+	t.Setenv("TORCH_HOME", "/home/operator/.cache/torch")
+	contexts := map[string]context.Context{
+		"unbound": context.Background(),
+		"gpu":     context.WithValue(context.Background(), gpuDeviceContextKey{}, "GPU-reserved"),
+		"cpu":     context.WithValue(context.Background(), cpuThreadsContextKey{}, 3),
+		"libs":    context.WithValue(context.Background(), pythonLibrariesKey{}, []string{"/venv/nvidia/lib"}),
+	}
+	builders := map[string]func(context.Context) []string{
+		"inference": func(ctx context.Context) []string { return inferenceCommand(ctx, "/bin/true").Env },
+		"probe": func(ctx context.Context) []string {
+			return pythonProbeCommand(ctx, "/venv/bin/python", "-c", "pass").Env
+		},
+	}
+	for builder, build := range builders {
+		for name, ctx := range contexts {
+			env := map[string]string{}
+			for _, item := range build(ctx) {
+				k, v, _ := strings.Cut(item, "=")
+				env[k] = v
+			}
+			for variable, dir := range modelenv.MustLoad().Pins(root) {
+				if env[variable] != dir {
+					t.Fatalf("%s/%s: %s=%q, want the managed %q", builder, name, variable, env[variable], dir)
+				}
+			}
+			if env["HF_HUB_OFFLINE"] != "1" || env["IMAGE_TOOLS_SIDECAR_NETWORK"] != "blocked" {
+				t.Fatalf("%s/%s: inference must run offline with the network guard: %v", builder, name, env)
+			}
+		}
 	}
 }
 
@@ -78,6 +125,25 @@ func TestTripoSRProviderSupportsReservedGPUUUID(t *testing.T) {
 	provider := &execProvider{backendProcess: backendProcess{name: "triposr"}}
 	if !provider.SupportsGPUUUID() {
 		t.Fatal("TripoSR uses torch CUDA and must honor the broker-reserved CUDA_VISIBLE_DEVICES UUID")
+	}
+}
+
+func TestRealesrganProviderBindsTheLeasedDevice(t *testing.T) {
+	provider := &execProvider{backendProcess: backendProcess{name: "realesrgan-ncnn-vulkan", gpuCapable: true}}
+	if !provider.SupportsGPUUUID() {
+		t.Fatal("ncnn-vulkan must be admitted by UUID so the lease and the Vulkan device are the same GPU")
+	}
+}
+
+func TestCPUThreadBudgetAlsoBoundsSoftwareVulkan(t *testing.T) {
+	ctx := context.WithValue(context.Background(), cpuThreadsContextKey{}, 3)
+	got := map[string]string{}
+	for _, value := range inferenceCommand(ctx, "/bin/true").Env {
+		key, val, _ := strings.Cut(value, "=")
+		got[key] = val
+	}
+	if got["LP_NUM_THREADS"] != "3" || got["OMP_NUM_THREADS"] != "3" {
+		t.Fatalf("admitted threads not enforced on every pool: %v", got)
 	}
 }
 
@@ -712,5 +778,113 @@ func TestPythonGPUCapabilityRecoversAfterEnvironmentConverges(t *testing.T) {
 	ready = true
 	if !p.GPUCapable() {
 		t.Fatal("asynchronous environment convergence remained pinned to CPU until restart")
+	}
+}
+
+// A GPU run that dies because another service took the GPU memory the lease
+// promised repeats once on the CPU in the same job, and says so. Anything else
+// that fails, a caller's explicit require_gpu, and a backend whose CPU path is not
+// a sane substitute are left to fail.
+func TestExecProviderRepeatsAGPUOutOfMemoryRunOnTheCPU(t *testing.T) {
+	oom := errors.New("onnxruntime: Failed to allocate memory for requested buffer of size 1811939328")
+	cases := []struct {
+		name       string
+		backend    string
+		retry      bool
+		req        backends.Request
+		firstErr   error
+		wantErr    bool
+		wantDevice []string
+		wantMeta   string
+	}{
+		{"out of memory on a qualified backend", "onnxruntime", true, backends.Request{GPU: true, Model: models.Model{Hardware: models.Hardware{CPUCapable: true}}}, oom, false, []string{"cuda", "cpu"}, "cpu_after_oom"},
+		{"another failure is not retried", "onnxruntime", true, backends.Request{GPU: true, Model: models.Model{Hardware: models.Hardware{CPUCapable: true}}}, errors.New("image is not decodable"), true, []string{"cuda"}, ""},
+		{"require_gpu is never moved", "onnxruntime", true, backends.Request{GPU: true, GPURequired: true, Model: models.Model{Hardware: models.Hardware{CPUCapable: true}}}, oom, true, []string{"cuda"}, ""},
+		{"a model with no CPU path is not retried", "onnxruntime", true, backends.Request{GPU: true}, oom, true, []string{"cuda"}, ""},
+		{"a backend that did not opt in is not retried", "diffusers", false, backends.Request{GPU: true, Model: models.Model{Hardware: models.Hardware{CPUCapable: true}}}, oom, true, []string{"cuda"}, ""},
+		{"a CPU run is never retried", "onnxruntime", true, backends.Request{GPU: false, Model: models.Model{Hardware: models.Hardware{CPUCapable: true}}}, oom, true, []string{"cpu"}, ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var devices []string
+			p := &execProvider{
+				backendProcess: backendProcess{
+					name: tc.backend, program: "python3", pythonInterpreter: "/private/python",
+					run: func(_ context.Context, _ string, args []string) error {
+						devices = append(devices, args[len(args)-1])
+						if len(devices) == 1 {
+							return tc.firstErr
+						}
+						return nil
+					},
+				},
+				cpuRetry: tc.retry,
+				techniques: technique.Single("colorize", func(backends.Request, string) ([]string, error) {
+					return []string{"-m", "image_tools_sidecar.colorize"}, nil
+				}),
+			}
+			tc.req.Operation = "colorize"
+			tc.req.Output = storage.OutputTarget{LocalPath: "/out.png"}
+			res, err := p.Execute(context.Background(), tc.req)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("err = %v, wantErr %v", err, tc.wantErr)
+			}
+			if strings.Join(devices, ",") != strings.Join(tc.wantDevice, ",") {
+				t.Fatalf("devices tried = %v, want %v", devices, tc.wantDevice)
+			}
+			if got := res.Meta["capacity_fallback"]; got != tc.wantMeta {
+				t.Errorf("capacity_fallback = %q, want %q", got, tc.wantMeta)
+			}
+			if tc.wantMeta != "" && (res.Meta[MetaExecutionDevice] != "cpu" || res.Meta[MetaExecutionTier] != "local-cpu") {
+				t.Errorf("a retried job must report the CPU it ran on: %v", res.Meta)
+			}
+		})
+	}
+}
+
+// The planned tier never overwrites where a provider says the job ran.
+func TestExecutionDeviceMetaKeepsWhatTheProviderReported(t *testing.T) {
+	meta := withExecutionDevice(map[string]string{MetaExecutionDevice: "cpu", MetaExecutionTier: "local-cpu"}, backends.TierLocalGPU)
+	if meta[MetaExecutionDevice] != "cpu" || meta[MetaExecutionTier] != "local-cpu" {
+		t.Fatalf("meta = %v", meta)
+	}
+}
+
+// A GPU out-of-memory that no fallback recovered is the host failing to deliver
+// what the lease promised: it must not lower the model's record, while any other
+// failure of the same run stays a fault.
+func TestExecProvider_UnrecoveredGPUOutOfMemoryIsACapacityFailureNotAModelFault(t *testing.T) {
+	for name, tc := range map[string]struct {
+		failure string
+		want    internaljobs.FailureKind
+	}{
+		"out of memory": {"CUDA out of memory. Tried to allocate 3.1 GiB", internaljobs.FailureCapacity},
+		"a crash":       {"illegal memory access", internaljobs.FailureFault},
+	} {
+		t.Run(name, func(t *testing.T) {
+			warm := &fakeWarmRunner{err: errors.New(tc.failure)}
+			p := &execProvider{
+				backendProcess: backendProcess{name: "diffusers", program: "python3", pythonInterpreter: "/data/pyenv/bin/python", warm: warm},
+				techniques:     technique.Single("depth_map", technique.OnnxSidecar),
+				gpuHolders: func(context.Context) []gpuHolder {
+					return []gpuHolder{{PID: 2874707, MiB: 6800, Detail: "python -m other_service"}}
+				},
+			}
+			req := backends.Request{
+				Operation: "depth_map", GPU: true, GPURequired: true,
+				Model:     models.Model{ID: "flux-2-klein-4b"},
+				ModelDir:  "/models/klein",
+				InputKeys: []string{"/in.png"},
+				Output:    storage.OutputTarget{LocalPath: "/out.png"},
+			}
+			_, err := p.Execute(context.Background(), req)
+			if err == nil || !strings.Contains(err.Error(), tc.failure) || internaljobs.KindOf(err) != tc.want {
+				t.Fatalf("err=%v kind=%q, want kind %q", err, internaljobs.KindOf(err), tc.want)
+			}
+			// Only a memory failure names who held the GPU: a crash is not about the neighbours.
+			if named := strings.Contains(err.Error(), "pid 2874707 6800 MiB (python -m other_service)"); named != (tc.want == internaljobs.FailureCapacity) {
+				t.Fatalf("holders named=%v for %q: %v", named, name, err)
+			}
+		})
 	}
 }

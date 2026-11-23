@@ -196,6 +196,17 @@ func (h *handlers) inventory(ctx cliapp.RunContext) error {
 		}
 		report.Artifacts = append(report.Artifacts, item)
 	}
+	// Bytes outside receipts (library default caches, untracked managed files)
+	// are reported by `models strays`; surface their size here so an inventory
+	// never reads clean while model bytes sit unmanaged.
+	var strays strayReport
+	if err := h.restDo(http.MethodGet, "/api/v1/models/strays", nil, &strays); err == nil {
+		if strays.Totals.Stray > 0 {
+			report.Findings = append(report.Findings, fmt.Sprintf("%s of model bytes sit outside install receipts (adoptable %s, reclaimable %s, other software's or unknown %s): run `image-tools models strays`", humanBytes(strays.Totals.Stray), humanBytes(strays.Totals.Adoptable), humanBytes(strays.Totals.Reclaim), humanBytes(strays.Totals.ReportOnly)))
+		}
+	} else {
+		report.Findings = append(report.Findings, "stray model scan unavailable: "+err.Error())
+	}
 	for _, artifact := range report.Artifacts {
 		report.Totals.ArtifactCount++
 		if artifact.Installed {

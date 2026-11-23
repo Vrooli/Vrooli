@@ -22,6 +22,7 @@ import (
 // fakeBroker records the claim it received and returns a scripted verdict.
 type fakeBroker struct {
 	degrade      bool
+	reclaimBytes int64
 	claimErr     error
 	heartbeatErr error
 	releaseErr   error
@@ -104,7 +105,7 @@ func (b *fakeBroker) Claim(_ context.Context, ownerID string, preferredBytes int
 	if b.claimErr != nil {
 		return capacity.Lease{}, b.claimErr
 	}
-	return capacity.Lease{ClaimID: "clm-test", DegradeToCPU: b.degrade}, nil
+	return capacity.Lease{ClaimID: "clm-test", DegradeToCPU: b.degrade, ReclaimBytes: b.reclaimBytes}, nil
 }
 
 func (b *fakeBroker) Release(_ context.Context, lease capacity.Lease) error {
@@ -127,6 +128,15 @@ func newCapacityTestEngine(t *testing.T, op string, fp *fakeProvider, broker cap
 	def, ok := registry.DefaultFor(op)
 	if !ok {
 		t.Fatalf("no default model for %q", op)
+	}
+	return newCapacityTestEngineForModel(t, op, def, fp, broker)
+}
+
+func newCapacityTestEngineForModel(t *testing.T, op string, def models.Model, fp *fakeProvider, broker capacity.Broker) (*Engine, string) {
+	t.Helper()
+	registry, err := models.Load()
+	if err != nil {
+		t.Fatalf("load registry: %v", err)
 	}
 	fp.name = def.Backend
 	fp.ops = []string{op}
@@ -382,5 +392,116 @@ func TestLocalCPUInferenceBindsProviderToAdmittedCPUBudget(t *testing.T) {
 	}
 	if admittedMilli <= 0 || int64(provider.lastReq.CPUThreads)*1000 != admittedMilli {
 		t.Fatalf("provider threads %d do not match admitted CPU budget %d millicores", provider.lastReq.CPUThreads, admittedMilli)
+	}
+}
+
+// scriptedBroker answers each claim in order, so a test can deny the
+// GPU-resident footprint and then grant the streamed floor.
+type scriptedBroker struct {
+	denyAbove int64 // claims larger than this are denied
+	claims    []int64
+	released  []string
+}
+
+func (b *scriptedBroker) Claim(_ context.Context, _ string, preferredBytes int64, _ capacity.ClaimOptions) (capacity.Lease, error) {
+	b.claims = append(b.claims, preferredBytes)
+	if preferredBytes > b.denyAbove {
+		return capacity.Lease{DegradeToCPU: true, Warnings: []string{"idle residents are still inside their grace window"}}, nil
+	}
+	return capacity.Lease{ClaimID: fmt.Sprintf("clm-%d", preferredBytes>>30), ReclaimBytes: 4 << 30}, nil
+}
+func (b *scriptedBroker) Release(_ context.Context, lease capacity.Lease) error {
+	b.released = append(b.released, lease.ClaimID)
+	return nil
+}
+func (b *scriptedBroker) Heartbeat(_ context.Context, lease capacity.Lease) (capacity.Lease, error) {
+	return lease, nil
+}
+
+func TestCapacity_StagedModelAsksForResidentFootprintThenFallsBackToStreamedFloor(t *testing.T) {
+	registry, err := models.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	klein, ok := registry.ByID("flux-2-klein-4b")
+	if !ok || klein.Hardware.ResidentVRAMGB <= klein.Hardware.MinVRAMGB {
+		t.Fatalf("klein must declare a resident footprint above its streamed floor: %+v", klein.Hardware)
+	}
+	for _, tc := range []struct {
+		name       string
+		denyAbove  int64
+		wantClaims []int64
+		residency  string
+	}{
+		{"resident granted after reclaim", 16 << 30, []int64{12 << 30}, "resident"},
+		{"resident denied, streamed floor granted", 6 << 30, []int64{12 << 30, 6 << 30}, "streamed"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fp := &fakeProvider{}
+			broker := &scriptedBroker{denyAbove: tc.denyAbove}
+			eng, _ := newCapacityTestEngineForModel(t, "edit_instruct", klein, fp, broker)
+			raw, err := marshalPinnedPayload(t, eng, "edit_instruct", Payload{Operation: "edit_instruct", ModelID: klein.ID, GPU: true, CapacityPriority: "service", AllowReclaim: true})
+			if err != nil {
+				t.Fatal(err)
+			}
+			job := internaljobs.Job{ID: "job-resident", Operation: "edit_instruct", Payload: raw}
+			admission, err := eng.Admit(context.Background(), job)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if fmt.Sprint(broker.claims) != fmt.Sprint(tc.wantClaims) {
+				t.Fatalf("claims = %v, want %v", broker.claims, tc.wantClaims)
+			}
+			if admission.Meta["gpu_residency"] != tc.residency {
+				t.Fatalf("gpu_residency = %q, meta %v", admission.Meta["gpu_residency"], admission.Meta)
+			}
+			if tc.residency == "streamed" && !strings.Contains(admission.Meta["gpu_residency_unavailable"], "grace") {
+				t.Fatalf("the reason a resident footprint was not granted must be recorded: %v", admission.Meta)
+			}
+			if err := admission.Release(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			if len(broker.released) != 1 || broker.released[0] != fmt.Sprintf("clm-%d", tc.wantClaims[len(tc.wantClaims)-1]>>30) {
+				t.Fatalf("exactly the granted claim must be released, released %v", broker.released)
+			}
+		})
+	}
+}
+
+// A ledger call that timed out on the fleet-wide admission lock is a condition
+// that clears by itself: the job must requeue as capacity-busy, not fail.
+func TestCapacity_LedgerTimeoutRequeuesInsteadOfFailing(t *testing.T) {
+	timeout := fmt.Errorf("run vrooli capacity claim: %w", fmt.Errorf("claim timed out after 29.9s: %w", context.DeadlineExceeded))
+	for name, fail := range map[string]error{"timeout": timeout, "other error": errors.New("ledger corrupt")} {
+		t.Run(name, func(t *testing.T) {
+			broker := &fakeBroker{claimErr: fail}
+			eng, modelID := newCapacityTestEngine(t, "text_to_image", &fakeProvider{}, broker)
+			err := runGPUJob(t, eng, "text_to_image", modelID)
+			if err == nil {
+				t.Fatal("a failed claim must not run the job")
+			}
+			if busy := errors.Is(err, internaljobs.ErrCapacityBusy); busy != (name == "timeout") {
+				t.Fatalf("capacity-busy = %v for %q: %v", busy, name, err)
+			}
+		})
+	}
+}
+
+// What the broker reclaimed from idle owners to admit the job is part of the
+// job's record.
+func TestCapacity_JobMetaRecordsWhatWasReclaimed(t *testing.T) {
+	broker := &fakeBroker{reclaimBytes: 3 << 30}
+	eng, modelID := newCapacityTestEngine(t, "text_to_image", &fakeProvider{}, broker)
+	raw, err := marshalPinnedPayload(t, eng, "text_to_image", Payload{Operation: "text_to_image", ModelID: modelID, GPU: true, CapacityPriority: "service", AllowReclaim: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	admission, err := eng.Admit(context.Background(), internaljobs.Job{ID: "job-xyz", Operation: "text_to_image", Payload: raw})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = admission.Release(context.Background()) }()
+	if got := admission.Meta["gpu_reclaimed_bytes"]; got != fmt.Sprint(int64(3<<30)) {
+		t.Fatalf("meta = %v", admission.Meta)
 	}
 }

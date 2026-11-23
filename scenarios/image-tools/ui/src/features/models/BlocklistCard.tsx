@@ -9,9 +9,11 @@ import { errorMessage } from "../../lib/errorMessage";
 const BLOCKLIST_QUERY_KEY = ["models", "blocklist"] as const;
 
 /**
- * BlocklistCard is a read-only surface listing license-encumbered models the
- * catalog deliberately excludes (ListBlocklist). Each entry documents the
- * reason and the ONNX/GGUF export trap so the exclusion is auditable.
+ * BlocklistCard is a read-only surface listing restricted models
+ * (ListBlocklist). A license gate refuses only monetized, hosted or
+ * redistributed use — normal local use is allowed — while an exclusion keeps a
+ * model out of the catalog for a safety, technical or hardware-fit reason. Each
+ * entry documents the reason and the ONNX/GGUF export trap.
  */
 export function BlocklistCard() {
   const { t } = useTranslation();
@@ -62,6 +64,11 @@ export function BlocklistCard() {
                   {t(strings.models.blocklist.operationsLabel)} {entry.operations.join(", ")}
                 </div>
               )}
+              <div data-testid={selectors.models.blocklist.gate} className="mt-1 text-xs text-app-foreground">
+                {entry.gate === "exclusion"
+                  ? `${t(strings.models.blocklist.exclusion)} ${entry.exclusionKind}`
+                  : `${t(strings.models.blocklist.licenseGate)} ${entry.gatedUses.join(", ")}`}
+              </div>
               <div className="mt-1 text-xs text-app-muted-foreground">
                 {t(strings.models.blocklist.licenseLabel)} {entry.license || "—"}
               </div>

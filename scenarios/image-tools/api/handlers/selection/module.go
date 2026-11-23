@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 
+	"image-tools/internal/httpx"
 	internaljobs "image-tools/internal/jobs"
 	"image-tools/internal/module"
 	internalselection "image-tools/internal/selection"
@@ -36,7 +37,7 @@ func Module(blobs BlobStore, jobs *internaljobs.Manager, logger *log.Logger) mod
 		Name: "selection",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
-			r.HandleFunc("/api/v1/selection/segment", rest.segmentHandler).Methods(http.MethodPost)
+			r.Handle("/api/v1/selection/segment", httpx.SyncBudgetFunc(rest.segmentHandler)).Methods(http.MethodPost)
 		},
 		Endpoints: Endpoints,
 	}

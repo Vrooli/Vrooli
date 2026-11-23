@@ -91,7 +91,7 @@ func TestSharedAdapterUsesCanonicalContextAndAllowsVerifiedOpenRAILLocalInferenc
 				if decision.Status != string(policy.RightsAllowed) || decision.Reason != "behavioral_use_restrictions_apply" || len(decision.Obligations) == 0 {
 					t.Errorf("verified OpenRAIL model local-use rights = %+v, want allowed with source obligations", decision)
 				}
-			} else if candidate.ID == "sam-2.1-tiny" {
+			} else if candidate.ID == "sam-2.1-tiny" || candidate.ID == "sam-2.1-base-plus" {
 				if decision.Status != string(policy.RightsAllowed) || decision.Reason != "verified_unrestricted_grant" {
 					t.Errorf("verified SAM 2.1 checkpoint local-use rights = %+v, want allowed from pinned Apache-2.0 evidence", decision)
 				}

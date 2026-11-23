@@ -201,7 +201,7 @@ func TestGateAndConsentLog(t *testing.T) {
 	if !dec.Allowed || !dec.RecordConsent {
 		t.Fatalf("expected allowed+record, got %+v", dec)
 	}
-	if err := gate.RecordConsent(t.Context(), "edit_instruct", dec.Weight); err != nil {
+	if err := gate.RecordConsent(t.Context(), "edit_instruct", dec.Weight, ""); err != nil {
 		t.Fatalf("RecordConsent: %v", err)
 	}
 	n, err := logStore.Count(t.Context())
@@ -219,7 +219,7 @@ func TestGateAndConsentLog(t *testing.T) {
 
 func TestConsentLogNilSafe(t *testing.T) {
 	var l *ConsentLog
-	if err := l.Record(t.Context(), "inpaint", WeightHigh, TierPublic); err != nil {
+	if err := l.Record(t.Context(), "inpaint", WeightHigh, TierPublic, ""); err != nil {
 		t.Errorf("nil consent log Record should be a no-op, got %v", err)
 	}
 	if n, err := l.Count(t.Context()); err != nil || n != 0 {

@@ -37,6 +37,11 @@ type warmSidecarRunner struct {
 	residentModel string
 	residentMeta  map[string]string
 	residencyID   string
+	// residentGPUUUID/residentGPUBytes describe the GPU claim the resident model
+	// holds (zero for CPU residency); lastUsed orders idle residents for yielding.
+	residentGPUUUID  string
+	residentGPUBytes int64
+	lastUsed         time.Time
 }
 
 func newWarmSidecarRunner() *warmSidecarRunner {
@@ -48,10 +53,13 @@ type warmRequest struct {
 }
 
 type warmResponse struct {
-	OK    bool              `json:"ok"`
-	Error string            `json:"error,omitempty"`
-	Trace string            `json:"trace,omitempty"`
-	Meta  map[string]string `json:"meta,omitempty"`
+	OK    bool   `json:"ok"`
+	Error string `json:"error,omitempty"`
+	Trace string `json:"trace,omitempty"`
+	// Kind is the worker's own account of a failure it can classify (the request
+	// was invalid); an absent kind is a fault of the run.
+	Kind string            `json:"kind,omitempty"`
+	Meta map[string]string `json:"meta,omitempty"`
 }
 
 func (r *warmSidecarRunner) Run(ctx context.Context, program string, args []string) error {
@@ -93,11 +101,14 @@ func (r *warmSidecarRunner) Run(ctx context.Context, program string, args []stri
 			return
 		}
 		if !resp.OK {
+			failure := fmt.Errorf("%s", resp.Error)
 			if resp.Trace != "" {
-				done <- fmt.Errorf("%s\n%s", resp.Error, resp.Trace)
-				return
+				failure = fmt.Errorf("%s\n%s", resp.Error, resp.Trace)
 			}
-			done <- fmt.Errorf("%s", resp.Error)
+			if resp.Kind != "" {
+				failure = jobs.Kinded(jobs.ParseFailureKind(resp.Kind), failure)
+			}
+			done <- failure
 			return
 		}
 		if meta, _ := ctx.Value(workerResidencyMetadataKey{}).(map[string]string); meta != nil {
@@ -218,6 +229,7 @@ func (r *warmSidecarRunner) stopLocked() error {
 			return fmt.Errorf("release warm model residency: %w", releaseErr)
 		}
 		r.resident, r.residentModel, r.residencyID, r.residentMeta = nil, "", "", nil
+		r.residentGPUUUID, r.residentGPUBytes = "", 0
 	}
 	return err
 }
@@ -285,6 +297,9 @@ func (r *warmSidecarRunner) reserve(ctx context.Context, model, jobID string, ac
 				r.residentMeta[key] = value
 			}
 		}
+		if claimed, err := strconv.ParseInt(resultMeta[gpuCapacityClaimBytesMetadataKey], 10, 64); err == nil && claimed > 0 {
+			r.residentGPUUUID, r.residentGPUBytes = resultMeta["gpu_uuid"], claimed
+		}
 	} else if resultMeta != nil {
 		for key, value := range r.residentMeta {
 			resultMeta[key] = value
@@ -292,7 +307,13 @@ func (r *warmSidecarRunner) reserve(ctx context.Context, model, jobID string, ac
 	}
 	residencyID := r.residencyID
 	residentCtx := r.resident.ctx
+	// A job now serves on this worker: its resident claims stop being idle until
+	// the job ends and the idle window starts.
+	activity := reportActivity(ctx, r.resident, true)
 	r.mu.Unlock()
+	if resultMeta != nil {
+		resultMeta[residentActivityMetadataKey] = activity
+	}
 	if resultMeta != nil {
 		resultMeta[workerResidencyIDMetadataKey] = residencyID
 		resultMeta[workerResidencyModelMetadataKey] = model
@@ -311,6 +332,10 @@ func (r *warmSidecarRunner) reserve(ctx context.Context, model, jobID string, ac
 				if jobCtx.Err() != nil || r.cmd == nil {
 					releaseErr = r.stopLocked()
 				} else {
+					r.lastUsed = time.Now()
+					if r.resident != nil {
+						_ = reportActivity(context.Background(), r.resident, false)
+					}
 					activity := r.activity
 					r.idleTimer = time.AfterFunc(r.idleTimeout, func() {
 						r.mu.Lock()
@@ -328,6 +353,58 @@ func (r *warmSidecarRunner) reserve(ctx context.Context, model, jobID string, ac
 			return releaseErr
 		},
 	}, nil
+}
+
+// gpuCapacityClaimBytesMetadataKey carries the VRAM a warm residency claimed, so
+// the worker knows what yielding it would free.
+const gpuCapacityClaimBytesMetadataKey = "gpu_capacity_claim_bytes"
+
+// idleGPUResident is an idle warm worker that holds a GPU claim.
+type idleGPUResident struct {
+	runner   *warmSidecarRunner
+	key      string // residency key, includes the GPU binding
+	model    string // model id the operator knows
+	bytes    int64
+	lastUsed time.Time
+}
+
+// idleGPUResident reports whether this worker is idle (no job holds it) and
+// keeps a GPU claim on gpuUUID. A held gate means a job is serving or queued on
+// the worker, so it is never reported, and it is never blocked on.
+func (r *warmSidecarRunner) idleGPUResident(gpuUUID string) (idleGPUResident, bool) {
+	select {
+	case r.gate <- struct{}{}:
+		defer func() { <-r.gate }()
+	default:
+		return idleGPUResident{}, false
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.resident == nil || r.residentGPUBytes <= 0 || r.residentGPUUUID != gpuUUID {
+		return idleGPUResident{}, false
+	}
+	model, _, _ := strings.Cut(r.residentModel, "|gpu:")
+	return idleGPUResident{runner: r, key: r.residentModel, model: model, bytes: r.residentGPUBytes, lastUsed: r.lastUsed}, true
+}
+
+// yieldIdleGPU unloads the worker and releases its claims when it is still idle
+// and still holds the resident the caller saw. It returns the unloaded model.
+func (r *warmSidecarRunner) yieldIdleGPU(seen idleGPUResident) (string, bool, error) {
+	select {
+	case r.gate <- struct{}{}:
+		defer func() { <-r.gate }()
+	default:
+		return "", false, nil
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.resident == nil || r.residentModel != seen.key || r.residentGPUUUID == "" {
+		return "", false, nil
+	}
+	if err := r.stopLocked(); err != nil {
+		return "", false, err
+	}
+	return seen.model, true, nil
 }
 
 const (

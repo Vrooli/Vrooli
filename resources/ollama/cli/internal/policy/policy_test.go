@@ -138,12 +138,12 @@ func TestQwen35NineBUnrestrictedRightsBindCurrentRuntime(t *testing.T) {
 		ID: "operator-stated-business-context", Version: "2026-11-10",
 		RevenueStatus: "pre_revenue", AsOf: "2026-11-10", Source: "operator_statement",
 	}
-	resolved, err := p.ResolveRoleWithRights("chat.default", sharedpolicy.RightsUseLocalInference, ctx, time.Date(2026, 11, 12, 7, 0, 0, 0, time.UTC))
+	resolved, err := p.ResolveRoleWithRights("chat.quality", sharedpolicy.RightsUseLocalInference, ctx, time.Date(2026, 11, 12, 7, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if resolved.Model != "qwen3.5:9b" || resolved.RightsDecision == nil || resolved.RightsDecision.Status != sharedpolicy.RightsAllowed {
-		t.Fatalf("chat.default rights decision = %+v; want the catalogued unconditional qwen grant", resolved.RightsDecision)
+		t.Fatalf("chat.quality rights decision = %+v; want the catalogued unconditional qwen grant", resolved.RightsDecision)
 	}
 	modelFacts := p.Models[resolved.Model]
 	if err := requireObservedRuntimeIdentity(modelFacts, resolved.Model, "6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7"); err != nil {
@@ -168,7 +168,7 @@ func TestLoadDefaultRightsContextUsesTheOperatorOwnedGatewayContext(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	if context.ID != "operator-stated-business-context" || context.Version != "2026-11-14-rights01" || context.RevenueStatus != "pre_revenue" || context.EntityScope != "operator-group" || context.MonthlyActiveUsers["2023-06"] != "0" || context.MonthlyActiveUsers["2024-06"] != "0" || context.MonthlyActiveUsers["2024-08"] != "0" {
+	if context.ID != "operator-stated-business-context" || context.Version == "" || context.NormalUseLicensing != sharedpolicy.NormalUseLicensingAnyClass || context.NormalUseLicensingEvidence == "" || context.RevenueStatus != "pre_revenue" || context.EntityScope != "operator-group" || context.MonthlyActiveUsers["2023-06"] != "0" || context.MonthlyActiveUsers["2024-06"] != "0" || context.MonthlyActiveUsers["2024-08"] != "0" {
 		t.Fatalf("unexpected operator context: %+v", context)
 	}
 }

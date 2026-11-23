@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"image-tools/internal/smoke"
 )
 
 // writeTree materializes a small diffusers-like file tree under dir.
@@ -68,15 +70,29 @@ func TestTreeManifestHashDeterministicAndSensitive(t *testing.T) {
 		t.Fatalf(".cache changed the manifest hash: %s vs %s", h3, h1)
 	}
 
-	// Changing a tracked file changes the hash.
-	if err := os.WriteFile(filepath.Join(b, "vae", "config.json"), []byte(`{"y":99}`), 0o644); err != nil {
+	// The load-smoke verdict is written after the install checksum is recorded,
+	// so it must not change the manifest hash (a changed hash makes every
+	// smoked repo model fail revalidation).
+	if err := os.WriteFile(filepath.Join(b, smoke.VerdictFile), []byte(`{"pass":true}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	h4, _, err := TreeManifestHash(b)
 	if err != nil {
+		t.Fatalf("hash b+verdict: %v", err)
+	}
+	if h4 != h1 {
+		t.Fatalf("smoke verdict changed the manifest hash: %s vs %s", h4, h1)
+	}
+
+	// Changing a tracked file changes the hash.
+	if err := os.WriteFile(filepath.Join(b, "vae", "config.json"), []byte(`{"y":99}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	h5, _, err := TreeManifestHash(b)
+	if err != nil {
 		t.Fatalf("hash b changed: %v", err)
 	}
-	if h4 == h1 {
+	if h5 == h1 {
 		t.Fatal("changing a file did not change the manifest hash")
 	}
 }

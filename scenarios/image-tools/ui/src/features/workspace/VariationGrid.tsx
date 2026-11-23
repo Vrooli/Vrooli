@@ -3,6 +3,7 @@ import { Loader2 } from "lucide-react";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
+import { SensitiveImage } from "../sensitive/SensitiveImage";
 import type { CreateVariation } from "./useCreate";
 
 export interface VariationGridProps {
@@ -58,7 +59,7 @@ export function VariationGrid({
             >
               {variation ? (
                 <>
-                  <img
+                  <SensitiveImage
                     src={variation.result.url}
                     alt={slotLabel}
                     className="aspect-square w-full rounded-control border border-app-border object-cover"

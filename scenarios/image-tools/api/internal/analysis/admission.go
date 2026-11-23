@@ -10,9 +10,31 @@ import (
 
 	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
 	"image-tools/internal/jobs"
+	"image-tools/internal/models"
 )
 
 type admittedOperation struct{}
+
+// admittedThreads carries the whole CPU threads admission reserved, so the run
+// starts its process with exactly that many and never more.
+type admittedThreads struct{}
+
+// cpuThreadsByOperation is the CPU a model-backed analysis op reserves and then
+// uses. PaddleOCR reads each image at several detector scales and the largest
+// takes ~8 s on 8 threads versus ~50 s on one, so it reserves four cores; every
+// other op is light enough for one. Admission and the sidecar thread cap read this
+// one table, so the reservation can never differ from what the process uses.
+var cpuThreadsByOperation = map[string]int{OpOCR: 4}
+
+func cpuThreadsFor(op string) int {
+	if threads, ok := cpuThreadsByOperation[op]; ok && threads > 0 {
+		return threads
+	}
+	return 1
+}
+
+// admittedModel carries the model admission acquired, so the run uses exactly it.
+type admittedModel struct{}
 
 // Admit is used by the common job scheduler before analysis starts. Nested
 // auto-scans use the same boundary after their parent inference releases CPU.
@@ -38,10 +60,16 @@ func (s *Service) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, erro
 	if job.Operation == OpOCR {
 		ram = 512 << 20
 	}
+	threads := cpuThreadsFor(job.Operation)
+	var chosen *models.Model
 	if job.Operation == OpNSFW || job.Operation == OpOCR {
 		modelID := "adamcodd-vit-nsfw"
 		if job.Operation == OpOCR {
-			modelID = "tesseract"
+			selected, err := s.selectOperationModel(ctx, OpOCR)
+			if err != nil {
+				return admission, err
+			}
+			modelID, chosen = selected.ID, &selected
 		}
 		if s.acquireModel != nil {
 			// Acquire (or revalidate weights already on disk) before the shared
@@ -106,7 +134,7 @@ func (s *Service) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, erro
 	}
 	if s.acquireCapacity != nil {
 		var err error
-		scope, err = s.acquireCapacity(ctx, sharedcapacity.Request{OwnerID: "image-tools:" + job.ID + ":analysis", RAMBytes: ram, CPUMilli: 1000, Priority: string(job.Priority), NoReclaim: true})
+		scope, err = s.acquireCapacity(ctx, sharedcapacity.Request{OwnerID: "image-tools:" + job.ID + ":analysis", RAMBytes: ram, CPUMilli: int64(threads) * 1000, Priority: string(job.Priority), NoReclaim: true})
 		if err != nil {
 			var unavailable *sharedcapacity.UnavailableError
 			if errors.As(err, &unavailable) {
@@ -118,9 +146,12 @@ func (s *Service) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, erro
 			return admission, errors.New("analysis: capacity admission returned no lease")
 		}
 		ctx = scope.Context()
-		admission.Meta = map[string]string{"ram_capacity_claim_bytes": strconv.FormatInt(ram, 10), "cpu_capacity_milli": "1000"}
+		admission.Meta = map[string]string{"ram_capacity_claim_bytes": strconv.FormatInt(ram, 10), "cpu_capacity_milli": strconv.Itoa(threads * 1000)}
 	}
-	admission.Context = context.WithValue(ctx, admittedOperation{}, job.Operation)
+	admission.Context = context.WithValue(context.WithValue(ctx, admittedOperation{}, job.Operation), admittedThreads{}, threads)
+	if chosen != nil {
+		admission.Context = context.WithValue(admission.Context, admittedModel{}, *chosen)
+	}
 	return admission, nil
 }
 

@@ -727,7 +727,11 @@ func TestSelectModelResolvesEnabledCustomOverride(t *testing.T) {
 	}
 }
 
-func TestListOperationModelsIncludesAndSelectsCustomCandidate(t *testing.T) {
+// TestListOperationModelsIncludesCustomCandidate: an enabled custom model is a
+// candidate beside the seeded ones. It does not displace the seeded default (the
+// seed's own choice wins until the operator pins another), and exactly the
+// candidate named by selected_id carries the selected marker.
+func TestListOperationModelsIncludesCustomCandidate(t *testing.T) {
 	h, _, _ := newInstallHandler(t)
 	resp, err := h.ListOperationModels(context.Background(), connect.NewRequest(&modelsv1.ListOperationModelsRequest{
 		Operation: "upscale",
@@ -735,19 +739,25 @@ func TestListOperationModelsIncludesAndSelectsCustomCandidate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list custom candidates: %v", err)
 	}
-	if resp.Msg.GetSelectedId() != handlerInstallTestModelID {
-		t.Fatalf("selected id = %q, want custom model %q", resp.Msg.GetSelectedId(), handlerInstallTestModelID)
+	if resp.Msg.GetSelectedId() == "" || resp.Msg.GetSelectedId() == handlerInstallTestModelID {
+		t.Fatalf("selected id = %q, want the seeded default, not the custom model", resp.Msg.GetSelectedId())
 	}
+	foundCustom := false
 	for _, candidate := range resp.Msg.GetCandidates() {
-		if candidate.GetModel().GetId() != handlerInstallTestModelID {
-			continue
+		id := candidate.GetModel().GetId()
+		if candidate.GetSelected() != (id == resp.Msg.GetSelectedId()) {
+			t.Fatalf("candidate %s selected=%t, selected_id=%q", id, candidate.GetSelected(), resp.Msg.GetSelectedId())
 		}
-		if !candidate.GetModel().GetCustom() || !candidate.GetSelected() {
-			t.Fatalf("custom candidate = %+v, want custom and selected", candidate)
+		if id == handlerInstallTestModelID {
+			foundCustom = true
+			if !candidate.GetModel().GetCustom() {
+				t.Fatalf("custom candidate = %+v, want custom", candidate)
+			}
 		}
-		return
 	}
-	t.Fatalf("custom model %q missing from upscale candidates", handlerInstallTestModelID)
+	if !foundCustom {
+		t.Fatalf("custom model %q missing from upscale candidates", handlerInstallTestModelID)
+	}
 }
 
 func TestAddCustomModelSeedCollisionInvalid(t *testing.T) {

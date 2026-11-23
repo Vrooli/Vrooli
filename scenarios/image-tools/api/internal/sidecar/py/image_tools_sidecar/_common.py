@@ -10,10 +10,12 @@ import os
 from collections import OrderedDict
 from typing import Tuple
 
-# A SAM encoder/decoder pair is the largest cache unit this CPU worker needs.
-# Never accumulate every model a long-lived API process has ever used.
+# One installed model's graphs are the largest cache unit a worker needs: a SAM
+# encoder/decoder pair, or a face swapper with its detector, embedder and
+# occlusion mask. The warm worker clears the cache whenever the model changes, so
+# this never accumulates every model a long-lived API process has ever used.
 _SESSION_CACHE = OrderedDict()
-_MAX_SESSIONS = 2
+_MAX_SESSIONS = 4
 _ONNX_MAX_INTRA_OP_THREADS = 8
 _ONNX_INTER_OP_THREADS = 1
 
@@ -63,6 +65,23 @@ def parse_io_args(description: str) -> argparse.Namespace:
     args = p.parse_args()
     os.environ["IMAGE_TOOLS_DEVICE"] = args.device
     return args
+
+
+# sysexits EX_DATAERR: the request cannot be served as given. A module exits with
+# it (and the worker answers with kind "invalid_input") so the Go side records a
+# client fault, not a fault of the model or the runtime.
+EXIT_INVALID_INPUT = 65
+
+
+class InputError(ValueError):
+    """The request cannot be served as given: a phrase the model cannot select, a
+    malformed prompt, a mask that does not fit the image. Raise it for what the
+    caller got wrong; keep ValueError and RuntimeError for faults of the run."""
+
+
+def exit_status_for(exc: BaseException) -> int:
+    """The process exit status a module's `main` uses for a failure it printed."""
+    return EXIT_INVALID_INPUT if isinstance(exc, InputError) else 1
 
 
 def fail(msg: str, code: int = 2) -> "None":

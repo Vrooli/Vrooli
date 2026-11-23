@@ -67,7 +67,10 @@ func (r *Runner) Run(ctx context.Context, job jobs.Job, emit func(int, string)) 
 	}
 	meta := map[string]string{"quality_passed": strconv.FormatBool(report.Passed), "quality_complete": strconv.FormatBool(report.Complete), "quality_suite_sha256": report.SuiteSha256, "quality_report_sha256": report.ReportSha256, "evaluated_model": m.CandidateModel}
 	if m.Judge != "disabled" {
-		meta["model_id"], meta["judge_model"], meta["capacity_ownership"] = report.JudgeModel, report.JudgeModel, "resource:ollama"
+		meta["model_id"], meta["judge_model"] = report.JudgeModel, report.JudgeModel
+		if chain, err := ParseJudgeChain(report.JudgeModel); err == nil {
+			meta["capacity_ownership"] = ChainOwnership(chain)
+		}
 	}
 	return jobs.Result{Ref: report.ResultRef, Meta: meta}, nil
 }
@@ -75,7 +78,16 @@ func (r *Runner) Run(ctx context.Context, job jobs.Job, emit func(int, string)) 
 // Admit reserves bounded metric work in the same scheduler as all image jobs.
 // The judge's accelerator admission remains with AI Gateway/resource-ollama.
 func Admit(ctx context.Context, job jobs.Job) (jobs.Admission, error) {
-	scope, err := sharedcapacity.AcquireScoped(ctx, sharedcapacity.Request{OwnerID: "image-tools:" + job.ID + ":quality", RAMBytes: 1 << 30, CPUMilli: 1000, Priority: string(job.Priority), NoReclaim: true})
+	ramBytes, cpuMilli := int64(1<<30), int64(1000)
+	var task Task
+	manifest := &qualityv1.EvaluationManifest{}
+	parsed := json.Unmarshal(job.Payload, &task) == nil && protojson.Unmarshal(task.Manifest, manifest) == nil
+	// LPIPS runs torch on CPU in the sidecar: a 12-megapixel pair is scored in
+	// 1024-pixel tiles inside about 2 GiB and two cores.
+	if parsed && wantsMetric(budgetMetricNames(manifest), MetricLPIPS) {
+		ramBytes, cpuMilli = 2<<30, 2000
+	}
+	scope, err := sharedcapacity.AcquireScoped(ctx, sharedcapacity.Request{OwnerID: "image-tools:" + job.ID + ":quality", RAMBytes: ramBytes, CPUMilli: cpuMilli, Priority: string(job.Priority), NoReclaim: true})
 	if err != nil {
 		var unavailable *sharedcapacity.UnavailableError
 		if errors.As(err, &unavailable) {
@@ -83,5 +95,13 @@ func Admit(ctx context.Context, job jobs.Job) (jobs.Admission, error) {
 		}
 		return jobs.Admission{Context: ctx}, err
 	}
-	return jobs.Admission{Context: scope.Context(), Release: scope.Release, Meta: map[string]string{"ram_capacity_claim_bytes": "1073741824", "cpu_capacity_milli": "1000", "judge_capacity_ownership": "resource:ollama"}}, nil
+	meta := map[string]string{"ram_capacity_claim_bytes": strconv.FormatInt(ramBytes, 10), "cpu_capacity_milli": strconv.FormatInt(cpuMilli, 10), "judge_capacity_ownership": "resource:ollama"}
+	// A manifest that names a hosted judge hands accelerator ownership to that
+	// provider; recording the local resource would misattribute the work.
+	if parsed && manifest.Judge != "disabled" {
+		if chain, err := ParseJudgeChain(manifest.JudgeModel); err == nil {
+			meta["judge_capacity_ownership"] = ChainOwnership(chain)
+		}
+	}
+	return jobs.Admission{Context: scope.Context(), Release: scope.Release, ReleaseRetryable: true, Meta: meta}, nil
 }

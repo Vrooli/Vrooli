@@ -10,6 +10,37 @@
 
 export type CapabilityEngine = "ai" | "analysis" | "compute" | "unwired";
 
+export interface ExtentStageMeta {
+  readonly id: string;
+  readonly kind: string;
+  readonly labelKey: string;
+  readonly descKey: string;
+  readonly replaces?: string;
+  readonly strengthParam?: string;
+  readonly option?: ExtentOptionMeta;
+}
+
+/** A stage's choice of how it runs (skin tone toward the source or toward the body). */
+export interface ExtentOptionMeta {
+  readonly param: string;
+  readonly default: string;
+  readonly values: readonly { readonly id: string; readonly labelKey: string; readonly descKey: string }[];
+}
+
+export interface ExtentPresetMeta {
+  readonly id: string;
+  readonly labelKey: string;
+  readonly descKey: string;
+  readonly stages: readonly string[];
+}
+
+/** How much of a person an operation carries over: its stages and the presets composed from them. */
+export interface ExtentMeta {
+  readonly stages: readonly ExtentStageMeta[];
+  readonly presets: readonly ExtentPresetMeta[];
+  readonly defaultPreset: string;
+}
+
 export interface CapabilityMeta {
   readonly id: string;
   readonly engine: CapabilityEngine;
@@ -22,6 +53,7 @@ export interface CapabilityMeta {
   readonly labelKey?: string;
   readonly descKey?: string;
   readonly panel?: string;
+  readonly extent?: ExtentMeta;
 }
 
 export const CAPABILITIES: Readonly<Record<string, CapabilityMeta>> = {
@@ -33,8 +65,10 @@ export const CAPABILITIES: Readonly<Record<string, CapabilityMeta>> = {
   "object_removal": { id: "object_removal", engine: "ai", family: "edit", mechanism: "infer", inputKinds: ["image", "mask"], outputKind: "image", summary: "Remove a masked object and fill the gap", panel: "create", icon: "Eraser", labelKey: "workspace.createOp.object_removal.label", descKey: "workspace.createOp.object_removal.desc" },
   "background_removal": { id: "background_removal", engine: "ai", family: "extract", mechanism: "infer", inputKinds: ["image"], outputKind: "image", summary: "Remove the background to transparency", panel: "enhance", icon: "Scissors", labelKey: "workspace.aiOp.background_removal.label", descKey: "workspace.aiOp.background_removal.desc" },
   "background_replace": { id: "background_replace", engine: "ai", family: "edit", mechanism: "infer", inputKinds: ["image", "mask", "text"], outputKind: "image", summary: "Replace the background behind a masked subject from a prompt", panel: "create", icon: "Images", labelKey: "workspace.createOp.background_replace.label", descKey: "workspace.createOp.background_replace.desc" },
-  "face_swap": { id: "face_swap", engine: "ai", family: "generate", mechanism: "infer", inputKinds: ["image"], outputKind: "image", summary: "Transfer a reference face onto a subject (reference supplied as a conditioning image)", panel: "create", icon: "ScanFace", labelKey: "workspace.createOp.face_swap.label", descKey: "workspace.createOp.face_swap.desc" },
+  "face_swap": { id: "face_swap", engine: "ai", family: "generate", mechanism: "infer", inputKinds: ["image", "image"], outputKind: "image", summary: "Put the face from a reference image onto a target image (SFW only; local models, with a consent affirmation for non-local routes)", panel: "create", icon: "ScanFace", labelKey: "workspace.createOp.face_swap.label", descKey: "workspace.createOp.face_swap.desc", extent: { stages: [{ id: "face", kind: "swap", labelKey: "workspace.extent.stage.face.label", descKey: "workspace.extent.stage.face.desc", strengthParam: "face_strength" }, { id: "skin", kind: "recolour", labelKey: "workspace.extent.stage.skin.label", descKey: "workspace.extent.stage.skin.desc", option: { param: "skin_target", default: "source", values: [{ id: "body", labelKey: "workspace.extent.skinTarget.body.label", descKey: "workspace.extent.skinTarget.body.desc" }, { id: "source", labelKey: "workspace.extent.skinTarget.source.label", descKey: "workspace.extent.skinTarget.source.desc" }] } }, { id: "hair_style", kind: "restyle", labelKey: "workspace.extent.stage.hair_style.label", descKey: "workspace.extent.stage.hair_style.desc" }, { id: "hair_colour", kind: "recolour", labelKey: "workspace.extent.stage.hair_colour.label", descKey: "workspace.extent.stage.hair_colour.desc" }, { id: "head", kind: "swap", labelKey: "workspace.extent.stage.head.label", descKey: "workspace.extent.stage.head.desc", replaces: "face" }], presets: [{ id: "face", labelKey: "workspace.extent.preset.face.label", descKey: "workspace.extent.preset.face.desc", stages: ["face"] }, { id: "face_skin", labelKey: "workspace.extent.preset.face_skin.label", descKey: "workspace.extent.preset.face_skin.desc", stages: ["face", "skin"] }, { id: "full_look", labelKey: "workspace.extent.preset.full_look.label", descKey: "workspace.extent.preset.full_look.desc", stages: ["face", "skin", "hair_colour"] }, { id: "whole_head", labelKey: "workspace.extent.preset.whole_head.label", descKey: "workspace.extent.preset.whole_head.desc", stages: ["head"] }], defaultPreset: "face" } },
   "garment_replace": { id: "garment_replace", engine: "ai", family: "edit", mechanism: "infer", inputKinds: ["image", "mask", "text"], outputKind: "image", summary: "Replace or restyle clothing, hair, or makeup on a masked region from a prompt", panel: "create", icon: "Shirt", labelKey: "workspace.createOp.garment_replace.label", descKey: "workspace.createOp.garment_replace.desc" },
+  "color_transfer": { id: "color_transfer", engine: "ai", family: "edit", mechanism: "compute", inputKinds: ["image", "mask", "image"], outputKind: "image", summary: "Recolour a masked region of an image to match the colour of a reference (skin tone, hair colour), keeping its own shading and texture", icon: "Palette", labelKey: "workspace.aiOp.color_transfer.label", descKey: "workspace.aiOp.color_transfer.desc" },
+  "mask_composite": { id: "mask_composite", engine: "ai", family: "edit", mechanism: "compute", inputKinds: ["image", "mask", "image"], outputKind: "image", summary: "Lay a second image into the first through a mask, with a grown, feathered seam (the changed hair of an edited photo onto the original)", icon: "Layers", labelKey: "workspace.aiOp.mask_composite.label", descKey: "workspace.aiOp.mask_composite.desc" },
   "upscale": { id: "upscale", engine: "ai", family: "enhance", mechanism: "infer", inputKinds: ["image"], outputKind: "image", summary: "Super-resolve / enlarge an image", panel: "enhance", icon: "Sparkles", labelKey: "workspace.aiOp.upscale.label", descKey: "workspace.aiOp.upscale.desc" },
   "denoise": { id: "denoise", engine: "ai", family: "enhance", mechanism: "infer", inputKinds: ["image"], outputKind: "image", summary: "Reduce noise / deblur an image", panel: "enhance", icon: "Aperture", labelKey: "workspace.aiOp.denoise.label", descKey: "workspace.aiOp.denoise.desc" },
   "deblur": { id: "deblur", engine: "ai", family: "restore", mechanism: "infer", inputKinds: ["image"], outputKind: "image", summary: "Sharpen and remove motion/defocus blur from an image", panel: "enhance" },
@@ -50,13 +84,14 @@ export const CAPABILITIES: Readonly<Record<string, CapabilityMeta>> = {
   "ocr": { id: "ocr", engine: "analysis", family: "extract", mechanism: "infer", inputKinds: ["image"], outputKind: "data", summary: "Extract text from an image (OCR)", icon: "ScanText", labelKey: "workspace.analyzeOp.ocr.label", descKey: "workspace.analyzeOp.ocr.desc" },
   "nsfw_classify": { id: "nsfw_classify", engine: "analysis", family: "extract", mechanism: "infer", inputKinds: ["image"], outputKind: "data", summary: "Classify an image for NSFW / unsafe content", icon: "ShieldAlert", labelKey: "workspace.analyzeOp.nsfw_classify.label", descKey: "workspace.analyzeOp.nsfw_classify.desc" },
   "caption": { id: "caption", engine: "ai", family: "extract", mechanism: "infer", inputKinds: ["image"], outputKind: "text", summary: "Describe an image in natural language", panel: "analyze", icon: "Image", labelKey: "workspace.analyzeOp.caption.label", descKey: "workspace.analyzeOp.caption.desc" },
-  "object_detection": { id: "object_detection", engine: "unwired", family: "extract", mechanism: "infer", inputKinds: ["image"], outputKind: "data", summary: "Detect and locate objects with bounding boxes" },
-  "tagging": { id: "tagging", engine: "unwired", family: "extract", mechanism: "infer", inputKinds: ["image"], outputKind: "data", summary: "Predict descriptive tags/labels for an image" },
+  "object_detection": { id: "object_detection", engine: "ai", family: "extract", mechanism: "infer", inputKinds: ["image"], outputKind: "data", summary: "Detect and locate objects with bounding boxes" },
+  "tagging": { id: "tagging", engine: "ai", family: "extract", mechanism: "infer", inputKinds: ["image"], outputKind: "data", summary: "Predict descriptive tags/labels for an image" },
   "face_detection": { id: "face_detection", engine: "unwired", family: "extract", mechanism: "infer", inputKinds: ["image"], outputKind: "data", summary: "Detect face bounding boxes / landmarks" },
+  "age_estimate": { id: "age_estimate", engine: "unwired", family: "extract", mechanism: "infer", inputKinds: ["image"], outputKind: "data", summary: "Estimate the apparent age range of one face crop as nine age bins (the minor-safety reviewer's age stage; no identity)" },
   "quality_assessment": { id: "quality_assessment", engine: "analysis", family: "extract", mechanism: "compute", inputKinds: ["image"], outputKind: "data", summary: "Assess no-reference image quality (sharpness, exposure, contrast)", icon: "Gauge", labelKey: "workspace.analyzeOp.quality_assessment.label", descKey: "workspace.analyzeOp.quality_assessment.desc" },
   "probe": { id: "probe", engine: "analysis", family: "extract", mechanism: "compute", inputKinds: ["image"], outputKind: "data", summary: "Report structured image info (dimensions, format, metadata, palette)", icon: "ScanSearch", labelKey: "workspace.analyzeOp.probe.label", descKey: "workspace.analyzeOp.probe.desc" },
   "duplicate_detect": { id: "duplicate_detect", engine: "analysis", family: "extract", mechanism: "compute", inputKinds: ["image"], outputKind: "data", summary: "Compute perceptual fingerprints to find near-duplicate images", icon: "Copy", labelKey: "workspace.analyzeOp.duplicate_detect.label", descKey: "workspace.analyzeOp.duplicate_detect.desc" },
-  "embedding": { id: "embedding", engine: "unwired", family: "extract", mechanism: "infer", inputKinds: ["image"], outputKind: "data", summary: "Compute a vector embedding of an image" },
+  "embedding": { id: "embedding", engine: "ai", family: "extract", mechanism: "infer", inputKinds: ["image"], outputKind: "data", summary: "Compute a vector embedding of an image" },
   "qr_barcode_read": { id: "qr_barcode_read", engine: "unwired", family: "extract", mechanism: "compute", inputKinds: ["image"], outputKind: "data", summary: "Read QR codes / barcodes from an image" },
   "aberration": { id: "aberration", engine: "compute", family: "edit", mechanism: "compute", inputKinds: ["image"], outputKind: "image", summary: "Separate color channels at edges" },
   "adjust": { id: "adjust", engine: "compute", family: "edit", mechanism: "compute", inputKinds: ["image"], outputKind: "image", summary: "Brightness/contrast/gamma/saturation/hue", icon: "SlidersHorizontal", labelKey: "workspace.op.adjust.label", descKey: "workspace.op.adjust.desc" },

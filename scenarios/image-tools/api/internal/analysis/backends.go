@@ -246,7 +246,7 @@ func modelAssetPath(req backends.Request, kind models.ArtifactKind) string {
 func defaultCheckPythonModules(ctx context.Context, python string, modules []string) error {
 	script := "import " + strings.Join(modules, ", ")
 	cmd := exec.CommandContext(ctx, python, "-c", script)
-	cmd.Env = modelenv.Apply(nil, modelenv.ModeInference)
+	cmd.Env = modelenv.Apply(withRuntimeLibraries(os.Environ(), python), modelenv.ModeInference)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("%s: %w", strings.TrimSpace(string(out)), err)
@@ -256,7 +256,7 @@ func defaultCheckPythonModules(ctx context.Context, python string, modules []str
 
 func defaultRunOutput(ctx context.Context, name string, args []string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
-	cmd.Env = modelenv.Apply(nil, modelenv.ModeInference)
+	cmd.Env = modelenv.Apply(withRuntimeLibraries(os.Environ(), name), modelenv.ModeInference)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("%s %v: %w (%s)", name, args, err, string(out))

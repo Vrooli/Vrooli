@@ -99,7 +99,7 @@ var submitFlagDefs = map[string]cliapp.Flag{
 	"support-roi":              {Name: "support-roi", Description: "Optional normalized support-plane region JSON {\"supportRoi\":{\"x\":0,\"y\":0.85,\"width\":1,\"height\":0.15}}"},
 	"mesh-resolution":          {Name: "mesh-resolution", Description: "Marching-cubes resolution: 128 or 256 (default 256)"},
 	"selection":                {Name: "selection", Description: "JSON normalized points and/or box, e.g. {\"points\":[{\"x\":0.7,\"y\":0.5}]}"},
-	"text":                     {Name: "text", Description: "Select by phrase, e.g. \"the jacket\" or \"her hair\" (needs a grounded segmentation model; cannot combine with --selection)"},
+	"text":                     {Name: "text", Description: "Select by phrase, e.g. \"the jacket\" or \"her hair\" (a grounded model finds objects, a SegFormer parser finds hair and garments; cannot combine with --selection)"},
 	"realism":                  {Name: "realism", Description: "Fidelity↔realism knob 0..1 (default 0.5)"},
 	"face-aware":               {Name: "face-aware", Bool: true, Description: "Bias texture/grain toward midtone (skin) regions"},
 	"reference":                {Name: "reference", Description: "Path to the reference image: the face to put on the input image"},
@@ -107,6 +107,14 @@ var submitFlagDefs = map[string]cliapp.Flag{
 	"source-face":              {Name: "source-face", Description: "Which face of the reference image to use, largest first from 0 (default 0)"},
 	"all-faces":                {Name: "all-faces", Bool: true, Description: "Replace every detected face of the input image, not only one"},
 	"color-match":              {Name: "color-match", Description: "How strongly the swapped face takes the colour of the face it replaces, 0..1 (default 1)"},
+	"extent":                   {Name: "extent", Description: "How much of the person to carry over: face, face-skin, full-look or whole-head (default face)"},
+	"match":                    {Name: "match", Description: "Comma-separated stages to add to the swap: skin, hair-style, hair-colour (each independent); whole-head is the head extent"},
+	"skin-target":              {Name: "skin-target", Description: "Which way the skin stage matches tone: source (the reference person's skin, default) or body (the target's own visible hands and arms)"},
+	"face-strength":            {Name: "face-strength", Description: "How much of the source face the swap takes, 0..1 (1 = full swap, 0 = the target's own face; default 1)"},
+	"luminance":                {Name: "luminance", Description: "Share of the reference's lightness offset applied, 0..1 (default 0.5)"},
+	"flatten":                  {Name: "flatten", Description: "How far the region's colour variation may shrink toward the reference's, 0..1 (default 0.4)"},
+	"feather-px":               {Name: "feather-px", Description: "Edge softening in pixels, 0..64 (colour transfer default 4, mask composite 5)"},
+	"grow-px":                  {Name: "grow-px", Description: "How far to widen the mask before blending, in pixels, 0..64 (default 6)"},
 	"no-occlusion":             {Name: "no-occlusion", Bool: true, Description: "Do not protect hands, hair and glasses in front of the face (skip the occlusion mask)"},
 }
 

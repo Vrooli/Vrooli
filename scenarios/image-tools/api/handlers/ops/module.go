@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
+	"image-tools/internal/httpx"
 	internaljobs "image-tools/internal/jobs"
 	"image-tools/internal/module"
 	"image-tools/internal/storage"
@@ -36,7 +37,7 @@ func Module(store *storage.Store, jobs *internaljobs.Manager, disk sharedcapacit
 		Name: "ops",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
-			r.HandleFunc("/api/v1/ops/{operation}", rest.runHandler).Methods(http.MethodPost)
+			r.Handle("/api/v1/ops/{operation}", httpx.SyncBudgetFunc(rest.runHandler)).Methods(http.MethodPost)
 			r.HandleFunc("/api/v1/blobs/{key:.*}", rest.blobHandler).Methods(http.MethodGet)
 			r.Handle("/api/v1/import/link", importLinkHandler(store, fetch.RemoteImage{}, storage.DefaultGuard(), disk, store.ImportReservationRoot)).Methods(http.MethodPost)
 		},

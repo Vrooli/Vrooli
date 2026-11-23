@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -19,6 +20,7 @@ import (
 	"time"
 
 	"image-tools/internal/backends"
+	internaljobs "image-tools/internal/jobs"
 )
 
 // commandRunner executes a resolved command. Injected so tests assert argument
@@ -374,6 +376,21 @@ func (p *backendProcess) execute(ctx context.Context, program string, args []str
 
 func defaultRun(ctx context.Context, name string, args []string) error {
 	_, err := defaultRunOutput(ctx, name, args)
+	return err
+}
+
+// sidecarExitInvalidInput is the exit status a sidecar module uses (sysexits
+// EX_DATAERR) when the request cannot be served as given. It is the one-shot
+// counterpart of the warm worker's "invalid_input" kind.
+const sidecarExitInvalidInput = 65
+
+// classifySidecarFailure marks a one-shot sidecar failure the module itself
+// reported as a bad request, so it is not counted as a fault of the model.
+func classifySidecarFailure(err error) error {
+	var exit *exec.ExitError
+	if errors.As(err, &exit) && exit.ExitCode() == sidecarExitInvalidInput {
+		return internaljobs.Kinded(internaljobs.FailureInvalidInput, err)
+	}
 	return err
 }
 

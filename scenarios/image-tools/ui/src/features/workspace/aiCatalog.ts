@@ -7,7 +7,7 @@ type TierKey = (typeof strings.workspace.enhance.tier)[keyof typeof strings.work
 
 /**
  * Label key for each backend selection tier (`local-gpu` / `local-cpu` /
- * `byok-cloud` — see `internal/backends`). A literal map (rather than dynamic
+ * `byok-cloud` / `gateway-local` — see `internal/backends`). A literal map (rather than dynamic
  * `strings.…[tier]` access) so the unused-key audit can trace each callsite.
  *
  * Per-operation presentation (label/description/icon) lives in the capability
@@ -18,4 +18,5 @@ export const TIER_LABEL: Readonly<Record<string, TierKey>> = {
   "local-gpu": strings.workspace.enhance.tier.localGpu,
   "local-cpu": strings.workspace.enhance.tier.localCpu,
   "byok-cloud": strings.workspace.enhance.tier.byokCloud,
+  "gateway-local": strings.workspace.enhance.tier.gatewayLocal,
 };

@@ -99,6 +99,16 @@ describe("AnalyzePanel", () => {
     expect(analyze.run).toHaveBeenCalledWith("ocr", PNG, true);
   });
 
+  it("tells the user what a busy graphics card means, for model-backed ops only", async () => {
+    const user = userEvent.setup();
+    renderPanel(fakeAnalyze({ model: makeSelectedModel({ gpuViable: true, cpuCapable: false }) }));
+
+    await screen.findByTestId(selectors.workspace.analyzeAction({ name: "probe" }));
+    expect(screen.queryByTestId(selectors.workspace.capacityNote)).toBeNull();
+    await user.click(screen.getByTestId(selectors.workspace.analyzeAction({ name: "ocr" })));
+    expect(screen.getByTestId(selectors.workspace.capacityNote).textContent).toBe("May wait for the graphics card if it's busy");
+  });
+
   it("does not re-clear when the already-selected op is clicked again", async () => {
     const analyze = fakeAnalyze();
     const user = userEvent.setup();

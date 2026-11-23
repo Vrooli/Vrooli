@@ -85,12 +85,19 @@ func (c CommercialUse) Valid() bool { return c.valid() }
 // Hardware captures a model's host requirements. MinVRAMGB == 0 means "no
 // dedicated VRAM required" (a CPU-capable tier), not "unknown".
 type Hardware struct {
-	CPUCapable  bool     `json:"cpu_capable"`
-	GPURequired bool     `json:"gpu_required"`
-	MinVRAMGB   int      `json:"min_vram_gb"`
-	MinRAMGB    int      `json:"min_ram_gb"`
-	OSArch      []string `json:"os_arch"`
-	SpeedNote   string   `json:"speed_note"`
+	CPUCapable  bool `json:"cpu_capable"`
+	GPURequired bool `json:"gpu_required"`
+	MinVRAMGB   int  `json:"min_vram_gb"`
+	// ResidentVRAMGB is the VRAM a run needs to keep every stage GPU-resident
+	// instead of streaming weights from host RAM. It is a preference above
+	// MinVRAMGB (the streamed floor), never a requirement: admission asks for it
+	// first, which lets the capacity broker reclaim idle resident models, and
+	// falls back to the floor when it is not granted. Zero means the model has
+	// no faster placement to ask for.
+	ResidentVRAMGB int      `json:"resident_vram_gb,omitempty"`
+	MinRAMGB       int      `json:"min_ram_gb"`
+	OSArch         []string `json:"os_arch"`
+	SpeedNote      string   `json:"speed_note"`
 }
 
 // IO describes native input/output dimensions and constraints.
@@ -108,6 +115,11 @@ type CapabilityLabels struct {
 	CommercialUseNotes string        `json:"commercial_use_notes"`
 	BaseModelLineage   string        `json:"base_model_lineage"`
 	KnownRisks         string        `json:"known_risks"`
+	// ExplicitUseOnly keeps an entry out of automatic selection: it runs only when a
+	// caller names it (--model, a pinned per-operation default, a role). It is how an
+	// uncensored or otherwise opt-in model stays installed and enabled without ever
+	// being picked for an ordinary request that did not ask for it.
+	ExplicitUseOnly bool `json:"explicit_use_only,omitempty"`
 	// Provenance records how the entry entered the catalog. Empty for seed models;
 	// ProvenanceUserImported for entries added via the guided import flow (plan
 	// capability D). The safety tier gate consults it: a user-imported entry with
@@ -176,6 +188,46 @@ type Runtime struct {
 	// provision/availability check (e.g. "diffusers>=0.36.0"; a git ref for a
 	// bleeding-edge family). Phase 4 enforces it; informational otherwise.
 	MinRuntime string `json:"min_runtime"`
+	// GatewayRole names the AI Gateway role a gateway-served vision model runs
+	// through (see GatewayServed). The gateway's resource policy maps the role to
+	// a concrete model (an Ollama vision model locally, a hosted one remotely), so
+	// switching or adding a general vision model is this one field on a row.
+	GatewayRole string `json:"gateway_role,omitempty"`
+	// BoxOrder and BoxScale say how the model writes detection boxes, because
+	// vision LLMs disagree: "xyxy" is [left, top, right, bottom] and "yxyx" is
+	// [top, left, bottom, right]; BoxScale is the grid the numbers live on (1000
+	// for the normalised 0..1000 grid most use, 0 for source pixels).
+	BoxOrder string `json:"box_order,omitempty"`
+	BoxScale int    `json:"box_scale,omitempty"`
+}
+
+// Box orders a gateway vision model can declare.
+const (
+	BoxOrderXYXY = "xyxy"
+	BoxOrderYXYX = "yxyx"
+)
+
+// VisionOperations are the operations a general vision model can serve through
+// the gateway: each is a question asked of the image in words and answered in
+// text that the provider parses into the operation's output contract.
+var VisionOperations = []string{"caption", "object_detection", "tagging"}
+
+// IsVisionOperation reports whether op is one a gateway vision model serves.
+func IsVisionOperation(op string) bool {
+	for _, v := range VisionOperations {
+		if v == op {
+			return true
+		}
+	}
+	return false
+}
+
+// GatewayServed reports whether this model's vision operations run through an AI
+// Gateway role rather than weights image-tools manages: a local vision model the
+// gateway reaches through Ollama (backend gateway-vision) or a hosted one (the
+// openrouter backend with a gateway role).
+func (m Model) GatewayServed() bool {
+	return m.Backend == BackendGatewayVision || (m.Backend == BackendOpenRouter && strings.TrimSpace(m.Runtime.GatewayRole) != "")
 }
 
 // RepoSource is a HuggingFace-style multi-file model repository — the install
@@ -228,6 +280,9 @@ type Model struct {
 	BuildProfile *BuildProfile `json:"build_profile,omitempty"`
 	Runtime      Runtime       `json:"runtime"`
 	Enabled      bool          `json:"enabled"`
+	// Disabled is the visible reason a seeded row is off. The seed requires it on
+	// every enabled=false row and forbids it on enabled rows.
+	Disabled *DisabledReason `json:"disabled,omitempty"`
 }
 
 // BuildProfile describes one reviewed model-export shape. Its values are
@@ -263,10 +318,18 @@ const (
 	// model lives on the provider), so it is always "installed"; runnability is
 	// gated instead by the cloud provider's Available() (a usable API key).
 	BackendOpenRouter = "openrouter"
+	// BackendGatewayVision is a general vision-language model served locally by
+	// AI Gateway (Ollama behind a gateway role). The weights belong to the
+	// gateway's Ollama resource, not to image-tools managed acquisition, so the
+	// row is always "installed"; runnability is gated by the gateway being
+	// reachable and the role resolving to a model.
+	BackendGatewayVision = "gateway-vision"
 	// BackendMaskFill is the standalone builtin object-removal provider: a
 	// deterministic membrane fill that is always available, so object-removal
 	// works on a host with no iopaint. Ranked below iopaint for quality.
 	BackendMaskFill = "mask-fill"
+	// BackendTesseract is the Tesseract OCR command line.
+	BackendTesseract = "tesseract"
 )
 
 // RequiresWeights reports whether a model needs downloaded artifacts on disk to
@@ -276,11 +339,24 @@ const (
 // launch.
 func (m Model) RequiresWeights() bool {
 	switch m.Backend {
-	case BackendBuiltin, BackendComputed, BackendLibraryGo, BackendOpenRouter, BackendMaskFill:
+	case BackendBuiltin, BackendComputed, BackendLibraryGo, BackendOpenRouter, BackendGatewayVision, BackendMaskFill:
 		return false
 	default:
 		return true
 	}
+}
+
+// WeightlessInstallRecord is the install state of a model that downloads no
+// weights (remote, builtin, computed and pure-Go providers): there is nothing to
+// install, so it is installed from the start. The installer's install/lifecycle
+// path and the wire list/get views all read this one rule, so `models list`
+// cannot report not-installed for a model `models install` calls already
+// installed.
+func WeightlessInstallRecord(m Model) (InstallRecord, bool) {
+	if m.RequiresWeights() {
+		return InstallRecord{}, false
+	}
+	return InstallRecord{ID: m.ID, Installed: true}, true
 }
 
 // ServesOperation reports whether this model can run the given operation today:
@@ -308,14 +384,112 @@ func (m Model) IsDefaultFor(op string) bool {
 	return false
 }
 
-// BlocklistEntry records a license-encumbered model that must never be seeded
-// or accidentally adopted, with the reason it is excluded.
+// GateKind says what a blocklist entry restricts.
+type GateKind string
+
+const (
+	// GateLicense restricts only the uses a license leaves out (monetized,
+	// hosted-for-others, redistributed). Normal local use is never gated by a
+	// license (operator stance 2026-11-21), so a catalog row may carry a
+	// license-gated model; its rights facts must then agree with the gate so the
+	// shared rights evaluator refuses the gated uses.
+	GateLicense GateKind = "license"
+	// GateExclusion keeps a model out of the catalog entirely, for a safety,
+	// technical or hardware-fit reason that holds regardless of license.
+	GateExclusion GateKind = "exclusion"
+)
+
+// ExclusionKind is the non-license reason behind a GateExclusion entry.
+type ExclusionKind string
+
+const (
+	ExclusionSafety      ExclusionKind = "safety"
+	ExclusionTechnical   ExclusionKind = "technical"
+	ExclusionHardwareFit ExclusionKind = "hardware_fit"
+)
+
+var exclusionKinds = map[ExclusionKind]bool{ExclusionSafety: true, ExclusionTechnical: true, ExclusionHardwareFit: true}
+
+// licenseGatedUses are the rights uses a license gate may restrict: every use
+// the shared evaluator keeps license-bound. Normal local inference is absent on
+// purpose; a gate listing it is rejected at parse time.
+var licenseGatedUses = map[string]bool{
+	RightsUseMonetizedUse:        true,
+	RightsUseHostedInference:     true,
+	RightsUseRedistributeWeights: true,
+	"redistribute_derivative":    true,
+	"distribute_runtime":         true,
+}
+
+// BlocklistEntry records a model that is restricted, with the reason. A
+// GateLicense entry is a monetization/redistribution gate, not a normal-use
+// exclusion; a GateExclusion entry is a real block.
 type BlocklistEntry struct {
-	ID                              string   `json:"id"`
-	Operations                      []string `json:"operations"`
-	License                         string   `json:"license"`
-	Reason                          string   `json:"reason"`
-	ExportingONNXRemovesRestriction bool     `json:"exporting_onnx_removes_restriction"`
+	ID         string   `json:"id"`
+	Operations []string `json:"operations"`
+	License    string   `json:"license"`
+	Reason     string   `json:"reason"`
+	Gate       GateKind `json:"gate"`
+	// GatedUses lists the rights uses the license refuses (license gates only).
+	GatedUses []string `json:"gated_uses,omitempty"`
+	// ExclusionKind names why an exclusion holds (exclusion gates only).
+	ExclusionKind                   ExclusionKind `json:"exclusion_kind,omitempty"`
+	ExportingONNXRemovesRestriction bool          `json:"exporting_onnx_removes_restriction"`
+}
+
+// IsExclusion reports whether the entry keeps its model out of the catalog.
+func (b BlocklistEntry) IsExclusion() bool { return b.Gate == GateExclusion }
+
+func (b BlocklistEntry) validate() error {
+	if strings.TrimSpace(b.Reason) == "" {
+		return fmt.Errorf("blocklist entry %q has no reason", b.ID)
+	}
+	switch b.Gate {
+	case GateLicense:
+		if len(b.GatedUses) == 0 {
+			return fmt.Errorf("license gate %q lists no gated_uses", b.ID)
+		}
+		for _, use := range b.GatedUses {
+			if !licenseGatedUses[use] {
+				return fmt.Errorf("license gate %q lists %q: a license gate restricts only monetized, hosted or redistributed use, never normal local inference", b.ID, use)
+			}
+		}
+		if b.ExclusionKind != "" {
+			return fmt.Errorf("license gate %q must not set exclusion_kind", b.ID)
+		}
+	case GateExclusion:
+		if !exclusionKinds[b.ExclusionKind] {
+			return fmt.Errorf("exclusion %q needs exclusion_kind safety, technical or hardware_fit (got %q); a license-only reason is a license gate", b.ID, b.ExclusionKind)
+		}
+		if len(b.GatedUses) != 0 {
+			return fmt.Errorf("exclusion %q must not list gated_uses", b.ID)
+		}
+	default:
+		return fmt.Errorf("blocklist entry %q has gate %q, want license or exclusion", b.ID, b.Gate)
+	}
+	return nil
+}
+
+// licenseGateAgrees reports whether a catalog row carrying a license-gated
+// model has rights facts that keep the gated uses refused: it must not claim
+// commercial use, and its shared rights record must not be unrestricted.
+func licenseGateAgrees(m Model) error {
+	if m.CapabilityLabels.CommercialUse == CommercialUseYes {
+		return fmt.Errorf("model %q is license-gated but labelled commercial_use=yes", m.ID)
+	}
+	var facts struct {
+		Classification string `json:"classification"`
+	}
+	if len(m.Rights) == 0 {
+		return fmt.Errorf("model %q is license-gated but carries no rights record for the shared evaluator", m.ID)
+	}
+	if err := json.Unmarshal(m.Rights, &facts); err != nil {
+		return fmt.Errorf("model %q rights record: %w", m.ID, err)
+	}
+	if facts.Classification == "" || facts.Classification == "unrestricted" {
+		return fmt.Errorf("model %q is license-gated but its rights classification is %q, which would grant the gated uses", m.ID, facts.Classification)
+	}
+	return nil
 }
 
 // seedFile mirrors the on-disk registry.seed.json top-level shape. The operation
@@ -341,8 +515,9 @@ type Registry struct {
 }
 
 // Load parses and validates the embedded seed catalog. It additionally asserts
-// the seed-integrity invariants (commercial-clean, ComfyUI-optional, every op
-// has a default, blocklist disjoint from catalog) so a bad edit to the seed
+// the seed-integrity invariants (restrictive licenses carry notes, ComfyUI
+// optional, every op has a default, exclusions disjoint from the catalog,
+// license-gated rows' rights agree with their gate) so a bad edit to the seed
 // fails loud at boot rather than silently shipping a non-compliant model.
 func Load() (*Registry, error) {
 	r, err := Parse(seedBytes)
@@ -423,6 +598,9 @@ func Parse(data []byte) (*Registry, error) {
 		}
 		if _, dup := r.blockByID[b.ID]; dup {
 			return nil, fmt.Errorf("duplicate blocklist id %q", b.ID)
+		}
+		if err := b.validate(); err != nil {
+			return nil, err
 		}
 		r.blocklist = append(r.blocklist, b)
 		r.blockByID[b.ID] = b
@@ -542,6 +720,9 @@ func (r *Registry) validateModel(m Model) error {
 	if m.Source.HasRepo() && len(m.Source.Assets) > 0 && m.Source.Checksum.Value != "" {
 		return fmt.Errorf("combined repo+asset source uses per-asset hashes; source checksum must be empty")
 	}
+	if err := fetch.ValidateHubCompanions(m.Source); err != nil {
+		return err
+	}
 	if profile := m.BuildProfile; profile != nil {
 		if m.ID != "big-lama-1024-export" || profile.Kind != "lama-onnx-fixed" || profile.SourceAsset != "lama-source.zip" || profile.CheckpointAsset != "big-lama.safetensors" || profile.Resolution != 1024 || profile.Opset != 17 || profile.OutputFilename != "lama_1024.onnx" {
 			return fmt.Errorf("unsupported model build profile %q", profile.Kind)
@@ -563,6 +744,9 @@ func (r *Registry) validateModel(m Model) error {
 			return fmt.Errorf("LaMa build profile asset hashes must match the pinned source assets")
 		}
 	}
+	if err := validateGatewayServed(m); err != nil {
+		return err
+	}
 	if fam := strings.TrimSpace(m.Runtime.Family); fam != "" {
 		reg, ok := DiffusersFamilyByName(fam)
 		if !ok {
@@ -570,6 +754,40 @@ func (r *Registry) validateModel(m Model) error {
 		}
 		if pc := strings.TrimSpace(m.Runtime.PipelineClass); pc != "" && pc != reg.PipelineClass {
 			return fmt.Errorf("runtime.pipeline_class %q does not match family %q (%s)", pc, fam, reg.PipelineClass)
+		}
+	}
+	return nil
+}
+
+// validateGatewayServed holds a gateway-served vision row to the one contract
+// that makes adding such a model a single row: it names its gateway role, serves
+// only vision operations, and (when it detects objects) says how it writes boxes.
+func validateGatewayServed(m Model) error {
+	vision := false
+	for _, op := range m.Operations {
+		if IsVisionOperation(op) {
+			vision = true
+		}
+	}
+	if m.Backend == BackendGatewayVision || (m.Backend == BackendOpenRouter && vision) {
+		if strings.TrimSpace(m.Runtime.GatewayRole) == "" {
+			return fmt.Errorf("a gateway-served vision model must name its runtime.gateway_role")
+		}
+	}
+	if !m.GatewayServed() {
+		return nil
+	}
+	for _, op := range m.Operations {
+		if m.Backend == BackendGatewayVision && !IsVisionOperation(op) {
+			return fmt.Errorf("backend %s serves only %v, not %q", BackendGatewayVision, VisionOperations, op)
+		}
+		if op == "object_detection" {
+			if order := m.Runtime.BoxOrder; order != BoxOrderXYXY && order != BoxOrderYXYX {
+				return fmt.Errorf("an object_detection gateway model must declare runtime.box_order %q or %q", BoxOrderXYXY, BoxOrderYXYX)
+			}
+			if m.Runtime.BoxScale < 0 {
+				return fmt.Errorf("runtime.box_scale must not be negative")
+			}
 		}
 	}
 	return nil
@@ -583,6 +801,16 @@ func (r *Registry) validateSeedInvariants() error {
 		if m.RequiresComfyUI {
 			return fmt.Errorf("model %q sets requires_comfyui=true (ComfyUI is an optional plug-in only)", m.ID)
 		}
+		switch {
+		case !m.Enabled && m.Disabled == nil:
+			return fmt.Errorf("model %q is seeded disabled with no \"disabled\" reason: say why (kind + one line) or enable it", m.ID)
+		case m.Enabled && m.Disabled != nil:
+			return fmt.Errorf("model %q is enabled but still carries a \"disabled\" reason; remove it", m.ID)
+		case m.Disabled != nil:
+			if err := m.Disabled.Validate(); err != nil {
+				return fmt.Errorf("model %q: %w", m.ID, err)
+			}
+		}
 		// A diffusion-generation checkpoint MUST declare a concrete (non-none)
 		// architecture: the architecture is what derives its image-conditioned ops,
 		// so a missing lineage tag is exactly the "usable base checkpoint vanishes
@@ -592,23 +820,25 @@ func (r *Registry) validateSeedInvariants() error {
 				return fmt.Errorf("model %q on backend %q must declare a concrete architecture (none/empty derives nothing)", m.ID, m.Backend)
 			}
 		}
-		// Commercial-clean gate: never seed an outright non-commercial model.
-		// "conditional" is tolerated ONLY as an opt-in (disabled-by-default)
-		// entry carrying notes that say what to verify at bundle time — so a
-		// careless enable can't ship a license-encumbered model.
+		// License labels do not keep a model out of the seed (operator stance
+		// 2026-11-21: best models for normal use; licensing matters for
+		// monetization). A restrictive label must say what to verify before any
+		// monetized, hosted or redistributed use, and must carry a rights record
+		// whose classification agrees, so the shared rights owner still refuses
+		// those uses.
 		switch m.CapabilityLabels.CommercialUse {
-		case CommercialUseNo:
-			return fmt.Errorf("model %q is commercial_use=no (commercial-clean gate)", m.ID)
-		case CommercialUseConditional:
-			if m.Enabled {
-				return fmt.Errorf("model %q is commercial_use=conditional and must NOT be enabled by default", m.ID)
-			}
+		case CommercialUseNo, CommercialUseConditional:
 			if m.CapabilityLabels.CommercialUseNotes == "" {
-				return fmt.Errorf("model %q is commercial_use=conditional but carries no commercial_use_notes", m.ID)
+				return fmt.Errorf("model %q is commercial_use=%s but carries no commercial_use_notes", m.ID, m.CapabilityLabels.CommercialUse)
 			}
 		}
-		if b, blocked := r.blockByID[m.ID]; blocked {
-			return fmt.Errorf("model %q is also on the blocklist (%s)", m.ID, b.Reason)
+		if b, gated := r.blockByID[m.ID]; gated {
+			if b.IsExclusion() {
+				return fmt.Errorf("model %q is excluded (%s: %s)", m.ID, b.ExclusionKind, b.Reason)
+			}
+			if err := licenseGateAgrees(m); err != nil {
+				return err
+			}
 		}
 	}
 	// Every operation with an enabled model must have a default. Disabled-only
@@ -696,11 +926,12 @@ func (r *Registry) IsOperation(op string) bool {
 // Operations returns the operation vocabulary in declaration order.
 func (r *Registry) Operations() []string { return append([]string(nil), r.vocabOrder...) }
 
-// Blocklist returns the license-encumbered exclusions.
+// Blocklist returns every gate: license gates (monetized, hosted and
+// redistributed use only) and real exclusions.
 func (r *Registry) Blocklist() []BlocklistEntry { return append([]BlocklistEntry(nil), r.blocklist...) }
 
-// IsBlocked reports whether id is on the blocklist.
-func (r *Registry) IsBlocked(id string) (BlocklistEntry, bool) {
+// Gate returns the blocklist entry for id, whichever kind it is.
+func (r *Registry) Gate(id string) (BlocklistEntry, bool) {
 	b, ok := r.blockByID[id]
 	return b, ok
 }

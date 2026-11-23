@@ -56,6 +56,27 @@ describe("BlocklistCard", () => {
     expect(screen.getAllByTestId(selectors.models.blocklist.onnxWarning)).toHaveLength(1);
   });
 
+  it("says a license gate allows normal use and names the refused uses; an exclusion says excluded", async () => {
+    const { modelsClient } = await import("../../api/models");
+    vi.mocked(modelsClient.listBlocklist).mockResolvedValueOnce(
+      makeListBlocklistResponse({
+        entries: [
+          makeBlocklistEntry({ id: "codeformer", gate: "license", gatedUses: ["monetized_use", "hosted_inference"] }),
+          makeBlocklistEntry({ id: "flux-dev-and-fill", gate: "exclusion", exclusionKind: "hardware_fit", gatedUses: [] }),
+        ],
+      }),
+    );
+
+    renderWithProviders(<BlocklistCard />);
+    await waitFor(() => {
+      expect(screen.getAllByTestId(selectors.models.blocklist.gate)).toHaveLength(2);
+    });
+    const [gate, exclusion] = screen.getAllByTestId(selectors.models.blocklist.gate);
+    expect(gate).toHaveTextContent("normal local use is allowed");
+    expect(gate).toHaveTextContent("monetized_use, hosted_inference");
+    expect(exclusion).toHaveTextContent("Excluded from the catalog: hardware_fit");
+  });
+
   it("renders the error state when listBlocklist rejects", async () => {
     const { modelsClient } = await import("../../api/models");
     vi.mocked(modelsClient.listBlocklist).mockRejectedValueOnce(new Error("down"));

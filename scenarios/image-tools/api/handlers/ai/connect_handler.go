@@ -7,6 +7,7 @@ import (
 
 	internalai "image-tools/internal/ai"
 	"image-tools/internal/models"
+	"image-tools/internal/verdicts"
 
 	"connectrpc.com/connect"
 
@@ -16,30 +17,61 @@ import (
 // connectHandler serves discovery and durable admission for owned blob refs.
 // Uploading new image bytes remains the multipart REST boundary.
 type connectHandler struct {
-	registry  *models.Registry
+	// previewer is the selection `ModelsService.SelectModel` uses; discovery asks
+	// it for each operation's default so the two cannot disagree.
+	previewer *models.Previewer
+	verdicts  *verdicts.Service
 	admission *Deps
 }
 
 // NewConnectHandler builds discovery and stored-input admission over the same
-// policy and durable-job owner as multipart uploads.
-func NewConnectHandler(registry *models.Registry, admission *Deps) *connectHandler {
-	return &connectHandler{registry: registry, admission: admission}
+// policy and durable-job owner as multipart uploads. previewer and verdictSvc
+// may be nil: discovery then lists the operations without defaults or verdicts.
+func NewConnectHandler(previewer *models.Previewer, verdictSvc *verdicts.Service, admission *Deps) *connectHandler {
+	return &connectHandler{previewer: previewer, verdicts: verdictSvc, admission: admission}
 }
 
-func (h *connectHandler) ListAIOperations(_ context.Context, _ *connect.Request[aiv1.ListAIOperationsRequest]) (*connect.Response[aiv1.ListAIOperationsResponse], error) {
+// ListAIOperations lists the AI operations with the model a submit would run
+// for each right now and that model's verdict. The default is the previewer's
+// selection (operator pins, enabled overrides, rights and hardware fit), not the
+// seed's static default_for.
+func (h *connectHandler) ListAIOperations(ctx context.Context, _ *connect.Request[aiv1.ListAIOperationsRequest]) (*connect.Response[aiv1.ListAIOperationsResponse], error) {
 	resp := &aiv1.ListAIOperationsResponse{}
+	var preview *models.PreviewContext
+	var board *verdicts.Board
+	unavailable := "model selection is not wired"
+	if h.previewer != nil {
+		var err error
+		if preview, err = h.previewer.Load(ctx); err != nil {
+			unavailable = err.Error()
+			preview = nil
+		}
+	}
+	if h.verdicts != nil {
+		if b, err := h.verdicts.Load(ctx); err == nil {
+			board = b
+		}
+	}
 	for _, op := range internalai.List() {
 		info := &aiv1.AIOperationInfo{
-			Name:          op.Name,
-			Category:      op.Family,
-			Summary:       op.Summary,
-			RequiresImage: op.RequiresImage,
-			RequiresMask:  op.RequiresMask,
-			PromptDriven:  op.PromptDriven,
+			Name:              op.Name,
+			Category:          op.Family,
+			Summary:           op.Summary,
+			RequiresImage:     op.RequiresImage,
+			RequiresMask:      op.RequiresMask,
+			RequiresReference: op.RequiresReference,
+			PromptDriven:      op.PromptDriven,
 		}
-		if h.registry != nil {
-			if m, ok := h.registry.DefaultFor(op.Name); ok {
-				info.DefaultModelId = m.ID
+		if preview == nil {
+			info.DefaultUnavailable = unavailable
+		} else if sel, err := preview.Select(ctx, models.PreviewRequest{Operation: op.Name}); err != nil {
+			info.DefaultUnavailable = err.Error()
+		} else {
+			info.DefaultModelId = sel.Model.ID
+			if board != nil {
+				info.DefaultVerdict = verdicts.ToProto(board.For(sel.Model.ID, op.Name))
+			} else {
+				info.DefaultVerdict = verdicts.ToProto(verdicts.UntestedVerdict(op.Name))
 			}
 		}
 		resp.Operations = append(resp.Operations, info)

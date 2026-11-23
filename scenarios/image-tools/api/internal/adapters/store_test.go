@@ -4,6 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"testing"
+	"time"
+
+	"image-tools/internal/catalogstate"
 
 	apidb "github.com/vrooli/api-core/database"
 
@@ -30,10 +33,10 @@ func TestStoreOverlayDefaultsToSeedThenOverrides(t *testing.T) {
 		t.Fatalf("fresh overlay should be empty, got %v", overlay)
 	}
 
-	if err := st.SetEnabled(ctx, "lcm-lora-sdv1-5", false); err != nil {
+	if err := st.SetOverride(ctx, catalogstate.Override{ID: "lcm-lora-sdv1-5", Enabled: false, SetBy: "test"}, true, time.Now()); err != nil {
 		t.Fatalf("set enabled: %v", err)
 	}
-	if err := st.SetEnabled(ctx, "lcm-lora-sdv1-5", true); err != nil { // upsert
+	if err := st.SetOverride(ctx, catalogstate.Override{ID: "lcm-lora-sdv1-5", Enabled: true, SetBy: "test"}, true, time.Now()); err != nil { // upsert
 		t.Fatalf("re-set enabled: %v", err)
 	}
 	overlay, err = st.LoadOverlay(ctx)

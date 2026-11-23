@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 )
 
 // SQLExecutor is the narrow database surface the consent log depends on
@@ -14,8 +15,10 @@ type SQLExecutor interface {
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 }
 
-// ConsentLog persists consent affirmations for high-weight ops (audit). Writes
-// happen only on the public tier; the local tier never records anything.
+// ConsentLog persists consent affirmations for high-weight ops (audit). A row is
+// written only when an affirmation unlocked something: the public tier's consent
+// control, or a route that leaves this machine. A local run on the local tier
+// records nothing.
 type ConsentLog struct {
 	db SQLExecutor
 }
@@ -23,16 +26,31 @@ type ConsentLog struct {
 // NewConsentLog constructs the consent log over db.
 func NewConsentLog(db SQLExecutor) *ConsentLog { return &ConsentLog{db: db} }
 
+// EnsureSchema adds columns an install created before they existed. SQLite has
+// no ADD COLUMN IF NOT EXISTS, and CREATE TABLE IF NOT EXISTS leaves an old table
+// as it was, so a duplicate-column error is the steady state rather than a
+// failure (the same rule the jobs store uses).
+func (l *ConsentLog) EnsureSchema(ctx context.Context) error {
+	if l == nil || l.db == nil {
+		return nil
+	}
+	_, err := l.db.ExecContext(ctx, `ALTER TABLE consent_log ADD COLUMN route TEXT NOT NULL DEFAULT ''`)
+	if err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
+		return fmt.Errorf("consent_log: add route column: %w", err)
+	}
+	return nil
+}
+
 // Record appends one consent-affirmation row. Best-effort audit: a write failure
 // is returned so the caller can log it, but it should NOT fail the user's op (an
 // audit-log hiccup must not block a consented, allowed edit).
-func (l *ConsentLog) Record(ctx context.Context, op string, weight Weight, tier Tier) error {
+func (l *ConsentLog) Record(ctx context.Context, op string, weight Weight, tier Tier, route string) error {
 	if l == nil || l.db == nil {
 		return nil
 	}
 	_, err := l.db.ExecContext(ctx,
-		`INSERT INTO consent_log (operation, weight, tier) VALUES (?, ?, ?)`,
-		op, string(weight), string(tier))
+		`INSERT INTO consent_log (operation, weight, tier, route) VALUES (?, ?, ?, ?)`,
+		op, string(weight), string(tier), route)
 	if err != nil {
 		return fmt.Errorf("consent_log insert: %w", err)
 	}

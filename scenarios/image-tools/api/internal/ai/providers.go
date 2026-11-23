@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"image-tools/internal/backends"
+	internaljobs "image-tools/internal/jobs"
 	"image-tools/internal/technique"
 )
 
@@ -18,6 +19,33 @@ import (
 type execProvider struct {
 	backendProcess
 	techniques technique.Set
+	// gpuOps, when non-nil, is the set of operations whose GPU path is
+	// qualified (providerSpec.gpuQualifiedOps).
+	gpuOps map[string]bool
+	// cpuRetry repeats a GPU run that ran out of GPU memory once on the CPU
+	// (providerSpec.cpuRetryAfterOOM).
+	cpuRetry bool
+	// gpuHolders names the processes holding GPU memory when a run runs out of it;
+	// nil reads NVML. Tests inject a fixed list.
+	gpuHolders func(context.Context) []gpuHolder
+}
+
+func (p *execProvider) holders(ctx context.Context) []gpuHolder {
+	if p.gpuHolders != nil {
+		return p.gpuHolders(ctx)
+	}
+	return queryGPUHolders(ctx)
+}
+
+func opSet(ops []string) map[string]bool {
+	if ops == nil {
+		return nil
+	}
+	set := make(map[string]bool, len(ops))
+	for _, op := range ops {
+		set[op] = true
+	}
+	return set
 }
 
 func (p *execProvider) Name() string                    { return p.name }
@@ -25,7 +53,7 @@ func (p *execProvider) Standalone() bool                { return true }
 func (p *execProvider) IsCloud() bool                   { return false }
 func (p *execProvider) SupportsAdapters(op string) bool { return p.techniques.SupportsAdapters(op) }
 func (p *execProvider) GPUCapableFor(op string) bool {
-	if p.name == "onnxruntime" && op != "background_removal" && op != "segment" {
+	if p.gpuOps != nil && !p.gpuOps[op] {
 		return false
 	}
 	return p.GPUCapable()
@@ -58,25 +86,61 @@ func (p *execProvider) Execute(ctx context.Context, req backends.Request) (backe
 	if modelDir == "" {
 		modelDir = modelDirFor(req.Model.ID)
 	}
-	args, err := tech.Build(req, modelDir)
-	if err != nil {
-		return backends.Result{}, fmt.Errorf("ai: backend %q build args: %w", p.name, err)
-	}
-	if req.GPU && req.GPUUUID != "" && p.SupportsGPUUUID() {
-		ctx = context.WithValue(ctx, gpuDeviceContextKey{}, req.GPUUUID)
-	}
-	if p.name == "diffusers" || p.name == "onnxruntime" {
-		device := "cpu"
-		if req.GPU {
-			device = "cuda"
+	attempt := func(req backends.Request) (string, int64, bool, error) {
+		args, err := tech.Build(req, modelDir)
+		if err != nil {
+			return "", 0, false, fmt.Errorf("ai: backend %q build args: %w", p.name, err)
 		}
-		args = append(args, "--device", device)
+		runCtx := ctx
+		if req.GPU && req.GPUUUID != "" && p.SupportsGPUUUID() {
+			runCtx = context.WithValue(runCtx, gpuDeviceContextKey{}, req.GPUUUID)
+		}
+		if p.name == "diffusers" || p.name == "onnxruntime" {
+			device := "cpu"
+			if req.GPU {
+				device = "cuda"
+			}
+			args = append(args, "--device", device)
+		}
+		runner, peak, measured, err := p.execute(runCtx, program, args, req.Progress)
+		if err != nil {
+			return runner, peak, measured, classifySidecarFailure(fmt.Errorf("ai: backend %q execution failed: %w", p.name, err))
+		}
+		return runner, peak, measured, nil
 	}
-	runner, peakRSSBytes, peakRSSMeasured, err := p.execute(ctx, program, args, req.Progress)
+	runner, peakRSSBytes, peakRSSMeasured, err := attempt(req)
+	fallback := map[string]string{}
+	if err != nil && p.cpuRetry && req.GPU && !req.GPURequired && req.Model.Hardware.CPUCapable && isGPUOutOfMemory(err) {
+		// The lease promised GPU memory another service has since taken. The job is
+		// still wanted and the CPU can do it: say so and run it once there.
+		gpuErr := err
+		req.GPU, req.GPUUUID = false, ""
+		runner, peakRSSBytes, peakRSSMeasured, err = attempt(req)
+		if err != nil {
+			return backends.Result{}, fmt.Errorf("%w (after the GPU run failed for lack of GPU memory: %v)", err, firstLine(gpuErr.Error()))
+		}
+		fallback = map[string]string{
+			"capacity_fallback":        "cpu_after_oom",
+			"capacity_fallback_reason": firstLine(gpuErr.Error()),
+			MetaExecutionDevice:        "cpu",
+			MetaExecutionTier:          backends.TierLocalCPU.String(),
+		}
+	}
 	if err != nil {
-		return backends.Result{}, fmt.Errorf("ai: backend %q execution failed: %w", p.name, err)
+		if isGPUOutOfMemory(err) && req.GPU {
+			// No fallback recovered it: the memory the lease promised was taken by
+			// another service, which says nothing about the model.
+			if held := describeGPUHolders(p.holders(ctx)); held != "" {
+				err = fmt.Errorf("%w; %s", err, held)
+			}
+			err = internaljobs.Kinded(internaljobs.FailureCapacity, err)
+		}
+		return backends.Result{}, err
 	}
 	meta := map[string]string{"backend": p.name}
+	for key, value := range fallback {
+		meta[key] = value
+	}
 	for key, value := range workerInferenceMetadata(ctx) {
 		meta[key] = value
 	}
@@ -85,6 +149,40 @@ func (p *execProvider) Execute(ctx context.Context, req backends.Request) (backe
 	}
 	addProcessPeakRSSMetadata(meta, runner, peakRSSBytes, peakRSSMeasured)
 	return backends.Result{OutputRef: req.Output.LocalPath, Meta: meta}, nil
+}
+
+// gpuOutOfMemoryMarkers are the lower-cased fragments ONNX Runtime and CUDA put in
+// an error when a device allocation fails.
+var gpuOutOfMemoryMarkers = []string{
+	"out of memory",
+	"failed to allocate memory for requested buffer",
+	"cudaerrormemoryallocation",
+	"cudnn_status_alloc_failed",
+	"cublas_status_alloc_failed",
+	"bfcarena::allocaterawinternal",
+}
+
+// isGPUOutOfMemory reports whether err is a GPU memory exhaustion rather than a
+// fault of the input or the model: only that is worth repeating on the CPU.
+func isGPUOutOfMemory(err error) bool {
+	text := strings.ToLower(err.Error())
+	for _, marker := range gpuOutOfMemoryMarkers {
+		if strings.Contains(text, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+// firstLine trims an error to its first line, capped, for a meta value.
+func firstLine(text string) string {
+	if i := strings.IndexByte(text, '\n'); i >= 0 {
+		text = text[:i]
+	}
+	if len(text) > 240 {
+		text = text[:240]
+	}
+	return text
 }
 
 func addProcessPeakRSSMetadata(meta map[string]string, runner string, bytes int64, measured bool) {
@@ -159,7 +257,7 @@ func (p *llamaCppProvider) Execute(ctx context.Context, req backends.Request) (b
 	}
 	out, err := run(ctx, program, args)
 	if err != nil {
-		return backends.Result{}, fmt.Errorf("ai: backend %q execution failed: %w", p.Name(), err)
+		return backends.Result{}, classifySidecarFailure(fmt.Errorf("ai: backend %q execution failed: %w", p.Name(), err))
 	}
 	caption := strings.TrimSpace(string(out))
 	if caption == "" {

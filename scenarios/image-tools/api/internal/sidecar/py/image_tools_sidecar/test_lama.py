@@ -1,4 +1,7 @@
 """Repair contracts independent of learned image quality."""
+import os
+import subprocess
+import sys
 import unittest
 from types import SimpleNamespace
 
@@ -129,6 +132,16 @@ class LaMaRepairTest(unittest.TestCase):
         original, output = np.asarray(source), np.asarray(result)
         selected = np.asarray(mask) >= 128
         np.testing.assert_array_equal(output[~selected], original[~selected])
+
+
+class CommandLine(unittest.TestCase):
+    def test_accepts_the_device_flag_every_onnx_operation_receives(self):
+        # technique.go passes --device cpu|cuda to every onnxruntime sidecar
+        # module; a parser without it exits 2 and object_removal never runs.
+        env = dict(os.environ, PYTHONPATH=os.pathsep.join(sys.path))
+        done = subprocess.run([sys.executable, "-m", "image_tools_sidecar.lama", "--help"],
+                              capture_output=True, text=True, env=env, check=True)
+        self.assertIn("--device", done.stdout)
 
 
 if __name__ == "__main__":

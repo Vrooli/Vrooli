@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { fetchBlob } from "../../api/client";
+import { markSensitive } from "../../lib/sensitiveMedia";
 import { setWorkspaceIntent } from "../workspace/workspaceIntent";
 import type { OutputItem } from "./outputs";
 
@@ -17,6 +18,9 @@ export function useReopenOutput(): (item: OutputItem) => Promise<void> {
       const blob = await fetchBlob(item.resultRef);
       const ext = item.resultRef.split(".").pop() || "png";
       const file = new File([blob], `library.${ext}`, { type: blob.type || "image/png" });
+      if (item.sensitive) {
+        markSensitive({ file });
+      }
       setWorkspaceIntent({ file, mode: "edit" });
       navigate("/workspace");
     },

@@ -111,6 +111,49 @@ func TestSelectPrefersEnabledQualityOnGPU(t *testing.T) {
 	}
 }
 
+// A higher tier winning over the seeded default is the documented best-fit rule,
+// so the selection must say so; when the default itself wins nothing is added.
+func TestSelectNamesTheDefaultAHigherTierOutranks(t *testing.T) {
+	r := testRegistry(t)
+	all := func(string) bool { return true }
+	sel, err := r.Select(SelectRequest{RightsEvaluator: allowRightsForTest, Operation: "upscale", Host: gpuHost(12)}, all)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sel.Model.ID != "gpu-quality" || !strings.Contains(sel.Reason, `tier quality outranks the seeded default "cpu-default" (tier default)`) {
+		t.Fatalf("selected %s, reason %q: want gpu-quality with the outranked default named", sel.Model.ID, sel.Reason)
+	}
+	cpu, err := r.Select(SelectRequest{RightsEvaluator: allowRightsForTest, Operation: "upscale", Host: cpuHost()}, all)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cpu.Model.ID != "cpu-default" || strings.Contains(cpu.Reason, "outranks") {
+		t.Fatalf("selected %s, reason %q: the default itself needs no note", cpu.Model.ID, cpu.Reason)
+	}
+}
+
+// Text segmentation is Grounded SAM 2 (objects, hair, jackets). The SegFormer
+// parsers are explicit --model choices for garment parts, never the pick for a phrase.
+func TestSegmentDefaultIsGroundedSAM2OnTheShippedCatalog(t *testing.T) {
+	r, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sel, err := r.Select(SelectRequest{RightsEvaluator: allowRightsForTest, Operation: "segment", Host: gpuHost(16), CapacityManagedGPU: true}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sel.Model.ID != "grounded-sam-2" {
+		t.Fatalf("segment default = %s, want grounded-sam-2", sel.Model.ID)
+	}
+	for _, parser := range []string{"segformer-b2-clothes", "segformer-b3-fashion"} {
+		m, ok := r.ByID(parser)
+		if !ok || m.Tier.rank() >= sel.Model.Tier.rank() {
+			t.Errorf("%s (tier %s) must rank below the segment default (tier %s)", parser, m.Tier, sel.Model.Tier)
+		}
+	}
+}
+
 func TestU2NetpSupportsAdmittedCUDAAndExplicitCPUFallback(t *testing.T) {
 	r, err := Load()
 	if err != nil {
@@ -492,7 +535,7 @@ func TestBrokerManagedSelectionDefersContentionButNotHardwareFit(t *testing.T) {
 	}
 	req.CapacityManagedGPU = true
 	sel, err := r.Select(req, func(string) bool { return true })
-	if err != nil || !sel.GPUViable || !strings.Contains(strings.Join(sel.Warnings, " "), "admission") {
+	if err != nil || !sel.GPUViable || len(sel.Warnings) != 0 {
 		t.Fatalf("broker could not arbitrate contention: %+v, %v", sel, err)
 	}
 	req.Host.GPUs[0].VRAMBytes = 4 << 30
@@ -502,5 +545,53 @@ func TestBrokerManagedSelectionDefersContentionButNotHardwareFit(t *testing.T) {
 	req.Host.GPUs[0].VRAMBytes = 0
 	if _, err := r.Select(req, func(string) bool { return true }); err == nil {
 		t.Fatal("broker policy treated unknown hardware capacity as sufficient")
+	}
+}
+
+// An uncensored checkpoint can be installed and enabled without an ordinary
+// request ever landing on it: explicit_use_only keeps it out of automatic
+// selection, and a caller who names it still gets it.
+func TestExplicitUseOnlyModelsAreNeverAutoSelectedButRunWhenNamed(t *testing.T) {
+	r, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var checked int
+	for _, m := range r.Models() {
+		if !m.CapabilityLabels.ExplicitUseOnly || !m.Enabled {
+			continue
+		}
+		checked++
+		for _, op := range m.Operations {
+			sel, err := r.Select(SelectRequest{RightsEvaluator: allowRightsForTest, Operation: op, Host: gpuHost(24)}, nil)
+			if err == nil && sel.Model.ID == m.ID {
+				t.Errorf("%s was auto-selected for %s although it is explicit_use_only", m.ID, op)
+			}
+			if _, err := r.Select(SelectRequest{RightsEvaluator: allowRightsForTest, Operation: op, Host: gpuHost(24), OverrideID: m.ID}, nil); err != nil {
+				t.Errorf("naming %s for %s must still select it: %v", m.ID, op, err)
+			}
+		}
+	}
+	if checked == 0 {
+		t.Fatal("the seed has no enabled explicit_use_only model; the NSFW checkpoints must carry the label")
+	}
+}
+
+func TestSeedNSFWCheckpointsAreExplicitUseOnly(t *testing.T) {
+	r, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"lustify-sdxl-v9", "big-lust-v16", "juggernaut-xl-v9", "illustrious-xl-v0.1"} {
+		m, ok := r.ByID(id)
+		if !ok {
+			t.Fatalf("seed lacks %s", id)
+		}
+		if !m.CapabilityLabels.NSFWCapable || !m.CapabilityLabels.ExplicitUseOnly {
+			t.Errorf("%s must be labelled nsfw_capable and explicit_use_only: %+v", id, m.CapabilityLabels)
+		}
+		if m.Source.Repo.Revision == "" || len(m.Source.Repo.FileSHA256) == 0 {
+			t.Errorf("%s must pin a revision and its weight digests", id)
+		}
 	}
 }

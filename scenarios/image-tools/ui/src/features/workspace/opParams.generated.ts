@@ -11,6 +11,8 @@
 export interface InpaintOpParams {
   inpaint_context_pixels?: number;
   inpaint_crop_to_mask?: boolean;
+  inpaint_feather_px?: number;
+  inpaint_grow_px?: number;
   inpaint_max_edge_px?: number;
   inpaint_neutralize_masked_pixels?: boolean;
 }
@@ -33,6 +35,37 @@ export interface ObjectRemovalOpParams {
   halo_threshold?: number;
 }
 
+export interface FaceSwapOpParams {
+  all_faces?: boolean;
+  color_match?: number;
+  extent?: string;
+  face_strength?: number;
+  match?: string[];
+  occlusion?: boolean;
+  prompt?: string;
+  seed?: number;
+  skin_target?: string;
+  source_face?: number;
+  target_face?: number;
+}
+
+export interface GarmentReplaceOpParams {
+  inpaint_feather_px?: number;
+  inpaint_grow_px?: number;
+}
+
+export interface ColorTransferOpParams {
+  feather_px?: number;
+  flatten?: number;
+  luminance?: number;
+  strength?: number;
+}
+
+export interface MaskCompositeOpParams {
+  feather_px?: number;
+  grow_px?: number;
+}
+
 export interface SegmentOpParamsSegmentationBox {
   height: number;
   width: number;
@@ -49,6 +82,7 @@ export interface SegmentOpParamsSegmentationPointsItem {
 export interface SegmentOpParamsSegmentation {
   box?: SegmentOpParamsSegmentationBox;
   points?: SegmentOpParamsSegmentationPointsItem[];
+  text?: string;
 }
 
 export interface SegmentOpParams {
@@ -71,8 +105,12 @@ export interface ImageToObjectOpParams {
 }
 
 export interface AiOpParamsByOperation {
+  "color_transfer": ColorTransferOpParams;
+  "face_swap": FaceSwapOpParams;
+  "garment_replace": GarmentReplaceOpParams;
   "image_to_object": ImageToObjectOpParams;
   "inpaint": InpaintOpParams;
+  "mask_composite": MaskCompositeOpParams;
   "object_removal": ObjectRemovalOpParams;
   "scene_geometry": SceneGeometryOpParams;
   "segment": SegmentOpParams;

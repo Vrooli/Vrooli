@@ -6,8 +6,10 @@ import (
 	"errors"
 	"log"
 	"strings"
+	"time"
 
 	internaladapters "image-tools/internal/adapters"
+	"image-tools/internal/catalogstate"
 	internalhfmeta "image-tools/internal/hfmeta"
 	internaljobs "image-tools/internal/jobs"
 	internalmodels "image-tools/internal/models"
@@ -195,7 +197,10 @@ func (h *connectHandler) SetAdapterEnabled(ctx context.Context, req *connect.Req
 	if h.deps.Store == nil {
 		return nil, connect.NewError(connect.CodeInternal, errors.New("adapter state store unavailable"))
 	}
-	if err := h.deps.Store.SetEnabled(ctx, id, req.Msg.GetEnabled()); err != nil {
+	// The adapter wire shape carries no actor or reason yet, so the override is
+	// attributed to the API; the supersession rule still applies to it.
+	override := catalogstate.Override{ID: id, Enabled: req.Msg.GetEnabled(), SetBy: "api"}
+	if err := h.deps.Store.SetOverride(ctx, override, a.Enabled, time.Now()); err != nil {
 		h.deps.Logger.Printf("adapters.SetAdapterEnabled: %v", err)
 		return nil, connect.NewError(connect.CodeInternal, errors.New("persist adapter state"))
 	}

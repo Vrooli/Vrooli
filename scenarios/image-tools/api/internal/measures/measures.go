@@ -54,6 +54,9 @@ type JobTrace struct {
 	QueueWaitMS int64
 	ResultRef   string
 	Error       string
+	// FailureKind is jobs.FailureKind as text for a failed job ("" when it succeeded or
+	// predates the record, which reads as a fault).
+	FailureKind string
 }
 
 // ModelProfile is an owner-collected cold, warm, or peak-memory observation.
@@ -442,8 +445,8 @@ func (r *Recorder) ModelUsageSummary(ctx context.Context, modelID string) ([]Mod
 }
 
 const insertJobTraceSQL = `
-INSERT INTO job_trace (job_id, operation, model_id, backend, tier, lane, state, duration_ms, queue_wait_ms, result_ref, error, recorded_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO job_trace (job_id, operation, model_id, backend, tier, lane, state, duration_ms, queue_wait_ms, result_ref, error, failure_kind, recorded_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(job_id) DO UPDATE SET
   operation=excluded.operation,
   model_id=excluded.model_id,
@@ -455,6 +458,7 @@ ON CONFLICT(job_id) DO UPDATE SET
   queue_wait_ms=excluded.queue_wait_ms,
   result_ref=excluded.result_ref,
   error=excluded.error,
+  failure_kind=excluded.failure_kind,
   recorded_at=excluded.recorded_at`
 
 // RecordJobTrace persists one terminal job trace. It upserts by job id so replay
@@ -468,7 +472,7 @@ func (r *Recorder) RecordJobTrace(ctx context.Context, tr JobTrace) error {
 	}
 	_, err := r.db.ExecContext(ctx, insertJobTraceSQL,
 		tr.JobID, tr.Operation, tr.ModelID, tr.Backend, tr.Tier, tr.Lane, tr.State,
-		tr.DurationMS, tr.QueueWaitMS, tr.ResultRef, tr.Error, r.now().UTC().Format(time.RFC3339Nano))
+		tr.DurationMS, tr.QueueWaitMS, tr.ResultRef, tr.Error, tr.FailureKind, r.now().UTC().Format(time.RFC3339Nano))
 	if err != nil {
 		return fmt.Errorf("measures: record job trace %q: %w", tr.JobID, err)
 	}
@@ -497,7 +501,7 @@ func (r *Recorder) Observe(ctx context.Context, j JobLike) error {
 
 // JobTraceByID returns the structured trace for one finalized job.
 func (r *Recorder) JobTraceByID(ctx context.Context, jobID string) (JobTrace, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT job_id, operation, model_id, backend, tier, lane, state, duration_ms, queue_wait_ms, result_ref, error FROM job_trace WHERE job_id = ?`, jobID)
+	rows, err := r.db.QueryContext(ctx, `SELECT job_id, operation, model_id, backend, tier, lane, state, duration_ms, queue_wait_ms, result_ref, error, failure_kind FROM job_trace WHERE job_id = ?`, jobID)
 	if err != nil {
 		return JobTrace{}, fmt.Errorf("measures: query job trace %q: %w", jobID, err)
 	}
@@ -509,7 +513,7 @@ func (r *Recorder) JobTraceByID(ctx context.Context, jobID string) (JobTrace, er
 		return JobTrace{}, sql.ErrNoRows
 	}
 	var tr JobTrace
-	if err := rows.Scan(&tr.JobID, &tr.Operation, &tr.ModelID, &tr.Backend, &tr.Tier, &tr.Lane, &tr.State, &tr.DurationMS, &tr.QueueWaitMS, &tr.ResultRef, &tr.Error); err != nil {
+	if err := rows.Scan(&tr.JobID, &tr.Operation, &tr.ModelID, &tr.Backend, &tr.Tier, &tr.Lane, &tr.State, &tr.DurationMS, &tr.QueueWaitMS, &tr.ResultRef, &tr.Error, &tr.FailureKind); err != nil {
 		return JobTrace{}, fmt.Errorf("measures: scan job trace %q: %w", jobID, err)
 	}
 	return tr, rows.Err()

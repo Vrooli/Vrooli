@@ -15,3 +15,22 @@ func EffectiveEnabled(a Adapter, overlay map[string]bool) bool {
 	}
 	return a.Enabled
 }
+
+// SeedState reports each adapter's seed enabled flag for the override
+// supersession rule (catalogstate.Overlay.Reconcile). Operator-registered
+// entries count as seed.
+func (r *Registry) SeedState(customs []Adapter) catalogstate.SeedState {
+	custom := make(map[string]Adapter, len(customs))
+	for _, a := range customs {
+		custom[a.ID] = a
+	}
+	return func(id string) (bool, bool) {
+		if a, ok := r.ByID(id); ok {
+			return a.Enabled, true
+		}
+		if a, ok := custom[id]; ok {
+			return a.Enabled, true
+		}
+		return false, false
+	}
+}

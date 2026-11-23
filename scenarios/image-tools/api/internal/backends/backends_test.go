@@ -106,6 +106,36 @@ func TestUnqualifiedProviderIsAnExplicitCPUFallback(t *testing.T) {
 	}
 }
 
+// gatewayLocalProvider stands for a local backend whose hardware another service
+// manages (the AI Gateway's local models).
+type gatewayLocalProvider struct{ fakeProvider }
+
+func (gatewayLocalProvider) GPUCapable() bool { return false }
+func (gatewayLocalProvider) LocalTier() Tier  { return TierGatewayLocal }
+
+// A model the gateway serves on this machine is neither a CPU run nor a GPU run of
+// this scenario: it reports its own tier and no "no GPU-viable path" warning, on a
+// host with or without a usable GPU.
+func TestLocalBackendThatDeclaresATierIsNotDescribedAsCPUOrGPU(t *testing.T) {
+	for _, gpuViable := range []bool{false, true} {
+		r := New()
+		p := gatewayLocalProvider{fakeProvider{name: "gateway-vision", ops: []string{"caption"}, standalone: true, available: true}}
+		if err := r.Register(p); err != nil {
+			t.Fatal(err)
+		}
+		selection, err := r.SelectProvider(context.Background(), SelectRequest{Operation: "caption", GPUViable: gpuViable})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if selection.Tier != TierGatewayLocal || selection.Tier.String() != "gateway-local" {
+			t.Errorf("gpuViable=%v: tier = %q, want gateway-local", gpuViable, selection.Tier)
+		}
+		if len(selection.Warnings) != 0 {
+			t.Errorf("gpuViable=%v: a tier the backend declared needs no CPU warning, got %v", gpuViable, selection.Warnings)
+		}
+	}
+}
+
 func TestDoctorDoesNotAdvertiseCPUOnlyOperationAsGPUReady(t *testing.T) {
 	r := New()
 	provider := cpuOnlyProvider{fakeProvider: fakeProvider{

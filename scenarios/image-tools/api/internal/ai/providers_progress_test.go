@@ -244,16 +244,22 @@ func TestStableDiffusionGPUCapabilityRecoversWhenPreferredExecutableAppears(t *t
 }
 
 func TestExecProviderGPUCapabilityIsRestrictedToGPUQualifiedOperations(t *testing.T) {
+	var onnxSpec providerSpec
+	for _, s := range providerSpecs() {
+		if s.name == "onnxruntime" {
+			onnxSpec = s
+		}
+	}
 	provider := &execProvider{backendProcess: backendProcess{
 		name: "onnxruntime", program: pythonProgram, pythonInterpreter: "/venv/bin/python", gpuCapable: true,
 		gpuProbe: func(context.Context, string) bool { return true },
-	}}
-	for _, operation := range []string{"background_removal", "segment"} {
+	}, gpuOps: opSet(onnxSpec.gpuQualifiedOps)}
+	for _, operation := range []string{"background_removal", "segment", "depth_map", "face_restore", "face_swap", "colorize", "denoise"} {
 		if !provider.GPUCapableFor(operation) {
 			t.Errorf("ONNX Runtime %s should be GPU-capable when CUDAExecutionProvider is present", operation)
 		}
 	}
-	for _, operation := range []string{"denoise", "depth_map", "object_detection"} {
+	for _, operation := range []string{"deblur", "object_detection", "ocr", "nsfw_classify", "age_estimate", "embedding"} {
 		if provider.GPUCapableFor(operation) {
 			t.Errorf("ONNX Runtime %s must not claim GPU support before operation qualification", operation)
 		}

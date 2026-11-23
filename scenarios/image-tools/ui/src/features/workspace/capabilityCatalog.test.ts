@@ -69,7 +69,7 @@ describe("generated capability catalog", () => {
   });
 
   it("exposes the canonical summary for fallback copy", () => {
-    expect(capabilitySummary("face_swap")).toContain("reference face");
+    expect(capabilitySummary("face_swap")).toContain("reference image");
     expect(capabilitySummary("no_such_operation")).toBeUndefined();
   });
 });
@@ -91,6 +91,15 @@ describe("generated presentation keys", () => {
       if (meta.descKey) {
         expect(resolve(en, meta.descKey), `${id} desc ${meta.descKey}`).toBeTypeOf("string");
       }
+    }
+  });
+
+  it("resolves every swap-extent stage and preset key in the English locale", () => {
+    const extent = CAPABILITIES["face_swap"]?.extent;
+    expect(extent, "face_swap extent").toBeTruthy();
+    for (const item of [...(extent?.stages ?? []), ...(extent?.presets ?? [])]) {
+      expect(resolve(en, item.labelKey), `${item.id} label ${item.labelKey}`).toBeTypeOf("string");
+      expect(resolve(en, item.descKey), `${item.id} desc ${item.descKey}`).toBeTypeOf("string");
     }
   });
 

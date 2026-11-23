@@ -24,6 +24,8 @@ const float64Bits = 64
 type InpaintParams struct {
 	ContextPixels          *int  `json:"inpaint_context_pixels,omitempty"`
 	CropToMask             *bool `json:"inpaint_crop_to_mask,omitempty"`
+	FeatherPx              *int  `json:"inpaint_feather_px,omitempty"`
+	GrowPx                 *int  `json:"inpaint_grow_px,omitempty"`
 	MaxEdgePx              *int  `json:"inpaint_max_edge_px,omitempty"`
 	NeutralizeMaskedPixels *bool `json:"inpaint_neutralize_masked_pixels,omitempty"`
 }
@@ -45,6 +47,20 @@ func DecodeInpaintParams(m map[string]string) (InpaintParams, error) {
 			return out, fmt.Errorf("inpaint: inpaint_crop_to_mask: %w", err)
 		}
 		out.CropToMask = &v
+	}
+	if raw, ok := m["inpaint_feather_px"]; ok && raw != "" {
+		v, err := strconv.Atoi(raw)
+		if err != nil {
+			return out, fmt.Errorf("inpaint: inpaint_feather_px: %w", err)
+		}
+		out.FeatherPx = &v
+	}
+	if raw, ok := m["inpaint_grow_px"]; ok && raw != "" {
+		v, err := strconv.Atoi(raw)
+		if err != nil {
+			return out, fmt.Errorf("inpaint: inpaint_grow_px: %w", err)
+		}
+		out.GrowPx = &v
 	}
 	if raw, ok := m["inpaint_max_edge_px"]; ok && raw != "" {
 		v, err := strconv.Atoi(raw)
@@ -112,6 +128,193 @@ func DecodeObjectRemovalParams(m map[string]string) (ObjectRemovalParams, error)
 	return out, nil
 }
 
+// FaceSwapParams is the typed view of this operation's parameter object.
+type FaceSwapParams struct {
+	AllFaces     *bool    `json:"all_faces,omitempty"`
+	ColorMatch   *float64 `json:"color_match,omitempty"`
+	Extent       *string  `json:"extent,omitempty"`
+	FaceStrength *float64 `json:"face_strength,omitempty"`
+	Match        []string `json:"match,omitempty"`
+	Occlusion    *bool    `json:"occlusion,omitempty"`
+	Prompt       *string  `json:"prompt,omitempty"`
+	Seed         *int     `json:"seed,omitempty"`
+	SkinTarget   *string  `json:"skin_target,omitempty"`
+	SourceFace   *int     `json:"source_face,omitempty"`
+	TargetFace   *int     `json:"target_face,omitempty"`
+}
+
+// DecodeFaceSwapParams turns the persisted string map into a typed view of the "face_swap"
+// parameters. It fails closed on a value that no longer parses.
+func DecodeFaceSwapParams(m map[string]string) (FaceSwapParams, error) {
+	var out FaceSwapParams
+	if raw, ok := m["all_faces"]; ok && raw != "" {
+		v, err := strconv.ParseBool(raw)
+		if err != nil {
+			return out, fmt.Errorf("face_swap: all_faces: %w", err)
+		}
+		out.AllFaces = &v
+	}
+	if raw, ok := m["color_match"]; ok && raw != "" {
+		v, err := strconv.ParseFloat(raw, float64Bits)
+		if err != nil {
+			return out, fmt.Errorf("face_swap: color_match: %w", err)
+		}
+		out.ColorMatch = &v
+	}
+	if raw, ok := m["extent"]; ok && raw != "" {
+		v := raw
+		out.Extent = &v
+	}
+	if raw, ok := m["face_strength"]; ok && raw != "" {
+		v, err := strconv.ParseFloat(raw, float64Bits)
+		if err != nil {
+			return out, fmt.Errorf("face_swap: face_strength: %w", err)
+		}
+		out.FaceStrength = &v
+	}
+	if raw, ok := m["match"]; ok && raw != "" {
+		var v []string
+		if err := json.Unmarshal([]byte(raw), &v); err != nil {
+			return out, fmt.Errorf("face_swap: match: %w", err)
+		}
+		out.Match = v
+	}
+	if raw, ok := m["occlusion"]; ok && raw != "" {
+		v, err := strconv.ParseBool(raw)
+		if err != nil {
+			return out, fmt.Errorf("face_swap: occlusion: %w", err)
+		}
+		out.Occlusion = &v
+	}
+	if raw, ok := m["prompt"]; ok && raw != "" {
+		v := raw
+		out.Prompt = &v
+	}
+	if raw, ok := m["seed"]; ok && raw != "" {
+		v, err := strconv.Atoi(raw)
+		if err != nil {
+			return out, fmt.Errorf("face_swap: seed: %w", err)
+		}
+		out.Seed = &v
+	}
+	if raw, ok := m["skin_target"]; ok && raw != "" {
+		v := raw
+		out.SkinTarget = &v
+	}
+	if raw, ok := m["source_face"]; ok && raw != "" {
+		v, err := strconv.Atoi(raw)
+		if err != nil {
+			return out, fmt.Errorf("face_swap: source_face: %w", err)
+		}
+		out.SourceFace = &v
+	}
+	if raw, ok := m["target_face"]; ok && raw != "" {
+		v, err := strconv.Atoi(raw)
+		if err != nil {
+			return out, fmt.Errorf("face_swap: target_face: %w", err)
+		}
+		out.TargetFace = &v
+	}
+	return out, nil
+}
+
+// GarmentReplaceParams is the typed view of this operation's parameter object.
+type GarmentReplaceParams struct {
+	InpaintFeatherPx *int `json:"inpaint_feather_px,omitempty"`
+	InpaintGrowPx    *int `json:"inpaint_grow_px,omitempty"`
+}
+
+// DecodeGarmentReplaceParams turns the persisted string map into a typed view of the "garment_replace"
+// parameters. It fails closed on a value that no longer parses.
+func DecodeGarmentReplaceParams(m map[string]string) (GarmentReplaceParams, error) {
+	var out GarmentReplaceParams
+	if raw, ok := m["inpaint_feather_px"]; ok && raw != "" {
+		v, err := strconv.Atoi(raw)
+		if err != nil {
+			return out, fmt.Errorf("garment_replace: inpaint_feather_px: %w", err)
+		}
+		out.InpaintFeatherPx = &v
+	}
+	if raw, ok := m["inpaint_grow_px"]; ok && raw != "" {
+		v, err := strconv.Atoi(raw)
+		if err != nil {
+			return out, fmt.Errorf("garment_replace: inpaint_grow_px: %w", err)
+		}
+		out.InpaintGrowPx = &v
+	}
+	return out, nil
+}
+
+// ColorTransferParams is the typed view of this operation's parameter object.
+type ColorTransferParams struct {
+	FeatherPx *float64 `json:"feather_px,omitempty"`
+	Flatten   *float64 `json:"flatten,omitempty"`
+	Luminance *float64 `json:"luminance,omitempty"`
+	Strength  *float64 `json:"strength,omitempty"`
+}
+
+// DecodeColorTransferParams turns the persisted string map into a typed view of the "color_transfer"
+// parameters. It fails closed on a value that no longer parses.
+func DecodeColorTransferParams(m map[string]string) (ColorTransferParams, error) {
+	var out ColorTransferParams
+	if raw, ok := m["feather_px"]; ok && raw != "" {
+		v, err := strconv.ParseFloat(raw, float64Bits)
+		if err != nil {
+			return out, fmt.Errorf("color_transfer: feather_px: %w", err)
+		}
+		out.FeatherPx = &v
+	}
+	if raw, ok := m["flatten"]; ok && raw != "" {
+		v, err := strconv.ParseFloat(raw, float64Bits)
+		if err != nil {
+			return out, fmt.Errorf("color_transfer: flatten: %w", err)
+		}
+		out.Flatten = &v
+	}
+	if raw, ok := m["luminance"]; ok && raw != "" {
+		v, err := strconv.ParseFloat(raw, float64Bits)
+		if err != nil {
+			return out, fmt.Errorf("color_transfer: luminance: %w", err)
+		}
+		out.Luminance = &v
+	}
+	if raw, ok := m["strength"]; ok && raw != "" {
+		v, err := strconv.ParseFloat(raw, float64Bits)
+		if err != nil {
+			return out, fmt.Errorf("color_transfer: strength: %w", err)
+		}
+		out.Strength = &v
+	}
+	return out, nil
+}
+
+// MaskCompositeParams is the typed view of this operation's parameter object.
+type MaskCompositeParams struct {
+	FeatherPx *float64 `json:"feather_px,omitempty"`
+	GrowPx    *float64 `json:"grow_px,omitempty"`
+}
+
+// DecodeMaskCompositeParams turns the persisted string map into a typed view of the "mask_composite"
+// parameters. It fails closed on a value that no longer parses.
+func DecodeMaskCompositeParams(m map[string]string) (MaskCompositeParams, error) {
+	var out MaskCompositeParams
+	if raw, ok := m["feather_px"]; ok && raw != "" {
+		v, err := strconv.ParseFloat(raw, float64Bits)
+		if err != nil {
+			return out, fmt.Errorf("mask_composite: feather_px: %w", err)
+		}
+		out.FeatherPx = &v
+	}
+	if raw, ok := m["grow_px"]; ok && raw != "" {
+		v, err := strconv.ParseFloat(raw, float64Bits)
+		if err != nil {
+			return out, fmt.Errorf("mask_composite: grow_px: %w", err)
+		}
+		out.GrowPx = &v
+	}
+	return out, nil
+}
+
 // SegmentParamsSegmentationBox is the typed view of this operation's parameter object.
 type SegmentParamsSegmentationBox struct {
 	Height float64 `json:"height"`
@@ -131,6 +334,7 @@ type SegmentParamsSegmentationPointsItem struct {
 type SegmentParamsSegmentation struct {
 	Box    *SegmentParamsSegmentationBox         `json:"box,omitempty"`
 	Points []SegmentParamsSegmentationPointsItem `json:"points,omitempty"`
+	Text   *string                               `json:"text,omitempty"`
 }
 
 // SegmentParams is the typed view of this operation's parameter object.

@@ -47,7 +47,7 @@ func TestWatchJobStreamsToTerminal(t *testing.T) {
 
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
-		jobsH.Module(mgr, log.Default()),
+		jobsH.Module(mgr, nil, log.Default()),
 	)
 	live := httpxtest.NewLiveServer(t, srv)
 	client := jobsconnect.NewJobsServiceClient(live.Client, live.URL)
@@ -114,7 +114,7 @@ func TestWatchJobUnknownIsNotFound(t *testing.T) {
 	}
 	defer mgr.Close()
 
-	srv := server.New(server.Deps{Clock: schedule.System(), Logger: log.Default()}, jobsH.Module(mgr, log.Default()))
+	srv := server.New(server.Deps{Clock: schedule.System(), Logger: log.Default()}, jobsH.Module(mgr, nil, log.Default()))
 	live := httpxtest.NewLiveServer(t, srv)
 	client := jobsconnect.NewJobsServiceClient(live.Client, live.URL)
 

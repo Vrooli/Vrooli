@@ -22,7 +22,9 @@ import {
   makeModel,
   makeResolution,
   makeSelectModelResponse,
+  makeVerdict,
 } from "./mocks/factories";
+import { VerdictGrade } from "@vrooli/proto-types/image-tools/v1/models/models_pb";
 
 vi.mock("../../api/models", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/models")>();
@@ -204,5 +206,19 @@ describe("ModelPickerButton", () => {
     const select = await screen.findByTestId(selectors.models.pickerSelect({ id: "m2" }));
     await user.click(select);
     expect(onChange).toHaveBeenCalledWith("m2");
+  });
+
+  it("shows the verdict of the model it names, next to the model", async () => {
+    const { modelsClient } = await import("../../api/models");
+    vi.mocked(modelsClient.selectModel).mockResolvedValue(
+      makeSelectModelResponse({
+        model: makeModel({ id: "sd-1.5", name: "Stable Diffusion 1.5" }),
+        verdict: makeVerdict({ operation: "text_to_image", grade: VerdictGrade.NOT_RECOMMENDED, reason: "soft faces" }),
+      }),
+    );
+    renderButton({ operation: "text_to_image", operationLabel: "Text to image" });
+    const badge = await screen.findByTestId(selectors.models.pickerTriggerVerdict);
+    expect(badge).toHaveTextContent("Not recommended");
+    expect(badge).toHaveAttribute("title", "soft faces");
   });
 });

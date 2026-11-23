@@ -12,6 +12,7 @@ import (
 
 	"github.com/vrooli/vrooli/packages/capacity/companion"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/ensure"
+	"github.com/vrooli/vrooli/resources/ollama/cli/internal/policy"
 )
 
 func TestOllamaPrivateAdminCommandsJoinTheOwnerNamespace(t *testing.T) {
@@ -275,13 +276,88 @@ func TestOllamaCapacityClientTargetsDeclaredPrivateUpstream(t *testing.T) {
 	if manifest.ManagedService.Environment["OLLAMA_KEEP_ALIVE"] != "-1" {
 		t.Fatalf("OLLAMA_KEEP_ALIVE = %q, want -1 so the shared capacity state machine owns model unload timing", manifest.ManagedService.Environment["OLLAMA_KEEP_ALIVE"])
 	}
-	if manifest.ManagedService.Environment["OLLAMA_NUM_PARALLEL"] != "1" || manifest.ManagedService.Environment["OLLAMA_MAX_LOADED_MODELS"] != "2" {
-		t.Fatalf("Ollama residency/concurrency limits = %v, want one request and at most two resident models", manifest.ManagedService.Environment)
+	if manifest.ManagedService.Environment["OLLAMA_NUM_PARALLEL"] != "1" {
+		t.Fatalf("Ollama concurrency = %v, want one request", manifest.ManagedService.Environment)
+	}
+	// The loaded-model count is derived from the policy's residency, never tuned
+	// by hand: residents plus one turnover slot.
+	p, err := policy.LoadFile(filepath.Join("..", "model-policy.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := manifest.ManagedService.Environment["OLLAMA_MAX_LOADED_MODELS"], strconv.Itoa(p.LoadedModelSlots()); got != want {
+		t.Fatalf("OLLAMA_MAX_LOADED_MODELS = %q, want %s (resident models %v plus one turnover slot)", got, want, p.ResidentModels())
 	}
 	if manifest.Requirements.RAMMB != 8192 || manifest.Requirements.CPUCores != 4 {
 		t.Fatalf("Ollama host budget = %d MiB/%d cores, want audited 8192 MiB/4 cores", manifest.Requirements.RAMMB, manifest.Requirements.CPUCores)
 	}
 	if got := manifest.Acceleration.Claim; got.IdleGraceSeconds != 900 || got.IdleUnloadTTLSeconds != 900 {
 		t.Fatalf("resource claim idle policy = grace %ds/unload %ds, want both timers owned by shared capacity", got.IdleGraceSeconds, got.IdleUnloadTTLSeconds)
+	}
+}
+
+// TestOllamaCapacityLadderIsTheDeclaredClaimProfile keeps resource.json the one
+// rung list: every declared rung is accepted with its declared byte target,
+// the zero-byte rung leaves the GPU, and nothing else is accepted.
+func TestOllamaCapacityLadderIsTheDeclaredClaimProfile(t *testing.T) {
+	resourceDir, err := filepath.Abs("..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(filepath.Join(resourceDir, "resource.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest struct {
+		Acceleration struct {
+			Claim struct {
+				Profile struct {
+					Steps []struct {
+						Label  string `json:"label"`
+						Amount int64  `json:"default_amount_bytes"`
+					} `json:"steps"`
+				} `json:"profile"`
+			} `json:"claim"`
+		} `json:"acceleration"`
+	}
+	if err := json.Unmarshal(raw, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	declared := manifest.Acceleration.Claim.Profile.Steps
+	if len(declared) < 2 {
+		t.Fatalf("resource.json declares %d rungs", len(declared))
+	}
+	getenv := func(key string) string {
+		if key == "RESOURCE_ROOT" {
+			return resourceDir
+		}
+		return ""
+	}
+	steps, err := companion.ProfileSteps(getenv, appName, ollamaCapacityStep)()
+	if err != nil {
+		t.Fatal(err)
+	}
+	profile, err := companion.DeclaredProfile(getenv, appName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(steps) != len(declared) {
+		t.Fatalf("ladder has %d rungs, resource.json declares %d", len(steps), len(declared))
+	}
+	for i, want := range declared {
+		got := steps[i]
+		wantEnv := "VROOLI_GPU=on"
+		if want.Amount == 0 {
+			wantEnv = "VROOLI_GPU=off"
+		}
+		if got.Label != want.Label || got.Action != "restart" || len(got.Env) != 1 || got.Env[0] != wantEnv {
+			t.Errorf("rung %d = %+v, want %s restart %s", i, got, want.Label, wantEnv)
+		}
+		if bytes, err := ollamaRungBytes(profile.Steps, want.Label); err != nil || bytes != want.Amount {
+			t.Errorf("rung %s target = %d (%v), want %d", want.Label, bytes, err, want.Amount)
+		}
+	}
+	if _, err := ollamaRungBytes(profile.Steps, "llama3.2:1b"); err == nil {
+		t.Fatal("an undeclared rung must be refused")
 	}
 }

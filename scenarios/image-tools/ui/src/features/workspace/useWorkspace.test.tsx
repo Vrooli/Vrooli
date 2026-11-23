@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, renderHook } from "@testing-library/react";
 
 import { runOp, type RunOpImageResult } from "../../api/ops";
+import { isSensitiveFile, isSensitiveUrl, markSensitive } from "../../lib/sensitiveMedia";
 import { liveRunner, useWorkspace, type WorkspaceRunner } from "./useWorkspace";
 
 // Mock only the network-touching `runOp`; keep the rest of api/ops intact so
@@ -22,13 +23,13 @@ vi.mock("../../api/ops", async (importOriginal) => {
 const PNG = new File(["base-bytes"], "base.png", { type: "image/png" });
 
 /** Deterministic image runner: each call yields a uniquely-named output. */
-const makeImageRunner = () => {
+const makeImageRunner = (prefix = "step") => {
   let n = 0;
   return vi.fn<WorkspaceRunner>(() => {
     n += 1;
     const result: RunOpImageResult = {
       kind: "image",
-      url: `blob:step-${n}`,
+      url: `blob:${prefix}-${n}`,
       width: n,
       height: n,
       format: "png",
@@ -86,6 +87,38 @@ describe("useWorkspace", () => {
     // First op ran against the base; second composed on the first output.
     expect(runner.mock.calls[0]?.[2]).toBe(PNG);
     expect((runner.mock.calls[1]?.[2] as File).name).toBe("out-1.png");
+  });
+
+  it("an edit of a sensitive image is sensitive, through every step and a later reopen", async () => {
+    const runner = makeImageRunner();
+    const { result } = setup(runner);
+    const sensitiveBase = new File(["s"], "s.png", { type: "image/png" });
+    markSensitive({ file: sensitiveBase });
+
+    act(() => result.current.setBase(sensitiveBase));
+    expect(isSensitiveUrl(result.current.previewUrl)).toBe(true);
+
+    act(() => result.current.setOperation("resize"));
+    await act(async () => {
+      await result.current.apply();
+    });
+    act(() => result.current.setOperation("crop"));
+    await act(async () => {
+      await result.current.apply();
+    });
+    expect(result.current.entries.map((e) => isSensitiveUrl(e.result.url))).toEqual([true, true]);
+    expect(result.current.entries.every((e) => isSensitiveFile(e.outputFile))).toBe(true);
+  });
+
+  it("leaves the steps of an ordinary image unmarked", async () => {
+    const runner = makeImageRunner("ordinary");
+    const { result } = setup(runner);
+    act(() => result.current.setBase(new File(["c"], "c.png", { type: "image/png" })));
+    act(() => result.current.setOperation("resize"));
+    await act(async () => {
+      await result.current.apply();
+    });
+    expect(isSensitiveUrl(result.current.entries[0]?.result.url)).toBe(false);
   });
 
   it("a metadata read shows JSON without pushing a step", async () => {

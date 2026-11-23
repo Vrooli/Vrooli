@@ -18,6 +18,10 @@ var (
 	ErrLocalPathMissing     = errors.New("fetch: local artifact path does not exist")
 	ErrRepoRevisionUnpinned = errors.New("fetch: repository revision must be pinned")
 	ErrCleanupUnverified    = errors.New("fetch: acquisition staging cleanup could not be verified")
+	// ErrOutsideManagedRoot refuses an acquisition whose destination is not
+	// inside the managed model root: model bytes never land anywhere Image Tools
+	// does not manage.
+	ErrOutsideManagedRoot = errors.New("fetch: model bytes may only be written inside the managed model root")
 )
 
 // Source is shared by weight and conditioning catalogs. Documentation URLs are
@@ -30,8 +34,14 @@ type Source struct {
 	LocalPath    string   `json:"local_path,omitempty"`
 	Assets       []Asset  `json:"assets,omitempty"`
 	Repo         RepoSpec `json:"repo,omitempty"`
-	Manual       bool     `json:"manual,omitempty"`
-	Checksum     Checksum `json:"checksum"`
+	// HubCompanions are small pinned Hub repos the model's runtime reads by
+	// repo id at load time (diffusers from_single_file resolves its pipeline
+	// config and tokenizer this way). Inference runs offline, so the governed
+	// install fetches them into the managed Hub cache and a missing one fails
+	// the install instead of silently downloading during a job.
+	HubCompanions []RepoSpec `json:"hub_companions,omitempty"`
+	Manual        bool       `json:"manual,omitempty"`
+	Checksum      Checksum   `json:"checksum"`
 }
 
 type Checksum struct {
@@ -80,6 +90,12 @@ func (a Acquirer) Acquire(ctx context.Context, source Source, destination, pinne
 		}
 		return out, err
 	}
+	if strings.TrimSpace(a.Root) == "" {
+		return out, errors.New("fetch: acquirer root is required to place staging")
+	}
+	if err := EnsureInsideRoot(a.Root, destination); err != nil {
+		return out, err
+	}
 	if a.DiskAvail != nil {
 		available, err := a.DiskAvail(a.Root)
 		if err != nil {
@@ -92,15 +108,19 @@ func (a Acquirer) Acquire(ctx context.Context, source Source, destination, pinne
 	if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
 		return out, err
 	}
-	stage, err := os.MkdirTemp(filepath.Dir(destination), ".acquiring-*")
+	stage, resumed, err := claimStage(ctx, a.Root, destination, source)
 	if err != nil {
 		return out, err
 	}
+	defer ReleaseStage(stage)
 	defer func() {
 		if cleanupErr := a.removeOwnedTree(stage); cleanupErr != nil {
 			err = errors.Join(err, fmt.Errorf("%w: %s: %v", ErrCleanupUnverified, stage, cleanupErr))
 		}
 	}()
+	if resumed {
+		emit(5, "resuming partial download left by an interrupted install")
+	}
 	if source.HasRepo() && len(source.Assets) > 0 {
 		// Some capabilities combine a pinned upstream directory with separately
 		// versioned auxiliary assets (for example a ControlNet weight snapshot,
@@ -129,9 +149,14 @@ func (a Acquirer) Acquire(ctx context.Context, source Source, destination, pinne
 	if err := ctx.Err(); err != nil {
 		return out, err
 	}
+	// Companions are part of the same install: a model whose runtime needs a Hub
+	// repo that cannot be placed in the managed cache is not published.
+	if err := a.EnsureCompanions(ctx, source, emit); err != nil {
+		return out, err
+	}
 	// A failed replacement cannot destroy an existing installation. Both renames
 	// stay on this filesystem; interrupted prior artifacts remain recoverable.
-	previous := stage + ".previous"
+	previous := stage + PreviousSuffix
 	if err := os.Rename(destination, previous); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return out, err
 	}
@@ -380,6 +405,26 @@ func RequiredBytes(sizeMB int) int64 { return max(256<<20, int64(float64(int64(s
 func verifyChecksum(expected, actual string) error {
 	if expected = strings.TrimSpace(expected); expected != "" && !strings.EqualFold(expected, actual) {
 		return fmt.Errorf("%w: expected %s got %s", ErrChecksumMismatch, expected, actual)
+	}
+	return nil
+}
+
+// EnsureInsideRoot fails loudly unless destination is a strict descendant of
+// root (after symlink resolution of the deepest existing ancestor), so a catalog
+// entry, an import or a bug can never aim an acquisition at another directory.
+func EnsureInsideRoot(root, destination string) error {
+	canonicalRoot, err := canonicalDiskJobPath(root)
+	if err != nil {
+		return fmt.Errorf("%w: resolve managed root %s: %v", ErrOutsideManagedRoot, root, err)
+	}
+	canonicalDest, err := canonicalDiskJobPath(filepath.Dir(destination))
+	if err != nil {
+		return fmt.Errorf("%w: resolve destination %s: %v", ErrOutsideManagedRoot, destination, err)
+	}
+	canonicalDest = filepath.Join(canonicalDest, filepath.Base(destination))
+	rel, err := filepath.Rel(canonicalRoot, canonicalDest)
+	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+		return fmt.Errorf("%w: destination %s is outside the managed root %s; use `image-tools models install`, which stages under the root, instead of pointing a download elsewhere", ErrOutsideManagedRoot, destination, root)
 	}
 	return nil
 }

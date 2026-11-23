@@ -8,6 +8,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"image"
+	_ "image/jpeg"
+	_ "image/png"
 	"io"
 	"math"
 	"net/http"
@@ -40,6 +43,11 @@ const (
 	MetaCostProvenance             = "cost_provenance"
 	ProviderReportedCostProvenance = "provider_reported_v1"
 	MetaExecutionAttempt           = "_gateway_execution_attempt_v1"
+
+	// ParamMaxCostUSD is the engine-set backend parameter carrying the per-image
+	// USD ceiling for one cloud generation. Gateway forwards it to the provider
+	// owner, which turns it into a bound on what the provider reserves up front.
+	ParamMaxCostUSD = "max_cost_usd"
 )
 
 type Attempt struct {
@@ -89,11 +97,15 @@ func ParseCostUSD(meta map[string]string) (float64, bool) {
 // to this caller-supplied path for the duration of the request and stores no
 // media bytes in its receipt database.
 type mediaGenerationRequest struct {
-	Operation  string
-	Role       string
-	Prompt     string
-	InputFile  string
+	Operation string
+	Role      string
+	Prompt    string
+	// InputFiles are the images sent with the prompt, in order: the image being
+	// edited first, then any reference (a face_swap source face).
+	InputFiles []string
 	OutputPath string
+	// MaxCostUSD is the per-image ceiling for this call; zero means none was set.
+	MaxCostUSD float64
 }
 
 type mediaGenerationResult struct {
@@ -188,6 +200,7 @@ func (c *aiGatewayMediaClient) Generate(ctx context.Context, req mediaGeneration
 		Scenario:     "image-tools",
 		TimeoutMs:    10 * 60 * 1000,
 		RequestId:    uuid.NewString(),
+		MaxCostUsd:   req.MaxCostUSD,
 	}
 	if request.Role == "" || request.Operation == "" {
 		return result, fmt.Errorf("ai: AI Gateway media request requires operation and role")
@@ -200,11 +213,10 @@ func (c *aiGatewayMediaClient) Generate(ctx context.Context, req mediaGeneration
 		IdempotencyKey:  "image-tools-" + uuid.NewString(),
 		OutputReference: req.OutputPath,
 	}
-	if input := strings.TrimSpace(req.InputFile); input != "" {
-		submit.Inputs = []*routingv1.MediaInput{{
-			Reference: input,
-			MediaType: mediaTypeForFile(input),
-		}}
+	for _, input := range req.InputFiles {
+		if input = strings.TrimSpace(input); input != "" {
+			submit.Inputs = append(submit.Inputs, &routingv1.MediaInput{Reference: input, MediaType: mediaTypeForFile(input)})
+		}
 	}
 
 	client := routingconnect.NewRoutingServiceClient(c.httpClient, baseURL)
@@ -278,16 +290,23 @@ func (c *aiGatewayMediaClient) Generate(ctx context.Context, req mediaGeneration
 // model/backend vocabulary for selection and telemetry, while all remote
 // transport and credential/model policy are delegated to AI Gateway.
 type aiGatewayProvider struct {
-	media MediaGateway
+	media  MediaGateway
+	vision VisionGateway
 }
 
-func NewProvider(media MediaGateway) backends.Provider {
-	return &aiGatewayProvider{media: media}
+// NewProvider builds the hosted rung. media serves its image operations and
+// vision serves the general vision models (caption, object detection, tagging).
+func NewProvider(media MediaGateway, vision VisionGateway) backends.Provider {
+	return &aiGatewayProvider{media: media, vision: vision}
 }
 
 func (p *aiGatewayProvider) Name() string { return models.BackendOpenRouter }
 func (p *aiGatewayProvider) Operations() []string {
-	return []string{"text_to_image", "image_to_image", "edit_instruct"}
+	ops := []string{"text_to_image", "image_to_image", "edit_instruct", "face_swap", "colorize"}
+	if p != nil && p.vision != nil {
+		ops = append(ops, models.VisionOperations...)
+	}
+	return ops
 }
 func (p *aiGatewayProvider) Standalone() bool { return true }
 func (p *aiGatewayProvider) IsCloud() bool    { return true }
@@ -303,6 +322,20 @@ func (p *aiGatewayProvider) Availability(ctx context.Context) backends.Availabil
 	return backends.Availability{Available: false, Detail: "AI Gateway media client is not configured", Provision: "start ai-gateway and configure its resource credential"}
 }
 
+// maxCostForRequest reads the engine-set per-image ceiling. An absent, invalid
+// or non-positive value means no ceiling, never a zero-dollar one.
+func maxCostForRequest(req backends.Request) float64 {
+	cost, err := strconv.ParseFloat(strings.TrimSpace(req.Params[ParamMaxCostUSD]), 64)
+	if err != nil || math.IsNaN(cost) || math.IsInf(cost, 0) || cost <= 0 {
+		return 0
+	}
+	return cost
+}
+
+// FaceSwapInstruction is the edit instruction a cloud face swap sends when the
+// caller gave none (see technique.FaceSwapInstruction).
+const FaceSwapInstruction = technique.FaceSwapInstruction
+
 func roleForRequest(req backends.Request) string {
 	if role := strings.TrimSpace(req.Params["openrouter_role"]); role != "" {
 		return role
@@ -310,34 +343,57 @@ func roleForRequest(req backends.Request) string {
 	if req.Operation == "text_to_image" {
 		return "image.generate.default"
 	}
+	if req.Operation == "face_swap" || req.Operation == "colorize" {
+		// Both keep the subject recognisable: a swap changes who is shown, a
+		// colourisation must not change anything but colour.
+		return "image.edit.identity"
+	}
 	return "image.edit.default"
 }
 
 func (p *aiGatewayProvider) Execute(ctx context.Context, req backends.Request) (backends.Result, error) {
+	if models.IsVisionOperation(req.Operation) {
+		return executeVision(ctx, p.vision, models.BackendOpenRouter, false, req)
+	}
 	if req.Output.LocalPath == "" {
 		return backends.Result{}, fmt.Errorf("ai: AI Gateway image backend requires a local output path")
 	}
 	prompt := strings.TrimSpace(req.Params["prompt"])
+	switch {
+	case prompt != "":
+	case req.Operation == "face_swap":
+		prompt = FaceSwapInstruction
+	case req.Operation == "colorize":
+		prompt = technique.ColorizeInstruction
+	}
 	if prompt == "" {
 		return backends.Result{}, fmt.Errorf("ai: AI Gateway image generation requires a prompt")
 	}
 	if p == nil || p.media == nil {
 		return backends.Result{}, fmt.Errorf("ai: AI Gateway media client is not configured")
 	}
-	inputFile := ""
+	var inputFiles []string
 	if req.Operation != "text_to_image" {
-		var err error
-		inputFile, err = technique.Input0(req)
+		source, err := technique.Input0(req)
 		if err != nil {
 			return backends.Result{}, fmt.Errorf("ai: AI Gateway source image: %w", err)
+		}
+		inputFiles = append(inputFiles, source)
+		if req.Operation == "face_swap" {
+			reference, err := technique.ReferencePath(req)
+			if err != nil {
+				return backends.Result{}, fmt.Errorf("ai: AI Gateway face reference: %w", err)
+			}
+			inputFiles = append(inputFiles, reference)
 		}
 	}
 	result, err := p.media.Generate(ctx, mediaGenerationRequest{
 		Operation:  req.Operation,
 		Role:       roleForRequest(req),
 		Prompt:     prompt,
-		InputFile:  inputFile,
+		InputFiles: inputFiles,
 		OutputPath: req.Output.LocalPath,
+		MaxCostUSD: maxCostForRequest(req),
 	})
 	if err != nil {
 		outcomeOverride := ""
@@ -351,6 +407,15 @@ func (p *aiGatewayProvider) Execute(ctx context.Context, req backends.Request) (
 			statErr = io.ErrUnexpectedEOF
 		}
 		return backends.Result{Meta: attemptMeta(result, "failed")}, fmt.Errorf("ai: AI Gateway output is empty: %w", statErr)
+	}
+	if req.Operation == "colorize" {
+		// A colourisation keeps the picture and changes its colour. A general editor
+		// that answers with a picture of another shape has replaced the photo (it
+		// returned a different woman in a different scene for a portrait), so the
+		// result is refused rather than delivered as a colourised copy.
+		if err := sameShape(inputFiles[0], req.Output.LocalPath); err != nil {
+			return backends.Result{Meta: attemptMeta(result, "failed")}, fmt.Errorf("ai: AI Gateway colorize: %w", err)
+		}
 	}
 	meta := map[string]string{
 		"backend": models.BackendOpenRouter,
@@ -389,4 +454,39 @@ func mediaTypeForFile(path string) string {
 		return "image/svg+xml"
 	}
 	return http.DetectContentType(data)
+}
+
+// shapeTolerance is how far the output's aspect ratio may differ from the
+// input's. Providers round dimensions to their own grid (768x1024 comes back
+// 896x1200, a 0.4% difference); a different orientation is a different picture.
+const shapeTolerance = 0.03
+
+// sameShape checks that the output has the input's aspect ratio.
+func sameShape(inputPath, outputPath string) error {
+	in, err := imageSize(inputPath)
+	if err != nil {
+		return fmt.Errorf("read the source size: %w", err)
+	}
+	out, err := imageSize(outputPath)
+	if err != nil {
+		return fmt.Errorf("read the result size: %w", err)
+	}
+	inRatio, outRatio := float64(in[0])/float64(in[1]), float64(out[0])/float64(out[1])
+	if diff := math.Abs(outRatio-inRatio) / inRatio; diff > shapeTolerance {
+		return fmt.Errorf("the provider returned a %dx%d picture for a %dx%d photo, so it did not edit the photo you sent; no result is kept", out[0], out[1], in[0], in[1])
+	}
+	return nil
+}
+
+func imageSize(path string) ([2]int, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return [2]int{}, err
+	}
+	defer func() { _ = f.Close() }()
+	cfg, _, err := image.DecodeConfig(f)
+	if err != nil {
+		return [2]int{}, err
+	}
+	return [2]int{cfg.Width, cfg.Height}, nil
 }

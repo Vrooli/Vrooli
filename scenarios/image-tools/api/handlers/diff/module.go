@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 
+	"image-tools/internal/httpx"
 	internaljobs "image-tools/internal/jobs"
 	"image-tools/internal/module"
 	"image-tools/internal/storage"
@@ -34,7 +35,7 @@ func Module(blobs BlobStore, jobs *internaljobs.Manager, logger *log.Logger) mod
 		Name: "diff",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
-			r.HandleFunc("/api/v1/diff/compare", rest.compareHandler).Methods(http.MethodPost)
+			r.Handle("/api/v1/diff/compare", httpx.SyncBudgetFunc(rest.compareHandler)).Methods(http.MethodPost)
 		},
 		Endpoints: Endpoints,
 	}

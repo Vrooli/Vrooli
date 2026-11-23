@@ -2,6 +2,7 @@ package ai
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai"
@@ -60,6 +61,34 @@ func TestInpaintCropSchema(t *testing.T) {
 	})}
 	if err := validateOpParams("inpaint", tooMuch); err == nil {
 		t.Fatal("out-of-range context pixels accepted")
+	}
+}
+
+func TestSegmentationTextPhrase(t *testing.T) {
+	text := func(prompt map[string]any) *aiv1.AIParams {
+		return &aiv1.AIParams{OpParams: opParamsStruct(t, map[string]any{"segmentation": prompt})}
+	}
+	phrase := text(map[string]any{"text": "the tan suede jacket"})
+	if err := validateOpParams("segment", phrase); err != nil {
+		t.Fatalf("text phrase rejected by schema: %v", err)
+	}
+	if err := validateSegmentationSemantics("segment", phrase); err != nil {
+		t.Fatalf("text phrase rejected by semantics: %v", err)
+	}
+	if raw := paramsMap(phrase)["segmentation"]; !strings.Contains(raw, "tan suede jacket") {
+		t.Fatalf("phrase not threaded to the backend params: %q", raw)
+	}
+	mixed := text(map[string]any{"text": "the jacket", "box": map[string]any{"x": 0.1, "y": 0.1, "width": 0.5, "height": 0.5}})
+	if err := validateSegmentationSemantics("segment", mixed); err == nil {
+		t.Fatal("a phrase combined with a box was accepted; the grounded model chooses its own box")
+	}
+	for name, bad := range map[string]map[string]any{
+		"empty":    {"text": ""},
+		"too-long": {"text": strings.Repeat("a", 201)},
+	} {
+		if err := validateOpParams("segment", text(bad)); err == nil {
+			t.Fatalf("%s phrase accepted", name)
+		}
 	}
 }
 

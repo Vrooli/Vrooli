@@ -179,6 +179,7 @@ const literalSelectors = {
       error: "models-blocklist-error",
       entry: "models-blocklist-entry",
       onnxWarning: "models-blocklist-onnx-warning",
+      gate: "models-blocklist-gate",
     },
     addCustom: {
       form: "models-add-custom-form",
@@ -200,6 +201,8 @@ const literalSelectors = {
       name: "models-import-name",
       architecture: "models-import-architecture",
       attest: "models-import-attest",
+      adapter: "models-import-adapter",
+      needs: "models-import-needs",
       submit: "models-import-submit",
       success: "models-import-success",
       error: "models-import-error",
@@ -218,7 +221,15 @@ const literalSelectors = {
     },
     // Host-aware model picker (the menu behind every AI action). The static
     // ids live here; the per-model-id dynamic selectors are in the dynamic tree.
+    // At-a-glance verdict of a model (grade + one-line reason) on the models card
+    // (per-model rows are addressed by order inside the list) and its evidence.
+    verdict: "models-verdict",
+    verdictReason: "models-verdict-reason",
+    verdictOperations: "models-verdict-operations",
+    override: "models-override",
     pickerTrigger: "models-picker-trigger",
+    // Verdict of the model the trigger names (grade chip + one-line reason).
+    pickerTriggerVerdict: "models-picker-trigger-verdict",
     // The always-visible derived-op caveat under the trigger (shown only when the
     // effective model serves the op via a derived technique).
     pickerTriggerCaveat: "models-picker-trigger-caveat",
@@ -247,6 +258,7 @@ const literalSelectors = {
     dropzone: "workspace-dropzone",
     fileInput: "workspace-file-input",
     operationSelect: "workspace-operation-select",
+    capacityNote: "workspace-capacity-note",
     opDescription: "workspace-op-description",
     overlayInput: "workspace-overlay-input",
     paramsForm: "workspace-params-form",
@@ -313,6 +325,15 @@ const literalSelectors = {
       installGate: "workspace-enhance-install-gate",
       install: "workspace-enhance-install",
     },
+    // Operator rating of a finished job's output (1-5 plus an optional note).
+    rating: {
+      root: "workspace-rating",
+      note: "workspace-rating-note",
+      save: "workspace-rating-save",
+      saved: "workspace-rating-saved",
+      clear: "workspace-rating-clear",
+      error: "workspace-rating-error",
+    },
     create: {
       panel: "workspace-create-panel",
       intro: "workspace-create-intro",
@@ -351,6 +372,13 @@ const literalSelectors = {
       consent: "workspace-create-consent",
       consentRequired: "workspace-create-consent-required",
       consentBlocked: "workspace-create-consent-blocked",
+      consentReason: "workspace-create-consent-reason",
+      reference: "workspace-create-reference",
+      extent: "workspace-create-extent",
+      extentPresets: "workspace-create-extent-presets",
+      extentStage: "workspace-create-extent-stage",
+      extentStrength: "workspace-create-extent-strength",
+      needsReference: "workspace-create-needs-reference",
     },
     mask: {
       root: "workspace-mask",
@@ -359,6 +387,11 @@ const literalSelectors = {
       clear: "workspace-mask-clear",
       upload: "workspace-mask-upload",
       status: "workspace-mask-status",
+      selectRoot: "workspace-mask-select",
+      selectInput: "workspace-mask-select-input",
+      selectRun: "workspace-mask-select-run",
+      selectBusy: "workspace-mask-select-busy",
+      selectError: "workspace-mask-select-error",
     },
     analyze: {
       panel: "workspace-analyze-panel",
@@ -479,6 +512,21 @@ const dynamicSelectorDefinitions = {
       testIdPattern: "workspace-create-action-${name}",
       params: { name: { type: "string" } },
     }),
+    opVerdict: defineDynamicSelector({
+      description: "Verdict badge of an operation's default model, by operation name",
+      testIdPattern: "workspace-op-verdict-${name}",
+      params: { name: { type: "string" } },
+    }),
+    maskQuickSelect: defineDynamicSelector({
+      description: "Mask tool quick select-by-name button by phrase",
+      testIdPattern: "workspace-mask-select-quick-${phrase}",
+      params: { phrase: { type: "string" } },
+    }),
+    ratingScore: defineDynamicSelector({
+      description: "Rating control score button by score (1-5)",
+      testIdPattern: "workspace-rating-score-${score}",
+      params: { score: { type: "number" } },
+    }),
     createVariation: defineDynamicSelector({
       description: "Create result-grid variation slot by 1-based index",
       testIdPattern: "workspace-create-variation-${index}",
@@ -558,6 +606,11 @@ const dynamicSelectorDefinitions = {
     }),
   },
   models: {
+    pickerVerdict: defineDynamicSelector({
+      description: "Model-picker verdict badge by model id",
+      testIdPattern: "models-picker-verdict-${id}",
+      params: { id: { type: "string" } },
+    }),
     pickerRow: defineDynamicSelector({
       description: "Model-picker candidate row by model id",
       testIdPattern: "models-picker-row-${id}",
@@ -639,6 +692,11 @@ const dynamicSelectorDefinitions = {
       description: "Handedness choice radio button on the settings page",
       testIdPattern: "page-settings-handedness-${choice}",
       params: { choice: { type: "enum", values: ["left", "right"] as const } },
+    }),
+    sensitiveImagesOption: defineDynamicSelector({
+      description: "Sensitive-image display choice (blur or show) radio button on the settings page",
+      testIdPattern: "page-settings-sensitive-images-${choice}",
+      params: { choice: { type: "enum", values: ["blur", "show"] as const } },
     }),
   },
 } satisfies DynamicSelectorTree;

@@ -37,6 +37,9 @@ CREATE TABLE IF NOT EXISTS job_trace (
   queue_wait_ms INTEGER NOT NULL DEFAULT 0,
   result_ref   TEXT NOT NULL DEFAULT '',
   error        TEXT NOT NULL DEFAULT '',
+  -- Whose fault a failed job was: fault (default), refused, invalid_input or
+  -- interrupted (see jobs.FailureKind). Only a fault counts against a model.
+  failure_kind TEXT NOT NULL DEFAULT '',
   recorded_at  TEXT NOT NULL DEFAULT ''
 );
 

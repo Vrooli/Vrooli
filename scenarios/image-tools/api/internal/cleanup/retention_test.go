@@ -209,7 +209,7 @@ func TestLiveRuntimeEntriesAreNeverGenericallyAgePruned(t *testing.T) {
 	if err := json.Unmarshal(raw, &manifest); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"python_runtime", "sidecar_runtime"} {
+	for _, name := range []string{"python_runtime", "sidecar_runtime", "model_staging"} {
 		entry, ok := manifest.Storage.Entries[name]
 		if !ok {
 			t.Fatalf("%s is not declared", name)

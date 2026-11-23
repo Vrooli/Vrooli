@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { SegmentedControl } from "../../components/ui/segmented-control";
-import { Textarea } from "../../components/ui/textarea";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1.1.1";
 import { Toggle } from "../../components/ui/toggle";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
@@ -21,12 +21,15 @@ import {
   VARIATION_OPTIONS,
   type SizePreset,
 } from "./createCatalog";
-import { capabilityPresentation, familyIcon, isPanelOperation } from "./capabilityCatalog";
+import { capabilityMeta, capabilityPresentation, familyIcon, isPanelOperation } from "./capabilityCatalog";
 import type { InpaintOpParams } from "./opParams.generated";
+import { ModelCapacityNote } from "./ModelCapacityNote";
 import { ModelPickerButton } from "../models/ModelPickerButton";
 import { VerdictBadge } from "../models/VerdictBadge";
 import { JobRatingControl } from "./JobRatingControl";
 import { MaskBrush } from "./MaskBrush";
+import { SwapExtentControl } from "./SwapExtentControl";
+import { defaultSelection, extentOpParams, type ExtentSelection } from "./swapExtent";
 import { MODE_LABEL } from "./modeLabels";
 import { isCreateActive, type CreateVariation, type UseCreate } from "./useCreate";
 import { VariationGrid } from "./VariationGrid";
@@ -89,6 +92,8 @@ export function CreatePanel({
   const [poseSource, setPoseSource] = useState<File | null>(null);
   const [reference, setReference] = useState<File | null>(null);
   const [openRailMAccepted, setOpenRailMAccepted] = useState(false);
+  const extent = operation ? capabilityMeta(operation)?.extent : undefined;
+  const [extentSelection, setExtentSelection] = useState<ExtentSelection | null>(null);
 
   const generationOps = useMemo(
     () => (aiOpsQuery.data?.operations ?? []).filter((op) => isPanelOperation(op.name, "create")),
@@ -128,6 +133,7 @@ export function CreatePanel({
     setConsentAffirmed(false);
     setCfgScale("");
     setImageGuidance("");
+    setExtentSelection(null);
     setCropToMask(false);
     setCropContextPixels("96");
   }, [operation]);
@@ -214,6 +220,9 @@ export function CreatePanel({
           Number.isInteger(context) && context >= 0 && context <= 512 ? context : 96,
       } satisfies InpaintOpParams;
     }
+    if (extent) {
+      out.opParams = { ...extentOpParams(extent, extentSelection ?? defaultSelection(extent)) };
+    }
     if (operation === "text_to_image" && poseSource) {
       out.adapters = [
         {
@@ -249,6 +258,9 @@ export function CreatePanel({
     consentAffirmed,
     poseSource,
     openRailMAccepted,
+    extent,
+    extentSelection,
+    operation,
   ]);
 
   const missingImage = requiresImage && !input;
@@ -351,6 +363,7 @@ export function CreatePanel({
                 {t(strings.workspace.create.promptLabel)}
               </span>
               <Textarea
+                className="image-tools-textarea"
                 data-testid={selectors.workspace.create.prompt}
                 value={prompt}
                 placeholder={t(strings.workspace.create.promptPlaceholder)}
@@ -416,7 +429,7 @@ export function CreatePanel({
 
           {requiresMask && !missingImage && (
             <>
-              <MaskBrush imageUrl={inputUrl} onMask={setMask} />
+              <MaskBrush imageUrl={inputUrl} image={input} onMask={setMask} />
               {missingMask && (
                 <p
                   data-testid={selectors.workspace.create.needsMask}
@@ -445,6 +458,14 @@ export function CreatePanel({
                 <span>{t(strings.workspace.create.reference.staged, { name: reference?.name ?? "" })}</span>
               )}
             </label>
+          )}
+
+          {extent && (
+            <SwapExtentControl
+              extent={extent}
+              selection={extentSelection ?? defaultSelection(extent)}
+              onChange={setExtentSelection}
+            />
           )}
 
           {showSize && (
@@ -524,6 +545,7 @@ export function CreatePanel({
                   {t(strings.workspace.create.negativeLabel)}
                 </span>
                 <Textarea
+                  className="image-tools-textarea"
                   data-testid={selectors.workspace.create.negative}
                   value={negative}
                   placeholder={t(strings.workspace.create.negativePlaceholder)}
@@ -644,6 +666,8 @@ export function CreatePanel({
               />
             </div>
           )}
+
+          <ModelCapacityNote model={operation && !modelOverride && !forceCpu ? model : null} />
 
           {create.phase === "needs-install" && model ? (
             <div

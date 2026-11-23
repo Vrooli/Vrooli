@@ -115,8 +115,8 @@ func TestRepoFileSHA256PinsAreCheckedBeforePublicationAndOnReadback(t *testing.T
 
 func TestAcquisitionPublishesOnlyVerifiedReplacement(t *testing.T) {
 	root := t.TempDir()
-	dest := filepath.Join(root, "model")
-	if err := os.Mkdir(dest, 0o755); err != nil {
+	dest := filepath.Join(root, "models", "model")
+	if err := os.MkdirAll(dest, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	old := filepath.Join(dest, "old.bin")
@@ -145,9 +145,12 @@ func TestAcquisitionPublishesOnlyVerifiedReplacement(t *testing.T) {
 	if _, err := os.Stat(old); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("obsolete artifact survived replacement: %v", err)
 	}
-	entries, err := os.ReadDir(root)
+	entries, err := os.ReadDir(filepath.Join(root, "models"))
 	if err != nil || len(entries) != 1 || entries[0].Name() != "model" {
-		t.Fatalf("staging artifacts retained: %v, %v", entries, err)
+		t.Fatalf("artifacts beside the published model: %v, %v", entries, err)
+	}
+	if left, err := os.ReadDir(StagingRoot(root, dest)); err != nil || len(left) != 0 {
+		t.Fatalf("staging artifacts retained: %v, %v", left, err)
 	}
 }
 
@@ -235,5 +238,40 @@ func TestAcquisitionRefusesEscapingAssetAndLeavesLocalReferenceUntouched(t *test
 	}
 	if got, err := os.ReadFile(path); err != nil || string(got) != "local model" {
 		t.Fatalf("local reference changed: %q %v", got, err)
+	}
+}
+
+func TestAcquireRefusesADestinationOutsideTheManagedRoot(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	linked := filepath.Join(root, "escape")
+	if err := os.Symlink(outside, linked); err != nil {
+		t.Fatal(err)
+	}
+	wrote := false
+	acquirer := Acquirer{Root: root, Download: acquireDownloader(func(context.Context, string, string, func(int64, int64)) error {
+		wrote = true
+		return nil
+	})}
+	source := Source{DownloadURL: "https://models.example/model.bin"}
+	for name, dest := range map[string]string{
+		"sibling directory":       filepath.Join(outside, "model"),
+		"parent traversal":        filepath.Join(root, "..", filepath.Base(outside), "model"),
+		"symlink out of root":     filepath.Join(linked, "model"),
+		"the managed root itself": root,
+	} {
+		_, err := acquirer.Acquire(context.Background(), source, dest, "", 1, nil)
+		if !errors.Is(err, ErrOutsideManagedRoot) {
+			t.Fatalf("%s: err=%v, want ErrOutsideManagedRoot", name, err)
+		}
+		if !strings.Contains(err.Error(), "managed root") {
+			t.Fatalf("%s: the refusal must say what to do: %v", name, err)
+		}
+	}
+	if wrote {
+		t.Fatal("a download started for a destination outside the managed root")
+	}
+	if entries, _ := os.ReadDir(outside); len(entries) != 0 {
+		t.Fatalf("bytes landed outside the managed root: %v", entries)
 	}
 }

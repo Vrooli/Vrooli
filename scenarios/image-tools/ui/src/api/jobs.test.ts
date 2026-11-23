@@ -6,6 +6,8 @@ const mocks = vi.hoisted(() => ({
     waitJob: vi.fn(),
     listJobs: vi.fn(),
     cancelJob: vi.fn(),
+    rateJob: vi.fn(),
+    clearJobRating: vi.fn(),
   },
 }));
 
@@ -45,5 +47,24 @@ describe("api/jobs", () => {
     expect(JobState.SUCCEEDED).toBeDefined();
     expect(JobLane.GPU).toBeDefined();
     expect(JobQueue.LOCAL_SERIAL).toBeDefined();
+  });
+
+  it("rateJob records the operator as the rater, trims the note and returns the stored rating", async () => {
+    mocks.client.rateJob.mockResolvedValue({ rating: { jobId: "job-1", score: 4 } });
+    const { rateJob } = await import("./jobs");
+
+    const rating = await rateJob("job-1", 4, "  kept the face  ");
+
+    expect(mocks.client.rateJob).toHaveBeenCalledWith({ jobId: "job-1", score: 4, note: "kept the face", actor: "operator" });
+    expect(rating?.score).toBe(4);
+  });
+
+  it("clearJobRating removes the rating of the given job", async () => {
+    mocks.client.clearJobRating.mockResolvedValue({});
+    const { clearJobRating } = await import("./jobs");
+
+    await clearJobRating("job-1");
+
+    expect(mocks.client.clearJobRating).toHaveBeenCalledWith({ jobId: "job-1" });
   });
 });
