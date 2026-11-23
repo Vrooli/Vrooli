@@ -2,7 +2,7 @@ import * as React from "react";
 import { Link } from "react-router-dom";
 
 import { ApiError } from "../../api/client";
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
@@ -124,21 +124,20 @@ export function NewTargetForm({ recentTargetsStorage, now }: NewTargetFormProps)
           type="submit"
           disabled={extract.isPending}
           data-testid={selectors.features.targets.newForm.submitButton}
+          shape="square"
         >
           {extract.isPending
             ? t(strings.pages.newTarget.submitting)
             : t(strings.pages.newTarget.submitButton)}
         </Button>
         {snapshot && targetScenario.length > 0 && (
-          <Button
-            asChild
-            variant="outline"
+          <Link
+            to={`/targets/${encodeScenarioPath(targetScenario)}`}
+            className="inline-flex items-center justify-center rounded-control text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50 disabled:pointer-events-none disabled:opacity-60 border border-app-border text-app-foreground hover:bg-app-surface-muted h-11 px-5"
             data-testid={selectors.features.targets.newForm.openWorkspaceLink}
           >
-            <Link to={`/targets/${encodeScenarioPath(targetScenario)}`}>
-              {t(strings.pages.newTarget.openWorkspace)}
-            </Link>
-          </Button>
+            {t(strings.pages.newTarget.openWorkspace)}
+          </Link>
         )}
       </div>
 

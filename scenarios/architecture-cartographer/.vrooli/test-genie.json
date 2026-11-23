@@ -231,7 +231,7 @@
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "screaming-architecture-audit",
+          "architecture-lenses",
           "scientific-debugging"
         ]
       },
@@ -243,8 +243,7 @@
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "screaming-architecture-audit",
-          "screaming-architecture-audit"
+          "architecture-lenses"
         ]
       },
       "domain_authority/low": {
@@ -255,7 +254,7 @@
         "severity_default": "SEVERITY_INFO",
         "clean_requirement": "advisory",
         "recommended_skill_ids": [
-          "screaming-architecture-audit"
+          "architecture-lenses"
         ]
       },
       "domains_doc_parse_warning": {
@@ -266,7 +265,7 @@
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "screaming-architecture-audit",
+          "architecture-lenses",
           "documentation-health"
         ]
       },
@@ -278,8 +277,7 @@
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "screaming-architecture-audit",
-          "boundary-of-responsibility-enforcement"
+          "architecture-lenses"
         ]
       },
       "cycle/cross-domain": {
@@ -290,8 +288,7 @@
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "screaming-architecture-audit",
-          "boundary-of-responsibility-enforcement"
+          "architecture-lenses"
         ]
       },
       "layering": {
@@ -302,8 +299,7 @@
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "boundary-of-responsibility-enforcement",
-          "screaming-architecture-audit"
+          "architecture-lenses"
         ]
       },
       "cross_scenario": {
@@ -314,7 +310,7 @@
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "boundary-of-responsibility-enforcement",
+          "architecture-lenses",
           "api-steer"
         ]
       },
@@ -326,7 +322,7 @@
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "advisory",
         "recommended_skill_ids": [
-          "screaming-architecture-audit",
+          "architecture-lenses",
           "cognitive-load-reduction"
         ]
       },
@@ -338,8 +334,7 @@
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "advisory",
         "recommended_skill_ids": [
-          "screaming-architecture-audit",
-          "boundary-of-responsibility-enforcement"
+          "architecture-lenses"
         ]
       },
       "naming": {
@@ -350,8 +345,7 @@
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "advisory",
         "recommended_skill_ids": [
-          "screaming-architecture-audit",
-          "domain-clarity"
+          "architecture-lenses"
         ]
       },
       "glossary_drift": {
@@ -362,8 +356,7 @@
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "advisory",
         "recommended_skill_ids": [
-          "screaming-architecture-audit",
-          "domain-clarity"
+          "architecture-lenses"
         ]
       },
       "convergence_drift": {
@@ -374,7 +367,7 @@
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "screaming-architecture-audit"
+          "architecture-lenses"
         ]
       },
       "surface_coherence": {
@@ -385,8 +378,7 @@
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "screaming-architecture-audit",
-          "boundary-of-responsibility-enforcement"
+          "architecture-lenses"
         ]
       },
       "intent.req_unowned_domain": {
@@ -398,7 +390,7 @@
         "clean_requirement": "required",
         "recommended_skill_ids": [
           "requirements-traceability-steer",
-          "boundary-of-responsibility-enforcement"
+          "architecture-lenses"
         ]
       },
       "intent.req_transport_owned": {
@@ -421,7 +413,7 @@
         "clean_requirement": "required",
         "recommended_skill_ids": [
           "requirements-traceability-steer",
-          "screaming-architecture-audit"
+          "architecture-lenses"
         ]
       },
       "intent.ot_no_domain": {
@@ -433,7 +425,7 @@
         "clean_requirement": "required",
         "recommended_skill_ids": [
           "requirements-traceability-steer",
-          "screaming-architecture-audit"
+          "architecture-lenses"
         ]
       },
       "intent.vocab_drift": {
@@ -445,7 +437,7 @@
         "clean_requirement": "advisory",
         "recommended_skill_ids": [
           "requirements-traceability-steer",
-          "domain-clarity"
+          "architecture-lenses"
         ]
       }
     },

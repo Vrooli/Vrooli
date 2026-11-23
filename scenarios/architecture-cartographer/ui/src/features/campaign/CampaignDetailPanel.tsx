@@ -3,9 +3,9 @@ import * as React from "react";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { Badge } from "../../components/ui/badge";
-import { Textarea } from "../../components/ui/textarea";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1.1.1";
 import { Card, CardBody, CardHeader, CardTitle } from "../../components/ui/card";
 import { EmptyState } from "../../components/EmptyState";
 import { ErrorState } from "../../components/ErrorState";
@@ -27,6 +27,7 @@ import {
   CampaignLifecycle,
   type CampaignItem,
 } from "@vrooli/proto-types/architecture-cartographer/v1/campaign/campaign_pb";
+import { cn } from "../../lib/utils";
 
 const SEVERITY_LABEL_KEY = {
   info: strings.shared.severity.info,
@@ -232,7 +233,7 @@ export function CampaignDetailPanel({ scenario, campaignId }: CampaignDetailPane
                       <div className="flex flex-wrap gap-2">
                         <Button
                           type="button"
-                          variant="default"
+                          variant="primary"
                           size="sm"
                           disabled={pending}
                           data-testid={selectors.features.campaign.detail.actionButton({
@@ -240,12 +241,13 @@ export function CampaignDetailPanel({ scenario, campaignId }: CampaignDetailPane
                             action: "resolve",
                           })}
                           onClick={() => onResolve(item)}
+                          shape="square"
                         >
                           {pending ? t(strings.campaign.actions.pending) : t(strings.campaign.actions.resolve)}
                         </Button>
                         <Button
                           type="button"
-                          variant="outline"
+                          variant="ghost"
                           size="sm"
                           disabled={pending}
                           data-testid={selectors.features.campaign.detail.actionButton({
@@ -253,6 +255,8 @@ export function CampaignDetailPanel({ scenario, campaignId }: CampaignDetailPane
                             action: "apply",
                           })}
                           onClick={() => apply.mutate(item.stableId)}
+                          shape="square"
+                          className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
                         >
                           {pending ? t(strings.campaign.actions.pending) : t(strings.campaign.actions.apply)}
                         </Button>
@@ -301,11 +305,12 @@ export function CampaignDetailPanel({ scenario, campaignId }: CampaignDetailPane
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
-                variant="default"
+                variant="primary"
                 size="sm"
                 data-testid={selectors.features.campaign.detail.reauditSubmit}
                 onClick={onReaudit}
                 disabled={reaudit.isPending || report.trim().length === 0}
+                shape="square"
               >
                 {reaudit.isPending
                   ? t(strings.pages.campaign.detail.reauditting)
@@ -313,11 +318,13 @@ export function CampaignDetailPanel({ scenario, campaignId }: CampaignDetailPane
               </Button>
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 data-testid={selectors.features.campaign.detail.closeButton}
                 onClick={() => close.mutate()}
                 disabled={close.isPending}
+                shape="square"
+                className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
               >
                 {close.isPending
                   ? t(strings.pages.campaign.detail.closing)

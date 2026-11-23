@@ -1,25 +1,10 @@
 package main
 
-import (
-	"context"
-	"testing"
-)
+import "testing"
 
 // [REQ:CHART-P0-001-AREA] Area chart generation with filled regions under line plots
 func TestAreaChart_Generation(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	processor := NewChartProcessor(nil)
-	ctx := context.Background()
-
-	tests := []struct {
-		name           string
-		req            ChartGenerationProcessorRequest
-		expectSuccess  bool
-		expectedError  string
-		validateResult func(t *testing.T, result *ChartGenerationProcessorResponse)
-	}{
+	tests := []chartGenerationCase{
 		{
 			name: "ValidAreaChart",
 			req: ChartGenerationProcessorRequest{
@@ -85,39 +70,5 @@ func TestAreaChart_Generation(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := processor.GenerateChart(ctx, tt.req)
-
-			if err != nil {
-				t.Fatalf("GenerateChart returned unexpected error: %v", err)
-			}
-
-			if tt.expectSuccess {
-				if !result.Success {
-					errorMsg := ""
-					if result.Error != nil {
-						errorMsg = result.Error.Message
-					}
-					t.Errorf("Expected success, got failure: %s", errorMsg)
-				}
-
-				if tt.validateResult != nil {
-					tt.validateResult(t, result)
-				}
-			} else {
-				if result.Success {
-					t.Error("Expected failure, got success")
-				}
-
-				if result.Error == nil {
-					t.Error("Expected error in response, got nil")
-				} else if tt.expectedError != "" {
-					if !containsString(result.Error.Message, tt.expectedError) {
-						t.Errorf("Expected error containing '%s', got '%s'", tt.expectedError, result.Error.Message)
-					}
-				}
-			}
-		})
-	}
+	runChartGenerationCases(t, tests)
 }

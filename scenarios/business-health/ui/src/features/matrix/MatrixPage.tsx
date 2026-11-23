@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { AlertTriangle, ChevronRight } from "lucide-react";
 
 import { ScenarioPicker } from "../../components/ScenarioPicker";
-import { StatusChip } from "../../components/StatusChip";
+import { StatusBadge as StatusChip } from "@vrooli/react-component-library/StatusBadge/1";
 import { EvidenceSummary } from "./EvidenceSummary";
 import { RequirementDrawer } from "./RequirementDrawer";
 import { groupMatrixRows, countUnproven, UNLINKED_GROUP_ID } from "./matrixModel";

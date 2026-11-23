@@ -359,44 +359,6 @@ type AppScenarioStatus struct {
 	Details         []string               `json:"details"`
 }
 
-type scenarioStatusConnectivity struct {
-	Connected bool     `json:"connected"`
-	APIURL    string   `json:"api_url"`
-	Error     string   `json:"error"`
-	LatencyMs *float64 `json:"latency_ms"`
-}
-
-type scenarioStatusHealthCheck struct {
-	Name            string                      `json:"name"`
-	Status          string                      `json:"status"`
-	Port            int                         `json:"port"`
-	Available       bool                        `json:"available"`
-	ResponseTime    *float64                    `json:"response_time"`
-	SchemaValid     *bool                       `json:"schema_valid"`
-	APIConnectivity *scenarioStatusConnectivity `json:"api_connectivity"`
-	Dependencies    map[string]interface{}      `json:"dependencies"`
-	Message         string                      `json:"message"`
-}
-
-type scenarioStatusTestEntry struct {
-	Status          string   `json:"status"`
-	Message         string   `json:"message"`
-	Recommendation  string   `json:"recommendation"`
-	Recommendations []string `json:"recommendations"`
-	Types           []string `json:"types"`
-	Tests           []string `json:"tests"`
-	Workflows       []string `json:"workflows"`
-}
-
-type scenarioStatusTestInfrastructure struct {
-	Overall         *scenarioStatusTestEntry `json:"overall"`
-	TestLifecycle   *scenarioStatusTestEntry `json:"test_lifecycle"`
-	PhasedStructure *scenarioStatusTestEntry `json:"phased_structure"`
-	UnitTests       *scenarioStatusTestEntry `json:"unit_tests"`
-	CliTests        *scenarioStatusTestEntry `json:"cli_tests"`
-	UiTests         *scenarioStatusTestEntry `json:"ui_tests"`
-}
-
 // =============================================================================
 // Health Check Diagnostics Types
 // =============================================================================

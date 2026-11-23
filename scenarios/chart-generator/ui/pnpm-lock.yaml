@@ -23,6 +23,9 @@ importers:
       '@vrooli/iframe-bridge':
         specifier: file:../../../packages/iframe-bridge
         version: file:../../../packages/iframe-bridge(react@18.3.1)
+      '@vrooli/react-component-library':
+        specifier: file:../../../packages/react-component-library
+        version: file:../../../packages/react-component-library(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       class-variance-authority:
         specifier: ^0.7.0
         version: 0.7.1
@@ -174,6 +177,10 @@ packages:
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
+
+  '@babel/runtime@7.29.14':
+    resolution: {integrity: sha512-Y5tqevQaUAZhhj82BpYMNC1ssvLQTVAfwKdm8iy8qwmhvC2/CpcAu8OC+QEtjM7pMk7knx83u1Qj8gzkicyelw==}
+    engines: {node: '>=6.9.0'}
 
   '@babel/template@7.29.7':
     resolution: {integrity: sha512-puq+Gf35oI24FeN11LkoUQFqv9uwNeWpxXZi/Ji3rRIoKAzKnxRaZ+Gkj0vKS9ZCiTESfng1N9LyOyXvo+m+Gg==}
@@ -909,6 +916,25 @@ packages:
       react:
         optional: true
 
+  '@vrooli/react-component-library@file:../../../packages/react-component-library':
+    resolution: {directory: ../../../packages/react-component-library, type: directory}
+    peerDependencies:
+      mermaid: '>=11.0.0'
+      react: '>=18.0.0'
+      react-dom: '>=18.0.0'
+      react-markdown: '>=10.0.0'
+      remark-gfm: '>=4.0.0'
+      shiki: '>=4.0.0'
+    peerDependenciesMeta:
+      mermaid:
+        optional: true
+      react-markdown:
+        optional: true
+      remark-gfm:
+        optional: true
+      shiki:
+        optional: true
+
   accepts@1.3.8:
     resolution: {integrity: sha512-PYAthTa2m2VKxuvSD3DPC/Gy+U+sOA1LAuT8mkmRuvw+NACSaeXEQ+NHcVF7rONl6qcaxV3Uuemwawk+7+SJLw==}
     engines: {node: '>= 0.6'}
@@ -1445,6 +1471,11 @@ packages:
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
 
+  lucide-react@0.424.0:
+    resolution: {integrity: sha512-x2Nj2aytk1iOyHqt4hKenfVlySq0rYxNeEf8hE0o+Yh0iE36Rqz0rkngVdv2uQtjZ70LAE73eeplhhptYt9x4Q==}
+    peerDependencies:
+      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0-rc
+
   lucide-react@0.441.0:
     resolution: {integrity: sha512-0vfExYtvSDhkC2lqg0zYVW1Uu9GsI4knuV9GP9by5z0Xhc4Zi5RejTxfz9LsjRmCyWVzHCJvxGKZWcRyvQCWVg==}
     peerDependencies:
@@ -1774,6 +1805,9 @@ packages:
     resolution: {integrity: sha512-ot0WnXS9fgdkgIcePe6RHNk1WA8+muPa6cSjeR3V8K27q9BB1rTE3R1p7Hv0z1ZyAc8s6Vvv8DIyWf681MAt0w==}
     engines: {node: '>= 0.4'}
 
+  tailwind-merge@2.3.0:
+    resolution: {integrity: sha512-vkYrLpIP+lgR0tQCG6AP7zZXCTLc1Lnv/CCRT3BqJ9CZ3ui2++GPaGb1x/ILsINIMSYqqvrpqjUFsMNLlW99EA==}
+
   tailwind-merge@2.6.0:
     resolution: {integrity: sha512-P+Vu1qXfzediirmHOC3xKGAYeZtPcV9g76X+xg2FD4tYgR71ewMA35Y3sCz3zhiN/dwefRpJX0yBcgwi1fXNQA==}
 
@@ -1985,6 +2019,8 @@ snapshots:
     dependencies:
       '@babel/core': 7.29.13
       '@babel/helper-plugin-utils': 7.27.1
+
+  '@babel/runtime@7.29.14': {}
 
   '@babel/template@7.29.7':
     dependencies:
@@ -2628,6 +2664,14 @@ snapshots:
     optionalDependencies:
       react: 18.3.1
 
+  '@vrooli/react-component-library@file:../../../packages/react-component-library(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      clsx: 2.1.1
+      lucide-react: 0.424.0(react@18.3.1)
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      tailwind-merge: 2.3.0
+
   accepts@1.3.8:
     dependencies:
       mime-types: 2.1.35
@@ -3210,6 +3254,10 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
+  lucide-react@0.424.0(react@18.3.1):
+    dependencies:
+      react: 18.3.1
+
   lucide-react@0.441.0(react@18.3.1):
     dependencies:
       react: 18.3.1
@@ -3534,6 +3582,10 @@ snapshots:
       ts-interface-checker: 0.1.13
 
   supports-preserve-symlinks-flag@1.0.0: {}
+
+  tailwind-merge@2.3.0:
+    dependencies:
+      '@babel/runtime': 7.29.14
 
   tailwind-merge@2.6.0: {}
 

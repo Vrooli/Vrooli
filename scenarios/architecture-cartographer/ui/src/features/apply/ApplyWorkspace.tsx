@@ -3,7 +3,7 @@ import * as React from "react";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { EmptyState } from "../../components/EmptyState";
 import { ApplyOverview } from "./ApplyOverview";
 import { ApplyConfirmDialog } from "./ApplyConfirmDialog";
@@ -17,6 +17,7 @@ import {
 } from "./controllers/useApplyController";
 import { transition, type ApplyState, type ApplyEvent } from "./flow/transition";
 import type { Plan } from "@vrooli/proto-types/architecture-cartographer/v1/apply/apply_pb";
+import { cn } from "../../lib/utils";
 
 export interface ApplyWorkspaceProps {
   scenario: string;
@@ -84,11 +85,12 @@ export function ApplyWorkspace({ scenario, domain }: ApplyWorkspaceProps) {
       <div className="flex flex-wrap gap-2">
         <Button
           type="button"
-          variant="default"
+          variant="primary"
           size="sm"
           data-testid={selectors.features.apply.plan.planButton}
           onClick={() => void onPlan(false)}
           disabled={planMutation.isPending}
+          shape="square"
         >
           {planMutation.isPending
             ? t(strings.pages.targetApply.planning)
@@ -96,21 +98,24 @@ export function ApplyWorkspace({ scenario, domain }: ApplyWorkspaceProps) {
         </Button>
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           size="sm"
           data-testid={selectors.features.apply.plan.dryRunButton}
           onClick={() => void onPlan(true)}
           disabled={planMutation.isPending || !plan}
+          shape="square"
+          className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
         >
           {t(strings.pages.targetApply.dryRunButton)}
         </Button>
         <Button
           type="button"
-          variant="default"
+          variant="primary"
           size="sm"
           data-testid={selectors.features.apply.plan.applyButton}
           onClick={onApplyClicked}
           disabled={runMutation.isPending || !plan}
+          shape="square"
         >
           {runMutation.isPending
             ? t(strings.pages.targetApply.applying)

@@ -1,7 +1,7 @@
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { EmptyState } from "../../components/EmptyState";
 import { ErrorState } from "../../components/ErrorState";
 import { LoadingState } from "../../components/LoadingState";
@@ -94,11 +94,12 @@ export function DomainMapView({ scenario }: DomainMapViewProps) {
       <div className="flex flex-wrap gap-2">
         <Button
           type="button"
-          variant="default"
+          variant="primary"
           size="sm"
           data-testid={selectors.features.domains.view.extractButton}
           onClick={() => extract.mutate()}
           disabled={extract.isPending}
+          shape="square"
         >
           {extract.isPending
             ? t(strings.pages.targetDomains.extracting)

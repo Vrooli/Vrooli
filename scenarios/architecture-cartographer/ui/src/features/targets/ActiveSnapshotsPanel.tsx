@@ -3,7 +3,6 @@ import { timestampDate } from "@bufbuild/protobuf/wkt";
 import type { GraphSnapshot } from "@vrooli/proto-types/architecture-cartographer/v1/graph/graph_pb";
 
 import { ApiError } from "../../api/client";
-import { Button } from "../../components/ui/button";
 import { EmptyState } from "../../components/EmptyState";
 import { ErrorState } from "../../components/ErrorState";
 import { LoadingState } from "../../components/LoadingState";
@@ -88,11 +87,12 @@ export function ActiveSnapshotsPanel() {
               {t(strings.targets.snapshots.extractedAtLabel)} {describeExtractedAt(snapshot)}
             </p>
           </div>
-          <Button asChild size="sm" variant="outline">
-            <Link to={`/targets/${encodeScenarioPath(snapshot.scenario)}`}>
-              {t(strings.targets.snapshots.openButton)}
-            </Link>
-          </Button>
+          <Link
+            to={`/targets/${encodeScenarioPath(snapshot.scenario)}`}
+            className="inline-flex items-center justify-center rounded-control text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50 disabled:pointer-events-none disabled:opacity-60 border border-app-border text-app-foreground hover:bg-app-surface-muted h-9 px-4"
+          >
+            {t(strings.targets.snapshots.openButton)}
+          </Link>
         </li>
       ))}
     </ul>

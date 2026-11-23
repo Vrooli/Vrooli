@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AlertTriangle, ArrowDown, ArrowUp, RefreshCw } from "lucide-react";
 
-import { StatusChip } from "../../components/StatusChip";
+import { StatusBadge as StatusChip } from "@vrooli/react-component-library/StatusBadge/1";
 import {
   DEFAULT_SORT,
   EMPTY_FILTERS,

@@ -2,10 +2,10 @@ import { useState, type FormEvent } from "react";
 import { X } from "lucide-react";
 import type { MatrixRow } from "@vrooli/proto-types/business-health/v1/contract/contract_pb";
 
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
-import { Textarea } from "../../components/ui/textarea";
-import { StatusChip } from "../../components/StatusChip";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1.1.1";
+import { StatusBadge as StatusChip } from "@vrooli/react-component-library/StatusBadge/1";
 import { EvidenceSummary } from "./EvidenceSummary";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";

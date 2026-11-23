@@ -46,9 +46,7 @@ func TestHealthHandler(t *testing.T) {
 			defer mockDB.Close()
 			mock.ExpectPing().WillReturnError(tc.pingErr)
 
-			w, httpReq, err := makeHTTPRequest(HTTPTestRequest{Method: "GET", Path: "/health"})
-			require.NoError(t, err)
-			newHealthHandler(mockDB)(w, httpReq)
+			w := serveRequest(t, newHealthHandler(mockDB), HTTPTestRequest{Method: http.MethodGet, Path: "/health"})
 
 			assert.Equal(t, tc.wantCode, w.Code)
 			var response struct {
@@ -90,13 +88,10 @@ func TestGetThemesHandler(t *testing.T) {
 			},
 		)
 
-		w, httpReq, err := makeHTTPRequest(HTTPTestRequest{
+		w := serveRequest(t, getThemesHandler, HTTPTestRequest{
 			Method: "GET",
 			Path:   "/api/v1/themes",
 		})
-		require.NoError(t, err)
-
-		getThemesHandler(w, httpReq)
 
 		assert.Equal(t, http.StatusOK, w.Code)
 
@@ -122,13 +117,10 @@ func TestGetThemesHandler(t *testing.T) {
 		testDB.Mock.ExpectQuery("SELECT name, description, emoji, color FROM story_themes").
 			WillReturnError(sql.ErrConnDone)
 
-		w, httpReq, err := makeHTTPRequest(HTTPTestRequest{
+		w := serveRequest(t, getThemesHandler, HTTPTestRequest{
 			Method: "GET",
 			Path:   "/api/v1/themes",
 		})
-		require.NoError(t, err)
-
-		getThemesHandler(w, httpReq)
 
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
@@ -149,13 +141,10 @@ func TestGetStoriesHandler(t *testing.T) {
 		// Setup mock expectations
 		mockStoryRows(testDB.Mock, story.Story)
 
-		w, httpReq, err := makeHTTPRequest(HTTPTestRequest{
+		w := serveRequest(t, getStoriesHandler, HTTPTestRequest{
 			Method: "GET",
 			Path:   "/api/v1/stories",
 		})
-		require.NoError(t, err)
-
-		getStoriesHandler(w, httpReq)
 
 		assert.Equal(t, http.StatusOK, w.Code)
 
@@ -176,22 +165,17 @@ func TestGetStoriesHandler(t *testing.T) {
 		})
 		testDB.Mock.ExpectQuery("SELECT (.+) FROM stories").WillReturnRows(rows)
 
-		w, httpReq, err := makeHTTPRequest(HTTPTestRequest{
+		w := serveRequest(t, getStoriesHandler, HTTPTestRequest{
 			Method: "GET",
 			Path:   "/api/v1/stories",
 		})
-		require.NoError(t, err)
-
-		getStoriesHandler(w, httpReq)
 
 		assert.Equal(t, http.StatusOK, w.Code)
 
 		// Empty result returns null in JSON, which is fine
 		var stories []Story
-		err = json.Unmarshal(w.Body.Bytes(), &stories)
-		if err == nil {
-			assert.Equal(t, 0, len(stories))
-		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &stories))
+		assert.Empty(t, stories)
 	})
 
 	t.Run("DatabaseError", func(t *testing.T) {
@@ -201,13 +185,10 @@ func TestGetStoriesHandler(t *testing.T) {
 		testDB.Mock.ExpectQuery("SELECT (.+) FROM stories").
 			WillReturnError(sql.ErrConnDone)
 
-		w, httpReq, err := makeHTTPRequest(HTTPTestRequest{
+		w := serveRequest(t, getStoriesHandler, HTTPTestRequest{
 			Method: "GET",
 			Path:   "/api/v1/stories",
 		})
-		require.NoError(t, err)
-
-		getStoriesHandler(w, httpReq)
 
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
@@ -255,20 +236,16 @@ func TestGetStoryHandler(t *testing.T) {
 			WithArgs(story.Story.ID).
 			WillReturnRows(rows)
 
-		w, httpReq, err := makeHTTPRequest(HTTPTestRequest{
+		w := serveRequest(t, getStoryHandler, HTTPTestRequest{
 			Method:  "GET",
 			Path:    "/api/v1/stories/" + story.Story.ID,
 			URLVars: map[string]string{"id": story.Story.ID},
 		})
-		require.NoError(t, err)
-
-		getStoryHandler(w, httpReq)
 
 		assert.Equal(t, http.StatusOK, w.Code)
 
 		var resultStory Story
-		err = json.Unmarshal(w.Body.Bytes(), &resultStory)
-		require.NoError(t, err)
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resultStory))
 		assert.Equal(t, story.Story.Title, resultStory.Title)
 	})
 
@@ -279,20 +256,16 @@ func TestGetStoryHandler(t *testing.T) {
 		// Add story to cache
 		storyCache.Set(story.Story.ID, story.Story)
 
-		w, httpReq, err := makeHTTPRequest(HTTPTestRequest{
+		w := serveRequest(t, getStoryHandler, HTTPTestRequest{
 			Method:  "GET",
 			Path:    "/api/v1/stories/" + story.Story.ID,
 			URLVars: map[string]string{"id": story.Story.ID},
 		})
-		require.NoError(t, err)
-
-		getStoryHandler(w, httpReq)
 
 		assert.Equal(t, http.StatusOK, w.Code)
 
 		var resultStory Story
-		err = json.Unmarshal(w.Body.Bytes(), &resultStory)
-		require.NoError(t, err)
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resultStory))
 		assert.Equal(t, story.Story.Title, resultStory.Title)
 	})
 
@@ -306,14 +279,11 @@ func TestGetStoryHandler(t *testing.T) {
 			WithArgs(storyID).
 			WillReturnError(sql.ErrNoRows)
 
-		w, httpReq, err := makeHTTPRequest(HTTPTestRequest{
+		w := serveRequest(t, getStoryHandler, HTTPTestRequest{
 			Method:  "GET",
 			Path:    "/api/v1/stories/" + storyID,
 			URLVars: map[string]string{"id": storyID},
 		})
-		require.NoError(t, err)
-
-		getStoryHandler(w, httpReq)
 
 		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
@@ -328,14 +298,11 @@ func TestGetStoryHandler(t *testing.T) {
 			WithArgs(storyID).
 			WillReturnError(sql.ErrConnDone)
 
-		w, httpReq, err := makeHTTPRequest(HTTPTestRequest{
+		w := serveRequest(t, getStoryHandler, HTTPTestRequest{
 			Method:  "GET",
 			Path:    "/api/v1/stories/" + storyID,
 			URLVars: map[string]string{"id": storyID},
 		})
-		require.NoError(t, err)
-
-		getStoryHandler(w, httpReq)
 
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
@@ -357,14 +324,11 @@ func TestToggleFavoriteHandler(t *testing.T) {
 			WithArgs(storyID).
 			WillReturnRows(rows)
 
-		w, httpReq, err := makeHTTPRequest(HTTPTestRequest{
+		w := serveRequest(t, toggleFavoriteHandler, HTTPTestRequest{
 			Method:  "PUT",
 			Path:    "/api/v1/stories/" + storyID + "/favorite",
 			URLVars: map[string]string{"id": storyID},
 		})
-		require.NoError(t, err)
-
-		toggleFavoriteHandler(w, httpReq)
 
 		assert.Equal(t, http.StatusOK, w.Code)
 
@@ -385,14 +349,11 @@ func TestToggleFavoriteHandler(t *testing.T) {
 			WithArgs(storyID).
 			WillReturnError(sql.ErrNoRows)
 
-		w, httpReq, err := makeHTTPRequest(HTTPTestRequest{
+		w := serveRequest(t, toggleFavoriteHandler, HTTPTestRequest{
 			Method:  "PUT",
 			Path:    "/api/v1/stories/" + storyID + "/favorite",
 			URLVars: map[string]string{"id": storyID},
 		})
-		require.NoError(t, err)
-
-		toggleFavoriteHandler(w, httpReq)
 
 		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
@@ -413,14 +374,11 @@ func TestStartReadingHandler(t *testing.T) {
 			WithArgs(sqlmock.AnyArg(), storyID, sqlmock.AnyArg()).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 
-		w, httpReq, err := makeHTTPRequest(HTTPTestRequest{
+		w := serveRequest(t, startReadingHandler, HTTPTestRequest{
 			Method:  "POST",
 			Path:    "/api/v1/stories/" + storyID + "/start-reading",
 			URLVars: map[string]string{"id": storyID},
 		})
-		require.NoError(t, err)
-
-		startReadingHandler(w, httpReq)
 
 		assert.Equal(t, http.StatusOK, w.Code)
 
@@ -440,14 +398,11 @@ func TestStartReadingHandler(t *testing.T) {
 			WithArgs(sqlmock.AnyArg(), storyID, sqlmock.AnyArg()).
 			WillReturnError(sql.ErrConnDone)
 
-		w, httpReq, err := makeHTTPRequest(HTTPTestRequest{
+		w := serveRequest(t, startReadingHandler, HTTPTestRequest{
 			Method:  "POST",
 			Path:    "/api/v1/stories/" + storyID + "/start-reading",
 			URLVars: map[string]string{"id": storyID},
 		})
-		require.NoError(t, err)
-
-		startReadingHandler(w, httpReq)
 
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
@@ -472,14 +427,11 @@ func TestDeleteStoryHandler(t *testing.T) {
 			WithArgs(story.Story.ID).
 			WillReturnResult(sqlmock.NewResult(0, 1))
 
-		w, httpReq, err := makeHTTPRequest(HTTPTestRequest{
+		w := serveRequest(t, deleteStoryHandler, HTTPTestRequest{
 			Method:  "DELETE",
 			Path:    "/api/v1/stories/" + story.Story.ID,
 			URLVars: map[string]string{"id": story.Story.ID},
 		})
-		require.NoError(t, err)
-
-		deleteStoryHandler(w, httpReq)
 
 		assert.Equal(t, http.StatusNoContent, w.Code)
 
@@ -492,22 +444,34 @@ func TestDeleteStoryHandler(t *testing.T) {
 		testDB := setupTestDatabase(t)
 		defer testDB.Cleanup()
 
-		storyID := uuid.New().String()
+		story := setupTestStory(t, "Story retained after failed delete", "6-8")
+		defer story.Cleanup()
+		storyID := story.Story.ID
+		storyCache.Set(storyID, story.Story)
 
 		testDB.Mock.ExpectExec("DELETE FROM stories WHERE id = (.+)").
 			WithArgs(storyID).
 			WillReturnError(sql.ErrConnDone)
 
-		w, httpReq, err := makeHTTPRequest(HTTPTestRequest{
+		w := serveRequest(t, deleteStoryHandler, HTTPTestRequest{
 			Method:  "DELETE",
 			Path:    "/api/v1/stories/" + storyID,
 			URLVars: map[string]string{"id": storyID},
 		})
-		require.NoError(t, err)
-
-		deleteStoryHandler(w, httpReq)
 
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
+
+		cachedStoryResponse := serveRequest(t, getStoryHandler, HTTPTestRequest{
+			Method:  "GET",
+			Path:    "/api/v1/stories/" + storyID,
+			URLVars: map[string]string{"id": storyID},
+		})
+		assert.Equal(t, http.StatusOK, cachedStoryResponse.Code)
+
+		var cachedStory Story
+		require.NoError(t, json.Unmarshal(cachedStoryResponse.Body.Bytes(), &cachedStory))
+		assert.Equal(t, storyID, cachedStory.ID)
+		assert.Equal(t, story.Story.Title, cachedStory.Title)
 	})
 }
 

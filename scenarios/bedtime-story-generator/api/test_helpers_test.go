@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -18,47 +18,13 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// TestLogger provides controlled logging during tests
-type TestLogger struct {
-	originalLogger *log.Logger
-	cleanup        func()
-}
-
 // setupTestLogger initializes logging for testing
 func setupTestLogger() func() {
 	// Redirect logs to avoid cluttering test output
-	log.SetOutput(ioutil.Discard)
+	log.SetOutput(io.Discard)
 
 	return func() {
 		log.SetOutput(os.Stdout)
-	}
-}
-
-// TestEnvironment manages isolated test environment
-type TestEnvironment struct {
-	TempDir    string
-	OriginalWD string
-	Cleanup    func()
-}
-
-// setupTestDirectory creates an isolated test environment with proper cleanup
-func setupTestDirectory(t *testing.T) *TestEnvironment {
-	tempDir, err := ioutil.TempDir("", "bedtime-story-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-
-	originalWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get working directory: %v", err)
-	}
-
-	return &TestEnvironment{
-		TempDir:    tempDir,
-		OriginalWD: originalWD,
-		Cleanup: func() {
-			os.RemoveAll(tempDir)
-		},
 	}
 }
 
@@ -192,6 +158,16 @@ func makeHTTPRequest(req HTTPTestRequest) (*httptest.ResponseRecorder, *http.Req
 	return w, httpReq, nil
 }
 
+func serveRequest(t testing.TB, handler http.HandlerFunc, req HTTPTestRequest) *httptest.ResponseRecorder {
+	t.Helper()
+	w, httpReq, err := makeHTTPRequest(req)
+	if err != nil {
+		t.Fatalf("create HTTP request: %v", err)
+	}
+	handler(w, httpReq)
+	return w
+}
+
 // assertJSONResponse validates JSON response structure and content
 func assertJSONResponse(t *testing.T, w *httptest.ResponseRecorder, expectedStatus int, expectedFields map[string]interface{}) map[string]interface{} {
 	if w.Code != expectedStatus {
@@ -237,51 +213,6 @@ func assertJSONArray(t *testing.T, w *httptest.ResponseRecorder, expectedStatus 
 	}
 
 	return array
-}
-
-// assertErrorResponse validates error responses
-func assertErrorResponse(t *testing.T, w *httptest.ResponseRecorder, expectedStatus int, expectedErrorMessage string) {
-	if w.Code != expectedStatus {
-		t.Errorf("Expected status %d, got %d. Response: %s", expectedStatus, w.Code, w.Body.String())
-		return
-	}
-
-	// Error responses may be plain text or JSON
-	responseBody := w.Body.String()
-
-	if expectedErrorMessage != "" {
-		if w.Header().Get("Content-Type") == "application/json" {
-			var response map[string]interface{}
-			if err := json.Unmarshal(w.Body.Bytes(), &response); err == nil {
-				if errorMsg, exists := response["error"]; exists {
-					if errorStr, ok := errorMsg.(string); ok {
-						responseBody = errorStr
-					}
-				}
-			}
-		}
-
-		if responseBody != expectedErrorMessage && !contains(responseBody, expectedErrorMessage) {
-			t.Errorf("Expected error message to contain '%s', got '%s'", expectedErrorMessage, responseBody)
-		}
-	}
-}
-
-// contains checks if a string contains a substring
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
-		(len(s) > 0 && len(substr) > 0 &&
-			(s[:len(substr)] == substr || s[len(s)-len(substr):] == substr ||
-				containsMiddle(s, substr))))
-}
-
-func containsMiddle(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }
 
 // TestDataGenerator provides utilities for generating test data

@@ -606,7 +606,7 @@ func (e Environment) postMultipart(ctx context.Context, url, contentType string,
 		return nil, err
 	}
 	req.Header.Set("Content-Type", contentType)
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := e.HTTP.Do(req)
 	if err != nil {
 		return nil, err
 	}

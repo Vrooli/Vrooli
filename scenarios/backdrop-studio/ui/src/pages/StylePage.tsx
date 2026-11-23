@@ -9,7 +9,7 @@ import {
   rendersOnRequest,
 } from "../api/studio";
 import { qualityTierString } from "../consts/qualityTier";
-import { ExperienceSurface } from "../components/experience/ExperienceSurface";
+import { ExperienceSurface } from "@vrooli/react-component-library/ExperienceSurface/1";
 import { MockupPreview } from "../components/studio/MockupPreview";
 import { QualityMeters } from "../components/studio/QualityMeters";
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";

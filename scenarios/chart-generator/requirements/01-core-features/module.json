@@ -21,10 +21,10 @@
         },
         {
           "type": "test",
-          "ref": "test/integration.spec.ts",
+          "ref": "test/integration.test.mjs",
           "phase": "integration",
           "status": "failing",
-          "notes": "Playwright test validates bar chart generation workflow"
+          "notes": "BAS fake-owner integration test validates bar chart generation workflow"
         }
       ]
     },
@@ -45,10 +45,10 @@
         },
         {
           "type": "test",
-          "ref": "test/integration.spec.ts",
+          "ref": "test/integration.test.mjs",
           "phase": "integration",
           "status": "failing",
-          "notes": "Playwright test validates line chart generation workflow"
+          "notes": "BAS fake-owner integration test validates line chart generation workflow"
         }
       ]
     },
@@ -69,10 +69,10 @@
         },
         {
           "type": "test",
-          "ref": "test/integration.spec.ts",
+          "ref": "test/integration.test.mjs",
           "phase": "integration",
           "status": "failing",
-          "notes": "Playwright test validates pie chart generation workflow"
+          "notes": "BAS fake-owner integration test validates pie chart generation workflow"
         }
       ]
     },
@@ -93,10 +93,10 @@
         },
         {
           "type": "test",
-          "ref": "test/integration.spec.ts",
+          "ref": "test/integration.test.mjs",
           "phase": "integration",
           "status": "failing",
-          "notes": "Playwright test validates scatter chart generation workflow"
+          "notes": "BAS fake-owner integration test validates scatter chart generation workflow"
         }
       ]
     },
@@ -117,10 +117,10 @@
         },
         {
           "type": "test",
-          "ref": "test/integration.spec.ts",
+          "ref": "test/integration.test.mjs",
           "phase": "integration",
           "status": "failing",
-          "notes": "Playwright test validates area chart generation workflow"
+          "notes": "BAS fake-owner integration test validates area chart generation workflow"
         }
       ]
     },
@@ -192,10 +192,10 @@
         },
         {
           "type": "test",
-          "ref": "test/integration.spec.ts",
+          "ref": "test/integration.test.mjs",
           "phase": "integration",
           "status": "failing",
-          "notes": "Playwright test validates professional theme application workflow"
+          "notes": "BAS fake-owner integration test validates professional theme application workflow"
         }
       ]
     },
@@ -257,10 +257,10 @@
         },
         {
           "type": "test",
-          "ref": "test/integration.spec.ts",
+          "ref": "test/integration.test.mjs",
           "phase": "integration",
           "status": "failing",
-          "notes": "Playwright test validates minimal theme application workflow"
+          "notes": "BAS fake-owner integration test validates minimal theme application workflow"
         }
       ]
     }

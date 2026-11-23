@@ -158,6 +158,19 @@ func (s *Store) Seed(ctx context.Context) error {
 // Every statement is additive and idempotent: this runs on every start, and a
 // column that already exists must not be an error.
 func (s *Store) migrate(ctx context.Context) error {
+	// An install without origin tracking can contain both shipped rows and
+	// operator edits made in place. Guessing `seed` from the row's ID destroys
+	// authored work on the next Seed call. Preserve legacy rows by default and
+	// promote only rows whose complete pre-origin representation matches a
+	// shipped seed version.
+	stylesHadOrigin, err := s.hasColumn(ctx, "backdrop_styles", "origin")
+	if err != nil {
+		return fmt.Errorf("catalog: inspect style origin column: %w", err)
+	}
+	surfacesHadOrigin, err := s.hasColumn(ctx, "backdrop_surfaces", "origin")
+	if err != nil {
+		return fmt.Errorf("catalog: inspect surface origin column: %w", err)
+	}
 	if _, err := s.db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS backdrop_seed_versions (version INTEGER PRIMARY KEY, applied_on TEXT NOT NULL)`); err != nil {
 		return fmt.Errorf("catalog: create seed version table: %w", err)
 	}
@@ -177,13 +190,23 @@ func (s *Store) migrate(ctx context.Context) error {
 		// column: it drew one plate carrying the whole picture, which is what
 		// EffectivePlateSpec materialises from an absent declaration.
 		`ALTER TABLE backdrop_styles ADD COLUMN plate_spec TEXT NOT NULL DEFAULT '[]'`,
-		`ALTER TABLE backdrop_styles ADD COLUMN origin TEXT NOT NULL DEFAULT 'seed'`,
+		`ALTER TABLE backdrop_styles ADD COLUMN origin TEXT NOT NULL DEFAULT 'operator'`,
 		`ALTER TABLE backdrop_styles ADD COLUMN seed_version INTEGER NOT NULL DEFAULT 0`,
-		`ALTER TABLE backdrop_surfaces ADD COLUMN origin TEXT NOT NULL DEFAULT 'seed'`,
+		`ALTER TABLE backdrop_surfaces ADD COLUMN origin TEXT NOT NULL DEFAULT 'operator'`,
 		`ALTER TABLE backdrop_surfaces ADD COLUMN seed_version INTEGER NOT NULL DEFAULT 0`,
 	} {
 		if _, err := s.db.ExecContext(ctx, stmt); err != nil && !isDuplicateColumn(err) {
 			return fmt.Errorf("catalog: migrate schema: %w", err)
+		}
+	}
+	if !stylesHadOrigin {
+		if err := s.promoteUnmodifiedLegacySeedStyles(ctx); err != nil {
+			return fmt.Errorf("catalog: classify pre-origin styles: %w", err)
+		}
+	}
+	if !surfacesHadOrigin {
+		if err := s.promoteUnmodifiedLegacySeedSurfaces(ctx); err != nil {
+			return fmt.Errorf("catalog: classify pre-origin surfaces: %w", err)
 		}
 	}
 	// `payload` was a whole-style JSON copy written beside the columns it
@@ -199,6 +222,177 @@ func (s *Store) migrate(ctx context.Context) error {
 		return fmt.Errorf("catalog: drop legacy payload column: %w", err)
 	}
 	return nil
+}
+
+func (s *Store) hasColumn(ctx context.Context, table, column string) (bool, error) {
+	rows, err := s.db.QueryContext(ctx, `PRAGMA table_info(`+table+`)`)
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var cid, notnull, pk int
+		var name, kind string
+		var defaultValue sql.NullString
+		if err := rows.Scan(&cid, &name, &kind, &notnull, &defaultValue, &pk); err != nil {
+			return false, err
+		}
+		if name == column {
+			return true, nil
+		}
+	}
+	return false, rows.Err()
+}
+
+// promoteUnmodifiedLegacySeedStyles classifies legacy rows by their recorded
+// content, never by ID alone. The legacy payload column is intentionally not
+// trusted: it was a duplicate copy and could drift from the typed columns.
+func (s *Store) promoteUnmodifiedLegacySeedStyles(ctx context.Context) error {
+	seeds, err := LoadSeeds()
+	if err != nil {
+		return err
+	}
+	known := map[string][]Style{}
+	for _, file := range seeds {
+		for _, style := range file.Styles {
+			known[style.ID] = append(known[style.ID], style)
+		}
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT id,name,version,role,subject,lineage,strategy,treatments,placements,regions,contrast_threshold,scaffold,generation,parent_id,treatment_params FROM backdrop_styles`)
+	if err != nil {
+		return err
+	}
+	type legacyStyle struct {
+		ID, Name, Role, Subject, Lineage, Strategy                                       string
+		Version                                                                          int
+		Treatments, Placements, Regions, Scaffold, Generation, ParentID, TreatmentParams string
+		ContrastThreshold                                                                float64
+	}
+	var candidates []string
+	for rows.Next() {
+		var raw legacyStyle
+		if err := rows.Scan(&raw.ID, &raw.Name, &raw.Version, &raw.Role, &raw.Subject, &raw.Lineage, &raw.Strategy, &raw.Treatments, &raw.Placements, &raw.Regions, &raw.ContrastThreshold, &raw.Scaffold, &raw.Generation, &raw.ParentID, &raw.TreatmentParams); err != nil {
+			_ = rows.Close()
+			return err
+		}
+		var stored Style
+		stored.ID, stored.Name, stored.Version, stored.Role = raw.ID, raw.Name, raw.Version, raw.Role
+		stored.Subject, stored.Lineage, stored.Strategy = raw.Subject, raw.Lineage, raw.Strategy
+		stored.ContrastThreshold, stored.ParentID = raw.ContrastThreshold, raw.ParentID
+		if err := json.Unmarshal([]byte(raw.Treatments), &stored.Treatments); err != nil {
+			continue
+		}
+		if err := json.Unmarshal([]byte(raw.Placements), &stored.Placements); err != nil {
+			continue
+		}
+		if err := json.Unmarshal([]byte(raw.Regions), &stored.Regions); err != nil {
+			continue
+		}
+		if strings.TrimSpace(raw.Scaffold) != "" && raw.Scaffold != "null" {
+			var v ScaffoldBinding
+			if json.Unmarshal([]byte(raw.Scaffold), &v) != nil {
+				continue
+			}
+			stored.Scaffold = &v
+		}
+		if strings.TrimSpace(raw.Generation) != "" && raw.Generation != "null" {
+			var v GenerationBlock
+			if json.Unmarshal([]byte(raw.Generation), &v) != nil {
+				continue
+			}
+			stored.Generation = &v
+		}
+		if err := json.Unmarshal([]byte(raw.TreatmentParams), &stored.TreatmentParams); err != nil {
+			continue
+		}
+		for _, seed := range known[raw.ID] {
+			if sameLegacyStyle(stored, seed) {
+				candidates = append(candidates, raw.ID)
+				break
+			}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return err
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+	for _, id := range candidates {
+		if _, err := s.db.ExecContext(ctx, `UPDATE backdrop_styles SET origin=? WHERE id=?`, OriginSeed, id); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Store) promoteUnmodifiedLegacySeedSurfaces(ctx context.Context) error {
+	seeds, err := LoadSeeds()
+	if err != nil {
+		return err
+	}
+	known := map[string][]Surface{}
+	for _, file := range seeds {
+		for _, surface := range file.Surfaces {
+			known[surface.ID] = append(known[surface.ID], surface)
+		}
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT id,name,kind,width,height,placements,authority,confirmed_on FROM backdrop_surfaces`)
+	if err != nil {
+		return err
+	}
+	var candidates []string
+	for rows.Next() {
+		var stored Surface
+		var placements string
+		if err := rows.Scan(&stored.ID, &stored.Name, &stored.Kind, &stored.Width, &stored.Height, &placements, &stored.Authority, &stored.ConfirmedOn); err != nil {
+			_ = rows.Close()
+			return err
+		}
+		if err := json.Unmarshal([]byte(placements), &stored.Placements); err != nil {
+			continue
+		}
+		for _, seed := range known[stored.ID] {
+			if stored.ID == seed.ID && stored.Name == seed.Name && stored.Kind == seed.Kind && stored.Width == seed.Width &&
+				stored.Height == seed.Height && reflectJSONEqual(stored.Placements, seed.Placements) && stored.Authority == seed.Authority && stored.ConfirmedOn == seed.ConfirmedOn {
+				candidates = append(candidates, stored.ID)
+				break
+			}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return err
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+	for _, id := range candidates {
+		if _, err := s.db.ExecContext(ctx, `UPDATE backdrop_surfaces SET origin=? WHERE id=?`, OriginSeed, id); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func sameLegacyStyle(stored, seed Style) bool {
+	return stored.ID == seed.ID && stored.Name == seed.Name && stored.Version == seed.Version &&
+		stored.Role == seed.Role && stored.Subject == seed.Subject && stored.Lineage == seed.Lineage &&
+		stored.Strategy == seed.Strategy && stored.ParentID == seed.ParentID &&
+		reflectJSONEqual(stored.Treatments, seed.Treatments) && reflectJSONEqual(stored.Placements, seed.Placements) &&
+		reflectJSONEqual(stored.Regions, seed.Regions) && stored.ContrastThreshold == seed.ContrastThreshold &&
+		reflectJSONEqual(stored.Scaffold, seed.Scaffold) && reflectJSONEqual(stored.Generation, seed.Generation) &&
+		reflectJSONEqual(stored.TreatmentParams, seed.TreatmentParams)
+}
+
+func reflectJSONEqual(a, b any) bool {
+	left, err := json.Marshal(a)
+	if err != nil {
+		return false
+	}
+	right, err := json.Marshal(b)
+	return err == nil && string(left) == string(right)
 }
 
 func isDuplicateColumn(err error) bool {

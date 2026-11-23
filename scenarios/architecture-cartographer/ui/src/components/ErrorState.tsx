@@ -1,6 +1,6 @@
 import { cn } from "../lib/utils";
 import { selectors } from "../consts/selectors";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 
 export interface ErrorStateProps {
   /** Pre-translated title. */
@@ -37,9 +37,11 @@ export function ErrorState({ title, message, retryLabel, onRetry, className }: E
         <div>
           <Button
             data-testid={selectors.shared.errorState.retryButton}
-            variant="outline"
+            variant="ghost"
             size="sm"
             onClick={onRetry}
+            shape="square"
+            className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
           >
             {retryLabel}
           </Button>

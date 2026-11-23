@@ -2,6 +2,7 @@ package domains
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -30,6 +31,28 @@ These are infrastructure, not product domains:
 
 - Something else.
 `
+
+// domainManifestWithSourcePathAlias keeps the template table contract shared
+// while leaving each test's alias value explicit at the call site.
+func domainManifestWithSourcePathAlias(alias string) string {
+	return fmt.Sprintf(`{
+  "sections": [{
+    "documents": [{
+      "path": "concepts/DOMAINS.md",
+      "validation": {
+        "tableContracts": [{
+          "anchorHeading": "Domain Inventory",
+          "columns": [
+            { "name": "Domain", "type": "text" },
+            { "name": "Primary Archetype", "type": "enum", "aliases": ["Role"], "enumValues": ["service"] },
+            { "name": "Source Paths", "type": "comma-list", "aliases": [%q] }
+          ]
+        }]
+      }
+    }]
+  }]
+}`, alias)
+}
 
 func TestDomainsDocExtractor_Golden(t *testing.T) {
 	e := NewDomainsDocExtractor()
@@ -102,23 +125,7 @@ func TestDomainsDocExtractor_MissingFile(t *testing.T) {
 func TestDomainsDocExtractor_UsesTemplateTableContract(t *testing.T) {
 	repoRoot := t.TempDir()
 	scenarioDir := filepath.Join(repoRoot, "scenarios", "example")
-	writeDomainExtractorFile(t, repoRoot, "templates/scenarios/react-vite/docs/manifest.json", `{
-  "sections": [{
-    "documents": [{
-      "path": "concepts/DOMAINS.md",
-      "validation": {
-        "tableContracts": [{
-          "anchorHeading": "Domain Inventory",
-          "columns": [
-            { "name": "Domain", "type": "text" },
-            { "name": "Primary Archetype", "type": "enum", "aliases": ["Role"], "enumValues": ["service"] },
-            { "name": "Source Paths", "type": "comma-list", "aliases": ["Locations"] }
-          ]
-        }]
-      }
-    }]
-  }]
-}`)
+	writeDomainExtractorFile(t, repoRoot, "templates/scenarios/react-vite/docs/manifest.json", domainManifestWithSourcePathAlias("Locations"))
 	writeDomainExtractorFile(t, scenarioDir, "docs/concepts/DOMAINS.md", `# Domains
 
 ## Domain Inventory
@@ -140,40 +147,8 @@ func TestDomainsDocExtractor_UsesTemplateTableContract(t *testing.T) {
 func TestDomainsDocExtractor_ScenarioContractOverridesTemplate(t *testing.T) {
 	repoRoot := t.TempDir()
 	scenarioDir := filepath.Join(repoRoot, "scenarios", "example")
-	writeDomainExtractorFile(t, repoRoot, "templates/scenarios/react-vite/docs/manifest.json", `{
-  "sections": [{
-    "documents": [{
-      "path": "concepts/DOMAINS.md",
-      "validation": {
-        "tableContracts": [{
-          "anchorHeading": "Domain Inventory",
-          "columns": [
-            { "name": "Domain", "type": "text" },
-            { "name": "Primary Archetype", "type": "enum", "aliases": ["Role"], "enumValues": ["service"] },
-            { "name": "Source Paths", "type": "comma-list", "aliases": ["Template Paths"] }
-          ]
-        }]
-      }
-    }]
-  }]
-}`)
-	writeDomainExtractorFile(t, scenarioDir, "docs/manifest.json", `{
-  "sections": [{
-    "documents": [{
-      "path": "concepts/DOMAINS.md",
-      "validation": {
-        "tableContracts": [{
-          "anchorHeading": "Domain Inventory",
-          "columns": [
-            { "name": "Domain", "type": "text" },
-            { "name": "Primary Archetype", "type": "enum", "aliases": ["Role"], "enumValues": ["service"] },
-            { "name": "Source Paths", "type": "comma-list", "aliases": ["Scenario Paths"] }
-          ]
-        }]
-      }
-    }]
-  }]
-}`)
+	writeDomainExtractorFile(t, repoRoot, "templates/scenarios/react-vite/docs/manifest.json", domainManifestWithSourcePathAlias("Template Paths"))
+	writeDomainExtractorFile(t, scenarioDir, "docs/manifest.json", domainManifestWithSourcePathAlias("Scenario Paths"))
 	writeDomainExtractorFile(t, scenarioDir, "docs/concepts/DOMAINS.md", `# Domains
 
 ## Domain Inventory

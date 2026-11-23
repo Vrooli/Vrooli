@@ -516,10 +516,11 @@ export const appService = {
 export const resourceService = {
   // Get all resources
   async getResources(): Promise<Resource[]> {
-    return fetchArrayWithFallback(
-      () => api.get<Resource[]>('/resources'),
-      'Failed to fetch resources',
-    );
+    const { data } = await api.get<unknown>('/resources');
+    if (!Array.isArray(data)) {
+      throw new Error('Resource inventory response must be an array.');
+    }
+    return data as Resource[];
   },
 
   // Get resource status

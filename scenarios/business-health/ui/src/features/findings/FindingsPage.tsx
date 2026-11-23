@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 
 import { ScenarioPicker } from "../../components/ScenarioPicker";
-import { StatusChip } from "../../components/StatusChip";
+import { StatusBadge as StatusChip } from "@vrooli/react-component-library/StatusBadge/1";
 import { DiffView } from "../../components/DiffView";
 import {
   findingDocPath,

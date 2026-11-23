@@ -1,6 +1,6 @@
 import type { EvidenceCell } from "@vrooli/proto-types/business-health/v1/contract/contract_pb";
 
-import { StatusChip, type ChipTone } from "../../components/StatusChip";
+import { StatusBadge as StatusChip, type StatusTone as ChipTone } from "@vrooli/react-component-library/StatusBadge/1";
 import { strings } from "../../consts/strings";
 import { formatDate } from "../../i18n/format";
 import { timestampToDate } from "../../lib/protoTime";

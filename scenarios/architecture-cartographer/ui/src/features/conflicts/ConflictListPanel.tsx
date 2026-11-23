@@ -9,7 +9,7 @@ import { EmptyState } from "../../components/EmptyState";
 import { ErrorState } from "../../components/ErrorState";
 import { LoadingState } from "../../components/LoadingState";
 import { SeverityBadge } from "../../components/SeverityBadge";
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import {
   useDetectConflicts,
   useListConflicts,
@@ -17,6 +17,7 @@ import {
 } from "./controllers/useConflictsController";
 import { severityToLevel } from "./severity";
 import type { Conflict } from "@vrooli/proto-types/architecture-cartographer/v1/shared/shared_pb";
+import { cn } from "../../lib/utils";
 
 const SEVERITY_LABEL_KEY = {
   info: strings.shared.severity.info,
@@ -113,11 +114,12 @@ export function ConflictListPanel({ scenario, selectedId }: ConflictListPanelPro
       <header className="flex flex-wrap items-center gap-2">
         <Button
           type="button"
-          variant="default"
+          variant="primary"
           size="sm"
           data-testid={selectors.features.conflicts.list.detectButton}
           onClick={() => detect.mutate()}
           disabled={detect.isPending}
+          shape="square"
         >
           {detect.isPending
             ? t(strings.pages.conflicts.detecting)
@@ -125,11 +127,13 @@ export function ConflictListPanel({ scenario, selectedId }: ConflictListPanelPro
         </Button>
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           size="sm"
           data-testid={selectors.features.conflicts.list.validateButton}
           onClick={() => validate.mutate()}
           disabled={validate.isPending}
+          shape="square"
+          className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
         >
           {validate.isPending
             ? t(strings.pages.conflicts.validating)

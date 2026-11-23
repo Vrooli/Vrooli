@@ -8,24 +8,20 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
 )
 
-// SQLExecutor is the narrow database surface.
-type SQLExecutor interface {
-	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
-	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
-	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
-}
+// Repository SQL access is owned by API Core.
 
 type sqliteRepository struct {
-	db    SQLExecutor
+	db    database.SQLExecutor
 	clock schedule.Clock
 }
 
-func NewSQLiteRepository(db SQLExecutor, clk schedule.Clock) Repository {
+func NewSQLiteRepository(db database.SQLExecutor, clk schedule.Clock) Repository {
 	return &sqliteRepository{db: db, clock: clk}
 }
 

@@ -79,6 +79,9 @@ export function ResourcesSection({
   onSortChange,
   onSelect,
   isLoading,
+  errorMessage,
+  onRetry,
+  isRefreshing,
   sortOptions,
 }: {
   resources: Resource[];
@@ -87,6 +90,9 @@ export function ResourcesSection({
   onSortChange: (value: string) => void;
   onSelect: (resource: Resource) => void;
   isLoading?: boolean;
+  errorMessage?: string | null;
+  onRetry?: () => void;
+  isRefreshing?: boolean;
   sortOptions: Array<SortOption<ResourceSortOption>>;
 }) {
   return (
@@ -107,6 +113,9 @@ export function ResourcesSection({
         onSelect={onSelect}
         emptyMessage="No resources match your search."
         isLoading={isLoading}
+        errorMessage={errorMessage}
+        onRetry={onRetry}
+        isRefreshing={isRefreshing}
       />
     </Section>
   );

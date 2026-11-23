@@ -1,4 +1,5 @@
 import React from 'react';
+import { Button } from '@vrooli/react-component-library/Button/2.2.14';
 import './ErrorBoundary.css';
 import { logger } from '@/services/logger';
 
@@ -45,16 +46,17 @@ const DefaultErrorFallback: React.FC<ErrorFallbackProps> = ({ error, resetError 
       )}
 
       <div className="error-fallback__actions">
-        <button type="button" onClick={resetError} className="error-fallback__btn error-fallback__btn--primary">
+        <Button type="button" onClick={resetError} className="error-fallback__btn error-fallback__btn--primary">
           Return to App
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="secondary"
           type="button"
           onClick={() => window.location.reload()}
           className="error-fallback__btn error-fallback__btn--secondary"
         >
           Reload
-        </button>
+        </Button>
       </div>
 
       <p className="error-fallback__hint">
@@ -69,9 +71,9 @@ const SectionErrorFallback: React.FC<ErrorFallbackProps> = ({ error, resetError 
   <div className="error-fallback error-fallback--section" role="alert" aria-live="assertive">
     <p className="error-fallback__section-message">This section failed to load.</p>
     <p className="error-fallback__section-detail">{error.message}</p>
-    <button type="button" onClick={resetError} className="error-fallback__btn error-fallback__btn--primary">
+    <Button type="button" onClick={resetError} className="error-fallback__btn error-fallback__btn--primary">
       Retry
-    </button>
+    </Button>
   </div>
 );
 

@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import type { StyleFilter } from "../api/studio";
 import { AxisFilters } from "../components/studio/AxisFilters";
 import { StyleSpecimen } from "../components/studio/StyleSpecimen";
-import { ExperienceSurface } from "../components/experience/ExperienceSurface";
+import { ExperienceSurface } from "@vrooli/react-component-library/ExperienceSurface/1";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { selectors } from "../consts/selectors";

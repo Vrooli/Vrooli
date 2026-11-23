@@ -153,7 +153,7 @@ func TestDedupHookDegradesSilently(t *testing.T) {
 	require.NoError(t, err)
 	_, err = e.SubmitAnswers(&s, []Answer{{QuestionID: "targets_p0", Targets: []OTAnswer{{Title: "Thing", Description: "Does thing."}}}})
 	require.NoError(t, err)
-	require.Nil(t, e.Hints(s))
+	require.Nil(t, e.Hints(context.Background(), s))
 }
 
 // [REQ:BH-WIZ-005] A wired hinter surfaces hints; a failing one stays
@@ -164,14 +164,14 @@ func TestDedupHookWithHinter(t *testing.T) {
 	require.NoError(t, err)
 	_, err = e.SubmitAnswers(&s, []Answer{{QuestionID: "targets_p0", Targets: []OTAnswer{{Title: "Thing", Description: "Does thing."}}}})
 	require.NoError(t, err)
-	hints := e.Hints(s)
+	hints := e.Hints(context.Background(), s)
 	require.Len(t, hints, 1)
 	require.Equal(t, "other", hints[0].Scenario)
 }
 
 type fakeHinter struct{ hints []CapabilityHint }
 
-func (f fakeHinter) Hints(string, []OTAnswer) []CapabilityHint { return f.hints }
+func (f fakeHinter) Hints(context.Context, string, []OTAnswer) []CapabilityHint { return f.hints }
 
 // [REQ:BH-WIZ-004] Identical inputs produce identical artifacts —
 // determinism across engines and sessions.

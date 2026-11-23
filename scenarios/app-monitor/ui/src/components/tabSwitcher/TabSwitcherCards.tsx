@@ -95,8 +95,7 @@ export function AppGrid({
     setVisibleCount(Math.min(apps.length, CARD_GRID_INITIAL_WINDOW));
   }, [apps]);
 
-  const isBusy = Boolean(isLoading || isRefreshing);
-  if (isBusy) {
+  if (isLoading && apps.length === 0) {
     return <AppsGridSkeleton count={skeletonCount} viewMode="grid" />;
   }
 
@@ -124,20 +123,7 @@ export function AppGrid({
   return (
     <>
       {hasError && (
-        <div className="tab-switcher__error-banner" role="alert">
-          <p>{errorMessage}</p>
-          {onRetry && (
-            <button
-              type="button"
-              className="tab-switcher__error-retry"
-              onClick={onRetry}
-              aria-label="Retry loading"
-            >
-              <RefreshCw size={16} aria-hidden />
-              <span>Retry</span>
-            </button>
-          )}
-        </div>
+        <CatalogErrorBanner message={errorMessage ?? ''} onRetry={onRetry} retryLabel="Retry loading" isRefreshing={isRefreshing} />
       )}
       <div className="tab-switcher__grid">
         {visibleApps.map(app => (
@@ -161,12 +147,18 @@ export function ResourceGrid({
   onSelect,
   emptyMessage,
   isLoading,
+  errorMessage,
+  onRetry,
+  isRefreshing,
   skeletonCount = 6,
 }: {
   resources: Resource[];
   onSelect(resource: Resource): void;
   emptyMessage?: string;
   isLoading?: boolean;
+  errorMessage?: string | null;
+  onRetry?: () => void;
+  isRefreshing?: boolean;
   skeletonCount?: number;
 }) {
   const [visibleCount, setVisibleCount] = useState(() => Math.min(resources.length, CARD_GRID_INITIAL_WINDOW));
@@ -175,11 +167,11 @@ export function ResourceGrid({
     setVisibleCount(Math.min(resources.length, CARD_GRID_INITIAL_WINDOW));
   }, [resources]);
 
-  if (isLoading) {
+  if (isLoading && resources.length === 0) {
     return <ResourcesGridSkeleton count={skeletonCount} />;
   }
   if (resources.length === 0) {
-    return <EmptyState message={emptyMessage ?? 'No resources available.'} />;
+    return <EmptyState message={errorMessage ?? emptyMessage ?? 'No resources available.'} onRetry={onRetry} retryLabel="Retry resource inventory" isError={Boolean(errorMessage)} />;
   }
   const visibleResources = resources.slice(0, visibleCount);
   const hasPendingRender = visibleCount < resources.length;
@@ -188,6 +180,7 @@ export function ResourceGrid({
   };
   return (
     <>
+      {errorMessage && <CatalogErrorBanner message={errorMessage} onRetry={onRetry} retryLabel="Retry resource inventory" isRefreshing={isRefreshing} />}
       <div className="tab-switcher__grid">
         {visibleResources.map(resource => (
           <ResourceTabCard key={resource.id} resource={resource} onSelect={onSelect} />
@@ -202,6 +195,26 @@ export function ResourceGrid({
         </div>
       )}
     </>
+  );
+}
+
+function CatalogErrorBanner({ message, onRetry, retryLabel, isRefreshing = false }: { message: string; onRetry?: () => void; retryLabel: string; isRefreshing?: boolean }) {
+  return (
+    <div className="tab-switcher__error-banner" role="alert">
+      <p>{message}</p>
+      {onRetry && (
+        <button
+          type="button"
+          className="tab-switcher__error-retry"
+          onClick={onRetry}
+          disabled={isRefreshing}
+          aria-label={retryLabel}
+        >
+          <RefreshCw size={16} aria-hidden />
+          <span>{isRefreshing ? 'Retrying' : 'Retry'}</span>
+        </button>
+      )}
+    </div>
   );
 }
 

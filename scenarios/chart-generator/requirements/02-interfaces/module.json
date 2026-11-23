@@ -69,10 +69,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "test/integration.spec.ts",
+          "ref": "test/integration.test.mjs",
           "phase": "integration",
           "status": "failing",
-          "notes": "Playwright test validates UI loads successfully"
+          "notes": "BAS fake-owner integration test validates UI loads successfully"
         }
       ]
     },
@@ -87,10 +87,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "test/integration.spec.ts",
+          "ref": "test/integration.test.mjs",
           "phase": "integration",
           "status": "failing",
-          "notes": "Playwright test validates chart preview rendering"
+          "notes": "BAS fake-owner integration test validates chart preview rendering"
         },
         {
           "type": "test",
@@ -112,10 +112,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "test/integration.spec.ts",
+          "ref": "test/integration.test.mjs",
           "phase": "integration",
           "status": "failing",
-          "notes": "Playwright test validates style application workflow"
+          "notes": "BAS fake-owner integration test validates style application workflow"
         }
       ]
     }

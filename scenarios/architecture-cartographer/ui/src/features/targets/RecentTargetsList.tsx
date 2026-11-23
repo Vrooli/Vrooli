@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { X } from "lucide-react";
 
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { EmptyState } from "../../components/EmptyState";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
@@ -9,6 +9,7 @@ import { formatDate } from "../../i18n/format";
 import { useTranslation } from "../../i18n";
 import { encodeScenarioPath } from "../../hooks/useScenarioPath";
 import { type RecentTarget } from "./hooks/useRecentTargets";
+import { cn } from "../../lib/utils";
 
 export interface RecentTargetsListProps {
   recent: readonly RecentTarget[];
@@ -57,21 +58,18 @@ export function RecentTargetsList({ recent, onRemove }: RecentTargetsListProps) 
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <Button
-                asChild
-                size="sm"
-                variant="outline"
+              <Link
+                to={`/targets/${encodeScenarioPath(entry.scenario)}`}
+                className="inline-flex items-center justify-center rounded-control text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50 disabled:pointer-events-none disabled:opacity-60 border border-app-border text-app-foreground hover:bg-app-surface-muted h-9 px-4"
                 data-testid={selectors.features.targets.recent.openButton({
                   scenario: entry.scenario,
                 })}
               >
-                <Link to={`/targets/${encodeScenarioPath(entry.scenario)}`}>
-                  {t(strings.targets.recent.openButton)}
-                </Link>
-              </Button>
+                {t(strings.targets.recent.openButton)}
+              </Link>
               <Button
                 size="sm"
-                variant="outline"
+                variant="ghost"
                 onClick={() => onRemove(entry.scenario)}
                 aria-label={t(strings.targets.recent.removeAriaLabel, {
                   scenario: entry.scenario,
@@ -79,6 +77,8 @@ export function RecentTargetsList({ recent, onRemove }: RecentTargetsListProps) 
                 data-testid={selectors.features.targets.recent.removeButton({
                   scenario: entry.scenario,
                 })}
+                shape="square"
+                className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
               >
                 <X aria-hidden="true" className="h-4 w-4" />
               </Button>

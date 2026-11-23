@@ -62,11 +62,7 @@ func TestEveryStrategyStillProducesACompositePNG(t *testing.T) {
 			ID: "v", Strategy: "vector", Subject: "cartographic", Placements: []string{"full_bleed"},
 			Inks: map[string]string{"$brand.primary": "#12327a", "$brand.background": "#efe7d3", "$brand.accent": "#c9432f"},
 		}, false},
-		{"synthesized", catalog.Style{
-			ID: "s", Strategy: "synthesized", QualityTier: catalog.TierLocalModel, Subject: "figure",
-			Placements: []string{"full_bleed"}, Treatments: []string{"duotone"},
-			Generation: &catalog.GenerationBlock{PromptTemplate: "a quiet figure"},
-		}, true},
+		{"synthesized", localSynthesizedFigureStyle(), true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

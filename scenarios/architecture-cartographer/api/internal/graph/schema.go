@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/vrooli/api-core/database"
+
 	_ "embed"
 )
 
@@ -17,7 +19,7 @@ func Schema() string { return schemaSQL }
 // MigrateSchema applies graph-owned one-shot migrations that must run before
 // api-core's schema drift check. Fresh databases may not have the table yet;
 // that is fine because Schema creates it with the latest columns.
-func MigrateSchema(ctx context.Context, db SQLExecutor) error {
+func MigrateSchema(ctx context.Context, db database.SQLExecutor) error {
 	// Under SQLite, adding a column to a CREATE TABLE IF NOT EXISTS block is a
 	// silent no-op on a database that already has the table, so every added
 	// column needs an explicit ALTER here. Each is idempotent: a duplicate

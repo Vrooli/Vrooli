@@ -19,11 +19,30 @@ import (
 type refusingGenerator struct {
 	calls  int
 	reason string
+	last   imageengine.GenerationRequest
 }
 
-func (g *refusingGenerator) Generate(context.Context, imageengine.GenerationRequest) (imageengine.GenerationResult, error) {
+func (g *refusingGenerator) Generate(_ context.Context, req imageengine.GenerationRequest) (imageengine.GenerationResult, error) {
 	g.calls++
+	g.last = req
 	return imageengine.GenerationResult{}, errors.New(g.reason)
+}
+
+func frontierInteriorStyle() catalog.Style {
+	return catalog.Style{
+		ID: "frontier-interior", Strategy: "guided", QualityTier: catalog.TierFrontierModel,
+		Subject: "interior", Placements: []string{"full_bleed"}, Treatments: []string{"duotone"},
+		Scaffold:   &catalog.ScaffoldBinding{Preset: "arcade", Conditioner: "edge"},
+		Generation: &catalog.GenerationBlock{PromptTemplate: "a high-contrast modernist interior"},
+	}
+}
+
+func localSynthesizedFigureStyle() catalog.Style {
+	return catalog.Style{
+		ID: "synth", Strategy: "synthesized", QualityTier: catalog.TierLocalModel, Subject: "figure",
+		Placements: []string{"full_bleed"}, Treatments: []string{"duotone"},
+		Generation: &catalog.GenerationBlock{PromptTemplate: "a quiet figure"},
+	}
 }
 
 // A style that declares the frontier tier on a host with no gateway must fail
@@ -37,12 +56,7 @@ func (g *refusingGenerator) Generate(context.Context, imageengine.GenerationRequ
 func TestAFrontierTierIsRefusedByNameWhenNoLaneMeetsIt(t *testing.T) {
 	generator := &refusingGenerator{reason: "ai-gateway: no credential for any image-capable provider"}
 	store := NewStoreWithGenerator(&fakeExecutor{}, generator)
-	style := catalog.Style{
-		ID: "frontier-interior", Strategy: "guided", QualityTier: catalog.TierFrontierModel,
-		Subject: "interior", Placements: []string{"full_bleed"}, Treatments: []string{"duotone"},
-		Scaffold:   &catalog.ScaffoldBinding{Preset: "arcade", Conditioner: "edge"},
-		Generation: &catalog.GenerationBlock{PromptTemplate: "a high-contrast modernist interior"},
-	}
+	style := frontierInteriorStyle()
 
 	job, err := store.SubmitWithContext(context.Background(), Request{
 		Style: style, Surface: testSurface, Placement: "full_bleed", Seed: 3, Count: 1,
@@ -82,6 +96,12 @@ func TestARefusedFrontierTierNeverFallsBackToALocalModel(t *testing.T) {
 	require.Error(t, err)
 	require.Equal(t, 1, generator.calls,
 		"the frontier lane is tried exactly once; a second call would be a downgrade wearing the frontier label")
+	require.Equal(t, "quality", generator.last.QualityPolicy,
+		"a refused frontier request must retain its independently declared quality policy")
+	require.Equal(t, "any", generator.last.FallbackPolicy,
+		"a refused frontier request must retain its independently declared fallback policy")
+	require.True(t, generator.last.AllowBYOK,
+		"a refused frontier request must retain authorization to use BYOK")
 }
 
 // The rule the risk register names: a procedural tier never reaches a model.
@@ -141,12 +161,7 @@ func TestTheCatalogRefusesATierItsStrategyCannotReach(t *testing.T) {
 func TestAServedRenderRecordsItsLaneModelAndCost(t *testing.T) {
 	generator := &costedGenerator{cost: 0.042}
 	store := NewStoreWithGenerator(&fakeExecutor{}, generator)
-	style := catalog.Style{
-		ID: "frontier-interior", Strategy: "guided", QualityTier: catalog.TierFrontierModel,
-		Subject: "interior", Placements: []string{"full_bleed"}, Treatments: []string{"duotone"},
-		Scaffold:   &catalog.ScaffoldBinding{Preset: "arcade", Conditioner: "edge"},
-		Generation: &catalog.GenerationBlock{PromptTemplate: "a high-contrast modernist interior"},
-	}
+	style := frontierInteriorStyle()
 	job, err := store.SubmitWithContext(context.Background(), Request{
 		Style: style, Surface: testSurface, Placement: "full_bleed", Seed: 11, Count: 1,
 	})
@@ -201,11 +216,7 @@ func TestGPURequiredRenderRequestsExactImageToolsAdmission(t *testing.T) {
 func TestAnUnreportedCostIsNotRecordedAsZero(t *testing.T) {
 	generator := &fakeGenerator{}
 	store := NewStoreWithGenerator(&fakeExecutor{}, generator)
-	style := catalog.Style{
-		ID: "synth", Strategy: "synthesized", QualityTier: catalog.TierLocalModel,
-		Subject: "figure", Placements: []string{"full_bleed"}, Treatments: []string{"duotone"},
-		Generation: &catalog.GenerationBlock{PromptTemplate: "a quiet figure"},
-	}
+	style := localSynthesizedFigureStyle()
 	job, err := store.SubmitWithContext(context.Background(), Request{
 		Style: style, Surface: testSurface, Placement: "full_bleed", Seed: 13, Count: 1,
 	})
@@ -247,12 +258,7 @@ func TestTheGeometryProbeIsAskedTheServedLanesQuestion(t *testing.T) {
 	executor := &fakeExecutor{}
 	generator := &costedGenerator{}
 	store := NewStoreWithGenerator(executor, generator)
-	style := catalog.Style{
-		ID: "frontier-interior", Strategy: "guided", QualityTier: catalog.TierFrontierModel,
-		Subject: "interior", Placements: []string{"full_bleed"}, Treatments: []string{"duotone"},
-		Scaffold:   &catalog.ScaffoldBinding{Preset: "arcade", Conditioner: "edge"},
-		Generation: &catalog.GenerationBlock{PromptTemplate: "a high-contrast modernist interior"},
-	}
+	style := frontierInteriorStyle()
 	surface := Surface{ID: "web.hero", Width: 1440, Height: 720}
 	_, err := store.SubmitWithContext(context.Background(), Request{
 		Style: style, Surface: surface, Placement: "full_bleed", Seed: 17, Count: 1,
@@ -276,11 +282,7 @@ func TestTheLocalLaneIsSizedFromTheLocalModel(t *testing.T) {
 	executor := &fakeExecutor{}
 	generator := &fakeGenerator{}
 	store := NewStoreWithGenerator(executor, generator)
-	style := catalog.Style{
-		ID: "synth", Strategy: "synthesized", QualityTier: catalog.TierLocalModel,
-		Subject: "figure", Placements: []string{"full_bleed"}, Treatments: []string{"duotone"},
-		Generation: &catalog.GenerationBlock{PromptTemplate: "a quiet figure"},
-	}
+	style := localSynthesizedFigureStyle()
 	_, err := store.SubmitWithContext(context.Background(), Request{
 		Style: style, Surface: Surface{ID: "web.hero", Width: 1440, Height: 720},
 		Placement: "full_bleed", Seed: 19, Count: 1,

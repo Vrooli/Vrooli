@@ -714,11 +714,7 @@ func TestProceduralStyleWithoutASceneIsRefused(t *testing.T) {
 func TestModelBackedCandidateReachesSurfaceGeometry(t *testing.T) {
 	generator := &fakeGenerator{}
 	store := NewStoreWithGenerator(&fakeExecutor{}, generator)
-	style := catalog.Style{
-		ID: "synth", Strategy: "synthesized", QualityTier: catalog.TierLocalModel, Subject: "figure",
-		Placements: []string{"full_bleed"}, Treatments: []string{"duotone"},
-		Generation: &catalog.GenerationBlock{PromptTemplate: "a quiet figure"},
-	}
+	style := localSynthesizedFigureStyle()
 
 	for _, surface := range []Surface{
 		{ID: "web.hero", Width: 1440, Height: 720},
@@ -757,11 +753,7 @@ func TestModelBackedCandidateReachesSurfaceGeometry(t *testing.T) {
 func TestRoutingIsLocalFirst(t *testing.T) {
 	generator := &fakeGenerator{}
 	store := NewStoreWithGenerator(&fakeExecutor{}, generator)
-	style := catalog.Style{
-		ID: "synth", Strategy: "synthesized", QualityTier: catalog.TierLocalModel, Subject: "figure",
-		Placements: []string{"full_bleed"}, Treatments: []string{"duotone"},
-		Generation: &catalog.GenerationBlock{PromptTemplate: "a quiet figure"},
-	}
+	style := localSynthesizedFigureStyle()
 	_, err := store.SubmitWithContext(context.Background(), Request{
 		Style: style, Surface: testSurface, Placement: "full_bleed", Seed: 7, Count: 1,
 	})

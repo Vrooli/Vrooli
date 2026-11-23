@@ -42,7 +42,7 @@ Use this document to answer:
 
 | Channel | Hypothesis | Assets Needed | Validation Signal |
 |---|---|---|---|
-| Internal: vision-walk + agent skills | Agents working on migrations will reach for cartographer because it is the canonical L5 tool referenced in the screaming-architecture audit doc. | Updated audit-skill prose pointing to cartographer commands; cross-link from `screaming-architecture-audit/SKILL.md`. | Skill load events trigger cartographer use; analytics show migrations starting through `arch-cart migrate start`. |
+| Internal: vision-walk + agent skills | Agents working on migrations will reach for cartographer because it is the canonical L5 tool referenced in the screaming-architecture audit doc. | Updated audit-skill prose pointing to cartographer commands; cross-link from `architecture-lenses/SKILL.md`. | Skill load events trigger cartographer use; analytics show migrations starting through `arch-cart migrate start`. |
 | Internal: scenario template authors | Template authors will reach for cartographer when validating that new templates produce well-structured scenarios. | Sample manifest published as part of the react-vite template; CI gate that validates the template's example scenario produces zero drift findings. | Manifest schema becomes the template's documented contract for "intended architecture." |
 | Internal: knowledge-observatory + ui-health integrations | These existing health-validation scenarios pick up cartographer's findings and surface them in their reports. | Connect-RPC integration with knowledge-observatory's manifest-validation and ui-health's drift surface. | Cross-scenario validation reports cite cartographer findings. |
 | External: open-source Vrooli adopters | Deferred. Cartographer's value depends on the manifest pattern that defines "ideal" architecture; adopters need to commit to that pattern. | Documentation, marketing landing page, comparative analysis vs. SonarQube/NDepend/dep-cruiser. | Not pursued in v1. |
@@ -64,7 +64,7 @@ Internal-only in v1. Sequence:
    a low-stakes scenario. Time and friction are measured against
    manual baseline.
 5. **Stage 4 — Skill integration**: update
-   `screaming-architecture-audit` skill to call cartographer
+   `architecture-lenses` skill to call cartographer
    commands. Document the change. Capture before/after audit-cost
    metrics.
 6. **Stage 5 — Self-dogfooding**: cartographer validates its own

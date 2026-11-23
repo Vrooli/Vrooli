@@ -10,10 +10,10 @@ import (
 // imports its test utility package. Asking Go for production imports avoids a
 // second filesystem walker that can drift from the compiler's own view.
 func TestNoProductionImports(t *testing.T) {
-	module := goCommand(t, "list", "-m", "-f", "{{.Path}}")
+	module := goCommand(t, "list", "-buildvcs=false", "-m", "-f", "{{.Path}}")
 	prefix := strings.TrimSpace(module) + "/internal/testutil"
 
-	output := goCommand(t, "list", "-f", "{{.ImportPath}} {{join .Imports \" \"}}", "./...")
+	output := goCommand(t, "list", "-buildvcs=false", "-f", "{{.ImportPath}} {{join .Imports \" \"}}", "./...")
 	for _, line := range strings.Split(strings.TrimSpace(output), "\n") {
 		fields := strings.Fields(line)
 		if len(fields) == 0 {

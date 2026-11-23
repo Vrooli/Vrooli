@@ -69,8 +69,13 @@ export class ChartEngine {
     const width = Math.max(rect.width || 600, 360) - margin.left - margin.right;
     const height = Math.max(rect.height || 420, 240) - margin.top - margin.bottom;
 
+    const chartName: Record<ChartType, string> = {
+      bar: 'Bar chart', line: 'Line chart', pie: 'Pie chart', scatter: 'Scatter plot', area: 'Area chart',
+    };
     const svg = root
       .append('svg')
+      .attr('role', 'img')
+      .attr('aria-label', chartName[type] ?? 'Chart')
       .attr('width', width + margin.left + margin.right)
       .attr('height', height + margin.top + margin.bottom);
 

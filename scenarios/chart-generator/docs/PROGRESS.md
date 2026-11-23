@@ -46,3 +46,8 @@ them. They do not assert that an old failure or gap still exists.
 - **2025-11-24 — Test requirement tracking & selector migration**: • **Blocked**: browser-automation-studio has compilation errors preventing scenario restart (undefined: errors, runLint in workflow/validator) • **Blocked**: Integration tests failing (159s timeout) due to BAS not running
 
 - **2025-11-24 — Requirements granularity & test fixes**: • **Remaining**: Integration phase BAS dependency issue, add multi-layer validation, increase test count to 25+
+
+## 2026-11-19 managed browser UI integration
+
+- Replaced the private Playwright chart-generator UI test with `test/integration.test.mjs`, using fixed-route BAS sessions, AM-injected identity/grant, and typed accessibility refs. Preserved app-title/preview, five chart types, and three style workflows. Added chart SVG image semantics so the generated graphic itself is observable.
+- Focused fake-owner tests pass 11/11. This does not establish live UI behavior or a live BAS permission receipt. The census remains partial.

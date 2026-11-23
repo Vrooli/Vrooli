@@ -19,11 +19,13 @@ type AppHandler struct {
 	appService *services.AppService
 	// Optional request seams keep handler tests deterministic without replacing
 	// the business service in production wiring.
-	getAppsSummary func(context.Context) ([]repository.App, error)
-	getApps        func(context.Context) ([]repository.App, error)
-	stopApp        func(context.Context, string) error
-	getApp         func(context.Context, string) (*repository.App, error)
-	reportAppIssue func(context.Context, *services.IssueReportRequest) (*services.IssueReportResult, error)
+	getAppsSummary   func(context.Context) ([]repository.App, error)
+	getApps          func(context.Context) ([]repository.App, error)
+	stopApp          func(context.Context, string) error
+	getApp           func(context.Context, string) (*repository.App, error)
+	reportAppIssue   func(context.Context, *services.IssueReportRequest) (*services.IssueReportResult, error)
+	getAppLogs       func(context.Context, string, string) (*services.AppLogsResult, error)
+	getStatusHistory func(context.Context, string, int) ([]repository.AppStatus, error)
 }
 
 // NewAppHandler creates a new app handler
@@ -31,6 +33,13 @@ func NewAppHandler(appService *services.AppService) *AppHandler {
 	return &AppHandler{
 		appService: appService,
 	}
+}
+
+func (h *AppHandler) getLogs(ctx context.Context, appName, logType string) (*services.AppLogsResult, error) {
+	if h.getAppLogs != nil {
+		return h.getAppLogs(ctx, appName, logType)
+	}
+	return h.appService.GetAppLogs(ctx, appName, logType)
 }
 
 // GetAppsSummary returns a fast-loading set of applications using cached CLI metadata
@@ -117,9 +126,12 @@ func (h *AppHandler) RecordAppView(c *gin.Context) {
 // GetAppLogs returns logs for an application
 func (h *AppHandler) GetAppLogs(c *gin.Context) {
 	appName := c.Param("appName")
+	if appName == "" {
+		appName = c.Param("id")
+	}
 	logType := c.DefaultQuery("type", "both")
 
-	logsResult, err := h.appService.GetAppLogs(c.Request.Context(), appName, logType)
+	logsResult, err := h.getLogs(c.Request.Context(), appName, logType)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, errorResponse("Failed to fetch logs"))
 		return
@@ -196,7 +208,11 @@ func (h *AppHandler) GetAppMetrics(c *gin.Context) {
 	hoursStr := c.DefaultQuery("hours", "24")
 	hours, _ := strconv.Atoi(hoursStr)
 
-	metrics, err := h.appService.GetAppStatusHistory(c.Request.Context(), id, hours)
+	getStatusHistory := h.appService.GetAppStatusHistory
+	if h.getStatusHistory != nil {
+		getStatusHistory = h.getStatusHistory
+	}
+	metrics, err := getStatusHistory(c.Request.Context(), id, hours)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, errorResponse("Failed to fetch metrics"))
 		return
@@ -209,7 +225,7 @@ func (h *AppHandler) GetAppMetrics(c *gin.Context) {
 func (h *AppHandler) GetAppLifecycleLogs(c *gin.Context) {
 	appName := c.Param("id")
 
-	logsResult, err := h.appService.GetAppLogs(c.Request.Context(), appName, "lifecycle")
+	logsResult, err := h.getLogs(c.Request.Context(), appName, "lifecycle")
 	if err != nil {
 		c.String(http.StatusOK, "No lifecycle logs available")
 		return
@@ -231,7 +247,7 @@ func (h *AppHandler) GetAppLifecycleLogs(c *gin.Context) {
 func (h *AppHandler) GetAppBackgroundLogs(c *gin.Context) {
 	appName := c.Param("id")
 
-	logsResult, err := h.appService.GetAppLogs(c.Request.Context(), appName, "background")
+	logsResult, err := h.getLogs(c.Request.Context(), appName, "background")
 	if err != nil {
 		c.JSON(http.StatusOK, []map[string]interface{}{
 			{

@@ -4,7 +4,7 @@ import { cn } from "../lib/utils";
 import { diffLines, diffStats } from "../lib/diff";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
-import { StatusChip } from "./StatusChip";
+import { StatusBadge as StatusChip } from "@vrooli/react-component-library/StatusBadge/1";
 import { useTranslation } from "../i18n";
 
 export interface DiffViewProps {

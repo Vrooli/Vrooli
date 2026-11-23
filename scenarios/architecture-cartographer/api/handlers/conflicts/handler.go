@@ -68,6 +68,9 @@ func (h *Handler) DetectConflicts(ctx context.Context, req *connect.Request[conf
 		}
 		snap = s
 	}
+	if strings.TrimSpace(snap.Scenario) != scenario {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("snapshot scenario does not match requested scenario"))
+	}
 	dmap, err := h.deps.Domains.GetDomainMap(ctx, scenario)
 	if err != nil {
 		return nil, connect.NewError(domains.ErrorToConnectCode(err), err)

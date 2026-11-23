@@ -73,3 +73,20 @@ Gates: `provider-contract check business-health business-health` ok (L3, all cap
 **Eval record (the BH-SRCH-002 gate, run 2026-07-02):** `recall@5 = 1.000 (12/12), target 0.80; stale=0; excluded_candidates=1 (the generated candidate, held out by design); gibberish negatives rejected.` Federated smoke: `search-hub query` routes to the leaf with correct top-1 at 386ms. Three tuning lessons recorded for posterity: (1) the eval grader matches `SearchResult.ID` — a `Projector` must rewrite the point UUID to the natural record id or every case grades STALE; (2) purpose docs need the OT-title capability inventory folded into their embed body or interrogative capability queries can't retrieve them; (3) capability cases' `expect_ids` accept any strong intent doc of the right scenario — cell #34's answer is the *scenario*, not one specific doc.
 
 **Phase 9 —** all four surfaces shipped by a build agent and verified: Matrix (flagship: OT-grouped grid, evidence chips, unproven emphasis, requirement drill-in drawer with attestation), Fleet (worst-first + filters + row→matrix), Wizard (resumable interview, live preview, per-file diff, gated apply), Findings (grouped findings, remediation-doc links, PreviewFix→ApplyFix). i18n en/ja/ar, selectors manifest, 3 BAS cases (explicit scenario refs — `@scenario/self` hits an unexpanded-token resolver bug, filed). 228 vitest green; coverage branches 88.51% ≥ 85 (stable, not threshold-riding); tsc/eslint clean.
+
+## 2026-11-21 — Bound wizard dedup search and isolate fleet-test storage
+
+Wizard `StartSession` had serially queried the AI search/rerank service once per
+operational target. Slow rerank calls caused 16–33 second responses and CLI
+`unexpected EOF` failures despite the API eventually returning 200. The
+`Hinter` now receives the request context; `WizardHinter` runs at most three
+queries concurrently under one 2.5 second total budget and preserves input
+order while silently omitting slow hints. On the restarted live service,
+`StartSession` and `SubmitAnswers` each finished within that budget; the
+complete wizard answer workflow returned in 5.8 seconds.
+
+The full API suite also exposed that `internal/fleet.TestSweep` read the
+operator's live requirements-sync artifact. Added package `TestMain` storage
+isolation with `storagetest.RunWithIsolatedStorage`. Full API unit and race
+suites, build, and vet now pass. Focused hinter tests cover bounded concurrency,
+ordered hints, and request cancellation.

@@ -35,6 +35,8 @@ export const ChartPreview = React.forwardRef<HTMLDivElement, ChartPreviewProps>(
 
     return (
       <div
+        role="region"
+        aria-label="Chart preview"
         data-testid="chart-preview"
         className={cn(
           'relative flex h-[420px] min-h-[320px] w-full items-center justify-center overflow-hidden rounded-2xl border border-border bg-white/90 shadow-lg backdrop-blur',

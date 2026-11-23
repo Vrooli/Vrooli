@@ -18,6 +18,7 @@
     "@react-three/fiber": "^8.15.13",
     "@react-three/postprocessing": "^2.16.0",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
+    "@vrooli/react-component-library": "file:../../../packages/react-component-library",
     "axios": "^1.21.0",
     "date-fns": "^3.0.6",
     "express": "^4.22.3",

@@ -18,11 +18,12 @@ import (
 	mislocatedresolver "architecture-cartographer/internal/conflicts/resolvers/mislocatedfile"
 	"architecture-cartographer/internal/signals/boundaries"
 
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/schedule"
 )
 
 func ConflictsService(
-	primary conflicts.SQLExecutor,
+	primary database.SQLExecutor,
 	clk schedule.Clock,
 	cfg config.Config,
 	boundaryCfg boundaries.Config,

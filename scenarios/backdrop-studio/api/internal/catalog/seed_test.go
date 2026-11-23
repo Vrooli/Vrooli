@@ -229,11 +229,12 @@ func TestSeedMigratesAPrePlanInstall(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, surfaces, seededSurfaceCount(t), "a 5-surface install must reach the full shipped set")
 
-	// Rows that predate origin tracking default to 'seed' and are upgraded.
+	// Ambiguous legacy rows are operator-owned by default, even when their id
+	// collides with a shipped seed. Migration must not infer authorship from ID.
 	upgraded, err := store.GetStyle(ctx, "cyanotype-arcade")
 	require.NoError(t, err)
-	require.Equal(t, "Cyanotype Arcade", upgraded.Name)
-	require.NotEmpty(t, upgraded.Inks)
+	require.Equal(t, "Old cyanotype-arcade", upgraded.Name)
+	require.Equal(t, OriginOperator, upgraded.Origin)
 
 	// The operator's row is untouched even though it also defaulted to 'seed':
 	// the current seed does not contain that id, and no row is ever deleted.
@@ -241,6 +242,87 @@ func TestSeedMigratesAPrePlanInstall(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "My Operator Style", survived.Name)
 	require.Equal(t, 3, survived.Version)
+}
+
+func TestSeedUpgradesUnmodifiedLegacySeedRow(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	_, err = db.Exec(prePlanSchema)
+	require.NoError(t, err)
+
+	seeds, err := LoadSeeds()
+	require.NoError(t, err)
+	var legacy Style
+	var operatorSurfaceID string
+	var seedSurfaceID string
+	for _, seed := range seeds {
+		if seed.Version == 1 {
+			for _, style := range seed.Styles {
+				if style.ID == "cyanotype-arcade" {
+					legacy = style
+				}
+			}
+			if len(seed.Surfaces) > 0 {
+				surface := seed.Surfaces[0]
+				surface.Name = "Operator-authored surface"
+				operatorSurfaceID = surface.ID
+				_, err = db.Exec(`INSERT INTO backdrop_surfaces(id,name,kind,width,height,placements,authority,confirmed_on) VALUES(?,?,?,?,?,?,?,?)`,
+					surface.ID, surface.Name, surface.Kind, surface.Width, surface.Height, mustJSON(surface.Placements), surface.Authority, surface.ConfirmedOn)
+				require.NoError(t, err)
+			}
+			if len(seed.Surfaces) > 1 {
+				surface := seed.Surfaces[1]
+				seedSurfaceID = surface.ID
+				_, err = db.Exec(`INSERT INTO backdrop_surfaces(id,name,kind,width,height,placements,authority,confirmed_on) VALUES(?,?,?,?,?,?,?,?)`,
+					surface.ID, surface.Name, surface.Kind, surface.Width, surface.Height, mustJSON(surface.Placements), surface.Authority, surface.ConfirmedOn)
+				require.NoError(t, err)
+			}
+		}
+	}
+	require.NotEmpty(t, legacy.ID)
+	_, err = db.Exec(`INSERT INTO backdrop_styles(id,name,version,role,subject,lineage,strategy,treatments,placements,regions,contrast_threshold,scaffold,generation,parent_id,treatment_params,released,payload) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		legacy.ID, legacy.Name, legacy.Version, legacy.Role, legacy.Subject, legacy.Lineage, legacy.Strategy,
+		mustJSON(legacy.Treatments), mustJSON(legacy.Placements), mustJSON(legacy.Regions), legacy.ContrastThreshold,
+		mustJSON(legacy.Scaffold), mustJSON(legacy.Generation), legacy.ParentID, mustJSON(legacy.TreatmentParams), 1, `{}`)
+	require.NoError(t, err)
+
+	store := NewStore(db)
+	require.NoError(t, store.Seed(context.Background()))
+	got, err := store.GetStyle(context.Background(), legacy.ID)
+	require.NoError(t, err)
+	require.Equal(t, OriginSeed, got.Origin)
+	require.Equal(t, "Cyanotype Arcade", got.Name)
+	require.NotEmpty(t, got.Inks)
+	var surfaceName string
+	require.NoError(t, db.QueryRow(`SELECT name FROM backdrop_surfaces WHERE id=?`, operatorSurfaceID).Scan(&surfaceName))
+	require.Equal(t, "Operator-authored surface", surfaceName)
+	var origin string
+	require.NoError(t, db.QueryRow(`SELECT origin FROM backdrop_surfaces WHERE id=?`, operatorSurfaceID).Scan(&origin))
+	require.Equal(t, OriginOperator, origin)
+	require.NoError(t, db.QueryRow(`SELECT origin FROM backdrop_surfaces WHERE id=?`, seedSurfaceID).Scan(&origin))
+	require.Equal(t, OriginSeed, origin)
+}
+
+func TestSeedMigrationPreservesLegacyOperatorStyleWithSeedID(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	_, err = db.Exec(prePlanSchema)
+	require.NoError(t, err)
+
+	// Before origin tracking, an operator could edit a shipped style in place.
+	// The legacy schema cannot distinguish that row from its shipped seed row.
+	_, err = db.Exec(`INSERT INTO backdrop_styles(id,name,version,role,subject,lineage,strategy,treatments,placements,regions,contrast_threshold,released,payload) VALUES('cyanotype-arcade','Operator Cyanotype',9,'ambient','statuary_architecture','operator-edited','procedural-treated','["duotone"]','["full_bleed"]','[]',4.1,1,'{}')`)
+	require.NoError(t, err)
+
+	store := NewStore(db)
+	require.NoError(t, store.Seed(context.Background()))
+	got, err := store.GetStyle(context.Background(), "cyanotype-arcade")
+	require.NoError(t, err)
+	require.Equal(t, "Operator Cyanotype", got.Name, "migration must not replace an operator-authored legacy row")
+	require.Equal(t, 9, got.Version)
+	require.Equal(t, "operator-edited", got.Lineage)
 }
 
 // seededStyleCount is the number of distinct styles the embedded seed versions

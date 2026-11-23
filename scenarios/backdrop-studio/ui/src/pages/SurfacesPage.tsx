@@ -1,4 +1,4 @@
-import { ExperienceSurface } from "../components/experience/ExperienceSurface";
+import { ExperienceSurface } from "@vrooli/react-component-library/ExperienceSurface/1";
 import { DataTable, type DataTableColumn } from "@vrooli/react-component-library/DataTable/1";
 import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";

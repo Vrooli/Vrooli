@@ -25,7 +25,7 @@
         {
           "path": "concepts/ARCHITECTURE.md",
           "title": "Architecture",
-          "description": "Preview and workspace architecture seams."
+          "description": "API and UI architecture, data ownership, preview boundaries, and host assumptions."
         },
         {
           "path": "concepts/GLOSSARY.md",

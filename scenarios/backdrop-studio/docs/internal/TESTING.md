@@ -122,7 +122,7 @@ closing any change that touches a contract.
 - **Seams definition + adding new seams**: [`SEAMS.md`](SEAMS.md).
 - **Skill bundle for testing-related work** (load before substantial test changes):
   ```bash
-    Load the `seam-discovery-and-enforcement` skill through prompt-manager before
+    Load the `architecture-lenses` skill through prompt-manager before
     making substantial test changes.
   ```
 - **Test runner used by CI and `vrooli scenario test`**: see

@@ -4,8 +4,9 @@ import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { Dialog } from "../../components/ui/dialog";
-import { Button } from "../../components/ui/button";
-import { Textarea } from "../../components/ui/textarea";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1.1.1";
+import { cn } from "../../lib/utils";
 
 export interface ApplyConfirmDialogProps {
   open: boolean;
@@ -87,19 +88,22 @@ export function ApplyConfirmDialog({
         <div className="flex justify-end gap-2">
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             data-testid={selectors.features.apply.confirmDialog.cancelButton}
             onClick={onClose}
             disabled={submitting}
+            shape="square"
+            className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
           >
             {t(strings.pages.targetApply.cancelButton)}
           </Button>
           <Button
             type="button"
-            variant="default"
+            variant="primary"
             data-testid={selectors.features.apply.confirmDialog.confirmButton}
             onClick={handleConfirm}
             disabled={submitting || (requiresNote && note.trim().length === 0)}
+            shape="square"
           >
             {submitting
               ? t(strings.pages.targetApply.applying)

@@ -11,7 +11,7 @@ import { EmptyState } from "../../components/EmptyState";
 import { ErrorState } from "../../components/ErrorState";
 import { LoadingState } from "../../components/LoadingState";
 import { Badge } from "../../components/ui/badge";
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { useListCampaigns } from "./controllers/useCampaignController";
 import { CreateCampaignForm } from "./CreateCampaignForm";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
@@ -114,10 +114,11 @@ export function CampaignListPanel({ scenario, selectedId }: CampaignListPanelPro
       <header className="flex flex-wrap items-center gap-2">
         <Button
           type="button"
-          variant="default"
+          variant="primary"
           size="sm"
           data-testid={selectors.features.campaign.list.newButton}
           onClick={() => setCreating((v) => !v)}
+          shape="square"
         >
           {t(strings.pages.campaign.newButton)}
         </Button>

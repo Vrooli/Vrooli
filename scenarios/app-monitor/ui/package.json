@@ -23,6 +23,7 @@
   "dependencies": {
     "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
+    "@vrooli/react-component-library": "file:../../../packages/react-component-library",
     "axios": "^1.21.0",
     "clsx": "^2.1.0",
     "cors": "^2.8.5",

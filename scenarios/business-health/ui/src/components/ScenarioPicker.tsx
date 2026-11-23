@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";

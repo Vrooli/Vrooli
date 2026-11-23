@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 
 import { permittedSurfaces } from "../api/studio";
-import { ExperienceSurface } from "../components/experience/ExperienceSurface";
+import { ExperienceSurface } from "@vrooli/react-component-library/ExperienceSurface/1";
 import { MockupPreview } from "../components/studio/MockupPreview";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";

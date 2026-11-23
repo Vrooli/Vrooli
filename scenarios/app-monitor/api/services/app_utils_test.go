@@ -93,44 +93,6 @@ func TestHumanizeDuration(t *testing.T) {
 	}
 }
 
-func TestFormatMillisTimestamp(t *testing.T) {
-	testCases := []struct {
-		name     string
-		millis   int64
-		expected string
-	}{
-		{
-			name:     "zero timestamp",
-			millis:   0,
-			expected: "",
-		},
-		{
-			name:     "negative timestamp",
-			millis:   -1000,
-			expected: "",
-		},
-		{
-			name:     "valid timestamp",
-			millis:   1609459200000, // 2021-01-01 00:00:00 UTC
-			expected: "00:00:00.000",
-		},
-		{
-			name:     "timestamp with milliseconds",
-			millis:   1609459200123, // 2021-01-01 00:00:00.123 UTC
-			expected: "00:00:00.123",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			result := formatMillisTimestamp(tc.millis)
-			if result != tc.expected {
-				t.Errorf("Expected %q, got %q", tc.expected, result)
-			}
-		})
-	}
-}
-
 // =============================================================================
 // String Utilities Tests
 // =============================================================================

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { representativeSurface, type Style, type Surface } from "../api/studio";
-import { ExperienceSurface } from "../components/experience/ExperienceSurface";
+import { ExperienceSurface } from "@vrooli/react-component-library/ExperienceSurface/1";
 import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { selectors } from "../consts/selectors";

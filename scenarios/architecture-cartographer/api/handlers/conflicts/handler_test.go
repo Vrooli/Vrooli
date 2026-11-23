@@ -50,6 +50,37 @@ func TestHandler_DetectConflicts_UsesSnapshotIdWhenProvided(t *testing.T) {
 	require.Equal(t, int64(1), gs.GetCalls.Load(), "Get must be called with the supplied id")
 }
 
+func TestHandler_DetectConflicts_RejectsSnapshotFromDifferentScenario(t *testing.T) {
+	h, cs, gs, ds := newHandler(t)
+	gs.Snapshots = []graph.GraphSnapshot{{ID: "snap:beta:h1", Scenario: "beta"}}
+
+	_, err := h.DetectConflicts(context.Background(), connect.NewRequest(&conflictsv1.DetectConflictsRequest{
+		Scenario:   "alpha",
+		SnapshotId: "snap:beta:h1",
+	}))
+	require.Error(t, err)
+	var ce *connect.Error
+	require.ErrorAs(t, err, &ce)
+	require.Equal(t, connect.CodeFailedPrecondition, ce.Code())
+	require.Equal(t, int64(0), ds.GetCalls.Load(), "foreign snapshots must be rejected before loading scenario-specific domains")
+	require.Equal(t, int64(0), cs.DetectCalls.Load(), "foreign snapshot data must not reach conflict detection")
+	require.Equal(t, int64(1), gs.GetCalls.Load(), "the supplied snapshot must be resolved before its ownership is checked")
+}
+
+func TestHandler_DetectConflicts_RejectsExtractedSnapshotFromDifferentScenario(t *testing.T) {
+	h, cs, gs, ds := newHandler(t)
+	gs.Snapshots = []graph.GraphSnapshot{{ID: "snap:beta:h1", Scenario: "beta"}}
+
+	_, err := h.DetectConflicts(context.Background(), connect.NewRequest(&conflictsv1.DetectConflictsRequest{Scenario: "alpha"}))
+	require.Error(t, err)
+	var ce *connect.Error
+	require.ErrorAs(t, err, &ce)
+	require.Equal(t, connect.CodeFailedPrecondition, ce.Code())
+	require.Equal(t, int64(1), gs.ExtractCalls.Load())
+	require.Equal(t, int64(0), ds.GetCalls.Load())
+	require.Equal(t, int64(0), cs.DetectCalls.Load())
+}
+
 func TestHandler_DetectConflicts_RejectsMissingScenario(t *testing.T) {
 	h, _, _, _ := newHandler(t)
 	_, err := h.DetectConflicts(context.Background(), connect.NewRequest(&conflictsv1.DetectConflictsRequest{}))

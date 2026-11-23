@@ -1,6 +1,7 @@
 package wizard
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -27,7 +28,7 @@ type Session struct {
 // scaffolding. Implementations MUST degrade silently (return nil) when
 // their backend is unavailable — the interview never blocks on search.
 type Hinter interface {
-	Hints(scenario string, targets []OTAnswer) []CapabilityHint
+	Hints(ctx context.Context, scenario string, targets []OTAnswer) []CapabilityHint
 }
 
 // CapabilityHint is one dedup pointer (anchors only, never synthesized).
@@ -41,7 +42,7 @@ type CapabilityHint struct {
 // NoHints is the default Hinter (the search leaf ships in plan phase 8).
 type NoHints struct{}
 
-func (NoHints) Hints(string, []OTAnswer) []CapabilityHint { return nil }
+func (NoHints) Hints(context.Context, string, []OTAnswer) []CapabilityHint { return nil }
 
 // Engine owns session persistence and scaffold rendering.
 type Engine struct {
@@ -174,7 +175,7 @@ func Complete(s Session) bool { return len(Remaining(s)) == 0 }
 
 // Hints runs the dedup hook over the answered targets (silent no-op when
 // the hinter's backend is down).
-func (e *Engine) Hints(s Session) []CapabilityHint {
+func (e *Engine) Hints(ctx context.Context, s Session) []CapabilityHint {
 	var targets []OTAnswer
 	for _, id := range []string{"targets_p0", "targets_p1", "targets_p2"} {
 		if a, ok := s.Answers[id]; ok {
@@ -184,7 +185,7 @@ func (e *Engine) Hints(s Session) []CapabilityHint {
 	if len(targets) == 0 {
 		return nil
 	}
-	return e.hinter.Hints(s.Scenario, targets)
+	return e.hinter.Hints(ctx, s.Scenario, targets)
 }
 
 func (e *Engine) save(s Session) error {

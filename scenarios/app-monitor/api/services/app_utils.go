@@ -72,14 +72,6 @@ func humanizeDuration(d time.Duration) string {
 	return strings.Join(parts, " ")
 }
 
-func formatMillisTimestamp(value int64) string {
-	if value <= 0 {
-		return ""
-	}
-	t := time.Unix(0, value*int64(time.Millisecond))
-	return t.UTC().Format("15:04:05.000")
-}
-
 // =============================================================================
 // String Utilities
 // =============================================================================

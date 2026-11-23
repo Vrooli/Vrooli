@@ -12,9 +12,9 @@ import {
 
 import { ScenarioPicker } from "../../components/ScenarioPicker";
 import { DiffView } from "../../components/DiffView";
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
-import { Textarea } from "../../components/ui/textarea";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1.1.1";
 import { useWizard } from "./useWizard";
 import { useRecentScenarios } from "../../hooks/useRecentScenarios";
 import { selectors } from "../../consts/selectors";

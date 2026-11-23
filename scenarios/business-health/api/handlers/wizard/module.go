@@ -82,7 +82,7 @@ func (h *handler) StartSession(ctx context.Context, req *connect.Request[wizardv
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(sessionState(s, h.engine)), nil
+	return connect.NewResponse(sessionState(ctx, s, h.engine)), nil
 }
 
 func (h *handler) SubmitAnswers(ctx context.Context, req *connect.Request[wizardv1.SubmitAnswersRequest]) (*connect.Response[wizardv1.SessionState], error) {
@@ -98,7 +98,7 @@ func (h *handler) SubmitAnswers(ctx context.Context, req *connect.Request[wizard
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	state := sessionState(s, h.engine)
+	state := sessionState(ctx, s, h.engine)
 	for id, reason := range invalid {
 		state.Answers[id] = &wizardv1.Answer{QuestionId: id, InvalidReason: reason}
 	}
@@ -147,7 +147,7 @@ func (h *handler) ApplyScaffold(ctx context.Context, req *connect.Request[wizard
 	return connect.NewResponse(result), nil
 }
 
-func sessionState(s wizardengine.Session, e *wizardengine.Engine) *wizardv1.SessionState {
+func sessionState(ctx context.Context, s wizardengine.Session, e *wizardengine.Engine) *wizardv1.SessionState {
 	state := &wizardv1.SessionState{
 		SessionId: s.ID,
 		Scenario:  s.Scenario,
@@ -169,7 +169,7 @@ func sessionState(s wizardengine.Session, e *wizardengine.Engine) *wizardv1.Sess
 	for id, a := range s.Answers {
 		state.Answers[id] = answerToProto(id, a)
 	}
-	for _, hint := range e.Hints(s) {
+	for _, hint := range e.Hints(ctx, s) {
 		state.Hints = append(state.Hints, &wizardv1.CapabilityHint{
 			Scenario:   hint.Scenario,
 			Capability: hint.Capability,

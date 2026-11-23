@@ -3,13 +3,14 @@ import * as React from "react";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
-import { Textarea } from "../../components/ui/textarea";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1.1.1";
 import { ErrorState } from "../../components/ErrorState";
 import { useCreateCampaign } from "./controllers/useCampaignController";
 import { AuditReportParseError, parseAuditReport } from "./lib/parseAuditReport";
 import type { ArchitectureFinding } from "@vrooli/proto-types/architecture/v1/findings_pb";
+import { cn } from "../../lib/utils";
 
 export interface CreateCampaignFormProps {
   scenario: string;
@@ -124,10 +125,11 @@ export function CreateCampaignForm({ scenario, onCreated, onCancel }: CreateCamp
       <div className="flex flex-wrap gap-2">
         <Button
           type="submit"
-          variant="default"
+          variant="primary"
           size="sm"
           data-testid={selectors.features.campaign.create.submit}
           disabled={!canSubmit}
+          shape="square"
         >
           {create.isPending
             ? t(strings.pages.campaign.create.submitting)
@@ -135,11 +137,13 @@ export function CreateCampaignForm({ scenario, onCreated, onCancel }: CreateCamp
         </Button>
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           size="sm"
           data-testid={selectors.features.campaign.create.cancel}
           onClick={onCancel}
           disabled={create.isPending}
+          shape="square"
+          className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
         >
           {t(strings.pages.campaign.create.cancel)}
         </Button>
