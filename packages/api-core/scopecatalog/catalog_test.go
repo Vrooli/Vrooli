@@ -156,12 +156,19 @@ func TestHasScopeUsesDerivedConcreteValues(t *testing.T) {
 	catalog := Catalog{
 		Scopes:             []Scope{{Value: "vrooli-bridge:write"}},
 		OmittedResolutions: []OmittedResolution{{Scope: "scenario-authenticator:destructive"}},
+		AuthenticationProfiles: []AuthenticationProfile{{
+			Scenario:     "vrooli-onboarding",
+			Capabilities: []Capability{{ID: "vrooli-onboarding:destructive", Effect: EffectDestructive}},
+		}},
 	}
 	if !catalog.HasScope("vrooli-bridge:write") {
 		t.Fatal("expected governed scope to resolve")
 	}
 	if !catalog.HasScope("scenario-authenticator:destructive") {
 		t.Fatal("expected omitted scope default to resolve")
+	}
+	if !catalog.HasScope("vrooli-onboarding:destructive") {
+		t.Fatal("expected a declared authentication capability to resolve as vocabulary")
 	}
 	if catalog.HasScope("vrooli-bridge:unknown") || catalog.HasScope(" ") {
 		t.Fatal("unknown or empty scope resolved")

@@ -9,7 +9,7 @@ import (
 func TestLoadOwnerInventoryDiscoversAllOwnerKindsDeterministically(t *testing.T) {
 	root := t.TempDir()
 	writeOwnerFixture(t, filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), `{"service":{"name":"alpha"},"storage":{"entries":{"data":{"rung":"owned","path":"db","kind":"file","class":"data"}}},"retention":{"budgets":{"events":{"target":{"kind":"directory","path":"events"},"max_bytes":"1MiB"}}}}`)
-	writeOwnerFixture(t, filepath.Join(root, "resources", "postgres", "resource.json"), `{"name":"postgres","storage":{"entries":{"main":{"rung":"pinned","path":{"linux":"$USER_HOME/data","windows":"%USERPROFILE%\\data"},"kind":"dir","reacquisition":{"command":"resource postgres acquire","evidence":"resource.json#/artifacts","requires_authorization":true,"authorization_rationale":"operator credential"}}}},"durable_data":{"base":"$USER_HOME","entries":{"config":{"path":"config","regenerable":false}}}}`)
+	writeOwnerFixture(t, filepath.Join(root, "resources", "postgres", "resource.json"), `{"name":"postgres","storage":{"entries":{"main":{"rung":"pinned","path":{"linux":"$USER_HOME/data","windows":"%USERPROFILE%\\data"},"kind":"dir","reacquisition":{"command":"resource postgres acquire","evidence":"resource.json#/artifacts","requires_authorization":true,"authorization_rationale":"operator credential"},"reclaim":{"artifact_names":["medium-model"]}}}},"durable_data":{"base":"$USER_HOME","entries":{"config":{"path":"config","regenerable":false}}}}`)
 	writeOwnerFixture(t, filepath.Join(root, "internal", "tools", "go", "tool.json"), `{"name":"go","storage":{"entries":{"cache":{"rung":"relocatable","path":"$USER_CACHE_DIR/go-build","kind":"dir","relocation":{"key":"GOCACHE","scope":"process-tree"}}}}}`)
 	writeOwnerFixture(t, filepath.Join(root, "internal", "safeguards", "clock", "safeguard.json"), `{"name":"clock","description":"clock","handler":"clock","privilege":"none","bundling":"prohibited","deployment":{"profiles":{}}}`)
 	writeOwnerFixture(t, filepath.Join(root, "internal", "safeguards", "unmanifested", "handler.go"), "package unmanifested")
@@ -42,6 +42,9 @@ func TestLoadOwnerInventoryDiscoversAllOwnerKindsDeterministically(t *testing.T)
 	}
 	if resource.StorageEntries[0].Regenerable {
 		t.Fatal("reacquisition evidence must not change the generic cleanup-safety flag")
+	}
+	if reclaim := resource.StorageEntries[0].Reclaim; reclaim == nil || len(reclaim.ArtifactNames) != 1 || reclaim.ArtifactNames[0] != "medium-model" {
+		t.Fatalf("artifact-scoped reclaim declaration was lost: %#v", reclaim)
 	}
 	if len(resource.DurableData) != 1 || resource.DurableData[0].Regenerable {
 		t.Fatalf("durable_data was not normalized: %#v", resource.DurableData)

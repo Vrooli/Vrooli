@@ -5,8 +5,9 @@
 // name in multiple places.
 //
 // Detection order:
-//  1. SCENARIO_NAME environment variable (if set)
-//  2. Directory structure: parent of "api/" directory
+//  1. VROOLI_SCENARIO environment variable (if set)
+//  2. SCENARIO_NAME environment variable (if set)
+//  3. Directory structure: parent of "api/" directory
 //
 // Example directory structure:
 //
@@ -43,7 +44,7 @@ var (
 // Name returns the scenario name.
 //
 // Detection priority:
-//  1. SCENARIO_NAME environment variable
+//  1. VROOLI_SCENARIO, then SCENARIO_NAME environment variables
 //  2. Parent directory of "api/" in current working directory
 //  3. "unknown" if detection fails
 //
@@ -62,8 +63,7 @@ func ServiceName() string {
 
 // detect determines the scenario name from environment or directory structure.
 func detect() string {
-	// Priority 1: Environment variable
-	if name := strings.TrimSpace(envGetter("SCENARIO_NAME")); name != "" {
+	if name := IdentityFromEnv(envGetter); name != "" {
 		return name
 	}
 
@@ -73,6 +73,19 @@ func detect() string {
 	}
 
 	return "unknown"
+}
+
+// IdentityFromEnv returns the scenario identity shared by lifecycle and
+// scenario startup. The control-plane supplied VROOLI_SCENARIO is canonical;
+// SCENARIO_NAME remains a compatibility fallback for older launches.
+func IdentityFromEnv(getenv func(string) string) string {
+	if getenv == nil {
+		getenv = os.Getenv
+	}
+	if name := strings.TrimSpace(getenv("VROOLI_SCENARIO")); name != "" {
+		return name
+	}
+	return strings.TrimSpace(getenv("SCENARIO_NAME"))
 }
 
 // detectFromDirectory attempts to detect scenario name from current working directory.

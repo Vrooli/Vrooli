@@ -13,25 +13,43 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
-// hangingProvider returns a provider whose application handler blocks until the
-// returned release function runs, plus a client for its lifecycle service.
-func hangingProvider(t *testing.T, hooks Hooks) (*Provider, *Client, *httptest.Server, func()) {
+func newProviderT(t *testing.T, hooks Hooks) *Provider {
 	t.Helper()
 	p, err := NewProvider("fixture", "instance", hooks)
 	if err != nil {
 		t.Fatal(err)
 	}
-	entered, release := make(chan struct{}, 8), make(chan struct{})
-	server := httptest.NewServer(p.Mount(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		entered <- struct{}{}
-		<-release
-		w.WriteHeader(http.StatusNoContent)
-	})))
+	return p
+}
+
+// lifecycleServerT shares the package's RPC mounting and client wiring while
+// leaving each test's handler and server policy explicit.
+func lifecycleServerT(t *testing.T, hooks Hooks, application http.Handler, configure func(*httptest.Server)) (*Provider, *Client, *httptest.Server) {
+	t.Helper()
+	p := newProviderT(t, hooks)
+	server := httptest.NewUnstartedServer(p.Mount(application))
+	if configure != nil {
+		configure(server)
+	}
+	server.Start()
 	t.Cleanup(server.Close)
 	client, err := NewClient(server.Client(), server.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
+	return p, client, server
+}
+
+// hangingProvider returns a provider whose application handler blocks until the
+// returned release function runs, plus a client for its lifecycle service.
+func hangingProvider(t *testing.T, hooks Hooks) (*Provider, *Client, func()) {
+	t.Helper()
+	entered, release := make(chan struct{}, 8), make(chan struct{})
+	p, client, server := lifecycleServerT(t, hooks, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		entered <- struct{}{}
+		<-release
+		w.WriteHeader(http.StatusNoContent)
+	}), nil)
 	stop := func() {
 		select {
 		case <-release:
@@ -52,14 +70,14 @@ func hangingProvider(t *testing.T, hooks Hooks) (*Provider, *Client, *httptest.S
 	case <-time.After(5 * time.Second):
 		t.Fatal("hung request never reached its handler")
 	}
-	return p, client, server, stop
+	return p, client, stop
 }
 
 // Admitted requests and detached owner work are separate counters: a control
 // plane that accepts the risk of interrupting requests must be able to tell the
 // two apart, and the standing must say which requests are still running.
 func TestStandingSeparatesAdmittedRequestsFromOwnerWorkAndNamesThem(t *testing.T) {
-	_, client, _, _ := hangingProvider(t, Hooks{})
+	_, client, _ := hangingProvider(t, Hooks{})
 	ctx := context.Background()
 	prepared, err := client.Prepare(ctx, &commonv1.LifecyclePrepareRequest{OperationId: "op", Reason: "restart"})
 	if err != nil {
@@ -79,12 +97,9 @@ func TestStandingSeparatesAdmittedRequestsFromOwnerWorkAndNamesThem(t *testing.T
 }
 
 func TestStandingCountsOwnerWorkWithoutAdmittedRequests(t *testing.T) {
-	p, err := NewProvider("fixture", "instance", Hooks{Snapshot: func(context.Context) (Inventory, error) {
+	p := newProviderT(t, Hooks{Snapshot: func(context.Context) (Inventory, error) {
 		return Inventory{Complete: true, Remaining: 3, Work: []*commonv1.LifecycleWorkItem{{Id: "job-1", Kind: "job"}}}, nil
 	}})
-	if err != nil {
-		t.Fatal(err)
-	}
 	resp, err := p.Prepare(context.Background(), connect.NewRequest(&commonv1.LifecyclePrepareRequest{OperationId: "op", Reason: "restart"}))
 	if err != nil {
 		t.Fatal(err)
@@ -96,10 +111,7 @@ func TestStandingCountsOwnerWorkWithoutAdmittedRequests(t *testing.T) {
 }
 
 func TestClosingSignalTracksAdmissionGenerations(t *testing.T) {
-	p, err := NewProvider("fixture", "instance", Hooks{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	p := newProviderT(t, Hooks{})
 	var signal <-chan struct{}
 	handler := p.Middleware(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		signal = Closing(r.Context())
@@ -158,7 +170,7 @@ func TestClosingSignalTracksAdmissionGenerations(t *testing.T) {
 }
 
 func TestDrainTimeoutNamesTheRequestsHoldingTheFence(t *testing.T) {
-	_, client, _, _ := hangingProvider(t, Hooks{})
+	_, client, _ := hangingProvider(t, Hooks{})
 	ctx := context.Background()
 	prepared, err := client.Prepare(ctx, &commonv1.LifecyclePrepareRequest{OperationId: "op", Reason: "restart"})
 	if err != nil {
@@ -177,10 +189,11 @@ func TestDrainTimeoutNamesTheRequestsHoldingTheFence(t *testing.T) {
 }
 
 func TestDrainWithoutRequestTimeoutIsStillBounded(t *testing.T) {
+	const wantDrainTimeout = 15 * time.Minute
 	var deadline time.Time
 	callerCtx, cancelCaller := context.WithCancel(context.Background())
 	defer cancelCaller()
-	p, _, _, _ := hangingProvider(t, Hooks{
+	p, _, _ := hangingProvider(t, Hooks{
 		Quiesce: func(ctx context.Context) error {
 			deadline, _ = ctx.Deadline()
 			cancelCaller() // the hung request would otherwise hold this drain for the whole bound
@@ -197,13 +210,13 @@ func TestDrainWithoutRequestTimeoutIsStillBounded(t *testing.T) {
 	if deadline.IsZero() {
 		t.Fatal("drain without a timeout ran unbounded; want DefaultDrainTimeout applied")
 	}
-	if remaining := time.Until(deadline); remaining < DefaultDrainTimeout-time.Minute || remaining > DefaultDrainTimeout {
-		t.Fatalf("drain deadline in %s, want about %s", remaining, DefaultDrainTimeout)
+	if remaining := time.Until(deadline); remaining < wantDrainTimeout-time.Minute || remaining > wantDrainTimeout {
+		t.Fatalf("drain deadline in %s, want about %s", remaining, wantDrainTimeout)
 	}
 }
 
 func TestFinishedRequestsLeaveTheInventory(t *testing.T) {
-	p, _, _, stop := hangingProvider(t, Hooks{})
+	p, _, stop := hangingProvider(t, Hooks{})
 	p.mu.Lock()
 	before := len(p.inflight)
 	p.mu.Unlock()

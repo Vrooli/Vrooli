@@ -13,6 +13,8 @@ the source files; if you add a new tag, add a row here.
 | `devrouting.Register` | `devrouting/service.go` | mounts the Connect-RPC handler on dev mode | tests use `httptest.NewServer` + a `*RoutedDB` over in-memory sqlite | Dev-only admin surface for runtime test-pool install/clear/heartbeat. Returns false in production. |
 | `devrouting.Mux` | `devrouting/service.go` | `*http.ServeMux` or `*gorilla/mux.Router` | tests pass `*http.ServeMux` | Minimal mux interface so callers don't have to commit to a specific router. |
 
+| `database.SchemaExecer` | [`database/schemas.go`](../../database/schemas.go) (`SchemaExecer`, `SchemaQuerier`, `EnsureSchemas`) | `*sql.DB` satisfies both executor interfaces; `EnsureSchemas` applies providers in order, then reconciles additive missing columns when `SchemaQuerier` is available. A write-only executor gets apply-only behavior. | [`databasetest.FakeExecer`](../../databasetest/execer.go) supports tests of execution order and injected failures. | Schema ownership and provider order remain with each caller. For caller-owned migrations, use `ApplySchemas`, run migrations, then `VerifyDeclaredColumns`. |
+
 ## Related docs
 
 - [`scenarios/storage-manager/docs/concepts/test-isolation-contract.md`](../../../../scenarios/storage-manager/docs/concepts/test-isolation-contract.md)

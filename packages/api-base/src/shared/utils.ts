@@ -77,7 +77,7 @@ export function normalizeBase(value: string): string {
 }
 
 /**
- * Append suffix to base URL if not already present
+ * Append a suffix to the base path if missing, preserving query and fragment.
  *
  * @param base - Base URL
  * @param suffix - Suffix to append
@@ -86,13 +86,17 @@ export function normalizeBase(value: string): string {
 export function appendSuffix(base: string, suffix: string): string {
   const normalizedBase = normalizeBase(base)
   const normalizedSuffix = suffix.startsWith('/') ? suffix : `/${suffix}`
+  const queryOrHashIndex = normalizedBase.search(/[?#]/)
+  const basePath = queryOrHashIndex >= 0 ? normalizedBase.slice(0, queryOrHashIndex) : normalizedBase
+  const queryOrHash = queryOrHashIndex >= 0 ? normalizedBase.slice(queryOrHashIndex) : ''
+  const normalizedPath = basePath.replace(/\/+$/, '')
 
   // Check if suffix already present (case-insensitive)
-  if (normalizedBase.toLowerCase().endsWith(normalizedSuffix.toLowerCase())) {
-    return normalizedBase
+  if (normalizedPath.toLowerCase().endsWith(normalizedSuffix.toLowerCase())) {
+    return `${normalizedPath}${queryOrHash}`
   }
 
-  return `${normalizedBase}${normalizedSuffix}`
+  return `${normalizedPath}${normalizedSuffix}${queryOrHash}`
 }
 
 /**

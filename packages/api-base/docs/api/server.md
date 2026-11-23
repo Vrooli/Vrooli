@@ -333,7 +333,9 @@ function createScenarioProxyHost(options: ScenarioProxyHostOptions): ScenarioPro
 | `proxyPathSegment` | `string` | No | Proxy marker segment (default: `'proxy'`) |
 | `portsPathSegment` | `string` | No | Named port segment (default: `'ports'`) |
 | `loopbackHosts` | `string[]` | No | Hosts for metadata injection (default: loopback addresses) |
-| `cacheTtlMs` | `number` | No | Metadata cache TTL in ms (default: `30000`) |
+| `cacheTtlMs` | `number` | No | Metadata cache TTL in ms (default: `300000`) |
+| `metadataStaleIfErrorMs` | `number` | No | Optional additional metadata age allowed after transient lookup failure; disabled by default |
+| `metadataFailureRetryIntervalMs` | `number` | No | Minimum retry interval during stale recovery (default: `1000`) |
 | `upstreamHost` | `string` | No | Host running scenarios (default: `'127.0.0.1'`) |
 | `timeoutMs` | `number` | No | Upstream request timeout (default: `30000`) |
 | `verbose` | `boolean` | No | Enable logging (default: `false`) |
@@ -349,6 +351,20 @@ function createScenarioProxyHost(options: ScenarioProxyHostOptions): ScenarioPro
 | `enableServerTiming` | `boolean` | No | Emit `Server-Timing` header (default: `true`) |
 | `enableMetrics` | `boolean` | No | Collect aggregate metrics at `/__perf` (default: `false`) |
 | `metricsSampleSize` | `number` | No | Ring-buffer size for percentile samples (default: `1000`) |
+
+`metadataStaleIfErrorMs` is an opt-in bounded recovery window. It applies only
+when `fetchAppMetadata` throws `ProxyMetadataUnavailableError`, a previously
+resolved app context remains within `cacheTtlMs + metadataStaleIfErrorMs`, and
+the cached UI port is healthy. Metadata retries during fallback are throttled
+by `metadataFailureRetryIntervalMs`, which limits repeated failed lookups for
+asset-heavy pages. `null` metadata, ordinary errors, a missing or stopped app,
+unhealthy upstream ports, and an expired window never reuse the old target.
+Metadata providers must use the typed error only for temporary source outages;
+they must preserve not-found/stopped responses as ordinary errors. With the
+default stale window of `0`, existing callers keep fail-closed behavior.
+
+Import `ProxyMetadataUnavailableError` from `@vrooli/api-base/server` to mark
+transient metadata-provider failures.
 
 **Returns:** `ScenarioProxyHostController`
 
@@ -776,12 +792,14 @@ async function proxyToApi(
 |-------|------|---------|-------------|
 | `apiPort` | `number \| string` | **Required** | Target API server port |
 | `apiHost` | `string` | `'127.0.0.1'` | Target API server host |
-| `timeout` | `number` | `30000` | Request timeout in ms |
+| `timeout` | `number` | `15000` | Longest the upstream may stay silent, in ms. Streams ignore it (see below) |
 | `headers` | `Record<string, string> \| (req) => Record<string, string>` | `{}` | Additional headers (static or per-request function) |
 | `verbose` | `boolean` | `false` | Enable logging |
 | `keepAlive` | `boolean` | `true` | Reuse HTTP connections |
 | `agent` | `http.Agent` | - | Custom HTTP agent |
 | `crossOriginRelay` | `boolean` | `false` | The upstream is a different browser origin (another scenario UI, a loopback service). Drops `Origin`, `Referer` and `Sec-Fetch-*` after this server's own policy admitted the request. Leave `false` for the scenario's own API, which may run its own Fetch Metadata checks |
+
+**Streams.** A request that opens a stream (`Content-Type: application/connect+*` or `application/grpc*`, `Accept: text/event-stream`), or an upstream response marked as one (`text/event-stream`, `application/connect+*`, `application/grpc*`, `application/x-ndjson`, `application/jsonl`), has no idle timeout: a job watch is silent between frames for as long as its work runs. Unary calls keep `timeout`. If the upstream fails after the response has started, the proxy destroys the client response so the client sees a closed stream, never a hang; a client that disconnects stops the upstream request. Tests: `src/__tests__/server/proxy-streaming.test.ts`.
 
 Upstream `Access-Control-*` response headers are always dropped: the browser-facing
 server's origin policy owns CORS. Upstream `Vary` is merged with the policy's.

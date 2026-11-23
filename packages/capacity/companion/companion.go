@@ -26,29 +26,28 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	platform "github.com/vrooli/platform-go"
+
+	"github.com/vrooli/vrooli/internal/buildinfo"
+	internalcapacity "github.com/vrooli/vrooli/internal/capacity"
 )
 
 // Footprint is one observation of what a resource currently holds.
 type Footprint struct {
 	// Bytes is the resource's current footprint. Zero means it holds nothing,
-	// which is a release unless Parked is set.
+	// which is a release unless its claim is degraded to a zero-memory rung
+	// (alive at its CPU fallback), where the claim is the record of that mode
+	// and the broker could never upshift it back once released.
 	Bytes int64
 	// Activity is "active" or "idle". Empty leaves the ledger's current
 	// activity state alone: idleness is the work-owner's truth to report, and
 	// an observer that cannot tell must not guess.
 	Activity string
-	// Parked marks a resource that is alive but deliberately holds no device
-	// memory at its fallback rung (for example, degraded to CPU). Its claim is
-	// the record of that operating mode, so a zero footprint must heartbeat it
-	// rather than release it: releasing would erase the degraded state and the
-	// broker could never upshift it back. Model-holding resources never set
-	// this; for them zero really is an unload.
-	Parked bool
 }
 
 // Observer is the resource-specific half: look at this resource and say what it
@@ -102,10 +101,15 @@ type Config struct {
 	FloorBytes     int64
 	// Profile is the declared degrade ladder, as JSON.
 	Profile string
+	// Protected makes the claim immune to preemption and degrade while active.
+	Protected bool
 	// YieldWhenIdle opts the claim into the idle-yield rule.
 	YieldWhenIdle bool
 	// IdleGrace is the dwell before an idle claim becomes reclaimable.
 	IdleGrace time.Duration
+	// IdleUnloadTTL is the idle dwell after which the broker unloads the claim
+	// to its floor through the declared apply verb. Zero means never.
+	IdleUnloadTTL time.Duration
 	// LedgerCacheTTL bounds repeated capacity-list probes when a resource
 	// performs a short reconciliation burst. Mutations invalidate the cache.
 	// Zero uses the conservative two-second default.
@@ -140,6 +144,66 @@ func (c Config) resizeThreshold() int64 {
 		return c.ResizeThresholdBytes
 	}
 	return DefaultResizeThreshold
+}
+
+// WithClaimSpec applies the resource's declared `acceleration.claim` block, the
+// same data lifecycle admission turns into a claim. The manifest is the one
+// source of a claim's kind, tier, idle-yield flag, idle grace and idle-unload
+// TTL, so a claim this companion creates is indistinguishable from one the
+// lifecycle created: no resource restates them in Go, and a manifest edit
+// reaches the ledger through here rather than through a per-resource constant.
+//
+// The reservation ladder (preferred, floor, profile) is taken from the manifest
+// only when the caller declared none; a resource that derives its own ladder
+// keeps it as one unit.
+func (c Config) WithClaimSpec(spec internalcapacity.ResourceClaimSpec) Config {
+	if kind := strings.TrimSpace(spec.ResourceKind); kind != "" {
+		c.ResourceKind = kind
+	}
+	c.Priority = spec.Priority
+	c.Protected = spec.Protected
+	c.YieldWhenIdle = spec.YieldWhenIdle
+	c.IdleGrace = time.Duration(spec.IdleGraceSeconds) * time.Second
+	c.IdleUnloadTTL = time.Duration(spec.IdleUnloadTTLSeconds) * time.Second
+	if c.PreferredBytes <= 0 {
+		c.PreferredBytes = spec.PreferredBytes
+		c.FloorBytes = spec.FloorBytes
+		c.Profile = ""
+		if spec.Profile != nil {
+			if data, err := json.Marshal(spec.Profile); err == nil {
+				c.Profile = string(data)
+			}
+		}
+	}
+	return c
+}
+
+// ClaimSource reads a resource's declared claim. ok is false, with no error,
+// when the resource declares none.
+type ClaimSource func(resource string) (spec internalcapacity.ResourceClaimSpec, ok bool, err error)
+
+// DeclaredClaim reads the claim from the resource's own resource.json. The
+// resource root comes from RESOURCE_ROOT (set for every managed companion) and
+// otherwise from the source-root resolver every other control-plane tool uses.
+func DeclaredClaim(getenv func(string) string) ClaimSource {
+	return func(resource string) (internalcapacity.ResourceClaimSpec, bool, error) {
+		var roots []string
+		if getenv != nil {
+			if dir := strings.TrimSpace(getenv("RESOURCE_ROOT")); dir != "" && filepath.Base(filepath.Clean(dir)) == resource {
+				roots = append(roots, filepath.Dir(filepath.Dir(filepath.Clean(dir))))
+			}
+		}
+		if root, err := buildinfo.ResolveSourceRoot(); err == nil {
+			roots = append(roots, root)
+		}
+		for _, root := range roots {
+			spec, ok, err := internalcapacity.LoadResourceClaimSpec(root, resource)
+			if err != nil || ok {
+				return spec, ok, err
+			}
+		}
+		return internalcapacity.ResourceClaimSpec{}, false, nil
+	}
 }
 
 // Runner drives one resource's capacity reporting.
@@ -222,27 +286,67 @@ func (r *Runner) SyncOnce(ctx context.Context) {
 		if active == nil {
 			return
 		}
-		if footprint.Parked {
-			// The resource is alive at a zero-memory rung. Keep the claim (and
-			// its mode state) warm so the broker's upshift pass can climb it
-			// back when headroom returns.
+		if active.Status == "degraded" && active.AmountBytes <= 0 {
+			// The resource is alive at a zero-memory rung (degraded to CPU).
+			// Keep the claim (and its mode state) warm so the broker's upshift
+			// pass can climb it back when headroom returns.
 			r.heartbeat(ctx, active.ClaimID, active.Generation)
 			return
 		}
 		r.release(ctx, active.ClaimID)
 		return
 	}
+	activity := footprint.Activity
+	fresh := false
 	switch {
 	case active == nil:
 		active = r.claim(ctx, footprint.Bytes)
+		fresh = true
+	case r.driftedFromDeclaration(*active):
+		// The ledger row predates the manifest's current idle policy and no
+		// verb edits a claim's idle policy in place. Replace it once, as
+		// lifecycle admission does, and carry the work-owner's activity over.
+		r.logf("claim %s idle policy differs from the manifest; replacing it", active.ClaimID)
+		if activity == "" {
+			activity = active.ActivityState
+		}
+		r.release(ctx, active.ClaimID)
+		active = r.claim(ctx, footprint.Bytes)
+		fresh = true
 	case abs64(active.AmountBytes-footprint.Bytes) > r.cfg.resizeThreshold():
 		active = r.resize(ctx, active.ClaimID, active.Generation, footprint.Bytes)
 	default:
 		active = r.heartbeat(ctx, active.ClaimID, active.Generation)
 	}
-	if footprint.Activity != "" && active != nil {
-		r.activity(ctx, active.ClaimID, active.Generation, footprint.Activity)
+	if fresh && active != nil && abs64(active.AmountBytes-footprint.Bytes) > r.cfg.resizeThreshold() {
+		// The grant snaps to a ladder rung that fits the free memory the host
+		// reports, and that free memory already excludes what this resource
+		// holds. Record the real footprint now instead of leaving a lower rung
+		// for the broker's upshift pass to act on.
+		active = r.resize(ctx, active.ClaimID, active.Generation, footprint.Bytes)
 	}
+	if activity != "" && active != nil {
+		r.activity(ctx, active.ClaimID, active.Generation, activity)
+	}
+}
+
+// driftedFromDeclaration reports whether a granted claim carries a different
+// idle policy than this companion declares. Degraded claims keep their mode
+// state and converge when they are next created. The list view reports the
+// effective grace, so an undeclared grace is not comparable and is skipped.
+func (r *Runner) driftedFromDeclaration(c LedgerClaim) bool {
+	if c.Status != "granted" {
+		return false
+	}
+	if c.YieldWhenIdle != r.cfg.YieldWhenIdle || parseDuration(c.IdleUnloadTTL) != r.cfg.IdleUnloadTTL {
+		return true
+	}
+	return r.cfg.IdleGrace > 0 && parseDuration(c.IdleGrace) != r.cfg.IdleGrace
+}
+
+func parseDuration(value string) time.Duration {
+	d, _ := time.ParseDuration(strings.TrimSpace(value))
+	return d
 }
 
 // LedgerClaim is the slice of `vrooli capacity list --json` the loop reads.
@@ -255,6 +359,12 @@ type LedgerClaim struct {
 	AmountBytes  int64  `json:"amount_bytes"`
 	Generation   int64  `json:"generation"`
 	Status       string `json:"status"`
+	// ActivityState and the idle policy are read so a claim whose idle policy
+	// predates the manifest can be recognised and replaced.
+	ActivityState string `json:"activity_state"`
+	YieldWhenIdle bool   `json:"yield_when_idle"`
+	IdleGrace     string `json:"idle_grace"`
+	IdleUnloadTTL string `json:"idle_unload_ttl"`
 }
 
 // activeClaim distinguishes confirmed absence from an unavailable ledger.
@@ -355,8 +465,10 @@ func (r *Runner) claim(ctx context.Context, amount int64) *LedgerClaim {
 	if floor < 0 {
 		floor = 0
 	}
+	// --no-reclaim: the companion records memory the resource already holds. It
+	// is an observation, not a request, so it must never displace another owner.
 	args := []string{
-		"capacity", "claim",
+		"capacity", "claim", "--no-reclaim",
 		"--owner-kind", "resource", "--owner-id", r.cfg.Resource,
 		"--resource-kind", resourceKind(r.cfg.ResourceKind),
 		"--preferred", strconv.FormatInt(preferred, 10),
@@ -368,36 +480,68 @@ func (r *Runner) claim(ctx context.Context, amount int64) *LedgerClaim {
 	if priority := strings.TrimSpace(r.cfg.Priority); priority != "" {
 		args = append(args, "--priority", priority)
 	}
+	if r.cfg.Protected {
+		args = append(args, "--protected")
+	}
 	if r.cfg.YieldWhenIdle {
 		args = append(args, "--yield-when-idle")
 	}
 	if r.cfg.IdleGrace > 0 {
 		args = append(args, "--idle-grace", r.cfg.IdleGrace.String())
 	}
+	if r.cfg.IdleUnloadTTL > 0 {
+		args = append(args, "--idle-unload-ttl", r.cfg.IdleUnloadTTL.String())
+	}
 	if profile := strings.TrimSpace(r.cfg.Profile); profile != "" {
 		args = append(args, "--profile", profile)
 	}
 	args = append(args, "--json")
-	return r.mutateClaim(ctx, "claim", "", 0, args...)
+	claim, _ := r.mutateClaim(ctx, "claim", "", 0, args...)
+	return claim
 }
 
 func (r *Runner) resize(ctx context.Context, claimID string, generation, amount int64) *LedgerClaim {
 	if strings.TrimSpace(claimID) == "" || amount <= 0 {
 		return nil
 	}
-	return r.mutateClaim(ctx, "resize", claimID, generation, "capacity", "resize",
-		"--claim-id", claimID,
-		"--generation", strconv.FormatInt(generation, 10),
-		"--amount", strconv.FormatInt(amount, 10), "--json")
+	return r.mutateCurrent(ctx, claimID, generation, func(generation int64) (*LedgerClaim, bool) {
+		return r.mutateClaim(ctx, "resize", claimID, generation, "capacity", "resize",
+			"--claim-id", claimID,
+			"--generation", strconv.FormatInt(generation, 10),
+			"--amount", strconv.FormatInt(amount, 10), "--json")
+	})
 }
 
 func (r *Runner) heartbeat(ctx context.Context, claimID string, generation int64) *LedgerClaim {
 	if strings.TrimSpace(claimID) == "" {
 		return nil
 	}
-	return r.mutateClaim(ctx, "heartbeat", claimID, generation, "capacity", "heartbeat",
-		"--claim-id", claimID,
-		"--generation", strconv.FormatInt(generation, 10), "--json")
+	return r.mutateCurrent(ctx, claimID, generation, func(generation int64) (*LedgerClaim, bool) {
+		return r.mutateClaim(ctx, "heartbeat", claimID, generation, "capacity", "heartbeat",
+			"--claim-id", claimID,
+			"--generation", strconv.FormatInt(generation, 10), "--json")
+	})
+}
+
+// mutateCurrent runs a generation-guarded mutation and, when it lost a race to
+// another writer, re-reads the claim once and retries against its current
+// generation. The work owner's edge reports activity (which bumps the
+// generation) between this loop's read and its write; that is a lost race, not
+// a changed claim, so the guard is kept and the loop simply reads again. The
+// retry only proceeds for the same claim id: an owner whose claim was replaced
+// or released is left for the next pass to resolve.
+func (r *Runner) mutateCurrent(ctx context.Context, claimID string, generation int64, attempt func(generation int64) (*LedgerClaim, bool)) *LedgerClaim {
+	claim, stale := attempt(generation)
+	if !stale {
+		return claim
+	}
+	current, err := r.activeClaim(ctx)
+	if err != nil || current == nil || current.ClaimID != claimID || current.Generation == generation {
+		return nil
+	}
+	r.logf("claim %s moved from generation %d to %d; retrying once", claimID, generation, current.Generation)
+	claim, _ = attempt(current.Generation)
+	return claim
 }
 
 func (r *Runner) release(ctx context.Context, claimID string) {
@@ -421,11 +565,14 @@ func (r *Runner) activity(ctx context.Context, claimID string, generation int64,
 
 // mutateClaim consumes the real JSON response so subsequent activity uses the
 // current identity/generation. Unknown mutation outcomes never authorize another.
-func (r *Runner) mutateClaim(ctx context.Context, action, claimID string, generation int64, args ...string) *LedgerClaim {
+//
+// The second result reports a lost generation race, which the caller may retry
+// after re-reading; every other failure is final for this pass.
+func (r *Runner) mutateClaim(ctx context.Context, action, claimID string, generation int64, args ...string) (*LedgerClaim, bool) {
 	defer r.invalidateActiveClaim()
 	out, err := r.run(ctx, action, args...)
 	if err != nil {
-		return nil
+		return nil, isStaleGeneration(err)
 	}
 	var claim LedgerClaim
 	if action == "claim" {
@@ -439,9 +586,14 @@ func (r *Runner) mutateClaim(ctx context.Context, action, claimID string, genera
 	}
 	if err != nil || !exactResourceClaim(claim, r.cfg.Resource, resourceKind(r.cfg.ResourceKind), r.cfg.GPUIndex) || (claimID != "" && claim.ClaimID != claimID) || (action == "resize" && claim.Generation <= generation) || (action == "heartbeat" && claim.Generation != generation) {
 		r.logf("%s response has no validated current claim; skipping activity", action)
-		return nil
+		return nil, false
 	}
-	return &claim
+	return &claim, false
+}
+
+// isStaleGeneration recognises the claim verbs' lost-race refusal.
+func isStaleGeneration(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "generation is stale")
 }
 
 // run fails open for resource work, while stopping dependent ledger actions.
@@ -527,6 +679,18 @@ func (r Reporter) Heartbeat(ctx context.Context) error {
 	if claim.OwnerKind != "resource" || claim.Generation <= 0 {
 		return fmt.Errorf("invalid resource admission identity for %s", r.Resource)
 	}
-	_, err := r.Exec(ctx, "vrooli", "capacity", "heartbeat", "--claim-id", claim.ClaimID, "--generation", strconv.FormatInt(claim.Generation, 10), "--json")
+	beat := func(generation int64) error {
+		_, err := r.Exec(ctx, "vrooli", "capacity", "heartbeat", "--claim-id", claim.ClaimID, "--generation", strconv.FormatInt(generation, 10), "--json")
+		return err
+	}
+	err := beat(claim.Generation)
+	if !isStaleGeneration(err) {
+		return err
+	}
+	// Activity reports bump the generation between the read and the write; read
+	// once more and retry the same claim rather than failing the request path.
+	if current, ok := r.ActiveClaim(ctx); ok && current.ClaimID == claim.ClaimID && current.Generation != claim.Generation {
+		return beat(current.Generation)
+	}
 	return err
 }

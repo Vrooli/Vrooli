@@ -203,3 +203,31 @@ func TestComposeCandidateValidatesAllInputsWithoutOutputPin(t *testing.T) {
 		t.Fatal("missing input digest accepted")
 	}
 }
+
+func TestAcquisitionDownloadByteBoundRequiresURLAndArchiveBounds(t *testing.T) {
+	digest := strings.Repeat("a", 64)
+	valid := Acquisition{Kind: "url", Targets: []AcquisitionTarget{{URL: "https://example.test/tool", SHA256: digest, DownloadBytes: 1234, Archive: "none", Layout: "file"}}}
+	if err := valid.Validate(); err != nil {
+		t.Fatal("valid exact raw byte bound rejected:", err)
+	}
+	for name, target := range map[string]AcquisitionTarget{
+		"negative":               {URL: "https://example.test/tool", SHA256: digest, DownloadBytes: -1},
+		"archive_without_limits": {URL: "https://example.test/tool", SHA256: digest, DownloadBytes: 1234, Archive: "tar.gz", Layout: "dir"},
+		"oci":                    {Kind: "oci-image", Image: "example/tool@sha256:" + digest, SHA256: digest, DownloadBytes: 1234},
+		"unsupported":            {Unsupported: "not published", DownloadBytes: 1234},
+	} {
+		t.Run(name, func(t *testing.T) {
+			kind := "url"
+			if target.Kind != "" {
+				kind = target.Kind
+			}
+			if err := (Acquisition{Kind: kind, Targets: []AcquisitionTarget{target}}).Validate(); err == nil {
+				t.Fatal("invalid exact byte bound accepted")
+			}
+		})
+	}
+	boundedArchive := Acquisition{Kind: "url", Targets: []AcquisitionTarget{{URL: "https://example.test/archive", SHA256: digest, DownloadBytes: 1234, MaxExpandedBytes: 4096, MaxEntries: 100, Archive: "tar.gz", Layout: "dir", ArtifactSHA256: digest}}}
+	if err := boundedArchive.Validate(); err != nil {
+		t.Fatalf("valid bounded archive rejected: %v", err)
+	}
+}

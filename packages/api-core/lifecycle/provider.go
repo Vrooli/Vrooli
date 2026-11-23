@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/scenario"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	commonconnect "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1/commonv1connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -126,11 +127,7 @@ func NewProviderFromEnv(getenv func(string) string, hooks Hooks) (*Provider, err
 	if getenv == nil {
 		getenv = os.Getenv
 	}
-	scenario := strings.TrimSpace(getenv("VROOLI_SCENARIO"))
-	if scenario == "" {
-		scenario = strings.TrimSpace(getenv("SCENARIO_NAME"))
-	}
-	return NewProvider(scenario, getenv("VROOLI_RUNTIME_INSTANCE_ID"), hooks)
+	return NewProvider(scenario.IdentityFromEnv(getenv), getenv("VROOLI_RUNTIME_INSTANCE_ID"), hooks)
 }
 
 // Mount adds the loopback-only lifecycle RPC service before the scenario's

@@ -186,6 +186,34 @@ func TestPickRequiredRefusesMissingAndExpiredTestRoots(t *testing.T) {
 	}
 }
 
+func TestLeaseExpiryIsConsistentAcrossPinnedAndUnpinnedRoutes(t *testing.T) {
+	clock := &fakeClock{now: time.Unix(100, 0)}
+	routes := New(testPaths("/primary"))
+	routes.SetClock(clock)
+	if err := routes.InstallTestRoots(testPaths("/isolated"), "lease-a", time.Minute); err != nil {
+		t.Fatalf("install roots: %v", err)
+	}
+	pinned, err := routes.PinTestRoots(database.WithTestMode(context.Background()), "lease-a")
+	if err != nil {
+		t.Fatalf("pin roots: %v", err)
+	}
+	clock.now = clock.now.Add(time.Minute)
+
+	if _, err := routes.PickRequired(database.WithTestMode(context.Background()), storage.ClassData); err == nil {
+		t.Fatal("unbound writer selected roots at the exact lease expiry")
+	}
+	if _, err := routes.PickRequired(pinned, storage.ClassData); err == nil {
+		t.Fatal("pinned writer selected roots at the exact lease expiry")
+	}
+	routes.RecordWrite(pinned)
+	if got := routes.LeaseStats(); got.TestRootWrites != 0 || got.PrimaryWritesDuringTestMode != 0 {
+		t.Fatalf("expired pin recorded a write: %#v", got)
+	}
+	if routes.HasTestRoots() {
+		t.Fatal("lease remained active at the exact expiry")
+	}
+}
+
 func TestResumeTestRootsReplacesExpiredBindingAndInvalidatesOldPin(t *testing.T) {
 	clock := &fakeClock{now: time.Unix(100, 0)}
 	primary := createRootTree(t, t.TempDir())

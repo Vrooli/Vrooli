@@ -47,6 +47,18 @@ func TestName_FromEnv_Trimmed(t *testing.T) {
 	}
 }
 
+func TestIdentityFromEnvUsesControlPlaneIdentityAndLegacyFallback(t *testing.T) {
+	values := map[string]string{"VROOLI_SCENARIO": " control-plane-name ", "SCENARIO_NAME": "legacy-name"}
+	getenv := func(key string) string { return values[key] }
+	if got := apiscenario.IdentityFromEnv(getenv); got != "control-plane-name" {
+		t.Fatalf("identity = %q, want canonical control-plane identity", got)
+	}
+	values["VROOLI_SCENARIO"] = "  "
+	if got := apiscenario.IdentityFromEnv(getenv); got != "legacy-name" {
+		t.Fatalf("identity = %q, want trimmed legacy fallback", got)
+	}
+}
+
 func TestName_FromDirectory(t *testing.T) {
 	root := writeRepoFixture(t)
 	cleanup := apiscenario.SetTestHooks(

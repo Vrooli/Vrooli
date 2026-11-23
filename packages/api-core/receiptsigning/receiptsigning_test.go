@@ -2,6 +2,7 @@ package receiptsigning
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,6 +12,25 @@ import (
 	"strings"
 	"testing"
 )
+
+func TestCanonicalJSONSortsNestedObjectKeys(t *testing.T) {
+	value := struct {
+		Z int            `json:"z"`
+		A map[string]any `json:"a"`
+	}{Z: 1, A: map[string]any{"y": true, "b": "value"}}
+	canonical, err := CanonicalJSON(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const want = `{"a":{"b":"value","y":true},"z":1}`
+	if string(canonical) != want {
+		t.Fatalf("CanonicalJSON() = %s, want %s", canonical, want)
+	}
+	var decoded any
+	if err := json.Unmarshal(canonical, &decoded); err != nil {
+		t.Fatalf("canonical output is not valid JSON: %v", err)
+	}
+}
 
 type staticCredential string
 

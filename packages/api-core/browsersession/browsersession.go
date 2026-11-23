@@ -130,10 +130,14 @@ func (e *Edge) SignIn(ctx context.Context, in, out http.Header, credentials Cred
 	if err != nil {
 		return Outcome{}, providerError(err)
 	}
-	if response.Msg.GetMfaRequired() {
-		return Outcome{MFARequired: true, MFAChallenge: response.Msg.GetMfaChallenge()}, nil
+	message, err := responseMessage(response)
+	if err != nil {
+		return Outcome{}, err
 	}
-	return e.establish(in, out, response.Msg.GetTokens())
+	if message.GetMfaRequired() {
+		return Outcome{MFARequired: true, MFAChallenge: message.GetMfaChallenge()}, nil
+	}
+	return e.establish(in, out, message.GetTokens())
 }
 
 // Renew exchanges the refresh cookie for a new session and writes the rotated
@@ -158,7 +162,11 @@ func (e *Edge) Renew(ctx context.Context, in, out http.Header) (Outcome, error) 
 		}
 		return Outcome{}, err
 	}
-	return e.establish(in, out, response.Msg.GetTokens())
+	message, err := responseMessage(response)
+	if err != nil {
+		return Outcome{}, err
+	}
+	return e.establish(in, out, message.GetTokens())
 }
 
 // SignOut clears the session cookies and asks the provider to revoke the
@@ -230,6 +238,15 @@ func (e *Edge) accounts(ctx context.Context) (Accounts, error) {
 		return nil, ErrUnavailable
 	}
 	return accounts, nil
+}
+
+// responseMessage gives both provider calls the same malformed-success
+// behavior: preserve the browser's current session and ask the user to retry.
+func responseMessage[T any](response *connect.Response[T]) (*T, error) {
+	if response == nil || response.Msg == nil {
+		return nil, ErrUnavailable
+	}
+	return response.Msg, nil
 }
 
 func (e *Edge) establish(in, out http.Header, tokens *accountsv1.TokenPair) (Outcome, error) {

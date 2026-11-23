@@ -124,6 +124,7 @@ describe('Host Scenario Pattern Integration', () => {
   const childId = 'test-child-scenario'
   const testMessages: string[] = []
   let childHtmlRequestCount = 0
+  let childDeepRouteRequestCount = 0
 
   beforeAll(async () => {
     // Allocate ports
@@ -211,6 +212,27 @@ describe('Host Scenario Pattern Integration', () => {
 </html>`)
         })
 
+        // Simulate a production SPA fallback that emits a root base tag for a
+        // deep browser route, plus a deliberately non-root owner base.
+        app.get('/providers', (req, res) => {
+          childDeepRouteRequestCount += 1
+          res.setHeader('Content-Type', 'text/html')
+          res.send(`<!DOCTYPE html>
+<html>
+<head>
+  <base href="/">
+  <title>Child Providers</title>
+  <script src="./assets/providers.js"></script>
+</head>
+<body><main>Providers content</main></body>
+</html>`)
+        })
+
+        app.get('/owner-configured', (_req, res) => {
+          res.setHeader('Content-Type', 'text/html')
+          res.send('<html><head><base href="/owner-assets/"></head><body>Owner base</body></html>')
+        })
+
         // Serve mock assets
         app.get('/styles.css', (req, res) => {
           res.setHeader('Content-Type', 'text/css')
@@ -220,6 +242,11 @@ describe('Host Scenario Pattern Integration', () => {
         app.get('/main.js', (req, res) => {
           res.setHeader('Content-Type', 'application/javascript')
           res.send('console.log("Child app loaded");')
+        })
+
+        app.get('/assets/providers.js', (_req, res) => {
+          res.setHeader('Content-Type', 'application/javascript')
+          res.send('window.providersLoaded = true;')
         })
       },
     })
@@ -513,6 +540,45 @@ describe('Host Scenario Pattern Integration', () => {
     expect(result.body).toContain('<base')
     expect(result.body).toContain(`href="/apps/${childId}/proxy/"`)
     expect(result.body).toContain('data-host-proxy="injected"')
+  })
+
+  it('rewrites a root base on a proxied SPA deep route and serves its relative assets through the proxy', async () => {
+    hostProxyController?.invalidate(childId)
+    childDeepRouteRequestCount = 0
+
+    const route = `/apps/${childId}/proxy/providers`
+    const result = await makeRequest(hostUiPort, route, { headers: { accept: 'text/html' } })
+
+    expect(result.status).toBe(200)
+    expect(result.body).toContain('<base href="/apps/test-child-scenario/proxy/" data-host-proxy="injected">')
+    expect(result.body.replace(/<script\b[\s\S]*?<\/script>/gi, '').match(/<base\b/gi)).toHaveLength(1)
+    expect(childDeepRouteRequestCount).toBe(1)
+
+    const asset = await makeRequest(hostUiPort, `/apps/${childId}/proxy/assets/providers.js`)
+    expect(asset.status).toBe(200)
+    expect(asset.body).toContain('window.providersLoaded = true')
+
+    const cached = await makeRequest(hostUiPort, route, { headers: { accept: 'text/html' } })
+    expect(cached.status).toBe(200)
+    expect(cached.body).toContain('<base href="/apps/test-child-scenario/proxy/" data-host-proxy="injected">')
+    expect(childDeepRouteRequestCount).toBe(1)
+
+    hostProxyController?.invalidate(childId)
+    const refreshed = await makeRequest(hostUiPort, route, { headers: { accept: 'text/html' } })
+    expect(refreshed.status).toBe(200)
+    expect(refreshed.body).toContain('<base href="/apps/test-child-scenario/proxy/" data-host-proxy="injected">')
+    expect(childDeepRouteRequestCount).toBe(2)
+  })
+
+  it('preserves a deliberate non-root base on a proxied deep route', async () => {
+    const result = await makeRequest(hostUiPort, `/apps/${childId}/proxy/owner-configured`, {
+      headers: { accept: 'text/html' },
+    })
+
+    expect(result.status).toBe(200)
+    expect(result.body).toContain('<base href="/owner-assets/">')
+    expect(result.body).not.toContain(`href="/apps/${childId}/proxy/"`)
+    expect(result.body.replace(/<script\b[\s\S]*?<\/script>/gi, '').match(/<base\b/gi)).toHaveLength(1)
   })
 
   it('child HTML includes proxy metadata', async () => {

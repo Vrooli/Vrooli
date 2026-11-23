@@ -77,6 +77,11 @@ function proxyPrefix(prefix: string, port: number, upstreamHost: string): string
   return upstreamHost === '::1' ? `${prefix}/ipv6/${port}` : `${prefix}/${port}`
 }
 
+function requestQuery(url: string): string {
+  const queryStart = url.indexOf('?')
+  return queryStart >= 0 ? url.slice(queryStart) : ''
+}
+
 function isLoopbackHostname(hostname: string): boolean {
   const host = hostname.toLowerCase().replace(/^\[|\]$/g, '')
   if (host === 'localhost' || host === 'localhost.' || host === '0.0.0.0' || host === '::1') return true
@@ -292,7 +297,7 @@ export function createLocalPortProxy(options: LocalPortProxyOptions = {}): Local
     if (!capability && bootstrapNavigation) {
       const issued = issueCapability(capabilitySecret, port, upstreamHost)
       const targetBase = `${proxyPrefix(prefix, port, upstreamHost)}/${issued}`
-      const query = req.url.includes('?') ? `?${req.url.split('?').slice(1).join('?')}` : ''
+      const query = requestQuery(req.url)
       res.status(302).setHeader('Location', `${targetBase}${suffix}${query}`)
       res.setHeader('Cache-Control', 'no-store')
       res.end()
@@ -304,7 +309,7 @@ export function createLocalPortProxy(options: LocalPortProxyOptions = {}): Local
       hostname: upstreamHost,
       port,
       method: req.method,
-      path: `${suffix}${req.url.includes('?') ? `?${req.url.split('?').slice(1).join('?')}` : ''}`,
+      path: `${suffix}${requestQuery(req.url)}`,
       headers: copyRequestHeaders(req, port, upstreamHost),
       agent,
       timeout: timeoutMs,
@@ -314,7 +319,7 @@ export function createLocalPortProxy(options: LocalPortProxyOptions = {}): Local
         upstreamRes.resume()
         const issued = issueCapability(capabilitySecret, port, upstreamHost)
         const targetBase = `${proxyPrefix(prefix, port, upstreamHost)}/${issued}`
-        const query = req.url.includes('?') ? `?${req.url.split('?').slice(1).join('?')}` : ''
+        const query = requestQuery(req.url)
         res.status(302).setHeader('Location', `${targetBase}${suffix}${query}`)
         res.setHeader('Cache-Control', 'no-store')
         res.end()
@@ -346,7 +351,7 @@ export function createLocalPortProxy(options: LocalPortProxyOptions = {}): Local
             basePath += `/${issued}`
             issuedRedirectCapability = true
           }
-          const requestPath = `${suffix}${req.url.includes('?') ? `?${req.url.split('?').slice(1).join('?')}` : ''}`
+          const requestPath = `${suffix}${requestQuery(req.url)}`
           res.setHeader(key, Array.isArray(value) ? value.map((item) => proxyLocation(item, port, basePath, requestPath)) : proxyLocation(value, port, basePath, requestPath))
         } else if (lower === 'set-cookie') {
           const values = Array.isArray(value) ? value : [value]
@@ -383,7 +388,7 @@ export function createLocalPortProxy(options: LocalPortProxyOptions = {}): Local
     upstreamReq.on('timeout', () => upstreamReq.destroy(new Error('Local service request timed out')))
     upstreamReq.on('error', (error) => {
       if (options.verbose) console.error(`[local-port-proxy] ${error.message}`)
-      if (!res.headersSent) res.status(502).json({ error: 'Local service unavailable' })
+      if (!res.headersSent) res.status(502).setHeader('Retry-After', '1').json({ error: 'Local service unavailable' })
       else res.destroy(error)
     })
     req.on('aborted', () => upstreamReq.destroy())
@@ -460,8 +465,7 @@ export function createLocalPortProxy(options: LocalPortProxyOptions = {}): Local
     const cookie = outboundCookies(req.headers.cookie, port)
     if (cookie) headers.cookie = cookie
     const proxiedReq = Object.create(req) as http.IncomingMessage
-    const queryStart = req.url.indexOf('?')
-    const rawQuery = queryStart >= 0 ? req.url.slice(queryStart) : ''
+    const rawQuery = requestQuery(req.url)
     proxiedReq.url = `${path}${rawQuery}`
     proxiedReq.headers = headers
     proxyWebSocketUpgrade(proxiedReq, socket, head, { apiPort: port, apiHost: upstreamHost, verbose: options.verbose })

@@ -616,6 +616,30 @@ func (c *Client) Get(ctx context.Context, runID string, timeout time.Duration) (
 	return resp.Msg.GetRun(), nil
 }
 
+// GetLocalTargetReceipt reattaches a durable local contract receipt. Bridge
+// always marks this projection lane_eligible=false; callers must not treat it
+// as evidence from a real QEMU, VPS, desktop, or mobile target.
+func (c *Client) GetLocalTargetReceipt(ctx context.Context, runID string, timeout time.Duration) (*runsv1.GetLocalTargetReceiptResponse, error) {
+	if strings.TrimSpace(runID) == "" {
+		return nil, &Error{Kind: ErrInvalidRequest, Err: errors.New("run id is required")}
+	}
+	callCtx, cancel := c.requestContext(ctx, timeout)
+	defer cancel()
+	baseURL, err := c.endpoint(callCtx)
+	if err != nil {
+		return nil, err
+	}
+	client := runsconnect.NewRunsServiceClient(c.transport(callCtx, baseURL), baseURL)
+	resp, err := client.GetLocalTargetReceipt(callCtx, connect.NewRequest(&runsv1.GetLocalTargetReceiptRequest{Id: runID}))
+	if err != nil {
+		return nil, &Error{Kind: ErrTransport, Err: err}
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.GetRunId() == "" {
+		return nil, &Error{Kind: ErrTransport, Err: errors.New("Bridge returned no local target receipt")}
+	}
+	return resp.Msg, nil
+}
+
 // RunGate starts a durable cross-platform validation gate.
 func (c *Client) RunGate(ctx context.Context, req *gatev1.RunGateRequest, timeout time.Duration) (*gatev1.RunGateResponse, error) {
 	callCtx, cancel := c.requestContext(ctx, timeout)

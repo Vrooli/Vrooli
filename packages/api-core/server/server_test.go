@@ -1017,18 +1017,26 @@ func TestRun_CallsCleanupWhenGracefulShutdownTimesOut(t *testing.T) {
 	}
 }
 
-func TestRun_ForcesActiveRequestsClosedBeforeCleanupAfterShutdownTimeout(t *testing.T) {
+func TestRun_ForcesSSEStreamsClosedAfterShutdownTimeout(t *testing.T) {
 	port := findFreePort(t)
 	sigCh := make(chan os.Signal, 1)
-	requestStarted := make(chan struct{})
 	requestCanceled := make(chan struct{})
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
-	mux.HandleFunc("/block", func(w http.ResponseWriter, r *http.Request) {
-		close(requestStarted)
+	mux.HandleFunc("/events", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		if _, err := io.WriteString(w, "data: ready\n\n"); err != nil {
+			return
+		}
+		flusher.Flush()
 		<-r.Context().Done()
 		close(requestCanceled)
-		w.WriteHeader(http.StatusNoContent)
 	})
 
 	errCh := make(chan error, 1)
@@ -1042,8 +1050,38 @@ func TestRun_ForcesActiveRequestsClosedBeforeCleanupAfterShutdownTimeout(t *test
 		})
 	}()
 	waitForServerHealth(t, port)
-	go func() { _, _ = http.Get(fmt.Sprintf("http://localhost:%s/block", port)) }()
-	<-requestStarted
+	requestCtx, cancelRequest := context.WithTimeout(context.Background(), 5*time.Second)
+	t.Cleanup(cancelRequest)
+	request, err := http.NewRequestWithContext(requestCtx, http.MethodGet, fmt.Sprintf("http://localhost:%s/events", port), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = response.Body.Close() })
+	if response.StatusCode != http.StatusOK || response.Header.Get("Content-Type") != "text/event-stream" {
+		t.Fatalf("SSE response = %d %q, want 200 text/event-stream", response.StatusCode, response.Header.Get("Content-Type"))
+	}
+	type eventResult struct {
+		payload []byte
+		err     error
+	}
+	eventCh := make(chan eventResult, 1)
+	go func() {
+		payload := make([]byte, len("data: ready\n\n"))
+		_, err := io.ReadFull(response.Body, payload)
+		eventCh <- eventResult{payload: payload, err: err}
+	}()
+	select {
+	case event := <-eventCh:
+		if event.err != nil || string(event.payload) != "data: ready\n\n" {
+			t.Fatalf("first SSE event = %q, %v", event.payload, event.err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("first SSE event was not flushed to the client")
+	}
 	sigCh <- syscall.SIGTERM
 
 	select {

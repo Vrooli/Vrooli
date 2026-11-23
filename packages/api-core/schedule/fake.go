@@ -91,6 +91,7 @@ func (t *fakeTimer) Stop() bool {
 	defer t.owner.mu.Unlock()
 	wasActive := !t.stopped && !t.fired
 	t.stopped = true
+	delete(t.owner.timers, t)
 	return wasActive
 }
 
@@ -101,6 +102,7 @@ func (t *fakeTimer) Reset(d time.Duration) bool {
 	t.stopped = false
 	t.fired = false
 	t.deadline = t.owner.now.Add(d)
+	t.owner.timers[t] = struct{}{}
 	if d <= 0 {
 		t.fireLocked(t.owner.now)
 	}
@@ -109,6 +111,7 @@ func (t *fakeTimer) Reset(d time.Duration) bool {
 
 func (t *fakeTimer) fireLocked(at time.Time) {
 	t.fired = true
+	delete(t.owner.timers, t)
 	select {
 	case t.ch <- at:
 	default:

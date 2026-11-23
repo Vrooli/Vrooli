@@ -1,9 +1,11 @@
 package operatorsession
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -78,5 +80,28 @@ func TestFileStorePersistsEnrollmentButNeverMintedSession(t *testing.T) {
 	}
 	if string(loadedKey) != string(private) || loaded.Reference != enrollment.Reference {
 		t.Fatalf("stored enrollment changed: key=%v enrollment=%#v", string(loadedKey) == string(private), loaded)
+	}
+}
+
+func TestReadEnrollmentDoesNotRequireOrLoadSigningKey(t *testing.T) {
+	dir := t.TempDir()
+	store, err := NewFileStore(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	enrollment := Enrollment{OperatorID: "operator-1", IdentityProvider: IdentityProviderAuthenticator, Mode: ModeShared, Reference: "ref-1", EnrolledAt: time.Unix(1_700_000_000, 0).UTC()}
+	data, err := json.Marshal(enrollmentFile{Enrollment: enrollment})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, enrollmentFilename), data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.ReadEnrollment()
+	if err != nil || !reflect.DeepEqual(got, enrollment) {
+		t.Fatalf("ReadEnrollment = %+v, err=%v", got, err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, privateKeyFilename)); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("metadata read unexpectedly required a private key: %v", err)
 	}
 }

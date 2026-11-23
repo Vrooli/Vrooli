@@ -101,6 +101,54 @@ describe('local loopback port proxy', () => {
     expect(await result.text()).toContain('payload')
   })
 
+  it('signals retry after a loopback service disconnect and restores the same port-scoped draft when it returns', async () => {
+    let serviceAvailable = true
+    const drafts = new Map<string, string>()
+    const { targetPort, uiPort } = await fixture((req, res) => {
+      if (!serviceAvailable) {
+        req.socket.destroy()
+        return
+      }
+      const session = String(req.headers.cookie || '').match(/(?:^|;\s*)sid=([^;]+)/)?.[1] || 'anonymous'
+      if (req.method === 'POST' && req.url === '/draft?view=setup') {
+        const chunks: Buffer[] = []
+        req.on('data', (chunk) => chunks.push(Buffer.from(chunk)))
+        req.on('end', () => {
+          drafts.set(session, Buffer.concat(chunks).toString())
+          res.statusCode = 204
+          res.end()
+        })
+        return
+      }
+      if (req.method === 'GET' && req.url === '/draft?view=setup') {
+        res.setHeader('content-type', 'application/json')
+        res.end(JSON.stringify({ text: drafts.get(session) || '' }))
+        return
+      }
+      res.statusCode = 404
+      res.end()
+    })
+    const bootstrap = await requestStatus(uiPort, `/_local/${targetPort}/`, 'GET', { accept: 'text/html', 'sec-fetch-site': 'same-origin' })
+    const capability = new URL(bootstrap.headers.location!, `http://127.0.0.1:${uiPort}`).pathname.split('/')[3]
+    const draftPath = `http://127.0.0.1:${uiPort}/_local/${targetPort}/${capability}/draft?view=setup`
+    const cookie = `vroot_p${targetPort}_sid=operator-1; vroot_p9999_sid=other-session`
+
+    const saved = await fetch(draftPath, { method: 'POST', headers: { cookie }, body: 'unfinished setup draft' })
+    expect(saved.status).toBe(204)
+
+    serviceAvailable = false
+    const lost = await fetch(draftPath, { headers: { cookie } })
+    expect(lost.status).toBe(502)
+    expect(lost.headers.get('retry-after')).toBe('1')
+    expect(await lost.json()).toEqual({ error: 'Local service unavailable' })
+
+    serviceAvailable = true
+    const recovered = await fetch(draftPath, { headers: { cookie } })
+    expect(recovered.status).toBe(200)
+    expect(await recovered.json()).toEqual({ text: 'unfinished setup draft' })
+    expect([...drafts.entries()]).toEqual([['operator-1', 'unfinished setup draft']])
+  })
+
   it('injects a relative-path base tag, sandboxes HTML, and rewrites same-port redirects', async () => {
     const { targetPort, uiPort } = await fixture((req, res) => {
       if (req.url === '/redirect') {

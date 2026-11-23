@@ -1,6 +1,7 @@
 package retention
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -352,6 +353,32 @@ func TestManagerWritesDurableEnforcementReceipt(t *testing.T) {
 	}
 	if receipt.LastEnforcementTime == nil || !receipt.LastEnforcementTime.Equal(now) || receipt.LastError != "temporary prune failure" {
 		t.Fatalf("failed receipt = %+v, want the prior enforcement timestamp and the cycle error", receipt)
+	}
+}
+
+func TestManagerPreservesMalformedReceiptForRecovery(t *testing.T) {
+	receiptPath := filepath.Join(t.TempDir(), "retention", "enforcement-receipt.json")
+	if err := os.MkdirAll(filepath.Dir(receiptPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	previous := []byte(`{"owner":"demo","last_cycle_time":"2026-08-02T23:00:00Z","last_enforcement_time":"2026-08-02T22:00:00Z"} trailing corruption`)
+	if err := os.WriteFile(receiptPath, previous, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	m := &Manager{
+		scenario: "demo", receiptPath: receiptPath,
+		now: func() time.Time { return time.Date(2026, 8, 3, 0, 0, 0, 0, time.UTC) },
+		log: discardLogger(),
+	}
+
+	m.recordEnforcementReceipt(errors.New("temporary prune failure"))
+
+	got, err := os.ReadFile(receiptPath)
+	if err != nil {
+		t.Fatalf("read receipt after rejected replacement: %v", err)
+	}
+	if !bytes.Equal(got, previous) {
+		t.Fatalf("malformed receipt was overwritten: got %q, want preserved bytes %q", got, previous)
 	}
 }
 

@@ -29,3 +29,11 @@ go run ./cmd/acquisition-schema --root /absolute/path/to/Vrooli
 
 Run the check before consumers. Regenerate only after changing the owning types
 and schema source; never hand-edit `.vrooli/schemas/acquisition.schema.json`.
+
+Managed composed URL archives carry exact `download_bytes` and positive
+`max_expanded_bytes`/`max_entries` on each compose step. The shared capacity
+planner sums those per-step ceilings and reserves
+`3 * (sum(download_bytes) + sum(max_expanded_bytes)) + 1 MiB`. `FetchTree`
+enforces the same exact download and extraction limits. Composed Python-wheel
+and local-copy steps remain unsupported by managed capacity admission until
+their owners can enforce an equivalent write ceiling.

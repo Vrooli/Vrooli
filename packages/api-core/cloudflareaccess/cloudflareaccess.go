@@ -91,6 +91,9 @@ func ConfigFromEnv(getenv func(string) string) (Config, error) {
 		if err != nil {
 			return Config{}, errors.New("VROOLI_CLOUDFLARE_ACCESS_REQUIRE_USER: invalid boolean")
 		}
+		if !requireUser {
+			return Config{}, errors.New("VROOLI_CLOUDFLARE_ACCESS_REQUIRE_USER=false is unsupported; this verifier supports human identities only")
+		}
 	}
 	cfg := Config{TeamDomain: getenv("VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN"), Audience: getenv("VROOLI_CLOUDFLARE_ACCESS_AUDIENCE"), JWKSURL: getenv("VROOLI_CLOUDFLARE_ACCESS_JWKS_URL"), RequireUser: requireUser, ClockSkew: skew, JWKSCacheTTL: ttl, TokenLimit: DefaultTokenLimit, Client: &http.Client{Timeout: DefaultHTTPTimeout}, Now: time.Now}
 	return cfg, cfg.Validate()

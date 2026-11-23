@@ -57,6 +57,15 @@ type RenewableLease interface {
 	Heartbeat(context.Context) error
 }
 
+// ActivityReporter is implemented by leases whose owner reports idleness.
+// The broker never infers idleness: a claim stays idle until its work-owner
+// says it is serving work, and an idle unprotected claim can be reclaimed by a
+// higher-priority request once its grace elapses. Owners therefore report
+// active when work starts and idle when it stops.
+type ActivityReporter interface {
+	ReportActivity(ctx context.Context, active bool) error
+}
+
 // GPUIdentity identifies the exact accelerator admitted for an operation.
 // Callers should bind child processes to UUID (or the corresponding vendor
 // selector) from this value rather than rediscovering a device by index.
@@ -307,11 +316,13 @@ func (b *Broker) acquire(ctx context.Context, ownerID string, ramBytes, cpuMilli
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	unlock, err := internalcapacity.LockAdmission(ctx, b.store)
-	if err != nil {
-		return nil, Verdict{Kind: internalcapacity.VerdictDeny, Reason: "capacity admission lock unavailable: " + err.Error()}, err
-	}
-	defer unlock()
+	// Everything that only READS the host or SWEEPS the ledger runs before the
+	// fleet-wide admission lock: the lock exists to serialize "read the ledger,
+	// decide, record the claim", and the host snapshot (nvidia-smi, docker,
+	// systemd) and the liveness sweep each take seconds when the host is loaded.
+	// Holding the lock across them made every other release and admission queue
+	// behind one slow probe, and a release with a short bounded context failed.
+	//
 	// Admission is also an opportunistic liveness sweep. Operation claims are
 	// short-lived and heartbeat-backed; if their owner crashed or the process
 	// restarted, leaving them in the active ledger would make a dead operation
@@ -331,6 +342,7 @@ func (b *Broker) acquire(ctx context.Context, ownerID string, ramBytes, cpuMilli
 	if err != nil {
 		return nil, Verdict{Kind: internalcapacity.VerdictDeny, Reason: "capacity sensing unavailable: " + err.Error()}, err
 	}
+	sensedAt := time.Now()
 	policy, err := b.store.GetPolicy(ctx)
 	if err != nil {
 		return nil, Verdict{}, err
@@ -342,6 +354,12 @@ func (b *Broker) acquire(ctx context.Context, ownerID string, ramBytes, cpuMilli
 			return nil, Verdict{Kind: internalcapacity.VerdictDeny, Reason: pressureErr.Error()}, nil
 		}
 	}
+
+	unlock, err := b.lockWithFreshSnapshot(ctx, &snapshot, sensedAt)
+	if err != nil {
+		return nil, Verdict{Kind: internalcapacity.VerdictDeny, Reason: "capacity admission lock unavailable: " + err.Error()}, err
+	}
+	defer unlock()
 
 	now := time.Now().UTC()
 	var claims []leaseClaim
@@ -427,15 +445,17 @@ func (b *Broker) AcquireGPU(ctx context.Context, ownerID, expectedUUID string, v
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	unlock, err := internalcapacity.LockAdmission(ctx, b.store)
-	if err != nil {
-		return nil, Verdict{Kind: internalcapacity.VerdictDeny, Reason: "capacity admission lock unavailable: " + err.Error()}, err
-	}
-	defer unlock()
+	// Sense before the fleet-wide lock (see acquire): GPU sensing is the slowest
+	// probe the host has, and the lock covers only the ledger read and write.
 	snapshot, err := b.snapshot(ctx)
 	if err != nil {
 		return nil, Verdict{Kind: internalcapacity.VerdictDeny, Reason: "GPU sensing unavailable: " + err.Error()}, err
 	}
+	unlock, err := b.lockWithFreshSnapshot(ctx, &snapshot, time.Now())
+	if err != nil {
+		return nil, Verdict{Kind: internalcapacity.VerdictDeny, Reason: "capacity admission lock unavailable: " + err.Error()}, err
+	}
+	defer unlock()
 	var identity GPUIdentity
 	for _, gpu := range snapshot.GPUs {
 		if gpu.UUID == expectedUUID {
@@ -489,6 +509,31 @@ func (l *gpuLease) Identity() GPUIdentity {
 		return GPUIdentity{}
 	}
 	return l.identity
+}
+
+// lockWithFreshSnapshot takes the fleet-wide admission lock and returns holding
+// it with a host reading no older than the sensing bound. Deciding on a reading
+// the lock queue has aged would admit against a host that may no longer exist;
+// when that happens the lock is dropped, the host is re-sensed WITHOUT it, and
+// the lock is retaken (bounded, so a saturated lock cannot spin forever). The
+// caller must hold b.mu.
+func (b *Broker) lockWithFreshSnapshot(ctx context.Context, snapshot *hostinventory.Snapshot, sensedAt time.Time) (func(), error) {
+	for attempt := 0; ; attempt++ {
+		unlock, err := internalcapacity.LockAdmission(ctx, b.store)
+		if err != nil {
+			return nil, err
+		}
+		if attempt >= 2 || time.Since(sensedAt) <= internalcapacity.MaxAdmissionSensingAge {
+			return unlock, nil
+		}
+		unlock()
+		b.cachedAt = time.Time{}
+		fresh, snapErr := b.snapshot(ctx)
+		if snapErr != nil {
+			return nil, fmt.Errorf("capacity sensing unavailable: %w", snapErr)
+		}
+		*snapshot, sensedAt = fresh, time.Now()
+	}
 }
 
 // ObserveHostState returns the latest host reading without creating a claim.
@@ -571,6 +616,32 @@ func (l *lease) Heartbeat(ctx context.Context) error {
 		if _, err := l.broker.store.HeartbeatClaim(ctx, claim.id, claim.generation, capacityHeartbeatTTL); err != nil {
 			return fmt.Errorf("renew capacity claim %s: %w", claim.id, err)
 		}
+	}
+	return nil
+}
+
+// ReportActivity sets the work-owner-reported activity state on every claim of
+// the lease. Each report advances the claim generation, so the lease adopts the
+// returned one; heartbeats under the previous generation would be refused.
+func (l *lease) ReportActivity(ctx context.Context, active bool) error {
+	if l == nil || l.broker == nil {
+		return fmt.Errorf("capacity lease is unavailable")
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.released {
+		return fmt.Errorf("capacity lease has been released")
+	}
+	state := internalcapacity.ActivityIdle
+	if active {
+		state = internalcapacity.ActivityActive
+	}
+	for i, claim := range l.claims {
+		updated, err := l.broker.store.ReportActivity(ctx, claim.id, claim.generation, state)
+		if err != nil {
+			return fmt.Errorf("report %s on capacity claim %s: %w", state, claim.id, err)
+		}
+		l.claims[i].generation = updated.Generation
 	}
 	return nil
 }

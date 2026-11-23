@@ -51,6 +51,12 @@ type leaseState struct {
 	expiresAt time.Time
 }
 
+// leaseActive uses an exclusive expiry boundary. A lease is not usable at
+// expiresAt, so route, replacement, and pin checks cannot disagree at equality.
+func leaseActive(expiresAt, now time.Time) bool {
+	return expiresAt.IsZero() || now.Before(expiresAt)
+}
+
 type testRootsPinKey struct{}
 
 type testRootsPin struct {
@@ -107,7 +113,7 @@ func (r *RoutedRoots) install(roots storage.Paths, leaseID string, ttl time.Dura
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.lease.id != "" && r.lease.id != leaseID && (r.lease.expiresAt.IsZero() || r.clock.Now().Before(r.lease.expiresAt)) {
+	if r.lease.id != "" && r.lease.id != leaseID && leaseActive(r.lease.expiresAt, r.clock.Now()) {
 		return fmt.Errorf("filerouting.RoutedRoots: test roots already installed under lease %q", r.lease.id)
 	}
 	if r.leaseRoot != "" && r.leaseRoot != leaseRoot {
@@ -277,7 +283,7 @@ func (r *RoutedRoots) ResumeTestRoots(state TestRootsRestartState, expectedPrima
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.lease.id != "" && (r.lease.expiresAt.IsZero() || !r.clock.Now().After(r.lease.expiresAt)) {
+	if r.lease.id != "" && leaseActive(r.lease.expiresAt, r.clock.Now()) {
 		return fmt.Errorf("filerouting.RoutedRoots: another test root binding is active")
 	}
 	if r.lease.id == "" && r.leaseRoot != "" {
@@ -381,7 +387,7 @@ func (r *RoutedRoots) Pick(ctx context.Context, class storage.Class) (string, er
 	r.mu.RLock()
 	primary, test, lease, clock := r.primary, r.test, r.lease, r.clock
 	r.mu.RUnlock()
-	if database.IsTestMode(ctx) && lease.id != "" && (lease.expiresAt.IsZero() || !clock.Now().After(lease.expiresAt)) {
+	if database.IsTestMode(ctx) && lease.id != "" && leaseActive(lease.expiresAt, clock.Now()) {
 		return test.ForClass(class)
 	}
 	return primary.ForClass(class)
@@ -402,7 +408,7 @@ func (r *RoutedRoots) PickRequired(ctx context.Context, class storage.Class) (st
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	if database.IsTestMode(ctx) {
-		if r.lease.id == "" || (!r.lease.expiresAt.IsZero() && r.clock.Now().After(r.lease.expiresAt)) {
+		if r.lease.id == "" || !leaseActive(r.lease.expiresAt, r.clock.Now()) {
 			return "", fmt.Errorf("test-mode file access requires an active leased root")
 		}
 		return r.test.ForClass(class)
@@ -415,7 +421,7 @@ func (r *RoutedRoots) pickPinned(pin testRootsPin, class storage.Class) (string,
 		return "", fmt.Errorf("test file route pin belongs to another RoutedRoots owner")
 	}
 	r.mu.RLock()
-	valid := r.lease.id == pin.leaseID && r.generation == pin.generation && (r.lease.expiresAt.IsZero() || !r.clock.Now().After(r.lease.expiresAt))
+	valid := r.lease.id == pin.leaseID && r.generation == pin.generation && leaseActive(r.lease.expiresAt, r.clock.Now())
 	roots := r.test
 	r.mu.RUnlock()
 	if !valid {
@@ -443,7 +449,7 @@ func (r *RoutedRoots) PinTestRoots(ctx context.Context, expectedLeaseID string) 
 				return nil, fmt.Errorf("test file route lease pin cannot be rebound")
 			}
 			r.mu.RLock()
-			valid := r.lease.id == existing.leaseID && r.generation == existing.generation && (r.lease.expiresAt.IsZero() || !r.clock.Now().After(r.lease.expiresAt))
+			valid := r.lease.id == existing.leaseID && r.generation == existing.generation && leaseActive(r.lease.expiresAt, r.clock.Now())
 			r.mu.RUnlock()
 			if !valid {
 				return nil, fmt.Errorf("test file route lease pin is no longer active")
@@ -452,7 +458,7 @@ func (r *RoutedRoots) PinTestRoots(ctx context.Context, expectedLeaseID string) 
 		}
 	}
 	r.mu.RLock()
-	valid := r.lease.id == expectedLeaseID && (r.lease.expiresAt.IsZero() || !r.clock.Now().After(r.lease.expiresAt))
+	valid := r.lease.id == expectedLeaseID && leaseActive(r.lease.expiresAt, r.clock.Now())
 	pin := testRootsPin{owner: r, leaseID: r.lease.id, generation: r.generation}
 	r.mu.RUnlock()
 	if !valid {
@@ -474,7 +480,7 @@ func (r *RoutedRoots) RecordWrite(ctx context.Context) {
 				return
 			}
 			r.mu.RLock()
-			valid := r.lease.id == pin.leaseID && r.generation == pin.generation && (r.lease.expiresAt.IsZero() || !r.clock.Now().After(r.lease.expiresAt))
+			valid := r.lease.id == pin.leaseID && r.generation == pin.generation && leaseActive(r.lease.expiresAt, r.clock.Now())
 			r.mu.RUnlock()
 			if valid {
 				r.stats.testWrites.Add(1)
@@ -485,7 +491,7 @@ func (r *RoutedRoots) RecordWrite(ctx context.Context) {
 	r.mu.RLock()
 	lease, clock := r.lease, r.clock
 	r.mu.RUnlock()
-	if lease.id != "" && (lease.expiresAt.IsZero() || !clock.Now().After(lease.expiresAt)) {
+	if lease.id != "" && leaseActive(lease.expiresAt, clock.Now()) {
 		r.stats.testWrites.Add(1)
 		return
 	}
@@ -512,7 +518,7 @@ func (r *RoutedRoots) HasTestRoots() bool {
 	if r.lease.id == "" {
 		return false
 	}
-	return r.lease.expiresAt.IsZero() || !r.clock.Now().After(r.lease.expiresAt)
+	return leaseActive(r.lease.expiresAt, r.clock.Now())
 }
 
 // ActiveLeaseID reports the owner-bound lease even after expiry, for exact

@@ -13,7 +13,7 @@ import (
 // A maintenance wait follows its operation/request context. The ordinary API
 // write timeout must not cut off the receipt after ingress is already closed.
 func TestDrainSurvivesOrdinaryServerWriteDeadline(t *testing.T) {
-	p, err := NewProvider("fixture", "instance", Hooks{Quiesce: func(ctx context.Context) error {
+	_, client, _ := lifecycleServerT(t, Hooks{Quiesce: func(ctx context.Context) error {
 		timer := time.NewTimer(150 * time.Millisecond)
 		defer timer.Stop()
 		select {
@@ -22,18 +22,9 @@ func TestDrainSurvivesOrdinaryServerWriteDeadline(t *testing.T) {
 		case <-ctx.Done():
 			return ctx.Err()
 		}
-	}, Resume: func(context.Context) error { return nil }})
-	if err != nil {
-		t.Fatal(err)
-	}
-	server := httptest.NewUnstartedServer(p.Mount(http.NotFoundHandler()))
-	server.Config.WriteTimeout = 50 * time.Millisecond
-	server.Start()
-	defer server.Close()
-	client, err := NewClient(server.Client(), server.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
+	}, Resume: func(context.Context) error { return nil }}, http.NotFoundHandler(), func(server *httptest.Server) {
+		server.Config.WriteTimeout = 50 * time.Millisecond
+	})
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	prepared, err := client.Prepare(ctx, &commonv1.LifecyclePrepareRequest{OperationId: "long-drain", Reason: "restart"})
@@ -52,16 +43,7 @@ func TestDrainSurvivesOrdinaryServerWriteDeadline(t *testing.T) {
 
 func TestDrainWriteDeadlineExceptionPreservesRequestCancellation(t *testing.T) {
 	entered, stopped := make(chan struct{}), make(chan struct{})
-	p, err := NewProvider("fixture", "instance", Hooks{Quiesce: func(ctx context.Context) error { close(entered); <-ctx.Done(); close(stopped); return ctx.Err() }, Resume: func(context.Context) error { return nil }})
-	if err != nil {
-		t.Fatal(err)
-	}
-	server := httptest.NewServer(p.Mount(http.NotFoundHandler()))
-	defer server.Close()
-	client, err := NewClient(server.Client(), server.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, client, _ := lifecycleServerT(t, Hooks{Quiesce: func(ctx context.Context) error { close(entered); <-ctx.Done(); close(stopped); return ctx.Err() }, Resume: func(context.Context) error { return nil }}, http.NotFoundHandler(), nil)
 	prepared, err := client.Prepare(context.Background(), &commonv1.LifecyclePrepareRequest{OperationId: "cancel-drain", Reason: "restart"})
 	if err != nil {
 		t.Fatal(err)

@@ -8,7 +8,7 @@ import (
 
 // CreateRunCallerEnforceEnv is the single runtime switch for AUTH-01 caller
 // enforcement. It is off unless set to 1, true, yes or on (operator decision
-// P-18, docs/agent-system/DELIVERY_RELIABILITY.md). It is the ONE switch read;
+// P-18, ~/.vrooli/research/topics/design-to-implementation/background/delivery-reliability-research/DELIVERY_RELIABILITY.md). It is the ONE switch read;
 // owners that honor it pass CreateRunCallerEnforced() as the `enforced` argument
 // to the single AuthorizeCreateRunCaller / RequireCreateRunCaller /
 // CarryCreateRunCaller family in create_run_caller.go. Owners that always

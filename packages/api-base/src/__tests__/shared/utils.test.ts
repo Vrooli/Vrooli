@@ -5,6 +5,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   hasAssetExtension,
+  appendSuffix,
   startsWithAssetPrefix,
   isAssetRequest,
   toTrimmedString,
@@ -12,6 +13,18 @@ import {
   isLocalHostname,
   isLikelyProxyPath,
 } from '../../shared/utils.js'
+
+describe('appendSuffix', () => {
+  it('appends before query and fragment while preserving them', () => {
+    expect(appendSuffix('/apps/demo/proxy/?tenant=blue#settings', '/api/v1'))
+      .toBe('/apps/demo/proxy/api/v1?tenant=blue#settings')
+  })
+
+  it('does not duplicate a suffix before a query', () => {
+    expect(appendSuffix('https://host.example/api/v1?tenant=blue', '/api/v1'))
+      .toBe('https://host.example/api/v1?tenant=blue')
+  })
+})
 
 describe('hasAssetExtension', () => {
   it('detects JavaScript extensions', () => {

@@ -71,14 +71,52 @@ func serveControlSocket(path string, h *Handlers) (*http.Server, net.Listener, e
 		h.Resume()
 		w.WriteHeader(http.StatusNoContent)
 	})
+	mux.HandleFunc("/reconcile", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "POST required", http.StatusMethodNotAllowed)
+			return
+		}
+		if h.StartupReconcile == nil {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		// Reconcile only when no public request is in flight. A request may be
+		// waiting for this very lifecycle start to wake its backend; waiting for
+		// it to finish here would deadlock. If busy, that request will apply the
+		// current policy when it reaches the backend.
+		h.trackerMu.Lock()
+		tr := h.tracker
+		h.trackerMu.Unlock()
+		if tr == nil {
+			http.Error(w, "tracker unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		drained, err := tr.drainIfIdle(r.Context())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusRequestTimeout)
+			return
+		}
+		if !drained {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		h.startupMu.Lock()
+		upstream := h.startupUpstream
+		h.startupMu.Unlock()
+		if err := h.StartupReconcile(r.Context(), upstream); err != nil {
+			http.Error(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
 	return &http.Server{Handler: mux}, listener, nil
 }
 
 // ControlSocketRequest sends one lifecycle command over the private local
 // activity-edge control socket. It is exported for the resource owner and
-// intentionally accepts only the two fixed lifecycle actions.
+// intentionally accepts only fixed lifecycle actions.
 func ControlSocketRequest(ctx context.Context, path, action string) error {
-	if action != "drain" && action != "resume" {
+	if action != "drain" && action != "resume" && action != "reconcile" {
 		return fmt.Errorf("unsupported activity-edge control action %q", action)
 	}
 	conn, err := (&net.Dialer{}).DialContext(ctx, "unix", path)

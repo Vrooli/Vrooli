@@ -77,6 +77,53 @@ func TestDownloadExactEnforcesSizeChecksumAndNoOverwrite(t *testing.T) {
 	}
 }
 
+func TestFetchTreeUsesExactCompressedAndExpandedBounds(t *testing.T) {
+	archivePath := writeTarGz(t, []tarEntry{{hdr: tar.Header{Name: "payload.txt"}, body: strings.Repeat("x", 128)}, {hdr: tar.Header{Name: "meta.txt"}, body: "y"}})
+	raw, err := os.ReadFile(archivePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write(raw) }))
+	defer server.Close()
+	for _, tc := range []struct {
+		name                    string
+		size, expanded, entries int64
+		want                    string
+	}{
+		{name: "exact", size: int64(len(raw)), expanded: 129, entries: 2},
+		{name: "compressed_mismatch", size: int64(len(raw)) + 1, expanded: 129, entries: 2, want: "expected"},
+		{name: "expanded_limit", size: int64(len(raw)), expanded: 128, entries: 2, want: "expanded size exceeds"},
+		{name: "entry_limit", size: int64(len(raw)), expanded: 129, entries: 1, want: "exceeds 1 entries"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dest := filepath.Join(t.TempDir(), "tree")
+			if err := os.MkdirAll(dest, 0755); err != nil {
+				t.Fatal(err)
+			}
+			marker := filepath.Join(dest, "kept")
+			if err := os.WriteFile(marker, []byte("old"), 0644); err != nil {
+				t.Fatal(err)
+			}
+			err := FetchTree(context.Background(), Target{URL: server.URL, SHA256: sha256hex(raw), Archive: "tar.gz", DownloadBytes: tc.size, MaxExpandedBytes: tc.expanded, MaxEntries: tc.entries}, dest, nil)
+			if tc.want == "" {
+				if err != nil {
+					t.Fatal(err)
+				}
+				if _, err := os.Stat(filepath.Join(dest, "payload.txt")); err != nil {
+					t.Fatal(err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("error=%v want %q", err, tc.want)
+			}
+			if got, err := os.ReadFile(marker); err != nil || string(got) != "old" {
+				t.Fatalf("failed archive changed destination: %q, %v", got, err)
+			}
+		})
+	}
+}
+
 func TestDownloadExactPreservesGzipArtifactBytes(t *testing.T) {
 	plain := bytes.Repeat([]byte("Ubuntu source delta fixture\n"), 256)
 	var compressed bytes.Buffer

@@ -68,6 +68,7 @@ import (
 	"github.com/vrooli/api-core/lifecycle"
 	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/api-core/runtimediagnostics"
+	"github.com/vrooli/api-core/scenario"
 )
 
 // Config controls HTTP server behavior and lifecycle.
@@ -239,7 +240,7 @@ func Run(cfg Config) error {
 // Keeping this decision in one seam lets scenario servers verify that a
 // durable lifecycle handler cannot be silently shadowed by the default.
 func mountLifecycleProvider(cfg Config) (Config, error) {
-	if cfg.LifecycleConfiguredExternally || (cfg.getenv("VROOLI_SCENARIO") == "" && cfg.getenv("SCENARIO_NAME") == "") {
+	if cfg.LifecycleConfiguredExternally || scenario.IdentityFromEnv(cfg.getenv) == "" {
 		return cfg, nil
 	}
 	provider, err := lifecycle.NewProviderFromEnv(cfg.getenv, cfg.LifecycleHooks)

@@ -58,8 +58,14 @@ var interactivePolicies = []struct {
 	// Research commission effects stay bounded to named commission targets;
 	// this never authorizes answers, verdicts or grant issuance.
 	{"research-management", Policy{[]string{"research-desk:read", "research-desk:write"}, []string{"research.launch", "research.control"}, []string{"research-desk"}}},
+	// research-decisions lets an agent record an answer to a needs-you item
+	// for the operator who approved it (research-desk:decision/<owner>/<item>,
+	// or research-desk:decision/* for every item). The desk still refuses
+	// items that are not answerable (secrets, ended commissions) and marks the
+	// entry as delegated. It never covers verdicts, steering or grant issuance.
+	{"research-decisions", Policy{[]string{"research-desk:read", "research-desk:write"}, []string{"research.answer"}, []string{"research-desk"}}},
 	{"deployment-operations", Policy{[]string{"deployment-manager:read", "deployment-manager:write", "deployment-manager:destructive", "scenario-to-cloud:read", "scenario-to-cloud:write", "scenario-to-cloud:destructive"}, []string{"deployment.manage"}, []string{"deployment-manager", "scenario-to-cloud"}}},
-	{"nutrition-management", Policy{[]string{"nutrition-planner:read", "nutrition-planner:write", "nutrition-planner:destructive"}, []string{"nutrition.manage"}, []string{"nutrition-planner"}}},
+	{"nutrition-management", Policy{[]string{"nutrition-planner:read", "nutrition-planner:write"}, []string{"nutrition.manage"}, []string{"nutrition-planner"}}},
 	// Treasury still evaluates its signed mandate, exact amount, recipient,
 	// funded headroom and kill switch. A grant must name the exact authorized
 	// spend target; it cannot change policy or human decisions.
@@ -74,6 +80,11 @@ var interactivePolicies = []struct {
 	// operator decisions, and the runtime still refuses a transition whose
 	// compensating controls (state snapshot, retention, receipt) are absent.
 	{"root-state-transition", Policy{[]string{"root-state:transition"}, []string{"root-state.transition"}, []string{"root-state"}}},
+	// agent-guard-override lets one agent session past one agent guard (money,
+	// credentials, outside messages, hidden commands) that stopped a legitimate
+	// action. The target is the guard's check ID, e.g. agent-guard:secret; the
+	// policy runtime asks the credential broker for it when the guard stops.
+	{"agent-guard-override", Policy{[]string{"agent-guard:override"}, []string{"agent-guard.override"}, []string{"agent-guard"}}},
 }
 
 // ValidateInteractiveTarget enforces policy-specific target shapes at the

@@ -90,6 +90,7 @@ export { APP_NOTIFICATIONS_WORKER_SOURCE } from './app-notifications-worker.js'
 // Host scenario helpers
 export {
   createScenarioProxyHost,
+  ProxyMetadataUnavailableError,
 } from './host.js'
 
 export { createLocalPortProxy } from './local-port-proxy.js'

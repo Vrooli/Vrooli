@@ -362,8 +362,16 @@ func (r *Resolver) ResolveScenarioPort(ctx context.Context, scenarioSlug, portKe
 		}
 		return port, nil
 	}
-	cacheKey := scenarioSlug + "\x00" + portKey
+	cacheKey := resolverCacheKey(scenarioSlug, portKey)
 	return r.resolvePortCached(ctx, scenarioSlug, portKey, cacheKey)
+}
+
+// resolverCacheKey binds a resolved address to the effective runtime target.
+// Ambient variant selection can change while the logical scenario and port
+// name stay the same; reusing the old entry would route into the prior
+// environment during the transition.
+func resolverCacheKey(scenarioSlug, portKey string) string {
+	return scenarioSlug + "\x00" + cliutil.ResolveShadowTarget(scenarioSlug) + "\x00" + portKey
 }
 
 // resolvePortCached collapses concurrent lookups for one key onto a single
@@ -497,7 +505,7 @@ func (r *Resolver) invalidateScenarioCache(ctx context.Context, scenarioSlug, po
 			return nil
 		}
 	}
-	entry := r.entryFor(scenarioSlug + "\x00" + portKey)
+	entry := r.entryFor(resolverCacheKey(scenarioSlug, portKey))
 	select {
 	case entry.lookupGate <- struct{}{}:
 	case <-ctx.Done():

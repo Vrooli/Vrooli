@@ -1143,6 +1143,59 @@ func TestBrokerLeaseHeartbeatCannotResurrectExpiredClaim(t *testing.T) {
 	}
 }
 
+// A builder that is killed (a health sweep's context deadline sends SIGKILL, so
+// no deferred release runs) must stop holding capacity: its claim carries a
+// deadline of three heartbeat intervals, renewed while it lives, and the stale
+// sweep expires it once heartbeats stop.
+func TestKilledOwnerClaimExpiresThreeHeartbeatIntervalsAfterItsLastRenewal(t *testing.T) {
+	ctx := context.Background()
+	clock := &fakeClock{at: time.Date(2026, 11, 20, 20, 46, 0, 0, time.UTC)}
+	store, err := internalcapacity.NewSQLiteStore(ctx, internalcapacity.Config{DBPath: filepath.Join(t.TempDir(), "capacity.db"), Clock: clock})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	broker := NewBrokerWithSource(store, &countingSource{cores: 4, memory: hostinventory.Memory{TotalBytes: 1 << 30, AvailableBytes: 1 << 30}})
+	lease, verdict, err := broker.Acquire(ctx, "cli-install:pid-1:resource-demo", 394<<20, 0)
+	if err != nil || lease == nil || verdict.Kind != internalcapacity.VerdictGrant {
+		t.Fatalf("Acquire = (%v, %+v, %v)", lease != nil, verdict, err)
+	}
+	interval := RecommendedLeaseHeartbeatInterval()
+	status := func() internalcapacity.CapacityClaim {
+		claims, err := store.ListClaims(ctx, internalcapacity.ClaimFilter{OwnerKind: internalcapacity.OwnerKindOp, OwnerID: "cli-install:pid-1:resource-demo"})
+		if err != nil || len(claims) != 1 {
+			t.Fatalf("claims = %+v, %v", claims, err)
+		}
+		return claims[0]
+	}
+	if deadline := status().HeartbeatDeadlineAt; deadline == nil || deadline.Sub(clock.Now()) != 3*interval {
+		t.Fatalf("deadline = %v, want 3 heartbeat intervals (%s) after acquisition", deadline, 3*interval)
+	}
+
+	// While heartbeats arrive each interval, sweeping never expires it.
+	for i := 0; i < 4; i++ {
+		clock.advance(interval)
+		if err := lease.(RenewableLease).Heartbeat(ctx); err != nil {
+			t.Fatalf("heartbeat %d: %v", i, err)
+		}
+		if _, err := store.ExpireStaleClaims(ctx, clock.Now(), nil); err != nil {
+			t.Fatal(err)
+		}
+		if got := status().Status; got != internalcapacity.StatusGranted {
+			t.Fatalf("live builder's claim is %s after heartbeat %d", got, i)
+		}
+	}
+
+	// The builder is killed: heartbeats stop, and the sweep expires the claim.
+	clock.advance(3*interval + time.Second)
+	if _, err := store.ExpireStaleClaims(ctx, clock.Now(), nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := status().Status; got != internalcapacity.StatusExpired {
+		t.Fatalf("killed builder's claim is %s, want expired", got)
+	}
+}
+
 func TestAcquireRollsBackFirstClaimWhenSecondResourceIsDenied(t *testing.T) {
 	ctx := context.Background()
 	store, err := internalcapacity.NewSQLiteStore(ctx, internalcapacity.Config{DBPath: filepath.Join(t.TempDir(), "capacity.db")})
@@ -1243,5 +1296,58 @@ func TestBrokerChargesConcurrentOperationBudgetsAboveObservedHostLoad(t *testing
 	}
 	if lease, verdict, err := broker.AcquireResources(ctx, request(6)); err != nil || lease != nil {
 		t.Fatalf("second queued job admitted beyond capacity: verdict=%+v err=%v", verdict, err)
+	}
+}
+
+// A claim reads idle until its work-owner reports otherwise, and every report
+// advances the generation, so the lease must adopt it or its next heartbeat is
+// refused as stale.
+func TestBrokerLeaseReportsActivityOnEveryClaimAndKeepsHeartbeating(t *testing.T) {
+	ctx := context.Background()
+	clock := &fakeClock{at: time.Date(2026, 11, 23, 12, 0, 0, 0, time.UTC)}
+	store, err := internalcapacity.NewSQLiteStore(ctx, internalcapacity.Config{DBPath: filepath.Join(t.TempDir(), "capacity.db"), Clock: clock})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	broker := NewBrokerWithSource(store, &countingSource{cores: 4, memory: hostinventory.Memory{TotalBytes: 1 << 30, AvailableBytes: 1 << 30}})
+	base, verdict, err := broker.Acquire(ctx, "test:activity", 1024, 1000)
+	if err != nil || base == nil || verdict.Kind != internalcapacity.VerdictGrant {
+		t.Fatalf("Acquire = (%v, %+v, %v)", base != nil, verdict, err)
+	}
+	reporter, ok := base.(ActivityReporter)
+	if !ok {
+		t.Fatal("broker lease does not expose activity reporting")
+	}
+	states := func() []string {
+		claims, err := store.ListClaims(ctx, internalcapacity.ClaimFilter{OwnerKind: internalcapacity.OwnerKindOp, OwnerID: "test:activity", Statuses: internalcapacity.ActiveClaimStatuses()})
+		if err != nil || len(claims) != 2 {
+			t.Fatalf("claims = %d, %v", len(claims), err)
+		}
+		return []string{claims[0].ActivityState, claims[1].ActivityState}
+	}
+	if got := states(); got[0] != internalcapacity.ActivityIdle || got[1] != internalcapacity.ActivityIdle {
+		t.Fatalf("a claim nobody reported on must read idle: %v", got)
+	}
+	for _, active := range []bool{true, true, false, true} {
+		if err := reporter.ReportActivity(ctx, active); err != nil {
+			t.Fatalf("ReportActivity(%v): %v", active, err)
+		}
+		want := internalcapacity.ActivityIdle
+		if active {
+			want = internalcapacity.ActivityActive
+		}
+		if got := states(); got[0] != want || got[1] != want {
+			t.Fatalf("after reporting active=%v: %v", active, got)
+		}
+		if err := base.(RenewableLease).Heartbeat(ctx); err != nil {
+			t.Fatalf("heartbeat after an activity report: %v", err)
+		}
+	}
+	if err := base.Release(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := reporter.ReportActivity(ctx, true); err == nil {
+		t.Fatal("a released lease accepted an activity report")
 	}
 }

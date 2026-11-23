@@ -183,20 +183,19 @@ func (e *ErrLeaseMismatch) Error() string {
 // The returned RoutedDB has no test pool until InstallTestPool is called.
 // Production code paths see exactly the behavior of the underlying *sql.DB.
 func Open(ctx context.Context, cfg Config) (*RoutedDB, error) {
-	cfg, err := resolvePrimaryDSN(cfg)
-	if err != nil {
-		return nil, err
-	}
-	primary, err := Connect(ctx, cfg)
-	if err != nil {
-		return nil, err
-	}
-	return &RoutedDB{primary: primary, cfg: cfg, primaryFingerprint: primaryFingerprintForConfig(cfg), clock: schedule.System()}, nil
+	return openWithClock(ctx, cfg, schedule.System())
 }
 
 // OpenWithClock is Open with an explicit clock seam. Tests pass a fake
 // clock; production callers use Open.
 func OpenWithClock(ctx context.Context, cfg Config, clock Clock) (*RoutedDB, error) {
+	if clock == nil {
+		clock = schedule.System()
+	}
+	return openWithClock(ctx, cfg, clock)
+}
+
+func openWithClock(ctx context.Context, cfg Config, clock Clock) (*RoutedDB, error) {
 	cfg, err := resolvePrimaryDSN(cfg)
 	if err != nil {
 		return nil, err
@@ -204,9 +203,6 @@ func OpenWithClock(ctx context.Context, cfg Config, clock Clock) (*RoutedDB, err
 	primary, err := Connect(ctx, cfg)
 	if err != nil {
 		return nil, err
-	}
-	if clock == nil {
-		clock = schedule.System()
 	}
 	return &RoutedDB{primary: primary, cfg: cfg, primaryFingerprint: primaryFingerprintForConfig(cfg), clock: clock}, nil
 }

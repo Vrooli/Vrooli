@@ -41,15 +41,31 @@ var (
 )
 
 type Claims struct {
-	Issuer    string `json:"iss"`
-	Subject   string `json:"sub"`
-	ExpiresAt int64  `json:"exp"`
-	IssuedAt  int64  `json:"iat"`
-	NotBefore int64  `json:"nbf"`
-	UserID    string `json:"uid"`
-	Email     string `json:"email"`
-	SessionID string `json:"sid"`
-	AuthTime  int64  `json:"auth_time,omitempty"`
+	Issuer    string           `json:"iss"`
+	Subject   string           `json:"sub"`
+	ExpiresAt int64            `json:"exp"`
+	IssuedAt  int64            `json:"iat"`
+	NotBefore int64            `json:"nbf"`
+	UserID    string           `json:"uid"`
+	Email     string           `json:"email"`
+	SessionID string           `json:"sid"`
+	AuthTime  int64            `json:"auth_time,omitempty"`
+	Credit    *CreditAssertion `json:"credit_assertion,omitempty"`
+}
+
+// CreditAssertion is a short-lived LPBS-signed delegation for one idempotent
+// metered operation. It binds funding identity and app scope to a target.
+type CreditAssertion struct {
+	Version           int      `json:"version"`
+	BusinessAccountID string   `json:"business_account_id"`
+	ActorID           string   `json:"actor_id"`
+	AppKey            string   `json:"app_key"`
+	FeatureID         string   `json:"feature_id"`
+	MaxCredits        int64    `json:"max_credits"`
+	Audience          string   `json:"audience"`
+	OperationID       string   `json:"operation_id"`
+	Source            string   `json:"source"`
+	Scopes            []string `json:"scopes"`
 }
 
 type PublicKey struct {
@@ -111,15 +127,27 @@ func MarshalPrivateKeyPEM(key *rsa.PrivateKey) ([]byte, error) {
 }
 
 func (s *Signer) Sign(claims Claims) (string, time.Time, error) {
+	if s == nil {
+		return "", time.Time{}, errors.New("consumer signing key is unavailable")
+	}
+	return s.SignWithTTL(claims, s.AccessTTL)
+}
+
+// SignWithTTL signs a token with a bounded, caller-selected lifetime. The TTL
+// cannot exceed the signer's configured access lifetime.
+func (s *Signer) SignWithTTL(claims Claims, ttl time.Duration) (string, time.Time, error) {
 	if s == nil || s.Private == nil || !validPublicKey(&s.Private.PublicKey) {
 		return "", time.Time{}, errors.New("consumer signing key is unavailable")
+	}
+	if ttl <= 0 || ttl > s.AccessTTL {
+		return "", time.Time{}, errors.New("consumer token TTL is outside signer policy")
 	}
 	nowFn := s.Now
 	if nowFn == nil {
 		nowFn = time.Now
 	}
 	now := nowFn().UTC()
-	expires := now.Add(s.AccessTTL)
+	expires := now.Add(ttl)
 	claims.Issuer, claims.IssuedAt, claims.NotBefore, claims.ExpiresAt = s.Issuer, now.Unix(), now.Unix(), expires.Unix()
 	header := map[string]string{"alg": Algorithm, "typ": "JWT", "kid": s.KeyID}
 	headerJSON, err := json.Marshal(header)

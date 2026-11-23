@@ -25,6 +25,31 @@ src/__tests__/
 
 ## Running Tests
 
+### Using exported testing helpers from a scenario UI
+
+A scenario test that imports `@vrooli/api-base/testing` needs the package's
+`dist/testing` output. Build `@vrooli/api-base` before installing the scenario's
+local `file:` dependency; otherwise the installed package copy may not contain
+the exported helper and test collection can fail.
+
+This extra package build is needed for test commands that import the exported
+helpers. A focused test that does not import `@vrooli/api-base/testing` can use
+the scenario UI's normal dependency install without first building api-base.
+
+For example, from the repository root, a test run in Vrooli Onboarding uses:
+
+```bash
+cd packages/api-base
+pnpm install --offline --frozen-lockfile --ignore-workspace
+pnpm build
+cd ../../scenarios/vrooli-onboarding/ui
+pnpm install --offline --frozen-lockfile --ignore-workspace
+pnpm exec vitest run src/components/wizard/ScenarioCatalogStep.test.tsx
+```
+
+Use the corresponding scenario UI path for other consumers that import the
+exported testing helpers.
+
 `pnpm run build` emits the library and its exported testing helpers. It excludes
 both `src/__tests__` and colocated `*.test.ts` / `*.test.tsx` files; Vitest owns
 test discovery and execution. This prevents the distribution build from compiling

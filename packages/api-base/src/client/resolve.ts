@@ -11,7 +11,6 @@ import {
   DEFAULT_WS_SUFFIX,
   LOOPBACK_HOST,
   PROXY_PATH_MARKER,
-  APPS_PATH_MARKER,
 } from '../shared/constants.js'
 import type { ResolveOptions, PortEntry } from '../shared/types.js'
 import {
@@ -123,6 +122,7 @@ function collectProxyCandidates(
 function resolveProxyMetadataBase(
   win: ReturnType<typeof getWindowLike>,
   remoteHost: boolean,
+  pathname?: string,
   proxyGlobalNames?: string[]
 ): string | undefined {
   if (!win) {
@@ -152,12 +152,16 @@ function resolveProxyMetadataBase(
   collectProxyCandidates(proxyIndex, pushCandidate, visited)
 
   for (const candidate of candidates) {
-    // CRITICAL: If candidate is a path (starts with /), keep it as a path
-    // for same-origin requests. Converting to absolute URL causes issues
-    // when the page is served through a reverse proxy/CDN.
+    // Root-relative proxy paths keep requests on the current host, which is
+    // required for reverse-proxy and CDN deployments. URL parsing also rejects
+    // protocol-relative and backslash-normalized network paths. Requiring the
+    // current route to remain under that proxy path prevents stale globals from
+    // overriding a direct-host route after client-side navigation.
     if (candidate.startsWith('/')) {
-      // It's a path - return it as-is for origin-relative requests
-      return candidate
+      if (isCurrentProxyPath(candidate, origin, pathname)) {
+        return candidate
+      }
+      continue
     }
 
     const absolute = toAbsoluteCandidate(candidate, origin, protocolHint)
@@ -177,6 +181,25 @@ function resolveProxyMetadataBase(
   }
 
   return undefined
+}
+
+function isCurrentProxyPath(candidate: string, origin?: string, pathname?: string): boolean {
+  if (!origin) {
+    return false
+  }
+  try {
+    const candidateUrl = new URL(candidate, origin)
+    const originUrl = new URL(origin)
+    if (candidateUrl.origin !== originUrl.origin) {
+      return false
+    }
+
+    const basePath = candidateUrl.pathname.replace(/\/+$/, '') || '/'
+    const currentPath = new URL(pathname || '/', originUrl).pathname
+    return currentPath === basePath || currentPath.startsWith(basePath === '/' ? '/' : `${basePath}/`)
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -214,68 +237,6 @@ function deriveProxyBaseFromPath(origin?: string, pathname?: string): string | u
 }
 
 /**
- * Derive proxy base from app shell pattern
- *
- * Handles the legacy /apps/{scenario}/proxy pattern used by app-monitor.
- * This is a convenience helper for backwards compatibility.
- *
- * CRITICAL: Only applies when path ACTUALLY contains /proxy, not just /apps/.
- * This prevents false positives on host routes like /apps/scenario-auditor/preview.
- *
- * @internal
- */
-function deriveProxyBaseFromAppShell(
-  origin?: string,
-  pathname?: string,
-  remoteHost?: boolean
-): string | undefined {
-  // Only apply this pattern on remote hosts
-  if (!remoteHost) {
-    return undefined
-  }
-
-  if (!origin || !pathname) {
-    return undefined
-  }
-
-  // CRITICAL: Must have BOTH /apps/ AND /proxy in the path
-  // This prevents matching host routes like /apps/scenario-auditor/preview
-  if (!pathname.includes(APPS_PATH_MARKER)) {
-    return undefined
-  }
-
-  if (!pathname.includes(PROXY_PATH_MARKER)) {
-    return undefined
-  }
-
-  const normalizedOrigin = normalizeOrigin(origin)
-  if (!normalizedOrigin) {
-    return undefined
-  }
-
-  const marker = APPS_PATH_MARKER
-  const index = pathname.indexOf(marker)
-  if (index === -1) {
-    return undefined
-  }
-
-  // Extract scenario slug: /apps/{slug}/...
-  const remainder = pathname.slice(index + marker.length)
-  const segments = remainder.split('/').filter(Boolean)
-  if (segments.length === 0) {
-    return undefined
-  }
-
-  const appSlug = segments[0]
-  if (!appSlug) {
-    return undefined
-  }
-
-  // Construct: {origin}/apps/{slug}/proxy
-  return normalizeBase(`${normalizedOrigin}${marker}${appSlug}/proxy`)
-}
-
-/**
  * Resolve API base URL
  *
  * Determines the correct base URL for API requests based on the current context.
@@ -285,9 +246,9 @@ function deriveProxyBaseFromAppShell(
  * 1. Explicit URL (if provided)
  * 2. Proxy metadata globals (window.__VROOLI_PROXY_INFO__)
  * 3. Path-based proxy detection (/proxy in pathname)
- * 4. App shell pattern (/apps/{scenario}/proxy)
- * 5. Remote host origin
- * 6. Localhost fallback
+ * 4. Remote host origin
+ * 5. Localhost fallback
+ * 6. SSR fallback
  *
  * @param options - Resolution options
  * @returns Resolved API base URL
@@ -350,7 +311,7 @@ export function resolveApiBase(options: ResolveOptions = {}): string {
   }
 
   // 2. Try proxy metadata
-  const proxyMetadataBase = resolveProxyMetadataBase(win, remoteHost, proxyGlobalNames)
+  const proxyMetadataBase = resolveProxyMetadataBase(win, remoteHost, pathname, proxyGlobalNames)
   if (proxyMetadataBase) {
     return ensureSuffixIfNeeded(proxyMetadataBase)
   }
@@ -361,24 +322,18 @@ export function resolveApiBase(options: ResolveOptions = {}): string {
     return ensureSuffixIfNeeded(derivedProxyBase)
   }
 
-  // 4. Try app shell pattern (backwards compat)
-  const derivedAppShellProxyBase = deriveProxyBaseFromAppShell(origin, pathname, remoteHost)
-  if (derivedAppShellProxyBase) {
-    return ensureSuffixIfNeeded(derivedAppShellProxyBase)
-  }
-
-  // 5. If on remote host without proxy, use current origin
+  // 4. If on remote host without proxy, use current origin
   if (remoteHost && !hasProxyBootstrap && !proxiedPath) {
     return ensureSuffixIfNeeded(origin)
   }
 
-  // 6. Localhost fallback - use current origin to go through UI server's proxy
+  // 5. Localhost fallback - use current origin to go through UI server's proxy
   // Production bundles should ALWAYS proxy through the UI server, never connect directly to API
   if (origin) {
     return ensureSuffixIfNeeded(origin)
   }
 
-  // 7. SSR/non-browser fallback only (should rarely happen)
+  // 6. SSR/non-browser fallback only (should rarely happen)
   return ensureSuffixIfNeeded(`http://${LOOPBACK_HOST}:${defaultPort}`)
 }
 

@@ -166,15 +166,23 @@ func RecordEnforcementReceipt(ownerID string, now time.Time, cycleErr error) err
 	if err != nil {
 		return err
 	}
+	return writeEnforcementReceipt(path, ownerID, now, cycleErr)
+}
+
+func writeEnforcementReceipt(path, ownerID string, now time.Time, cycleErr error) error {
 	if now.IsZero() {
 		now = time.Now()
 	}
 	receipt := EnforcementReceipt{Owner: ownerID, LastCycleTime: now}
-	if previous, readErr := os.ReadFile(path); readErr == nil {
+	previous, readErr := os.ReadFile(path)
+	if readErr == nil {
 		var prior EnforcementReceipt
-		if json.Unmarshal(previous, &prior) == nil {
-			receipt.LastEnforcementTime = prior.LastEnforcementTime
+		if err := json.Unmarshal(previous, &prior); err != nil {
+			return fmt.Errorf("decode previous retention receipt %s: %w", path, err)
 		}
+		receipt.LastEnforcementTime = prior.LastEnforcementTime
+	} else if !os.IsNotExist(readErr) {
+		return fmt.Errorf("read previous retention receipt %s: %w", path, readErr)
 	}
 	if cycleErr == nil {
 		receipt.LastEnforcementTime = &receipt.LastCycleTime
@@ -185,23 +193,7 @@ func RecordEnforcementReceipt(ownerID string, now time.Time, cycleErr error) err
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".enforcement-receipt-*.tmp")
-	if err != nil {
-		return err
-	}
-	tmpPath := tmp.Name()
-	defer func() { _ = os.Remove(tmpPath) }()
-	if _, err := tmp.Write(append(data, '\n')); err != nil {
-		_ = tmp.Close()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	return os.Rename(tmpPath, path)
+	return storage.WriteFileAtomic(path, append(data, '\n'), 0o600)
 }
 
 // OwnerKind identifies the manifest owner whose storage budgets are enforced.
@@ -422,46 +414,8 @@ func (m *Manager) recordEnforcementReceipt(cycleErr error) {
 	if m.now != nil {
 		now = m.now
 	}
-	receipt := EnforcementReceipt{Owner: m.scenario, LastCycleTime: now()}
-	if previous, err := os.ReadFile(m.receiptPath); err == nil {
-		var prior EnforcementReceipt
-		if err := json.Unmarshal(previous, &prior); err == nil {
-			receipt.LastEnforcementTime = prior.LastEnforcementTime
-		}
-	}
-	if cycleErr == nil {
-		last := receipt.LastCycleTime
-		receipt.LastEnforcementTime = &last
-	} else {
-		receipt.LastError = cycleErr.Error()
-	}
-	data, err := json.MarshalIndent(receipt, "", "  ")
-	if err != nil {
-		m.log.Warn("retention receipt encode failed", "scenario", m.scenario, "error", err)
-		return
-	}
-	if err := os.MkdirAll(filepath.Dir(m.receiptPath), 0o755); err != nil {
-		m.log.Warn("retention receipt directory failed", "scenario", m.scenario, "error", err)
-		return
-	}
-	tmp, err := os.CreateTemp(filepath.Dir(m.receiptPath), ".enforcement-receipt-*.tmp")
-	if err != nil {
-		m.log.Warn("retention receipt temp file failed", "scenario", m.scenario, "error", err)
-		return
-	}
-	tmpPath := tmp.Name()
-	defer func() { _ = os.Remove(tmpPath) }()
-	if _, err := tmp.Write(append(data, '\n')); err != nil {
-		_ = tmp.Close()
+	if err := writeEnforcementReceipt(m.receiptPath, m.scenario, now(), cycleErr); err != nil {
 		m.log.Warn("retention receipt write failed", "scenario", m.scenario, "error", err)
-		return
-	}
-	if err := tmp.Close(); err != nil {
-		m.log.Warn("retention receipt close failed", "scenario", m.scenario, "error", err)
-		return
-	}
-	if err := os.Rename(tmpPath, m.receiptPath); err != nil {
-		m.log.Warn("retention receipt publish failed", "scenario", m.scenario, "error", err)
 	}
 }
 

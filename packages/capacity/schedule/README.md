@@ -79,6 +79,10 @@ status, err := scheduler.Status(ctx)
 `List`, `Get`, `Checkpoint`, `ReapExpiredLeases`, `ExpireOverdue`, `Budget`,
 `HotModels`, `Ready`, and `Status`.
 
+Executor writes use the `Checkpointer` passed to `CheckpointExecutor`; it is
+fenced to that job attempt. Direct `Store.Checkpoint` writes are limited to
+waiting jobs, so an expired worker cannot replace a successor's progress.
+
 `Executor` runs one job. Implement `CheckpointExecutor` to save progress
 mid-batch:
 

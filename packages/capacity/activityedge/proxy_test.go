@@ -260,11 +260,15 @@ func TestOllamaBoundaryTracksInferenceAndModelMutationsForDrain(t *testing.T) {
 	}
 	for _, path := range []string{
 		"/api/generate", "/api/chat", "/api/embed", "/api/embeddings",
-		"/api/delete", "/api/create", "/api/copy", "/api/push",
+		"/api/create", "/api/copy", "/api/push",
 	} {
 		if !h.Match(httptest.NewRequest(http.MethodPost, path, nil)) {
 			t.Errorf("POST %s did not enter the managed work fence", path)
 		}
+	}
+	// Ollama deletes only on DELETE /api/delete (POST returns 405).
+	if !h.Match(httptest.NewRequest(http.MethodDelete, "/api/delete", nil)) {
+		t.Error("DELETE /api/delete did not enter the managed work fence")
 	}
 	if h.Match(httptest.NewRequest(http.MethodPost, "/api/pull", nil)) {
 		t.Fatal("public pull was classified as supported work")
@@ -325,7 +329,11 @@ func TestOllamaDrainWaitsForActiveInferenceAndRejectsDeleteWithoutForwarding(t *
 		t.Fatalf("drain returned while pull was active: %v", err)
 	case <-time.After(20 * time.Millisecond):
 	}
-	resp, err := http.Post(edge.URL+"/api/delete", "application/json", strings.NewReader(`{"name":"fixture"}`))
+	deleteRequest, err := http.NewRequest(http.MethodDelete, edge.URL+"/api/delete", strings.NewReader(`{"name":"fixture"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := http.DefaultClient.Do(deleteRequest)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -717,9 +725,13 @@ func TestMissionResidencyEdgesSeparateWorkFromHealthAndProbeRequests(t *testing.
 			if err != nil {
 				t.Fatal(err)
 			}
-			work := httptest.NewRequest(resourceSpecs[tc.resource].methods[0], resourceSpecs[tc.resource].paths[0], nil)
-			if !h.isWork(work) {
-				t.Fatalf("registered work request %s %s did not count as demand", work.Method, work.URL.Path)
+			for method, paths := range resourceSpecs[tc.resource].routes {
+				for _, path := range paths {
+					work := httptest.NewRequest(method, path, nil)
+					if !h.isWork(work) {
+						t.Fatalf("registered work request %s %s did not count as demand", work.Method, work.URL.Path)
+					}
+				}
 			}
 			probe := httptest.NewRequest(tc.probeMethod, tc.probePath, nil)
 			if h.isWork(probe) {
@@ -810,7 +822,8 @@ func TestMissionResidencyEdgesWakeDuringDrainThroughResourceLifecycle(t *testing
 				requestBody = &body
 				contentType = form.FormDataContentType()
 			}
-			request, err := http.NewRequest(spec.methods[0], "http://"+listener.Addr().String()+spec.paths[0], requestBody)
+			method, path := primaryRoute(spec)
+			request, err := http.NewRequest(method, "http://"+listener.Addr().String()+path, requestBody)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -971,6 +984,56 @@ func TestRunLogsServeError(t *testing.T) {
 	}
 }
 
+func TestRunInvokesStartupReconcileBeforeServingAndContinuesOnError(t *testing.T) {
+	var stderr bytes.Buffer
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/startup-check" {
+			t.Fatalf("unexpected upstream request %s", r.URL.Path)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer upstream.Close()
+	sigCh := make(chan os.Signal, 1)
+	sigCh <- os.Interrupt
+	var reconciled atomic.Int32
+	h := &Handlers{
+		Stdout:    io.Discard,
+		Stderr:    &stderr,
+		GetEnv:    func(string) string { return "" },
+		Exec:      func(context.Context, string, ...string) ([]byte, error) { return []byte(`{}`), nil },
+		SignalCh:  sigCh,
+		ParentPID: os.Getpid(),
+		Listen: func(network, address string) (net.Listener, error) {
+			if reconciled.Load() != 1 {
+				t.Errorf("listener opened before startup reconciliation")
+			}
+			return net.Listen(network, address)
+		},
+		StartupReconcile: func(ctx context.Context, upstream Upstream) error {
+			reconciled.Add(1)
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, upstream.BaseURL+"/startup-check", nil)
+			if err != nil {
+				return err
+			}
+			resp, err := upstream.Client.Do(req)
+			if err != nil {
+				return err
+			}
+			_ = resp.Body.Close()
+			return errors.New("reconcile warning")
+		},
+	}
+	if err := h.Run([]string{"--listen", "127.0.0.1:0", "--upstream", strings.TrimPrefix(upstream.URL, "http://")}); err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+	if reconciled.Load() != 1 {
+		t.Fatalf("startup reconciliation calls = %d, want one", reconciled.Load())
+	}
+	if got := stderr.String(); !strings.Contains(got, "startup reconciliation failed: reconcile warning") || !strings.Contains(got, "activity-edge exit: reason=signal") {
+		t.Fatalf("Run logs = %q; want reconciliation warning and normal signal exit", got)
+	}
+}
+
 func TestHeartbeatFormatting(t *testing.T) {
 	var stdout bytes.Buffer
 	h := &Handlers{Stdout: &stdout}
@@ -1123,5 +1186,40 @@ func TestOldEdgeStopsRenewalOnParentGoneOrShutdownWithoutRelease(t *testing.T) {
 				t.Fatal("renewal leaked after joined shutdown")
 			}
 		})
+	}
+}
+
+// primaryRoute is a spec's first POST route, or its only method's first path.
+func primaryRoute(spec resourceSpec) (string, string) {
+	if paths := spec.routes[http.MethodPost]; len(paths) > 0 {
+		return http.MethodPost, paths[0]
+	}
+	for method, paths := range spec.routes {
+		return method, paths[0]
+	}
+	return "", ""
+}
+
+func TestOllamaEdgeTracksCompatibleAPIAndRealDeletes(t *testing.T) {
+	h, err := ForResource("ollama")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		method, path string
+		work         bool
+	}{
+		{http.MethodPost, "/v1/chat/completions", true},
+		{http.MethodPost, "/v1/embeddings", true},
+		{http.MethodPost, "/v1/messages", true},
+		{http.MethodDelete, "/api/delete", true},
+		// Ollama answers POST /api/delete with 405; it deletes nothing.
+		{http.MethodPost, "/api/delete", false},
+		{http.MethodGet, "/v1/models", false},
+		{http.MethodDelete, "/api/chat", false},
+	} {
+		if got := h.isWork(httptest.NewRequest(tc.method, tc.path, nil)); got != tc.work {
+			t.Errorf("%s %s work = %t, want %t", tc.method, tc.path, got, tc.work)
+		}
 	}
 }

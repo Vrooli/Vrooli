@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -66,6 +67,21 @@ func (e SignatureEnvelope) Validate() error {
 func Digest(canonical []byte) string {
 	sum := sha256.Sum256(canonical)
 	return "sha256:" + hex.EncodeToString(sum[:])
+}
+
+// CanonicalJSON encodes a JSON value with object keys sorted at every level.
+// Callers must remove fields such as a signature envelope before encoding
+// when those fields are not part of the signed payload.
+func CanonicalJSON(value any) ([]byte, error) {
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return nil, err
+	}
+	var canonical any
+	if err := json.Unmarshal(raw, &canonical); err != nil {
+		return nil, err
+	}
+	return json.Marshal(canonical)
 }
 
 func ParseDigest(value string) ([]byte, error) {

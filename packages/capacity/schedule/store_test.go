@@ -199,6 +199,7 @@ func TestCompleteRecordsActualCost(t *testing.T) {
 	}
 	job, err := store.Complete(ctx, Completion{
 		JobID:         "job",
+		Lease:         leased[0].Job.LeaseClaim(),
 		Outcome:       StateCompleted,
 		ActualSeconds: 4.5,
 		Items:         7,
@@ -452,10 +453,12 @@ func TestHeartbeatLeaseExtendsAndRejectsReleasedLeases(t *testing.T) {
 	if _, err := store.Submit(ctx, jobSpec("job", "embed", "owner")); err != nil {
 		t.Fatalf("submit: %v", err)
 	}
-	if _, err := store.Lease(ctx, LeaseOptions{JobIDs: []string{"job"}, Owner: "runner", TTL: time.Minute}); err != nil {
+	leased, err := store.Lease(ctx, LeaseOptions{JobIDs: []string{"job"}, Owner: "runner", TTL: time.Minute})
+	if err != nil {
 		t.Fatalf("lease: %v", err)
 	}
-	expires, err := store.HeartbeatLease(ctx, "job", 10*time.Minute)
+	claim := leased[0].Job.LeaseClaim()
+	expires, err := store.HeartbeatLease(ctx, claim, 10*time.Minute)
 	if err != nil {
 		t.Fatalf("heartbeat: %v", err)
 	}
@@ -470,11 +473,86 @@ func TestHeartbeatLeaseExtendsAndRejectsReleasedLeases(t *testing.T) {
 	if len(recovered) != 0 {
 		t.Fatalf("reaped %d jobs, want the renewed lease kept", len(recovered))
 	}
-	if _, err := store.Complete(ctx, Completion{JobID: "job", Outcome: StateCompleted, ActualSeconds: 1}); err != nil {
+	if _, err := store.Complete(ctx, Completion{JobID: "job", Lease: claim, Outcome: StateCompleted, ActualSeconds: 1}); err != nil {
 		t.Fatalf("complete: %v", err)
 	}
-	if _, err := store.HeartbeatLease(ctx, "job", time.Minute); !errors.Is(err, ErrLeaseLost) {
+	if _, err := store.HeartbeatLease(ctx, claim, time.Minute); !errors.Is(err, ErrLeaseLost) {
 		t.Fatalf("heartbeat error = %v, want ErrLeaseLost", err)
+	}
+}
+
+func TestHeartbeatLeaseRejectsExpiredLease(t *testing.T) {
+	store, clock := newTestStore(t)
+	ctx := context.Background()
+	if _, err := store.Submit(ctx, jobSpec("job", "embed", "owner")); err != nil {
+		t.Fatalf("submit: %v", err)
+	}
+	leased, err := store.Lease(ctx, LeaseOptions{JobIDs: []string{"job"}, Owner: "runner", TTL: time.Minute})
+	if err != nil {
+		t.Fatalf("lease: %v", err)
+	}
+
+	clock.Advance(time.Minute + time.Second)
+	if _, err := store.HeartbeatLease(ctx, leased[0].Job.LeaseClaim(), time.Minute); !errors.Is(err, ErrLeaseLost) {
+		t.Fatalf("heartbeat error = %v, want ErrLeaseLost after expiration", err)
+	}
+}
+
+func TestExpiredLeaseAttemptCannotMutateReacquiredAttempt(t *testing.T) {
+	store, clock := newTestStore(t)
+	ctx := context.Background()
+	if _, err := store.Submit(ctx, jobSpec("job", "embed", "owner", func(j *Job) { j.MaxAttempts = 3 })); err != nil {
+		t.Fatalf("submit: %v", err)
+	}
+	first, err := store.Lease(ctx, LeaseOptions{JobIDs: []string{"job"}, Owner: "runner", TTL: time.Minute})
+	if err != nil {
+		t.Fatalf("first lease: %v", err)
+	}
+	stale := first[0].Job.LeaseClaim()
+	clock.Advance(time.Minute + time.Second)
+	if recovered, err := store.ReapExpiredLeases(ctx); err != nil || len(recovered) != 1 {
+		t.Fatalf("recovery = %v, %v; want one expired attempt", recovered, err)
+	}
+	second, err := store.Lease(ctx, LeaseOptions{JobIDs: []string{"job"}, Owner: "runner", TTL: time.Minute})
+	if err != nil {
+		t.Fatalf("second lease: %v", err)
+	}
+	fresh := second[0].Job.LeaseClaim()
+	if fresh.Attempt != stale.Attempt+1 {
+		t.Fatalf("attempt = %d, want %d", fresh.Attempt, stale.Attempt+1)
+	}
+
+	staleWrites := []struct {
+		name string
+		call func() error
+	}{
+		{"heartbeat", func() error { _, err := store.HeartbeatLease(ctx, stale, time.Minute); return err }},
+		{"checkpoint", func() error { return store.CheckpointLeased(ctx, stale, "stale") }},
+		{"complete", func() error {
+			_, err := store.Complete(ctx, Completion{JobID: "job", Lease: stale, Outcome: StateCompleted})
+			return err
+		}},
+		{"defer", func() error {
+			_, err := store.Defer(ctx, DeferOptions{JobID: "job", Lease: stale, Reason: "stale"})
+			return err
+		}},
+	}
+	for _, test := range staleWrites {
+		t.Run(test.name, func(t *testing.T) {
+			if err := test.call(); !errors.Is(err, ErrLeaseLost) {
+				t.Fatalf("stale attempt error = %v, want ErrLeaseLost", err)
+			}
+		})
+	}
+	current := mustGet(t, store, "job")
+	if current.State != StateRunning || current.LeaseOwner != fresh.Owner || current.Attempts != fresh.Attempt || current.Checkpoint != "" {
+		t.Fatalf("stale attempt changed current job: %+v", current)
+	}
+	if err := store.CheckpointLeased(ctx, fresh, "fresh"); err != nil {
+		t.Fatalf("current checkpoint: %v", err)
+	}
+	if _, err := store.Complete(ctx, Completion{JobID: "job", Lease: fresh, Outcome: StateCompleted}); err != nil {
+		t.Fatalf("current completion: %v", err)
 	}
 }
 
@@ -484,10 +562,11 @@ func TestBudgetResetsAfterTheRollingHour(t *testing.T) {
 	if _, err := store.Submit(ctx, jobSpec("job", "embed", "owner")); err != nil {
 		t.Fatalf("submit: %v", err)
 	}
-	if _, err := store.Lease(ctx, LeaseOptions{JobIDs: []string{"job"}, Owner: "runner", TTL: time.Minute}); err != nil {
+	leased, err := store.Lease(ctx, LeaseOptions{JobIDs: []string{"job"}, Owner: "runner", TTL: time.Minute})
+	if err != nil {
 		t.Fatalf("lease: %v", err)
 	}
-	if _, err := store.Complete(ctx, Completion{JobID: "job", Outcome: StateCompleted, ActualSeconds: 7, Items: 1}); err != nil {
+	if _, err := store.Complete(ctx, Completion{JobID: "job", Lease: leased[0].Job.LeaseClaim(), Outcome: StateCompleted, ActualSeconds: 7, Items: 1}); err != nil {
 		t.Fatalf("complete: %v", err)
 	}
 	budget, err := store.Budget(ctx)

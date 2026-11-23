@@ -287,6 +287,70 @@ func (c *mockChecker) Check(ctx context.Context) CheckResult {
 	}
 }
 
+func TestHandlerDeadlineBoundsCheckerThatIgnoresContext(t *testing.T) {
+	started := make(chan struct{}, 1)
+	release := make(chan struct{})
+	returned := make(chan *httptest.ResponseRecorder, 1)
+	handler := New("deadline-test").
+		Timeout(20*time.Millisecond).
+		Check(CheckerFunc(func(context.Context) CheckResult {
+			select {
+			case started <- struct{}{}:
+			default:
+			}
+			<-release // Model a third-party checker that does not honor cancellation.
+			return CheckResult{Name: "stalled-provider", Connected: true}
+		}), Optional).
+		Handler()
+	go func() {
+		w := httptest.NewRecorder()
+		handler(w, httptest.NewRequest(http.MethodGet, "/health", nil))
+		returned <- w
+	}()
+	<-started
+
+	var (
+		w        *httptest.ResponseRecorder
+		timedOut bool
+	)
+	select {
+	case w = <-returned:
+	case <-time.After(250 * time.Millisecond):
+		close(release)
+		timedOut = true
+		w = <-returned
+	}
+	if !timedOut {
+		close(release)
+	} else {
+		t.Fatalf("health handler did not return by its configured deadline")
+	}
+
+	var response Response
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response.Status != StatusDegraded || !response.Readiness {
+		t.Fatalf("timed-out optional check status = %q readiness=%t, want degraded and ready", response.Status, response.Readiness)
+	}
+	if w.Code != http.StatusOK {
+		t.Fatalf("optional checker timeout status = %d, want %d", w.Code, http.StatusOK)
+	}
+	if deadline, ok := response.Dependencies["health_check_deadline"]; !ok || deadline.Connected {
+		t.Fatalf("deadline dependency = %+v, present=%t; want explicit unavailable check", deadline, ok)
+	}
+
+	recovered := httptest.NewRecorder()
+	handler(recovered, httptest.NewRequest(http.MethodGet, "/health", nil))
+	var recoveredResponse Response
+	if err := json.Unmarshal(recovered.Body.Bytes(), &recoveredResponse); err != nil {
+		t.Fatalf("decode recovered response: %v", err)
+	}
+	if recoveredResponse.Status != StatusHealthy || !recoveredResponse.Readiness {
+		t.Fatalf("recovered check status=%q readiness=%t, want healthy", recoveredResponse.Status, recoveredResponse.Readiness)
+	}
+}
+
 func TestHandler_WithPassingCheck(t *testing.T) {
 	handler := New("test").
 		Check(&mockChecker{name: "database", connected: true, latency: 5 * time.Millisecond}, Optional).

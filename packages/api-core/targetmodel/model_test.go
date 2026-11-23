@@ -104,6 +104,13 @@ func TestCanHostSessionRequiresBridgeAgentAndWriteGrant(t *testing.T) {
 		Transport:   Transport{Kind: TransportBridge, Available: true},
 		BridgeTrust: &BridgeTrust{Registered: true, Online: true},
 	}
+	if decision := EvaluateOperationReadiness(base, OperationHeadlessExecution, time.Now().UTC()); decision.Ready || decision.ReasonCode != "heartbeat_missing" {
+		t.Fatalf("missing heartbeat readiness = %+v, want unknown heartbeat_missing", decision)
+	}
+	if ok, reason := CanHostSession(base); ok || reason == "" {
+		t.Fatalf("missing heartbeat = (%t, %q), want refusal with reason", ok, reason)
+	}
+	base.LastSeenAt = time.Now().UTC()
 	if ok, reason := CanHostSession(base); ok || reason == "" {
 		t.Fatalf("missing grant = (%t, %q), want refusal with reason", ok, reason)
 	}
@@ -283,7 +290,7 @@ func TestAttachedTargetDoesNotClaimUnsupportedOperations(t *testing.T) {
 
 func TestSelectCanRequireAnOperationWithoutBlockingHeadlessTargetsOnGUI(t *testing.T) {
 	target := Target{
-		ID: "mac", Label: "Mac", OS: "darwin", DeviceKind: "bridge-node", Available: true,
+		ID: "mac", Label: "Mac", OS: "darwin", DeviceKind: "bridge-node", Available: true, LastSeenAt: time.Now().UTC(),
 		Transport: Transport{Kind: TransportBridge, Available: true}, BridgeTrust: &BridgeTrust{Registered: true, Online: true},
 		Scopes: []string{"vrooli-bridge:write"}, Readiness: []ReadinessCheck{
 			ReadinessCheckFor(ReadinessRegistry, true, ""), ReadinessCheckFor(ReadinessHeartbeat, true, ""),
@@ -298,6 +305,38 @@ func TestSelectCanRequireAnOperationWithoutBlockingHeadlessTargetsOnGUI(t *testi
 	visual := Select(Inventory{Targets: []Target{target}}, SelectionRequest{OS: "darwin", Operation: OperationVisualValidation})
 	if visual.Available || visual.Reason != "visual validation requires an active GUI session" {
 		t.Fatalf("visual selection = %+v, want explicit GUI refusal", visual)
+	}
+}
+
+func TestSelectRetainsBridgeTargetWhileHeartbeatIsUnknownThenRecovers(t *testing.T) {
+	now := time.Now().UTC()
+	target := Target{
+		ID: "node-7", OS: "linux", DeviceKind: "bridge-node", Available: true,
+		Transport:   Transport{Kind: TransportBridge, Available: true},
+		BridgeTrust: &BridgeTrust{Registered: true, Online: true},
+		Scopes:      []string{"vrooli-bridge:write"},
+	}
+	request := SelectionRequest{OS: "linux", Operation: OperationHeadlessExecution}
+
+	unknown := EvaluateOperationReadiness(target, request.Operation, now)
+	if unknown.Ready || unknown.State != ReadinessUnknown || unknown.ReasonCode != "heartbeat_missing" || unknown.RecoveryAction == "" {
+		t.Fatalf("missing heartbeat readiness = %+v, want actionable unknown", unknown)
+	}
+	selected := Select(Inventory{Targets: []Target{target}}, request)
+	if selected.Available || !selected.Found || selected.Target.ID != "node-7" || selected.NextAction == "" {
+		t.Fatalf("unknown heartbeat selection = %+v, want retained node identity and refresh action", selected)
+	}
+
+	target.LastSeenAt = now.Add(-time.Second)
+	recovered := Select(Inventory{Targets: []Target{target}}, request)
+	if !recovered.Available || !recovered.Found || recovered.Target.ID != "node-7" {
+		t.Fatalf("fresh heartbeat selection = %+v, want same target admitted", recovered)
+	}
+
+	ssh := Target{ID: "host-7", OS: "linux", DeviceKind: "host", Available: true, Transport: Transport{Kind: TransportSSH, Available: true}}
+	unsupported := EvaluateOperationReadiness(ssh, request.Operation, now)
+	if unsupported.Ready || unsupported.State != ReadinessNotApplicable || unsupported.ReasonCode != "transport_unsupported" {
+		t.Fatalf("SSH operation readiness = %+v, want explicit unsupported transport", unsupported)
 	}
 }
 

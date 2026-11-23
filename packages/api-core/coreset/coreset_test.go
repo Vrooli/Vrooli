@@ -138,6 +138,23 @@ func TestTrustedBaseIsSubsetOfSeed(t *testing.T) {
 	}
 }
 
+func TestNormalizeOperationalAuthorityPreservesTypedTiersAndLetsCoreWin(t *testing.T) {
+	authority := NormalizeOperationalAuthority(Authority{
+		Seed: []string{"alpha"}, TrustedBase: []string{"alpha"},
+		Important:   []ComponentID{{Kind: "scenario", Name: "alpha"}, {Kind: "resource", Name: "redis"}},
+		CoreMembers: []ComponentID{{Kind: "resource", Name: "postgres"}},
+	})
+	if len(authority.Important) != 1 || authority.Important[0] != (ComponentID{Kind: MemberKindResource, Name: "redis"}) {
+		t.Fatalf("important tier was not normalized around stronger core membership: %+v", authority.Important)
+	}
+	if len(authority.CoreMembers) != 1 || authority.CoreMembers[0] != (ComponentID{Kind: MemberKindResource, Name: "postgres"}) {
+		t.Fatalf("typed core tier was lost: %+v", authority.CoreMembers)
+	}
+	if err := authority.Validate(); err != nil {
+		t.Fatalf("normalized tiers failed validation: %v", err)
+	}
+}
+
 func TestNormalizeOperationalAuthorityAddsRecoveryPlane(t *testing.T) {
 	authority := NormalizeOperationalAuthority(Authority{
 		Seed:        []string{"writer", "agent-manager"},
@@ -188,6 +205,43 @@ func TestLoadMissingCoreUsesOperationalDefaults(t *testing.T) {
 		if !contains(authority.Seed, required) || !contains(authority.TrustedBase, required) {
 			t.Fatalf("required recovery scenario %q missing from normalized authority: %+v", required, authority)
 		}
+	}
+}
+
+func TestLoadOnlyAppliesTiersToCurrentlySelectedEntries(t *testing.T) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
+	if err != nil {
+		t.Fatal(err)
+	}
+	paths, err := resolver.Resolve(storage.Options{ScenarioID: "vrooli-onboarding"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	statePath := filepath.Join(paths.StateDir, "operator-state.json")
+	original, err := os.ReadFile(statePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.WriteFile(statePath, original, 0o600); err != nil {
+			t.Errorf("restore operator state: %v", err)
+		}
+	})
+	state := `{"core":{"seed":["agent-manager","disabled-core","prompt-manager","web-console","vrooli-autoheal"],"trusted_base":["agent-manager","disabled-core","prompt-manager","web-console","vrooli-autoheal"],"important":[{"kind":"scenario","name":"enabled-app"},{"kind":"scenario","name":"disabled-app"}],"members":[{"kind":"resource","name":"redis"},{"kind":"resource","name":"postgres"}]},"scenarios":{"enabled-app":{"enabled":true},"disabled-app":{"enabled":false},"disabled-core":{"enabled":false}},"resources":{"redis":{"enabled":true},"postgres":{"enabled":false}}}`
+	if err := os.WriteFile(statePath, []byte(state), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	authority, err := Load("")
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	wantImportant := []ComponentID{{Kind: MemberKindScenario, Name: "enabled-app"}}
+	wantCore := []ComponentID{{Kind: MemberKindResource, Name: "redis"}}
+	if !reflect.DeepEqual(authority.Important, wantImportant) || !reflect.DeepEqual(authority.CoreMembers, wantCore) {
+		t.Fatalf("Load tiers = important %+v, core %+v; want important %+v, core %+v", authority.Important, authority.CoreMembers, wantImportant, wantCore)
+	}
+	if containsStringTest(authority.Seed, "disabled-core") || !containsStringTest(authority.Seed, "web-console") {
+		t.Fatalf("explicitly disabled optional core seed should be removed while mandatory recovery remains: %+v", authority.Seed)
 	}
 }
 

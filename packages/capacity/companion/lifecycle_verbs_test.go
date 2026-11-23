@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -101,5 +103,75 @@ func TestLifecycleCapacityCommandsDryRunRejectsUndeclaredStep(t *testing.T) {
 	}
 	if executed || output.Len() != 0 {
 		t.Fatalf("unknown dry-run changed state/output: executed=%t output=%q", executed, output.String())
+	}
+}
+
+func TestProfileStepsResolvesTheDeclaredLadderWhenAVerbRuns(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "resources", "demo")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := `{"acceleration":{"claim":{"resource_kind":"vram","profile":{"steps":[{"label":"big:9b","default_amount_bytes":9},{"label":"small:4b","default_amount_bytes":4},{"label":"cpu","default_amount_bytes":0}]}}}}`
+	if err := os.WriteFile(filepath.Join(dir, "resource.json"), []byte(manifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	getenv := func(key string) string {
+		if key == "RESOURCE_ROOT" {
+			return dir
+		}
+		return ""
+	}
+	resolved := 0
+	steps := ProfileSteps(getenv, "demo", func(step DeclaredStep) LifecycleStep {
+		env := "VROOLI_GPU=on"
+		if step.AmountBytes == 0 {
+			env = "VROOLI_GPU=off"
+		}
+		return LifecycleStep{Action: "restart", Env: []string{env}}
+	})
+	var calls []string
+	var output bytes.Buffer
+	group := LifecycleCapacityCommands(LifecycleVerbsConfig{
+		Resource: "demo",
+		DeclaredSteps: func() ([]LifecycleStep, error) {
+			resolved++
+			return steps()
+		},
+		Stdout: &output,
+		Exec: func(_ context.Context, env []string, _ string, args ...string) error {
+			calls = append(calls, env[0]+" "+strings.Join(args, " "))
+			return nil
+		},
+	})
+	if resolved != 0 {
+		t.Fatal("building the command group must not read resource.json")
+	}
+	if err := group.Subcommands[0].Run([]string{"--to", "small:4b"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := group.Subcommands[0].Run([]string{"--to", "cpu"}); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"VROOLI_GPU=on resource restart demo", "VROOLI_GPU=off resource restart demo"}
+	if !reflect.DeepEqual(calls, want) || resolved != 2 {
+		t.Fatalf("calls = %v (resolved %d), want %v", calls, resolved, want)
+	}
+	if err := group.Subcommands[0].Run([]string{"--to", "undeclared:1b"}); !errors.Is(err, ErrUnknownStep) {
+		t.Fatalf("undeclared rung error = %v, want ErrUnknownStep", err)
+	}
+}
+
+func TestProfileStepsFailsClosedWithoutADeclaredProfile(t *testing.T) {
+	group := LifecycleCapacityCommands(LifecycleVerbsConfig{
+		Resource:      "demo",
+		DeclaredSteps: ProfileSteps(func(string) string { return t.TempDir() + "/resources/demo" }, "absent-resource-for-test", func(DeclaredStep) LifecycleStep { return LifecycleStep{} }),
+		Exec: func(context.Context, []string, string, ...string) error {
+			t.Fatal("no action without a ladder")
+			return nil
+		},
+	})
+	if err := group.Subcommands[0].Run([]string{"--to", "cpu"}); err == nil || !strings.Contains(err.Error(), "declares no acceleration.claim.profile.steps") {
+		t.Fatalf("error = %v, want a missing-profile refusal", err)
 	}
 }

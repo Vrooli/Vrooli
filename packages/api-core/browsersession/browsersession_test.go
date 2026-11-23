@@ -18,8 +18,10 @@ type provider struct {
 	login     *accountsv1.LoginRequest
 	loginErr  error
 	loginResp *accountsv1.LoginResponse
+	loginResponseFn func() (*connect.Response[accountsv1.LoginResponse], error)
 	refresh   *accountsv1.RefreshRequest
 	refreshFn func() (*accountsv1.RefreshResponse, error)
+	refreshResponseFn func() (*connect.Response[accountsv1.RefreshResponse], error)
 	loggedOut string
 	logoutErr error
 	agent     string
@@ -27,6 +29,9 @@ type provider struct {
 
 func (p *provider) Login(_ context.Context, r *connect.Request[accountsv1.LoginRequest]) (*connect.Response[accountsv1.LoginResponse], error) {
 	p.login, p.agent = r.Msg, r.Header().Get("User-Agent")
+	if p.loginResponseFn != nil {
+		return p.loginResponseFn()
+	}
 	if p.loginErr != nil {
 		return nil, p.loginErr
 	}
@@ -35,6 +40,9 @@ func (p *provider) Login(_ context.Context, r *connect.Request[accountsv1.LoginR
 
 func (p *provider) Refresh(_ context.Context, r *connect.Request[accountsv1.RefreshRequest]) (*connect.Response[accountsv1.RefreshResponse], error) {
 	p.refresh = r.Msg
+	if p.refreshResponseFn != nil {
+		return p.refreshResponseFn()
+	}
 	response, err := p.refreshFn()
 	if err != nil {
 		return nil, err
@@ -180,6 +188,17 @@ func TestUnreachableProviderIsUnavailable(t *testing.T) {
 	}
 }
 
+func TestSignInTreatsEmptyProviderResponseAsUnavailable(t *testing.T) {
+	p := &provider{loginResponseFn: func() (*connect.Response[accountsv1.LoginResponse], error) { return nil, nil }}
+	out := http.Header{}
+	if _, err := edge(p).SignIn(context.Background(), browser(""), out, Credentials{Email: "e", Password: "p"}); !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("malformed provider success error = %v, want unavailable", err)
+	}
+	if len(out.Values("Set-Cookie")) != 0 {
+		t.Fatalf("malformed provider success set cookies: %v", out.Values("Set-Cookie"))
+	}
+}
+
 func TestRenewRotatesTheSessionFromTheRefreshCookie(t *testing.T) {
 	p := &provider{refreshFn: func() (*accountsv1.RefreshResponse, error) {
 		return &accountsv1.RefreshResponse{Tokens: tokens("access-2", "refresh-2")}, nil
@@ -226,6 +245,31 @@ func TestRenewClearsOnlyARefusedSession(t *testing.T) {
 				t.Fatalf("cleared = %t, want %t", cleared, test.cleared)
 			}
 		})
+	}
+}
+
+func TestRenewRetainsRefreshCookieAcrossMalformedSuccessThenRecovers(t *testing.T) {
+	responses := []*connect.Response[accountsv1.RefreshResponse]{nil, connect.NewResponse(&accountsv1.RefreshResponse{Tokens: tokens("access-recovered", "refresh-recovered")})}
+	p := &provider{refreshResponseFn: func() (*connect.Response[accountsv1.RefreshResponse], error) {
+		response := responses[0]
+		responses = responses[1:]
+		return response, nil
+	}}
+	in := browser(RefreshCookie + "=refresh-original")
+	first := http.Header{}
+	if _, err := edge(p).Renew(context.Background(), in, first); !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("malformed provider success error = %v, want unavailable", err)
+	}
+	if len(first.Values("Set-Cookie")) != 0 || cookie(in, RefreshCookie) != "refresh-original" {
+		t.Fatalf("malformed success changed browser session: response cookies=%v request refresh=%q", first.Values("Set-Cookie"), cookie(in, RefreshCookie))
+	}
+	second := http.Header{}
+	outcome, err := edge(p).Renew(context.Background(), in, second)
+	if err != nil || outcome.AccessToken != "access-recovered" {
+		t.Fatalf("recovery outcome=%+v err=%v", outcome, err)
+	}
+	if got := cookies(second)[RefreshCookie]; got == nil || got.Value != "refresh-recovered" {
+		t.Fatalf("recovered refresh cookie=%+v", got)
 	}
 }
 

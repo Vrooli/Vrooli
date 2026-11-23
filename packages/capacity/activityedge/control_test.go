@@ -42,11 +42,77 @@ func TestControlSocketDrainsAndResumesLiveTracker(t *testing.T) {
 	if tr.begin() {
 		t.Fatal("request entered after lifecycle drain")
 	}
+	reconciled := make(chan struct{}, 1)
+	h.startupUpstream = Upstream{BaseURL: "http://upstream", Client: http.DefaultClient}
+	h.StartupReconcile = func(_ context.Context, upstream Upstream) error {
+		reconciled <- struct{}{}
+		if !tr.isDraining() {
+			t.Error("reconciliation ran while public requests were admitted")
+		}
+		if upstream.Client == nil {
+			t.Error("reconciliation did not receive the private upstream client")
+		}
+		return nil
+	}
+	if err := ControlSocketRequest(context.Background(), path, "reconcile"); err != nil {
+		t.Fatalf("reconcile through lifecycle socket: %v", err)
+	}
+	select {
+	case <-reconciled:
+	default:
+		t.Fatal("lifecycle reconciliation callback did not run")
+	}
 	if err := ControlSocketRequest(context.Background(), path, "resume"); err != nil {
 		t.Fatalf("resume through lifecycle socket: %v", err)
 	}
 	if !tr.begin() {
 		t.Fatal("request remained blocked after lifecycle resume")
+	}
+	tr.end()
+}
+
+func TestControlReconcileSkipsBusyEdgeWithoutDeadlockingWake(t *testing.T) {
+	// A unix socket path is limited to about 100 bytes, which a per-test
+	// TempDir under a deep TMPDIR exceeds.
+	dir, err := os.MkdirTemp("/tmp", "ae-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+	path := filepath.Join(dir, "edge.sock")
+	h := &Handlers{}
+	srv, listener, err := serveControlSocket(path, h)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = srv.Close()
+		_ = listener.Close()
+	}()
+	tr := &tracker{drained: make(chan struct{})}
+	close(tr.drained)
+	h.tracker = tr
+	called := make(chan struct{}, 1)
+	h.StartupReconcile = func(context.Context, Upstream) error {
+		called <- struct{}{}
+		return nil
+	}
+	go func() { _ = srv.Serve(listener) }()
+	if !tr.begin() {
+		t.Fatal("could not enter request before wake lifecycle")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := ControlSocketRequest(ctx, path, "reconcile"); err != nil {
+		t.Fatalf("busy-edge reconcile should skip without waiting: %v", err)
+	}
+	select {
+	case <-called:
+		t.Fatal("reconciliation ran while a request was in flight")
+	default:
+	}
+	if tr.isDraining() {
+		t.Fatal("busy-edge reconcile left the request boundary drained")
 	}
 	tr.end()
 }

@@ -34,6 +34,11 @@ var ErrFlood = errors.New("too many outstanding operator decisions for this subj
 // outstanding correlation id whose first publication has not succeeded.
 var ErrPendingFactsChanged = errors.New("pending operator decision facts changed within the same generation")
 
+// ErrPublisherUnavailable reports that an optional publisher explicitly says
+// it cannot currently deliver events. Keep the durable ask un-published so a
+// later Raise can retry it after the provider is configured or restored.
+var ErrPublisherUnavailable = errors.New("operator decision publisher unavailable")
+
 // Raiser records (idempotently) a pending ask and raises the operator decision
 // for a scenario that keeps its pending asks in a PendingStore. It is the
 // higher-level path on top of BuildEvent: it dedupes a repeated raise, enforces a
@@ -172,6 +177,9 @@ func (r Raiser) Raise(ctx context.Context, ask PendingAsk, facts Facts) (bool, e
 func (r Raiser) publish(ctx context.Context, ask *PendingAsk, facts Facts) error {
 	if r.Publisher == nil || ask == nil {
 		return nil
+	}
+	if availability, ok := r.Publisher.(interface{ Enabled() bool }); ok && !availability.Enabled() {
+		return ErrPublisherUnavailable
 	}
 	event := r.event(ask, facts)
 	if ask.EventID != "" && EventID(event) != ask.EventID {

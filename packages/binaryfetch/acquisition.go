@@ -57,19 +57,24 @@ type Acquisition struct {
 }
 
 type ComposeStep struct {
-	Role           string   `json:"role"`
-	Kind           string   `json:"kind"`
-	Dest           string   `json:"dest"`
-	Source         string   `json:"source,omitempty"`
-	URL            string   `json:"url,omitempty"`
-	SHA256         string   `json:"sha256,omitempty"`
-	Archive        string   `json:"archive,omitempty"`
-	BinPath        string   `json:"bin_path,omitempty"`
-	Mode           string   `json:"mode,omitempty"`
-	Lockfile       string   `json:"lockfile,omitempty"`
-	IndexURL       string   `json:"index_url,omitempty"`
-	ExtraIndexURLs []string `json:"extra_index_url,omitempty"`
-	AllowSDists    bool     `json:"allow_sdists,omitempty"`
+	Role    string `json:"role"`
+	Kind    string `json:"kind"`
+	Dest    string `json:"dest"`
+	Source  string `json:"source,omitempty"`
+	URL     string `json:"url,omitempty"`
+	SHA256  string `json:"sha256,omitempty"`
+	Archive string `json:"archive,omitempty"`
+	// DownloadBytes is the exact compressed representation size for bounded
+	// URL compose inputs. MaxExpandedBytes and MaxEntries bound extraction.
+	DownloadBytes    int64    `json:"download_bytes,omitempty"`
+	MaxExpandedBytes int64    `json:"max_expanded_bytes,omitempty"`
+	MaxEntries       int64    `json:"max_entries,omitempty"`
+	BinPath          string   `json:"bin_path,omitempty"`
+	Mode             string   `json:"mode,omitempty"`
+	Lockfile         string   `json:"lockfile,omitempty"`
+	IndexURL         string   `json:"index_url,omitempty"`
+	ExtraIndexURLs   []string `json:"extra_index_url,omitempty"`
+	AllowSDists      bool     `json:"allow_sdists,omitempty"`
 }
 
 // AcquisitionAuth names an existing credential. Values and arbitrary headers are never declared.
@@ -114,15 +119,22 @@ type AcquisitionTarget struct {
 	// checksum-pinned upstream archive on macOS and Windows, where no
 	// equivalent image exists and the published archive is self-contained.
 	// Empty means the acquisition-wide kind.
-	Kind           string `json:"kind,omitempty"`
-	URL            string `json:"url,omitempty"`
-	Image          string `json:"image,omitempty"`
-	SHA256         string `json:"sha256,omitempty"`
-	ArtifactSHA256 string `json:"artifact_sha256,omitempty"`
-	Archive        string `json:"archive,omitempty"`
-	Layout         string `json:"layout,omitempty"`
-	BinPath        string `json:"bin_path,omitempty"`
-	Mode           string `json:"mode,omitempty"`
+	Kind   string `json:"kind,omitempty"`
+	URL    string `json:"url,omitempty"`
+	Image  string `json:"image,omitempty"`
+	SHA256 string `json:"sha256,omitempty"`
+	// DownloadBytes pins the exact downloaded representation size, including a
+	// compressed archive, for bounded staging and capacity admission.
+	DownloadBytes int64 `json:"download_bytes,omitempty"`
+	// MaxExpandedBytes and MaxEntries are mandatory together with DownloadBytes
+	// for a managed archive to participate in bounded capacity admission.
+	MaxExpandedBytes int64  `json:"max_expanded_bytes,omitempty"`
+	MaxEntries       int64  `json:"max_entries,omitempty"`
+	ArtifactSHA256   string `json:"artifact_sha256,omitempty"`
+	Archive          string `json:"archive,omitempty"`
+	Layout           string `json:"layout,omitempty"`
+	BinPath          string `json:"bin_path,omitempty"`
+	Mode             string `json:"mode,omitempty"`
 	// Executable is the host command adopted by kind=none. It is deliberately
 	// explicit: a managed service may reuse a separately governed host tool,
 	// but it may not discover an arbitrary running process or binary.
@@ -210,7 +222,7 @@ func (a Acquisition) validate(candidate bool) error {
 		}
 		unsupported := strings.TrimSpace(target.Unsupported)
 		if unsupported != "" {
-			if target.URL != "" || target.Image != "" || target.Package != "" || target.Version != "" || target.SHA256 != "" || target.ArtifactSHA256 != "" || target.Archive != "" || target.Layout != "" || target.BinPath != "" || target.Executable != "" || len(target.RuntimeEnv) != 0 || len(target.Compose) != 0 || target.Auth != nil {
+			if target.URL != "" || target.Image != "" || target.Package != "" || target.Version != "" || target.SHA256 != "" || target.DownloadBytes != 0 || target.MaxExpandedBytes != 0 || target.MaxEntries != 0 || target.ArtifactSHA256 != "" || target.Archive != "" || target.Layout != "" || target.BinPath != "" || target.Executable != "" || len(target.RuntimeEnv) != 0 || len(target.Compose) != 0 || target.Auth != nil {
 				return fmt.Errorf("acquisition target %d: unsupported target cannot also declare an artifact", index)
 			}
 			continue
@@ -282,6 +294,18 @@ func (a Acquisition) validate(candidate bool) error {
 		if target.ArtifactSHA256 != "" && !isDigest(target.ArtifactSHA256) {
 			return fmt.Errorf("acquisition target %d: artifact_sha256 must be a 64-character digest", index)
 		}
+		if target.DownloadBytes < 0 || target.MaxExpandedBytes < 0 || target.MaxEntries < 0 {
+			return fmt.Errorf("acquisition target %d: download_bytes must be positive when declared", index)
+		}
+		if (target.MaxExpandedBytes > 0 || target.MaxEntries > 0) && (kind != "url" || target.Archive == "" || target.Archive == "none" || target.DownloadBytes <= 0 || target.MaxExpandedBytes <= 0 || target.MaxEntries <= 0) {
+			return fmt.Errorf("acquisition target %d: archive bounds require URL archive, exact download_bytes, max_expanded_bytes and max_entries", index)
+		}
+		if target.DownloadBytes > 0 && kind != "url" {
+			return fmt.Errorf("acquisition target %d: download_bytes is supported only for URL artifacts", index)
+		}
+		if target.DownloadBytes > 0 && target.Archive != "" && target.Archive != "none" && (target.MaxExpandedBytes <= 0 || target.MaxEntries <= 0) {
+			return fmt.Errorf("acquisition target %d: archive download_bytes requires max_expanded_bytes and max_entries", index)
+		}
 	}
 	if a.Provenance != nil {
 		if a.Provenance.Kind != "none" && a.Provenance.Kind != "gpg-checksums" {
@@ -308,6 +332,12 @@ func (s ComposeStep) Validate() error {
 	}
 	if filepath.IsAbs(s.Dest) || strings.HasPrefix(filepath.Clean(s.Dest), "..") {
 		return fmt.Errorf("compose step dest %q must stay under the artifact root", s.Dest)
+	}
+	if s.DownloadBytes < 0 || s.MaxExpandedBytes < 0 || s.MaxEntries < 0 {
+		return errors.New("compose step capacity limits cannot be negative")
+	}
+	if (s.DownloadBytes != 0 || s.MaxExpandedBytes != 0 || s.MaxEntries != 0) && (s.DownloadBytes <= 0 || s.MaxExpandedBytes <= 0 || s.MaxEntries <= 0) {
+		return errors.New("compose step capacity limits require positive download_bytes, max_expanded_bytes, and max_entries together")
 	}
 	switch strings.ToLower(strings.TrimSpace(s.Kind)) {
 	case "url":

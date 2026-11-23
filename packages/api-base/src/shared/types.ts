@@ -334,6 +334,10 @@ export interface ScenarioProxyHostOptions {
   loopbackHosts?: string[]
   /** Cache TTL for metadata lookups */
   cacheTtlMs?: number
+  /** Maximum additional age for a cached target when metadata lookup fails transiently. Disabled by default. */
+  metadataStaleIfErrorMs?: number
+  /** Minimum interval between metadata retries while a stale target is being used. Defaults to 1000 ms. */
+  metadataFailureRetryIntervalMs?: number
   /** Upstream host that runs the scenarios (default: 127.0.0.1) */
   upstreamHost?: string
   /** Timeout for upstream requests */

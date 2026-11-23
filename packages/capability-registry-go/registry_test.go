@@ -2,6 +2,7 @@ package capabilityregistry
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"strings"
 	"sync"
@@ -9,6 +10,22 @@ import (
 	"testing"
 	"time"
 )
+
+func TestPlatformProbePolicyIsNotPartOfJSONContract(t *testing.T) {
+	encoded, err := json.Marshal(PlatformVerdict{
+		Support: PlatformUnsupported, Reason: "managed artifact unavailable", ProbeWhenUnsupported: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(encoded)
+	if strings.Contains(got, "ProbeWhenUnsupported") || strings.Contains(got, "probeWhenUnsupported") {
+		t.Fatalf("internal probe policy leaked into JSON: %s", got)
+	}
+	if got != `{"support":"unsupported","reason":"managed artifact unavailable"}` {
+		t.Fatalf("platform JSON = %s", got)
+	}
+}
 
 func TestProjectManifestUsesManifestAuthorityAndOverlay(t *testing.T) {
 	dir := t.TempDir()

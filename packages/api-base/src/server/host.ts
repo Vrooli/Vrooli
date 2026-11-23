@@ -38,6 +38,7 @@ interface ProxyContext {
 interface CachedContext {
   context: ProxyContext
   timestamp: number
+  metadataFailureAt?: number
 }
 
 interface HtmlCacheEntry {
@@ -53,6 +54,14 @@ interface HtmlCachePointer {
   appId: string
   path: string
   insertedAt: number
+}
+
+/** Signals that the metadata owner is temporarily unreachable, not that the app is missing. */
+export class ProxyMetadataUnavailableError extends Error {
+  constructor(message = 'Proxy metadata source unavailable') {
+    super(message)
+    this.name = 'ProxyMetadataUnavailableError'
+  }
 }
 
 function normalizePrefix(prefix: string): string {
@@ -429,6 +438,7 @@ class StreamingHeadInjector {
     let output = injectProxyMetadata(html, metadata, { patchFetch })
     output = injectBaseTag(output, basePath, {
       skipIfExists: true,
+      replaceRootBaseHref: true,
       dataAttribute: baseTagAttribute,
     })
     return output
@@ -615,7 +625,7 @@ function cloneHeaders(headers: http.IncomingHttpHeaders): Record<string, string 
     // These validators describe upstream wire bytes. Injection changes those
     // bytes, and decompression means the downstream body is now identity HTML.
     // CORS headers belong to the host's origin policy, not the hosted app.
-    if (['content-length', 'content-encoding', 'content-md5', 'etag'].includes(key.toLowerCase()) || isCorsResponseHeader(key)) {
+    if (['content-length', 'content-encoding', 'content-md5', 'etag', 'transfer-encoding'].includes(key.toLowerCase()) || isCorsResponseHeader(key)) {
       continue
     }
     result[key] = value
@@ -734,6 +744,8 @@ export function createScenarioProxyHost(options: ScenarioProxyHostOptions): Scen
   const router: Router = express.Router()
   const cache = new Map<string, CachedContext>()
   const cacheTtl = options.cacheTtlMs ?? DEFAULT_CACHE_TTL_MS
+  const metadataStaleIfErrorMs = Math.max(0, options.metadataStaleIfErrorMs ?? 0)
+  const metadataFailureRetryIntervalMs = Math.max(0, options.metadataFailureRetryIntervalMs ?? 1000)
   const htmlCacheEnabled = options.cacheProxyHtml !== false
   const htmlCacheTtl = options.proxyHtmlCacheTtlMs ?? cacheTtl
   const htmlCacheMaxEntries = options.proxyHtmlCacheMaxEntries ?? 200
@@ -907,8 +919,39 @@ function setCachedHtmlEntry(appId: string, path: string, payload: Omit<HtmlCache
       return cached.context
     }
 
+    const staleWindowMs = cacheTtl + metadataStaleIfErrorMs
+    if (
+      cached &&
+      metadataStaleIfErrorMs > 0 &&
+      cached.metadataFailureAt !== undefined &&
+      now - cached.metadataFailureAt < metadataFailureRetryIntervalMs &&
+      now - cached.timestamp <= staleWindowMs &&
+      healthTracker.isHealthy(cached.context.uiPort)
+    ) {
+      metrics?.recordCacheEvent('metadata', true)
+      return cached.context
+    }
+
     metrics?.recordCacheEvent('metadata', false)
-    const metadata = await options.fetchAppMetadata(appId)
+    let metadata: ScenarioProxyAppMetadata | null | undefined
+    try {
+      metadata = await options.fetchAppMetadata(appId)
+    } catch (error) {
+      const cachedAge = cached ? now - cached.timestamp : Number.POSITIVE_INFINITY
+      if (
+        error instanceof ProxyMetadataUnavailableError &&
+        cached &&
+        metadataStaleIfErrorMs > 0 &&
+        cachedAge <= staleWindowMs &&
+        healthTracker.isHealthy(cached.context.uiPort)
+      ) {
+        console.warn(`[proxy-host] Using bounded cached metadata for ${appId} while its owner is unavailable`)
+        cache.set(appId, { ...cached, metadataFailureAt: now })
+        metrics?.recordCacheEvent('metadata', true)
+        return cached.context
+      }
+      throw error
+    }
     if (!metadata) {
       throw new Error(`App ${appId} not found`)
     }
@@ -928,6 +971,15 @@ function setCachedHtmlEntry(appId: string, path: string, payload: Omit<HtmlCache
       hostEndpoints,
     })
 
+    if (cached && (
+      cached.context.uiPort !== context.uiPort ||
+      cached.context.apiPort !== context.apiPort ||
+      JSON.stringify(cached.context.metadata) !== JSON.stringify(context.metadata)
+    )) {
+      // HTML includes injected metadata and belongs to the resolved child
+      // configuration. A refreshed target must not keep serving the prior UI.
+      clearHtmlCacheEntries(appId)
+    }
     cache.set(appId, { context, timestamp: now })
     healthTracker.track(context.uiPort)
     return context
@@ -1001,6 +1053,7 @@ function setCachedHtmlEntry(appId: string, path: string, payload: Omit<HtmlCache
             const basePath = `${context.metadata.primary.path || `${appsPrefix}/${appId}/${proxySegment}`}/`
             body = injectBaseTag(body, basePath, {
               skipIfExists: true,
+              replaceRootBaseHref: true,
               dataAttribute: childBaseTagAttr,
             })
           }

@@ -52,31 +52,43 @@ func EvaluateOperationGrant(scopes []string, grant *identity.OperationGrant, cap
 // RequestOperationAuthority ingress (never a caller-supplied scope). Both resolve
 // to one OperationGrant evaluated by identity.OperationGrant.Allows.
 func RequireOperation(ctx context.Context, capability, operation, target string) (identity.Principal, error) {
+	p, _, err := AdmitOperation(ctx, capability, operation, target)
+	return p, err
+}
+
+// AdmitOperation is RequireOperation that also names the operator-approved
+// grant that covered an agent: the grant in its identity token, or the one in
+// a paired operation proof, which never joins the returned principal. It is
+// nil for a human; when a domain authority admits the caller it is only the
+// caller's token grant, if any. Use it to attribute a
+// delegated action ("answered under grant X, approved by Y"); never feed it to
+// another authorization check.
+func AdmitOperation(ctx context.Context, capability, operation, target string) (identity.Principal, *identity.OperationGrant, error) {
 	if a, present := RequestOperationAuthorityFromContext(ctx); present {
 		p, ok := identity.PrincipalFromContext(ctx)
 		if !ok || (p.Kind != identity.ActorAgent && p.Kind != identity.ActorService) {
-			return identity.Principal{}, ErrOperation
+			return identity.Principal{}, nil, ErrOperation
 		}
 		if err := a.AuthorizeOperation(ctx, p, capability, operation, target); err != nil {
 			if p.Kind == identity.ActorAgent && err == ErrOperation {
-				return identity.Principal{}, NewOperationRefusal(operation, target)
+				return identity.Principal{}, nil, NewOperationRefusal(operation, target)
 			}
-			return identity.Principal{}, err
+			return identity.Principal{}, nil, err
 		}
-		return p, nil
+		return p, p.Grant, nil
 	}
 	p, present := identity.PrincipalFromContext(ctx)
 	if !present || !p.IsVerified() {
-		return identity.Principal{}, ErrCapability
+		return identity.Principal{}, nil, ErrCapability
 	}
 	if !p.ExpiresAt.IsZero() && !time.Now().Before(p.ExpiresAt) {
-		return identity.Principal{}, identity.NewFailure(identity.FailureExpired, p.Source)
+		return identity.Principal{}, nil, identity.NewFailure(identity.FailureExpired, p.Source)
 	}
 	if p.IsHuman() {
 		if !scopecatalog.Resolve(p.Scopes, capability) {
-			return identity.Principal{}, ErrCapability
+			return identity.Principal{}, nil, ErrCapability
 		}
-		return p, nil
+		return p, nil, nil
 	}
 	if p.Kind == identity.ActorAgent {
 		now := time.Now()
@@ -86,21 +98,21 @@ func RequireOperation(ctx context.Context, capability, operation, target string)
 		verified, verifyErr := provenance.ReverifyOperationProof(ctx)
 		if verifyErr == nil && verified != nil && now.Before(verified.ExpiresAt) &&
 			EvaluateOperationGrant(verified.Scopes, verified.Grant, capability, operation, target, now).Allowed() {
-			return p, nil
+			return p, verified.Grant, nil
 		}
 		// Preserve the existing grant-only credential contract. Its token scopes
 		// and grant remain one bounded principal as before.
 		if EvaluateOperationGrant(p.Scopes, p.Grant, capability, operation, target, now).Allowed() {
-			return p, nil
+			return p, p.Grant, nil
 		}
 		// The refusal names the exact request that would let the operator approve
 		// this operation on this target. errors.Is(err, ErrOperation) still holds.
-		return identity.Principal{}, NewOperationRefusal(operation, target)
+		return identity.Principal{}, nil, NewOperationRefusal(operation, target)
 	}
 	if !scopecatalog.Resolve(p.Scopes, capability) {
-		return identity.Principal{}, ErrCapability
+		return identity.Principal{}, nil, ErrCapability
 	}
-	return identity.Principal{}, ErrOperation
+	return identity.Principal{}, nil, ErrOperation
 }
 
 // RequireIndependentHuman retains a human decision even when a forwarded

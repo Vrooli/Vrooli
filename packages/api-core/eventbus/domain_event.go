@@ -25,7 +25,8 @@ type DomainEvent struct {
 }
 
 func (c Client) PublishDomainEvent(ctx context.Context, event DomainEvent) error {
-	if !c.Enabled() {
+	baseURL := c.baseURL()
+	if baseURL == "" {
 		return nil
 	}
 	payload, err := structpb.NewStruct(event.Payload)
@@ -50,7 +51,7 @@ func (c Client) PublishDomainEvent(ctx context.Context, event DomainEvent) error
 	if err != nil {
 		return err
 	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(c.baseURL(), "/")+"/api/v1/events", strings.NewReader(string(body)))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(baseURL, "/")+"/api/v1/events", strings.NewReader(string(body)))
 	if err != nil {
 		return err
 	}
@@ -64,6 +65,9 @@ func (c Client) PublishDomainEvent(ctx context.Context, event DomainEvent) error
 	}
 	response, err := client.Do(request)
 	if err != nil {
+		if ctx.Err() == nil {
+			c.invalidateEndpoint(baseURL)
+		}
 		return err
 	}
 	defer response.Body.Close()

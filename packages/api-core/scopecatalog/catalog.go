@@ -500,6 +500,16 @@ func (c Catalog) HasScope(value string) bool {
 			return true
 		}
 	}
+	// Authentication capabilities use the same namespace/effect vocabulary as
+	// command scopes. A capability that a scenario's identity profile declares is
+	// grantable, even when no CLI command mints it directly.
+	for _, profile := range c.AuthenticationProfiles {
+		for _, capability := range profile.Capabilities {
+			if capability.ID == value {
+				return true
+			}
+		}
+	}
 	return false
 }
 

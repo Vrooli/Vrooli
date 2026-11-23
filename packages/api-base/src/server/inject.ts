@@ -595,22 +595,47 @@ export function injectBaseTag(
   options: {
     /** Skip injection if base tag already exists */
     skipIfExists?: boolean
+    /** Replace an existing root-relative href="/" base with the supplied base path */
+    replaceRootBaseHref?: boolean
     /** Data attribute to add to base tag for identification */
     dataAttribute?: string
   } = {}
 ): string {
   const {
     skipIfExists = true,
+    replaceRootBaseHref = false,
     dataAttribute = 'data-vrooli-base',
   } = options
 
-  // Check if base tag already exists
-  if (skipIfExists && /<base\s+[^>]*>/i.test(html)) {
-    return html
-  }
-
   // Ensure trailing slash for base href
   const normalizedBase = basePath.endsWith('/') ? basePath : `${basePath}/`
+
+  // Check if base tag already exists
+  const existingBase = html.match(/<base\s+[^>]*>/i)
+  if (skipIfExists && existingBase) {
+    if (!replaceRootBaseHref) {
+      return html
+    }
+
+    const hrefAttribute = /\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i
+    const hrefMatch = existingBase[0].match(hrefAttribute)
+    const href = hrefMatch?.[1] ?? hrefMatch?.[2] ?? hrefMatch?.[3]
+    // Only replace a root-relative slash (optionally followed by query/hash).
+    // Preserve relative bases, non-root paths, and protocol-relative URLs.
+    if (!href || !/^\/(?:[?#].*)?$/.test(href.trim())) {
+      return html
+    }
+
+    let updatedTag = existingBase[0].replace(hrefAttribute, `href="${normalizedBase}"`)
+    const markerAttribute = new RegExp(`\\b${dataAttribute}\\s*=`, 'i')
+    if (markerAttribute.test(updatedTag)) {
+      updatedTag = updatedTag.replace(markerAttribute, `${dataAttribute}="injected" `)
+    } else {
+      updatedTag = updatedTag.replace(/\s*\/?>$/, (closing) => ` ${dataAttribute}="injected"${closing}`)
+    }
+    return html.replace(existingBase[0], updatedTag)
+  }
+
   const baseTag = `<base ${dataAttribute}="injected" href="${normalizedBase}">`
 
   // Try to inject into <head>

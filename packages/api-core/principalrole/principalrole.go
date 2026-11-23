@@ -21,7 +21,6 @@ import (
 
 	"github.com/vrooli/api-core/authn"
 	apiidentity "github.com/vrooli/api-core/identity"
-	"github.com/vrooli/api-core/scopecatalog"
 	"github.com/vrooli/api-core/servicetoken"
 )
 
@@ -95,7 +94,7 @@ func (r Role) Source(p apiidentity.Principal) (string, error) {
 		return "", fmt.Errorf("%w: a verified service token is required", ErrRefused)
 	case p.Audience != r.Audience:
 		return "", fmt.Errorf("%w: %q holds audience %q, not %q", ErrRefused, p.Subject, p.Audience, r.Audience)
-	case !scopecatalog.MatchCapability(p.Scopes, r.Scope):
+	case len(p.Scopes) != 1 || p.Scopes[0] != r.Scope:
 		return "", fmt.Errorf("%w: %q lacks scope %q", ErrRefused, p.Subject, r.Scope)
 	}
 	source, ok := r.SourceOf(p.Subject)

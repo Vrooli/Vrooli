@@ -13,6 +13,11 @@ use `NewProviderFromEnv` and `Provider.Mount`; domain owners with external
 processes or richer work inventories can continue to implement the Connect
 service and matching admission middleware themselves.
 
+Startup naming, automatic mount admission, and `NewProviderFromEnv` share
+`scenario.IdentityFromEnv`: trimmed `VROOLI_SCENARIO` is the control-plane
+identity, with trimmed `SCENARIO_NAME` retained as a compatibility fallback.
+This keeps a stale legacy alias from choosing a different lifecycle owner.
+
 A control-plane replacement uses one durable operation ID to:
 
 1. ask the live provider to close admission;

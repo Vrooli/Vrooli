@@ -178,14 +178,15 @@ func TestCrashRecoveryPreservesCheckpoint(t *testing.T) {
 		Executor:  executor,
 	})
 	h.submit(t, jobSpec("job", "embed", "owner"))
-	if _, err := h.store.Lease(context.Background(), LeaseOptions{
+	leased, err := h.store.Lease(context.Background(), LeaseOptions{
 		JobIDs: []string{"job"},
 		Owner:  "dead-runner",
 		TTL:    time.Minute,
-	}); err != nil {
+	})
+	if err != nil {
 		t.Fatalf("lease: %v", err)
 	}
-	if err := h.store.Checkpoint(context.Background(), "job", `{"offset":64}`); err != nil {
+	if err := h.store.CheckpointLeased(context.Background(), leased[0].Job.LeaseClaim(), `{"offset":64}`); err != nil {
 		t.Fatalf("checkpoint: %v", err)
 	}
 	h.clock.Advance(2 * time.Minute)

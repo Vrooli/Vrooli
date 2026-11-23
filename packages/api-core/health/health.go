@@ -55,7 +55,6 @@ import (
 	"net/http"
 	"os"
 	"runtime"
-	"sync"
 	"time"
 
 	"github.com/vrooli/api-core/scenario"
@@ -398,27 +397,28 @@ func (b *Builder) runChecks(ctx context.Context, resp *Response) map[string]Depe
 	deps := make(map[string]DependencyStatus)
 	results := make(chan checkWithMeta, len(b.checks))
 
-	var wg sync.WaitGroup
+	criticalPending := 0
 	for _, entry := range b.checks {
-		wg.Add(1)
+		if entry.criticality == Critical {
+			criticalPending++
+		}
+	}
+	for _, entry := range b.checks {
 		go func(e checkerEntry) {
-			defer wg.Done()
 			result := e.checker.Check(ctx)
 			results <- checkWithMeta{result: result, criticality: e.criticality}
 		}(entry)
 	}
 
-	// Close results channel when all checks complete
-	go func() {
-		wg.Wait()
-		close(results)
-	}()
-
 	// Collect results
 	hasCriticalFailure := false
 	hasAnyFailure := false
-
-	for meta := range results {
+	completed := 0
+	record := func(meta checkWithMeta) {
+		completed++
+		if meta.criticality == Critical {
+			criticalPending--
+		}
 		result := meta.result
 		status := DependencyStatus{
 			Connected: result.Connected,
@@ -451,14 +451,45 @@ func (b *Builder) runChecks(ctx context.Context, resp *Response) map[string]Depe
 
 		deps[result.Name] = status
 	}
-
-	// Compute overall status
-	if hasCriticalFailure {
-		resp.Status = StatusUnhealthy
-		resp.Readiness = false
-	} else if hasAnyFailure {
-		resp.Status = StatusDegraded
+	finish := func() {
+		if hasCriticalFailure {
+			resp.Status = StatusUnhealthy
+			resp.Readiness = false
+		} else if hasAnyFailure {
+			resp.Status = StatusDegraded
+		}
 	}
+
+	for completed < len(b.checks) {
+		select {
+		case meta := <-results:
+			record(meta)
+		case <-ctx.Done():
+			// Capture checks that completed with the deadline before classifying
+			// the remaining work as incomplete.
+			for completed < len(b.checks) {
+				select {
+				case meta := <-results:
+					record(meta)
+				default:
+					if criticalPending > 0 {
+						hasCriticalFailure = true
+					}
+					hasAnyFailure = true
+					deps["health_check_deadline"] = DependencyStatus{
+						Connected: false,
+						Error: ErrorDetail{
+							Code: "HEALTH_CHECK_DEADLINE", Message: "one or more checks did not complete before the handler deadline",
+							Category: "dependency", Retryable: true,
+						},
+					}
+					completed = len(b.checks)
+				}
+			}
+		}
+	}
+
+	finish()
 
 	return deps
 }

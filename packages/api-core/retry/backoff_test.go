@@ -178,6 +178,28 @@ func TestDo_CapsAtMaxDelay(t *testing.T) {
 	}
 }
 
+func TestDo_JitterCannotExceedMaxDelay(t *testing.T) {
+	t.Parallel()
+
+	var sleeps []time.Duration
+	limit := 100 * time.Millisecond
+	cfg := Config{
+		MaxAttempts:    2,
+		BaseDelay:      80 * time.Millisecond,
+		MaxDelay:       limit,
+		JitterFraction: 0.5,
+		Clock:          scheduletest.NewImmediate(time.Time{}, func(d time.Duration) { sleeps = append(sleeps, d) }),
+		Rand:           func() float64 { return 0.9999 },
+	}
+	_ = Do(context.Background(), cfg, func(int) error { return errors.New("retry") })
+	if len(sleeps) != 1 {
+		t.Fatalf("recorded delays = %v, want one retry", sleeps)
+	}
+	if sleeps[0] > limit {
+		t.Fatalf("jittered delay = %s, exceeds MaxDelay %s", sleeps[0], limit)
+	}
+}
+
 func TestDo_JitterAddsRandomness(t *testing.T) {
 	t.Parallel()
 

@@ -49,7 +49,7 @@ func TestScopeRenewalLossCancelsWorkAndRetainsReleaseFailureForRetry(t *testing.
 		}
 		return nil
 	}
-	s := maintain(context.Background(), lease, time.Millisecond)
+	s := maintain(context.Background(), lease, time.Millisecond, time.Minute)
 	select {
 	case <-s.Context().Done():
 	case <-time.After(time.Second):
@@ -118,7 +118,7 @@ func TestScopeCanStopRenewalWhileRetainingClaimForVerifiedCleanup(t *testing.T) 
 		heartbeat: func(context.Context) error { heartbeats.Add(1); return nil },
 		release:   func(context.Context) error { return nil },
 	}
-	s := maintain(context.Background(), lease, time.Millisecond)
+	s := maintain(context.Background(), lease, time.Millisecond, time.Minute)
 	deadline := time.Now().Add(time.Second)
 	for heartbeats.Load() == 0 && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
@@ -141,4 +141,49 @@ func TestScopeCanStopRenewalWhileRetainingClaimForVerifiedCleanup(t *testing.T) 
 	if lease.released.Load() != 1 {
 		t.Fatalf("release count=%d, want 1", lease.released.Load())
 	}
+}
+
+func TestScopeRetriesTimedOutRenewalWithinStaleBudget(t *testing.T) {
+	old := scopeRenewRetryInterval
+	scopeRenewRetryInterval = time.Millisecond
+	t.Cleanup(func() { scopeRenewRetryInterval = old })
+	var calls atomic.Int32
+	lease := &scopeLease{
+		heartbeat: func(context.Context) error {
+			if calls.Add(1) <= 2 {
+				return context.DeadlineExceeded // contended ledger lock
+			}
+			return nil
+		},
+		release: func(context.Context) error { return nil },
+	}
+	s := maintain(context.Background(), lease, time.Millisecond, time.Minute)
+	deadline := time.After(2 * time.Second)
+	for calls.Load() < 4 {
+		select {
+		case <-deadline:
+			t.Fatalf("renewal stopped after %d heartbeats", calls.Load())
+		case <-time.After(time.Millisecond):
+		}
+	}
+	if s.Context().Err() != nil {
+		t.Fatalf("timed-out renewals within the budget cancelled work: %v", context.Cause(s.Context()))
+	}
+	if err := s.Release(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestScopeCancelsWhenTimedOutRenewalOutlivesStaleBudget(t *testing.T) {
+	lease := &scopeLease{heartbeat: func(context.Context) error { return context.DeadlineExceeded }, release: func(context.Context) error { return nil }}
+	s := maintain(context.Background(), lease, time.Millisecond, 0)
+	select {
+	case <-s.Context().Done():
+	case <-time.After(time.Second):
+		t.Fatal("renewal timeouts past the stale budget did not cancel work")
+	}
+	if !errors.Is(context.Cause(s.Context()), context.DeadlineExceeded) {
+		t.Fatalf("cause = %v", context.Cause(s.Context()))
+	}
+	_ = s.Release(context.Background())
 }

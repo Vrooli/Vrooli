@@ -171,6 +171,8 @@ type recorder struct {
 	list    string
 	listErr error
 	failOn  string
+	// claimResp is the JSON a successful `capacity claim` returns.
+	claimResp string
 }
 
 func (r *recorder) exec(_ context.Context, name string, args ...string) ([]byte, error) {
@@ -184,6 +186,9 @@ func (r *recorder) exec(_ context.Context, name string, args ...string) ([]byte,
 	}
 	if r.failOn != "" && strings.Contains(call, r.failOn) {
 		return nil, errors.New("broker unavailable")
+	}
+	if len(args) >= 2 && args[1] == "claim" && r.claimResp != "" {
+		return []byte(r.claimResp), nil
 	}
 	if len(args) >= 2 && (args[1] == "heartbeat" || args[1] == "resize") {
 		var payload struct {
@@ -215,8 +220,6 @@ func runnerFor(t *testing.T, rec *recorder, footprint companion.Footprint, obser
 		PreferredBytes: 11 << 30,
 		FloorBytes:     3 << 30,
 		Priority:       "service",
-		YieldWhenIdle:  true,
-		IdleGrace:      15 * time.Minute,
 	})
 	if err != nil {
 		t.Fatalf("New: %v", err)
@@ -256,7 +259,7 @@ func TestOneClaimIDSurvivesTheWholeCycle(t *testing.T) {
 			scenario:  "Given nothing claimed and a model loaded, Then a claim is created",
 			ledger:    noClaims,
 			footprint: 4 << 30,
-			wantCall:  "capacity claim --owner-kind resource --owner-id ollama",
+			wantCall:  "capacity claim --no-reclaim --owner-kind resource --owner-id ollama",
 		},
 		{
 			scenario:  "Given a claim and a materially larger footprint, Then it is resized in place",
@@ -298,9 +301,9 @@ func TestOneClaimIDSurvivesTheWholeCycle(t *testing.T) {
 // A device-mode resource degraded to CPU holds no VRAM but is still alive. Its
 // claim is the record of that mode; releasing it would erase the degraded state
 // and the broker could never upshift it back.
-func TestParkedZeroFootprintHeartbeatsInsteadOfReleasing(t *testing.T) {
-	rec := &recorder{list: oneClaim(0)}
-	runner := runnerFor(t, rec, companion.Footprint{Bytes: 0, Parked: true}, nil)
+func TestDegradedZeroByteClaimHeartbeatsInsteadOfReleasing(t *testing.T) {
+	rec := &recorder{list: strings.Replace(oneClaim(0), `"status":"granted"`, `"status":"degraded"`, 1)}
+	runner := runnerFor(t, rec, companion.Footprint{Bytes: 0}, nil)
 
 	runner.SyncOnce(context.Background())
 
@@ -312,14 +315,14 @@ func TestParkedZeroFootprintHeartbeatsInsteadOfReleasing(t *testing.T) {
 	}
 }
 
-func TestUnparkedZeroFootprintStillReleases(t *testing.T) {
+func TestGrantedZeroFootprintStillReleases(t *testing.T) {
 	rec := &recorder{list: oneClaim(0)}
 	runner := runnerFor(t, rec, companion.Footprint{Bytes: 0}, nil)
 
 	runner.SyncOnce(context.Background())
 
 	if !rec.sawCall("capacity release --claim-id clm-o") {
-		t.Fatalf("calls = %v, an unparked zero footprint is an unload", rec.calls)
+		t.Fatalf("calls = %v, a zero footprint on a granted claim is an unload", rec.calls)
 	}
 }
 
@@ -628,7 +631,7 @@ func TestRAMCompanionUsesRAMClaimWithoutGPUIdentity(t *testing.T) {
 		t.Fatalf("New: %v", err)
 	}
 	runner.SyncOnce(context.Background())
-	if !noClaims.sawCall("capacity claim --owner-kind resource --owner-id unstructured-io --resource-kind ram") {
+	if !noClaims.sawCall("capacity claim --no-reclaim --owner-kind resource --owner-id unstructured-io --resource-kind ram") {
 		t.Fatalf("calls = %v, want a RAM capacity claim", noClaims.calls)
 	}
 	if noClaims.sawCall("--gpu-index") {

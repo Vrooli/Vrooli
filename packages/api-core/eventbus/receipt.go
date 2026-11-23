@@ -62,10 +62,10 @@ type Client struct {
 }
 
 type endpointRef struct {
-	mu          sync.RWMutex
-	url         string
-	resolve     func() string
-	resolveOnce sync.Once
+	mu        sync.RWMutex
+	resolveMu sync.Mutex
+	url       string
+	resolve   func() string
 }
 
 func newDynamicClient(baseURL string) (Client, func(string)) {
@@ -81,17 +81,41 @@ func (c Client) baseURL() string {
 	if c.endpoint == nil {
 		return strings.TrimSpace(c.BaseURL)
 	}
-	c.endpoint.resolveOnce.Do(func() {
-		if c.endpoint.resolve != nil {
-			resolved := strings.TrimSpace(c.endpoint.resolve())
-			c.endpoint.mu.Lock()
-			c.endpoint.url = resolved
-			c.endpoint.mu.Unlock()
-		}
-	})
 	c.endpoint.mu.RLock()
-	defer c.endpoint.mu.RUnlock()
-	return c.endpoint.url
+	baseURL := c.endpoint.url
+	c.endpoint.mu.RUnlock()
+	if baseURL != "" || c.endpoint.resolve == nil {
+		return baseURL
+	}
+	c.endpoint.resolveMu.Lock()
+	defer c.endpoint.resolveMu.Unlock()
+	c.endpoint.mu.RLock()
+	baseURL = c.endpoint.url
+	c.endpoint.mu.RUnlock()
+	if baseURL != "" {
+		return baseURL
+	}
+	resolved := strings.TrimSpace(c.endpoint.resolve())
+	c.endpoint.mu.Lock()
+	if c.endpoint.url == "" {
+		c.endpoint.url = resolved
+	}
+	baseURL = c.endpoint.url
+	c.endpoint.mu.Unlock()
+	return baseURL
+}
+
+func (c Client) invalidateEndpoint(observed string) {
+	// Only registry-discovered URLs are replaceable. Explicit environment
+	// overrides have no endpointRef and remain pinned to their configured URL.
+	if c.endpoint == nil || c.endpoint.resolve == nil || observed == "" {
+		return
+	}
+	c.endpoint.mu.Lock()
+	if c.endpoint.url == observed {
+		c.endpoint.url = ""
+	}
+	c.endpoint.mu.Unlock()
 }
 
 func (c Client) Enabled() bool { return c.baseURL() != "" }

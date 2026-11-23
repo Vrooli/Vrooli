@@ -112,3 +112,29 @@ func TestBaselineAgentPrincipalPreservesVerifiedExpiry(t *testing.T) {
 		t.Fatalf("baseline lost verified expiry: %+v", principal)
 	}
 }
+
+// A delegated effect names the grant that admitted it even though the paired
+// proof never joins the principal; a refused check names none.
+func TestAdmitOperationNamesThePairedGrantForAttributionOnly(t *testing.T) {
+	var principal identity.Principal
+	var grant, refusedGrant *identity.OperationGrant
+	var err, refusedErr error
+	handler := provenance.Middleware(&pairedVerifier{valid: true})(authn.Middleware(authn.Config{})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		principal, grant, err = authn.AdmitOperation(r.Context(), "agent-manager:write", "effort.reconcile", "agent-manager:effort/target")
+		_, refusedGrant, refusedErr = authn.AdmitOperation(r.Context(), "agent-manager:write", "effort.reconcile", "agent-manager:effort/other")
+		w.WriteHeader(http.StatusNoContent)
+	})))
+	req := httptest.NewRequest(http.MethodPost, "http://localhost/effort", nil)
+	req.Header.Set(cliutil.HeaderAgentIdentityToken, "baseline-token")
+	req.Header.Set(cliutil.HeaderAgentOperationToken, "operation-token")
+	handler.ServeHTTP(httptest.NewRecorder(), req)
+	if err != nil || grant == nil || grant.ID != "grant-1" || grant.Approver != "owner" {
+		t.Fatalf("admitted effect lost its grant: grant=%+v err=%v", grant, err)
+	}
+	if principal.Subject != "baseline-run" || principal.Grant != nil {
+		t.Fatalf("paired grant joined the principal: %+v", principal)
+	}
+	if refusedErr == nil || refusedGrant != nil {
+		t.Fatalf("refused effect named a grant: grant=%+v err=%v", refusedGrant, refusedErr)
+	}
+}

@@ -58,42 +58,63 @@ func AcquireScoped(ctx context.Context, request Request) (*Scope, error) {
 
 // Maintain renews an already-owned CPU/RAM or GPU lease. The caller retains any
 // enclosing broker connection until Release succeeds.
+//
+// A renewal that only TIMES OUT is retried every scopeRenewRetryInterval until
+// two cadences have passed since the last confirmed renewal: the cadence is a
+// third of the broker TTL, so the claim never lapses while retrying, and one
+// slow ledger call (the admission lock is fleet-wide and other lifecycle
+// commands hold it for tens of seconds) no longer cancels a long job. Any other
+// renewal error cancels the work immediately.
 func Maintain(ctx context.Context, lease RenewableLease) *Scope {
-	return maintain(ctx, lease, RecommendedLeaseHeartbeatInterval())
+	interval := RecommendedLeaseHeartbeatInterval()
+	return maintain(ctx, lease, interval, 2*interval)
 }
 
 // MaintainWithInterval supports leases with a shorter TTL than the shared
 // broker's default. Invalid or overlong cadences use the recommended interval;
-// the caller must choose a cadence shorter than the lease owner's TTL.
+// the caller must choose a cadence shorter than the lease owner's TTL. Because
+// that is the only promise, any renewal failure cancels the work immediately.
 func MaintainWithInterval(ctx context.Context, lease RenewableLease, interval time.Duration) *Scope {
 	if interval <= 0 || interval > RecommendedLeaseHeartbeatInterval() {
 		interval = RecommendedLeaseHeartbeatInterval()
 	}
-	return maintain(ctx, lease, interval)
+	return maintain(ctx, lease, interval, 0)
 }
 
-func maintain(ctx context.Context, lease RenewableLease, interval time.Duration) *Scope {
+// scopeRenewRetryInterval is the retry cadence while renewals time out.
+var scopeRenewRetryInterval = 10 * time.Second
+
+func maintain(ctx context.Context, lease RenewableLease, interval, staleBudget time.Duration) *Scope {
 	ctx, cancel := context.WithCancelCause(ctx)
 	s := &Scope{ctx: ctx, stop: make(chan struct{}), done: make(chan struct{}), lease: lease}
 	go func() {
 		defer close(s.done)
-		ticker := time.NewTicker(interval)
-		defer ticker.Stop()
+		lastRenewed := time.Now()
+		timer := time.NewTimer(interval)
+		defer timer.Stop()
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case <-s.stop:
 				return
-			case <-ticker.C:
+			case <-timer.C:
 				beat, stop := context.WithTimeout(ctx, 5*time.Second)
 				err := lease.Heartbeat(beat)
+				timedOut := beat.Err() != nil || errors.Is(err, context.DeadlineExceeded)
 				stop()
-				if err != nil {
-					err = fmt.Errorf("capacity renewal lost: %w", err)
-					cancel(err)
-					return
+				if err == nil {
+					lastRenewed = time.Now()
+					timer.Reset(interval)
+					continue
 				}
+				if timedOut && ctx.Err() == nil && time.Since(lastRenewed) < staleBudget {
+					timer.Reset(min(scopeRenewRetryInterval, interval))
+					continue
+				}
+				err = fmt.Errorf("capacity renewal lost: %w", err)
+				cancel(err)
+				return
 			}
 		}
 	}()

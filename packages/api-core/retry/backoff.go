@@ -98,8 +98,8 @@ func DefaultConfig() Config {
 //
 // Delay calculation:
 //   - Base delay grows exponentially: baseDelay * 2^attempt
-//   - Delay is capped at maxDelay
 //   - Random jitter is added: delay + rand(0, delay * jitterFraction)
+//   - The final delay, including jitter, is capped at maxDelay
 func Do(ctx context.Context, cfg Config, op func(attempt int) error) error {
 	cfg = applyDefaults(cfg)
 
@@ -142,22 +142,22 @@ func Do(ctx context.Context, cfg Config, op func(attempt int) error) error {
 	return fmt.Errorf("failed after %d attempts: %w", cfg.MaxAttempts, lastErr)
 }
 
-// computeDelay calculates the delay for a given attempt.
-// Uses exponential backoff: baseDelay * 2^attempt, capped at maxDelay.
-// Adds random jitter: delay + rand(0, delay * jitterFraction).
+// computeDelay calculates exponential backoff with jitter, then applies the
+// final MaxDelay cap.
 func computeDelay(cfg Config, attempt int) time.Duration {
 	// Exponential backoff: baseDelay * 2^attempt
 	delay := float64(cfg.BaseDelay) * math.Pow(2, float64(attempt))
 
-	// Cap at maxDelay
+	// Add jitter: random value in [0, delay * jitterFraction)
+	jitter := delay * cfg.JitterFraction * cfg.randFloat()
+	delay += jitter
+
+	// MaxDelay bounds the actual sleep, including jitter.
 	if delay > float64(cfg.MaxDelay) {
 		delay = float64(cfg.MaxDelay)
 	}
 
-	// Add jitter: random value in [0, delay * jitterFraction)
-	jitter := delay * cfg.JitterFraction * cfg.randFloat(cfg)
-
-	return time.Duration(delay + jitter)
+	return time.Duration(delay)
 }
 
 // sleepWithContext sleeps for the given duration, but returns early if context is cancelled.
@@ -177,9 +177,9 @@ func sleepWithContext(ctx context.Context, d time.Duration, clock schedule.Clock
 }
 
 // randFloat returns a random float using the configured Rand function or default.
-func (cfg Config) randFloat(c Config) float64 {
-	if c.Rand != nil {
-		return c.Rand()
+func (cfg Config) randFloat() float64 {
+	if cfg.Rand != nil {
+		return cfg.Rand()
 	}
 	return rand.Float64()
 }

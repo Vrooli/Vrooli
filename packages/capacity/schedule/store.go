@@ -415,6 +415,31 @@ type LeasedJob struct {
 	ExpiresAt time.Time
 }
 
+// LeaseClaim is the fencing token returned with a running job. Attempts are
+// monotonic per job, so the owner/attempt pair cannot authorize a later retry.
+type LeaseClaim struct {
+	JobID   string
+	Owner   string
+	Attempt int
+}
+
+const activeLeaseWhere = "job_id = ? AND state = ? AND lease_owner = ? AND attempts = ? AND lease_expires_at > ?"
+
+func activeLeaseArgs(claim LeaseClaim, now time.Time) []any {
+	return []any{claim.JobID, string(StateRunning), claim.Owner, claim.Attempt, formatTime(now)}
+}
+
+// LeaseClaim returns the identity that may update this job's current attempt.
+func (j Job) LeaseClaim() LeaseClaim {
+	return LeaseClaim{JobID: j.ID, Owner: j.LeaseOwner, Attempt: j.Attempts}
+}
+
+func ownsActiveLease(job Job, claim LeaseClaim, now time.Time) bool {
+	return claim.JobID != "" && claim.Owner != "" && claim.Attempt > 0 &&
+		job.ID == claim.JobID && job.State == StateRunning && job.LeaseOwner == claim.Owner &&
+		job.Attempts == claim.Attempt && job.LeaseExpiresAt != nil && job.LeaseExpiresAt.After(now)
+}
+
 // Lease atomically marks jobs running, records a run for each, and decides which
 // of them pay for a cold model load. Lease is the only path into execution.
 func (s *Store) Lease(ctx context.Context, opts LeaseOptions) ([]LeasedJob, error) {
@@ -493,26 +518,29 @@ func (s *Store) Lease(ctx context.Context, opts LeaseOptions) ([]LeasedJob, erro
 
 // HeartbeatLease extends a running lease. It fails with ErrLeaseLost when the
 // lease expired or was taken over.
-func (s *Store) HeartbeatLease(ctx context.Context, jobID string, ttl time.Duration) (time.Time, error) {
+func (s *Store) HeartbeatLease(ctx context.Context, claim LeaseClaim, ttl time.Duration) (time.Time, error) {
+	if claim.JobID == "" || claim.Owner == "" || claim.Attempt <= 0 {
+		return time.Time{}, fmt.Errorf("%w: lease claim is required", ErrLeaseLost)
+	}
 	if ttl <= 0 {
 		ttl = DefaultLeaseTTL
 	}
 	now := s.now()
 	expiresAt := now.Add(ttl)
 	err := s.withRetryableTx(ctx, func(tx *sql.Tx) error {
+		args := append([]any{formatTime(expiresAt), formatTime(now)}, activeLeaseArgs(claim, now)...)
 		result, err := tx.ExecContext(ctx, `UPDATE schedule_jobs
 			SET lease_expires_at = ?, updated_at = ?
-			WHERE job_id = ? AND state = ?`,
-			formatTime(expiresAt), formatTime(now), jobID, string(StateRunning))
+			WHERE `+activeLeaseWhere, args...)
 		if err != nil {
-			return fmt.Errorf("heartbeat job %s: %w", jobID, err)
+			return fmt.Errorf("heartbeat job %s: %w", claim.JobID, err)
 		}
 		affected, err := result.RowsAffected()
 		if err != nil {
 			return err
 		}
 		if affected == 0 {
-			return fmt.Errorf("%w: job %s", ErrLeaseLost, jobID)
+			return fmt.Errorf("%w: job %s lease is expired or belongs to another attempt", ErrLeaseLost, claim.JobID)
 		}
 		return nil
 	})
@@ -522,16 +550,16 @@ func (s *Store) HeartbeatLease(ctx context.Context, jobID string, ttl time.Durat
 	return expiresAt, nil
 }
 
-// Checkpoint persists resumable progress for a job. It is valid while the job is
-// waiting or running; a checkpoint written by an executor survives a crash.
+// Checkpoint persists resumable progress while a job is waiting. A running
+// executor must use CheckpointLeased so its write is fenced to its attempt.
 func (s *Store) Checkpoint(ctx context.Context, jobID, checkpoint string) error {
 	now := s.now()
 	return s.withRetryableTx(ctx, func(tx *sql.Tx) error {
 		result, err := tx.ExecContext(ctx, `UPDATE schedule_jobs SET checkpoint = ?, updated_at = ?
-			WHERE job_id = ? AND state IN (?, ?, ?)`,
-			checkpoint, formatTime(now), jobID, string(StateQueued), string(StateDeferred), string(StateRunning))
+			WHERE job_id = ? AND state IN (?, ?)`,
+			checkpoint, formatTime(now), jobID, string(StateQueued), string(StateDeferred))
 		if err != nil {
-			return fmt.Errorf("checkpoint job %s: %w", jobID, err)
+			return fmt.Errorf("checkpoint waiting job %s: %w", jobID, err)
 		}
 		affected, err := result.RowsAffected()
 		if err != nil {
@@ -542,7 +570,36 @@ func (s *Store) Checkpoint(ctx context.Context, jobID, checkpoint string) error 
 			if err != nil {
 				return err
 			}
-			return fmt.Errorf("%w: job %s is %s", ErrNotLeasable, jobID, current.State)
+			return fmt.Errorf("%w: job %s is %s; running checkpoints require a lease claim", ErrNotLeasable, jobID, current.State)
+		}
+		return nil
+	})
+}
+
+// CheckpointLeased persists progress from the active attempt. An expired or
+// stale worker cannot overwrite a checkpoint from its successor.
+func (s *Store) CheckpointLeased(ctx context.Context, claim LeaseClaim, checkpoint string) error {
+	if claim.JobID == "" || claim.Owner == "" || claim.Attempt <= 0 {
+		return fmt.Errorf("%w: lease claim is required", ErrLeaseLost)
+	}
+	now := s.now()
+	return s.withRetryableTx(ctx, func(tx *sql.Tx) error {
+		args := append([]any{checkpoint, formatTime(now)}, activeLeaseArgs(claim, now)...)
+		result, err := tx.ExecContext(ctx, `UPDATE schedule_jobs SET checkpoint = ?, updated_at = ?
+			WHERE `+activeLeaseWhere, args...)
+		if err != nil {
+			return fmt.Errorf("checkpoint job %s: %w", claim.JobID, err)
+		}
+		affected, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if affected == 0 {
+			current, err := getJobTx(ctx, tx, claim.JobID)
+			if err != nil {
+				return err
+			}
+			return fmt.Errorf("%w: job %s lease is expired or belongs to another attempt (state %s)", ErrLeaseLost, claim.JobID, current.State)
 		}
 		return nil
 	})
@@ -550,7 +607,10 @@ func (s *Store) Checkpoint(ctx context.Context, jobID, checkpoint string) error 
 
 // Completion records the terminal outcome of a leased job.
 type Completion struct {
-	JobID         string
+	JobID string
+	// Lease must match the running attempt, including its expiry, before it can
+	// close that attempt's run.
+	Lease         LeaseClaim
 	Outcome       State // completed or failed
 	ActualSeconds float64
 	Items         int
@@ -574,8 +634,8 @@ func (s *Store) Complete(ctx context.Context, completion Completion) (Job, error
 		if err != nil {
 			return err
 		}
-		if current.State != StateRunning {
-			return fmt.Errorf("%w: job %s is %s", ErrLeaseLost, completion.JobID, current.State)
+		if completion.Lease.JobID != completion.JobID || !ownsActiveLease(current, completion.Lease, now) {
+			return fmt.Errorf("%w: job %s lease is expired or belongs to another attempt", ErrLeaseLost, completion.JobID)
 		}
 		actual := completion.ActualSeconds
 		if actual <= 0 {
@@ -588,13 +648,18 @@ func (s *Store) Complete(ctx context.Context, completion Completion) (Job, error
 		if checkpoint == "" {
 			checkpoint = current.Checkpoint
 		}
-		if _, err := tx.ExecContext(ctx, `UPDATE schedule_jobs SET
+		args := append([]any{string(completion.Outcome), checkpoint, completion.Reason, formatTime(now), formatTime(now)}, activeLeaseArgs(completion.Lease, now)...)
+		result, err := tx.ExecContext(ctx, `UPDATE schedule_jobs SET
 			state = ?, checkpoint = ?, last_reason = ?, finished_at = ?, updated_at = ?,
 			lease_owner = '', lease_expires_at = NULL
-			WHERE job_id = ?`,
-			string(completion.Outcome), checkpoint, completion.Reason, formatTime(now), formatTime(now), completion.JobID,
-		); err != nil {
+			WHERE `+activeLeaseWhere, args...)
+		if err != nil {
 			return fmt.Errorf("complete job %s: %w", completion.JobID, err)
+		}
+		if affected, err := result.RowsAffected(); err != nil {
+			return err
+		} else if affected == 0 {
+			return fmt.Errorf("%w: job %s lease is expired or belongs to another attempt", ErrLeaseLost, completion.JobID)
 		}
 		if current.ModelAffinity != "" {
 			if err := touchModelTx(ctx, tx, current.ModelAffinity, now); err != nil {
@@ -612,7 +677,10 @@ func (s *Store) Complete(ctx context.Context, completion Completion) (Job, error
 
 // DeferOptions reschedules a job after a denial or a recoverable failure.
 type DeferOptions struct {
-	JobID     string
+	JobID string
+	// Lease is required when the job is running; queued/deferred admission
+	// deferrals are not owned by an executor attempt.
+	Lease     LeaseClaim
 	Reason    string
 	NotBefore time.Time // zero means "as soon as the backoff allows"
 	// Backoff computes NotBefore from the job's deferral count when NotBefore
@@ -643,6 +711,9 @@ func (s *Store) Defer(ctx context.Context, opts DeferOptions) (Job, error) {
 		if current.State.Terminal() {
 			return fmt.Errorf("%w: job %s is %s", ErrNotLeasable, opts.JobID, current.State)
 		}
+		if current.State == StateRunning && (opts.Lease.JobID != opts.JobID || !ownsActiveLease(current, opts.Lease, now)) {
+			return fmt.Errorf("%w: job %s lease is expired or belongs to another attempt", ErrLeaseLost, opts.JobID)
+		}
 		notBefore := opts.NotBefore
 		if notBefore.IsZero() {
 			deferrals := current.Deferrals + 1
@@ -668,13 +739,19 @@ func (s *Store) Defer(ctx context.Context, opts DeferOptions) (Job, error) {
 				return err
 			}
 		}
-		if _, err := tx.ExecContext(ctx, `UPDATE schedule_jobs SET
+		result, err := tx.ExecContext(ctx, `UPDATE schedule_jobs SET
 			state = ?, not_before_at = ?, deferrals = deferrals + 1, last_reason = ?,
 			updated_at = ?, lease_owner = '', lease_expires_at = NULL
-			WHERE job_id = ?`,
-			string(StateDeferred), formatTime(notBefore), opts.Reason, formatTime(now), opts.JobID,
-		); err != nil {
+			WHERE job_id = ? AND state = ?`,
+			string(StateDeferred), formatTime(notBefore), opts.Reason, formatTime(now), opts.JobID, string(current.State),
+		)
+		if err != nil {
 			return fmt.Errorf("defer job %s: %w", opts.JobID, err)
+		}
+		if affected, err := result.RowsAffected(); err != nil {
+			return err
+		} else if affected == 0 {
+			return fmt.Errorf("%w: job %s changed during deferral", ErrLeaseLost, opts.JobID)
 		}
 		job, err = getJobTx(ctx, tx, opts.JobID)
 		return err

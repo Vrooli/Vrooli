@@ -26,6 +26,13 @@ type EnrollmentStore interface {
 	Save(ed25519.PrivateKey, Enrollment) error
 }
 
+// EnrollmentMetadataReader is the read-only owner projection used by
+// inventory and diagnostics. Implementations must return metadata without
+// loading or exposing the local signing key.
+type EnrollmentMetadataReader interface {
+	ReadEnrollment() (Enrollment, error)
+}
+
 // FileStore is the cross-platform filesystem implementation used by local
 // owner clients. The directory is intentionally narrow and can be overridden
 // for tests or a platform secure-store adapter without changing the contract.
@@ -87,6 +94,28 @@ func (s *FileStore) Load() (ed25519.PrivateKey, Enrollment, error) {
 		return nil, Enrollment{}, err
 	}
 	return ed25519.PrivateKey(append([]byte(nil), keyBytes...)), file.Enrollment, nil
+}
+
+// ReadEnrollment reads the owner metadata file without opening the private
+// key. It is intentionally separate from Load so read-only callers cannot
+// accidentally receive signing material.
+func (s *FileStore) ReadEnrollment() (Enrollment, error) {
+	_, enrollmentPath, err := s.paths()
+	if err != nil {
+		return Enrollment{}, err
+	}
+	data, err := os.ReadFile(enrollmentPath)
+	if err != nil {
+		return Enrollment{}, err
+	}
+	var file enrollmentFile
+	if err := json.Unmarshal(data, &file); err != nil {
+		return Enrollment{}, fmt.Errorf("decode operator enrollment: %w", err)
+	}
+	if err := file.Enrollment.Validate(); err != nil {
+		return Enrollment{}, err
+	}
+	return file.Enrollment, nil
 }
 
 // Save writes the key and metadata with owner-only permissions and same-dir

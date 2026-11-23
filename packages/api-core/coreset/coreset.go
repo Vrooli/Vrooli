@@ -16,6 +16,12 @@ import (
 type Authority struct {
 	Seed        []string `json:"seed"`
 	TrustedBase []string `json:"trusted_base"`
+	// Important is a set of selected scenario/resource roots that autoheal
+	// monitors without promoting them to the core auto-start tier.
+	Important []ComponentID `json:"important,omitempty"`
+	// CoreMembers adds typed core-tier roots while Seed remains the compatible
+	// legacy scenario field.
+	CoreMembers []ComponentID `json:"members,omitempty"`
 }
 
 const (
@@ -45,12 +51,39 @@ func NormalizeOperationalAuthority(authority Authority) Authority {
 	trusted := append([]string(nil), authority.TrustedBase...)
 	seed = append(seed, RequiredOperationalScenarios...)
 	trusted = append(trusted, RequiredOperationalScenarios...)
-	return Authority{Seed: normalizeSorted(seed), TrustedBase: normalizeSorted(trusted)}
+	coreMembers := normalizeImportant(authority.CoreMembers)
+	coreSet := make(map[ComponentID]struct{}, len(coreMembers))
+	for _, member := range coreMembers {
+		coreSet[member] = struct{}{}
+	}
+	seedSet := make(map[string]struct{}, len(seed))
+	for _, name := range seed {
+		name = strings.ToLower(strings.TrimSpace(name))
+		seedSet[name] = struct{}{}
+		coreSet[ComponentID{Kind: MemberKindScenario, Name: name}] = struct{}{}
+	}
+	filteredCore := make([]ComponentID, 0, len(coreMembers))
+	for _, member := range coreMembers {
+		if member.Kind == MemberKindScenario {
+			if _, exists := seedSet[member.Name]; exists {
+				continue
+			}
+		}
+		filteredCore = append(filteredCore, member)
+	}
+	coreMembers = filteredCore
+	important := make([]ComponentID, 0, len(authority.Important))
+	for _, member := range normalizeImportant(authority.Important) {
+		if _, ok := coreSet[member]; !ok {
+			important = append(important, member)
+		}
+	}
+	return Authority{Seed: normalizeSorted(seed), TrustedBase: normalizeSorted(trusted), Important: important, CoreMembers: coreMembers}
 }
 
-// AttributionStep explains one link from a supervision-set member back to the
-// operator-granted seed that caused it to be included. Chains are ordered from
-// the member toward authority, so the final step always has Source=core.seed.
+// AttributionStep explains one link from a supervision-set member back to its
+// operator-selected core or important root. Chains are ordered from the member
+// toward authority, so the final step names the selected tier source.
 type AttributionStep struct {
 	Name              string `json:"name"`
 	Kind              string `json:"kind"`
@@ -71,6 +104,7 @@ type Member struct {
 // authority and canonical scenario manifests.
 type Report struct {
 	Source                string              `json:"source"`
+	ClosureDigest         string              `json:"closure_digest"`
 	CoreSet               []string            `json:"core_set"`
 	Seed                  []string            `json:"seed"`
 	AddedByClosure        []string            `json:"added_by_closure"`
@@ -100,11 +134,50 @@ func (a Authority) Validate() error {
 			return fmt.Errorf("trusted-base member %q is not a core seed", name)
 		}
 	}
+	seenImportant := map[ComponentID]struct{}{}
+	seenCore := map[ComponentID]struct{}{}
+	for _, member := range a.CoreMembers {
+		member.Kind = strings.ToLower(strings.TrimSpace(member.Kind))
+		member.Name = strings.ToLower(strings.TrimSpace(member.Name))
+		if member.Kind != MemberKindScenario && member.Kind != MemberKindResource {
+			return fmt.Errorf("core member %q has unsupported kind %q", member.Name, member.Kind)
+		}
+		if member.Name == "" {
+			return fmt.Errorf("core member name is empty")
+		}
+		if _, duplicate := seenCore[member]; duplicate {
+			return fmt.Errorf("duplicate core member %s:%s", member.Kind, member.Name)
+		}
+		seenCore[member] = struct{}{}
+	}
+	for _, member := range a.Important {
+		member.Kind = strings.ToLower(strings.TrimSpace(member.Kind))
+		member.Name = strings.ToLower(strings.TrimSpace(member.Name))
+		if member.Kind != MemberKindScenario && member.Kind != MemberKindResource {
+			return fmt.Errorf("important member %q has unsupported kind %q", member.Name, member.Kind)
+		}
+		if member.Name == "" {
+			return fmt.Errorf("important member name is empty")
+		}
+		if _, duplicate := seenImportant[member]; duplicate {
+			return fmt.Errorf("duplicate important member %s:%s", member.Kind, member.Name)
+		}
+		if _, core := seenCore[member]; core {
+			return fmt.Errorf("member %s:%s cannot be both important and core", member.Kind, member.Name)
+		}
+		seenImportant[member] = struct{}{}
+	}
 	return nil
 }
 
 type operatorState struct {
-	Core *Authority `json:"core"`
+	Core      *Authority                 `json:"core"`
+	Scenarios map[string]selectionChoice `json:"scenarios"`
+	Resources map[string]selectionChoice `json:"resources"`
+}
+
+type selectionChoice struct {
+	Enabled *bool `json:"enabled"`
 }
 
 // Load reads operator-state.json from the contract-routed runtime state
@@ -140,12 +213,91 @@ func Load(_ string) (Authority, error) {
 		authority = Authority{
 			Seed:        normalizeSorted(state.Core.Seed),
 			TrustedBase: normalizeSorted(state.Core.TrustedBase),
+			Important:   normalizeImportant(state.Core.Important),
+			CoreMembers: normalizeImportant(state.Core.CoreMembers),
 		}
 	}
+	// Tier membership grants behavior only while its component remains
+	// selected. Keep persisted preferences intact so a deliberate re-selection
+	// can restore the operator's tier, but never supervise a disabled entry.
+	selected := func(member ComponentID) bool {
+		choices := state.Scenarios
+		if member.Kind == MemberKindResource {
+			choices = state.Resources
+		}
+		choice, ok := choices[member.Name]
+		return ok && choice.Enabled != nil && *choice.Enabled
+	}
+	if state.Core != nil {
+		// Old explicit core seeds predate independent selection flags. Keep that
+		// persisted intent unless a newer explicit selection turns it off; the
+		// mandatory recovery plane can never be removed this way.
+		filteredSeed := make([]string, 0, len(authority.Seed))
+		for _, name := range authority.Seed {
+			choice, hasChoice := state.Scenarios[name]
+			if hasChoice && choice.Enabled != nil && !*choice.Enabled && !isRequiredOperationalScenario(name) {
+				continue
+			}
+			filteredSeed = append(filteredSeed, name)
+		}
+		authority.Seed = filteredSeed
+		seed := make(map[string]struct{}, len(filteredSeed))
+		for _, name := range filteredSeed {
+			seed[name] = struct{}{}
+		}
+		filteredTrusted := authority.TrustedBase[:0]
+		for _, name := range authority.TrustedBase {
+			if _, ok := seed[name]; ok {
+				filteredTrusted = append(filteredTrusted, name)
+			}
+		}
+		authority.TrustedBase = filteredTrusted
+	}
+	authority.Important = filterSelected(authority.Important, selected)
+	authority.CoreMembers = filterSelected(authority.CoreMembers, selected)
 	if err := authority.Validate(); err != nil {
 		return Authority{}, err
 	}
 	return authority, nil
+}
+
+func isRequiredOperationalScenario(name string) bool {
+	for _, required := range RequiredOperationalScenarios {
+		if name == required {
+			return true
+		}
+	}
+	return false
+}
+
+func filterSelected(values []ComponentID, selected func(ComponentID) bool) []ComponentID {
+	out := make([]ComponentID, 0, len(values))
+	for _, value := range values {
+		if selected(value) {
+			out = append(out, value)
+		}
+	}
+	return out
+}
+
+func normalizeImportant(values []ComponentID) []ComponentID {
+	set := make(map[ComponentID]struct{}, len(values))
+	for _, value := range values {
+		value.Kind = strings.ToLower(strings.TrimSpace(value.Kind))
+		value.Name = strings.ToLower(strings.TrimSpace(value.Name))
+		set[value] = struct{}{}
+	}
+	out := make([]ComponentID, 0, len(set))
+	for value := range set {
+		out = append(out, value)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Kind == out[j].Kind {
+			return out[i].Name < out[j].Name
+		}
+		return out[i].Kind < out[j].Kind
+	})
+	return out
 }
 
 func currentAuthority() Authority {

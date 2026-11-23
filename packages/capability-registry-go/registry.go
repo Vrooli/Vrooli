@@ -53,6 +53,9 @@ const (
 type PlatformVerdict struct {
 	Support PlatformSupport `json:"support,omitempty"`
 	Reason  string          `json:"reason,omitempty"`
+	// ProbeWhenUnsupported permits serviceability checks for externally attached
+	// endpoints while preserving the unsupported managed-lifecycle verdict.
+	ProbeWhenUnsupported bool `json:"-"`
 }
 
 // Criticality states whether the absence of a capability matters to the
@@ -556,7 +559,7 @@ func (r *Registry) ResolveOne(ctx context.Context, id string) (State, bool) {
 		return State{}, false
 	}
 	state := stateFor(selected, now().UTC().Format(time.RFC3339))
-	if selected.Platform.Support == PlatformUnsupported {
+	if selected.Platform.Support == PlatformUnsupported && !selected.Platform.ProbeWhenUnsupported {
 		state.Status = StatusUnavailable
 		state.Message = "unavailable by design"
 		if selected.Platform.Reason != "" {
@@ -655,7 +658,7 @@ func resolveStates(ctx context.Context, defs []Def, checkers map[string]Checker,
 	states := make([]State, len(defs))
 	for i, def := range defs {
 		state := stateFor(def, checkedAt)
-		if def.Platform.Support == PlatformUnsupported {
+		if def.Platform.Support == PlatformUnsupported && !def.Platform.ProbeWhenUnsupported {
 			state.Status = StatusUnavailable
 			state.Message = "unavailable by design"
 			if def.Platform.Reason != "" {

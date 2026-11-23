@@ -154,7 +154,7 @@ shape the scenario-specific response. Add direct Go parsing behavior to
 ## Test Companions
 
 Shared-package consumer test helpers live in top-level `<pkg>test` sibling
-packages, documented in [Shared Package Testing](../../docs/agent-system/SHARED_PACKAGE_TESTING.md).
+packages, documented in [Shared Package Testing](../../docs/TESTING.md#shared-package-test-helpers).
 
 - `databasetest` provides `FakeExecer`, the canonical fake for
   `database.SchemaExecer`.

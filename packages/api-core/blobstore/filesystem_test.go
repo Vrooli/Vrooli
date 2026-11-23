@@ -116,6 +116,86 @@ func TestFilesystemBlobStorePutFailures(t *testing.T) {
 	})
 }
 
+func TestFilesystemBlobStoreMetadataProviderLossRetainsPreviousBlobAndRecovers(t *testing.T) {
+	root := t.TempDir()
+	ctx := context.Background()
+	key := "operator/draft.bin"
+	initial := NewFilesystemBlobStore(root)
+	if err := initial.Put(ctx, key, strings.NewReader("saved draft"), "application/octet-stream"); err != nil {
+		t.Fatalf("seed saved draft: %v", err)
+	}
+
+	failure := errors.New("metadata provider unavailable")
+	failOnce := true
+	store := &filesystemBlobStore{root: root, renameFile: func(source, destination string) error {
+		if strings.HasSuffix(destination, ".meta") && failOnce {
+			failOnce = false
+			return failure
+		}
+		return os.Rename(source, destination)
+	}}
+	if err := store.Put(ctx, key, strings.NewReader("replacement draft"), "text/plain"); !errors.Is(err, failure) {
+		t.Fatalf("injected metadata failure = %v, want provider error", err)
+	}
+	read := func(store BlobStore) (string, string) {
+		t.Helper()
+		rc, mime, err := store.Get(ctx, key)
+		if err != nil {
+			t.Fatalf("read retained draft: %v", err)
+		}
+		defer rc.Close()
+		data, err := io.ReadAll(rc)
+		if err != nil {
+			t.Fatalf("read draft bytes: %v", err)
+		}
+		return string(data), mime
+	}
+	if data, mime := read(store); data != "saved draft" || mime != "application/octet-stream" {
+		t.Fatalf("failed replacement changed saved work: data=%q mime=%q", data, mime)
+	}
+
+	// Recover the same filesystem provider and retry the write. The previous
+	// bytes remain readable until this successful replacement commits.
+	if err := initial.Put(ctx, key, strings.NewReader("replacement draft"), "text/plain"); err != nil {
+		t.Fatalf("retry after provider recovery: %v", err)
+	}
+	if data, mime := read(initial); data != "replacement draft" || mime != "text/plain" {
+		t.Fatalf("recovered write mismatch: data=%q mime=%q", data, mime)
+	}
+}
+
+func TestFilesystemBlobStoreBlobCommitFailureRestoresPreviousMetadata(t *testing.T) {
+	root := t.TempDir()
+	ctx := context.Background()
+	key := "operator/draft.bin"
+	initial := NewFilesystemBlobStore(root)
+	if err := initial.Put(ctx, key, strings.NewReader("saved draft"), "application/octet-stream"); err != nil {
+		t.Fatalf("seed saved draft: %v", err)
+	}
+	failure := errors.New("blob provider unavailable")
+	faulty := &filesystemBlobStore{root: root, renameFile: func(source, destination string) error {
+		if destination == filepath.Join(root, filepath.FromSlash(key)) {
+			return failure
+		}
+		return os.Rename(source, destination)
+	}}
+	if err := faulty.Put(ctx, key, strings.NewReader("replacement draft"), "text/plain"); !errors.Is(err, failure) {
+		t.Fatalf("injected blob failure = %v, want provider error", err)
+	}
+	rc, mime, err := initial.Get(ctx, key)
+	if err != nil {
+		t.Fatalf("read retained draft: %v", err)
+	}
+	defer rc.Close()
+	data, err := io.ReadAll(rc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "saved draft" || mime != "application/octet-stream" {
+		t.Fatalf("blob commit failure changed saved state: data=%q mime=%q", data, mime)
+	}
+}
+
 func TestFilesystemBlobStoreGetWithoutMetadata(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "notes", "a.txt")

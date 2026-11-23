@@ -36,7 +36,40 @@ type Target struct {
 	// binary's path relative to the extracted opt dir.
 	BinPath string
 	// Mode is the octal file mode for the placed binary; defaults to 0755.
-	Mode string
+	Mode             string
+	DownloadBytes    int64
+	MaxExpandedBytes int64
+	MaxEntries       int64
+}
+
+func targetExtractOptions(ctx context.Context, spec Target) ExtractOptions {
+	opts := ExtractOptions{MaxExpandedBytes: spec.MaxExpandedBytes, MaxEntries: spec.MaxEntries}
+	if deadline, ok := ctx.Deadline(); ok {
+		opts.Deadline = deadline
+	}
+	return opts
+}
+
+func downloadTarget(ctx context.Context, spec Target, path string, progress ProgressFunc) error {
+	if spec.DownloadBytes > 0 {
+		return DownloadExact(ctx, spec, path, spec.DownloadBytes)
+	}
+	return downloadAuthorized(ctx, spec.URL, path, progress, spec.Authorization)
+}
+
+func extractTargetArchive(ctx context.Context, spec Target, archivePath, format, dest string) error {
+	if (spec.DownloadBytes > 0 || spec.MaxExpandedBytes > 0 || spec.MaxEntries > 0) && (spec.MaxExpandedBytes <= 0 || spec.MaxEntries <= 0) {
+		return fmt.Errorf("binaryfetch: bounded archive requires both max expanded bytes and max entries")
+	}
+	if spec.MaxExpandedBytes <= 0 || spec.MaxEntries <= 0 {
+		return extractAll(archivePath, format, dest)
+	}
+	opts := targetExtractOptions(ctx, spec)
+	if _, err := InspectArchiveBounded(archivePath, format, opts); err != nil {
+		return err
+	}
+	_, err := ExtractArchiveBounded(archivePath, format, dest, opts)
+	return err
 }
 
 // FetchTree downloads and verifies an archive, then extracts its complete
@@ -59,7 +92,7 @@ func FetchTree(ctx context.Context, spec Target, destDir string, onProgress Prog
 	}
 	defer os.RemoveAll(tmpDir)
 	downloadPath := filepath.Join(tmpDir, "download")
-	if err := downloadAuthorized(ctx, spec.URL, downloadPath, onProgress, spec.Authorization); err != nil {
+	if err := downloadTarget(ctx, spec, downloadPath, onProgress); err != nil {
 		return err
 	}
 	onProgress.emit(Progress{Stage: StageVerifying})
@@ -68,7 +101,7 @@ func FetchTree(ctx context.Context, spec Target, destDir string, onProgress Prog
 	}
 	onProgress.emit(Progress{Stage: StageExtracting})
 	stageDir := filepath.Join(tmpDir, "extracted")
-	if err := extractAll(downloadPath, format, stageDir); err != nil {
+	if err := extractTargetArchive(ctx, spec, downloadPath, format, stageDir); err != nil {
 		return err
 	}
 	if err := os.RemoveAll(destDir); err != nil {
@@ -184,7 +217,7 @@ func fetchFile(ctx context.Context, spec Target, destDir string, onProgress Prog
 	defer os.RemoveAll(tmpDir)
 
 	downloadPath := filepath.Join(tmpDir, "download")
-	if err := downloadAuthorized(ctx, spec.URL, downloadPath, onProgress, spec.Authorization); err != nil {
+	if err := downloadTarget(ctx, spec, downloadPath, onProgress); err != nil {
 		return "", err
 	}
 
@@ -205,6 +238,15 @@ func fetchFile(ctx context.Context, spec Target, destDir string, onProgress Prog
 		staged = downloadPath
 	} else {
 		onProgress.emit(Progress{Stage: StageExtracting})
+		if (spec.DownloadBytes > 0 || spec.MaxExpandedBytes > 0 || spec.MaxEntries > 0) && (spec.MaxExpandedBytes <= 0 || spec.MaxEntries <= 0) {
+			return "", fmt.Errorf("binaryfetch: bounded archive requires both max expanded bytes and max entries")
+		}
+		if spec.MaxExpandedBytes > 0 && spec.MaxEntries > 0 {
+			opts := targetExtractOptions(ctx, spec)
+			if _, err := InspectArchiveBounded(downloadPath, format, opts); err != nil {
+				return "", err
+			}
+		}
 		if err := extractBinary(downloadPath, format, spec.BinPath, staged); err != nil {
 			return "", err
 		}
@@ -321,7 +363,7 @@ func FetchDir(ctx context.Context, spec Target, optDir string, onProgress Progre
 	defer os.RemoveAll(tmpDir)
 
 	downloadPath := filepath.Join(tmpDir, "download")
-	if err := downloadAuthorized(ctx, spec.URL, downloadPath, onProgress, spec.Authorization); err != nil {
+	if err := downloadTarget(ctx, spec, downloadPath, onProgress); err != nil {
 		return "", err
 	}
 
@@ -334,7 +376,7 @@ func FetchDir(ctx context.Context, spec Target, optDir string, onProgress Progre
 	// Extract into a fresh staging dir, validate the entry binary, then swap the
 	// staging dir into optDir so a failed extraction never leaves a partial opt.
 	stageDir := filepath.Join(tmpDir, "extracted")
-	if err := extractAll(downloadPath, format, stageDir); err != nil {
+	if err := extractTargetArchive(ctx, spec, downloadPath, format, stageDir); err != nil {
 		return "", err
 	}
 	entry := filepath.Join(stageDir, filepath.Clean(binPath))

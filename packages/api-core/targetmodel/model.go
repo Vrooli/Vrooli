@@ -343,7 +343,10 @@ func EvaluateOperationReadiness(t Target, operation string, now time.Time) Opera
 	if !t.BridgeTrust.Online || !t.Transport.Available {
 		return operationFailure(decision, ReadinessMissing, "channel_unavailable", "this node is offline or its Bridge channel is unavailable", "reconnect the Bridge agent, then refresh")
 	}
-	if fresh, _ := HeartbeatFresh(t.LastSeenAt, now, DefaultReadinessStaleAfter); !t.LastSeenAt.IsZero() && !fresh {
+	if t.LastSeenAt.IsZero() {
+		return operationFailure(decision, ReadinessUnknown, "heartbeat_missing", "host facts have no heartbeat observation; readiness was not assumed", "refresh the target heartbeat before admission")
+	}
+	if fresh, _ := HeartbeatFresh(t.LastSeenAt, now, DefaultReadinessStaleAfter); !fresh {
 		return operationFailure(decision, ReadinessUnknown, "heartbeat_stale", "host facts are stale; readiness was not assumed", "refresh the target heartbeat before admission")
 	}
 	for _, required := range []struct {

@@ -311,6 +311,21 @@ func TestVerifierFailsClosedWhenJWKSRefreshFails(t *testing.T) {
 	}
 }
 
+func TestConfigFromEnvRejectsUnsupportedNonUserMode(t *testing.T) {
+	values := map[string]string{
+		"VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN":  "https://team.example.test",
+		"VROOLI_CLOUDFLARE_ACCESS_AUDIENCE":     "app-audience",
+		"VROOLI_CLOUDFLARE_ACCESS_REQUIRE_USER": "false",
+	}
+	if _, err := ConfigFromEnv(func(key string) string { return values[key] }); err == nil || !strings.Contains(err.Error(), "this verifier supports human identities only") {
+		t.Fatalf("unsupported non-user mode error = %v", err)
+	}
+	values["VROOLI_CLOUDFLARE_ACCESS_REQUIRE_USER"] = "true"
+	if _, err := ConfigFromEnv(func(key string) string { return values[key] }); err != nil {
+		t.Fatalf("supported human-only mode rejected: %v", err)
+	}
+}
+
 func testKeyServer(t *testing.T) (*rsa.PrivateKey, *httptest.Server, time.Time) {
 	t.Helper()
 	key, err := rsa.GenerateKey(rand.Reader, 1024)

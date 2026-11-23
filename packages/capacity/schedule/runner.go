@@ -371,7 +371,8 @@ func (s *Scheduler) dispatch(ctx context.Context, batch []Job, result *TickResul
 
 func (s *Scheduler) runJob(ctx context.Context, item LeasedJob, admissionLease Lease, result *TickResult) error {
 	execCtx, cancelExec := context.WithCancel(ctx)
-	stop := s.startRenewals(execCtx, item.Job.ID, admissionLease, cancelExec)
+	claim := item.Job.LeaseClaim()
+	stop := s.startRenewals(execCtx, claim, admissionLease, cancelExec)
 	defer func() {
 		stop()
 		cancelExec()
@@ -392,6 +393,7 @@ func (s *Scheduler) runJob(ctx context.Context, item LeasedJob, admissionLease L
 			defer cancel()
 			_, err := s.store.Complete(recordCtx, Completion{
 				JobID:         item.Job.ID,
+				Lease:         claim,
 				Outcome:       StateFailed,
 				ActualSeconds: outcome.ActualSeconds,
 				Items:         outcome.Items,
@@ -408,6 +410,7 @@ func (s *Scheduler) runJob(ctx context.Context, item LeasedJob, admissionLease L
 		defer cancel()
 		_, err := s.store.Defer(recordCtx, DeferOptions{
 			JobID:         item.Job.ID,
+			Lease:         claim,
 			Reason:        "execution failed: " + execErr.Error(),
 			Backoff:       s.policy.backoff,
 			ActualSeconds: outcome.ActualSeconds,
@@ -424,6 +427,7 @@ func (s *Scheduler) runJob(ctx context.Context, item LeasedJob, admissionLease L
 	defer cancel()
 	_, err := s.store.Complete(recordCtx, Completion{
 		JobID:         item.Job.ID,
+		Lease:         claim,
 		Outcome:       StateCompleted,
 		ActualSeconds: outcome.ActualSeconds,
 		Items:         outcome.Items,
@@ -468,25 +472,25 @@ func (s *Scheduler) execute(ctx context.Context, job Job) (outcome Result, err e
 		}
 	}()
 	if checkpointer, ok := s.executor.(CheckpointExecutor); ok {
-		return checkpointer.ExecuteWithCheckpoint(ctx, job, storeCheckpointer{store: s.store, jobID: job.ID})
+		return checkpointer.ExecuteWithCheckpoint(ctx, job, storeCheckpointer{store: s.store, claim: job.LeaseClaim()})
 	}
 	return s.executor.Execute(ctx, job)
 }
 
 type storeCheckpointer struct {
 	store *Store
-	jobID string
+	claim LeaseClaim
 }
 
 func (c storeCheckpointer) Save(ctx context.Context, checkpoint string) error {
-	return c.store.Checkpoint(ctx, c.jobID, checkpoint)
+	return c.store.CheckpointLeased(ctx, c.claim, checkpoint)
 }
 
 // startRenewals keeps the job lease and (when renewable) the admission lease
 // alive while execution runs. Losing either lease cancels execution: continuing
 // to run would consume capacity the broker no longer attributes to this job. It
 // returns an idempotent stop function.
-func (s *Scheduler) startRenewals(ctx context.Context, jobID string, admissionLease Lease, lost context.CancelFunc) func() {
+func (s *Scheduler) startRenewals(ctx context.Context, claim LeaseClaim, admissionLease Lease, lost context.CancelFunc) func() {
 	if s.leaseTTL <= 0 {
 		return func() {}
 	}
@@ -511,7 +515,7 @@ func (s *Scheduler) startRenewals(ctx context.Context, jobID string, admissionLe
 				return
 			case <-ticker.C:
 				renewCtx := context.WithoutCancel(ctx)
-				if _, err := s.store.HeartbeatLease(renewCtx, jobID, s.leaseTTL); err != nil {
+				if _, err := s.store.HeartbeatLease(renewCtx, claim, s.leaseTTL); err != nil {
 					lost()
 					return
 				}

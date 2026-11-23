@@ -31,6 +31,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -51,6 +52,7 @@ import (
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/vrooli/packages/capacity/callerid"
 	"github.com/vrooli/vrooli/packages/capacity/companion"
 )
 
@@ -74,38 +76,63 @@ type RequestMatcher func(*http.Request) bool
 type resourceSpec struct {
 	listen   string
 	upstream string
-	methods  []string
-	paths    []string
-	native   bool
+	// routes maps each work method to the endpoint paths it matches.
+	routes map[string][]string
+	native bool
 }
 
 var resourceSpecs = map[string]resourceSpec{
-	"whisper":              {listen: "127.0.0.1:8090", upstream: "127.0.0.1:18090", methods: []string{http.MethodPost}, paths: []string{"/asr"}, native: true},
-	"kokoro":               {listen: "127.0.0.1:8880", upstream: "127.0.0.1:18880", methods: []string{http.MethodPost}, paths: []string{"/v1/audio/speech"}},
-	"kyutai-stt":           {listen: "127.0.0.1:8094", upstream: "127.0.0.1:18094", methods: []string{http.MethodGet}, paths: []string{"/v1/stream"}},
-	"ace-step":             {listen: "127.0.0.1:8895", upstream: "127.0.0.1:18895", methods: []string{http.MethodPost}, paths: []string{"/v1/compose", "/v1/capacity/degrade"}},
-	"stable-audio-3":       {listen: "127.0.0.1:8896", upstream: "127.0.0.1:18896", methods: []string{http.MethodPost}, paths: []string{"/v1/compose"}},
-	"songgen":              {listen: "127.0.0.1:8897", upstream: "127.0.0.1:18897", methods: []string{http.MethodPost}, paths: []string{"/v1/compose"}},
-	"speaker-verification": {listen: "127.0.0.1:11452", upstream: "127.0.0.1:21452", methods: []string{http.MethodPost}, paths: []string{"/v1/profiles", "/v1/verify", "/v1/extract"}},
-	// Track supported API operations that can use or mutate model state. Direct
-	// pulls are rejected separately until the edge can provide disk admission;
-	// the admitted ensure owner reaches the private daemon under its disk lease.
-	"ollama":       {listen: "127.0.0.1:11434", upstream: "127.0.0.1:21434", methods: []string{http.MethodPost}, paths: []string{"/api/generate", "/api/chat", "/api/embed", "/api/embeddings", "/api/delete", "/api/create", "/api/copy", "/api/push"}},
-	"ollaya":       {listen: "127.0.0.1:11435", upstream: "127.0.0.1:21435", methods: []string{http.MethodPost}, paths: []string{"/api/decide"}},
-	"reranker":     {listen: "127.0.0.1:11453", upstream: "127.0.0.1:21453", methods: []string{http.MethodPost}, paths: []string{"/rerank", "/v1/rerank"}},
-	"pii-detector": {listen: "127.0.0.1:11460", upstream: "127.0.0.1:21460", methods: []string{http.MethodPost}, paths: []string{"/detect"}},
+	"whisper":              {listen: "127.0.0.1:8090", upstream: "127.0.0.1:18090", routes: map[string][]string{http.MethodPost: {"/asr"}}, native: true},
+	"kokoro":               {listen: "127.0.0.1:8880", upstream: "127.0.0.1:18880", routes: map[string][]string{http.MethodPost: {"/v1/audio/speech"}}},
+	"kyutai-stt":           {listen: "127.0.0.1:8094", upstream: "127.0.0.1:18094", routes: map[string][]string{http.MethodGet: {"/v1/stream"}}},
+	"ace-step":             {listen: "127.0.0.1:8895", upstream: "127.0.0.1:18895", routes: map[string][]string{http.MethodPost: {"/v1/compose", "/v1/capacity/degrade"}}},
+	"stable-audio-3":       {listen: "127.0.0.1:8896", upstream: "127.0.0.1:18896", routes: map[string][]string{http.MethodPost: {"/v1/compose"}}},
+	"songgen":              {listen: "127.0.0.1:8897", upstream: "127.0.0.1:18897", routes: map[string][]string{http.MethodPost: {"/v1/compose"}}},
+	"speaker-verification": {listen: "127.0.0.1:11452", upstream: "127.0.0.1:21452", routes: map[string][]string{http.MethodPost: {"/v1/profiles", "/v1/verify", "/v1/extract"}}},
+	// Track supported API operations that can use or mutate model state: the
+	// native API, every OpenAI/Anthropic-compatible /v1 endpoint (they load
+	// models too), and DELETE /api/delete (Ollama serves delete only on
+	// DELETE). Direct pulls are rejected separately until the edge can provide
+	// disk admission; the admitted ensure owner reaches the private daemon
+	// under its disk lease.
+	"ollama": {listen: "127.0.0.1:11434", upstream: "127.0.0.1:21434", routes: map[string][]string{
+		http.MethodPost:   {"/api/generate", "/api/chat", "/api/embed", "/api/embeddings", "/api/create", "/api/copy", "/api/push", "/v1"},
+		http.MethodDelete: {"/api/delete"},
+	}},
+	"ollaya":       {listen: "127.0.0.1:11435", upstream: "127.0.0.1:21435", routes: map[string][]string{http.MethodPost: {"/api/decide"}}},
+	"reranker":     {listen: "127.0.0.1:11453", upstream: "127.0.0.1:21453", routes: map[string][]string{http.MethodPost: {"/rerank", "/v1/rerank"}}},
+	"pii-detector": {listen: "127.0.0.1:11460", upstream: "127.0.0.1:21460", routes: map[string][]string{http.MethodPost: {"/detect"}}},
+}
+
+// matcher combines a spec's per-method routes into one request matcher.
+func (s resourceSpec) matcher() RequestMatcher {
+	matchers := make([]RequestMatcher, 0, len(s.routes))
+	for method, paths := range s.routes {
+		matchers = append(matchers, MatchPaths([]string{method}, paths...))
+	}
+	return func(r *http.Request) bool {
+		for _, match := range matchers {
+			if match(r) {
+				return true
+			}
+		}
+		return false
+	}
 }
 
 // Handlers owns the proxy's dependencies. Tests inject the seams so no real
 // server, exec, or clock is needed.
 type Handlers struct {
-	diagnosticMu sync.Mutex
-	trackerMu    sync.Mutex
-	wakeMu       sync.Mutex
-	tracker      *tracker
-	Stdout       io.Writer
-	Stderr       io.Writer
-	GetEnv       func(string) string
+	diagnosticMu    sync.Mutex
+	trackerMu       sync.Mutex
+	wakeMu          sync.Mutex
+	startupMu       sync.Mutex
+	tracker         *tracker
+	models          *modelGate
+	startupUpstream Upstream
+	Stdout          io.Writer
+	Stderr          io.Writer
+	GetEnv          func(string) string
 	// Exec runs a `vrooli capacity …` call and returns its stdout. Tests inject a
 	// fake; production shells the on-PATH vrooli binary.
 	Exec func(ctx context.Context, name string, args ...string) ([]byte, error)
@@ -150,6 +177,53 @@ type Handlers struct {
 	// Wake is invoked only when a matched work request cannot connect to the
 	// upstream. A successful owner lifecycle call is followed by one retry.
 	Wake func(context.Context) error
+	// Rewrite lets the resource owner normalize a public request before
+	// activity tracking and proxying (Ollama strips caller-supplied runner load
+	// options). An error rejects the request with 400. A non-nil Completion
+	// runs after the response has been proxied (see Completion).
+	Rewrite func(*http.Request) (Completion, error)
+	// StartupReconcile repairs resource-owned runtime state against the
+	// upstream. The edge invokes it at process start, and the resource lifecycle
+	// may invoke it again after backend readiness. It must be safe to retry and
+	// must not start work the resource is not already running. Startup errors
+	// are logged; lifecycle-triggered errors are returned to the owner.
+	StartupReconcile func(context.Context, Upstream) error
+	// ModelStore enables per-model usage recording, per-caller attribution and
+	// the per-model eviction fence (model_usage.go, caller.go) for a resource
+	// whose requests name a model.
+	ModelStore string
+	// IdentifyCaller names the process behind a connection for model usage
+	// attribution. nil uses the loopback /proc lookup (caller_linux.go).
+	IdentifyCaller func(local, remote net.Addr) string
+}
+
+// Completion is follow-up work a resource owner schedules for a request it
+// rewrote. It runs on the request goroutine after the response is proxied,
+// so it must return promptly (schedule, don't wait).
+type Completion func(Upstream)
+
+// Upstream lets a Completion reach the private backend directly: requests do
+// not pass the public edge again, so they are neither counted as use nor
+// rewritten. The client refuses while the edge is drained and never wakes a
+// stopped backend; follow-up work must not undo a capacity transition.
+type Upstream struct {
+	BaseURL string
+	Client  *http.Client
+}
+
+// errEdgeDrained is returned by the Upstream client while the edge is drained.
+var errEdgeDrained = errors.New("activity edge is drained")
+
+type drainGatedTransport struct {
+	base    http.RoundTripper
+	tracker *tracker
+}
+
+func (t drainGatedTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	if t.tracker.isDraining() {
+		return nil, errEdgeDrained
+	}
+	return t.base.RoundTrip(r)
 }
 
 // Default returns Handlers wired to the real shell.
@@ -193,7 +267,7 @@ func ForResource(resource string) (*Handlers, error) {
 	if !ok {
 		return nil, fmt.Errorf("activity edge: no request boundary declared for resource %q", resource)
 	}
-	h := New(name, spec.listen, spec.upstream, MatchPaths(spec.methods, spec.paths...))
+	h := New(name, spec.listen, spec.upstream, spec.matcher())
 	h.Native = spec.native
 	if name == "ollama" {
 		// Missing-model acquisition must use resource-ollama ensure, which
@@ -201,6 +275,9 @@ func ForResource(resource string) (*Handlers, error) {
 		// The public transparent edge cannot provide those guarantees itself.
 		h.Reject = MatchPaths([]string{http.MethodPost}, "/api/pull")
 		h.RejectMessage = "direct Ollama model pulls are unsupported on the public edge; use resource-ollama ensure for shared disk admission"
+	}
+	if name == "ollama" || name == "ollaya" {
+		h.ModelStore = name
 	}
 	// Recover through the ordinary resource lifecycle owner for every edge that
 	// observes an accelerated workload. A stopped or draining upstream must not
@@ -285,6 +362,16 @@ func (h *Handlers) Run(args []string) error {
 		h.errorf("activity-edge exit: reason=server-build err=%v\n", err)
 		return err
 	}
+	if h.StartupReconcile != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		h.startupMu.Lock()
+		upstream := h.startupUpstream
+		h.startupMu.Unlock()
+		if err := h.StartupReconcile(ctx, upstream); err != nil {
+			h.errorf("activity-edge startup reconciliation failed: %v\n", err)
+		}
+		cancel()
+	}
 	controlServer, controlListener, err := serveControlSocket(*controlSocket, h)
 	if err != nil {
 		return fmt.Errorf("activity edge control socket: %w", err)
@@ -312,6 +399,8 @@ func (h *Handlers) Run(args []string) error {
 	if stopSignals != nil {
 		defer stopSignals()
 	}
+	h.startModelGate()
+	defer h.stopModelGate()
 	heartbeatStop, _ := h.startHeartbeat(tr, started, parentPID)
 	defer heartbeatStop()
 
@@ -439,6 +528,15 @@ func (h *Handlers) serverWithTrackerMode(listen, upstream string, debounce time.
 	h.trackerMu.Lock()
 	h.tracker = tr
 	h.trackerMu.Unlock()
+	upstreamHandle := Upstream{BaseURL: target.String(), Client: &http.Client{Transport: drainGatedTransport{base: transport, tracker: tr}, Timeout: 30 * time.Second}}
+	// Resource-owned reconciliation runs only before serving or over the
+	// private lifecycle socket after admission is closed. It must reach the
+	// backend while drained, so the reconciliation handle uses the raw
+	// transport; request completions remain behind drainGatedTransport.
+	reconcileUpstream := Upstream{BaseURL: target.String(), Client: &http.Client{Transport: transport, Timeout: 30 * time.Second}}
+	h.startupMu.Lock()
+	h.startupUpstream = reconcileUpstream
+	h.startupMu.Unlock()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -450,7 +548,27 @@ func (h *Handlers) serverWithTrackerMode(listen, upstream string, debounce time.
 			http.Error(w, message, http.StatusForbidden)
 			return
 		}
+		if h.Rewrite != nil {
+			complete, err := h.Rewrite(r)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			if complete != nil {
+				// Registered first, so it runs after the work release below.
+				defer complete(upstreamHandle)
+			}
+		}
 		if h.isWork(r) {
+			if gate := h.modelGateFor(); gate != nil {
+				var releaseModel func()
+				var fenceErr error
+				if r, releaseModel, fenceErr = gate.enter(r); fenceErr != nil {
+					gate.reject(w, fenceErr)
+					return
+				}
+				defer releaseModel()
+			}
 			if !tr.begin() {
 				if err := h.recoverDrainedDemand(r.Context()); err != nil {
 					http.Error(w, "resource is draining and wake recovery did not complete", http.StatusServiceUnavailable)
@@ -490,7 +608,17 @@ func (h *Handlers) serverWithTrackerMode(listen, upstream string, debounce time.
 		}
 		proxy.ServeHTTP(w, r)
 	})
-	return &http.Server{Handler: mux, ReadHeaderTimeout: tuning.ActivityReadHeaderTimeout()}, tr, nil
+	srv := &http.Server{Handler: mux, ReadHeaderTimeout: tuning.ActivityReadHeaderTimeout()}
+	if strings.TrimSpace(h.ModelStore) != "" {
+		identify := h.IdentifyCaller
+		if identify == nil {
+			identify = callerid.NewResolver().Identify
+		}
+		srv.ConnContext = func(ctx context.Context, conn net.Conn) context.Context {
+			return withPeer(ctx, conn, identify)
+		}
+	}
+	return srv, tr, nil
 }
 
 func (h *Handlers) ensurePrivateUpstream(ctx context.Context, socketPath string) (bool, error) {
@@ -1029,6 +1157,22 @@ func (t *tracker) drain(ctx context.Context) error {
 		go t.report(reportSequence, activityIdle)
 	}
 	return t.waitForReport(ctx, reportSequence)
+}
+
+// drainIfIdle closes the request gate only when no request is already in
+// flight. Resource-owned reconciliation uses this instead of Drain: a request
+// may be waiting for the lifecycle operation that invokes reconciliation, so
+// waiting for that request would deadlock. The caller resumes after the
+// reconciliation attempt.
+func (t *tracker) drainIfIdle(ctx context.Context) (bool, error) {
+	t.mu.Lock()
+	if t.inflight > 0 {
+		t.mu.Unlock()
+		return false, nil
+	}
+	t.draining = true
+	t.mu.Unlock()
+	return true, t.drain(ctx)
 }
 
 // beginWake reserves a context-bound wake attempt. Drain cancels every

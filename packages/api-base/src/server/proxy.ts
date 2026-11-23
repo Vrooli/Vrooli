@@ -26,6 +26,28 @@ function mergeVary(res: Response, upstream: string | string[]): void {
 }
 
 /**
+ * Content types of calls that stay open, and quiet, for as long as their work
+ * runs: Connect and gRPC streams, server-sent events, newline-delimited JSON. A
+ * long job watch sends one frame, then nothing for minutes.
+ */
+const STREAMING_CONTENT_TYPE = /^(application\/connect\+|application\/grpc|text\/event-stream|application\/(x-)?ndjson|application\/jsonl)/i
+
+function firstValue(value: string | string[] | undefined): string {
+  return (Array.isArray(value) ? value[0] : value) ?? ''
+}
+
+/** True when the request itself says it opens a stream (Connect streaming body, or Accept: text/event-stream). */
+export function isStreamingRequest(headers: http.IncomingHttpHeaders): boolean {
+  return STREAMING_CONTENT_TYPE.test(firstValue(headers['content-type']).trim()) ||
+    firstValue(headers.accept).toLowerCase().includes('text/event-stream')
+}
+
+/** True when the upstream response marks itself as a stream. */
+export function isStreamingResponse(headers: http.IncomingHttpHeaders): boolean {
+  return STREAMING_CONTENT_TYPE.test(firstValue(headers['content-type']).trim())
+}
+
+/**
  * Proxy a request to the API server
  *
  * Forwards an HTTP request from the UI server to the API server using Node's
@@ -49,6 +71,13 @@ function mergeVary(res: Response, upstream: string | string[]): void {
  * })
  * ```
  */
+/** Close a client response whose upstream failed after its headers were sent. */
+function endClientResponse(res: Response, err: Error): void {
+  if (!res.destroyed && typeof res.destroy === 'function') {
+    res.destroy(err)
+  }
+}
+
 // DOC: docs/api/server.md#proxytoapi
 export async function proxyToApi(
   req: Request,
@@ -118,6 +147,10 @@ export async function proxyToApi(
   }
 
   const resolvedAgent = resolveProxyAgent({ agent, keepAlive })
+  // The timeout is the longest the upstream may stay silent. A stream is silent
+  // between its frames for as long as its work takes, so it gets no limit; unary
+  // calls keep theirs, and a stream that dies is still ended (below).
+  const requestTimeout = isStreamingRequest(req.headers) ? 0 : timeout
 
   return new Promise<void>((resolve) => {
     const proxyReq = http.request(
@@ -127,7 +160,7 @@ export async function proxyToApi(
         path: targetPath,
         method: req.method,
         headers: proxyHeaders,
-        timeout,
+        timeout: requestTimeout,
         agent: resolvedAgent,
       },
       (proxyRes: http.IncomingMessage) => {
@@ -155,8 +188,20 @@ export async function proxyToApi(
           res.setHeader(key, value)
         }
 
+        if (isStreamingResponse(proxyRes.headers)) {
+          proxyReq.setTimeout(0)
+        }
+
         // Stream response body
         proxyRes.pipe(res)
+
+        // An upstream that dies mid-body must end the client's response, not leave
+        // it open: the client then sees a closed stream instead of waiting forever.
+        proxyRes.on('close', () => {
+          if (!proxyRes.complete) {
+            endClientResponse(res, new Error('API closed the response before it finished'))
+          }
+        })
 
         proxyRes.on('end', () => {
           resolve()
@@ -177,9 +222,20 @@ export async function proxyToApi(
           details: err.message,
           target: `http://${apiHost}:${portNumber}${targetPath}`,
         })
+      } else {
+        // The status line is already out, so a 502 is impossible: close the stream.
+        endClientResponse(res, err)
       }
 
       resolve()
+    })
+
+    // A client that goes away takes its stream with it: stop the upstream work
+    // the proxy would otherwise keep reading for nobody.
+    res.on?.('close', () => {
+      if (!res.writableFinished) {
+        proxyReq.destroy()
+      }
     })
 
     // Handle timeout

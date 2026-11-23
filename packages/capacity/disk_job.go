@@ -81,6 +81,17 @@ type DiskJobPathSample struct {
 	ExceedsPeak       bool      `json:"exceedsPeak"`
 }
 
+// ErrDiskAdmissionDenied reports that a reservation would breach the floor
+// given current free bytes and other active reservations. Owners match it with
+// errors.Is to tell shared-disk contention from other reservation failures.
+var ErrDiskAdmissionDenied = internalcapacity.ErrDiskAdmissionDenied
+
+// ErrDiskLeaseLapsed reports that a disk lease missed its heartbeat deadline and
+// was settled: the lease's peak is no longer reserved, so Heartbeat, Extend and
+// SamplePath refuse it. Reserve again before writing more; Complete is still
+// accepted from the live owner and attests cleanup.
+var ErrDiskLeaseLapsed = internalcapacity.ErrDiskLeaseLapsed
+
 type DiskJobReceipt struct {
 	ID                string               `json:"id"`
 	OwnerID           string               `json:"ownerId"`
