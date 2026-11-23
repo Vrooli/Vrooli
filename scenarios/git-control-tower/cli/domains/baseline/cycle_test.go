@@ -93,13 +93,16 @@ func TestCycleRetryAfterPromoteOnlyRecreates(t *testing.T) {
 	if res.Promoted || !res.Recreated {
 		t.Fatalf("a retry with nothing open must only re-create, got %+v", res)
 	}
-	for _, step := range []string{"run quiesce", "recovery set-mode", "scenario restart", "sh -c"} {
+	for _, step := range []string{"run quiesce", "recovery set-mode", "sh -c"} {
 		if f.sawCommand(step) {
 			t.Errorf("a retry must not promote again (%q ran); calls=%v", step, f.calls)
 		}
 	}
 	if !f.sawCommand("recovery capture --scenario demo-scenario --slug bas-goal") {
 		t.Errorf("a retry must re-create the engagement; calls=%v", f.calls)
+	}
+	if !f.sawInOrder("recovery write --scenario demo-scenario --slug bas-goal", "scenario restart demo-scenario") || !f.sawInOrder("scenario restart demo-scenario", "scenario start demo-scenario --instance shadow") {
+		t.Errorf("a re-created shadow must first move the serving instance onto its frozen baseline; calls=%v", f.calls)
 	}
 }
 

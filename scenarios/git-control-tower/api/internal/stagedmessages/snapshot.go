@@ -277,7 +277,7 @@ func WorktreeSelectionStagedApplicable(ctx context.Context, dir string, snapshot
 		end := min(start+128, len(paths))
 		args := []string{"ls-files", "--stage", "-z", "--"}
 		for _, path := range paths[start:end] {
-			args = append(args, ":(literal)"+path)
+			args = append(args, path)
 		}
 		idx, err := gitRead(ctx, dir, args...)
 		if err != nil {
@@ -332,7 +332,7 @@ func WorktreeSelectionCommittedAtHead(ctx context.Context, dir string, snapshot 
 		end := min(start+128, len(paths))
 		args := []string{"ls-tree", "-rz", "--full-tree", "HEAD", "--"}
 		for _, path := range paths[start:end] {
-			args = append(args, ":(literal)"+path)
+			args = append(args, path)
 		}
 		output, err := gitRead(ctx, dir, args...)
 		if err != nil {
@@ -389,7 +389,7 @@ func worktreeSelectionApplicable(ctx context.Context, dir string, snapshot *v1.S
 		end := min(start+128, len(paths))
 		args := []string{"ls-files", "--stage", "-z", "--"}
 		for _, path := range paths[start:end] {
-			args = append(args, ":(literal)"+path)
+			args = append(args, path)
 		}
 		idx, readErr := gitRead(ctx, dir, args...)
 		if readErr != nil {

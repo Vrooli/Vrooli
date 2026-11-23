@@ -5,7 +5,7 @@ import { queryKeys } from "./hooks-query-keys";
 export function useRuns(scenario: string, filters: RunFilters = {}, enabled = true, repoId?: string | null) {
   return useQuery({
     queryKey: queryKeys.testRuns(scenario, filters, repoId),
-    queryFn: () => listRuns(scenario, filters),
+    queryFn: ({ signal }) => listRuns(scenario, filters, signal),
     enabled: enabled && Boolean(scenario),
     refetchInterval: 15_000,
   });
@@ -14,7 +14,7 @@ export function useRuns(scenario: string, filters: RunFilters = {}, enabled = tr
 export function useRun(scenario: string, runId: string, filters: ArtifactFilters = {}, enabled = true, repoId?: string | null) {
   return useQuery({
     queryKey: queryKeys.testRun(scenario, runId, filters, repoId),
-    queryFn: () => getRun(scenario, runId, filters),
+    queryFn: ({ signal }) => getRun(scenario, runId, filters, signal),
     enabled: enabled && Boolean(scenario) && Boolean(runId),
     staleTime: 30_000,
   });
@@ -23,7 +23,7 @@ export function useRun(scenario: string, runId: string, filters: ArtifactFilters
 export function useEvidence(scenario: string, filters: EvidenceFilters = {}, enabled = true, repoId?: string | null) {
   return useQuery({
     queryKey: queryKeys.evidence(scenario, filters, repoId),
-    queryFn: () => listEvidence(scenario, filters),
+    queryFn: ({ signal }) => listEvidence(scenario, filters, signal),
     enabled: enabled && Boolean(scenario),
     refetchInterval: 15_000,
   });

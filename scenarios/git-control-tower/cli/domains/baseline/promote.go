@@ -516,6 +516,9 @@ func probeLiveHealth(ctx context.Context, scenario string) (bool, string) {
 func extractStatus(out []byte) string {
 	var v struct {
 		Status   string `json:"status"`
+		Runtime  struct {
+			Status string `json:"status"`
+		} `json:"runtime"`
 		Scenario struct {
 			Status string `json:"status"`
 		} `json:"scenario"`
@@ -526,7 +529,10 @@ func extractStatus(out []byte) string {
 	if json.Unmarshal(out, &v) != nil {
 		return ""
 	}
-	for _, s := range []string{v.Scenario.Status, v.Details.Status, v.Status} {
+	// A failed lifecycle operation can leave the last process set running. The
+	// top-level scenario status then reports the operation failure while runtime
+	// remains authoritative for whether the service still owns its ports.
+	for _, s := range []string{v.Runtime.Status, v.Scenario.Status, v.Details.Status, v.Status} {
 		if strings.TrimSpace(s) != "" {
 			return s
 		}

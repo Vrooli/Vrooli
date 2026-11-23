@@ -14,10 +14,10 @@ interface BottomSheetProps {
 export function BottomSheet({ isOpen, onClose, title, children, height = "auto" }: BottomSheetProps) {
   if (height === "full") {
     return <FullPageDrawer open={isOpen} onClose={onClose} title={title} closeLabel="Close"
-      contentPadding="comfortable">{children}</FullPageDrawer>;
+      contentPadding="none">{children}</FullPageDrawer>;
   }
   return <LibraryBottomSheet open={isOpen} onClose={onClose} title={title} closeLabel="Close"
-    showCloseButton contentPadding="comfortable"
+    showCloseButton contentPadding="none"
     panelClassName={height === "half" ? "max-h-[50%]" : undefined}>
     {children}
   </LibraryBottomSheet>;
@@ -54,10 +54,10 @@ export function BottomSheetAction({
       onClick={onClick}
       disabled={disabled}
       data-testid={testId}
-      className={`w-full flex items-center gap-4 px-4 py-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${variantClasses[variant]}`}
+      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${variantClasses[variant]}`}
     >
       {icon && (
-        <span className="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-slate-800/60">
+        <span className="flex-shrink-0 h-9 w-9 flex items-center justify-center rounded-full bg-slate-800/60">
           {icon}
         </span>
       )}

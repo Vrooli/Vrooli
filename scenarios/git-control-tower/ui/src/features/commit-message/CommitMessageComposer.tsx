@@ -25,7 +25,8 @@ export function CommitMessageComposer({ value, onChange, repoId, stagedCount, st
   const id = useId();
   const [fields, setFields] = useState(() => parseMessage(value));
   const emitted = useRef(value);
-  const suggestions = useMessageSuggestions(repoId, statusVersion, updatingIndex);
+  const prefetchTimer = useRef<ReturnType<typeof setTimeout>>();
+  const suggestions = useMessageSuggestions(repoId, statusVersion, updatingIndex, stagedCount);
   const precommit = usePrecommitCandidateCheck(repoId, true, statusVersion, updatingIndex, stagedCount > 0);
   useEffect(() => {
     if (value !== emitted.current) {
@@ -33,6 +34,24 @@ export function CommitMessageComposer({ value, onChange, repoId, stagedCount, st
       setFields(parseMessage(value));
     }
   }, [value]);
+  useEffect(() => () => {
+    if (prefetchTimer.current) clearTimeout(prefetchTimer.current);
+  }, [repoId, statusVersion, stagedCount, updatingIndex]);
+  const prefetchOnIntent = () => {
+    if (prefetchTimer.current) return;
+    prefetchTimer.current = setTimeout(() => {
+      prefetchTimer.current = undefined;
+      suggestions.prefetch();
+    }, 180);
+  };
+  const openSuggestions = () => {
+    if (prefetchTimer.current) {
+      clearTimeout(prefetchTimer.current);
+      prefetchTimer.current = undefined;
+    }
+    if (hasWork) suggestions.setOpen(true);
+    else void suggestions.collect(value);
+  };
   const change = (next: MessageFields) => {
     setFields(next);
     emitted.current = serializeMessage(next);
@@ -74,7 +93,9 @@ export function CommitMessageComposer({ value, onChange, repoId, stagedCount, st
           type="button"
           aria-label="Suggest commit title and description"
           disabled={stagedCount === 0 || updatingIndex || disabled}
-          onClick={() => hasWork ? suggestions.setOpen(true) : void suggestions.collect(value)}
+          onPointerEnter={prefetchOnIntent}
+          onFocus={prefetchOnIntent}
+          onClick={openSuggestions}
           className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-cyan-800/70 bg-cyan-950/30 px-3 text-xs text-cyan-200 hover:bg-cyan-950/60 disabled:opacity-50"
           data-testid="suggest-commit-message"
         >

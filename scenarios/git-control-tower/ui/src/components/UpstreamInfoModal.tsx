@@ -265,7 +265,7 @@ export function UpstreamInfoModal({
         ariaLabel="Branch tracking"
         closeLabel="Close"
         dismissAffordance="close"
-        contentClassName="px-4 py-6 space-y-6"
+        contentClassName="px-3 py-4 space-y-4"
         footer={
           <div className="flex w-full items-center gap-3">
             <Button

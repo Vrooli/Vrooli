@@ -19,9 +19,9 @@ import {
   type BranchWarning as ProtoBranchWarning,
 } from "@vrooli/proto-types/git-control-tower/v1/branch/branch_pb";
 import { branchClient, humanControlClient, repoClient } from "./connect";
-import type { GetRepoDiffResponse, GetRepoStatusResponse } from "@vrooli/proto-types/git-control-tower/v1/repo/repo_pb";
-import { CreateCommitRequestSchema, DeletePathRequestSchema, DiscardFilesRequestSchema, GetApprovedChangesRequestSchema, GetBlameRequestSchema, GetDirectoryContentsRequestSchema, GetFilesRequestSchema, GetPrecommitConfigRequestSchema, GetProvenanceRequestSchema, GetRelatedFilesRequestSchema, GetRepoDiffRequestSchema, GetRepoHistoryRequestSchema, GetRepoStatusRequestSchema, GetRepoStatusResponseSchema, GetSyncStatusRequestSchema, IgnorePathRequestSchema, PullFromRemoteRequestSchema, PushToRemoteRequestSchema, RunPrecommitRequestSchema, RunUpstreamActionRequestSchema, SaveFileContentRequestSchema, SavePrecommitConfigRequestSchema, SearchContentRequestSchema, StageFilesRequestSchema, UnstageFilesRequestSchema } from "@vrooli/proto-types/git-control-tower/v1/repo/repo_pb";
-import type { HealthResponse, RepoStatus, RepoHistoryResponse, RepoBranchesResponse, BranchInfo, BranchWarning, BranchCreateResponse, BranchSwitchResponse, BranchPublishResponse, CreateBranchRequest, SwitchBranchRequest, PublishBranchRequest, CommitCheckKind, CommitCheckStatus } from "./api-types-repo";
+import type { DiffStats as ProtoDiffStats, FileStats as ProtoFileStats, GetRepoDiffResponse, GetRepoStatusResponse } from "@vrooli/proto-types/git-control-tower/v1/repo/repo_pb";
+import { CreateCommitRequestSchema, DeletePathRequestSchema, DiscardFilesRequestSchema, GetApprovedChangesRequestSchema, GetBlameRequestSchema, GetDirectoryContentsRequestSchema, GetFilesRequestSchema, GetPrecommitConfigRequestSchema, GetProvenanceRequestSchema, GetRelatedFilesRequestSchema, GetRepoChangeMetricsRequestSchema, GetRepoDiffRequestSchema, GetRepoHistoryRequestSchema, GetRepoStatusRequestSchema, GetRepoStatusResponseSchema, GetSyncStatusRequestSchema, IgnorePathRequestSchema, PullFromRemoteRequestSchema, PushToRemoteRequestSchema, RunPrecommitRequestSchema, RunUpstreamActionRequestSchema, SaveFileContentRequestSchema, SavePrecommitConfigRequestSchema, SearchContentRequestSchema, StageFilesRequestSchema, UnstageFilesRequestSchema } from "@vrooli/proto-types/git-control-tower/v1/repo/repo_pb";
+import type { HealthResponse, RepoFileStats, RepoStatus, RepoHistoryResponse, RepoBranchesResponse, BranchInfo, BranchWarning, BranchCreateResponse, BranchSwitchResponse, BranchPublishResponse, CreateBranchRequest, SwitchBranchRequest, PublishBranchRequest, CommitCheckKind, CommitCheckStatus } from "./api-types-repo";
 import {
   FileContentConflictError,
   RemoteOperationError,
@@ -78,12 +78,37 @@ export async function fetchHealth(): Promise<HealthResponse> {
   return handleResponse<HealthResponse>(res);
 }
 
-export async function fetchRepoStatus(repoId?: string, hotspots = false): Promise<RepoStatus> {
+function mapFileStats(value?: ProtoFileStats): RepoFileStats | undefined {
+  if (!value) return undefined;
+  const mapStats = (entries: Record<string, ProtoDiffStats>) => Object.fromEntries(Object.entries(entries).map(([path, stats]) => [path, {
+    additions: stats.additions,
+    deletions: stats.deletions,
+    files: stats.files,
+    net_lines: stats.netLines,
+    hunk_count: stats.hunkCount,
+    largest_hunk: stats.largestHunk,
+    density: stats.density,
+    is_binary: stats.isBinary,
+    is_rename: stats.isRename,
+    old_path: stats.oldPath,
+    comment_additions: stats.commentAdditions,
+    comment_deletions: stats.commentDeletions,
+    is_new_file: stats.isNewFile,
+    is_deleted_file: stats.isDeletedFile,
+  }]));
+  return {
+    staged: mapStats(value.staged),
+    unstaged: mapStats(value.unstaged),
+    untracked: mapStats(value.untracked),
+  };
+}
+
+export async function fetchRepoStatus(repoId?: string, hotspots = false, signal?: AbortSignal): Promise<RepoStatus> {
   let response: GetRepoStatusResponse = create(GetRepoStatusResponseSchema);
   for (let attempt = 0; attempt < 3; attempt++) {
     response = await repoClient.getRepoStatus(create(GetRepoStatusRequestSchema, {
       repositoryId: repoId ?? "", includeHotspots: hotspots, pageSize: 512,
-    }));
+    }), ...(signal ? [{ signal }] : []));
     const initial = response;
     let token = response.page?.nextPageToken ?? "";
     let returnedEntries = response.page?.returnedEntries ?? 0;
@@ -91,7 +116,7 @@ export async function fetchRepoStatus(repoId?: string, hotspots = false): Promis
       while (token) {
         const next = await repoClient.getRepoStatus(create(GetRepoStatusRequestSchema, {
           repositoryId: repoId ?? "", includeHotspots: hotspots, pageSize: 512, pageToken: token,
-        }));
+        }), ...(signal ? [{ signal }] : []));
         if (!next.page || next.page.snapshotId !== initial.page?.snapshotId || next.page.totalEntries !== initial.page?.totalEntries) throw new Error("repository status changed between pages");
         for (const key of ["staged", "unstaged", "untracked", "conflicts", "ignored"] as const) initial.files![key].push(...(next.files?.[key] ?? []));
         initial.files!.binary = [...new Set([...initial.files!.binary, ...(next.files?.binary ?? [])])];
@@ -112,22 +137,6 @@ export async function fetchRepoStatus(repoId?: string, hotspots = false): Promis
   const branch = response.branchStatus;
   const files = response.files;
   const summary = response.summary;
-  const mapStats = (value?: Record<string, { additions: number; deletions: number; files: number; netLines: number; hunkCount: number; largestHunk: number; density: number; isBinary: boolean; isRename: boolean; oldPath: string; commentAdditions: number; commentDeletions: number; isNewFile: boolean; isDeletedFile: boolean }>) => value ? Object.fromEntries(Object.entries(value).map(([path, stats]) => [path, {
-    additions: stats.additions,
-    deletions: stats.deletions,
-    files: stats.files,
-    net_lines: stats.netLines,
-    hunk_count: stats.hunkCount,
-    largest_hunk: stats.largestHunk,
-    density: stats.density,
-    is_binary: stats.isBinary,
-    is_rename: stats.isRename,
-    old_path: stats.oldPath,
-    comment_additions: stats.commentAdditions,
-    comment_deletions: stats.commentDeletions,
-    is_new_file: stats.isNewFile,
-    is_deleted_file: stats.isDeletedFile,
-  }])) : undefined;
   return {
     repo_dir: response.repoDir,
     branch: {
@@ -147,11 +156,8 @@ export async function fetchRepoStatus(repoId?: string, hotspots = false): Promis
       statuses: files?.statuses ?? {},
       renames: files?.renames ?? {},
     },
-    file_stats: response.fileStats ? {
-      staged: mapStats(response.fileStats.staged),
-      unstaged: mapStats(response.fileStats.unstaged),
-      untracked: mapStats(response.fileStats.untracked),
-    } : undefined,
+    file_stats: undefined,
+    status_snapshot_id: response.page?.snapshotId ?? "",
     file_hotspots: response.fileHotspots,
     scopes: Object.fromEntries(Object.entries(response.scopes).map(([key, value]) => [key, value.values])),
     summary: {
@@ -169,12 +175,24 @@ export async function fetchRepoStatus(repoId?: string, hotspots = false): Promis
   };
 }
 
+export async function fetchRepoChangeMetrics(repoId: string | undefined, statusSnapshotId: string, signal?: AbortSignal): Promise<{ status_snapshot_id: string; file_stats: RepoFileStats }> {
+  const response = await repoClient.getRepoChangeMetrics(create(GetRepoChangeMetricsRequestSchema, {
+    repositoryId: repoId ?? "",
+    statusSnapshotId,
+  }), ...(signal ? [{ signal }] : []));
+  return {
+    status_snapshot_id: response.statusSnapshotId,
+    file_stats: mapFileStats(response.fileStats) ?? { staged: {}, unstaged: {}, untracked: {} },
+  };
+}
+
 export async function fetchRepoHistory(
   limit = 30,
   includeFiles = false,
   repoId?: string,
   grep?: string,
-  includeChecks = false
+  includeChecks = false,
+  signal?: AbortSignal
 ): Promise<RepoHistoryResponse> {
   const response = await repoClient.getRepoHistory(create(GetRepoHistoryRequestSchema, {
     repositoryId: repoId ?? "",
@@ -182,7 +200,7 @@ export async function fetchRepoHistory(
     includeFiles,
     includeChecks,
     grepPattern: grep ?? "",
-  }));
+  }), ...(signal ? [{ signal }] : []));
   return {
     repo_dir: response.repoDir,
     lines: response.lines,
@@ -218,7 +236,8 @@ export async function fetchDiff(
   commit?: string,
   mode: ViewMode = "diff",
   any = false,
-  repoId?: string
+  repoId?: string,
+  signal?: AbortSignal
 ): Promise<DiffResponse> {
   const response = await repoClient.getRepoDiff(create(GetRepoDiffRequestSchema, {
     repositoryId: repoId ?? "",
@@ -228,7 +247,7 @@ export async function fetchDiff(
     commit: commit ?? "",
     mode,
     any,
-  }));
+  }), ...(signal ? [{ signal }] : []));
   return mapDiffResponse(response);
 }
 
@@ -509,12 +528,13 @@ export async function runUpstreamAction(
 
 export async function fetchSyncStatus(
   doFetch = false,
-  repoId?: string
+  repoId?: string,
+  signal?: AbortSignal
 ): Promise<SyncStatusResponse> {
   const response = await repoClient.getSyncStatus(create(GetSyncStatusRequestSchema, {
     repositoryId: repoId ?? "",
     fetch: doFetch,
-  }));
+  }), ...(signal ? [{ signal }] : []));
   return {
     branch: response.branch,
     upstream: response.upstream,
@@ -535,10 +555,10 @@ export async function fetchSyncStatus(
   };
 }
 
-export async function fetchApprovedChanges(repoId?: string): Promise<ApprovedChangesResponse> {
+export async function fetchApprovedChanges(repoId?: string, signal?: AbortSignal): Promise<ApprovedChangesResponse> {
   const response = await repoClient.getApprovedChanges(create(GetApprovedChangesRequestSchema, {
     repositoryId: repoId ?? "",
-  }));
+  }), ...(signal ? [{ signal }] : []));
   return approvedChangesFromProto(response);
 }
 
@@ -553,10 +573,10 @@ export async function fetchApprovedChangesPreview(
   return approvedChangesFromProto(response);
 }
 
-export async function fetchProvenance(repoId?: string): Promise<ProvenanceResponse> {
+export async function fetchProvenance(repoId?: string, signal?: AbortSignal): Promise<ProvenanceResponse> {
   const response = await repoClient.getProvenance(create(GetProvenanceRequestSchema, {
     repositoryId: repoId ?? "",
-  }));
+  }), ...(signal ? [{ signal }] : []));
   return {
     available: response.available,
     warning: response.warning || undefined,
@@ -576,11 +596,11 @@ export async function fetchProvenance(repoId?: string): Promise<ProvenanceRespon
   };
 }
 
-export async function fetchBlame(paths: string[], repoId?: string): Promise<BlameResponse> {
+export async function fetchBlame(paths: string[], repoId?: string, signal?: AbortSignal): Promise<BlameResponse> {
   const response = await repoClient.getBlame(create(GetBlameRequestSchema, {
     repositoryId: repoId ?? "", paths, maxPaths: 1, maxLines: 300,
     maxBytes: 1 << 20, enrich: true,
-  }));
+  }), ...(signal ? [{ signal }] : []));
   return {
     revision: response.revision,
     truncated: response.truncated,
@@ -633,10 +653,10 @@ function approvedChangesFromProto(response: Awaited<ReturnType<typeof repoClient
   };
 }
 
-export async function fetchBranches(repoId?: string): Promise<RepoBranchesResponse> {
+export async function fetchBranches(repoId?: string, signal?: AbortSignal): Promise<RepoBranchesResponse> {
 	const response = await branchClient.listBranches(create(ListBranchesRequestSchema, {
 		repositoryId: repoId || "",
-	}));
+	}), ...(signal ? [{ signal }] : []));
 	return {
 		current: response.current,
 		locals: response.locals.map(branchInfoFromProto),
@@ -799,11 +819,12 @@ export async function fetchFiles(
   limit = 1000,
   deep = false,
   timeout = 5000,
-  repoId?: string
+  repoId?: string,
+  signal?: AbortSignal
 ): Promise<FileTreeResponse> {
   const response = await repoClient.getFiles(create(GetFilesRequestSchema, {
     repositoryId: repoId ?? "", pattern: pattern ?? "", limit, deep, timeoutMs: timeout,
-  }));
+  }), ...(signal ? [{ signal }] : []));
   return {
     files: response.files.map((file) => ({ path: file.path, language: file.language, status: file.status as FileTreeResponse["files"][number]["status"] })),
     truncated: response.truncated,
@@ -815,11 +836,12 @@ export async function fetchFiles(
 
 export async function fetchRelatedFiles(
   path: string,
-  repoId?: string
+  repoId?: string,
+  signal?: AbortSignal
 ): Promise<RelatedFilesResponse> {
   const response = await repoClient.getRelatedFiles(create(GetRelatedFilesRequestSchema, {
     repositoryId: repoId ?? "", path,
-  }));
+  }), ...(signal ? [{ signal }] : []));
   return {
     path: response.path,
     related: response.related.map((file) => ({ path: file.path, relation_type: file.relationType as RelatedFilesResponse["related"][number]["relation_type"] })),
@@ -829,7 +851,8 @@ export async function fetchRelatedFiles(
 
 export async function searchContent(
   request: ContentSearchRequest,
-  repoId?: string
+  repoId?: string,
+  signal?: AbortSignal
 ): Promise<ContentSearchResponse> {
   const response = await repoClient.searchContent(create(SearchContentRequestSchema, {
     repositoryId: repoId ?? "",
@@ -842,7 +865,7 @@ export async function searchContent(
     contextLines: request.context_lines ?? 0,
     limit: request.limit ?? 0,
     timeoutMs: request.timeout ?? 0,
-  }));
+  }), ...(signal ? [{ signal }] : []));
   return {
     matches: response.matches.map((match) => ({
       path: match.path, line_number: match.lineNumber, content: match.content,
@@ -856,10 +879,10 @@ export async function searchContent(
   };
 }
 
-export async function fetchDirectoryContents(path = "", repoId?: string): Promise<DirListResponse> {
+export async function fetchDirectoryContents(path = "", repoId?: string, signal?: AbortSignal): Promise<DirListResponse> {
   const response = await repoClient.getDirectoryContents(create(GetDirectoryContentsRequestSchema, {
     repositoryId: repoId ?? "", path,
-  }));
+  }), ...(signal ? [{ signal }] : []));
   return {
     path: response.path,
     entries: response.entries.map((entry) => ({

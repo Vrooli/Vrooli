@@ -67,7 +67,7 @@ export function StageDuringSuggestionModal({ hold, paths, queuedConflicts = [], 
         ariaLabel={title}
         closeLabel="Close"
         dismissAffordance="close"
-        contentClassName="px-4 py-6 space-y-6"
+        contentClassName="px-3 py-4 space-y-4"
         footer={
           <div className="flex w-full flex-col gap-2 sm:flex-row">
             <Button

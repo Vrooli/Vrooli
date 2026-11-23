@@ -40,6 +40,16 @@ func startCollectionCaptureForTest(t *testing.T, svc *Service, name string, targ
 	return started
 }
 
+func mustStartCollectionDiffForTest(t *testing.T, svc *Service, operationID string) StartCollectionDiffResult {
+	t.Helper()
+	request := StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: operationID}
+	started, err := svc.StartCollectionDiff(context.Background(), request)
+	if err != nil {
+		t.Fatalf("StartCollectionDiff(%s): %v", operationID, err)
+	}
+	return started
+}
+
 func finalizeCaptureForTest(t *testing.T, svc *Service, pending PendingCollectionCapture) {
 	t.Helper()
 	if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, pending); err != nil {
@@ -52,6 +62,15 @@ func finalizeCapturesForTest(t *testing.T, svc *Service, pending []PendingCollec
 	for _, capture := range pending {
 		finalizeCaptureForTest(t, svc, capture)
 	}
+}
+
+func readyPlanManagerBaselineForTest(t *testing.T, svc *Service) StartCollectionCaptureResult {
+	t.Helper()
+	captured := startCollectionCaptureForTest(t, svc, "before", CollectionTarget{
+		Scenario: "plan-manager", BaselineName: "before", Required: true,
+	})
+	finalizeCapturesForTest(t, svc, captured.Pending)
+	return captured
 }
 
 func typedSaturationError(t *testing.T) error {
@@ -559,8 +578,7 @@ func TestCollectionDiffOperationIsDurableAndSelectionIdempotent(t *testing.T) { 
 
 func TestCollectionDiffResumesPreDispatchGraphExactlyOnceAcrossConcurrentAgents(t *testing.T) {
 	svc, exec := collectionService(t)
-	captured := startCollectionCaptureForTest(t, svc, "before", CollectionTarget{Scenario: "plan-manager", BaselineName: "before", Required: true})
-	finalizeCaptureForTest(t, svc, captured.Pending[0])
+	readyPlanManagerBaselineForTest(t, svc)
 	collection, err := svc.storage.LoadCollection(1, "agi", "before")
 	if err != nil {
 		t.Fatal(err)
@@ -609,8 +627,7 @@ func TestCollectionDiffResumesPreDispatchGraphExactlyOnceAcrossConcurrentAgents(
 
 func TestCollectionDiffDispatchLeaseIsAtomicAcrossServiceInstances(t *testing.T) {
 	svc, exec := collectionService(t)
-	captured := startCollectionCaptureForTest(t, svc, "before", CollectionTarget{Scenario: "plan-manager", BaselineName: "before", Required: true})
-	finalizeCaptureForTest(t, svc, captured.Pending[0])
+	readyPlanManagerBaselineForTest(t, svc)
 	peer := NewService(Deps{Storage: svc.storage, Exec: exec, Runs: &fakeRuns{}, CaptureGit: fixedGit(git.State{Sha: "abc", Branch: "agi"})})
 	request := StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "two-servers"}
 	var wg sync.WaitGroup
@@ -640,8 +657,7 @@ func TestCollectionDiffDispatchLeaseIsAtomicAcrossServiceInstances(t *testing.T)
 
 func TestCollectionDiffStatusRetriesExpiredDispatchLease(t *testing.T) {
 	svc, exec := collectionService(t)
-	captured := startCollectionCaptureForTest(t, svc, "before", CollectionTarget{Scenario: "plan-manager", BaselineName: "before", Required: true})
-	finalizeCaptureForTest(t, svc, captured.Pending[0])
+	readyPlanManagerBaselineForTest(t, svc)
 	exec.startErr = errors.New("temporary test-genie outage")
 	started, err := svc.StartCollectionDiff(context.Background(), StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "retry-dispatch"})
 	if err != nil || started.Operation.Members[0].Status != "pending" || started.Operation.Members[0].RunID != "" || started.Operation.Members[0].DispatchAttempts != 1 {
@@ -664,8 +680,7 @@ func TestCollectionDiffStatusRetriesExpiredDispatchLease(t *testing.T) {
 
 func TestCollectionDiffTerminalizesUnrecoverablePreDispatchOperation(t *testing.T) {
 	svc, _ := collectionService(t)
-	captured := startCollectionCaptureForTest(t, svc, "before", CollectionTarget{Scenario: "plan-manager", BaselineName: "before", Required: true})
-	finalizeCaptureForTest(t, svc, captured.Pending[0])
+	readyPlanManagerBaselineForTest(t, svc)
 	collection, err := svc.storage.LoadCollection(1, "agi", "before")
 	if err != nil {
 		t.Fatal(err)
@@ -687,8 +702,7 @@ func TestCollectionDiffTerminalizesUnrecoverablePreDispatchOperation(t *testing.
 
 func TestCollectionDiffTerminalizesAfterBoundedDispatchFailures(t *testing.T) {
 	svc, exec := collectionService(t)
-	captured := startCollectionCaptureForTest(t, svc, "before", CollectionTarget{Scenario: "plan-manager", BaselineName: "before", Required: true})
-	finalizeCaptureForTest(t, svc, captured.Pending[0])
+	readyPlanManagerBaselineForTest(t, svc)
 	exec.startErr = errors.New("test-genie unavailable")
 	request := StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "bounded-dispatch"}
 	for attempt := 1; attempt <= maxCollectionDiffDispatchAttempts; attempt++ {
@@ -781,16 +795,13 @@ func TestTransientAdmissionSaturationReadsTypedDetail(t *testing.T) {
 
 func TestCollectionDiffStatusUsesImmutableSnapshotAfterCollectionDeletion(t *testing.T) {
 	svc, _ := collectionService(t)
-	captured := startCollectionCaptureForTest(t, svc, "before", CollectionTarget{Scenario: "plan-manager", BaselineName: "before", Required: true})
+	captured := readyPlanManagerBaselineForTest(t, svc)
 	if len(captured.Pending) != 1 {
 		t.Fatalf("capture = %#v", captured)
 	}
-	finalizeCaptureForTest(t, svc, captured.Pending[0])
-	started, err := svc.StartCollectionDiff(context.Background(), StartCollectionDiffRequest{
-		RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "survives-delete",
-	})
-	if err != nil || len(started.Pending) != 1 || started.Operation.CollectionSnapshot.Name != "before" {
-		t.Fatalf("start diff = %#v err=%v", started, err)
+	started := mustStartCollectionDiffForTest(t, svc, "survives-delete")
+	if len(started.Pending) != 1 || started.Operation.CollectionSnapshot.Name != "before" {
+		t.Fatalf("start diff = %#v", started)
 	}
 	if err := svc.DeleteCollection(context.Background(), 1, "agi", "before"); err != nil {
 		t.Fatal(err)
@@ -807,16 +818,11 @@ func TestCollectionDiffStatusUsesImmutableSnapshotAfterCollectionDeletion(t *tes
 
 func TestCollectionDiffStatusDoesNotAdoptLaterCollectionMembers(t *testing.T) {
 	svc, _ := collectionService(t)
-	captured := startCollectionCaptureForTest(t, svc, "before", CollectionTarget{Scenario: "plan-manager", BaselineName: "before", Required: true})
+	captured := readyPlanManagerBaselineForTest(t, svc)
 	if len(captured.Pending) != 1 {
 		t.Fatalf("capture = %#v", captured)
 	}
-	finalizeCaptureForTest(t, svc, captured.Pending[0])
-	if _, err := svc.StartCollectionDiff(context.Background(), StartCollectionDiffRequest{
-		RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "does-not-expand",
-	}); err != nil {
-		t.Fatal(err)
-	}
+	mustStartCollectionDiffForTest(t, svc, "does-not-expand")
 	if _, err := svc.ExtendCollection(context.Background(), ExtendCollectionRequest{
 		RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before",
 		Targets: []CollectionTarget{{Scenario: "git-control-tower", BaselineName: "before", Required: true}},
@@ -835,16 +841,13 @@ func TestCollectionDiffStatusDoesNotAdoptLaterCollectionMembers(t *testing.T) {
 
 func TestCollectionDiffStatusReconcilesTerminalChildAfterFinalizerLoss(t *testing.T) {
 	svc, _ := collectionService(t)
-	captured := startCollectionCaptureForTest(t, svc, "before", CollectionTarget{Scenario: "plan-manager", BaselineName: "before", Required: true})
+	captured := readyPlanManagerBaselineForTest(t, svc)
 	if len(captured.Pending) != 1 {
 		t.Fatalf("capture = %#v", captured)
 	}
-	finalizeCaptureForTest(t, svc, captured.Pending[0])
-	started, err := svc.StartCollectionDiff(context.Background(), StartCollectionDiffRequest{
-		RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "recover-terminal",
-	})
-	if err != nil || len(started.Pending) != 1 {
-		t.Fatalf("start diff = %#v err=%v", started, err)
+	started := mustStartCollectionDiffForTest(t, svc, "recover-terminal")
+	if len(started.Pending) != 1 {
+		t.Fatalf("start diff = %#v", started)
 	}
 
 	if err := svc.ReconcileCollectionDiffOperations(context.Background(), 1); err != nil {
@@ -858,11 +861,10 @@ func TestCollectionDiffStatusReconcilesTerminalChildAfterFinalizerLoss(t *testin
 
 func TestCollectionDiffStatusTerminalizesMissingDurableChildIntent(t *testing.T) {
 	svc, _ := collectionService(t)
-	captured := startCollectionCaptureForTest(t, svc, "before", CollectionTarget{Scenario: "plan-manager", BaselineName: "before", Required: true})
-	finalizeCaptureForTest(t, svc, captured.Pending[0])
-	started, err := svc.StartCollectionDiff(context.Background(), StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "missing-intent"})
-	if err != nil || len(started.Pending) != 1 {
-		t.Fatalf("start diff = %#v err=%v", started, err)
+	readyPlanManagerBaselineForTest(t, svc)
+	started := mustStartCollectionDiffForTest(t, svc, "missing-intent")
+	if len(started.Pending) != 1 {
+		t.Fatalf("start diff = %#v", started)
 	}
 	dir, err := svc.storage.branchDir(1, "plan-manager", "agi")
 	if err != nil {
@@ -879,11 +881,10 @@ func TestCollectionDiffStatusTerminalizesMissingDurableChildIntent(t *testing.T)
 
 func TestCollectionDiffStatusTerminalizesMissingTestGenieRun(t *testing.T) {
 	svc, exec := collectionService(t)
-	captured := startCollectionCaptureForTest(t, svc, "before", CollectionTarget{Scenario: "plan-manager", BaselineName: "before", Required: true})
-	finalizeCaptureForTest(t, svc, captured.Pending[0])
-	started, err := svc.StartCollectionDiff(context.Background(), StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "missing-run"})
-	if err != nil || len(started.Pending) != 1 {
-		t.Fatalf("start diff = %#v err=%v", started, err)
+	readyPlanManagerBaselineForTest(t, svc)
+	started := mustStartCollectionDiffForTest(t, svc, "missing-run")
+	if len(started.Pending) != 1 {
+		t.Fatalf("start diff = %#v", started)
 	}
 	exec.statusInfo = &RunStatusInfo{Missing: true}
 	_, operation, standing, err := svc.GetCollectionDiffStatus(context.Background(), 1, "agi", "before", "missing-run")
@@ -894,12 +895,8 @@ func TestCollectionDiffStatusTerminalizesMissingTestGenieRun(t *testing.T) {
 
 func TestCollectionDiffStatusProjectsChildStanding(t *testing.T) {
 	svc, exec := collectionService(t)
-	captured := startCollectionCaptureForTest(t, svc, "before", CollectionTarget{Scenario: "plan-manager", BaselineName: "before", Required: true})
-	finalizeCaptureForTest(t, svc, captured.Pending[0])
-	started, err := svc.StartCollectionDiff(context.Background(), StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "project-child"})
-	if err != nil {
-		t.Fatal(err)
-	}
+	readyPlanManagerBaselineForTest(t, svc)
+	started := mustStartCollectionDiffForTest(t, svc, "project-child")
 	exec.statusInfo = &RunStatusInfo{Status: "in_progress", Standing: &commonv1.OperationStanding{Owner: "test-genie", OperationId: started.Members[0].RunID, Lifecycle: "executing", Directive: "wait", ActivePhase: "workflow-health", EtaKnown: true, EstimatedRemainingSeconds: 91, RecommendedWaitSeconds: 45}}
 	_, _, standing, err := svc.GetCollectionDiffStatus(context.Background(), 1, "agi", "before", "project-child")
 	if err != nil {
@@ -912,12 +909,8 @@ func TestCollectionDiffStatusProjectsChildStanding(t *testing.T) {
 
 func TestCollectionDiffStatusNeverProjectsRunBackedChildAsQueued(t *testing.T) {
 	svc, exec := collectionService(t)
-	captured := startCollectionCaptureForTest(t, svc, "before", CollectionTarget{Scenario: "plan-manager", BaselineName: "before", Required: true})
-	finalizeCaptureForTest(t, svc, captured.Pending[0])
-	started, err := svc.StartCollectionDiff(context.Background(), StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "normalize-queued"})
-	if err != nil {
-		t.Fatal(err)
-	}
+	readyPlanManagerBaselineForTest(t, svc)
+	started := mustStartCollectionDiffForTest(t, svc, "normalize-queued")
 	exec.statusInfo = &RunStatusInfo{Status: "queued", Standing: &commonv1.OperationStanding{Owner: "test-genie", OperationId: started.Members[0].RunID, Lifecycle: "queued", Directive: "wait"}}
 	_, operation, standing, err := svc.GetCollectionDiffStatus(context.Background(), 1, "agi", "before", "normalize-queued")
 	if err != nil || operation.Members[0].Lifecycle != CollectionDiffChildAwaiting || len(standing.Children) != 1 || standing.Children[0].GetLifecycle() != "executing" {
@@ -939,9 +932,9 @@ func TestCollectionDiffWaitsConcurrentlyAndReturnsTypedIncomplete(t *testing.T) 
 		secondAwaitDone: secondDone, blockedRunID: "run-3",
 	}
 	svc.exec = exec
-	started, err := svc.StartCollectionDiff(context.Background(), StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "op-concurrent"})
-	if err != nil || len(started.Pending) != 2 {
-		t.Fatalf("start diff = %#v err=%v", started, err)
+	started := mustStartCollectionDiffForTest(t, svc, "op-concurrent")
+	if len(started.Pending) != 2 {
+		t.Fatalf("start diff = %#v", started)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -997,8 +990,7 @@ func TestExtendCollectionDefersAdmissionSaturatedMemberAndRecovers(t *testing.T)
 	now := time.Date(2026, 11, 21, 12, 0, 0, 0, time.UTC)
 	svc.now = func() time.Time { return now }
 
-	captured := startCollectionCaptureForTest(t, svc, "before", CollectionTarget{Scenario: "plan-manager", BaselineName: "before", Required: true})
-	finalizeCaptureForTest(t, svc, captured.Pending[0])
+	captured := readyPlanManagerBaselineForTest(t, svc)
 
 	// The original collection has one admitted baseline. The second admission is
 	// rejected by Test Genie's caller queue, which is transient backpressure.

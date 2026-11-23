@@ -172,7 +172,7 @@ export function HistoryFiltersModal({
         ariaLabel="History filters"
         closeLabel="Close"
         dismissAffordance="close"
-        contentClassName="px-4 py-6 space-y-6"
+        contentClassName="px-3 py-4 space-y-4"
         headerExtra={
           <p className="text-xs text-slate-500">
             Narrow commits by search, scope, or working set.

@@ -242,10 +242,11 @@ export async function saveGroupingRules(config: GroupingRulesConfig, repoId?: st
   };
 }
 
-export async function fetchRepoGroups(repoId?: string): Promise<RepoGroupsResponse> {
+export async function fetchRepoGroups(repoId?: string, statusSnapshotId?: string, signal?: AbortSignal): Promise<RepoGroupsResponse> {
   const response = await repoClient.getRepoGroups(create(GetRepoGroupsRequestSchema, {
     repositoryId: repoId ?? "",
-  }));
+    statusSnapshotId: statusSnapshotId ?? "",
+  }), ...(signal ? [{ signal }] : []));
   return {
     groups: response.groups.map((group) => ({
       key: group.key,

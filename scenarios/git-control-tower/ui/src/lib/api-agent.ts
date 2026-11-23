@@ -197,8 +197,8 @@ export async function uploadAgentAttachment(
   return handleResponse<AttachmentUploadResponse>(res);
 }
 
-export async function fetchAgentProfiles(repoId?: string): Promise<AgentProfileListResponse> {
-  const response = await agentReadClient.listProfiles(create(ListProfilesRequestSchema, { repositoryId: repoId ?? "" }));
+export async function fetchAgentProfiles(repoId?: string, signal?: AbortSignal): Promise<AgentProfileListResponse> {
+  const response = await agentReadClient.listProfiles(create(ListProfilesRequestSchema, { repositoryId: repoId ?? "" }), { signal });
   return {
     profiles: response.profiles.map((profile) => ({
       id: profile.id, key: profile.key || undefined, name: profile.name,
@@ -224,27 +224,29 @@ export async function createAgentRun(
 export async function fetchAgentRuns(
   scenarioSlug: string,
   limit?: number,
-  repoId?: string
+  repoId?: string,
+  signal?: AbortSignal,
 ): Promise<AgentRunListResponse> {
   const response = await agentReadClient.listRuns(create(ListRunsRequestSchema, {
     scenarioSlug, limit: limit ?? 0, repositoryId: repoId ?? "",
-  }));
+  }), { signal });
   return { runs: response.runs.map(runFromProto), total: response.total };
 }
 
-export async function fetchAgentRun(runId: string, scenarioSlug: string, repoId?: string): Promise<AgentRun> {
-  return runFromProto(await agentReadClient.getRun(create(GetRunRequestSchema, { runId, scenarioSlug, repositoryId: repoId ?? "" })));
+export async function fetchAgentRun(runId: string, scenarioSlug: string, repoId?: string, signal?: AbortSignal): Promise<AgentRun> {
+  return runFromProto(await agentReadClient.getRun(create(GetRunRequestSchema, { runId, scenarioSlug, repositoryId: repoId ?? "" }), { signal }));
 }
 
 export async function fetchAgentRunEvents(
   runId: string,
   scenarioSlug: string,
   afterSequence?: number,
-  repoId?: string
+  repoId?: string,
+  signal?: AbortSignal,
 ): Promise<AgentRunEventsResponse> {
   const response = await agentReadClient.getRunEvents(create(GetRunEventsRequestSchema, {
     runId, scenarioSlug, afterSequence: BigInt(afterSequence ?? -1), limit: 100, repositoryId: repoId ?? "",
-  }));
+  }), { signal });
   return { events: response.events.map((event) => ({
     id: event.id, runId: event.runId, sequence: Number(event.sequence),
     eventType: event.eventType as AgentEventType, timestamp: event.timestamp,
@@ -252,8 +254,8 @@ export async function fetchAgentRunEvents(
   })) };
 }
 
-export async function fetchAgentRunDiff(runId: string, scenarioSlug: string, repoId?: string): Promise<AgentRunDiffResponse> {
-  const response = await agentReadClient.getRunDiff(create(GetRunDiffRequestSchema, { runId, scenarioSlug, repositoryId: repoId ?? "" }));
+export async function fetchAgentRunDiff(runId: string, scenarioSlug: string, repoId?: string, signal?: AbortSignal): Promise<AgentRunDiffResponse> {
+  const response = await agentReadClient.getRunDiff(create(GetRunDiffRequestSchema, { runId, scenarioSlug, repositoryId: repoId ?? "" }), { signal });
   return {
     runId: response.runId, content: response.content || undefined,
     files: response.files.map((file) => ({ path: file.path, changeType: file.changeType,

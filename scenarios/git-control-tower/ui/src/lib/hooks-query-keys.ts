@@ -5,8 +5,10 @@ import type { ArtifactFilters, EvidenceFilters, RunFilters } from "./api-evidenc
 export const queryKeys = {
   health: ["health"] as const,
   repoStatus: (repoId?: string | null) => ["repo", "status", repoId ?? "default"] as const,
+  repoChangeMetrics: (repoId: string | null | undefined, snapshotId: string) => ["repo", "change-metrics", repoId ?? "default", snapshotId] as const,
+  repoHistoryFamily: (repoId?: string | null) => ["repo", "history", repoId ?? "default"] as const,
   repoHistory: (limit?: number, includeFiles?: boolean, repoId?: string | null, grep?: string, includeChecks?: boolean) =>
-    ["repo", "history", repoId ?? "default", limit, includeFiles, grep, includeChecks] as const,
+    [...queryKeys.repoHistoryFamily(repoId), limit, includeFiles, grep, includeChecks] as const,
   syncStatus: (repoId?: string | null) => ["repo", "sync-status", repoId ?? "default"] as const,
   branches: (repoId?: string | null) => ["repo", "branches", repoId ?? "default"] as const,
   diff: (

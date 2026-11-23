@@ -26,7 +26,7 @@ export function useBaselines(
   const scope = allBranches ? "all" : branch ?? "current";
   return useQuery<BaselineManifest[], Error>({
     queryKey: queryKeys.baselines(scenario, scope, repoId),
-    queryFn: () => listBaselines({ scenario, allBranches, branch, repoId }),
+    queryFn: ({ signal }) => listBaselines({ scenario, allBranches, branch, repoId }, signal),
     enabled: enabled && Boolean(scenario),
     staleTime: 10_000,
   });
@@ -41,7 +41,7 @@ export function useBaseline(
   const { enabled = true, repoId } = opts;
   return useQuery<BaselineManifest | undefined, Error>({
     queryKey: queryKeys.baseline(scenario, name, branch, repoId),
-    queryFn: () => getBaseline({ scenario, name, branch, repoId }),
+    queryFn: ({ signal }) => getBaseline({ scenario, name, branch, repoId }, signal),
     enabled: enabled && Boolean(scenario) && Boolean(name),
     staleTime: 30_000,
   });

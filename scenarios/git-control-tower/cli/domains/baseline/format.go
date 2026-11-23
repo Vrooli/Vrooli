@@ -393,6 +393,9 @@ func printStart(res startResult) {
 	if res.RestorePoint == "preserved" {
 		fmt.Println("  restore point: preserved (took over the open engagement; its frozen baseline was not re-captured)")
 	}
+	if res.ServingBaselineActivated {
+		fmt.Println("  live serving source: moved to the frozen baseline before the shadow build")
+	}
 	if res.Anchor != "" {
 		fmt.Printf("  diff anchor: %s\n", res.Anchor)
 	}

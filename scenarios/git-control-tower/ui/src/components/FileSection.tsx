@@ -18,6 +18,7 @@ export type ChangeListSection = {
   onAction: (path: string) => void;
   onToggle: () => void;
   changeStats?: DiffStats;
+  metricsState?: "loading" | "refreshing" | "ready" | "unavailable";
   onStatsClick?: () => void;
   onDiscard?: (path: string) => void;
 };
@@ -164,7 +165,7 @@ export function VirtualizedFileSections({
               className="absolute top-0 left-0 right-0 mb-1"
               style={{ transform: `translateY(${virtualItem.start - (rowVirtualizer.options?.scrollMargin ?? 0)}px)` }}
             >
-              <div className={`flex items-center gap-2 w-full px-2 py-1.5 rounded hover:bg-slate-800/50 transition-colors ${isMobile ? "min-h-11" : ""}`}>
+              <div className={`flex w-full items-center gap-2 rounded px-2 py-1.5 transition-colors hover:bg-slate-800/50 ${isMobile ? "min-h-11" : ""}`}>
                 <button
                   type="button"
                   className={`flex min-w-0 flex-1 items-center gap-2 text-left ${isMobile ? "min-h-11" : ""}`}
@@ -178,13 +179,23 @@ export function VirtualizedFileSections({
                     <ChevronRight className={`text-slate-500 ${isMobile ? "h-4 w-4" : "h-3 w-3"}`} />
                   )}
                   {section.icon}
-                  <span className={`font-medium text-slate-400 uppercase tracking-wider ${isMobile ? "text-sm" : "text-xs"}`}>
+                  <span className="truncate text-[11px] font-semibold uppercase tracking-[0.09em] text-slate-400">
                     {section.title}
                   </span>
                 </button>
-                <div className="ml-auto flex items-center gap-2">
-                  <LineStats stats={section.changeStats} compact onClick={section.onStatsClick} />
-                  <span className={`text-slate-600 ${isMobile ? "text-sm" : "text-xs"}`}>{section.files.length}</span>
+                <div className="ml-auto flex shrink-0 items-center gap-2 tabular-nums">
+                  {section.changeStats ? (
+                    <LineStats stats={section.changeStats} compact onClick={section.onStatsClick} />
+                  ) : section.metricsState === "loading" ? (
+                    <span className="h-3 w-14 animate-pulse rounded-sm bg-slate-700/80" role="status" aria-label="Loading change metrics" data-testid="file-stats-loading" />
+                  ) : section.metricsState === "refreshing" ? (
+                    <span className="h-3 w-14 rounded-sm bg-slate-700/50" role="status" aria-label="Updating change metrics" data-testid="file-stats-refreshing" />
+                  ) : section.metricsState === "unavailable" ? (
+                    <span className="text-[10px] font-medium text-amber-400" title="Change metrics unavailable">Metrics unavailable</span>
+                  ) : null}
+                  <span className="min-w-4 text-right text-xs text-slate-500" aria-label={`${section.files.length} files`} title={`${section.files.length} files`}>
+                    {section.files.length}
+                  </span>
                 </div>
               </div>
             </div>

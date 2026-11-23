@@ -27,6 +27,8 @@ interface ChangeMetricsModalProps {
   filePath?: string;
   /** Aggregate mode: all file stats by category */
   fileStats?: RepoFileStats;
+  fileStatsState?: "loading" | "refreshing" | "ready" | "unavailable";
+  onRetryFileStats?: () => void;
   /** Custom title override */
   title?: string;
   /** Enhanced stats fetched on-demand from /repo/diff (hunks, density, comments, rename) */
@@ -284,6 +286,8 @@ export const ChangeMetricsModal = memo(function ChangeMetricsModal({
   stats,
   filePath,
   fileStats,
+  fileStatsState = "ready",
+  onRetryFileStats,
   title,
   enhancedStats,
   enhancedLoading,
@@ -330,7 +334,18 @@ export const ChangeMetricsModal = memo(function ChangeMetricsModal({
   const deletions = s?.deletions ?? aggregate?.totalDeletions ?? 0;
   const netLines = s?.net_lines ?? aggregate?.totalNetLines ?? additions - deletions;
 
-  const content = (
+  const content = mode === "aggregate" && (fileStatsState === "loading" || fileStatsState === "refreshing") ? (
+    <div className="space-y-3 py-2" data-testid="metrics-loading" role="status">
+      <div className="h-3 w-24 animate-pulse rounded bg-slate-700" />
+      <p className="text-sm text-slate-400">{fileStatsState === "refreshing" ? "Updating current change metrics…" : "Loading change metrics…"}</p>
+      <div className="h-7 w-40 animate-pulse rounded bg-slate-800" />
+    </div>
+  ) : mode === "aggregate" && fileStatsState === "unavailable" ? (
+    <div className="space-y-3 py-2" data-testid="metrics-unavailable" role="alert">
+      <p className="text-sm text-slate-300">Change metrics could not be loaded. The file list is still current; retry to load its line totals.</p>
+      {onRetryFileStats && <button type="button" className="min-h-11 rounded-lg border border-slate-700 px-3 text-sm text-slate-200 hover:bg-slate-800" onClick={onRetryFileStats}>Retry metrics</button>}
+    </div>
+  ) : (
     <div className="space-y-4" data-testid="metrics-modal">
       {/* Summary */}
       <div className="space-y-3">
@@ -587,7 +602,7 @@ export const ChangeMetricsModal = memo(function ChangeMetricsModal({
         ariaLabel="Change metrics"
         closeLabel="Close"
         dismissAffordance="close"
-        contentClassName="px-4 py-6 space-y-6"
+        contentClassName="px-3 py-4 space-y-4"
       >
         {filePath && mode === "file" && (
           <p className="text-xs text-slate-500 truncate mb-4">{filePath}</p>

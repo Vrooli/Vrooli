@@ -125,6 +125,7 @@ export type { SourceDistribution, DistributionContent, DistributionExclusion, Pu
 export {
   fetchHealth,
   fetchRepoStatus,
+  fetchRepoChangeMetrics,
   fetchRepoHistory,
   fetchDiff,
   stageFiles,

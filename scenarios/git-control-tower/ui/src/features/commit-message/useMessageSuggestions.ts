@@ -4,7 +4,7 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { isLimitedDraft } from "./message";
 import {
   cancelMessageJob, checkMessage, collectMessage, getMessageJob, getMessageProviderReadiness, retryMessage, startMessage, waitMessageJob,
-  type StagedMessageJob,
+  type StagedMessageCollection, type StagedMessageJob,
 } from "./api";
 import { StagedMessageMode } from "@vrooli/proto-types/git-control-tower/v1/advisory/advisory_pb";
 import { initialSession, messageSessionKey, resetMessageSession, storageKey, type DraftSession } from "./messageSession";
@@ -41,7 +41,7 @@ function pauseObserver(milliseconds: number, signal: AbortSignal) {
 
 /** Job ownership is server-side. Query cache preserves navigation, and the
  * repository-keyed handle reattaches after reload without another Start. */
-export function useMessageSuggestions(repo: string, statusVersion: number, updatingIndex: boolean) {
+export function useMessageSuggestions(repo: string, statusVersion: number, updatingIndex: boolean, stagedCount = 1) {
   const client = useQueryClient();
   const key = useMemo(() => messageSessionKey(repo), [repo]);
   const { data: session } = useQuery({ queryKey: key, queryFn: () => initialSession(repo), initialData: () => initialSession(repo), enabled: false, gcTime: Infinity });
@@ -52,9 +52,18 @@ export function useMessageSuggestions(repo: string, statusVersion: number, updat
   }, [client, key, session.generation]);
   const controller = useRef<AbortController>();
   const requestSequence = useRef(0);
+  const preparedCollection = useRef<{
+    repo: string;
+    statusVersion: number;
+    sequence: number;
+    controller: AbortController;
+    promise: Promise<StagedMessageCollection>;
+    claimed: boolean;
+  }>();
   const invalidateCollection = useCallback(() => {
     ++requestSequence.current;
     controller.current?.abort();
+    preparedCollection.current = undefined;
   }, []);
   const actionPending = useRef(false);
   const mounted = useRef(true);
@@ -163,6 +172,38 @@ export function useMessageSuggestions(repo: string, statusVersion: number, updat
     retry: false,
     staleTime: 0,
   });
+  const beginCollection = useCallback(() => {
+    const abort = new AbortController();
+    const sequence = ++requestSequence.current;
+    const promise = collectMessage(repo, abort.signal);
+    const prepared = { repo, statusVersion, sequence, controller: abort, promise, claimed: false };
+    controller.current = abort;
+    preparedCollection.current = prepared;
+    return prepared;
+  }, [repo, statusVersion]);
+  // Prepare only after clear user intent (hover/focus). This keeps the modal
+  // quiet while its expensive, read-only collection runs, and lets the click
+  // consume the same request instead of starting duplicate Git/context work.
+  const prefetch = useCallback(() => {
+    if (updatingIndex || stagedCount === 0 || session.phase !== "idle" ||
+      isMessageJobActive(job.data?.status) || actionPending.current || unresolvedAdmission) return;
+    const existing = preparedCollection.current;
+    if (existing && existing.repo === repo && !existing.controller.signal.aborted) return;
+    controller.current?.abort();
+    const prepared = beginCollection();
+    void prepared.promise.catch(() => {
+      if (preparedCollection.current === prepared && !prepared.claimed) preparedCollection.current = undefined;
+    });
+  }, [repo, statusVersion, stagedCount, updatingIndex, session.phase, job.data?.status, unresolvedAdmission, beginCollection]);
+  useEffect(() => {
+    const prepared = preparedCollection.current;
+    if (!prepared || prepared.claimed) return;
+    if (prepared.repo !== repo || updatingIndex || stagedCount === 0) {
+      prepared.controller.abort();
+      if (controller.current === prepared.controller) controller.current = undefined;
+      preparedCollection.current = undefined;
+    }
+  }, [repo, statusVersion, updatingIndex, stagedCount]);
   // A true reply is only usable for the observation generation that requested
   // it. A complete stage/unstage cycle can occur while that reply is in flight.
   // A newer rejection invalidates an in-flight acceptance. A successful
@@ -181,18 +222,32 @@ export function useMessageSuggestions(repo: string, statusVersion: number, updat
 
   const collect = async (message: string) => {
     if (updatingIndex || isMessageJobActive(job.data?.status) || actionPending.current || unresolvedAdmission) return;
-    controller.current?.abort();
-    const sequence = ++requestSequence.current;
-    const abort = new AbortController();
-    controller.current = abort;
+    let prepared = preparedCollection.current;
+    if (!prepared || prepared.repo !== repo || prepared.controller.signal.aborted) {
+      controller.current?.abort();
+      prepared = beginCollection();
+    }
+    prepared.claimed = true;
     try { localStorage.removeItem(storageKey(repo)); } catch { /* Old terminal handle is no longer active. */ }
     const generation = (client.getQueryData<DraftSession>(key)?.generation ?? session.generation) + 1;
     client.setQueryData<DraftSession>(key, { generation, phase: "idle", initialMessage: "", selectedContextIDs: [], note: "" });
     setOpen(true);
     update({ phase: "collecting", initialMessage: message, error: undefined, launchError: undefined, staleReason: undefined, jobID: undefined, collection: undefined, requestKey: undefined, admissionRequest: undefined, selectedContextIDs: [], applied: false }, generation);
     try {
-      const collection = await collectMessage(repo, abort.signal);
-      if (sequence === requestSequence.current) {
+      let collection = await prepared.promise;
+      // Status refreshes include unstaged worktree changes. If one completed
+      // while this prefetch was running, compare the staged digest itself so
+      // harmless refreshes keep the warm result and a changed index gets a
+      // fresh collection before it is presented for use.
+      if (prepared.statusVersion !== statusVersion && collection.snapshot?.digest) {
+        const applicability = await checkMessage(repo, collection.snapshot.digest);
+        if (!applicability.applicable) {
+          prepared = beginCollection();
+          prepared.claimed = true;
+          collection = await prepared.promise;
+        }
+      }
+      if (prepared.sequence === requestSequence.current && !prepared.controller.signal.aborted) {
         const retained = new Set(collection.suggestions[0]?.sourceIds ?? []);
         const selectedContextIDs = collection.contexts.filter(context =>
           retained.has(context.id) && context.kind === "proposal" && context.fullMatch && context.status === "retained_edits_included",
@@ -200,7 +255,9 @@ export function useMessageSuggestions(repo: string, statusVersion: number, updat
         update({ phase: "collected", collection, selectedContextIDs }, generation);
       }
     } catch (error) {
-      if (sequence === requestSequence.current && !abort.signal.aborted) update({ phase: "idle", error: errorText(error) }, generation);
+      if (prepared.sequence === requestSequence.current && !prepared.controller.signal.aborted) update({ phase: "idle", error: errorText(error) }, generation);
+    } finally {
+      if (preparedCollection.current === prepared) preparedCollection.current = undefined;
     }
   };
   const cancelCollection = () => {
@@ -374,5 +431,5 @@ export function useMessageSuggestions(repo: string, statusVersion: number, updat
   }, [lostConnection, following, reconnect]);
   const canAdoptVerified = () => isCurrentSession() && mounted.current && !verificationGeneration.current.updatingIndex && !unresolvedAdmission && !isMessageJobActive(job.data?.status) && action !== "start" && action !== "cancel" && verifiedEpoch.current === verificationGeneration.current.epoch;
   const retryDraftMode = job.data?.evidenceFilesTotal ? StagedMessageMode.DEEP : session.admissionRequest?.mode ?? StagedMessageMode.QUICK;
-  return { session, job: job.data, snapshot, previousSuggestion, previousSnapshot: previousMatches ? previousJob.data?.snapshot : undefined, canInvestigate, investigateRemaining, staleReason, error: session.error || job.data?.error || job.error?.message || standing.error?.message, action, admissionState, providerReadiness: providerReadiness.data, maintenancePaused, canRetryAdmission: admissionState === "not_found" && Boolean(session.admissionRequest), canRetryDraft: Boolean(job.data?.id && job.data.executionId && ["failed", "cancelled", "awaiting_provider"].includes(job.data.status) && (job.data.status !== "failed" || job.data.retryable) && !maintenancePaused && !updatingIndex && !unresolvedAdmission), retryDraftMode, retryDraft, open, setOpen, update, collect, cancelCollection, start, cancelAgent, verify, canAdoptVerified, discard, reconnect, recheckApplicability, reconnecting: hasHandle && job.isPending };
+  return { session, job: job.data, snapshot, previousSuggestion, previousSnapshot: previousMatches ? previousJob.data?.snapshot : undefined, canInvestigate, investigateRemaining, staleReason, error: session.error || job.data?.error || job.error?.message || standing.error?.message, action, admissionState, providerReadiness: providerReadiness.data, maintenancePaused, canRetryAdmission: admissionState === "not_found" && Boolean(session.admissionRequest), canRetryDraft: Boolean(job.data?.id && job.data.executionId && ["failed", "cancelled", "awaiting_provider"].includes(job.data.status) && (job.data.status !== "failed" || job.data.retryable) && !maintenancePaused && !updatingIndex && !unresolvedAdmission), retryDraftMode, retryDraft, open, setOpen, update, collect, prefetch, cancelCollection, start, cancelAgent, verify, canAdoptVerified, discard, reconnect, recheckApplicability, reconnecting: hasHandle && job.isPending };
 }

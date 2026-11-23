@@ -156,10 +156,10 @@ export async function triggerVisualCapture(scenarioSlug: string, repoId?: string
   return handleResponse<SnapshotSetMeta>(res);
 }
 
-export async function fetchVisualCaptures(scenarioSlug: string, repoId?: string): Promise<VisualCaptureListResponse> {
+export async function fetchVisualCaptures(scenarioSlug: string, repoId?: string, signal?: AbortSignal): Promise<VisualCaptureListResponse> {
   const response = await visualCaptureClient.listCaptures(create(ListCapturesRequestSchema, {
     repositoryId: toRepositoryId(repoId), scenarioSlug,
-  }));
+  }), { signal });
   return {
     snapshots: response.snapshots.map(snapshotMetaFromMessage),
     total: response.total,
@@ -171,10 +171,10 @@ export async function fetchVisualCaptures(scenarioSlug: string, repoId?: string)
   };
 }
 
-export async function fetchVisualCaptureDetail(id: string, scenarioSlug: string, repoId?: string): Promise<SnapshotSetDetail> {
+export async function fetchVisualCaptureDetail(id: string, scenarioSlug: string, repoId?: string, signal?: AbortSignal): Promise<SnapshotSetDetail> {
   const response = await visualCaptureClient.getCaptureDetail(create(GetCaptureDetailRequestSchema, {
     repositoryId: toRepositoryId(repoId), scenarioSlug, captureId: id,
-  }));
+  }), { signal });
   if (!response.snapshot) throw new Error("Visual capture detail returned no snapshot");
   return {
     ...snapshotMetaFromMessage(response.snapshot),
@@ -183,10 +183,10 @@ export async function fetchVisualCaptureDetail(id: string, scenarioSlug: string,
   };
 }
 
-export async function fetchCaptureStorageStats(repoId?: string): Promise<CaptureStorageStats> {
+export async function fetchCaptureStorageStats(repoId?: string, signal?: AbortSignal): Promise<CaptureStorageStats> {
   const response = await visualCaptureClient.getStorageStats(create(GetStorageStatsRequestSchema, {
     repositoryId: toRepositoryId(repoId),
-  }));
+  }), { signal });
   return {
     totalSizeBytes: Number(response.totalSizeBytes),
     snapshotCount: response.snapshotCount,

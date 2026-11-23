@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"golang.org/x/sync/errgroup"
 )
 
 // GitRunner is the minimal subprocess seam this package's production
@@ -71,20 +73,46 @@ func (g *gitInspector) List(ctx context.Context, repoPath string) ([]Worktree, e
 
 func (g *gitInspector) IdentifyPath(ctx context.Context, repoPath string) (Identity, error) {
 	id := Identity{}
-	commonDirOut, err := g.runner.Run(ctx, repoPath, "rev-parse", "--git-common-dir")
-	if err != nil {
-		return id, fmt.Errorf("rev-parse --git-common-dir: %w: %s", err, string(commonDirOut))
+	var commonDirOut, gitDirOut, topOut, headOut, branchOut []byte
+	var worktrees []Worktree
+	var commonDirErr, gitDirErr, topErr error
+	group, gctx := errgroup.WithContext(ctx)
+	// These reads are independent. Run them together so status polling pays
+	// process startup once in wall time instead of six sequential Git launches.
+	group.Go(func() error {
+		commonDirOut, commonDirErr = g.runner.Run(gctx, repoPath, "rev-parse", "--git-common-dir")
+		return nil
+	})
+	group.Go(func() error {
+		gitDirOut, gitDirErr = g.runner.Run(gctx, repoPath, "rev-parse", "--git-dir")
+		return nil
+	})
+	group.Go(func() error {
+		topOut, topErr = g.runner.Run(gctx, repoPath, "rev-parse", "--show-toplevel")
+		return nil
+	})
+	group.Go(func() error {
+		headOut, _ = g.runner.Run(gctx, repoPath, "rev-parse", "HEAD")
+		return nil
+	})
+	group.Go(func() error {
+		branchOut, _ = g.runner.Run(gctx, repoPath, "symbolic-ref", "--quiet", "--short", "HEAD")
+		return nil
+	})
+	group.Go(func() error {
+		worktrees, _ = g.List(gctx, repoPath)
+		return nil
+	})
+	_ = group.Wait() // Optional HEAD/branch/worktree reads retain their best-effort behavior.
+	if commonDirErr != nil {
+		return id, fmt.Errorf("rev-parse --git-common-dir: %w: %s", commonDirErr, string(commonDirOut))
 	}
-	gitDirOut, err := g.runner.Run(ctx, repoPath, "rev-parse", "--git-dir")
-	if err != nil {
-		return id, fmt.Errorf("rev-parse --git-dir: %w: %s", err, string(gitDirOut))
+	if gitDirErr != nil {
+		return id, fmt.Errorf("rev-parse --git-dir: %w: %s", gitDirErr, string(gitDirOut))
 	}
-	topOut, err := g.runner.Run(ctx, repoPath, "rev-parse", "--show-toplevel")
-	if err != nil {
-		return id, fmt.Errorf("rev-parse --show-toplevel: %w: %s", err, string(topOut))
+	if topErr != nil {
+		return id, fmt.Errorf("rev-parse --show-toplevel: %w: %s", topErr, string(topOut))
 	}
-	headOut, _ := g.runner.Run(ctx, repoPath, "rev-parse", "HEAD")
-	branchOut, _ := g.runner.Run(ctx, repoPath, "symbolic-ref", "--quiet", "--short", "HEAD")
 
 	commonDir := strings.TrimSpace(string(commonDirOut))
 	gitDir := strings.TrimSpace(string(gitDirOut))
@@ -102,10 +130,7 @@ func (g *gitInspector) IdentifyPath(ctx context.Context, repoPath string) (Ident
 	id.Branch = strings.TrimSpace(string(branchOut))
 	id.Detached = id.Branch == ""
 
-	wts, err := g.List(ctx, repoPath)
-	if err == nil {
-		id.LinkedWorktreeCount = len(wts)
-	}
+	id.LinkedWorktreeCount = len(worktrees)
 	return id, nil
 }
 

@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Collapsed change group summary options · Git Control Tower</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font: 14px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --bg: #020617;
+      --panel: #0f172a;
+      --panel-raised: #111c30;
+      --line: #263449;
+      --line-soft: #1e293b;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --faint: #64748b;
+      --cyan: #67e8f9;
+      --green: #4ade80;
+      --red: #fb7185;
+      --amber: #fbbf24;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); }
+    button, select { color: inherit; font: inherit; }
+    main { max-width: 1120px; margin: 0 auto; padding: 30px 24px 56px; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 23px; line-height: 1.25; letter-spacing: -.02em; }
+    h2 { font-size: 15px; line-height: 1.35; }
+    h3 { font-size: 13px; }
+    p { color: var(--muted); }
+    .intro { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 24px; }
+    .eyebrow { color: var(--cyan); font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+    .intro p { max-width: 700px; margin-top: 7px; }
+    .state-control { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; }
+    select { min-height: 40px; padding: 0 32px 0 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+    .fetch-note { display: flex; align-items: center; gap: 12px; margin: 22px 0 26px; padding: 13px 15px; border: 1px solid var(--line); border-radius: 10px; background: #0b1425; }
+    .fetch-icon { display: grid; place-items: center; width: 30px; height: 30px; flex: none; border-radius: 8px; color: var(--cyan); background: #083344; }
+    .fetch-copy { min-width: 0; flex: 1; }
+    .fetch-copy strong { display: block; font-size: 12px; font-weight: 650; }
+    .fetch-copy span { display: block; color: var(--muted); font-size: 12px; }
+    .fetch-state { color: var(--cyan); font-size: 12px; white-space: nowrap; }
+    .fetch-state.error { color: var(--amber); }
+    .section-head { display: flex; justify-content: space-between; align-items: end; gap: 20px; margin-bottom: 12px; }
+    .section-head p { margin-top: 3px; font-size: 12px; }
+    .section-head small { color: var(--faint); font-size: 11px; }
+    .options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .option { position: relative; min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+    .option.recommended { border-color: #155e75; box-shadow: inset 0 0 0 1px #155e7540; }
+    .option-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-height: 48px; padding: 12px 14px; border-bottom: 1px solid var(--line-soft); }
+    .option-title { display: flex; align-items: center; gap: 9px; }
+    .letter { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: #1e293b; color: #cbd5e1; font-size: 11px; font-weight: 700; }
+    .recommended .letter { background: #164e63; color: var(--cyan); }
+    .pick { color: var(--cyan); font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    .row { display: flex; align-items: center; gap: 9px; min-height: 58px; padding: 8px 14px; }
+    .chevron { width: 12px; color: var(--faint); font-size: 13px; }
+    .folder-icon { color: #7dd3fc; font-size: 13px; }
+    .group-name { min-width: 0; flex: 1; overflow: hidden; color: #cbd5e1; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+    .count { flex: none; color: var(--muted); font-size: 11px; white-space: nowrap; }
+    .metric-hit { display: inline-flex; align-items: center; min-height: 44px; gap: 8px; padding: 0 7px; border: 0; border-radius: 7px; background: transparent; cursor: pointer; }
+    .metric-hit:hover, .metric-hit:focus-visible { background: #1e293b; outline: none; }
+    .diff-ribbon { display: flex; width: 64px; height: 5px; overflow: hidden; border-radius: 999px; background: #263449; }
+    .diff-ribbon .add { background: var(--green); }
+    .diff-ribbon .del { background: var(--red); }
+    .qualifier { display: inline-flex; align-items: center; gap: 6px; color: #cbd5e1; font-size: 11px; white-space: nowrap; }
+    .qualifier .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+    .qualifier.mixed .dot { background: var(--amber); }
+    .qualifier.removal .dot { background: var(--red); }
+    .kind-set { display: flex; align-items: center; gap: 4px; }
+    .kind { width: 16px; height: 16px; display: grid; place-items: center; border-radius: 4px; font-size: 9px; font-weight: 700; }
+    .kind.added { color: var(--green); background: #14532d55; }
+    .kind.edited { color: #fbbf24; background: #78350f55; }
+    .kind.removed { color: var(--red); background: #88133755; }
+    .numeric { display: inline-flex; gap: 8px; color: #cbd5e1; font: 11px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; }
+    .numeric .plus { color: var(--green); }
+    .numeric .minus { color: var(--red); }
+    .empty { color: var(--faint); font-size: 11px; }
+    .option-copy { min-height: 48px; padding: 0 14px 13px 35px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .option-copy strong { color: #cbd5e1; font-weight: 600; }
+    .expanded-preview { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 26px; }
+    .detail-card { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+    .detail-card header { padding: 12px 14px; border-bottom: 1px solid var(--line-soft); }
+    .detail-card header p { margin-top: 3px; font-size: 11px; }
+    .detail-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 47px; padding: 0 14px; border-bottom: 1px solid var(--line-soft); }
+    .detail-row:last-child { border-bottom: 0; }
+    .detail-name { min-width: 0; overflow: hidden; color: #cbd5e1; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+    .loading-track { width: 64px; height: 5px; border-radius: 999px; background: linear-gradient(90deg,#263449 0 28%,#475569 45%,#263449 68%); background-size: 220% 100%; animation: shimmer 1.6s ease-in-out infinite; }
+    .state-loading .ready-metric { display: none; }
+    .state-loading .loading-track { display: block; }
+    .loading-track { display: none; }
+    .state-error .ready-metric, .state-error .loading-track { display: none; }
+    .state-error .error-metric { display: inline; }
+    .error-metric { display: none; color: var(--amber); font-size: 10px; }
+    .state-loading .fetch-state { color: var(--muted); }
+    .state-error .fetch-state { color: var(--amber); }
+    @keyframes shimmer { to { background-position: -220% 0; } }
+    @media (max-width: 720px) {
+      main { padding: 22px 14px 36px; }
+      .intro { grid-template-columns: 1fr; align-items: start; gap: 14px; }
+      h1 { font-size: 20px; }
+      .state-control { justify-content: space-between; }
+      .options { grid-template-columns: 1fr; }
+      .expanded-preview { grid-template-columns: 1fr; }
+      .fetch-note { align-items: flex-start; }
+      .fetch-state { padding-top: 5px; }
+      .section-head { align-items: flex-start; flex-direction: column; gap: 3px; }
+      .option-copy { min-height: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; } }
+  </style>
+</head>
+<body class="state-ready">
+  <main>
+    <section class="intro">
+      <div>
+        <div class="eyebrow">Collapsed group · design options</div>
+        <h1>Show the shape of the change, not the line totals</h1>
+        <p>All four rows represent the same collapsed group. Exact additions and removals stay in the expanded sections and metrics drawer.</p>
+      </div>
+      <label class="state-control">Metrics state
+        <select id="metrics-state" aria-label="Preview metrics loading state">
+          <option value="ready">Ready</option>
+          <option value="loading">Loading separately</option>
+          <option value="error">Unavailable</option>
+        </select>
+      </label>
+    </section>
+
+    <aside class="fetch-note" role="status" aria-live="polite">
+      <div class="fetch-icon" aria-hidden="true">↗</div>
+      <div class="fetch-copy">
+        <strong>Fast file list · separate change metrics</strong>
+        <span id="fetch-description">The paths render first. Group summaries arrive in a background request.</span>
+      </div>
+      <div class="fetch-state" id="fetch-state">Metrics ready</div>
+    </aside>
+
+    <section aria-labelledby="options-title">
+      <div class="section-head">
+        <div>
+          <h2 id="options-title">Collapsed row treatments</h2>
+          <p>Same summary data, presented as a compact collapsed variant.</p>
+        </div>
+        <small>Chevron expands group · summary opens metrics</small>
+      </div>
+
+      <div class="options">
+        <article class="option recommended">
+          <header class="option-head">
+            <div class="option-title"><span class="letter">A</span><h3>Diff balance ribbon</h3></div>
+            <span class="pick">Recommended</span>
+          </header>
+          <div class="row">
+            <span class="chevron" aria-hidden="true">›</span><span class="folder-icon" aria-hidden="true">▰</span>
+            <span class="group-name">scenarios / git-control-tower</span>
+            <button class="metric-hit" aria-label="Open change metrics for scenarios slash git-control-tower: additions and removals are mixed">
+              <span class="count">42 files</span>
+              <span class="ready-metric"><span class="diff-ribbon" role="img" aria-label="About two thirds additions and one third removals"><i class="add" style="width:66%"></i><i class="del" style="width:34%"></i></span></span>
+              <span class="loading-track" aria-hidden="true"></span><span class="error-metric">Metrics unavailable</span>
+            </button>
+          </div>
+          <p class="option-copy"><strong>Green/red proportions show the mix.</strong> Fixed width avoids pretending the bar communicates total volume. Click to see exact line counts.</p>
+        </article>
+
+        <article class="option">
+          <header class="option-head">
+            <div class="option-title"><span class="letter">B</span><h3>Short interpretation</h3></div>
+          </header>
+          <div class="row">
+            <span class="chevron" aria-hidden="true">›</span><span class="folder-icon" aria-hidden="true">▰</span>
+            <span class="group-name">scenarios / git-control-tower</span>
+            <button class="metric-hit" aria-label="Open change metrics for scenarios slash git-control-tower: mixed edits">
+              <span class="count">42 files</span>
+              <span class="ready-metric"><span class="qualifier mixed"><i class="dot"></i>Mixed edits</span></span>
+              <span class="loading-track" aria-hidden="true"></span><span class="error-metric">Unavailable</span>
+            </button>
+          </div>
+          <p class="option-copy"><strong>Plain-language summary.</strong> Easy to understand, but thresholds can hide nuance and the label needs room.</p>
+        </article>
+
+        <article class="option">
+          <header class="option-head">
+            <div class="option-title"><span class="letter">C</span><h3>Change-kind marks</h3></div>
+          </header>
+          <div class="row">
+            <span class="chevron" aria-hidden="true">›</span><span class="folder-icon" aria-hidden="true">▰</span>
+            <span class="group-name">scenarios / git-control-tower</span>
+            <button class="metric-hit" aria-label="Open change metrics for scenarios slash git-control-tower: added, edited and removed files">
+              <span class="count">42 files</span>
+              <span class="ready-metric"><span class="kind-set" aria-label="Added, edited, removed"><i class="kind added">+</i><i class="kind edited">•</i><i class="kind removed">−</i></span></span>
+              <span class="loading-track" aria-hidden="true"></span><span class="error-metric">Unavailable</span>
+            </button>
+          </div>
+          <p class="option-copy"><strong>Explains file operations, not line churn.</strong> Useful for new/deleted files; it can feel like a second status legend.</p>
+        </article>
+
+        <article class="option">
+          <header class="option-head">
+            <div class="option-title"><span class="letter">D</span><h3>File count only</h3></div>
+          </header>
+          <div class="row">
+            <span class="chevron" aria-hidden="true">›</span><span class="folder-icon" aria-hidden="true">▰</span>
+            <span class="group-name">scenarios / git-control-tower</span>
+            <button class="metric-hit" aria-label="Open change metrics for scenarios slash git-control-tower">
+              <span class="count">42 files</span>
+            </button>
+          </div>
+          <p class="option-copy"><strong>Quietest row.</strong> No change profile at a glance; users must expand the group or open its metrics.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="expanded-preview" aria-label="Detailed views retain exact line counts">
+      <article class="detail-card">
+        <header><h2>Expanded group</h2><p>Keep the existing numeric LineStats presentation here.</p></header>
+        <div class="detail-row"><span class="detail-name">Modified · 18 files</span><span class="numeric"><span class="plus">+1,284</span><span class="minus">−392</span></span></div>
+        <div class="detail-row"><span class="detail-name">Added · 7 files</span><span class="numeric"><span class="plus">+406</span><span class="minus">−0</span></span></div>
+      </article>
+      <article class="detail-card">
+        <header><h2>Metrics drawer</h2><p>Exact totals and the richer breakdown remain available on demand.</p></header>
+        <div class="detail-row"><span class="detail-name">Total additions</span><span class="numeric plus">+1,690</span></div>
+        <div class="detail-row"><span class="detail-name">Total removals</span><span class="numeric minus">−392</span></div>
+      </article>
+    </section>
+  </main>
+  <script>
+    const body = document.body;
+    const picker = document.querySelector('#metrics-state');
+    const stateText = document.querySelector('#fetch-state');
+    const description = document.querySelector('#fetch-description');
+    picker.addEventListener('change', () => {
+      body.classList.remove('state-ready', 'state-loading', 'state-error');
+      stateText.classList.remove('error');
+      const state = picker.value;
+      body.classList.add(`state-${state}`);
+      if (state === 'loading') {
+        stateText.textContent = 'Loading metrics…';
+        description.textContent = 'The file list is already usable. Compact skeletons mark the summaries being fetched.';
+      } else if (state === 'error') {
+        stateText.textContent = 'Retry available';
+        stateText.classList.add('error');
+        description.textContent = 'Metrics failed to load; file status remains available and is not replaced with false zeroes.';
+      } else {
+        stateText.textContent = 'Metrics ready';
+        stateText.classList.remove('error');
+        description.textContent = 'The paths render first. Group summaries arrive in a background request.';
+      }
+    });
+  </script>
+</body>
+</html>

@@ -39,7 +39,7 @@ type fakeRunner struct {
 // `recovery list`), the state `baseline start` checks before capturing.
 func newFakeRunner(_ *testing.T) *fakeRunner {
 	return &fakeRunner{
-		stdout:  map[string][]byte{"recovery list": listJSON()},
+		stdout:  map[string][]byte{"recovery list": listJSON(), "scenario status": statusJSON("running")},
 		failOn:  map[string]error{},
 		dynamic: map[string]func() []byte{},
 	}
@@ -290,7 +290,10 @@ func TestStartShadowHappyPath(t *testing.T) {
 	if res.Anchor != "engagement-wip" {
 		t.Errorf("anchor = %q", res.Anchor)
 	}
-	// The full floor sequence must have run, in order: capture → write → shadow start.
+	if !res.ServingBaselineActivated {
+		t.Errorf("running live must be moved to its frozen serving source before shadow build, got %+v", res)
+	}
+	// Freeze the serving side before any shadow build can replace working-tree outputs.
 	if !f.sawCommand("recovery capture --scenario demo-scenario --slug wip") {
 		t.Errorf("missing capture; calls=%v", f.calls)
 	}
@@ -303,10 +306,59 @@ func TestStartShadowHappyPath(t *testing.T) {
 	if !f.sawCommand("scenario start demo-scenario --instance shadow") {
 		t.Errorf("missing shadow stand-up; calls=%v", f.calls)
 	}
+	if !f.sawInOrder("recovery write --scenario demo-scenario --slug wip", "scenario restart demo-scenario") || !f.sawInOrder("scenario restart demo-scenario", "scenario start demo-scenario --instance shadow") {
+		t.Errorf("live must restart from the frozen source before the shadow build starts; calls=%v", f.calls)
+	}
 	// A shadow capture freezes the shared packages live builds from and fails
 	// closed; only an explicit --allow-unfrozen relaxes it.
 	if f.sawCommand("--allow-unfrozen") {
 		t.Errorf("a shadow start must not relax the shared-package freeze by default; calls=%v", f.calls)
+	}
+}
+
+func TestStartShadowWithStoppedLiveDoesNotStartIt(t *testing.T) {
+	f := newFakeRunner(t)
+	f.stdout["scenario status"] = statusJSON("stopped")
+	f.failOn["scenario-dependency-analyzer"] = fmt.Errorf("down")
+	defer f.install()()
+	defer withFakeAnchors(t, "", "clean")()
+
+	res, err := startEngagement(nil, startParams{scenario: "demo-scenario", mode: modeShadow, slug: "wip"})
+	if err != nil {
+		t.Fatalf("startEngagement: %v", err)
+	}
+	if res.ServingBaselineActivated || f.sawCommand("scenario restart demo-scenario") || !f.sawCommand("scenario start demo-scenario --instance shadow") {
+		t.Fatalf("stopped live should stay stopped while shadow starts, result=%+v calls=%v", res, f.calls)
+	}
+}
+
+func TestStartShadowRestartFailureDoesNotBuildShadow(t *testing.T) {
+	f := newFakeRunner(t)
+	f.failOn["scenario-dependency-analyzer"] = fmt.Errorf("down")
+	f.failOn["scenario restart demo-scenario"] = fmt.Errorf("frozen baseline build failed")
+	defer f.install()()
+	defer withFakeAnchors(t, "", "clean")()
+
+	_, err := startEngagement(nil, startParams{scenario: "demo-scenario", mode: modeShadow, slug: "wip"})
+	if err == nil || !strings.Contains(err.Error(), "engagement kept open and shadow not started") {
+		t.Fatalf("restart failure must leave a clear fail-closed outcome, got %v", err)
+	}
+	if !f.sawCommand("recovery write --scenario demo-scenario --slug wip --mode shadow") || !f.sawCommand("scenario restart demo-scenario") || f.sawCommand("scenario start demo-scenario --instance shadow") {
+		t.Fatalf("shadow must not build unless live is moved to the frozen source: %v", f.calls)
+	}
+}
+
+func TestStartShadowRequiresReadableLiveStatusBeforeCapture(t *testing.T) {
+	f := newFakeRunner(t)
+	f.stdout["scenario status"] = []byte(`{"scenario":{}}`)
+	defer f.install()()
+
+	_, err := startEngagement(nil, startParams{scenario: "demo-scenario", mode: modeShadow, slug: "wip"})
+	if err == nil || !strings.Contains(err.Error(), "read live runtime state") {
+		t.Fatalf("unreadable status must refuse the source split, got %v", err)
+	}
+	if f.sawCommand("recovery capture") || f.sawCommand("recovery write") || f.sawCommand("scenario start") {
+		t.Fatalf("status refusal must precede all engagement effects: %v", f.calls)
 	}
 }
 
@@ -550,6 +602,43 @@ func TestStartReplaceTakesOverWithoutRecapturing(t *testing.T) {
 	}
 }
 
+func TestStartReplaceCanRefreshOnlySharedSourcesBeforeLiveRestart(t *testing.T) {
+	f := newFakeRunner(t)
+	f.failOn["scenario-dependency-analyzer"] = fmt.Errorf("down")
+	f.stdout["recovery list"] = listJSON(openGoalEngagement(false))
+	defer f.install()()
+	defer withFakeAnchors(t, "", "clean")()
+
+	_, err := startEngagement(nil, startParams{
+		scenario: "demo-scenario", mode: modeShadow, slug: "bas-goal",
+		replace: true, refreshSharedSources: true,
+	})
+	if err != nil {
+		t.Fatalf("--replace --refresh-shared-sources: %v", err)
+	}
+	if !f.sawInOrder("recovery capture --scenario demo-scenario --slug bas-goal --shared-sources-only --replace", "scenario restart demo-scenario") {
+		t.Fatalf("dependency refresh must complete before restarting from the new frozen generation: calls=%v", f.calls)
+	}
+	if f.sawCommand("recovery capture --scenario demo-scenario --slug bas-goal --allow-unfrozen") {
+		t.Fatalf("shared-source refresh must not replace the scenario restore point: calls=%v", f.calls)
+	}
+}
+
+func TestStartRefreshSharedSourcesRequiresExistingShadowTakeover(t *testing.T) {
+	f := newFakeRunner(t)
+	f.failOn["scenario-dependency-analyzer"] = fmt.Errorf("down")
+	defer f.install()()
+	_, err := startEngagement(nil, startParams{
+		scenario: "demo-scenario", mode: modeShadow, slug: "wip", refreshSharedSources: true,
+	})
+	if err == nil || !strings.Contains(err.Error(), "requires --replace") {
+		t.Fatalf("refresh without a takeover must fail before capture: %v", err)
+	}
+	if f.sawCommand("recovery capture") || f.sawCommand("recovery write") || f.sawCommand("scenario restart") {
+		t.Fatalf("invalid refresh request caused lifecycle effects: calls=%v", f.calls)
+	}
+}
+
 func TestStartReplaceRefusesModeChange(t *testing.T) {
 	f := newFakeRunner(t)
 	f.failOn["scenario-dependency-analyzer"] = fmt.Errorf("down")
@@ -716,6 +805,26 @@ func TestStartShadowCodeOnlySkipsPopulation(t *testing.T) {
 	}
 	if len(res.DataPopulation) != 1 || !strings.Contains(res.DataPopulation[0], "code-only") {
 		t.Errorf("DataPopulation = %v, want code-only skip note", res.DataPopulation)
+	}
+}
+
+func TestStartShadowCanSkipAllLiveDataCopyCalls(t *testing.T) {
+	f := newFakeRunner(t)
+	f.failOn["scenario-dependency-analyzer"] = fmt.Errorf("down")
+	defer f.install()()
+	defer withFakeAnchors(t, "", "clean")()
+
+	res, err := startEngagement(nil, startParams{scenario: "demo-scenario", mode: modeShadow, slug: "wip", skipShadowDataCopy: true})
+	if err != nil {
+		t.Fatalf("startEngagement: %v", err)
+	}
+	for _, command := range []string{"safety register-targets", "safety backup-now", "safety populate-shadow"} {
+		if f.sawCommand(command) {
+			t.Errorf("skip-shadow-data-copy must not call %q; calls=%v", command, f.calls)
+		}
+	}
+	if len(res.DataPopulation) != 1 || !strings.Contains(res.DataPopulation[0], "no live data was copied") {
+		t.Errorf("DataPopulation = %v, want an explicit no-copy note", res.DataPopulation)
 	}
 }
 

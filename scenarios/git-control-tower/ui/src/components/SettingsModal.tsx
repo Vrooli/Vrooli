@@ -96,7 +96,7 @@ export function SettingsModal({
         title="Settings"
         closeLabel="Close"
         dismissAffordance="close"
-        contentClassName="px-4 py-6"
+        contentClassName="px-3 py-4"
         subheader={
           <div className="flex border-b border-slate-800 px-4 overflow-x-auto">
             {(Object.keys(tabLabels) as SettingsTab[]).map((tab) => (

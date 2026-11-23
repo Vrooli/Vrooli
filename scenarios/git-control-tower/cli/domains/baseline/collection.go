@@ -350,12 +350,31 @@ func runCollectionShow(core *cliapp.ScenarioApp, args []string) error {
 		if detached {
 			return renderedExitError{code: 124}
 		}
+		if *wait {
+			return captureWaitExitForStanding(standing)
+		}
 		return nil
 	}
 	printCollection(collection, false)
 	printCollectionStanding(standing)
 	if detached {
 		return renderedExitError{code: 124}
+	}
+	if *wait {
+		return captureWaitExitForStanding(standing)
+	}
+	return nil
+}
+
+// captureWaitExitForStanding preserves the durable capture outcome for callers
+// that use --wait as a gate. A terminal failed capture is useful status output,
+// but must not look like a successful command to scripts.
+func captureWaitExitForStanding(standing *commonv1.OperationStanding) error {
+	if standing.GetLifecycle() != "terminal" {
+		return renderedExitError{code: 124}
+	}
+	if standing.GetTerminalOutcome() == "failed" {
+		return renderedExitError{code: 1}
 	}
 	return nil
 }

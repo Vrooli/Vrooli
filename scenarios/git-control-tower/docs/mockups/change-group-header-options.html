@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Change group header options · Git Control Tower</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font: 14px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --bg: #020617;
+      --panel: #0b1222;
+      --panel-raised: #0f172a;
+      --line: #253247;
+      --line-soft: #1e293b;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --faint: #64748b;
+      --blue: #60a5fa;
+      --cyan: #67e8f9;
+      --green: #34d399;
+      --red: #fb7185;
+      --amber: #fbbf24;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); }
+    button { color: inherit; font: inherit; }
+    main { max-width: 1120px; margin: 0 auto; padding: 30px 24px 56px; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 24px; line-height: 1.2; letter-spacing: -.025em; }
+    h2 { font-size: 15px; line-height: 1.3; }
+    h3 { font-size: 13px; line-height: 1.3; }
+    p { color: var(--muted); }
+    .eyebrow { color: var(--cyan); font-size: 10px; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
+    .intro { display: flex; align-items: end; justify-content: space-between; gap: 24px; }
+    .intro-copy { max-width: 690px; }
+    .intro h1 { margin-top: 5px; }
+    .intro p { margin-top: 8px; font-size: 13px; }
+    .viewport-control { display: inline-flex; align-items: center; gap: 3px; padding: 4px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); white-space: nowrap; }
+    .viewport-control button { min-height: 32px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; }
+    .viewport-control button[aria-pressed="true"] { background: #1e293b; color: var(--text); }
+    .context { display: flex; align-items: flex-start; gap: 11px; margin: 20px 0 22px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: #0b1425; }
+    .context-icon { display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: 7px; color: var(--cyan); background: #083344; }
+    .context strong { display: block; font-size: 12px; }
+    .context span { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
+    .options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .option { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+    .option.recommended { border-color: #155e75; box-shadow: inset 0 0 0 1px #155e7540; }
+    .option-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 51px; padding: 10px 13px; border-bottom: 1px solid var(--line-soft); }
+    .option-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .letter { display: grid; place-items: center; width: 22px; height: 22px; flex: none; border-radius: 6px; background: #1e293b; color: #cbd5e1; font-size: 11px; font-weight: 750; }
+    .recommended .letter { background: #164e63; color: var(--cyan); }
+    .pick { flex: none; color: var(--cyan); font-size: 9px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+    .option-subtitle { padding: 9px 13px 0; color: var(--muted); font-size: 11px; }
+    .phone { width: min(100%, 430px); margin: 10px auto 0; overflow: hidden; border: 1px solid #182337; border-radius: 9px 9px 0 0; background: #020817; }
+    .phone-top { display: flex; align-items: center; justify-content: space-between; min-height: 30px; padding: 0 11px; border-bottom: 1px solid var(--line-soft); color: var(--faint); font-size: 9px; }
+    .repo-name { color: #cbd5e1; }
+    .group { padding: 0 9px; border-bottom: 1px solid var(--line-soft); }
+    .group:last-child { border-bottom: 0; }
+    .group-main { display: grid; grid-template-columns: 17px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 62px; }
+    .chevron { color: var(--faint); font-size: 20px; line-height: 1; text-align: center; }
+    .group-info { min-width: 0; padding: 8px 0; }
+    .group-title { overflow: hidden; color: #cbd5e1; font-size: 12px; font-weight: 650; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
+    .group-path { overflow: hidden; margin-top: 3px; color: var(--faint); font-size: 10px; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+    .summary { display: inline-flex; align-items: center; justify-self: end; gap: 9px; min-width: 0; color: var(--muted); white-space: nowrap; }
+    .file-count { font-size: 11px; }
+    .ribbon { display: flex; width: 48px; height: 5px; flex: none; overflow: hidden; border-radius: 999px; background: #1e293b; }
+    .ribbon i:first-child { background: var(--green); }
+    .ribbon i:last-child { background: var(--red); }
+    .actions { display: inline-flex; align-items: center; gap: 10px; color: var(--muted); }
+    .action { display: grid; place-items: center; width: 24px; height: 30px; color: var(--cyan); font-size: 16px; }
+    .action.add { color: var(--green); font-size: 20px; }
+    .action.remove { color: #fda4af; }
+    .action.menu { color: var(--muted); font-size: 19px; }
+    .expanded-files { padding: 0 0 5px 25px; }
+    .file-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; border-top: 1px solid #111c2d; color: var(--muted); font-size: 10px; }
+    .file-type { display: flex; align-items: center; gap: 7px; min-width: 0; }
+    .file-type span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-icon { color: var(--amber); font-size: 13px; }
+    .file-total { color: var(--faint); }
+    .option-copy { min-height: 55px; padding: 11px 13px 14px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .option-copy strong { color: #cbd5e1; font-weight: 650; }
+    .option-copy .tradeoff { color: var(--faint); }
+    .group.no-path .group-path { display: none; }
+    .group.no-path .group-info { padding: 12px 0; }
+    .group.one-row .group-main { min-height: 48px; }
+    .group.one-row .group-info { padding: 8px 0; }
+    .group.one-row .group-path { display: none; }
+    .group.one-row .summary { gap: 7px; }
+    .group.one-row .ribbon { width: 30px; }
+    .group.second-line .group-main { grid-template-columns: 17px minmax(0,1fr); min-height: 52px; }
+    .group.second-line .summary { grid-column: 2; justify-self: stretch; justify-content: space-between; min-height: 32px; padding-bottom: 7px; }
+    .group.second-line .group-info { padding: 9px 0 3px; }
+    .group.second-line .summary .ribbon { width: 52px; }
+    .group.overflow-menu .summary { gap: 8px; }
+    .group.overflow-menu .actions { gap: 0; }
+    .group.overflow-menu .action:not(.menu) { display: none; }
+    .group.static-two .group-main { grid-template-columns: 17px minmax(0,1fr) auto; min-height: 68px; }
+    .group.static-two .group-info { padding: 9px 0 4px; }
+    .group.static-two .summary { grid-column: 2 / 4; grid-row: 2; justify-self: stretch; justify-content: space-between; padding: 0 0 9px; }
+    .group.static-two .group-path { margin-top: 2px; }
+    .option[data-layout="B"] .group-main { grid-template-columns: 17px minmax(0,1fr) auto; }
+    .option[data-layout="B"] .summary { gap: 7px; }
+    .option[data-layout="B"] .ribbon { width: 38px; }
+    .option[data-layout="B"] .file-count { font-size: 10px; }
+    .option[data-layout="B"] .expanded .summary { grid-column: 2; grid-row: 2; justify-self: start; padding: 0 0 6px; }
+    .option[data-layout="B"] .expanded .group-main { min-height: 73px; }
+    .option[data-layout="B"] .expanded .actions { grid-column: 3; grid-row: 1 / 3; }
+    .option[data-layout="B"] .expanded .group-info { align-self: end; padding: 8px 0 3px; }
+    .option[data-layout="B"] .expanded .summary .ribbon { display: none; }
+    .option[data-layout="B"] .expanded .summary .file-count { color: var(--muted); }
+    .wide-only { display: none; }
+    body.wide .options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    body.wide .phone { width: min(100%, 520px); }
+    body.wide .group-main { min-height: 66px; }
+    body.wide .group-title { font-size: 13px; }
+    body.wide .group-path { font-size: 11px; }
+    body.wide .ribbon { width: 64px; }
+    body.wide .file-count { font-size: 12px; }
+    body.wide .group.second-line .group-main { grid-template-columns: 17px minmax(0,1fr); }
+    body.wide .group.static-two .group-main { grid-template-columns: 17px minmax(0,1fr) auto; }
+    @media (max-width: 760px) {
+      main { padding: 22px 14px 38px; }
+      .intro { align-items: flex-start; flex-direction: column; gap: 14px; }
+      .options { grid-template-columns: 1fr; }
+      .context { margin-top: 16px; }
+    }
+    @media (max-width: 400px) {
+      .group { padding-right: 7px; padding-left: 7px; }
+      .group-main { gap: 6px; }
+      .summary { gap: 6px; }
+      .ribbon { width: 40px; }
+      .file-count { font-size: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header class="intro">
+      <div class="intro-copy">
+        <div class="eyebrow">Git Control Tower · mobile header study</div>
+        <h1>Keep group headers from wrapping unpredictably</h1>
+        <p>Compare four ways to fit long repository and directory names beside change summaries and expanded-group actions.</p>
+      </div>
+      <div class="viewport-control" role="group" aria-label="Preview width">
+        <button type="button" id="mobile-toggle" aria-pressed="true">Phone · 390 px</button>
+        <button type="button" id="wide-toggle" aria-pressed="false">Wide · 520 px</button>
+      </div>
+    </header>
+
+    <aside class="context">
+      <div class="context-icon" aria-hidden="true">↔</div>
+      <div><strong>What the screenshots show</strong><span>The group title and path already use two lines. The ribbon, file count, or expanded actions sometimes wrap onto a third line. These options make that layout deliberate.</span></div>
+    </aside>
+
+    <section class="options" aria-label="Change group header layout options">
+      <article class="option recommended" data-layout="A">
+        <header class="option-head"><div class="option-name"><span class="letter">A</span><h2>Fixed stats rail</h2></div><span class="pick">Recommended</span></header>
+        <p class="option-subtitle">Reserve the right edge for the ribbon and file count; truncate only long names.</p>
+        <div class="phone">
+          <div class="phone-top"><span>‹ &nbsp; Changes</span><span class="repo-name">agi · 62a9536</span></div>
+          <div class="group">
+            <div class="group-main"><span class="chevron">›</span><div class="group-info"><div class="group-title">api-library</div><div class="group-path">scenarios/api-library/</div></div><div class="summary"><span class="ribbon"><i style="width:62%"></i><i style="width:38%"></i></span><span class="file-count">7 files</span></div></div>
+          </div>
+          <div class="group overflow-menu expanded">
+            <div class="group-main"><span class="chevron">⌄</span><div class="group-info"><div class="group-title">architecture-cartographer</div><div class="group-path">scenarios/architecture-cartographer/</div></div><div class="summary"><span class="ribbon"><i style="width:35%"></i><i style="width:65%"></i></span><span class="file-count">31 files</span><span class="actions"><span class="action menu">···</span></span></div></div>
+            <div class="expanded-files"><div class="file-row"><span class="file-type"><span class="file-icon">▧</span><span>MODIFIED</span></span><span class="file-total">31</span></div></div>
+          </div>
+          <div class="group">
+            <div class="group-main"><span class="chevron">›</span><div class="group-info"><div class="group-title">bedtime-story-generator</div><div class="group-path">scenarios/bedtime-story-generator/</div></div><div class="summary"><span class="ribbon"><i style="width:50%"></i><i style="width:50%"></i></span><span class="file-count">6 files</span></div></div>
+          </div>
+        </div>
+        <p class="option-copy"><strong>Predictable, compact rows.</strong> Keep the summary rail together and give long labels an ellipsis. Use one overflow menu for expanded actions on phones. <span class="tradeoff">Full names remain available in the expanded group.</span></p>
+      </article>
+
+      <article class="option" data-layout="B">
+        <header class="option-head"><div class="option-name"><span class="letter">B</span><h2>Hide repeated path</h2></div></header>
+        <p class="option-subtitle">Use the collapsed row for the group name and summary; reveal its path when opened.</p>
+        <div class="phone">
+          <div class="phone-top"><span>‹ &nbsp; Changes</span><span class="repo-name">agi · 62a9536</span></div>
+          <div class="group no-path one-row">
+            <div class="group-main"><span class="chevron">›</span><div class="group-info"><div class="group-title">api-library</div></div><div class="summary"><span class="ribbon"><i style="width:62%"></i><i style="width:38%"></i></span><span class="file-count">7 files</span></div></div>
+          </div>
+          <div class="group no-path one-row expanded overflow-menu">
+            <div class="group-main"><span class="chevron">⌄</span><div class="group-info"><div class="group-title">architecture-cartographer</div></div><div class="summary"><span class="file-count">31 files</span><span class="actions"><span class="action menu">···</span></span></div></div>
+            <div class="expanded-files"><div class="file-row"><span class="file-type"><span class="file-icon">▧</span><span>MODIFIED</span></span><span class="file-total">31</span></div></div>
+          </div>
+          <div class="group no-path one-row">
+            <div class="group-main"><span class="chevron">›</span><div class="group-info"><div class="group-title">bedtime-story-generator</div></div><div class="summary"><span class="ribbon"><i style="width:50%"></i><i style="width:50%"></i></span><span class="file-count">6 files</span></div></div>
+          </div>
+        </div>
+        <p class="option-copy"><strong>Shortest collapsed rows.</strong> Removes redundant path text and gives the group name a single line. <span class="tradeoff">The location hint is only visible after expanding.</span></p>
+      </article>
+
+      <article class="option" data-layout="C">
+        <header class="option-head"><div class="option-name"><span class="letter">C</span><h2>Compact summary + action menu</h2></div></header>
+        <p class="option-subtitle">Shrink the ribbon and consolidate expanded actions under one button.</p>
+        <div class="phone">
+          <div class="phone-top"><span>‹ &nbsp; Changes</span><span class="repo-name">agi · 62a9536</span></div>
+          <div class="group">
+            <div class="group-main"><span class="chevron">›</span><div class="group-info"><div class="group-title">api-library</div><div class="group-path">scenarios/api-library/</div></div><div class="summary"><span class="ribbon"><i style="width:62%"></i><i style="width:38%"></i></span><span class="file-count">7</span></div></div>
+          </div>
+          <div class="group overflow-menu expanded">
+            <div class="group-main"><span class="chevron">⌄</span><div class="group-info"><div class="group-title">architecture-cartographer</div><div class="group-path">scenarios/architecture-cartographer/</div></div><div class="summary"><span class="ribbon"><i style="width:35%"></i><i style="width:65%"></i></span><span class="file-count">31</span><span class="actions"><span class="action menu">···</span></span></div></div>
+            <div class="expanded-files"><div class="file-row"><span class="file-type"><span class="file-icon">▧</span><span>MODIFIED</span></span><span class="file-total">31</span></div></div>
+          </div>
+          <div class="group">
+            <div class="group-main"><span class="chevron">›</span><div class="group-info"><div class="group-title">bedtime-story-generator</div><div class="group-path">scenarios/bedtime-story-generator/</div></div><div class="summary"><span class="ribbon"><i style="width:50%"></i><i style="width:50%"></i></span><span class="file-count">6</span></div></div>
+          </div>
+        </div>
+        <p class="option-copy"><strong>More room for names and actions.</strong> Counts stay legible while taking less width; the row can label them as files elsewhere. <span class="tradeoff">A bare number is less clear than “31 files.”</span></p>
+      </article>
+
+      <article class="option" data-layout="D">
+        <header class="option-head"><div class="option-name"><span class="letter">D</span><h2>Consistent summary row</h2></div></header>
+        <p class="option-subtitle">Always place path, metrics, and expanded actions on a dedicated second line.</p>
+        <div class="phone">
+          <div class="phone-top"><span>‹ &nbsp; Changes</span><span class="repo-name">agi · 62a9536</span></div>
+          <div class="group second-line">
+            <div class="group-main"><span class="chevron">›</span><div class="group-info"><div class="group-title">api-library</div></div><div class="summary"><span class="group-path">scenarios/api-library/</span><span class="ribbon"><i style="width:62%"></i><i style="width:38%"></i></span><span class="file-count">7 files</span></div></div>
+          </div>
+          <div class="group second-line overflow-menu expanded">
+            <div class="group-main"><span class="chevron">⌄</span><div class="group-info"><div class="group-title">architecture-cartographer</div></div><div class="summary"><span class="group-path">scenarios/architecture-cartographer/</span><span class="ribbon"><i style="width:35%"></i><i style="width:65%"></i></span><span class="file-count">31 files</span><span class="actions"><span class="action menu">···</span></span></div></div>
+            <div class="expanded-files"><div class="file-row"><span class="file-type"><span class="file-icon">▧</span><span>MODIFIED</span></span><span class="file-total">31</span></div></div>
+          </div>
+          <div class="group second-line">
+            <div class="group-main"><span class="chevron">›</span><div class="group-info"><div class="group-title">bedtime-story-generator</div></div><div class="summary"><span class="group-path">scenarios/bedtime-story-generator/</span><span class="ribbon"><i style="width:50%"></i><i style="width:50%"></i></span><span class="file-count">6 files</span></div></div>
+          </div>
+        </div>
+        <p class="option-copy"><strong>Never wraps unpredictably.</strong> Every row has the same shape, and no labels need truncation. <span class="tradeoff">Uses more vertical space across the whole list.</span></p>
+      </article>
+    </section>
+  </main>
+  <script>
+    const mobile = document.querySelector('#mobile-toggle');
+    const wide = document.querySelector('#wide-toggle');
+    mobile.addEventListener('click', () => {
+      document.body.classList.remove('wide');
+      mobile.setAttribute('aria-pressed', 'true');
+      wide.setAttribute('aria-pressed', 'false');
+    });
+    wide.addEventListener('click', () => {
+      document.body.classList.add('wide');
+      mobile.setAttribute('aria-pressed', 'false');
+      wide.setAttribute('aria-pressed', 'true');
+    });
+  </script>
+</body>
+</html>

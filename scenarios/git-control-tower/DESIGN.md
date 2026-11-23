@@ -752,3 +752,11 @@ we are trying to pursue" (source: the operator to the agent building the
 portfolio steward in OPERATOR_BRIEF-2026-11-12.md (CHARTER.md § Stance) on
 2026-11-12 · quoted by the portfolio steward as context and never a verdict on
 this topic).
+
+### Operator concept ratification — 2026-11-22
+
+The operator selected `contextual-ledger` in the GCT worktree concept decision.
+This ratifies the repository-contextual ledger direction above and authorizes
+desktop and mobile concept mockups for the separate review checkpoint. It does
+not authorize product UI code. The mockups are in
+`docs/mockups/worktree-ledger-concept.html`.

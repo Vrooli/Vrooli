@@ -11,8 +11,8 @@ import { reviewClient, scenarioClient } from "./connect";
 
 export type ScenarioInfo = Pick<ScenarioInfoMessage, "name" | "displayName" | "description" | "status" | "healthStatus" | "tags" | "runtime">;
 
-export async function fetchScenarios(): Promise<ScenarioInfo[]> {
-  const response = await scenarioClient.listScenarios(create(ListScenariosRequestSchema));
+export async function fetchScenarios(signal?: AbortSignal): Promise<ScenarioInfo[]> {
+  const response = await scenarioClient.listScenarios(create(ListScenariosRequestSchema), { signal });
   return response.scenarios;
 }
 
@@ -25,8 +25,8 @@ export type ScenarioEnvelopeData = Pick<ScenarioEnvelopeMessage, "name" | "displ
 };
 
 /** Fetch enriched scenario metadata for the agent envelope. */
-export async function fetchScenarioEnvelope(slug: string): Promise<ScenarioEnvelopeData> {
-  const response = await scenarioClient.getScenarioEnvelope(create(GetScenarioEnvelopeRequestSchema, { slug }));
+export async function fetchScenarioEnvelope(slug: string, signal?: AbortSignal): Promise<ScenarioEnvelopeData> {
+  const response = await scenarioClient.getScenarioEnvelope(create(GetScenarioEnvelopeRequestSchema, { slug }), { signal });
   return { ...response, dependencies: response.dependencies ?? { scenarios: {}, resources: {} }, lifecycle: response.lifecycle ?? {} };
 }
 

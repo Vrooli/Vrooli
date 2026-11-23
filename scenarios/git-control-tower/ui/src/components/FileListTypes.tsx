@@ -22,6 +22,9 @@ export interface FileListProps {
   onRetryLoad?: () => void;
   files?: RepoFilesStatus;
   fileStats?: RepoFileStats;
+  previewFileStats?: RepoFileStats;
+  fileStatsState?: "loading" | "refreshing" | "ready" | "unavailable";
+  onRetryFileStats?: () => void;
   selectedFiles?: SelectedFileEntry[];
   selectedKeySet?: Set<string>;
   selectionKey: (entry: SelectedFileEntry) => string;
@@ -144,6 +147,28 @@ export function summarizeFileStats(
   return hasStats ? summary : undefined;
 }
 
+/** Summarize the line stats that belong to a grouped change header. */
+export function summarizeGroupFileStats(
+  files: Partial<Record<FileCategory, string[]>>,
+  fileStats?: RepoFileStats,
+) {
+  const summary = { additions: 0, deletions: 0, files: 0 };
+  let hasStats = false;
+  for (const category of ["staged", "unstaged", "untracked"] as const) {
+    const categoryStats = fileStats?.[category];
+    if (!categoryStats) continue;
+    for (const path of files[category] ?? []) {
+      const stats = categoryStats[path];
+      if (!stats) continue;
+      hasStats = true;
+      summary.additions += stats.additions ?? 0;
+      summary.deletions += stats.deletions ?? 0;
+      summary.files += stats.files || 1;
+    }
+  }
+  return hasStats ? summary : undefined;
+}
+
 function hasLineStats(stats?: DiffStats) {
   return Boolean(stats && (stats.additions > 0 || stats.deletions > 0));
 }
@@ -163,11 +188,11 @@ export function LineStats({
   const iconSize = compact ? "h-3 w-3" : "h-3.5 w-3.5";
   const inner = (
     <>
-      <span className="flex items-center gap-1 text-emerald-500">
+      <span className="flex items-center gap-1 font-mono tabular-nums text-emerald-400">
         <Plus className={iconSize} />
         {stats?.additions ?? 0}
       </span>
-      <span className="flex items-center gap-1 text-red-500">
+      <span className="flex items-center gap-1 font-mono tabular-nums text-rose-400">
         <Minus className={iconSize} />
         {stats?.deletions ?? 0}
       </span>
@@ -192,6 +217,68 @@ export function LineStats({
     <div className={`flex items-center gap-2 ${textSize}`}>
       {inner}
     </div>
+  );
+}
+
+/** Compact collapsed-group summary: a fixed-width bar encodes additions/deletions. */
+export function ChangeStatsRibbon({
+  stats,
+  label,
+  state = "ready",
+  onClick,
+}: {
+  stats?: DiffStats;
+  label: string;
+  state?: "loading" | "refreshing" | "ready" | "unavailable";
+  onClick: () => void;
+}) {
+  const additions = stats?.additions ?? 0;
+  const deletions = stats?.deletions ?? 0;
+  const hasStats = Boolean(stats);
+  const total = additions + deletions;
+  const addedPercent = total > 0 ? (additions / total) * 100 : 0;
+  const deletedPercent = total > 0 ? (deletions / total) * 100 : 0;
+  const accessibleLabel = state === "loading"
+    ? `Change metrics for ${label} are loading`
+    : state === "refreshing"
+      ? `Change metrics for ${label} are updating; showing the previous snapshot`
+    : state === "unavailable"
+      ? `Change metrics for ${label} are unavailable`
+      : `View change metrics for ${label}`;
+
+  return (
+    <button
+      type="button"
+      className="flex min-h-11 items-center rounded px-1.5 hover:bg-slate-800/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky-400"
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick();
+      }}
+      aria-label={accessibleLabel}
+      title={accessibleLabel}
+      data-testid={`change-stats-ribbon-${label}`}
+    >
+      {state === "loading" ? (
+        <span aria-hidden="true" className="h-2 w-12 animate-pulse rounded-sm bg-slate-700" />
+      ) : state === "refreshing" ? (
+        <span aria-hidden="true" className="flex items-center gap-1.5">
+          <span className="flex h-1.5 w-12 overflow-hidden rounded-full bg-slate-700">
+            {hasStats && total > 0 ? <><span className="h-full bg-emerald-400" style={{ width: `${addedPercent}%` }} /><span className="h-full bg-rose-400" style={{ width: `${deletedPercent}%` }} /></> : <span className="h-full w-full bg-slate-500" />}
+          </span>
+          <span className="h-2 w-2 animate-spin rounded-full border border-slate-500 border-t-sky-400" />
+        </span>
+      ) : state === "unavailable" ? (
+        <span aria-hidden="true" className="grid h-4 w-4 place-items-center rounded-full border border-amber-400/50 text-[10px] font-semibold text-amber-300">!</span>
+      ) : hasStats ? (
+        <span aria-hidden="true" className="flex h-1.5 w-12 overflow-hidden rounded-full bg-slate-700">
+          {total > 0
+            ? <><span className="h-full bg-emerald-400" style={{ width: `${addedPercent}%` }} /><span className="h-full bg-rose-400" style={{ width: `${deletedPercent}%` }} /></>
+            : <span className="h-full w-full bg-slate-500" />}
+        </span>
+      ) : (
+        <span aria-hidden="true" className="h-1.5 w-12 rounded-full bg-slate-700" />
+      )}
+    </button>
   );
 }
 

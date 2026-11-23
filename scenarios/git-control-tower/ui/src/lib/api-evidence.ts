@@ -44,7 +44,7 @@ export function startRun(input: StartRunInput): Promise<StartRunResponse> {
   return evidenceClient.startRun(input);
 }
 
-export function listRuns(scenario: string, filters: RunFilters = {}): Promise<ListRunsResponse> {
+export function listRuns(scenario: string, filters: RunFilters = {}, signal?: AbortSignal): Promise<ListRunsResponse> {
   return evidenceClient.listRuns({
     scenario,
     status: filters.status,
@@ -54,10 +54,10 @@ export function listRuns(scenario: string, filters: RunFilters = {}): Promise<Li
     dimension: filters.dimension,
     limit: filters.limit,
     offset: filters.offset,
-  });
+  }, ...(signal ? [{ signal }] : []));
 }
 
-export function getRun(scenario: string, runId: string, filters: ArtifactFilters = {}): Promise<GetRunResponse> {
+export function getRun(scenario: string, runId: string, filters: ArtifactFilters = {}, signal?: AbortSignal): Promise<GetRunResponse> {
   return evidenceClient.getRun({
     scenario,
     runId,
@@ -65,10 +65,10 @@ export function getRun(scenario: string, runId: string, filters: ArtifactFilters
     artifactSearch: filters.search,
     artifactLimit: filters.limit,
     artifactOffset: filters.offset,
-  });
+  }, ...(signal ? [{ signal }] : []));
 }
 
-export function listEvidence(scenario: string, filters: EvidenceFilters = {}): Promise<ListEvidenceResponse> {
+export function listEvidence(scenario: string, filters: EvidenceFilters = {}, signal?: AbortSignal): Promise<ListEvidenceResponse> {
   return evidenceClient.listEvidence({
     scenario,
     kinds: filters.kinds,
@@ -77,7 +77,7 @@ export function listEvidence(scenario: string, filters: EvidenceFilters = {}): P
     limit: filters.limit,
     offset: filters.offset,
     runLimit: filters.runLimit,
-  });
+  }, ...(signal ? [{ signal }] : []));
 }
 
 /** Same-origin access to opaque Test Genie artifact bytes. */

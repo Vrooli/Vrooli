@@ -127,7 +127,6 @@ func newStatusBrowserAPIServer(t *testing.T, repoPath string, control *statusBro
 	owner := &Server{git: git, repos: NewRepoService(statusBrowserRepoStore{path: repoPath}, git), configCache: NewGitConfigCache(time.Minute)}
 	owner.statusCache = NewRepoStatusCache(5 * time.Second)
 	owner.statusPageCache = NewRepoStatusPageCache(repoStatusPageCacheMaxBytes, repoStatusPageCacheMaxEntries)
-	owner.statusPageAssemblyCache = NewRepoStatusCache(0)
 	owner.statusCache.SetPageSnapshots(owner.statusPageCache)
 	inspector := worktree.NewGitInspector(gctGitRunner{gitPath: "git"})
 	path, handler := repo.NewHandler(repo.Deps{Service: repodomain.NewService(inspector), GetRepoStatus: owner.getRepoStatusConnect})

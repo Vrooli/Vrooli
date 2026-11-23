@@ -20,9 +20,10 @@ import "./styles.css";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Pause polling when the browser tab is hidden to reduce idle API load.
-      refetchOnWindowFocus: true,
-      refetchOnReconnect: true,
+      // Reuse a just-fetched result across quick remounts and panel switches;
+      // active queries still refresh on focus/reconnect once stale. Individual
+      // hooks can choose a longer domain-specific freshness window.
+      staleTime: 5_000,
     },
   },
 });

@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"errors"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -22,8 +25,11 @@ type GitConfigCache struct {
 // and hotspot mode are part of the key, and callers without this dependency
 // continue to get a fresh read.
 type RepoStatusCache struct {
-	mu            sync.RWMutex
-	entries       map[string]repoStatusCacheEntry
+	mu      sync.RWMutex
+	entries map[string]repoStatusCacheEntry
+	// generations scopes in-flight loads to the repository state observed
+	// before loading. Invalidation advances the generation to reject old fills.
+	generations   map[string]uint64
 	ttl           time.Duration
 	now           func() time.Time
 	flight        singleflight.Group
@@ -35,8 +41,15 @@ type repoStatusCacheEntry struct {
 	expiresAt time.Time
 }
 
+var errRepoStatusCacheInvalidated = errors.New("repository status cache invalidated during load")
+
 func NewRepoStatusCache(ttl time.Duration) *RepoStatusCache {
-	return &RepoStatusCache{entries: make(map[string]repoStatusCacheEntry), ttl: ttl, now: time.Now}
+	return &RepoStatusCache{
+		entries:     make(map[string]repoStatusCacheEntry),
+		generations: make(map[string]uint64),
+		ttl:         ttl,
+		now:         time.Now,
+	}
 }
 
 func (c *RepoStatusCache) SetPageSnapshots(cache *RepoStatusPageCache) {
@@ -47,9 +60,8 @@ func (c *RepoStatusCache) SetPageSnapshots(cache *RepoStatusPageCache) {
 	}
 }
 
-// Invalidate removes all cached views for a repository after a mutation. The
-// hotspot, non-hotspot and lightweight-snapshot variants are separate keys
-// because their payloads differ.
+// Invalidate removes all cached views for a repository after a mutation and
+// advances its generation so an older in-flight load cannot restore stale data.
 func (c *RepoStatusCache) Invalidate(repoDir string) {
 	if c == nil {
 		return
@@ -57,46 +69,98 @@ func (c *RepoStatusCache) Invalidate(repoDir string) {
 	c.mu.Lock()
 	pageSnapshots := c.pageSnapshots
 	defer c.mu.Unlock()
-	delete(c.entries, repoDir)
-	delete(c.entries, repoDir+"\x00hotspots")
-	delete(c.entries, repoDir+"\x00snapshot")
+	c.generations[repoDir]++
+	for key := range c.entries {
+		if repoStatusCacheRepo(key) == repoDir {
+			delete(c.entries, key)
+		}
+	}
 	if pageSnapshots != nil {
 		pageSnapshots.InvalidateRepo(repoDir)
 	}
+}
+
+// Generation reports the current repository generation. Page assembly uses it
+// to make sure an invalidated status read cannot publish a later continuation.
+func (c *RepoStatusCache) Generation(repoDir string) uint64 {
+	if c == nil {
+		return 0
+	}
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.generations[repoDir]
+}
+
+// WithGeneration runs publish while invalidation is excluded. This closes the
+// gap between a status-cache hit and publishing its immutable page snapshot.
+func (c *RepoStatusCache) WithGeneration(repoDir string, generation uint64, publish func() error) (bool, error) {
+	if c == nil {
+		return true, publish()
+	}
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if c.generations[repoDir] != generation {
+		return false, nil
+	}
+	return true, publish()
 }
 
 func (c *RepoStatusCache) Get(ctx context.Context, key string, load func(context.Context) (*RepoStatus, error)) (*RepoStatus, error) {
 	if c == nil {
 		return load(ctx)
 	}
-	c.mu.RLock()
-	entry, ok := c.entries[key]
-	fresh := ok && c.now().Before(entry.expiresAt)
-	c.mu.RUnlock()
-	if fresh {
-		return entry.value, nil
-	}
-	v, err, _ := c.flight.Do(key, func() (any, error) {
+	repoDir := repoStatusCacheRepo(key)
+	for {
 		c.mu.RLock()
+		generation := c.generations[repoDir]
 		entry, ok := c.entries[key]
-		if ok && c.now().Before(entry.expiresAt) {
-			c.mu.RUnlock()
+		fresh := ok && c.now().Before(entry.expiresAt)
+		c.mu.RUnlock()
+		if fresh {
 			return entry.value, nil
 		}
-		c.mu.RUnlock()
-		value, err := load(ctx)
+
+		flightKey := key + "\x00generation:" + strconv.FormatUint(generation, 10)
+		v, err, _ := c.flight.Do(flightKey, func() (any, error) {
+			c.mu.RLock()
+			entry, ok := c.entries[key]
+			currentGeneration := c.generations[repoDir]
+			if ok && c.now().Before(entry.expiresAt) {
+				c.mu.RUnlock()
+				return entry.value, nil
+			}
+			c.mu.RUnlock()
+			if currentGeneration != generation {
+				return nil, errRepoStatusCacheInvalidated
+			}
+			value, err := load(ctx)
+			if err != nil {
+				return nil, err
+			}
+			c.mu.Lock()
+			if c.generations[repoDir] != generation {
+				c.mu.Unlock()
+				return nil, errRepoStatusCacheInvalidated
+			}
+			c.entries[key] = repoStatusCacheEntry{value: value, expiresAt: c.now().Add(c.ttl)}
+			c.mu.Unlock()
+			return value, nil
+		})
+		if errors.Is(err, errRepoStatusCacheInvalidated) {
+			continue
+		}
 		if err != nil {
 			return nil, err
 		}
-		c.mu.Lock()
-		c.entries[key] = repoStatusCacheEntry{value: value, expiresAt: c.now().Add(c.ttl)}
-		c.mu.Unlock()
-		return value, nil
-	})
-	if err != nil {
-		return nil, err
+		return v.(*RepoStatus), nil
 	}
-	return v.(*RepoStatus), nil
+}
+
+func repoStatusCacheRepo(key string) string {
+	if separator := strings.IndexByte(key, '\x00'); separator >= 0 {
+		return key[:separator]
+	}
+	return key
 }
 
 type configCacheEntry struct {

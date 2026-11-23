@@ -228,7 +228,7 @@ a time, named by `--name` (default `wip`).
 
 | Subcommand | Description |
 | --- | --- |
-| `start`   | Open an engagement: mode decision, restore point, anchor, shadow (`--scenario [--mode] [--name] [--ttl] [--no-anchor]`). Refuses, before it captures anything, while the scenario has an open engagement; `--replace` takes over the same `--name` and keeps its restore point and anchor |
+| `start`   | Open an engagement: mode decision, restore point, anchor, shadow (`--scenario [--mode] [--name] [--ttl] [--no-anchor] [--skip-shadow-data-copy]`). Refuses, before it captures anything, while the scenario has an open engagement; `--replace` takes over the same `--name` and keeps its restore point and anchor |
 | `check`   | Diff the candidate against the engagement's anchor and renew the lease (`--scenario [--name]`) |
 | `promote` | Keep the work and close the engagement: drain, data snapshot, migrate, re-point and restart live, status probe, optional `--probe-cmd`, auto-rollback on failure, shadow teardown (`--scenario [--name] [--probe-cmd] [--probe-timeout] [--exclude-run] [--drain-timeout] [--no-drain] [--force]`) |
 | `cycle`   | `promote`, then a fresh shadow engagement under the same name with no anchor run (`--scenario --name`, plus the promote flags); safe to re-run after any failure |
@@ -243,6 +243,17 @@ To keep working in a shadow, open the next one under the **same name**:
 `wip`, and `start` refuses it while another engagement is open. `promote`
 prints this command; `baseline cycle --scenario <s> --name <name>` does the
 promote and the re-create in one step.
+
+`--skip-shadow-data-copy` is for validation that must not touch live scenario
+data. It skips safety-target registration, snapshot, and restore calls; the
+shadow starts with its own existing variant storage. The default remains to
+populate a shadow from live for scenarios whose validation requires that data.
+
+`--refresh-shared-sources` is available only with `start --replace` on an open
+shadow. It captures a new immutable generation of the shared build dependencies
+without replacing the engagement's scenario restore point, then restarts live
+through lifecycle admission before the shadow build. Use it when a retry needs
+new shared tooling while retaining the scenario source baseline.
 
 `--probe-cmd` runs through `sh -c` with the scenario removed from
 `VROOLI_SHADOW_SCENARIOS`, so it reaches live. A non-zero exit or a timeout

@@ -121,14 +121,28 @@ func (s *Server) getRepoGroupsConnect(ctx context.Context, req *repov1.GetRepoGr
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	// Group polling consumes paths only. A fresh porcelain snapshot avoids
-	// repeated diff statistics, binary/content reads and author resolution.
-	status, err := readRepoStatusSnapshot(ctx, s.git, resolved.Path)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+	var files RepoFilesStatus
+	if snapshotID := req.GetStatusSnapshotId(); snapshotID != "" {
+		pageCache := s.statusPageCache
+		if pageCache == nil {
+			pageCache = defaultRepoStatusPageCache
+		}
+		snapshot, snapshotErr := pageCache.Snapshot(resolved.Path, snapshotID)
+		if snapshotErr != nil {
+			return nil, snapshotErr
+		}
+		files = repoFilesStatusFromProto(snapshot.GetFiles())
+	} else {
+		// Preserve compatibility for callers that have not yet sent a snapshot
+		// id. Current GCT clients bind groups to the already captured status.
+		status, statusErr := readRepoStatusSnapshot(ctx, s.git, resolved.Path)
+		if statusErr != nil {
+			return nil, connect.NewError(connect.CodeInternal, statusErr)
+		}
+		files = status.Files
 	}
-	sortFileStatus(&status.Files, nil)
-	groups := ResolveChangeGroups(resolved.Path, status.Files, *config)
+	sortFileStatus(&files, nil)
+	groups := ResolveChangeGroups(resolved.Path, files, *config)
 	result := make([]*repov1.ChangeGroup, 0, len(groups))
 	for _, group := range groups {
 		result = append(result, &repov1.ChangeGroup{

@@ -67,7 +67,7 @@ function agentPollingInterval(status?: string): number | false {
 export function useScenarios(enabled = true) {
   return useQuery<ScenarioInfo[], Error>({
     queryKey: queryKeys.scenarios,
-    queryFn: fetchScenarios,
+    queryFn: ({ signal }) => fetchScenarios(signal),
     enabled,
     staleTime: 30_000,
   });
@@ -76,7 +76,7 @@ export function useScenarios(enabled = true) {
 export function useScenarioEnvelope(slug: string, enabled = true) {
   return useQuery<ScenarioEnvelopeData, Error>({
     queryKey: ["scenario-envelope", slug],
-    queryFn: () => fetchScenarioEnvelope(slug),
+    queryFn: ({ signal }) => fetchScenarioEnvelope(slug, signal),
     enabled,
     staleTime: 60_000,
   });
@@ -85,7 +85,7 @@ export function useScenarioEnvelope(slug: string, enabled = true) {
 export function useAgentProfiles(enabled = true) {
   return useQuery<AgentProfileListResponse, Error>({
     queryKey: queryKeys.agentProfiles,
-    queryFn: () => fetchAgentProfiles(),
+    queryFn: ({ signal }) => fetchAgentProfiles(undefined, signal),
     enabled,
     staleTime: 60_000,
   });
@@ -94,7 +94,7 @@ export function useAgentProfiles(enabled = true) {
 export function useAgentRuns(slug: string, enabled = true, repoId?: string | null) {
   return useQuery<AgentRunListResponse, Error>({
     queryKey: queryKeys.agentRuns(slug, repoId),
-    queryFn: () => fetchAgentRuns(slug, 5, repoId ?? undefined),
+    queryFn: ({ signal }) => fetchAgentRuns(slug, 5, repoId ?? undefined, signal),
     enabled: enabled && Boolean(slug),
     refetchInterval: 15_000,
   });
@@ -103,7 +103,7 @@ export function useAgentRuns(slug: string, enabled = true, repoId?: string | nul
 export function useAgentRun(runId: string | null, scenarioSlug: string, enabled = true, repoId?: string | null) {
   return useQuery<AgentRun, Error>({
     queryKey: queryKeys.agentRun(runId ?? "", scenarioSlug, repoId),
-    queryFn: () => fetchAgentRun(runId as string, scenarioSlug, repoId ?? undefined),
+    queryFn: ({ signal }) => fetchAgentRun(runId as string, scenarioSlug, repoId ?? undefined, signal),
     enabled: enabled && Boolean(runId) && Boolean(scenarioSlug),
     refetchInterval: (query) => agentPollingInterval(query.state.data?.status),
   });
@@ -119,7 +119,7 @@ export function useAgentRunEvents(
 ) {
   return useQuery<AgentRunEventsResponse, Error>({
     queryKey: [...queryKeys.agentRunEvents(runId ?? "", scenarioSlug, repoId), afterSequence],
-    queryFn: () => fetchAgentRunEvents(runId as string, scenarioSlug, afterSequence, repoId ?? undefined),
+    queryFn: ({ signal }) => fetchAgentRunEvents(runId as string, scenarioSlug, afterSequence, repoId ?? undefined, signal),
     enabled: enabled && Boolean(runId) && Boolean(scenarioSlug),
     refetchInterval: agentPollingInterval(status),
   });
@@ -128,7 +128,7 @@ export function useAgentRunEvents(
 export function useAgentRunDiff(runId: string | null, scenarioSlug: string, enabled = true, repoId?: string | null) {
   return useQuery<AgentRunDiffResponse, Error>({
     queryKey: queryKeys.agentRunDiff(runId ?? "", scenarioSlug, repoId),
-    queryFn: () => fetchAgentRunDiff(runId as string, scenarioSlug, repoId ?? undefined),
+    queryFn: ({ signal }) => fetchAgentRunDiff(runId as string, scenarioSlug, repoId ?? undefined, signal),
     enabled: enabled && Boolean(runId) && Boolean(scenarioSlug),
     staleTime: 10_000,
   });

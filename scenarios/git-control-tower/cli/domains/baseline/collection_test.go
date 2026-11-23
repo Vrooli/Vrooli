@@ -19,9 +19,10 @@ import (
 
 type incompleteCollectionServer struct {
 	baselinesconnect.UnimplementedBaselinesServiceHandler
-	waitErr   bool
-	capture   *baselinesv1.StartCollectionCaptureRequest
-	diffStart *baselinesv1.StartCollectionDiffRequest
+	waitErr         bool
+	captureStanding *commonv1.OperationStanding
+	capture         *baselinesv1.StartCollectionCaptureRequest
+	diffStart       *baselinesv1.StartCollectionDiffRequest
 }
 
 func (s *incompleteCollectionServer) StartCollectionCapture(_ context.Context, req *connect.Request[baselinesv1.StartCollectionCaptureRequest]) (*connect.Response[baselinesv1.StartCollectionCaptureResponse], error) {
@@ -38,6 +39,13 @@ func (*incompleteCollectionServer) GetCollectionStatus(context.Context, *connect
 	return connect.NewResponse(&baselinesv1.GetCollectionStatusResponse{
 		Collection: &baselinesv1.BaselineCollection{Name: "before", Coverage: &baselinesv1.CollectionCoverage{Required: 2, Ready: 1, Pending: 1}},
 		Standing:   &commonv1.OperationStanding{Lifecycle: "executing", Directive: "wait"},
+	}), nil
+}
+
+func (s *incompleteCollectionServer) WaitCollectionCapture(_ context.Context, req *connect.Request[baselinesv1.WaitCollectionCaptureRequest]) (*connect.Response[baselinesv1.WaitCollectionCaptureResponse], error) {
+	return connect.NewResponse(&baselinesv1.WaitCollectionCaptureResponse{
+		Collection: &baselinesv1.BaselineCollection{Name: req.Msg.GetName()},
+		Standing:   s.captureStanding,
 	}), nil
 }
 
@@ -136,6 +144,16 @@ func TestCollectionWaitCommandsReturnRenderedDetachOutcome(t *testing.T) { // [R
 	var outcome renderedExitError
 	if !errors.As(err, &outcome) || outcome.code != 124 {
 		t.Fatalf("wait outcome = %v", err)
+	}
+}
+
+func TestCollectionShowWaitReturnsFailureForTerminalFailedCapture(t *testing.T) {
+	server := withIncompleteCollectionServer(t)
+	server.captureStanding = &commonv1.OperationStanding{Lifecycle: "terminal", TerminalOutcome: "failed", Directive: "inspect", Detail: "member capture failed"}
+	err := runCollectionShow(nil, []string{"--name", "before", "--wait", "--json"})
+	var outcome renderedExitError
+	if !errors.As(err, &outcome) || outcome.code != 1 {
+		t.Fatalf("terminal failed capture exit = %v, want exit code 1", err)
 	}
 }
 

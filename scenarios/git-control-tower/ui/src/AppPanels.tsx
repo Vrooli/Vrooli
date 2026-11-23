@@ -21,6 +21,7 @@ export interface PanelDeps {
   statusIsLoading: boolean;
   statusError: Error | null;
   onRefreshStatus: () => void;
+  onRetryFileStats?: () => void;
   diffData: DiffResponse | undefined;
   diffIsLoading: boolean;
   diffError: Error | null;
@@ -196,6 +197,9 @@ export function renderPanel(
           onRevealInTree={deps.onRevealInTree}
           onOpenRun={deps.onOpenRun}
           fileStats={deps.statusData?.file_stats}
+          previewFileStats={deps.statusData?.file_stats_preview}
+          fileStatsState={deps.statusData?.file_stats_state}
+          onRetryFileStats={deps.onRetryFileStats}
           selectedFiles={deps.selectedFiles}
           selectedKeySet={deps.selectedKeySet}
           selectionKey={deps.selectionKey}

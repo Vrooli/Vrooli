@@ -23,6 +23,7 @@ import {
   EyeOff,
   ChevronDown,
   ChevronRight,
+  MoreHorizontal,
   FolderTree,
   History,
   X,
@@ -38,10 +39,11 @@ import type { DiffStats, RepoFileStats } from "../lib/api";
 import { ViewModeCycleButton } from "./ViewModeCycleButton";
 import { ProjectTreeView } from "./ProjectTreeView";
 import { ContextMenu, type ContextMenuItem } from "@vrooli/react-component-library/ContextMenu/1";
+import { SwipeActions, type SwipeAction } from "@vrooli/react-component-library/SwipeActions";
 import { ChangeMetricsModal } from "./ChangeMetricsModal";
 import { getFileStats, filterFileStats, filterCategoryStats } from "../lib/metrics";
 import { useDiffStats } from "../lib/hooks";
-import { MobileContext, type FileCategory, type FileListProps, summarizeFileStats, LineStats } from "./FileListTypes";
+import { MobileContext, type FileCategory, type FileListProps, summarizeFileStats, summarizeGroupFileStats, LineStats, ChangeStatsRibbon } from "./FileListTypes";
 import { VirtualizedFileSections, type ChangeListSection, type ChangeListBlock } from "./FileSection";
 import { groupKindLabel } from "../lib/groupKinds";
 import { RunSheet } from "./RunSheet";
@@ -56,6 +58,9 @@ type GroupDrillIn = { groupId: string; directory: string };
 function FileListImpl({
   files,
   fileStats,
+  previewFileStats,
+  fileStatsState = fileStats ? "ready" : "loading",
+  onRetryFileStats,
   selectedFiles,
   selectedKeySet,
   selectionKey,
@@ -114,6 +119,8 @@ function FileListImpl({
   const [maxPathChars, setMaxPathChars] = useState(72);
   const [compactHeader, setCompactHeader] = useState(false);
   const [confirmingGroup, setConfirmingGroup] = useState<string | null>(null);
+  const [mobileGroupActionsId, setMobileGroupActionsId] = useState<string | null>(null);
+  const [swipeOpenGroupId, setSwipeOpenGroupId] = useState<string | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => {
     const storageKey = `gct.collapsedGroups.${repoId ?? "default"}`;
     try {
@@ -558,6 +565,8 @@ function FileListImpl({
         stageable: [...groupedFiles.unstaged, ...groupedFiles.untracked, ...groupedFiles.conflicts],
         discardCount: groupedFiles.unstaged.length + groupedFiles.untracked.length,
         count: Object.values(groupedFiles).reduce((total, paths) => total + paths.length, 0),
+        lineStats: summarizeGroupFileStats(groupedFiles, fileStats),
+        previewLineStats: summarizeGroupFileStats(groupedFiles, previewFileStats),
         runs: [...new Set(Object.values(groupedFiles).flatMap(paths => paths.map(path => runIndex?.get(path)?.runId)).filter((id): id is string => Boolean(id)))],
       };
     }).filter((group) =>
@@ -577,7 +586,9 @@ function FileListImpl({
       ...group,
       bandSummary: bandSummaries.get((group.source === "contract" ? group.kind : group.source) ?? "other") ?? { groups: 0, files: 0 },
     }));
-  }, [files, groupingActive, resolvedGroups, filterPaths, runIndex, groupDrillIn?.groupId]);
+  }, [files, fileStats, previewFileStats, groupingActive, resolvedGroups, filterPaths, runIndex, groupDrillIn?.groupId]);
+
+  const mobileGroupActions = groupedSections.find((group) => group.id === mobileGroupActionsId) ?? null;
 
   const renderGroupHeader = useCallback((group: (typeof groupedSections)[number], index: number) => {
     const { stageable, discardCount, count: groupCount, runs } = group;
@@ -589,6 +600,149 @@ function FileListImpl({
     const bandKind = group.source === "contract" ? group.kind : group.source;
     const previousBandKind = previous?.source === "contract" ? previous.kind : previous?.source;
     const showBand = bandKind !== previousBandKind;
+    const swipeActions: SwipeAction[] = [
+      {
+        id: "browse",
+        label: "Browse",
+        icon: <FolderOpen className="h-4 w-4" aria-hidden="true" />,
+        onSelect: () => setGroupDrillIn({ groupId: group.id, directory: "" }),
+      },
+      ...(!mobileSelectionMode && onStagePaths && stageable.length > 0 ? [{
+        id: "stage",
+        label: "Stage all",
+        icon: <Plus className="h-4 w-4" aria-hidden="true" />,
+        tone: "primary" as const,
+        onSelect: () => onStagePaths(stageable),
+      }] : []),
+      ...(!mobileSelectionMode && onDiscardPaths && discardCount > 0 ? [{
+        id: "discard",
+        label: "Discard",
+        icon: <Trash2 className="h-4 w-4" aria-hidden="true" />,
+        tone: "destructive" as const,
+        onSelect: () => setConfirmingGroup(group.id),
+      }] : []),
+    ];
+    const groupHeader = (
+        <div
+          className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-2 ${isGroupCollapsed ? "" : "border-b border-slate-800/70"}`}
+        >
+          <button
+            type="button"
+            className="flex w-full min-w-0 items-center gap-2 overflow-hidden rounded px-1 -ml-1 text-left transition-colors hover:bg-slate-800/30"
+            onClick={() => toggleGroupCollapse(group.id)}
+            aria-expanded={!isGroupCollapsed}
+            data-testid={`file-group-toggle-${group.id}`}
+          >
+            {isGroupCollapsed ? (
+              <ChevronRight className={`text-slate-500 flex-shrink-0 ${isMobile ? "h-4.5 w-4.5" : "h-3.5 w-3.5"}`} />
+            ) : (
+              <ChevronDown className={`text-slate-500 flex-shrink-0 ${isMobile ? "h-4.5 w-4.5" : "h-3.5 w-3.5"}`} />
+            )}
+            <div className="min-w-0 flex-1 overflow-hidden">
+              <div className={`truncate font-semibold text-slate-300 ${isMobile ? "text-sm" : "text-xs"}`} title={group.label}>
+                {group.label}
+              </div>
+              {group.displayPrefix && group.source !== "contract" && (
+                <div className={`truncate text-slate-500 ${isMobile ? "text-xs" : "text-[11px]"}`} title={group.displayPrefix}>
+                  {group.displayPrefix}
+                </div>
+              )}
+            </div>
+          </button>
+          <div className={`flex shrink-0 flex-nowrap items-center justify-end gap-1 text-slate-500 ${isMobile ? "text-sm" : "text-xs"}`}>
+            {isGroupCollapsed && (
+              <ChangeStatsRibbon
+                stats={fileStatsState === "refreshing" ? group.previewLineStats : group.lineStats}
+                label={group.label}
+                state={fileStatsState}
+                onClick={() => openGroupMetrics(group.files, group.label)}
+              />
+            )}
+            {isGroupCollapsed && runIndex && (() => {
+              return runs.length > 0 ? <span className="flex items-center gap-1" data-testid="group-run-dots">{runs.slice(0, 3).map((runId) => <span key={runId} className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: runHue(runId) }} />)}{runs.length > 3 && <span>+{runs.length - 3}</span>}</span> : null;
+            })()}
+            {onOpenReview && group.kind === "scenario" && group.displayPrefix ? (
+              <button
+                type="button"
+                className="inline-flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded px-2 text-xs text-slate-400 transition-colors hover:bg-slate-800/60 hover:text-slate-200"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenReview(group.displayPrefix?.split("/")[1] ?? "");
+                }}
+                title="Open scenario review"
+              >
+                {groupCount !== undefined && <span>{groupCount} files</span>}
+                <ClipboardCheck className="h-3.5 w-3.5" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="shrink-0 cursor-pointer whitespace-nowrap px-1 hover:underline decoration-slate-600"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openGroupMetrics(group.files, group.label);
+                }}
+              >
+                {groupCount} files
+              </button>
+            )}
+            {!isGroupCollapsed && compactHeader && !mobileSelectionMode && (
+              <IconButton
+                size="xs"
+                surface="ghost"
+                denseTapTarget
+                className="!h-8 !w-8 !min-h-0 !min-w-0 !shrink-0 !border-0 !shadow-none !text-slate-300"
+                onClick={() => setMobileGroupActionsId(group.id)}
+                aria-label={`Actions for ${group.label}`}
+                title={`Actions for ${group.label}`}
+                data-testid={`file-group-actions-${group.id}`}
+              ><MoreHorizontal className="h-4 w-4" /></IconButton>
+            )}
+            {!isGroupCollapsed && !compactHeader && (
+              <IconButton
+                size="xs"
+                surface="ghost"
+                denseTapTarget
+                className="!h-8 !w-8 !min-h-0 !min-w-0 !border-0 !shadow-none !text-sky-300"
+                onClick={() => setGroupDrillIn({ groupId: group.id, directory: "" })}
+                aria-label={`Open ${group.label} group`}
+                title={`Browse ${group.label} folders`}
+                data-testid={`file-group-open-${group.id}`}
+              ><FolderOpen className="h-4 w-4" /></IconButton>
+            )}
+            {!compactHeader &&
+              !mobileSelectionMode &&
+              !isGroupCollapsed &&
+              stageable.length > 0 &&
+              onStagePaths && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => onStagePaths(stageable)}
+                  disabled={false}
+                  className="h-7 px-2"
+                  title="Stage All"
+                  style={{ background: "transparent" }}
+                >Stage All</Button>
+              )}
+            {!compactHeader &&
+              !mobileSelectionMode &&
+              !isGroupCollapsed &&
+              discardCount > 0 &&
+              onDiscardPaths && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setConfirmingGroup(group.id)}
+                  disabled={isDiscarding}
+                  className="h-7 border-red-400/40 px-2 text-red-200 hover:bg-red-900/20"
+                  title="Discard All"
+                  style={{ background: "transparent" }}
+                >Discard All</Button>
+              )}
+          </div>
+        </div>
+    );
     return (
       <>
       {showBand && (
@@ -603,121 +757,18 @@ function FileListImpl({
         className="border-b border-slate-800/80"
         data-testid={`file-group-${group.id}`}
       >
-        <div
-          className={`flex flex-wrap items-center justify-between gap-2 px-3 py-2 ${isGroupCollapsed ? "" : "border-b border-slate-800/70"}`}
-        >
-          <button
-            type="button"
-            className="flex items-center gap-2 min-w-0 hover:bg-slate-800/30 rounded px-1 -ml-1 transition-colors"
-            onClick={() => toggleGroupCollapse(group.id)}
-            aria-expanded={!isGroupCollapsed}
-            data-testid={`file-group-toggle-${group.id}`}
+        {compactHeader && !isGroupCollapsed && !mobileSelectionMode ? (
+          <SwipeActions
+            actions={swipeActions}
+            label={`${group.label} actions`}
+            releaseMode="rest"
+            open={swipeOpenGroupId === group.id}
+            onOpenChange={(open) => setSwipeOpenGroupId(open ? group.id : null)}
+            testId={`file-group-swipe-${group.id}`}
           >
-            {isGroupCollapsed ? (
-              <ChevronRight className={`text-slate-500 flex-shrink-0 ${isMobile ? "h-4.5 w-4.5" : "h-3.5 w-3.5"}`} />
-            ) : (
-              <ChevronDown className={`text-slate-500 flex-shrink-0 ${isMobile ? "h-4.5 w-4.5" : "h-3.5 w-3.5"}`} />
-            )}
-            <div className="min-w-0 text-left">
-              <div className={`font-semibold text-slate-300 ${isMobile ? "text-sm" : "text-xs"}`}>
-                {group.label}
-              </div>
-              {group.displayPrefix && group.source !== "contract" && (
-                <div className={`text-slate-500 ${isMobile ? "text-xs" : "text-[11px]"}`}>
-                  {group.displayPrefix}
-                </div>
-              )}
-            </div>
-          </button>
-          <div className={`flex items-center gap-2 text-slate-500 ${isMobile ? "text-sm" : "text-xs"}`}>
-            {isGroupCollapsed && runIndex && (() => {
-              return runs.length > 0 ? <span className="flex items-center gap-1" data-testid="group-run-dots">{runs.slice(0, 3).map((runId) => <span key={runId} className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: runHue(runId) }} />)}{runs.length > 3 && <span>+{runs.length - 3}</span>}</span> : null;
-            })()}
-            {onOpenReview && group.kind === "scenario" && group.displayPrefix ? (
-              <button
-                type="button"
-                className="h-7 px-2 inline-flex items-center gap-1 rounded text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpenReview(group.displayPrefix?.split("/")[1] ?? "");
-                }}
-                title="Open scenario review"
-              >
-                {groupCount !== undefined && <span>{groupCount} files</span>}
-                <ClipboardCheck className="h-3.5 w-3.5" />
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="hover:underline decoration-slate-600 cursor-pointer"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openGroupMetrics(group.files, group.label);
-                }}
-              >
-                {groupCount} files
-              </button>
-            )}
-            {!isGroupCollapsed && (
-              <IconButton
-                size="xs"
-                surface="ghost"
-                denseTapTarget
-                className="!h-8 !w-8 !min-h-0 !min-w-0 !border-0 !shadow-none !text-sky-300"
-                onClick={() => setGroupDrillIn({ groupId: group.id, directory: "" })}
-                aria-label={`Open ${group.label} group`}
-                title={`Browse ${group.label} folders`}
-                data-testid={`file-group-open-${group.id}`}
-              ><FolderOpen className="h-4 w-4" /></IconButton>
-            )}
-            {!mobileSelectionMode &&
-              !isGroupCollapsed &&
-              stageable.length > 0 &&
-              onStagePaths && (
-                compactHeader ? <IconButton
-                  size="xs"
-                  surface="ghost"
-                  denseTapTarget
-                  onClick={() => onStagePaths(stageable)}
-                  disabled={false}
-                  className="!h-8 !w-8 !min-h-0 !min-w-0 !border-0 !shadow-none !text-emerald-300"
-                  aria-label="Stage all files in group"
-                  title="Stage All"
-                ><Plus className="h-4 w-4" /></IconButton> : <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => onStagePaths(stageable)}
-                  disabled={false}
-                  className="h-7 px-2"
-                  title="Stage All"
-                  style={{ background: "transparent" }}
-                >Stage All</Button>
-              )}
-            {!mobileSelectionMode &&
-              !isGroupCollapsed &&
-              discardCount > 0 &&
-              onDiscardPaths && (
-                compactHeader ? <IconButton
-                  size="xs"
-                  surface="ghost"
-                  denseTapTarget
-                  onClick={() => setConfirmingGroup(group.id)}
-                  disabled={isDiscarding}
-                  className="!h-8 !w-8 !min-h-0 !min-w-0 !border-0 !shadow-none !text-red-300"
-                  aria-label="Discard all files in group"
-                  title="Discard All"
-                ><Trash2 className="h-4 w-4" /></IconButton> : <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setConfirmingGroup(group.id)}
-                  disabled={isDiscarding}
-                  className="h-7 border-red-400/40 px-2 text-red-200 hover:bg-red-900/20"
-                  title="Discard All"
-                  style={{ background: "transparent" }}
-                >Discard All</Button>
-              )}
-          </div>
-        </div>
+            {groupHeader}
+          </SwipeActions>
+        ) : groupHeader}
         {!isGroupCollapsed && confirmingGroup === group.id &&
               discardCount > 0 && (
                 <div className="flex items-center justify-between gap-2 px-3 py-2 text-xs text-red-200 bg-red-950/30 border-b border-red-900/40">
@@ -785,6 +836,7 @@ function FileListImpl({
           onAction: category === "staged" ? onUnstageFile : onStageFile,
           onDiscard: category === "unstaged" ? handleDiscardUnstaged : category === "untracked" ? handleDiscardUntracked : undefined,
           changeStats: summarizeFileStats(paths, fileStats?.[statsCategory]),
+          metricsState: fileStatsState,
           onStatsClick: label ? () => openGroupCategoryMetrics(paths, statsCategory, label) : openAggregateMetrics,
         };
         return { type: "section", section };
@@ -1255,6 +1307,52 @@ function FileListImpl({
         )}
       </Card>
 
+      {/* Keep expanded group actions in one place when the header is narrow. */}
+      {compactHeader && mobileGroupActions && (
+        <BottomSheet
+          isOpen={Boolean(mobileGroupActionsId)}
+          onClose={() => setMobileGroupActionsId(null)}
+          title={`${mobileGroupActions.label} actions`}
+        >
+          <div className="space-y-1">
+            <BottomSheetAction
+              icon={<FolderOpen className="h-5 w-5 text-cyan-300" />}
+              label="Browse group folders"
+              description="Open the folder view for this group"
+              onClick={() => {
+                setGroupDrillIn({ groupId: mobileGroupActions.id, directory: "" });
+                setMobileGroupActionsId(null);
+              }}
+            />
+            {!mobileSelectionMode && onStagePaths && mobileGroupActions.stageable.length > 0 && (
+              <BottomSheetAction
+                icon={<Plus className="h-5 w-5 text-emerald-300" />}
+                label={`Stage ${mobileGroupActions.stageable.length} files`}
+                description="Add all stageable changes in this group"
+                variant="success"
+                onClick={() => {
+                  onStagePaths(mobileGroupActions.stageable);
+                  setMobileGroupActionsId(null);
+                }}
+              />
+            )}
+            {!mobileSelectionMode && onDiscardPaths && mobileGroupActions.discardCount > 0 && (
+              <BottomSheetAction
+                icon={<Trash2 className="h-5 w-5 text-red-400" />}
+                label={`Discard ${mobileGroupActions.discardCount} changes`}
+                description="Review a confirmation before removing these changes"
+                variant="danger"
+                disabled={isDiscarding}
+                onClick={() => {
+                  setConfirmingGroup(mobileGroupActions.id);
+                  setMobileGroupActionsId(null);
+                }}
+              />
+            )}
+          </div>
+        </BottomSheet>
+      )}
+
       {/* Mobile file action bottom sheet (suppressed in selection mode) */}
       {isMobile && !mobileSelectionMode && mobileActionFileInfo && (
         <BottomSheet
@@ -1407,6 +1505,8 @@ function FileListImpl({
         stats={metricsModal?.stats}
         filePath={metricsModal?.path}
         fileStats={metricsModal?.filteredFileStats ?? fileStats}
+        fileStatsState={fileStatsState}
+        onRetryFileStats={onRetryFileStats}
         title={metricsModal?.title}
         enhancedStats={enhancedQuery.stats}
         enhancedLoading={enhancedQuery.isLoading}

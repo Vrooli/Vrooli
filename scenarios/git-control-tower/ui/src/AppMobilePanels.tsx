@@ -51,6 +51,9 @@ export function renderMobilePanel(
           runIndex={deps.runIndex}
           onRevealInTree={deps.onRevealInTree}
           fileStats={deps.statusData?.file_stats}
+          previewFileStats={deps.statusData?.file_stats_preview}
+          fileStatsState={deps.statusData?.file_stats_state}
+          onRetryFileStats={deps.onRetryFileStats}
           selectedFiles={deps.selectedFiles}
           selectedKeySet={deps.selectedKeySet}
           selectionKey={deps.selectionKey}

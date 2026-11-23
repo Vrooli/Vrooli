@@ -174,6 +174,12 @@ export interface RepoStatus {
   branch: RepoBranchStatus;
   files: RepoFilesStatus;
   file_stats?: RepoFileStats;
+  /** Metrics are loaded separately so line counting cannot block file status. */
+  file_stats_state?: "loading" | "refreshing" | "ready" | "unavailable";
+  /** Last successful metrics snapshot, used only for collapsed-group preview while current metrics refresh. */
+  file_stats_preview?: RepoFileStats;
+  /** Opaque path/status identity used to reject late or stale metrics. */
+  status_snapshot_id?: string;
   file_hotspots?: Record<string, number>;
   scopes?: Record<string, string[]>;
   summary: RepoStatusSummary;

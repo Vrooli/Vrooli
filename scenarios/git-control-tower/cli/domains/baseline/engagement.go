@@ -118,7 +118,7 @@ var diffAnchor = func(core *cliapp.ScenarioApp, ctx context.Context, scenario, n
 // baseline group by Register.
 func registerEngagementVerbs(core *cliapp.ScenarioApp) []cliapp.Command {
 	return []cliapp.Command{
-		{Name: "start", NeedsAPI: true, Description: "Begin a shadow/live engagement: decide mode, take a restore point (a shadow also freezes the shared packages live builds from; --allow-unfrozen overrides a failed freeze), capture an anchor, stand up the shadow (--scenario [--mode auto|shadow|live] [--ttl] [--name, default wip] [--no-anchor] [--operator-confirm] [--allow-unfrozen]); refuses, before capturing anything, while the scenario has an open engagement — --replace takes over the same --name and keeps its restore point", Run: func(a []string) error { return runStartCmd(core, a) }},
+		{Name: "start", NeedsAPI: true, Description: "Begin a shadow/live engagement: decide mode, take a restore point (a shadow also freezes the shared packages live builds from; --allow-unfrozen overrides a failed freeze), capture an anchor, move an already-running live instance to the frozen serving source, then stand up the shadow (--scenario [--mode auto|shadow|live] [--ttl] [--name, default wip] [--no-anchor] [--operator-confirm] [--allow-unfrozen]); refuses, before capturing anything, while the scenario has an open engagement — --replace takes over the same --name and keeps its restore point; --refresh-shared-sources explicitly refreshes frozen dependencies only", Run: func(a []string) error { return runStartCmd(core, a) }},
 		{Name: "check", NeedsAPI: true, Description: "Validate the engagement target and emit mode-aware guidance; renews the lease (--scenario [--name])", Run: func(a []string) error { return runCheckCmd(core, a) }},
 		{Name: "promote", NeedsAPI: false, Description: "Keep the work (terminal): shadow → drain live, snapshot, re-point+restart, probe (+ --probe-cmd), auto-rollback on failure, tear down the shadow; live → accept in place (--scenario [--name] [--probe-cmd] [--probe-timeout] [--exclude-run] [--tag-prefix] [--drain-timeout] [--force] [--no-drain]). It closes the engagement: re-create the shadow with the same --name (`baseline start --name <same> --mode shadow`), or use `baseline cycle`", Run: func(a []string) error { return runPromoteCmd(core, a) }},
 		{Name: "cycle", NeedsAPI: false, Description: "Promote a shadow engagement (same gate, drain, probe and auto-rollback as promote), then open a fresh shadow engagement with the same name and no anchor run; safe to re-run (--scenario --name [--probe-cmd] [--probe-timeout] [--exclude-run] [--tag-prefix] [--drain-timeout] [--force] [--no-drain] [--json])", Run: func(a []string) error { return runCycleCmd(core, a) }},
@@ -324,16 +324,29 @@ func readEngagement(ctx context.Context, scenario, slug string) (engagementView,
 	return engagementFromProto(v), nil
 }
 
+func scenarioRuntimeStatus(ctx context.Context, scenario string) (string, error) {
+	out, err := runCommand(ctx, "vrooli", "scenario", "status", scenario, "--json")
+	if err != nil {
+		return "", err
+	}
+	status := strings.ToLower(strings.TrimSpace(extractStatus(out)))
+	if status == "" {
+		return "", fmt.Errorf("status response omitted the scenario runtime status")
+	}
+	return status, nil
+}
+
 // ---- start ---------------------------------------------------------------
 
 type startResult struct {
-	Scenario   string       `json:"scenario"`
-	Slug       string       `json:"slug"`
-	Decision   modeDecision `json:"decision"`
-	Variant    string       `json:"variant"`
-	Anchor     string       `json:"anchor,omitempty"`
-	AmbientVar string       `json:"ambientVar,omitempty"`
-	TTL        string       `json:"ttl,omitempty"`
+	Scenario                 string       `json:"scenario"`
+	Slug                     string       `json:"slug"`
+	Decision                 modeDecision `json:"decision"`
+	Variant                  string       `json:"variant"`
+	ServingBaselineActivated bool         `json:"servingBaselineActivated,omitempty"`
+	Anchor                   string       `json:"anchor,omitempty"`
+	AmbientVar               string       `json:"ambientVar,omitempty"`
+	TTL                      string       `json:"ttl,omitempty"`
 	// DataPopulation holds the human notes from seeding the shadow with a copy of
 	// live data (shadow mode only). Empty in live mode or when the scenario has no
 	// stateful targets to copy.
@@ -346,7 +359,7 @@ type startResult struct {
 
 func runStartCmd(core *cliapp.ScenarioApp, args []string) error {
 	var scenario, modeFlag, slug, ttlStr, anchor string
-	var operatorConfirm, writesShared, modifiesLifecycle, singleton, noAnchor, replace, allowUnfrozen, jsonOut bool
+	var operatorConfirm, writesShared, modifiesLifecycle, singleton, noAnchor, replace, allowUnfrozen, skipShadowDataCopy, refreshSharedSources, jsonOut bool
 	fs := newFlagSet("baseline start")
 	fs.StringVar(&scenario, "scenario", "", "Scenario slug (required)")
 	fs.StringVar(&modeFlag, "mode", modeAuto, "Execution mode: auto|shadow|live")
@@ -360,6 +373,8 @@ func runStartCmd(core *cliapp.ScenarioApp, args []string) error {
 	fs.BoolVar(&noAnchor, "no-anchor", false, "Skip capturing a diff anchor (restore-point safety net only)")
 	fs.BoolVar(&replace, "replace", false, "Take over the open engagement with this scenario and slug, keeping its restore point and anchor (refused without it)")
 	fs.BoolVar(&allowUnfrozen, "allow-unfrozen", false, "Open a shadow engagement even when the shared packages the live build needs cannot be frozen (live then builds against the repository's current shared packages)")
+	fs.BoolVar(&skipShadowDataCopy, "skip-shadow-data-copy", false, "Do not snapshot or copy live scenario data into a new shadow; use when candidate data must remain synthetic or empty")
+	fs.BoolVar(&refreshSharedSources, "refresh-shared-sources", false, "On --replace, refresh frozen build dependencies only while preserving the scenario restore point")
 	fs.BoolVar(&jsonOut, "json", false, "Emit JSON")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -367,10 +382,12 @@ func runStartCmd(core *cliapp.ScenarioApp, args []string) error {
 
 	res, err := startEngagement(core, startParams{
 		scenario: scenario, mode: modeFlag, slug: slug, ttl: ttlStr, anchor: anchor,
-		signals:       modeSignals{writesSharedStore: writesShared, modifiesLifecycle: modifiesLifecycle, singletonResource: singleton, operatorConfirm: operatorConfirm},
-		noAnchor:      noAnchor,
-		replace:       replace,
-		allowUnfrozen: allowUnfrozen,
+		signals:              modeSignals{writesSharedStore: writesShared, modifiesLifecycle: modifiesLifecycle, singletonResource: singleton, operatorConfirm: operatorConfirm},
+		noAnchor:             noAnchor,
+		replace:              replace,
+		allowUnfrozen:        allowUnfrozen,
+		skipShadowDataCopy:   skipShadowDataCopy,
+		refreshSharedSources: refreshSharedSources,
 	})
 	if err != nil {
 		return err
@@ -395,6 +412,10 @@ type startParams struct {
 	// live build reaches cannot be frozen. A live-mode capture always allows
 	// it: live runs the working tree in place and never builds from the freeze.
 	allowUnfrozen bool
+	// skipShadowDataCopy preserves the empty/isolated state of a new shadow by
+	// avoiding all live safety-target registration, snapshot, and restore calls.
+	skipShadowDataCopy   bool
+	refreshSharedSources bool
 	// requireMode refuses the start (before any capture) when the decision tree
 	// routes to another mode — `baseline cycle` re-creates shadows only.
 	requireMode string
@@ -475,12 +496,32 @@ func startEngagement(core *cliapp.ScenarioApp, p startParams) (startResult, erro
 		return startResult{}, fmt.Errorf("start --replace refused: %s/%s is a %s engagement and this start decided %s; a takeover keeps the mode — finish it with `baseline promote` or `baseline abandon` first",
 			scenario, slug, takeover.Mode, decision.Mode)
 	}
+	if p.refreshSharedSources && (takeover == nil || decision.Mode != modeShadow || !p.replace) {
+		return startResult{}, fmt.Errorf("--refresh-shared-sources requires --replace on an open shadow engagement")
+	}
 
 	variant := modeLive
 	ambient := ""
 	if decision.Mode == modeShadow {
 		variant = modeShadow
 		ambient = scenario
+	}
+	// Shadow builds use the working tree. If live is already serving that
+	// tree, move it to the frozen source before the shadow build can replace
+	// shared on-disk outputs such as ui/dist.
+	liveWasRunning := false
+	if decision.Mode == modeShadow {
+		status, err := scenarioRuntimeStatus(ctx, scenario)
+		if err != nil {
+			return startResult{}, fmt.Errorf("read live runtime state before opening a shadow source split: %w", err)
+		}
+		switch status {
+		case "running":
+			liveWasRunning = true
+		case "stopped":
+		default:
+			return startResult{}, fmt.Errorf("cannot safely open shadow source split while %s status is %q", scenario, status)
+		}
 	}
 
 	// 1. Restore point (the git-free undo), in either mode — except on a
@@ -535,6 +576,27 @@ func startEngagement(core *cliapp.ScenarioApp, p startParams) (startResult, erro
 	if _, err := runCommand(ctx, "vrooli", writeArgs...); err != nil {
 		return startResult{}, fmt.Errorf("write engagement manifest: %w", err)
 	}
+	if p.refreshSharedSources {
+		refreshArgs := []string{"recovery", "capture", "--scenario", scenario, "--slug", slug, "--shared-sources-only", "--replace"}
+		if _, err := runCommand(ctx, "vrooli", refreshArgs...); err != nil {
+			return startResult{}, fmt.Errorf("refresh frozen shared sources while preserving the scenario restore point: %w; engagement kept open and live was not restarted", err)
+		}
+	}
+
+	servingBaselineActivated := false
+	if decision.Mode == modeShadow && liveWasRunning {
+		if _, err := runCommand(ctx, "vrooli", "scenario", "restart", scenario); err != nil {
+			return startResult{}, fmt.Errorf("move live onto the frozen serving source before shadow build: %w; engagement kept open and shadow not started; retry after the live restart succeeds with `baseline start --replace --scenario %s --name %s --mode shadow`", err, scenario, slug)
+		}
+		status, err := scenarioRuntimeStatus(ctx, scenario)
+		if err != nil || status != "running" {
+			if err == nil {
+				err = fmt.Errorf("live runtime status is %q", status)
+			}
+			return startResult{}, fmt.Errorf("verify live on frozen serving source before shadow build: %w; engagement kept open and shadow not started", err)
+		}
+		servingBaselineActivated = true
+	}
 
 	// 4. Shadow stand-up (a second named instance on alternate ports/namespaces).
 	var dataNotes []string
@@ -550,6 +612,8 @@ func startEngagement(core *cliapp.ScenarioApp, p startParams) (startResult, erro
 		//    takeover keeps the shadow's existing data.
 		if takeover != nil {
 			dataNotes = []string{"shadow data kept (took over the open engagement)"}
+		} else if p.skipShadowDataCopy {
+			dataNotes = []string{"shadow data population skipped — --skip-shadow-data-copy requested; no live data was copied"}
 		} else {
 			dataNotes = populateShadowData(ctx, scenario, variant)
 		}
@@ -558,8 +622,8 @@ func startEngagement(core *cliapp.ScenarioApp, p startParams) (startResult, erro
 	res := startResult{
 		Scenario: scenario, Slug: slug, Decision: decision, Variant: variant,
 		Anchor: anchorName, AmbientVar: ambient, DataPopulation: dataNotes,
-		RestorePoint: restorePoint,
-		Available:    []string{"check", "promote", "abandon", "status"},
+		RestorePoint: restorePoint, ServingBaselineActivated: servingBaselineActivated,
+		Available: []string{"check", "promote", "abandon", "status"},
 	}
 	if decision.Mode == modeShadow {
 		res.Available = []string{"check", "promote", "cycle", "abandon", "status"}

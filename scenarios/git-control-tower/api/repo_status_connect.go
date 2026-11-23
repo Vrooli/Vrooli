@@ -36,37 +36,92 @@ func (s *Server) getRepoStatusConnect(ctx context.Context, req *repov1.GetRepoSt
 		return pageCache.Continue(ctx, resolved.Path, req.GetPageToken(), req.GetPageSize())
 	}
 	statusCache := s.statusCache
-	configCache := s.configCache
-	if req.GetPageSize() > 0 {
-		statusCache = s.statusPageAssemblyCache
-		if statusCache == nil {
-			statusCache = NewRepoStatusCache(0)
-		}
-		configCache = nil // Page snapshots must observe current author configuration.
+	if statusCache == nil {
+		statusCache = defaultRepoStatusCache
 	}
-	status, err := GetRepoStatus(ctx, RepoStatusDeps{
-		Git:             s.git,
-		RepoDir:         resolved.Path,
-		ConfigCache:     configCache,
-		StatusCache:     statusCache,
-		IncludeHotspots: req.GetIncludeHotspots(),
-		FastStatus:      req.GetPageSize() > 0,
-	})
+	configCache := s.configCache
+	for attempt := 0; attempt < 3; attempt++ {
+		generation := statusCache.Generation(resolved.Path)
+		status, err := GetRepoStatus(ctx, RepoStatusDeps{
+			Git:             s.git,
+			RepoDir:         resolved.Path,
+			ConfigCache:     configCache,
+			StatusCache:     statusCache,
+			IncludeHotspots: req.GetIncludeHotspots(),
+			FastStatus:      req.GetPageSize() > 0,
+		})
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+		identity, err := repodomain.NewService(newWorktreeInspector()).GetRepoStatus(ctx, resolved.Path)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeUnavailable, err)
+		}
+		response := repoStatusResponseProto(status, identity)
+		if req.GetPageSize() == 0 {
+			return boundRepoStatusResponse(response, resolved.Path, 0, "")
+		}
+
+		// Keep every paged status snapshot briefly, even when it fits on one
+		// page. Publish it under the same generation as its status result so a
+		// mutation between cache lookup and snapshot storage cannot resurrect a
+		// stale continuation after invalidation.
+		var pagedResponse *repov1.GetRepoStatusResponse
+		current, err := statusCache.WithGeneration(resolved.Path, generation, func() error {
+			pagedResponse, err = pageCache.Store(ctx, resolved.Path, response, req.GetPageSize())
+			return err
+		})
+		if err != nil {
+			return nil, err
+		}
+		if current {
+			return pagedResponse, nil
+		}
+	}
+	return nil, connect.NewError(connect.CodeAborted, errors.New("repository changed repeatedly while preparing status; retry"))
+}
+
+// getRepoChangeMetricsConnect keeps line-counting off the initial status path.
+// The request is bound to the path/status snapshot already shown by the UI, so
+// a stale metrics response cannot be attached to a different file list.
+func (s *Server) getRepoChangeMetricsConnect(ctx context.Context, req *repov1.GetRepoChangeMetricsRequest) (*repov1.GetRepoChangeMetricsResponse, error) {
+	expected := strings.TrimSpace(req.GetStatusSnapshotId())
+	if expected == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("status_snapshot_id is required"))
+	}
+	resolved, err := s.resolveRepoForConnect(ctx, req.GetRepositoryId(), "")
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	pageCache := s.statusPageCache
+	if pageCache == nil {
+		pageCache = defaultRepoStatusPageCache
+	}
+	snapshot, err := pageCache.Snapshot(resolved.Path, expected)
+	if err != nil {
+		return nil, err
+	}
+	files := repoFilesStatusFromProto(snapshot.GetFiles())
+	stats, _, err := collectRepoFileStats(ctx, RepoStatusDeps{Git: s.git, RepoDir: resolved.Path}, resolved.Path, files)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	identity, err := repodomain.NewService(newWorktreeInspector()).GetRepoStatus(ctx, resolved.Path)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeUnavailable, err)
+	return &repov1.GetRepoChangeMetricsResponse{
+		StatusSnapshotId: expected,
+		FileStats:        repoFileStatsProto(stats),
+	}, nil
+}
+
+func repoFilesStatusFromProto(files *repov1.FilesStatus) RepoFilesStatus {
+	if files == nil {
+		return RepoFilesStatus{}
 	}
-	response := repoStatusResponseProto(status, identity)
-	if req.GetPageSize() == 0 {
-		return boundRepoStatusResponse(response, resolved.Path, 0, "")
+	return RepoFilesStatus{
+		Staged: files.GetStaged(), Unstaged: files.GetUnstaged(),
+		Untracked: files.GetUntracked(), Conflicts: files.GetConflicts(),
+		Binary: files.GetBinary(), Ignored: files.GetIgnored(),
+		Statuses: files.GetStatuses(), Renames: files.GetRenames(),
 	}
-	if statusEntryCount(response.GetFiles()) <= int(req.GetPageSize()) && statusResponseBytes(response) <= repoStatusResponseBudget {
-		return boundRepoStatusResponse(response, resolved.Path, req.GetPageSize(), "")
-	}
-	return pageCache.Store(ctx, resolved.Path, response, req.GetPageSize())
 }
 
 func repoStatusResponseProto(status *RepoStatus, identity repodomain.Status) *repov1.GetRepoStatusResponse {
@@ -117,14 +172,10 @@ type repoStatusCursor struct {
 // cursor fingerprints the full semantic response (excluding request timestamp)
 // so a caller cannot combine pages from different worktree states.
 func boundRepoStatusResponse(full *repov1.GetRepoStatusResponse, repoPath string, requested uint32, token string) (*repov1.GetRepoStatusResponse, error) {
-	semantic := proto.Clone(full).(*repov1.GetRepoStatusResponse)
-	semantic.Timestamp = ""
-	canonical, err := proto.MarshalOptions{Deterministic: true}.Marshal(semantic)
+	snapshot, err := repoStatusSnapshotID(full, repoPath)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, err
 	}
-	h := sha256.Sum256(append([]byte(repoPath+"\x00"), canonical...))
-	snapshot := fmt.Sprintf("%x", h[:])
 	total := statusEntryCount(full.GetFiles())
 	offset := 0
 	if token != "" {
@@ -166,6 +217,23 @@ func boundRepoStatusResponse(full *repov1.GetRepoStatusResponse, repoPath string
 		}
 		pageSize /= 2
 	}
+}
+
+// repoStatusSnapshotID identifies the paths, categories and repository state
+// represented by GetRepoStatus. Line statistics are deliberately excluded:
+// the paged status request skips them and the UI loads them through a separate
+// metrics RPC after the fast file list is usable.
+func repoStatusSnapshotID(full *repov1.GetRepoStatusResponse, repoPath string) (string, error) {
+	semantic := proto.Clone(full).(*repov1.GetRepoStatusResponse)
+	semantic.Timestamp = ""
+	semantic.Page = nil
+	semantic.FileStats = nil
+	canonical, err := proto.MarshalOptions{Deterministic: true}.Marshal(semantic)
+	if err != nil {
+		return "", connect.NewError(connect.CodeInternal, err)
+	}
+	h := sha256.Sum256(append([]byte(repoPath+"\x00"), canonical...))
+	return fmt.Sprintf("%x", h[:]), nil
 }
 
 func statusResponseBytes(response *repov1.GetRepoStatusResponse) int {

@@ -76,7 +76,6 @@ type Server struct {
 	configCache             *GitConfigCache
 	statusCache             *RepoStatusCache
 	statusPageCache         *RepoStatusPageCache
-	statusPageAssemblyCache *RepoStatusCache
 	sourceDistributions     SourceDistributionReader
 	baselineService         *baseline.Service
 	authVerifier            policygate.PrincipalVerifier
@@ -132,7 +131,6 @@ func NewServer() (*Server, error) {
 	srv.configCache = NewGitConfigCache(60 * time.Second)
 	srv.statusCache = NewRepoStatusCache(5 * time.Second)
 	srv.statusPageCache = NewRepoStatusPageCache(repoStatusPageCacheMaxBytes, repoStatusPageCacheMaxEntries)
-	srv.statusPageAssemblyCache = NewRepoStatusCache(0)
 	srv.statusCache.SetPageSnapshots(srv.statusPageCache)
 	srv.repos.SetStatusCache(srv.statusCache)
 	SetDefaultRepoStatusCache(srv.statusCache)

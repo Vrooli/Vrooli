@@ -163,9 +163,10 @@ export interface TidinessScenarioDetail {
 
 export async function fetchTidinessScore(
   scenarioName: string,
-  repoId?: string
+  repoId?: string,
+  signal?: AbortSignal,
 ): Promise<TidinessScoreResponse> {
-  const response = await tidinessClient.getScore(create(GetScoreRequestSchema, { scenarioName, repositoryId: repoId ?? "" }));
+  const response = await tidinessClient.getScore(create(GetScoreRequestSchema, { scenarioName, repositoryId: repoId ?? "" }), { signal });
   return {
     scenario: response.scenario,
     score: response.score,
@@ -190,12 +191,13 @@ export async function fetchTidinessIssues(
   category?: string,
   severity?: string,
   limit?: number,
-  repoId?: string
+  repoId?: string,
+  signal?: AbortSignal,
 ): Promise<TidinessIssue[]> {
   const response = await tidinessClient.listIssues(create(ListIssuesRequestSchema, {
     scenarioName, repositoryId: repoId ?? "", file: file ?? "", category: category ?? "",
     severity: severity ?? "", limit: limit ?? 0,
-  }));
+  }), { signal });
   return response.issues.map((issue) => ({
     id: Number(issue.id), scenario: issue.scenario, file_path: issue.filePath, category: issue.category,
     severity: issue.severity, title: issue.title, description: issue.description,
@@ -207,9 +209,10 @@ export async function fetchTidinessIssues(
 
 export async function fetchTidinessStaleness(
   scenarioName: string,
-  repoId?: string
+  repoId?: string,
+  signal?: AbortSignal,
 ): Promise<TidinessStalenessInfo> {
-  const response = await tidinessClient.getStaleness(create(GetStalenessRequestSchema, { scenarioName, repositoryId: repoId ?? "" }));
+  const response = await tidinessClient.getStaleness(create(GetStalenessRequestSchema, { scenarioName, repositoryId: repoId ?? "" }), { signal });
   return {
     last_scan_at: response.lastScanAt || undefined, is_stale: response.isStale,
     modified_files: response.modifiedFiles || undefined, stale_reason: response.staleReason || undefined,
@@ -237,9 +240,10 @@ export async function triggerTidinessLightScan(
 
 export async function fetchTidinessScenarioDetail(
   scenarioName: string,
-  repoId?: string
+  repoId?: string,
+  signal?: AbortSignal,
 ): Promise<TidinessScenarioDetail> {
-  const response = await tidinessClient.getScenarioDetail(create(GetScenarioDetailRequestSchema, { scenarioName, repositoryId: repoId ?? "" }));
+  const response = await tidinessClient.getScenarioDetail(create(GetScenarioDetailRequestSchema, { scenarioName, repositoryId: repoId ?? "" }), { signal });
   return {
     scenario: response.scenario, lightIssues: response.lightIssues, aiIssues: response.aiIssues,
     longFiles: response.longFiles,

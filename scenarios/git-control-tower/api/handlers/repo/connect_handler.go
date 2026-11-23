@@ -30,6 +30,7 @@ type Server struct {
 	cloneRepository               func(context.Context, *repov1.CloneRepositoryRequest) (*repov1.RepoMutationResponse, error)
 	removeRepository              func(context.Context, *repov1.RemoveRepositoryRequest) (*repov1.RemoveRepositoryResponse, error)
 	getRepoStatus                 func(context.Context, *repov1.GetRepoStatusRequest) (*repov1.GetRepoStatusResponse, error)
+	getRepoChangeMetrics          func(context.Context, *repov1.GetRepoChangeMetricsRequest) (*repov1.GetRepoChangeMetricsResponse, error)
 	getRepoDiff                   func(context.Context, *repov1.GetRepoDiffRequest) (*repov1.GetRepoDiffResponse, error)
 	getRepoGroups                 func(context.Context, *repov1.GetRepoGroupsRequest) (*repov1.GetRepoGroupsResponse, error)
 	getSyncStatus                 func(context.Context, *repov1.GetSyncStatusRequest) (*repov1.GetSyncStatusResponse, error)
@@ -90,6 +91,7 @@ type Deps struct {
 	CloneRepository               func(context.Context, *repov1.CloneRepositoryRequest) (*repov1.RepoMutationResponse, error)
 	RemoveRepository              func(context.Context, *repov1.RemoveRepositoryRequest) (*repov1.RemoveRepositoryResponse, error)
 	GetRepoStatus                 func(context.Context, *repov1.GetRepoStatusRequest) (*repov1.GetRepoStatusResponse, error)
+	GetRepoChangeMetrics          func(context.Context, *repov1.GetRepoChangeMetricsRequest) (*repov1.GetRepoChangeMetricsResponse, error)
 	GetRepoDiff                   func(context.Context, *repov1.GetRepoDiffRequest) (*repov1.GetRepoDiffResponse, error)
 	GetRepoGroups                 func(context.Context, *repov1.GetRepoGroupsRequest) (*repov1.GetRepoGroupsResponse, error)
 	GetSyncStatus                 func(context.Context, *repov1.GetSyncStatusRequest) (*repov1.GetSyncStatusResponse, error)
@@ -141,7 +143,7 @@ func NewServer(d Deps) *Server {
 	if d.Logger == nil {
 		d.Logger = quietLogger{}
 	}
-	return &Server{getPushRecovery: d.GetPushRecovery, preparePushRecovery: d.PreparePushRecovery, inspectPushSafety: d.InspectPushSafety, svc: d.Service, logger: d.Logger, listRepositories: d.ListRepositories, getActiveRepository: d.GetActiveRepository, setActiveRepository: d.SetActiveRepository, openRepository: d.OpenRepository, cloneRepository: d.CloneRepository, removeRepository: d.RemoveRepository, getRepoStatus: d.GetRepoStatus, getRepoDiff: d.GetRepoDiff, getRepoGroups: d.GetRepoGroups, getSyncStatus: d.GetSyncStatus, getRepoHistory: d.GetRepoHistory, getApprovedChanges: d.GetApprovedChanges, getProvenance: d.GetProvenance, getBlame: d.GetBlame, searchProvenance: d.SearchProvenance, getFiles: d.GetFiles, getDirectoryContents: d.GetDirectoryContents, getRelatedFiles: d.GetRelatedFiles, searchContent: d.SearchContent, deletePath: d.DeletePath, saveFileContent: d.SaveFileContent, discardFiles: d.DiscardFiles, ignorePath: d.IgnorePath, pushToRemote: d.PushToRemote, pullFromRemote: d.PullFromRemote, runUpstreamAction: d.RunUpstreamAction, getGroupingRules: d.GetGroupingRules, saveGroupingRules: d.SaveGroupingRules, getGitignoreHealth: d.GetGitignoreHealth, moveGitignoreEntry: d.MoveGitignoreEntry, getTrackedBinaries: d.GetTrackedBinaries, untrackBinary: d.UntrackBinary, getPrecommitConfig: d.GetPrecommitConfig, savePrecommitConfig: d.SavePrecommitConfig, runPrecommit: d.RunPrecommit, startPrecommitCandidateCheck: d.StartPrecommitCandidateCheck, getPrecommitCandidateCheck: d.GetPrecommitCandidateCheck, cancelPrecommitCandidateCheck: d.CancelPrecommitCandidateCheck, stageFiles: d.StageFiles, unstageFiles: d.UnstageFiles, createCommit: d.CreateCommit, listCredentials: d.ListCredentials, saveCredential: d.SaveCredential, deleteCredential: d.DeleteCredential, testCredential: d.TestCredential, updateRemoteURL: d.UpdateRemoteURL, listSSHKeys: d.ListSSHKeys, generateSSHKey: d.GenerateSSHKey, getSSHPublicKey: d.GetSSHPublicKey, testSSHConnection: d.TestSSHConnection, deleteSSHKey: d.DeleteSSHKey}
+	return &Server{getPushRecovery: d.GetPushRecovery, preparePushRecovery: d.PreparePushRecovery, inspectPushSafety: d.InspectPushSafety, svc: d.Service, logger: d.Logger, listRepositories: d.ListRepositories, getActiveRepository: d.GetActiveRepository, setActiveRepository: d.SetActiveRepository, openRepository: d.OpenRepository, cloneRepository: d.CloneRepository, removeRepository: d.RemoveRepository, getRepoStatus: d.GetRepoStatus, getRepoChangeMetrics: d.GetRepoChangeMetrics, getRepoDiff: d.GetRepoDiff, getRepoGroups: d.GetRepoGroups, getSyncStatus: d.GetSyncStatus, getRepoHistory: d.GetRepoHistory, getApprovedChanges: d.GetApprovedChanges, getProvenance: d.GetProvenance, getBlame: d.GetBlame, searchProvenance: d.SearchProvenance, getFiles: d.GetFiles, getDirectoryContents: d.GetDirectoryContents, getRelatedFiles: d.GetRelatedFiles, searchContent: d.SearchContent, deletePath: d.DeletePath, saveFileContent: d.SaveFileContent, discardFiles: d.DiscardFiles, ignorePath: d.IgnorePath, pushToRemote: d.PushToRemote, pullFromRemote: d.PullFromRemote, runUpstreamAction: d.RunUpstreamAction, getGroupingRules: d.GetGroupingRules, saveGroupingRules: d.SaveGroupingRules, getGitignoreHealth: d.GetGitignoreHealth, moveGitignoreEntry: d.MoveGitignoreEntry, getTrackedBinaries: d.GetTrackedBinaries, untrackBinary: d.UntrackBinary, getPrecommitConfig: d.GetPrecommitConfig, savePrecommitConfig: d.SavePrecommitConfig, runPrecommit: d.RunPrecommit, startPrecommitCandidateCheck: d.StartPrecommitCandidateCheck, getPrecommitCandidateCheck: d.GetPrecommitCandidateCheck, cancelPrecommitCandidateCheck: d.CancelPrecommitCandidateCheck, stageFiles: d.StageFiles, unstageFiles: d.UnstageFiles, createCommit: d.CreateCommit, listCredentials: d.ListCredentials, saveCredential: d.SaveCredential, deleteCredential: d.DeleteCredential, testCredential: d.TestCredential, updateRemoteURL: d.UpdateRemoteURL, listSSHKeys: d.ListSSHKeys, generateSSHKey: d.GenerateSSHKey, getSSHPublicKey: d.GetSSHPublicKey, testSSHConnection: d.TestSSHConnection, deleteSSHKey: d.DeleteSSHKey}
 }
 
 type quietLogger struct{}
@@ -248,6 +250,17 @@ func (s *Server) GetRepoStatus(ctx context.Context, req *connect.Request[repov1.
 			LinkedWorktreeCount: int32(status.Identity.LinkedWorktreeCount),
 		},
 	}), nil
+}
+
+func (s *Server) GetRepoChangeMetrics(ctx context.Context, req *connect.Request[repov1.GetRepoChangeMetricsRequest]) (*connect.Response[repov1.GetRepoChangeMetricsResponse], error) {
+	if s.getRepoChangeMetrics == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("repo change metrics service is not configured"))
+	}
+	result, err := s.getRepoChangeMetrics(ctx, req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(result), nil
 }
 
 func (s *Server) GetRepoDiff(ctx context.Context, req *connect.Request[repov1.GetRepoDiffRequest]) (*connect.Response[repov1.GetRepoDiffResponse], error) {

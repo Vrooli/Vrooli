@@ -4,6 +4,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "./hooks-query-keys";
+import { invalidateCredentials, invalidateRepositoryRegistry } from "./hooks-query-invalidations";
 import {
   fetchCapabilities,
   fetchCredentials,
@@ -76,7 +77,7 @@ export function useSaveCredential(repoId?: string | null) {
   return useMutation({
     mutationFn: (request: CredentialSaveRequest) => saveCredential(request, repoId ?? undefined),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.credentials(repoId) });
+      invalidateCredentials(queryClient, repoId);
     }
   });
 }
@@ -86,7 +87,7 @@ export function useDeleteCredential(repoId?: string | null) {
   return useMutation({
     mutationFn: (id: string) => deleteCredential(id, repoId ?? undefined),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.credentials(repoId) });
+      invalidateCredentials(queryClient, repoId);
     }
   });
 }
@@ -102,7 +103,7 @@ export function useUpdateRemoteURL(repoId?: string | null) {
   return useMutation({
     mutationFn: (request: RemoteURLUpdateRequest) => updateRemoteURL(request, repoId ?? undefined),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.credentials(repoId) });
+      invalidateCredentials(queryClient, repoId);
       queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus(repoId) });
     }
   });
@@ -131,8 +132,7 @@ export function useOpenRepo() {
   return useMutation({
     mutationFn: (request: RepoOpenRequest) => openRepo(request),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.repos });
-      queryClient.invalidateQueries({ queryKey: queryKeys.activeRepo });
+      invalidateRepositoryRegistry(queryClient);
     }
   });
 }
@@ -142,8 +142,7 @@ export function useCloneRepo() {
   return useMutation({
     mutationFn: (request: RepoCloneRequest) => cloneRepo(request),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.repos });
-      queryClient.invalidateQueries({ queryKey: queryKeys.activeRepo });
+      invalidateRepositoryRegistry(queryClient);
     }
   });
 }
@@ -153,8 +152,7 @@ export function useSetActiveRepo() {
   return useMutation({
     mutationFn: (request: RepoActiveRequest) => setActiveRepo(request),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.repos });
-      queryClient.invalidateQueries({ queryKey: queryKeys.activeRepo });
+      invalidateRepositoryRegistry(queryClient);
     }
   });
 }
@@ -164,8 +162,7 @@ export function useRemoveRepo() {
   return useMutation({
     mutationFn: (id: number) => removeRepo(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.repos });
-      queryClient.invalidateQueries({ queryKey: queryKeys.activeRepo });
+      invalidateRepositoryRegistry(queryClient);
     }
   });
 }
@@ -221,12 +218,23 @@ export function useGroupingRules(repoId?: string | null) {
   });
 }
 
-export function useRepoGroups(repoId?: string | null) {
+export function useRepoGroups(repoId?: string | null, statusSnapshotId?: string) {
   return useQuery<RepoGroupsResponse, Error>({
-    queryKey: queryKeys.repoGroups(repoId),
-    queryFn: () => fetchRepoGroups(repoId ?? undefined),
-    enabled: Boolean(repoId),
-    refetchInterval: 5_000,
+    queryKey: [...queryKeys.repoGroups(repoId), statusSnapshotId ?? "pending"],
+    queryFn: ({ signal }) => fetchRepoGroups(repoId ?? undefined, statusSnapshotId, signal),
+    // Resolve against the exact status snapshot already used by Changes. This
+    // avoids a second Git status read and keeps group membership consistent
+    // with the file rows while the worktree is changing.
+    enabled: Boolean(repoId && statusSnapshotId),
+    staleTime: Number.POSITIVE_INFINITY,
+    // The status snapshot is authoritative for deciding when groups need a
+    // new result. Do not also refetch the old snapshot on focus; that starts a
+    // redundant Git status read just before the new snapshot key is selected.
+    refetchOnWindowFocus: false,
+    // Keep current group rows visible while resolving membership for the new
+    // status snapshot. The new result atomically replaces them when ready.
+    placeholderData: (previousData, previousQuery) =>
+      previousQuery?.queryKey[2] === (repoId ?? "default") ? previousData : undefined,
   });
 }
 
@@ -236,6 +244,7 @@ export function useSaveGroupingRules(repoId?: string | null) {
     mutationFn: (config: GroupingRulesConfig) => saveGroupingRules(config, repoId ?? undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.groupingRules(repoId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.repoGroups(repoId) });
     },
   });
 }

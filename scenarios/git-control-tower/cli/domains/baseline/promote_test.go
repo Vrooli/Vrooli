@@ -336,11 +336,13 @@ func TestParseQuiesce(t *testing.T) {
 
 func TestExtractStatus(t *testing.T) {
 	cases := map[string]string{
-		`{"scenario":{"status":"running"}}`: "running",
-		`{"details":{"status":"stopped"}}`:  "stopped",
-		`{"status":"running"}`:              "running",
-		`not json`:                          "",
-		`{}`:                                "",
+		`{"scenario":{"status":"running"}}`:                        "running",
+		`{"details":{"status":"stopped"}}`:                         "stopped",
+		`{"status":"running"}`:                                     "running",
+		`{"status":"start-failed","runtime":{"status":"running"}}`: "running",
+		`{"status":"error","runtime":{"status":"stopped"}}`:        "stopped",
+		`not json`: "",
+		`{}`:       "",
 	}
 	for in, want := range cases {
 		if got := extractStatus([]byte(in)); got != want {

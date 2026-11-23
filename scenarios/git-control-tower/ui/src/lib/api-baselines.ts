@@ -33,13 +33,13 @@ export interface ListBaselinesParams {
   repoId?: string | null;
 }
 
-export async function listBaselines(params: ListBaselinesParams): Promise<BaselineManifest[]> {
+export async function listBaselines(params: ListBaselinesParams, signal?: AbortSignal): Promise<BaselineManifest[]> {
   const res = await baselinesClient.listBaselines({
     scenario: params.scenario,
     branch: params.branch ?? "",
     allBranches: params.allBranches ?? false,
     repoId: toRepoId(params.repoId),
-  });
+  }, ...(signal ? [{ signal }] : []));
   return res.baselines;
 }
 
@@ -50,13 +50,13 @@ export interface GetBaselineParams {
   repoId?: string | null;
 }
 
-export async function getBaseline(params: GetBaselineParams): Promise<BaselineManifest | undefined> {
+export async function getBaseline(params: GetBaselineParams, signal?: AbortSignal): Promise<BaselineManifest | undefined> {
   const res = await baselinesClient.getBaseline({
     scenario: params.scenario,
     name: params.name,
     branch: params.branch ?? "",
     repoId: toRepoId(params.repoId),
-  });
+  }, ...(signal ? [{ signal }] : []));
   return res.baseline;
 }
 

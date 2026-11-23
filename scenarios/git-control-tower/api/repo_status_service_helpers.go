@@ -16,6 +16,7 @@ import (
 	"time"
 
 	repocontract "github.com/vrooli/repo-contract-go"
+	"golang.org/x/sync/errgroup"
 )
 
 func GetRepoHistory(ctx context.Context, deps RepoHistoryDeps) (*RepoHistory, error) {
@@ -32,8 +33,21 @@ func GetRepoHistory(ctx context.Context, deps RepoHistoryDeps) (*RepoHistory, er
 		limit = 30
 	}
 
-	out, err := deps.Git.LogGraph(ctx, repoDir, limit, deps.GrepPattern)
-	if err != nil {
+	var out, detailsRaw []byte
+	g, gctx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		var err error
+		out, err = deps.Git.LogGraph(gctx, repoDir, limit, deps.GrepPattern)
+		return err
+	})
+	if deps.IncludeFiles || deps.IncludeChecks {
+		g.Go(func() error {
+			var err error
+			detailsRaw, err = deps.Git.LogDetails(gctx, repoDir, limit, deps.GrepPattern)
+			return err
+		})
+	}
+	if err := g.Wait(); err != nil {
 		return nil, err
 	}
 
@@ -55,10 +69,6 @@ func GetRepoHistory(ctx context.Context, deps RepoHistoryDeps) (*RepoHistory, er
 	}
 
 	if deps.IncludeFiles || deps.IncludeChecks {
-		detailsRaw, err := deps.Git.LogDetails(ctx, repoDir, limit, deps.GrepPattern)
-		if err != nil {
-			return nil, err
-		}
 		entries := parseHistoryDetails(detailsRaw)
 		if deps.IncludeChecks && deps.CommitChecks != nil && len(entries) > 0 {
 			hashes := make([]string, 0, len(entries))

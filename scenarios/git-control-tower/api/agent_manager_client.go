@@ -11,8 +11,8 @@ import (
 
 	"connectrpc.com/connect"
 	"git-control-tower/internal/policygate"
+	agentmanagerclient "github.com/vrooli/vrooli/packages/agentmanager-client-go"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
-	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	ampb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
@@ -26,13 +26,40 @@ type AgentManagerClient struct {
 	resolveURL     func(context.Context) (string, error)
 	maxRetries     int
 	retryBaseDelay time.Duration
+	shared         *agentmanagerclient.Client
+}
+
+type agentManagerResolver struct{ owner *AgentManagerClient }
+
+func (r agentManagerResolver) ResolveBaseURL(ctx context.Context) (string, error) {
+	return r.owner.resolveBaseURL(ctx)
 }
 
 func NewAgentManagerClient(timeout time.Duration) *AgentManagerClient {
-	return &AgentManagerClient{
+	client := &AgentManagerClient{
 		BaseClient: NewBaseClient("agent-manager", timeout),
 		maxRetries: 2, retryBaseDelay: 200 * time.Millisecond,
 	}
+	client.sharedClient()
+	return client
+}
+
+func (c *AgentManagerClient) sharedClient() *agentmanagerclient.Client {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.shared != nil {
+		return c.shared
+	}
+	httpClient := c.httpClient
+	if httpClient == nil {
+		httpClient = &http.Client{Timeout: 120 * time.Second}
+	}
+	c.shared = agentmanagerclient.NewWithResolver(0, agentManagerResolver{owner: c},
+		agentmanagerclient.WithHTTPClient(httpClient),
+		agentmanagerclient.WithProto(),
+		agentmanagerclient.WithRequestHeaders(policygate.VerifiedOwnerHeaders),
+	)
+	return c.shared
 }
 
 func (c *AgentManagerClient) resolveBaseURL(ctx context.Context) (string, error) {
@@ -61,22 +88,14 @@ func (c *AgentManagerClient) clearCachedURL() {
 	c.mu.Unlock()
 }
 
-func (c *AgentManagerClient) connectClient(ctx context.Context) (apiconnect.AgentManagerServiceClient, error) {
-	baseURL, err := c.resolveBaseURL(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("resolve agent-manager url: %w", err)
-	}
-	httpClient := c.httpClient
-	if httpClient == nil {
-		httpClient = &http.Client{Timeout: 120 * time.Second}
-	}
-	return apiconnect.NewAgentManagerServiceClient(httpClient, baseURL), nil
+func (c *AgentManagerClient) connectClient(ctx context.Context) (agentmanagerclient.Service, error) {
+	return c.sharedClient().Connect(ctx)
 }
 
 // callConnect retries only transport-level failures, clearing the cached
 // address before each retry so discovery observes Agent Manager port changes.
 // Application errors retain their Connect status and are never retried.
-func callConnect[T any](ctx context.Context, c *AgentManagerClient, call func(apiconnect.AgentManagerServiceClient) (*T, error)) (*T, error) {
+func callConnect[T any](ctx context.Context, c *AgentManagerClient, call func(agentmanagerclient.Service) (*T, error)) (*T, error) {
 	var lastErr error
 	for attempt := 0; attempt <= c.maxRetries; attempt++ {
 		if err := ctx.Err(); err != nil {
@@ -125,151 +144,87 @@ func waitForAgentManagerRetry(ctx context.Context, base time.Duration, attempt i
 	}
 }
 
-func agentManagerRequest[T any](ctx context.Context, message *T) *connect.Request[T] {
-	request := connect.NewRequest(message)
-	for name, values := range policygate.VerifiedOwnerHeaders(ctx) {
-		request.Header()[name] = append([]string(nil), values...)
-	}
-	return request
-}
-
 func (c *AgentManagerClient) ListProfiles(ctx context.Context) (*apipb.ListProfilesResponse, error) {
-	return callConnect(ctx, c, func(client apiconnect.AgentManagerServiceClient) (*apipb.ListProfilesResponse, error) {
-		response, err := client.ListProfiles(ctx, agentManagerRequest(ctx, &apipb.ListProfilesRequest{}))
-		if err != nil {
-			return nil, err
-		}
-		return response.Msg, nil
+	return callConnect(ctx, c, func(client agentmanagerclient.Service) (*apipb.ListProfilesResponse, error) {
+		return client.ListProfiles(ctx)
 	})
 }
 
 func (c *AgentManagerClient) CreateTask(ctx context.Context, task *ampb.Task) (*apipb.CreateTaskResponse, error) {
-	return callConnect(ctx, c, func(client apiconnect.AgentManagerServiceClient) (*apipb.CreateTaskResponse, error) {
-		response, err := client.CreateTask(ctx, agentManagerRequest(ctx, &apipb.CreateTaskRequest{Task: task}))
-		if err != nil {
-			return nil, err
-		}
-		return response.Msg, nil
+	return callConnect(ctx, c, func(client agentmanagerclient.Service) (*apipb.CreateTaskResponse, error) {
+		return client.CreateTaskResponse(ctx, task)
 	})
 }
 
 func (c *AgentManagerClient) GetTask(ctx context.Context, taskID string) (*apipb.GetTaskResponse, error) {
-	return callConnect(ctx, c, func(client apiconnect.AgentManagerServiceClient) (*apipb.GetTaskResponse, error) {
-		response, err := client.GetTask(ctx, agentManagerRequest(ctx, &apipb.GetTaskRequest{TaskId: taskID}))
-		if err != nil {
-			return nil, err
-		}
-		return response.Msg, nil
+	return callConnect(ctx, c, func(client agentmanagerclient.Service) (*apipb.GetTaskResponse, error) {
+		return client.GetTask(ctx, taskID)
 	})
 }
 
 func (c *AgentManagerClient) CreateRun(ctx context.Context, request *apipb.CreateRunRequest) (*apipb.CreateRunResponse, error) {
-	return callConnect(ctx, c, func(client apiconnect.AgentManagerServiceClient) (*apipb.CreateRunResponse, error) {
-		response, err := client.CreateRun(ctx, agentManagerRequest(ctx, request))
-		if err != nil {
-			return nil, err
-		}
-		return response.Msg, nil
+	return callConnect(ctx, c, func(client agentmanagerclient.Service) (*apipb.CreateRunResponse, error) {
+		return client.CreateRunResponse(ctx, request)
 	})
 }
 
 func (c *AgentManagerClient) GetRun(ctx context.Context, runID string) (*apipb.GetRunResponse, error) {
-	return callConnect(ctx, c, func(client apiconnect.AgentManagerServiceClient) (*apipb.GetRunResponse, error) {
-		response, err := client.GetRun(ctx, agentManagerRequest(ctx, &apipb.GetRunRequest{RunId: runID}))
-		if err != nil {
-			return nil, err
-		}
-		return response.Msg, nil
+	return callConnect(ctx, c, func(client agentmanagerclient.Service) (*apipb.GetRunResponse, error) {
+		return client.GetRunResponse(ctx, runID)
 	})
 }
 
 func (c *AgentManagerClient) GetRunReport(ctx context.Context, runID string) (*apipb.RunReport, error) {
-	return callConnect(ctx, c, func(client apiconnect.AgentManagerServiceClient) (*apipb.RunReport, error) {
-		response, err := client.GetRunReport(ctx, agentManagerRequest(ctx, &apipb.GetRunReportRequest{RunId: runID}))
-		if err != nil {
-			return nil, err
-		}
-		return response.Msg, nil
+	return callConnect(ctx, c, func(client agentmanagerclient.Service) (*apipb.RunReport, error) {
+		return client.GetRunReport(ctx, runID)
 	})
 }
 
 func (c *AgentManagerClient) GetRunEvents(ctx context.Context, runID string, afterSequence, limit int) (*apipb.GetRunEventsResponse, error) {
 	after, pageSize := int64(afterSequence), int32(limit)
-	return callConnect(ctx, c, func(client apiconnect.AgentManagerServiceClient) (*apipb.GetRunEventsResponse, error) {
-		response, err := client.GetRunEvents(ctx, agentManagerRequest(ctx, &apipb.GetRunEventsRequest{
-			RunId: runID, AfterSequence: &after, Limit: &pageSize,
-		}))
-		if err != nil {
-			return nil, err
-		}
-		return response.Msg, nil
+	return callConnect(ctx, c, func(client agentmanagerclient.Service) (*apipb.GetRunEventsResponse, error) {
+		return client.GetRunEventsResponse(ctx, runID, agentmanagerclient.RunEventsOptions{AfterSequence: &after, Limit: &pageSize})
 	})
 }
 
 func (c *AgentManagerClient) GetRunDiff(ctx context.Context, runID string) (*apipb.GetRunDiffResponse, error) {
-	return callConnect(ctx, c, func(client apiconnect.AgentManagerServiceClient) (*apipb.GetRunDiffResponse, error) {
-		response, err := client.GetRunDiff(ctx, agentManagerRequest(ctx, &apipb.GetRunDiffRequest{RunId: runID}))
-		if err != nil {
-			return nil, err
-		}
-		return response.Msg, nil
+	return callConnect(ctx, c, func(client agentmanagerclient.Service) (*apipb.GetRunDiffResponse, error) {
+		return client.GetRunDiffResponse(ctx, runID)
 	})
 }
 
 func (c *AgentManagerClient) ContinueRun(ctx context.Context, runID string, request AgentContinueRequest) (*ampb.ContinueRunResponse, error) {
-	return callConnect(ctx, c, func(client apiconnect.AgentManagerServiceClient) (*ampb.ContinueRunResponse, error) {
-		response, err := client.ContinueRun(ctx, agentManagerRequest(ctx, &ampb.ContinueRunRequest{
-			RunId: runID, Message: request.Message, AttachmentIds: request.AttachmentIDs,
-		}))
-		if err != nil {
-			return nil, err
-		}
-		return response.Msg, nil
+	return callConnect(ctx, c, func(client agentmanagerclient.Service) (*ampb.ContinueRunResponse, error) {
+		return client.ContinueRun(ctx, runID, request.Message, request.AttachmentIDs)
 	})
 }
 
 func (c *AgentManagerClient) ApproveRun(ctx context.Context, runID string, request AgentApproveRequest) (*apipb.ApproveRunResponse, error) {
-	return callConnect(ctx, c, func(client apiconnect.AgentManagerServiceClient) (*apipb.ApproveRunResponse, error) {
-		response, err := client.ApproveRun(ctx, agentManagerRequest(ctx, &apipb.ApproveRunRequest{
+	return callConnect(ctx, c, func(client agentmanagerclient.Service) (*apipb.ApproveRunResponse, error) {
+		return client.ApproveRun(ctx, &apipb.ApproveRunRequest{
 			RunId: runID, Actor: optionalString(request.Actor), CommitMsg: optionalString(request.CommitMsg),
-		}))
-		if err != nil {
-			return nil, err
-		}
-		return response.Msg, nil
+		})
 	})
 }
 
 func (c *AgentManagerClient) RejectRun(ctx context.Context, runID string, request AgentRejectRequest) (*apipb.RejectRunResponse, error) {
-	return callConnect(ctx, c, func(client apiconnect.AgentManagerServiceClient) (*apipb.RejectRunResponse, error) {
-		response, err := client.RejectRun(ctx, agentManagerRequest(ctx, &apipb.RejectRunRequest{
+	return callConnect(ctx, c, func(client agentmanagerclient.Service) (*apipb.RejectRunResponse, error) {
+		return client.RejectRun(ctx, &apipb.RejectRunRequest{
 			RunId: runID, Actor: optionalString(request.Actor), Reason: request.Reason,
-		}))
-		if err != nil {
-			return nil, err
-		}
-		return response.Msg, nil
+		})
 	})
 }
 
 func (c *AgentManagerClient) StopRun(ctx context.Context, runID string) (*apipb.StopRunResponse, error) {
-	return callConnect(ctx, c, func(client apiconnect.AgentManagerServiceClient) (*apipb.StopRunResponse, error) {
-		response, err := client.StopRun(ctx, agentManagerRequest(ctx, &apipb.StopRunRequest{RunId: runID}))
-		if err != nil {
-			return nil, err
-		}
-		return response.Msg, nil
+	return callConnect(ctx, c, func(client agentmanagerclient.Service) (*apipb.StopRunResponse, error) {
+		return client.StopRunResponse(ctx, runID)
 	})
 }
 
 func (c *AgentManagerClient) ListRuns(ctx context.Context, tagPrefix string, limit int) (*apipb.ListRunsResponse, error) {
 	prefix, pageSize := tagPrefix, int32(limit)
-	return callConnect(ctx, c, func(client apiconnect.AgentManagerServiceClient) (*apipb.ListRunsResponse, error) {
-		response, err := client.ListRuns(ctx, agentManagerRequest(ctx, &apipb.ListRunsRequest{TagPrefix: &prefix, Limit: &pageSize}))
-		if err != nil {
-			return nil, err
-		}
-		return response.Msg, nil
+	return callConnect(ctx, c, func(client agentmanagerclient.Service) (*apipb.ListRunsResponse, error) {
+		return client.ListRunsResponse(ctx, &apipb.ListRunsRequest{TagPrefix: &prefix, Limit: &pageSize})
 	})
 }
 

@@ -146,7 +146,7 @@ export function SetBaselineModal({
         title="Set baseline"
         closeLabel="Close"
         dismissAffordance="close"
-        contentClassName="px-4 py-6"
+        contentClassName="px-3 py-4"
         footer={
           <div className="flex w-full gap-3 [&>button]:flex-1 [&>button]:h-12">
             {footer}

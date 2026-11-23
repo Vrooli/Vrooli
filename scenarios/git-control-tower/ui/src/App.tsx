@@ -8,7 +8,7 @@ import { CommitAuthorizationDialog, type PendingCommitAuthorization } from "./co
 // doc for component boundaries and the operational targets (OT-P1-002 etc.)
 // driving future work; performance characteristics are tracked in
 // docs/perf/.
-import { lazy, Suspense, useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { lazy, Suspense, useState, useCallback, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { create } from "@bufbuild/protobuf";
 import { AuthorityStatusSchema } from "@vrooli/proto-types/git-control-tower/v1/human_control/human_control_pb";
 import { StagedMessageMode, WorktreeSelectionSource } from "@vrooli/proto-types/git-control-tower/v1/advisory/advisory_pb";
@@ -51,9 +51,10 @@ import { getFileTypeInfo } from "./lib/fileTypes";
 import { GCT_CHROME_COLOR } from "./lib/chrome";
 import { buildRunIndex } from "./lib/runAttribution";
 import type { ViewingCommit } from "./components/HistoryModeHeader";
-import { computeNextSelection, selectStackSlots, type SelectionEntry } from "./AppSelection";
+import { computeNextSelection, moveDesktopPane, normalizeDesktopPaneOrder, selectStackSlots, type DesktopPane, type DesktopPaneOrder, type SelectionEntry } from "./AppSelection";
 import { ProposalsSection } from "./features/proposals/ProposalsSection";
 import { startPrecommitCandidateCheck } from "./features/commit-message/precommitCandidateApi";
+import { GripVertical } from "lucide-react";
 
 import type { SyncActivity } from "./App.types";
 import {
@@ -96,10 +97,24 @@ import {
   useSaveGroupingRules,
   queryKeys,
 } from "./lib/hooks";
+import { invalidateFileDiffVariants, invalidateManualRefresh } from "./lib/hooks-query-invalidations";
 
 const ScenarioReviewPanel = lazy(() => import("./components/ScenarioReviewPanel").then(module => ({ default: module.ScenarioReviewPanel })));
 const ProposalWorkspace = lazy(() => import("./features/proposals/ProposalWorkspace").then(module => ({ default: module.ProposalWorkspace })));
 const panelLoading = <div role="status" className="p-4 text-sm text-slate-400">Loading workspace…</div>;
+const layoutRestoreState = (
+  <div className="h-full w-full p-4" role="status" aria-label="Restoring workspace layout" aria-busy="true">
+    <div className="mb-3 h-8 w-40 animate-pulse rounded-md bg-slate-800/70" />
+    <div className="grid h-[calc(100%-2.75rem)] grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(16rem,30%)]">
+      <div className="animate-pulse rounded-lg border border-slate-800 bg-slate-900/40" />
+      <div className="hidden grid-rows-3 gap-3 sm:grid">
+        <div className="animate-pulse rounded-lg border border-slate-800 bg-slate-900/40" />
+        <div className="animate-pulse rounded-lg border border-slate-800 bg-slate-900/40" />
+        <div className="animate-pulse rounded-lg border border-slate-800 bg-slate-900/40" />
+      </div>
+    </div>
+  </div>
+);
 
 type GroupingRuleLike = Partial<GroupingRule> & { prefix?: string };
 
@@ -178,21 +193,9 @@ export default function App() {
   const sidebarGridRef = useRef<HTMLDivElement | null>(null);
   const topStackGridRef = useRef<HTMLDivElement | null>(null);
 
-  const [sidebarWidth, setSidebarWidth] = useState(() => {
-    if (typeof window === "undefined") return 320;
-    const stored = Number(localStorage.getItem("gct.sidebarWidth"));
-    return Number.isFinite(stored) && stored > 0 ? stored : 320;
-  });
-  const [changesHeight, setChangesHeight] = useState(() => {
-    if (typeof window === "undefined") return 420;
-    const stored = Number(localStorage.getItem("gct.changesHeight"));
-    return Number.isFinite(stored) && stored > 0 ? stored : 420;
-  });
-  const [historyHeight, setHistoryHeight] = useState(() => {
-    if (typeof window === "undefined") return 200;
-    const stored = Number(localStorage.getItem("gct.historyHeight"));
-    return Number.isFinite(stored) && stored > 0 ? stored : 200;
-  });
+  const [sidebarWidth, setSidebarWidth] = useState(320);
+  const [changesHeight, setChangesHeight] = useState(420);
+  const [historyHeight, setHistoryHeight] = useState(200);
   const [changesCollapsed, setChangesCollapsed] = useState(false);
   const [historyCollapsed, setHistoryCollapsed] = useState(false);
   const [commitCollapsed, setCommitCollapsed] = useState(false);
@@ -221,12 +224,13 @@ export default function App() {
   const [groupingLoadedKey, setGroupingLoadedKey] = useState<string | null>(null);
   const [layoutPreset, setLayoutPreset] = useState<LayoutPreset>("classic");
   const [primaryPanel, setPrimaryPanel] = useState<LayoutSection>("diff");
+  const [desktopPaneOrder, setDesktopPaneOrder] = useState<DesktopPaneOrder>(["diff", "changes", "history", "commit"]);
+  const [draggingPane, setDraggingPane] = useState<DesktopPane | null>(null);
+  const [dropTargetPane, setDropTargetPane] = useState<DesktopPane | null>(null);
+  const layoutRatiosRef = useRef({ sidebarWidth: 0.32, stackHeight: 0.4, changesHeight: 0.52, historyHeight: 0.25 });
+  const lastLayoutViewportRef = useRef<{ width: number; height: number } | null>(null);
   const [layoutLoadedKey, setLayoutLoadedKey] = useState<string | null>(null);
-  const [stackHeight, setStackHeight] = useState(() => {
-    if (typeof window === "undefined") return 320;
-    const stored = Number(localStorage.getItem("gct.stackHeight"));
-    return Number.isFinite(stored) && stored > 0 ? stored : 320;
-  });
+  const [stackHeight, setStackHeight] = useState(320);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSourceDistributionOpen, setIsSourceDistributionOpen] = useState(false);
   const [sourceDistributionId, setSourceDistributionId] = useState<string | null>(null);
@@ -469,7 +473,7 @@ export default function App() {
 
   const stackPosition: "left" | "right" | "bottom" =
     layoutPreset === "bottom" ? "bottom" : layoutPreset === "split" ? "right" : "left";
-  const stackSlots = useMemo(() => selectStackSlots(primaryPanel), [primaryPanel]);
+  const stackSlots = useMemo(() => selectStackSlots(primaryPanel, desktopPaneOrder), [primaryPanel, desktopPaneOrder]);
   const collapsedBySection = useMemo(
     () => ({
       changes: changesCollapsed,
@@ -565,7 +569,7 @@ export default function App() {
   const setActiveRepoMutation = useSetActiveRepo();
   const removeRepoMutation = useRemoveRepo();
   const groupingRulesQuery = useGroupingRules(repoId);
-  const repoGroupsQuery = useRepoGroups(repoId);
+  const repoGroupsQuery = useRepoGroups(repoId, statusQuery.data?.status_snapshot_id);
   const saveGroupingRulesMutation = useSaveGroupingRules(repoId);
 
   // Mutation result objects change on every render; their mutate functions
@@ -658,32 +662,23 @@ export default function App() {
     { label: "Switch branch", error: switchBranchMutation.error, reset: switchBranchMutation.reset },
     { label: "Publish branch", error: publishBranchMutation.error, reset: publishBranchMutation.reset }
   ]);
-  const repoDir = statusQuery.data?.repo_dir;
+  // The repository registry knows this path before the full status (and its
+  // paginated file list) returns. Use it to restore the saved pane layout
+  // without making the whole workspace wait on Git status.
+  const repoDir = statusQuery.data?.repo_dir ?? reposQuery.data?.repos.find((repo) => String(repo.id) === repoId)?.path;
   const repoKey = useMemo(
     () => (repoDir ? encodeURIComponent(repoDir) : "unknown"),
     [repoDir]
   );
+  const isWorkspaceLayoutRestoring = Boolean(
+    (!repoId && (reposQuery.isLoading || reposQuery.data?.active_id)) ||
+    (repoId && !statusQuery.isError && (!repoDir || layoutLoadedKey !== repoKey))
+  );
 
   // Handlers
   const handleRefresh = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.health });
-    queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
-    queryClient.invalidateQueries({
-      queryKey: queryKeys.repoHistory(historyLimit, historyNeedsDetails, repoId)
-    });
-    queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus(repoId) });
-    queryClient.invalidateQueries({ queryKey: queryKeys.approvedChanges(repoId) });
-    queryClient.invalidateQueries({ queryKey: queryKeys.branches(repoId) });
-    if (selectedFile) {
-      queryClient.invalidateQueries({ queryKey: ["repo", "diff", repoId ?? "default"] });
-    }
-  }, [
-    historyLimit,
-    historyNeedsDetails,
-    queryClient,
-    repoId,
-    selectedFile
-  ]);
+    invalidateManualRefresh(queryClient, repoId, selectedFile);
+  }, [queryClient, repoId, selectedFile]);
 
   const branchActions = useMemo(
     () => ({
@@ -972,17 +967,7 @@ export default function App() {
         }
         // Keep the selected diff visible after staging. The updated staged state
         // switches its action to Unstage without interrupting review.
-        pathsToStage.forEach((stagedPath) => {
-          queryClient.invalidateQueries({
-            queryKey: queryKeys.diff(stagedPath, false, false, undefined, "diff", false, repoId)
-          });
-          queryClient.invalidateQueries({
-            queryKey: queryKeys.diff(stagedPath, false, true, undefined, "diff", false, repoId)
-          });
-          queryClient.invalidateQueries({
-            queryKey: queryKeys.diff(stagedPath, true, false, undefined, "diff", false, repoId)
-          });
-        });
+        invalidateFileDiffVariants(queryClient, repoId, pathsToStage);
         // Show warning notice if there were warnings (e.g., ignored files)
         if (data.warnings && data.warnings.length > 0) {
           notify({
@@ -1015,17 +1000,7 @@ export default function App() {
               setSelectedIsUntracked(false);
             }
             // Keep the selected diff visible after unstaging so review can continue.
-            pathsToUnstage.forEach((unstagedPath) => {
-              queryClient.invalidateQueries({
-                queryKey: queryKeys.diff(unstagedPath, false, false, undefined, "diff", false, repoId)
-              });
-              queryClient.invalidateQueries({
-                queryKey: queryKeys.diff(unstagedPath, false, true, undefined, "diff", false, repoId)
-              });
-              queryClient.invalidateQueries({
-                queryKey: queryKeys.diff(unstagedPath, true, false, undefined, "diff", false, repoId)
-              });
-            });
+            invalidateFileDiffVariants(queryClient, repoId, pathsToUnstage);
           }
         }
       );
@@ -1962,21 +1937,6 @@ export default function App() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    localStorage.setItem("gct.sidebarWidth", String(sidebarWidth));
-  }, [sidebarWidth]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    localStorage.setItem("gct.changesHeight", String(changesHeight));
-  }, [changesHeight]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    localStorage.setItem("gct.historyHeight", String(historyHeight));
-  }, [historyHeight]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
     localStorage.setItem("gct.mobileActivePanel", mobileActivePanel);
   }, [mobileActivePanel]);
 
@@ -2065,34 +2025,71 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repoDir, repoKey, groupingLoadedKey, normalizeGroupingRules, groupingRulesQuery.data, groupingRulesQuery.isLoading]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!repoDir) return;
     if (layoutLoadedKey === repoKey) return;
     const presetKey = `gct.layout.${repoKey}.preset`;
     const primaryKey = `gct.layout.${repoKey}.primary`;
     const stackKey = `gct.layout.${repoKey}.stackHeight`;
-    const storedPreset = localStorage.getItem(presetKey);
-    const storedPrimary = localStorage.getItem(primaryKey);
-    const storedStackHeight = Number(localStorage.getItem(stackKey));
+    let storedPreset: string | null = null;
+    let storedPrimary: string | null = null;
+    let storedStackHeight = 0;
+    let storedGeometry: Partial<{ sidebarWidth: number; stackHeight: number; changesHeight: number; historyHeight: number; order: unknown; collapsed: unknown; preset: unknown; primary: unknown }> = {};
+    let legacySizes = { sidebarWidth: 320, changesHeight: 420, historyHeight: 200 };
+    try {
+      storedPreset = localStorage.getItem(presetKey);
+      storedPrimary = localStorage.getItem(primaryKey);
+      storedStackHeight = Number(localStorage.getItem(stackKey));
+      legacySizes = {
+        sidebarWidth: Number(localStorage.getItem("gct.sidebarWidth")) || 320,
+        changesHeight: Number(localStorage.getItem("gct.changesHeight")) || 420,
+        historyHeight: Number(localStorage.getItem("gct.historyHeight")) || 200,
+      };
+      const rawGeometry = localStorage.getItem(`gct.layout.${repoKey}.workspace`);
+      if (rawGeometry) storedGeometry = JSON.parse(rawGeometry) as typeof storedGeometry;
+      if (typeof storedGeometry.preset === "string") storedPreset = storedGeometry.preset;
+      if (typeof storedGeometry.primary === "string") storedPrimary = storedGeometry.primary;
+    } catch {
+      // Layout preferences are optional; malformed or blocked storage uses safe defaults.
+    }
+    const width = Math.max(1, mainRef.current?.clientWidth || window.innerWidth);
+    const height = Math.max(1, mainRef.current?.clientHeight || window.innerHeight);
+    const validRatio = (value: unknown, fallback: number) => typeof value === "number" && Number.isFinite(value) && value > 0 && value <= 1 ? value : fallback;
+    const ratios = {
+      sidebarWidth: validRatio(storedGeometry.sidebarWidth, legacySizes.sidebarWidth / width),
+      stackHeight: validRatio(storedGeometry.stackHeight, Number.isFinite(storedStackHeight) && storedStackHeight > 0 ? storedStackHeight / height : 320 / height),
+      changesHeight: validRatio(storedGeometry.changesHeight, legacySizes.changesHeight / height),
+      historyHeight: validRatio(storedGeometry.historyHeight, legacySizes.historyHeight / height),
+    };
+    layoutRatiosRef.current = ratios;
+    lastLayoutViewportRef.current = { width, height };
+    setSidebarWidth(Math.max(sidebarMinWidth, Math.min(width - diffMinWidth, ratios.sidebarWidth * width)));
+    setStackHeight(Math.max(220, Math.min(height - 240, ratios.stackHeight * height)));
+    setChangesHeight(Math.max(200, Math.min(height - 180, ratios.changesHeight * height)));
+    setHistoryHeight(Math.max(140, Math.min(height - 200, ratios.historyHeight * height)));
+    if (typeof storedGeometry.collapsed === "object" && storedGeometry.collapsed !== null) {
+      const collapsed = storedGeometry.collapsed as { changes?: unknown; history?: unknown; commit?: unknown };
+      setChangesCollapsed(collapsed.changes === true);
+      setHistoryCollapsed(collapsed.history === true);
+      setCommitCollapsed(collapsed.commit === true);
+    } else {
+      setChangesCollapsed(false);
+      setHistoryCollapsed(false);
+      setCommitCollapsed(false);
+    }
     setLayoutPreset(
       storedPreset && isLayoutPreset(storedPreset)
         ? storedPreset
         : "classic"
     );
+    const primary = storedPrimary === "changes" || storedPrimary === "history" || storedPrimary === "commit" || storedPrimary === "diff" || storedPrimary === "review" ? storedPrimary : "diff";
+    setDesktopPaneOrder(normalizeDesktopPaneOrder(storedGeometry.order, primary === "review" ? ["diff", "changes", "history", "commit"] : [primary, ...(["changes", "history", "diff", "commit"] as DesktopPane[]).filter((pane) => pane !== primary)] as DesktopPaneOrder));
     if (!urlSetPrimaryRef.current) {
-      setPrimaryPanel(
-        storedPrimary === "changes" ||
-          storedPrimary === "history" ||
-          storedPrimary === "commit" ||
-          storedPrimary === "diff" ||
-          storedPrimary === "review"
-          ? storedPrimary
-          : "diff"
-      );
+      setPrimaryPanel(primary);
     }
     // Clear the URL override flag — localStorage can take over for future repo switches
     urlSetPrimaryRef.current = false;
-    if (Number.isFinite(storedStackHeight) && storedStackHeight > 0) {
+    if (!(typeof storedGeometry.stackHeight === "number" && Number.isFinite(storedGeometry.stackHeight) && storedGeometry.stackHeight > 0 && storedGeometry.stackHeight <= 1) && Number.isFinite(storedStackHeight) && storedStackHeight > 0) {
       setStackHeight(storedStackHeight);
     }
     setLayoutLoadedKey(repoKey);
@@ -2122,13 +2119,52 @@ export default function App() {
 
   useEffect(() => {
     if (!repoDir || layoutLoadedKey !== repoKey) return;
-    const presetKey = `gct.layout.${repoKey}.preset`;
-    const primaryKey = `gct.layout.${repoKey}.primary`;
-    const stackKey = `gct.layout.${repoKey}.stackHeight`;
-    localStorage.setItem(presetKey, layoutPreset);
-    localStorage.setItem(primaryKey, primaryPanel);
-    localStorage.setItem(stackKey, String(stackHeight));
-  }, [repoDir, repoKey, layoutLoadedKey, layoutPreset, primaryPanel, stackHeight]);
+    const workspace = {
+      version: 1,
+      order: desktopPaneOrder,
+      collapsed: { changes: changesCollapsed, history: historyCollapsed, commit: commitCollapsed },
+      sidebarWidth: mainRef.current ? sidebarWidth / Math.max(1, mainRef.current.clientWidth) : layoutRatiosRef.current.sidebarWidth,
+      stackHeight: mainRef.current ? stackHeight / Math.max(1, mainRef.current.clientHeight) : layoutRatiosRef.current.stackHeight,
+      changesHeight: mainRef.current ? changesHeight / Math.max(1, mainRef.current.clientHeight) : layoutRatiosRef.current.changesHeight,
+      historyHeight: mainRef.current ? historyHeight / Math.max(1, mainRef.current.clientHeight) : layoutRatiosRef.current.historyHeight,
+      preset: layoutPreset,
+      primary: primaryPanel,
+    };
+    layoutRatiosRef.current = workspace;
+    try {
+      localStorage.setItem(`gct.layout.${repoKey}.workspace`, JSON.stringify(workspace));
+    } catch {
+      // Keep the workspace usable when browser storage is unavailable or full.
+    }
+  }, [repoDir, repoKey, layoutLoadedKey, layoutPreset, primaryPanel, stackHeight, sidebarWidth, changesHeight, historyHeight, desktopPaneOrder, changesCollapsed, historyCollapsed, commitCollapsed]);
+
+  useEffect(() => {
+    if (isMobile || !repoDir || layoutLoadedKey !== repoKey || !mainRef.current || typeof ResizeObserver === "undefined") return;
+    const applyViewport = () => {
+      const host = mainRef.current;
+      if (!host || isResizingStack || isResizingSplit || isResizingHistory) return;
+      const width = host.clientWidth;
+      const height = host.clientHeight;
+      if (width < 1 || height < 1) return;
+      const previous = lastLayoutViewportRef.current;
+      if (previous && previous.width === width && previous.height === height) return;
+      lastLayoutViewportRef.current = { width, height };
+      const ratios = layoutRatiosRef.current;
+      setSidebarWidth(Math.max(sidebarMinWidth, Math.min(width - diffMinWidth, ratios.sidebarWidth * width)));
+      setStackHeight(Math.max(220, Math.min(height - 240, ratios.stackHeight * height)));
+      setChangesHeight(Math.max(200, Math.min(height - 180, ratios.changesHeight * height)));
+      setHistoryHeight(Math.max(140, Math.min(height - 200, ratios.historyHeight * height)));
+    };
+    applyViewport();
+    const observer = new ResizeObserver(applyViewport);
+    observer.observe(mainRef.current);
+    return () => observer.disconnect();
+  }, [isMobile, repoDir, repoKey, layoutLoadedKey, isResizingStack, isResizingSplit, isResizingHistory]);
+
+  useEffect(() => {
+    if (!repoDir || layoutLoadedKey !== repoKey || primaryPanel === "review" || desktopPaneOrder[0] === primaryPanel) return;
+    setDesktopPaneOrder((current) => [primaryPanel, ...current.filter((pane) => pane !== primaryPanel)] as DesktopPaneOrder);
+  }, [repoDir, repoKey, layoutLoadedKey, primaryPanel, desktopPaneOrder]);
 
   useEffect(() => {
     // If in grouped mode but no manual or server-derived groups are available, fall back to flat.
@@ -2291,6 +2327,12 @@ export default function App() {
     };
 
     const handleUp = () => {
+      const host = mainRef.current;
+      if (host) {
+        const ratios = layoutRatiosRef.current;
+        if (latestHeight !== null) ratios.stackHeight = latestHeight / Math.max(1, host.clientHeight);
+        if (latestWidth !== null) ratios.sidebarWidth = latestWidth / Math.max(1, host.clientWidth);
+      }
       if (latestHeight !== null) setStackHeight(latestHeight);
       if (latestWidth !== null) setSidebarWidth(latestWidth);
       setIsResizingStack(false);
@@ -2333,6 +2375,9 @@ export default function App() {
     };
 
     const handleUp = () => {
+      if (latestHeight !== null && mainRef.current) {
+        layoutRatiosRef.current.changesHeight = latestHeight / Math.max(1, mainRef.current.clientHeight);
+      }
       if (latestHeight !== null) setChangesHeight(latestHeight);
       setIsResizingSplit(false);
       splitResize.current = null;
@@ -2372,6 +2417,9 @@ export default function App() {
     };
 
     const handleUp = () => {
+      if (latestHeight !== null && mainRef.current) {
+        layoutRatiosRef.current.historyHeight = latestHeight / Math.max(1, mainRef.current.clientHeight);
+      }
       if (latestHeight !== null) setHistoryHeight(latestHeight);
       setIsResizingHistory(false);
       historyResize.current = null;
@@ -2423,6 +2471,38 @@ export default function App() {
     const rect = stackRef.current.getBoundingClientRect();
     historyResize.current = { bottom: rect.top + changesHeight };
     setIsResizingHistory(true);
+  };
+
+  const handleDesktopPaneDrop = (from: DesktopPane, to: DesktopPane) => {
+    if (from === to) return;
+    setDesktopPaneOrder((current) => {
+      const next = moveDesktopPane(current, from, to);
+      if (primaryPanel !== "review") setPrimaryPanel(next[0]);
+      return next;
+    });
+  };
+
+  const handlePrimaryPanelChange = (panel: LayoutSection) => {
+    setPrimaryPanel(panel);
+    if (panel !== "review") {
+      setDesktopPaneOrder((current) => [panel, ...current.filter((pane) => pane !== panel)] as DesktopPaneOrder);
+    }
+  };
+
+  const handleResetLayout = () => {
+    const width = Math.max(1, mainRef.current?.clientWidth || window.innerWidth);
+    const height = Math.max(1, mainRef.current?.clientHeight || window.innerHeight);
+    layoutRatiosRef.current = { sidebarWidth: 320 / width, stackHeight: 320 / height, changesHeight: 420 / height, historyHeight: 200 / height };
+    setLayoutPreset("classic");
+    setPrimaryPanel("diff");
+    setDesktopPaneOrder(["diff", "changes", "history", "commit"]);
+    setChangesCollapsed(false);
+    setHistoryCollapsed(false);
+    setCommitCollapsed(false);
+    setSidebarWidth(320);
+    setChangesHeight(420);
+    setHistoryHeight(200);
+    setStackHeight(320);
   };
 
   const handleRevealChangeInTree = useCallback((path: string) => {
@@ -2487,6 +2567,9 @@ export default function App() {
             runIndex={runIndex}
             onRevealInTree={handleRevealChangeInTree}
             fileStats={statusQuery.data?.file_stats}
+            previewFileStats={statusQuery.data?.file_stats_preview}
+            fileStatsState={statusQuery.data?.file_stats_state}
+            onRetryFileStats={() => { void statusQuery.retryFileStats(); }}
             selectedFiles={selectedFiles}
             selectedKeySet={selectedKeySet}
             selectionKey={selectionKey}
@@ -2677,6 +2760,42 @@ export default function App() {
     }
   };
 
+  const renderDesktopPane = (panel: LayoutSection, slot: "top" | "middle" | "bottom" | "main") => {
+    const corePanel = panel === "review" ? null : panel as DesktopPane;
+    const canReorder = corePanel !== null;
+    return (
+      <div
+        className={`group/pane relative h-full min-h-0 min-w-0 overflow-hidden ${dropTargetPane === corePanel && draggingPane !== corePanel ? "ring-2 ring-inset ring-sky-400/80" : ""}`}
+        data-layout-pane={panel}
+        data-layout-slot={slot}
+        onDragOver={canReorder && draggingPane && draggingPane !== corePanel ? (event) => { event.preventDefault(); event.dataTransfer.dropEffect = "move"; setDropTargetPane(corePanel); } : undefined}
+        onDragLeave={canReorder ? (event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropTargetPane(null); } : undefined}
+        onDrop={canReorder && corePanel ? (event) => { event.preventDefault(); if (draggingPane) handleDesktopPaneDrop(draggingPane, corePanel); setDraggingPane(null); setDropTargetPane(null); } : undefined}
+      >
+        {renderPanel(panel, slot)}
+        {canReorder && (
+          <button
+            type="button"
+            draggable
+            aria-label={`Drag ${panel} pane to rearrange`}
+            title="Drag to move pane"
+            data-testid={`drag-pane-${panel}`}
+            onDragStart={(event) => {
+              if (!corePanel) return;
+              event.dataTransfer.effectAllowed = "move";
+              event.dataTransfer.setData("text/plain", corePanel);
+              setDraggingPane(corePanel);
+            }}
+            onDragEnd={() => { setDraggingPane(null); setDropTargetPane(null); }}
+            className={`absolute right-2 top-2 z-40 flex h-8 w-8 items-center justify-center rounded-md border border-slate-700/80 bg-slate-950/90 text-slate-400 shadow-sm transition-opacity hover:border-sky-500 hover:text-sky-300 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-sky-500 ${draggingPane === corePanel ? "cursor-grabbing opacity-100" : "cursor-grab opacity-0 group-hover/pane:opacity-100"}`}
+          >
+            <GripVertical size={16} aria-hidden="true" />
+          </button>
+        )}
+      </div>
+    );
+  };
+
   const showSplitHandle = !bottomCollapsed && !topStackCollapsed;
   const sidebarRows = (() => {
     if (topStackCollapsed && bottomCollapsed) return "auto 0px auto";
@@ -2708,7 +2827,7 @@ export default function App() {
       <div ref={sidebarGridRef} className="h-full min-h-0 min-w-0 grid overflow-hidden" style={{ gridTemplateRows: sidebarRows }}>
         <div className="min-h-0 min-w-0 overflow-hidden">
           <div ref={topStackGridRef} className="h-full min-h-0 min-w-0 grid" style={{ gridTemplateRows: topStackRows }}>
-            <div className="min-h-0 min-w-0">{renderPanel(topPanel, "top")}</div>
+            <div className="min-h-0 min-w-0">{renderDesktopPane(topPanel, "top")}</div>
             <div
               className={`${
                 !topCollapsed && !middleCollapsed
@@ -2718,7 +2837,7 @@ export default function App() {
               onMouseDown={!topCollapsed && !middleCollapsed ? handleHistoryResizeStart : undefined}
               aria-hidden="true"
             />
-            <div className="min-h-0 min-w-0">{renderPanel(middlePanel, "middle")}</div>
+            <div className="min-h-0 min-w-0">{renderDesktopPane(middlePanel, "middle")}</div>
           </div>
         </div>
         <div
@@ -2729,7 +2848,7 @@ export default function App() {
           aria-hidden="true"
         />
         <div className="min-h-0 min-w-0 border-t border-slate-800 overflow-hidden">
-          {renderPanel(bottomPanel, "bottom")}
+          {renderDesktopPane(bottomPanel, "bottom")}
         </div>
       </div>
     </div>
@@ -2782,6 +2901,9 @@ export default function App() {
             runIndex={runIndex}
             onRevealInTree={handleRevealChangeInTree}
             fileStats={statusQuery.data?.file_stats}
+            previewFileStats={statusQuery.data?.file_stats_preview}
+            fileStatsState={statusQuery.data?.file_stats_state}
+            onRetryFileStats={() => { void statusQuery.retryFileStats(); }}
             selectedFiles={selectedFiles}
             selectedKeySet={selectedKeySet}
             selectionKey={selectionKey}
@@ -3037,7 +3159,7 @@ export default function App() {
 
         {/* Main Content - Single Panel at a time */}
         <div className="gct-mobile-content" data-testid="gct-mobile-content">
-          {renderMobilePanel(mobileActivePanel)}
+          {isWorkspaceLayoutRestoring ? layoutRestoreState : renderMobilePanel(mobileActivePanel)}
         </div>
 
         {/* Mobile Navigation */}
@@ -3073,12 +3195,8 @@ export default function App() {
           preset={layoutPreset}
           primaryPanel={primaryPanel}
           onChangePreset={setLayoutPreset}
-          onChangePrimary={setPrimaryPanel}
-          onResetLayout={() => {
-            setLayoutPreset("classic");
-            setPrimaryPanel("diff");
-            setStackHeight(320);
-          }}
+          onChangePrimary={handlePrimaryPanelChange}
+          onResetLayout={handleResetLayout}
           groupingEnabled={fileViewMode === "grouped"}
           onToggleGrouping={() => setFileViewMode((prev) => prev === "grouped" ? "flat" : "grouped")}
           groupingRules={groupingRules}
@@ -3180,6 +3298,7 @@ export default function App() {
         className={`flex-1 overflow-hidden ${isBottomLayout ? "flex flex-col" : "flex"}`}
         ref={mainRef}
       >
+        {isWorkspaceLayoutRestoring ? layoutRestoreState : <>
         {!isBottomLayout && stackPosition === "left" && (
           <>
             {stackPanel}
@@ -3192,7 +3311,7 @@ export default function App() {
         )}
 
         <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
-          {renderPanel(primaryPanel, "main")}
+          {renderDesktopPane(primaryPanel, "main")}
         </div>
 
         {!isBottomLayout && stackPosition === "right" && (
@@ -3216,6 +3335,7 @@ export default function App() {
             {stackPanel}
           </>
         )}
+        </>}
       </div>
 
       {pendingCommitAuthorization && (
@@ -3242,12 +3362,8 @@ export default function App() {
         preset={layoutPreset}
         primaryPanel={primaryPanel}
         onChangePreset={setLayoutPreset}
-        onChangePrimary={setPrimaryPanel}
-        onResetLayout={() => {
-          setLayoutPreset("classic");
-          setPrimaryPanel("diff");
-          setStackHeight(320);
-        }}
+        onChangePrimary={handlePrimaryPanelChange}
+        onResetLayout={handleResetLayout}
         groupingEnabled={fileViewMode === "grouped"}
         onToggleGrouping={() => setFileViewMode((prev) => prev === "grouped" ? "flat" : "grouped")}
         groupingRules={groupingRules}

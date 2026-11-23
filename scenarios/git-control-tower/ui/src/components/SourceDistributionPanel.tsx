@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ExternalLink, RefreshCw, X } from "lucide-react";
 import { fetchSourceDistribution, fetchSourceDistributions } from "../lib/api-source-distribution";
 import type { SourceDistribution, SourceDistributionDetailResponse } from "../lib/api-types-source-distribution";
+import { queryKeys } from "../lib/hooks-query-keys";
 
 interface Props { repoId?: string | null; initialDistributionId?: string | null; onClose: () => void; onSelectDistribution?: (id: string | null) => void; }
 const short = (value: string) => value ? `${value.slice(0, 12)}…` : "—";
@@ -10,7 +11,7 @@ const statusLabel = (value: string) => value.replace(/_/g, " ") || "unknown";
 
 export function SourceDistributionPanel({ repoId, initialDistributionId, onClose, onSelectDistribution }: Props) {
   const [selected, setSelected] = useState<SourceDistribution | null>(null);
-  const list = useQuery({ queryKey: ["source-distributions", repoId], queryFn: () => fetchSourceDistributions(repoId ?? undefined), staleTime: 15_000 });
+  const list = useQuery({ queryKey: queryKeys.sourceDistributions(repoId), queryFn: () => fetchSourceDistributions(repoId ?? undefined), staleTime: 15_000 });
   const detail = useQuery({ queryKey: ["source-distribution", selected?.distribution_id], queryFn: () => { if (!selected) throw new Error("Select a source distribution"); return fetchSourceDistribution(selected.distribution_id); }, enabled: Boolean(selected) });
 
   useEffect(() => {

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Worktree ledger concept · Git Control Tower</title>
+  <style>
+    :root { color-scheme: dark; font: 14px/1.45 Inter, ui-sans-serif, system-ui, sans-serif; --bg:#020617; --panel:#0b1222; --raised:#111c30; --line:#263449; --soft:#1e293b; --text:#e2e8f0; --muted:#94a3b8; --faint:#64748b; --cyan:#67e8f9; --green:#4ade80; --amber:#fbbf24; --red:#fb7185; }
+    * { box-sizing:border-box } body { margin:0; color:var(--text); background:var(--bg) } main { max-width:1240px; margin:auto; padding:28px 24px 52px } h1,h2,h3,p { margin:0 } h1 { font-size:25px; letter-spacing:-.025em } h2 { font-size:15px } h3 { font-size:13px } p { color:var(--muted) }
+    .eyebrow { color:var(--cyan); font-size:10px; font-weight:750; letter-spacing:.12em; text-transform:uppercase } .intro p { max-width:760px; margin-top:7px; font-size:13px }
+    .context { display:flex; gap:12px; margin:18px 0 22px; padding:12px 14px; border:1px solid var(--line); border-radius:10px; background:#0b1425 } .context b { display:block; font-size:12px } .context span { display:block; color:var(--muted); font-size:11px }
+    .views { display:grid; grid-template-columns:minmax(0,1.7fr) minmax(300px,.75fr); align-items:start; gap:18px } .view { overflow:hidden; border:1px solid var(--line); border-radius:12px; background:var(--panel) } .view-head { display:flex; justify-content:space-between; align-items:center; padding:12px 14px; border-bottom:1px solid var(--soft) } .view-head p { font-size:11px }
+    .appbar { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:12px 15px; border-bottom:1px solid var(--soft); background:#080f1e } .brand { font-weight:700; font-size:12px } .repo { color:var(--muted); font-size:11px } .repo strong { color:#cbd5e1 } .workspace { display:grid; grid-template-columns:minmax(0,1.45fr) minmax(300px,.9fr); min-height:405px } .diff { padding:15px; border-right:1px solid var(--soft); background:#070d19 } .diff-title { display:flex; justify-content:space-between; align-items:center; gap:8px; padding-bottom:12px; border-bottom:1px solid var(--soft) } .diff-title small { color:var(--faint); font-size:10px } .code { margin-top:14px; color:#94a3b8; font:11px/1.9 ui-monospace, SFMono-Regular, Menlo, monospace; white-space:pre } .plus { color:var(--green) } .minus { color:var(--red) }
+    .ledger { min-width:0 } .ledger-head { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:12px; border-bottom:1px solid var(--soft) } .ledger-head p { margin-top:2px; font-size:10px } button { min-height:34px; padding:0 11px; border:1px solid #155e75; border-radius:7px; color:var(--cyan); background:#08334466; font:600 11px inherit } .row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; padding:11px 12px; border-bottom:1px solid #172235 } .row.selected { background:#102033; box-shadow:inset 2px 0 var(--cyan) } .row strong { display:block; overflow:hidden; color:#dbeafe; font-size:11px; text-overflow:ellipsis; white-space:nowrap } .path { overflow:hidden; margin-top:3px; color:var(--faint); font:10px ui-monospace,monospace; text-overflow:ellipsis; white-space:nowrap } .meta { margin-top:6px; color:var(--muted); font-size:10px } .badge { align-self:start; padding:3px 6px; border:1px solid #14532d; border-radius:999px; color:var(--green); background:#14532d33; font-size:9px; white-space:nowrap } .badge.warn { border-color:#854d0e; color:var(--amber); background:#78350f33 } .detail { padding:13px 12px 14px; border-top:1px solid var(--line); background:#0a1323 } .detail-head { display:flex; justify-content:space-between; gap:8px; align-items:start } .detail h3 { font-size:12px } .fields { display:grid; grid-template-columns:1fr 1fr; gap:9px 12px; margin-top:12px } .field label { display:block; color:var(--faint); font-size:9px; text-transform:uppercase; letter-spacing:.06em } .field span { display:block; overflow-wrap:anywhere; margin-top:2px; color:#cbd5e1; font-size:10px } .actions { display:flex; flex-wrap:wrap; gap:6px; margin-top:13px } .actions button { min-height:30px; padding:0 8px; border-color:var(--line); color:#cbd5e1; background:var(--raised); font-size:10px } .unknown { color:var(--amber)!important } .footnote { padding:10px 12px; color:var(--faint); font-size:10px }
+    .phone { width:min(100%,360px); margin:8px auto 0; border:1px solid #334155; border-radius:20px; overflow:hidden; background:#070d19; box-shadow:0 16px 45px #0008 } .phone-status { display:flex; justify-content:space-between; padding:10px 15px 6px; color:var(--faint); font-size:9px } .mobile-appbar { padding:10px 14px; border-bottom:1px solid var(--soft) } .mobile-appbar strong { display:block; font-size:12px } .mobile-appbar span { color:var(--muted); font-size:10px } .mobile-ledger .ledger-head { padding:11px 12px } .mobile-ledger .row { min-height:67px; padding:10px 12px } .mobile-ledger .detail { padding:12px } .mobile-ledger .fields { grid-template-columns:1fr 1fr } .mobile-ledger .actions { position:sticky; bottom:0; padding:9px 0 2px; background:#0a1323 } .mobile-ledger .actions button { min-height:36px } .navback { color:var(--cyan); font-size:10px; margin-bottom:7px } .safe-note { margin:10px 12px 12px; padding:8px 9px; border:1px solid #78350f66; border-radius:7px; color:#fcd34d; background:#78350f22; font-size:9px }
+    @media(max-width:850px) { main { padding:22px 14px 38px } .views { grid-template-columns:1fr } .desktop .workspace { grid-template-columns:minmax(0,1.2fr) minmax(280px,1fr) } .phone { margin-top:8px } }
+    @media(max-width:520px) { .desktop .workspace { grid-template-columns:1fr } .desktop .diff { min-height:155px; border-right:0; border-bottom:1px solid var(--soft) } .desktop .code { max-height:55px; overflow:hidden } .fields { grid-template-columns:1fr 1fr } }
+  </style>
+</head>
+<body><main>
+  <header class="intro"><div class="eyebrow">Git Control Tower · concept checkpoint</div><h1>Worktree ledger, in repository context</h1><p>Keep the diff as the main workspace and open the repository’s checkout inventory beside it. Each checkout carries its state and explicit next actions.</p></header>
+  <aside class="context"><div aria-hidden="true">↳</div><div><b>Concept only · no product UI is implemented</b><span>Desktop keeps list and selected details adjacent. Mobile starts with the same list and drills into one checkout at a time, with the action area kept within thumb reach.</span></div></aside>
+  <section class="views" aria-label="Desktop and mobile worktree ledger mockups">
+    <article class="view desktop"><header class="view-head"><div><h2>Desktop · diff-first workspace</h2><p>Repository context opens the ledger beside the current diff.</p></div></header>
+      <div class="appbar"><span class="brand">GCT</span><span class="repo">Repository · <strong>vrooli</strong> &nbsp;⌄ &nbsp; <span style="color:var(--cyan)">Worktrees</span></span></div>
+      <div class="workspace"><section class="diff"><div class="diff-title"><strong style="font-size:12px">src/worker.ts</strong><small>feature/queue-retry · 4 changed files</small></div><div class="code">  18  export async function run(job) {
+  19    const attempt = job.attempt ?? 0;
+<span class="minus">- 20    return process(job);</span>
+<span class="plus">+ 20    return processWithRetry(job, attempt);</span>
+  21  }</div></section>
+        <section class="ledger"><header class="ledger-head"><div><h3>Worktrees <span style="color:var(--muted);font-weight:400">· 3</span></h3><p>vrooli · repository checkout inventory</p></div><button>Create worktree</button></header>
+          <div class="row selected"><div><strong>feature/queue-retry</strong><div class="path">~/work/vrooli-queue</div><div class="meta">HEAD 8f31a2c · Linked · Dirty</div></div><span class="badge warn">Dirty</span></div>
+          <div class="row"><div><strong>main</strong><div class="path">~/work/Vrooli</div><div class="meta">HEAD b527d10 · Main · Clean</div></div><span class="badge">Clean</span></div>
+          <div class="row"><div><strong>fix/auth-refresh</strong><div class="path">~/work/vrooli-auth</div><div class="meta">HEAD 1a69e43 · Linked · Locked</div></div><span class="badge warn">Locked</span></div>
+          <section class="detail"><div class="detail-head"><div><h3>feature/queue-retry</h3><div class="path">~/work/vrooli-queue</div></div><span class="badge warn">Dirty</span></div>
+            <div class="fields"><div class="field"><label>Repository</label><span>vrooli</span></div><div class="field"><label>Identity</label><span>Linked checkout</span></div><div class="field"><label>HEAD</label><span>8f31a2c</span></div><div class="field"><label>Lock</label><span class="unknown">Unknown</span></div></div>
+            <div class="actions"><button>Inspect</button><button>Lock</button><button>Move</button><button>Remove</button><button>Prune report</button></div></section>
+          <div class="footnote">A branch claimed by another checkout is disabled in the branch picker; its owning path is shown.</div>
+        </section>
+      </div>
+    </article>
+    <article class="view"><header class="view-head"><div><h2>Mobile · list then detail</h2><p>Same information; one checkout at a time.</p></div></header>
+      <div class="phone"><div class="phone-status"><span>9:41</span><span>● ● ●</span></div><div class="mobile-appbar"><strong>Worktrees</strong><span>vrooli · repository context</span></div>
+        <section class="mobile-ledger"><div class="ledger-head"><div><h3>3 checkouts</h3><p>All states for vrooli</p></div><button>Create</button></div>
+          <div class="row"><div><strong>main</strong><div class="path">~/work/Vrooli</div><div class="meta">b527d10 · Main</div></div><span class="badge">Clean</span></div>
+          <div class="row selected"><div><strong>feature/queue-retry</strong><div class="path">~/work/vrooli-queue</div><div class="meta">8f31a2c · Linked</div></div><span class="badge warn">Dirty</span></div>
+          <div class="row"><div><strong>fix/auth-refresh</strong><div class="path">~/work/vrooli-auth</div><div class="meta">1a69e43 · Linked</div></div><span class="badge warn">Locked</span></div>
+          <section class="detail"><div class="navback">‹ All worktrees</div><div class="detail-head"><h3>feature/queue-retry</h3><span class="badge warn">Dirty</span></div><div class="path">~/work/vrooli-queue</div>
+            <div class="fields"><div class="field"><label>Repository</label><span>vrooli</span></div><div class="field"><label>Identity</label><span>Linked</span></div><div class="field"><label>HEAD</label><span>8f31a2c</span></div><div class="field"><label>Stale state</label><span class="unknown">Unknown</span></div><div class="field"><label>Lock</label><span>Unlocked</span></div><div class="field"><label>Changes</label><span>Dirty</span></div></div>
+            <div class="actions"><button>Inspect</button><button>Lock</button><button>Move</button><button>Remove</button><button>Prune report</button></div></section>
+          <div class="safe-note">Unknown data stays marked unknown. Remove and prune retain explicit confirmation.</div>
+        </section>
+      </div>
+    </article>
+  </section>
+</main></body></html>

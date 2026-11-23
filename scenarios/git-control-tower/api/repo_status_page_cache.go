@@ -6,7 +6,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -68,17 +67,10 @@ func NewRepoStatusPageCache(maxBytes, maxEntries int) *RepoStatusPageCache {
 var defaultRepoStatusPageCache = NewRepoStatusPageCache(repoStatusPageCacheMaxBytes, repoStatusPageCacheMaxEntries)
 
 func (c *RepoStatusPageCache) Store(ctx context.Context, repoPath string, response *repov1.GetRepoStatusResponse, pageSize uint32) (*repov1.GetRepoStatusResponse, error) {
-	semantic := proto.Clone(response).(*repov1.GetRepoStatusResponse)
-	semantic.Timestamp = ""
-	semantic.Page = nil
-	encoded, err := proto.MarshalOptions{Deterministic: true}.Marshal(semantic)
+	id, err := repoStatusSnapshotID(response, repoPath)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, err
 	}
-	h := sha256.New()
-	_, _ = h.Write([]byte(repoPath + "\x00"))
-	_, _ = h.Write(encoded)
-	id := hex.EncodeToString(h.Sum(nil))
 	full := proto.Clone(response).(*repov1.GetRepoStatusResponse)
 	entryBytes := proto.Size(full) + len(repoPath) + 256
 	if entryBytes > c.maxBytes {
@@ -119,6 +111,26 @@ func (c *RepoStatusPageCache) Continue(ctx context.Context, repoPath, token stri
 	entry.lastUsed = c.sequence
 	c.mu.Unlock()
 	return c.page(entry.response, repoPath, cursor.Snapshot, cursor.Offset, pageSize)
+}
+
+// Snapshot returns the immutable full path snapshot referenced by a status
+// snapshot id. It lets deferred metrics reuse the already-captured path list
+// instead of running `git status` again.
+func (c *RepoStatusPageCache) Snapshot(repoPath, snapshotID string) (*repov1.GetRepoStatusResponse, error) {
+	if c == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("repository status snapshot cache is unavailable; refresh status and retry"))
+	}
+	c.mu.Lock()
+	entry := c.entries[snapshotID]
+	if entry == nil || entry.repoPath != repoPath {
+		c.mu.Unlock()
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("repository status snapshot expired; refresh status and retry"))
+	}
+	c.sequence++
+	entry.lastUsed = c.sequence
+	response := proto.Clone(entry.response).(*repov1.GetRepoStatusResponse)
+	c.mu.Unlock()
+	return response, nil
 }
 
 func (c *RepoStatusPageCache) page(full *repov1.GetRepoStatusResponse, repoPath, id string, offset int, requested uint32) (*repov1.GetRepoStatusResponse, error) {

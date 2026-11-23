@@ -5,10 +5,13 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient, useIsMutating, useMutationState, type QueryClient } from "@tanstack/react-query";
 import { queryKeys } from "./hooks-query-keys";
+import { invalidateBranchWorkspace, invalidateCommitEffects } from "./hooks-query-invalidations";
+import type { RepoFileStats } from "./api-types-repo";
 import { captureMessageSession, retireCommittedMessageSession } from "../features/commit-message/messageSession";
 import {
   fetchHealth,
   fetchRepoStatus,
+  fetchRepoChangeMetrics,
   fetchRepoHistory,
   fetchDiff,
   fetchSyncStatus,
@@ -77,9 +80,9 @@ export function useRepoStatus(repoId?: string | null) {
   const queryClient = useQueryClient();
   const queryKey = queryKeys.repoStatus(repoId);
   const hasCachedStatus = queryClient.getQueryData(queryKey) !== undefined;
-  return useQuery({
+  const statusQuery = useQuery({
     queryKey,
-    queryFn: () => fetchRepoStatus(repoId ?? undefined),
+    queryFn: ({ signal }) => fetchRepoStatus(repoId ?? undefined, false, signal),
     // A fresh Changes panel must always make its first status request. If a
     // write is already pending, pause automatic refreshes only when there is
     // cached data to display; a disabled query with no cache appears blank.
@@ -87,13 +90,124 @@ export function useRepoStatus(repoId?: string | null) {
     refetchInterval: pending ? false : 15_000,
     staleTime: 5_000,
   });
+  const snapshotId = statusQuery.data?.status_snapshot_id ?? "";
+  const dirtyPathCount = (statusQuery.data?.summary.staged ?? 0) +
+    (statusQuery.data?.summary.unstaged ?? 0) +
+    (statusQuery.data?.summary.untracked ?? 0) +
+    (statusQuery.data?.summary.conflicts ?? 0);
+  const metricsKey = queryKeys.repoChangeMetrics(repoId, snapshotId);
+  const metricsQuery = useQuery({
+    queryKey: metricsKey,
+    queryFn: async ({ signal }) => {
+      const result = await fetchRepoChangeMetrics(repoId ?? undefined, snapshotId, signal);
+      if (result.status_snapshot_id !== snapshotId) throw new Error("Change metrics belong to a different repository status snapshot");
+      return result;
+    },
+    enabled: Boolean(statusQuery.data && snapshotId && dirtyPathCount > 0),
+    staleTime: Number.POSITIVE_INFINITY,
+    retry: 1,
+  });
+  const repoMetricsPrefix = ["repo", "change-metrics", repoId ?? "default"] as const;
+  const currentMetrics = metricsQuery.data?.status_snapshot_id === snapshotId
+    ? metricsQuery.data
+    : undefined;
+  const previewMetrics = currentMetrics ? undefined : queryClient.getQueryCache()
+    .findAll({ queryKey: repoMetricsPrefix })
+    .filter((query) => query.queryKey[3] !== snapshotId && query.state.data)
+    .sort((a, b) => b.state.dataUpdatedAt - a.state.dataUpdatedAt)
+    .map((query) => query.state.data as { status_snapshot_id?: string; file_stats?: RepoFileStats } | undefined)
+    .find((data) => Boolean(data?.status_snapshot_id && data.file_stats));
+
+  // Mutations can change line counts even when the path/category list stays
+  // identical (for example, staging another hunk). Wait for the invalidated
+  // status query to reconcile before refreshing metrics: otherwise this can
+  // recompute the old snapshot just before the new status arrives.
+  const mutationWasPending = useRef(false);
+  const mutationStatusUpdatedAt = useRef(0);
+  const mutationStatusErrorUpdatedAt = useRef(0);
+  const mutationSnapshotId = useRef("");
+  useEffect(() => {
+    if (pending > 0) {
+      if (!mutationWasPending.current) {
+        mutationWasPending.current = true;
+        mutationStatusUpdatedAt.current = statusQuery.dataUpdatedAt;
+        mutationStatusErrorUpdatedAt.current = statusQuery.errorUpdatedAt;
+        mutationSnapshotId.current = snapshotId;
+      }
+      return;
+    }
+    if (!mutationWasPending.current) return;
+
+    const statusState = queryClient.getQueryState(queryKey);
+    if (statusQuery.isFetching) return;
+    const statusRefreshFailed = statusQuery.isError &&
+      statusQuery.errorUpdatedAt > mutationStatusErrorUpdatedAt.current;
+    if (statusRefreshFailed) {
+      mutationWasPending.current = false;
+      mutationSnapshotId.current = "";
+      return;
+    }
+    if (statusState?.isInvalidated) return;
+    // Wait for the post-write status refresh to finish. The mutation invalidates
+    // status while the query is paused, then enabling it starts the fresh read.
+    if (statusQuery.dataUpdatedAt <= mutationStatusUpdatedAt.current) return;
+
+    const settledSnapshotId = snapshotId;
+    const startingSnapshotId = mutationSnapshotId.current;
+    mutationWasPending.current = false;
+    mutationSnapshotId.current = "";
+    // A new semantic snapshot gets its own query key and fetches automatically.
+    // Only refetch explicitly when the snapshot is unchanged, where the write
+    // may have changed line counts without changing paths or status codes.
+    if (settledSnapshotId && settledSnapshotId === startingSnapshotId) {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.repoChangeMetrics(repoId, settledSnapshotId),
+        exact: true,
+      });
+    }
+  }, [pending, queryClient, queryKey, repoId, snapshotId, statusQuery.isFetching, statusQuery.isError, statusQuery.errorUpdatedAt, statusQuery.dataUpdatedAt]);
+
+  const fileStatsState = dirtyPathCount === 0
+    ? "ready"
+    : metricsQuery.isError
+      ? "unavailable"
+      : currentMetrics
+        ? "ready"
+        : !snapshotId
+          ? "unavailable"
+          : metricsQuery.isPending || metricsQuery.isFetching
+            ? previewMetrics ? "refreshing" : "loading"
+            : "unavailable";
+  // Keep the public status projection referentially stable between cache
+  // updates. App and both panel trees consume this object in callbacks/memos;
+  // rebuilding it on every render creates avoidable downstream work.
+  const data = useMemo(() => statusQuery.data
+    ? {
+      ...statusQuery.data,
+      file_stats: currentMetrics?.file_stats,
+      file_stats_preview: fileStatsState === "refreshing" ? previewMetrics?.file_stats : undefined,
+      file_stats_state: fileStatsState as "loading" | "refreshing" | "ready" | "unavailable",
+    }
+    : undefined,
+  [statusQuery.data, currentMetrics?.file_stats, fileStatsState, previewMetrics?.file_stats]);
+
+  return {
+    ...statusQuery,
+    data,
+    retryFileStats: () => metricsQuery.refetch(),
+  };
 }
 
 export function useRepoHistory(limit = 30, includeFiles = false, repoId?: string | null, grep?: string, includeChecks = false) {
   return useQuery<RepoHistoryResponse, Error>({
     queryKey: queryKeys.repoHistory(limit, includeFiles, repoId, grep, includeChecks),
-    queryFn: () => fetchRepoHistory(limit, includeFiles, repoId ?? undefined, grep, includeChecks),
+    queryFn: ({ signal }) => fetchRepoHistory(limit, includeFiles, repoId ?? undefined, grep, includeChecks, signal),
     refetchInterval: grep ? false : 30000,
+    staleTime: 5_000,
+    // A changed filter/limit is a new query key. Keep the visible history until
+    // that result arrives so changing controls does not flash an empty loader.
+    placeholderData: (previousData, previousQuery) =>
+      previousQuery?.queryKey[2] === (repoId ?? "default") ? previousData : undefined,
   });
 }
 
@@ -108,7 +222,7 @@ export function useDiff(
 ) {
   return useQuery({
     queryKey: queryKeys.diff(path, staged, untracked, commit, mode, any, repoId),
-    queryFn: () => fetchDiff(path, staged, untracked, commit, mode, any, repoId ?? undefined),
+    queryFn: ({ signal }) => fetchDiff(path, staged, untracked, commit, mode, any, repoId ?? undefined, signal),
     enabled: Boolean(path)
   });
 }
@@ -122,7 +236,7 @@ export function useDiffStats(
 ) {
   const query = useQuery({
     queryKey: queryKeys.diff(path, staged, untracked, undefined, "diff", false, repoId),
-    queryFn: () => fetchDiff(path, staged, untracked, undefined, "diff", false, repoId ?? undefined),
+    queryFn: ({ signal }) => fetchDiff(path, staged, untracked, undefined, "diff", false, repoId ?? undefined, signal),
     enabled: enabled && Boolean(path) && !untracked,
     staleTime: 30_000,
   });
@@ -303,7 +417,7 @@ export function useUnstageFiles(repoId?: string | null) {
 export function useSyncStatus(repoId?: string | null) {
   return useQuery({
     queryKey: queryKeys.syncStatus(repoId),
-    queryFn: () => fetchSyncStatus(false, repoId ?? undefined),
+    queryFn: ({ signal }) => fetchSyncStatus(false, repoId ?? undefined, signal),
     refetchInterval: 15_000,
     staleTime: 5_000,
   });
@@ -318,11 +432,7 @@ export function useCommit(repoId?: string | null) {
       if (!result.success) return;
       const committedRepo = context ? context.repo : repoId;
       if (result.hash && context) retireCommittedMessageSession(queryClient, context.repo ?? "", context.session);
-      void queryClient.invalidateQueries({ queryKey: ["repo", "history", committedRepo ?? "default"] });
-      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(committedRepo) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus(committedRepo) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.approvedChanges(committedRepo) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.provenance(committedRepo) });
+      invalidateCommitEffects(queryClient, committedRepo);
     }
   });
 }
@@ -488,7 +598,7 @@ export function usePull(repoId?: string | null) {
 export function useApprovedChanges(repoId?: string | null) {
   return useQuery({
     queryKey: queryKeys.approvedChanges(repoId),
-    queryFn: () => fetchApprovedChanges(repoId ?? undefined),
+    queryFn: ({ signal }) => fetchApprovedChanges(repoId ?? undefined, signal),
     refetchInterval: 15_000,
     staleTime: 5_000,
   });
@@ -497,7 +607,7 @@ export function useApprovedChanges(repoId?: string | null) {
 export function useProvenance(repoId?: string | null) {
   return useQuery({
     queryKey: queryKeys.provenance(repoId),
-    queryFn: () => fetchProvenance(repoId ?? undefined),
+    queryFn: ({ signal }) => fetchProvenance(repoId ?? undefined, signal),
     refetchInterval: 30_000,
     staleTime: 10_000,
   });
@@ -506,7 +616,7 @@ export function useProvenance(repoId?: string | null) {
 export function useBlame(path?: string | null, repoId?: string | null) {
   return useQuery({
     queryKey: queryKeys.blame(path ?? "", repoId),
-    queryFn: () => fetchBlame([path ?? ""], repoId ?? undefined),
+    queryFn: ({ signal }) => fetchBlame([path ?? ""], repoId ?? undefined, signal),
     enabled: Boolean(path),
     staleTime: 30_000,
   });
@@ -515,7 +625,7 @@ export function useBlame(path?: string | null, repoId?: string | null) {
 export function useBranches(repoId?: string | null) {
   return useQuery({
     queryKey: queryKeys.branches(repoId),
-    queryFn: () => fetchBranches(repoId ?? undefined),
+    queryFn: ({ signal }) => fetchBranches(repoId ?? undefined, signal),
     refetchInterval: 30000
   });
 }
@@ -525,9 +635,7 @@ export function useCreateBranch(repoId?: string | null) {
   return useMutation({
     mutationFn: (request: CreateBranchRequest) => createBranch(request, repoId ?? undefined),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.branches(repoId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus(repoId) });
+      invalidateBranchWorkspace(queryClient, repoId);
     }
   });
 }
@@ -537,9 +645,7 @@ export function useSwitchBranch(repoId?: string | null) {
   return useMutation({
     mutationFn: (request: SwitchBranchRequest) => switchBranch(request, repoId ?? undefined),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.branches(repoId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus(repoId) });
+      invalidateBranchWorkspace(queryClient, repoId);
     }
   });
 }
@@ -549,9 +655,7 @@ export function usePublishBranch(repoId?: string | null) {
   return useMutation({
     mutationFn: (request: PublishBranchRequest = {}) => publishBranch(request, repoId ?? undefined),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.branches(repoId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus(repoId) });
+      invalidateBranchWorkspace(queryClient, repoId);
     }
   });
 }
@@ -559,7 +663,7 @@ export function usePublishBranch(repoId?: string | null) {
 export function useFileSearch(pattern?: string, deep = false, enabled = true, repoId?: string | null) {
   return useQuery<FileTreeResponse, Error>({
     queryKey: queryKeys.files(pattern, deep, repoId),
-    queryFn: () => fetchFiles(pattern, 1000, deep, 5000, repoId ?? undefined),
+    queryFn: ({ signal }) => fetchFiles(pattern, 1000, deep, 5000, repoId ?? undefined, signal),
     enabled
   });
 }
@@ -567,7 +671,7 @@ export function useFileSearch(pattern?: string, deep = false, enabled = true, re
 export function useRelatedFiles(path: string, enabled = true, repoId?: string | null) {
   return useQuery<RelatedFilesResponse, Error>({
     queryKey: queryKeys.relatedFiles(path, repoId),
-    queryFn: () => fetchRelatedFiles(path, repoId ?? undefined),
+    queryFn: ({ signal }) => fetchRelatedFiles(path, repoId ?? undefined, signal),
     enabled: enabled && Boolean(path)
   });
 }
@@ -575,7 +679,7 @@ export function useRelatedFiles(path: string, enabled = true, repoId?: string | 
 export function useDirectoryContents(path: string, enabled = true, repoId?: string | null) {
   return useQuery<DirListResponse, Error>({
     queryKey: queryKeys.directoryContents(path, repoId),
-    queryFn: () => fetchDirectoryContents(path, repoId ?? undefined),
+    queryFn: ({ signal }) => fetchDirectoryContents(path, repoId ?? undefined, signal),
     enabled,
     staleTime: 30000
   });
@@ -603,7 +707,7 @@ export function useContentSearch(
   const request: ContentSearchRequest = { query, ...options };
   return useQuery<ContentSearchResponse, Error>({
     queryKey: queryKeys.contentSearch(query, options, repoId),
-    queryFn: () => searchContent(request, repoId ?? undefined),
+    queryFn: ({ signal }) => searchContent(request, repoId ?? undefined, signal),
     enabled: enabled && query.length >= 2
   });
 }

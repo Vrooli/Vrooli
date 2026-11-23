@@ -95,37 +95,18 @@ func getRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 		// The Changes panel needs paths and status categories immediately. Diff
 		// line counts and untracked-file scans are presentation enrichment and
 		// can dominate latency on a large dirty worktree, so defer them to the
-		// selected-file/diff-stat requests.
+		// separate change-metrics request.
 		parsed.Author = resolveAuthor(ctx, deps, repoDir)
 		sortFileStatus(&parsed.Files, parsed.Scopes)
 		return parsed, nil
 	}
 
-	// Pre-detect binary files so we can exclude them from git diff --numstat.
-	// This is a critical performance optimization: git diff --numstat must read
-	// the full content of each file to compute line stats, which is extremely
-	// slow for large compiled binaries (e.g., 14 Go binaries at 7-18MB each
-	// turned a 34ms diff into a 1,700ms diff). By checking the first 512 bytes
-	// for null bytes (the same heuristic git uses internally), we can skip
-	// binaries before invoking the expensive diff and report them directly.
-	stagedText, stagedPreBinaries := partitionBinaryPaths(repoDir, parsed.Files.Staged)
-	unstagedText, unstagedPreBinaries := partitionBinaryPaths(repoDir, parsed.Files.Unstaged)
-
-	// Rename origins are absent from the status file lists, so the pathspec
-	// built from those lists would hide one half of every rename pair from
-	// git's rename detection — turning a moved file into a whole-file add.
-	stagedText = withRenameOrigins(stagedText, parsed.Files.Renames)
-	unstagedText = withRenameOrigins(unstagedText, parsed.Files.Renames)
-
-	// Phase 2: run independent git operations concurrently.
+	// Phase 2: run independent Git and filesystem enrichment concurrently.
 	var (
-		author           RepoAuthorStatus
-		stagedStats      map[string]DiffStats
-		stagedBinaries   []string
-		unstagedStats    map[string]DiffStats
-		unstagedBinaries []string
-		untrackedStats   map[string]DiffStats
-		fileHotspots     map[string]int
+		author       RepoAuthorStatus
+		fileStats    RepoFileStats
+		binaryFiles  []string
+		fileHotspots map[string]int
 	)
 
 	g, gctx := errgroup.WithContext(ctx)
@@ -136,18 +117,8 @@ func getRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 	})
 
 	g.Go(func() error {
-		stagedStats, stagedBinaries = collectDiffStats(gctx, deps, repoDir, true, stagedText)
-		return nil
-	})
-
-	g.Go(func() error {
-		unstagedStats, unstagedBinaries = collectDiffStats(gctx, deps, repoDir, false, unstagedText)
-		return nil
-	})
-
-	g.Go(func() error {
 		var collectErr error
-		untrackedStats, collectErr = collectUntrackedStats(gctx, repoDir, parsed.Files.Untracked)
+		fileStats, binaryFiles, collectErr = collectRepoFileStats(gctx, deps, repoDir, parsed.Files)
 		return collectErr
 	})
 
@@ -164,23 +135,58 @@ func getRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 
 	parsed.Author = author
 
-	if len(stagedStats) > 0 || len(unstagedStats) > 0 || len(untrackedStats) > 0 {
-		parsed.FileStats = RepoFileStats{
-			Staged:    stagedStats,
-			Unstaged:  unstagedStats,
-			Untracked: untrackedStats,
-		}
-	}
-
-	parsed.Files.Binary = collectBinaryFiles(
-		append(stagedBinaries, stagedPreBinaries...),
-		append(unstagedBinaries, unstagedPreBinaries...),
-		untrackedStats,
-	)
+	parsed.FileStats = fileStats
+	parsed.Files.Binary = binaryFiles
 	parsed.FileHotspots = fileHotspots
 	sortFileStatus(&parsed.Files, parsed.Scopes)
 
 	return parsed, nil
+}
+
+// collectRepoFileStats computes the line metrics that enrich status views.
+// It accepts a captured path snapshot so callers can defer this work until
+// after the path list has rendered without running `git status` a second time.
+func collectRepoFileStats(ctx context.Context, deps RepoStatusDeps, repoDir string, files RepoFilesStatus) (RepoFileStats, []string, error) {
+	// Pre-detect binary files so `git diff --numstat` does not read their full
+	// contents. This keeps compiled binaries out of the expensive diff path.
+	stagedText, stagedPreBinaries := partitionBinaryPaths(repoDir, files.Staged)
+	unstagedText, unstagedPreBinaries := partitionBinaryPaths(repoDir, files.Unstaged)
+	// Include rename origins so Git reports edits to a moved file rather than a
+	// whole-file add.
+	stagedText = withRenameOrigins(stagedText, files.Renames)
+	unstagedText = withRenameOrigins(unstagedText, files.Renames)
+
+	var (
+		stagedStats      map[string]DiffStats
+		stagedBinaries   []string
+		unstagedStats    map[string]DiffStats
+		unstagedBinaries []string
+		untrackedStats   map[string]DiffStats
+	)
+	g, gctx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		stagedStats, stagedBinaries = collectDiffStats(gctx, deps, repoDir, true, stagedText)
+		return nil
+	})
+	g.Go(func() error {
+		unstagedStats, unstagedBinaries = collectDiffStats(gctx, deps, repoDir, false, unstagedText)
+		return nil
+	})
+	g.Go(func() error {
+		var err error
+		untrackedStats, err = collectUntrackedStats(gctx, repoDir, files.Untracked)
+		return err
+	})
+	if err := g.Wait(); err != nil {
+		return RepoFileStats{}, nil, err
+	}
+	stats := RepoFileStats{Staged: stagedStats, Unstaged: unstagedStats, Untracked: untrackedStats}
+	binaries := collectBinaryFiles(
+		append(stagedBinaries, stagedPreBinaries...),
+		append(unstagedBinaries, unstagedPreBinaries...),
+		untrackedStats,
+	)
+	return stats, binaries, nil
 }
 
 // resolveAuthor reads user.name and user.email from git config.

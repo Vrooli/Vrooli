@@ -82,6 +82,34 @@ func TestSnapshotReadsIndexNotWorkingTreeAndIgnoresWorktreeDrift(t *testing.T) {
 	}
 }
 
+func TestWorktreeSelectionChecksPreserveLiteralGitPathsAcrossStates(t *testing.T) {
+	dir, git := fixtureGit(t)
+	path := "selected/[draft].txt"
+	if err := os.MkdirAll(filepath.Dir(filepath.Join(dir, path)), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writeFixture(t, dir, path, "captured selected content\n")
+	captured, err := captureWorktreeSnapshot(context.Background(), "repo", dir, []string{path}, nil)
+	if err != nil {
+		t.Fatalf("capture literal path: %v", err)
+	}
+
+	unstaged, err := WorktreeSelectionUnstagedApplicable(context.Background(), dir, captured.Snapshot)
+	if err != nil || !unstaged {
+		t.Fatalf("literal worktree path applicable before staging = %v, %v", unstaged, err)
+	}
+	git("", "--literal-pathspecs", "add", "--", path)
+	staged, err := WorktreeSelectionStagedApplicable(context.Background(), dir, captured.Snapshot)
+	if err != nil || !staged {
+		t.Fatalf("literal worktree path applicable after staging = %v, %v", staged, err)
+	}
+	git("", "--literal-pathspecs", "commit", "--only", "-m", "commit selected path", "--", path)
+	committed, err := WorktreeSelectionCommittedAtHead(context.Background(), dir, captured.Snapshot)
+	if err != nil || !committed {
+		t.Fatalf("literal worktree path present at HEAD = %v, %v", committed, err)
+	}
+}
+
 func TestGitSnapshotterUsesInjectedClockForCaptureMetadata(t *testing.T) {
 	dir, git := fixtureGit(t)
 	writeFixture(t, dir, "file.txt", "staged\n")

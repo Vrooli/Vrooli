@@ -89,6 +89,7 @@ func (s *Server) mountConnectHandlers() {
 		CloneRepository:               s.cloneRepositoryConnect,
 		RemoveRepository:              s.removeRepositoryConnect,
 		GetRepoStatus:                 s.getRepoStatusConnect,
+		GetRepoChangeMetrics:          s.getRepoChangeMetricsConnect,
 		GetRepoDiff:                   s.getRepoDiffConnect,
 		GetRepoGroups:                 s.getRepoGroupsConnect,
 		GetSyncStatus:                 s.getSyncStatusConnect,
