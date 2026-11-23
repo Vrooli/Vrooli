@@ -27,7 +27,7 @@ import (
 // upload streams a local file to the transfer multipart endpoint and renders the
 // proto-typed Item the server returns.
 func (h *handlers) upload(ctx cliapp.RunContext) error {
-	token, err := deviceToken(ctx)
+	token, err := h.deviceToken(ctx)
 	if err != nil {
 		return err
 	}
@@ -124,7 +124,7 @@ func (h *handlers) upload(ctx cliapp.RunContext) error {
 // download streams an item's bytes to a local path, preserving the original
 // filename from Content-Disposition when --out is a directory or omitted.
 func (h *handlers) download(ctx cliapp.RunContext) error {
-	token, err := deviceToken(ctx)
+	token, err := h.deviceToken(ctx)
 	if err != nil {
 		return err
 	}

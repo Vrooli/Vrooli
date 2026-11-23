@@ -30,7 +30,7 @@ One consequence worth stating: **the board must not be a critical scenario in
 its own plant.** It observes the platform; it is not part of what the platform
 needs to function. If it is down, the team falls back to reading sensors
 directly — every member declares that fallback per the degradation contract in
-`docs/agent-system/TARGET_MODEL.md`. The board makes the good path cheap; it
+`docs/agent-system/STANDING_TEAMS.md`. The board makes the good path cheap; it
 never makes the manual path illegal.
 
 ## Runtime Requirements

@@ -292,7 +292,7 @@
           ],
           "completion": "required",
           "ownerSkills": [
-            "screaming-architecture-audit"
+            "architecture-lenses"
           ],
           "validation": {
             "requiredHeadings": [
@@ -346,7 +346,7 @@
           ],
           "completion": "required",
           "ownerSkills": [
-            "screaming-architecture-audit"
+            "architecture-lenses"
           ],
           "validation": {
             "requiredHeadings": [
@@ -396,7 +396,7 @@
           "completion": "conditional",
           "condition": "Required once a real domain has lifecycle states, retries, cancellation, stale-completion risk, or formal workflow invariants.",
           "ownerSkills": [
-            "temporal-flow-audit"
+            "resilience-lenses"
           ],
           "validation": {
             "requiredHeadings": [
@@ -1030,8 +1030,7 @@
           ],
           "completion": "required",
           "ownerSkills": [
-            "seam-discovery-and-enforcement",
-            "screaming-architecture-audit"
+            "architecture-lenses"
           ],
           "validation": {
             "requiredHeadings": [
@@ -1078,7 +1077,7 @@
           ],
           "completion": "required",
           "ownerSkills": [
-            "error-semantics-recovery-path-design"
+            "resilience-lenses"
           ],
           "validation": {
             "requiredHeadings": [

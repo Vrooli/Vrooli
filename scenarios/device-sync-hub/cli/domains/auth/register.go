@@ -44,8 +44,10 @@ const GroupName = "auth"
 // transfer domain appends its REST byte edges.
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	bindings := map[string]func(cliapp.RunContext) error{
-		"IdentityService.Login":    func(ctx cliapp.RunContext) error { return runLogin(core, argsFromCtx(ctx, "email", "password")) },
-		"IdentityService.Register": func(ctx cliapp.RunContext) error { return runRegister(core, argsFromCtx(ctx, "email", "password", "username")) },
+		"IdentityService.Login": func(ctx cliapp.RunContext) error { return runLogin(core, argsFromCtx(ctx, "email", "password")) },
+		"IdentityService.Register": func(ctx cliapp.RunContext) error {
+			return runRegister(core, argsFromCtx(ctx, "email", "password", "username"))
+		},
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {
@@ -177,11 +179,19 @@ type ownerTokenClaims struct {
 	Exp    int64    `json:"exp"`
 }
 
+type clock struct {
+	Now func() time.Time
+}
+
 // runWhoami shows the stored token's claims. It decodes the JWT payload locally
 // (the token is the caller's own); the hub verifies the signature on every real
 // owner-authed call, so this is a convenience readout, not an authorization
 // check. Avoids any direct authenticator round-trip.
 func runWhoami(core *cliapp.ScenarioApp, args []string) error {
+	return runWhoamiWithClock(core, args, clock{Now: time.Now})
+}
+
+func runWhoamiWithClock(core *cliapp.ScenarioApp, args []string, now clock) error {
 	fs := flag.NewFlagSet("auth whoami", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := fs.Parse(args); err != nil {
@@ -197,6 +207,10 @@ func runWhoami(core *cliapp.ScenarioApp, args []string) error {
 		return fmt.Errorf("the stored owner token is not a readable JWT — run `device-sync-hub auth login` again: %w", err)
 	}
 
+	return render(*jsonOut, whoamiReport(claims, now))
+}
+
+func whoamiReport(claims ownerTokenClaims, now clock) cliapp.ListReport {
 	results := []string{fmt.Sprintf("Owner ID: %s", claims.UserID)}
 	if claims.Email != "" {
 		results = append(results, fmt.Sprintf("Email: %s", claims.Email))
@@ -207,16 +221,16 @@ func runWhoami(core *cliapp.ScenarioApp, args []string) error {
 	if claims.Exp > 0 {
 		exp := time.Unix(claims.Exp, 0)
 		status := "expires"
-		if time.Now().After(exp) {
+		if now.Now().After(exp) {
 			status = "EXPIRED at"
 		}
 		results = append(results, fmt.Sprintf("Session %s: %s", status, exp.Format(time.RFC3339)))
 	}
-	return render(*jsonOut, cliapp.ListReport{
+	return cliapp.ListReport{
 		Summary:        []string{fmt.Sprintf("Signed in as %s", firstNonEmpty(claims.Email, claims.UserID))},
 		ResultsHeading: "Owner",
 		Results:        results,
-	})
+	}
 }
 
 // decodeClaims base64url-decodes a JWT's payload segment. It does NOT verify the

@@ -112,7 +112,7 @@ Judgment constants are named, documented, and auditable rather than buried in co
 - **`saturationWindow = 24h`** — inherited directly from the team's sensor-integrity rules. A check pinned at one status for a full window carries no information.
 - **`shelfExpiryRequired = true`** — permanent suppression is prohibited by the team's shelving rule. A shelf with no expiry is itself a finding, and an expired shelf reverts to live alarming.
 - **`readDeadline = 10s` per source** — a slower source is an honest `UNAVAILABLE`, not a hang. Matches `meta-optimization-manager`'s live `numeratorDeadline`, which was widened from a shorter assumption after real owners legitimately took several seconds to aggregate a fleet read. A deadline tight enough to make healthy sources intermittently vanish manufactures exactly the false blindness this axis exists to prevent.
-- **`trustCheckCoverageFloor`** — deliberately unset. Setting it to whatever the current coverage happens to be would report in-band while the defect stands, which is precisely the dead-deadband failure `FRAMEWORK_HEALTH.md` § "Deadband rule" names.
+- **`trustCheckCoverageFloor`** — deliberately unset. Setting it to whatever the current coverage happens to be would report in-band while the defect stands, which is precisely the dead-deadband failure `SCENARIO_DEVELOPMENT.md` "Retiring a scenario or capability" (the deadband rule) names.
 
 ## Current State
 

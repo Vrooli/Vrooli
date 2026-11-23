@@ -122,7 +122,7 @@ Judgment constants are named, documented and auditable rather than buried in cod
 - **`readDeadline = 10s` per source** — a slower source is an honest `UNAVAILABLE`, not a hang. Matches `meta-optimization-manager`'s `numeratorDeadline`, which was widened from a 3s assumption after live owners legitimately took several seconds to aggregate a fleet read.
 - **`saturationWindow = 24h`** — inherited from the team's sensor-integrity rules. See [`TRUST-MODEL.md`](TRUST-MODEL.md).
 - **`retentionFloor = longest declared window + margin`** — derived from the setpoint, never hardcoded.
-- **`conditionCoverageFloor`** — deliberately unset. Setting it to whatever coverage happens to be today would report in band while the defect stands, which is precisely the dead-deadband failure `FRAMEWORK_HEALTH.md` § "Deadband rule" names.
+- **`conditionCoverageFloor`** — deliberately unset. Setting it to whatever coverage happens to be today would report in band while the defect stands, which is precisely the dead-deadband failure `SCENARIO_DEVELOPMENT.md` "Retiring a scenario or capability" (the deadband rule) names.
 
 ## Current State
 

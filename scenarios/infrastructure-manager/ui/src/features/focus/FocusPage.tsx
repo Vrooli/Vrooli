@@ -8,7 +8,7 @@ import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { Figure } from "../../components/ui/instrument-status";
 import { Lamp } from "../../components/instrument/Lamp";
 import { LegendPlate } from "../../components/instrument/LegendPlate";
-import { ExperienceSurface, type ExperienceSurfaceState } from "../../components/experience/ExperienceSurface";
+import { ExperienceSurface, type ExperienceSurfaceState } from "@vrooli/react-component-library/ExperienceSurface/1";
 import { fetchFocus } from "../../api/reliability";
 
 /**

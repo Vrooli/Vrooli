@@ -13,7 +13,7 @@ import { CONFIDENCE_KEYS, weakestConfidence } from "../features/coverage/model";
 import { useTranslation } from "../i18n";
 import { formatNumber } from "../i18n/format";
 import { fetchCoverage, fetchCondition, fetchFocus } from "../api/reliability";
-import { ExperienceSurface, type ExperienceSurfaceState } from "../components/experience/ExperienceSurface";
+import { ExperienceSurface, type ExperienceSurfaceState } from "@vrooli/react-component-library/ExperienceSurface/1";
 
 /**
  * The board.

@@ -169,10 +169,9 @@ func TestSendText_RejectsUnknownRetention(t *testing.T) {
 }
 
 func TestTransfer_RequiresDeviceToken(t *testing.T) {
-	t.Setenv(deviceTokenEnvVar, "")
 	svc := &transferService{}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
-	h := newHandlers(core)
+	h := newHandlersWithEnvironment(core, func(string) string { return "" })
 	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Flags: []cliapp.Flag{{Name: "device-token"}, {Name: "query"}, {Name: "kind"}},
 	}, cliapptest.TestRunContextOptions{})
@@ -368,4 +367,43 @@ func TestRegister_Wiring(t *testing.T) {
 // importing strings just for one call site per test.
 func hasSuffix(s, suffix string) bool {
 	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
+}
+
+func TestDeviceTokenUsesProcessEnvironmentFallback(t *testing.T) {
+	t.Setenv(deviceTokenEnvVar, "process-token")
+	core := clitest.NewTestApp(t, connectAPI(t, &transferService{}))
+	h := newHandlers(core)
+	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
+		Flags: []cliapp.Flag{{Name: "device-token"}},
+	}, cliapptest.TestRunContextOptions{})
+
+	token, err := h.deviceToken(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "process-token", token)
+}
+
+func TestDeviceTokenUsesInjectedEnvironmentAfterFlag(t *testing.T) {
+	core := clitest.NewTestApp(t, connectAPI(t, &transferService{}))
+	lookups := 0
+	h := newHandlersWithEnvironment(core, func(key string) string {
+		lookups++
+		require.Equal(t, deviceTokenEnvVar, key)
+		return "environment-token"
+	})
+	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
+		Flags: []cliapp.Flag{{Name: "device-token"}},
+	}, cliapptest.TestRunContextOptions{})
+
+	token, err := h.deviceToken(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "environment-token", token)
+	require.Equal(t, 1, lookups)
+
+	ctx, _ = cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
+		Flags: []cliapp.Flag{{Name: "device-token"}},
+	}, cliapptest.TestRunContextOptions{Flags: map[string]string{"device-token": "flag-token"}})
+	token, err = h.deviceToken(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "flag-token", token)
+	require.Equal(t, 1, lookups, "an explicit token must avoid environment access")
 }

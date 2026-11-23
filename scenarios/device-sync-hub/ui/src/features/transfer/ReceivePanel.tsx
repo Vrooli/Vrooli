@@ -2,8 +2,8 @@ import { useMemo, useState } from "react";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { Copy, Download, FileText, Image as ImageIcon, LayoutGrid, List as ListIcon, Trash2 } from "lucide-react";
 
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { formatDate } from "../../i18n/format";

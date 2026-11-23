@@ -7,7 +7,7 @@ import { Lamp, LampLegend } from "../../components/instrument/Lamp";
 import { StatPlate, StatStrip } from "../../components/instrument/StatPlate";
 import { AnnunciatorGrid, type AnnunciatorRow } from "../../components/instrument/AnnunciatorGrid";
 import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
-import { ExperienceSurface, type ExperienceSurfaceState } from "../../components/experience/ExperienceSurface";
+import { ExperienceSurface, type ExperienceSurfaceState } from "@vrooli/react-component-library/ExperienceSurface/1";
 import { RUNG_ORDER, type SignalState } from "../../theme/instrument";
 import { DeviceConstellation, describeConstellation } from "./DeviceConstellation";
 import { DeviceDrilldown, type DeviceDrilldownLabels } from "./DeviceDrilldown";

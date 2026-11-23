@@ -7,6 +7,7 @@ import (
 	"file-tools/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/clioutput"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
@@ -63,7 +64,7 @@ func runJSONBody(core *cliapp.ScenarioApp, args []string, label, path, summary s
 	report := cliapp.ListReport{
 		Summary:        summaryLines,
 		ResultsHeading: "Fields",
-		Results:        support.MapRows(resp),
+		Results:        clioutput.MapRows(resp),
 	}
 	if *jsonOutput {
 		return cliapp.PrintReportJSON(os.Stdout, report)

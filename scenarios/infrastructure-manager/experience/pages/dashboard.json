@@ -93,7 +93,7 @@
       "type": "manual-review",
       "tier": "manual",
       "statement": "When any sensor source is unreadable, the availability region names that source and its stated reason, and the board does not present its cells as in band.",
-      "rationale": "The degradation contract in TARGET_MODEL.md: an unreadable source becomes a visible availability entry, never a zero and never a silently dropped row.",
+      "rationale": "The degradation contract in docs/agent-system/STANDING_TEAMS.md (Honest by construction): an unreadable source becomes a visible availability entry, never a zero and never a silently dropped row.",
       "states": ["partial"],
       "elements": ["source-availability"]
     },

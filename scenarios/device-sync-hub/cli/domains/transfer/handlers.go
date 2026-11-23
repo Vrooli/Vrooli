@@ -32,13 +32,19 @@ const deviceTokenHeader = "X-Device-Token" //nolint:gosec // HTTP header name, n
 type handlers struct {
 	core   *cliapp.ScenarioApp
 	client transferconnect.TransferServiceClient
+	Getenv func(string) string
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
+	return newHandlersWithEnvironment(core, os.Getenv)
+}
+
+func newHandlersWithEnvironment(core *cliapp.ScenarioApp, getenv func(string) string) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	return &handlers{
 		core:   core,
 		client: transferconnect.NewTransferServiceClient(httpClient, baseURL),
+		Getenv: getenv,
 	}
 }
 
@@ -46,11 +52,11 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 // $DEVICE_SYNC_HUB_DEVICE_TOKEN. It is an error to call transfer without one:
 // the server denies a tokenless request, so failing here yields a clearer
 // message than a 401.
-func deviceToken(ctx cliapp.RunContext) (string, error) {
+func (h *handlers) deviceToken(ctx cliapp.RunContext) (string, error) {
 	if tok := strings.TrimSpace(ctx.Flag("device-token")); tok != "" {
 		return tok, nil
 	}
-	if tok := strings.TrimSpace(os.Getenv(deviceTokenEnvVar)); tok != "" {
+	if tok := strings.TrimSpace(h.Getenv(deviceTokenEnvVar)); tok != "" {
 		return tok, nil
 	}
 	return "", fmt.Errorf("no device token: pass --device-token or set $%s (obtain one via `device-sync-hub devices redeem`)", deviceTokenEnvVar)
@@ -65,7 +71,7 @@ func authed[T any](req *connect.Request[T], token string) *connect.Request[T] {
 
 // sendText calls TransferService.CreateTextItem.
 func (h *handlers) sendText(ctx cliapp.RunContext) error {
-	token, err := deviceToken(ctx)
+	token, err := h.deviceToken(ctx)
 	if err != nil {
 		return err
 	}
@@ -98,7 +104,7 @@ func (h *handlers) sendText(ctx cliapp.RunContext) error {
 
 // list calls TransferService.ListItems with optional query/kind filters.
 func (h *handlers) list(ctx cliapp.RunContext) error {
-	token, err := deviceToken(ctx)
+	token, err := h.deviceToken(ctx)
 	if err != nil {
 		return err
 	}
@@ -135,7 +141,7 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 
 // get calls TransferService.GetItem for a single item id.
 func (h *handlers) get(ctx cliapp.RunContext) error {
-	token, err := deviceToken(ctx)
+	token, err := h.deviceToken(ctx)
 	if err != nil {
 		return err
 	}
@@ -157,7 +163,7 @@ func (h *handlers) get(ctx cliapp.RunContext) error {
 
 // delete calls TransferService.DeleteItem.
 func (h *handlers) delete(ctx cliapp.RunContext) error {
-	token, err := deviceToken(ctx)
+	token, err := h.deviceToken(ctx)
 	if err != nil {
 		return err
 	}

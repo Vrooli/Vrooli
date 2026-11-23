@@ -8,6 +8,7 @@ import (
 	"file-tools/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/clioutput"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
@@ -57,7 +58,7 @@ func runMetadata(core *cliapp.ScenarioApp, args []string) error {
 	report := cliapp.ListReport{
 		Summary:        []string{fmt.Sprintf("Metadata for %s", *path)},
 		ResultsHeading: "Fields",
-		Results:        support.MapRows(resp),
+		Results:        clioutput.MapRows(resp),
 		RetrievalHints: []string{fmt.Sprintf("%s files checksum %s", support.CLIName, *path)},
 	}
 	if *jsonOutput {
@@ -94,7 +95,7 @@ func runMetadataExtract(core *cliapp.ScenarioApp, args []string) error {
 	report := cliapp.ListReport{
 		Summary:        summary,
 		ResultsHeading: "Results",
-		Results:        support.MapRows(resp),
+		Results:        clioutput.MapRows(resp),
 	}
 	if *jsonOutput {
 		return cliapp.PrintReportJSON(os.Stdout, report)
@@ -271,7 +272,7 @@ func runOrganize(core *cliapp.ScenarioApp, args []string) error {
 	report := cliapp.ListReport{
 		Summary:        []string{"Organize plan generated"},
 		ResultsHeading: "Fields",
-		Results:        support.MapRows(resp),
+		Results:        clioutput.MapRows(resp),
 	}
 	if *jsonOutput {
 		return cliapp.PrintReportJSON(os.Stdout, report)
@@ -301,7 +302,7 @@ func runDuplicates(core *cliapp.ScenarioApp, args []string) error {
 	report := cliapp.ListReport{
 		Summary:        []string{"Duplicate detection complete"},
 		ResultsHeading: "Fields",
-		Results:        support.MapRows(resp),
+		Results:        clioutput.MapRows(resp),
 	}
 	if *jsonOutput {
 		return cliapp.PrintReportJSON(os.Stdout, report)

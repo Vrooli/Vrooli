@@ -14,7 +14,7 @@ import { ConfidenceChip, Figure, RatioConfidence } from "../../components/ui/ins
 import { Lamp, LampLegend } from "../../components/instrument/Lamp";
 import { LegendPlate } from "../../components/instrument/LegendPlate";
 import { StatPlate, StatStrip } from "../../components/instrument/StatPlate";
-import { ExperienceSurface, type ExperienceSurfaceState } from "../../components/experience/ExperienceSurface";
+import { ExperienceSurface, type ExperienceSurfaceState } from "@vrooli/react-component-library/ExperienceSurface/1";
 import { fetchCells, fetchCoverage } from "../../api/reliability";
 import type { SignalState } from "../../theme/instrument";
 import {

@@ -32,7 +32,7 @@ The obvious alternative — targets in SQLite, editable from the board — was r
 
 > **An observer that can write its own reference model is confirming itself.**
 
-`TARGET_MODEL.md` files this as deviation `D6`. Concretely: if this scenario could author a deadband, it could report itself in band by lowering the bar, and no reader could tell the difference from real improvement.
+`STANDING_TEAMS.md` files this as deviation `D6`. Concretely: if this scenario could author a deadband, it could report itself in band by lowering the bar, and no reader could tell the difference from real improvement.
 
 A checked-in file makes that impossible **by construction rather than by policy**:
 
@@ -57,7 +57,7 @@ See [`COVERAGE-MODEL.md`](COVERAGE-MODEL.md) § The split that keeps the observe
 
 Two rules are inherited verbatim from upstream canon and are enforceable properties, not advice.
 
-**A deadband states the target, not the current reading.** A band set equal to whatever the sensor last observed reports in-band while the defect stands, and can only ever detect *growth* — never the standing problem. `FRAMEWORK_HEALTH.md` § "Deadband rule" records two targets that carried that shape, and both read `ok` for it. A bar whose value equals the current measurement at authoring time is an integrity finding.
+**A deadband states the target, not the current reading.** A band set equal to whatever the sensor last observed reports in-band while the defect stands, and can only ever detect *growth* — never the standing problem. `SCENARIO_DEVELOPMENT.md` "Retiring a scenario or capability" states the rule, and two framework targets once carried that shape and both read `ok` for it. A bar whose value equals the current measurement at authoring time is an integrity finding.
 
 **A deadband may state a direction instead of a level.** Some cells band on a trend across cycles rather than an absolute value. A single reading cannot decide those, and they must be reported as `NEEDS_BASELINE` rather than silently passing. See [`CONDITION-MODEL.md`](CONDITION-MODEL.md) § Banding.
 
@@ -95,7 +95,7 @@ An unparseable setpoint is a **hard, loud failure**. The board has nothing to me
 
 Every ratio carries the confidence of the space it measured against — `AUTHORITATIVE`, `PARTIAL`, or `SKETCH`, plus a rationale.
 
-**Confidence is `SKETCH` today, and the reason is specific.** The authored targets sit at *operation* granularity. The **obligation** list they should derive from — what the infra-health team must be able to do, from which the targets follow — has never been written. `TARGET_MODEL.md` § 4 is direct: *"a denominator built from obligations alone can never rise above `sketch` confidence"*, and conflating obligation with operation is the most common modelling error.
+**Confidence is `SKETCH` today, and the reason is specific.** The authored targets sit at *operation* granularity. The **obligation** list they should derive from — what the infra-health team must be able to do, from which the targets follow — has never been written. `STANDING_TEAMS.md` "Setpoint: obligations, cells, four modes" is direct: *"a denominator built from obligations alone can never rise above `sketch` confidence"*, and conflating obligation with operation is the most common modelling error.
 
 Naming those obligations is what lifts confidence. It is judgment owned by the team and the operator; it is not derivable here, and no amount of implementation raises confidence without it.
 
@@ -133,5 +133,5 @@ Recorded as of 2026-08-20, as data.
 - [`CONDITION-MODEL.md`](CONDITION-MODEL.md) — how a bar becomes a band verdict.
 - [`TRUST-MODEL.md`](TRUST-MODEL.md) — why some readings never reach banding at all.
 - [`../internal/DECISIONS.md`](../internal/DECISIONS.md) — the durable decisions behind this shape.
-- `docs/agent-system/TARGET_MODEL.md` § D6 — the deviation this document is built to prevent.
+- `docs/agent-system/STANDING_TEAMS.md` "The instrument: six invariants" — the deviation this document is built to prevent.
 - `docs/infra-health/operating/OPERATING_MODEL.md` — the team's operating rules and routing.

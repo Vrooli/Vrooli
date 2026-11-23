@@ -199,13 +199,29 @@ func statusFlag(raw string) (coveragev1.CellStatus, error) {
 
 func formatProjection(p *coveragev1.ProjectionCoverage) string {
 	if p == nil {
-		return "(nil projection)"
+		return "projection unavailable"
 	}
+	name := projectionName(p)
 	ratio := p.Ratio
 	if ratio == nil {
-		return p.Projection.String() + ": unavailable"
+		reason := strings.TrimSpace(p.GetUnavailableReason())
+		if reason != "" {
+			return fmt.Sprintf("%s: unavailable: %s", name, reason)
+		}
+		return fmt.Sprintf("%s: unavailable (ratio unavailable)", name)
 	}
-	return fmt.Sprintf("%s: %.0f%% NOW (%d/%d), in_reach=%d, missing=%d, confidence=%s", strings.ToLower(strings.TrimPrefix(p.Projection.String(), "PROJECTION_")), ratio.Value*100, p.NowCount, p.TotalCells, p.InReachCount, p.MissingCount, p.Confidence.Level.String())
+	confidence := p.GetConfidence()
+	if confidence == nil || confidence.GetLevel() == coveragev1.ConfidenceLevel_CONFIDENCE_LEVEL_UNSPECIFIED {
+		confidence = ratio.GetConfidence()
+	}
+	if confidence == nil || confidence.GetLevel() == coveragev1.ConfidenceLevel_CONFIDENCE_LEVEL_UNSPECIFIED {
+		return fmt.Sprintf("%s: unavailable (denominator confidence unavailable), NOW=%d/%d, in_reach=%d, missing=%d", name, p.GetNowCount(), p.GetTotalCells(), p.GetInReachCount(), p.GetMissingCount())
+	}
+	return fmt.Sprintf("%s: %.0f%% NOW (%d/%d), in_reach=%d, missing=%d, denominator confidence=%s (%s)", name, ratio.GetValue()*100, p.GetNowCount(), p.GetTotalCells(), p.GetInReachCount(), p.GetMissingCount(), strings.ToLower(strings.TrimPrefix(confidence.GetLevel().String(), "CONFIDENCE_LEVEL_")), confidence.GetRationale())
+}
+
+func projectionName(p *coveragev1.ProjectionCoverage) string {
+	return strings.ToLower(strings.TrimPrefix(p.GetProjection().String(), "PROJECTION_"))
 }
 
 func formatCell(c *sharedv1.Cell) string {

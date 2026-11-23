@@ -58,7 +58,7 @@ needs a seconds-clock response belongs to the deferred watchdog tier
 with its own authorization.
 
 The one exception worth building: **this instrument should be watched by
-something outside itself.** `TARGET_MODEL.md` requires that an instrument not
+something outside itself.** `STANDING_TEAMS.md` requires that an instrument not
 be its own only sensor, and names `meta-optimization-manager` as the natural
 peer — it already supervises capability-owner reachability. That edge should be
 declared rather than assumed.

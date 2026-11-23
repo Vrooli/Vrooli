@@ -71,7 +71,6 @@ Adoption is measured, not asserted:
 | Question | Measurement | Source |
 |---|---|---|
 | Did the team actually consolidate onto one address? | `domainAddresses` for `infra-health` trends toward 1 plus declared fallbacks | `prompt-manager graph instruments` |
-| Did the team get simpler? | Orientation cost falls in a cycle where scenario coverage rose | `prompt-manager graph orientation-cost` |
 | Is the board being read? | Read counts against the board's surface | `cli-health` / receipt stream |
 | Do findings get acted on, and do the fixes work? | Actuation efficacy — findings whose sensor returned in band | this scenario, `OT-P1-003` |
 
@@ -83,4 +82,4 @@ is a board that has been adopted in form and not in substance.
 - [`MONETIZATION.md`](MONETIZATION.md) — why there is no external market
 - [`../../PRD.md`](../../PRD.md) — the capability and its users
 - [`../concepts/DOMAINS.md`](../concepts/DOMAINS.md) — what the board actually serves
-- `docs/agent-system/TARGET_MODEL.md` § "Why invariant 6 is the one that compounds" — why deleting the replaced prose is the whole payoff
+- `docs/agent-system/STANDING_TEAMS.md` "The instrument: six invariants" (invariant 6) — why deleting the replaced prose is the whole payoff

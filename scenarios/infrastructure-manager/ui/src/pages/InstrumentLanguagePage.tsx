@@ -5,7 +5,7 @@ import { Lamp, LampLegend } from "../components/instrument/Lamp";
 import { RungRing, describeRungStates } from "../components/instrument/RungRing";
 import { StatPlate, StatStrip } from "../components/instrument/StatPlate";
 import { AnnunciatorGrid, type AnnunciatorRow } from "../components/instrument/AnnunciatorGrid";
-import { ExperienceSurface } from "../components/experience/ExperienceSurface";
+import { ExperienceSurface } from "@vrooli/react-component-library/ExperienceSurface/1";
 import { RUNG_ORDER, rungToken, signalToken, type Rung, type SignalState } from "../theme/instrument";
 
 /**

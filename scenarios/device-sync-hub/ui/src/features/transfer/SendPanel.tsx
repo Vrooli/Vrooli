@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from "r
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Send, Upload, X } from "lucide-react";
 
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Textarea } from "../../components/ui/textarea";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";

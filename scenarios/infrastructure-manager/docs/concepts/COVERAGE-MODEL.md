@@ -9,12 +9,12 @@ It defines the projections, the cell grid, the denominator/numerator split, deno
 - [`TRUST-MODEL.md`](TRUST-MODEL.md) — the Trust sub-axis: can a given reading be believed at all?
 - [`SETPOINT-MODEL.md`](SETPOINT-MODEL.md) — the setpoint: the bar each cell is graded against, and why this scenario cannot move it.
 
-The upstream contract this document instantiates is `docs/agent-system/TARGET_MODEL.md`. Its sibling worked instance is `scenarios/meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md`, and this file follows that model deliberately rather than inventing a second one.
+The upstream contract this document instantiates is `docs/agent-system/STANDING_TEAMS.md`. Its sibling worked instance is `scenarios/meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md`, and this file follows that model deliberately rather than inventing a second one.
 
 ## The Instrument Contract, In One Sentence
 
 > A team is a control loop: it regulates one plant against a setpoint it does not own, using one instrument it does not decide with, and it gets simpler as the system around it gets more capable.
-> — `docs/agent-system/TARGET_MODEL.md` § 1
+> — `docs/agent-system/STANDING_TEAMS.md` "The loop card"
 
 This scenario is the *instrument* half of that sentence for the `infra-health` team. Every decision below follows from the middle clauses: **a setpoint it does not own**, and **an instrument it does not decide with**.
 
@@ -96,7 +96,7 @@ A **cell** is `(projection, element, dimension)` — the smallest fact a project
 
 ### An open-loop cell is a first-class state
 
-This is the property that makes the model measurable rather than merely aspirational. A cell with no sensor is **not missing data — it is declared blindness.** The scenario counts these, dates them, and reports the count as a headline of its own, following the same self-counting discipline as `FRAMEWORK_HEALTH.md`'s open-loop target count.
+This is the property that makes the model measurable rather than merely aspirational. A cell with no sensor is **not missing data — it is declared blindness.** The scenario counts these, dates them, and reports the count as a headline of its own, following the same self-counting discipline as `RULES.md`'s open-loop target count.
 
 Two derived fields let an *intentionally visible* hole be told apart from an *overdue* one:
 
@@ -145,7 +145,7 @@ Coverage comes first because every other figure is read against it. "Seven of ei
 
 Explicitly **not** measured here, and not to be turned into a metric later:
 
-- **Whether the projection set is the right set.** That is the obligation-naming step. `TARGET_MODEL.md` § 11 is direct: the honest way to express uncertainty about a denominator is denominator-confidence, not a score.
+- **Whether the projection set is the right set.** That is the obligation-naming step. `STANDING_TEAMS.md` "Setpoint: obligations, cells, four modes" is direct: the honest way to express uncertainty about a denominator is denominator-confidence, not a score.
 - **Whether to repair, defer, adopt, or retire.** The board ranks; the team and the operator decide.
 - **Platform-code quality and cross-platform debt.** Judgment-shaped, owned by the `platform-code-auditor` lane. See [`DOMAINS.md`](DOMAINS.md) § Deferred Domains.
 
@@ -202,6 +202,6 @@ it is why substrate confidence stays `PARTIAL` after growing by 62%.
 - [`TRUST-MODEL.md`](TRUST-MODEL.md) — the Trust sub-axis in full.
 - [`SETPOINT-MODEL.md`](SETPOINT-MODEL.md) — the setpoint, deadband discipline, and D6 prevention.
 - [`DOMAINS.md`](DOMAINS.md), [`ARCHITECTURE.md`](ARCHITECTURE.md), [`DATA.md`](DATA.md), [`INTEGRATIONS.md`](INTEGRATIONS.md).
-- `docs/agent-system/TARGET_MODEL.md` — the instrument contract this document instantiates.
+- `docs/agent-system/STANDING_TEAMS.md` — the instrument contract this document instantiates.
 - `docs/infra-health/operating/OPERATING_MODEL.md` — the plant's layer map and routing rules.
 - `scenarios/meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md` — the sibling worked instance of the same upstream contract.

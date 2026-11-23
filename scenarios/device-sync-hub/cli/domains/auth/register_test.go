@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
@@ -103,7 +104,7 @@ func TestRunWhoami(t *testing.T) {
 	core := clitest.NewTestApp(t, identityAPI(t, &identityService{}))
 
 	// whoami decodes the stored token locally — no server round-trip.
-	payload, _ := json.Marshal(map[string]any{"user_id": "u-9", "email": "owner@x.io", "roles": []string{"user"}})
+	payload, _ := json.Marshal(map[string]any{"user_id": "u-9", "email": "owner@x.io", "roles": []string{"user"}, "exp": time.Date(2099, 1, 1, 0, 0, 0, 0, time.UTC).Unix()})
 	token := "h." + base64.RawURLEncoding.EncodeToString(payload) + ".sig"
 	core.Config.Token = token
 
@@ -112,4 +113,22 @@ func TestRunWhoami(t *testing.T) {
 	// not signed in → clear error
 	core.Config.Token = ""
 	require.Error(t, runWhoami(core, nil))
+}
+
+func TestWhoamiReportUsesInjectedClockForExpiry(t *testing.T) {
+	expires := time.Date(2026, 10, 10, 12, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		name string
+		now  time.Time
+		want string
+	}{
+		{name: "before expiry", now: expires.Add(-time.Second), want: "Session expires: " + time.Unix(expires.Unix(), 0).Format(time.RFC3339)},
+		{name: "at expiry", now: expires, want: "Session expires: " + time.Unix(expires.Unix(), 0).Format(time.RFC3339)},
+		{name: "after expiry", now: expires.Add(time.Second), want: "Session EXPIRED at: " + time.Unix(expires.Unix(), 0).Format(time.RFC3339)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			report := whoamiReport(ownerTokenClaims{UserID: "owner-1", Exp: expires.Unix()}, clock{Now: func() time.Time { return tc.now }})
+			require.Equal(t, []string{"Owner ID: owner-1", tc.want}, report.Results)
+		})
+	}
 }

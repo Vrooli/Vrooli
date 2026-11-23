@@ -62,7 +62,7 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 The 14 authored target kinds are at *operation* granularity. The **obligation**
 list they should derive from — what the team must be able to do, from which the
-targets follow — has never been written. `TARGET_MODEL.md` § 4 is direct that
+targets follow — has never been written. `STANDING_TEAMS.md` "Setpoint: obligations, cells, four modes" is direct that
 conflating the two is the most common modelling error and that a denominator
 built this way *"can never rise above `sketch` confidence."*
 
@@ -180,7 +180,7 @@ reads. Until then, the subprocess carries the same 10s deadline and
 
 ## Architecture Drift
 
-Use this section for deferred findings from `screaming-architecture-audit`.
+Use this section for deferred findings from `architecture-lenses`.
 Do not create a standalone architecture-audit report unless the work is
 a migration handoff with a planned retirement path back into
 `ARCHITECTURE.md`, `SEAMS.md`, or this file.
