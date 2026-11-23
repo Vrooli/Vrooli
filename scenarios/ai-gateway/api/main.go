@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"ai-gateway/internal/caller"
 	"ai-gateway/internal/catalog"
 	"ai-gateway/internal/gatewaycatalog"
 	internalidentity "ai-gateway/internal/identity"
@@ -233,7 +234,10 @@ func buildGatewayServer(db *database.RoutedDB, consentStore *privacyconsent.Stor
 		conformanceH.Module(log.Default(), repoRoot(), conformanceH.Deps{ModelEvalConsumers: routeEvidenceRepository, ModelEvalRuntimeModels: routeEvidenceRepository.ModelEvalRuntimeModels}),
 		catalogH.Module(profileCatalog, roleCatalog),
 		gatewayH.Module(),
-		inferenceH.Module(inferenceH.Deps{Service: inference.NewService(inferenceRepository)}),
+		inferenceH.Module(inferenceH.Deps{
+			Service:           inference.NewService(inferenceRepository, inference.WithRouteRecorder(routeEvidenceRepository, caller.LoadScenarios(repoRoot()))),
+			RunCallerVerifier: lpbsConsumerProvider,
+		}),
 		inventoryH.Module(inventoryH.Deps{Runner: resourceRunner, InferenceRoles: roleCatalog.RoleNames()}),
 		measuresModule,
 		routingH.Module(routingH.Deps{
@@ -241,7 +245,7 @@ func buildGatewayServer(db *database.RoutedDB, consentStore *privacyconsent.Stor
 			Service:             internalrouting.NewSQLService(db.Primary(), providers.NewDefaultAdapters(resourceRunner), internalrouting.WithRightsContextSource(rightsSource), internalrouting.WithRemoteConsentVerifier(consentStore)),
 			MediaExecutor:       internalrouting.NewResourceOpenRouterMediaExecutor(nil),
 			ProviderDecisionHub: internalrouting.NewDefaultProviderDecisionHubClient(),
-			PrivatePolicy:       internalrouting.NewResourcePrivatePolicyService(db.Primary(), privateAIFeatures, repoRoot(), internalrouting.NewDefaultProviderDecisionHubClient()),
+			PrivatePolicy:       internalrouting.NewResourcePrivatePolicyService(db.Primary(), privateAIFeatures, internalrouting.NewDefaultProviderDecisionHubClient()),
 			CreditAssertions:    lpbsConsumerProvider,
 		}),
 	)
@@ -270,12 +274,47 @@ func serveGateway(db *database.RoutedDB, handler http.Handler, lpbsConsumerProvi
 	// AI consent is user-account scoped through LPBS's signed consumer token.
 	// Do not trust app request JSON or a selected provider to choose the owner.
 	identityConfig := authn.Config{Providers: []authn.Provider{lpbsConsumerProvider}}
+	retentionCtx, stopRetention := context.WithCancel(context.Background())
+	retentionDone := make(chan struct{})
+	ledger := inference.NewSQLAttemptLedger(db.Primary())
+	go func() {
+		defer close(retentionDone)
+		ticker := time.NewTicker(6 * time.Hour)
+		defer ticker.Stop()
+		prune := func() {
+			removed, err := ledger.PruneExpired(retentionCtx, time.Now())
+			if err != nil {
+				log.Printf("hosted inference receipt retention cleanup failed: %v", err)
+				return
+			}
+			if removed > 0 {
+				log.Printf("hosted inference receipt retention cleanup removed %d expired terminal roots", removed)
+			}
+		}
+		prune()
+		for {
+			select {
+			case <-retentionCtx.Done():
+				return
+			case <-ticker.C:
+				prune()
+			}
+		}
+	}()
+	defer func() {
+		stopRetention()
+		<-retentionDone
+	}()
 	if err := apiserver.Run(apiserver.Config{
 		Handler:        handler,
 		Authentication: &identityConfig,
 		ReadTimeout:    30 * time.Second,
 		WriteTimeout:   2 * time.Minute,
-		Cleanup:        func(ctx context.Context) error { return db.Close() },
+		Cleanup: func(ctx context.Context) error {
+			stopRetention()
+			<-retentionDone
+			return db.Close()
+		},
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

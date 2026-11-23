@@ -184,18 +184,17 @@ func (s *LocalService) GetServingURL(storagePath string) string {
 // Delete removes a file from storage and its index entry.
 func (s *LocalService) Delete(_ context.Context, id string) error {
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	m, ok := s.index[id]
 	if !ok {
-		s.mu.Unlock()
 		return fmt.Errorf("attachment %q not found", id)
 	}
-	delete(s.index, id)
-	s.mu.Unlock()
 
 	absPath := filepath.Join(s.basePath, m.StoragePath)
 	if err := os.Remove(absPath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("removing file: %w", err)
 	}
+	delete(s.index, id)
 	return nil
 }
 

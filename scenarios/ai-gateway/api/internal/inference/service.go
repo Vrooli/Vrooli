@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"ai-gateway/internal/caller"
 	"ai-gateway/internal/rolecatalog"
 	"ai-gateway/internal/schemagate"
 
@@ -45,9 +46,11 @@ type Service struct {
 	repository       Repository
 	gate             schemagate.SchemaGate
 	codeRoleContract func(string) (rolecatalog.CodeRoleContract, bool)
+	routes           RouteRecorder
+	scenarios        caller.Scenarios
 }
 
-func NewService(repository Repository) *Service {
+func NewService(repository Repository, options ...ServiceOption) *Service {
 	if repository == nil {
 		repository = StaticRepository{}
 	}
@@ -57,10 +60,28 @@ func NewService(repository Repository) *Service {
 	}); ok {
 		service.codeRoleContract = lookup.LookupCodeRole
 	}
+	for _, option := range options {
+		option(service)
+	}
 	return service
 }
 
+// Run answers one typed request and records its route event.
 func (s *Service) Run(ctx context.Context, request ProviderRequest) *inferencev1.RunResponse {
+	ctx, finish := s.beginRoute(ctx, runRoute(request))
+	response := s.run(ctx, request)
+	finish(runOutcome(response))
+	return response
+}
+
+func runRoute(request ProviderRequest) routeRequest {
+	return routeRequest{operation: OperationRun, role: request.Role, profile: request.Profile, privacyClass: request.PrivacyClass, privacyProvenance: request.PrivacyProvenance}
+}
+
+// run answers one typed request without recording it, for callers inside the
+// gateway whose own request is the one recorded, such as Decide's enum
+// fallback.
+func (s *Service) run(ctx context.Context, request ProviderRequest) *inferencev1.RunResponse {
 	response := &inferencev1.RunResponse{Usage: &inferencev1.Usage{}}
 	if request.RequestDigest == "" {
 		request.RequestDigest = canonicalRequestDigest(request)
@@ -324,7 +345,9 @@ func (s *Service) RunBatch(ctx context.Context, requests []ProviderRequest) *inf
 			defer wait.Done()
 			slots <- struct{}{}
 			defer func() { <-slots }()
-			results[index] = s.runWithSchema(ctx, request, schema, &inferencev1.RunResponse{Usage: &inferencev1.Usage{}})
+			itemCtx, finish := s.beginRoute(ctx, runRoute(request))
+			results[index] = s.runWithSchema(itemCtx, request, schema, &inferencev1.RunResponse{Usage: &inferencev1.Usage{}})
+			finish(runOutcome(results[index]))
 		}(index, request)
 	}
 	wait.Wait()
@@ -339,10 +362,22 @@ func (s *Service) RunBatch(ctx context.Context, requests []ProviderRequest) *inf
 	return response
 }
 
-// Decide answers one decision request. Validation happens here, once, so every
-// candidate sees the same well-formed request; the repository owns the walk and
-// reaches the typed classify path through s.Run for its enum fallback.
+// Decide answers one decision request and records its route event. Validation
+// happens once, so every candidate sees the same well-formed request; the
+// repository owns the walk and reaches the typed classify path through the
+// unrecorded s.run for its enum fallback, which is part of this request.
 func (s *Service) Decide(ctx context.Context, request DecisionRequest) *inferencev1.DecideResponse {
+	ctx, finish := s.beginRoute(ctx, decideRoute(request))
+	response := s.decide(ctx, request)
+	finish(decideOutcome(response))
+	return response
+}
+
+func decideRoute(request DecisionRequest) routeRequest {
+	return routeRequest{operation: OperationDecide, role: request.Role, profile: request.Profile, privacyClass: request.PrivacyClass, privacyProvenance: request.PrivacyProvenance}
+}
+
+func (s *Service) decide(ctx context.Context, request DecisionRequest) *inferencev1.DecideResponse {
 	if err := validatePrivacyProvenance(request.PrivacyProvenance); err != nil {
 		return decideError(&inferencev1.DecideResponse{Usage: &inferencev1.Usage{}}, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, err.Error(), "privacy_provenance")
 	}
@@ -375,7 +410,7 @@ func (s *Service) decideValidated(ctx context.Context, request DecisionRequest) 
 	if !ok {
 		return decideError(&inferencev1.DecideResponse{Usage: &inferencev1.Usage{}}, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNAVAILABLE, "decision repository is unavailable", "decision")
 	}
-	return repository.Decide(ctx, request, s.Run)
+	return repository.Decide(ctx, request, s.run)
 }
 
 // DecideBatch asks one question set about many states. Results are placed by
@@ -414,7 +449,9 @@ func (s *Service) DecideBatch(ctx context.Context, template DecisionRequest, ite
 			defer func() { <-slots }()
 			request := template
 			request.State, request.StateJSON = item.State, item.StateJSON
-			results[index] = s.decideValidated(ctx, request)
+			itemCtx, finish := s.beginRoute(ctx, decideRoute(request))
+			results[index] = s.decideValidated(itemCtx, request)
+			finish(decideOutcome(results[index]))
 		}(index, item)
 	}
 	wait.Wait()
@@ -477,7 +514,15 @@ func decisionRefusal(err error) *inferencev1.DecideResponse {
 	return decideError(&inferencev1.DecideResponse{Usage: &inferencev1.Usage{}}, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, err.Error(), construct)
 }
 
+// Embed answers one embedding request and records its route event.
 func (s *Service) Embed(ctx context.Context, request EmbeddingRequest) *inferencev1.EmbedResponse {
+	ctx, finish := s.beginRoute(ctx, routeRequest{operation: OperationEmbed, role: request.Role, profile: request.Profile, privacyClass: request.PrivacyClass, privacyProvenance: request.PrivacyProvenance})
+	response := s.embed(ctx, request)
+	finish(embedOutcome(response))
+	return response
+}
+
+func (s *Service) embed(ctx context.Context, request EmbeddingRequest) *inferencev1.EmbedResponse {
 	response := &inferencev1.EmbedResponse{Usage: &inferencev1.Usage{}}
 	if validation := validateEmbeddingRequest(request); validation != nil {
 		return embedError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, validation.message, validation.construct)

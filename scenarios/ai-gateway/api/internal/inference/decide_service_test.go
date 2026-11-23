@@ -17,7 +17,7 @@ import (
 // serviceWorld wires the real Service over a resource repository whose
 // classify.fast candidate is a scripted Ollama, so the enum fallback runs the
 // production typed path: schema gate, provider walk and local validation.
-func serviceWorld(t *testing.T, world *decisionWorld, ollamaValue string) *Service {
+func serviceWorld(t *testing.T, world *decisionWorld, ollamaValue string, options ...ServiceOption) *Service {
 	t.Helper()
 	world.runner.DefaultOK = true
 	world.runner.Default = providers.Result{Stdout: `{"response":` + ollamaValue + `,"prompt_eval_count":250,"eval_count":7}`}
@@ -34,7 +34,7 @@ func serviceWorld(t *testing.T, world *decisionWorld, ollamaValue string) *Servi
 		{Provider: providers.ProviderOllama, Locality: "local", CommandName: "resource-ollama", Runner: world.runner},
 	}, fixtureRightsContext)
 	require.NoError(t, err)
-	return NewService(repository)
+	return NewService(repository, options...)
 }
 
 func TestDecideFallbackRunsTheProductionClassifyPath(t *testing.T) {

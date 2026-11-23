@@ -63,6 +63,48 @@ func TestWorkflowUntilUsesSharedCompletionConditionByteLimit(t *testing.T) {
 	}
 }
 
+func TestContinuationValidationReusesSourceAnalysisWithoutLosingPerConsumerChecks(t *testing.T) {
+	d := validDefinition()
+	d.EntryNode = "choose"
+	d.Nodes = []domain.WorkflowNode{
+		{ID: "choose", Kind: domain.WorkflowNodeBranch, Branch: &domain.WorkflowBranchNode{}},
+		{ID: "source", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "source"}},
+		{ID: "first", Kind: domain.WorkflowNodeContinue, Continue: &domain.WorkflowContinueNode{ConversationFromNode: "source", PromptTemplate: "first"}},
+		{ID: "second", Kind: domain.WorkflowNodeContinue, Continue: &domain.WorkflowContinueNode{ConversationFromNode: "source", PromptTemplate: "second"}},
+		{ID: "bypassed", Kind: domain.WorkflowNodeContinue, Continue: &domain.WorkflowContinueNode{ConversationFromNode: "source", PromptTemplate: "bypassed"}},
+		{ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}},
+	}
+	d.Edges = []domain.WorkflowEdge{
+		{From: "choose", To: "source", Condition: "true"},
+		{From: "choose", To: "bypassed", Condition: "false"},
+		{From: "source", To: "first"},
+		{From: "first", To: "second"},
+		{From: "second", To: "bypassed"},
+		{From: "bypassed", To: "done"},
+	}
+
+	result, err := Validate(d, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasDiagnosticPath(result.Diagnostics, "continuation_order", "nodes.bypassed.continue.conversationFromNode") {
+		t.Fatalf("continuation reachable without its declared source was accepted: %+v", result.Diagnostics)
+	}
+	if hasDiagnosticPath(result.Diagnostics, "continuation_order", "nodes.first.continue.conversationFromNode") ||
+		hasDiagnosticPath(result.Diagnostics, "continuation_order", "nodes.second.continue.conversationFromNode") {
+		t.Fatalf("valid continuations sharing one source were rejected: %+v", result.Diagnostics)
+	}
+}
+
+func hasDiagnosticPath(diagnostics []domain.WorkflowDiagnostic, code, path string) bool {
+	for _, diagnostic := range diagnostics {
+		if diagnostic.Code == code && diagnostic.Path == path {
+			return true
+		}
+	}
+	return false
+}
+
 func validDefinitionWithUntil(until string) domain.WorkflowDefinition {
 	d := validDefinition()
 	d.Nodes[0].Run.Until = until

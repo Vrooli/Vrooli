@@ -94,25 +94,8 @@ func TestStopRun_WithTerminatorEmitsStatusEventAndBroadcast(t *testing.T) {
 		ScopePath: "src/",
 	})
 
-	now := time.Now()
 	runID := uuid.New()
-	run := &domain.Run{
-		ID:             runID,
-		TaskID:         task.ID,
-		AgentProfileID: &profile.ID,
-		Tag:            runID.String(),
-		RunMode:        domain.RunModeInPlace,
-		Status:         domain.RunStatusRunning,
-		Phase:          domain.RunPhaseExecuting,
-		SessionID:      "sess-stop",
-		StartedAt:      &now,
-		ResolvedConfig: &domain.RunConfig{
-			RunnerType: domain.RunnerTypeClaudeCode,
-		},
-		ApprovalState: domain.ApprovalStateNone,
-		CreatedAt:     now,
-		UpdatedAt:     now,
-	}
+	run := newLifecycleRunFixture(runID, task.ID, profile.ID, domain.RunModeInPlace, domain.RunStatusRunning, domain.RunPhaseExecuting, "sess-stop")
 	if err := repos.Runs.Create(ctx, run); err != nil {
 		t.Fatalf("create run: %v", err)
 	}
@@ -222,23 +205,8 @@ func TestStopRun_PersistsCancellationIntentBeforeTerminating(t *testing.T) {
 		ScopePath: "src/",
 	})
 
-	now := time.Now()
 	runID := uuid.New()
-	run := &domain.Run{
-		ID:             runID,
-		TaskID:         task.ID,
-		AgentProfileID: &profile.ID,
-		Tag:            runID.String(),
-		RunMode:        domain.RunModeInPlace,
-		Status:         domain.RunStatusRunning,
-		Phase:          domain.RunPhaseExecuting,
-		SessionID:      "sess-cancel-order",
-		StartedAt:      &now,
-		ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeClaudeCode},
-		ApprovalState:  domain.ApprovalStateNone,
-		CreatedAt:      now,
-		UpdatedAt:      now,
-	}
+	run := newLifecycleRunFixture(runID, task.ID, profile.ID, domain.RunModeInPlace, domain.RunStatusRunning, domain.RunPhaseExecuting, "sess-cancel-order")
 	if err := recorder.Create(ctx, run); err != nil {
 		t.Fatalf("create run: %v", err)
 	}
@@ -316,23 +284,8 @@ func TestStopRun_DuplicateReplayAfterOwnerReopenIsIdempotent(t *testing.T) {
 		ScopePath: "src/",
 	})
 
-	now := time.Now()
 	runID := uuid.New()
-	run := &domain.Run{
-		ID:             runID,
-		TaskID:         task.ID,
-		AgentProfileID: &profile.ID,
-		Tag:            runID.String(),
-		RunMode:        domain.RunModeInPlace,
-		Status:         domain.RunStatusRunning,
-		Phase:          domain.RunPhaseExecuting,
-		SessionID:      "sess-replay",
-		StartedAt:      &now,
-		ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeClaudeCode},
-		ApprovalState:  domain.ApprovalStateNone,
-		CreatedAt:      now,
-		UpdatedAt:      now,
-	}
+	run := newLifecycleRunFixture(runID, task.ID, profile.ID, domain.RunModeInPlace, domain.RunStatusRunning, domain.RunPhaseExecuting, "sess-replay")
 	if err := repos.Runs.Create(ctx, run); err != nil {
 		t.Fatalf("create run: %v", err)
 	}
@@ -430,25 +383,8 @@ func TestContinueRun_EmitsRunningAndTerminalStatusTransitions(t *testing.T) {
 		ScopePath: "src/",
 	})
 
-	now := time.Now()
 	runID := uuid.New()
-	run := &domain.Run{
-		ID:             runID,
-		TaskID:         task.ID,
-		AgentProfileID: &profile.ID,
-		Tag:            runID.String(),
-		RunMode:        domain.RunModeInPlace,
-		Status:         domain.RunStatusPending,
-		Phase:          domain.RunPhaseQueued,
-		SessionID:      "sess-before-continue",
-		StartedAt:      &now,
-		ResolvedConfig: &domain.RunConfig{
-			RunnerType: domain.RunnerTypeClaudeCode,
-		},
-		ApprovalState: domain.ApprovalStateNone,
-		CreatedAt:     now,
-		UpdatedAt:     now,
-	}
+	run := newLifecycleRunFixture(runID, task.ID, profile.ID, domain.RunModeInPlace, domain.RunStatusPending, domain.RunPhaseQueued, "sess-before-continue")
 	if err := repos.Runs.CreateTaskAttempt(ctx, task, task, run, nil); err != nil {
 		t.Fatalf("create run: %v", err)
 	}
@@ -456,7 +392,7 @@ func TestContinueRun_EmitsRunningAndTerminalStatusTransitions(t *testing.T) {
 	if err := repos.Runs.Update(ctx, run); err != nil {
 		t.Fatalf("start fixture run: %v", err)
 	}
-	run.Status, run.Phase, run.EndedAt = domain.RunStatusComplete, domain.RunPhaseCompleted, &now
+	run.Status, run.Phase, run.EndedAt = domain.RunStatusComplete, domain.RunPhaseCompleted, &run.CreatedAt
 	if err := repos.Runs.Update(ctx, run); err != nil {
 		t.Fatalf("complete fixture run: %v", err)
 	}
@@ -698,30 +634,15 @@ func TestContinueRun_ProtectedSandboxCarriesLauncherInputsAndLifecycleEvents(t *
 		ScopePath:   "src/",
 	})
 
-	now := time.Now()
 	runID := uuid.New()
-	run := &domain.Run{
-		ID:             runID,
-		TaskID:         task.ID,
-		AgentProfileID: &profile.ID,
-		Tag:            runID.String(),
-		RunMode:        domain.RunModeSandboxed,
-		SandboxID:      &sandboxID,
-		Status:         domain.RunStatusComplete,
-		Phase:          domain.RunPhaseCompleted,
-		SessionID:      "sess-protected-before-continue",
-		StartedAt:      &now,
-		EndedAt:        &now,
-		ResolvedConfig: &domain.RunConfig{
-			RunnerType: domain.RunnerTypeClaudeCode, NetworkAccess: domain.NetworkAccessNone,
-			SandboxConfig: &domain.SandboxConfig{
-				Mode:        domain.SandboxModeProtected,
-				NetworkMode: domain.NetworkAccessNone, WritePolicy: &domain.WorkspaceWritePolicy{Paths: []string{"src"}},
-			},
+	run := newLifecycleRunFixture(runID, task.ID, profile.ID, domain.RunModeSandboxed, domain.RunStatusComplete, domain.RunPhaseCompleted, "sess-protected-before-continue")
+	run.SandboxID = &sandboxID
+	run.ResolvedConfig = &domain.RunConfig{
+		RunnerType: domain.RunnerTypeClaudeCode, NetworkAccess: domain.NetworkAccessNone,
+		SandboxConfig: &domain.SandboxConfig{
+			Mode:        domain.SandboxModeProtected,
+			NetworkMode: domain.NetworkAccessNone, WritePolicy: &domain.WorkspaceWritePolicy{Paths: []string{"src"}},
 		},
-		ApprovalState: domain.ApprovalStateNone,
-		CreatedAt:     now,
-		UpdatedAt:     now,
 	}
 	if err := repos.Runs.Create(ctx, run); err != nil {
 		t.Fatalf("create run: %v", err)
@@ -849,34 +770,19 @@ func TestContinueRun_ResumeFailureDoesNotMarkRunRunning(t *testing.T) {
 		ScopePath: "src/",
 	})
 
-	now := time.Now()
 	runID := uuid.New()
-	run := &domain.Run{
-		ID:             runID,
-		TaskID:         task.ID,
-		AgentProfileID: &profile.ID,
-		Tag:            runID.String(),
-		RunMode:        domain.RunModeSandboxed,
-		SandboxID:      &sandboxID,
-		Status:         domain.RunStatusComplete,
-		Phase:          domain.RunPhaseCompleted,
-		SessionID:      "sess-before-continue",
-		StartedAt:      &now,
-		EndedAt:        &now,
-		ResolvedConfig: &domain.RunConfig{
-			RunnerType:    domain.RunnerTypeClaudeCode,
-			Model:         "mock-model",
-			RoleRef:       "code.default",
-			NetworkAccess: domain.NetworkAccessNone,
-			SandboxConfig: &domain.SandboxConfig{
-				Mode:        domain.SandboxModeProtected,
-				NetworkMode: domain.NetworkAccessNone,
-				WritePolicy: &domain.WorkspaceWritePolicy{Paths: []string{"src"}},
-			},
+	run := newLifecycleRunFixture(runID, task.ID, profile.ID, domain.RunModeSandboxed, domain.RunStatusComplete, domain.RunPhaseCompleted, "sess-before-continue")
+	run.SandboxID = &sandboxID
+	run.ResolvedConfig = &domain.RunConfig{
+		RunnerType:    domain.RunnerTypeClaudeCode,
+		Model:         "mock-model",
+		RoleRef:       "code.default",
+		NetworkAccess: domain.NetworkAccessNone,
+		SandboxConfig: &domain.SandboxConfig{
+			Mode:        domain.SandboxModeProtected,
+			NetworkMode: domain.NetworkAccessNone,
+			WritePolicy: &domain.WorkspaceWritePolicy{Paths: []string{"src"}},
 		},
-		ApprovalState: domain.ApprovalStateNone,
-		CreatedAt:     now,
-		UpdatedAt:     now,
 	}
 	if err := repos.Runs.Create(ctx, run); err != nil {
 		t.Fatalf("create run: %v", err)
@@ -1020,29 +926,23 @@ func TestContinueRun_ReplacesEachDeletedSandboxIncarnation(t *testing.T) {
 	task := mustCreateTask(t, svc, ctx, &domain.Task{
 		Title: "deleted sandbox continuation task", ScopePath: "src/", ProjectRoot: t.TempDir(),
 	})
-	now := time.Now()
 	runID := uuid.New()
-	run := &domain.Run{
-		ID: runID, TaskID: task.ID, AgentProfileID: &profile.ID, Tag: runID.String(),
-		RunMode: domain.RunModeSandboxed, SandboxID: &oldSandboxID,
-		Status: domain.RunStatusPending, Phase: domain.RunPhaseQueued,
-		SessionID: "session-incarnation", StartedAt: &now,
-		ResolvedConfig: &domain.RunConfig{
-			RunnerType: domain.RunnerTypeClaudeCode,
-			Model:      "mock-model",
-			RoleRef:    "code.default",
-			WorkspaceBinding: &domain.RunWorkspaceBinding{
-				ProjectRoot: task.ProjectRoot,
-				ScopePath:   task.ScopePath,
-			},
-			NetworkAccess: domain.NetworkAccessNone,
-			SandboxConfig: &domain.SandboxConfig{
-				Mode:        domain.SandboxModeProtected,
-				NetworkMode: domain.NetworkAccessNone,
-				WritePolicy: &domain.WorkspaceWritePolicy{Paths: []string{"src"}},
-			},
+	run := newLifecycleRunFixture(runID, task.ID, profile.ID, domain.RunModeSandboxed, domain.RunStatusPending, domain.RunPhaseQueued, "session-incarnation")
+	run.SandboxID = &oldSandboxID
+	run.ResolvedConfig = &domain.RunConfig{
+		RunnerType: domain.RunnerTypeClaudeCode,
+		Model:      "mock-model",
+		RoleRef:    "code.default",
+		WorkspaceBinding: &domain.RunWorkspaceBinding{
+			ProjectRoot: task.ProjectRoot,
+			ScopePath:   task.ScopePath,
 		},
-		ApprovalState: domain.ApprovalStateNone, CreatedAt: now, UpdatedAt: now,
+		NetworkAccess: domain.NetworkAccessNone,
+		SandboxConfig: &domain.SandboxConfig{
+			Mode:        domain.SandboxModeProtected,
+			NetworkMode: domain.NetworkAccessNone,
+			WritePolicy: &domain.WorkspaceWritePolicy{Paths: []string{"src"}},
+		},
 	}
 	if err := repos.Runs.CreateTaskAttempt(ctx, task, task, run, nil); err != nil {
 		t.Fatalf("create run: %v", err)
@@ -1051,7 +951,7 @@ func TestContinueRun_ReplacesEachDeletedSandboxIncarnation(t *testing.T) {
 	if err := repos.Runs.Update(ctx, run); err != nil {
 		t.Fatalf("start fixture run: %v", err)
 	}
-	run.Status, run.Phase, run.EndedAt = domain.RunStatusComplete, domain.RunPhaseCompleted, &now
+	run.Status, run.Phase, run.EndedAt = domain.RunStatusComplete, domain.RunPhaseCompleted, &run.CreatedAt
 	if err := repos.Runs.Update(ctx, run); err != nil {
 		t.Fatalf("complete fixture run: %v", err)
 	}

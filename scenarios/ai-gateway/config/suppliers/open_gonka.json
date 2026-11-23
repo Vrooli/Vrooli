@@ -1,0 +1,59 @@
+{
+  "id": "open_gonka",
+  "family": "openai-compatible",
+  "locality": "remote",
+  "endpoint": "",
+  "policy": {
+    "schema_version": "2026-11-22",
+    "provider": {
+      "id": "open_gonka",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "partner_white_label_child_account_scope_only_after_written_terms",
+            "access_tier": "unverified",
+            "use_classes": {
+              "own_account": "allowed",
+              "bounded_feature": "unverified",
+              "in_app": "unverified",
+              "harness_access": "unverified"
+            },
+            "conditions": [
+              "Official home describes a custom Partner tier with referrals and white-label child accounts billed to the master account; no terms or agreement were publicly readable. Obtain complete terms and a signed partner schedule confirming actual resale/child-account use, permissible bundled Vrooli product and customer-facing key flow.",
+              "Identify legal contracting entity, gateway/billing operator and responsibility allocation. Open Gonka says requests are served by independent operators in a decentralized network; actual serving node/provider per call is distinct from the model publisher.",
+              "Establish per-model provider/publisher rights and licenses, current chain/catalog availability, route selection/failover and account entitlement before any model rule. Do not use web marketing model list as live chain evidence.",
+              "Prices on page are described as chain-derived and dynamic. Confirm exact chain rate, unit/denomination, fees and partner/master billing quote at authorized time; marketing's displayed sample is not a guaranteed price.",
+              "Confirm data, privacy, node processing geography, support/SLA, security and abuse responsibilities in terms. Human provider rule, model scope, trust, agreement and Vrooli price approvals remain separate."
+            ],
+            "clause": "Official home Partner tier: referrals/white-label child accounts; custom terms; billed to master account",
+            "reason": "Official homepage names a potential white-label partner/child-account path and custom billing; the missing terms mean only a conditional proposal is defensible, not a resale entitlement."
+          }
+        ],
+        "evidence": {
+          "url": "https://opengonka.com/",
+          "document_date": "no visible date",
+          "read_at": "2026-11-22"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-11-22",
+        "on_expiry": "deny"
+      },
+      "hosted_routes": [],
+      "agreements": []
+    },
+    "roles": {},
+    "models": {},
+    "research": {
+      "activation": "denied_until_public_terms_partner_authority_actual_serving_network_model_rights_quote_and_human_decisions_are_verified",
+      "source_scope": "public official pages only",
+      "not_an_operator_approval": true,
+      "model_reason": "Open compute node is actual serving provider; publisher/model ID and user-facing gateway are distinct; current live route and downstream provider rights are not proven.",
+      "evidence": [
+        "https://opengonka.com/",
+        "https://opengonka.com/models"
+      ]
+    }
+  }
+}

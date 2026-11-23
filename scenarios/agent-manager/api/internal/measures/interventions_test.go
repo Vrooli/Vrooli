@@ -42,14 +42,7 @@ func TestInterventionsMeasureReportsCoverageAndNoUnprovenRate(t *testing.T) {
 	}}
 	h := NewHandler(nil, func() time.Time { return time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC) })
 	h.SetInterventions(source)
-	registry, err := h.Registry()
-	if err != nil {
-		t.Fatal(err)
-	}
-	served, err := registry.Execute(context.Background(), measurelib.MeasureRequest{Measure: UsageInterventions, Params: map[string]string{"window": "last_7d"}})
-	if err != nil {
-		t.Fatal(err)
-	}
+	served := executeRegisteredMeasure(t, newTestRegistry(t, h), measurelib.MeasureRequest{Measure: UsageInterventions, Params: map[string]string{"window": "last_7d"}})
 	if source.version != interventions.ClassifierVersion {
 		t.Fatalf("summarized version %q, want the current classifier", source.version)
 	}
@@ -81,14 +74,7 @@ func TestInterventionsMeasureCountsThePooledBucketOnceProven(t *testing.T) {
 	}}
 	h := NewHandler(nil, func() time.Time { return time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC) })
 	h.SetInterventions(source)
-	registry, err := h.Registry()
-	if err != nil {
-		t.Fatal(err)
-	}
-	served, err := registry.Execute(context.Background(), measurelib.MeasureRequest{Measure: UsageInterventions, Params: map[string]string{"window": "last_7d"}})
-	if err != nil {
-		t.Fatal(err)
-	}
+	served := executeRegisteredMeasure(t, newTestRegistry(t, h), measurelib.MeasureRequest{Measure: UsageInterventions, Params: map[string]string{"window": "last_7d"}})
 	var pooled map[string]string
 	for _, row := range served.Fields {
 		if row["category"] == string(interventions.PooledFriction) {

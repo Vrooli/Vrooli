@@ -187,7 +187,10 @@ func (s *Service) pageRelevanceHits(ctx context.Context, hits []SearchHit, pageS
 	if len(hits) > pageSize {
 		hits = hits[:pageSize]
 		last := hits[len(hits)-1]
-		cursor, err := s.cursors.encode(cursorPayload{Fingerprint: fingerprint, Sort: SearchSortRelevance, Score: last.Score, DocumentID: last.Document.DocumentID})
+		cursor, err := s.cursors.encode(cursorPayload{
+			Fingerprint: fingerprint, Sort: SearchSortRelevance, Score: last.Score,
+			OccurredAt: last.Document.OccurredAt, DocumentID: last.Document.DocumentID,
+		})
 		if err != nil {
 			return TextSearchResponse{}, err
 		}

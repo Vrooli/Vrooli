@@ -271,6 +271,31 @@ func TestLinkWorkUnits(t *testing.T) {
 	}
 }
 
+func TestLinkWorkUnitIdentityUsesEarliestRunWhenChildPrecedesParent(t *testing.T) {
+	earlierChild := RunFacts{
+		RunID: "earlier-child", ParentRunID: "later-parent",
+		SessionStart: t0, Path: PathImported,
+	}
+	laterParent := RunFacts{
+		RunID: "later-parent", SessionStart: t0.Add(time.Minute), Path: PathImported,
+	}
+
+	for _, runs := range [][]RunFacts{
+		{earlierChild, laterParent},
+		{laterParent, earlierChild},
+	} {
+		got := LinkWorkUnits(runs)
+		if got[earlierChild.RunID].LinkKind != LinkChild {
+			t.Fatalf("earlier child link kind = %q, want %q", got[earlierChild.RunID].LinkKind, LinkChild)
+		}
+		for _, id := range []string{earlierChild.RunID, laterParent.RunID} {
+			if got[id].WorkUnitID != earlierChild.RunID {
+				t.Fatalf("%s work unit = %q, want earliest run %q; assignments: %+v", id, got[id].WorkUnitID, earlierChild.RunID, got)
+			}
+		}
+	}
+}
+
 func TestClassifyAttached(t *testing.T) {
 	imported := []RunFacts{
 		{RunID: "wc", Harness: "codex", Path: PathImportedWebConsole, WebConsoleSession: "w1", SessionStart: t0.Add(time.Hour)},

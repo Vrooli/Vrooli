@@ -318,10 +318,11 @@ func answerFrom(result *inferencev1.DecideResponse) Answer {
 		Provider: result.GetProvider(), Model: result.GetModel(), ResourceRole: result.GetResourceRole(),
 	}
 	if len(choice.GetProbabilities()) > 0 {
-		answer.Probabilities = make(map[Category]float64, len(choice.GetProbabilities()))
-		for _, p := range choice.GetProbabilities() {
-			answer.Probabilities[Category(p.GetOption())] = p.GetProbability()
+		probabilities, err := decodeProbabilityDistribution(choice.GetProbabilities(), Categories())
+		if err != nil {
+			return unclassified("invalid_answer: malformed probability distribution: " + err.Error())
 		}
+		answer.Probabilities = probabilities
 	}
 	return answer
 }

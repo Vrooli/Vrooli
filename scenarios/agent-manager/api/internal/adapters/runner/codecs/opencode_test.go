@@ -47,6 +47,20 @@ func TestOpenCodeContinuationUnreadableStoreIsNotSessionExpiry(t *testing.T) {
 	}
 }
 
+func TestOpenCodeArchiveParserPreservesSharedOccurrenceTime(t *testing.T) {
+	parser := NewOpenCodeForTest().NewTranscriptParser()
+	result := parser.ParseTranscriptLine(uuid.New(), `{"info":{"role":"assistant","time":{"created":1782095815108}},"parts":[{"type":"text","text":"first"},{"type":"text","text":"second"}]}`)
+	want := time.UnixMilli(1782095815108).UTC()
+	if len(result.Events) != 2 || !result.Timestamp.Equal(want) {
+		t.Fatalf("parse result timestamp/events = %s / %d, want %s / 2", result.Timestamp, len(result.Events), want)
+	}
+	for _, event := range result.Events {
+		if !event.Timestamp.Equal(want) {
+			t.Errorf("event timestamp = %s, want %s", event.Timestamp, want)
+		}
+	}
+}
+
 // =============================================================================
 // Test fixtures
 // =============================================================================

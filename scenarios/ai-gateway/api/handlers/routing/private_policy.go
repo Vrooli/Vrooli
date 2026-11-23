@@ -183,6 +183,9 @@ func (h *connectHandler) verifyCreditAssertion(w http.ResponseWriter, r *http.Re
 }
 
 func (h *connectHandler) modelsPrivate(w http.ResponseWriter, r *http.Request) {
+	// Model eligibility changes with route health and policy decisions. Do not
+	// let a proxy or client reuse this snapshot after those inputs change.
+	w.Header().Set("Cache-Control", "no-store")
 	models, reason, err := h.private.Models(r.Context(), "agent.session", r.URL.Query().Get("harness"))
 	if err != nil {
 		writePrivateError(w, 503, "policy_unavailable", err.Error())

@@ -1,4 +1,4 @@
-package identity
+package identity_test
 
 import (
 	"bufio"
@@ -40,6 +40,7 @@ import (
 	inferenceHTTP "ai-gateway/handlers/inference"
 	consentHTTP "ai-gateway/handlers/privacyconsent"
 	routingHTTP "ai-gateway/handlers/routing"
+	gatewayidentity "ai-gateway/internal/identity"
 	internalinference "ai-gateway/internal/inference"
 	"ai-gateway/internal/privacyconsent"
 	"ai-gateway/internal/providers"
@@ -63,8 +64,7 @@ func TestGatewayConsentLifecycleAndDispatchAcrossVerifiedHTTPBoundary(t *testing
 	require.NoError(t, err)
 	jwks, err := consumeridentity.NewKeySet(consumeridentity.PublicKey{ID: signer.KeyID, Key: &privateKey.PublicKey}).JWKS()
 	require.NoError(t, err)
-	provider := NewLPBSConsumerProvider(issuer)
-	provider.cache = consumeridentity.NewCache(issuer, 0, time.Hour, func(*http.Request) ([]byte, error) { return jwks, nil })
+	provider := gatewayidentity.NewLPBSConsumerProviderWithCache(issuer, consumeridentity.NewCache(issuer, 0, time.Hour, func(*http.Request) ([]byte, error) { return jwks, nil }))
 	identityConfig := authn.Config{Providers: []authn.Provider{provider}}
 
 	newToken := func(subject, email string) string {
@@ -227,8 +227,7 @@ func TestGatewayConsentBrowserJourney(t *testing.T) {
 	require.NoError(t, err)
 	jwks, err := consumeridentity.NewKeySet(consumeridentity.PublicKey{ID: signer.KeyID, Key: &privateKey.PublicKey}).JWKS()
 	require.NoError(t, err)
-	provider := NewLPBSConsumerProvider(issuer)
-	provider.cache = consumeridentity.NewCache(issuer, 0, time.Hour, func(*http.Request) ([]byte, error) { return jwks, nil })
+	provider := gatewayidentity.NewLPBSConsumerProviderWithCache(issuer, consumeridentity.NewCache(issuer, 0, time.Hour, func(*http.Request) ([]byte, error) { return jwks, nil }))
 	identityConfig := authn.Config{Providers: []authn.Provider{provider}}
 	makeToken := func(subject string) string {
 		token, _, signErr := signer.Sign(consumeridentity.Claims{UserID: subject, Subject: subject, Email: subject + "@fixture.invalid"})

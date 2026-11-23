@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestRedactOutputKeepsCredentialIdentifiersAndValidJSON(t *testing.T) {
@@ -210,5 +211,33 @@ func TestExecRunnerRunsResourceCommandsLatencyBound(t *testing.T) {
 	}
 	if strings.TrimSpace(result.Stdout) != "latency_bound=1" {
 		t.Fatalf("resource saw %q; want a latency-bound invocation", result.Stdout)
+	}
+}
+
+// A command killed because its caller gave up exits with "signal: killed",
+// which read as a provider execution failure; one canceled before it started
+// read as a missing binary. Both are the caller's cancellation.
+func TestExecRunnerReportsCallerCancellationAsCanceled(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "resource-ollama")
+	if err := os.WriteFile(path, []byte("#!/bin/sh\nsleep 30\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	command := Command{Name: "resource-ollama", Args: []string{"gateway", "generate"}}
+
+	running, cancel := context.WithCancel(context.Background())
+	time.AfterFunc(100*time.Millisecond, cancel)
+	_, killed := (ExecRunner{}).Run(running, command)
+
+	before, cancelBefore := context.WithCancel(context.Background())
+	cancelBefore()
+	_, neverStarted := (ExecRunner{}).Run(before, command)
+
+	for name, err := range map[string]error{"killed mid-run": killed, "canceled before start": neverStarted} {
+		var cmdErr *CommandError
+		if !errors.As(err, &cmdErr) || cmdErr.Code != CodeCanceled || !errors.Is(err, context.Canceled) {
+			t.Errorf("%s: err = %v; want a %s CommandError wrapping context.Canceled", name, err, CodeCanceled)
+		}
 	}
 }

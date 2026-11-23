@@ -1,9 +1,12 @@
 package workflowruntime
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"reflect"
 	"strings"
 
 	"agent-manager/internal/domain"
@@ -28,6 +31,9 @@ func (e *Engine) Signal(ctx context.Context, id uuid.UUID, signal string, payloa
 		}
 		var prior signalRecord
 		if json.Unmarshal(entry.Payload, &prior) == nil && prior.IdempotencyKey == idempotencyKey {
+			if prior.Signal != signal || !sameJSONPayload(prior.Payload, payload) {
+				return x, false, fmt.Errorf("idempotency key is already bound to a different signal request")
+			}
 			return x, true, nil
 		}
 	}
@@ -75,6 +81,31 @@ func (e *Engine) Signal(ctx context.Context, id uuid.UUID, signal string, payloa
 		return nil, false, ErrConcurrentAdvance
 	}
 	return x, false, nil
+}
+
+// sameJSONPayload treats object ordering and insignificant whitespace as
+// presentation details, while preserving JSON numbers as their original
+// decimal tokens so large integers cannot alias through float rounding.
+func sameJSONPayload(left, right json.RawMessage) bool {
+	decode := func(raw json.RawMessage) (any, bool) {
+		decoder := json.NewDecoder(bytes.NewReader(raw))
+		decoder.UseNumber()
+		var value any
+		if err := decoder.Decode(&value); err != nil {
+			return nil, false
+		}
+		var extra any
+		if err := decoder.Decode(&extra); err != io.EOF {
+			return nil, false
+		}
+		return value, true
+	}
+	leftValue, leftOK := decode(left)
+	rightValue, rightOK := decode(right)
+	if !leftOK || !rightOK {
+		return bytes.Equal(bytes.TrimSpace(left), bytes.TrimSpace(right))
+	}
+	return reflect.DeepEqual(leftValue, rightValue)
 }
 
 // signalWaitNode resolves a signal against the pinned declaration rather than

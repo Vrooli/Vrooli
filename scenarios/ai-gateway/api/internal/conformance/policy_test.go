@@ -99,6 +99,20 @@ func TestScanProjectExcludesOwnerPolicyAndCatalogSurfaces(t *testing.T) {
 	}
 }
 
+func TestScanProjectFindsOllamaURLWithProtocolDelimiter(t *testing.T) {
+	root := t.TempDir()
+	writePolicyFixture(t, root, "scenarios/demo/api/main.go", `package main
+const endpoint = "http://localhost:11434/api/chat"
+`)
+	report, err := NewScanner().ScanProject(t.Context(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasPolicyCode(report, "AI_OLLAMA_GATEWAY_ONLY") {
+		t.Fatalf("raw Ollama URL escaped policy scan: %+v", report.Findings)
+	}
+}
+
 func TestScanProjectKeepsScenarioHostedProviderSelectionVisible(t *testing.T) {
 	root := t.TempDir()
 	writePolicyFixture(t, root, "scenarios/landing-page-business-suite/api/internal/intelligence/model_policy.go", `const model = "openai/gpt-4o"`)
@@ -116,6 +130,7 @@ func TestScanProjectIgnoresCommentsAndNonOllamaCatalogIdentifiers(t *testing.T) 
 	writePolicyFixture(t, root, "scenarios/demo/api/main.go", strings.Join([]string{
 		"package main",
 		"// Previous approach used qwen3:4b and mistral:7b.",
+		`// Previous endpoint was "http://localhost:11434/api/chat".`,
 		`const pdfEngine = "mistral-ocr"`,
 		`const provider = "mistral/"`,
 	}, "\n"))

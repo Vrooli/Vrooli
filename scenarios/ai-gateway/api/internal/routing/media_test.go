@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"ai-gateway/internal/caller"
 	"ai-gateway/internal/providers"
 	"github.com/stretchr/testify/require"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing"
@@ -644,3 +645,42 @@ func TestResourceOpenRouterMediaExecutorForwardsCallerCostCeiling(t *testing.T) 
 		})
 	}
 }
+
+// Image generation is inference too, so it lands in the same route log as
+// text routes, with the caller that submitted it; a failure the executor
+// reported no evidence for still leaves a failed event.
+func TestMediaExecutionsAreRecordedInTheRouteLogWithTheirCaller(t *testing.T) {
+	db := newMediaSchemaDB(t)
+	routes := NewSQLRepository(db)
+	ctx := caller.WithLabel(context.Background(), "scenario:image-tools-start-api/image-tools-api")
+
+	_, err := NewMediaService(db, successfulMediaExecutor{}).Submit(ctx, mediaRequest("media-route-success"))
+	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		ev, getErr := routes.Get(context.Background(), "route-media-1")
+		return getErr == nil && ev.GetCaller() == "scenario:image-tools-start-api/image-tools-api" && ev.GetStatus() == "succeeded"
+	}, 5*time.Second, 10*time.Millisecond)
+
+	_, err = NewMediaService(db, failingMediaExecutor{}).Submit(ctx, mediaRequest("media-route-failure"))
+	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		events, listErr := routes.List(context.Background(), EvidenceFilter{})
+		if listErr != nil {
+			return false
+		}
+		for _, ev := range events {
+			if ev.GetStatus() == "failed" && ev.GetCaller() == "scenario:image-tools-start-api/image-tools-api" {
+				return slices.Equal(ev.GetFailureReasons(), []string{failureReasonExecute})
+			}
+		}
+		return false
+	}, 5*time.Second, 10*time.Millisecond)
+}
+
+type failingMediaExecutor struct{}
+
+func (failingMediaExecutor) Execute(context.Context, *routingv1.SubmitMediaRequest) (*MediaExecutionResult, error) {
+	return nil, errors.New("provider refused")
+}
+
+func (failingMediaExecutor) Cancel(context.Context, string) error { return errors.New("not running") }

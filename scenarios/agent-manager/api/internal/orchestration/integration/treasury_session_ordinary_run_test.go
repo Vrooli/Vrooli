@@ -278,10 +278,7 @@ func TestOrdinaryRunTreasuryKeyLifecycle(t *testing.T) {
 	if err := <-keyRequestDone; err == nil {
 		t.Fatal("queued key request returned the run key after terminal revocation")
 	}
-	finalRun, err := waitForTerminal(t, context.Background(), service, run.ID, 30*time.Second)
-	if err != nil || finalRun.Status != domain.RunStatusComplete {
-		t.Fatalf("ordinary Treasury run did not complete: run=%+v err=%v", finalRun, err)
-	}
+	waitForCompletedRun(t, context.Background(), service, run.ID, 30*time.Second)
 	if completed.identityToken == "" {
 		t.Fatal("ordinary run did not retain its test identity token for terminal refusal verification")
 	}

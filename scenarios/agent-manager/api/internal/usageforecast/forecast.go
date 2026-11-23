@@ -34,6 +34,10 @@ const (
 	// weekly windows reset early every one to three days; a weekly scope
 	// without early resets needs CalibrationWindows weeks).
 	CurrentLookback = 70 * 24 * time.Hour
+	// resetTimestampPrecision is the provider timestamp resolution: ResetAt is
+	// minute-truncated, so readings through the following minute may be from
+	// the old window. Keep grouping and expiration on the same boundary.
+	resetTimestampPrecision = time.Minute
 	// CalibrationWindows is how many of the scope's newest completed windows
 	// calibrate a projection; at least minCalibration are needed.
 	CalibrationWindows = 10
@@ -248,7 +252,7 @@ func Windows(spans []pricing.QuotaReadingSpan) []*Window {
 		if span.ResetAt != nil && !span.ResetAt.IsZero() {
 			// ResetAt is truncated to the minute; the provider reset lies
 			// within the following minute.
-			end := span.ResetAt.Add(time.Minute)
+			end := span.ResetAt.Add(resetTimestampPrecision)
 			if !span.FirstAt.Before(end) {
 				continue
 			}
@@ -621,7 +625,7 @@ func (f Forecast) withStaleness(now time.Time) Forecast {
 	switch {
 	case w.LastAt.IsZero():
 		f.Status, f.Reason = StatusUnknown, "no readings"
-	case !w.ResetAt.IsZero() && !now.Before(w.ResetAt):
+	case !w.ResetAt.IsZero() && !now.Before(w.ResetAt.Add(resetTimestampPrecision)):
 		f.Status, f.Reason, f.Lasting = StatusUnknown, "the window reset at "+w.ResetAt.UTC().Format(time.RFC3339)+"; no reading of the new window yet, so current usage is unknown", nil
 		f.Expired, f.Used = true, 0
 		f.Projected, f.BandStart, f.BandEnd = nil, nil, nil

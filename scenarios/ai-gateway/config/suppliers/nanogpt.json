@@ -1,0 +1,102 @@
+{
+  "id": "nanogpt",
+  "family": "openai-compatible",
+  "locality": "remote",
+  "endpoint": "https://api.nano-gpt.com/api/v1",
+  "policy": {
+    "schema_version": "2026-11-23",
+    "provider": {
+      "id": "nanogpt",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "pay_as_you_go",
+            "access_tier": "1a",
+            "use_classes": {
+              "own_account": "allowed",
+              "bounded_feature": "unverified",
+              "in_app": "unverified",
+              "harness_access": "allowed"
+            },
+            "conditions": [
+              "Bind downstream users to terms at least as protective as NanoGPT's terms.",
+              "Provide legally required notices and consents, including an accurate privacy notice.",
+              "Maintain the stated age restriction and reasonable abuse safeguards.",
+              "Do not imply NanoGPT endorsement without a written agreement.",
+              "Each model's provider terms and license remain separate gates."
+            ],
+            "clause": "Terms of Service, Using Our Services and Commercial Integrations and Downstream Users",
+            "reason": "Public terms explicitly permit resale as part of the customer's own service, subject to downstream obligations and model-provider restrictions. Proposed only; not approved."
+          }
+        ],
+        "evidence": {
+          "url": "https://nano-gpt.com/legal/terms-of-service",
+          "document_date": "2026-11-20",
+          "read_at": "2026-11-23"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-11-22",
+        "on_expiry": "deny"
+      },
+      "hosted_routes": [],
+      "agreements": []
+    },
+    "roles": {},
+    "models": {
+      "z-ai/glm-5.3": {
+        "provider": "z-ai",
+        "family": "glm-5",
+        "capabilities": [
+          "chat",
+          "text_input",
+          "text_output"
+        ],
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "endpoints": [
+          "chat"
+        ],
+        "default_eligible": false,
+        "licence": {
+          "commercial_use": null
+        },
+        "caveats": [
+          "NanoGPT lists this model ID and current list price, but its actual serving provider and that provider's API terms are unknown.",
+          "Z.AI's published GLM-5.3 license applies to copies of the model software; it explicitly excludes mere relaying to models hosted by others from its Model-as-a-Service definition, so it does not establish rights in NanoGPT's hosted API route.",
+          "The `z-ai` publisher label identifies the model lineage, not the upstream service that handles NanoGPT API requests.",
+          "No Vrooli route, customer credit price, trust decision or model eligibility is declared."
+        ],
+        "provenance": {
+          "catalog": {
+            "source_kind": "manual_policy",
+            "confidence": "high",
+            "source": "https://nano-gpt.com/models and https://nano-gpt.com/api; model ID and OpenAI-compatible API availability checked 2026-11-23",
+            "observed_at": "2026-11-23"
+          },
+          "terms": {
+            "source_kind": "manual_policy",
+            "confidence": "medium",
+            "source": "https://nano-gpt.com/legal/terms-of-service; terms last updated 2026-11-20; resale allowed subject to Model Provider terms and downstream obligations",
+            "observed_at": "2026-11-23",
+            "sample_count": 0
+          },
+          "license": {
+            "source_kind": "manual_policy",
+            "confidence": "medium",
+            "source": "https://huggingface.co/zai-org/GLM-5.3/blob/e0b07fd2751b42d5efa199cc02c2b271deadc516/LICENSE; pinned Z.AI license excludes mere relaying to models hosted by others from Model as a Service",
+            "observed_at": "2026-11-23",
+            "sample_count": 0
+          }
+        }
+      }
+    }
+  }
+}

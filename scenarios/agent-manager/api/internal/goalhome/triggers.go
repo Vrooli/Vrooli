@@ -66,7 +66,7 @@ func EvaluateEpoch(path string, epoch *Epoch, limits Thresholds, now time.Time, 
 		Estimate: leadingNumber(epoch.Fields["estimate"]), WeightedTokens: weighted,
 		MetricHistory: []string{}, OpenDirectives: []string{}, StepBack: []string{}, Review: []string{}, MalformedLogLines: epoch.Malformed,
 	}
-	if accepted := epoch.LastAcceptance(); accepted != nil {
+	if accepted := epoch.LastAcceptance(); accepted != nil && !accepted.At.IsZero() {
 		report.Accepted = accepted.Raw
 	}
 	acked := map[string]bool{}

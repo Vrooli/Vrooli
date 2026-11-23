@@ -86,6 +86,24 @@ func TestFindTranscript_ClaudeSessionIDPinsPath(t *testing.T) {
 	}
 }
 
+func TestFindTranscript_ClaudeMissingPinnedSessionDoesNotAdoptSibling(t *testing.T) {
+	home := t.TempDir()
+	wd := "/work/dir"
+	slugDir := filepath.Join(home, ".claude", "projects", SlugifyCwd(wd))
+	sibling := filepath.Join(slugDir, "session-other.jsonl")
+	writeFile(t, sibling)
+
+	got, err := findTranscript(DiscoverParams{
+		RunnerType: domain.RunnerTypeClaudeCode,
+		WorkingDir: wd,
+		HomeDir:    home,
+		SessionID:  "session-expected",
+	})
+	if err != nil || got != "" {
+		t.Fatalf("missing pinned session selected %q, err=%v; must wait for the owner transcript", got, err)
+	}
+}
+
 func TestFindTranscript_Grok(t *testing.T) {
 	runDir := t.TempDir()
 	want := filepath.Join(runDir, "grok", "sessions", "%2Fwork%2Fdir", "sess-123", "updates.jsonl")

@@ -98,12 +98,10 @@ func transcriptEvents(ctx context.Context, rules Rules, source io.Reader, parser
 		var sequence int64
 		stop := errors.New("stopped")
 		skippedLines, err := forEachLine(source, rules.MaxLineBytes, func(line []byte) error {
-			lines++
-			if lines%1024 == 0 {
-				if err := ctx.Err(); err != nil {
-					return err
-				}
+			if err := ctx.Err(); err != nil {
+				return err
 			}
+			lines++
 			text := string(line)
 			if strings.TrimSpace(text) == "" {
 				return nil

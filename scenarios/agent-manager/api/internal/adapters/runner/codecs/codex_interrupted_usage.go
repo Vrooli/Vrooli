@@ -120,6 +120,12 @@ func (c *Codex) RecoverInterruptedUsage(req InterruptedUsageRequest) ([]*domain.
 
 // codexRolloutPath finds the session's rollout under a run-scoped CODEX_HOME.
 func codexRolloutPath(home, sessionID string) (string, error) {
+	// Session IDs become part of a filepath.Glob pattern below. Treating the
+	// provider-derived ID as pattern syntax can select another session's rollout
+	// (and therefore attribute its usage to this run).
+	if sessionID == "" || filepath.Base(sessionID) != sessionID || strings.ContainsAny(sessionID, "*?[]\\") {
+		return "", fmt.Errorf("invalid codex session id")
+	}
 	matches, err := filepath.Glob(filepath.Join(home, "sessions", "*", "*", "*", "rollout-*"+sessionID+".jsonl"))
 	if err != nil {
 		return "", err

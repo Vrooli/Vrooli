@@ -71,7 +71,12 @@ func findTranscript(p DiscoverParams) (string, error) {
 			pinned := filepath.Join(home, ".claude", "projects", slug, strings.TrimSpace(p.SessionID)+".jsonl")
 			if _, err := os.Stat(pinned); err == nil {
 				return pinned, nil
+			} else if !os.IsNotExist(err) {
+				return "", fmt.Errorf("stat pinned claude transcript %q: %w", pinned, err)
 			}
+			// Session identity is authoritative once known. Wait for that exact
+			// file rather than adopting a concurrent session in the same cwd slug.
+			return "", nil
 		}
 		pattern := filepath.Join(home, ".claude", "projects", slug, "*.jsonl")
 		return newestGlobAfter(pattern, p.LaunchedAt)

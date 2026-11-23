@@ -1,13 +1,16 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"ai-gateway/internal/catalog"
 	"ai-gateway/internal/rolecatalog"
+	"ai-gateway/internal/routing"
 )
 
 func TestParseResourceRoles(t *testing.T) {
@@ -224,6 +227,218 @@ func TestAddSupplierEntriesEnforcesSingleDeclarationOwner(t *testing.T) {
 			t.Fatalf("addSupplierEntries() error = %v, want duplicate supplier rejection", err)
 		}
 	})
+}
+
+func TestAC2ProposedNanoGPTDeclarationProjectsWithoutRoutesOrCredentialValues(t *testing.T) {
+	root := repositoryRoot(t)
+	inputs, err := loadInputs(root)
+	if err != nil {
+		t.Fatalf("loadInputs() error = %v", err)
+	}
+	entries, err := providerEntries(root, inputs)
+	if err != nil {
+		t.Fatalf("providerEntries() error = %v", err)
+	}
+	if err := addSupplierEntries(root, entries); err != nil {
+		t.Fatalf("addSupplierEntries() error = %v", err)
+	}
+
+	raw, ok := entries["nanogpt"]
+	if !ok {
+		t.Fatal("NanoGPT supplier declaration missing from projected provider catalog")
+	}
+	data, err := json.Marshal(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var declaration struct {
+		ID       string `json:"id"`
+		Endpoint string `json:"endpoint"`
+		Policy   struct {
+			Provider struct {
+				Terms struct {
+					Review struct {
+						Status string `json:"status"`
+					} `json:"review"`
+				} `json:"terms"`
+				Routes []json.RawMessage `json:"hosted_routes"`
+			} `json:"provider"`
+			Roles map[string]json.RawMessage `json:"roles"`
+		} `json:"policy"`
+	}
+	if err := json.Unmarshal(data, &declaration); err != nil {
+		t.Fatalf("parse projected declaration: %v", err)
+	}
+	if declaration.ID != "nanogpt" || declaration.Endpoint != "https://api.nano-gpt.com/api/v1" {
+		t.Fatalf("projected identity/endpoint = %q/%q", declaration.ID, declaration.Endpoint)
+	}
+	if declaration.Policy.Provider.Terms.Review.Status != "proposed" || len(declaration.Policy.Provider.Routes) != 0 || len(declaration.Policy.Roles) != 0 {
+		t.Fatalf("projection activated a proposal: status=%q routes=%d roles=%d", declaration.Policy.Provider.Terms.Review.Status, len(declaration.Policy.Provider.Routes), len(declaration.Policy.Roles))
+	}
+	for _, secretLike := range []string{"NANOGPT_API_KEY", "api_key", "token"} {
+		if strings.Contains(string(data), secretLike) {
+			t.Fatalf("supplier projection unexpectedly contains key material or a credential field %q", secretLike)
+		}
+	}
+	routerOneRaw, ok := entries["router-one"]
+	if !ok {
+		t.Fatal("Router One PAYG supplier declaration missing from projected provider catalog")
+	}
+	routerOneData, err := json.Marshal(routerOneRaw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var routerOne struct {
+		ID       string `json:"id"`
+		Endpoint string `json:"endpoint"`
+		Policy   struct {
+			Provider struct {
+				Terms struct {
+					Review struct {
+						Status string `json:"status"`
+					} `json:"review"`
+				} `json:"terms"`
+				Routes     []json.RawMessage `json:"hosted_routes"`
+				Agreements []json.RawMessage `json:"agreements"`
+			} `json:"provider"`
+			Roles  map[string]json.RawMessage `json:"roles"`
+			Models map[string]struct {
+				DefaultEligible *bool    `json:"default_eligible"`
+				Caveats         []string `json:"caveats"`
+			} `json:"models"`
+		} `json:"policy"`
+	}
+	if err := json.Unmarshal(routerOneData, &routerOne); err != nil {
+		t.Fatalf("parse projected Router One declaration: %v", err)
+	}
+	if routerOne.ID != "router-one" || routerOne.Endpoint != "https://api.router.one/v1" || routerOne.Policy.Provider.Terms.Review.Status != "proposed" || len(routerOne.Policy.Provider.Routes) != 0 || len(routerOne.Policy.Provider.Agreements) != 0 || len(routerOne.Policy.Roles) != 0 || len(routerOne.Policy.Models) != 3 {
+		t.Fatalf("Router One projection activated proposal or lost sourced model drafts: %+v", routerOne)
+	}
+	for id, model := range routerOne.Policy.Models {
+		if model.DefaultEligible == nil || *model.DefaultEligible || len(model.Caveats) < 2 {
+			t.Errorf("Router One model %q lacks its ineligible source-rights caveat: %+v", id, model)
+		}
+	}
+}
+
+func TestAC2SupplierDeclarationGeneratesInIsolatedJ13BundleFixture(t *testing.T) {
+	root := fixtureRoot(t, validFixtureRoleCatalog)
+	declarationDir := filepath.Join(repositoryRoot(t), "scenarios", "ai-gateway", "config", "suppliers")
+	declarations, err := os.ReadDir(declarationDir)
+	if err != nil {
+		t.Fatalf("read repository supplier declarations: %v", err)
+	}
+	candidateIDs := map[string]bool{}
+	for _, declaration := range declarations {
+		if declaration.IsDir() || filepath.Ext(declaration.Name()) != ".json" {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(declarationDir, declaration.Name()))
+		if err != nil {
+			t.Fatalf("read supplier declaration %q: %v", declaration.Name(), err)
+		}
+		id := strings.TrimSuffix(declaration.Name(), filepath.Ext(declaration.Name()))
+		candidateIDs[id] = true
+		writeFixtureFile(t, root, filepath.Join("scenarios", "ai-gateway", "config", "suppliers", declaration.Name()), string(data))
+	}
+	if len(candidateIDs) != 18 {
+		t.Fatalf("isolated J13 fixture supplier declaration count = %d, want 18", len(candidateIDs))
+	}
+	output := filepath.Join(t.TempDir(), "providers.generated.json")
+	if err := run(root, output, false); err != nil {
+		t.Fatalf("run(isolated J13 fixture) error = %v", err)
+	}
+	data, err := os.ReadFile(output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var packaged catalog.Bundle
+	if err := json.Unmarshal(data, &packaged); err != nil {
+		t.Fatalf("decode generated J13 bundle: %v", err)
+	}
+	for id := range candidateIDs {
+		provider, ok := packaged.Providers[id]
+		if !ok {
+			t.Errorf("isolated generated J13 bundle omitted candidate %q", id)
+			continue
+		}
+		if provider.Endpoint == "" {
+			if _, err := (routing.ResourcePolicySource{Catalog: &packaged}).Endpoint(context.Background(), id); err == nil {
+				t.Errorf("endpoint-less packaged candidate %q resolved an endpoint", id)
+			}
+		}
+	}
+	apmix, ok := packaged.Providers["apmix"]
+	if !ok {
+		t.Fatal("isolated generated J13 bundle omitted APmix")
+	}
+	if apmix.Endpoint != "https://api.apmix.ai/v1" {
+		t.Fatalf("isolated J13 bundle APmix endpoint = %q; want documented API base", apmix.Endpoint)
+	}
+	var apmixPolicy struct {
+		Provider struct {
+			Terms struct {
+				Review struct {
+					Status string `json:"status"`
+				} `json:"review"`
+			} `json:"terms"`
+			Routes     []json.RawMessage `json:"hosted_routes"`
+			Agreements []json.RawMessage `json:"agreements"`
+		} `json:"provider"`
+		Models map[string]struct {
+			DefaultEligible *bool `json:"default_eligible"`
+			Provenance      map[string]struct {
+				ObservedAt string `json:"observed_at"`
+			} `json:"provenance"`
+		} `json:"models"`
+	}
+	if err := json.Unmarshal(apmix.Policy, &apmixPolicy); err != nil {
+		t.Fatalf("decode APmix policy from isolated generated J13 bundle: %v", err)
+	}
+	if len(apmixPolicy.Models) != 24 || apmixPolicy.Provider.Terms.Review.Status != "proposed" || len(apmixPolicy.Provider.Routes) != 0 || len(apmixPolicy.Provider.Agreements) != 0 {
+		t.Fatalf("APmix isolated J13 projection = models:%d review:%q routes:%d agreements:%d; want 24 draft identities and no executable authority", len(apmixPolicy.Models), apmixPolicy.Provider.Terms.Review.Status, len(apmixPolicy.Provider.Routes), len(apmixPolicy.Provider.Agreements))
+	}
+	for id, model := range apmixPolicy.Models {
+		if model.DefaultEligible == nil || *model.DefaultEligible {
+			t.Errorf("APmix isolated J13 model %q is not explicitly ineligible", id)
+		}
+		if model.Provenance["catalog"].ObservedAt != "2026-11-23" || model.Provenance["terms"].ObservedAt != "2026-11-23" {
+			t.Errorf("APmix isolated J13 model %q lost dated provenance: %+v", id, model.Provenance)
+		}
+	}
+	snapshot, err := (routing.ResourcePolicySource{Catalog: &packaged}).Snapshot(context.Background(), "recorded-account")
+	if err != nil {
+		t.Fatalf("load generated J13 bundle into packaged policy source: %v", err)
+	}
+	apmixEndpoint, err := (routing.ResourcePolicySource{Catalog: &packaged}).Endpoint(context.Background(), "apmix")
+	if err != nil {
+		t.Fatalf("resolve APmix transport metadata from generated J13 bundle: %v", err)
+	}
+	if apmixEndpoint.URL != "https://api.apmix.ai/v1" || apmixEndpoint.APIKey != "" {
+		t.Fatalf("APmix J13 bundle endpoint=%q API-key-present=%t; want documented transport base and no credential", apmixEndpoint.URL, apmixEndpoint.APIKey != "")
+	}
+	seen := map[string]bool{}
+	for _, record := range snapshot.Records {
+		seen[record.Supplier] = true
+		if candidateIDs[record.Supplier] && record.Terms.Review.Status != "proposed" {
+			t.Errorf("packaged candidate %q review status = %q, want proposed", record.Supplier, record.Terms.Review.Status)
+		}
+	}
+	for id := range candidateIDs {
+		if !seen[id] {
+			t.Errorf("packaged policy source omitted candidate record %q", id)
+		}
+	}
+	for _, route := range snapshot.Routes {
+		if candidateIDs[route.Supplier] {
+			t.Errorf("packaged proposal candidate %q produced executable route %q", route.Supplier, route.ID)
+		}
+	}
+	for _, agreement := range snapshot.Agreements {
+		if candidateIDs[agreement.Supplier] {
+			t.Errorf("packaged proposal candidate %q produced executable agreement", agreement.Supplier)
+		}
+	}
 }
 
 func TestRunRepositoryIntegration(t *testing.T) {

@@ -1,0 +1,59 @@
+{
+  "id": "kovarouter",
+  "family": "openai-compatible",
+  "locality": "remote",
+  "endpoint": "",
+  "policy": {
+    "schema_version": "2026-11-22",
+    "provider": {
+      "id": "kovarouter",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "corrected_enterprise_or_channel_reseller_agreement_only",
+            "access_tier": "unverified",
+            "use_classes": {
+              "own_account": "allowed",
+              "bounded_feature": "unverified",
+              "in_app": "unverified",
+              "harness_access": "unverified"
+            },
+            "conditions": [
+              "Terms §5.7 requires prior written KOVAR authorization for standalone downstream resale/sublicensing/redistribution; §6.1 says API keys are personal, account-specific and nontransferable. Obtain an executed agreement that clearly supersedes or scopes these provisions for Vrooli's product.",
+              "Product Handbook supports partner distribution/white label but says it is not a binding offer; channel rebates and special terms are separate internal policy/approved arrangements. The published Terms contain unresolved placeholders and corrupt billing text; get a corrected, complete authoritative agreement before any eligibility.",
+              "Record KOVAR as gateway/contract supplier; its terms name Anthropic/other model providers, but actual serving provider by route and publisher/license are distinct. Verify provider rights and exact model/route scope for each model.",
+              "Public model rates/90%-of-official positioning are a retail anchor only, not partner wholesale quote. Verify current catalog, account-level availability, limits, data/trust, support and any contractual SLA.",
+              "Provider agreement, provider rule, model scope, trust and Vrooli customer price remain separate human decisions."
+            ],
+            "clause": "KOVAR Terms §§1, 4, 5.7, 6.1, 6.3–6.4, 8.4, 10.1; Product Handbook disclaimer and partner scope",
+            "reason": "Official handbook describes partner-distributed and white-label routes, but says it is nonbinding; standard Terms require prior written reseller authorization and contain unresolved template placeholders. Conditional candidate only."
+          }
+        ],
+        "evidence": {
+          "url": "https://kovar.ai/pricing",
+          "document_date": "Terms effective/last updated 2026-03-25; Handbook no visible date",
+          "read_at": "2026-11-22"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-11-22",
+        "on_expiry": "deny"
+      },
+      "hosted_routes": [],
+      "agreements": []
+    },
+    "roles": {},
+    "models": {},
+    "research": {
+      "activation": "denied_until_corrected_enterprise_terms_written_resale_grant_actual_route_model_rights_and_human_decisions_are_verified",
+      "source_scope": "public official pages only",
+      "not_an_operator_approval": true,
+      "model_reason": "Publisher/model family names and a routing catalog do not identify actual serving route or prove account/provider rights.",
+      "evidence": [
+        "https://kovar.ai/pricing",
+        "https://doc.kovar.ai/docs"
+      ]
+    }
+  }
+}

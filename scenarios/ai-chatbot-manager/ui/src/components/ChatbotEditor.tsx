@@ -1,5 +1,6 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { Button } from '@vrooli/react-component-library/Button/2.2.14';
 import {
   ArrowLeft,
   Cpu,
@@ -195,10 +196,10 @@ function ChatbotEditor() {
   return (
     <div className="page-stack">
       <header className="page-header">
-        <button className="ghost-button" onClick={() => navigate('/chatbots')}>
+        <Button className="ghost-button" variant="secondary" onClick={() => navigate('/chatbots')}>
           <ArrowLeft size={16} />
           <span>Back to chatbots</span>
-        </button>
+        </Button>
         <div>
           <h2>{heading.title}</h2>
           <p>{heading.subtitle}</p>
@@ -361,11 +362,11 @@ function ChatbotEditor() {
         </section>
 
         <footer className="form-footer">
-          <button type="button" className="ghost-button" onClick={() => navigate('/chatbots')} disabled={saving}>
+          <Button type="button" className="ghost-button" variant="secondary" onClick={() => navigate('/chatbots')} disabled={saving}>
             <Rocket size={16} />
             <span>Cancel</span>
-          </button>
-          <button type="submit" className="primary-action" disabled={saving}>
+          </Button>
+          <Button type="submit" className="primary-action" variant="primary" disabled={saving}>
             {saving ? (
               <>
                 <Loader2 size={16} className="spin" />
@@ -377,7 +378,7 @@ function ChatbotEditor() {
                 <span>{isEditing ? 'Save changes' : 'Create chatbot'}</span>
               </>
             )}
-          </button>
+          </Button>
         </footer>
       </form>
     </div>

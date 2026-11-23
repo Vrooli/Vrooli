@@ -119,6 +119,28 @@ test("QuickRunDialog restores persisted task draft fields before submit", async 
   });
 });
 
+test("QuickRunDialog sends a validated durable brief only on explicit Start Run", async () => {
+  const user = userEvent.setup();
+  const calls = renderQuickRunDialog();
+  await user.click(screen.getByText("Add a durable goal brief"));
+  await user.type(screen.getByLabelText("Verified destination"), "Complete the checked local outcome");
+  await user.type(screen.getByLabelText("Exact operator stance"), "keep the operator's exact stance");
+  await user.type(screen.getByLabelText("Durable charter path"), "/workspace/repo/CHARTER.md");
+
+  assert.equal(calls.onCreateTask.mock.calls.length, 0);
+  assert.equal(calls.onCreateRun.mock.calls.length, 0);
+  await user.click(screen.getByRole("button", { name: /^Start Run$/i }));
+  await waitFor(() => assert.equal(calls.onCreateRun.mock.calls.length, 1));
+
+  const taskDescription = calls.onCreateTask.mock.calls[0]?.[0].description ?? "";
+  const runRequest = calls.onCreateRun.mock.calls[0]?.[0];
+  assert.ok(taskDescription.includes("keep the operator's exact stance"));
+  assert.equal(runRequest?.prompt, taskDescription);
+  assert.ok((runRequest?.until ?? "").length <= 600);
+  assert.ok(runRequest?.until?.includes("/workspace/repo/CHARTER.md"));
+  assert.equal(runRequest?.charterPath, "/workspace/repo/CHARTER.md");
+});
+
 test("QuickRunDialog blocks protected interactive runs and sends permitted interactive configuration", async () => {
   const user = userEvent.setup();
   const calls = renderQuickRunDialog();
@@ -211,7 +233,7 @@ test("QuickRunDialog lets an operator close a draft without discarding it", asyn
   const user = userEvent.setup();
   const calls = renderQuickRunDialog();
   await user.type(screen.getByLabelText("What should the agent do?"), "Resume only after reviewing receipts");
-  await user.click(screen.getByRole("button", { name: "Close" }));
+  await user.click(screen.getByTestId("quick-run-dialog.close"));
 
   assert.deepEqual(calls.onOpenChange.mock.calls, [[false]]);
   await waitFor(() => assert.match(

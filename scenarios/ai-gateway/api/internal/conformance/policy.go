@@ -15,6 +15,7 @@ import (
 
 var (
 	ollamaDimensionPattern = regexp.MustCompile(`\b(DefaultVectorSize|vectorSize|DenseSize|EmbedDimensions|vector_size)\s*[:=]\s*(768|1024|1536)\b|"size"\s*:\s*(768|1024|1536)\b|(?i)\bvector\s*\(\s*(768|1024|1536)\s*\)`)
+	ollamaLocalURLPattern  = regexp.MustCompile(`(?i)\bhttps?://(?:localhost|127\.0\.0\.1):11434(?:/|\b)`)
 	ollamaModelPattern     = regexp.MustCompile(`\b(nomic-embed-text(?::latest)?|qwen3:[0-9]+(?:\.[0-9]+)?b|llama3\.2(?::[0-9]+b)?|qwen2\.5(?::[0-9]+b)?|codellama(?::[0-9]+b)?|mistral(?::[0-9]+b)?)\b`)
 	openRouterSlugPattern  = regexp.MustCompile(`"(?:openai|anthropic|google|x-ai|deepseek|mistralai|meta-llama|qwen|z-ai|minimax|bytedance-seed|moonshotai|recraft|sourceful|black-forest-labs|inception|microsoft|alibaba)/[a-z0-9._:-]*(?:gpt|claude|gemini|llama|grok|deepseek|mixtral|mistral|qwen|glm|kimi|seedream|flux|recraft|riverflow|mercury|nano-banana|veo|seed-2)[a-z0-9._:-]*"`)
 	openRouterModelEnv     = regexp.MustCompile(`\b[A-Z0-9]*_?OPENROUTER_[A-Z0-9_]*MODEL\b`)
@@ -64,7 +65,7 @@ func policyLineFindings(rel, line string, lineNo int) []*conformancev1.Conforman
 
 func ollamaPolicyFindings(rel, code string, lineNo int) []*conformancev1.ConformanceFinding {
 	var findings []*conformancev1.ConformanceFinding
-	if strings.Contains(code, `"/api/embeddings"`) || strings.Contains(code, `"/api/generate"`) || strings.Contains(code, `"/api/chat"`) {
+	if strings.Contains(code, `"/api/embeddings"`) || strings.Contains(code, `"/api/generate"`) || strings.Contains(code, `"/api/chat"`) || ollamaLocalURLPattern.MatchString(code) {
 		findings = append(findings, policyFinding("AI_OLLAMA_GATEWAY_ONLY", "high", rel, lineNo, "Raw Ollama endpoint usage bypasses resource-ollama gateway policy.", "Use resource-ollama gateway or AI Gateway role routing."))
 	}
 	if ollamaDimensionPattern.MatchString(code) || containsOllamaModelFact(code) {
@@ -243,8 +244,32 @@ func codePortion(line string) string {
 	if strings.HasPrefix(trimmed, "//") || strings.HasPrefix(trimmed, "*") || strings.HasPrefix(trimmed, "/*") || strings.HasPrefix(trimmed, "#") {
 		return ""
 	}
-	if idx := strings.Index(line, "//"); idx >= 0 {
-		return line[:idx]
+	var quote byte
+	escaped := false
+	for i := 0; i < len(line); i++ {
+		current := line[i]
+		if quote != 0 {
+			if escaped {
+				escaped = false
+				continue
+			}
+			if current == '\\' {
+				escaped = true
+				continue
+			}
+			if current == quote {
+				quote = 0
+			}
+			continue
+		}
+		switch current {
+		case '"', '\'', '`':
+			quote = current
+		case '/':
+			if i+1 < len(line) && line[i+1] == '/' {
+				return line[:i]
+			}
+		}
 	}
 	return line
 }

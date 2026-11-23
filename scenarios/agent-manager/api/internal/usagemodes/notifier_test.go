@@ -3,6 +3,7 @@ package usagemodes
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -15,6 +16,12 @@ import (
 )
 
 type recorder struct{ events []eventbus.DomainEvent }
+
+type failingRecorder struct{}
+
+func (failingRecorder) PublishDomainEvent(context.Context, eventbus.DomainEvent) error {
+	return errors.New("publisher unavailable")
+}
 
 func (r *recorder) PublishDomainEvent(_ context.Context, e eventbus.DomainEvent) error {
 	r.events = append(r.events, e)
@@ -66,6 +73,51 @@ func newNotifier(t *testing.T) (*Notifier, *recorder, *clock) {
 	svc.Now = c.now
 	rec := &recorder{}
 	return &Notifier{Modes: svc, Publisher: rec, Now: c.now}, rec, c
+}
+
+func TestObserveExpiresUnsentNoticesAfterRetention(t *testing.T) {
+	n, _, c := newNotifier(t)
+	n.Publisher = failingRecorder{}
+	ctx := context.Background()
+	started, err := n.Modes.Start(ctx, StartRequest{Preset: PresetOneTierDown, Runner: "codex", Until: "1h", StartedBy: "operator"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	n.Observe(ctx, c.t)
+	if errs := n.Flush(ctx, nil, c.t); len(errs) == 0 {
+		t.Fatal("unavailable publisher should leave the started notice pending")
+	}
+
+	if ended, _, err := n.Modes.End([]string{started.Mode.ID}, false); err != nil || len(ended) != 1 {
+		t.Fatalf("end mode: ended=%v err=%v", ended, err)
+	}
+	c.t = c.t.Add(2 * time.Hour)
+	n.Observe(ctx, c.t)
+	if errs := n.Flush(ctx, nil, c.t); len(errs) == 0 {
+		t.Fatal("unavailable publisher should leave the ended notice pending")
+	}
+	if got := n.load(); len(got.Started) != 1 || len(got.Ended) != 1 {
+		t.Fatalf("notices should remain pending before retention expires: started=%d ended=%d", len(got.Started), len(got.Ended))
+	}
+	st := n.load()
+	for i := 0; i < 256; i++ {
+		st.Started = append(st.Started, usagemode.Mode{ID: "old-start-" + strconv.Itoa(i), StartedAt: t0.Add(-stateRetention)})
+		st.Ended = append(st.Ended, endedNotice{ID: "old-end-" + strconv.Itoa(i), At: t0.Add(-stateRetention)})
+	}
+
+	c.t = c.t.Add(stateRetention + time.Minute)
+	current, err := n.Modes.Start(ctx, StartRequest{Preset: PresetOneTierDown, Runner: "claude", Until: "1h", StartedBy: "operator"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	n.Observe(ctx, c.t)
+	got := n.load()
+	if len(got.Ended) != 0 || cap(got.Ended) != 0 {
+		t.Fatalf("expired ended notices retained in queue: len=%d cap=%d", len(got.Ended), cap(got.Ended))
+	}
+	if len(got.Started) != 1 || cap(got.Started) != 1 || got.Started[0].ID != current.Mode.ID {
+		t.Fatalf("expired started notices were not pruned/compacted or recent notice was lost: %+v", got.Started)
+	}
 }
 
 func answer(d eventbus.DomainEvent, key, by string, state string, byDefault bool) operatordecision.DecisionResolution {

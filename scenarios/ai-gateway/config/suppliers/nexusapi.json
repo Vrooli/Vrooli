@@ -1,0 +1,61 @@
+{
+  "id": "nexusapi",
+  "family": "openai-compatible",
+  "locality": "remote",
+  "endpoint": "",
+  "policy": {
+    "schema_version": "2026-11-22",
+    "provider": {
+      "id": "nexusapi",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "approved_reseller_tier_and_written_scope_only",
+            "access_tier": "unverified",
+            "use_classes": {
+              "own_account": "unverified",
+              "bounded_feature": "unverified",
+              "in_app": "unverified",
+              "harness_access": "unverified"
+            },
+            "conditions": [
+              "Obtain current readable service terms, privacy/data commitments and executed reseller agreement before any supplier use; no substantive governing service/reseller terms were available in the reviewed official public pages.",
+              "Reseller program says approval is required and advertises Starter (15% discount, 1 domain, up to 50 customer keys), Pro (25%, 3 domains, up to 500 keys), Enterprise (40%, unlimited); do not treat marketing as accepted tier, approval, quote or commitment.",
+              "Verify live account-specific model IDs, supplier endpoint, limits and wholesale schedule. The public models page displayed no model rows in this check and reseller examples are older generations.",
+              "For each allowed model, identify actual serving provider separately from the NexusAPI gateway and model publisher; establish model-provider terms and rights to downstream use.",
+              "Establish legal counterparty, actual SLA, data/trust scope, permitted Vrooli in-app/customer use and separate human rule/model/trust/price decisions."
+            ],
+            "clause": "Official white-label reseller program and API documentation; governing service terms not publicly readable in this source pass",
+            "reason": "Official reseller page explicitly describes own-brand model API resale, wholesale billing, customer keys and custom prices after approval. This supports a conditional proposal only; current service terms, underlying providers, model rights and live availability remain unverified."
+          }
+        ],
+        "evidence": {
+          "url": "https://api.nexusapi.org/affiliate",
+          "document_date": "no visible date; footer © 2026",
+          "read_at": "2026-11-22"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-11-22",
+        "on_expiry": "deny"
+      },
+      "hosted_routes": [],
+      "agreements": []
+    },
+    "roles": {},
+    "models": {},
+    "research": {
+      "activation": "denied_until_current_terms_reseller_approval_serving_provider_model_rights_entitlement_and_human_decisions_are_verified",
+      "source_scope": "public official pages only",
+      "not_an_operator_approval": true,
+      "model_reason": "NexusAPI lists model publisher/family names and marketing counts but actual serving suppliers and present account availability are not established.",
+      "evidence": [
+        "https://api.nexusapi.org/affiliate",
+        "https://api.nexusapi.org/docs",
+        "https://api.nexusapi.org/models",
+        "https://api.nexusapi.org/"
+      ]
+    }
+  }
+}

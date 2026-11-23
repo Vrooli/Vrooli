@@ -115,6 +115,33 @@ func TestCapacityRefusalFallsBackWithoutPenalisingTheProvider(t *testing.T) {
 	}
 }
 
+// A caller that gives up on a slow request cancels the resource command. That
+// is the caller's decision, not a provider fault: counting it opened the
+// breaker for every caller after a few impatient ones.
+func TestCallerCancellationLeavesTheBreakerAlone(t *testing.T) {
+	runner := roleRunner()
+	runner.ErrorMatch = func(command providers.Command) error {
+		if strings.HasPrefix(command.String(), "resource-ollama gateway generate --role chat.default ") {
+			return &providers.CommandError{Code: providers.CodeCanceled, Command: "resource-ollama", Err: context.Canceled}
+		}
+		return nil
+	}
+	db := newSchemaDB(t)
+	svc := newService(testAdapters(runner), routing.NewSQLRepository(db),
+		routing.WithHealth(routing.NewSQLHealthRepository(db)),
+		routing.WithBreakerPolicy(routing.BreakerPolicy{FailureThreshold: 1, Cooldown: 30 * time.Second}),
+		routing.WithClock(func() time.Time { return breakerBaseTime }))
+	ctx := context.Background()
+
+	resp, err := svc.Execute(ctx, baseRequest(sharedv1.Profile_PROFILE_LOCAL_ONLY), "hello")
+	require.NoError(t, err)
+	require.Equal(t, string(routing.FailureCancellation), resp.GetEvidence().GetFailureClass())
+
+	_, found, err := routing.NewSQLHealthRepository(db).Get(ctx, routing.HealthKey{Provider: "ollama", Role: "chat.default", Kind: sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION})
+	require.NoError(t, err)
+	require.False(t, found, "a cancellation must leave no health record")
+}
+
 func TestBreakerIsolatesByRequestKind(t *testing.T) { // [REQ:AIGW-PROVIDER-BREAKER]
 	runner := roleRunner()
 	db := newSchemaDB(t)

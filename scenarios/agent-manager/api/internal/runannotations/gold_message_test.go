@@ -59,14 +59,23 @@ func TestMessageGoldRowsMustNameTheMessageAndStayDisjoint(t *testing.T) {
 	}
 	tuning := []GoldRow{{RunID: "chat", ScopeID: "chat-m1", Positive: true}, {RunID: "chat", ScopeID: "chat-m3", Positive: false}}
 	holdout := []GoldRow{{RunID: "chat", ScopeID: "chat-m2", Positive: true}, {RunID: "chat", ScopeID: "chat-m3", Positive: false}}
-	_, err := service.Benchmark(ctx, BenchmarkRequest{Label: "operator.dissatisfied", Split: SplitHoldout, Rows: holdout, FitRows: tuning})
-	if !errors.Is(err, ErrInvalidRequest) || !strings.Contains(err.Error(), "chat-m3") {
-		t.Fatalf("a hold-out sharing a message with the tuning rows: %v", err)
+	sameRunHoldout := []GoldRow{{RunID: "chat", ScopeID: "chat-m2", Positive: true}}
+	_, err := service.Benchmark(ctx, BenchmarkRequest{Label: "operator.dissatisfied", Split: SplitHoldout, Rows: sameRunHoldout, FitRows: tuning})
+	if !errors.Is(err, ErrInvalidRequest) || !strings.Contains(err.Error(), "chat") {
+		t.Fatalf("a hold-out sharing a run with tuning rows: %v", err)
 	}
-	// Messages of the same run are different subjects: a disjoint split is accepted.
-	disjointHoldout := []GoldRow{{RunID: "chat", ScopeID: "chat-m2", Positive: true}}
-	if _, err := service.Benchmark(ctx, BenchmarkRequest{Label: "operator.dissatisfied", Split: SplitHoldout, Rows: disjointHoldout, FitRows: tuning}); err != nil {
-		t.Fatalf("a split by message of one run: %v", err)
+	_, err = service.Benchmark(ctx, BenchmarkRequest{Label: "operator.dissatisfied", Split: SplitHoldout, Rows: holdout, FitRows: tuning})
+	if !errors.Is(err, ErrInvalidRequest) || !strings.Contains(err.Error(), "chat") {
+		t.Fatalf("a hold-out sharing a run and message with tuning rows: %v", err)
+	}
+	// A message-level holdout is valid when its parent run is held out too.
+	disjointHoldout := []GoldRow{{RunID: "chat-2", ScopeID: "chat-2-m1", Positive: true}}
+	if result, err := service.Benchmark(ctx, BenchmarkRequest{Label: "operator.dissatisfied", Split: SplitHoldout, Rows: disjointHoldout, FitRows: tuning}); err != nil || result.Labelled != 1 || result.Unobserved != 1 {
+		t.Fatalf("a hold-out from a distinct run: result=%+v err=%v", result, err)
+	}
+	missingRun := []GoldRow{{ScopeID: "chat-9-m1", Positive: true}}
+	if _, err := service.Benchmark(ctx, BenchmarkRequest{Label: "operator.dissatisfied", Split: SplitHoldout, Rows: missingRun, FitRows: tuning}); !errors.Is(err, ErrInvalidRequest) || !strings.Contains(err.Error(), "run_id") {
+		t.Fatalf("a message hold-out without its parent run: %v", err)
 	}
 	if _, err := service.Benchmark(ctx, BenchmarkRequest{Label: "operator.valence", Rows: tuning}); !errors.Is(err, ErrInvalidRequest) ||
 		!strings.Contains(err.Error(), "derived") {

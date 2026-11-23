@@ -43,6 +43,54 @@ func TestWaitSignalIsTypedDurableAndIdempotent(t *testing.T) { // [REQ:REQ-P2-00
 	}
 }
 
+func TestSignalIdempotencyRejectsMutatedPayloadWithoutAliasingLargeNumbers(t *testing.T) {
+	definition := baseDefinition()
+	definition.Nodes = []domain.WorkflowNode{
+		{ID: "approval", Kind: domain.WorkflowNodeWait, Wait: &domain.WorkflowWaitNode{Signal: "approved"}},
+		{ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}},
+	}
+	definition.EntryNode = "approval"
+	definition.Edges = []domain.WorkflowEdge{{From: "approval", To: "done"}}
+	engine, store, _ := testEngine(t, definition)
+	execution, err := engine.Start(context.Background(), revision(definition), json.RawMessage(`{}`), "signal-key-reuse")
+	if err != nil {
+		t.Fatal(err)
+	}
+	waiting := mustAdvance(t, engine, execution.ID)
+	accepted := json.RawMessage(`{"actor":"operator","ticket":9007199254740992}`)
+	if _, duplicate, err := engine.Signal(context.Background(), execution.ID, "approved", accepted, "approval-1", waiting.Version); err != nil || duplicate {
+		t.Fatalf("first signal duplicate=%t err=%v", duplicate, err)
+	}
+
+	// Equivalent JSON formatting is still a replay of the original request.
+	replay := json.RawMessage("{ \"ticket\": 9007199254740992, \"actor\": \"operator\" }")
+	if _, duplicate, err := engine.Signal(context.Background(), execution.ID, "approved", replay, "approval-1", 0); err != nil || !duplicate {
+		t.Fatalf("equivalent replay duplicate=%t err=%v", duplicate, err)
+	}
+	// A reused key with a different 64-bit value must be rejected. Converting
+	// JSON numbers through float64 would collapse these two adjacent integers.
+	mutated := json.RawMessage(`{"actor":"operator","ticket":9007199254740993}`)
+	if _, duplicate, err := engine.Signal(context.Background(), execution.ID, "approved", mutated, "approval-1", 0); err == nil || duplicate {
+		t.Fatalf("mutated request was accepted as replay: duplicate=%t err=%v", duplicate, err)
+	}
+	if _, duplicate, err := engine.Signal(context.Background(), execution.ID, "rejected", accepted, "approval-1", 0); err == nil || duplicate {
+		t.Fatalf("mutated signal name was accepted as replay: duplicate=%t err=%v", duplicate, err)
+	}
+	journal, err := store.ListJournal(context.Background(), execution.ID, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	signals := 0
+	for _, entry := range journal {
+		if entry.Kind == domain.WorkflowJournalSignal {
+			signals++
+		}
+	}
+	if signals != 1 {
+		t.Fatalf("mutated replay changed durable signal count to %d", signals)
+	}
+}
+
 func TestSignalBuffersBeforeWaitArmsAndConsumesOnArrival(t *testing.T) {
 	definition := baseDefinition()
 	definition.Nodes = []domain.WorkflowNode{

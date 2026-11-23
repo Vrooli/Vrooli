@@ -91,6 +91,20 @@ func TestNestedCommandsJoinTheExecCallThatRanThem(t *testing.T) {
 	}
 }
 
+// Replaying a durable nested command event must not turn the duplicate into
+// a dynamic command after the first copy has already claimed its literal unit.
+func TestDuplicateNestedResultIsIdempotent(t *testing.T) {
+	s := &execStream{run: uuid.New()}
+	s.exec("A", "git status --short").ran("git status --short", 0, 12).output("A")
+	first := s.events[1]
+	s.events = append(s.events, first)
+
+	facts := DeriveInvocationFacts(s.events)
+	if len(facts) != 1 || facts[0].CommandPath != "git status" || facts[0].ResultEventID != first.ID.String() || facts[0].Outcome != OutcomeSuccess || facts[0].SegmentIndex != 0 || facts[0].SegmentCount != 1 || facts[0].DurationMS == nil || *facts[0].DurationMS != 40 {
+		t.Fatalf("replayed nested result produced duplicate or changed evidence: %+v", facts)
+	}
+}
+
 // Without a nested result an exec call with several commands still cannot
 // give one exit status to each of them.
 func TestExecWithoutNestedResultsKeepsUnattributableOutcomesUnknown(t *testing.T) {

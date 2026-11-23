@@ -122,6 +122,8 @@ export interface RunFormData {
   };
   extraFlags?: Record<string, string[]>;
   prompt?: string;
+  until?: string;
+  charterPath?: string;
   runMode?: RunMode;
   /** Execution substrate. Interactive launches the real CLI in a live
    *  web-console session and is rejected for protected/sandboxed runs. Empty

@@ -1,10 +1,7 @@
 package transcriptindex
 
 import (
-	"bufio"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -23,10 +20,16 @@ type RootConfig struct {
 	// Home is the operator's OS home, holding the default Codex and Claude
 	// harness homes (~/.codex, ~/.claude).
 	Home string
+	// GrokSessionsRoot overrides Grok's default ~/.grok/sessions directory
+	// while retaining the default root for existing operator sessions.
+	GrokSessionsRoot string
 	// WebConsoleCodexRoot is the parent of web-console's per-session
 	// CODEX_HOME directories (ResolveWebConsoleCodexRoot); empty skips them.
 	WebConsoleCodexRoot string
 	RunStateRoot        string
+	OpenCodeArchiveDB   string
+	OpenCodeArchiveRoot string
+	CursorStateRoot     string
 	ExtraRoots          []string
 }
 
@@ -71,10 +74,26 @@ func Roots(cfg RootConfig) []Root {
 		harness := Family(format.Harness)
 		for _, rel := range format.HomeRoots {
 			kind := RootCodexHome
-			if harness == HarnessClaude {
+			switch harness {
+			case HarnessClaude:
 				kind = RootClaudeHome
+			case HarnessGrok:
+				kind = RootGrokHome
+			case "gemini-cli":
+				kind = RootGeminiCLI
+			case "qwen-code":
+				kind = RootQwenCode
+			case "cursor":
+				kind = RootCursor
 			}
 			roots = append(roots, Root{Path: filepath.Join(cfg.Home, filepath.FromSlash(rel)), Kind: kind, Harness: harness})
+		}
+		if harness == HarnessGrok && cfg.GrokSessionsRoot != "" {
+			custom := filepath.Clean(cfg.GrokSessionsRoot)
+			defaultRoot := filepath.Join(cfg.Home, ".grok", "sessions")
+			if custom != filepath.Clean(defaultRoot) {
+				roots = append(roots, Root{Path: custom, Kind: RootGrokHome, Harness: harness})
+			}
 		}
 	}
 	if cfg.RunStateRoot != "" {
@@ -93,6 +112,21 @@ func Roots(cfg RootConfig) []Root {
 					}
 				}
 			}
+		}
+	}
+	if cfg.OpenCodeArchiveRoot != "" && isDir(cfg.OpenCodeArchiveRoot) {
+		roots = append(roots, Root{Path: cfg.OpenCodeArchiveRoot, Kind: RootOpenCodeArchive, Harness: "opencode"})
+	}
+	if cfg.CursorStateRoot != "" && isDir(cfg.CursorStateRoot) {
+		duplicate := false
+		for _, root := range roots {
+			if root.Kind == RootCursor && filepath.Clean(root.Path) == filepath.Clean(cfg.CursorStateRoot) {
+				duplicate = true
+				break
+			}
+		}
+		if !duplicate {
+			roots = append(roots, Root{Path: cfg.CursorStateRoot, Kind: RootCursor, Harness: "cursor"})
 		}
 	}
 	var covered []string
@@ -121,14 +155,11 @@ func Roots(cfg RootConfig) []Root {
 // Family reduces a harness label ("codex", "resource:codex/sessions",
 // "claude", "claude-code") to the transcript format it names.
 func Family(harness string) string {
-	lowered := strings.ToLower(harness)
-	switch {
-	case strings.Contains(lowered, "codex"):
-		return HarnessCodex
-	case strings.Contains(lowered, "claude"):
+	family := agenttranscript.HarnessFamily(harness)
+	if family == "claude" {
 		return HarnessClaude
 	}
-	return HarnessConfigured
+	return family
 }
 
 // ExpandHome replaces a leading ~ with home.
@@ -156,33 +187,40 @@ func isDir(path string) bool {
 	return err == nil && info.IsDir()
 }
 
-// Candidate is one transcript file found by a walk, with its identity.
+// Candidate is one source conversation found by discovery. Most sources are
+// one transcript file; multi-conversation stores can supply a stable key and
+// session ID for each logical conversation in the source.
 type Candidate struct {
-	Root          Root
-	Path          string
-	Key           string
+	Root Root
+	Path string
+	Key  string
+	// SessionID identifies one logical conversation within a multi-session source.
+	SessionID     string
 	Size          int64
+	ContentHash   string
 	MtimeUnixNano int64
 }
 
 // Walk lists the transcript files (any transcriptEncodings suffix) under root. A root that does not exist yields
 // nothing; any other failure is returned so coverage can name it.
 func Walk(root Root) ([]Candidate, error) {
-	if _, err := os.Stat(root.Path); err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
 	var out []Candidate
-	err := filepath.WalkDir(root.Path, func(path string, entry os.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			if entry != nil && entry.IsDir() && path != root.Path {
-				return filepath.SkipDir
+	err := agenttranscript.WalkNativeFiles(context.Background(), root.Path, agenttranscript.NativeWalkOptions{
+		VisitNonRegularEntries: true,
+		Errors:                 agenttranscript.NativeWalkSkipUnreadableSubdirectories,
+	}, func(path string, entry os.DirEntry, _ os.FileInfo) error {
+		if root.Kind == RootCursor {
+			if entry.Name() != "state.vscdb" {
+				return nil
 			}
+			found, err := discoverCursorDB(path, root)
+			if err != nil {
+				return err
+			}
+			out = append(out, found...)
 			return nil
 		}
-		if entry.IsDir() || !IsTranscriptName(entry.Name()) || isTestRollout(root, entry.Name()) {
+		if (!IsTranscriptName(entry.Name()) && !agenttranscript.IsNativeArchiveFile(root.Harness, path)) || isTestRollout(root, entry.Name()) {
 			return nil
 		}
 		if candidate, ok := Identify(root, path); ok {
@@ -204,6 +242,9 @@ func isTestRollout(root Root, name string) bool {
 // Identify stats one file into a Candidate keyed by device and inode. Size is
 // the decoded length, the unit of every offset the indexer keeps.
 func Identify(root Root, path string) (Candidate, bool) {
+	if root.Kind == RootCursor {
+		return Candidate{}, false // Cursor candidates are keyed by composer in discoverCursorDB.
+	}
 	info, err := os.Stat(path)
 	if err != nil || !info.Mode().IsRegular() {
 		return Candidate{}, false
@@ -237,139 +278,15 @@ type Identity struct {
 	ParentPath string
 }
 
-// ReadIdentity derives a file's session identity. Codex fork rollouts are
-// named rollout-<ts>-<parent>_<child>.jsonl and carry the parent thread in
-// their header; Claude sidechains live at <project>/<session>/subagents/.
+// ReadIdentity keeps the indexer's public shape while delegating native
+// identity and lineage parsing to the shared transcript package.
 func ReadIdentity(path, harness string) Identity {
-	id := Identity{Harness: harness}
-	stem := TranscriptStem(filepath.Base(path))
-	id.HeaderSessionID = headerSessionID(path)
-	family := Family(harness)
-	if family == HarnessConfigured {
-		family = sniffHarness(path)
-		id.Harness = family
+	shared := agenttranscript.ReadIdentity(path, harness, OpenTranscript)
+	return Identity{
+		Harness: Family(shared.Harness), SessionID: shared.SessionID,
+		HeaderSessionID: shared.HeaderSessionID, ParentSessionID: shared.ParentSessionID,
+		Sidechain: shared.Sidechain, ParentPath: shared.ParentPath,
 	}
-	switch family {
-	case HarnessClaude:
-		id.SessionID = stem
-		if filepath.Base(filepath.Dir(path)) == "subagents" {
-			sessionDir := filepath.Dir(filepath.Dir(path))
-			id.Sidechain = true
-			id.ParentSessionID = filepath.Base(sessionDir)
-			id.ParentPath = filepath.Join(filepath.Dir(sessionDir), id.ParentSessionID+".jsonl")
-		}
-	default:
-		ids := uuidPattern.FindAllString(stem, -1)
-		if strings.Contains(stem, "_") && len(ids) >= 2 {
-			id.ParentSessionID, id.SessionID = ids[len(ids)-2], ids[len(ids)-1]
-		} else if id.HeaderSessionID != "" {
-			id.SessionID = id.HeaderSessionID
-		} else if len(ids) > 0 {
-			id.SessionID = ids[len(ids)-1]
-		} else {
-			id.SessionID = stem
-		}
-		if id.ParentSessionID == "" {
-			id.ParentSessionID = codexSpawnParent(path)
-		}
-	}
-	if id.HeaderSessionID == "" {
-		id.HeaderSessionID = id.SessionID
-		if id.Sidechain {
-			id.HeaderSessionID = id.ParentSessionID
-		}
-	}
-	return id
-}
-
-// codexSpawnPattern matches the parent a Codex multi-agent sub-agent names in
-// its session_meta source (source.subagent.thread_spawn.parent_thread_id).
-var codexSpawnPattern = regexp.MustCompile(`"thread_spawn":\{"parent_thread_id":"(` + uuidPattern.String() + `)"`)
-
-// codexSpawnParent returns the thread a Codex sub-agent rollout was spawned
-// by, or "". Sub-agents have their own rollout file named after their own
-// thread, so only the header links them to the parent. The source object sits
-// at the start of the session_meta line, ahead of its large instructions.
-func codexSpawnParent(path string) string {
-	file, err := OpenTranscript(path)
-	if err != nil {
-		return ""
-	}
-	defer file.Close()
-	head := make([]byte, 8192)
-	n, _ := io.ReadFull(file, head)
-	if match := codexSpawnPattern.FindSubmatch(head[:n]); match != nil {
-		return string(match[1])
-	}
-	return ""
-}
-
-// headerSessionID reads the session id from the first lines of a transcript:
-// a Codex session_meta id, or a session_id/sessionId/thread_id field.
-func headerSessionID(path string) string {
-	file, err := OpenTranscript(path)
-	if err != nil {
-		return ""
-	}
-	defer file.Close()
-	reader := bufio.NewReaderSize(file, 64*1024)
-	for lines := 0; lines < 40; lines++ {
-		line, err := reader.ReadSlice('\n')
-		if len(line) > 0 && err != bufio.ErrBufferFull {
-			var header struct {
-				Type    string `json:"type"`
-				Payload struct {
-					ID string `json:"id"`
-				} `json:"payload"`
-				SessionID  string `json:"session_id"`
-				SessionID2 string `json:"sessionId"`
-				ThreadID   string `json:"thread_id"`
-			}
-			if json.Unmarshal(line, &header) == nil {
-				switch {
-				case header.Type == "session_meta" && header.Payload.ID != "":
-					return header.Payload.ID
-				case header.SessionID2 != "":
-					return header.SessionID2
-				case header.SessionID != "":
-					return header.SessionID
-				case header.ThreadID != "":
-					return header.ThreadID
-				}
-			}
-		}
-		if err == bufio.ErrBufferFull {
-			// An oversized header line (inline instructions) is skipped whole.
-			for err == bufio.ErrBufferFull {
-				_, err = reader.ReadSlice('\n')
-			}
-			continue
-		}
-		if err != nil {
-			return ""
-		}
-	}
-	return ""
-}
-
-// sniffHarness tells a Codex rollout from a Claude project file for a
-// configured root by their header shapes.
-func sniffHarness(path string) string {
-	file, err := OpenTranscript(path)
-	if err != nil {
-		return HarnessConfigured
-	}
-	defer file.Close()
-	head := make([]byte, 8192)
-	n, _ := io.ReadFull(file, head)
-	text := string(head[:n])
-	switch {
-	case strings.Contains(text, `"type":"session_meta"`) || strings.Contains(text, `"type":"thread.started"`):
-		return HarnessCodex
-	case strings.Contains(text, `"sessionId"`) || strings.Contains(text, `"type":"system"`):
-		return HarnessClaude
-	}
-	return HarnessConfigured
 }
 
 // headHashBytes is how much of a file's already-read prefix is fingerprinted.
@@ -392,10 +309,11 @@ func HeadHash(path string, readOffset int64) (string, error) {
 	if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) && !errors.Is(err, io.EOF) {
 		return "", err
 	}
-	return hashHead(head[:n]), nil
+	return agenttranscript.SHA256BytesPrefix(head[:n], headHashBytes), nil
 }
 
-func hashHead(data []byte) string {
-	sum := sha256.Sum256(data[:min(len(data), headHashBytes)])
-	return hex.EncodeToString(sum[:])
+// FullHash fingerprints a complete native document whose shape can change
+// after the cursor's first 4 KiB, unlike line-oriented append-only formats.
+func FullHash(path string) (string, error) {
+	return agenttranscript.SHA256File(path)
 }

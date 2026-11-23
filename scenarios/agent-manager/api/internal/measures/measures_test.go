@@ -132,13 +132,9 @@ func TestFallbackInsightsReportsCountsAndReasons(t *testing.T) {
 	if msg.GetValidity().GetSampleSize() != 6 {
 		t.Fatalf("sample size = %d, want 6 events", msg.GetValidity().GetSampleSize())
 	}
-	registry, err := handler.Registry()
-	if err != nil {
-		t.Fatal(err)
-	}
-	served, err := registry.Execute(context.Background(), measureRequest(FallbackInsights, "last_7d"))
-	if err != nil || served.Fields[0]["runner_attempts"] != "3" {
-		t.Fatalf("registry fallback = %+v err=%v", served, err)
+	served := executeRegisteredMeasure(t, newTestRegistry(t, handler), measureRequest(FallbackInsights, "last_7d"))
+	if served.Fields[0]["runner_attempts"] != "3" {
+		t.Fatalf("registry fallback = %+v", served)
 	}
 }
 
@@ -254,17 +250,11 @@ func TestWorkloadEfficiencyIncludesFailedAttemptsInNumerator(t *testing.T) {
 		usage:      invocationreadmodel.UsageTotals{TotalTokens: 150},
 	}
 	handler := NewHandler(store, func() time.Time { return now })
-	registry, err := handler.Registry()
-	if err != nil {
-		t.Fatal(err)
-	}
-	result, err := registry.Execute(context.Background(), measurelib.MeasureRequest{
+	registry := newTestRegistry(t, handler)
+	result := executeRegisteredMeasure(t, registry, measurelib.MeasureRequest{
 		Measure: WorkloadEfficiency,
 		Params:  map[string]string{"window": "last_7d", "workload_key": "wf:classify", "model": "gpt-test"},
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
 	if result.Value != "150" || result.Provenance.ExecutedQuery == "" || result.Fields[0]["observational_limitation"] == "" {
 		t.Fatalf("result=%+v", result)
 	}
@@ -278,21 +268,15 @@ func TestWorkloadEfficiencyIncludesFailedAttemptsInNumerator(t *testing.T) {
 func TestRegistryRateCarriesTheTypedValidity(t *testing.T) {
 	store := &fakeStore{runMetrics: invocationreadmodel.RunMetrics{SuccessRate: 1, SuccessfulRuns: 2, TerminalRuns: 2}}
 	handler := NewHandler(store, func() time.Time { return time.Date(2026, time.July, 29, 12, 0, 0, 0, time.UTC) })
-	registry, err := handler.Registry()
-	if err != nil {
-		t.Fatal(err)
-	}
-	result, err := registry.Execute(context.Background(), measurelib.MeasureRequest{Measure: RunSuccessRate, Params: map[string]string{"window": "last_7d"}})
-	if err != nil {
-		t.Fatal(err)
-	}
+	registry := newTestRegistry(t, handler)
+	result := executeRegisteredMeasure(t, registry, measurelib.MeasureRequest{Measure: RunSuccessRate, Params: map[string]string{"window": "last_7d"}})
 	typed, err := handler.RunSuccessRate(context.Background(), connect.NewRequest(&measurepb.RunSuccessRateRequest{}))
 	if err != nil || typed.Msg.GetValidity().GetState() != "unreliable" || typed.Msg.GetValidity().GetSampleSize() != 2 {
 		t.Fatalf("a two-run sample is unreliable: %+v %v", typed.Msg.GetValidity(), err)
 	}
-	cycle, err := registry.Execute(context.Background(), measurelib.MeasureRequest{Measure: RunCycleTime, Params: map[string]string{"window": "last_7d"}})
-	if err != nil || cycle.Fields[0]["p50_ms"] == "" || cycle.Fields[0]["p90_ms"] == "" {
-		t.Fatalf("run cycle time must keep its percentiles beside the average: %+v %v", cycle, err)
+	cycle := executeRegisteredMeasure(t, registry, measurelib.MeasureRequest{Measure: RunCycleTime, Params: map[string]string{"window": "last_7d"}})
+	if cycle.Fields[0]["p50_ms"] == "" || cycle.Fields[0]["p90_ms"] == "" {
+		t.Fatalf("run cycle time must keep its percentiles beside the average: %+v", cycle)
 	}
 	if len(result.Fields) != 1 || result.Fields[0]["validity"] != "unreliable" || result.Fields[0]["sample_size"] != "2" || result.Fields[0]["validity_reason"] == "" {
 		t.Fatalf("registry result lost the validity verdict: %+v", result)
@@ -318,13 +302,9 @@ func TestRegistryAndTypedRPCShareRunThroughputComputation(t *testing.T) {
 	if err != nil || cost.Msg.GetTotalCostUsd() != 4.5 || cost.Msg.GetTotalTokens() != 99 || cost.Msg.GetTotalRuns() != 8 || cost.Msg.GetRequests() != 20 || cost.Msg.GetValidity().GetSampleSize() != 8 {
 		t.Fatalf("cost rpc=%+v err=%v", cost.Msg, err)
 	}
-	registry, err := handler.Registry()
-	if err != nil {
-		t.Fatal(err)
-	}
-	served, err := registry.Execute(context.Background(), measureRequest(RunVolume, "last_7d"))
-	if err != nil || served.Value != "8" || served.Provenance.ExecutedQuery == "" {
-		t.Fatalf("volume registry=%+v err=%v", served, err)
+	served := executeRegisteredMeasure(t, newTestRegistry(t, handler), measureRequest(RunVolume, "last_7d"))
+	if served.Value != "8" || served.Provenance.ExecutedQuery == "" {
+		t.Fatalf("volume registry=%+v", served)
 	}
 }
 
@@ -336,13 +316,9 @@ func TestRunDurationStatisticsUsesDurableStore(t *testing.T) {
 	if err != nil || response.Msg.GetAverageDurationMs() != 100 || response.Msg.GetMinDurationMs() != 25 || response.Msg.GetMaxDurationMs() != 200 || response.Msg.GetCount() != 3 || response.Msg.GetProvenance().GetExecutedQuery() == "" {
 		t.Fatalf("duration response=%+v err=%v", response.Msg, err)
 	}
-	registry, err := handler.Registry()
-	if err != nil {
-		t.Fatal(err)
-	}
-	registered, err := registry.Execute(context.Background(), measureRequest("throughput.run_duration_statistics", "last_7d"))
-	if err != nil || registered.Value != "100" || len(registered.Fields) != 1 || registered.Fields[0]["count"] != "3" || registered.Fields[0]["min_ms"] != "25" || registered.Fields[0]["validity"] != response.Msg.GetValidity().GetState() || registered.Provenance.ExecutedQuery == "" {
-		t.Fatalf("duration registry=%+v err=%v", registered, err)
+	registered := executeRegisteredMeasure(t, newTestRegistry(t, handler), measureRequest("throughput.run_duration_statistics", "last_7d"))
+	if registered.Value != "100" || len(registered.Fields) != 1 || registered.Fields[0]["count"] != "3" || registered.Fields[0]["min_ms"] != "25" || registered.Fields[0]["validity"] != response.Msg.GetValidity().GetState() || registered.Provenance.ExecutedQuery == "" {
+		t.Fatalf("duration registry=%+v", registered)
 	}
 }
 
@@ -377,13 +353,9 @@ func TestRunCostPopulatesDistribution(t *testing.T) {
 		t.Fatalf("token buckets = %+v", response.Msg.GetTokenBuckets())
 	}
 	// `measures get run-cost` carries the same distribution.
-	registry, err := handler.Registry()
-	if err != nil {
-		t.Fatal(err)
-	}
-	served, err := registry.Execute(context.Background(), measureRequest(RunCost, "last_7d"))
-	if err != nil || served.Fields[0]["p90_tokens"] != "9000" || served.Fields[0]["max_cost_usd"] != "0.1" || served.Fields[0]["distribution_runs"] != "5" {
-		t.Fatalf("run-cost registry = %+v err=%v", served, err)
+	served := executeRegisteredMeasure(t, newTestRegistry(t, handler), measureRequest(RunCost, "last_7d"))
+	if served.Fields[0]["p90_tokens"] != "9000" || served.Fields[0]["max_cost_usd"] != "0.1" || served.Fields[0]["distribution_runs"] != "5" {
+		t.Fatalf("run-cost registry = %+v", served)
 	}
 }
 
@@ -438,13 +410,9 @@ func TestRegistryAndTypedRPCShareRunStatusDistribution(t *testing.T) {
 	if err != nil || len(rpc.Msg.GetRows()) != 2 || rpc.Msg.GetRows()[0].GetStatus() != "complete" || rpc.Msg.GetRows()[0].GetCount() != 5 || rpc.Msg.GetProvenance().GetExecutedQuery() == "" {
 		t.Fatalf("status rpc=%+v err=%v", rpc.Msg, err)
 	}
-	registry, err := handler.Registry()
-	if err != nil {
-		t.Fatal(err)
-	}
-	served, err := registry.Execute(context.Background(), measureRequest(RunStatusDistribution, "last_7d"))
-	if err != nil || len(served.Fields) != 2 || served.Fields[1]["status"] != "failed" || served.Fields[1]["count"] != "2" || served.Provenance.ExecutedQuery != rpc.Msg.GetProvenance().GetExecutedQuery() {
-		t.Fatalf("status registry=%+v rpc=%+v err=%v", served, rpc.Msg, err)
+	served := executeRegisteredMeasure(t, newTestRegistry(t, handler), measureRequest(RunStatusDistribution, "last_7d"))
+	if len(served.Fields) != 2 || served.Fields[1]["status"] != "failed" || served.Fields[1]["count"] != "2" || served.Provenance.ExecutedQuery != rpc.Msg.GetProvenance().GetExecutedQuery() {
+		t.Fatalf("status registry=%+v rpc=%+v", served, rpc.Msg)
 	}
 }
 
@@ -457,13 +425,9 @@ func TestRegistryAndTypedRPCShareTerminalRunTrend(t *testing.T) {
 	if err != nil || len(rpc.Msg.GetRows()) != 1 || rpc.Msg.GetRows()[0].GetBucket() != bucket.Format(time.RFC3339) || rpc.Msg.GetRows()[0].GetCompletedRuns() != 2 || rpc.Msg.GetRows()[0].GetFailedRuns() != 1 || rpc.Msg.GetProvenance().GetExecutedQuery() == "" {
 		t.Fatalf("trend rpc=%+v err=%v", rpc.Msg, err)
 	}
-	registry, err := handler.Registry()
-	if err != nil {
-		t.Fatal(err)
-	}
-	served, err := registry.Execute(context.Background(), measureRequest(TerminalRunTrend, "last_7d"))
-	if err != nil || len(served.Fields) != 1 || served.Fields[0]["bucket"] != bucket.Format(time.RFC3339) || served.Fields[0]["terminal_runs"] != "3" || served.Provenance.ExecutedQuery != rpc.Msg.GetProvenance().GetExecutedQuery() {
-		t.Fatalf("trend registry=%+v rpc=%+v err=%v", served, rpc.Msg, err)
+	served := executeRegisteredMeasure(t, newTestRegistry(t, handler), measureRequest(TerminalRunTrend, "last_7d"))
+	if len(served.Fields) != 1 || served.Fields[0]["bucket"] != bucket.Format(time.RFC3339) || served.Fields[0]["terminal_runs"] != "3" || served.Provenance.ExecutedQuery != rpc.Msg.GetProvenance().GetExecutedQuery() {
+		t.Fatalf("trend registry=%+v rpc=%+v", served, rpc.Msg)
 	}
 }
 

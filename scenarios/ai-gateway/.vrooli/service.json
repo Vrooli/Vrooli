@@ -139,7 +139,7 @@
           "env": {
             "GOWORK": "off"
           },
-          "description": "Embed the current credential-free resource policies and Gateway role catalog."
+          "description": "Embed credential-free resource policies, hosted supplier declarations, and the Gateway role catalog."
         }
       ]
     }
@@ -163,6 +163,7 @@
         "description": "Local inference provider for local-first gateway profiles",
         "model_roles": [
           "chat.default",
+          "chat.quality",
           "vision.default"
         ],
         "startup_policy": "try_start"

@@ -243,10 +243,11 @@ func signalAnswerFrom(result *inferencev1.DecideResponse) SignalAnswer {
 		Provider: result.GetProvider(), Model: result.GetModel(), ResourceRole: result.GetResourceRole(),
 	}
 	if len(choice.GetProbabilities()) > 0 {
-		answer.Probabilities = make(map[Signal]float64, len(choice.GetProbabilities()))
-		for _, p := range choice.GetProbabilities() {
-			answer.Probabilities[Signal(p.GetOption())] = p.GetProbability()
+		probabilities, err := decodeProbabilityDistribution(choice.GetProbabilities(), Signals())
+		if err != nil {
+			return SignalAnswer{Status: StatusUnclassified, Reason: "invalid_answer: malformed probability distribution: " + err.Error()}
 		}
+		answer.Probabilities = probabilities
 	}
 	return answer
 }

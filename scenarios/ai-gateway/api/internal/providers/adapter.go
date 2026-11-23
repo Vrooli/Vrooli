@@ -47,6 +47,9 @@ const (
 	// CodeLimitsExceeded is a request outside the bounds a model declares
 	// (more options than it can read).
 	CodeLimitsExceeded = "limits_exceeded"
+	// CodeCanceled is a command stopped because its caller gave up. It says
+	// nothing about the provider's health.
+	CodeCanceled = "canceled"
 )
 
 // DecisionLimits are the hard bounds a decision model declares in its

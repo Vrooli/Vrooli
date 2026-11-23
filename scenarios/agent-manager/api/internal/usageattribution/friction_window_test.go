@@ -85,6 +85,99 @@ func TestFrictionReportFilesOnceAndNamesAnUnreachableInbox(t *testing.T) {
 	}
 }
 
+func TestUnknownFingerprintRequestsRetireReportingLocks(t *testing.T) {
+	now := time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)
+	service := Service{Statuses: memoryStatuses{}, Bugs: &capturedBugs{}}
+	for i := range 128 {
+		fingerprint := fmt.Sprintf("caller-controlled-unknown-%d", i)
+		if _, err := service.ReportFriction(context.Background(), fingerprint, time.Time{}, now); !errors.Is(err, ErrUnknownFinding) {
+			t.Fatalf("unknown fingerprint %q: %v", fingerprint, err)
+		}
+	}
+
+	reporting.mu.Lock()
+	retained := len(reporting.entries)
+	reporting.mu.Unlock()
+	if retained != 0 {
+		t.Fatalf("unknown fingerprint requests retained %d idle report locks", retained)
+	}
+}
+
+func TestFingerprintLockRegistryPreservesKeyIsolationAndRetiresWaiters(t *testing.T) {
+	var registry fingerprintLockRegistry
+	firstUnlock := registry.lock("same")
+	var releaseFirstOnce sync.Once
+	firstRelease := func() { releaseFirstOnce.Do(firstUnlock) }
+	defer firstRelease()
+	differentKey := make(chan func(), 1)
+	go func() { differentKey <- registry.lock("other") }()
+	var otherRelease func()
+	select {
+	case otherRelease = <-differentKey:
+	case <-time.After(time.Second):
+		t.Fatal("a held key blocked an independent fingerprint")
+	}
+	otherRelease()
+
+	waiterEntered := make(chan struct{})
+	waiterRelease := make(chan func(), 1)
+	go func() {
+		unlock := registry.lock("same")
+		close(waiterEntered)
+		waiterRelease <- unlock
+	}()
+	waitForFingerprintLockUsers(t, &registry, "same", 2)
+	select {
+	case <-waiterEntered:
+		t.Fatal("same-key waiter entered while the first holder was active")
+	case <-time.After(10 * time.Millisecond):
+	}
+
+	firstRelease()
+	var releaseWaiter func()
+	select {
+	case releaseWaiter = <-waiterRelease:
+	case <-time.After(time.Second):
+		t.Fatal("same-key waiter did not acquire after release")
+	}
+	releaseWaiter()
+
+	registry.mu.Lock()
+	retained := len(registry.entries)
+	registry.mu.Unlock()
+	if retained != 0 {
+		t.Fatalf("idle holders/waiters retained %d lock entries", retained)
+	}
+	for i := range 512 {
+		unlock := registry.lock(fmt.Sprintf("unique-%d", i))
+		unlock()
+	}
+	registry.mu.Lock()
+	defer registry.mu.Unlock()
+	if len(registry.entries) != 0 {
+		t.Fatalf("distinct completed keys retained %d entries", len(registry.entries))
+	}
+}
+
+func waitForFingerprintLockUsers(t *testing.T, registry *fingerprintLockRegistry, key string, want int) {
+	t.Helper()
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		registry.mu.Lock()
+		entry := registry.entries[key]
+		users := 0
+		if entry != nil {
+			users = entry.users
+		}
+		registry.mu.Unlock()
+		if users == want {
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatalf("fingerprint %q did not reach %d registered users", key, want)
+}
+
 // failingSearchHub is a service whose window holds one search-hub failure
 // finding seen at seen, listed since since, with a status store and an inbox
 // that deduplicates on the fingerprint like scenario-qa's.

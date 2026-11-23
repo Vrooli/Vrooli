@@ -395,6 +395,60 @@ func TestBypassesNameTheScenarioWhoseInternalsWereReached(t *testing.T) {
 	}
 }
 
+func TestHTTPBypassUsesTheCurlRequestURL(t *testing.T) {
+	s := newSession()
+	s.ports = func(port int) string {
+		if port == 18800 {
+			return "agent-manager"
+		}
+		return ""
+	}
+	s.shell("curl -s -d 'http://localhost:18800/api/v1/runs' https://example.invalid/submit", 0, "ok")
+	s.shell("curl -s -H 'X-Callback: http://localhost:18800/api/v1/runs' https://example.invalid/submit", 0, "ok")
+	s.shell("curl -s 'https://example.invalid/submit?callback=http://localhost:18800/api/v1/runs'", 0, "ok")
+	s.shell("curl -s http://localhost:18800/api/v1/runs", 0, "[]")
+
+	calls := s.calls()
+	if calls[0].BypassOwner != "" || calls[0].BypassMethod != "" {
+		t.Errorf("external request with a local URL in its body = %s / %s, want no bypass", calls[0].BypassOwner, calls[0].BypassMethod)
+	}
+	if calls[1].BypassOwner != "" || calls[1].BypassMethod != "" {
+		t.Errorf("external request with a local URL in its header = %s / %s, want no bypass", calls[1].BypassOwner, calls[1].BypassMethod)
+	}
+	if calls[2].BypassOwner != "" || calls[2].BypassMethod != "" {
+		t.Errorf("external request URL with a local callback query = %s / %s, want no bypass", calls[2].BypassOwner, calls[2].BypassMethod)
+	}
+	if calls[3].BypassOwner != "agent-manager" || calls[3].BypassMethod != BypassHTTP {
+		t.Errorf("request to the owned API port = %s / %s, want agent-manager / %s", calls[3].BypassOwner, calls[3].BypassMethod, BypassHTTP)
+	}
+}
+
+func TestHTTPEndpointsSelectCurlRequestArguments(t *testing.T) {
+	localURL := "http://localhost:18800/api/v1/runs"
+	remoteURL := "https://example.invalid/submit"
+	tests := []struct {
+		name    string
+		program string
+		words   []string
+		want    []string
+	}{
+		{name: "other client", program: "wget", words: []string{"wget", localURL}, want: []string{localURL}},
+		{name: "data and header values", program: "curl", words: []string{"curl", "-d", localURL, "--header", localURL, remoteURL}, want: []string{remoteURL}},
+		{name: "url flag value", program: "curl", words: []string{"curl", "--url", localURL}, want: []string{localURL}},
+		{name: "url flag assignment", program: "curl", words: []string{"curl", "--url=" + localURL}, want: []string{localURL}},
+		{name: "end of options", program: "curl", words: []string{"curl", "--", localURL}, want: []string{localURL}},
+		{name: "url assignment ignores data assignment", program: "curl", words: []string{"curl", "--data=" + localURL, "--url=" + remoteURL}, want: []string{remoteURL}},
+		{name: "url flag without value", program: "curl", words: []string{"curl", "--url"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := httpEndpoints(tt.program, tt.words); !slices.Equal(got, tt.want) {
+				t.Errorf("httpEndpoints(%q, %v) = %v, want %v", tt.program, tt.words, got, tt.want)
+			}
+		})
+	}
+}
+
 // An empty list is read beside its coverage: no commands means cannot tell.
 func TestCoverageSaysWhatTheProfilesCouldSee(t *testing.T) {
 	if got := (Report{}).Coverage.Sentence(); !strings.Contains(got, "cannot tell") {

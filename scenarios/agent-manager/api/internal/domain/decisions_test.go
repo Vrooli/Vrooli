@@ -109,10 +109,7 @@ func TestRunStatus_CanTransitionTo(t *testing.T) {
 // =============================================================================
 
 func TestTask_IsCancellable(t *testing.T) {
-	tests := []struct {
-		status TaskStatus
-		want   bool
-	}{
+	cases := []enumPolicyCase[TaskStatus, bool]{
 		{TaskStatusQueued, true},
 		{TaskStatusRunning, true},
 		{TaskStatusNeedsReview, false},
@@ -121,22 +118,11 @@ func TestTask_IsCancellable(t *testing.T) {
 		{TaskStatusFailed, false},
 		{TaskStatusCancelled, false},
 	}
-
-	for _, tt := range tests {
-		t.Run(string(tt.status), func(t *testing.T) {
-			task := &Task{Status: tt.status}
-			if got := task.IsCancellable(); got != tt.want {
-				t.Errorf("IsCancellable() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	assertEnumPolicy(t, cases, func(value TaskStatus) bool { return (&Task{Status: value}).IsCancellable() })
 }
 
 func TestRun_IsStoppable(t *testing.T) {
-	tests := []struct {
-		status RunStatus
-		want   bool
-	}{
+	cases := []enumPolicyCase[RunStatus, bool]{
 		{RunStatusPending, false},
 		{RunStatusStarting, true},
 		{RunStatusRunning, true},
@@ -145,15 +131,7 @@ func TestRun_IsStoppable(t *testing.T) {
 		{RunStatusFailed, false},
 		{RunStatusCancelled, false},
 	}
-
-	for _, tt := range tests {
-		t.Run(string(tt.status), func(t *testing.T) {
-			run := &Run{Status: tt.status}
-			if got := run.IsStoppable(); got != tt.want {
-				t.Errorf("IsStoppable() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	assertEnumPolicy(t, cases, func(value RunStatus) bool { return (&Run{Status: value}).IsStoppable() })
 }
 
 // =============================================================================

@@ -2,14 +2,17 @@ package toolfacts_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	_ "modernc.org/sqlite"
 
+	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/toolfacts"
 )
@@ -100,6 +103,68 @@ func TestTranscriptReadStopsWhenCancelled(t *testing.T) {
 	if _, err := toolfacts.ReadTranscript(ctx, rules, strings.NewReader(text), parser); err == nil {
 		t.Fatal("a cancelled read returned no error")
 	}
+}
+
+type countingTranscriptParser struct {
+	runner.TranscriptParser
+	calls int
+}
+
+func (p *countingTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line string) runner.TranscriptParseResult {
+	p.calls++
+	return p.TranscriptParser.ParseTranscriptLine(runID, line)
+}
+
+func TestTranscriptReadDoesNotParseWhenAlreadyCancelled(t *testing.T) {
+	rules, _ := toolfacts.DefaultRules()
+	parser, err := codecParsers("codex")
+	if err != nil {
+		t.Fatal(err)
+	}
+	counted := &countingTranscriptParser{TranscriptParser: parser}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err = toolfacts.ReadTranscript(ctx, rules, strings.NewReader(`{"type":"turn.started"}`+"\n"), counted)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("read error = %v, want context cancellation", err)
+	}
+	if counted.calls != 0 {
+		t.Fatalf("parser calls = %d, want 0 after cancellation", counted.calls)
+	}
+}
+
+func TestTranscriptReadStopsAfterCancellationDuringRead(t *testing.T) {
+	rules, _ := toolfacts.DefaultRules()
+	parser, err := codecParsers("codex")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	counted := &cancellingTranscriptParser{TranscriptParser: parser, cancel: cancel}
+	text := "first line\nsecond line\n"
+
+	_, err = toolfacts.ReadTranscript(ctx, rules, strings.NewReader(text), counted)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("read error = %v, want context cancellation", err)
+	}
+	if counted.calls != 1 {
+		t.Fatalf("parser calls = %d, want 1 before cancellation stops the next line", counted.calls)
+	}
+}
+
+type cancellingTranscriptParser struct {
+	runner.TranscriptParser
+	calls  int
+	cancel context.CancelFunc
+}
+
+func (p *cancellingTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line string) runner.TranscriptParseResult {
+	p.calls++
+	result := p.TranscriptParser.ParseTranscriptLine(runID, line)
+	p.cancel()
+	return result
 }
 
 func readerFixture(t *testing.T) (*toolfacts.Reader, *sqlx.DB, string) {

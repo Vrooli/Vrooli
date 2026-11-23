@@ -2,6 +2,7 @@ package inference
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -152,6 +153,111 @@ func TestBrowserNoEligibleRouteOffersNextStepWithoutInferenceOrFunding(t *testin
 	require.Empty(t, response.GetProvider())
 	require.Empty(t, response.GetModel())
 	require.Zero(t, response.GetUsage().GetCreditsCharged())
+}
+
+func TestBrowserRunSourcesKeepOneInferenceReceiptContract(t *testing.T) {
+	const rootOperationID = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	const schema = `{"type":"object","properties":{"answer":{"type":"string"}},"required":["answer"],"additionalProperties":false}`
+	const page = "Synthetic public page content."
+	const sessionID, runID, grant = "session-fixture", "run-fixture", "opaque-grant-fixture"
+
+	var creditCalls int
+	credits := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		creditCalls++
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/ai/inference" {
+			t.Errorf("credit route request = %s %s", r.Method, r.URL.Path)
+		}
+		if r.Header.Get("Authorization") != "Bearer fixture-token" {
+			t.Errorf("credit route auth = %q", r.Header.Get("Authorization"))
+		}
+		var request struct {
+			Role           string            `json:"role"`
+			Metadata       map[string]string `json:"metadata"`
+			BrowserSession struct {
+				RunID        string `json:"run_id"`
+				SessionID    string `json:"session_id"`
+				GrantReceipt string `json:"grant_receipt"`
+			} `json:"browser_session"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Errorf("decode credit request: %v", err)
+		}
+		if request.Role != "extract.structured" || request.Metadata["gateway_root_operation_id"] != rootOperationID || request.BrowserSession.RunID != runID || request.BrowserSession.SessionID != sessionID || request.BrowserSession.GrantReceipt != grant {
+			t.Errorf("credit request lost browser correlation: %+v", request)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(providers.MeteredResponse{
+			ID: "metered-fixture", RootOperationID: rootOperationID,
+			BillingOperationID: "lpbs-reservation-fixture", Content: `{"answer":"ok"}`,
+			PromptTokens: 11, CompletionTokens: 7, CreditsCharged: 23, AccountingStatus: "settled",
+		})
+	}))
+	defer credits.Close()
+
+	for _, tc := range []struct {
+		name, source, provider, model, resourceRole string
+		profile                                     sharedv1.Profile
+	}{
+		{name: "local", source: "local", provider: providers.ProviderOllama, model: "fixture/local-model", resourceRole: "chat.default", profile: sharedv1.Profile_PROFILE_LOCAL_ONLY},
+		{name: "BYOK", source: "own-key", provider: providers.ProviderOpenRouter, model: "fixture/byok-model", resourceRole: "extract.structured", profile: sharedv1.Profile_PROFILE_REMOTE_ONLY},
+		{name: "Vrooli credits", source: "vrooli-credits", provider: providers.ProviderMetered, model: "policy-resolved", resourceRole: "extract.structured", profile: sharedv1.Profile_PROFILE_REMOTE_ONLY},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			runner := &providermocks.FakeRunner{DefaultOK: true}
+			catalog := singleRoleCatalog("browser.plan", rolecatalog.InferenceRole{Candidates: []rolecatalog.Candidate{
+				{Provider: providers.ProviderMetered, ResourceRole: "extract.structured", Reason: "fixture credits route"},
+				{Provider: providers.ProviderOpenRouter, ResourceRole: "extract.structured", Reason: "fixture BYOK route"},
+				{Provider: providers.ProviderOllama, ResourceRole: "chat.default", Reason: "fixture local route"},
+			}})
+			adapters := []providers.Adapter{
+				{Provider: providers.ProviderMetered, Locality: "remote", Metered: providers.NewMeteredClient(providers.MeteredClientOptions{BaseURL: credits.URL})},
+				{Provider: providers.ProviderOpenRouter, Locality: "remote", CommandName: "resource-openrouter", Runner: runner},
+				{Provider: providers.ProviderOllama, Locality: "local", CommandName: "resource-ollama", Runner: runner},
+			}
+			if tc.provider == providers.ProviderOllama {
+				runner.Default = providers.Result{Stdout: `{"response":"{\"answer\":\"ok\"}","prompt_eval_count":11,"eval_count":7}`}
+				configureQualifiedLocalRole(runner, tc.resourceRole, tc.model, "local")
+			} else if tc.provider == providers.ProviderOpenRouter {
+				runner.Results = map[string]providers.Result{
+					"resource-openrouter policy resolve --role " + tc.resourceRole + " --json": {Stdout: `{"role":"extract.structured","model":"fixture/byok-model","locality":"remote"}`},
+				}
+				runner.Default = providers.Result{Stdout: `{"choices":[{"message":{"content":"{\"answer\":\"ok\"}"}}],"usage":{"prompt_tokens":11,"completion_tokens":7}}`}
+			}
+			if tc.provider == providers.ProviderMetered {
+				// The remote clients would not be reached on this selected source.
+				runner.Default = providers.Result{Stdout: `{"response":"{\"answer\":\"ok\"}"}`}
+			}
+			repository, err := NewResourceRepositoryWithRightsContextSource(catalog, adapters, fixtureRightsContext)
+			require.NoError(t, err)
+			ctx := providers.WithSource(context.Background(), tc.source)
+			if tc.source == "vrooli-credits" {
+				ctx = providers.WithAccessToken(ctx, "Bearer fixture-token")
+			}
+			response := NewService(repository).Run(ctx, ProviderRequest{
+				RootOperationID: rootOperationID,
+				BrowserSession:  &inferencev1.BrowserSessionBinding{RunId: runID, SessionId: sessionID, GrantReceipt: grant},
+				Role:            "browser.plan", SchemaJSON: schema, Source: page,
+				PrivacyClass:      sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC,
+				PrivacyProvenance: "browser_contract.synthetic_public_fixture", Profile: tc.profile,
+			})
+			require.Nil(t, response.GetError())
+			require.True(t, response.GetValidated())
+			require.JSONEq(t, `{"answer":"ok"}`, response.GetValueJson())
+			require.EqualValues(t, 11, response.GetUsage().GetInputTokens())
+			require.EqualValues(t, 7, response.GetUsage().GetOutputTokens())
+			require.Equal(t, tc.provider, response.GetProvider())
+			require.Equal(t, tc.model, response.GetModel())
+			if tc.source == "vrooli-credits" {
+				require.Equal(t, "lpbs-reservation-fixture", response.GetBillingOperationId())
+				require.Equal(t, int64(23), response.GetUsage().GetCreditsCharged())
+				require.Equal(t, "settled", response.GetUsage().GetAccountingStatus())
+			} else {
+				require.Empty(t, response.GetBillingOperationId())
+				require.Zero(t, response.GetUsage().GetCreditsCharged())
+			}
+		})
+	}
+	require.Equal(t, 1, creditCalls, "local and BYOK routes must not enter LPBS credit dispatch")
 }
 
 func TestBrowserRunRolesDoNotFallbackAfterUncertainMeteredOutcome(t *testing.T) {

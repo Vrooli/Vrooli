@@ -587,6 +587,11 @@
           "reason": "Hosted OrcaRouter code-authoring fallback."
         },
         {
+          "provider": "lpbs",
+          "resource_role": "code.default",
+          "reason": "Vrooli credits route through the funded LPBS door when the caller selects that source."
+        },
+        {
           "provider": "ollama",
           "resource_role": "code.local",
           "reason": "Local fallback for a host with no hosted credential. Every authored generator is validated before storage \u2014 determinism, declared parameters, no active content, composition at both small and large sizes \u2014 so a weaker candidate costs a rejection rather than a bad artifact."

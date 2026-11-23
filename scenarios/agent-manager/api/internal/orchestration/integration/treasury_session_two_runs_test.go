@@ -338,10 +338,7 @@ func TestTwoOrdinaryRunsHaveDistinctTreasurySessionKeysAndRejectCrossRunIdentity
 		}
 	}
 	for _, run := range runs {
-		final, err := waitForTerminal(t, context.Background(), service, run.ID, 30*time.Second)
-		if err != nil || final.Status != domain.RunStatusComplete {
-			t.Fatalf("ordinary run %s did not complete: run=%+v err=%v", run.ID, final, err)
-		}
+		waitForCompletedRun(t, context.Background(), service, run.ID, 30*time.Second)
 		if _, err := keyStore.ResolveOrMint(context.Background(), run.ID); err == nil {
 			t.Fatalf("terminal ordinary run %s retained its Treasury key", run.ID)
 		}

@@ -448,9 +448,19 @@ func hasUnreviewedException(line string) bool {
 	if !strings.Contains(l, "ai-gateway-exception") && !strings.Contains(l, "ai conformance exception") {
 		return false
 	}
-	return !strings.Contains(l, "owner=") || !strings.Contains(l, "reason=") ||
-		(!strings.Contains(l, "expires=") && !strings.Contains(l, "expiry=")) ||
-		!strings.Contains(l, "replacement=")
+	fields := make(map[string]string, 4)
+	for _, token := range strings.Fields(line) {
+		key, value, ok := strings.Cut(strings.Trim(token, "/*#"), "=")
+		if !ok {
+			continue
+		}
+		key = strings.ToLower(key)
+		if key == "owner" || key == "reason" || key == "expires" || key == "expiry" || key == "replacement" {
+			fields[key] = strings.Trim(value, "\"'`,;.)")
+		}
+	}
+	return fields["owner"] == "" || fields["reason"] == "" ||
+		(fields["expires"] == "" && fields["expiry"] == "") || fields["replacement"] == ""
 }
 
 func resolveTargetPath(scenario, explicit string) (string, error) {

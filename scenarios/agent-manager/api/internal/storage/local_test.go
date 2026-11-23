@@ -276,6 +276,39 @@ func TestDeleteUnknownID(t *testing.T) {
 	}
 }
 
+func TestDeleteFailureKeepsAttachmentIndexedForRetry(t *testing.T) {
+	svc := NewLocalService(t.TempDir())
+	f, fh := createTestFile(t, "retry.png", pngHeader, "image/png")
+	defer f.Close()
+	meta, err := svc.Upload(context.Background(), f, fh)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := svc.GetFilePath(meta.StoragePath)
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(path, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(path, "keep"), []byte("block removal"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := svc.Delete(context.Background(), meta.ID); err == nil {
+		t.Fatal("expected removal failure")
+	}
+	if _, err := svc.Get(context.Background(), meta.ID); err != nil {
+		t.Fatalf("attachment should remain indexed for retry: %v", err)
+	}
+	if err := os.RemoveAll(path); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.Delete(context.Background(), meta.ID); err != nil {
+		t.Fatalf("retry Delete: %v", err)
+	}
+}
+
 func TestSanitizeFileName(t *testing.T) {
 	tests := []struct {
 		name string

@@ -571,9 +571,19 @@ func (o *Orchestrator) ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run
 		}
 	}
 
-	// If no checkpoint, start from the beginning
+	// A missing or divergent checkpoint cannot safely be treated as a fresh
+	// run. AdvancePhase persists the run and checkpoint independently, so a
+	// failed checkpoint write can leave the run ahead; replaying from queued
+	// would repeat already-started side effects. Only a genuinely queued run
+	// may start without a persisted checkpoint.
 	if checkpoint == nil {
+		if run.Phase != domain.RunPhaseQueued {
+			return nil, resumeCheckpointStateError(run, nil)
+		}
 		checkpoint = domain.NewCheckpoint(id, domain.RunPhaseQueued)
+	} else if checkpoint.RunID != run.ID || !checkpoint.Phase.IsValid() ||
+		!checkpoint.Phase.CanResumeFromPhase() || checkpoint.Phase != run.Phase {
+		return nil, resumeCheckpointStateError(run, checkpoint)
 	}
 
 	// Get associated entities
@@ -654,6 +664,17 @@ func (o *Orchestrator) ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run
 	handedOff = true
 
 	return o.attachRunActions(ctx, run), nil
+}
+
+func resumeCheckpointStateError(run *domain.Run, checkpoint *domain.RunCheckpoint) error {
+	checkpointPhase := "missing"
+	checkpointRunID := uuid.Nil
+	if checkpoint != nil {
+		checkpointPhase = string(checkpoint.Phase)
+		checkpointRunID = checkpoint.RunID
+	}
+	return domain.NewStateError("RunCheckpoint", checkpointPhase, "resume",
+		fmt.Sprintf("checkpoint run %s phase %q does not match resumable run %s phase %q", checkpointRunID, checkpointPhase, run.ID, run.Phase))
 }
 
 // resumeRun handles the actual agent resumption (runs in background).

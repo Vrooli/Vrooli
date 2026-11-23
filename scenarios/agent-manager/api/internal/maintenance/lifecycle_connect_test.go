@@ -167,6 +167,16 @@ func TestLifecycleConnectEmergencyOverrideAdoptsStaleClosedFence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	withoutOverride, err := service.Prepare(t.Context(), connect.NewRequest(&commonv1.LifecyclePrepareRequest{
+		OperationId: "replacement-operation", Reason: "recover abandoned lifecycle fence",
+	}))
+	if connect.CodeOf(err) != connect.CodeFailedPrecondition || withoutOverride != nil {
+		t.Fatalf("unauthorized stale-fence adoption = %+v err=%v, want failed precondition", withoutOverride, err)
+	}
+	standing, err := gate.Status(t.Context())
+	if err != nil || !standing.Closed || standing.Revision != 1 {
+		t.Fatalf("rejected adoption changed durable fence: %+v err=%v", standing, err)
+	}
 	prepared, err := service.Prepare(t.Context(), connect.NewRequest(&commonv1.LifecyclePrepareRequest{
 		OperationId: "replacement-operation", Reason: "recovery-first replacement", EmergencyOverride: true, OverrideReason: "recover abandoned lifecycle fence",
 	}))

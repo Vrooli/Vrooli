@@ -690,7 +690,7 @@ func (e *RunExecutor) shouldSkipPhase(phase domain.RunPhase) bool {
 	if !e.isResuming {
 		return false
 	}
-	return phases.PhaseOrdinal(e.checkpoint.Phase) > phases.PhaseOrdinal(phase)
+	return e.checkpoint.Phase.Ordinal() > phase.Ordinal()
 }
 
 // advancePhase delegates to phases.AdvancePhase.

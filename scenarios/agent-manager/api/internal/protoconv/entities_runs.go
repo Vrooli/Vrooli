@@ -2,6 +2,8 @@
 package protoconv
 
 import (
+	"slices"
+
 	"agent-manager/internal/domain"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
@@ -351,8 +353,8 @@ func RunConfigToProto(c *domain.RunConfig) *pb.RunConfig {
 		Timeout:               DurationToProto(c.Timeout),
 		Effort:                string(c.Effort),
 		MaxWeightedTokens:     c.MaxWeightedTokens,
-		AllowedTools:          c.AllowedTools,
-		DeniedTools:           c.DeniedTools,
+		AllowedTools:          slices.Clone(c.AllowedTools),
+		DeniedTools:           slices.Clone(c.DeniedTools),
 		ToolRestrictionPolicy: string(c.ToolRestrictionPolicy.Effective()),
 		SkipPermissionPrompt:  c.SkipPermissionPrompt,
 		Features:              FeatureFlagsToProto(c.Features),
@@ -361,8 +363,8 @@ func RunConfigToProto(c *domain.RunConfig) *pb.RunConfig {
 		PolicySnapshot:        ExecutionPolicySnapshotToProto(c.PolicySnapshot),
 		ResultSpec:            ResultSpecToProto(c.ResultSpec),
 		SandboxConfig:         SandboxConfigToProto(c.SandboxConfig),
-		AllowedPaths:          c.AllowedPaths,
-		DeniedPaths:           c.DeniedPaths,
+		AllowedPaths:          slices.Clone(c.AllowedPaths),
+		DeniedPaths:           slices.Clone(c.DeniedPaths),
 		ManifestIndexSnapshot: c.ManifestIndexSnapshot,
 		TranscriptCodec:       c.TranscriptCodec,
 		TranscriptCodecScore:  c.TranscriptCodecScore,
@@ -383,8 +385,8 @@ func RunConfigFromProto(c *pb.RunConfig) *domain.RunConfig {
 		MaxTurns:              int(c.MaxTurns),
 		Timeout:               DurationFromProto(c.Timeout),
 		Effort:                domain.Effort(c.Effort),
-		AllowedTools:          c.AllowedTools,
-		DeniedTools:           c.DeniedTools,
+		AllowedTools:          slices.Clone(c.AllowedTools),
+		DeniedTools:           slices.Clone(c.DeniedTools),
 		ToolRestrictionPolicy: domain.ToolRestrictionPolicy(c.ToolRestrictionPolicy),
 		SkipPermissionPrompt:  c.SkipPermissionPrompt,
 		Features:              FeatureFlagsFromProto(c.Features),
@@ -393,8 +395,8 @@ func RunConfigFromProto(c *pb.RunConfig) *domain.RunConfig {
 		PolicySnapshot:        ExecutionPolicySnapshotFromProto(c.PolicySnapshot),
 		ResultSpec:            ResultSpecFromProto(c.ResultSpec),
 		SandboxConfig:         SandboxConfigFromProto(c.SandboxConfig),
-		AllowedPaths:          c.AllowedPaths,
-		DeniedPaths:           c.DeniedPaths,
+		AllowedPaths:          slices.Clone(c.AllowedPaths),
+		DeniedPaths:           slices.Clone(c.DeniedPaths),
 		ManifestIndexSnapshot: c.ManifestIndexSnapshot,
 		TranscriptCodec:       c.TranscriptCodec,
 		TranscriptCodecScore:  c.TranscriptCodecScore,

@@ -163,43 +163,29 @@ func unmarshalProtoResponse(data []byte, msg proto.Message) error {
 }
 
 func (s *WatchService) PolicyCandidate(request *domainpb.CreateSupervisionPolicyCandidateRequest) ([]byte, *domainpb.SupervisionPolicyRecord, error) {
-	response := &domainpb.SupervisionPolicyRecord{}
-	body, err := callRPC(s.api, apiconnect.AgentManagerServiceCreateSupervisionPolicyCandidateProcedure, request, response)
-	return body, response, err
+	return strictRPC[domainpb.SupervisionPolicyRecord](s.api, apiconnect.AgentManagerServiceCreateSupervisionPolicyCandidateProcedure, request)
 }
 
 func (s *WatchService) PolicyEvaluate(request *domainpb.EvaluateSupervisionPolicyRequest) ([]byte, *domainpb.SupervisionReplayReport, error) {
-	response := &domainpb.SupervisionReplayReport{}
-	body, err := callRPC(s.api, apiconnect.AgentManagerServiceEvaluateSupervisionPolicyProcedure, request, response)
-	return body, response, err
+	return strictRPC[domainpb.SupervisionReplayReport](s.api, apiconnect.AgentManagerServiceEvaluateSupervisionPolicyProcedure, request)
 }
 
 func (s *WatchService) PolicyAssess(request *domainpb.RecordSupervisionOutcomeRequest) ([]byte, *domainpb.RecordSupervisionOutcomeResponse, error) {
-	response := &domainpb.RecordSupervisionOutcomeResponse{}
-	body, err := callRPC(s.api, apiconnect.AgentManagerServiceRecordSupervisionOutcomeProcedure, request, response)
-	return body, response, err
+	return strictRPC[domainpb.RecordSupervisionOutcomeResponse](s.api, apiconnect.AgentManagerServiceRecordSupervisionOutcomeProcedure, request)
 }
 
 func (s *WatchService) PolicyPromote(request *domainpb.PromoteSupervisionPolicyRequest) ([]byte, *domainpb.SupervisionPolicyRecord, error) {
-	response := &domainpb.SupervisionPolicyRecord{}
-	body, err := callRPC(s.api, apiconnect.AgentManagerServicePromoteSupervisionPolicyProcedure, request, response)
-	return body, response, err
+	return strictRPC[domainpb.SupervisionPolicyRecord](s.api, apiconnect.AgentManagerServicePromoteSupervisionPolicyProcedure, request)
 }
 
 func (s *WatchService) PolicyReject(request *domainpb.RejectSupervisionPolicyRequest) ([]byte, *domainpb.SupervisionPolicyRecord, error) {
-	response := &domainpb.SupervisionPolicyRecord{}
-	body, err := callRPC(s.api, apiconnect.AgentManagerServiceRejectSupervisionPolicyProcedure, request, response)
-	return body, response, err
+	return strictRPC[domainpb.SupervisionPolicyRecord](s.api, apiconnect.AgentManagerServiceRejectSupervisionPolicyProcedure, request)
 }
 
 func (s *WatchService) PolicyRollback(request *domainpb.RollbackSupervisionPolicyRequest) ([]byte, *domainpb.SupervisionPolicyRecord, error) {
-	response := &domainpb.SupervisionPolicyRecord{}
-	body, err := callRPC(s.api, apiconnect.AgentManagerServiceRollbackSupervisionPolicyProcedure, request, response)
-	return body, response, err
+	return strictRPC[domainpb.SupervisionPolicyRecord](s.api, apiconnect.AgentManagerServiceRollbackSupervisionPolicyProcedure, request)
 }
 
 func (s *WatchService) PolicyDisable(request *domainpb.SetSupervisionPolicyDisabledRequest) ([]byte, *domainpb.SupervisionPolicyControl, error) {
-	response := &domainpb.SupervisionPolicyControl{}
-	body, err := callRPC(s.api, apiconnect.AgentManagerServiceSetSupervisionPolicyDisabledProcedure, request, response)
-	return body, response, err
+	return strictRPC[domainpb.SupervisionPolicyControl](s.api, apiconnect.AgentManagerServiceSetSupervisionPolicyDisabledProcedure, request)
 }

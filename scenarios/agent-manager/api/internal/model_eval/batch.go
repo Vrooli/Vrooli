@@ -42,6 +42,12 @@ type ApprovalSource interface {
 	ReadDecision(context.Context, string) (Approval, error)
 }
 
+// DispatchAdmissionClaimer atomically consumes this one-time approval only
+// after every non-dispatch gate passes and immediately before the first call.
+type DispatchAdmissionClaimer interface {
+	ClaimDispatch(context.Context, Approval, string) error
+}
+
 // SourceRef contains no message body. It is the frozen identity sent from the
 // model-eval coordinator; Agent Manager re-reads and verifies every source.
 type SourceRef struct {
@@ -146,6 +152,7 @@ type CaseReceipt struct {
 	EffectiveModel  string     `json:"effective_model,omitempty"`
 	Locality        string     `json:"locality,omitempty"`
 	LatencyMillis   int64      `json:"latency_ms,omitempty"`
+	RightsResult    string     `json:"rights_result"`
 	CapacityClaimID string     `json:"capacity_claim_id,omitempty"`
 	RequiredBytes   int64      `json:"capacity_required_bytes,omitempty"`
 	GrantedBytes    int64      `json:"capacity_granted_bytes,omitempty"`
@@ -237,6 +244,9 @@ func (r Runner) Execute(ctx context.Context, request Request) (receipt Receipt, 
 		refuseAll(&receipt, "current_local_policy_or_rights_unavailable")
 		return receipt, fmt.Errorf("%w: current local policy or rights not proven", ErrAdmissionRefused)
 	}
+	for i := range receipt.Cases {
+		receipt.Cases[i].RightsResult = "allowed"
+	}
 	diskBefore, capacity, err := r.preflight(ctx)
 	if err != nil {
 		refuseAll(&receipt, "fresh_disk_or_capacity_gate_failed")
@@ -249,6 +259,7 @@ func (r Runner) Execute(ctx context.Context, request Request) (receipt Receipt, 
 
 	for i, ref := range request.Cases {
 		if _, err := r.previewCase(ctx, ref); err != nil {
+			receipt.Cases[i].RightsResult = "unknown"
 			markRefusedThenUnattempted(&receipt, i, "current_local_policy_or_rights_changed")
 			return receipt, fmt.Errorf("%w: current policy or rights changed", ErrAdmissionRefused)
 		}
@@ -265,6 +276,13 @@ func (r Runner) Execute(ctx context.Context, request Request) (receipt Receipt, 
 			return receipt, fmt.Errorf("%w: source identity did not verify", ErrAdmissionRefused)
 		}
 		receipt.Cases[i].EventTimestamp = item.Timestamp.UTC().Format(time.RFC3339Nano)
+		if i == 0 {
+			claimer, ok := r.Approval.(DispatchAdmissionClaimer)
+			if !ok || claimer.ClaimDispatch(ctx, approval, digest) != nil {
+				markRefusedThenUnattempted(&receipt, i, "one_time_dispatch_admission_already_consumed_or_unavailable")
+				return receipt, fmt.Errorf("%w: one-time dispatch admission could not be claimed", ErrAdmissionRefused)
+			}
+		}
 		started := time.Now()
 		if r.Now != nil {
 			started = r.Now()
@@ -416,7 +434,7 @@ func verifyRequestIdentity(ref SourceRef) bool {
 }
 
 func validDisk(disk DiskObservation, at time.Time) bool {
-	artifactValid := disk.ArtifactBytes == 0 && disk.ArtifactHash == "" || disk.ArtifactBytes > 0 && disk.ArtifactBytes <= MaximumArtifactSize && validHash(disk.ArtifactHash)
+	artifactValid := disk.ArtifactBytes >= 0 && disk.ArtifactBytes <= MaximumArtifactSize && validHash(disk.ArtifactHash)
 	return !disk.ObservedAt.IsZero() && at.Sub(disk.ObservedAt) <= 2*time.Minute && !disk.ObservedAt.After(at.Add(30*time.Second)) && disk.FreeBytes >= MinimumDiskBytes && artifactValid
 }
 
@@ -474,7 +492,7 @@ func sameRef(a, b SourceRef) bool {
 }
 
 func receiptForRef(ref SourceRef) CaseReceipt {
-	return CaseReceipt{SourceEventID: ref.EventID, SourceRunID: ref.RunID, SourceSequence: ref.Sequence, EventTimestamp: ref.Timestamp, RequestID: ref.RequestID, TaskRole: ref.TaskRole, PolicyRole: ref.PolicyRole, Consumer: ref.Consumer}
+	return CaseReceipt{SourceEventID: ref.EventID, SourceRunID: ref.RunID, SourceSequence: ref.Sequence, EventTimestamp: ref.Timestamp, RequestID: ref.RequestID, TaskRole: ref.TaskRole, PolicyRole: ref.PolicyRole, Consumer: ref.Consumer, RightsResult: "unknown"}
 }
 
 func refuseAll(receipt *Receipt, code string) {

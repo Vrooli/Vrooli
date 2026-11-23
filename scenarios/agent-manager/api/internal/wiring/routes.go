@@ -237,8 +237,10 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		source := model_eval.SQLiteEventSource{Runs: deps.Orchestrator, Events: deps.Orchestrator}
 		runner := model_eval.Runner{
 			Approval: model_eval.TopicFileApprovalSource{TopicDir: topicDir}, Selector: source, Source: source,
-			Privacy:  model_eval.GatewayPrivacyVerifier{},
-			Disk:     model_eval.FilesystemDiskGate{Path: topicDir},
+			Privacy: model_eval.GatewayPrivacyVerifier{},
+			Disk: model_eval.FilesystemDiskGate{
+				Path: topicDir, ArtifactPath: filepath.Join(topicDir, "work", model_eval.AdmissionDecisionID),
+			},
 			Capacity: model_eval.SystemMonitorCapacityGate{}, Gateway: &model_eval.DiscoveredGateway{},
 		}
 		handlerOptions = append(handlerOptions, handlers.WithModelEvalRunner(runner))

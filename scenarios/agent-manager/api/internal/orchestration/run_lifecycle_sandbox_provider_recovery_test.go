@@ -59,18 +59,13 @@ func TestContinueRun_RetainsExactRequestAcrossSandboxReadLossAndRetry(t *testing
 		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected}, RoleRef: "code.default",
 	})
 	task := mustCreateTask(t, svc, ctx, &domain.Task{Title: "Retain the operator's continuation", ScopePath: "src/", ProjectRoot: t.TempDir()})
-	now := time.Now()
 	runID := uuid.New()
-	run := &domain.Run{
-		ID: runID, TaskID: task.ID, AgentProfileID: &profile.ID, Tag: runID.String(),
-		RunMode: domain.RunModeSandboxed, SandboxID: &sandboxID, Status: domain.RunStatusComplete,
-		Phase: domain.RunPhaseCompleted, SessionID: "retained-native-session", StartedAt: &now, EndedAt: &now,
-		ResolvedConfig: &domain.RunConfig{
-			RunnerType: domain.RunnerTypeClaudeCode, Model: "mock-model", RoleRef: "code.default",
-			NetworkAccess: domain.NetworkAccessNone,
-			SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected, NetworkMode: domain.NetworkAccessNone, WritePolicy: &domain.WorkspaceWritePolicy{Paths: []string{"src"}}},
-		},
-		ApprovalState: domain.ApprovalStateNone, CreatedAt: now, UpdatedAt: now,
+	run := newLifecycleRunFixture(runID, task.ID, profile.ID, domain.RunModeSandboxed, domain.RunStatusComplete, domain.RunPhaseCompleted, "retained-native-session")
+	run.SandboxID = &sandboxID
+	run.ResolvedConfig = &domain.RunConfig{
+		RunnerType: domain.RunnerTypeClaudeCode,
+		Model:      "mock-model", RoleRef: "code.default", NetworkAccess: domain.NetworkAccessNone,
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected, NetworkMode: domain.NetworkAccessNone, WritePolicy: &domain.WorkspaceWritePolicy{Paths: []string{"src"}}},
 	}
 	if err := repos.Runs.CreateTaskAttempt(ctx, task, task, run, nil); err != nil {
 		t.Fatalf("create retained run: %v", err)
@@ -199,19 +194,14 @@ func TestContinueRun_DeletedWorkspaceUsesPinnedMappingAcrossTaskChangeAndCreateL
 	task := mustCreateTask(t, svc, ctx, &domain.Task{
 		Title: "Keep the original project", ScopePath: oldScope, ProjectRoot: oldRoot,
 	})
-	now := time.Now()
 	runID := uuid.New()
-	run := &domain.Run{
-		ID: runID, TaskID: task.ID, AgentProfileID: &profile.ID, Tag: runID.String(),
-		RunMode: domain.RunModeSandboxed, SandboxID: &oldSandboxID, Status: domain.RunStatusComplete,
-		Phase: domain.RunPhaseCompleted, SessionID: "retained-config-session", StartedAt: &now, EndedAt: &now,
-		ResolvedConfig: &domain.RunConfig{
-			RunnerType: domain.RunnerTypeClaudeCode, Model: "mock-model", RoleRef: "code.default",
-			NetworkAccess:    domain.NetworkAccessNone,
-			WorkspaceBinding: &domain.RunWorkspaceBinding{ProjectRoot: oldRoot, ScopePath: oldScope},
-			SandboxConfig:    &domain.SandboxConfig{Mode: domain.SandboxModeProtected, NetworkMode: domain.NetworkAccessNone},
-		},
-		ApprovalState: domain.ApprovalStateNone, CreatedAt: now, UpdatedAt: now,
+	run := newLifecycleRunFixture(runID, task.ID, profile.ID, domain.RunModeSandboxed, domain.RunStatusComplete, domain.RunPhaseCompleted, "retained-config-session")
+	run.SandboxID = &oldSandboxID
+	run.ResolvedConfig = &domain.RunConfig{
+		RunnerType: domain.RunnerTypeClaudeCode,
+		Model:      "mock-model", RoleRef: "code.default", NetworkAccess: domain.NetworkAccessNone,
+		WorkspaceBinding: &domain.RunWorkspaceBinding{ProjectRoot: oldRoot, ScopePath: oldScope},
+		SandboxConfig:    &domain.SandboxConfig{Mode: domain.SandboxModeProtected, NetworkMode: domain.NetworkAccessNone},
 	}
 	if err := repos.Runs.CreateTaskAttempt(ctx, task, task, run, nil); err != nil {
 		t.Fatalf("create retained run: %v", err)
@@ -289,15 +279,11 @@ func TestContinueRun_DeletedWorkspaceUsesPinnedMappingAcrossTaskChangeAndCreateL
 	legacySandboxID := uuid.New()
 	deletedSandboxes[legacySandboxID] = true
 	legacyRunID := uuid.New()
-	legacyRun := &domain.Run{
-		ID: legacyRunID, TaskID: legacyTask.ID, AgentProfileID: &profile.ID, Tag: legacyRunID.String(),
-		RunMode: domain.RunModeSandboxed, SandboxID: &legacySandboxID, Status: domain.RunStatusComplete,
-		Phase: domain.RunPhaseCompleted, SessionID: "legacy-session", StartedAt: &now, EndedAt: &now,
-		ResolvedConfig: &domain.RunConfig{
-			RunnerType: domain.RunnerTypeClaudeCode, Model: "mock-model", RoleRef: "code.default",
-			NetworkAccess: domain.NetworkAccessNone, SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected},
-		},
-		ApprovalState: domain.ApprovalStateNone, CreatedAt: now, UpdatedAt: now,
+	legacyRun := newLifecycleRunFixture(legacyRunID, legacyTask.ID, profile.ID, domain.RunModeSandboxed, domain.RunStatusComplete, domain.RunPhaseCompleted, "legacy-session")
+	legacyRun.SandboxID = &legacySandboxID
+	legacyRun.ResolvedConfig = &domain.RunConfig{
+		RunnerType: domain.RunnerTypeClaudeCode, Model: "mock-model", RoleRef: "code.default",
+		NetworkAccess: domain.NetworkAccessNone, SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected},
 	}
 	if err := repos.Runs.CreateTaskAttempt(ctx, legacyTask, legacyTask, legacyRun, nil); err != nil {
 		t.Fatalf("create legacy retained run: %v", err)

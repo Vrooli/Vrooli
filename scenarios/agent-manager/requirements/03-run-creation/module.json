@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-10-29T13:50:55-04:00"
+    "last_validated_at": "2026-11-22T20:30:54-05:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-005",
       "title": "Run Creation Flow",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "core",
       "description": "Enable creation of runs with sandbox allocation and execution mode selection",
@@ -15,14 +15,14 @@
           "type": "test",
           "ref": "api/internal/handlers/handlers_test.go::TestCreateRun_Success",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test run creation with valid parameters"
         },
         {
           "type": "test",
           "ref": "api/internal/orchestration/service_test.go::TestOrchestrator_RunOperations",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test orchestrator-level run operations"
         },
         {
@@ -35,10 +35,10 @@
         {
           "type": "automation",
           "ref": "bas/cases/03-run-creation/quick-run-bounded-agent.json",
-          "scenario": "agent-manager",
           "phase": "workflows",
           "status": "implemented",
-          "notes": "Bounded real configured-agent Quick Run through Workflow Health paired leases; local operator path only."
+          "notes": "Bounded real configured-agent Quick Run through Workflow Health paired leases; local operator path only.",
+          "scenario": "agent-manager"
         }
       ]
     }

@@ -207,7 +207,7 @@ type attemptStart struct {
 func (r *ResourceRepository) dispatchCandidate(ctx context.Context, request ProviderRequest, definition rolecatalog.InferenceRole, candidate rolecatalog.Candidate, plan candidatePlan, start attemptStart, calls *int32, usageIncomplete *bool, failures *[]string) (bool, ProviderResult, error) {
 	*calls++
 	meteredRootOperationID := browserRootOperationID(request)
-	execution, err := plan.adapter.Execute(ctx, candidateExecutionRequest(request, definition, candidate, plan, start, meteredRootOperationID))
+	execution, err := executeTraced(ctx, plan.adapter, plan.resolved, candidateExecutionRequest(request, definition, candidate, plan, start, meteredRootOperationID))
 	if plan.adapter.Door != nil && err == nil && execution.Recovery != nil {
 		receipt := execution.Recovery
 		_ = r.ledger.Set(ctx, request.RootOperationID, start.attempt.Ordinal, ledgerState(receipt), receipt.GetAccountingStatus(), receipt.ChargedCredits)

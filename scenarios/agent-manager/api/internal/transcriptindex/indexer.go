@@ -17,10 +17,12 @@ import (
 	"time"
 
 	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/adapters/runner/opencodearchive"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/sqlcompat"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/cli-core/agenttranscript"
 )
 
 // Config tunes the indexer. Zero values take the defaults below.
@@ -73,6 +75,8 @@ const (
 	uncertainRecordPrefix = "event recording outcome uncertain; cursor preserved: "
 	sourceReconcilePrefix = ReplacementReconciliationRequired
 )
+
+const maxTranscriptDocumentBytes = 16 << 20
 
 // ErrExcluded reports that a visibility policy keeps a file out of capture.
 var ErrExcluded = errors.New("transcript excluded by conversation policy")
@@ -201,12 +205,22 @@ type tick struct {
 	reconcile  bool
 }
 
+func transcriptPathKey(rootKind, path, sessionID string) string {
+	if rootKind == RootCursor {
+		return path + "\x00" + sessionID
+	}
+	return path
+}
+
 // RunOnce discovers every root, reads changed files newest change first
 // within the tick budget, completes idle runs and enforces the recall budget.
 func (ix *Indexer) RunOnce(ctx context.Context) (Summary, error) {
 	ix.mu.Lock()
 	defer ix.mu.Unlock()
 	var summary Summary
+	if _, err := opencodearchive.Refresh(ctx, ix.cfg.Roots.OpenCodeArchiveDB, ix.cfg.Roots.OpenCodeArchiveRoot); err != nil {
+		summary.Failures = append(summary.Failures, ix.cfg.Roots.OpenCodeArchiveDB+": "+err.Error())
+	}
 	rows, err := ix.store.ListTranscriptFiles(ctx)
 	if err != nil {
 		return summary, fmt.Errorf("list transcript files: %w", err)
@@ -218,7 +232,7 @@ func (ix *Indexer) RunOnce(ctx context.Context) (Summary, error) {
 	t := &tick{now: ix.cfg.Now(), byKey: map[string]*FileRow{}, byPath: map[string]*FileRow{}, candidates: map[string]Candidate{}, paths: map[string]bool{}, codexByID: map[string]string{}, owned: owned, budget: ix.cfg.TickBytes, reimport: ix.cfg.ReimportBytes, versions: map[string]int{}, summary: &summary, inFlight: map[string]bool{}, done: map[string]bool{}}
 	for index := range rows {
 		row := &rows[index]
-		t.byKey[row.Key], t.byPath[row.Path] = row, row
+		t.byKey[row.Key], t.byPath[transcriptPathKey(row.RootKind, row.Path, row.SessionID)] = row, row
 		if row.Error == ReplacementEffectsPending {
 			owner, ok := ix.host.(interface {
 				CompleteReplacementEffects(context.Context, Store, FileRow) error
@@ -274,6 +288,9 @@ func (ix *Indexer) RunOnce(ctx context.Context) (Summary, error) {
 func (ix *Indexer) changed(candidate Candidate, t *tick) bool {
 	row := t.byKey[candidate.Key]
 	if row == nil || keyReused(row, candidate) {
+		return true
+	}
+	if candidate.Root.Kind == RootCursor && row.HeadHash != candidate.ContentHash {
 		return true
 	}
 	if row.Status == StatusUnreadable && strings.HasPrefix(row.Error, uncertainRecordPrefix) {
@@ -337,6 +354,11 @@ func interruptedCapture(row *FileRow, path string, size int64) bool {
 
 // recalls reports whether a file's full events belong in the recall layer.
 func (ix *Indexer) recalls(row *FileRow, now time.Time) bool {
+	if row.Harness == "gemini-cli" || row.Harness == "qwen-code" || row.Harness == "cursor" {
+		// Gemini and Qwen native archives are complete session records. Keep them
+		// eligible for the bounded recall budget regardless of archive age.
+		return row.Owner != OwnerRun && ix.cfg.RecallMaxBytes > 0 && !row.RecallEvicted
+	}
 	return row.Owner != OwnerRun && ix.cfg.RecallMaxBytes > 0 && !row.RecallEvicted && now.Sub(row.Mtime()) <= ix.cfg.RecallWindow
 }
 
@@ -410,7 +432,8 @@ func (ix *Indexer) process(ctx context.Context, t *tick, candidate Candidate) (e
 	}
 	existed := row != nil
 	if row == nil {
-		if prior := t.byPath[candidate.Path]; prior != nil && prior.Key != candidate.Key && prior.Owner == OwnerIndexer {
+		pathKey := transcriptPathKey(candidate.Root.Kind, candidate.Path, candidate.SessionID)
+		if prior := t.byPath[pathKey]; prior != nil && prior.Key != candidate.Key && prior.Owner == OwnerIndexer {
 			if _, stillPresent := t.candidates[prior.Key]; !stillPresent {
 				return ix.stageReplacement(ctx, t, prior, candidate, false)
 			}
@@ -479,7 +502,7 @@ func (ix *Indexer) process(ctx context.Context, t *tick, candidate Candidate) (e
 		row.Error, row.Status = "", StatusPending
 		retrying = true
 	}
-	t.byPath[candidate.Path] = row
+	t.byPath[transcriptPathKey(candidate.Root.Kind, candidate.Path, candidate.SessionID)] = row
 	row.Path, row.Size, row.MtimeUnixNano = candidate.Path, candidate.Size, candidate.MtimeUnixNano
 	if runID := ownerRun(candidate, t.owned); runID != "" {
 		// Agent Manager run homes and interactive tails belong to their run,
@@ -603,13 +626,16 @@ func (ix *Indexer) process(ctx context.Context, t *tick, candidate Candidate) (e
 // on disk (an atomic rewrite): it inherits the run and re-indexes from zero.
 func (ix *Indexer) newRow(ctx context.Context, t *tick, candidate Candidate) (*FileRow, error) {
 	identity := ReadIdentity(candidate.Path, candidate.Root.Harness)
+	if candidate.Root.Kind == RootCursor {
+		identity = Identity{Harness: "cursor", SessionID: candidate.SessionID, HeaderSessionID: candidate.SessionID}
+	}
 	row := &FileRow{
 		Key: candidate.Key, Path: candidate.Path, RootKind: candidate.Root.Kind, RootPath: candidate.Root.Path,
 		Harness: identity.Harness, SessionID: identity.SessionID, HeaderSessionID: identity.HeaderSessionID,
 		ParentSessionID: identity.ParentSessionID, Sidechain: identity.Sidechain,
 		WebConsoleSessionID: candidate.Root.WebConsoleSessionID, Owner: OwnerIndexer, Status: StatusPending, FirstSeenAt: t.now,
 	}
-	if previous := t.byPath[candidate.Path]; previous != nil && previous.Key != candidate.Key {
+	if previous := t.byPath[transcriptPathKey(candidate.Root.Kind, candidate.Path, candidate.SessionID)]; previous != nil && previous.Key != candidate.Key {
 		if _, stillThere := t.candidates[previous.Key]; !stillThere && previous.Owner == OwnerIndexer {
 			return nil, ix.refuseReplacement(ctx, previous, "source inode changed before replacement capture")
 		}
@@ -635,7 +661,7 @@ func (ix *Indexer) parentRun(ctx context.Context, t *tick, row *FileRow) (string
 	var parentKey string
 	if row.Sidechain {
 		identity := ReadIdentity(row.Path, row.Harness)
-		if parent := t.byPath[identity.ParentPath]; parent != nil {
+		if parent := t.byPath[transcriptPathKey(row.RootKind, identity.ParentPath, "")]; parent != nil {
 			parentKey = parent.Key
 		} else {
 			for key, candidate := range t.candidates {
@@ -736,6 +762,12 @@ func (ix *Indexer) tail(ctx context.Context, t *tick, row *FileRow, expected *Fi
 		ix.tails[row.Key] = state
 	}
 	end := min(row.Size, row.Offset+max(t.budget, 0))
+	if _, ok := state.parser.(runner.TranscriptDocumentParser); ok {
+		// A full-document archive must be decoded and committed as one source
+		// snapshot; splitting its JSON across cursor checkpoints loses document
+		// context after a process restart.
+		end = row.Size
+	}
 	owned := row.Owner == OwnerRun
 	intentToken := ""
 	if !owned {
@@ -786,7 +818,12 @@ func (ix *Indexer) tail(ctx context.Context, t *tick, row *FileRow, expected *Fi
 		}
 		return errors.New(row.Error)
 	}
-	head, err := HeadHash(row.Path, read.cursor)
+	var head string
+	if row.RootKind == RootGeminiCLI || row.RootKind == RootCursor {
+		head = read.documentHash
+	} else {
+		head, err = HeadHash(row.Path, read.cursor)
+	}
 	if err != nil {
 		// The stored intent stays: the next tick retries from the unmoved
 		// cursor, as after an interrupted capture.
@@ -898,6 +935,7 @@ func retryCommit(ctx context.Context, commit func() error) error {
 
 type readResult struct {
 	cursor         int64
+	documentHash   string
 	usage          []UsageRow
 	turns          int64
 	events         int
@@ -912,7 +950,80 @@ func (ix *Indexer) read(ctx context.Context, row *FileRow, runID uuid.UUID, stat
 	return ix.readSource(ctx, row, runID, state, start, end, recall, keepUsage, ix.host, nil)
 }
 
+func readTranscriptDocument(ctx context.Context, row *FileRow, runID uuid.UUID, parser runner.TranscriptDocumentParser, recall, keepUsage bool, host Host, snapshot io.Reader) (readResult, error) {
+	result := readResult{}
+	var source io.ReadCloser
+	if snapshot == nil {
+		if row.RootKind == RootCursor {
+			data, err := ReadCursorSnapshot(ctx, row.Path, row.SessionID)
+			if err != nil {
+				return result, err
+			}
+			snapshot = strings.NewReader(string(data))
+		} else {
+			opened, err := OpenTranscript(row.Path)
+			if err != nil {
+				return result, err
+			}
+			source = opened
+			snapshot = opened
+		}
+	}
+	data, err := io.ReadAll(io.LimitReader(snapshot, maxTranscriptDocumentBytes+1))
+	if source != nil {
+		if closeErr := source.Close(); err == nil {
+			err = closeErr
+		}
+	}
+	if err != nil {
+		return result, err
+	}
+	if len(data) > maxTranscriptDocumentBytes {
+		return result, fmt.Errorf("transcript document exceeds %d-byte import limit", maxTranscriptDocumentBytes)
+	}
+	parsed := parser.ParseTranscriptDocument(runID, data)
+	if parsed.Err != nil {
+		return result, parsed.Err
+	}
+	result.cursor = int64(len(data))
+	result.documentHash = agenttranscript.SHA256Bytes(data)
+	result.sessionID = parsed.SessionID
+	result.label = strings.TrimSpace(parsed.Label)
+	sink := &recordSink{ctx: ctx, host: host, runID: row.RunID, recall: recall, discard: row.Owner == OwnerRun}
+	for ordinal, event := range parsed.Events {
+		if event == nil {
+			continue
+		}
+		at := event.Timestamp
+		if at.IsZero() {
+			at = parsed.Timestamp
+		}
+		if !at.IsZero() {
+			if result.started.IsZero() || at.Before(result.started) {
+				result.started = at
+			}
+			if at.After(result.ended) {
+				result.ended = at
+			}
+		}
+		if usage, ok := event.Data.(*domain.UsageEventData); ok && usage.PayloadKind != domain.PayloadKindCharge && keepUsage {
+			result.usage = append(result.usage, UsageRow{FileKey: row.Key, LineOffset: int64(ordinal), RunID: row.RunID, ObservedAt: at, Usage: *usage, Facts: TurnFacts{}})
+		}
+		if err := sink.Emit(event); err != nil {
+			return result, err
+		}
+	}
+	if err := sink.flush(); err != nil {
+		return result, err
+	}
+	result.events = sink.recorded
+	return result, nil
+}
+
 func (ix *Indexer) readSource(ctx context.Context, row *FileRow, runID uuid.UUID, state *tailState, start, end int64, recall, keepUsage bool, host Host, snapshot io.Reader) (readResult, error) {
+	if parser, ok := state.parser.(runner.TranscriptDocumentParser); ok {
+		return readTranscriptDocument(ctx, row, runID, parser, recall, keepUsage, host, snapshot)
+	}
 	result := readResult{cursor: start}
 	if snapshot == nil && Sealed(row.Path) {
 		// A compressed transcript is read through its decoded bytes.
@@ -1268,7 +1379,7 @@ func (ix *Indexer) IndexPath(ctx context.Context, path, harness string) (string,
 	t := &tick{now: ix.cfg.Now(), byKey: map[string]*FileRow{}, byPath: map[string]*FileRow{}, candidates: map[string]Candidate{candidate.Key: candidate}, codexByID: map[string]string{}, owned: owned, reimport: 1 << 62, versions: map[string]int{}, summary: &Summary{}, inFlight: map[string]bool{}, done: map[string]bool{}}
 	for index := range rows {
 		row := &rows[index]
-		t.byKey[row.Key], t.byPath[row.Path] = row, row
+		t.byKey[row.Key], t.byPath[transcriptPathKey(row.RootKind, row.Path, row.SessionID)] = row, row
 	}
 	if existing := t.byKey[candidate.Key]; existing != nil {
 		candidate.Root = Root{Path: existing.RootPath, Kind: existing.RootKind, Harness: existing.Harness, WebConsoleSessionID: existing.WebConsoleSessionID}
@@ -1352,8 +1463,21 @@ func (ix *Indexer) RebuildRecall(ctx context.Context, runID string) error {
 		if row.Offset <= 0 || row.Offset > rebuildLimit {
 			return errors.New("recall rebuild exceeds source staging limit or has no captured bytes")
 		}
-		candidate, ok := Identify(Root{Path: row.RootPath, Kind: row.RootKind, Harness: row.Harness}, row.Path)
-		if !ok || candidate.Key != row.Key || candidate.Size != row.Size || candidate.MtimeUnixNano != row.MtimeUnixNano {
+		var candidate Candidate
+		var candidateFound bool
+		if row.RootKind == RootCursor {
+			var candidates []Candidate
+			candidates, err = discoverCursorDB(row.Path, Root{Path: row.RootPath, Kind: row.RootKind, Harness: row.Harness})
+			for _, discovered := range candidates {
+				if discovered.SessionID == row.SessionID && discovered.Key == row.Key && discovered.Size == row.Size {
+					candidate, candidateFound = discovered, true
+					break
+				}
+			}
+		} else {
+			candidate, candidateFound = Identify(Root{Path: row.RootPath, Kind: row.RootKind, Harness: row.Harness}, row.Path)
+		}
+		if !candidateFound || candidate.Key != row.Key || candidate.Size != row.Size || candidate.MtimeUnixNano != row.MtimeUnixNano {
 			return errors.New("recall source differs from checkpoint or is not a regular file")
 		}
 		snapshot, err := snapshotTranscript(candidate)
@@ -1368,7 +1492,7 @@ func (ix *Indexer) RebuildRecall(ctx context.Context, runID string) error {
 		if decodeErr != nil || len(fingerprint) != 32 {
 			return errors.New("recall checkpoint head fingerprint unavailable or invalid; reconciliation required")
 		}
-		if hashHead(data) != row.HeadHash {
+		if agenttranscript.SHA256BytesPrefix(data, headHashBytes) != row.HeadHash {
 			return errors.New("recall snapshot differs from checkpoint head fingerprint; reconciliation required")
 		}
 		state := &tailState{parser: parser}

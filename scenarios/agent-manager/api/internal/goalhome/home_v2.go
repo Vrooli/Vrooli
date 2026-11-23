@@ -491,7 +491,7 @@ func parseLog(data []byte) ([]EpochFile, bool) {
 			}
 			id := m[1]
 			epoch := acceptedEpochFromLogLine(id, line)
-			if epoch == nil {
+		if epoch == nil || epoch.LastAcceptance() == nil || epoch.LastAcceptance().At.IsZero() {
 				return nil, false
 			}
 			if prior := byID[id]; prior != nil {

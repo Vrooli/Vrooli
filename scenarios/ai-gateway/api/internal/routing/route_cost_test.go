@@ -135,3 +135,30 @@ func TestPlanningReadsEachResourcePolicyOnce(t *testing.T) {
 	require.Equal(t, 1, countCommands(runner.Commands, "resource-ollama policy roles"))
 	require.Equal(t, 1, countCommands(runner.Commands, "resource-ollama models inventory"))
 }
+
+// slowFactRunner makes every policy read take a fixed time, like a resource
+// process does on a cold cache.
+type slowFactRunner struct {
+	inner providers.CommandRunner
+	delay time.Duration
+}
+
+func (r slowFactRunner) Run(ctx context.Context, command providers.Command) (providers.Result, error) {
+	if strings.Contains(command.String(), " policy roles ") {
+		time.Sleep(r.delay)
+	}
+	return r.inner.Run(ctx, command)
+}
+
+// On a cold cache every provider's facts are resource processes. Reading them
+// one provider after another made the first plan take the sum of all of them;
+// they are read at once, so it takes about the slowest one.
+func TestColdPlanReadsProvidersInParallel(t *testing.T) {
+	const delay = 300 * time.Millisecond
+	svc := newService(testAdapters(slowFactRunner{inner: roleRunner(), delay: delay}), nil)
+	started := time.Now()
+	resp, err := svc.Preview(context.Background(), embeddingRoute())
+	require.NoError(t, err)
+	require.Equal(t, "ollama", resp.GetSelectedProvider())
+	require.Less(t, time.Since(started), 2*delay-50*time.Millisecond, "two providers' reads overlap")
+}

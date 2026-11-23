@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1";
-import { Card, CardContent } from "../components/ui/card";
+import { Card, CardContent } from "@vrooli/react-component-library/Card/1.3.1";
 import {
   Dialog,
   DialogBody,

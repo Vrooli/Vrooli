@@ -296,3 +296,112 @@ func TestReportedProviderTimingReadsResourceMeasurements(t *testing.T) {
 		}
 	}
 }
+
+// A fact a caller relied on recently is re-read before it expires, so the
+// caller returning after a quiet spell plans without waiting on resources.
+func TestKeepWarmRereadsRecentlyUsedFactsBeforeTheyExpire(t *testing.T) {
+	cache, runner, clock := newFactFixture()
+	lifetime := FactLifetime{RefreshAfter: 15 * time.Second, MaxAge: 2 * time.Minute, KeepWarmFor: 10 * time.Minute}
+	cache.lifetime = lifetime
+	if _, err := cache.Run(context.Background(), rolesFact); err != nil {
+		t.Fatal(err)
+	}
+	clock.Advance(time.Minute)
+	cache.refreshNearingExpiry()
+	if runner.calls.Load() != 1 {
+		t.Fatalf("resource calls = %d; a fact far from expiry is left alone", runner.calls.Load())
+	}
+	clock.Advance(45 * time.Second) // within two passes of MaxAge
+	cache.refreshNearingExpiry()
+	waitForCalls(t, runner, 2)
+	clock.Advance(90 * time.Second) // past the first read's MaxAge
+	result, err := cache.Run(context.Background(), rolesFact)
+	if err != nil || result.Stdout != "2" {
+		t.Fatalf("read after the quiet spell = %q, %v; want the kept-warm answer without a wait", result.Stdout, err)
+	}
+	if runner.calls.Load() != 2 {
+		t.Fatalf("resource calls = %d, want 2", runner.calls.Load())
+	}
+}
+
+// Facts nobody uses expire: warming reads and long-unused facts are not kept.
+func TestKeepWarmLeavesUnusedFactsToExpire(t *testing.T) {
+	cache, runner, clock := newFactFixture()
+	cache.lifetime = FactLifetime{RefreshAfter: 15 * time.Second, MaxAge: 2 * time.Minute, KeepWarmFor: 10 * time.Minute}
+	if _, err := cache.Run(WithFactWarming(context.Background()), rolesFact); err != nil {
+		t.Fatal(err)
+	}
+	clock.Advance(110 * time.Second)
+	cache.refreshNearingExpiry()
+	time.Sleep(20 * time.Millisecond)
+	if runner.calls.Load() != 1 {
+		t.Fatalf("resource calls = %d; a fact only warmed, never used, is not kept warm", runner.calls.Load())
+	}
+}
+
+// Start-up warming reads every adapter's inventory and resolves its local
+// roles, so the first request finds them held.
+func TestWarmFactsReadsInventoriesAndLocalResolutions(t *testing.T) {
+	inner := &scriptedRunner{results: map[string]string{
+		"resource-ollama policy roles --json":                            `{"roles":[{"role":"embedding.default","model":"nomic-embed-text:latest","locality":"local","capabilities":["embedding"]}]}`,
+		"resource-ollama models inventory --json":                        `{"models":[{"name":"nomic-embed-text:latest","digest":"d"}]}`,
+		"resource-ollama policy resolve --role embedding.default --json": `{"role":"embedding.default","model":"nomic-embed-text:latest","locality":"local"}`,
+		"resource-openrouter policy roles --json":                        `{"roles":[{"role":"chat.default","model":"m","locality":"remote","capabilities":["chat"]}]}`,
+	}}
+	cache := NewFactCache(inner, DefaultFactLifetime)
+	adapters := []Adapter{
+		{Provider: ProviderOllama, CommandName: "resource-ollama", Locality: "local", Runner: cache},
+		{Provider: ProviderOpenRouter, CommandName: "resource-openrouter", Locality: "remote", Runner: cache},
+	}
+	WarmFacts(context.Background(), adapters)
+	warmed := inner.count()
+	for _, want := range []string{"resource-ollama policy roles --json", "resource-ollama policy resolve --role embedding.default --json", "resource-openrouter policy roles --json"} {
+		if inner.calls(want) == 0 {
+			t.Fatalf("warming did not read %q", want)
+		}
+	}
+	if inner.calls("resource-openrouter policy resolve") != 0 {
+		t.Fatal("remote roles are resolved only when routed to")
+	}
+	if _, err := adapters[0].ResolveRole(context.Background(), "embedding.default"); err != nil {
+		t.Fatal(err)
+	}
+	if inner.count() != warmed {
+		t.Fatal("the first request after warming must not read the resource again")
+	}
+}
+
+// scriptedRunner is a minimal concurrent fixture runner keyed by command line.
+type scriptedRunner struct {
+	mu      sync.Mutex
+	results map[string]string
+	seen    []string
+}
+
+func (m *scriptedRunner) Run(_ context.Context, command Command) (Result, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.seen = append(m.seen, command.String())
+	if out, ok := m.results[command.String()]; ok {
+		return Result{Stdout: out}, nil
+	}
+	return Result{}, &CommandError{Code: "missing_fixture", Command: command.String(), ExitCode: -1}
+}
+
+func (m *scriptedRunner) count() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return len(m.seen)
+}
+
+func (m *scriptedRunner) calls(prefix string) int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	n := 0
+	for _, line := range m.seen {
+		if len(line) >= len(prefix) && line[:len(prefix)] == prefix {
+			n++
+		}
+	}
+	return n
+}

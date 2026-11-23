@@ -228,20 +228,57 @@ func (p *gatewayProcess) stop(t *testing.T) {
 	}
 }
 
+// packagedLocalModel is the model the packaged Ollama policy declares for the
+// first Ollama candidate of a gateway role, read from the bundle so the
+// fixture follows policy changes instead of naming a model tag.
+func packagedLocalModel(t *testing.T, bundle catalog.Bundle, role string) string {
+	t.Helper()
+	var roles struct {
+		Roles map[string]struct {
+			Candidates []struct {
+				Provider     string `json:"provider"`
+				ResourceRole string `json:"resource_role"`
+			} `json:"candidates"`
+		} `json:"roles"`
+	}
+	var policy struct {
+		Roles map[string]struct {
+			Model string `json:"model"`
+		} `json:"roles"`
+	}
+	if err := json.Unmarshal(bundle.Roles, &roles); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(bundle.Providers["ollama"].Policy, &policy); err != nil {
+		t.Fatal(err)
+	}
+	for _, candidate := range roles.Roles[role].Candidates {
+		if candidate.Provider == "ollama" {
+			if model := policy.Roles[candidate.ResourceRole].Model; model != "" {
+				return model
+			}
+		}
+	}
+	t.Fatalf("packaged catalog declares no Ollama model for %s", role)
+	return ""
+}
+
 func TestJ12_LocalModelWithUnknownRightsIsRefusedBeforeInference(t *testing.T) {
 	bundle, err := catalog.Embedded()
 	if err != nil {
 		t.Fatal(err)
 	}
-	// The local transport is a fake inventory endpoint. The packaged provider
+	// The local transport is a fake inventory endpoint listing the model the
+	// packaged policy declares for the request's role. The packaged provider
 	// cannot supply artifact rights/runtime identity, so no generation request
 	// may follow role resolution.
+	installed := packagedLocalModel(t, bundle, journeyRequest().Msg.GetRole())
 	tagCalls, generationCalls := 0, 0
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/tags":
 			tagCalls++
-			_, _ = w.Write([]byte(`{"models":[{"name":"qwen3.5:9b"}]}`))
+			_, _ = fmt.Fprintf(w, `{"models":[{"name":%q}]}`, installed)
 		case "/api/generate":
 			generationCalls++
 			_, _ = w.Write([]byte(`{"response":"{\"answer\":\"ok\"}"}`))

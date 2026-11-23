@@ -116,7 +116,7 @@ func TestApplyEnvOverridesTranscriptImport(t *testing.T) {
 }
 
 func TestTranscriptImportLeversValidate(t *testing.T) {
-	ok := TranscriptImportLevers{Interval: 15 * time.Minute, ScanRoots: []string{"/srv/x"}}
+	ok := TranscriptImportLevers{Interval: 15 * time.Minute, ScanRoots: []string{"/srv/x", "~", "~/extra/transcripts"}}
 	if err := ok.Validate(); err != nil {
 		t.Fatalf("valid levers rejected: %v", err)
 	}
@@ -127,6 +127,13 @@ func TestTranscriptImportLeversValidate(t *testing.T) {
 	emptyRoot := TranscriptImportLevers{Interval: time.Hour, ScanRoots: []string{"  "}}
 	if err := emptyRoot.Validate(); err == nil {
 		t.Fatal("empty scan root must be rejected")
+	}
+}
+
+func TestTranscriptImportRejectsRelativeScanRoot(t *testing.T) {
+	levers := TranscriptImportLevers{Interval: time.Hour, ScanRoots: []string{"relative/transcripts"}}
+	if err := levers.Validate(); err == nil {
+		t.Fatal("relative scan root accepted; configured roots must be absolute paths or home-relative via ~")
 	}
 }
 

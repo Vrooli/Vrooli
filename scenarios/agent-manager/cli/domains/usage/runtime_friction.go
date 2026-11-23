@@ -16,6 +16,8 @@ import (
 
 const runtimeFrictionAPIPath = "/api/v1/runtime/friction"
 
+const maxRuntimeFrictionResponseBytes = 2 << 20
+
 type runtimeFrictionResponse struct {
 	Window struct {
 		Since time.Time `json:"since"`
@@ -97,12 +99,18 @@ func runtimeFrictionCommand(newHTTP paceHTTPFor) cliapp.Command {
 				return err
 			}
 			defer response.Body.Close()
-			raw, err := io.ReadAll(io.LimitReader(response.Body, 2<<20))
+			raw, err := io.ReadAll(io.LimitReader(response.Body, maxRuntimeFrictionResponseBytes+1))
 			if err != nil {
 				return err
 			}
 			if response.StatusCode != http.StatusOK {
+				if len(raw) > maxRuntimeFrictionResponseBytes {
+					raw = raw[:maxRuntimeFrictionResponseBytes]
+				}
 				return fmt.Errorf("runtime friction request failed (%d): %s", response.StatusCode, strings.TrimSpace(string(raw)))
+			}
+			if len(raw) > maxRuntimeFrictionResponseBytes {
+				return fmt.Errorf("runtime friction response exceeds 2 MiB limit")
 			}
 			if ctx.JSON() {
 				var pretty bytes.Buffer

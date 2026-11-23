@@ -93,3 +93,34 @@ func TestInvalidDeclarationSourceIsUnavailableNotPolicyAbsent(t *testing.T) {
 		}
 	}
 }
+
+func TestGrokSessionsRootUsesConfiguredHome(t *testing.T) {
+	if got := grokSessionsRoot(""); got != "" {
+		t.Fatalf("empty GROK_HOME root = %q", got)
+	}
+	home := filepath.Join(t.TempDir(), "grok-home")
+	if got, want := grokSessionsRoot(home), filepath.Join(home, "sessions"); got != want {
+		t.Fatalf("configured Grok session root = %q, want %q", got, want)
+	}
+}
+
+func TestCursorStateRootPrefersLinuxConfigAndSupportsLegacyRoot(t *testing.T) {
+	home := t.TempDir()
+	configRoot := filepath.Join(home, ".config", "Cursor", "User", "workspaceStorage")
+	legacyRoot := filepath.Join(home, ".cursor", "User", "workspaceStorage")
+	if got, want := cursorStateRoot(home), configRoot; got != want {
+		t.Fatalf("default Cursor root = %q, want %q", got, want)
+	}
+	if err := os.MkdirAll(legacyRoot, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if got := cursorStateRoot(home); got != legacyRoot {
+		t.Fatalf("legacy Cursor root = %q, want %q", got, legacyRoot)
+	}
+	if err := os.MkdirAll(configRoot, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if got := cursorStateRoot(home); got != configRoot {
+		t.Fatalf("preferred Cursor root = %q, want %q", got, configRoot)
+	}
+}

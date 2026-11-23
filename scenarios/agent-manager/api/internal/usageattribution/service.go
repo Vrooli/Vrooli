@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"sync"
 	"time"
 
 	"agent-manager/internal/domain"
@@ -285,16 +284,6 @@ func (s Service) item(ctx context.Context, fingerprint string, since, now time.T
 		}
 	}
 	return FrictionItem{}, fmt.Errorf("%w %q since %s", ErrUnknownFinding, fingerprint, report.Since.UTC().Format(time.RFC3339))
-}
-
-// reporting serializes the actions on one fingerprint in this process, so two
-// concurrent reports of a finding file it once.
-var reporting sync.Map
-
-func lockFingerprint(fingerprint string) func() {
-	mu, _ := reporting.LoadOrStore(fingerprint, &sync.Mutex{})
-	mu.(*sync.Mutex).Lock()
-	return mu.(*sync.Mutex).Unlock
 }
 
 // ReportFriction files the finding listed since in the bug inbox and records

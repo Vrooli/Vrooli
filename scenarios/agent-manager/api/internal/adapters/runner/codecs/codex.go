@@ -612,7 +612,14 @@ func (p *codexTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line string
 	result := runner.TranscriptParseResult{
 		Events:    events,
 		SessionID: streamEvent.ThreadID,
-		Timestamp: transcriptLineTimestamp(line),
+		Timestamp: agenttranscript.ParseTimestamp([]byte(line)),
+	}
+	if !result.Timestamp.IsZero() {
+		for _, event := range result.Events {
+			if event.EventType == domain.EventTypeMessage {
+				event.Timestamp = result.Timestamp
+			}
+		}
 	}
 
 	switch streamEvent.Type {

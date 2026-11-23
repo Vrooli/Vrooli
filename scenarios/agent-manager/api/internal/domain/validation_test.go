@@ -551,10 +551,7 @@ func TestPolicyRules_Validate(t *testing.T) {
 // =============================================================================
 
 func TestTaskStatus_IsValid(t *testing.T) {
-	tests := []struct {
-		status TaskStatus
-		want   bool
-	}{
+	cases := []enumPolicyCase[TaskStatus, bool]{
 		{TaskStatusQueued, true},
 		{TaskStatusRunning, true},
 		{TaskStatusNeedsReview, true},
@@ -566,46 +563,28 @@ func TestTaskStatus_IsValid(t *testing.T) {
 		{"invalid", false},
 		{"", false},
 	}
-
-	for _, tt := range tests {
-		t.Run(string(tt.status), func(t *testing.T) {
-			if got := tt.status.IsValid(); got != tt.want {
-				t.Errorf("IsValid() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	assertEnumPolicy(t, cases, func(value TaskStatus) bool { return value.IsValid() })
 }
 
 func TestRunStatus_IsValid(t *testing.T) {
-	tests := []struct {
-		status RunStatus
-		want   bool
-	}{
+	cases := []enumPolicyCase[RunStatus, bool]{
 		{RunStatusPending, true},
 		{RunStatusStarting, true},
 		{RunStatusRunning, true},
 		{RunStatusNeedsReview, true},
+		{RunStatusParked, true},
 		{RunStatusComplete, true},
 		{RunStatusFailed, true},
 		{RunStatusCancelled, true},
+		{RunStatusUnknown, true},
 		{"invalid", false},
 		{"", false},
 	}
-
-	for _, tt := range tests {
-		t.Run(string(tt.status), func(t *testing.T) {
-			if got := tt.status.IsValid(); got != tt.want {
-				t.Errorf("IsValid() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	assertEnumPolicy(t, cases, func(value RunStatus) bool { return value.IsValid() })
 }
 
 func TestRunStatus_IsTerminal(t *testing.T) {
-	tests := []struct {
-		status RunStatus
-		want   bool
-	}{
+	cases := []enumPolicyCase[RunStatus, bool]{
 		{RunStatusPending, false},
 		{RunStatusStarting, false},
 		{RunStatusRunning, false},
@@ -614,21 +593,11 @@ func TestRunStatus_IsTerminal(t *testing.T) {
 		{RunStatusFailed, true},
 		{RunStatusCancelled, true},
 	}
-
-	for _, tt := range tests {
-		t.Run(string(tt.status), func(t *testing.T) {
-			if got := tt.status.IsTerminal(); got != tt.want {
-				t.Errorf("IsTerminal() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	assertEnumPolicy(t, cases, func(value RunStatus) bool { return value.IsTerminal() })
 }
 
 func TestRunStatus_IsActive(t *testing.T) {
-	tests := []struct {
-		status RunStatus
-		want   bool
-	}{
+	cases := []enumPolicyCase[RunStatus, bool]{
 		{RunStatusPending, true},
 		{RunStatusStarting, true},
 		{RunStatusRunning, true},
@@ -637,21 +606,11 @@ func TestRunStatus_IsActive(t *testing.T) {
 		{RunStatusFailed, false},
 		{RunStatusCancelled, false},
 	}
-
-	for _, tt := range tests {
-		t.Run(string(tt.status), func(t *testing.T) {
-			if got := tt.status.IsActive(); got != tt.want {
-				t.Errorf("IsActive() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	assertEnumPolicy(t, cases, func(value RunStatus) bool { return value.IsActive() })
 }
 
 func TestApprovalState_IsValid(t *testing.T) {
-	tests := []struct {
-		state ApprovalState
-		want  bool
-	}{
+	cases := []enumPolicyCase[ApprovalState, bool]{
 		{ApprovalStateNone, true},
 		{ApprovalStatePending, true},
 		{ApprovalStatePartiallyApproved, true},
@@ -659,21 +618,11 @@ func TestApprovalState_IsValid(t *testing.T) {
 		{ApprovalStateRejected, true},
 		{"invalid", false},
 	}
-
-	for _, tt := range tests {
-		t.Run(string(tt.state), func(t *testing.T) {
-			if got := tt.state.IsValid(); got != tt.want {
-				t.Errorf("IsValid() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	assertEnumPolicy(t, cases, func(value ApprovalState) bool { return value.IsValid() })
 }
 
 func TestRunPhase_IsValid(t *testing.T) {
-	tests := []struct {
-		phase RunPhase
-		want  bool
-	}{
+	cases := []enumPolicyCase[RunPhase, bool]{
 		{RunPhaseQueued, true},
 		{RunPhaseInitializing, true},
 		{RunPhaseSandboxCreating, true},
@@ -686,14 +635,7 @@ func TestRunPhase_IsValid(t *testing.T) {
 		{RunPhaseCompleted, true},
 		{"invalid", false},
 	}
-
-	for _, tt := range tests {
-		t.Run(string(tt.phase), func(t *testing.T) {
-			if got := tt.phase.IsValid(); got != tt.want {
-				t.Errorf("IsValid() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	assertEnumPolicy(t, cases, func(value RunPhase) bool { return value.IsValid() })
 }
 
 // =============================================================================
@@ -1124,10 +1066,7 @@ func TestIdempotencyRecord_Validate(t *testing.T) {
 // =============================================================================
 
 func TestRunEventType_IsValid(t *testing.T) {
-	tests := []struct {
-		eventType RunEventType
-		want      bool
-	}{
+	cases := []enumPolicyCase[RunEventType, bool]{
 		{EventTypeLog, true},
 		{EventTypeMessage, true},
 		{EventTypeToolCall, true},
@@ -1139,14 +1078,7 @@ func TestRunEventType_IsValid(t *testing.T) {
 		{"invalid", false},
 		{"", false},
 	}
-
-	for _, tt := range tests {
-		t.Run(string(tt.eventType), func(t *testing.T) {
-			if got := tt.eventType.IsValid(); got != tt.want {
-				t.Errorf("IsValid() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	assertEnumPolicy(t, cases, func(value RunEventType) bool { return value.IsValid() })
 }
 
 // =============================================================================
@@ -1154,24 +1086,14 @@ func TestRunEventType_IsValid(t *testing.T) {
 // =============================================================================
 
 func TestIdempotencyStatus_IsValid(t *testing.T) {
-	tests := []struct {
-		status IdempotencyStatus
-		want   bool
-	}{
+	cases := []enumPolicyCase[IdempotencyStatus, bool]{
 		{IdempotencyStatusPending, true},
 		{IdempotencyStatusComplete, true},
 		{IdempotencyStatusFailed, true},
 		{"invalid", false},
 		{"", false},
 	}
-
-	for _, tt := range tests {
-		t.Run(string(tt.status), func(t *testing.T) {
-			if got := tt.status.IsValid(); got != tt.want {
-				t.Errorf("IsValid() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	assertEnumPolicy(t, cases, func(value IdempotencyStatus) bool { return value.IsValid() })
 }
 
 // =============================================================================

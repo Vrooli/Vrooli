@@ -1,0 +1,101 @@
+{
+  "id": "router-one",
+  "family": "openai-compatible",
+  "locality": "remote",
+  "endpoint": "https://api.router.one/v1",
+  "policy": {
+    "schema_version": "2026-11-22",
+    "provider": {
+      "id": "router-one",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "pay_as_you_go",
+            "access_tier": "1a",
+            "use_classes": {
+              "own_account": "allowed",
+              "bounded_feature": "allowed",
+              "in_app": "allowed",
+              "harness_access": "unverified"
+            },
+            "conditions": [
+              "Keep Router One API keys server-side under Vrooli's control; do not publish or hand them to downstream customers for their independent use.",
+              "Limit this interpretation to Router One pay-as-you-go usage in a Vrooli-operated service for Vrooli's own customers. The terms make subscription plans and enterprise contracts subject to their own plan or written agreement; those scopes are excluded here.",
+              "The customer portal, brand, support, billing, customer relationship and pricing remain Vrooli's responsibility; Router One does not provide a turnkey storefront, customer subaccounts, wholesale discount, or configurable markup.",
+              "For every model, separately capture the actual serving provider, model publisher/license, exact model/provider terms, current quote and live route availability; the Router One model ID/catalog is not proof of those rights.",
+              "Do not rely on self-serve PAYG for a contractual SLA. Trust/data handling and the Vrooli customer price remain separate human decisions."
+            ],
+            "clause": "Terms of Service, Account Responsibilities, Fees & Payment, and Disclaimer; White-Label LLM API guide",
+            "reason": "Current public terms allow account-controlled API keys inside services operated for the account holder's own customers, and the provider's white-label guide expressly describes a customer-owned brand and billing layer over a managed upstream. Proposed only for PAYG in-app use; no model or executable route is approved."
+          }
+        ],
+        "evidence": {
+          "url": "https://router.one/terms",
+          "document_date": "2026-10-23",
+          "read_at": "2026-11-22"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-11-22",
+        "on_expiry": "deny"
+      },
+      "hosted_routes": [],
+      "agreements": []
+    },
+    "roles": {},
+    "models": {
+      "openai/gpt-6.2-sol": {
+        "family": "gpt",
+        "capabilities": ["chat", "text_input", "text_output", "streaming", "tools", "vision"],
+        "modalities": {"input": ["text", "image"], "output": ["text"]},
+        "endpoints": ["chat"],
+        "context_window_tokens": 1050000,
+        "default_eligible": false,
+        "use_case_notes": "Router One catalog identity draft only; no serving route is approved.",
+        "caveats": [
+          "Router One FAQ says upstream suppliers and routes are undisclosed; the model-ID prefix does not prove the actual serving provider or its rights.",
+          "Resolve exact serving provider, model license and downstream use, current availability, trust/data terms, and human price before any route can be eligible."
+        ],
+        "provenance": {
+          "catalog": {"source_kind": "manual_policy", "confidence": "high", "source": "https://router.one/models/gpt-6-2-sol; model ID, endpoints and capabilities checked against the public catalog", "observed_at": "2026-11-23"},
+          "terms": {"source_kind": "manual_policy", "confidence": "low", "source": "https://router.one/faq; upstream serving suppliers and service routes are not disclosed", "observed_at": "2026-11-23"}
+        }
+      },
+      "anthropic/claude-sonnet-5": {
+        "family": "claude",
+        "capabilities": ["chat", "text_input", "text_output", "streaming", "tools", "vision"],
+        "modalities": {"input": ["text", "image"], "output": ["text"]},
+        "endpoints": ["chat"],
+        "context_window_tokens": 1050000,
+        "default_eligible": false,
+        "use_case_notes": "Router One catalog identity draft only; no serving route is approved.",
+        "caveats": [
+          "Router One FAQ says upstream suppliers and routes are undisclosed; the model-ID prefix does not prove the actual serving provider or its rights.",
+          "Resolve exact serving provider, model license and downstream use, current availability, trust/data terms, and human price before any route can be eligible."
+        ],
+        "provenance": {
+          "catalog": {"source_kind": "manual_policy", "confidence": "high", "source": "https://router.one/models/claude-sonnet-5; model ID, endpoints and capabilities checked against the public catalog", "observed_at": "2026-11-23"},
+          "terms": {"source_kind": "manual_policy", "confidence": "low", "source": "https://router.one/faq; upstream serving suppliers and service routes are not disclosed", "observed_at": "2026-11-23"}
+        }
+      },
+      "google/gemini-3.8-flash": {
+        "family": "gemini",
+        "capabilities": ["chat", "text_input", "text_output", "streaming", "tools", "vision"],
+        "modalities": {"input": ["text", "image"], "output": ["text"]},
+        "endpoints": ["chat"],
+        "context_window_tokens": 1050000,
+        "default_eligible": false,
+        "use_case_notes": "Router One catalog identity draft only; no serving route is approved.",
+        "caveats": [
+          "Router One FAQ says upstream suppliers and routes are undisclosed; the model-ID prefix does not prove the actual serving provider or its rights.",
+          "Resolve exact serving provider, model license and downstream use, current availability, trust/data terms, and human price before any route can be eligible."
+        ],
+        "provenance": {
+          "catalog": {"source_kind": "manual_policy", "confidence": "high", "source": "https://router.one/models/gemini-3-8-flash; model ID, endpoints and capabilities checked against the public catalog", "observed_at": "2026-11-23"},
+          "terms": {"source_kind": "manual_policy", "confidence": "low", "source": "https://router.one/faq; upstream serving suppliers and service routes are not disclosed", "observed_at": "2026-11-23"}
+        }
+      }
+    }
+  }
+}

@@ -5,7 +5,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"time"
+
+	"ai-gateway/internal/caller"
 
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing"
 )
@@ -92,6 +95,7 @@ func (r *SQLRepository) Create(ctx context.Context, ev *routingv1.RouteEvidence)
 	if r == nil || r.db == nil {
 		return fmt.Errorf("route evidence repository is not configured")
 	}
+	pending := stampCaller(ctx, ev)
 	policyReasons, err := json.Marshal(ev.GetPolicyReasons())
 	if err != nil {
 		return err
@@ -117,8 +121,8 @@ attachments_redacted, attachment_dimensions_json,
 sampling_temperature, sampling_temperature_support,
 preparation_duration_ns, route_plan_duration_ns, role_resolution_duration_ns,
 eligibility_duration_ns, capacity_admission_duration_ns, provider_execution_duration_ns,
-provider_runtime_duration_ns, provider_admission_wait_ns, total_duration_ns, overhead_duration_ns
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+provider_runtime_duration_ns, provider_admission_wait_ns, total_duration_ns, overhead_duration_ns, caller
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		ev.GetEventId(),
 		ev.GetRequestId(),
 		ev.GetScenario(),
@@ -168,8 +172,39 @@ provider_runtime_duration_ns, provider_admission_wait_ns, total_duration_ns, ove
 		ev.GetProviderAdmissionWaitNs(),
 		ev.GetTotalDurationNs(),
 		ev.GetOverheadDurationNs(),
+		ev.GetCaller(),
 	)
+	if err == nil && pending {
+		go r.fillCaller(context.WithoutCancel(ctx), ev.GetEventId())
+	}
 	return err
+}
+
+// callerWait bounds how long a recorded event waits for its caller's
+// identification after the event itself is written. A process scan takes
+// tens of milliseconds; the bound only matters when /proc is unreadable.
+const callerWait = 5 * time.Second
+
+// stampCaller sets the event's observed caller when the request's
+// identification has finished. It reports true when the identification is
+// still running, in which case the row is written now and its caller filled
+// in once known, so recording never waits on it.
+func stampCaller(ctx context.Context, ev *routingv1.RouteEvidence) bool {
+	if ev.GetCaller() != "" {
+		return false
+	}
+	if label, ok := caller.Ready(ctx); ok {
+		ev.Caller = label
+		return false
+	}
+	return caller.Pending(ctx)
+}
+
+func (r *SQLRepository) fillCaller(ctx context.Context, eventID string) {
+	label := caller.Await(ctx, callerWait)
+	if _, err := r.db.ExecContext(ctx, `UPDATE route_events SET caller = ? WHERE event_id = ? AND caller = ''`, label, eventID); err != nil {
+		log.Printf("route evidence %s: record caller %s: %v", eventID, label, err)
+	}
 }
 
 // nullableFloat preserves the difference between "no temperature was sent" and
@@ -231,7 +266,7 @@ attachment_bytes, attachment_sha256, attachments_redacted,
 attachment_dimensions_json, sampling_temperature, sampling_temperature_support,
 preparation_duration_ns, route_plan_duration_ns, role_resolution_duration_ns,
 eligibility_duration_ns, capacity_admission_duration_ns, provider_execution_duration_ns,
-provider_runtime_duration_ns, provider_admission_wait_ns, total_duration_ns, overhead_duration_ns
+provider_runtime_duration_ns, provider_admission_wait_ns, total_duration_ns, overhead_duration_ns, caller
 FROM route_events`
 
 type scanner interface {
@@ -297,6 +332,7 @@ func scanEvidence(s scanner) (*routingv1.RouteEvidence, error) {
 		&ev.ProviderAdmissionWaitNs,
 		&ev.TotalDurationNs,
 		&ev.OverheadDurationNs,
+		&ev.Caller,
 	)
 	if err != nil {
 		return nil, err

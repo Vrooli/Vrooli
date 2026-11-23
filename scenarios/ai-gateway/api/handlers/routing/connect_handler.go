@@ -11,6 +11,7 @@ import (
 	"github.com/vrooli/api-core/consumeridentity"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing"
 
+	"ai-gateway/internal/caller"
 	"ai-gateway/internal/providers"
 	internalrouting "ai-gateway/internal/routing"
 )
@@ -75,6 +76,7 @@ func (h *connectHandler) PreviewRoute(ctx context.Context, req *connect.Request[
 }
 
 func (h *connectHandler) ExecuteRoute(ctx context.Context, req *connect.Request[routingv1.ExecuteRouteRequest]) (*connect.Response[routingv1.ExecuteRouteResponse], error) {
+	ctx = caller.Observe(ctx, req.Peer().Addr)
 	ctx = providers.WithSource(ctx, req.Header().Get("X-Vrooli-AI-Source"))
 	ctx = providers.WithPrivacyConsent(ctx, req.Header().Get("X-Vrooli-AI-Consent-Grant"))
 	resp, err := h.service.Execute(ctx, req.Msg.GetRequest(), req.Msg.GetInputText())
@@ -88,6 +90,7 @@ func (h *connectHandler) ExecuteRoute(ctx context.Context, req *connect.Request[
 // routing. The receipt store and executor wiring land with the media runtime;
 // until then, fail explicitly rather than manufacturing a successful render.
 func (h *connectHandler) SubmitMedia(ctx context.Context, req *connect.Request[routingv1.SubmitMediaRequest]) (*connect.Response[routingv1.SubmitMediaResponse], error) {
+	ctx = caller.Observe(ctx, req.Peer().Addr)
 	execution, err := h.media.Submit(ctx, req.Msg)
 	if err != nil {
 		return nil, connect.NewError(mediaErrorCode(err), err)

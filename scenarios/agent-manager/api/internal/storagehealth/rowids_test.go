@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -248,6 +249,37 @@ func TestCompactRefusesAnAlreadyInconsistentSearchIndex(t *testing.T) {
 	}
 	if st, _ := svc.Stats(t.Context()); st.AutoVacuum != "none" {
 		t.Fatal("compaction ran over an inconsistent index")
+	}
+}
+
+func TestCompactKeepsConsumersPausedWhenWatermarkRewriteFails(t *testing.T) {
+	db, path := openFileDB(t, false)
+	createEventTables(t, db)
+	for i := 0; i < 40; i++ {
+		mustExec(t, db, `INSERT INTO run_events (id, run_id, data) VALUES (?, 'run', 'x')`, fmt.Sprintf("evt-%03d", i))
+	}
+	mustExec(t, db, `INSERT INTO cohort_watches (watch_id, cursor_rowid) VALUES ('watch-1', 20)`)
+	mustExec(t, db, `CREATE TRIGGER refuse_watermark_remap BEFORE UPDATE OF cursor_rowid ON cohort_watches BEGIN SELECT RAISE(ABORT, 'seeded cursor write failure'); END`)
+
+	pauses := &pauseRecorder{}
+	memory := &fakeWatermark{w: 30}
+	svc := newService(t, db, path, &drainedFence{state: FenceState{Closed: true, Drained: true, Revision: 4}}, pauses.pause)
+	svc.opts.Watermarks = []NamedWatermark{{Name: "memory.watermark", Holder: memory}}
+
+	_, err := svc.Compact(t.Context(), "owner", "seeded watermark write failure")
+
+	if err == nil || !strings.Contains(err.Error(), "REQUIRES OWNER ACTION") {
+		t.Fatalf("err=%v, want fail-closed owner-action error", err)
+	}
+	var autoVacuum int
+	if err := db.QueryRow(`PRAGMA auto_vacuum`).Scan(&autoVacuum); err != nil || autoVacuum != 2 {
+		t.Fatalf("auto_vacuum=%d err=%v, want completed VACUUM before fault", autoVacuum, err)
+	}
+	if got := strings.Join(pauses.events, ","); got != "pause" {
+		t.Fatalf("background writers resumed after a failed rowid rewrite: events=%s", got)
+	}
+	if memory.released || memory.set {
+		t.Fatalf("in-memory consumer was released or rewritten without durable remap: %+v", memory)
 	}
 }
 

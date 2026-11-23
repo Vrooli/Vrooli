@@ -10,6 +10,7 @@ import (
 	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/cli-core/agenttranscript"
 )
 
 // NewTranscriptParser satisfies [Codec]. Single-line parsing is provided by
@@ -69,7 +70,7 @@ func (p *claudeTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line strin
 	events, err := parseClaudeStreamEvents(p.state, runID, line)
 	result := runner.TranscriptParseResult{
 		Events:    events,
-		Timestamp: transcriptLineTimestamp(line),
+		Timestamp: agenttranscript.ParseTimestamp([]byte(line)),
 		Err:       err,
 	}
 	// A usage report happened at its line's time, not at parse time: an
@@ -77,7 +78,7 @@ func (p *claudeTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line strin
 	if !result.Timestamp.IsZero() {
 		for _, event := range events {
 			switch event.Data.(type) {
-			case *domain.UsageEventData, *domain.CompactionEventData:
+			case *domain.MessageEventData, *domain.UsageEventData, *domain.CompactionEventData:
 				event.Timestamp = result.Timestamp
 			}
 		}

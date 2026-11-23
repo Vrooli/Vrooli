@@ -16,6 +16,7 @@ import (
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/runner/codecs"
 	runnercore "agent-manager/internal/adapters/runner/core"
+	"agent-manager/internal/adapters/runner/opencodearchive"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/testutil"
@@ -30,16 +31,19 @@ import (
 // rig is a host with temp roots for every harness, real SQLite repositories
 // and the real codex/claude transcript parsers.
 type rig struct {
-	t       *testing.T
-	home    string
-	wcRoot  string
-	runRoot string
-	repos   *database.Repositories
-	events  event.Store
-	svc     *orchestration.Orchestrator
-	index   *orchestration.TranscriptIndex
-	now     time.Time
-	recall  int64
+	t             *testing.T
+	db            *database.DB
+	home          string
+	wcRoot        string
+	runRoot       string
+	openCodeDB    string
+	openCodeCache string
+	repos         *database.Repositories
+	events        event.Store
+	svc           *orchestration.Orchestrator
+	index         *orchestration.TranscriptIndex
+	now           time.Time
+	recall        int64
 }
 
 type failingTranscriptListStore struct {
@@ -53,15 +57,16 @@ func (s failingTranscriptListStore) ListTranscriptFiles(context.Context) ([]tran
 
 func newRig(t *testing.T, recall int64) *rig {
 	t.Helper()
-	repos, events, cleanup := testutil.SetupTestRepos(t)
+	db, cleanup := testutil.SetupTestDB(t)
 	t.Cleanup(cleanup)
+	repos, events, _ := testutil.SetupTestReposWithDB(t, db)
 	registry := runner.NewRegistry()
-	for _, codec := range []runner.Runner{runnercore.NewRunner(codecs.NewCodexForTest(), nil, nil), runnercore.NewRunner(codecs.NewClaudeForTest(), nil, nil)} {
+	for _, codec := range []runner.Runner{runnercore.NewRunner(codecs.NewCodexForTest(), nil, nil), runnercore.NewRunner(codecs.NewClaudeForTest(), nil, nil), runnercore.NewRunner(codecs.NewGrokForTest(), nil, nil), runnercore.NewRunner(codecs.NewOpenCodeForTest(), nil, nil)} {
 		if err := registry.Register(codec); err != nil {
 			t.Fatal(err)
 		}
 	}
-	r := &rig{t: t, home: t.TempDir(), runRoot: t.TempDir(), repos: repos, events: events, now: time.Now(), recall: recall}
+	r := &rig{t: t, db: db, home: t.TempDir(), runRoot: t.TempDir(), openCodeDB: filepath.Join(t.TempDir(), "opencode", "opencode.db"), openCodeCache: filepath.Join(t.TempDir(), "opencode-cache"), repos: repos, events: events, now: time.Now(), recall: recall}
 	r.wcRoot = webConsoleCodexRootFor(t, r.home, nil)
 	r.svc = orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, orchestration.WithEvents(events), orchestration.WithRunners(registry),
 		orchestration.WithRunStateRoot(r.runRoot), orchestration.WithInvocationReadModel(repos.InvocationReadModel),
@@ -70,6 +75,41 @@ func newRig(t *testing.T, recall int64) *rig {
 	r.svc.SetConversationSearchNotifier(func(context.Context, string, string, string) error { return nil })
 	r.restart()
 	return r
+}
+
+func TestGrokNativeACPTranscriptIsIndexedThroughSharedDiscovery(t *testing.T) {
+	r := newRig(t, transcriptindex.DefaultRecallMaxBytes)
+	path := filepath.Join(r.home, ".grok", "sessions", "workspace-hash", "session-42", "updates.jsonl")
+	write(t, path,
+		`{"method":"session/update","params":{"sessionId":"session-42","update":{"sessionUpdate":"user_message_chunk","content":{"type":"text","text":"What did I ask you to preserve?"}}}}`,
+		`{"method":"session/update","params":{"sessionId":"session-42","update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"Preserve the exact operator stance."}}}}`,
+		`{"method":"session/update","params":{"sessionId":"session-42","update":{"sessionUpdate":"turn_completed"}}}`,
+	)
+
+	summary := r.tick()
+	if summary.Discovered != 1 || summary.Read != 1 {
+		t.Fatalf("Grok indexing summary = %+v", summary)
+	}
+	row := r.row(path)
+	if row.Harness != transcriptindex.HarnessGrok || row.SessionID != "session-42" || row.Status != transcriptindex.StatusIndexed {
+		t.Fatalf("Grok transcript row = %+v", row)
+	}
+	stored, err := r.events.Get(context.Background(), uuid.MustParse(row.RunID), event.GetOptions{AfterSequence: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var user, assistant bool
+	for _, item := range stored {
+		message, ok := item.Data.(*domain.MessageEventData)
+		if !ok {
+			continue
+		}
+		user = user || message.Role == "user" && message.Content == "What did I ask you to preserve?"
+		assistant = assistant || message.Role == "assistant" && message.Content == "Preserve the exact operator stance."
+	}
+	if !user || !assistant {
+		t.Fatalf("indexed Grok messages user=%v assistant=%v events=%#v", user, assistant, stored)
+	}
 }
 
 func TestBackgroundStartReportsTranscriptIndexFailures(t *testing.T) {
@@ -103,7 +143,7 @@ func TestBackgroundStartReportsTranscriptIndexFailures(t *testing.T) {
 // session homes as the storage authority places them under that home, and
 // its run-state root.
 func (r *rig) roots() transcriptindex.RootConfig {
-	return transcriptindex.RootConfig{Home: r.home, WebConsoleCodexRoot: r.wcRoot, RunStateRoot: r.runRoot}
+	return transcriptindex.RootConfig{Home: r.home, WebConsoleCodexRoot: r.wcRoot, RunStateRoot: r.runRoot, OpenCodeArchiveDB: r.openCodeDB, OpenCodeArchiveRoot: opencodearchive.CacheDirectory(r.openCodeDB, r.openCodeCache), CursorStateRoot: filepath.Join(r.home, ".cursor", "User", "workspaceStorage")}
 }
 
 // webConsoleCodexRootFor resolves web-console's session Codex root through

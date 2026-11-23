@@ -22,13 +22,15 @@ import (
 	"agent-manager/internal/transcriptindex"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/cli-core/agenttranscript"
 )
 
 // ImportTranscriptRequest captures one harness transcript file on demand.
 // The file is read in place by the Transcript Indexer; Label applies when the
-// transcript carries no harness title. SourceHarness and SourceSessionID are
-// accepted for compatibility with callers but provenance now comes from the
-// file itself.
+// transcript carries no harness title. SourceHarness can add caller-declared
+// scope to the import policy decision; durable provenance still comes from
+// the file itself. SourceSessionID is accepted for compatibility but does not
+// override file identity.
 type ImportTranscriptRequest struct {
 	Path            string
 	RunnerType      domain.RunnerType
@@ -49,111 +51,61 @@ var importedTranscriptTaskID = uuid.NewSHA1(uuid.NameSpaceURL, []byte("agent-man
 // itself (runner.Consume) reads with an unbounded bufio.Reader and is unaffected.
 const importTranscriptMaxLineBytes = 64 << 20
 
+// transcriptLabelEvidence is what a transcript offers for naming its run.
+// Source is the excerpt a title generator reads when neither a harness title
+// nor an operator prompt exists: one plain-text line per conversation message,
+// in transcript order.
 type transcriptLabelEvidence struct {
 	HarnessTitle string
 	UserPrompt   string
 	Source       string
 }
 
-func readTranscriptLabelEvidence(source io.Reader) (transcriptLabelEvidence, error) {
-	scanner := bufio.NewScanner(source)
-	scanner.Buffer(make([]byte, 64*1024), importTranscriptMaxLineBytes)
-	var evidence transcriptLabelEvidence
-	const maxSourceBytes = 64 * 1024
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		if len(evidence.Source) < maxSourceBytes {
-			remaining := maxSourceBytes - len(evidence.Source)
-			if len(line) > remaining {
-				line = line[:remaining]
-			}
-			evidence.Source += string(line) + "\n"
-		}
-		var value any
-		if json.Unmarshal(scanner.Bytes(), &value) != nil {
-			continue
-		}
-		if evidence.HarnessTitle == "" {
-			evidence.HarnessTitle = findTranscriptString(value, func(object map[string]any) (string, bool) {
-				typeName, _ := object["type"].(string)
-				if typeName != "ai-title" {
-					return "", false
-				}
-				title, _ := object["aiTitle"].(string)
-				return strings.TrimSpace(title), strings.TrimSpace(title) != ""
-			})
-		}
-		if evidence.UserPrompt == "" {
-			// Keep scanning past harness-injected preambles. Codex writes its
-			// instructions block as the first user-role record, so accepting
-			// the first user text verbatim labelled thousands of runs with the
-			// same AGENTS.md boilerplate instead of the operator's request.
-			if candidate := findTranscriptString(value, transcriptUserText); !domain.IsInjectedContextText(candidate) {
-				evidence.UserPrompt = candidate
+// A title needs the task and the agent's first replies. Transcripts open with
+// tens of kilobytes of setup (session metadata, tool schemas, instruction
+// files), so the excerpt keeps message text only and stops at titleSourceBytes,
+// about 1,500 tokens.
+const (
+	titleSourceBytes     = 6 * 1024
+	titleSourceItemBytes = 600
+)
+
+func agentManagerTranscriptEvidenceOptions(markers runner.GoalMarkerProvider, maxLineBytes, goalMaxLineBytes int, labels, goals bool) agenttranscript.TranscriptEvidenceOptions {
+	options := agenttranscript.TranscriptEvidenceOptions{
+		ExtractLabels:     labels,
+		MaxLineBytes:      maxLineBytes,
+		GoalMaxLineBytes:  goalMaxLineBytes,
+		TitleSourceBytes:  titleSourceBytes,
+		TitleItemBytes:    titleSourceItemBytes,
+		UserPromptBytes:   140,
+		IsInjectedContext: domain.IsInjectedContextText,
+	}
+	if goals {
+		options.GoalPreambleMinBytes = 40
+		if markers != nil {
+			options.ParseGoalStatusLine = func(line string) (string, string, bool) {
+				marker, ok := markers.GoalStatusFromTranscriptLine(line)
+				return marker.Objective, string(marker.Status), ok
 			}
 		}
 	}
-	if err := scanner.Err(); err != nil {
+	return options
+}
+
+func extractAgentManagerTranscriptEvidence(source io.Reader, markers runner.GoalMarkerProvider, maxLineBytes, goalMaxLineBytes int, labels, goals bool) (agenttranscript.TranscriptEvidence, error) {
+	return agenttranscript.ExtractTranscriptEvidence(source, agentManagerTranscriptEvidenceOptions(markers, maxLineBytes, goalMaxLineBytes, labels, goals))
+}
+
+func transcriptLabelEvidenceFromShared(evidence agenttranscript.TranscriptEvidence) transcriptLabelEvidence {
+	return transcriptLabelEvidence{HarnessTitle: evidence.HarnessTitle, UserPrompt: evidence.UserPrompt, Source: evidence.TitleSource}
+}
+
+func readTranscriptLabelEvidence(source io.Reader) (transcriptLabelEvidence, error) {
+	evidence, err := extractAgentManagerTranscriptEvidence(source, nil, importTranscriptMaxLineBytes, importTranscriptMaxLineBytes, true, false)
+	if err != nil {
 		return transcriptLabelEvidence{}, err
 	}
-	return evidence, nil
-}
-
-func findTranscriptString(value any, match func(map[string]any) (string, bool)) string {
-	switch item := value.(type) {
-	case map[string]any:
-		if result, ok := match(item); ok {
-			return result
-		}
-		for _, child := range item {
-			if result := findTranscriptString(child, match); result != "" {
-				return result
-			}
-		}
-	case []any:
-		for _, child := range item {
-			if result := findTranscriptString(child, match); result != "" {
-				return result
-			}
-		}
-	}
-	return ""
-}
-
-func transcriptUserText(object map[string]any) (string, bool) {
-	if role, _ := object["role"].(string); !strings.EqualFold(strings.TrimSpace(role), "user") {
-		if typeName, _ := object["type"].(string); typeName != "user_message" {
-			return "", false
-		}
-	}
-	for _, key := range []string{"content", "message", "text", "prompt"} {
-		if text := normalizeTranscriptText(object[key]); text != "" {
-			return shortenTranscriptLabel(text), true
-		}
-	}
-	return "", false
-}
-
-func normalizeTranscriptText(value any) string {
-	switch item := value.(type) {
-	case string:
-		return strings.Join(strings.Fields(item), " ")
-	case []any:
-		parts := make([]string, 0, len(item))
-		for _, child := range item {
-			if text := normalizeTranscriptText(child); text != "" {
-				parts = append(parts, text)
-			}
-		}
-		return strings.Join(parts, " ")
-	case map[string]any:
-		for _, key := range []string{"text", "content", "value", "message"} {
-			if text := normalizeTranscriptText(item[key]); text != "" {
-				return text
-			}
-		}
-	}
-	return ""
+	return transcriptLabelEvidenceFromShared(evidence), nil
 }
 
 func shortenTranscriptLabel(value string) string {
@@ -178,11 +130,13 @@ func (o *Orchestrator) resolveImportedLabel(ctx context.Context, req ImportTrans
 		return evidence.UserPrompt, domain.RunLabelSourceDerived
 	}
 
-	if o.labelGenerator != nil {
+	// With no conversation text there is nothing to name; a generated title
+	// would only restate the setup boilerplate.
+	if o.labelGenerator != nil && strings.TrimSpace(evidence.Source) != "" {
 		response, err := o.labelGenerator.Extract(ctx, structuredresult.ExtractRequest{
 			Source:        evidence.Source,
 			Schema:        json.RawMessage(`{"type":"string","minLength":1,"maxLength":160}`),
-			Instruction:   "Create a concise human-readable title for this coding-agent session. Return only the title.",
+			Instruction:   "Create a concise human-readable title naming the task in this coding-agent session excerpt. Leave out session IDs and agent names. Return only the title.",
 			PrivacyClass:  structuredresult.RunOutputPrivacyClass,
 			PrivacySource: "agent_manager.imported_agent_transcript",
 		})
@@ -236,6 +190,9 @@ func (o *Orchestrator) ImportTranscript(ctx context.Context, req ImportTranscrip
 	}
 	if transcriptindex.Family(harness) == transcriptindex.HarnessConfigured && req.RunnerType != "" {
 		harness = string(req.RunnerType)
+	}
+	if policyHarness := strings.TrimSpace(req.SourceHarness); policyHarness != "" {
+		ctx = context.WithValue(ctx, importPolicyHarnessContextKey{}, policyHarness)
 	}
 	runID, err := o.transcriptIndex.IndexPath(ctx, path, harness)
 	if errors.Is(err, transcriptindex.ErrExcluded) {
@@ -496,84 +453,24 @@ func fileExists(path string) bool {
 }
 
 func transcriptGoalMetadata(source io.Reader, providers ...runner.GoalMarkerProvider) (string, string) {
-	scanner := bufio.NewScanner(source)
-	scanner.Buffer(make([]byte, 4096), 4<<20)
-	var preamble string
-	for scanner.Scan() {
-		if len(providers) > 0 && providers[0] != nil {
-			if marker, ok := providers[0].GoalStatusFromTranscriptLine(scanner.Text()); ok {
-				goalID := uuid.NewSHA1(uuid.NameSpaceURL, []byte("agent-manager/goal/"+marker.Objective)).String()
-				return goalID, string(marker.Status)
-			}
-		}
-		var value any
-		if json.Unmarshal(scanner.Bytes(), &value) != nil {
-			continue
-		}
-		if preamble == "" {
-			preamble = findGoalPreamble(value)
-		}
+	var markers runner.GoalMarkerProvider
+	if len(providers) > 0 {
+		markers = providers[0]
 	}
-	if preamble != "" {
-		goalID := uuid.NewSHA1(uuid.NameSpaceURL, []byte("agent-manager/goal-preamble/"+preamble)).String()
+	evidence, _ := extractAgentManagerTranscriptEvidence(source, markers, 4<<20, 4<<20, false, true)
+	return transcriptGoalMetadataFromShared(evidence)
+}
+
+func transcriptGoalMetadataFromShared(evidence agenttranscript.TranscriptEvidence) (string, string) {
+	if evidence.GoalMarkerFound {
+		goalID := uuid.NewSHA1(uuid.NameSpaceURL, []byte("agent-manager/goal/"+evidence.GoalMarkerObjective)).String()
+		return goalID, evidence.GoalMarkerStatus
+	}
+	if evidence.GoalPreamble != "" {
+		goalID := uuid.NewSHA1(uuid.NameSpaceURL, []byte("agent-manager/goal-preamble/"+evidence.GoalPreamble)).String()
 		return goalID, "unmet"
 	}
 	return "", ""
-}
-
-// findGoalPreamble recovers a stable cohort key when an external transcript
-// has no explicit goal_status record. Only a normalized hash is returned;
-// prompt text never enters the run metadata or analytical read model.
-func findGoalPreamble(value any) string {
-	object, ok := value.(map[string]any)
-	if !ok {
-		if array, ok := value.([]any); ok {
-			for _, child := range array {
-				if preamble := findGoalPreamble(child); preamble != "" {
-					return preamble
-				}
-			}
-		}
-		return ""
-	}
-	role, _ := object["role"].(string)
-	if strings.EqualFold(strings.TrimSpace(role), "user") {
-		for _, key := range []string{"content", "message", "text", "prompt"} {
-			if text := normalizeGoalText(object[key]); len(text) >= 40 {
-				return text
-			}
-		}
-	}
-	for _, child := range object {
-		if preamble := findGoalPreamble(child); preamble != "" {
-			return preamble
-		}
-	}
-	return ""
-}
-
-func normalizeGoalText(value any) string {
-	var text string
-	switch value := value.(type) {
-	case string:
-		text = value
-	case []any:
-		parts := make([]string, 0, len(value))
-		for _, child := range value {
-			if part := normalizeGoalText(child); part != "" {
-				parts = append(parts, part)
-			}
-		}
-		text = strings.Join(parts, " ")
-	case map[string]any:
-		for _, key := range []string{"text", "content", "value"} {
-			if part := normalizeGoalText(value[key]); part != "" {
-				text = part
-				break
-			}
-		}
-	}
-	return strings.Join(strings.Fields(text), " ")
 }
 
 // ensureImportedTranscriptTask creates one durable, clearly labelled task for

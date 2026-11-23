@@ -239,6 +239,23 @@ func TestForecastGroupsJitteredResetTimesIntoOneWindow(t *testing.T) {
 	}
 }
 
+// Provider reset timestamps are truncated to the minute. A reading observed
+// within that minute can still belong to the old window; Windows deliberately
+// accepts it through ResetAt+1m, so Current must not discard its percent at
+// the truncated timestamp.
+func TestForecastKeepsReadingInsideTruncatedResetMinute(t *testing.T) {
+	reset := at("2026-10-29T10:10:00Z")
+	observed := reset.Add(20 * time.Second)
+	readings := []pricing.QuotaReadingSpan{
+		claudeSpan("five_hour", reset.Add(-10*time.Minute), 40, reset.Unix()),
+		claudeSpan("five_hour", observed, 42, reset.Unix()),
+	}
+	f := onlyForecast(t, readings, reset.Add(40*time.Second))
+	if f.Expired || f.Used != 42 || !f.AsOf.Equal(observed) {
+		t.Fatalf("reading inside the timestamp's grace minute was discarded: expired=%v used=%v asOf=%v", f.Expired, f.Used, f.AsOf)
+	}
+}
+
 func TestForecastReportsStandingOnlyWindowsFromStanding(t *testing.T) {
 	now := at("2026-10-29T12:00:00Z")
 	reset := now.Add(3 * time.Hour)

@@ -6,6 +6,7 @@ import (
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	inferenceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference/inference_v1connect"
 
+	"ai-gateway/internal/identity"
 	"ai-gateway/internal/inference"
 	"ai-gateway/internal/module"
 )
@@ -13,14 +14,18 @@ import (
 var ProtoFile = inferencev1.File_ai_gateway_v1_inference_inference_proto
 
 type Deps struct {
-	Service *inference.Service
+	Service           *inference.Service
+	RunCallerVerifier RunCallerVerifier
 }
 
 func Module(deps Deps) module.Module {
 	if deps.Service == nil {
 		deps.Service = inference.NewService(nil)
 	}
-	connectPath, connectHandler := inferenceconnect.NewInferenceServiceHandler(NewConnectHandler(deps.Service))
+	if deps.RunCallerVerifier == nil {
+		deps.RunCallerVerifier = identity.NewLPBSConsumerProvider("")
+	}
+	connectPath, connectHandler := inferenceconnect.NewInferenceServiceHandler(NewConnectHandler(deps.Service, deps.RunCallerVerifier))
 	return module.Module{
 		Name: "inference",
 		Mount: func(r *mux.Router) {

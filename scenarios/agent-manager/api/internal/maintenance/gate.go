@@ -102,14 +102,32 @@ func (g *Gate) Admit(ctx context.Context) (func(), error) {
 }
 
 func (g *Gate) Enter(ctx context.Context, owner, reason string) (State, error) {
+	return g.enterAtRevision(ctx, owner, reason, true, 0)
+}
+
+// enterForLifecycle lets Prepare distinguish an idempotent retry or an
+// explicitly authorized recovery from a fresh lifecycle request that found an
+// abandoned durable fence. The decision and durable read share g.mu so an open
+// fence cannot close between a status check and adoption.
+func (g *Gate) enterForLifecycle(ctx context.Context, owner, reason string, allowExistingClosed bool, expectedRevision int64) (State, error) {
+	return g.enterAtRevision(ctx, owner, reason, allowExistingClosed, expectedRevision)
+}
+
+func (g *Gate) enterAtRevision(ctx context.Context, owner, reason string, allowExistingClosed bool, expectedRevision int64) (State, error) {
 	if strings.TrimSpace(owner) == "" || strings.TrimSpace(reason) == "" {
 		return State{}, fmt.Errorf("maintenance requires an authenticated owner and reason")
 	}
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	state, err := g.store.Load(ctx)
-	if err != nil || state.Closed {
+	if err != nil {
 		return state, err
+	}
+	if state.Closed {
+		if allowExistingClosed && (expectedRevision == 0 || expectedRevision == state.Revision) {
+			return state, nil
+		}
+		return state, ErrClosed
 	}
 	next := State{Closed: true, Revision: state.Revision + 1, Owner: owner, Reason: reason}
 	if err := g.store.Save(ctx, next, state.Revision); err != nil {

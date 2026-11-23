@@ -622,54 +622,6 @@ func TestNewProgressEvent(t *testing.T) {
 // RUN PHASE TESTS
 // =============================================================================
 
-func TestRunPhase_CanResumeFromPhase(t *testing.T) {
-	tests := []struct {
-		phase  RunPhase
-		expect bool
-	}{
-		{RunPhaseQueued, true},
-		{RunPhaseInitializing, true},
-		{RunPhaseSandboxCreating, true},
-		{RunPhaseRunnerAcquiring, true},
-		{RunPhaseExecuting, true},
-		{RunPhaseCollectingResults, false},
-		{RunPhaseAwaitingReview, false},
-		{RunPhaseApplying, false},
-		{RunPhaseCleaningUp, false},
-		{RunPhaseCompleted, false},
-	}
-
-	for _, tt := range tests {
-		t.Run(string(tt.phase), func(t *testing.T) {
-			got := tt.phase.CanResumeFromPhase()
-			if got != tt.expect {
-				t.Errorf("CanResumeFromPhase() = %v, want %v", got, tt.expect)
-			}
-		})
-	}
-}
-
-func TestRunPhase_IsTerminal(t *testing.T) {
-	tests := []struct {
-		phase  RunPhase
-		expect bool
-	}{
-		{RunPhaseQueued, false},
-		{RunPhaseExecuting, false},
-		{RunPhaseAwaitingReview, false},
-		{RunPhaseCompleted, true},
-	}
-
-	for _, tt := range tests {
-		t.Run(string(tt.phase), func(t *testing.T) {
-			got := tt.phase.IsTerminal()
-			if got != tt.expect {
-				t.Errorf("IsTerminal() = %v, want %v", got, tt.expect)
-			}
-		})
-	}
-}
-
 func TestRunPhase_Description(t *testing.T) {
 	tests := []struct {
 		phase       RunPhase

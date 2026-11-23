@@ -201,9 +201,23 @@ func LinkWorkUnits(runs []RunFacts) map[string]Assignment {
 			byConsole[run.WebConsoleSession] = lastSeen{run.RunID, at}
 		}
 	}
-	// A unit is named by its earliest run, which union keeps as the root.
+	// Union's internal root follows link direction. A child may sort before its
+	// parent, so canonicalize the public identity from the earliest run instead.
+	earliest := make(map[string]string, len(units))
+	for id := range out {
+		root := find(id)
+		current, ok := earliest[root]
+		if !ok {
+			earliest[root] = id
+			continue
+		}
+		at, currentAt := runTime(byID[id]), runTime(byID[current])
+		if at.Before(currentAt) || (at.Equal(currentAt) && id < current) {
+			earliest[root] = id
+		}
+	}
 	for id, assignment := range out {
-		assignment.WorkUnitID = find(id)
+		assignment.WorkUnitID = earliest[find(id)]
 		out[id] = assignment
 	}
 	return out

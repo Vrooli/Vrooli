@@ -10,9 +10,11 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 	"time"
 
+	"ai-gateway/internal/catalog"
 	internalrouting "ai-gateway/internal/routing"
 
 	"github.com/gorilla/mux"
@@ -37,6 +39,10 @@ func TestJourneyGatewayServer(t *testing.T) {
 	if _, err := db.Exec(internalrouting.Schema()); err != nil {
 		t.Fatal(err)
 	}
+	if os.Getenv("VROOLI_JOURNEY_MULTI_SUPPLIER") == "1" {
+		serveJourneyMultiSupplierFixture(t, db, upstream)
+		return
+	}
 	// J12 must cross the production Hub boundary. A missing human decision
 	// remains a refusal; this mode never constructs an approval fixture.
 	if os.Getenv("VROOLI_JOURNEY_REAL_DECISIONS") == "1" {
@@ -45,6 +51,51 @@ func TestJourneyGatewayServer(t *testing.T) {
 			t.Fatal(err)
 		}
 		source := internalrouting.ResourcePolicySource{Root: root, Hub: internalrouting.NewDefaultProviderDecisionHubClient()}
+		serveJourneyGateway(t, db, source)
+		return
+	}
+	if os.Getenv("VROOLI_JOURNEY_EMBEDDED_CATALOG_ONLY") == "1" {
+		// Exercise the packaged provider declarations with no synthetic route
+		// or decision overlay. The LPBS chooser should remain empty and fail
+		// closed while the embedded or artifact-extracted candidate catalog is
+		// present. The optional file path is supplied only by the scenario-to-
+		// cloud AC2 artifact integration journey.
+		source := internalrouting.NewPackagedResourcePolicySource(nil)
+		if catalogPath := os.Getenv("VROOLI_JOURNEY_PACKAGED_CATALOG_FILE"); catalogPath != "" {
+			catalogBytes, err := os.ReadFile(catalogPath)
+			if err != nil {
+				t.Fatalf("read provider catalog extracted from production artifact: %v", err)
+			}
+			var packaged catalog.Bundle
+			if err := json.Unmarshal(catalogBytes, &packaged); err != nil {
+				t.Fatalf("decode provider catalog extracted from production artifact: %v", err)
+			}
+			source = internalrouting.ResourcePolicySource{Catalog: &packaged}
+		}
+		snapshot, err := source.Snapshot(context.Background(), "ac2-embedded-catalog-only")
+		if err != nil {
+			t.Fatalf("load packaged supplier catalog into production policy source: %v", err)
+		}
+		candidateIDs := journeyAC2CandidateIDs(t)
+		candidateSet := make(map[string]bool, len(candidateIDs))
+		for _, id := range candidateIDs {
+			candidateSet[id] = true
+		}
+		seenCandidates := make(map[string]bool, len(candidateIDs))
+		modelRecords := 0
+		for _, record := range snapshot.Records {
+			if !candidateSet[record.Supplier] {
+				continue
+			}
+			seenCandidates[record.Supplier] = true
+			modelRecords += len(record.Models)
+			if record.Terms.Review.Status != "proposed" {
+				t.Errorf("packaged candidate %q status = %q; want proposal-only", record.Supplier, record.Terms.Review.Status)
+			}
+		}
+		if len(seenCandidates) != 19 || modelRecords != 78 || len(snapshot.Routes) != 0 || len(snapshot.Agreements) != 0 {
+			t.Fatalf("packaged candidate snapshot = %d providers, %d model records, %d routes, %d agreements; want 19/78/0/0", len(seenCandidates), modelRecords, len(snapshot.Routes), len(snapshot.Agreements))
+		}
 		serveJourneyGateway(t, db, source)
 		return
 	}
@@ -140,6 +191,138 @@ func TestJourneyGatewayServer(t *testing.T) {
 		return policy.VerifyProviderDecisionReceipt(expected, decisions[scope+"|"+ref+"|"+digest], time.Now()) == nil
 	}}
 	serveJourneyGateway(t, db, source)
+}
+
+// serveJourneyMultiSupplierFixture adds the current AC2 candidate identities
+// as synthetic approved, recorded-shape suppliers with one shared model plus
+// a candidate-specific model per supplier and distinct quotes. This is
+// test-only eligibility; no real provider API is called and no draft supplier
+// declaration is modified.
+func serveJourneyMultiSupplierFixture(t *testing.T, db *sql.DB, upstream string) {
+	root := t.TempDir()
+	if configuredRoot := os.Getenv("VROOLI_JOURNEY_MULTI_SUPPLIER_ROOT"); configuredRoot != "" {
+		root = configuredRoot
+		if err := os.MkdirAll(root, 0o700); err != nil {
+			t.Fatalf("create shared multi-supplier fixture root: %v", err)
+		}
+	}
+	now := time.Now().UTC()
+	identityKind := "verified_human"
+	if os.Getenv("VROOLI_JOURNEY_DECISION_ACTOR") == "agent" {
+		identityKind = "agent"
+	}
+	decisions := map[string]policy.ProviderDecisionReceipt{}
+	addDecision := func(ref, digest, scope string) {
+		decisions[scope+"|"+ref+"|"+digest] = policy.ProviderDecisionReceipt{Source: "ai-gateway", EventType: policy.ProviderDecisionEventType, Requester: ref, EventID: ref, CanonicalTermsSHA256: digest, Scope: scope, State: "answered", Answer: "approve", AnsweredByIdentityKind: identityKind, AnsweredByIdentitySource: "immutable-fixture", CreatedAt: now.Add(-time.Hour).Format(time.RFC3339Nano), AnsweredAt: now.Add(-time.Minute).Format(time.RFC3339Nano), Deadline: now.Add(time.Hour).Format(time.RFC3339Nano)}
+	}
+	candidateIDs := journeyAC2CandidateIDs(t)
+	for index, candidateID := range candidateIDs {
+		candidate := struct {
+			id    string
+			quote int64
+		}{id: "fixture-router-" + candidateID, quote: int64(2000 + index*100)}
+		if candidateID == "router-one" {
+			candidate.quote = 1000
+		}
+		terms := policy.ProviderTerms{PlanRules: []policy.PlanRule{{Plan: "fixture", AccessTier: policy.AccessTierGrant, UseClasses: map[policy.UseClass]policy.Permission{policy.UseBoundedFeature: policy.PermissionAllowed, policy.UseInApp: policy.PermissionAllowed, policy.UseHarnessAccess: policy.PermissionAllowed}}}, Evidence: policy.Evidence{URL: "https://fixture.invalid/terms/" + candidate.id}, Review: policy.Review{Status: policy.ReviewApproved, DecisionRef: "fixture-human-approved-" + candidate.id}, EffectiveFrom: "2026-01-01", ExpiresAt: "2030-01-01", OnExpiry: "deny", Downstream: policy.DownstreamRules{DataCollection: "deny", PinnedHosts: []string{"fixture-host"}}}
+		if os.Getenv("VROOLI_JOURNEY_RULE_STATUS") == "proposed" {
+			terms.Review.Status = policy.ReviewProposed
+		}
+		allowed := true
+		modelIDs := []string{"fixture-model", "fixture-model-" + candidateID}
+		agreement, err := policy.NewVerifiedAgreement(policy.Agreement{Supplier: candidate.id, Models: modelIDs, UseClasses: []policy.UseClass{policy.UseHarnessAccess}, DecisionRef: "fixture-human-approved-" + candidate.id, Trust: policy.TrustDecision{CustomerCodeAllowed: &allowed, DecisionRef: "fixture-human-approved-" + candidate.id}}, func(ref string) bool { return ref == "fixture-human-approved-"+candidate.id })
+		if err != nil {
+			t.Fatal(err)
+		}
+		routes := make([]policy.Route, 0, len(modelIDs)*5)
+		for _, modelID := range modelIDs {
+			baseRoute := policy.Route{ID: candidate.id + "-" + modelID, Supplier: candidate.id, Plan: "fixture", Model: modelID, Endpoint: "chat", Profile: "balanced", QuoteRef: candidate.id + "-price", QuotedCredits: candidate.quote, StreamQuote: policy.StreamQuote{MaxInputBytes: 1 << 20, MaxOutputTokens: 65536, MaxCostMicros: 2, TokenLimitField: "max_tokens"}}
+			for _, harness := range []string{"opencode", "codex", "claude-code", "grok", "antigravity"} {
+				route := baseRoute
+				route.ID += "-" + harness
+				route.Harness = harness
+				routes = append(routes, route)
+			}
+		}
+		modelRules := map[string]policy.ModelRule{}
+		if os.Getenv("VROOLI_JOURNEY_DENY_MODEL_LICENCE") == "1" {
+			commercial := false
+			modelRules["fixture-model"] = policy.ModelRule{LicenceCommercialUse: &commercial}
+		}
+		ruleDigest, err := policy.ProviderRuleDigest(candidate.id, terms, modelRules)
+		if err != nil {
+			t.Fatal(err)
+		}
+		agreementDigest, err := policy.ProviderAgreementDigest(agreement)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for scope, digest := range map[string]string{policy.ProviderDecisionScopeRule: ruleDigest, policy.ProviderDecisionScopeAgreement: agreementDigest} {
+			addDecision(terms.Review.DecisionRef, digest, scope)
+		}
+		for _, harness := range []string{"opencode", "codex", "claude-code", "grok", "antigravity"} {
+			launcherAllowed := harness != "claude-code" || os.Getenv("VROOLI_JOURNEY_CLAUDE_CREDITS") == "1"
+			if harness == "antigravity" {
+				launcherAllowed = os.Getenv("VROOLI_JOURNEY_ANTIGRAVITY_CREDITS") == "1"
+			}
+			source := policy.HarnessBillingSource{ID: "vrooli-credits", LauncherConfigAllowed: &launcherAllowed, CustomerConfigAllowed: policy.PermissionAllowed, Review: policy.Review{Status: policy.ReviewApproved, DecisionRef: "fixture-harness-" + harness}}
+			digest, err := policy.HarnessBillingSourceDigest(harness, source)
+			if err != nil {
+				t.Fatal(err)
+			}
+			addDecision(source.Review.DecisionRef, digest, policy.ProviderDecisionScopeRule)
+			if os.Getenv("VROOLI_JOURNEY_HARNESS_DENIED") == harness {
+				source.Review.Status = policy.ReviewPending
+			}
+			path := filepath.Join(root, "resources", harness)
+			if err := os.MkdirAll(path, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			data, _ := json.Marshal(map[string]any{"billing": map[string]any{"sources": []policy.HarnessBillingSource{source}}})
+			if err := os.WriteFile(filepath.Join(path, "model-policy.json"), data, 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		dir := filepath.Join(root, "resources", candidate.id)
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		catalog := map[string]any{"provider": map[string]any{"id": candidate.id, "terms": terms, "hosted_routes": routes, "agreements": []policy.Agreement{agreement}}, "models": map[string]policy.Model{}}
+		encoded, _ := json.Marshal(catalog)
+		if err := os.WriteFile(filepath.Join(dir, "model-policy.json"), encoded, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		encoded, _ = json.Marshal(map[string]any{"endpoint": upstream + "/models"})
+		if err := os.WriteFile(filepath.Join(dir, "resource.json"), encoded, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	source := internalrouting.ResourcePolicySource{Root: root, VerifyDecision: func(_ context.Context, ref, digest, scope string) bool {
+		expected := policy.ProviderDecisionReceipt{Source: "ai-gateway", EventType: policy.ProviderDecisionEventType, Requester: ref, CanonicalTermsSHA256: digest, Scope: scope}
+		return policy.VerifyProviderDecisionReceipt(expected, decisions[scope+"|"+ref+"|"+digest], time.Now()) == nil
+	}}
+	serveJourneyGateway(t, db, source)
+}
+
+func journeyAC2CandidateIDs(t *testing.T) []string {
+	t.Helper()
+	declarationDir := filepath.Join("..", "..", "..", "config", "suppliers")
+	declarations, err := os.ReadDir(declarationDir)
+	if err != nil {
+		t.Fatalf("read supplier declarations for LPBS journey fixture: %v", err)
+	}
+	ids := []string{"openrouter"} // Existing registry provider, not a supplier declaration.
+	for _, entry := range declarations {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+			continue
+		}
+		ids = append(ids, entry.Name()[:len(entry.Name())-len(filepath.Ext(entry.Name()))])
+	}
+	sort.Strings(ids)
+	if len(ids) != 19 {
+		t.Fatalf("LPBS journey candidate fixture contains %d candidates, want 19", len(ids))
+	}
+	return ids
 }
 
 func serveJourneyGateway(t *testing.T, db *sql.DB, source internalrouting.ResourcePolicySource) {

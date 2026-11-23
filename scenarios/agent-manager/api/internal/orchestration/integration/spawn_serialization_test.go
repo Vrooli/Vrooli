@@ -129,13 +129,11 @@ func TestSpawnDispatcher_SerializesBurst(t *testing.T) {
 	wg.Wait()
 
 	// Wait for every run to reach a terminal state.
-	for i, run := range runs {
+	for _, run := range runs {
 		if run == nil {
 			continue
 		}
-		if _, err := waitForTerminal(t, ctx, svc, run.ID, 15*time.Second); err != nil {
-			t.Fatalf("run %d: %v", i, err)
-		}
+		waitForCompletedRun(t, ctx, svc, run.ID, 15*time.Second)
 	}
 
 	// Final state: dispatcher must drain to zero.

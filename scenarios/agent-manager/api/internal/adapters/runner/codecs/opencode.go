@@ -20,12 +20,10 @@ package codecs
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -33,14 +31,13 @@ import (
 	"time"
 
 	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/adapters/runner/opencodearchive"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/fallback"
 	"github.com/vrooli/cli-core/agenttranscript"
 
 	"github.com/google/uuid"
-	coredb "github.com/vrooli/api-core/database"
 	opencodeversion "github.com/vrooli/vrooli/packages/opencode-version"
-	_ "modernc.org/sqlite"
 )
 
 // =============================================================================
@@ -168,7 +165,7 @@ func (c *OpenCode) ValidateContinuation(ctx context.Context, req runner.Continue
 	if logDir == "" {
 		return &domain.RunnerError{RunnerType: c.Type(), Operation: "session_readiness", Cause: errors.New("cannot resolve OpenCode native data directory")}
 	}
-	path := filepath.Join(filepath.Dir(logDir), "opencode.db")
+	path := opencodearchive.DatabasePathForEnv(req.Environment)
 	info, err := os.Stat(path)
 	if os.IsNotExist(err) {
 		return missing()
@@ -181,29 +178,18 @@ func (c *OpenCode) ValidateContinuation(ctx context.Context, req runner.Continue
 	}
 	readCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	dsn := (&url.URL{Scheme: "file", Path: path, RawQuery: "mode=ro"}).String()
-	db, err := coredb.Connect(readCtx, coredb.Config{
-		Driver:       coredb.DriverSQLite,
-		DSN:          dsn,
-		MaxOpenConns: 1,
-		MaxIdleConns: 1,
-	})
-	if err == nil {
-		defer db.Close()
-		var id string
-		table := c.capabilities().SessionTable
-		if table == "" {
-			table = "session"
-		}
-		err = db.QueryRowContext(readCtx, "SELECT id FROM "+table+" WHERE id = ?", req.SessionID).Scan(&id)
-		if errors.Is(err, sql.ErrNoRows) {
-			return missing()
-		}
+	table := c.capabilities().SessionTable
+	if table == "" {
+		table = "session"
 	}
+	exists, err := opencodearchive.SessionExists(readCtx, path, table, req.SessionID)
 	if err != nil {
 		// An unreadable/corrupt/unsupported store is uncertainty, not evidence
 		// that a replacement session is safe. Keep it distinct from expiry.
 		return &domain.RunnerError{RunnerType: c.Type(), Operation: "session_readiness", Cause: err}
+	}
+	if !exists {
+		return missing()
 	}
 	return nil
 }
@@ -779,11 +765,35 @@ type opencodeTranscriptParser struct {
 }
 
 func (p *opencodeTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line string) runner.TranscriptParseResult {
+	// OpenCode's durable archive is a different record shape from its live
+	// streaming events. Route {info, parts} records through the common dialect
+	// parser so Agent Manager indexing and other consumers share extraction.
+	if messages := agenttranscript.ParseMessages("opencode", []byte(line)); len(messages) > 0 {
+		result := runner.TranscriptParseResult{Timestamp: agenttranscript.ParseTimestamp([]byte(line))}
+		for _, message := range messages {
+			if result.Timestamp.IsZero() && !message.OccurredAt.IsZero() {
+				result.Timestamp = message.OccurredAt
+			}
+			if message.SessionID != "" {
+				p.state.sessionID = message.SessionID
+				result.SessionID = message.SessionID
+			}
+			event := domain.NewProviderMessageEvent(runID, message.Role, message.Text, domain.MessageEventData{
+				ProviderOrigin: "opencode", ProviderEventType: "session_message",
+				RawEvidenceRef: "opencode:session_message",
+			})
+			if !message.OccurredAt.IsZero() {
+				event.Timestamp = message.OccurredAt
+			}
+			result.Events = append(result.Events, event)
+		}
+		return result
+	}
 	events, err := p.codec.DecodeStreamLine(p.state, runID, line)
 	result := runner.TranscriptParseResult{
 		Events:    events,
 		SessionID: p.state.sessionID,
-		Timestamp: transcriptLineTimestamp(line),
+		Timestamp: agenttranscript.ParseTimestamp([]byte(line)),
 		Err:       err,
 	}
 
@@ -1203,21 +1213,11 @@ func openCodeLogDir() string {
 }
 
 func openCodeLogDirForEnv(env map[string]string) string {
-	base, overridden := env["XDG_DATA_HOME"]
-	if !overridden {
-		base = os.Getenv("XDG_DATA_HOME")
-	}
-	if base = strings.TrimSpace(base); base != "" {
-		return filepath.Join(base, "opencode", "log")
-	}
-	home, overridden := env["HOME"]
-	if !overridden {
-		home, _ = os.UserHomeDir()
-	}
-	if home == "" {
+	root := opencodearchive.DataDirectoryForEnv(env)
+	if root == "" {
 		return ""
 	}
-	return filepath.Join(home, ".local", "share", "opencode", "log")
+	return filepath.Join(root, "log")
 }
 
 func newestFile(dir, pattern string) (string, error) {

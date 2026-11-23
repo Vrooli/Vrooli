@@ -1,0 +1,60 @@
+{
+  "id": "uuapi",
+  "family": "openai-compatible",
+  "locality": "remote",
+  "endpoint": "",
+  "policy": {
+    "schema_version": "2026-11-22",
+    "provider": {
+      "id": "uuapi",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "invitation_only_channel_reseller_program_after_written_scope_review",
+            "access_tier": "unverified",
+            "use_classes": {
+              "own_account": "allowed",
+              "bounded_feature": "unverified",
+              "in_app": "unverified",
+              "harness_access": "unverified"
+            },
+            "conditions": [
+              "Official home describes an invitation-only channel reseller program, but no substantive service terms, privacy policy, reseller grant, commission schedule or legal counterparty terms were readable in this public review. Obtain complete current terms and executed written authorization; no default permission is inferred.",
+              "Resolve current plan, purchase/credit and account structure, reseller wallet/customer keys, exact eligibility and use rights, fee/commission/volume, currency/taxes, and quote before any supplier rule.",
+              "UU API is the advertised gateway and multi-channel supplier; actual serving providers on global nodes are not identified per model. Keep model publisher, serving provider and route separate; confirm provider terms/downstream model rights, exact customer-accessible model IDs and current live availability.",
+              "Homepage model counts differ (45+ vs 50+), and 90.7% availability/99.9% SLA are marketing claims without readable contract/SLA. Verify actual SLA, outages, rate limits, data/privacy, retention/trust and jurisdiction in governing terms.",
+              "All agreement, provider rule, model scope, trust and Vrooli customer pricing decisions remain human-only; activation denied."
+            ],
+            "clause": "Official homepage channel reseller program (invitation-only); service Terms and pricing page had no readable content in this pass",
+            "reason": "Official public home identifies an invitation-only reseller program with a reseller console and channel commissions, enough to retain a conditional diligence candidate. No grant, contract or legal/route scope could be verified."
+          }
+        ],
+        "evidence": {
+          "url": "https://uuapi.net/",
+          "document_date": "no visible date; footer © 2026",
+          "read_at": "2026-11-22"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-11-22",
+        "on_expiry": "deny"
+      },
+      "hosted_routes": [],
+      "agreements": []
+    },
+    "roles": {},
+    "models": {},
+    "research": {
+      "activation": "denied_until_readable_terms_invitation_approval_written_scope_serving_provider_model_rights_and_human_decisions_are_verified",
+      "source_scope": "public official pages only",
+      "not_an_operator_approval": true,
+      "model_reason": "Public examples show model publishers/families but do not identify actual per-model serving provider, downstream rights or account entitlement.",
+      "evidence": [
+        "https://uuapi.net/",
+        "https://uuapi.net/terms",
+        "https://uuapi.net/pricing"
+      ]
+    }
+  }
+}

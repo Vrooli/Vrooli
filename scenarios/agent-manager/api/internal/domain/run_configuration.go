@@ -928,6 +928,36 @@ const (
 	RunPhaseCompleted RunPhase = "completed"
 )
 
+// Ordinal returns the stable execution order of this phase. Unknown values
+// retain the zero default; callers that accept persisted data must validate
+// with IsValid before comparing ordinals.
+func (p RunPhase) Ordinal() int {
+	switch p {
+	case RunPhaseQueued:
+		return 0
+	case RunPhaseInitializing:
+		return 1
+	case RunPhaseSandboxCreating:
+		return 2
+	case RunPhaseRunnerAcquiring:
+		return 3
+	case RunPhaseExecuting:
+		return 4
+	case RunPhaseCollectingResults:
+		return 5
+	case RunPhaseAwaitingReview:
+		return 6
+	case RunPhaseApplying:
+		return 7
+	case RunPhaseCleaningUp:
+		return 8
+	case RunPhaseCompleted:
+		return 9
+	default:
+		return 0
+	}
+}
+
 // CanResumeFromPhase returns whether a run can be resumed from this phase.
 func (p RunPhase) CanResumeFromPhase() bool {
 	switch p {

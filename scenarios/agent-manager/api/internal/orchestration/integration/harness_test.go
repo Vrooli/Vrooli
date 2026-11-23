@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"context"
 	"sync"
 	"testing"
 	"time"
@@ -12,6 +13,8 @@ import (
 	"agent-manager/internal/orchestration"
 	base "agent-manager/internal/orchestration/testutil"
 	"agent-manager/internal/orchestration/testutil/mocks"
+
+	"github.com/google/uuid"
 )
 
 // fakeClock provides deterministic time for integration lifecycles without
@@ -44,6 +47,21 @@ type orchestratorHarness struct {
 	Broadcaster  *mocks.FakeBroadcaster
 	Clock        *fakeClock
 	Cleanup      func()
+}
+
+// waitForCompletedRun preserves the success contract for ordinary integration
+// runs. Reaching any terminal state is not sufficient for callers that are
+// exercising a successful orchestration path.
+func waitForCompletedRun(t *testing.T, ctx context.Context, svc *orchestration.Orchestrator, runID uuid.UUID, timeout time.Duration) *domain.Run {
+	t.Helper()
+	run, err := waitForTerminal(t, ctx, svc, runID, timeout)
+	if err != nil {
+		t.Fatalf("wait for run %s to complete: %v", runID, err)
+	}
+	if string(run.Status) != "complete" {
+		t.Fatalf("run %s status = %q, want complete; error=%q", runID, run.Status, run.ErrorMsg)
+	}
+	return run
 }
 
 func newOrchestratorHarness(t *testing.T) *orchestratorHarness {

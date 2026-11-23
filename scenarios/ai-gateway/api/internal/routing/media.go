@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"strings"
 	"time"
@@ -220,6 +221,11 @@ func (s *MediaService) run(ctx context.Context, id string, req *routingv1.Submit
 	result, err := s.executor.Execute(ctx, req)
 	if err != nil {
 		s.failWithResult(ctx, id, result, "executor_failed", err.Error())
+		if result != nil && result.RouteEvidence != nil {
+			s.recordRoute(ctx, result.RouteEvidence)
+		} else {
+			s.recordRoute(ctx, failedMediaRoute(req, s.now().Format(time.RFC3339Nano)))
+		}
 		return
 	}
 	if result == nil {
@@ -280,6 +286,33 @@ func (s *MediaService) persistMediaExecutionResult(ctx context.Context, id strin
 		int32(next.Status), completed,
 		marshalRouteEvidence(result.RouteEvidence), string(outputs), cost, known, result.ResolvedModel, result.Seed, marshalStrings(result.Warnings), id,
 		int32(routingv1.MediaExecutionStatus_MEDIA_EXECUTION_STATUS_RUNNING))
+	s.recordRoute(ctx, result.RouteEvidence)
+}
+
+// recordRoute adds a media execution to the route log every inference path
+// writes, so image generation is counted with its caller like text routes.
+// The media receipt stays the execution's own record; a failed log write is
+// reported but does not change the receipt.
+func (s *MediaService) recordRoute(ctx context.Context, ev *routingv1.RouteEvidence) {
+	if ev == nil {
+		return
+	}
+	if err := NewSQLRepository(s.db).Create(ctx, ev); err != nil {
+		log.Printf("media route event %s: %v", ev.GetEventId(), err)
+	}
+}
+
+// failedMediaRoute is the route event for a media execution that failed
+// before its executor reported evidence of its own.
+func failedMediaRoute(req *routingv1.SubmitMediaRequest, now string) *routingv1.RouteEvidence {
+	gateway := req.GetRequest()
+	return &routingv1.RouteEvidence{
+		EventId: newID("media-route"), RequestId: firstNonEmpty(gateway.GetRequestId(), newID("req")),
+		Scenario: strings.TrimSpace(gateway.GetScenario()), Operation: strings.TrimSpace(gateway.GetOperation()),
+		Role: strings.TrimSpace(gateway.GetRole()), TaskRole: strings.TrimSpace(firstNonEmpty(gateway.GetTaskRole(), gateway.GetRole())),
+		Profile: gateway.GetProfile(), PrivacyClass: gateway.GetPrivacyClass(), PrivacyProvenance: strings.TrimSpace(gateway.GetPrivacyProvenance()),
+		Status: "failed", FailureReasons: []string{failureReasonExecute}, CreatedAt: now,
+	}
 }
 
 func (s *MediaService) fail(ctx context.Context, id, code, message string) {

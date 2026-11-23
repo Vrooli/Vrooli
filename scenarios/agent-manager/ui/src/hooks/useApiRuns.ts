@@ -68,6 +68,9 @@ function buildRunConfigOverrides(run: RunFormData) {
   if (run.timeoutMinutes !== undefined) {
     payload.timeout = durationFromMinutes(run.timeoutMinutes);
   }
+  if (run.until !== undefined) {
+    payload.until = run.until;
+  }
   if (run.effort !== undefined) {
     payload.effort = run.effort;
   }
@@ -135,6 +138,7 @@ function hasInlineConfig(run: RunFormData): boolean {
     run.roleRef !== undefined ||
       run.maxTurns !== undefined ||
       run.timeoutMinutes !== undefined ||
+      run.until !== undefined ||
       run.effort !== undefined ||
       run.allowedTools !== undefined ||
       run.deniedTools !== undefined ||
@@ -183,6 +187,7 @@ export function useRuns(options?: { enabled?: boolean; limit?: number; origin?: 
         inlineConfig,
         idempotencyKey: run.idempotencyKey,
         prompt: run.prompt,
+        charterPath: run.charterPath,
         existingSandboxId: run.existingSandboxId,
         conversationId,
         parentRunId: run.parentRunId,

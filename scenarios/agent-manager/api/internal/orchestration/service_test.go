@@ -130,6 +130,16 @@ func mustCreateTask(t *testing.T, svc *orchestration.Orchestrator, ctx context.C
 	return created
 }
 
+func mustCreateRuns(t *testing.T, runs repository.RunRepository, ctx context.Context, taskID uuid.UUID, statuses ...domain.RunStatus) {
+	t.Helper()
+	for _, status := range statuses {
+		run := &domain.Run{ID: uuid.New(), TaskID: taskID, Status: status, RunMode: domain.RunModeInPlace, CreatedAt: time.Now(), UpdatedAt: time.Now()}
+		if err := runs.Create(ctx, run); err != nil {
+			t.Fatalf("create test run with status %s: %v", status, err)
+		}
+	}
+}
+
 func mustRegisterRunner(t *testing.T, registry runner.Registry, r runner.Runner) {
 	t.Helper()
 	if err := registry.Register(r); err != nil {
@@ -436,42 +446,82 @@ func TestOrchestrator_ListProfiles_Pagination(t *testing.T) {
 	}
 }
 
-func TestOrchestrator_GetProfile_NotFound(t *testing.T) {
-	svc := newTestOrchestrator(t)
-	ctx := context.Background()
-
-	profile, err := svc.GetProfile(ctx, uuid.New())
-	// Service returns NotFoundError for non-existent profiles
-	if err == nil {
-		t.Error("GetProfile should return error for non-existent profile")
+func TestOrchestratorMissingRecords(t *testing.T) {
+	type missingRecordCase struct {
+		name          string
+		invoke        func(*orchestration.Orchestrator, context.Context) (hasResult bool, err error)
+		wantErrorCode domain.ErrorCode
+		allowError    bool
 	}
-	if profile != nil {
-		t.Error("expected nil for non-existent profile")
+	cases := []missingRecordCase{
+		{name: "profile lookup", wantErrorCode: domain.ErrCodeNotFoundProfile, invoke: func(s *orchestration.Orchestrator, ctx context.Context) (bool, error) {
+			value, err := s.GetProfile(ctx, uuid.New())
+			return value != nil, err
+		}},
+		{name: "task lookup", wantErrorCode: domain.ErrCodeNotFoundTask, invoke: func(s *orchestration.Orchestrator, ctx context.Context) (bool, error) {
+			value, err := s.GetTask(ctx, uuid.New())
+			return value != nil, err
+		}},
+		{name: "profile deletion is idempotent", invoke: func(s *orchestration.Orchestrator, ctx context.Context) (bool, error) {
+			return false, s.DeleteProfile(ctx, uuid.New())
+		}},
+		{name: "run stop", wantErrorCode: domain.ErrCodeNotFoundRun, invoke: func(s *orchestration.Orchestrator, ctx context.Context) (bool, error) {
+			return false, s.StopRun(ctx, uuid.New())
+		}},
+		{name: "run lookup", wantErrorCode: domain.ErrCodeNotFoundRun, invoke: func(s *orchestration.Orchestrator, ctx context.Context) (bool, error) {
+			value, err := s.GetRun(ctx, uuid.New())
+			return value != nil, err
+		}},
+		{name: "tag lookup", wantErrorCode: domain.ErrCodeNotFoundRun, invoke: func(s *orchestration.Orchestrator, ctx context.Context) (bool, error) {
+			value, err := s.GetRunByTag(ctx, "nonexistent-tag")
+			return value != nil, err
+		}},
+		{name: "tag stop", wantErrorCode: domain.ErrCodeNotFoundRun, invoke: func(s *orchestration.Orchestrator, ctx context.Context) (bool, error) {
+			return false, s.StopRunByTag(ctx, "nonexistent-tag")
+		}},
+		{name: "approval", wantErrorCode: domain.ErrCodeNotFoundRun, invoke: func(s *orchestration.Orchestrator, ctx context.Context) (bool, error) {
+			value, err := s.ApproveRun(ctx, orchestration.ApproveRequest{RunID: uuid.New(), Actor: "test-user", CommitMsg: "Apply changes"})
+			return value != nil, err
+		}},
+		{name: "rejection", wantErrorCode: domain.ErrCodeNotFoundRun, invoke: func(s *orchestration.Orchestrator, ctx context.Context) (bool, error) {
+			return false, s.RejectRun(ctx, uuid.New(), "test-user", "Not acceptable")
+		}},
+		{name: "run events remain optional", allowError: true, invoke: func(s *orchestration.Orchestrator, ctx context.Context) (bool, error) {
+			values, err := s.GetRunEvents(ctx, uuid.New(), event.GetOptions{})
+			return len(values) != 0, err
+		}},
+		{name: "run diff", wantErrorCode: domain.ErrCodeNotFoundRun, invoke: func(s *orchestration.Orchestrator, ctx context.Context) (bool, error) {
+			value, err := s.GetRunDiff(ctx, uuid.New())
+			return value != nil, err
+		}},
+		{name: "resume", wantErrorCode: domain.ErrCodeNotFoundRun, invoke: func(s *orchestration.Orchestrator, ctx context.Context) (bool, error) {
+			value, err := s.ResumeRun(ctx, uuid.New())
+			return value != nil, err
+		}},
+		{name: "run progress", wantErrorCode: domain.ErrCodeNotFoundRun, invoke: func(s *orchestration.Orchestrator, ctx context.Context) (bool, error) {
+			value, err := s.GetRunProgress(ctx, uuid.New())
+			return value != nil, err
+		}},
+		{name: "stale runs are empty", invoke: func(s *orchestration.Orchestrator, ctx context.Context) (bool, error) {
+			values, err := s.ListStaleRuns(ctx, 5*time.Minute)
+			return len(values) != 0, err
+		}},
 	}
-}
 
-func TestOrchestrator_GetTask_NotFound(t *testing.T) {
-	svc := newTestOrchestrator(t)
-	ctx := context.Background()
-
-	task, err := svc.GetTask(ctx, uuid.New())
-	// Service returns NotFoundError for non-existent tasks
-	if err == nil {
-		t.Error("GetTask should return error for non-existent task")
-	}
-	if task != nil {
-		t.Error("expected nil for non-existent task")
-	}
-}
-
-func TestOrchestrator_DeleteProfile_NotFound(t *testing.T) {
-	svc := newTestOrchestrator(t)
-	ctx := context.Background()
-
-	// Delete non-existent profile should be idempotent
-	err := svc.DeleteProfile(ctx, uuid.New())
-	if err != nil {
-		t.Errorf("DeleteProfile should be idempotent: %v", err)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			svc := newTestOrchestrator(t)
+			result, err := tc.invoke(svc, context.Background())
+			if tc.wantErrorCode != "" && domain.GetErrorCode(err) != tc.wantErrorCode {
+				t.Fatalf("missing-record error code = %q, want %q (error: %v)", domain.GetErrorCode(err), tc.wantErrorCode, err)
+			}
+			if tc.wantErrorCode == "" && !tc.allowError && err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if result {
+				t.Fatal("missing-record operation returned a value")
+			}
+		})
 	}
 }
 
@@ -480,56 +530,6 @@ func TestOrchestrator_DeleteProfile_NotFound(t *testing.T) {
 // =============================================================================
 // [REQ:REQ-P0-004] Run Status Tracking
 // [REQ:REQ-P0-007] Approval Workflow
-
-// TestOrchestrator_StopRun_NotFound tests stopping a non-existent run.
-func TestOrchestrator_StopRun_NotFound(t *testing.T) {
-	svc := newTestOrchestrator(t)
-	ctx := context.Background()
-
-	err := svc.StopRun(ctx, uuid.New())
-	if err == nil {
-		t.Error("StopRun should return error for non-existent run")
-	}
-}
-
-// TestOrchestrator_GetRun_NotFound tests retrieving a non-existent run.
-func TestOrchestrator_GetRun_NotFound(t *testing.T) {
-	svc := newTestOrchestrator(t)
-	ctx := context.Background()
-
-	run, err := svc.GetRun(ctx, uuid.New())
-	if err == nil {
-		t.Error("GetRun should return error for non-existent run")
-	}
-	if run != nil {
-		t.Error("expected nil for non-existent run")
-	}
-}
-
-// TestOrchestrator_GetRunByTag_NotFound tests retrieving by non-existent tag.
-func TestOrchestrator_GetRunByTag_NotFound(t *testing.T) {
-	svc := newTestOrchestrator(t)
-	ctx := context.Background()
-
-	run, err := svc.GetRunByTag(ctx, "nonexistent-tag")
-	if err == nil {
-		t.Error("GetRunByTag should return error for non-existent tag")
-	}
-	if run != nil {
-		t.Error("expected nil for non-existent tag")
-	}
-}
-
-// TestOrchestrator_StopRunByTag_NotFound tests stopping by non-existent tag.
-func TestOrchestrator_StopRunByTag_NotFound(t *testing.T) {
-	svc := newTestOrchestrator(t)
-	ctx := context.Background()
-
-	err := svc.StopRunByTag(ctx, "nonexistent-tag")
-	if err == nil {
-		t.Error("StopRunByTag should return error for non-existent tag")
-	}
-}
 
 // TestOrchestrator_StopAllRuns_Empty tests stopping when no runs exist.
 func TestOrchestrator_StopAllRuns_Empty(t *testing.T) {
@@ -586,64 +586,6 @@ func TestOrchestrator_StopAllRunsRespectsOwnerFilter(t *testing.T) {
 	}
 }
 
-// TestOrchestrator_ApproveRun_NotFound tests approving non-existent run.
-func TestOrchestrator_ApproveRun_NotFound(t *testing.T) {
-	svc := newTestOrchestrator(t)
-	ctx := context.Background()
-
-	result, err := svc.ApproveRun(ctx, orchestration.ApproveRequest{
-		RunID:     uuid.New(),
-		Actor:     "test-user",
-		CommitMsg: "Apply changes",
-	})
-	if err == nil {
-		t.Error("ApproveRun should return error for non-existent run")
-	}
-	if result != nil {
-		t.Error("expected nil result for non-existent run")
-	}
-}
-
-// TestOrchestrator_RejectRun_NotFound tests rejecting non-existent run.
-func TestOrchestrator_RejectRun_NotFound(t *testing.T) {
-	svc := newTestOrchestrator(t)
-	ctx := context.Background()
-
-	err := svc.RejectRun(ctx, uuid.New(), "test-user", "Not acceptable")
-	if err == nil {
-		t.Error("RejectRun should return error for non-existent run")
-	}
-}
-
-// TestOrchestrator_GetRunEvents_Empty tests getting events for a run without events.
-func TestOrchestrator_GetRunEvents_Empty(t *testing.T) {
-	svc := newTestOrchestrator(t)
-	ctx := context.Background()
-
-	// Get events for non-existent run
-	events, err := svc.GetRunEvents(ctx, uuid.New(), event.GetOptions{})
-	// Should return empty slice or nil, not error (events are optional)
-	if err != nil {
-		t.Logf("GetRunEvents for non-existent run returned error (acceptable): %v", err)
-	} else if len(events) > 0 {
-		t.Errorf("expected empty events for non-existent run, got %d", len(events))
-	}
-}
-
-// TestOrchestrator_GetRunDiff_NotFound tests getting diff for non-existent run.
-func TestOrchestrator_GetRunDiff_NotFound(t *testing.T) {
-	svc := newTestOrchestrator(t)
-	ctx := context.Background()
-
-	diff, err := svc.GetRunDiff(ctx, uuid.New())
-	if err == nil {
-		t.Error("GetRunDiff should return error for non-existent run")
-	}
-	if diff != nil {
-		t.Error("expected nil diff for non-existent run")
-	}
-}
-
 // TestOrchestrator_ListRuns_Filters tests various run list filters.
 func TestOrchestrator_ListRuns_Filters(t *testing.T) {
 	svc := newTestOrchestrator(t)
@@ -697,49 +639,6 @@ func TestOrchestrator_ListRuns_Filters(t *testing.T) {
 				t.Errorf("expected empty slice, got nil")
 			}
 		})
-	}
-}
-
-// TestOrchestrator_ResumeRun_NotFound tests resuming a non-existent run.
-func TestOrchestrator_ResumeRun_NotFound(t *testing.T) {
-	svc := newTestOrchestrator(t)
-	ctx := context.Background()
-
-	run, err := svc.ResumeRun(ctx, uuid.New())
-	if err == nil {
-		t.Error("ResumeRun should return error for non-existent run")
-	}
-	if run != nil {
-		t.Error("expected nil for non-existent run")
-	}
-}
-
-// TestOrchestrator_GetRunProgress_NotFound tests getting progress for non-existent run.
-func TestOrchestrator_GetRunProgress_NotFound(t *testing.T) {
-	svc := newTestOrchestrator(t)
-	ctx := context.Background()
-
-	progress, err := svc.GetRunProgress(ctx, uuid.New())
-	if err == nil {
-		t.Error("GetRunProgress should return error for non-existent run")
-	}
-	if progress != nil {
-		t.Error("expected nil progress for non-existent run")
-	}
-}
-
-// TestOrchestrator_ListStaleRuns_Empty tests listing stale runs when none exist.
-func TestOrchestrator_ListStaleRuns_Empty(t *testing.T) {
-	svc := newTestOrchestrator(t)
-	ctx := context.Background()
-
-	runs, err := svc.ListStaleRuns(ctx, 5*time.Minute)
-	if err != nil {
-		t.Fatalf("ListStaleRuns should not fail on empty: %v", err)
-	}
-	// nil or empty slice are both acceptable for "no results"
-	if len(runs) != 0 {
-		t.Errorf("expected 0 stale runs, got %d", len(runs))
 	}
 }
 
@@ -860,20 +759,8 @@ func TestOrchestrator_SlotEnforcement_BlocksAtCapacity(t *testing.T) {
 	}
 	mustCreateTask(t, svc, ctx, task)
 
-	// Manually create 2 "running" runs to simulate capacity
-	for i := 0; i < 2; i++ {
-		run := &domain.Run{
-			ID:        uuid.New(),
-			TaskID:    task.ID,
-			Status:    domain.RunStatusRunning,
-			RunMode:   domain.RunModeInPlace,
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		}
-		if err := runRepo.Create(ctx, run); err != nil {
-			t.Fatalf("failed to create test run: %v", err)
-		}
-	}
+	// Keep the exact occupied capacity visible in the fixture.
+	mustCreateRuns(t, runRepo, ctx, task.ID, domain.RunStatusRunning, domain.RunStatusRunning)
 
 	// Verify we have 2 running runs
 	count, _ := runRepo.CountByStatus(ctx, domain.RunStatusRunning)
@@ -935,20 +822,8 @@ func TestOrchestrator_SlotEnforcement_ForceBypassesLimit(t *testing.T) {
 	}
 	mustCreateTask(t, svc, ctx, task)
 
-	// Fill capacity with 2 running runs
-	for i := 0; i < 2; i++ {
-		run := &domain.Run{
-			ID:        uuid.New(),
-			TaskID:    task.ID,
-			Status:    domain.RunStatusRunning,
-			RunMode:   domain.RunModeInPlace,
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		}
-		if err := runRepo.Create(ctx, run); err != nil {
-			t.Fatalf("create run: %v", err)
-		}
-	}
+	// Keep the exact occupied capacity visible in the fixture.
+	mustCreateRuns(t, runRepo, ctx, task.ID, domain.RunStatusRunning, domain.RunStatusRunning)
 
 	// Try to create with Force=true - should NOT return capacity error
 	// (may fail for other reasons like runner issues, but NOT capacity)
@@ -994,27 +869,8 @@ func TestOrchestrator_SlotEnforcement_CountsStartingRuns(t *testing.T) {
 	}
 	mustCreateTask(t, svc, ctx, task)
 
-	// Create 1 running and 1 starting run
-	if err := runRepo.Create(ctx, &domain.Run{
-		ID:        uuid.New(),
-		TaskID:    task.ID,
-		Status:    domain.RunStatusRunning,
-		RunMode:   domain.RunModeInPlace,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}); err != nil {
-		t.Fatalf("create run: %v", err)
-	}
-	if err := runRepo.Create(ctx, &domain.Run{
-		ID:        uuid.New(),
-		TaskID:    task.ID,
-		Status:    domain.RunStatusStarting,
-		RunMode:   domain.RunModeInPlace,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}); err != nil {
-		t.Fatalf("create run: %v", err)
-	}
+	// Starting and running runs both consume one concurrency slot.
+	mustCreateRuns(t, runRepo, ctx, task.ID, domain.RunStatusRunning, domain.RunStatusStarting)
 
 	// Try to create another run - should fail (1 running + 1 starting = 2 = limit)
 	_, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
@@ -1062,17 +918,8 @@ func TestOrchestrator_SlotEnforcement_AllowsUnderCapacity(t *testing.T) {
 	}
 	mustCreateTask(t, svc, ctx, task)
 
-	// Create only 1 running run (limit is 3)
-	if err := runRepo.Create(ctx, &domain.Run{
-		ID:        uuid.New(),
-		TaskID:    task.ID,
-		Status:    domain.RunStatusRunning,
-		RunMode:   domain.RunModeInPlace,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}); err != nil {
-		t.Fatalf("create run: %v", err)
-	}
+	// Leave two slots available.
+	mustCreateRuns(t, runRepo, ctx, task.ID, domain.RunStatusRunning)
 
 	// Try to create another run - should NOT fail with capacity error
 	_, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{

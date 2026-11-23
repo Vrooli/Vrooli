@@ -200,7 +200,7 @@ func EvaluateGates(e *Epoch) GateReport {
 			latest[cell.Gate] = cell
 		}
 	}
-	if accepted := e.LastAcceptance(); accepted != nil {
+	if accepted := e.LastAcceptance(); accepted != nil && !accepted.At.IsZero() {
 		for _, cell := range accepted.Results {
 			latest[cell.Gate] = cell
 		}

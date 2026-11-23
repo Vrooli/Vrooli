@@ -8,6 +8,7 @@
 package protoconv
 
 import (
+	"slices"
 	"time"
 
 	"agent-manager/internal/domain"
@@ -229,8 +230,8 @@ func SandboxFileCriteriaToProto(criteria domain.SandboxFileCriteria) *pb.Sandbox
 		return nil
 	}
 	return &pb.SandboxFileCriteria{
-		PathGlobs:  criteria.PathGlobs,
-		Extensions: criteria.Extensions,
+		PathGlobs:  slices.Clone(criteria.PathGlobs),
+		Extensions: slices.Clone(criteria.Extensions),
 	}
 }
 
@@ -240,8 +241,8 @@ func SandboxFileCriteriaFromProto(criteria *pb.SandboxFileCriteria) domain.Sandb
 		return domain.SandboxFileCriteria{}
 	}
 	return domain.SandboxFileCriteria{
-		PathGlobs:  criteria.PathGlobs,
-		Extensions: criteria.Extensions,
+		PathGlobs:  slices.Clone(criteria.PathGlobs),
+		Extensions: slices.Clone(criteria.Extensions),
 	}
 }
 

@@ -146,84 +146,40 @@ func TestDispatcher_RunsSingleJob(t *testing.T) {
 
 func TestDispatcher_SerializesStartupSlot(t *testing.T) {
 	t.Parallel()
-
-	d := New(Config{MaxStartingConcurrency: 1, QueueCapacity: 16})
-	defer d.Close()
-
-	const jobs = 5
-
-	var concurrent atomic.Int32
-	var maxConcurrent atomic.Int32
-	release := make(chan struct{}) // gate: jobs hold their slot until released
-	completed := make(chan struct{}, jobs)
-
-	for i := 0; i < jobs; i++ {
-		fn := func(started StartedFn) {
-			now := concurrent.Add(1)
-			for {
-				cur := maxConcurrent.Load()
-				if now <= cur {
-					break
-				}
-				if maxConcurrent.CompareAndSwap(cur, now) {
-					break
-				}
-			}
-			<-release
-			concurrent.Add(-1)
-			started()
-			completed <- struct{}{}
-		}
-		if err := d.Enqueue(makeJob(t, nil, fn)); err != nil {
-			t.Fatalf("Enqueue %d: %v", i, err)
-		}
-	}
-
-	// Give the worker a moment to start the first job.
-	awaitTrue(t, time.Second, "first job to start", func() bool {
-		return concurrent.Load() == 1
-	})
-
-	// Release one job at a time and verify the next picks up only after
-	// the previous releases the slot.
-	for i := 0; i < jobs; i++ {
-		release <- struct{}{}
-		<-completed
-	}
-
-	if got := maxConcurrent.Load(); got != 1 {
+	const wantMax, jobs = 1, 5
+	if got := observeMaxStartupConcurrency(t, wantMax, jobs, time.Second); got != int32(wantMax) {
 		t.Errorf("max concurrent startups = %d, want 1 (MaxStartingConcurrency=1)", got)
 	}
-
-	awaitTrue(t, time.Second, "Stats() to drain", func() bool {
-		s := d.Stats()
-		return s.QueueDepth == 0 && s.ActiveCount == 0 && s.StartingCount == 0
-	})
 }
 
 func TestDispatcher_ParallelStartupWithCapacity(t *testing.T) {
 	t.Parallel()
 
-	const cap = 3
-	d := New(Config{MaxStartingConcurrency: cap, QueueCapacity: 16})
+	const wantMax = 3
+	const jobs = wantMax * 2
+	if got := observeMaxStartupConcurrency(t, wantMax, jobs, 2*time.Second); got != int32(wantMax) {
+		t.Errorf("max concurrent startups = %d, want %d", got, wantMax)
+	}
+}
+
+// observeMaxStartupConcurrency gates job bodies so the measured maximum is
+// deterministic: every started job holds its startup slot until the test
+// releases it. wantMax remains supplied by each contract test, independently
+// of the dispatcher's Config.
+func observeMaxStartupConcurrency(t *testing.T, wantMax, jobs int, readinessTimeout time.Duration) int32 {
+	t.Helper()
+	d := New(Config{MaxStartingConcurrency: wantMax, QueueCapacity: jobs + 1})
 	defer d.Close()
 
-	const jobs = cap * 2
-
-	var concurrent atomic.Int32
-	var maxConcurrent atomic.Int32
+	var concurrent, maxConcurrent atomic.Int32
 	release := make(chan struct{})
+	defer close(release)
 	completed := make(chan struct{}, jobs)
-
 	for i := 0; i < jobs; i++ {
 		fn := func(started StartedFn) {
 			now := concurrent.Add(1)
-			for {
-				cur := maxConcurrent.Load()
-				if now <= cur {
-					break
-				}
-				if maxConcurrent.CompareAndSwap(cur, now) {
+			for current := maxConcurrent.Load(); now > current; current = maxConcurrent.Load() {
+				if maxConcurrent.CompareAndSwap(current, now) {
 					break
 				}
 			}
@@ -237,19 +193,18 @@ func TestDispatcher_ParallelStartupWithCapacity(t *testing.T) {
 		}
 	}
 
-	// Wait until the dispatcher has filled the slot ceiling.
-	awaitTrue(t, 2*time.Second, "concurrent to reach cap", func() bool {
-		return concurrent.Load() == cap
+	awaitTrue(t, readinessTimeout, "concurrent jobs to reach the expected capacity", func() bool {
+		return concurrent.Load() >= int32(wantMax)
 	})
-
 	for i := 0; i < jobs; i++ {
 		release <- struct{}{}
 		<-completed
 	}
-
-	if got := maxConcurrent.Load(); got != cap {
-		t.Errorf("max concurrent startups = %d, want %d", got, cap)
-	}
+	awaitTrue(t, time.Second, "Stats() to drain", func() bool {
+		stats := d.Stats()
+		return stats.QueueDepth == 0 && stats.ActiveCount == 0 && stats.StartingCount == 0
+	})
+	return maxConcurrent.Load()
 }
 
 // =============================================================================

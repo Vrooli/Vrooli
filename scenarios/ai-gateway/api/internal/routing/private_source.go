@@ -24,6 +24,7 @@ type ResourcePolicySource struct {
 	Hub            *ProviderDecisionHubClient
 	VerifyDecision func(context.Context, string, string, string) bool
 	Catalog        *catalog.Bundle
+	CatalogError   error
 	clock          func() time.Time
 }
 type supplierCatalog struct {
@@ -51,7 +52,22 @@ func (s ResourcePolicySource) Snapshot(ctx context.Context, _ string) (PrivatePo
 }
 
 func (s ResourcePolicySource) snapshotPaths() ([]string, error) {
+	if s.CatalogError != nil {
+		return nil, errors.New("embedded provider catalog is unavailable")
+	}
 	paths, err := filepath.Glob(filepath.Join(s.Root, "resources", "*", "model-policy.json"))
+	if err != nil {
+		return nil, err
+	}
+	if s.Root != "" && s.Catalog == nil {
+		supplierPaths, supplierErr := filepath.Glob(filepath.Join(s.Root, "scenarios", "ai-gateway", "config", "suppliers", "*.json"))
+		if supplierErr != nil {
+			return nil, supplierErr
+		}
+		paths = append(paths, supplierPaths...)
+		sort.Strings(paths)
+		return paths, nil
+	}
 	if s.Root == "" || s.Catalog != nil {
 		bundle, bundleErr := s.bundle()
 		if bundleErr != nil {
@@ -63,14 +79,17 @@ func (s ResourcePolicySource) snapshotPaths() ([]string, error) {
 		}
 		sort.Strings(paths)
 	}
-	if err != nil {
-		return nil, err
-	}
 	return paths, nil
 }
 
 func (s ResourcePolicySource) appendSupplierSnapshot(ctx context.Context, path string, snapshot *PrivatePolicySnapshot) error {
-	data, err := s.readPolicy(filepath.Base(filepath.Dir(path)))
+	var data []byte
+	var err error
+	if filepath.Base(filepath.Dir(path)) == "suppliers" && filepath.Base(filepath.Dir(filepath.Dir(path))) == "config" {
+		data, err = os.ReadFile(path)
+	} else {
+		data, err = s.readPolicy(filepath.Base(filepath.Dir(path)))
+	}
 	if err != nil {
 		return err
 	}
@@ -256,12 +275,19 @@ func (s ResourcePolicySource) Endpoint(ctx context.Context, supplier string) (Su
 	if err != nil {
 		return SupplierEndpoint{}, err
 	}
-	result := SupplierEndpoint{URL: strings.TrimSuffix(resource.Endpoint, "/models")}
+	endpoint := strings.TrimSpace(resource.Endpoint)
+	if endpoint == "" {
+		return SupplierEndpoint{}, errors.New("supplier endpoint is not configured")
+	}
+	result := SupplierEndpoint{URL: strings.TrimSuffix(endpoint, "/models")}
 	result.APIKey, err = s.supplierCredential(resource.Credentials.Descriptors)
 	return result, err
 }
 
 func (s ResourcePolicySource) resourceEndpointData(supplier string) ([]byte, error) {
+	if s.CatalogError != nil {
+		return nil, errors.New("embedded provider catalog is unavailable")
+	}
 	var data []byte
 	var err error
 	if s.Root == "" || s.Catalog != nil {
@@ -352,8 +378,20 @@ func (s ResourcePolicySource) readPolicy(id string) ([]byte, error) {
 	return nil, errors.New("policy absent from packaged catalog")
 }
 
-func NewResourcePrivatePolicyService(db *sql.DB, features []PrivateFeature, root string, hub *ProviderDecisionHubClient) *PrivatePolicyService {
-	source := ResourcePolicySource{Root: root, Hub: hub}
+// NewPackagedResourcePolicySource always uses the catalog compiled into the
+// Gateway artifact. Hosted deployments cannot rely on provider resource
+// trees being present, and a repository checkout must not shadow the packaged
+// declarations at runtime.
+func NewPackagedResourcePolicySource(hub *ProviderDecisionHubClient) ResourcePolicySource {
+	bundle, err := catalog.Embedded()
+	if err != nil {
+		return ResourcePolicySource{Hub: hub, CatalogError: err}
+	}
+	return ResourcePolicySource{Hub: hub, Catalog: &bundle}
+}
+
+func NewResourcePrivatePolicyService(db *sql.DB, features []PrivateFeature, hub *ProviderDecisionHubClient) *PrivatePolicyService {
+	source := NewPackagedResourcePolicySource(hub)
 	service := NewPrivatePolicyService(features, source.Snapshot, NewSQLPrivatePlanRepository(db), NewSQLPrivateReceiptRepository(db))
 	service.SetStreamExecutor(&HTTPStreamExecutor{DB: db, ResolveSupplier: source.Endpoint})
 	return service

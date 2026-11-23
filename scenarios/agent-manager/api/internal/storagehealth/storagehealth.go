@@ -663,12 +663,17 @@ func (s *Service) checkSpace(before Stats, tempDir string) error {
 func (s *Service) compact(ctx context.Context, plan compactionPlan, actor, reason string) (CompactionReceipt, error) {
 	start := s.opts.Clock()
 	receipt := CompactionReceipt{Actor: actor, Reason: reason, FenceRevision: plan.fence.Revision, Before: plan.before, AutoVacuumBefore: plan.before.AutoVacuum, TempDir: plan.tempDir}
+	rowidPositionsUnsafe := false
 	if s.opts.Pause != nil {
 		resume, err := s.opts.Pause(ctx)
 		if err != nil {
 			return receipt, fmt.Errorf("pause background writers: %w", err)
 		}
-		defer resume()
+		defer func() {
+			if !rowidPositionsUnsafe {
+				resume()
+			}
+		}()
 	}
 	// Pausing can take a reconcile cycle; the fence must still hold after it.
 	if s.opts.Fence != nil {
@@ -714,11 +719,19 @@ func (s *Service) compact(ctx context.Context, plan compactionPlan, actor, reaso
 	}
 	// Hold every in-memory rowid consumer until its position is rewritten.
 	held := make([]heldWatermark, 0, len(s.opts.Watermarks))
+	var releaseWatermarks []func()
 	for _, watermark := range s.opts.Watermarks {
 		current, set, release := watermark.Holder.HoldWatermark()
-		defer release()
+		releaseWatermarks = append(releaseWatermarks, release)
 		held = append(held, heldWatermark{name: watermark.Name, current: current, set: set})
 	}
+	defer func() {
+		if !rowidPositionsUnsafe {
+			for i := len(releaseWatermarks) - 1; i >= 0; i-- {
+				releaseWatermarks[i]()
+			}
+		}
+	}()
 	anchors, err := captureAnchors(ctx, conn, held)
 	if err != nil {
 		return receipt, fmt.Errorf("anchor run_events rowid positions: %w", err)
@@ -733,6 +746,10 @@ func (s *Service) compact(ctx context.Context, plan compactionPlan, actor, reaso
 	if err != nil {
 		return receipt, fmt.Errorf("vacuum: %w", err)
 	}
+	// From here until the durable remap commits, persisted and in-memory
+	// positions may refer to different events. On any failure, keep the
+	// maintenance workers and consumers paused for owner repair or restart.
+	rowidPositionsUnsafe = true
 	if s.afterVacuum != nil {
 		if err := s.afterVacuum(ctx, conn); err != nil {
 			return receipt, err
@@ -742,6 +759,7 @@ func (s *Service) compact(ctx context.Context, plan compactionPlan, actor, reaso
 		// Consumers would read renumbered rowids from stale positions.
 		return receipt, fmt.Errorf("REQUIRES OWNER ACTION: run_events rowid positions were not rewritten after VACUUM (%w); keep the fence closed and rebuild stats and supervision cursors", err)
 	}
+	rowidPositionsUnsafe = false
 	if err := conn.QueryRowContext(ctx, "PRAGMA wal_checkpoint(TRUNCATE)").Scan(&receipt.CheckpointBusy, &receipt.CheckpointLog, &receipt.CheckpointDone); err != nil {
 		return receipt, fmt.Errorf("checkpoint: %w", err)
 	}

@@ -2,6 +2,7 @@ package conformance_test
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -77,6 +78,24 @@ func aiGatewayScenarioRoot(t *testing.T) string {
 	return ""
 }
 
+// declaredPolicyRoles reads the role names straight from the model policy
+// file, independently of the loader under test.
+func declaredPolicyRoles(t *testing.T, policyPath string) []string {
+	t.Helper()
+	raw, err := os.ReadFile(policyPath)
+	require.NoError(t, err)
+	var policy struct {
+		Roles map[string]json.RawMessage `json:"roles"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &policy))
+	require.NotEmpty(t, policy.Roles, "the packaged policy declares roles")
+	names := make([]string, 0, len(policy.Roles))
+	for name := range policy.Roles {
+		names = append(names, name)
+	}
+	return names
+}
+
 func TestModelEvalPhaseReportsMissingEvidenceAndNeverExecutesInference(t *testing.T) {
 	scenarioDir := aiGatewayScenarioRoot(t)
 	policyPath := filepath.Join(scenarioDir, "../../resources/ollama/model-policy.json")
@@ -101,7 +120,10 @@ func TestModelEvalPhaseReportsMissingEvidenceAndNeverExecutesInference(t *testin
 		ModelEvalConsumers:     modelEvalConsumersFunc(func(context.Context) ([]string, error) { return []string{"vrooli-memory"}, nil }),
 		ModelEvalRuntimeModels: modelEvalRuntimeModels,
 		ModelEvalSource: modelEvalReadinessSourceFunc(func(_ context.Context, roles internalconformance.ModelEvalRoleDenominators) (internalconformance.ModelEvalReadiness, error) {
-			require.Len(t, roles.PolicyRoles, 11)
+			// The denominator is every role the packaged policy declares, so a
+			// role added to or removed from the policy changes it without
+			// breaking this test.
+			require.ElementsMatch(t, declaredPolicyRoles(t, policyPath), roles.PolicyRoles)
 			require.NotEmpty(t, roles.TaskRoles)
 			require.Equal(t, []string{"vrooli-memory"}, roles.Consumers)
 			return readiness, nil

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, KeyboardEvent } from 'react';
 import { useParams } from 'react-router-dom';
+import { Button } from '@vrooli/react-component-library/Button/2.2.14';
 import {
   AlertTriangle,
   Bot,
@@ -202,10 +203,10 @@ function TestChat() {
           <h2>Conversation sandbox</h2>
           <p>Prototype new prompts, escalation sequences, and tone before deploying to production.</p>
         </div>
-        <button className="ghost-button" onClick={clearChat}>
+        <Button className="ghost-button" variant="secondary" onClick={clearChat}>
           <MessageCircle size={16} />
           <span>Reset chat</span>
-        </button>
+        </Button>
       </header>
 
       <section className="chat-layout">
@@ -269,10 +270,10 @@ function TestChat() {
               rows={2}
               disabled={isLoading}
             />
-            <button className="primary-action" onClick={sendMessage} disabled={!inputValue.trim() || isLoading}>
+            <Button className="primary-action" variant="primary" onClick={sendMessage} disabled={!inputValue.trim() || isLoading}>
               {isLoading ? <Loader2 size={16} className="spin" /> : <Send size={16} />}
               <span>Send</span>
-            </button>
+            </Button>
             <p className="composer-hint">Press Enter to send · Shift + Enter for newline</p>
           </div>
         </div>

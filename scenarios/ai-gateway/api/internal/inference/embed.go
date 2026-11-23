@@ -188,7 +188,7 @@ func embeddingBatches(texts []string, contract rolecatalog.RoleEmbedding) [][]st
 }
 
 func (r *ResourceRepository) embedBatch(ctx context.Context, request EmbeddingRequest, definition rolecatalog.InferenceRole, candidate rolecatalog.Candidate, prepared embeddingCandidate, texts []string) ([]embeddingItem, error) {
-	execution, err := prepared.adapter.Execute(ctx, providers.ExecutionRequest{
+	execution, err := executeTraced(ctx, prepared.adapter, prepared.resolved, providers.ExecutionRequest{
 		Kind:                         sharedv1.RequestKind_REQUEST_KIND_TEXT_EMBEDDING,
 		Role:                         candidate.ResourceRole,
 		ExpectedModel:                prepared.role.Model,

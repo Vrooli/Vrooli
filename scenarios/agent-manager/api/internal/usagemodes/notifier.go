@@ -899,6 +899,20 @@ func (n *Notifier) Observe(_ context.Context, now time.Time) {
 			delete(st.Offers, scope)
 		}
 	}
+	var keptEnded []endedNotice
+	for _, e := range st.Ended {
+		if !e.At.Before(cutoff) {
+			keptEnded = append(keptEnded, e)
+		}
+	}
+	st.Ended = keptEnded
+	var keptStarted []usagemode.Mode
+	for _, m := range st.Started {
+		if !m.StartedAt.Before(cutoff) {
+			keptStarted = append(keptStarted, m)
+		}
+	}
+	st.Started = keptStarted
 	_ = n.save()
 }
 

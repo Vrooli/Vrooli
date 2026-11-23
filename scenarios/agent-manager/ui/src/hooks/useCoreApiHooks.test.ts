@@ -245,6 +245,31 @@ test("createRun serializes complete inline governance overrides and clears inten
   }
 });
 
+test("WC3 createRun transports full stance, native kernel, and charter path on the create request", async () => {
+  const fetch = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.endsWith("/runs") && init?.method === "POST") return json({ run: { id: "created" } });
+    return json({ runs: [] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  const runs = renderHook(() => useRuns({ enabled: false }));
+  const message = "Exact operator stance in full.\nDestination: finish the verified outcome.\nCharter: /workspace/repo/CHARTER.md.";
+  const kernel = "Work until the verified outcome is true. Stance: \"Exact operator stance\". Charter: /workspace/repo/CHARTER.md.";
+
+  await act(async () => {
+    await runs.result.current.createRun({
+      taskId: "task-1",
+      prompt: message,
+      until: kernel,
+      charterPath: "/workspace/repo/CHARTER.md",
+    });
+  });
+
+  const body = String(fetch.mock.calls.find(([url, init]) => String(url).endsWith("/runs") && init?.method === "POST")?.[1]?.body);
+  assert.ok(body.includes('"prompt":"Exact operator stance in full.\\nDestination: finish the verified outcome.\\nCharter: /workspace/repo/CHARTER.md."'));
+  assert.ok(body.includes('"until":"Work until the verified outcome is true. Stance: \\"Exact operator stance\\". Charter: /workspace/repo/CHARTER.md."'));
+  assert.ok(body.includes('"charter_path":"/workspace/repo/CHARTER.md"'));
+});
+
 test("createRun explicitly clears every intentionally empty governance collection", async () => {
   const fetch = vi.fn(async (url: string, init?: RequestInit) => {
     if (url.endsWith("/runs") && init?.method === "POST") return json({ run: { id: "created" } });

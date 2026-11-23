@@ -22,6 +22,7 @@ type approvalStub struct {
 func (s approvalStub) ReadDecision(context.Context, string) (Approval, error) {
 	return Approval{DecisionID: AdmissionDecisionID, Answer: s.answer, Scope: s.scope, RecordedAt: time.Now().UTC()}, s.err
 }
+func (s approvalStub) ClaimDispatch(context.Context, Approval, string) error { return nil }
 
 type sourceStub struct {
 	refs   []SourceRef
@@ -91,7 +92,7 @@ func testRunner(t *testing.T, answer string) (Runner, *sourceStub, *diskStub, *c
 	t.Helper()
 	ref := testRef(t)
 	source := &sourceStub{refs: []SourceRef{ref}, prompt: "LM2_PROMPT_SENTINEL"}
-	disk := &diskStub{observation: DiskObservation{ObservedAt: time.Now().UTC(), FreeBytes: MinimumDiskBytes}}
+	disk := &diskStub{observation: DiskObservation{ObservedAt: time.Now().UTC(), FreeBytes: MinimumDiskBytes, ArtifactHash: hashBytes([]byte("[]"))}}
 	capacity := &capacityStub{}
 	gateway := &gatewayStub{output: "LM2_OUTPUT_SENTINEL"}
 	return Runner{Approval: approvalStub{answer: answer, scope: AdmissionScope}, Source: source, Selector: source, Privacy: privacyStub{}, Disk: disk, Capacity: capacity, Gateway: gateway}, source, disk, capacity, gateway

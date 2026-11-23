@@ -161,8 +161,10 @@ func (s *Service) Benchmark(ctx context.Context, request BenchmarkRequest) (Benc
 			return BenchmarkResult{}, fmt.Errorf("%w: a gold row for %s label %s names no %s", ErrInvalidRequest, label.Scope, label.ID, subjectField(label.Scope))
 		}
 	}
-	if err := disjoint(label.Scope, request.Rows, request.FitRows); err != nil {
-		return BenchmarkResult{}, err
+	if split == SplitHoldout {
+		if err := disjoint(label.Scope, request.Rows, request.FitRows); err != nil {
+			return BenchmarkResult{}, err
+		}
 	}
 	store := s.store
 	if source == SourcePinned {
@@ -352,22 +354,41 @@ func samplesFor(label Label, rows []GoldRow, observations map[string]Annotation)
 	return samples, missing
 }
 
-// disjoint refuses a hold-out that shares a subject with the tuning rows: a run
-// (or message) the calibration was fitted on cannot also prove it.
+// disjoint refuses a hold-out that shares a run with the tuning rows. Message
+// labels have multiple subjects per run, but their messages still share the
+// same conversation context and cannot be split across calibration and proof.
 func disjoint(scope Scope, rows, fit []GoldRow) error {
-	tuned := make(map[string]bool, len(fit))
-	for _, row := range fit {
-		tuned[row.subject(scope)] = true
-	}
-	var shared []string
-	for _, row := range rows {
-		if subject := row.subject(scope); tuned[subject] {
-			shared = append(shared, subject)
+	group := func(row GoldRow) string {
+		if scope == ScopeMessage {
+			return strings.TrimSpace(row.RunID)
 		}
+		return row.subject(scope)
+	}
+	tuned := make(map[string]struct{}, len(fit))
+	for _, row := range fit {
+		runID := group(row)
+		if scope == ScopeMessage && runID == "" {
+			return fmt.Errorf("%w: message-scoped hold-out rows must name their run_id", ErrInvalidRequest)
+		}
+		tuned[runID] = struct{}{}
+	}
+	sharedSet := make(map[string]struct{})
+	for _, row := range rows {
+		runID := group(row)
+		if scope == ScopeMessage && runID == "" {
+			return fmt.Errorf("%w: message-scoped hold-out rows must name their run_id", ErrInvalidRequest)
+		}
+		if _, ok := tuned[runID]; ok {
+			sharedSet[runID] = struct{}{}
+		}
+	}
+	shared := make([]string, 0, len(sharedSet))
+	for runID := range sharedSet {
+		shared = append(shared, runID)
 	}
 	if len(shared) > 0 {
 		sort.Strings(shared)
-		return fmt.Errorf("%w: %d subject(s) appear in both the tuning rows and the evaluated rows (first: %s); a hold-out must be disjoint", ErrInvalidRequest, len(shared), shared[0])
+		return fmt.Errorf("%w: %d run(s) appear in both the tuning rows and the evaluated rows (first: %s); a hold-out must be disjoint", ErrInvalidRequest, len(shared), shared[0])
 	}
 	return nil
 }

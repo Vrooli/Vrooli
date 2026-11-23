@@ -2,8 +2,16 @@ package model_eval
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -123,8 +131,9 @@ func (g SystemMonitorCapacityGate) MeasureAndCheck(ctx context.Context, required
 // FilesystemDiskGate measures the filesystem that holds the LM2 research
 // workspace. No prompts, outputs, or per-case artifacts are written there.
 type FilesystemDiskGate struct {
-	Path string
-	Now  func() time.Time
+	Path         string
+	ArtifactPath string
+	Now          func() time.Time
 }
 
 func (g FilesystemDiskGate) Measure(context.Context) (DiskObservation, error) {
@@ -135,9 +144,82 @@ func (g FilesystemDiskGate) Measure(context.Context) (DiskObservation, error) {
 	if err != nil {
 		return DiskObservation{}, errors.New("model-eval filesystem measurement failed")
 	}
+	artifactBytes, artifactHash, err := measureArtifactTree(g.ArtifactPath)
+	if err != nil {
+		return DiskObservation{}, errors.New("model-eval task artifact measurement failed")
+	}
 	now := time.Now().UTC()
 	if g.Now != nil {
 		now = g.Now().UTC()
 	}
-	return DiskObservation{ObservedAt: now, FreeBytes: usage, ArtifactBytes: 0}, nil
+	return DiskObservation{ObservedAt: now, FreeBytes: usage, ArtifactBytes: artifactBytes, ArtifactHash: artifactHash}, nil
+}
+
+type artifactFile struct {
+	Path   string `json:"path"`
+	Bytes  int64  `json:"bytes"`
+	SHA256 string `json:"sha256"`
+}
+
+// measureArtifactTree hashes the exact task-owned packet tree without retaining
+// file contents. Symlinks and special files are refused so the bound cannot
+// silently include data outside the packet directory.
+func measureArtifactTree(root string) (int64, string, error) {
+	if strings.TrimSpace(root) == "" {
+		return 0, "", errors.New("task artifact path is not configured")
+	}
+	entries := make([]artifactFile, 0, 8)
+	var total int64
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		if !entry.Type().IsRegular() {
+			return errors.New("task artifact tree contains a non-regular file")
+		}
+		info, err := entry.Info()
+		if err != nil || info.Size() < 0 {
+			return errors.New("task artifact metadata is unavailable")
+		}
+		relative, err := filepath.Rel(root, path)
+		if err != nil {
+			return errors.New("task artifact path is invalid")
+		}
+		if total+info.Size() > MaximumArtifactSize || len(entries) >= 4096 {
+			return errors.New("task artifact tree exceeds the measurable bound")
+		}
+		file, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		openedInfo, statErr := file.Stat()
+		if statErr != nil || !os.SameFile(info, openedInfo) || openedInfo.Size() != info.Size() || !openedInfo.ModTime().Equal(info.ModTime()) {
+			_ = file.Close()
+			return errors.New("task artifact changed before content measurement")
+		}
+		hasher := sha256.New()
+		copied, copyErr := io.Copy(hasher, io.LimitReader(file, MaximumArtifactSize+1))
+		finalInfo, finalStatErr := file.Stat()
+		closeErr := file.Close()
+		if copyErr != nil || closeErr != nil || finalStatErr != nil || !os.SameFile(openedInfo, finalInfo) ||
+			copied != info.Size() || finalInfo.Size() != info.Size() || !finalInfo.ModTime().Equal(openedInfo.ModTime()) {
+			return errors.New("task artifact changed while measured")
+		}
+		entries = append(entries, artifactFile{Path: filepath.ToSlash(relative), Bytes: copied, SHA256: hex.EncodeToString(hasher.Sum(nil))})
+		total += copied
+		return nil
+	})
+	if err != nil {
+		return total, "", err
+	}
+	sort.Slice(entries, func(i, j int) bool { return entries[i].Path < entries[j].Path })
+	manifest, err := json.Marshal(entries)
+	if err != nil {
+		return 0, "", fmt.Errorf("encode task artifact manifest: %w", err)
+	}
+	digest := sha256.Sum256(manifest)
+	return total, hex.EncodeToString(digest[:]), nil
 }

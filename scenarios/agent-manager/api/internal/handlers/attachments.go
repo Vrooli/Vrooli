@@ -1,10 +1,17 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"strings"
+	"time"
+
+	"agent-manager/internal/storage"
 
 	"github.com/gorilla/mux"
 )
@@ -21,9 +28,13 @@ func (h *Handler) UploadAttachment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Enforce max size at the HTTP level
+	// Accept a bounded batch so callers can upload a message's images atomically.
+	const (
+		maxBatchFiles = 16
+		maxBatchBytes = 80 * 1024 * 1024
+	)
 	maxSize := h.storage.MaxFileSize()
-	r.Body = http.MaxBytesReader(w, r.Body, maxSize+1024) // +1KB for multipart overhead
+	r.Body = http.MaxBytesReader(w, r.Body, maxBatchBytes+16*1024)
 
 	if err := r.ParseMultipartForm(maxSize); err != nil {
 		if err.Error() == "http: request body too large" {
@@ -35,47 +46,94 @@ func (h *Handler) UploadAttachment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	file, header, err := r.FormFile("file")
-	if err != nil {
+	if r.MultipartForm != nil {
+		defer r.MultipartForm.RemoveAll()
+	}
+	files := r.MultipartForm.File["file"]
+	if len(files) == 0 {
 		writeSimpleError(w, r, "file", "missing file field")
 		return
 	}
-	defer file.Close()
-
-	// Detect content type from file bytes (don't trust Content-Type header)
-	buf := make([]byte, 512)
-	n, _ := file.Read(buf)
-	detectedType := http.DetectContentType(buf[:n])
-	// Reset the file reader
-	if seeker, ok := file.(io.ReadSeeker); ok {
-		_, _ = seeker.Seek(0, io.SeekStart)
-	}
-
-	if !h.storage.IsAllowedType(detectedType) {
-		w.WriteHeader(http.StatusUnsupportedMediaType)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "unsupported file type: " + detectedType})
+	if len(files) > maxBatchFiles {
+		writeSimpleError(w, r, "file", "too many files")
 		return
 	}
 
-	// Override the header content-type with detected type
-	header.Header.Set("Content-Type", detectedType)
-
-	meta, err := h.storage.Upload(r.Context(), file, header)
-	if err != nil {
-		writeSimpleError(w, r, "upload", err.Error())
-		return
+	metas := make([]*storage.AttachmentMeta, 0, len(files))
+	for _, header := range files {
+		file, err := header.Open()
+		if err != nil {
+			if rollbackAttachments(r.Context(), h.storage, metas) != nil {
+				http.Error(w, "failed to clean up partial attachment batch", http.StatusInternalServerError)
+				return
+			}
+			writeSimpleError(w, r, "file", "invalid uploaded file")
+			return
+		}
+		meta, detectedType, err := h.storeAttachment(r.Context(), file, header)
+		_ = file.Close()
+		if err != nil {
+			if rollbackAttachments(r.Context(), h.storage, metas) != nil {
+				http.Error(w, "failed to clean up partial attachment batch", http.StatusInternalServerError)
+				return
+			}
+			if detectedType != "" {
+				w.WriteHeader(http.StatusUnsupportedMediaType)
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": "unsupported file type: " + detectedType})
+				return
+			}
+			writeSimpleError(w, r, "upload", err.Error())
+			return
+		}
+		metas = append(metas, meta)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"id":           meta.ID,
-		"file_name":    meta.FileName,
-		"content_type": meta.ContentType,
-		"file_size":    meta.FileSize,
-		"storage_path": meta.StoragePath,
-		"url":          h.storage.GetServingURL(meta.StoragePath),
-	})
+	if len(metas) == 1 {
+		_ = json.NewEncoder(w).Encode(attachmentResponse(h.storage, metas[0]))
+		return
+	}
+	ids := make([]string, len(metas))
+	for i, meta := range metas {
+		ids[i] = meta.ID
+	}
+	_ = json.NewEncoder(w).Encode(map[string][]string{"ids": ids})
+}
+
+func (h *Handler) storeAttachment(ctx context.Context, file multipart.File, header *multipart.FileHeader) (*storage.AttachmentMeta, string, error) {
+	buf := make([]byte, 512)
+	n, _ := file.Read(buf)
+	detectedType := http.DetectContentType(buf[:n])
+	if seeker, ok := file.(io.Seeker); ok {
+		_, _ = seeker.Seek(0, io.SeekStart)
+	}
+	if !h.storage.IsAllowedType(detectedType) {
+		return nil, detectedType, errors.New("unsupported file type")
+	}
+	header.Header.Set("Content-Type", detectedType)
+	meta, err := h.storage.Upload(ctx, file, header)
+	return meta, "", err
+}
+
+func rollbackAttachments(ctx context.Context, svc storage.Service, metas []*storage.AttachmentMeta) error {
+	rollbackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	var rollbackErr error
+	for i := len(metas) - 1; i >= 0; i-- {
+		if err := svc.Delete(rollbackCtx, metas[i].ID); err != nil {
+			rollbackErr = errors.Join(rollbackErr, fmt.Errorf("deleting partial attachment: %w", err))
+		}
+	}
+	return rollbackErr
+}
+
+func attachmentResponse(svc storage.Service, meta *storage.AttachmentMeta) map[string]interface{} {
+	return map[string]interface{}{
+		"id": meta.ID, "file_name": meta.FileName, "content_type": meta.ContentType,
+		"file_size": meta.FileSize, "storage_path": meta.StoragePath,
+		"url": svc.GetServingURL(meta.StoragePath),
+	}
 }
 
 // ServeUpload serves uploaded files.

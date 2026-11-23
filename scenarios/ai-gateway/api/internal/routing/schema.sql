@@ -61,7 +61,11 @@ CREATE TABLE IF NOT EXISTS route_events (
   provider_runtime_duration_ns INTEGER NOT NULL DEFAULT 0,
   provider_admission_wait_ns INTEGER NOT NULL DEFAULT 0,
   total_duration_ns INTEGER NOT NULL DEFAULT 0,
-  overhead_duration_ns INTEGER NOT NULL DEFAULT 0
+  overhead_duration_ns INTEGER NOT NULL DEFAULT 0,
+  -- The observed caller process scope (see RouteEvidence.caller). Empty only
+  -- for rows recorded before the column existed or while identification of a
+  -- just-written row is still finishing.
+  caller TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_route_events_created_at ON route_events(created_at DESC);

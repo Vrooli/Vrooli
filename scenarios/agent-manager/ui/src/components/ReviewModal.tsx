@@ -2,15 +2,7 @@ import { ExternalLink, FileCode } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogBody,
-  DialogFooter,
-} from "./ui/dialog";
+import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
 import { DiffViewer } from "./DiffViewer";
 import type { Run, RunDiff } from "../types";
 import { ApprovalState } from "../types";
@@ -67,19 +59,19 @@ export function ReviewModal({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg lg:max-w-[90vw] xl:max-w-6xl flex flex-col overflow-hidden">
-        <DialogHeader onClose={() => onOpenChange(false)}>
-          <DialogTitle className="flex items-center gap-2">
-            <FileCode className="h-5 w-5" />
-            Review Changes
-          </DialogTitle>
-          <DialogDescription>
-            {countDescription}
-          </DialogDescription>
-        </DialogHeader>
-
-        <DialogBody className="flex-1 min-h-0 overflow-y-auto">
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={<span className="flex items-center gap-2"><FileCode className="h-5 w-5" />Review Changes</span>}
+      closeLabel="Close"
+      dismissAffordance="close"
+      size="lg"
+      testId="review-modal"
+      panelClassName="lg:max-w-[90vw] xl:max-w-6xl"
+      contentClassName="min-h-0 flex-1 overflow-y-auto"
+      subheader={<p className="px-4 py-2 text-sm text-muted-foreground">{countDescription}</p>}
+      footer={<OverlayActionBar actions={[{ id: "close", label: "Close", onSelect: () => onOpenChange(false), primary: true }]} />}
+    >
           <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
             {/* Left column: Summary */}
             <div className="space-y-5">
@@ -153,12 +145,6 @@ export function ReviewModal({
               )}
             </div>
           </div>
-        </DialogBody>
-
-        <DialogFooter>
-          <OverlayActionBar actions={[{ id: "close", label: "Close", onSelect: () => onOpenChange(false), primary: true }]} />
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveDialog>
   );
 }

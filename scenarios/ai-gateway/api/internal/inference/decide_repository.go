@@ -165,7 +165,7 @@ func (r *ResourceRepository) decideByModel(ctx context.Context, definition rolec
 		}
 	}
 	started := time.Now()
-	execution, err := adapter.Execute(ctx, providers.ExecutionRequest{
+	execution, err := executeTraced(ctx, adapter, resolved, providers.ExecutionRequest{
 		Kind:                         sharedv1.RequestKind_REQUEST_KIND_DECISION,
 		Role:                         candidate.ResourceRole,
 		ExpectedModel:                executionRole.Model,

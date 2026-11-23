@@ -763,25 +763,8 @@ func validateReachability(entry string, nodes map[string]*domain.WorkflowNode, a
 }
 
 func validateContinuations(entry string, list []domain.WorkflowNode, nodes map[string]*domain.WorkflowNode, adj map[string][]domain.WorkflowEdge, add func(string, string, string)) {
-	reachable := func(from, target string) bool {
-		seen := map[string]bool{}
-		q := []string{from}
-		for len(q) > 0 {
-			id := q[0]
-			q = q[1:]
-			if id == target {
-				return true
-			}
-			if seen[id] {
-				continue
-			}
-			seen[id] = true
-			for _, e := range adj[id] {
-				q = append(q, e.To)
-			}
-		}
-		return false
-	}
+	type consumer struct{ id, path, code string }
+	consumersBySource := make(map[string][]consumer)
 	for _, n := range list {
 		var sourceID, path, code string
 		if n.Kind == domain.WorkflowNodeContinue && n.Continue != nil {
@@ -792,35 +775,46 @@ func validateContinuations(entry string, list []domain.WorkflowNode, nodes map[s
 		source := nodes[sourceID]
 		if source == nil || source.ID == n.ID || source.Kind != domain.WorkflowNodeRun {
 			add(code+"_source", path, "must name a prior agent node")
-		} else if !reachable(source.ID, n.ID) {
-			add(code+"_order", path, "source node must be an ancestor of consumer")
 		} else {
-			// A valid source dominates its consumer: removing it must make
-			// the consumer unreachable from entry. This rejects forward or
-			// optional-path selectors that merely become reachable through a cycle.
-			seen := map[string]bool{}
-			q := []string{entry}
-			bypasses := false
-			for len(q) > 0 {
-				id := q[0]
-				q = q[1:]
-				if id == source.ID || seen[id] {
-					continue
-				}
-				if id == n.ID {
-					bypasses = true
-					break
-				}
-				seen[id] = true
-				for _, edge := range adj[id] {
-					q = append(q, edge.To)
-				}
-			}
-			if bypasses {
-				add(code+"_order", path, "source node must dominate every path to consumer")
+			consumersBySource[source.ID] = append(consumersBySource[source.ID], consumer{id: n.ID, path: path, code: code})
+		}
+	}
+	// Several continuations commonly reuse the same prior run. Analyze the two
+	// graph walks once per source instead of once per continuation. Work and
+	// scratch memory then scale with distinct run sources, not consumers.
+	for sourceID, consumers := range consumersBySource {
+		reachableFromSource := reachableNodeIDs(sourceID, "", adj)
+		reachableWithoutSource := reachableNodeIDs(entry, sourceID, adj)
+		for _, consumer := range consumers {
+			if !reachableFromSource[consumer.id] {
+				add(consumer.code+"_order", consumer.path, "source node must be an ancestor of consumer")
+			} else if reachableWithoutSource[consumer.id] {
+				// Removing the selected run must make the consumer unreachable.
+				// This rejects optional-path selectors that are reachable through a bypass.
+				add(consumer.code+"_order", consumer.path, "source node must dominate every path to consumer")
 			}
 		}
 	}
+}
+
+func reachableNodeIDs(start, blocked string, adj map[string][]domain.WorkflowEdge) map[string]bool {
+	seen := make(map[string]bool)
+	if start == blocked {
+		return seen
+	}
+	queue := []string{start}
+	for len(queue) > 0 {
+		id := queue[0]
+		queue = queue[1:]
+		if id == blocked || seen[id] {
+			continue
+		}
+		seen[id] = true
+		for _, edge := range adj[id] {
+			queue = append(queue, edge.To)
+		}
+	}
+	return seen
 }
 
 func validateCycles(nodes map[string]*domain.WorkflowNode, adj map[string][]domain.WorkflowEdge, add func(string, string, string)) {

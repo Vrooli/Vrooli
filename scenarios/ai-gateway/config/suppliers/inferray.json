@@ -1,0 +1,61 @@
+{
+  "id": "inferray",
+  "family": "openai-compatible",
+  "locality": "remote",
+  "endpoint": "",
+  "policy": {
+    "schema_version": "2026-11-22",
+    "provider": {
+      "id": "inferray",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "written_ai_reseller_program_agreement_only",
+            "access_tier": "unverified",
+            "use_classes": {
+              "own_account": "allowed",
+              "bounded_feature": "unverified",
+              "in_app": "unverified",
+              "harness_access": "unverified"
+            },
+            "conditions": [
+              "Use only the expressly described AI Reseller Program / white-label path; public program pages say reseller agreements put permitted products and rates in writing and quote wholesale rates by expected volume.",
+              "Obtain and review the current written reseller agreement, plan/terms precedence, brand, markets/currencies, permitted customer use, billing and settlement scope before any route is eligible.",
+              "Exclude Token Plans as the resale basis: Token Plan Terms §Fair use prohibits reselling/sublicensing/sharing plan credit or plan API keys outside the organization and offering plan access as one's own service.",
+              "Do not treat ordinary PAYG as resale approval; Terms prohibit resale designed to obscure responsibility for traffic. Reconcile this standard term with a specific reseller agreement.",
+              "For each model, identify the actual third-party serving provider, publisher/model license and provider terms. Inferray says models are third-party-operated and terms/policies also apply.",
+              "Obtain written wholesale rates and service/capacity commitments if required; public PAYG or Token Plan rates are not reseller rates, customer prices, or Vrooli approvals."
+            ],
+            "clause": "AI Reseller Program and White Label pages; Terms §§Pay-as-you-go credits and payment, Acceptable use, Model providers, Availability; Token Plan Terms §Fair use of a plan",
+            "reason": "Inferray publicly describes own-brand resale, custom packages, and negotiated wholesale rates; its FAQ says the reseller agreement defines what may be sold and at what rates. This is a conditional program candidate, not an activated account, agreement, model entitlement, or approved price."
+          }
+        ],
+        "evidence": {
+          "url": "https://inferray.com/ai-reseller",
+          "read_at": "2026-11-22"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-11-22",
+        "on_expiry": "deny"
+      },
+      "hosted_routes": [],
+      "agreements": []
+    },
+    "roles": {},
+    "models": {},
+    "research": {
+      "activation": "denied_until_signed_reseller_terms_exact_model_route_upstream_rights_and_human_decisions_are_verified",
+      "source_scope": "public official pages only",
+      "not_an_operator_approval": true,
+      "model_reason": "Inferray discloses third-party model operators and upstream terms; its catalog does not prove the actual provider serving a route or model-specific downstream rights.",
+      "evidence": [
+        "https://inferray.com/terms",
+        "https://inferray.com/terms/token-plans",
+        "https://inferray.com/ai-reseller",
+        "https://inferray.com/white-label"
+      ]
+    }
+  }
+}

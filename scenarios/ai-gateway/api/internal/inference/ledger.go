@@ -9,6 +9,9 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
+
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 )
 
 type AttemptState string
@@ -93,7 +96,65 @@ type AttemptLedger interface {
 
 type SQLAttemptLedger struct{ db *sql.DB }
 
+// HostedAttemptRetention exceeds the LPBS credit-door key/receipt validity by
+// one day. That grace period accommodates clock skew and delayed lifecycle
+// cleanup while keeping a receipt recoverable for every instant its key works.
+const HostedAttemptRetention = monetization.CreditDoorReceiptValidity + 24*time.Hour
+
 func NewSQLAttemptLedger(db *sql.DB) *SQLAttemptLedger { return &SQLAttemptLedger{db: db} }
+
+// PruneExpired removes only roots whose complete attempt history is terminal
+// and older than the LPBS receipt-validity window. Pending and uncertain work
+// is retained indefinitely because deleting it could permit a duplicate
+// provider dispatch. The caller supplies now to make lifecycle cleanup
+// deterministic in tests.
+func (l *SQLAttemptLedger) PruneExpired(ctx context.Context, now time.Time) (int64, error) {
+	if l == nil || l.db == nil {
+		return 0, errors.New("inference attempt ledger is unavailable")
+	}
+	cutoff := now.UTC().Add(-HostedAttemptRetention).Format("2006-01-02 15:04:05")
+	tx, err := l.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	rows, err := tx.QueryContext(ctx, `SELECT root_operation_id FROM ai_gateway_inference_roots r
+WHERE EXISTS (SELECT 1 FROM ai_gateway_inference_attempts a WHERE a.root_operation_id=r.root_operation_id)
+AND NOT EXISTS (SELECT 1 FROM ai_gateway_inference_attempts a WHERE a.root_operation_id=r.root_operation_id
+AND (a.state NOT IN ($1,$2,$3,$4) OR a.updated_at >= $5))`,
+		string(AttemptPreDispatchFailed), string(AttemptSettled), string(AttemptReleased), string(AttemptOutputObserved), cutoff)
+	if err != nil {
+		return 0, err
+	}
+	var roots []string
+	for rows.Next() {
+		var root string
+		if err := rows.Scan(&root); err != nil {
+			_ = rows.Close()
+			return 0, err
+		}
+		roots = append(roots, root)
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return 0, err
+	}
+	if err := rows.Close(); err != nil {
+		return 0, err
+	}
+	for _, root := range roots {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM ai_gateway_inference_attempts WHERE root_operation_id=$1`, root); err != nil {
+			return 0, err
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM ai_gateway_inference_roots WHERE root_operation_id=$1`, root); err != nil {
+			return 0, err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	return int64(len(roots)), nil
+}
 
 func (l *SQLAttemptLedger) Lookup(ctx context.Context, root, digest string) (*LedgerSnapshot, error) {
 	if l == nil || l.db == nil {

@@ -11,27 +11,34 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func (s *Service) GetPolicy(ctx context.Context, req *domainpb.GetSupervisionPolicyRequest) (*domainpb.SupervisionPolicyRecord, error) {
-	if s.policies == nil {
+func (s *Service) requirePolicyStore() (*PolicyStore, error) {
+	if s == nil || s.policies == nil {
 		return nil, errors.New("supervision policy service is unavailable")
 	}
+	return s.policies, nil
+}
+
+func (s *Service) GetPolicy(ctx context.Context, req *domainpb.GetSupervisionPolicyRequest) (*domainpb.SupervisionPolicyRecord, error) {
+	store, err := s.requirePolicyStore()
+	if err != nil {
+		return nil, err
+	}
 	var record PolicyRecord
-	var err error
 	if req == nil || strings.TrimSpace(req.GetVersion()) == "" {
-		record, err = s.policies.Active(ctx)
+		record, err = store.Active(ctx)
 	} else {
-		record, err = s.policies.Get(ctx, req.GetVersion())
+		record, err = store.Get(ctx, req.GetVersion())
 	}
 	if err != nil {
 		return nil, err
 	}
 	result := policyRecordProto(record)
 	report := &domainpb.SupervisionReplayReport{Version: record.Policy.Version}
-	err = s.policies.db.QueryRowContext(ctx, `SELECT sample_count,false_positives,false_negatives,safety_violations,completion_impact,rollout_samples,replay_passed,rollout_passed FROM supervision_policy_gates WHERE version=?`, record.Policy.Version).Scan(&report.SampleCount, &report.FalsePositives, &report.FalseNegatives, &report.SafetyViolations, &report.CompletionImpact, &report.RolloutSamples, &report.ReplayPassed, &report.RolloutPassed)
+	err = store.db.QueryRowContext(ctx, `SELECT sample_count,false_positives,false_negatives,safety_violations,completion_impact,rollout_samples,replay_passed,rollout_passed FROM supervision_policy_gates WHERE version=?`, record.Policy.Version).Scan(&report.SampleCount, &report.FalsePositives, &report.FalseNegatives, &report.SafetyViolations, &report.CompletionImpact, &report.RolloutSamples, &report.ReplayPassed, &report.RolloutPassed)
 	if err == nil {
 		result.Evaluation = report
 		var raw string
-		if err := s.policies.db.QueryRowContext(ctx, `SELECT report_json FROM supervision_comparison_reports WHERE version=?`, record.Policy.Version).Scan(&raw); err == nil {
+		if err := store.db.QueryRowContext(ctx, `SELECT report_json FROM supervision_comparison_reports WHERE version=?`, record.Policy.Version).Scan(&raw); err == nil {
 			var comparison ReplayReport
 			if err = json.Unmarshal([]byte(raw), &comparison); err != nil {
 				return nil, err
@@ -43,7 +50,7 @@ func (s *Service) GetPolicy(ctx context.Context, req *domainpb.GetSupervisionPol
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
-	err = s.policies.db.QueryRowContext(ctx, `SELECT identity_digest FROM supervision_inference_identity WHERE version=?`, record.Policy.Version).Scan(&result.InferenceIdentityDigest)
+	err = store.db.QueryRowContext(ctx, `SELECT identity_digest FROM supervision_inference_identity WHERE version=?`, record.Policy.Version).Scan(&result.InferenceIdentityDigest)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
@@ -51,8 +58,12 @@ func (s *Service) GetPolicy(ctx context.Context, req *domainpb.GetSupervisionPol
 }
 
 func (s *Service) CreatePolicyCandidate(ctx context.Context, req *domainpb.CreateSupervisionPolicyCandidateRequest) (*domainpb.SupervisionPolicyRecord, error) {
-	if s.policies == nil || req == nil || req.GetPolicy() == nil {
-		return nil, errors.New("policy service and definition are required")
+	store, err := s.requirePolicyStore()
+	if err != nil {
+		return nil, err
+	}
+	if req == nil || req.GetPolicy() == nil {
+		return nil, errors.New("policy definition is required")
 	}
 	if s.policyArtifact == nil {
 		return nil, errors.New("candidate creation requires program artifact resolution")
@@ -66,7 +77,7 @@ func (s *Service) CreatePolicyCandidate(ctx context.Context, req *domainpb.Creat
 		return nil, errors.New("candidate artifact differs from current resolved declaration")
 	}
 	policy.EvaluatorDigest = digest
-	record, err := s.policies.CreateCandidate(ctx, policy, req.GetSupersedes(), req.GetCreatedBy())
+	record, err := store.CreateCandidate(ctx, policy, req.GetSupersedes(), req.GetCreatedBy())
 	if err != nil {
 		return nil, err
 	}
@@ -74,10 +85,14 @@ func (s *Service) CreatePolicyCandidate(ctx context.Context, req *domainpb.Creat
 }
 
 func (s *Service) RecordPolicyOutcome(ctx context.Context, req *domainpb.RecordSupervisionOutcomeRequest) (*domainpb.RecordSupervisionOutcomeResponse, error) {
-	if s.policies == nil || req == nil || req.GetOutcome() == nil {
-		return nil, errors.New("policy service and outcome are required")
+	store, err := s.requirePolicyStore()
+	if err != nil {
+		return nil, err
 	}
-	result, err := s.policies.RecordOutcome(ctx, outcomeFromProto(req.GetOutcome()))
+	if req == nil || req.GetOutcome() == nil {
+		return nil, errors.New("policy outcome is required")
+	}
+	result, err := store.RecordOutcome(ctx, outcomeFromProto(req.GetOutcome()))
 	if err != nil {
 		return nil, err
 	}
@@ -89,10 +104,14 @@ func (s *Service) RecordPolicyOutcome(ctx context.Context, req *domainpb.RecordS
 }
 
 func (s *Service) EvaluatePolicy(ctx context.Context, req *domainpb.EvaluateSupervisionPolicyRequest) (*domainpb.SupervisionReplayReport, error) {
-	if s.policies == nil || req == nil {
-		return nil, errors.New("policy service and request are required")
+	store, err := s.requirePolicyStore()
+	if err != nil {
+		return nil, err
 	}
-	report, err := s.policies.EvaluateCandidate(ctx, req.GetVersion(), int(req.GetRolloutSamples()), ReplayThresholds{MinSamples: int(req.GetMinSamples()), MaxFalsePositiveRate: req.GetMaxFalsePositiveRate(), MaxFalseNegativeRate: req.GetMaxFalseNegativeRate(), MinRolloutSamples: int(req.GetMinRolloutSamples())})
+	if req == nil {
+		return nil, errors.New("policy evaluation request is required")
+	}
+	report, err := store.EvaluateCandidate(ctx, req.GetVersion(), int(req.GetRolloutSamples()), ReplayThresholds{MinSamples: int(req.GetMinSamples()), MaxFalsePositiveRate: req.GetMaxFalsePositiveRate(), MaxFalseNegativeRate: req.GetMaxFalseNegativeRate(), MinRolloutSamples: int(req.GetMinRolloutSamples())})
 	if err != nil {
 		return nil, err
 	}
@@ -100,33 +119,53 @@ func (s *Service) EvaluatePolicy(ctx context.Context, req *domainpb.EvaluateSupe
 }
 
 func (s *Service) PromotePolicy(ctx context.Context, req *domainpb.PromoteSupervisionPolicyRequest) (*domainpb.SupervisionPolicyRecord, error) {
-	record, err := s.policies.Promote(ctx, req.GetVersion(), req.GetReviewedBy())
+	store, err := s.requirePolicyStore()
+	if err != nil {
+		return nil, err
+	}
+	record, err := store.Promote(ctx, req.GetVersion(), req.GetReviewedBy())
 	return policyRecordProto(record), err
 }
 
 func (s *Service) RejectPolicy(ctx context.Context, req *domainpb.RejectSupervisionPolicyRequest) (*domainpb.SupervisionPolicyRecord, error) {
-	if err := s.policies.Reject(ctx, req.GetVersion(), req.GetReviewedBy(), req.GetReason()); err != nil {
+	store, err := s.requirePolicyStore()
+	if err != nil {
 		return nil, err
 	}
-	record, err := s.policies.Get(ctx, req.GetVersion())
+	if err := store.Reject(ctx, req.GetVersion(), req.GetReviewedBy(), req.GetReason()); err != nil {
+		return nil, err
+	}
+	record, err := store.Get(ctx, req.GetVersion())
 	return policyRecordProto(record), err
 }
 
 func (s *Service) RollbackPolicy(ctx context.Context, req *domainpb.RollbackSupervisionPolicyRequest) (*domainpb.SupervisionPolicyRecord, error) {
-	record, err := s.policies.Rollback(ctx, req.GetActiveVersion(), req.GetReviewedBy())
+	store, err := s.requirePolicyStore()
+	if err != nil {
+		return nil, err
+	}
+	record, err := store.Rollback(ctx, req.GetActiveVersion(), req.GetReviewedBy())
 	return policyRecordProto(record), err
 }
 
 func (s *Service) SetPolicyDisabled(ctx context.Context, req *domainpb.SetSupervisionPolicyDisabledRequest) (*domainpb.SupervisionPolicyControl, error) {
-	if err := s.policies.SetDisabled(ctx, req.GetDisabled(), req.GetReason(), req.GetActor()); err != nil {
+	store, err := s.requirePolicyStore()
+	if err != nil {
 		return nil, err
 	}
-	disabled, reason, err := s.policies.Disabled(ctx)
+	if err := store.SetDisabled(ctx, req.GetDisabled(), req.GetReason(), req.GetActor()); err != nil {
+		return nil, err
+	}
+	disabled, reason, err := store.Disabled(ctx)
 	return &domainpb.SupervisionPolicyControl{Disabled: disabled, Reason: reason}, err
 }
 
 func (s *Service) ListPolicyOutcomes(ctx context.Context, req *domainpb.ListSupervisionOutcomesRequest) (*domainpb.ListSupervisionOutcomesResponse, error) {
-	outcomes, err := s.policies.ListOutcomes(ctx, req.GetPolicyVersion(), int(req.GetLimit()), req.GetWatchId())
+	store, err := s.requirePolicyStore()
+	if err != nil {
+		return nil, err
+	}
+	outcomes, err := store.ListOutcomes(ctx, req.GetPolicyVersion(), int(req.GetLimit()), req.GetWatchId())
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +173,7 @@ func (s *Service) ListPolicyOutcomes(ctx context.Context, req *domainpb.ListSupe
 	for _, outcome := range outcomes {
 		response.Outcomes = append(response.Outcomes, outcomeProto(outcome))
 	}
-	coverage, err := s.policies.EvidenceCoverage(ctx, req.GetPolicyVersion(), req.GetWatchId())
+	coverage, err := store.EvidenceCoverage(ctx, req.GetPolicyVersion(), req.GetWatchId())
 	if err != nil {
 		return nil, err
 	}

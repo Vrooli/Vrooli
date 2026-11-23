@@ -30,6 +30,7 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tanstack/react-query": "^5.90.16",
     "@vrooli/api-base": "file:../../../packages/api-base",
+    "@vrooli/goal-brief": "file:../../../packages/goal-brief",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "@vrooli/proto-types": "file:../../../packages/proto/gen/typescript",
     "@vrooli/react-component-library": "file:../../../packages/react-component-library",

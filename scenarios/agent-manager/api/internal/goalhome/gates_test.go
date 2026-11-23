@@ -5,6 +5,24 @@ import (
 	"testing"
 )
 
+func TestMalformedAcceptanceCannotSatisfyGateOrMarkEpochAccepted(t *testing.T) {
+	epoch := parseText(t, "# Unit\n\n## Exit gate\n\n- G1 review: deletion-list\n\n## Slice log\n\nACCEPTED not-a-time | gates=G1 | malformed timestamp\n")
+	if epoch.IsAccepted() {
+		t.Fatal("an acceptance without a valid timestamp must not accept the epoch")
+	}
+	if len(epoch.Malformed) != 1 || epoch.Malformed[0] != "ACCEPTED not-a-time | gates=G1 | malformed timestamp" {
+		t.Fatalf("malformed acceptance record = %v", epoch.Malformed)
+	}
+	report := EvaluateGates(epoch)
+	if report.GateStatus != GateUnmet || len(report.Gates) != 1 || report.Gates[0].State != GateUnmet {
+		t.Fatalf("malformed acceptance must not satisfy its gate: %+v", report)
+	}
+	triggers := EvaluateEpoch("unit.md", epoch, defaultLimits, fixtureNow, nil)
+	if triggers.Accepted != "" || triggers.AcceptedAt != nil {
+		t.Fatalf("malformed acceptance leaked into epoch report: %+v", triggers)
+	}
+}
+
 func gateStates(report GateReport) string {
 	var states []string
 	for _, gate := range report.Gates {

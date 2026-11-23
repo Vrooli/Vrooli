@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"ai-gateway/internal/providers"
 	"ai-gateway/internal/rolecatalog"
@@ -166,7 +168,7 @@ func validateSupplierDeclaration(path string, entry supplierDeclaration) error {
 	if err := validateSupplierIdentity(path, entry); err != nil {
 		return err
 	}
-	if err := validateSupplierPolicy(path, entry.Policy); err != nil {
+	if err := validateSupplierPolicy(path, entry); err != nil {
 		return err
 	}
 	return nil
@@ -186,16 +188,74 @@ func isValidSupplierID(id string) bool {
 func isValidSupplierMetadata(entry supplierDeclaration) bool {
 	validFamily := entry.Family == providers.FamilyOpenAICompatible
 	validLocality := entry.Locality == "local" || entry.Locality == "remote"
-	return validFamily && validLocality && strings.TrimSpace(entry.Endpoint) != ""
+	validEndpoint := entry.Endpoint == "" || (strings.TrimSpace(entry.Endpoint) != "" && strings.TrimSpace(entry.Endpoint) == entry.Endpoint)
+	return validFamily && validLocality && validEndpoint
 }
 
-func validateSupplierPolicy(path string, policy json.RawMessage) error {
-	var policyObject map[string]json.RawMessage
-	policyIsObject := json.Unmarshal(policy, &policyObject) == nil && policyObject != nil
-	if len(policy) == 0 || !json.Valid(policy) || !policyIsObject {
+func validateSupplierPolicy(path string, entry supplierDeclaration) error {
+	var policyObject struct {
+		Provider struct {
+			ID    string `json:"id"`
+			Terms struct {
+				Review struct {
+					Status string `json:"status"`
+				} `json:"review"`
+			} `json:"terms"`
+			HostedRoutes []json.RawMessage `json:"hosted_routes"`
+			Agreements   []json.RawMessage `json:"agreements"`
+		} `json:"provider"`
+		Models map[string]struct {
+			DefaultEligible *bool `json:"default_eligible"`
+			Provenance      struct {
+				Catalog struct {
+					Source     string `json:"source"`
+					ObservedAt string `json:"observed_at"`
+				} `json:"catalog"`
+			} `json:"provenance"`
+		} `json:"models"`
+	}
+	var raw map[string]json.RawMessage
+	if len(entry.Policy) == 0 || !json.Valid(entry.Policy) || json.Unmarshal(entry.Policy, &raw) != nil || raw == nil || json.Unmarshal(entry.Policy, &policyObject) != nil {
 		return fmt.Errorf("invalid supplier declaration %s", path)
 	}
+	reviewStatus := policyObject.Provider.Terms.Review.Status
+	proposalOnly := reviewStatus == "proposed" || reviewStatus == "pending_review"
+	for modelID, model := range policyObject.Models {
+		if model.DefaultEligible == nil {
+			return fmt.Errorf("invalid supplier declaration %s: model %q must set default_eligible explicitly", path, modelID)
+		}
+		if reviewStatus != "approved" && *model.DefaultEligible {
+			return fmt.Errorf("invalid supplier declaration %s: proposal model %q must set default_eligible false", path, modelID)
+		}
+		if !hasDirectHTTPSCatalogURL(model.Provenance.Catalog.Source) {
+			return fmt.Errorf("invalid supplier declaration %s: model %q needs a direct HTTPS catalog source", path, modelID)
+		}
+		if _, err := time.Parse("2006-01-02", model.Provenance.Catalog.ObservedAt); err != nil {
+			return fmt.Errorf("invalid supplier declaration %s: model %q needs catalog provenance observed_at in YYYY-MM-DD form", path, modelID)
+		}
+	}
+	hasExecutableAuthority := len(policyObject.Provider.HostedRoutes) != 0 || len(policyObject.Provider.Agreements) != 0
+	if hasExecutableAuthority && reviewStatus != "approved" {
+		return fmt.Errorf("invalid supplier declaration %s: hosted routes and agreements require approved review status", path)
+	}
+	if entry.Endpoint == "" {
+		if policyObject.Provider.ID == "" || policyObject.Provider.ID != entry.ID {
+			return fmt.Errorf("invalid supplier declaration %s: endpoint-less supplier policy identity must match the declaration", path)
+		}
+		if !proposalOnly {
+			return fmt.Errorf("invalid supplier declaration %s: endpoint-less suppliers must remain proposal-only without hosted routes or agreements", path)
+		}
+	}
 	return nil
+}
+
+func hasDirectHTTPSCatalogURL(source string) bool {
+	fields := strings.Fields(strings.TrimSpace(source))
+	if len(fields) == 0 || !strings.HasPrefix(fields[0], "https://") {
+		return false
+	}
+	parsed, err := url.Parse(fields[0])
+	return err == nil && parsed.Scheme == "https" && parsed.Hostname() != ""
 }
 
 func validateNoResourceDeclaration(root, supplierID string) error {

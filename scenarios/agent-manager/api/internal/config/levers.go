@@ -19,6 +19,7 @@ package config
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -817,17 +818,21 @@ func (l *Levers) Validate() error {
 	return nil
 }
 
-// Validate checks the transcript-import cadence is within safe bounds. An empty
-// ScanRoots list is valid (the built-in roots still apply); a configured root
-// must be a non-empty path so a stray empty entry is caught rather than walking
-// the current directory.
+// Validate checks the transcript-import cadence and configured roots. An empty
+// ScanRoots list is valid (the built-in roots still apply); each configured
+// root must be absolute or use the supported home-relative `~` form, so a typo
+// cannot make discovery depend on the process working directory.
 func (t *TranscriptImportLevers) Validate() error {
 	if t.Interval < time.Minute || t.Interval > 24*time.Hour {
 		return NewInvalid("interval", fmt.Sprintf("must be between 1m and 24h, got %v", t.Interval), nil)
 	}
 	for i, root := range t.ScanRoots {
-		if strings.TrimSpace(root) == "" {
+		root = strings.TrimSpace(root)
+		if root == "" {
 			return NewInvalid(fmt.Sprintf("scanRoots[%d]", i), "must be a non-empty path", nil)
+		}
+		if root != "~" && !strings.HasPrefix(root, "~/") && !filepath.IsAbs(root) {
+			return NewInvalid(fmt.Sprintf("scanRoots[%d]", i), "must be an absolute path, ~, or start with ~/", nil)
 		}
 	}
 	return nil

@@ -110,6 +110,10 @@ func FailureDetail(err error) string {
 	return detail
 }
 
+// commandWaitDelay is how long a killed resource command's output pipes may
+// stay open before the runner closes them and returns.
+const commandWaitDelay = 2 * time.Second
+
 type ExecRunner struct{}
 
 var _ CommandRunner = ExecRunner{}
@@ -126,6 +130,10 @@ func (ExecRunner) Run(ctx context.Context, command Command) (Result, error) {
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, command.Name, command.Args...) // #nosec G204 -- command.Name is restricted by allowedResourceCommand; args are fixed by adapters, prompt data is passed via stdin.
+	// Cancellation kills the resource command, but a child it started can
+	// keep the output pipes open and hold the request past its deadline.
+	// WaitDelay closes them after a short grace instead.
+	cmd.WaitDelay = commandWaitDelay
 	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil)
 	// Every resource command runs inside a request deadline. A resource CLI
 	// whose sources changed would otherwise rebuild itself in the request
@@ -155,6 +163,12 @@ func (ExecRunner) Run(ctx context.Context, command Command) (Result, error) {
 	switch {
 	case errors.Is(ctx.Err(), context.DeadlineExceeded):
 		cmdErr = &CommandError{Code: "timeout", Command: command.String(), ExitCode: -1, Stderr: result.Stderr, Err: ctx.Err()}
+	case errors.Is(ctx.Err(), context.Canceled):
+		// The caller gave up. Whether the command never started or was killed
+		// mid-run ("signal: killed"), the failure is the caller's, not the
+		// resource's, so it carries the cancellation rather than an exit or
+		// missing-binary code that would read as a provider fault.
+		cmdErr = &CommandError{Code: CodeCanceled, Command: command.String(), ExitCode: -1, Stderr: result.Stderr, Err: ctx.Err()}
 	default:
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {

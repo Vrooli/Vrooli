@@ -2,7 +2,9 @@ package model_eval
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -33,11 +35,16 @@ func ResolveTopicDir() (string, error) {
 
 var answerLinePattern = regexp.MustCompile(`^` + regexp.QuoteMeta(AdmissionDecisionID) + `:\s*(approve|defer|other)\b`)
 
+const AdmissionPacketSHA256 = "0eac00d7e36ca235ea1b5bc90e13c28ad0777677701224f48ed3f11e7b17eeb4"
+
 // TopicFileApprovalSource reads only a current operator answer from the
 // research topic's INBOX.md. Historical answers and the pending decision row
 // alone never grant dispatch authority.
 type TopicFileApprovalSource struct {
 	TopicDir string
+	// expectedPacketSHA256 is set only by package tests. Production always
+	// pins the packet digest reviewed with this decision.
+	expectedPacketSHA256 string
 }
 
 func (s TopicFileApprovalSource) ReadDecision(_ context.Context, id string) (Approval, error) {
@@ -52,7 +59,11 @@ func (s TopicFileApprovalSource) ReadDecision(_ context.Context, id string) (App
 		return Approval{}, errors.New("registered LM2 decision is unavailable")
 	}
 	packet, err := os.ReadFile(packetPath)
-	if err != nil || !strings.Contains(strings.ReplaceAll(string(packet), "`", ""), AdmissionScope) {
+	expectedPacketSHA := s.expectedPacketSHA256
+	if expectedPacketSHA == "" {
+		expectedPacketSHA = AdmissionPacketSHA256
+	}
+	if err != nil || hashBytes(packet) != expectedPacketSHA {
 		return Approval{}, errors.New("LM2 approval scope changed or is unavailable")
 	}
 	inbox, err := os.ReadFile(inboxPath)
@@ -65,6 +76,9 @@ func (s TopicFileApprovalSource) ReadDecision(_ context.Context, id string) (App
 	for _, line := range strings.Split(string(inbox), "\n") {
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "### ") {
+			// An answer is current only inside its own operator-answer section.
+			// Never pair an older matching decision with a newer unrelated stamp.
+			answer = ""
 			operatorAnswer = strings.Contains(strings.ToLower(trimmed), "from operator") && strings.Contains(strings.ToLower(trimmed), "answer")
 			recordedAt = parseInboxTimestamp(trimmed)
 			continue
@@ -80,7 +94,70 @@ func (s TopicFileApprovalSource) ReadDecision(_ context.Context, id string) (App
 	if answer == "" || recordedAt.IsZero() {
 		return Approval{}, errors.New("no current operator answer for LM2 admission")
 	}
+	if _, err := os.Lstat(s.dispatchMarkerPath()); err == nil {
+		return Approval{}, errors.New("LM2 one-time dispatch approval was already consumed")
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return Approval{}, errors.New("LM2 one-time dispatch marker could not be checked")
+	}
 	return Approval{DecisionID: id, Answer: answer, Scope: AdmissionScope, RecordedAt: recordedAt}, nil
+}
+
+type dispatchMarker struct {
+	DecisionID string    `json:"decision_id"`
+	Scope      string    `json:"scope"`
+	CaseSetSHA string    `json:"case_set_sha256"`
+	ClaimedAt  time.Time `json:"claimed_at"`
+}
+
+func (s TopicFileApprovalSource) ClaimDispatch(ctx context.Context, approval Approval, caseSetSHA string) error {
+	if strings.TrimSpace(s.TopicDir) == "" || approval.DecisionID != AdmissionDecisionID || approval.Answer != "approve" || approval.Scope != AdmissionScope || approval.RecordedAt.IsZero() || !validHash(caseSetSHA) {
+		return errors.New("LM2 one-time dispatch claim is invalid")
+	}
+	current, err := s.ReadDecision(ctx, AdmissionDecisionID)
+	if err != nil || current.Answer != approval.Answer || current.Scope != approval.Scope || !current.RecordedAt.Equal(approval.RecordedAt) {
+		return errors.New("current LM2 operator approval changed before dispatch")
+	}
+	packetDir := filepath.Join(s.TopicDir, "work", AdmissionDecisionID)
+	info, err := os.Lstat(packetDir)
+	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		return errors.New("LM2 decision packet directory is unavailable")
+	}
+	marker := dispatchMarker{DecisionID: approval.DecisionID, Scope: approval.Scope, CaseSetSHA: caseSetSHA, ClaimedAt: time.Now().UTC()}
+	data, err := json.Marshal(marker)
+	if err != nil {
+		return fmt.Errorf("encode LM2 one-time dispatch marker: %w", err)
+	}
+	file, err := os.OpenFile(s.dispatchMarkerPath(), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return errors.New("LM2 one-time dispatch approval was already consumed or marker is unavailable")
+	}
+	// Keep a partial marker on any error: once a durable create began, fail
+	// closed and never risk a second live batch after an uncertain write.
+	if _, err := file.Write(data); err != nil {
+		_ = file.Close()
+		return errors.New("LM2 one-time dispatch marker write failed")
+	}
+	if err := file.Sync(); err != nil {
+		_ = file.Close()
+		return errors.New("LM2 one-time dispatch marker sync failed")
+	}
+	if err := file.Close(); err != nil {
+		return errors.New("LM2 one-time dispatch marker close failed")
+	}
+	directory, err := os.Open(packetDir)
+	if err != nil {
+		return errors.New("LM2 one-time dispatch marker directory could not be opened")
+	}
+	syncErr := directory.Sync()
+	closeErr := directory.Close()
+	if syncErr != nil || closeErr != nil {
+		return errors.New("LM2 one-time dispatch marker directory sync failed")
+	}
+	return nil
+}
+
+func (s TopicFileApprovalSource) dispatchMarkerPath() string {
+	return filepath.Join(s.TopicDir, "work", AdmissionDecisionID, "dispatch-admission.json")
 }
 
 func parseInboxTimestamp(header string) time.Time {

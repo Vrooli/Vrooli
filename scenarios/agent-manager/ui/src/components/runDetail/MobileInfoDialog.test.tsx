@@ -30,7 +30,7 @@ test("confirms a copy with a check mark instead of the copy icon", () => {
 
 test("closes from the header button and from the Escape key", () => {
   const handlers = open("idle");
-  fireEvent.click(screen.getByRole("button", { name: "Close" }));
+  fireEvent.click(screen.getByTestId("mobile-run-details.close"));
   fireEvent.keyDown(document, { key: "Escape" });
   expect(handlers.onClose).toHaveBeenCalledTimes(2);
 });

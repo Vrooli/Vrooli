@@ -25,6 +25,7 @@ type LifecycleService struct {
 	operation                    string
 	fenceToken                   string
 	revision                     int64
+	unverifiedRevision           int64
 }
 
 func NewLifecycleService(gate *Gate, observe func(context.Context) (Inventory, error), provider, scenario, instance string) (*LifecycleService, error) {
@@ -68,14 +69,24 @@ func (s *LifecycleService) Prepare(ctx context.Context, req *connect.Request[com
 		s.operation, s.fenceToken, s.revision = req.Msg.GetOperationId(), standing.GetFenceToken(), state.Revision
 		return connect.NewResponse(&commonv1.LifecyclePrepareResponse{Standing: standing}), nil
 	}
-	state, err := s.gate.Enter(ctx, "control-plane", req.Msg.GetReason())
+	allowExistingClosed := req.Msg.GetEmergencyOverride() || s.operation == req.Msg.GetOperationId() || s.unverifiedRevision > 0
+	expectedRevision := s.unverifiedRevision
+	if s.operation == req.Msg.GetOperationId() {
+		expectedRevision = s.revision
+	}
+	if req.Msg.GetEmergencyOverride() {
+		expectedRevision = 0
+	}
+	state, err := s.gate.enterForLifecycle(ctx, "control-plane", req.Msg.GetReason(), allowExistingClosed, expectedRevision)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
 	standing, err := s.standing(ctx, req.Msg.GetOperationId(), state.Revision)
 	if err != nil {
+		s.unverifiedRevision = state.Revision
 		return nil, err
 	}
+	s.unverifiedRevision = 0
 	s.operation, s.fenceToken, s.revision = req.Msg.GetOperationId(), standing.GetFenceToken(), state.Revision
 	return connect.NewResponse(&commonv1.LifecyclePrepareResponse{Standing: standing}), nil
 }

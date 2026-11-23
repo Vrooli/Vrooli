@@ -35,6 +35,17 @@ func callRPC(api *cliutil.APIClient, procedure string, request, response proto.M
 	return body, nil
 }
 
+// strictRPC keeps the response-body and decode behavior of callRPC while
+// allocating the generated response type at the service boundary.
+func strictRPC[R any, PR interface {
+	*R
+	proto.Message
+}](api *cliutil.APIClient, procedure string, request proto.Message) ([]byte, PR, error) {
+	response := PR(new(R))
+	body, err := callRPC(api, procedure, request, response)
+	return body, response, err
+}
+
 // errDecodeResponse marks a call that succeeded but returned a body the typed
 // response cannot decode; callers that can print raw JSON fall back to it.
 var errDecodeResponse = errors.New("decode response")
@@ -42,93 +53,63 @@ var errDecodeResponse = errors.New("decode response")
 type InvestigationService struct{ api *cliutil.APIClient }
 
 func (s *InvestigationService) Start(request *apipb.StartInvestigationRequest) ([]byte, *apipb.StartInvestigationResponse, error) {
-	response := &apipb.StartInvestigationResponse{}
-	body, err := callRPC(s.api, apiconnect.AgentManagerServiceStartInvestigationProcedure, request, response)
-	return body, response, err
+	return strictRPC[apipb.StartInvestigationResponse](s.api, apiconnect.AgentManagerServiceStartInvestigationProcedure, request)
 }
 
 func (s *InvestigationService) Get(request *apipb.GetInvestigationRequest) ([]byte, *apipb.InvestigationRecord, error) {
-	response := &apipb.InvestigationRecord{}
-	body, err := callRPC(s.api, apiconnect.AgentManagerServiceGetInvestigationProcedure, request, response)
-	return body, response, err
+	return strictRPC[apipb.InvestigationRecord](s.api, apiconnect.AgentManagerServiceGetInvestigationProcedure, request)
 }
 
 func (s *InvestigationService) List(request *apipb.ListInvestigationsRequest) ([]byte, *apipb.ListInvestigationsResponse, error) {
-	response := &apipb.ListInvestigationsResponse{}
-	body, err := callRPC(s.api, apiconnect.AgentManagerServiceListInvestigationsProcedure, request, response)
-	return body, response, err
+	return strictRPC[apipb.ListInvestigationsResponse](s.api, apiconnect.AgentManagerServiceListInvestigationsProcedure, request)
 }
 
 func (s *InvestigationService) Wait(request *apipb.WaitInvestigationRequest) ([]byte, *apipb.WaitInvestigationResponse, error) {
-	response := &apipb.WaitInvestigationResponse{}
-	body, err := callRPC(s.api, apiconnect.AgentManagerServiceWaitInvestigationProcedure, request, response)
-	return body, response, err
+	return strictRPC[apipb.WaitInvestigationResponse](s.api, apiconnect.AgentManagerServiceWaitInvestigationProcedure, request)
 }
 
 func (s *InvestigationService) Cancel(request *apipb.CancelInvestigationRequest) ([]byte, *apipb.InvestigationRecord, error) {
-	response := &apipb.InvestigationRecord{}
-	body, err := callRPC(s.api, apiconnect.AgentManagerServiceCancelInvestigationProcedure, request, response)
-	return body, response, err
+	return strictRPC[apipb.InvestigationRecord](s.api, apiconnect.AgentManagerServiceCancelInvestigationProcedure, request)
 }
 
 func (s *WatchService) Create(request *domainpb.CreateCohortWatchRequest) ([]byte, *domainpb.CohortWatch, error) {
-	response := &domainpb.CohortWatch{}
-	body, err := callRPC(s.api, apiconnect.AgentManagerServiceCreateCohortWatchProcedure, request, response)
-	return body, response, err
+	return strictRPC[domainpb.CohortWatch](s.api, apiconnect.AgentManagerServiceCreateCohortWatchProcedure, request)
 }
 
 func (s *WatchService) Get(request *domainpb.GetCohortWatchRequest) ([]byte, *domainpb.CohortWatch, error) {
-	response := &domainpb.CohortWatch{}
-	body, err := callRPC(s.api, apiconnect.AgentManagerServiceGetCohortWatchProcedure, request, response)
-	return body, response, err
+	return strictRPC[domainpb.CohortWatch](s.api, apiconnect.AgentManagerServiceGetCohortWatchProcedure, request)
 }
 
 func (s *WatchService) List(request *domainpb.ListCohortWatchesRequest) ([]byte, *domainpb.ListCohortWatchesResponse, error) {
-	response := &domainpb.ListCohortWatchesResponse{}
-	body, err := callRPC(s.api, apiconnect.AgentManagerServiceListCohortWatchesProcedure, request, response)
-	return body, response, err
+	return strictRPC[domainpb.ListCohortWatchesResponse](s.api, apiconnect.AgentManagerServiceListCohortWatchesProcedure, request)
 }
 
 func (s *WatchService) Wait(request *domainpb.WaitCohortWatchRequest) ([]byte, *domainpb.WaitCohortWatchResponse, error) {
-	response := &domainpb.WaitCohortWatchResponse{}
-	body, err := callRPC(s.api, apiconnect.AgentManagerServiceWaitCohortWatchProcedure, request, response)
-	return body, response, err
+	return strictRPC[domainpb.WaitCohortWatchResponse](s.api, apiconnect.AgentManagerServiceWaitCohortWatchProcedure, request)
 }
 
 func (s *WatchService) Cancel(request *domainpb.CancelCohortWatchRequest) ([]byte, *domainpb.CohortWatch, error) {
-	response := &domainpb.CohortWatch{}
-	body, err := callRPC(s.api, apiconnect.AgentManagerServiceCancelCohortWatchProcedure, request, response)
-	return body, response, err
+	return strictRPC[domainpb.CohortWatch](s.api, apiconnect.AgentManagerServiceCancelCohortWatchProcedure, request)
 }
 
 func (s *WatchService) Inspect(request *domainpb.InspectCohortWatchRequest) ([]byte, *domainpb.InspectCohortWatchResponse, error) {
-	response := &domainpb.InspectCohortWatchResponse{}
-	body, err := callRPC(s.api, apiconnect.AgentManagerServiceInspectCohortWatchProcedure, request, response)
-	return body, response, err
+	return strictRPC[domainpb.InspectCohortWatchResponse](s.api, apiconnect.AgentManagerServiceInspectCohortWatchProcedure, request)
 }
 
 func (s *WatchService) RequestAction(request *domainpb.RequestCohortWatchActionRequest) ([]byte, *domainpb.RequestCohortWatchActionResponse, error) {
-	response := &domainpb.RequestCohortWatchActionResponse{}
-	body, err := callRPC(s.api, apiconnect.AgentManagerServiceRequestCohortWatchActionProcedure, request, response)
-	return body, response, err
+	return strictRPC[domainpb.RequestCohortWatchActionResponse](s.api, apiconnect.AgentManagerServiceRequestCohortWatchActionProcedure, request)
 }
 
 func (s *WatchService) ListActions(request *domainpb.ListCohortWatchActionsRequest) ([]byte, *domainpb.ListCohortWatchActionsResponse, error) {
-	response := &domainpb.ListCohortWatchActionsResponse{}
-	body, err := callRPC(s.api, apiconnect.AgentManagerServiceListCohortWatchActionsProcedure, request, response)
-	return body, response, err
+	return strictRPC[domainpb.ListCohortWatchActionsResponse](s.api, apiconnect.AgentManagerServiceListCohortWatchActionsProcedure, request)
 }
 
 func (s *WatchService) GetPolicy(request *domainpb.GetSupervisionPolicyRequest) ([]byte, *domainpb.SupervisionPolicyRecord, error) {
-	response := &domainpb.SupervisionPolicyRecord{}
-	body, err := callRPC(s.api, apiconnect.AgentManagerServiceGetSupervisionPolicyProcedure, request, response)
-	return body, response, err
+	return strictRPC[domainpb.SupervisionPolicyRecord](s.api, apiconnect.AgentManagerServiceGetSupervisionPolicyProcedure, request)
 }
 
 func (s *WatchService) ListOutcomes(request *domainpb.ListSupervisionOutcomesRequest) ([]byte, *domainpb.ListSupervisionOutcomesResponse, error) {
-	response := &domainpb.ListSupervisionOutcomesResponse{}
-	body, err := callRPC(s.api, apiconnect.AgentManagerServiceListSupervisionOutcomesProcedure, request, response)
-	return body, response, err
+	return strictRPC[domainpb.ListSupervisionOutcomesResponse](s.api, apiconnect.AgentManagerServiceListSupervisionOutcomesProcedure, request)
 }
 
 // ConversationSearchService keeps the CLI on the generated protobuf contract

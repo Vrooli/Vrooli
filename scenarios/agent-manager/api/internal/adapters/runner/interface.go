@@ -580,6 +580,14 @@ type TranscriptParser interface {
 	ParseTranscriptLine(runID uuid.UUID, line string) TranscriptParseResult
 }
 
+// TranscriptDocumentParser is an optional adapter for native session files
+// whose wire format is one complete document instead of JSONL. The indexer
+// still owns capture, search projection and checkpointing; the harness codec
+// package owns document decoding.
+type TranscriptDocumentParser interface {
+	ParseTranscriptDocument(runID uuid.UUID, document []byte) TranscriptParseResult
+}
+
 // TranscriptParserFactory creates a fresh parser for one logical transcript
 // consumption. Callers that tail live output and then perform a final drain
 // must share the returned parser across both Consume calls so replay state

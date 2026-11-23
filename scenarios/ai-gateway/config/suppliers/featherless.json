@@ -1,0 +1,121 @@
+{
+  "id": "featherless",
+  "family": "openai-compatible",
+  "locality": "remote",
+  "endpoint": "https://api.featherless.ai/v1",
+  "policy": {
+    "schema_version": "2026-11-22",
+    "provider": {
+      "id": "featherless",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "business_negotiated_resale_terms_only",
+            "access_tier": "unverified",
+            "use_classes": {
+              "own_account": "allowed",
+              "bounded_feature": "unverified",
+              "in_app": "unverified",
+              "harness_access": "unverified"
+            },
+            "conditions": [
+              "Current Business pricing says resale is Negotiable; do not assume a resale agreement or scope exists until current written Business terms are obtained and reviewed.",
+              "Exclude current Chat and Developer plans because their current pricing comparison says resale is not permitted.",
+              "The 2024 Terms' Scale resale clause uses a plan name absent from the current pricing page; resolve the stale plan naming and terms precedence in writing.",
+              "Identify whether exact serving is Featherless-managed standard API, dedicated-GPU Business service, or public-cloud burst; verify actual serving processor and current route.",
+              "Featherless terms do not grant rights to underlying models; record exact model publisher, license/use terms and permitted customer use per model.",
+              "Record a current route quote, actual availability observation, trust/data conditions, and Vrooli customer price separately; none follows from catalog presence."
+            ],
+            "clause": "Featherless Terms §§3 and 9; current Business pricing comparison",
+            "reason": "Old Scale terms expressly described inference resale, but current plan naming no longer includes Scale and Business terms say resale is negotiable. This draft is Business-only and conditional; it does not establish current contractual permission or model rights."
+          }
+        ],
+        "evidence": {
+          "url": "https://featherless.ai/legal/terms-of-service",
+          "document_date": "2024-06-10",
+          "read_at": "2026-11-22"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-11-22",
+        "on_expiry": "deny"
+      },
+      "hosted_routes": [],
+      "agreements": []
+    },
+    "roles": {},
+    "models": {
+      "mistral-3.5": {
+        "provider": "Mistral",
+        "display_name": "Mistral 3.5",
+        "family": "mistral",
+        "capabilities": ["chat", "text_input", "text_output", "streaming"],
+        "modalities": {"input": ["text"], "output": ["text"]},
+        "endpoints": ["chat"],
+        "context_window_tokens": 128000,
+        "default_eligible": false,
+        "use_case_notes": "Featherless documented model identity draft only; no serving route is approved.",
+        "caveats": [
+          "The published compatibility table gives an API model ID and a provider-reported context size; it is not account-scoped route availability or a downstream resale grant.",
+          "Verify exact Mistral model rights and Featherless serving route, current entitlement, trust/data handling, quote, and human decisions before any route can be eligible."
+        ],
+        "provenance": {
+          "catalog": {"source_kind": "manual_policy", "confidence": "high", "source": "https://featherless.ai/docs/models-model-compatibility; Mistral 3.5 API model ID mistral-3.5 and 128,000 context size", "observed_at": "2026-11-23"},
+          "terms": {"source_kind": "manual_policy", "confidence": "low", "source": "https://featherless.ai/legal/terms-of-service; model identity does not establish upstream rights or downstream resale permission", "observed_at": "2026-11-23"}
+        }
+      },
+      "qwen3-8b": {
+        "provider": "Qwen",
+        "display_name": "Qwen 3 8B",
+        "family": "qwen3",
+        "capabilities": ["chat", "text_input", "text_output", "streaming"],
+        "modalities": {"input": ["text"], "output": ["text"]},
+        "endpoints": ["chat"],
+        "context_window_tokens": 32768,
+        "default_eligible": false,
+        "use_case_notes": "Featherless documented model identity draft only; no serving route is approved.",
+        "caveats": [
+          "The published compatibility table gives an API model ID and a provider-reported context size; it is not account-scoped route availability or a downstream resale grant.",
+          "Verify exact Qwen model rights and Featherless serving route, current entitlement, trust/data handling, quote, and human decisions before any route can be eligible."
+        ],
+        "provenance": {
+          "catalog": {"source_kind": "manual_policy", "confidence": "high", "source": "https://featherless.ai/docs/models-model-compatibility; Qwen 3 API model ID qwen3-8b and 32,768 context size", "observed_at": "2026-11-23"},
+          "terms": {"source_kind": "manual_policy", "confidence": "low", "source": "https://featherless.ai/legal/terms-of-service; model identity does not establish upstream rights or downstream resale permission", "observed_at": "2026-11-23"}
+        }
+      },
+      "minimax-m3": {
+        "provider": "MiniMax",
+        "display_name": "MiniMax M3",
+        "family": "minimax-m3",
+        "capabilities": ["chat", "text_input", "text_output", "streaming"],
+        "modalities": {"input": ["text"], "output": ["text"]},
+        "endpoints": ["chat"],
+        "context_window_tokens": 262144,
+        "default_eligible": false,
+        "use_case_notes": "Featherless documented model identity draft only; no serving route is approved.",
+        "caveats": [
+          "The published compatibility table gives an API model ID and a provider-reported context size; it is not account-scoped route availability or a downstream resale grant.",
+          "Verify exact MiniMax model rights and Featherless serving route, current entitlement, trust/data handling, quote, and human decisions before any route can be eligible."
+        ],
+        "provenance": {
+          "catalog": {"source_kind": "manual_policy", "confidence": "high", "source": "https://featherless.ai/docs/models-model-compatibility; MiniMax M3 API model ID minimax-m3 and 262,144 context size", "observed_at": "2026-11-23"},
+          "terms": {"source_kind": "manual_policy", "confidence": "low", "source": "https://featherless.ai/legal/terms-of-service; model identity does not establish upstream rights or downstream resale permission", "observed_at": "2026-11-23"}
+        }
+      }
+    },
+    "research": {
+      "activation": "denied_until_current_negotiated_business_terms_exact_serving_route_model_rights_and_human_decisions_are_verified",
+      "source_scope": "public official pages only",
+      "not_an_operator_approval": true,
+      "model_reason": "The mutable Featherless catalog does not establish upstream model rights or exact serving route/provider; terms assign model-rights review to the purchaser.",
+      "evidence": [
+        "https://featherless.ai/legal/terms-of-service",
+        "https://featherless.ai/pricing",
+        "https://featherless.ai/models",
+        "https://featherless.ai/docs/api-overview-and-common-options",
+        "https://featherless.ai/docs/models-model-compatibility"
+      ]
+    }
+  }
+}

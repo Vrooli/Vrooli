@@ -341,10 +341,7 @@ func TestSandboxCwdContract_OffRunsInPlace(t *testing.T) {
 		t.Fatalf("CreateRun: %v", err)
 	}
 
-	finalRun, err := waitForTerminal(t, ctx, svc, run.ID, 15*time.Second)
-	if err != nil {
-		t.Fatalf("waitForTerminal: %v", err)
-	}
+	finalRun := waitForCompletedRun(t, ctx, svc, run.ID, 15*time.Second)
 
 	if finalRun.RunMode != domain.RunModeInPlace {
 		t.Fatalf("RunMode = %q, want %q (Mode=Off must derive to in-place)",

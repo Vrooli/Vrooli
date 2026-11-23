@@ -150,9 +150,11 @@ func (s *Service) effectiveBreaker(ctx context.Context, provider, role string, k
 // recordOutcome updates persisted breaker state after an execution attempt.
 // It is best-effort: a health-store write failure must not fail the caller's
 // request, since routing already succeeded or failed on its own merits. A
-// capacity refusal is not a health observation and never reaches the breaker.
+// capacity refusal and a caller's cancellation are not health observations
+// and never reach the breaker: a client that gives up on slow requests must
+// not open the breaker for the next caller.
 func (s *Service) recordOutcome(ctx context.Context, provider, role string, kind sharedv1.RequestKind, failure ProviderFailure, success bool) {
-	if s.health == nil || failure.Class == FailureCapacityRefused {
+	if s.health == nil || failure.Class == FailureCapacityRefused || failure.Class == FailureCancellation {
 		return
 	}
 	key := HealthKey{Provider: provider, Role: role, Kind: kind}

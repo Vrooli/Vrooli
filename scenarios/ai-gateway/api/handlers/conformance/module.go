@@ -52,6 +52,9 @@ func withDefaultModelEvalSource(d Deps) Deps {
 	if d.ModelEvalSource == nil {
 		d.ModelEvalSource = internalconformance.NewDiscoveredSearchHubModelEvalSource(discovery.ResolveScenarioURLDefault, nil)
 	}
+	if d.ModelEvalExecutor == nil {
+		d.ModelEvalExecutor = &DiscoveredAgentManagerModelEvalExecutor{}
+	}
 	return d
 }
 

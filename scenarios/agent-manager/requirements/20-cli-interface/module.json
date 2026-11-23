@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-10-29T13:50:55-04:00"
+    "last_validated_at": "2026-11-22T20:30:54-05:00"
   },
   "requirements": [
     {
@@ -14,13 +14,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test command parsing"
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test output formatting"
         },
         {
@@ -32,13 +32,13 @@
         {
           "type": "test",
           "phase": "performance",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Command response time under 500ms"
         },
         {
           "type": "test",
           "phase": "business",
-          "status": "failing",
+          "status": "implemented",
           "notes": "All core operations accessible via CLI"
         }
       ]
@@ -46,7 +46,7 @@
     {
       "id": "REQ-P1-009a",
       "title": "Unsupported remote runner targets fail closed",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-009",
       "category": "cli",
       "description": "The global --node selector must never be silently ignored: when Agent Manager has no governed remote runner route, it must fail explicitly instead of returning local runner results.",
@@ -55,7 +55,7 @@
           "type": "test",
           "ref": "cli/app_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Rejects a non-empty --node target before runner commands can be treated as local execution."
         }
       ]

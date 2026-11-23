@@ -105,8 +105,8 @@ func (r *Run) CheckRunSandboxInvariant() bool {
 		return true
 	}
 
-	phaseOrd := phaseOrdinal(r.Phase)
-	sandboxCreatingOrd := phaseOrdinal(RunPhaseSandboxCreating)
+	phaseOrd := r.Phase.Ordinal()
+	sandboxCreatingOrd := RunPhaseSandboxCreating.Ordinal()
 
 	// If we're past sandbox creation, we must have a sandbox ID
 	if phaseOrd > sandboxCreatingOrd && r.SandboxID == nil {
@@ -194,8 +194,8 @@ const InvPhaseSequence = "INV_PHASE_SEQUENCE"
 
 // CheckPhaseTransition verifies a phase transition is valid.
 func (r *Run) CheckPhaseTransition(newPhase RunPhase) bool {
-	currentOrd := phaseOrdinal(r.Phase)
-	newOrd := phaseOrdinal(newPhase)
+	currentOrd := r.Phase.Ordinal()
+	newOrd := newPhase.Ordinal()
 
 	// Phases should only advance (except for retry which resets to same phase)
 	if newOrd < currentOrd {
@@ -222,34 +222,6 @@ func (r *Run) CheckPhaseTransition(newPhase RunPhase) bool {
 	}
 
 	return true
-}
-
-// phaseOrdinal returns the numeric order of a phase for comparison.
-func phaseOrdinal(phase RunPhase) int {
-	switch phase {
-	case RunPhaseQueued:
-		return 0
-	case RunPhaseInitializing:
-		return 1
-	case RunPhaseSandboxCreating:
-		return 2
-	case RunPhaseRunnerAcquiring:
-		return 3
-	case RunPhaseExecuting:
-		return 4
-	case RunPhaseCollectingResults:
-		return 5
-	case RunPhaseAwaitingReview:
-		return 6
-	case RunPhaseApplying:
-		return 7
-	case RunPhaseCleaningUp:
-		return 8
-	case RunPhaseCompleted:
-		return 9
-	default:
-		return 0
-	}
 }
 
 // =============================================================================

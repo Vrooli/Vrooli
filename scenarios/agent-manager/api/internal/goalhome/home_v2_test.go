@@ -221,32 +221,35 @@ func TestLoadV2MalformedLogIsPartial(t *testing.T) {
 	// A malformed ## Accepted units line yields a partial board projection
 	// (EpochsComplete=false), exactly as an unreadable epoch set does in v1, so
 	// the board never reads accepted/active facts from it.
-	malformed := func(string) string {
-		return "# BAS log\n\n## Accepted units\n\n- this line has no ACCEPTED head at all\n"
-	}
-	// Strict LoadV2 errors.
-	files := fstest.MapFS{
-		LogFile: {Data: []byte(malformed(""))},
-	}
-	if _, err := LoadV2(files); err == nil {
-		t.Fatal("strict LoadV2 must error on a malformed LOG")
-	}
-	// Tolerant board projection marks the home partial instead.
-	home, err := LoadBoardProjectionV2(files)
-	if err != nil {
-		t.Fatalf("LoadBoardProjectionV2: %v", err)
-	}
-	if home.EpochsComplete {
-		t.Fatal("a malformed LOG must make the board projection partial")
-	}
-	found := false
-	for _, name := range home.IncompleteEpochFiles {
-		if name == LogFile {
-			found = true
-		}
-	}
-	if !found {
-		t.Fatalf("LOG.md should be named incomplete: %v", home.IncompleteEpochFiles)
+	for _, tc := range []struct {
+		name string
+		log  string
+	}{
+		{name: "missing acceptance head", log: "# BAS log\n\n## Accepted units\n\n- this line has no ACCEPTED head at all\n"},
+		{name: "malformed acceptance timestamp", log: "# BAS log\n\n## Accepted units\n\n- E1 | ACCEPTED not-a-time | gates=G1 | malformed timestamp\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			files := fstest.MapFS{LogFile: {Data: []byte(tc.log)}}
+			if _, err := LoadV2(files); err == nil {
+				t.Fatal("strict LoadV2 must error on a malformed LOG")
+			}
+			home, err := LoadBoardProjectionV2(files)
+			if err != nil {
+				t.Fatalf("LoadBoardProjectionV2: %v", err)
+			}
+			if home.EpochsComplete {
+				t.Fatal("a malformed LOG must make the board projection partial")
+			}
+			found := false
+			for _, name := range home.IncompleteEpochFiles {
+				if name == LogFile {
+					found = true
+				}
+			}
+			if !found {
+				t.Fatalf("LOG.md should be named incomplete: %v", home.IncompleteEpochFiles)
+			}
+		})
 	}
 }
 

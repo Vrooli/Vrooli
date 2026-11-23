@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -96,11 +97,17 @@ func NewSQLiteStore(db sqlcompat.DB, log *logrus.Logger) *SQLiteStore {
 }
 
 type eventSubscriber struct {
-	ch          chan *domain.RunEvent
-	done        chan struct{}
-	historyDone chan struct{}
-	eventTypes  []domain.RunEventType
-	once        sync.Once
+	ch                chan *domain.RunEvent
+	done              chan struct{}
+	historyDone       chan struct{}
+	eventTypes        []domain.RunEventType
+	fromSequence      int64
+	deliveryMu        sync.Mutex
+	historyLoading    bool
+	historyThrough    int64
+	hasHistoryThrough bool
+	pendingLive       []*domain.RunEvent
+	once              sync.Once
 }
 
 func (s *eventSubscriber) stop() { s.once.Do(func() { close(s.done) }) }
@@ -569,7 +576,12 @@ func (s *SQLiteStore) notifySubscribers(runID uuid.UUID, events []*domain.RunEve
 // A full live buffer invalidates the stream: close it so the subscriber can
 // resume from its last cursor rather than silently missing an event.
 func deliverSubscriber(sub *eventSubscriber, event *domain.RunEvent) {
+	sub.deliveryMu.Lock()
+	defer sub.deliveryMu.Unlock()
 	if !sub.accepts(event) {
+		return
+	}
+	if event.Sequence < sub.fromSequence || (sub.hasHistoryThrough && event.Sequence <= sub.historyThrough) {
 		return
 	}
 	select {
@@ -577,11 +589,60 @@ func deliverSubscriber(sub *eventSubscriber, event *domain.RunEvent) {
 		return
 	default:
 	}
+	if sub.historyLoading {
+		if len(sub.pendingLive) >= cap(sub.ch) {
+			sub.stop()
+			return
+		}
+		sub.pendingLive = append(sub.pendingLive, event)
+		return
+	}
+	enqueueSubscriber(sub, event)
+}
+
+func enqueueSubscriber(sub *eventSubscriber, event *domain.RunEvent) bool {
+	select {
+	case <-sub.done:
+		return false
+	default:
+	}
 	select {
 	case sub.ch <- event:
+		return true
 	default:
 		sub.stop()
+		return false
 	}
+}
+
+// finishSubscriberHistory performs the handoff while blocking live publishers
+// for this subscriber. History is delivered first; notifications already
+// represented in that read are discarded by sequence, and later notifications
+// follow the historical batch.
+func finishSubscriberHistory(sub *eventSubscriber, history []*domain.RunEvent) {
+	var through int64
+	hasThrough := false
+	for _, evt := range history {
+		if !hasThrough || evt.Sequence > through {
+			through, hasThrough = evt.Sequence, true
+		}
+	}
+	sub.deliveryMu.Lock()
+	defer sub.deliveryMu.Unlock()
+	sort.Slice(sub.pendingLive, func(i, j int) bool {
+		return sub.pendingLive[i].Sequence < sub.pendingLive[j].Sequence
+	})
+	for _, evt := range sub.pendingLive {
+		if evt.Sequence < sub.fromSequence || (hasThrough && evt.Sequence <= through) {
+			continue
+		}
+		if !enqueueSubscriber(sub, evt) {
+			break
+		}
+	}
+	sub.pendingLive = nil
+	sub.historyThrough, sub.hasHistoryThrough = through, hasThrough
+	sub.historyLoading = false
 }
 
 // Get retrieves events for a run with optional filtering.
@@ -808,10 +869,12 @@ func (s *SQLiteStore) Stream(ctx context.Context, runID uuid.UUID, opts StreamOp
 	}
 
 	sub := &eventSubscriber{
-		ch:          make(chan *domain.RunEvent, bufSize),
-		done:        make(chan struct{}),
-		historyDone: make(chan struct{}),
-		eventTypes:  append([]domain.RunEventType(nil), opts.EventTypes...),
+		ch:             make(chan *domain.RunEvent, bufSize),
+		done:           make(chan struct{}),
+		historyDone:    make(chan struct{}),
+		eventTypes:     append([]domain.RunEventType(nil), opts.EventTypes...),
+		fromSequence:   opts.FromSequence,
+		historyLoading: true,
 	}
 
 	// Register subscriber
@@ -829,6 +892,7 @@ func (s *SQLiteStore) Stream(ctx context.Context, runID uuid.UUID, opts StreamOp
 		})
 		if err != nil {
 			s.log.WithError(err).Error("Failed to get historical events for stream")
+			finishSubscriberHistory(sub, nil)
 			return
 		}
 
@@ -839,6 +903,7 @@ func (s *SQLiteStore) Stream(ctx context.Context, runID uuid.UUID, opts StreamOp
 				return
 			}
 		}
+		finishSubscriberHistory(sub, events)
 	}()
 
 	// Clean up on context cancellation

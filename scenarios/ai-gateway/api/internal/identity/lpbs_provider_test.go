@@ -70,6 +70,36 @@ func TestLPBSConsumerProviderVerifiesScopedCreditAssertion(t *testing.T) {
 	require.Error(t, provider.VerifyCreditAssertion(req, token, wrong))
 }
 
+func TestLPBSRunCallerAssertionBindsVerifiedPrincipalToRoleAndOperation(t *testing.T) {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	signer, err := consumeridentity.NewSigner("fixture-key", key, "lpbs.fixture", time.Minute)
+	require.NoError(t, err)
+	expect := consumeridentity.CreditAssertionExpectation{
+		BusinessAccountID: "account-a", ActorID: "actor-a", AppKey: "web-console",
+		FeatureID: "ai-gateway.run/extract.structured", MaxCredits: 500,
+		Audience: consumeridentity.CreditGatewayAudience, OperationID: "operation-a",
+		Source: consumeridentity.CreditAssertionSource,
+	}
+	token, _, err := signer.SignCreditAssertion(expect, 20*time.Second)
+	require.NoError(t, err)
+	jwks, err := consumeridentity.NewKeySet(consumeridentity.PublicKey{ID: signer.KeyID, Key: &key.PublicKey}).JWKS()
+	require.NoError(t, err)
+	provider := &LPBSConsumerProvider{cache: consumeridentity.NewCache("lpbs.fixture", 0, time.Hour, func(*http.Request) ([]byte, error) { return jwks, nil })}
+	req := httptest.NewRequest(http.MethodPost, "/ai-gateway.v1.inference.InferenceService/Run", nil)
+
+	caller, err := provider.VerifyRunCallerAssertion(req, token, "extract.structured", "operation-a")
+	require.NoError(t, err)
+	require.Equal(t, RunCaller{BusinessAccountID: "account-a", ActorID: "actor-a", AppKey: "web-console", OperationID: "operation-a"}, caller)
+
+	_, err = provider.VerifyRunCallerAssertion(req, token, "classify.fast", "operation-a")
+	require.Error(t, err, "role must match the LPBS-signed scope")
+	_, err = provider.VerifyRunCallerAssertion(req, token, "extract.structured", "operation-b")
+	require.Error(t, err, "root operation id must match the LPBS-signed scope")
+	_, err = provider.VerifyRunCallerAssertion(req, "forged", "extract.structured", "operation-a")
+	require.Error(t, err)
+}
+
 func TestLPBSConsumerProviderAcceptsPublishedRotationOverlapAcrossRestart(t *testing.T) {
 	oldSigner, err := consumeridentity.GenerateSigner("old-key", "lpbs.fixture", time.Minute)
 	require.NoError(t, err)

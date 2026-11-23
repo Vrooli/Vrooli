@@ -20,3 +20,14 @@ explicit blocking evidence. Corpus validation reports stale expected documents
 without deleting them; the fixed-denominator grader keeps them in the recall
 denominator as misses. A ready evidence inventory still waits for the separate
 operator-routed LM2 inference admission before a model-evaluation run can execute.
+
+When Test Genie requests execution for this phase, AI Gateway delegates to the
+Agent Manager owner endpoint. Agent Manager reads the current answer for the
+exact LM2 decision, freezes up to 20 authenticated operator user-message
+identities, re-reads each message before its sequential Gateway call, and
+returns metadata only. It rejects a reused approval, changed scope, remote
+route, denied or unknown rights, missing privacy proof, stale capacity, or
+insufficient disk/artifact headroom. The production prompt/output privacy
+verifier is intentionally fail-closed until transport, provider, and logging
+sinks have a complete deployed non-persistence proof. A refused execution is
+retained as a Test Genie terminal receipt and does not count as a model result.

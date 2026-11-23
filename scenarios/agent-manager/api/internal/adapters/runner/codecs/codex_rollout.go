@@ -39,24 +39,13 @@ const codexTranscriptVersion = 5
 // TranscriptVersion satisfies [runner.TranscriptVersioner].
 func (p *codexTranscriptParser) TranscriptVersion() int { return codexTranscriptVersion }
 
-// codexRolloutLine is the outer envelope of a codex on-disk rollout record
-// ($CODEX_HOME/sessions/YYYY/MM/DD/rollout-*.jsonl). Every line is one of a
-// small set of wrapper types carrying a typed payload.
-type codexRolloutLine struct {
-	Type    string              `json:"type"`
-	Payload codexRolloutPayload `json:"payload"`
-}
-
 // codexRolloutPayload is the union of the payload fields this codec maps.
 // Unused fields for a given payload type stay zero.
 type codexRolloutPayload struct {
 	Type string `json:"type"`
+	agenttranscript.CodexRolloutSessionMeta
 	// session_meta. Source is "vscode"/"exec"/... or an object such as
 	// {"subagent":{"thread_spawn":{...}}}.
-	ID           string          `json:"id"`
-	ForkedFromID string          `json:"forked_from_id"`
-	ThreadSource string          `json:"thread_source"`
-	Source       json.RawMessage `json:"source"`
 	// response_item message
 	Role     string                `json:"role"`
 	Content  json.RawMessage       `json:"content"`
@@ -199,22 +188,23 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 	if trimmed == "" || trimmed[0] != '{' {
 		return runner.TranscriptParseResult{}, false
 	}
-	// Recognize the dialect before decoding variable payload content. A known
-	// wrapper with unsupported content must never fall into flat stdout parsing.
-	var envelope struct {
-		Type string `json:"type"`
-	}
-	if json.Unmarshal([]byte(trimmed), &envelope) != nil || !rolloutWrapperTypes[envelope.Type] {
+	// Decode the shared envelope once, then decode only this codec's typed
+	// payload. A known wrapper with unsupported content must never fall into
+	// flat stdout parsing.
+	envelope, ok := agenttranscript.DecodeJSONLRecord([]byte(trimmed))
+	if !ok || !rolloutWrapperTypes[envelope.Type] {
 		return runner.TranscriptParseResult{}, false
 	}
-	var rl codexRolloutLine
-	if err := json.Unmarshal([]byte(trimmed), &rl); err != nil {
-		warning := domain.NewLogEvent(runID, "warning", "Unsupported Codex rollout payload: "+err.Error())
-		return runner.TranscriptParseResult{Events: []*domain.RunEvent{warning}, Timestamp: transcriptLineTimestamp(line)}, true
+	var payload codexRolloutPayload
+	if len(envelope.Payload) > 0 {
+		if err := json.Unmarshal(envelope.Payload, &payload); err != nil {
+			warning := domain.NewLogEvent(runID, "warning", "Unsupported Codex rollout payload: "+err.Error())
+			return runner.TranscriptParseResult{Events: []*domain.RunEvent{warning}, Timestamp: agenttranscript.ParseTimestampValue(envelope.Timestamp)}, true
+		}
 	}
 
-	result := runner.TranscriptParseResult{Timestamp: transcriptLineTimestamp(line)}
-	pl := rl.Payload
+	result := runner.TranscriptParseResult{Timestamp: agenttranscript.ParseTimestampValue(envelope.Timestamp)}
+	pl := payload
 	// A forked rollout opens with a copy of its parent's history (the
 	// parent's session_meta, compacted record, turns, calls and terminals),
 	// re-stamped at the fork. That history is the parent's run, not this one:
@@ -231,7 +221,7 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 		p.state.rolloutTurnID = pl.TurnID
 	}
 
-	switch rl.Type {
+	switch envelope.Type {
 	case "session_meta":
 		p.state.subagentThread = p.state.subagentThread || isCodexSubagentThread(pl.ThreadSource, pl.Source)
 		if pl.ID != "" {
@@ -258,6 +248,13 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 			result.UserTurnStarted = role == "user" || role == "operator"
 		}
 		result.Events = parseCodexRolloutItem(runID, pl, p.state)
+		if !result.Timestamp.IsZero() {
+			for _, event := range result.Events {
+				if event.EventType == domain.EventTypeMessage {
+					event.Timestamp = result.Timestamp
+				}
+			}
+		}
 		return result, true
 
 	case "compacted":
@@ -577,7 +574,7 @@ func counterDifference(current, previous domain.UsageCounters) domain.UsageCount
 // carry a call_id, a name (on the call side), and a string output.
 func parseCodexRolloutItem(runID uuid.UUID, pl codexRolloutPayload, state *codexState) []*domain.RunEvent {
 	if pl.Type == "message" {
-		text := codexRolloutMessageText(pl.Content)
+		text := agenttranscript.ExtractTextContent(pl.Content)
 		if text == "" {
 			return nil
 		}
@@ -710,12 +707,4 @@ func codexRolloutToolResult(runID uuid.UUID, pl codexRolloutPayload) []*domain.R
 		events = append(events, domain.NewLogEvent(runID, "warning", "Unsupported Codex tool output content retained for call "+pl.CallID))
 	}
 	return events
-}
-
-// codexRolloutMessageText extracts the text-bearing content items used by
-// Codex response_item messages. Developer/system messages are filtered by the
-// caller; content itself is intentionally reduced to text, never attachments
-// or tool metadata.
-func codexRolloutMessageText(raw json.RawMessage) string {
-	return agenttranscript.ExtractTextContent(raw)
 }

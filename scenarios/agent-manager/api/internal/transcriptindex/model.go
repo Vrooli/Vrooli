@@ -19,6 +19,11 @@ const (
 	RootWebConsoleCodex = "web-console-codex-home"
 	RootCodexHome       = "codex-home"
 	RootClaudeHome      = "claude-home"
+	RootGrokHome        = "grok-home"
+	RootGeminiCLI       = "gemini-cli-home"
+	RootQwenCode        = "qwen-code-home"
+	RootCursor          = "cursor-workspace-storage"
+	RootOpenCodeArchive = "opencode-archive"
 	RootRunHome         = "agent-manager-run-home"
 	RootConfigured      = "configured"
 	RootManual          = "manual"
@@ -78,6 +83,7 @@ func (e *ReplacementPrecommitError) Unwrap() error { return e.Err }
 const (
 	HarnessCodex      = "codex"
 	HarnessClaude     = "claude-code"
+	HarnessGrok       = "grok"
 	HarnessConfigured = "configured"
 	// HarnessMixed labels a coverage total over roots of several harnesses.
 	HarnessMixed = "mixed"

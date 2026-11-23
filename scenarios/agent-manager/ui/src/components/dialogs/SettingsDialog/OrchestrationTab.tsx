@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useCallback, useEffect, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
 import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { Label } from "../../ui/label";
 import { Checkbox } from "../../ui/checkbox";

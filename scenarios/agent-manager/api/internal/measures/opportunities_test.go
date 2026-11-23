@@ -51,14 +51,7 @@ func TestOpportunitiesMeasureServesRankedRowsBeyondCoverage(t *testing.T) {
 	h := NewHandler(nil, func() time.Time { return time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC) })
 	tools := &fixedTools{calls: ritualCalls()}
 	h.tools, h.programs = tools, fixedLibrary{Programs: []opportunities.Program{{Name: "x.other", Scenario: "x"}}}
-	registry, err := h.Registry()
-	if err != nil {
-		t.Fatal(err)
-	}
-	served, err := registry.Execute(context.Background(), measurelib.MeasureRequest{Measure: UsageOpportunities, Params: map[string]string{"window": "last_7d", "since": "2026-10-28T00:00:00Z"}})
-	if err != nil {
-		t.Fatal(err)
-	}
+	served := executeRegisteredMeasure(t, newTestRegistry(t, h), measurelib.MeasureRequest{Measure: UsageOpportunities, Params: map[string]string{"window": "last_7d", "since": "2026-10-28T00:00:00Z"}})
 	if want := time.Date(2026, 10, 28, 0, 0, 0, 0, time.UTC); !tools.from.Equal(want) {
 		t.Fatalf("window start %v, want since %v", tools.from, want)
 	}
@@ -80,10 +73,7 @@ func TestOpportunitiesMeasureServesRankedRowsBeyondCoverage(t *testing.T) {
 
 func TestOpportunitiesMeasureRefusesWithoutSourcesOrWithBadSince(t *testing.T) {
 	h := NewHandler(nil, nil)
-	registry, err := h.Registry()
-	if err != nil {
-		t.Fatal(err)
-	}
+	registry := newTestRegistry(t, h)
 	if _, err := registry.Execute(context.Background(), measurelib.MeasureRequest{Measure: UsageOpportunities, Params: map[string]string{"window": "last_7d"}}); err == nil || !strings.Contains(err.Error(), "unavailable") {
 		t.Fatalf("unwired measure error = %v, want unavailable", err)
 	}

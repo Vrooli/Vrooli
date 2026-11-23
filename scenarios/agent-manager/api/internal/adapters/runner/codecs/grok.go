@@ -370,7 +370,7 @@ func (p *grokTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line string)
 	result := runner.TranscriptParseResult{
 		Events:    events,
 		SessionID: p.state.sessionID,
-		Timestamp: transcriptLineTimestamp(line),
+		Timestamp: agenttranscript.ParseTimestamp([]byte(line)),
 	}
 
 	if ev, ok := decodeGrokStreamEvent(line); ok {

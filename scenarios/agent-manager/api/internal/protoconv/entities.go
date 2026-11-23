@@ -3,6 +3,7 @@ package protoconv
 import (
 	"encoding/json"
 	"io"
+	"slices"
 	"strings"
 
 	"agent-manager/internal/browsercapability"
@@ -49,8 +50,8 @@ func AgentProfileToProto(p *domain.AgentProfile) *pb.AgentProfile {
 		Timeout:               DurationToProto(p.Timeout),
 		Effort:                string(p.Effort),
 		MaxWeightedTokens:     p.MaxWeightedTokens,
-		AllowedTools:          p.AllowedTools,
-		DeniedTools:           p.DeniedTools,
+		AllowedTools:          slices.Clone(p.AllowedTools),
+		DeniedTools:           slices.Clone(p.DeniedTools),
 		ToolRestrictionPolicy: string(p.ToolRestrictionPolicy.Effective()),
 		SkipPermissionPrompt:  p.SkipPermissionPrompt,
 		Features:              FeatureFlagsToProto(p.Features),
@@ -63,13 +64,13 @@ func AgentProfileToProto(p *domain.AgentProfile) *pb.AgentProfile {
 		SourceUpdatedAt:       TimestampToProto(p.SourceUpdatedAt),
 		LocalOverride:         p.LocalOverride,
 		SandboxConfig:         SandboxConfigToProto(p.SandboxConfig),
-		AllowedPaths:          p.AllowedPaths,
-		DeniedPaths:           p.DeniedPaths,
-		DeclaredScopes:        p.DeclaredScopes,
+		AllowedPaths:          slices.Clone(p.AllowedPaths),
+		DeniedPaths:           slices.Clone(p.DeniedPaths),
+		DeclaredScopes:        slices.Clone(p.DeclaredScopes),
 		CreatedBy:             p.CreatedBy,
 		CreatedAt:             TimestampToProto(p.CreatedAt),
 		UpdatedAt:             TimestampToProto(p.UpdatedAt),
-		SkillPack:             p.SkillPack,
+		SkillPack:             slices.Clone(p.SkillPack),
 	}
 }
 
@@ -88,8 +89,8 @@ func AgentProfileFromProto(p *pb.AgentProfile) *domain.AgentProfile {
 		Timeout:               DurationFromProto(p.Timeout),
 		Effort:                domain.Effort(p.Effort),
 		MaxWeightedTokens:     p.MaxWeightedTokens,
-		AllowedTools:          p.AllowedTools,
-		DeniedTools:           p.DeniedTools,
+		AllowedTools:          slices.Clone(p.AllowedTools),
+		DeniedTools:           slices.Clone(p.DeniedTools),
 		ToolRestrictionPolicy: domain.ToolRestrictionPolicy(p.ToolRestrictionPolicy),
 		SkipPermissionPrompt:  p.SkipPermissionPrompt,
 		Features:              FeatureFlagsFromProto(p.Features),
@@ -102,13 +103,13 @@ func AgentProfileFromProto(p *pb.AgentProfile) *domain.AgentProfile {
 		SourceUpdatedAt:       TimestampFromProto(p.SourceUpdatedAt),
 		LocalOverride:         p.LocalOverride,
 		SandboxConfig:         SandboxConfigFromProto(p.SandboxConfig),
-		AllowedPaths:          p.AllowedPaths,
-		DeniedPaths:           p.DeniedPaths,
-		DeclaredScopes:        p.DeclaredScopes,
+		AllowedPaths:          slices.Clone(p.AllowedPaths),
+		DeniedPaths:           slices.Clone(p.DeniedPaths),
+		DeclaredScopes:        slices.Clone(p.DeclaredScopes),
 		CreatedBy:             p.CreatedBy,
 		CreatedAt:             TimestampFromProto(p.CreatedAt),
 		UpdatedAt:             TimestampFromProto(p.UpdatedAt),
-		SkillPack:             p.SkillPack,
+		SkillPack:             slices.Clone(p.SkillPack),
 	}
 }
 

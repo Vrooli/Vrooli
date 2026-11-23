@@ -1,7 +1,7 @@
 import type { MessageShape } from "@bufbuild/protobuf";
 import type { GetRolePolicyCatalogResponseSchema } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
 import { Badge } from "../../ui/badge";
-import { Card, CardContent } from "../../ui/card";
+import { Card, CardContent } from "@vrooli/react-component-library/Card/1.3.1";
 
 type CatalogResponse = MessageShape<typeof GetRolePolicyCatalogResponseSchema>;
 

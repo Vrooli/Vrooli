@@ -7,7 +7,7 @@ import { timestampMs } from "@bufbuild/protobuf/wkt";
 import { buildTimelineEntries } from "../lib/runTimeline";
 import { Check, ChevronDown, ChevronRight, Copy } from "lucide-react";
 import { runnerLabel } from "../lib/format";
-import { cn } from "../lib/utils";
+import { Tabs } from "@vrooli/react-component-library/Tabs/1";
 import { useCollapsiblePanel } from "../hooks/useCollapsiblePanel";
 import { useClipboardFeedback } from "../hooks/useClipboardFeedback";
 import { useDocumentEscape } from "../hooks/useDocumentEscape";
@@ -16,7 +16,7 @@ import { useViewportSize } from "../hooks/useViewportSize";
 import type { Run, RunDiff, RunEvent, Task } from "../types";
 
 import { ReviewModal } from "./ReviewModal";
-import { RUN_TABS, type RunTabId } from "./runTabs";
+import { isRunTab, RUN_TABS, type RunTabId } from "./runTabs";
 import { DiffTab } from "./runDetail/DiffTab";
 import { MobileInfoDialog } from "./runDetail/MobileInfoDialog";
 import { ReportTab } from "./runDetail/ReportTab";
@@ -291,65 +291,67 @@ export function RunDetail({
       {/* Tabs Section - fills remaining space */}
       <div className="flex-1 min-h-0 flex flex-col">
         <div className="h-full rounded-lg border border-border bg-card/50 flex flex-col overflow-hidden">
-          <div role="tablist" aria-label="Run sections" className="flex border-b border-border overflow-x-auto overflow-y-hidden shrink-0">
-            {RUN_TABS.map(({ id, label, Icon }) => (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                aria-selected={activeTab === id}
-                className={cn(
-                  "min-h-11 sm:min-h-0 px-3 py-1.5 sm:px-4 sm:py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
-                  activeTab === id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
-                )}
-                onClick={() => setActiveTab(id)}
-              >
-                <span className="hidden sm:inline mr-2"><Icon className="h-4 w-4 inline" /></span>
-                {id === "timeline" ? `${label} (${timelineEntryCount})` : label}
-              </button>
-            ))}
-          </div>
-
-          {/* Tab content - fills remaining space, scrollable for most tabs but not Messages */}
-          <div
-            className={cn(
-              "flex-1 min-h-0",
-              activeTab === "timeline" ? "flex flex-col" : "overflow-y-auto p-3 sm:p-4"
-            )}
-          >
-            {activeTab === "task" ? (
-              task ? (
-                <TaskSummary task={task} />
-              ) : (
-                <div className="py-8 text-center text-muted-foreground">
-                  Task details unavailable for {run.taskId}
+          <Tabs
+            mode="controlled"
+            active={activeTab}
+            onChange={(tab) => { if (isRunTab(tab)) setActiveTab(tab); }}
+            ariaLabel="Run sections"
+            testId="run-detail-tabs"
+            className="flex h-full min-h-0 flex-1 flex-col overflow-hidden [&_[data-rcl-tab-panel]]:min-h-0 [&_[data-rcl-tab-panel]]:flex-1"
+            items={RUN_TABS.map(({ id, label, Icon }) => ({
+              id,
+              label: id === "timeline" ? `${label} (${timelineEntryCount})` : label,
+              icon: <Icon className="h-4 w-4" />,
+            }))}
+            panels={{
+              task: (
+                <div className="h-full min-h-0 overflow-y-auto p-3 sm:p-4">
+                  {task ? (
+                    <TaskSummary task={task} />
+                  ) : (
+                    <div className="py-8 text-center text-muted-foreground">
+                      Task details unavailable for {run.taskId}
+                    </div>
+                  )}
                 </div>
-              )
-            ) : activeTab === "timeline" ? (
-              <TimelineTab
-                run={run}
-                events={events}
-                eventsLoading={eventsLoading}
-                focusEventId={focusEventId}
-                focusSequence={focusSequence}
-                onContinue={onContinue}
-                onDeleteMessage={onDeleteMessage}
-              />
-            ) : activeTab === "report" ? (
-              <ReportTab runId={run.id} />
-            ) : activeTab === "diff" ? (
-              <DiffTab
-                run={run}
-                diff={diff}
-                diffLoading={diffLoading}
-                sandboxUrl={sandboxUrl}
-                openSandboxReview={openSandboxReview}
-                onPartialApprove={onPartialApprove}
-              />
-            ) : (
-              <UsageTab run={run} costTotals={costTotals} eventsLoading={eventsLoading} />
-            )}
-          </div>
+              ),
+              timeline: (
+                <div className="flex h-full min-h-0 flex-col">
+                  <TimelineTab
+                    run={run}
+                    events={events}
+                    eventsLoading={eventsLoading}
+                    focusEventId={focusEventId}
+                    focusSequence={focusSequence}
+                    onContinue={onContinue}
+                    onDeleteMessage={onDeleteMessage}
+                  />
+                </div>
+              ),
+              report: (
+                <div className="h-full min-h-0 overflow-y-auto p-3 sm:p-4">
+                  <ReportTab runId={run.id} />
+                </div>
+              ),
+              diff: (
+                <div className="h-full min-h-0 overflow-y-auto p-3 sm:p-4">
+                  <DiffTab
+                    run={run}
+                    diff={diff}
+                    diffLoading={diffLoading}
+                    sandboxUrl={sandboxUrl}
+                    openSandboxReview={openSandboxReview}
+                    onPartialApprove={onPartialApprove}
+                  />
+                </div>
+              ),
+              usage: (
+                <div className="h-full min-h-0 overflow-y-auto p-3 sm:p-4">
+                  <UsageTab run={run} costTotals={costTotals} eventsLoading={eventsLoading} />
+                </div>
+              ),
+            }}
+          />
         </div>
       </div>
 

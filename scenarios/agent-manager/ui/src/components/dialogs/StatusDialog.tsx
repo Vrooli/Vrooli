@@ -3,7 +3,7 @@
 import { AlertCircle, CheckCircle2, Wifi, WifiOff } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { formatDuration } from "../../lib/format";
-import { Card, CardContent } from "../ui/card";
+import { Card, CardContent } from "@vrooli/react-component-library/Card/1.3.1";
 import {
   Dialog,
   DialogBody,

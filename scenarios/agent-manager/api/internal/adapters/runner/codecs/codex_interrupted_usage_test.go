@@ -144,3 +144,18 @@ func TestCodexInterruptedUsageNeverRecountsEarlierTurns(t *testing.T) {
 		})
 	}
 }
+
+func TestCodexInterruptedUsageRejectsSessionIDsThatAreGlobPatternsOrPaths(t *testing.T) {
+	home := writeInterruptedRollout(t, turnTwoStart, turnTwoPrompt, turnTwoRecord)
+	for _, sessionID := range []string{"*", "?", "[0-9]", "../" + interruptedSession, "nested/" + interruptedSession} {
+		t.Run(sessionID, func(t *testing.T) {
+			events, _ := NewCodexForTest().RecoverInterruptedUsage(InterruptedUsageRequest{
+				RunID: uuid.New(), SessionID: sessionID, Env: []string{"CODEX_HOME=" + home},
+				StartedAt: time.Date(2026, 10, 7, 14, 30, 0, 0, time.UTC),
+			})
+			if len(events) != 0 {
+				t.Fatalf("recovered another session's usage for invalid session ID %q: %+v", sessionID, events)
+			}
+		})
+	}
+}

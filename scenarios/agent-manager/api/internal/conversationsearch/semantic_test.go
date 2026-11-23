@@ -68,6 +68,43 @@ func TestHybridFusionDeduplicatesStableIDsAndPreservesLegEvidence(t *testing.T) 
 	require.Empty(t, response.Degradations)
 }
 
+func TestSemanticSearchContinuesFromSignedRelevanceCursor(t *testing.T) {
+	t.Parallel()
+	_, repository := searchFixtureService(t)
+	documents := []Document{
+		searchDocument("doc-a", "first semantic result", ContentClassProse, fixtureTimeValue(1)),
+		searchDocument("doc-b", "second semantic result", ContentClassProse, fixtureTimeValue(2)),
+	}
+	for _, document := range documents {
+		require.NoError(t, repository.UpsertDocument(context.Background(), document))
+	}
+	for _, mode := range []string{"semantic", "hybrid"} {
+		t.Run(mode, func(t *testing.T) {
+			service, err := NewService(repository, repository, repository, []byte("0123456789abcdef0123456789abcdef"), WithSemanticRetriever(semanticRetrieverStub{candidates: []SemanticCandidate{
+				{Document: documents[0], Score: 0.9},
+				{Document: documents[1], Score: 0.8},
+			}}))
+			require.NoError(t, err)
+			search := service.SearchSemantic
+			if mode == "hybrid" {
+				search = service.SearchHybrid
+			}
+
+			first, err := search(context.Background(), TextSearchRequest{Query: "semantic", PageSize: 1})
+			require.NoError(t, err)
+			require.Len(t, first.Hits, 1)
+			require.Equal(t, "doc-a", first.Hits[0].Document.DocumentID)
+			require.NotEmpty(t, first.NextCursor)
+
+			second, err := search(context.Background(), TextSearchRequest{Query: "semantic", PageSize: 1, Cursor: first.NextCursor})
+			require.NoError(t, err)
+			require.Len(t, second.Hits, 1)
+			require.Equal(t, "doc-b", second.Hits[0].Document.DocumentID)
+			require.Empty(t, second.NextCursor)
+		})
+	}
+}
+
 func TestHybridKeepsLexicalResultsForEveryOptionalFailureClass(t *testing.T) {
 	t.Parallel()
 	failures := []struct {

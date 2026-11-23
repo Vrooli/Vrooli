@@ -1,4 +1,5 @@
 import { selectors } from "../consts/selectors";
+import { buildGoalBrief, validateGoalBrief } from "@vrooli/goal-brief";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -15,15 +16,7 @@ import {
 import { Badge } from "./ui/badge";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1";
-import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "./ui/dialog";
+import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
 import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { Label } from "./ui/label";
 import { RoleSelector } from "./RoleSelector";
@@ -110,6 +103,12 @@ export function QuickRunDialog({
     projectRoot: defaultProjectRoot ?? "",
   });
   const [scopePaths, setScopePaths, clearScopeStorage] = usePersistedFormState<string[]>("quick-run-scope", ["."]);
+  const [briefDestination, setBriefDestination] = useState("");
+  const [briefStance, setBriefStance] = useState("");
+  const [briefCharter, setBriefCharter] = useState("");
+  const goalBrief = buildGoalBrief({ destination: briefDestination, stance: briefStance, charterPath: briefCharter });
+  const briefRequested = Boolean(briefDestination || briefStance || briefCharter);
+  const briefErrors = briefRequested ? validateGoalBrief(goalBrief) : [];
 
   // Persisted attachment metadata
   const [persistedAttachments, setPersistedAttachments, clearAttachmentStorage] = usePersistedFormState<PersistedAttachment[]>("quick-run-attachments", []);
@@ -189,6 +188,9 @@ export function QuickRunDialog({
       projectRoot: defaultProjectRoot ?? "",
     });
     setScopePaths(["."]);
+    setBriefDestination("");
+    setBriefStance("");
+    setBriefCharter("");
     setAgentConfig({
       mode: "custom",
       profileId: "",
@@ -268,6 +270,10 @@ export function QuickRunDialog({
   }, [taskData.title, taskData.description]);
 
   const handleStartRun = useCallback(async () => {
+    if (briefRequested && briefErrors.length > 0) {
+      setError(briefErrors[0] ?? "Complete the durable brief fields.");
+      return;
+    }
     if (interactiveProtectedConflict) {
       setError("Interactive execution is not available for sandboxed (protected) runs. Switch Run Mode to In-place, or use Codec-pipe.");
       return;
@@ -292,7 +298,7 @@ export function QuickRunDialog({
 
       const task = await onCreateTask({
         title,
-        description: taskData.description || undefined,
+        description: briefRequested ? goalBrief.message : (taskData.description || undefined),
         scopePath,
         projectRoot: taskData.projectRoot || undefined,
         ...(imageAttachments.length > 0 ? { contextAttachments: imageAttachments } : {}),
@@ -302,6 +308,11 @@ export function QuickRunDialog({
       const runRequest: RunFormData = {
         taskId: task.id,
       };
+      if (briefRequested) {
+        runRequest.prompt = goalBrief.message;
+        runRequest.until = goalBrief.kernel;
+        runRequest.charterPath = briefCharter.trim();
+      }
 
       if (agentConfig.mode === "profile") {
         runRequest.agentProfileId = agentConfig.profileId;
@@ -338,7 +349,7 @@ export function QuickRunDialog({
       setSubmitting(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [generateTitle, scopePaths, taskData, agentConfig, existingSandboxId, getUploadedIds, onCreateTask, onCreateRun, onRunCreated, onOpenChange]);
+  }, [generateTitle, scopePaths, taskData, agentConfig, existingSandboxId, getUploadedIds, onCreateTask, onCreateRun, onRunCreated, onOpenChange, briefRequested, briefErrors, goalBrief, briefCharter]);
 
   // Ctrl+Enter shortcut to start run
   useEffect(() => {
@@ -354,17 +365,33 @@ export function QuickRunDialog({
   }, [open, handleStartRun]);
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleClose()} fullScreenMobile>
-      <DialogContent fullScreenMobile className="sm:max-w-2xl">
-        <DialogHeader onClose={handleClose}>
-          <DialogTitle className="flex items-center gap-2">
-            <Play className="h-5 w-5 text-primary" />
-            Quick Run
-          </DialogTitle>
-          <DialogDescription>
-            Create a task and start an agent run in one flow
-          </DialogDescription>
-        </DialogHeader>
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={(isOpen) => !isOpen && handleClose()}
+      title={<span className="flex items-center gap-2"><Play className="h-5 w-5 text-primary" />Quick Run</span>}
+      closeLabel="Close"
+      dismissAffordance="close"
+      size="lg"
+      testId="quick-run-dialog"
+      panelClassName="sm:max-w-2xl"
+      contentClassName="flex min-h-0 flex-col"
+      subheader={<p className="px-4 py-2 text-sm text-muted-foreground">Create a task and start an agent run in one flow</p>}
+      footer={(
+        <div className="flex items-center justify-between gap-3">
+          <OverlayActionBar className="flex-row-reverse" actions={currentStep < 3
+            ? overlayActions(
+                { id: "next", label: "Next", onSelect: handleNext, disabled: (currentStep === 1 && !canProceedStep1()) || (currentStep === 2 && !canProceedStep2()), primary: true, testId: selectors.quickRun.next },
+                { id: "start-run", label: submitting ? "Starting..." : "Start Run", onSelect: handleStartRun, disabled: submitting || isUploading || !canProceedStep1(), testId: selectors.quickRun.start },
+                ...(currentStep > 1 ? [{ id: "back", label: "Back", onSelect: handleBack, disabled: submitting }] : []),
+              )
+            : overlayActions(
+                { id: "start-run", label: submitting ? "Starting..." : "Start Run", onSelect: handleStartRun, disabled: submitting || isUploading, primary: true, testId: selectors.quickRun.start },
+                ...(currentStep > 1 ? [{ id: "back", label: "Back", onSelect: handleBack, disabled: submitting }] : []),
+              )} />
+          <span className="text-xs text-muted-foreground hidden sm:inline">Ctrl+Enter</span>
+        </div>
+      )}
+    >
 
         {/* Stepper */}
         <div className="flex items-center justify-center gap-2 py-4">
@@ -401,7 +428,7 @@ export function QuickRunDialog({
           ))}
         </div>
 
-        <DialogBody className="min-h-[320px]">
+        <div className="min-h-[320px] overflow-y-auto px-4 pb-4">
           {error && (
             <div className="mb-4 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
               {error}
@@ -425,6 +452,22 @@ export function QuickRunDialog({
                   autoFocus
                 />
               </div>
+
+              <details className="rounded-lg border border-border p-3">
+                <summary className="cursor-pointer text-sm font-medium">Add a durable goal brief</summary>
+                <p className="mt-2 text-xs text-muted-foreground">The shared harness goal author builds the full stance message and short native kernel. Review the task before the existing Start Run action.</p>
+                <div className="mt-3 space-y-3">
+                  <div className="space-y-1"><Label htmlFor="goal-destination">Verified destination</Label><Input id="goal-destination" value={briefDestination} onChange={(event) => setBriefDestination(event.target.value)} /></div>
+                  <div className="space-y-1"><Label htmlFor="goal-stance">Exact operator stance</Label><Textarea id="goal-stance" value={briefStance} onChange={(event) => setBriefStance(event.target.value)} rows={2} /></div>
+                  <div className="space-y-1"><Label htmlFor="goal-charter">Durable charter path</Label><Input id="goal-charter" value={briefCharter} onChange={(event) => setBriefCharter(event.target.value)} /></div>
+                  {briefRequested && <div className="space-y-2 rounded bg-muted p-2 text-xs">
+                    <div className="font-medium">Native goal kernel ({Array.from(goalBrief.kernel).length}/600)</div>
+                    <p className="break-words">{goalBrief.kernel}</p>
+                    <details><summary className="cursor-pointer">Full stance message</summary><pre className="mt-1 whitespace-pre-wrap break-words">{goalBrief.message}</pre></details>
+                    {briefErrors.map((item) => <p key={item} className="text-destructive">{item}</p>)}
+                  </div>}
+                </div>
+              </details>
 
               {/* Image attachments */}
               <div className="space-y-2">
@@ -901,22 +944,7 @@ export function QuickRunDialog({
               </div>
             </div>
           )}
-        </DialogBody>
-
-        <DialogFooter>
-          <OverlayActionBar className="flex-row-reverse" actions={currentStep < 3
-            ? overlayActions(
-                { id: "next", label: "Next", onSelect: handleNext, disabled: (currentStep === 1 && !canProceedStep1()) || (currentStep === 2 && !canProceedStep2()), primary: true, testId: selectors.quickRun.next },
-                { id: "start-run", label: submitting ? "Starting..." : "Start Run", onSelect: handleStartRun, disabled: submitting || isUploading || !canProceedStep1(), testId: selectors.quickRun.start },
-                ...(currentStep > 1 ? [{ id: "back", label: "Back", onSelect: handleBack, disabled: submitting }] : []),
-              )
-            : overlayActions(
-                { id: "start-run", label: submitting ? "Starting..." : "Start Run", onSelect: handleStartRun, disabled: submitting || isUploading, primary: true, testId: selectors.quickRun.start },
-                ...(currentStep > 1 ? [{ id: "back", label: "Back", onSelect: handleBack, disabled: submitting }] : []),
-              )} />
-          <span className="text-xs text-muted-foreground hidden sm:inline">Ctrl+Enter</span>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </div>
+    </ResponsiveDialog>
   );
 }

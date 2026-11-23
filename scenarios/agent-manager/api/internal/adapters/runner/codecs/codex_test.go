@@ -705,6 +705,26 @@ func TestCodex_ParseTranscriptLine_RolloutTokenCountProjectsUsage(t *testing.T) 
 	}
 }
 
+func TestCodex_ParseTranscriptLine_RolloutEnvelopeKeepsMissingPayloadCompatibility(t *testing.T) {
+	parser := NewCodexForTest().NewTranscriptParser()
+	result := parser.ParseTranscriptLine(uuid.New(), `{"timestamp":"2026-08-02T12:00:00Z","type":"session_meta"}`)
+	if len(result.Events) != 0 || result.SessionID != "" {
+		t.Fatalf("missing session_meta payload produced result: %+v", result)
+	}
+}
+
+func TestCodex_ParseTranscriptLine_RolloutMalformedPayloadRetainsTimestamp(t *testing.T) {
+	parser := NewCodexForTest().NewTranscriptParser()
+	result := parser.ParseTranscriptLine(uuid.New(), `{"timestamp":"2026-08-02T12:00:00Z","type":"session_meta","payload":[]}`)
+	want := time.Date(2026, 8, 2, 12, 0, 0, 0, time.UTC)
+	if len(result.Events) != 1 || result.Events[0].Data.(*domain.LogEventData).Level != "warning" {
+		t.Fatalf("malformed known payload did not produce warning: %+v", result.Events)
+	}
+	if !result.Timestamp.Equal(want) {
+		t.Fatalf("timestamp=%s want %s", result.Timestamp, want)
+	}
+}
+
 func TestCodex_ParseTranscriptLine_RolloutTokenCountUsesCumulativeTotal(t *testing.T) {
 	parser := NewCodexForTest().NewTranscriptParser()
 	runID := uuid.New()

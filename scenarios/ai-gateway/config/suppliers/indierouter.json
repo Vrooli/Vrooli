@@ -1,0 +1,549 @@
+{
+  "id": "indierouter",
+  "family": "openai-compatible",
+  "locality": "remote",
+  "endpoint": "https://api.indierouter.ai/v1",
+  "policy": {
+    "schema_version": "2026-11-22",
+    "provider": {
+      "id": "indierouter",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "approved_reseller_partner_agreement_only",
+            "access_tier": "unverified",
+            "use_classes": {
+              "own_account": "allowed",
+              "bounded_feature": "unverified",
+              "in_app": "unverified",
+              "harness_access": "unverified"
+            },
+            "conditions": [
+              "Use only a reseller agreement/partner authorization: Terms §4 prohibit resale of raw capacity without a reseller agreement; the Partner page expressly describes own-brand downstream resale and a program enrollment process.",
+              "Reconcile Terms §3 credit non-transferability between organizations with the Partner page's per-customer workspaces, management API, and bonus-credit wallet before any downstream balances/keys are used.",
+              "Partner page advertises a ₹50,000 minimum prepaid reseller commitment and 15% bonus credits at the stated level; record the actual authorized commitment, agreement and quote before any price decision. No commitment or plan is accepted by this proposal.",
+              "Identify exact model IDs, model cards/license, and all open-weight model restrictions. IndieRouter claims to serve models on its own Indian GPUs, but model publisher, license and actual running model are distinct facts.",
+              "Record current account/route availability, service limits and any contractual SLA. Shared-plan SLOs are targets; only Enterprise/Sovereign contractual SLA terms provide service credits.",
+              "Record deployment/data/trust conditions and Vrooli's customer price as separate human decisions; public partner margin or model rates are not approvals."
+            ],
+            "clause": "IndieRouter Terms §§1–7 and 11; Partner Program tracks, tooling, and enrollment",
+            "reason": "The official Partner Program expressly permits own-brand resale, describes a white-label proxy and customer-workspace management API, and identifies a reseller track. Terms condition raw-capacity resale on a reseller agreement and state credits are nontransferable between organizations. This is only a conditional candidate; the specific agreement must resolve that interaction and exact customer funding model."
+          }
+        ],
+        "evidence": {
+          "url": "https://indierouter.ai/partners/",
+          "document_date": "no visible date",
+          "read_at": "2026-11-22"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-11-22",
+        "on_expiry": "deny"
+      },
+      "hosted_routes": [],
+      "agreements": []
+    },
+    "roles": {},
+    "models": {
+      "deepseek-v4-flash": {
+        "display_name": "DeepSeek V4 Flash",
+        "family": "deepseek-v4",
+        "capabilities": [
+          "chat",
+          "text_input",
+          "text_output"
+        ],
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "endpoints": [
+          "chat"
+        ],
+        "context_window_tokens": 256000,
+        "default_eligible": false,
+        "use_case_notes": "IndieRouter public catalog model identity draft; exact ID, publisher display association, chat category, and published context only. Source snapshot 2026-11-23; no rate card or current account availability asserted.",
+        "caveats": [
+          "IndieRouter Terms §4 prohibit reselling raw capacity without a reseller agreement; the public Partner Program does not establish a signed agreement, approved account, or approved model scope.",
+          "The public model listing is not a model-specific license grant. Exact license/card, downstream compatibility, and any relevant restrictions remain unreviewed.",
+          "Public catalog membership and the documented API base do not establish Vrooli account-scoped availability, route health, quote, or permission to execute.",
+          "Alias caution: IndieRouter labels this as the V4 Flash alias, now V4.1; this declaration preserves the exact listed ID and does not implement alias substitution."
+        ],
+        "provenance": {
+          "catalog": {
+            "source_kind": "manual_policy",
+            "confidence": "medium",
+            "source": "https://indierouter.ai/models/; official catalog lists this exact model ID and display association, category, and context window",
+            "observed_at": "2026-11-23",
+            "sample_count": 0
+          },
+          "terms": {
+            "source_kind": "manual_policy",
+            "confidence": "medium",
+            "source": "https://indierouter.ai/terms/ §4 requires a reseller agreement for resale of raw capacity; model-specific license and account/model scope remain unverified",
+            "observed_at": "2026-11-23",
+            "sample_count": 0
+          }
+        }
+      },
+      "deepseek-v4.1-flash": {
+        "display_name": "DeepSeek V4.1 Flash",
+        "family": "deepseek-v4.1",
+        "capabilities": [
+          "chat",
+          "text_input",
+          "text_output"
+        ],
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "endpoints": [
+          "chat"
+        ],
+        "context_window_tokens": 256000,
+        "default_eligible": false,
+        "use_case_notes": "IndieRouter public catalog model identity draft; exact ID, publisher display association, chat category, and published context only. Source snapshot 2026-11-23; no rate card or current account availability asserted.",
+        "caveats": [
+          "IndieRouter Terms §4 prohibit reselling raw capacity without a reseller agreement; the public Partner Program does not establish a signed agreement, approved account, or approved model scope.",
+          "The public model listing is not a model-specific license grant. Exact license/card, downstream compatibility, and any relevant restrictions remain unreviewed.",
+          "Public catalog membership and the documented API base do not establish Vrooli account-scoped availability, route health, quote, or permission to execute."
+        ],
+        "provenance": {
+          "catalog": {
+            "source_kind": "manual_policy",
+            "confidence": "medium",
+            "source": "https://indierouter.ai/models/; official catalog lists this exact model ID and display association, category, and context window",
+            "observed_at": "2026-11-23",
+            "sample_count": 0
+          },
+          "terms": {
+            "source_kind": "manual_policy",
+            "confidence": "medium",
+            "source": "https://indierouter.ai/terms/ §4 requires a reseller agreement for resale of raw capacity; model-specific license and account/model scope remain unverified",
+            "observed_at": "2026-11-23",
+            "sample_count": 0
+          }
+        }
+      },
+      "deepseek-v4.1-flash-1m": {
+        "display_name": "DeepSeek V4.1 Flash 1M",
+        "family": "deepseek-v4.1",
+        "capabilities": [
+          "chat",
+          "text_input",
+          "text_output"
+        ],
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "endpoints": [
+          "chat"
+        ],
+        "context_window_tokens": 1000000,
+        "default_eligible": false,
+        "use_case_notes": "IndieRouter public catalog model identity draft; exact ID, publisher display association, chat category, and published context only. Source snapshot 2026-11-23; no rate card or current account availability asserted.",
+        "caveats": [
+          "IndieRouter Terms §4 prohibit reselling raw capacity without a reseller agreement; the public Partner Program does not establish a signed agreement, approved account, or approved model scope.",
+          "The public model listing is not a model-specific license grant. Exact license/card, downstream compatibility, and any relevant restrictions remain unreviewed.",
+          "Public catalog membership and the documented API base do not establish Vrooli account-scoped availability, route health, quote, or permission to execute."
+        ],
+        "provenance": {
+          "catalog": {
+            "source_kind": "manual_policy",
+            "confidence": "medium",
+            "source": "https://indierouter.ai/models/; official catalog lists this exact model ID and display association, category, and context window",
+            "observed_at": "2026-11-23",
+            "sample_count": 0
+          },
+          "terms": {
+            "source_kind": "manual_policy",
+            "confidence": "medium",
+            "source": "https://indierouter.ai/terms/ §4 requires a reseller agreement for resale of raw capacity; model-specific license and account/model scope remain unverified",
+            "observed_at": "2026-11-23",
+            "sample_count": 0
+          }
+        }
+      },
+      "gemma-4-26b-a4b-it": {
+        "display_name": "Gemma 4 26B A4B",
+        "family": "gemma-4",
+        "capabilities": [
+          "chat",
+          "text_input",
+          "text_output"
+        ],
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "endpoints": [
+          "chat"
+        ],
+        "context_window_tokens": 256000,
+        "default_eligible": false,
+        "use_case_notes": "IndieRouter public catalog model identity draft; exact ID, publisher display association, chat category, and published context only. Source snapshot 2026-11-23; no rate card or current account availability asserted.",
+        "caveats": [
+          "IndieRouter Terms §4 prohibit reselling raw capacity without a reseller agreement; the public Partner Program does not establish a signed agreement, approved account, or approved model scope.",
+          "The public model listing is not a model-specific license grant. Exact license/card, downstream compatibility, and any relevant restrictions remain unreviewed.",
+          "Public catalog membership and the documented API base do not establish Vrooli account-scoped availability, route health, quote, or permission to execute."
+        ],
+        "provenance": {
+          "catalog": {
+            "source_kind": "manual_policy",
+            "confidence": "medium",
+            "source": "https://indierouter.ai/models/; official catalog lists this exact model ID and display association, category, and context window",
+            "observed_at": "2026-11-23",
+            "sample_count": 0
+          },
+          "terms": {
+            "source_kind": "manual_policy",
+            "confidence": "medium",
+            "source": "https://indierouter.ai/terms/ §4 requires a reseller agreement for resale of raw capacity; model-specific license and account/model scope remain unverified",
+            "observed_at": "2026-11-23",
+            "sample_count": 0
+          }
+        }
+      },
+      "gemma-4-31b-it": {
+        "display_name": "Gemma 4 31B",
+        "family": "gemma-4",
+        "capabilities": [
+          "chat",
+          "text_input",
+          "text_output"
+        ],
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "endpoints": [
+          "chat"
+        ],
+        "context_window_tokens": 256000,
+        "default_eligible": false,
+        "use_case_notes": "IndieRouter public catalog model identity draft; exact ID, publisher display association, chat category, and published context only. Source snapshot 2026-11-23; no rate card or current account availability asserted.",
+        "caveats": [
+          "IndieRouter Terms §4 prohibit reselling raw capacity without a reseller agreement; the public Partner Program does not establish a signed agreement, approved account, or approved model scope.",
+          "The public model listing is not a model-specific license grant. Exact license/card, downstream compatibility, and any relevant restrictions remain unreviewed.",
+          "Public catalog membership and the documented API base do not establish Vrooli account-scoped availability, route health, quote, or permission to execute."
+        ],
+        "provenance": {
+          "catalog": {
+            "source_kind": "manual_policy",
+            "confidence": "medium",
+            "source": "https://indierouter.ai/models/; official catalog lists this exact model ID and display association, category, and context window",
+            "observed_at": "2026-11-23",
+            "sample_count": 0
+          },
+          "terms": {
+            "source_kind": "manual_policy",
+            "confidence": "medium",
+            "source": "https://indierouter.ai/terms/ §4 requires a reseller agreement for resale of raw capacity; model-specific license and account/model scope remain unverified",
+            "observed_at": "2026-11-23",
+            "sample_count": 0
+          }
+        }
+      },
+      "glm-5.3": {
+        "display_name": "GLM-5.3",
+        "family": "glm-5",
+        "capabilities": [
+          "chat",
+          "text_input",
+          "text_output"
+        ],
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "endpoints": [
+          "chat"
+        ],
+        "context_window_tokens": 230000,
+        "default_eligible": false,
+        "use_case_notes": "IndieRouter public catalog model identity draft; exact ID, publisher display association, chat category, and published context only. Source snapshot 2026-11-23; no rate card or current account availability asserted.",
+        "caveats": [
+          "IndieRouter Terms §4 prohibit reselling raw capacity without a reseller agreement; the public Partner Program does not establish a signed agreement, approved account, or approved model scope.",
+          "The public model listing is not a model-specific license grant. Exact license/card, downstream compatibility, and any relevant restrictions remain unreviewed.",
+          "Public catalog membership and the documented API base do not establish Vrooli account-scoped availability, route health, quote, or permission to execute."
+        ],
+        "provenance": {
+          "catalog": {
+            "source_kind": "manual_policy",
+            "confidence": "medium",
+            "source": "https://indierouter.ai/models/; official catalog lists this exact model ID and display association, category, and context window",
+            "observed_at": "2026-11-23",
+            "sample_count": 0
+          },
+          "terms": {
+            "source_kind": "manual_policy",
+            "confidence": "medium",
+            "source": "https://indierouter.ai/terms/ §4 requires a reseller agreement for resale of raw capacity; model-specific license and account/model scope remain unverified",
+            "observed_at": "2026-11-23",
+            "sample_count": 0
+          }
+        }
+      },
+      "glm-5.3-flash": {
+        "display_name": "GLM-5.3 Flash",
+        "family": "glm-5",
+        "capabilities": [
+          "chat",
+          "text_input",
+          "text_output"
+        ],
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "endpoints": [
+          "chat"
+        ],
+        "context_window_tokens": 256000,
+        "default_eligible": false,
+        "use_case_notes": "IndieRouter public catalog model identity draft; exact ID, publisher display association, chat category, and published context only. Source snapshot 2026-11-23; no rate card or current account availability asserted.",
+        "caveats": [
+          "IndieRouter Terms §4 prohibit reselling raw capacity without a reseller agreement; the public Partner Program does not establish a signed agreement, approved account, or approved model scope.",
+          "The public model listing is not a model-specific license grant. Exact license/card, downstream compatibility, and any relevant restrictions remain unreviewed.",
+          "Public catalog membership and the documented API base do not establish Vrooli account-scoped availability, route health, quote, or permission to execute."
+        ],
+        "provenance": {
+          "catalog": {
+            "source_kind": "manual_policy",
+            "confidence": "medium",
+            "source": "https://indierouter.ai/models/; official catalog lists this exact model ID and display association, category, and context window",
+            "observed_at": "2026-11-23",
+            "sample_count": 0
+          },
+          "terms": {
+            "source_kind": "manual_policy",
+            "confidence": "medium",
+            "source": "https://indierouter.ai/terms/ §4 requires a reseller agreement for resale of raw capacity; model-specific license and account/model scope remain unverified",
+            "observed_at": "2026-11-23",
+            "sample_count": 0
+          }
+        }
+      },
+      "glm-5.3-flash-1m": {
+        "display_name": "GLM-5.3 Flash 1M",
+        "family": "glm-5",
+        "capabilities": [
+          "chat",
+          "text_input",
+          "text_output"
+        ],
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "endpoints": [
+          "chat"
+        ],
+        "context_window_tokens": 1000000,
+        "default_eligible": false,
+        "use_case_notes": "IndieRouter public catalog model identity draft; exact ID, publisher display association, chat category, and published context only. Source snapshot 2026-11-23; no rate card or current account availability asserted.",
+        "caveats": [
+          "IndieRouter Terms §4 prohibit reselling raw capacity without a reseller agreement; the public Partner Program does not establish a signed agreement, approved account, or approved model scope.",
+          "The public model listing is not a model-specific license grant. Exact license/card, downstream compatibility, and any relevant restrictions remain unreviewed.",
+          "Public catalog membership and the documented API base do not establish Vrooli account-scoped availability, route health, quote, or permission to execute."
+        ],
+        "provenance": {
+          "catalog": {
+            "source_kind": "manual_policy",
+            "confidence": "medium",
+            "source": "https://indierouter.ai/models/; official catalog lists this exact model ID and display association, category, and context window",
+            "observed_at": "2026-11-23",
+            "sample_count": 0
+          },
+          "terms": {
+            "source_kind": "manual_policy",
+            "confidence": "medium",
+            "source": "https://indierouter.ai/terms/ §4 requires a reseller agreement for resale of raw capacity; model-specific license and account/model scope remain unverified",
+            "observed_at": "2026-11-23",
+            "sample_count": 0
+          }
+        }
+      },
+      "nemotron-3.5-super-vl-120b-a12b": {
+        "display_name": "Nemotron 3.5 Super VL 120B A12B",
+        "family": "nemotron-3.5",
+        "capabilities": [
+          "chat",
+          "text_input",
+          "text_output"
+        ],
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "endpoints": [
+          "chat"
+        ],
+        "context_window_tokens": 1000000,
+        "default_eligible": false,
+        "use_case_notes": "IndieRouter public catalog model identity draft; exact ID, publisher display association, chat category, and published context only. Source snapshot 2026-11-23; no rate card or current account availability asserted.",
+        "caveats": [
+          "IndieRouter Terms §4 prohibit reselling raw capacity without a reseller agreement; the public Partner Program does not establish a signed agreement, approved account, or approved model scope.",
+          "The public model listing is not a model-specific license grant. Exact license/card, downstream compatibility, and any relevant restrictions remain unreviewed.",
+          "Public catalog membership and the documented API base do not establish Vrooli account-scoped availability, route health, quote, or permission to execute."
+        ],
+        "provenance": {
+          "catalog": {
+            "source_kind": "manual_policy",
+            "confidence": "medium",
+            "source": "https://indierouter.ai/models/; official catalog lists this exact model ID and display association, category, and context window",
+            "observed_at": "2026-11-23",
+            "sample_count": 0
+          },
+          "terms": {
+            "source_kind": "manual_policy",
+            "confidence": "medium",
+            "source": "https://indierouter.ai/terms/ §4 requires a reseller agreement for resale of raw capacity; model-specific license and account/model scope remain unverified",
+            "observed_at": "2026-11-23",
+            "sample_count": 0
+          }
+        }
+      },
+      "qwen3.8-27b-fp8": {
+        "display_name": "Qwen 3.8 27B",
+        "family": "qwen3.8",
+        "capabilities": [
+          "chat",
+          "text_input",
+          "text_output"
+        ],
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "endpoints": [
+          "chat"
+        ],
+        "context_window_tokens": 256000,
+        "default_eligible": false,
+        "use_case_notes": "IndieRouter public catalog model identity draft; exact ID, publisher display association, chat category, and published context only. Source snapshot 2026-11-23; no rate card or current account availability asserted.",
+        "caveats": [
+          "IndieRouter Terms §4 prohibit reselling raw capacity without a reseller agreement; the public Partner Program does not establish a signed agreement, approved account, or approved model scope.",
+          "The public model listing is not a model-specific license grant. Exact license/card, downstream compatibility, and any relevant restrictions remain unreviewed.",
+          "Public catalog membership and the documented API base do not establish Vrooli account-scoped availability, route health, quote, or permission to execute."
+        ],
+        "provenance": {
+          "catalog": {
+            "source_kind": "manual_policy",
+            "confidence": "medium",
+            "source": "https://indierouter.ai/models/; official catalog lists this exact model ID and display association, category, and context window",
+            "observed_at": "2026-11-23",
+            "sample_count": 0
+          },
+          "terms": {
+            "source_kind": "manual_policy",
+            "confidence": "medium",
+            "source": "https://indierouter.ai/terms/ §4 requires a reseller agreement for resale of raw capacity; model-specific license and account/model scope remain unverified",
+            "observed_at": "2026-11-23",
+            "sample_count": 0
+          }
+        }
+      },
+      "pplx-decider-v1.1": {
+        "display_name": "Perplexity Decider v1.1 (27B)",
+        "family": "pplx-decider",
+        "capabilities": [
+          "decision",
+          "text_input"
+        ],
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "endpoints": [
+          "systemone"
+        ],
+        "context_window_tokens": 8000,
+        "default_eligible": false,
+        "use_case_notes": "IndieRouter public catalog decision-model identity draft; exact ID, publisher display association, System One category, and published context only. Not supported by the current Gateway chat chooser/routing path; no rate card or current account availability asserted.",
+        "caveats": [
+          "IndieRouter Terms §4 prohibit reselling raw capacity without a reseller agreement; the public Partner Program does not establish a signed agreement, approved account, or approved model scope.",
+          "The public model listing is not a model-specific license grant. Exact license/card, downstream compatibility, and any relevant restrictions remain unreviewed.",
+          "Public catalog membership and the documented API base do not establish Vrooli account-scoped availability, route health, quote, or permission to execute.",
+          "Separate System One decision interface; not a chat-completions model. The AC2 chat chooser and recorded-shape fixture do not cover this endpoint."
+        ],
+        "provenance": {
+          "catalog": {
+            "source_kind": "manual_policy",
+            "confidence": "medium",
+            "source": "https://indierouter.ai/models/; official catalog lists this exact model ID and display association, category, and context window",
+            "observed_at": "2026-11-23",
+            "sample_count": 0
+          },
+          "terms": {
+            "source_kind": "manual_policy",
+            "confidence": "medium",
+            "source": "https://indierouter.ai/terms/ §4 requires a reseller agreement for resale of raw capacity; model-specific license and account/model scope remain unverified",
+            "observed_at": "2026-11-23",
+            "sample_count": 0
+          }
+        }
+      }
+    },
+    "research": {
+      "activation": "denied_until_signed_reseller_agreement_credit_transfer_scope_model_rights_exact_route_and_human_decisions_are_verified",
+      "source_scope": "public official pages only",
+      "not_an_operator_approval": true,
+      "model_reason": "IndieRouter identifies model cards/licenses but a public model listing does not establish commercial downstream rights for each model; publisher rights, exact serving model, live entitlement and route availability remain separate.",
+      "evidence": [
+        "https://indierouter.ai/terms/",
+        "https://indierouter.ai/partners/",
+        "https://indierouter.ai/docs/",
+        "https://indierouter.ai/models/",
+        "https://indierouter.ai/pricing/"
+      ]
+    }
+  }
+}

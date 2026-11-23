@@ -139,6 +139,34 @@ func TestResolveWorkingDir(t *testing.T) {
 	})
 }
 
+func TestResolveWorkingDirRejectsParentSegments(t *testing.T) {
+	const host = "/home/x/.local/share/workspace-sandbox/sb1/merged"
+	cases := []struct {
+		name       string
+		requested  string
+		hostMerged string
+		workspace  string
+	}{
+		{"namespace root traversal", nsPath + "/../etc", host, nsPath},
+		{"nested namespace traversal", nsPath + "/work/../../etc", host, nsPath},
+		// A namespace symlink can point outside the workspace. Filesystem
+		// resolution follows it before processing `..`, so this cannot be
+		// made safe by cleaning the path lexically to nsPath + "/work".
+		{"parent segment after symlink", nsPath + "/link/../work", host, nsPath},
+		{"translated host traversal", host + "/../etc", host, nsPath},
+		{"identity host traversal", host + "/../etc", host, host},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := resolveWorkingDir(tc.requested, tc.hostMerged, tc.workspace)
+			var blocked *LaunchBlocked
+			if !errors.As(err, &blocked) || blocked.Code != "workdir_outside_sandbox" {
+				t.Fatalf("resolveWorkingDir(%q) error=%T (%v); want workdir_outside_sandbox", tc.requested, err, err)
+			}
+		})
+	}
+}
+
 // TestSandboxLauncher_LaunchTranslatesHostMergedPath verifies that when
 // the run executor passes the *host* merged path as WorkingDir, the
 // launcher rewrites it to /workspace before POSTing — preventing the
@@ -623,30 +651,43 @@ func TestSandboxLauncher_LaunchBasenameFallback(t *testing.T) {
 // nsPath is rejected as a contract violation, not silently
 // passed through.
 func TestSandboxLauncher_LaunchRejectsUntranslatableHostPath(t *testing.T) {
-	mock := newSandboxTestServer(808)
-	mock.hostMergedDir = "/var/lib/workspace-sandbox/sb-test/merged"
-	fixture := newSandboxLauncherFixture(t, mock)
-	launcher := fixture.launcher
+	const host = "/var/lib/workspace-sandbox/sb-test/merged"
+	for _, tc := range []struct {
+		name           string
+		workingDir     string
+		identityLayout bool
+	}{
+		{name: "outside absolute path", workingDir: "/etc"},
+		{name: "namespace traversal", workingDir: nsPath + "/../etc"},
+		{name: "translated host traversal", workingDir: host + "/../etc"},
+		{name: "identity host traversal", workingDir: host + "/../etc", identityLayout: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			mock := newSandboxTestServer(808)
+			mock.hostMergedDir = host
+			mock.identityLayout = tc.identityLayout
+			fixture := newSandboxLauncherFixture(t, mock)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	_, err := launcher.Launch(ctx, runner.LaunchRequest{
-		Command:    "claude",
-		WorkingDir: "/etc",
-	})
-	if err == nil {
-		t.Fatal("Launch returned nil; want *LaunchBlocked")
-	}
-	var blocked *LaunchBlocked
-	if !errors.As(err, &blocked) {
-		t.Fatalf("err = %T (%v); want *LaunchBlocked", err, err)
-	}
-	if blocked.Code != "workdir_outside_sandbox" {
-		t.Errorf("blocked.Code = %q; want workdir_outside_sandbox", blocked.Code)
-	}
-	if mock.startProcessSeen.Load() {
-		t.Error("startProcess should NOT have been called for an untranslatable workdir")
+			proc, err := fixture.launcher.Launch(ctx, runner.LaunchRequest{
+				Command:    "claude",
+				WorkingDir: tc.workingDir,
+			})
+			if proc != nil {
+				go io.Copy(io.Discard, proc.Stdout())
+				go io.Copy(io.Discard, proc.Stderr())
+				proc.Kill()
+				_ = proc.Wait()
+			}
+			if mock.startProcessSeen.Load() {
+				t.Error("startProcess should NOT have been called for an invalid workdir")
+			}
+			var blocked *LaunchBlocked
+			if !errors.As(err, &blocked) || blocked.Code != "workdir_outside_sandbox" {
+				t.Fatalf("Launch error=%T (%v); want workdir_outside_sandbox", err, err)
+			}
+		})
 	}
 }
 

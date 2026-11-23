@@ -488,6 +488,6 @@ func formatEvidence(ev *routingv1.RouteEvidence) string {
 	if ev == nil {
 		return "(no evidence)"
 	}
-	return fmt.Sprintf("%s status=%s scenario=%s operation=%s provider=%s locality=%s fallback=%t latency_ms=%d redacted=%t/%t",
-		ev.GetEventId(), ev.GetStatus(), ev.GetScenario(), ev.GetOperation(), ev.GetSelectedProvider(), ev.GetSelectedLocality(), ev.GetFallbackUsed(), ev.GetLatencyMs(), ev.GetPromptRedacted(), ev.GetResponseRedacted())
+	return fmt.Sprintf("%s status=%s scenario=%s caller=%s operation=%s role=%s provider=%s model=%s locality=%s fallback=%t latency_ms=%d redacted=%t/%t",
+		ev.GetEventId(), ev.GetStatus(), ev.GetScenario(), ev.GetCaller(), ev.GetOperation(), ev.GetRole(), ev.GetSelectedProvider(), ev.GetSelectedModel(), ev.GetSelectedLocality(), ev.GetFallbackUsed(), ev.GetLatencyMs(), ev.GetPromptRedacted(), ev.GetResponseRedacted())
 }

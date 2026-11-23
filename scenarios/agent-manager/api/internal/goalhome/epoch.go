@@ -105,7 +105,11 @@ func ParseEpoch(r io.Reader) (*Epoch, error) {
 			}
 		case strings.HasPrefix(section, "slice log"):
 			if strings.HasPrefix(trimmed, "ACCEPTED ") {
-				epoch.Acceptances = append(epoch.Acceptances, parseAcceptance(trimmed))
+				acceptance := parseAcceptance(trimmed)
+				epoch.Acceptances = append(epoch.Acceptances, acceptance)
+				if acceptance.At.IsZero() {
+					epoch.Malformed = append(epoch.Malformed, trimmed)
+				}
 				continue
 			}
 			entry, err := ParseSliceLine(trimmed)
@@ -234,7 +238,8 @@ func (e *Epoch) ReopenedBy() []string {
 // IsAccepted is true when the epoch has an ACCEPTED line that no later
 // directive reopened.
 func (e *Epoch) IsAccepted() bool {
-	return e.LastAcceptance() != nil && len(e.ReopenedBy()) == 0
+	accepted := e.LastAcceptance()
+	return accepted != nil && !accepted.At.IsZero() && len(e.ReopenedBy()) == 0
 }
 
 // YieldEstimate reads the "- Yield estimate: <±n> <unit>" header, or nil.
@@ -250,7 +255,7 @@ func (e *Epoch) YieldEstimate() *Quantity {
 // line, else an inventory gate measured against its "from" baseline. It is
 // never the sum of slice-log deltas, which workers sometimes log cumulatively.
 func (e *Epoch) Yield() (*Quantity, string) {
-	if accepted := e.LastAcceptance(); accepted != nil && accepted.Yield != nil {
+	if accepted := e.LastAcceptance(); accepted != nil && !accepted.At.IsZero() && accepted.Yield != nil {
 		return accepted.Yield, "accepted"
 	}
 	estimate := e.YieldEstimate()

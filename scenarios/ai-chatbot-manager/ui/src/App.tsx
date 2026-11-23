@@ -18,6 +18,8 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { AppShell as LibraryAppShell, type AppShellNavItem } from '@vrooli/react-component-library/AppShell/2';
+import { BaseStyles } from '@vrooli/react-component-library/BaseStyles/1';
+import { Button } from '@vrooli/react-component-library/Button/2.2.14';
 
 import Dashboard from './components/Dashboard';
 import ChatbotList from './components/ChatbotList';
@@ -54,6 +56,7 @@ interface NavItem {
 
 const App = () => (
   <Router>
+    <BaseStyles />
     <AppShell />
   </Router>
 );
@@ -168,10 +171,10 @@ function AppShell() {
           </div>
           <div className="topbar-actions">
             <ApiStatusIndicator state={apiState} />
-            <button className="primary-action" onClick={() => navigate('/chatbots/new')}>
+            <Button className="primary-action" variant="primary" onClick={() => navigate('/chatbots/new')}>
               <Sparkles size={16} />
               <span>Launch New Chatbot</span>
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -262,10 +265,10 @@ function FullScreenState({ title, subtitle, icon: Icon, iconClassName, actionLab
         <h2>{title}</h2>
         {subtitle && <p>{subtitle}</p>}
         {actionLabel && onAction && (
-          <button className="primary-action" onClick={onAction}>
+          <Button className="primary-action" variant="primary" onClick={onAction}>
             <Activity size={16} />
             <span>{actionLabel}</span>
-          </button>
+          </Button>
         )}
       </div>
     </section>

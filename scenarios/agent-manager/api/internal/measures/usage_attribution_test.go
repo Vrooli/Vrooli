@@ -372,14 +372,11 @@ func TestToolFrictionServesRatesProfilesAndSignaturesFromOneComputation(t *testi
 	if err != nil || len(narrowed.Msg.GetProfiles()) != 1 || narrowed.Msg.GetProfiles()[0].GetCommandPath() != "ls" {
 		t.Fatalf("external profiles = %v, %v", narrowed.Msg.GetProfiles(), err)
 	}
-	registry, err := h.Registry()
-	if err != nil {
-		t.Fatal(err)
-	}
+	registry := newTestRegistry(t, h)
 	for name, rows := range map[string]int{ToolFriction: 1, ToolProfiles: 4, ErrorSignatures: 1} {
-		served, err := registry.Execute(context.Background(), measureRequest(name, "last_7d"))
-		if err != nil || len(served.Fields) != rows {
-			t.Fatalf("%s rows = %v, %v", name, served.Fields, err)
+		served := executeRegisteredMeasure(t, registry, measureRequest(name, "last_7d"))
+		if len(served.Fields) != rows {
+			t.Fatalf("%s rows = %v", name, served.Fields)
 		}
 		if name == ToolFriction && (served.Fields[0]["vrooli_failure_rate"] != "1" || served.Fields[0]["coverage.sentence"] == "") {
 			t.Fatalf("summary row = %v", served.Fields[0])
@@ -422,10 +419,7 @@ func TestUsageCompareNeedsFiveSuccessesPerSide(t *testing.T) {
 func TestRegistryServesEveryUsageMeasureFromItsProcedure(t *testing.T) {
 	now := time.Date(2026, 10, 29, 6, 0, 0, 0, time.UTC)
 	h := usageHandler(now)
-	registry, err := h.Registry()
-	if err != nil {
-		t.Fatal(err)
-	}
+	registry := newTestRegistry(t, h)
 	rpc, err := h.UsageBurners(context.Background(), connect.NewRequest(&measurepb.UsageBurnersRequest{}))
 	if err != nil {
 		t.Fatal(err)
@@ -435,10 +429,7 @@ func TestRegistryServesEveryUsageMeasureFromItsProcedure(t *testing.T) {
 		UsageCompare: {"left_run_ids": "00000000-0000-0000-0000-000000000001", "right_run_ids": "00000000-0000-0000-0000-000000000002"},
 	}
 	for _, name := range []string{UsageForecast, UsageForecastBacktest, UsageBurners, UsageRecommendations, UsageFriction, UsageCoverage, UsageCompare} {
-		served, err := registry.Execute(context.Background(), measurelib.MeasureRequest{Measure: name, Params: params[name]})
-		if err != nil {
-			t.Fatalf("%s: %v", name, err)
-		}
+		served := executeRegisteredMeasure(t, registry, measurelib.MeasureRequest{Measure: name, Params: params[name]})
 		if name != UsageForecastBacktest && len(served.Fields) == 0 {
 			t.Fatalf("%s served no rows", name)
 		}

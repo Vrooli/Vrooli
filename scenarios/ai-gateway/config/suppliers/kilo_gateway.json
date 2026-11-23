@@ -1,0 +1,98 @@
+{
+  "id": "kilo_gateway",
+  "family": "openai-compatible",
+  "locality": "remote",
+  "endpoint": "https://ai-gateway.kilo.ai/api/v1",
+  "policy": {
+    "schema_version": "2026-11-22",
+    "provider": {
+      "id": "kilo_gateway",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "gateway_api_end_user_service_payg_scope_unresolved",
+            "access_tier": "unverified",
+            "use_classes": {
+              "own_account": "allowed",
+              "bounded_feature": "unverified",
+              "in_app": "unverified",
+              "harness_access": "unverified"
+            },
+            "conditions": [
+              "Kilo Terms §§1(A) and 5(C)(i) contemplate use of the Gateway API to make Services available through Your Service to end users, but all end users must comply with Kilo Terms and usage limits; treat paid separately branded resale as conditional until its precise scope is reviewed.",
+              "Do not treat the limited, non-transferable, non-sublicensable license or end-user API carve-out as a reseller sublicense or an unconditional resale grant; obtain and review any applicable written Enterprise Agreement before widening the scope.",
+              "Do not use Kilo Pass subscription credits for downstream sale unless written terms expressly allow it; public tier page does not specify reseller/wholesale terms. Prefer no plan assumption in any future review.",
+              "For every model, capture actual serving provider, model publisher/license, exact model/provider terms, and whether the route is Kilo-operated or BYOK; a Kilo catalog ID/provider label does not settle those rights.",
+              "Record current quote and route availability separately from public price/catalog data; trust, customer price, and rule approval remain separate human decisions."
+            ],
+            "clause": "Kilo Terms §§1(A), 3(B), 5(A), 5(C)(i), and 5(E); Kilo Gateway product/pricing page",
+            "reason": "Official terms expressly contemplate end-user access through a service using the Gateway API, while retaining a limited non-sublicensable license and downstream compliance duties. This supports a conditional candidate, not an established right to resell any model, plan credits, or upstream provider service."
+          }
+        ],
+        "evidence": {
+          "url": "https://kilo.ai/terms",
+          "document_date": "2026-11-02",
+          "read_at": "2026-11-22"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-11-22",
+        "on_expiry": "deny"
+      },
+      "hosted_routes": [],
+      "agreements": []
+    },
+    "roles": {},
+    "models": {
+      "anthropic/claude-sonnet-4.6": {
+        "provider": "Anthropic",
+        "display_name": "Claude Sonnet 4.6",
+        "family": "claude",
+        "capabilities": ["chat", "text_input", "text_output", "streaming"],
+        "modalities": {"input": ["text"], "output": ["text"]},
+        "endpoints": ["chat"],
+        "default_eligible": false,
+        "use_case_notes": "Kilo Gateway documented model identity draft only; no serving route is approved.",
+        "caveats": [
+          "Kilo's public model list identifies a model parameter but does not establish Vrooli account entitlement, exact serving path, or downstream rights for the upstream Anthropic model.",
+          "Verify route-specific Kilo and Anthropic terms, current entitlement, trust/data handling, quote, and human decisions before any route can be eligible."
+        ],
+        "provenance": {
+          "catalog": {"source_kind": "manual_policy", "confidence": "high", "source": "https://kilo.ai/docs/gateway/models-and-providers; Claude Sonnet 4.6 Gateway model ID anthropic/claude-sonnet-4.6", "observed_at": "2026-11-23"},
+          "terms": {"source_kind": "manual_policy", "confidence": "low", "source": "https://kilo.ai/terms; exact route, upstream model rights, and approved plan remain unresolved", "observed_at": "2026-11-23"}
+        }
+      },
+      "openai/gpt-5.4": {
+        "provider": "OpenAI",
+        "display_name": "GPT 5.4",
+        "family": "gpt",
+        "capabilities": ["chat", "text_input", "text_output", "streaming"],
+        "modalities": {"input": ["text"], "output": ["text"]},
+        "endpoints": ["chat"],
+        "default_eligible": false,
+        "use_case_notes": "Kilo Gateway documented model identity draft only; no serving route is approved.",
+        "caveats": [
+          "Kilo's public model list identifies a model parameter but does not establish Vrooli account entitlement, exact serving path, or downstream rights for the upstream OpenAI model.",
+          "Verify route-specific Kilo and OpenAI terms, current entitlement, trust/data handling, quote, and human decisions before any route can be eligible."
+        ],
+        "provenance": {
+          "catalog": {"source_kind": "manual_policy", "confidence": "high", "source": "https://kilo.ai/docs/gateway/models-and-providers; GPT 5.4 Gateway model ID openai/gpt-5.4", "observed_at": "2026-11-23"},
+          "terms": {"source_kind": "manual_policy", "confidence": "low", "source": "https://kilo.ai/terms; exact route, upstream model rights, and approved plan remain unresolved", "observed_at": "2026-11-23"}
+        }
+      }
+    },
+    "research": {
+      "activation": "denied_until_scope_plan_upstream_model_terms_quote_availability_and_human_decisions_are_verified",
+      "source_scope": "public official pages only",
+      "not_an_operator_approval": true,
+      "model_reason": "The Kilo catalog lists models, but the public terms do not identify the actual serving route or grant universal upstream model rights; BYOK and Kilo-operated routes must be distinguished per request.",
+      "evidence": [
+        "https://kilo.ai/terms",
+        "https://kilo.ai/gateway",
+        "https://kilo.ai/docs/gateway/api-reference",
+        "https://kilo.ai/docs/gateway/models-and-providers"
+      ]
+    }
+  }
+}

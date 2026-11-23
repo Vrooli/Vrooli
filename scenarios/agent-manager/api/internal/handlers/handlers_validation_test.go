@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -992,128 +993,77 @@ func TestRejectRun_MalformedBody(t *testing.T) {
 // LIST RUNS FILTER TESTS
 // =============================================================================
 
-// TestListRuns_WithStatusFilter tests listing runs with status filter.
-func TestListRuns_WithStatusFilter(t *testing.T) {
-	_, router := setupTestHandler(t)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/runs?status=running", nil)
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("expected status 200, got %d", rr.Code)
-	}
-
-	var response apipb.ListRunsResponse
-	decodeProtoJSON(t, rr.Body.Bytes(), &response)
-	// All returned runs should have status "running" (or empty if none)
+type capturedRunListService struct {
+	orchestration.RunService
+	listed  []orchestration.RunListOptions
+	counted []orchestration.RunListOptions
 }
 
-// TestListRuns_WithTaskIDFilter tests listing runs with task ID filter.
-func TestListRuns_WithTaskIDFilter(t *testing.T) {
-	_, router := setupTestHandler(t)
-
-	taskID := uuid.New().String()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/runs?taskId="+taskID, nil)
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("expected status 200, got %d", rr.Code)
-	}
+func (s *capturedRunListService) ListRuns(_ context.Context, options orchestration.RunListOptions) ([]*domain.Run, error) {
+	s.listed = append(s.listed, options)
+	return nil, nil
 }
 
-// TestListRuns_WithProfileIDFilter tests listing runs with profile ID filter.
-func TestListRuns_WithProfileIDFilter(t *testing.T) {
-	_, router := setupTestHandler(t)
-
-	profileID := uuid.New().String()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/runs?profileId="+profileID, nil)
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("expected status 200, got %d", rr.Code)
-	}
+func (s *capturedRunListService) CountRuns(_ context.Context, options orchestration.RunListOptions) (int, error) {
+	s.counted = append(s.counted, options)
+	return 0, nil
 }
 
-// TestListRuns_WithTagPrefixFilter tests listing runs with tag prefix filter.
-func TestListRuns_WithTagPrefixFilter(t *testing.T) {
-	_, router := setupTestHandler(t)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/runs?tagPrefix=ecosystem-", nil)
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("expected status 200, got %d", rr.Code)
+// TestListRunsQueryFiltersReachRunService checks the effect of each public
+// filter on both the page query and count query. Previous success-path tests
+// only asserted HTTP 200, so a silently ignored filter passed.
+func TestListRunsQueryFiltersReachRunService(t *testing.T) {
+	taskID := uuid.MustParse("11111111-1111-4111-8111-111111111111")
+	profileID := uuid.MustParse("22222222-2222-4222-8222-222222222222")
+	sourceRunID := uuid.MustParse("33333333-3333-4333-8333-333333333333")
+	applyRunID := uuid.MustParse("44444444-4444-4444-8444-444444444444")
+	parentRunID := uuid.MustParse("55555555-5555-4555-8555-555555555555")
+	running, pending := domain.RunStatusRunning, domain.RunStatusPending
+	defaultLimit := orchestration.ListOptions{Limit: 100}
+	cases := []struct {
+		name       string
+		query      string
+		wantStatus int
+		want       orchestration.RunListOptions
+	}{
+		{"status", "status=running", http.StatusOK, orchestration.RunListOptions{ListOptions: defaultLimit, Status: &running}},
+		{"task ID", "taskId=" + taskID.String(), http.StatusOK, orchestration.RunListOptions{ListOptions: defaultLimit, TaskID: &taskID}},
+		{"task ID canonical alias", "task_id=" + taskID.String(), http.StatusOK, orchestration.RunListOptions{ListOptions: defaultLimit, TaskID: &taskID}},
+		{"profile ID", "profileId=" + profileID.String(), http.StatusOK, orchestration.RunListOptions{ListOptions: defaultLimit, AgentProfileID: &profileID}},
+		{"tag prefix", "tagPrefix=ecosystem-", http.StatusOK, orchestration.RunListOptions{ListOptions: defaultLimit, TagPrefix: "ecosystem-"}},
+		{"multiple filters", "status=pending&tagPrefix=test-", http.StatusOK, orchestration.RunListOptions{ListOptions: defaultLimit, Status: &pending, TagPrefix: "test-"}},
+		{"investigates run", "investigates_run_id=" + sourceRunID.String(), http.StatusOK, orchestration.RunListOptions{ListOptions: defaultLimit, InvestigatesRunID: &sourceRunID}},
+		{"applies investigation", "applies_investigation_run_id=" + applyRunID.String(), http.StatusOK, orchestration.RunListOptions{ListOptions: defaultLimit, AppliesInvestigationRunID: &applyRunID}},
+		{"parent run", "parent_run_id=" + parentRunID.String(), http.StatusOK, orchestration.RunListOptions{ListOptions: defaultLimit, ParentRunID: &parentRunID}},
+		{"top level and origin", "top_level=true&origin=workflows", http.StatusOK, orchestration.RunListOptions{ListOptions: defaultLimit, TopLevelOnly: true, Origin: "workflows"}},
+		{"pagination", "limit=7&offset=2", http.StatusOK, orchestration.RunListOptions{ListOptions: orchestration.ListOptions{Limit: 7, Offset: 2}}},
+		{"invalid investigates run", "investigates_run_id=invalid-uuid", http.StatusBadRequest, orchestration.RunListOptions{}},
+		{"invalid applies run", "applies_investigation_run_id=invalid-uuid", http.StatusBadRequest, orchestration.RunListOptions{}},
 	}
-}
 
-// TestListRuns_WithMultipleFilters tests listing runs with multiple filters.
-func TestListRuns_WithMultipleFilters(t *testing.T) {
-	_, router := setupTestHandler(t)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/runs?status=pending&tagPrefix=test-", nil)
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("expected status 200, got %d", rr.Code)
-	}
-}
-
-// TestListRuns_WithInvestigatesRunIDFilter tests listing runs with investigates_run_id filter.
-func TestListRuns_WithInvestigatesRunIDFilter(t *testing.T) {
-	_, router := setupTestHandler(t)
-
-	sourceRunID := uuid.New().String()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/runs?investigates_run_id="+sourceRunID, nil)
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("expected status 200, got %d", rr.Code)
-	}
-}
-
-// TestListRuns_WithAppliesInvestigationRunIDFilter tests listing runs with applies_investigation_run_id filter.
-func TestListRuns_WithAppliesInvestigationRunIDFilter(t *testing.T) {
-	_, router := setupTestHandler(t)
-
-	investigationRunID := uuid.New().String()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/runs?applies_investigation_run_id="+investigationRunID, nil)
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("expected status 200, got %d", rr.Code)
-	}
-}
-
-// TestListRuns_WithInvalidInvestigatesRunID tests validation for investigates_run_id.
-func TestListRuns_WithInvalidInvestigatesRunID(t *testing.T) {
-	_, router := setupTestHandler(t)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/runs?investigates_run_id=invalid-uuid", nil)
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
-
-	if rr.Code != http.StatusBadRequest {
-		t.Errorf("expected status 400, got %d", rr.Code)
-	}
-}
-
-// TestListRuns_WithInvalidAppliesInvestigationRunID tests validation for applies_investigation_run_id.
-func TestListRuns_WithInvalidAppliesInvestigationRunID(t *testing.T) {
-	_, router := setupTestHandler(t)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/runs?applies_investigation_run_id=invalid-uuid", nil)
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
-
-	if rr.Code != http.StatusBadRequest {
-		t.Errorf("expected status 400, got %d", rr.Code)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			service := &capturedRunListService{}
+			handler := New(orchestration.HandlerServices{RunService: service})
+			response := httptest.NewRecorder()
+			request := httptest.NewRequest(http.MethodGet, "/api/v1/runs?"+tc.query, nil)
+			handler.ListRuns(response, request)
+			if response.Code != tc.wantStatus {
+				t.Fatalf("status = %d, want %d: %s", response.Code, tc.wantStatus, response.Body.String())
+			}
+			if tc.wantStatus != http.StatusOK {
+				if len(service.listed) != 0 || len(service.counted) != 0 {
+					t.Fatalf("invalid filter reached run service: listed=%+v counted=%+v", service.listed, service.counted)
+				}
+				return
+			}
+			if len(service.listed) != 1 || len(service.counted) != 1 {
+				t.Fatalf("service calls: ListRuns=%d CountRuns=%d, want one each", len(service.listed), len(service.counted))
+			}
+			if !reflect.DeepEqual(service.listed[0], tc.want) || !reflect.DeepEqual(service.counted[0], tc.want) {
+				t.Fatalf("service options differ: ListRuns=%+v CountRuns=%+v, want %+v", service.listed[0], service.counted[0], tc.want)
+			}
+		})
 	}
 }
 

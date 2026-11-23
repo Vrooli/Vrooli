@@ -109,6 +109,19 @@ type transcriptIndexHost struct {
 	redact map[string]bool
 }
 
+type importPolicyHarnessContextKey struct{}
+
+func importPolicyHarness(ctx context.Context, fallback string) string {
+	if source, _ := ctx.Value(importPolicyHarnessContextKey{}).(string); strings.TrimSpace(source) != "" {
+		return strings.TrimSpace(source)
+	}
+	return fallback
+}
+
+// transcriptImportRunnerType marks a read-only imported transcript format.
+// It is deliberately not in domain.ValidRunnerTypes and cannot be launched.
+const transcriptImportRunnerType domain.RunnerType = "transcript-import"
+
 func (h *transcriptIndexHost) OwnedTranscripts(ctx context.Context) (map[string]string, error) {
 	paths, err := h.o.runs.ListRunTranscriptPaths(ctx)
 	if err != nil {
@@ -122,6 +135,9 @@ func (h *transcriptIndexHost) OwnedTranscripts(ctx context.Context) (map[string]
 }
 
 func (h *transcriptIndexHost) runnerType(file transcriptindex.FileRow) (domain.RunnerType, float64, error) {
+	if file.Harness == "gemini-cli" || file.Harness == "cursor" {
+		return transcriptImportRunnerType, 1, nil
+	}
 	if runnerType, ok := familyRunner(file.Harness); ok {
 		return runnerType, 1, nil
 	}
@@ -141,6 +157,8 @@ func familyRunner(harness string) (domain.RunnerType, bool) {
 		return domain.RunnerTypeCodex, true
 	case transcriptindex.HarnessClaude:
 		return domain.RunnerTypeClaudeCode, true
+	case transcriptindex.HarnessGrok:
+		return domain.RunnerTypeGrok, true
 	}
 	return "", false
 }
@@ -149,6 +167,9 @@ func familyRunner(harness string) (domain.RunnerType, bool) {
 // it derives (runner.TranscriptVersioner); a configured harness, whose runner
 // is detected per file, is version 0 and never re-imported.
 func (h *transcriptIndexHost) ParserVersion(harness string) int {
+	if harness == "gemini-cli" || harness == "cursor" {
+		return geminiDocumentParserVersion
+	}
 	runnerType, ok := familyRunner(harness)
 	if !ok {
 		return 0
@@ -185,7 +206,11 @@ func (h *transcriptIndexHost) Adopt(ctx context.Context, file transcriptindex.Fi
 	}
 	redact := false
 	if o.conversationPolicy.Enabled() {
-		fields := conversationpolicy.Fields{Harness: file.Harness, Tag: importedRunTag}
+		// FileRow.Harness is intentionally normalized to the native format
+		// (for parsing and durable provenance). A direct import may also carry
+		// a caller-declared source label such as resource:codex/private; keep
+		// that policy scope available for this IndexPath operation only.
+		fields := conversationpolicy.Fields{Harness: importPolicyHarness(ctx, file.Harness), Tag: importedRunTag}
 		// The import counters record each file at adoption and when a later
 		// rule excludes it; an excluded file is never re-admitted.
 		decision := o.conversationPolicy.Evaluate(conversationpolicy.EnforceImport, fields)
@@ -249,10 +274,14 @@ func (h *transcriptIndexHost) Adopt(ctx context.Context, file transcriptindex.Fi
 		return transcriptindex.Adoption{}, err
 	}
 	now := o.now()
+	transcriptCodec := string(runnerType)
+	if file.Harness == "gemini-cli" || file.Harness == "cursor" {
+		transcriptCodec = file.Harness
+	}
 	run := &domain.Run{
 		ID: uuid.New(), TaskID: task.ID, Tag: importedRunTag, RunMode: domain.RunModeInPlace, ExecutionMode: domain.ExecutionModeImported,
 		Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting,
-		ResolvedConfig:      &domain.RunConfig{RunnerType: runnerType, ManifestIndexSnapshot: runsignal.CurrentCatalogSnapshot(), TranscriptCodec: string(runnerType), TranscriptCodecScore: score},
+		ResolvedConfig:      &domain.RunConfig{RunnerType: runnerType, ManifestIndexSnapshot: runsignal.CurrentCatalogSnapshot(), TranscriptCodec: transcriptCodec, TranscriptCodecScore: score},
 		ImportSourceHarness: file.Harness, ImportSourceSessionID: provenance, ImportedAt: &now,
 		TranscriptPath: file.Path, SessionID: file.HeaderSessionID, WebConsoleSessionID: file.WebConsoleSessionID, ParentRunID: parent,
 	}
@@ -260,7 +289,10 @@ func (h *transcriptIndexHost) Adopt(ctx context.Context, file transcriptindex.Fi
 	if owned, err := o.runners.Get(runnerType); err == nil {
 		markers, _ = owned.(runner.GoalMarkerProvider)
 	}
-	evidence := readTranscriptHead(file.Path, markers)
+	evidence := transcriptHead{}
+	if file.Harness != "cursor" {
+		evidence = readTranscriptHead(file.Path, markers)
+	}
 	run.Label, run.LabelSource = o.resolveImportedLabel(ctx, ImportTranscriptRequest{SourceSessionID: file.SessionID}, runnerType, evidence.label)
 	run.GoalID = evidence.goalID
 	if err := o.runs.Create(ctx, run); err != nil {
@@ -302,6 +334,15 @@ func (h *transcriptIndexHost) redacts(ctx context.Context, runID uuid.UUID) bool
 }
 
 func (h *transcriptIndexHost) Parser(ctx context.Context, file transcriptindex.FileRow) (runner.TranscriptParser, error) {
+	if file.Harness == "gemini-cli" {
+		return &geminiDocumentParser{source: file.Path}, nil
+	}
+	if file.Harness == "qwen-code" {
+		return qwenTranscriptParser{}, nil
+	}
+	if file.Harness == "cursor" {
+		return &cursorDocumentParser{source: file.Path, composerID: file.SessionID}, nil
+	}
 	runnerType, _, err := h.runnerType(file)
 	if err != nil {
 		return nil, err
@@ -871,9 +912,10 @@ func readTranscriptHead(path string, markers runner.GoalMarkerProvider) transcri
 	if err != nil {
 		return head
 	}
-	if evidence, err := readTranscriptLabelEvidence(bytes.NewReader(data)); err == nil {
-		head.label = evidence
+	evidence, scanErr := extractAgentManagerTranscriptEvidence(bytes.NewReader(data), markers, importTranscriptMaxLineBytes, transcriptHeadBytes, true, true)
+	if scanErr == nil {
+		head.label = transcriptLabelEvidenceFromShared(evidence)
 	}
-	head.goalID, _ = transcriptGoalMetadata(bytes.NewReader(data), markers)
+	head.goalID, _ = transcriptGoalMetadataFromShared(evidence)
 	return head
 }

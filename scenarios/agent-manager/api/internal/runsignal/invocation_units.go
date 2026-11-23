@@ -8,6 +8,8 @@ import (
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/tokenaccounting"
+
+	"github.com/google/uuid"
 )
 
 // callUnits splits one tool call into the commands it runs. A call that runs
@@ -205,6 +207,7 @@ func planCalls(events []*domain.RunEvent, commandResolvers ...CommandResolver) m
 	}
 	plans := map[*domain.RunEvent]*callPlan{}
 	byCallID := map[string]*callPlan{}
+	seenNestedResultIDs := map[uuid.UUID]bool{}
 	var scripts []*callPlan
 	for _, event := range events {
 		switch data := eventData(event).(type) {
@@ -235,6 +238,15 @@ func planCalls(events []*domain.RunEvent, commandResolvers ...CommandResolver) m
 			}
 			if data.ToolName != NestedCommandTool || data.ToolCallID == "" || callIDs[data.ToolCallID] {
 				continue
+			}
+			// Imports can replay the same durable command event more than once.
+			// Do not let a duplicate claim a second dynamic unit after the first
+			// copy already claimed its literal exec_command.
+			if event.ID != uuid.Nil {
+				if seenNestedResultIDs[event.ID] {
+					continue
+				}
+				seenNestedResultIDs[event.ID] = true
 			}
 			nested := decodeNested(event, data)
 			if parent := joinNested(scripts, nested); parent != nil {

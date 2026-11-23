@@ -14,6 +14,7 @@ import (
 	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/cli-core/agenttranscript"
 )
 
 // Source replacement: a transcript whose bytes no longer extend its
@@ -86,10 +87,12 @@ func (ix *Indexer) stageReplacement(ctx context.Context, t *tick, previous *File
 	if len(data) == 0 {
 		return deferReplacement(errors.New("replacement source has no complete record yet"))
 	}
-	for _, line := range bytes.Split(data, []byte{'\n'}) {
-		line = bytes.TrimSpace(line)
-		if len(line) != 0 && !json.Valid(line) {
-			return ix.refuseReplacement(ctx, previous, "replacement contains malformed JSON")
+	if previous.RootKind != RootGeminiCLI && previous.RootKind != RootCursor {
+		for _, line := range bytes.Split(data, []byte{'\n'}) {
+			line = bytes.TrimSpace(line)
+			if len(line) != 0 && !json.Valid(line) {
+				return ix.refuseReplacement(ctx, previous, "replacement contains malformed JSON")
+			}
 		}
 	}
 	file := *previous
@@ -126,7 +129,10 @@ func (ix *Indexer) stageReplacement(ctx context.Context, t *tick, previous *File
 		return ix.refuseReplacement(ctx, previous, "replacement session identity changed")
 	}
 	file.Offset, file.Turns, file.UsageReports = result.cursor, result.turns, int64(len(result.usage))
-	file.PendingFacts, file.HeadHash = state.facts.encode(), hashHead(data)
+	file.PendingFacts, file.HeadHash = state.facts.encode(), agenttranscript.SHA256BytesPrefix(data, headHashBytes)
+	if file.RootKind == RootGeminiCLI || file.RootKind == RootCursor {
+		file.HeadHash = agenttranscript.SHA256Bytes(data)
+	}
 	file.ParserVersion = ix.parserVersion(t, file.Harness)
 	file.Status, file.Error = StatusPending, ReplacementEffectsPending
 	file.Active = t.now.Sub(file.Mtime()) < ix.cfg.ActiveWindow
@@ -301,6 +307,21 @@ type transcriptSnapshot struct {
 // verification is that the raw file is unchanged.
 func snapshotTranscript(candidate Candidate) (*transcriptSnapshot, error) {
 	path := candidate.Path
+	if candidate.Root.Kind == RootCursor {
+		data, err := ReadCursorSnapshot(context.Background(), path, candidate.SessionID)
+		if err != nil {
+			return nil, fmt.Errorf("read Cursor snapshot: %w", err)
+		}
+		snapshot := &transcriptSnapshot{data: data, extent: int64(len(data))}
+		snapshot.verify = func() error {
+			current, err := ReadCursorSnapshot(context.Background(), path, candidate.SessionID)
+			if err != nil || agenttranscript.SHA256Bytes(current) != agenttranscript.SHA256Bytes(data) {
+				return errors.New("Cursor composer source changed")
+			}
+			return nil
+		}
+		return snapshot, nil
+	}
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open replacement: %w", err)
@@ -355,7 +376,19 @@ func snapshotTranscript(candidate Candidate) (*transcriptSnapshot, error) {
 		snapshot.verify = func() error { return verifyPrefix(path, before, data) }
 	}
 	snapshot.extent = int64(len(snapshot.data))
-	snapshot.data = snapshot.data[:bytes.LastIndexByte(snapshot.data, '\n')+1]
+	if candidate.Root.Kind == RootGeminiCLI || candidate.Root.Kind == RootCursor {
+		// Gemini CLI archives are one complete JSON document and commonly have
+		// no trailing newline. Treat the entire exact snapshot as its record.
+		snapshot.verify = func() error {
+			now, err := os.Stat(path)
+			if err != nil || !os.SameFile(before, now) || now.Size() != before.Size() || !now.ModTime().Equal(before.ModTime()) {
+				return errors.New("Gemini CLI source changed")
+			}
+			return nil
+		}
+	} else {
+		snapshot.data = snapshot.data[:bytes.LastIndexByte(snapshot.data, '\n')+1]
+	}
 	return snapshot, nil
 }
 
@@ -478,6 +511,27 @@ func sourceRewritten(path string, row *FileRow, size int64) (bool, error) {
 	}
 	if row.Offset == 0 {
 		return false, nil
+	}
+	if row.RootKind == RootGeminiCLI {
+		full, err := FullHash(path)
+		if err != nil {
+			return false, fmt.Errorf("read full transcript document hash: %w", err)
+		}
+		return full != row.HeadHash, nil
+	}
+	if row.RootKind == RootCursor {
+		data, err := ReadCursorSnapshot(context.Background(), path, row.SessionID)
+		if err != nil {
+			return false, fmt.Errorf("read Cursor composer snapshot: %w", err)
+		}
+		return agenttranscript.SHA256Bytes(data) != row.HeadHash, nil
+	}
+	if row.RootKind == RootCursor {
+		data, err := ReadCursorSnapshot(context.Background(), path, row.SessionID)
+		if err != nil {
+			return false, fmt.Errorf("read Cursor composer snapshot: %w", err)
+		}
+		return agenttranscript.SHA256Bytes(data) != row.HeadHash, nil
 	}
 	head, err := HeadHash(path, row.Offset)
 	if err != nil {

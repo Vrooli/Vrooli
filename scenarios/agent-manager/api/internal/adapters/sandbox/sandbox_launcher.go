@@ -237,9 +237,7 @@ func translateCommandToNamespace(command string, layout NamespaceLayout) (string
 	if !strings.HasPrefix(command, "/") {
 		return command, nil
 	}
-	if layout.HostMerged != "" &&
-		(command == layout.HostMerged ||
-			strings.HasPrefix(command, strings.TrimSuffix(layout.HostMerged, "/")+"/")) {
+	if pathWithinRoot(command, layout.HostMerged) {
 		return translateHostPathToNamespace(command, layout.HostMerged, layout.WorkspacePath), nil
 	}
 	if layout.HostHome != "" {
@@ -299,17 +297,14 @@ func translateHostPathToNamespace(value, hostMerged, workspacePath string) strin
 	if hostMerged == "" {
 		return value
 	}
+	if !pathWithinRoot(value, hostMerged) {
+		return value
+	}
 	if value == hostMerged {
 		return workspacePath
 	}
-	prefix := hostMerged
-	if !strings.HasSuffix(prefix, "/") {
-		prefix += "/"
-	}
-	if strings.HasPrefix(value, prefix) {
-		return strings.TrimRight(workspacePath, "/") + "/" + strings.TrimPrefix(value, prefix)
-	}
-	return value
+	prefix := strings.TrimSuffix(hostMerged, "/") + "/"
+	return strings.TrimRight(workspacePath, "/") + "/" + strings.TrimPrefix(value, prefix)
 }
 
 // Launch starts the process inside the sandbox.
@@ -1106,22 +1101,43 @@ func resolveWorkingDir(requested, hostMerged, workspacePath string) (string, err
 	if requested == "" {
 		return workspacePath, nil
 	}
+	// Even a lexically prefixed path can escape through a parent segment.
+	// Reject these instead of letting bwrap resolve the launch directory
+	// outside the workspace (or through a symlink-dependent `..`).
+	if hasParentPathSegment(requested) {
+		return "", blockedWorkingDir(requested, workspacePath)
+	}
 	// Already the reported workspace root or a path under it.
-	if workspacePath != "" &&
-		(requested == workspacePath ||
-			strings.HasPrefix(requested, strings.TrimSuffix(workspacePath, "/")+"/")) {
+	if pathWithinRoot(requested, workspacePath) {
 		return requested, nil
 	}
-	if hostMerged != "" {
-		if requested == hostMerged ||
-			strings.HasPrefix(requested, strings.TrimSuffix(hostMerged, "/")+"/") {
-			return translateHostPathToNamespace(requested, hostMerged, workspacePath), nil
-		}
+	if pathWithinRoot(requested, hostMerged) {
+		return translateHostPathToNamespace(requested, hostMerged, workspacePath), nil
 	}
-	return "", &LaunchBlocked{
+	return "", blockedWorkingDir(requested, workspacePath)
+}
+
+func blockedWorkingDir(requested, workspacePath string) *LaunchBlocked {
+	return &LaunchBlocked{
 		Code:    "workdir_outside_sandbox",
 		Message: fmt.Sprintf("workingDir %q is outside the sandbox workspace; sandbox-routed launches must run inside %s", requested, workspacePath),
 	}
+}
+
+func pathWithinRoot(candidate, root string) bool {
+	if candidate == "" || root == "" {
+		return false
+	}
+	return candidate == root || strings.HasPrefix(candidate, strings.TrimSuffix(root, "/")+"/")
+}
+
+func hasParentPathSegment(value string) bool {
+	for _, segment := range strings.Split(value, "/") {
+		if segment == ".." {
+			return true
+		}
+	}
+	return false
 }
 
 // translateEnvHostPaths rewrites any env values that exactly match the

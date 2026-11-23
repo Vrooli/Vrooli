@@ -73,3 +73,38 @@ func TestRuntimeFrictionCommandExplainsUnknownCoverageAndIdentity(t *testing.T) 
 		}
 	}
 }
+
+func TestRuntimeFrictionRejectsOversizedResponseBeforeEmittingPartialJSON(t *testing.T) {
+	const maxBytes = 2 << 20
+	const first = `{"coverage":{"state":"complete"}}`
+	body := first + strings.Repeat(" ", maxBytes-len(first)) + `{"coverage":{"state":"corrupt-tail"}}`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, body)
+	}))
+	defer server.Close()
+
+	out, err := runRuntimeFriction(t, server.URL, "--json")
+	if err == nil || !strings.Contains(err.Error(), "2 MiB") {
+		t.Fatalf("oversized response error = %v, want 2 MiB limit", err)
+	}
+	if out != "" {
+		t.Fatalf("partial JSON was written before rejecting oversized response (%d bytes)", len(out))
+	}
+}
+
+func TestRuntimeFrictionTruncatesOversizedHTTPErrorBodyButKeepsStatus(t *testing.T) {
+	const maxBytes = 2 << 20
+	const first = `{"error":"unavailable"}`
+	body := first + strings.Repeat(" ", maxBytes-len(first)+128) + "hidden tail"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadGateway)
+		_, _ = io.WriteString(w, body)
+	}))
+	defer server.Close()
+
+	_, err := runRuntimeFriction(t, server.URL)
+	if err == nil || err.Error() != "runtime friction request failed (502): "+first {
+		t.Fatalf("error = %q, want bounded body and original HTTP status", err)
+	}
+}

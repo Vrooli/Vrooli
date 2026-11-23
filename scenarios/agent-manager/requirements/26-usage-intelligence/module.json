@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "OT-P0-016 — subscription window forecast, quota attribution, capture coverage, recommendations and value comparison. Design: docs/concepts/USAGE-INTELLIGENCE.md.",
-    "last_validated_at": "2026-10-29T13:50:55-04:00",
+    "last_validated_at": "2026-11-22T20:30:54-05:00",
     "module": "usage-intelligence",
     "prd_ref": "OT-P0-016",
     "priority": "P0",
@@ -20,7 +20,7 @@
           "type": "test",
           "ref": "api/internal/transcriptindex/indexer_test.go::TestIndexerTailsGrowingFilesIncrementallyByFileKey",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Fork rollouts, Claude sidechains and AM-registered files are indexed once; re-tails and a restart add only new reports and match the final cumulative counter. Companion tests in the same file cover truncation/rewrite/replacement, run-owned files, web-console linkage, recall eviction by its own budget, legacy relink and coverage."
         },
         {
@@ -42,7 +42,7 @@
     {
       "id": "REQ-P0-030",
       "title": "One token-accounting derivation",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-016",
       "category": "accounting",
       "description": "Agent Manager shall store raw cumulative provider counters per transcript turn (Codex total_token_usage or turn.completed usage; Claude summed per-message usage) and shall derive a session's usage through one function as the last cumulative value minus the cumulative value before the run's first turn. If a transcript is re-tailed, the API restarts, or recovery replays a transcript, then the derived totals shall not change. Per-session totals shall equal the transcript's final counters within 0.5%, including runs 2d230f9d, 1ced66dd and aee95b01. Missing usage shall be reported as unknown, never zero. This requirement absorbs the former REQ-P2-002 Cost Tracking System (SPEC A2, T-2).",
@@ -51,7 +51,7 @@
           "type": "test",
           "ref": "api/internal/tokenaccounting/tokenaccounting_test.go::TestTokenAccountingTokensAndConservation",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Existing token-category and conservation contract (moved from REQ-P2-002); passes 2026-10-29. Does not yet prove cumulative-counter derivation."
         },
         {
@@ -65,7 +65,7 @@
           "type": "test",
           "ref": "api/internal/tokenaccounting/tokenaccounting_test.go::TestSessionUsageIsInvariantUnderRetailRestartAndReplay",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Retained fixtures for runs 2d230f9d, 1ced66dd and aee95b01; re-tail, restart and replay give identical totals within 0.5% of disk (W1). Planned location; the implementing workstream updates the ref when the test lands."
         }
       ]
@@ -82,7 +82,7 @@
           "type": "test",
           "ref": "api/internal/orchestration/quota_observation_test.go::TestNativeQuotaCodecSinkDurableObservationAndPublicEvent",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Existing test; passes, but calls runEventSink directly, so it does not prove the executor, interactive, recovery or import sinks (EVIDENCE E-1)."
         },
         {
@@ -96,14 +96,14 @@
           "type": "test",
           "ref": "api/internal/adapters/database/repository_quota_readings_test.go::TestRecordQuotaObservationStoresStateChangesAndHeartbeatsOnly",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Deduplication at write time (W4b): a reading is stored when it changes the window state and otherwise once per 5-minute heartbeat, including two interleaved sessions indexed out of order; each reading keeps its exact first time."
         },
         {
           "type": "test",
           "ref": "api/internal/adapters/database/repository_quota_readings_test.go::TestCompactQuotaObservationsPreservesSpansAndBacktestAndIsIdempotent",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Start-up compaction of rows stored before deduplication (W4b): reading spans and the forecast backtest are identical before and after, with and without reset times; a second pass deletes nothing. Live proof on a copy of the live table: api/internal/adapters/database/quota_live_backtest_test.go::TestLiveQuotaBacktestAndCompaction (AM_QUOTA_LIVE_BACKTEST=1)."
         }
       ]
@@ -120,21 +120,21 @@
           "type": "test",
           "ref": "api/internal/usageforecast/forecast_test.go::TestForecastDetectsEarlyResetsAndClassifiesStatus",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Reset grouping, the 10-22..10-28 early-reset sequence, drop and jitter rules, each status including stale and standing-only (W4). Companion tests in the same file: TestForecastProjectsTheOct28CodexWindowToExhaustBeforeReset (the real Oct 28 window is will_exhaust with a band around Oct 30-31), TestForecastNeverSplitsAWindowOnAPercentDropUnderTheSameReset, TestForecastGroupsJitteredResetTimesIntoOneWindow, TestForecastReportsStandingOnlyWindowsFromStanding, TestForecastSplitsWindowsWithoutAResetTimeByLengthAndPercentDrop (the Oct 30 → Nov 23 window; W4b), TestForecastAnchorsAtNowAndMarksStaleHorizons and TestForecastReportsTheLastReadingBesideTheMaximum (W4b)."
         },
         {
           "type": "test",
           "ref": "api/internal/usageforecast/backtest_test.go::TestBacktestBeatsLinearBaselineOnTheOperatorsBurnProfile",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "The calibrated hour-of-week projection beats the naive linear baseline on the last 5 windows per scope and on all windows at 25% and 50% (W4b). Companions: TestBacktestNeverLooksAhead (later history never changes an earlier checkpoint), TestBacktestUsesEarlyResetsAsWindowEndsAndSkipsUnobservedOutcomes, TestBacktestMeasuresExhaustionTimeErrorWhenAWindowRunsOut, and profile_test.go::TestBurnProfileWeightsTheOperatorsActiveHours."
         },
         {
           "type": "test",
           "ref": "api/internal/measures/usage_test.go::TestUsageForecastProceduresReadQuotaReadings",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "UsageForecast and UsageForecastBacktest Measures procedures over quota reading spans (W4); the repository read is covered by api/internal/adapters/database/repository_quota_readings_test.go::TestQuotaReadingSpansCollapseRepeatedFramesPerReading."
         },
         {
@@ -156,7 +156,7 @@
     {
       "id": "REQ-P0-033",
       "title": "Quota consumption attribution",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-016",
       "category": "attribution",
       "description": "When an operator or agent requests the consumers of a window, Agent Manager shall split each time slice's observed percent increase across concurrent sessions by model-weighted cached-input share, recalibrate the model weights each window against observed percent, and group the result by session, run, profile, workload, model or runner. The shares plus an explicit off-disk/unattributed remainder shall sum to the observed increase. Agent Manager shall label shares as estimates and shall not present them as exact per-session percentages (SPEC A5, T-5).",
@@ -165,7 +165,7 @@
           "type": "test",
           "ref": "api/internal/usageattribution/attribute_test.go::TestAttributionSharesPlusRemainderSumToObservedForEveryDimension",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Burners plus the unattributed remainder equal the observed increase for every group-by, fitted and scaled. Companion tests: per-window recalibration, off-disk bursts unattributed, since/pending, tool-kind split; api/internal/measures/usage_attribution_test.go::TestUsageBurnersSumToTheObservedIncreaseForEveryDimension at the procedure boundary; api/internal/adapters/database/repository_usage_attribution_test.go::TestUsageTurnsCountEachReportOnceAcrossCapturePaths."
         },
         {
@@ -180,7 +180,7 @@
     {
       "id": "REQ-P0-034",
       "title": "Grouped usage recommendations and friction problems",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-016",
       "category": "recommendations",
       "description": "When an operator or agent requests recommendations, Agent Manager shall evaluate the deterministic rule families R-model, R-model-mix, R-context, R-lifetime, R-floor, R-idle and R-image over durable facts and shall return one group per target (a session or a workload), ranked by a combined quota saving that applies each lever to what the larger levers leave, each lever with its estimate, confidence, evidence references, typed facts and a concrete action, and each group with the quota used so far, the projected use and the share of the window's burn. Agent Manager shall list recurring friction problems in plain words with owner, cost and status, and shall file a reported problem in the scenario-qa bug inbox once. Where model inference contributes to a row, Agent Manager shall label that row as inferred (SPEC A6, T-6).",
@@ -189,7 +189,7 @@
           "type": "test",
           "ref": "api/internal/usageattribution/rules_test.go::TestEveryRuleFamilyFiresWithEstimateConfidenceEvidenceAndAction",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "R-model, R-model-mix, R-context, R-lifetime, R-floor, R-idle and R-image each fire on the shared fixture week with estimate, confidence, evidence and action; companion tests rank the dominant consumer first, target the planted levers and explain non-firing rules."
         },
         {
@@ -203,14 +203,14 @@
           "type": "test",
           "ref": "api/internal/usageattribution/rules_test.go::TestPlanCombinesOverlappingLeversWithoutDoubleCounting",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Levers of one target combine to projected x (1 - product(1 - saving/projected)): below their sum, at least the largest, marginals summing to the combined saving."
         },
         {
           "type": "test",
           "ref": "api/internal/measures/usage_attribution_test.go::TestUsageFrictionListsReportsAndDismissesProblems",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Friction problems carry a plain description, owner, counts and cost; reporting files one bug and records its id; dismissing keeps the bug id and stops recommendations."
         },
         {
@@ -234,8 +234,8 @@
           "type": "test",
           "ref": "api/internal/usageforecast/alert_test.go::TestWillExhaustNotificationIsDedupedPerWindowAndResentOnTwelveHourShift",
           "phase": "unit",
-          "status": "implemented",
-          "notes": "One *.notification.v1 per will_exhaust window with a /usage context_url; durable dedupe across a restart; re-sent with a new dedupe key only after a >12h earlier shift (W4). TestWillExhaustNotificationRetriesAfterAFailedPublishAndIgnoresHealthyWindows covers retry and on_track windows."
+          "status": "failing",
+          "notes": "One *.notification.v1 per will_exhaust window with a /usage context_url; durable dedupe across a restart; re-sent with a new dedupe key only after a \u003e12h earlier shift (W4). TestWillExhaustNotificationRetriesAfterAFailedPublishAndIgnoresHealthyWindows covers retry and on_track windows."
         },
         {
           "type": "manual",
@@ -249,7 +249,7 @@
     {
       "id": "REQ-P0-036",
       "title": "Usage page, dashboard strip and run usage panel",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-016",
       "category": "ui",
       "description": "Agent Manager's UI shall provide a Usage page (forecast, consumers, recommendations, coverage, and the former Stats panels under Details) that replaces /stats as the primary analytics entry, a dashboard strip with one line per provider window that opens the Usage page, and a run usage panel with the run's tokens from the one accounting function, estimated quota points and recommendations that target the run. These surfaces shall work at desktop and phone widths inside the existing shell and tokens. While the viewport is phone width, the bottom navigation shall hold at most 5 destinations and shall place the other destinations behind a More menu (SPEC A8, §4, AM-1, AM-2, D8).",
@@ -258,21 +258,21 @@
           "type": "test",
           "ref": "ui/src/features/usage/UsagePage.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "W6a: Usage page skeleton (Overview sections with honest empty states, Coverage hosting manual import, Details hosting the run analytics, /stats and /import redirects). Data-bearing states land with W6 when the usage API exists."
         },
         {
           "type": "test",
           "ref": "ui/src/App.test.ts::phone bottom navigation holds at most five destinations",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "AM-2 navigation rule (W6a): AppShell menu-tabs with five phone tabs; every destination stays in the header menu. Model rule also covered by ui/src/components/layout/navigation.test.ts."
         },
         {
           "type": "test",
           "ref": "ui/src/features/usage/UsageSurfaces.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Dashboard strip fits 390px, dormant windows collapse, run usage panel empty state (W6c/W6d); with ui/src/features/usage/UsagePage.test.tsx. Live browser evidence at 1440x900 and 390x844 is recorded in docs/efforts/usage-intelligence/EVIDENCE.md (W8 acceptance evidence); a BAS case is not authored."
         }
       ]
@@ -280,7 +280,7 @@
     {
       "id": "REQ-P0-037",
       "title": "Usage CLI and agent read authority",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-016",
       "category": "surface",
       "description": "Agent Manager shall expose `agent-manager usage forecast|burners|recommendations|friction|friction-report|friction-dismiss|coverage|compare` with `--json`, each reading the same Measures procedures as the UI. When an authenticated agent identity calls these Measures procedures, Agent Manager shall return the result and shall not return 403 (SPEC §4 CLI, EVIDENCE E-6).",
@@ -289,7 +289,7 @@
           "type": "test",
           "ref": "api/internal/handlers/authorization_routes_test.go::TestEveryMeasuresProcedureIsAgentReadable",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Agent read admission is derived from the MeasuresService descriptor (W7), so UsageForecast and UsageForecastBacktest are agent-readable without a hand-listed route."
         },
         {
@@ -303,7 +303,7 @@
           "type": "test",
           "ref": "cli/domains/usage/usage_test.go::TestRegisterDeclaresTheUsageGroup",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "The usage group declares forecast, burners, recommendations, coverage and compare (SPEC §4) with valid flags."
         }
       ]
@@ -320,7 +320,7 @@
           "type": "test",
           "ref": "api/internal/measures/usage_attribution_test.go::TestUsageCompareNeedsFiveSuccessesPerSide",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "UsageCompare resolves both sides through the cohort selector, prices runs as attributed points and reports insufficient below five successful runs per side. The A11 value proof itself is still scheduled (D6)."
         },
         {
@@ -344,7 +344,7 @@
           "type": "test",
           "ref": "api/internal/measures/measures_test.go::TestRunnerPerformanceMetricsCarryRunnerAndModelProvenance",
           "phase": "unit",
-          "status": "pending",
+          "status": "failing",
           "notes": "Not scheduled. Planned location; the implementing workstream updates the ref when the test lands."
         }
       ]

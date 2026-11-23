@@ -8,6 +8,8 @@ import (
 	"github.com/vrooli/api-core/owneridentity"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -132,7 +134,7 @@ func TestCreateRunAllowsOnlyVerifiedParentLinkedChildren(t *testing.T) {
 }
 
 func TestCreateRun_Success(t *testing.T) {
-	_, router := setupTestHandler(t)
+	_, router, repos, _ := setupTestHandlerWithRunnerAndRepos(t, runner.NewMockRunner(domain.RunnerTypeClaudeCode))
 
 	// First create a profile
 	body := encodeProtoJSON(t, &apipb.CreateProfileRequest{
@@ -169,11 +171,17 @@ func TestCreateRun_Success(t *testing.T) {
 
 	// Create a run
 	agentProfileID := createdProfile.Id
+	charterPath := filepath.Join(t.TempDir(), "CHARTER.md")
+	if err := os.WriteFile(charterPath, []byte("# Local contract\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	goalKernel := "Complete the verified local objective. Re-read the charter after compaction."
 	body = encodeProtoJSON(t, &apipb.CreateRunRequest{
 		TaskId:         createdTask.Id,
 		AgentProfileId: &agentProfileID,
+		CharterPath:    &charterPath,
 		WorkReferences: []*eventpb.WorkReference{{Kind: "effort", Id: "effort:arbitrary", Revision: "target", Relationship: "supervisor", Verified: true, Visibility: eventpb.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC, State: eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE}},
-		InlineConfig: &pb.RunConfigOverrides{ResultSpec: &pb.ResultSpec{
+		InlineConfig: &pb.RunConfigOverrides{Until: &goalKernel, ResultSpec: &pb.ResultSpec{
 			Version: "result-spec/v1", Kind: pb.ResultSpecKind_RESULT_SPEC_KIND_CLASSIFICATION,
 			ClassificationValues: []string{"complete", "blocked"},
 		}, Model: func() *string { model := "model-override"; return &model }()},
@@ -208,6 +216,23 @@ func TestCreateRun_Success(t *testing.T) {
 	}
 	if got := createdRun.GetResolvedConfig().GetModel(); got != "model-override" {
 		t.Fatalf("expected inline model override to be resolved, got %q", got)
+	}
+	if createdRun.GetResolvedConfig().GetUntil() != goalKernel || createdRun.GetCharterPath() != charterPath {
+		t.Fatalf("create response lost brief fields: until=%q charter=%q", createdRun.GetResolvedConfig().GetUntil(), createdRun.GetCharterPath())
+	}
+	runID, err := uuid.Parse(createdRun.GetId())
+	if err != nil {
+		t.Fatal(err)
+	}
+	savedRun, err := repos.Runs.Get(t.Context(), runID)
+	if err != nil {
+		t.Fatalf("read persisted run: %v", err)
+	}
+	if savedRun.ResolvedConfig == nil {
+		t.Fatal("persisted run is missing resolved config")
+	}
+	if savedRun.CharterPath != charterPath || savedRun.ResolvedConfig.Until != goalKernel {
+		t.Fatalf("persisted brief contract changed: until=%q charter=%q", savedRun.ResolvedConfig.Until, savedRun.CharterPath)
 	}
 }
 

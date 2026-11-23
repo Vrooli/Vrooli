@@ -604,6 +604,7 @@ func (r *Runner) Continue(ctx context.Context, req runner.ContinueRequest) (*run
 
 	r.registerProcess(req.RunID, proc)
 	defer r.deregisterProcess(req.RunID, proc)
+	defer closeEventSink(req.EventSink)
 
 	r.emitStart(req.EventSink, req.RunID, r.codec.Labels().ContinueStartMessage, true)
 
@@ -673,8 +674,6 @@ func (r *Runner) Continue(ctx context.Context, req runner.ContinueRequest) (*run
 	}
 
 	r.logRunnerExited(req.RunID, req.EventSink, result, duration)
-
-	closeEventSink(req.EventSink)
 
 	return result, nil
 }

@@ -65,13 +65,14 @@ type response struct {
 }
 
 type HistoryCoverage struct {
-	Samples        int                 `json:"sample_count"`
-	Complete       int                 `json:"complete_sample_count"`
-	From           *time.Time          `json:"from,omitempty"`
-	Through        *time.Time          `json:"through,omitempty"`
-	ProviderRunIDs map[string][]string `json:"latest_provider_run_ids,omitempty"`
-	UnmappedRunIDs []string            `json:"latest_unmapped_run_ids,omitempty"`
-	Unknown        []string            `json:"unknown_reasons,omitempty"`
+	Samples            int                 `json:"sample_count"`
+	Complete           int                 `json:"complete_sample_count"`
+	PositivelyObserved int                 `json:"positively_observed_sample_count"`
+	From               *time.Time          `json:"from,omitempty"`
+	Through            *time.Time          `json:"through,omitempty"`
+	ProviderRunIDs     map[string][]string `json:"latest_provider_run_ids,omitempty"`
+	UnmappedRunIDs     []string            `json:"latest_unmapped_run_ids,omitempty"`
+	Unknown            []string            `json:"unknown_reasons,omitempty"`
 }
 
 type selection struct {
@@ -211,6 +212,16 @@ func summarizeHistory(samples []utilizationhistory.Sample) HistoryCoverage {
 	for _, sample := range samples {
 		if sample.Complete && len(sample.Unknown) == 0 {
 			coverage.Complete++
+		}
+		if len(sample.UnmappedRunIDs) > 0 {
+			coverage.PositivelyObserved++
+			continue
+		}
+		for _, ids := range sample.ProviderRunIDs {
+			if len(ids) > 0 {
+				coverage.PositivelyObserved++
+				break
+			}
 		}
 	}
 	for provider, ids := range last.ProviderRunIDs {

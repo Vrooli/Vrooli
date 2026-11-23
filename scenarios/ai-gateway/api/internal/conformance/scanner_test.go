@@ -415,6 +415,18 @@ const resourceRuntimeBuild = "resource-ollama-gateway/0.1.0+ollama-server/0.30.1
 	}
 }
 
+func TestScannerRejectsEmptyReviewedExceptionMetadata(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "api/runner.go", `package api
+// ai-gateway-exception owner= reason= expires= replacement=
+const command = "resource-ollama policy roles --json"
+`)
+
+	report, err := conformance.NewScanner().Scan(context.Background(), conformance.ScanRequest{Scenario: "fixture", Path: root})
+	require.NoError(t, err)
+	requireRule(t, report.Findings, "ai.unreviewed_exception")
+}
+
 func TestScannerAllowsReviewedExceptionMetadata(t *testing.T) { // [REQ:AIGW-CONFORMANCE-MATURITY]
 	root := t.TempDir()
 	writeFile(t, root, "api/runner.go", `

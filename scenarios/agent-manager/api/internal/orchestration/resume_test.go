@@ -18,6 +18,7 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/maintenance"
 	"agent-manager/internal/orchestration"
+	"agent-manager/internal/orchestration/phases"
 	"agent-manager/internal/orchestration/spawn"
 	"agent-manager/internal/orchestration/testutil"
 	"agent-manager/internal/repository"
@@ -427,6 +428,100 @@ func TestCanResumeFromFailureRun_NilRun(t *testing.T) {
 	if reason == "" {
 		t.Fatal("nil rejection must include a reason")
 	}
+}
+
+func TestResumeRunRejectsWhenPhaseCheckpointWasNotPersisted(t *testing.T) {
+	for _, tc := range []struct {
+		name                string
+		persistInitialPhase bool
+	}{
+		{name: "missing checkpoint"},
+		{name: "stale checkpoint", persistInitialPhase: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			repos, events, cleanup := testutil.SetupTestRepos(t)
+			t.Cleanup(cleanup)
+
+			failingCheckpoints := failingCheckpointSaveRepository{
+				CheckpointRepository: repos.Checkpoints,
+				err:                  errors.New("simulated checkpoint storage failure"),
+			}
+			svc := resumeTestOrchestrator(t, repos, events, orchestration.WithCheckpoints(failingCheckpoints))
+			now := time.Now()
+			task := &domain.Task{
+				ID: uuid.New(), Title: "phase checkpoint recovery", ScopePath: "src/",
+				ProjectRoot: t.TempDir(), Status: domain.TaskStatusQueued, CreatedAt: now, UpdatedAt: now,
+			}
+			if err := repos.Tasks.Create(ctx, task); err != nil {
+				t.Fatal(err)
+			}
+			run := &domain.Run{
+				ID: uuid.New(), TaskID: task.ID, Tag: "checkpoint-recovery-" + uuid.NewString()[:8],
+				RunMode: domain.RunModeInPlace, Status: domain.RunStatusRunning, Phase: domain.RunPhaseQueued,
+				ApprovalState:  domain.ApprovalStateNone,
+				ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeClaudeCode},
+				CreatedAt:      now, UpdatedAt: now,
+			}
+			if err := repos.Runs.Create(ctx, run); err != nil {
+				t.Fatal(err)
+			}
+			checkpoint := domain.NewCheckpoint(run.ID, domain.RunPhaseQueued)
+			if tc.persistInitialPhase {
+				if err := repos.Checkpoints.Save(ctx, checkpoint); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			phases.AdvancePhase(ctx, phases.AdvancePhaseInput{
+				Deps: phases.Deps{Runs: repos.Runs, Checkpoints: failingCheckpoints, Events: events},
+				Run:  run, Checkpoint: checkpoint, Phase: domain.RunPhaseExecuting,
+			})
+			if run.Phase != domain.RunPhaseExecuting {
+				t.Fatalf("run phase = %q after checkpoint write failure, want executing", run.Phase)
+			}
+			persisted, err := repos.Checkpoints.Get(ctx, run.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.persistInitialPhase {
+				if persisted == nil || persisted.Phase != domain.RunPhaseQueued {
+					t.Fatalf("persisted checkpoint = %#v, want stale queued checkpoint", persisted)
+				}
+			} else if persisted != nil {
+				t.Fatalf("checkpoint = %#v, want missing after simulated save failure", persisted)
+			}
+
+			before, err := repos.Runs.Get(ctx, run.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			queueBefore := svc.SpawnStats().QueueDepth
+			accepted, resumeErr := svc.ResumeRun(ctx, run.ID)
+			if resumeErr == nil || accepted != nil || !strings.Contains(strings.ToLower(resumeErr.Error()), "checkpoint") {
+				t.Fatalf("ResumeRun accepted incoherent checkpoint state: run=%#v err=%v", accepted, resumeErr)
+			}
+			after, err := repos.Runs.Get(ctx, run.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if after.Status != before.Status || after.Phase != before.Phase || after.LifecycleVersion != before.LifecycleVersion {
+				t.Fatalf("rejected resume changed durable run: before=%+v after=%+v", before, after)
+			}
+			if got := svc.SpawnStats().QueueDepth; got != queueBefore {
+				t.Fatalf("resume queue depth = %d, want unchanged %d", got, queueBefore)
+			}
+		})
+	}
+}
+
+type failingCheckpointSaveRepository struct {
+	repository.CheckpointRepository
+	err error
+}
+
+func (r failingCheckpointSaveRepository) Save(context.Context, *domain.RunCheckpoint) error {
+	return r.err
 }
 
 // newResumeTestOrchestrator wires the orchestrator with the runners +

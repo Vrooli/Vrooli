@@ -297,11 +297,22 @@ func (r *TranscriptIndexRepository) CommitOwnedTranscript(ctx context.Context, f
 	return tx.Commit()
 }
 
+// Keep the checkpoint identity aligned with the event owner callback.
+func validateRecallCheckpointSuccessor(expected, next transcriptindex.FileRow) error {
+	if next.Key != expected.Key || next.RunID != expected.RunID || next.Owner != transcriptindex.OwnerIndexer {
+		return fmt.Errorf("recall checkpoint successor changed its file or run owner")
+	}
+	return nil
+}
+
 // CommitRecallEviction fences the checkpoint and event owner together while
 // preserving the durable usage ledger.
 func (r *TranscriptIndexRepository) CommitRecallEviction(ctx context.Context, expected, file transcriptindex.FileRow, deleteEvents func(*sql.Tx) error) error {
 	if expected.Owner != transcriptindex.OwnerIndexer || expected.Active || expected.Status != transcriptindex.StatusIndexed || expected.Error != "" || deleteEvents == nil {
 		return fmt.Errorf("recall checkpoint is not eligible for eviction")
+	}
+	if err := validateRecallCheckpointSuccessor(expected, file); err != nil {
+		return err
 	}
 	tx, err := r.db.BeginTxx(ctx, nil)
 	if err != nil {
@@ -336,6 +347,9 @@ func (r *TranscriptIndexRepository) CommitRecallEviction(ctx context.Context, ex
 func (r *TranscriptIndexRepository) CommitRecallRebuild(ctx context.Context, expected, file transcriptindex.FileRow, appendEvents func(*sql.Tx) error) error {
 	if expected.Owner != transcriptindex.OwnerIndexer || expected.Status != transcriptindex.StatusIndexed || expected.Error != "" || appendEvents == nil {
 		return fmt.Errorf("recall checkpoint is not eligible for rebuild")
+	}
+	if err := validateRecallCheckpointSuccessor(expected, file); err != nil {
+		return err
 	}
 	tx, err := r.db.BeginTxx(ctx, nil)
 	if err != nil {

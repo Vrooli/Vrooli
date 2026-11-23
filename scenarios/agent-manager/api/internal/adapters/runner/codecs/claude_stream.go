@@ -102,17 +102,9 @@ type ClaudeMessage struct {
 	StopReason string `json:"stop_reason,omitempty"`
 }
 
-// ClaudeContentItem is one element in a content array.
-type ClaudeContentItem struct {
-	Type      string          `json:"type"`
-	Text      string          `json:"text,omitempty"`
-	ID        string          `json:"id,omitempty"`
-	Name      string          `json:"name,omitempty"`
-	Input     json.RawMessage `json:"input,omitempty"`
-	ToolUseID string          `json:"tool_use_id,omitempty"`
-	Content   string          `json:"content,omitempty"`
-	IsError   bool            `json:"is_error,omitempty"`
-}
+// ClaudeContentItem preserves the codec's local name while sharing the native
+// content-block shape and decoding with agenttranscript.
+type ClaudeContentItem = agenttranscript.ClaudeToolBlock
 
 // ExtractTextContent extracts text from a ClaudeMessage, handling both
 // the bare-string and content-blocks shapes. ANSI is stripped as defense
@@ -122,15 +114,9 @@ func (m *ClaudeMessage) ExtractTextContent() string {
 	if len(m.Content) == 0 {
 		return ""
 	}
-	blocks, ok := agenttranscript.ClaudeContentParts(m.Content)
-	if !ok {
-		return ""
-	}
-	var textParts []string
-	for _, block := range blocks {
-		if block.Type == "text" && block.Text != "" {
-			textParts = append(textParts, runner.StripANSI(block.Text))
-		}
+	textParts := agenttranscript.ClaudeTextParts(m.Content)
+	for i := range textParts {
+		textParts[i] = runner.StripANSI(textParts[i])
 	}
 	return strings.Join(textParts, "\n")
 }
@@ -140,17 +126,7 @@ func (m *ClaudeMessage) ExtractToolUses() []ClaudeContentItem {
 	if len(m.Content) == 0 {
 		return nil
 	}
-	var contentBlocks []ClaudeContentItem
-	if err := json.Unmarshal(m.Content, &contentBlocks); err != nil {
-		return nil
-	}
-	var toolUses []ClaudeContentItem
-	for _, block := range contentBlocks {
-		if block.Type == "tool_use" {
-			toolUses = append(toolUses, block)
-		}
-	}
-	return toolUses
+	return agenttranscript.ClaudeToolUses(m.Content)
 }
 
 // ExtractToolResults extracts tool_result blocks from a user message's
@@ -159,16 +135,9 @@ func (m *ClaudeMessage) ExtractToolResults() []ClaudeContentItem {
 	if len(m.Content) == 0 {
 		return nil
 	}
-	var contentBlocks []ClaudeContentItem
-	if err := json.Unmarshal(m.Content, &contentBlocks); err != nil {
-		return nil
-	}
-	var toolResults []ClaudeContentItem
-	for _, block := range contentBlocks {
-		if block.Type == "tool_result" {
-			block.Content = runner.StripANSI(block.Content)
-			toolResults = append(toolResults, block)
-		}
+	toolResults := agenttranscript.ClaudeToolResults(m.Content)
+	for i := range toolResults {
+		toolResults[i].Content = runner.StripANSI(toolResults[i].Content)
 	}
 	return toolResults
 }

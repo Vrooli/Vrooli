@@ -803,6 +803,12 @@ func TestContinue_ClassifiesSessionExpired(t *testing.T) {
 	if rerr.Code() != domain.ErrCodeRunnerSessionExpired {
 		t.Errorf("Code = %s, want RUNNER_SESSION_EXPIRED", rerr.Code())
 	}
+	sink.mu.Lock()
+	sinkClosed := sink.closed
+	sink.mu.Unlock()
+	if !sinkClosed {
+		t.Fatal("classified continuation left the event sink open")
+	}
 }
 
 func TestContinueClassifiesSessionFailureAfterLongStderrLine(t *testing.T) {

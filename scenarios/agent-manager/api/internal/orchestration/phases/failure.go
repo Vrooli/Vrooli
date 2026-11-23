@@ -209,32 +209,3 @@ func CleanupOnFailure(ctx context.Context, deps Deps, run *domain.Run) {
 			"run failed - sandbox preserved for inspection")
 	}
 }
-
-// PhaseOrdinal returns the numeric order of a phase for comparison.
-// Used by the executor to detect "should we skip this phase on resume".
-func PhaseOrdinal(phase domain.RunPhase) int {
-	switch phase {
-	case domain.RunPhaseQueued:
-		return 0
-	case domain.RunPhaseInitializing:
-		return 1
-	case domain.RunPhaseSandboxCreating:
-		return 2
-	case domain.RunPhaseRunnerAcquiring:
-		return 3
-	case domain.RunPhaseExecuting:
-		return 4
-	case domain.RunPhaseCollectingResults:
-		return 5
-	case domain.RunPhaseAwaitingReview:
-		return 6
-	case domain.RunPhaseApplying:
-		return 7
-	case domain.RunPhaseCleaningUp:
-		return 8
-	case domain.RunPhaseCompleted:
-		return 9
-	default:
-		return 0
-	}
-}

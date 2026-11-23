@@ -78,8 +78,9 @@ func TestImportTranscriptPersistsAgainstSQLite(t *testing.T) {
 	if err != nil || persisted == nil || persisted.TaskID != run.TaskID {
 		t.Fatalf("persisted run = %+v, %v", persisted, err)
 	}
-	// Provenance comes from the file itself, not the caller's labels.
-	if persisted.ImportSourceHarness != request.SourceHarness || persisted.ImportSourceSessionID != "import-test" || persisted.ImportedAt == nil || persisted.TranscriptPath != path {
+	// Durable provenance comes from the file's native format/identity, not the
+	// caller's policy-scope hint.
+	if persisted.ImportSourceHarness != "codex" || persisted.ImportSourceSessionID != "import-test" || persisted.ImportedAt == nil || persisted.TranscriptPath != path {
 		t.Fatalf("import provenance = %+v", persisted)
 	}
 	friction, err := svc.RuntimeFrictionReport(context.Background(), persisted.CreatedAt.Add(-time.Hour), persisted.CreatedAt.Add(time.Hour))
@@ -187,7 +188,7 @@ func TestImportTranscriptLabelsUseHarnessThenGeneratedPrecedence(t *testing.T) {
 	}
 
 	codexPath := filepath.Join(t.TempDir(), "codex.jsonl")
-	if err := os.WriteFile(codexPath, []byte("{\"type\":\"thread.started\",\"thread_id\":\"codex-title\"}\n{\"type\":\"turn.completed\"}\n"), 0o600); err != nil {
+	if err := os.WriteFile(codexPath, []byte("{\"type\":\"thread.started\",\"thread_id\":\"codex-title\"}\n{\"type\":\"item.completed\",\"item\":{\"type\":\"agent_message\",\"text\":\"I will fix the flaky import test.\"}}\n{\"type\":\"turn.completed\"}\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	codexRun, err := svc.ImportTranscript(context.Background(), orchestration.ImportTranscriptRequest{Path: codexPath, RunnerType: domain.RunnerTypeCodex, SourceHarness: "codex", SourceSessionID: "codex-title"})

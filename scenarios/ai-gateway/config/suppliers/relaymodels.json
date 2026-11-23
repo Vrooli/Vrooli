@@ -1,0 +1,61 @@
+{
+  "id": "relaymodels",
+  "family": "openai-compatible",
+  "locality": "remote",
+  "endpoint": "",
+  "policy": {
+    "schema_version": "2026-11-22",
+    "provider": {
+      "id": "relaymodels",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "separately_authorized_reseller_program_only",
+            "access_tier": "unverified",
+            "use_classes": {
+              "own_account": "allowed",
+              "bounded_feature": "unverified",
+              "in_app": "unverified",
+              "harness_access": "unverified"
+            },
+            "conditions": [
+              "Terms §7.3 requires separate authorization for resale, public API-key distribution or public proxy use; acquire written authorization for Vrooli's exact product, customer type, channel, key flow, models and regions before use.",
+              "Do not treat public offer's limited, nontransferable account usage (§6.4) as permission to transfer customer balances. Confirm reseller pool/key mechanics and corporate terms precedence (§15.2).",
+              "Reseller page's live RUB price table says ₽3.40/1M starter, then ₽3.20/₽3.00/₽2.90/₽2.80/₽2.70 tiers by cumulative purchase thresholds; actual charges depend on model, output and cache coefficients. A conflicting USD text appears in the form: do not use as quote; verify current authenticated offer and currency with approved contract.",
+              "Identify RelayModels as gateway/account supplier, actual upstream provider per route, model publisher and license separately; Terms §§4.3 and 8.4 state external providers may fulfill requests.",
+              "Confirm current model/account availability, data/trust obligations, actual service limits and SLA: Terms §§8.3 and 11 do not guarantee stable availability/continuous service; support response is not SLA unless separately agreed.",
+              "Provider agreement, model eligibility, trust and Vrooli customer pricing remain separate human decisions."
+            ],
+            "clause": "Terms §§4.3–4.4, 6.1–6.4, 7.3, 8.3–8.4, 11.1–11.3, 13.1, 15.2; reseller program",
+            "reason": "The official reseller page describes reselling limited keys through a seller's own channel, while the governing public offer explicitly requires separate authorization. This justifies a conditional proposal, not permission under standard terms."
+          }
+        ],
+        "evidence": {
+          "url": "https://relaymodels.com/offer",
+          "document_date": "no visible date/version",
+          "read_at": "2026-11-22"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-11-22",
+        "on_expiry": "deny"
+      },
+      "hosted_routes": [],
+      "agreements": []
+    },
+    "roles": {},
+    "models": {},
+    "research": {
+      "activation": "denied_until_separate_written_resale_authorization_upstream_model_rights_exact_rate_availability_and_human_decisions_are_verified",
+      "source_scope": "public official pages only",
+      "not_an_operator_approval": true,
+      "model_reason": "Catalog family labels/publishers are not the actual serving provider; Terms permit external providers and availability/provider rules may change.",
+      "evidence": [
+        "https://relaymodels.com/offer",
+        "https://relaymodels.com/reselling",
+        "https://relaymodels.com/models"
+      ]
+    }
+  }
+}

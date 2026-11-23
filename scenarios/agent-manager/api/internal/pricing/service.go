@@ -2,6 +2,7 @@ package pricing
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -9,6 +10,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 )
+
+var errManualOverrideLookup = errors.New("manual price override lookup failed")
 
 // Service provides pricing calculations with per-component fallback logic.
 type Service interface {
@@ -132,6 +135,9 @@ func (s *pricingService) CalculateCost(ctx context.Context, req CostRequest) (*C
 	if err != nil {
 		calc.CostSource = "unpriced"
 		calc.ChargeReason = "model_unpriced"
+		if errors.Is(err, errManualOverrideLookup) {
+			calc.ChargeReason = "override_lookup_failed"
+		}
 		return calc, nil
 	}
 
@@ -246,13 +252,14 @@ func (s *pricingService) applyFallbacks(ctx context.Context, base *ModelPricing,
 
 	// Step 1: Apply manual overrides (highest priority)
 	overrides, err := s.repo.GetOverridesForModel(ctx, canonicalModel)
-	if err == nil {
-		for _, override := range overrides {
-			if override.IsExpired() {
-				continue
-			}
-			s.applyOverride(result, override)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", errManualOverrideLookup, err)
+	}
+	for _, override := range overrides {
+		if override.IsExpired() {
+			continue
 		}
+		s.applyOverride(result, override)
 	}
 
 	// A component neither the price book nor an override prices stays
@@ -402,7 +409,7 @@ func (s *pricingService) ListModelsWithPricing(ctx context.Context) ([]*ModelPri
 		resolved, err := s.applyFallbacks(ctx, p.Clone(), p.CanonicalModelName)
 		if err != nil {
 			s.log.WithError(err).WithField("model", p.CanonicalModelName).Warn("Failed to apply fallbacks")
-			resolved = p
+			return nil, fmt.Errorf("apply pricing fallbacks for %q: %w", p.CanonicalModelName, err)
 		}
 
 		item := &ModelPricingListItem{

@@ -996,13 +996,7 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 		return
 	}
 	if cf2AgentManagerOnly {
-		finalRun, err := waitForTerminal(t, ctx, service, run.ID, 3*time.Minute)
-		if err != nil {
-			t.Fatalf("Agent Manager-originated LPBS order run did not reach terminal state: %v", err)
-		}
-		if finalRun.Status != domain.RunStatusComplete {
-			t.Fatalf("Agent Manager-originated LPBS order run failed: status=%s error=%s", finalRun.Status, finalRun.ErrorMsg)
-		}
+		finalRun := waitForCompletedRun(t, ctx, service, run.ID, 3*time.Minute)
 		if err := waitForCF1SessionRevocation(ctx, keys, run.ID); err != nil {
 			t.Fatal(err)
 		}
@@ -1389,13 +1383,7 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 	}); err != nil {
 		t.Fatal(err)
 	}
-	finalRun, err := waitForTerminal(t, ctx, service, run.ID, 3*time.Minute)
-	if err != nil {
-		t.Fatalf("ordinary Treasury run did not reach terminal state: %v", err)
-	}
-	if finalRun.Status != domain.RunStatusComplete {
-		t.Fatalf("ordinary Treasury run failed: status=%s error=%s", finalRun.Status, finalRun.ErrorMsg)
-	}
+	finalRun := waitForCompletedRun(t, ctx, service, run.ID, 3*time.Minute)
 	if err := waitForCF1SessionRevocation(ctx, keys, run.ID); err != nil {
 		t.Fatal(err)
 	}

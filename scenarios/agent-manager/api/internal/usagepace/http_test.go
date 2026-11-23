@@ -222,6 +222,10 @@ func TestSummarizeHistoryDistinguishesMissingFromCompleteZero(t *testing.T) {
 	if partial.Complete != 0 || len(partial.Unknown) != 1 || partial.Unknown[0] != "scope evidence incomplete" {
 		t.Fatalf("partial activity must retain the source unknown: %+v", partial)
 	}
+	measured := summarizeHistory([]utilizationhistory.Sample{{ObservedAt: at, Complete: false, ProviderRunIDs: map[string][]string{"openai": {"run-1"}}, Unknown: []string{"unrelated executor scope is unresolved"}}})
+	if measured.Samples != 1 || measured.Complete != 0 || measured.PositivelyObserved != 1 || len(measured.Unknown) != 1 {
+		t.Fatalf("positive physical evidence must remain visible beside incomplete inventory coverage: %+v", measured)
+	}
 }
 
 func quotaSpans(now time.Time) []pricing.QuotaReadingSpan {

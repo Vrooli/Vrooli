@@ -36,14 +36,7 @@ func runSignals(t *testing.T, source *signalWindows) []map[string]string {
 	t.Helper()
 	h := NewHandler(nil, func() time.Time { return time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC) })
 	h.SetSignals(source)
-	registry, err := h.Registry()
-	if err != nil {
-		t.Fatal(err)
-	}
-	served, err := registry.Execute(context.Background(), measurelib.MeasureRequest{Measure: UsageOperatorSignals, Params: map[string]string{"window": "last_7d"}})
-	if err != nil {
-		t.Fatal(err)
-	}
+	served := executeRegisteredMeasure(t, newTestRegistry(t, h), measurelib.MeasureRequest{Measure: UsageOperatorSignals, Params: map[string]string{"window": "last_7d"}})
 	return served.Fields
 }
 
