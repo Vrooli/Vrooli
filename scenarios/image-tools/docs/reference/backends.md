@@ -114,7 +114,7 @@ and surfaced (never auto-fetched) via `image-tools` `service.json` `hostTools`.
 | `florence-transformers` | `uv` | `caption`, `object_detection` | `vrooli host install uv` |
 | `iopaint` | `iopaint` | `object_removal` | `vrooli host install iopaint` |
 | `llama.cpp` | `llama-cpp` | `caption` | `vrooli host install llama-cpp` |
-| `onnxruntime` | `uv` | `denoise`, `deblur`, `background_removal`, `object_removal`, `colorize`, `depth_map`, `face_restore`, `face_swap`, `scene_geometry`, `object_detection`, `segment`, `tagging`, `nsfw_classify`, `ocr`, `age_estimate`, `embedding` | `vrooli host install uv` |
+| `onnxruntime` | `uv` | `denoise`, `deblur`, `background_removal`, `object_removal`, `colorize`, `depth_map`, `face_restore`, `face_swap`, `pose_extract`, `scene_geometry`, `object_detection`, `segment`, `tagging`, `nsfw_classify`, `ocr`, `age_estimate`, `embedding` | `vrooli host install uv` |
 | `python-sidecar` | `uv` | `colorize`, `old_photo_restore` | `vrooli host install uv` |
 | `realesrgan-ncnn-vulkan` | `realesrgan-ncnn-vulkan` | `upscale`, `denoise` | `vrooli host install realesrgan-ncnn-vulkan` |
 | `rembg` | `rembg` | `background_removal`, `background_replace` | `vrooli host install rembg` |

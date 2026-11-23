@@ -87,6 +87,9 @@ func (h *Deps) admitStored(ctx context.Context, op string, params *aiv1.AIParams
 	if err := h.reviewMinorInput(ctx, op, gate, inputKey, referenceKey); err != nil {
 		return nil, err
 	}
+	// A preset is admitted as the operation it runs: its plan, consent, capacity and
+	// output review are that operation's. The fingerprint below is that request's.
+	op, params = presetRequest(op, params, inputKey, referenceKey)
 	fingerprint := ""
 	if operationID != "" {
 		var err error

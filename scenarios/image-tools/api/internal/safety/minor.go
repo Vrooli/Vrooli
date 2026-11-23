@@ -43,7 +43,11 @@ type MinorImageFinding struct {
 	FacesFound  int     `json:"faces_found"`
 	MaxPUnder20 float64 `json:"max_p_under_20"`
 	MinorFace   bool    `json:"minor_face"`
-	Refuse      bool    `json:"refuse"`
+	// Unassessable marks a sexual image whose subject's age the face stage could not
+	// establish (no face found, or none large enough to read). It is the only refusal
+	// a second, face-independent signal may clear (see SecondOpinionReviewer).
+	Unassessable bool `json:"unassessable"`
+	Refuse       bool `json:"refuse"`
 }
 
 // Sensitive reports whether any reviewed image was classified sexual, and the highest
@@ -258,9 +262,10 @@ type BundledReviewerConfig struct {
 }
 
 // BundledReviewerModels are the registry ids the bundled reviewer reads for EVERY
-// output (the sexual classifier). The engine acquires and holds them
-// (Deps.ReviewModels) so the reviewer can always run.
-var BundledReviewerModels = []string{"adamcodd-vit-nsfw"}
+// output: the precise sexual classifier and the high-recall one that catches
+// small-figure or ambiguous nudity the precise one misses. The engine acquires and
+// holds them (Deps.ReviewModels) so the reviewer can always run.
+var BundledReviewerModels = []string{"falconsai-nsfw", "adamcodd-vit-nsfw"}
 
 // BundledReviewerEscalationModels are read only for an output the classifier calls
 // sexual (face finder and age model). The engine acquires them up front when the

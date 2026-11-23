@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"image-tools/internal/backends"
+	"image-tools/internal/capability"
 	internaljobs "image-tools/internal/jobs"
 	"image-tools/internal/models"
 	"image-tools/internal/storage"
@@ -159,6 +160,16 @@ func TestRegisterProviders_SatisfiesBootInvariant(t *testing.T) {
 		t.Fatalf("boot invariant failed: %v", err)
 	}
 	for _, op := range Names() {
+		// A preset is a product-level door: admission rewrites it into the
+		// operation it runs before a job exists, so it never selects a provider
+		// of its own. What must be runnable is the operation behind it.
+		manifest, ok := capability.Get(op)
+		if ok && manifest.Preset != nil {
+			if len(reg.Providers(manifest.Preset.Runs)) == 0 {
+				t.Errorf("preset %q runs %q, which has no registered provider", op, manifest.Preset.Runs)
+			}
+			continue
+		}
 		if len(reg.Providers(op)) == 0 {
 			t.Errorf("op %q has no registered provider", op)
 		}

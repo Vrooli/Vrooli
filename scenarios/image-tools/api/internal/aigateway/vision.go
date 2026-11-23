@@ -320,6 +320,15 @@ func prepareVisionImage(path string) (data []byte, width, height int, mediaType 
 	if err != nil {
 		return nil, 0, 0, "", fmt.Errorf("ai: read vision source: %w", err)
 	}
+	return prepareVisionBytes(raw)
+}
+
+// prepareVisionBytes decodes an in-memory image, bounds its long side and
+// re-encodes it as JPEG. The safety reviewer holds an output's bytes, not a path,
+// and the gateway's inline attachment must stay small: a 1.4 MB PNG handed to the
+// vision route made it end "provider.execution_failed", while the same image
+// resized and JPEG-encoded was accepted.
+func prepareVisionBytes(raw []byte) (data []byte, width, height int, mediaType string, err error) {
 	decoded, err := imaging.Decode(bytes.NewReader(raw), imaging.AutoOrientation(true))
 	if err != nil {
 		return nil, 0, 0, "", fmt.Errorf("ai: decode vision source: %w", err)

@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -250,62 +251,104 @@ func TestCommandFailureHelper(t *testing.T) {
 	os.Exit(5)
 }
 
-func TestPoseMapRunsPinnedCPUAdapterAndWritesOpenPosePNG(t *testing.T) {
-	tmp := t.TempDir()
-	modelPath := filepath.Join(tmp, "pose_landmarker_full.task")
-	inputPath := filepath.Join(tmp, "source.png")
-	outputPath := filepath.Join(tmp, "pose.png")
-	for _, path := range []string{modelPath, inputPath} {
-		if err := os.WriteFile(path, []byte("fixture"), 0o600); err != nil {
-			t.Fatal(err)
-		}
+// poseDocument is a pose_extract result for a 400x800 image with one figure.
+func poseDocument(t *testing.T) []byte {
+	t.Helper()
+	var doc posemap.Document
+	doc.Schema, doc.KeypointFloor = posemap.Schema, 0.3
+	doc.Image.Width, doc.Image.Height = 400, 800
+	person := posemap.Person{Body: make([]posemap.Keypoint, posemap.BodyKeypoints), LeftHand: make([]posemap.Keypoint, posemap.HandKeypoints), RightHand: make([]posemap.Keypoint, posemap.HandKeypoints)}
+	for i := range person.Body {
+		person.Body[i] = posemap.Keypoint{X: 100 + float64(i)*10, Y: 100 + float64(i)*20, Confidence: 0.9}
 	}
-	landmarks := make([]posemap.Landmark, posemap.MediaPipeLandmarkCount)
-	for i := range landmarks {
-		landmarks[i] = posemap.Landmark{X: 0.5, Y: 0.5, Visibility: 1}
-	}
-	encoded, err := json.Marshal(poseLandmarkerOutput{Landmarks: landmarks})
+	doc.People = []posemap.Person{person}
+	raw, err := json.Marshal(doc)
 	if err != nil {
 		t.Fatal(err)
 	}
-	runCalled := false
+	return raw
+}
+
+// TestPoseMapReadsThePoseOnTheSidecarAndDrawsItOnTheRequestedCanvas: the pose
+// operation's own sidecar module reads the source on the CPU (the generator holds
+// the GPU), the region and preparation arrive as its params, and the document it
+// writes comes out as an OpenPose PNG of the requested size.
+func TestPoseMapReadsThePoseOnTheSidecarAndDrawsItOnTheRequestedCanvas(t *testing.T) {
+	tmp := t.TempDir()
+	inputPath := filepath.Join(tmp, "source.png")
+	outputPath := filepath.Join(tmp, "pose.png")
+	if err := os.WriteFile(inputPath, []byte("fixture"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var gotArgs []string
 	svc := mustService(t, Config{
-		ModelInstalled: func(string) bool { return true },
+		ModelInstalled: func(id string) bool { return id == posemap.ModelID },
 		PythonProgram:  "/managed/pyenv/bin/python",
-		LookPath: func(path string) (string, error) {
-			if path != "/managed/pyenv/bin/python" {
-				t.Fatalf("looked up %q", path)
+		ModelsRoot:     "/data",
+		LookPath:       func(path string) (string, error) { return path, nil },
+		Run: func(_ context.Context, name string, args []string) ([]byte, error) {
+			gotArgs = args
+			var out string
+			for i, a := range args {
+				if a == "--out" {
+					out = args[i+1]
+				}
 			}
-			return path, nil
-		},
-		Run: func(ctx context.Context, name string, args []string) ([]byte, error) {
-			runCalled = true
-			if name != "/managed/pyenv/bin/python" || len(args) != 4 || args[0] != "-c" || args[2] != modelPath || args[3] != inputPath {
-				t.Fatalf("command = %q %#v", name, args)
-			}
-			if _, ok := ctx.Deadline(); ok {
-				t.Fatal("test unexpectedly has a command deadline")
-			}
-			return encoded, nil
+			return nil, os.WriteFile(out, poseDocument(t), 0o600)
 		},
 	})
-	if err := svc.PoseMap(context.Background(), modelPath, inputPath, outputPath, 96, 64); err != nil {
+	box := [4]float64{50, 60, 350, 760}
+	req := posemap.Request{Source: inputPath, Output: outputPath, Width: 96, Height: 160, Box: &box, Prepare: "line_art"}
+	if err := svc.PoseMap(context.Background(), req); err != nil {
 		t.Fatalf("PoseMap: %v", err)
 	}
-	if !runCalled {
-		t.Fatal("pose detector was not called")
+	args := strings.Join(gotArgs, " ")
+	for _, want := range []string{"-m image_tools_sidecar.pose_extract", "--model " + filepath.Join("/data", "models", posemap.ModelID), "--image " + inputPath, `"box":[50,60,350,760]`, `"prepare":"line_art"`} {
+		if !strings.Contains(args, want) {
+			t.Errorf("sidecar args %q lack %q", args, want)
+		}
 	}
 	file, err := os.Open(outputPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	img, err := png.Decode(file)
 	if err != nil {
 		t.Fatalf("decode pose map: %v", err)
 	}
-	if got := img.Bounds(); got.Dx() != 96 || got.Dy() != 64 {
-		t.Fatalf("pose bounds = %v, want 96x64", got)
+	if got := img.Bounds(); got.Dx() != 96 || got.Dy() != 160 {
+		t.Fatalf("pose bounds = %v, want 96x160", got)
+	}
+	if _, err := os.Stat(outputPath + ".pose.json"); !os.IsNotExist(err) {
+		t.Errorf("the pose document was left beside the output: %v", err)
+	}
+}
+
+func TestPoseMapRefusesWhatItCannotRead(t *testing.T) {
+	tmp := t.TempDir()
+	source := filepath.Join(tmp, "source.png")
+	if err := os.WriteFile(source, []byte("fixture"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	empty := `{"schema":"pose-v1","image":{"width":10,"height":10},"keypoint_floor":0.3,"people":[]}`
+	cases := map[string]struct {
+		cfg  Config
+		want error
+	}{
+		"no runtime":    {Config{ModelInstalled: func(string) bool { return true }}, ErrBackendUnavailable},
+		"model missing": {Config{ModelInstalled: func(string) bool { return false }, PythonProgram: "/py", LookPath: func(p string) (string, error) { return p, nil }}, ErrBackendUnavailable},
+		"nobody in view": {Config{ModelInstalled: func(string) bool { return true }, PythonProgram: "/py", LookPath: func(p string) (string, error) { return p, nil }, Run: func(_ context.Context, _ string, args []string) ([]byte, error) {
+			return nil, os.WriteFile(args[slices.Index(args, "--out")+1], []byte(empty), 0o600)
+		}}, ErrNoPoseDetected},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := mustService(t, c.cfg).PoseMap(context.Background(), posemap.Request{Source: source, Output: filepath.Join(tmp, "out.png"), Width: 64, Height: 64})
+			if !errors.Is(err, c.want) {
+				t.Fatalf("err = %v, want %v", err, c.want)
+			}
+		})
 	}
 }
 

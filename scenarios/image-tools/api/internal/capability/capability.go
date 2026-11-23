@@ -266,6 +266,9 @@ type Manifest struct {
 	// ordered set of independent stages and the presets composed from them. See
 	// ExtentSpec.
 	Extent *ExtentSpec `json:"extent,omitempty"`
+	// Preset declares that this operation is a named way of running another one,
+	// with a default model and a standing adapter stack. See PresetSpec.
+	Preset *PresetSpec `json:"preset,omitempty"`
 }
 
 // seedDoc is the on-disk shape of manifests.seed.json.
@@ -448,6 +451,12 @@ func (r *Registry) validate() error {
 			r.cliVerbs[key] = m.ID
 		}
 		r.byID[m.ID] = m
+	}
+	// Presets name other operations, so they are checked once all are known.
+	for _, m := range r.manifests {
+		if err := validatePreset(r, m); err != nil {
+			return err
+		}
 	}
 	return nil
 }

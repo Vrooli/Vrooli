@@ -26,6 +26,7 @@ import (
 	"image-tools/internal/capacity"
 	internaljobs "image-tools/internal/jobs"
 	"image-tools/internal/models"
+	"image-tools/internal/posemap"
 	"image-tools/internal/resolver"
 	"image-tools/internal/storage"
 
@@ -78,11 +79,12 @@ func ReviewSourceFromContext(ctx context.Context) ReviewSource {
 // the ai package does not depend on analysis or safety and stays unit-testable.
 type OutputScanner func(ctx context.Context, img []byte) (ScanVerdict, error)
 
-// PosePreprocessor derives an OpenPose bone image from a source image. It runs
-// inside the already-admitted AI job and writes a concrete PNG under that job's
-// temporary directory. The model-backed implementation is injected by the
-// analysis owner; nil fails closed for pose-conditioned jobs.
-type PosePreprocessor func(ctx context.Context, modelPath, inputPath, outputPath string, width, height int) error
+// PosePreprocessor derives an OpenPose bone image from a pose source: a photo, a
+// line-art figure or one cell of a chart. It runs inside the already-admitted AI
+// job and writes a concrete PNG under that job's temporary directory. The
+// model-backed implementation is injected by the analysis owner; nil fails closed
+// for pose-conditioned jobs.
+type PosePreprocessor func(ctx context.Context, req posemap.Request) error
 
 // Deps wires the AI engine's seams.
 type Deps struct {
@@ -768,7 +770,7 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 	// IP-Adapter) from its blob key to a local file, rewriting the key in place so
 	// the technique arg-builders hand the sidecar concrete paths. LoRAs carry no
 	// image and pass through untouched.
-	pl.Adapters, err = e.materializeConditioningImages(ctx, tmpDir, pl, inputs.image)
+	pl.Adapters, err = e.materializeConditioningImages(ctx, tmpDir, job.ID, &pl, inputs.image, emit)
 	if err != nil {
 		return internaljobs.Result{}, err
 	}
@@ -1037,11 +1039,22 @@ func (e *Engine) materializeAdapterImages(ctx context.Context, tmpDir string, in
 	return out, nil
 }
 
-func (e *Engine) materializeConditioningImages(ctx context.Context, tmpDir string, pl Payload, inputImage string) ([]adapters.ResolvedAdapter, error) {
+// materializeConditioningImages is materializeAdapterImages for a stack that may
+// hold pose controls: a ControlNet whose preprocessor is "pose" gets its control
+// image drawn from the pose source it was given (see derivePoseControl) and every
+// other adapter's image is fetched as it is. A pose control that was not given an
+// image reads the job's own input.
+func (e *Engine) materializeConditioningImages(ctx context.Context, tmpDir, jobID string, pl *Payload, inputImage string, emit func(int, string)) ([]adapters.ResolvedAdapter, error) {
 	if len(pl.Adapters) == 0 {
 		return pl.Adapters, nil
 	}
 	out := make([]adapters.ResolvedAdapter, len(pl.Adapters))
+	var releasePose func()
+	defer func() {
+		if releasePose != nil {
+			releasePose()
+		}
+	}()
 	for i, adapter := range pl.Adapters {
 		out[i] = adapter
 		if adapter.Kind == adapters.KindControlNet && adapter.Preprocessor == adapters.PreprocessorPose {
@@ -1049,9 +1062,15 @@ func (e *Engine) materializeConditioningImages(ctx context.Context, tmpDir strin
 				return nil, fmt.Errorf("ai: pose control %q requires a source image", adapter.ID)
 			}
 			if e.deps.PosePreprocessor == nil {
-				return nil, fmt.Errorf("ai: pose preprocessor is unavailable; install the governed MediaPipe runtime and pinned Full model")
+				return nil, fmt.Errorf("ai: pose preprocessor is unavailable; the pose reader needs the governed Python runtime")
 			}
-			modelPath := filepath.Join(adapter.Dir, "pose", "pose_landmarker_full.task")
+			if releasePose == nil {
+				release, err := e.holdModels(ctx, jobID, []string{posemap.ModelID}, "pose reading", emit)
+				if err != nil {
+					return nil, err
+				}
+				releasePose = release
+			}
 			source := inputImage
 			if source == "" || adapter.ConditioningImageKey != pl.InputKey {
 				var err error
@@ -1060,16 +1079,11 @@ func (e *Engine) materializeConditioningImages(ctx context.Context, tmpDir strin
 					return nil, fmt.Errorf("ai: materialize pose source for adapter %q: %w", adapter.ID, err)
 				}
 			}
-			width, height := generationDimensions(pl.Params)
-			output := filepath.Join(tmpDir, fmt.Sprintf("pose-map-%d.png", i))
-			if err := e.deps.PosePreprocessor(ctx, modelPath, source, output, width, height); err != nil {
+			control, err := e.derivePoseControl(ctx, tmpDir, i, adapter, source, pl.Params)
+			if err != nil {
 				return nil, fmt.Errorf("ai: derive OpenPose map for adapter %q: %w", adapter.ID, err)
 			}
-			info, err := os.Stat(output)
-			if err != nil || !info.Mode().IsRegular() || info.Size() == 0 {
-				return nil, fmt.Errorf("ai: pose preprocessor for adapter %q produced no PNG", adapter.ID)
-			}
-			out[i].ConditioningImageKey = output
+			out[i].ConditioningImageKey = control
 			continue
 		}
 		if adapter.ConditioningImageKey == "" {
@@ -1082,17 +1096,6 @@ func (e *Engine) materializeConditioningImages(ctx context.Context, tmpDir strin
 		out[i].ConditioningImageKey = path
 	}
 	return out, nil
-}
-
-func generationDimensions(params map[string]string) (int, int) {
-	parse := func(key string) int {
-		value, err := strconv.Atoi(params[key])
-		if err != nil || value < 1 || value > 4096 {
-			return 512
-		}
-		return value
-	}
-	return parse("width"), parse("height")
 }
 
 func (e *Engine) fetchToFile(ctx context.Context, dir, name, key string) (string, error) {
@@ -1409,6 +1412,13 @@ func (r *reviewReport) flag(key, reason string) {
 // leases until the returned release runs. A weight that was offloaded since the
 // last job is re-acquired here, so a reviewer that is configured can always run.
 func (e *Engine) holdReviewModels(ctx context.Context, jobID string, ids []string, emit func(int, string)) (func(), error) {
+	return e.holdModels(ctx, jobID, ids, "safety review", emit)
+}
+
+// holdModels makes the weights of the named models present and holds their use
+// leases until the returned release runs; purpose names what needs them in the
+// progress line and in the error.
+func (e *Engine) holdModels(ctx context.Context, jobID string, ids []string, purpose string, emit func(int, string)) (func(), error) {
 	var releases []func()
 	release := func() {
 		for i := len(releases) - 1; i >= 0; i-- {
@@ -1419,18 +1429,18 @@ func (e *Engine) holdReviewModels(ctx context.Context, jobID string, ids []strin
 		if e.deps.ModelInstalled != nil && !e.deps.ModelInstalled(id) {
 			if e.deps.AcquireModel == nil {
 				release()
-				return nil, fmt.Errorf("%w: %q (needed by the safety review)", ErrModelNotInstalled, id)
+				return nil, fmt.Errorf("%w: %q (needed for %s)", ErrModelNotInstalled, id, purpose)
 			}
-			if err := e.deps.AcquireModel(ctx, id, jobID, func(p int, m string) { emit(p, "safety review weights: "+m) }); err != nil {
+			if err := e.deps.AcquireModel(ctx, id, jobID, func(p int, m string) { emit(p, purpose+" weights: "+m) }); err != nil {
 				release()
-				return nil, fmt.Errorf("%w: %q (needed by the safety review): %w", ErrModelNotInstalled, id, err)
+				return nil, fmt.Errorf("%w: %q (needed for %s): %w", ErrModelNotInstalled, id, purpose, err)
 			}
 		}
 		if e.deps.AcquireModelUse != nil {
 			held, err := e.deps.AcquireModelUse(id)
 			if err != nil {
 				release()
-				return nil, fmt.Errorf("ai: hold safety review model %q: %w", id, err)
+				return nil, fmt.Errorf("ai: hold %s model %q: %w", purpose, id, err)
 			}
 			releases = append(releases, held)
 		}
@@ -1443,6 +1453,15 @@ func (e *Engine) holdReviewModels(ctx context.Context, jobID string, ids []strin
 // cannot leave unreviewed bytes addressable because its classifier crashed.
 func (e *Engine) reviewOutputs(ctx context.Context, jobID string, keys []string, source ReviewSource, emit func(int, string)) (reviewReport, error) {
 	var report reviewReport
+	// The model work is finished; the review is CPU work plus a local vision
+	// question. Drop the job's compute claims first so a local vision model can be
+	// admitted while the review runs (the manager still owns and releases the
+	// worker and disk claims).
+	if err := releaseComputeClaims(ctx); err != nil {
+		emit(92, "compute claims could not be released before the safety review; the manager will retry: "+err.Error())
+	} else {
+		emit(92, "released compute claims before the safety review")
+	}
 	release, err := e.holdReviewModels(ctx, jobID, e.reviewModelIDs(source.NSFWCapable), emit)
 	if err != nil {
 		return report, errors.Join(err, e.deleteOutputs(ctx, keys))

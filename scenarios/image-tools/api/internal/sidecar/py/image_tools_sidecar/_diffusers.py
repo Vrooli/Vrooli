@@ -767,11 +767,20 @@ _INPAINT_SINGLE_FILE = {
 }
 
 # Per-model inpaint defaults. SDXL Inpainting 0.1's upstream model card uses
-# strength=0.99 for its reference inpaint call; generic SD15 inpaint keeps the
-# established 0.85 default. Keep this table explicit and the kwargs mapping
-# torch-free so the model-specific choice is testable without loading weights.
+# strength=0.99 for its reference inpaint call. A base checkpoint (a model trained
+# for text-to-image, loaded into the 4-channel inpaint path) needs the full noise
+# budget to follow a replacement garment: at 0.85 the old outfit stays visible
+# through the blend, and at 0.8 a "red dress" edit came back as a cream blouse and
+# navy skirt on the measured case. At 1.0 the same prompt produced the red dress,
+# with the face, pose and background preserved by the mask composite. Keep this
+# table explicit and the kwargs mapping torch-free so the model-specific choice is
+# testable without loading weights.
 _INPAINT_DEFAULT_STEPS = 30
-_INPAINT_DEFAULT_STRENGTH = 0.85
+_INPAINT_DEFAULT_STRENGTH = 1.0
+# SDXL's text-guidance sweet spot; 7.5 (the SD-1.5 default this used to share) made
+# a full-strength outfit regenerate paint a second head into the neck of the mask on
+# the measured case, while the same seed at 6.0 produced the requested red dress.
+_INPAINT_DEFAULT_GUIDANCE = 6.0
 _INPAINT_DEFAULT_STRENGTH_BY_MODEL = {
     "sdxl-inpainting-0.1": 0.99,
 }
@@ -783,7 +792,7 @@ def build_inpaint_kwargs(params: "TransformParams", model_id: str = "") -> dict:
     out = {
         "prompt": params.prompt,
         "num_inference_steps": params.steps or _INPAINT_DEFAULT_STEPS,
-        "guidance_scale": 7.5 if params.guidance is None else params.guidance,
+        "guidance_scale": _INPAINT_DEFAULT_GUIDANCE if params.guidance is None else params.guidance,
         "strength": (
             _INPAINT_DEFAULT_STRENGTH_BY_MODEL.get(model_id, _INPAINT_DEFAULT_STRENGTH)
             if params.strength is None else params.strength
@@ -899,6 +908,41 @@ def _load_inpaint_pipe(diffusers, torch, architecture: str, model_dir: str, repo
             code=5,
         )
         raise
+    return _prefer_euler_for_base_inpaint(diffusers, pipe, model_dir)
+
+
+# Schedulers a base text-to-image checkpoint may declare that are unstable in the
+# 4-channel inpaint path on CUDA fp16. The measured case: a base SDXL checkpoint
+# (Juggernaut v9, DDPMScheduler) at strength 1.0, cfg 6, seed 7001 painted a second
+# head into the neck of the mask on CUDA in 48 s; the identical call with
+# EulerDiscreteScheduler produced the requested red dress in 27 s. CPU fp32 with
+# DDPM was also stable, which is why the difference stayed hidden until the GPU
+# path was measured.
+_UNSTABLE_INPAINT_SCHEDULERS = ("DDPMScheduler",)
+
+
+def _prefer_euler_for_base_inpaint(diffusers, pipe, model_dir: str):
+    """Give a base checkpoint the sampler its architecture was trained for.
+
+    A dedicated *-inpainting checkpoint keeps the scheduler it ships (it was
+    trained for that sampler and its card tunes strength around it). A base
+    text-to-image checkpoint loaded through the 4-channel inpaint path gets Euler
+    when it declares DDPM, which is a training sampler with an unstable fp16
+    inference path on this host.
+    """
+    scheduler = getattr(pipe, "scheduler", None)
+    if scheduler is None or type(scheduler).__name__ not in _UNSTABLE_INPAINT_SCHEDULERS:
+        return pipe
+    index_path = os.path.join(model_dir, "model_index.json")
+    if os.path.isfile(index_path):
+        try:
+            with open(index_path, encoding="utf-8") as fh:
+                index = json.load(fh)
+            if "Inpaint" in str(index.get("_class_name", "")):
+                return pipe
+        except (OSError, ValueError):
+            pass
+    pipe.scheduler = diffusers.EulerDiscreteScheduler.from_config(pipe.scheduler.config)
     return pipe
 
 
@@ -986,6 +1030,7 @@ def run_inpaint(
             result = _composite_cropped_inpaint(image, mask, result, crop_box)
         receipt = dict(provenance or {})
         receipt["effective_strength"] = kwargs["strength"]
+        receipt["scheduler"] = type(pipe.scheduler).__name__
         receipt.update({
             "source_raster": source_raster,
             "mask_raster": mask_raster,

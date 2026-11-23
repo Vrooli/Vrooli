@@ -68,8 +68,9 @@ type submitSpec struct {
 	Desc       string
 	NeedsInput bool
 	NeedsMask  bool
-	// NeedsReference marks an op that takes a reference image (the source face of
-	// face_swap), supplied with --reference.
+	// NeedsReference marks an op that requires a reference image (the source face
+	// of face_swap), supplied with --reference. An op that takes one as an option
+	// declares the flag without this.
 	NeedsReference bool
 	Flags          []string
 }
@@ -115,6 +116,17 @@ var submitFlagDefs = map[string]cliapp.Flag{
 	"flatten":                  {Name: "flatten", Description: "How far the region's colour variation may shrink toward the reference's, 0..1 (default 0.4)"},
 	"feather-px":               {Name: "feather-px", Description: "Edge softening in pixels, 0..64 (colour transfer default 4, mask composite 5)"},
 	"grow-px":                  {Name: "grow-px", Description: "How far to widen the mask before blending, in pixels, 0..64 (default 6)"},
+	"grid":                     {Name: "grid", Description: "Pin the chart layout as ROWSxCOLS, e.g. 3x3 (default: find each figure from the page)"},
+	"gap":                      {Name: "gap", Description: "How far apart two drawings must be to be separate cells, as a share of the page's longer side, 0.005..0.2 (default 0.02)"},
+	"padding":                  {Name: "padding", Description: "Margin around each cell's drawing, as a share of its size, 0..0.3 (default 0.03)"},
+	"box":                      {Name: "box", Description: "Read this one person only: x0,y0,x1,y1 in pixels (default: find the people; a drawing with no detectable person is read as one figure)"},
+	"prepare":                  {Name: "prepare", Description: "How the image is made readable first: auto (fill in a line drawing, leave a photo alone), none or line-art"},
+	"pose-cell":                {Name: "pose-cell", Description: "The pose chart cell to use, numbered in reading order (see `ai pose-chart`); default: the whole image is the pose"},
+	"pose-grid":                {Name: "pose-grid", Description: "Pin the chart layout the cell number refers to as ROWSxCOLS, e.g. 3x3 (default: find each figure from the page)"},
+	"pose-prepare":             {Name: "pose-prepare", Description: "How the pose image is made readable first: auto (fill in a line drawing, leave a photo alone), none or line-art"},
+	"pose-strength":            {Name: "pose-strength", Description: "How strictly the picture follows the pose, 0.1..2 (default 1)"},
+	"character-strength":       {Name: "character-strength", Description: "How strongly the --reference picture steers the character, 0.05..1; higher keeps more of it and starts copying its pose"},
+	"max-people":               {Name: "max-people", Description: "The most people to read when finding them, 1..16 (default 4)"},
 	"no-occlusion":             {Name: "no-occlusion", Bool: true, Description: "Do not protect hands, hair and glasses in front of the face (skip the occlusion mask)"},
 }
 

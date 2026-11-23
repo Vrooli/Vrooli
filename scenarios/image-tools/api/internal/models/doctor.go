@@ -100,6 +100,11 @@ func (r *Registry) DoctorCatalog() CatalogDoctorReport {
 		if m, ok := capability.Get(op); ok && !m.Requires.Weights {
 			continue
 		}
+		// A preset needs no installable model of its own: admission rewrites it
+		// into the operation it runs, which the loop checks in its own right.
+		if m, ok := capability.Get(op); ok && m.Preset != nil {
+			continue
+		}
 		if installableEnabledByOp[op] == 0 {
 			severity, message := FindingError, "operation has no enabled model with resolvable install assets"
 			if disabledDeclaredByOp[op] > 0 {

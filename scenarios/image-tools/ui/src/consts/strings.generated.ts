@@ -625,6 +625,14 @@ export const strings = {
         label: "workspace.aiOp.mask_composite.label",
         desc: "workspace.aiOp.mask_composite.desc",
       },
+      pose_chart_split: {
+        label: "workspace.aiOp.pose_chart_split.label",
+        desc: "workspace.aiOp.pose_chart_split.desc",
+      },
+      pose_extract: {
+        label: "workspace.aiOp.pose_extract.label",
+        desc: "workspace.aiOp.pose_extract.desc",
+      },
     },
     enhance: {
       intro: "workspace.enhance.intro",
@@ -667,6 +675,10 @@ export const strings = {
       },
     },
     createOp: {
+      pose_generate: {
+        label: "workspace.createOp.pose_generate.label",
+        desc: "workspace.createOp.pose_generate.desc",
+      },
       text_to_image: {
         label: "workspace.createOp.text_to_image.label",
         desc: "workspace.createOp.text_to_image.desc",
@@ -825,6 +837,17 @@ export const strings = {
         acceptPrefix: "workspace.create.pose.acceptPrefix",
         license: "workspace.create.pose.license",
         acceptSuffix: "workspace.create.pose.acceptSuffix",
+      },
+      poseChart: {
+        title: "workspace.create.poseChart.title",
+        hint: "workspace.create.poseChart.hint",
+        busy: "workspace.create.poseChart.busy",
+        error: "workspace.create.poseChart.error",
+        needsChart: "workspace.create.poseChart.needsChart",
+        needsCell: "workspace.create.poseChart.needsCell",
+        selected: "workspace.create.poseChart.selected",
+        reference: "workspace.create.poseChart.reference",
+        referenceHint: "workspace.create.poseChart.referenceHint",
       },
     },
     mask: {

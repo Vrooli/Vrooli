@@ -443,8 +443,8 @@ def test_inpaint_kwargs_defaults():
     k = build_inpaint_kwargs(TransformParams(prompt="a clear blue sky"))
     _eq(k["prompt"], "a clear blue sky", "inpaint prompt")
     _eq(k["num_inference_steps"], 30, "inpaint default steps")
-    _eq(k["guidance_scale"], 7.5, "inpaint default guidance")
-    _eq(k["strength"], 0.85, "inpaint default strength")
+    _eq(k["guidance_scale"], 6.0, "inpaint default guidance")
+    _eq(k["strength"], 1.0, "inpaint default strength")
     assert "negative_prompt" not in k, "inpaint omits negative_prompt when empty"
 
 
@@ -459,7 +459,7 @@ def test_sdxl_inpainting_model_uses_upstream_reference_strength():
         "sdxl-inpainting-0.1",
     )
     _eq(sdxl["strength"], 0.99, "SDXL inpainting card default")
-    _eq(generic["strength"], 0.85, "generic inpaint default remains unchanged")
+    _eq(generic["strength"], 1.0, "generic inpaint default gives a replacement garment the full noise budget")
     _eq(explicit["strength"], 0.7, "explicit strength overrides model default")
 
 
@@ -724,6 +724,48 @@ def test_edm_scheduler_is_misdeclared_only_beside_an_epsilon_model():
     _eq(_diffusers.edm_scheduler_misdeclared({}), False, "empty config")
 
 
+def test_base_checkpoint_ddpm_is_replaced_by_euler_for_inpaint():
+    import tempfile
+
+    class DDPMScheduler:
+        config = {"_class_name": "DDPMScheduler"}
+
+    class Euler:
+        @staticmethod
+        def from_config(config):
+            return {"euler", config["_class_name"]}
+
+    class Pipe:
+        scheduler = DDPMScheduler()
+
+    diffusers = type("D", (), {"EulerDiscreteScheduler": Euler})
+    with tempfile.TemporaryDirectory() as root:
+        with open(os.path.join(root, "model_index.json"), "w") as fh:
+            json.dump({"_class_name": "StableDiffusionXLPipeline"}, fh)
+        got = _diffusers._prefer_euler_for_base_inpaint(diffusers, Pipe(), root)
+    _eq(got.scheduler, {"euler", "DDPMScheduler"}, "base checkpoint gets Euler")
+
+    class InpaintPipe:
+        scheduler = DDPMScheduler()
+
+    with tempfile.TemporaryDirectory() as root:
+        with open(os.path.join(root, "model_index.json"), "w") as fh:
+            json.dump({"_class_name": "StableDiffusionXLInpaintPipeline"}, fh)
+        got = _diffusers._prefer_euler_for_base_inpaint(diffusers, InpaintPipe(), root)
+    _eq(type(got.scheduler).__name__, "DDPMScheduler", "dedicated inpaint model keeps its scheduler")
+
+
+def test_a_stable_scheduler_is_left_alone():
+    class EulerScheduler:
+        config = {}
+
+    class Pipe:
+        scheduler = EulerScheduler()
+
+    got = _diffusers._prefer_euler_for_base_inpaint(object(), Pipe(), "/nowhere")
+    _eq(type(got.scheduler).__name__, "EulerScheduler", "non-DDPM scheduler untouched")
+
+
 def test_misdeclared_edm_scheduler_is_replaced_by_euler():
     import tempfile
 
@@ -743,6 +785,33 @@ def test_misdeclared_edm_scheduler_is_replaced_by_euler():
         _eq(_diffusers.repo_component_overrides(diffusers, root), {}, "no scheduler config, no override")
 
 
+def test_ip_adapter_layout_finds_the_encoder_beside_or_above_the_weight():
+    import tempfile
+
+    from ._adapters import ip_adapter_layout
+
+    def touch(path):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        open(path, "wb").close()
+
+    with tempfile.TemporaryDirectory() as root:
+        flat = os.path.join(root, "sd15", "models")
+        os.makedirs(os.path.join(flat, "image_encoder"))
+        weight = os.path.join(flat, "ip-adapter_sd15.safetensors")
+        touch(weight)
+        _eq(ip_adapter_layout(weight), (flat, "", "image_encoder"), "encoder beside the weight (SD 1.5 snapshot)")
+
+        sdxl = os.path.join(root, "sdxl")
+        os.makedirs(os.path.join(sdxl, "models", "image_encoder"))
+        weight = os.path.join(sdxl, "sdxl_models", "ip-adapter-plus_sdxl_vit-h.safetensors")
+        touch(weight)
+        _eq(ip_adapter_layout(weight), (sdxl, "sdxl_models", "models/image_encoder"), "encoder above the weight (SDXL snapshot)")
+
+        bare = os.path.join(root, "bare", "w.safetensors")
+        touch(bare)
+        _eq(ip_adapter_layout(bare), (os.path.dirname(bare), "", "image_encoder"), "no encoder found keeps the default")
+
+
 def main() -> int:
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for t in tests:
@@ -755,3 +824,4 @@ if __name__ == "__main__":
     import sys
 
     sys.exit(main())
+

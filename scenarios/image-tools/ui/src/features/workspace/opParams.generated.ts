@@ -61,6 +61,26 @@ export interface ColorTransferOpParams {
   strength?: number;
 }
 
+export interface PoseChartSplitOpParams {
+  gap?: number;
+  grid?: string;
+  padding?: number;
+}
+
+export interface PoseExtractOpParams {
+  box?: number[];
+  max_people?: number;
+  prepare?: string;
+}
+
+export interface PoseGenerateOpParams {
+  character_strength?: number;
+  pose_cell?: number;
+  pose_grid?: string;
+  pose_prepare?: string;
+  pose_strength?: number;
+}
+
 export interface MaskCompositeOpParams {
   feather_px?: number;
   grow_px?: number;
@@ -112,6 +132,9 @@ export interface AiOpParamsByOperation {
   "inpaint": InpaintOpParams;
   "mask_composite": MaskCompositeOpParams;
   "object_removal": ObjectRemovalOpParams;
+  "pose_chart_split": PoseChartSplitOpParams;
+  "pose_extract": PoseExtractOpParams;
+  "pose_generate": PoseGenerateOpParams;
   "scene_geometry": SceneGeometryOpParams;
   "segment": SegmentOpParams;
 }

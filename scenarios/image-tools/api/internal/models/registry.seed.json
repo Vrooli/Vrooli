@@ -4187,10 +4187,11 @@
       "backend": "onnxruntime",
       "alt_backends": [],
       "requires_comfyui": false,
-      "size_mb_approx": 85,
+      "size_mb_approx": 328,
       "quant_variants": [
-        "f32 ~340MB",
-        "quant ~85MB"
+        "f32 ~328MB",
+        "int8 ~87MB (not selected; the tested CPUExecutionProvider cannot run every quantized node)",
+        "fp16 ~164MB"
       ],
       "hardware": {
         "cpu_capable": true,
@@ -4202,38 +4203,44 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "Most battle-tested; one ONNX export step (ViT)."
+        "speed_note": "ViT-base at 224x224, full-precision ONNX; CPU is enough for one pass per reviewed image."
       },
-      "io": {},
+      "io": {
+        "notes": "224x224, bilinear resize, /255, channel mean/std 0.5; binary labels normal/nsfw from the ONNX Community export of Falconsai/nsfw_image_detection."
+      },
       "capability_labels": {
         "nsfw_capable": false,
         "license": "Apache-2.0",
         "commercial_use": "yes",
         "commercial_use_notes": "Permissive.",
-        "base_model_lineage": "ViT fine-tune (Falconsai)",
-        "known_risks": "Needs ONNX export step."
+        "base_model_lineage": "ViT-base fine-tune (Falconsai), ONNX export by onnx-community",
+        "known_risks": "Over-blocks some clothed skin or cleavage; weaker on synthetic images. Qualify on a diverse SFW/NSFW set before trusting its threshold."
       },
       "source": {
-        "manual": true,
-        "download_url": "https://huggingface.co/Falconsai/nsfw_image_detection",
-        "source_repo": "https://huggingface.co/Falconsai/nsfw_image_detection",
+        "download_url": "https://huggingface.co/onnx-community/nsfw_image_detection-ONNX",
+        "source_repo": "https://huggingface.co/onnx-community/nsfw_image_detection-ONNX",
         "docs_url": "https://huggingface.co/Falconsai/nsfw_image_detection",
-        "update_source": "https://huggingface.co/Falconsai/nsfw_image_detection",
+        "update_source": "https://huggingface.co/onnx-community/nsfw_image_detection-ONNX",
+        "assets": [
+          {
+            "url": "https://huggingface.co/onnx-community/nsfw_image_detection-ONNX/resolve/1ceb3c7fe1e9f3f2507e6df577437f23a9149fd5/onnx/model.onnx",
+            "filename": "model.onnx",
+            "kind": "onnx",
+            "sha256": "a4316a4fb750169ac4fcabaabee1fcbd982b0ee8c0cc63fe3e944954bb9a7d9c",
+            "min_bytes": 343401000
+          }
+        ],
         "checksum": {
           "algo": "sha256",
-          "value": "",
-          "status": "unverified-capture-on-download"
+          "value": "a4316a4fb750169ac4fcabaabee1fcbd982b0ee8c0cc63fe3e944954bb9a7d9c",
+          "status": "verified-pinned"
         }
       },
-      "enabled": false,
-      "disabled": {
-        "kind": "needs_install",
-        "reason": "Its weights need a manual ViT-to-ONNX export; adamcodd-vit-nsfw is the enabled classifier."
-      },
+      "enabled": true,
       "rights": {
         "artifact_id": "falconsai-nsfw",
-        "revision": "",
-        "sha256": "",
+        "revision": "1ceb3c7fe1e9f3f2507e6df577437f23a9149fd5",
+        "sha256": "a4316a4fb750169ac4fcabaabee1fcbd982b0ee8c0cc63fe3e944954bb9a7d9c",
         "license_id": "Apache-2.0",
         "classification": "unknown",
         "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
@@ -5601,6 +5608,156 @@
       "enabled": true,
       "rights": {
         "artifact_id": "naturalize-detail-v1",
+        "revision": "",
+        "sha256": "",
+        "license_id": "N/A (deterministic, no model weights)",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
+    },
+    {
+      "id": "dwpose-ll-384",
+      "name": "DWPose (whole-body pose, 384 px)",
+      "operations": [
+        "pose_extract"
+      ],
+      "default_for": [
+        "pose_extract"
+      ],
+      "tier": "default",
+      "backend": "onnxruntime",
+      "alt_backends": [],
+      "requires_comfyui": false,
+      "size_mb_approx": 351,
+      "quant_variants": [
+        "fp32 ONNX: RTMPose-l whole-body 134MB (dw-ll_ucoco_384, 384x288 input) + YOLOX-l person detector 217MB"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 1,
+        "min_ram_gb": 2,
+        "os_arch": [
+          "linux/amd64",
+          "linux/arm64",
+          "darwin/arm64",
+          "windows/amd64"
+        ],
+        "speed_note": "Pose estimator is a 134 MB graph run once per person; the detector adds one 640x640 pass. Measured figures are in the pose research notes."
+      },
+      "io": {
+        "native_resolution": "384x288 person crop",
+        "notes": "Reads 133 COCO-WholeBody keypoints per person and returns the body in OpenPose-18 order plus both hands as JSON (pixels). Person boxes come from the caller, the YOLOX detector, or, for a drawing no detector recognises, the page's foreground box."
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "Apache-2.0",
+        "commercial_use": "conditional",
+        "commercial_use_notes": "The model card tags Apache-2.0; the estimator was trained on COCO-WholeBody and UBody, whose dataset terms were not reviewed. Local use is unrestricted; check the datasets before hosting or selling.",
+        "base_model_lineage": "DWPose (IDEA-Research) RTMPose-l whole-body distilled with COCO-WholeBody + UBody; YOLOX-l (Megvii, Apache-2.0)",
+        "known_risks": "Trained on photographs: a stylised or foreshortened drawing can lose limbs or flip left and right, and a back view has no face cues to say which way the body faces."
+      },
+      "source": {
+        "download_url": "",
+        "source_repo": "https://github.com/IDEA-Research/DWPose",
+        "docs_url": "https://huggingface.co/yzd-v/DWPose",
+        "update_source": "https://huggingface.co/yzd-v/DWPose",
+        "assets": [
+          {
+            "url": "https://huggingface.co/yzd-v/DWPose/resolve/1a7144101628d69ee7a3768d1ee3a094070dc388/dw-ll_ucoco_384.onnx",
+            "filename": "dw-ll_ucoco_384.onnx",
+            "kind": "onnx",
+            "min_bytes": 134000000,
+            "sha256": "724f4ff2439ed61afb86fb8a1951ec39c6220682803b4a8bd4f598cd913b1843"
+          },
+          {
+            "url": "https://huggingface.co/yzd-v/DWPose/resolve/1a7144101628d69ee7a3768d1ee3a094070dc388/yolox_l.onnx",
+            "filename": "yolox_l.onnx",
+            "kind": "onnx",
+            "min_bytes": 216000000,
+            "sha256": "7860ae79de6c89a3c1eb72ae9a2756c0ccfbe04b7791bb5880afabd97855a411"
+          }
+        ],
+        "checksum": {
+          "algo": "sha256",
+          "value": "724f4ff2439ed61afb86fb8a1951ec39c6220682803b4a8bd4f598cd913b1843",
+          "status": "pinned"
+        }
+      },
+      "enabled": true,
+      "rights": {
+        "artifact_id": "dwpose-ll-384",
+        "revision": "1a7144101628d69ee7a3768d1ee3a094070dc388",
+        "sha256": "724f4ff2439ed61afb86fb8a1951ec39c6220682803b4a8bd4f598cd913b1843",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "licence_read_from_model_card_tag_only_dataset_terms_not_reviewed",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
+    },
+    {
+      "id": "pose-chart-split-v1",
+      "name": "Pose chart split (built-in)",
+      "operations": [
+        "pose_chart_split"
+      ],
+      "default_for": [
+        "pose_chart_split"
+      ],
+      "tier": "default",
+      "backend": "builtin",
+      "alt_backends": [],
+      "requires_comfyui": false,
+      "size_mb_approx": 0,
+      "quant_variants": [],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 1,
+        "os_arch": [
+          "linux/amd64",
+          "linux/arm64",
+          "darwin/amd64",
+          "darwin/arm64",
+          "windows/amd64"
+        ],
+        "speed_note": "Deterministic in-process analysis; well under a second on CPU for a 1.5 MP chart, no weights to download."
+      },
+      "io": {
+        "notes": "Finds each drawing on a pose chart from the page itself (ink closer than the gap joins one cell; a grid can be pinned with ROWSxCOLS) and returns each cell's box in reading order as JSON. No network, no model weights."
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "N/A (deterministic, no model weights)",
+        "commercial_use": "yes",
+        "commercial_use_notes": "Pure deterministic image analysis shipped in-repo; no third-party weights.",
+        "base_model_lineage": "n/a (deterministic image processing)",
+        "known_risks": "A figure whose limbs reach into the next figure's space joins it into one cell; lower gap or pin the grid with ROWSxCOLS. Drawings fainter than the page's border colour by less than a sixth of the range are not seen."
+      },
+      "source": {
+        "download_url": "",
+        "source_repo": "",
+        "docs_url": "",
+        "update_source": "",
+        "checksum": {
+          "algo": "",
+          "value": "",
+          "status": "n/a-builtin"
+        }
+      },
+      "enabled": true,
+      "rights": {
+        "artifact_id": "pose-chart-split-v1",
         "revision": "",
         "sha256": "",
         "license_id": "N/A (deterministic, no model weights)",

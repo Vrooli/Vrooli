@@ -71,7 +71,7 @@ func normalByte(v float64) uint8 {
 // weightless seed models that name these backend families.
 func builtinProviderSpecs() []*backends.BuiltinProvider {
 	return []*backends.BuiltinProvider{
-		backends.NewBuiltinProvider(models.BackendBuiltin, "ai", []string{"naturalize", "color_transfer", "mask_composite"}, runBuiltin),
+		backends.NewBuiltinProvider(models.BackendBuiltin, "ai", []string{"naturalize", "color_transfer", "mask_composite", "pose_chart_split"}, runBuiltin),
 		backends.NewBuiltinProvider(models.BackendComputed, "ai", []string{"normal_map"}, runBuiltin),
 		backends.NewBuiltinProvider(models.BackendMaskFill, "ai", []string{"object_removal"}, runBuiltin),
 	}
@@ -92,6 +92,21 @@ func runBuiltin(ctx context.Context, req backends.Request) error {
 	}
 	var out image.Image
 	switch req.Operation {
+	case "pose_chart_split":
+		// The one builtin whose result is a document, not a picture.
+		split, err := opparams.DecodePoseChartSplitParams(req.Params)
+		if err != nil {
+			return err
+		}
+		params, err := poseChartParams(split)
+		if err != nil {
+			return err
+		}
+		doc, err := SplitPoseChart(src, params)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(req.Output.LocalPath, append(doc, '\n'), 0o644)
 	case "naturalize":
 		out = Naturalize(src, parseNaturalizeParams(req.Params))
 	case "normal_map":

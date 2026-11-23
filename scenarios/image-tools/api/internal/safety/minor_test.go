@@ -143,7 +143,7 @@ func TestNewBundledReviewerRequiresEveryLocation(t *testing.T) {
 func TestBundledReviewerModelsAreTheRegistryIDsTheSidecarReads(t *testing.T) {
 	// minor_review.CLASSIFIER_MODELS / ESCALATION_MODELS: the classifier runs on every
 	// output, the face and age models only when it calls one sexual.
-	if want := []string{"adamcodd-vit-nsfw"}; !slices.Equal(BundledReviewerModels, want) {
+	if want := []string{"falconsai-nsfw", "adamcodd-vit-nsfw"}; !slices.Equal(BundledReviewerModels, want) {
 		t.Fatalf("BundledReviewerModels = %v, want %v", BundledReviewerModels, want)
 	}
 	if want := []string{"yunet", "fairface-vit-age"}; !slices.Equal(BundledReviewerEscalationModels, want) {

@@ -927,6 +927,11 @@ func OnnxSidecar(req backends.Request, modelDir string) ([]string, error) {
 		// signature.
 		module = "image_tools_sidecar.face_swap"
 		model = modelDir
+	case "pose_extract":
+		// The model dir carries the person detector and the pose estimator; the
+		// sidecar tells them apart by input shape.
+		module = "image_tools_sidecar.pose_extract"
+		model = modelDir
 	default:
 		return nil, fmt.Errorf("onnxruntime sidecar: unsupported operation %q", req.Operation)
 	}
@@ -969,6 +974,17 @@ func OnnxSidecar(req backends.Request, modelDir string) ([]string, error) {
 			return nil, fmt.Errorf("face_swap: encode params: %w", err)
 		}
 		args = append(args, "--reference", reference, "--params", string(raw))
+	}
+	if req.Operation == "pose_extract" {
+		pose, err := opparams.DecodePoseExtractParams(req.Params)
+		if err != nil {
+			return nil, err
+		}
+		raw, err := json.Marshal(pose)
+		if err != nil {
+			return nil, fmt.Errorf("pose_extract: encode params: %w", err)
+		}
+		args = append(args, "--params", string(raw))
 	}
 	if req.Operation == "segment" {
 		seg, err := opparams.DecodeSegmentParams(req.Params)

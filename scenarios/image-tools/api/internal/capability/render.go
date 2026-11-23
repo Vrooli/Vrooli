@@ -166,7 +166,7 @@ func RenderCLI() (string, error) {
 			switch in.Kind {
 			case "image":
 				if in.Name == ReferencePort {
-					needsReference = true
+					needsReference = needsReference || in.Required
 					continue
 				}
 				needsInput = true

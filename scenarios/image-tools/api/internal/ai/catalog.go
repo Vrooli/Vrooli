@@ -34,9 +34,11 @@ type Op struct {
 	Summary       string
 	RequiresImage bool
 	RequiresMask  bool
-	// RequiresReference is true when the op takes a second image that supplies
+	// RequiresReference is true when the op needs a second image that supplies
 	// what to transfer (the face for face_swap). It is the image port named
-	// "reference"; the first image port is still the one being edited.
+	// "reference"; the first image port is still the one being edited. An op may
+	// also take a reference as an option (a character for pose_generate); then it
+	// is accepted but not required.
 	RequiresReference bool
 	PromptDriven      bool
 }
@@ -61,7 +63,7 @@ func project(m capability.Manifest) Op {
 		switch in.Kind {
 		case "image":
 			if in.Name == capability.ReferencePort {
-				op.RequiresReference = true
+				op.RequiresReference = in.Required
 				continue
 			}
 			op.RequiresImage = true

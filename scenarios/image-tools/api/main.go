@@ -18,6 +18,7 @@ import (
 
 	internaladapters "image-tools/internal/adapters"
 	internalai "image-tools/internal/ai"
+	"image-tools/internal/aigateway"
 	internalanalysis "image-tools/internal/analysis"
 	"image-tools/internal/backends"
 	"image-tools/internal/capabilities"
@@ -716,7 +717,10 @@ func main() {
 			log.Printf("WARNING: bundled minor-safety reviewer unavailable (%v); generated images will be refused", bundledErr)
 			minorReviewer = safety.UnavailableReviewer(bundledErr)
 		} else {
-			minorReviewer = bundled
+			// A sexual image with no readable face cannot be age-checked by the face
+			// stages. A local vision model reads the whole body as a second opinion and
+			// may clear it only as a confident adult; anything else stays refused.
+			minorReviewer = safety.NewSecondOpinionReviewer(bundled, aigateway.NewAgeJudge(aigateway.NewVisionClient()))
 			reviewModels = safety.BundledReviewerModels
 			reviewEscalationModels = safety.BundledReviewerEscalationModels
 		}

@@ -33,7 +33,11 @@ type (
 	// operationMemoryContextKey marks a job whose RAM is already admitted, so a
 	// warm worker does not double-claim.
 	operationMemoryContextKey struct{}
-	preparedExecution         struct {
+	// computeReleaseKey carries the job's compute-claim release so a runner can
+	// free GPU/RAM before a CPU-bound step (the mandatory safety review) that
+	// would otherwise compete with the model it is reviewing.
+	computeReleaseKey struct{}
+	preparedExecution struct {
 		model     models.Model
 		selection backends.Selection
 		payload   Payload
@@ -383,7 +387,7 @@ func (e *Engine) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, error
 		}
 	}
 	if hasPosePreprocessor(pl) && e.deps.Memory != nil {
-		// MediaPipe's CPU pose task executes inside the generation job. Keep its
+		// The pose reader (DWPose on the CPU) executes inside the generation job. Keep its
 		// bounded worker memory in the same admission lifetime as the generator.
 		const poseWorkerRAMBytes = int64(1 << 30)
 		lease, err := e.deps.Memory(group.ctx, "image-tools:"+job.ID+":pose-preprocessor-ram", poseWorkerRAMBytes)
@@ -467,6 +471,7 @@ func (e *Engine) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, error
 	// this job holds is now serving it.
 	meta[capacityActivityMetadataKey] = reportActivity(ctx, group, true)
 	admission.Context = context.WithValue(ctx, executionAdmissionKey{}, &preparedExecution{model: model, selection: bsel, payload: pl, jobContext: jobContext, finishInference: group.releaseInference, markDiskCleanupVerified: group.markDiskCleanupVerified})
+	admission.Context = withComputeRelease(admission.Context, group.releaseCompute)
 	admission.Release = func(cleanup context.Context) error {
 		err := group.release(cleanup)
 		if err != nil {
@@ -769,6 +774,48 @@ func (g *leaseGroup) release(ctx context.Context) error {
 
 func (g *leaseGroup) releaseInference(ctx context.Context) error {
 	return g.releaseWithDisk(ctx, false)
+}
+
+// releaseCompute drops this job's CPU/GPU/RAM claims and stops their keep-alives,
+// leaving the worker finishes and the disk reservation for the manager's final
+// release. A runner calls it once its model work is done but before a CPU-bound
+// step (the safety review): the review's local vision model otherwise waits for
+// GPU memory the job's own still-active claim is counting against the host.
+func (g *leaseGroup) releaseCompute(ctx context.Context) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	for i := len(g.stops) - 1; i >= 0; i-- {
+		g.stops[i]()
+	}
+	g.stops = nil
+	var errs []error
+	for i := len(g.releases) - 1; i >= 0; i-- {
+		if g.releases[i] == nil {
+			continue
+		}
+		if err := g.releases[i](ctx); err != nil {
+			errs = append(errs, err)
+		} else {
+			g.releases[i] = nil
+		}
+	}
+	return errors.Join(errs...)
+}
+
+// withComputeRelease attaches a job's early compute release to its run context.
+func withComputeRelease(ctx context.Context, fn func(context.Context) error) context.Context {
+	return context.WithValue(ctx, computeReleaseKey{}, fn)
+}
+
+// releaseComputeClaims runs the early release attached by admission, if any. A
+// release failure is reported to the caller but does not cancel the review: the
+// manager retries the remaining claims on its final release.
+func releaseComputeClaims(ctx context.Context) error {
+	fn, _ := ctx.Value(computeReleaseKey{}).(func(context.Context) error)
+	if fn == nil {
+		return nil
+	}
+	return fn(ctx)
 }
 
 func (g *leaseGroup) markDiskCleanupVerified(verified bool) {

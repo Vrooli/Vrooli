@@ -171,39 +171,6 @@ func withRuntimeLibraries(env []string, python string) []string {
 
 const maxCommandStderrBytes = 4096
 
-const poseLandmarkerScript = `
-import json, sys
-import mediapipe as mp
-from mediapipe.tasks import python as mp_python
-from mediapipe.tasks.python import vision
-
-model_path, image_path = sys.argv[1], sys.argv[2]
-base = mp_python.BaseOptions(
-    model_asset_path=model_path,
-    delegate=mp_python.BaseOptions.Delegate.CPU,
-)
-options = vision.PoseLandmarkerOptions(
-    base_options=base,
-    running_mode=vision.RunningMode.IMAGE,
-    num_poses=1,
-)
-image = mp.Image.create_from_file(image_path)
-with vision.PoseLandmarker.create_from_options(options) as landmarker:
-    result = landmarker.detect(image)
-poses = result.pose_landmarks
-if not poses:
-    print(json.dumps({"landmarks": []}))
-else:
-    print(json.dumps({"landmarks": [
-        {"x": float(p.x), "y": float(p.y), "visibility": float(getattr(p, "visibility", 1.0))}
-        for p in poses[0]
-    ]}))
-`
-
-type poseLandmarkerOutput struct {
-	Landmarks []posemap.Landmark `json:"landmarks"`
-}
-
 var ErrNoPoseDetected = errors.New("analysis: no visible pose found in source image")
 
 func commandError(prefix string, err error) error {
@@ -220,48 +187,67 @@ func commandError(prefix string, err error) error {
 	return fmt.Errorf("%s: %w", prefix, err)
 }
 
-// PoseMap derives an OpenPose-compatible bone image from a source photo. The
-// AI job supplies an immutable task asset from the selected adapter directory
-// and holds that adapter's use lease for this entire call, so preprocessing
-// remains inside the same whole-job admission as generation.
-func (s *Service) PoseMap(ctx context.Context, modelPath, inputPath, outputPath string, width, height int) error {
+// PoseMap derives an OpenPose bone image from a source picture: a photograph, a
+// line-art mannequin, or one cell of a pose chart. The caller holds the pose
+// model's use lease and the job's admission, so reading the pose stays inside the
+// same whole-job admission as generation.
+func (s *Service) PoseMap(ctx context.Context, req posemap.Request) error {
 	if strings.TrimSpace(s.pythonProgram) == "" {
-		return fmt.Errorf("%w: isolated Python environment is not provisioned; install the approved MediaPipe runtime and restart image-tools", ErrBackendUnavailable)
+		return fmt.Errorf("%w: isolated Python environment is not provisioned; install uv and restart image-tools", ErrBackendUnavailable)
 	}
-	if _, err := s.resolveLookPath()(s.pythonProgram); err != nil {
+	python, err := s.resolveLookPath()(s.pythonProgram)
+	if err != nil {
 		return fmt.Errorf("%w: isolated Python interpreter is unavailable at %q", ErrBackendUnavailable, s.pythonProgram)
 	}
-	for _, path := range []string{modelPath, inputPath} {
-		info, err := os.Stat(path)
-		if err != nil || !info.Mode().IsRegular() {
-			return fmt.Errorf("%w: pose model or source image is unavailable at %q", ErrBackendUnavailable, path)
-		}
+	if !s.modelInstalled(posemap.ModelID) {
+		return fmt.Errorf("%w: model %q not installed — run `image-tools models install %s`", ErrBackendUnavailable, posemap.ModelID, posemap.ModelID)
 	}
-	output, err := s.resolveRun()(ctx, s.pythonProgram, []string{"-c", poseLandmarkerScript, modelPath, inputPath})
+	info, err := os.Stat(req.Source)
+	if err != nil || !info.Mode().IsRegular() {
+		return fmt.Errorf("%w: pose source image is unavailable at %q", ErrBackendUnavailable, req.Source)
+	}
+	options := map[string]any{}
+	if req.Box != nil {
+		options["box"] = req.Box
+	}
+	if req.Prepare != "" {
+		options["prepare"] = req.Prepare
+	}
+	params, err := json.Marshal(options)
 	if err != nil {
-		return commandError("analysis: MediaPipe Pose Landmarker", err)
+		return fmt.Errorf("analysis: pose options: %w", err)
 	}
-	var detected poseLandmarkerOutput
-	if err := json.Unmarshal(output, &detected); err != nil {
-		return fmt.Errorf("analysis: decode pose landmarks: %w", err)
+	docPath := req.Output + ".pose.json"
+	defer func() { _ = os.Remove(docPath) }()
+	args := []string{"-m", "image_tools_sidecar.pose_extract", "--model", s.modelDir(posemap.ModelID), "--image", req.Source, "--out", docPath, "--params", string(params)}
+	if _, err := s.resolveRun()(ctx, python, args); err != nil {
+		return commandError("analysis: pose estimation", err)
 	}
-	if len(detected.Landmarks) == 0 {
-		return ErrNoPoseDetected
+	raw, err := os.ReadFile(docPath)
+	if err != nil {
+		return fmt.Errorf("analysis: read pose document: %w", err)
 	}
-	points, err := posemap.COCO18(detected.Landmarks, 0.5)
+	doc, err := posemap.Parse(raw)
 	if err != nil {
 		return err
 	}
-	file, err := os.OpenFile(outputPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+	person, err := doc.Primary()
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrNoPoseDetected, err)
+	}
+	view := doc.Whole()
+	if req.Box != nil {
+		view = posemap.View{X0: req.Box[0], Y0: req.Box[1], X1: req.Box[2], Y1: req.Box[3]}
+	}
+	if view, err = posemap.Fit([4]float64{view.X0, view.Y0, view.X1, view.Y1}, float64(req.Width)/float64(req.Height)); err != nil {
+		return err
+	}
+	file, err := os.OpenFile(req.Output, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
 	if err != nil {
 		return fmt.Errorf("analysis: create pose map: %w", err)
 	}
-	encodeErr := posemap.WritePNG(file, width, height, points)
-	closeErr := file.Close()
-	if err := errors.Join(encodeErr, closeErr); err != nil {
-		return err
-	}
-	return nil
+	encodeErr := posemap.Render(file, doc, person, req.Width, req.Height, view)
+	return errors.Join(encodeErr, file.Close())
 }
 
 // modelDir is the absolute installed-weights directory for a model id.

@@ -104,6 +104,22 @@ class JudgeImageTests(unittest.TestCase):
         self.assertEqual(mr.sexual_threshold(False, True), 0.0)
         self.assertLess(mr.STRICT_SEXUAL_THRESHOLD, mr.SEXUAL_THRESHOLD)
 
+    def test_either_classifier_can_call_an_image_sexual(self):
+        # The precise classifier alone, and the high-recall one alone, each cross
+        # their own bar; neither is required to agree.
+        self.assertTrue(mr.sexual_decision(mr.SEXUAL_THRESHOLD, 0.0, strict=False))
+        self.assertTrue(mr.sexual_decision(0.0, mr.RECALL_SEXUAL_THRESHOLD, strict=False))
+
+    def test_the_measured_sfw_false_positive_does_not_cross_the_recall_bar(self):
+        # AdamCodd scored the clothed studio portraits up to 0.652; the recall
+        # threshold is above that so a clothed adult is not called sexual by it.
+        self.assertFalse(mr.sexual_decision(0.01, 0.652, strict=False))
+        self.assertGreater(mr.RECALL_SEXUAL_THRESHOLD, 0.652)
+
+    def test_strict_mode_lowers_both_bars(self):
+        self.assertTrue(mr.sexual_decision(0.0, mr.STRICT_RECALL_SEXUAL_THRESHOLD, strict=True))
+        self.assertLess(mr.recall_sexual_threshold(True, False), mr.recall_sexual_threshold(False, False))
+
 
 class AggregateTests(unittest.TestCase):
     @staticmethod
@@ -135,7 +151,7 @@ class ReviewImageStubTests(unittest.TestCase):
     def run_review(self, nsfw, faces, probs, **kw):
         image = Image.new("RGB", (400, 400), (90, 80, 70))
         detected = [{"box": f, "score": 0.9, "landmarks": None} for f in faces]
-        with mock.patch.object(mr, "_nsfw_score", return_value=nsfw), \
+        with mock.patch.object(mr, "_nsfw_scores", return_value=(nsfw, 0.0)), \
                 mock.patch("image_tools_sidecar.face_restore.detect_faces", return_value=detected), \
                 mock.patch.object(mr, "_age_probs", return_value=probs), \
                 mock.patch.object(mr._Models, "require"), \
@@ -144,7 +160,7 @@ class ReviewImageStubTests(unittest.TestCase):
             return mr.review_image(np, Image, mr._Models("/nowhere"), image, **kw)
 
     def test_non_sexual_image_never_loads_the_face_or_age_models(self):
-        with mock.patch.object(mr, "_nsfw_score", return_value=0.01), \
+        with mock.patch.object(mr, "_nsfw_scores", return_value=(0.01, 0.0)), \
                 mock.patch.object(mr._Models, "detector", side_effect=AssertionError("detector loaded")), \
                 mock.patch.object(mr._Models, "age", side_effect=AssertionError("age model loaded")):
             out = mr.review_image(np, Image, mr._Models("/nowhere"), Image.new("RGB", (64, 64)), strict=False)
@@ -184,7 +200,7 @@ class RunContractTests(unittest.TestCase):
 
     def test_verdict_carries_the_documented_contract_fields(self):
         request = {"images": [{"media_type": "image/png", "base64": png_b64()}], "strict": True}
-        with mock.patch.object(mr, "_nsfw_score", return_value=0.02):
+        with mock.patch.object(mr, "_nsfw_scores", return_value=(0.02, 0.0)):
             verdict = mr.run(request, "/nowhere")
         self.assertEqual({"minor", "sexual", "detail", "images", "thresholds"}, set(verdict))
         self.assertFalse(verdict["minor"] or verdict["sexual"])
@@ -207,8 +223,9 @@ class RunContractTests(unittest.TestCase):
         import tempfile
         request = {"images": [{"media_type": "image/png", "base64": png_b64()}]}
         with tempfile.TemporaryDirectory() as root:
-            os.makedirs(os.path.join(root, "models", mr.MODEL_NSFW))
-            with mock.patch.object(mr, "_nsfw_score", return_value=0.01):
+            for model in mr.CLASSIFIER_MODELS:
+                os.makedirs(os.path.join(root, "models", model))
+            with mock.patch.object(mr, "_nsfw_scores", return_value=(0.01, 0.0)):
                 verdict = mr.run(request, root)
         self.assertFalse(verdict["minor"] or verdict["sexual"])
 
@@ -217,8 +234,9 @@ class RunContractTests(unittest.TestCase):
         import tempfile
         request = {"images": [{"media_type": "image/png", "base64": png_b64()}]}
         with tempfile.TemporaryDirectory() as root:
-            os.makedirs(os.path.join(root, "models", mr.MODEL_NSFW))
-            with mock.patch.object(mr, "_nsfw_score", return_value=0.95), \
+            for model in mr.CLASSIFIER_MODELS:
+                os.makedirs(os.path.join(root, "models", model))
+            with mock.patch.object(mr, "_nsfw_scores", return_value=(0.95, 0.0)), \
                     self.assertRaises(SystemExit) as cm, \
                     mock.patch("sys.stderr", new_callable=io.StringIO) as err:
                 mr.run(request, root)

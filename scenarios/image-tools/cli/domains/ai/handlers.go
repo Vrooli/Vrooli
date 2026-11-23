@@ -92,9 +92,9 @@ func (h *handlers) submit(operation string, needsInput, needsMask, needsReferenc
 			}
 		}
 		reference := ""
-		if needsReference {
+		if needsReference || ctx.FlagDeclared("reference") {
 			reference = ctx.Flag("reference")
-			if reference == "" {
+			if needsReference && reference == "" {
 				return fmt.Errorf("--reference is required for %s: the image that supplies the face", operation)
 			}
 		}
@@ -117,6 +117,24 @@ func (h *handlers) submit(operation string, needsInput, needsMask, needsReferenc
 				return err
 			}
 			if err := mergeOpParams(params, transferParams); err != nil {
+				return err
+			}
+		}
+		if operation == "pose_generate" {
+			generateParams, err := poseGenerateParams(ctx)
+			if err != nil {
+				return err
+			}
+			if err := mergeOpParams(params, generateParams); err != nil {
+				return err
+			}
+		}
+		if operation == "pose_chart_split" || operation == "pose_extract" {
+			poseParams, err := poseOpParams(ctx)
+			if err != nil {
+				return err
+			}
+			if err := mergeOpParams(params, poseParams); err != nil {
 				return err
 			}
 		}
@@ -480,6 +498,97 @@ func regionOpParams(ctx cliapp.RunContext) (map[string]any, error) {
 			return nil, fmt.Errorf("invalid --%s %q: expected %s", flag, raw, spec.describe)
 		}
 		out[spec.key] = value
+	}
+	return out, nil
+}
+
+// poseGenerateParams turns the pose-generate flags into op_params; the capability
+// schema is the server-side contract for the ranges.
+func poseGenerateParams(ctx cliapp.RunContext) (map[string]any, error) {
+	out := map[string]any{}
+	if raw := flagOr(ctx, "pose-cell"); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil || n < 1 || n > 144 {
+			return nil, fmt.Errorf("invalid --pose-cell %q: expected a chart cell number, 1..144", raw)
+		}
+		out["pose_cell"] = float64(n)
+	}
+	if grid := flagOr(ctx, "pose-grid"); grid != "" {
+		out["pose_grid"] = grid
+	}
+	if raw := flagOr(ctx, "pose-prepare"); raw != "" {
+		out["pose_prepare"] = strings.ReplaceAll(strings.ToLower(raw), "-", "_")
+	}
+	for flag, spec := range map[string]struct {
+		key      string
+		min, max float64
+	}{
+		"pose-strength":      {"pose_strength", 0.1, 2},
+		"character-strength": {"character_strength", 0.05, 1},
+	} {
+		raw := flagOr(ctx, flag)
+		if raw == "" {
+			continue
+		}
+		value, err := strconv.ParseFloat(raw, 64)
+		if err != nil || value < spec.min || value > spec.max {
+			return nil, fmt.Errorf("invalid --%s %q: expected %g..%g", flag, raw, spec.min, spec.max)
+		}
+		out[spec.key] = value
+	}
+	return out, nil
+}
+
+// poseOpParams turns the flags of the pose operations (chart split, pose
+// extraction) into op_params; the capability schema is the server-side contract
+// for the ranges.
+func poseOpParams(ctx cliapp.RunContext) (map[string]any, error) {
+	out := map[string]any{}
+	if grid := flagOr(ctx, "grid"); grid != "" {
+		out["grid"] = grid
+	}
+	for flag, spec := range map[string]struct {
+		key      string
+		min, max float64
+		describe string
+	}{
+		"gap":     {"gap", 0.005, 0.2, "0.005..0.2"},
+		"padding": {"padding", 0, 0.3, "0..0.3"},
+	} {
+		raw := flagOr(ctx, flag)
+		if raw == "" {
+			continue
+		}
+		value, err := strconv.ParseFloat(raw, 64)
+		if err != nil || value < spec.min || value > spec.max {
+			return nil, fmt.Errorf("invalid --%s %q: expected %s", flag, raw, spec.describe)
+		}
+		out[spec.key] = value
+	}
+	if raw := flagOr(ctx, "prepare"); raw != "" {
+		out["prepare"] = strings.ReplaceAll(strings.ToLower(raw), "-", "_")
+	}
+	if raw := flagOr(ctx, "max-people"); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil || n < 1 || n > 16 {
+			return nil, fmt.Errorf("invalid --max-people %q: expected 1..16", raw)
+		}
+		out["max_people"] = float64(n)
+	}
+	if raw := flagOr(ctx, "box"); raw != "" {
+		parts := strings.Split(raw, ",")
+		if len(parts) != 4 {
+			return nil, fmt.Errorf("invalid --box %q: expected x0,y0,x1,y1 in pixels", raw)
+		}
+		corners := make([]any, 0, 4)
+		for _, part := range parts {
+			value, err := strconv.ParseFloat(strings.TrimSpace(part), 64)
+			if err != nil || value < 0 {
+				return nil, fmt.Errorf("invalid --box %q: expected x0,y0,x1,y1 in pixels", raw)
+			}
+			corners = append(corners, value)
+		}
+		out["box"] = corners
 	}
 	return out, nil
 }

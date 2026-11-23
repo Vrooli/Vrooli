@@ -288,6 +288,115 @@ func DecodeColorTransferParams(m map[string]string) (ColorTransferParams, error)
 	return out, nil
 }
 
+// PoseChartSplitParams is the typed view of this operation's parameter object.
+type PoseChartSplitParams struct {
+	Gap     *float64 `json:"gap,omitempty"`
+	Grid    *string  `json:"grid,omitempty"`
+	Padding *float64 `json:"padding,omitempty"`
+}
+
+// DecodePoseChartSplitParams turns the persisted string map into a typed view of the "pose_chart_split"
+// parameters. It fails closed on a value that no longer parses.
+func DecodePoseChartSplitParams(m map[string]string) (PoseChartSplitParams, error) {
+	var out PoseChartSplitParams
+	if raw, ok := m["gap"]; ok && raw != "" {
+		v, err := strconv.ParseFloat(raw, float64Bits)
+		if err != nil {
+			return out, fmt.Errorf("pose_chart_split: gap: %w", err)
+		}
+		out.Gap = &v
+	}
+	if raw, ok := m["grid"]; ok && raw != "" {
+		v := raw
+		out.Grid = &v
+	}
+	if raw, ok := m["padding"]; ok && raw != "" {
+		v, err := strconv.ParseFloat(raw, float64Bits)
+		if err != nil {
+			return out, fmt.Errorf("pose_chart_split: padding: %w", err)
+		}
+		out.Padding = &v
+	}
+	return out, nil
+}
+
+// PoseExtractParams is the typed view of this operation's parameter object.
+type PoseExtractParams struct {
+	Box       []float64 `json:"box,omitempty"`
+	MaxPeople *int      `json:"max_people,omitempty"`
+	Prepare   *string   `json:"prepare,omitempty"`
+}
+
+// DecodePoseExtractParams turns the persisted string map into a typed view of the "pose_extract"
+// parameters. It fails closed on a value that no longer parses.
+func DecodePoseExtractParams(m map[string]string) (PoseExtractParams, error) {
+	var out PoseExtractParams
+	if raw, ok := m["box"]; ok && raw != "" {
+		var v []float64
+		if err := json.Unmarshal([]byte(raw), &v); err != nil {
+			return out, fmt.Errorf("pose_extract: box: %w", err)
+		}
+		out.Box = v
+	}
+	if raw, ok := m["max_people"]; ok && raw != "" {
+		v, err := strconv.Atoi(raw)
+		if err != nil {
+			return out, fmt.Errorf("pose_extract: max_people: %w", err)
+		}
+		out.MaxPeople = &v
+	}
+	if raw, ok := m["prepare"]; ok && raw != "" {
+		v := raw
+		out.Prepare = &v
+	}
+	return out, nil
+}
+
+// PoseGenerateParams is the typed view of this operation's parameter object.
+type PoseGenerateParams struct {
+	CharacterStrength *float64 `json:"character_strength,omitempty"`
+	PoseCell          *int     `json:"pose_cell,omitempty"`
+	PoseGrid          *string  `json:"pose_grid,omitempty"`
+	PosePrepare       *string  `json:"pose_prepare,omitempty"`
+	PoseStrength      *float64 `json:"pose_strength,omitempty"`
+}
+
+// DecodePoseGenerateParams turns the persisted string map into a typed view of the "pose_generate"
+// parameters. It fails closed on a value that no longer parses.
+func DecodePoseGenerateParams(m map[string]string) (PoseGenerateParams, error) {
+	var out PoseGenerateParams
+	if raw, ok := m["character_strength"]; ok && raw != "" {
+		v, err := strconv.ParseFloat(raw, float64Bits)
+		if err != nil {
+			return out, fmt.Errorf("pose_generate: character_strength: %w", err)
+		}
+		out.CharacterStrength = &v
+	}
+	if raw, ok := m["pose_cell"]; ok && raw != "" {
+		v, err := strconv.Atoi(raw)
+		if err != nil {
+			return out, fmt.Errorf("pose_generate: pose_cell: %w", err)
+		}
+		out.PoseCell = &v
+	}
+	if raw, ok := m["pose_grid"]; ok && raw != "" {
+		v := raw
+		out.PoseGrid = &v
+	}
+	if raw, ok := m["pose_prepare"]; ok && raw != "" {
+		v := raw
+		out.PosePrepare = &v
+	}
+	if raw, ok := m["pose_strength"]; ok && raw != "" {
+		v, err := strconv.ParseFloat(raw, float64Bits)
+		if err != nil {
+			return out, fmt.Errorf("pose_generate: pose_strength: %w", err)
+		}
+		out.PoseStrength = &v
+	}
+	return out, nil
+}
+
 // MaskCompositeParams is the typed view of this operation's parameter object.
 type MaskCompositeParams struct {
 	FeatherPx *float64 `json:"feather_px,omitempty"`

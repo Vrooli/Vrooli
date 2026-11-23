@@ -42,6 +42,11 @@ func TestLoadSeed(t *testing.T) {
 	// warning instead of promoting it or breaking unrelated startup.
 	doctor := r.DoctorCatalog()
 	for _, op := range r.SortedOperations() {
+		// A preset names its own model and runs another operation; the catalog
+		// contract for the model belongs to the operation it runs.
+		if m, ok := capability.Get(op); ok && m.Preset != nil {
+			continue
+		}
 		def, ok := r.DefaultFor(op)
 		if !ok {
 			expectedUnavailable := false

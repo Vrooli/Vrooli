@@ -612,6 +612,14 @@
       "mask_composite": {
         "label": "Composite through mask",
         "desc": "Lay a second image into the first through a mask, with a feathered seam."
+      },
+      "pose_chart_split": {
+        "label": "Find poses on a chart",
+        "desc": "Cut a pose chart into one cell per figure."
+      },
+      "pose_extract": {
+        "label": "Read a pose",
+        "desc": "Read body and hand keypoints from an image, photo or line drawing."
       }
     },
     "enhance": {
@@ -655,6 +663,10 @@
       }
     },
     "createOp": {
+      "pose_generate": {
+        "label": "Pose a character",
+        "desc": "Put a character in the pose of a photo, a drawing or a chart cell."
+      },
       "text_to_image": {
         "label": "Generate",
         "desc": "Create a new image from a text prompt."
@@ -813,6 +825,17 @@
         "acceptPrefix": "I accept the",
         "license": "CreativeML OpenRAIL-M license",
         "acceptSuffix": "and agree to its use restrictions, including Attachment A, and to pass the license and restrictions to recipients if I redistribute the model or a derivative."
+      },
+      "poseChart": {
+        "title": "Pose chart",
+        "hint": "Upload a chart or a single pose picture, then tap the pose to use.",
+        "busy": "Finding the poses…",
+        "error": "Could not read the chart: {{message}}",
+        "needsChart": "Upload a pose chart or a single-pose picture.",
+        "needsCell": "Tap a pose to use.",
+        "selected": "Pose {{cell}} selected",
+        "reference": "Character picture (optional; a written prompt works too)",
+        "referenceHint": "Keep the same character across poses by giving a picture."
       }
     },
     "mask": {

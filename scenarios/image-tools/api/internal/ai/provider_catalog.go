@@ -240,6 +240,7 @@ func providerSpecs() []providerSpec {
 				nativeTechnique("onnx-depth-map", "depth_map", technique.OnnxSidecar),
 				nativeTechnique("onnx-face-restore", "face_restore", technique.OnnxSidecar),
 				nativeTechnique("onnx-face-swap", "face_swap", technique.OnnxSidecar),
+				nativeTechnique("onnx-pose-extract", "pose_extract", technique.OnnxSidecar),
 				nativeTechnique("moge-scene-geometry", "scene_geometry", technique.OnnxSidecar),
 				nativeTechnique("onnx-object-detection", "object_detection", technique.OnnxSidecar),
 				nativeTechnique("onnx-segment", "segment", technique.OnnxSidecar),

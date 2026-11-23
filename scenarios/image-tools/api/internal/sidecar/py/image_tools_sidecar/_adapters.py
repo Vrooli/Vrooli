@@ -167,6 +167,29 @@ def parse_ip_adapter_specs(specs: Sequence[str]) -> List[IPAdapterSpec]:
     return [parse_ip_adapter_spec(s) for s in specs if s and s.strip()]
 
 
+def ip_adapter_layout(weight_path: str):
+    """Where diffusers should look for an IP-Adapter's weight and its CLIP image
+    encoder, as ``(root, subfolder, image_encoder_folder)``.
+
+    The encoder lives next to the weight (``<dir>/image_encoder``) in the SD 1.5
+    snapshot, but the SDXL snapshot keeps the ViT-H encoder under ``models/`` while
+    its weights sit in ``sdxl_models/``. The nearest ``image_encoder`` directory at
+    or above the weight wins; a path with a slash is resolved from ``root``.
+    """
+    import os  # noqa: WPS433
+
+    weight_dir = os.path.dirname(weight_path)
+    if os.path.isdir(os.path.join(weight_dir, "image_encoder")):
+        return weight_dir, "", "image_encoder"
+    root = os.path.dirname(weight_dir)
+    while root and root != os.path.dirname(root):
+        for candidate in ("image_encoder", os.path.join("models", "image_encoder")):
+            if os.path.isdir(os.path.join(root, candidate)):
+                return root, os.path.relpath(weight_dir, root), candidate.replace(os.sep, "/")
+        root = os.path.dirname(root)
+    return weight_dir, "", "image_encoder"
+
+
 def apply_ip_adapter(pipe: Any, specs: Sequence[str]):
     """Load + scale the IP-Adapter on a constructed pipeline and return the opened
     reference image (passed as ``ip_adapter_image`` at call time), or None for no
@@ -184,8 +207,8 @@ def apply_ip_adapter(pipe: Any, specs: Sequence[str]):
     # directory, a subfolder, and the weight filename.
     import os  # noqa: WPS433
 
-    weight_dir = os.path.dirname(sp.path)
-    weight_name = os.path.basename(sp.path)
-    pipe.load_ip_adapter(weight_dir, subfolder="", weight_name=weight_name)
+    root, subfolder, encoder = ip_adapter_layout(sp.path)
+    kwargs = {"image_encoder_folder": encoder} if encoder != "image_encoder" else {}
+    pipe.load_ip_adapter(root, subfolder=subfolder, weight_name=os.path.basename(sp.path), **kwargs)
     pipe.set_ip_adapter_scale(sp.scale)
     return Image.open(sp.image).convert("RGB")

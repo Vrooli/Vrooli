@@ -929,6 +929,265 @@
       "engine": "ai"
     },
     {
+      "id": "pose_chart_split",
+      "summary": "Find the poses on a pose chart (a sheet of figures in a grid or any other arrangement) and return each pose's cell",
+      "family": "extract",
+      "mechanism": "compute",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "data"
+        }
+      },
+      "requires": {
+        "process": false,
+        "weights": false,
+        "network": false
+      },
+      "backends": [
+        "builtin"
+      ],
+      "consent_weight": "none",
+      "params_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "grid": {
+            "type": "string",
+            "maxLength": 8,
+            "description": "Pin the layout as ROWSxCOLS (for example 3x3) instead of finding the figures from the page."
+          },
+          "gap": {
+            "type": "number",
+            "minimum": 0.005,
+            "maximum": 0.2,
+            "description": "How far apart two drawings must be to be separate cells, as a share of the page's longer side (default 0.02)."
+          },
+          "padding": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 0.3,
+            "description": "Margin added around each drawing, as a share of its size (default 0.03)."
+          }
+        }
+      },
+      "cli": {
+        "group": "ai",
+        "verb": "pose-chart",
+        "flags": [
+          "grid",
+          "gap",
+          "padding"
+        ]
+      },
+      "presentation": {
+        "icon": "LayoutGrid",
+        "label_key": "workspace.aiOp.pose_chart_split.label",
+        "desc_key": "workspace.aiOp.pose_chart_split.desc"
+      },
+      "engine": "ai"
+    },
+    {
+      "id": "pose_extract",
+      "summary": "Read the pose of the people in an image as body and hand keypoints (photos and line-art figures)",
+      "family": "extract",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "data"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "onnxruntime"
+      ],
+      "consent_weight": "none",
+      "params_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "box": {
+            "type": "array",
+            "maxItems": 4,
+            "items": {
+              "type": "number",
+              "minimum": 0
+            },
+            "description": "Read this one person only: [x0, y0, x1, y1] in pixels. Default: find the people (a drawing with no detectable person is read as one figure)."
+          },
+          "max_people": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 16,
+            "description": "The most people to read when finding them (default 4)."
+          },
+          "prepare": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "none",
+              "line_art"
+            ],
+            "description": "How the image is made readable first: auto fills in a line drawing (the estimator reads photographs, and finds about half the joints of a bare outline) and leaves a photo alone; none reads the image as given; line_art always fills it in."
+          }
+        }
+      },
+      "cli": {
+        "group": "ai",
+        "verb": "pose",
+        "flags": [
+          "box",
+          "max-people",
+          "prepare"
+        ]
+      },
+      "presentation": {
+        "icon": "PersonStanding",
+        "label_key": "workspace.aiOp.pose_extract.label",
+        "desc_key": "workspace.aiOp.pose_extract.desc"
+      },
+      "engine": "ai"
+    },
+    {
+      "id": "pose_generate",
+      "summary": "Put a character, written or shown in a reference picture, in the pose of a photo, a line-art figure or one cell of a pose chart",
+      "family": "generate",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "prompt",
+            "kind": "text",
+            "required": true
+          },
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          },
+          {
+            "name": "reference",
+            "kind": "image",
+            "required": false
+          }
+        ],
+        "output": {
+          "kind": "image"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "diffusers"
+      ],
+      "consent_weight": "none",
+      "params_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "pose_cell": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 144,
+            "description": "The pose chart cell to use, numbered in reading order as pose_chart_split numbers them. Default: the whole image is the pose."
+          },
+          "pose_grid": {
+            "type": "string",
+            "pattern": "^[0-9]{1,2}[xX][0-9]{1,2}$",
+            "description": "Pin the chart layout the cell number refers to, as ROWSxCOLS (default: find each figure from the page)."
+          },
+          "pose_prepare": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "none",
+              "line_art"
+            ],
+            "description": "How the pose source is made readable first (see pose_extract); auto fills in a line drawing and leaves a photo alone."
+          },
+          "pose_strength": {
+            "type": "number",
+            "minimum": 0.1,
+            "maximum": 2,
+            "description": "How strictly the picture follows the pose."
+          },
+          "character_strength": {
+            "type": "number",
+            "minimum": 0.05,
+            "maximum": 1,
+            "description": "How strongly the reference picture steers the character; higher keeps more of it, and starts copying its pose."
+          }
+        }
+      },
+      "preset": {
+        "runs": "text_to_image",
+        "model": "juggernaut-xl-v9",
+        "prompt": "full body photo of {prompt}, plain light grey studio background, soft studio lighting, sharp focus, photorealistic",
+        "negative": "deformed, extra limbs, extra fingers, bad anatomy, blurry, text, watermark, cropped, cut off",
+        "steps": 30,
+        "cfg_scale": 5,
+        "adapters": [
+          {
+            "id": "controlnet-openpose-sdxl",
+            "input": "image",
+            "scale_param": "pose_strength"
+          },
+          {
+            "id": "ip-adapter-plus-sdxl-vit-h",
+            "input": "reference",
+            "scale": 0.4,
+            "scale_param": "character_strength"
+          }
+        ]
+      },
+      "cli": {
+        "group": "ai",
+        "verb": "pose-generate",
+        "flags": [
+          "prompt",
+          "negative",
+          "seed",
+          "steps",
+          "cfg-scale",
+          "variations",
+          "auto-scan",
+          "reference",
+          "pose-cell",
+          "pose-grid",
+          "pose-prepare",
+          "pose-strength",
+          "character-strength"
+        ]
+      },
+      "panel": "create",
+      "presentation": {
+        "icon": "PersonStanding",
+        "label_key": "workspace.createOp.pose_generate.label",
+        "desc_key": "workspace.createOp.pose_generate.desc"
+      },
+      "engine": "ai"
+    },
+    {
       "id": "mask_composite",
       "summary": "Lay a second image into the first through a mask, with a grown, feathered seam (the changed hair of an edited photo onto the original)",
       "family": "edit",

@@ -64,8 +64,20 @@ func TestManifestBackendsExistInModelSeed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("models.Load: %v", err)
 	}
+	byID := make(map[string]models.Model, len(reg.Models()))
+	for _, model := range reg.Models() {
+		byID[model.ID] = model
+	}
 	for _, m := range capability.All() {
 		if len(m.Backends) == 0 {
+			continue
+		}
+		// A preset has no models of its own: it is a named way of running another
+		// operation, so its named model must serve that operation on one of the
+		// backends the preset declares. The bare-operation check below would ask
+		// for a seeded model that serves the preset id, which is not a thing.
+		if m.Preset != nil {
+			checkPresetModel(t, m, byID)
 			continue
 		}
 		declared := make(map[string]struct{})
@@ -82,6 +94,38 @@ func TestManifestBackendsExistInModelSeed(t *testing.T) {
 				t.Errorf("manifest %q declares backend %q, but no seeded model for that operation uses it", m.ID, b)
 			}
 		}
+	}
+}
+
+// checkPresetModel proves a preset names a real model that can run the operation
+// behind it on the backend the preset declares. A typo in either name fails here,
+// not at the first use.
+func checkPresetModel(t *testing.T, m capability.Manifest, byID map[string]models.Model) {
+	t.Helper()
+	model, ok := byID[m.Preset.Model]
+	if !ok {
+		t.Errorf("preset %q names model %q, which is not in the seed", m.ID, m.Preset.Model)
+		return
+	}
+	serves := false
+	for _, op := range model.Operations {
+		if op == m.Preset.Runs {
+			serves = true
+			break
+		}
+	}
+	if !serves {
+		t.Errorf("preset %q names model %q, which does not serve %q", m.ID, model.ID, m.Preset.Runs)
+	}
+	backendOK := false
+	for _, b := range m.Backends {
+		if b == model.Backend {
+			backendOK = true
+			break
+		}
+	}
+	if !backendOK {
+		t.Errorf("preset %q declares backends %v but its model %q runs on %q", m.ID, m.Backends, model.ID, model.Backend)
 	}
 }
 

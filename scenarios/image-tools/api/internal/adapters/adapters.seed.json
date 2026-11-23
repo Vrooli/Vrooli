@@ -143,7 +143,7 @@
         "source_repo": "https://huggingface.co/lllyasviel/sd-controlnet-openpose",
         "docs_url": "https://huggingface.co/lllyasviel/sd-controlnet-openpose",
         "repo": { "repo_id": "lllyasviel/sd-controlnet-openpose", "revision": "df796456519d1ac5dbe674caa0653fcc9673bca8", "allow_patterns": ["config.json", "diffusion_pytorch_model.safetensors"], "file_sha256": {"config.json": "dbeca6e56d9319a78d6a63758887334a6143bd270e590864b8182b0139d1a18c", "diffusion_pytorch_model.safetensors": "a3ca16220ebd7220d37a67d68329b4290f2c72a854955fd35f84b97c85596e5b"} },
-        "assets": [{"url": "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task", "filename": "pose/pose_landmarker_full.task", "min_bytes": 9398198}, {"url": "https://huggingface.co/spaces/CompVis/stable-diffusion-license/resolve/14d42d09bffd871b1666a084fc954a50cff72ac0/license.txt", "filename": "LICENSE.OpenRAIL-M.txt", "kind": "config", "sha256": "be351ebe7ac01bcdbb018639aadcfd38f136b7dc3f2a3d4d3a24db51d1b210ef", "min_bytes": 14385}],
+        "assets": [{"url": "https://huggingface.co/spaces/CompVis/stable-diffusion-license/resolve/14d42d09bffd871b1666a084fc954a50cff72ac0/license.txt", "filename": "LICENSE.OpenRAIL-M.txt", "kind": "config", "sha256": "be351ebe7ac01bcdbb018639aadcfd38f136b7dc3f2a3d4d3a24db51d1b210ef", "min_bytes": 14385}],
         "checksum": { "algo": "sha256", "value": "", "status": "unverified-capture-on-download" }
       },
       "capability_labels": {
@@ -152,11 +152,11 @@
         "commercial_use": "conditional",
         "commercial_use_notes": "Commercial use is permitted under CreativeML OpenRAIL-M only with the versioned user agreement, enforced use-based restrictions, and license pass-through notice.",
         "base_model_lineage": "Stable Diffusion 1.5",
-        "known_risks": "structural conditioner driven by an OpenPose skeleton (pose_estimate)"
+        "known_risks": "structural conditioner driven by an OpenPose skeleton the pose reader (dwpose-ll-384) draws from the pose source"
       },
       "license_terms_version": "creativeml-openrail-m-2022-08-22",
       "ready": false,
-      "pending": "Pinned weights, Full pose task and license notice are governed; install only after a fresh complete-job disk admission, then prove admitted end-to-end output quality before enabling.",
+      "pending": "Pinned weights and license notice are governed; install only after a fresh complete-job disk admission, then prove admitted end-to-end output quality before enabling.",
       "enabled": false
     },
     {
@@ -212,6 +212,145 @@
       "ready": false,
       "pending": "SDXL ControlNet conditioning is proven runnable in plan Phase 5 behind a higher-VRAM skip; pin a repo revision and flip Ready then.",
       "enabled": false
+    },
+    {
+      "id": "controlnet-openpose-sdxl",
+      "name": "ControlNet OpenPose (SDXL, xinsir)",
+      "kind": "controlnet",
+      "architecture": "sdxl",
+      "weight": "none",
+      "preprocessor": "pose",
+      "scale_range": {
+        "min": 0.0,
+        "max": 2.0,
+        "default": 1.0
+      },
+      "size_mb_approx": 2500,
+      "source": {
+        "source_repo": "https://huggingface.co/xinsir/controlnet-openpose-sdxl-1.0",
+        "docs_url": "https://huggingface.co/xinsir/controlnet-openpose-sdxl-1.0",
+        "repo": {
+          "repo_id": "xinsir/controlnet-openpose-sdxl-1.0",
+          "revision": "23f966cd5cfdd3f7729c903e243d87152162d2b7",
+          "allow_patterns": [
+            "config.json",
+            "diffusion_pytorch_model.safetensors"
+          ],
+          "file_sha256": {
+            "config.json": "b5b8f9a7619c9452f19407ef73a01ce3f061fcf932de43ddbaca336d12d02801",
+            "diffusion_pytorch_model.safetensors": "b8524e557a7df60d081f5d4a0eb109967d107df217943bf88c2d99b9ebcc06c5"
+          }
+        },
+        "checksum": {
+          "algo": "sha256",
+          "value": "",
+          "status": "unverified-capture-on-download"
+        }
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "Apache-2.0",
+        "commercial_use": "yes",
+        "commercial_use_notes": "Apache-2.0 model card; SDXL base licence terms (OpenRAIL++-M) still apply to what it generates.",
+        "base_model_lineage": "Stable Diffusion XL 1.0 (xinsir)",
+        "known_risks": "structural conditioner driven by an OpenPose skeleton image (white-on-black colour bones); the pose reader (dwpose-ll-384) draws that skeleton from the pose source: a photo, a line-art figure or one cell of a pose chart"
+      },
+      "ready": true,
+      "pending": "",
+      "enabled": true
+    },
+    {
+      "id": "controlnet-scribble-sdxl",
+      "name": "ControlNet Scribble (SDXL, xinsir)",
+      "kind": "controlnet",
+      "architecture": "sdxl",
+      "weight": "none",
+      "preprocessor": "none",
+      "scale_range": {
+        "min": 0.0,
+        "max": 2.0,
+        "default": 1.0
+      },
+      "size_mb_approx": 2500,
+      "source": {
+        "source_repo": "https://huggingface.co/xinsir/controlnet-scribble-sdxl-1.0",
+        "docs_url": "https://huggingface.co/xinsir/controlnet-scribble-sdxl-1.0",
+        "repo": {
+          "repo_id": "xinsir/controlnet-scribble-sdxl-1.0",
+          "revision": "0bed4973b80c2329f76e0abf4196c51dfbf9108c",
+          "allow_patterns": [
+            "config.json",
+            "diffusion_pytorch_model.safetensors"
+          ],
+          "file_sha256": {
+            "config.json": "b5b8f9a7619c9452f19407ef73a01ce3f061fcf932de43ddbaca336d12d02801",
+            "diffusion_pytorch_model.safetensors": "b3e4ac47bc814019d50dc842f579301440deb6d8f09ee1b91a30f527ace1b852"
+          }
+        },
+        "checksum": {
+          "algo": "sha256",
+          "value": "",
+          "status": "unverified-capture-on-download"
+        }
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "Apache-2.0",
+        "commercial_use": "yes",
+        "commercial_use_notes": "Apache-2.0 model card; SDXL base licence terms (OpenRAIL++-M) still apply to what it generates.",
+        "base_model_lineage": "Stable Diffusion XL 1.0 (xinsir)",
+        "known_risks": "structural conditioner driven by white lines on black; follows a line drawing's outline, so a mannequin's body shape (not only its pose) steers the result"
+      },
+      "ready": true,
+      "pending": "",
+      "enabled": true
+    },
+    {
+      "id": "ip-adapter-plus-sdxl-vit-h",
+      "name": "IP-Adapter Plus (SDXL, ViT-H)",
+      "kind": "ip-adapter",
+      "architecture": "sdxl",
+      "weight": "high",
+      "scale_range": {
+        "min": 0.0,
+        "max": 1.0,
+        "default": 0.6
+      },
+      "size_mb_approx": 3400,
+      "source": {
+        "source_repo": "https://huggingface.co/h94/IP-Adapter",
+        "docs_url": "https://huggingface.co/h94/IP-Adapter",
+        "repo": {
+          "repo_id": "h94/IP-Adapter",
+          "revision": "018e402774aeeddd60609b4ecdb7e298259dc729",
+          "allow_patterns": [
+            "sdxl_models/ip-adapter-plus_sdxl_vit-h.safetensors",
+            "models/image_encoder/config.json",
+            "models/image_encoder/model.safetensors"
+          ],
+          "file_sha256": {
+            "sdxl_models/ip-adapter-plus_sdxl_vit-h.safetensors": "3f5062b8400c94b7159665b21ba5c62acdcd7682262743d7f2aefedef00e6581",
+            "models/image_encoder/config.json": "625d37b31afbf2f0792a87846b3654ee23f20568409e35b78a1f795b04e1a7a1",
+            "models/image_encoder/model.safetensors": "6ca9667da1ca9e0b0f75e46bb030f7e011f44f86cbfb8d5a36590fcd7507b030"
+          }
+        },
+        "checksum": {
+          "algo": "sha256",
+          "value": "",
+          "status": "unverified-capture-on-download"
+        }
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "Apache-2.0",
+        "commercial_use": "yes",
+        "commercial_use_notes": "",
+        "base_model_lineage": "Stable Diffusion XL 1.0 (CLIP ViT-H image encoder)",
+        "known_risks": "identity/style transfer from a reference image — high consent weight (can carry a real person's likeness)"
+      },
+      "ready": true,
+      "pending": "",
+      "enabled": true
     }
   ]
 }
