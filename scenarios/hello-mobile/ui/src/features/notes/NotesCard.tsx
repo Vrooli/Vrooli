@@ -5,7 +5,7 @@ import { CreateNoteRequestSchema } from "@vrooli/proto-types/hello-mobile/v1/not
 import type { Note } from "../../api/notes";
 
 import { Button } from "@vrooli/react-component-library/Button/2";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
 import { DataTable, type DataTableColumn } from "@vrooli/react-component-library/DataTable/1";
 import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { selectors } from "../../consts/selectors";
@@ -15,7 +15,7 @@ import { useTranslation } from "../../i18n";
 import { notesClient } from "../../api/notes";
 import { errorMessage } from "../../lib/errorMessage";
 import { AttachmentUpload } from "./AttachmentUpload";
-import { ExperienceSurface, type ExperienceSurfaceState } from "../../components/experience/ExperienceSurface";
+import { ExperienceSurface, type ExperienceSurfaceState } from "@vrooli/react-component-library/ExperienceSurface/1";
 
 const NOTES_QUERY_KEY = ["notes"] as const;
 

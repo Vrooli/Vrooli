@@ -59,7 +59,7 @@ The future plan-shape contract and its current implementation status are owned b
 
 This is the target integration with general TTD bundles, not a claim that the
 current proto-only planner supplies it. Follow the
-[documentation-first location rules](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md#documentation-first-authoring-and-application).
+[documentation-first location rules](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md#documentation-first-authoring).
 
 A plan references exact bundle revisions, selected changes, base identities,
 target links, and validation evidence. The plan retains rationale, sequencing,

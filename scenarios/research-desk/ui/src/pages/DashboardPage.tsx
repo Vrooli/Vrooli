@@ -86,7 +86,7 @@ function Moving({ overview: o }: { overview: GetOverviewResponse }) {
   );
 }
 
-/** Live, paused and limited counts, and the newest research write anywhere. */
+/** Live, halted, paused and limited counts, and the newest research write anywhere. */
 function StatusLine({ overview: o }: { overview: GetOverviewResponse }) {
   const { t } = useTranslation();
   const count = (state: CommissionState) => o.stateCounts.find((c) => c.state === state)?.count ?? 0;
@@ -96,6 +96,7 @@ function StatusLine({ overview: o }: { overview: GetOverviewResponse }) {
       <span className="rd-status-counts">
         {t(strings.now.openSummary, {
           live: t(strings.now.liveCount, { count: count(CommissionState.LIVE) }),
+          halted: t(strings.now.haltedCount, { count: count(CommissionState.HALTED) }),
           paused: t(strings.now.pausedCount, { count: count(CommissionState.PAUSED) }),
           limited: t(strings.now.limitedCount, { count: count(CommissionState.LIMITED) }),
         })}
@@ -184,19 +185,21 @@ const PERIOD_LABEL = {
 
 const OPEN_TITLE = {
   [CommissionState.LIVE]: strings.now.liveTitle,
+  [CommissionState.HALTED]: strings.now.haltedTitle,
   [CommissionState.LIMITED]: strings.now.limitedTitle,
   [CommissionState.PAUSED]: strings.now.pausedTitle,
 } as const;
 
 const OPEN_NOTE = {
   [CommissionState.LIVE]: strings.now.liveNote,
+  [CommissionState.HALTED]: strings.now.haltedNote,
   [CommissionState.LIMITED]: strings.now.limitedNote,
   [CommissionState.PAUSED]: strings.now.pausedNote,
 } as const;
 
 /**
  * Supervisors with a window open, split the way the operator needs to read
- * them: live is working; limited and paused are open but idle,
+ * them: live is working; halted, limited and paused are open but idle,
  * and each group says so, so "nothing live, two paused" never reads as an
  * empty page. Each row carries its topics; claim and state rule are on the
  * commission page.

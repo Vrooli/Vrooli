@@ -1,5 +1,5 @@
 import type { ComponentProps, ReactNode } from "react";
-import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1.3.1";
+import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1.3.8";
 import { OverlayActionBar, type OverlayActionList } from "@vrooli/react-component-library/OverlayActionBar/1";
 
 type PlannerDialogProps = Omit<ComponentProps<typeof ResponsiveDialog>, "title" | "footer"> & {

@@ -49,12 +49,9 @@ class PacketTest(unittest.TestCase):
         (self.home / "topics" / "alpha" / "FILMS.md").write_text("# Films\n\n## Wanted\n\n- a film\n")
         self._today = packet.today
         packet.today = lambda: dt.date(2026, 11, 12)
-        self.preflight_patch = mock.patch.object(packet, "report_preflight", return_value=[])
-        self.preflight = self.preflight_patch.start()
 
     def tearDown(self):
         packet.today = self._today
-        self.preflight_patch.stop()
         self.tmp.cleanup()
 
     def topic(self, name, text):
@@ -102,15 +99,19 @@ class PacketTest(unittest.TestCase):
         self.assertIn(str(packet.PATHS["footprint"]), charter)
         self.assertIn("`model` and `reasoning_effort` omitted", charter)
         self.assertTrue(all(g["ok"] for g in res["gates"]))
-        self.preflight.assert_not_called()
 
-    def test_build_runs_preflight_and_refuses_failure(self):
-        self.preflight.return_value = ["report answer inaccessible"]
-        code, res = self.build()
-        self.assertEqual(code, 1)
-        self.assertIn("report answer inaccessible", res["errors"][0]["message"])
-        self.assertEqual(list((self.home / "cohorts").iterdir()), [])
-        self.preflight.assert_called_once_with(self.home, ["alpha", "beta"])
+    def test_build_uses_retained_feedback_without_contacting_hub(self):
+        topic = self.home / "topics" / "alpha"
+        (topic / "reports").mkdir()
+        (topic / "reports" / "previous.json").write_text('{"ask_id":"unavailable"}')
+        (topic / "feedback").mkdir()
+        (topic / "feedback" / "steering.md").write_text("Use the shorter opening.")
+        with mock.patch("subprocess.run", side_effect=AssertionError("build called a service")):
+            code, res = self.build()
+        self.assertEqual(code, 0, res["errors"])
+        self.assertTrue(res["written"])
+        snapshot = self.home / "cohorts" / res["commission_id"] / "FEEDBACK.md"
+        self.assertIn("Use the shorter opening.", snapshot.read_text())
 
     def test_without_an_order_cards_take_active_approved_then_open_and_say_it_is_not_priority(self):
         _, res = self.preview()
@@ -153,7 +154,7 @@ class PacketTest(unittest.TestCase):
         _, res = self.preview(order={"alpha": ["A1"]})
         charter = res["texts"]["charter"]
         alpha_card, beta_card = charter.split("### Card 1", 1)[1].split("### Card 2", 1)
-        beta_card = beta_card.split("## Scheduler procedure", 1)[0]
+        beta_card = beta_card.split("## Manager procedure", 1)[0]
         self.assertIn("- **Also open** (taken when the card's workstreams land or wait): A2, A4", alpha_card)
         self.assertNotIn("Waits on the operator", alpha_card)  # nothing waits: no line
         alpha = self.home / "topics" / "alpha" / "MISSION.md"
@@ -290,30 +291,35 @@ class PacketTest(unittest.TestCase):
             self.assertIn(q.strip(), charter)
 
     def test_a_charter_over_its_gate_carries_fewer_unordered_workstreams_per_card(self):
-        long_row = "| {id} | Land it | Dim A | 40 h | " + "A long showcase sentence. " * 80 + " | open |"
+        long_row = "| {id} | Land it | Dim A | 40 h | " + "A long showcase sentence. " * 60 + " | open |"
         for name, prefix in (("gamma", "G"), ("delta", "D")):
             self.topic(name, mission(rows=[long_row.format(id=f"{prefix}{i}") for i in range(1, 5)]))
         code, res = self.preview(topics=["gamma", "delta"])
         self.assertEqual(code, 0, res["errors"])
-        self.assertLessEqual(len(res["texts"]["charter"].encode()), 25000)
+        self.assertLessEqual(len(res["texts"]["charter"].encode()), packet.load_limits()["gates"]["charter_bytes"])
         self.assertTrue(all(1 < len(c["order"]) < 4 for c in res["cards"]), [c["order"] for c in res["cards"]])
 
-    def test_a_failed_gate_exits_1_writes_nothing_and_says_what_to_cut(self):
+    def test_a_failed_stance_gate_exits_1_and_writes_nothing(self):
         code, res = self.build(stance_quotes=["word " * 800])
         self.assertEqual(code, 1)
         failed = [g["name"] for g in res["gates"] if not g["ok"]]
         self.assertEqual(failed, ["stance_chars"])
         self.assertEqual(list((self.home / "cohorts").iterdir()), [])
+
+    def test_a_charter_over_its_size_gate_warns_what_to_cut_and_is_still_built(self):
         code, res = self.build(card_notes={"beta": "Long operator note. " * 700})
-        self.assertEqual(code, 1)
-        overflow = [e["message"] for e in res["errors"] if e["code"] == "gate_overflow"]
-        self.assertEqual(len(overflow), 1, res["errors"])
-        self.assertRegex(overflow[0], r"^charter is [\d,]+ bytes, [\d,]+ over 25,000; largest parts: Card 2 — Beta things \(notes 14,\d{3}\)")
+        self.assertEqual(code, 0, res["errors"])
+        self.assertEqual(res["errors"], [])
+        gate = f'{packet.load_limits()["gates"]["charter_bytes"]:,}'
+        overflow = [w["message"] for w in res["warnings"] if w["code"] == "gate_overflow"]
+        self.assertEqual(len(overflow), 1, res["warnings"])
+        self.assertRegex(overflow[0], rf"^charter is [\d,]+ bytes, [\d,]+ over {gate}; largest parts: Card 2 — Beta things \(notes 14,\d{{3}}\)")
         self.assertNotIn("YTDLP", overflow[0])
-        self.assertEqual(list((self.home / "cohorts").iterdir()), [])
+        self.assertEqual([g["name"] for g in res["gates"] if not g["ok"]], ["charter_bytes"])
+        self.assertEqual(len(list((self.home / "cohorts").iterdir())), 1)
 
     def test_mission_errors_exit_2(self):
-        self.topic("thin", mission(rows=[WORKSTREAM.format(id="T1", hours="40", status="open")]))
+        self.topic("thin", mission(rows=[WORKSTREAM.format(id="T1", hours="40", status="landed")]))
         code, res = self.preview(topics=["thin"])
         self.assertEqual(code, 2)
         self.assertTrue(any(e["code"] == "mission_error" for e in res["errors"]))
@@ -370,9 +376,36 @@ class PacketTest(unittest.TestCase):
         self.assertEqual(code, 1)
         failed = {g["name"] for g in res["gates"] if not g["ok"]}
         self.assertEqual(failed, {"charter_bytes", "stance_chars", "stance_ending", "kernel_chars", "paths_exist"})
+        self.assertEqual([g["name"] for g in res["gates"] if g.get("advisory")], ["charter_bytes"])
         self.assertEqual(res["cards"][0]["topic"], "alpha")
         code, res = self.run_cli("check", "--home", str(self.home), "absent-20261101")
         self.assertEqual((code, res["errors"][0]["code"]), (3, "not_found"))
+
+    def test_an_answer_waiting_in_a_card_topic_is_named_in_the_charter_start_step(self):
+        _, quiet = self.preview()
+        self.assertIn("none wait at build", quiet["texts"]["charter"])
+        stamp = "2026-11-15T09:00Z"
+        brief = self.home / "topics" / "alpha" / "work" / "A9"
+        brief.mkdir(parents=True)
+        (brief / "BRIEF.md").write_text("x")
+        (self.home / "topics" / "alpha" / "INBOX.md").write_text(
+            f"### {stamp} · from operator · answer\nA9: keep — Keep.\nPacket: {brief / 'BRIEF.md'}\nSource: hub ask a1\n")
+        _, res = self.preview()
+        start = res["texts"]["charter"].split("1. **Start.**", 1)[1].split("2. **The unit loop**", 1)[0]
+        self.assertRegex(start, r"start its executor now \(`spawn <ID>`, above\), before any owner and not at a review \(1 wait at build: A9 \(alpha, [\d.]+ h\)\)")
+
+    def test_the_charter_opens_with_a_loop_card_and_a_measured_pace_line(self):
+        _, res = self.preview()
+        top = res["texts"]["charter"].split("\n\n", 2)[1].splitlines()  # after the title
+        self.assertEqual([l.split(":")[0] for l in top], ["Setpoint", "Sensors", "Actuators", "Manager", "Tooling"])
+        self.assertIn("Last 10 days: 0 landed on these topics", top[0])  # B1 landed 2026-11-01, 11 days before the fixed today
+        self.assertIn("Manager:   portfolio steward. Last blocker removed:", top[3])
+        rows = [WORKSTREAM.format(id=f"A{i}", hours="40", status=st) for i, st in
+                enumerate(["landed 2026-11-10", "landed 2026-11-12", "open", "open"], 1)]
+        (self.home / "topics" / "alpha" / "MISSION.md").write_text(mission(rows=rows).replace("# T — mission", "# Alpha things — mission"))
+        _, res = self.preview()
+        self.assertIn("Last 10 days: 2 landed on these topics", res["texts"]["charter"])
+        self.assertIn("`Goal: <status>`", res["texts"]["charter"])
 
     def test_skill_files_stay_within_recorded_ceilings(self):
         limits = packet.load_limits()

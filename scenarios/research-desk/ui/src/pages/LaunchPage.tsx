@@ -503,7 +503,7 @@ function RunSettings({ form, update, options, limits }: { form: LaunchForm; upda
   );
 }
 
-/** A supervisor window is open on this topic (live, paused or limited; never summed elsewhere). */
+/** A supervisor window is open on this topic (live, halted, paused or limited; never summed elsewhere). */
 function windowOpen(topic: TopicSummary): boolean {
-  return topic.liveCommissionIds.length + topic.pausedCommissionIds.length + topic.limitedCommissionIds.length > 0;
+  return topic.liveCommissionIds.length + topic.pausedCommissionIds.length + topic.limitedCommissionIds.length + topic.haltedCommissionIds.length > 0;
 }

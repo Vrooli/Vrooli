@@ -244,6 +244,7 @@ func (w *wiring) serve(ctx context.Context) {
 	if err := w.launch.MarkInterrupted(ctx); err != nil {
 		log.Printf("launches interrupted by the last stop were not marked: %v", err)
 	}
+	go w.launch.RunRecovery(ctx, launch.RecoverEvery)
 	w.courier.Run(ctx, time.Minute)
 }
 

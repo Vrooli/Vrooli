@@ -15,9 +15,9 @@ import { StatusBadge } from "../../components/StatusBadge";
 import { Card, MetaRow, SectionPanel } from "../../components/Surfaces";
 import { GuidedStepPanel } from "../../components/GuidedStepPanel";
 import { InvestigationIncidentHistory } from "../investigation/InvestigationIncidentHistory";
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
-import { Textarea } from "../../components/ui/textarea";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1.1.1";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { type StringKey } from "../../consts/stringKey";
@@ -42,6 +42,7 @@ import type {
   Execution,
   PhaseContext,
 } from "@vrooli/proto-types/plan-manager/v1/execution/execution_pb";
+import { cn } from "../../lib/utils";
 
 interface RunnerState {
   execution?: Execution;
@@ -164,7 +165,15 @@ function CaptureState({ entry, onRetry }: { entry: LogEntry; onRetry?: (entry: L
       {entry.attributionRunId ? <p>{t(strings.pages.execution.captureRun)}: {entry.attributionRunId}</p> : null}
       {entry.evidence.length ? <p className="break-words">{t(strings.pages.execution.captureEvidence)}: {entry.evidence.join(", ")}</p> : null}
       {retryable && onRetry ? (
-        <Button type="button" size="sm" variant="outline" data-testid={selectors.execution.retrySync({ id: entry.id })} className="mt-1 w-fit" onClick={() => onRetry(entry)}>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          data-testid={selectors.execution.retrySync({ id: entry.id })}
+          className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted", "mt-1 w-fit")}
+          onClick={() => onRetry(entry)}
+          shape="square"
+        >
           {t(strings.pages.execution.captureRetrySync)}
         </Button>
       ) : null}
@@ -605,6 +614,7 @@ export function ExecutionRunner() {
             data-testid={selectors.execution.startButton}
             disabled={busy || planId.length === 0}
             className="shrink-0"
+            shape="square"
           >
             <Play aria-hidden="true" className="me-2 h-4 w-4" />
             {t(strings.pages.execution.start)}
@@ -630,6 +640,7 @@ export function ExecutionRunner() {
             data-testid={selectors.execution.resumeButton}
             disabled={busy || resumeExecutionId.trim().length === 0}
             className="shrink-0"
+            shape="square"
           >
             <Play aria-hidden="true" className="me-2 h-4 w-4" />
             {t(strings.pages.execution.resume)}
@@ -667,10 +678,12 @@ export function ExecutionRunner() {
           <Button
             type="button"
             size="sm"
-            variant="outline"
+            variant="ghost"
             data-testid={selectors.execution.contextButton}
             disabled={busy || !execution}
             onClick={handleRefreshContext}
+            shape="square"
+            className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
           >
             {t(strings.pages.execution.refreshContext)}
           </Button>
@@ -873,11 +886,12 @@ export function ExecutionRunner() {
               <Button
                 type="button"
                 size="sm"
-                variant="outline"
+                variant="ghost"
                 data-testid={selectors.execution.noFeedbackButton}
                 disabled={busy || currentPhaseId.length === 0 || Boolean(context?.feedbackCheckpoint?.satisfied)}
                 onClick={handleNoFeedback}
-                className="w-fit"
+                className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted", "w-fit")}
+                shape="square"
               >
                 {t(strings.pages.execution.confirmNoFeedback)}
               </Button>
@@ -919,6 +933,7 @@ export function ExecutionRunner() {
                 data-testid={selectors.execution.transitionButton}
                 disabled={busy || currentPhaseId.length === 0 || (advisoryDone && (!outcomeSummary.trim() || !outcomeEvidence.trim() || !!unmetOutcomes.trim()))}
                 onClick={handleTransition}
+                shape="square"
               >
                 {t(strings.pages.execution.transition)}
               </Button>
@@ -951,6 +966,7 @@ export function ExecutionRunner() {
               disabled={busy || decisionSummary.trim().length === 0}
               onClick={handleRecordDecision}
               className="w-fit"
+              shape="square"
             >
               {t(strings.pages.execution.recordDecision)}
             </Button>
@@ -995,6 +1011,7 @@ export function ExecutionRunner() {
               disabled={busy || findingTitle.trim().length === 0}
               onClick={handleRecordFinding}
               className="w-fit"
+              shape="square"
             >
               {t(strings.pages.execution.recordFinding)}
             </Button>
@@ -1049,6 +1066,7 @@ export function ExecutionRunner() {
               disabled={busy || bugTitle.trim().length === 0}
               onClick={handleRecordBug}
               className="w-fit"
+              shape="square"
             >
               {t(strings.pages.execution.fileBugReport)}
             </Button>
@@ -1099,6 +1117,7 @@ export function ExecutionRunner() {
               disabled={busy || recordTitle.trim().length === 0}
               onClick={handleRecordRecord}
               className="w-fit"
+              shape="square"
             >
               {t(strings.pages.execution.captureRecord)}
             </Button>
@@ -1141,6 +1160,7 @@ export function ExecutionRunner() {
               disabled={busy || noteTitle.trim().length === 0}
               onClick={handleRecordNote}
               className="w-fit"
+              shape="square"
             >
               {t(strings.pages.execution.recordNote)}
             </Button>
@@ -1170,6 +1190,7 @@ export function ExecutionRunner() {
             data-testid={selectors.execution.completeButton}
             disabled={busy}
             onClick={handleComplete}
+            shape="square"
           >
             <Flag aria-hidden="true" className="me-2 h-4 w-4" />
             {t(strings.pages.execution.complete)}

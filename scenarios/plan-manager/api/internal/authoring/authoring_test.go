@@ -479,9 +479,9 @@ func TestDiscoverSkillPackAutoAddsMultipleSkillsAndIsIdempotent(t *testing.T) {
 	discovery := &fakeSkillPackDiscoverer{result: authoring.SkillPackResult{
 		Items: []planmodel.RelevantContextItem{
 			{Kind: planmodel.RelevantContextSkill, Label: "Implementation Plan Authoring", Target: "implementation-plan-authoring", Reason: "plans", Instruction: "load", Source: planmodel.RelevantContextSourceDiscovered, Status: planmodel.RelevantContextStatusReady},
-			{Kind: planmodel.RelevantContextSkill, Label: "Boundary", Target: "boundary-of-responsibility-enforcement", Reason: "boundaries", Instruction: "load", Source: planmodel.RelevantContextSourceDiscovered, Status: planmodel.RelevantContextStatusReady},
+			{Kind: planmodel.RelevantContextSkill, Label: "Boundary", Target: "architecture-lenses", Reason: "boundaries", Instruction: "load", Source: planmodel.RelevantContextSourceDiscovered, Status: planmodel.RelevantContextStatusReady},
 		},
-		ReadCommand:  "prompt-manager skill read implementation-plan-authoring boundary-of-responsibility-enforcement",
+		ReadCommand:  "prompt-manager skill read implementation-plan-authoring architecture-lenses",
 		BudgetStatus: "ok",
 		Summary:      "prompt-manager returned 2 skill(s)",
 	}}

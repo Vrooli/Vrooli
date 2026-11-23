@@ -435,6 +435,7 @@ func TestEachCommissionSaysWhenANewEntryIsRead(t *testing.T) {
 		{StateLive, steering, ReadNextUnit},
 		{StatePaused, steering, ReadAfterResume},
 		{StateLimited, steering, ReadAfterResume},
+		{StateHalted, steering, ReadAfterResume},
 		{StateEnded, steering, ReadNever},
 		{StatePrepared, steering, ReadAtStart},
 		{StateStopped, steering, ReadAtStart},

@@ -12,7 +12,7 @@ import (
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/shared"
 )
 
-var stateWords = []string{"live", "paused", "limited", "stopped", "prepared", "unknown", "ended"}
+var stateWords = []string{"live", "halted", "paused", "limited", "stopped", "prepared", "unknown", "ended"}
 
 func stateWord(s activityv1.CommissionState) string {
 	return strings.ToLower(strings.TrimPrefix(s.String(), "COMMISSION_STATE_"))
@@ -39,7 +39,28 @@ func stateLabel(c *activityv1.CommissionSummary) string {
 	if c.Stalled {
 		label += " (stalled)"
 	}
+	if h := c.Halt; h != nil {
+		label += " (" + h.ErrorClass + ")"
+	}
 	return label
+}
+
+// haltLine says what the desk's recovery does about a halt: the next
+// automatic resume, or the escalation to the steward.
+func haltLine(h *activityv1.TurnHalt) string {
+	line := ""
+	if h.RecoveryAction == "resume" {
+		line = fmt.Sprintf("recovery: automatic resume %d of %d at %s", h.Attempts+1, h.MaxAttempts, render.When(h.NextAttemptAt))
+	} else {
+		line = "recovery: the steward decides; " + h.Escalation
+		if h.Escalated {
+			line += " (escalation recorded in LAUNCH.json)"
+		}
+	}
+	if h.LastOutcome != "" {
+		line += " · last: " + h.LastOutcome
+	}
+	return line
 }
 
 // commissionLine is one commission on one line.
@@ -61,11 +82,20 @@ func (h *handlers) nowReport(_ cliapp.OperationContext, msg *activityv1.GetOverv
 			"Commissions: " + strings.Join(counts, ", ") + ".",
 			"Research home: " + msg.ResearchHome + " (read " + render.When(msg.GeneratedAt) + ")",
 		},
-		ResultsHeading: "Supervisor windows open (live, paused or limited)",
+		ResultsHeading: "Manager windows open (live, halted, paused or limited)",
 		RetrievalHints: []string{"`commission <id>` — one commission with its evidence", "`commissions --state <state>` — every commission in a state"},
 	}
 	for _, c := range msg.Running {
 		report.Results = append(report.Results, commissionLine(c), "    "+c.StateRule+" · claim: "+render.Text(c.Claim))
+		if c.Halt != nil {
+			report.Results = append(report.Results, "    "+haltLine(c.Halt))
+		}
+		for _, flag := range c.Flags {
+			report.Results = append(report.Results, "    FLAG "+flag)
+		}
+	}
+	for _, w := range msg.AnswersWaiting {
+		report.Results = append(report.Results, fmt.Sprintf("ANSWERED, waiting %s: %s = %s (%s)%s", render.When(w.AnsweredAt), w.ItemId, orDash(w.Answer), w.Owner, answerNote(w)))
 	}
 	for _, o := range msg.OpenOverlaps {
 		report.Results = append(report.Results, fmt.Sprintf("open on the same topic now, %s: %s", o.Topic, strings.Join(o.CommissionIds, ", ")))
@@ -106,6 +136,17 @@ func (h *handlers) commissionReport(_ cliapp.OperationContext, msg *activityv1.G
 		"title:          " + render.Text(c.Title),
 		"folder:         " + c.Folder,
 		"state:          " + stateLabel(c) + " — " + c.StateRule,
+	}
+	if h := c.Halt; h != nil {
+		lines = append(lines,
+			"halted by:      "+h.Message,
+			"  error class:  "+h.ErrorClass+" — "+h.Meaning+" (rule "+orDash(h.Rule)+", codex_error_info "+orDash(h.CodexErrorInfo)+")",
+			"  "+haltLine(h),
+			"  read from:    "+h.Source+" at "+render.When(h.At),
+		)
+	}
+	for _, flag := range c.Flags {
+		lines = append(lines, "FLAG:           "+flag)
 	}
 	for _, e := range c.StateEvidence {
 		lines = append(lines, "  evidence:     "+render.Evidence(e))
@@ -196,7 +237,7 @@ func (h *handlers) topicsReport(_ cliapp.OperationContext, msg *activityv1.ListT
 		for _, group := range []struct {
 			word string
 			ids  []string
-		}{{"live", t.LiveCommissionIds}, {"paused", t.PausedCommissionIds}, {"limited", t.LimitedCommissionIds}} {
+		}{{"live", t.LiveCommissionIds}, {"paused", t.PausedCommissionIds}, {"limited", t.LimitedCommissionIds}, {"halted", t.HaltedCommissionIds}} {
 			if len(group.ids) > 0 {
 				running += " · " + group.word + ": " + strings.Join(group.ids, ", ")
 			}
@@ -233,7 +274,7 @@ func (h *handlers) topicsReport(_ cliapp.OperationContext, msg *activityv1.ListT
 		}
 	}
 	if home := capabilityLines(msg.HomeCapabilities, msg.HomeCapabilitiesEvidence); len(home) > 0 {
-		report.Results = append(append(report.Results, "research home (supervisor)"), home...)
+		report.Results = append(append(report.Results, "research home (manager)"), home...)
 	}
 	return report
 }
@@ -306,4 +347,19 @@ func researchWrite(w *activityv1.ResearchWrite) string {
 		out += " (" + w.GetNote() + ")"
 	}
 	return out
+}
+
+func orDash(s string) string {
+	if s == "" {
+		return "?"
+	}
+	return s
+}
+
+// answerNote says what starts the executor, or that a live window will drain the entry.
+func answerNote(w *activityv1.AnswerWaiting) string {
+	if w.LiveWindowReads {
+		return "; a live window reads it at its next review"
+	}
+	return "; no window reads it: needs_you.py spawn " + w.ItemId
 }

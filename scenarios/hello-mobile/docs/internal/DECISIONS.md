@@ -19,7 +19,6 @@ Known unresolved issues belong in [`PROBLEMS.md`](PROBLEMS.md).
 
 | Date | Decision | Context | Consequences | Revisit Trigger |
 |---|---|---|---|---|
-| 2026-08-13 | Use the generated `react-vite` scenario documentation contract. | Scenario scaffold was generated from the template. | Docs start with stubs and maturity metadata in `docs/manifest.json`. | Revisit when scenario adopts a different template or doc contract. |
 
 ## Superseded Decisions
 

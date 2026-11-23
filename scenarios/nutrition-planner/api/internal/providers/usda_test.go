@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"nutrition-planner/internal/testutil/mocks"
+	"github.com/vrooli/api-core/apihttptest"
 )
 
 func TestUSDAAdapterPreservesSourceIdentityAndNutrients(t *testing.T) {
-	fake := &mocks.FakeDoer{}
+	fake := &apihttptest.FakeDoer{}
 	fake.AddResponse(http.StatusOK, []byte(`{"foods":[{"fdcId":123,"description":"Beans","dataType":"Foundation","brandOwner":"","foodNutrients":[]}]}`))
 	fake.AddResponse(http.StatusOK, []byte(`{"fdcId":123,"description":"Beans","dataType":"Foundation","foodNutrients":[{"nutrientNumber":"203","nutrientName":"Protein","value":9.5,"unitName":"G"}]}`))
 	adapter := USDAFoodDataCentral{APIKey: "test-key", BaseURL: "https://example.test/fdc/v1", Client: fake, Now: func() time.Time { return time.Date(2026, 9, 18, 0, 0, 0, 0, time.UTC) }}
@@ -32,7 +32,7 @@ func TestUSDAAdapterRequiresConfigurationAndClassifiesHTTPFailure(t *testing.T) 
 	if _, err := (USDAFoodDataCentral{}).Search(context.Background(), NutritionSearchQuery{Query: "beans"}); err != ErrNotConfigured {
 		t.Fatalf("unconfigured error=%v", err)
 	}
-	fake := &mocks.FakeDoer{}
+	fake := &apihttptest.FakeDoer{}
 	fake.AddResponse(http.StatusUnauthorized, []byte("bad key"))
 	adapter := USDAFoodDataCentral{APIKey: "bad", BaseURL: "https://example.test", Client: fake}
 	if _, err := adapter.Search(context.Background(), NutritionSearchQuery{Query: "beans"}); err == nil || !strings.Contains(err.Error(), "status 401") {

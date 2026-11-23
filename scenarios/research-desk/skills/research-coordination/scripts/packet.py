@@ -20,7 +20,6 @@ import datetime as dt
 import json
 import re
 import shutil
-import subprocess
 import sys
 from pathlib import Path
 
@@ -29,7 +28,7 @@ sys.dont_write_bytecode = True  # the desk runs this inside the repository; leav
 sys.path.insert(0, str(SCRIPTS))
 import mission_check as mc  # noqa: E402
 import inbox  # noqa: E402
-import report_feedback  # noqa: E402
+import needs_you  # noqa: E402
 
 SKILL = SCRIPTS.parent
 TEMPLATES = SKILL / "templates"
@@ -43,6 +42,7 @@ PATHS = {
     "review_briefs": TEMPLATES / "review-briefs.md",
     "operator_attention": SKILL / "references" / "operator-attention.md",
     "owner_brief": TEMPLATES / "owner-brief.md",
+    "rules": REPO / "docs/agent-system/RULES.md",
     "effort_anatomy": REPO / "scenarios/prompt-manager/store/skills/packs/core/effort-diagnosis/scripts/effort_anatomy.py",
 }
 SPEC_KEYS = {
@@ -251,7 +251,7 @@ CLAUSE_CAPS = (100, 60, 0)
 
 
 def mission_facts(rep: mc.TopicReport, text: str, chosen: list, others: dict[str, int], cap: int) -> list[str]:
-    """What the mission states that the scheduler checks a card against, carried onto the card."""
+    """What the mission states that the manager checks a card against, carried onto the card."""
     picked = {w.ident for w in chosen}
     later = [w for w in rep.workstreams if w.status in mc.LIVE and w.ident not in picked]
     lines = []
@@ -374,7 +374,7 @@ def kernel_excerpt(source: str, budget: int) -> str:
     return cut + "..."
 
 
-OWNERS_MAX = 5  # eight threads: the scheduler, owners, and at least two left for reviewers and workers
+OWNERS_MAX = 5  # eight threads: the manager, owners, and at least two left for reviewers and workers
 
 
 def owner_split(workstreams: list[int]) -> list[int]:
@@ -414,7 +414,15 @@ def compose(home: Path, spec: dict, cid: str, cap: int, most: int | None = None)
     ordered = sum(t in spec["order"] for t in spec["topics"])
     phrase = ("in order" if ordered == len(cards) else "in the order a card gives, else by scorecard movement" if ordered
               else "chosen by scorecard movement")
+    listed = sum(len(c["order"]) for c in cards)
+    recent = sum(1 for t in spec["topics"] for w in read_mission(home, t)[0].workstreams
+                 if w.status == "landed" and w.moved >= (today() - dt.timedelta(days=10)).isoformat())
+    waiting = [f"{w['id'] or '?'} ({t}, {w['hours']} h)" for t in spec["topics"]
+               for w in needs_you.waiting_answers(home / "topics" / t, [], dt.datetime.now(dt.timezone.utc))]
     values = {
+        "answers_line": (f"{len(waiting)} wait at build: {', '.join(waiting)}" if waiting else "none wait at build"),
+        "setpoint": (f"land the {listed} listed showcases within {spec['allowance_hours']} h of the first owner start and move two "
+                     f"scorecard dimensions per topic. Last 10 days: {recent} landed on these topics (mission status cells, `history.py`)."),
         "order_phrase": phrase,
         "kernel_order": " in order" if ordered == len(cards) else " (in order where given)" if ordered else "",
         "title": f"Research commission {cid} — {' · '.join(titles)}",
@@ -531,12 +539,13 @@ def gate(texts: dict[str, str | None], limits: dict, home: Path, cid: str) -> tu
     g = limits["gates"]
     gates, errors = [], []
 
-    def add(name, value, limit, ok):
-        gates.append({"name": name, "value": value, "limit": limit, "ok": bool(ok)})
+    def add(name, value, limit, ok, advisory=False):
+        # An advisory gate reports honestly (ok false when over) but never refuses a build.
+        gates.append({"name": name, "value": value, "limit": limit, "ok": bool(ok), **({"advisory": True} if advisory else {})})
 
     charter, stance, kernel = texts.get("charter"), texts.get("stance"), texts.get("kernel")
     cb = len(charter.encode("utf-8")) if charter is not None else None
-    add("charter_bytes", cb, g["charter_bytes"], cb is not None and cb <= g["charter_bytes"])
+    add("charter_bytes", cb, g["charter_bytes"], cb is not None and cb <= g["charter_bytes"], advisory=True)
     sc = len(stance) if stance is not None else None
     add("stance_chars", sc, g["stance_chars"], sc is not None and sc <= g["stance_chars"])
     ending = stance.rstrip()[-len(g["stance_ending"]):] if stance is not None else None
@@ -546,7 +555,9 @@ def gate(texts: dict[str, str | None], limits: dict, home: Path, cid: str) -> tu
     for name, value, limit, unit in (("charter", cb, g["charter_bytes"], "bytes"), ("stance", sc, g["stance_chars"], "characters"),
                                      ("kernel", kc, g["kernel_chars"], "characters")):
         if value is not None and value > limit:
-            errors.append(overflow_error(name, texts[name], value, limit, unit))
+            # The charter's size is a read cost to cut, not a defect that stops a window (R1); the stance and the
+            # kernel are hard gates because Codex drops a goal over about 700 characters.
+            errors.append({**overflow_error(name, texts[name], value, limit, unit), **({"warning": True} if name == "charter" else {})})
     roots = sorted({home.resolve(), home, REPO, Path.home()}, key=lambda p: -len(str(p)))
     missing = []
     for name in ("charter", "stance", "kernel"):
@@ -562,10 +573,12 @@ def gate(texts: dict[str, str | None], limits: dict, home: Path, cid: str) -> tu
 
 
 def result(cid, folder, written=False, gates=(), cards=(), texts=None, errors=()) -> dict:
-    gates, errors = list(gates), list(errors)
+    gates = list(gates)
+    warnings = [e for e in errors if e.get("warning")]
+    errors = [e for e in errors if not e.get("warning")]
     return {
         "schema": "research-packet-result/v1",
-        "ok": all(x["ok"] for x in gates) and not errors and bool(gates),
+        "ok": all(x["ok"] or x.get("advisory") for x in gates) and not errors and bool(gates),
         "commission_id": cid,
         "folder": str(folder) if folder else None,
         "written": written,
@@ -573,6 +586,7 @@ def result(cid, folder, written=False, gates=(), cards=(), texts=None, errors=()
         "cards": list(cards),
         "texts": texts,
         "errors": errors,
+        "warnings": warnings,
     }
 
 
@@ -596,34 +610,9 @@ def read_spec(arg: str) -> object:
         raise Fail("invalid_spec", f"spec is not JSON: {e}", 2)
 
 
-def report_preflight(home: Path, topics: list[str]) -> list[str]:
-    """Check the independent reporting path and reconcile all registered reports."""
-    kit = REPO / "scenarios/notification-hub/skills/notification-hub/kit"
-    required = [SCRIPTS / "research_report.py", SCRIPTS / "report_feedback.py", SCRIPTS / "evidence_record.py",
-                SCRIPTS.parent / "templates/topics/common/reporting/report.json",
-                kit / "schemas/evidence.schema.json",
-                kit / "schemas/research-report.schema.json", kit / "templates/research-report.html"]
-    errors = [f"report infrastructure missing: {path}" for path in required if not path.is_file()]
-    try:
-        proc = subprocess.run(["notification-hub", "status", "--json"], capture_output=True,
-                              text=True, timeout=15, check=True)
-        status = json.loads(proc.stdout)
-        if not isinstance(status, dict) or status.get("status") != "healthy" or status.get("readiness") is not True:
-            errors.append("notification-hub is not healthy and ready")
-    except (OSError, ValueError, subprocess.SubprocessError) as exc:
-        errors.append(f"notification-hub health check failed: {exc}")
-    for topic in topics:
-        errors.extend(report_feedback.sync(home / "topics" / topic))
-    return errors
-
-
-def prepare(home: Path, spec_arg: str, *, preflight: bool = False) -> tuple[dict, str, dict, list, list, list]:
+def prepare(home: Path, spec_arg: str) -> tuple[dict, str, dict, list, list, list]:
     limits = load_limits()
     spec = normalize_spec(read_spec(spec_arg), home, limits)
-    if preflight:
-        errors = report_preflight(home, spec["topics"])
-        if errors:
-            raise Fail("report_preflight", "; ".join(errors), 1)
     cid = commission_id(home, spec["slug"])
     full = default_count(len(spec["topics"]), limits["packet"]["ordered_workstreams_max"])
     # The longest mission excerpts, then the most unordered workstreams per card, that let the
@@ -644,7 +633,7 @@ def cmd_preview(home: Path, spec_arg: str) -> dict:
 
 
 def cmd_build(home: Path, spec_arg: str) -> dict:
-    spec, cid, texts, cards, gates, errors = prepare(home, spec_arg, preflight=True)
+    spec, cid, texts, cards, gates, errors = prepare(home, spec_arg)
     folder = home / "cohorts" / cid
     res = result(cid, folder, False, gates, cards, None, errors)
     if not res["ok"]:
@@ -676,9 +665,8 @@ def cmd_build(home: Path, spec_arg: str) -> dict:
 def feedback_snapshot(home: Path, topics: list[str]) -> str:
     """Preserve feedback verbatim for review; never pretend interpretation is automatic."""
     lines = ["# Operator feedback at packet build", "",
-             "Before staffing, sync report answers, refresh this inventory, and record a concrete application "
-             "for each item in the work plan and relevant owner briefs. Interpret unknown changes and inspect "
-             "images; do not silently drop either. This snapshot is not an application receipt.", ""]
+             "At kickoff, check for newer feedback and apply known direction to the plan and affected briefs. "
+             "Keep unavailable answers or images pending. This snapshot is not an application receipt.", ""]
     for topic in topics:
         root = home / "topics" / topic
         lines += [f"## {topic}", ""]
@@ -698,10 +686,9 @@ def feedback_snapshot(home: Path, topics: list[str]) -> str:
             lines += [f"### {path.relative_to(root)}", "", path.read_text(encoding="utf-8"), ""]
         plan = root / "work" / "README.md"
         if plan.is_file():
-            found = True
-            lines += ["### work/README.md", "", plan.read_text(encoding="utf-8"), ""]
+            lines += [f"Current plan: `{plan}`.", ""]
         if not found:
-            lines += ["No local operator feedback found at build. Check Hub reports at kickoff.", ""]
+            lines += ["No retained feedback entries found at build. Check Hub reports at kickoff.", ""]
     return "\n".join(lines)
 
 

@@ -10,7 +10,7 @@ import {
 import { PlanSelect } from "../../components/PlanSelect";
 import { StatusBadge } from "../../components/StatusBadge";
 import { SectionPanel } from "../../components/Surfaces";
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { type StringKey } from "../../consts/stringKey";
@@ -22,6 +22,7 @@ import {
   type Reference,
 } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
 import type { ValidationOperation } from "@vrooli/proto-types/plan-manager/v1/validation/validation_pb";
+import { cn } from "../../lib/utils";
 
 const RESOLUTION_LABELS: Record<ReferenceResolution, StringKey> = {
   [ReferenceResolution.UNSPECIFIED]: strings.pages.validation.resolutionUnspecified,
@@ -108,7 +109,7 @@ export function ValidationBoard() {
             <Button
               type="button"
               size="sm"
-              variant="outline"
+              variant="ghost"
               data-testid={selectors.validation.resolveButton}
               disabled={disabled}
               onClick={() =>
@@ -117,6 +118,8 @@ export function ValidationBoard() {
                   setReferences({ refs: res.references, degraded: res.degraded });
                 })
               }
+              shape="square"
+              className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
             >
               {t(strings.pages.validation.resolveReferences)}
             </Button>
@@ -160,7 +163,7 @@ export function ValidationBoard() {
             <Button
               type="button"
               size="sm"
-              variant="outline"
+              variant="ghost"
               data-testid={selectors.validation.stalenessButton}
               disabled={disabled}
               onClick={() =>
@@ -168,6 +171,8 @@ export function ValidationBoard() {
                   setStaleness(await computeStaleness(planId));
                 })
               }
+              shape="square"
+              className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
             >
               {t(strings.pages.validation.computeStaleness)}
             </Button>
@@ -195,7 +200,7 @@ export function ValidationBoard() {
             <Button
               type="button"
               size="sm"
-              variant="outline"
+              variant="ghost"
               data-testid={selectors.validation.baselineButton}
               disabled={disabled}
               onClick={() =>
@@ -203,6 +208,8 @@ export function ValidationBoard() {
                   setValidation((await startValidation(planId)) ?? null);
                 })
               }
+              shape="square"
+              className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
             >
               {t(strings.pages.validation.deriveBaseline)}
             </Button>

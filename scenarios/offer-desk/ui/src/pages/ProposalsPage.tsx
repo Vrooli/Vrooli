@@ -8,7 +8,7 @@ import { useTranslation } from "../i18n";
 import { useSurfaceState } from "../hooks/useSurfaceState";
 import { ExperienceSurface } from "../components/experience/ExperienceSurface";
 import { Button } from "@vrooli/react-component-library/Button/2";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
 import { Textarea } from "@vrooli/react-component-library/Textarea/1";
 import { DataTable } from "@vrooli/react-component-library/DataTable/1";
 import { Status } from "@vrooli/proto-types/offer-desk/v1/offers/offers_pb";

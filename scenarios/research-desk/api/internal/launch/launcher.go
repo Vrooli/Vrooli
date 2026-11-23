@@ -28,6 +28,7 @@ const (
 // Sessions reads Codex's own records of one session.
 type Sessions interface {
 	SessionGoals(ctx context.Context, sessionID string) ([]home.Goal, error)
+	SessionThread(sessionID string) (string, error)
 	SessionProcesses(sessionID string) ([]home.Process, error)
 	ThreadView(sessionID, threadID string) (home.ThreadView, error)
 }
@@ -63,6 +64,7 @@ type Patience struct {
 	Ready    time.Duration // Codex replies "ready" to the stance
 	Goal     time.Duration // the goal row appears
 	Stop     time.Duration // the session's processes end
+	Status   time.Duration // the goal status after /goal pause or resume
 	// Settle is the pause after typing and after Enter before the screen is
 	// read. Codex treats keys that arrive in one burst as a paste, so an Enter
 	// right behind the text inserts a newline instead of submitting.
@@ -83,6 +85,9 @@ func (l *Launcher) patience() Patience {
 	if p.Stop == 0 {
 		p.Stop = 15 * time.Second
 	}
+	if p.Status == 0 {
+		p.Status = 15 * time.Second
+	}
 	if p.Settle == 0 {
 		p.Settle = time.Second
 	}
@@ -102,10 +107,36 @@ type Texts struct {
 	Kernel string
 }
 
-// Settings are the supervisor's model and reasoning effort.
+// Settings are the supervisor's model and reasoning effort, and how long its
+// session may sit idle before Web Console archives it.
 type Settings struct {
 	Model  string
 	Effort string
+	// IdleArchiveAfter is the Web Console idle policy window; empty keeps the
+	// session until someone closes it.
+	IdleArchiveAfter string
+}
+
+// DefaultIdleArchiveAfter is used when limits.json names no idle window.
+const DefaultIdleArchiveAfter = "6h"
+
+// Web Console's idle policy bounds (api/internal/policy).
+const (
+	idleArchiveMin = 15 * time.Minute
+	idleArchiveMax = 7 * 24 * time.Hour
+)
+
+// idleArchiveWindow validates an idle window from limits.json.
+func idleArchiveWindow(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return DefaultIdleArchiveAfter, nil
+	}
+	d, err := time.ParseDuration(value)
+	if err != nil || d < idleArchiveMin || d > idleArchiveMax {
+		return "", fmt.Errorf("session.idle_archive_after %q in limits.json must be a duration from %s to %s", value, idleArchiveMin, idleArchiveMax)
+	}
+	return value, nil
 }
 
 var settingValue = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,63}$`)
@@ -154,6 +185,7 @@ func (l *Launcher) Run(ctx context.Context, spec SessionSpec, texts Texts, setti
 		return &StepError{StepCreated, err}
 	}
 	spec.Command = command
+	spec.IdleArchiveAfter = settings.IdleArchiveAfter
 	if spec.WorkingDir == "" {
 		spec.WorkingDir = l.WorkingDir
 	}
@@ -173,14 +205,39 @@ func (l *Launcher) Run(ctx context.Context, spec SessionSpec, texts Texts, setti
 		{StepGoalSent, func() (string, error) { return "", l.enter(ctx, id, "/goal "+kernel, false) }},
 		{StepGoalVerified, func() (string, error) { return l.awaitGoal(ctx, id, kernel, p.Goal) }},
 	}
-	for _, step := range steps {
+	for i, step := range steps {
 		thread, err := step.do()
+		if err != nil && step.name == StepGoalSent {
+			// Typing the goal goes through Web Console; the goal itself is
+			// Codex's own row in goals_1.sqlite. A Web Console call that
+			// failed after the text went in (a read-back that timed out)
+			// says nothing about the goal, so the row decides.
+			return l.confirmGoal(ctx, id, kernel, p.Goal, err, progress, steps[i+1].name)
+		}
 		if err == nil {
 			err = progress(step.name, id, thread)
 		}
 		if err != nil {
 			return &StepError{step.name, err}
 		}
+	}
+	return nil
+}
+
+// confirmGoal settles a goal step whose Web Console call failed: when the
+// goal row with the kernel appears within the goal patience, the goal was
+// sent and is verified; otherwise the launch failed at goal_sent with the
+// call's error and what the read found.
+func (l *Launcher) confirmGoal(ctx context.Context, id, kernel string, within time.Duration, sendErr error, progress Progress, verified string) error {
+	thread, err := l.awaitGoal(ctx, id, kernel, within)
+	if err != nil {
+		return &StepError{StepGoalSent, fmt.Errorf("%w; and %v", sendErr, err)}
+	}
+	if err := progress(StepGoalSent, id, ""); err != nil {
+		return &StepError{StepGoalSent, err}
+	}
+	if err := progress(verified, id, thread); err != nil {
+		return &StepError{verified, err}
 	}
 	return nil
 }
@@ -261,20 +318,24 @@ func (l *Launcher) awaitComposer(ctx context.Context, id string, within time.Dur
 	}
 }
 
-// awaitGoal waits for the goal row whose objective is the kernel.
+// awaitGoal waits for the goal row whose objective is the kernel. A read
+// that fails (a database locked by Codex's own write, a slow disk) is read
+// again until within passes; only then is it the answer.
 func (l *Launcher) awaitGoal(ctx context.Context, id, kernel string, within time.Duration) (string, error) {
 	deadline := time.Now().Add(within)
 	for {
 		goals, err := l.Sessions.SessionGoals(ctx, id)
-		if err != nil {
-			return "", fmt.Errorf("read the session's goals_1.sqlite: %w", err)
-		}
-		for _, g := range goals {
-			if strings.TrimSpace(g.Objective) == kernel && (g.Status == "active" || g.Status == "complete") {
-				return g.ThreadID, nil
+		if err == nil {
+			for _, g := range goals {
+				if strings.TrimSpace(g.Objective) == kernel && (g.Status == "active" || g.Status == "complete") {
+					return g.ThreadID, nil
+				}
 			}
 		}
 		if time.Now().After(deadline) {
+			if err != nil {
+				return "", fmt.Errorf("read the session's goals_1.sqlite: %w", err)
+			}
 			return "", fmt.Errorf("no goal with the kernel as its objective appeared within %s (%d goal row(s) in the session)", within, len(goals))
 		}
 		if err := sleep(ctx, l.poll()); err != nil {
@@ -354,16 +415,16 @@ func (l *Launcher) AwaitReady(ctx context.Context, t Target, within time.Duratio
 }
 
 // Pause types /goal pause and returns the goal status read back from
-// goals_1.sqlite once it is paused (or after 15 s). A running turn goes on to
+// goals_1.sqlite once it is paused (or after Patience.Status, 15 s). A running turn goes on to
 // its end; no further goal turn starts.
 func (l *Launcher) Pause(ctx context.Context, t Target) (string, error) {
 	return l.goalCommand(ctx, t, "pause", func(s string) bool { return s == "paused" })
 }
 
 // Resume types /goal resume and returns the status once it is no longer
-// paused: active, or complete when the goal finishes at once.
+// paused or blocked: active, or complete when the goal finishes at once.
 func (l *Launcher) Resume(ctx context.Context, t Target) (string, error) {
-	return l.goalCommand(ctx, t, "resume", func(s string) bool { return s != "" && s != "paused" })
+	return l.goalCommand(ctx, t, "resume", func(s string) bool { return s != "" && s != "paused" && s != "blocked" })
 }
 
 func (l *Launcher) goalCommand(ctx context.Context, t Target, sub string, done func(string) bool) (string, error) {
@@ -373,7 +434,7 @@ func (l *Launcher) goalCommand(ctx context.Context, t Target, sub string, done f
 	if err := l.enter(ctx, t.Session, "/goal "+sub, false); err != nil {
 		return "", err
 	}
-	return l.AwaitStatus(ctx, t, done, 15*time.Second)
+	return l.AwaitStatus(ctx, t, done, l.patience().Status)
 }
 
 // AwaitStatus reads the goal status until done accepts it or within passes,
@@ -397,6 +458,54 @@ func (l *Launcher) ResendStance(ctx context.Context, t Target, stance string) er
 		return err
 	}
 	return l.enter(ctx, t.Session, strings.TrimSpace(stance), true)
+}
+
+// RetryGoal resumes a launch that failed while sending or verifying its goal.
+// The service must first prove that the exact target thread has no goal row;
+// this method then checks the shown thread is idle before sending the same
+// kernel again and waits for that exact objective to appear.
+func (l *Launcher) RetryGoal(ctx context.Context, t Target, kernel string) (string, bool, error) {
+	kernel = strings.TrimSpace(kernel)
+	if existing, err := l.matchingGoal(ctx, t, kernel); err != nil {
+		return "", false, err
+	} else if existing {
+		return t.Thread, false, nil
+	}
+	if err := l.Ready(ctx, t); err != nil {
+		return "", false, err
+	}
+	// Re-read after checking the screen. This closes the ordinary race where a
+	// delayed first send appears between the service preflight and this action.
+	if existing, err := l.matchingGoal(ctx, t, kernel); err != nil {
+		return "", false, err
+	} else if existing {
+		return t.Thread, false, nil
+	}
+	if err := l.enter(ctx, t.Session, "/goal "+kernel, false); err != nil {
+		return "", false, err
+	}
+	thread, err := l.awaitGoal(ctx, t.Session, kernel, l.patience().Goal)
+	return thread, true, err
+}
+
+func (l *Launcher) matchingGoal(ctx context.Context, t Target, kernel string) (bool, error) {
+	goals, err := l.Sessions.SessionGoals(ctx, t.Session)
+	if err != nil {
+		return false, fmt.Errorf("read the exact session's goals before retrying: %w", err)
+	}
+	for _, goal := range goals {
+		if goal.ThreadID != t.Thread || (goal.SessionID != "" && goal.SessionID != t.Session) {
+			continue
+		}
+		if strings.TrimSpace(goal.Objective) != kernel {
+			return false, fmt.Errorf("target thread already has a different goal; no text was sent")
+		}
+		if goal.Status == "active" || goal.Status == "complete" {
+			return true, nil
+		}
+		return false, fmt.Errorf("matching goal exists with status %q; retry-goal will not resume or replace it", goal.Status)
+	}
+	return false, nil
 }
 
 // Stop ends a commission's session. When its window is open it first checks
@@ -468,7 +577,7 @@ func (l *Launcher) Stop(ctx context.Context, t Target, windowOpen bool) (Stopped
 // Stopped is what a stop found and ended in one session.
 type Stopped struct {
 	Session string
-	// Window is true when a supervisor window was open and was quit.
+	// Window is true when a manager window was open and was quit.
 	Window bool
 	// Ended counts the session's Codex processes that were signalled.
 	Ended int

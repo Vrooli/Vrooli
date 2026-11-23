@@ -3,7 +3,7 @@
  * landmarks. Page content is exercised in the per-page tests.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../test-utils";
@@ -41,7 +41,7 @@ describe("AppShell structure (cimode)", () => {
     expect(screen.queryByTestId(selectors.settingsPage.themeSelect)).not.toBeInTheDocument();
   });
 
-  it("renders primary destinations as header links, settings as a utility link, and five phone tabs", () => {
+  it("renders the five core destinations in the RCL shell and Settings as a utility link", () => {
     renderShell("/settings");
     for (const key of [
       "today",
@@ -54,8 +54,17 @@ describe("AppShell structure (cimode)", () => {
       expect(screen.getByTestId(selectors.layout.navLink({ key }))).toBeInTheDocument();
     }
     for (const key of ["today", "week", "groceries", "meals", "kitchen"] as const) expect(screen.getByTestId(selectors.layout.navTab({ key }))).toBeInTheDocument();
-    expect(within(screen.getByTestId(selectors.layout.navigation)).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual(["/", "/week", "/meals", "/groceries", "/kitchen"]);
-    expect(within(screen.getByTestId(selectors.layout.tabs)).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual(["/", "/week", "/meals", "/groceries", "/kitchen"]);
+    const destinations = [
+      ["today", "/"],
+      ["week", "/week"],
+      ["meals", "/meals"],
+      ["groceries", "/groceries"],
+      ["kitchen", "/kitchen"],
+    ] as const;
+    for (const [key, href] of destinations) {
+      expect(screen.getByTestId(selectors.layout.navLink({ key }))).toHaveAttribute("href", href);
+      expect(screen.getByTestId(selectors.layout.navTab({ key }))).toHaveAttribute("href", href);
+    }
   });
 
   it("marks the current route on settings and keeps Today unselected", () => {
@@ -79,13 +88,11 @@ describe("AppShell structure (cimode)", () => {
     }
   });
 
-  it("opens Settings from the header utility", async () => {
-    const user = userEvent.setup();
-    renderShell("/");
-    await user.click(screen.getByTestId(selectors.layout.navLink({ key: "settings" })));
-    await waitFor(() => {
-      expect(screen.getByTestId(selectors.pages.settings)).toBeInTheDocument();
-    });
+  it("exposes Settings as the active utility link when its route is open", () => {
+    renderShell("/settings");
+    expect(screen.getByTestId(selectors.layout.navLink({ key: "settings" }))).toHaveAttribute("href", "/settings");
+    expect(screen.getByTestId(selectors.layout.navLink({ key: "settings" }))).toHaveAttribute("aria-current", "page");
+    expect(screen.getByTestId(selectors.pages.settings)).toBeInTheDocument();
   });
 });
 

@@ -1,20 +1,13 @@
 import type { ReactNode } from "react";
+import { PageSection } from "@vrooli/react-component-library/page-section/0.1.0";
+import { DescriptionList } from "@vrooli/react-component-library/DescriptionList/1.1.0";
 
-/** A titled block of a page. Headings are h2 so each page has one outline. */
-export function Section({ title, actions, children, id, note }: { title: ReactNode; actions?: ReactNode; children: ReactNode; id?: string; note?: ReactNode }) {
-  return (
-    <section className="rd-section" aria-labelledby={id ? `${id}-title` : undefined} id={id}>
-      <div className="flex flex-wrap items-center justify-between gap-space-xs">
-        <h2 id={id ? `${id}-title` : undefined} className="text-subheading font-semibold">{title}</h2>
-        {actions}
-      </div>
-      {note ? <p className="text-body-sm text-app-muted-foreground">{note}</p> : null}
-      {children}
-    </section>
-  );
+/** Research Desk's section adapter delegates semantic layout to the shared asset. */
+export function Section(props: { title: ReactNode; actions?: ReactNode; children: ReactNode; id?: string; note?: ReactNode }) {
+  return <PageSection {...props} />;
 }
 
 /** A definition list laid out for a phone: label above value, two columns on wide screens. */
 export function Facts({ children }: { children: ReactNode }) {
-  return <dl className="rd-facts">{children}</dl>;
+  return <DescriptionList appearance="plain">{children}</DescriptionList>;
 }

@@ -3,25 +3,19 @@ package inventory
 import (
 	"context"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/vrooli/api-core/database"
 	"strings"
 	"time"
 
 	"nutrition-planner/internal/decimalx"
 )
 
-type SQLExecutor interface {
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
-	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-}
+type sqliteRepository struct{ db database.SQLExecutor }
 
-type sqliteRepository struct{ db SQLExecutor }
-
-func NewSQLiteRepository(db SQLExecutor) Repository { return &sqliteRepository{db: db} }
+func NewSQLiteRepository(db database.SQLExecutor) Repository { return &sqliteRepository{db: db} }
 
 func (r *sqliteRepository) Append(ctx context.Context, workspaceID string, event Event) error {
 	if err := r.ensureEvidenceColumns(ctx); err != nil {

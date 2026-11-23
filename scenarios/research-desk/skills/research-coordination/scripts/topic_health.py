@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Which tools the research topics depend on are down right now, and what to do instead.
 
-  topic_health.py [--home H] [--topic T] [--friction] [--json]
+  topic_health.py [--home H] [--topic T] [--friction] [--require-fallbacks] [--json]
 
 Checks the agent credential path once (Agent Manager's broker), then reads each topic's `TOOLS.md` (`## <capability>` sections with `- **Monitoring scenario(s):**`
 slugs and `- **Fallback:**`); a topic without one depends on the common set below. Asks
@@ -211,12 +211,27 @@ def render(r: dict) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def fallback_matrix(report: dict) -> dict:
+    """Fail a dependency matrix when any monitored route lacks its documented fallback."""
+    missing = []
+    for tool in report.get("tools") or []:
+        for item in tool.get("fallbacks") or []:
+            if "none recorded; add one to TOOLS.md" in item.get("fallback", ""):
+                missing.append({"scenario": tool.get("scenario"), "topics": item.get("topics") or [],
+                                "capability": item["fallback"].split(":", 1)[0]})
+    omitted = int(report.get("omitted_scenarios") or 0)
+    return {"status": "fail" if missing or omitted else "pass", "missing_fallbacks": missing,
+            "omitted_scenarios": omitted}
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--home", type=Path, default=Path.home() / ".vrooli" / "research")
     ap.add_argument("--topic")
     ap.add_argument("--friction", action="store_true", help="add Agent Manager friction (needs --topic)")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--require-fallbacks", action="store_true",
+                    help="return failure if a monitored capability lacks a documented fallback")
     ap.add_argument("--timeout", type=int, default=20)
     ap.add_argument("--vrooli", default="vrooli", help=argparse.SUPPRESS)
     ap.add_argument("--program-runtime", default="program-runtime", help=argparse.SUPPRESS)
@@ -227,11 +242,14 @@ def main(argv: list[str] | None = None) -> int:
     if a.topic and not (a.home / "topics" / a.topic).is_dir():
         ap.error(f"no topic folder {a.home / 'topics' / a.topic}")
     report = assess(a.home, a.topic, a.vrooli, a.timeout, a.research_desk)
+    matrix = fallback_matrix(report) if a.require_fallbacks else None
+    if matrix is not None:
+        report["fallback_matrix"] = matrix
     if a.friction:
         report["topic"] = a.topic
         report["friction"] = friction(a.home, a.topic, a.program_runtime, max(a.timeout, 150))
     print(json.dumps(report, indent=2) if a.json else render(report), end="" if not a.json else "\n")
-    return 0
+    return 1 if matrix and matrix["status"] == "fail" else 0
 
 
 if __name__ == "__main__":

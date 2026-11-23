@@ -148,15 +148,17 @@ func TestConfigureAdGuardHomeRequiresSecretReference(t *testing.T) {
 
 func TestConfigureAdGuardHomeDefaultsFromResourceExports(t *testing.T) {
 	// [REQ:NM-P0-002] Resource-managed AdGuard exports can satisfy the default backend shape without plaintext secrets.
-	t.Setenv("ADGUARD_HOME_BASE_URL", "http://localhost:3000")
-	t.Setenv("ADGUARD_HOME_USERNAME", "admin")
-	t.Setenv("ADGUARD_HOME_CREDENTIAL_REF", "vrooli/adguard-home")
+	env := map[string]string{
+		"ADGUARD_HOME_BASE_URL":       "http://localhost:3000",
+		"ADGUARD_HOME_USERNAME":       "admin",
+		"ADGUARD_HOME_CREDENTIAL_REF": "vrooli/adguard-home",
+	}
 	repo := newFakeRepo()
 	svc := NewService(Config{Repo: repo, Client: fakeAdGuardClient{checkStatus: ClientStatus{
 		Status:           "configured_unverified",
 		FilteringEnabled: false,
 		Checks:           []string{"reachable"},
-	}}})
+	}}, Getenv: func(key string) string { return env[key] }})
 
 	status, steps, err := svc.ConfigureAdGuardHome(context.Background(), "", "", "", true)
 	require.NoError(t, err)
@@ -173,6 +175,33 @@ func TestConfigureAdGuardHomeDefaultsFromResourceExports(t *testing.T) {
 	require.Equal(t, "http://localhost:3000", cfg.BaseURL)
 	require.Equal(t, "admin", cfg.Username)
 	require.Equal(t, "vrooli/adguard-home", cfg.CredentialRef)
+}
+
+func TestAdGuardRolloutUsesInjectedEnvironment(t *testing.T) {
+	const bindIP = "192.0.2.8"
+	repo := newFakeRepo()
+	_, err := repo.SaveBackend(context.Background(), BackendConfig{
+		Backend: AdGuardHomeBackend, BaseURL: "http://adguard.local", CredentialRef: "vrooli/adguard-home",
+	})
+	require.NoError(t, err)
+	svc := NewService(Config{
+		Repo: repo,
+		Client: fakeAdGuardClient{checkStatus: ClientStatus{
+			Status: "configured_unverified",
+			Checks: []string{"reachable"},
+		}},
+		DNSInspector: fakeDNSInspector{inspection: DNSInspection{Servers: []string{bindIP}}},
+		Getenv: func(key string) string {
+			if key == "ADGUARD_HOME_DNS_BIND_IP" {
+				return bindIP
+			}
+			return ""
+		},
+	})
+
+	report, err := svc.AdGuardRollout(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, bindIP, report.DNSBindIP)
 }
 
 func TestUpdateUpstreamsRequiresConfiguredClientSupport(t *testing.T) {

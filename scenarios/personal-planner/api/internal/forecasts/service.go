@@ -7,17 +7,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/schedule"
 )
 
-type SQLExecutor interface {
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
-}
-
 type service struct {
-	db    SQLExecutor
+	db    database.SQLExecutor
 	clock schedule.Clock
 	id    func() string
 }
@@ -26,11 +21,11 @@ type ServiceOptions struct {
 	IDGenerator func() string
 }
 
-func NewService(db SQLExecutor, clock schedule.Clock) Service {
+func NewService(db database.SQLExecutor, clock schedule.Clock) Service {
 	return NewServiceWithOptions(db, clock, ServiceOptions{})
 }
 
-func NewServiceWithOptions(db SQLExecutor, clock schedule.Clock, options ServiceOptions) Service {
+func NewServiceWithOptions(db database.SQLExecutor, clock schedule.Clock, options ServiceOptions) Service {
 	if options.IDGenerator == nil {
 		options.IDGenerator = uuid.NewString
 	}

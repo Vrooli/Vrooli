@@ -31,10 +31,9 @@ From this scenario's directory:
 make setup
 ```
 
-This runs the scenario's setup lifecycle: dependencies are prepared,
-the API/CLI/UI are built as needed, and the scenario CLI is installed.
-Keep the exact lifecycle steps in `.vrooli/service.json`; this guide is
-only the user-facing path.
+The setup plan is declared in [`.vrooli/service.json`](../.vrooli/service.json). See
+[The Declared Scenario](../../../docs/architecture/the-declared-scenario.md) for
+the shared lifecycle contract.
 
 Use setup for a fresh scaffold or when the lifecycle or dependency gateway
 reports that setup is needed.
@@ -46,10 +45,10 @@ make start
 ```
 
 This starts the API, UI, and any declared dependencies (including
-**scenario-authenticator**, which the lifecycle brings up so you get a
-real, isolated workspace). The lifecycle allocates ports automatically
-and exposes them through scenario commands such as `make status` and
-`vrooli scenario port`. The API listens on a port in the `15000-19999`
+**scenario-authenticator**, which the lifecycle brings up to provide a
+real, isolated workspace). See [`.vrooli/service.json`](../.vrooli/service.json) for
+component and port declarations. [The Declared Scenario](../../../docs/architecture/the-declared-scenario.md)
+describes how the lifecycle uses them. The API listens on a port in the `15000-19999`
 range and the UI in `20000-24999`; readiness is reported at `/health`.
 
 ## 3 — Open

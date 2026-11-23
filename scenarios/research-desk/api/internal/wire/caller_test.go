@@ -20,6 +20,7 @@ import (
 	"research-desk/handlers/activityapi"
 	"research-desk/handlers/launchapi"
 	"research-desk/handlers/operatorapi"
+	"research-desk/internal/home"
 	"research-desk/internal/wire"
 )
 
@@ -55,7 +56,7 @@ func TestOnlyACallerWithoutAnAgentOrServiceIdentityActsForTheOperator(t *testing
 // Each procedure that acts for the operator refuses an agent through the
 // mounted module, with the reason and what to do instead.
 func TestEveryOperatorActionRefusesAnAgent(t *testing.T) {
-	want := []string{"TestLaunch", "Answer", "AddEntry", "EnableSteering", "AddVerdict", "SetCourier", "TestCourier", "MarkSeen"}
+	want := []string{"TestLaunch", "AddEntry", "EnableSteering", "AddVerdict", "SetCourier", "TestCourier", "MarkSeen"}
 	router := mux.NewRouter()
 	launchapi.Module(launchapi.Deps{}).Mount(router)
 	operatorapi.Module(operatorapi.Deps{}).Mount(router)
@@ -119,6 +120,72 @@ func TestResearchOperationRequiresPairedLiveGrantCoverage(t *testing.T) {
 	ctx = identity.WithPrincipal(ctx, identity.Principal{Kind: identity.ActorHuman, Verified: true, Scopes: []string{"*"}})
 	if wire.ResearchOperation(ctx, "research.launch", "new") == nil {
 		t.Fatal("ambient human principal authorized the agent")
+	}
+}
+
+// An agent answers a needs-you item only under a research-decisions grant
+// covering it; the answer then names the agent and the grant.
+func TestResearchDecisionRequiresGrantCoverageAndNamesTheDelegate(t *testing.T) {
+	grant := func(ops []string, targets []string, expires time.Time) identity.Principal {
+		return identity.Principal{Kind: identity.ActorAgent, Subject: "run-7", Verified: true, Scopes: []string{"research-desk:write"}, Grant: &identity.OperationGrant{
+			ID: "g-1", Approver: "operator", ExpiresAt: expires,
+			Rules: []identity.OperationRule{{Operations: ops, Targets: targets}},
+		}}
+	}
+	later, earlier := time.Now().Add(time.Hour), time.Now().Add(-time.Hour)
+	for _, tc := range []struct {
+		name  string
+		p     identity.Principal
+		owner string
+		want  bool
+	}{
+		{"every item", grant([]string{"research.answer"}, []string{"research-desk:decision/*"}, later), "topic:debt-reduction", true},
+		{"named item", grant([]string{"research.answer"}, []string{"research-desk:decision/topic:debt-reduction/DR4"}, later), "topic:debt-reduction", true},
+		{"other item", grant([]string{"research.answer"}, []string{"research-desk:decision/topic:debt-reduction/DR5"}, later), "topic:debt-reduction", false},
+		{"commission grant does not answer", grant([]string{"research.launch", "research.control"}, []string{"research-desk:*"}, later), "topic:debt-reduction", false},
+		{"expired", grant([]string{"research.answer"}, []string{"research-desk:decision/*"}, earlier), "topic:debt-reduction", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := identity.WithPrincipal(provenance.NewContext(context.Background(), agent), tc.p)
+			who, err := wire.ResearchDecision(ctx, tc.owner, "DR4")
+			if (err == nil) != tc.want {
+				t.Fatalf("authorization = %v, want allowed %v", err, tc.want)
+			}
+			if tc.want && (!strings.Contains(who, "run-7") || !strings.Contains(who, "g-1") || !strings.Contains(who, "approved by operator")) {
+				t.Fatalf("delegation %q must name the agent, the grant and its approver", who)
+			}
+		})
+	}
+	// No grant: refused with the one request that would let it through.
+	_, err := wire.ResearchDecision(provenance.NewContext(context.Background(), agent), "topic:debt-reduction", "DR4")
+	if !errors.Is(err, authn.ErrOperation) || !strings.Contains(authn.RequestAuthority(err), "--policy research-decisions --target research-desk:decision/topic:debt-reduction/DR4") {
+		t.Fatalf("missing grant must provide the canonical request: %v", err)
+	}
+	// The operator answers as before, with nothing added to the entry.
+	operator := provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorOperator, VerificationStatus: provenance.VerificationAbsent})
+	if who, err := wire.ResearchDecision(operator, "topic:debt-reduction", "DR4"); err != nil || who != "" {
+		t.Fatalf("operator answer = %q, %v", who, err)
+	}
+	if got := home.WithDelegation("allow — Permit", ""); got != "allow — Permit" {
+		t.Fatalf("operator body changed: %q", got)
+	}
+	if got := home.WithDelegation("allow — Permit", "agent run run-7 under the operator's operation grant g-1"); !strings.HasSuffix(got, "\nAnswered by: agent run run-7 under the operator's operation grant g-1") {
+		t.Fatalf("delegated body = %q", got)
+	}
+}
+
+// Through the mounted module, an agent with no grant is refused before any
+// read and is told the exact request to make.
+func TestAnswerWithoutAGrantExposesTheDecisionRequest(t *testing.T) {
+	router := mux.NewRouter()
+	operatorapi.Module(operatorapi.Deps{}).Mount(router)
+	req := httptest.NewRequest(http.MethodPost, "/vrooli.research_desk.v1.operator.OperatorService/Answer", strings.NewReader(`{"commissionId":"topic:debt-reduction","itemId":"DR4","optionKey":"amend-sqlite"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(provenance.NewContext(req.Context(), agent))
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), "--policy research-decisions --target research-desk:decision/topic:debt-reduction/DR4") {
+		t.Fatalf("answer must return an actionable refusal before effects: %d %s", rec.Code, rec.Body.String())
 	}
 }
 

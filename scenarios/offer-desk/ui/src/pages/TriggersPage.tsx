@@ -3,12 +3,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { TriggerComposition, Verdict } from "@vrooli/proto-types/offer-desk/v1/offers/offers_pb";
 import type { TFunction } from "i18next";
 
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
 import { ExperienceSurface } from "../components/experience/ExperienceSurface";
 import { FormSection } from "@vrooli/react-component-library/FormSection/1";
 import { DirtyStateGuard } from "@vrooli/react-component-library/DirtyStateGuard/1";
 import { Button } from "@vrooli/react-component-library/Button/2";
-import { Input } from "../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { Select } from "@vrooli/react-component-library/Select/1";
 import { DataTable } from "@vrooli/react-component-library/DataTable/1";
 import { useSurfaceState } from "../hooks/useSurfaceState";

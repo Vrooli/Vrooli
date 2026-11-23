@@ -1,6 +1,7 @@
 package planmodel
 
 import (
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -37,6 +38,9 @@ func ParsePlanMarkdown(markdown string) (Plan, error) {
 	}
 
 	ordered := extractOrderedSections(markdown)
+	if err := rejectDuplicateCanonicalSections(ordered); err != nil {
+		return Plan{}, err
+	}
 	sections := map[string]string{}
 	for _, entry := range ordered {
 		sections[entry.lower] = entry.body
@@ -104,6 +108,42 @@ func ParsePlanMarkdown(markdown string) (Plan, error) {
 		return Plan{}, err
 	}
 	return p, nil
+}
+
+// canonicalSectionNames groups headings that feed the same singleton field.
+// Unknown headings remain importable, including repeated legacy headings, but
+// two names for one canonical field are ambiguous and must not silently discard
+// an authored value while the section map is built.
+var canonicalSectionNames = map[string]string{
+	"purpose": "purpose", "completion policy": "completion policy", "definitions": "definitions",
+	"scope": "scope", "constraints": "constraints", "non-goals": "non-goals", "non goals": "non-goals",
+	"definition of done": "definition of done", "definition-of-done": "definition of done",
+	"change boundary": "change boundary", "acceptance boundary": "change boundary",
+	"regression anchor": "regression anchor", "regression checks": "baseline set", "baseline set": "baseline set",
+	"problem": "problem statement", "problem / need": "problem statement", "problem/need": "problem statement", "problem need": "problem statement",
+	"outcome": "target outcome", "target outcome": "target outcome", "assumptions": "assumptions",
+	"approach & decisions": "technical approach", "technical approach": "technical approach", "technical approach / design rationale": "technical approach",
+	"prohibited approaches": "prohibited approaches", "risks / hazards": "risks / hazards", "risks/hazards": "risks / hazards",
+	"validation strategy": "validation strategy", "validation model": "validation strategy", "decisions": "decisions",
+	"assumptions & risks": "assumptions & risks", "work posture": "work posture", "import provenance": "import provenance",
+	"preserved legacy sections": "preserved legacy sections", "global execution setup": "global execution setup",
+	"required reading": "required reading", "boundaries": "boundaries", "verification": "verification",
+	"execution setup": "execution setup",
+}
+
+func rejectDuplicateCanonicalSections(ordered []sectionEntry) error {
+	firstHeading := make(map[string]string)
+	for _, entry := range ordered {
+		canonical, known := canonicalSectionNames[entry.lower]
+		if !known {
+			continue
+		}
+		if first, exists := firstHeading[canonical]; exists {
+			return ErrInvalidPlan{Reason: fmt.Sprintf("duplicate %q section (%q and %q)", canonical, first, entry.heading)}
+		}
+		firstHeading[canonical] = entry.heading
+	}
+	return nil
 }
 
 func parseDefinitionsTable(block string) []PlanDefinition {

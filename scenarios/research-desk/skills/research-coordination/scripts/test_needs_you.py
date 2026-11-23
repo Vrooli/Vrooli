@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 SCRIPT = Path(__file__).with_name("needs_you.py")
@@ -45,8 +46,8 @@ class GrammarCases(unittest.TestCase):
 READY = CASES[0]["text"].replace("/abs/", "")
 
 
-def ready_packets(directory: str, brief: str | None = None) -> None:
-    folder = Path(directory, "work", "AV4")
+def ready_packets(directory: str, brief: str | None = None, work_id: str = "AV4") -> None:
+    folder = Path(directory, "work", work_id)
     folder.mkdir(parents=True, exist_ok=True)
     today = dt.date.today().isoformat()
     (folder / "BRIEF.md").write_text(brief if brief is not None else
@@ -83,6 +84,16 @@ class Write(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(target.read_text(), draft)
 
+    def test_failed_atomic_replace_keeps_the_previous_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory, "DECISIONS.md")
+            target.write_text("previous decisions\n")
+            with patch.object(needs_you.os, "replace", side_effect=OSError("replace failed")):
+                with self.assertRaisesRegex(OSError, "replace failed"):
+                    needs_you.write_atomically(target, "new decisions\n")
+            self.assertEqual(target.read_text(), "previous decisions\n")
+            self.assertEqual([p.name for p in Path(directory).iterdir()], ["DECISIONS.md"])
+
     def test_a_decision_without_its_ready_folder_is_refused(self):
         # O7(f): F7's packet was a workstream brief, PF-KEYS asked for keys nobody had checked.
         for brief, want in ((None, "page"), ("# W1 — Build it\n", "no `Checked:"), ("", "")):
@@ -96,6 +107,64 @@ class Write(unittest.TestCase):
                 result = self.write_cli(source, target)
                 self.assertEqual(result.returncode, 1)
                 self.assertIn(want or "BRIEF.md does not exist", result.stderr)
+                self.assertFalse(target.exists())
+
+    def test_a_decision_says_what_silence_does_or_none_for_a_bright_line(self):
+        for line, ok in (("", False), ("If silent: keep on 2026-12-01\n", True), ("If silent: none\n", True),
+                         ("If silent: keep\n", False), ("If silent: on 2026-12-01\n", False)):
+            with self.subTest(line), tempfile.TemporaryDirectory() as directory:
+                ready_packets(directory)
+                draft = "\n".join(l for l in READY.splitlines() if not l.startswith("If silent:")) + "\n"
+                draft = draft.replace("Packet:", line + "Packet:", 1)
+                source, target = Path(directory, "draft.md"), Path(directory, "DECISIONS.md")
+                source.write_text(draft)
+                result = self.write_cli(source, target)
+                self.assertEqual(result.returncode, 0 if ok else 1, result.stderr)
+                if not ok:
+                    self.assertIn("If silent:", result.stderr)
+
+    def test_silence_is_asked_only_of_items_being_added(self):
+        # A write replaces the section, so an old item travels with the new one: it is not asked again.
+        with tempfile.TemporaryDirectory() as directory:
+            ready_packets(directory)
+            source, target = Path(directory, "draft.md"), Path(directory, "DECISIONS.md")
+            old = "\n".join(l for l in READY.splitlines() if not l.startswith("If silent:")) + "\n"
+            target.write_text(old)
+            source.write_text(old)
+            result = self.write_cli(source, target)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            added = old + "\n### AV9 — Another\nRecommended: keep — Keep.\nOptions: keep — Keep.\nPacket: work/AV9/BRIEF.md\nExplainer: work/AV9/page.html\n"
+            source.write_text(added)
+            ready_packets(directory, work_id="AV9")
+            result = self.write_cli(source, target)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("AV9: a decision being added needs `If silent:", result.stderr)
+            self.assertNotIn("AV4:", result.stderr)
+
+    def test_an_option_named_other_is_dropped_with_a_warning_and_never_refuses(self):
+        with tempfile.TemporaryDirectory() as directory:
+            ready_packets(directory)
+            source, target = Path(directory, "draft.md"), Path(directory, "DECISIONS.md")
+            source.write_text(READY.replace("wait — Wait.", "wait — Wait; other — Something else.", 1))
+            result = self.write_cli(source, target)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("warning:", result.stderr)
+            self.assertIn("other", result.stderr)
+
+    def test_a_new_item_under_an_answered_id_is_refused(self):
+        # The courier never delivers an answered ID again, so a write would leave an invisible
+        # question whose silence default still fires.
+        for history in (False, True):
+            with self.subTest(history=history), tempfile.TemporaryDirectory() as directory:
+                ready_packets(directory)
+                source, target = Path(directory, "draft.md"), Path(directory, "DECISIONS.md")
+                inbox = Path(directory, "history", "INBOX.md") if history else Path(directory, "INBOX.md")
+                inbox.parent.mkdir(exist_ok=True)
+                inbox.write_text("### 2026-11-15T09:00Z · from operator · answer\nAV4: keep — Keep.\nSource: hub ask a1\n")
+                source.write_text(READY)
+                result = self.write_cli(source, target)
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertIn("already holds an answer to that ID", result.stderr)
                 self.assertFalse(target.exists())
 
     def write_cli(self, source: Path, target: Path) -> subprocess.CompletedProcess:
@@ -316,6 +385,19 @@ class Spawn(unittest.TestCase):
             message, problems = needs_you.spawn_message(brief, "X1", "hold", now)
             self.assertEqual(message, None)
             self.assertIn("`hold`", problems[0])
+
+    def test_nested_workstream_decision_uses_nearest_topic_mission_intent(self):
+        now = dt.datetime(2026, 11, 22, 22, 0, tzinfo=dt.timezone.utc)
+        with tempfile.TemporaryDirectory() as d:
+            topic = Path(d) / "topics/problem-triage"
+            brief = topic / "work/PT2/GCT-WORKTREE-UI-CONCEPT/BRIEF.md"
+            write(brief, "Checked: 2026-11-22 the concept holds, read the design\n\n"
+                         "## On each answer\n- `contextual-ledger`: approve concept.\n- `other`: exact words.\n")
+            write(topic / "MISSION.md", "# Mission\n\n## Operator intent (verbatim)\n\n"
+                                       "> \"keep this resilient\"\n\n## End state\nx\n")
+            message, problems = needs_you.spawn_message(brief, "GCT-WORKTREE-UI-CONCEPT", "contextual-ledger", now)
+            self.assertEqual(problems, [])
+            self.assertIn('> "keep this resilient"', message)
 
 
 

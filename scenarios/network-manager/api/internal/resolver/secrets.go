@@ -93,14 +93,3 @@ func normalizeCredentialRef(ref string) string {
 	}
 	return ref
 }
-
-func redactedRef(ref string) string {
-	ref = strings.TrimSpace(ref)
-	if ref == "" {
-		return ""
-	}
-	if len(ref) <= 12 {
-		return "[redacted]"
-	}
-	return ref[:6] + "..." + ref[len(ref)-4:]
-}

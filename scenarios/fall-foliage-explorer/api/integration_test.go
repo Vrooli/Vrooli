@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 )
 
@@ -187,6 +188,10 @@ func TestTripPlanningIntegration(t *testing.T) {
 		for _, trip := range trips {
 			tripMap := trip.(map[string]interface{})
 			if tripMap["name"] == "Vermont Fall Colors Tour" {
+				wantRegions := []interface{}{float64(1), float64(2), float64(3), float64(4)}
+				if !reflect.DeepEqual(tripMap["regions"], wantRegions) {
+					t.Errorf("Expected persisted region IDs %v, got %v", wantRegions, tripMap["regions"])
+				}
 				found = true
 				break
 			}
@@ -227,13 +232,6 @@ func TestTripPlanningIntegration(t *testing.T) {
 		if id, ok := data["id"].(float64); ok {
 			defer testDB.DB.Exec("DELETE FROM trip_plans WHERE id = $1", int(id))
 		}
-	})
-
-	t.Run("TripInvalidRegionsJSON", func(t *testing.T) {
-		// This tests the JSON marshaling error path
-		// We can't easily trigger this through makeHTTPRequest,
-		// so we'll just verify the happy path covers most of the function
-		t.Skip("Cannot easily test JSON marshal error without mocking")
 	})
 }
 

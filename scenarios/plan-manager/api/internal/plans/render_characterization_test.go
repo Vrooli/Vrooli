@@ -400,7 +400,7 @@ func TestRenderNeverDoublesSkillReadPrefix(t *testing.T) {
 		Label:        "Corrupt target skill",
 		Reason:       "Persisted before targets were normalized to bare slugs.",
 		Instruction:  "Load this internal skill before implementation.",
-		Target:       "prompt-manager skill read seam-discovery-and-enforcement",
+		Target:       "prompt-manager skill read architecture-lenses",
 		Required:     true,
 		RepeatPolicy: plans.RelevantContextOncePerExecution,
 		Source:       plans.RelevantContextSourceAuthored,
@@ -412,7 +412,7 @@ func TestRenderNeverDoublesSkillReadPrefix(t *testing.T) {
 			t.Fatalf("corrupt-target item rendered a doubled skill-read prefix: %q", line)
 		}
 	}
-	if !strings.Contains(md, "prompt-manager skill read seam-discovery-and-enforcement") {
+	if !strings.Contains(md, "prompt-manager skill read architecture-lenses") {
 		t.Fatalf("corrupt-target item lost its runnable command:\n%s", md)
 	}
 }

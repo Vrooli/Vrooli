@@ -124,6 +124,11 @@ type Limits struct {
 		SupervisorEffort string `json:"supervisor_effort"`
 		OwnerModelTier   string `json:"owner_model_tier"`
 	} `json:"defaults"`
+	// Session is the Web Console policy each launched session gets.
+	Session struct {
+		// IdleArchiveAfter is the idle policy's window (a Go duration).
+		IdleArchiveAfter string `json:"idle_archive_after"`
+	} `json:"session"`
 	// Models lists the values packet.py accepts for each model field.
 	Models struct {
 		SupervisorModel  []string `json:"supervisor_model"`

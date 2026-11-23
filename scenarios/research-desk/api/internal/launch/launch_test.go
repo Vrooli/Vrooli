@@ -40,13 +40,14 @@ const (
 
 // fakeCodex is one Web Console session running Codex.
 type fakeCodex struct {
-	mu      sync.Mutex
-	created []SessionSpec
-	input   []string // "paste:…", "type:…", "key:Enter"
-	pending string
-	screen  Screen
-	goals   []home.Goal
-	procs   []home.Process
+	mu        sync.Mutex
+	created   []SessionSpec
+	input     []string // "paste:…", "type:…", "key:Enter"
+	pending   string
+	screen    Screen
+	goals     []home.Goal
+	procs     []home.Process
+	threadErr error
 	// choiceAfterStance makes Codex show a numbered choice instead of "ready".
 	choiceAfterStance bool
 	// swallowEnters is how many Enters Codex takes as part of a typing burst
@@ -65,6 +66,14 @@ type fakeCodex struct {
 	turnRunning bool
 	// goalsErr makes goals_1.sqlite unreadable.
 	goalsErr error
+	// goalOnThreadView simulates a delayed first send becoming visible between
+	// the recovery preflight and its second exact-thread read.
+	goalOnThreadView string
+	// screenErr fails every screen read once a goal row exists: Web Console
+	// timing out on the read-back after the goal went in (2026-11-21).
+	screenErr error
+	// typeErr fails typing: nothing reaches Codex.
+	typeErr error
 }
 
 func newCodex() *fakeCodex {
@@ -104,12 +113,18 @@ func (f *fakeCodex) Create(_ context.Context, spec SessionSpec) (string, error) 
 func (f *fakeCodex) Screen(context.Context, string) (Screen, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.screenErr != nil && len(f.goals) > 0 {
+		return Screen{}, f.screenErr
+	}
 	return f.screen, nil
 }
 
 func (f *fakeCodex) Type(_ context.Context, _, text string, paste bool) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.typeErr != nil && strings.HasPrefix(text, "/goal ") {
+		return f.typeErr
+	}
 	kind := "type:"
 	if paste {
 		kind = "paste:"
@@ -175,9 +190,19 @@ func (f *fakeCodex) SessionGoals(context.Context, string) ([]home.Goal, error) {
 	return slices.Clone(f.goals), f.goalsErr
 }
 
+func (f *fakeCodex) SessionThread(string) (string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.shown, f.threadErr
+}
+
 func (f *fakeCodex) ThreadView(sessionID, _ string) (home.ThreadView, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.goalOnThreadView != "" {
+		f.goals = append(f.goals, home.Goal{SessionID: sessionID, ThreadID: f.shown, Objective: f.goalOnThreadView, Status: "active", Updated: time.Now()})
+		f.goalOnThreadView = ""
+	}
 	shown, ok := f.shownIn[sessionID]
 	if !ok {
 		shown = f.shown
@@ -210,7 +235,7 @@ func (f *fakeCodex) typed() []string {
 func launcher(codex *fakeCodex) *Launcher {
 	return &Launcher{
 		Terminal: codex, Sessions: codex, WorkingDir: "/repo", Signal: codex.signal, Poll: time.Millisecond,
-		Patience: Patience{Settle: time.Millisecond, Composer: 50 * time.Millisecond, Ready: 50 * time.Millisecond, Goal: 50 * time.Millisecond, Stop: 50 * time.Millisecond},
+		Patience: Patience{Settle: time.Millisecond, Composer: 50 * time.Millisecond, Ready: 50 * time.Millisecond, Goal: 50 * time.Millisecond, Stop: 50 * time.Millisecond, Status: 50 * time.Millisecond},
 	}
 }
 
@@ -416,6 +441,263 @@ func TestControlsReachTheCommissionsOwnThreadOrNothing(t *testing.T) {
 	}
 }
 
+func TestRetryGoalTypesOnlyAfterExactThreadHasNoGoal(t *testing.T) {
+	r := newRig(t)
+	r.reader.states[prepared] = home.StateUnknown
+	r.reader.sessions[prepared] = "sess-1"
+	record := &home.LaunchRecord{Schema: home.LaunchSchema, CommissionID: prepared, LaunchedBy: "desk",
+		WebConsoleSessionID: "sess-1", ThreadID: "thread-1", Steps: []home.LaunchStep{
+			{Step: StepCreated}, {Step: StepComposerReady}, {Step: StepStanceSent}, {Step: StepReadySeen}},
+		Failed: &home.LaunchFailure{Step: StepGoalSent, Reason: "temporary Web Console timeout"}}
+	if _, err := r.writer.WriteLaunch(prepared, record); err != nil {
+		t.Fatal(err)
+	}
+	r.codex.goals = nil
+	r.codex.screen = idle("• ready")
+	out, err := r.service.Control(context.Background(), prepared, ActRetryGoal, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.GoalStatus != "active" || !strings.Contains(out.Message, "no new session created") {
+		t.Fatalf("result = %+v", out)
+	}
+	goalTypes := 0
+	for _, item := range r.codex.typed() {
+		if strings.HasPrefix(item, "type:/goal ") {
+			goalTypes++
+		}
+	}
+	if goalTypes != 1 {
+		t.Fatalf("typed goal command %d times; inputs=%q", goalTypes, r.codex.typed())
+	}
+	got := r.launchFile(t, prepared)
+	if got.Failed != nil || got.ThreadID != "thread-1" || !slices.ContainsFunc(got.Steps, func(s home.LaunchStep) bool { return s.Step == StepGoalVerified }) {
+		t.Fatalf("recovered launch record = %+v", got)
+	}
+	before := slices.Clone(r.codex.typed())
+	if _, err := r.service.Control(context.Background(), prepared, ActRetryGoal, ""); !errors.Is(err, home.ErrRefused) {
+		t.Fatalf("a second retry after durable verification: err = %v, want refused", err)
+	}
+	if after := r.codex.typed(); !slices.Equal(after, before) {
+		t.Fatalf("second recovery typed again: before=%q after=%q", before, after)
+	}
+}
+
+func TestRetryGoalRecoversReadySeenFailureOnTheUniqueRecordedSessionThread(t *testing.T) {
+	r := newRig(t)
+	r.reader.states[prepared] = home.StateUnknown
+	r.reader.sessions[prepared] = "sess-1"
+	record := &home.LaunchRecord{Schema: home.LaunchSchema, CommissionID: prepared, LaunchedBy: "desk",
+		WebConsoleSessionID: "sess-1", Steps: []home.LaunchStep{{Step: StepCreated}, {Step: StepComposerReady}, {Step: StepStanceSent}},
+		Failed: &home.LaunchFailure{Step: StepReadySeen, Reason: "Web Console unavailable while waiting for ready"}}
+	if _, err := r.writer.WriteLaunch(prepared, record); err != nil {
+		t.Fatal(err)
+	}
+	r.codex.goals = nil
+	r.codex.screen = idle("• ready")
+	out, err := r.service.Control(context.Background(), prepared, ActRetryGoal, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.GoalStatus != "active" || !strings.Contains(out.Message, "no new session created") {
+		t.Fatalf("result = %+v", out)
+	}
+	goalTypes := 0
+	for _, item := range r.codex.typed() {
+		if strings.HasPrefix(item, "type:/goal ") {
+			goalTypes++
+		}
+	}
+	if goalTypes != 1 {
+		t.Fatalf("typed goal command %d times; inputs=%q", goalTypes, r.codex.typed())
+	}
+	got := r.launchFile(t, prepared)
+	if got.Failed != nil || got.ThreadID != "thread-1" || !hasLaunchStep(got.Steps, StepReadySeen) || !hasLaunchStep(got.Steps, StepGoalVerified) {
+		t.Fatalf("recovered ready_seen launch record = %+v", got)
+	}
+}
+
+func TestRetryGoalFailsClosedWhenReadySeenSessionHasAmbiguousThread(t *testing.T) {
+	r := newRig(t)
+	r.reader.states[prepared] = home.StateUnknown
+	r.reader.sessions[prepared] = "sess-1"
+	if _, err := r.writer.WriteLaunch(prepared, &home.LaunchRecord{Schema: home.LaunchSchema, CommissionID: prepared, LaunchedBy: "desk",
+		WebConsoleSessionID: "sess-1", Steps: []home.LaunchStep{{Step: StepStanceSent}},
+		Failed: &home.LaunchFailure{Step: StepReadySeen, Reason: "Web Console unavailable"}}); err != nil {
+		t.Fatal(err)
+	}
+	r.codex.threadErr = errors.New("session has multiple top-level threads")
+	if _, err := r.service.Control(context.Background(), prepared, ActRetryGoal, ""); !errors.Is(err, home.ErrUnavailable) {
+		t.Fatalf("err = %v, want unavailable/unknown thread", err)
+	}
+	for _, item := range r.codex.typed() {
+		if strings.HasPrefix(item, "type:/goal ") {
+			t.Fatalf("sent a goal into an ambiguous thread: %q", item)
+		}
+	}
+}
+
+func TestRetryGoalReconcilesReadySeenGoalAfterSessionClosesWithoutTyping(t *testing.T) {
+	r := newRig(t)
+	r.reader.sessions[prepared] = "sess-1"
+	r.reader.tweaks[prepared] = func(c *home.Commission) {
+		c.State = home.StateEnded
+		if c.Session != nil {
+			c.Session.WindowOpen = false
+		}
+	}
+	if _, err := r.writer.WriteLaunch(prepared, &home.LaunchRecord{Schema: home.LaunchSchema, CommissionID: prepared, LaunchedBy: "desk",
+		WebConsoleSessionID: "sess-1", Steps: []home.LaunchStep{{Step: StepCreated}, {Step: StepComposerReady}, {Step: StepStanceSent}},
+		Failed: &home.LaunchFailure{Step: StepReadySeen, Reason: "Web Console unavailable"}}); err != nil {
+		t.Fatal(err)
+	}
+	kernel, err := os.ReadFile(filepath.Join(r.research, "cohorts", prepared, home.KernelFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.codex.goals = []home.Goal{{SessionID: "sess-1", ThreadID: "thread-1", Objective: strings.TrimSpace(string(kernel)), Status: "complete"}}
+	if _, err := r.service.Control(context.Background(), prepared, ActRetryGoal, ""); err != nil {
+		t.Fatal(err)
+	}
+	if len(r.codex.typed()) != 0 {
+		t.Fatalf("closed session was typed into while reconciling: %q", r.codex.typed())
+	}
+	got := r.launchFile(t, prepared)
+	if got.Failed != nil || got.ThreadID != "thread-1" || !hasLaunchStep(got.Steps, StepGoalVerified) {
+		t.Fatalf("closed-window ready_seen reconciliation = %+v", got)
+	}
+}
+
+func TestRetryGoalReconcilesMatchingExistingGoalWithoutTyping(t *testing.T) {
+	r := newRig(t)
+	r.reader.states[prepared] = home.StateUnknown
+	r.reader.sessions[prepared] = "sess-1"
+	record := &home.LaunchRecord{Schema: home.LaunchSchema, CommissionID: prepared, LaunchedBy: "desk",
+		WebConsoleSessionID: "sess-1", ThreadID: "thread-1", Steps: []home.LaunchStep{{Step: StepReadySeen}},
+		Failed: &home.LaunchFailure{Step: StepGoalSent, Reason: "response lost"}}
+	if _, err := r.writer.WriteLaunch(prepared, record); err != nil {
+		t.Fatal(err)
+	}
+	kernel, err := os.ReadFile(filepath.Join(r.research, "cohorts", prepared, home.KernelFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.codex.goals = []home.Goal{{SessionID: "sess-1", ThreadID: "thread-1", Objective: strings.TrimSpace(string(kernel)), Status: "active"}}
+	out, err := r.service.Control(context.Background(), prepared, ActRetryGoal, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.GoalStatus != "active" {
+		t.Fatalf("status = %q", out.GoalStatus)
+	}
+	for _, item := range r.codex.typed() {
+		if strings.HasPrefix(item, "type:/goal ") {
+			t.Fatalf("duplicate goal was typed: %q", item)
+		}
+	}
+	got := r.launchFile(t, prepared)
+	if got.Failed != nil || !slices.ContainsFunc(got.Controls, func(c home.ControlEntry) bool {
+		return c.Action == ActRetryGoal && strings.Contains(c.Outcome, "no duplicate")
+	}) {
+		t.Fatalf("reconciled record = %+v", got)
+	}
+}
+
+func TestRetryGoalRechecksAfterReadyToAvoidDelayedFirstSendDuplicate(t *testing.T) {
+	r := newRig(t)
+	r.reader.states[prepared] = home.StateUnknown
+	r.reader.sessions[prepared] = "sess-1"
+	record := &home.LaunchRecord{Schema: home.LaunchSchema, CommissionID: prepared, LaunchedBy: "desk",
+		WebConsoleSessionID: "sess-1", ThreadID: "thread-1", Steps: []home.LaunchStep{{Step: StepReadySeen}},
+		Failed: &home.LaunchFailure{Step: StepGoalSent, Reason: "first send response lost"}}
+	if _, err := r.writer.WriteLaunch(prepared, record); err != nil {
+		t.Fatal(err)
+	}
+	kernel, err := os.ReadFile(filepath.Join(r.research, "cohorts", prepared, home.KernelFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.codex.goals = nil
+	r.codex.goalOnThreadView = strings.TrimSpace(string(kernel))
+	r.codex.screen = idle("• ready")
+	if _, err := r.service.Control(context.Background(), prepared, ActRetryGoal, ""); err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range r.codex.typed() {
+		if strings.HasPrefix(item, "type:/goal ") {
+			t.Fatalf("delayed first send was duplicated: %q", item)
+		}
+	}
+	got := r.launchFile(t, prepared)
+	if got.Failed != nil || !slices.ContainsFunc(got.Controls, func(c home.ControlEntry) bool {
+		return c.Action == ActRetryGoal && strings.Contains(c.Outcome, "no duplicate")
+	}) {
+		t.Fatalf("reconciled delayed goal = %+v", got)
+	}
+}
+
+func TestRetryGoalCanReconcileCompletedGoalAfterWindowCloses(t *testing.T) {
+	r := newRig(t)
+	r.reader.sessions[prepared] = "sess-1"
+	r.reader.tweaks[prepared] = func(c *home.Commission) {
+		c.State = home.StateEnded
+		if c.Session != nil {
+			c.Session.WindowOpen = false
+		}
+	}
+	record := &home.LaunchRecord{Schema: home.LaunchSchema, CommissionID: prepared, LaunchedBy: "desk",
+		WebConsoleSessionID: "sess-1", ThreadID: "thread-1", Steps: []home.LaunchStep{{Step: StepReadySeen}},
+		Failed: &home.LaunchFailure{Step: StepGoalSent, Reason: "response lost"}}
+	if _, err := r.writer.WriteLaunch(prepared, record); err != nil {
+		t.Fatal(err)
+	}
+	kernel, err := os.ReadFile(filepath.Join(r.research, "cohorts", prepared, home.KernelFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.codex.goals = []home.Goal{{SessionID: "sess-1", ThreadID: "thread-1", Objective: strings.TrimSpace(string(kernel)), Status: "complete"}}
+	if _, err := r.service.Control(context.Background(), prepared, ActRetryGoal, ""); err != nil {
+		t.Fatal(err)
+	}
+	if len(r.codex.typed()) != 0 {
+		t.Fatalf("a closed session was typed into: %q", r.codex.typed())
+	}
+	got := r.launchFile(t, prepared)
+	if got.Failed != nil || !slices.ContainsFunc(got.Steps, func(s home.LaunchStep) bool { return s.Step == StepGoalVerified }) {
+		t.Fatalf("completed goal was not reconciled: %+v", got)
+	}
+}
+
+func TestRetryGoalFailsClosedOnUnknownGoalsOrDifferentObjective(t *testing.T) {
+	for name, setup := range map[string]func(*rig){
+		"unreadable goals": func(r *rig) { r.codex.goalsErr = errors.New("database unavailable") },
+		"different objective": func(r *rig) {
+			r.codex.goals = []home.Goal{{ThreadID: "thread-1", Objective: "other", Status: "active"}}
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			r := newRig(t)
+			r.reader.states[prepared] = home.StateUnknown
+			r.reader.sessions[prepared] = "sess-1"
+			record := &home.LaunchRecord{Schema: home.LaunchSchema, CommissionID: prepared, LaunchedBy: "desk",
+				WebConsoleSessionID: "sess-1", ThreadID: "thread-1", Steps: []home.LaunchStep{{Step: StepReadySeen}},
+				Failed: &home.LaunchFailure{Step: StepGoalSent, Reason: "temporary failure"}}
+			if _, err := r.writer.WriteLaunch(prepared, record); err != nil {
+				t.Fatal(err)
+			}
+			setup(r)
+			if _, err := r.service.Control(context.Background(), prepared, ActRetryGoal, ""); !errors.Is(err, home.ErrRefused) && !errors.Is(err, home.ErrUnavailable) {
+				t.Fatalf("err = %v, want refused or unavailable", err)
+			}
+			for _, item := range r.codex.typed() {
+				if strings.HasPrefix(item, "type:/goal ") {
+					t.Fatalf("sent a goal despite uncertain/mismatched state: %q", item)
+				}
+			}
+		})
+	}
+}
+
 // reader overrides derived state for the commissions a test names; the real
 // reader derives the rest from the copied folders.
 type reader struct {
@@ -472,6 +754,7 @@ type rig struct {
 	reader   *reader
 	packets  *packets
 	research string
+	codexDir string
 	writer   *writer.Writer
 }
 
@@ -497,7 +780,7 @@ func newRig(t *testing.T) *rig {
 			Reader: r, Writer: w, Packets: p, Launcher: launcher(codex), Clock: clock, Logger: log.New(io.Discard, "", 0),
 			Limits: func() (*skillscripts.Limits, error) { return limits, nil },
 		},
-		codex: codex, reader: r, packets: p, research: research, writer: w,
+		codex: codex, reader: r, packets: p, research: research, codexDir: h.Codex, writer: w,
 	}
 }
 
@@ -546,6 +829,9 @@ func TestAPreparedPacketLaunchesAndEveryStepIsRecorded(t *testing.T) {
 	}
 	if !strings.Contains(r.codex.created[0].Command, "-m gpt-5.5 -c model_reasoning_effort=xhigh") {
 		t.Fatalf("command %q does not use the limits.json defaults", r.codex.created[0].Command)
+	}
+	if r.codex.created[0].IdleArchiveAfter != DefaultIdleArchiveAfter {
+		t.Fatalf("session idle window = %q, want the default %q when limits.json names none", r.codex.created[0].IdleArchiveAfter, DefaultIdleArchiveAfter)
 	}
 
 	r.reader.states[handRun] = home.StateStopped
@@ -685,7 +971,7 @@ func TestBlockerAndVerdictTextNamesNoCommand(t *testing.T) {
 	ctx := context.Background()
 	spec := []byte(`{"topics":["niche-book-production"],"allowance_hours":8}`)
 	seen := 0
-	for _, state := range []home.State{home.StateLive, home.StatePaused, home.StateLimited, home.StateUnknown, home.StateStopped, home.StateEnded, home.StatePrepared} {
+	for _, state := range []home.State{home.StateLive, home.StatePaused, home.StateLimited, home.StateHalted, home.StateUnknown, home.StateStopped, home.StateEnded, home.StatePrepared} {
 		r.reader.states[handRun] = state
 		for _, p := range []Preflight{must(r.service.PreflightSpec(ctx, spec, Choices{})), must(r.service.PreflightCommission(ctx, handRun, Choices{}))} {
 			lines := slices.Clone(p.Blockers)
@@ -1306,5 +1592,74 @@ func TestPreflightShowsTheStartOfThePacketsOwnState(t *testing.T) {
 	spec := []byte(`{"topics":["local-model-performance"]}`)
 	if p, err := r.service.PreflightSpec(ctx, spec, Choices{}); err != nil || p.PacketState != nil {
 		t.Fatalf("a spec has no packet of its own yet: %+v %v", p.PacketState, err)
+	}
+}
+
+// A read ceiling exceeded refuses the launch and names what to cut (R7): the
+// mission an owner reads at start, and the commission's own read sets.
+func TestAReadCeilingExceededIsFlaggedButNeverRefuses(t *testing.T) {
+	r := newRig(t)
+	ctx := context.Background()
+	tight := func(mission int64, start int64) {
+		r.reader.Reader = home.NewReader(home.Config{ResearchDir: r.research, CodexDir: r.codexDir},
+			home.Deps{Clock: r.service.Clock, Procs: home.FixedProcs{}, Ceilings: func() (*home.Ceilings, error) {
+				return &home.Ceilings{
+					Roles:        []home.RoleReads{{Key: "scheduler_start", Items: []string{"charter"}, CeilingBytes: start}, {Key: home.OwnerStartKey, CeilingBytes: 1 << 20}},
+					OwnerTopic:   []string{home.MissionFile},
+					MissionBytes: mission, CharterBytes: 1 << 20, Source: "limits.json",
+				}, nil
+			}})
+	}
+	topic := filepath.Join(r.research, "topics", "local-model-performance")
+	if err := os.MkdirAll(topic, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(topic, home.MissionFile), []byte(strings.Repeat("a mission line\n", 40)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tight(1<<20, 1<<20)
+	if p := must(r.service.PreflightCommission(ctx, prepared, Choices{})); !p.Launchable() {
+		t.Fatalf("under every ceiling nothing refuses: %q", p.Blockers)
+	}
+	tight(100, 1<<20)
+	if p := must(r.service.PreflightCommission(ctx, prepared, Choices{})); !p.Launchable() {
+		t.Fatalf("an oversized mission is flagged for trimming but never refuses the launch (R1): %q", p.Blockers)
+	}
+	tight(1<<20, 100)
+	p := must(r.service.PreflightCommission(ctx, prepared, Choices{}))
+	if !p.Launchable() {
+		t.Fatalf("a scheduler read over its ceiling is friction to cut, not a refusal (R1): %q", p.Blockers)
+	}
+	flagged := false
+	for _, set := range p.Reading {
+		flagged = flagged || len(set.Breach) > 0
+	}
+	if !flagged {
+		t.Fatal("the over-ceiling read set must still be flagged in the preflight")
+	}
+}
+
+// The session idle window comes from limits.json; a window Web Console would
+// refuse stops the launch before any session is created.
+func TestLaunchUsesTheLimitsIdleWindow(t *testing.T) {
+	r := newRig(t)
+	limits, _ := r.service.Limits()
+	limits.Session.IdleArchiveAfter = "9h"
+	if _, err := r.service.Launch(context.Background(), prepared, Choices{}); err != nil {
+		t.Fatal(err)
+	}
+	r.wait(t, prepared)
+	if got := r.codex.created[0].IdleArchiveAfter; got != "9h" {
+		t.Fatalf("session idle window = %q, want limits.json's 9h", got)
+	}
+
+	bad := newRig(t)
+	limits, _ = bad.service.Limits()
+	limits.Session.IdleArchiveAfter = "2m"
+	if _, err := bad.service.Launch(context.Background(), prepared, Choices{}); err == nil || !strings.Contains(err.Error(), "idle_archive_after") {
+		t.Fatalf("launch with a refused idle window: err = %v", err)
+	}
+	if len(bad.codex.created) != 0 {
+		t.Fatal("a session was created despite the refused idle window")
 	}
 }

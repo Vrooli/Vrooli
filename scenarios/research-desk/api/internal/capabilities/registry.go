@@ -128,8 +128,12 @@ func StartHint(ctx context.Context, resolver PortResolver, slug string) string {
 }
 
 // CheckTimeout bounds one health check (port lookup and /health) and the
-// port lookup of a reach; peer.CallTimeout bounds each call after it.
-const CheckTimeout = 3 * time.Second
+// port lookup of a reach; peer.CallTimeout bounds each call after it. The port
+// lookup goes through the control plane and can take several seconds on a
+// loaded host (load average ~24 on 2026-11-21): at 3 s, three stop/launch
+// steps that night failed as "not reached" while web-console's /health was
+// answering in under 50 ms.
+const CheckTimeout = 10 * time.Second
 
 // NewRegistry builds the registry over defs with a health check per scenario
 // dependency. Results are cached for 15 s.

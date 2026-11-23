@@ -425,7 +425,11 @@ func cachedPolicyFresh(view *policyv1.EffectivePolicy, at, now time.Time, maxAge
 		if stamp == nil {
 			stamp = source.ObservedAt
 		}
-		if stamp == nil || now.Sub(stamp.AsTime()) > time.Duration(maxAge)*time.Second {
+		if stamp == nil {
+			return false
+		}
+		age := now.Sub(stamp.AsTime())
+		if age < 0 || age > time.Duration(maxAge)*time.Second {
 			return false
 		}
 	}

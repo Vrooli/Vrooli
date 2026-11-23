@@ -16,16 +16,22 @@ type Service struct {
 	repo         Repository
 	client       AdGuardClient
 	dnsInspector HostDNSInspector
+	getenv       func(string) string
 }
 
 type Config struct {
 	Repo         Repository
 	Client       AdGuardClient
 	DNSInspector HostDNSInspector
+	Getenv       func(string) string
 }
 
 func NewService(cfg Config) *Service {
-	s := &Service{repo: cfg.Repo, client: cfg.Client, dnsInspector: cfg.DNSInspector}
+	getenv := cfg.Getenv
+	if getenv == nil {
+		getenv = os.Getenv
+	}
+	s := &Service{repo: cfg.Repo, client: cfg.Client, dnsInspector: cfg.DNSInspector, getenv: getenv}
 	if s.client == nil {
 		s.client = ConservativeAdGuardClient{}
 	}
@@ -52,7 +58,7 @@ func (s *Service) Status(ctx context.Context) (Status, error) {
 }
 
 func (s *Service) ConfigureAdGuardHome(ctx context.Context, baseURL, username, tokenRef string, dryRun bool) (Status, []string, error) {
-	cfg, err := normalizeConfig(baseURL, username, tokenRef)
+	cfg, err := normalizeConfig(baseURL, username, tokenRef, s.getenv)
 	if err != nil {
 		return Status{}, nil, err
 	}
@@ -130,7 +136,7 @@ func (s *Service) AdGuardRollout(ctx context.Context) (RolloutReport, error) {
 	if err != nil {
 		return RolloutReport{}, err
 	}
-	dnsBindIP := firstNonEmpty(os.Getenv("ADGUARD_HOME_DNS_BIND_IP"), defaultAdGuardDNSBindIP())
+	dnsBindIP := firstNonEmpty(s.getenv("ADGUARD_HOME_DNS_BIND_IP"), defaultAdGuardDNSBindIP())
 	inspection := s.dnsInspector.InspectHostDNS(ctx, dnsBindIP)
 	report := RolloutReport{
 		DNSBindIP:      dnsBindIP,
@@ -168,10 +174,10 @@ func (s *Service) statusFromClient(ctx context.Context, cfg BackendConfig) (Stat
 	return status, nil
 }
 
-func normalizeConfig(baseURL, username, credentialRef string) (BackendConfig, error) {
-	baseURL = firstNonEmpty(baseURL, os.Getenv("ADGUARD_HOME_BASE_URL"), os.Getenv("ADGUARD_HOME_URL"))
-	username = firstNonEmpty(username, os.Getenv("ADGUARD_HOME_USERNAME"))
-	credentialRef = firstNonEmpty(credentialRef, os.Getenv("ADGUARD_HOME_CREDENTIAL_REF"))
+func normalizeConfig(baseURL, username, credentialRef string, getenv func(string) string) (BackendConfig, error) {
+	baseURL = firstNonEmpty(baseURL, getenv("ADGUARD_HOME_BASE_URL"), getenv("ADGUARD_HOME_URL"))
+	username = firstNonEmpty(username, getenv("ADGUARD_HOME_USERNAME"))
+	credentialRef = firstNonEmpty(credentialRef, getenv("ADGUARD_HOME_CREDENTIAL_REF"))
 	if baseURL == "" {
 		return BackendConfig{}, fmt.Errorf("base_url is required")
 	}

@@ -76,6 +76,33 @@ func (r *Reader) ThreadView(sessionID, threadID string) (ThreadView, error) {
 	return view, nil
 }
 
+// SessionThread returns the one top-level thread recorded for a Web Console
+// session. It fails closed when the session has no transcript or multiple
+// top-level conversations, so recovery cannot guess which thread to type into.
+func (r *Reader) SessionThread(sessionID string) (string, error) {
+	paths, err := filepath.Glob(filepath.Join(r.CodexHome(sessionID), "sessions", "*", "*", "*", "rollout-*.jsonl"))
+	if err != nil || len(paths) == 0 {
+		return "", fmt.Errorf("no Codex transcript in session %s", sessionID)
+	}
+	threads := map[string]bool{}
+	for _, path := range paths {
+		id, topLevel, err := transcriptMeta(path)
+		if err != nil {
+			return "", err
+		}
+		if topLevel {
+			threads[id] = true
+		}
+	}
+	if len(threads) != 1 {
+		return "", fmt.Errorf("session %s has %d top-level Codex threads; expected exactly one", sessionID, len(threads))
+	}
+	for id := range threads {
+		return id, nil
+	}
+	return "", fmt.Errorf("session %s has no top-level Codex thread", sessionID)
+}
+
 // transcriptMeta reads a transcript's session_meta line: the thread id and
 // whether it is a top-level thread (its source is not a sub-agent spawn).
 func transcriptMeta(path string) (string, bool, error) {

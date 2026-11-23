@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
 
 type PipelinePageProps = { kind: "package" | "evidence" | "publication" | "attribution" };
 

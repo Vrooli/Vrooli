@@ -3,6 +3,8 @@ package resolver
 import (
 	"context"
 	"fmt"
+
+	apidb "github.com/vrooli/api-core/database"
 )
 
 // Migrate applies the one compatibility migration needed when the resolver
@@ -10,7 +12,7 @@ import (
 // before api-core/database.EnsureSchemas so an existing SQLite database can
 // reach the current declarative schema without losing stored references.
 // Fresh databases and already-migrated databases are no-ops.
-func Migrate(ctx context.Context, db SQLExecutor) error {
+func Migrate(ctx context.Context, db apidb.SQLExecutor) error {
 	columns, err := tableColumns(ctx, db)
 	if err != nil {
 		return err
@@ -27,7 +29,7 @@ func Migrate(ctx context.Context, db SQLExecutor) error {
 	return nil
 }
 
-func tableColumns(ctx context.Context, db SQLExecutor) (map[string]struct{}, error) {
+func tableColumns(ctx context.Context, db apidb.SQLExecutor) (map[string]struct{}, error) {
 	rows, err := db.QueryContext(ctx, "PRAGMA table_info(resolver_backends)")
 	if err != nil {
 		return nil, fmt.Errorf("inspect resolver_backends columns: %w", err)

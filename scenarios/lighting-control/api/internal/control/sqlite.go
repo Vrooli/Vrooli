@@ -9,25 +9,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/schedule"
 	controlv1 "github.com/vrooli/vrooli/packages/proto/gen/go/lighting-control/v1/control"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-type SQLExecutor interface {
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
-	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
-}
-
 type sqliteRepository struct {
-	db    SQLExecutor
+	db    database.SQLTxExecutor
 	clock schedule.Clock
 }
 
-func NewSQLiteRepository(db SQLExecutor, clock schedule.Clock) Repository {
+func NewSQLiteRepository(db database.SQLTxExecutor, clock schedule.Clock) Repository {
 	if clock == nil {
 		clock = schedule.System()
 	}

@@ -7,19 +7,15 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	apidb "github.com/vrooli/api-core/database"
 )
 
-type SQLExecutor interface {
-	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
-	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
-	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
-}
-
 type sqliteRepository struct {
-	db SQLExecutor
+	db apidb.SQLExecutor
 }
 
-func NewSQLiteRepository(db SQLExecutor) Repository {
+func NewSQLiteRepository(db apidb.SQLExecutor) Repository {
 	return &sqliteRepository{db: db}
 }
 

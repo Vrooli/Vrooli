@@ -10,7 +10,7 @@
       "commands": [
         {
           "name": "now",
-          "description": "State counts (live, paused and limited apart), open supervisor windows, overlaps and unavailable lenses",
+          "description": "State counts (live, halted, paused and limited apart), open supervisor windows with any halt and its recovery, overlaps and unavailable lenses",
           "binding": {
             "kind": "connect-rpc",
             "service": "vrooli.research_desk.v1.activity.ActivityService",
@@ -37,6 +37,7 @@
               "repeatable": true,
               "values": [
                 "live",
+                "halted",
                 "paused",
                 "limited",
                 "stopped",
@@ -390,7 +391,7 @@
         },
         {
           "name": "control",
-          "description": "Pause, resume, stop or discard a commission, or paste its stance again; the goal status is read back and the control recorded in LAUNCH.json",
+          "description": "Pause, resume, stop or discard a commission, paste its stance again, or recover a desk launch failed at ready_seen, goal_sent or goal_verified; ready_seen recovery requires one top-level thread in the exact session and reads goals before sending; every control is recorded in LAUNCH.json",
           "positionals": [
             {
               "name": "commission-id",

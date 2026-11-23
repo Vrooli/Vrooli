@@ -114,8 +114,8 @@ wanted read surface are in `scenarios/offer-desk/docs/internal/PROBLEMS.md`, and
 routed by `prompt-manager skill read offer-desk-improve` §5.
 
 If you hit a *fifth* such question, that observation is the valuable output of your run. It
-costs one typed entry and requires no decision — the Observe exit in
-`path:docs/agent-system/TARGET_MODEL.md` §8. Add it to the ledger rather than working around
+costs one typed entry and requires no decision (report it as friction, per
+`path:docs/agent-system/STANDING_TEAMS.md` "Reporting what moved"). Add it to the ledger rather than working around
 it silently, and do not file a work item for it unless a decision is genuinely needed.
 
 ### In-use settings
@@ -136,7 +136,7 @@ it silently, and do not file a work item for it unless a decision is genuinely n
 | `release-prerequisites` returns `sql: no rows in result set` | The stream node id does not exist. `release-path` degrades to `partial` and still reports the ladder join; correct the id rather than dropping the read. |
 | The instrument is unavailable | Record the reason and the age of your last good reading in the continuity record, fall back to your lane's declared durable evidence, and keep conclusions qualified. Never silently skip the board. |
 | A reading disagrees with a Command Center revenue tile | Both can be true; they measure different things. As of 2026-09-08 the tiles are UNTRUSTED on a producer contract mismatch (`revenue-summary.v1` against an expected `legacy.v1`). Report the disagreement; do not reconcile it by picking one. |
-| You want a target for a row | Targets are authored outside this scenario. An instrument that authors its own denominator is deviation D6 in `docs/agent-system/TARGET_MODEL.md`. Raise the gap; do not fill it here. |
+| You want a target for a row | Targets are authored outside this scenario. An instrument that authors its own denominator is deviation D6 in `docs/agent-system/STANDING_TEAMS.md`. Raise the gap; do not fill it here. |
 
 Promotion note: the `[S1]` leaves above are single commands whose `--help` already carries
 their flags, so this skill names the decision and not the flag list. `catalog-map-account`

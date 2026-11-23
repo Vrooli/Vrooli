@@ -8,28 +8,23 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/schedule"
 )
-
-type SQLExecutor interface {
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
-	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-}
 
 type RepositoryOptions struct{ IDGenerator func() string }
 
 type sqliteRepository struct {
-	db          SQLExecutor
+	db          database.SQLExecutor
 	clock       schedule.Clock
 	idGenerator func() string
 }
 
-func NewSQLiteRepository(db SQLExecutor, clock schedule.Clock) Repository {
+func NewSQLiteRepository(db database.SQLExecutor, clock schedule.Clock) Repository {
 	return NewSQLiteRepositoryWithOptions(db, clock, RepositoryOptions{})
 }
 
-func NewSQLiteRepositoryWithOptions(db SQLExecutor, clock schedule.Clock, options RepositoryOptions) Repository {
+func NewSQLiteRepositoryWithOptions(db database.SQLExecutor, clock schedule.Clock, options RepositoryOptions) Repository {
 	if options.IDGenerator == nil {
 		options.IDGenerator = uuid.NewString
 	}

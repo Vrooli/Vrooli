@@ -40,6 +40,13 @@ type handler struct {
 	decompositions decompositionSourceLister
 }
 
+type rejectedTrackPolicy uint8
+
+const (
+	excludeRejectedTracks rejectedTrackPolicy = iota
+	includeRejectedTracks
+)
+
 type rankedCandidate struct {
 	candidate preference.Candidate
 	score     preference.Score
@@ -95,7 +102,7 @@ func (h *handler) SelectPair(ctx context.Context, req *connect.Request[tastev1.S
 	if err != nil {
 		return nil, mapError(err)
 	}
-	candidates, err := h.candidates(ctx, false)
+	candidates, err := h.candidates(ctx, excludeRejectedTracks)
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -111,7 +118,7 @@ func (h *handler) SelectPair(ctx context.Context, req *connect.Request[tastev1.S
 }
 
 func (h *handler) RecordJudgment(ctx context.Context, req *connect.Request[tastev1.RecordJudgmentRequest]) (*connect.Response[tastev1.RecordJudgmentResponse], error) {
-	all, err := h.candidates(ctx, true)
+	all, err := h.candidates(ctx, includeRejectedTracks)
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -144,7 +151,7 @@ func (h *handler) Recommend(ctx context.Context, req *connect.Request[tastev1.Re
 	if err != nil {
 		return nil, mapError(err)
 	}
-	all, err := h.candidates(ctx, true)
+	all, err := h.candidates(ctx, excludeRejectedTracks)
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -226,7 +233,7 @@ func (h *handler) Recommend(ctx context.Context, req *connect.Request[tastev1.Re
 	return connect.NewResponse(response), nil
 }
 
-func (h *handler) candidates(ctx context.Context, includeRejected bool) ([]preference.Candidate, error) {
+func (h *handler) candidates(ctx context.Context, rejectedPolicy rejectedTrackPolicy) ([]preference.Candidate, error) {
 	tracks, err := h.catalog.List(ctx, catalog.Filter{})
 	if err != nil {
 		return nil, err
@@ -250,7 +257,7 @@ func (h *handler) candidates(ctx context.Context, includeRejected bool) ([]prefe
 		}
 	}
 	for _, track := range tracks {
-		if !includeRejected && track.Approval == "rejected" {
+		if rejectedPolicy == excludeRejectedTracks && track.Approval == "rejected" {
 			continue
 		}
 		features := make([]preference.Feature, 0, len(track.Tags))

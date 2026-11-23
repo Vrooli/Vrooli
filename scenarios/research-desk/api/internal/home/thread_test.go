@@ -74,6 +74,21 @@ func TestThreadViewNamesTheShownThreadAndARunningTurn(t *testing.T) {
 	}
 }
 
+func TestSessionThreadOnlyResolvesOneTopLevelConversation(t *testing.T) {
+	codexDir := t.TempDir()
+	r := NewReader(Config{CodexDir: codexDir}, Deps{})
+	base := time.Date(2026, 11, 12, 0, 0, 0, 0, time.UTC)
+	writeRollout(t, codexDir, "s", "main", base, meta(metaTop, "main"), started, completed)
+	writeRollout(t, codexDir, "s", "worker", base.Add(time.Minute), meta(metaSubagent, "worker"), started)
+	if got, err := r.SessionThread("s"); err != nil || got != "main" {
+		t.Fatalf("thread = %q, %v; want unique top-level main", got, err)
+	}
+	writeRollout(t, codexDir, "s", "fresh", base.Add(2*time.Minute), meta(metaTop, "fresh"), started, completed)
+	if got, err := r.SessionThread("s"); err == nil || got != "" || !strings.Contains(err.Error(), "2 top-level") {
+		t.Fatalf("ambiguous thread = %q, %v; want fail closed", got, err)
+	}
+}
+
 func TestOnlyProcessesInTheSessionsTerminalBelongToIt(t *testing.T) {
 	proc := t.TempDir()
 	// tmux server 10 → pane shell 11 → codex 12 → app-server 13; worker 20

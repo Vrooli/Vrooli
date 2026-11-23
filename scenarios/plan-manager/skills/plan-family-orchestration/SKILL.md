@@ -45,7 +45,7 @@ work from an unreviewed, stale, or cyclic graph.
 ### 2. Family decision
 
 Apply the shared work-shape decision in
-`docs/agent-system/SWARM_MANAGER_WORK.md` before this family decision. A
+`docs/agent-system/SCENARIO_DEVELOPMENT.md#work-shapes` before this family decision. A
 family is a topology for multiple independently owned plan-shaped units; it is
 not the default container for a large effort, and bounded tasks or
 investigations are not family members.

@@ -67,7 +67,18 @@ plus the allowance in `KERNEL.txt` or the spec).
 | `stopped` | no TUI, goal not `complete`, allowance not passed |
 | `live` | TUI, goal `active`; `stalled` after 70 minutes without a write |
 | `paused` | TUI, goal `paused` |
-| `limited` | TUI, goal `usage_limited`, `budget_limited` or `blocked` |
+| `limited` | TUI, goal `usage_limited` or `budget_limited`, or `blocked` when the turn error below cannot be read |
+| `halted` | TUI, goal `blocked`, and the thread's rollout says its newest turn ended on an error |
+
+**Halted.** Codex marks a goal `blocked` when a goal turn ends on an error (a dropped stream,
+an overloaded model, a refused model, flagged content). The desk reads the newest turn boundary
+of the exact thread's rollout (`task_complete` with an `error`, read back from the end, at most
+16 MiB) and classifies the error with `packages/codex-rollout/turn_errors.json`: rules match
+`codex_error_info`, the HTTP status and message text to a class (`transient`, `capacity`,
+`output_limit`, `configuration`, `policy`, `unrecognised`), and each class names its recovery.
+The table is the one place both live; a new error shape is a rule, a policy change a field. The
+commission's `halt` carries the error, its class and the recovery plan (§6). A deliberate usage
+or budget limit stays `limited`.
 
 An optional `SETTLEMENT.json` stores a cited historical disposition (`prepared`, `closed`,
 `closed_partial` or `continued_elsewhere`) with the time through which the cited evidence
@@ -84,7 +95,7 @@ match or goal naming the charter was found in any Codex home the desk can read (
 homes are named).
 
 **When an entry is read** (`entry_reading`): `never` (ended), `not_until_steering`,
-`next_unit` (live), `after_resume` (paused or limited), `at_start` (prepared or stopped), else
+`next_unit` (live), `after_resume` (paused, limited or halted), `at_start` (prepared or stopped), else
 `unknown`.
 
 The supervisor's status line is shown beside the state as a claim. Two commissions overlap
@@ -135,7 +146,11 @@ commission has a `BASELINE.json`.
 **Automatic launch** (`launch/launcher.go`) runs in the background through Web Console's HTTP
 API with `X-Idempotency-Key: <commission>#1`: a persistent session running
 `vrooli-agent-launcher --agent codex -- --yolo -m <model> -c model_reasoning_effort=<effort>`
-(its own `CODEX_HOME`); paste the stance; wait for `ready`; type `/goal <kernel>`; verify the
+(its own `CODEX_HOME`) under Web Console's `idle` policy for `session.idle_archive_after` in
+`limits.json` (default 6h): once Codex has written nothing for that long with no goal active and
+no turn or sub-agent running, Web Console archives the session to free its memory and notes why,
+and Reopen brings the thread and its goal back (the commission then reads `stopped` or `ended`
+until reopened); paste the stance; wait for `ready`; type `/goal <kernel>`; verify the
 goal is `active` with the kernel as objective. Each Enter waits one second and the input row
 is read back ([Codex measurements](../internal/evidence/codex-measurements.md)). Steps go to
 `LAUNCH.json` (FILE-CONTRACT §3); nothing else is sent. **Manual**: `GetLaunchMessages` gives
@@ -144,7 +159,8 @@ labelled throwaway session with a completing kernel, then pauses, resumes and st
 
 ## 6. Control
 
-Only on the operator's action, only for an exact match with a TUI, through Web Console
+Only on the operator's action (one exception: automatic recovery, below), only for an exact
+match with a TUI, through Web Console
 terminal input; each is recorded in `LAUNCH.json` `controls`. Before typing, the session must
 show the commission's own thread with the cursor in Codex's input row and no choice open, or
 the control is refused. Pause and Resume may go in during a turn; Re-send stance and Stop
@@ -153,13 +169,27 @@ wait for an idle input row.
 | Action | Mechanism |
 |---|---|
 | Wind down | `OPERATOR.md` entry `wind-down`, read at the next unit |
-| Pause, Resume | `/goal pause` or `/goal resume`, Enter; only an active goal is paused, only a paused one resumed |
+| Pause, Resume | `/goal pause` or `/goal resume`, Enter; only an active goal is paused, only a paused or halted one resumed |
 | Stop | `/goal pause`; Ctrl+C twice when idle; stop that home's app-server; verify no TUI. Never delete the session |
 | Discard | Stop if open, then `discarded` with the operator's reason |
 | Re-send stance | paste `STANCE-MESSAGE.txt` again, Enter |
 
 A control runs detached from the request for up to two minutes, so a dropped connection
 never leaves half a stop.
+
+**Automatic recovery.** Every minute the desk's writer instance passes over `halted`
+commissions. A halt whose class resumes, with allowance left, gets `/goal resume` typed into
+its own thread through the Resume path above (same readiness checks), `backoff[n]` after the
+error (transient: 2, 5, 10 minutes; capacity: 10, 20, 40), at most `max_attempts` within the
+class's `window`. Each commission is re-read under its claim first, so one halted turn gets one
+attempt per due time. A halt escalates instead, once, when its class never resumes
+(configuration, policy, unrecognised), the cap is reached, the error is older than the class's
+`stale_after` (nobody acted while it was fresh), or the allowance ended or is unknown. Every act
+is a `recoveries` entry in `LAUNCH.json` (FILE-CONTRACT §3). An escalated halt, and a resume
+over ten minutes late (the pass is not running), is a window flag: `now` prints it and the
+steward's commission-fog risk reads it from `now --json`, so the steward, not the operator,
+decides whether to resume (`control <id> resume`), relaunch or stop it. A halt about to be
+resumed is not flagged.
 
 ## 7. Operator file and courier
 

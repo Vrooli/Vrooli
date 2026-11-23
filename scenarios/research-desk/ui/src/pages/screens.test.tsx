@@ -161,6 +161,28 @@ describe("Commission status", () => {
     expect(screen.queryByText(strings.commission.launchRecord)).not.toBeInTheDocument();
   });
 
+  it("says a halted goal was stopped by a turn error, what it means, and that the steward decides", async () => {
+    const message = "stream disconnected before completion: Transport error: network error: error decoding response body";
+    const escalation = "the error is 20h0m0s old, past the 1h0m0s within which it is resumed automatically";
+    const meaning = "The connection to the model dropped mid-turn; the session, its work and its goal are intact.";
+    wire({
+      [`${ACTIVITY}/GetCommission`]: {
+        ...detail,
+        commission: {
+          ...commission,
+          state: "COMMISSION_STATE_HALTED",
+          halt: { at: "2026-11-20T20:13:09Z", message, errorClass: "transient", meaning, rule: "stream-disconnected", recoveryAction: "escalate", escalation, source: `${HOME}/rollout.jsonl` },
+        },
+      },
+    });
+    render("/commissions/c1");
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(screen.getByText(meaning)).toBeInTheDocument();
+    // Escalated, not about to be resumed: the steward decides.
+    expect(screen.getByText(strings.commission.haltEscalated)).toBeInTheDocument();
+    expect(screen.queryByText(strings.commission.haltResume)).not.toBeInTheDocument();
+  });
+
   it("says unknown when no session can be matched", async () => {
     wire({ [`${ACTIVITY}/GetCommission`]: { ...detail, matches: [] } });
     render("/commissions/c1");

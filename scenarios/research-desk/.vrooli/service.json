@@ -354,10 +354,10 @@
         "path": "$USER_HOME/.vrooli/research",
         "regenerable": false,
         "agent_removal": "deny",
-        "rationale": "Canonical retained-research home (runtime_home entry research in .vrooli/repo-contract.json; docs/internal/research-experimentation/STORAGE.md). Research Desk is the budget owner: it reads and supervises every topic, run and cohort here, and its research-coordination skill ships archive.py, the tool that moves heavy material out of closed runs. Topics, runs, cohorts and migration receipts are research results and evidence: never pruned by budget or by a generic sweep. Rehearsal repository copies and dependency or build trees in closed runs are moved by archive.py to the research_archive_* entries below, leaving a pointer file and keeping every reference.",
+        "rationale": "Canonical retained-research home (runtime_home entry research in .vrooli/repo-contract.json; docs/internal/research-experimentation/STORAGE.md). Research Desk is the budget owner: it reads and supervises every topic, run and cohort here. Heavy material from closed runs was moved out by hand (2026-11-15) and is now moved by whoever owns the closed run. Topics, runs, cohorts and migration receipts are research results and evidence: never pruned by budget or by a generic sweep. Rehearsal repository copies and dependency or build trees in closed runs are moved to the research_archive_* entries below, leaving a pointer file with a plain mv restore command and keeping every reference.",
         "budget": {
           "max_bytes": "120GiB",
-          "rationale": "Alarm-only: 107 GiB measured 2026-11-15 before archiving; 62 GiB after archive.py moved 115 items (14 GiB) from closed runs and then 177 programme-four-20261108 rehearsal copies (35.7 GiB) once that run had been quiet for 24 hours. A breach means a run kept its intermediates past closure or a study outgrew the home and needs an operator decision; storage-manager never deletes research."
+          "rationale": "Alarm-only: 107 GiB measured 2026-11-15 before archiving; 62 GiB after 115 items (14 GiB) from closed runs and then 177 programme-four-20261108 rehearsal copies (35.7 GiB) once that run had been quiet for 24 hours. A breach means a run kept its intermediates past closure or a study outgrew the home and needs an operator decision; storage-manager never deletes research."
         }
       },
       "research_archive_rehearsals": {
@@ -366,7 +366,7 @@
         "path": "$USER_HOME/.vrooli/archive/research/rehearsal",
         "regenerable": false,
         "agent_removal": "deny",
-        "rationale": "Repository copies research runs made to rehearse on, moved here by archive.py (research-coordination skill) from closed runs under the same topic and run path, with an index.jsonl line each and a <name>.ARCHIVED.md pointer at the old place holding the restore command. Kept as run evidence; never pruned.",
+        "rationale": "Repository copies research runs made to rehearse on, moved here from closed runs under the same topic and run path, with an index.jsonl line each and a <name>.ARCHIVED.md pointer at the old place holding the restore command. Kept as run evidence; never pruned.",
         "budget": {
           "max_bytes": "64GiB",
           "rationale": "Alarm-only: 46 GiB on 2026-11-15 (215 crypto-foundations copies from closed runs, including programme-four-20261108; hard links counted once). A breach needs an operator decision on dropping old rehearsal copies."
@@ -377,7 +377,7 @@
         "kind": "dir",
         "path": "$USER_HOME/.vrooli/archive/research/rebuildable",
         "regenerable": true,
-        "rationale": "Dependency and build trees (node_modules, __pycache__, .venv, dist, target, ...) moved here by archive.py from closed research runs, one folder per topic, so storage-manager can reclaim them without touching the research home. Each old place keeps a pointer saying what was there and how to rebuild it.",
+        "rationale": "Dependency and build trees (node_modules, __pycache__, .venv, dist, target, ...) moved here from closed research runs, one folder per topic, so storage-manager can reclaim them without touching the research home. Each old place keeps a pointer saying what was there and how to rebuild it.",
         "reclaim": {
           "pruner": "builtin"
         },

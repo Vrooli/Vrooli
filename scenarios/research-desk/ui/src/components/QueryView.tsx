@@ -1,7 +1,6 @@
 import type { UseQueryResult } from "@tanstack/react-query";
+import { AsyncBoundary } from "@vrooli/react-component-library/AsyncBoundary/1.0.12";
 import { Alert } from "@vrooli/react-component-library/Alert/1";
-import { ErrorState } from "@vrooli/react-component-library/ErrorState/1";
-import { LoadingState } from "@vrooli/react-component-library/LoadingState/1";
 import type { ReactNode } from "react";
 
 import { strings } from "../consts/strings";
@@ -17,27 +16,54 @@ import { absolute } from "../lib/format";
  */
 export function QueryView<T>({ query, label, children }: { query: UseQueryResult<T>; label?: string; children: (data: T) => ReactNode }) {
   const { t } = useTranslation();
-  if (query.isPending) return <LoadingState label={label ?? t(strings.common.loading)} />;
-  if (query.isLoadingError) return <QueryError error={query.error} onRetry={() => void query.refetch()} />;
+  if (query.isPending) {
+    return (
+      <AsyncBoundary status="pending" loadingDelay={0} loadingLabel={label ?? t(strings.common.loading)} detectOffline={false} />
+    );
+  }
+  if (query.isLoadingError) {
+    const kind = failureKind(query.error);
+    const title = kind === "unauthorized"
+      ? t(strings.errors.unauthorizedTitle)
+      : kind === "unreachable"
+        ? t(strings.errors.unreachableTitle)
+        : t(strings.errors.refusedTitle);
+    return (
+      <AsyncBoundary
+        status="error"
+        errorTitle={title}
+        error={errorMessage(query.error, t)}
+        retry={() => { void query.refetch(); }}
+        detectOffline={false}
+      />
+    );
+  }
+
+  const content = children(query.data);
+  if (!query.isRefetchError) return content;
   return (
-    <>
-      {query.isRefetchError ? (
-        <Alert
-          tone="warning"
-          title={t(strings.errors.staleTitle)}
-          description={t(strings.errors.stale, { time: absolute(new Date(query.dataUpdatedAt)), reason: errorMessage(query.error, t) })}
-        />
-      ) : null}
-      {children(query.data)}
-    </>
+    <AsyncBoundary
+      status="partial-error"
+      presentation="inline"
+      stateTitle={t(strings.errors.staleTitle)}
+      stateDetail={t(strings.errors.stale, { time: absolute(new Date(query.dataUpdatedAt)), reason: errorMessage(query.error, t) })}
+      detectOffline={false}
+    >
+      {content}
+    </AsyncBoundary>
   );
 }
 
+/** A standalone query failure surface used when other page content stays visible. */
 export function QueryError({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
   const { t } = useTranslation();
   const kind = failureKind(error);
-  const title = kind === "unauthorized" ? t(strings.errors.unauthorizedTitle) : kind === "unreachable" ? t(strings.errors.unreachableTitle) : t(strings.errors.refusedTitle);
-  return <ErrorState title={title} message={errorMessage(error, t)} onRetry={onRetry} />;
+  const title = kind === "unauthorized"
+    ? t(strings.errors.unauthorizedTitle)
+    : kind === "unreachable"
+      ? t(strings.errors.unreachableTitle)
+      : t(strings.errors.refusedTitle);
+  return <AsyncBoundary status="error" errorTitle={title} error={errorMessage(error, t)} retry={onRetry} detectOffline={false} />;
 }
 
 /** An inline failure for an action: the request was not carried out, and why. */

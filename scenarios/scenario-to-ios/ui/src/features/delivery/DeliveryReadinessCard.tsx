@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";

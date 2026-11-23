@@ -1,6 +1,6 @@
 import { CalendarDays, FilePlus2, FileText, Moon, Play, Sparkles, Sun, SunMoon } from "lucide-react";
 import { Button } from "@vrooli/react-component-library/Button/2";
-import { IconButton } from "@vrooli/react-component-library/IconButton/3.1.6";
+import { IconButton } from "@vrooli/react-component-library/IconButton/3.1.8";
 import { FormField } from "@vrooli/react-component-library/FormField/1";
 import { Input } from "@vrooli/react-component-library/Input/1";
 import { Popover, PopoverParts } from "@vrooli/react-component-library/Popover/1";

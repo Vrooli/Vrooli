@@ -1,5 +1,4 @@
-import { CopyIconButton } from "@vrooli/react-component-library/CopyIconButton/1";
-import { Link } from "react-router-dom";
+import { FilePath } from "@vrooli/react-component-library/FilePath/1.0.6";
 
 import { strings } from "../consts/strings";
 import { useResearchHome } from "../hooks/useResearchHome";
@@ -16,13 +15,15 @@ export function PathText({ path, label }: { path: string; label?: string }) {
   const href = filePageHref(path, home);
   const shown = label ?? shownPath(path, home);
   return (
-    <span className="inline-flex max-w-full items-start gap-space-3xs align-top">
-      {href ? (
-        <Link to={href} className="rd-path text-app-primary underline-offset-2 hover:underline">{shown}</Link>
-      ) : (
-        <span className="rd-path">{shown}</span>
-      )}
-      <CopyIconButton value={path} aria-label={t(strings.common.copyPath)} copiedLabel={t(strings.common.copied)} />
-    </span>
+    <FilePath
+      path={path}
+      presentation="inline"
+      displayText={shown}
+      href={href ?? undefined}
+      showCopyButton
+      copyLabel={t(strings.common.copyPath)}
+      copiedLabel={t(strings.common.copied)}
+      className="rd-path"
+    />
   );
 }

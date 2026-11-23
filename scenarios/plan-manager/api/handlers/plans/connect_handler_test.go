@@ -7,11 +7,14 @@ import (
 	"log"
 	"testing"
 
+	"plan-manager/internal/audit"
 	internalplans "plan-manager/internal/plans"
 
 	"connectrpc.com/connect"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/databasetest"
+	"github.com/vrooli/api-core/provenance"
 
 	plansv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/plans"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared"
@@ -22,6 +25,7 @@ import (
 // called with so handler field-passthrough can be asserted.
 type fakePlansService struct {
 	plan      internalplans.Plan
+	updates   []internalplans.Plan
 	plans     []internalplans.Plan
 	edges     []internalplans.PlanEdge
 	templates []internalplans.PlanTemplate
@@ -84,6 +88,11 @@ func (f *fakePlansService) Create(_ context.Context, p internalplans.Plan) (inte
 
 func (f *fakePlansService) Update(_ context.Context, p internalplans.Plan) (internalplans.Plan, error) {
 	f.gotUpdate = p
+	if len(f.updates) > 0 {
+		result := f.updates[0]
+		f.updates = f.updates[1:]
+		return result, f.err
+	}
 	return f.plan, f.err
 }
 
@@ -393,6 +402,35 @@ func TestUpdatePlanForwardsAuthoredFields(t *testing.T) {
 	require.Equal(t, "Updated", resp.Msg.GetPlan().GetTitle())
 	require.Equal(t, "p1", svc.gotUpdate.ID, "handler must translate the proto plan into the domain plan")
 	require.Equal(t, "Updated", svc.gotUpdate.Title)
+}
+
+func TestUpdatePlanRecordsDistinctAuditFactsWhenMutationTimestampsCollide(t *testing.T) {
+	db := databasetest.NewSQLite(t)
+	_, err := db.Exec(audit.Schema())
+	require.NoError(t, err)
+
+	const updatedAt = "2026-01-02T03:04:05Z"
+	service := &fakePlansService{updates: []internalplans.Plan{
+		{ID: "p1", UpdatedAt: updatedAt, ContentHash: "first-digest"},
+		{ID: "p1", UpdatedAt: updatedAt, ContentHash: "second-digest"},
+	}}
+	h := NewConnectHandler(Deps{Service: service, Audit: audit.NewStore(db), Logger: log.New(io.Discard, "", 0)})
+	ctx := provenance.NewContext(context.Background(), provenance.Provenance{
+		Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "run-collision", TaskID: "task-collision",
+	})
+
+	for _, title := range []string{"First", "Second"} {
+		_, err := h.UpdatePlan(ctx, connect.NewRequest(&plansv1.UpdatePlanRequest{
+			Plan: &sharedv1.Plan{Id: "p1", Title: title},
+		}))
+		require.NoError(t, err)
+	}
+
+	facts, err := audit.NewStore(db).ListByRun(ctx, "run-collision")
+	require.NoError(t, err)
+	require.Len(t, facts, 2, "different committed contents must not collapse under one event identity")
+	require.NotEqual(t, facts[0].EventID, facts[1].EventID)
+	require.ElementsMatch(t, []string{"first-digest", "second-digest"}, []string{facts[0].ContentDigest, facts[1].ContentDigest})
 }
 
 func TestUpdatePlanForwardsBaselineSet(t *testing.T) {

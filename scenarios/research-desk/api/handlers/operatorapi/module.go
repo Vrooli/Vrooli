@@ -48,9 +48,9 @@ func StewardOnly() connect.HandlerOption {
 }
 
 // OperatorProcedures act for the operator; a caller verified as an agent or
-// a service is refused them. The reads stay open.
+// a service is refused them. The reads stay open. Answer is not listed: it
+// checks the shared research-decisions operation grant at its own boundary.
 var OperatorProcedures = []string{
-	operatorconnect.OperatorServiceAnswerProcedure,
 	operatorconnect.OperatorServiceAddEntryProcedure,
 	operatorconnect.OperatorServiceEnableSteeringProcedure,
 	operatorconnect.OperatorServiceAddVerdictProcedure,
@@ -60,6 +60,10 @@ var OperatorProcedures = []string{
 }
 
 var notOperator = module.ErrorDesc{Status: 403, Code: "permission_denied", Description: "The caller is an agent or a service: " + wire.OperatorAction}
+
+// missingDecisionGrant is an agent answering without a research-decisions
+// grant that covers the item; the refusal carries the canonical request.
+var missingDecisionGrant = module.ErrorDesc{Status: 403, Code: "permission_denied", Description: "The caller needs an approved research-decisions operation grant for the item; the refusal includes the canonical approval request"}
 
 const curlBase = "curl http://localhost:${API_PORT}/vrooli.research_desk.v1.operator.OperatorService/"
 
@@ -87,8 +91,8 @@ var Endpoints = []module.EndpointDescriptor{
 	{
 		ID: "operator_answer", Path: operatorconnect.OperatorServiceAnswerProcedure, Method: "POST", Category: "operator",
 		Summary:     "Answer an item",
-		Description: "Appends `answer <ID> · via desk` to the commission's OPERATOR.md with the chosen option, or `other` and the operator's words. dry_run returns the exact text without writing; every answer says when the supervisor will read it.",
-		Errors:      []module.ErrorDesc{readOnly, invalid, noCommission, notAnswerable, notOperator},
+		Description: "Appends `answer <ID> · via desk` to the commission's OPERATOR.md (or the level's INBOX.md) with the chosen option, or `other` and the operator's words. The operator answers directly; an agent answers only under an operator-approved research-decisions grant covering research-desk:decision/<owner>/<item>, and its entry gains an `Answered by:` line naming the agent and grant. dry_run returns the exact text without writing; every answer says when the supervisor will read it.",
+		Errors:      []module.ErrorDesc{readOnly, invalid, noCommission, notAnswerable, missingDecisionGrant},
 		Examples:    example("Keep", "Answer", `{"commission_id":"programme-five-20261112","item_id":"AV4","option_key":"keep"}`),
 	},
 	{

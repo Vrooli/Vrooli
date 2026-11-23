@@ -158,10 +158,3 @@ func allowedCORSOrigin(origin string) string {
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	health.New().Version("1.0.0").Check(health.DB(db), health.Optional).Handler()(w, r)
 }
-
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}

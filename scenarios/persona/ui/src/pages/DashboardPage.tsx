@@ -5,7 +5,7 @@ import { listAllHandoffs, listPersonas } from "../api/persona";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { Button } from "@vrooli/react-component-library/Button/2";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1";
 import { HealthCard } from "../features/health/HealthCard";
 import { useTranslation } from "../i18n";
 import { HandoffState } from "@vrooli/proto-types/persona/v1/handoffs/handoffs_pb";
@@ -36,7 +36,7 @@ export function DashboardPage() {
       </h2>
       <p className="max-w-3xl text-app-muted-foreground">{t(strings.pages.dashboard.description)}</p>
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+        <Card data-testid="persona-dashboard-human-queue" className="lg:col-span-2">
           <CardHeader>
             <CardTitle>What needs you</CardTitle>
             <CardDescription>Human-only steps are durable, explicit, and never silently discarded.</CardDescription>
@@ -64,7 +64,7 @@ export function DashboardPage() {
             ) : null}
           </CardContent>
         </Card>
-        <Card>
+        <Card data-testid="persona-dashboard-system-posture">
           <CardHeader><CardTitle>System posture</CardTitle><CardDescription>Current durable records</CardDescription></CardHeader>
           <CardContent className="grid grid-cols-2 gap-4">
             <Metric label="Personas" value={personasQuery.data?.length ?? 0} />

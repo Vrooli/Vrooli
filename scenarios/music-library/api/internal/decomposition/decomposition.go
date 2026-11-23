@@ -14,6 +14,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/database"
 )
 
 //go:embed schema.sql
@@ -98,16 +100,9 @@ type pageCursor struct {
 	AnalysisJob string `json:"analysis_job_id"`
 }
 
-type SQLExecutor interface {
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
-	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
-}
+type Store struct{ db database.SQLTxExecutor }
 
-type Store struct{ db SQLExecutor }
-
-func NewStore(db SQLExecutor) *Store { return &Store{db: db} }
+func NewStore(db database.SQLTxExecutor) *Store { return &Store{db: db} }
 
 func (s *Store) Put(ctx context.Context, result Result) (Result, error) {
 	if !hashRE.MatchString(result.TrackSHA256) || result.TrackSHA256 != result.SourceSHA256 || strings.TrimSpace(result.AnalysisJob) == "" || len(result.AnalysisJob) > 160 {

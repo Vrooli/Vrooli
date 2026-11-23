@@ -12,14 +12,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/schedule"
 )
 
-type SQLExecutor interface {
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
-	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-}
+// SQLExecutor aliases API Core's shared repository contract.
+type SQLExecutor = database.SQLExecutor
 
 type Incident struct {
 	ID                  string       `json:"incidentId"`

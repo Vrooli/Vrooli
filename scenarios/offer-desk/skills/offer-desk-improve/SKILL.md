@@ -28,7 +28,7 @@ what makes this role owed.
 
 This skill never authors a monetization target, never transitions a catalog node, and never
 edits money-ledger. An instrument that authored its own denominator would be deviation D6 in
-`path:docs/agent-system/TARGET_MODEL.md`.
+`path:docs/agent-system/STANDING_TEAMS.md`.
 
 ### 2. Setpoint
 
@@ -81,7 +81,7 @@ Until a suite exists, no cycle may claim a corpus result.
 | `promotion-latency` at `pending_telemetry` | `measures-adoption` plus the owning implementation method. | A sensor exists and the row carries a reading |
 | `learning` comparable false with attempts present | Inspect capture, not the board. A capture failure is separate from task outcome. | Eligible attempts rise and the cohort becomes comparable |
 
-Implement-versus-propose follows §5 of `improve-skill-authoring`: a curation move the
+Implement-versus-propose follows §5 of `scenario-skill-setup`: a curation move the
 scenario already exposes is done in-cycle; anything needing a target amendment, another
 scenario's code, or authority this cycle does not hold is reported with its prerequisite.
 

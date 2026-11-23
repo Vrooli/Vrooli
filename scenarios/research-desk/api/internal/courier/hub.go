@@ -75,9 +75,12 @@ type AskSpec struct {
 	Options          []home.Option
 	Recommended      string
 	Reason           string
-	// Deadline is zero for the Hub's default; a set deadline changes the
-	// event on every pass, so only a one-off ask (the delivery test) sets it.
+	// Deadline is zero for the Hub's default. A set deadline is part of the
+	// event, so it is a fixed day (the item's silence day) or a one-off ask's (the delivery test).
 	Deadline time.Time
+	// Default is the option key the Hub applies when the operator stays silent until Deadline (the item's
+	// `If silent:` line, R9); empty when silence applies nothing.
+	Default string
 	// Explainer is the decision's page, carried inline in the event; the Hub
 	// stores it as the ask's explainer. Every ask the courier raises has one.
 	Explainer string
@@ -199,11 +202,22 @@ func askFacts(spec AskSpec) (operatordecision.Facts, error) {
 		TechnicalDetails:     spec.TechnicalDetails,
 		Urgency:              "normal",
 		Deadline:             spec.Deadline,
+		DefaultAnswer:        spec.Default,
+		Reversible:           spec.Default != "",
 		SubjectKey:           subjectKey(spec.Key),
 		Explainer:            spec.Explainer,
 		Packet:               spec.Packet,
 	}
 	for _, o := range spec.Options {
+		// The Hub reserves "other" for the operator's own words and offers it on every ask. An item that
+		// lists it as an option is still answerable that way; sending it made the Hub refuse five asks for
+		// five days (2026-11-15 to 11-20), so the operator received none of them.
+		if strings.EqualFold(strings.TrimSpace(o.Key), "other") {
+			if strings.EqualFold(strings.TrimSpace(facts.Recommended), "other") {
+				facts.Recommended = ""
+			}
+			continue
+		}
 		facts.Options = append(facts.Options, operatordecision.Option{Key: o.Key, Label: o.Label})
 	}
 	if err := facts.Validate(); err != nil {

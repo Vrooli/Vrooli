@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
+	apidb "github.com/vrooli/api-core/database"
 
 	"network-manager/internal/module"
 	domainpolicy "network-manager/internal/policy"
@@ -21,7 +22,7 @@ type handler struct {
 	service *domainpolicy.Service
 }
 
-func Module(db domainpolicy.SQLExecutor) module.Module {
+func Module(db apidb.SQLExecutor) module.Module {
 	resolverRepo := domainresolver.NewSQLiteRepository(db)
 	service := domainpolicy.NewService(domainpolicy.Config{
 		Repo:    domainpolicy.NewSQLiteRepository(db),

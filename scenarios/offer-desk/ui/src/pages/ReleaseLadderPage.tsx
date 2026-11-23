@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
 import { ExperienceSurface } from "../components/experience/ExperienceSurface";
 import { useSurfaceState } from "../hooks/useSurfaceState";
 import { fetchPrerequisites, fetchReleaseLadder, setReleaseRank } from "../api/offers";

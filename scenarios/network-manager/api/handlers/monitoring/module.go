@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
+	apidb "github.com/vrooli/api-core/database"
 
 	"network-manager/internal/module"
 	domainmonitoring "network-manager/internal/monitoring"
@@ -21,7 +22,7 @@ type handler struct {
 	service *domainmonitoring.Service
 }
 
-func Module(db domainmonitoring.SQLExecutor) module.Module {
+func Module(db apidb.SQLExecutor) module.Module {
 	snapshotService := domainsnapshot.NewService(domainsnapshot.Config{
 		Repo:   domainsnapshot.NewSQLiteRepository(db),
 		Runner: domainsnapshot.RealProbeRunner{},

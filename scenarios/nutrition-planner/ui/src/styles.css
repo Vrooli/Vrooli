@@ -47,38 +47,15 @@ body {
   --color-focus: #f5ca80;
 }
 
-.app-shell { display:flex; flex-direction:column; width:100%; height:100dvh; min-height:0; background:var(--color-background); color:var(--color-foreground); }
-.app-skip { position:absolute; z-index:20; top:8px; left:8px; padding:10px 14px; border-radius:8px; background:var(--color-primary); color:var(--color-primary-foreground); transform:translateY(-160%); }
-.app-skip:focus { transform:none; }
-.app-header { display:flex; flex:none; align-items:center; gap:clamp(22px, 4vw, 64px); min-height:76px; padding:10px clamp(20px, 4vw, 56px); border-bottom:1px solid var(--color-border); background:var(--color-surface); }
-.app-wordmark { flex:none; color:var(--color-foreground); font:600 34px/1 var(--font-display); letter-spacing:-.04em; text-decoration:none; }
-.app-primary-nav { display:flex; align-items:stretch; gap:clamp(20px, 3vw, 44px); height:56px; }
-.app-nav-link { display:flex; align-items:center; position:relative; color:var(--color-muted-foreground); font-size:15px; text-decoration:none; }
-.app-nav-link[aria-current="page"] { color:var(--color-foreground); font-weight:650; }
-.app-nav-link[aria-current="page"]::after { position:absolute; right:0; bottom:0; left:0; height:2px; background:var(--color-foreground); content:""; }
-.app-header-tools { display:flex; align-items:center; gap:14px; margin-left:auto; }
 .app-icon-button { display:grid; place-items:center; width:44px; height:44px; padding:0; border:0; border-radius:50%; background:transparent; color:var(--color-foreground); cursor:pointer; }
 .app-icon-button:hover { background:var(--color-surface-muted); }
 .app-icon-button svg { width:20px; height:20px; }
-.app-main { flex:1; min-height:0; overflow:auto; }
 .app-page-frame { width:min(100% - 64px, 1440px); margin:0 auto; padding:34px 0 48px; }
-.app-phone-nav { display:none; }
 h1, h2, h3 { font-family:var(--font-display); font-weight:500; letter-spacing:-.025em; }
 
 @media (max-width: 767px) {
-  .app-shell { height:100dvh; }
-  .app-header { min-height:64px; justify-content:center; padding:8px 18px; }
-  .app-wordmark { font-size:27px; }
-  .app-primary-nav { display:none; }
-  .app-header-tools { position:absolute; right:12px; gap:4px; }
   .app-icon-button { width:40px; height:40px; }
-  .app-main { padding-bottom:0; }
   .app-page-frame { width:auto; margin:0; padding:22px 18px 26px; }
-  .app-phone-nav { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); flex:none; min-height:68px; padding:6px 4px max(8px, env(safe-area-inset-bottom)); border-top:1px solid var(--color-border); background:var(--color-surface); }
-  .app-phone-tab { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; min-width:0; min-height:48px; border-radius:8px; color:var(--color-muted-foreground); font-size:10px; line-height:1.2; text-decoration:none; }
-  .app-phone-tab[aria-current="page"] { color:var(--color-foreground); font-weight:650; }
-  .app-phone-tab-icon { display:grid; place-items:center; height:20px; }
-.app-phone-tab-icon svg { width:19px; height:19px; }
 }
 
 .app-page-frame:has(.week-page) { width:min(100% - 48px, 1600px); }
@@ -367,10 +344,7 @@ h1, h2, h3 { font-family:var(--font-display); font-weight:500; letter-spacing:-.
   outline-offset: 2px;
 }
 
-/* Today v2 shell and the routed Kitchen inventory surface. */
-.app-header { gap:clamp(16px,3vw,48px); }
-.app-primary-nav { gap:clamp(18px,2.6vw,38px); }
-.app-main { scroll-behavior:smooth; }
+/* Today v2 and the routed Kitchen inventory surfaces. */
 .app-page-frame:has(.today-page) { width:min(100% - 64px, 1480px); }
 .today-page { gap:16px; }
 .today-page-heading { display:flex; align-items:end; justify-content:space-between; gap:20px; }
@@ -456,10 +430,6 @@ h1, h2, h3 { font-family:var(--font-display); font-weight:500; letter-spacing:-.
 .kitchen-state { padding:20px; border:1px solid var(--color-border); border-radius:12px; background:var(--color-surface); }
 
 @media (max-width: 950px) {
-  .app-header { gap:18px; padding-inline:22px; }
-  .app-primary-nav { gap:18px; }
-  .app-nav-link { font-size:14px; }
-  .app-wordmark { font-size:30px; }
   .app-page-frame:has(.today-page) { width:min(100% - 40px, 800px); }
   .today-hero { grid-template-columns:minmax(0,1fr) minmax(240px,.8fr); }
 }

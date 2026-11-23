@@ -93,13 +93,13 @@ func TestSnapshotReportsHomeCapabilitiesFreshOnEveryRead(t *testing.T) {
 		t.Fatalf("a supervisor skill resolves by research/<name>: %+v", first.Capabilities)
 	}
 
-	f.write(t, "programs/run-freshness.json", `{"name":"research/wrong"}`)
-	f.write(t, "programs/run-freshness.py", "program.report()\n")
+	f.write(t, "programs/plan-health.json", `{"name":"research/wrong"}`)
+	f.write(t, "programs/plan-health.py", "program.report()\n")
 	second, err := reader.Snapshot(context.Background(), Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	program := byID(second.Capabilities.Items)["research/run-freshness"]
+	program := byID(second.Capabilities.Items)["research/plan-health"]
 	if program.Kind != researchhome.KindProgram || !strings.Contains(strings.Join(program.Problems, "; "), "research/wrong") {
 		t.Fatalf("a program added after the first read is listed on the next, with its name problem: %+v", second.Capabilities)
 	}

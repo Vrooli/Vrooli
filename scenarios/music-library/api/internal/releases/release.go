@@ -12,6 +12,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/database"
 )
 
 var (
@@ -23,13 +25,6 @@ var (
 	idRE        = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$`)
 	localeRE    = regexp.MustCompile(`^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$`)
 )
-
-type SQLExecutor interface {
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
-	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
-}
 
 type ArtistResolver interface {
 	ResolveArtist(context.Context, string, string, string) (bool, error)
@@ -44,19 +39,19 @@ type DerivationVerifier interface {
 }
 
 type Store struct {
-	db             SQLExecutor
+	db             database.SQLTxExecutor
 	artistResolver ArtistResolver
 	assetVerifier  AssetVerifier
 	derivVerifier  DerivationVerifier
 }
 
-func NewStore(db SQLExecutor) *Store { return &Store{db: db} }
+func NewStore(db database.SQLTxExecutor) *Store { return &Store{db: db} }
 
-func NewStoreWithEvidenceAdapters(db SQLExecutor, artists ArtistResolver, assets AssetVerifier) *Store {
+func NewStoreWithEvidenceAdapters(db database.SQLTxExecutor, artists ArtistResolver, assets AssetVerifier) *Store {
 	return &Store{db: db, artistResolver: artists, assetVerifier: assets}
 }
 
-func NewStoreWithLineageAdapter(db SQLExecutor, artists ArtistResolver, assets AssetVerifier, derivations DerivationVerifier) *Store {
+func NewStoreWithLineageAdapter(db database.SQLTxExecutor, artists ArtistResolver, assets AssetVerifier, derivations DerivationVerifier) *Store {
 	return &Store{db: db, artistResolver: artists, assetVerifier: assets, derivVerifier: derivations}
 }
 

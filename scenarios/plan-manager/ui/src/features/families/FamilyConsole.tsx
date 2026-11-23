@@ -9,14 +9,15 @@ import {
 } from "@vrooli/proto-types/plan-manager/v1/families/families_pb";
 
 import { createFamily, getFamily, getFrontier, listFamilies, proposeGraph, reviewGraph } from "../../api/families";
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
-import { Textarea } from "../../components/ui/textarea";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1.1.1";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { errorMessage } from "../../lib/errorMessage";
 import { useTranslation } from "../../i18n";
 import { InvestigationIncidentHistory } from "../investigation/InvestigationIncidentHistory";
+import { cn } from "../../lib/utils";
 
 const enumLabel = (value: number, prefix: string) => `${prefix} ${value}`;
 
@@ -63,7 +64,8 @@ export function FamilyConsole() {
       <label className="text-sm">{t(strings.pages.families.slug)}<Input value={slug} onChange={(e) => setSlug(e.target.value)} required /></label>
       <label className="text-sm">{t(strings.pages.families.outcome)}<Input value={outcome} onChange={(e) => setOutcome(e.target.value)} required /></label>
       <label className="text-sm md:col-span-2">{t(strings.pages.families.sharedContext)}<Textarea value={context} onChange={(e) => setContext(e.target.value)} /></label>
-      <Button disabled={busy} type="submit">{t(strings.pages.families.create)}</Button>
+      <Button disabled={busy} type="submit"
+        shape="square">{t(strings.pages.families.create)}</Button>
     </form>
 
     <label className="text-sm">{t(strings.pages.families.select)}
@@ -81,8 +83,22 @@ export function FamilyConsole() {
 
       <div className="overflow-x-auto"><table data-testid={selectors.families.membersTable} className="w-full text-left text-sm"><caption className="mb-2 text-left font-semibold">{t(strings.pages.families.members)}</caption><thead><tr><th>{t(strings.pages.families.plan)}</th><th>{t(strings.pages.families.role)}</th><th>{t(strings.pages.families.state)}</th><th>{t(strings.pages.families.activity)}</th></tr></thead><tbody>{family.members.map((member) => <tr key={member.planId}><td>{member.planId}</td><td>{enumLabel(member.role,"role")}</td><td>{enumLabel(member.state,"state")}</td><td>{member.detail || member.executionId}</td></tr>)}</tbody></table></div>
       <div className="overflow-x-auto"><table data-testid={selectors.families.claimsTable} className="w-full text-left text-sm"><caption className="mb-2 text-left font-semibold">{t(strings.pages.families.claims)}</caption><thead><tr><th>{t(strings.pages.families.plan)}</th><th>{t(strings.pages.families.resource)}</th><th>{t(strings.pages.families.access)}</th><th>{t(strings.pages.families.evidence)}</th></tr></thead><tbody>{family.claims.map((claim) => <tr key={claim.claimId}><td>{claim.planId}</td><td><code>{claim.resource}</code></td><td>{enumLabel(claim.access,"access")}</td><td>{claim.resolved ? claim.source : t(strings.pages.families.unknownInteraction)}</td></tr>)}</tbody></table></div>
-      <section><h4 className="font-semibold">{t(strings.pages.families.proposal)} {family.graph ? family.graph.revision.toString() : "—"}</h4>{family.graph?.edges.map((edge, index) => <article data-testid={selectors.families.edge({ index })} key={`${edge.fromPlanId}-${edge.toPlanId}-${index}`} className="my-2 rounded-control border border-app-border p-3"><p><code>{edge.fromPlanId}</code> → <code>{edge.toPlanId}</code></p><p className="text-sm">{edge.reason || t(strings.pages.families.noReason)}</p><p className="text-xs text-app-muted-foreground">{enumLabel(edge.provenance,"provenance")}; {edge.claimIds.join(", ")}</p></article>)}{!family.graph ? <Button disabled={busy} onClick={() => run(async () => { const next=await proposeGraph(family); await refresh(next.familyId); })}>{t(strings.pages.families.propose)}</Button> : null}</section>
-      <section data-testid={selectors.families.review}><h4 className="font-semibold">{t(strings.pages.families.reviewed)} {family.review?.graphRevision.toString() ?? "—"}</h4>{family.review ? <p>{enumLabel(family.review.decision,"decision")}: {family.review.rationale}</p> : <div className="grid gap-2"><label>{t(strings.pages.families.reviewer)}<Input value={reviewer} onChange={(e)=>setReviewer(e.target.value)} /></label><label>{t(strings.pages.families.rationale)}<Textarea value={rationale} onChange={(e)=>setRationale(e.target.value)} /></label><label>{t(strings.pages.families.corrections)}<Textarea value={corrections} onChange={(e)=>setCorrections(e.target.value)} /></label><div className="flex flex-wrap gap-2"><Button disabled={busy || !family.graph || !reviewer || !rationale} onClick={()=>review(ReviewDecision.APPROVED)}>{t(strings.pages.families.approve)}</Button><Button disabled={busy || !family.graph || !reviewer || !rationale} variant="outline" onClick={()=>review(ReviewDecision.CORRECTED)}>{t(strings.pages.families.correct)}</Button><Button disabled={busy || !family.graph || !reviewer || !rationale} variant="outline" onClick={()=>review(ReviewDecision.REJECTED)}>{t(strings.pages.families.reject)}</Button></div></div>}</section>
+      <section><h4 className="font-semibold">{t(strings.pages.families.proposal)} {family.graph ? family.graph.revision.toString() : "—"}</h4>{family.graph?.edges.map((edge, index) => <article data-testid={selectors.families.edge({ index })} key={`${edge.fromPlanId}-${edge.toPlanId}-${index}`} className="my-2 rounded-control border border-app-border p-3"><p><code>{edge.fromPlanId}</code> → <code>{edge.toPlanId}</code></p><p className="text-sm">{edge.reason || t(strings.pages.families.noReason)}</p><p className="text-xs text-app-muted-foreground">{enumLabel(edge.provenance,"provenance")}; {edge.claimIds.join(", ")}</p></article>)}{!family.graph ? <Button disabled={busy} onClick={() => run(async () => { const next=await proposeGraph(family); await refresh(next.familyId); })}
+        shape="square">{t(strings.pages.families.propose)}</Button> : null}</section>
+      <section data-testid={selectors.families.review}><h4 className="font-semibold">{t(strings.pages.families.reviewed)} {family.review?.graphRevision.toString() ?? "—"}</h4>{family.review ? <p>{enumLabel(family.review.decision,"decision")}: {family.review.rationale}</p> : <div className="grid gap-2"><label>{t(strings.pages.families.reviewer)}<Input value={reviewer} onChange={(e)=>setReviewer(e.target.value)} /></label><label>{t(strings.pages.families.rationale)}<Textarea value={rationale} onChange={(e)=>setRationale(e.target.value)} /></label><label>{t(strings.pages.families.corrections)}<Textarea value={corrections} onChange={(e)=>setCorrections(e.target.value)} /></label><div className="flex flex-wrap gap-2"><Button disabled={busy || !family.graph || !reviewer || !rationale} onClick={()=>review(ReviewDecision.APPROVED)}
+        shape="square">{t(strings.pages.families.approve)}</Button><Button
+          disabled={busy || !family.graph || !reviewer || !rationale}
+          variant="ghost"
+          onClick={()=>review(ReviewDecision.CORRECTED)}
+          shape="square"
+          className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
+        >{t(strings.pages.families.correct)}</Button><Button
+                                                                       disabled={busy || !family.graph || !reviewer || !rationale}
+                                                                       variant="ghost"
+                                                                       onClick={()=>review(ReviewDecision.REJECTED)}
+                                                                       shape="square"
+                                                                       className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
+                                                                     >{t(strings.pages.families.reject)}</Button></div></div>}</section>
       <ol data-testid={selectors.families.frontier} className="list-decimal pl-5">{frontier?.batches.map((batch) => <li key={batch.ordinal}>{batch.planIds.join(", ")}</li>)}</ol>
       <InvestigationIncidentHistory familyId={family.familyId} />
     </section> : null}

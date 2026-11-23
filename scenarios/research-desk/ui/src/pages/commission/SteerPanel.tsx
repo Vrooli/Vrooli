@@ -234,7 +234,7 @@ function Controls({ data, onWindDown }: { data: GetCommissionResponse; onWindDow
   const isOpen = windowOpen(c.state);
   const available: Record<ControlKey, boolean> = {
     pause: Boolean(session) && (c.state === CommissionState.LIVE || c.state === CommissionState.LIMITED),
-    resume: Boolean(session) && c.state === CommissionState.PAUSED,
+    resume: Boolean(session) && (c.state === CommissionState.PAUSED || c.state === CommissionState.HALTED),
     stop: Boolean(session) && isOpen,
     resend: Boolean(session) && isOpen,
     discard: c.state !== CommissionState.ENDED,

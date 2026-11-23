@@ -4,8 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { createPersona, listPersonas } from "../api/persona";
 import { Button } from "@vrooli/react-component-library/Button/2";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
-import { Input } from "../components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { selectors } from "../consts/selectors";
 import { PersonaKind, PersonaStatus } from "@vrooli/proto-types/persona/v1/personas/personas_pb";
 
@@ -30,7 +30,7 @@ export function PersonasPage() {
   return <section data-testid={selectors.pages.personas} aria-labelledby="personas-heading" className="flex flex-col gap-6">
     <div><p className="text-sm font-semibold uppercase tracking-[0.18em] text-app-primary">Identity registry</p><h2 id="personas-heading" className="mt-2 text-3xl font-semibold">Personas</h2><p className="mt-2 max-w-2xl text-app-muted-foreground">A persona is selected deliberately. Its legal basis is required at creation and remains immutable thereafter.</p></div>
     <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
-      <Card><CardHeader><CardTitle>Configured identities</CardTitle><CardDescription>{personasQuery.isPending ? "Loading records…" : `${personasQuery.data?.length ?? 0} retained record(s)`}</CardDescription></CardHeader><CardContent>
+      <Card data-testid="persona-configured-identities"><CardHeader><CardTitle>Configured identities</CardTitle><CardDescription>{personasQuery.isPending ? "Loading records…" : `${personasQuery.data?.length ?? 0} retained record(s)`}</CardDescription></CardHeader><CardContent>
         {personasQuery.isError ? <p role="alert" className="text-sm text-app-danger">Unable to load personas. Retry from the page.</p> : null}
         {!personasQuery.isPending && !personasQuery.data?.length ? <p className="text-sm text-app-muted-foreground">No persona exists yet. Create the first one with a declared legal basis.</p> : null}
         <div className="grid gap-3">
@@ -40,7 +40,7 @@ export function PersonasPage() {
           </Link>)}
         </div>
       </CardContent></Card>
-      <Card><CardHeader><CardTitle>Create a persona</CardTitle><CardDescription>Every field supports a durable authorization decision.</CardDescription></CardHeader><CardContent>
+      <Card data-testid="persona-create-persona"><CardHeader><CardTitle>Create a persona</CardTitle><CardDescription>Every field supports a durable authorization decision.</CardDescription></CardHeader><CardContent>
         <form className="flex flex-col gap-4" onSubmit={(event) => { event.preventDefault(); mutation.mutate(); }}>
           <label className="text-sm font-medium">Kind<select value={kind} onChange={(event) => { const nextKind = Number(event.target.value) as PersonaKind; setKind(nextKind); setIdentifierType(nextKind === PersonaKind.BUSINESS ? "business_registration" : "passport"); }} className="mt-1 min-h-11 w-full rounded-control border border-app-border bg-app-surface px-3"><option value={PersonaKind.PERSONAL}>Personal</option><option value={PersonaKind.BUSINESS}>Business</option></select></label>
           <label className="text-sm font-medium">Subject ID<Input required value={subjectId} onChange={(event) => setSubjectId(event.target.value)} placeholder="legal-subject-001" /></label>

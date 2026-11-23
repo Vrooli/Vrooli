@@ -6,6 +6,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
+	apidb "github.com/vrooli/api-core/database"
 
 	domainadapters "network-manager/internal/adapters"
 	"network-manager/internal/module"
@@ -19,7 +20,7 @@ type handler struct {
 	service *domainadapters.Service
 }
 
-func Module(db domainadapters.SQLExecutor) module.Module {
+func Module(db apidb.SQLExecutor) module.Module {
 	service := domainadapters.NewService(domainadapters.Config{
 		Repo: domainadapters.NewSQLiteRepository(db),
 		Registry: domainadapters.ResolverAwareRegistry{

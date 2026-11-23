@@ -10,7 +10,7 @@ A decision is refused unless its folder, work/<ID>/, holds the brief and the pag
 says what was checked live (a dated `Checked:` line) and what each answer settles, `other` included.
 
 `open` answers "what decisions are open?" across every level (docs/agent-system/LEVELS.md) from
-files alone, with every service down: the CEO's open asks, the supervisor's ATTENTION.md, each
+files alone, with every service down: the steward's open asks, the manager's ATTENTION.md, each
 topic's DECISIONS.md, and items still written in a live commission's STATE.md. An item answered by
 an `answer` entry naming it in its level's INBOX.md or history/INBOX.md, or by an OPERATOR.md
 receipt, is not open. A delivered ask's Hub state is the desk's to read: `research-desk needs-you`.
@@ -62,7 +62,7 @@ def parse(text: str, section: str, full: bool = False) -> tuple[list[dict], list
             key, number = item.pop("recommended"), item.pop("line")
             choices = DEFAULT_KEYS if item["options"] is None else item["options"]
             item["recommended"] = key if key in choices else None
-            if key not in choices:
+            if key not in choices and key != "other":
                 flag(f"line {number} ({item['id']}): Recommended key {key!r} is not offered. Use one of: "
                      f"{', '.join(choices) or '(no valid options)'}. Fix the Recommended key or add it to Options:.")
         if not decision:
@@ -92,7 +92,7 @@ def parse(text: str, section: str, full: bool = False) -> tuple[list[dict], list
             finish(item)
             match = HEADING.fullmatch(line)
             item = {"id": match[1], "title": match[2], "options": None, "recommended": None, "explainer": None, "packet": None,
-                    "_decision": False, "_problems": [], "_fields": {}} if match else None
+                    "_decision": False, "_problems": [], "_warnings": [], "_fields": {}} if match else None
             if item:
                 items.append(item)
             else:
@@ -113,6 +113,10 @@ def parse(text: str, section: str, full: bool = False) -> tuple[list[dict], list
                 if not match:
                     problem(f"{where}: malformed option {option!r}; use <key> — <label>.")
                     continue
+                if match[1] == "other":
+                    # The Hub offers it on every ask; the desk drops it and never refuses the item for it.
+                    item["_warnings"].append(f"{where}: option key \"other\" is the operator's own words; the Hub adds it, so it is dropped from Options:.")
+                    continue
                 if match[1] in item["options"]:
                     problem(f"{where}: duplicate option key {match[1]!r}.")
                 item["options"].append(match[1])
@@ -131,10 +135,23 @@ def parse(text: str, section: str, full: bool = False) -> tuple[list[dict], list
     finish(item)
     for item in items:
         item.pop("line", None)
-        extras = {k: item.pop(k) for k in ("_problems", "_fields")}
+        extras = {k: item.pop(k) for k in ("_problems", "_warnings", "_fields")}
         if full:
-            item["problems"], item["fields"] = extras["_problems"], extras["_fields"]
+            item["problems"], item["warnings"], item["fields"] = extras["_problems"], extras["_warnings"], extras["_fields"]
     return items, problems
+
+
+SILENCE = re.compile(r"(?:none|[a-z0-9-]{1,32} on \d{4}-\d{2}-\d{2})(?: — .*)?")
+
+
+def silence_problems(items: list[dict], existing: set[str]) -> list[str]:
+    """A decision being added says what silence does (R9): `If silent: <option key> on <date>`, which the Hub
+    applies at the end of that day, or `none` for a bright line (spending, outside contact, secrets,
+    unrecoverable deletion), where silence never approves. Items already in the target are not asked again:
+    a write that replaces the section must not force an invented default onto a question already sent."""
+    return [f"{item['id']}: a decision being added needs `If silent: <option key> on <YYYY-MM-DD>`, or `If silent: none` for a bright line"
+            for item in items
+            if item["id"] not in existing and "Recommended" in item["fields"] and not SILENCE.fullmatch(item["fields"].get("If silent", ""))]
 
 
 def validate(text: str, section: str) -> list[str]:
@@ -365,9 +382,13 @@ def spawn_message(packet: Path, item_id: str, key: str, now: dt.datetime) -> tup
     text = read(packet)
     problems = brief_problems(text, [key])
     stance = re.search(r"(?ms)^## Stance[^\n]*\n(.*?)(?=^## |\Z)", text)
-    mission = packet.parents[2] / "MISSION.md" if packet.parents[1].name == "work" else None
-    if not stance and mission and mission.is_file():
-        stance = re.search(r"(?ms)^## Operator intent \(verbatim\)[^\n]*\n(.*?)(?=^## |\Z)", read(mission))
+    # Workstreams may nest decisions below work/<stream>/<decision>/; walk to
+    # the nearest topic mission instead of assuming work/<decision>/.
+    if not stance:
+        mission = next((parent / "MISSION.md" for parent in packet.parents
+                        if (parent / "MISSION.md").is_file()), None)
+        if mission:
+            stance = re.search(r"(?ms)^## Operator intent \(verbatim\)[^\n]*\n(.*?)(?=^## |\Z)", read(mission))
     if not stance or not stance[1].strip():
         problems.append(f"no stance: add `## Stance` with the operator's words to {packet}")
     if problems:
@@ -620,10 +641,23 @@ def main() -> int:
         print(f"cannot read draft {args.file}: {exc}", file=sys.stderr)
         return 2
     base = args.target.parent if args.target else Path.cwd()
-    items, problems = parse(draft, args.section)
+    items, problems = parse(draft, args.section, full=True)
+    existing = {i["id"] for i in parse(args.target.read_text(encoding="utf-8"), args.section)[0]} if args.target and args.target.exists() else set()
     if not problems:
         now = dt.datetime.now(dt.timezone.utc)
-        problems = [p for item in items for p in packet_problems(item, base, now)]
+        problems = [p for item in items for p in packet_problems(item, base, now)] or silence_problems(items, existing)
+    if args.target:
+        # A new item under an already-answered ID is refused, not warned about: the courier
+        # reads the ID as settled and never delivers it, so writing it leaves a question the
+        # operator cannot see whose silence default still fires (MP-DAY0, 2026-11-21).
+        answered = inbox_answers(args.target.parent)
+        for item in items:
+            if item["id"] not in existing and any(names(body, item["id"]) for body in answered):
+                problems.append(
+                    f"{item['id']}: this level's inbox already holds an answer to that ID; the desk reads an answered ID as settled "
+                    "and will not deliver a new question under it. Act on the existing answer, or give a genuinely new question a new ID.")
+    for warning in (w for item in items for w in item.get("warnings", [])):
+        print(f"warning: {warning}", file=sys.stderr)
     if problems:
         print("Needs-you draft rejected:\n" + "\n".join(f"- {problem}" for problem in problems), file=sys.stderr)
         return 1

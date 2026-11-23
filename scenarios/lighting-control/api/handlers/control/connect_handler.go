@@ -112,6 +112,10 @@ func (h *connectHandler) Reconcile(ctx context.Context, req *connect.Request[con
 
 func domainError(err error) error {
 	switch {
+	case errors.Is(err, context.Canceled):
+		return connect.NewError(connect.CodeCanceled, err)
+	case errors.Is(err, context.DeadlineExceeded):
+		return connect.NewError(connect.CodeDeadlineExceeded, err)
 	case errors.Is(err, control.ErrInvalidState):
 		return connect.NewError(connect.CodeInvalidArgument, err)
 	case errors.Is(err, control.ErrControllerNotFound):

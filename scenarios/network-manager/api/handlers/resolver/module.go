@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
+	apidb "github.com/vrooli/api-core/database"
 
 	"network-manager/internal/module"
 	domainresolver "network-manager/internal/resolver"
@@ -19,7 +20,7 @@ type handler struct {
 	service *domainresolver.Service
 }
 
-func Module(db domainresolver.SQLExecutor) module.Module {
+func Module(db apidb.SQLExecutor) module.Module {
 	service := domainresolver.NewService(domainresolver.Config{
 		Repo:   domainresolver.NewSQLiteRepository(db),
 		Client: domainresolver.NewResourceBackedAdGuardClient(nil),

@@ -114,6 +114,7 @@ var actionWords = map[string]launchv1.ControlAction{
 	"stop":          launchv1.ControlAction_CONTROL_ACTION_STOP,
 	"discard":       launchv1.ControlAction_CONTROL_ACTION_DISCARD,
 	"resend-stance": launchv1.ControlAction_CONTROL_ACTION_RESEND_STANCE,
+	"retry-goal":    launchv1.ControlAction_CONTROL_ACTION_RETRY_GOAL,
 }
 
 func (h *handlers) controlCall(ctx cliapp.OperationContext) (*launchv1.ControlResponse, error) {
@@ -123,7 +124,7 @@ func (h *handlers) controlCall(ctx cliapp.OperationContext) (*launchv1.ControlRe
 		if word == "wind-down" {
 			return nil, fmt.Errorf("wind down is an OPERATOR.md entry, not a keystroke: `say <commission-id> wind-down`")
 		}
-		return nil, fmt.Errorf("the action is pause, resume, stop, discard or resend-stance, not %q", word)
+		return nil, fmt.Errorf("the action is pause, resume, stop, discard, resend-stance or retry-goal, not %q", word)
 	}
 	req := &launchv1.ControlRequest{CommissionId: ctx.Positional("commission-id"), Action: action, Reason: strings.TrimSpace(ctx.Flag("reason"))}
 	return render.Call(word+" "+req.CommissionId, h.client.Control, req)

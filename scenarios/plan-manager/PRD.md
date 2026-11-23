@@ -52,5 +52,5 @@
 ## 📎 Appendix
 - Converged design origin: idea-workshop session 2026-06-25 (this scenario's founding brainstorm) — four shape decisions (storage = scenario-owned logic over a durable home store; artifact = structured phases as first-class records; autonomy = compute + run with the agent in the loop; sequencing = standalone first, invert consumers later) and the handoff ownership split.
 - Reference grammar: `docs/reference/machine-readable-references.md` (`[CODE:]`, `[REQ:]`, `[DOC:]`).
-- Existing substrate reused: legacy markdown plan storage, `swarm-manager` `phased-plan-drain` (prior guided-execution art), the freshness engine (`vrooli scenario freshness`), `docs/agent-system/RUNTIME_ATTRIBUTION.md`.
+- Existing substrate reused: legacy markdown plan storage, `swarm-manager` `phased-plan-drain` (prior guided-execution art), the freshness engine (`vrooli scenario freshness`), `scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md`.
 - Canonical model: `docs/concepts/PLAN-MODEL.md`.

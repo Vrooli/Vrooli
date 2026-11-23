@@ -6,6 +6,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { renderToString } from "react-dom/server";
 
 import { ThemeProvider, useTheme, type ThemeChoice } from "./ThemeProvider";
 
@@ -15,6 +16,11 @@ const wrapper =
   (initialChoice?: ThemeChoice) =>
   ({ children }: { children: ReactNode }) =>
     <ThemeProvider initialChoice={initialChoice}>{children}</ThemeProvider>;
+
+function ThemeSnapshot() {
+  const { choice, resolved } = useTheme();
+  return <span>{choice}/{resolved}</span>;
+}
 
 describe("ThemeProvider", () => {
   beforeEach(() => {
@@ -69,5 +75,20 @@ describe("ThemeProvider", () => {
     expect(result.current.resolved).toBe("dark");
 
     matchMediaSpy.mockRestore();
+  });
+
+  it("renders a system/light default on the server without accessing browser globals", () => {
+    vi.stubGlobal("window", undefined);
+    try {
+      const markup = renderToString(
+        <ThemeProvider>
+          <ThemeSnapshot />
+        </ThemeProvider>,
+      );
+      expect(markup).toContain("system");
+      expect(markup).toContain("light");
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

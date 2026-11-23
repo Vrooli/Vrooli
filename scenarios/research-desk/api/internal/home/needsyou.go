@@ -52,6 +52,10 @@ type NeedsYouItem struct {
 	// Reason is the optional `Reason:` line: one plain sentence on why the
 	// recommendation is right.
 	Reason string
+	// IfSilent is the `If silent: <option key> on <YYYY-MM-DD>` line: what the Hub applies when the
+	// operator does not answer. Nil when the line is absent, `none` (a bright line: silence never approves)
+	// or not in that form; a missing or odd line never keeps an item from the operator.
+	IfSilent *Silence
 	// Details is the optional `Details:` line: IDs, paths and evidence for
 	// the agent that acts on the answer, kept out of the operator's text.
 	Details string
@@ -64,6 +68,16 @@ type NeedsYouItem struct {
 	// Source is the file the item was read from.
 	Source string
 }
+
+// Silence is the answer applied when the operator stays silent, and the day it applies.
+type Silence struct {
+	Key string
+	// On is the last instant (UTC) of the named day.
+	On time.Time
+}
+
+// ifSilent reads an `If silent:` value; a trailing ` — reason` is allowed.
+var ifSilent = regexp.MustCompile(`^([a-z0-9-]{1,32}) on (\d{4}-\d{2}-\d{2})(?: — .*)?$`)
 
 // Legacy is section text that is not an item (older numbered lists).
 type Legacy struct {
@@ -82,6 +96,9 @@ const (
 	AttentionNeedsSection = "Actionable now"
 	AttentionFile         = "ATTENTION.md"
 )
+
+// ReservedOption is the answer key the Hub adds to every ask for the operator's own words.
+const ReservedOption = "other"
 
 // DefaultOptions apply to an item without an `Options:` line.
 var DefaultOptions = []Option{{Key: "accept", Label: "Accept the recommendation"}, {Key: "hold", Label: "Hold this for now"}}
@@ -180,6 +197,10 @@ func (it *NeedsYouItem) field(line string) {
 		if m := optionText.FindStringSubmatch(value); m != nil {
 			it.Recommended = &Option{Key: m[1], Label: m[2]}
 			it.RecommendedProblem = ""
+			if m[1] == ReservedOption {
+				// The recipient's own words are never a recommendation.
+				it.Recommended = nil
+			}
 		} else {
 			it.RecommendedProblem = "malformed Recommended line; use Recommended: <key> — <label>"
 		}
@@ -196,6 +217,10 @@ func (it *NeedsYouItem) field(line string) {
 			case m == nil:
 				it.Problems = append(it.Problems, "malformed option "+strconv.Quote(part)+"; use <key> — <label>")
 			default:
+				if m[1] == ReservedOption {
+					// The Hub offers it on every ask; the desk drops it and never refuses the item for it.
+					continue
+				}
 				if _, dup := it.Choice(m[1]); dup {
 					it.Problems = append(it.Problems, "duplicate option key "+strconv.Quote(m[1]))
 				}
@@ -208,6 +233,12 @@ func (it *NeedsYouItem) field(line string) {
 		it.Explainer = value
 		if ext := strings.ToLower(filepath.Ext(value)); ext != ".html" && ext != ".htm" {
 			it.Problems = append(it.Problems, "Explainer: must name an .html page, a path inside the research home")
+		}
+	case "If silent":
+		if m := ifSilent.FindStringSubmatch(value); m != nil {
+			if day, err := time.Parse("2006-01-02", m[2]); err == nil {
+				it.IfSilent = &Silence{Key: m[1], On: day.Add(24*time.Hour - time.Second)}
+			}
 		}
 	case "Reason":
 		it.Reason = value

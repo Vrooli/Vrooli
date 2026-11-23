@@ -30,7 +30,8 @@ describe("AttachmentUpload", () => {
     const user = userEvent.setup();
     const file = new File(["hello"], "hello.txt", { type: "text/plain" });
 
-    renderWithProviders(<AttachmentUpload noteId="note-1" />);
+    const { queryClient } = renderWithProviders(<AttachmentUpload noteId="note-1" />);
+    const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
     await user.upload(screen.getByTestId(selectors.notes.attachmentFile), file);
     await user.click(screen.getByTestId(selectors.notes.attachmentButton));
 
@@ -38,6 +39,9 @@ describe("AttachmentUpload", () => {
       expect(uploadAttachment).toHaveBeenCalledWith("note-1", file);
     });
     expect(screen.getByTestId(selectors.notes.attachmentStatus).textContent).toContain("hello.txt");
+    await waitFor(() => {
+      expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["notes"] });
+    });
   });
 
   it("keeps upload disabled until a file is selected", () => {
@@ -53,7 +57,8 @@ describe("AttachmentUpload", () => {
     const fileA = new File(["a"], "a.txt", { type: "text/plain" });
     const fileB = new File(["b"], "b.txt", { type: "text/plain" });
 
-    renderWithProviders(<AttachmentUpload noteId="note-1" />);
+    const { queryClient } = renderWithProviders(<AttachmentUpload noteId="note-1" />);
+    const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
     await user.upload(screen.getByTestId(selectors.notes.attachmentFile), fileA);
     await user.click(screen.getByTestId(selectors.notes.attachmentButton));
     await user.upload(screen.getByTestId(selectors.notes.attachmentFile), fileB);
@@ -64,6 +69,9 @@ describe("AttachmentUpload", () => {
 
     expect(screen.queryByTestId(selectors.notes.attachmentStatus)).toBeNull();
     expect(screen.getByTestId(selectors.notes.attachmentButton)).toBeEnabled();
+    await waitFor(() => {
+      expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["notes"] });
+    });
   });
 
   it("ignores a stale failure after the selection is reset", async () => {

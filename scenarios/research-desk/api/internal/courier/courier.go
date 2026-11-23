@@ -138,17 +138,17 @@ func (s Switches) For(f *home.FeedItem, sightings Sightings) (on, present bool, 
 	return on, false, why
 }
 
-// Supervisor says whether the courier carries the supervisor's decisions
+// Supervisor says whether the courier carries the manager's decisions
 // (ATTENTION.md items without a `Commission:` line), and why: on unless the
 // operator turned the global switch off.
 func (s Switches) Supervisor() (bool, string) {
 	switch {
 	case s.Global.At.IsZero():
-		return true, "the supervisor's decisions: on (courier off --global turns them off)"
+		return true, "the manager's decisions: on (courier off --global turns them off)"
 	case s.Global.On:
-		return true, "the supervisor's decisions: turned on by the operator at " + stamp(s.Global.At)
+		return true, "the manager's decisions: turned on by the operator at " + stamp(s.Global.At)
 	}
-	return false, "the supervisor's decisions: turned off by the operator at " + stamp(s.Global.At)
+	return false, "the manager's decisions: turned off by the operator at " + stamp(s.Global.At)
 }
 
 // ForCommission says whether the courier is on for a commission, and why.
@@ -552,6 +552,12 @@ func decide(hub Hub, feed home.Feed, sw Switches, asks []Ask, notices map[string
 		s.On, s.Switch = on, why
 		s.Key = owners.askKey(f, byKey)
 		s.Ask = byKey[s.Key]
+		if s.Ask != nil && s.Ask.State == "withdrawn" {
+			// Only the desk withdraws an ask: its item left the files, or was answered in the desk, or a newer ask
+			// replaced it. An item that is back and unanswered is a new question, never an "ID reused" (4 live asks
+			// sat undelivered for that on 2026-11-20); the operator's own refusal is `dismissed`.
+			s.Ask = nil
+		}
 		listed[s.Key] = true
 		if n, ok := notices[NoticePrefix+f.Owner()+"/"+f.Item.ID]; ok {
 			s.Notice = &n
@@ -568,7 +574,7 @@ func decide(hub Hub, feed home.Feed, sw Switches, asks []Ask, notices map[string
 			s.Action, s.Reason, s.Why, s.Inboxes = ActRecordAnswer, home.ReasonHubAnswered, "answered in Notification Hub; recorded in "+answerRecord(f), f.Inboxes
 		case a != nil && a.Open() && f.Answer != nil:
 			s.Action, s.Reason, s.Why = ActWithdraw, home.ReasonAnswered, withdrawAnswered
-		case a != nil && a.Open() && s.On && hubErr == nil && askStale(hub, a, f, pages):
+		case a != nil && a.Open() && s.On && hubErr == nil && askStale(hub, a, f, pages, now):
 			s.Action, s.Reason, s.Why = ActRefreshAsk, home.ReasonInHub, "the Hub ask is not the item's current question; raised again so the Hub updates or replaces it"
 		case a != nil && a.Open() && f.Item.Delivered != "":
 			s.Reason, s.Why = home.ReasonInHub, "delivered by its scheduler; the Hub ask stays open until it is answered or the item leaves the files"
@@ -685,8 +691,8 @@ func joinWhy(why, note string) string {
 	return why + "; " + note
 }
 
-// reused says why an item's ID was reused, or "": an answer, a
-// closed Hub ask or a delivered entry for the same commission and ID dates
+// reused says why an item's ID was reused, or "": an answer, an
+// answered, dismissed or expired Hub ask or a delivered entry for the same commission and ID dates
 // from before the item's first sighting, so it belongs to an earlier item. An
 // answer given after the item appeared settles it; an item with no known
 // first sighting (zero) is never called reused.
@@ -753,8 +759,8 @@ func commissionOf(key string) string {
 // before asks carried a subject key, and still saying what the item says, is
 // left as it is (raising it again would page the operator twice for nothing);
 // it is withdrawn by its request id when the item is answered or leaves.
-func askStale(hub Hub, a *Ask, f *home.FeedItem, pages Pages) bool {
-	spec := askSpec(f, a.Key, pages)
+func askStale(hub Hub, a *Ask, f *home.FeedItem, pages Pages, now time.Time) bool {
+	spec := askSpec(f, a.Key, pages, now)
 	ref := hub.RequestRef(spec)
 	return ref != "" && a.RequesterRef != ref && !a.says(spec)
 }
@@ -804,7 +810,7 @@ func (c *Courier) act(ctx context.Context, s *Step, now time.Time, plan Plan) er
 	f := s.Item
 	switch s.Action {
 	case ActAsk, ActRefreshAsk:
-		return c.Hub.Ask(ctx, askSpec(f, s.Key, plan.pages))
+		return c.Hub.Ask(ctx, askSpec(f, s.Key, plan.pages, now))
 	case ActWritePage:
 		_, err := c.PageWriter.Advance(ctx, plan.pages.job(f).request)
 		return err
@@ -834,19 +840,20 @@ func (c *Courier) record(f *home.FeedItem, kind string, at time.Time, body strin
 	return err
 }
 
-// askSpec is a pure function of the item and its key, so an unchanged item is
-// the same event on every pass; the Hub's default deadline applies. The operator reads
+// askSpec is a function of the item and its key, so an unchanged item is the
+// same event on every pass (the one exception is its silence default, which is
+// dropped once its day is too near for the Hub to apply). The operator reads
 // the question and big picture cold on a phone, so they hold only the item's
 // title and prose; the desk's key, the commission, the packet and any
 // `Details:` line go to the technical details for the agent that acts on the
 // answer (FILE-CONTRACT.md §5).
-func askSpec(f *home.FeedItem, key string, pages Pages) AskSpec {
+func askSpec(f *home.FeedItem, key string, pages Pages, now time.Time) AskSpec {
 	page := pages.of(f)
 	reason := f.Item.Reason
 	if reason == "" && f.Item.Recommended != nil {
 		reason = f.Item.Recommended.Label
 	}
-	return AskSpec{
+	spec := AskSpec{
 		Key:              key,
 		Subject:          f.Item.Title,
 		Question:         operatordecision.Clip(f.Item.Title, operatordecision.MaxQuestion),
@@ -858,6 +865,27 @@ func askSpec(f *home.FeedItem, key string, pages Pages) AskSpec {
 		Explainer:        pages.explainer(f),
 		Packet:           packetPath(f),
 	}
+	if silence := silenceFor(f.Item, now); silence != nil {
+		spec.Default, spec.Deadline = silence.Key, silence.On
+	}
+	return spec
+}
+
+// minSilenceLead is how far ahead a silence day must be: the Hub applies a default no earlier than 12 hours
+// after delivery and refuses a deadline that has passed.
+const minSilenceLead = 13 * time.Hour
+
+// silenceFor is the item's `If silent: <key> on <date>` as the Hub's default answer and deadline, so silence
+// applies it (R9). Nothing is passed for an item without the line, with `none`, naming an option it does not
+// offer, or whose day is too near; such an item stays open until answered.
+func silenceFor(it home.NeedsYouItem, now time.Time) *home.Silence {
+	if it.IfSilent == nil || !it.IfSilent.On.After(now.Add(minSilenceLead)) {
+		return nil
+	}
+	if _, offered := it.Choice(it.IfSilent.Key); !offered {
+		return nil
+	}
+	return it.IfSilent
 }
 
 // packetPath is the item's brief as an absolute path, or "" when it names
@@ -881,7 +909,7 @@ func technicalDetails(f *home.FeedItem, key string, page *Page, effects map[stri
 	case f.Topic != "":
 		lines = append(lines, "Research topic: "+f.Topic)
 	default:
-		lines = append(lines, "Raised by: the research supervisor")
+		lines = append(lines, "Raised by: the research manager")
 	}
 	lines = append(lines, "Needs-you item: "+f.Item.ID)
 	if src := f.Item.Source; src != "" {
@@ -903,6 +931,9 @@ func technicalDetails(f *home.FeedItem, key string, page *Page, effects map[stri
 		lines = append(lines, "Page: made by the decision-page writer, "+page.Written+" (sha256 "+page.SHA256[:16]+")")
 	case page != nil:
 		lines = append(lines, "Explainer: "+f.Item.ExplainerPath()+" (sha256 "+page.SHA256[:16]+")")
+	}
+	if silence := f.Item.IfSilent; silence != nil {
+		lines = append(lines, "If silent: "+silence.Key+" on "+silence.On.Format("2006-01-02"))
 	}
 	if f.Item.Details != "" {
 		lines = append(lines, "Details: "+f.Item.Details)

@@ -102,6 +102,10 @@ func (r *sqliteRestorer) ApplyWorkspace(ctx context.Context, workspaceID string,
 	if workspaceID == "" || expectedRevision < 0 || idempotencyKey == "" {
 		return RestoreResult{}, errors.New("workspace restore requires workspace, expected revision, and idempotency key")
 	}
+	history, current, err := portableRecipeHistory(envelope)
+	if err != nil {
+		return RestoreResult{}, err
+	}
 	content, err := json.Marshal(envelope)
 	if err != nil {
 		return RestoreResult{}, err
@@ -121,7 +125,7 @@ func (r *sqliteRestorer) ApplyWorkspace(ctx context.Context, workspaceID string,
 		if existingHash != requestHash {
 			return RestoreResult{}, errors.New("workspace restore idempotency key was reused with different content")
 		}
-		return RestoreResult{WorkspaceRevision: existingRevision, CheckpointID: existingCheckpoint}, tx.Commit()
+		return RestoreResult{WorkspaceRevision: existingRevision, RecipesApplied: len(history), CheckpointID: existingCheckpoint}, tx.Commit()
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
 		return RestoreResult{}, err
@@ -190,10 +194,6 @@ func (r *sqliteRestorer) ApplyWorkspace(ctx context.Context, workspaceID string,
 	}
 
 	remap := map[string]string{}
-	history, current, err := portableRecipeHistory(envelope)
-	if err != nil {
-		return RestoreResult{}, err
-	}
 	ids := make([]string, 0, len(history))
 	for id := range history {
 		ids = append(ids, id)

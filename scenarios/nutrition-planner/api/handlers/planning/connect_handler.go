@@ -65,6 +65,22 @@ func (h *connectHandler) GeneratePlan(ctx context.Context, req *connect.Request[
 		}
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	if len(req.Msg.MealSlots) > 0 {
+		for _, slot := range req.Msg.MealSlots {
+			if slot == nil {
+				return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("meal slots must not be nil"))
+			}
+			if _, err := parseLocalDate(slot.Date); err != nil {
+				return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("meal slot date: %w", err))
+			}
+		}
+	} else {
+		for _, date := range req.Msg.Dates {
+			if _, err := parseLocalDate(date); err != nil {
+				return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("date: %w", err))
+			}
+		}
+	}
 	items, err := h.recipes.List(ctx, req.Msg.WorkspaceId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -273,8 +289,8 @@ func (h *connectHandler) GetPlan(ctx context.Context, req *connect.Request[v1.Ge
 	if req.Msg.WorkspaceId == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id is required"))
 	}
-	from, fromErr := time.Parse("2006-01-02", req.Msg.FromDate)
-	to, toErr := time.Parse("2006-01-02", req.Msg.ToDate)
+	from, fromErr := parseLocalDate(req.Msg.FromDate)
+	to, toErr := parseLocalDate(req.Msg.ToDate)
 	if fromErr != nil || toErr != nil || to.Before(from) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("from_date and to_date must be valid ordered YYYY-MM-DD dates"))
 	}
@@ -379,6 +395,9 @@ func (h *connectHandler) ApplyPlan(ctx context.Context, req *connect.Request[v1.
 		}
 	}
 	if err := json.Unmarshal([]byte(req.Msg.DraftJson), &proposedDraft); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if err := validateDraftDates(proposedDraft); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	if err := internal.EnsureLockedOccurrencesRetained(currentDraft, proposedDraft); err != nil {
@@ -667,9 +686,9 @@ func (h *connectHandler) GetShoppingPreview(ctx context.Context, req *connect.Re
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("from_date and to_date must be provided together"))
 	}
 	if fromDate != "" {
-		from, fromErr := time.Parse("2006-01-02", fromDate)
-		to, toErr := time.Parse("2006-01-02", toDate)
-		if fromErr != nil || toErr != nil || from.Format("2006-01-02") != fromDate || to.Format("2006-01-02") != toDate || to.Before(from) {
+		from, fromErr := parseLocalDate(fromDate)
+		to, toErr := parseLocalDate(toDate)
+		if fromErr != nil || toErr != nil || to.Before(from) {
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("from_date and to_date must be valid dates with from_date on or before to_date"))
 		}
 	}
@@ -918,6 +937,32 @@ func (h *connectHandler) validateDraftInputs(ctx context.Context, workspaceID, r
 			if _, ok := actual[candidateID]; !ok {
 				return fmt.Errorf("unresolved candidate recipe input changed: %s", candidateID)
 			}
+		}
+	}
+	return nil
+}
+
+func parseLocalDate(value string) (time.Time, error) {
+	const layout = "2006-01-02"
+	parsed, err := time.Parse(layout, value)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("%q is not a valid local date in %s format: %w", value, layout, err)
+	}
+	if parsed.Format(layout) != value {
+		return time.Time{}, fmt.Errorf("%q is not a valid local date in %s format", value, layout)
+	}
+	return parsed, nil
+}
+
+func validateDraftDates(draft internal.Draft) error {
+	for _, occurrence := range draft.Occurrences {
+		if _, err := parseLocalDate(occurrence.Date); err != nil {
+			return fmt.Errorf("occurrence date: %w", err)
+		}
+	}
+	for _, unresolved := range draft.Unresolved {
+		if _, err := parseLocalDate(unresolved.Date); err != nil {
+			return fmt.Errorf("unresolved date: %w", err)
 		}
 	}
 	return nil

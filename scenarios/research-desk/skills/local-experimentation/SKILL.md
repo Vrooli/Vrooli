@@ -26,7 +26,7 @@ routes kept, not a pile of metrics.
 
 Owners keep their mechanics: capacity admission (`docs/configuration/host/capacity.md`),
 acquisition (`docs/package-governance.md`, Scenario Dependency Analyzer), lifecycle and media
-owners. This skill adds judgment; it creates no scheduler. Use `adaptive-research` when the next
+owners. This skill adds judgment; it creates no manager. Use `adaptive-research` when the next
 question must come from evidence, and `scientific-debugging` for a known defect.
 
 ### 1. Fix the question before any output

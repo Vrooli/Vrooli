@@ -17,6 +17,8 @@ import (
 	"time"
 
 	"research-desk/internal/home"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // LockFile is the instance lock inside the state folder.
@@ -43,7 +45,11 @@ type Writer struct {
 // courier switches; deleting it only resets "since" and turns couriers back
 // to their defaults.
 func DefaultStateDir(userHome string) string {
-	return filepath.Join(userHome, ".vrooli", "state", "vrooli", "research-desk")
+	root, err := repocontract.VrooliUserRoot(userHome)
+	if err != nil {
+		return filepath.Join(userHome, "state", "vrooli", "research-desk")
+	}
+	return filepath.Join(root, "state", "vrooli", "research-desk")
 }
 
 // New returns a Writer. Nothing is touched until the first write.

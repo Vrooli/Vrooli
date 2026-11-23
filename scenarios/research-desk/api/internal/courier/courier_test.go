@@ -386,6 +386,74 @@ func TestAnAskWhoseItemLeftIsWithdrawnButNotWhileFilesAreUnreadable(t *testing.T
 	}
 }
 
+// The Hub offers "other" on every ask. An item that lists it is couriered without it, never held back for it
+// (R1; 2026-11-15..20 five asks went unsent).
+func TestAnItemListingOtherIsCourieredWithoutIt(t *testing.T) {
+	r := newRig(t, "desk")
+	key := AskPrefix + commission + "/AV4"
+	r.setItems(t, strings.Replace(items, "propose — Ask for a maintained target proposal.", "propose — Ask for a maintained target proposal; other — Something else.", 1))
+	plan := r.pass(t)
+	if s := r.step(plan, key); s.Action != ActAsk || !s.Done {
+		t.Fatalf("an item listing other is sent: %+v", s)
+	}
+	if len(r.hub.raised) != 1 {
+		t.Fatalf("one ask is raised: %d", len(r.hub.raised))
+	}
+	for _, o := range r.hub.raised[0].Options {
+		if o.Key == "other" {
+			t.Fatalf("the desk drops other from the options it sends: %+v", r.hub.raised[0].Options)
+		}
+	}
+	if got := len(r.hub.raised[0].Options); got != 2 {
+		t.Fatalf("keep and propose remain: %+v", r.hub.raised[0].Options)
+	}
+}
+
+// An item's "If silent: <key> on <date>" is the Hub ask's default answer and deadline, so silence applies it,
+// and the page says so (R9). A bright line says none, and a day the Hub cannot apply sends no default.
+func TestAnItemsSilenceDefaultReachesTheHubAsk(t *testing.T) {
+	cases := []struct {
+		name, line, want string
+		deadline         time.Time
+	}{
+		{"a default on a date", "If silent: keep on 2026-12-01\n", "keep", time.Date(2026, 12, 1, 23, 59, 59, 0, time.UTC)},
+		{"a trailing reason", "If silent: propose on 2026-12-01 — the proposal costs nothing\n", "propose", time.Date(2026, 12, 1, 23, 59, 59, 0, time.UTC)},
+		{"a bright line says none", "If silent: none — silence never approves\n", "", time.Time{}},
+		{"no line", "", "", time.Time{}},
+		{"a key the item does not offer", "If silent: drop on 2026-12-01\n", "", time.Time{}},
+		{"a day that has passed", "If silent: keep on 2026-11-11\n", "", time.Time{}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			r := newRig(t, "desk")
+			r.setItems(t, strings.Replace(items, "Packet: decisions/AV4/BRIEF.md", c.line+"Packet: decisions/AV4/BRIEF.md", 1))
+			r.pass(t)
+			if len(r.hub.raised) != 1 {
+				t.Fatalf("one ask is raised: %d", len(r.hub.raised))
+			}
+			spec := r.hub.raised[0]
+			if spec.Default != c.want || !spec.Deadline.Equal(c.deadline) {
+				t.Fatalf("default %q deadline %v; want %q %v", spec.Default, spec.Deadline, c.want, c.deadline)
+			}
+			facts, err := askFacts(spec)
+			if err != nil || facts.DefaultAnswer != c.want || facts.Reversible != (c.want != "") || !facts.Deadline.Equal(c.deadline) {
+				t.Fatalf("the Hub ask carries it as a reversible default: %+v %v", facts, err)
+			}
+		})
+	}
+}
+
+func TestThePageSaysWhatSilenceDoes(t *testing.T) {
+	items, _ := home.ParseNeedsYou("## Needs you\n### AV4 — Pick\nIf silent: keep on 2026-12-01\nOptions: keep — Keep it; drop — Drop it\n", "Needs you", "STATE.md")
+	now := time.Date(2026, 11, 12, 9, 0, 0, 0, time.UTC)
+	if got := ifNoAnswer(items[0], now); !strings.Contains(got, `"Keep it" is chosen for you at the end of 1 December 2026`) {
+		t.Fatalf("the page names the default and its day: %q", got)
+	}
+	if got := ifNoAnswer(items[0], now.AddDate(0, 0, 30)); got != noAnswer {
+		t.Fatalf("a day that has passed chooses nothing: %q", got)
+	}
+}
+
 // An item whose text changed while its ask was open updates that ask: the Hub
 // keeps one open decision for it. A closed ask is never raised again.
 func TestAChangedItemUpdatesItsOpenAsk(t *testing.T) {
@@ -477,18 +545,20 @@ func TestALegacyAskIsWithdrawnWhenItsItemIsAnswered(t *testing.T) {
 	}
 }
 
-// A Hub-side withdrawal is no answer: the item still waits, nothing is written,
-// and the desk does not raise the ask again.
-func TestAWithdrawnHubAskIsNeitherAnAnswerNorRaisedAgain(t *testing.T) {
+// Only the desk withdraws an ask (its item left the files, or was answered in the desk). A withdrawn ask is no
+// answer and no reason to hold the item back: an item that is back and unanswered is raised again, never called an
+// "ID reused" (four live asks sat undelivered for that on 2026-11-20). The operator's own refusal, dismissed, stays closed.
+func TestAnItemBackAfterItsAskWasWithdrawnIsRaisedAgain(t *testing.T) {
 	r := newRig(t, "desk")
 	key := AskPrefix + commission + "/AV4"
 	r.pass(t)
 	r.hub.asks[key].State = "withdrawn"
+	r.hub.asks[key].CreatedAt = r.clock.Now().Add(-48 * time.Hour) // before the item's first sighting, as after a move
 	raised := len(r.hub.raised)
 	plan := r.pass(t)
 	s := r.step(plan, key)
-	if s.Action != ActNone || !s.Waiting() || len(r.hub.raised) != raised || len(r.operatorFile(t)) != 0 {
-		t.Fatalf("a withdrawn ask leaves the item waiting, to be answered in the desk: %+v", s)
+	if s.Action != ActAsk || s.Reused || len(r.hub.raised) != raised+1 || len(r.operatorFile(t)) != 0 {
+		t.Fatalf("a withdrawn ask leaves the item to be asked again, with nothing recorded as an answer: %+v", s)
 	}
 }
 
@@ -704,7 +774,7 @@ Details: plan F12; evidence runs/r1
 Delivered: hub 2026-11-13T00:00:00Z
 `
 	items, _ := home.ParseNeedsYou(text, "Needs you", "/home/x/STATE.md")
-	spec := askSpec(&home.FeedItem{Item: items[0], CommissionID: "steward-x"}, AskPrefix+"steward-x/DB1-SINK", Pages{})
+	spec := askSpec(&home.FeedItem{Item: items[0], CommissionID: "steward-x"}, AskPrefix+"steward-x/DB1-SINK", Pages{}, time.Now())
 	if spec.Question != "Choose where off-site backups are kept" || spec.Subject != spec.Question {
 		t.Fatalf("the question is the title alone: %q / %q", spec.Question, spec.Subject)
 	}
@@ -729,7 +799,7 @@ Delivered: hub 2026-11-13T00:00:00Z
 		t.Fatalf("the Hub keeps the packet with the ask, as every producer's: %q", facts.Packet)
 	}
 	items[0].Reason = ""
-	if got := askSpec(&home.FeedItem{Item: items[0], CommissionID: "steward-x"}, AskPrefix+"steward-x/DB1-SINK", Pages{}).Reason; got != "Use the storage account you already have." {
+	if got := askSpec(&home.FeedItem{Item: items[0], CommissionID: "steward-x"}, AskPrefix+"steward-x/DB1-SINK", Pages{}, time.Now()).Reason; got != "Use the storage account you already have." {
 		t.Fatalf("without a Reason: line the recommended label explains: %q", got)
 	}
 }

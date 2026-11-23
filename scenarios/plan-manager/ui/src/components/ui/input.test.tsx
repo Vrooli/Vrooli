@@ -1,41 +1,26 @@
 /**
- * Unit tests for the Input primitive.
- *
- * What these tests pin:
- *   - The base className chunk (`rounded-md`) is always emitted, so a
- *     refactor that drops the cn() merge surfaces immediately.
- *   - Custom className is merged via tailwind-merge (cn helper) — both
- *     base and custom classes survive.
- *   - The forwardRef contract holds: useRef(null) populates with the
- *     real HTMLInputElement.
- *   - Arbitrary props pass through (placeholder, type, disabled).
- *   - Typing produces the expected value (smoke check on the
- *     controlled-input contract).
- *
- * No dedicated mock seam needed; the primitive is a leaf wrapper. When
- * a scenario adds form-validation behaviour, tests grow alongside.
+ * Consumer checks for the shared versioned RCL Input contract.
  */
 import { useRef } from "react";
 import { describe, expect, it } from "vitest";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { Input } from "./input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { renderWithProviders as render } from "../../test-utils";
 
 describe("Input", () => {
-  it("emits the base className chunk so the cn() merge contract holds", () => {
+  it("renders the shared RCL Input marker", () => {
     render(<Input data-testid="i" />);
     const el = screen.getByTestId("i");
-    expect(el.className).toMatch(/rounded-md/);
-    expect(el.className).toMatch(/border/);
+    expect(el).toHaveAttribute("data-rcl-input", "true");
   });
 
   it("merges a custom className with the base classes via cn()", () => {
     render(<Input data-testid="i" className="custom-extra" />);
     const el = screen.getByTestId("i");
     expect(el.className).toMatch(/custom-extra/);
-    expect(el.className).toMatch(/rounded-md/);
+    expect(el).toHaveAttribute("data-rcl-input", "true");
   });
 
   it("forwards ref to the underlying HTMLInputElement", () => {

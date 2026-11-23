@@ -130,6 +130,9 @@ type LaunchRecord struct {
 	Failed           *LaunchFailure `json:"failed"`
 	Discarded        *Discard       `json:"discarded"`
 	Controls         []ControlEntry `json:"controls"`
+	// Recoveries are the desk's own acts on a halted goal: each automatic
+	// resume and each escalation (FILE-CONTRACT.md §3, SYSTEM.md §6).
+	Recoveries []RecoveryEntry `json:"recoveries,omitempty"`
 	// Supersedes are the commissions this launch stopped and replaced, by the
 	// operator's choice; RunAlongside those it runs beside.
 	Supersedes   []string `json:"supersedes,omitempty"`
@@ -173,6 +176,25 @@ type ControlEntry struct {
 	// Outcome says what a stop or supersede found and left: "window
 	// stopped" or "no window found", and whether anything still runs.
 	Outcome string `json:"outcome,omitempty"`
+}
+
+// RecoveryEntry records one act of the desk's recovery pass on a goal that
+// halted because its turn ended on an error: an automatic resume (Action
+// "resume", typed as /goal resume) or the escalation that ends automatic
+// recovery for that halt (Action "escalate", nothing typed).
+type RecoveryEntry struct {
+	At time.Time `json:"at"`
+	// TurnID is the Codex turn whose error halted the goal.
+	TurnID string `json:"turn_id"`
+	// Class and Rule are the halt's class and matching rule in
+	// packages/codex-rollout/turn_errors.json.
+	Class   string `json:"class"`
+	Rule    string `json:"rule,omitempty"`
+	Action  string `json:"action"`
+	Attempt int    `json:"attempt,omitempty"`
+	Outcome string `json:"outcome"`
+	// GoalStatus is the goal status read back after a resume.
+	GoalStatus string `json:"goal_status,omitempty"`
 }
 
 // PacketRecord is PACKET.json, written by packet.py build.

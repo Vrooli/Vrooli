@@ -1,4 +1,5 @@
 import { Textarea } from "@vrooli/react-component-library/Textarea/1";
+import { CharacterCount } from "@vrooli/react-component-library/CharacterCount/0.1.0";
 import { forwardRef, useId } from "react";
 
 import { useOverview } from "../api/activity";
@@ -19,14 +20,15 @@ export const EntryField = forwardRef<HTMLTextAreaElement, { label: string; value
     const home = useOverview().data?.researchHome || t(strings.entry.theHome);
     const used = entryLength(value);
     const over = entryTooLong(value, limit);
+    const count = limit > 0
+      ? t(strings.entry.count, { used: used.toLocaleString(), limit: limit.toLocaleString() })
+      : t(strings.entry.countNoLimit, { used: used.toLocaleString() });
+    const message = over ? t(strings.entry.tooLong, { home }) : undefined;
     return (
       <div className="flex flex-col gap-space-2xs">
         <label htmlFor={id} className="text-body-sm font-medium">{label}</label>
         <Textarea ref={ref} id={id} rows={rows} value={value} aria-describedby={countId} aria-invalid={over || undefined} onChange={(e) => onChange(e.target.value)} />
-        <span id={countId} className={over ? "rd-count rd-count-over" : "rd-count"} aria-live="polite">
-          {limit > 0 ? t(strings.entry.count, { used: used.toLocaleString(), limit: limit.toLocaleString() }) : t(strings.entry.countNoLimit, { used: used.toLocaleString() })}
-          {over ? <span className="block">{t(strings.entry.tooLong, { home })}</span> : null}
-        </span>
+        <CharacterCount id={countId} count={count} overLimit={over} message={message} />
       </div>
     );
   },

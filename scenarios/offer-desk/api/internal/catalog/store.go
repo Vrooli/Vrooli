@@ -207,11 +207,16 @@ func (s *Store) Transition(ctx context.Context, id string, to offerspb.Status, a
 			declineReason = "Operator declined the promotion and retired the node."
 		}
 	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
 	var n offerspb.Node
 	var k, st int32
 	var ts string
 	var class, finish int32
-	if err := s.db.QueryRowContext(ctx, `SELECT id,kind,name,status,trigger_id,created_at,actual_account_id,release_rank,deliverable_class,finish_bar FROM nodes WHERE id=?`, id).Scan(&n.Id, &k, &n.Name, &st, &n.TriggerId, &ts, &n.ActualAccountId, &n.ReleaseRank, &class, &finish); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT id,kind,name,status,trigger_id,created_at,actual_account_id,release_rank,deliverable_class,finish_bar FROM nodes WHERE id=?`, id).Scan(&n.Id, &k, &n.Name, &st, &n.TriggerId, &ts, &n.ActualAccountId, &n.ReleaseRank, &class, &finish); err != nil {
 		return nil, fmt.Errorf("node %q not found: %w", id, err)
 	}
 	n.Kind = offerspb.NodeKind(k)
@@ -222,7 +227,7 @@ func (s *Store) Transition(ctx context.Context, id string, to offerspb.Status, a
 	}
 	if to == offerspb.Status_CANDIDATE || to == offerspb.Status_TRIGGER_MET {
 		var triggerNode string
-		if err := s.db.QueryRowContext(ctx, `SELECT node_id FROM triggers WHERE id=?`, n.TriggerId).Scan(&triggerNode); err != nil || triggerNode != n.Id {
+		if err := tx.QueryRowContext(ctx, `SELECT node_id FROM triggers WHERE id=?`, n.TriggerId).Scan(&triggerNode); err != nil || triggerNode != n.Id {
 			return nil, errors.New("rule candidate_requires_trigger refused transition: node needs an attached machine-evaluable trigger")
 		}
 	}
@@ -231,24 +236,30 @@ func (s *Store) Transition(ctx context.Context, id string, to offerspb.Status, a
 	}
 	if to == offerspb.Status_ACTIVE {
 		var parentID string
-		if err := s.db.QueryRowContext(ctx, `SELECT to_id FROM edges WHERE from_id=? AND kind='requires' ORDER BY id LIMIT 1`, n.Id).Scan(&parentID); err == nil {
+		if err := tx.QueryRowContext(ctx, `SELECT to_id FROM edges WHERE from_id=? AND kind='requires' ORDER BY id LIMIT 1`, n.Id).Scan(&parentID); err == nil {
 			var payingUsers float64
-			if err := s.db.QueryRowContext(ctx, `SELECT value FROM facts WHERE name=?`, "paying_users:"+parentID).Scan(&payingUsers); err != nil || payingUsers <= 0 {
+			if err := tx.QueryRowContext(ctx, `SELECT value FROM facts WHERE name=?`, "paying_users:"+parentID).Scan(&payingUsers); err != nil || payingUsers <= 0 {
 				return nil, errors.New("rule parent_requires_paying_users refused transition: required parent paying-users fact is missing or not positive")
 			}
 		}
 	}
-	if _, err := s.db.ExecContext(ctx, `UPDATE nodes SET status=? WHERE id=?`, int32(to), id); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE nodes SET status=? WHERE id=?`, int32(to), id); err != nil {
 		return nil, err
 	}
-	_, err := s.db.ExecContext(ctx, `INSERT INTO catalog_audit(id,node_id,actor,prior_status,next_status,reason,created_at) VALUES(?,?,?,?,?,?,?)`, uuid.NewString(), id, actor, st, int32(to), "state transition", s.now().UTC().Format(time.RFC3339Nano))
+	_, err = tx.ExecContext(ctx, `INSERT INTO catalog_audit(id,node_id,actor,prior_status,next_status,reason,created_at) VALUES(?,?,?,?,?,?,?)`, uuid.NewString(), id, actor, st, int32(to), "state transition", s.now().UTC().Format(time.RFC3339Nano))
 	if err == nil && to == offerspb.Status_RETIRED && declineReason != "" {
-		err = s.recordLatestProposalDecline(ctx, id, actor, declineReason)
+		err = recordLatestProposalDecline(ctx, tx, s.now, id, actor, declineReason)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
 	}
 	n.Status = to
 	t, _ := time.Parse(time.RFC3339Nano, ts)
 	n.CreatedAt = timestamppb.New(t)
-	return &n, err
+	return &n, nil
 }
 
 // SetDeliverableClass changes the scheduling classification and finish bar of
@@ -619,7 +630,7 @@ func (s *Store) MergeNodes(ctx context.Context, request *offerspb.MergeNodesRequ
 	if strings.TrimSpace(reason) == "" {
 		reason = fmt.Sprintf("merged duplicate node: surviving_id=%s duplicate_id=%s", request.SurvivingId, request.DuplicateId)
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO catalog_audit(id,node_id,actor,prior_status,next_status,reason,created_at,related_node_id) VALUES(?,?,?,?,?,?,?,?)`, uuid.NewString(), request.SurvivingId, request.Actor, survivor.status, survivor.status, reason, s.now().UTC().Format(time.RFC3339Nano), request.DuplicateId); err != nil {
+	if _, err = tx.ExecContext(ctx, `INSERT INTO catalog_audit(id,node_id,actor,prior_status,next_status,reason,created_at,related_node_id) VALUES(?,?,?,?,?,?,?,?)`, uuid.NewString(), request.SurvivingId, request.Actor, survivor.status, survivor.status, reason, s.now().UTC().Format(time.RFC3339Nano), request.DuplicateId); err != nil {
 		return nil, err
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE nodes SET status=? WHERE id=?`, int32(offerspb.Status_RETIRED), request.DuplicateId); err != nil {
@@ -1061,12 +1072,12 @@ func (s *Store) listProposalDeclines(ctx context.Context, proposalID string) ([]
 	return declines, rows.Err()
 }
 
-func (s *Store) recordLatestProposalDecline(ctx context.Context, nodeID, actor, reason string) error {
+func recordLatestProposalDecline(ctx context.Context, tx *sql.Tx, now func() time.Time, nodeID, actor, reason string) error {
 	var proposalID string
-	if err := s.db.QueryRowContext(ctx, `SELECT id FROM proposals WHERE node_id=? ORDER BY created_at DESC,rowid DESC LIMIT 1`, nodeID).Scan(&proposalID); err != nil {
+	if err := tx.QueryRowContext(ctx, "SELECT id FROM proposals WHERE node_id=? ORDER BY created_at DESC,rowid DESC LIMIT 1", nodeID).Scan(&proposalID); err != nil {
 		return nil
 	}
-	_, err := s.db.ExecContext(ctx, `INSERT INTO proposal_declines(id,proposal_id,actor,reason,created_at) VALUES(?,?,?,?,?)`, uuid.NewString(), proposalID, actor, reason, s.now().UTC().Format(time.RFC3339Nano))
+	_, err := tx.ExecContext(ctx, "INSERT INTO proposal_declines(id,proposal_id,actor,reason,created_at) VALUES(?,?,?,?,?)", uuid.NewString(), proposalID, actor, reason, now().UTC().Format(time.RFC3339Nano))
 	return err
 }
 

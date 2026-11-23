@@ -134,6 +134,24 @@ is recorded with what was searched. Switch: low; `home.neverStarted`.
 one function the dry run and the append share, and every state a client branches on has a
 code. Alternative: the UI rebuilds the grammar and reads prose (it drifted once). Switch: low.
 
+**A turn that ended on an error is halted, resumed by data, then the steward's.** Codex
+blocks a goal when a turn errors, and the desk read that as `limited`: on 2026-11-20 two
+commissions lost 8 h 44 m and 5 h 49 m of allowance to one dropped stream, unnoticed.
+Alternatives: string checks in the desk (each consumer would grow its own), resume every
+blocked goal (loops on a refused model or flagged content), page the operator per blip (R9).
+The classification and recovery policy are one table, `packages/codex-rollout/turn_errors.json`,
+owned by the package Agent Manager and Web Console already read rollouts through, so any
+consumer applies the same classes; the desk owns only the actuator. Automatic resume is the one
+control not on the operator's action, bounded by backoff, a cap, staleness and the allowance,
+and recorded in `LAUNCH.json`. Past that, the halt is a window flag the steward's existing risk
+reads. Switch: low; the table, `home/halt.go`, `launch/recover.go`.
+
+**A launch's goal is decided by the goal row.** A Web Console call that times out after
+`/goal` went in (2026-11-21, the read-back took over 3 s) says nothing about the goal; the
+launch reads `goals_1.sqlite` for the goal patience and fails at `goal_sent` only when no goal
+with the kernel appears. Alternative: a longer Web Console timeout (it only moves the edge).
+Switch: low; `launch/launcher.go`.
+
 Replaced: sending decisions through the Hub's `Ask` → "The courier publishes events" → the
 desk's own verified sender → "The courier sends every decision as an event that carries its
 page"; speaking with the operator's local session → "Automatic launch through whichever Web

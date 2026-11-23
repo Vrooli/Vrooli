@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
 import { fetchServiceOfferPreview, serviceOfferSampleUrl } from "../api/serviceoffer";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";

@@ -103,6 +103,48 @@ func TestServiceRefreshExactMatchPreservesIdentityAndGroup(t *testing.T) {
 	require.Contains(t, strings.Join(devices[0].Notes, "\n"), "stable identity evidence")
 }
 
+func TestServiceRefreshPreservesKnownIdentityWhenObservationOmitsFields(t *testing.T) {
+	// [REQ:NM-P0-004] A partial refresh updates observed facts without erasing known identity or group data.
+	repo := newFakeRepo()
+	now := time.Date(2026, 6, 23, 18, 2, 0, 0, time.UTC)
+	created := now.Add(-24 * time.Hour)
+	_, err := repo.SaveDevice(context.Background(), Device{
+		ID:                 "dev-partial",
+		Hostname:           "living-room",
+		IPAddress:          "192.168.1.44",
+		MACAddress:         "02:11:22:33:44:55",
+		StableID:           "resolver:device-4",
+		ResolverClientID:   "client-4",
+		Group:              "managed",
+		IdentityConfidence: "low",
+		Notes:              []string{"prior identity was uncertain"},
+		LastSeen:           created,
+		CreatedAt:          created,
+		UpdatedAt:          created,
+	})
+	require.NoError(t, err)
+	svc := NewService(Config{Repo: repo, Now: func() time.Time { return now }, Source: fakeSource{observations: []Observation{
+		{ResolverClientID: "client-4"},
+	}}})
+
+	devices, _, err := svc.Refresh(context.Background(), false)
+	require.NoError(t, err)
+	require.Len(t, devices, 1)
+	device := devices[0]
+	require.Equal(t, "dev-partial", device.ID)
+	require.Equal(t, "living-room", device.Hostname)
+	require.Equal(t, "192.168.1.44", device.IPAddress)
+	require.Equal(t, "02:11:22:33:44:55", device.MACAddress)
+	require.Equal(t, "resolver:device-4", device.StableID)
+	require.Equal(t, "client-4", device.ResolverClientID)
+	require.Equal(t, "managed", device.Group)
+	require.Equal(t, "low", device.IdentityConfidence)
+	require.Contains(t, strings.Join(device.Notes, "\n"), "randomized")
+	require.NotContains(t, strings.Join(device.Notes, "\n"), "hostname unavailable")
+	require.Equal(t, now, device.LastSeen)
+	require.Equal(t, created, device.CreatedAt)
+}
+
 func TestServiceRefreshMarksAmbiguousWeakIdentity(t *testing.T) {
 	// [REQ:NM-P0-004] IP-only observations are retained but marked ambiguous.
 	repo := newFakeRepo()

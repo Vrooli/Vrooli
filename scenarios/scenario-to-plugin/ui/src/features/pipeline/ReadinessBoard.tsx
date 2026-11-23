@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
 
 type Prerequisite = { code: string; description: string; satisfied: boolean };
 type Readiness = { scenario: string; eligible: boolean; blocking_prerequisite?: string; prerequisites?: Prerequisite[] };

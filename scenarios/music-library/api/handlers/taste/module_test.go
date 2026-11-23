@@ -118,7 +118,7 @@ func TestTasteReturnsTenArtistAndGenreDiverseRecommendations(t *testing.T) {
 		putDecomposition(t, decompositionStore, id, fmt.Sprintf("Artist %02d", i+1))
 	}
 	h := &handler{store: preference.NewStore(db), catalog: catalogStore, decompositions: decompositionStore}
-	loaded, err := h.candidates(context.Background(), true)
+	loaded, err := h.candidates(context.Background(), includeRejectedTracks)
 	require.NoError(t, err)
 	var acousticSeen bool
 	for _, candidate := range loaded {

@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { Command, NotebookPen, Sparkles } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@vrooli/react-component-library/Button/2";
-import { IconButton } from "@vrooli/react-component-library/IconButton/3.1.6";
+import { IconButton } from "@vrooli/react-component-library/IconButton/3.1.8";
 import { Input } from "@vrooli/react-component-library/Input/1";
 import { createWorkItem } from "../api/work";
 import { applyAllocationProposal, previewAllocation } from "../api/calendar";

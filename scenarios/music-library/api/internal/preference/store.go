@@ -11,21 +11,16 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/database"
 )
 
 var ErrJudgmentNotFound = errors.New("reversed judgment not found")
 var hashPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
-type SQLExecutor interface {
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
-	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
-}
+type Store struct{ db database.SQLTxExecutor }
 
-type Store struct{ db SQLExecutor }
-
-func NewStore(db SQLExecutor) *Store { return &Store{db: db} }
+func NewStore(db database.SQLTxExecutor) *Store { return &Store{db: db} }
 
 func normalizeContext(value string) (string, error) {
 	value = strings.TrimSpace(value)

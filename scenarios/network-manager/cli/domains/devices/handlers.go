@@ -3,6 +3,7 @@ package devices
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
@@ -67,5 +68,5 @@ func formatDevice(d *inventoryv1.Device) string {
 	if d == nil {
 		return "(nil)"
 	}
-	return fmt.Sprintf("%s host=%s ip=%s group=%s confidence=%s", d.GetId(), d.GetHostname(), d.GetIpAddress(), d.GetGroup(), d.GetIdentityConfidence())
+	return fmt.Sprintf("%s host=%s ip=%s mac=%s group=%s confidence=%s notes=%q", d.GetId(), d.GetHostname(), d.GetIpAddress(), d.GetMacAddress(), d.GetGroup(), d.GetIdentityConfidence(), strings.Join(d.GetNotes(), "; "))
 }

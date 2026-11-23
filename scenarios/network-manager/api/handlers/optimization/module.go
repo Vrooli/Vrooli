@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
+	apidb "github.com/vrooli/api-core/database"
 
 	domainadapters "network-manager/internal/adapters"
 	"network-manager/internal/module"
@@ -23,7 +24,7 @@ type handler struct {
 	service *domainoptimization.Service
 }
 
-func Module(db domainoptimization.SQLExecutor) module.Module {
+func Module(db apidb.SQLExecutor) module.Module {
 	service := newService(db)
 	path, h := optimizationconnect.NewOptimizationServiceHandler(&handler{service: service})
 	return module.Module{Name: "optimization", Mount: func(r *mux.Router) {
@@ -31,7 +32,7 @@ func Module(db domainoptimization.SQLExecutor) module.Module {
 	}, Endpoints: Endpoints}
 }
 
-func newService(db domainoptimization.SQLExecutor) *domainoptimization.Service {
+func newService(db apidb.SQLExecutor) *domainoptimization.Service {
 	snapshotRepo := domainsnapshot.NewSQLiteRepository(db)
 	snapshotService := domainsnapshot.NewService(domainsnapshot.Config{Repo: snapshotRepo})
 	resolverRepo := domainresolver.NewSQLiteRepository(db)

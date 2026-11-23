@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
+	apidb "github.com/vrooli/api-core/database"
 
 	domaininventory "network-manager/internal/inventory"
 	"network-manager/internal/module"
@@ -20,7 +21,7 @@ type handler struct {
 	service *domaininventory.Service
 }
 
-func Module(db domaininventory.SQLExecutor) module.Module {
+func Module(db apidb.SQLExecutor) module.Module {
 	resolverRepo := domainresolver.NewSQLiteRepository(db)
 	service := domaininventory.NewService(domaininventory.Config{
 		Repo:   domaininventory.NewSQLiteRepository(db),

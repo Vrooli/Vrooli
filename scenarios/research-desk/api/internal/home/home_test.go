@@ -271,7 +271,7 @@ func TestStateFromSessionRecords(t *testing.T) {
 		}, StateLimited, "usage_limited"},
 		{"no window, allowance left", func(t *testing.T, f *fixture) {
 			f.codexHome(t, "s", []goalRow{{"t", f.programmeThreeGoal(), "paused", base}}, nil)
-		}, StateStopped, "no supervisor window"},
+		}, StateStopped, "no manager window"},
 		{"no window, allowance passed", func(t *testing.T, f *fixture) {
 			f.codexHome(t, "s", []goalRow{{"t", f.programmeThreeGoal(), "paused", base}}, nil)
 			f.clock.Advance(25 * time.Hour)
@@ -411,11 +411,14 @@ func (m fakeMissions) MissionCheck(context.Context, string) ([]byte, string, err
 
 func TestMissionCheck(t *testing.T) {
 	f := newFixture(t)
-	f.missions = fakeMissions{out: []byte(`[{"topic":"niche-book-production","mode":"build","workstreams":{"open":3,"active":1,"waiting-operator":1,"landed":2},"workstream_rows":[{"id":"NB1","status":"active","showcase":"a book"}],"errors":[],"warnings":["w"]}]`)}
+	f.missions = fakeMissions{out: []byte(`[{"topic":"niche-book-production","mode":"build","workstreams":{"open":3,"active":1,"waiting-operator":1,"landed":2},"landed_10d":1,"last_landed_at":"2026-11-18","workstream_rows":[{"id":"NB1","status":"active","showcase":"a book"}],"errors":[],"warnings":["w"]}]`)}
 	snap := f.snapshot(t, Options{MissionCheck: true})
 	niche := snap.Topic("niche-book-production").Check
 	if !niche.Known || niche.Open != 3 || niche.WaitingOperator != 1 || len(niche.Workstreams) != 1 || niche.Source != "/skills/mission_check.py" {
 		t.Errorf("want the script's summary, got %+v", niche)
+	}
+	if niche.Landed10d != 1 || niche.LastLandedAt != "2026-11-18" {
+		t.Errorf("the pace sensor's landings are the script's own: %+v", niche)
 	}
 	if other := snap.Topic("ai-video-production-and-funnels").Check; other.Known || !strings.Contains(other.Reason, "did not report") {
 		t.Errorf("a topic the script did not report must be unknown, got %+v", other)
@@ -495,8 +498,11 @@ func TestReadSetsFollowTheLimitsLists(t *testing.T) {
 			t.Errorf("%s reads the brief and its own mission, got %+v", owner.Role, owner)
 		}
 		flags := strings.Join(owner.Flags, "\n")
-		if strings.Contains(flags, "owner_start ceiling") || !strings.Contains(flags, "the next architect pass tidies the mission") || !strings.Contains(flags, ref.Topic+" mission is") {
+		if strings.Contains(flags, "owner_start ceiling") || !strings.Contains(flags, "Move history to the topic's history/") || !strings.Contains(flags, ref.Topic+" mission is") {
 			t.Errorf("%s: the mission is flagged with the tidy and never held to the skill ceiling, got %q", owner.Role, flags)
+		}
+		if len(owner.Breach) != 0 {
+			t.Errorf("%s: an oversized mission is flagged, never a breach that refuses the launch (R1), got %q", owner.Role, owner.Breach)
 		}
 	}
 	if withMission == 0 {
@@ -555,6 +561,22 @@ func TestAnUnknownEndIsTheLastWriteNotNow(t *testing.T) {
 	snap.Commissions[1].Started = known(base.Add(4 * time.Hour))
 	if got := snap.Overlaps(); len(got) != 2 || len(snap.OpenOverlaps()) != 1 {
 		t.Errorf("a real overlap of two stopped commissions is history, not open now: %+v", got)
+	}
+}
+
+func TestHistoricalSettlementWriteIsNotCommissionActivity(t *testing.T) {
+	start := base
+	settled := start.Add(72 * time.Hour)
+	c := &Commission{Files: []FileFact{
+		{Name: CharterFile, Path: "/research/cohorts/old/README.md", Modified: start},
+		{Name: SettlementFile, Path: "/research/cohorts/old/SETTLEMENT.json", Modified: settled},
+	}}
+	last, after := c.writes(deriveEnv{now: settled.Add(time.Hour)})
+	if !last.Known || !last.Value.Equal(start) {
+		t.Fatalf("settlement metadata must not refresh activity: %+v", last)
+	}
+	if after.Known {
+		t.Fatalf("settlement metadata must not appear as activity after the end: %+v", after)
 	}
 }
 
@@ -803,5 +825,124 @@ func TestAReviewsTopicsAreKnownOrSaidUnknown(t *testing.T) {
 		if !slices.Equal(got, tc.want) || ev.Known != tc.known || (!ev.Known && ev.Reason == "") {
 			t.Errorf("%s: topics %v, evidence %+v", name, got, ev)
 		}
+	}
+}
+
+// R6: a window whose own record disagrees with reality is loud. A goal that is not active under a STATE.md header
+// that says `Goal: active`, a window that says it is over while its goal runs, and a window with no STATE.md an
+// hour in are flagged (Commission.Flags); an honest STATE.md, a clean wind-down and a window past its allowance
+// are not. Only the header's own `Goal:` line counts.
+func TestAWindowWhoseStateDisagreesWithTheGoalIsFlagged(t *testing.T) {
+	const p3 = "programme-three-20261111"
+	state := func(f *fixture) string { return filepath.Join(f.research, "cohorts", p3, StateFile) }
+	for _, tc := range []struct {
+		name, goal, state string
+		after             time.Duration
+		flag              string
+	}{
+		{"active in STATE.md, blocked goal", "blocked", "# State\n\nGoal: active\n", 0, "STATE.md says the goal is active; the goal is blocked"},
+		{"active in STATE.md, usage-limited goal", "usage_limited", "# State\n\nManager: steward\nGoal: active\n\n## Needs you\n", 0, "the goal is usage_limited"},
+		{"ended in STATE.md, goal still running", "active", "# State\n\nGoal: ended\n", 0, "STATE.md says the window is ended; the goal is still active"},
+		{"STATE.md reads the goal truthfully", "blocked", "# State\n\nGoal: blocked\n", 0, ""},
+		{"a clean wind-down: paused in STATE.md, paused goal", "paused", "# State\n\nGoal: paused\n", 0, ""},
+		{"an ended window under a paused goal", "paused", "# State\n\nGoal: ended\n", 0, ""},
+		{"no Goal line", "blocked", "# State\n\nSee the cards.\n", 0, ""},
+		{"a Goal sentence is not the Goal line", "blocked", "# State\n\nGoal: active workstreams are listed below.\n", 0, ""},
+		{"a Goal line below the header is not read", "blocked", "# State\n\n## Cards\n\nGoal: active\n", 0, ""},
+		{"a per-card status line is not read", "blocked", "# State\n\nGoal: blocked\n\n## Cards\n\n  status: active\n", 0, ""},
+		{"no STATE.md an hour in", "active", "", 0, "no STATE.md"},
+		{"no STATE.md in the first hour", "active", "", -90 * time.Minute, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			f.procs.window(f.codexHome(t, "s", []goalRow{{"t", f.programmeThreeGoal(), tc.goal, base}}, nil))
+			if tc.state == "" {
+				if err := os.Remove(state(f)); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				writeFile(t, state(f), tc.state)
+			}
+			// The manager worked: a write well after the goal started, so these cases are about STATE.md alone.
+			f.touch(t, filepath.Join("cohorts", p3, "README.md"), base.Add(30*time.Minute))
+			f.clock.Advance(tc.after)
+			c := f.snapshot(t, Options{}).Commission(p3)
+			if got := strings.Join(c.Flags, "; "); (got != "") != (tc.flag != "") || !strings.Contains(got, tc.flag) {
+				t.Fatalf("want flag %q, got %q (rule %q)", tc.flag, c.Flags, c.StateRule)
+			}
+			if strings.Contains(c.StateRule, "FLAG") {
+				t.Fatalf("a flag is its own field, not part of the state rule: %q", c.StateRule)
+			}
+		})
+	}
+}
+
+// A window still marked limited long after its allowance ended is over: a missing STATE.md is not flagged for good.
+func TestAWindowPastItsAllowanceIsNotFlaggedForNoState(t *testing.T) {
+	const p3 = "programme-three-20261111"
+	f := newFixture(t)
+	f.procs.window(f.codexHome(t, "s", []goalRow{{"t", f.programmeThreeGoal(), "usage_limited", base}}, nil))
+	if err := os.Remove(filepath.Join(f.research, "cohorts", p3, StateFile)); err != nil {
+		t.Fatal(err)
+	}
+	f.touch(t, filepath.Join("cohorts", p3, "README.md"), base.Add(30*time.Minute))
+	c := f.snapshot(t, Options{}).Commission(p3)
+	if !c.AllowanceEnd.Known || len(c.Flags) == 0 {
+		t.Fatalf("control: inside its allowance the missing STATE.md is flagged (allowance %+v, flags %q)", c.AllowanceEnd, c.Flags)
+	}
+	f.clock.Advance(c.AllowanceEnd.Value.Sub(f.clock.Now()) + time.Hour)
+	if got := f.snapshot(t, Options{}).Commission(p3).Flags; len(got) != 0 {
+		t.Fatalf("a window past its allowance is not flagged for a missing STATE.md: %q", got)
+	}
+}
+
+// R6: a window whose manager never got past start-up is flagged an hour in, and stays flagged while its goal is
+// open, even past its allowance (someone must stop or relaunch it). Any write past start-up, in the folder, a run
+// folder or the session's transcript, clears it.
+func TestADeadWindowIsFlaggedAnHourInAndStaysFlaggedPastItsAllowance(t *testing.T) {
+	const p3 = "programme-three-20261111"
+	for _, tc := range []struct {
+		name   string
+		after  time.Duration // clock advance past the first snapshot
+		wrote  time.Duration // a write this long after the goal started; 0 for none
+		status string
+		flag   bool
+	}{
+		{"nothing past start-up an hour in", 0, 0, "active", true},
+		{"a start-up write only", 0, 10 * time.Minute, "active", true},
+		{"a write after start-up", 0, 40 * time.Minute, "active", false},
+		{"still dead past the allowance, goal limited", 30 * time.Hour, 0, "usage_limited", true},
+		{"first hour is not dead yet", -90 * time.Minute, 0, "active", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			f.procs.window(f.codexHome(t, "s", []goalRow{{"t", f.programmeThreeGoal(), tc.status, base}}, nil))
+			if tc.wrote > 0 {
+				f.touch(t, filepath.Join("cohorts", p3, "README.md"), base.Add(tc.wrote))
+			}
+			f.clock.Advance(tc.after)
+			c := f.snapshot(t, Options{}).Commission(p3)
+			got := strings.Join(c.Flags, "; ")
+			if has := strings.Contains(got, "dead window"); has != tc.flag {
+				t.Fatalf("dead-window flag %v, want %v: %q (state %s)", has, tc.flag, got, c.State)
+			}
+		})
+	}
+}
+
+// An operator answer that landed in a topic's INBOX.md and was never drained is listed, oldest first, with whether
+// a live window reads it: otherwise an approved decision no window reads is invisible (R9).
+func TestAnswersWaitingAreListedUntilTheirInboxIsDrained(t *testing.T) {
+	f := newFixture(t)
+	topic := filepath.Join(f.research, "topics", "local-model-performance")
+	writeFile(t, filepath.Join(topic, InboxFile), "### 2026-11-18T09:00Z · from operator · answer\nLM9: approve — Approve it.\nPacket: /x/work/LM9/BRIEF.md\nSource: hub ask a1\n\n"+
+		"### 2026-11-15T09:00Z · from operator · answer\nLM2: wait — Wait.\nSource: hub ask a0\n\n### 2026-11-19T09:00Z · from review · friction\nA note, not an answer.\n")
+	writeFile(t, filepath.Join(topic, "history", InboxFile), "### 2026-11-10T09:00Z · from operator · answer\nLM1: yes — Yes.\n")
+	got := f.snapshot(t, Options{}).AnswersWaiting()
+	if len(got) != 2 || got[0].ItemID != "LM2" || got[0].Answer != "wait" || got[1].ItemID != "LM9" || got[1].Owner != "topic:local-model-performance" {
+		t.Fatalf("two undrained answers, oldest first, none of the drained or non-answer entries: %+v", got)
+	}
+	if got[0].LiveWindowReads {
+		t.Fatalf("no window is live on the topic: %+v", got[0])
 	}
 }

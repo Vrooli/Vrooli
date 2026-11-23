@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
+	apidb "github.com/vrooli/api-core/database"
 
 	domainhome "network-manager/internal/homeintegration"
 	"network-manager/internal/module"
@@ -20,7 +21,7 @@ type handler struct {
 	service *domainhome.Service
 }
 
-func Module(db domainhome.SQLExecutor) module.Module {
+func Module(db apidb.SQLExecutor) module.Module {
 	service := domainhome.NewService(domainhome.Config{Repo: domainhome.NewSQLiteRepository(db)})
 	path, h := homeconnect.NewHomeIntegrationServiceHandler(&handler{service: service})
 	return module.Module{Name: "home_integration", Mount: func(r *mux.Router) {

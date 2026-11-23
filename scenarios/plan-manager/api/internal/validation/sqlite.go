@@ -10,6 +10,7 @@ import (
 
 	planmodel "plan-manager/internal/planmodel"
 
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/schedule"
 )
 
@@ -17,24 +18,14 @@ import (
 // lexicographically in time order for a fixed zone).
 const resultTimeFormat = time.RFC3339Nano
 
-// SQLExecutor is the narrow database surface the result store depends on.
-// Declared at the consumer per seam-discovery: both *sql.DB (tests) and
-// *database.RoutedDB (production) satisfy it.
-type SQLExecutor interface {
-	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
-	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
-	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
-	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
-}
-
 type sqliteResultStore struct {
-	db    SQLExecutor
+	db    database.SQLTxExecutor
 	clock schedule.Clock
 }
 
 // NewSQLiteResultStore constructs the production validation ResultStore over the
 // shared home-store DB.
-func NewSQLiteResultStore(db SQLExecutor, clk schedule.Clock) *sqliteResultStore {
+func NewSQLiteResultStore(db database.SQLTxExecutor, clk schedule.Clock) *sqliteResultStore {
 	return &sqliteResultStore{db: db, clock: clk}
 }
 

@@ -752,7 +752,7 @@ func TestApplyWorkspaceReplacesSupportedDomainsWithCheckpoint(t *testing.T) {
 		t.Fatalf("checkpoint count=%d err=%v", checkpoints, err)
 	}
 	replay, err := NewSQLiteRestorer(db, schedule.System()).ApplyWorkspace(ctx, "w1", 3, "restore-1", envelope)
-	if err != nil || replay.CheckpointID != result.CheckpointID {
+	if err != nil || replay.WorkspaceRevision != result.WorkspaceRevision || replay.RecipesApplied != result.RecipesApplied || replay.CheckpointID != result.CheckpointID {
 		t.Fatalf("idempotent replay=%#v err=%v", replay, err)
 	}
 }

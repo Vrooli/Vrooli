@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	_ "embed"
 	"fmt"
+
+	"github.com/vrooli/api-core/database"
 )
 
 //go:embed schema.sql
@@ -19,7 +21,7 @@ func Schema() string { return schemaSQL }
 // declarative schema. It is safe to call at every stopped-service startup: each
 // column is added only when missing. Legacy results intentionally receive safe
 // zero values, so they cannot prove a later execution's validation.
-func EnsureMigrations(ctx context.Context, db SQLExecutor) error {
+func EnsureMigrations(ctx context.Context, db database.SQLTxExecutor) error {
 	rows, err := db.QueryContext(ctx, "PRAGMA table_info(validation_results)")
 	if err != nil {
 		return fmt.Errorf("inspect validation_results columns: %w", err)

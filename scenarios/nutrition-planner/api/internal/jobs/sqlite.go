@@ -6,24 +6,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/vrooli/api-core/database"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/schedule"
 )
 
-type SQLExecutor interface {
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
-	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-}
-
 type sqliteRepository struct {
-	db    SQLExecutor
+	db    database.SQLExecutor
 	clock schedule.Clock
 }
 
-func NewSQLiteRepository(db SQLExecutor, clock schedule.Clock) Repository {
+func NewSQLiteRepository(db database.SQLExecutor, clock schedule.Clock) Repository {
 	return &sqliteRepository{db: db, clock: clock}
 }
 

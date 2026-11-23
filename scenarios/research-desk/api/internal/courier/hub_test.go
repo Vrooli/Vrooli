@@ -162,3 +162,17 @@ func TestAnAskReadBackSaysWhatTheDeskSent(t *testing.T) {
 		t.Fatal("a changed answer menu is not current")
 	}
 }
+
+// The Hub reserves "other" for the operator's own words; an item that lists it
+// must still reach the operator (2026-11-15..20: five asks refused, none delivered).
+func TestAnItemOfferingOtherStillBecomesAnAsk(t *testing.T) {
+	s := newEventsServer(t)
+	spec := testSpec
+	spec.Options = append(append([]home.Option{}, testSpec.Options...), home.Option{Key: "other", Label: "Something else"})
+	if err := s.hub.Ask(context.Background(), spec); err != nil {
+		t.Fatalf("an ask offering other was refused: %v", err)
+	}
+	if s.hub.RequestRef(spec) == "" {
+		t.Fatal("an item offering other must still be a Hub decision")
+	}
+}

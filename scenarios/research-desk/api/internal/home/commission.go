@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	codexrollout "github.com/vrooli/vrooli/packages/codex-rollout"
 )
 
 // TopicRef names one topic a commission covers and the evidence for it.
@@ -93,8 +95,12 @@ type Commission struct {
 	TouchedAfterEnd Time
 	State           State
 	StateRule       string
-	StateEvidence   []Evidence
-	Stalled         bool
+	// Halt is why a halted commission's goal stopped; nil in every other state.
+	Halt *Halt
+	// Flags are where a running window's own record disagrees with what the desk observes (windowFlags).
+	Flags         []string
+	StateEvidence []Evidence
+	Stalled       bool
 	// NeverStarted says, for an unknown commission, whether the operator may
 	// assert it never started; zero for every other state.
 	NeverStarted NeverStarted
@@ -119,7 +125,7 @@ func (c *Commission) LaunchedBy() string {
 
 // File returns a top-level file of the folder by name.
 // Closed says whether a record ends the commission: a valid SETTLEMENT.json
-// or a CLOSURE.json. It is historical evidence; an open supervisor window
+// or a CLOSURE.json. It is historical evidence; an open manager window
 // with a live goal still counts as running whatever it says.
 func (c *Commission) Closed() (bool, string) {
 	if s := c.HistoricalSettlement; s != nil {
@@ -355,8 +361,12 @@ func (c *Commission) derive(env deriveEnv) {
 	if c.Session == nil && c.PacketComplete && !hasRelated && c.Launch == nil {
 		in.NotStarted = c.notStarted(env)
 	}
+	in.Halt, in.HaltUnknown = c.halt(env)
 	c.notStartedEv = in.NotStarted
 	c.State, c.StateRule = deriveState(in)
+	if c.State == StateHalted {
+		c.Halt = in.Halt
+	}
 	if c.State == StateUnknown {
 		c.NeverStarted = c.neverStarted(env)
 	}
@@ -364,6 +374,7 @@ func (c *Commission) derive(env deriveEnv) {
 	c.Ended = c.end(env.now)
 	c.LastWrite, c.TouchedAfterEnd = c.writes(env)
 	c.Stalled = c.State == StateLive && c.LastWrite.Known && env.now.Sub(c.LastWrite.Value) > StallAfter
+	c.Flags = c.windowFlags(env.now)
 }
 
 // notStarted is the evidence that nothing started a complete packet: no goal
@@ -498,12 +509,12 @@ func (c *Commission) stateEvidence(env deriveEnv) []Evidence {
 }
 
 // end is the earliest end the evidence gives: discarded, goal complete, or
-// allowance ended. A commission with a supervisor window open has not ended
+// allowance ended. A commission with a manager window open has not ended
 // whatever its allowance says.
 func (c *Commission) end(now time.Time) Time {
 	end := Time{Evidence: Unknown("not ended: not discarded, goal not complete, allowance not ended")}
 	if c.State.Running() {
-		return Time{Evidence: Unknown("not ended: supervisor window open (" + string(c.State) + ")")}
+		return Time{Evidence: Unknown("not ended: manager window open (" + string(c.State) + ")")}
 	}
 	earlier := func(t Time) {
 		if t.Known && (!end.Known || t.Value.Before(end.Value)) {
@@ -544,6 +555,12 @@ func (c *Commission) writes(env deriveEnv) (Time, Time) {
 		}
 	}
 	for _, f := range c.Files {
+		// A historical disposition is evidence about old work, not research
+		// activity. Counting its own write as activity re-fires the commission
+		// fog risk immediately after a successful settlement.
+		if f.Name == SettlementFile {
+			continue
+		}
 		add(Time{Value: f.Modified, Evidence: From(f.Path, f.Modified)})
 	}
 	for i := range c.Runs {
@@ -576,6 +593,12 @@ type deriveEnv struct {
 	// others reads the goals of the Codex homes outside Web Console's
 	// session folder, once per snapshot and only when needed.
 	others func() OtherGoals
+	// lastTurn reads a rollout's newest turn boundary (cached).
+	lastTurn func(path string) (codexrollout.TurnOutcome, error)
+	// turnErrors classifies a turn-ending error; nil with turnErrorsWhy
+	// when the table could not be loaded.
+	turnErrors    *codexrollout.TurnErrorTable
+	turnErrorsWhy string
 }
 
 // otherGoals reads the other Codex homes' goals, or none without a reader.

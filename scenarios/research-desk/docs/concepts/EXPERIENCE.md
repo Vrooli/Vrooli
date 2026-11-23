@@ -18,11 +18,11 @@ distinct from derived text, claims shown apart from observations.
 
 **Now** (`/`), top to bottom; the first three fill the first screen at 390 px:
 
-1. **Status line**: "1 live · 2 paused · 0 limited", because only live is working, and the most recent research write anywhere with its topic. With
+1. **Status line**: "1 live · none halted · 2 paused · 0 limited", because only live is working, and the most recent research write anywhere with its topic. With
    nothing live but windows open, a notice says so ("Nothing is working right now").
 2. **Needs you**: the count and at most three titles; each opens that item on the Needs you
    page. When items are open and nothing is delivered, one warning line links to the switch.
-3. **Supervisors**: a group each for live, limited and paused: one row per commission with
+3. **Supervisors**: a group each for live, halted, limited and paused (a halted commission's page says which error stopped it and whether the desk resumes it or the steward decides): one row per commission with
    its topics, the state rule with its evidence on tap ("Why?"), the supervisor's claim in
    a quoted style, its last write ("at least …" when the walk was cut short) and what
    changed in the chosen period. A window still open after its allowance ended carries an

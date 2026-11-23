@@ -5,8 +5,8 @@ import { ArrowRight, Plus } from "lucide-react";
 import { AsyncBoundary } from "../../components/AsyncBoundary";
 import { StatusBadge } from "../../components/StatusBadge";
 import { SectionPanel } from "../../components/Surfaces";
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { formatDate } from "../../i18n/format";
@@ -89,6 +89,7 @@ export function PlansList() {
             data-testid={selectors.plans.createButton}
             disabled={!canCreate}
             className="shrink-0"
+            shape="square"
           >
             <Plus aria-hidden="true" className="me-2 h-4 w-4" />
             {t(strings.pages.plans.create)}

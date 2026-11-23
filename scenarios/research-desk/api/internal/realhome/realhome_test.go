@@ -102,7 +102,7 @@ func TestRealHomeInvariants(t *testing.T) {
 	}
 
 	states := map[home.State]int{}
-	enum := []home.State{home.StateEnded, home.StatePrepared, home.StateUnknown, home.StateStopped, home.StateLive, home.StatePaused, home.StateLimited}
+	enum := []home.State{home.StateEnded, home.StatePrepared, home.StateUnknown, home.StateStopped, home.StateLive, home.StatePaused, home.StateLimited, home.StateHalted}
 	for _, c := range snap.Commissions {
 		states[c.State]++
 		if strings.HasPrefix(c.StateRule, "packet complete") {

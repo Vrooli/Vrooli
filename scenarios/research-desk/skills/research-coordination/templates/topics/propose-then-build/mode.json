@@ -1,8 +1,0 @@
-{
-  "approval_flow": "Owners explore directly: sandboxes, prototypes, external experiments, demos and improvements to existing capabilities. A new maintained capability, scenario or significant extension goes to the operator as a proposal packet; an approved proposal becomes a `build` workstream at the proposed scale and is staffed in the next unit.",
-  "boundaries": "- Spending money or accepting paid terms.\n- Contacting people outside the project.\n- Credentials, accounts and private data.",
-  "end_state_hint": "Say what the operator can do when it is done, including what gets built after approval.",
-  "workstream_hint": "Keep exploration rows and approved build rows in one table. Exploration that never produces a proposal is not working.",
-  "mode_tools": "",
-  "knowledge_page": "knowledge/LANDSCAPE.md"
-}

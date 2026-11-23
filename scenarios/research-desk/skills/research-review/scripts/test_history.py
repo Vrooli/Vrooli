@@ -310,6 +310,18 @@ class TopicAndPortfolioTests(Fixture):
         later = history.topic_row(desk, "debt-reduction", rows, history.bound("2026-11-13"), None)
         self.assertEqual(later["landed_in_range"], [])
 
+    def test_a_retired_topic_still_counts_its_landings(self):
+        mission = MISSION.format(title="Done topic", rows="\n".join([
+            "| RH1 | Repair. | hygiene | 30 h · hygiene | Runs. | landed 2026-11-12 |",
+            "| RH2 | Gate. | hygiene | 30 h · sec | Runs. | landed 2026-11-12 |"]))
+        write(f"{self.home}/topics/done-topic/MISSION.md", mission.replace("\n\n", "\nRetired: 2026-11-13 — all landed\n\n", 1))
+        desk = self.desk()
+        row = history.topic_row(desk, "done-topic", desk.commissions())
+        self.assertEqual(row["landed_all"], ["RH1 2026-11-12", "RH2 2026-11-12"])
+        data = history.portfolio(desk)
+        self.assertIn("done-topic:RH2", data["landed_in_range"])
+        self.assertIn("(retired topics included): ", history.render_portfolio(data))
+
     def test_portfolio_totals_count_each_rollout_once_and_flag_shared_sessions(self):
         desk = self.desk()
         write(f"{self.home}/cohorts/debt-crypto-models-20261112-copy/LAUNCH.json", json.dumps({

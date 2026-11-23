@@ -51,6 +51,7 @@ const STATE_WORDS = {
   live: strings.preflight.stateLive,
   paused: strings.preflight.statePaused,
   limited: strings.preflight.stateLimited,
+  halted: strings.preflight.stateHalted,
   unknown: strings.preflight.stateUnknown,
 } as const;
 

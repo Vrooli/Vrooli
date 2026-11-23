@@ -270,7 +270,7 @@ func TestTheSupervisorsDecisionAnswerLandsInTheResearchHomesInbox(t *testing.T) 
 	}
 	sw, _ := r.courier.Switches()
 	if on, _ := sw.Supervisor(); on {
-		t.Fatal("the operator turns the supervisor's decisions off")
+		t.Fatal("the operator turns the manager's decisions off")
 	}
 }
 

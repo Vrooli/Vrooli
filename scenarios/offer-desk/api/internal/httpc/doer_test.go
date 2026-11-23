@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vrooli/api-core/apihttptest"
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/apihttptest"
 
 	"offer-desk/internal/httpc"
 )

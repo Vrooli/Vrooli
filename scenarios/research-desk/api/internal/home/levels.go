@@ -214,3 +214,44 @@ func (s *Snapshot) Level(owner string) *Level {
 	}
 	return nil
 }
+
+// AnswerWaiting is an operator's answer still in a level's INBOX.md: an approved decision nothing has acted on.
+type AnswerWaiting struct {
+	Owner  string
+	ItemID string
+	// Answer is the chosen option key, empty when the entry does not parse.
+	Answer string
+	At     time.Time
+	Inbox  string
+	// LiveWindowReads is true while a manager window is live on the topic: it drains the inbox at its next review.
+	LiveWindowReads bool
+}
+
+var answerLine = regexp.MustCompile(`^([A-Z0-9][A-Z0-9_-]{0,127}): ([a-z0-9-]{1,32})\b`)
+
+// AnswersWaiting lists the undrained answer entries of every level, oldest first. An answered item leaves the
+// open list, so without this an answer that no window reads is invisible (seven sat up to five days, 2026-11-20).
+func (s *Snapshot) AnswersWaiting() []AnswerWaiting {
+	var out []AnswerWaiting
+	for _, l := range s.Levels {
+		live := false
+		if t := s.Topic(l.Topic); l.Topic != "" && t != nil {
+			live = len(t.Live) > 0
+		}
+		for _, a := range l.Answers {
+			if a.Drained {
+				continue
+			}
+			w := AnswerWaiting{Owner: l.Owner(), At: a.At, Inbox: a.Source, LiveWindowReads: live}
+			for _, line := range strings.Split(a.Body, "\n") {
+				if m := answerLine.FindStringSubmatch(strings.TrimSpace(line)); m != nil {
+					w.ItemID, w.Answer = m[1], m[2]
+					break
+				}
+			}
+			out = append(out, w)
+		}
+	}
+	slices.SortFunc(out, func(a, b AnswerWaiting) int { return a.At.Compare(b.At) })
+	return out
+}

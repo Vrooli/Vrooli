@@ -112,7 +112,7 @@ piece into an owning domain instead of growing infrastructure.
 - **Key rule**: each entry names its source, and a source that cannot be read becomes a visible availability entry while healthy sources continue to rank. An unavailable ledger is never rendered as zero earnings — that would be indistinguishable from an offer that genuinely earned nothing.
 - **The instrument role**: this domain is the `monetization` team's single address (`../internal/DECISIONS.md`, 2026-08-13). That is what makes the second Money Ledger read necessary: a team with one address needs its financial member served by the same surface as its catalog members, so the board carries **runway, goal verdicts with sustain-window progress, and the default-alive gap** alongside the per-offer actuals join.
 - **Surfaced, never owned**: posture rows carry no stored amount and no computation of one. The board asks Money Ledger for a figure and renders it with its source and age. The PRD non-goal excluding accounting and balances is intact — reporting someone else's number under attribution is not owning it.
-- **Fallback is legal**: per the §5 degradation contract in `path:docs/agent-system/TARGET_MODEL.md`, the board makes the good path cheap and never makes the manual path illegal. A consumer that cannot reach the board reads `money-ledger` directly and says so.
+- **Fallback is legal**: per the §5 degradation contract in `path:docs/agent-system/STANDING_TEAMS.md`, the board makes the good path cheap and never makes the manual path illegal. A consumer that cannot reach the board reads `money-ledger` directly and says so.
 - **Targets**: OT-P1-002, OT-P1-003. **Requirements**: INT-002, INT-003, INT-005.
 
 ### operator-ui

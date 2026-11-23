@@ -99,12 +99,32 @@ func (s *Sources) readSystemMonitor(ctx context.Context) (policy.SourceInput, po
 		return load, health
 	}
 	client := s.newMetricsReader(s.client, strings.TrimRight(base, "/"))
-	current, err := client.GetCurrentMetrics(ctx, connect.NewRequest(&metricsv1.GetCurrentMetricsRequest{}))
+	type currentResult struct {
+		response *connect.Response[metricsv1.GetCurrentMetricsResponse]
+		err      error
+	}
+	type detailedResult struct {
+		response *connect.Response[metricsv1.GetDetailedMetricsResponse]
+		err      error
+	}
+	currentDone := make(chan currentResult, 1)
+	detailedDone := make(chan detailedResult, 1)
+	go func() {
+		response, err := client.GetCurrentMetrics(ctx, connect.NewRequest(&metricsv1.GetCurrentMetricsRequest{}))
+		currentDone <- currentResult{response: response, err: err}
+	}()
+	go func() {
+		response, err := client.GetDetailedMetrics(ctx, connect.NewRequest(&metricsv1.GetDetailedMetricsRequest{}))
+		detailedDone <- detailedResult{response: response, err: err}
+	}()
+	currentRead := <-currentDone
 	load.ObservedAt = s.now().UTC()
-	if err != nil {
-		load.Reason = fmt.Sprintf("read current metrics: %v", err)
+	if currentRead.err != nil {
+		load.Reason = fmt.Sprintf("read current metrics: %v", currentRead.err)
+	} else if currentRead.response == nil || currentRead.response.Msg == nil {
+		load.Reason = "read current metrics: response unavailable"
 	} else {
-		snapshot := current.Msg.GetMetrics()
+		snapshot := currentRead.response.Msg.GetMetrics()
 		load.SourceTime = timeFromProto(snapshot.GetTimestamp())
 		if measured(snapshot.GetCpu()) {
 			load.Measurements["cpu_usage_percent"] = snapshot.GetCpu().GetMeasured()
@@ -122,14 +142,19 @@ func (s *Sources) readSystemMonitor(ctx context.Context) (policy.SourceInput, po
 		}
 	}
 	// Pressure is independent evidence. A missing utilization reading must
-	// not hide a measured pressure verdict, or lend it a newer timestamp.
-	detailed, err := client.GetDetailedMetrics(ctx, connect.NewRequest(&metricsv1.GetDetailedMetricsRequest{}))
+	// not hide a measured pressure verdict, lend it a newer timestamp, or wait
+	// behind a slow load request. Both reads share the caller's bounded context.
+	detailedRead := <-detailedDone
 	health.ObservedAt = s.now().UTC()
-	if err != nil {
-		health.Reason = fmt.Sprintf("read health detail: %v", err)
+	if detailedRead.err != nil {
+		health.Reason = fmt.Sprintf("read health detail: %v", detailedRead.err)
 		return load, health
 	}
-	pressure := detailed.Msg.GetMetrics().GetMemoryDetails().GetMemoryPressure()
+	if detailedRead.response == nil || detailedRead.response.Msg == nil {
+		health.Reason = "read health detail: response unavailable"
+		return load, health
+	}
+	pressure := detailedRead.response.Msg.GetMetrics().GetMemoryDetails().GetMemoryPressure()
 	health.SourceTime = timeFromProto(pressure.GetObservedAt())
 	health.State = policyv1.EvidenceState_EVIDENCE_STATE_DEGRADED
 	if pressure == nil {

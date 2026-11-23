@@ -19,6 +19,24 @@ General Vrooli platform issues, unrelated bugs, or product ideas that belong in 
 ```
 
 ## Entries
+### 2026-11-22 — Device list now exposes stable identity evidence
+
+- Signal: Unit Health surfaced `devices/handlers.go` at 0/25 covered units and recommended the maintained `test` skill. Reading NM-P0-004 and the list response showed that the CLI omitted the returned MAC address and confidence notes, even though both are part of the device identity contract. The device CLI now renders both fields; Connect-boundary tests cover group filtering, refresh dry-run/findings, group updates, and identity explanation.
+- Impact: Operators can inspect stable identity and ambiguity notes in the CLI, with request forwarding and the four device commands protected by owner tests. The requirement remains planned: discovery/merge behavior from DHCP, resolver and ARP-like sources is not covered here. Direct Unit Health output reports improvement for the file but retains unrelated coverage warnings; no scenario maturity rise is claimed.
+- Next action: Add source-level inventory merge and randomized-identity tests for NM-P0-004 when its real source boundaries are selected; resolve the unrelated UI Test Genie blockers before claiming scenario-level phase health.
+
+### 2026-11-22 — Partial inventory observations preserve known identity
+
+- Signal: A focused NM-P0-004 regression reproduced data loss during refresh. When an existing device matched a resolver client ID but the new observation omitted IP/MAC/stable ID, `deviceFromObservation` replaced those known fields with empty values and recomputed confidence without the stored locally administered MAC warning. A partial source record should not erase previously observed identity facts.
+- Impact: The refresh merge now retains each known identity field unless the current observation supplies an update, then recalculates confidence from the merged evidence. The requirement remains planned because cross-source DHCP/resolver/ARP merge coverage is broader than this one AdGuard-backed service contract.
+- Next action: Add owner-backed source-specific inventory merge tests when DHCP/ARP discovery sources exist; verify the full requirements phase before marking NM-P0-004 complete. Evidence: DR8 evidence/network-manager-inventory-partial-merge-fix-20261122/README.md.
+
+### 2026-11-20 - CLI adapter capabilities now have behavior tests
+
+Signal: Fresh Unit Health CLI execution run uh-20261121-040936-ed4e87b1606a387192e5bbc0f0c75c20 reported adapters/handlers.go at 0/22 covered units and recommended the maintained test skill. The CLI capability, unsupported-action, and platform-summary handlers now have Connect-boundary tests for supported/admin/rollback/reason metadata, forwarded action plus manual steps, and platform identity/notes. Focused package tests pass; the post-fix Unit Health CLI report no longer includes adapters/handlers.go, and the remaining 17 low-coverage warnings include the separate adapters/register.go boundary. Impact: CLI capability guidance and metadata now have behavior-level regression coverage; no API registry/platform matrix coverage or scenario maturity rise is claimed. Next action: extend requirement NM-P0-006 contract coverage across OS/resolver/router/manual adapters; resolve the unrelated UI unit blockers separately. Evidence: DR8 evidence/network-manager-adapters-guidance-fix-20261122/README.md.
+## Test Gaps
+
+- `NM-P0-004`: the service now has a regression for retaining known identity fields during a partial AdGuard refresh. DHCP and ARP-like sources do not currently have owner implementations, so a cross-source merge matrix and their source-specific confidence behavior remain unverified. Keep the requirement planned until these behaviors have real source fixtures and the requirements validation gate passes.
 
 ## Work ladder
 

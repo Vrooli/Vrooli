@@ -19,9 +19,9 @@ import {
 } from "../../api/authoring";
 import { SectionPanel } from "../../components/Surfaces";
 import { GuidedStepPanel } from "../../components/GuidedStepPanel";
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
-import { Textarea } from "../../components/ui/textarea";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1.1.1";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { errorMessage } from "../../lib/errorMessage";
@@ -45,6 +45,7 @@ import {
   type GuidedStep,
   type RelevantContextItem,
 } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
+import { cn } from "../../lib/utils";
 
 /**
  * Local wizard state. The session is the source of truth once started. Because
@@ -109,11 +110,12 @@ function ContextList({
               <Button
                 type="button"
                 size="sm"
-                variant="outline"
+                variant="ghost"
                 data-testid={selectors.authoring.contextRemoveButton}
                 disabled={busy}
                 onClick={() => onRemove(item)}
-                className="ms-auto"
+                className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted", "ms-auto")}
+                shape="square"
               >
                 {t(strings.pages.authoring.contextRemove)}
               </Button>
@@ -468,6 +470,7 @@ export function AuthoringWizard() {
             data-testid={selectors.authoring.startButton}
             disabled={busy || title.trim().length === 0}
             className="w-fit"
+            shape="square"
           >
             {t(strings.pages.authoring.start)}
           </Button>
@@ -488,11 +491,12 @@ export function AuthoringWizard() {
           {t(strings.pages.authoring.finalized, { slug: state.finalizedSlug })}
         </p>
         {state.finalizedPlanId ? (
-          <Button asChild variant="outline" size="sm">
-            <Link to={`/plans/${state.finalizedPlanId}`}>
-              {t(strings.pages.authoring.viewFinalizedPlan)}
-            </Link>
-          </Button>
+          <Link
+            to={`/plans/${state.finalizedPlanId}`}
+            className="inline-flex items-center justify-center rounded-control text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50 disabled:pointer-events-none disabled:opacity-60 border border-app-border text-app-foreground hover:bg-app-surface-muted h-9 px-4"
+          >
+            {t(strings.pages.authoring.viewFinalizedPlan)}
+          </Link>
         ) : null}
       </div>
     );
@@ -549,16 +553,19 @@ export function AuthoringWizard() {
                 data-testid={selectors.authoring.submitButton}
                 disabled={busy}
                 onClick={handleSubmitSection}
+                shape="square"
               >
                 {t(strings.pages.authoring.submitSection)}
               </Button>
               <Button
                 type="button"
                 size="sm"
-                variant="outline"
+                variant="ghost"
                 data-testid={selectors.authoring.validateButton}
                 disabled={busy}
                 onClick={handleValidate}
+                shape="square"
+                className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
               >
                 {t(strings.pages.authoring.validateStructure)}
               </Button>
@@ -592,16 +599,19 @@ export function AuthoringWizard() {
                   data-testid={selectors.authoring.phaseAddButton}
                   disabled={busy || phaseTitle.trim().length === 0}
                   onClick={handleAddPhase}
+                  shape="square"
                 >
                   {t(strings.pages.authoring.addPhase)}
                 </Button>
                 <Button
                   type="button"
                   size="sm"
-                  variant="outline"
+                  variant="ghost"
                   data-testid={selectors.authoring.phaseNextButton}
                   disabled={busy}
                   onClick={handleNextPhase}
+                  shape="square"
+                  className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
                 >
                   {t(strings.pages.authoring.nextPhase)}
                 </Button>
@@ -650,6 +660,7 @@ export function AuthoringWizard() {
                 disabled={busy || !activePhase}
                 onClick={handleSubmitPhaseField}
                 className="w-fit"
+                shape="square"
               >
                 {t(strings.pages.authoring.savePhaseField)}
               </Button>
@@ -688,10 +699,12 @@ export function AuthoringWizard() {
             <Button
               type="button"
               size="sm"
-              variant="outline"
+              variant="ghost"
               data-testid={selectors.authoring.autofillButton}
               disabled={busy}
               onClick={handleAutofill}
+              shape="square"
+              className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
             >
               <Wand2 aria-hidden="true" className="me-2 h-4 w-4" />
               {t(strings.pages.authoring.autofill)}
@@ -757,11 +770,12 @@ export function AuthoringWizard() {
               <Button
                 type="button"
                 size="sm"
-                variant="outline"
+                variant="ghost"
                 data-testid={selectors.authoring.skillPackButton}
                 disabled={busy}
                 onClick={handleDiscoverSkillPack}
-                className="w-fit"
+                className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted", "w-fit")}
+                shape="square"
               >
                 <Sparkles aria-hidden="true" className="me-2 h-4 w-4" />
                 {t(strings.pages.authoring.contextDiscover)}
@@ -834,6 +848,7 @@ export function AuthoringWizard() {
                 disabled={busy || contextLabel.trim().length === 0}
                 onClick={handleSubmitContext}
                 className="w-fit"
+                shape="square"
               >
                 {t(strings.pages.authoring.contextSubmit)}
               </Button>
@@ -861,6 +876,7 @@ export function AuthoringWizard() {
             data-testid={selectors.authoring.finalizeButton}
             disabled={busy}
             onClick={handleFinalize}
+            shape="square"
           >
             <Sparkles aria-hidden="true" className="me-2 h-4 w-4" />
             {t(strings.pages.authoring.finalize)}

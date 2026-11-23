@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -65,6 +66,8 @@ type Pages struct {
 	wanted map[string]decisionpage.Request
 	// jobs are the writer's jobs for them, read for this plan.
 	jobs map[string]*pageJob
+	// now is the pass's time, for the one thing a page says that depends on it: the silence default.
+	now time.Time
 }
 
 // folder is what folderProblem found in a decision's folder.
@@ -127,7 +130,7 @@ func folderProblem(f *home.FeedItem, research string, now time.Time) folder {
 func readPages(feed home.Feed, research string, now time.Time) Pages {
 	pages := Pages{
 		byKey: map[string]*Page{}, problems: map[string]string{}, effects: map[string]map[string]string{}, unready: map[string]string{},
-		wanted: map[string]decisionpage.Request{}, jobs: map[string]*pageJob{},
+		wanted: map[string]decisionpage.Request{}, jobs: map[string]*pageJob{}, now: now,
 	}
 	for i := range feed.Items {
 		f := &feed.Items[i]
@@ -140,7 +143,7 @@ func readPages(feed home.Feed, research string, now time.Time) Pages {
 		}
 		if dir.noPage {
 			if dir.problem == "" {
-				pages.wanted[f.Key()] = pageRequest(f, pages.effects[f.Key()], dir.brief)
+				pages.wanted[f.Key()] = pageRequest(f, pages.effects[f.Key()], dir.brief, now)
 			}
 			continue
 		}
@@ -176,7 +179,7 @@ func (p Pages) explainer(f *home.FeedItem) string {
 	if page := p.of(f); page != nil {
 		return page.HTML
 	}
-	return summaryPage(f, p.effects[f.Key()])
+	return summaryPage(f, p.effects[f.Key()], p.now)
 }
 
 // maxPacketBytes is the largest packet the desk reads for a summary page.
@@ -385,15 +388,28 @@ func dataURI(path, root string, limit int) (string, error) {
 	return "data:" + media + ";base64," + base64.StdEncoding.EncodeToString(content), nil
 }
 
-// noAnswer is what the operator is told happens without an answer: nothing is
+// noAnswer is what the operator is told happens without an answer when the item sets no default: nothing is
 // chosen for them, and the item stays answerable.
 const noAnswer = "Nothing is chosen for you. The question stays open in the research files until you answer, here or later in the research desk."
+
+// ifNoAnswer is noAnswer, or, for an item with `If silent: <key> on <date>`, the default the Hub applies.
+func ifNoAnswer(it home.NeedsYouItem, now time.Time) string {
+	silence := silenceFor(it, now)
+	if silence == nil {
+		return noAnswer
+	}
+	label := silence.Key
+	if o, ok := it.Choice(label); ok {
+		label = o.Label
+	}
+	return "If you do not answer, " + strconv.Quote(label) + " is chosen for you at the end of " + silence.On.Format("2 January 2006") + " (UTC). Until then the question stays open."
+}
 
 // summaryPage is the page the desk builds from the item itself: the question,
 // the item's prose, who asks, the options with the recommendation and its
 // reason, and what happens without an answer. It is a function of the item
 // alone, so an unchanged item is the same request.
-func summaryPage(f *home.FeedItem, effects map[string]string) string {
+func summaryPage(f *home.FeedItem, effects map[string]string, now time.Time) string {
 	facts := operatordecision.Facts{RecommendationReason: f.Item.Reason}
 	for _, o := range f.Item.Choices() {
 		facts.Options = append(facts.Options, operatordecision.Option{Key: o.Key, Label: o.Label})
@@ -414,10 +430,10 @@ func summaryPage(f *home.FeedItem, effects map[string]string) string {
 			names = append(names, t.Topic)
 		}
 	}
-	asker := "the research supervisor"
+	asker := "the research manager"
 	if len(names) > 0 {
 		asker = "the research on " + strings.ReplaceAll(strings.Join(names, ", "), "-", " ")
 	}
 	page.Facts(operatordecision.Row{Label: "Asked by", Value: asker})
-	return page.Options(facts, effects).IfNoAnswer(noAnswer).HTML()
+	return page.Options(facts, effects).IfNoAnswer(ifNoAnswer(f.Item, now)).HTML()
 }

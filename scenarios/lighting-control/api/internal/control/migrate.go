@@ -3,12 +3,14 @@ package control
 import (
 	"context"
 	"fmt"
+
+	"github.com/vrooli/api-core/database"
 )
 
 // EnsureIdentitySource upgrades databases created before stable controller
 // identity became part of enrollment. SQLite does not support ADD COLUMN IF
 // NOT EXISTS, so inspect the table before applying this forward-only change.
-func EnsureIdentitySource(ctx context.Context, db SQLExecutor) error {
+func EnsureIdentitySource(ctx context.Context, db database.SQLTxExecutor) error {
 	rows, err := db.QueryContext(ctx, "PRAGMA table_info(lighting_controllers)")
 	if err != nil {
 		return fmt.Errorf("inspect lighting controller schema: %w", err)

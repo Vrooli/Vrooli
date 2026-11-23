@@ -7,13 +7,16 @@ Usage:
 Checks every real topic folder (symlinked aliases are skipped) for a MISSION.md that
 follows references/mission.md, and its README for the front-page shape. Prints the
 portfolio table. Exit 0 when no errors, 1 when any topic has errors, 2 on bad usage.
-Warnings never fail the run. --write-readme replaces the block between the
-portfolio markers in <research-home>/README.md with the rendered table.
+An error is a defect that would make a window fail (no Mode, a missing section, nothing to staff) and
+refuses a launch; everything else, ambition and honesty checks and table lint included, is a warning that
+names what to fix (R1). --write-readme replaces the block between the portfolio markers in
+<research-home>/README.md with the rendered table (movement columns, not lint status).
 """
 
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
 import re
 import sys
@@ -61,6 +64,8 @@ class Workstream:
     showcase: str
     status: str
     hours_low: int | None
+    moved: str = ""   # the date in the status cell: when the status was set
+    resume: str = ""  # `resume <date>` in a waiting-time cell
 
 
 @dataclass
@@ -78,16 +83,29 @@ class TopicReport:
     def count(self, status: str) -> int:
         return sum(1 for w in self.workstreams if w.status == status)
 
+    def landed_since(self, days: int, today: dt.date) -> int:
+        """Workstreams whose status cell says `landed <date>` within `days` days: the README's Landed (10 d) column."""
+        since = (today - dt.timedelta(days=days)).isoformat()
+        return sum(1 for w in self.workstreams if w.status == "landed" and w.moved >= since)
+
+    def last_landed(self) -> str:
+        """The newest `landed <date>` in the status cells, or ""."""
+        return max((w.moved for w in self.workstreams if w.status == "landed" and w.moved), default="")
+
     def open_hours(self) -> int:
+        if self.retired:
+            return 0
         return sum(w.hours_low or 0 for w in self.workstreams + self.later if w.status in LIVE + ("later",))
 
-    def as_dict(self) -> dict:
+    def as_dict(self, today: dt.date | None = None) -> dict:
         return {
             "topic": self.topic,
             "mode": self.mode,
             "architect_pass": self.architect_pass,
             "ambition_review": self.ambition_review,
             "retired": self.retired,
+            "landed_10d": self.landed_since(10, today or dt.date.today()),
+            "last_landed_at": self.last_landed(),
             "workstreams": {s: self.count(s) for s in STATUSES} | {"later": len(self.later)},
             "workstream_rows": [
                 {"id": w.ident, "destination": w.destination, "magnitude": w.magnitude,
@@ -147,6 +165,19 @@ def headless_tables(body: str) -> list[str]:
     return found
 
 
+DATE = re.compile(r"\b(20\d\d-\d\d-\d\d)\b")
+RESUME = re.compile(r"\bresume\s+(20\d\d-\d\d-\d\d)\b")
+
+
+def workstream(cells: list[str]) -> Workstream:
+    """One table row: ID, Destination, Dimensions, Magnitude, Showcase, Status (`<word> [resume <date>] <date>`)."""
+    ident, dest, _dims, magnitude, showcase, cell = cells[:6]
+    resume = RESUME.search(cell)
+    dates = DATE.findall(RESUME.sub("", cell))
+    return Workstream(ident, dest, magnitude, showcase, cell.split()[0].lower() if cell else "", parse_hours(magnitude),
+                      dates[0] if dates else "", resume[1] if resume else "")
+
+
 def parse_hours(magnitude: str) -> int | None:
     m = re.search(r"(\d+)\s*(?:[–-]\s*(\d+))?\s*h\b", magnitude)
     return int(m.group(1)) if m else None
@@ -184,11 +215,11 @@ def check_mission(topic: str, path: Path) -> TopicReport:
     m = re.search(r"Last architect pass:\s*([0-9-]+)", text)
     rep.architect_pass = m.group(1) if m else ""
     if not rep.architect_pass:
-        rep.errors.append("missing 'Last architect pass: <date>'")
+        rep.warnings.append("missing 'Last architect pass: <date>'")
     m = re.search(r"Last ambition review:\s*([^\n]+)", text)
     rep.ambition_review = m.group(1).strip() if m else ""
     if not rep.ambition_review:
-        rep.errors.append("missing 'Last ambition review:'")
+        rep.warnings.append("missing 'Last ambition review:'")
     elif rep.ambition_review.lower().startswith("pending"):
         rep.warnings.append("ambition review pending: run the ambition brief in templates/review-briefs.md before staffing")
 
@@ -196,11 +227,8 @@ def check_mission(topic: str, path: Path) -> TopicReport:
     if m:  # a finished topic keeps its folder and links; it is reported, never commissioned
         rep.retired = m.group(1).strip()
         rep.warnings.append(f"retired {rep.retired}; not commissionable (remove the Retired line to reopen it)")
+        rep.workstreams = [workstream(c) for c in table_rows(split_sections(text).get("Workstreams", "")) if len(c) >= 6]
         return rep
-
-    unfilled = text.count("<fill:")
-    if unfilled:
-        rep.errors.append(f"{unfilled} unfilled template markers '<fill: …>'; write them from the operator's intent (architect pass)")
 
     sections = split_sections(text)
     for name in REQUIRED_SECTIONS:
@@ -209,61 +237,63 @@ def check_mission(topic: str, path: Path) -> TopicReport:
 
     intent = sections.get("Operator intent (verbatim)", "")
     if intent and not re.search(r'^>\s*["“]', intent, re.MULTILINE):
-        rep.errors.append("Operator intent has no quoted operator words ('> \"...\"')")
+        rep.warnings.append("Operator intent has no quoted operator words ('> \"...\"')")
 
     end_state = sections.get("End state", "").lower()
     if rep.mode != "evidence":
         for phrase in SHRINKING:
             if phrase in end_state:
-                rep.errors.append(f"End state contains self-shrinking qualifier '{phrase}'")
+                rep.warnings.append(f"End state contains self-shrinking qualifier '{phrase}'")
 
     for name in ("Scorecard", "Workstreams"):
         for first in headless_tables(sections.get(name, "")):
-            rep.errors.append(f"{name} table is split: rows from '{first}' have no header, so they render as "
-                              "text outside it; remove the blank line above them")
+            rep.warnings.append(f"{name} table is split: rows from '{first}' have no header, so they render as "
+                                "text outside it; remove the blank line above them")
 
     scorecard = table_rows(sections.get("Scorecard", ""))
     if scorecard and not 5 <= len(scorecard) <= 8:
         rep.warnings.append(f"Scorecard has {len(scorecard)} dimensions; mission.md asks for 5-8")
     if not scorecard and sections.get("Scorecard"):
-        rep.errors.append("Scorecard has no table rows")
+        rep.warnings.append("Scorecard has no table rows")
 
     for cells in table_rows(sections.get("Workstreams", "")):
         if len(cells) < 6:
-            rep.errors.append(f"workstream row has {len(cells)} cells, expected 6: {cells[:1]}")
+            rep.warnings.append(f"workstream row has {len(cells)} cells, expected 6: {cells[:1]}")
             continue
-        ident, dest, _dims, magnitude, showcase, status_cell = cells[:6]
-        status = status_cell.split()[0].lower() if status_cell else ""
-        ws = Workstream(ident, dest, magnitude, showcase, status, parse_hours(magnitude))
+        ws = workstream(cells)
         rep.workstreams.append(ws)
-        if status not in STATUSES:
-            rep.errors.append(f"{ident}: status '{status_cell}' not one of {', '.join(STATUSES)}")
-        if not showcase:
-            rep.errors.append(f"{ident}: no showcase")
+        if ws.status not in STATUSES:
+            rep.warnings.append(f"{ws.ident}: status '{cells[5]}' not one of {', '.join(STATUSES)}")
+        if not ws.showcase:
+            rep.warnings.append(f"{ws.ident}: no showcase")
         if ws.hours_low is None:
-            rep.errors.append(f"{ident}: magnitude '{magnitude}' names no agent-hours")
-        elif ws.hours_low < MIN_WORKSTREAM_HOURS and "per " not in magnitude:
-            rep.warnings.append(f"{ident}: {ws.hours_low} h is a task, not a workstream; fold it into a larger row")
+            rep.warnings.append(f"{ws.ident}: magnitude '{ws.magnitude}' names no agent-hours")
+        elif ws.hours_low < MIN_WORKSTREAM_HOURS and "per " not in ws.magnitude:
+            rep.warnings.append(f"{ws.ident}: {ws.hours_low} h is a task, not a workstream; fold it into a larger row")
+        if ws.status == "waiting-time" and not ws.resume:
+            rep.warnings.append(f"{ws.ident}: waiting-time has no `resume <date>`; an undated wait cannot expire")
     for line in sections.get("Later", "").splitlines():
         if not line.startswith("- "):
             continue
         m = LATER_LINE.match(line.strip())
         if not m:
-            rep.errors.append(f"Later line is not `- **ID** — outcome · N–M h`: {line.strip()[:60]}")
+            rep.warnings.append(f"Later line is not `- **ID** — outcome · N–M h`: {line.strip()[:60]}")
             continue
         rep.later.append(Workstream(m[1], m[2].strip(), m[3].strip(), "", "later", parse_hours(m[3])))
         if parse_hours(m[3]) is None:
-            rep.errors.append(f"{m[1]}: Later magnitude '{m[3].strip()}' names no agent-hours")
+            rep.warnings.append(f"{m[1]}: Later magnitude '{m[3].strip()}' names no agent-hours")
     taken = [w.ident for w in rep.later if w.ident in {x.ident for x in rep.workstreams}]
     if taken:
-        rep.errors.append(f"{', '.join(taken)}: both a table row and a Later line; keep one")
+        rep.warnings.append(f"{', '.join(taken)}: both a table row and a Later line; keep one")
     active = [w.ident for w in rep.workstreams if w.status == "active"]
     if active and topic not in live_topics(path.parent.parent.parent):
         rep.warnings.append(f"{', '.join(active)}: `active` but no live commission names this topic; "
                             "say `open`, or `waiting-…` with what it waits on")
     live = sum(1 for w in rep.workstreams if w.status in LIVE)
-    if live < 3:
-        rep.errors.append(f"only {live} open/active/approved workstreams; keep at least three (run an architect pass)")
+    if live < 1:
+        rep.errors.append("no open/active/approved workstream: a window has nothing to staff (run an architect pass)")
+    elif live < 3:
+        rep.warnings.append(f"only {live} staffable workstreams; keep at least two, and add or promote a third when possible")
 
     boundaries = [l for l in sections.get("Real boundaries", "").splitlines() if l.strip().startswith("- ")]
     if len(boundaries) > 6:
@@ -288,11 +318,11 @@ def mission_ceiling() -> int | None:
 
 def check_readme(rep: TopicReport, readme: Path) -> None:
     if not readme.exists():
-        rep.errors.append("README.md missing")
+        rep.warnings.append("README.md missing")
         return
     text = readme.read_text(encoding="utf-8")
     if "MISSION.md" not in text[:1500]:
-        rep.errors.append("README does not link MISSION.md near the top")
+        rep.warnings.append("README does not link MISSION.md near the top")
     receipts = [l for l in text.splitlines() if RECEIPT_HEADING.match(l)]
     if len(receipts) > 2:
         rep.warnings.append(f"README carries {len(receipts)} per-run receipt headings; move them to LEDGER.md")
@@ -314,17 +344,27 @@ def topics(home: Path, only: str | None) -> list[Path]:
     return out
 
 
-def render_markdown(reports: list[TopicReport]) -> str:
+def waits_expired(r: TopicReport, today: dt.date) -> int:
+    """waiting-time rows whose resume date has passed, or that name none (an undated wait never signals)."""
+    return sum(1 for w in r.workstreams if w.status == "waiting-time" and (not w.resume or w.resume <= today.isoformat()))
+
+
+def render_markdown(reports: list[TopicReport], today: dt.date | None = None) -> str:
+    """The portfolio table: what moved, not whether the file is well formed (check output carries that)."""
+    today = today or dt.date.today()
     lines = [
-        "| Topic | Mode | Open | Active | Waiting | Landed | Proposed | Open hours (low) | Architect pass | Status |",
-        "|---|---|---|---|---|---|---|---|---|---|",
+        "| Topic | Mode | Open | Active | Waiting | Landed (10 d) | Days since a row moved | Waits expired |",
+        "|---|---|---|---|---|---|---|---|",
     ]
     for r in reports:
-        status = "retired" if r.retired else "errors" if r.errors else ("warnings" if r.warnings else "ok")
+        landed = r.landed_since(10, today)
+        moved = [w.moved for w in r.workstreams if w.moved]
+        age = str((today - dt.date.fromisoformat(max(moved))).days) if moved else "—"
+        label = f"{r.topic} (retired)" if r.retired else r.topic
+        open_, active, waiting = (0, 0, 0) if r.retired else (r.count("open"), r.count("active"), sum(r.count(w) for w in WAITING))
         lines.append(
-            f"| [{r.topic}](topics/{r.topic}/MISSION.md) | {r.mode or '—'} | {r.count('open')} | {r.count('active')} "
-            f"| {sum(r.count(w) for w in WAITING)} | {r.count('landed')} | {r.count('proposed') + r.count('approved')} | {r.open_hours()} "
-            f"| {r.architect_pass or '—'} | {status} |"
+            f"| [{label}](topics/{r.topic}/MISSION.md) | {r.mode or '—'} | {open_} | {active} | {waiting} "
+            f"| {landed} | {age} | {0 if r.retired else waits_expired(r, today)} |"
         )
     return "\n".join(lines)
 

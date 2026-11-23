@@ -10,6 +10,7 @@ export const STATE_META: Record<CommissionState, { label: (typeof strings.state)
   [CommissionState.LIVE]: { label: strings.state.live, tone: "success" },
   [CommissionState.PAUSED]: { label: strings.state.paused, tone: "info" },
   [CommissionState.LIMITED]: { label: strings.state.limited, tone: "warning" },
+  [CommissionState.HALTED]: { label: strings.state.halted, tone: "danger" },
   [CommissionState.STOPPED]: { label: strings.state.stopped, tone: "neutral" },
   [CommissionState.PREPARED]: { label: strings.state.prepared, tone: "info" },
   [CommissionState.ENDED]: { label: strings.state.ended, tone: "neutral" },
@@ -18,9 +19,9 @@ export const STATE_META: Record<CommissionState, { label: (typeof strings.state)
 
 /**
  * The states with a supervisor window open, in the order Now shows them.
- * Only live is working: paused and limited are open but idle.
+ * Only live is working: halted, paused and limited are open but idle.
  */
-export const WINDOW_OPEN: CommissionState[] = [CommissionState.LIVE, CommissionState.LIMITED, CommissionState.PAUSED];
+export const WINDOW_OPEN: CommissionState[] = [CommissionState.LIVE, CommissionState.HALTED, CommissionState.LIMITED, CommissionState.PAUSED];
 
 export function windowOpen(state: CommissionState): boolean {
   return WINDOW_OPEN.includes(state);
@@ -35,6 +36,7 @@ export function pastAllowance(c: CommissionSummary, now: Date = new Date()): boo
 /** Display order for grouped lists: what needs attention first. */
 export const STATE_ORDER: CommissionState[] = [
   CommissionState.LIVE,
+  CommissionState.HALTED,
   CommissionState.LIMITED,
   CommissionState.PAUSED,
   CommissionState.PREPARED,

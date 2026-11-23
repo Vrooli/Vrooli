@@ -86,7 +86,8 @@ func TestCommissionShowsSourcesAndUnknowns(t *testing.T) {
 		Commission: &activityv1.CommissionSummary{
 			Id:             "programme-three-20261111",
 			State:          activityv1.CommissionState_COMMISSION_STATE_PAUSED,
-			StateRule:      "supervisor window open; goal paused",
+			StateRule:      "manager window open; goal paused",
+			Flags:          []string{"STATE.md says the goal is active; the goal is paused"},
 			Title:          &sharedv1.DerivedText{Value: "Programme three", Evidence: &sharedv1.Evidence{Known: true, Source: "/r/cohorts/programme-three-20261111/README.md"}},
 			Started:        &sharedv1.DerivedTime{Value: at, Evidence: &sharedv1.Evidence{Known: true, Source: "/codex/b7/goals_1.sqlite"}},
 			AllowanceEnd:   &sharedv1.DerivedTime{Evidence: &sharedv1.Evidence{Reason: "KERNEL.txt names no \"<N>h allowance\""}},
@@ -103,6 +104,7 @@ func TestCommissionShowsSourcesAndUnknowns(t *testing.T) {
 	require.Contains(t, out, `unknown: KERNEL.txt names no "<N>h allowance"`)
 	require.Contains(t, out, "unknown: no topic evidence")
 	require.Contains(t, out, "unknown: limits.json missing")
+	require.Contains(t, out, "FLAG:           STATE.md says the goal is active; the goal is paused")
 	require.Contains(t, out, "flag:         charter 36128 bytes is over the 25000-byte gate")
 	require.Contains(t, out, "session:        none names this commission")
 }
@@ -161,6 +163,6 @@ func TestTopicsListResearchSkillsAndProgramsWithTheirProblems(t *testing.T) {
 	require.Contains(t, report.Results, "    skill research/experience-engineering/present-ux-decisions · /r/topics/experience-engineering/skills/present-ux-decisions/SKILL.md")
 	require.Contains(t, report.Results, "    program research/experience-engineering/pulse · /r/topics/experience-engineering/programs/pulse.json")
 	require.Contains(t, report.Results, "      problem: program source pulse.py is missing")
-	require.Contains(t, report.Results, "research home (supervisor)")
+	require.Contains(t, report.Results, "research home (manager)")
 	require.Contains(t, report.Results, "    skills and programs unknown: cannot list /r/skills: permission denied")
 }

@@ -22,10 +22,10 @@ type Ceilings struct {
 	Unmeasured map[string]string
 	// OwnerTopic names the files in topics/<topic>/ each owner also reads
 	// (its MISSION.md). They are operator-authored: measured per topic and
-	// added to the owner's total, never held to the owner_start ceiling.
+	// added to the owner's total, held to MissionBytes instead of the owner_start ceiling.
 	OwnerTopic []string
 	// MissionBytes is the size past which a topic's MISSION.md is flagged
-	// for tidying; never a launch gate.
+	// for trimming (ReadSet.Flags); it never refuses a launch.
 	MissionBytes int64
 	Source       string
 }
@@ -66,6 +66,16 @@ type ReadSet struct {
 	Bytes           int64
 	EstimatedTokens int64
 	Flags           []string
+	// Breach is the part of Flags that is a read ceiling exceeded, kept apart
+	// so a reader can tell a cost to cut from the other flags. Nothing is
+	// refused for it: a read cost is friction to cut, not a defect that
+	// stops the work (R1).
+	Breach []string
+}
+
+// breach records an exceeded ceiling as a flag.
+func (r *ReadSet) breach(msg string) {
+	r.Flags, r.Breach = append(r.Flags, msg), append(r.Breach, msg)
 }
 
 // datedHeading is a level-2+ heading carrying a date: an amendment appended
@@ -106,7 +116,7 @@ var ownerRole = strings.ReplaceAll(OwnerStartKey, "_", "-")
 // addOwnerTopic adds the topic files an owner reads to its set and flags a
 // mission past MissionBytes with the recommended tidy.
 func (s *Snapshot) addOwnerTopic(set *ReadSet, topic string) {
-	set.Files, set.Flags = slices.Clone(set.Files), slices.Clone(set.Flags)
+	set.Files, set.Flags, set.Breach = slices.Clone(set.Files), slices.Clone(set.Flags), slices.Clone(set.Breach)
 	t := s.Topic(topic)
 	for _, item := range s.Ceilings.OwnerTopic {
 		if t == nil {
@@ -122,7 +132,8 @@ func (s *Snapshot) addOwnerTopic(set *ReadSet, topic string) {
 		set.Files = append(set.Files, fact)
 		set.Bytes += fact.Bytes
 		if item == MissionFile && s.Ceilings.MissionBytes > 0 && fact.Bytes > s.Ceilings.MissionBytes {
-			set.Flags = append(set.Flags, fmt.Sprintf("the %s mission is %d bytes, over the %d bytes a mission should stay under (%s); the owner reads all of it at start. Recommended: the next architect pass tidies the mission.", topic, fact.Bytes, s.Ceilings.MissionBytes, s.Ceilings.Source))
+			// A flag, never a refusal: an oversized mission costs read time, but refusing the launch stops the work itself (R1).
+			set.Flags = append(set.Flags, fmt.Sprintf("the %s mission is %d bytes, over the %d-byte ceiling (%s); the owner reads all of it at start. Move history to the topic's history/ and receipts to LEDGER.md, keep operator words, scorecard and workstreams.", topic, fact.Bytes, s.Ceilings.MissionBytes, s.Ceilings.Source))
 		}
 	}
 	set.EstimatedTokens = set.Bytes / 4
@@ -162,7 +173,7 @@ func (c *Commission) readSets(ceilings *Ceilings, ownerOnly bool) []ReadSet {
 		}
 		set.EstimatedTokens = set.Bytes / 4
 		if role.CeilingBytes > 0 && set.Bytes > role.CeilingBytes {
-			set.Flags = append(set.Flags, fmt.Sprintf("%d bytes is over the %d-byte %s ceiling (%s)", set.Bytes, role.CeilingBytes, role.Key, ceilings.Source))
+			set.breach(fmt.Sprintf("%d bytes is over the %d-byte %s ceiling (%s)", set.Bytes, role.CeilingBytes, role.Key, ceilings.Source))
 		}
 		if readsCharter && !charterFlagged {
 			charterFlagged = true

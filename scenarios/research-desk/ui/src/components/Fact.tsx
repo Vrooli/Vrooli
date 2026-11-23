@@ -1,4 +1,6 @@
-import { useId, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
+import { UnknownValue } from "@vrooli/react-component-library/UnknownValue/0.1.0";
+import { EvidenceFact as RclEvidenceFact } from "@vrooli/react-component-library/EvidenceFact/0.1.0";
 
 import type { Evidence } from "@vrooli/proto-types/research-desk/v1/shared/evidence_pb";
 
@@ -14,29 +16,21 @@ import { PathText } from "./PathText";
  */
 export function Fact({ label, evidence, children }: { label: ReactNode; evidence?: Evidence | Evidence[]; children: ReactNode }) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const panelId = useId();
   const list = (Array.isArray(evidence) ? evidence : evidence ? [evidence] : []).filter(Boolean);
   const known = list.length === 0 || list.some((e) => e.known);
+  const disclosure = list.length > 0 ? {
+    label: t(strings.evidence.why),
+    expandedLabel: t(strings.evidence.hide),
+    content: (
+      <ul className="rd-evidence">
+        {list.map((e, n) => (
+          <EvidenceRow key={n} evidence={e} />
+        ))}
+      </ul>
+    ),
+  } : undefined;
   return (
-    <div className="rd-fact">
-      <dt className="text-app-muted-foreground">{label}</dt>
-      <dd className="min-w-0">
-        <span className="break-words">{known ? children : <Unknown />}</span>
-        {list.length > 0 ? (
-          <button type="button" className="rd-why" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen((v) => !v)}>
-            {t(open ? strings.evidence.hide : strings.evidence.why)}
-          </button>
-        ) : null}
-        {open ? (
-          <ul id={panelId} className="rd-evidence">
-            {list.map((e, n) => (
-              <EvidenceRow key={n} evidence={e} />
-            ))}
-          </ul>
-        ) : null}
-      </dd>
-    </div>
+    <RclEvidenceFact label={<span className="text-app-muted-foreground">{label}</span>} value={known ? children : <Unknown />} disclosure={disclosure} />
   );
 }
 
@@ -58,10 +52,5 @@ function EvidenceRow({ evidence }: { evidence: Evidence }) {
 
 export function Unknown({ reason }: { reason?: string }) {
   const { t } = useTranslation();
-  return (
-    <span className="rd-unknown" title={reason}>
-      {t(strings.common.unknown)}
-      {reason ? <span className="text-app-muted-foreground">{` · ${reason}`}</span> : null}
-    </span>
-  );
+  return <UnknownValue label={t(strings.common.unknown)} reason={reason} />;
 }

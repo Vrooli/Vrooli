@@ -25,8 +25,9 @@ Sources (strongest first; each row's "sources" names the one used):
   records  dated entries (a heading with a date, or a list item or table row that starts with
            one) in the cohort LEDGER.md (README/STATUS/FINAL without a ledger), the topic
            LEDGER.md and run CHECKPOINT.md files. Day-only dates are events, not gap points.
-  landed   MISSION.md rows with status "landed <date>" (via mission_check), credited to a
-           commission when the date falls in its window.
+  landed   MISSION.md rows with status "landed <date>" (via mission_check; retired topics
+           included), credited to a commission when the date falls in its window. The portfolio
+           also counts every landing in range, whatever commission it fell in.
   verdicts operator entries in reviews/*/VERDICTS.md naming the topic.
   scorecard ledger entries that claim or deny scorecard/dimension movement (self-reported).
 
@@ -911,6 +912,7 @@ def portfolio(home: Home, since=None, until=None) -> Dict[str, Any]:
                 "no_commission_gaps": [[iso(a), round((b - a) / 3600, 1)] for a, b in idle[:6]]} if span else None
     topics = [topic_row(home, t, rows, since, until) for t in home.topics]
     return {"generated_at": iso(home.now), "home": home.home, "since": iso(since), "until": iso(until),
+            "landed_in_range": sorted(f"{t['topic']}:{x.split()[0]}" for t in topics for x in t["landed_in_range"]),
             "totals": totals, "calendar": calendar, "commissions": [public(r) for r in rows], "topics": topics,
             "unreadable": sorted(set(UNREADABLE))}
 
@@ -920,7 +922,9 @@ def render_portfolio(data: Dict[str, Any]) -> str:
            + (f" · since {data['since']}" if data["since"] else "") + (f" · until {data['until']}" if data["until"] else ""),
            "", "## Topics", "", TOPIC_HEAD]
     out += [topic_line(t) for t in sorted(data["topics"], key=lambda t: t["last_progress"] or "", reverse=True)]
-    out += ["", "## Totals (each rollout counted once)", "", "| kind | commissions | window h | agent-active h | +repo | -repo | research-home lines | landed |", "|---|---|---|---|---|---|---|---|"]
+    out += ["", f"Landed in range, from every topic's mission status cells (retired topics included): {len(data['landed_in_range'])}"
+            + (" · " + ", ".join(data["landed_in_range"]) if data["landed_in_range"] else ""),
+            "", "## Totals (each rollout counted once)", "", "| kind | commissions | window h | agent-active h | +repo | -repo | research-home lines | landed |", "|---|---|---|---|---|---|---|---|"]
     out += [f"| {k} | {t['commissions_with_window']} | {t['window_h_union']} | {t['agent_active_h_union']} | {t['repo_lines_added']} | "
             f"{t['repo_lines_removed']} | {t['research_home_lines']} | {len(t['landed'])} |" for k, t in data["totals"].items()]
     inside = [(k, t["inside_windows"]) for k, t in data["totals"].items() if t.get("inside_windows")]

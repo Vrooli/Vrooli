@@ -17,6 +17,28 @@ var stateWire = map[home.State]activityv1.CommissionState{
 	home.StateLive:     activityv1.CommissionState_COMMISSION_STATE_LIVE,
 	home.StatePaused:   activityv1.CommissionState_COMMISSION_STATE_PAUSED,
 	home.StateLimited:  activityv1.CommissionState_COMMISSION_STATE_LIMITED,
+	home.StateHalted:   activityv1.CommissionState_COMMISSION_STATE_HALTED,
+}
+
+// Halt converts why a halted commission's goal stopped; nil stays unset.
+func Halt(h *home.Halt) *activityv1.TurnHalt {
+	if h == nil {
+		return nil
+	}
+	out := &activityv1.TurnHalt{
+		At: Timestamp(h.At), TurnId: h.TurnID, Source: h.Source,
+		Message: h.Error.Message, CodexErrorInfo: h.Error.Info, HttpStatus: int32(h.Error.HTTPStatus),
+		ErrorClass: h.Class, Meaning: h.Meaning, Rule: h.Rule,
+		RecoveryAction: h.Plan.Action, Attempts: int32(h.Attempts), MaxAttempts: int32(h.Recovery.MaxAttempts),
+		Escalation: h.Plan.Escalation, Escalated: h.Escalated,
+	}
+	if !h.Plan.Due.IsZero() {
+		out.NextAttemptAt = Timestamp(h.Plan.Due)
+	}
+	if h.Last != nil {
+		out.LastOutcome = h.Last.Outcome
+	}
+	return out
 }
 
 // State converts a commission state; an empty state is unspecified.

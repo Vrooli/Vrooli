@@ -35,7 +35,7 @@ func needsYouReport(_ cliapp.OperationContext, msg *operatorv1.ListNeedsYouRespo
 	report := cliapp.ListReport{
 		Summary: []string{
 			fmt.Sprintf("%d item(s) wait for an answer (answered items are listed, not counted) and %d older list(s) are shown, never sent.", msg.ItemCount, msg.OlderListCount),
-			fmt.Sprintf("Courier on for: every topic's decisions; the supervisor's %s; commissions %s. %s %s", supervisor, orNone(on), hub, writer),
+			fmt.Sprintf("Courier on for: every topic's decisions; the research-home manager's %s; commissions %s. %s %s", supervisor, orNone(on), hub, writer),
 		},
 		ResultsHeading: "Needs you",
 		ListShaped:     true,

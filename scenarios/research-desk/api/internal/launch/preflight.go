@@ -122,9 +122,9 @@ func (v *Verdict) judgeOpen(c *home.Commission, now time.Time, chosen Resolution
 	case Supersede:
 		v.Chosen = chosen
 		if c.State.Running() {
-			v.Message += "; superseded by this launch: its supervisor is stopped first"
+			v.Message += "; superseded by this launch: its manager is stopped first"
 		} else {
-			v.Message += "; superseded by this launch: recorded, no supervisor window to stop"
+			v.Message += "; superseded by this launch: recorded, no manager window to stop"
 		}
 	default:
 		v.Blocks, v.Message = true, v.Message+"; choose supersede or run alongside"
@@ -147,8 +147,8 @@ func quietUnknown(c *home.Commission, now time.Time) (bool, string) {
 	return true, "no open session, last write " + stamp(c.LastWrite.Value)
 }
 
-// recommend is the desk's choice for a blocker: supersede a paused or
-// limited commission whose allowance has ended; run alongside an unknown one
+// recommend is the desk's choice for a blocker: supersede a paused, limited
+// or halted commission whose allowance has ended; run alongside an unknown one
 // with no session or goal anywhere the desk reads (superseding would mark a
 // packet the operator prepared as replaced); nothing for a live one or when
 // the desk cannot tell.
@@ -160,9 +160,9 @@ func recommend(c *home.Commission, now time.Time) (Resolution, string) {
 		return Supersede, "silent since " + stamp(c.LastWrite.Value) + " with no Codex thread the desk can name; superseding records it without stopping anything"
 	case c.State == home.StateLive:
 		return "", "it is live: the operator chooses"
-	case (c.State == home.StatePaused || c.State == home.StateLimited) && c.AllowanceEnd.Known && now.After(c.AllowanceEnd.Value):
+	case (c.State == home.StatePaused || c.State == home.StateLimited || c.State == home.StateHalted) && c.AllowanceEnd.Known && now.After(c.AllowanceEnd.Value):
 		return Supersede, string(c.State) + " and its allowance ended at " + stamp(c.AllowanceEnd.Value)
-	case c.State == home.StatePaused || c.State == home.StateLimited:
+	case c.State == home.StatePaused || c.State == home.StateLimited || c.State == home.StateHalted:
 		return "", string(c.State) + " with allowance left: the operator chooses"
 	}
 	return "", "its state is unknown: the operator chooses"

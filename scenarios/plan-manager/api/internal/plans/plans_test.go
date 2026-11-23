@@ -44,13 +44,17 @@ func newDB(t *testing.T) (*sql.DB, *scheduletest.FakeClock) {
 func newService(t *testing.T) (plans.Service, *scheduletest.FakeClock) {
 	t.Helper()
 	d, clk := newDB(t)
-	svc := plans.NewService(plans.Deps{
+	return newServiceWith(t, d, clk, fakeReader{}, newFakeMirrorStore(t.TempDir())), clk
+}
+
+func newServiceWith(t *testing.T, d *sql.DB, clk *scheduletest.FakeClock, reader plans.SourceReader, mirror plans.MirrorStore) plans.Service {
+	t.Helper()
+	return plans.NewService(plans.Deps{
 		Repo:   plans.NewSQLiteRepository(d, clk),
 		Clock:  clk,
-		Reader: fakeReader{},
-		Mirror: newFakeMirrorStore(t.TempDir()),
+		Reader: reader,
+		Mirror: mirror,
 	})
-	return svc, clk
 }
 
 func validWorkspaceRoot(t *testing.T) string {
@@ -402,12 +406,7 @@ func TestImportStampsCanonicalWorkspaceFields(t *testing.T) {
 	reader := fakeReader{files: map[string]string{
 		source: "# Workspace Import\n\n## Purpose\nAdopt from workspace.\n",
 	}}
-	svc := plans.NewService(plans.Deps{
-		Repo:   plans.NewSQLiteRepository(d, clk),
-		Clock:  clk,
-		Reader: reader,
-		Mirror: mirror,
-	})
+	svc := newServiceWith(t, d, clk, reader, mirror)
 	ctx := context.Background()
 
 	imported, err := svc.Import(ctx, "docs/plans/legacy.md", "", "", "", plans.WorkspaceScope{ID: "ws-import", Root: workspaceRoot})
@@ -426,12 +425,7 @@ func TestImportStampsCanonicalWorkspaceFields(t *testing.T) {
 func TestImportRejectsAbsoluteSourceOutsideWorkspaceRoot(t *testing.T) {
 	d, clk := newDB(t)
 	reader := fakeReader{files: map[string]string{}}
-	svc := plans.NewService(plans.Deps{
-		Repo:   plans.NewSQLiteRepository(d, clk),
-		Clock:  clk,
-		Reader: reader,
-		Mirror: newFakeMirrorStore(t.TempDir()),
-	})
+	svc := newServiceWith(t, d, clk, reader, newFakeMirrorStore(t.TempDir()))
 	ctx := context.Background()
 	workspaceRoot := validWorkspaceRoot(t)
 
@@ -451,12 +445,7 @@ func TestImportAllowsRuntimeHomePlansSourceForWorkspace(t *testing.T) {
 	reader := fakeReader{files: map[string]string{
 		source: "# Runtime Legacy\n\n## Purpose\nAdopt from contract-owned runtime home.\n",
 	}}
-	svc := plans.NewService(plans.Deps{
-		Repo:   plans.NewSQLiteRepository(d, clk),
-		Clock:  clk,
-		Reader: reader,
-		Mirror: newFakeMirrorStore(t.TempDir()),
-	})
+	svc := newServiceWith(t, d, clk, reader, newFakeMirrorStore(t.TempDir()))
 	ctx := context.Background()
 
 	imported, err := svc.Import(ctx, source, "", "", "", plans.WorkspaceScope{Root: workspaceRoot})
@@ -474,12 +463,7 @@ func TestImportRejectsInvalidWorkspaceRoot(t *testing.T) {
 	reader := fakeReader{files: map[string]string{
 		source: "# Legacy\n",
 	}}
-	svc := plans.NewService(plans.Deps{
-		Repo:   plans.NewSQLiteRepository(d, clk),
-		Clock:  clk,
-		Reader: reader,
-		Mirror: newFakeMirrorStore(t.TempDir()),
-	})
+	svc := newServiceWith(t, d, clk, reader, newFakeMirrorStore(t.TempDir()))
 	ctx := context.Background()
 
 	_, err := svc.Import(ctx, source, "", "", "", plans.WorkspaceScope{Root: workspaceRoot})
@@ -584,12 +568,7 @@ func TestUpdatePreservesNonAuthoredPlanFields(t *testing.T) {
 func TestCreatePublishesRenderedMirror(t *testing.T) {
 	d, clk := newDB(t)
 	mirror := newFakeMirrorStore(t.TempDir())
-	svc := plans.NewService(plans.Deps{
-		Repo:   plans.NewSQLiteRepository(d, clk),
-		Clock:  clk,
-		Reader: fakeReader{},
-		Mirror: mirror,
-	})
+	svc := newServiceWith(t, d, clk, fakeReader{}, mirror)
 	ctx := context.Background()
 
 	created, err := svc.Create(ctx, plans.Plan{Title: "Mirror Me", Purpose: "Durable view."})
@@ -609,12 +588,7 @@ func TestOSMirrorStoreWritesWorkspaceAwareIndex(t *testing.T) {
 	d, clk := newDB(t)
 	home := t.TempDir()
 	workspaceRoot := validWorkspaceRoot(t)
-	svc := plans.NewService(plans.Deps{
-		Repo:   plans.NewSQLiteRepository(d, clk),
-		Clock:  clk,
-		Reader: fakeReader{},
-		Mirror: plans.NewOSMirrorStore(home),
-	})
+	svc := newServiceWith(t, d, clk, fakeReader{}, plans.NewOSMirrorStore(home))
 	ctx := context.Background()
 
 	created, err := svc.Create(ctx, plans.Plan{
@@ -651,12 +625,7 @@ func TestOSMirrorStoreWritesWorkspaceAwareIndex(t *testing.T) {
 func TestRenderRepairsMissingMirrorFromCanonicalPlan(t *testing.T) {
 	d, clk := newDB(t)
 	mirror := newFakeMirrorStore(t.TempDir())
-	svc := plans.NewService(plans.Deps{
-		Repo:   plans.NewSQLiteRepository(d, clk),
-		Clock:  clk,
-		Reader: fakeReader{},
-		Mirror: mirror,
-	})
+	svc := newServiceWith(t, d, clk, fakeReader{}, mirror)
 	ctx := context.Background()
 	created, err := svc.Create(ctx, plans.Plan{Title: "Repair Missing", Purpose: "Canonical text."})
 	require.NoError(t, err)
@@ -673,12 +642,7 @@ func TestRenderRepairsMissingMirrorFromCanonicalPlan(t *testing.T) {
 func TestRenderRepairsStaleMirrorFromCanonicalPlan(t *testing.T) {
 	d, clk := newDB(t)
 	mirror := newFakeMirrorStore(t.TempDir())
-	svc := plans.NewService(plans.Deps{
-		Repo:   plans.NewSQLiteRepository(d, clk),
-		Clock:  clk,
-		Reader: fakeReader{},
-		Mirror: mirror,
-	})
+	svc := newServiceWith(t, d, clk, fakeReader{}, mirror)
 	ctx := context.Background()
 	created, err := svc.Create(ctx, plans.Plan{Title: "Repair Stale", Purpose: "Canonical text."})
 	require.NoError(t, err)
@@ -695,12 +659,7 @@ func TestRenderRepairsStaleMirrorFromCanonicalPlan(t *testing.T) {
 func TestReconcileDryRunReportsMirrorRepairWithoutWriting(t *testing.T) {
 	d, clk := newDB(t)
 	mirror := newFakeMirrorStore(t.TempDir())
-	svc := plans.NewService(plans.Deps{
-		Repo:   plans.NewSQLiteRepository(d, clk),
-		Clock:  clk,
-		Reader: fakeReader{},
-		Mirror: mirror,
-	})
+	svc := newServiceWith(t, d, clk, fakeReader{}, mirror)
 	ctx := context.Background()
 	created, err := svc.Create(ctx, plans.Plan{Title: "Dry Repair", Purpose: "Canonical."})
 	require.NoError(t, err)
@@ -718,12 +677,7 @@ func TestReconcileDryRunReportsMirrorRepairWithoutWriting(t *testing.T) {
 func TestReconcileMirrorRepairHonorsWorkspaceScope(t *testing.T) {
 	d, clk := newDB(t)
 	mirror := newFakeMirrorStore(t.TempDir())
-	svc := plans.NewService(plans.Deps{
-		Repo:   plans.NewSQLiteRepository(d, clk),
-		Clock:  clk,
-		Reader: fakeReader{},
-		Mirror: mirror,
-	})
+	svc := newServiceWith(t, d, clk, fakeReader{}, mirror)
 	ctx := context.Background()
 	wsA := plans.WorkspaceScope{Root: filepath.Join(t.TempDir(), "a")}
 	wsB := plans.WorkspaceScope{Root: filepath.Join(t.TempDir(), "b")}
@@ -753,12 +707,7 @@ func TestReconcileAdoptsLegacyPlansNonDestructively(t *testing.T) {
 	reader := fakeReader{files: map[string]string{
 		source: "# Legacy plan\n\n## Purpose\nAdopt me.\n",
 	}}
-	svc := plans.NewService(plans.Deps{
-		Repo:   plans.NewSQLiteRepository(d, clk),
-		Clock:  clk,
-		Reader: reader,
-		Mirror: mirror,
-	})
+	svc := newServiceWith(t, d, clk, reader, mirror)
 	ctx := context.Background()
 
 	report, err := svc.Reconcile(ctx, plans.ReconcileRequest{SourceIntake: true, SourceDocsPlans: true})
@@ -785,12 +734,7 @@ func TestReconcileRecognizesRenderedMirrorByImportProvenance(t *testing.T) {
 		source:         "# Legacy plan\n\n## Purpose\nAdopt me.\n",
 		renderedMirror: "# Legacy plan\n\n## Purpose\nAdopt me.\n\n## Import Provenance\n\n- Source: `docs/plans/legacy.md`\n- Original format: legacy_markdown\n",
 	}}
-	svc := plans.NewService(plans.Deps{
-		Repo:   plans.NewSQLiteRepository(d, clk),
-		Clock:  clk,
-		Reader: reader,
-		Mirror: mirror,
-	})
+	svc := newServiceWith(t, d, clk, reader, mirror)
 	ctx := context.Background()
 
 	first, err := svc.Reconcile(ctx, plans.ReconcileRequest{SourceIntake: true, SourceDocsPlans: true})
@@ -813,12 +757,7 @@ func TestReconcileRetireSourcesRemovesOnlyProvenLegacySources(t *testing.T) {
 	reader := fakeReader{files: map[string]string{
 		source: "# Legacy plan\n\n## Purpose\nAdopt me.\n",
 	}}
-	svc := plans.NewService(plans.Deps{
-		Repo:   plans.NewSQLiteRepository(d, clk),
-		Clock:  clk,
-		Reader: reader,
-		Mirror: mirror,
-	})
+	svc := newServiceWith(t, d, clk, reader, mirror)
 	ctx := context.Background()
 
 	report, err := svc.Reconcile(ctx, plans.ReconcileRequest{
@@ -858,12 +797,7 @@ func TestReconcileCleanupPrunesFallbackIndexAndStaysIdempotent(t *testing.T) {
 }`,
 		source: "# Legacy Alias\n\n## Purpose\nAdopt me.\n",
 	}}
-	svc := plans.NewService(plans.Deps{
-		Repo:   plans.NewSQLiteRepository(d, clk),
-		Clock:  clk,
-		Reader: reader,
-		Mirror: newFakeMirrorStore(t.TempDir()),
-	})
+	svc := newServiceWith(t, d, clk, reader, newFakeMirrorStore(t.TempDir()))
 	ctx := context.Background()
 
 	applied, err := svc.Reconcile(ctx, plans.ReconcileRequest{
@@ -914,12 +848,7 @@ func TestReconcileIgnoresIndexedImportedSourceThatIsAlreadyMissing(t *testing.T)
   ]
 }`,
 	}}
-	svc := plans.NewService(plans.Deps{
-		Repo:   plans.NewSQLiteRepository(d, clk),
-		Clock:  clk,
-		Reader: reader,
-		Mirror: newFakeMirrorStore(t.TempDir()),
-	})
+	svc := newServiceWith(t, d, clk, reader, newFakeMirrorStore(t.TempDir()))
 	ctx := context.Background()
 	created, err := svc.Create(ctx, plans.Plan{
 		Title: "Removed Alias",
@@ -951,12 +880,7 @@ func TestReconcileDryRunReportsSlugConflictInsteadOfImportPlanned(t *testing.T) 
 	reader := fakeReader{files: map[string]string{
 		source: "# Same Title\n\n## Purpose\nDifferent legacy content.\n",
 	}}
-	svc := plans.NewService(plans.Deps{
-		Repo:   plans.NewSQLiteRepository(d, clk),
-		Clock:  clk,
-		Reader: reader,
-		Mirror: newFakeMirrorStore(t.TempDir()),
-	})
+	svc := newServiceWith(t, d, clk, reader, newFakeMirrorStore(t.TempDir()))
 	ctx := context.Background()
 	existing, err := svc.Create(ctx, plans.Plan{Title: "Same Title", Purpose: "Existing canonical content."})
 	require.NoError(t, err)
@@ -997,12 +921,7 @@ func TestReconcileWorkspaceScopeProtectsGlobalCanonicalMirrors(t *testing.T) {
 	require.NoError(t, err)
 
 	mirror := newFakeMirrorStore(runtimePlans)
-	svc := plans.NewService(plans.Deps{
-		Repo:   plans.NewSQLiteRepository(d, clk),
-		Clock:  clk,
-		Reader: fakeReader{files: map[string]string{}},
-		Mirror: mirror,
-	})
+	svc := newServiceWith(t, d, clk, fakeReader{files: map[string]string{}}, mirror)
 	ctx := context.Background()
 	existing, err := svc.Create(ctx, plans.Plan{Title: "Global Canonical", Purpose: "Existing canonical content."})
 	require.NoError(t, err)
@@ -1013,12 +932,7 @@ func TestReconcileWorkspaceScopeProtectsGlobalCanonicalMirrors(t *testing.T) {
 	reader := fakeReader{files: map[string]string{
 		mirrorPath.Path: "not parseable legacy markdown",
 	}}
-	svc = plans.NewService(plans.Deps{
-		Repo:   plans.NewSQLiteRepository(d, clk),
-		Clock:  clk,
-		Reader: reader,
-		Mirror: mirror,
-	})
+	svc = newServiceWith(t, d, clk, reader, mirror)
 
 	report, err := svc.Reconcile(ctx, plans.ReconcileRequest{
 		DryRun:                 true,
@@ -1040,7 +954,7 @@ func TestReconcileCleanupDryRunReportsPlannedRemovalWithoutRemoving(t *testing.T
 	reader := fakeReader{files: map[string]string{
 		source: "# Legacy plan\n\n## Purpose\nAdopt me.\n",
 	}}
-	svc := plans.NewService(plans.Deps{Repo: plans.NewSQLiteRepository(d, clk), Clock: clk, Reader: reader})
+	svc := newServiceWith(t, d, clk, reader, nil)
 	ctx := context.Background()
 
 	report, err := svc.Reconcile(ctx, plans.ReconcileRequest{
@@ -1064,12 +978,7 @@ func TestReconcileCleanupNeverRemovesParseFailuresOrCanonicalMirrors(t *testing.
 	reader := fakeReader{files: map[string]string{
 		filepath.Join("docs", "plans", "bad.md"): "not a plan\n",
 	}}
-	svc := plans.NewService(plans.Deps{
-		Repo:   plans.NewSQLiteRepository(d, clk),
-		Clock:  clk,
-		Reader: reader,
-		Mirror: mirror,
-	})
+	svc := newServiceWith(t, d, clk, reader, mirror)
 	ctx := context.Background()
 	created, err := svc.Create(ctx, plans.Plan{Title: "Canonical Mirror", Purpose: "Protect mirror."})
 	require.NoError(t, err)
@@ -1103,12 +1012,7 @@ func TestReconcileAdoptsWorkspaceRelativeLegacyPlans(t *testing.T) {
 	reader := fakeReader{files: map[string]string{
 		source: "# Workspace Legacy\n\n## Purpose\nAdopt from the scoped workspace.\n",
 	}}
-	svc := plans.NewService(plans.Deps{
-		Repo:   plans.NewSQLiteRepository(d, clk),
-		Clock:  clk,
-		Reader: reader,
-		Mirror: mirror,
-	})
+	svc := newServiceWith(t, d, clk, reader, mirror)
 	ctx := context.Background()
 
 	report, err := svc.Reconcile(ctx, plans.ReconcileRequest{
@@ -1612,8 +1516,8 @@ func TestPatchPhaseExecutionGradeRegressionRequiresAcknowledgement(t *testing.T)
 			Kind:         plans.RelevantContextSkill,
 			Scope:        plans.RelevantContextScopeGlobal,
 			Label:        "Quality policy",
-			Target:       "invariant-discovery-and-enforcement",
-			Command:      "prompt-manager skill read invariant-discovery-and-enforcement",
+			Target:       "architecture-lenses",
+			Command:      "prompt-manager skill read architecture-lenses",
 			Required:     true,
 			RepeatPolicy: plans.RelevantContextOncePerExecution,
 			Source:       plans.RelevantContextSourceAuthored,
@@ -1926,7 +1830,7 @@ func TestImportAndMigrate(t *testing.T) {
 	reader := fakeReader{files: map[string]string{
 		"docs/plans/foo.md": "# Foo plan\n\n## Purpose\nDo foo.\n\n### Phase 1 — Start\n- Intent: begin\n",
 	}}
-	svc := plans.NewService(plans.Deps{Repo: plans.NewSQLiteRepository(d, clk), Clock: clk, Reader: reader})
+	svc := newServiceWith(t, d, clk, reader, nil)
 	ctx := context.Background()
 
 	// Import from a fallback source path.
@@ -1985,7 +1889,7 @@ func TestImportRelativeSourceUsesWorkspaceRoot(t *testing.T) {
 	reader := fakeReader{files: map[string]string{
 		source: "# Foo plan\n\n## Purpose\nDo foo.\n",
 	}}
-	svc := plans.NewService(plans.Deps{Repo: plans.NewSQLiteRepository(d, clk), Clock: clk, Reader: reader})
+	svc := newServiceWith(t, d, clk, reader, nil)
 	ctx := context.Background()
 
 	imported, err := svc.Import(ctx, "docs/plans/foo.md", "", "", "", plans.WorkspaceScope{Root: workspaceRoot})
@@ -2027,7 +1931,7 @@ func TestImportMigratesLegacyRequiredReadingToRelevantContext(t *testing.T) {
 			"",
 		}, "\n"),
 	}}
-	svc := plans.NewService(plans.Deps{Repo: plans.NewSQLiteRepository(d, clk), Clock: clk, Reader: reader})
+	svc := newServiceWith(t, d, clk, reader, nil)
 	ctx := context.Background()
 
 	imported, err := svc.Import(ctx, "docs/plans/legacy-context.md", "", "", "", plans.WorkspaceScope{})
@@ -2071,7 +1975,7 @@ func TestMigrateImportsIndexedFallbackPlan(t *testing.T) {
 		}`,
 		"docs/plans/legacy-plan.md": "# Legacy Plan\n\n## Purpose\nAdopt this from the old store.\n\n## Phases\n\n### Phase 1 — Start\n- Intent: migrate\n",
 	}}
-	svc := plans.NewService(plans.Deps{Repo: plans.NewSQLiteRepository(d, clk), Clock: clk, Reader: reader})
+	svc := newServiceWith(t, d, clk, reader, nil)
 	ctx := context.Background()
 
 	migrated, err := svc.Migrate(ctx, "legacy-plan")
@@ -2153,12 +2057,7 @@ func TestReconcileSkipsRenderedMirrorAgainstEmptyDatabase(t *testing.T) {
 	reader := fakeReader{files: map[string]string{
 		mirrorFile: marker + "\n\n# Already rendered\n\n## Purpose\nDo not re-import me.\n",
 	}}
-	svc := plans.NewService(plans.Deps{
-		Repo:   plans.NewSQLiteRepository(d, clk),
-		Clock:  clk,
-		Reader: reader,
-		Mirror: mirror,
-	})
+	svc := newServiceWith(t, d, clk, reader, mirror)
 	ctx := context.Background()
 
 	res, err := svc.Reconcile(ctx, plans.ReconcileRequest{SourceIntake: true, SourceDocsPlans: true})
@@ -2178,12 +2077,7 @@ func TestReconcileSkipsRenderedMirrorAgainstEmptyDatabase(t *testing.T) {
 func TestReconcileRecognizesRenderedMirrorByIdentityMarker(t *testing.T) {
 	d, clk := newDB(t)
 	mirror := newFakeMirrorStore(t.TempDir())
-	svc := plans.NewService(plans.Deps{
-		Repo:   plans.NewSQLiteRepository(d, clk),
-		Clock:  clk,
-		Reader: fakeReader{files: map[string]string{}},
-		Mirror: mirror,
-	})
+	svc := newServiceWith(t, d, clk, fakeReader{files: map[string]string{}}, mirror)
 	ctx := context.Background()
 
 	created, err := svc.Create(ctx, plans.Plan{Title: "Marked plan", Purpose: "Stay canonical."})
@@ -2191,12 +2085,7 @@ func TestReconcileRecognizesRenderedMirrorByIdentityMarker(t *testing.T) {
 
 	marker := plans.FormatMirrorMarker(created.ID, created.Slug)
 	mirrorFile := filepath.Join("docs", "plans", created.Slug+".md")
-	svc = plans.NewService(plans.Deps{
-		Repo:   plans.NewSQLiteRepository(d, clk),
-		Clock:  clk,
-		Reader: fakeReader{files: map[string]string{mirrorFile: marker + "\n\n# Marked plan\n\n## Purpose\nStay canonical.\n"}},
-		Mirror: mirror,
-	})
+	svc = newServiceWith(t, d, clk, fakeReader{files: map[string]string{mirrorFile: marker + "\n\n# Marked plan\n\n## Purpose\nStay canonical.\n"}}, mirror)
 
 	res, err := svc.Reconcile(ctx, plans.ReconcileRequest{SourceIntake: true, SourceDocsPlans: true})
 	require.NoError(t, err)

@@ -26,11 +26,11 @@ type Topic struct {
 	// LastReview is the newest review with a section for this topic.
 	LastReview    *ReviewTouch
 	CommissionIDs []string // newest last write first
-	// Live, Paused and Limited are the commissions with a supervisor window
-	// open, by state; never summed into one "running".
-	Live, Paused, Limited []string
-	Check                 MissionCheck
-	Documents             TopicDocuments
+	// Live, Paused, Limited and Halted are the commissions with a manager
+	// window open, by state; never summed into one "running".
+	Live, Paused, Limited, Halted []string
+	Check                         MissionCheck
+	Documents                     TopicDocuments
 	// Unreadable lists the runs folder when it exists but cannot be read
 	//: the topic's run folders, and so their commissions' runs,
 	// are then unknown.
@@ -45,9 +45,13 @@ type MissionCheck struct {
 	Active          int
 	WaitingOperator int
 	Landed          int
-	Errors          []string
-	Warnings        []string
-	Workstreams     []Workstream
+	// Landed10d and LastLandedAt are mission_check.py's: the README's Landed (10 d) column and the newest
+	// `landed <date>`; the pace sensor reads them.
+	Landed10d    int
+	LastLandedAt string
+	Errors       []string
+	Warnings     []string
+	Workstreams  []Workstream
 	Evidence
 }
 
@@ -93,13 +97,15 @@ func writeNote(c *Commission, at time.Time) string {
 		return "written while paused: an owner may still be running"
 	case StateLimited:
 		return "written while limited: an owner may still be running"
+	case StateHalted:
+		return "written while halted: an owner may still be running"
 	case StateEnded:
 		if c.Ended.Known && !at.After(c.Ended.Value) {
 			return ""
 		}
 		return "written after the commission ended: an owner may still be running"
 	case StateStopped:
-		return "written while the supervisor window is closed: an owner may still be running"
+		return "written while the manager window is closed: an owner may still be running"
 	}
 	return ""
 }
@@ -204,12 +210,14 @@ func applyMissionCheck(topics []*Topic, output []byte, source string, at time.Ti
 		return
 	}
 	var rows []struct {
-		Topic       string         `json:"topic"`
-		Mode        string         `json:"mode"`
-		Workstreams map[string]int `json:"workstreams"`
-		Rows        []Workstream   `json:"workstream_rows"`
-		Errors      []string       `json:"errors"`
-		Warnings    []string       `json:"warnings"`
+		Topic        string         `json:"topic"`
+		Mode         string         `json:"mode"`
+		Workstreams  map[string]int `json:"workstreams"`
+		Rows         []Workstream   `json:"workstream_rows"`
+		Landed10d    int            `json:"landed_10d"`
+		LastLandedAt string         `json:"last_landed_at"`
+		Errors       []string       `json:"errors"`
+		Warnings     []string       `json:"warnings"`
 	}
 	if jsonErr := json.Unmarshal(output, &rows); jsonErr != nil {
 		for _, t := range topics {
@@ -234,6 +242,8 @@ func applyMissionCheck(topics []*Topic, output []byte, source string, at time.Ti
 			Active:          row.Workstreams["active"],
 			WaitingOperator: row.Workstreams["waiting-operator"],
 			Landed:          row.Workstreams["landed"],
+			Landed10d:       row.Landed10d,
+			LastLandedAt:    row.LastLandedAt,
 			Errors:          row.Errors,
 			Warnings:        row.Warnings,
 			Workstreams:     row.Rows,
@@ -292,6 +302,8 @@ func linkTopics(topics []*Topic, commissions []*Commission, unowned []RunFolder,
 				t.Paused = append(t.Paused, c.ID)
 			case StateLimited:
 				t.Limited = append(t.Limited, c.ID)
+			case StateHalted:
+				t.Halted = append(t.Halted, c.ID)
 			}
 		}
 	}

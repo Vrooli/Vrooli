@@ -112,13 +112,13 @@ func (j *pageJob) waiting() string {
 // answers with what executes on each, and the files that hold the rest (the
 // brief first). The brief's hash is in the technical details, so a revised
 // brief is a new job and a fresh page.
-func pageRequest(f *home.FeedItem, effects map[string]string, brief []byte) decisionpage.Request {
+func pageRequest(f *home.FeedItem, effects map[string]string, brief []byte, now time.Time) decisionpage.Request {
 	r := decisionpage.Request{
 		Sender:     Sender,
 		SubjectKey: AskPrefix + f.Key(),
 		Question:   f.Item.Title,
 		BigPicture: f.Item.Prose(),
-		IfNoAnswer: noAnswer,
+		IfNoAnswer: ifNoAnswer(f.Item, now),
 	}
 	for _, o := range f.Item.Choices() {
 		r.Options = append(r.Options, decisionpage.Option{Key: o.Key, Label: o.Label, Effect: effects[o.Key]})

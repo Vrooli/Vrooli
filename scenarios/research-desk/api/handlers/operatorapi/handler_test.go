@@ -144,7 +144,7 @@ func TestAnswer(t *testing.T) {
 		t.Errorf("the entry limit comes from limits.json: %d, want %d", feed.Msg.EntryCharsMax, max)
 	}
 	if feed.Msg.Courier.HubRead || !strings.Contains(feed.Msg.Courier.HubReason, "not configured") || !feed.Msg.Courier.GlobalOn {
-		t.Errorf("the Hub is always read, here unconfigured, and the supervisor's decisions are on by default: %+v", feed.Msg.Courier)
+		t.Errorf("the Hub is always read, here unconfigured, and the manager's decisions are on by default: %+v", feed.Msg.Courier)
 	}
 }
 

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ListItemRow } from "@vrooli/react-component-library/List/1.2.0";
 import { Link } from "react-router-dom";
 
 import type { CommissionSummary } from "../api/activity";
@@ -21,45 +22,49 @@ export function CommissionRow({ commission, children }: { commission: Commission
   const touched = toDate(commission.touchedAfterEnd?.value);
   const title = commission.title?.value || commission.id;
   return (
-    <li className="rd-row">
-      <div className="rd-row-head">
+    <ListItemRow
+      primary={
         <Link to={`/commissions/${encodeURIComponent(commission.id)}`} className="rd-row-link min-w-0 flex-1">
           <span className="block font-semibold">{title}</span>
           {title !== commission.id ? <span className="rd-id block">{commission.id}</span> : null}
         </Link>
-        <StateBadge state={commission.state} stalled={commission.stalled} pastAllowance={pastAllowance(commission)} />
-      </div>
-      {commission.topics.length > 0 ? (
-        <ul className="rd-chips" aria-label={t(strings.commission.topics)}>
-          {commission.topics.map((topic) => (
-            <li key={topic.topic}>
-              <Link to={`/topics/${encodeURIComponent(topic.topic)}`} className="rd-chip">{topic.topic}</Link>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      <p className="text-body-sm text-app-muted-foreground">
-        {last ? (
-          <>
-            {t(strings.commission.lastWrite)} <DerivedWhen time={commission.lastWrite} />
-          </>
-        ) : (
-          t(strings.commission.noWrite)
-        )}
-        {end ? (
-          <>
-            {" · "}
-            {t(end.getTime() > Date.now() ? strings.commission.allowanceEnds : strings.commission.allowanceEnded)} <When date={end} />
-          </>
-        ) : null}
-        {touched ? (
-          <>
-            {" · "}
-            {t(strings.commission.touchedAfterEnd)} <When date={touched} />
-          </>
-        ) : null}
-      </p>
-      {children}
-    </li>
+      }
+      aside={<StateBadge state={commission.state} stalled={commission.stalled} pastAllowance={pastAllowance(commission)} />}
+      content={
+        <>
+          {commission.topics.length > 0 ? (
+            <ul className="rd-chips" aria-label={t(strings.commission.topics)}>
+              {commission.topics.map((topic) => (
+                <li key={topic.topic}>
+                  <Link to={`/topics/${encodeURIComponent(topic.topic)}`} className="rd-chip">{topic.topic}</Link>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <p className="text-body-sm text-app-muted-foreground">
+            {last ? (
+              <>
+                {t(strings.commission.lastWrite)} <DerivedWhen time={commission.lastWrite} />
+              </>
+            ) : (
+              t(strings.commission.noWrite)
+            )}
+            {end ? (
+              <>
+                {" · "}
+                {t(end.getTime() > Date.now() ? strings.commission.allowanceEnds : strings.commission.allowanceEnded)} <When date={end} />
+              </>
+            ) : null}
+            {touched ? (
+              <>
+                {" · "}
+                {t(strings.commission.touchedAfterEnd)} <When date={touched} />
+              </>
+            ) : null}
+          </p>
+        </>
+      }
+      footer={children}
+    />
   );
 }

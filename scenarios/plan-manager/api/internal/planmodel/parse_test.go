@@ -76,6 +76,52 @@ All tests pass.
 	}
 }
 
+func TestParsePlanMarkdownRejectsDuplicateCanonicalSection(t *testing.T) {
+	markdown := `# Imported plan
+
+## Purpose
+The original operator intent.
+
+## Purpose
+A second purpose section added during editing.
+`
+	if plan, err := ParsePlanMarkdown(markdown); err == nil {
+		t.Fatalf("duplicate Purpose sections were accepted and one was silently discarded: purpose=%q preserved=%+v", plan.Purpose, plan.PreservedLegacySections)
+	}
+}
+
+func TestParsePlanMarkdownRejectsAliasedCanonicalSections(t *testing.T) {
+	markdown := `# Imported plan
+
+## Problem
+The original problem statement.
+
+## Problem / Need
+A conflicting second problem statement.
+`
+	if _, err := ParsePlanMarkdown(markdown); err == nil {
+		t.Fatal("two headings mapped to the problem-statement field were accepted")
+	}
+}
+
+func TestParsePlanMarkdownPreservesRepeatedUnmappedSections(t *testing.T) {
+	markdown := `# Imported plan
+
+## Legacy Detail
+First imported detail.
+
+## Legacy Detail
+Second imported detail.
+`
+	plan, err := ParsePlanMarkdown(markdown)
+	if err != nil {
+		t.Fatalf("repeated unmapped sections should remain importable: %v", err)
+	}
+	if len(plan.PreservedLegacySections) != 2 {
+		t.Fatalf("preserved %d legacy sections, want both: %#v", len(plan.PreservedLegacySections), plan.PreservedLegacySections)
+	}
+}
+
 func TestParsePlanMarkdownExtractsTypedRegressionAnchor(t *testing.T) {
 	t.Parallel()
 

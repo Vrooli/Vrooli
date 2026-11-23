@@ -128,8 +128,24 @@ func (s *Service) deviceFromObservation(ctx context.Context, obs Observation) De
 		device.CreatedAt = existing.CreatedAt
 		if device.Hostname == "" {
 			device.Hostname = existing.Hostname
+			obs.Hostname = existing.Hostname
 		} else if existing.Hostname != "" && !strings.EqualFold(existing.Hostname, device.Hostname) {
 			device.Notes = append(device.Notes, fmt.Sprintf("hostname changed from %q to %q; previous hostname may be stale", existing.Hostname, device.Hostname))
+		}
+		if device.IPAddress == "" {
+			device.IPAddress = existing.IPAddress
+		}
+		if device.MACAddress == "" {
+			device.MACAddress = existing.MACAddress
+			obs.MACAddress = existing.MACAddress
+		}
+		if device.StableID == "" {
+			device.StableID = existing.StableID
+			obs.StableID = existing.StableID
+		}
+		if device.ResolverClientID == "" {
+			device.ResolverClientID = existing.ResolverClientID
+			obs.ResolverClientID = existing.ResolverClientID
 		}
 	}
 

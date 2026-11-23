@@ -230,7 +230,7 @@ exists in `agent-manager` today, so the delegation chain currently stops
 at the account subject.
 
 **Root cause:** The change is small but lives in another scenario.
-`docs/agent-system/RUNTIME_ATTRIBUTION.md` already documents an
+`scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md` already documents an
 equivalent pending workshop for carrying `team_id` and `member_id` in
 the same `Meta` map with cross-verification; `persona_id` is the
 identical shape and should land the same way.
@@ -247,11 +247,11 @@ domain — step 3 of the PRD launch sequencing.
 
 **Refs:** `scenarios/agent-manager/api/internal/identity/claims.go`,
 `attenuation.go`, `scopes.go`;
-`docs/agent-system/RUNTIME_ATTRIBUTION.md`.
+`scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md`.
 
 ## Architecture Drift
 
-Use this section for deferred findings from `screaming-architecture-audit`.
+Use this section for deferred findings from `architecture-lenses`.
 Do not create a standalone architecture-audit report unless the work is
 a migration handoff with a planned retirement path back into
 `ARCHITECTURE.md`, `SEAMS.md`, or this file.

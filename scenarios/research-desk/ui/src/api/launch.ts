@@ -117,7 +117,7 @@ export function blockerLists(choices: Record<string, BlockerChoice | "">): { sup
 /** One earlier commission this launch must decide about, across every topic it holds. */
 export interface Blocker {
   commissionId: string;
-  /** The verdict's state word: live, paused, limited or unknown. */
+  /** The verdict's state word: live, halted, paused, limited or unknown. */
   state: string;
   topics: string[];
   /** The API's own sentence for the first topic, kept for "Why?". */

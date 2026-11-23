@@ -3,7 +3,7 @@
  "cases": [
   {
    "name": "explicit options with an offered recommendation",
-   "text": "## Needs you\n\n### AV4 — Pick one\nTwo plain sentences.\nRecommended: keep — Keep it.\nOptions: keep — Keep; wait — Wait.\nPacket: /abs/work/AV4/BRIEF.md\nExplainer: /abs/work/AV4/page.html\n",
+   "text": "## Needs you\n\n### AV4 — Pick one\nTwo plain sentences.\nRecommended: keep — Keep it.\nOptions: keep — Keep; wait — Wait.\nIf silent: keep on 2026-12-01\nPacket: /abs/work/AV4/BRIEF.md\nExplainer: /abs/work/AV4/page.html\n",
    "items": [
     {
      "id": "AV4",
@@ -96,6 +96,23 @@
    "problems": [
     "duplicate Options: line"
    ]
+  },
+  {
+   "name": "the option key other is dropped, never a reason to refuse the item",
+   "text": "## Needs you\n### AV4 — Pick\nOptions: keep — Keep; other — Something else\n",
+   "items": [
+    {
+     "id": "AV4",
+     "title": "Pick",
+     "options": [
+      "keep"
+     ],
+     "recommended": null,
+     "explainer": null,
+     "packet": null
+    }
+   ],
+   "problems": []
   },
   {
    "name": "a malformed and a repeated option",
@@ -289,6 +306,23 @@
     "needs an Explainer: line",
     "must sit beside the brief"
    ]
+  },
+  {
+   "name": "recommending other is dropped with the option, never a problem",
+   "text": "## Needs you\n### AV4 — Pick\nRecommended: other — Something else\nOptions: keep — Keep; other — Something else\nPacket: work/AV4/BRIEF.md\nExplainer: work/AV4/page.html\n",
+   "items": [
+    {
+     "id": "AV4",
+     "title": "Pick",
+     "options": [
+      "keep"
+     ],
+     "recommended": null,
+     "explainer": "work/AV4/page.html",
+     "packet": "work/AV4/BRIEF.md"
+    }
+   ],
+   "problems": []
   }
  ],
  "briefs": [

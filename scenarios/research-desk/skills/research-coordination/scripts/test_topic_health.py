@@ -1,6 +1,7 @@
 """Tests for topic_health.py: python3 -I -m unittest discover -s . -p 'test_topic_health.py'."""
 import io
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -103,6 +104,18 @@ class TopicHealthTest(unittest.TestCase):
         self.assertEqual(plain, {"agent-credentials"} | {s for c in th.COMMON for s in c["scenarios"]})
         self.assertEqual(state["agent-credentials"], "up")
 
+    def test_search_hub_outage_has_a_working_rg_fallback_on_fixture_files(self):
+        r = th.assess(self.home, "plain", str(self.vrooli), 2, str(self.desk))
+        search = next(t for t in r["tools"] if t["scenario"] == "search-hub")
+        self.assertEqual(search["state"], "down")
+        self.assertIn("`rg` over the topic folder and the repository", search["fallbacks"][0]["fallback"])
+        fixture = Path(self.tmp.name) / "search-fixture"
+        fixture.mkdir()
+        (fixture / "note.md").write_text("unique-marker: fallback recovered\n")
+        result = subprocess.run(["rg", "unique-marker", str(fixture)], capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("fallback recovered", result.stdout)
+
     def test_report_names_each_tool_that_is_not_up_with_its_fallback(self):
         text = self.run_main("--topic", "own")
         self.assertIn("## test-genie — down (status stopped)", text)
@@ -129,6 +142,24 @@ class TopicHealthTest(unittest.TestCase):
                                      "--program-runtime", str(self.home / "absent")))
         self.assertEqual(r["friction"]["status"], "unknown")
         self.assertIn("not installed", r["friction"]["reason"])
+
+    def test_removed_fallback_fails_the_dependency_matrix(self):
+        baseline = json.loads(self.run_main("--topic", "own", "--require-fallbacks", "--json"))
+        self.assertEqual(baseline["fallback_matrix"]["status"], "pass")
+        (self.home / "topics" / "own" / "TOOLS.md").write_text("""# Tools
+
+## Validation
+
+- **Monitoring scenarios:** `test-genie`, `gone`
+""")
+        out = io.StringIO()
+        with redirect_stdout(out):
+            status = th.main(["--home", str(self.home), "--topic", "own", "--vrooli", str(self.vrooli),
+                              "--research-desk", str(self.desk), "--require-fallbacks", "--json"])
+        changed = json.loads(out.getvalue())
+        self.assertEqual(status, 1)
+        self.assertEqual(changed["fallback_matrix"]["status"], "fail")
+        self.assertEqual({m["scenario"] for m in changed["fallback_matrix"]["missing_fallbacks"]}, {"test-genie", "gone"})
 
 
 if __name__ == "__main__":

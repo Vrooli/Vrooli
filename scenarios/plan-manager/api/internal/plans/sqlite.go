@@ -9,6 +9,7 @@ import (
 	"plan-manager/internal/planmodel"
 	"time"
 
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/schedule"
 )
 
@@ -16,14 +17,8 @@ import (
 // lexicographically in time order for a fixed zone).
 const planTimeFormat = time.RFC3339Nano
 
-// SQLExecutor is the narrow database surface the plans repository depends on.
-// Declared at the consumer per seam-discovery: both *sql.DB (tests, via
-// testutil/db.NewSQLite) and *database.RoutedDB (production) satisfy it.
-type SQLExecutor interface {
-	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
-	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
-	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
-}
+// SQLExecutor aliases API Core's shared repository contract.
+type SQLExecutor = database.SQLExecutor
 
 type sqliteRepository struct {
 	db    SQLExecutor

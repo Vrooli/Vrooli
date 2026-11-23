@@ -12,6 +12,9 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/schedule"
+
+	repocontract "github.com/vrooli/repo-contract-go"
+	codexrollout "github.com/vrooli/vrooli/packages/codex-rollout"
 )
 
 // Config locates the research home and the Codex session records.
@@ -31,15 +34,18 @@ type Config struct {
 
 // DefaultConfig returns the production locations under the user's home.
 func DefaultConfig(userHome string) Config {
-	return Config{
-		ResearchDir: filepath.Join(userHome, ".vrooli", "research"),
-		CodexDir:    filepath.Join(userHome, ".vrooli", "state", "vrooli", "web-console", "sessions", "codex"),
-		OtherCodexHomes: []string{
-			filepath.Join(userHome, ".codex"),
-			filepath.Join(userHome, ".vrooli", "state", "vrooli", "agent-manager", "runs", "*", "codex"),
-		},
-		UserHome: userHome,
+	cfg := Config{
+		OtherCodexHomes: []string{filepath.Join(userHome, ".codex")},
+		UserHome:        userHome,
 	}
+	root, err := repocontract.VrooliUserRoot(userHome)
+	if err != nil {
+		return cfg
+	}
+	cfg.ResearchDir = filepath.Join(root, "research")
+	cfg.CodexDir = filepath.Join(root, "state", "vrooli", "web-console", "sessions", "codex")
+	cfg.OtherCodexHomes = append(cfg.OtherCodexHomes, filepath.Join(root, "state", "vrooli", "agent-manager", "runs", "*", "codex"))
+	return cfg
 }
 
 // Deps are the reader's seams (docs/internal/SEAMS.md).
@@ -61,6 +67,7 @@ type Reader struct {
 	// read forgets every file outside the Web Console session folder.
 	others *codexIndex
 	walks  *walkCache
+	turns  *turnCache
 }
 
 // Snapshotter is the read-only boundary shared by the scenario's domains.
@@ -70,7 +77,7 @@ type Snapshotter interface {
 
 // NewReader returns a Reader.
 func NewReader(cfg Config, deps Deps) *Reader {
-	return &Reader{cfg: cfg, deps: deps, codex: newCodexIndex(), others: newCodexIndex(), walks: &walkCache{}}
+	return &Reader{cfg: cfg, deps: deps, codex: newCodexIndex(), others: newCodexIndex(), walks: &walkCache{}, turns: &turnCache{}}
 }
 
 // Config returns the reader's locations.
@@ -169,6 +176,12 @@ func (r *Reader) Snapshot(ctx context.Context, opts Options) (*Snapshot, error) 
 		procsReason: procsReason,
 		walk:        walk,
 		others:      sync.OnceValue(func() OtherGoals { return r.others.others(ctx, r.cfg.OtherCodexHomes) }),
+		lastTurn:    r.turns.last,
+	}
+	if table, err := codexrollout.DefaultTurnErrorTable(); err != nil {
+		env.turnErrorsWhy = err.Error()
+	} else {
+		env.turnErrors = table
 	}
 
 	snap := &Snapshot{Now: now, ResearchDir: r.cfg.ResearchDir, Capabilities: readCapabilities(r.cfg.ResearchDir, "")}

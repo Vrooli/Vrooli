@@ -37,6 +37,12 @@ This scenario declares no external Vrooli resource. Nodes, triggers and proposal
 | Treasury | active | x402 payment admission for the paid catalog endpoint only. | Optional to Offer Desk as a whole; resolve the current address per paid request. If unavailable, return HTTP 503 for the paid endpoint while free surfaces remain available. |
 | Landing Page Business Suite | **deliberately none** | Commerce data reaches this scenario indirectly, through Money Ledger. Coupling directly to a billing system would put pricing and entitlement concepts into a scenario whose whole boundary is that it holds neither. | — |
 
+`BoardService.GetBoard` stamps `observed_at` from the oldest included Money Ledger
+position input, using the source-provided input age. A new request must not make
+aged actuals appear fresh. The response keeps Money Ledger's `partial` marker;
+consumers that require a complete posture should reject that reading and retain
+their last qualified value.
+
 ## Third-Party Services
 
 | Service | Status | Reason | Contract |

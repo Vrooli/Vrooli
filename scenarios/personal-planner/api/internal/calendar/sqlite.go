@@ -11,21 +11,17 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/schedule"
 )
 
-type SQLExecutor interface {
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
-	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-}
 type sqliteRepository struct {
-	db    SQLExecutor
+	db    database.SQLExecutor
 	clock schedule.Clock
 	id    func() string
 }
 
-func NewSQLiteRepository(db SQLExecutor, clock schedule.Clock) Repository {
+func NewSQLiteRepository(db database.SQLExecutor, clock schedule.Clock) Repository {
 	return &sqliteRepository{db: db, clock: clock, id: uuid.NewString}
 }
 
@@ -120,7 +116,7 @@ func (r *sqliteRepository) persistProposal(ctx context.Context, proposal Placeme
 	return proposal, nil
 }
 
-func (r *sqliteRepository) scheduleRevision(ctx context.Context, db SQLExecutor) int64 {
+func (r *sqliteRepository) scheduleRevision(ctx context.Context, db database.SQLExecutor) int64 {
 	var revision int64
 	if err := db.QueryRowContext(ctx, `SELECT revision FROM calendar_schedule_state WHERE id='default'`).Scan(&revision); err != nil || revision < 1 {
 		return 1
@@ -128,7 +124,7 @@ func (r *sqliteRepository) scheduleRevision(ctx context.Context, db SQLExecutor)
 	return revision
 }
 
-func bumpScheduleRevision(ctx context.Context, db SQLExecutor) error {
+func bumpScheduleRevision(ctx context.Context, db database.SQLExecutor) error {
 	_, err := db.ExecContext(ctx, `UPDATE calendar_schedule_state SET revision=revision+1 WHERE id='default'`)
 	if err != nil && strings.Contains(err.Error(), "no such table") {
 		return nil
@@ -307,7 +303,7 @@ func (r *sqliteRepository) remainingSchedulableMinutes(ctx context.Context, work
 	return r.remainingSchedulableMinutesOn(ctx, r.db, workItemID)
 }
 
-func (r *sqliteRepository) remainingSchedulableMinutesOn(ctx context.Context, db SQLExecutor, workItemID string) (int, bool, error) {
+func (r *sqliteRepository) remainingSchedulableMinutesOn(ctx context.Context, db database.SQLExecutor, workItemID string) (int, bool, error) {
 	var remaining int
 	err := db.QueryRowContext(ctx, `SELECT remaining_minutes FROM work_items WHERE id=?`, workItemID).Scan(&remaining)
 	if err != nil && strings.Contains(err.Error(), "no such column") {
@@ -457,7 +453,7 @@ func (r *sqliteRepository) ApplyScheduleProposal(ctx context.Context, in ApplySc
 	return allocations, nil
 }
 
-func loadScheduleProposalAllocations(ctx context.Context, db SQLExecutor, proposalID string) ([]Allocation, error) {
+func loadScheduleProposalAllocations(ctx context.Context, db database.SQLExecutor, proposalID string) ([]Allocation, error) {
 	rows, err := db.QueryContext(ctx, `SELECT a.id,a.work_item_id,w.title,w.source_label,a.local_date,a.start_minutes,a.duration_minutes,a.state,a.created_at FROM schedule_proposal_placements p JOIN calendar_allocations a ON a.id=p.applied_allocation_id JOIN work_items w ON w.id=a.work_item_id WHERE p.proposal_id=? AND p.applied_allocation_id<>'' ORDER BY p.id`, proposalID)
 	if err != nil {
 		return nil, err
@@ -505,7 +501,7 @@ func (r *sqliteRepository) routineBusy(ctx context.Context, date string) ([]capa
 	return r.routineBusyOn(ctx, r.db, date)
 }
 
-func (r *sqliteRepository) routineBusyOn(ctx context.Context, db SQLExecutor, date string) ([]capacityInterval, error) {
+func (r *sqliteRepository) routineBusyOn(ctx context.Context, db database.SQLExecutor, date string) ([]capacityInterval, error) {
 	occurrences, err := r.listRoutineOccurrencesOn(ctx, db, date, date)
 	if err != nil {
 		if strings.Contains(err.Error(), "no such table") {
@@ -706,7 +702,7 @@ func (r *sqliteRepository) Create(ctx context.Context, a Allocation) (Allocation
 	return a, nil
 }
 
-func importedOverlap(ctx context.Context, db SQLExecutor, date string, start, duration int) (bool, error) {
+func importedOverlap(ctx context.Context, db database.SQLExecutor, date string, start, duration int) (bool, error) {
 	var count int
 	err := db.QueryRowContext(ctx, `SELECT COUNT(1) FROM imported_events e JOIN provider_connections c ON c.id=e.connection_id WHERE e.local_date=? AND e.status='active' AND e.busy=1 AND c.status IN ('connected','synced') AND e.start_minutes < ? AND e.start_minutes + e.duration_minutes > ?`, date, start+duration, start).Scan(&count)
 	if err != nil && strings.Contains(err.Error(), "no such table") {
@@ -795,7 +791,7 @@ func (r *sqliteRepository) CarryForward(ctx context.Context, in CarryForwardInpu
 	return carried, nil
 }
 
-func loadAllocation(ctx context.Context, db SQLExecutor, id string) (Allocation, error) {
+func loadAllocation(ctx context.Context, db database.SQLExecutor, id string) (Allocation, error) {
 	var a Allocation
 	var created string
 	err := db.QueryRowContext(ctx, `SELECT a.id,a.work_item_id,w.title,w.source_label,a.local_date,a.start_minutes,a.duration_minutes,a.state,a.created_at FROM calendar_allocations a JOIN work_items w ON w.id=a.work_item_id WHERE a.id=?`, id).Scan(&a.ID, &a.WorkItemID, &a.Title, &a.SourceLabel, &a.LocalDate, &a.StartMinutes, &a.DurationMinutes, &a.State, &created)
@@ -816,7 +812,7 @@ func (r *sqliteRepository) ListRoutines(ctx context.Context) ([]Routine, error) 
 	return r.listRoutinesOn(ctx, r.db)
 }
 
-func (r *sqliteRepository) listRoutinesOn(ctx context.Context, db SQLExecutor) ([]Routine, error) {
+func (r *sqliteRepository) listRoutinesOn(ctx context.Context, db database.SQLExecutor) ([]Routine, error) {
 	rows, err := db.QueryContext(ctx, `SELECT id,title,kind,timezone,start_date,end_date,weekdays,start_minute,duration_minutes,frequency_per_week,revision,active FROM routines WHERE active=1 ORDER BY start_date,title,id`)
 	if err != nil {
 		return nil, err
@@ -850,7 +846,7 @@ func (r *sqliteRepository) ListRoutineOccurrences(ctx context.Context, start, en
 	return r.listRoutineOccurrencesOn(ctx, r.db, start, end)
 }
 
-func (r *sqliteRepository) listRoutineOccurrencesOn(ctx context.Context, db SQLExecutor, start, end string) ([]RoutineOccurrence, error) {
+func (r *sqliteRepository) listRoutineOccurrencesOn(ctx context.Context, db database.SQLExecutor, start, end string) ([]RoutineOccurrence, error) {
 	routines, err := r.listRoutinesOn(ctx, db)
 	if err != nil {
 		return nil, err

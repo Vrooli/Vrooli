@@ -70,6 +70,7 @@ function TopicRow({ topic }: { topic: TopicSummary }) {
           {topic.liveCommissionIds.length > 0 ? <StateBadge state={CommissionState.LIVE} /> : null}
           {topic.pausedCommissionIds.length > 0 ? <StateBadge state={CommissionState.PAUSED} /> : null}
           {topic.limitedCommissionIds.length > 0 ? <StateBadge state={CommissionState.LIMITED} /> : null}
+          {topic.haltedCommissionIds.length > 0 ? <StateBadge state={CommissionState.HALTED} /> : null}
           {check?.mode ? <StatusBadge tone="neutral">{check.mode}</StatusBadge> : null}
           {problems > 0 ? <StatusBadge tone="warning">{t(strings.topics.problems, { count: problems })}</StatusBadge> : null}
         </span>

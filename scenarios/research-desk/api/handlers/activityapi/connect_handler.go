@@ -100,6 +100,11 @@ func (h *handler) GetOverview(ctx context.Context, _ *connect.Request[activityv1
 		resp.WebConsoleAccessKind, resp.WebConsoleAccess = a.Kind, a.Said
 		resp.Lenses = append(resp.Lenses, &activityv1.Lens{Name: WebConsoleLens, Available: a.Automatic, Reason: a.Said})
 	}
+	for _, w := range snap.AnswersWaiting() {
+		resp.AnswersWaiting = append(resp.AnswersWaiting, &activityv1.AnswerWaiting{
+			Owner: w.Owner, ItemId: w.ItemID, Answer: w.Answer, AnsweredAt: wire.Timestamp(w.At), Inbox: w.Inbox, LiveWindowReads: w.LiveWindowReads,
+		})
+	}
 	resp.Unreadable = wire.EvidenceList(snap.AllUnreadable())
 	resp.LatestResearchWrite = wire.ResearchWrite(snap.LatestResearchWrite())
 	return connect.NewResponse(resp), nil
@@ -181,9 +186,12 @@ func (h *handler) ListTopics(ctx context.Context, _ *connect.Request[activityv1.
 			LiveCommissionIds:    t.Live,
 			PausedCommissionIds:  t.Paused,
 			LimitedCommissionIds: t.Limited,
+			HaltedCommissionIds:  t.Halted,
 			Aliases:              t.Aliases,
 			Mission:              wire.File(t.Mission),
 			MissionCheck:         check,
+			Landed_10D:           int32(t.Check.Landed10d),
+			LastLandedAt:         t.Check.LastLandedAt,
 			WorkspaceFiles: &activityv1.TopicWorkspaceFiles{
 				CurrentView: &activityv1.TopicOptionalFile{
 					File: wire.File(t.Documents.CurrentView.File), Evidence: wire.Evidence(t.Documents.CurrentView.Evidence),
@@ -258,6 +266,8 @@ func summary(c *home.Commission) *activityv1.CommissionSummary {
 		Title:           wire.Text(c.Title),
 		State:           wire.State(c.State),
 		StateRule:       c.StateRule,
+		Flags:           c.Flags,
+		Halt:            wire.Halt(c.Halt),
 		StateEvidence:   wire.EvidenceList(c.StateEvidence),
 		Stalled:         c.Stalled,
 		TopicsEvidence:  wire.Evidence(c.TopicsEvidence),

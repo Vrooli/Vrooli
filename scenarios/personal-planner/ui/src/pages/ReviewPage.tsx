@@ -6,7 +6,7 @@ import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { Input } from "@vrooli/react-component-library/Input/1";
 import { AdaptivePageHeader } from "../components/AdaptivePageHeader";
 import { Textarea } from "@vrooli/react-component-library/Textarea/1";
-import { DataTable } from "@vrooli/react-component-library/DataTable/1.4.3";
+import { DataTable } from "@vrooli/react-component-library/DataTable/1.4.8";
 import { FormField } from "@vrooli/react-component-library/FormField/1";
 import { Select } from "@vrooli/react-component-library/Select/1";
 

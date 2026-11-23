@@ -93,8 +93,8 @@ var Endpoints = []module.EndpointDescriptor{
 	},
 	{
 		ID: "launch_control", Path: launchconnect.LaunchServiceControlProcedure, Method: "POST", Category: "launch",
-		Summary:     "Pause, resume, stop, discard, re-send stance",
-		Description: "Types /goal pause or /goal resume, pastes the stance message again, or pauses the goal and quits Codex and its app-server; discard also records the operator's reason. The goal status is read back from goals_1.sqlite and the control is recorded in LAUNCH.json. Sessions are never deleted.",
+		Summary:     "Pause, resume, stop, discard, re-send stance, recover a failed launch goal",
+		Description: "Types /goal pause or /goal resume, pastes the stance message again, or pauses the goal and quits Codex and its app-server; discard also records the operator's reason. retry-goal applies to a desk launch failed at ready_seen, goal_sent or goal_verified. At ready_seen it resolves only one top-level thread in the recorded session. It reads the exact session's goals first and types the kernel only when that thread has no goal row. Existing matching goals are reconciled without duplicate typing. The result is recorded in LAUNCH.json. Sessions are never deleted.",
 		Errors:      []module.ErrorDesc{readOnly, invalid, noSuch, unavailable, missingGrant},
 		Examples:    example("Pause", "Control", `{"commission_id":"programme-five-20261112","action":"CONTROL_ACTION_PAUSE"}`),
 	},

@@ -90,4 +90,21 @@ describe("Locale switching through the shell (real locales)", () => {
       expect(screen.getAllByText(ar.layout.nav.dashboard).length).toBeGreaterThan(0);
     });
   });
+
+  it("uses the shared Select to persist a theme choice through the app provider", async () => {
+    const user = userEvent.setup();
+    window.localStorage.clear();
+    document.documentElement.removeAttribute("data-theme");
+    renderShell();
+
+    const trigger = screen.getByTestId(selectors.theme.select);
+    expect(trigger).toHaveAttribute("data-rcl-select");
+    await user.click(trigger);
+    await user.click(screen.getByRole("option", { name: en.theme.choice.dark }));
+
+    await waitFor(() => {
+      expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+    });
+    expect(window.localStorage.getItem("vrooli.theme")).toBe("dark");
+  });
 });

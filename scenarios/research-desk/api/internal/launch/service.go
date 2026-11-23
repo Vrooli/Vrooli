@@ -71,9 +71,12 @@ type Preflight struct {
 	// says the request's assertion was accepted.
 	NeverStarted home.NeverStarted
 	Asserted     bool
-	// OwnerReading is what each topic's owner reads at start; its flags never
-	// block.
+	// OwnerReading is what each topic's owner reads at start. A set over its
+	// read ceiling is flagged for trimming; no flag blocks the launch.
 	OwnerReading []home.ReadSet
+	// Reading is the commission's own read sets (scheduler start and unit),
+	// empty for a spec that has no folder yet.
+	Reading []home.ReadSet
 	// PacketState is the start of an existing packet's own STATE.md, nil for
 	// a spec.
 	PacketState *StateExcerpt
@@ -188,6 +191,9 @@ func (s *Service) preflightCommission(ctx context.Context, snap *home.Snapshot, 
 // commission being judged, which never blocks itself.
 func judge(snap *home.Snapshot, result *skillscripts.PacketResult, sc specChoices, req map[string]Resolution, self string) Preflight {
 	p := Preflight{Packet: result, Verdicts: Verdicts(snap, sc.Topics, resolutions(sc.RunAlongside, sc.Supersedes, req), self), OwnerReading: snap.OwnerReading(sc.Topics)}
+	if c := snap.Commission(self); self != "" && c != nil {
+		p.Reading = snap.ReadSets(c)
+	}
 	p.Blockers = blockers(p)
 	return p
 }
@@ -209,6 +215,9 @@ func blockers(p Preflight) []string {
 			out = append(out, v.Topic+": "+v.CommissionID+" "+v.Message)
 		}
 	}
+	// Read ceilings are measured and flagged in the preflight (set.Flags) but never block: a read cost is friction to cut,
+	// and a gate that stops the work is a defect (R1). On 2026-11-20 exact-size skill ceilings would have refused every launch
+	// after a one-byte skill edit.
 	return out
 }
 
@@ -577,13 +586,18 @@ func (s *Service) markSuperseded(ctx context.Context, sup supersession, by, outc
 	return err
 }
 
-// settings are the packet's supervisor model and effort, else the defaults.
+// settings are the packet's supervisor model and effort, else the defaults,
+// and the session idle window from limits.json.
 func (s *Service) settings(c *home.Commission) (Settings, error) {
 	limits, err := s.Limits()
 	if err != nil {
 		return Settings{}, err
 	}
-	out := Settings{Model: limits.Defaults.SupervisorModel, Effort: limits.Defaults.SupervisorEffort}
+	idle, err := idleArchiveWindow(limits.Session.IdleArchiveAfter)
+	if err != nil {
+		return Settings{}, err
+	}
+	out := Settings{Model: limits.Defaults.SupervisorModel, Effort: limits.Defaults.SupervisorEffort, IdleArchiveAfter: idle}
 	if c.Spec != nil && c.Spec.SupervisorModel != "" {
 		out.Model = c.Spec.SupervisorModel
 	}
@@ -656,6 +670,7 @@ const (
 	ActStop         = "stop"
 	ActDiscard      = "discard"
 	ActResendStance = "resend-stance"
+	ActRetryGoal    = "retry-goal"
 	// ActSupersede is recorded, never requested: a launch superseded it.
 	ActSupersede = "supersede"
 )
@@ -699,25 +714,29 @@ func (s *Service) Control(ctx context.Context, id, action, reason string) (Contr
 	}
 	// The commission's own conversation. Nothing else is ever typed into.
 	t := targetOf(c)
-	open := c.State.Running()
+	open := c.State.Running() || (action == ActRetryGoal && c.Session != nil && c.Session.WindowOpen)
 	out := ControlResult{Record: record}
 	switch {
 	case action == ActDiscard && !open:
 	case t.Session == "":
 		return out, fmt.Errorf("%w: no session is known for %s (no LAUNCH.json and no exact match)", home.ErrRefused, id)
-	case !open && action != ActStop:
+	case !open && action != ActStop && action != ActRetryGoal:
 		return out, fmt.Errorf("%w: %s is %s; its Codex window is not open", home.ErrRefused, id, c.State)
 	}
 
 	// Codex applies /goal pause|resume to a goal in any state, and resuming a
-	// completed goal starts it again (measured, launch-proof.txt).
+	// completed goal starts it again (measured, launch-proof.txt). Resume
+	// also starts a goal halted by a turn error: the desk's recovery pass
+	// does it automatically, and this is the steward's or operator's way
+	// once that pass escalated.
 	if want, ok := map[string]string{ActPause: "active", ActResume: "paused"}[action]; ok {
 		status, serr := s.Launcher.GoalStatus(ctx, t)
 		if serr != nil {
 			return out, fmt.Errorf("%w: %s needs the goal's status, which is unknown: %v", home.ErrRefused, action, serr)
 		}
-		if status != want {
-			return out, fmt.Errorf("%w: %s only applies to a goal that is %s; this goal is %q", home.ErrRefused, action, want, status)
+		halted := action == ActResume && status == "blocked" && c.State == home.StateHalted
+		if status != want && !halted {
+			return out, fmt.Errorf("%w: %s only applies to a goal that is %s, or a halted one; this goal is %q", home.ErrRefused, action, want, status)
 		}
 	}
 	var outcome string // what a stop found and left
@@ -730,6 +749,11 @@ func (s *Service) Control(ctx context.Context, id, action, reason string) (Contr
 		msgs, merr := s.Messages(ctx, id)
 		if err = merr; err == nil {
 			err = s.Launcher.ResendStance(ctx, t, msgs.Stance)
+		}
+	case ActRetryGoal:
+		out.GoalStatus, err = s.retryFailedGoal(ctx, c, record, t)
+		if err == nil {
+			out.Message = "launch goal recovered without creating another session"
 		}
 	case ActStop:
 		var stopped Stopped
@@ -774,7 +798,128 @@ func (s *Service) Control(ctx context.Context, id, action, reason string) (Contr
 	default:
 		out.Message = action + " done; goal status unknown"
 	}
+	if action == ActRetryGoal {
+		out.Message = fmt.Sprintf("retry-goal done; goal %s; no new session created", out.GoalStatus)
+	}
 	return out, nil
+}
+
+// retryFailedGoal recovers a desk launch that stopped while waiting for ready
+// or failed at the goal boundary. At ready_seen, the exact session may not yet
+// have a thread in LAUNCH.json, so it resolves only a unique top-level thread
+// from that session's Codex transcripts. It then reads exact goal rows first;
+// matching work is reconciled without typing and uncertainty fails closed.
+func (s *Service) retryFailedGoal(ctx context.Context, c *home.Commission, record *home.LaunchRecord, t Target) (string, error) {
+	windowOpen := c.Session != nil && c.Session.WindowOpen
+	readyFailure := record.Failed != nil && record.Failed.Step == StepReadySeen
+	goalFailure := record.Failed != nil && (record.Failed.Step == StepGoalSent || record.Failed.Step == StepGoalVerified)
+	if record.LaunchedBy != "desk" || (!readyFailure && !goalFailure) ||
+		record.Discarded != nil || record.SupersededBy != "" {
+		return "", fmt.Errorf("%w: retry-goal requires this commission's desk launch failed at ready_seen, goal_sent or goal_verified", home.ErrRefused)
+	}
+	if t.Session == "" || record.WebConsoleSessionID != t.Session {
+		return "", fmt.Errorf("%w: retry-goal requires the launch record's exact session", home.ErrRefused)
+	}
+	if record.ThreadID != "" && t.Thread != record.ThreadID {
+		return "", fmt.Errorf("%w: retry-goal target thread differs from the launch record", home.ErrRefused)
+	}
+	if readyFailure {
+		thread, err := s.Launcher.Sessions.SessionThread(t.Session)
+		if err != nil {
+			return "", home.Cause(home.ErrUnavailable, fmt.Errorf("resolve the unique top-level thread in the launch's exact session: %w", err))
+		}
+		if t.Thread != "" && t.Thread != thread {
+			return "", fmt.Errorf("%w: resolved top-level thread differs from the commission's target", home.ErrRefused)
+		}
+		t.Thread = thread
+	}
+	if t.Thread == "" {
+		return "", fmt.Errorf("%w: retry-goal requires a known thread in the launch's exact session", home.ErrRefused)
+	}
+	if readyFailure {
+		if !hasLaunchStep(record.Steps, StepStanceSent) || hasLaunchStep(record.Steps, StepGoalSent) {
+			return "", fmt.Errorf("%w: ready_seen recovery requires a recorded stance_sent and no goal_sent step", home.ErrRefused)
+		}
+	}
+	if record.ThreadID == "" {
+		record.ThreadID = t.Thread
+	}
+	msgs, err := s.Messages(ctx, c.ID)
+	if err != nil {
+		return "", err
+	}
+	goals, err := s.Launcher.Sessions.SessionGoals(ctx, t.Session)
+	if err != nil {
+		return "", home.Cause(home.ErrUnavailable, fmt.Errorf("read the exact session's goals before retrying: %w", err))
+	}
+	var existing *home.Goal
+	for i := range goals {
+		if goals[i].ThreadID == t.Thread && (goals[i].SessionID == "" || goals[i].SessionID == t.Session) {
+			existing = &goals[i]
+			break
+		}
+	}
+	if existing != nil {
+		if strings.TrimSpace(existing.Objective) != strings.TrimSpace(msgs.Kernel) {
+			return "", fmt.Errorf("%w: target thread already has a different goal; no text was sent", home.ErrRefused)
+		}
+		if existing.Status != "active" && existing.Status != "complete" {
+			return existing.Status, fmt.Errorf("%w: matching goal exists with status %q; retry-goal will not resume or replace it", home.ErrRefused, existing.Status)
+		}
+		record.Steps = ensureGoalSteps(record.Steps, s.Clock.Now().UTC())
+		record.Failed = nil
+		record.Controls = append(record.Controls, home.ControlEntry{Action: ActRetryGoal, At: s.Clock.Now().UTC(), Outcome: "matching goal already existed; no duplicate sent"})
+		if _, err := s.Writer.WriteLaunch(c.ID, record); err != nil {
+			return "", err
+		}
+		return existing.Status, nil
+	}
+	if !c.State.Running() && !windowOpen {
+		return "", fmt.Errorf("%w: no matching goal exists and the exact session is not open; no text was sent", home.ErrRefused)
+	}
+	thread, sent, err := s.Launcher.RetryGoal(ctx, t, msgs.Kernel)
+	if err != nil {
+		return "", home.Cause(home.ErrUnavailable, err)
+	}
+	if thread != t.Thread {
+		return "", fmt.Errorf("%w: retry-goal appeared in a different thread %q; launch record unchanged", home.ErrRefused, thread)
+	}
+	record.Steps = ensureGoalSteps(record.Steps, s.Clock.Now().UTC())
+	record.Failed = nil
+	outcome := "matching goal appeared during recovery; no duplicate sent"
+	if sent {
+		outcome = "goal sent once after exact-thread absence was rechecked"
+	}
+	record.Controls = append(record.Controls, home.ControlEntry{Action: ActRetryGoal, At: s.Clock.Now().UTC(), Outcome: outcome})
+	if _, err := s.Writer.WriteLaunch(c.ID, record); err != nil {
+		return "", fmt.Errorf("goal ran but launch recovery was not recorded: %w", err)
+	}
+	return "active", nil
+}
+
+func ensureGoalSteps(steps []home.LaunchStep, at time.Time) []home.LaunchStep {
+	has := map[string]bool{}
+	for _, step := range steps {
+		has[step.Step] = true
+	}
+	if !has[StepReadySeen] {
+		steps = append(steps, home.LaunchStep{Step: StepReadySeen, At: at})
+	}
+	for _, name := range []string{StepGoalSent, StepGoalVerified} {
+		if !has[name] {
+			steps = append(steps, home.LaunchStep{Step: name, At: at})
+		}
+	}
+	return steps
+}
+
+func hasLaunchStep(steps []home.LaunchStep, name string) bool {
+	for _, step := range steps {
+		if step.Step == name {
+			return true
+		}
+	}
+	return false
 }
 
 // launchRecord is a commission's LAUNCH.json, or the record a hand-launched

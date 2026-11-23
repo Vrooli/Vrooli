@@ -4,7 +4,7 @@ import { Archive } from "lucide-react";
 import { AsyncBoundary } from "../../components/AsyncBoundary";
 import { StatusBadge } from "../../components/StatusBadge";
 import { Card, MetaRow, SectionPanel } from "../../components/Surfaces";
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { MarkdownRenderer } from "@vrooli/react-component-library/markdown-renderer/0";
 import { MermaidViewer } from "../../components/markdown/MermaidViewer";
 import { selectors } from "../../consts/selectors";
@@ -26,6 +26,7 @@ import {
   WorkPosture,
 } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
 import { useArchivePlan, usePlanDetail, usePlanGraph, usePlanMarkdown } from "./usePlans";
+import { cn } from "../../lib/utils";
 
 /** Map the autofilled work posture enum to a human label. */
 function workPostureLabel(posture: WorkPosture): string {
@@ -282,11 +283,13 @@ function PlanBody({ plan }: { plan: Plan }) {
         </div>
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           size="sm"
           data-testid={selectors.plans.archiveButton}
           disabled={archive.isPending}
           onClick={() => archive.mutate(plan.id)}
+          shape="square"
+          className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
         >
           <Archive aria-hidden="true" className="me-2 h-4 w-4" />
           {t(strings.pages.plans.archive)}
@@ -488,11 +491,13 @@ function PlanBody({ plan }: { plan: Plan }) {
         actions={
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             size="sm"
             data-testid={selectors.plans.detailMarkdownToggle}
             aria-expanded={showMarkdown}
             onClick={() => setShowMarkdown((v) => !v)}
+            shape="square"
+            className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
           >
             {showMarkdown
               ? t(strings.pages.plans.detail.hideMarkdown)

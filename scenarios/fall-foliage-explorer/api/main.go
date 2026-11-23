@@ -747,17 +747,11 @@ func saveTrip(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Convert regions to JSON
-	regionsJSON, err := json.Marshal(trip.Regions)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, Response{
-			Status: "error",
-			Error:  "Failed to encode regions",
-		})
-		return
-	}
+	// []int contains only JSON-supported values, so this encoding cannot fail.
+	regionsJSON, _ := json.Marshal(trip.Regions)
 
 	var id int
-	err = db.QueryRow(`
+	err := db.QueryRow(`
 		INSERT INTO trip_plans (name, start_date, end_date, regions, notes, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $6)
 		RETURNING id

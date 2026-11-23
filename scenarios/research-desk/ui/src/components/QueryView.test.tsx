@@ -17,13 +17,23 @@ function query(state: Partial<UseQueryResult<string>>): UseQueryResult<string> {
 describe("QueryView", () => {
   it("keeps an earlier read on screen and marks it not current when a refresh fails", () => {
     renderWithProviders(<QueryView query={query({ isRefetchError: true, error: new TypeError("Failed to fetch") })}>{(data) => <p>{data}</p>}</QueryView>);
+    expect(document.querySelector("[data-rcl-async-boundary]")).toHaveAttribute("data-presentation", "inline");
+    expect(document.querySelector("[data-rcl-async-boundary]")).toHaveAttribute("data-rcl-async-status", "partial-error");
     expect(screen.getByText(strings.errors.staleTitle)).toBeInTheDocument();
     expect(screen.getByText(DATA)).toBeInTheDocument();
   });
 
   it("replaces the page with the failure when there is nothing to show yet", () => {
     renderWithProviders(<QueryView query={query({ isLoadingError: true, data: undefined, error: new TypeError("Failed to fetch") })}>{(data) => <p>{data}</p>}</QueryView>);
+    expect(document.querySelector("[data-rcl-async-boundary]")).toHaveAttribute("data-rcl-async-status", "error");
     expect(screen.getByText(strings.errors.unreachableTitle)).toBeInTheDocument();
+    expect(screen.queryByText(DATA)).not.toBeInTheDocument();
+  });
+
+  it("uses the shared pending state with Research Desk loading copy", async () => {
+    renderWithProviders(<QueryView query={query({ isPending: true, data: undefined })}>{(data) => <p>{data}</p>}</QueryView>);
+    expect(document.querySelector("[data-rcl-async-boundary]")).toHaveAttribute("data-rcl-async-status", "pending");
+    expect(await screen.findByText(strings.common.loading)).toBeInTheDocument();
     expect(screen.queryByText(DATA)).not.toBeInTheDocument();
   });
 });

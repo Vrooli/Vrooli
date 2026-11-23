@@ -75,7 +75,7 @@ func TestAScriptThatPrintsNoResultSaysSo(t *testing.T) {
 }
 
 // The research skills live in this scenario and the charter the desk renders
-// from them carries the supervisor's route discipline: a failing optional
+// from them carries the manager's route discipline: a failing optional
 // route is recorded and the direct path taken, and decisions are written as
 // needs-you items the desk delivers.
 // [REQ:RD-P0-009]
@@ -91,7 +91,7 @@ func TestTheScenarioOwnedSkillsRenderRouteDiscipline(t *testing.T) {
 		t.Fatalf("preview: %v %+v", err, result)
 	}
 	for _, line := range []string{
-		"## Route discipline",
+		"## Routes and the shared machine",
 		"`Route failure · <UTC> · <route> · <command> · <first error line> · direct path taken`",
 		"Write each decision as a needs-you item in its topic's `DECISIONS.md`",
 	} {

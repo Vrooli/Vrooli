@@ -397,17 +397,29 @@ func TestZoneFallbackPreservesHealthAndEnforcesGlobalBrightnessCap(t *testing.T)
 func TestCachedPolicyStopsAtRequestExpiryAndSourceFreshnessBoundary(t *testing.T) {
 	now := time.Now().UTC()
 	for _, tt := range []struct {
-		name string
-		view *policyv1.EffectivePolicy
+		name      string
+		view      *policyv1.EffectivePolicy
+		maxAge    uint32
+		wantFresh bool
 	}{
-		{"manual expiry", &policyv1.EffectivePolicy{ManualPriority: true, RequestExpiresAt: timestamppb.New(now)}},
-		{"source expiry", &policyv1.EffectivePolicy{Evidence: []*policyv1.EvidenceSource{
+		{name: "manual expiry", view: &policyv1.EffectivePolicy{ManualPriority: true, RequestExpiresAt: timestamppb.New(now)}, maxAge: 5},
+		{name: "source expiry", view: &policyv1.EffectivePolicy{Evidence: []*policyv1.EvidenceSource{
 			{State: policyv1.EvidenceState_EVIDENCE_STATE_FRESH, SourceTimestamp: timestamppb.New(now.Add(-6 * time.Second))},
-		}}},
+		}}, maxAge: 5},
+		{name: "future source timestamp", view: &policyv1.EffectivePolicy{Evidence: []*policyv1.EvidenceSource{
+			{State: policyv1.EvidenceState_EVIDENCE_STATE_FRESH, SourceTimestamp: timestamppb.New(now.Add(time.Nanosecond))},
+		}}, maxAge: 0},
+		{name: "future observed-at fallback", view: &policyv1.EffectivePolicy{Evidence: []*policyv1.EvidenceSource{
+			{State: policyv1.EvidenceState_EVIDENCE_STATE_FRESH, ObservedAt: timestamppb.New(now.Add(time.Nanosecond))},
+		}}, maxAge: 0},
+		{name: "zero-age boundary", view: &policyv1.EffectivePolicy{Evidence: []*policyv1.EvidenceSource{
+			{State: policyv1.EvidenceState_EVIDENCE_STATE_FRESH, SourceTimestamp: timestamppb.New(now)},
+		}}, maxAge: 0, wantFresh: true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			if cachedPolicyFresh(tt.view, now.Add(-time.Second), now, 5) {
-				t.Fatal("ten-second presentation cache outlived authoritative request/evidence deadline")
+			got := cachedPolicyFresh(tt.view, now.Add(-time.Second), now, tt.maxAge)
+			if got != tt.wantFresh {
+				t.Fatalf("cachedPolicyFresh()=%t, want %t", got, tt.wantFresh)
 			}
 		})
 	}

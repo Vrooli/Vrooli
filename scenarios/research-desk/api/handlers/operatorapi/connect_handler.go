@@ -235,6 +235,13 @@ func deliveryProto(d home.Delivery) operatorv1.Delivery {
 
 func (h *handler) Answer(ctx context.Context, req *connect.Request[operatorv1.AnswerRequest]) (*connect.Response[operatorv1.AnswerResponse], error) {
 	msg := req.Msg
+	// The operator answers; an agent answers only under an operator-approved
+	// research-decisions grant covering this item, checked before any read or
+	// write. The entry then says which agent answered under which grant.
+	delegated, err := wire.ResearchDecision(ctx, strings.TrimSpace(msg.CommissionId), strings.TrimSpace(msg.ItemId))
+	if err != nil {
+		return nil, h.fail("authorize answer", err)
+	}
 	snap, err := h.snapshot(ctx)
 	if err != nil {
 		return nil, err
@@ -278,9 +285,9 @@ func (h *handler) Answer(ctx context.Context, req *connect.Request[operatorv1.An
 		}
 		label = choice.Label
 	}
-	entry := home.Entry{At: h.deps.Clock.Now().UTC(), Kind: home.EntryAnswer, Subject: f.Item.ID, Via: home.ViaDesk, Body: home.AnswerBody(key, label, note)}
+	entry := home.Entry{At: h.deps.Clock.Now().UTC(), Kind: home.EntryAnswer, Subject: f.Item.ID, Via: home.ViaDesk, Body: home.WithDelegation(home.AnswerBody(key, label, note), delegated)}
 	if c == nil {
-		return h.levelAnswer(f, entry, key, label, note, msg.DryRun)
+		return h.levelAnswer(f, entry, key, label, note, delegated, msg.DryRun)
 	}
 	path, text, written, err := h.operatorEntry(c.ID, entry, msg.DryRun)
 	if err != nil {
@@ -291,9 +298,9 @@ func (h *handler) Answer(ctx context.Context, req *connect.Request[operatorv1.An
 
 // levelAnswer writes the answer to a level's own decision into that level's
 // INBOX.md, the entry its next agent drains (docs/agent-system/LEVELS.md).
-func (h *handler) levelAnswer(f *home.FeedItem, e home.Entry, key, label, note string, dryRun bool) (*connect.Response[operatorv1.AnswerResponse], error) {
+func (h *handler) levelAnswer(f *home.FeedItem, e home.Entry, key, label, note, delegated string, dryRun bool) (*connect.Response[operatorv1.AnswerResponse], error) {
 	source := "research desk " + e.At.Format(home.EntryTimeLayout)
-	e.Body = home.InboxAnswerBody(f.Item.ID, key, label, note, f.Item.PacketPath(), source)
+	e.Body = home.WithDelegation(home.InboxAnswerBody(f.Item.ID, key, label, note, f.Item.PacketPath(), source), delegated)
 	path, text, err := h.deps.Writer.RenderInbox(f.Topic, source, e.At, "operator", home.EntryAnswer, e.Body)
 	written := false
 	if err == nil && !dryRun {

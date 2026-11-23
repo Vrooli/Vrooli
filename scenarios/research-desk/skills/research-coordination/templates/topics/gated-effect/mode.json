@@ -1,8 +1,0 @@
-{
-  "approval_flow": "Owners build the complete path with the effect stubbed: contracts, fixtures, simulators, dry runs and rehearsals. The effect itself goes to the operator as one prepared decision with its runbook; on approval its owner executes it.",
-  "boundaries": "- <fill: the gated effect, named exactly (funding, broadcast, a physical device).>\n- Spending money or accepting paid terms.\n- Credentials, accounts and private data.",
-  "end_state_hint": "Describe the effect done for real, and the rehearsed path that made it safe.",
-  "workstream_hint": "Every row ends in a rehearsal that runs the whole path with the effect stubbed; one row delivers the effect decision.",
-  "mode_tools": "",
-  "knowledge_page": "knowledge/RUNBOOK.md"
-}

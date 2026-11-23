@@ -1,5 +1,0 @@
-{
-  "version": 1,
-  "sections": ["waiting", "changes", "evidence", "scorecard", "workstreams", "feedback", "next"],
-  "viewers": ["image", "audio", "video", "text", "fields", "ui", "measure"]
-}

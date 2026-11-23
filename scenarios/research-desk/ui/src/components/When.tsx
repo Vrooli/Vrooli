@@ -1,4 +1,5 @@
 import type { DerivedTime } from "@vrooli/proto-types/research-desk/v1/shared/evidence_pb";
+import { RelativeTime } from "@vrooli/react-component-library/RelativeTime/1.0.5";
 
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
@@ -6,11 +7,7 @@ import { absolute, relative, toDate } from "../lib/format";
 
 /** A relative time with the absolute time as its accessible title. */
 export function When({ date }: { date: Date }) {
-  return (
-    <time dateTime={date.toISOString()} title={absolute(date)}>
-      {relative(date)}
-    </time>
-  );
+  return <RelativeTime value={relative(date)} dateTime={date.toISOString()} title={absolute(date)} />;
 }
 
 /** The time represented by a read snapshot, separate from source-file mtimes. */

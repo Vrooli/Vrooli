@@ -54,6 +54,23 @@ func TestLifecycleReachesTriggerMetAndUnknownIsNotFalse(t *testing.T) { // [REQ:
 	require.Equal(t, offerspb.Status_TRIGGER_MET, nodes[0].Status)
 }
 
+// A failed audit write must not leave the lifecycle transition committed.
+// The audit trail and current status describe one operator-visible action.
+func TestTransitionRollsBackStatusWhenAuditWriteFails(t *testing.T) {
+	s, ctx := testCatalog(t)
+	n, err := s.CreateNode(ctx, offerspb.NodeKind_OFFER, "Audit failure offer", offerspb.Status_IDEA, "", "")
+	require.NoError(t, err)
+	_, err = s.db.ExecContext(ctx, `CREATE TRIGGER fail_catalog_audit BEFORE INSERT ON catalog_audit BEGIN SELECT RAISE(FAIL, 'injected audit failure'); END`)
+	require.NoError(t, err)
+
+	_, err = s.Transition(ctx, n.Id, offerspb.Status_RETIRED, "operator")
+	require.ErrorContains(t, err, "injected audit failure")
+
+	var stored int32
+	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT status FROM nodes WHERE id=?`, n.Id).Scan(&stored))
+	require.Equal(t, int32(offerspb.Status_IDEA), stored, "status mutation must roll back with its audit write")
+}
+
 func TestIllegalTransitionNamesRuleAndTypedEdgesRejectInvalidPairs(t *testing.T) { // [REQ:GRAPH-002] [REQ:GRAPH-003]
 	s, ctx := testCatalog(t)
 	offer, err := s.CreateNode(ctx, offerspb.NodeKind_OFFER, "Offer", offerspb.Status_IDEA, "", "")

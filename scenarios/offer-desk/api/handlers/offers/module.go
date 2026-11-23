@@ -687,7 +687,26 @@ func (s *Service) GetBoard(ctx context.Context, _ *connect.Request[offerspb.Proj
 			response.Evaluation.Reason = "evaluation reading is older than three scheduler intervals"
 		}
 	}
+	response.ObservedAt = s.observedAtMinusAge(response.PostureAgeSeconds)
 	return connect.NewResponse(response), nil
+}
+
+// observedAtMinusAge stamps a projection at the oldest Money Ledger input
+// represented by its posture. A fresh request must not make old actuals look
+// new to consumers that qualify the response by producer time.
+func (s *Service) observedAtMinusAge(ageSeconds int64) *timestamppb.Timestamp {
+	now := time.Now().UTC()
+	if s.clock != nil {
+		now = s.clock.Now().UTC()
+	}
+	if ageSeconds < 0 {
+		ageSeconds = 0
+	}
+	const maxDurationSeconds = int64((1<<63 - 1) / int64(time.Second))
+	if ageSeconds > maxDurationSeconds {
+		ageSeconds = maxDurationSeconds
+	}
+	return timestamppb.New(now.Add(-time.Duration(ageSeconds) * time.Second))
 }
 
 func declaredDefaultAliveBuffer(goals []*ledgerpb.GoalVerdict) (float64, bool) {

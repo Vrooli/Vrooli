@@ -44,6 +44,17 @@ type Entry struct {
 	Body    string
 }
 
+// WithDelegation adds an "Answered by:" line naming the agent and grant when
+// an agent recorded the answer under the operator's research-decisions grant,
+// so a delegated answer always reads differently from one the operator gave.
+func WithDelegation(body, delegated string) string {
+	delegated = strings.Join(strings.Fields(delegated), " ")
+	if delegated == "" {
+		return body
+	}
+	return body + "\nAnswered by: " + delegated
+}
+
 // AnswerBody renders an answer entry body: `<key> — <label>` and an
 // optional `Note:` line, or `other — <the operator's words>`.
 func AnswerBody(key, label, note string) string {

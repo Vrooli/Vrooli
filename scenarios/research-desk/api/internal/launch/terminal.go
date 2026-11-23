@@ -37,6 +37,10 @@ type SessionSpec struct {
 	Label          string
 	WorkingDir     string
 	Command        string
+	// IdleArchiveAfter gives the session Web Console's idle policy: it is
+	// archived (and its memory freed) once Codex has done no work for this
+	// long with no goal or turn running. Empty keeps the session.
+	IdleArchiveAfter string
 }
 
 // Screen is the visible terminal text and the cursor row.
@@ -66,6 +70,9 @@ type WebConsole struct {
 // owner tags sessions the desk creates (Web Console provenance).
 const owner = "research-desk"
 
+// idlePolicyMode is Web Console's idle expiration policy mode.
+const idlePolicyMode = "idle"
+
 func (w *WebConsole) sessions(ctx context.Context) (sessionsconnect.SessionsServiceClient, error) {
 	client, base, opt, err := w.Peer.Dial(ctx)
 	if err != nil {
@@ -88,14 +95,19 @@ func (w *WebConsole) Create(ctx context.Context, spec SessionSpec) (string, erro
 	if err != nil {
 		return "", err
 	}
-	req := connect.NewRequest(&sessionsv1.CreateRequest{
+	create := &sessionsv1.CreateRequest{
 		LaunchCommand:        spec.Command,
 		ExecuteLaunchCommand: true,
 		Origin:               sessionsv1.SessionOrigin_SESSION_ORIGIN_PROGRAMMATIC,
 		Owner:                owner,
 		DisplayLabel:         spec.Label,
 		WorkingDir:           spec.WorkingDir,
-	})
+	}
+	if spec.IdleArchiveAfter != "" {
+		create.Policy = &sessionsv1.ExpirationPolicy{Mode: idlePolicyMode, Duration: spec.IdleArchiveAfter}
+		create.HasPolicy = true
+	}
+	req := connect.NewRequest(create)
 	req.Header().Set("X-Idempotency-Key", spec.IdempotencyKey)
 	resp, err := client.Create(ctx, req)
 	if err != nil {

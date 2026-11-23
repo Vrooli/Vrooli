@@ -15,6 +15,7 @@ import (
 type handlers struct {
 	core   *cliapp.ScenarioApp
 	client resolverconnect.ResolverServiceClient
+	Getenv func(string) string
 }
 
 func newHandlers(core *cliapp.ScenarioApp) handlers {
@@ -22,6 +23,7 @@ func newHandlers(core *cliapp.ScenarioApp) handlers {
 	return handlers{
 		core:   core,
 		client: resolverconnect.NewResolverServiceClient(httpClient, baseURL),
+		Getenv: os.Getenv,
 	}
 }
 
@@ -34,17 +36,21 @@ func (h handlers) status(ctx cliapp.RunContext) error {
 }
 
 func (h handlers) configureAdGuard(ctx cliapp.RunContext) error {
-	req := &resolverv1.ConfigureAdGuardHomeRequest{
-		BaseUrl:  firstNonEmpty(ctx.Flag("base-url"), os.Getenv("ADGUARD_HOME_BASE_URL"), os.Getenv("ADGUARD_HOME_URL")),
-		Username: firstNonEmpty(ctx.Flag("username"), os.Getenv("ADGUARD_HOME_USERNAME")),
-		CredentialRef: firstNonEmpty(ctx.Flag("credential-ref"), os.Getenv("ADGUARD_HOME_CREDENTIAL_REF")),
-		DryRun:   ctx.BoolFlag("dry-run"),
-	}
+	req := h.configureRequest(ctx)
 	resp, err := h.client.ConfigureAdGuardHome(context.Background(), connect.NewRequest(req))
 	if err != nil {
 		return cliapp.WrapAPIError("configure AdGuard Home", err, nil)
 	}
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{formatStatus(resp.Msg.GetStatus())}, Changes: resp.Msg.GetNextSteps()})
+}
+
+func (h handlers) configureRequest(ctx cliapp.RunContext) *resolverv1.ConfigureAdGuardHomeRequest {
+	return &resolverv1.ConfigureAdGuardHomeRequest{
+		BaseUrl:       firstNonEmpty(ctx.Flag("base-url"), h.Getenv("ADGUARD_HOME_BASE_URL"), h.Getenv("ADGUARD_HOME_URL")),
+		Username:      firstNonEmpty(ctx.Flag("username"), h.Getenv("ADGUARD_HOME_USERNAME")),
+		CredentialRef: firstNonEmpty(ctx.Flag("credential-ref"), h.Getenv("ADGUARD_HOME_CREDENTIAL_REF")),
+		DryRun:        ctx.BoolFlag("dry-run"),
+	}
 }
 
 func (h handlers) upstreams(ctx cliapp.RunContext) error {

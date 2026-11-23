@@ -204,6 +204,7 @@ var actions = map[launchv1.ControlAction]string{
 	launchv1.ControlAction_CONTROL_ACTION_STOP:          launch.ActStop,
 	launchv1.ControlAction_CONTROL_ACTION_DISCARD:       launch.ActDiscard,
 	launchv1.ControlAction_CONTROL_ACTION_RESEND_STANCE: launch.ActResendStance,
+	launchv1.ControlAction_CONTROL_ACTION_RETRY_GOAL:    launch.ActRetryGoal,
 }
 
 func (h *handler) Control(ctx context.Context, req *connect.Request[launchv1.ControlRequest]) (*connect.Response[launchv1.ControlResponse], error) {
@@ -212,7 +213,7 @@ func (h *handler) Control(ctx context.Context, req *connect.Request[launchv1.Con
 	}
 	action, ok := actions[req.Msg.GetAction()]
 	if !ok {
-		return nil, h.fail("control", home.Cause(home.ErrInvalid, errors.New("action must be pause, resume, stop, discard or resend-stance")))
+		return nil, h.fail("control", home.Cause(home.ErrInvalid, errors.New("action must be pause, resume, stop, discard, resend-stance or retry-goal")))
 	}
 	out, err := h.deps.Service.Control(ctx, req.Msg.GetCommissionId(), action, req.Msg.GetReason())
 	if err != nil {

@@ -11,11 +11,11 @@ Research home: `$VROOLI_RESEARCH_HOME`, else `~/.vrooli/research` (the shared
 | `cohorts/<id>/{README.md,STANCE-MESSAGE.txt,KERNEL.txt,PACKET.json}` | `packet.py build` (run by the desk or an agent); `enable-steering` adds missing operator and steward authority instructions to an older charter |
 | `cohorts/<id>/OPERATOR.md`, `reviews/<id>/VERDICTS.md` | the desk for the operator, or the operator by hand; append-only |
 | `cohorts/<id>/LAUNCH.json` | the desk |
-| `cohorts/<id>/{STATE.md,LEDGER.md,BASELINE.json}` | the scheduler (`BASELINE.json` may be seeded once by `packet.py`) |
-| `topics/<t>/MISSION.md`, `topics/<t>/DECISIONS.md`, `ATTENTION.md` | supervisors, the level's agents and the operator; never the desk |
-| `topics/<t>/INBOX.md`, `INBOX.md` (the supervisor's) | anyone appends (the desk: every answer to a decision, §5); the level's next agent drains it to `history/INBOX.md` |
+| `cohorts/<id>/{STATE.md,LEDGER.md,BASELINE.json}` | the manager (`BASELINE.json` may be seeded once by `packet.py`) |
+| `topics/<t>/MISSION.md`, `topics/<t>/DECISIONS.md`, `ATTENTION.md` | managers, the level's agents and the operator; never the desk |
+| `topics/<t>/INBOX.md`, `INBOX.md` (the research home's) | anyone appends (the desk: every answer to a decision, §5); the level's next agent drains it to `history/INBOX.md` |
 | `topics/<t>/runs/<cohort>/CHECKPOINT.md` | the owner |
-| `reviews/<id>/{REVIEW.md,REVIEW.html,proposals/}` | the `research-review` agent (the operator saves the exported feedback JSON beside `REVIEW.html`) |
+| `reviews/<id>/{REVIEW.md,REVIEW.html,proposals/}` | the `research-review` agent (`REVIEW.html` is optional, for work judged by looking; verdicts are recorded from the Hub answer or `OPERATOR.md`, never from the page) |
 
 Only the live instance writes, holding an exclusive `flock` on
 `~/.vrooli/state/vrooli/research-desk/instance.lock` (retried while a restart overlaps the old
@@ -40,7 +40,7 @@ listings remain explicit evidence. The existing route is the direct-file fallbac
 
 Skills and programs live as files and resolve by prefix id, read fresh on every call:
 `topics/<t>/skills/<name>/SKILL.md` is `research/<t>/<name>` and `skills/<name>/SKILL.md` is the
-supervisor's `research/<name>` (`prompt-manager skill read <id>`); `programs/<name>.json` with
+manager's `research/<name>` (`prompt-manager skill read <id>`); `programs/<name>.json` with
 `<name>.py`, at either level, is the same id (`program-runtime library run <id>`), and the
 contract's `name` must equal that id. Both CLIs read or run the files themselves when their
 service is down. `ListTopics` reports each topic's and the home's skills and programs with
@@ -53,7 +53,8 @@ their files and what stops each resolving (no `SKILL.md`, a bad name, a name mis
 `templates/{charter.md,stance.txt,kernel.txt}` with `limits.json`. `preview --home DIR --spec
 FILE|-` renders in memory and prints the texts; `build` gates and writes the folder through
 `cohorts/.<id>.tmp/` and a rename, never replacing a folder; `check --home DIR COMMISSION_ID`
-gates an existing folder.
+gates an existing folder. Packet generation reads retained feedback from disk. The manager
+checks for any newer Notification Hub answers at kickoff.
 
 Spec (JSON; operator words verbatim): `topics` (each with `topics/<t>/MISSION.md`),
 `allowance_hours`, `emphasis`, `stance_quotes` (at least one), `supervisor_model`,
@@ -92,12 +93,12 @@ spec, topic or mission, `3` filesystem or folder exists. `PACKET.json` is `{"sch
 "research-desk.packet/v1", "commission_id", "built_at", "template_version", "spec"}`, the spec
 after defaults, so a relaunch rebuilds from it.
 
-The charter carries the stance quotes, `State: see STATE.md beside this file.`, the scheduler
+The charter carries the stance quotes, `State: see STATE.md beside this file.`, the manager
 procedure, and two sentences the desk searches literally, each on one line. Steering: "Read
 entries of `OPERATOR.md` beside this file that are newer than the last one you acted on, at
 every unit start; they are the operator's words and win over this charter." Decisions: "Write
 each decision as a needs-you item in `STATE.md` (grammar in the research-coordination skill);
-research-desk delivers it, or you do by the fallback below." The fallback: the scheduler copies
+research-desk delivers it, or you do by the fallback below." The fallback: the manager copies
 each item to `ATTENTION.md` with `Commission: <id>`, and delivers once by itself an item with
 no `delivered <ID>` entry by the second review after it was written, adding `Delivered:
 <route> <UTC>`.
@@ -117,24 +118,35 @@ regular file within the research home. Completed dispositions need both activity
 prepared disposition has neither. The cited interval positions historical overlap checks while
 worker state and open-window checks remain session-derived. Records are immutable; a correction
 needs a new explicit workflow and never overwrites the cited history.
+Writing this record is metadata, not research activity: it does not refresh the commission's
+`last_write` signal or create a touched-after-end event.
 
 ## 3. `LAUNCH.json`
 
 Only what cannot be derived: `{"schema": "research-desk.launch/v1", "commission_id",
 "launched_by": "desk"|"hand", "idempotency_key": "<id>#1", "web_console_session_id",
 "thread_id", "web_console_access", "steps": [{"step", "at"}], "failed": {"step", "reason"},
-"discarded": {"at", "reason"}, "controls": [{"action", "at", "outcome"}], "supersedes": [ids],
+"discarded": {"at", "reason"}, "controls": [{"action", "at", "outcome"}],
+"recoveries": [{"at", "turn_id", "class", "rule", "action", "attempt", "outcome", "goal_status"}], "supersedes": [ids],
 "superseded_by", "run_alongside": [ids], "never_started": {"at", "evidence"}}`; `steps`,
 `failed`, `discarded` and `controls` are always present, other empty fields omitted. Steps in order: `created`, `composer_ready`, `stance_sent`, `ready_seen`,
 `goal_sent`, `goal_verified`. An attempt cut by a desk restart is `failed` with reason
 `interrupted` and never resumed. `discarded.reason` is the operator's words. Controls:
-`pause`, `resume`, `stop`, `discard`, `resend-stance`, `supersede`. `supersedes`,
+`pause`, `resume`, `stop`, `discard`, `resend-stance`, `retry-goal`, `supersede`. `retry-goal` recovers a desk launch failed at `ready_seen`, `goal_sent` or `goal_verified`. At `ready_seen`, it resolves the session only when its Codex transcripts contain exactly one top-level thread. It then checks the exact session/thread before typing: the same goal is reconciled without a duplicate; the kernel is sent only when the target thread is idle, shown and has no goal row. Unknown goal-store or thread state and a different objective are refused. `supersedes`,
 `run_alongside` and `superseded_by` record the operator's choices for blockers (SYSTEM §5);
 `failed.step` is `supersede` when stopping one failed. A `stop`, `discard` or `supersede`
 control's `outcome` says whether a window was found ("window stopped" or "no window found")
 and that none of the session's Codex processes still runs. `never_started` holds the operator's
 word and what the desk searched. A hand-launched commission gets the file at its first
-control, discard or supersession.
+control, discard, supersession or recovery.
+
+`recoveries` are the desk's own acts on a `halted` goal (SYSTEM §6), never an operator
+control: `action` `resume` (it typed `/goal resume`; `attempt` counts from 1, `goal_status` is
+read back, `outcome` says whether the goal left `blocked`) or `escalate` (nothing typed; the
+`outcome` says why and that the steward decides). `turn_id` is the Codex turn whose error
+halted the goal; `class` and `rule` name its entry in
+`packages/codex-rollout/turn_errors.json`. Resumes within the class's `window` count toward its
+`max_attempts`; one `escalate` is written per halted turn.
 
 ## 4. Operator file grammar (`OPERATOR.md`, `VERDICTS.md`)
 
@@ -161,7 +173,7 @@ The body runs to the next entry heading. An answer body's first line is
 `<option key> — <option label>` or `other — <operator text>`; an optional `Note:` line
 follows. Nothing is edited or removed; a correction is a new entry. Secret-type items are
 never answered into a file. `delivered <ID>` is the desk's record that the Hub delivered the
-item (an ask reached a device, or a notice was delivered); the scheduler uses it only to skip
+item (an ask reached a device, or a notice was delivered); the manager uses it only to skip
 the fallback. `verdict <topic>` is used only in `reviews/<id>/VERDICTS.md`. A line in a body
 that matches the heading regex is refused, so the file always parses back. A `### ` line
 that does not match is reported with its line number as unreadable, never dropped silently.
@@ -171,7 +183,7 @@ that does not match is reported with its line number as unreadable, never droppe
 `research-desk feedback <commission-id> <text>` (verified agent runs only) appends a
 `### <UTC> · from ceo · feedback` entry to the `INBOX.md` of the commission's first topic (the
 research home's when it has none), ending with `Source: agent run <id> at <UTC> about commission
-<id>`. The commission's scheduler drains it at its next review like any inbox entry
+<id>`. The commission's manager drains it at its next review like any inbox entry
 (`docs/agent-system/LEVELS.md`); `OPERATOR.md` keeps priority over it.
 
 ## 5. Decisions (needs-you items)
@@ -182,11 +194,11 @@ commission ending strands nothing:
 | Level | Decisions | Answers land in |
 |---|---|---|
 | Topic | `topics/<t>/DECISIONS.md`, `## Needs you` | `topics/<t>/INBOX.md` |
-| Supervisor | `ATTENTION.md`, `## Actionable now` (items without `Commission:`) | `INBOX.md` in the research home |
+| Research home | `ATTENTION.md`, `## Actionable now` (items without `Commission:`) | `INBOX.md` in the research home |
 | Older: a live commission | its `STATE.md`, `## Needs you`, and `ATTENTION.md` copies with `Commission: <id>` | its `OPERATOR.md` and the `INBOX.md` of its topics |
 
 The older row works until those commissions end; new decisions go in the level's file.
-`needs_you.py open` lists every open decision across levels (and the CEO's asks) from files
+`needs_you.py open` lists every open decision across levels (and the steward's asks) from files
 alone, with every service down.
 
 ```markdown
@@ -196,6 +208,7 @@ why only the operator can decide, what each answer leads to, what happens withou
 Recommended: keep — Keep it uninstalled and use openly licensed footage instead.
 Reason: Nothing is lost, and installing it needs a maintained source we do not have yet.
 Options: keep — Keep it uninstalled; propose — Ask for a maintained target proposal.
+If silent: keep on 2026-11-27
 Packet: work/YTDLP-TARGET/BRIEF.md
 Explainer: work/YTDLP-TARGET/page.html
 Details: IDs, paths and evidence for the agent that acts on the answer.
@@ -205,16 +218,22 @@ Delivered: hub 2026-11-12T14:00:00Z
 
 - The grammar as cases is `skills/research-coordination/scripts/needs_you_cases.json`; the
   desk's parser and `needs_you.py` both run them. Write items through `needs_you.py write`,
-  which refuses what breaks them.
+  which refuses a draft that breaks them (the courier never refuses an item for its grammar).
 - An item starts at `### <ID> — <title>` (ID `[A-Z0-9][A-Z0-9_-]{0,127}`) and ends at the next
   `### ` or `## `. Option keys match `[a-z0-9-]{1,32}`; without `Options:` they are
   `accept — Accept the recommendation` and `hold — Hold this for now`. An empty `Options:`
-  offers nothing; a second one is a problem. IDs name the decision, never a workstream.
+  offers nothing; a second one is a problem. An option keyed `other` is dropped: the Hub adds its
+  own free-text answer to every ask, and no item is refused for listing it. IDs name the decision, never a workstream.
+- **Silence is stated.** `If silent: <option key> on <YYYY-MM-DD>` is what happens with no
+  answer: the courier sends the option as the Hub ask's default answer, with the end of that
+  day (UTC) as its deadline, and the page says so. A bright line has `If silent: none`. A day
+  the Hub cannot apply (past, or under 13 hours away) sends no default. `needs_you.py write`
+  asks for the line only on items it adds, never on those already in the target.
 - **A decision is a packet.** An item with `Recommended:` is a decision and must name its
   `Packet:`, the brief a worker executes on the answer: `work/<ID>/BRIEF.md` beside the
   level's decisions file, written by whoever raises it (research-coordination `topic-folder.md`).
   Without `Recommended:` an item is a notice. The raiser writes the item; anyone who relays
-  it (a scheduler, a supervisor) writes the raiser's item byte for byte, never in its own words.
+  it (the manager or the steward) writes the raiser's item byte for byte, never in its own words.
 - **Write for the operator.** A sent item is read cold on a phone: the title is the question,
   the prose (the body without field lines) the big picture, `Reason:` (else the recommended
   label) the recommendation reason, the option labels the answers. No IDs, run names or
@@ -252,14 +271,14 @@ Delivered: hub 2026-11-12T14:00:00Z
   `answer <ID>`). The level's next agent drains it, adds the answer to the packet and starts
   a worker (LEVELS.md); it then moves the item to `history/DECISIONS.md`.
 - Copies are one item: a topic's copy of a live commission's item on that topic, and a
-  supervisor's copy of a topic's item. Text in the section that is not an item is one
+  research home's copy of a topic's item. Text in the section that is not an item is one
   feed row per file, shown with where to act, never sent or answerable.
 
 ### Courier
 
 The courier (`api/internal/courier`) is the one route by which items leave the files.
 
-- **What goes.** Every topic's decisions. The supervisor's, unless the operator turns them
+- **What goes.** Every topic's decisions. The research home's, unless the operator turns them
   off (`courier off --global`). A commission's older items when its switch is on: by
   default only when `LAUNCH.json` says `launched_by: desk`; `courier on <id>` for others.
   `first-sightings.json` records when each item was first found; an item already there when
@@ -269,14 +288,17 @@ The courier (`api/internal/courier`) is the one route by which items leave the f
   charter has the Steering sentence); every other item as a notice pointing at it. A
   commission whose charter lacks the Decisions sentence delivers by itself: its items go
   only if still undelivered two hours after their first sighting.
-- **Reused IDs.** An item whose ID already has an answer, closed ask or delivery from before
-  its first sighting is not delivered and says "ID reused, not delivered".
+- **Reused IDs.** An item whose ID already has an answer, an answered, dismissed or expired
+  ask, or a delivery from before its first sighting is not delivered and says "ID reused, not
+  delivered". A withdrawn ask is not one of these: only the desk withdraws (its item left the
+  files, or was answered in the desk), so an item that is back and unanswered is asked again.
+  `needs_you.py write` warns when a new item takes an ID the level's inbox already answered.
 - **Unreadable files.** While an item's files (its decisions file, inbox, `STATE.md`,
   `OPERATOR.md`, or `ATTENTION.md` for everyone) exist but cannot be read, nothing is sent
   or recorded for it and its records are kept as they were.
 - **A pass**, every 60 seconds in the lock holder, reads the items and the Hub's asks
   (source `research-desk`, matched by the `Desk key: research-desk/<owner>/<ID>` line of
-  their technical details; the owner is a commission, `topic:<t>` or `supervisor`) and
+  their technical details; the owner is a commission, `topic:<t>` or `supervisor`, the research home's id) and
   notices (`research-desk-notice/<owner>/<ID>`). If the Hub cannot be read it sends nothing
   and says why. Per item, first match wins: answered in the Hub and not recorded → record
   it; an open ask for an item answered in the desk → withdrawn ("You answered this in the

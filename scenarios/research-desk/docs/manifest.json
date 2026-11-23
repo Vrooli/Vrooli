@@ -323,7 +323,7 @@
           ],
           "completion": "required",
           "ownerSkills": [
-            "screaming-architecture-audit"
+            "architecture-lenses"
           ],
           "validation": {
             "requiredHeadings": [
@@ -364,7 +364,7 @@
           ],
           "completion": "required",
           "ownerSkills": [
-            "screaming-architecture-audit"
+            "architecture-lenses"
           ],
           "validation": {
             "requiredHeadings": [
@@ -791,8 +791,7 @@
           ],
           "completion": "required",
           "ownerSkills": [
-            "seam-discovery-and-enforcement",
-            "screaming-architecture-audit"
+            "architecture-lenses"
           ],
           "validation": {
             "requiredHeadings": [
@@ -824,7 +823,7 @@
           ],
           "completion": "required",
           "ownerSkills": [
-            "error-semantics-recovery-path-design"
+            "resilience-lenses"
           ],
           "validation": {
             "requiredHeadings": [

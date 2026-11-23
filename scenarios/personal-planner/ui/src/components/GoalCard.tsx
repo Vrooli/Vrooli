@@ -6,7 +6,7 @@ import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { Input } from "@vrooli/react-component-library/Input/1";
 import { Select } from "@vrooli/react-component-library/Select/1";
 import { FormField } from "@vrooli/react-component-library/FormField/1";
-import { Slider } from "@vrooli/react-component-library/Slider/1.2.4";
+import { Slider } from "@vrooli/react-component-library/Slider/1.2.7";
 import type { Goal, Milestone } from "@vrooli/proto-types/personal-planner/v1/goals/goals_pb";
 
 import { completeMilestone, createMilestone, fetchGoalTargetDateHistory, fetchMilestones, updateGoalTargetDate, type PlannerGoal } from "../api/goals";

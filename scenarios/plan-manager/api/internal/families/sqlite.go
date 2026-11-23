@@ -8,15 +8,13 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/vrooli/api-core/database"
 	familiesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/families"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-type SQLExecutor interface {
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
-	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-}
+// SQLExecutor aliases API Core's shared repository contract.
+type SQLExecutor = database.SQLExecutor
 
 type sqliteRepository struct{ db SQLExecutor }
 

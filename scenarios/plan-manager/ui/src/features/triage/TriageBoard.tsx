@@ -3,7 +3,7 @@ import { Check, X } from "lucide-react";
 
 import { listEntries, promoteEntry, updateEntry } from "../../api/log";
 import { AsyncBoundary } from "../../components/AsyncBoundary";
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { formatDate } from "../../i18n/format";
@@ -12,6 +12,7 @@ import {
   FindingTriage,
   LogEntryType,
 } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
+import { cn } from "../../lib/utils";
 
 const triageKeys = {
   candidates: ["triage", "candidates"] as const,
@@ -85,6 +86,7 @@ export function TriageBoard() {
                 data-testid={selectors.triage.promote({ id: finding.id })}
                 disabled={triage.isPending}
                 onClick={() => triage.mutate({ id: finding.id, decision: FindingTriage.PROMOTED })}
+                shape="square"
               >
                 <Check aria-hidden="true" className="me-1.5 h-4 w-4" />
                 {t(strings.pages.triage.promote)}
@@ -92,10 +94,12 @@ export function TriageBoard() {
               <Button
                 type="button"
                 size="sm"
-                variant="outline"
+                variant="ghost"
                 data-testid={selectors.triage.dismiss({ id: finding.id })}
                 disabled={triage.isPending}
                 onClick={() => triage.mutate({ id: finding.id, decision: FindingTriage.DISMISSED })}
+                shape="square"
+                className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
               >
                 <X aria-hidden="true" className="me-1.5 h-4 w-4" />
                 {t(strings.pages.triage.dismiss)}

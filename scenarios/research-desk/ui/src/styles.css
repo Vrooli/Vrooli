@@ -42,8 +42,6 @@ body {
 .rd-warn-line { display: flex; flex-wrap: wrap; align-items: center; column-gap: var(--space-xs); margin: 0; padding: 0 var(--space-xs); border-inline-start: 3px solid var(--color-warning); background: var(--color-warning-subtle); border-radius: var(--radius-control); font: var(--text-body-sm); }
 .rd-warn-line > .rd-more { min-block-size: 44px; }
 /* Characters used against the entry limit; past it, the counter turns to the danger colour and says what to do. */
-.rd-count { font: var(--text-caption); color: var(--color-muted-foreground); text-align: end; }
-.rd-count-over { color: var(--color-danger); text-align: start; }
 .rd-back, .rd-more { display: inline-flex; align-items: center; min-block-size: 44px; color: var(--color-primary); font: var(--text-label); text-decoration: none; }
 .rd-back::before { content: "‹"; margin-inline-end: var(--space-3xs); font-size: 1.25em; }
 .rd-more::after { content: "›"; margin-inline-start: var(--space-3xs); font-size: 1.25em; }
@@ -78,17 +76,7 @@ a.rd-chip:hover { background: color-mix(in srgb, var(--color-primary) 12%, var(-
 .rd-stat-value { font: var(--text-heading-lg); font-variant-numeric: tabular-nums; }
 
 /* Facts: label over value on a phone, side by side when there is room. */
-.rd-facts { display: grid; gap: var(--space-xs); margin: 0; min-inline-size: 0; }
-.rd-fact { display: grid; gap: var(--space-4xs); min-inline-size: 0; }
-.rd-fact dt { font: var(--text-label); }
-.rd-fact dd { margin: 0; overflow-wrap: anywhere; }
-@media (min-width: 48rem) {
-  .rd-fact { grid-template-columns: 11rem minmax(0, 1fr); gap: var(--space-sm); }
-}
-.rd-why { min-block-size: 44px; min-inline-size: 44px; margin-inline-start: var(--space-2xs); padding: 0 var(--space-2xs); border: 0; background: none; color: var(--color-primary); font: var(--text-label); cursor: pointer; }
-.rd-why:hover { text-decoration: underline; }
 .rd-evidence { display: flex; flex-direction: column; gap: var(--space-2xs); margin: var(--space-3xs) 0 0; padding: var(--space-xs); list-style: none; border-radius: var(--radius-control); background: var(--color-surface-muted); font: var(--text-body-sm); }
-.rd-unknown { color: var(--color-muted-foreground); font-style: italic; }
 .rd-claim { font-style: italic; }
 .rd-claim::before, .rd-claim::after { content: none; }
 .rd-claim { quotes: "“" "”"; }

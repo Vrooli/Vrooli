@@ -1,3 +1,4 @@
+import { Alert } from "@vrooli/react-component-library/Alert/1";
 import { Link } from "react-router-dom";
 
 import { ChangeSubject, MatchKind, type GetCommissionResponse } from "../../api/activity";
@@ -19,8 +20,20 @@ export function StatusPanel({ data }: { data: GetCommissionResponse }) {
     const d = toDate(value);
     return d ? <When date={d} /> : <Unknown />;
   };
+  const halt = c.halt;
   return (
     <div className="flex flex-col gap-space-lg">
+      {halt ? (
+        <Alert
+          tone={halt.recoveryAction === "resume" ? "warning" : "danger"}
+          title={t(strings.commission.haltTitle, { class: halt.errorClass })}
+          description={
+            halt.recoveryAction === "resume"
+              ? t(strings.commission.haltResume, { attempt: halt.attempts + 1, max: halt.maxAttempts, due: toDate(halt.nextAttemptAt)?.toLocaleTimeString() ?? "" })
+              : t(strings.commission.haltEscalated, { why: halt.escalation })
+          }
+        />
+      ) : null}
       <Facts>
         <Fact label={t(strings.commission.state)} evidence={c.stateEvidence}>
           {c.stateRule || <Unknown />}
@@ -48,6 +61,18 @@ export function StatusPanel({ data }: { data: GetCommissionResponse }) {
           <Fact label={t(strings.commission.touchedAfterEndLabel)} evidence={c.touchedAfterEnd.evidence}>
             {time(c.touchedAfterEnd.value)} {t(strings.commission.touchedNote)}
           </Fact>
+        ) : null}
+        {halt ? (
+          <>
+            <Fact label={t(strings.commission.haltMessage)}>
+              <q className="rd-claim">{halt.message}</q> {time(halt.at)}
+            </Fact>
+            <Fact label={t(strings.commission.haltMeaning)}>{halt.meaning}</Fact>
+            {halt.lastOutcome ? <Fact label={t(strings.commission.haltLast)}>{halt.lastOutcome}</Fact> : null}
+            <Fact label={t(strings.commission.haltSource)}>
+              <PathText path={halt.source} />
+            </Fact>
+          </>
         ) : null}
         <Fact label={t(strings.commission.claim)} evidence={c.claim?.evidence}>
           {c.claim?.value ? <q className="rd-claim">{c.claim.value}</q> : <Unknown />}

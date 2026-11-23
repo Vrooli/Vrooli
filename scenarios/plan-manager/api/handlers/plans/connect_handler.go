@@ -26,7 +26,10 @@ func (h *connectHandler) recordFact(ctx context.Context, action string, plan int
 	if h.deps.Audit == nil {
 		return
 	}
-	eventID := plan.ID + ":" + action + ":" + plan.UpdatedAt
+	// UpdatedAt can collide for two mutations when the injected clock repeats a
+	// timestamp. Include the resulting content identity so a later committed
+	// plan state does not get dropped as an idempotent duplicate.
+	eventID := plan.ID + ":" + action + ":" + plan.UpdatedAt + ":" + plan.ContentHash
 	if err := h.deps.Audit.RecordVerifiedFact(ctx, action, plan.ID, plan.ContentHash, eventID, parseAuditTime(plan.UpdatedAt)); err != nil {
 		h.deps.Logger.Printf("plan audit fact not recorded after committed mutation: %v", err)
 	}

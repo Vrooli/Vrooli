@@ -182,7 +182,7 @@ Use this shape so entries are scannable. Append newest at the bottom.
 Operator observed a gray Nooch card on TV. Applied icon-192.png is 591 bytes, SHA256 8a251d975c3484cfc7d6eebb35b2e28360f6f4cdcf18502d2f642b73aad7b602; logo.svg explicitly says Placeholder logo. Running UI serves the same PNG. No approved Nooch mark found in Brand Manager; AppShell uses text wordmark. Portal suppresses explicit template artwork and uses a wordmark card. Owner: nutrition-planner branding through Brand Manager. Apply an approved mark through that owner. The operator chose the existing Nooch wordmark for now in the active conversation. This is a known-owner branding gap, not a native decoding fault.
 ## Architecture Drift
 
-Use this section for deferred findings from `screaming-architecture-audit`.
+Use this section for deferred findings from `architecture-lenses`.
 Do not create a standalone architecture-audit report unless the work is
 a migration handoff with a planned retirement path back into
 `ARCHITECTURE.md`, `SEAMS.md`, or this file.
