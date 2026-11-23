@@ -7,6 +7,7 @@ import (
 	"data-tools/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/clioutput"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
@@ -45,7 +46,7 @@ func runDocs(core *cliapp.ScenarioApp, args []string) error {
 	report := cliapp.ListReport{
 		Summary:        []string{"Data Tools API documentation"},
 		ResultsHeading: "Fields",
-		Results:        support.MapRows(payload),
+		Results:        clioutput.MapRows(payload),
 		RetrievalHints: []string{fmt.Sprintf("%s docs --json", support.CLIName)},
 	}
 	if *jsonOutput {

@@ -16,11 +16,7 @@ import (
 )
 
 func TestSQLLPBSReleaseConfigRepository(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
+	db, mock := newSQLMock(t)
 	repo := NewSQLLPBSReleaseConfigRepository(db)
 	ctx := context.Background()
 	query := regexp.QuoteMeta("SELECT profile_id, lpbs_domain, lpbs_remote_profile, lpbs_app_key")

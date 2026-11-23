@@ -10,7 +10,7 @@ import (
 
 // ManifestSource exposes the manifest-domain methods the staleness
 // derivation needs. Declared here (consumer-owned) per
-// seam-discovery-and-enforcement.
+// architecture-lenses.
 //
 // seam: ManifestSource
 type ManifestSource interface {

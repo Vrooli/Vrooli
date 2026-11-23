@@ -44,6 +44,47 @@ func TestCameraManifestValidatesPortraitAndLandscapeProfiles(t *testing.T) {
 	}
 }
 
+func TestLayeredParallaxManifestRequiresExactSourceGeometryAndBoundedOverscan(t *testing.T) {
+	manifest := validManualLandscapeVideoManifest()
+	manifest.VideoProfile = VideoLayeredParallaxProfileID
+	manifest.CompositorProfile = VideoLayeredParallaxCompositorID
+	manifest.Scene.PlateWidth, manifest.Scene.PlateHeight = 1920, 1080
+	manifest.LayeredParallax = &LayeredParallax{ProfileVersion: 1, DurationOutputFrames: 72, OverscanPixels: 40, TravelXPixels: 28}
+	manifest.Scene.Layers = []VideoParallaxLayer{
+		{Image: VideoBinding{Name: "front.png", SHA256: strings.Repeat("b", 64), SizeBytes: 100}, Mask: VideoBinding{Name: "front-mask.png", SHA256: strings.Repeat("c", 64), SizeBytes: 100}, DepthBasis: 1000},
+		{Image: VideoBinding{Name: "mid.png", SHA256: strings.Repeat("d", 64), SizeBytes: 100}, Mask: VideoBinding{Name: "mid-mask.png", SHA256: strings.Repeat("e", 64), SizeBytes: 100}, DepthBasis: 500},
+	}
+	if err := ValidateVideoManifest(manifest); err != nil {
+		t.Fatalf("valid layered parallax manifest rejected: %v", err)
+	}
+	firstTimingDigest := VideoTimingDigest(manifest)
+	changedLayer := manifest
+	changedLayer.Scene.Layers = append([]VideoParallaxLayer(nil), manifest.Scene.Layers...)
+	changedLayer.Scene.Layers[0].Image.SHA256 = strings.Repeat("f", 64)
+	if VideoTimingDigest(changedLayer) == firstTimingDigest {
+		t.Fatal("parallax timing receipt identity omitted the layer content digest")
+	}
+	fixed := validManualLandscapeVideoManifest()
+	fixed.Scene.Layers = append([]VideoParallaxLayer(nil), manifest.Scene.Layers...)
+	if err := ValidateVideoManifest(fixed); err == nil {
+		t.Fatal("fixed profile accepted layered parallax inputs without the explicit motion profile")
+	}
+
+	bad := manifest
+	copyLayers := append([]VideoParallaxLayer(nil), manifest.Scene.Layers...)
+	bad.Scene.Layers = copyLayers
+	bad.LayeredParallax = &LayeredParallax{ProfileVersion: 1, DurationOutputFrames: 72, OverscanPixels: 40, TravelXPixels: 30, TravelYPixels: 30}
+	if err := ValidateVideoManifest(bad); err == nil {
+		t.Fatal("diagonal travel exceeding overscan was accepted")
+	}
+
+	bad = manifest
+	bad.LayeredParallax = &LayeredParallax{ProfileVersion: 1, DurationOutputFrames: 121, OverscanPixels: 40, TravelXPixels: 1}
+	if err := ValidateVideoManifest(bad); err == nil {
+		t.Fatal("motion longer than the bounded profile was accepted")
+	}
+}
+
 func TestScreenEntryFitsThreeByTwoPhonePlateAndKeepsActiveViewportTarget(t *testing.T) {
 	m := cameraSampleManifest(1920, 1080, 1536, 1024, [4]Corner{{512, 128}, {1024, 128}, {1024, 896}, {512, 896}})
 	startPTS, endPTS := m.TrimStartPTS, m.TrimEndPTS
@@ -137,8 +178,8 @@ func TestCameraPathAdvancesByOutputOrdinalWhenVFRSourceFrameRepeats(t *testing.T
 		t.Fatalf("test clock did not repeat the first source frame: %+v", plan)
 	}
 	path := videoCameraPath{
-		from:   [4]composition.Point{{5, 5}, {25, 5}, {25, 45}, {5, 45}},
-		target: [4]composition.Point{{20, 10}, {40, 10}, {40, 50}, {20, 50}}, duration: 3,
+		from:   [4]composition.Point{{X: 5, Y: 5}, {X: 25, Y: 5}, {X: 25, Y: 45}, {X: 5, Y: 45}},
+		target: [4]composition.Point{{X: 20, Y: 10}, {X: 40, Y: 10}, {X: 40, Y: 50}, {X: 20, Y: 50}}, duration: 3,
 	}
 	first, next := path.quad(0), path.quad(1)
 	if first == next || first != path.from {
@@ -151,13 +192,13 @@ func TestCameraPathAdvancesByOutputOrdinalWhenVFRSourceFrameRepeats(t *testing.T
 
 func TestCameraPreflightRejectsWarpThatCrossesOutputHorizon(t *testing.T) {
 	raster := image.Pt(100, 100)
-	from := [4]composition.Point{{40, 40}, {60, 40}, {60, 60}, {40, 60}}
+	from := [4]composition.Point{{X: 40, Y: 40}, {X: 60, Y: 40}, {X: 60, Y: 60}, {X: 40, Y: 60}}
 	candidates := [][4]composition.Point{
-		{{40, 0}, {60, 0}, {100, 100}, {0, 100}},
-		{{45, 45}, {55, 45}, {100, 100}, {0, 100}},
-		{{0, 0}, {100, 0}, {60, 100}, {40, 100}},
-		{{0, 0}, {10, 0}, {80, 80}, {0, 80}},
-		{{0, 0}, {100, 0}, {100, 10}, {0, 90}},
+		{{X: 40, Y: 0}, {X: 60, Y: 0}, {X: 100, Y: 100}, {X: 0, Y: 100}},
+		{{X: 45, Y: 45}, {X: 55, Y: 45}, {X: 100, Y: 100}, {X: 0, Y: 100}},
+		{{X: 0, Y: 0}, {X: 100, Y: 0}, {X: 60, Y: 100}, {X: 40, Y: 100}},
+		{{X: 0, Y: 0}, {X: 10, Y: 0}, {X: 80, Y: 80}, {X: 0, Y: 80}},
+		{{X: 0, Y: 0}, {X: 100, Y: 0}, {X: 100, Y: 10}, {X: 0, Y: 90}},
 	}
 	for _, to := range candidates {
 		if err := composition.ValidateProjectiveWarp(raster, from, to); err != nil && strings.Contains(err.Error(), "horizon") {
@@ -271,7 +312,7 @@ func TestScreenEntryDestinationContainsWholeViewportAndHolds(t *testing.T) {
 }
 
 func TestScreenEntryDestinationRejectsInvalidBounds(t *testing.T) {
-	for _, r := range []presentations.BasisRect{{0, 0, 0, 10000}, {0, 0, 10000, 0}, {-1, 0, 10000, 10000}, {0, -1, 10000, 10000}, {1, 0, 10000, 10000}, {0, 1, 10000, 10000}, {0, 0, 10001, 10000}, {10001, 0, 1, 1}} {
+	for _, r := range []presentations.BasisRect{{X: 0, Y: 0, Width: 0, Height: 10000}, {X: 0, Y: 0, Width: 10000, Height: 0}, {X: -1, Y: 0, Width: 10000, Height: 10000}, {X: 0, Y: -1, Width: 10000, Height: 10000}, {X: 1, Y: 0, Width: 10000, Height: 10000}, {X: 0, Y: 1, Width: 10000, Height: 10000}, {X: 0, Y: 0, Width: 10001, Height: 10000}, {X: 10001, Y: 0, Width: 1, Height: 1}} {
 		m := cameraSampleManifest(1920, 1080, 1920, 1080, [4]Corner{{720, 80}, {1200, 80}, {1200, 1040}, {720, 1040}})
 		m.Camera.TargetRect = &r
 		if err := ValidateVideoManifest(m); err == nil {

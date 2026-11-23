@@ -497,11 +497,11 @@ func (t *Transformer) compareValues(fieldValue interface{}, strValue string) int
 	switch v := fieldValue.(type) {
 	case int:
 		if intVal, err := parseInt(strValue); err == nil {
-			return compareInt(v, intVal)
+			return compareOrdered(v, intVal)
 		}
 	case float64:
 		if floatVal, err := parseFloat(strValue); err == nil {
-			return compareFloat(v, floatVal)
+			return compareOrdered(v, floatVal)
 		}
 	case string:
 		return strings.Compare(v, strValue)
@@ -516,11 +516,11 @@ func (t *Transformer) compare(a, b interface{}) int {
 	switch va := a.(type) {
 	case int:
 		if vb, ok := b.(int); ok {
-			return compareInt(va, vb)
+			return compareOrdered(va, vb)
 		}
 	case float64:
 		if vb, ok := b.(float64); ok {
-			return compareFloat(va, vb)
+			return compareOrdered(va, vb)
 		}
 	case string:
 		if vb, ok := b.(string); ok {
@@ -612,17 +612,11 @@ func parseFloat(s string) (float64, error) {
 	return f, err
 }
 
-func compareInt(a, b int) int {
-	if a < b {
-		return -1
-	}
-	if a > b {
-		return 1
-	}
-	return 0
+type orderedNumber interface {
+	~int | ~float64
 }
 
-func compareFloat(a, b float64) int {
+func compareOrdered[T orderedNumber](a, b T) int {
 	if a < b {
 		return -1
 	}

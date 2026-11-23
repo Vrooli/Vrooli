@@ -4,6 +4,7 @@ import (
 	"bytes"
 	_ "embed"
 	"encoding/json"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -14,6 +15,8 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 	testutil "github.com/vrooli/cli-core/cliapptest"
+	devicesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/devices"
+	"google.golang.org/protobuf/proto"
 )
 
 // Embedding keeps this source-shape check valid when the governed runner
@@ -308,6 +311,55 @@ func TestCaptureCarriesRequiredAudio(t *testing.T) {
 	}
 	if received["require_audio"] != true {
 		t.Fatalf("request lost required audio: %+v", received)
+	}
+}
+
+func TestInspectSystemCommandCarriesLeaseActorAndTransport(t *testing.T) {
+	var received devicesv1.InspectSystemInventoryRequest
+	server := testutil.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasSuffix(r.URL.Path, "/InspectSystemInventory") {
+			t.Fatalf("unexpected Connect route %s", r.URL.Path)
+		}
+		requestBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := proto.Unmarshal(requestBytes, &received); err != nil {
+			t.Fatal(err)
+		}
+		responseBytes, err := proto.Marshal(&devicesv1.InspectSystemInventoryResponse{DeviceId: "phone-1", CpuLogicalCores: 8, InstalledPackages: []string{"com.example.app"}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		w.Header().Set("Content-Type", "application/proto")
+		_, _ = w.Write(responseBytes)
+	}))
+	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{Name: "device-control-test", Version: "test", DefaultAPIBase: server.URL, AllowAnonymous: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var inspect cliapp.Command
+	for _, candidate := range Group(core).Subcommands {
+		if candidate.Name == "inspect-system" {
+			inspect = candidate
+		}
+	}
+	if inspect.RunCtx == nil {
+		t.Fatal("inspect-system command handler missing")
+	}
+	var out bytes.Buffer
+	ctx, err := cliapp.NewTestRunContextFromArgs(inspect.Args, []string{"phone-1", "--lease", "lease-token", "--actor", "operator", "--transport", "wireless", "--json"}, core, &out, &out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := inspect.RunCtx(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if received.DeviceId != "phone-1" || received.LeaseToken != "lease-token" || received.Actor != "operator" || received.Transport != "wireless" {
+		t.Fatalf("inspection request lost lease scope: %+v", received)
+	}
+	if !strings.Contains(out.String(), "installed_packages") {
+		t.Fatalf("inventory output = %q, want parsed inventory fields", out.String())
 	}
 }
 

@@ -12,6 +12,8 @@ import (
 var (
 	// ErrNotFound indicates the requested profile does not exist.
 	ErrNotFound = errors.New("profile not found")
+	// ErrVersionConflict indicates that a profile changed after it was read.
+	ErrVersionConflict = errors.New("profile was updated by another request")
 )
 
 // Profile represents a deployment profile stored in the database.

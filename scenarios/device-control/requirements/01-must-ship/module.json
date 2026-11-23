@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirement stubs scaffolded from the P0 operational targets.",
-    "last_validated_at": "2026-11-02T13:46:29-05:00",
+    "last_validated_at": "2026-11-22T20:54:03-05:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -382,7 +382,7 @@
     {
       "id": "DVC-AGENT-REUSE",
       "title": "Validated reusable agent workflows and attributable effort",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-014",
       "criticality": "P0",
       "description": "Discover exact targets, validate candidate flows before promotion, preserve revision history during repair, and measure comparable user task effort without treating unknown outcomes as success.",
@@ -391,14 +391,14 @@
           "type": "test",
           "ref": "api/internal/control/library_test.go::TestValidatedFlowPersistsAndRepairPreservesChecks",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Behavioral regression passed; broader provider findings remain explicitly recorded in the progress log."
         },
         {
           "type": "test",
           "ref": "api/internal/control/program_contract_test.go::TestGovernedWorkflowPrograms",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     }

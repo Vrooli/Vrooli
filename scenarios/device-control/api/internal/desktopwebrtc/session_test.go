@@ -38,6 +38,31 @@ type blockingInputProvider struct {
 	entered, release chan struct{}
 }
 
+type orderedReleaseProvider struct {
+	fakeProvider
+	inputEntered  chan struct{}
+	inputFinish   chan struct{}
+	releaseStart  chan struct{}
+	releaseFinish chan struct{}
+}
+
+func (p *orderedReleaseProvider) ApplyInput(ctx context.Context, _ *desktopv1.InputRequest) error {
+	close(p.inputEntered)
+	select {
+	case <-p.inputFinish:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (p *orderedReleaseProvider) ReleaseHeld(context.Context) error {
+	close(p.releaseStart)
+	<-p.releaseFinish
+	p.fakeProvider.releases++
+	return nil
+}
+
 type blockingCaptureProvider struct {
 	fakeProvider
 	entered, release, finished chan struct{}
@@ -125,6 +150,112 @@ func TestManagerRefusesNotReadyAndRequiresExplicitDisplay(t *testing.T) {
 	p.ready = desktopv1.ReadinessState_READINESS_STATE_READY
 	if _, err := m.Open(context.Background(), &desktopv1.OpenSessionRequest{Surface: surface(), Control: true}); err != ErrInvalidCall {
 		t.Fatalf("missing display error = %v", err)
+	}
+}
+
+func TestManagerReleaseControlIsBoundedAndIdempotent(t *testing.T) {
+	p := &fakeProvider{ready: desktopv1.ReadinessState_READINESS_STATE_READY}
+	m := NewManager(p)
+	opened, err := m.Open(context.Background(), &desktopv1.OpenSessionRequest{Surface: surface(), DisplayId: "main", Control: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := &desktopv1.ReleaseControlRequest{Session: opened.Ref, LeaseId: opened.LeaseId, LeaseEpoch: opened.LeaseEpoch}
+	if _, err := m.ReleaseControl(context.Background(), &desktopv1.ReleaseControlRequest{Session: opened.Ref, LeaseId: "foreign", LeaseEpoch: opened.LeaseEpoch}); !errors.Is(err, ErrNotControl) {
+		t.Fatalf("foreign lease release error = %v", err)
+	}
+	if p.releases != 0 {
+		t.Fatalf("foreign release effects = %d", p.releases)
+	}
+	if _, err := m.ReleaseControl(context.Background(), &desktopv1.ReleaseControlRequest{Session: opened.Ref, LeaseId: opened.LeaseId, LeaseEpoch: opened.LeaseEpoch + 1}); !errors.Is(err, ErrStaleEpoch) {
+		t.Fatalf("stale lease release error = %v", err)
+	}
+	if p.releases != 0 {
+		t.Fatalf("stale release effects = %d", p.releases)
+	}
+	released, err := m.ReleaseControl(context.Background(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if released.Controller || released.LeaseEpoch != opened.LeaseEpoch+1 || p.releases != 1 {
+		t.Fatalf("release state = controller %v epoch %d effects %d", released.Controller, released.LeaseEpoch, p.releases)
+	}
+	retry, err := m.ReleaseControl(context.Background(), request)
+	if err != nil {
+		t.Fatalf("duplicate retry: %v", err)
+	}
+	if retry.Controller || retry.LeaseEpoch != released.LeaseEpoch || p.releases != 1 {
+		t.Fatalf("retry state = controller %v epoch %d effects %d", retry.Controller, retry.LeaseEpoch, p.releases)
+	}
+	if _, err := m.ReleaseControl(context.Background(), &desktopv1.ReleaseControlRequest{Session: opened.Ref, LeaseId: opened.LeaseId, LeaseEpoch: opened.LeaseEpoch + 1}); !errors.Is(err, ErrNotControl) {
+		t.Fatalf("stale completed binding error = %v", err)
+	}
+}
+
+func TestManagerReleaseControlDrainsActionsAndReleasesBeforeRevocation(t *testing.T) {
+	p := &orderedReleaseProvider{inputEntered: make(chan struct{}), inputFinish: make(chan struct{}), releaseStart: make(chan struct{}), releaseFinish: make(chan struct{})}
+	p.ready = desktopv1.ReadinessState_READINESS_STATE_READY
+	m := NewManager(p)
+	opened, err := m.Open(context.Background(), &desktopv1.OpenSessionRequest{Surface: surface(), DisplayId: "main", Control: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	inputDone := make(chan error, 1)
+	go func() {
+		_, err := m.Input(context.Background(), &desktopv1.InputRequest{Session: opened.Ref, LeaseId: opened.LeaseId, LeaseEpoch: opened.LeaseEpoch, DisplayId: "main", GeometryRevision: "geometry-1", CommandId: "in-flight"})
+		inputDone <- err
+	}()
+	<-p.inputEntered
+	type releaseResult struct {
+		session *desktopv1.DesktopSession
+		err     error
+	}
+	releaseDone := make(chan releaseResult, 1)
+	go func() {
+		s, err := m.ReleaseControl(context.Background(), &desktopv1.ReleaseControlRequest{Session: opened.Ref, LeaseId: opened.LeaseId, LeaseEpoch: opened.LeaseEpoch})
+		releaseDone <- releaseResult{s, err}
+	}()
+	deadline := time.Now().Add(time.Second)
+	for {
+		m.mu.Lock()
+		releasing := m.sessions[opened.Ref.GetSessionId()].releasing
+		m.mu.Unlock()
+		if releasing {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("release did not close the mutation gate")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	select {
+	case <-p.releaseStart:
+		t.Fatal("held input release began before the in-flight action completed")
+	default:
+	}
+	if _, err := m.Input(context.Background(), &desktopv1.InputRequest{Session: opened.Ref, LeaseId: opened.LeaseId, LeaseEpoch: opened.LeaseEpoch, DisplayId: "main", GeometryRevision: "geometry-1", CommandId: "after-release-start"}); !errors.Is(err, ErrNotControl) {
+		t.Fatalf("action accepted after release gate closed: %v", err)
+	}
+	close(p.inputFinish)
+	if err := <-inputDone; err != nil {
+		t.Fatal(err)
+	}
+	<-p.releaseStart
+	// While native held-input cleanup is running, controller authority is still
+	// recorded, but action requests remain fenced by the release gate.
+	m.mu.Lock()
+	controllerDuringRelease := m.sessions[opened.Ref.SessionId].session.Controller
+	m.mu.Unlock()
+	if !controllerDuringRelease {
+		t.Fatal("controller authority revoked before held input cleanup")
+	}
+	close(p.releaseFinish)
+	result := <-releaseDone
+	if result.err != nil {
+		t.Fatal(result.err)
+	}
+	if result.session.Controller || result.session.LeaseEpoch != opened.LeaseEpoch+1 || p.releases != 1 {
+		t.Fatalf("final state = controller %v epoch %d releases %d", result.session.Controller, result.session.LeaseEpoch, p.releases)
 	}
 }
 

@@ -26,6 +26,54 @@ type restorationRunner struct {
 	calls           []string
 }
 
+type screenRestoreRunner struct {
+	screenOn        bool
+	locked          bool
+	delaySleepReads int
+	powerReads      int
+	sleepPending    bool
+	calls           []string
+}
+
+func (r *screenRestoreRunner) Run(_ context.Context, name string, args ...string) ([]byte, error) {
+	call := strings.Join(append([]string{name}, args...), " ")
+	r.calls = append(r.calls, call)
+	switch {
+	case strings.Contains(call, "KEYCODE_SLEEP"):
+		if r.delaySleepReads > 0 {
+			r.sleepPending = true
+		} else {
+			r.screenOn = false
+		}
+	case strings.Contains(call, "KEYCODE_WAKEUP"):
+		r.screenOn = true
+	case strings.Contains(call, "KEYCODE_POWER"):
+		r.screenOn = !r.screenOn
+		r.locked = true
+	case strings.Contains(call, "shell dumpsys power"):
+		if r.sleepPending {
+			r.powerReads++
+			if r.powerReads >= r.delaySleepReads {
+				r.screenOn = false
+				r.sleepPending = false
+			}
+		}
+		if r.screenOn {
+			return []byte("mWakefulness=Awake"), nil
+		}
+		return []byte("mWakefulness=Asleep"), nil
+	case strings.Contains(call, "shell dumpsys window"):
+		return []byte("mShowingLockscreen=" + strconv.FormatBool(r.locked)), nil
+	case strings.Contains(call, "getprop ro.build.version.sdk"):
+		return []byte("29"), nil
+	case strings.Contains(call, "getprop service.adb.tcp.port"):
+		return []byte("5555"), nil
+	case strings.Contains(call, "dumpsys"):
+		return []byte(""), nil
+	}
+	return nil, nil
+}
+
 type failingUnlockRunner struct {
 	err error
 }
@@ -152,4 +200,31 @@ func TestRestoreStateWaitsForAsynchronousKeyguardTransition(t *testing.T) {
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, runner.lockProbeCount, 3)
 	require.Contains(t, strings.Join(runner.calls, "\n"), "KEYCODE_POWER")
+}
+
+func TestRestoreStateLeavesOriginallyOffScreenOffWhenRelocking(t *testing.T) {
+	runner := &screenRestoreRunner{screenOn: true}
+	adapter := NewWithRunner(runner, "serial-1")
+
+	err := adapter.RestoreState(context.Background(), strategy.DeviceState{LockState: "locked", ScreenState: "off"})
+
+	require.NoError(t, err)
+	require.False(t, runner.screenOn)
+	require.True(t, runner.locked)
+	power := indexOfCall(runner.calls, "KEYCODE_POWER")
+	sleep := indexOfCall(runner.calls, "KEYCODE_SLEEP")
+	require.NotEqual(t, -1, power)
+	require.NotEqual(t, -1, sleep)
+	require.Less(t, power, sleep, "screen restoration must follow re-locking")
+}
+
+func TestRestoreStateWaitsForDelayedScreenPowerTransition(t *testing.T) {
+	runner := &screenRestoreRunner{screenOn: false, delaySleepReads: 52}
+	adapter := NewWithRunner(runner, "serial-1")
+
+	err := adapter.RestoreState(context.Background(), strategy.DeviceState{LockState: "locked", ScreenState: "off"})
+
+	require.NoError(t, err)
+	require.False(t, runner.screenOn)
+	require.GreaterOrEqual(t, runner.powerReads, 52)
 }

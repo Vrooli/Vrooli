@@ -42,7 +42,7 @@ The result of comparing the validation run's diff against the expected-diff mani
 A manifest is stale when at least one of its pinned versions (template, skill) has been bumped since the manifest was recorded. Bumping the template stales every manifest for that golden; bumping a skill stales only that skill's manifests.
 
 ### Always-Mutator Skill
-A skill that is expected to mutate the scenario on every run regardless of template maturity. The current always-mutators are `progress`, `bundle-integration-steer`, and `progress-continuity-interruption-resilience`. Their manifests are expected to keep allowing those mutations indefinitely.
+A skill that is expected to mutate the scenario on every run regardless of template maturity. The current always-mutators are `progress`, `bundle-integration-steer`, and `resilience-lenses`. Their manifests are expected to keep allowing those mutations indefinitely.
 
 ### Mutator-Until-Template-Matures Skill
 A skill that currently produces a non-empty diff against a pristine golden but is expected to converge on a no-op as the template absorbs its behaviour. Examples: `refactor`, `polish`, `test`, `performance`, `ux`.

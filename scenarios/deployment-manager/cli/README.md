@@ -28,6 +28,7 @@ deployment-manager releases health "<release-id>"
 - Bootstrap and prepare review: `deployment-manager profiles create "demo" "picker-wheel" --tier 2`, then use `readiness-reviews prepare` with the exact review identity.
 - Swap and re-score: `deployment-manager swaps list "picker-wheel"`, review the result, then use `swaps apply` with the exact profile ID.
 - Desktop artifact dry-run: `deployment-manager deploy-desktop --profile demo --dry-run --timeout 10m` (local preparation only)
+- Android physical validation: `deployment-manager android-validate --profile demo --commit <full-sha> --artifact-ref <scenario-to-android-immutable-ref>`
 - Readiness applicability: `deployment-manager readiness-reviews prepare "<scenario>" "<profile-id>" "<commit>" "<artifact-digest>" stable linux --fact commercial_release=true --fact paid_release=true`
 - Governed release lifecycle: `deployment-manager releases register-candidate --file candidate.json`, `deployment-manager releases register-destination --file destination.json`, then `deployment-manager releases start <profile-id> --commit <hash> --version <version> --readiness-review-key <key> --candidate-id <id> --destination-revision-id <id> --authorization-epoch <n> --artifact-digest <digest>`
 - Inspect a governed release: `deployment-manager --json releases dossier "<release-id>" && deployment-manager releases health "<release-id>"`

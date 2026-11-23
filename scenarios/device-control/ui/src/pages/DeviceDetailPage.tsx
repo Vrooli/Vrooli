@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { actuateDevice, acquireSession, describeDevice, listSessions, readDeviceState, releaseSession, reconnectDevice, runFlow, evidenceUrl, watchDeviceEvents, type Capability, type Device, type DeviceState, type PropertyDescriptor, type Session } from "../api/deviceControl";
 import { Button } from "@vrooli/react-component-library/Button/2";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
 import { selectors } from "../consts/selectors";
 
 type Action = { key?: string; text?: string; media?: string; property?: string; value?: unknown };

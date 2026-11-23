@@ -11,6 +11,16 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 )
 
+func newSQLMock(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {
+	t.Helper()
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	return db, mock
+}
+
 func profileRows(id string) *sqlmock.Rows {
 	return profileRowsWithJSON(id, []byte(`[]`), []byte(`[]`), []byte(`[]`), []byte(`{}`))
 }
@@ -22,11 +32,7 @@ func profileRowsWithJSON(id string, tiers, swaps, secrets, settings []byte) *sql
 }
 
 func TestSQLRepositoryCoreProfileOperations(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
+	db, mock := newSQLMock(t)
 	repo := NewSQLRepository(db)
 	ctx := context.Background()
 	getQuery := regexp.QuoteMeta("SELECT id, name, scenario, tiers, swaps, secrets, settings, version, created_at, updated_at, created_by, updated_by")
@@ -57,11 +63,7 @@ func TestSQLRepositoryCoreProfileOperations(t *testing.T) {
 }
 
 func TestSQLRepositoryRejectsMalformedProfileJSON(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
+	db, mock := newSQLMock(t)
 	repo := NewSQLRepository(db)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, name, scenario, tiers, swaps, secrets, settings, version, created_at, updated_at, created_by, updated_by")).WithArgs("corrupt").WillReturnRows(
 		profileRowsWithJSON("corrupt", []byte(`{"broken":`), []byte(`[]`), []byte(`[]`), []byte(`{}`)),
@@ -75,11 +77,7 @@ func TestSQLRepositoryRejectsMalformedProfileJSON(t *testing.T) {
 }
 
 func TestSQLRepositoryScenarioSwapsAndVersions(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
+	db, mock := newSQLMock(t)
 	repo := NewSQLRepository(db)
 	ctx := context.Background()
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT scenario, COALESCE(jsonb_array_length(tiers), 0)")).WithArgs("demo").WillReturnRows(sqlmock.NewRows([]string{"scenario", "tier_count"}).AddRow("demo", 2))
@@ -107,11 +105,7 @@ func TestSQLRepositoryScenarioSwapsAndVersions(t *testing.T) {
 }
 
 func TestSQLRepositoryListUpdateAndVersions(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
+	db, mock := newSQLMock(t)
 	repo := NewSQLRepository(db)
 	ctx := context.Background()
 	listQuery := regexp.QuoteMeta("SELECT id, name, scenario, tiers, swaps, secrets, settings, version, created_at, updated_at, created_by, updated_by")
@@ -122,7 +116,7 @@ func TestSQLRepositoryListUpdateAndVersions(t *testing.T) {
 	}
 	mock.ExpectQuery(listQuery).WithArgs("p1").WillReturnRows(profileRows("p1"))
 	mock.ExpectBegin()
-	mock.ExpectExec(regexp.QuoteMeta("UPDATE profiles")).WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), 2, "p1").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(regexp.QuoteMeta("UPDATE profiles")).WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), 2, "p1", 1).WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO profile_versions")).WithArgs("p1", 2, "Demo", "demo", sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 	updated, err := repo.Update(ctx, "p1", map[string]interface{}{"tiers": []string{"desktop", "mobile"}, "settings": map[string]interface{}{"a": true}})
@@ -149,16 +143,12 @@ func TestSQLRepositoryListUpdateAndVersions(t *testing.T) {
 }
 
 func TestSQLRepositoryRollsBackProfileUpdateWhenHistoryFails(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
+	db, mock := newSQLMock(t)
 	repo := NewSQLRepository(db)
 	getQuery := regexp.QuoteMeta("SELECT id, name, scenario, tiers, swaps, secrets, settings, version, created_at, updated_at, created_by, updated_by")
 	mock.ExpectQuery(getQuery).WithArgs("p1").WillReturnRows(profileRows("p1"))
 	mock.ExpectBegin()
-	mock.ExpectExec(regexp.QuoteMeta("UPDATE profiles")).WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), 2, "p1").WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(regexp.QuoteMeta("UPDATE profiles")).WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), 2, "p1", 1).WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO profile_versions")).WithArgs("p1", 2, "Demo", "demo", sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).WillReturnError(errors.New("history unavailable"))
 	mock.ExpectRollback()
 	if _, err := repo.Update(context.Background(), "p1", map[string]interface{}{"settings": map[string]interface{}{"changed": true}}); err == nil {
@@ -170,11 +160,7 @@ func TestSQLRepositoryRollsBackProfileUpdateWhenHistoryFails(t *testing.T) {
 }
 
 func TestSQLRepositoryAddSwapUpdatesExistingAndHandlesMissing(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
+	db, mock := newSQLMock(t)
 	repo := NewSQLRepository(db)
 	swap := Swap{From: "postgres", To: "sqlite", Reason: "updated"}
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, COALESCE(swaps, '[]'::jsonb)")).WithArgs("p1").WillReturnRows(sqlmock.NewRows([]string{"id", "swaps"}).AddRow("p1", []byte(`[{"from":"postgres","to":"sqlite","reason":"old"}]`)))
@@ -189,6 +175,24 @@ func TestSQLRepositoryAddSwapUpdatesExistingAndHandlesMissing(t *testing.T) {
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT COALESCE(swaps, '[]'::jsonb)")).WithArgs("missing").WillReturnError(sql.ErrNoRows)
 	if _, err := repo.GetSwaps(context.Background(), "missing"); err != ErrNotFound {
 		t.Fatalf("missing GetSwaps error = %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSQLRepositoryRejectsUpdateAfterStoredVersionChanges(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := NewSQLRepository(db)
+	getQuery := regexp.QuoteMeta("SELECT id, name, scenario, tiers, swaps, secrets, settings, version, created_at, updated_at, created_by, updated_by")
+	mock.ExpectQuery(getQuery).WithArgs("p1").WillReturnRows(profileRows("p1"))
+	mock.ExpectBegin()
+	mock.ExpectExec(regexp.QuoteMeta("WHERE id = $6 AND version = $7")).WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), 2, "p1", 1).WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectRollback()
+
+	_, err := repo.Update(context.Background(), "p1", map[string]interface{}{"settings": map[string]interface{}{"changed": true}})
+	if !errors.Is(err, ErrVersionConflict) {
+		t.Fatalf("stale update error = %v, want ErrVersionConflict", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)

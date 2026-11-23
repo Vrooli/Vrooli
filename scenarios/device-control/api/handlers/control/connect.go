@@ -62,6 +62,15 @@ func (c *deviceConnect) InspectDevice(ctx context.Context, req *connect.Request[
 	return connect.NewResponse(&devicesv1.InspectDeviceResponse{DeviceId: req.Msg.DeviceId, Transport: req.Msg.Transport, ObservedAt: timestamppb.New(profile.ObservedAt), Abis: profile.ABIs, MemoryTotalBytes: profile.MemoryTotalBytes, DataTotalBytes: profile.DataTotalBytes, DataAvailableBytes: profile.DataAvailableBytes, WebviewPackage: profile.WebViewPackage, WebviewVersion: profile.WebViewVersion, HomeComponent: profile.HomeComponent, LowRam: profile.LowRAM, Voice: voice, VideoEncoders: encoders, Unavailable: profile.Unavailable}), nil
 }
 
+func (c *deviceConnect) InspectSystemInventory(ctx context.Context, req *connect.Request[devicesv1.InspectSystemInventoryRequest]) (*connect.Response[devicesv1.InspectSystemInventoryResponse], error) {
+	result, err := c.h.service.InspectSystemInventory(ctx, internal.SystemInventoryRequest{DeviceID: req.Msg.DeviceId, Actor: req.Msg.Actor, LeaseToken: req.Msg.LeaseToken, Transport: req.Msg.Transport})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	v := result.Inventory
+	return connect.NewResponse(&devicesv1.InspectSystemInventoryResponse{DeviceId: result.DeviceID, Transport: result.Transport, ObservedAt: timestamppb.New(v.ObservedAt), CpuLogicalCores: v.CPULogicalCores, Load_1: v.Load1, Load_5: v.Load5, Load_15: v.Load15, MemoryTotalBytes: v.MemoryTotalBytes, MemoryAvailableBytes: v.MemoryAvailableBytes, DataTotalBytes: v.DataTotalBytes, DataAvailableBytes: v.DataAvailableBytes, InstalledPackages: v.InstalledPackages, PackagesTruncated: v.PackagesTruncated, Unavailable: v.Unavailable, AuditId: result.Audit.ID}), nil
+}
+
 func (c *deviceConnect) ListDevices(ctx context.Context, _ *connect.Request[devicesv1.ListDevicesRequest]) (*connect.Response[devicesv1.ListDevicesResponse], error) {
 	items := c.h.service.Devices(ctx)
 	out := make([]*devicesv1.Device, 0, len(items))
@@ -292,6 +301,9 @@ func runResultProto(result internal.RunResult) *flowsv1.RunResult {
 			LeaseEpoch:          result.Binding.LeaseEpoch,
 			ApplicationId:       result.Binding.ApplicationID,
 			ApplicationRevision: result.Binding.ApplicationRevision,
+			SavedFlowId:         result.Binding.SavedFlowID,
+			SavedFlowVersion:    result.Binding.SavedFlowVersion,
+			ContextKey:          result.Binding.ContextKey,
 		},
 	}
 	for _, ch := range result.Chapters {

@@ -3,6 +3,8 @@ package validation_record
 import (
 	"context"
 	"fmt"
+
+	"github.com/vrooli/api-core/database"
 )
 
 // addedColumns lists the columns introduced after the initial
@@ -23,7 +25,7 @@ var addedColumns = []struct {
 // validation_records table. It is safe to call on every boot and on a
 // freshly created table (the columns already exist, so nothing is added).
 // Call it after EnsureSchemas has created the base table.
-func EnsureColumns(ctx context.Context, db SQLExecutor) error {
+func EnsureColumns(ctx context.Context, db database.SQLExecutor) error {
 	existing, err := tableColumns(ctx, db)
 	if err != nil {
 		return err
@@ -39,7 +41,7 @@ func EnsureColumns(ctx context.Context, db SQLExecutor) error {
 	return nil
 }
 
-func tableColumns(ctx context.Context, db SQLExecutor) (map[string]struct{}, error) {
+func tableColumns(ctx context.Context, db database.SQLExecutor) (map[string]struct{}, error) {
 	rows, err := db.QueryContext(ctx, "PRAGMA table_info(validation_records)")
 	if err != nil {
 		return nil, fmt.Errorf("introspect validation_records columns: %w", err)

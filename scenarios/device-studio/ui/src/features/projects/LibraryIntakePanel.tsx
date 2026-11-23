@@ -19,6 +19,13 @@ function parseMaterialTuple(raw: string, count: number): number[] | undefined {
   return fields.map(Number);
 }
 
+function ReadFailureNotice({ message, retryLabel, retrying, onRetry }: { message: string; retryLabel: string; retrying: boolean; onRetry: () => void }) {
+  return <div className="physical-shot__candidate">
+    <p role="alert">{message}</p>
+    <Button type="button" variant="outline" className="min-h-11" disabled={retrying} onClick={onRetry}>{retryLabel}</Button>
+  </div>;
+}
+
 function MaterialEditor({ candidate, onComplete }: { candidate: IntakeCandidateRevision; onComplete: () => void }) {
   const { t } = useTranslation();
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -70,20 +77,22 @@ function MaterialEditor({ candidate, onComplete }: { candidate: IntakeCandidateR
     setPending(request); correction.mutate(request);
   };
   if (inventory.isLoading) return <p>{t(strings.physical.intakeMaterialLoading)}</p>;
-  if (inventory.error) return <p role="alert">{t(strings.physical.intakeMaterialUnavailable)}</p>;
   return <div className="physical-shot__material-editor" data-testid={`intake-material-editor-${candidate.id}`}>
-    <label>{t(strings.physical.intakeMaterialSelect)}<select className="physical-shot__input" value={selectedIndex} disabled={Boolean(pending)} onChange={(event) => { const material = inventory.data?.materials.find((item) => item.index === Number(event.target.value)); if (material) { setSelectedIndex(material.index); setRoughness(""); setMetallic(""); setBaseColor(""); setEmissive(""); } }}>
-      {inventory.data?.materials.map((material) => <option key={material.index} value={material.index}>[{material.index}] {material.name || `Material ${material.index}`} {material.editable ? "" : "· unsupported"}</option>)}
+    {inventory.error && <ReadFailureNotice message={t(strings.physical.intakeMaterialUnavailable)} retryLabel={t(strings.physical.intakeReadRetry)} retrying={inventory.isFetching} onRetry={() => { void inventory.refetch(); }} />}
+    {inventory.data && <>
+    <label>{t(strings.physical.intakeMaterialSelect)}<select className="physical-shot__input" value={selectedIndex} disabled={Boolean(pending)} onChange={(event) => { const material = inventory.data.materials.find((item) => item.index === Number(event.target.value)); if (material) { setSelectedIndex(material.index); setRoughness(""); setMetallic(""); setBaseColor(""); setEmissive(""); } }}>
+      {inventory.data.materials.map((material) => <option key={material.index} value={material.index}>[{material.index}] {material.name || `Material ${material.index}`} {material.editable ? "" : "· unsupported"}</option>)}
     </select></label>
     {selected && <p>{t(strings.physical.intakeMaterialCurrent, { roughness: selected.roughness_factor, metallic: selected.metallic_factor })}</p>}
     <label>{t(strings.physical.intakeMaterialRoughness)}<input className="physical-shot__input" type="number" min="0" max="1" step="0.01" disabled={Boolean(pending)} value={roughness} onChange={(event) => setRoughness(event.target.value)} /></label>
     <label>{t(strings.physical.intakeMaterialMetallic)}<input className="physical-shot__input" type="number" min="0" max="1" step="0.01" disabled={Boolean(pending)} value={metallic} onChange={(event) => setMetallic(event.target.value)} /></label>
     <label>{t(strings.physical.intakeMaterialBaseColor)}<input className="physical-shot__input" disabled={Boolean(pending)} placeholder="R, G, B, A" value={baseColor} onChange={(event) => setBaseColor(event.target.value)} /></label>
     <label>{t(strings.physical.intakeMaterialEmissive)}<input className="physical-shot__input" disabled={Boolean(pending)} placeholder="R, G, B" value={emissive} onChange={(event) => setEmissive(event.target.value)} /></label>
+    </>}
     {pending && <p>{t(strings.physical.intakeMaterialPending)}</p>}
     {error && <p role="alert">{error}</p>}
     {correction.data?.material_correction_lineage && <details><summary>{t(strings.physical.intakeMaterialLineage)}</summary><p>{correction.data.parent_candidate_id}@{correction.data.parent_revision} · parent SHA-256 {correction.data.parent_sha256}</p><p>{t(strings.physical.intakeMaterialChildHash)} {correction.data.original_sha256}</p><pre>{JSON.stringify(correction.data.material_correction_lineage, null, 2)}</pre></details>}
-    <Button type="button" className="min-h-11" disabled={correction.isPending || (!pending && !selected?.editable)} onClick={apply}>{pending ? t(strings.physical.intakeMaterialRetry) : correction.isPending ? t(strings.physical.intakeMaterialApplying) : t(strings.physical.intakeMaterialApply)}</Button>
+    {(pending || inventory.data) && <Button type="button" className="min-h-11" disabled={correction.isPending || (!pending && !selected?.editable)} onClick={apply}>{pending ? t(strings.physical.intakeMaterialRetry) : correction.isPending ? t(strings.physical.intakeMaterialApplying) : t(strings.physical.intakeMaterialApply)}</Button>}
     {pending && <Button type="button" variant="outline" className="min-h-11" disabled={correction.isPending} onClick={() => { try { localStorage.removeItem(storageKey); setPending(undefined); setError(""); setChildID(newCandidateID()); } catch { setError(t(strings.physical.intakeMaterialStorageFailure)); } }}>{t(strings.physical.intakeMaterialDiscard)}</Button>}
   </div>;
 }
@@ -99,9 +108,10 @@ function CandidatePreview({ candidate }: { candidate: IntakeCandidateRevision })
     return () => URL.revokeObjectURL(next);
   }, [preview.data]);
   if (preview.isLoading) return <p>{t(strings.physical.intakePreviewLoading)}</p>;
-  if (preview.error) return <p role="alert">{t(strings.physical.intakePreviewUnavailable)}</p>;
+  if (preview.error && !preview.data) return <ReadFailureNotice message={t(strings.physical.intakePreviewUnavailable)} retryLabel={t(strings.physical.intakeReadRetry)} retrying={preview.isFetching} onRetry={() => { void preview.refetch(); }} />;
   if (!preview.data || !url) return null;
   return <div className="physical-shot__candidate" data-testid={`intake-preview-${candidate.id}`}>
+    {preview.error && <ReadFailureNotice message={t(strings.physical.intakePreviewUnavailable)} retryLabel={t(strings.physical.intakeReadRetry)} retrying={preview.isFetching} onRetry={() => { void preview.refetch(); }} />}
     <p>{t(strings.physical.intakePreviewNote, { colorMode: preview.data.vertex_colors ? t(strings.physical.intakePreviewVertexColors) : t(strings.physical.intakePreviewNeutralColor) })}</p>
     <img src={url} width={preview.data.width} height={preview.data.height} alt={t(strings.physical.intakePreviewAlt)} style={{ display: "block", width: "100%", maxWidth: 768, height: "auto" }} />
     <small>{t(strings.physical.intakePreviewDigest, { digest: preview.data.preview_sha256.slice(0, 12) })}</small>
@@ -118,7 +128,8 @@ export function LibraryIntakePanel() {
   const [sourceLabel, setSourceLabel] = useState("");
   const [licenseClaim, setLicenseClaim] = useState("");
   const [attribution, setAttribution] = useState("");
-  const [downloadError, setDownloadError] = useState("");
+  const [downloadFailure, setDownloadFailure] = useState<IntakeCandidateRevision>();
+  const [downloadPending, setDownloadPending] = useState(false);
   const [materialCandidate, setMaterialCandidate] = useState<string>();
   const [previewCandidate, setPreviewCandidate] = useState<string>();
   const [preparationID, setPreparationID] = useState("");
@@ -158,7 +169,7 @@ export function LibraryIntakePanel() {
   });
   const importReady = Boolean(file && file.size > 0 && file.size <= MAX_LOCAL_GEOMETRY_BYTES && displayName.trim() && sourceLabel.trim() && candidateId.trim());
   const download = async (candidate: IntakeCandidateRevision) => {
-    setDownloadError("");
+    setDownloadPending(true);
     try {
       const blob = await downloadLocalGeometryCandidate(candidate);
       const url = URL.createObjectURL(blob);
@@ -167,9 +178,9 @@ export function LibraryIntakePanel() {
       anchor.download = candidate.originalFilename;
       anchor.click();
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch (error) {
-      setDownloadError(error instanceof Error ? error.message : t(strings.physical.intakeFailure));
-    }
+      setDownloadFailure(undefined);
+    } catch { setDownloadFailure(candidate); }
+    finally { setDownloadPending(false); }
   };
 
   return <Card className="physical-shot__intake" data-testid="physical-library-intake">
@@ -207,13 +218,13 @@ export function LibraryIntakePanel() {
         <label>{t(strings.physical.intakeCandidateId)}<input className="physical-shot__input" value={candidateId} maxLength={128} onChange={(event) => setCandidateId(event.target.value)} /></label>
       </details>
       {upload.error && <p role="alert">{upload.error.message}</p>}
-      {candidates.error && <p role="alert">{t(strings.physical.intakeListUnavailable)}</p>}
-      {downloadError && <p role="alert">{downloadError}</p>}
+      {candidates.error && <ReadFailureNotice message={t(strings.physical.intakeListUnavailable)} retryLabel={t(strings.physical.intakeReadRetry)} retrying={candidates.isFetching} onRetry={() => { void candidates.refetch(); }} />}
+      {downloadFailure && <ReadFailureNotice message={t(strings.physical.intakeDownloadUnavailable)} retryLabel={t(strings.physical.intakeReadRetry)} retrying={downloadPending} onRetry={() => { void download(downloadFailure); }} />}
       {candidates.data && <div><h4>{t(strings.physical.intakeCandidates)}</h4>{candidates.data.pages.flatMap((page) => page.candidates).length === 0 ? <p>{t(strings.physical.intakeEmpty)}</p> : <ul>{candidates.data.pages.flatMap((page) => page.candidates).map((candidate) => <li key={`${candidate.id}@${candidate.revision}`}>
         <strong>{candidate.displayName}</strong> · {candidate.originalFilename} · {candidate.sizeBytes.toString()} bytes<br />
         {t(strings.physical.intakeStatus, { review: candidate.reviewStatus, render: candidate.renderStatus })} · SHA-256 {candidate.originalSha256.slice(0, 12)}…
         {candidate.inspection && <span> · {candidate.inspection.supported ? t(strings.physical.intakeSupported) : t(strings.physical.intakeUnsupported)}{candidate.inspection.finding ? ` · ${candidate.inspection.finding}` : ""}</span>}
-        <Button type="button" variant="outline" className="min-h-11" onClick={() => void download(candidate)}>{t(strings.physical.intakeDownload)}</Button>
+        <Button type="button" variant="outline" className="min-h-11" disabled={downloadPending} onClick={() => void download(candidate)}>{t(strings.physical.intakeDownload)}</Button>
         <Button type="button" variant="outline" className="min-h-11" onClick={() => setPreviewCandidate((current) => current === candidate.id ? undefined : candidate.id)}>{previewCandidate === candidate.id ? t(strings.physical.intakePreviewClose) : t(strings.physical.intakePreviewOpen)}</Button>
         {previewCandidate === candidate.id && <CandidatePreview candidate={candidate} />}
         <Button type="button" variant="outline" className="min-h-11" onClick={() => setMaterialCandidate((current) => current === candidate.id ? undefined : candidate.id)}>{materialCandidate === candidate.id ? t(strings.physical.intakeMaterialClose) : t(strings.physical.intakeMaterialEdit)}</Button>

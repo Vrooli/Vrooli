@@ -147,13 +147,20 @@ func (r *SQLRepository) Update(ctx context.Context, idOrName string, updates map
 		return nil, fmt.Errorf("begin profile update: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
-	_, err = tx.ExecContext(ctx, `
+	result, err := tx.ExecContext(ctx, `
 		UPDATE profiles
 		SET tiers = $1, swaps = $2, secrets = $3, settings = $4, version = $5, updated_at = CURRENT_TIMESTAMP, updated_by = 'system'
-		WHERE id = $6
-	`, tiersJSON, swapsJSON, secretsJSON, settingsJSON, newVersion, current.ID)
+		WHERE id = $6 AND version = $7
+	`, tiersJSON, swapsJSON, secretsJSON, settingsJSON, newVersion, current.ID, current.Version)
 	if err != nil {
 		return nil, err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("read updated profile count: %w", err)
+	}
+	if rowsAffected == 0 {
+		return nil, ErrVersionConflict
 	}
 
 	// Version history is part of the durable profile record.

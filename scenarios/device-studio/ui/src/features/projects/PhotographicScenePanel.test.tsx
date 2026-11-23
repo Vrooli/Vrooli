@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../../test-utils";
-import { setLocale } from "../../i18n";
+import { i18n, setLocale } from "../../i18n";
+import { strings } from "../../consts/strings";
 import { makeApiError } from "../../api/client";
 import { projectsClient, uploadSourceMedia } from "../../api/projects";
 import { cancelPhotographicOperation, getPhotographicPNG, readPhotographicOperation, submitPhotographicScene, waitPhotographicOperation } from "../../api/photographic-scene";
@@ -13,7 +14,7 @@ vi.mock("../../api/photographic-scene", () => ({ cancelPhotographicOperation: vi
 const queued = { job_id:"job-1",operation:"text_to_image",state:"queued",progress:0 };
 describe("PhotographicScenePanel",()=>{
   beforeEach(async()=>{await setLocale("en");localStorage.clear();vi.mocked(readPhotographicOperation).mockResolvedValue(queued);vi.mocked(submitPhotographicScene).mockResolvedValue(queued);vi.mocked(waitPhotographicOperation).mockResolvedValue({...queued,state:"succeeded",progress:100,result_ref:"out/image.png"});vi.mocked(cancelPhotographicOperation).mockResolvedValue({...queued,state:"canceled"});});
-  afterEach(()=>{cleanup();vi.clearAllMocks();});
+  afterEach(()=>{cleanup();vi.restoreAllMocks();vi.clearAllMocks();});
 
   it("persists the exact operation before submission and explicitly retries the same key after reload",async()=>{
     const user=userEvent.setup();
@@ -32,6 +33,32 @@ describe("PhotographicScenePanel",()=>{
     await user.click(screen.getByRole("button",{name:"Retry the same saved operation"}));
     await waitFor(()=>expect(submitPhotographicScene).toHaveBeenCalledTimes(2));
     expect(submitPhotographicScene).toHaveBeenLastCalledWith("p1",expect.objectContaining({operation_id:stored.operation_id,prompt:"A sunlit modern reading room",width:768,height:512}));
+  });
+
+  it("blocks new work when saved operation storage is unreadable and retries the same record",async()=>{
+    const user=userEvent.setup();
+    const key="device-studio:photographic-scene:v1:p1";
+    const saved={version:1,operation_id:"op-restored",prompt:"A retained studio",width:768,height:512};
+    localStorage.setItem(key,JSON.stringify(saved));
+    let unavailable=true;
+    const getItem=localStorage.getItem.bind(localStorage);
+    vi.spyOn(Storage.prototype,"getItem").mockImplementation(function(this: Storage,name){
+      if(name===key && unavailable) throw new DOMException("storage blocked","SecurityError");
+      return getItem(name);
+    });
+    renderWithProviders(<PhotographicScenePanel projectId="p1"/>);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("The saved photographic-scene request cannot be read. New work is paused to avoid a duplicate operation.");
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(submitPhotographicScene).not.toHaveBeenCalled();
+    expect(readPhotographicOperation).not.toHaveBeenCalled();
+
+    unavailable=false;
+    await user.click(screen.getByRole("button",{name:i18n.t(strings.photographic_scene.retryStorageRead)}));
+    expect(await screen.findByText(/Job job-1/)).toBeInTheDocument();
+    expect(readPhotographicOperation).toHaveBeenCalledWith("p1","op-restored");
+    expect(submitPhotographicScene).not.toHaveBeenCalled();
+    vi.mocked(Storage.prototype.getItem).mockRestore();
   });
 
   it("unlocks editing after a definitive pre-acceptance rejection",async()=>{

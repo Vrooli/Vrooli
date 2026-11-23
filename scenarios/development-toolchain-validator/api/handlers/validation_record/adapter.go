@@ -7,7 +7,9 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func domainToProto(r vr.Record) *vrv1.ValidationRecord {
+// RecordToProto is the canonical mapping used by both the record endpoint and
+// report history, which carries the same validation-record wire shape.
+func RecordToProto(r vr.Record) *vrv1.ValidationRecord {
 	return &vrv1.ValidationRecord{
 		Id:                           r.ID,
 		TupleKind:                    tupleKindDomainToProto(r.TupleKind),

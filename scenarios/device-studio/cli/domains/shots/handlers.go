@@ -94,13 +94,9 @@ func (h *handlers) saveReport(_ cliapp.OperationContext, msg *shotsv1.SaveShotRe
 }
 
 func (h *handlers) listCall(ctx cliapp.OperationContext) (*shotsv1.ListShotsResponse, error) {
-	size := int32(50)
-	if raw := strings.TrimSpace(ctx.Flag("page-size")); raw != "" {
-		n, e := strconv.ParseInt(raw, 10, 32)
-		if e != nil {
-			return nil, fmt.Errorf("invalid page-size: %w", e)
-		}
-		size = int32(n)
+	size, err := parsePageSize(ctx.Flag("page-size"))
+	if err != nil {
+		return nil, err
 	}
 	resp, err := h.client.ListShots(context.Background(), connect.NewRequest(&shotsv1.ListShotsRequest{ProjectId: ctx.Flag("project-id"), PageSize: size, PageToken: ctx.Flag("page-token")}))
 	if err != nil {
@@ -137,13 +133,9 @@ func (h *handlers) getReport(_ cliapp.OperationContext, msg *shotsv1.GetShotResp
 }
 
 func (h *handlers) revisionsCall(ctx cliapp.OperationContext) (*shotsv1.ListShotRevisionsResponse, error) {
-	size := int32(50)
-	if raw := strings.TrimSpace(ctx.Flag("page-size")); raw != "" {
-		n, e := strconv.ParseInt(raw, 10, 32)
-		if e != nil {
-			return nil, fmt.Errorf("invalid page-size: %w", e)
-		}
-		size = int32(n)
+	size, err := parsePageSize(ctx.Flag("page-size"))
+	if err != nil {
+		return nil, err
 	}
 	resp, err := h.client.ListShotRevisions(context.Background(), connect.NewRequest(&shotsv1.ListShotRevisionsRequest{ShotId: ctx.Positional("id"), PageSize: size, PageToken: ctx.Flag("page-token")}))
 	if err != nil {
@@ -152,14 +144,26 @@ func (h *handlers) revisionsCall(ctx cliapp.OperationContext) (*shotsv1.ListShot
 	return resp.Msg, nil
 }
 
-func (h *handlers) revisionsReport(_ cliapp.OperationContext, msg *shotsv1.ListShotRevisionsResponse) cliapp.ListReport {
+func parsePageSize(raw string) (int32, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return 50, nil
+	}
+	n, err := strconv.ParseInt(raw, 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("invalid page-size: %w", err)
+	}
+	return int32(n), nil
+}
+
+func (h *handlers) revisionsReport(ctx cliapp.OperationContext, msg *shotsv1.ListShotRevisionsResponse) cliapp.ListReport {
 	rows := make([]string, 0, len(msg.Revisions))
 	for _, r := range msg.Revisions {
 		rows = append(rows, formatRevision(r))
 	}
 	hints := []string{}
 	if msg.NextPageToken != "" {
-		hints = append(hints, fmt.Sprintf("`shots revisions %s --page-token %s` — next page", msg.Revisions[0].ShotId, msg.NextPageToken))
+		hints = append(hints, fmt.Sprintf("`shots revisions %s --page-token %s` — next page", ctx.Positional("id"), msg.NextPageToken))
 	}
 	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d revision(s).", len(rows))}, ResultsHeading: "Shot revisions", Results: rows, RetrievalHints: hints}
 }

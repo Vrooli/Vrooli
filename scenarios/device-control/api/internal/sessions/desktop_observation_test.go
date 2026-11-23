@@ -278,6 +278,15 @@ func TestResolutionRejectsInvalidCardinalityAndMidReadRevocation(t *testing.T) {
 	n := &resolvingNative{result: DesktopResolution{Disposition: "unique", Revision: "r", GeometryRevision: "g", ExpiresAt: time.Now().Add(time.Second), ElementIDs: []string{"field"}}}
 	c.native = n
 	selector := DesktopSelector{Revision: "r", WindowID: "w", Name: "Entry"}
+	resolverCalled := false
+	n.resolve = func() { resolverCalled = true }
+	invalidSelector := selector
+	invalidSelector.MatchMode = SemanticMatchMode(255)
+	_, err := c.Resolve(context.Background(), lease, invalidSelector)
+	require.ErrorIs(t, err, ErrDesktopAdmission)
+	require.False(t, resolverCalled, "unsupported match modes must not reach a native resolver")
+	n.resolve = nil
+
 	got, err := c.Resolve(context.Background(), lease, selector)
 	require.NoError(t, err)
 	require.Equal(t, []string{"field"}, got.ElementIDs)

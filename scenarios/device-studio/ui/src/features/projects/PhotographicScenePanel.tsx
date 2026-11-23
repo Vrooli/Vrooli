@@ -8,14 +8,21 @@ import { uploadSourceMedia, projectsClient } from "../../api/projects";
 import { cancelPhotographicOperation, getPhotographicPNG, readPhotographicOperation, submitPhotographicScene, waitPhotographicOperation, type PhotographicOperation, type PhotographicRequest } from "../../api/photographic-scene";
 
 type Saved = PhotographicRequest & { version: 1; media?: { id: string; sha256: string } };
+type SavedRead = { saved?: Saved; unavailable: boolean };
 const storageKey = (projectId: string) => `device-studio:photographic-scene:v1:${projectId}`;
-function readSaved(projectId: string): Saved | undefined {
+function readSaved(projectId: string): SavedRead {
+  let raw: string | null;
   try {
-    const raw = localStorage.getItem(storageKey(projectId)); if (!raw) return undefined;
-    const value = JSON.parse(raw) as Saved;
-    if (value.version !== 1 || !value.operation_id || typeof value.prompt !== "string" || !((value.width === 768 && value.height === 512) || (value.width === 512 && value.height === 768))) return undefined;
-    return value;
-  } catch { return undefined; }
+    raw = localStorage.getItem(storageKey(projectId));
+  } catch {
+    return { unavailable: true };
+  }
+  if (!raw) return { unavailable: false };
+  try {
+    const value = JSON.parse(raw) as Partial<Saved>;
+    if (value.version !== 1 || !value.operation_id || typeof value.prompt !== "string" || !((value.width === 768 && value.height === 512) || (value.width === 512 && value.height === 768))) return { unavailable: false };
+    return { saved: value as Saved, unavailable: false };
+  } catch { return { unavailable: false }; }
 }
 
 export function PhotographicScenePanel({ projectId }: { projectId: string }) {
@@ -31,14 +38,23 @@ function PhotographicScenePanelState({ projectId }: { projectId: string }) {
   const [width, setWidth] = useState<768 | 512>(768);
   const [height, setHeight] = useState<512 | 768>(512);
   const [storageReady, setStorageReady] = useState(false);
+  const [storageReadBlocked, setStorageReadBlocked] = useState(false);
   const [busy, setBusy] = useState(false);
   const [waiting, setWaiting] = useState(false);
   const requestGeneration = useRef(0);
   const [unknown, setUnknown] = useState(false);
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    const restored = readSaved(projectId);
+  function restoreSavedOperation() {
+    const result = readSaved(projectId);
+    if (result.unavailable) {
+      setStorageReadBlocked(true);
+      setMessage(t(strings.photographic_scene.restoreUnavailable));
+      return;
+    }
+    setStorageReadBlocked(false);
+    setMessage("");
+    const restored = result.saved;
     if (restored) {
       setSaved(restored); setPrompt(restored.prompt); setWidth(restored.width); setHeight(restored.height);
       const importedMedia = restored.media;
@@ -46,17 +62,28 @@ function PhotographicScenePanelState({ projectId }: { projectId: string }) {
         if (response.sourceMedia?.sha256 === importedMedia.sha256) setMessage(t(strings.photographic_scene.saved, { mediaId: importedMedia.id, sha256: importedMedia.sha256 }));
       }).catch(() => undefined);
       void readPhotographicOperation(projectId, restored.operation_id).then((status) => { setOperation(status); setUnknown(false); }).catch(() => setUnknown(true));
+      return;
     }
+    setSaved(undefined); setOperation(undefined); setUnknown(false);
+  }
+
+  useEffect(() => {
+    restoreSavedOperation();
     setStorageReady(true);
   // Restore exactly once per project. No effect here submits or resumes a job.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
+
+  function retryStorageRead() {
+    restoreSavedOperation();
+  }
 
   function persist(value: Saved): boolean {
     try { localStorage.setItem(storageKey(projectId), JSON.stringify(value)); setSaved(value); return true; }
     catch { setMessage(t(strings.photographic_scene.storageUnavailable)); return false; }
   }
   async function submit() {
+    if (storageReadBlocked) return;
     const request: PhotographicRequest = saved ? saved : { operation_id: crypto.randomUUID(), prompt: prompt.trim(), width, height };
     if (!saved && (!request.prompt || new TextEncoder().encode(request.prompt).length > 800)) return;
     const record: Saved = { ...request, version: 1 };
@@ -123,7 +150,11 @@ function PhotographicScenePanelState({ projectId }: { projectId: string }) {
     <h2 id="photo-scene-title" className="text-lg font-semibold">{t(strings.photographic_scene.title)}</h2>
     <p className="mt-1 text-sm text-app-muted">{t(strings.photographic_scene.description)}</p>
     <p className="mt-2 rounded-control bg-app-muted/20 p-space-sm text-sm">{t(strings.photographic_scene.disclosure)}</p>
-    {!locked && <div className="mt-space-sm flex flex-col gap-space-sm">
+    {storageReadBlocked && <div role="alert" className="mt-space-sm rounded-control border border-app-danger/40 bg-app-danger/10 p-space-sm text-sm">
+      <p>{message || t(strings.photographic_scene.restoreUnavailable)}</p>
+      <Button variant="outline" className="mt-2 min-h-11" onClick={retryStorageRead} disabled={!storageReady}>{t(strings.photographic_scene.retryStorageRead)}</Button>
+    </div>}
+    {!storageReadBlocked && !locked && <div className="mt-space-sm flex flex-col gap-space-sm">
       {message && <p role="status">{message}</p>}
       <label className="flex flex-col gap-1 text-sm font-medium">{t(strings.photographic_scene.prompt)}
         <textarea className="min-h-24 rounded-control border border-app-border bg-app-surface px-3 py-2 text-base" value={prompt} onChange={(event) => setPrompt(event.target.value)} maxLength={800} disabled={!storageReady || busy} />

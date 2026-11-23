@@ -24,12 +24,22 @@ const THEME_LABEL_KEY: Record<ThemeChoice, (typeof strings.theme.choice)[ThemeCh
 
 const C = strings.pages.settings.capabilities;
 const A = strings.pages.settings.account;
+type DesktopAuth = NonNullable<NonNullable<Window["desktop"]>["auth"]>;
 
 /** The optional apps Device Studio builds on, in display order. */
 const OPTIONAL_SERVICES = [
   { id: "ai-gateway", copy: C.items.aiGateway, provider: "AI Gateway", icon: <Cpu aria-hidden="true" /> },
   { id: "workspace-sandbox", copy: C.items.workspaceSandbox, provider: "Workspace Sandbox", icon: <ShieldCheck aria-hidden="true" /> },
 ] as const;
+
+async function readDesktopLinkStatus(auth: DesktopAuth | undefined): Promise<DeviceStudioDesktopLinkStatus> {
+  if (!auth) return { state: "unavailable", scopes: [] };
+  try {
+    return await auth.getDesktopLinkStatus({ resource: "device-studio" });
+  } catch {
+    return { state: "unavailable", scopes: [] };
+  }
+}
 
 
 /**
@@ -75,9 +85,8 @@ export function SettingsPage() {
       setAccountState({ state: "unavailable", scopes: [] });
       return () => { active = false; };
     }
-    void desktopAuth.getDesktopLinkStatus({ resource: "device-studio" })
-      .then((status) => { if (active) setAccountState(status); })
-      .catch(() => { if (active) setAccountState({ state: "unavailable", scopes: [] }); });
+    void readDesktopLinkStatus(desktopAuth)
+      .then((status) => { if (active) setAccountState(status); });
     return () => { active = false; };
   }, [desktopAuth]);
 
@@ -184,6 +193,15 @@ export function SettingsPage() {
     }
   }
 
+  async function retryAccountStatus() {
+    setAccountBusy(true);
+    try {
+      setAccountState(await readDesktopLinkStatus(desktopAuth));
+    } finally {
+      setAccountBusy(false);
+    }
+  }
+
   async function disconnectAccount() {
     if (!desktopAuth) return;
     setAccountBusy(true);
@@ -263,9 +281,13 @@ export function SettingsPage() {
           >
             {/* Outside the desktop app there is nothing to connect, so no dead controls are shown. */}
             {desktopAuth && <div className="flex flex-wrap justify-end gap-space-xs">
-              <Button size="sm" variant={accountState?.state === "linked" ? "outline" : "primary"} data-testid={selectors.settingsPage.accountConnect} disabled={accountBusy || accountState === null} onClick={() => void connectAccount()}>
-                {t(accountState?.state === "linked" ? A.switch : A.connect)}
-              </Button>
+              {accountState?.state === "unavailable"
+                ? <Button size="sm" variant="outline" disabled={accountBusy} onClick={() => void retryAccountStatus()}>
+                    {t(accountBusy ? A.checking : strings.errorBoundary.retry)}
+                  </Button>
+                : <Button size="sm" variant={accountState?.state === "linked" ? "outline" : "primary"} data-testid={selectors.settingsPage.accountConnect} disabled={accountBusy || accountState === null} onClick={() => void connectAccount()}>
+                    {t(accountState?.state === "linked" ? A.switch : A.connect)}
+                  </Button>}
               {accountState?.state === "linked" && <Button size="sm" variant="outline" data-testid={selectors.settingsPage.accountDisconnect} disabled={accountBusy} onClick={() => void disconnectAccount()}>
                 {t(A.disconnect)}
               </Button>}

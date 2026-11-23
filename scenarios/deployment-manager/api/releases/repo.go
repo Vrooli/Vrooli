@@ -584,17 +584,18 @@ func (r *SQLRepository) GetReadinessByProfileCommit(ctx context.Context, profile
 // a profile, for read-only surfaces such as the Offer Desk ladder.
 func (r *SQLRepository) GetLatestReadiness(ctx context.Context, profileID string) (*ReadinessRecord, error) {
 	var goalRef, approvedCommit sql.NullString
+	var observedAt time.Time
 	err := r.db.QueryRowContext(ctx, `
-		SELECT readiness_goal_ref, approved_at_commit FROM releases
+		SELECT readiness_goal_ref, approved_at_commit, updated_at FROM releases
 		WHERE profile_id = $1 ORDER BY created_at DESC LIMIT 1
-	`, profileID).Scan(&goalRef, &approvedCommit)
+	`, profileID).Scan(&goalRef, &approvedCommit, &observedAt)
 	if err == sql.ErrNoRows {
-		return &ReadinessRecord{}, nil
+		return &ReadinessRecord{ObservedAt: time.Now().UTC()}, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	return &ReadinessRecord{VerdictPresent: approvedCommit.Valid, ReadinessGoalRef: goalRef.String, ApprovedAtCommit: approvedCommit.String, GoalClosed: approvedCommit.Valid}, nil
+	return &ReadinessRecord{VerdictPresent: approvedCommit.Valid, ReadinessGoalRef: goalRef.String, ApprovedAtCommit: approvedCommit.String, GoalClosed: approvedCommit.Valid, ObservedAt: observedAt.UTC()}, nil
 }
 
 // RecordReadinessWaiver records a reasoned, actor-bound exception for exactly

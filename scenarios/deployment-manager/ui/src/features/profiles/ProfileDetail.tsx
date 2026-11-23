@@ -46,7 +46,7 @@ export function ProfileDetail() {
   const [platformEditing, setPlatformEditing] = useState(false);
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
 
-  const { data: profile, isLoading, error } = useQuery({
+  const { data: profile, isLoading, isFetching, error, refetch: retryProfile } = useQuery({
     queryKey: ["profile", id],
     queryFn: () => {
       if (!id) {
@@ -119,18 +119,16 @@ export function ProfileDetail() {
     );
   }
 
-  if (error) {
+  if (error && !profile) {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
           <Button variant="outline" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-3xl font-bold">Profile Not Found</h1>
+          <h1 className="text-3xl font-bold">Profile Unavailable</h1>
         </div>
-        <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-red-200">
-          <p className="text-sm">Failed to load profile: {getErrorMessage(error)}</p>
-        </div>
+        <ProfileLoadRecovery error={error} isRetrying={isFetching} hasCachedProfile={false} onRetry={() => void retryProfile()} />
       </div>
     );
   }
@@ -182,6 +180,8 @@ export function ProfileDetail() {
           </Button>
         </div>
       </div>
+
+      {error && profile && <ProfileLoadRecovery error={error} isRetrying={isFetching} hasCachedProfile onRetry={() => void retryProfile()} />}
 
       {deployMutation.isError && (
         <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-red-200">
@@ -399,6 +399,29 @@ export function ProfileDetail() {
           </CardContent>
         </Card>
       )}
+    </div>
+  );
+}
+
+function ProfileLoadRecovery({
+  error,
+  isRetrying,
+  hasCachedProfile,
+  onRetry,
+}: {
+  error: Error;
+  isRetrying: boolean;
+  hasCachedProfile: boolean;
+  onRetry: () => void;
+}) {
+  return (
+    <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-red-200">
+      <p className="text-sm">
+        {hasCachedProfile ? "Profile data is unavailable. The saved profile is shown." : "Failed to load profile."} {getErrorMessage(error)}
+      </p>
+      <Button variant="outline" onClick={onRetry} disabled={isRetrying}>
+        {isRetrying ? "Retrying profile load..." : "Retry profile loading"}
+      </Button>
     </div>
   );
 }

@@ -31,6 +31,7 @@ type Revision struct {
 	ActiveMask          *shotsv1.ResolvedSourceMedia
 	HardwareMask        *shotsv1.ResolvedSourceMedia
 	Screen              *shotsv1.ResolvedSourceMedia
+	ParallaxLayers      []*shotsv1.ResolvedLayeredParallaxLayer
 	RenderEligible      bool
 	Issues              []*shotsv1.ShotIssue
 	Physical            *PhysicalResolution

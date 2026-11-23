@@ -53,6 +53,13 @@ func flowRequiresConfirmation(flow Flow) bool {
 }
 
 func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string, sess Session, releaseLease, confirmed bool) (RunResult, error) {
+	return s.executeWithBinding(ctx, flow, deviceID, actor, sess, releaseLease, confirmed, RunBinding{}, nil)
+}
+
+// executeWithBinding places owner-verified binding data on the result before
+// the canonical live record is published. Ordinary flow runs pass an empty
+// binding; saved-flow replay supplies its resolved immutable identity.
+func (s *Service) executeWithBinding(ctx context.Context, flow Flow, deviceID, actor string, sess Session, releaseLease, confirmed bool, verifiedBinding RunBinding, afterPublish func(RunResult)) (RunResult, error) {
 	requestedFlow := flow
 	transport, routeErr := s.requireCurrentEffectRoute(deviceID, flow.Transport)
 	if routeErr != nil {
@@ -89,7 +96,7 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 		}
 	}
 	if !g.Runnable {
-		return RunResult{RunID: uuid.NewString(), Disposition: "capability_gap", Chapters: []Chapter{{ID: "preflight", Title: "Capability preflight", Disposition: "failed", Message: strings.Join(g.Gaps, "; ")}}}, nil
+		return RunResult{RunID: uuid.NewString(), Disposition: "capability_gap", Binding: RunBinding{SavedFlowID: verifiedBinding.SavedFlowID, SavedFlowVersion: verifiedBinding.SavedFlowVersion, ContextKey: verifiedBinding.ContextKey}, Chapters: []Chapter{{ID: "preflight", Title: "Capability preflight", Disposition: "failed", Message: strings.Join(g.Gaps, "; ")}}}, nil
 	}
 	if flow.AllowUnredactedCapture {
 		if err := evidence.ValidateOptOut(actor); err != nil {
@@ -116,7 +123,7 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 		return RunResult{}, err
 	}
 	defer finishRun()
-	result := RunResult{RunID: uuid.NewString(), Disposition: "passed", Chapters: []Chapter{}, Resolutions: []Resolution{}, Evidence: []evidence.Reference{}, Binding: RunBinding{DeviceID: deviceID, Transport: flow.Transport, LeaseID: sess.ID, ApplicationID: flow.ApplicationID, ApplicationRevision: flow.ApplicationRevision}}
+	result := RunResult{RunID: uuid.NewString(), Disposition: "passed", Chapters: []Chapter{}, Resolutions: []Resolution{}, Evidence: []evidence.Reference{}, Binding: RunBinding{DeviceID: deviceID, Transport: flow.Transport, LeaseID: sess.ID, ApplicationID: flow.ApplicationID, ApplicationRevision: flow.ApplicationRevision, SavedFlowID: verifiedBinding.SavedFlowID, SavedFlowVersion: verifiedBinding.SavedFlowVersion, ContextKey: verifiedBinding.ContextKey}}
 	stateManager := &sessionsdomain.StateManager{}
 	stateRestorer, hasStateRestorer := strat.(strategy.StateRestorer)
 	restorationPrepared := false
@@ -125,15 +132,7 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 		if snapshotErr != nil || !hasStateRestorer {
 			return
 		}
-		if snapshot.LockState == "locked" {
-			restorationState.LockState = snapshot.LockState
-		}
-		if snapshot.Orientation != "" && restorationState.Orientation == "" {
-			restorationState.Orientation = snapshot.Orientation
-			restorationState.AutoRotate = snapshot.AutoRotate
-			restorationState.AutoRotateKnown = snapshot.AutoRotateKnown
-			restorationState.RotationSettings = snapshot.RotationSettings
-		}
+		restorationState = mergeRestorationSnapshot(restorationState, snapshot)
 		if restorationPrepared {
 			return
 		}
@@ -145,7 +144,7 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 	restoreBeforeReturn := func() {
 		// A cancelled flow still owns a device state that must be restored. Detach
 		// only cancellation, retain request values, and keep the cleanup bounded.
-		restoreCtx, cancelRestore := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		restoreCtx, cancelRestore := context.WithTimeout(context.WithoutCancel(ctx), 25*time.Second)
 		defer cancelRestore()
 		result.Restoration = stateManager.Restore(restoreCtx)
 		for _, event := range result.Restoration {
@@ -174,9 +173,15 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 			if flow.AuthProfileID == "" {
 				return authFailure("device is locked and no authentication profile was supplied")
 			}
-			// Register cleanup before unlocking, including partial failures. An
-			// authentication flow owns keyguard cleanup, not orientation settings.
-			prepareRestoration(strategy.DeviceState{LockState: "locked"}, nil)
+		}
+		// Capture the complete observed baseline before any unlock or wake. A
+		// locked flow may wake the display as a side effect of re-locking, while
+		// one-call captures explicitly request restoration of their original
+		// on/off state even when the phone started unlocked.
+		if state.LockState == "locked" || flow.RestoreInitialState {
+			prepareRestoration(state, nil)
+		}
+		if state.LockState == "locked" {
 			unlock, unlockErr := s.UnlockDevice(runctx, flow.AuthProfileID, deviceID, actor, sess.LeaseToken)
 			if unlockErr != nil || (unlock.Outcome != authdomain.OutcomeUnlocked && unlock.Outcome != authdomain.OutcomeAlreadyUnlocked) {
 				message := unlock.Outcome
@@ -988,5 +993,24 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 	s.flowRuns[result.RunID] = flow
 	s.runDevices[result.RunID] = deviceID
 	s.mu.Unlock()
+	if afterPublish != nil {
+		afterPublish(result)
+	}
 	return result, nil
+}
+
+func mergeRestorationSnapshot(restorationState, snapshot strategy.DeviceState) strategy.DeviceState {
+	if snapshot.LockState == "locked" {
+		restorationState.LockState = snapshot.LockState
+	}
+	if snapshot.ScreenState == "on" || snapshot.ScreenState == "off" {
+		restorationState.ScreenState = snapshot.ScreenState
+	}
+	if snapshot.Orientation != "" && restorationState.Orientation == "" {
+		restorationState.Orientation = snapshot.Orientation
+		restorationState.AutoRotate = snapshot.AutoRotate
+		restorationState.AutoRotateKnown = snapshot.AutoRotateKnown
+		restorationState.RotationSettings = snapshot.RotationSettings
+	}
+	return restorationState
 }

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../../test-utils";
 import { selectors } from "../../consts/selectors";
@@ -150,6 +150,21 @@ describe("SourceMediaPanel", () => {
     expect(fetchPage).toHaveBeenLastCalledWith(expect.objectContaining({ projectId: "p1", pageToken: "page-2" }));
   });
 
+  it("retries only the failed next media page", async () => {
+    const user = userEvent.setup();
+    const fetchPage = vi.mocked(projectsClient.listSourceMedia);
+    fetchPage.mockResolvedValueOnce({ sourceMedia: [record], nextPageToken: "page-2" } as never)
+      .mockRejectedValueOnce(new Error("next page unavailable"))
+      .mockResolvedValueOnce({ sourceMedia: [{ ...record, id: "m2", originalFilename: "second.png" }], nextPageToken: "" } as never);
+    renderWithProviders(<SourceMediaPanel projectId="p1" />);
+    await user.click(await screen.findByTestId(selectors.media.loadMore));
+    const failure = await screen.findByRole("alert");
+    expect(failure).toHaveTextContent("next page unavailable");
+    await user.click(within(failure).getByRole("button", { name: i18n.t(strings.media.retry) }));
+    expect(await screen.findByTestId(selectors.media.selectButton({ id: "m2" }))).toBeInTheDocument();
+    expect(fetchPage.mock.calls.map(([request]) => request.pageToken)).toEqual(["", "page-2", "page-2"]);
+  });
+
   it("streams video from its routed URL without reading it into a JavaScript Blob", async () => {
     const user = userEvent.setup();
     const video = { ...record, id: "v1", kind: SourceMediaKind.VIDEO, readiness: MediaReadiness.PENDING, mediaType: "video/mp4", width: undefined, height: undefined, inspectionJobId: "job-1", inspectionAttemptId: "attempt-1", inspectionJob: { id: "job-1", state: "running", version: 4n, currentAttemptId: "attempt-1" } };
@@ -165,6 +180,25 @@ describe("SourceMediaPanel", () => {
     expect(player).toHaveAttribute("aria-label", "Original recording: capture.png");
     expect(getSourceMediaContent).not.toHaveBeenCalled();
     expect(screen.getByText((_, element) => element?.textContent === `${i18n.t(strings.media.inspectionStatus)}: ${i18n.t(strings.media.readinessPending)}`)).toBeInTheDocument();
+  });
+
+  it("retries a failed video preview without changing the selected source", async () => {
+    const user = userEvent.setup();
+    const video = { ...record, id: "v1", kind: SourceMediaKind.VIDEO, readiness: MediaReadiness.PENDING, mediaType: "video/mp4", width: undefined, height: undefined, inspectionJobId: "job-1", inspectionAttemptId: "attempt-1", inspectionJob: { id: "job-1", state: "running", version: 4n, currentAttemptId: "attempt-1" } };
+    vi.mocked(projectsClient.listSourceMedia).mockResolvedValue({ sourceMedia: [video], nextPageToken: "" } as never);
+    vi.mocked(projectsClient.getSourceMedia).mockResolvedValue({ sourceMedia: video } as never);
+    renderWithProviders(<SourceMediaPanel projectId="p1" />);
+    await user.click(await screen.findByTestId(selectors.media.selectButton({ id: "v1" })));
+    const initialPlayer = await screen.findByTestId(selectors.media.videoPreview);
+    const src = initialPlayer.getAttribute("src");
+    fireEvent.error(initialPlayer);
+    const failure = await screen.findByRole("alert");
+    await user.click(within(failure).getByRole("button", { name: i18n.t(strings.media.retry) }));
+    const retriedPlayer = await screen.findByTestId(selectors.media.videoPreview);
+    expect(retriedPlayer).not.toBe(initialPlayer);
+    expect(retriedPlayer).toHaveAttribute("src", src);
+    expect(screen.getByTestId(selectors.media.selectButton({ id: "v1" }))).toHaveAttribute("aria-pressed", "true");
+    expect(getSourceMediaContent).not.toHaveBeenCalled();
   });
 
   it("cancels a current inspection using its expected version and keeps an uncertain response visible", async () => {

@@ -247,6 +247,7 @@ type ReadinessRecord struct {
 	ReadinessGoalRef string
 	ApprovedAtCommit string
 	GoalClosed       bool
+	ObservedAt       time.Time
 	Waiver           *ReadinessWaiver
 }
 

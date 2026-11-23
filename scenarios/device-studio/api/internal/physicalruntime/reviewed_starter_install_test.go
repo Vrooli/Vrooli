@@ -2,26 +2,15 @@ package physicalruntime
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
-	"path/filepath"
 	"testing"
-	"time"
 
 	"device-studio/internal/devices"
-	"device-studio/internal/jobs"
-	"device-studio/internal/library"
-	"device-studio/internal/motions"
-	"device-studio/internal/projects"
-	"device-studio/internal/routedblobstore"
-	"device-studio/internal/scenes"
-	"device-studio/internal/shots"
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/filerouting"
-	"github.com/vrooli/api-core/storage"
-	_ "modernc.org/sqlite"
 	"testing/fstest"
+
+	"github.com/vrooli/api-core/database"
+	_ "modernc.org/sqlite"
 )
 
 func TestEmbeddedReviewedSmartDisplayInstallsIntoCleanOwnerAndReplaysIdempotently(t *testing.T) {
@@ -327,49 +316,8 @@ func newReviewedStarterInstallTestOwners(t *testing.T, ctx context.Context) Owne
 	return newReviewedStarterInstallFixture(t, ctx).owners
 }
 
-type reviewedStarterInstallFixture struct {
-	owners Owners
-	db     *database.RoutedDB
-	roots  *filerouting.RoutedRoots
-	media  projects.SourceMediaService
-}
+type reviewedStarterInstallFixture = starterTestFixture
 
 func newReviewedStarterInstallFixture(t *testing.T, ctx context.Context) reviewedStarterInstallFixture {
-	t.Helper()
-	providers := []database.SchemaProvider{
-		database.SchemaProviderFunc(library.Schema), database.SchemaProviderFunc(devices.Schema),
-		database.SchemaProviderFunc(scenes.Schema), database.SchemaProviderFunc(motions.Schema),
-		database.SchemaProviderFunc(projects.Schema), database.SchemaProviderFunc(shots.Schema), database.SchemaProviderFunc(jobs.Schema),
-	}
-	db, err := database.Open(ctx, database.Config{Driver: database.DriverSQLite, DSN: filepath.Join(t.TempDir(), "primary.db"), MaxOpenConns: 1, MaxIdleConns: 1})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = db.Close() })
-	if err := database.EnsureSchemas(ctx, db.Primary(), providers...); err != nil {
-		t.Fatal(err)
-	}
-	db.SetTestPoolInitializer(func(initCtx context.Context, pool *sql.DB) error {
-		return database.EnsureSchemas(initCtx, pool, providers...)
-	})
-	roots := filerouting.New(storage.Paths{DataDir: filepath.Join(t.TempDir(), "data")})
-	const lease = "reviewed-starter-install-test"
-	if err := db.InstallTestPool(ctx, filepath.Join(t.TempDir(), "leased.db"), lease, time.Minute); err != nil {
-		t.Fatal(err)
-	}
-	if err := roots.InstallTestRoots(storage.Paths{DataDir: filepath.Join(t.TempDir(), "leased-data")}, lease, time.Minute); err != nil {
-		t.Fatal(err)
-	}
-	projectRepo := projects.NewSQLiteRepository(db, nil)
-	projectService := projects.NewService(projectRepo, nil)
-	mediaStore, err := routedblobstore.New(roots, "media")
-	if err != nil {
-		t.Fatal(err)
-	}
-	mediaService := projects.NewSourceMediaService(projects.SourceMediaDeps{Projects: projectService, Repository: projectRepo.(projects.SourceMediaRepository), Store: mediaStore})
-	owners, err := New(db, roots, mediaService)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return reviewedStarterInstallFixture{owners: owners, db: db, roots: roots, media: mediaService}
+	return newStarterTestFixture(t, ctx, "reviewed-starter-install-test")
 }

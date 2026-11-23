@@ -1,6 +1,6 @@
 /**
  * Navigation spec component-tier conformance test (per
- * navigation-integrity-audit §5).
+ * architecture-lenses §5).
  *
  * For each `nav_*` affordance declared in `ui/flow/navigation.json`:
  *   - render the App under the affordance's host container context,

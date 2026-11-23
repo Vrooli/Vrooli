@@ -501,7 +501,11 @@ func (s *Service) persistDirectAudit(ctx context.Context, record Audit) {
 	defer s.mu.Unlock()
 	if s.db != nil {
 		details, _ := json.Marshal(record.Details)
-		_, _ = s.db.ExecContext(ctx, `INSERT INTO device_control_audits (id, actor, device_id, transport, causation_id, operation_id, lease_id, verb, outcome, created_at, redaction_verified, redaction_opted_out, interactive, evidence_backed, details_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, record.ID, record.Actor, record.DeviceID, record.Transport, record.CausationID, record.OperationID, record.LeaseID, record.Verb, record.Outcome, record.CreatedAt.Format(time.RFC3339Nano), 1, 0, 1, 0, string(details))
+		interactive := 0
+		if record.Interactive {
+			interactive = 1
+		}
+		_, _ = s.db.ExecContext(ctx, `INSERT INTO device_control_audits (id, actor, device_id, transport, causation_id, operation_id, lease_id, verb, outcome, created_at, redaction_verified, redaction_opted_out, interactive, evidence_backed, details_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, record.ID, record.Actor, record.DeviceID, record.Transport, record.CausationID, record.OperationID, record.LeaseID, record.Verb, record.Outcome, record.CreatedAt.Format(time.RFC3339Nano), 1, 0, interactive, 0, string(details))
 	}
 	s.audits = append(s.audits, record)
 }

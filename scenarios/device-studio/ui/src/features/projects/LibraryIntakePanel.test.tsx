@@ -4,7 +4,8 @@ import userEvent from "@testing-library/user-event";
 import { create } from "@bufbuild/protobuf";
 import { IntakeCandidateRevisionSchema, IntakeInspectionSchema } from "@vrooli/proto-types/device-studio/v1/library/library_pb";
 import { renderWithProviders } from "../../test-utils";
-import { setLocale } from "../../i18n";
+import { i18n, setLocale } from "../../i18n";
+import { strings } from "../../consts/strings";
 import { correctLocalGeometryMaterial, downloadLocalGeometryCandidate, getLocalGeometryMaterials, getLocalGeometryPreview, importLocalGeometryCandidate, listLocalGeometryCandidates } from "../../api/library-intake";
 import { importPreparedPhotograph } from "../../api/physical";
 import { LibraryIntakePanel } from "./LibraryIntakePanel";
@@ -119,6 +120,18 @@ describe("LibraryIntakePanel", () => {
     expect(listLocalGeometryCandidates).toHaveBeenLastCalledWith("intake-test");
   });
 
+  it("retries a failed candidate catalog read", async () => {
+    vi.mocked(listLocalGeometryCandidates)
+      .mockRejectedValueOnce(new Error("catalog unavailable"))
+      .mockResolvedValueOnce({ candidates: [candidate], nextAfterCandidateId: "" } as never);
+    const user = userEvent.setup();
+    renderWithProviders(<LibraryIntakePanel />);
+    expect(await screen.findByRole("alert")).toHaveTextContent(i18n.t(strings.physical.intakeListUnavailable));
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.intakeReadRetry) }));
+    await waitFor(() => expect(listLocalGeometryCandidates).toHaveBeenCalledTimes(2));
+    expect(listLocalGeometryCandidates).toHaveBeenCalledTimes(2);
+  });
+
   it("shows a digest-bound vertex-color preview while keeping the candidate unreviewed", async () => {
     vi.mocked(listLocalGeometryCandidates).mockResolvedValue({ candidates: [candidate], nextAfterCandidateId: "" } as never);
     vi.stubGlobal("URL", { createObjectURL: vi.fn(() => "blob:preview"), revokeObjectURL: vi.fn() });
@@ -130,6 +143,22 @@ describe("LibraryIntakePanel", () => {
     expect(screen.getByRole("img", { name: "Three-view preview of an unreviewed imported geometry candidate" })).toBeInTheDocument();
     expect(getLocalGeometryPreview).toHaveBeenCalledWith(candidate);
     expect(screen.getByText(/Review: unreviewed · rendering: not_reviewed/)).toBeInTheDocument();
+  });
+
+  it("retries a failed preview read for the same immutable candidate revision", async () => {
+    vi.mocked(listLocalGeometryCandidates).mockResolvedValue({ candidates: [candidate], nextAfterCandidateId: "" } as never);
+    vi.mocked(getLocalGeometryPreview)
+      .mockRejectedValueOnce(new Error("preview unavailable"))
+      .mockResolvedValueOnce({ blob: new Blob(["bounded-png"]), preview_sha256: "c".repeat(64), vertex_colors: true, width: 768, height: 256 });
+    vi.stubGlobal("URL", { createObjectURL: vi.fn(() => "blob:preview"), revokeObjectURL: vi.fn() });
+    const user = userEvent.setup();
+    renderWithProviders(<LibraryIntakePanel />);
+    await user.click(await screen.findByRole("button", { name: i18n.t(strings.physical.intakePreviewOpen) }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(i18n.t(strings.physical.intakePreviewUnavailable));
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.intakeReadRetry) }));
+    expect(await screen.findByRole("img", { name: i18n.t(strings.physical.intakePreviewAlt) })).toBeInTheDocument();
+    expect(getLocalGeometryPreview).toHaveBeenNthCalledWith(1, candidate);
+    expect(getLocalGeometryPreview).toHaveBeenNthCalledWith(2, candidate);
   });
 
   it("does not make a candidate appear if import fails", async () => {
@@ -167,6 +196,30 @@ describe("LibraryIntakePanel", () => {
     expect(await screen.findByText("Material edit lineage")).toBeInTheDocument();
     expect(screen.getByText(/Child GLB SHA-256 ddddd/)).toBeInTheDocument();
     second.unmount();
+  });
+
+  it("recovers a saved material correction after the inventory read fails", async () => {
+    vi.mocked(listLocalGeometryCandidates).mockResolvedValue({ candidates: [candidate], nextAfterCandidateId: "" } as never);
+    vi.mocked(getLocalGeometryMaterials).mockRejectedValueOnce(new Error("material inventory unavailable"));
+    const key = `device-studio-material-correction:${candidate.id}@${candidate.revision}:${candidate.revisionSha256}`;
+    const pending = {
+      parent_candidate_id: candidate.id, parent_revision: candidate.revision,
+      parent_revision_sha256: candidate.revisionSha256, child_candidate_id: "intake-saved-correction",
+      material_index: 0, material_name: "case", roughness_factor: 0.2,
+    };
+    localStorage.setItem(key, JSON.stringify(pending));
+    const user = userEvent.setup();
+    renderWithProviders(<LibraryIntakePanel />);
+    await user.click(await screen.findByRole("button", { name: i18n.t(strings.physical.intakeMaterialEdit) }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(i18n.t(strings.physical.intakeMaterialUnavailable));
+    expect(screen.getByText(i18n.t(strings.physical.intakeMaterialPending))).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: i18n.t(strings.physical.intakeMaterialRetry) })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.intakeReadRetry) }));
+    expect(await screen.findByText(i18n.t(strings.physical.intakeMaterialPending))).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.intakeMaterialRetry) }));
+    await waitFor(() => expect(correctLocalGeometryMaterial).toHaveBeenCalledWith(pending));
+    expect(localStorage.getItem(key)).toBeNull();
   });
 
   it("fails closed when the browser cannot persist a correction retry identity", async () => {
@@ -223,7 +276,7 @@ describe("LibraryIntakePanel", () => {
     expect(correctLocalGeometryMaterial).not.toHaveBeenCalled();
   });
 
-  it("downloads exact imported geometry and reports a failed download", async () => {
+  it("downloads and retries the exact imported geometry revision", async () => {
     vi.mocked(listLocalGeometryCandidates).mockResolvedValue({ candidates: [candidate], nextAfterCandidateId: "" } as never);
     const createObjectURL = vi.fn(() => "blob:download");
     const revokeObjectURL = vi.fn();
@@ -238,9 +291,14 @@ describe("LibraryIntakePanel", () => {
     expect(click).toHaveBeenCalledOnce();
     expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
 
-    vi.mocked(downloadLocalGeometryCandidate).mockRejectedValueOnce(new Error("download digest mismatch"));
+    vi.mocked(downloadLocalGeometryCandidate)
+      .mockRejectedValueOnce(new Error("download digest mismatch"))
+      .mockResolvedValueOnce(new Blob(["verified geometry after retry"]));
     await user.click(screen.getByRole("button", { name: "Download verified original" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("download digest mismatch");
+    expect(await screen.findByRole("alert")).toHaveTextContent(i18n.t(strings.physical.intakeDownloadUnavailable));
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.intakeReadRetry) }));
+    await waitFor(() => expect(downloadLocalGeometryCandidate).toHaveBeenCalledTimes(3));
+    expect(downloadLocalGeometryCandidate).toHaveBeenNthCalledWith(3, candidate);
   });
 
   it("rejects empty components in base-color and emissive tuples", async () => {

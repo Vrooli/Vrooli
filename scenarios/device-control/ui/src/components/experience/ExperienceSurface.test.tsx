@@ -2,7 +2,7 @@ import { cleanup, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { renderWithProviders } from "../../test-utils";
-import { ExperienceSurface } from "./ExperienceSurface";
+import { ExperienceSurface } from "@vrooli/react-component-library/ExperienceSurface/1";
 
 describe("ExperienceSurface", () => {
   it("exposes stable state metadata and live status only for live states", () => {

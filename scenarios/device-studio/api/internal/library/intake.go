@@ -282,24 +282,29 @@ type stagedIntake struct {
 }
 
 func (s *stagedIntake) Candidate() IntakeCandidate { return s.record.Candidate }
-func (s *stagedIntake) Abort(ctx context.Context) error {
+func (s *stagedIntake) discard(ctx context.Context) error {
 	if s.done {
 		return nil
 	}
+	if err := s.service.store.Delete(ctx, s.record.BlobKey); err != nil {
+		return err
+	}
 	s.done = true
-	return s.service.store.Delete(ctx, s.record.BlobKey)
+	return nil
 }
+func (s *stagedIntake) Abort(ctx context.Context) error { return s.discard(ctx) }
 func (s *stagedIntake) Commit(ctx context.Context) (IntakeCandidate, error) {
 	if s.done {
 		return IntakeCandidate{}, errors.New("staged intake import is already finalized")
 	}
-	s.done = true
 	canonical, digest, err := encodeIntakeRecord(s.record)
 	if err != nil {
-		return IntakeCandidate{}, errors.Join(err, s.service.store.Delete(ctx, s.record.BlobKey))
+		cleanupErr := s.discard(ctx)
+		return IntakeCandidate{}, errors.Join(err, cleanupErr)
 	}
 	row, err := s.service.repo.Save(ctx, revisionstore.Record[intakeRecord]{ID: s.record.Candidate.ID, SHA256: digest, Value: s.record, Canonical: canonical, CreatedAt: s.record.Candidate.ImportedAt}, 0)
 	if err == nil {
+		s.done = true
 		return row.Value.Candidate, nil
 	}
 	// A competing exact import may have committed with another unique staged key.
@@ -310,12 +315,14 @@ func (s *stagedIntake) Commit(ctx context.Context) (IntakeCandidate, error) {
 	if readErr == nil {
 		if intakeCandidatesEqual(prior.Value.Candidate, s.record.Candidate) {
 			if prior.Value.BlobKey == s.record.BlobKey {
+				s.done = true
 				return prior.Value.Candidate, nil
 			}
-			cleanupErr := s.service.store.Delete(ctx, s.record.BlobKey)
+			cleanupErr := s.discard(ctx)
 			return prior.Value.Candidate, cleanupErr
 		}
-		return IntakeCandidate{}, errors.Join(ErrIntakeConflict, s.service.store.Delete(ctx, s.record.BlobKey))
+		cleanupErr := s.discard(ctx)
+		return IntakeCandidate{}, errors.Join(ErrIntakeConflict, cleanupErr)
 	}
 	return IntakeCandidate{}, errors.Join(fmt.Errorf("commit intake metadata; staged bytes retained because outcome is uncertain: %w", err), readErr)
 }

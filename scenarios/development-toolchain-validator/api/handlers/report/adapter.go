@@ -1,12 +1,12 @@
 package report
 
 import (
+	recordhandler "development-toolchain-validator/handlers/validation_record"
 	report "development-toolchain-validator/internal/report"
 	vr "development-toolchain-validator/internal/validation_record"
 
 	reportv1 "github.com/vrooli/vrooli/packages/proto/gen/go/development-toolchain-validator/v1/report"
 	vrv1 "github.com/vrooli/vrooli/packages/proto/gen/go/development-toolchain-validator/v1/validation_record"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func summaryToProto(s report.GoldenSummary) *reportv1.GoldenSummary {
@@ -44,7 +44,7 @@ func historyToProto(h report.TupleHistory) *reportv1.TupleHistory {
 		Records:       make([]*vrv1.ValidationRecord, 0, len(h.Records)),
 	}
 	for _, r := range h.Records {
-		out.Records = append(out.Records, recordToProto(r))
+		out.Records = append(out.Records, recordhandler.RecordToProto(r))
 	}
 	return out
 }
@@ -64,29 +64,6 @@ func coverageToProto(c report.Coverage) *reportv1.Coverage {
 		})
 	}
 	return out
-}
-
-func recordToProto(r vr.Record) *vrv1.ValidationRecord {
-	return &vrv1.ValidationRecord{
-		Id:                           r.ID,
-		TupleKind:                    tupleKindDomainToProto(r.TupleKind),
-		SubjectId:                    r.SubjectID,
-		GoldenSlug:                   r.GoldenSlug,
-		StartedAt:                    timestamppb.New(r.StartedAt.UTC()),
-		EndedAt:                      timestamppb.New(r.EndedAt.UTC()),
-		DurationMs:                   r.DurationMS,
-		TokensUsed:                   r.TokensUsed,
-		CostUsdMicro:                 r.CostUSDMicro,
-		Verdict:                      verdictDomainToProto(r.Verdict),
-		DiffHash:                     r.DiffHash,
-		DiffPathCount:                r.DiffPathCount,
-		AgentManagerRunId:            r.AgentManagerRunID,
-		ManifestTemplateVersionAtRun: r.ManifestTemplateVersionAtRun,
-		ManifestSkillVersionAtRun:    r.ManifestSkillVersionAtRun,
-		ErrorMessage:                 r.ErrorMessage,
-		ToolDetail:                   r.ToolDetail,
-		ToolRawOutput:                r.ToolRawOutput,
-	}
 }
 
 func tupleKindDomainToProto(t vr.TupleKind) vrv1.TupleKind {

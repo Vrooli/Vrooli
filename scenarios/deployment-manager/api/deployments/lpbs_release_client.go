@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -19,6 +20,8 @@ import (
 
 	"deployment-manager/shared"
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/lpbsidentity"
+	"github.com/vrooli/api-core/servicetoken"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
 
@@ -48,7 +51,58 @@ func defaultLPBSServiceSecret() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return authority.Require(lpbsServiceSecretIdentity, lpbsServiceSecretField)
+	before := authority.Status(lpbsServiceSecretIdentity, lpbsServiceSecretField)
+	if string(before.ProviderState) != "available" || !before.Configured || strings.TrimSpace(before.Version) == "" {
+		return "", fmt.Errorf("legacy LPBS credential is unavailable or unversioned")
+	}
+	value, err := authority.Resolve(lpbsServiceSecretIdentity, lpbsServiceSecretField)
+	if err != nil {
+		return "", fmt.Errorf("resolve legacy LPBS credential")
+	}
+	after := authority.Status(lpbsServiceSecretIdentity, lpbsServiceSecretField)
+	if string(after.ProviderState) != "available" || !after.Configured || after.Version != before.Version {
+		return "", fmt.Errorf("legacy LPBS credential changed during resolution")
+	}
+	return value, nil
+}
+
+const deploymentManagerLPBSPrincipal = "deployment-manager-lpbs-release-manager"
+
+// deploymentManagerLPBSTokens reads the issued credential each time it must
+// exchange for a short-lived LPBS release token. The authority value is never
+// retained by the HTTP client.
+func deploymentManagerLPBSTokens() *servicetoken.Tokens {
+	role := lpbsidentity.DeploymentManagerRelease
+	return servicetoken.New(servicetoken.Config{
+		Name:   "deployment-manager " + role.Label,
+		Expect: servicetoken.ExpectIdentity(role.Principal("deployment-manager"), role.Audience, role.Scope),
+		Credential: func(context.Context) (string, error) {
+			authority, err := credentialauthority.Default()
+			if err != nil {
+				return "", err
+			}
+			identity, err := credentialauthority.ParseIdentity("scenario-authenticator/service-principal/" + deploymentManagerLPBSPrincipal + "/" + lpbsidentity.Resource)
+			if err != nil {
+				return "", err
+			}
+			credential, err := authority.Require(identity, "credential")
+			if err != nil {
+				return "", err
+			}
+			return credential, nil
+		},
+		Describe: func(kind, cause error) error {
+			if cause != nil {
+				return fmt.Errorf("%w: %w", kind, cause)
+			}
+			return kind
+		},
+	}, servicetoken.WithExchanger(servicetoken.AuthenticatorExchanger(&http.Client{Timeout: 5 * time.Second}, func(ctx context.Context) (string, error) {
+		if configured := strings.TrimSpace(os.Getenv("SCENARIO_AUTHENTICATOR_API_URL")); configured != "" {
+			return strings.TrimRight(configured, "/"), nil
+		}
+		return discovery.ResolveScenarioURLDefault(ctx, "scenario-authenticator")
+	})))
 }
 
 // LPBSReleaseClient talks to landing-page-business-suite for release-time
@@ -183,28 +237,32 @@ func (r *LPBSVerifyResult) UnmarshalJSON(data []byte) error {
 
 // HTTPLPBSReleaseClient is the default LPBS release client over HTTP.
 type HTTPLPBSReleaseClient struct {
-	httpClient     *http.Client
-	baseURL        string
-	resolveBaseURL func(context.Context) (string, error)
-	serviceSecret  string
-	log            func(string, map[string]interface{})
+	httpClient           *http.Client
+	baseURL              string
+	resolveBaseURL       func(context.Context) (string, error)
+	serviceSecret        string
+	resolveServiceSecret func() (string, error)
+	tokens               *servicetoken.Tokens
+	log                  func(string, map[string]interface{})
 }
 
-// LPBSClientConfig options for constructing the LPBS client. Base URL and
-// service secret resolve in order: explicit config, environment, then the
-// scenario discovery / credential authority owners. ResolveBaseURL and
-// ResolveServiceSecret override the owner lookups for tests.
+// LPBSClientConfig options for constructing the LPBS client. Base URL resolves
+// from explicit config or scenario discovery. ResolveServiceSecret is an
+// isolated test seam; production reads the authority only if the scoped role
+// is confirmed unissued.
 type LPBSClientConfig struct {
 	BaseURL              string
 	ServiceSecret        string
 	Log                  func(string, map[string]interface{})
 	ResolveBaseURL       func(ctx context.Context) (string, error)
 	ResolveServiceSecret func() (string, error)
+	Tokens               *servicetoken.Tokens
 }
 
 // NewHTTPLPBSReleaseClient creates a new HTTP LPBS release client. Explicit
-// URLs stay pinned; discovered URLs are resolved for each operation. The
-// shared service secret is resolved once through the credential authority.
+// URLs stay pinned; discovered URLs are resolved for each operation. Legacy
+// service credentials are resolved lazily only after the scoped role reports
+// unissued.
 func NewHTTPLPBSReleaseClient(cfg LPBSClientConfig) (*HTTPLPBSReleaseClient, error) {
 	base := strings.TrimSpace(cfg.BaseURL)
 	if base == "" {
@@ -223,36 +281,53 @@ func NewHTTPLPBSReleaseClient(cfg LPBSClientConfig) (*HTTPLPBSReleaseClient, err
 	if log == nil {
 		log = func(string, map[string]interface{}) {}
 	}
+	resolveServiceSecret := cfg.ResolveServiceSecret
+	if resolveServiceSecret == nil {
+		resolveServiceSecret = defaultLPBSServiceSecret
+	}
 	secret := strings.TrimSpace(cfg.ServiceSecret)
-	if secret == "" {
-		secret = strings.TrimSpace(os.Getenv("LPBS_SERVICE_SECRET"))
-	}
-	if secret == "" {
-		resolve := cfg.ResolveServiceSecret
-		if resolve == nil {
-			resolve = defaultLPBSServiceSecret
-		}
-		resolved, err := resolve()
-		if err != nil {
-			log("warn", map[string]interface{}{
-				"msg":   "LPBS service credential could not be resolved from the credential authority",
-				"error": err.Error(),
-			})
-		}
-		secret = strings.TrimSpace(resolved)
-	}
-	if secret == "" {
-		log("warn", map[string]interface{}{
-			"msg": "LPBS service credential is not set; deploy-readiness checks will fail until it is configured",
-		})
+	tokens := cfg.Tokens
+	if tokens == nil {
+		tokens = deploymentManagerLPBSTokens()
 	}
 	return &HTTPLPBSReleaseClient{
-		httpClient:     &http.Client{Timeout: 60 * time.Second},
-		baseURL:        strings.TrimRight(base, "/"),
-		resolveBaseURL: resolveBaseURL,
-		serviceSecret:  secret,
-		log:            log,
+		httpClient:           &http.Client{Timeout: 60 * time.Second},
+		baseURL:              strings.TrimRight(base, "/"),
+		resolveBaseURL:       resolveBaseURL,
+		serviceSecret:        secret,
+		resolveServiceSecret: resolveServiceSecret,
+		tokens:               tokens,
+		log:                  log,
 	}, nil
+}
+
+// authorize prefers the scoped, short-lived service principal. The legacy
+// service-secret is accepted only while no credential has been issued for the
+// scoped principal; exchange and identity failures must fail closed.
+func (c *HTTPLPBSReleaseClient) authorize(ctx context.Context, req *http.Request) error {
+	if c.tokens != nil {
+		authorization, err := c.tokens.Authorization(ctx)
+		if err == nil {
+			req.Header.Set("Authorization", authorization)
+			return nil
+		}
+		if !errors.Is(err, servicetoken.ErrNotIssued) || !errors.Is(err, credentialauthority.ErrUnconfigured) {
+			return fmt.Errorf("LPBS release service identity: %w", err)
+		}
+	}
+	legacy := strings.TrimSpace(c.serviceSecret)
+	if legacy == "" && c.resolveServiceSecret != nil {
+		resolved, err := c.resolveServiceSecret()
+		if err != nil {
+			return fmt.Errorf("LPBS legacy recovery credential: %w", err)
+		}
+		legacy = strings.TrimSpace(resolved)
+	}
+	if legacy == "" {
+		return fmt.Errorf("LPBS scoped principal is unissued and no legacy recovery credential is available")
+	}
+	req.Header.Set("Authorization", "Bearer "+legacy)
+	return nil
 }
 
 func (c *HTTPLPBSReleaseClient) endpoint(ctx context.Context, path string) (string, error) {
@@ -355,10 +430,8 @@ func (c *HTTPLPBSReleaseClient) CheckDeployReadiness(ctx context.Context, req *L
 		return nil, fmt.Errorf("build request: %w", err)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
-	if c.serviceSecret != "" {
-		// LPBS requireAdminOrService accepts a Bearer service token; same
-		// secret pattern S2D uses for inter-scenario calls.
-		httpReq.Header.Set("Authorization", "Bearer "+c.serviceSecret)
+	if err := c.authorize(ctx, httpReq); err != nil {
+		return nil, err
 	}
 
 	resp, err := c.httpClient.Do(httpReq)
@@ -505,8 +578,8 @@ func (c *HTTPLPBSReleaseClient) HaltChannel(ctx context.Context, req *LPBSRecove
 		return nil, fmt.Errorf("build channel halt request: %w", err)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
-	if c.serviceSecret != "" {
-		httpReq.Header.Set("Authorization", "Bearer "+c.serviceSecret)
+	if err := c.authorize(ctx, httpReq); err != nil {
+		return nil, err
 	}
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
@@ -559,8 +632,8 @@ func (c *HTTPLPBSReleaseClient) RecoverChannel(ctx context.Context, req *LPBSRec
 		return nil, fmt.Errorf("build channel recovery request: %w", err)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
-	if c.serviceSecret != "" {
-		httpReq.Header.Set("Authorization", "Bearer "+c.serviceSecret)
+	if err := c.authorize(ctx, httpReq); err != nil {
+		return nil, err
 	}
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {

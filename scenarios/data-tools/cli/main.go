@@ -1,18 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"os"
+
+	"github.com/vrooli/cli-core/entrypoint"
 )
 
 func main() {
-	app, err := NewApp()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
-	}
-	if err := app.Run(os.Args[1:]); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
-	}
+	entrypoint.RunAndExit(NewApp, os.Args[1:], os.Stderr, os.Exit)
 }

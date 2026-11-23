@@ -19,6 +19,7 @@ func Register(app *cliapp.ScenarioApp) cliapp.CommandGroup {
 		Commands: []cliapp.Command{
 			{Name: "deploy", NeedsAPI: true, Description: "Deploy a profile", Run: deployments.Deploy},
 			{Name: "deploy-desktop", NeedsAPI: true, Description: "Orchestrate complete bundled desktop deployment", Run: deployments.DeployDesktop},
+			{Name: "android-validate", NeedsAPI: true, Description: "Validate one immutable Android artifact on a physical device and record its verdict", Run: deployments.AndroidValidate},
 			{Name: "deployment", NeedsAPI: true, Description: "Manage deployment records", Run: deployments.Deployment},
 			{Name: "build", NeedsAPI: true, Description: "Cross-compile service binaries (retired)", Run: retired("build", "use the typed release preparation and candidate operations")},
 			{Name: "logs", NeedsAPI: true, Description: "Fetch deployment logs (retired)", Run: retired("logs", "use deployment operation standing and owner receipts")},

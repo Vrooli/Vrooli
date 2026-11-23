@@ -110,7 +110,10 @@ func (r *sqliteRepository) CloseRunScope(ctx context.Context, id string, expecte
 		if e != nil {
 			return e
 		}
-		if s.Version != expected {
+		// Closing is irreversible and does not increment the version again, so
+		// repeat close requests may safely resume from the durable state even if
+		// the caller lost the first response and still has the prior version.
+		if s.Version != expected && s.State != RunScopeClosing {
 			return ErrConcurrentTransition
 		}
 		if s.State.Terminal() {

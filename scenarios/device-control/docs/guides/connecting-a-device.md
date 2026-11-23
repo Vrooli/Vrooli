@@ -127,11 +127,13 @@ Reconnect first rechecks the persisted endpoint, then uses Android mDNS TLS
 discovery when available. It verifies the original hardware serial before
 persisting any rotated endpoint. A successful response reports
 `health_reason: wireless ADB endpoint reconnected and identity verified`; it
-does not accept a different phone merely because that endpoint answers.
-The command does not enable wireless debugging or bypass Android trust. If it
-reports an unavailable wireless transport, enable Wireless debugging and
-authorize this host on the phone, then retry. Use
-`device-control flow run --transport wireless` explicitly for subsequent
+does not accept a different phone merely because that endpoint answers. If a
+legacy Android phone has rebooted and its saved TCP listener is gone, reconnect
+can re-enable legacy TCP through the previously enrolled serial-bound USB
+profile. That fallback runs only when USB is currently attached and verified;
+it never guesses by IP address or bypasses Android trust. Otherwise, reconnect
+reports the missing wireless route so the operator can reattach USB and retry.
+Use `device-control flow run --transport wireless` explicitly for subsequent
 wireless flows.
 When all state-bearing transports fail, a state read also attempts this
 identity-verified reconnect once and repeats only the observation. It never
@@ -164,6 +166,15 @@ Older Android devices do not expose this native mode; for them the existing
 and verifies the same hardware serial before saving the endpoint. Promotion
 can be repeated through a known serial-bound USB profile to recover a stale
 wireless connection.
+
+Legacy ADB-over-TCP on Android 10 and earlier is a current-boot mode. A reboot
+stops the phone's TCP ADB listener. If the phone is reattached over its
+authorized USB profile, `device-control device reconnect` restores that mode
+and verifies the original serial automatically. A router DHCP reservation can
+keep the phone's IP address stable, but it does not keep the listener enabled
+across reboot. Do not describe this setup as reboot-persistent unless the
+device has a separately verified, supported way to start adbd over TCP at
+boot.
 
 For an Android flow without an explicit transport, Device Control first
 preflights the selected wireless transport. If it cannot satisfy the flow and

@@ -39,11 +39,18 @@ function ProjectDetailEditor({ projectId }: { projectId: string }) {
     },
   });
   const conflict = projectConflict(rename.error);
+  async function reloadProject(rebaseRevision = false) {
+    const result = await query.refetch();
+    if (rebaseRevision && result.data?.project) setBaseRevision(result.data.project.revision);
+  }
   const status = query.isLoading ? t(strings.project.loading) : query.error ? errorMessage(query.error, t) : undefined;
   return <section data-testid={selectors.pages.project} className="flex flex-col gap-space-md">
     <ExperienceSurface surfaceId="project-detail" state={query.isLoading ? "loading" : query.error ? "error" : "ready"} statusMessage={status}>
       {query.isLoading && <p data-testid={selectors.projects.loading} role="status">{t(strings.project.loading)}</p>}
-      {query.error && <p data-testid={selectors.projects.error} role="alert">{errorMessage(query.error, t)}</p>}
+      {query.error && <>
+        <p data-testid={selectors.projects.error} role="alert">{errorMessage(query.error, t)}</p>
+        {!(rename.error && conflict) && <Button data-testid={selectors.projects.reloadButton} variant="outline" disabled={query.isFetching} onClick={() => void reloadProject()}>{t(strings.project.reload)}</Button>}
+      </>}
       {project && <header className="project-detail__breadcrumb">
         <Link to="/">{t(strings.project.back)}</Link><span aria-hidden="true">/</span><h1>{project.name}</h1>
       </header>}
@@ -57,7 +64,7 @@ function ProjectDetailEditor({ projectId }: { projectId: string }) {
             <label className="flex min-w-56 flex-1 flex-col gap-1 text-sm font-medium">{t(strings.project.nameLabel)}<input data-testid={selectors.projects.renameInput} className="min-h-11 rounded-control border border-app-border bg-app-surface px-3 py-2 text-base text-app-foreground" value={draft ?? project.name} onChange={(event) => setDraft(event.target.value)} disabled={rename.isPending} required /></label>
             <Button className="min-h-11" data-testid={selectors.projects.renameButton} type="submit" disabled={rename.isPending || baseRevision === undefined || !(draft ?? project.name).trim()}>{t(strings.project.rename)}</Button>
           </form>
-          {rename.error && (conflict ? <div data-testid={selectors.projects.conflict} role="alert" className="rounded-panel border border-app-warning/40 bg-app-warning/10 p-space-sm text-sm"><p>{t(strings.project.conflict)}</p><Button data-testid={selectors.projects.reloadButton} variant="outline" className="mt-2 min-h-11" onClick={() => { void query.refetch().then((result) => { if (result.data?.project) setBaseRevision(result.data.project.revision); }); }}>{t(strings.project.reload)}</Button></div> : <p data-testid={selectors.projects.error} role="alert">{errorMessage(rename.error, t) || t(strings.project.renameError)}</p>)}
+          {rename.error && (conflict ? <div data-testid={selectors.projects.conflict} role="alert" className="rounded-panel border border-app-warning/40 bg-app-warning/10 p-space-sm text-sm"><p>{t(strings.project.conflict)}</p><Button data-testid={selectors.projects.reloadButton} variant="outline" className="mt-2 min-h-11" onClick={() => { void reloadProject(true); }}>{t(strings.project.reload)}</Button></div> : <p data-testid={selectors.projects.error} role="alert">{errorMessage(rename.error, t) || t(strings.project.renameError)}</p>)}
           </div>
         </details>}
       {project && <details className="shot-source-intake"><summary>{t(strings.media.title)}</summary><SourceMediaPanel projectId={projectId} /></details>}

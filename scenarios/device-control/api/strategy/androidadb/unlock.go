@@ -174,6 +174,8 @@ func waitForUnlockSettle(ctx context.Context, duration time.Duration) error {
 	}
 }
 
+const screenStateRestorationTimeout = 15 * time.Second
+
 func (a *Adapter) RestoreState(ctx context.Context, state strategy.DeviceState) error {
 	if state.Orientation != "" {
 		if len(state.RotationSettings) != 2 {
@@ -211,7 +213,46 @@ func (a *Adapter) RestoreState(ctx context.Context, state strategy.DeviceState) 
 			return fmt.Errorf("restored keyguard state is %q, want locked", current)
 		}
 	}
+	// Screen restoration is the final state change: re-locking can wake the
+	// display on some Android builds, so doing it afterward could undo an
+	// originally-off screen. Verify both requested postconditions together.
+	if state.ScreenState == "on" || state.ScreenState == "off" {
+		return a.restoreScreenState(ctx, state.ScreenState, state.LockState)
+	}
 	return nil
+}
+
+func (a *Adapter) restoreScreenState(ctx context.Context, wantScreen, wantLock string) error {
+	current, err := a.ReadState(ctx)
+	if err != nil {
+		return fmt.Errorf("read screen state before restore: %w", err)
+	}
+	if current.ScreenState == "" {
+		return fmt.Errorf("cannot restore screen state: current state is unknown")
+	}
+	if current.ScreenState != wantScreen {
+		if err := a.SetScreenState(ctx, wantScreen); err != nil {
+			return fmt.Errorf("restore screen state: %w", err)
+		}
+	}
+	deadline := time.Now().Add(screenStateRestorationTimeout)
+	for {
+		current, err = a.ReadState(ctx)
+		if err == nil && current.ScreenState == wantScreen && (wantLock != "locked" || current.LockState == "locked") {
+			return nil
+		}
+		if time.Now().After(deadline) {
+			if wantLock == "locked" && (err != nil || current.LockState != "locked") {
+				return fmt.Errorf("screen restored to %q but keyguard was not verified locked", current.ScreenState)
+			}
+			return fmt.Errorf("screen state did not restore to %q", wantScreen)
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
 }
 
 // waitForLockState accounts for the asynchronous transition after a power

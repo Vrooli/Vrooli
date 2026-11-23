@@ -450,6 +450,34 @@ describe("ShotWorkspace", () => {
     expect(projectsClient.getSourceMedia).toHaveBeenCalledWith({ projectId: "project-1", id: source.id });
   });
 
+  it("keeps a shot draft while retrying unavailable saved plate bytes", async () => {
+    const user = userEvent.setup();
+    const source = create(SourceMediaSchema, { id: "retry-plate", projectId: "project-1", sha256: "8f8cbb7dcf46e0bc7d53265749a6c17d116093a6ba95e442764060c76fd4a86c", sizeBytes: 3n, mediaType: "image/png", width: 1200, height: 800, kind: SourceMediaKind.IMAGE, readiness: MediaReadiness.READY, originalFilename: "retry-plate.png" });
+    const savedSnapshot = create(ShotSnapshotSchema, { scene: create(PhotographicSceneSchema, { plateMediaId: source.id }) });
+    vi.mocked(shotsClient.listShots).mockResolvedValue(list() as never);
+    vi.mocked(shotsClient.getShot).mockResolvedValue({ shot: shot(1n), head: create(ShotRevisionSchema, { shotId: "shot-1", revision: 1n, name: "Daylight", snapshot: savedSnapshot, issues: [] }) } as never);
+    vi.mocked(shotsClient.listShotRevisions).mockResolvedValue({ revisions: [revision(1n)], nextPageToken: "" } as never);
+    vi.mocked(projectsClient.listSourceMedia).mockResolvedValue({ sourceMedia: [], nextPageToken: "" } as never);
+    vi.mocked(projectsClient.getSourceMedia).mockResolvedValue({ sourceMedia: source } as never);
+    vi.mocked(getSourceMediaContent).mockRejectedValueOnce(new Error("plate bytes unavailable")).mockResolvedValueOnce(new Blob(["png"], { type: "image/png" }));
+    const testURL = class extends URL { static createObjectURL = vi.fn(() => "blob:retried-plate"); static revokeObjectURL = vi.fn(); };
+    vi.stubGlobal("URL", testURL);
+    renderWithProviders(<ShotWorkspace projectId="project-1" />);
+    await openShotManagement(user);
+    await user.click(await screen.findByRole("button", { name: /Daylight/ }));
+    const name = await screen.findByTestId("shot-name-input");
+    await user.clear(name);
+    await user.type(name, "Unsaved daylight draft");
+    await waitFor(() => expect(screen.getAllByRole("alert").some((alert) => alert.textContent.includes("plate bytes unavailable"))).toBe(true));
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.media.retry) }));
+
+    expect(await screen.findByRole("img", { name: i18n.t(strings.shot.plateAlt, { name: source.originalFilename }) })).toHaveAttribute("src", "blob:retried-plate");
+    expect(name).toHaveValue("Unsaved daylight draft");
+    expect(getSourceMediaContent).toHaveBeenNthCalledWith(1, "project-1", source.id);
+    expect(getSourceMediaContent).toHaveBeenNthCalledWith(2, "project-1", source.id);
+    expect(shotsClient.saveShot).not.toHaveBeenCalled();
+  });
+
   it("preserves the selected saved composition and render action when photo generation is unavailable", async () => {
     const user = userEvent.setup();
     const source = create(SourceMediaSchema, { id: "older-media-id", projectId: "project-1", sha256: "8f8cbb7dcf46e0bc7d53265749a6c17d116093a6ba95e442764060c76fd4a86c", sizeBytes: 3n, mediaType: "image/png", width: 1200, height: 800, kind: SourceMediaKind.IMAGE, readiness: MediaReadiness.READY, originalFilename: "older-plate.png" });

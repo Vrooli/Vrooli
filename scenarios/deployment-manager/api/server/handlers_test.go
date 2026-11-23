@@ -49,8 +49,12 @@ func setupTestServer(t *testing.T) (*Server, sqlmock.Sqlmock) {
 		BundlesHandler:      bundles.NewHandler(secrets.NewClient(), profilesRepo, logFn),
 		ProfilesHandler:     profiles.NewHandler(profilesRepo, logFn),
 	}
-	srv.setupRoutes()
+	// Register legacy test-only handler routes before the generated Connect
+	// path prefixes. Gorilla mux stops at the first matching prefix, so the
+	// Connect catch-all would otherwise turn these compatibility tests into
+	// 404s before their domain handler is reached.
 	mountDomainHandlerTests(srv)
+	srv.setupRoutes()
 
 	return srv, mock
 }

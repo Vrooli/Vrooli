@@ -4,7 +4,8 @@ import userEvent from "@testing-library/user-event";
 import { create } from "@bufbuild/protobuf";
 import { MediaReadiness, SourceMediaKind, SourceMediaSchema } from "@vrooli/proto-types/device-studio/v1/projects/projects_pb";
 import { renderWithProviders } from "../../test-utils";
-import { setLocale } from "../../i18n";
+import { i18n, setLocale } from "../../i18n";
+import { strings } from "../../consts/strings";
 import { cancelGeometryCreation, cancelGeometryCreationSession, createGeometryCreationSession, findGeometryCreationOperation, getGeometryCorrection, getGeometryCreation, getGeometryCreationSession, refineGeometryCreationSession, startGeometryCreation } from "../../api/creation";
 import { projectsClient } from "../../api/projects";
 import { getLocalGeometryCreationLineage } from "../../api/library-intake";
@@ -153,6 +154,33 @@ describe("GeometryCreationPanel", () => {
     expect(findGeometryCreationOperation).toHaveBeenCalledWith("p1", request.idempotencyKey);
     expect(startGeometryCreation).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Create geometry draft" })).not.toBeInTheDocument();
+  });
+
+  it("keeps a saved creation gated during storage read loss and restores the same operation", async () => {
+    const user = userEvent.setup();
+    const request = { candidateId: "creation-stored", idempotencyKey: "request-stored", brief: "Saved field device", envelopeMM: [78, 148, 12] as [number, number, number], referenceMediaIDs: ["image-1"], fundingRoute: "local" as const };
+    const key = "device-studio:geometry-creation:p1";
+    localStorage.setItem(key, JSON.stringify({ request, jobId: "job-stored", phase: "pending" }));
+    const getItem = Storage.prototype.getItem.bind(localStorage);
+    let storageRecovered = false;
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(function (this: Storage, storageKey) {
+      if (storageKey === key && !storageRecovered) throw new DOMException("storage unavailable", "SecurityError");
+      return getItem(storageKey);
+    });
+    vi.mocked(getGeometryCreation).mockResolvedValueOnce({ job_id: "job-stored", project_id: "p1", candidate_id: request.candidateId, state: "running", version: 3, review_status: "unreviewed" });
+    renderWithProviders(<GeometryCreationPanel projectId="p1" />);
+
+    expect(await screen.findByText(i18n.t(strings.physical.createStorageReadUnavailable))).toBeInTheDocument();
+    expect(getGeometryCreation).not.toHaveBeenCalled();
+    expect(startGeometryCreation).not.toHaveBeenCalled();
+    expect(createGeometryCreationSession).not.toHaveBeenCalled();
+    storageRecovered = true;
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.physical.createStorageRetry) }));
+
+    expect(await screen.findByTestId("geometry-creation-status")).toHaveTextContent("running");
+    expect(getGeometryCreation).toHaveBeenCalledWith("job-stored");
+    expect(startGeometryCreation).not.toHaveBeenCalled();
+    expect(createGeometryCreationSession).not.toHaveBeenCalled();
   });
 
   it("does not submit when durable operation storage throws, including after remount", async () => {

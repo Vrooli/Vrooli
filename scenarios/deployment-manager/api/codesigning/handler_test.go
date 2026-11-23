@@ -239,6 +239,45 @@ func TestHandler_SetSigning_InvalidJSON(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "invalid JSON")
 }
 
+func TestHandler_RejectsOversizedSigningBodies(t *testing.T) {
+	const maxBodyBytes = 64 << 10
+	for _, tc := range []struct {
+		name     string
+		platform bool
+		vars     map[string]string
+		prefix   string
+	}{
+		{
+			name:   "profile",
+			vars:   map[string]string{"id": "profile-123"},
+			prefix: `{"enabled":true}`,
+		},
+		{
+			name:     "platform",
+			platform: true,
+			vars:     map[string]string{"id": "profile-123", "platform": PlatformMacOS},
+			prefix:   `{"identity":"developer"}`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			handler, repo := setupTestHandler(t)
+			body := append([]byte(tc.prefix), bytes.Repeat([]byte(" "), maxBodyBytes)...)
+			req := httptest.NewRequest(http.MethodPut, "/api/v1/profiles/profile-123/signing", bytes.NewReader(body))
+			req = mux.SetURLVars(req, tc.vars)
+			rr := httptest.NewRecorder()
+
+			write := handler.SetSigning
+			if tc.platform {
+				write = handler.SetPlatformSigning
+			}
+			write(rr, req)
+
+			assert.Equal(t, http.StatusRequestEntityTooLarge, rr.Code)
+			assert.Empty(t, repo.configs, "oversized request must not persist its valid JSON prefix")
+		})
+	}
+}
+
 func TestHandler_SetSigning_ProfileNotFound(t *testing.T) {
 	handler, repo := setupTestHandler(t)
 	repo.saveError = ErrProfileNotFound

@@ -3,6 +3,7 @@ package control
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"testing"
 	"time"
 
@@ -27,6 +28,24 @@ func TestVerifiedReconnectRefreshesReachabilityAndCapabilities(t *testing.T) {
 	require.False(t, device.ObservedAt.Before(before))
 	require.Equal(t, "192.168.1.43:37123", device.Endpoint)
 	require.NotEmpty(t, device.Capabilities)
+}
+
+func TestWirelessReconnectRepromotesThroughKnownSerialBoundUSB(t *testing.T) {
+	adapter := newPersistentWirelessStrategy()
+	adapter.reconnectErr = errors.New("legacy TCP listener stopped after reboot")
+	svc := New(strategyregistry.New(adapter))
+	svc.devices.UpsertIdentity(devicedomain.Record{
+		ID: "wireless-device", Kind: "physical", Serial: "serial-1", StrategyID: adapter.ID(),
+		Transport: "wireless", Transports: []strategy.DeviceTransport{{Name: "usb", StrategyID: adapter.ID()}},
+	})
+	svc.transportStrategies["wireless-device"] = adapter
+
+	device, err := svc.ReconnectWireless(context.Background(), "wireless-device")
+	require.NoError(t, err)
+	require.Equal(t, "wireless", device.Transport)
+	require.Equal(t, "192.168.1.42:5555", device.Endpoint)
+	require.Equal(t, "legacy wireless ADB re-enabled over the known USB transport and identity verified", device.HealthReason)
+	require.Same(t, adapter, svc.transportStrategies["wireless-device"])
 }
 
 func TestWirelessDebuggingFlowUsesTypedControllerAndSuppressesActuation(t *testing.T) {

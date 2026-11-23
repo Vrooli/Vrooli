@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/use-unknown-in-catch-callback-variable, @typescript-eslint/no-misused-promises */
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { acquireSession, killSession, listDevices, listStrategies, releaseSession, runFlow, validateFlow, type Device, type FlowEvidence, type FlowResult, type Session, type Strategy } from "../api/deviceControl";
 import { API_BASE } from "../api/client";

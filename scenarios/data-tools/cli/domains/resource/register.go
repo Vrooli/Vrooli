@@ -9,6 +9,7 @@ import (
 	"data-tools/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/clioutput"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
@@ -97,7 +98,7 @@ func runGet(core *cliapp.ScenarioApp, args []string) error {
 	report := cliapp.ListReport{
 		Summary:        []string{fmt.Sprintf("Resource: %s", id)},
 		ResultsHeading: "Details",
-		Results:        support.MapRows(data),
+		Results:        clioutput.MapRows(data),
 		RetrievalHints: []string{
 			fmt.Sprintf("%s resource update %s --name <name>", support.CLIName, id),
 			fmt.Sprintf("%s resource delete %s", support.CLIName, id),
@@ -142,7 +143,7 @@ func runCreate(core *cliapp.ScenarioApp, args []string) error {
 
 	report := cliapp.MutationReport{
 		Result:      []string{fmt.Sprintf("Created resource: %s", display)},
-		Changes:     support.MapRows(created),
+		Changes:     clioutput.MapRows(created),
 		NextCommand: []string{fmt.Sprintf("%s resource get %s", support.CLIName, display)},
 	}
 	if *jsonOutput {
@@ -256,7 +257,7 @@ func mutationFields(payload map[string]interface{}) []string {
 	}
 	rows := make([]string, 0, len(payload))
 	for k, v := range payload {
-		rows = append(rows, fmt.Sprintf("%s: %s", k, support.RenderValue(v)))
+		rows = append(rows, fmt.Sprintf("%s: %s", k, clioutput.RenderValue(v)))
 	}
 	return rows
 }

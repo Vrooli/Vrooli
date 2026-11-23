@@ -3,63 +3,23 @@ package physicalruntime
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"errors"
 	"math"
 	"os"
-	"path/filepath"
 	"testing"
-	"time"
 
 	"device-studio/internal/devices"
-	"device-studio/internal/jobs"
-	"device-studio/internal/library"
-	"device-studio/internal/motions"
-	"device-studio/internal/projects"
 	"device-studio/internal/rendering"
-	"device-studio/internal/routedblobstore"
 	"device-studio/internal/scenes"
-	"device-studio/internal/shots"
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/filerouting"
-	"github.com/vrooli/api-core/storage"
+
 	_ "modernc.org/sqlite"
 )
 
 func TestReviewedFoldableCandidateIsOptInReplayableAndDualRigid(t *testing.T) {
 	ctx := context.Background()
-	providers := []database.SchemaProvider{database.SchemaProviderFunc(library.Schema), database.SchemaProviderFunc(devices.Schema), database.SchemaProviderFunc(scenes.Schema), database.SchemaProviderFunc(motions.Schema), database.SchemaProviderFunc(projects.Schema), database.SchemaProviderFunc(shots.Schema), database.SchemaProviderFunc(jobs.Schema)}
-	db, err := database.Open(ctx, database.Config{Driver: database.DriverSQLite, DSN: filepath.Join(t.TempDir(), "primary.db"), MaxOpenConns: 1, MaxIdleConns: 1})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = db.Close() })
-	if err := database.EnsureSchemas(ctx, db.Primary(), providers...); err != nil {
-		t.Fatal(err)
-	}
-	db.SetTestPoolInitializer(func(initCtx context.Context, pool *sql.DB) error {
-		return database.EnsureSchemas(initCtx, pool, providers...)
-	})
-	roots := filerouting.New(storage.Paths{DataDir: filepath.Join(t.TempDir(), "primary-data")})
-	const lease = "foldable-candidate-replay-lease"
-	if err := db.InstallTestPool(ctx, filepath.Join(t.TempDir(), "leased.db"), lease, time.Minute); err != nil {
-		t.Fatal(err)
-	}
-	if err := roots.InstallTestRoots(storage.Paths{DataDir: filepath.Join(t.TempDir(), "leased-data")}, lease, time.Minute); err != nil {
-		t.Fatal(err)
-	}
-	projectRepo := projects.NewSQLiteRepository(db, nil)
-	projectService := projects.NewService(projectRepo, nil)
-	mediaStore, err := routedblobstore.New(roots, "media")
-	if err != nil {
-		t.Fatal(err)
-	}
-	mediaService := projects.NewSourceMediaService(projects.SourceMediaDeps{Projects: projectService, Repository: projectRepo.(projects.SourceMediaRepository), Store: mediaStore})
-	owners, err := New(db, roots, mediaService)
-	if err != nil {
-		t.Fatal(err)
-	}
-	testCtx := database.WithTestMode(ctx)
+	fixture := newStarterTestFixture(t, ctx, "foldable-candidate-replay-lease")
+	owners, testCtx := fixture.owners, fixture.ctx
+	var err error
 	if _, err := owners.InitializeReviewedStarter(testCtx); err != nil {
 		t.Fatalf("initialize ordinary starter: %v", err)
 	}

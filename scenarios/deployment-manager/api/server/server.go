@@ -84,6 +84,7 @@ type Server struct {
 	MigrationTasksHandler      *migrationtasks.Handler
 	EvidencePath               string
 	EvidenceHandler            http.Handler
+	AndroidValidationHandler   *deployments.AndroidValidationHandler
 	ProfilesConnectPath        string
 	ProfilesConnectHandler     http.Handler
 	ConnectRoutes              []transport.Route
@@ -381,6 +382,11 @@ func New() (*Server, error) {
 			releasesRepo, lpbsConfigRepo, cloudClient, lpbsClient, logFn,
 		),
 	}
+	androidRamp, err := deployments.NewHTTPAndroidRamp()
+	if err != nil {
+		return nil, fmt.Errorf("configure scenario-to-android client: %w", err)
+	}
+	srv.AndroidValidationHandler = deployments.NewAndroidValidationHandler(profilesRepo, androidRamp, authz.RequireWrite, authz.RequireRead)
 	goalClient := readiness.NewGoalClient()
 	readinessPolicy := readiness.DefaultChecklist()
 	policyDigest, err := readiness.PolicyDigest(readinessPolicy)

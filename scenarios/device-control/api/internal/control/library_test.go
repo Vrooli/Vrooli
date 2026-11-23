@@ -185,6 +185,7 @@ func TestValidatedFlowPersistsAndRepairPreservesChecks(t *testing.T) { // FLOW-0
 	s.runDevices["run1"] = "tv"
 	saved, err := s.SaveValidatedFlow(ctx, "run1", "tv", "settings:v1", "", 0)
 	require.NoError(t, err)
+	idsBeforeMismatch, _ := s.LiveRunInventory()
 	restarted, err := internalflows.NewSQLiteLibrary(db)
 	require.NoError(t, err)
 	restored, err := restarted.Get(ctx, saved.ID, 1)
@@ -198,6 +199,12 @@ func TestValidatedFlowPersistsAndRepairPreservesChecks(t *testing.T) { // FLOW-0
 	require.ErrorContains(t, err, "exact device")
 	_, err = s.RunSavedFlow(ctx, saved.ID, 1, "other", "settings:v1", "test")
 	require.ErrorContains(t, err, "mismatch")
+	idsAfterDeviceMismatch, _ := s.LiveRunInventory()
+	require.Equal(t, idsBeforeMismatch, idsAfterDeviceMismatch, "device mismatch must fail before execution")
+	_, err = s.RunSavedFlow(ctx, saved.ID, 1, "tv", "other-context", "test")
+	require.ErrorContains(t, err, "mismatch")
+	idsAfterContextMismatch, _ := s.LiveRunInventory()
+	require.Equal(t, idsBeforeMismatch, idsAfterContextMismatch, "context mismatch must fail before execution")
 	s.flowRuns["run2"] = Flow{Steps: []Step{{ID: "verify", Kind: "semantic-assert", Target: "Anything"}}}
 	s.runs["run2"] = s.runs["run1"]
 	s.runDevices["run2"] = "tv"
@@ -261,9 +268,25 @@ func TestPropertyOutcomeReplayAndRestart(t *testing.T) { // [REQ:DVC-AGENT-REUSE
 	require.NoError(t, err)
 	s.library, err = internalflows.NewSQLiteLibrary(db)
 	require.NoError(t, err)
-	replay, err := s.RunSavedFlow(ctx, saved.ID, saved.Version, "fixture-tv", "fixture:volume:v1", "test")
+	var retainedAtPublication internalflows.RetainedRun
+	replay, err := s.runSavedFlow(ctx, saved.ID, saved.Version, "fixture-tv", "fixture:volume:v1", "test", func(published RunResult) {
+		// This callback runs synchronously after canonical publication and before
+		// RunSavedFlow returns, forcing retention at the publication boundary.
+		require.NoError(t, s.RetainRun(ctx, published.RunID, time.Now().UTC().Add(time.Hour)))
+		var readErr error
+		retainedAtPublication, readErr = s.RetainedRun(ctx, published.RunID)
+		require.NoError(t, readErr)
+	})
 	require.NoError(t, err)
 	require.Equal(t, "passed", replay.Disposition)
+	require.Equal(t, saved.ID, replay.Binding.SavedFlowID)
+	require.Equal(t, saved.Version, replay.Binding.SavedFlowVersion)
+	require.Equal(t, saved.ContextKey, replay.Binding.ContextKey)
+	require.Equal(t, saved.DeviceID, replay.Binding.DeviceID)
+	require.Equal(t, replay.RunID, retainedAtPublication.Result.RunID)
+	require.Equal(t, saved.ID, retainedAtPublication.Result.Binding.SavedFlowID)
+	require.Equal(t, saved.Version, retainedAtPublication.Result.Binding.SavedFlowVersion)
+	require.Equal(t, saved.ContextKey, retainedAtPublication.Result.Binding.ContextKey)
 	candidate.Steps[0].Arguments["equals"] = 25.0
 	failed, err := s.Run(ctx, candidate, "fixture-tv", "test")
 	require.NoError(t, err)

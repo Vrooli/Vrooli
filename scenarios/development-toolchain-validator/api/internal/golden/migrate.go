@@ -3,6 +3,8 @@ package golden
 import (
 	"context"
 	"fmt"
+
+	"github.com/vrooli/api-core/database"
 )
 
 var addedColumns = []struct {
@@ -18,7 +20,7 @@ var addedColumns = []struct {
 
 // EnsureColumns applies additive golden table migrations. Call after the base
 // schema has been created; safe for fresh and existing databases.
-func EnsureColumns(ctx context.Context, db SQLExecutor) error {
+func EnsureColumns(ctx context.Context, db database.SQLExecutor) error {
 	existing, err := tableColumns(ctx, db)
 	if err != nil {
 		return err
@@ -34,7 +36,7 @@ func EnsureColumns(ctx context.Context, db SQLExecutor) error {
 	return nil
 }
 
-func tableColumns(ctx context.Context, db SQLExecutor) (map[string]struct{}, error) {
+func tableColumns(ctx context.Context, db database.SQLExecutor) (map[string]struct{}, error) {
 	rows, err := db.QueryContext(ctx, "PRAGMA table_info(goldens)")
 	if err != nil {
 		return nil, fmt.Errorf("introspect goldens columns: %w", err)

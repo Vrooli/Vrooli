@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	authdomain "device-control/internal/auth"
 	"device-control/internal/evidence"
 	"device-control/strategy"
 
@@ -62,6 +63,10 @@ type CaptureRequest struct {
 }
 
 func (s *Service) Capture(ctx context.Context, request CaptureRequest) (RunResult, error) {
+	return s.capture(ctx, request, true)
+}
+
+func (s *Service) capture(ctx context.Context, request CaptureRequest, allowWirelessRecovery bool) (RunResult, error) {
 	kind := strings.ToLower(strings.TrimSpace(request.Kind))
 	if kind != "screenshot" && kind != "recording" && kind != "logs" && kind != "console" && kind != "network" {
 		return RunResult{}, fmt.Errorf("capture kind must be screenshot, recording, logs, console, or network")
@@ -82,19 +87,34 @@ func (s *Service) Capture(ctx context.Context, request CaptureRequest) (RunResul
 	if kind == "console" || kind == "network" {
 		return RunResult{Disposition: "no_evidence", Binding: RunBinding{DeviceID: device.ID}, Chapters: []Chapter{{ID: "capture", Title: kind, Disposition: "unavailable", Message: "Direct device capture is unavailable; a debuggable WebView may be inspected through the WebView attachment and browser workflow. No conclusion about events is possible."}}}, nil
 	}
-	var prepare []Chapter
-	if (request.Wake || request.Home) && (kind == "screenshot" || kind == "recording") {
-		prepare = s.prepareScreen(ctx, device, request)
-	}
+	prepare := (request.Home || request.Wake) && (kind == "screenshot" || kind == "recording")
 	profiles := device.Transports
 	if len(profiles) == 0 {
 		profiles = []strategy.DeviceTransport{{Name: device.Transport}}
+	} else if preferred := strings.TrimSpace(device.Transport); preferred != "" {
+		for i := range profiles {
+			if strings.EqualFold(profiles[i].Name, preferred) {
+				ordered := make([]strategy.DeviceTransport, 0, len(profiles))
+				ordered = append(ordered, profiles[i])
+				for j := range profiles {
+					if j != i {
+						ordered = append(ordered, profiles[j])
+					}
+				}
+				profiles = ordered
+				break
+			}
+		}
 	}
 	transport := ""
 	found := false
+	wirelessRouteUnavailable := false
 	for _, profile := range profiles {
 		currentTransport, routeErr := s.requireCurrentEffectRoute(device.ID, profile.Name)
 		if routeErr != nil {
+			if strings.EqualFold(profile.Name, "wireless") {
+				wirelessRouteUnavailable = true
+			}
 			continue
 		}
 		candidate, ok := s.strategyForFlow(device.ID, currentTransport)
@@ -136,15 +156,33 @@ func (s *Service) Capture(ctx context.Context, request CaptureRequest) (RunResul
 		break
 	}
 	if !found {
+		if allowWirelessRecovery && wirelessRouteUnavailable && s.recoverWirelessBeforeUse(ctx, device.ID) {
+			return s.capture(ctx, request, false)
+		}
 		message := "no available transport provides this capture"
 		if request.RequireAudio {
 			message = "no available transport provides recording with audio"
 		}
-		return RunResult{Disposition: "capability_gap", Binding: RunBinding{DeviceID: device.ID}, Chapters: append(prepare, Chapter{ID: "capture", Title: kind, Disposition: "unavailable", Message: message}), NextActions: s.captureGapNextActions(ctx, device, kind)}, nil
+		return RunResult{Disposition: "capability_gap", Binding: RunBinding{DeviceID: device.ID}, Chapters: []Chapter{{ID: "capture", Title: kind, Disposition: "unavailable", Message: message}}, NextActions: s.captureGapNextActions(ctx, device, kind)}, nil
 	}
-	flow := Flow{ID: "capture-" + uuid.NewString(), Name: kind + " capture", Transport: transport, RedactSensitiveContent: kind == "logs", MaxDurationMS: 65000}
+	flow := Flow{ID: "capture-" + uuid.NewString(), Name: kind + " capture", Transport: transport, RedactSensitiveContent: kind == "logs", MaxDurationMS: 65000, RestoreInitialState: prepare}
+	if prepare {
+		// Keep wake, optional home, capture, and restoration inside one leased
+		// flow. If Android is locked, use only the active credential profile
+		// whose last outcome does not indicate a bad or missing credential.
+		flow.RequireUnlocked = true
+		if s.auth != nil {
+			if profile, reason := authdomain.UnlockCandidate(s.auth.List(ctx), device.ID); reason == "" {
+				flow.AuthProfileID = profile.ID
+			}
+		}
+		flow.Steps = append(flow.Steps, Step{ID: "wake", Kind: "screen", Target: "wake", RequiredCapabilities: []string{strategy.CapScreenControl}, TimeoutMS: 15000})
+		if request.Home {
+			flow.Steps = append(flow.Steps, Step{ID: "home", Kind: "home-set", RequiredCapabilities: []string{strategy.CapAppLifecycle}, TimeoutMS: 15000})
+		}
+	}
 	if kind == "screenshot" {
-		flow.Steps = []Step{{ID: "capture", Kind: "observe", RequiredCapabilities: []string{strategy.CapScreenshot}, TimeoutMS: 20000}}
+		flow.Steps = append(flow.Steps, Step{ID: "capture", Kind: "observe", RequiredCapabilities: []string{strategy.CapScreenshot}, TimeoutMS: 20000})
 	} else if kind == "recording" {
 		startTimeoutMS, flowTimeoutMS := int64(15000), int64(65000)
 		if request.RequireAudio {
@@ -154,22 +192,20 @@ func (s *Service) Capture(ctx context.Context, request CaptureRequest) (RunResul
 			startTimeoutMS, flowTimeoutMS = 65000, 100000
 		}
 		flow.MaxDurationMS = flowTimeoutMS
-		flow.Steps = []Step{{ID: "record", Kind: "recording-start", TimeoutMS: startTimeoutMS, Arguments: map[string]any{"require_audio": request.RequireAudio}}, {ID: "duration", Kind: "wait", TimeoutMS: int64(request.Seconds+3) * 1000, Arguments: map[string]any{"settle_ms": float64(request.Seconds * 1000)}}, {ID: "stop", Kind: "recording-stop", Target: "record", TimeoutMS: 30000, Arguments: map[string]any{"minimum_duration_ms": float64(request.Seconds * 500)}}}
+		flow.Steps = append(flow.Steps, Step{ID: "record", Kind: "recording-start", TimeoutMS: startTimeoutMS, Arguments: map[string]any{"require_audio": request.RequireAudio}}, Step{ID: "duration", Kind: "wait", TimeoutMS: int64(request.Seconds+3) * 1000, Arguments: map[string]any{"settle_ms": float64(request.Seconds * 1000)}}, Step{ID: "stop", Kind: "recording-stop", Target: "record", TimeoutMS: 30000, Arguments: map[string]any{"minimum_duration_ms": float64(request.Seconds * 500)}})
 	} else {
-		flow.Steps = []Step{{ID: "logs", Kind: "device-logs", RequiredCapabilities: []string{strategy.CapDeviceLogs}, TimeoutMS: 10000, Arguments: map[string]any{"package": strings.TrimSpace(request.Package)}}}
+		flow.Steps = append(flow.Steps, Step{ID: "logs", Kind: "device-logs", RequiredCapabilities: []string{strategy.CapDeviceLogs}, TimeoutMS: 10000, Arguments: map[string]any{"package": strings.TrimSpace(request.Package)}})
 	}
 	result, err := s.Run(ctx, flow, device.ID, firstNonEmpty(strings.TrimSpace(request.Actor), "device-capture"))
-	result.Chapters = append(prepare, result.Chapters...)
 	if result.Disposition != "passed" {
 		result.NextActions = captureFailureNextActions(device, result.Chapters, s.unlockSetupAction(ctx, device))
 	}
 	return result, err
 }
 
-// prepareScreen wakes (and optionally homes) the screen through the
-// same verified Screen owner a caller would use by hand. A device without a
-// screen-control transport is reported as skipped rather than failing a capture
-// that may still succeed.
+// prepareScreen is used by install and app-launch operations that intentionally
+// leave the requested app ready on screen. Capture uses a flow-owned wake step
+// so its original screen state is restored after evidence collection.
 func (s *Service) prepareScreen(ctx context.Context, device Device, request CaptureRequest) []Chapter {
 	result, err := s.Screen(ctx, ScreenRequest{Device: device.ID, Actor: request.Actor, Operation: "ready", Home: request.Home})
 	if err != nil {

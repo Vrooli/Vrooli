@@ -3,7 +3,6 @@ module deployment-manager
 go 1.26.0
 
 require (
-	github.com/vrooli/cliresolve v0.0.0
 	connectrpc.com/connect v1.19.2
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/google/uuid v1.6.0
@@ -11,6 +10,7 @@ require (
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/stretchr/testify v1.12.1
 	github.com/vrooli/api-core v0.0.0
+	github.com/vrooli/cliresolve v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
@@ -34,7 +34,7 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/vrooli/binaryfetch v0.0.0 // indirect
 	github.com/vrooli/cli-core v0.0.0 // indirect
-	github.com/vrooli/envkit-go v0.0.0 // indirect
+	github.com/vrooli/envkit-go v0.0.0
 	github.com/vrooli/platform-go v0.0.0 // indirect
 	github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime v0.0.0
 	go.yaml.in/yaml/v3 v3.0.5 // indirect

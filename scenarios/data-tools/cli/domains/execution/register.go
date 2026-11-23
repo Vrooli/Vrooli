@@ -9,6 +9,7 @@ import (
 	"data-tools/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/clioutput"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
@@ -104,7 +105,7 @@ func runGet(core *cliapp.ScenarioApp, args []string) error {
 	report := cliapp.ListReport{
 		Summary:        []string{fmt.Sprintf("Execution: %s", id)},
 		ResultsHeading: "Details",
-		Results:        support.MapRows(data),
+		Results:        clioutput.MapRows(data),
 		RetrievalHints: []string{fmt.Sprintf("%s execution list", support.CLIName)},
 	}
 	if *jsonOutput {
@@ -176,7 +177,7 @@ func runExecute(core *cliapp.ScenarioApp, args []string) error {
 
 	report := cliapp.MutationReport{
 		Result:      []string{fmt.Sprintf("Execution started: %s", executionID)},
-		Changes:     support.MapRows(result),
+		Changes:     clioutput.MapRows(result),
 		NextCommand: []string{fmt.Sprintf("%s execution get %s", support.CLIName, executionID)},
 	}
 	if *jsonOutput {

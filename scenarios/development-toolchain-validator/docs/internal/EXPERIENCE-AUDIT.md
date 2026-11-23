@@ -5,7 +5,7 @@ and experience findings. Detailed source-of-truth contracts live in their
 canonical homes (`ui/flow/navigation.json` for navigation, etc.); this
 file points to them and records audit history.
 
-Per `navigation-integrity-audit` §8: detailed routes / containers /
+Per `architecture-lenses` §8: detailed routes / containers /
 affordances / invariants belong in `ui/flow/navigation.json` and pass
 through `flow-verifier`. This doc is the lightweight index above it.
 

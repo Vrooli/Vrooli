@@ -41,6 +41,14 @@ func TestDesktopSessionServiceDelegatesTypedSessionLifecycle(t *testing.T) {
 		t.Fatalf("unexpected input receipt: %+v", input.Msg)
 	}
 
+	released, err := h.ReleaseControl(ctx, connect.NewRequest(&desktopv1.ReleaseControlRequest{Session: opened.Msg.GetRef(), LeaseId: opened.Msg.GetLeaseId(), LeaseEpoch: opened.Msg.GetLeaseEpoch()}))
+	if err != nil {
+		t.Fatalf("release control: %v", err)
+	}
+	if released.Msg.GetController() || released.Msg.GetLeaseEpoch() != opened.Msg.GetLeaseEpoch()+1 {
+		t.Fatalf("unexpected hand-back state: %+v", released.Msg)
+	}
+
 	closed, err := h.CloseSession(ctx, connect.NewRequest(&desktopv1.CloseSessionRequest{Session: opened.Msg.GetRef()}))
 	if err != nil || !closed.Msg.GetClosed() {
 		t.Fatalf("close: response=%v err=%v", closed.Msg, err)

@@ -376,6 +376,29 @@ func TestResolutionRejectsUnavailableSemanticStatesUnlessExplicitlyAllowed(t *te
 	}
 }
 
+func TestResolutionRefusesElementThatBecomesUnavailableAfterObservation(t *testing.T) {
+	for _, mode := range []string{"hidden", "disabled", "offscreen"} {
+		t.Run(mode, func(t *testing.T) {
+			ctx := context.Background()
+			access := &gatedSemanticAccessFixture{}
+			b := &semanticBackend{pixels: semanticPixelFixture{}, access: access, busID: "bus"}
+			snapshot, err := b.ObserveProcess(ctx, 42, "lease")
+			require.NoError(t, err)
+			selector := sessions.DesktopSelector{
+				Revision:     snapshot.Semantic.Revision,
+				WindowID:     snapshot.Semantic.Elements[1].ID,
+				Name:         "entry",
+				EditableOnly: true,
+			}
+			access.mode = mode
+			got, err := b.Resolve(ctx, selector, "lease")
+			require.NoError(t, err)
+			require.Equal(t, "absent", got.Disposition, "stale availability must not authorize a target")
+			require.Empty(t, got.ElementIDs)
+		})
+	}
+}
+
 type changingWindowFixture struct {
 	windowAccessFixture
 	change string

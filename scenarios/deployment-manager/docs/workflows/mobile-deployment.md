@@ -7,9 +7,38 @@ Deploy a Vrooli scenario as an iOS or Android mobile application.
 | Platform | Status | Packager |
 |----------|--------|----------|
 | iOS | Not Started | `scenario-to-ios` (planned) |
-| Android | Not Started | `scenario-to-android` (planned) |
+| Android validation | Available | `scenario-to-android` immutable APK and physical-device matrix; DM evidence receipt required |
 
-> **Current Reality**: Mobile deployment is in the planning stage. This document outlines the intended workflow for when implementation begins.
+Android packaging and Play distribution are still separate work. Deployment Manager can now send a producer-owned Android artifact through scenario-to-android's physical-device validation matrix and record its exact artifact and terminal result in the target-evidence ledger. iOS distribution and general mobile publishing remain planned.
+
+## Android physical-device validation
+
+Build or select an immutable artifact through scenario-to-android, then ask
+Deployment Manager to validate that exact ref against the profile's scenario:
+
+```bash
+scenario-to-android android build # requires ANDROID_SOURCE_REF
+deployment-manager android-validate \
+  --profile <profile-id> \
+  --commit <full-git-commit> \
+  --artifact-ref <immutable-ref>
+```
+
+The command uses a temporary-install journey, selects the sole available
+physical Android target automatically, and fails with the available target IDs
+when selection is ambiguous. Pass `--target <device-id>` to pin one exact
+available target. A pinned target reported unavailable fails before matrix
+creation and includes the producer's reason. The producer verifies the
+immutable ref and APK checksum, runs the
+matrix on that target, cleans up the temporary app, and reports the terminal
+verdict to Deployment Manager. The DM operation succeeds only after it reads
+the matching run, artifact digest, and producer evidence receipt. A failed
+journey remains a recorded failed verdict; it is never converted to a pass.
+
+Scenario-to-android must be configured with `DEPLOYMENT_MANAGER_URL` and a
+service token (or `DEPLOYMENT_MANAGER_SERVICE_TOKEN_FILE`) authorized as the
+`scenario-to-android` evidence producer. The phone's connection and credentials
+remain owned by device-control.
 
 ---
 

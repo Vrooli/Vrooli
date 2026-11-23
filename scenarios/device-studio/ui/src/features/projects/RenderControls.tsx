@@ -47,6 +47,11 @@ function clearRetryKey(projectId: string, shotId: string, revision: bigint, mode
   try { globalThis.sessionStorage.removeItem(`device-studio:render:${projectId}:${shotId}:${revision}${suffix}`); } catch { /* Storage can be disabled. */ }
 }
 
+function RenderReadFailure({ message, disabled, onRetry }: { message: string; disabled: boolean; onRetry: () => void }) {
+  const { t } = useTranslation();
+  return <div role="alert"><p>{message}</p><Button type="button" variant="outline" disabled={disabled} onClick={onRetry}>{t(strings.media.retry)}</Button></div>;
+}
+
 type StatusKey = typeof strings.shot.renderQueued | typeof strings.shot.renderObserved | typeof strings.shot.renderReconcile | typeof strings.shot.renderCancelRequested | typeof strings.shot.renderSucceeded | typeof strings.shot.renderFailed | typeof strings.shot.renderCancelled | typeof strings.shot.renderUnknown;
 
 function statusLabel(status: RenderJobStatus, t: (key: StatusKey) => string): string {
@@ -252,7 +257,6 @@ export function RenderControls({ projectId, shotId, revision, historical, hasUns
 
   const conflict = cancel.error instanceof ConnectError && cancel.error.code === Code.Aborted;
   const submitError = submit.error ? errorMessage(submit.error, t) : "";
-  const outputError = outputQuery.error ? errorMessage(outputQuery.error, t) : "";
   const acceptErrorIsCurrent = acceptSample.variables?.projectId === projectId && acceptSample.variables.shotId === shotId && acceptSample.variables.revision === revision?.revision;
   const visibleAcceptError = acceptErrorIsCurrent ? acceptError : "";
   const revisionNumber = revision?.revision.toString() ?? "";
@@ -353,9 +357,9 @@ export function RenderControls({ projectId, shotId, revision, historical, hasUns
       </>}
 
       <h4>{t(strings.shot.renderJobs)}</h4>
-      {jobs.error && <p role="alert">{errorMessage(jobs.error, t)}</p>}
+      {jobs.error && <RenderReadFailure message={errorMessage(jobs.error, t)} disabled={jobs.isFetching} onRetry={() => { void jobs.refetch(); }} />}
       {jobs.isLoading && <p role="status">{t(strings.shot.renderLoadingJobs)}</p>}
-      {!jobs.isLoading && allJobs.length === 0 && <p>{t(strings.shot.renderNoJobs)}</p>}
+      {!jobs.isLoading && !jobs.error && jobs.data && allJobs.length === 0 && <p>{t(strings.shot.renderNoJobs)}</p>}
       {allJobs.map((job) => <div className="shot-render-job" key={job.id}>
         <button type="button" aria-pressed={selectedJob?.id === job.id} onClick={() => { setSelectedJobId(job.id); onShowOutputChange(false); }}>
           <span>{t(strings.shot.revision, { revision: job.shotRevision.toString() })}</span><span role="status">{statusLabel(job.status, t)}</span>
@@ -366,7 +370,8 @@ export function RenderControls({ projectId, shotId, revision, historical, hasUns
         {cancel.error && selectedJob?.id === job.id && <p role="alert">{conflict ? t(strings.shot.renderCancelConflict) : errorMessage(cancel.error, t)}</p>}
       </div>)}
       {selectedJob?.status === RenderJobStatus.SUCCEEDED && selectedJob.output && <section className="shot-render-result" aria-label={t(strings.shot.renderOutputDetails)}>
-        {(outputError || outputLinkError) && <p role="alert">{outputError || outputLinkError}</p>}
+        {outputQuery.error && <RenderReadFailure message={errorMessage(outputQuery.error, t)} disabled={outputQuery.isFetching} onRetry={() => { void outputQuery.refetch(); }} />}
+        {outputLinkError && <p role="alert">{outputLinkError}</p>}
         {outputQuery.isFetching && <p role="status">{t(strings.shot.renderVerifyingOutput)}</p>}
         <div className="shot-actions">
           <Button variant="outline" className="min-h-11" onClick={() => { onShowOutputChange(!showOutput); setOutputUrlState(undefined); }}>{showOutput ? t(strings.shot.renderHideOutput) : t(selectedIsVideoSample ? strings.shot.renderViewSample : outputIsVideo ? strings.shot.renderViewFinalMP4 : strings.shot.renderViewOutput)}</Button>

@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"deployment-manager/readiness"
 	"deployment-manager/releases"
@@ -41,7 +42,7 @@ func TestSetupRoutesKeepsDesktopBundleExportCompatibilitySeam(t *testing.T) {
 type stubReadinessState struct{}
 
 func (stubReadinessState) GetLatestReadiness(context.Context, string) (*releases.ReadinessRecord, error) {
-	return &releases.ReadinessRecord{ReadinessGoalRef: "goal-1", GoalClosed: true, ApprovedAtCommit: "abc"}, nil
+	return &releases.ReadinessRecord{ReadinessGoalRef: "goal-1", GoalClosed: true, ApprovedAtCommit: "abc", ObservedAt: time.Now().UTC()}, nil
 }
 
 func TestSetupRoutesMountsReadinessStateCompatibilitySeam(t *testing.T) {

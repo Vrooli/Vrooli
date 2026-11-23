@@ -12,6 +12,12 @@ import { errorMessage } from "../../lib/errorMessage";
 import { projectsClient } from "../../api/projects";
 
 const KEY = ["projects"] as const;
+
+function ReadRecoveryNotice({ message, retrying, onRetry }: { message: string; retrying: boolean; onRetry: () => void }) {
+  const { t } = useTranslation();
+  return <div role="alert"><p>{message}</p><Button type="button" variant="outline" className="min-h-11" disabled={retrying} onClick={onRetry}>{t(strings.errorBoundary.retry)}</Button></div>;
+}
+
 export function ProjectWorkspace() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -37,6 +43,10 @@ export function ProjectWorkspace() {
       await queryClient.invalidateQueries({ queryKey: KEY });
     },
   });
+  const retryProjects = () => {
+    if (query.isFetchNextPageError) void query.fetchNextPage();
+    else void query.refetch();
+  };
   const state = query.isLoading ? "loading" : query.error ? "error" : projects.length === 0 ? "empty" : "ready";
 
   return (
@@ -47,7 +57,7 @@ export function ProjectWorkspace() {
           <Button ref={newProjectRef} className="studio-primary min-h-11" data-testid={selectors.projects.createButton} onClick={() => { create.reset(); setCreateDialogVisited(true); setCreating(true); requestAnimationFrame(() => nameRef.current?.focus()); }}><Plus size={17} aria-hidden="true" />{t(strings.projects.newProject)}</Button>
         </div>
         {query.isLoading && <p data-testid={selectors.projects.loading} role="status">{t(strings.projects.loading)}</p>}
-        {query.error && <p data-testid={selectors.projects.error} role="alert">{errorMessage(query.error, t)}</p>}
+        {query.error && !creating && <div data-testid={selectors.projects.error}><ReadRecoveryNotice message={errorMessage(query.error, t)} retrying={query.isFetching} onRetry={retryProjects} /></div>}
 
         {featured && <article className="studio-featured" aria-labelledby="featured-project-title">
           <div className="studio-featured__preview" role="img" aria-label={t(strings.projects.noSavedPreview)}><ScanLine size={22} aria-hidden="true" /><span>{t(strings.projects.noSavedPreview)}</span></div>
@@ -64,10 +74,11 @@ export function ProjectWorkspace() {
             </li>
           ))}</ul>
         </section>}
-        {query.hasNextPage && <Button className="min-h-11 self-start" variant="outline" disabled={query.isFetchingNextPage} onClick={() => void query.fetchNextPage()}>{t(strings.projects.loadMore)}</Button>}
+        {query.hasNextPage && !query.isFetchNextPageError && <Button className="min-h-11 self-start" variant="outline" disabled={query.isFetchingNextPage} onClick={() => void query.fetchNextPage()}>{t(strings.projects.loadMore)}</Button>}
       </div>
       {createDialogVisited && <Dialog open={creating} title={t(strings.projects.newProject)} description={t(strings.projects.description)} onClose={() => setCreating(false)} closeLabel={t(strings.layout.closeDialog)} returnFocusRef={newProjectRef} initialFocusRef={nameRef}>
         <form className="studio-create-form" onSubmit={(event) => { event.preventDefault(); create.mutate(name.trim()); }}>
+          {query.error && <ReadRecoveryNotice message={errorMessage(query.error, t)} retrying={query.isFetching} onRetry={retryProjects} />}
           <label className="studio-field" htmlFor="new-project-name">{t(strings.projects.nameLabel)}<input ref={nameRef} id="new-project-name" data-testid={selectors.projects.nameInput} className="min-h-12 rounded-control border border-app-border bg-app-surface px-3 py-2 text-base text-app-foreground" value={name} onChange={(event) => setName(event.target.value)} required /></label>
           {create.error && <p data-testid={selectors.projects.error} role="alert">{errorMessage(create.error, t)}</p>}
           <Button className="studio-primary min-h-11" data-testid="confirm-create-project" type="submit" disabled={create.isPending || !name.trim()}>{t(strings.projects.create)}</Button>

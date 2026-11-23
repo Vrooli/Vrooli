@@ -9,6 +9,7 @@ import (
 	"data-tools/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/clioutput"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
@@ -98,7 +99,7 @@ func runCreate(core *cliapp.ScenarioApp, args []string) error {
 
 	report := cliapp.MutationReport{
 		Result:      []string{fmt.Sprintf("Stream created: %s", streamID)},
-		Changes:     support.MapRows(result),
+		Changes:     clioutput.MapRows(result),
 		NextCommand: []string{fmt.Sprintf("%s stream create --source <type> --config-file <path>", support.CLIName)},
 	}
 	if *jsonOutput {

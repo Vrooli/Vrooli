@@ -9,6 +9,7 @@ import { fetchOptionalCapabilities } from "../api/capabilities";
 import { fetchHealth } from "../api/health";
 
 const C = strings.pages.settings.capabilities;
+const A = strings.pages.settings.account;
 
 vi.mock("../api/capabilities", () => ({ fetchOptionalCapabilities: vi.fn() }));
 vi.mock("../api/health", () => ({ fetchHealth: vi.fn() }));
@@ -73,6 +74,32 @@ describe("SettingsPage desktop account", () => {
     expect(screen.queryByTestId(selectors.settingsPage.accountConnect)).not.toBeInTheDocument();
     expect(screen.queryByRole("switch")).not.toBeInTheDocument();
     expect(screen.queryByTestId("settings-credit-balance")).not.toBeInTheDocument();
+  });
+
+  it("lets the user recover account status before starting a new link", async () => {
+    const getDesktopLinkStatus = vi.fn()
+      .mockRejectedValueOnce(new Error("desktop auth is temporarily unavailable"))
+      .mockResolvedValueOnce(linked);
+    const connectDesktop = vi.fn(() => Promise.resolve(linked));
+    window.desktop = { auth: {
+      getDesktopLinkStatus,
+      connectDesktop,
+      disconnectDesktop: vi.fn(() => Promise.resolve({ localCleared: true, remoteRevocation: "confirmed" as const })),
+    } };
+
+    renderWithProviders(<SettingsPage />);
+    await waitFor(() => expect(screen.getByTestId(selectors.settingsPage.accountStatus)).toHaveTextContent(A.states.unavailable));
+
+    // Unknown linkage must not be treated as an unlinked account: retry the
+    // read-only owner query before offering a new identity flow.
+    expect(screen.queryByTestId(selectors.settingsPage.accountConnect)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: strings.errorBoundary.retry })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: strings.errorBoundary.retry }));
+    await waitFor(() => expect(screen.getByTestId(selectors.settingsPage.accountStatus)).toHaveTextContent(A.states.linked));
+    expect(screen.getByTestId(selectors.settingsPage.accountPanel)).toHaveTextContent("business-account-7");
+    expect(screen.getByTestId(selectors.settingsPage.accountConnect)).toBeEnabled();
+    expect(getDesktopLinkStatus).toHaveBeenCalledTimes(2);
+    expect(connectDesktop).not.toHaveBeenCalled();
   });
 
   it("keeps account settings available when the health API returns an invalid timestamp", async () => {

@@ -43,26 +43,29 @@ const (
 	// AcceptedInspectionManifestName stages the immutable manifest from the
 	// original inspection attempt without colliding with this worker's own
 	// inspection-manifest.json entrypoint name.
-	AcceptedInspectionManifestName = "accepted-inspection-manifest.json"
-	VideoProfileID                 = "device-studio-fixed-plate-video-v1"
-	VideoScreenEntryProfileID      = "device-studio-screen-entry-video-v1"
-	VideoCompositorID              = "go-fixed-plate-video-v1"
-	VideoColorPolicy               = "sdr-unmarked-default709-to-srgb-v1"
-	videoManifestVersion           = 1
-	videoProtocolVersion           = 1
-	videoMaxManifestBytes          = 128 << 10
-	videoMaxReceiptBytes           = 128 << 10
-	videoMaxOutputBytes            = 160 << 20
-	videoMaxSeconds                = 10
-	videoScreenEntryMaxSeconds     = 12
-	videoMaxFrames                 = 360
-	videoMaxPixels                 = 1920 * 1080
-	videoMaxInputBytes             = 512 << 20
-	videoMaxWorkerBytes            = 256 << 20
-	videoMaxClockBytes             = inspectionClockHeader + inspectionMaxFrames*inspectionClockRecord
-	videoMaxStderr                 = 64 << 10
-	videoMaxStats                  = 4 << 20
-	videoMaxWall                   = 300 * time.Second
+	AcceptedInspectionManifestName   = "accepted-inspection-manifest.json"
+	VideoProfileID                   = "device-studio-fixed-plate-video-v1"
+	VideoScreenEntryProfileID        = "device-studio-screen-entry-video-v1"
+	VideoLayeredParallaxProfileID    = "device-studio-layered-parallax-video-v1"
+	videoLayeredParallaxMaxFrames    = 120
+	VideoCompositorID                = "go-fixed-plate-video-v1"
+	VideoLayeredParallaxCompositorID = "go-layered-parallax-video-v1"
+	VideoColorPolicy                 = "sdr-unmarked-default709-to-srgb-v1"
+	videoManifestVersion             = 1
+	videoProtocolVersion             = 1
+	videoMaxManifestBytes            = 128 << 10
+	videoMaxReceiptBytes             = 128 << 10
+	videoMaxOutputBytes              = 160 << 20
+	videoMaxSeconds                  = 10
+	videoScreenEntryMaxSeconds       = 12
+	videoMaxFrames                   = 360
+	videoMaxPixels                   = 1920 * 1080
+	videoMaxInputBytes               = 512 << 20
+	videoMaxWorkerBytes              = 256 << 20
+	videoMaxClockBytes               = inspectionClockHeader + inspectionMaxFrames*inspectionClockRecord
+	videoMaxStderr                   = 64 << 10
+	videoMaxStats                    = 4 << 20
+	videoMaxWall                     = 300 * time.Second
 )
 
 var videoLetterboxMatte = color.NRGBA{R: 32, G: 34, B: 38, A: 255}
@@ -83,15 +86,30 @@ type VideoBinding struct {
 }
 
 type VideoScene struct {
-	Plate         VideoBinding  `json:"plate"`
-	ActiveMask    VideoBinding  `json:"active_mask"`
-	HardwareMask  *VideoBinding `json:"hardware_mask,omitempty"`
-	PlateWidth    int           `json:"plate_width,omitempty"`
-	PlateHeight   int           `json:"plate_height,omitempty"`
-	SurfaceWidth  int           `json:"surface_width"`
-	SurfaceHeight int           `json:"surface_height"`
-	Quad          [4]Corner     `json:"quad"`
-	Samples       int           `json:"samples_per_axis"`
+	Plate         VideoBinding         `json:"plate"`
+	ActiveMask    VideoBinding         `json:"active_mask"`
+	HardwareMask  *VideoBinding        `json:"hardware_mask,omitempty"`
+	PlateWidth    int                  `json:"plate_width,omitempty"`
+	PlateHeight   int                  `json:"plate_height,omitempty"`
+	SurfaceWidth  int                  `json:"surface_width"`
+	SurfaceHeight int                  `json:"surface_height"`
+	Quad          [4]Corner            `json:"quad"`
+	Samples       int                  `json:"samples_per_axis"`
+	Layers        []VideoParallaxLayer `json:"layers,omitempty"`
+}
+
+type VideoParallaxLayer struct {
+	Image      VideoBinding `json:"image"`
+	Mask       VideoBinding `json:"mask"`
+	DepthBasis uint32       `json:"depth_basis"`
+}
+
+type LayeredParallax struct {
+	ProfileVersion       uint32 `json:"profile_version"`
+	DurationOutputFrames uint32 `json:"duration_output_frames"`
+	OverscanPixels       uint32 `json:"overscan_pixels"`
+	TravelXPixels        int32  `json:"travel_x_pixels"`
+	TravelYPixels        int32  `json:"travel_y_pixels"`
 }
 
 type VideoInspection struct {
@@ -160,6 +178,7 @@ type VideoManifest struct {
 	VideoProfile       string                `json:"video_profile"`
 	CompositorProfile  string                `json:"compositor_profile"`
 	Camera             *Camera               `json:"camera,omitempty"`
+	LayeredParallax    *LayeredParallax      `json:"layered_parallax,omitempty"`
 	Inspection         VideoInspection       `json:"inspection"`
 	TrimStartPTS       int64                 `json:"trim_start_pts"`
 	TrimEndPTS         int64                 `json:"trim_end_pts"`
@@ -212,6 +231,8 @@ type VideoReceipt struct {
 	WorkerSHA256             string                `json:"worker_sha256"`
 	Mode                     VideoMode             `json:"mode"`
 	Camera                   *Camera               `json:"camera,omitempty"`
+	LayeredParallax          *LayeredParallax      `json:"layered_parallax,omitempty"`
+	ParallaxLayers           []VideoParallaxLayer  `json:"parallax_layers,omitempty"`
 	OutputName               string                `json:"output_name"`
 	OutputSHA256             string                `json:"output_sha256"`
 	OutputSizeBytes          int64                 `json:"output_size_bytes"`
@@ -274,6 +295,13 @@ func ValidateVideoManifest(m VideoManifest) error {
 	return validateVideoManifest(m)
 }
 
+func absInt32(value int32) int64 {
+	if value < 0 {
+		return -int64(value)
+	}
+	return int64(value)
+}
+
 func validateVideoManifest(m VideoManifest) error {
 	if m.Version != videoManifestVersion || m.ProtocolVersion != videoProtocolVersion || (m.Mode != VideoModeSample && m.Mode != VideoModeFinal) {
 		return errors.New("video manifest version, protocol, or mode is unsupported")
@@ -281,15 +309,48 @@ func validateVideoManifest(m VideoManifest) error {
 	if !identifierPattern.MatchString(m.JobID) || !identifierPattern.MatchString(m.AttemptID) || !digestPattern.MatchString(m.InputFingerprint) || !digestPattern.MatchString(m.WorkerSHA256) {
 		return errors.New("video manifest identity is invalid")
 	}
-	if m.CompositorProfile != VideoCompositorID {
+	wantCompositor := VideoCompositorID
+	if m.LayeredParallax != nil {
+		wantCompositor = VideoLayeredParallaxCompositorID
+	}
+	if m.CompositorProfile != wantCompositor {
 		return errors.New("video renderer profile is unsupported")
 	}
-	if m.Camera == nil {
+	if m.Camera == nil && m.LayeredParallax == nil {
 		if m.VideoProfile != VideoProfileID {
 			return errors.New("fixed video profile is unsupported")
 		}
-	} else if m.VideoProfile != VideoScreenEntryProfileID || (m.Camera.ProfileID != ScreenEntryCameraProfileID && m.Camera.ProfileID != StationaryScreenEntryCameraProfileID) || m.Camera.ProfileVersion != ScreenEntryCameraProfileVersion || m.Camera.MatteRGB == nil {
+	} else if m.Camera != nil && m.LayeredParallax == nil && m.VideoProfile != VideoScreenEntryProfileID || m.Camera != nil && m.LayeredParallax == nil && (m.Camera.ProfileID != ScreenEntryCameraProfileID && m.Camera.ProfileID != StationaryScreenEntryCameraProfileID) || m.Camera != nil && m.LayeredParallax == nil && (m.Camera.ProfileVersion != ScreenEntryCameraProfileVersion || m.Camera.MatteRGB == nil) {
 		return errors.New("screen-entry camera profile or matte is unsupported")
+	} else if m.LayeredParallax != nil {
+		p := m.LayeredParallax
+		travelX, travelY := absInt32(p.TravelXPixels), absInt32(p.TravelYPixels)
+		overscan := int64(p.OverscanPixels)
+		if m.Camera != nil || m.VideoProfile != VideoLayeredParallaxProfileID || p.ProfileVersion != 1 || p.DurationOutputFrames < 2 || p.DurationOutputFrames > videoLayeredParallaxMaxFrames || p.OverscanPixels == 0 || len(m.Scene.Layers) < 2 || len(m.Scene.Layers) > 3 || travelX == 0 && travelY == 0 || travelX > overscan || travelY > overscan || travelX*travelX+travelY*travelY > overscan*overscan {
+			return errors.New("layered-parallax profile, duration, layer count or overscan is invalid")
+		}
+		if m.Scene.PlateWidth <= 0 || m.Scene.PlateHeight <= 0 || m.Scene.PlateWidth > composition.StillMaxDimension || m.Scene.PlateHeight > composition.StillMaxDimension || int64(m.Scene.PlateWidth)*int64(m.Scene.PlateHeight) > videoMaxPixels || int64(p.OverscanPixels) > int64(min(m.Scene.PlateWidth, m.Scene.PlateHeight))/4 {
+			return errors.New("layered-parallax plate or overscan is outside safe bounds")
+		}
+		animatedLayer := false
+		for _, layer := range m.Scene.Layers {
+			if layer.DepthBasis > 1000 || layer.Image.SizeBytes > 4<<20 || layer.Mask.SizeBytes > 4<<20 {
+				return errors.New("layered-parallax layer depth or input size exceeds the local profile")
+			}
+			if err := validateVideoBinding(layer.Image); err != nil {
+				return err
+			}
+			if err := validateVideoBinding(layer.Mask); err != nil {
+				return err
+			}
+			animatedLayer = animatedLayer || layer.DepthBasis > 0
+		}
+		if !animatedLayer {
+			return errors.New("layered-parallax requires a nonzero-depth layer")
+		}
+	}
+	if m.LayeredParallax == nil && len(m.Scene.Layers) > 0 {
+		return errors.New("fixed and screen-entry profiles cannot include parallax layers")
 	}
 	i := m.Inspection
 	if err := validateVideoInspection(i); err != nil {
@@ -302,6 +363,14 @@ func validateVideoManifest(m VideoManifest) error {
 	}
 	if m.Scene.HardwareMask != nil {
 		if err := validateVideoBinding(*m.Scene.HardwareMask); err != nil {
+			return err
+		}
+	}
+	for _, layer := range m.Scene.Layers {
+		if err := validateVideoBinding(layer.Image); err != nil {
+			return err
+		}
+		if err := validateVideoBinding(layer.Mask); err != nil {
 			return err
 		}
 	}
@@ -359,7 +428,7 @@ func validateVideoManifest(m VideoManifest) error {
 		if _, err := newVideoCameraPath(m, image.Rect(0, 0, m.Scene.PlateWidth, m.Scene.PlateHeight), m.PresentationLayout); err != nil {
 			return fmt.Errorf("validate screen-entry camera path: %w", err)
 		}
-	} else if m.Scene.PlateWidth != 0 || m.Scene.PlateHeight != 0 {
+	} else if m.LayeredParallax == nil && (m.Scene.PlateWidth != 0 || m.Scene.PlateHeight != 0) {
 		return errors.New("fixed video manifest must omit camera-only plate dimensions")
 	}
 	if m.ShotRevision <= 0 || m.BaseShotRevision <= 0 || m.ShotRevision < m.BaseShotRevision || strings.TrimSpace(m.BaseRecipeVersion) == "" || len(m.BaseRecipeVersion) > 64 || !digestPattern.MatchString(m.BaseRecipeSHA256) || !digestPattern.MatchString(m.RecipeSHA256) {
@@ -461,8 +530,15 @@ func videoTimingDigest(m VideoManifest) string {
 	}{m.TrimStartPTS, m.TrimEndPTS, m.PlaybackRate, m.OutputRate, m.Width, m.Height, m.VideoProfile}
 	var b []byte
 	var err error
-	if m.Camera == nil {
+	if m.Camera == nil && m.LayeredParallax == nil {
 		b, err = json.Marshal(legacy)
+	} else if m.LayeredParallax != nil {
+		b, err = json.Marshal(struct {
+			Version  string               `json:"version"`
+			Timing   any                  `json:"timing"`
+			Parallax LayeredParallax      `json:"layered_parallax"`
+			Layers   []VideoParallaxLayer `json:"layers"`
+		}{"layered-parallax-timing-v1", legacy, *m.LayeredParallax, m.Scene.Layers})
 	} else {
 		b, err = json.Marshal(struct {
 			Version string `json:"version"`
@@ -575,12 +651,12 @@ func validateVideoDuration(m VideoManifest) error {
 		return err
 	}
 	maxSeconds := videoMaxSeconds
-	if m.Camera != nil {
+	if m.Camera != nil || m.LayeredParallax != nil {
 		maxSeconds = videoScreenEntryMaxSeconds
 	}
 	if duration.Cmp(big.NewRat(int64(maxSeconds), 1)) > 0 {
-		if m.Camera != nil {
-			return errors.New("screen-entry video trim exceeds the 12-second profile bound")
+		if m.Camera != nil || m.LayeredParallax != nil {
+			return errors.New("camera motion video trim exceeds the 12-second profile bound")
 		}
 		return errors.New("video trim exceeds the fixed ten-second development profile")
 	}
@@ -889,8 +965,15 @@ func RunVideoManifest(ctx context.Context, manifestPath string) (retErr error) {
 	if len(plan) > videoMaxFrames {
 		return errors.New("video schedule exceeds the fixed 300-frame development profile")
 	}
+	if manifest.LayeredParallax != nil && int(manifest.LayeredParallax.DurationOutputFrames) > len(plan) {
+		return errors.New("layered-parallax motion exceeds the exact output frame schedule")
+	}
 	if err := validatePlateForVideo(deadline, loaded[0].image, manifest); err != nil {
 		return err
+	}
+	parallaxLayers, err := prepareParallaxLayers(deadline, loaded, manifest.Scene, loaded[0].image.Bounds(), manifest.LayeredParallax)
+	if err != nil {
+		return fmt.Errorf("prepare layered parallax: %w", err)
 	}
 	var cameraPath *videoCameraPath
 	if manifest.Camera != nil {
@@ -947,6 +1030,13 @@ func RunVideoManifest(ctx context.Context, manifestPath string) (retErr error) {
 				return errors.New("frame presentation differs from frozen layout")
 			}
 			var frame image.Image
+			framePlate := loaded[0].image
+			if manifest.LayeredParallax != nil {
+				framePlate, e = composeParallaxPlate(deadline, loaded[0].image, parallaxLayers, manifest.LayeredParallax, uint32(selected))
+				if e != nil {
+					return fmt.Errorf("compose parallax camera frame: %w", e)
+				}
+			}
 			if cameraPath != nil {
 				if presented.Layout.AppViewport != cameraPath.viewport {
 					return errors.New("frame active viewport differs from the prevalidated camera path")
@@ -963,7 +1053,7 @@ func RunVideoManifest(ctx context.Context, manifestPath string) (retErr error) {
 					for n, p := range manifest.Scene.Quad {
 						quad[n] = composition.Point{X: p.X, Y: p.Y}
 					}
-					composed, composeErr := composition.Compose(deadline, composition.Inputs{Plate: loaded[0].image, Screen: presented.Raster, ActiveMask: loaded[1].image, HardwareMask: videoHardware(loaded), SurfaceSize: image.Pt(manifest.Scene.SurfaceWidth, manifest.Scene.SurfaceHeight), Quad: quad, Samples: manifest.Scene.Samples})
+					composed, composeErr := composition.Compose(deadline, composition.Inputs{Plate: framePlate, Screen: presented.Raster, ActiveMask: loaded[1].image, HardwareMask: videoHardware(loaded), SurfaceSize: image.Pt(manifest.Scene.SurfaceWidth, manifest.Scene.SurfaceHeight), Quad: quad, Samples: manifest.Scene.Samples})
 					if composeErr != nil {
 						return fmt.Errorf("compose photographed video frame: %w", composeErr)
 					}
@@ -990,7 +1080,7 @@ func RunVideoManifest(ctx context.Context, manifestPath string) (retErr error) {
 				for n, p := range manifest.Scene.Quad {
 					quad[n] = composition.Point{X: p.X, Y: p.Y}
 				}
-				composed, composeErr := composition.Compose(deadline, composition.Inputs{Plate: loaded[0].image, Screen: presented.Raster, ActiveMask: loaded[1].image, HardwareMask: videoHardware(loaded), SurfaceSize: image.Pt(manifest.Scene.SurfaceWidth, manifest.Scene.SurfaceHeight), Quad: quad, Samples: manifest.Scene.Samples})
+				composed, composeErr := composition.Compose(deadline, composition.Inputs{Plate: framePlate, Screen: presented.Raster, ActiveMask: loaded[1].image, HardwareMask: videoHardware(loaded), SurfaceSize: image.Pt(manifest.Scene.SurfaceWidth, manifest.Scene.SurfaceHeight), Quad: quad, Samples: manifest.Scene.Samples})
 				if composeErr != nil {
 					return fmt.Errorf("compose photographed video frame: %w", composeErr)
 				}
@@ -1073,7 +1163,7 @@ func RunVideoManifest(ctx context.Context, manifestPath string) (retErr error) {
 	if err = deadline.Err(); err != nil {
 		return err
 	}
-	receipt := VideoReceipt{Version: videoManifestVersion, ProtocolVersion: videoProtocolVersion, JobID: manifest.JobID, AttemptID: manifest.AttemptID, InputFingerprint: manifest.InputFingerprint, ShotRevision: manifest.ShotRevision, BaseShotRevision: manifest.BaseShotRevision, BaseRecipeVersion: manifest.BaseRecipeVersion, BaseRecipeSHA256: manifest.BaseRecipeSHA256, RecipeSHA256: manifest.RecipeSHA256, ManifestSHA256: digest(manifestBytes), InspectionSHA256: VideoInspectionDigest(manifest.Inspection), WorkerSHA256: manifest.WorkerSHA256, Mode: manifest.Mode, Camera: manifest.Camera, OutputName: outputName, OutputSHA256: outputHash, OutputSizeBytes: outputSize, OutputWidth: manifest.Width, OutputHeight: manifest.Height, FirstFrameRGBSHA256: firstDigest, PixelProfile: "srgb-rgb24-v1", Native: outputFacts, CompletedAt: time.Now().UTC()}
+	receipt := VideoReceipt{Version: videoManifestVersion, ProtocolVersion: videoProtocolVersion, JobID: manifest.JobID, AttemptID: manifest.AttemptID, InputFingerprint: manifest.InputFingerprint, ShotRevision: manifest.ShotRevision, BaseShotRevision: manifest.BaseShotRevision, BaseRecipeVersion: manifest.BaseRecipeVersion, BaseRecipeSHA256: manifest.BaseRecipeSHA256, RecipeSHA256: manifest.RecipeSHA256, ManifestSHA256: digest(manifestBytes), InspectionSHA256: VideoInspectionDigest(manifest.Inspection), WorkerSHA256: manifest.WorkerSHA256, Mode: manifest.Mode, Camera: manifest.Camera, LayeredParallax: manifest.LayeredParallax, ParallaxLayers: manifest.Scene.Layers, OutputName: outputName, OutputSHA256: outputHash, OutputSizeBytes: outputSize, OutputWidth: manifest.Width, OutputHeight: manifest.Height, FirstFrameRGBSHA256: firstDigest, PixelProfile: "srgb-rgb24-v1", Native: outputFacts, CompletedAt: time.Now().UTC()}
 	if manifest.Mode == VideoModeSample {
 		receipt.PresentationLayout = &resolvedLayout
 		receipt.ResolvedTopFill = resolvedLayout.ResolvedTopFill
@@ -1124,6 +1214,9 @@ func matchVideoInspection(v VideoInspection, r InspectionReceipt) error {
 func requireNoVideoInputsCollide(m VideoManifest) error {
 	seen := map[string]bool{VideoManifestName: true, VideoReceiptName: true, VideoFailureName: true, VideoProfileName: true, VideoSampleName: true, VideoOutputName: true}
 	all := []VideoBinding{m.Inspection.Source, m.Inspection.Manifest, m.Inspection.Receipt, m.Inspection.Clock, m.Scene.Plate, m.Scene.ActiveMask}
+	for _, layer := range m.Scene.Layers {
+		all = append(all, layer.Image, layer.Mask)
+	}
 	if m.Scene.HardwareMask != nil {
 		all = append(all, *m.Scene.HardwareMask)
 	}
@@ -1143,6 +1236,9 @@ func loadVideoImages(ctx context.Context, root *os.Root, s VideoScene) ([]videoL
 	bindings := []VideoBinding{s.Plate, s.ActiveMask}
 	if s.HardwareMask != nil {
 		bindings = append(bindings, *s.HardwareMask)
+	}
+	for _, layer := range s.Layers {
+		bindings = append(bindings, layer.Image, layer.Mask)
 	}
 	loaded := make([]videoLoadedImage, 0, len(bindings))
 	var total int64
@@ -1165,7 +1261,7 @@ func loadVideoImages(ctx context.Context, root *os.Root, s VideoScene) ([]videoL
 			return nil, errors.New("video plate and masks must be PNG")
 		}
 		total += int64(len(data))
-		if total > 64<<20 {
+		if total > 96<<20 {
 			return nil, errors.New("video scene inputs exceed aggregate limit")
 		}
 		loaded = append(loaded, videoLoadedImage{binding: b, data: data, image: img})
@@ -1184,6 +1280,9 @@ func validatePlateForVideo(ctx context.Context, plate image.Image, m VideoManife
 	b := plate.Bounds()
 	if b.Dx() <= 0 || b.Dy() <= 0 {
 		return errors.New("video plate has empty dimensions")
+	}
+	if m.LayeredParallax != nil && (b.Dx() != m.Scene.PlateWidth || b.Dy() != m.Scene.PlateHeight) {
+		return errors.New("layered-parallax plate dimensions differ from its frozen bindings")
 	}
 	for y := b.Min.Y; y < b.Max.Y; y++ {
 		if y&63 == 0 {
@@ -1428,6 +1527,14 @@ func verifyVideoUnchanged(ctx context.Context, root *os.Root, manifestBytes, pro
 		data, e := readBoundedRegular(ctx, root, b.Name, videoMaxInputBytes, b.SizeBytes)
 		if e != nil || digest(data) != b.SHA256 {
 			return fmt.Errorf("video input %q changed during render", b.Name)
+		}
+	}
+	for _, layer := range m.Scene.Layers {
+		for _, b := range []VideoBinding{layer.Image, layer.Mask} {
+			data, e := readBoundedRegular(ctx, root, b.Name, 4<<20, b.SizeBytes)
+			if e != nil || digest(data) != b.SHA256 {
+				return fmt.Errorf("parallax input %q changed during render", b.Name)
+			}
 		}
 	}
 	if data, e := readBoundedRegular(ctx, root, VideoProfileName, inspectionMaxProfile, int64(len(profileBytes))); e != nil || !bytes.Equal(data, profileBytes) {

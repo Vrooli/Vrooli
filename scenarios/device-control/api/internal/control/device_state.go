@@ -216,6 +216,12 @@ func (s *Service) readDeviceState(ctx context.Context, deviceID string, allowRec
 		}
 		return combined, &strategy.AvailabilityError{Reason: fmt.Sprintf("no transport could read state for %q: %s", deviceID, strings.Join(readErrors, "; ")), NextAction: "Use a reachable transport that declares state-bearing properties."}
 	}
+	// The aggregate state is read through every reachable profile, but its
+	// transport field describes the identity's selected route. Otherwise a
+	// USB-first profile list can report USB after wireless promotion succeeded.
+	if combined.WirelessDebugging != nil && strings.TrimSpace(record.Transport) != "" {
+		combined.WirelessDebugging.Transport = strings.TrimSpace(record.Transport)
+	}
 	if len(combined.Unavailable) == 0 {
 		combined.Unavailable = nil
 	}

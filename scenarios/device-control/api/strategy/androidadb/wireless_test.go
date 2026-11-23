@@ -113,6 +113,18 @@ func TestReconnectWirelessDiscoversRotatedTLSEndpoint(t *testing.T) {
 	require.Equal(t, "wireless", restored.transport)
 }
 
+func TestReconnectStaleLegacyEndpointExplainsDHCPAndRebootRequirements(t *testing.T) {
+	runner := &scriptedRunner{responses: map[string][]byte{
+		"adb mdns services":              []byte("List of discovered mdns services\n"),
+		"adb connect 192.168.1.179:5555": []byte("failed to connect to 192.168.1.179:5555"),
+	}}
+	adapter := NewWithRunner(runner, "serial-1").RestoreWireless("192.168.1.179:5555").(*Adapter)
+	err := adapter.ReconnectWireless(context.Background())
+	require.ErrorContains(t, err, "router DHCP reservation or stable IP")
+	require.ErrorContains(t, err, "After a phone reboot, reconnect by USB")
+	require.NotContains(t, strings.Join(runner.calls, "\n"), "shell")
+}
+
 func TestReconnectWaitsForTransportBeforeReadingIdentity(t *testing.T) {
 	runner := &scriptedRunner{responses: map[string][]byte{
 		"adb connect 192.168.1.42:37123":                      []byte("connected"),

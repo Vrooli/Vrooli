@@ -436,10 +436,25 @@ func (b *semanticBackend) Resolve(ctx context.Context, selector sessions.Desktop
 		if err != nil || editable != element.Editable {
 			return sessions.DesktopResolution{}, atspi.ErrRefused
 		}
+		current := element
+		if element.StateKnown {
+			states, stateErr := b.access.State(ctx, entry.ref)
+			if stateErr != nil {
+				return sessions.DesktopResolution{}, atspi.ErrRefused
+			}
+			current.States = states
+		}
+		if element.BoundsKnown {
+			x, y, width, height, known, boundsErr := b.access.Bounds(ctx, entry.ref)
+			if boundsErr != nil || !known {
+				return sessions.DesktopResolution{}, atspi.ErrRefused
+			}
+			current.X, current.Y, current.Width, current.Height = x, y, width, height
+		}
 		if element.Role != selector.Role && selector.Role != 0 {
 			continue
 		}
-		if !semanticElementAllowed(element, selector) {
+		if !semanticElementAllowed(current, selector) {
 			continue
 		}
 		if semanticNameMatches(element.Name, selector.Name, selector.MatchMode) && (!selector.EditableOnly || element.Editable) {

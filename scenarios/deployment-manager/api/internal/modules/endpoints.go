@@ -19,7 +19,7 @@ import (
 
 // AllEndpoints is the generated-contract registry. Connect procedures are
 // referenced from generated bindings so a renamed RPC cannot silently drift.
-// The health probe is the sole remaining REST exception in this registry.
+// The health probe and narrow Android ramp handoff are explicit REST exceptions.
 func AllEndpoints() []module.EndpointDescriptor {
 	return []module.EndpointDescriptor{
 		{
@@ -27,6 +27,13 @@ func AllEndpoints() []module.EndpointDescriptor {
 			Description: "Returns API readiness and dependency status.", Category: "system",
 			RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe, Note: "Lifecycle and load-balancer probes must reach health without a generated client.", ProtoPayloads: &module.RESTProtoPayloads{
 				Request: module.RESTPayload{Transport: "none", Conformance: "none"}, Response: module.RESTPayload{Transport: "json", Conformance: "transport_only"}, Error: module.RESTPayload{Transport: "json", Conformance: "transport_only"},
+			}},
+		},
+		{
+			ID: "android_validation", Path: "/api/v1/android/validate", Method: "POST", Summary: "Validate an immutable Android artifact on a physical target",
+			Description: "Delegates one artifact to scenario-to-android and accepts completion only after the producer reports the exact validation verdict.", Category: "deployments",
+			RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape, Note: "The operation coordinates a producer-owned build identity and server-owned matrix lifecycle; deployment evidence itself uses the generated EvidenceService contract.", ProtoPayloads: &module.RESTProtoPayloads{
+				Request: module.RESTPayload{Transport: "json", Conformance: "transport_only"}, Response: module.RESTPayload{Transport: "json", Conformance: "transport_only"}, Error: module.RESTPayload{Transport: "json", Conformance: "transport_only"},
 			}},
 		},
 		connectEndpoint("list_profiles", profilesconnect.ProfilesServiceListProfilesProcedure, "List deployment profiles", "profiles"),

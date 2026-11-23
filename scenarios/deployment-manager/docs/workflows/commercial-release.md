@@ -65,7 +65,10 @@ LPBS must have all of the following before a governed release can complete:
 - a `download_apps` row for the bundle/app pair (web-console is seeded under
   `business_suite`), and configured storage settings with working S3 credentials;
 - an active remote-profile session and service-to-service auth enabled;
-- `LPBS_SERVICE_SECRET` provisioned to scenario-to-desktop
+- Deployment Manager's `deployment-manager-lpbs-release-manager` principal
+  issued to the credential authority. Until that principal is issued, the
+  temporary `LPBS_SERVICE_SECRET` fallback may be used for Deployment Manager
+  release readiness and delivery calls.
   (`scenario-to-desktop deploy-target doctor <target>` reports readiness).
 
 Authority that is not code:
@@ -103,8 +106,11 @@ card, or `PUT /api/v1/profiles/{profile_id}/lpbs-config`:
 
 The publish step refuses to start without an exact app key and remote profile.
 The remote profile may be session-authenticated or service-authenticated. For
-unattended releases, configure the profile with the destination's
-`LPBS_SERVICE_SECRET`; that mode has no seven-day session expiry and requires no
+unattended releases, use the scoped release principal. The temporary legacy
+mode uses
+`LPBS_SERVICE_SECRET`. Service-principal credentials are exchanged for
+short-lived tokens and reread from the credential authority on every exchange.
+The legacy mode has no seven-day session expiry and requires no
 human login.
 Leave `update_url` blank for a governed release: the owner-derived update URL is
 bound at publish time.

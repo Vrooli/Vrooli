@@ -39,6 +39,7 @@ type Flow struct {
 	RetryBudget            int    `json:"retry_budget,omitempty"`
 	ApplicationID          string `json:"application_id,omitempty"`
 	ApplicationRevision    string `json:"application_revision,omitempty"`
+	RestoreInitialState    bool   `json:"-"`
 }
 type GapReport struct {
 	Runnable bool     `json:"runnable"`
@@ -98,4 +99,7 @@ type RunBinding struct {
 	LeaseEpoch          uint64 `json:"lease_epoch,omitempty"`
 	ApplicationID       string `json:"application_id,omitempty"`
 	ApplicationRevision string `json:"application_revision,omitempty"`
+	SavedFlowID         string `json:"saved_flow_id,omitempty"`
+	SavedFlowVersion    int32  `json:"saved_flow_version,omitempty"`
+	ContextKey          string `json:"context_key,omitempty"`
 }

@@ -29,6 +29,15 @@ type transportNative struct {
 	releaseErr   error
 }
 
+func desktopClickRequest(lease DesktopLease, commandID string) *connect.Request[desktopv1.ActRequest] {
+	return connect.NewRequest(&desktopv1.ActRequest{
+		Lease: leaseToWire(lease), CommandId: commandID, GeometryRevision: "geometry",
+		Action: &desktopv1.Action{Action: &desktopv1.Action_Pointer{Pointer: &desktopv1.PointerAction{
+			Kind: desktopv1.PointerAction_KIND_CLICK, DisplayId: "display", X: 1, Y: 1, Button: desktopv1.PointerAction_BUTTON_PRIMARY,
+		}}},
+	})
+}
+
 func (*transportNative) Validate(context.Context, DesktopCommand) error { return nil }
 func (n *transportNative) Apply(context.Context, DesktopCommand) error  { n.effects.Add(1); return nil }
 func (n *transportNative) ReleaseHeld(context.Context) error {
@@ -260,7 +269,7 @@ func TestDesktopUnixServeCancelsRequestContextsBeforeCleanup(t *testing.T) {
 	}}
 	defer transport.CloseIdleConnections()
 	client := desktopv1connect.NewDesktopHelperServiceClient(&http.Client{Transport: transport, Timeout: 5 * time.Second}, "http://desktop-helper")
-	request := connect.NewRequest(&desktopv1.ActRequest{Lease: leaseToWire(lease), CommandId: "shutdown-command", GeometryRevision: "geometry", Action: &desktopv1.Action{Action: &desktopv1.Action_Pointer{Pointer: &desktopv1.PointerAction{Kind: desktopv1.PointerAction_KIND_CLICK, DisplayId: "display", X: 1, Y: 1, Button: desktopv1.PointerAction_BUTTON_PRIMARY}}}})
+	request := desktopClickRequest(lease, "shutdown-command")
 	request.Header().Set("Authorization", "DesktopGrant "+token)
 	actDone := make(chan error, 1)
 	go func() { _, err := client.Act(context.Background(), request); actDone <- err }()
@@ -324,7 +333,7 @@ func TestDesktopUnixServeKeepsResourcesAlivePastHandlerDrainTimeout(t *testing.T
 	}}
 	defer transport.CloseIdleConnections()
 	client := desktopv1connect.NewDesktopHelperServiceClient(&http.Client{Transport: transport, Timeout: 15 * time.Second}, "http://desktop-helper")
-	request := connect.NewRequest(&desktopv1.ActRequest{Lease: leaseToWire(lease), CommandId: "stubborn-shutdown-command", GeometryRevision: "geometry", Action: &desktopv1.Action{Action: &desktopv1.Action_Pointer{Pointer: &desktopv1.PointerAction{Kind: desktopv1.PointerAction_KIND_CLICK, DisplayId: "display", X: 1, Y: 1, Button: desktopv1.PointerAction_BUTTON_PRIMARY}}}})
+	request := desktopClickRequest(lease, "stubborn-shutdown-command")
 	request.Header().Set("Authorization", "DesktopGrant "+token)
 	actDone := make(chan error, 1)
 	go func() { _, err := client.Act(context.Background(), request); actDone <- err }()

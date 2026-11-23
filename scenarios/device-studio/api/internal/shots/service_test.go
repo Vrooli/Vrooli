@@ -350,6 +350,13 @@ func TestPhotographicCameraMotionValidationAndRecipePinning(t *testing.T) {
 	changedBaseRecipe, err := shots.VideoBaseRecipeSHA(changed)
 	require.NoError(t, err)
 	require.NotEqual(t, baseRecipe, changedBaseRecipe, "camera config changes invalidate the accepted sample base recipe")
+	changedSource := proto.Clone(first.Snapshot).(*shotsv1.ShotSnapshot)
+	changedSource.VideoTiming.SourceSha256 = strings.Repeat("f", 64)
+	changedSourceRecipe, err := shots.VideoBaseRecipeSHA(changedSource)
+	require.NoError(t, err)
+	require.NotEqual(t, baseRecipe, changedSourceRecipe, "camera motion recipe identity includes the exact inspected source digest")
+	_, err = s.Validate(context.Background(), projectID, changedSource)
+	require.ErrorContains(t, err, "must bind the selected source video and its immutable digest and size")
 	_, second, err := s.Save(context.Background(), shot.ID, first.Revision, shot.Name, changed)
 	require.NoError(t, err)
 	require.NotEqual(t, first.RecipeSHA256, second.RecipeSHA256, "camera matte is part of the immutable recipe")
@@ -393,6 +400,60 @@ func TestPhotographicCameraMotionValidationAndRecipePinning(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, revision.RenderEligible)
 	require.Contains(t, issueFields(revision), "video_timing")
+}
+
+func TestLayeredParallaxRequiresPinnedLocalLayersAndExactVideoSchedule(t *testing.T) {
+	s, projectID, media := setup(t)
+	video := acceptedVideoSource(projectID)
+	media.items[video.ID] = video
+	for _, item := range []struct{ id, sha, model string }{
+		{"front-image", strings.Repeat("1", 64), "rgba"}, {"front-mask", strings.Repeat("2", 64), "grayscale"},
+		{"mid-image", strings.Repeat("3", 64), "rgba"}, {"mid-mask", strings.Repeat("4", 64), "grayscale"},
+	} {
+		media.items[item.id] = projects.SourceMedia{ID: item.id, ProjectID: projectID, SHA256: item.sha, SizeBytes: 1024, MediaType: "image/png", Kind: projects.MediaKindImage, Readiness: projects.ReadinessReady, Width: 1200, Height: 800, RasterKnown: true, ColorModel: item.model, ColorProfileStatus: "srgb"}
+	}
+	snapshot := validSnapshot()
+	snapshot.Presentation.SourceMediaId = video.ID
+	snapshot.VideoTiming = acceptedVideoTiming(video)
+	snapshot.VideoTiming.VideoCompositionProfileId = shots.VideoProfileLayeredParallax
+	snapshot.MotionMode = shotsv1.MotionMode_MOTION_MODE_LAYERED_PARALLAX
+	snapshot.LayeredParallax = &shotsv1.LayeredParallaxMotion{ProfileVersion: 1, DurationOutputFrames: 10, OverscanPixels: 40, TravelXPixels: 28, Layers: []*shotsv1.LayeredParallaxLayer{
+		{ImageMediaId: "front-image", MaskMediaId: "front-mask", DepthBasis: 1000},
+		{ImageMediaId: "mid-image", MaskMediaId: "mid-mask", DepthBasis: 450},
+	}}
+	shot, revision, err := s.Create(context.Background(), projectID, "Layered parallax", snapshot)
+	require.NoError(t, err)
+	require.True(t, revision.RenderEligible, "%+v", revision.Issues)
+	require.Len(t, revision.ParallaxLayers, 2)
+	require.Equal(t, strings.Repeat("1", 64), revision.ParallaxLayers[0].GetImage().GetSha256())
+	require.Equal(t, strings.Repeat("2", 64), revision.ParallaxLayers[0].GetMask().GetSha256())
+
+	bad := proto.Clone(revision.Snapshot).(*shotsv1.ShotSnapshot)
+	bad.LayeredParallax.TravelXPixels = 41
+	_, err = s.Validate(context.Background(), projectID, bad)
+	require.ErrorContains(t, err, "within the declared overscan radius")
+	bad = proto.Clone(revision.Snapshot).(*shotsv1.ShotSnapshot)
+	bad.LayeredParallax.TravelXPixels = 0
+	_, err = s.Validate(context.Background(), projectID, bad)
+	require.ErrorContains(t, err, "camera travel must be nonzero")
+
+	bad = proto.Clone(revision.Snapshot).(*shotsv1.ShotSnapshot)
+	bad.VideoTiming.OutputRateNum = 25
+	_, err = s.Validate(context.Background(), projectID, bad)
+	require.NoError(t, err)
+	_, rejected, err := s.Create(context.Background(), projectID, "Wrong frame rate", bad)
+	require.NoError(t, err)
+	require.False(t, rejected.RenderEligible)
+	require.Contains(t, issueFields(rejected), "video_timing")
+
+	bad = proto.Clone(revision.Snapshot).(*shotsv1.ShotSnapshot)
+	bad.LayeredParallax.Layers[1].DepthBasis = 1001
+	_, err = s.Validate(context.Background(), projectID, bad)
+	require.ErrorContains(t, err, "depth basis from 0 through 1000")
+
+	_, newer, err := s.Save(context.Background(), shot.ID, revision.Revision, shot.Name, revision.Snapshot)
+	require.NoError(t, err)
+	require.Equal(t, revision.SceneSHA256, newer.SceneSHA256)
 }
 
 func TestCropPushWithoutTimingRemainsExplicitlyIncomplete(t *testing.T) {

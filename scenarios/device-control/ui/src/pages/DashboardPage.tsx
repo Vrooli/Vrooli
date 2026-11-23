@@ -17,7 +17,7 @@ import {
   type Strategy,
 } from "../api/deviceControl";
 import { Button } from "@vrooli/react-component-library/Button/2";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";

@@ -187,7 +187,7 @@ func (a *Adapter) Describe(ctx context.Context) (strategy.Declaration, error) {
 	sockets, socketErr := a.runner.Run(ctx, "adb", a.args("shell", "cat", "/proc/net/unix")...)
 	hasWebViewSocket := socketErr == nil && strings.Contains(string(sockets), "webview_devtools_remote")
 	caps[strategy.CapWebViewAttach] = strategy.ProbeCapability(strategy.CapWebViewAttach, hasWebViewSocket, "No running Android WebView exposes a debuggable socket", "Launch the target WebView with debugging enabled, then probe again", "adb shell cat /proc/net/unix")
-	d := strategy.Declaration{StrategyID: a.ID(), Description: "Android phones and emulators through ADB", Status: strategy.StatusAvailable, Capabilities: caps, Promotable: true, EvidenceClass: "release-grade", MinimumUsefulFPS: 5}
+	d := strategy.Declaration{StrategyID: a.ID(), Description: "Android phones and emulators through ADB", Status: strategy.StatusAvailable, Capabilities: caps, Properties: androidWindowPropertyDescriptors(), Promotable: true, EvidenceClass: "release-grade", MinimumUsefulFPS: 5}
 	d = strategy.WithSupportedHostOS(d, "linux", "darwin", "windows")
 	d.Tiers = strategy.Tiers(d)
 	return d, nil

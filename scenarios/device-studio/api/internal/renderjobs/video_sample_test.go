@@ -6,6 +6,7 @@ import (
 	"device-studio/internal/jobs"
 	"device-studio/internal/rendering"
 	shotsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/shots"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestVideoSampleManifestComesFromCompletedAttemptOutput(t *testing.T) {
@@ -45,9 +46,9 @@ func TestVideoSampleClaimSourceAndTrimMatchFrozenManifest(t *testing.T) {
 		"trim end":      func(c *shotsv1.VideoSampleBinding) { c.TrimEndPts-- },
 	} {
 		t.Run(name, func(t *testing.T) {
-			tampered := *claim
-			mutate(&tampered)
-			if videoSampleSourceTimingMatchesManifest(&tampered, manifest) {
+			tampered := proto.Clone(claim).(*shotsv1.VideoSampleBinding)
+			mutate(tampered)
+			if videoSampleSourceTimingMatchesManifest(tampered, manifest) {
 				t.Fatal("tampered sample claim matched the immutable worker manifest")
 			}
 		})

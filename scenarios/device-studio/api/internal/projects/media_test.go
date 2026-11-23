@@ -530,6 +530,83 @@ func TestSourceMediaVideoImportIsPendingAndInspectionProjectionIsBoundAndIdempot
 	}
 }
 
+func TestInspectionClockArtifactsRemainScopedToEachRetryAttempt(t *testing.T) {
+	store := blobstore.NewMemoryBlobStore()
+	svc, _, projectID := newMediaFixture(t, store, func() string { return "attempt-scoped-clock" })
+	row, err := svc.Import(context.Background(), projectID, "meeting.mp4", -1, bytes.NewReader(mp4Header()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.BindInspectionAttempt(context.Background(), projectID, row.ID, row.SHA256, "inspect-1", "", "attempt-1"); err != nil {
+		t.Fatal(err)
+	}
+
+	clock1 := []byte("clock from first attempt")
+	receipt1 := []byte("receipt from first attempt")
+	if _, _, err := svc.StoreInspectionArtifacts(context.Background(), projectID, row.ID, "inspect-1", "attempt-1", digestBytes(receipt1), digestBytes(clock1), receipt1, clock1); err != nil {
+		t.Fatal(err)
+	}
+	clockKey1 := "projects/" + projectID + "/media/" + row.ID + "/inspection/inspect-1/attempts/attempt-1/clocks/source-clock.v1.bin"
+	assertStoredBytes := func(key string, want []byte) {
+		t.Helper()
+		r, _, err := store.Get(context.Background(), key)
+		if err != nil {
+			t.Fatalf("get %s: %v", key, err)
+		}
+		got, readErr := io.ReadAll(r)
+		closeErr := r.Close()
+		if err := errors.Join(readErr, closeErr); err != nil || !bytes.Equal(got, want) {
+			t.Fatalf("stored bytes at %s = %q, err = %v; want %q", key, got, err, want)
+		}
+	}
+	assertStoredBytes(clockKey1, clock1)
+
+	if err := svc.ProjectInspection(context.Background(), InspectionProjection{
+		ProjectID: projectID, MediaID: row.ID, SourceSHA256: row.SHA256, JobID: "inspect-1", AttemptID: "attempt-1",
+		Readiness: ReadinessRejected, IssueCode: "inspection_execution_failed", IssueMessage: "The first attempt failed and can be retried.",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.BindInspectionAttempt(context.Background(), projectID, row.ID, row.SHA256, "inspect-1", "attempt-1", "attempt-2"); err != nil {
+		t.Fatal(err)
+	}
+	clock2 := []byte("clock from recovered attempt")
+	receipt2 := []byte("receipt from recovered attempt")
+	if _, _, err := svc.StoreInspectionArtifacts(context.Background(), projectID, row.ID, "inspect-1", "attempt-2", digestBytes(receipt2), digestBytes(clock2), receipt2, clock2); err != nil {
+		t.Fatal(err)
+	}
+	clockKey2 := "projects/" + projectID + "/media/" + row.ID + "/inspection/inspect-1/attempts/attempt-2/clocks/source-clock.v1.bin"
+	assertStoredBytes(clockKey1, clock1)
+	assertStoredBytes(clockKey2, clock2)
+}
+
+func TestOpenInspectionArtifactsReadsLegacyJobScopedClock(t *testing.T) {
+	store := blobstore.NewMemoryBlobStore()
+	svc, _, projectID := newMediaFixture(t, store, func() string { return "legacy-clock" })
+	row, err := svc.Import(context.Background(), projectID, "meeting.mp4", -1, bytes.NewReader(mp4Header()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.BindInspectionAttempt(context.Background(), projectID, row.ID, row.SHA256, "inspect-legacy", "", "attempt-legacy"); err != nil {
+		t.Fatal(err)
+	}
+	receipt, clock := []byte("legacy receipt"), []byte("legacy clock")
+	receiptSHA, clockSHA := digestBytes(receipt), digestBytes(clock)
+	if err := store.Put(context.Background(), InspectionReceiptObjectKey(projectID, row.ID, "inspect-legacy", receiptSHA), bytes.NewReader(receipt), "application/json"); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Put(context.Background(), legacyInspectionClockObjectKey(projectID, row.ID, "inspect-legacy", "source-clock.v1.bin"), bytes.NewReader(clock), "application/octet-stream"); err != nil {
+		t.Fatal(err)
+	}
+	gotReceipt, gotClock, err := svc.OpenInspectionArtifacts(context.Background(), projectID, row.ID, "inspect-legacy", "attempt-legacy", receiptSHA, clockSHA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(gotReceipt, receipt) || !bytes.Equal(gotClock, clock) {
+		t.Fatalf("legacy artifacts = %q / %q, want %q / %q", gotReceipt, gotClock, receipt, clock)
+	}
+}
+
 func TestRejectedInspectionReceiptFinalizesWithoutAcceptedOnlyFacts(t *testing.T) {
 	store := blobstore.NewMemoryBlobStore()
 	svc, repo, projectID := newMediaFixture(t, store, func() string { return "rejected-video" })

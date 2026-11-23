@@ -26,6 +26,13 @@ const PAGE_SIZE = 100;
 const PHYSICAL_PROFILE_ID = "device-studio-physical-cycles-v1";
 const MOBILE_QUERY = "(max-width: 800px)";
 
+type CatalogFailureMessage = typeof strings.physical.catalogUnavailable | typeof strings.physical.candidatePlacementUnavailable;
+
+function CatalogFailure({ message, disabled, onRetry }: { message: CatalogFailureMessage; disabled: boolean; onRetry: () => void }) {
+  const { t } = useTranslation();
+  return <div role="alert"><p>{t(message)}</p><Button type="button" variant="outline" disabled={disabled} onClick={onRetry}>{t(strings.media.retry)}</Button></div>;
+}
+
 function sourceIsReadyImage(media: SourceMedia): media is SourceMedia & { width: number; height: number } {
   return media.kind === SourceMediaKind.IMAGE && media.readiness === MediaReadiness.READY &&
     media.width !== undefined && media.height !== undefined && media.width > 0 && media.height > 0;
@@ -336,10 +343,13 @@ export function NewPhysicalShot({ projectId, onCreated, onCancel }: { projectId:
       <Card><CardHeader><CardTitle as="h3">{steps[step]}</CardTitle></CardHeader><CardContent className="physical-shot__fields">
         {presets.isPending && <p role="status">{t(strings.physical.loadingStarter)}</p>}
         {step === 0 && <div className="physical-shot__starter-choice"><label>{t(strings.physical.initializeStarter)}<select className="physical-shot__input" value={starterID} onChange={(event) => setStarterID(event.target.value)} aria-label={t(strings.physical.initializeStarter)}>{physicalStarterChoices.map((choice) => <option key={choice.id} value={choice.id}>{choice.label}</option>)}</select></label><Button type="button" variant="outline" disabled={initializeStarter.isPending} onClick={() => initializeStarter.mutate()}>{initializeStarter.isPending ? t(strings.physical.initializingStarter) : t(strings.physical.initializeStarter)}</Button>{initializeStarter.error && <p role="alert">{initializeStarter.error.message}</p>}</div>}
-        {presets.error && <div role="alert"><p>{t(strings.physical.catalogUnavailable)}</p><Button type="button" variant="outline" onClick={() => void presets.refetch()}>{t(strings.media.retry)}</Button></div>}
+        {presets.error && <CatalogFailure message={strings.physical.catalogUnavailable} disabled={presets.isFetching} onRetry={() => { void presets.refetch(); }} />}
         {presets.data && presetHeads.length === 0 && <p role="status">{t(strings.physical.noCompatiblePreset)}</p>}
         {selectedPreset.isPending && selectedPresetHead && <p role="status">{t(strings.physical.loadingStarter)}</p>}
-        {selectedPreset.error && <p role="alert">{t(strings.physical.candidatePlacementUnavailable)}</p>}
+        {selectedPreset.error && <>
+          {selectedPresetHead && <p role="status">{selectedPresetHead.name} · {t(strings.physical.candidateState, { state: selectedPresetHead.state, revision: selectedPresetHead.revision })}</p>}
+          <CatalogFailure message={strings.physical.candidatePlacementUnavailable} disabled={selectedPreset.isFetching} onRetry={() => { void selectedPreset.refetch(); }} />
+        </>}
         {selectedPreset.data && <>
           <p className="physical-shot__candidate" data-testid="physical-setup-scope">{selectedPreset.data.preset.candidateOnly ? selectedQualification?.exactMatch ? `Reviewed visual setup · ${selectedPreset.data.preset.name}; this imported review covers a static setup only, and the preset remains a candidate.` : `${t(strings.physical.candidateOnly)} · ${selectedPreset.data.preset.name}` : selectedQualification?.exactMatch ? `Scoped visual setup · ${selectedPreset.data.preset.name}. Approval applies only to this exact setup and recorded motion scope.` : `Reviewed setup has no matching scoped approval · ${selectedPreset.data.preset.name}`}</p>
           {step === 0 && <><label>{t(strings.physical.selectSavedSetup)}<select className="physical-shot__input" value={presetID} onChange={(event) => { setPresetID(event.target.value); setDeviceKey(""); setSceneKey(""); setMotionKey(""); }} aria-label={t(strings.physical.selectSavedSetup)}>{presetHeads.map((preset) => <option key={preset.presetId} value={preset.presetId}>{preset.name} · {t(strings.physical.candidateState, { state: preset.state, revision: preset.revision })}</option>)}</select></label>{selectedPresetHead && <details><summary>{t(strings.physical.technicalRefs)}</summary><p>{selectedPresetHead.presetId} · {selectedPresetHead.revision} · {selectedPresetHead.sha256}</p></details>}<label>{t(strings.physical.selectSceneCandidate)}<select className="physical-shot__input" value={sceneKey} onChange={(event) => setSceneKey(event.target.value)}><option value="">{t(strings.physical.catalogLoading)}</option>{sceneRowsWithStarter.map((row) => <option key={revisionKey(row.ref)} value={revisionKey(row.ref)}>{row.name} · {t(strings.physical.candidateState, { state: row.state, revision: row.ref.revision })}</option>)}</select></label>{scenes.error && <p role="alert">{t(strings.physical.catalogUnavailable)}</p>}{scenes.hasNextPage && <Button type="button" variant="outline" className="min-h-11" disabled={scenes.isFetchingNextPage} onClick={() => void scenes.fetchNextPage()}>{t(strings.physical.loadMoreCandidates)}</Button>}{selectedScene && <><p className="physical-shot__candidate">{t(strings.physical.candidateOnly)} · {selectedScene.name}</p>{(selectedScene.candidate?.artifacts ?? []).slice(0, 8).map((item) => <BundleReviewSummary key={`${item.ref?.bundleId}:${item.ref?.bundleRevision}:${item.ref?.artifactId}`} reference={item.ref} />)}<details><summary>{t(strings.physical.technicalRefs)}</summary><p>{t(strings.physical.sceneChoice, { name: selectedScene.name, revision: selectedScene.ref.revision })}</p><p>{t(strings.physical.sceneSupport, { id: setup?.sceneSupportId ?? "—" })}</p></details></>}</>}

@@ -89,6 +89,19 @@ func (a *Adapter) ReadState(ctx context.Context) (strategy.DeviceState, error) {
 	if state.DisplayDensity <= 0 {
 		state.Unavailable["display_density"] = "adb " + strings.Join(a.args("shell", "wm", "density"), " ")
 	}
+	window, windowErr := a.readWindowMetrics(ctx)
+	metrics, metricsAvailable := parseWindowMetrics(window, state.DisplayWidth, state.DisplayHeight)
+	if windowErr != nil {
+		state.Unavailable["android_window_metrics"] = windowErr.Error()
+	} else if metricsAvailable {
+		state.Properties = map[string]strategy.PropertyValue{}
+		observedAt := time.Now().UTC()
+		for name, value := range metrics.Values() {
+			state.Properties[name] = strategy.PropertyValue{Value: value, Status: strategy.StatusAvailable, Transport: "android-adb", SourceTransport: a.transport, StateDomain: "android_window." + name, ObservedAt: observedAt, Confidence: 1}
+		}
+	} else {
+		state.Unavailable["android_window_metrics"] = "Android window inset and IME sources were not found in the bounded dumpsys window output"
+	}
 	// Keep the bounded, additive dreams probe last so it cannot consume the
 	// caller's remaining budget before any existing state fields are read.
 	dreamStateValue, dreamComponent, unavailableDreamState := probeDreamState(ctx, a.runner, a.args("shell", "dumpsys", "dreams"), dreamStateProbeTimeout)

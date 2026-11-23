@@ -41,6 +41,10 @@ func TestRunScopeAtomicallyBoundsSubmissionsAndClosesDispatch(t *testing.T) {
 	if err != nil || closed.State != jobs.RunScopeClosing || len(children) != 1 || children[0].JobID != job.ID {
 		t.Fatalf("close scope %#v children=%#v err=%v", closed, children, err)
 	}
+	retried, retryChildren, err := scopes.Close(context.Background(), scope.ID, scope.Version)
+	if err != nil || retried.Version != closed.Version || retried.State != jobs.RunScopeClosing || len(retryChildren) != len(children) {
+		t.Fatalf("stale-version close retry should resume the same durable closing state: scope=%#v children=%#v err=%v", retried, retryChildren, err)
+	}
 	if _, _, err := svc.Submit(context.Background(), jobs.SubmitInput{IdempotencyKey: "scope-child-2", Input: in}); err != jobs.ErrScopeAdmissionClosed {
 		t.Fatalf("submit after close err=%v", err)
 	}

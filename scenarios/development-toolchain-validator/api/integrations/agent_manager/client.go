@@ -33,8 +33,8 @@ import (
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
 	repocontract "github.com/vrooli/repo-contract-go"
+	agentmanagerclient "github.com/vrooli/vrooli/packages/agentmanager-client-go"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
-	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
@@ -67,7 +67,14 @@ type Options struct {
 
 // Client is the Connect adapter implementing vrun.AgentManagerClient.
 type Client struct {
-	opts Options
+	opts   Options
+	shared *agentmanagerclient.Client
+}
+
+type resolverAdapter struct{ resolver *discovery.Resolver }
+
+func (r resolverAdapter) ResolveBaseURL(ctx context.Context) (string, error) {
+	return r.resolver.ResolveScenarioURLDefault(ctx, "agent-manager")
 }
 
 // New constructs a Client. Empty fields fall back to production
@@ -86,7 +93,8 @@ func New(opts Options) *Client {
 	if opts.PollInterval <= 0 {
 		opts.PollInterval = defaultPollInterval
 	}
-	return &Client{opts: opts}
+	shared := agentmanagerclient.NewWithResolver(0, resolverAdapter{resolver: opts.Resolver}, agentmanagerclient.WithHTTPClient(opts.Doer), agentmanagerclient.WithProto())
+	return &Client{opts: opts, shared: shared}
 }
 
 var _ vrun.AgentManagerClient = (*Client)(nil)
@@ -268,13 +276,13 @@ func (c *Client) getRunDiff(ctx context.Context, runID string) (*domainpb.RunDif
 
 // invoke centralizes discovery, bounded retries for transient Connect failures,
 // and translation into typed dependency and authorization outcomes.
-func invoke[T any](c *Client, ctx context.Context, call func(apiconnect.AgentManagerServiceClient) (*connect.Response[T], error)) (*T, error) {
+func invoke[T any](c *Client, ctx context.Context, call func(agentmanagerclient.Service) (*T, error)) (*T, error) {
 	var lastErr error
 	for attempt := 0; attempt < c.opts.MaxAttempts; attempt++ {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		base, err := c.opts.Resolver.ResolveScenarioURLDefault(ctx, "agent-manager")
+		service, err := c.shared.Connect(ctx)
 		if err != nil {
 			if discovery.IsScenarioNotRunning(err) {
 				return nil, vrun.ErrDependencyUnavailable{Dependency: "agent-manager", Reason: "scenario not running"}
@@ -282,10 +290,9 @@ func invoke[T any](c *Client, ctx context.Context, call func(apiconnect.AgentMan
 			lastErr = err
 			continue
 		}
-		client := apiconnect.NewAgentManagerServiceClient(c.opts.Doer, strings.TrimRight(base, "/"))
-		resp, err := call(client)
+		resp, err := call(service)
 		if err == nil {
-			return resp.Msg, nil
+			return resp, nil
 		}
 		if pending := approvalPendingError(err); pending != nil {
 			return nil, pending
@@ -302,28 +309,40 @@ func invoke[T any](c *Client, ctx context.Context, call func(apiconnect.AgentMan
 }
 
 func (c *Client) reconcileScenarioProfiles(ctx context.Context, req *apipb.ReconcileScenarioProfilesRequest) (*apipb.ReconcileScenarioProfilesResponse, error) {
-	return invoke(c, ctx, func(client apiconnect.AgentManagerServiceClient) (*connect.Response[apipb.ReconcileScenarioProfilesResponse], error) {
-		return client.ReconcileScenarioProfiles(ctx, connect.NewRequest(req))
+	return invoke(c, ctx, func(client agentmanagerclient.Service) (*apipb.ReconcileScenarioProfilesResponse, error) {
+		return client.ReconcileScenarioProfiles(ctx, req.GetScenario())
 	})
 }
 func (c *Client) createTask(ctx context.Context, req *apipb.CreateTaskRequest) (*apipb.CreateTaskResponse, error) {
-	return invoke(c, ctx, func(client apiconnect.AgentManagerServiceClient) (*connect.Response[apipb.CreateTaskResponse], error) {
-		return client.CreateTask(ctx, connect.NewRequest(req))
+	return invoke(c, ctx, func(client agentmanagerclient.Service) (*apipb.CreateTaskResponse, error) {
+		task, err := client.CreateTask(ctx, req.GetTask())
+		if err != nil {
+			return nil, err
+		}
+		return &apipb.CreateTaskResponse{Task: task}, nil
 	})
 }
 func (c *Client) createRun(ctx context.Context, req *apipb.CreateRunRequest) (*apipb.CreateRunResponse, error) {
-	return invoke(c, ctx, func(client apiconnect.AgentManagerServiceClient) (*connect.Response[apipb.CreateRunResponse], error) {
-		return client.CreateRun(ctx, connect.NewRequest(req))
+	return invoke(c, ctx, func(client agentmanagerclient.Service) (*apipb.CreateRunResponse, error) {
+		run, err := client.CreateRun(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		return &apipb.CreateRunResponse{Run: run}, nil
 	})
 }
 func (c *Client) getRunRPC(ctx context.Context, id string) (*apipb.GetRunResponse, error) {
-	return invoke(c, ctx, func(client apiconnect.AgentManagerServiceClient) (*connect.Response[apipb.GetRunResponse], error) {
-		return client.GetRun(ctx, connect.NewRequest(&apipb.GetRunRequest{RunId: id}))
+	return invoke(c, ctx, func(client agentmanagerclient.Service) (*apipb.GetRunResponse, error) {
+		return client.GetRunResponse(ctx, id)
 	})
 }
 func (c *Client) getRunDiffRPC(ctx context.Context, id string) (*apipb.GetRunDiffResponse, error) {
-	return invoke(c, ctx, func(client apiconnect.AgentManagerServiceClient) (*connect.Response[apipb.GetRunDiffResponse], error) {
-		return client.GetRunDiff(ctx, connect.NewRequest(&apipb.GetRunDiffRequest{RunId: id}))
+	return invoke(c, ctx, func(client agentmanagerclient.Service) (*apipb.GetRunDiffResponse, error) {
+		diff, err := client.GetRunDiff(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		return &apipb.GetRunDiffResponse{Diff: diff}, nil
 	})
 }
 

@@ -628,7 +628,7 @@ func BenchmarkPhotographicComposition1080p(b *testing.B) {
 			mask.SetGray(x, y, color.Gray{Y: 255})
 		}
 	}
-	in := composition.Inputs{Plate: plate, Screen: app, SurfaceSize: image.Pt(800, 450), Quad: [4]composition.Point{{560, 220}, {1360, 220}, {1360, 670}, {560, 670}}, ActiveMask: mask, Samples: 1}
+	in := composition.Inputs{Plate: plate, Screen: app, SurfaceSize: image.Pt(800, 450), Quad: [4]composition.Point{{X: 560, Y: 220}, {X: 1360, Y: 220}, {X: 1360, Y: 670}, {X: 560, Y: 670}}, ActiveMask: mask, Samples: 1}
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

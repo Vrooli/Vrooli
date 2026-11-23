@@ -9,11 +9,7 @@ import (
 )
 
 func TestDataParse(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	t.Run("ParseCSVData", func(t *testing.T) {
 		parseBody := map[string]interface{}{
@@ -114,11 +110,7 @@ func TestDataParse(t *testing.T) {
 }
 
 func TestDataTransform(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	t.Run("FilterTransformation", func(t *testing.T) {
 		transformBody := map[string]interface{}{
@@ -233,11 +225,7 @@ func TestDataTransform(t *testing.T) {
 }
 
 func TestDataValidate(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	t.Run("ValidateCompleteData", func(t *testing.T) {
 		validateBody := map[string]interface{}{
@@ -415,11 +403,7 @@ func TestDataValidate(t *testing.T) {
 }
 
 func TestDataQuery(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	t.Run("SimpleQuery", func(t *testing.T) {
 		queryBody := map[string]interface{}{
@@ -520,11 +504,7 @@ func TestDataQuery(t *testing.T) {
 }
 
 func TestStreamCreate(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	t.Run("CreateWebhookStream", func(t *testing.T) {
 		streamBody := map[string]interface{}{

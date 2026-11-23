@@ -4,7 +4,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { Label } from "../../components/ui/label";
 import { Badge } from "../../components/ui/badge";
 import { createProfile, listProfiles } from "../../lib/api";

@@ -17,6 +17,18 @@
       "resource": "notification-hub",
       "audience": "scenario-authenticator:notification-hub",
       "scopes": ["notification-hub:send"]
+    },
+    {
+      "name": "deployment-manager-lpbs-release-manager",
+      "resource": "landing-page-business-suite",
+      "audience": "scenario-authenticator:landing-page-business-suite",
+      "scopes": ["lpbs:release.manage"]
+    },
+    {
+      "name": "deployment-manager-scenario-to-android",
+      "resource": "scenario-to-android",
+      "audience": "scenario-authenticator:scenario-to-android",
+      "scopes": ["scenario-to-android:read", "scenario-to-android:write"]
     }
   ]
 }

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	authdomain "device-control/internal/auth"
 	devicedomain "device-control/internal/devices"
 	"device-control/strategy"
 	"device-control/strategy/fakes"
@@ -32,6 +33,112 @@ func TestCaptureUsesProbedObserverAndPreservesFullFrame(t *testing.T) {
 	require.Equal(t, "image", result.Evidence[0].Kind)
 	require.False(t, result.Evidence[0].RedactionVerified)
 	require.Contains(t, result.Evidence[0].AppliedRules, "redaction_not_requested")
+	require.Empty(t, svc.ListLiveSessions())
+}
+
+func TestCapturePrefersSelectedWirelessTransportOverUSB(t *testing.T) {
+	adapter := fakes.New("capture-fixture", strategy.StatusAvailable, strategy.CapScreenshot)
+	svc := New(strategyregistry.New(adapter))
+	now := time.Now().UTC()
+	svc.devices.Upsert(devicedomain.Record{
+		ID: "target", Kind: "physical", StrategyID: adapter.ID(), Transport: "wireless", Endpoint: "192.0.2.8:5555",
+		Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, ObservedAt: now,
+		Transports: []strategy.DeviceTransport{
+			{Name: "usb", StrategyID: adapter.ID(), Health: strategy.StatusAvailable, ObservedAt: now},
+			{Name: "wireless", StrategyID: adapter.ID(), Endpoint: "192.0.2.8:5555", Health: strategy.StatusAvailable, ObservedAt: now},
+		},
+	})
+	svc.transportStrategies["target"] = adapter
+
+	result, err := svc.Capture(context.Background(), CaptureRequest{Device: "target", Kind: "screenshot", Actor: "test"})
+	require.NoError(t, err)
+	require.Equal(t, "passed", result.Disposition)
+	require.Equal(t, "wireless", result.Binding.Transport)
+}
+
+type recoveringCaptureFixture struct {
+	*fakes.Strategy
+	online     bool
+	reconnects int
+}
+
+func (f *recoveringCaptureFixture) Describe(ctx context.Context) (strategy.Declaration, error) {
+	if !f.online {
+		return strategy.UnavailableDeclaration(f.ID(), "disconnected", []strategy.Capability{{Name: strategy.CapScreenshot}}, "reconnect"), nil
+	}
+	return f.Strategy.Describe(ctx)
+}
+
+func (f *recoveringCaptureFixture) ReadState(context.Context) (strategy.DeviceState, error) {
+	if !f.online {
+		return strategy.DeviceState{}, errors.New("disconnected")
+	}
+	return strategy.DeviceState{ScreenState: "on", LockState: "unlocked"}, nil
+}
+
+func (f *recoveringCaptureFixture) ReconnectWireless(context.Context) error {
+	f.reconnects++
+	f.online = true
+	return nil
+}
+
+func (*recoveringCaptureFixture) WirelessEndpoint() string { return "192.0.2.9:5555" }
+
+func TestCaptureReconnectsStaleWirelessRouteBeforeCapabilityPreflight(t *testing.T) {
+	adapter := &recoveringCaptureFixture{Strategy: fakes.New("android-adb", strategy.StatusAvailable, strategy.CapScreenshot)}
+	svc := New(strategyregistry.New(adapter))
+	now := time.Now().UTC()
+	svc.devices.Upsert(devicedomain.Record{
+		ID: "target", Kind: "physical", Serial: "serial-1", StrategyID: adapter.ID(), Transport: "wireless", Endpoint: "192.0.2.8:5555",
+		Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, ObservedAt: now,
+		Transports: []strategy.DeviceTransport{{Name: "wireless", StrategyID: adapter.ID(), Endpoint: "192.0.2.8:5555", Health: strategy.HealthUnreachable, ObservedAt: now}},
+	})
+	svc.transportStrategies["target"] = adapter
+
+	result, err := svc.Capture(context.Background(), CaptureRequest{Device: "target", Kind: "screenshot", Actor: "test"})
+	require.NoError(t, err)
+	require.Equal(t, "passed", result.Disposition)
+	require.Equal(t, "wireless", result.Binding.Transport)
+	require.Equal(t, 1, adapter.reconnects)
+}
+
+func TestCaptureUnlocksAndRestoresOriginalOffScreen(t *testing.T) {
+	adapter := &flowAuthStrategy{
+		Strategy:    fakes.New("capture-fixture", strategy.StatusAvailable, strategy.CapScreenshot, strategy.CapInput, strategy.CapScreenControl),
+		locked:      true,
+		screenState: "off",
+	}
+	svc := New(strategyregistry.New(adapter))
+	svc.devices.Upsert(devicedomain.Record{ID: "target", Kind: "physical", StrategyID: adapter.ID(), Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	resolver := &flowAuthResolver{value: "runtime-only-fixture"}
+	store, err := authdomain.NewStore(nil, resolver)
+	require.NoError(t, err)
+	svc.auth = store
+	profile, err := store.Create(context.Background(), authdomain.Profile{
+		ID: "capture-profile", DeviceID: "target", Method: authdomain.MethodPIN,
+		CredentialIdentity: authdomain.CredentialNamespace + "target/capture-profile", CredentialField: "pin",
+		Verification: "fresh_lock_state_unlocked",
+	})
+	require.NoError(t, err)
+
+	result, err := svc.Capture(context.Background(), CaptureRequest{Device: "target", Kind: "screenshot", Wake: true, Actor: "test"})
+	require.NoError(t, err)
+	require.Equal(t, "passed", result.Disposition)
+	require.True(t, adapter.locked, "capture must restore the original keyguard state")
+	require.Equal(t, "off", adapter.screenState, "capture must restore a display that started off")
+	require.Len(t, result.Restoration, 1)
+	require.Equal(t, "restored", result.Restoration[0].Status)
+	require.Len(t, result.Evidence, 1)
+	var unlockAudit *Audit
+	for _, audit := range svc.Audit() {
+		if audit.Verb == "device_unlock" {
+			unlockAudit = &audit
+		}
+	}
+	require.NotNil(t, unlockAudit)
+	require.Equal(t, authdomain.OutcomeUnlocked, unlockAudit.Outcome)
+	require.Equal(t, profile.ID, unlockAudit.ProfileID)
+	require.NotContains(t, string(mustJSON(t, result)), resolver.value)
 	require.Empty(t, svc.ListLiveSessions())
 }
 

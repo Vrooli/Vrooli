@@ -394,6 +394,7 @@ type flowAuthStrategy struct {
 	failReadAfterUnlock bool
 	cancelOnUnlock      context.CancelFunc
 	restoredStates      []strategy.DeviceState
+	screenState         string
 }
 
 type screenConditionStrategy struct {
@@ -493,7 +494,16 @@ func (s *flowAuthStrategy) ReadState(ctx context.Context) (strategy.DeviceState,
 	if s.locked {
 		lockState = "locked"
 	}
-	return strategy.DeviceState{LockState: lockState, ScreenState: "on", Orientation: "portrait"}, nil
+	screenState := s.screenState
+	if screenState == "" {
+		screenState = "on"
+	}
+	return strategy.DeviceState{LockState: lockState, ScreenState: screenState, Orientation: "portrait"}, nil
+}
+
+func (s *flowAuthStrategy) SetScreenState(_ context.Context, state string) error {
+	s.screenState = state
+	return nil
 }
 
 func (s *flowAuthStrategy) Unlock(_ context.Context, request strategy.UnlockRequest) (strategy.UnlockResult, error) {
@@ -514,6 +524,9 @@ func (s *flowAuthStrategy) RestoreState(ctx context.Context, state strategy.Devi
 	s.restoredStates = append(s.restoredStates, state)
 	if state.LockState == "locked" {
 		s.locked = true
+	}
+	if state.ScreenState == "on" || state.ScreenState == "off" {
+		s.screenState = state.ScreenState
 	}
 	return nil
 }
@@ -1018,7 +1031,8 @@ type staticAttachedReader struct{ devices []AttachedDevice }
 
 type persistentWirelessStrategy struct {
 	*fakes.Strategy
-	endpoint string
+	endpoint     string
+	reconnectErr error
 }
 
 func newPersistentWirelessStrategy() *persistentWirelessStrategy {
@@ -1054,7 +1068,11 @@ func (s *persistentWirelessStrategy) PromoteWireless(context.Context) error {
 
 func (s *persistentWirelessStrategy) WirelessEndpoint() string { return s.endpoint }
 
+
 func (s *persistentWirelessStrategy) ReconnectWireless(context.Context) error {
+	if s.reconnectErr != nil {
+		return s.reconnectErr
+	}
 	s.endpoint = "192.168.1.43:37123"
 	return nil
 }

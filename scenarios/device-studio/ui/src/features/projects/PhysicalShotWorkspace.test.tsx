@@ -108,6 +108,24 @@ describe("physical still setup", () => {
     expect(shotsClient.createShot).not.toHaveBeenCalled();
   });
 
+  it("retries the same selected setup after its revision owner is unavailable", async () => {
+    const user = userEvent.setup();
+    vi.mocked(resolvePhysicalShotPreset)
+      .mockRejectedValueOnce(new Error("setup revision owner unavailable"))
+      .mockResolvedValueOnce(savedPreset as never);
+    renderWithProviders(<NewPhysicalShot projectId="project-1" onCreated={vi.fn()} onCancel={vi.fn()} />);
+
+    const failure = await screen.findByRole("alert");
+    expect(failure).toHaveTextContent(i18n.t(strings.physical.candidatePlacementUnavailable));
+    expect(screen.getAllByRole("status").some((status) => status.textContent?.includes(savedPreset.preset.name))).toBe(true);
+    expect(resolvePhysicalShotPreset).toHaveBeenCalledWith("phone-study-hero", 1);
+    await user.click(within(failure).getByRole("button", { name: i18n.t(strings.media.retry) }));
+
+    await waitFor(() => expect(resolvePhysicalShotPreset).toHaveBeenCalledTimes(2));
+    expect(resolvePhysicalShotPreset).toHaveBeenLastCalledWith("phone-study-hero", 1);
+    await waitFor(() => expect(screen.getByRole("combobox", { name: i18n.t(strings.physical.selectSavedSetup) })).toHaveValue("phone-study-hero"));
+  });
+
   it("initializes an unqualified laptop candidate and selects its exact refreshed preset", async () => {
     const user = userEvent.setup();
     vi.mocked(initializePhysicalStarter).mockResolvedValue({ refs: {} as never, preset: { $typeName: "vrooli.device_studio.v1.physical.ComponentRevisionRef", id: "laptop-upright-still", revision: 2, sha256: "a".repeat(64) } });

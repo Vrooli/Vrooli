@@ -9,11 +9,7 @@ import (
 )
 
 func TestHealthEndpoint(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	t.Run("Success", func(t *testing.T) {
 		req := makeHTTPRequest("GET", "/health", nil, "")
@@ -54,11 +50,7 @@ func TestHealthEndpoint(t *testing.T) {
 }
 
 func TestResourceCRUD(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	var createdID string
 
@@ -170,11 +162,7 @@ func TestResourceCRUD(t *testing.T) {
 }
 
 func TestResourceErrors(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	t.Run("GetNonExistentResource", func(t *testing.T) {
 		req := makeHTTPRequest("GET", "/api/v1/resources/get?id=00000000-0000-0000-0000-000000000000", nil, "test-token")
@@ -231,11 +219,7 @@ func TestResourceErrors(t *testing.T) {
 }
 
 func TestWorkflowExecution(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	var executionID string
 
@@ -319,11 +303,7 @@ func TestWorkflowExecution(t *testing.T) {
 }
 
 func TestDocsEndpoint(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	t.Run("GetDocs", func(t *testing.T) {
 		req := makeHTTPRequest("GET", "/docs", nil, "")
@@ -365,11 +345,7 @@ func TestDocsEndpoint(t *testing.T) {
 }
 
 func TestMiddleware(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	t.Run("AuthMiddlewareAllowsValidToken", func(t *testing.T) {
 		req := makeHTTPRequest("GET", "/api/v1/resources/list", nil, "test-token")
@@ -417,11 +393,7 @@ func TestMiddleware(t *testing.T) {
 }
 
 func TestEdgeCases(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	t.Run("EmptyBody", func(t *testing.T) {
 		req := makeHTTPRequest("POST", "/api/v1/resources/create", map[string]interface{}{}, "test-token")

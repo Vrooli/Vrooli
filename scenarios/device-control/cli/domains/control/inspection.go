@@ -14,6 +14,21 @@ import (
 
 func inspectionCommands(core *cliapp.ScenarioApp) []cliapp.Command {
 	return []cliapp.Command{
+		command("inspect-system", "Read bounded CPU, memory, storage, and installed-app facts with a held lease", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true}}, Flags: []cliapp.Flag{{Name: "lease", Required: true}, {Name: "actor", Required: true}, {Name: "transport", Description: "exact observed transport profile"}}}, func(ctx cliapp.RunContext) error {
+			transport, base := cliapp.NewConnectHTTPClient(core)
+			client := devicesv1connect.NewDeviceServiceClient(transport, base)
+			deadline, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			defer cancel()
+			response, err := client.InspectSystemInventory(deadline, connectrpc.NewRequest(&devicesv1.InspectSystemInventoryRequest{DeviceId: ctx.Positional("id"), Actor: ctx.Flag("actor"), LeaseToken: ctx.Flag("lease"), Transport: ctx.Flag("transport")}))
+			if err != nil {
+				return err
+			}
+			data, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(response.Msg)
+			if err != nil {
+				return err
+			}
+			return emit(ctx, data, "Device system inventory")
+		}),
 		command("inspect", "Read hardware, video encoders, WebView, storage, and default Home without device writes", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true}}, Flags: []cliapp.Flag{{Name: "transport", Description: "exact observed transport profile"}}}, func(ctx cliapp.RunContext) error {
 			transport, base := cliapp.NewConnectHTTPClient(core)
 			client := devicesv1connect.NewDeviceServiceClient(transport, base)

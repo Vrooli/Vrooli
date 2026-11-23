@@ -3,7 +3,6 @@ package physicalruntime
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"image"
@@ -28,9 +27,7 @@ import (
 	"device-studio/internal/routedblobstore"
 	"device-studio/internal/scenes"
 	"device-studio/internal/shots"
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/filerouting"
-	"github.com/vrooli/api-core/storage"
+
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 	physicalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/physical"
 	shotsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/shots"
@@ -41,41 +38,11 @@ import (
 
 func TestReviewedLaptopCandidateAndPhysicalClosure(t *testing.T) {
 	ctx := context.Background()
-	providers := []database.SchemaProvider{
-		database.SchemaProviderFunc(library.Schema), database.SchemaProviderFunc(devices.Schema),
-		database.SchemaProviderFunc(scenes.Schema), database.SchemaProviderFunc(motions.Schema),
-		database.SchemaProviderFunc(projects.Schema), database.SchemaProviderFunc(shots.Schema), database.SchemaProviderFunc(jobs.Schema),
-	}
-	db, err := database.Open(ctx, database.Config{Driver: database.DriverSQLite, DSN: filepath.Join(t.TempDir(), "primary.db"), MaxOpenConns: 1, MaxIdleConns: 1})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = db.Close() })
-	if err := database.EnsureSchemas(ctx, db.Primary(), providers...); err != nil {
-		t.Fatal(err)
-	}
-	db.SetTestPoolInitializer(func(initCtx context.Context, pool *sql.DB) error {
-		return database.EnsureSchemas(initCtx, pool, providers...)
-	})
-	roots := filerouting.New(storage.Paths{DataDir: filepath.Join(t.TempDir(), "primary-data")})
-	if err := db.InstallTestPool(ctx, filepath.Join(t.TempDir(), "leased.db"), "laptop-candidate-lease", time.Minute); err != nil {
-		t.Fatal(err)
-	}
-	if err := roots.InstallTestRoots(storage.Paths{DataDir: filepath.Join(t.TempDir(), "leased-data")}, "laptop-candidate-lease", time.Minute); err != nil {
-		t.Fatal(err)
-	}
-	testCtx := database.WithTestMode(ctx)
-	projectRepo := projects.NewSQLiteRepository(db, nil)
-	projectService := projects.NewService(projectRepo, nil)
-	mediaStore, err := routedblobstore.New(roots, "media")
-	if err != nil {
-		t.Fatal(err)
-	}
-	mediaService := projects.NewSourceMediaService(projects.SourceMediaDeps{Projects: projectService, Repository: projectRepo.(projects.SourceMediaRepository), Store: mediaStore})
-	owners, err := New(db, roots, mediaService)
-	if err != nil {
-		t.Fatal(err)
-	}
+	fixture := newStarterTestFixture(t, ctx, "laptop-candidate-lease")
+	owners, testCtx := fixture.owners, fixture.ctx
+	db, roots := fixture.db, fixture.roots
+	projectService, mediaService := fixture.projectService, fixture.media
+	var err error
 	laptop, err := owners.InitializeReviewedLaptopStarter(testCtx)
 	if err != nil {
 		t.Fatalf("initialize the attributed derive16 laptop candidate on the paired test route: %v", err)

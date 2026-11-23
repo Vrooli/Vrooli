@@ -1,5 +1,5 @@
 import type { AuthProfile, ProviderStatus } from "../../api/authentication";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 

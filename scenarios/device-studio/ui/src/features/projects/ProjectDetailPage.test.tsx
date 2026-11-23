@@ -50,6 +50,32 @@ describe("ProjectDetailPage", () => {
     await waitFor(() => expect(projectsClient.renameProject).toHaveBeenCalledWith({ id: "p1", name: "My draft", expectedRevision: 1n }));
   });
 
+  it("retains a name draft and retries the project read after owner loss", async () => {
+    const user = userEvent.setup();
+    vi.mocked(projectsClient.getProject)
+      .mockResolvedValueOnce({ project: project("Original", 1n) } as never)
+      .mockRejectedValueOnce(new Error("project service unavailable"))
+      .mockResolvedValueOnce({ project: project("Original", 1n) } as never);
+    vi.mocked(projectsClient.renameProject).mockResolvedValue({ project: project("Recovered draft", 2n) } as never);
+    const view = renderWithProviders(<TestAppRouter initialEntries={["/projects/p1"]} />, { withoutRouter: true });
+    await screen.findByRole("heading", { name: "Original" });
+    await openProjectManagement(user);
+    const input = await screen.findByTestId(selectors.projects.renameInput);
+    await user.clear(input);
+    await user.type(input, "Recovered draft");
+
+    await view.queryClient.invalidateQueries({ queryKey: ["project", "p1"] });
+    expect(await screen.findByTestId(selectors.projects.error)).toHaveTextContent("project service unavailable");
+    expect(input).toHaveValue("Recovered draft");
+    expect(screen.getByTestId(selectors.projects.reloadButton)).toBeInTheDocument();
+
+    await user.click(screen.getByTestId(selectors.projects.reloadButton));
+    await waitFor(() => expect(screen.queryByTestId(selectors.projects.error)).not.toBeInTheDocument());
+    expect(input).toHaveValue("Recovered draft");
+    await user.click(screen.getByTestId(selectors.projects.renameButton));
+    await waitFor(() => expect(projectsClient.renameProject).toHaveBeenCalledWith({ id: "p1", name: "Recovered draft", expectedRevision: 1n }));
+  });
+
   it("clears the draft and pins the new project's revision after a route change", async () => {
     const user = userEvent.setup();
     vi.mocked(projectsClient.getProject)

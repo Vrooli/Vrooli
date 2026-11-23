@@ -145,9 +145,11 @@ func (s *Service) OnboardNetworkADB(ctx context.Context, endpoint string) (Devic
 	return deviceFromRecord(merged), nil
 }
 
-// ReconnectWireless revalidates a promoted wireless transport and allows the
+// ReconnectWireless revalidates a promoted wireless transport, allows the
 // Android adapter to replace a stale endpoint through authenticated mDNS
-// discovery. The stable device identity remains bound to the onboarded serial.
+// discovery, and re-promotes through a known serial-bound USB profile when a
+// legacy TCP listener stopped after reboot. Identity remains bound to the
+// onboarded serial.
 func (s *Service) ReconnectWireless(ctx context.Context, id string) (Device, error) {
 	id = strings.TrimSpace(id)
 	unlockInventory, err := s.lockInventory(ctx)
@@ -170,8 +172,17 @@ func (s *Service) ReconnectWireless(ctx context.Context, id string) (Device, err
 	if !ok {
 		return Device{}, fmt.Errorf("strategy %q does not support wireless reconnect", record.StrategyID)
 	}
+	repromoted := false
 	if err := reconnector.ReconnectWireless(ctx); err != nil {
-		return Device{}, err
+		usbAdapter, attempted, promoteErr := s.repromoteWirelessFromKnownUSB(ctx, record)
+		if !attempted {
+			return Device{}, err
+		}
+		if promoteErr != nil {
+			return Device{}, fmt.Errorf("wireless reconnect failed (%v); USB recovery promotion failed: %w", err, promoteErr)
+		}
+		adapter = usbAdapter
+		repromoted = true
 	}
 	endpointProvider, ok := adapter.(interface{ WirelessEndpoint() string })
 	if !ok || strings.TrimSpace(endpointProvider.WirelessEndpoint()) == "" {
@@ -192,9 +203,13 @@ func (s *Service) ReconnectWireless(ctx context.Context, id string) (Device, err
 	}
 	s.mu.Lock()
 	s.transportStates[id] = state
+	s.transportStrategies[id] = adapter
 	record.Status = strategy.StatusAvailable
 	record.Health = strategy.StatusAvailable
 	record.HealthReason = "wireless ADB endpoint reconnected and identity verified"
+	if repromoted {
+		record.HealthReason = "legacy wireless ADB re-enabled over the known USB transport and identity verified"
+	}
 	record.Endpoint = state.Endpoint
 	record.ObservedAt = state.UpdatedAt
 	record.Capabilities = mapCaps(declaration)
@@ -203,4 +218,38 @@ func (s *Service) ReconnectWireless(ctx context.Context, id string) (Device, err
 	updated := s.devices.UpsertIdentity(record)
 	s.mu.Unlock()
 	return deviceFromRecord(updated), nil
+}
+
+// repromoteWirelessFromKnownUSB recovers legacy Android ADB-over-TCP after a
+// phone reboot. The operation is permitted only for the same serial-bound USB
+// profile that established the durable identity; the strategy verifies that
+// serial again before the endpoint can be persisted.
+func (s *Service) repromoteWirelessFromKnownUSB(ctx context.Context, record devicedomain.Record) (strategy.Strategy, bool, error) {
+	knownUSB := false
+	for _, profile := range record.Transports {
+		if profile.Name == "usb" && profile.StrategyID == record.StrategyID && record.Serial != "" {
+			knownUSB = true
+			break
+		}
+	}
+	if !knownUSB {
+		return nil, false, nil
+	}
+	base, ok := s.registry.Get(record.StrategyID)
+	if !ok {
+		return nil, true, fmt.Errorf("strategy %q is unavailable", record.StrategyID)
+	}
+	scoped, ok := base.(strategy.DeviceScoped)
+	if !ok {
+		return nil, true, fmt.Errorf("strategy %q cannot bind USB recovery to the enrolled serial", record.StrategyID)
+	}
+	usbAdapter := scoped.ForDevice(record.Serial)
+	promoter, ok := usbAdapter.(interface{ PromoteWireless(context.Context) error })
+	if !ok {
+		return nil, true, fmt.Errorf("strategy %q does not support USB wireless promotion", record.StrategyID)
+	}
+	if err := promoter.PromoteWireless(ctx); err != nil {
+		return nil, true, err
+	}
+	return usbAdapter, true, nil
 }

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/schedule"
 )
 
@@ -65,24 +66,15 @@ WHERE skill_id = ? AND golden_slug = ?
 `
 )
 
-// SQLExecutor is the narrow database surface this package's repository
-// depends on. Both *sql.DB (used by repository unit tests via
-// testutil/db.NewSQLite) and *database.RoutedDB (production main.go)
-// satisfy it, so production wiring participates in per-request routing
-// without forcing test fixtures to wrap their handle.
-type SQLExecutor interface {
-	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
-	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
-	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
-}
+// Repository SQL access is owned by API Core and works with both test and routed databases.
 
 type sqliteRepository struct {
-	db    SQLExecutor
+	db    database.SQLExecutor
 	clock schedule.Clock
 }
 
 // NewSQLiteRepository constructs the production Repository.
-func NewSQLiteRepository(db SQLExecutor, clk schedule.Clock) Repository {
+func NewSQLiteRepository(db database.SQLExecutor, clk schedule.Clock) Repository {
 	return &sqliteRepository{db: db, clock: clk}
 }
 

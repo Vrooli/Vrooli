@@ -38,6 +38,10 @@ func (s *Server) setupRoutes() {
 	if s.EvidenceHandler != nil && s.EvidencePath != "" {
 		s.Router.PathPrefix(s.EvidencePath).Handler(s.EvidenceHandler)
 	}
+	if s.AndroidValidationHandler != nil {
+		s.Router.Handle("/api/v1/android/validate", s.AndroidValidationHandler).Methods(http.MethodPost)
+		s.Router.HandleFunc("/api/v1/android/validate/{run_id}", s.AndroidValidationHandler.Status).Methods(http.MethodGet)
+	}
 	if s.ProfilesConnectHandler != nil && s.ProfilesConnectPath != "" {
 		s.Router.PathPrefix(s.ProfilesConnectPath).Handler(s.ProfilesConnectHandler)
 	}

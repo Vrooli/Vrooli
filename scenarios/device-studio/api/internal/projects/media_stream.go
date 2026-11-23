@@ -15,6 +15,8 @@ import (
 	"github.com/vrooli/api-core/blobstore"
 )
 
+const inspectionClockArtifact = "source-clock.v1.bin"
+
 // StagedSourceMediaImport owns one unique, unreferenced routed object until
 // Commit publishes metadata or Abort removes that object.
 type StagedSourceMediaImport interface {
@@ -51,7 +53,7 @@ func (s *sourceMediaService) StoreInspectionArtifacts(ctx context.Context, proje
 		return "", "", ErrInspectionConflict
 	}
 	receiptID := digestBytes(receipt)
-	clockRef := "source-clock.v1.bin"
+	clockRef := inspectionClockArtifact
 	if len(clock) == 0 {
 		if clockSHA != "" {
 			return "", "", ErrInspectionInvalid
@@ -60,7 +62,7 @@ func (s *sourceMediaService) StoreInspectionArtifacts(ctx context.Context, proje
 		return "", "", ErrInspectionInvalid
 	}
 	receiptKey := InspectionReceiptObjectKey(projectID, mediaID, jobID, receiptID)
-	clockKey := InspectionClockObjectKey(projectID, mediaID, jobID, clockRef)
+	clockKey := InspectionClockObjectKey(projectID, mediaID, jobID, attemptID, clockRef)
 	if err := s.store.Put(ctx, receiptKey, bytes.NewReader(receipt), "application/json"); err != nil {
 		return "", "", err
 	}
@@ -90,8 +92,13 @@ func (s *sourceMediaService) OpenInspectionArtifacts(ctx context.Context, projec
 		if !validSourceDigest(clockSHA) {
 			return nil, nil, ErrInspectionInvalid
 		}
-		clockKey := InspectionClockObjectKey(projectID, mediaID, jobID, "source-clock.v1.bin")
+		clockKey := InspectionClockObjectKey(projectID, mediaID, jobID, attemptID, inspectionClockArtifact)
 		clock, err = s.readInspectionObject(ctx, clockKey, 1<<20)
+		if err != nil {
+			// Older jobs used one mutable clock key per job. Keep those artifacts
+			// readable while new retries write to attempt-scoped keys.
+			clock, err = s.readInspectionObject(ctx, legacyInspectionClockObjectKey(projectID, mediaID, jobID, inspectionClockArtifact), 1<<20)
+		}
 		if err != nil || digestBytes(clock) != clockSHA {
 			return nil, nil, errors.Join(errors.New("inspection clock object failed verification"), err)
 		}
@@ -125,8 +132,12 @@ func InspectionReceiptObjectKey(projectID, mediaID, jobID, receiptID string) str
 	return "projects/" + projectID + "/media/" + mediaID + "/inspection/" + jobID + "/receipts/" + receiptID + ".json"
 }
 
-// InspectionClockObjectKey derives a private routed-object key for an immutable clock artifact.
-func InspectionClockObjectKey(projectID, mediaID, jobID, clockArtifactID string) string {
+// InspectionClockObjectKey derives a private routed-object key for one attempt's clock artifact.
+func InspectionClockObjectKey(projectID, mediaID, jobID, attemptID, clockArtifactID string) string {
+	return "projects/" + projectID + "/media/" + mediaID + "/inspection/" + jobID + "/attempts/" + attemptID + "/clocks/" + strings.TrimSuffix(clockArtifactID, ".bin") + ".bin"
+}
+
+func legacyInspectionClockObjectKey(projectID, mediaID, jobID, clockArtifactID string) string {
 	return "projects/" + projectID + "/media/" + mediaID + "/inspection/" + jobID + "/clocks/" + clockArtifactID + ".bin"
 }
 

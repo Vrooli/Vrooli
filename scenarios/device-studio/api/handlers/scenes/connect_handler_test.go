@@ -20,6 +20,7 @@ import (
 	physicalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/physical"
 	scenesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/scenes"
 	scenesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/scenes/scenes_v1connect"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestListSceneCandidatesRejectsMalformedCursor(t *testing.T) {
@@ -201,15 +202,15 @@ func TestFitKnownCameraPoseResolvesImmutableCameraAndKeepsHingeSeparate(t *testi
 	require.Less(t, rpcResponse.Msg.RmsPixels, .01)
 	require.Equal(t, uint32(1280), rpcResponse.Msg.RasterWidth)
 	require.Equal(t, "known", rpcResponse.Msg.CameraFrame.Id)
-	bad := *request
+	bad := proto.Clone(request).(*scenesv1.FitKnownCameraPoseRequest)
 	bad.GeometrySha256 = strings.Repeat("b", 64)
-	_, err = NewConnectHandler(poseFitSceneService{revision: rev}, poseFitDeviceResolver{revision: deviceRev}).FitKnownCameraPose(context.Background(), connect.NewRequest(&bad))
+	_, err = NewConnectHandler(poseFitSceneService{revision: rev}, poseFitDeviceResolver{revision: deviceRev}).FitKnownCameraPose(context.Background(), connect.NewRequest(bad))
 	var connectErr *connect.Error
 	require.ErrorAs(t, err, &connectErr)
 	require.Equal(t, connect.CodeInvalidArgument, connectErr.Code())
-	bad = *request
+	bad = proto.Clone(request).(*scenesv1.FitKnownCameraPoseRequest)
 	bad.HingeAngleRadians = 2
-	_, err = NewConnectHandler(poseFitSceneService{revision: rev}, poseFitDeviceResolver{revision: deviceRev}).FitKnownCameraPose(context.Background(), connect.NewRequest(&bad))
+	_, err = NewConnectHandler(poseFitSceneService{revision: rev}, poseFitDeviceResolver{revision: deviceRev}).FitKnownCameraPose(context.Background(), connect.NewRequest(bad))
 	require.ErrorAs(t, err, &connectErr)
 	require.Equal(t, connect.CodeInvalidArgument, connectErr.Code())
 }

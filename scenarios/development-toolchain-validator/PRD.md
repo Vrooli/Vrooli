@@ -147,7 +147,7 @@ Most steer skills should no-op on a maximally-mature golden. The exceptions — 
 
 - **`progress`** — fills scenario-specific PRD checkboxes and operational-target status. Manifest expects mutations to `PRD.md` and `requirements/*/module.json` checkbox/status fields, nothing else.
 - **`bundle-integration-steer`** — opt-in; only relevant for scenarios that ship as gated bundle members. Manifest excluded by default; opt-in per golden when relevant.
-- **`progress-continuity-interruption-resilience`** — adds work-resumption mechanisms. Permissive manifest at launch; tighten as the resumption pattern stabilizes.
+- **`resilience-lenses`** — adds work-resumption mechanisms. Permissive manifest at launch; tighten as the resumption pattern stabilizes.
 - **All other steer skills** — empty-diff manifest as the convergence target. Some currently mutate (e.g., `refactor`, `polish`, `test`, `performance`, `ux` mutate when the template isn't yet at maximum maturity). For those, start with a wildcard manifest annotated `convergence_target: empty_diff` so the dashboard can track them moving toward zero.
 
 The `skill-authoring` skill is **not** a steer skill and is out of scope.

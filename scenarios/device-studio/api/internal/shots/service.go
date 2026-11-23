@@ -430,6 +430,82 @@ func (s *service) buildRevisionForVersion(ctx context.Context, projectID, shotID
 		if result.Plate != nil && result.HardwareMask != nil && (plateMedia.Width != hardwareMedia.Width || plateMedia.Height != hardwareMedia.Height) {
 			return malformed("scene.hardware_mask_media_id", "mask dimensions must match the plate")
 		}
+		if parallax := canonical.GetLayeredParallax(); parallax != nil {
+			if canonical.GetMotionMode() != shotsv1.MotionMode_MOTION_MODE_LAYERED_PARALLAX || canonical.GetCameraMotion() != nil {
+				return malformed("layered_parallax", "is only valid with layered-parallax motion and cannot be combined with photographic camera motion")
+			}
+			if parallax.GetProfileVersion() != 1 {
+				return malformed("layered_parallax.profile_version", "only profile version 1 is supported")
+			}
+			if len(parallax.GetLayers()) < 2 || len(parallax.GetLayers()) > 3 {
+				return malformed("layered_parallax.layers", "must contain between 2 and 3 authored image and mask pairs")
+			}
+			overscan := int64(parallax.GetOverscanPixels())
+			if overscan == 0 || result.Plate == nil || overscan > int64(min(plateMedia.Width, plateMedia.Height))/4 {
+				return malformed("layered_parallax.overscan_pixels", "must be positive and no greater than one quarter of the plate's shorter side")
+			}
+			if result.Plate != nil && int64(plateMedia.Width)*int64(plateMedia.Height) > maxLayeredParallaxPixels {
+				return malformed("layered_parallax", "plate raster exceeds the bounded 1080p layered-parallax profile")
+			}
+			travelX, travelY := absInt64(int64(parallax.GetTravelXPixels())), absInt64(int64(parallax.GetTravelYPixels()))
+			if travelX == 0 && travelY == 0 || travelX > overscan || travelY > overscan || travelX*travelX+travelY*travelY > overscan*overscan {
+				return malformed("layered_parallax.travel", "camera travel must be nonzero and remain within the declared overscan radius")
+			}
+			if parallax.GetDurationOutputFrames() < 2 || parallax.GetDurationOutputFrames() > maxLayeredParallaxFrames {
+				return malformed("layered_parallax.duration_output_frames", "must be between 2 and 120 output frames")
+			}
+			if timing := canonical.GetVideoTiming(); timing != nil {
+				frames, frameErr := plannedVideoFrameCount(timing)
+				if frameErr != nil || int64(parallax.GetDurationOutputFrames()) > frames {
+					return malformed("layered_parallax.duration_output_frames", "cannot exceed the exact planned output frame count")
+				}
+			} else {
+				addIssue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_DRAFT_INCOMPLETE, "layered_parallax.duration_output_frames", "Layered parallax needs an exact output frame schedule.", "Choose an inspected video source, trim, playback rate and 24 or 30 fps output rate.", true)
+			}
+			seenLayerMedia := map[string]struct{}{}
+			animatedLayer := false
+			for index, layer := range parallax.GetLayers() {
+				field := fmt.Sprintf("layered_parallax.layers[%d]", index)
+				if layer == nil || layer.GetDepthBasis() > 1000 || strings.TrimSpace(layer.GetImageMediaId()) == "" || strings.TrimSpace(layer.GetMaskMediaId()) == "" || layer.GetImageMediaId() == layer.GetMaskMediaId() {
+					return malformed(field, "requires distinct image and mask media IDs and depth basis from 0 through 1000")
+				}
+				animatedLayer = animatedLayer || layer.GetDepthBasis() > 0
+				if _, duplicate := seenLayerMedia[layer.GetImageMediaId()]; duplicate {
+					return malformed(field+".image_media_id", "must be unique across parallax layers")
+				}
+				seenLayerMedia[layer.GetImageMediaId()] = struct{}{}
+				if _, duplicate := seenLayerMedia[layer.GetMaskMediaId()]; duplicate {
+					return malformed(field+".mask_media_id", "must be unique across parallax layers")
+				}
+				seenLayerMedia[layer.GetMaskMediaId()] = struct{}{}
+				imageMediaRef, imageMedia, resolveErr := resolve(field+".image_media_id", layer.GetImageMediaId(), true)
+				if resolveErr != nil {
+					return Revision{}, resolveErr
+				}
+				maskMediaRef, maskMedia, resolveErr := resolve(field+".mask_media_id", layer.GetMaskMediaId(), true)
+				if resolveErr != nil {
+					return Revision{}, resolveErr
+				}
+				if result.Plate != nil && imageMedia.Width > 0 && (imageMedia.Width != plateMedia.Width || imageMedia.Height != plateMedia.Height) {
+					return malformed(field+".image_media_id", "layer image dimensions must match the full plate raster")
+				}
+				if imageMedia.SizeBytes > 4<<20 || maskMedia.SizeBytes > 4<<20 {
+					return malformed(field, "each layer image and mask must be no larger than four MiB")
+				}
+				if result.Plate != nil && maskMedia.Width > 0 && (maskMedia.Width != plateMedia.Width || maskMedia.Height != plateMedia.Height) {
+					return malformed(field+".mask_media_id", "layer mask dimensions must match the full plate raster")
+				}
+				if maskMediaRef != nil && maskMedia.ColorModel != "grayscale" && maskMedia.ColorModel != "grayscale-alpha" && maskMedia.ColorModel != "grayscale-alpha-16" {
+					return malformed(field+".mask_media_id", "layer mask must be grayscale or alpha coverage")
+				}
+				result.ParallaxLayers = append(result.ParallaxLayers, &shotsv1.ResolvedLayeredParallaxLayer{Image: imageMediaRef, Mask: maskMediaRef, DepthBasis: layer.GetDepthBasis()})
+			}
+			if !animatedLayer {
+				return malformed("layered_parallax.layers", "at least one layer must have depth basis above zero")
+			}
+		} else if canonical.GetMotionMode() == shotsv1.MotionMode_MOTION_MODE_LAYERED_PARALLAX {
+			return malformed("layered_parallax", "is required for layered-parallax motion")
+		}
 		if q := scene.GetPlateQuad(); q != nil {
 			corners, complete := quadPoints(q)
 			provided := [4]*shotsv1.ShotPoint{q.GetTopLeft(), q.GetTopRight(), q.GetBottomRight(), q.GetBottomLeft()}
@@ -473,7 +549,14 @@ func (s *service) buildRevisionForVersion(ctx context.Context, projectID, shotID
 			if screenMedia.Kind != projects.MediaKindVideo || timing.GetSourceMediaId() != screenMedia.ID || timing.GetSourceSha256() != screenMedia.SHA256 || timing.GetSourceSizeBytes() != screenMedia.SizeBytes {
 				return malformed("video_timing.source_media_id", "must bind the selected source video and its immutable digest and size")
 			}
-			if issue := validateVideoTiming(timing, screenMedia, canonical.GetCameraMotion() != nil); issue != nil {
+			motionProfile := ""
+			if canonical.GetCameraMotion() != nil {
+				motionProfile = "screen_entry"
+			}
+			if canonical.GetLayeredParallax() != nil {
+				motionProfile = "layered_parallax"
+			}
+			if issue := validateVideoTiming(timing, screenMedia, motionProfile); issue != nil {
 				addIssue(issue.Code, issue.FieldPath, issue.Summary, issue.Repair, issue.BlocksRender)
 			}
 		} else if screenMedia.Kind == projects.MediaKindVideo {
@@ -547,11 +630,11 @@ func (s *service) buildRevisionForVersion(ctx context.Context, projectID, shotID
 			}
 		}
 	}
-	if canonical.GetMotionMode() < shotsv1.MotionMode_MOTION_MODE_UNSPECIFIED || canonical.GetMotionMode() > shotsv1.MotionMode_MOTION_MODE_CROP_PUSH {
+	if canonical.GetMotionMode() < shotsv1.MotionMode_MOTION_MODE_UNSPECIFIED || canonical.GetMotionMode() > shotsv1.MotionMode_MOTION_MODE_LAYERED_PARALLAX {
 		return malformed("motion_mode", "unknown motion mode")
 	} else if canonical.GetMotionMode() == shotsv1.MotionMode_MOTION_MODE_UNSPECIFIED {
 		addIssue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_DRAFT_INCOMPLETE, "motion_mode", "A motion mode is required.", "Choose fixed motion for a still composition.", true)
-	} else if canonical.GetMotionMode() != shotsv1.MotionMode_MOTION_MODE_FIXED && canonical.GetMotionMode() != shotsv1.MotionMode_MOTION_MODE_CROP_PUSH {
+	} else if canonical.GetMotionMode() != shotsv1.MotionMode_MOTION_MODE_FIXED && canonical.GetMotionMode() != shotsv1.MotionMode_MOTION_MODE_CROP_PUSH && canonical.GetMotionMode() != shotsv1.MotionMode_MOTION_MODE_LAYERED_PARALLAX {
 		addIssue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_UNSUPPORTED_MOTION, "motion_mode", "This motion mode is not implemented by the still compositor.", "Choose fixed motion.", true)
 	}
 	camera := canonical.GetCameraMotion()
@@ -561,6 +644,9 @@ func (s *service) buildRevisionForVersion(ctx context.Context, projectID, shotID
 			return malformed("camera_motion", "is only valid with crop-push motion")
 		}
 	case shotsv1.MotionMode_MOTION_MODE_CROP_PUSH:
+		if canonical.GetLayeredParallax() != nil {
+			return malformed("layered_parallax", "is not supported alongside crop-push camera motion")
+		}
 		if camera == nil {
 			return malformed("camera_motion", "is required for crop-push motion")
 		}
@@ -600,6 +686,22 @@ func (s *service) buildRevisionForVersion(ctx context.Context, projectID, shotID
 		} else {
 			addIssue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_DRAFT_INCOMPLETE, "camera_motion", "Crop-push needs an inspected video timing schedule.", "Choose a video source, trim, playback rate and output rate.", true)
 		}
+	case shotsv1.MotionMode_MOTION_MODE_LAYERED_PARALLAX:
+		if camera != nil {
+			return malformed("camera_motion", "is not supported alongside layered-parallax motion")
+		}
+		if canonical.GetLayeredParallax() == nil {
+			return malformed("layered_parallax", "is required for layered-parallax motion")
+		}
+		if canonical.GetVideoTiming() == nil {
+			addIssue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_DRAFT_INCOMPLETE, "video_timing", "Layered parallax requires an exact video schedule.", "Choose an inspected recording, trim and 24 or 30 fps output rate.", true)
+		} else if planned, countErr := plannedVideoFrameCount(canonical.GetVideoTiming()); countErr != nil {
+			addIssue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_DRAFT_INCOMPLETE, "layered_parallax.duration_output_frames", "The video schedule cannot be bounded yet.", "Reload valid source timing before compiling layered parallax.", true)
+		} else if planned > maxCameraScheduleFrames(canonical.GetVideoTiming()) {
+			addIssue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_UNSUPPORTED_MOTION, "video_timing", "The layered-parallax profile supports clips up to 12 seconds.", "Shorten the trim to 12 seconds or less.", true)
+		} else if int64(canonical.GetLayeredParallax().GetDurationOutputFrames()) > planned {
+			return malformed("layered_parallax.duration_output_frames", "cannot exceed the exact planned output frame count")
+		}
 	default:
 		if camera != nil {
 			return malformed("camera_motion", "is only valid with crop-push motion")
@@ -610,6 +712,9 @@ func (s *service) buildRevisionForVersion(ctx context.Context, projectID, shotID
 		if source != nil {
 			totalInputBytes += source.GetSizeBytes()
 		}
+	}
+	for _, layer := range result.ParallaxLayers {
+		totalInputBytes += layer.GetImage().GetSizeBytes() + layer.GetMask().GetSizeBytes()
 	}
 	if totalInputBytes > maxWorkerInputBytes {
 		addIssue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_UNSUPPORTED_SOURCE_MEDIA, "sources", "Combined image bytes exceed the still renderer's bounded input profile.", "Choose a smaller set of source images.", true)
@@ -650,7 +755,8 @@ func (s *service) buildRevisionForVersion(ctx context.Context, projectID, shotID
 		Version                 string
 		Scene                   *shotsv1.PhotographicScene
 		Plate, Active, Hardware any
-	}{sceneSemanticVersion, sceneSemantics, identity(result.Plate), identity(result.ActiveMask), identity(result.HardwareMask)}
+		ParallaxLayers          []*shotsv1.ResolvedLayeredParallaxLayer
+	}{sceneSemanticVersion, sceneSemantics, identity(result.Plate), identity(result.ActiveMask), identity(result.HardwareMask), result.ParallaxLayers}
 	presentationValue := struct {
 		Version      string
 		Presentation *shotsv1.ScreenPresentation
@@ -858,6 +964,13 @@ func validBoundedText(value string, maxRunes int) bool {
 		}
 	}
 	return true
+}
+
+func absInt64(value int64) int64 {
+	if value < 0 {
+		return -value
+	}
+	return value
 }
 
 func savedPresentationRGB(value *shotsv1.PresentationRGB) *presentations.RGB {

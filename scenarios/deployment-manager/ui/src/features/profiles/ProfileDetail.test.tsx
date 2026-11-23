@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
-import { renderWithProviders } from "@vrooli/api-base/testing";
+import { createTestQueryClient, renderWithProviders } from "@vrooli/api-base/testing";
 import { ProfileDetail } from './ProfileDetail';
 import * as api from '../../lib/api';
 
@@ -107,6 +107,49 @@ describe('ProfileDetail - Release Gate', () => {
 });
 
 describe('ProfileDetail - Required Platforms', () => {
+  it('retries profile loading after an initial provider failure', async () => {
+    vi.mocked(api.getProfile)
+      .mockRejectedValueOnce(new Error('temporary profile outage'))
+      .mockResolvedValueOnce(mockProfile);
+    vi.mocked(api.getRequiredPlatforms).mockResolvedValue({ profile_id: 'prof-1', platforms: ['linux'] });
+    defaultLPBSMocks();
+
+    renderWithProviders(<ProfileDetail />, { wrapper: createWrapper() });
+
+    fireEvent.click(await screen.findByRole('button', { name: /retry profile loading/i }));
+    expect(await screen.findByText('Profile Configuration')).toBeInTheDocument();
+  });
+
+  it('retains an unsaved platform selection while profile refresh is unavailable and recovers on retry', async () => {
+    vi.mocked(api.getProfile)
+      .mockResolvedValueOnce(mockProfile)
+      .mockRejectedValueOnce(new Error('temporary profile outage'))
+      .mockResolvedValueOnce(mockProfile);
+    vi.mocked(api.getRequiredPlatforms).mockResolvedValue({ profile_id: 'prof-1', platforms: ['linux'] });
+    vi.mocked(api.setRequiredPlatforms).mockResolvedValue({ profile_id: 'prof-1', platforms: ['windows', 'linux'] });
+    defaultLPBSMocks();
+    const queryClient = createTestQueryClient();
+    const profileCallsBeforeRender = vi.mocked(api.getProfile).mock.calls.length;
+    const { queryClient: renderedClient } = renderWithProviders(<ProfileDetail />, { wrapper: createWrapper(), queryClient });
+
+    await screen.findByText('Required Platforms');
+    fireEvent.click(screen.getByRole('checkbox', { name: /windows/i }));
+    expect(screen.getByText('Save Platforms')).toBeInTheDocument();
+
+    await renderedClient.refetchQueries({ queryKey: ['profile', 'prof-1'], exact: true });
+
+    expect(api.getProfile).toHaveBeenCalledTimes(profileCallsBeforeRender + 2);
+    expect(renderedClient.getQueryState(['profile', 'prof-1'])?.status).toBe('error');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Profile data is unavailable. The saved profile is shown.');
+    expect(screen.getByRole('checkbox', { name: /windows/i })).toBeChecked();
+    expect(screen.getByText('Save Platforms')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /retry profile loading/i }));
+    await screen.findByText('Profile Configuration');
+    expect(screen.getByRole('checkbox', { name: /windows/i })).toBeChecked();
+    fireEvent.click(screen.getByText('Save Platforms'));
+    await waitFor(() => expect(api.setRequiredPlatforms).toHaveBeenCalledWith('prof-1', ['linux', 'windows']));
+  });
+
   it('renders required platforms checkboxes', async () => {
     vi.mocked(api.getProfile).mockResolvedValue(mockProfile);
     vi.mocked(api.getRequiredPlatforms).mockResolvedValue({ profile_id: 'prof-1', platforms: ['linux'] });

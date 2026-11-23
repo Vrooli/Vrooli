@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../../test-utils";
 import { selectors } from "../../consts/selectors";
 import { setLocale } from "../../i18n";
+import en from "../../i18n/locales/en.json";
 
 vi.mock("../../api/projects", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/projects")>();
@@ -32,6 +33,38 @@ describe("ProjectWorkspace", () => {
     renderWithProviders(<ProjectWorkspace />);
     expect(await screen.findByTestId(selectors.projects.error)).toHaveTextContent("offline");
     expect(screen.getByTestId(selectors.projects.surface)).toHaveAttribute("data-experience-state", "error");
+  });
+
+  it("keeps a new-project name draft while the saved-project catalog recovers", async () => {
+    const user = userEvent.setup();
+    vi.mocked(projectsClient.listProjects).mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce(page([{ id: "p1", name: "Recovered project", revision: 1n }]) as never);
+    renderWithProviders(<ProjectWorkspace />);
+    await screen.findByTestId(selectors.projects.error);
+    await user.click(screen.getByTestId(selectors.projects.createButton));
+    const name = await screen.findByTestId(selectors.projects.nameInput);
+    await user.type(name, "Saved while catalog is offline");
+    await user.click(screen.getByRole("button", { name: en.errorBoundary.retry }));
+
+    expect(await screen.findByTestId(selectors.projects.openButton({ id: "p1" }))).toBeInTheDocument();
+    expect(name).toHaveValue("Saved while catalog is offline");
+    expect(projectsClient.listProjects).toHaveBeenCalledTimes(2);
+    expect(projectsClient.createProject).not.toHaveBeenCalled();
+  });
+
+  it("retries only the failed project page", async () => {
+    const user = userEvent.setup();
+    vi.mocked(projectsClient.listProjects).mockResolvedValueOnce(page([{ id: "p1", name: "First project", revision: 1n }], "page-2") as never)
+      .mockRejectedValueOnce(new Error("next page unavailable"))
+      .mockResolvedValueOnce(page([{ id: "p2", name: "Second project", revision: 2n }]) as never);
+    renderWithProviders(<ProjectWorkspace />);
+    await screen.findByTestId(selectors.projects.openButton({ id: "p1" }));
+    await user.click(screen.getByRole("button", { name: en.projects.loadMore }));
+    await waitFor(() => expect(screen.getAllByRole("alert").some((alert) => alert.textContent.includes("next page unavailable"))).toBe(true));
+    await user.click(screen.getByRole("button", { name: en.errorBoundary.retry }));
+
+    expect(await screen.findByTestId(selectors.projects.openButton({ id: "p2" }))).toBeInTheDocument();
+    expect(vi.mocked(projectsClient.listProjects).mock.calls.map(([request]) => request.pageToken)).toEqual(["", "page-2", "page-2"]);
   });
 
   it("creates, lists and opens a durable project without clipping long names", async () => {

@@ -56,9 +56,17 @@ func (a *Adapter) ReconnectWireless(ctx context.Context) error {
 		return nil
 	}
 	if lastErr != nil {
+		if isLegacyADBEndpoint(a.endpoint) {
+			return fmt.Errorf("%w; this legacy TCP ADB connection cannot discover a changed DHCP address when Android Wireless Debugging is unsupported. Configure a router DHCP reservation or stable IP for the phone. After a phone reboot, reconnect by USB and enable legacy TCP ADB again with device-control wireless promotion", lastErr)
+		}
 		return lastErr
 	}
 	return fmt.Errorf("no wireless ADB endpoint was discovered for the onboarded device")
+}
+
+func isLegacyADBEndpoint(endpoint string) bool {
+	_, port, err := net.SplitHostPort(endpoint)
+	return err == nil && port == wirelessADBPort
 }
 
 func (a *Adapter) waitForDevice(ctx context.Context, endpoint string) error {
@@ -78,7 +86,7 @@ func (a *Adapter) verifyWirelessEndpoint(ctx context.Context, endpoint string) e
 	defer cancel()
 	serialCheck, err := a.runner.Run(ctx, "adb", "-s", endpoint, "shell", "getprop", "ro.serialno")
 	if err != nil {
-		return fmt.Errorf("verify wireless endpoint: %w", err)
+		return fmt.Errorf("verify wireless endpoint: %w: %s", err, boundedDiagnostic(serialCheck))
 	}
 	if strings.TrimSpace(string(serialCheck)) != a.identitySerial {
 		return fmt.Errorf("wireless adb identity mismatch: expected onboarded device")

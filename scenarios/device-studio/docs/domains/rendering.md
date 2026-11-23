@@ -287,6 +287,12 @@ Operator-approved extension (Aquila craft feedback,2026-10-21): `screen-entry-st
 
 The destination is local to the following shot. A side destination permits large text alongside it; it does not require all later shots to use that placement. Review the room for warping and the screen for source-time/geometry continuity in the actual encoded handoff.
 
+### Locally authored 2D layered parallax
+
+`MOTION_MODE_LAYERED_PARALLAX` is an explicit still-plate-to-video effect. The project supplies two or three full-canvas PNG layer images and grayscale/alpha masks, all the exact plate dimensions. Each pair is resolved through project media and its SHA-256/size is part of the immutable shot revision and render input receipt. Layer order is authored order; each depth basis from 0 to 1000 scales a bounded smooth camera translation. The plate stays as the opaque background and the product screen remains composed over the plate. Masks that overlap the active screen are rejected. This does not infer depth, create hidden pixels, or claim object geometry, physical camera movement, or parallax from an unlayered photograph.
+
+The profile pins an output duration of 2–120 frames and uses the existing inspected source clock and explicit 24/30fps timing. A caller declares overscan in plate pixels; the complete camera travel vector must fit within it and overscan cannot exceed one quarter of the plate's shorter side. The plate is at most 1080p, with at most three image/mask pairs of at most 4 MiB each. Missing or revoked layer media, changed bytes, mismatched dimensions, invalid masks, excessive travel, incomplete schedule, or unsupported frame rate blocks compilation. Existing fixed and photographic screen-entry recipes remain unchanged.
+
 
 ### Video source color at a screen handoff
 

@@ -10,6 +10,10 @@ import (
 	"github.com/gorilla/mux"
 )
 
+const maxSigningConfigBodyBytes = 64 << 10
+
+var errSigningConfigBodyTooLarge = errors.New("request body exceeds 64 KiB limit")
+
 // Handler exposes the compatibility configuration proxy. Signing validation,
 // toolchain discovery, and certificate operations are owned by
 // scenario-to-desktop and are intentionally not implemented here.
@@ -58,8 +62,12 @@ func (h *Handler) SetSigning(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, http.StatusBadRequest, "profile_id is required")
 		return
 	}
-	body, err := io.ReadAll(io.LimitReader(r.Body, 64<<10))
+	body, err := readSigningConfigBody(r.Body)
 	if err != nil {
+		if errors.Is(err, errSigningConfigBodyTooLarge) {
+			h.writeError(w, http.StatusRequestEntityTooLarge, err.Error())
+			return
+		}
 		h.writeError(w, http.StatusBadRequest, "failed to read request body")
 		return
 	}
@@ -92,8 +100,12 @@ func (h *Handler) SetPlatformSigning(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, http.StatusBadRequest, "invalid platform: "+platform+". Valid: windows, macos, linux")
 		return
 	}
-	body, err := io.ReadAll(io.LimitReader(r.Body, 64<<10))
+	body, err := readSigningConfigBody(r.Body)
 	if err != nil {
+		if errors.Is(err, errSigningConfigBodyTooLarge) {
+			h.writeError(w, http.StatusRequestEntityTooLarge, err.Error())
+			return
+		}
 		h.writeError(w, http.StatusBadRequest, "failed to read request body")
 		return
 	}
@@ -180,6 +192,19 @@ func (h *Handler) logError(message string, err error) {
 	if h.log != nil {
 		h.log("error", map[string]interface{}{"msg": message, "error": err.Error()})
 	}
+}
+
+// readSigningConfigBody reads one byte beyond the limit so oversized input is
+// rejected instead of silently decoding a valid JSON prefix.
+func readSigningConfigBody(body io.Reader) ([]byte, error) {
+	data, err := io.ReadAll(io.LimitReader(body, maxSigningConfigBodyBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > maxSigningConfigBodyBytes {
+		return nil, errSigningConfigBodyTooLarge
+	}
+	return data, nil
 }
 
 func (h *Handler) writeJSON(w http.ResponseWriter, status int, payload interface{}) {

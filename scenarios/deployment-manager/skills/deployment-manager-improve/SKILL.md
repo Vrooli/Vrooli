@@ -60,7 +60,7 @@ reasons verbatim; supplement the two external rows with the named programs.
 Read the measure contract, binding condition, and friction digest with the exact
 commands above. External evidence outranks Deployment Manager's self-report.
 Rows marked pending telemetry are obligations, not estimates; file them through
-the `skill-set-authoring` missing-sensor route.
+the `scenario-skill-setup` missing-sensor route.
 
 Read `vrooli-memory learning measure --scope deployment-manager-usage` for the full
 learning window. Use `--from`, `--to`, `--operation`, and `--context-key` for

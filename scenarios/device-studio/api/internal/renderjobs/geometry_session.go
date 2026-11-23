@@ -176,7 +176,22 @@ func (c *Coordinator) CancelGeometrySession(ctx context.Context, id string, expe
 	if c.scopes == nil {
 		return GeometrySessionSnapshot{}, errors.New("bounded creation sessions are unavailable")
 	}
-	scope, children, err := c.scopes.Close(ctx, strings.TrimSpace(id), expected)
+	id = strings.TrimSpace(id)
+	current, err := c.scopes.Get(ctx, id)
+	if err != nil || current.OwnerKind != geometrySessionOwner {
+		return GeometrySessionSnapshot{}, jobs.ErrNotFound
+	}
+	if current.State == jobs.RunScopeCancelled {
+		return c.geometrySessionSnapshot(ctx, id)
+	}
+	scope, children, err := c.scopes.Close(ctx, id, expected)
+	if errors.Is(err, jobs.ErrAlreadyTerminal) {
+		// The cancellation may have completed after the read above.
+		current, readErr := c.scopes.Get(ctx, id)
+		if readErr == nil && current.OwnerKind == geometrySessionOwner && current.State == jobs.RunScopeCancelled {
+			return c.geometrySessionSnapshot(ctx, id)
+		}
+	}
 	if err != nil {
 		return GeometrySessionSnapshot{}, err
 	}

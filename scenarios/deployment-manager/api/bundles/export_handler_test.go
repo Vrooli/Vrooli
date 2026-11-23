@@ -17,56 +17,8 @@ import (
 )
 
 func TestHandleExportBundle(t *testing.T) {
-	analyzerSkeleton := Manifest{
-		SchemaVersion: "v0.1",
-		Target:        "desktop",
-		App: ManifestApp{
-			Name:        "Export Test App",
-			Version:     "1.0.0",
-			Description: "testing export",
-		},
-		IPC: ManifestIPC{
-			Mode:          "loopback-http",
-			Host:          "127.0.0.1",
-			Port:          48000,
-			AuthTokenPath: "runtime/auth-token",
-		},
-		Telemetry: ManifestTelemetry{
-			File: "telemetry/deployment-telemetry.jsonl",
-		},
-		Ports: &ManifestPorts{
-			DefaultRange: PortRange{Min: 47000, Max: 47999},
-			Reserved:     []int{},
-		},
-		Services: []ServiceEntry{
-			{
-				ID:          "api",
-				Type:        "api-binary",
-				Description: "Export Test API",
-				Binaries: map[string]ServiceBinary{
-					"linux-x64": {Path: "bin/api"},
-				},
-				LogDir: "logs/api",
-				Ports: &ServicePorts{
-					Requested: []RequestedPort{
-						{Name: "http", Range: PortRange{Min: 48100, Max: 48110}},
-					},
-				},
-				Health: HealthCheck{
-					Type:     "tcp",
-					PortName: "http",
-					Interval: 1000,
-					Timeout:  2000,
-					Retries:  3,
-				},
-				Readiness: ReadinessCheck{
-					Type:     "port_open",
-					PortName: "http",
-					Timeout:  5000,
-				},
-			},
-		},
-	}
+	analyzerSkeleton := analyzerTestSkeleton("Export Test App", "1.0.0", "testing export", "Export Test API")
+	analyzerSkeleton.Services[0].Ports.Requested[0].Range = PortRange{Min: 48100, Max: 48110}
 
 	analyzer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
@@ -192,24 +144,7 @@ func TestHandleExportBundleInvalidRequestDoesNotInvokeAuthorization(t *testing.T
 }
 
 func TestHandleExportBundleChecksumConsistency(t *testing.T) {
-	analyzerSkeleton := Manifest{
-		SchemaVersion: "v0.1",
-		Target:        "desktop",
-		App:           ManifestApp{Name: "Checksum Test", Version: "1.0.0"},
-		IPC:           ManifestIPC{Mode: "loopback-http", Host: "127.0.0.1", Port: 48000, AuthTokenPath: "runtime/auth-token"},
-		Telemetry:     ManifestTelemetry{File: "telemetry.jsonl"},
-		Ports:         &ManifestPorts{DefaultRange: PortRange{Min: 47000, Max: 47999}, Reserved: []int{}},
-		Services: []ServiceEntry{
-			{
-				ID:        "api",
-				Type:      "api-binary",
-				Binaries:  map[string]ServiceBinary{"linux-x64": {Path: "bin/api"}},
-				Health:    HealthCheck{Type: "tcp", PortName: "http", Interval: 1000, Timeout: 1000, Retries: 1},
-				Readiness: ReadinessCheck{Type: "port_open", PortName: "http", Timeout: 1000},
-				Ports:     &ServicePorts{Requested: []RequestedPort{{Name: "http", Range: PortRange{Min: 48000, Max: 48010}}}},
-			},
-		},
-	}
+	analyzerSkeleton := analyzerTestSkeleton("Checksum Test", "1.0.0", "", "")
 
 	analyzer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
@@ -306,24 +241,7 @@ func TestHandleExportBundleMissingScenario(t *testing.T) {
 }
 
 func TestHandleExportBundleFiltersInfrastructureSecrets(t *testing.T) {
-	analyzerSkeleton := Manifest{
-		SchemaVersion: "v0.1",
-		Target:        "desktop",
-		App:           ManifestApp{Name: "Filter Test", Version: "1.0.0"},
-		IPC:           ManifestIPC{Mode: "loopback-http", Host: "127.0.0.1", Port: 48000, AuthTokenPath: "runtime/auth-token"},
-		Telemetry:     ManifestTelemetry{File: "telemetry.jsonl"},
-		Ports:         &ManifestPorts{DefaultRange: PortRange{Min: 47000, Max: 47999}, Reserved: []int{}},
-		Services: []ServiceEntry{
-			{
-				ID:        "api",
-				Type:      "api-binary",
-				Binaries:  map[string]ServiceBinary{"linux-x64": {Path: "bin/api"}},
-				Health:    HealthCheck{Type: "tcp", PortName: "http", Interval: 1000, Timeout: 1000, Retries: 1},
-				Readiness: ReadinessCheck{Type: "port_open", PortName: "http", Timeout: 1000},
-				Ports:     &ServicePorts{Requested: []RequestedPort{{Name: "http", Range: PortRange{Min: 48000, Max: 48010}}}},
-			},
-		},
-	}
+	analyzerSkeleton := analyzerTestSkeleton("Filter Test", "1.0.0", "", "")
 
 	analyzer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
@@ -400,24 +318,7 @@ func TestHandleExportBundleDefaultTier(t *testing.T) {
 			"scenario":  "tier-test",
 			"generated": time.Now().UTC().Format(time.RFC3339),
 			"manifest": map[string]interface{}{
-				"skeleton": Manifest{
-					SchemaVersion: "v0.1",
-					Target:        "desktop",
-					App:           ManifestApp{Name: "Tier Test", Version: "1.0.0"},
-					IPC:           ManifestIPC{Mode: "loopback-http", Host: "127.0.0.1", Port: 48000, AuthTokenPath: "runtime/auth-token"},
-					Telemetry:     ManifestTelemetry{File: "telemetry.jsonl"},
-					Ports:         &ManifestPorts{DefaultRange: PortRange{Min: 47000, Max: 47999}, Reserved: []int{}},
-					Services: []ServiceEntry{
-						{
-							ID:        "api",
-							Type:      "api-binary",
-							Binaries:  map[string]ServiceBinary{"linux-x64": {Path: "bin/api"}},
-							Health:    HealthCheck{Type: "tcp", PortName: "http", Interval: 1000, Timeout: 1000, Retries: 1},
-							Readiness: ReadinessCheck{Type: "port_open", PortName: "http", Timeout: 1000},
-							Ports:     &ServicePorts{Requested: []RequestedPort{{Name: "http", Range: PortRange{Min: 48000, Max: 48010}}}},
-						},
-					},
-				},
+				"skeleton": analyzerTestSkeleton("Tier Test", "1.0.0", "", ""),
 			},
 		})
 	}))

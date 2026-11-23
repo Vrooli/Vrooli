@@ -24,12 +24,46 @@ import (
 	"device-control/strategy/googlecast"
 	strategyregistry "device-control/strategy/registry"
 
+	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
+	devicesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/devices"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/shared"
 	"google.golang.org/protobuf/types/known/structpb"
 	_ "modernc.org/sqlite"
 )
+
+type systemInventoryHandlerFixture struct {
+	*fakes.Strategy
+	inventory strategy.SystemInventory
+}
+
+func (f *systemInventoryHandlerFixture) InspectSystemInventory(context.Context) (strategy.SystemInventory, error) {
+	return f.inventory, nil
+}
+
+func (f *systemInventoryHandlerFixture) Enumerate(context.Context) ([]strategy.Device, error) {
+	return []strategy.Device{{ID: "phone", Serial: "serial", IdentityKey: "serial", IdentityKind: "adb-serial", StrategyID: f.ID(), Transport: "usb", Health: strategy.StatusAvailable}}, nil
+}
+
+func TestInspectSystemInventoryHandlerReturnsBoundedInventoryAndAuditReceipt(t *testing.T) {
+	fixture := &systemInventoryHandlerFixture{Strategy: fakes.New("inventory", strategy.StatusAvailable), inventory: strategy.SystemInventory{CPULogicalCores: 4, InstalledPackages: []string{"com.example.app"}, PackagesTruncated: true, ObservedAt: time.Now().UTC()}}
+	// Seed the service with the strategy identity through its normal device inventory path.
+	service := internal.New(strategyregistry.New(fixture))
+	service.Devices(context.Background())
+	devices := service.Devices(context.Background())
+	require.NotEmpty(t, devices)
+	deviceID := devices[0].ID
+	lease, err := service.Acquire(deviceID, "operator", time.Minute)
+	require.NoError(t, err)
+	handler := &deviceConnect{h: &handler{service: service}}
+	response, err := handler.InspectSystemInventory(context.Background(), connect.NewRequest(&devicesv1.InspectSystemInventoryRequest{DeviceId: deviceID, Actor: "operator", LeaseToken: lease.LeaseToken}))
+	require.NoError(t, err)
+	require.Equal(t, uint32(4), response.Msg.CpuLogicalCores)
+	require.Equal(t, []string{"com.example.app"}, response.Msg.InstalledPackages)
+	require.True(t, response.Msg.PackagesTruncated)
+	require.NotEmpty(t, response.Msg.AuditId)
+}
 
 type failingRemoteDiscovery struct{}
 
@@ -103,13 +137,16 @@ func TestFlowProtoCarriesReliabilityContract(t *testing.T) {
 }
 
 func TestRunResultProtoCarriesDisconnectMetadata(t *testing.T) {
-	got := runResultProto(internal.RunResult{RunID: "run-1", Disposition: "device_disconnected", Incomplete: true, DisconnectReason: "ADB endpoint disappeared", DisconnectStep: "actuate", Binding: internal.RunBinding{DeviceID: "phone-1", Transport: "usb", LeaseID: "lease-1", LeaseEpoch: 4, ApplicationID: "app", ApplicationRevision: "rev"}, Chapters: []internal.Chapter{{ID: "actuate", Attempts: 2, FailureClass: "transport", EvidenceIDs: []string{"e1"}}}})
+	got := runResultProto(internal.RunResult{RunID: "run-1", Disposition: "device_disconnected", Incomplete: true, DisconnectReason: "ADB endpoint disappeared", DisconnectStep: "actuate", Binding: internal.RunBinding{DeviceID: "phone-1", Transport: "usb", LeaseID: "lease-1", LeaseEpoch: 4, ApplicationID: "app", ApplicationRevision: "rev", SavedFlowID: "flow-7", SavedFlowVersion: 3, ContextKey: "settings:v1"}, Chapters: []internal.Chapter{{ID: "actuate", Attempts: 2, FailureClass: "transport", EvidenceIDs: []string{"e1"}}}})
 	require.Equal(t, "run-1", got.RunId)
 	require.Equal(t, "device_disconnected", got.Disposition)
 	require.True(t, got.Incomplete)
 	require.Equal(t, "ADB endpoint disappeared", got.DisconnectReason)
 	require.Equal(t, "actuate", got.DisconnectStep)
 	require.Equal(t, "phone-1", got.Binding.DeviceId)
+	require.Equal(t, "flow-7", got.Binding.SavedFlowId)
+	require.Equal(t, int32(3), got.Binding.SavedFlowVersion)
+	require.Equal(t, "settings:v1", got.Binding.ContextKey)
 	require.Equal(t, uint64(4), got.Binding.LeaseEpoch)
 	require.Equal(t, int32(2), got.Chapters[0].Attempts)
 	require.Equal(t, "transport", got.Chapters[0].FailureClass)

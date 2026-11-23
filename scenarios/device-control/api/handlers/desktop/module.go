@@ -76,6 +76,17 @@ func (h *handler) TakeControl(ctx context.Context, req *connect.Request[desktopv
 	return connect.NewResponse(session), nil
 }
 
+func (h *handler) ReleaseControl(ctx context.Context, req *connect.Request[desktopv1.ReleaseControlRequest]) (*connect.Response[desktopv1.DesktopSession], error) {
+	if req == nil || req.Msg == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, desktopwebrtc.ErrInvalidCall)
+	}
+	session, err := h.manager.ReleaseControl(ctx, req.Msg)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return connect.NewResponse(session), nil
+}
+
 func (h *handler) Signal(ctx context.Context, req *connect.Request[desktopv1.DesktopSignalRequest]) (*connect.Response[desktopv1.DesktopSignalResponse], error) {
 	if req == nil || req.Msg == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, desktopwebrtc.ErrInvalidCall)

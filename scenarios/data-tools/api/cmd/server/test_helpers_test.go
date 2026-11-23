@@ -25,6 +25,14 @@ type TestEnv struct {
 }
 
 // setupTestLogger sets up a test logger that can be silenced
+func newTestEnv(t *testing.T) *TestEnv {
+	t.Helper()
+	t.Cleanup(setupTestLogger())
+	env := setupTestDirectory(t)
+	t.Cleanup(env.Cleanup)
+	return env
+}
+
 func setupTestLogger() func() {
 	// Save original output
 	originalOutput := log.Writer()

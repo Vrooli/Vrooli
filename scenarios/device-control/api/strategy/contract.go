@@ -584,6 +584,23 @@ type DeviceInspection struct {
 	Unavailable                                          map[string]string
 }
 
+// SystemInventory contains bounded, parsed Android system facts. It excludes
+// raw command output and caps installed package identifiers at the adapter.
+type SystemInventory struct {
+	ObservedAt                             time.Time
+	CPULogicalCores                        uint32
+	Load1, Load5, Load15                   *float64
+	MemoryTotalBytes, MemoryAvailableBytes *uint64
+	DataTotalBytes, DataAvailableBytes     *uint64
+	InstalledPackages                      []string
+	PackagesTruncated                      bool
+	Unavailable                            map[string]string
+}
+
+type SystemInventoryInspector interface {
+	InspectSystemInventory(context.Context) (SystemInventory, error)
+}
+
 type VideoEncoder struct {
 	MIMEType, Name                    string
 	SoftwareOnly, HardwareAccelerated *bool

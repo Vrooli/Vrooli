@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 
 	dataSchema "github.com/Vrooli/Vrooli/scenarios/data-tools/api/internal/data"
@@ -157,22 +158,9 @@ func corsMiddleware(next http.Handler) http.Handler {
 }
 
 func (s *Server) authMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Skip auth for health check and docs
-		if r.URL.Path == "/health" || r.URL.Path == "/docs" {
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		// Check authorization header
-		token := r.Header.Get("Authorization")
-		if token == "" || token != "Bearer "+s.config.APIToken {
-			s.sendError(w, http.StatusUnauthorized, "unauthorized")
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
+	return apihttp.BearerTokenMiddleware(s.config.APIToken, func(w http.ResponseWriter, _ *http.Request) {
+		s.sendError(w, http.StatusUnauthorized, "unauthorized")
+	}, "/health", "/docs")(next)
 }
 
 // Handler functions
@@ -510,18 +498,14 @@ func (s *Server) handleDocs(w http.ResponseWriter, r *http.Request) {
 
 // Helper functions
 func (s *Server) sendJSON(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(Response{
+	apihttp.WriteJSONResponse(w, status, Response{
 		Success: status < 400,
 		Data:    data,
 	})
 }
 
 func (s *Server) sendError(w http.ResponseWriter, status int, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(Response{
+	apihttp.WriteJSONResponse(w, status, Response{
 		Success: false,
 		Error:   message,
 	})

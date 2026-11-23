@@ -7,10 +7,16 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/vrooli/api-core/lpbsidentity"
+	"github.com/vrooli/api-core/servicetoken"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
 
 func TestHTTPLPBSReleaseClientReadinessAndVerify(t *testing.T) {
@@ -46,6 +52,40 @@ func TestHTTPLPBSReleaseClientReadinessAndVerify(t *testing.T) {
 	}
 	if !verified.SHA512Match || verified.ObservedSHA512 != "abc" {
 		t.Fatalf("verify digest = %#v", verified)
+	}
+}
+
+func TestHTTPLPBSReleaseClientPrefersScopedTokenAndFailsClosedOnExchangeFailure(t *testing.T) {
+	newTokens := func(exchange servicetoken.Exchanger) *servicetoken.Tokens {
+		return lpbsidentity.DeploymentManagerRelease.NewTokens("deployment-manager", func(context.Context) (string, error) { return "principal-credential", nil }, servicetoken.WithExchanger(exchange))
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer scoped-token" {
+			t.Errorf("Authorization = %q, want scoped bearer", got)
+		}
+		_, _ = w.Write([]byte(`{"ready":false,"gates":[]}`))
+	}))
+	defer server.Close()
+	tokens := newTokens(func(context.Context, string) (servicetoken.Exchanged, error) {
+		return servicetoken.Exchanged{AccessToken: "scoped-token", ExpiresAt: time.Now().Add(time.Minute), Subject: lpbsidentity.DeploymentManagerRelease.Principal("deployment-manager"), Audience: lpbsidentity.DeploymentManagerRelease.Audience, Scopes: []string{lpbsidentity.DeploymentManagerRelease.Scope}}, nil
+	})
+	client, err := NewHTTPLPBSReleaseClient(LPBSClientConfig{BaseURL: server.URL, ServiceSecret: "legacy-secret", Tokens: tokens})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.CheckDeployReadiness(context.Background(), &LPBSReadinessRequest{AppKey: "demo"}); err != nil {
+		t.Fatal(err)
+	}
+
+	failing := newTokens(func(context.Context, string) (servicetoken.Exchanged, error) {
+		return servicetoken.Exchanged{}, errors.New("authenticator unavailable")
+	})
+	client, err = NewHTTPLPBSReleaseClient(LPBSClientConfig{BaseURL: server.URL, ServiceSecret: "legacy-secret", Tokens: failing})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.CheckDeployReadiness(context.Background(), &LPBSReadinessRequest{AppKey: "demo"}); err == nil || !strings.Contains(err.Error(), "authenticator unavailable") {
+		t.Fatalf("exchange failure should fail closed, got %v", err)
 	}
 }
 
@@ -176,7 +216,7 @@ func TestHTTPLPBSReleaseClientHandlesConfigurationAndResponses(t *testing.T) {
 		http.NotFound(w, r)
 	}))
 	defer server.Close()
-	client, err = NewHTTPLPBSReleaseClient(LPBSClientConfig{BaseURL: server.URL})
+	client, err = NewHTTPLPBSReleaseClient(LPBSClientConfig{BaseURL: server.URL, ServiceSecret: "synthetic-test-token"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -229,8 +269,8 @@ func TestNewHTTPLPBSReleaseClientDefersBaseURLResolutionUntilEachOperation(t *te
 	if client.baseURL != "" || client.resolveBaseURL == nil {
 		t.Fatalf("dynamic address state = base %q, resolver configured %v", client.baseURL, client.resolveBaseURL != nil)
 	}
-	if client.serviceSecret != "authority-secret" {
-		t.Fatalf("serviceSecret = %q, want authority value", client.serviceSecret)
+	if client.serviceSecret != "" {
+		t.Fatalf("serviceSecret = %q, want no eager secret resolution", client.serviceSecret)
 	}
 	for range 2 {
 		if _, err := client.CheckDeployReadiness(context.Background(), &LPBSReadinessRequest{AppKey: "demo"}); err != nil {
@@ -242,7 +282,7 @@ func TestNewHTTPLPBSReleaseClientDefersBaseURLResolutionUntilEachOperation(t *te
 	}
 }
 
-func TestNewHTTPLPBSReleaseClientResolvesServiceSecretThroughAuthority(t *testing.T) {
+func TestNewHTTPLPBSReleaseClientDefersLegacyServiceSecretResolution(t *testing.T) {
 	t.Setenv("LPBS_BASE_URL", "")
 	t.Setenv("LPBS_SERVICE_SECRET", "")
 	resolved := false
@@ -256,8 +296,8 @@ func TestNewHTTPLPBSReleaseClientResolvesServiceSecretThroughAuthority(t *testin
 	if err != nil {
 		t.Fatalf("constructor error: %v", err)
 	}
-	if !resolved || client.serviceSecret != "authority-secret" {
-		t.Fatalf("authority secret not resolved: resolved=%v secret=%q", resolved, client.serviceSecret)
+	if resolved || client.serviceSecret != "" {
+		t.Fatalf("legacy authority secret was read before authorization: resolved=%v secret=%q", resolved, client.serviceSecret)
 	}
 }
 
@@ -287,18 +327,11 @@ func TestNewHTTPLPBSReleaseClientPrefersExplicitConfigOverOwners(t *testing.T) {
 	}
 }
 
-func TestNewHTTPLPBSReleaseClientWarnsWhenAuthoritySecretUnavailable(t *testing.T) {
+func TestLegacyServiceSecretEnvironmentIsIgnored(t *testing.T) {
 	t.Setenv("LPBS_BASE_URL", "")
-	t.Setenv("LPBS_SERVICE_SECRET", "")
-	var warnings []map[string]interface{}
+	t.Setenv("LPBS_SERVICE_SECRET", "must-not-be-used")
 	client, err := NewHTTPLPBSReleaseClient(LPBSClientConfig{
 		BaseURL: "http://lpbs.test",
-		Log: func(level string, fields map[string]interface{}) {
-			if level == "warn" {
-				warnings = append(warnings, fields)
-			}
-		},
-		ResolveServiceSecret: func() (string, error) { return "", errors.New("authority unavailable") },
 	})
 	if err != nil {
 		t.Fatalf("constructor error: %v", err)
@@ -306,8 +339,45 @@ func TestNewHTTPLPBSReleaseClientWarnsWhenAuthoritySecretUnavailable(t *testing.
 	if client.serviceSecret != "" {
 		t.Fatalf("serviceSecret = %q, want empty", client.serviceSecret)
 	}
-	if len(warnings) == 0 {
-		t.Fatal("missing warning for unavailable credential authority")
+}
+
+func TestLegacyServiceSecretResolvedOnlyForConfirmedUnissuedPrincipal(t *testing.T) {
+	t.Setenv("LPBS_BASE_URL", "")
+	resolutions := 0
+	role := lpbsidentity.DeploymentManagerRelease
+	tokens := servicetoken.New(servicetoken.Config{
+		Name:   "deployment-manager " + role.Label,
+		Expect: servicetoken.ExpectIdentity(role.Principal("deployment-manager"), role.Audience, role.Scope),
+		Credential: func(context.Context) (string, error) {
+			return "", credentialauthority.ErrUnconfigured
+		},
+		Describe: func(kind, cause error) error {
+			return fmt.Errorf("%w: %w", kind, cause)
+		},
+	})
+	client, err := NewHTTPLPBSReleaseClient(LPBSClientConfig{
+		BaseURL: "http://lpbs.test",
+		Tokens:  tokens,
+		ResolveServiceSecret: func() (string, error) {
+			resolutions++
+			return "legacy-recovery-token", nil
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolutions != 0 {
+		t.Fatal("legacy credential resolved before the scoped identity check")
+	}
+	req, err := http.NewRequest(http.MethodGet, "http://lpbs.test", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := client.authorize(context.Background(), req); err != nil {
+		t.Fatalf("confirmed-unissued fallback failed: %v", err)
+	}
+	if got := req.Header.Get("Authorization"); got != "Bearer legacy-recovery-token" || resolutions != 1 {
+		t.Fatalf("authorization=%q resolutions=%d", got, resolutions)
 	}
 }
 

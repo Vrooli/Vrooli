@@ -47,7 +47,7 @@ func (h *connectHandler) ListRecords(ctx context.Context, req *connect.Request[v
 		NextPageToken: res.NextPageToken,
 	}
 	for _, r := range res.Records {
-		resp.Records = append(resp.Records, domainToProto(r))
+		resp.Records = append(resp.Records, RecordToProto(r))
 	}
 	return connect.NewResponse(resp), nil
 }
@@ -61,5 +61,5 @@ func (h *connectHandler) GetRecord(ctx context.Context, req *connect.Request[vrv
 		}
 		return nil, connectErr
 	}
-	return connect.NewResponse(&vrv1.GetRecordResponse{Record: domainToProto(r)}), nil
+	return connect.NewResponse(&vrv1.GetRecordResponse{Record: RecordToProto(r)}), nil
 }

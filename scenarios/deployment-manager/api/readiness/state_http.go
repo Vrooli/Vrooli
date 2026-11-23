@@ -35,6 +35,15 @@ func StateHandler(reader latestStateReader) http.Handler {
 			http.Error(w, "readiness state unavailable", http.StatusBadGateway)
 			return
 		}
-		_ = json.NewEncoder(w).Encode(map[string]any{"goal_exists": strings.TrimSpace(record.ReadinessGoalRef) != "", "goal_closed": record.GoalClosed, "approved_commit": record.ApprovedAtCommit})
+		if record.ObservedAt.IsZero() {
+			http.Error(w, "readiness state has no observation time", http.StatusBadGateway)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"observed_at":     record.ObservedAt.UTC(),
+			"goal_exists":     strings.TrimSpace(record.ReadinessGoalRef) != "",
+			"goal_closed":     record.GoalClosed,
+			"approved_commit": record.ApprovedAtCommit,
+		})
 	})
 }

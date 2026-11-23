@@ -57,8 +57,17 @@ func newClient(t *testing.T, svc vr.Service) vrconnect.ValidationRecordServiceCl
 }
 
 func TestList_PassesFiltersAndReturnsCursor(t *testing.T) {
+	startedAt := time.Date(2026, time.March, 4, 8, 9, 10, 0, time.FixedZone("PST", -8*60*60))
+	endedAt := time.Date(2026, time.March, 4, 9, 10, 11, 0, time.FixedZone("PST", -8*60*60))
+	record := vr.Record{
+		ID: "r1", TupleKind: vr.TupleKindSkill, SubjectID: "subject", GoldenSlug: "golden",
+		StartedAt: startedAt, EndedAt: endedAt, DurationMS: 3601000, TokensUsed: 17, CostUSDMicro: 29,
+		Verdict: vr.VerdictToolFailure, DiffHash: "diff-hash", DiffPathCount: 3,
+		AgentManagerRunID: "run-7", ManifestTemplateVersionAtRun: "template-2", ManifestSkillVersionAtRun: "skill-4",
+		ErrorMessage: "tool failed", ToolDetail: "phase failed", ToolRawOutput: "stdout and stderr",
+	}
 	svc := &fakeService{ListOut: vr.ListResult{
-		Records:       []vr.Record{{ID: "r1", TupleKind: vr.TupleKindSkill, SubjectID: "s", GoldenSlug: "g", Verdict: vr.VerdictPass, EndedAt: time.Now()}},
+		Records:       []vr.Record{record},
 		NextPageToken: "tok",
 	}}
 	client := newClient(t, svc)
@@ -73,6 +82,25 @@ func TestList_PassesFiltersAndReturnsCursor(t *testing.T) {
 	require.Equal(t, vr.TupleKindSkill, svc.ListSeen.TupleKind)
 	require.Equal(t, 10, svc.ListPage)
 	require.Equal(t, "in", svc.ListToken)
+	got := resp.Msg.Records[0]
+	require.Equal(t, record.ID, got.Id)
+	require.Equal(t, vrv1.TupleKind_TUPLE_KIND_SKILL, got.TupleKind)
+	require.Equal(t, record.SubjectID, got.SubjectId)
+	require.Equal(t, record.GoldenSlug, got.GoldenSlug)
+	require.True(t, got.StartedAt.AsTime().Equal(startedAt.UTC()))
+	require.True(t, got.EndedAt.AsTime().Equal(endedAt.UTC()))
+	require.Equal(t, record.DurationMS, got.DurationMs)
+	require.Equal(t, record.TokensUsed, got.TokensUsed)
+	require.Equal(t, record.CostUSDMicro, got.CostUsdMicro)
+	require.Equal(t, vrv1.Verdict_VERDICT_TOOL_FAILURE, got.Verdict)
+	require.Equal(t, record.DiffHash, got.DiffHash)
+	require.Equal(t, record.DiffPathCount, got.DiffPathCount)
+	require.Equal(t, record.AgentManagerRunID, got.AgentManagerRunId)
+	require.Equal(t, record.ManifestTemplateVersionAtRun, got.ManifestTemplateVersionAtRun)
+	require.Equal(t, record.ManifestSkillVersionAtRun, got.ManifestSkillVersionAtRun)
+	require.Equal(t, record.ErrorMessage, got.ErrorMessage)
+	require.Equal(t, record.ToolDetail, got.ToolDetail)
+	require.Equal(t, record.ToolRawOutput, got.ToolRawOutput)
 }
 
 func TestGet_NotFound(t *testing.T) {

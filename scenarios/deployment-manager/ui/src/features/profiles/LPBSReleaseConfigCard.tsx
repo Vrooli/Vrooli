@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { Label } from "../../components/ui/label";
 import { getProfileLPBSConfig, saveProfileLPBSConfig } from "../../lib/api";
 import type { LPBSReleaseConfig } from "../../lib/api";

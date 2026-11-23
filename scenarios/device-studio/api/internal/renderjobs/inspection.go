@@ -126,7 +126,7 @@ func (sourceInspectionAdapter) validateCompletion(ctx context.Context, c *Coordi
 	}
 	outputs := []jobs.OutputRef{{Kind: "inspection_receipt", ArtifactID: receiptKey, SHA256: receiptSHA, MIMEType: "application/json", SizeBytes: int64(len(receiptBytes))}}
 	if len(clockBytes) > 0 {
-		clockKey := projects.InspectionClockObjectKey(job.Input.ProjectID, job.Input.SubjectID, job.ID, clockRef)
+		clockKey := projects.InspectionClockObjectKey(job.Input.ProjectID, job.Input.SubjectID, job.ID, attempt.ID, clockRef)
 		outputs = append(outputs, jobs.OutputRef{Kind: "inspection_clock", ArtifactID: clockKey, SHA256: clockSHA, MIMEType: "application/octet-stream", SizeBytes: int64(len(clockBytes))})
 	}
 	return jobs.CompletionEvidence{AttemptID: attempt.ID, ExecutionClaimID: attempt.Execution.ID, InputFingerprint: job.InputFingerprint, Outputs: outputs, ReceiptArtifactID: receiptKey, ReceiptSHA256: receiptSHA, CompletedAt: c.now().UTC()}, nil

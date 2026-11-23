@@ -19,6 +19,7 @@ type FundingRoute = "local" | "byok" | "vrooli_credits";
 type CreationRequest = { candidateId: string; idempotencyKey: string; brief: string; envelopeMM: [number, number, number]; referenceMediaIDs: string[]; fundingRoute: FundingRoute; maxCostMicros?: number; correctionSourceJobId?: string; correctionMode?: "semantic_repair" | "visual_refinement"; correctionRecipeSha256?: string; correctionFeedback?: string };
 type CreationOperation = { request: CreationRequest; jobId?: string; sessionId?: string; phase?: "draft" | "pending" };
 function operationStorageKey(projectID: string) { return `device-studio:geometry-creation:${projectID}`; }
+type OperationRead = { kind: "loaded"; operation: CreationOperation | null } | { kind: "unavailable" };
 function parseMaxSpendMicros(value: string): number | undefined {
   const match = /^(0|[1-9]\d*)(?:\.(\d{1,6}))?$/.exec(value.trim());
   if (!match) return undefined;
@@ -35,15 +36,19 @@ function displayMicros(micros?: bigint) {
   const fraction = (micros % 1_000_000n).toString().padStart(6, "0").replace(/0+$/, "");
   return fraction ? `${whole}.${fraction}` : whole.toString();
 }
-function loadOperation(projectID: string): CreationOperation | null {
+function readOperation(projectID: string): OperationRead {
   try {
     const raw = localStorage.getItem(operationStorageKey(projectID));
-    if (!raw) return null;
+    if (!raw) return { kind: "loaded", operation: null };
     const value = JSON.parse(raw) as CreationOperation;
     const request = value?.request;
-    if (!request?.candidateId || !request.idempotencyKey || !request.brief || !Array.isArray(request.envelopeMM) || request.envelopeMM.length !== 3 || !Array.isArray(request.referenceMediaIDs)) return null;
-    return value;
-  } catch { return null; }
+    if (!request?.candidateId || !request.idempotencyKey || !request.brief || !Array.isArray(request.envelopeMM) || request.envelopeMM.length !== 3 || !Array.isArray(request.referenceMediaIDs)) return { kind: "loaded", operation: null };
+    return { kind: "loaded", operation: value };
+  } catch { return { kind: "unavailable" }; }
+}
+function loadOperation(projectID: string): CreationOperation | null {
+  const result = readOperation(projectID);
+  return result.kind === "loaded" ? result.operation : null;
 }
 
 export function GeometryCreationPanel({ projectId }: { projectId: string }) {
@@ -59,6 +64,7 @@ export function GeometryCreationPanel({ projectId }: { projectId: string }) {
   const [operationLoaded, setOperationLoaded] = useState(false);
   const [jobID, setJobID] = useState("");
   const [storageUnavailable, setStorageUnavailable] = useState(false);
+  const [restoreUnavailable, setRestoreUnavailable] = useState(false);
   const [correctionFeedback, setCorrectionFeedback] = useState("");
   const [pendingScopeExpansion, setPendingScopeExpansion] = useState<{ sessionId: string; request: CreationRequest } | null>(null);
   const persistOperation = useCallback((next: CreationOperation | null): boolean => {
@@ -73,8 +79,15 @@ export function GeometryCreationPanel({ projectId }: { projectId: string }) {
       return false;
     }
   }, [projectId]);
-  useEffect(() => {
-    const saved = loadOperation(projectId);
+  const restoreOperation = useCallback(() => {
+    const result = readOperation(projectId);
+    if (result.kind === "unavailable") {
+      setRestoreUnavailable(true);
+      setOperationLoaded(false);
+      return;
+    }
+    const saved = result.operation;
+    setRestoreUnavailable(false);
     setOperation(saved);
     setJobID(saved?.jobId ?? "");
     if (saved) {
@@ -88,6 +101,7 @@ export function GeometryCreationPanel({ projectId }: { projectId: string }) {
     }
     setOperationLoaded(true);
   }, [projectId]);
+  useEffect(() => { restoreOperation(); }, [restoreOperation]);
   const media = useInfiniteQuery({
     queryKey: ["project-source-media", projectId],
     initialPageParam: "",
@@ -194,7 +208,7 @@ export function GeometryCreationPanel({ projectId }: { projectId: string }) {
     retry: false,
   });
   const correctionMode = correction.data?.mode ?? "semantic_repair";
-  const editable = !operation || operation.phase === "draft";
+  const editable = operationLoaded && (!operation || operation.phase === "draft");
   const visualRefinementDraft = operation?.phase === "draft" && operation.request.correctionMode === "visual_refinement";
   const sizes = dimensions.map(Number);
   const selectedBytes = references.filter((item) => selectedIDs.includes(item.id)).reduce((total, item) => total + Number(item.sizeBytes), 0);
@@ -299,6 +313,7 @@ export function GeometryCreationPanel({ projectId }: { projectId: string }) {
       </>}
       {sessionContinuationAuthorized ? <p role="status">{t(strings.physical.createSessionContinuation)}</p> : <label className="physical-shot__checkbox-row"><input type="checkbox" checked={confirmed} disabled={!editable} onChange={(event) => setConfirmed(event.target.checked)} /><span>{fundingRoute === "local" ? t(strings.physical.createLocalConfirm) : t(strings.physical.createRemoteConfirm)}</span></label>}
       {storageUnavailable && <p role="alert">{t(strings.physical.createStorageUnavailable)}</p>}
+      {restoreUnavailable && <div role="alert"><p>{t(strings.physical.createStorageReadUnavailable)}</p><Button type="button" variant="outline" className="min-h-11" onClick={restoreOperation}>{t(strings.physical.createStorageRetry)}</Button></div>}
       {operation?.phase === "draft" && correction.data?.disposition === "available" && <section data-testid="geometry-correction-draft" aria-live="polite">
         <h4>{t(visualRefinementDraft ? strings.physical.createVisualRefinementTitle : strings.physical.createCorrectionTitle)}</h4>
         {correction.data.issue && (correction.data.issue.code === "bevel_exceeds_part_dimensions"

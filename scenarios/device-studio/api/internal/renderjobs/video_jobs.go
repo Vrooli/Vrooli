@@ -56,9 +56,15 @@ type videoClosure struct {
 	PlateMediaID       string                  `json:"plate_media_id"`
 	ActiveMaskMediaID  string                  `json:"active_mask_media_id"`
 	HardwareMaskID     string                  `json:"hardware_mask_media_id,omitempty"`
+	ParallaxLayerMedia []parallaxLayerMediaIDs `json:"parallax_layer_media,omitempty"`
 	SampleReceiptKey   string                  `json:"sample_receipt_key,omitempty"`
 	SampleReceiptSHA   string                  `json:"sample_receipt_sha256,omitempty"`
 	SampleReceiptSize  int64                   `json:"sample_receipt_size_bytes,omitempty"`
+}
+
+type parallaxLayerMediaIDs struct {
+	ImageID string `json:"image_id"`
+	MaskID  string `json:"mask_id"`
 }
 
 func (c *Coordinator) submitVideo(ctx context.Context, req SubmitRequest) (jobs.Job, bool, error) {
@@ -168,6 +174,16 @@ func videoInputBindings(v videoClosure) []jobs.ArtifactBinding {
 		b := v.Manifest.Scene.HardwareMask
 		bindings = append(bindings, jobs.ArtifactBinding{Role: "video_hardware_mask", ArtifactID: v.HardwareMaskID, RevisionID: "sha256:" + b.SHA256, SHA256: b.SHA256})
 	}
+	for index, layer := range v.Manifest.Scene.Layers {
+		if index >= len(v.ParallaxLayerMedia) {
+			continue
+		}
+		ids := v.ParallaxLayerMedia[index]
+		bindings = append(bindings,
+			jobs.ArtifactBinding{Role: fmt.Sprintf("video_parallax_image_%d", index), ArtifactID: ids.ImageID, RevisionID: "sha256:" + layer.Image.SHA256, SHA256: layer.Image.SHA256},
+			jobs.ArtifactBinding{Role: fmt.Sprintf("video_parallax_mask_%d", index), ArtifactID: ids.MaskID, RevisionID: "sha256:" + layer.Mask.SHA256, SHA256: layer.Mask.SHA256},
+		)
+	}
 	if v.SampleReceiptKey != "" {
 		bindings = append(bindings, jobs.ArtifactBinding{Role: "video_sample_receipt", ArtifactID: v.SampleReceiptKey, RevisionID: "sha256:" + v.SampleReceiptSHA, SHA256: v.SampleReceiptSHA})
 	}
@@ -235,6 +251,8 @@ func (c *Coordinator) makeVideoClosure(ctx context.Context, route routePin, req 
 	videoProfile := rendering.VideoProfileID
 	if snapshot.GetCameraMotion() != nil {
 		videoProfile = rendering.VideoScreenEntryProfileID
+	} else if snapshot.GetLayeredParallax() != nil {
+		videoProfile = rendering.VideoLayeredParallaxProfileID
 	}
 	manifest := rendering.VideoManifest{
 		Version: 1, ProtocolVersion: 1, Mode: req.VideoMode, WorkerSHA256: workerSHA,
@@ -268,6 +286,27 @@ func (c *Coordinator) makeVideoClosure(ctx context.Context, route routePin, req 
 		manifest.Scene.PlateWidth = int(rev.Plate.GetWidthPixels())
 		manifest.Scene.PlateHeight = int(rev.Plate.GetHeightPixels())
 	}
+	var parallaxIDs []parallaxLayerMediaIDs
+	if motion := snapshot.GetLayeredParallax(); motion != nil {
+		manifest.CompositorProfile = rendering.VideoLayeredParallaxCompositorID
+		manifest.Scene.PlateWidth, manifest.Scene.PlateHeight = int(rev.Plate.GetWidthPixels()), int(rev.Plate.GetHeightPixels())
+		manifest.LayeredParallax = &rendering.LayeredParallax{ProfileVersion: motion.GetProfileVersion(), DurationOutputFrames: motion.GetDurationOutputFrames(), OverscanPixels: motion.GetOverscanPixels(), TravelXPixels: motion.GetTravelXPixels(), TravelYPixels: motion.GetTravelYPixels()}
+		if len(rev.ParallaxLayers) != len(motion.GetLayers()) {
+			return videoClosure{}, ErrNotEligible
+		}
+		for index, layer := range rev.ParallaxLayers {
+			imageID, maskID := layer.GetImage().GetId(), layer.GetMask().GetId()
+			if imageID == "" || maskID == "" {
+				return videoClosure{}, ErrNotEligible
+			}
+			manifest.Scene.Layers = append(manifest.Scene.Layers, rendering.VideoParallaxLayer{
+				Image:      rendering.VideoBinding{Name: fmt.Sprintf("parallax-layer-%02d.png", index), SHA256: layer.GetImage().GetSha256(), SizeBytes: layer.GetImage().GetSizeBytes()},
+				Mask:       rendering.VideoBinding{Name: fmt.Sprintf("parallax-mask-%02d.png", index), SHA256: layer.GetMask().GetSha256(), SizeBytes: layer.GetMask().GetSizeBytes()},
+				DepthBasis: layer.GetDepthBasis(),
+			})
+			parallaxIDs = append(parallaxIDs, parallaxLayerMediaIDs{ImageID: imageID, MaskID: maskID})
+		}
+	}
 	if rev.HardwareMask != nil {
 		manifest.Scene.HardwareMask = &rendering.VideoBinding{Name: "hardware-mask.png", SHA256: rev.HardwareMask.GetSha256(), SizeBytes: rev.HardwareMask.GetSizeBytes()}
 	}
@@ -289,10 +328,10 @@ func (c *Coordinator) makeVideoClosure(ctx context.Context, route routePin, req 
 				return videoClosure{}, sampleErr
 			}
 			manifest.Sample = sample
-			return videoClosure{Version: 1, ProjectID: req.ProjectID, ShotID: req.ShotID, ShotRevision: req.Revision, RecipeSHA256: rev.RecipeSHA256, Snapshot: snapshot, Manifest: manifest, WorkerKey: workerKey, WorkerSHA256: workerSHA, ToolProfileKey: profileKey, ToolProfileSHA256: profileSHA, InspectionManifest: manifestKey, InspectionSHA256: manifestSHA, InspectionReceipt: receiptKey, ReceiptSHA256: receiptSHA, ClockKey: clockKey, ClockSHA256: clockSHA, SourceMediaID: source.ID, PlateMediaID: rev.Plate.GetId(), ActiveMaskMediaID: rev.ActiveMask.GetId(), HardwareMaskID: mediaID(rev.HardwareMask), SampleReceiptKey: sampleReceiptKey, SampleReceiptSHA: sampleReceiptSHA, SampleReceiptSize: sampleReceiptSize}, nil
+			return videoClosure{Version: 1, ProjectID: req.ProjectID, ShotID: req.ShotID, ShotRevision: req.Revision, RecipeSHA256: rev.RecipeSHA256, Snapshot: snapshot, Manifest: manifest, WorkerKey: workerKey, WorkerSHA256: workerSHA, ToolProfileKey: profileKey, ToolProfileSHA256: profileSHA, InspectionManifest: manifestKey, InspectionSHA256: manifestSHA, InspectionReceipt: receiptKey, ReceiptSHA256: receiptSHA, ClockKey: clockKey, ClockSHA256: clockSHA, SourceMediaID: source.ID, PlateMediaID: rev.Plate.GetId(), ActiveMaskMediaID: rev.ActiveMask.GetId(), HardwareMaskID: mediaID(rev.HardwareMask), ParallaxLayerMedia: parallaxIDs, SampleReceiptKey: sampleReceiptKey, SampleReceiptSHA: sampleReceiptSHA, SampleReceiptSize: sampleReceiptSize}, nil
 		}
 	}
-	return videoClosure{Version: 1, ProjectID: req.ProjectID, ShotID: req.ShotID, ShotRevision: req.Revision, RecipeSHA256: rev.RecipeSHA256, Snapshot: snapshot, Manifest: manifest, WorkerKey: workerKey, WorkerSHA256: workerSHA, ToolProfileKey: profileKey, ToolProfileSHA256: profileSHA, InspectionManifest: manifestKey, InspectionSHA256: manifestSHA, InspectionReceipt: receiptKey, ReceiptSHA256: receiptSHA, ClockKey: clockKey, ClockSHA256: clockSHA, SourceMediaID: source.ID, PlateMediaID: rev.Plate.GetId(), ActiveMaskMediaID: rev.ActiveMask.GetId(), HardwareMaskID: mediaID(rev.HardwareMask)}, nil
+	return videoClosure{Version: 1, ProjectID: req.ProjectID, ShotID: req.ShotID, ShotRevision: req.Revision, RecipeSHA256: rev.RecipeSHA256, Snapshot: snapshot, Manifest: manifest, WorkerKey: workerKey, WorkerSHA256: workerSHA, ToolProfileKey: profileKey, ToolProfileSHA256: profileSHA, InspectionManifest: manifestKey, InspectionSHA256: manifestSHA, InspectionReceipt: receiptKey, ReceiptSHA256: receiptSHA, ClockKey: clockKey, ClockSHA256: clockSHA, SourceMediaID: source.ID, PlateMediaID: rev.Plate.GetId(), ActiveMaskMediaID: rev.ActiveMask.GetId(), HardwareMaskID: mediaID(rev.HardwareMask), ParallaxLayerMedia: parallaxIDs}, nil
 }
 
 func isAutoPhoneVideoSample(mode rendering.VideoMode, cfg presentations.Config) bool {
@@ -448,6 +487,18 @@ func (videoSubjectAdapter) prepare(ctx context.Context, c *Coordinator, route ro
 	}
 	if manifest.Scene.HardwareMask != nil {
 		if err := openMedia(manifest.Scene.HardwareMask.Name, "video_hardware_mask", closure.HardwareMaskID, manifest.Scene.HardwareMask.SHA256, manifest.Scene.HardwareMask.SizeBytes, projects.MediaKindImage, 24<<20); err != nil {
+			return preparedOperation{}, err
+		}
+	}
+	if len(manifest.Scene.Layers) != len(closure.ParallaxLayerMedia) {
+		return preparedOperation{}, errors.New("renderjobs: parallax layer identities differ from the immutable manifest")
+	}
+	for index, layer := range manifest.Scene.Layers {
+		ids := closure.ParallaxLayerMedia[index]
+		if err := openMedia(layer.Image.Name, fmt.Sprintf("video_parallax_image_%d", index), ids.ImageID, layer.Image.SHA256, layer.Image.SizeBytes, projects.MediaKindImage, 4<<20); err != nil {
+			return preparedOperation{}, err
+		}
+		if err := openMedia(layer.Mask.Name, fmt.Sprintf("video_parallax_mask_%d", index), ids.MaskID, layer.Mask.SHA256, layer.Mask.SizeBytes, projects.MediaKindImage, 4<<20); err != nil {
 			return preparedOperation{}, err
 		}
 	}

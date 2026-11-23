@@ -619,6 +619,54 @@
           }
         },
         {
+          "name": "inspect-system",
+          "description": "Read bounded CPU, memory, storage, and installed-app facts with a held lease",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "bind": {
+                "field": "device_id"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "lease",
+              "required": true,
+              "bind": {
+                "field": "lease_token"
+              }
+            },
+            {
+              "name": "actor",
+              "required": true,
+              "bind": {
+                "field": "actor"
+              }
+            },
+            {
+              "name": "transport",
+              "description": "Exact observed transport profile",
+              "bind": {
+                "field": "transport"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DeviceService",
+            "method": "InspectSystemInventory"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "inspect",
           "description": "Read hardware and runtime facts without device writes",
           "positionals": [

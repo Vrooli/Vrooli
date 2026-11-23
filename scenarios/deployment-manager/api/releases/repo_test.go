@@ -175,6 +175,45 @@ func TestSQLRepositoryInsertGetAndList(t *testing.T) {
 	}
 }
 
+func TestSQLRepositoryLatestReadinessCarriesProjectionUpdateTime(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	repo := NewSQLRepository(db)
+	updatedAt := time.Date(2026, 11, 21, 12, 0, 0, 0, time.FixedZone("local", -5*60*60))
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT readiness_goal_ref, approved_at_commit, updated_at FROM releases\n\t\tWHERE profile_id = $1 ORDER BY created_at DESC LIMIT 1")).
+		WithArgs("command-center").WillReturnRows(sqlmock.NewRows([]string{"readiness_goal_ref", "approved_at_commit", "updated_at"}).AddRow("goal-1", nil, updatedAt))
+	got, err := repo.GetLatestReadiness(context.Background(), "command-center")
+	if err != nil || got == nil || !got.ObservedAt.Equal(updatedAt.UTC()) || got.ReadinessGoalRef != "goal-1" {
+		t.Fatalf("latest readiness=%+v err=%v, want source projection timestamp", got, err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSQLRepositoryLatestReadinessTimestampsKnownEmptyLookup(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	repo := NewSQLRepository(db)
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT readiness_goal_ref, approved_at_commit, updated_at FROM releases\n\t\tWHERE profile_id = $1 ORDER BY created_at DESC LIMIT 1")).
+		WithArgs("command-center").WillReturnRows(sqlmock.NewRows([]string{"readiness_goal_ref", "approved_at_commit", "updated_at"}))
+	before := time.Now().UTC()
+	got, err := repo.GetLatestReadiness(context.Background(), "command-center")
+	after := time.Now().UTC()
+	if err != nil || got == nil || !got.ObservedAt.After(before.Add(-time.Second)) || got.ObservedAt.After(after.Add(time.Second)) || got.ReadinessGoalRef != "" {
+		t.Fatalf("empty readiness=%+v err=%v, want query-time observation of no record", got, err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestSQLRepositoryInsertRequiresRegisteredReleaseIdentities(t *testing.T) {
 	db, err := sql.Open("sqlite", "file:release-insert-identity-test?mode=memory&cache=shared")
 	if err != nil {

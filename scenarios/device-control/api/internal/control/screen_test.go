@@ -199,6 +199,28 @@ func TestReadDeviceStateMergesStateBearingTransportProperties(t *testing.T) {
 	require.Equal(t, "mdns", state.Properties["volume"].Transport)
 }
 
+func TestReadDeviceStateReportsSelectedRouteForWirelessDebugging(t *testing.T) {
+	minimum, maximum := 0.0, 100.0
+	supported := false
+	legacy := true
+	fixture := stateReaderOverride{
+		PropertyOnly: fakes.NewPropertyOnly("android-state", strategy.PropertyDescriptor{Name: "battery", ValueType: "number", StateClass: strategy.StateBearing, Minimum: &minimum, Maximum: &maximum}, 100.0),
+		state:        strategy.DeviceState{WirelessDebugging: &strategy.WirelessDebuggingState{NativeSupported: &supported, LegacyTCPEnabled: &legacy, LegacyTCPPort: 5555}},
+	}
+	svc := New(strategyregistry.New(fixture))
+	svc.devices.Upsert(devicedomain.Record{
+		ID: "phone", Kind: "physical", Serial: "serial-1", StrategyID: fixture.ID(), Transport: "wireless",
+		Status: strategy.StatusAvailable, Health: strategy.StatusAvailable,
+		Transports: []strategy.DeviceTransport{{Name: "usb", StrategyID: fixture.ID()}, {Name: "wireless", StrategyID: fixture.ID()}},
+	})
+	svc.transportStrategies["phone"] = fixture
+
+	state, err := svc.ReadDeviceState(context.Background(), "phone")
+	require.NoError(t, err)
+	require.NotNil(t, state.WirelessDebugging)
+	require.Equal(t, "wireless", state.WirelessDebugging.Transport)
+}
+
 func TestReadDeviceStateUsesReachableSecondaryTransportForCoreState(t *testing.T) {
 	minimum, maximum := 0.0, 100.0
 	first := stateReaderOverride{PropertyOnly: fakes.NewPropertyOnly("state-rest", strategy.PropertyDescriptor{Name: "brightness", ValueType: "number", Minimum: &minimum, Maximum: &maximum}, 0), state: strategy.DeviceState{Unavailable: map[string]string{"screen_state": "unreachable", "lock_state": "unreachable", "foreground_package": "unreachable"}}}

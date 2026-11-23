@@ -615,6 +615,23 @@
           }
         },
         {
+          "name": "android-validate",
+          "description": "Validate an immutable Android artifact on a physical target and record its verdict",
+          "flags": [
+            { "name": "profile", "description": "Deployment profile identifier", "required": true },
+            { "name": "commit", "description": "Full source git commit hash", "required": true },
+            { "name": "artifact-ref", "description": "scenario-to-android immutable artifact reference", "required": true },
+            { "name": "target", "description": "Exact Android target ID when automatic selection is ambiguous" },
+            { "name": "format", "description": "Output format (json)" }
+          ],
+          "binding": { "kind": "local" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [ "network:internal" ]
+          }
+        },
+        {
           "name": "estimate-cost",
           "description": "Retired: use typed release and destination review surfaces",
           "binding": {

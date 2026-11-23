@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Workflow, ExternalLink, CheckCircle2 } from "lucide-react";
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { Label } from "../../components/ui/label";
 import { Badge } from "../../components/ui/badge";
 import { reportMigrationTask, type MigrationTaskFeedback } from "../../lib/api";

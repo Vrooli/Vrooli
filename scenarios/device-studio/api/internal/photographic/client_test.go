@@ -35,7 +35,7 @@ func TestSubmitPinsLocalOneImageRequestAndOperationIdentity(t *testing.T) {
 			t.Fatal(err)
 		}
 		if params.GetPrompt() != "a bright kitchen" || params.GetModelOverride() != "sd-1.5" || params.GetAllowByok() || params.GetFallbackPolicy() != "local_only" || params.GetAllowReclaim() || params.GetVariations() != 1 || params.GetWidth() != 768 || params.GetHeight() != 512 {
-			t.Fatalf("unsafe or unexpected params: %+v", params)
+			t.Fatalf("unsafe or unexpected params: %+v", &params)
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusAccepted)

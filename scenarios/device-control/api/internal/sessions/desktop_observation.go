@@ -247,7 +247,7 @@ type DesktopSemanticResolver interface {
 
 func (c *DesktopController) Resolve(ctx context.Context, lease DesktopLease, selector DesktopSelector) (DesktopResolution, error) {
 	var result DesktopResolution
-	if selector.Revision == "" || len(selector.Revision) > 128 || selector.WindowID == "" || len(selector.WindowID) > 128 || selector.Name == "" || len(selector.Name) > 4096 || !c.valid(lease) || c.authority.Authorize(ctx, lease, "observe") != nil {
+	if selector.Revision == "" || len(selector.Revision) > 128 || selector.WindowID == "" || len(selector.WindowID) > 128 || selector.Name == "" || len(selector.Name) > 4096 || selector.MatchMode > SemanticMatchFuzzy || !c.valid(lease) || c.authority.Authorize(ctx, lease, "observe") != nil {
 		return result, ErrDesktopAdmission
 	}
 	resolver, ok := c.native.(DesktopSemanticResolver)

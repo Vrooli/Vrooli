@@ -173,6 +173,46 @@ describe("saved shot rendering controls", () => {
     expect(verifyRenderOutputContent).toHaveBeenCalledWith(blob, output);
   });
 
+  it("retries the same completed render output after a transient content failure", async () => {
+    const user = userEvent.setup();
+    const output = create(RenderOutputSchema, { mediaType: "image/png", sizeBytes: 3n, widthPixels: 960, heightPixels: 540, sha256: "a".repeat(64), contentUrl: "/api/v1/projects/project-1/renders/render-retained/content" });
+    const completed = job("render-retained", 7n, RenderJobStatus.SUCCEEDED, { output });
+    const blob = new Blob(["verified render"], { type: "image/png" });
+    vi.mocked(rendersClient.listRenders).mockResolvedValue({ jobs: [completed], nextPageToken: "" } as never);
+    vi.mocked(getRenderOutputContent).mockRejectedValueOnce(new Error("output provider temporarily unavailable")).mockResolvedValueOnce(blob);
+    vi.mocked(verifyRenderOutputContent).mockResolvedValue(blob);
+    vi.stubGlobal("URL", { ...URL, createObjectURL: vi.fn(() => "blob:recovered-render"), revokeObjectURL: vi.fn() });
+    renderWithProviders(<RenderControlsHarness projectId="project-1" shotId="shot-1" revision={savedRevision()} historical={false} hasUnsavedChanges={false} />);
+
+    await user.click(await screen.findByRole("button", { name: i18n.t(strings.shot.renderViewOutput) }));
+    const failure = await screen.findByRole("alert");
+    expect(failure).toHaveTextContent("output provider temporarily unavailable");
+    expect(getRenderOutputContent).toHaveBeenCalledTimes(1);
+    await user.click(within(failure).getByRole("button", { name: i18n.t(strings.media.retry) }));
+
+    expect(await screen.findByRole("link", { name: i18n.t(strings.shot.renderDownload) })).toHaveAttribute("href", "blob:recovered-render");
+    expect(getRenderOutputContent).toHaveBeenCalledTimes(2);
+    expect(getRenderOutputContent).toHaveBeenLastCalledWith("project-1", "render-retained", output.contentUrl);
+    expect(verifyRenderOutputContent).toHaveBeenCalledWith(blob, output);
+  });
+
+  it("retries render-history loss without showing an empty-history state", async () => {
+    const user = userEvent.setup();
+    const saved = job("render-history", 7n, RenderJobStatus.QUEUED);
+    vi.mocked(rendersClient.listRenders)
+      .mockRejectedValueOnce(new Error("render history unavailable"))
+      .mockResolvedValueOnce({ jobs: [saved], nextPageToken: "" } as never);
+    renderWithProviders(<RenderControlsHarness projectId="project-1" shotId="shot-1" revision={savedRevision()} historical={false} hasUnsavedChanges={false} />);
+
+    const failure = await screen.findByRole("alert");
+    expect(screen.queryByText(i18n.t(strings.shot.renderNoJobs))).not.toBeInTheDocument();
+    await user.click(within(failure).getByRole("button", { name: i18n.t(strings.media.retry) }));
+
+    expect(await screen.findByText(i18n.t(strings.shot.renderQueued))).toBeInTheDocument();
+    expect(rendersClient.listRenders).toHaveBeenCalledTimes(2);
+    expect(rendersClient.listRenders).toHaveBeenLastCalledWith(expect.objectContaining({ projectId: "project-1", pageToken: "" }));
+  });
+
   it.each([RenderJobStatus.FAILED, RenderJobStatus.SUCCEEDED])("does not display a preview without usable output metadata (status %s)", async (status) => {
     const user = userEvent.setup();
     vi.mocked(rendersClient.submitRender).mockResolvedValue({ job: job("preview-no-output", 7n, status, { renderMode: RenderMode.PHYSICAL_PREVIEW_PNG }), reusedExisting: false } as never);

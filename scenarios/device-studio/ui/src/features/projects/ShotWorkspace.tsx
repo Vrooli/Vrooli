@@ -220,6 +220,11 @@ function draftFromRevision(name: string, revision: ShotRevision): ShotDraft {
 function bytes(value: bigint) { return `${(Number(value) / 1024 / 1024).toFixed(2)} MiB`; }
 function draftFingerprint(value: unknown) { return JSON.stringify(value, (_key, item: unknown) => typeof item === "bigint" ? item.toString() : item); }
 
+function ReadRecoveryNotice({ message, retrying, onRetry }: { message: string; retrying: boolean; onRetry: () => void }) {
+  const { t } = useTranslation();
+  return <div role="alert" className="text-sm"><p>{message}</p><Button variant="outline" className="min-h-11" disabled={retrying} onClick={onRetry}>{t(strings.media.retry)}</Button></div>;
+}
+
 export function ShotWorkspace({ projectId }: { projectId: string }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -246,7 +251,7 @@ export function ShotWorkspace({ projectId }: { projectId: string }) {
     },
   });
   return <section className="shot-workspace" data-testid="shot-workspace" aria-labelledby="shot-workspace-title">
-    {shots.error && <p role="alert">{errorMessage(shots.error, t)}</p>}
+    {shots.error && <ReadRecoveryNotice message={errorMessage(shots.error, t)} retrying={shots.isFetching} onRetry={() => { if (shots.isFetchNextPageError) void shots.fetchNextPage(); else void shots.refetch(); }} />}
     {createShot.error && <p role="alert">{errorMessage(createShot.error, t)}</p>}
     {creatingPhysical ? <NewPhysicalShot projectId={projectId} onCancel={() => setCreatingPhysical(false)} onCreated={(shotId) => { setCreatingPhysical(false); setSelectedShotId(shotId); }} /> : selectedShotId ? <ShotEditor key={selectedShotId} projectId={projectId} shotId={selectedShotId} mediaQueryKey={["project-source-media", projectId]} draftCache={drafts[selectedShotId]} onDraftChange={cacheDraft} /> :
       <p className="shot-workspace__empty">{records.length ? t(strings.shot.chooseSaved) : t(strings.shot.empty)}</p>}
@@ -277,6 +282,7 @@ function ShotEditor({ projectId, shotId, mediaQueryKey, draftCache, onDraftChang
   const [finalOutput, setFinalOutput] = useState<FinalRenderOutput>();
   const [showFinalPreview, setShowFinalPreview] = useState(false);
   const [sourcePlaybackFailed, setSourcePlaybackFailed] = useState(false);
+  const [sourcePlaybackAttempt, setSourcePlaybackAttempt] = useState(0);
   const stageRef = useRef<HTMLDivElement>(null);
   const onFinalOutputChange = useCallback((output?: FinalRenderOutput) => setFinalOutput(output), []);
   useEffect(() => {
@@ -452,10 +458,10 @@ function ShotEditor({ projectId, shotId, mediaQueryKey, draftCache, onDraftChang
     setSelectedHistoricalRevision(revision === head?.revision ? undefined : revision);
     save.reset();
   };
-  if (historical && selectedRevisionQuery.error) return <div role="alert"><p>{errorMessage(selectedRevisionQuery.error, t)}</p><Button variant="outline" className="min-h-11" onClick={() => void selectedRevisionQuery.refetch()}>{t(strings.media.retry)}</Button><Button variant="outline" className="min-h-11" onClick={() => setSelectedHistoricalRevision(undefined)}>{t(strings.shot.backToCurrent)}</Button></div>;
+  if (historical && selectedRevisionQuery.error) return <div><ReadRecoveryNotice message={errorMessage(selectedRevisionQuery.error, t)} retrying={selectedRevisionQuery.isFetching} onRetry={() => void selectedRevisionQuery.refetch()} /><Button variant="outline" className="min-h-11" onClick={() => setSelectedHistoricalRevision(undefined)}>{t(strings.shot.backToCurrent)}</Button></div>;
   if (historical && selectedRevisionQuery.isLoading) return <p role="status">{t(strings.shot.loading)}</p>;
   if (shotQuery.isLoading || !draft || !head) {
-    if (shotQuery.error) return <div role="alert"><p>{errorMessage(shotQuery.error, t)}</p><Button variant="outline" className="min-h-11" onClick={() => void shotQuery.refetch()}>{t(strings.media.retry)}</Button></div>;
+    if (shotQuery.error) return <ReadRecoveryNotice message={errorMessage(shotQuery.error, t)} retrying={shotQuery.isFetching} onRetry={() => void shotQuery.refetch()} />;
     return <p role="status">{t(strings.shot.loading)}</p>;
   }
   if (historical && !selectedRevision) return <p role="status">{t(strings.shot.loading)}</p>;
@@ -525,11 +531,11 @@ function ShotEditor({ projectId, shotId, mediaQueryKey, draftCache, onDraftChang
 
   return <div className="shot-editor" data-testid="shot-editor">
   <header className="shot-editor__title"><div><span className="studio-eyebrow">{t(strings.shot.workspaceEyebrow).toLocaleUpperCase()}</span><h2 id="shot-workspace-title"><label><span className="sr-only">{t(strings.shot.nameLabel)}</span><input className="shot-title-input" data-testid="shot-name-input" value={displayDraft.name} maxLength={120} onChange={(event) => change("name", event.target.value)} disabled={historical} /></label></h2><p>{t(strings.shot.revision, { revision: head.revision.toString() })}{historical ? ` · ${t(strings.shot.viewingRevision, { revision: selectedHistoricalRevision.toString() })}` : ""}</p></div>
-      <details className="shot-history"><summary>{t(strings.shot.pinnedRevision)} · {selectedHistoricalRevision === undefined ? head.revision.toString() : selectedHistoricalRevision.toString()}</summary><label className="shot-field"><span>{t(strings.shot.pinnedRevision)}</span><select aria-label={t(strings.shot.pinnedRevision)} value={selectedHistoricalRevision === undefined ? head.revision.toString() : selectedHistoricalRevision.toString()} onChange={(event) => chooseRevision(BigInt(event.target.value))}>{(revisions.data?.pages.flatMap((page) => page.revisions) ?? [head]).map((revision) => <option key={revision.revision.toString()} value={revision.revision.toString()}>{t(strings.shot.revision, { revision: revision.revision.toString() })} · {revision.name}</option>)}</select></label></details>
+      <details className="shot-history"><summary>{t(strings.shot.pinnedRevision)} · {selectedHistoricalRevision === undefined ? head.revision.toString() : selectedHistoricalRevision.toString()}</summary><label className="shot-field"><span>{t(strings.shot.pinnedRevision)}</span><select aria-label={t(strings.shot.pinnedRevision)} value={selectedHistoricalRevision === undefined ? head.revision.toString() : selectedHistoricalRevision.toString()} onChange={(event) => chooseRevision(BigInt(event.target.value))}>{(revisions.data?.pages.flatMap((page) => page.revisions) ?? [head]).map((revision) => <option key={revision.revision.toString()} value={revision.revision.toString()}>{t(strings.shot.revision, { revision: revision.revision.toString() })} · {revision.name}</option>)}</select></label>{revisions.error && <ReadRecoveryNotice message={errorMessage(revisions.error, t)} retrying={revisions.isFetching} onRetry={() => { if (revisions.isFetchNextPageError) void revisions.fetchNextPage(); else void revisions.refetch(); }} />}</details>
     </header>
-    {!historical && pinnedRevisionQuery.error && <p role="alert">{errorMessage(pinnedRevisionQuery.error, t)} <Button variant="outline" className="min-h-11" onClick={() => void pinnedRevisionQuery.refetch()}>{t(strings.media.retry)}</Button></p>}
+    {!historical && pinnedRevisionQuery.error && <ReadRecoveryNotice message={errorMessage(pinnedRevisionQuery.error, t)} retrying={pinnedRevisionQuery.isFetching} onRetry={() => void pinnedRevisionQuery.refetch()} />}
     {historical && <p className="shot-readonly" role="status">{t(strings.shot.historicalReadonly)}</p>}
-    {shotQuery.error && <p role="alert">{errorMessage(shotQuery.error, t)}</p>}
+    {shotQuery.error && <ReadRecoveryNotice message={errorMessage(shotQuery.error, t)} retrying={shotQuery.isFetching} onRetry={() => void shotQuery.refetch()} />}
     <div className="shot-editor__body">
       <div ref={stageRef} tabIndex={-1} className="shot-stage-focus">
       <Card className="shot-plate-stage">
@@ -538,8 +544,8 @@ function ShotEditor({ projectId, shotId, mediaQueryKey, draftCache, onDraftChang
         </CardHeader>
         <CardContent>
           {showFinalPreview && !finalOutput ? <p role="status">{t(strings.shot.renderVerifyingOutput)}</p> : showFinalPreview && finalOutput ? <div className="shot-final-stage" data-testid={selectors.shot.videoFinalStage}>{finalOutput.isVideo ? <video src={finalOutput.url} aria-label={t(strings.shot.renderVideoOutputAlt, { revision: finalOutput.revision.toString() })} controls playsInline preload="metadata"><track kind="captions" srcLang="en" label={t(strings.shot.videoNoCaptions)} src="data:text/vtt,WEBVTT%0A%0ANOTE%20Captions%20are%20not%20available%20for%20this%20preview." /></video> : <img src={finalOutput.url} alt={t(finalOutput.isSample ? strings.shot.renderSampleOutputAlt : strings.shot.renderOutputAlt, { revision: finalOutput.revision.toString() })} />}</div> : <>
-          {sources.error && <p role="alert">{errorMessage(sources.error, t)}</p>}
-          {plateBytes.error && <p role="alert">{errorMessage(plateBytes.error, t)}</p>}
+          {sources.error && <ReadRecoveryNotice message={errorMessage(sources.error, t)} retrying={sources.isFetching} onRetry={() => { if (sources.isFetchNextPageError) void sources.fetchNextPage(); else void sources.refetch(); }} />}
+          {plateBytes.error && <ReadRecoveryNotice message={errorMessage(plateBytes.error, t)} retrying={plateBytes.isFetching} onRetry={() => void plateBytes.refetch()} />}
           {plate && plateUrl ? <div className="shot-plate-image" data-testid="shot-plate-preview"><div className="shot-plate-canvas" style={{ aspectRatio: `${plate.width} / ${plate.height}` }}><img src={plateUrl} alt={t(strings.shot.plateAlt, { name: plate.originalFilename })} />
             <svg viewBox={`0 0 ${plate.width} ${plate.height}`} preserveAspectRatio="none" aria-label={t(strings.shot.calibrationOverlay)}>
               {displayDraft.coordinateConvention === CoordinateConvention.PLATE_RASTER_EDGE_PIXELS_V1 && [displayDraft.topLeft,displayDraft.topRight,displayDraft.bottomRight,displayDraft.bottomLeft].every((point) => point.x !== "" && point.y !== "") && <polygon points={[displayDraft.topLeft,displayDraft.topRight,displayDraft.bottomRight,displayDraft.bottomLeft].map((point) => `${point.x},${point.y}`).join(" ")} />}
@@ -553,9 +559,10 @@ function ShotEditor({ projectId, shotId, mediaQueryKey, draftCache, onDraftChang
       </Card>
       </div>
       <aside className="shot-inspector" aria-label={t(strings.shot.inspector)}>
-        <Card><CardHeader><CardTitle as="h3">{t(strings.shot.scene)}</CardTitle></CardHeader><CardContent className="shot-fields"><fieldset disabled={historical}>
-          {plateMetadata.error && <p role="alert">{errorMessage(plateMetadata.error, t)}</p>}
-          {sourceMetadata.error && <p role="alert">{errorMessage(sourceMetadata.error, t)}</p>}
+        <Card><CardHeader><CardTitle as="h3">{t(strings.shot.scene)}</CardTitle></CardHeader><CardContent className="shot-fields">
+          {plateMetadata.error && <ReadRecoveryNotice message={errorMessage(plateMetadata.error, t)} retrying={plateMetadata.isFetching} onRetry={() => void plateMetadata.refetch()} />}
+          {sourceMetadata.error && <ReadRecoveryNotice message={errorMessage(sourceMetadata.error, t)} retrying={sourceMetadata.isFetching} onRetry={() => void sourceMetadata.refetch()} />}
+          <fieldset disabled={historical}>
           {select(t(strings.shot.scenePlate), displayDraft.plateMediaId, (value) => change("plateMediaId", value), availableMedia, t(strings.shot.chooseSource))}
           {select(t(strings.shot.screenSource), displayDraft.sourceMediaId, chooseScreenSource, screenMediaOptions, t(strings.shot.chooseSource))}
           {screenVideo && displayDraft.videoTiming && <VideoTimingEditor projectId={projectId} source={screenVideo} timing={displayDraft.videoTiming} disabled={historical} onChange={(timing) => updateDraft((current) => ({ ...current, videoTiming: timing }))} />}
@@ -614,9 +621,9 @@ function ShotEditor({ projectId, shotId, mediaQueryKey, draftCache, onDraftChang
         </fieldset></CardContent></Card>
         <Card><CardHeader><CardTitle as="h3">{t(strings.shot.screenSource)}</CardTitle></CardHeader><CardContent>
           {screenSource ? <p className="shot-source-choice">{screenSource.originalFilename}<span>{screenSource.width !== undefined && screenSource.height !== undefined ? `${screenSource.width} × ${screenSource.height}` : screenSource.mediaType}</span></p> : <p className="shot-help">{t(strings.shot.noScreenSource)}</p>}
-          {screenBytes.error && <p role="alert">{errorMessage(screenBytes.error, t)}</p>}
+          {screenBytes.error && <ReadRecoveryNotice message={errorMessage(screenBytes.error, t)} retrying={screenBytes.isFetching} onRetry={() => void screenBytes.refetch()} />}
           {screenUrl && screenImage && <img className="shot-source-thumb" data-testid="shot-screen-preview" src={screenUrl} alt={t(strings.shot.screenSourceAlt, { name: screenImage.originalFilename })} />}
-          {screenVideo && <><video className="shot-source-thumb" data-testid={selectors.shot.videoSourcePreview} src={sourceMediaContentURL(projectId, screenVideo.id)} controls preload="metadata" playsInline muted aria-label={t(strings.media.videoPreviewAlt, { name: screenVideo.originalFilename })} onError={() => setSourcePlaybackFailed(true)} /><p className="shot-help">{t(strings.media.videoPreviewHelp)}</p>{sourcePlaybackFailed && <p role="alert">{t(strings.media.videoPreviewError)}</p>}</>}
+          {screenVideo && <><video key={`${screenVideo.id}:${sourcePlaybackAttempt}`} className="shot-source-thumb" data-testid={selectors.shot.videoSourcePreview} src={sourceMediaContentURL(projectId, screenVideo.id)} controls preload="metadata" playsInline muted aria-label={t(strings.media.videoPreviewAlt, { name: screenVideo.originalFilename })} onError={() => setSourcePlaybackFailed(true)} onLoadedMetadata={() => setSourcePlaybackFailed(false)} />{sourcePlaybackFailed ? <ReadRecoveryNotice message={t(strings.media.videoPreviewError)} retrying={false} onRetry={() => { setSourcePlaybackFailed(false); setSourcePlaybackAttempt((attempt) => attempt + 1); }} /> : <p className="shot-help">{t(strings.media.videoPreviewHelp)}</p>}</>}
           {sources.hasNextPage && <Button variant="outline" className="min-h-11" disabled={sources.isFetchingNextPage} onClick={() => void sources.fetchNextPage()}>{t(strings.projects.loadMore)}</Button>}
         </CardContent></Card>
         <RenderControls projectId={projectId} shotId={shotId} revision={renderRevision} historical={historical} hasUnsavedChanges={hasUnsavedChanges} showOutput={showFinalPreview} onShowOutputChange={setShowFinalPreview} onFinalOutputChange={onFinalOutputChange} onAcceptVideoSample={acceptVideoSample} onDeclareReadabilityProof={declareReadabilityProof} />

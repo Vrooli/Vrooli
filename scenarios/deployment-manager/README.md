@@ -51,6 +51,7 @@ authorization through the release service.
 - **Deployment Orchestration**: One-click deploy, real-time log streaming (WebSocket), calls scenario-to-desktop/ios/android/saas packagers
 - **Dependency Visualization**: Interactive React Flow graph with fitness color-coding, table view fallback for accessibility
 - **Evidence-Backed Release Governance**: Validates the shared proto-first evidence contract and requires decision-grade desktop evidence before approval
+- **Android Device Validation**: `android-validate` delegates immutable APK testing on one selected physical device to `scenario-to-android` and requires its exact run receipt in Deployment Manager evidence
 
 **Enhanced Features (P1 - 36 operational targets)**:
 - Post-deployment health monitoring, metrics collection, alerting
@@ -196,9 +197,10 @@ The lifecycle exports everything automatically when you run `vrooli scenario run
 
 Optional service overrides are `SCENARIO_DEPENDENCY_ANALYZER_URL`,
 `SECRETS_MANAGER_URL`, `SCENARIO_TO_DESKTOP_URL`, `SCENARIO_TO_CLOUD_URL`,
-`LPBS_BASE_URL`, `LPBS_SERVICE_SECRET`, and
-`DEPLOYMENT_MANAGER_TELEMETRY_DIR`. When omitted, inter-scenario URLs resolve
-through Vrooli service discovery.
+`LPBS_BASE_URL`, and `DEPLOYMENT_MANAGER_TELEMETRY_DIR`. The temporary
+`LPBS_SERVICE_SECRET` fallback is used only until the
+`deployment-manager-lpbs-release-manager` service principal is issued. When
+omitted, inter-scenario URLs resolve through Vrooli service discovery.
 
 > Tip: when running outside the lifecycle, fetch ports with `vrooli scenario port <name> API_PORT` (or `UI_PORT`) and then export `VITE_API_BASE_URL` accordingly:
 

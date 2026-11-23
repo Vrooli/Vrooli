@@ -11,7 +11,7 @@ func TestRegister(t *testing.T) {
 		t.Fatal(err)
 	}
 	group := Register(app)
-	if group.Title == "" || len(group.Commands) != 8 {
+	if group.Title == "" || len(group.Commands) != 9 {
 		t.Fatalf("group = %#v", group)
 	}
 }

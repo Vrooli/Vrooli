@@ -108,6 +108,10 @@ func preserveFlowChecks(before, after Flow) error {
 }
 
 func (s *Service) RunSavedFlow(ctx context.Context, id string, version int32, device, cohort, actor string) (RunResult, error) {
+	return s.runSavedFlow(ctx, id, version, device, cohort, actor, nil)
+}
+
+func (s *Service) runSavedFlow(ctx context.Context, id string, version int32, device, cohort, actor string, afterPublish func(RunResult)) (RunResult, error) {
 	if version < 1 {
 		return RunResult{}, fmt.Errorf("exact saved version required")
 	}
@@ -118,7 +122,11 @@ func (s *Service) RunSavedFlow(ctx context.Context, id string, version int32, de
 	if f.DeviceID != device || f.ContextKey != cohort {
 		return RunResult{}, fmt.Errorf("saved flow device/context mismatch")
 	}
-	return s.Run(ctx, f.Flow, device, actor)
+	return s.executeWithBinding(ctx, f.Flow, device, actor, Session{}, true, false, RunBinding{
+		SavedFlowID:      f.ID,
+		SavedFlowVersion: f.Version,
+		ContextKey:       f.ContextKey,
+	}, afterPublish)
 }
 
 func (s *Service) ValidateRepair(ctx context.Context, id string, version int32, candidate Flow) error {

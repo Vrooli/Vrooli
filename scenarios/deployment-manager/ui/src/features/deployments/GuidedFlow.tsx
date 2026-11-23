@@ -17,7 +17,7 @@ import { cn } from "../../lib/utils";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
-import { Input } from "../../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { Label } from "../../components/ui/label";
 import { SelectableCard } from "../../components/ui/selectable-card";
 

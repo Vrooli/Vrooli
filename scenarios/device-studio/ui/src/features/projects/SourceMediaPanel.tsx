@@ -44,6 +44,13 @@ function canCancelInspection(media: SourceMedia): boolean {
     ["queued", "running", "checkpointed"].includes(media.inspectionJob.state.toLowerCase()));
 }
 
+function ReadRecovery({ message, retryLabel, retrying, onRetry }: { message: string; retryLabel: string; retrying: boolean; onRetry: () => void }) {
+  return <div role="alert" className="text-sm">
+    <p>{message}</p>
+    <Button variant="outline" className="mt-2 min-h-11" disabled={retrying} onClick={onRetry}>{retryLabel}</Button>
+  </div>;
+}
+
 function formatBytes(value: bigint): string {
   return `${(Number(value) / 1024 / 1024).toFixed(2)} MiB`;
 }
@@ -86,6 +93,7 @@ export function SourceMediaPanel({ projectId }: { projectId: string }) {
   });
   const selected = selectedQuery.data?.sourceMedia ?? media.find((item) => item.id === selectedId);
   const [previewError, setPreviewError] = useState(false);
+  const [videoPreviewAttempt, setVideoPreviewAttempt] = useState(0);
   useEffect(() => setPreviewError(false), [selectedId]);
   const inspectionAction = useMutation({
     mutationFn: async (variables: { action: "ensure" | "retry" | "cancel"; projectId: string; mediaId: string; expectedJobVersion?: bigint }) => {
@@ -140,13 +148,13 @@ export function SourceMediaPanel({ projectId }: { projectId: string }) {
       <CardHeader><CardTitle as="h3">{t(strings.media.sourcePreview)}</CardTitle><p className="text-sm text-app-muted-foreground">{selected?.kind === SourceMediaKind.VIDEO ? t(strings.media.videoSourcePreviewDescription) : t(strings.media.sourcePreviewDescription)}</p></CardHeader>
       <CardContent className="flex min-h-[22rem] flex-col gap-space-md">
         {selected?.kind === SourceMediaKind.IMAGE && content.isLoading && <p role="status">{t(strings.media.loadingContent)}</p>}
-        {selected?.kind === SourceMediaKind.IMAGE && content.error && <div role="alert" className="text-sm"><p>{errorMessage(content.error, t)}</p><Button variant="outline" className="mt-2 min-h-11" onClick={() => { void content.refetch(); }}>{t(strings.media.retry)}</Button></div>}
+        {selected?.kind === SourceMediaKind.IMAGE && content.error && <ReadRecovery message={errorMessage(content.error, t)} retryLabel={t(strings.media.retry)} retrying={content.isFetching} onRetry={() => { void content.refetch(); }} />}
         {selectedQuery.isLoading && selectedId && <p role="status">{t(strings.media.loading)}</p>}
-        {selectedQuery.error && <div role="alert" className="text-sm"><p>{errorMessage(selectedQuery.error, t)}</p><Button variant="outline" className="mt-2 min-h-11" onClick={() => { void selectedQuery.refetch(); }}>{t(strings.media.retry)}</Button></div>}
+        {selectedQuery.error && <ReadRecovery message={errorMessage(selectedQuery.error, t)} retryLabel={t(strings.media.retry)} retrying={selectedQuery.isFetching} onRetry={() => { void selectedQuery.refetch(); }} />}
         {!selected && !selectedQuery.isLoading && !selectedQuery.error && <div className="grid min-h-[19rem] flex-1 place-items-center rounded-panel border border-dashed border-app-border bg-app-muted px-space-md text-center text-sm text-app-muted-foreground">{t(strings.media.emptyStage)}</div>}
         {selected?.kind === SourceMediaKind.VIDEO && <div className="flex flex-col gap-space-sm">
-          <video data-testid={selectors.media.videoPreview} aria-label={t(strings.media.videoPreviewAlt, { name: selected.originalFilename })} className="max-h-[min(70vh,48rem)] min-h-[19rem] w-full flex-1 rounded-control bg-black object-contain" src={sourceMediaContentURL(projectId, selected.id)} controls preload="metadata" playsInline muted onError={() => setPreviewError(true)} onLoadedMetadata={() => setPreviewError(false)} />
-          {previewError ? <p role="alert">{t(strings.media.videoPreviewError)}</p> : <p className="text-sm text-app-muted-foreground">{t(strings.media.videoPreviewHelp)}</p>}
+          <video key={`${selected.id}:${videoPreviewAttempt}`} data-testid={selectors.media.videoPreview} aria-label={t(strings.media.videoPreviewAlt, { name: selected.originalFilename })} className="max-h-[min(70vh,48rem)] min-h-[19rem] w-full flex-1 rounded-control bg-black object-contain" src={sourceMediaContentURL(projectId, selected.id)} controls preload="metadata" playsInline muted onError={() => setPreviewError(true)} onLoadedMetadata={() => setPreviewError(false)} />
+          {previewError ? <ReadRecovery message={t(strings.media.videoPreviewError)} retryLabel={t(strings.media.retry)} retrying={false} onRetry={() => { setPreviewError(false); setVideoPreviewAttempt((attempt) => attempt + 1); }} /> : <p className="text-sm text-app-muted-foreground">{t(strings.media.videoPreviewHelp)}</p>}
         </div>}
         {selected?.kind === SourceMediaKind.IMAGE && content.data && previewUrl && <img data-testid={selectors.media.image} src={previewUrl} alt={t(strings.media.imageAlt, { name: selected.originalFilename })} className="max-h-[min(70vh,48rem)] min-h-[19rem] w-full flex-1 rounded-control bg-app-muted object-contain" />}
         {selected && <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 break-all text-xs text-app-muted-foreground">
@@ -185,7 +193,7 @@ export function SourceMediaPanel({ projectId }: { projectId: string }) {
       <section aria-labelledby={selectors.media.listHeading} className="flex flex-col gap-space-sm">
         <h4 id={selectors.media.listHeading} className="font-medium">{t(strings.media.saved)}</h4>
         {list.isLoading && <p data-testid={selectors.media.loading} role="status">{t(strings.media.loading)}</p>}
-        {list.error && <div role="alert" className="text-sm"><p>{errorMessage(list.error, t)}</p><Button variant="outline" className="mt-2 min-h-11" onClick={() => { void list.refetch(); }}>{t(strings.media.retry)}</Button></div>}
+        {list.error && <ReadRecovery message={errorMessage(list.error, t)} retryLabel={t(strings.media.retry)} retrying={list.isFetching} onRetry={() => { if (list.isFetchNextPageError) void list.fetchNextPage(); else void list.refetch(); }} />}
         {!list.isLoading && !list.error && media.length === 0 && <p data-testid={selectors.media.empty} className="text-sm text-app-muted-foreground">{t(strings.media.empty)}</p>}
         {media.length > 0 && <ul data-testid={selectors.media.list} className="flex flex-col divide-y divide-app-border rounded-panel border border-app-border">
           {media.map((item) => <li key={item.id}>
@@ -196,7 +204,6 @@ export function SourceMediaPanel({ projectId }: { projectId: string }) {
           </li>)}
         </ul>}
         {list.hasNextPage && <Button data-testid={selectors.media.loadMore} variant="outline" className="min-h-11 self-start" disabled={list.isFetchingNextPage} onClick={() => { void list.fetchNextPage(); }}>{list.isFetchingNextPage ? t(strings.media.loading) : t(strings.media.loadMore)}</Button>}
-        {list.isFetchNextPageError && <p role="alert">{errorMessage(list.error, t)} <Button variant="outline" className="min-h-11" onClick={() => { void list.fetchNextPage(); }}>{t(strings.media.retry)}</Button></p>}
       </section>
 
       </CardContent>

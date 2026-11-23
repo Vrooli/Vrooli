@@ -1,10 +1,27 @@
 package renderjobs
 
 import (
+	"context"
+	"errors"
 	"math"
 	"strings"
 	"testing"
+
+	"device-studio/internal/jobs"
 )
+
+type failOneScopeChildCancellation struct {
+	jobs.Service
+	fail bool
+}
+
+func (s *failOneScopeChildCancellation) RequestCancel(ctx context.Context, id string, version int64) (jobs.Job, error) {
+	if s.fail {
+		s.fail = false
+		return jobs.Job{}, errors.New("injected cancellation response loss")
+	}
+	return s.Service.RequestCancel(ctx, id, version)
+}
 
 func TestGeometrySessionPolicyPinsSourceScopeAndAllowsDistinctChildCandidates(t *testing.T) {
 	base, err := canonicalGeometrySessionPolicy(GeometrySessionRequest{
@@ -99,5 +116,37 @@ func TestGeometrySessionChangedScopeReturnsChoiceWithoutDispatch(t *testing.T) {
 	})
 	if err != nil || !snapshot.NeedsConfirmation || len(snapshot.ChangedScope) != 1 || snapshot.ChangedScope[0] != "brief" || snapshot.ChildrenAdmitted != 1 || len(snapshot.Children) != 1 {
 		t.Fatalf("scope change must pause without dispatch: snapshot=%+v err=%v", snapshot, err)
+	}
+}
+
+func TestGeometrySessionCancelResumesAfterLostChildCancellationReply(t *testing.T) {
+	ops := &integrationOps{}
+	c, ctx, _ := integrationCoordinator(t, ops, false)
+	addGeometryPlate(c.media.(*integrationMedia))
+	created, err := c.CreateGeometrySession(ctx, GeometrySessionRequest{
+		ProjectID: "project", CandidateID: "candidate-base", IdempotencyKey: "session-cancel-retry",
+		Brief: "compact field display", EnvelopeMM: [3]float64{80, 150, 12},
+		ReferenceMediaIDs: []string{"active", "plate"}, FundingRoute: GeometryFundingLocal,
+		ConfirmLocalAI: true,
+	})
+	if err != nil || len(created.Children) != 1 {
+		t.Fatalf("create parent session: children=%d err=%v", len(created.Children), err)
+	}
+	c.jobs = &failOneScopeChildCancellation{Service: c.jobs, fail: true}
+
+	closing, err := c.CancelGeometrySession(ctx, created.SessionID, created.Version)
+	if err != nil || closing.State != jobs.RunScopeClosing || closing.Version == created.Version {
+		t.Fatalf("first cancellation should persist closing before the child reply is lost: snapshot=%+v err=%v", closing, err)
+	}
+
+	// Simulate the client losing the first response and retrying with the version
+	// it originally observed, both while closing and after cancellation commits.
+	recovered, err := c.CancelGeometrySession(ctx, created.SessionID, created.Version)
+	if err != nil || recovered.State != jobs.RunScopeCancelled || len(recovered.Children) != 1 || recovered.Children[0].State != jobs.Cancelled {
+		t.Fatalf("stale-version retry should resume and finish cancellation: snapshot=%+v err=%v", recovered, err)
+	}
+	replayed, err := c.CancelGeometrySession(ctx, created.SessionID, created.Version)
+	if err != nil || replayed.State != jobs.RunScopeCancelled || replayed.Version != recovered.Version {
+		t.Fatalf("retry after a lost terminal reply should return the same cancelled session: snapshot=%+v err=%v", replayed, err)
 	}
 }

@@ -55,7 +55,7 @@ Stale manifests are not deleted; they are flagged so the operator can confirm an
 
 ### Exemptions
 
-Some skills are not meant to converge on a no-op against a pristine golden. They are framework primitives — `progress`, `bundle-integration-steer`, `progress-continuity-interruption-resilience` — that always mutate the scenario (advance a progress log, record continuity, etc.) regardless of how mature the template is. These are flagged as **always-mutator** in the catalog and their manifests are expected to keep allowing those mutations indefinitely. The remaining skills are tracked toward eventual no-op against a mature template.
+Some skills are not meant to converge on a no-op against a pristine golden. They are framework primitives — `progress`, `bundle-integration-steer`, `resilience-lenses` — that always mutate the scenario (advance a progress log, record continuity, etc.) regardless of how mature the template is. These are flagged as **always-mutator** in the catalog and their manifests are expected to keep allowing those mutations indefinitely. The remaining skills are tracked toward eventual no-op against a mature template.
 
 ## The Promotion-Retirement Vision
 

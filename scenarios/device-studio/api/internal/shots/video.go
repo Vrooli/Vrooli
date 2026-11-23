@@ -31,6 +31,9 @@ const maxCameraOutputFrames = 360
 
 const maxCameraDurationSeconds = 12
 
+const maxLayeredParallaxFrames = 120
+const maxLayeredParallaxPixels = int64(1920 * 1080)
+
 func maxCameraScheduleFrames(t *shotsv1.VideoTiming) int64 {
 	if t == nil || t.GetOutputRateDen() != 1 || (t.GetOutputRateNum() != 24 && t.GetOutputRateNum() != 30) {
 		return 0
@@ -43,6 +46,8 @@ const VideoProfileFixed = "device-studio-fixed-plate-video-v1"
 
 // VideoProfileScreenEntry identifies the separate photographic screen-entry profile.
 const VideoProfileScreenEntry = "device-studio-screen-entry-video-v1"
+
+const VideoProfileLayeredParallax = "device-studio-layered-parallax-video-v1"
 
 func VideoBaseRecipeSHA(snapshot *shotsv1.ShotSnapshot) (string, error) {
 	return videoBaseRecipeSHA(snapshot)
@@ -135,7 +140,7 @@ func applySampledPhoneValues(snapshot *shotsv1.ShotSnapshot) error {
 	return nil
 }
 
-func validateVideoTiming(t *shotsv1.VideoTiming, source projects.SourceMedia, cameraMotion bool) *shotsv1.ShotIssue {
+func validateVideoTiming(t *shotsv1.VideoTiming, source projects.SourceMedia, motionProfile string) *shotsv1.ShotIssue {
 	issue := func(code shotsv1.ShotIssueCode, field, summary, repair string) *shotsv1.ShotIssue {
 		return &shotsv1.ShotIssue{Code: code, FieldPath: field, Summary: summary, Repair: repair, BlocksRender: true}
 	}
@@ -147,8 +152,11 @@ func validateVideoTiming(t *shotsv1.VideoTiming, source projects.SourceMedia, ca
 		return issue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_DRAFT_INCOMPLETE, "video_timing", "A complete inspected source-clock trim and output rate are required.", "Choose a trim inside the inspected source and select 24 or 30 fps.")
 	}
 	wantProfile := VideoProfileFixed
-	if cameraMotion {
+	switch motionProfile {
+	case "screen_entry":
 		wantProfile = VideoProfileScreenEntry
+	case "layered_parallax":
+		wantProfile = VideoProfileLayeredParallax
 	}
 	if t.GetEofPolicy() != shotsv1.VideoEOFPolicy_VIDEO_EOF_POLICY_REJECT || t.GetVideoCompositionProfileId() != wantProfile || t.GetVideoCompositionProfileVersion() != 1 {
 		return issue(shotsv1.ShotIssueCode_SHOT_ISSUE_CODE_UNSUPPORTED_PROFILE, "video_timing", "The selected video timing profile is unsupported for this motion mode.", "Use the fixed-plate profile for fixed motion or the screen-entry profile for crop-push.")

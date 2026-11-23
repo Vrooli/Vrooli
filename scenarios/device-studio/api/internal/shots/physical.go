@@ -335,7 +335,7 @@ func (r *ownedPhysicalResolver) Resolve(ctx context.Context, projectID string, b
 		if media.Kind != projects.MediaKindVideo || media.Readiness != projects.ReadinessReady || media.SizeBytes <= 0 || media.SizeBytes > projects.MaxSourceVideoBytes || media.SHA256 != timing.GetSourceSha256() || media.SizeBytes != timing.GetSourceSizeBytes() {
 			return nil, ErrInvalidPhysicalBinding{Reason: "physical recording source must match a ready bounded video and its saved digest"}
 		}
-		if issue := validateVideoTiming(timing, media, false); issue != nil {
+		if issue := validateVideoTiming(timing, media, ""); issue != nil {
 			return nil, ErrInvalidPhysicalBinding{Reason: issue.GetSummary()}
 		}
 		if timing.GetAudioPolicy() != shotsv1.VideoAudioPolicy_VIDEO_AUDIO_POLICY_UNSPECIFIED && timing.GetAudioPolicy() != shotsv1.VideoAudioPolicy_VIDEO_AUDIO_POLICY_SILENT && timing.GetAudioPolicy() != shotsv1.VideoAudioPolicy_VIDEO_AUDIO_POLICY_PASSTHROUGH {

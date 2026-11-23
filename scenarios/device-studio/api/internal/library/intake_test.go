@@ -321,6 +321,60 @@ func TestIntakeRetainsStagedBytesWhenMetadataCommitOutcomeCannotBeReadBack(t *te
 	}
 }
 
+type failOnceIntakeSaveAndReadback struct {
+	intakeRevisionRepository
+	saveFailure bool
+	readFailure bool
+}
+
+func (r *failOnceIntakeSaveAndReadback) Save(ctx context.Context, proposed revisionstore.Record[intakeRecord], expected uint32) (revisionstore.Record[intakeRecord], error) {
+	if r.saveFailure {
+		r.saveFailure = false
+		return revisionstore.Record[intakeRecord]{}, errors.New("injected temporary metadata outage")
+	}
+	return r.intakeRevisionRepository.Save(ctx, proposed, expected)
+}
+
+func (r *failOnceIntakeSaveAndReadback) Get(ctx context.Context, id string, revision uint32) (revisionstore.Record[intakeRecord], error) {
+	if r.readFailure {
+		r.readFailure = false
+		return revisionstore.Record[intakeRecord]{}, errors.New("injected temporary readback outage")
+	}
+	return r.intakeRevisionRepository.Get(ctx, id, revision)
+}
+
+func TestIntakeCommitRetriesSameStagedImportAfterUncertainReadbackFailure(t *testing.T) {
+	ctx, service, storageRoot, _ := setupIntake(t, func(context.Context, []byte) (IntakeInspection, error) {
+		return IntakeInspection{Profile: "test", ProfileVersion: 1, Supported: true}, nil
+	})
+	data := intakeFixtureGLB()
+	staged, err := service.BeginImport(ctx, intakeClaims("candidate-retry-commit"), "source.glb", int64(len(data)), bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	service.repo = &failOnceIntakeSaveAndReadback{intakeRevisionRepository: service.repo, saveFailure: true, readFailure: true}
+	if _, err := staged.Commit(ctx); err == nil {
+		t.Fatal("first commit should report the simultaneous save/readback outage")
+	}
+
+	committed, err := staged.Commit(ctx)
+	if err != nil {
+		t.Fatalf("retry the same staged import after metadata recovery: %v", err)
+	}
+	opened, reader, err := service.Open(ctx, committed.ID, committed.Revision)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := io.ReadAll(reader)
+	if closeErr := reader.Close(); err != nil || closeErr != nil || opened.OriginalSHA256 != committed.OriginalSHA256 || !bytes.Equal(got, data) {
+		t.Fatalf("retried import bytes differ: size=%d read=%v close=%v", len(got), err, closeErr)
+	}
+	files, err := filepath.Glob(filepath.Join(storageRoot, "intake", "candidates", committed.ID, "staged", "*.glb"))
+	if err != nil || len(files) != 1 {
+		t.Fatalf("retried commit should preserve exactly its referenced staged object: %v, %v", files, err)
+	}
+}
+
 func TestIntakeAbortAndTamperedStoredContentNeverPublishUnverifiedBytes(t *testing.T) {
 	ctx, service, storageRoot, _ := setupIntakeWithDB(t, func(context.Context, []byte) (IntakeInspection, error) {
 		return IntakeInspection{Profile: "test", ProfileVersion: 1, Supported: true}, nil

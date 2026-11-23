@@ -12,56 +12,8 @@ import (
 )
 
 func TestHandleAssembleBundle(t *testing.T) {
-	analyzerSkeleton := Manifest{
-		SchemaVersion: "v0.1",
-		Target:        "desktop",
-		App: ManifestApp{
-			Name:        "Demo App",
-			Version:     "1.0.0",
-			Description: "demo",
-		},
-		IPC: ManifestIPC{
-			Mode:          "loopback-http",
-			Host:          "127.0.0.1",
-			Port:          48000,
-			AuthTokenPath: "runtime/auth-token",
-		},
-		Telemetry: ManifestTelemetry{
-			File: "telemetry/deployment-telemetry.jsonl",
-		},
-		Ports: &ManifestPorts{
-			DefaultRange: PortRange{Min: 47000, Max: 47999},
-			Reserved:     []int{},
-		},
-		Services: []ServiceEntry{
-			{
-				ID:          "api",
-				Type:        "api-binary",
-				Description: "Demo API",
-				Binaries: map[string]ServiceBinary{
-					"linux-x64": {Path: "bin/api"},
-				},
-				LogDir: "logs/api",
-				Ports: &ServicePorts{
-					Requested: []RequestedPort{
-						{Name: "http", Range: PortRange{Min: 48100, Max: 48110}},
-					},
-				},
-				Health: HealthCheck{
-					Type:     "tcp",
-					PortName: "http",
-					Interval: 1000,
-					Timeout:  2000,
-					Retries:  3,
-				},
-				Readiness: ReadinessCheck{
-					Type:     "port_open",
-					PortName: "http",
-					Timeout:  5000,
-				},
-			},
-		},
-	}
+	analyzerSkeleton := analyzerTestSkeleton("Demo App", "1.0.0", "demo", "Demo API")
+	analyzerSkeleton.Services[0].Ports.Requested[0].Range = PortRange{Min: 48100, Max: 48110}
 
 	analyzer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !strings.Contains(r.URL.Path, "/bundle/manifest") {
@@ -202,24 +154,7 @@ func TestHandleAssembleBundleSecretsManagerUnavailable(t *testing.T) {
 			"scenario":  "test-app",
 			"generated": time.Now().UTC().Format(time.RFC3339),
 			"manifest": map[string]interface{}{
-				"skeleton": Manifest{
-					SchemaVersion: "v0.1",
-					Target:        "desktop",
-					App:           ManifestApp{Name: "Test", Version: "1.0.0"},
-					IPC:           ManifestIPC{Mode: "loopback-http", Host: "127.0.0.1", Port: 48000, AuthTokenPath: "runtime/auth-token"},
-					Telemetry:     ManifestTelemetry{File: "telemetry.jsonl"},
-					Ports:         &ManifestPorts{DefaultRange: PortRange{Min: 47000, Max: 47999}, Reserved: []int{}},
-					Services: []ServiceEntry{
-						{
-							ID:        "api",
-							Type:      "api-binary",
-							Binaries:  map[string]ServiceBinary{"linux-x64": {Path: "bin/api"}},
-							Health:    HealthCheck{Type: "tcp", PortName: "http", Interval: 1000, Timeout: 1000, Retries: 1},
-							Readiness: ReadinessCheck{Type: "port_open", PortName: "http", Timeout: 1000},
-							Ports:     &ServicePorts{Requested: []RequestedPort{{Name: "http", Range: PortRange{Min: 48000, Max: 48010}}}},
-						},
-					},
-				},
+				"skeleton": analyzerTestSkeleton("Test", "1.0.0", "", ""),
 			},
 		})
 	}))
@@ -251,24 +186,7 @@ func TestHandleAssembleBundleWithoutSecrets(t *testing.T) {
 			"scenario":  "test-app",
 			"generated": time.Now().UTC().Format(time.RFC3339),
 			"manifest": map[string]interface{}{
-				"skeleton": Manifest{
-					SchemaVersion: "v0.1",
-					Target:        "desktop",
-					App:           ManifestApp{Name: "Test", Version: "1.0.0"},
-					IPC:           ManifestIPC{Mode: "loopback-http", Host: "127.0.0.1", Port: 48000, AuthTokenPath: "runtime/auth-token"},
-					Telemetry:     ManifestTelemetry{File: "telemetry.jsonl"},
-					Ports:         &ManifestPorts{DefaultRange: PortRange{Min: 47000, Max: 47999}, Reserved: []int{}},
-					Services: []ServiceEntry{
-						{
-							ID:        "api",
-							Type:      "api-binary",
-							Binaries:  map[string]ServiceBinary{"linux-x64": {Path: "bin/api"}},
-							Health:    HealthCheck{Type: "tcp", PortName: "http", Interval: 1000, Timeout: 1000, Retries: 1},
-							Readiness: ReadinessCheck{Type: "port_open", PortName: "http", Timeout: 1000},
-							Ports:     &ServicePorts{Requested: []RequestedPort{{Name: "http", Range: PortRange{Min: 48000, Max: 48010}}}},
-						},
-					},
-				},
+				"skeleton": analyzerTestSkeleton("Test", "1.0.0", "", ""),
 			},
 		})
 	}))
@@ -310,24 +228,7 @@ func TestHandleAssembleBundleDefaultTier(t *testing.T) {
 			"scenario":  "test-app",
 			"generated": time.Now().UTC().Format(time.RFC3339),
 			"manifest": map[string]interface{}{
-				"skeleton": Manifest{
-					SchemaVersion: "v0.1",
-					Target:        "desktop",
-					App:           ManifestApp{Name: "Test", Version: "1.0.0"},
-					IPC:           ManifestIPC{Mode: "loopback-http", Host: "127.0.0.1", Port: 48000, AuthTokenPath: "runtime/auth-token"},
-					Telemetry:     ManifestTelemetry{File: "telemetry.jsonl"},
-					Ports:         &ManifestPorts{DefaultRange: PortRange{Min: 47000, Max: 47999}, Reserved: []int{}},
-					Services: []ServiceEntry{
-						{
-							ID:        "api",
-							Type:      "api-binary",
-							Binaries:  map[string]ServiceBinary{"linux-x64": {Path: "bin/api"}},
-							Health:    HealthCheck{Type: "tcp", PortName: "http", Interval: 1000, Timeout: 1000, Retries: 1},
-							Readiness: ReadinessCheck{Type: "port_open", PortName: "http", Timeout: 1000},
-							Ports:     &ServicePorts{Requested: []RequestedPort{{Name: "http", Range: PortRange{Min: 48000, Max: 48010}}}},
-						},
-					},
-				},
+				"skeleton": analyzerTestSkeleton("Test", "1.0.0", "", ""),
 			},
 		})
 	}))
@@ -365,24 +266,7 @@ func TestHandleAssembleBundleResponseStructure(t *testing.T) {
 			"scenario":  "test-app",
 			"generated": time.Now().UTC().Format(time.RFC3339),
 			"manifest": map[string]interface{}{
-				"skeleton": Manifest{
-					SchemaVersion: "v0.1",
-					Target:        "desktop",
-					App:           ManifestApp{Name: "Test App", Version: "2.0.0", Description: "A test application"},
-					IPC:           ManifestIPC{Mode: "loopback-http", Host: "127.0.0.1", Port: 48000, AuthTokenPath: "runtime/auth-token"},
-					Telemetry:     ManifestTelemetry{File: "telemetry.jsonl"},
-					Ports:         &ManifestPorts{DefaultRange: PortRange{Min: 47000, Max: 47999}, Reserved: []int{}},
-					Services: []ServiceEntry{
-						{
-							ID:        "api",
-							Type:      "api-binary",
-							Binaries:  map[string]ServiceBinary{"linux-x64": {Path: "bin/api"}},
-							Health:    HealthCheck{Type: "tcp", PortName: "http", Interval: 1000, Timeout: 1000, Retries: 1},
-							Readiness: ReadinessCheck{Type: "port_open", PortName: "http", Timeout: 1000},
-							Ports:     &ServicePorts{Requested: []RequestedPort{{Name: "http", Range: PortRange{Min: 48000, Max: 48010}}}},
-						},
-					},
-				},
+				"skeleton": analyzerTestSkeleton("Test App", "2.0.0", "A test application", ""),
 			},
 		})
 	}))

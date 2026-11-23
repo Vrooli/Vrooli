@@ -19,7 +19,7 @@ The primary goal is to ship a complete bundled desktop app (UI + API + resources
 | **UI** | In Progress | Basic dashboard; swap UI pending |
 | **Thin Client Desktop** | ✅ Working | UI bundled; connects to Tier 1 |
 | **Bundled Desktop** | ✅ Implemented | Pipeline is available; native release evidence remains target- and environment-gated |
-| **Mobile (Tier 3)** | Not Started | Documentation placeholder |
+| **Android physical validation** | ✅ Available | `scenario-to-android` immutable artifact matrix with exact target evidence handoff; Android publishing and iOS remain planned |
 | **SaaS (Tier 4)** | Not Started | Documentation placeholder |
 | **Enterprise (Tier 5)** | Vision | Future hardware appliance |
 

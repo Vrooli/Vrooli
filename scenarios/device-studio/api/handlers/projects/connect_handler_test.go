@@ -271,12 +271,12 @@ func TestProjectConnectJourneyAndTypedRevisionConflict(t *testing.T) { // [REQ:D
 	require.NoError(t, err)
 	_, err = c.RenameProject(context.Background(), connect.NewRequest(&projectsv1.RenameProjectRequest{Id: p.Id, Name: "Attempted", ExpectedRevision: p.Revision}))
 	require.Equal(t, connect.CodeAborted, connect.CodeOf(err))
-	var decoded projectsv1.ProjectConflict
+	var decoded *projectsv1.ProjectConflict
 	details := err.(*connect.Error).Details()
 	require.Len(t, details, 1)
 	value, valueErr := details[0].Value()
 	require.NoError(t, valueErr)
-	decoded = *value.(*projectsv1.ProjectConflict)
+	decoded = value.(*projectsv1.ProjectConflict)
 	require.Equal(t, p.Id, decoded.ProjectId)
 	require.Equal(t, p.Revision, decoded.ExpectedRevision)
 	require.EqualValues(t, p.Revision+1, decoded.CurrentRevision)
