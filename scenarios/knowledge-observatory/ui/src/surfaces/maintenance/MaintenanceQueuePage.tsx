@@ -6,7 +6,6 @@ import {
   fetchMaintenanceInventory,
   proposeMaintenanceDispositions,
   routeMaintenanceDisposition,
-  type MaintenanceCandidate,
   type MaintenanceInventoryResponse,
   type MaintenanceProposal,
   type MaintenanceRouteResponse,
@@ -20,8 +19,6 @@ function statusTone(value: string) {
   if (value === "unknown" || value === "unresolved") return "ko-tone-medium";
   return "ko-tone-poor";
 }
-
-function shortDigest(value: string) { return value ? `${value.slice(0, 18)}…` : "digest unavailable"; }
 
 export function MaintenanceQueuePage({ onNavigate }: { onNavigate: (route: Route) => void }) {
   const [inventory, setInventory] = useState<MaintenanceInventoryResponse | null>(null);
@@ -51,7 +48,7 @@ export function MaintenanceQueuePage({ onNavigate }: { onNavigate: (route: Route
 
   useEffect(() => { void scan(); }, [scan]);
 
-  const candidates = inventory?.candidates ?? [];
+  const candidates = useMemo(() => inventory?.candidates ?? [], [inventory?.candidates]);
   const selected = candidates.find((candidate) => candidate.path === selectedPath) ?? candidates[0];
   const selectedProposal = selected ? proposals[selected.path] : undefined;
   const artifactClasses = useMemo(() => ["all", ...Array.from(new Set(candidates.map((candidate) => candidate.artifact_class)))], [candidates]);
@@ -68,7 +65,10 @@ export function MaintenanceQueuePage({ onNavigate }: { onNavigate: (route: Route
     setProposalLoading(true); setError(undefined);
     try {
       const response = await proposeMaintenanceDispositions(filteredCandidates, "Identify evidence gaps and propose a reversible owner review disposition.");
-      setProposals((previous) => Object.fromEntries([...Object.entries(previous), ...response.proposals.map((proposal) => [proposal.source, proposal])]));
+      setProposals((previous) => ({
+        ...previous,
+        ...Object.fromEntries(response.proposals.map((proposal) => [proposal.source, proposal] as const)),
+      }));
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Proposal request failed"); }
     finally { setProposalLoading(false); }
   }

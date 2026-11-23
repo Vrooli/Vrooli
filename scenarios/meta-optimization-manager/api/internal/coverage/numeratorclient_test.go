@@ -256,11 +256,11 @@ func TestRecomputeGuide(t *testing.T) {
 		"explore":                      0.9,
 		"polish":                       0.4,
 		"architecture-scope":           0.8,
-		"screaming-architecture-audit": 0.7,
+		"architecture-lenses": 0.7,
 	}
 	cells := []spacedoc.Cell{
 		{ID: "G1", Owner: "`explore` + the Answer projection", Status: spacedoc.StatusInReach},
-		{ID: "G2", Owner: "`screaming-architecture-audit`, `architecture-scope`", Status: spacedoc.StatusInReach},
+		{ID: "G2", Owner: "`architecture-lenses`, `architecture-scope`", Status: spacedoc.StatusInReach},
 		{ID: "G3", Owner: "`polish`", Status: spacedoc.StatusNow},
 		{ID: "G4", Owner: "`explore`, `missing-skill`", Status: spacedoc.StatusNow},
 		{ID: "G5", Owner: "`missing-skill`", Status: spacedoc.StatusMissing},

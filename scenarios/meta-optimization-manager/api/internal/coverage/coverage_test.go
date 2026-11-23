@@ -51,7 +51,7 @@ func guideDef() *spacedoc.SpaceDefinition {
 		Source:                "scenarios/prompt-manager/docs/spaces/guide-space.md",
 		Cells: []spacedoc.Cell{
 			{ID: "G1", Question: "Explore", Owner: "explore", Status: spacedoc.StatusNow},
-			{ID: "G2", Question: "Audit", Owner: "screaming-architecture-audit, architecture-scope", Status: spacedoc.StatusNow},
+			{ID: "G2", Question: "Audit", Owner: "architecture-lenses, architecture-scope", Status: spacedoc.StatusNow},
 			{ID: "G31", Question: "Concurrency", Owner: "_(none)_", Status: spacedoc.StatusMissing},
 		},
 	}
@@ -474,8 +474,8 @@ func TestSkillCount(t *testing.T) {
 		"explore":                                              1,
 		"explore + the Answer projection":                      1,
 		"`explore` + the Answer projection":                    1,
-		"screaming-architecture-audit, architecture-scope":     2,
-		"`screaming-architecture-audit`, `architecture-scope`": 2,
+		"architecture-lenses, architecture-scope":     2,
+		"`architecture-lenses`, `architecture-scope`": 2,
 		"_(none)_": 0,
 		"":         0,
 		"react-coherence, react-stability, polish": 3,

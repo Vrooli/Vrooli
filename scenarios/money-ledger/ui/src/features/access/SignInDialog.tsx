@@ -6,7 +6,7 @@ import { PasswordInput } from "@vrooli/react-component-library/PasswordInput/2";
 
 import { signIn } from "../../api/access";
 import { Dialog } from "../../components/ui/dialog";
-import { Input } from "../../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";

@@ -60,15 +60,15 @@ Knowledge Observatory also provides real-time introspection and management of Vr
 
 - Preferred UI stack: React + Vite operator dashboard, Tailwind CSS with token-driven control-tower styling, React Query for polling/caching.
 - Preferred API stack: Go API server using Gorilla Mux.
-- Preferred data stores: Qdrant for vectors; PostgreSQL for metadata, metrics, and ingestion history.
-- Integration strategy: REST between UI and API; API to Qdrant and Postgres.
+- Preferred data stores: Qdrant for vectors; SQLite for metadata, metrics, and job/ingestion state. Consider PostgreSQL only if an owner-backed implementation plan is approved.
+- Integration strategy: REST between UI and API; API to Qdrant and SQLite.
 - Non-goals: Not a full data lake/ETL system, not a replacement for upstream embedding pipelines, not a general-purpose BI dashboard.
 
 ## 🤝 Dependencies & Launch Plan
 
 **Required Local Resources**:
 - Qdrant (primary semantic storage)
-- PostgreSQL (metadata, metrics, job state)
+- SQLite (metadata, metrics, job/ingestion state; embedded, no separate local resource)
 
 **Optional Resources**:
 - Ollama (enhanced embeddings and semantic enrichment)
@@ -122,7 +122,7 @@ Performance Targets:
 
 Quality Gates:
 - [ ] All P0 targets implemented and tested
-- [ ] Integration tests pass with Qdrant and Postgres resources
+- [ ] Integration tests pass with Qdrant and SQLite
 - [ ] Performance targets met under normal load
 - [x] Documentation complete (README, API docs, CLI help)
 - [x] Scenario callable via API/CLI from other agents

@@ -49,30 +49,13 @@ changed. Programs do not repeat recall or write ordinary task records.
 | A reviewed, authorized edit is ready | Reinspect each source with its preparation `expected_sha256`; if it differs, prepare again. Edit through the source owner's authorized workflow. No program here edits or retires files. **[S1]** |
 | Need to verify an edit | Run `knowledge-observatory.verify-change` with intended post-edit hashes and reviewed query/expected-source cases. **[S3]** |
 | The tool or workflow repeatedly fails | Use `knowledge-observatory-improve`; preserve the failure fingerprint and owner evidence. **[S1]** |
+| A broad candidate set needs triage | Use `knowledge-observatory.candidate-inventory`, inspect selected revisions and Git blame separately, then submit only `candidate-proposals` to the owner. **[S3]** |
 
-| A broad candidate set needs triage | Run the bounded inventory, inspect each selected revision, obtain Git blame as a separate authorship dimension, and send only proposal records to the owner. **[S3]** |
-
-### Program contracts
-
-Use the declared owner programs for bounded knowledge collection and change
-verification:
-
-| Program | Purpose | Required inputs |
-|---|---|---|
-| `knowledge-observatory.candidate-inventory` | Inventory bounded documentation candidates | `roots`, `max_files` |
-| `knowledge-observatory.candidate-proposals` | Produce owner-reviewed candidate dispositions | `candidate_ids`, `intent` |
-| `knowledge-observatory.collect-context` | Collect source-grounded context across documents | `query`, `roots` |
-| `knowledge-observatory.learning-read` | Read comparable knowledge-task outcomes | `operation`, `context_key` |
-| `knowledge-observatory.prepare-change` | Prepare a revision-guarded documentation change | `paths`, `intent`, `scan_root` |
-| `knowledge-observatory.setpoint-read` | Read the knowledge-observatory improvement board | optional window inputs |
-| `knowledge-observatory.verify-change` | Verify hashes, preserved evidence, and retrieval cases | `preparation_id`, intended revisions |
-
-Invoke one with `program-runtime library run <name> --input key=value`; source
-owners retain edit authority and accepted knowledge remains evidence-bound.
-
-Run programs through `program-runtime library run <name> --input key=value`.
-Program `ok` means its declared checks completed. It never proves that the user’s
-question has been answered or that all relevant knowledge was preserved.
+The required getting-started guide is the canonical program inventory and input
+reference. Run programs with `program-runtime library run <name> --input
+key=value`. A program's `ok` means its declared checks completed; it does not
+prove the task answer or complete preservation review. Source owners retain edit
+authority, and accepted knowledge remains evidence-bound.
 
 ### Assess the evidence
 
@@ -158,8 +141,3 @@ observational, not proof of causation.
 The learning-read program delegates to `lib.vrooli_memory.compare_outcomes`.
 It retains the six knowledge-task metric rows and one-cohort validity gate;
 missing measurements remain unknown.
-
-Memory setup: if the owner reports that `knowledge-observatory-usage` is not
-provisioned, create it once with `vrooli-memory scopes create
-knowledge-observatory-usage --label "Knowledge Observatory agent usage"`.
-Keep the declared default budgets; a read program never provisions or mutates a scope.

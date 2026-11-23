@@ -375,3 +375,49 @@ func TestStatus_ReportsIndexAvailability(t *testing.T) {
 		t.Errorf("status should reflect index availability: %+v", st)
 	}
 }
+
+func TestSearch_ProviderLossAndRecoveryKeepsSQLiteCorpusAvailable(t *testing.T) {
+	ctx := context.Background()
+	store, records := seedCorpus(t)
+	idx := &fakeIndex{
+		available: true,
+		points:    len(records),
+		ranking:   pkgRanking(rankPair{records[1], 0.93}),
+	}
+	svc := newSvc(t, store, idx)
+	svc.refreshReadiness(ctx)
+	req := SearchRequest{Query: "react", Mode: ModeAI}
+
+	initial, err := svc.Search(ctx, req)
+	if err != nil || initial.ModeUsed != ModeAI || len(initial.Results) != 1 || initial.Results[0].Record.Name != "react" {
+		t.Fatalf("initial semantic search = (%+v, %v)", initial, err)
+	}
+
+	idx.available = false
+	idx.queryErr = errors.New("configured semantic provider unavailable")
+	degraded, err := svc.Search(ctx, req)
+	if err != nil || degraded.ModeUsed != ModeText || len(degraded.Results) != 1 || degraded.Results[0].Record.Name != "react" {
+		t.Fatalf("provider-loss fallback = (%+v, %v)", degraded, err)
+	}
+	status, err := svc.Status(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status.IndexReady || status.Ollama || status.Qdrant || !status.Available || status.IndexedCount != len(records) {
+		t.Fatalf("provider-loss status should show text-ready corpus and unavailable semantic index: %+v", status)
+	}
+
+	idx.available = true
+	idx.queryErr = nil
+	recoveredStatus, err := svc.Status(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !recoveredStatus.IndexReady || !recoveredStatus.Ollama || !recoveredStatus.Qdrant || recoveredStatus.IndexedCount != len(records) {
+		t.Fatalf("provider recovery status = %+v", recoveredStatus)
+	}
+	recovered, err := svc.Search(ctx, req)
+	if err != nil || recovered.ModeUsed != ModeAI || len(recovered.Results) != 1 || recovered.Results[0].Record.Name != "react" {
+		t.Fatalf("same-query recovery = (%+v, %v)", recovered, err)
+	}
+}

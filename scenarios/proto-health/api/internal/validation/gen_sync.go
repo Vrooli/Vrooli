@@ -62,21 +62,19 @@ func (v *ManifestVerifier) CheckScenario(_ context.Context, scenario string) (Ge
 	}
 	toolchainDrift := !sameToolchain(toolchain, manifest.Toolchain)
 
-	if inputDigest != manifest.InputDigest {
-		actualOutputs, err := genmanifest.OutputDigests(opts, scenario)
-		if err != nil {
-			return GenSyncStatus{}, err
+	actualOutputs, err := genmanifest.OutputDigests(opts, scenario)
+	if err != nil {
+		return GenSyncStatus{}, err
+	}
+	for rel, want := range manifest.Outputs {
+		got, ok := actualOutputs[rel]
+		if !ok || got != want {
+			drift = append(drift, rel)
 		}
-		for rel, want := range manifest.Outputs {
-			got, ok := actualOutputs[rel]
-			if !ok || got != want {
-				drift = append(drift, rel)
-			}
-		}
-		for rel := range actualOutputs {
-			if _, ok := manifest.Outputs[rel]; !ok {
-				drift = append(drift, rel)
-			}
+	}
+	for rel := range actualOutputs {
+		if _, ok := manifest.Outputs[rel]; !ok {
+			drift = append(drift, rel)
 		}
 	}
 

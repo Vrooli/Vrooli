@@ -6,7 +6,7 @@ import { ExperienceSurface } from "../components/experience/ExperienceSurface";
 import { FormSection } from "@vrooli/react-component-library/FormSection/1";
 import { DirtyStateGuard } from "@vrooli/react-component-library/DirtyStateGuard/1";
 import { Button } from "@vrooli/react-component-library/Button/2";
-import { Input } from "../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { DataTable } from "@vrooli/react-component-library/DataTable/1";
 import { useSurfaceState } from "../hooks/useSurfaceState";
 import { selectors } from "../consts/selectors";

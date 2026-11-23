@@ -15,7 +15,7 @@
 // The proto wire types live one floor up and never import this package; the
 // handler is the only translation point (api-steer §7). See
 // docs/concepts/DOMAINS.md (convergence) and
-// docs/agent-system/REFERENCE_PATTERN_FITNESS.md (the four sub-lenses).
+// scenarios/meta-optimization-manager/docs/reference/REFERENCE_PATTERN_FITNESS.md (the four sub-lenses).
 package convergence
 
 import "time"

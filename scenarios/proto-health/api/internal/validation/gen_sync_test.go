@@ -36,26 +36,26 @@ func TestManifestVerifierReportsCleanAndDrift(t *testing.T) {
 			},
 		},
 		{
-			name: "output hash mismatch ignored when inputs are unchanged",
+			name: "output hash mismatch detected when inputs are unchanged",
 			mutate: func(t *testing.T, repoRoot string) {
 				path := filepath.Join(repoRoot, "packages", "proto", "gen", "go", "demo", "v1", "core", "core.pb.go")
 				require.NoError(t, os.WriteFile(path, []byte("changed"), 0o644))
 			},
 			assert: func(t *testing.T, status GenSyncStatus) {
-				require.True(t, status.InSync)
-				require.Empty(t, status.Drift)
+				require.False(t, status.InSync)
+				require.Contains(t, status.Drift, "packages/proto/gen/go/demo/v1/core/core.pb.go")
 			},
 		},
 		{
-			name: "orphan output ignored when inputs are unchanged",
+			name: "orphan output detected when inputs are unchanged",
 			mutate: func(t *testing.T, repoRoot string) {
 				path := filepath.Join(repoRoot, "packages", "proto", "gen", "python", "demo", "v1", "old", "py.typed")
 				require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
 				require.NoError(t, os.WriteFile(path, []byte{}, 0o644))
 			},
 			assert: func(t *testing.T, status GenSyncStatus) {
-				require.True(t, status.InSync)
-				require.Empty(t, status.Drift)
+				require.False(t, status.InSync)
+				require.Contains(t, status.Drift, "packages/proto/gen/python/demo/v1/old/py.typed")
 			},
 		},
 		{

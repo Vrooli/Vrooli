@@ -55,6 +55,7 @@ func TestLiveReindexAndHybridQuery(t *testing.T) {
 	idx, err := NewIndexer(Options{
 		Embedder:         embedder,
 		VectorStore:      store,
+		Embedding:        liveEmbeddingPolicy(t, ctx),
 		ScenariosRoot:    scenariosRoot,
 		MaxEmbedsPerTick: budget, // bounded so the proof is fast (resumable in prod)
 	})

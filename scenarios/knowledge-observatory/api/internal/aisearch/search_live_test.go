@@ -61,6 +61,7 @@ func TestLiveSearchServiceHybridRerank(t *testing.T) {
 	idx, err := NewIndexer(Options{
 		Embedder:         embedder,
 		VectorStore:      store,
+		Embedding:        liveEmbeddingPolicy(t, ctx),
 		ScenariosRoot:    scenariosRoot,
 		MaxEmbedsPerTick: budget,
 	})
@@ -118,6 +119,67 @@ func TestLiveSearchServiceHybridRerank(t *testing.T) {
 		if h.RelativePath == "" {
 			t.Errorf("result %d has empty relative_path (federation contract field)", i+1)
 		}
+	}
+
+	// Same-case architecture retrieval is part of the documentation truth
+	// contract: the canonical source must be surfaced by the production auto
+	// route after a live index reconciliation, not only by the text fallback.
+	// These cases mirror the credential-free Connect fixture and the operator
+	// tasks exercised by DR4.
+	semanticSvc := NewSearchService(ServiceOptions{
+		Embedder:        embedder,
+		VectorStore:     store,
+		Reconciler:      idx.Reconciler(),
+		RerankShortlist: pkg.DocCorpusTuning().RerankShortlist,
+	})
+	for _, tc := range []struct {
+		name         string
+		query        string
+		expectedPath string
+	}{
+		{name: "data ownership", query: "scenario-scoped SQLite database", expectedPath: "scenarios/knowledge-observatory/docs/concepts/DATA.md"},
+		{name: "legacy viewer route", query: "legacy", expectedPath: "scenarios/knowledge-observatory/docs/concepts/ARCHITECTURE.md"},
+		{name: "append API contract", query: "manifest-supported append log", expectedPath: "scenarios/knowledge-observatory/docs/reference/api-endpoints.md"},
+	} {
+		t.Run("same-case/"+tc.name, func(t *testing.T) {
+			got, err := semanticSvc.Search(ctx, pkg.SearchQuery{
+				Query: tc.query,
+				Scope: pkg.Scope{Kind: pkg.ScopePath, Value: "scenarios/knowledge-observatory/docs"},
+				Mode:  pkg.ModeAuto,
+				Limit: 5,
+			})
+			if err != nil {
+				t.Fatalf("Search(%q): %v", tc.query, err)
+			}
+			if got.Method == "text" {
+				t.Fatalf("Search(%q) degraded to text; expected the live vector route", tc.query)
+			}
+			for _, hit := range got.Results {
+				if hit.RelativePath == tc.expectedPath {
+					return
+				}
+			}
+			// On a top-five miss, inspect the same live query with a wider public
+			// page to distinguish candidate recall from ranking/page crowding.
+			// This is diagnostic only; the acceptance above remains the requested
+			// top-five contract.
+			wide, wideErr := semanticSvc.Search(ctx, pkg.SearchQuery{
+				Query: tc.query,
+				Scope: pkg.Scope{Kind: pkg.ScopePath, Value: "scenarios/knowledge-observatory/docs"},
+				Mode:  pkg.ModeAuto,
+				Limit: 100,
+			})
+			if wideErr != nil {
+				t.Logf("wide diagnostic query failed: %v", wideErr)
+			} else {
+				paths := make([]string, 0, len(wide.Results))
+				for _, hit := range wide.Results {
+					paths = append(paths, hit.RelativePath)
+				}
+				t.Logf("wide diagnostic paths (%d): %v", len(paths), paths)
+			}
+			t.Fatalf("Search(%q) method=%q did not surface canonical source %q in top five: %+v", tc.query, got.Method, tc.expectedPath, got.Results)
+		})
 	}
 
 	// Auto mode should also answer via a vector leg when infra is up.

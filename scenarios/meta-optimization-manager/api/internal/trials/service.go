@@ -14,6 +14,10 @@ import (
 // recentRunsLimit bounds the recent-runs list returned alongside the trend.
 const recentRunsLimit = 20
 
+// canceledRecordTimeout bounds the best-effort terminal write after a caller
+// has canceled the trial request.
+const canceledRecordTimeout = 5 * time.Second
+
 // idempotencyWindow bounds reuse only when the exact model identity is known
 // before dispatch. Agent Manager currently reports actual_model after execution,
 // so live service calls fail closed and do not reuse a model-unbound run.
@@ -163,7 +167,13 @@ func (s *service) runOne(ctx context.Context, t TrialTask) TrialRun {
 // keeps going so a partial suite still reports.
 func (s *service) record(ctx context.Context, run TrialRun) TrialRun {
 	if s.repo != nil {
-		if err := s.repo.RecordRun(ctx, run); err != nil {
+		recordCtx := ctx
+		if ctx.Err() != nil {
+			var cancel context.CancelFunc
+			recordCtx, cancel = context.WithTimeout(context.WithoutCancel(ctx), canceledRecordTimeout)
+			defer cancel()
+		}
+		if err := s.repo.RecordRun(recordCtx, run); err != nil {
 			run.Verdict = VerdictError
 		}
 	}

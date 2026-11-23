@@ -2,7 +2,8 @@
 
 ## Supported Tiers
 
-Knowledge Observatory is currently designed for the Tier 1 local Vrooli stack.
+Knowledge Observatory runs as a local Vrooli scenario. The scenario lifecycle
+owns process tracking, assigned ports, logs, and storage namespace resolution.
 
 ## Runtime Requirements
 
@@ -11,14 +12,16 @@ health checks remain under Vrooli control.
 
 ## Packaging
 
-API, CLI, and UI are packaged as scenario surfaces. Required resources are
-declared through scenario and project configuration.
+API, CLI, and UI are packaged as scenario surfaces. Qdrant is the external
+required resource; operational metadata uses scenario-scoped SQLite, so no
+PostgreSQL service or credentials are required. See the
+[integration contract](../concepts/INTEGRATIONS.md).
 
 ## Release Checklist
 
 - Run API and CLI tests.
 - Run `vrooli scenario test knowledge-observatory`.
-- Verify Qdrant and PostgreSQL connectivity.
+- Verify Qdrant connectivity and scenario database startup.
 - Verify documentation health for this scenario.
 
 ## Rollback

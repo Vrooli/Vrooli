@@ -4,8 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/vrooli/measures-go/manifestscan"
 )
 
 // writeFile writes p (relative to root) with contents, creating parent dirs.
@@ -80,73 +78,5 @@ func TestFilesystemSubstrateDetector_NoApiDir(t *testing.T) {
 	}
 	if len(got) != 0 {
 		t.Fatalf("want no detections, got %+v", got)
-	}
-}
-
-func TestClassify_UndeclaredSubstrateIsWarning(t *testing.T) {
-	// Fallback scenario, nothing declared, but a created_at table exists.
-	rep := Classify(Inputs{
-		Scenario: "demo",
-		Mode:     ModeFallback,
-		Detected: []DetectedEntity{{Name: "notes", Evidence: "table `notes` (created_at) in scenarios/demo/api/internal/notes/schema.sql"}},
-	})
-	if !rep.Passed {
-		t.Fatalf("undeclared substrate is WARNING, must not fail; findings=%+v", rep.Findings)
-	}
-	f := findingBy(rep, "measures.undeclared-substrate")
-	if f == nil || f.Severity != SeverityWarning {
-		t.Fatalf("want undeclared-substrate WARNING, findings=%+v", rep.Findings)
-	}
-}
-
-func TestClassify_SubstrateWaivedIsSilent(t *testing.T) {
-	rep := Classify(Inputs{
-		Scenario: "demo",
-		Mode:     ModeFallback,
-		Omitted:  []manifestscan.Omission{{Domain: "notes", Reason: "ephemeral scratch"}},
-		Detected: []DetectedEntity{{Name: "notes", Evidence: "table `notes` (created_at)"}},
-	})
-	if f := findingBy(rep, "measures.undeclared-substrate"); f != nil {
-		t.Fatalf("a waived entity must be silent, got %+v", f)
-	}
-	if f := findingBy(rep, "measures.stale-waiver"); f != nil {
-		t.Fatalf("a detected waived entity must not be stale, got %+v", f)
-	}
-	if d := domainBy(rep, "notes"); d == nil || d.Status != StatusWaived {
-		t.Fatalf("detected waived entity must be classified waived, got %+v", d)
-	}
-}
-
-func TestClassify_SubstrateCoveredIsSilent(t *testing.T) {
-	// Conformant, covered domain. The plural table maps to the singular domain.
-	rep := Classify(Inputs{
-		Scenario: "demo",
-		Mode:     ModeConformant,
-		Domains:  []DerivedDomain{{Name: "note", Stateful: true}},
-		Measures: []HarvestedMeasure{{Name: "note.count", Domain: "note", Tier: manifestscan.TierFull}},
-		Detected: []DetectedEntity{{Name: "notes", Evidence: "table `notes` (created_at)"}},
-	})
-	if !rep.Passed {
-		t.Fatalf("covered domain must pass; findings=%+v", rep.Findings)
-	}
-	if f := findingBy(rep, "measures.undeclared-substrate"); f != nil {
-		t.Fatalf("a covered entity (plural table -> singular domain) must be silent, got %+v", f)
-	}
-}
-
-func TestClassify_SubstrateMatchesUncoveredDomainNoDoubleFlag(t *testing.T) {
-	// The detected entity maps to a known (uncovered) domain: the uncovered-domain
-	// ERROR already covers it — no additional substrate WARNING.
-	rep := Classify(Inputs{
-		Scenario: "demo",
-		Mode:     ModeConformant,
-		Domains:  []DerivedDomain{{Name: "notes", Stateful: true}},
-		Detected: []DetectedEntity{{Name: "notes", Evidence: "table `notes` (created_at)"}},
-	})
-	if findingBy(rep, "measures.uncovered-domain") == nil {
-		t.Fatalf("want uncovered-domain ERROR, findings=%+v", rep.Findings)
-	}
-	if f := findingBy(rep, "measures.undeclared-substrate"); f != nil {
-		t.Fatalf("known domain must not also raise a substrate WARNING, got %+v", f)
 	}
 }

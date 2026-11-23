@@ -131,12 +131,9 @@ const literalSelectors = {
     healthPanel: "ko-explorer-health-panel",
   },
   viewer: {
-    pathInput: "ko-viewer-path-input",
-    loadButton: "ko-viewer-load-button",
     modeToggle: "ko-viewer-mode-toggle",
     codeView: "ko-viewer-code-view",
     previewView: "ko-viewer-preview-view",
-    resetPanel: "ko-viewer-reset-panel",
   },
 } as const satisfies LiteralSelectorTree;
 

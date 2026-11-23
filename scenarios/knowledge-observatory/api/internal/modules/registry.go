@@ -26,9 +26,8 @@ import (
 // AllSchemas returns the system schema first, then every domain in a stable
 // alphabetical order. Consumed by database.EnsureSchemas at boot.
 //
-// The system home runs first because cross-cutting objects (on PostgreSQL, the
-// schema namespace and the shared trigger function) must exist before any
-// domain references them.
+// The system home runs first so its intentionally empty provider stays at the
+// front of the stable registry. Domain-owned SQLite schemas follow.
 func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),

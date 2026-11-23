@@ -55,11 +55,12 @@ Config directory overrides:
 
 ## Optional Resources
 - **Ollama** is optional but improves embedding quality.
-- **Postgres** is required for metadata + job state.
+- **Scenario database** is required for domain metadata and job state; the current store set opens SQLite and resolves its path through the scenario storage service.
 - **Agent-manager** and **prompt-manager** should be running for deep documentation search.
 
 [CODE: api/internal/adapters/embedder/ollama.go]
-[CODE: api/internal/adapters/metadatastore/postgres.go]
+[CODE: api/server.go]
+[CODE: api/internal/metadata/sqlite.go]
 
 ## Docs Search Tuning (`.vrooli/search.json`)
 

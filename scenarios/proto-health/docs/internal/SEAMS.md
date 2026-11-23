@@ -180,15 +180,11 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `github.com/vrooli/api-core/databasetest::FakePinger` (`PingErr error`, atomic `Calls` counter). |
 | **Why it exists** | The `/health` handler probes the database. Without the seam, every handler test would either open the on-disk SQLite file (slow at scale, parallel-test contention) or skip the database branch entirely (untested degradation path). With `FakePinger{PingErr: errors.New("connection refused")}`, the unhealthy branch is one line. See `handlers/health/handler_test.go`. |
 
-### database.SchemaExecer (shared schema application)
+### `database.SchemaExecer`
 
-| | |
-|---|---|
-| **Seam** | Shared api-core schema execution surface |
-| **Interface** | `api-core/database::SchemaExecer` (`ExecContext(ctx, query, args...)`) consumed by `database.EnsureSchemas`. |
-| **Production wiring** | `main.go` and sqlite tests pass a real `*sql.DB`; the notes sqlite helper composes scenario-specific providers (`localdb.SystemSchema`, `notes.Schema`) before applying them. |
-| **Test fake** | `api-core/databasetest::FakeExecer` is the canonical fake when a test needs to assert schema application order or injected execution failures without opening a real database. |
-| **Why it exists** | Schema application is shared-package behavior, but each scenario owns its provider list. Keep scenario-specific schema composition local; use `databasetest.FakeExecer` only for tests of code that consumes the shared `SchemaExecer` interface directly. |
+Shared interface, behavior, and test fake: [api-core seam registry](../../../../packages/api-core/docs/internal/SEAMS.md).
+
+Production wiring: `main.go` and sqlite tests pass a real `*sql.DB`; the notes sqlite helper composes scenario-specific providers (`localdb.SystemSchema`, `notes.Schema`) before applying them.
 
 ### notes.Repository (notes persistence)
 

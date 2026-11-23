@@ -1,7 +1,9 @@
 package aisearch
 
 import (
+	"sort"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	pkg "github.com/vrooli/ai-go/search"
@@ -23,9 +25,11 @@ const (
 	// vector shortlist (the engine over-fetches because a PostFilter + Decorator
 	// run before the page is cut) so path-scope trimming and the authority boost
 	// have headroom, and the reranker (when enabled) reorders a real pool.
-	docShortlist = 60
+	docShortlist = 240
 	// prefetchLimit is the per-leg (dense/sparse) shortlist before RRF fusion.
-	prefetchLimit = 60
+	// Markdown produces many chunks per source, so the wider bounded candidate
+	// pool gives sparse exact-term matches room to survive fusion on large corpora.
+	prefetchLimit = 240
 	// snippetLen bounds the projected snippet length.
 	snippetLen = 280
 	// rerankCandidateLen bounds the contextual text handed to a reranker.
@@ -113,7 +117,7 @@ func NewSearchService(opts ServiceOptions) *pkg.Service {
 		Project:       docProject,
 		Filter:        func(q pkg.SearchQuery) *pkg.QueryFilter { return docFilter(q.Scope, q.Facets) },
 		PostFilter: func(hits []pkg.SearchResult, q pkg.SearchQuery) []pkg.SearchResult {
-			return filterPathScope(hits, q.Scope)
+			return collapseDocumentChunks(filterPathScope(hits, q.Scope))
 		},
 		Decorate:     applyAuthorityBoost,
 		RerankText:   rerankText,
@@ -189,20 +193,55 @@ func filterPathScope(hits []pkg.SearchResult, scope pkg.Scope) []pkg.SearchResul
 	if scope.Kind != pkg.ScopePath || strings.TrimSpace(scope.Value) == "" {
 		return hits
 	}
-	prefix := strings.TrimPrefix(strings.TrimSpace(scope.Value), "/")
+	prefix := strings.Trim(strings.TrimSpace(scope.Value), "/")
+	if prefix == "" {
+		return hits
+	}
 	out := hits[:0]
 	for _, h := range hits {
-		if strings.HasPrefix(h.RelativePath, prefix) || strings.HasPrefix(h.Path, prefix) {
+		if pathWithinScope(h.RelativePath, prefix) || pathWithinScope(h.Path, prefix) {
 			out = append(out, h)
 		}
 	}
 	return out
 }
 
-// applyAuthorityBoost nudges the fused score toward canonical, maintained docs.
-// It is purely facet-driven (maturity/canonicalFor/scope) so it ignores the
-// query the shared seam now passes.
-func applyAuthorityBoost(hits []pkg.SearchResult, _ pkg.SearchQuery) {
+func pathWithinScope(candidate, prefix string) bool {
+	candidate = strings.Trim(strings.TrimSpace(candidate), "/")
+	return candidate == prefix || strings.HasPrefix(candidate, prefix+"/")
+}
+
+// collapseDocumentChunks returns one ranked chunk per source document. The
+// index stores multiple points per Markdown file, but the public result is a
+// document search result; repeated chunks from one source must not consume the
+// caller's bounded page and hide other canonical documents. Keep the highest
+// scoring chunk and let the shared engine rerank the diverse document set.
+func collapseDocumentChunks(hits []pkg.SearchResult) []pkg.SearchResult {
+	sort.SliceStable(hits, func(i, j int) bool { return hits[i].Score > hits[j].Score })
+	seen := make(map[string]struct{}, len(hits))
+	out := hits[:0]
+	for _, hit := range hits {
+		key := strings.TrimSpace(hit.SourceID)
+		if key == "" {
+			key = strings.TrimSpace(hit.RelativePath)
+		}
+		if key == "" {
+			key = hit.ID
+		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, hit)
+	}
+	return out
+}
+
+// applyAuthorityBoost nudges the score toward canonical docs and exact lexical
+// matches. The lexical factor helps short exact-term queries retain sources
+// whose indexed chunks contain the requested term when semantic neighbors
+// otherwise dominate.
+func applyAuthorityBoost(hits []pkg.SearchResult, q pkg.SearchQuery) {
 	for i := range hits {
 		factor := 1.0
 		if maturity, _ := hits[i].Payload[MetaMaturity].(string); strings.EqualFold(maturity, "active") {
@@ -214,8 +253,36 @@ func applyAuthorityBoost(hits []pkg.SearchResult, _ pkg.SearchQuery) {
 		if scope, _ := hits[i].Payload[MetaScope].(string); scope == ScopeProject {
 			factor += authorityProjectBoost
 		}
+		factor *= 1 + 1.5*exactQueryTermCoverage(payloadString(hits[i].Payload, "body"), q.Query)
 		hits[i].Score *= factor
 	}
+}
+
+func exactQueryTermCoverage(body, query string) float64 {
+	terms := tokenizeSearchTerms(query)
+	if len(terms) == 0 {
+		return 0
+	}
+	bodyTerms := tokenizeSearchTerms(body)
+	matches := 0
+	for term := range terms {
+		if _, ok := bodyTerms[term]; ok {
+			matches++
+		}
+	}
+	return float64(matches) / float64(len(terms))
+}
+
+func tokenizeSearchTerms(value string) map[string]struct{} {
+	terms := make(map[string]struct{})
+	for _, term := range strings.FieldsFunc(strings.ToLower(value), func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
+	}) {
+		if len([]rune(term)) >= 3 {
+			terms[term] = struct{}{}
+		}
+	}
+	return terms
 }
 
 func hasAny(v any) bool {

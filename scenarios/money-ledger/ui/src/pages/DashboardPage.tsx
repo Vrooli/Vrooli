@@ -6,7 +6,7 @@ import { ExperienceSurface } from "../components/experience/ExperienceSurface";
 import { FormSection } from "@vrooli/react-component-library/FormSection/1";
 import { DirtyStateGuard } from "@vrooli/react-component-library/DirtyStateGuard/1";
 import { Button } from "@vrooli/react-component-library/Button/2";
-import { Input } from "../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { Select } from "@vrooli/react-component-library/Select/1";
 import { HealthCard } from "../features/health/HealthCard";
 import { selectors } from "../consts/selectors";

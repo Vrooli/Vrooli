@@ -12,7 +12,6 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
-	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliapptest"
 	accesspb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/access"
 )
@@ -116,11 +115,8 @@ func TestEveryWriteCommandPresentsTheOwnerSessionOnlyWhenAsked(t *testing.T) {
 	server := &recordingServer{received: map[string]string{}}
 	core := cliapptest.NewTestApp(t, server)
 	manifest := cliapptest.ReadManifest(t)
-	ledgerGroup, err := Register(core, manifest)
+	groups, err := RegisterGroups(core, manifest)
 	require.NoError(t, err)
-	ingestGroup, err := RegisterIngest(core, manifest)
-	require.NoError(t, err)
-	groups := []cliapp.SubcommandGroup{ledgerGroup, ingestGroup}
 
 	for group, commands := range writeCommands(t) {
 		for _, command := range commands {

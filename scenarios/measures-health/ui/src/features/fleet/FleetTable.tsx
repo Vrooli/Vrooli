@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, XCircle, RefreshCw } from "lucide-react";
 
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";

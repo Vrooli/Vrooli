@@ -175,6 +175,7 @@
     {
       "name": "knowledge",
       "description": "Bounded knowledge maintenance observations",
+      "flat": true,
       "commands": [
         {
           "name": "inventory",

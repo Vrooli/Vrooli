@@ -62,7 +62,7 @@ The three knowledge projections partition the **questions** (demand), not the **
 What the shared supply reveals is a **direction**. A capability matures **Guide → Validate → Answer**:
 
 1. **Guide (prose).** A concern starts as a skill: "here is how to reason about dependency hygiene."
-2. **Validate (programmatic).** It graduates into a test-genie phase backed by a scenario + a maturity ladder; the prose shrinks, the validator grows (`docs/agent-system/PROMOTION_LADDER.md`).
+2. **Validate (programmatic).** It graduates into a test-genie phase backed by a scenario + a maturity ladder; the prose shrinks, the validator grows (`docs/agent-system/SKILL_AUTHORING.md#promotion-ladder`).
 3. **Answer (derived).** Once a scenario *computes* the fact in order to check it, that same fact becomes derived-answerable: the scenario registers a provider that returns it with `basis=DERIVED`.
 
 So a concern's readiness is **not three independent numbers** — it is how far up this gradient it has climbed, plus the `basis` quality at each stage. The mature end-state is "present in all three modes, with Guide collapsed to a thin *pointer* because Validate + Answer now carry it." Two consequences this model is load-bearing for:
@@ -70,7 +70,7 @@ So a concern's readiness is **not three independent numbers** — it is how far 
 - **`focus` reasons per-concern across projections (a trajectory), not three ranked buckets.** A Guide-only-prose concern with no phase and no provider is *less* ready than a Validate+Answer-backed one whose Guide skill is a pointer — even though both might read "COVERED" in Guide alone.
 - **A graduated pointer-skill is the success state, not a Guide gap.** Measuring Guide coverage as "a *rich* skill exists" perversely penalizes the very delegation this loop exists to produce. The Guide denominator counts a thin pointer-to-a-validator as `COVERED` (mature), never `MISSING` — see `prompt-manager/docs/spaces/guide-space.md`.
 
-This is the meta-team's own prose→programmatic loop (`docs/agent-system/LAYERS.md`, `PROMOTION_LADDER.md`) re-expressed as a coverage gradient: the three knowledge projections are the same capability stack observed at three stages of maturity. Act sits alongside that stack rather than on it.
+This is the meta-team's own prose→programmatic loop (`docs/agent-system/README.md#where-does-this-paragraph-go`, `SKILL_AUTHORING.md`) re-expressed as a coverage gradient: the three knowledge projections are the same capability stack observed at three stages of maturity. Act sits alongside that stack rather than on it.
 
 ## Denominator, Numerator, Confidence
 
@@ -222,4 +222,4 @@ The axes are **orthogonal**: an answer can be `VALIDATED`+`INSUFFICIENT` (accura
 - [`CONDITION-MODEL.md`](CONDITION-MODEL.md) — the Condition axis: whether the supply counted here still works.
 - The four space docs: `search-hub/docs/spaces/answer-space.md`, `test-genie/docs/spaces/validate-space.md`, `prompt-manager/docs/spaces/guide-space.md`, `program-runtime/docs/spaces/act-space.md`.
 - [DOMAINS.md](DOMAINS.md), [ARCHITECTURE.md](ARCHITECTURE.md).
-- Convergence doctrine: `docs/agent-system/TEMPLATE_CONVERGENCE_LOOP.md`, `REFERENCE_PATTERN_FITNESS.md`, `REFERENCE_SCENARIOS.md`.
+- Convergence doctrine: `scenarios/meta-optimization-manager/docs/reference/TEMPLATE_CONVERGENCE_LOOP.md`, `REFERENCE_PATTERN_FITNESS.md`, `REFERENCE_SCENARIOS.md`.

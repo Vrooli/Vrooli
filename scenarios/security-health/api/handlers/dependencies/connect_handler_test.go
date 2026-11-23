@@ -2,6 +2,7 @@ package dependencies
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log"
 	"net/http/httptest"
@@ -10,8 +11,10 @@ import (
 	"connectrpc.com/connect"
 
 	depdomain "security-health/internal/dependencies"
+	"security-health/internal/dependencies/aisearch"
 	apiserver "security-health/internal/server"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"github.com/vrooli/api-core/schedule"
 
 	dependenciesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/security-health/v1/dependencies"
@@ -26,6 +29,71 @@ type stubSearcher struct {
 	vulns      depdomain.VulnerabilityList
 	vuln       depdomain.VulnerabilityRecord
 	found      bool
+}
+
+type recoverySemanticIndex struct {
+	available bool
+	queryErr  error
+}
+
+func (i *recoverySemanticIndex) EnsureCollection(context.Context) error { return nil }
+func (i *recoverySemanticIndex) Sync(context.Context, []aisearch.Item) (int, int, error) {
+	return 0, 0, nil
+}
+func (i *recoverySemanticIndex) Query(context.Context, string, int) ([]aisearch.KeyScore, error) {
+	if i.queryErr != nil {
+		return nil, i.queryErr
+	}
+	return []aisearch.KeyScore{{Key: "npm|react|18.0.0", Score: .93}}, nil
+}
+func (i *recoverySemanticIndex) CountPoints(context.Context) (int, error) { return 1, nil }
+func (i *recoverySemanticIndex) Available(context.Context) (bool, bool) {
+	return i.available, i.available
+}
+
+func TestSearchRoute_ProviderLossKeepsCorpusAndRecoversSameQuery(t *testing.T) {
+	ctx := context.Background()
+	storeDB := db.NewSQLite(t)
+	if _, err := storeDB.ExecContext(ctx, depdomain.Schema()); err != nil {
+		t.Fatal(err)
+	}
+	store := depdomain.NewStore(storeDB)
+	if err := store.Apply(ctx, "", []depdomain.DependencyRecord{{
+		Scenario: "alpha", Ecosystem: depdomain.EcosystemNPM, Name: "react", Version: "18.0.0", SourceFile: "ui/pnpm-lock.yaml",
+	}}, "2026-11-21T00:00:00Z"); err != nil {
+		t.Fatal(err)
+	}
+	index := &recoverySemanticIndex{available: true}
+	service := depdomain.NewService(depdomain.Deps{Store: store, RepoRoot: t.TempDir(), Clock: schedule.System(), Index: index})
+	logger := log.New(io.Discard, "", 0)
+	router := apiserver.New(apiserver.Deps{Clock: schedule.System(), Logger: logger}, Module(logger, service))
+	httpServer := httptest.NewServer(router.Handler())
+	t.Cleanup(httpServer.Close)
+	client := dependenciesconnect.NewDependencyServiceClient(httpServer.Client(), httpServer.URL)
+	req := connect.NewRequest(&dependenciesv1.SearchRequest{Query: "react", Mode: dependenciesv1.Mode_MODE_AI})
+
+	initial, err := client.Search(ctx, req)
+	if err != nil || initial.Msg.GetModeUsed() != dependenciesv1.Mode_MODE_AI || len(initial.Msg.GetResults()) != 1 {
+		t.Fatalf("initial route search = (%+v, %v)", initial, err)
+	}
+
+	index.available = false
+	index.queryErr = errors.New("semantic backend unavailable")
+	degraded, err := client.Search(ctx, req)
+	if err != nil || degraded.Msg.GetModeUsed() != dependenciesv1.Mode_MODE_TEXT || len(degraded.Msg.GetResults()) != 1 || degraded.Msg.GetResults()[0].GetRecord().GetName() != "react" {
+		t.Fatalf("provider-loss route search = (%+v, %v)", degraded, err)
+	}
+	status, err := client.Status(ctx, connect.NewRequest(&dependenciesv1.StatusRequest{}))
+	if err != nil || status.Msg.GetIndexReady() || !status.Msg.GetAvailable() || status.Msg.GetIndexedCount() != 1 {
+		t.Fatalf("provider-loss route status = (%+v, %v)", status, err)
+	}
+
+	index.available = true
+	index.queryErr = nil
+	recovered, err := client.Search(ctx, req)
+	if err != nil || recovered.Msg.GetModeUsed() != dependenciesv1.Mode_MODE_AI || len(recovered.Msg.GetResults()) != 1 || recovered.Msg.GetResults()[0].GetRecord().GetName() != "react" {
+		t.Fatalf("same-query route recovery = (%+v, %v)", recovered, err)
+	}
 }
 
 func (s *stubSearcher) Search(_ context.Context, req depdomain.SearchRequest) (depdomain.SearchResponse, error) {

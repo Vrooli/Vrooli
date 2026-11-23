@@ -19,7 +19,7 @@ func commitEligibleFiles(ctx context.Context, cmd Commander, scenarioDir string)
 	if err == nil && exitCode == 0 {
 		var files []string
 		for _, raw := range strings.Split(string(stdout), "\x00") {
-			rel := filepath.Clean(strings.TrimSpace(raw))
+			rel := filepath.Clean(raw)
 			if rel == "." || rel == "" || filepath.IsAbs(rel) || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 				continue
 			}

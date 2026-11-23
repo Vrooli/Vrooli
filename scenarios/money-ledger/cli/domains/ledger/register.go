@@ -8,22 +8,19 @@ import (
 
 const GroupName = "ledger"
 
-func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
+// RegisterGroups builds both command groups with one handler/client set. The
+// ledger and ingest surfaces share the same scenario API connection.
+func RegisterGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	g, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, ledgerBindings(h))
+	ledgerGroup, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, ledgerBindings(h))
 	if err != nil {
-		return cliapp.SubcommandGroup{}, fmt.Errorf("ledger: load from manifest: %w", err)
+		return nil, fmt.Errorf("ledger: load from manifest: %w", err)
 	}
-	return g, nil
-}
-
-func RegisterIngest(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
-	h := newHandlers(core)
-	g, err := cliapp.LoadFromManifestPrimitives(manifest, "ingest", ingestBindings(h))
+	ingestGroup, err := cliapp.LoadFromManifestPrimitives(manifest, "ingest", ingestBindings(h))
 	if err != nil {
-		return cliapp.SubcommandGroup{}, fmt.Errorf("ingest: load from manifest: %w", err)
+		return nil, fmt.Errorf("ingest: load from manifest: %w", err)
 	}
-	return g, nil
+	return []cliapp.SubcommandGroup{ledgerGroup, ingestGroup}, nil
 }
 
 func ledgerBindings(h *handlers) map[string]cliapp.PrimitiveHandler {

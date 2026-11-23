@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -54,74 +53,6 @@ func TestRequireEnv(t *testing.T) {
 	}
 }
 
-// TestResolveDatabaseURL tests database URL resolution logic [REQ:KO-API-002]
-func TestResolveDatabaseURL(t *testing.T) {
-	tests := []struct {
-		name        string
-		setupEnv    func()
-		cleanupEnv  func()
-		wantContain string
-		wantErr     bool
-	}{
-		{
-			name: "uses DATABASE_URL when set",
-			setupEnv: func() {
-				os.Setenv("DATABASE_URL", "postgresql://user:pass@localhost/testdb")
-			},
-			cleanupEnv: func() {
-				os.Unsetenv("DATABASE_URL")
-			},
-			wantContain: "postgresql://user:pass@localhost/testdb",
-			wantErr:     false,
-		},
-		{
-			name: "constructs URL from individual env vars",
-			setupEnv: func() {
-				os.Unsetenv("DATABASE_URL")
-				os.Setenv("POSTGRES_USER", "testuser")
-				os.Setenv("POSTGRES_PASSWORD", "testpass")
-				os.Setenv("POSTGRES_HOST", "testhost")
-				os.Setenv("POSTGRES_PORT", "5432")
-				os.Setenv("POSTGRES_DB", "testdb")
-			},
-			cleanupEnv: func() {
-				os.Unsetenv("POSTGRES_USER")
-				os.Unsetenv("POSTGRES_PASSWORD")
-				os.Unsetenv("POSTGRES_HOST")
-				os.Unsetenv("POSTGRES_PORT")
-				os.Unsetenv("POSTGRES_DB")
-			},
-			wantContain: "testuser",
-			wantErr:     false,
-		},
-		{
-			name: "returns error when no DATABASE_URL and missing POSTGRES_USER",
-			setupEnv: func() {
-				os.Unsetenv("DATABASE_URL")
-				os.Unsetenv("POSTGRES_USER")
-			},
-			cleanupEnv: func() {},
-			wantErr:    true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tt.setupEnv()
-			defer tt.cleanupEnv()
-
-			got, err := resolveDatabaseURL()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("resolveDatabaseURL() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !tt.wantErr && !strings.Contains(got, tt.wantContain) {
-				t.Errorf("resolveDatabaseURL() = %v, want to contain %v", got, tt.wantContain)
-			}
-		})
-	}
-}
-
 // TestHandleHealth tests the infrastructure health endpoint [REQ:KO-API-002]
 func TestHandleHealth(t *testing.T) {
 	req := httptest.NewRequest("GET", "/health", nil)
@@ -130,8 +61,7 @@ func TestHandleHealth(t *testing.T) {
 	// Create a mock server with minimal setup
 	srv := &Server{
 		config: &Config{
-			Port:        "8080",
-			DatabaseURL: "postgres://test:test@localhost:5432/test",
+			Port: "8080",
 		},
 		db: nil, // DB will be nil, which will cause unhealthy status
 	}
@@ -216,8 +146,7 @@ func TestLog(t *testing.T) {
 func TestSetupRoutes(t *testing.T) {
 	srv := &Server{
 		config: &Config{
-			Port:        "8080",
-			DatabaseURL: "postgres://test:test@localhost:5432/test",
+			Port: "8080",
 		},
 		router: mux.NewRouter(),
 	}
@@ -244,8 +173,7 @@ func TestHealthResponse(t *testing.T) {
 
 	srv := &Server{
 		config: &Config{
-			Port:        "8080",
-			DatabaseURL: "postgres://test:test@localhost:5432/test",
+			Port: "8080",
 		},
 		db: nil,
 	}
@@ -279,8 +207,7 @@ func TestHealthResponseTiming(t *testing.T) {
 
 	srv := &Server{
 		config: &Config{
-			Port:        "8080",
-			DatabaseURL: "postgres://test:test@localhost:5432/test",
+			Port: "8080",
 		},
 		db: nil,
 	}

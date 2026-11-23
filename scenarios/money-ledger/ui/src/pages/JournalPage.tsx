@@ -9,7 +9,7 @@ import { ExperienceSurface } from "../components/experience/ExperienceSurface";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Dialog } from "../components/ui/dialog";
-import { Input } from "../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { Select } from "@vrooli/react-component-library/Select/1";
 import { Textarea } from "@vrooli/react-component-library/Textarea/1";
 import { DataTable } from "@vrooli/react-component-library/DataTable/1";

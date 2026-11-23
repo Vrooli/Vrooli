@@ -178,11 +178,6 @@ export interface DocUnifiedSearchResponse {
   took_ms: number;
 }
 
-export interface DocResetConfig {
-  max_age_days?: number;
-  keep_min_entries?: number;
-}
-
 export interface DocContentResponse {
   path: string;
   content: string;
@@ -190,25 +185,6 @@ export interface DocContentResponse {
   doc_type?: string;
   size: number;
   modified_at: string;
-  can_reset: boolean;
-  reset_config?: DocResetConfig;
-}
-
-export interface DocResetRequest {
-  path: string;
-  max_age_days?: number;
-  keep_min_entries?: number;
-  preview_only?: boolean;
-}
-
-export interface DocResetResponse {
-  path: string;
-  doc_type: string;
-  removed_count: number;
-  kept_count: number;
-  removed_entries?: string[];
-  new_content?: string;
-  preview_only: boolean;
 }
 
 export interface DeepSearchRequest {
@@ -539,8 +515,6 @@ export async function fetchDocContent(path: string, format?: string): Promise<Do
     doc_type: toNonEmptyString(data.doc_type),
     size: toFiniteNumber(data.size) ?? 0,
     modified_at: toNonEmptyString(data.modified_at) ?? "",
-    can_reset: toBoolean(data.can_reset) ?? false,
-    reset_config: normalizeResetConfig(data.reset_config),
   };
 }
 
@@ -669,45 +643,6 @@ export async function autoFixDocs(scenarioName: string, dryRun?: boolean): Promi
   }
   const data = (await res.json().catch(() => null)) as unknown;
   return normalizeDocAutoFixResponse(data);
-}
-
-export async function resetDocContent(request: DocResetRequest): Promise<DocResetResponse> {
-  const trimmed = request.path.trim();
-  if (!trimmed) {
-    throw new Error("Document path is required");
-  }
-  const url = buildApiUrl("/api/v1/docs/reset", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      path: trimmed,
-      max_age_days: request.max_age_days,
-      keep_min_entries: request.keep_min_entries,
-      preview_only: request.preview_only,
-    }),
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    const errorPayload = (await res.json().catch(() => null)) as unknown;
-    throw new Error(parseErrorMessage(errorPayload, `Doc reset failed: ${res.status}`));
-  }
-
-  const data = (await res.json().catch(() => null)) as unknown;
-  if (!isRecord(data)) {
-    throw new Error("Invalid doc reset response");
-  }
-
-  return {
-    path: toNonEmptyString(data.path) ?? trimmed,
-    doc_type: toNonEmptyString(data.doc_type) ?? "",
-    removed_count: toFiniteNumber(data.removed_count) ?? 0,
-    kept_count: toFiniteNumber(data.kept_count) ?? 0,
-    removed_entries: normalizeStringList(data.removed_entries),
-    new_content: toNonEmptyString(data.new_content),
-    preview_only: toBoolean(data.preview_only) ?? false,
-  };
 }
 
 const normalizeDeepSearchJob = (value: unknown): DeepSearchJob => {
@@ -859,22 +794,6 @@ const normalizeUnifiedResults = (value: unknown): DocUnifiedSearchResult[] => {
   });
 };
 
-const normalizeWarnings = (value: unknown): DocWarning[] => {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((item) => normalizeWarning(item) ?? []);
-};
-
-const normalizeResetConfig = (value: unknown): DocResetConfig | undefined => {
-  if (!isRecord(value)) return undefined;
-  const maxAge = toFiniteNumber(value.max_age_days);
-  const keepMin = toFiniteNumber(value.keep_min_entries);
-  if (maxAge === undefined && keepMin === undefined) return undefined;
-  return {
-    max_age_days: maxAge,
-    keep_min_entries: keepMin,
-  };
-};
-
 const normalizeWarning = (value: unknown): DocWarning | undefined => {
   if (!isRecord(value)) return undefined;
   const type = toNonEmptyString(value.type);
@@ -887,26 +806,6 @@ const normalizeWarning = (value: unknown): DocWarning | undefined => {
     severity,
     expected_path: toNonEmptyString(value.expected_path),
   };
-};
-
-const normalizeMisplacedDocs = (value: unknown): MisplacedDoc[] => {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((item) => {
-    if (!isRecord(item)) return [];
-    const actual = toNonEmptyString(item.actual_path);
-    const expected = toNonEmptyString(item.expected_path);
-    const docType = toNonEmptyString(item.doc_type);
-    const severity = toNonEmptyString(item.severity);
-    if (!actual || !expected || !docType || !severity) return [];
-    return [
-      {
-        actual_path: actual,
-        expected_path: expected,
-        doc_type: docType,
-        severity,
-      },
-    ];
-  });
 };
 
 const normalizeStringList = (value: unknown): string[] => {

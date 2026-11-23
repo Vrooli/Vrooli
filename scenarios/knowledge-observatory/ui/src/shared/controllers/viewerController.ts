@@ -1,23 +1,13 @@
 // DOC: docs/reference/api-endpoints.md#documentation-viewer
 import type { DocContentResponse } from "../services/documentationApi";
 
-export type DocResetDefaults = {
-  maxAgeDays: number;
-  keepMinEntries: number;
-};
+export type DocViewMode = "code" | "preview" | "split";
 
 export type DocMetaViewModel = {
   path: string;
   docTypeLabel: string;
   sizeLabel: string;
   modifiedLabel: string;
-  canReset: boolean;
-  resetDefaults: DocResetDefaults;
-};
-
-const DEFAULT_RESET: DocResetDefaults = {
-  maxAgeDays: 30,
-  keepMinEntries: 3,
 };
 
 const formatBytes = (value: number) => {
@@ -41,16 +31,10 @@ const formatDateTime = (value?: string) => {
 
 export function buildDocMetaViewModel(content?: DocContentResponse | null): DocMetaViewModel | null {
   if (!content) return null;
-  const resetConfig = content.reset_config ?? {};
   return {
     path: content.path,
     docTypeLabel: content.doc_type ? content.doc_type : "unclassified",
     sizeLabel: formatBytes(content.size),
     modifiedLabel: formatDateTime(content.modified_at),
-    canReset: content.can_reset,
-    resetDefaults: {
-      maxAgeDays: resetConfig.max_age_days ?? DEFAULT_RESET.maxAgeDays,
-      keepMinEntries: resetConfig.keep_min_entries ?? DEFAULT_RESET.keepMinEntries,
-    },
   };
 }

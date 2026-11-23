@@ -622,6 +622,21 @@ func TestCollectMarkdownFiles_SkipsBuildDirs(t *testing.T) {
 	}
 }
 
+func TestCollectMarkdownFiles_SkipsVrooliRunState(t *testing.T) {
+	dir := t.TempDir()
+	writeTestFile(t, filepath.Join(dir, "docs/source.md"), "# Source docs\n")
+	writeTestFile(t, filepath.Join(dir, ".vrooli/template-validation/run-1/docs/copy.md"), "# Generated validation copy\n")
+	writeTestFile(t, filepath.Join(dir, ".vrooli/evidence/run-1/README.md"), "# Retained evidence\n")
+
+	files, err := collectMarkdownFiles(dir, newCfg())
+	if err != nil {
+		t.Fatalf("collect markdown files: %v", err)
+	}
+	if len(files) != 1 || filepath.Base(files[0]) != "source.md" {
+		t.Fatalf("files = %v, want only source documentation", files)
+	}
+}
+
 func TestShouldExcludePath_GlobMatching(t *testing.T) {
 	cfg := newCfg()
 	cfg.scanExcludeGlobs = []string{"archived/**"}

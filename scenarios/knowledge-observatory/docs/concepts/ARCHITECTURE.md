@@ -1,6 +1,6 @@
 # Architecture Overview
 
-Knowledge Observatory is the control-plane for Vrooli's semantic memory. It ingests knowledge into Qdrant, surfaces search/graph/health views, and persists metadata in Postgres.
+Knowledge Observatory is the control-plane for Vrooli's semantic memory. It indexes scenario documentation, surfaces search/graph/health views, and maintains collection and operational metadata.
 
 ## System Overview
 
@@ -18,14 +18,14 @@ Knowledge Observatory is the control-plane for Vrooli's semantic memory. It inge
 ┌──────────────────────────────▼──────────────────────────────────┐
 │                        Go REST API                              │
 │                                                                 │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐           │
-│  │  Ingest  │ │  Search  │ │  Graph   │ │ Metrics  │           │
-│  │ Service  │ │ Service  │ │ Service  │ │Materialzr│           │
-│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘           │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐       │
+│  │  Search  │ │  Graph   │ │ Metrics  │ │ Collection   │       │
+│  │ Service  │ │ Service  │ │Materialzr│ │ Maintenance  │       │
+│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────────┘       │
 │       │             │            │             │                 │
 │  ┌────▼─────┐ ┌─────▼────┐ ┌────▼─────┐ ┌────▼─────┐          │
-│  │ DocHealth│ │ DocSearch│ │DeepSearch│ │DocHealing│           │
-│  │ Service  │ │ Service  │ │ Service  │ │ Service  │           │
+│  │ DocHealth│ │ DocSearch│ │ Explorer │ │DeepSearch│           │
+│  │ Service  │ │ Service  │ │ + Viewer │ │ + Healing│           │
 │  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘           │
 │       │             │            │             │                 │
 │  ┌────▼─────────────▼────────────▼─────────────▼──────────────┐ │
@@ -35,13 +35,13 @@ Knowledge Observatory is the control-plane for Vrooli's semantic memory. It inge
 └─────────┼──────────┼───────────────┼─────────────┼──────────────┘
           │          │               │             │
     ┌─────▼───┐ ┌───▼────┐  ┌──────▼──────┐  ┌───▼──────────────┐
-    │ Qdrant  │ │ Ollama │  │ PostgreSQL  │  │ agent-manager    │
-    │(vectors)│ │(embed) │  │ (metadata)  │  │ prompt-manager   │
+    │ Qdrant  │ │ Ollama │  │ SQLite      │  │ agent-manager    │
+    │(vectors)│ │(embed) │  │ (state)     │  │ prompt-manager   │
     └─────────┘ └────────┘  └─────────────┘  └──────────────────┘
 ```
 
 ### System Surfaces
-- **API**: Canonical write path + query surface. [CODE: api/server.go]
+- **API**: REST domain routes plus typed Connect services for revisioned source workflows and documentation health. [CODE: api/server.go] [CODE: api/knowledge_base.go]
 - **UI**: Operator dashboard for search, graph, metrics. [CODE: ui/src/main.tsx]
 - **CLI**: Thin wrapper over the API for terminal workflows. [CODE: cli/app.go]
 
@@ -49,22 +49,25 @@ Knowledge Observatory is the control-plane for Vrooli's semantic memory. It inge
 
 | Domain | Surface(s) | Primary Archetype | Secondary Traits | Source Paths | Notes |
 |---|---|---|---|---|---|
-| ingest | API, CLI | Orchestration | Integration/client, temporal workflow | `path:api/ingest.go`, `path:api/document_ingest.go`, `path:api/internal/services/ingest/`, `path:api/internal/services/ingestjobs/` | Canonical write path for records/documents and async ingest jobs. |
-| search | API, UI, CLI | Reporting / query | Integration/client | `path:api/search.go`, `path:api/docs_search.go`, `path:api/internal/services/search/`, `path:api/internal/services/docsearch/` | File/text/semantic/unified search over scenario docs and Qdrant memory. |
-| deep-search | API, UI | Orchestration | Integration/client, temporal workflow | `path:api/docs_deep_search.go`, `path:api/internal/services/deepsearch/`, `path:api/internal/adapters/agentmanager/` | Agent-backed search jobs with polling and persisted job state. |
-| graph | API, UI | Reporting / query | Integration/client | `path:api/graph.go`, `path:api/internal/services/graph/` | Materializes concept graph data from vector similarity. |
-| metrics | API, UI | Reporting / query | Scheduled/background work | `path:api/metrics.go` | Samples vector collections and persists quality metrics. |
-| documentation-health | API (Connect-RPC), CLI | Policy / rules | Configuration/settings | `path:api/handlers/dochealth/`, `path:api/internal/doccontract/`, `path:api/internal/doctemplates/`, `path:api/internal/docvalidation/`, `path:api/internal/doclogs/`, `path:api/internal/services/dochealth/` | Single source of truth for scenario documentation health. The `KnowledgeObservatoryService.DocHealth` RPC runs structural placement + markdown/mermaid/links/paths + bidirectional refs + command snippets + manifest coverage in one call. Explicit `cli:` marked references and conservative Vrooli-owned fenced shell snippets are delegated to CLI Health for command validation; Knowledge Observatory owns docs policy and reporting, not command catalogs. All callers (knowledge-observatory CLI, test-genie docs phase, CI hooks) consume this surface — no inline validators live elsewhere. Reset is a separate REST endpoint (`api/docs_reset.go`) until its own RPC migration. |
-| documentation-healing | API, UI | Orchestration | Integration/client, approvals | `path:api/docs_heal.go`, `path:api/internal/services/dochealing/`, `path:api/internal/adapters/dochealingstore/` | Coordinates agent-backed documentation fixes and approval workflow. |
+| collection-maintenance | API, UI | Service | Mutation, reporting | `path:scenarios/knowledge-observatory/api/collections.go`, `path:scenarios/knowledge-observatory/api/knowledge_maintenance.go`, `path:scenarios/knowledge-observatory/api/internal/ingest`, `path:scenarios/knowledge-observatory/ui/src/surfaces/metrics` | Inspects collection records and provenance, diagnoses collection health, and performs bounded stale-chunk/deduplication maintenance. Qdrant owns vectors; scenario SQLite keeps ingest provenance. |
+| search | API, UI, CLI | Reporting / query | Integration/client | `path:scenarios/knowledge-observatory/api/search.go`, `path:scenarios/knowledge-observatory/api/search_surface.go`, `path:scenarios/knowledge-observatory/api/docs_search.go`, `path:scenarios/knowledge-observatory/api/internal/aisearch`, `path:scenarios/knowledge-observatory/api/internal/services/docsearch`, `path:scenarios/knowledge-observatory/ui/src/surfaces/search` | File/text/semantic/unified search over indexed scenario docs and knowledge sources. Search reads these stores; it does not own their durable contents. |
+| documentation-indexing | API, CLI | Orchestration | Scheduled/background, integration/client | `path:scenarios/knowledge-observatory/api/search_surface.go`, `path:scenarios/knowledge-observatory/api/internal/aisearch`, `path:scenarios/knowledge-observatory/cli/domains/knowledge/docsearch_cmd.go`, `path:scenarios/knowledge-observatory/.vrooli/search.json` | Reconciles the scenario documentation corpus into the `vrooli-docs` collection; source scenarios remain owners of the indexed documents. |
+| knowledge-base | API (Connect-RPC), CLI | Reporting / query | Policy / rules | `path:scenarios/knowledge-observatory/api/knowledge_base.go`, `path:scenarios/knowledge-observatory/api/internal/knowledgebase` | Read-only source search, revision-pinned inspection, and bounded duplicate/backlink review. Review reports explicit scan gaps; it does not establish repository-wide closure or authorize edits. See the [API contract](../reference/api-endpoints.md#knowledge-base-connect-service) and [repository proto schema](../../../../packages/proto/schemas/knowledge-observatory/v1/knowledge_base.proto). |
+| deep-search | API, UI | Orchestration | Integration/client, temporal workflow | `path:scenarios/knowledge-observatory/api/docs_deep_search.go`, `path:scenarios/knowledge-observatory/api/internal/services/deepsearch`, `path:scenarios/knowledge-observatory/api/internal/deepsearch`, `path:scenarios/knowledge-observatory/api/internal/adapters/agentmanager` | Agent-backed search jobs with polling; job state is persisted in scenario SQLite. |
+| graph | API, UI | Reporting / query | Integration/client | `path:scenarios/knowledge-observatory/api/graph.go`, `path:scenarios/knowledge-observatory/api/internal/services/graph` | Materializes concept graph data from vector similarity. |
+| metrics | API, UI | Reporting / query | Scheduled/background work | `path:scenarios/knowledge-observatory/api/metrics.go`, `path:scenarios/knowledge-observatory/api/internal/quality` | Samples Qdrant collections and persists quality metrics and collection rollups in scenario SQLite. |
+| documentation-health | API (Connect-RPC), CLI | Policy / rules | Configuration/settings | `path:scenarios/knowledge-observatory/api/handlers/dochealth`, `path:scenarios/knowledge-observatory/api/internal/doccontract`, `path:scenarios/knowledge-observatory/api/internal/doctemplates`, `path:scenarios/knowledge-observatory/api/internal/docvalidation`, `path:scenarios/knowledge-observatory/api/internal/doclogs`, `path:scenarios/knowledge-observatory/api/internal/services/dochealth` | Single source of truth for scenario documentation health. The `KnowledgeObservatoryService.DocHealth` RPC runs structural placement + markdown/mermaid/links/paths + bidirectional refs + command snippets + manifest coverage in one call. Explicit `cli:` marked references and conservative Vrooli-owned fenced shell snippets are delegated to CLI Health for command validation; Knowledge Observatory owns docs policy and reporting, not command catalogs. All callers (knowledge-observatory CLI, test-genie docs phase, CI hooks) consume this surface — no inline validators live elsewhere. Reset is a separate REST endpoint (`api/docs_reset.go`) until its own RPC migration. |
+| documentation-operations | API, UI, CLI | Service | Mutation, validation | `path:scenarios/knowledge-observatory/api/docs_explorer.go`, `path:scenarios/knowledge-observatory/api/docs_entry.go`, `path:scenarios/knowledge-observatory/api/docs_viewer.go`, `path:scenarios/knowledge-observatory/api/docs_audit.go`, `path:scenarios/knowledge-observatory/api/docs_reset.go`, `path:scenarios/knowledge-observatory/api/docs_template.go`, `path:scenarios/knowledge-observatory/api/internal/services/explorer`, `path:scenarios/knowledge-observatory/api/internal/services/viewer`, `path:scenarios/knowledge-observatory/cli/domains/docs` | Lists and reads scenario documentation, exposes templates and audit, and supports append/reset workflows. Scenario documentation files remain owned by their source scenarios. File/text search is in `search`; healing is in `documentation-healing`. |
+| documentation-healing | API, UI | Orchestration | Integration/client, approvals | `path:scenarios/knowledge-observatory/api/docs_heal.go`, `path:scenarios/knowledge-observatory/api/internal/services/dochealing`, `path:scenarios/knowledge-observatory/api/internal/dochealing` | Coordinates agent-backed documentation fixes and approval workflow; job and approval state is persisted in scenario SQLite. |
 
 ## Shared Infrastructure
 
 | Package/Folder | Purpose | Why Not Domain-Owned | Consumers |
 |---|---|---|---|
-| `path:api/server.go` | API runtime, configuration defaults, routing, CORS, dependency wiring. | Cross-cutting bootstrap/runtime layer for all API domains. | All HTTP handlers and services. |
-| `path:api/internal/ports/` | Interfaces for vector store, embedder, metadata store, and job store. | Integration seams are shared by multiple service domains. | Ingest, search, graph, metrics, deep search. |
-| `path:api/internal/adapters/` | Concrete adapters for Qdrant, Ollama, Postgres, agent-manager, prompt-manager. | External integrations are reusable infrastructure behind ports. | Service domains through ports/client seams. |
-| `path:ui/src/shared/` | Shared UI controllers, API helpers, selectors, and primitives. | Cross-surface UI mechanics, not one feature's product behavior. | Dashboard, search, graph, metrics, explorer surfaces. |
+| `path:scenarios/knowledge-observatory/api/server.go` | API runtime, configuration defaults, routing, CORS, dependency wiring. | Cross-cutting bootstrap/runtime layer for all API domains. | All HTTP handlers and services. |
+| `path:scenarios/knowledge-observatory/api/internal/ports` | Vector store, embedder, metadata compatibility interface, and documentation access log contracts. | Integration seams are shared by multiple service domains. | Collection maintenance, search, graph, metrics. |
+| `path:scenarios/knowledge-observatory/api/internal/adapters` | Concrete adapters for Qdrant, Ollama, agent-manager, and prompt-manager; scenario data uses domain-owned SQLite repositories. | External integrations are reusable infrastructure behind ports. | Service domains through ports/client seams. |
+| `path:scenarios/knowledge-observatory/ui/src/shared` | Shared UI controllers, API helpers, selectors, and primitives. | Cross-surface UI mechanics, not one feature's product behavior. | Dashboard, search, graph, metrics, explorer surfaces. |
 
 ## Architecture Maturity
 
@@ -77,52 +80,29 @@ Knowledge Observatory is the control-plane for Vrooli's semantic memory. It inge
 
 ---
 
-## Ingest Flow
+## Collection Maintenance Flow
 
-Records and documents enter through the API and are embedded, stored, and tracked.
+Knowledge Observatory does not expose the former generic record/document
+upsert or ingest-job endpoints. Documentation indexing is handled by the
+scenario's configured indexer; this API inspects indexed collections and
+provides bounded maintenance operations.
 
-```
-Document / Text
-       │
-       ▼
-┌──────────────┐
-│  Validate &  │  Namespace, visibility, defaults
-│  Normalize   │
-└──────┬───────┘
-       │
-       ▼
-┌──────────────┐
-│    Chunk     │  Default: 1200 chars, 150 overlap
-│  (documents) │  Max: 5000 chunks per document
-└──────┬───────┘
-       │
-       ▼
-┌──────────────┐
-│  Embed via   │  dimensions from `embedding.default`
-│   Ollama     │
-└──────┬───────┘
-       │
-       ▼
-┌──────────────┐
-│  Upsert into │  Creates collection if needed
-│    Qdrant    │  Idempotent via external_id_map
-└──────┬───────┘
-       │
-       ▼
-┌──────────────┐
-│   Persist    │  metadata + ingest_history
-│  in Postgres │  content_hash (SHA256)
-└──────────────┘
+```text
+Collection inventory ──► provenance and size signals
+         │
+         ├──► diagnostics ──► sampled vectors + ingest history
+         ├──► prune stale chunks ──► dry-run or bounded deletion
+         └──► dedupe content ──► dry-run or bounded deletion
 ```
 
-**Sync path**: `POST /api/v1/knowledge/records/upsert` (single record) or `POST /api/v1/knowledge/documents/ingest` (chunked).
-**Async path**: `POST /api/v1/ingest/jobs` enqueues a job; a background runner polls at 2s intervals.
+Collection vectors remain in Qdrant. Ingest provenance is held in scenario
+SQLite and is cleared alongside collection metadata when a collection is
+deleted. The active routes and request contracts are in the
+[API reference](../reference/api-endpoints.md#collection-inventory).
 
-[CODE: api/ingest.go]
-[CODE: api/document_ingest.go]
-[CODE: api/internal/services/ingest/service.go]
-[CODE: api/internal/services/ingest/chunking.go]
-[CODE: api/internal/services/ingestjobs/runner.go]
+[CODE: api/collections.go]
+[CODE: api/knowledge_maintenance.go]
+[CODE: api/internal/ingest/sqlite.go]
 
 ---
 
@@ -144,14 +124,14 @@ Query ─┬─► Semantic ──► Embed query ──► Qdrant similarity se
                          ──► Agent uses documentation-search skill
                          ──► Poll run events (2s interval)
                          ──► Parse structured JSON (Ollama fallback)
-                         ──► Persist job in Postgres
+                         ──► Persist job in scenario SQLite
 ```
 
 - **Semantic search** logs queries in `search_history` for the activity feed.
 - **Deep search** is async — returns a `job_id` and results are polled via `GET /api/v1/docs/search/deep/{job_id}`.
 
 [CODE: api/search.go]
-[CODE: api/internal/services/search/service.go]
+[CODE: api/internal/aisearch/search.go]
 [CODE: api/docs_search.go]
 [CODE: api/internal/services/docsearch/service.go]
 [CODE: api/docs_deep_search.go]
@@ -186,7 +166,7 @@ Query ─┬─► Semantic ──► Embed query ──► Qdrant similarity se
        ▼
 ┌──────────────┐
 │ Materialize  │  Store relationship edges
-│ in Postgres  │  in knowledge_relationships
+│ in SQLite    │  in knowledge_relationships
 └──────┬───────┘
        │
        ▼
@@ -234,7 +214,7 @@ A background loop runs every 5 minutes, sampling vectors and computing health sc
                      │
                      ▼
    ┌─────────────────────────────────────┐
-   │  Persist to Postgres                │
+   │  Persist to scenario SQLite         │
    │  • quality_metrics table            │
    │  • knowledge_relationships edges    │
    │  • dashboard_metrics view refresh   │
@@ -324,107 +304,68 @@ Scenario name ──► Validate current doc health
 ```
 
 - Job status: `running` → `needs_review` → `approved`/`rejected`
-- Tracked in `doc_heal_jobs` Postgres table.
+- Job and approval state are tracked in the scenario database.
 
 [CODE: api/docs_heal.go]
 [CODE: api/internal/services/dochealing/service.go]
 [CODE: api/internal/adapters/agentmanager/dochealing_client.go]
-[CODE: api/internal/adapters/dochealingstore/postgres.go]
+[CODE: api/internal/dochealing/sqlite.go]
 
 ---
 
-## Documentation Explorer & Viewer
+## Documentation Explorer and content API
 
-```
-┌─────────────────┐         ┌───────────────────┐
-│  Explorer Page  │         │   Viewer Page     │
-│                 │         │                   │
-│  Scenario list  │ click   │  Markdown render  │
-│  with doc stats ├────────►│  + Mermaid        │
-│  + health score │         │  + syntax hilite  │
-│                 │         │                   │
-│  Doc tree with  │         │  Reset support    │
-│  type hints &   │         │  (PROBLEMS/       │
-│  warnings       │         │   PROGRESS)       │
-└─────────────────┘         └───────────────────┘
-```
+Explorer owns scenario selection, the document tree, and the inline code/preview
+viewer. The legacy `#/viewer` URL redirects to Explorer; no standalone viewer
+page is mounted. The API content and reset endpoints remain available to CLI
+workflows. Append-log reset is documented in the [CLI reference](../reference/cli-commands.md#docs-reset).
 
 [CODE: api/docs_explorer.go]
 [CODE: api/internal/services/explorer/tree.go]
 [CODE: api/docs_viewer.go]
 [CODE: api/internal/services/viewer/content.go]
 [CODE: ui/src/surfaces/explorer/ExplorerPage.tsx]
-[CODE: ui/src/surfaces/viewer/ViewerPage.tsx]
+[CODE: ui/src/surfaces/explorer/components/DocViewer.tsx]
+[CODE: ui/src/shared/controllers/viewerController.ts]
+[CODE: ui/src/App.tsx]
 
 ---
 
 ## Database Schema
 
-```
-┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
-│ quality_metrics  │  │knowledge_metadata│  │  ingest_history  │
-│ ────────────── │  │ ────────────── │  │ ────────────── │
-│ collection       │  │ record_id        │  │ record_id        │
-│ coherence  0-1   │  │ namespace        │  │ content_hash     │
-│ freshness  0-1   │  │ visibility       │  │ namespace        │
-│ redundancy 0-1   │  │ tags[]           │  │ source           │
-│ coverage   0-1   │  │ source           │  │ chunks_created   │
-│ avg_quality (gen)│  │ created_at       │  │ created_at       │
-└──────────────────┘  └──────────────────┘  └──────────────────┘
+The API opens one scenario-scoped SQLite file through the Vrooli storage
+resolver. Domain repositories and their DDL are colocated under
+`api/internal/<domain>/`; `api/internal/modules/registry.go` assembles the
+schema set at startup. The domain-owned schema files are authoritative. The
+[data ownership page](DATA.md) summarizes persistence responsibilities without
+copying table layouts.
 
-┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
-│   ingest_jobs    │  │deep_search_jobs  │  │  doc_heal_jobs   │
-│ ────────────── │  │ ────────────── │  │ ────────────── │
-│ status (pending/ │  │ query            │  │ scenario         │
-│  running/done)   │  │ scope            │  │ agent_run_id     │
-│ total_chunks     │  │ agent_run_id     │  │ proposed_diff    │
-│ processed_chunks │  │ results (jsonb)  │  │ health_before    │
-│ error_message    │  │ status           │  │ health_after     │
-└──────────────────┘  └──────────────────┘  │ status           │
-                                            └──────────────────┘
-
-┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
-│ external_id_map  │  │knowledge_relns   │  │ collection_stats │
-│ ────────────── │  │ ────────────── │  │ ────────────── │
-│ namespace        │  │ source_id        │  │ collection       │
-│ external_id      │  │ target_id        │  │ total_points     │
-│ record_id        │  │ weight           │  │ total_collections│
-│ (unique pair)    │  │ relationship     │  │ last_refreshed   │
-└──────────────────┘  └──────────────────┘  └──────────────────┘
-
-┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
-│  search_history  │  │     alerts       │  │user_preferences  │
-│ ────────────── │  │ ────────────── │  │ ────────────── │
-│ query (FTS idx)  │  │ severity         │  │ user_id          │
-│ collection       │  │ message          │  │ preferences      │
-│ result_count     │  │ category         │  │  (jsonb)         │
-│ took_ms          │  │ acknowledged     │  │                  │
-└──────────────────┘  └──────────────────┘  └──────────────────┘
-
-                 dashboard_metrics (materialized view)
-```
-
-[CODE: api/internal/<domain>/schema.sql]
+[CODE: api/database.go]
+[CODE: api/internal/modules/registry.go]
 
 ---
 
 ## UI Surface
 
-The dashboard, search, graph, and metrics pages are routed by hash.
+The route parser and `App` own the hash route table. Collection details are a
+child of Metrics; the Viewer URL remains a compatibility redirect into Explorer.
 
 | Route | Page | Purpose |
 |-------|------|---------|
-| `/#/dashboard` | Dashboard | Quick search, health cards, activity feed |
+| `/#/` | Dashboard | Quick search, health cards, activity feed |
 | `/#/search` | Search | 5-mode search workspace |
 | `/#/explorer` | Explorer | Scenario browser + doc tree + healing |
-| `/#/viewer` | Viewer | Markdown preview + reset controls |
+| `/#/viewer` | Legacy redirect | Opens Explorer; no separate viewer route |
 | `/#/graph` | Graph | Force-directed knowledge graph (D3/canvas) |
 | `/#/metrics` | Metrics | Collection health sparklines |
+| `/#/collections/<name>` | Collection details | Collection records and provenance |
+| `/#/maintenance` | Maintenance | Bounded cleanup queue |
 
 [CODE: ui/src/surfaces/dashboard/DashboardPage.tsx]
 [CODE: ui/src/surfaces/search/SearchPage.tsx]
 [CODE: ui/src/surfaces/explorer/ExplorerPage.tsx]
-[CODE: ui/src/surfaces/viewer/ViewerPage.tsx]
+[CODE: ui/src/App.tsx]
+[CODE: ui/src/shared/controllers/routeController.ts]
 [CODE: ui/src/surfaces/graph/GraphPage.tsx]
 [CODE: ui/src/surfaces/metrics/MetricsPage.tsx]
 
@@ -445,29 +386,10 @@ Quick search, documentation health, scenario coverage, and activity feed are sur
 
 ## Integrations
 
-```
-┌──────────────────────────────────────┐
-│          Knowledge Observatory       │
-│                API                   │
-└──┬──────────┬──────────┬──────────┬──┘
-   │          │          │          │
-   ▼          ▼          ▼          ▼
-┌──────┐  ┌──────┐  ┌────────┐  ┌──────────────┐
-│Qdrant│  │Ollama│  │Postgres│  │agent-manager │
-│      │  │      │  │        │  │prompt-manager│
-└──────┘  └──────┘  └────────┘  └──────────────┘
- vectors   embed     metadata    AI agent runs
- search    role      jobs        skill retrieval
- upsert    policy    metrics     deep search
- delete              history     doc healing
-                     relations
-```
-
-- **Qdrant**: Vector storage + similarity search. [CODE: api/internal/adapters/vectorstore/qdrant.go]
-- **Ollama**: Embedding + structured output coercion. [CODE: api/internal/adapters/embedder/ollama.go]
-- **Postgres**: Metadata, job state, quality metrics. [CODE: api/internal/adapters/metadatastore/postgres.go]
-- **agent-manager**: Spawns agents for deep search + doc healing. [CODE: api/internal/adapters/agentmanager/client.go]
-- **prompt-manager**: Provides skills (documentation-search, documentation-health). [CODE: api/internal/adapters/promptmanager/client.go]
+The dependency roles and failure boundaries are maintained in
+[INTEGRATIONS.md](INTEGRATIONS.md). This architecture map focuses on domain
+ownership and runtime composition; the integration page avoids a second copy of
+the dependency table.
 
 ---
 

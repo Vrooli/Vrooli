@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	db "github.com/vrooli/api-core/databasetest"
 	"github.com/vrooli/api-core/schedule"
 	"github.com/vrooli/api-core/scheduletest"
 )
@@ -34,10 +35,14 @@ func (f *fakeGen) Generate(_ context.Context, suite string) ([]TrialTask, error)
 type fakeRunner struct {
 	result RunResult
 	calls  int
+	cancel context.CancelFunc
 }
 
 func (f *fakeRunner) RunTask(_ context.Context, _ TrialTask, _ Fixture) RunResult {
 	f.calls++
+	if f.cancel != nil {
+		f.cancel()
+	}
 	return f.result
 }
 
@@ -201,6 +206,33 @@ func TestRunTrialsDispatchesAndRecords(t *testing.T) {
 	runs, err = svc.RunTrials(context.Background(), SuiteAddFeature, "")
 	if err != nil || len(runs) != 1 || runner.calls != 1 {
 		t.Fatalf("run without pre-dispatch model identity must dispatch again: runs=%d calls=%d err=%v", len(runs), runner.calls, err)
+	}
+}
+
+func TestRunTrialsRecordsTerminalErrorAfterRequestCancellation(t *testing.T) {
+	h := db.NewSQLite(t)
+	if _, err := h.Exec(Schema()); err != nil {
+		t.Fatalf("schema: %v", err)
+	}
+	clk := scheduletest.New(time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC))
+	repo := NewSQLiteRepository(h, clk)
+	ctx, cancel := context.WithCancel(context.Background())
+	runner := &fakeRunner{result: RunResult{Verdict: VerdictError}, cancel: cancel}
+	svc := newSvc(&fakeGen{tasks: tasksFixture()}, runner, repo)
+
+	runs, err := svc.RunTrials(ctx, "", "trial/g1")
+	if err != nil || len(runs) != 1 {
+		t.Fatalf("RunTrials() = %d runs, err=%v; want one recorded terminal result", len(runs), err)
+	}
+	if ctx.Err() != context.Canceled {
+		t.Fatalf("request context error = %v, want context canceled during runner", ctx.Err())
+	}
+	if runs[0].Verdict != VerdictError {
+		t.Fatalf("returned verdict = %v, want error for canceled runner", runs[0].Verdict)
+	}
+	persisted, ok, err := repo.GetRun(context.Background(), runs[0].ID)
+	if err != nil || !ok || persisted.Verdict != VerdictError {
+		t.Fatalf("persisted terminal run = %+v, found=%v err=%v", persisted, ok, err)
 	}
 }
 

@@ -49,6 +49,16 @@ func TestAssertionFindingsWarnWhenIdenticalStatementsSpanFiles(t *testing.T) {
 	}
 }
 
+func TestAssertionFindingsKeepRepeatedClaimsInDistinctSectionsAdvisory(t *testing.T) {
+	root := t.TempDir()
+	path := writeAssertionFixture(t, root, "docs/decisions.md", "## Decision A\nThe operator must record publication revocation.\n\n## Decision B\nThe operator must record publication revocation.\n")
+
+	findings := assertionFindings([]string{path}, root)
+	if len(findings) != 1 || findings[0].Code != "duplicate_assertion" || findings[0].Severity != SeverityWarning {
+		t.Fatalf("same wording in distinct section scopes should remain advisory: %+v", findings)
+	}
+}
+
 func TestAssertionFindingsJoinWrappedProseAndIgnoreNormativeHeadings(t *testing.T) {
 	root := t.TempDir()
 	path := writeAssertionFixture(t, root, "docs/policy.md", "You must:\n\n- The editor must check each source revision before editing.\n- The editor must check each source revision before editing.\n\nYou must NOT:\n\nObserve the operation once using the supported wait mechanism. Do not\npoll repeatedly. Verify the final result.\n")
@@ -69,6 +79,61 @@ func TestAssertionFindingsKeepSupersededHistoricalRepeatsAdvisory(t *testing.T) 
 	findings := assertionFindings([]string{path}, root)
 	if len(findings) != 1 || findings[0].Code != "duplicate_assertion" || findings[0].Severity != SeverityWarning {
 		t.Fatalf("retained historical repeat should remain visible without blocking current docs: %+v", findings)
+	}
+}
+
+func TestAssertionFindingsKeepRetainedEvidenceRepeatsAdvisory(t *testing.T) {
+	for _, rel := range []string{
+		"docs/internal/goal/evidence/E1/checkpoint.md",
+		"docs/internal/delivery-reliability-research/sources/run-1/prewrite/E1.md",
+	} {
+		t.Run(rel, func(t *testing.T) {
+			root := t.TempDir()
+			path := writeAssertionFixture(t, root, rel, "The owner must preserve this receipt.\nThe owner must preserve this receipt.\n")
+
+			findings := assertionFindings([]string{path}, root)
+			if len(findings) != 1 || findings[0].Code != "duplicate_assertion" || findings[0].Severity != SeverityWarning {
+				t.Fatalf("retained evidence repeat should stay visible as advisory: %+v", findings)
+			}
+		})
+	}
+}
+
+func TestAssertionFindingsKeepBoilerplateInRetainedEvidenceAdvisory(t *testing.T) {
+	root := t.TempDir()
+	path := writeAssertionFixture(t, root, "docs/internal/goal/evidence/E1/baseline.md", "# Baseline\n\n## Purpose Of This Document\n")
+
+	findings := assertionFindings([]string{path}, root)
+	if len(findings) != 1 || findings[0].Code != "boilerplate_purpose_heading" || findings[0].Severity != SeverityWarning {
+		t.Fatalf("retained evidence heading should stay visible as advisory: %+v", findings)
+	}
+}
+
+func TestAssertionFindingsIgnoreRepeatedTableHeadersButCheckDataRows(t *testing.T) {
+	root := t.TempDir()
+	path := writeAssertionFixture(t, root, "docs/internal/SEAMS.md", "# Seams\n\n| File | Boundary | Can Change | Cannot Change |\n|---|---|---|---|\n| api/a.go | a | yes | no |\n| File | Boundary | Can Change | Cannot Change |\n|---|---|---|---|\n\n| Rule | Statement |\n|---|---|\n| storage | The owner must preserve every row. |\n| storage | The owner must preserve every row. |\n")
+
+	findings := assertionFindings([]string{path}, root)
+	if len(findings) != 1 || findings[0].Code != "duplicate_assertion" || findings[0].Severity != SeverityFailure || findings[0].Target != "storage | The owner must preserve every row." {
+		t.Fatalf("table headers should be ignored while repeated normative data rows still fail: %+v", findings)
+	}
+}
+
+func TestAssertionFindingsDoNotTreatDataCatalogRowsAsPolicies(t *testing.T) {
+	root := t.TempDir()
+	path := writeAssertionFixture(t, root, "docs/errors.md", "# API errors\n\n| Status | Code | Description |\n|---|---|---|\n| 400 | INVALID_DATE_FORMAT | Date must be YYYY-MM-DD format |\n| 400 | INVALID_DATE_RANGE | end_date must be after start_date |\n")
+
+	if findings := assertionFindings([]string{path}, root); len(findings) != 0 {
+		t.Fatalf("descriptive error catalog rows should not be treated as repeated normative claims: %+v", findings)
+	}
+}
+
+func TestAssertionFindingsIgnoreBoldPolicySectionLabels(t *testing.T) {
+	root := t.TempDir()
+	path := writeAssertionFixture(t, root, "docs/review.md", "# Review\n\n**Must not produce:**\n\n- A workaround that hides the failure.\n\n**Must NOT produce:**\n\n- An assertion without evidence.\n")
+
+	if findings := assertionFindings([]string{path}, root); len(findings) != 0 {
+		t.Fatalf("bold policy section labels are not assertions: %+v", findings)
 	}
 }
 

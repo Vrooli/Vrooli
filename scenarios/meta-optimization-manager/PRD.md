@@ -48,5 +48,5 @@
 
 ## 📎 Appendix
 - The three space-definition documents: `search-hub/docs/spaces/answer-space.md`, `test-genie/docs/spaces/validate-space.md`, `prompt-manager/docs/spaces/guide-space.md`.
-- Convergence doctrine: `docs/agent-system/TEMPLATE_CONVERGENCE_LOOP.md`, `REFERENCE_PATTERN_FITNESS.md`, `REFERENCE_SCENARIOS.md`.
+- Convergence doctrine: `scenarios/meta-optimization-manager/docs/reference/TEMPLATE_CONVERGENCE_LOOP.md`, `REFERENCE_PATTERN_FITNESS.md`, `REFERENCE_SCENARIOS.md`.
 - Canonical model: `docs/concepts/COVERAGE-MODEL.md`.

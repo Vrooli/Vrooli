@@ -82,7 +82,7 @@ func TestReferenceScannerUsesGeneratedGoldenTemplatePathForBreadth(t *testing.T)
 	registry := "| Role | Golden slug | Template | First registered | Last audit | Notes |\n" +
 		"|------|-------------|----------|------------------|------------|-------|\n" +
 		"| **Gold-star (primary)** | `reference-react-vite` | `path:templates/scenarios/react-vite/` | 2026-04-24 | 2026-05-04 | generated golden |\n"
-	writeFile(t, filepath.Join(root, "docs", "agent-system", "REFERENCE_SCENARIOS.md"), registry)
+	writeFile(t, filepath.Join(root, "scenarios", "meta-optimization-manager", "docs", "reference", "REFERENCE_SCENARIOS.md"), registry)
 	writeFile(t, filepath.Join(root, "templates", "scenarios", "react-vite", "api", "handlers", "golden", "handler.go"), "package golden\n")
 	writeFile(t, filepath.Join(root, "templates", "scenarios", "react-vite", "api", "internal", "runs", "service.go"), "package runs\n")
 

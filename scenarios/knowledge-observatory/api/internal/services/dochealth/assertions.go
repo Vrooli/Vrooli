@@ -15,6 +15,7 @@ type assertionRecord struct {
 	normalized string
 	base       string
 	negative   bool
+	section    string
 }
 
 var (
@@ -22,6 +23,8 @@ var (
 	normChars                = regexp.MustCompile(`[^\p{L}\p{N}]+`)
 	listPrefix               = regexp.MustCompile(`^(?:[-*+]\s+|\d+[.)]\s+)`)
 	headingPrefix            = regexp.MustCompile(`^#{1,6}\s+`)
+	boldLabel                = regexp.MustCompile(`^\*\*[^*]+:\*\*\s*$`)
+	revisitLabel             = regexp.MustCompile(`(?i)^\*\*revisit if\.\s+never\.\*\*\s*$`)
 	boilerplateHead          = regexp.MustCompile(`(?i)^#{1,6}\s+purpose of this document\s*#*\s*$`)
 	retainedHistoricalNotice = regexp.MustCompile(`(?im)^>\s*\*\*SUPERSEDED\b.*historical provenance only`)
 	negativeForms            = []struct{ from, to string }{
@@ -35,8 +38,9 @@ var (
 
 // assertionFindings detects exact repeated normative statements, explicit
 // opposite-polarity statements, and the known generic Purpose heading. Exact
-// duplicates inside one document and contradictions inside one document are
-// failures. Cross-document matches are warnings because their scopes may differ.
+// duplicates inside current documents and contradictions inside current
+// documents are failures. Cross-document matches and repeats in retained
+// evidence are warnings so their scope or historical provenance stays visible.
 func assertionFindings(files []string, root string) []Finding {
 	var records []assertionRecord
 	var findings []Finding
@@ -51,13 +55,17 @@ func assertionFindings(files []string, root string) []Finding {
 		if err != nil {
 			rel = file
 		}
-		historical[filepath.ToSlash(rel)] = retainedHistoricalNotice.Match(content)
+		historical[filepath.ToSlash(rel)] = isHistoricalAssertionDoc(filepath.ToSlash(rel), content)
 		lines := strings.Split(string(content), "\n")
 		for index, raw := range lines {
 			line := strings.TrimSpace(strings.TrimSuffix(raw, "\r"))
 			if boilerplateHead.MatchString(line) {
+				severity := SeverityFailure
+				if historical[filepath.ToSlash(rel)] {
+					severity = SeverityWarning
+				}
 				findings = append(findings, Finding{
-					Code: "boilerplate_purpose_heading", Severity: SeverityFailure,
+					Code: "boilerplate_purpose_heading", Severity: severity,
 					Message: "Remove the generic heading while preserving any document-specific purpose guidance.",
 					Path:    filepath.ToSlash(rel), Line: index + 1,
 				})
@@ -89,14 +97,25 @@ func assertionFindings(files []string, root string) []Finding {
 			continue
 		}
 		for index := 1; index < len(group); index++ {
-			prior, current := group[index-1], group[index]
+			current := group[index]
 			severity := SeverityWarning
-			if prior.path == current.path && !historical[current.path] {
-				severity = SeverityFailure
+			priorPath, priorLine := "", 0
+			for priorIndex := index - 1; priorIndex >= 0; priorIndex-- {
+				prior := group[priorIndex]
+				if prior.path == current.path && prior.section == current.section {
+					priorPath, priorLine = prior.path, prior.line
+					if !historical[current.path] {
+						severity = SeverityFailure
+					}
+					break
+				}
+				if priorPath == "" {
+					priorPath, priorLine = prior.path, prior.line
+				}
 			}
 			findings = append(findings, Finding{
 				Code: "duplicate_assertion", Severity: severity,
-				Message: "Exact normative statement repeats; first occurrence is " + prior.path + ":" + itoa(prior.line) + ".",
+				Message: "Exact normative statement repeats; related occurrence is " + priorPath + ":" + itoa(priorLine) + ". Compare section scope and authority.",
 				Path:    current.path, Line: current.line, Target: current.text,
 			})
 		}
@@ -112,7 +131,7 @@ func assertionFindings(files []string, root string) []Finding {
 		for _, left := range positive {
 			for _, right := range negative {
 				severity := SeverityWarning
-				if left.path == right.path && !historical[right.path] {
+				if left.path == right.path && left.section == right.section && !historical[right.path] {
 					severity = SeverityFailure
 				}
 				findings = append(findings, Finding{
@@ -139,6 +158,9 @@ func assertionFindings(files []string, root string) []Finding {
 func parseAssertionLines(path string, lines []string) []assertionRecord {
 	var out []assertionRecord
 	inFence := false
+	inTable := false
+	assertionTable := false
+	section := ""
 	paragraphLine := 0
 	var paragraph []string
 	flush := func() {
@@ -159,7 +181,7 @@ func parseAssertionLines(path string, lines []string) []assertionRecord {
 				lower = strings.ReplaceAll(lower, form.from, form.to)
 			}
 			base := normalizeWords(lower)
-			out = append(out, assertionRecord{path: path, line: paragraphLine, text: strings.TrimSpace(sentence), normalized: normalized, base: base, negative: negative})
+			out = append(out, assertionRecord{path: path, line: paragraphLine, text: strings.TrimSpace(sentence), normalized: normalized, base: base, negative: negative, section: section})
 		}
 		paragraph = paragraph[:0]
 		paragraphLine = 0
@@ -174,14 +196,37 @@ func parseAssertionLines(path string, lines []string) []assertionRecord {
 		if inFence {
 			continue
 		}
-		if trimmed == "" || strings.HasPrefix(trimmed, ">") || headingPrefix.MatchString(trimmed) || (strings.HasSuffix(trimmed, ":") && len(strings.Fields(trimmed)) <= 4 && assertionLanguage.MatchString(trimmed)) {
+		if isMarkdownTableHeader(lines, index) {
+			flush()
+			inTable = true
+			assertionTable = isAssertionTableHeader(lines[index])
+			continue
+		}
+		if inTable && strings.HasPrefix(trimmed, "|") {
+			flush()
+			if assertionTable && !isMarkdownTableSeparator(trimmed) {
+				paragraphLine = index + 1
+				paragraph = append(paragraph, strings.Trim(trimmed, "| "))
+				flush()
+			}
+			continue
+		}
+		inTable = false
+		assertionTable = false
+		if headingPrefix.MatchString(trimmed) {
+			flush()
+			section = trimmed
+			continue
+		}
+		if trimmed == "" || strings.HasPrefix(trimmed, ">") || (strings.HasSuffix(trimmed, ":") && len(strings.Fields(trimmed)) <= 4 && assertionLanguage.MatchString(trimmed)) {
+			flush()
+			continue
+		}
+		if boldLabel.MatchString(trimmed) || revisitLabel.MatchString(trimmed) {
 			flush()
 			continue
 		}
 		if strings.HasPrefix(trimmed, "|") {
-			flush()
-			paragraphLine = index + 1
-			paragraph = append(paragraph, strings.Trim(trimmed, "| "))
 			flush()
 			continue
 		}
@@ -196,6 +241,86 @@ func parseAssertionLines(path string, lines []string) []assertionRecord {
 	}
 	flush()
 	return out
+}
+
+// isMarkdownTableHeader keeps column labels such as "Can Change | Cannot
+// Change" out of assertion parsing. Data rows are parsed only when the table
+// declares a statement or policy column; descriptive catalogs often contain
+// words such as "must" that describe an error without asserting a document rule.
+func isMarkdownTableHeader(lines []string, index int) bool {
+	if index+1 >= len(lines) {
+		return false
+	}
+	row := strings.TrimSpace(strings.TrimSuffix(lines[index], "\r"))
+	separator := strings.TrimSpace(strings.TrimSuffix(lines[index+1], "\r"))
+	if !strings.HasPrefix(row, "|") || !strings.HasSuffix(row, "|") || !strings.HasPrefix(separator, "|") || !strings.HasSuffix(separator, "|") {
+		return false
+	}
+	headers := strings.Split(strings.Trim(row, "|"), "|")
+	columns := strings.Split(strings.Trim(separator, "|"), "|")
+	if len(headers) < 2 || len(headers) != len(columns) {
+		return false
+	}
+	for _, column := range columns {
+		marks := strings.Trim(strings.TrimSpace(column), ":")
+		if len(marks) < 3 || strings.Trim(marks, "-") != "" {
+			return false
+		}
+	}
+	return true
+}
+
+func isAssertionTableHeader(row string) bool {
+	for _, cell := range strings.Split(strings.Trim(row, "|"), "|") {
+		column := strings.ToLower(strings.TrimSpace(cell))
+		column = strings.Trim(normChars.ReplaceAllString(column, " "), " ")
+		switch column {
+		case "rule", "rules", "statement", "statements", "requirement", "requirements", "invariant", "invariants", "obligation", "obligations", "policy", "policies", "constraint", "constraints", "contract", "contracts", "expected behavior", "prohibited behavior":
+			return true
+		}
+	}
+	return false
+}
+
+func isMarkdownTableSeparator(row string) bool {
+	if !strings.HasPrefix(row, "|") || !strings.HasSuffix(row, "|") {
+		return false
+	}
+	for _, cell := range strings.Split(strings.Trim(row, "|"), "|") {
+		marks := strings.Trim(strings.TrimSpace(cell), ":")
+		if len(marks) < 3 || strings.Trim(marks, "-") != "" {
+			return false
+		}
+	}
+	return true
+}
+
+// isHistoricalAssertionDoc distinguishes durable evidence from current
+// instructions without suppressing it. Findings remain visible as warnings
+// for explicit superseded records, evidence trees, and byte snapshots; these
+// records do not block an operator-facing docs phase as if they were current
+// policy.
+func isHistoricalAssertionDoc(path string, content []byte) bool {
+	if retainedHistoricalNotice.Match(content) {
+		return true
+	}
+	segments := strings.Split(filepath.ToSlash(path), "/")
+	docsInternal := -1
+	for index := 0; index+1 < len(segments); index++ {
+		if segments[index] == "docs" && segments[index+1] == "internal" {
+			docsInternal = index
+			break
+		}
+	}
+	if docsInternal < 0 {
+		return false
+	}
+	for _, segment := range segments[docsInternal+2:] {
+		if segment == "evidence" || segment == "sources" || segment == "bytes" {
+			return true
+		}
+	}
+	return false
 }
 
 func splitAssertionSentences(text string) []string {

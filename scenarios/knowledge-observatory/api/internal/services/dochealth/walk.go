@@ -10,6 +10,7 @@ import (
 
 var defaultSkipDirs = map[string]struct{}{
 	".git":         {},
+	".vrooli":      {}, // Runtime state, run artifacts, and snapshots are not source documentation.
 	"node_modules": {},
 	"dist":         {},
 	"build":        {},

@@ -60,7 +60,7 @@ func (s *fsReferenceScanner) Scan(ctx context.Context) ([]ReferenceHealth, error
 		}
 		root = r
 	}
-	regPath := filepath.Join(root, "docs", "agent-system", "REFERENCE_SCENARIOS.md")
+	regPath := filepath.Join(root, "scenarios", "meta-optimization-manager", "docs", "reference", "REFERENCE_SCENARIOS.md")
 	refs, err := parseReferenceRegistry(regPath)
 	if err != nil {
 		return nil, err

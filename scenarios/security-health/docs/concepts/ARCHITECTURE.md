@@ -221,7 +221,7 @@ question, one canonical home.
 | Data ownership, retention, and migrations | `docs/concepts/DATA.md` |
 | Resources, scenarios, and external services | `docs/concepts/INTEGRATIONS.md` |
 | Monetization and packaging | `docs/business/MONETIZATION.md` |
-| Go-to-market strategy | `docs/business/GO-TO-MARKET.md` |
+
 | Deployment tiers and readiness | `docs/operations/DEPLOYMENT.md` |
 | Operator procedures | `docs/operations/RUNBOOK.md` |
 | Telemetry, metrics, and alerts | `docs/operations/OBSERVABILITY.md` |

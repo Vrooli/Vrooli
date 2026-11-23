@@ -153,6 +153,7 @@ func TestLiveFullReindex(t *testing.T) {
 	}
 	idx, err := NewIndexer(Options{
 		Embedder: embedder, VectorStore: store,
+		Embedding:        liveEmbeddingPolicy(t, ctx),
 		ScenariosRoot:    scenariosRootForTest(t),
 		MaxEmbedsPerTick: 0, // uncapped: index the whole delta in this pass
 	})

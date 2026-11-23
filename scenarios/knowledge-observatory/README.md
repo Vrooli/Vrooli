@@ -62,11 +62,11 @@ Knowledge Observatory solves these problems by providing visibility into the sys
 - **Go API**: RESTful endpoints for all operations (dynamically allocated port 15000-19999)
 - **CLI**: Command-line interface for knowledge queries
 - **Web UI**: Modern control-tower dashboard (dynamically allocated port 35000-39999)
-- **PostgreSQL**: Metadata and metrics storage
+- **Scenario SQLite**: Operational metadata and workflow persistence
 - **Qdrant**: Vector database being monitored
 
 ### Resource Dependencies
-- **Required**: Qdrant, PostgreSQL
+- **Required**: Qdrant and scenario storage
 - **Optional**: Ollama (for embeddings and structured output), agent-manager + prompt-manager (for deep search and doc healing)
 
 ## 📖 Usage
@@ -79,83 +79,25 @@ vrooli scenario status knowledge-observatory
 Then access at `http://localhost:${UI_PORT}`
 
 ### CLI Commands
-```bash
-# Check system status
-knowledge-observatory status
 
-# Semantic search
-knowledge-observatory search "How do scenarios work?"
-
-# Ingest knowledge (canonical write path)
-knowledge-observatory ingest --namespace ecosystem-manager --content "Scenarios are reusable capabilities composed from resources."
-
-# Enqueue a full document ingest job (async, chunked)
-knowledge-observatory ingest-job --namespace ecosystem-manager --content "$(cat README.md)" --chunk-size 1200 --chunk-overlap 150
-
-# Check async ingest job status
-knowledge-observatory job-status <job_id>
-
-# View knowledge graph
-knowledge-observatory graph --center "ecosystem-manager"
-
-# Get quality metrics
-knowledge-observatory metrics
-
-# Documentation search & health
-knowledge-observatory docs search-files "**/README.md"
-knowledge-observatory docs search-text "health score"
-knowledge-observatory docs search-deep "How does deep search work?"
-knowledge-observatory docs health knowledge-observatory
-knowledge-observatory docs health knowledge-observatory --json
-knowledge-observatory docs audit knowledge-observatory
-
-# Watch health in real-time
-knowledge-observatory health --watch
-```
-
-Notes:
-- `search` and `ingest` are implemented and call the Knowledge Observatory API.
-- `ingest-job` and `job-status` are implemented for async chunked ingestion.
-- `docs health` reports documentation-health maturity by capability while preserving the shared `assessment.local` rollup for legacy consumers.
-- `docs audit` validates documentation structure, `[CODE:]` references, and marked inline `path:` / `doc:` references.
-- `graph`, `metrics`, and `health` are implemented and call the Knowledge Observatory API.
-- `health --watch` is supported for live polling output.
+The supported command inventory, global flags, health scopes, and current examples
+live in the [CLI reference](docs/reference/cli-commands.md). Use the
+[getting-started guide](docs/guides/getting-started.md) for governed source
+inspection and maintenance workflows. Scenario documentation indexing follows
+the configured indexer; the [API reference](docs/reference/api-endpoints.md)
+covers the separate collection inspection and maintenance routes.
 
 ### API Endpoints
-The API is accessible on a dynamically allocated port. Check with `vrooli scenario status knowledge-observatory`.
 
-```bash
-# Get the API port (example shows typical port)
-API_PORT=$(vrooli scenario status knowledge-observatory --json | jq -r '.ports.API_PORT')
-
-# Search knowledge
-curl -X POST http://localhost:${API_PORT}/api/v1/knowledge/search \
-  -H "Content-Type: application/json" \
-  -d '{"query": "agent workflows", "limit": 10}'
-
-# Get health metrics
-curl http://localhost:${API_PORT}/api/v1/knowledge/health
-
-# Generate knowledge graph
-curl -X POST http://localhost:${API_PORT}/api/v1/knowledge/graph \
-  -d '{"center_concept": "research", "depth": 3}'
-```
+The API uses a lifecycle-assigned port; resolve it with
+`vrooli scenario port knowledge-observatory API_PORT`. The [API reference](docs/reference/api-endpoints.md) is the canonical REST and Connect route and request contract.
 
 ## 🔄 Integration
 
 ### For Other Scenarios
-Knowledge Observatory provides critical services that other scenarios can leverage:
 
-```bash
-# Check if knowledge exists before adding
-knowledge-observatory search "specific concept" --json
-
-# Monitor scenario's contribution quality
-knowledge-observatory metrics --collection scenario_memory
-
-# Explore knowledge relationships
-knowledge-observatory graph --center "your-scenario"
-```
+Search, collection diagnostics, and graph workflows are maintained in the
+[CLI reference](docs/reference/cli-commands.md).
 
 ### Events Published
 - `knowledge.quality.degraded` - When metrics fall below thresholds

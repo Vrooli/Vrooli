@@ -16,7 +16,7 @@ make stop
 | Incident | First check |
 |---|---|
 | Search unavailable | Qdrant health and configured URL |
-| Metrics empty | PostgreSQL connectivity and collection presence |
+| Metrics empty | Scenario SQLite initialization and Qdrant collection presence |
 | Healing unavailable | agent-manager and prompt-manager availability |
 | Docs health noisy | Scenario `docs/manifest.json` contract and registered paths |
 

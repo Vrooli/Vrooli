@@ -429,14 +429,6 @@
       "testId": "ko-explorer-health-panel",
       "selector": "[data-testid=\"ko-explorer-health-panel\"]"
     },
-    "viewer.pathInput": {
-      "testId": "ko-viewer-path-input",
-      "selector": "[data-testid=\"ko-viewer-path-input\"]"
-    },
-    "viewer.loadButton": {
-      "testId": "ko-viewer-load-button",
-      "selector": "[data-testid=\"ko-viewer-load-button\"]"
-    },
     "viewer.modeToggle": {
       "testId": "ko-viewer-mode-toggle",
       "selector": "[data-testid=\"ko-viewer-mode-toggle\"]"
@@ -448,10 +440,6 @@
     "viewer.previewView": {
       "testId": "ko-viewer-preview-view",
       "selector": "[data-testid=\"ko-viewer-preview-view\"]"
-    },
-    "viewer.resetPanel": {
-      "testId": "ko-viewer-reset-panel",
-      "selector": "[data-testid=\"ko-viewer-reset-panel\"]"
     }
   },
   "dynamicSelectors": {
@@ -485,6 +473,6 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
-    "ui/src/consts/selectors.ts": "7c053524033b35b442ead2c4603ff5c4c2c8377f796144fc1cf32459b6a55e99"
+    "ui/src/consts/selectors.ts": "34724cf0cf20b9e6018224b0dc9ba8ed7cba24664e2c9bfc5ee82009c273ec2e"
   }
 }

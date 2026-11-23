@@ -19,10 +19,10 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 
 // SubcommandGroups aggregates hierarchical command groups from domain packages.
 //
-// Each domain package owns a Register(core, manifest) function returning a
-// SubcommandGroup built from the scenario's cli/manifest.json. The aggregator
-// passes the embedded manifest bytes through unchanged; per-domain Register
-// implementations call cliapp.LoadFromManifest with the relevant group name.
+// Each domain package owns registration of its related command groups from the
+// scenario's cli/manifest.json. The aggregator passes the embedded manifest
+// bytes through unchanged so each package can share connection state across
+// its groups and call cliapp.LoadFromManifest for each manifest group.
 //
 // This is the CLI side of the domain-module pattern; the API side uses
 // the same one-liner-per-domain shape via server.New(deps, modules...).
@@ -36,16 +36,5 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // templates/scenarios/react-vite/docs/internal/SEAMS.md (manifest ↔
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
-	groups := []cliapp.SubcommandGroup{}
-	ledgerGroup, err := ledger.Register(core, manifest)
-	if err != nil {
-		return nil, err
-	}
-	groups = append(groups, ledgerGroup)
-	ingestGroup, err := ledger.RegisterIngest(core, manifest)
-	if err != nil {
-		return nil, err
-	}
-	groups = append(groups, ingestGroup)
-	return groups, nil
+	return ledger.RegisterGroups(core, manifest)
 }

@@ -597,52 +597,6 @@
             ],
             "allowNotApplicable": true
           }
-        },
-        {
-          "path": "business/GO-TO-MARKET.md",
-          "docType": "go-to-market",
-          "title": "Go To Market",
-          "aliases": [
-            "gtm",
-            "launch",
-            "channels"
-          ],
-          "description": "Launch strategy, target channels, positioning, and validation experiments",
-          "audience": [
-            "developers",
-            "agents",
-            "operators"
-          ],
-          "canonicalFor": [
-            "go-to-market",
-            "channels",
-            "launch-strategy",
-            "market-validation"
-          ],
-          "maturity": "stub",
-          "requiredBy": [
-            "monetizable"
-          ],
-          "completion": "conditional",
-          "condition": "Required when the scenario has a market-facing use case or monetization hypothesis.",
-          "ownerSkills": [
-            "signal-classifier"
-          ],
-          "validation": {
-            "requiredHeadings": [
-              "Purpose Of This Document",
-              "Audience And Positioning",
-              "Channels",
-              "Launch Motion",
-              "Messaging",
-              "Validation Experiments",
-              "Cross-References"
-            ],
-            "forbiddenPlaceholders": [
-              "[TODO]"
-            ],
-            "allowNotApplicable": true
-          }
         }
       ]
     },

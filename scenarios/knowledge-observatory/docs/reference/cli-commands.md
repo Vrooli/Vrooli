@@ -7,17 +7,27 @@ Complete documentation for the knowledge-observatory CLI (`knowledge-observatory
 ## Installation
 
 The Vrooli control plane builds and installs the declared CLI surface during
-scenario lifecycle setup. Start the scenario with `vrooli scenario start knowledge-observatory`.
-Use `knowledge-observatory --help` for the current command inventory.
+scenario lifecycle setup. The manifest declares the `knowledge-base` subcommand
+group and the flat top-level knowledge commands; Go domain registrars attach
+their runtime handlers and add the other top-level groups. Start the scenario
+with `vrooli scenario start knowledge-observatory`. Use
+`knowledge-observatory --help` for the installed command inventory.
+[CODE: cli/manifest.json] [CODE: cli/app.go] [CODE: cli/domains/domains.go]
 
 ## Global Options
 
 ```
 --api-base <url>   Override API base URL (default: auto-detected from lifecycle)
+--instance <name>  Target a scenario variant (default: live)
+--node <name>      Target a connected node; address prefix wins, never implicit
 --auto-start       Auto-start the scenario if not running
+--dry-run          Request dry-run only for commands that declare support
 --no-color         Disable ANSI color output (or set NO_COLOR env var)
 --color            Force-enable ANSI color output
 ```
+
+Place global options before the command. `--dry-run` applies only to commands
+that explicitly support it.
 
 ## Commands Overview
 
@@ -26,9 +36,9 @@ Use `knowledge-observatory --help` for the current command inventory.
 | `status` | Check API health |
 | `search` | Documentation hybrid search |
 | `knowledge-base` | Governed source inspection and maintenance evidence |
-| `knowledge inventory` | Bounded candidate inventory; read-only |
-| `knowledge proposals` | Review-only disposition proposals |
-| `knowledge route` | Dry-run or owner-authorized routing receipt |
+| `inventory` | Bounded candidate inventory; read-only |
+| `proposals` | Review-only disposition proposals |
+| `route` | Dry-run or owner-authorized routing receipt |
 | `reindex` | Documentation index reconciliation |
 | `collection-diagnostics` | Inspect embedding/chunk diagnostics for a collection |
 | `collection-prune-stale` | Prune stale chunk versions (dry-run by default) |
@@ -72,7 +82,8 @@ are discovered by indexing; there is no `ingest`, `ingest-job`, `job-status`,
 
 Each command supports `--json`. See the [usage guide](../guides/getting-started.md)
 and [maintenance workflow](../guides/document-maintenance.md) for program composition,
-input examples, evidence interpretation, and knowledge preservation.
+input examples, evidence interpretation, and knowledge preservation. The wire-level
+Connect method contracts are in the [API reference](api-endpoints.md#knowledge-base-connect-service).
 
 ## reindex
 
@@ -156,6 +167,12 @@ knowledge-observatory graph --center "ecosystem-manager" --depth 2
 
 ## docs
 
+The docs command supports `read`, `add`, `view`, `search-files`, `search-text`,
+`search-deep`, `scenarios`, `tree`, `health`, `validate-diagrams`, `audit`,
+`heal`, `heal-status`, `autofix`, `fix-placeholders`, `reset`, `stats`,
+`templates`, and `template`. Run `knowledge-observatory docs` without a
+subcommand to print the owner-maintained list and short descriptions.
+
 ```bash
 knowledge-observatory docs search-files "**/README.md" --scope scenario --scenario knowledge-observatory
 knowledge-observatory docs search-text "health score" --scope scenario --scenario knowledge-observatory --context-lines 1
@@ -228,7 +245,10 @@ Fetch the documentation tree for a scenario.
 
 ### docs health
 
-Fetch documentation health details for a scenario.
+Fetch documentation health through the `KnowledgeObservatoryService.DocHealth`
+Connect-RPC. This is distinct from top-level `health`, which reads knowledge
+collection metrics. `knowledge-base health` is the governed source-workflow
+entry to the same documentation-health service.
 
 ```bash
 knowledge-observatory docs health knowledge-observatory
@@ -239,8 +259,8 @@ knowledge-observatory docs health knowledge-observatory --json
 | Flag | Description |
 |------|-------------|
 | `--scenario` | Scenario name (optional if provided as positional argument) |
-| `--scope` | `scenario` (default) or `path` |
-| `--path` | Docs path to scan when using path scope |
+| `--scope` | `scenario` (default), `path`, or `path-exact` |
+| `--path` | Docs path to scan for `path` or `path-exact` scope |
 | `--checks` | Comma-separated check names listed in the generated inventory below |
 
 Available checks are generated from Knowledge Observatory's owner registry:
@@ -264,6 +284,20 @@ Available checks are generated from Knowledge Observatory's owner registry:
 | `--skip-external-links` | Skip external link probing for offline runs |
 | `--json` | Emit raw JSON output |
 
+### docs audit
+
+Audit one scenario's documentation and render the structured findings; append
+`--json` for the raw result. The audit checks documentation infrastructure and
+health score, documented-code references, broken `[CODE:]` and marked inline
+`path:` / `doc:` references, manifest orphans, duplicate titles, undocumented
+PRD targets, and performance-audit metadata and tables. This is a distinct
+summary from the capability-oriented `docs health` report.
+
+```bash
+knowledge-observatory docs audit knowledge-observatory
+knowledge-observatory docs audit knowledge-observatory --json
+```
+
 The `refs` check validates explicit marked references such as `cli:...`.
 The `assertions` check fails on repeated normative statements or explicit
 opposite-polarity assertions within one current document, warns on
@@ -275,6 +309,11 @@ without blocking current guidance.
 The `commands` check conservatively validates Vrooli-owned commands found in
 fenced shell snippets by delegating to CLI Health (DOCS policy); it does not
 execute the referenced commands.
+
+`path` promotes a selected path inside a scenario to that scenario's full docs
+contract. `path-exact` scans only the selected file or directory and runs
+generic checks, without scenario-level contract checks. See the [getting-started
+guide](../guides/getting-started.md) for the governed `knowledge-base` examples.
 
 Command-snippet finding codes:
 | Code | Severity | Meaning |

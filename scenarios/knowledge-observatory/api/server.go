@@ -60,7 +60,6 @@ import (
 // Config holds minimal runtime configuration
 type Config struct {
 	Port                   string
-	DatabaseURL            string
 	QdrantURL              string
 	QdrantAPIKey           string
 	OllamaEmbeddingRole    string
@@ -710,10 +709,6 @@ func requireEnv(key string) string {
 		log.Fatalf("environment variable %s is required. Run the scenario via 'vrooli scenario start <name>' so lifecycle exports it.", key)
 	}
 	return value
-}
-
-func resolveDatabaseURL() (string, error) {
-	return database.ResolvePostgresDSN(os.Getenv)
 }
 
 func (s *Server) qdrantURL() string {

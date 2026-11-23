@@ -59,7 +59,7 @@ The database-computed `avg_quality` and the API-returned overall score will dive
 Align the schema generated column with the code formula, or vice versa. The code formula (`- redundancy / 3`) is likely correct since high redundancy is undesirable.
 
 [CODE: api/metrics.go]
-[CODE: api/internal/<domain>/schema.sql]
+[CODE: api/internal/quality/schema.sql]
 
 ---
 

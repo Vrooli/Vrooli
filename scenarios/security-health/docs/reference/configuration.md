@@ -38,7 +38,14 @@ for the full policy.
 | _(none)_ | — | The SQLite file location is **not** configurable through the environment. It is resolved from the scenario's own identity by `api-core/storage`, so no inherited variable can point one scenario at another's database. To relocate storage for a test run, set `VROOLI_STORAGE_ROOT`, which redirects the whole class tree and stays scenario-agnostic. |
 | `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
+| `SECURITY_HEALTH_AISEARCH_DISABLED` | `false` | Set to `true` to disable semantic ranking and serve deterministic TEXT search only. |
+| `SECURITY_HEALTH_QDRANT_URL` | `http://127.0.0.1:6333` | Qdrant base URL for the optional semantic index. |
+| `SECURITY_HEALTH_EMBED_ROLE` | `embedding.default` | Ollama embedding role used by the optional semantic index. |
+| `SECURITY_HEALTH_INDEX_READY_THRESHOLD` | `0.95` | Minimum fraction of the SQLite package corpus that must be indexed before AI mode is ready; invalid values use the default. |
+| `SECURITY_HEALTH_QDRANT_API_KEY` | unset | Optional Qdrant API-key setting. Its value is never returned by status or search routes. |
 | `SECURITY_HEALTH_RECONCILE_INTERVAL` | `5m` | Base cadence of the background fleet reconcile loop (Go duration, e.g. `5m`, `10m`). A per-tick jitter of up to `interval/4` is added so a fleet of self-monitoring scenarios doesn't burst on an aligned boundary. Invalid/non-positive values fall back to the default. |
+
+Semantic-index settings are loaded when the API constructs its AI overlay; changing its endpoint, embedding role, API-key setting or disabled state requires the supported scenario restart to take effect. A temporary Ollama/Qdrant outage does not discard the SQLite dependency corpus: AI search reports the mode it actually served and falls back to TEXT. Status reports `index_ready` only while both semantic backends are available and vector coverage meets the threshold.
 | `SECURITY_HEALTH_RECONCILE_MAX_INTERVAL` | `1h` | Ceiling for exponential backoff after unchanged fleet reconciles. Each unchanged pass doubles the effective interval; any scanner work resets it to the base interval. Jitter remains applied. |
 | `SECURITY_HEALTH_SCAN_CONCURRENCY` | `4` | Max scenarios scanned in parallel during a fleet reconcile. Bounds peak CPU from the ~110 per-scenario `osv-scanner` runs; raise it to shorten a large changed-scenario pass at the cost of higher peak CPU. Minimum `1`; invalid values fall back to the default. |
 | `SECURITY_HEALTH_SCANNER_CAPACITY` | `4` | Shared weighted capacity for validation scanner subprocesses. Valid range is `3-32`; invalid values fall back to `4`. Higher values admit more expensive scanner work concurrently across requests and increase peak CPU/memory. |

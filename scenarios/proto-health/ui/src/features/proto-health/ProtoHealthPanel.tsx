@@ -6,8 +6,8 @@ import { TransportWorld } from "@vrooli/proto-types/proto-health/v1/shared/surfa
 import { ValidationStatus } from "@vrooli/proto-types/scenario-validation/v1/validation_pb";
 
 import { describeScenarioProtos, validateScenario } from "../../api/protoHealth";
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";

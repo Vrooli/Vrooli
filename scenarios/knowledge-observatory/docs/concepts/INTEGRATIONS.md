@@ -1,22 +1,20 @@
 # Integrations
 
-## Dependency Inventory
-
-| Dependency | Role | Required |
+| Dependency | Role | Availability |
 |---|---|---|
-| Qdrant | Vector search and knowledge graph source | Yes |
-| PostgreSQL | Metadata, metrics, and job persistence | Yes |
-| Ollama | Embeddings and structured parsing where enabled | Optional |
-| agent-manager | Deep search and documentation-healing runs | Optional for agent workflows |
-| prompt-manager | Skill content for agent prompts | Optional for enriched prompts |
+| Qdrant | Vector search, indexed documentation, and collection maintenance | Required for vector-backed knowledge workflows. |
+| Scenario storage | SQLite metadata and workflow persistence through Vrooli's storage resolver | Required; local to the scenario namespace and needs no database credentials. |
+| Ollama | Embeddings and optional structured-output fallback | Optional; affected search paths degrade when unavailable. |
+| agent-manager | Executes deep-search and documentation-healing agents | Optional for those workflows. |
+| prompt-manager | Supplies prompts/skills to agent-backed workflows | Optional for enriched prompts. |
 
-## Failure Modes
+The [data ownership table](DATA.md) describes what each store owns. Runtime
+environment variables and docs-search tuning are documented in the
+[configuration reference](../reference/configuration.md).
 
-Resource outages should degrade specific capabilities while preserving basic
-health and documentation inspection wherever possible.
+## Failure boundary
 
-## Cross-References
-
-- [DATA.md](DATA.md)
-- [../reference/configuration.md](../reference/configuration.md)
-- [../operations/OBSERVABILITY.md](../operations/OBSERVABILITY.md)
+An unavailable vector service affects vector-backed search and collection
+operations. SQLite holds scenario metadata and job review state. Documentation
+inspection reads source repositories and can still report their health without
+embedding or agent services.

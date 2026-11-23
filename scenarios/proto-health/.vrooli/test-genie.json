@@ -50,7 +50,7 @@
         "clean_requirement": "required",
         "recommended_skill_ids": [
           "proto-contract-audit",
-          "screaming-architecture-audit"
+          "architecture-lenses"
         ],
         "capability_id": "dependency_reuse"
       },
@@ -62,7 +62,7 @@
         "clean_requirement": "required",
         "recommended_skill_ids": [
           "proto-contract-audit",
-          "screaming-architecture-audit"
+          "architecture-lenses"
         ],
         "capability_id": "package_layout"
       },
@@ -292,7 +292,7 @@
         "clean_requirement": "required",
         "recommended_skill_ids": [
           "proto-contract-audit",
-          "architecture-scope"
+          "work-scope"
         ],
         "capability_id": "dependency_reuse"
       },

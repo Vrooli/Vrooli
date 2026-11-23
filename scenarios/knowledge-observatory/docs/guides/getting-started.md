@@ -12,15 +12,17 @@ This guide walks through the UI, CLI, and API to confirm Knowledge Observatory i
 ## UI Walkthrough
 - **Dashboard**: run quick search, confirm knowledge + documentation health, review activity feed.
 - **Search**: select semantic, file, text, unified, or deep search modes.
-- **Explorer**: browse scenario docs, tree warnings, health summary, and healing controls.
-- **Viewer**: open document content with preview/mermaid rendering and reset support.
+- **Explorer**: browse scenario docs, tree warnings, and health summary; open document content with code, preview, or split rendering.
+- **Documentation reset**: use `knowledge-observatory docs reset` for manifest-declared append logs; reset is not part of the current Explorer viewer.
 - **Graph**: explore relationships around a center concept.
 - **Metrics**: review coherence/freshness/redundancy scores.
 
 [CODE: ui/src/surfaces/dashboard/DashboardPage.tsx]
 [CODE: ui/src/surfaces/search/SearchPage.tsx]
 [CODE: ui/src/surfaces/explorer/ExplorerPage.tsx]
-[CODE: ui/src/surfaces/viewer/ViewerPage.tsx]
+[CODE: ui/src/surfaces/explorer/components/DocViewer.tsx]
+[CODE: ui/src/shared/controllers/viewerController.ts]
+[CODE: ui/src/App.tsx]
 [CODE: ui/src/surfaces/graph/GraphPage.tsx]
 [CODE: ui/src/surfaces/metrics/MetricsPage.tsx]
 
@@ -41,19 +43,8 @@ the documentation indexer; there is no `knowledge-observatory ingest` command.
 
 ## API Walkthrough
 
-Resolve the running port with `vrooli scenario port knowledge-observatory API_PORT`.
-Send JSON with `Content-Type: application/json` to the Connect endpoint
-`/knowledge_observatory.v1.KnowledgeBaseService/SearchDocuments`:
-
-```json
-{"query":"architecture","scope":"scenario","target":"knowledge-observatory","limit":5}
-```
-
-Use `InspectDocument` on the same service with a repository-relative `path` and
-bounded `limit`. Read `sha256`, `metadata`, and `truncated` before using a result.
-The CLI uses these same typed operations and avoids shell-specific HTTP examples.
-
-[CODE: api/knowledge_base.go]
+For Connect method paths, request fields, revision checks, and bounded review
+semantics, use the canonical [Knowledge Base API contract](../reference/api-endpoints.md#knowledge-base-connect-service). The CLI calls these same typed read operations and is the portable terminal workflow.
 
 ## Related Reference
 - [DOC: docs/reference/api-endpoints.md]
@@ -83,11 +74,13 @@ The scenario programs are:
 
 | Program | Inputs and evidence |
 |---|---|
-| `collect-context` | Task query, scope/target, retrieval mode, up to five sources and two followed references; returns bounded excerpts, source hashes and explicit gaps. |
-| `prepare-change` | One to eight source paths, intent, scan directory and file budget; returns revision preconditions, duplicate/backlink findings, portability cues, related sources and editorial decisions. |
-| `verify-change` | Intended post-edit source hashes, up to three reviewed query/expected-path cases, and scan directory; checks source revisions, retrieval and local/reference health. |
-| `learning-read` | Fixed from/to window, operation and context_key; returns comparable outcome/effort cohorts, with missing or incomparable observations unbanded. |
-| `setpoint-read` | Scan directory and optional immutable retrieval eval run; reads index, reference and binding health and points to usage-learning/external-friction evidence. |
+| `candidate-inventory` | `paths`, `base_path`; optional `intent`, `max_files`; returns bounded candidates and owner hypotheses for review. |
+| `candidate-proposals` | `candidates`; optional `reader_task`; turns observations into review-only proposals with citations, source hashes, preservation obligations and uncertainty. |
+| `collect-context` | `query`; optional scope/target, retrieval mode, limit and reference budget; returns bounded excerpts, source revisions and explicit evidence gaps. |
+| `prepare-change` | `paths`, `base_path`, `intent`; optional file budget and dispositions; returns revision preconditions, preservation obligations and a scoped reference baseline. |
+| `verify-change` | `expectations`, `queries`, `base_path`; optional mode, absent paths, preservation reviews and reference baseline; checks source revisions, retrieval expectations and reference changes. |
+| `learning-read` | Optional fixed `from`/`to` window and operation/context selectors; returns comparable outcome/effort cohorts, with missing or incomparable observations unbanded. |
+| `setpoint-read` | Optional `base_path` and immutable retrieval evaluation ID; reads index/reference/binding health and points to comparable usage evidence. |
 
 Use `program-runtime library run knowledge-observatory.<program> --input key=value`.
 The command's input parser accepts structured JSON values for arrays. Inspect the

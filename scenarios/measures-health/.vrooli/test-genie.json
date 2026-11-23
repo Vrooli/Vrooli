@@ -216,7 +216,7 @@
         "severity_default": "SEVERITY_INFO",
         "clean_requirement": "advisory",
         "recommended_skill_ids": [
-          "screaming-architecture-audit",
+          "architecture-lenses",
           "measures-adoption"
         ]
       },
@@ -240,7 +240,7 @@
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "screaming-architecture-audit",
+          "architecture-lenses",
           "measures-adoption"
         ]
       },
@@ -309,7 +309,7 @@
         "clean_requirement": "required",
         "recommended_skill_ids": [
           "measures-adoption",
-          "screaming-architecture-audit"
+          "architecture-lenses"
         ]
       }
     },

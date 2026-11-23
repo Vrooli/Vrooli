@@ -274,9 +274,8 @@ These documents start as stubs. Review them early so missing business,
 deployment, security, and telemetry assumptions are visible before
 implementation hardens around them.
 
-- [ ] Review `docs/business/MONETIZATION.md` and
-      `docs/business/GO-TO-MARKET.md`; mark them deferred or fill the
-      scenario-specific hypothesis.
+- [ ] Review `docs/business/MONETIZATION.md`; keep launch planning deferred
+      until a scenario-specific monetization hypothesis is approved.
 - [ ] Review `docs/operations/DEPLOYMENT.md`,
       `docs/operations/RUNBOOK.md`, and
       `docs/operations/OBSERVABILITY.md`; confirm local-run assumptions

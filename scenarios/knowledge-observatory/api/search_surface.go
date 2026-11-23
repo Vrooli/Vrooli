@@ -1,14 +1,11 @@
 package main
 
-// search_surface.go is Phase 6 of the KO documentation search cutover: the
-// converged REST surface for the hybrid engine (internal/aisearch). It mirrors
-// cli-health's verb semantics — `search query` / `search status` and
-// `reindex run` / `reindex status` / `reindex cancel` — over KO's established
-// REST surface (KO is REST-everywhere; only DocHealth is Connect, and the
-// search-hub federation contract requires the REST `/docs/search/unified`
-// endpoint be preserved). The new hybrid engine becomes the implementation
-// behind these endpoints, the re-pointed `/knowledge/search`, and the
-// `/docs/search/unified` semantic leg.
+// search_surface.go registers the REST routes for the hybrid documentation
+// engine (internal/aisearch). Search Hub federation consumes the REST
+// `/docs/search/unified` contract, which remains available alongside typed
+// Connect services: KnowledgeBaseService for revisioned source workflows and
+// KnowledgeObservatoryService for documentation health. These routes and
+// services are registered in api/server.go and api/knowledge_base.go.
 
 import (
 	"context"

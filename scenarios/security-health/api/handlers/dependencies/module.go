@@ -71,13 +71,14 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        dependenciesconnect.DependencyServiceStatusProcedure,
 		Method:      "POST",
 		Summary:     "Report dependency-index backend availability and reconcile state",
-		Description: "Returns indexed/vulnerable counts, AI backend availability (ollama/qdrant), and the last reconcile timestamp + outcome.",
+		Description: "Returns indexed/vulnerable counts, AI backend availability (ollama/qdrant), effective vector-index readiness, and the last reconcile timestamp + outcome. IndexReady is false when either AI backend is unavailable, even if cached vector coverage is sufficient; TEXT search remains available.",
 		Category:    "dependencies",
 		Response: &module.Schema{
 			Type: "object",
 			Properties: map[string]string{
 				"available": "boolean", "ollama": "boolean", "qdrant": "boolean",
 				"indexed_count": "int32", "vulnerable_count": "int32",
+				"indexed_vectors": "int32", "expected_vectors": "int32", "index_ready": "boolean",
 				"last_reconcile_at": "string", "last_reconcile_outcome": "string",
 			},
 		},

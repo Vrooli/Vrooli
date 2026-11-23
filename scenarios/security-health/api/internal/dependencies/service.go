@@ -326,6 +326,10 @@ func (s *Service) Status(ctx context.Context) (Status, error) {
 	s.readyMu.Lock()
 	indexedVectors, expectedVectors, indexReady := s.indexedVectors, s.expectedVectors, s.indexReady
 	s.readyMu.Unlock()
+	// Coverage alone does not make AI mode serveable while either configured
+	// backend is unavailable. Keep the UI status aligned with Search's actual
+	// TEXT fallback during an out-of-band provider loss.
+	indexReady = indexReady && ollama && qdrant
 	return Status{
 		Available:            true, // TEXT/structured search always works
 		Ollama:               ollama,

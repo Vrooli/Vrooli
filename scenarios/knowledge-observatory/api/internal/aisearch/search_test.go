@@ -192,6 +192,68 @@ func TestPathScopeFiltersClientSide(t *testing.T) {
 	}
 }
 
+func TestPathScopeUsesSegmentBoundariesAndTotalMatchesPageLimit(t *testing.T) {
+	store := &searchStore{available: true, results: []pkg.SearchResult{
+		docResult("ko-docs:a#0", "docs/guides/a.md", "matching result one", "active"),
+		docResult("ko-docs:b#0", "docs/guides/subtopic.md", "matching result two", "active"),
+		docResult("ko-docs:c#0", "docs/guides-reference/a.md", "unrelated sibling", "active"),
+		docResult("ko-docs:d#0", "docs/guides2/a.md", "unrelated sibling", "active"),
+	}}
+	svc := NewSearchService(ServiceOptions{Embedder: &searchEmbedder{available: true}, VectorStore: store})
+	resp, err := svc.Search(context.Background(), pkg.SearchQuery{
+		Query: "guide",
+		Mode:  pkg.ModeDense,
+		Scope: pkg.Scope{Kind: pkg.ScopePath, Value: "/docs/guides/"},
+		Limit: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.Results) != 1 || resp.Total != len(resp.Results) {
+		t.Fatalf("total/results = %d/%d, want returned page size 1", resp.Total, len(resp.Results))
+	}
+	if !pathWithinScope(resp.Results[0].RelativePath, "docs/guides") {
+		t.Fatalf("out-of-scope sibling leaked into results: %+v", resp.Results[0])
+	}
+}
+
+func TestSearchPageCollapsesChunksBySourceBeforeLimiting(t *testing.T) {
+	high := docResult("ko-docs:notes#0", "docs/COHERENCE-NOTES.md", "legacy implementation note", "active")
+	high.Score = 0.9
+	second := docResult("ko-docs:notes#1", "docs/COHERENCE-NOTES.md", "another legacy note", "active")
+	second.Score = 0.89
+	canonical := docResult("ko-docs:architecture#0", "docs/concepts/ARCHITECTURE.md", "legacy viewer contract", "active")
+	canonical.Score = 0.88
+	store := &searchStore{available: true, results: []pkg.SearchResult{high, second, canonical}}
+	svc := NewSearchService(ServiceOptions{Embedder: &searchEmbedder{available: true}, VectorStore: store})
+	resp, err := svc.Search(context.Background(), pkg.SearchQuery{Query: "legacy", Mode: pkg.ModeDense, Limit: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.Results) != 2 || resp.Total != 2 {
+		t.Fatalf("returned total/results = %d/%d, want two distinct documents", resp.Total, len(resp.Results))
+	}
+	if resp.Results[0].RelativePath != "docs/COHERENCE-NOTES.md" || resp.Results[1].RelativePath != "docs/concepts/ARCHITECTURE.md" {
+		t.Fatalf("same-source chunks crowded out the second document: %+v", resp.Results)
+	}
+}
+
+func TestExactQueryTermKeepsCanonicalSourceAheadOfSemanticNeighbor(t *testing.T) {
+	neighbor := docResult("ko-docs:neighbor#0", "docs/neighbor.md", "Viewer navigation overview", "active")
+	neighbor.Score = 0.54
+	canonical := docResult("ko-docs:architecture#0", "docs/concepts/ARCHITECTURE.md", "The legacy viewer URL redirects to Explorer", "active")
+	canonical.Score = 0.51
+	store := &searchStore{available: true, results: []pkg.SearchResult{neighbor, canonical}}
+	svc := NewSearchService(ServiceOptions{Embedder: &searchEmbedder{available: true}, VectorStore: store})
+	resp, err := svc.Search(context.Background(), pkg.SearchQuery{Query: "legacy", Mode: pkg.ModeDense, Limit: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.Results) != 2 || resp.Results[0].RelativePath != "docs/concepts/ARCHITECTURE.md" {
+		t.Fatalf("exact-term canonical source was not promoted: %+v", resp.Results)
+	}
+}
+
 func TestRerankReorders(t *testing.T) {
 	store := &searchStore{available: true, results: []pkg.SearchResult{
 		docResult("ko-docs:a#0", "docs/a.md", "alpha", "draft"),

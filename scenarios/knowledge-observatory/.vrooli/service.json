@@ -129,13 +129,6 @@
         ],
         "startup_policy": "try_start"
       },
-      "postgres": {
-        "type": "postgres",
-        "enabled": false,
-        "required": false,
-        "description": "Optional relational source for observatory metadata",
-        "startup_policy": "try_start"
-      },
       "reranker": {
         "type": "reranker",
         "enabled": true,

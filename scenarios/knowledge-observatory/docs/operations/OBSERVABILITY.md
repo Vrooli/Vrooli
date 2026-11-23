@@ -2,8 +2,9 @@
 
 ## Signals
 
-Important signals are API health, Qdrant availability, PostgreSQL availability,
-search latency, documentation health findings, and agent job terminal states.
+Important signals are API health, Qdrant availability, search latency,
+documentation health findings, and agent job terminal states. Scenario metadata
+and workflow records persist in SQLite; PostgreSQL is not a runtime dependency.
 
 ## Logs
 
@@ -13,7 +14,7 @@ process output.
 ## Metrics
 
 The scenario exposes quality metrics for knowledge collections and stores job
-state for asynchronous workflows.
+review state for asynchronous workflows. agent-manager reports execution state.
 
 ## Telemetry Gaps
 

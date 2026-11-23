@@ -92,7 +92,7 @@ func TestJourneyFundingLedgerServer(t *testing.T) {
 	mux.HandleFunc("/__journey/stop", func(w http.ResponseWriter, r *http.Request) { close(stop) })
 	mux.HandleFunc("/__journey/identity", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]string{"fixture_id": config["fixture_id"]})
+		_ = json.NewEncoder(w).Encode(map[string]string{"fixture_id": config["fixture_id"], "adapter_id": config["adapter"], "book_id": config["book"], "revenue_account_id": config["service_order_revenue"]})
 	})
 	mux.Handle("/", srv.Handler())
 	httpServer := httptest.NewServer(mux)

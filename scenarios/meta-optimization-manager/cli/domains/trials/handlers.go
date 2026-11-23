@@ -14,13 +14,12 @@ import (
 )
 
 type handlers struct {
-	core   *cliapp.ScenarioApp
 	client trialsconnect.TrialsServiceClient
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
-	return &handlers{core: core, client: trialsconnect.NewTrialsServiceClient(httpClient, baseURL)}
+	return &handlers{client: trialsconnect.NewTrialsServiceClient(httpClient, baseURL)}
 }
 
 func (h *handlers) list(ctx cliapp.RunContext) error {

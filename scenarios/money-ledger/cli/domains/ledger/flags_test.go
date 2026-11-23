@@ -16,11 +16,8 @@ func TestNumbersAreSentExactlyOrRefused(t *testing.T) {
 	server := &recordingServer{received: map[string]string{}}
 	core := cliapptest.NewTestApp(t, server)
 	manifest := cliapptest.ReadManifest(t)
-	ledgerGroup, err := Register(core, manifest)
+	groups, err := RegisterGroups(core, manifest)
 	require.NoError(t, err)
-	ingestGroup, err := RegisterIngest(core, manifest)
-	require.NoError(t, err)
-	groups := []cliapp.SubcommandGroup{ledgerGroup, ingestGroup}
 
 	transfer := []string{"--from-account-id", "a", "--to-account-id", "b", "--currency", "USD", "--external-id", "x", "--local-owner"}
 	goal := []string{"--book-id", "b", "--name", "n", "--metric", "cash", "--comparator", "gte", "--buffer-multiple", "1.5", "--local-owner"}

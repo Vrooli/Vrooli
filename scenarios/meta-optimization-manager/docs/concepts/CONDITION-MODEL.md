@@ -215,7 +215,7 @@ parallel provider registry.
 | Freshness | per-skill age against the canon it cites | ○ |
 | Exercise | per-skill read count, distinct callers, last-read | ○ |
 
-Guide currently has the **least** condition visibility of the four and the most prose-shaped supply — the combination where silent decay is most likely and least detectable. Its exercise signal is also the highest-value single measure in this table, because it is the direct input to the skill staleness window already written into `DEPRECATION_POLICY.md`.
+Guide currently has the **least** condition visibility of the four and the most prose-shaped supply — the combination where silent decay is most likely and least detectable. Its exercise signal is also the highest-value single measure in this table, because it is the direct input to the skill staleness window already written into `RULES.md`.
 
 ### Act — `program-runtime`, leg = binding
 
@@ -253,7 +253,7 @@ The ranking intent, stated so implementations do not have to guess it:
 | `DEGRADED`, sustained | Highest. Counted supply that is actively failing is worse than supply that was never claimed. |
 | `DEGRADED`, transient | Ranked, damped by duration. Incidents should be visible without drowning structural findings. |
 | `UNINSTRUMENTED` leg on a `NOW` cell | Ranked by the leg's coverage weight. An unverifiable claim is a weaker claim. |
-| `DORMANT` | Ranked low and never auto-escalating. It routes to an adoption-or-retirement judgment, and per `DEPRECATION_POLICY.md` § "The mandatory roadmap check", a low-usage entity may be load-bearing for roadmapped work. This axis supplies evidence to that check; it never substitutes for it. |
+| `DORMANT` | Ranked low and never auto-escalating. It routes to an adoption-or-retirement judgment, and per `SCENARIO_DEVELOPMENT.md` "Retiring a scenario or capability" (the roadmap check), a low-usage entity may be load-bearing for roadmapped work. This axis supplies evidence to that check; it never substitutes for it. |
 
 ## Enforcement
 
@@ -314,5 +314,5 @@ These are known blockers on the model above. They are recorded so the gap is sch
 - `path:docs/concepts/RECURSIVE_SELF_IMPROVEMENT.md` — the narrative spine this axis sits inside.
 - `path:docs/concepts/MEASURES.md` — the federated metrics layer every condition signal is declared in; its contract is `packages/measures-go` and its enforcer is `measures-health`.
 - `path:docs/concepts/VROOLI_EVENTS_PLATFORM_CONTRACT.md` — the receipt contract backing the fleet-wide Exercise family.
-- `path:docs/agent-system/DEPRECATION_POLICY.md` — the policy that consumes `DORMANT` findings, including the mandatory roadmap check that bounds them.
+- `path:docs/agent-system/RULES.md` — the policy that consumes `DORMANT` findings, including the mandatory roadmap check that bounds them.
 - The four space docs, which own the Coverage denominators whose `NOW` cells define this axis's population: `search-hub/docs/spaces/answer-space.md`, `test-genie/docs/spaces/validate-space.md`, `prompt-manager/docs/spaces/guide-space.md`, `program-runtime/docs/spaces/act-space.md`.
