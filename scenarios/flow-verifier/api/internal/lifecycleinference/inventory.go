@@ -566,7 +566,7 @@ func explicitTransitionProof(facts *packageFacts, key string) (bool, bool) {
 			}
 		}
 		if ownerIsTypedPolicy(text) {
-			if !strings.Contains(text, "switch") {
+			if !strings.Contains(text, "switch") && !hasFiniteBooleanTransitionExpression(text) {
 				continue
 			}
 			if invalidPolicyBoundaryTest(facts, key) {
@@ -575,7 +575,7 @@ func explicitTransitionProof(facts *packageFacts, key string) (bool, bool) {
 			continue
 		}
 		delegatedGraphCall := calledTransitionHelperHasGraph(facts, text)
-		hasReturnedError := strings.Contains(text, "return fmt.Errorf") || strings.Contains(text, ", fmt.Errorf") || strings.Contains(text, "return validationError") || strings.Contains(text, "return ErrInvalid") || strings.Contains(text, "return ErrIllegal") || delegatedGraphCall
+		hasReturnedError := strings.Contains(text, "return fmt.Errorf") || strings.Contains(text, ", fmt.Errorf") || strings.Contains(text, "return validationError") || strings.Contains(text, "return ErrInvalid") || strings.Contains(text, "return ErrIllegal") || strings.Contains(text, "return &") || delegatedGraphCall
 		if !hasReturnedError {
 			continue
 		}
@@ -596,6 +596,9 @@ func explicitTransitionProof(facts *packageFacts, key string) (bool, bool) {
 		}
 		if rejection < 0 {
 			rejection = strings.Index(text, "return ErrIllegal")
+		}
+		if rejection < 0 {
+			rejection = strings.Index(text, "return &")
 		}
 		if rejection < 0 && delegatedGraphCall {
 			rejection = strings.Index(strings.ToLower(text), "return transition")
@@ -621,7 +624,7 @@ func explicitTransitionProof(facts *packageFacts, key string) (bool, bool) {
 				source := fullSourceFragment(parsed, fn)
 				lowerSource := strings.ToLower(source)
 				invalidCase := strings.Contains(lowerSource, "invalid") || strings.Contains(lowerSource, "illegal") || strings.Contains(lowerSource, "unknown") || (strings.Contains(source, "require.Error") && (strings.Contains(source, "isValid") || strings.Contains(source, "explicit") || strings.Contains(source, "allowed")))
-				errorAssertion := strings.Contains(source, "require.Error") || strings.Contains(source, "assert.Error") || strings.Contains(source, "ErrorIs(") || strings.Contains(source, "errors.Is(") || strings.Contains(source, "err != nil") || strings.Contains(source, "err == nil")
+				errorAssertion := strings.Contains(source, "require.Error") || strings.Contains(source, "assert.Error") || strings.Contains(source, "ErrorIs(") || strings.Contains(source, "errors.Is(") || strings.Contains(source, "errors.As(") || strings.Contains(source, "err != nil") || strings.Contains(source, "err == nil")
 				if strings.Contains(source, method+"(") && invalidCase && errorAssertion {
 					return true, true
 				}
@@ -632,7 +635,44 @@ func explicitTransitionProof(facts *packageFacts, key string) (bool, bool) {
 }
 
 func ownerIsTypedPolicy(source string) bool {
-	return strings.Contains(source, "CanTransitionTo(") && strings.Contains(source, "bool")
+	if !strings.Contains(source, "CanTransitionTo(") || !strings.Contains(source, "bool") {
+		return false
+	}
+	if strings.Contains(source, "switch") {
+		return true
+	}
+	return hasFiniteBooleanTransitionExpression(source)
+}
+
+func hasFiniteBooleanTransitionExpression(source string) bool {
+	file, err := parser.ParseFile(token.NewFileSet(), "transition.go", "package lifecycleproof\n"+source, 0)
+	if err != nil {
+		return false
+	}
+	for _, declaration := range file.Decls {
+		fn, ok := declaration.(*ast.FuncDecl)
+		if !ok || fn.Name.Name != "CanTransitionTo" || fn.Body == nil {
+			continue
+		}
+		equalities, conjunctions, alternatives := 0, 0, 0
+		ast.Inspect(fn.Body, func(node ast.Node) bool {
+			binary, ok := node.(*ast.BinaryExpr)
+			if !ok {
+				return true
+			}
+			switch binary.Op {
+			case token.EQL:
+				equalities++
+			case token.LAND:
+				conjunctions++
+			case token.LOR:
+				alternatives++
+			}
+			return true
+		})
+		return equalities >= 2 && conjunctions >= 1 && alternatives >= 1
+	}
+	return false
 }
 
 func invalidPolicyBoundaryTest(facts *packageFacts, key string) bool {
@@ -805,16 +845,20 @@ func hasIllegalTransitionTest(facts *packageFacts, owner string) bool {
 // prefix. A comparison before the rejection branch is part of the graph, not
 // an early state mutation.
 func fieldAssignmentIndex(source, field string) int {
-	needle := "." + field + " ="
+	needle := "." + field
 	for from := 0; from < len(source); {
 		relative := strings.Index(source[from:], needle)
 		if relative < 0 {
 			return -1
 		}
 		index := from + relative
-		afterEquals := index + len(needle) - 1
+		equalsRelative := strings.Index(source[index+len(needle):], "=")
+		if equalsRelative < 0 {
+			return -1
+		}
+		afterEquals := index + len(needle) + equalsRelative
 		if afterEquals+1 >= len(source) || source[afterEquals+1] != '=' {
-			return index
+			return afterEquals
 		}
 		from = afterEquals + 2
 	}
@@ -1071,7 +1115,8 @@ func isTransitionOwner(fn *ast.FuncDecl) bool {
 	if fn == nil || fn.Recv == nil || fn.Body == nil {
 		return false
 	}
-	return strings.HasPrefix(strings.ToLower(fn.Name.Name), "transition")
+	name := strings.ToLower(fn.Name.Name)
+	return strings.HasPrefix(name, "transition") || name == "advance"
 }
 
 func transitionOwnerFields(fn *ast.FuncDecl) []transitionOwnerField {

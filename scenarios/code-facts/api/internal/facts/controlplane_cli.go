@@ -16,13 +16,55 @@ import (
 
 type cliCommandSpec struct {
 	name, handler, group string
+	argsExpression       string
+	argsStatus           string
+	argsPath             string
+	argsHash             string
 	hidden               bool
 	line                 int
+	argsLine             int
+}
+
+// cliArgsDeclaration records the literal Args field expression without
+// evaluating helpers, defaults, or validation behavior.
+func cliArgsDeclaration(fields []ast.Expr, fset *token.FileSet) (string, string, int) {
+	var args []ast.Expr
+	for _, field := range fields {
+		kv, ok := field.(*ast.KeyValueExpr)
+		if !ok {
+			continue
+		}
+		key, ok := kv.Key.(*ast.Ident)
+		if ok && key.Name == "Args" {
+			args = append(args, kv.Value)
+		}
+	}
+	if len(args) == 0 {
+		return "", "NOT_DECLARED", 0
+	}
+	if len(args) != 1 {
+		return "", "UNKNOWN_DUPLICATE_ARGS", fset.Position(args[0].Pos()).Line
+	}
+	var expression strings.Builder
+	if err := format.Node(&expression, fset, args[0]); err != nil {
+		return "", "UNKNOWN_UNRENDERABLE_ARGS", fset.Position(args[0].Pos()).Line
+	}
+	return expression.String(), "DECLARED_UNEVALUATED", fset.Position(args[0].Pos()).Line
+}
+
+func cliArgsEvidence(spec cliCommandSpec) string {
+	if spec.argsStatus == "NOT_DECLARED" {
+		return fmt.Sprintf("Args field NOT_DECLARED in command literal at %s:%d#sha256:%s; defaults and acceptance behavior unknown", spec.argsPath, spec.line, spec.argsHash)
+	}
+	if spec.argsStatus != "DECLARED_UNEVALUATED" {
+		return fmt.Sprintf("Args declaration %s at %s:%d#sha256:%s; declaration could not be resolved", spec.argsStatus, spec.argsPath, spec.argsLine, spec.argsHash)
+	}
+	return fmt.Sprintf("Args declaration DECLARED_UNEVALUATED (%s) at %s:%d#sha256:%s; runtime parsing and acceptance behavior unknown", spec.argsExpression, spec.argsPath, spec.argsLine, spec.argsHash)
 }
 
 // DescribeControlPlaneCLIComposition binds the root CLI's declared command
 // specs to the handler map. It intentionally does not infer runtime reachability
-// through special pre-run dispatch or expand nested command groups.
+// through special pre-run dispatch or evaluate argument-schema expressions.
 func DescribeControlPlaneCLIComposition(root string) (*CompositionReport, error) {
 	root, err := filepath.Abs(root)
 	if err != nil {
@@ -44,8 +86,11 @@ func DescribeControlPlaneCLIComposition(root string) (*CompositionReport, error)
 	}
 	constants := cliCommandConstants(top.file)
 	specs := cliCommandSpecs(top.file, constants, top.fset)
+	for i := range specs {
+		specs[i].argsPath, specs[i].argsHash = top.path, topHash
+	}
 	handlers := cliHandlerBindings(app.file, app.fset)
-	report := &CompositionReport{RootPath: root, AnalysisScope: "go-syntax-v1; top-level and supported nested command specs are joined to explicit source registrations (nested expansion follows only registered package RootHandler source calls); main conditional early-dispatch call sites are listed without resolving predicates; unsupported forms degrade to UNKNOWN; nested/runtime argument dispatch and execution are not analyzed"}
+	report := &CompositionReport{RootPath: root, AnalysisScope: "go-syntax-v1; top-level and supported nested command specs are joined to explicit source registrations (nested expansion follows only registered package RootHandler source calls); Args field expressions are reported with declaration status, source path/line/hash and are never evaluated; main conditional early-dispatch call sites are listed without resolving predicates; unsupported forms degrade to UNKNOWN; nested/runtime argument dispatch and execution are not analyzed"}
 	for _, spec := range specs {
 		handler := handlers[spec.handler]
 		status, provider, registrationPath, sourceHash, line := "unknown", "", top.path, topHash, spec.line
@@ -56,9 +101,9 @@ func DescribeControlPlaneCLIComposition(root string) (*CompositionReport, error)
 		binding := CompositionBinding{
 			Environment: "control-plane", Consumer: "vrooli root CLI", Dependency: spec.name,
 			Interface: fmt.Sprintf("commandtree.Spec group=%q handler=%s → rootcli.Handler", spec.group, spec.handler),
-			Provider:  provider, ProviderExpression: fmt.Sprintf("declared handler id %s; group=%q; hidden=%t", spec.handler, spec.group, spec.hidden),
+			Provider:  provider, ProviderExpression: fmt.Sprintf("declared handler id %s; group=%q; hidden=%t; %s", spec.handler, spec.group, spec.hidden, cliArgsEvidence(spec)),
 			Status: status, SourcePath: registrationPath, Line: line, SourceHash: sourceHash,
-			Provenance: "topcli-command-spec+vroolicli-handler-map",
+			Provenance: "topcli-command-spec+vroolicli-handler-map; " + cliArgsEvidence(spec),
 		}
 		report.Bindings = append(report.Bindings, binding)
 	}
@@ -262,6 +307,7 @@ func cliCommandSpecs(file *ast.File, constants map[string]string, fset *token.Fi
 						}
 					}
 				}
+				spec.argsExpression, spec.argsStatus, spec.argsLine = cliArgsDeclaration(row.Elts, fset)
 				if spec.name != "" && spec.handler != "" {
 					specs = append(specs, spec)
 				}

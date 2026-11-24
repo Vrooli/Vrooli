@@ -4,29 +4,20 @@ Known issues, technical debt, and deferred work for Knowledge Observatory.
 
 ## Entries
 
-### 2026-06-08 — Self-registers `knowledge-observatory.docs` with search-hub at boot
+### 2026-06-08 — Self-registers docs provider — registration contract complete 2026-11-24
 
-**Symptom:** (by design) KO now pushes its docs search provider descriptor to
-search-hub at startup instead of relying on an operator to register it.
+KO idempotently registers `knowledge-observatory.docs` from `.vrooli/search.json`
+through `packages/searchregister-go`; Search Hub is optional, so local docs search
+continues if it is unavailable. **Resolved:** registry `ProviderDescriptor` now
+carries `tuning` (field 15) and `tests_minimum` (field 17); the helper maps tuning,
+maps the declared minimum, mirrors eval cases through the separate suite API, and
+presents/captures the control token (request field 2,
+response field 3). KO caches that token for authorized reindex calls. No retrieval
+quality change is claimed. The shared mapper has no focused assertion for the
+`tests_minimum` field yet.
 
-**Root cause / change:** Search Self-Tuning System plan Phase 2. `server.go`'s
-`selfRegisterSearch` (launched in a background goroutine alongside the docs
-indexer) reads the `knowledge-observatory.docs` descriptor from the
-`.vrooli/search.json` SSOT and upserts it via `RegistryService.RegisterProvider`
-through the shared `packages/searchregister-go` helper. search-hub is declared an
-**optional** scenario dependency (`.vrooli/service.json` →
-`dependencies.scenarios.search-hub`, `required:false`, `try_start`): if the hub is
-down at boot, registration retries briefly then degrades, and KO serves docs
-search normally. The upsert is idempotent, so re-registering every boot is safe.
-
-**Deferred:** the registration carries only the descriptor today; the
-`tuning`/`tests` blocks and the control token ride in once `registry.proto` gains
-those fields (plan Phase 3). KO's `tuning` (hybrid, symmetric nomic, rerank-off)
-continues to be read directly from `search.json` at boot, preserving the guarded
-recall@5=0.818.
-
-**Refs:** `api/server.go` (`selfRegisterSearch`), `.vrooli/service.json`,
-`packages/searchregister-go/`; Search Self-Tuning System plan §7 Phase 2.
+**Evidence:** KO API `GOWORK=off go test ./... -count=1`; shared descriptor and
+control-token tests; `api/server.go`, `registry.proto`, and `searchregister-go`.
 
 ## Architecture Drift
 

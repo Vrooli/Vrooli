@@ -144,3 +144,81 @@ func TestScanAmbientSeamsUnsupportedSyntaxIsUnknown(t *testing.T) {
 		t.Fatalf("unsupported syntax degradation = %+v", response.Degradations)
 	}
 }
+
+func TestAmbientBuildConstraintIsReportedAndSearchableWithItsOwnProvenance(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "provider.go")
+	body := "//go:build linux && amd64\n\npackage sample\nimport \"os\"\nfunc Run() { _ = os.Getenv(\"MODE\") }\n"
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	response, err := scanAmbientSeams(root, "sample", "linux environment", 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(response.Results) != 1 {
+		t.Fatalf("build condition did not participate in exact lexical matching: %+v", response)
+	}
+	hit := response.Results[0]
+	if hit.SourceLayer != "NON_TEST_SOURCE_CANDIDATE" || hit.BuildConstraint != "linux && amd64" || hit.BuildConstraintStatus != "DECLARED_UNEVALUATED" || hit.BuildConstraintLine != 1 {
+		t.Fatalf("constraint/source layer was missing or overstated: %+v", hit)
+	}
+	found := false
+	for _, evidence := range hit.MatchEvidence {
+		if evidence.Term == "linux" && evidence.Field == "build_constraint" && evidence.SourcePath == "provider.go" && evidence.Line == 1 && evidence.SourceSHA256 == hit.SourceSHA256 {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("build constraint match lacks exact directive provenance: %+v", hit.MatchEvidence)
+	}
+}
+
+func TestAmbientBuildConstraintReportsLegacyAndFailsClosedOnConflict(t *testing.T) {
+	legacy := ambientBuildConstraintForSource([]byte("// +build linux,amd64\n\npackage sample\n"))
+	if legacy.status != "LEGACY_DECLARED_UNEVALUATED" || !strings.Contains(legacy.expression, "linux") || !strings.Contains(legacy.expression, "amd64") || legacy.line != 1 {
+		t.Fatalf("legacy constraint = %+v", legacy)
+	}
+	conflict := ambientBuildConstraintForSource([]byte("//go:build linux\n// +build darwin\n\npackage sample\n"))
+	if conflict.status != "UNKNOWN_DIRECTIVE_CONFLICT" {
+		t.Fatalf("conflicting modern/legacy tags should stay unknown: %+v", conflict)
+	}
+	matching := ambientBuildConstraintForSource([]byte("//go:build linux && amd64\n// +build linux,amd64\n\npackage sample\n"))
+	if matching.status != "DECLARED_UNEVALUATED" {
+		t.Fatalf("matching modern/legacy tags should remain usable: %+v", matching)
+	}
+}
+
+func TestAmbientBuildConstraintMarksInvalidDirectiveUnknown(t *testing.T) {
+	got := ambientBuildConstraintForSource([]byte("//go:build linux &&\n\npackage sample\n"))
+	if got.status != "UNKNOWN_DIRECTIVE_INVALID" {
+		t.Fatalf("invalid build directive = %+v", got)
+	}
+}
+
+func TestAmbientBuildConstraintRequiresPackageSeparator(t *testing.T) {
+	got := ambientBuildConstraintForSource([]byte("//go:build linux\npackage sample\n"))
+	if got.status != "UNKNOWN_DIRECTIVE_PLACEMENT" {
+		t.Fatalf("directive without required package separator should remain unknown: %+v", got)
+	}
+}
+
+func TestAmbientBuildConstraintCapsDirectiveCount(t *testing.T) {
+	var body strings.Builder
+	for i := 0; i < 33; i++ {
+		body.WriteString("// +build linux\n")
+	}
+	body.WriteString("\npackage sample\n")
+	got := ambientBuildConstraintForSource([]byte(body.String()))
+	if got.status != "UNKNOWN_DIRECTIVE_INCOMPLETE" {
+		t.Fatalf("excessive directives should stay unknown: %+v", got)
+	}
+}
+
+func TestAmbientTokensSplitsGoIdentifierCaseBoundaries(t *testing.T) {
+	got := ambientTokens("NewProvider HTTPClient")
+	want := []string{"client", "http", "new", "provider"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("ambient tokenization = %#v, want %#v", got, want)
+	}
+}

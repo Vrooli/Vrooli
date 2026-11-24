@@ -23,6 +23,13 @@ func isSQLStorageType(expr ast.Expr, source parsedSource, files []parsedSource, 
 			}
 			return false
 		}
+		if source.imports[exprIdent(node.X)] == "github.com/vrooli/api-core/database" {
+			switch node.Sel.Name {
+			case "SQLExecutor", "SQLTxExecutor":
+				return true
+			}
+			return false
+		}
 		return embeddedSQLWrapper(node.Sel.Name, source.imports[exprIdent(node.X)], files, visiting)
 	case *ast.Ident:
 		return embeddedSQLWrapper(node.Name, source.packageDir, files, visiting) || embeddedSQLWrapper(node.Name, source.importPath, files, visiting)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"flow-verifier/internal/lifecycleinference"
@@ -82,6 +83,49 @@ func TestWorkflowStatus(t *testing.T) { _ = OrderWorkflow{Status: StageNew} }
 		require.Equal(t, "strong-candidate", candidate.Confidence)
 		require.Greater(t, candidate.BurdenScore, 1)
 		require.NotContains(t, candidate.Declaration.Path, root, "evidence paths are stable relative paths")
+	}
+}
+
+func TestAnalyzePlanManagerCandidateRevisionStateFromCurrentSource(t *testing.T) {
+	_, sourceFile, _, ok := runtime.Caller(0)
+	require.True(t, ok)
+	root := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "../../../../../"))
+	got, err := lifecycleinference.Analyze(root, lifecycleinference.Options{ScenarioID: "plan-manager", HuntIndexJSON: []byte(`{"scope":"ecosystem-hunt","complete":true,"degraded":false,"entry_count":0,"entries":[]}`)})
+	require.NoError(t, err)
+
+	var candidate *lifecycleinference.Candidate
+	for _, item := range allInventoryCandidates(got) {
+		if item.ID == "plan-manager/api/internal/plans#CandidateRevision.State" {
+			copy := item
+			candidate = &copy
+			break
+		}
+	}
+	require.NotNil(t, candidate, "the candidate must remain visible to fleet inventory")
+	require.Equal(t, lifecycleinference.ClassPersistedLifecycle, candidate.Persistence.Class, candidate.Persistence.Reason, candidate.Persistence.Evidence)
+	require.True(t, candidate.TransitionGraphVerified)
+	require.True(t, candidate.InvalidTransitionTested)
+}
+
+func TestAnalyzeSwarmManagerLifecycleProofFromCurrentSource(t *testing.T) {
+	_, sourceFile, _, ok := runtime.Caller(0)
+	require.True(t, ok)
+	root := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "../../../../../"))
+	got, err := lifecycleinference.Analyze(root, lifecycleinference.Options{ScenarioID: "swarm-manager", HuntIndexJSON: []byte(`{"scope":"ecosystem-hunt","complete":true,"degraded":false,"entry_count":0,"entries":[]}`)})
+	require.NoError(t, err)
+	for _, id := range []string{"swarm-manager/api/internal/transitionrun#DispatchIntent.State", "swarm-manager/api/internal/review#RequestThread.Status"} {
+		var candidate *lifecycleinference.Candidate
+		for _, item := range allInventoryCandidates(got) {
+			if item.ID == id {
+				copy := item
+				candidate = &copy
+				break
+			}
+		}
+		require.NotNil(t, candidate, "candidate must remain visible: %s", id)
+		require.Equal(t, lifecycleinference.ClassPersistedLifecycle, candidate.Persistence.Class, "%s: %s %v", id, candidate.Persistence.Reason, candidate.Persistence.Evidence)
+		require.True(t, candidate.TransitionGraphVerified, "%s: %+v", id, candidate.TransitionOwners)
+		require.True(t, candidate.InvalidTransitionTested, "%s tests: %v", id, candidate.TestFiles)
 	}
 }
 
@@ -303,6 +347,53 @@ func TestTransitionStatusRejectsUnknownState(t *testing.T) {
 	require.True(t, candidate.InvalidTransitionTested)
 	require.Equal(t, "already_explicitly_modeled", candidate.PreselectionStatus)
 	require.NotEqual(t, lifecycleinference.ClassPersistedLifecycle, candidate.Persistence.Class, "explicit modeling is independent from the persistence classification")
+}
+
+func TestAnalyzeRecognizesFiniteBooleanTransitionPolicyWithInvalidStateTest(t *testing.T) {
+	root := t.TempDir()
+	write := func(path, body string) {
+		t.Helper()
+		full := filepath.Join(root, path)
+		require.NoError(t, os.MkdirAll(filepath.Dir(full), 0o755))
+		require.NoError(t, os.WriteFile(full, []byte(body), 0o644))
+	}
+	write("scenarios/plans/.vrooli/service.json", `{"service":{}}`)
+	write("scenarios/plans/api/candidate.go", `package plans
+import "fmt"
+type CandidateRevisionState string
+const (
+  CandidateRevisionPending CandidateRevisionState = "pending"
+  CandidateRevisionApplied CandidateRevisionState = "applied"
+  CandidateRevisionDiscarded CandidateRevisionState = "discarded"
+)
+type CandidateRevision struct { State CandidateRevisionState }
+func (s CandidateRevisionState) CanTransitionTo(next CandidateRevisionState) bool {
+  return s == CandidateRevisionPending && (next == CandidateRevisionApplied || next == CandidateRevisionDiscarded)
+}
+func (c *CandidateRevision) TransitionTo(next CandidateRevisionState) error {
+  if !c.State.CanTransitionTo(next) { return fmt.Errorf("invalid transition") }
+  c.State = next
+  return nil
+}
+`)
+	write("scenarios/plans/api/candidate_test.go", `package plans
+import (
+  "testing"
+  "github.com/stretchr/testify/require"
+)
+func TestCandidateRevisionStateGraph(t *testing.T) {
+  require.False(t, CandidateRevisionDiscarded.CanTransitionTo(CandidateRevisionApplied))
+  require.False(t, CandidateRevisionPending.CanTransitionTo("unknown"))
+}
+`)
+
+	got, err := lifecycleinference.Analyze(root, lifecycleinference.Options{HuntIndexJSON: []byte(`{"scope":"ecosystem-hunt","complete":true,"degraded":false,"entry_count":1,"entries":[]}`)})
+	require.NoError(t, err)
+	candidates := allInventoryCandidates(got)
+	require.Len(t, candidates, 1)
+	require.True(t, candidates[0].TransitionGraphVerified, "%+v", candidates[0].TransitionOwners)
+	require.True(t, candidates[0].InvalidTransitionTested, "%+v", candidates[0].TransitionOwners)
+	require.Equal(t, "already_explicitly_modeled", candidates[0].PreselectionStatus)
 }
 
 func TestAnalyzeRecognizesFieldGraphDelegatedToTransitionHelper(t *testing.T) {

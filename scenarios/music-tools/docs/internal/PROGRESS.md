@@ -78,3 +78,8 @@ Use this table shape when appending entries.
 - [`PROBLEMS.md`](PROBLEMS.md) — known issues, tech debt, and deferred work
 - [`DECISIONS.md`](DECISIONS.md) — durable decisions and tradeoffs
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — system map
+
+
+## 2026-09-19 — Long composition wait and exact-take reservation
+
+A ten-take job could exceed the ordinary CLI HTTP deadline, and a request to reserve one available take could select another same-style take and return a conflict. The CLI wait now uses cli-core's server-owned no-timeout client, preserving authentication and invocation provenance. The pool's atomic exact-id `Reserve` transition now backs the HTTP handler. `TestWaitForJobUsesServerOwnedWaitClient` exercises an 80 ms server response against a 10 ms default deadline; API `TestReserveTakeUsesRequestedID` proves the requested take is reserved while its same-style peer stays available. `GOWORK=off go test ./...` in the Music Tools API module passed. The CLI domains tests passed; the full CLI suite currently retains an unrelated stale generated primitive evidence failure (`cli/evidence_test.go` asks for `UPDATE_CLI_EVIDENCE=1`). The CLI still lacks progress streaming and reconnecting watch behavior.

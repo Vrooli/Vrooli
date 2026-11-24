@@ -79,9 +79,12 @@ reuse is safe only on a path that resolves the model before dispatch.
 
 ## Invariants
 
-- A missing/oracle-less family degrades that one run to an honest
-  `VerdictError`; it never blocks the rest of the suite and never fabricates a
-  pass.
+- A missing family degrades that one run to an honest `VerdictError`; it never
+  blocks the rest of the suite or fabricates a pass. A positive fixture with no
+  oracle is dispatched only when the production evaluator has a configured
+  agent-judge. Otherwise it records `VerdictError` before agent dispatch. A
+  negative fixture needs no oracle because its pass condition is correct
+  abstention.
 - Oracles must be deterministic and self-contained — no network, no host state.
 - The agent must never be able to read the oracle (keep `check.sh` out of
   `target/`).

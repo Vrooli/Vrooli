@@ -16,16 +16,16 @@ const (
 )
 
 type FlowSearchHit struct {
-	ID          string     `json:"id"`
-	Title       string     `json:"title"`
-	Text        string     `json:"text"`
-	Score       float64    `json:"score"`
-	Path        string     `json:"path"`
-	Paths       []string   `json:"paths"`
-	GraphHash   string     `json:"graph_hash"`
-	Attestation string     `json:"attestation"`
-	DepthLimited bool      `json:"depth_limited"`
-	Steps       []FlowStep `json:"steps"`
+	ID           string     `json:"id"`
+	Title        string     `json:"title"`
+	Text         string     `json:"text"`
+	Score        float64    `json:"score"`
+	Path         string     `json:"path"`
+	Paths        []string   `json:"paths"`
+	GraphHash    string     `json:"graph_hash"`
+	Attestation  string     `json:"attestation"`
+	DepthLimited bool       `json:"depth_limited"`
+	Steps        []FlowStep `json:"steps"`
 }
 
 type FlowStep struct {
@@ -187,7 +187,7 @@ func bestFlowPath(start flowSymbol, byCaller map[string][]flowCall, symbols map[
 			candidate = append(candidate, tail...)
 			candidateDepthLimited = depthLimited
 		}
-		if len(candidate) > len(best) {
+		if len(candidate) > len(best) || (len(candidate) == len(best) && bestDepthLimited && !candidateDepthLimited) {
 			best = candidate
 			bestDepthLimited = candidateDepthLimited
 		}

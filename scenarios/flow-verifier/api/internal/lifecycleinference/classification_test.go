@@ -3,6 +3,7 @@ package lifecycleinference_test
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -46,6 +47,60 @@ func persistAttempts(ctx context.Context, conn *sql.Conn, job Job) error {
 	require.Greater(t, got.FilesScanned, 0)
 	require.GreaterOrEqual(t, len(got.Evidence), 2, "retain a value-flow origin and the resolved database/sql sink")
 	require.Contains(t, got.Evidence[len(got.Evidence)-1].Text, "database/sql.ExecContext")
+}
+
+func TestClassifyPersistenceRecognizesCanonicalAPICoreDatabaseContract(t *testing.T) {
+	root := t.TempDir()
+	write := sourceWriter(t, root)
+	write("scenarios/plan-manager/api/internal/plans/types.go", `package plans
+type CandidateRevisionState string
+type CandidateRevision struct { State CandidateRevisionState }
+`)
+	write("scenarios/plan-manager/api/internal/plans/sqlite.go", `package plans
+import (
+  "context"
+  database "github.com/vrooli/api-core/database"
+)
+type sqliteRepository struct { db database.SQLTxExecutor }
+func (r *sqliteRepository) SaveCandidate(ctx context.Context, candidate CandidateRevision) error {
+  _, err := r.db.ExecContext(ctx, "UPDATE candidate_revisions SET state=? WHERE id=?", string(candidate.State), candidate.ID)
+  return err
+}
+`)
+	candidate := lifecycleCandidate("plan-manager", "api/internal/plans", "CandidateRevision", "State")
+	got := lifecycleinference.NewPersistenceClassifier(root).Classify(candidate)
+	require.Equal(t, lifecycleinference.ClassPersistedLifecycle, got.Class, got.Reason, got.Evidence)
+	require.True(t, got.ScanComplete)
+	require.Contains(t, got.Evidence[len(got.Evidence)-1].Text, "database/sql.ExecContext")
+}
+
+func TestClassifyPlanManagerCandidateRevisionStateFromRepositorySource(t *testing.T) {
+	_, sourceFile, _, ok := runtime.Caller(0)
+	require.True(t, ok)
+	root := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "../../../../../"))
+	candidate := lifecycleCandidate("plan-manager", "api/internal/plans", "CandidateRevision", "State")
+
+	got := lifecycleinference.ClassifyPersistence(root, candidate)
+	require.Equal(t, lifecycleinference.ClassPersistedLifecycle, got.Class, got.Reason, got.Evidence)
+	require.True(t, got.ScanComplete)
+	require.Contains(t, strings.Join(evidenceTexts(got.Evidence), " "), "database/sql.ExecContext")
+	require.Contains(t, strings.Join(evidencePaths(got.Evidence), " "), "scenarios/plan-manager/api/internal/plans/sqlite.go")
+}
+
+func evidenceTexts(evidence []lifecycleinference.Evidence) []string {
+	texts := make([]string, 0, len(evidence))
+	for _, item := range evidence {
+		texts = append(texts, item.Text)
+	}
+	return texts
+}
+
+func evidencePaths(evidence []lifecycleinference.Evidence) []string {
+	paths := make([]string, 0, len(evidence))
+	for _, item := range evidence {
+		paths = append(paths, item.Path)
+	}
+	return paths
 }
 
 func TestClassifyPersistenceDoesNotTreatSQLControlExecAsDurableWrite(t *testing.T) {

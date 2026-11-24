@@ -182,6 +182,40 @@ func TestSeedAndProfileReceiptsRequiredBeforeIngestion(t *testing.T) {
 	}
 }
 
+func TestACEComposePreservesAuthoredCaptionAndDisablesRewrite(t *testing.T) {
+	state := testState(t)
+	defer state.JobManager.Close()
+	const authored = "144 BPM, cold detuned metallic lead, menacing and restless"
+	resource := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fakeGenerationProfile(t, w, r)
+		var payload map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Error(err)
+			return
+		}
+		if payload["caption"] != authored {
+			t.Errorf("resource caption=%v, want exact authored caption %q", payload["caption"], authored)
+		}
+		if payload["rewrite_caption"] != false {
+			t.Errorf("rewrite_caption=%v, want false", payload["rewrite_caption"])
+		}
+		if payload["bpm"] != float64(144) {
+			t.Errorf("BPM field=%v, want 144 separate from the authored caption", payload["bpm"])
+		}
+		w.Header().Set("X-ACE-Step-Model-ID", "ACE-Step/Ace-Step1.5:acestep-v15-turbo")
+		w.Header().Set("X-ACE-Step-License-Lane", "permissive")
+		w.Header().Set("X-ACE-Step-Profile-Rung", "full")
+		_, _ = w.Write(wavFixture())
+	}))
+	defer resource.Close()
+	state.HTTP, state.ResourceURL = resource.Client(), resource.URL
+	compiled := stylesdomain.Compiled{Caption: authored, Params: stylesdomain.Params{BPM: 144, Variant: "acestep-v15-turbo"}}
+	take := &core.Take{ID: "authored-caption", Provenance: core.Provenance{CaptionAsAuthored: authored, Seed: 17}}
+	if _, err := state.generateTake(t.Context(), take, composeRequest{Duration: 1}, compiled, "full"); err != nil {
+		t.Fatalf("generateTake: %v", err)
+	}
+}
+
 func TestACEVocalLanguageIsPassedAndBoundToResourceReceipt(t *testing.T) {
 	state := testState(t)
 	defer state.JobManager.Close()

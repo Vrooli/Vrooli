@@ -99,7 +99,25 @@
     }
   },
   "dependencies": {
-    "resources": {}
+    "resources": {
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Vector index for similarity and retrieval over Music Library embeddings.",
+        "degraded_behavior": "Similarity-driven surfaces are unavailable; direct playback, library browsing, and the queue continue from relational data."
+      }
+    },
+    "scenarios": {
+      "music-tools": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Provides analysis, decomposition, and generation capabilities to Music Library.",
+        "degraded_behavior": "Playback and library browsing continue from cached attributes; new decomposition, generation, and on-demand stem isolation are unavailable until music-tools returns."
+      }
+    }
   },
   "credentials": {},
   "environment": {},

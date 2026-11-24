@@ -23,8 +23,6 @@ const maxPersistencePatternHits = 5
 var (
 	createTablePattern           = regexp.MustCompile(`(?i)^\s*CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(.+?)\s*(?:\(|;)?\s*$`)
 	persistenceIdentifierPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
-	sqlStatementPattern          = regexp.MustCompile(`(?is)^\s*(?:SELECT|INSERT|UPDATE|DELETE|REPLACE|WITH)\b`)
-	sqlTableReferencePattern     = regexp.MustCompile(`(?i)\b(?:INSERT\s+INTO|UPDATE|FROM|JOIN)\s+([A-Za-z_][A-Za-z0-9_]*)\b`)
 )
 
 type PersistenceEvidence struct {
@@ -110,7 +108,7 @@ func scanPersistencePatterns(root, scenario, query string, limit int) (*Persiste
 	if err != nil {
 		return nil, err
 	}
-	response := &PersistencePatternResponse{Query: query, Scenario: scenario, Scope: "scenario:code-facts; static catalog schema + exact schema.go embed/Schema binding + version-1 migration AST + SQL-literal repository references; only unquoted single-token table names are joined; no live database state or migration completion is inferred", Results: []PersistencePattern{}, Unknowns: []PersistenceUnknown{}, Degradations: []string{}}
+	response := &PersistencePatternResponse{Query: query, Scenario: scenario, Scope: "scenario:code-facts; static catalog schema + exact schema.go embed/Schema binding + version-1 migration AST + SQLite SQL-literal repository references; unqualified single-token identifiers, including simple quoted forms, are joined case-insensitively; CTEs, qualified names, and live database state are not inferred", Results: []PersistencePattern{}, Unknowns: []PersistenceUnknown{}, Degradations: []string{}}
 	sh, mh, rh := sha256.Sum256(schema), sha256.Sum256(schemaGo), sha256.Sum256(repository)
 	schemaHash, migrationHash, repoHash := hex.EncodeToString(sh[:]), hex.EncodeToString(mh[:]), hex.EncodeToString(rh[:])
 	lines := strings.Split(string(schema), "\n")
@@ -120,11 +118,8 @@ func scanPersistencePatterns(root, scenario, query string, limit int) (*Persiste
 	repositoryRefs, repositoryErr := exactSQLRepositoryReferences(repository)
 	declarationCounts := map[string]int{}
 	for _, line := range lines {
-		if match := createTablePattern.FindStringSubmatch(line); len(match) == 2 {
-			entity := strings.TrimSpace(match[1])
-			if persistenceIdentifierPattern.MatchString(entity) {
-				declarationCounts[entity]++
-			}
+		if entity, ok := schemaTableIdentifier(line); ok {
+			declarationCounts[entity]++
 		}
 	}
 	duplicateUnknowns := map[string]bool{}
@@ -133,13 +128,17 @@ func scanPersistencePatterns(root, scenario, query string, limit int) (*Persiste
 		if len(match) != 2 {
 			continue
 		}
-		entity := strings.TrimSpace(match[1])
-		searchEntity := strings.Trim(entity, "\"'`")
+		rawEntity := strings.TrimSpace(match[1])
+		entity, supportedIdentifier := sqliteIdentifier(rawEntity)
+		searchEntity := entity
+		if !supportedIdentifier {
+			searchEntity = strings.Trim(rawEntity, "\"'`[]")
+		}
 		if tokenScore(terms, strings.ToLower(searchEntity+" catalog sqlite migration generation repository schema")) <= 0 {
 			continue
 		}
 		schemaEvidence := PersistenceEvidence{Layer: "schema", Path: "api/internal/catalog/schema.sql", Line: lineNo + 1, SHA256: schemaHash, Basis: "CREATE TABLE declaration", Status: "observed"}
-		if !persistenceIdentifierPattern.MatchString(entity) {
+		if !supportedIdentifier {
 			response.Unknowns = append(response.Unknowns, PersistenceUnknown{Entity: searchEntity, Status: "UNKNOWN", Reason: "unsupported_schema_identifier_form", Schema: schemaEvidence})
 			continue
 		}
@@ -355,23 +354,204 @@ func exactSQLRepositoryReferences(source []byte) (map[string]int, error) {
 		if err != nil {
 			return true
 		}
-		masked := maskSQLNonCode(text)
-		if !sqlStatementPattern.MatchString(masked) {
-			return true
-		}
-		for _, loc := range sqlTableReferencePattern.FindAllStringSubmatchIndex(masked, -1) {
-			entity := masked[loc[2]:loc[3]]
-			if refs[entity] == 0 {
-				line := fset.Position(literal.Pos()).Line
-				if strings.HasPrefix(literal.Value, "`") {
-					line += strings.Count(masked[:loc[0]], "\n")
-				}
-				refs[entity] = line
+		for _, reference := range sqliteTableReferences(text) {
+			if refs[reference.name] == 0 {
+				line := fset.Position(literal.Pos()).Line + strings.Count(text[:reference.offset], "\n")
+				refs[reference.name] = line
 			}
 		}
 		return true
 	})
 	return refs, nil
+}
+
+type sqliteSQLToken struct {
+	text   string
+	kind   byte
+	offset int
+	quoted bool
+}
+
+type sqliteTableReference struct {
+	name   string
+	offset int
+}
+
+func schemaTableIdentifier(line string) (string, bool) {
+	match := createTablePattern.FindStringSubmatch(line)
+	if len(match) != 2 {
+		return "", false
+	}
+	return sqliteIdentifier(strings.TrimSpace(match[1]))
+}
+
+// sqliteIdentifier accepts one conservative SQLite identifier token. Simple
+// delimited names are normalized like SQLite's case-insensitive identifier
+// lookup; qualified, escaped, or punctuation-bearing names remain unsupported.
+func sqliteIdentifier(raw string) (string, bool) {
+	raw = strings.TrimSpace(raw)
+	if persistenceIdentifierPattern.MatchString(raw) {
+		return strings.ToLower(raw), true
+	}
+	if len(raw) < 2 {
+		return "", false
+	}
+	open, close := raw[0], raw[len(raw)-1]
+	if !((open == '"' && close == '"') || (open == 96 && close == 96) || (open == '[' && close == ']')) {
+		return "", false
+	}
+	inner := raw[1 : len(raw)-1]
+	if strings.ContainsRune(inner, rune(close)) || !persistenceIdentifierPattern.MatchString(inner) {
+		return "", false
+	}
+	return strings.ToLower(inner), true
+}
+
+func sqliteTableReferences(source string) []sqliteTableReference {
+	tokens := lexSQLiteSQL(source)
+	if len(tokens) == 0 || tokens[0].quoted || tokens[0].kind != 'w' {
+		return nil
+	}
+	statement := strings.ToUpper(tokens[0].text)
+	switch statement {
+	case "SELECT", "INSERT", "UPDATE", "DELETE", "REPLACE":
+	case "WITH":
+		// CTE aliases can shadow real tables. Until CTE scope is modeled, fail
+		// closed rather than treating an alias as a repository table reference.
+		return nil
+	default:
+		return nil
+	}
+	var refs []sqliteTableReference
+	for i := range tokens {
+		keyword := strings.ToUpper(tokens[i].text)
+		candidate := -1
+		switch keyword {
+		case "INSERT", "REPLACE":
+			j := i + 1
+			if keyword == "INSERT" && tokenWord(tokens, j, "OR") {
+				j += 2 // INSERT OR <conflict-algorithm>
+			}
+			if tokenWord(tokens, j, "INTO") {
+				candidate = j + 1
+			}
+		case "UPDATE":
+			j := i + 1
+			if tokenWord(tokens, j, "OR") {
+				j += 2 // UPDATE OR <conflict-algorithm>
+			}
+			candidate = j
+		case "FROM", "JOIN":
+			candidate = i + 1
+		}
+		if candidate < 0 || candidate >= len(tokens) || !isSQLiteIdentifierToken(tokens[candidate]) {
+			continue
+		}
+		// Do not collapse schema-qualified names into a same-named local table.
+		if candidate+1 < len(tokens) && tokens[candidate+1].text == "." {
+			continue
+		}
+		name, ok := sqliteIdentifier(tokens[candidate].text)
+		if ok {
+			refs = append(refs, sqliteTableReference{name: name, offset: tokens[candidate].offset})
+		}
+	}
+	return refs
+}
+
+func tokenWord(tokens []sqliteSQLToken, index int, want string) bool {
+	return index >= 0 && index < len(tokens) && tokens[index].kind == 'w' && !tokens[index].quoted && strings.EqualFold(tokens[index].text, want)
+}
+
+func isSQLiteIdentifierToken(token sqliteSQLToken) bool {
+	return token.kind == 'w' || token.kind == 'q'
+}
+
+// lexSQLiteSQL keeps quoted identifiers as identifier tokens while skipping
+// string values and SQL comments. Offsets refer to the original SQL text.
+func lexSQLiteSQL(source string) []sqliteSQLToken {
+	var tokens []sqliteSQLToken
+	for i := 0; i < len(source); {
+		c := source[i]
+		if c == ' ' || c == '\t' || c == '\r' || c == '\n' {
+			i++
+			continue
+		}
+		if c == '-' && i+1 < len(source) && source[i+1] == '-' {
+			i += 2
+			for i < len(source) && source[i] != '\n' {
+				i++
+			}
+			continue
+		}
+		if c == '/' && i+1 < len(source) && source[i+1] == '*' {
+			i += 2
+			for i+1 < len(source) && !(source[i] == '*' && source[i+1] == '/') {
+				i++
+			}
+			if i+1 < len(source) {
+				i += 2
+			}
+			continue
+		}
+		if c == '\'' {
+			start := i
+			i++
+			for i < len(source) {
+				if source[i] == '\'' {
+					if i+1 < len(source) && source[i+1] == '\'' {
+						i += 2
+						continue
+					}
+					i++
+					break
+				}
+				i++
+			}
+			tokens = append(tokens, sqliteSQLToken{kind: 's', offset: start})
+			continue
+		}
+		if c == '"' || c == 96 || c == '[' {
+			start := i
+			i++
+			close := c
+			if c == '[' {
+				close = ']'
+			}
+			contentStart := i
+			for i < len(source) && source[i] != close {
+				i++
+			}
+			if i >= len(source) {
+				tokens = append(tokens, sqliteSQLToken{text: source[start:], kind: '?', offset: start, quoted: true})
+				break
+			}
+			content := source[contentStart:i]
+			i++
+			tokens = append(tokens, sqliteSQLToken{text: string(c) + content + string(close), kind: 'q', offset: start, quoted: true})
+			continue
+		}
+		if isSQLWordStart(c) {
+			start := i
+			i++
+			for i < len(source) && isSQLWordPart(source[i]) {
+				i++
+			}
+			tokens = append(tokens, sqliteSQLToken{text: source[start:i], kind: 'w', offset: start})
+			continue
+		}
+		tokens = append(tokens, sqliteSQLToken{text: string(c), kind: 'p', offset: i})
+		i++
+	}
+	return tokens
+}
+
+func isSQLWordStart(c byte) bool {
+	return c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+}
+
+func isSQLWordPart(c byte) bool {
+	return isSQLWordStart(c) || (c >= '0' && c <= '9')
 }
 
 func isSQLRepositoryCall(expression ast.Expr) bool {
@@ -385,96 +565,6 @@ func isSQLRepositoryCall(expression ast.Expr) bool {
 	default:
 		return false
 	}
-}
-
-// maskSQLNonCode preserves line/column offsets while removing SQL comments and
-// quoted values/identifiers so table-like words inside them cannot form joins.
-func maskSQLNonCode(source string) string {
-	masked := []byte(source)
-	const (
-		normal = iota
-		singleQuote
-		doubleQuote
-		backtickQuote
-		bracketQuote
-		lineComment
-		blockComment
-	)
-	state := normal
-	for i := 0; i < len(masked); i++ {
-		current := masked[i]
-		next := byte(0)
-		if i+1 < len(masked) {
-			next = masked[i+1]
-		}
-		if state == normal {
-			switch {
-			case current == '-' && next == '-':
-				state = lineComment
-				masked[i], masked[i+1] = ' ', ' '
-				i++
-			case current == '/' && next == '*':
-				state = blockComment
-				masked[i], masked[i+1] = ' ', ' '
-				i++
-			case current == '\'':
-				state = singleQuote
-				masked[i] = ' '
-			case current == '"':
-				state = doubleQuote
-				masked[i] = ' '
-			case current == '`':
-				state = backtickQuote
-				masked[i] = ' '
-			case current == '[':
-				state = bracketQuote
-				masked[i] = ' '
-			}
-			continue
-		}
-		if current != '\n' && current != '\r' {
-			masked[i] = ' '
-		}
-		switch state {
-		case singleQuote:
-			if current == '\'' {
-				if next == '\'' {
-					masked[i+1] = ' '
-					i++
-				} else {
-					state = normal
-				}
-			}
-		case doubleQuote:
-			if current == '"' {
-				if next == '"' {
-					masked[i+1] = ' '
-					i++
-				} else {
-					state = normal
-				}
-			}
-		case backtickQuote:
-			if current == '`' {
-				state = normal
-			}
-		case bracketQuote:
-			if current == ']' {
-				state = normal
-			}
-		case lineComment:
-			if current == '\n' {
-				state = normal
-			}
-		case blockComment:
-			if current == '*' && next == '/' {
-				masked[i+1] = ' '
-				i++
-				state = normal
-			}
-		}
-	}
-	return string(masked)
 }
 
 func isIdent(expression ast.Expr, name string) bool {

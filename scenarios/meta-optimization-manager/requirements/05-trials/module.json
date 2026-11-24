@@ -27,7 +27,7 @@
           "type": "test",
           "phase": "unit",
           "status": "failing",
-          "notes": "API: Runner seam-tested with a faked agent-manager CommandRunner (sequence + metric parse + step-error → VerdictError); Evaluator tested (oracle pass/fail, negative abstention, agent-judge fallback); Service idempotency + orchestration; target api/internal/trials."
+          "notes": "API: Runner seam-tested with a faked agent-manager CommandRunner (sequence + metric parse + step-error → VerdictError); Evaluator tested (oracle pass/fail, negative abstention, agent-judge fallback and pre-dispatch fixture readiness); Service idempotency + orchestration, including proof an oracle-less positive fixture with no configured judge is recorded as an error without invoking Runner; target api/internal/trials."
         },
         {
           "type": "automation",

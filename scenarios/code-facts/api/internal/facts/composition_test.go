@@ -295,12 +295,16 @@ func TestDescribeControlPlaneCLICompositionReportsRegisteredCommandHandlers(t *t
 		t.Fatalf("expected broad top-level command coverage, got %d", len(report.Bindings))
 	}
 	var resource *CompositionBinding
+	var argsBinding *CompositionBinding
 	registryFound, dispatchFound, earlyDispatchFound := false, false, false
 	nestedBoundaryFound := false
 	nestedFound := map[string]bool{}
 	for i := range report.Bindings {
 		if report.Bindings[i].Dependency == "resource" {
 			resource = &report.Bindings[i]
+		}
+		if report.Bindings[i].Dependency == "supervision-set" {
+			argsBinding = &report.Bindings[i]
 		}
 		registryFound = registryFound || report.Bindings[i].Dependency == "command registry"
 		dispatchFound = dispatchFound || report.Bindings[i].Dependency == "normal CLI dispatch"
@@ -325,6 +329,9 @@ func TestDescribeControlPlaneCLICompositionReportsRegisteredCommandHandlers(t *t
 	if resource.SourcePath != "internal/cli/vroolicli/app.go" || resource.Line < 1 || len(resource.SourceHash) != 64 {
 		t.Fatalf("command binding lacks source provenance: %#v", resource)
 	}
+	if argsBinding == nil || !strings.Contains(argsBinding.ProviderExpression, "Args declaration DECLARED_UNEVALUATED") || !strings.Contains(argsBinding.ProviderExpression, "commandtree.ArgSchema") || !strings.Contains(argsBinding.Provenance, "topcli/topcli.go:") {
+		t.Fatalf("top-level Args declaration lacks expression/provenance: %#v", argsBinding)
+	}
 	if !strings.Contains(report.AnalysisScope, "unsupported forms degrade to UNKNOWN") || !strings.Contains(report.AnalysisScope, "nested/runtime argument dispatch and execution are not analyzed") {
 		t.Fatalf("missing analysis boundary: %q", report.AnalysisScope)
 	}
@@ -338,6 +345,60 @@ func TestDescribeControlPlaneCLICompositionReportsRegisteredCommandHandlers(t *t
 		if !nestedFound[dependency] {
 			t.Fatalf("missing nested/direct group evidence with provenance for %q: %#v", dependency, report.Bindings)
 		}
+	}
+}
+
+func TestCLIArgsDeclarationFailsClosedForAbsentDuplicateAndRenderedFields(t *testing.T) {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "args.go", `package sample
+var _ = struct { Args any }{Args: schema}
+var _ = struct { Args any }{Args: first, Args: second}
+var _ = struct { Name string }{Name: "none"}
+`, parser.AllErrors)
+	if err != nil {
+		t.Fatal(err)
+	}
+	getFields := func(index int) []ast.Expr {
+		decl := file.Decls[index].(*ast.GenDecl)
+		value := decl.Specs[0].(*ast.ValueSpec).Values[0].(*ast.CompositeLit)
+		return value.Elts
+	}
+	if expr, status, line := cliArgsDeclaration(getFields(0), fset); status != "DECLARED_UNEVALUATED" || expr != "schema" || line < 1 {
+		t.Fatalf("unexpected declared Args result: expression=%q status=%q line=%d", expr, status, line)
+	}
+	if _, status, _ := cliArgsDeclaration(getFields(1), fset); status != "UNKNOWN_DUPLICATE_ARGS" {
+		t.Fatalf("duplicate Args field did not fail closed: %q", status)
+	}
+	if _, status, line := cliArgsDeclaration(getFields(2), fset); status != "NOT_DECLARED" || line != 0 {
+		t.Fatalf("absent Args field was not distinguished: status=%q line=%d", status, line)
+	}
+}
+
+func TestNestedCommandSpecsPreserveArgsExpressionWithoutEvaluation(t *testing.T) {
+	const source = `package sample
+func CommandSpecs() []Spec {
+	return []Spec{{Name: "probe", Handler: Probe, Args: probeArgs()}}
+}
+`
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "commands.go", source, parser.AllErrors)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fn := file.Decls[0].(*ast.FuncDecl)
+	specs := cliCommandSpecsFromFunction(fn, nil, fset)
+	if len(specs) != 1 || specs[0].argsExpression != "probeArgs()" || specs[0].argsStatus != "DECLARED_UNEVALUATED" {
+		t.Fatalf("nested Args expression not retained as unevaluated source: %#v", specs)
+	}
+	specs[0].argsPath, specs[0].argsHash = "internal/cli/sample/commands.go", strings.Repeat("a", 64)
+	row := cliArgsEvidence(specs[0])
+	if !strings.Contains(row, "probeArgs()") || !strings.Contains(row, "commands.go:") || !strings.Contains(row, "runtime parsing and acceptance behavior unknown") {
+		t.Fatalf("nested Args evidence lost source identity or runtime boundary: %q", row)
+	}
+	table := &cliNestedTable{function: "CommandSpecs", specName: "CommandSpecs", specs: specs, specPath: specs[0].argsPath, specHash: specs[0].argsHash, registries: map[string][]cliNestedRegistration{"Probe": {{key: "Probe", expr: ast.NewIdent("runProbe")}}}}
+	rows := cliRenderNestedTables("sample", []*cliNestedTable{table}, nil, cliPackageFunction{})
+	if len(rows) != 1 || !strings.Contains(rows[0].ProviderExpression, "probeArgs()") || !strings.Contains(rows[0].Provenance, "commands.go:") {
+		t.Fatalf("nested rendered binding lost Args declaration provenance: %#v", rows)
 	}
 }
 

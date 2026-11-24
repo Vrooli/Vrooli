@@ -20,6 +20,8 @@ with the owning plan.
 | 2026-05-12 | Claude (Opus 4.7) | done | Phase G — template cutover. Fresh-scenario smoke (`vrooli scenario generate react-vite --id smoke-test` + `make temporal-models`) deferred to user verification per the no-git-mutations constraint. |
 | 2026-05-12 | Claude (Opus 4.7) | done | Phase H — Gate 7 example-domain removal + Gate 8 handoff. `make orient` Gate 7 (`example-domain-removed`) flips from pending → pass; all 8 charter/requirements/domain/dep/design/first-slice/example-removed/progress-handoff gates green. Remaining `make test` failures are scenario-auditor standards/lint warnings (P1 targets missing 1:1 requirement modules, golangci-lint suggestions, two ESLint suggestions, PRD-linkage gaps) — none are blocking the example-removal gate, and the plan explicitly carries those to follow-up. `vrooli scenario orient --finalize` and `test-genie execute --preset comprehensive` deferred to user verification given the lint/standards backlog. |
 
+| 2026-11-24 | PT5 | done | Closed the historical Phase A scaffold-fix item after verifying the old `tools/temporal-model/` bridge is absent and focused temporal codegen, pipeline, testutil, and flow packages pass. The fix history included module-path codegen, typed transition aliases, artifact schema/load-path corrections, generated-code import handling, UI type/lint setup, and contract formatting. The separate `prd-linkage` and comprehensive validation concerns remain open. |
+
 ## Entry Template
 
 Use this table shape when appending entries.

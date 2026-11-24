@@ -1,6 +1,8 @@
 package facts
 
 import (
+	"strconv"
+	"strings"
 	"testing"
 
 	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
@@ -68,4 +70,41 @@ func TestDeriveFeatureFlowsDisambiguatesSameNamedBasenameResults(t *testing.T) {
 	if !ids["code-facts:flow:Handle:main.go:api/main.go:func:api:Handle"] || !ids["code-facts:flow:Handle:main.go:cli/main.go:func:cli:Handle"] || !paths["api/main.go"] || !paths["cli/main.go"] {
 		t.Fatalf("collision IDs or source paths missing: %#v", response.Results)
 	}
+}
+
+func TestDeriveFeatureFlowsReportsDepthTruncationOnlyWhenCallsRemain(t *testing.T) {
+	newGraph := func(withFourthEdge bool) *factsv1.LanguageGraph {
+		nodes := []*commonv1.CodeGraphNode{
+			{Id: "func:entry", Name: "Entry", Path: "flow.go", Attributes: map[string]string{"kind": "go_func"}},
+			{Id: "func:b", Name: "StepB", Path: "flow.go", Attributes: map[string]string{"kind": "go_func"}},
+			{Id: "func:c", Name: "StepC", Path: "flow.go", Attributes: map[string]string{"kind": "go_func"}},
+			{Id: "func:d", Name: "StepD", Path: "flow.go", Attributes: map[string]string{"kind": "go_func"}},
+			{Id: "func:e", Name: "StepE", Path: "flow.go", Attributes: map[string]string{"kind": "go_func"}},
+		}
+		call := func(id, caller, callee, target string, line int) *commonv1.CodeGraphNode {
+			return &commonv1.CodeGraphNode{Id: id, Path: "flow.go", Attributes: map[string]string{"kind": "go_call", "enclosing_symbol": caller, "callee": callee, "callee_symbol": target, "start_line": strconv.Itoa(line)}}
+		}
+		nodes = append(nodes,
+			call("call:1", "Entry", "StepB", "func:b", 1),
+			call("call:2", "StepB", "StepC", "func:c", 2),
+			call("call:3", "StepC", "StepD", "func:d", 3),
+		)
+		if withFourthEdge {
+			nodes = append(nodes, call("call:4", "StepD", "StepE", "func:e", 4))
+		}
+		return &factsv1.LanguageGraph{GraphHash: "fixture", Graph: &commonv1.CodeGraph{Nodes: nodes}}
+	}
+
+	t.Run("additional call after the cap is explicit", func(t *testing.T) {
+		got := DeriveFeatureFlows([]*factsv1.LanguageGraph{newGraph(true)}, "Entry", "demo", 5)
+		if len(got.Results) != 1 || len(got.Results[0].Steps) != maxFlowDepth || !got.Results[0].DepthLimited || !strings.Contains(got.Results[0].Text, "depth limit reached: additional source calls are omitted") {
+			t.Fatalf("expected explicit depth truncation: %#v", got)
+		}
+	})
+	t.Run("natural leaf at the cap is not marked truncated", func(t *testing.T) {
+		got := DeriveFeatureFlows([]*factsv1.LanguageGraph{newGraph(false)}, "Entry", "demo", 5)
+		if len(got.Results) != 1 || len(got.Results[0].Steps) != maxFlowDepth || got.Results[0].DepthLimited {
+			t.Fatalf("natural leaf should not be marked truncated: %#v", got)
+		}
+	})
 }

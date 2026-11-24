@@ -287,35 +287,13 @@ let one measured tier read as a profiled scenario.
 
 **Refs:** `docs/internal/PERFORMANCE.md`.
 
-### 2026-09-18 — The planner LM silently rewrites the caption and invents the tempo
+### 2026-09-18 — The planner LM silently rewrites the caption and invents the tempo (resolved 2026-11-24)
 
-**Symptom:** Generated music ignores the prompt. A brief asking for "144 BPM, cold
-detuned metallic lead, menacing and restless" produced a slow, bland, piano-tinged
-track. Tempo requests were ignored across six generations.
+**Historical symptom:** The default ACE-Step planner rewrote authored captions and metadata, and a fixed-seed trial changed a 144 BPM brief to 65 BPM. Historical measurements showed different onset density and hi-hat energy with rewriting disabled; they remain model-quality observations, not a current acoustic guarantee.
 
-**Root cause:** `GenerationParams` defaults `use_cot_caption=True` and
-`use_cot_metas=True`, so the planner LM rewrites the caption and generates its own
-metadata *before* the DiT sees anything. At 0.6B the rewrite was measured replacing
-`bpm: 144` with `bpm: 65` and the brief above with "atmospheric... shimmering synth
-pads... melancholic arpeggio... ethereal pads for reflection... a surprising
-melodic piano-like figure". The DiT never received the authored prompt. Passing BPM
-inside the caption string rather than the `bpm` field compounds this — free text is
-exactly what the rewrite discards.
+**Verified disposition:** Music Tools sends `CaptionAsAuthored` as the resource `caption`, sends BPM in its own field, and sets `rewrite_caption: false`. ACE-Step maps rewriting only from that explicit request flag; its CPU-only contract tests assert the authored caption reaches inference unchanged when rewriting is off. The owner regression `TestACEComposePreservesAuthoredCaptionAndDisablesRewrite` checks the exact scenario-to-resource payload, separate BPM field, and false rewrite flag. Verification: `GOWORK=off go test ./...` in `scenarios/music-tools/api` passed; `CUDA_VISIBLE_DEVICES='' python3 -m unittest -v test_output_identity` in `resources/ace-step/server` passed 23 tests.
 
-**Workaround:** Set `use_cot_caption=False` and `use_cot_metas=False`, and pass
-`bpm` as a field. Measured effect at fixed seed and prompt: tempo honoured, hi-hat
-band energy 19.1% -> 27.5%, onset density 6.2/s -> 9.6/s.
-
-**Real fix:** The composition operation must treat an authored caption as authored.
-Whether the planner may rewrite it is a caller-visible contract decision, not a
-default to inherit — and if a rewrite happens, the rewritten caption belongs in the
-operation's report alongside the output, so the caller can see what was actually
-generated from.
-
-**Owner:** unassigned.
-
-**Refs:** `acestep/inference.py` (`use_cot_caption`, `use_cot_metas`, ~line 825);
-`../reference/model-registry.md` (Composition).
+**Disposition scope:** Resolved for the default Music Tools composition path. No acoustic prompt-adherence, generated-take quality, or explicit rewrite-reporting claim is made. The source has no stable issue IDs or authoritative opened-time semantics; owner issue-age remains unknown. See `docs/internal/DECISIONS.md` and `docs/reference/resource-ace-step.md` for the retained contract.
 
 ### 2026-09-18 — Advisory capacity broker makes composition VRAM non-deterministic
 
@@ -402,28 +380,9 @@ with no trigger present at all.
 
 ### 2026-09-19 — Long composition waits and exact-take reservation (resolved)
 
-**Symptoms:** A ten-take composition job outlived the CLI's default HTTP timeout,
-and `takes reserve <id>` could return `409 take is not available` even when the
-requested take was reported as available.
+**Verification:** The API regression `TestReserveTakeUsesRequestedID` proves exact-id reservation; CLI regression `TestWaitForJobUsesServerOwnedWaitClient` proves a wait longer than the normal client deadline succeeds. Both passed in their owner test suites. Detailed symptom and fix history is retained in [`PROGRESS.md`](PROGRESS.md#2026-09-19-long-composition-wait-and-exact-take-reservation).
 
-**Root causes:** `jobs wait` inherited cli-core's ordinary 120-second request
-deadline even though the job continues server-side. The reservation handler first
-looked up the requested take, then called the pool's style-level `Draw`; when
-multiple takes shared a style, `Draw` could atomically reserve a different take
-and make the requested-id comparison fail.
-
-**Fix:** The CLI wait command now uses cli-core's server-owned no-timeout client,
-preserving authentication and invocation provenance. The pool now exposes an
-atomic exact-id `Reserve` transition, and the HTTP handler uses it instead of
-style-level selection. Regression tests cover both behaviors; the live CLI path
-was verified against a persisted launch-trap take.
-
-**Remaining limitation:** A no-timeout wait still depends on caller cancellation
-or the server reaching a terminal state; the CLI does not yet expose a progress
-stream or reconnecting watch command.
-
-**Refs:** `cli/domains/domains.go`, `api/internal/composition/pool.go`,
-`api/handlers/composition/module.go`, and their regression tests.
+**Remaining limitation:** The CLI has no progress stream or reconnecting watch command; a no-timeout wait still depends on caller cancellation or the server reaching a terminal state.
 
 ## Architecture Drift
 

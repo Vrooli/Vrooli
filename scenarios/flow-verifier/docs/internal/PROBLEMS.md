@@ -49,25 +49,15 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
-### Template defects surfaced during Phase A scaffold (2026-05-12)
+### Template defects surfaced during Phase A scaffold (2026-05-12) — resolved 2026-11-24
 
-**Problem:** Fresh `vrooli scenario generate react-vite` produced a scenario that could not pass `make setup` or `make test` without intervention. Several template-level defects in `templates/scenarios/react-vite/` required parallel fixes both in the template and in this scenario's scaffolded copies.
+**Disposition:** The scaffold-fix entry is closed for this scenario. Phase G removed the local `tools/temporal-model/` bridge; current temporal codegen and flow tests live under `api/internal/flows/kinds/temporal/` and generated replay helpers under `api/internal/`.
 
-**Workaround:** Fixes applied in this session, mirrored to template + scenario:
-- Codegen emitted literal `{{SCENARIO_ID}}` in Go replay-helper imports. Added `Options.GoModulePath` to `codegen.Render` plus `detectGoModulePath` in pipeline that reads `<root>/api/go.mod`. Local scenario's `tools/temporal-model/internal/codegen/go.go` patched to match (substituted module name).
-- Generated `Transition` Go type was `func(...)` (non-generic) and could not be passed to `modeltest.AssertFormalTransitionsReplay[S,E]`. Changed codegen to emit `type Transition = modeltest.Transition[StatusT, EventT]` (type alias to the generic).
-- `formalArtifactSchemaVersion` was 4 in Go and TS modeltest helpers, but codegen now writes schema v6. Bumped to 6 in `api/internal/testutil/modeltest/formal.go`, `formal_test.go`, and `ui/src/test-utils/modeltest/formal.ts`, `formal.test.ts`, `formal.node.test.ts`.
-- `LoadFormalArtifact` resolved `artifact.json` relative to CWD, but generated `replay.go` is in `generated/` while `go test` CWD is the parent flow package. Switched to `runtime.Caller(1)` to resolve relative to the calling source file.
-- UI test-utils used `node:crypto`, `node:fs`, `Buffer`, `process` but `@types/node` was missing from `ui/package.json` and `tsconfig.json#types` did not include `"node"`. Added both.
-- `no_prod_import_test.go` rejected generated `replay.go` importing `testutil/modeltest`. Added `isInGeneratedDir` exemption (mirrors the existing `isInMocksDir` exemption).
-- ESLint `no-restricted-imports` rejected `ui/.../flow/generated/replay.helper.ts`. Added `src/**/flow/generated/**` to the eslint `ignores` list.
-- Revive flagged the error string in `tools/temporal-model/internal/contract/contract.go` for trailing punctuation; rephrased.
+**Owner evidence:** Current generation supplies the module path and generic `Transition` alias; generated replay files use the current schema/runtime loaders and the generated-directory import exception. Focused temporal-codegen, pipeline, testutil, and flow tests pass. The separate scenario-auditor `prd-linkage` and comprehensive readiness concerns below remain open; this disposition is not a full scenario-readiness claim.
 
-**Real fix:** All template-side fixes are in place; future scaffolds should not hit these. The local scenario's `tools/temporal-model/` was patched as a one-off bridge until Phase G deletes it entirely.
+**Owner:** Flow Verifier maintainers.
 
-**Owner:** unassigned (template hardening).
-
-**Refs:** `templates/scenarios/react-vite/tools/temporal-model/internal/codegen/{codegen.go,go.go}`, `templates/scenarios/react-vite/api/internal/testutil/modeltest/formal.go`, `templates/scenarios/react-vite/ui/{package.json,tsconfig.json,eslint.config.js,src/test-utils/modeltest/formal.ts}`.
+**Refs:** `api/internal/flows/kinds/temporal/`, `api/internal/pipeline/pipeline.go`, `api/internal/testutil/no_prod_import_test.go`, `api/internal/runs/flow/`; focused test evidence is in the PT5 run receipt.
 
 ---
 

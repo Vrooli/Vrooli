@@ -9,16 +9,16 @@ Use this document to answer:
 - What still works when the capability layer is down?
 - What contract does this scenario rely on from `music-tools`?
 
-> **Status:** the dependencies below are the intended shape.
-> `.vrooli/service.json` does not yet declare them. See
-> [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md).
+> **Status:** scenario and resource dependencies are declared in
+> `.vrooli/service.json` with `try_start` policies. Music Library remains
+> available in degraded mode when either capability is unavailable.
 
 ## Dependency Inventory
 
 | Dependency | Kind | Required | Used for |
 |---|---|---|---|
-| `music-tools` | Vrooli scenario | **Yes** | Every attribute, every generated candidate |
-| `qdrant` | Vrooli resource | Yes | Embedding index for similarity and retrieval |
+| `music-tools` | Vrooli scenario | **Yes** | Every attribute, every generated candidate; launched opportunistically |
+| `qdrant` | Vrooli resource | Yes | Embedding index for similarity and retrieval; launched opportunistically |
 | `postgres` | Vrooli resource | No | Optional backend; SQLite is the default |
 | BlobStore | api-core seam | Yes | Generated audio and transcode cache |
 | Listener filesystem | Host | **Yes** | Source audio, read-only |

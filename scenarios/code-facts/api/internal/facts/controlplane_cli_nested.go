@@ -324,6 +324,9 @@ func cliFindNestedTables(root string, reachable map[string]cliPackageFunction) [
 			if specUnit.path == "" {
 				specUnit = function.unit
 			}
+			for i := range specs {
+				specs[i].argsPath, specs[i].argsHash = specUnit.path, specUnit.hash
+			}
 			tables = append(tables, &cliNestedTable{function: name, specName: specName, specs: specs, specPath: specUnit.path, specHash: specUnit.hash, tablePath: function.unit.path, tableHash: function.unit.hash, tableLine: function.unit.fset.Position(call.Pos()).Line, registries: cliNestedHandlerRegistrations(function, call.Args[1], specCall, specs)})
 			return true
 		})
@@ -414,6 +417,7 @@ func cliCommandSpecsFromFunction(fn *ast.FuncDecl, constants map[string]string, 
 					}
 				}
 			}
+			spec.argsExpression, spec.argsStatus, spec.argsLine = cliArgsDeclaration(row.Elts, fset)
 			if spec.name != "" && spec.handler != "" {
 				specs = append(specs, spec)
 			}
@@ -639,7 +643,9 @@ func cliRenderNestedTables(topName string, tables []*cliNestedTable, functions m
 				line, path, hash = registration.line, registration.path, registration.hash
 			}
 			provenance := "nested-command-spec-handler-table; spec=" + table.specPath + ":" + strconv.Itoa(spec.line) + "#sha256:" + table.specHash
-			text := fmt.Sprintf("nested command %q declares handler id %s; %s; runtime dispatch and invocation are unknown", spec.name, spec.handler, provider)
+			argsEvidence := cliArgsEvidence(spec)
+			text := fmt.Sprintf("nested command %q declares handler id %s; %s; %s; runtime dispatch and invocation are unknown", spec.name, spec.handler, provider, argsEvidence)
+			provenance += "; " + argsEvidence
 			if table.tablePath != "" {
 				provenance += fmt.Sprintf("; BindSpecs table=%s:%d#sha256:%s", table.tablePath, table.tableLine, table.tableHash)
 				text += fmt.Sprintf("; BindSpecs table source=%s:%d#sha256:%s", table.tablePath, table.tableLine, table.tableHash)

@@ -236,13 +236,13 @@ func analyzeFunctionFlowCached(ctx context.Context, fn *ast.FuncDecl, source par
 			}
 			return true
 		}
-		if isSQLWriteSink(call, method) && isSQLReceiver(receiver, source, variableTypes, structFields, allFiles) && expressionListPersistsCandidateField(call.Args, source, allFiles, candidate, candidateImport, typeGraph, variables, structFields, variableTypes, persistedFieldValues, serializers) {
+		if isSQLWriteSink(call, method, source, allFiles) && isSQLReceiver(receiver, source, variableTypes, structFields, allFiles) && expressionListPersistsCandidateField(call.Args, source, allFiles, candidate, candidateImport, typeGraph, variables, structFields, variableTypes, persistedFieldValues, serializers) {
 			flow.persistence = append(flow.persistence, flow.origins...)
 			flow.persistence = append(flow.persistence, sourceEvidence(source.fset, source.path, call, "candidate lifecycle field value or serialized containing record passed to database/sql."+method))
 			return true
 		}
 		if !candidateFieldExcludedFromRecord(allFiles, candidate) && callCarriesPersistentJSON(call, source, fn, filePersistence, func(expr ast.Expr) bool {
-			return expressionPersistsCandidateField(expr, source, allFiles, candidate, candidateImport, typeGraph, variables, structFields, variableTypes, persistedFieldValues, serializers) || candidateRecordValue(expr, source, candidate, candidateImport, variableTypes)
+			return expressionPersistsCandidateField(expr, source, allFiles, candidate, candidateImport, typeGraph, variables, structFields, variableTypes, persistedFieldValues, serializers) || candidateRecordValue(expr, source, candidate, candidateImport, typeGraph, variableTypes)
 		}) {
 			flow.persistence = append(flow.persistence, flow.origins...)
 			flow.persistence = append(flow.persistence, sourceEvidence(source.fset, source.path, call, "candidate-containing value passed to source-verified JSON file persistence helper "+filePersistenceCallKey(call, source, fn)))
@@ -306,8 +306,15 @@ func expressionCarriesCandidate(expr ast.Expr, source parsedSource, candidate Ca
 		}
 		switch current := node.(type) {
 		case *ast.SelectorExpr:
-			if variables[exprIdent(current.X)] {
-				found = true
+			if base, ok := current.X.(*ast.Ident); ok && variables[base.Name] {
+				if current.Sel.Name == candidate.FieldName {
+					found = true
+					break
+				}
+				recordType := exprName(variableTypes[base.Name])
+				if astContainsCandidateType(fields[recordType][current.Sel.Name], source, candidate, candidateImport, typeGraph) {
+					found = true
+				}
 			}
 		case *ast.Ident:
 			found = variables[current.Name]
@@ -357,7 +364,7 @@ func expressionPersistsCandidateField(expression ast.Expr, source parsedSource, 
 	if expression == nil {
 		return false
 	}
-	if expressionListContainsCandidateField([]ast.Expr{expression}, source, candidate, candidateImport, typeGraph, variables, fields, variableTypes) || candidateRecordValue(expression, source, candidate, candidateImport, variableTypes) {
+	if expressionListContainsCandidateField([]ast.Expr{expression}, source, candidate, candidateImport, typeGraph, variables, fields, variableTypes) || candidateRecordValue(expression, source, candidate, candidateImport, typeGraph, variableTypes) {
 		return true
 	}
 	if ident, ok := expression.(*ast.Ident); ok && fieldValues[ident.Name] {
@@ -377,9 +384,7 @@ func expressionPersistsCandidateField(expression ast.Expr, source parsedSource, 
 	return expressionListCarriesCandidate(call.Args, source, candidate, candidateImport, typeGraph, variables, fields, variableTypes)
 }
 
-func candidateRecordValue(expression ast.Expr, source parsedSource, candidate Candidate, candidateImport string, variableTypes map[string]ast.Expr) bool {
-	var candidateType = candidate.TypeName
-	var candidatePackage = filepath.ToSlash(candidate.Package)
+func candidateRecordValue(expression ast.Expr, source parsedSource, candidate Candidate, candidateImport string, typeGraph map[string]bool, variableTypes map[string]ast.Expr) bool {
 	var expressionType ast.Expr
 	switch value := expression.(type) {
 	case *ast.Ident:
@@ -398,9 +403,9 @@ func candidateRecordValue(expression ast.Expr, source parsedSource, candidate Ca
 	}
 	switch value := expressionType.(type) {
 	case *ast.Ident:
-		return value.Name == candidateType && (source.packageDir == candidatePackage || candidateImport != "" && source.importPath == candidateImport)
+		return typeGraph[source.packageDir+"."+value.Name] || typeGraph[source.importPath+"."+value.Name]
 	case *ast.SelectorExpr:
-		return source.imports[exprIdent(value.X)] == candidateImport && value.Sel.Name == candidateType
+		return typeGraph[source.imports[exprIdent(value.X)]+"."+value.Sel.Name]
 	default:
 		return false
 	}
@@ -496,7 +501,7 @@ func candidateFieldExcludedFromRecord(files []parsedSource, candidate Candidate)
 	return false
 }
 
-func isSQLWriteSink(call *ast.CallExpr, method string) bool {
+func isSQLWriteSink(call *ast.CallExpr, method string, source parsedSource, allFiles []parsedSource) bool {
 	switch method {
 	case "Exec", "ExecContext":
 		queryIndex := 0
@@ -506,12 +511,8 @@ func isSQLWriteSink(call *ast.CallExpr, method string) bool {
 		if queryIndex >= len(call.Args) {
 			return false
 		}
-		query, ok := call.Args[queryIndex].(*ast.BasicLit)
-		if !ok || query.Kind != token.STRING {
-			return false
-		}
-		statement, err := strconv.Unquote(query.Value)
-		if err != nil {
+		statement, ok := sqlQueryString(call.Args[queryIndex], source.packageDir, allFiles, map[string]bool{})
+		if !ok {
 			return false
 		}
 		keyword, ok := firstSQLKeyword(statement)
@@ -520,8 +521,9 @@ func isSQLWriteSink(call *ast.CallExpr, method string) bool {
 		}
 		// Exec/ExecContext describe an API shape, not a durable write. Only
 		// claim persistence for literal statements whose leading operation is a
-		// known row mutation. Queries, control statements, DDL, CTEs, and opaque
-		// SQL stay unknown until a parser or stronger source evidence exists.
+		// known row mutation. Query strings must be literals or same-package
+		// constants whose source value is a literal. Queries, control statements,
+		// DDL, CTEs, and opaque SQL remain unknown.
 		switch keyword {
 		case "INSERT", "UPDATE", "DELETE", "REPLACE", "MERGE":
 			return true
@@ -531,6 +533,53 @@ func isSQLWriteSink(call *ast.CallExpr, method string) bool {
 	default:
 		return false
 	}
+}
+
+func sqlQueryString(expression ast.Expr, packageDir string, files []parsedSource, visiting map[string]bool) (string, bool) {
+	switch query := expression.(type) {
+	case *ast.BasicLit:
+		if query.Kind != token.STRING {
+			return "", false
+		}
+		value, err := strconv.Unquote(query.Value)
+		return value, err == nil
+	case *ast.BinaryExpr:
+		if query.Op != token.ADD {
+			return "", false
+		}
+		left, leftOK := sqlQueryString(query.X, packageDir, files, visiting)
+		right, rightOK := sqlQueryString(query.Y, packageDir, files, visiting)
+		return left + right, leftOK && rightOK
+	case *ast.Ident:
+		if visiting[query.Name] {
+			return "", false
+		}
+		visiting[query.Name] = true
+		defer delete(visiting, query.Name)
+		for _, candidate := range files {
+			if candidate.packageDir != packageDir {
+				continue
+			}
+			for _, declaration := range candidate.file.Decls {
+				group, ok := declaration.(*ast.GenDecl)
+				if !ok || group.Tok != token.CONST {
+					continue
+				}
+				for _, spec := range group.Specs {
+					values, ok := spec.(*ast.ValueSpec)
+					if !ok {
+						continue
+					}
+					for index, name := range values.Names {
+						if name.Name == query.Name && index < len(values.Values) {
+							return sqlQueryString(values.Values[index], packageDir, files, visiting)
+						}
+					}
+				}
+			}
+		}
+	}
+	return "", false
 }
 
 func firstSQLKeyword(statement string) (string, bool) {

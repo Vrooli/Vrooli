@@ -30,12 +30,12 @@ metadata for its OpenRouter connection. The API adapter is
 covered in `scenarios/web-console/ui/src/__tests__/integrations-panel.test.tsx`.
 Consumers do not read Hub state or credential storage directly.
 
-Onboarding currently reads `integrations[]` from scenario manifests and reports
-each declaration as `deferred`. It does not query Hub, compare declared scopes
-to bindings, or gate scenario startup. Hub binding is available through the
-service/CLI, but no consumer automatically turns a manifest declaration into a
-binding request. The manifest shape and this gap are documented in
-`docs/configuration/scenarios.md`.
+Onboarding currently reports scenario `integrations[]` declarations as
+`deferred`; it does not query Hub or gate scenario startup. Callers must bind
+connections directly through the Hub service or CLI. The project-level source
+of truth for this boundary, including the manifest shape and onboarding
+projection, is
+[`docs/configuration/architecture.md`](../../../docs/configuration/architecture.md#how-scenario-integration-requirements-and-bindings-work-today).
 
 OAuth, device-flow, scheduled provider checks, additional connectors, and
 automatic manifest-to-binding onboarding are not implemented. Add provider

@@ -19,8 +19,8 @@ type protoHandlerConformanceRequest struct {
 	Scenario string `json:"scenario"`
 }
 
-// ProtoHandlerConformanceHTTPHandler returns bounded signature comparisons
-// between concrete Go handlers and imported generated Connect interfaces.
+// ProtoHandlerConformanceHTTPHandler returns bounded .proto RPC method-set and
+// concrete Go handler signature comparisons against imported Connect interfaces.
 func ProtoHandlerConformanceHTTPHandler(service protoHandlerConformanceService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

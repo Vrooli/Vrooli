@@ -130,6 +130,23 @@ func (s *service) runOne(ctx context.Context, t TrialTask) TrialRun {
 		})
 	}
 
+	// A production evaluator can validate whether this fixture has a usable
+	// verdict path before spending a sandboxed-agent dispatch. Test evaluators
+	// need not implement this optional seam.
+	if validator, ok := s.evaluator.(interface{ ValidateFixture(Fixture) error }); ok {
+		if err := validator.ValidateFixture(fixture); err != nil {
+			return s.record(ctx, TrialRun{
+				ID:          uuid.NewString(),
+				TaskID:      t.ID,
+				Suite:       t.Suite,
+				GuideTaskID: t.GuideTaskID,
+				FixtureRev:  fixture.Rev,
+				Verdict:     VerdictError,
+				At:          s.clock.Now().UTC(),
+			})
+		}
+	}
+
 	// Agent Manager resolves the actual model during execution, not before it.
 	// Therefore there is no safe pre-dispatch model key today. Keep the exact-key
 	// helper for a future resolver-backed path, but do not reuse a result by

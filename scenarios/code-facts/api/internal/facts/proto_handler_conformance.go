@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"text/scanner"
 
 	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 )
@@ -21,6 +22,8 @@ const (
 	maxProtoGeneratedFiles     = 80
 	maxProtoGeneratedBytes     = 8 << 20
 	maxProtoSourceFileBytes    = 2 << 20
+	maxProtoSchemaFiles        = 80
+	maxProtoSchemaBytes        = 8 << 20
 )
 
 type ProtoHandlerConformanceResponse struct {
@@ -31,11 +34,24 @@ type ProtoHandlerConformanceResponse struct {
 }
 
 type ProtoHandlerService struct {
-	Service       string               `json:"service"`
-	GeneratedPath string               `json:"generated_path"`
-	HandlerType   string               `json:"handler_type,omitempty"`
-	Methods       []ProtoHandlerMethod `json:"methods"`
-	Status        string               `json:"status"`
+	Service       string                  `json:"service"`
+	GeneratedPath string                  `json:"generated_path"`
+	ProtoSource   *ProtoConformanceSource `json:"proto_source,omitempty"`
+	ProtoMethods  []ProtoMethodParity     `json:"proto_methods"`
+	ProtoStatus   string                  `json:"proto_status"`
+	HandlerType   string                  `json:"handler_type,omitempty"`
+	Methods       []ProtoHandlerMethod    `json:"methods"`
+	Status        string                  `json:"status"`
+}
+
+// ProtoMethodParity compares the lexically extracted RPC method names with the
+// generated Connect ServiceHandler method set. It does not validate full proto
+// grammar or compare message field shapes.
+type ProtoMethodParity struct {
+	Name      string                  `json:"name"`
+	Status    string                  `json:"status"`
+	Source    *ProtoConformanceSource `json:"source,omitempty"`
+	Generated *ProtoConformanceSource `json:"generated,omitempty"`
 }
 
 type ProtoHandlerMethod struct {
@@ -70,6 +86,15 @@ type protoHandlerContract struct {
 	ambiguous     bool
 	incomplete    bool
 	methods       []protoHandlerMethodContract
+	protoSource   *ProtoConformanceSource
+	protoMethods  []protoSchemaMethod
+	protoStatus   string
+}
+
+type protoSchemaMethod struct {
+	name   string
+	line   int
+	source ProtoConformanceSource
 }
 
 type protoHandlerMethodContract struct {
@@ -79,10 +104,10 @@ type protoHandlerMethodContract struct {
 	parseOkay bool
 }
 
-// ProtoHandlerConformance checks only the Go unary method signatures on one
-// scenario's concrete Connect handlers against the generated Connect service
-// interfaces they import. It does not inspect endpoint registration, route
-// mounting, runtime behavior, or proto-source/generated-code freshness.
+// ProtoHandlerConformance checks concrete Go method signatures against imported
+// generated interfaces and compares the declared .proto RPC method set with
+// that interface. It does not compare message fields or prove generated-code
+// freshness, endpoint registration, route mounting, or runtime behavior.
 func (s *Service) ProtoHandlerConformance(_ context.Context, scenario string) (*ProtoHandlerConformanceResponse, error) {
 	scenario = strings.TrimSpace(scenario)
 	if !invariantScenarioPattern.MatchString(scenario) {
@@ -111,7 +136,7 @@ func scanProtoHandlerConformance(scenarioRoot, scenario string) (*ProtoHandlerCo
 	}
 	response := &ProtoHandlerConformanceResponse{
 		Scenario: scenario,
-		Scope:    "scenario:" + scenario + "/api/handlers; exact source contract compares concrete unary Go method parameter/result types with imported generated Connect ServiceHandler interfaces; bounded to 160 Go files/16 MiB and generated packages to 80 files/8 MiB; does not prove .proto source parity or runtime behavior",
+		Scope:    "scenario:" + scenario + "/api/handlers; compares concrete unary Go method parameter/result types with imported generated Connect ServiceHandler interfaces and compares lexically extracted RPC method names with the .proto service in the matching schema package; bounded to 160 Go files/16 MiB plus 80 generated and 80 schema files/8 MiB each; full proto grammar, message-field parity, generated freshness, registration, mounting and runtime behavior are not proven",
 		Services: []ProtoHandlerService{}, Degradations: []string{},
 	}
 	response.Degradations = append(response.Degradations, importDegradations...)
@@ -119,7 +144,11 @@ func scanProtoHandlerConformance(scenarioRoot, scenario string) (*ProtoHandlerCo
 		response.Degradations = append(response.Degradations, "source_parse_incomplete")
 	}
 	for _, contract := range contracts {
+		applyProtoSchemaParity(repoRoot, &contract)
 		service := compareProtoHandlerContract(contract, files, len(parseErrors) == 0)
+		if strings.HasPrefix(contract.protoStatus, "UNKNOWN_") {
+			response.Degradations = append(response.Degradations, "proto_source_parity_unknown:"+contract.service)
+		}
 		response.Services = append(response.Services, service)
 	}
 	if len(contracts) == 0 {
@@ -127,6 +156,218 @@ func scanProtoHandlerConformance(scenarioRoot, scenario string) (*ProtoHandlerCo
 	}
 	sort.Strings(response.Degradations)
 	return response, nil
+}
+
+func applyProtoSchemaParity(repoRoot string, contract *protoHandlerContract) {
+	if contract == nil {
+		return
+	}
+	dir, ok := protoSchemaDir(repoRoot, contract.generatedPath)
+	if !ok {
+		contract.protoStatus = "UNKNOWN_SCHEMA_PACKAGE_UNAVAILABLE"
+		return
+	}
+	services, incomplete := loadProtoSchemaServices(repoRoot, dir, contract.service)
+	if incomplete {
+		contract.protoStatus = "UNKNOWN_SCHEMA_SOURCE_INCOMPLETE"
+		return
+	}
+	if len(services) == 0 {
+		contract.protoStatus = "UNKNOWN_SERVICE_NOT_FOUND"
+		return
+	}
+	if len(services) != 1 || services[0].ambiguous {
+		contract.protoStatus = "UNKNOWN_SERVICE_AMBIGUOUS"
+		return
+	}
+	contract.protoSource = &services[0].source
+	contract.protoMethods = services[0].methods
+	if contract.incomplete || contract.ambiguous {
+		contract.protoStatus = "UNKNOWN_GENERATED_SOURCE_INCOMPLETE"
+		return
+	}
+	generated := map[string]bool{}
+	for _, method := range contract.methods {
+		generated[method.name] = true
+	}
+	declared := map[string]bool{}
+	for _, method := range contract.protoMethods {
+		declared[method.name] = true
+	}
+	contract.protoStatus = "MATCH"
+	for _, method := range contract.protoMethods {
+		if !generated[method.name] {
+			contract.protoStatus = "MISSING_GENERATED_METHOD"
+			return
+		}
+	}
+	for _, method := range contract.methods {
+		if !declared[method.name] {
+			contract.protoStatus = "GENERATED_METHOD_UNDECLARED"
+			return
+		}
+	}
+}
+
+type protoSchemaService struct {
+	source    ProtoConformanceSource
+	methods   []protoSchemaMethod
+	ambiguous bool
+}
+
+func protoSchemaDir(repoRoot, generatedRel string) (string, bool) {
+	const marker = "packages/proto/gen/go/"
+	if !strings.HasPrefix(generatedRel, marker) {
+		return "", false
+	}
+	suffix := strings.TrimPrefix(generatedRel, marker)
+	if suffix == "" {
+		return "", false
+	}
+	if strings.HasSuffix(filepath.Base(suffix), "_v1connect") {
+		suffix = filepath.Dir(suffix)
+		if suffix == "." || suffix == "" {
+			return "", false
+		}
+	}
+	for _, part := range strings.Split(filepath.ToSlash(suffix), "/") {
+		if part == "" || part == "." || part == ".." {
+			return "", false
+		}
+	}
+	dir := filepath.Clean(repoRoot)
+	parts := append([]string{"packages", "proto", "schemas"}, strings.Split(filepath.ToSlash(suffix), "/")...)
+	for _, part := range parts {
+		dir = filepath.Join(dir, filepath.FromSlash(part))
+		info, err := os.Lstat(dir)
+		if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+			return "", false
+		}
+	}
+	return dir, true
+}
+
+func loadProtoSchemaServices(repoRoot, dir, serviceName string) ([]protoSchemaService, bool) {
+	services := []protoSchemaService{}
+	filesSeen := 0
+	var totalBytes int64
+	incomplete := false
+	err := filepath.WalkDir(dir, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			incomplete = true
+			return filepath.SkipAll
+		}
+		if entry.Type()&os.ModeSymlink != 0 {
+			incomplete = true
+			if entry.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".proto") {
+			return nil
+		}
+		filesSeen++
+		if filesSeen > maxProtoSchemaFiles {
+			incomplete = true
+			return filepath.SkipAll
+		}
+		info, err := entry.Info()
+		if err != nil || !info.Mode().IsRegular() || info.Size() > maxProtoSourceFileBytes || totalBytes+info.Size() > maxProtoSchemaBytes {
+			incomplete = true
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		if err != nil || int64(len(data)) != info.Size() {
+			incomplete = true
+			return nil
+		}
+		totalBytes += int64(len(data))
+		parsed, parseOK := parseProtoServiceMethods(data, serviceName)
+		if !parseOK {
+			incomplete = true
+			return nil
+		}
+		if parsed != nil {
+			rel, err := filepath.Rel(repoRoot, path)
+			if err != nil || filepath.IsAbs(rel) || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+				incomplete = true
+				return nil
+			}
+			parsed.source = ProtoConformanceSource{Path: filepath.ToSlash(rel), Line: parsed.source.Line, SHA256: hashBytes(data), Basis: "declared .proto service method set"}
+			for i := range parsed.methods {
+				parsed.methods[i].source = ProtoConformanceSource{Path: filepath.ToSlash(rel), Line: parsed.methods[i].line, SHA256: hashBytes(data), Basis: "declared .proto RPC method"}
+			}
+			services = append(services, *parsed)
+		}
+		return nil
+	})
+	if err != nil {
+		incomplete = true
+	}
+	return services, incomplete
+}
+
+type protoToken struct {
+	text string
+	line int
+	kind rune
+}
+
+func parseProtoServiceMethods(data []byte, serviceName string) (*protoSchemaService, bool) {
+	var scan scanner.Scanner
+	scan.Init(strings.NewReader(string(data)))
+	scan.Mode = scanner.ScanIdents | scanner.ScanStrings | scanner.SkipComments
+	tokens := []protoToken{}
+	for tok := scan.Scan(); tok != scanner.EOF; tok = scan.Scan() {
+		if scan.ErrorCount > 0 {
+			return nil, false
+		}
+		tokens = append(tokens, protoToken{text: scan.TokenText(), line: scan.Pos().Line, kind: tok})
+	}
+	if scan.ErrorCount > 0 {
+		return nil, false
+	}
+	var found *protoSchemaService
+	for i := 0; i+2 < len(tokens); i++ {
+		if tokens[i].text != "service" || tokens[i+1].text != serviceName || tokens[i+2].text != "{" {
+			continue
+		}
+		candidate := &protoSchemaService{source: ProtoConformanceSource{Line: tokens[i].line}, methods: []protoSchemaMethod{}}
+		depth := 1
+		methodNames := map[string]bool{}
+		for j := i + 3; j < len(tokens) && depth > 0; j++ {
+			switch tokens[j].text {
+			case "{":
+				depth++
+			case "}":
+				depth--
+			case "rpc":
+				if depth != 1 {
+					continue
+				}
+				if j+2 >= len(tokens) || tokens[j+1].kind != scanner.Ident || tokens[j+2].text != "(" {
+					return nil, false
+				}
+				name := tokens[j+1].text
+				if methodNames[name] {
+					candidate.ambiguous = true
+				}
+				methodNames[name] = true
+				candidate.methods = append(candidate.methods, protoSchemaMethod{name: name, line: tokens[j].line})
+			}
+		}
+		if depth != 0 {
+			return nil, false
+		}
+		sort.Slice(candidate.methods, func(i, j int) bool { return candidate.methods[i].name < candidate.methods[j].name })
+		if found != nil {
+			candidate.ambiguous = true
+			return candidate, true
+		}
+		found = candidate
+	}
+	return found, true
 }
 
 func loadProtoHandlerSources(scenarioRoot string) ([]*protoHandlerSourceFile, []string, error) {
@@ -374,7 +615,39 @@ func loadGeneratedServiceContract(dir, generatedRel, service string) (protoHandl
 }
 
 func compareProtoHandlerContract(contract protoHandlerContract, files []*protoHandlerSourceFile, sourceComplete bool) ProtoHandlerService {
-	out := ProtoHandlerService{Service: contract.service, GeneratedPath: contract.generatedPath, HandlerType: contract.handlerType, Methods: []ProtoHandlerMethod{}, Status: "MATCH"}
+	out := ProtoHandlerService{
+		Service: contract.service, GeneratedPath: contract.generatedPath, ProtoSource: contract.protoSource,
+		ProtoMethods: []ProtoMethodParity{}, ProtoStatus: contract.protoStatus,
+		HandlerType: contract.handlerType, Methods: []ProtoHandlerMethod{}, Status: "MATCH",
+	}
+	generatedMethodNames := map[string]bool{}
+	for _, method := range contract.methods {
+		generatedMethodNames[method.name] = true
+	}
+	declaredMethodNames := map[string]bool{}
+	for _, declared := range contract.protoMethods {
+		declaredMethodNames[declared.name] = true
+		status := "MATCH"
+		if strings.HasPrefix(contract.protoStatus, "UNKNOWN_") {
+			status = contract.protoStatus
+		} else if !generatedMethodNames[declared.name] {
+			status = "MISSING_GENERATED_METHOD"
+		}
+		source := declared.source
+		out.ProtoMethods = append(out.ProtoMethods, ProtoMethodParity{Name: declared.name, Status: status, Source: &source})
+	}
+	for _, generated := range contract.methods {
+		if declaredMethodNames[generated.name] {
+			continue
+		}
+		status := "GENERATED_METHOD_UNDECLARED"
+		if strings.HasPrefix(contract.protoStatus, "UNKNOWN_") {
+			status = contract.protoStatus
+		}
+		generatedSource := generated.source
+		out.ProtoMethods = append(out.ProtoMethods, ProtoMethodParity{Name: generated.name, Status: status, Generated: &generatedSource})
+	}
+	sort.Slice(out.ProtoMethods, func(i, j int) bool { return out.ProtoMethods[i].Name < out.ProtoMethods[j].Name })
 	concreteTypeKnown := hasLocalHandlerStruct(contract.handlerType, contract.handlerDir, files)
 	if contract.ambiguous {
 		out.Status = "UNKNOWN_AMBIGUOUS_MOUNT"

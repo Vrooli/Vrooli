@@ -74,6 +74,16 @@ func (e *prodEvaluator) logf(format string, args ...any) {
 	}
 }
 
+// ValidateFixture checks the evaluator substrate before an expensive agent
+// dispatch. Oracle-less positive fixtures are valid only when a judge is
+// configured; negative fixtures use the deterministic abstention check.
+func (e *prodEvaluator) ValidateFixture(fixture Fixture) error {
+	if fixture.Negative || len(fixture.Oracle) > 0 || e.judge != nil {
+		return nil
+	}
+	return errors.New("fixture has no deterministic oracle and no agent-judge configured")
+}
+
 func (e *prodEvaluator) Judge(ctx context.Context, task TrialTask, fixture Fixture, res RunResult) Verdict {
 	// Defensive: the Service does not call Judge on a runner error, but never
 	// upgrade an error to a pass if it does.

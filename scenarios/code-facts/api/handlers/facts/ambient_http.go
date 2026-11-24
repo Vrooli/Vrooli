@@ -24,8 +24,8 @@ type ambientSeamRequest struct {
 }
 
 // SearchAmbientSeamsHTTPHandler exposes bounded source-call-site evidence. It
-// distinguishes test-file candidates from non-test-file candidates without
-// claiming binary membership, runtime wiring, or test substitution.
+// reports static file suffix and declared build-tag facts without claiming
+// target build inclusion, binary membership, runtime wiring, or test substitution.
 func SearchAmbientSeamsHTTPHandler(service ambientSeamService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

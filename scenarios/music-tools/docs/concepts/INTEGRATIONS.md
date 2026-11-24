@@ -9,66 +9,68 @@ Use this document to answer:
 - What degrades, and what fails outright, when a dependency is unavailable?
 - What contract do consuming scenarios rely on?
 
-> **Status:** the dependencies below are declared here and in `PRD.md` as the
-> intended shape. `.vrooli/service.json` does not yet declare them, and the two
-> managed-service resources do not yet exist. See
-> [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md).
+> **Current manifest:** `.vrooli/service.json` declares `stable-audio-3` and
+> `songgen` as enabled optional resources, and `ace-step` as disabled and
+> optional. It declares no `music-mir`, Qdrant, Ollama, or OpenRouter resource.
+> The analysis API still has a conditional local endpoint configured by
+> `MUSIC_MIR_URL` (default `http://127.0.0.1:8898`); this is not a manifest
+> dependency. Music Library outbox delivery is also implemented through
+> discovery or `MUSIC_LIBRARY_URL`, but no scenario dependency is declared.
+> See [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md) for qualification.
 
 ## Dependency Inventory
 
 | Dependency | Kind | Required | Used for |
 |---|---|---|---|
-| `ace-step` | Vrooli resource | For composition | Generation, cover, section repaint |
-| `music-mir` | Vrooli resource | For structure and separation | Structure, beats, downbeats, stem separation |
-| `qdrant` | Vrooli resource | No | Embedding index, primarily for consumers |
-| `ollama` | Vrooli resource | No | Local caption assistance |
-| `openrouter` | Vrooli resource | No | BYOK cloud caption assistance |
+| `stable-audio-3` | Vrooli resource, enabled optional (`ignore`) | Required when its composition provider is selected | Default instrumental composition |
+| `songgen` | Vrooli resource, enabled optional (`ignore`) | Required for explicitly selected SongGen profiles | MiniMax and HeartMuLa composition profiles |
+| `ace-step` | Vrooli resource, disabled optional (`ignore`) | Required for explicitly selected ACE-Step profiles | ACE-Step composition provider; not the default route |
+| `music-mir` | Local HTTP endpoint; not declared in the service manifest | Required when analyze or separate is invoked | `MUSIC_MIR_URL` target, defaulting to `http://127.0.0.1:8898`; unavailable endpoint fails that job |
+| `music-library` | Optional discovered scenario; not declared in the service manifest | Used for durable analysis-result forwarding | `MUSIC_LIBRARY_URL` override or scenario discovery; the outbox retries while the library is unavailable |
 | Capacity broker | Control plane | **Yes, for any GPU operation** | Claims, admission, degradation, release |
 | BlobStore | api-core seam | Yes | Output storage with ownership metadata |
-| In-scenario sidecar | Native virtualenv | Yes, for analysis | Embeddings, notation, loudness |
 
 ## Vrooli Resources
 
-### `ace-step` — composition runtime
+### `stable-audio-3` and `songgen` — declared composition runtimes
 
-Owns the generation stack in its own native environment. Holds an **exclusive** GPU
-lease while generating. Declares ordered profile rungs — model variant, planner
-size, precision, batch — so the broker degrades rather than fails under contention.
+Both are enabled and optional in `.vrooli/service.json` with startup policy
+`ignore`. The default instrumental provider uses `stable-audio-3`; selected
+SongGen profiles use `songgen`. Composition through a provider fails clearly
+when that provider's resource is unavailable; other providers remain separate
+choices.
+
+### `ace-step` — disabled composition runtime
+
+The manifest keeps ACE-Step disabled and optional. Explicitly selected ACE-Step
+profiles use the resource's own generation stack and exclusive GPU lease;
+ordinary composition does not require it.
 
 Degraded behaviour: composition operations queue; if the resource is stopped, they
 fail explicitly rather than silently falling back to a cloud provider.
 
-### `music-mir` — music-information-retrieval runtime
+### `music-mir` — unregistered analysis endpoint
 
-Owns the provisional analysis and stem-separation adapter. It is a separate
-managed runtime so its pinned MIR environment can evolve independently of the
-composition stack. The `music-tools` analyze/separate operations use the shared
-durable job manager and serialized GPU lane, and retain job admission until the
-resource acknowledges cancellation drain. The resource scaffold and API
-contract exist, but the dependency lock, installation, and reference-track
-analysis are still unqualified.
+The analysis module POSTs analyze/separate jobs to `MUSIC_MIR_URL`, which
+defaults to loopback port 8898. The API uses its durable job manager and GPU
+admission, and retains admission until the endpoint acknowledges cancellation
+drain. This endpoint is not declared as a Vrooli resource or scenario
+dependency; availability and installation must be qualified separately.
 
-Degraded behaviour: structure and separation operations become unavailable.
-Embedding, loudness, and notation analysis continue, so a track still yields a
-partial description rather than none.
+Degraded behaviour: analyze/separate jobs fail when the configured endpoint is
+unavailable. The current analysis module does not provide a local fallback.
 
-### `qdrant` — embedding index
-
-Optional here and primarily for consumers. This scenario computes embeddings; it
-does not require a vector index to do so.
-
-### `ollama` / `openrouter` — caption assistance
-
-Both optional. Used to turn a loose description into a structured caption. Absent
-either, callers supply captions directly and every operation still works.
+Qdrant, Ollama, and OpenRouter are not declared resources for this scenario, and
+no corresponding client path was found in the current API. Callers supply a
+caption directly to composition; this guide does not claim a caption-assistance
+integration.
 
 ## Scenario Dependencies
 
-This scenario has no required scenario dependency: analysis and composition
-remain usable when a consumer is stopped. Successful analysis results are
-optionally forwarded to Music Library through a durable outbox, which retries
-while Library is unavailable without changing the already-terminal producer
-job.
+The service manifest currently declares no scenario dependencies. The API has
+an optional Music Library outbox integration resolved by `MUSIC_LIBRARY_URL` or
+scenario discovery; it retries forwarding while Library is unavailable without
+changing the already-terminal producer job.
 
 Consumers, in expected order of adoption:
 
@@ -91,10 +93,11 @@ model, not a general speech capability.
 
 ## Third-Party Services
 
-Every model runs locally. Cross-scenario forwarding uses the local Music Library
-API; there is no paid or third-party service in that path. The only external
-network activity is model acquisition — declared sources, checksum-verified —
-and optional BYOK caption assistance if the operator configures it.
+Composition inference uses local Vrooli resources. Cross-scenario forwarding
+uses the Music Library API; there is no paid or third-party service in that
+path. No OpenRouter or other caption-assistance client path was found in the
+current scenario API. Model acquisition is handled by the declared resource
+owners.
 
 This is the property that makes zero marginal cost real: no per-generation royalty,
 no per-request billing, no service that can change its terms.
@@ -106,7 +109,7 @@ no per-request billing, no service that can change its terms.
 | Capacity broker denies admission | Operation queues with a stated reason; never proceeds unclaimed |
 | Contention during a claim | Degrade to the next declared rung; applied rung travels with the result |
 | Composition resource stopped | Composition fails explicitly; analysis unaffected |
-| MIR resource stopped | Structure and separation unavailable; other analysis continues |
+| `MUSIC_MIR_URL` endpoint unavailable | Analyze and separate jobs fail; the current analysis module has no local fallback |
 | Music Library stopped | Completed analysis remains successful; durable outbox retries until forwarding succeeds |
 | Free disk below the declared floor | Model install refuses to start rather than filling the volume |
 | Derived-artifact budget exhausted | LRU eviction; regenerable artifacts are never the only copy |

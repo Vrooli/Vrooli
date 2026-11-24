@@ -49,20 +49,22 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
-### 2026-08-19 — Every capability depends on a scenario with no implementation
+### 2026-08-19 — Undeclared capability dependencies — resolved 2026-11-24
 
 **Symptom:** This scenario runs no models by design; all attributes come from
-`music-tools`. That scenario is documentation-only today, and neither scenario
-declares dependencies in `.vrooli/service.json`.
+`music-tools`. Its service manifest did not declare either `music-tools` or the
+Qdrant resource, so lifecycle orchestration did not know to start the documented
+capability dependencies.
 
-**Root cause:** Documentation-first sequencing across a dependency pair.
+**Root cause:** Integration documentation and service lifecycle declarations
+drifted apart.
 
-**Workaround:** None needed. Library scan, playback, and the elicitation surfaces
-can be built against a stubbed attribute provider before `music-tools` executes
-anything real.
+**Workaround:** Start the capability providers separately when testing those
+surfaces.
 
-**Real fix:** Declare the `music-tools` scenario dependency and `qdrant`, then
-build against the real contract.
+**Real fix:** Resolved: `.vrooli/service.json` declares both integrations with
+`try_start` behavior and explicit degraded-mode descriptions. Build and validate
+their feature contracts as those surfaces are implemented.
 
 **Owner:** unassigned.
 
@@ -152,7 +154,6 @@ a migration handoff with a planned retirement path back into
 | Area | Drift | Maturity Impact | Real Fix |
 |---|---|---|---|
 | Template contract | The generated `react-vite` manifest requires README headings (`What You Get`, `Customize Safely`) and reference-doc headings (`Notes (CRUD reference)`) that the same template version does not emit. `audio-tools` shows the identical mismatch, so this is template-wide, not local. | Fails doc validation on every newly generated scenario. | Upstream: reconcile `templates/scenarios/react-vite` manifest `requiredHeadings` with what the template emits. Locally the README headings were aligned; the `notes` example headings were left alone because `detemplate` removes them. |
-| Dependency wiring | Docs declare a `music-tools` scenario dependency and `qdrant`; `.vrooli/service.json` declares none. | Blocks `implemented`. | Declare both. |
 | Blindness boundary | `DOMAINS.md` states ranking and generation are blind to monetisation, enforced by package boundary. No package boundary exists yet. | Blocks `implemented`; the claim is load-bearing for trust. | Create the boundary and a test that fails if `ranking` can import `offers`. |
 | Domain scaffolding | `DOMAINS.md` declares eleven domains; the generated `notes` example domain is still present and none of the eleven exist in code. | Expected at `generated`; blocks `implemented`. | Detemplate, then build in launch order. |
 

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"go/ast"
+	"go/build/constraint"
 	"go/format"
 	"go/parser"
 	"go/token"
@@ -34,6 +35,9 @@ type AmbientSeam struct {
 	Expression            string                     `json:"expression"`
 	ContextSymbol         string                     `json:"context_symbol"`
 	SourceLayer           string                     `json:"source_layer"`
+	BuildConstraint       string                     `json:"build_constraint,omitempty"`
+	BuildConstraintStatus string                     `json:"build_constraint_status"`
+	BuildConstraintLine   int                        `json:"build_constraint_line,omitempty"`
 	SourcePath            string                     `json:"source_path"`
 	Line                  int                        `json:"line"`
 	SourceSHA256          string                     `json:"source_sha256"`
@@ -80,8 +84,9 @@ type ambientSource struct {
 }
 type ambientCandidate struct{ seam AmbientSeam }
 
-// SearchAmbientSeams classifies authored Go call sites by source-file role.
-// It does not claim that a non-test file is linked into a production binary or
+// SearchAmbientSeams classifies authored Go call sites by source-file role and
+// reports declared build constraints. It does not claim that a condition matches
+// a target build, that a non-test file is linked into a production binary, or
 // that a test file is executed or substitutes a production dependency.
 func (s *Service) SearchAmbientSeams(_ context.Context, query, scenario string, limit int) (*AmbientSeamResponse, error) {
 	query, scenario = strings.TrimSpace(query), strings.TrimSpace(scenario)
@@ -111,7 +116,7 @@ func scanAmbientSeams(root, scenario, query string, limit int) (*AmbientSeamResp
 	if err != nil {
 		return nil, err
 	}
-	response := &AmbientSeamResponse{Query: strings.TrimSpace(query), Scenario: scenario, Results: []AmbientSeam{}, Degradations: []AmbientSeamDegradation{}, Scope: fmt.Sprintf("scenario:%s Go source only; at most %d files/%d MiB; test-vs-nontest file classification is static; no binary membership, runtime use, or test substitution is inferred", scenario, maxAmbientFiles, maxAmbientBytes>>20), MatchStatus: "UNKNOWN"}
+	response := &AmbientSeamResponse{Query: strings.TrimSpace(query), Scenario: scenario, Results: []AmbientSeam{}, Degradations: []AmbientSeamDegradation{}, Scope: fmt.Sprintf("scenario:%s Go source only; at most %d files/%d MiB; test-file suffix and declared go:build/+build conditions are static source facts; declared conditions are not evaluated against target GOOS/GOARCH/tags; no binary membership, runtime use, or test substitution is inferred", scenario, maxAmbientFiles, maxAmbientBytes>>20), MatchStatus: "UNKNOWN"}
 	if ambientQueryUnsupported(query) {
 		response.Degradations = append(response.Degradations, AmbientSeamDegradation{"query_unsupported_syntax", "Boolean, quoted, wildcard, and scoped query syntax is unsupported; no lexical match was asserted."})
 		return response, nil
@@ -235,6 +240,7 @@ func ambientFileCandidates(scenario string, source ambientSource) ([]AmbientSeam
 	if err != nil {
 		return nil, err
 	}
+	buildConstraint := ambientBuildConstraintForSource(source.content)
 	imports := map[string]string{}
 	for _, spec := range file.Imports {
 		importPath := strings.Trim(spec.Path.Value, "\"")
@@ -317,11 +323,14 @@ func ambientFileCandidates(scenario string, source ambientSource) ([]AmbientSeam
 		}
 		seen[key] = true
 		title := kind + " seam: " + expr
-		summary := fmt.Sprintf("%s in %s at %s:%d within %s; argument context %s", kind, layer, source.path, pos.Line, symbol, argumentContextStatus)
+		summary := fmt.Sprintf("%s in %s at %s:%d within %s; build condition %s; argument context %s", kind, layer, source.path, pos.Line, symbol, buildConstraint.status, argumentContextStatus)
+		if buildConstraint.expression != "" {
+			summary += "; declared build condition " + buildConstraint.expression
+		}
 		if argumentCallee != "" {
 			summary += fmt.Sprintf("; passed as an argument to %s at line %d", argumentCallee, argumentLine)
 		}
-		results = append(results, AmbientSeam{ID: fmt.Sprintf("%s:ambient:%s:%d:%s", scenario, source.path, pos.Line, kind), Title: title, Summary: summary, Scenario: scenario, Kind: kind, Expression: expr, ContextSymbol: symbol, SourceLayer: layer, SourcePath: source.path, Line: pos.Line, SourceSHA256: digest, ArgumentContextStatus: argumentContextStatus, ArgumentCallee: argumentCallee, ArgumentLine: argumentLine, Basis: "go_ast_call_or_provider_expression", Limit: "Source location and file suffix do not prove build inclusion, production/test dispatch, runtime use, or replacement of this dependency."})
+		results = append(results, AmbientSeam{ID: fmt.Sprintf("%s:ambient:%s:%d:%s", scenario, source.path, pos.Line, kind), Title: title, Summary: summary, Scenario: scenario, Kind: kind, Expression: expr, ContextSymbol: symbol, SourceLayer: layer, BuildConstraint: buildConstraint.expression, BuildConstraintStatus: buildConstraint.status, BuildConstraintLine: buildConstraint.line, SourcePath: source.path, Line: pos.Line, SourceSHA256: digest, ArgumentContextStatus: argumentContextStatus, ArgumentCallee: argumentCallee, ArgumentLine: argumentLine, Basis: "go_ast_call_or_provider_expression", Limit: "Declared constraints and file suffixes are not evaluated for a target build; source location does not prove binary membership, production/test dispatch, runtime use, or replacement of this dependency."})
 	}
 	ast.Inspect(file, func(node ast.Node) bool {
 		switch value := node.(type) {
@@ -341,6 +350,101 @@ func ambientFileCandidates(scenario string, source ambientSource) ([]AmbientSeam
 		return true
 	})
 	return results, nil
+}
+
+type ambientBuildConstraintInfo struct {
+	expression string
+	status     string
+	line       int
+}
+
+func ambientBuildConstraintForSource(content []byte) ambientBuildConstraintInfo {
+	result := ambientBuildConstraintInfo{status: "NOT_DECLARED"}
+	lines := strings.Split(string(content), "\n")
+	goExprs := []constraint.Expr{}
+	legacyExprs := []constraint.Expr{}
+	inBlockComment := false
+	lastDirectiveLine := 0
+	for index, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if inBlockComment {
+			if end := strings.Index(trimmed, "*/"); end >= 0 {
+				trimmed = strings.TrimSpace(trimmed[end+2:])
+				inBlockComment = false
+				if trimmed == "" {
+					continue
+				}
+			} else {
+				continue
+			}
+		}
+		if trimmed == "" {
+			continue
+		}
+		if strings.HasPrefix(trimmed, "/*") {
+			if !strings.Contains(trimmed, "*/") {
+				inBlockComment = true
+			}
+			continue
+		}
+		if !strings.HasPrefix(trimmed, "//") {
+			if lastDirectiveLine > 0 && index > 0 && strings.TrimSpace(lines[index-1]) != "" {
+				result.status = "UNKNOWN_DIRECTIVE_PLACEMENT"
+				return result
+			}
+			break
+		}
+		isGo := strings.HasPrefix(trimmed, "//go:build")
+		isLegacy := strings.HasPrefix(trimmed, "// +build")
+		if !isGo && !isLegacy {
+			continue
+		}
+		if result.line == 0 {
+			result.line = index + 1
+		}
+		lastDirectiveLine = index + 1
+		if len(trimmed) > 2048 || len(goExprs)+len(legacyExprs) >= 32 || (isGo && len(goExprs) > 0) {
+			result.status = "UNKNOWN_DIRECTIVE_INCOMPLETE"
+			return result
+		}
+		expr, err := constraint.Parse(trimmed)
+		if err != nil || expr == nil {
+			result.status = "UNKNOWN_DIRECTIVE_INVALID"
+			return result
+		}
+		if isGo {
+			goExprs = append(goExprs, expr)
+		} else {
+			legacyExprs = append(legacyExprs, expr)
+		}
+	}
+	if len(goExprs) == 0 && len(legacyExprs) == 0 {
+		return result
+	}
+	var goExpr, legacyExpr constraint.Expr
+	if len(goExprs) > 0 {
+		goExpr = goExprs[0]
+	}
+	for _, expr := range legacyExprs {
+		if legacyExpr == nil {
+			legacyExpr = expr
+		} else {
+			legacyExpr = &constraint.AndExpr{X: legacyExpr, Y: expr}
+		}
+	}
+	if goExpr != nil && legacyExpr != nil && goExpr.String() != legacyExpr.String() {
+		result.status = "UNKNOWN_DIRECTIVE_CONFLICT"
+		result.expression = goExpr.String()
+		return result
+	}
+	if goExpr != nil {
+		result.expression = goExpr.String()
+		result.status = "DECLARED_UNEVALUATED"
+	} else {
+		result.expression = legacyExpr.String()
+		result.status = "LEGACY_DECLARED_UNEVALUATED"
+	}
+	return result
 }
 
 func ambientCall(expr ast.Expr, imports map[string]string) (string, string, bool) {
@@ -413,13 +517,17 @@ func ambientReceiverName(field *ast.FieldList) string {
 func ambientMatchDetails(terms []string, seam AmbientSeam) (float64, []string, []string, []AmbientSeamMatchEvidence) {
 	// Keep the score equal to the previous lexical term-overlap score while
 	// requiring whole-token matches and exposing exact metadata evidence.
-	fields := []struct{ name, value string }{
-		{"kind", seam.Kind},
-		{"expression", seam.Expression},
-		{"function", seam.ContextSymbol},
-		{"source_role", seam.SourceLayer},
-		{"source_path", seam.SourcePath},
-		{"argument_callee", seam.ArgumentCallee},
+	fields := []struct {
+		name, value string
+		line        int
+	}{
+		{"kind", seam.Kind, seam.Line},
+		{"expression", seam.Expression, seam.Line},
+		{"function", seam.ContextSymbol, seam.Line},
+		{"source_role", seam.SourceLayer, seam.Line},
+		{"source_path", seam.SourcePath, seam.Line},
+		{"argument_callee", seam.ArgumentCallee, seam.ArgumentLine},
+		{"build_constraint", seam.BuildConstraint, seam.BuildConstraintLine},
 	}
 	matchedTerms := make([]string, 0, len(terms))
 	matchedFields := make([]string, 0, len(fields))
@@ -430,7 +538,7 @@ func ambientMatchDetails(terms []string, seam AmbientSeam) (float64, []string, [
 		for i, field := range fields {
 			if ambientFieldHasTerm(field.value, term) {
 				fieldMatches[i] = true
-				matchEvidence = append(matchEvidence, AmbientSeamMatchEvidence{Term: term, Field: field.name, Value: field.value, SourcePath: seam.SourcePath, Line: seam.Line, SourceSHA256: seam.SourceSHA256})
+				matchEvidence = append(matchEvidence, AmbientSeamMatchEvidence{Term: term, Field: field.name, Value: field.value, SourcePath: seam.SourcePath, Line: field.line, SourceSHA256: seam.SourceSHA256})
 			}
 		}
 		if len(matchEvidence) > termEvidenceStart {
@@ -469,14 +577,34 @@ func ambientQueryUnsupported(query string) bool {
 	return false
 }
 func ambientTokens(query string) []string {
-	fields := strings.FieldsFunc(strings.ToLower(query), func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsNumber(r) })
+	fields := strings.FieldsFunc(query, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsNumber(r) })
 	seen := map[string]bool{}
 	var terms []string
-	for _, term := range fields {
+	appendTerm := func(term string) {
+		term = strings.ToLower(term)
 		if len(term) > 1 && !seen[term] {
 			seen[term] = true
 			terms = append(terms, term)
 		}
+	}
+	for _, field := range fields {
+		runes := []rune(field)
+		start := 0
+		for i := 1; i < len(runes); i++ {
+			previous, current := runes[i-1], runes[i]
+			if !unicode.IsUpper(current) {
+				continue
+			}
+			boundary := unicode.IsLower(previous) || unicode.IsNumber(previous)
+			if !boundary && unicode.IsUpper(previous) && i+1 < len(runes) {
+				boundary = unicode.IsLower(runes[i+1])
+			}
+			if boundary {
+				appendTerm(string(runes[start:i]))
+				start = i
+			}
+		}
+		appendTerm(string(runes[start:]))
 	}
 	sort.Strings(terms)
 	return terms

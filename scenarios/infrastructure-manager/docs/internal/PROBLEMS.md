@@ -131,18 +131,17 @@ architecture in its deployment profile.
 
 **Refs:** `api/handlers/coverage/extension_rules_test.go`.
 
-### P-006 — `secrets-manager` exposes no typed read surface
+### P-006 — Secrets availability lacks an Infrastructure Manager target row
 
-**Status:** open · blocks a target row · **owner:** `secrets-manager`
+**Status:** open · **owner:** `infra-health` (target); `secrets-manager` (source).
 
-Secrets availability is load-bearing for scenario start and has no target row
-anywhere in the team's plan of record. The scenario ships a `cli/` directory but
-**no `cli/manifest.json`**, so it is unbindable and exposes no typed read this
-board could consume.
+`secrets-manager` now exposes manifest-bound metadata-only `health` and `status`
+reads; this supersedes the old no-manifest/no-read claim. Infrastructure Manager
+still has no typed source adapter or availability cell. Do not scrape logs or
+read secret values.
 
-**Revisit trigger:** `secrets-manager` ships a manifest and a health/status verb.
-Do not compensate for the gap here with log scraping — that would breach the
-typed-read boundary that keeps credentials out of the reading store.
+**Revisit:** `infra-health` defines an owner-backed availability cell, freshness,
+and unavailable semantics, then binds the typed source.
 
 ### P-008 — No control layer has authored a reliability space doc
 

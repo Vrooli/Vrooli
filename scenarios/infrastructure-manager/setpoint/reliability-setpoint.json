@@ -3,7 +3,7 @@
   "schema_version": "1.0.0",
   "confidence": {
     "level": "SKETCH",
-    "rationale": "The eleven reliability spaces exist and every gradeable bar carries a unit, but the obligation list they should derive from has not been approved as a separate registry. The host-pressure bars were ratified on 2026-08-22 against captured readings and joined to their autoheal and control-plane sensors; older device-layer bars remain provisional pending their separate joins. The setpoint denominator remains SKETCH: confidence is lifted by naming obligations, not by ratifying bars. On 2026-09-02 the duplicate availability/A2 entry (the never-authored restart-frequency value bar) was merged into the ratified crash-loop bar so every cell_ref is unique, and substrate/SB20 was added for the supervisor's memory-PSI gate; internal/setpoint is now the only parser and enforces uniqueness.",
+    "rationale": "The eleven reliability spaces exist and every gradeable bar carries a unit, but the obligation list they should derive from has not been approved as a separate registry. The host-pressure bars were ratified on 2026-08-22 against captured readings and joined to their autoheal and control-plane sensors; older device-layer bars remain provisional pending their separate joins. The setpoint denominator remains SKETCH: confidence is lifted by naming obligations, not by ratifying bars. On 2026-09-02 the duplicate availability/A2 entry (the never-authored restart-frequency value bar) was merged into the ratified crash-loop bar so every cell_ref is unique, and substrate/SB20 was added for the supervisor's memory-PSI gate; internal/setpoint is now the only parser and enforces uniqueness. On 2026-11-24 the operator ratified substrate/SB22 (share of used memory) and substrate/SB23 (growth per day) for unreclaimable kernel slab, after the sensor and a decision-only autoheal check were implemented; the bars are initial values and remain reviewable on captured readings.",
     "recorded_on": "2026-08-20"
   },
   "constants": {
@@ -593,6 +593,34 @@
       "max": 85.0,
       "gradeable": true,
       "ratification_note": "On 2026-09-04 vrooli-agents.slice reached 4,059 of its 4,096 tasks while every other substrate bar read green: CPU pressure, fork rate (24/s against the 200/s bar SB16), swap and memory stalls all watch the host, and this failure happens inside the cgroup. The kernel then refused the fork of every new agent session, which surfaced as an unrelated component reporting its database corrupt. The 85% bar leaves an operator room to act before the kernel starts refusing, and the sustain is short because the ceiling filled over minutes, not hours."
+    },
+    {
+      "id": "substrate-unreclaimable-kernel-memory",
+      "cell_ref": "substrate/SB22",
+      "projection": "substrate",
+      "target_kind": "unreclaimable-kernel-memory",
+      "deadband": "Unreclaimable kernel slab remains below 10% of used memory for the sustain window. A reading above the bar that is flat needs its owning subsystem to release it or a reboot; it is not reclaimable on demand.",
+      "sustain": "10m",
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-11-24-host-memory-maintenance",
+      "unit": "percent of used memory",
+      "max": 10.0,
+      "gradeable": true,
+      "ratification_note": "Ratified 2026-11-24 alongside the substrate/SB22 cell. The bar was set from one measured episode (13.5 GiB of unreclaimable slab, 41% of used memory) rather than a distribution, so it is deliberately loose: a healthy Linux host sits near 1-2%, and a host above 10% is carrying a leak that will not clear without its owner or a reboot. Review on captured readings once a second episode exists."
+    },
+    {
+      "id": "substrate-unreclaimable-kernel-memory-growth",
+      "cell_ref": "substrate/SB23",
+      "projection": "substrate",
+      "target_kind": "unreclaimable-kernel-memory-growth",
+      "deadband": "Unreclaimable kernel slab grows by less than 64 MiB per day measured from the first observation of the current boot.",
+      "sustain": "10m",
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-11-24-host-memory-maintenance",
+      "unit": "megabytes per day",
+      "max": 64.0,
+      "gradeable": true,
+      "ratification_note": "Ratified 2026-11-24. Growth is measured from the first reading of the current boot, so the rate is unavailable for the first hour and is conservative before a full day has elapsed; an unknown rate never reads as healthy. 64 MiB/day is roughly 23 GiB/year, which is small enough to catch a slow leak and large enough to ignore ordinary cache churn."
     },
     {
       "id": "availability-declared-crash-loop",

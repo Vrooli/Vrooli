@@ -69,7 +69,7 @@ the board leak?"
 |---|---|---|
 | Two of four trust-integrity rules (ghost, shelved) cannot be computed | medium — untrusted readings are conservatively marked rather than assumed valid, so the gap degrades safely, but the board's blindness is wider than it will be | Roadmap Gap 10 ships `check reconcile` and `check shelve`. |
 | No mechanical enforcement that extension rules 3, 4 and 6 hold | medium — they are the mitigations for the three highest-impact risks above, and they are currently prose | Add architecture tests asserting `coverage` owns no schema, that `condition` caches no leg population, that no `setpoint` write path exists on any handler, and that no dependency client exposes a mutating verb. Should land with the first vertical slice. |
-| `secrets-manager` exposes no typed read surface | low for this scenario; blocks a target row | That scenario ships a `cli/manifest.json` and a health verb. |
+| Secrets availability has no Infrastructure Manager target row | low for this scenario; blocks a target row | `secrets-manager` has manifest-bound metadata-only health/status reads; bind a typed availability source after `infra-health` defines its cell. |
 
 ## Cross-References
 

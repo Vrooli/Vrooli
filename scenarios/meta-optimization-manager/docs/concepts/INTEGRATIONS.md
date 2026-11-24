@@ -9,8 +9,9 @@ The dependency contract for **meta-optimization-manager**: the resources, scenar
 |---|---|---|
 | Resource | SQLite (`api-core/storage`) | Owned state (gaps, trials history, fitness index, snapshots). |
 | Scenario (denominator owner) | `search-hub`, `test-genie`, `prompt-manager` | The `space --projection` verb (denominators) + their registries (numerators). |
-| Scenario (read) | `completeness-scoring`, `code-facts`, `architecture-cartographer`, `scenario-auditor` | Maturity score; structural counts + clean scans for convergence. |
+| Scenario (read) | `scenario-completeness-scoring`, `code-facts`, `architecture-cartographer`, `scenario-auditor` | Answer maturity score; structural counts + clean scans for convergence. |
 | Scenario (trials) | `agent-manager` | Spawn sandboxed local-model SWE runs (`run create --run-mode sandboxed`) and return the diff + metrics. agent-manager owns sandboxing internally. |
+| Scenario (Act/focus) | `program-runtime` | Act projection numerator and typed program/friction condition data consumed by focus. |
 
 ## Vrooli Resources
 
@@ -22,10 +23,11 @@ Environment + service-manifest details: see [../reference/configuration.md](../r
 
 All **soft / degrade gracefully**:
 - **search-hub / test-genie / prompt-manager** — must expose `space --projection <p> --json` (the shared denominator-read contract) and their numerator registries (`providers list`, `health`/`fleet status`, `graph health`).
-- **completeness-scoring** — `GetScore` for the maturity dimension.
+- **scenario-completeness-scoring** — `GetScore` joins the Answer maturity cell; unavailable scores remain declared-unverified.
 - **code-facts / architecture-cartographer** — structural data for convergence fitness counts (read, not re-run).
 - **scenario-auditor / test-genie** — clean-on-all-tools status for reference health (read, not re-run).
 - **agent-manager** — `trials` dispatch: reconcile MoM's declared role-only profile, then create a task and `run create --run-mode sandboxed`, poll with `run get`, and collect the diff with `run diff`. It owns runtime/resource selection, sandboxing, and diff attribution; MoM never talks to a sandbox directly.
+- **program-runtime** — supplies the Act projection numerator and typed friction/program signals used by focus; unavailable data is reported as unavailable.
 
 ## Third-Party Services
 

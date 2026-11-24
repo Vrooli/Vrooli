@@ -85,7 +85,7 @@ reading is silently dropped.
 | `data-backup-manager` | active | Backup freshness, coverage, and verified-restore drill outcomes — a projection this team never wrote despite the sensors already shipping. Has typed handlers for `plans`, `coverage`, `drills`, `audits`. | Read-only; never runs a backup or a restore. |
 | `agent-manager` | active | Run statistics and durable error patterns. The only source that already exposes **Measures**, which is the direction the others should follow. | Read-only. |
 | `scenario-dependency-analyzer` | planned | The core-set closure half of the derived should-be-supervised set. | Read-only derivation query, executed per read. |
-| `secrets-manager` | blocked | Secrets availability is load-bearing for scenario start and has no cell. The scenario ships a `cli/` directory but **no `cli/manifest.json`**, so it is unbindable and exposes no typed read. | Blocked until it grows a health/status verb and a manifest. Tracked as an instrumentation gap, not compensated for here. |
+| `secrets-manager` | blocked | Metadata-only `health` and `status` reads are now manifest-bound; Infrastructure Manager still has no typed source binding or target row for secrets availability. | Add only after `infra-health` owners define the availability cell, freshness, and failure contract. Do not scrape logs or read credential values. |
 
 ## Third-Party Services
 

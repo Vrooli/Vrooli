@@ -3,6 +3,7 @@ package trials
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -86,6 +87,27 @@ func TestEvaluatorAgentJudgeFallbackSelection(t *testing.T) {
 	}, nil)
 	if v := ev.Judge(context.Background(), task, noOracle, RunResult{Diff: "x"}); v != VerdictError {
 		t.Fatalf("judge error should be VerdictError, got %v", v)
+	}
+}
+
+func TestEvaluatorValidatesFixtureBeforeDispatch(t *testing.T) {
+	oracleless := Fixture{Family: SuiteResearch}
+	evaluator := NewEvaluator(nil).(*prodEvaluator)
+	if err := evaluator.ValidateFixture(oracleless); err == nil || !strings.Contains(err.Error(), "no agent-judge configured") {
+		t.Fatalf("oracle-less positive fixture should fail readiness validation, got %v", err)
+	}
+	if err := evaluator.ValidateFixture(oracleFixture()); err != nil {
+		t.Fatalf("deterministic oracle fixture should be ready: %v", err)
+	}
+	if err := evaluator.ValidateFixture(Fixture{Family: SuiteNegative, Negative: true}); err != nil {
+		t.Fatalf("negative abstention fixture should be ready without an oracle: %v", err)
+	}
+
+	withJudge := NewEvaluatorWithDeps(nil, func(context.Context, TrialTask, Fixture, RunResult) (Verdict, error) {
+		return VerdictPass, nil
+	}, nil).(*prodEvaluator)
+	if err := withJudge.ValidateFixture(oracleless); err != nil {
+		t.Fatalf("configured judge should make an oracle-less positive fixture evaluable: %v", err)
 	}
 }
 

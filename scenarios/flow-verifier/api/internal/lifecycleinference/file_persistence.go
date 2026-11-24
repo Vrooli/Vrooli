@@ -142,7 +142,9 @@ func parameterOrigins(expr ast.Expr, values map[string]map[int]bool) map[int]boo
 		case *ast.Ident:
 			mergeOrigins(origins, values[node.Name])
 		case *ast.SelectorExpr:
-			walk(node.X) // Selector names are fields or methods, not value aliases.
+			// A selector may serialize only one unrelated sibling field of a
+			// candidate-containing aggregate. Treating its receiver as though the
+			// whole record were persisted creates false durable-lifecycle proofs.
 		case *ast.CallExpr:
 			for _, arg := range node.Args {
 				walk(arg)

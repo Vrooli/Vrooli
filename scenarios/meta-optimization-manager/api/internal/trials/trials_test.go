@@ -360,6 +360,29 @@ func TestRunTrialsMissingFixtureRecordsError(t *testing.T) {
 	}
 }
 
+func TestRunTrialsRejectsUnevaluableFixtureBeforeDispatch(t *testing.T) { // [REQ:MOM-TRIALS-001]
+	task := TrialTask{ID: "trial/research", Suite: SuiteResearch, GuideTaskID: "research"}
+	runner := &fakeRunner{result: RunResult{Verdict: VerdictUnspecified, Model: "must-not-dispatch"}}
+	repo := &fakeRepo{}
+	fixtures := &fakeFixtures{fixture: Fixture{Family: SuiteResearch, Rev: "oracleless-rev", TargetDir: "/fixture/target"}}
+	svc := newSvcFull(&fakeGen{tasks: []TrialTask{task}}, runner, repo, fixtures, NewEvaluator(nil),
+		scheduletest.New(time.Date(2026, 11, 24, 12, 0, 0, 0, time.UTC)))
+
+	runs, err := svc.RunTrials(context.Background(), "", task.ID)
+	if err != nil {
+		t.Fatalf("unusable fixture should be recorded as an honest run error: %v", err)
+	}
+	if len(runs) != 1 || runs[0].Verdict != VerdictError || runs[0].FixtureRev != "oracleless-rev" {
+		t.Fatalf("fixture readiness error was not recorded: %+v", runs)
+	}
+	if runner.calls != 0 {
+		t.Fatalf("an unevaluable fixture must be rejected before agent dispatch, calls=%d", runner.calls)
+	}
+	if len(repo.runs) != 1 || repo.runs[0].Verdict != VerdictError {
+		t.Fatalf("fixture readiness error must be retained in history: %+v", repo.runs)
+	}
+}
+
 func TestRunTrialsDoesNotReuseWithoutPreDispatchModelIdentity(t *testing.T) {
 	clk := scheduletest.New(time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC))
 	runner := &fakeRunner{result: RunResult{Verdict: VerdictUnspecified, Model: "ollama/test-model", Tokens: 100}}
