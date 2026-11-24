@@ -13,6 +13,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	"git-control-tower/internal/connecterrors"
 	"git-control-tower/internal/worktree"
 )
 
@@ -70,13 +71,7 @@ func ErrorCodeFor(err error) connect.Code {
 	}
 }
 
-// ToConnectError converts a domain error to a typed *connect.Error.
+// ToConnectError preserves the domain package API while sharing transport conversion.
 func ToConnectError(err error) error {
-	if err == nil {
-		return nil
-	}
-	if connectErr := new(connect.Error); errors.As(err, &connectErr) {
-		return err
-	}
-	return connect.NewError(ErrorCodeFor(err), err)
+	return connecterrors.ToConnectError(err, ErrorCodeFor)
 }

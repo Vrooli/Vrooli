@@ -1,12 +1,10 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"sync"
@@ -47,44 +45,53 @@ type StreamingCommandRunner interface {
 // result. The buffered output is capped indirectly by the caller via capOutput.
 func (ShellCommandRunner) RunStream(ctx context.Context, req CommandRunRequest, onLine func(stream, line string)) (CommandRunResult, error) {
 	cmd := newShellCommand(ctx, req)
-	stdoutPipe, err := cmd.StdoutPipe()
-	if err != nil {
-		return CommandRunResult{}, err
-	}
-	stderrPipe, err := cmd.StderrPipe()
-	if err != nil {
-		return CommandRunResult{}, err
-	}
-	if err := cmd.Start(); err != nil {
-		return CommandRunResult{}, err
-	}
-	var (
-		stdoutBuf, stderrBuf bytes.Buffer
-		wg                   sync.WaitGroup
-	)
-	wg.Add(2)
-	go pumpLines(&wg, stdoutPipe, &stdoutBuf, "stdout", onLine)
-	go pumpLines(&wg, stderrPipe, &stderrBuf, "stderr", onLine)
-	wg.Wait()
-	waitErr := cmd.Wait()
-	return CommandRunResult{Stdout: stdoutBuf.String(), Stderr: stderrBuf.String()}, waitErr
+	stdout := &streamLineWriter{stream: "stdout", onLine: onLine}
+	stderr := &streamLineWriter{stream: "stderr", onLine: onLine}
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+	// Assigning writers lets os/exec own the copy goroutines. In contrast,
+	// StdoutPipe readers must finish before Wait, which can deadlock when a
+	// descendant keeps the pipe open and prevents WaitDelay from taking effect.
+	waitErr := cmd.Run()
+	stdout.flush()
+	stderr.flush()
+	return CommandRunResult{Stdout: stdout.output.String(), Stderr: stderr.output.String()}, waitErr
 }
 
-func pumpLines(wg *sync.WaitGroup, r io.Reader, buf *bytes.Buffer, stream string, onLine func(string, string)) {
-	defer wg.Done()
-	br := bufio.NewReader(r)
+type streamLineWriter struct {
+	mu      sync.Mutex
+	output  bytes.Buffer
+	pending string
+	stream  string
+	onLine  func(string, string)
+}
+
+func (w *streamLineWriter) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.output.Write(p)
+	w.pending += string(p)
 	for {
-		line, err := br.ReadString('\n')
-		if line != "" {
-			buf.WriteString(line)
-			if onLine != nil {
-				onLine(stream, strings.TrimRight(line, "\n"))
-			}
+		i := strings.IndexByte(w.pending, '\n')
+		if i < 0 {
+			break
 		}
-		if err != nil {
-			return
+		line := strings.TrimSuffix(w.pending[:i], "\r")
+		w.pending = w.pending[i+1:]
+		if w.onLine != nil {
+			w.onLine(w.stream, line)
 		}
 	}
+	return len(p), nil
+}
+
+func (w *streamLineWriter) flush() {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.pending != "" && w.onLine != nil {
+		w.onLine(w.stream, strings.TrimSuffix(w.pending, "\r"))
+	}
+	w.pending = ""
 }
 
 // RunStream executes the precommit configured for repoDir and emits SSE-shaped

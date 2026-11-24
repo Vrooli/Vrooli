@@ -264,34 +264,39 @@ func waitForBaselineTerminal(ctx context.Context, wait func() (*connect.Response
 	for attempt := 0; ; attempt++ {
 		response, err := wait()
 		if err != nil {
-			if isTransientBaselineWaitError(err) && attempt < len(baselineRunRetryDelays) {
-				timer := time.NewTimer(baselineRunRetryDelays[attempt])
-				select {
-				case <-ctx.Done():
-					timer.Stop()
-					return nil, ctx.Err()
-				case <-timer.C:
-					continue
+			if baselineWaitCanRetry(err, attempt) {
+				if err := waitBaselineRetryDelay(ctx, attempt); err != nil {
+					return nil, err
 				}
+				continue
 			}
 			return nil, err
 		}
-		status := ""
-		if response != nil && response.Msg != nil && response.Msg.GetStatus() != nil {
-			status = response.Msg.GetStatus().GetStatus()
-		}
-		if isTerminalRunStatus(status) || (response != nil && response.Msg != nil && response.Msg.GetTerminalRun() != nil) {
+		if baselineWaitIsTerminal(response) {
 			return response, nil
 		}
-		if status != "" && status != "queued" && status != "in_progress" {
-			return response, nil
-		}
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
+		if err := ctx.Err(); err != nil {
+			return nil, err
 		}
 	}
+}
+
+func baselineWaitCanRetry(err error, attempt int) bool {
+	return isTransientBaselineWaitError(err) && attempt < len(baselineRunRetryDelays)
+}
+
+func baselineWaitIsTerminal(response *connect.Response[runspb.WaitRunResponse]) bool {
+	if response == nil || response.Msg == nil {
+		return false
+	}
+	status := ""
+	if response.Msg.GetStatus() != nil {
+		status = response.Msg.GetStatus().GetStatus()
+	}
+	if isTerminalRunStatus(status) || response.Msg.GetTerminalRun() != nil {
+		return true
+	}
+	return status != "" && status != "queued" && status != "in_progress"
 }
 
 // waitForCanonicalBaselineTerminal closes the small publication-ordering gap
@@ -319,13 +324,20 @@ func waitForCanonicalBaselineTerminal(ctx context.Context, wait func() (*connect
 			return nil, errors.New("terminal run has no canonical terminal snapshot")
 		}
 
-		timer := time.NewTimer(baselineRunRetryDelays[attempt])
-		select {
-		case <-ctx.Done():
-			timer.Stop()
-			return nil, ctx.Err()
-		case <-timer.C:
+		if err := waitBaselineRetryDelay(ctx, attempt); err != nil {
+			return nil, err
 		}
+	}
+}
+
+func waitBaselineRetryDelay(ctx context.Context, attempt int) error {
+	timer := time.NewTimer(baselineRunRetryDelays[attempt])
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
 	}
 }
 
@@ -355,11 +367,7 @@ func newBaselineRunsClient(timeout time.Duration) baselineRunsClient {
 }
 
 func (c baselineRunsClient) client(ctx context.Context) (runs_v1connect.RunsServiceClient, error) {
-	baseURL, err := c.resolveURL(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("resolve test-genie url: %w", err)
-	}
-	return runs_v1connect.NewRunsServiceClient(c.httpClient, baseURL), nil
+	return testGenieRunsService(ctx, c.httpClient, c.resolveURL)
 }
 
 func (c baselineRunsClient) PinRun(ctx context.Context, scenario, runID, pinnedBy, reason string) error {

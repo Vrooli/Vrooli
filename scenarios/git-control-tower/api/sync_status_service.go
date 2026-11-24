@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 )
 
@@ -17,12 +16,9 @@ type SyncStatusDeps struct {
 // GetSyncStatus retrieves the push/pull status for the repository.
 // [REQ:GCT-OT-P0-006] Push/pull status
 func GetSyncStatus(ctx context.Context, deps SyncStatusDeps, req SyncStatusRequest) (*SyncStatusResponse, error) {
-	if deps.Git == nil {
-		return nil, fmt.Errorf("git runner is required")
-	}
-	repoDir := strings.TrimSpace(deps.RepoDir)
-	if repoDir == "" {
-		return nil, fmt.Errorf("repo dir is required")
+	repoDir, err := validateGitRepoDeps(deps.Git, deps.RepoDir)
+	if err != nil {
+		return nil, err
 	}
 
 	remote := req.Remote

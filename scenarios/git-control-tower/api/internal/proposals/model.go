@@ -132,10 +132,14 @@ type File struct {
 
 // ContentID is the comparable identity of the file's proposed content.
 func (f File) ContentID() string {
-	if f.Deleted {
+	return contentID(f.Deleted, f.BlobID)
+}
+
+func contentID(deleted bool, blobID string) string {
+	if deleted {
 		return DeletedBlob
 	}
-	return f.BlobID
+	return blobID
 }
 
 type Exclusion struct {
@@ -218,10 +222,7 @@ type AnchorFile struct {
 
 // ContentID is the comparable identity of the anchored content.
 func (f AnchorFile) ContentID() string {
-	if f.Deleted {
-		return DeletedBlob
-	}
-	return f.BlobID
+	return contentID(f.Deleted, f.BlobID)
 }
 
 type Anchor struct {

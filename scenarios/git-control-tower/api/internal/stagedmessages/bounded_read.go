@@ -1,10 +1,13 @@
 package stagedmessages
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
 )
+
+var errBoundedReadLimit = errors.New("file exceeds bounded read limit")
 
 // readRegularFileBounded reads at most maxBytes+1 bytes from a regular file.
 // It verifies that the path still names the opened file and that neither the
@@ -25,7 +28,7 @@ func readRegularFileBoundedWithOpen(path string, maxBytes int64, open func(strin
 		return nil, nil, fmt.Errorf("file is not a regular file")
 	}
 	if before.Size() > maxBytes {
-		return nil, nil, fmt.Errorf("file exceeds bounded read limit")
+		return nil, nil, errBoundedReadLimit
 	}
 	f, err := open(path)
 	if err != nil {
@@ -44,7 +47,7 @@ func readRegularFileBoundedWithOpen(path string, maxBytes int64, open func(strin
 		return nil, nil, err
 	}
 	if int64(len(data)) > maxBytes {
-		return nil, nil, fmt.Errorf("file exceeds bounded read limit")
+		return nil, nil, errBoundedReadLimit
 	}
 	afterOpen, err := f.Stat()
 	if err != nil {

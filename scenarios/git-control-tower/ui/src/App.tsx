@@ -515,14 +515,19 @@ export default function App() {
   }) : undefined);
   const statusQuery = useRepoStatus(repoId);
   const refreshRepoStatus = statusQuery.refetch;
-  // Always fetch entry details for commit viewing and blame mode filtering
-  const historyNeedsDetails = true;
+  // Detailed history includes per-commit file lists and checks. Keep that
+  // expensive read and its polling tied to a visible History surface; blame
+  // mode also consumes the detailed entries while it is active.
+  const historyNeedsDetails = isMobile
+    ? mobileActivePanel === "history" || Boolean(viewingFileBlame)
+    : !historyCollapsed || Boolean(viewingFileBlame);
   const historyGrepPattern = historyGrepPrefix ? `${historyGrepPrefix} p` : undefined;
   const historyEffectiveLimit = historyGrepPrefix ? 1000 : historyLimit;
-  const historyQuery = useRepoHistory(historyEffectiveLimit, historyNeedsDetails, repoId, historyGrepPattern, historyNeedsDetails);
+  const historyQuery = useRepoHistory(historyEffectiveLimit, true, repoId, historyGrepPattern, true, historyNeedsDetails || Boolean(historyGrepPattern));
   const syncStatusQuery = useSyncStatus(repoId);
-  const approvedChangesQuery = useApprovedChanges(repoId);
-  const provenanceQuery = useProvenance(repoId);
+  const changesDataVisible = isMobile ? mobileActivePanel === "changes" : !changesCollapsed;
+  const approvedChangesQuery = useApprovedChanges(repoId, changesDataVisible);
+  const provenanceQuery = useProvenance(repoId, changesDataVisible);
   const runIndex = useMemo(() => buildRunIndex(approvedChangesQuery.data?.files ?? [], provenanceQuery.data?.runGroups ?? []), [approvedChangesQuery.data?.files, provenanceQuery.data?.runGroups]);
   const diffQuery = useDiff(
     selectedFile,
@@ -607,8 +612,8 @@ export default function App() {
     [queuedStagePaths, workspaceChanges.paths],
   );
   const pushSafetyRevision = useMemo(
-    () => JSON.stringify([statusQuery.data?.branch, statusQuery.data?.files, statusQuery.data?.file_stats, historyQuery.data?.lines?.[0]]),
-    [statusQuery.data?.branch, statusQuery.data?.files, statusQuery.data?.file_stats, historyQuery.data?.lines],
+    () => statusQuery.data?.status_snapshot_id ?? JSON.stringify([statusQuery.data?.branch, statusQuery.data?.files]),
+    [statusQuery.data?.status_snapshot_id, statusQuery.data?.branch, statusQuery.data?.files],
   );
   const isDeleting = deletePathMutation.isPending;
   const isDiscarding = discardMutation.isPending;

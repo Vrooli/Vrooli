@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
@@ -18,12 +17,9 @@ type StagingDeps struct {
 // Returns (repoDir, validPaths, originalPaths, error). If originalPaths is empty,
 // the caller should return a success-with-empty-list response.
 func validateStagingDeps(deps StagingDeps, paths []string, scope string) (string, []string, []string, error) {
-	if deps.Git == nil {
-		return "", nil, nil, fmt.Errorf("git runner is required")
-	}
-	repoDir := strings.TrimSpace(deps.RepoDir)
-	if repoDir == "" {
-		return "", nil, nil, fmt.Errorf("repo dir is required")
+	repoDir, err := validateGitRepoDeps(deps.Git, deps.RepoDir)
+	if err != nil {
+		return "", nil, nil, err
 	}
 
 	if scope != "" && len(paths) == 0 {

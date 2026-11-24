@@ -41,16 +41,6 @@ export default defineConfig(({ mode }): UserConfig => {
           keepNames: true,
         }
       : undefined,
-    build: {
-      rollupOptions: {
-        output: {
-          // INTEROP-CRITICAL: Keep the heavy mermaid bundle isolated so embedded hosts load consistently.
-          manualChunks: {
-            mermaid: ["mermaid"],
-          },
-        },
-      },
-    },
     test: {
       globals: true,
       environment: "jsdom",

@@ -110,12 +110,6 @@ type repeated []string
 func (r *repeated) String() string     { return strings.Join(*r, ",") }
 func (r *repeated) Set(v string) error { *r = append(*r, v); return nil }
 
-func newFlagSet(name string) *flag.FlagSet {
-	fs := flag.NewFlagSet(name, flag.ContinueOnError)
-	fs.SetOutput(os.Stderr)
-	return fs
-}
-
 func printJSON(msg proto.Message) error {
 	body, err := protojson.MarshalOptions{Multiline: true, UseProtoNames: true}.Marshal(msg)
 	if err != nil {
@@ -137,7 +131,7 @@ func runAnchor(core *cliapp.ScenarioApp, args []string) error {
 }
 
 func runAnchorWithEnv(core *cliapp.ScenarioApp, args []string, env environment) error {
-	fs := newFlagSet("anchor")
+	fs := cliutil.NewFlagSet("anchor")
 	var scopes repeated
 	effort := fs.String("effort", "", "Agent Manager effort reference, e.g. effort:browser-automation-studio-rehabilitation")
 	epoch := fs.String("epoch", "", "Epoch label, e.g. E27")
@@ -170,7 +164,7 @@ func runCreate(core *cliapp.ScenarioApp, args []string) error {
 }
 
 func runCreateWithEnv(core *cliapp.ScenarioApp, args []string, env environment) error {
-	fs := newFlagSet("create")
+	fs := cliutil.NewFlagSet("create")
 	var paths, runs, plans, trailerFlags, gates repeated
 	requestFile := fs.String("request-file", "", "CreateProposalRequest as proto JSON; flags override its fields")
 	effort := fs.String("effort", "", "Agent Manager effort reference")
@@ -295,7 +289,7 @@ func parseStates(raw string) ([]proposalsv1.ProposalState, error) {
 }
 
 func runList(core *cliapp.ScenarioApp, args []string) error {
-	fs := newFlagSet("list")
+	fs := cliutil.NewFlagSet("list")
 	state := fs.String("state", "open", "open, committed, withdrawn, superseded, all, or a comma list")
 	effort := fs.String("effort", "", "Only proposals for this effort reference")
 	limit := fs.Int("limit", 50, "Maximum proposals")
@@ -324,7 +318,7 @@ func runList(core *cliapp.ScenarioApp, args []string) error {
 }
 
 func runShow(core *cliapp.ScenarioApp, args []string) error {
-	fs := newFlagSet("show")
+	fs := cliutil.NewFlagSet("show")
 	revision := fs.Int("revision", 0, "Retained revision (default: current)")
 	messageOnly := fs.Bool("message", false, "Print only the rendered commit message")
 	jsonOut := fs.Bool("json", false, "Emit JSON")
@@ -352,7 +346,7 @@ func runShow(core *cliapp.ScenarioApp, args []string) error {
 }
 
 func runEdit(core *cliapp.ScenarioApp, args []string) error {
-	fs := newFlagSet("edit")
+	fs := cliutil.NewFlagSet("edit")
 	var trailerFlags, removePaths repeated
 	revision := fs.Int("revision", 0, "Revision you reviewed (required)")
 	subject := fs.String("subject", "", "New subject")
@@ -411,7 +405,7 @@ func runEdit(core *cliapp.ScenarioApp, args []string) error {
 }
 
 func runWithdraw(core *cliapp.ScenarioApp, args []string) error {
-	fs := newFlagSet("withdraw")
+	fs := cliutil.NewFlagSet("withdraw")
 	reason := fs.String("reason", "", "Optional reason recorded in history")
 	revision := fs.Int("revision", 0, "Revision being closed")
 	replacement := fs.String("replacement", "", "Replacement proposal ID; requires --revision")
@@ -430,7 +424,7 @@ func runWithdraw(core *cliapp.ScenarioApp, args []string) error {
 }
 
 func runRefresh(core *cliapp.ScenarioApp, args []string) error {
-	fs := newFlagSet("refresh")
+	fs := cliutil.NewFlagSet("refresh")
 	revision := fs.Int("revision", 0, "Revision you reviewed (default: current)")
 	jsonOut := fs.Bool("json", false, "Emit JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
@@ -458,7 +452,7 @@ func runRefresh(core *cliapp.ScenarioApp, args []string) error {
 // runApprove is the human approval path. It never commits without the
 // operator typing "confirm" (or passing --yes), and it applies exactly once.
 func runApprove(core *cliapp.ScenarioApp, args []string) error {
-	fs := newFlagSet("approve")
+	fs := cliutil.NewFlagSet("approve")
 	yes := fs.Bool("yes", false, "Skip the confirmation prompt")
 	acknowledge := fs.Bool("acknowledge-prior-work", false, "Explicitly accept earlier or unattributed contents in flagged files")
 	keepLater := fs.Bool("keep-later-changes", false, "Commit the saved proposal version; keep later working edits uncommitted")
@@ -696,7 +690,7 @@ func canonicalEffort(value string) string {
 }
 
 func runCombine(core *cliapp.ScenarioApp, args []string) error {
-	fs := newFlagSet("combine")
+	fs := cliutil.NewFlagSet("combine")
 	var sources repeated
 	fs.Var(&sources, "source", "Exact source ID@REV; repeat 2–20 times")
 	subject := fs.String("subject", "", "Combined commit subject")
@@ -737,7 +731,7 @@ func runCombine(core *cliapp.ScenarioApp, args []string) error {
 }
 
 func runDiff(core *cliapp.ScenarioApp, args []string) error {
-	fs := newFlagSet("diff")
+	fs := cliutil.NewFlagSet("diff")
 	revision := fs.Int("revision", 0, "Exact retained revision")
 	path := fs.String("path", "", "Proposal file path")
 	compare := fs.Bool("compare-current", false, "Read-only captured-to-current comparison; not approval content")

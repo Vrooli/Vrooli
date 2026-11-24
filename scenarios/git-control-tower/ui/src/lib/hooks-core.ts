@@ -198,11 +198,12 @@ export function useRepoStatus(repoId?: string | null) {
   };
 }
 
-export function useRepoHistory(limit = 30, includeFiles = false, repoId?: string | null, grep?: string, includeChecks = false) {
+export function useRepoHistory(limit = 30, includeFiles = false, repoId?: string | null, grep?: string, includeChecks = false, enabled = true) {
   return useQuery<RepoHistoryResponse, Error>({
     queryKey: queryKeys.repoHistory(limit, includeFiles, repoId, grep, includeChecks),
     queryFn: ({ signal }) => fetchRepoHistory(limit, includeFiles, repoId ?? undefined, grep, includeChecks, signal),
-    refetchInterval: grep ? false : 30000,
+    enabled,
+    refetchInterval: enabled && !grep ? 30000 : false,
     staleTime: 5_000,
     // A changed filter/limit is a new query key. Keep the visible history until
     // that result arrives so changing controls does not flash an empty loader.
@@ -595,19 +596,21 @@ export function usePull(repoId?: string | null) {
   });
 }
 
-export function useApprovedChanges(repoId?: string | null) {
+export function useApprovedChanges(repoId?: string | null, enabled = true) {
   return useQuery({
     queryKey: queryKeys.approvedChanges(repoId),
     queryFn: ({ signal }) => fetchApprovedChanges(repoId ?? undefined, signal),
+    enabled,
     refetchInterval: 15_000,
     staleTime: 5_000,
   });
 }
 
-export function useProvenance(repoId?: string | null) {
+export function useProvenance(repoId?: string | null, enabled = true) {
   return useQuery({
     queryKey: queryKeys.provenance(repoId),
     queryFn: ({ signal }) => fetchProvenance(repoId ?? undefined, signal),
+    enabled,
     refetchInterval: 30_000,
     staleTime: 10_000,
   });

@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
+
+	"git-control-tower/internal/connecterrors"
 )
 
 // Service is the worktree domain's business logic layer. Connect-RPC
@@ -193,15 +195,9 @@ func ErrorCodeFor(err error) connect.Code {
 	}
 }
 
-// ToConnectError converts a domain error to a typed *connect.Error.
+// ToConnectError preserves the domain package API while sharing transport conversion.
 func ToConnectError(err error) error {
-	if err == nil {
-		return nil
-	}
-	if connectErr := new(connect.Error); errors.As(err, &connectErr) {
-		return err
-	}
-	return connect.NewError(ErrorCodeFor(err), err)
+	return connecterrors.ToConnectError(err, ErrorCodeFor)
 }
 
 func validateCreateInput(in CreateInput) error {

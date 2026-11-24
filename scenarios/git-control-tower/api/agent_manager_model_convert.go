@@ -62,44 +62,82 @@ func agentRunEventToAPI(event *ampb.RunEvent) AgentRunEvent {
 		ID: event.GetId(), RunID: event.GetRunId(), Sequence: event.GetSequence(),
 		EventType: normalizeEventType(event.GetEventType().String()), Timestamp: timestampString(event.GetTimestamp()),
 	}
-	data := map[string]interface{}{}
-	switch value := event.GetData().(type) {
-	case *ampb.RunEvent_Message:
-		data["content"], data["role"] = value.Message.GetContent(), value.Message.GetRole()
-	case *ampb.RunEvent_ToolCall:
-		data["name"] = value.ToolCall.GetToolName()
-		if value.ToolCall.GetInput() != nil {
-			data["input"] = value.ToolCall.GetInput().AsMap()
-		}
-	case *ampb.RunEvent_ToolResult:
-		data["result"] = value.ToolResult.GetOutput()
-		if name := value.ToolResult.GetToolName(); name != "" {
-			data["name"] = name
-		}
-	case *ampb.RunEvent_Error:
-		data["message"] = value.Error.GetMessage()
-		if code := value.Error.GetCode(); code != "" {
-			data["code"] = code
-		}
-	case *ampb.RunEvent_Status:
-		if value.Status.GetNewStatus() != "" {
-			data["newStatus"] = normalizeEnum(value.Status.GetNewStatus(), "RUN_STATUS_")
-		}
-		if value.Status.GetOldStatus() != "" {
-			data["oldStatus"] = normalizeEnum(value.Status.GetOldStatus(), "RUN_STATUS_")
-		}
-	case *ampb.RunEvent_Log:
-		data["message"], data["level"] = value.Log.GetMessage(), value.Log.GetLevel()
-	case *ampb.RunEvent_Progress:
-		data["percent"] = int(value.Progress.GetPercentComplete())
-		if message := value.Progress.GetCurrentAction(); message != "" {
-			data["message"] = message
-		}
-	}
-	if len(data) != 0 {
+	if data := agentRunEventDataToAPI(event); len(data) != 0 {
 		result.Data = data
 	}
 	return result
+}
+
+func agentRunEventDataToAPI(event *ampb.RunEvent) map[string]interface{} {
+	data := map[string]interface{}{}
+	switch value := event.GetData().(type) {
+	case *ampb.RunEvent_Message:
+		return runEventMessageDataToAPI(value)
+	case *ampb.RunEvent_ToolCall:
+		return runEventToolCallDataToAPI(value)
+	case *ampb.RunEvent_ToolResult:
+		return runEventToolResultDataToAPI(value)
+	case *ampb.RunEvent_Error:
+		return runEventErrorDataToAPI(value)
+	case *ampb.RunEvent_Status:
+		return runEventStatusDataToAPI(value)
+	case *ampb.RunEvent_Log:
+		return runEventLogDataToAPI(value)
+	case *ampb.RunEvent_Progress:
+		return runEventProgressDataToAPI(value)
+	}
+	return data
+}
+
+func runEventMessageDataToAPI(value *ampb.RunEvent_Message) map[string]interface{} {
+	return map[string]interface{}{"content": value.Message.GetContent(), "role": value.Message.GetRole()}
+}
+
+func runEventToolCallDataToAPI(value *ampb.RunEvent_ToolCall) map[string]interface{} {
+	data := map[string]interface{}{"name": value.ToolCall.GetToolName()}
+	if input := value.ToolCall.GetInput(); input != nil {
+		data["input"] = input.AsMap()
+	}
+	return data
+}
+
+func runEventToolResultDataToAPI(value *ampb.RunEvent_ToolResult) map[string]interface{} {
+	data := map[string]interface{}{"result": value.ToolResult.GetOutput()}
+	if name := value.ToolResult.GetToolName(); name != "" {
+		data["name"] = name
+	}
+	return data
+}
+
+func runEventErrorDataToAPI(value *ampb.RunEvent_Error) map[string]interface{} {
+	data := map[string]interface{}{"message": value.Error.GetMessage()}
+	if code := value.Error.GetCode(); code != "" {
+		data["code"] = code
+	}
+	return data
+}
+
+func runEventStatusDataToAPI(value *ampb.RunEvent_Status) map[string]interface{} {
+	data := map[string]interface{}{}
+	if status := value.Status.GetNewStatus(); status != "" {
+		data["newStatus"] = normalizeEnum(status, "RUN_STATUS_")
+	}
+	if status := value.Status.GetOldStatus(); status != "" {
+		data["oldStatus"] = normalizeEnum(status, "RUN_STATUS_")
+	}
+	return data
+}
+
+func runEventLogDataToAPI(value *ampb.RunEvent_Log) map[string]interface{} {
+	return map[string]interface{}{"message": value.Log.GetMessage(), "level": value.Log.GetLevel()}
+}
+
+func runEventProgressDataToAPI(value *ampb.RunEvent_Progress) map[string]interface{} {
+	data := map[string]interface{}{"percent": int(value.Progress.GetPercentComplete())}
+	if message := value.Progress.GetCurrentAction(); message != "" {
+		data["message"] = message
+	}
+	return data
 }
 
 func agentFileDiffToAPI(file *ampb.FileDiff) AgentRunDiffFile {

@@ -87,75 +87,74 @@ type BlameLine struct {
 // ReadBlame obtains deterministic, bounded native blame data. It only accepts
 // repository-relative paths and delegates process execution to BlameRunner.
 func ReadBlame(ctx context.Context, runner BlameRunner, req BlameRequest) (*BlameResponse, error) {
-	if runner == nil {
-		return nil, errors.New("blame runner is required")
+	root, maxPaths, maxLines, maxBytes, err := validateBlameRequest(runner, req)
+	if err != nil {
+		return nil, err
 	}
-	root, err := filepath.Abs(strings.TrimSpace(req.RepoDir))
-	if err != nil || root == "." || strings.TrimSpace(req.RepoDir) == "" {
-		return nil, errors.New("repository directory is required")
-	}
-	maxPaths := req.MaxPaths
-	if maxPaths <= 0 {
-		maxPaths = defaultBlameMaxPaths
-	}
-	maxLines := req.MaxLines
-	if maxLines <= 0 {
-		maxLines = defaultBlameMaxLines
-	}
-	maxBytes := req.MaxBytes
-	if maxBytes <= 0 {
-		maxBytes = defaultBlameMaxBytes
-	}
-	if maxPaths > defaultBlameMaxPaths {
-		maxPaths = defaultBlameMaxPaths
-	}
-	if maxLines > defaultBlameMaxLines {
-		maxLines = defaultBlameMaxLines
-	}
-	if maxBytes > defaultBlameMaxBytes {
-		maxBytes = defaultBlameMaxBytes
-	}
-	if req.StartLine < 0 || req.EndLine < 0 || (req.EndLine > 0 && req.StartLine > req.EndLine) {
-		return nil, errors.New("invalid blame line range")
-	}
-
 	paths, truncated, err := expandBlamePaths(root, req.Paths, maxPaths)
 	if err != nil {
 		return nil, err
 	}
-	response := &BlameResponse{Revision: normalizeBlameRevision(req.Revision)}
-	response.Truncated = truncated
+	response := &BlameResponse{Revision: normalizeBlameRevision(req.Revision), Truncated: truncated}
 	for _, path := range paths {
-		file := BlameFile{Path: path, Status: "unavailable"}
-		out, runErr := runner.Blame(ctx, root, req.Revision, path, maxBytes)
-		if runErr != nil {
-			file.Status, file.Reason = classifyBlameFailure(root, path, runErr)
-			response.Files = append(response.Files, file)
-			continue
-		}
-		parsed, lineTruncated, parseErr := parseBlamePorcelain(out, path, maxLines, req.StartLine, req.EndLine)
-		if parseErr != nil {
-			file.Status, file.Reason = "unavailable", "malformed native blame output: "+parseErr.Error()
-			response.Files = append(response.Files, file)
-			continue
-		}
-		file.Status = "native_commit"
-		file.Lines = parsed
-		response.Truncated = response.Truncated || lineTruncated
-		if req.StartLine == 0 && req.EndLine == 0 && !lineTruncated {
-			file.ContentDigest = digestBlameContent(parsed)
-		}
-		if len(parsed) == 0 {
-			file.Status = "empty"
-		}
-		if req.Enrich {
-			joined := JoinBlameEvidence(file, req.StartLine == 0 && req.EndLine == 0 && !lineTruncated, req.Evidence[path])
-			file.Standing, file.DowngradeReasons, file.Evidence = joined.Standing, joined.DowngradeReasons, joined.Evidence
-		}
+		file, lineTruncated := readBlameFile(ctx, runner, root, path, req, maxLines, maxBytes)
 		response.Files = append(response.Files, file)
+		response.Truncated = response.Truncated || lineTruncated
 	}
 	sort.Slice(response.Files, func(i, j int) bool { return response.Files[i].Path < response.Files[j].Path })
 	return response, nil
+}
+
+func validateBlameRequest(runner BlameRunner, req BlameRequest) (root string, maxPaths, maxLines, maxBytes int, err error) {
+	if runner == nil {
+		return "", 0, 0, 0, errors.New("blame runner is required")
+	}
+	root, err = filepath.Abs(strings.TrimSpace(req.RepoDir))
+	if err != nil || root == "." || strings.TrimSpace(req.RepoDir) == "" {
+		return "", 0, 0, 0, errors.New("repository directory is required")
+	}
+	maxPaths = boundedBlameLimit(req.MaxPaths, defaultBlameMaxPaths)
+	maxLines = boundedBlameLimit(req.MaxLines, defaultBlameMaxLines)
+	maxBytes = boundedBlameLimit(req.MaxBytes, defaultBlameMaxBytes)
+	if req.StartLine < 0 || req.EndLine < 0 || (req.EndLine > 0 && req.StartLine > req.EndLine) {
+		return "", 0, 0, 0, errors.New("invalid blame line range")
+	}
+	return root, maxPaths, maxLines, maxBytes, nil
+}
+
+func boundedBlameLimit(requested, maximum int) int {
+	if requested <= 0 || requested > maximum {
+		return maximum
+	}
+	return requested
+}
+
+func readBlameFile(ctx context.Context, runner BlameRunner, root, path string, req BlameRequest, maxLines, maxBytes int) (BlameFile, bool) {
+	file := BlameFile{Path: path, Status: "unavailable"}
+	out, runErr := runner.Blame(ctx, root, req.Revision, path, maxBytes)
+	if runErr != nil {
+		file.Status, file.Reason = classifyBlameFailure(root, path, runErr)
+		return file, false
+	}
+	parsed, lineTruncated, parseErr := parseBlamePorcelain(out, path, maxLines, req.StartLine, req.EndLine)
+	if parseErr != nil {
+		file.Reason = "malformed native blame output: " + parseErr.Error()
+		return file, false
+	}
+	file.Status = "native_commit"
+	file.Lines = parsed
+	completeFile := req.StartLine == 0 && req.EndLine == 0 && !lineTruncated
+	if completeFile {
+		file.ContentDigest = digestBlameContent(parsed)
+	}
+	if len(parsed) == 0 {
+		file.Status = "empty"
+	}
+	if req.Enrich {
+		joined := JoinBlameEvidence(file, completeFile, req.Evidence[path])
+		file.Standing, file.DowngradeReasons, file.Evidence = joined.Standing, joined.DowngradeReasons, joined.Evidence
+	}
+	return file, lineTruncated
 }
 
 func expandBlamePaths(root string, requested []string, maxPaths int) ([]string, bool, error) {
@@ -166,31 +165,15 @@ func expandBlamePaths(root string, requested []string, maxPaths int) ([]string, 
 	paths := make([]string, 0, len(requested))
 	truncated := false
 	for _, raw := range requested {
-		path := filepath.ToSlash(strings.TrimSpace(raw))
-		if path == "" || filepath.IsAbs(path) || path == "." || strings.HasPrefix(path, "../") || strings.Contains(path, "/../") {
-			return nil, false, fmt.Errorf("unsafe blame path %q", raw)
-		}
-		matches, err := filepath.Glob(filepath.Join(root, filepath.FromSlash(path)))
+		path, err := validateBlamePath(raw)
 		if err != nil {
-			return nil, false, fmt.Errorf("invalid blame glob %q: %w", raw, err)
+			return nil, false, err
 		}
-		if len(matches) == 0 && !hasGlob(path) {
-			matches = []string{filepath.Join(root, filepath.FromSlash(path))}
+		matches, err := expandBlamePathMatches(root, raw, path)
+		if err != nil {
+			return nil, false, err
 		}
-		sort.Strings(matches)
-		for _, match := range matches {
-			rel, err := filepath.Rel(root, match)
-			if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-				return nil, false, fmt.Errorf("glob escaped repository root: %q", raw)
-			}
-			if resolved, resolveErr := filepath.EvalSymlinks(match); resolveErr == nil {
-				resolvedRoot, _ := filepath.EvalSymlinks(root)
-				resolvedRel, relErr := filepath.Rel(resolvedRoot, resolved)
-				if relErr != nil || resolvedRel == ".." || strings.HasPrefix(resolvedRel, ".."+string(filepath.Separator)) {
-					return nil, false, fmt.Errorf("blame path symlink escaped repository root: %q", raw)
-				}
-			}
-			rel = filepath.ToSlash(rel)
+		for _, rel := range matches {
 			if _, ok := seen[rel]; ok {
 				continue
 			}
@@ -204,6 +187,45 @@ func expandBlamePaths(root string, requested []string, maxPaths int) ([]string, 
 	}
 	sort.Strings(paths)
 	return paths, truncated, nil
+}
+
+func validateBlamePath(raw string) (string, error) {
+	path := filepath.ToSlash(strings.TrimSpace(raw))
+	if path == "" || filepath.IsAbs(path) || path == "." || strings.HasPrefix(path, "../") || strings.Contains(path, "/../") {
+		return "", fmt.Errorf("unsafe blame path %q", raw)
+	}
+	return path, nil
+}
+
+func expandBlamePathMatches(root, raw, pattern string) ([]string, error) {
+	matches, err := filepath.Glob(filepath.Join(root, filepath.FromSlash(pattern)))
+	if err != nil {
+		return nil, fmt.Errorf("invalid blame glob %q: %w", raw, err)
+	}
+	if len(matches) == 0 && !hasGlob(pattern) {
+		matches = []string{filepath.Join(root, filepath.FromSlash(pattern))}
+	}
+	sort.Strings(matches)
+	relativePaths := make([]string, 0, len(matches))
+	for _, match := range matches {
+		rel, err := filepath.Rel(root, match)
+		if err != nil || pathEscapesRoot(rel) {
+			return nil, fmt.Errorf("glob escaped repository root: %q", raw)
+		}
+		if resolved, resolveErr := filepath.EvalSymlinks(match); resolveErr == nil {
+			resolvedRoot, _ := filepath.EvalSymlinks(root)
+			resolvedRel, relErr := filepath.Rel(resolvedRoot, resolved)
+			if relErr != nil || pathEscapesRoot(resolvedRel) {
+				return nil, fmt.Errorf("blame path symlink escaped repository root: %q", raw)
+			}
+		}
+		relativePaths = append(relativePaths, filepath.ToSlash(rel))
+	}
+	return relativePaths, nil
+}
+
+func pathEscapesRoot(relative string) bool {
+	return relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator))
 }
 
 func hasGlob(path string) bool { return strings.ContainsAny(path, "*?[") }
@@ -245,50 +267,29 @@ func parseBlamePorcelain(data []byte, path string, maxLines, start, end int) ([]
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.HasPrefix(line, "\t") {
-			if current == nil {
-				return nil, false, errors.New("content without header")
-			}
-			current.Content = strings.TrimPrefix(line, "\t")
-			if current.Number >= start && (end == 0 || current.Number <= end) {
-				selectedTotal++
-				if len(lines) < maxLines {
-					lines = append(lines, *current)
-				}
+			var contentErr error
+			lines, selectedTotal, contentErr = appendSelectedBlameContent(lines, selectedTotal, current, line, maxLines, start, end)
+			if contentErr != nil {
+				return nil, false, contentErr
 			}
 			current = nil
 			continue
 		}
-		fields := strings.Fields(line)
-		if len(fields) >= 3 && len(fields[0]) >= 8 && isHex(fields[0]) {
+		header, isHeader, err := parseBlameHeader(line)
+		if err != nil {
+			return nil, false, err
+		}
+		if isHeader {
 			if current != nil {
 				return nil, false, errors.New("header before content")
 			}
-			final, err := strconv.Atoi(fields[2])
-			if err != nil {
-				return nil, false, errors.New("invalid final line")
-			}
-			current = &BlameLine{Number: final, Commit: fields[0]}
-			if len(fields) >= 4 {
-				current.OriginalLine, _ = strconv.Atoi(fields[1])
-			}
+			current = header
 			continue
 		}
 		if current == nil {
 			continue
 		}
-		switch {
-		case strings.HasPrefix(line, "author "):
-			current.Author = strings.TrimPrefix(line, "author ")
-		case strings.HasPrefix(line, "author-time "):
-			seconds, err := strconv.ParseInt(strings.TrimPrefix(line, "author-time "), 10, 64)
-			if err == nil {
-				current.AuthorTime = time.Unix(seconds, 0).UTC().Format(time.RFC3339)
-			}
-		case strings.HasPrefix(line, "summary "):
-			current.Subject = strings.TrimPrefix(line, "summary ")
-		case strings.HasPrefix(line, "filename "):
-			current.OriginalPath = strings.TrimPrefix(line, "filename ")
-		}
+		applyBlameMetadata(current, line)
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, false, err
@@ -297,6 +298,52 @@ func parseBlamePorcelain(data []byte, path string, maxLines, start, end int) ([]
 		return nil, false, errors.New("unterminated blame record")
 	}
 	return lines, selectedTotal > maxLines, nil
+}
+
+func appendSelectedBlameContent(lines []BlameLine, selectedTotal int, current *BlameLine, contentLine string, maxLines, start, end int) ([]BlameLine, int, error) {
+	if current == nil {
+		return nil, selectedTotal, errors.New("content without header")
+	}
+	current.Content = strings.TrimPrefix(contentLine, "\t")
+	if current.Number >= start && (end == 0 || current.Number <= end) {
+		selectedTotal++
+		if len(lines) < maxLines {
+			lines = append(lines, *current)
+		}
+	}
+	return lines, selectedTotal, nil
+}
+
+func parseBlameHeader(line string) (*BlameLine, bool, error) {
+	fields := strings.Fields(line)
+	if len(fields) < 3 || len(fields[0]) < 8 || !isHex(fields[0]) {
+		return nil, false, nil
+	}
+	final, err := strconv.Atoi(fields[2])
+	if err != nil {
+		return nil, false, errors.New("invalid final line")
+	}
+	header := &BlameLine{Number: final, Commit: fields[0]}
+	if len(fields) >= 4 {
+		header.OriginalLine, _ = strconv.Atoi(fields[1])
+	}
+	return header, true, nil
+}
+
+func applyBlameMetadata(current *BlameLine, line string) {
+	switch {
+	case strings.HasPrefix(line, "author "):
+		current.Author = strings.TrimPrefix(line, "author ")
+	case strings.HasPrefix(line, "author-time "):
+		seconds, err := strconv.ParseInt(strings.TrimPrefix(line, "author-time "), 10, 64)
+		if err == nil {
+			current.AuthorTime = time.Unix(seconds, 0).UTC().Format(time.RFC3339)
+		}
+	case strings.HasPrefix(line, "summary "):
+		current.Subject = strings.TrimPrefix(line, "summary ")
+	case strings.HasPrefix(line, "filename "):
+		current.OriginalPath = strings.TrimPrefix(line, "filename ")
+	}
 }
 
 func isHex(value string) bool {

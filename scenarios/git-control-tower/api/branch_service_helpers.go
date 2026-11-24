@@ -13,7 +13,7 @@ func PublishBranch(ctx context.Context, deps BranchDeps, req PublishBranchReques
 		return nil, err
 	}
 	resp := &BranchPublishResponse{Timestamp: time.Now().UTC()}
-	repoDir, err := validateBranchDeps(deps)
+	repoDir, err := validateGitRepoDeps(deps.Git, deps.RepoDir)
 	if err != nil {
 		return nil, err
 	}
@@ -141,18 +141,6 @@ func populateSwitchBranch(ctx context.Context, deps BranchDeps, resp *BranchSwit
 	resp.Success = true
 	resp.Branch = branchInfoFromStatus(status)
 	return resp, nil
-}
-
-// validateBranchDeps validates common branch operation dependencies.
-func validateBranchDeps(deps BranchDeps) (string, error) {
-	if deps.Git == nil {
-		return "", fmt.Errorf("git runner is required")
-	}
-	repoDir := strings.TrimSpace(deps.RepoDir)
-	if repoDir == "" {
-		return "", fmt.Errorf("repo dir is required")
-	}
-	return repoDir, nil
 }
 
 // branchInfoFromStatus creates a BranchInfo from repo status.

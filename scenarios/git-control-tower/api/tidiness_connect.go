@@ -100,15 +100,11 @@ func (s tidinessConnectServer) TriggerLightScan(ctx context.Context, req *connec
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel, err := s.server.tidinessContext(ctx, req.Msg.GetRepositoryId(), 120*time.Second)
+	ctx, cancel, repo, err := s.server.ownerReadContext(ctx, req.Msg.GetRepositoryId(), 120*time.Second, "tidiness-manager", s.server.tidinessClient != nil)
 	if err != nil {
 		return nil, err
 	}
 	defer cancel()
-	repo, err := s.server.resolveRepositorySelection(ctx, req.Msg.GetRepositoryId())
-	if err != nil {
-		return nil, err
-	}
 	absPath, err := resolveScenarioPath(repo.Path, name)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("could not resolve scenario path"))
@@ -141,20 +137,8 @@ func (s tidinessConnectServer) GetScenarioDetail(ctx context.Context, req *conne
 }
 
 func (s *Server) tidinessContext(parent context.Context, repoID string, timeout time.Duration) (context.Context, context.CancelFunc, error) {
-	ctx, cancel := context.WithTimeout(parent, timeout)
-	if s.capabilities == nil || !s.capabilities.IsAvailable(ctx, "tidiness-manager") {
-		cancel()
-		return nil, nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("tidiness-manager is not available"))
-	}
-	if s.tidinessClient == nil {
-		cancel()
-		return nil, nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("tidiness-manager client is not configured"))
-	}
-	if _, err := s.resolveRepositorySelection(ctx, repoID); err != nil {
-		cancel()
-		return nil, nil, err
-	}
-	return ctx, cancel, nil
+	ctx, cancel, _, err := s.ownerReadContext(parent, repoID, timeout, "tidiness-manager", s.tidinessClient != nil)
+	return ctx, cancel, err
 }
 
 func (s *Server) resolveRepositorySelection(ctx context.Context, rawID string) (ResolvedRepo, error) {

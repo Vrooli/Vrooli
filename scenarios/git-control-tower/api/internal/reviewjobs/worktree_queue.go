@@ -6,12 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	pathpkg "path"
 	"strings"
 	"time"
-	"unicode/utf8"
-
-	"git-control-tower/internal/dbschema"
 )
 
 var (
@@ -64,230 +60,32 @@ const (
 	WorktreeQueueDispositionRemoved
 )
 
+// worktreeQueueTransitions is the canonical persisted lifecycle graph. The
+// table is indexed by the stable state values above; committed and removed
+// are terminal states with no outgoing transitions.
+var worktreeQueueTransitions = [...]uint16{
+	0,
+	1<<WorktreeQueueStaged | 1<<WorktreeQueueFailed | 1<<WorktreeQueueStale | 1<<WorktreeQueueCommitPending | 1<<WorktreeQueueRemoved | 1<<WorktreeQueueAwaitingUnstage,
+	1<<WorktreeQueueQueued | 1<<WorktreeQueueFailed | 1<<WorktreeQueueStale | 1<<WorktreeQueueCommitPending | 1<<WorktreeQueueRemoved,
+	1<<WorktreeQueueQueued | 1<<WorktreeQueueRemoved,
+	1<<WorktreeQueueQueued | 1<<WorktreeQueueRemoved,
+	1<<WorktreeQueueQueued | 1<<WorktreeQueueStaged | 1<<WorktreeQueueStale | 1<<WorktreeQueueCommitted,
+	0,
+	0,
+	1<<WorktreeQueueQueued | 1<<WorktreeQueueFailed | 1<<WorktreeQueueStale | 1<<WorktreeQueueRemoved,
+}
+
 func (state WorktreeQueueState) CanTransitionTo(next WorktreeQueueState) bool {
-	switch state {
-	case WorktreeQueueQueued:
-		return next == WorktreeQueueStaged || next == WorktreeQueueFailed || next == WorktreeQueueStale || next == WorktreeQueueCommitPending || next == WorktreeQueueRemoved || next == WorktreeQueueAwaitingUnstage
-	case WorktreeQueueAwaitingUnstage:
-		return next == WorktreeQueueQueued || next == WorktreeQueueFailed || next == WorktreeQueueStale || next == WorktreeQueueRemoved
-	case WorktreeQueueStaged:
-		return next == WorktreeQueueQueued || next == WorktreeQueueFailed || next == WorktreeQueueStale || next == WorktreeQueueCommitPending || next == WorktreeQueueRemoved
-	case WorktreeQueueFailed, WorktreeQueueStale:
-		return next == WorktreeQueueQueued || next == WorktreeQueueRemoved
-	case WorktreeQueueCommitPending:
-		return next == WorktreeQueueQueued || next == WorktreeQueueStaged || next == WorktreeQueueStale || next == WorktreeQueueCommitted
-	default:
+	if state < WorktreeQueueQueued || state > WorktreeQueueAwaitingUnstage || next < WorktreeQueueQueued || next > WorktreeQueueAwaitingUnstage {
 		return false
 	}
+	return worktreeQueueTransitions[state]&(1<<next) != 0
 }
 
 type WorktreeQueue struct {
 	RepositoryID string
 	Revision     uint64
 	Entries      []WorktreeQueueEntry
-}
-
-func (s *Store) ensureWorktreeQueue(ctx context.Context) error {
-	if _, err := s.db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS gct_worktree_suggestion_queues (repository_id TEXT PRIMARY KEY, revision INTEGER NOT NULL DEFAULT 0, next_sequence INTEGER NOT NULL DEFAULT 1)`); err != nil {
-		return err
-	}
-	_, err := s.db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS gct_worktree_suggestion_queue_entries (
-		id TEXT PRIMARY KEY, repository_id TEXT NOT NULL, job_id TEXT, snapshot_digest TEXT NOT NULL,
-		paths_json TEXT NOT NULL, mode INTEGER NOT NULL, request_key TEXT NOT NULL, sequence INTEGER NOT NULL,
-		state INTEGER NOT NULL, failure_reason TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
-		UNIQUE(repository_id, request_key), UNIQUE(repository_id, sequence))`)
-	if err != nil {
-		return err
-	}
-	if err := migrateWorktreeQueueMembership(ctx, s.db); err != nil {
-		return err
-	}
-	if err := migrateWorktreeQueueJobOptional(ctx, s.db); err != nil {
-		return err
-	}
-	_, err = s.db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS gct_worktree_selection_payloads (entry_id TEXT PRIMARY KEY, selection_id TEXT NOT NULL UNIQUE, source INTEGER NOT NULL, payload_json TEXT NOT NULL, FOREIGN KEY(entry_id) REFERENCES gct_worktree_suggestion_queue_entries(id) ON DELETE CASCADE)`)
-	return err
-}
-
-// migrateWorktreeQueueJobOptional lets a selection own an ordered queue row
-// before an AI job exists. Existing rows retain their identity and sequence.
-func migrateWorktreeQueueJobOptional(ctx context.Context, db dbschema.DB) error {
-	rows, err := db.QueryContext(ctx, `PRAGMA table_info(gct_worktree_suggestion_queue_entries)`)
-	if err != nil {
-		return err
-	}
-	jobNotNull := false
-	for rows.Next() {
-		var cid, notNull, pk int
-		var name, typ string
-		var def any
-		if err = rows.Scan(&cid, &name, &typ, &notNull, &def, &pk); err != nil {
-			rows.Close()
-			return err
-		}
-		if name == "job_id" {
-			jobNotNull = notNull != 0
-		}
-	}
-	if err = rows.Err(); err != nil {
-		rows.Close()
-		return err
-	}
-	if err = rows.Close(); err != nil {
-		return err
-	}
-	if !jobNotNull {
-		_, err = db.ExecContext(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS idx_gct_worktree_queue_job ON gct_worktree_suggestion_queue_entries(repository_id,job_id) WHERE job_id IS NOT NULL AND job_id<>''`)
-		return err
-	}
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	if _, err = tx.ExecContext(ctx, `ALTER TABLE gct_worktree_suggestion_queue_entries RENAME TO gct_worktree_suggestion_queue_entries_old`); err != nil {
-		return err
-	}
-	_, err = tx.ExecContext(ctx, `CREATE TABLE gct_worktree_suggestion_queue_entries (
-		id TEXT PRIMARY KEY, repository_id TEXT NOT NULL, job_id TEXT, snapshot_digest TEXT NOT NULL,
-		paths_json TEXT NOT NULL, mode INTEGER NOT NULL, request_key TEXT NOT NULL, sequence INTEGER NOT NULL,
-		state INTEGER NOT NULL, failure_reason TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
-		UNIQUE(repository_id, request_key), UNIQUE(repository_id, sequence))`)
-	if err != nil {
-		return err
-	}
-	if _, err = tx.ExecContext(ctx, `INSERT INTO gct_worktree_suggestion_queue_entries SELECT * FROM gct_worktree_suggestion_queue_entries_old`); err != nil {
-		return err
-	}
-	if _, err = tx.ExecContext(ctx, `DROP TABLE gct_worktree_suggestion_queue_entries_old`); err != nil {
-		return err
-	}
-	if _, err = tx.ExecContext(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS idx_gct_worktree_queue_job ON gct_worktree_suggestion_queue_entries(repository_id,job_id) WHERE job_id IS NOT NULL AND job_id<>''`); err != nil {
-		return err
-	}
-	return tx.Commit()
-}
-
-// migrateWorktreeQueueMembership folds the legacy active/disposition pair into
-// the queue lifecycle state. All rows and their prior meaning are preserved.
-func migrateWorktreeQueueMembership(ctx context.Context, db dbschema.DB) error {
-	columns := map[string]bool{}
-	rows, err := db.QueryContext(ctx, `PRAGMA table_info(gct_worktree_suggestion_queue_entries)`)
-	if err != nil {
-		return err
-	}
-	for rows.Next() {
-		var cid, notNull, primaryKey int
-		var name, columnType string
-		var defaultValue any
-		if err = rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
-			rows.Close()
-			return err
-		}
-		columns[name] = true
-	}
-	if err = rows.Err(); err != nil {
-		rows.Close()
-		return err
-	}
-	if err = rows.Close(); err != nil {
-		return err
-	}
-	activeExists, dispositionExists := columns["active"], columns["disposition"]
-	if !activeExists && !dispositionExists {
-		return nil
-	}
-	if !activeExists || !dispositionExists {
-		return fmt.Errorf("incomplete legacy worktree queue membership columns")
-	}
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	var invalidRows int
-	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM gct_worktree_suggestion_queue_entries WHERE state NOT BETWEEN ? AND ? OR active NOT IN (0,1) OR disposition NOT IN (0,1,2) OR (active=1 AND disposition<>0) OR (active=0 AND disposition NOT IN (1,2))`, WorktreeQueueQueued, WorktreeQueueCommitPending).Scan(&invalidRows); err != nil {
-		return err
-	}
-	if invalidRows != 0 {
-		return fmt.Errorf("cannot migrate %d worktree queue rows with inconsistent legacy membership", invalidRows)
-	}
-	if _, err = tx.ExecContext(ctx, `UPDATE gct_worktree_suggestion_queue_entries SET state=CASE disposition WHEN 1 THEN ? WHEN 2 THEN ? ELSE state END WHERE active=0`, WorktreeQueueCommitted, WorktreeQueueRemoved); err != nil {
-		return err
-	}
-	if _, err = tx.ExecContext(ctx, `ALTER TABLE gct_worktree_suggestion_queue_entries DROP COLUMN disposition`); err != nil {
-		return err
-	}
-	if _, err = tx.ExecContext(ctx, `ALTER TABLE gct_worktree_suggestion_queue_entries DROP COLUMN active`); err != nil {
-		return err
-	}
-	return tx.Commit()
-}
-
-func ensureWorktreePathsAvailable(ctx context.Context, tx *sql.Tx, repo, replacingID string, requested []string) error {
-	if err := validateWorktreeQueuePaths(requested); err != nil {
-		return err
-	}
-	wanted := make(map[string]struct{}, len(requested))
-	for _, path := range requested {
-		wanted[path] = struct{}{}
-	}
-	rows, err := tx.QueryContext(ctx, `SELECT id,paths_json FROM gct_worktree_suggestion_queue_entries WHERE repository_id=? AND state NOT IN (?,?)`, repo, WorktreeQueueCommitted, WorktreeQueueRemoved)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var id, raw string
-		if err = rows.Scan(&id, &raw); err != nil {
-			return err
-		}
-		if id == replacingID {
-			continue
-		}
-		var paths []string
-		if err = json.Unmarshal([]byte(raw), &paths); err != nil {
-			return fmt.Errorf("decode active queue paths: %w", err)
-		}
-		if err = validateWorktreeQueuePaths(paths); err != nil {
-			return fmt.Errorf("validate active queue paths: %w", err)
-		}
-		for _, path := range paths {
-			if _, exists := wanted[path]; exists {
-				return ErrQueuePathConflict
-			}
-		}
-	}
-	return rows.Err()
-}
-
-func validateWorktreeQueuePaths(paths []string) error {
-	if len(paths) == 0 {
-		return fmt.Errorf("at least one worktree path is required")
-	}
-	seen := make(map[string]struct{}, len(paths))
-	for _, path := range paths {
-		if path == "" || !utf8.ValidString(path) || strings.ContainsRune(path, '\x00') || path == "." || path == ".." || strings.HasPrefix(path, "../") || strings.HasPrefix(path, "/") || pathpkg.Clean(path) != path {
-			return fmt.Errorf("worktree paths must be canonical repository-relative Git paths")
-		}
-		if _, exists := seen[path]; exists {
-			return fmt.Errorf("worktree path %q occurs more than once", path)
-		}
-		seen[path] = struct{}{}
-	}
-	return nil
-}
-
-func sameWorktreeQueuePaths(left, right []string) bool {
-	if len(left) != len(right) {
-		return false
-	}
-	for index := range left {
-		if left[index] != right[index] {
-			return false
-		}
-	}
-	return true
 }
 
 func (s *Store) ListWorktreeQueue(ctx context.Context, repo string) (WorktreeQueue, error) {
@@ -474,29 +272,7 @@ func (s *Store) UpdateWorktreeQueueEntry(ctx context.Context, repo, id, head str
 		entry.FailureReason = oldReason
 		return q, &entry, nil
 	}
-	if old == state {
-		now := time.Now().UTC()
-		if _, err = tx.ExecContext(ctx, `UPDATE gct_worktree_suggestion_queue_entries SET failure_reason=?,updated_at=? WHERE repository_id=? AND id=? AND state=?`, reason, now.Format(time.RFC3339Nano), repo, id, old); err != nil {
-			return WorktreeQueue{}, nil, err
-		}
-		if err = incQueueRevision(ctx, tx, repo, expected); err != nil {
-			return WorktreeQueue{}, nil, err
-		}
-		q, err := queueFromTx(ctx, tx, repo)
-		if err != nil {
-			return WorktreeQueue{}, nil, err
-		}
-		if err = tx.Commit(); err != nil {
-			return WorktreeQueue{}, nil, err
-		}
-		entry.RepositoryID = repo
-		entry.State = state
-		entry.FailureReason = reason
-		entry.UpdatedAt = now
-		q.Revision = expected + 1
-		return q, &entry, nil
-	}
-	if !old.CanTransitionTo(state) {
+	if old != state && !old.CanTransitionTo(state) {
 		return WorktreeQueue{}, nil, ErrQueueConflict
 	}
 	now := time.Now().UTC()
@@ -540,64 +316,8 @@ func (s *Store) ReplaceWorktreeQueueEntry(ctx context.Context, repo, id string, 
 		return WorktreeQueue{}, nil, err
 	}
 	defer tx.Rollback()
-	var revision uint64
-	if err = tx.QueryRowContext(ctx, `SELECT revision FROM gct_worktree_suggestion_queues WHERE repository_id=?`, repo).Scan(&revision); err != nil {
-		return WorktreeQueue{}, nil, err
-	}
-	var current WorktreeQueueEntry
-	var paths, created, updated string
-	err = tx.QueryRowContext(ctx, `SELECT id,job_id,snapshot_digest,paths_json,mode,request_key,sequence,state,failure_reason,created_at,updated_at FROM gct_worktree_suggestion_queue_entries WHERE repository_id=? AND id=?`, repo, id).Scan(&current.ID, &current.JobID, &current.SnapshotDigest, &paths, &current.Mode, &current.RequestKey, &current.Sequence, &current.State, &current.FailureReason, &created, &updated)
+	entry, revision, err := replaceWorktreeQueueEntryTx(ctx, tx, repo, id, expected, replacement)
 	if err != nil {
-		return WorktreeQueue{}, nil, err
-	}
-	if err = json.Unmarshal([]byte(paths), &current.Paths); err != nil {
-		return WorktreeQueue{}, nil, err
-	}
-	if err = validateWorktreeQueuePaths(current.Paths); err != nil {
-		return WorktreeQueue{}, nil, fmt.Errorf("validate queue entry %q paths: %w", id, err)
-	}
-	current.RepositoryID = repo
-	current.CreatedAt, err = time.Parse(time.RFC3339Nano, created)
-	if err != nil {
-		return WorktreeQueue{}, nil, fmt.Errorf("parse queue entry created_at: %w", err)
-	}
-	current.UpdatedAt, err = time.Parse(time.RFC3339Nano, updated)
-	if err != nil {
-		return WorktreeQueue{}, nil, fmt.Errorf("parse queue entry updated_at: %w", err)
-	}
-	if current.JobID == replacement.JobID && current.SnapshotDigest == replacement.SnapshotDigest && current.Mode == replacement.Mode && current.RequestKey == replacement.RequestKey && sameWorktreeQueuePaths(current.Paths, replacement.Paths) {
-		q, e := queueFromTx(ctx, tx, repo)
-		if e != nil {
-			return WorktreeQueue{}, nil, e
-		}
-		if e = tx.Commit(); e != nil {
-			return WorktreeQueue{}, nil, e
-		}
-		return q, &current, nil
-	}
-	if revision != expected {
-		return WorktreeQueue{}, nil, ErrQueueConflict
-	}
-	if current.State == WorktreeQueueCommitPending {
-		return WorktreeQueue{}, nil, fmt.Errorf("commit-pending queue head cannot be replaced: %w", ErrQueueConflict)
-	}
-	if err = ensureWorktreePathsAvailable(ctx, tx, repo, id, replacement.Paths); err != nil {
-		return WorktreeQueue{}, nil, err
-	}
-	raw, err := json.Marshal(replacement.Paths)
-	if err != nil {
-		return WorktreeQueue{}, nil, err
-	}
-	now := time.Now().UTC()
-	result, err := tx.ExecContext(ctx, `UPDATE gct_worktree_suggestion_queue_entries SET job_id=?,snapshot_digest=?,paths_json=?,mode=?,request_key=?,state=?,failure_reason='',updated_at=? WHERE repository_id=? AND id=?`, replacement.JobID, replacement.SnapshotDigest, string(raw), replacement.Mode, replacement.RequestKey, WorktreeQueueQueued, now.Format(time.RFC3339Nano), repo, id)
-	if err != nil {
-		return WorktreeQueue{}, nil, err
-	}
-	n, _ := result.RowsAffected()
-	if n != 1 {
-		return WorktreeQueue{}, nil, ErrQueueConflict
-	}
-	if err = incQueueRevision(ctx, tx, repo, expected); err != nil {
 		return WorktreeQueue{}, nil, err
 	}
 	q, err := queueFromTx(ctx, tx, repo)
@@ -607,14 +327,8 @@ func (s *Store) ReplaceWorktreeQueueEntry(ctx context.Context, repo, id string, 
 	if err = tx.Commit(); err != nil {
 		return WorktreeQueue{}, nil, err
 	}
-	replacement.ID = id
-	replacement.RepositoryID = repo
-	replacement.Sequence = current.Sequence
-	replacement.State = WorktreeQueueQueued
-	replacement.CreatedAt = current.CreatedAt
-	replacement.UpdatedAt = now
-	q.Revision = expected + 1
-	return q, &replacement, nil
+	q.Revision = revision
+	return q, &entry, nil
 }
 
 func (s *Store) RetireWorktreeQueueHead(ctx context.Context, repo, head string, expected uint64, disposition WorktreeQueueDisposition) (WorktreeQueue, *WorktreeQueueEntry, error) {
@@ -820,6 +534,36 @@ func queueFromTx(ctx context.Context, tx *sql.Tx, repo string) (WorktreeQueue, e
 	return q, rows.Err()
 }
 
+// insertWorktreeJobTx admits an idempotent job inside the caller's queue
+// transaction and returns the persisted identity. Both queue admission flows
+// use this so job replay and digest-conflict behavior cannot drift.
+func insertWorktreeJobTx(ctx context.Context, tx *sql.Tx, job Job) (Job, error) {
+	if job.CreatedAt.IsZero() {
+		job.CreatedAt = time.Now().UTC()
+	}
+	job.UpdatedAt = job.CreatedAt
+	if job.State == "" {
+		job.State = Queued
+	}
+	checks, err := json.Marshal(job.Checks)
+	if err != nil {
+		return Job{}, err
+	}
+	_, err = tx.ExecContext(ctx, `INSERT INTO gct_review_jobs (id,idempotency_key,input_digest,policy_version,state,checks_json,result_ref,result_json,error,created_at,updated_at,scenario_name,detail_count,thresholds_json,operation,repository_id,input_json,execution_id,cancel_requested) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(idempotency_key) DO NOTHING`, job.ID, job.IdempotencyKey, job.InputDigest, job.PolicyVersion, job.State, string(checks), job.ResultRef, job.ResultJSON, job.Error, job.CreatedAt.Format(time.RFC3339Nano), job.UpdatedAt.Format(time.RFC3339Nano), job.ScenarioName, job.DetailCount, job.ThresholdsJSON, job.Operation, job.RepositoryID, job.InputJSON, job.ExecutionID, job.CancelRequested)
+	if err != nil {
+		return Job{}, err
+	}
+	var effectiveID, effectiveDigest string
+	if err = tx.QueryRowContext(ctx, `SELECT id,input_digest FROM gct_review_jobs WHERE idempotency_key=?`, job.IdempotencyKey).Scan(&effectiveID, &effectiveDigest); err != nil {
+		return Job{}, err
+	}
+	if effectiveID != job.ID || effectiveDigest != job.InputDigest {
+		return Job{}, ErrQueueConflict
+	}
+	job.ID = effectiveID
+	return job, nil
+}
+
 // CreateWorktreeJobAndEnqueue makes initial job admission and queue membership one transaction.
 func (s *Store) CreateWorktreeJobAndEnqueue(ctx context.Context, job Job, entry WorktreeQueueEntry) (Job, WorktreeQueueEntry, uint64, error) {
 	if err := s.ensureWorktreeQueue(ctx); err != nil {
@@ -833,29 +577,11 @@ func (s *Store) CreateWorktreeJobAndEnqueue(ctx context.Context, job Job, entry 
 	if job.ID == "" || job.IdempotencyKey == "" || job.InputDigest == "" || entry.RepositoryID != job.RepositoryID || entry.JobID != job.ID {
 		return Job{}, WorktreeQueueEntry{}, 0, fmt.Errorf("job and queue entry identities must agree")
 	}
-	if job.CreatedAt.IsZero() {
-		job.CreatedAt = time.Now().UTC()
-	}
-	job.UpdatedAt = job.CreatedAt
-	if job.State == "" {
-		job.State = Queued
-	}
-	checks, err := json.Marshal(job.Checks)
+	job, err = insertWorktreeJobTx(ctx, tx, job)
 	if err != nil {
 		return Job{}, WorktreeQueueEntry{}, 0, err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO gct_review_jobs (id,idempotency_key,input_digest,policy_version,state,checks_json,result_ref,result_json,error,created_at,updated_at,scenario_name,detail_count,thresholds_json,operation,repository_id,input_json,execution_id,cancel_requested) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(idempotency_key) DO NOTHING`, job.ID, job.IdempotencyKey, job.InputDigest, job.PolicyVersion, job.State, string(checks), job.ResultRef, job.ResultJSON, job.Error, job.CreatedAt.Format(time.RFC3339Nano), job.UpdatedAt.Format(time.RFC3339Nano), job.ScenarioName, job.DetailCount, job.ThresholdsJSON, job.Operation, job.RepositoryID, job.InputJSON, job.ExecutionID, job.CancelRequested)
-	if err != nil {
-		return Job{}, WorktreeQueueEntry{}, 0, err
-	}
-	var effectiveID, effectiveDigest string
-	if err = tx.QueryRowContext(ctx, `SELECT id,input_digest FROM gct_review_jobs WHERE idempotency_key=?`, job.IdempotencyKey).Scan(&effectiveID, &effectiveDigest); err != nil {
-		return Job{}, WorktreeQueueEntry{}, 0, err
-	}
-	if effectiveID != job.ID || effectiveDigest != job.InputDigest {
-		return Job{}, WorktreeQueueEntry{}, 0, ErrQueueConflict
-	}
-	entry.JobID = effectiveID
+	entry.JobID = job.ID
 	queued, rev, err := enqueueWorktreeQueueTx(ctx, tx, entry)
 	if err != nil {
 		return Job{}, WorktreeQueueEntry{}, 0, err
@@ -863,7 +589,6 @@ func (s *Store) CreateWorktreeJobAndEnqueue(ctx context.Context, job Job, entry 
 	if err = tx.Commit(); err != nil {
 		return Job{}, WorktreeQueueEntry{}, 0, err
 	}
-	job.ID = effectiveID
 	return job, queued, rev, nil
 }
 
@@ -881,27 +606,9 @@ func (s *Store) CreateWorktreeJobAndReplaceQueueEntry(ctx context.Context, job J
 	if entryID == "" || job.ID == "" || job.IdempotencyKey == "" || job.InputDigest == "" || replacement.RepositoryID != job.RepositoryID || replacement.JobID != job.ID {
 		return Job{}, WorktreeQueueEntry{}, 0, fmt.Errorf("job and replacement identities must agree")
 	}
-	if job.CreatedAt.IsZero() {
-		job.CreatedAt = time.Now().UTC()
-	}
-	job.UpdatedAt = job.CreatedAt
-	if job.State == "" {
-		job.State = Queued
-	}
-	checks, err := json.Marshal(job.Checks)
+	job, err = insertWorktreeJobTx(ctx, tx, job)
 	if err != nil {
 		return Job{}, WorktreeQueueEntry{}, 0, err
-	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO gct_review_jobs (id,idempotency_key,input_digest,policy_version,state,checks_json,result_ref,result_json,error,created_at,updated_at,scenario_name,detail_count,thresholds_json,operation,repository_id,input_json,execution_id,cancel_requested) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(idempotency_key) DO NOTHING`, job.ID, job.IdempotencyKey, job.InputDigest, job.PolicyVersion, job.State, string(checks), job.ResultRef, job.ResultJSON, job.Error, job.CreatedAt.Format(time.RFC3339Nano), job.UpdatedAt.Format(time.RFC3339Nano), job.ScenarioName, job.DetailCount, job.ThresholdsJSON, job.Operation, job.RepositoryID, job.InputJSON, job.ExecutionID, job.CancelRequested)
-	if err != nil {
-		return Job{}, WorktreeQueueEntry{}, 0, err
-	}
-	var effectiveID, effectiveDigest string
-	if err = tx.QueryRowContext(ctx, `SELECT id,input_digest FROM gct_review_jobs WHERE idempotency_key=?`, job.IdempotencyKey).Scan(&effectiveID, &effectiveDigest); err != nil {
-		return Job{}, WorktreeQueueEntry{}, 0, err
-	}
-	if effectiveID != job.ID || effectiveDigest != job.InputDigest {
-		return Job{}, WorktreeQueueEntry{}, 0, ErrQueueConflict
 	}
 	queued, revision, err := replaceWorktreeQueueEntryTx(ctx, tx, job.RepositoryID, entryID, expected, replacement)
 	if err != nil {
@@ -910,7 +617,6 @@ func (s *Store) CreateWorktreeJobAndReplaceQueueEntry(ctx context.Context, job J
 	if err = tx.Commit(); err != nil {
 		return Job{}, WorktreeQueueEntry{}, 0, err
 	}
-	job.ID = effectiveID
 	return job, queued, revision, nil
 }
 
@@ -930,6 +636,15 @@ func replaceWorktreeQueueEntryTx(ctx context.Context, tx *sql.Tx, repo, entryID 
 	}
 	if err = validateWorktreeQueuePaths(current.Paths); err != nil {
 		return WorktreeQueueEntry{}, 0, fmt.Errorf("validate queue entry %q paths: %w", entryID, err)
+	}
+	current.RepositoryID = repo
+	current.CreatedAt, err = time.Parse(time.RFC3339Nano, created)
+	if err != nil {
+		return WorktreeQueueEntry{}, 0, fmt.Errorf("parse queue entry created_at: %w", err)
+	}
+	current.UpdatedAt, err = time.Parse(time.RFC3339Nano, updated)
+	if err != nil {
+		return WorktreeQueueEntry{}, 0, fmt.Errorf("parse queue entry updated_at: %w", err)
 	}
 	if current.JobID == replacement.JobID && current.SnapshotDigest == replacement.SnapshotDigest && current.Mode == replacement.Mode && current.RequestKey == replacement.RequestKey && sameWorktreeQueuePaths(current.Paths, replacement.Paths) {
 		return current, revision, nil
@@ -963,10 +678,7 @@ func replaceWorktreeQueueEntryTx(ctx context.Context, tx *sql.Tx, repo, entryID 
 	replacement.RepositoryID = repo
 	replacement.Sequence = current.Sequence
 	replacement.State = WorktreeQueueQueued
-	replacement.CreatedAt, err = time.Parse(time.RFC3339Nano, created)
-	if err != nil {
-		return WorktreeQueueEntry{}, 0, fmt.Errorf("parse replacement queue created_at: %w", err)
-	}
+	replacement.CreatedAt = current.CreatedAt
 	replacement.UpdatedAt = now
 	return replacement, expected + 1, nil
 }
@@ -981,75 +693,93 @@ func enqueueWorktreeQueueTx(ctx context.Context, tx *sql.Tx, entry WorktreeQueue
 	if _, err := tx.ExecContext(ctx, `INSERT INTO gct_worktree_suggestion_queues(repository_id) VALUES(?) ON CONFLICT(repository_id) DO NOTHING`, entry.RepositoryID); err != nil {
 		return WorktreeQueueEntry{}, 0, err
 	}
-	var oldID, oldJob, oldDigest, oldPaths, oldKey, oldCreated, oldUpdated, oldFailure string
-	var oldMode int32
-	var oldSeq, rev uint64
-	var oldState WorktreeQueueState
-	err := tx.QueryRowContext(ctx, `SELECT id,job_id,snapshot_digest,paths_json,mode,request_key,sequence,state,failure_reason,created_at,updated_at FROM gct_worktree_suggestion_queue_entries WHERE repository_id=? AND request_key=?`, entry.RepositoryID, entry.RequestKey).Scan(&oldID, &oldJob, &oldDigest, &oldPaths, &oldMode, &oldKey, &oldSeq, &oldState, &oldFailure, &oldCreated, &oldUpdated)
-	if err == nil {
-		if !oldState.Valid() {
-			return WorktreeQueueEntry{}, 0, fmt.Errorf("queue entry %q has invalid stored state %d", oldID, oldState)
-		}
-		var paths []string
-		if err = json.Unmarshal([]byte(oldPaths), &paths); err != nil {
-			return WorktreeQueueEntry{}, 0, fmt.Errorf("decode replayed queue paths: %w", err)
-		}
-		if err = validateWorktreeQueuePaths(paths); err != nil {
-			return WorktreeQueueEntry{}, 0, fmt.Errorf("validate replayed queue paths: %w", err)
-		}
-		if oldJob != entry.JobID || oldDigest != entry.SnapshotDigest || oldMode != entry.Mode || !sameWorktreeQueuePaths(paths, entry.Paths) {
-			return WorktreeQueueEntry{}, 0, ErrQueueConflict
-		}
-		if entry.SelectionID != "" {
-			var oldSelection string
-			var oldSource int32
-			var oldPayload string
-			if err = tx.QueryRowContext(ctx, `SELECT selection_id,source,payload_json FROM gct_worktree_selection_payloads WHERE entry_id=?`, oldID).Scan(&oldSelection, &oldSource, &oldPayload); err != nil {
-				return WorktreeQueueEntry{}, 0, ErrQueueConflict
-			}
-			if oldSelection != entry.SelectionID || oldSource != entry.SelectionSource || oldPayload != entry.SelectionPayload {
-				return WorktreeQueueEntry{}, 0, ErrQueueConflict
-			}
-		}
-		if err = tx.QueryRowContext(ctx, `SELECT revision FROM gct_worktree_suggestion_queues WHERE repository_id=?`, entry.RepositoryID).Scan(&rev); err != nil {
-			return WorktreeQueueEntry{}, 0, err
-		}
-		entry.ID = oldID
-		entry.Sequence = oldSeq
-		entry.State = oldState
-		entry.FailureReason = oldFailure
-		entry.CreatedAt, err = time.Parse(time.RFC3339Nano, oldCreated)
-		if err != nil {
-			return WorktreeQueueEntry{}, 0, fmt.Errorf("parse replayed queue created_at: %w", err)
-		}
-		entry.UpdatedAt, err = time.Parse(time.RFC3339Nano, oldUpdated)
-		if err != nil {
-			return WorktreeQueueEntry{}, 0, fmt.Errorf("parse replayed queue updated_at: %w", err)
-		}
-		return entry, rev, nil
+	replayed, found, err := replayWorktreeQueueRequestTx(ctx, tx, entry)
+	if err != nil || found {
+		return replayed.entry, replayed.revision, err
 	}
-	if !errors.Is(err, sql.ErrNoRows) {
-		return WorktreeQueueEntry{}, 0, err
+	return insertWorktreeQueueEntryTx(ctx, tx, entry)
+}
+
+type worktreeQueueReplay struct {
+	entry    WorktreeQueueEntry
+	revision uint64
+}
+
+func replayWorktreeQueueRequestTx(ctx context.Context, tx *sql.Tx, entry WorktreeQueueEntry) (worktreeQueueReplay, bool, error) {
+	var replay worktreeQueueReplay
+	var id, jobID, digest, rawPaths, created, updated, failure string
+	var mode int32
+	var sequence, revision uint64
+	var state WorktreeQueueState
+	err := tx.QueryRowContext(ctx, `SELECT id,job_id,snapshot_digest,paths_json,mode,sequence,state,failure_reason,created_at,updated_at FROM gct_worktree_suggestion_queue_entries WHERE repository_id=? AND request_key=?`, entry.RepositoryID, entry.RequestKey).Scan(&id, &jobID, &digest, &rawPaths, &mode, &sequence, &state, &failure, &created, &updated)
+	if errors.Is(err, sql.ErrNoRows) {
+		return replay, false, nil
 	}
-	var seq uint64
-	if err = tx.QueryRowContext(ctx, `SELECT revision,next_sequence FROM gct_worktree_suggestion_queues WHERE repository_id=?`, entry.RepositoryID).Scan(&rev, &seq); err != nil {
+	if err != nil {
+		return replay, false, err
+	}
+	if !state.Valid() {
+		return replay, true, fmt.Errorf("queue entry %q has invalid stored state %d", id, state)
+	}
+	var paths []string
+	if err = json.Unmarshal([]byte(rawPaths), &paths); err != nil {
+		return replay, true, fmt.Errorf("decode replayed queue paths: %w", err)
+	}
+	if err = validateWorktreeQueuePaths(paths); err != nil {
+		return replay, true, fmt.Errorf("validate replayed queue paths: %w", err)
+	}
+	if jobID != entry.JobID || digest != entry.SnapshotDigest || mode != entry.Mode || !sameWorktreeQueuePaths(paths, entry.Paths) {
+		return replay, true, ErrQueueConflict
+	}
+	if entry.SelectionID != "" {
+		var selectionID, payload string
+		var source int32
+		if err = tx.QueryRowContext(ctx, `SELECT selection_id,source,payload_json FROM gct_worktree_selection_payloads WHERE entry_id=?`, id).Scan(&selectionID, &source, &payload); err != nil {
+			return replay, true, ErrQueueConflict
+		}
+		if selectionID != entry.SelectionID || source != entry.SelectionSource || payload != entry.SelectionPayload {
+			return replay, true, ErrQueueConflict
+		}
+	}
+	if err = tx.QueryRowContext(ctx, `SELECT revision FROM gct_worktree_suggestion_queues WHERE repository_id=?`, entry.RepositoryID).Scan(&revision); err != nil {
+		return replay, true, err
+	}
+	entry.ID = id
+	entry.Sequence = sequence
+	entry.State = state
+	entry.FailureReason = failure
+	entry.CreatedAt, err = time.Parse(time.RFC3339Nano, created)
+	if err != nil {
+		return replay, true, fmt.Errorf("parse replayed queue created_at: %w", err)
+	}
+	entry.UpdatedAt, err = time.Parse(time.RFC3339Nano, updated)
+	if err != nil {
+		return replay, true, fmt.Errorf("parse replayed queue updated_at: %w", err)
+	}
+	return worktreeQueueReplay{entry: entry, revision: revision}, true, nil
+}
+
+func insertWorktreeQueueEntryTx(ctx context.Context, tx *sql.Tx, entry WorktreeQueueEntry) (WorktreeQueueEntry, uint64, error) {
+	var revision, sequence uint64
+	err := tx.QueryRowContext(ctx, `SELECT revision,next_sequence FROM gct_worktree_suggestion_queues WHERE repository_id=?`, entry.RepositoryID).Scan(&revision, &sequence)
+	if err != nil {
 		return WorktreeQueueEntry{}, 0, err
 	}
 	if err = ensureWorktreePathsAvailable(ctx, tx, entry.RepositoryID, "", entry.Paths); err != nil {
-		return WorktreeQueueEntry{}, rev, err
+		return WorktreeQueueEntry{}, revision, err
 	}
 	raw, err := json.Marshal(entry.Paths)
 	if err != nil {
 		return WorktreeQueueEntry{}, 0, err
 	}
 	now := time.Now().UTC()
-	entry.Sequence = seq
+	entry.Sequence = sequence
 	if entry.State == 0 {
 		entry.State = WorktreeQueueQueued
 	}
 	entry.CreatedAt = now
 	entry.UpdatedAt = now
-	if _, err = tx.ExecContext(ctx, `INSERT INTO gct_worktree_suggestion_queue_entries(id,repository_id,job_id,snapshot_digest,paths_json,mode,request_key,sequence,state,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, entry.ID, entry.RepositoryID, entry.JobID, entry.SnapshotDigest, string(raw), entry.Mode, entry.RequestKey, seq, entry.State, now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano)); err != nil {
+	if _, err = tx.ExecContext(ctx, `INSERT INTO gct_worktree_suggestion_queue_entries(id,repository_id,job_id,snapshot_digest,paths_json,mode,request_key,sequence,state,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, entry.ID, entry.RepositoryID, entry.JobID, entry.SnapshotDigest, string(raw), entry.Mode, entry.RequestKey, sequence, entry.State, now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano)); err != nil {
 		return WorktreeQueueEntry{}, 0, err
 	}
 	if entry.SelectionID != "" {
@@ -1060,5 +790,5 @@ func enqueueWorktreeQueueTx(ctx context.Context, tx *sql.Tx, entry WorktreeQueue
 	if _, err = tx.ExecContext(ctx, `UPDATE gct_worktree_suggestion_queues SET revision=revision+1,next_sequence=next_sequence+1 WHERE repository_id=?`, entry.RepositoryID); err != nil {
 		return WorktreeQueueEntry{}, 0, err
 	}
-	return entry, rev + 1, nil
+	return entry, revision + 1, nil
 }

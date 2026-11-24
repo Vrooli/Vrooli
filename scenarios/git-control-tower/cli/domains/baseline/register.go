@@ -94,6 +94,10 @@ type commonFlags struct {
 	json     bool
 }
 
+func newFlagSet(name string) *flag.FlagSet {
+	return cliutil.NewFlagSet(name)
+}
+
 func (c *commonFlags) bind(fs *flag.FlagSet) {
 	fs.StringVar(&c.scenario, "scenario", "", "Scenario slug (required)")
 	fs.StringVar(&c.name, "name", "", "Baseline name")
@@ -109,12 +113,6 @@ func (c commonFlags) requireScenarioName() error {
 		return fmt.Errorf("--name is required")
 	}
 	return nil
-}
-
-func newFlagSet(name string) *flag.FlagSet {
-	fs := flag.NewFlagSet(name, flag.ContinueOnError)
-	fs.SetOutput(os.Stderr)
-	return fs
 }
 
 func runSnapshot(core *cliapp.ScenarioApp, args []string) error {
@@ -166,7 +164,7 @@ func runSnapshotStatus(core *cliapp.ScenarioApp, args []string) error {
 	var c commonFlags
 	var run string
 	var wait bool
-	fs := newFlagSet("baseline snapshot status")
+	fs := cliutil.NewFlagSet("baseline snapshot status")
 	c.bind(fs)
 	fs.StringVar(&run, "run", "", "Snapshot run id (optional; narrows to one returned run)")
 	fs.BoolVar(&wait, "wait", false, "Block server-side until the snapshot run is terminal before reconciling")
@@ -227,7 +225,7 @@ func runDiff(core *cliapp.ScenarioApp, args []string) error {
 
 	var c commonFlags
 	var wait bool
-	fs := newFlagSet("baseline diff")
+	fs := cliutil.NewFlagSet("baseline diff")
 	c.bind(fs)
 	fs.BoolVar(&wait, "wait", false, "Block until the verdict is ready and print it inline (CI); default returns a run id to resolve with `diff status`")
 	if err := fs.Parse(args); err != nil {
@@ -310,7 +308,7 @@ func runDiffStatus(core *cliapp.ScenarioApp, args []string) error {
 	var c commonFlags
 	var run string
 	var wait, latest bool
-	fs := newFlagSet("baseline diff status")
+	fs := cliutil.NewFlagSet("baseline diff status")
 	c.bind(fs)
 	fs.StringVar(&run, "run", "", "The diff's run id (from `baseline diff`) (required)")
 	fs.BoolVar(&latest, "latest", false, "Recover the latest diff run recorded for this baseline (use when a wait was interrupted before you captured the run id)")
@@ -440,7 +438,7 @@ func busyPreset(p string) string {
 func runList(core *cliapp.ScenarioApp, args []string) error {
 	var c commonFlags
 	var allBranches bool
-	fs := newFlagSet("baseline list")
+	fs := cliutil.NewFlagSet("baseline list")
 	c.bind(fs)
 	fs.BoolVar(&allBranches, "all-branches", false, "List baselines across all branches")
 	if err := fs.Parse(args); err != nil {
@@ -466,7 +464,7 @@ func runList(core *cliapp.ScenarioApp, args []string) error {
 
 func runShow(core *cliapp.ScenarioApp, args []string) error {
 	var c commonFlags
-	fs := newFlagSet("baseline show")
+	fs := cliutil.NewFlagSet("baseline show")
 	c.bind(fs)
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -532,7 +530,7 @@ func renderBaselineNotFound(core *cliapp.ScenarioApp, c commonFlags, op string, 
 func runDelete(core *cliapp.ScenarioApp, args []string) error {
 	var c commonFlags
 	var force bool
-	fs := newFlagSet("baseline delete")
+	fs := cliutil.NewFlagSet("baseline delete")
 	c.bind(fs)
 	fs.BoolVar(&force, "force", false, "Force delete")
 	if err := fs.Parse(args); err != nil {
@@ -558,7 +556,7 @@ func runDelete(core *cliapp.ScenarioApp, args []string) error {
 func runRepair(core *cliapp.ScenarioApp, args []string) error {
 	var c commonFlags
 	var apply bool
-	fs := newFlagSet("baseline repair")
+	fs := cliutil.NewFlagSet("baseline repair")
 	c.bind(fs)
 	fs.BoolVar(&apply, "apply", false, "Apply the deterministic repair and write lifecycle audit evidence")
 	if err := fs.Parse(args); err != nil {

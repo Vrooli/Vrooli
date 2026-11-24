@@ -2,10 +2,28 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 	"time"
 
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs/runs_v1connect"
 )
+
+// testGenieRunsService resolves the current Test Genie endpoint and creates a
+// typed RunsService client. Callers resolve on every request so they survive
+// provider restarts without retaining a stale service URL.
+func testGenieRunsService(ctx context.Context, httpClient *http.Client, resolveURL func(context.Context) (string, error)) (runs_v1connect.RunsServiceClient, error) {
+	baseURL, err := resolveURL(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("resolve test-genie url: %w", err)
+	}
+	return runs_v1connect.NewRunsServiceClient(httpClient, baseURL), nil
+}
+
+func (c evidenceRunsClient) client(ctx context.Context) (runs_v1connect.RunsServiceClient, error) {
+	return testGenieRunsService(ctx, c.httpClient, c.resolveURL)
+}
 
 // TestGenieClient is a lightweight HTTP client for test-genie APIs.
 type TestGenieClient struct {

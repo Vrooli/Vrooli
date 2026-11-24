@@ -213,19 +213,31 @@ func TestRepoStatusPageCacheRejectsForgedCursorAndInvalidationExpiry(t *testing.
 	if _, err = cache.Continue(context.Background(), repo, token, 1); connect.CodeOf(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("invalidated cursor error=%v", err)
 	}
-	// Cache expiry is capacity eviction, not a time-to-live.
+	// Cache expiry is capacity eviction, not a time-to-live. A content-only
+	// edit to a path already listed as unstaged leaves the page projection
+	// unchanged, so add a new untracked path to create a distinct status
+	// snapshot and exercise actual capacity eviction.
 	first, err = cache.Store(context.Background(), repo, full, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	expired := first.GetPage().GetNextPageToken()
-	writePagingFile(t, repo, "tracked.txt", "base\nchange\nnew state\n")
+	writePagingFile(t, repo, "three.txt", "3\n")
 	_, nextFull, _ := readPagingStatus(t, repo, git)
-	if _, err = cache.Store(context.Background(), repo, nextFull, 1); err != nil {
+	second, err := cache.Store(context.Background(), repo, nextFull, 1)
+	if err != nil {
 		t.Fatal(err)
+	}
+	if second.GetPage().GetSnapshotId() == first.GetPage().GetSnapshotId() {
+		t.Fatal("new untracked path did not create a distinct status snapshot")
 	}
 	if _, err = cache.Continue(context.Background(), repo, expired, 1); connect.CodeOf(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("evicted cursor error=%v", err)
+	}
+	if token := second.GetPage().GetNextPageToken(); token == "" {
+		t.Fatal("new snapshot has no cursor to verify eviction preserved the replacement")
+	} else if _, err := cache.Continue(context.Background(), repo, token, 1); err != nil {
+		t.Fatalf("new snapshot cursor: %v", err)
 	}
 }
 

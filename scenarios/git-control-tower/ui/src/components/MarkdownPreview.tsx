@@ -1,7 +1,9 @@
 import { Check, Copy } from "lucide-react";
 import {
   Profiler,
+  lazy,
   memo,
+  Suspense,
   useCallback,
   useDeferredValue,
   useEffect,
@@ -14,8 +16,11 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { BundledLanguage, Highlighter } from "shiki";
 import { onProfilerRender } from "../lib/profiler";
-import { MermaidDiagram } from "@vrooli/react-component-library/markdown-renderer/0";
 import { ResizableMarkdownTable } from "@vrooli/react-component-library/markdown-renderer/0";
+
+const MermaidDiagram = lazy(() =>
+  import("@vrooli/react-component-library/mermaid-diagram/0").then((module) => ({ default: module.MermaidDiagram })),
+);
 
 interface MarkdownPreviewProps {
   content: string;
@@ -326,7 +331,11 @@ const MarkdownPreviewImpl = memo(function MarkdownPreviewImpl({
         }
 
         if (className === "language-mermaid") {
-          return <MermaidDiagram code={codeContent} />;
+          return (
+            <Suspense fallback={<div className="rounded-lg border border-slate-800 bg-slate-900/50 p-3 text-xs text-slate-400">Loading diagram…</div>}>
+              <MermaidDiagram code={codeContent} />
+            </Suspense>
+          );
         }
 
         return <MarkdownCodeBlock code={codeContent} className={className} {...props} />;

@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"git-control-tower/internal/clock"
 	"github.com/google/uuid"
 	"github.com/vrooli/cli-core/cliutil"
 )
@@ -201,9 +202,7 @@ func NewIntentService(store IntentStore) *IntentService {
 	return &IntentService{store: store, now: time.Now, ttl: DefaultIntentTTL}
 }
 func (s *IntentService) WithClock(now func() time.Time) *IntentService {
-	if now != nil {
-		s.now = now
-	}
+	clock.ApplyOverride(&s.now, now)
 	return s
 }
 func (s *IntentService) WithTTL(ttl time.Duration) *IntentService {

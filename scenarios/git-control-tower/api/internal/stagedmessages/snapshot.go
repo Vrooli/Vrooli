@@ -20,6 +20,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"git-control-tower/internal/gitpaths"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/advisory"
 )
 
@@ -179,23 +180,43 @@ func normalizeWorktreePaths(paths []string) ([]string, error) {
 	}
 	selected := append([]string(nil), paths...)
 	sort.Strings(selected)
-	for index, path := range selected {
-		if path == "" || !utf8.ValidString(path) || filepath.IsAbs(path) || filepath.Clean(path) != path || path == "." || path == ".." || strings.HasPrefix(path, "../") {
-			return nil, fmt.Errorf("invalid selected path")
-		}
-		if index > 0 && selected[index-1] == path {
-			return nil, fmt.Errorf("duplicate selected path %q", path)
-		}
+	if err := gitpaths.ValidateRepositoryRelativePaths(selected); err != nil {
+		return nil, fmt.Errorf("invalid selected paths: %w", err)
 	}
 	return selected, nil
 }
 
 func sameWorktreePaths(snapshot *v1.StagedMessageSnapshot, selected []string) bool {
-	if snapshot == nil || len(snapshot.Files) != len(selected) {
+	if snapshot == nil {
 		return false
 	}
-	for index, file := range snapshot.Files {
-		if file.GetPath() != selected[index] {
+	return sameWorktreePathSet(worktreeSnapshotPaths(snapshot), selected)
+}
+
+func worktreeSnapshotPaths(snapshot *v1.StagedMessageSnapshot) []string {
+	if snapshot == nil {
+		return nil
+	}
+	paths := make([]string, 0, len(snapshot.Files))
+	for _, file := range snapshot.Files {
+		paths = append(paths, file.GetPath())
+	}
+	return paths
+}
+
+// sameWorktreePathSet is the shared manifest/selection comparison used by
+// admission and later queue-state validation. Copies keep caller ordering
+// untouched while making both comparisons independent of input order.
+func sameWorktreePathSet(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	left = append([]string(nil), left...)
+	right = append([]string(nil), right...)
+	sort.Strings(left)
+	sort.Strings(right)
+	for index := range left {
+		if left[index] != right[index] {
 			return false
 		}
 	}
@@ -368,22 +389,58 @@ func WorktreeSelectionCommittedAtHead(ctx context.Context, dir string, snapshot 
 }
 
 func worktreeSelectionApplicable(ctx context.Context, dir string, snapshot *v1.StagedMessageSnapshot, allowStaged bool) (bool, error) {
-	if snapshot == nil || len(snapshot.Files) == 0 {
+	files, paths, wanted, valid := selectedSnapshotFiles(snapshot)
+	if !valid {
 		return false, nil
 	}
 	objectFormat, err := gitObjectFormat(ctx, dir)
 	if err != nil {
 		return false, err
 	}
+	index, valid, err := readSelectedIndex(ctx, dir, paths, wanted)
+	if err != nil || !valid {
+		return false, err
+	}
+	return selectedWorktreeFilesMatch(ctx, dir, files, index, objectFormat, allowStaged)
+}
+
+func selectedSnapshotFiles(snapshot *v1.StagedMessageSnapshot) ([]*v1.StagedMessageFile, []string, map[string]*v1.StagedMessageFile, bool) {
+	if snapshot == nil || len(snapshot.Files) == 0 {
+		return nil, nil, nil, false
+	}
 	paths := make([]string, 0, len(snapshot.Files))
 	wanted := make(map[string]*v1.StagedMessageFile, len(snapshot.Files))
 	for _, file := range snapshot.Files {
 		if file == nil || file.Path == "" || wanted[file.Path] != nil {
-			return false, nil
+			return nil, nil, nil, false
 		}
 		wanted[file.Path] = file
 		paths = append(paths, file.Path)
 	}
+	return snapshot.Files, paths, wanted, true
+}
+
+func selectedWorktreeFilesMatch(ctx context.Context, dir string, files []*v1.StagedMessageFile, index map[string]stagedIndexEntry, objectFormat string, allowStaged bool) (bool, error) {
+	totalWorktreeBytes := int64(0)
+	for _, file := range files {
+		remaining := int64(maxQueuedCaptureBytes) - totalWorktreeBytes
+		if remaining < 0 {
+			return false, nil
+		}
+		workID, workMode, bytesRead, valid, err := readSelectedWorktreeVersion(dir, file.Path, remaining, objectFormat)
+		if err != nil || !valid {
+			return false, err
+		}
+		totalWorktreeBytes += bytesRead
+		indexEntry, indexExists := index[file.Path]
+		if !selectionFileMatches(file, indexEntry, indexExists, workID, workMode, allowStaged) {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+func readSelectedIndex(ctx context.Context, dir string, paths []string, wanted map[string]*v1.StagedMessageFile) (map[string]stagedIndexEntry, bool, error) {
 	index := make(map[string]stagedIndexEntry, len(paths))
 	for start := 0; start < len(paths); start += 128 {
 		end := min(start+128, len(paths))
@@ -393,71 +450,84 @@ func worktreeSelectionApplicable(ctx context.Context, dir string, snapshot *v1.S
 		}
 		idx, readErr := gitRead(ctx, dir, args...)
 		if readErr != nil {
-			return false, readErr
+			return nil, false, readErr
 		}
 		for _, row := range bytes.Split(idx, []byte{0}) {
 			if len(row) == 0 {
 				continue
 			}
-			meta, path, ok := strings.Cut(string(row), "\t")
-			fields := strings.Fields(meta)
-			if !ok || wanted[path] == nil || len(fields) != 3 || fields[2] != "0" {
-				return false, nil
+			if !addSelectedIndexRow(index, wanted, row) {
+				return nil, false, nil
 			}
-			if _, duplicate := index[path]; duplicate {
-				return false, nil
-			}
-			index[path] = stagedIndexEntry{mode: fields[0], oid: fields[1], stage: fields[2]}
 		}
 	}
-	for _, f := range snapshot.Files {
-		parent := dir
-		parts := strings.Split(filepath.FromSlash(f.Path), string(os.PathSeparator))
-		for _, part := range parts[:len(parts)-1] {
-			parent = filepath.Join(parent, part)
-			info, e := os.Lstat(parent)
-			if errors.Is(e, os.ErrNotExist) {
-				break
-			}
-			if e != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-				return false, nil
-			}
+	return index, true, nil
+}
+
+func addSelectedIndexRow(index map[string]stagedIndexEntry, wanted map[string]*v1.StagedMessageFile, row []byte) bool {
+	meta, path, ok := strings.Cut(string(row), "\t")
+	fields := strings.Fields(meta)
+	if !ok || wanted[path] == nil || len(fields) != 3 || fields[2] != "0" {
+		return false
+	}
+	if _, duplicate := index[path]; duplicate {
+		return false
+	}
+	index[path] = stagedIndexEntry{mode: fields[0], oid: fields[1], stage: fields[2]}
+	return true
+}
+
+func readSelectedWorktreeVersion(dir, path string, maxBytes int64, objectFormat string) (blobID, mode string, bytesRead int64, valid bool, err error) {
+	if !selectedPathParentsAreSafe(dir, path) {
+		return "", "", 0, false, nil
+	}
+	full := filepath.Join(dir, filepath.FromSlash(path))
+	data, info, readErr := readRegularFileBounded(full, maxBytes)
+	switch {
+	case errors.Is(readErr, errBoundedReadLimit):
+		return "", "", 0, false, nil
+	case errors.Is(readErr, os.ErrNotExist):
+		return "", "", 0, true, nil
+	case readErr != nil:
+		return "", "", 0, false, readErr
+	}
+	blobID, err = gitBlobID(objectFormat, data)
+	if err != nil {
+		return "", "", 0, false, err
+	}
+	mode = "100644"
+	if info.Mode()&0111 != 0 {
+		mode = "100755"
+	}
+	return blobID, mode, int64(len(data)), true, nil
+}
+
+func selectedPathParentsAreSafe(dir, path string) bool {
+	parent := dir
+	parts := strings.Split(filepath.FromSlash(path), string(os.PathSeparator))
+	for _, part := range parts[:len(parts)-1] {
+		parent = filepath.Join(parent, part)
+		info, statErr := os.Lstat(parent)
+		if errors.Is(statErr, os.ErrNotExist) {
+			break
 		}
-		indexEntry, indexExists := index[f.Path]
-		full := filepath.Join(dir, filepath.FromSlash(f.Path))
-		data, info, err := readRegularFileBounded(full, maxFileBytes)
-		var workID, workMode string
-		if err == nil {
-			if len(data) > maxFileBytes {
-				return false, nil
-			}
-			workID, err = gitBlobID(objectFormat, data)
-			if err != nil {
-				return false, err
-			}
-			workMode = "100644"
-			if info.Mode()&0111 != 0 {
-				workMode = "100755"
-			}
-		} else if !errors.Is(err, os.ErrNotExist) {
-			return false, err
-		}
-		// A newly added path has no stage-0 entry after it is unstaged. A staged
-		// deletion also has no stage-0 entry, but that only matches the staged
-		// form when the new side of the snapshot is empty.
-		unstaged := !indexExists && f.OldBlobId == "" && f.OldMode == "" && workID == f.NewBlobId && workMode == f.NewMode
-		if indexExists {
-			unstaged = indexEntry.oid == f.OldBlobId && indexEntry.mode == f.OldMode && workID == f.NewBlobId && workMode == f.NewMode
-		}
-		staged := !indexExists && f.NewBlobId == "" && f.NewMode == "" && workID == "" && workMode == ""
-		if indexExists {
-			staged = indexEntry.oid == f.NewBlobId && indexEntry.mode == f.NewMode && workID == f.NewBlobId && workMode == f.NewMode
-		}
-		if !unstaged && !(allowStaged && staged) {
-			return false, nil
+		if statErr != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+			return false
 		}
 	}
-	return true, nil
+	return true
+}
+
+func selectionFileMatches(file *v1.StagedMessageFile, indexEntry stagedIndexEntry, indexExists bool, workID, workMode string, allowStaged bool) bool {
+	unstaged := !indexExists && file.OldBlobId == "" && file.OldMode == "" && workID == file.NewBlobId && workMode == file.NewMode
+	if indexExists {
+		unstaged = indexEntry.oid == file.OldBlobId && indexEntry.mode == file.OldMode && workID == file.NewBlobId && workMode == file.NewMode
+	}
+	staged := !indexExists && file.NewBlobId == "" && file.NewMode == "" && workID == "" && workMode == ""
+	if indexExists {
+		staged = indexEntry.oid == file.NewBlobId && indexEntry.mode == file.NewMode && workID == file.NewBlobId && workMode == file.NewMode
+	}
+	return unstaged || allowStaged && staged
 }
 
 // GitSnapshotter captures immutable staged content. Now controls only the

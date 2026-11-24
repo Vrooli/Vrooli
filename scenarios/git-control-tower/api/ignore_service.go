@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
@@ -53,12 +52,9 @@ func IgnorePath(ctx context.Context, deps IgnoreDeps, req IgnoreRequest) (*Ignor
 	if err := requireHumanMutation(ctx, "ignore path"); err != nil {
 		return nil, err
 	}
-	if deps.Git == nil {
-		return nil, fmt.Errorf("git runner is required")
-	}
-	repoDir := strings.TrimSpace(deps.RepoDir)
-	if repoDir == "" {
-		return nil, fmt.Errorf("repo dir is required")
+	repoDir, err := validateGitRepoDeps(deps.Git, deps.RepoDir)
+	if err != nil {
+		return nil, err
 	}
 
 	cleanPath := cleanFilePath(req.Path)

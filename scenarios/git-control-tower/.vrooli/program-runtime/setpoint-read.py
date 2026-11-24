@@ -1,5 +1,4 @@
 """Read-only, honest improvement observations."""
-import json
 inputs = program.inputs()
 env = {"program": "git-control-tower.setpoint-read", "version": "1", "status": "failed", "phase": "validate", "signals": {"rows": []}, "errors": [], "evidence": []}
 observations = inputs.get("observations") if isinstance(inputs, dict) else None
@@ -13,4 +12,4 @@ else:
         if row.get("evidence"): env["evidence"].append(row["evidence"])
     env["status"] = "ok" if env["signals"]["rows"] and not env["errors"] else "partial"
 env["phase"] = "report"
-print(json.dumps(env, sort_keys=True, separators=(",", ":")))
+program.report(env)

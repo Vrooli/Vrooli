@@ -289,11 +289,15 @@ func projectRepoStatusPage(full *repov1.GetRepoStatusResponse, snapshot string, 
 			selected[p] = true
 		}
 	}
+	selectedPaths := make([]string, 0, len(selected))
+	for _, group := range [][]string{f.Staged, f.Unstaged, f.Untracked, f.Conflicts, f.Ignored} {
+		selectedPaths = append(selectedPaths, group...)
+	}
 	filterString := func(src map[string]string) map[string]string {
-		dst := map[string]string{}
-		for k, v := range src {
-			if selected[k] {
-				dst[k] = v
+		dst := make(map[string]string)
+		for _, path := range selectedPaths {
+			if value, ok := src[path]; ok {
+				dst[path] = value
 			}
 		}
 		return dst
@@ -311,16 +315,16 @@ func projectRepoStatusPage(full *repov1.GetRepoStatusResponse, snapshot string, 
 	}
 	out.FileStats = &repov1.FileStats{Staged: filterStats(full.GetFileStats().GetStaged(), f.Staged), Unstaged: filterStats(full.GetFileStats().GetUnstaged(), f.Unstaged), Untracked: filterStats(full.GetFileStats().GetUntracked(), f.Untracked)}
 	f.Binary = filterPaths(source.GetBinary(), selected)
-	out.FileHotspots = map[string]int32{}
-	for p, v := range full.GetFileHotspots() {
-		if selected[p] {
-			out.FileHotspots[p] = v
+	out.FileHotspots = make(map[string]int32)
+	for _, path := range selectedPaths {
+		if value, ok := full.GetFileHotspots()[path]; ok {
+			out.FileHotspots[path] = value
 		}
 	}
-	out.Scopes = map[string]*repov1.StringList{}
-	for p, v := range full.GetScopes() {
-		if selected[p] {
-			out.Scopes[p] = v
+	out.Scopes = make(map[string]*repov1.StringList)
+	for _, path := range selectedPaths {
+		if value, ok := full.GetScopes()[path]; ok {
+			out.Scopes[path] = value
 		}
 	}
 	end := offset + limit

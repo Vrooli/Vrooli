@@ -26,14 +26,21 @@ export function useWorktreeSuggestionQueue({ repoId, notify, stageBatcher, pendi
   const stageQueueKey = useMemo(() => ["worktree-suggestion-queue", stageQueueRepo] as const, [stageQueueRepo]);
   const publishStageQueue = useCallback((targetRepo: string, incoming: Awaited<ReturnType<typeof listWorktreeSuggestionQueue>>) => {
     const key = ["worktree-suggestion-queue", targetRepo] as const;
-    queryClient.setQueryData<typeof incoming>(key, current => current && current.revision > incoming.revision ? current : incoming);
-    return queryClient.getQueryData<typeof incoming>(key) ?? incoming;
+    const current = queryClient.getQueryData<typeof incoming>(key);
+    // Queue revisions advance on every durable change. Reuse the current object
+    // at equal revisions so polling does not rerender the commit surface.
+    if (current && current.revision >= incoming.revision) return current;
+    queryClient.setQueryData(key, incoming);
+    return incoming;
   }, [queryClient]);
   const stageQueueQuery = useQuery({
     queryKey: stageQueueKey,
     queryFn: async () => publishStageQueue(stageQueueRepo, await listWorktreeSuggestionQueue(stageQueueRepo)),
     enabled: Boolean(stageQueueRepo),
-    refetchInterval: 5_000,
+    refetchInterval: query => query.state.data?.entries.some(entry =>
+      entry.state === WorktreeSuggestionQueueState.AWAITING_UNSTAGE ||
+      entry.state === WorktreeSuggestionQueueState.COMMIT_PENDING,
+    ) ? 5_000 : 30_000,
   });
   const suggestionStageQueue = useMemo(() => stageQueueQuery.data?.entries.map(toQueuedStageSelection) ?? [], [stageQueueQuery.data?.entries]);
   const successfulCommitsAwaitingQueue = useRef(new SuccessfulCommitQueueGate());

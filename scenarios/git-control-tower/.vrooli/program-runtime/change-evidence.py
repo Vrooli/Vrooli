@@ -1,5 +1,4 @@
 """Deterministic, read-only ChangeSubject/evidence envelope."""
-import json
 
 inputs = program.inputs()
 
@@ -29,4 +28,4 @@ try:
 except Exception as exc:
     env["errors"].append({"class": "kernel_runtime", "detail": str(exc)[:240], "where": env["phase"]})
 env["phase"] = "report"
-print(json.dumps(env, sort_keys=True, separators=(",", ":")))
+program.report(env)

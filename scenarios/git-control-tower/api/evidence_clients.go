@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -10,7 +9,6 @@ import (
 	"github.com/vrooli/api-core/discovery"
 
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
-	"github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs/runs_v1connect"
 )
 
 // evidenceRunsClient preserves Test Genie's canonical proto records at GCT's
@@ -28,14 +26,6 @@ func newEvidenceRunsClient(timeout time.Duration) evidenceRunsClient {
 			return discovery.ResolveScenarioURLDefault(ctx, "test-genie")
 		},
 	}
-}
-
-func (c evidenceRunsClient) client(ctx context.Context) (runs_v1connect.RunsServiceClient, error) {
-	baseURL, err := c.resolveURL(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("resolve test-genie url: %w", err)
-	}
-	return runs_v1connect.NewRunsServiceClient(c.httpClient, baseURL), nil
 }
 
 func (c evidenceRunsClient) ListRuns(ctx context.Context, scenario string, limit int) ([]*runspb.RunInfo, error) {

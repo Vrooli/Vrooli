@@ -1,6 +1,10 @@
 package typescript
 
-import "regexp"
+import (
+	"regexp"
+
+	"git-control-tower/filerelations/languages"
+)
 
 // Patterns for TypeScript/JavaScript import statements
 var (
@@ -60,13 +64,13 @@ func matchWithLines(content string, pattern *regexp.Regexp) []struct {
 	}
 
 	// Build line index for efficient line number lookup
-	lineStarts := buildLineIndex(content)
+	lineStarts := languages.BuildLineIndex(content)
 
 	matches := pattern.FindAllStringSubmatchIndex(content, -1)
 	for _, match := range matches {
 		if len(match) >= 4 {
 			source := content[match[2]:match[3]]
-			line := findLineNumber(lineStarts, match[0])
+			line := languages.FindLineNumber(lineStarts, match[0])
 			results = append(results, struct {
 				Source string
 				Line   int
@@ -75,27 +79,6 @@ func matchWithLines(content string, pattern *regexp.Regexp) []struct {
 	}
 
 	return results
-}
-
-// buildLineIndex returns the starting index of each line
-func buildLineIndex(content string) []int {
-	lineStarts := []int{0}
-	for i, ch := range content {
-		if ch == '\n' {
-			lineStarts = append(lineStarts, i+1)
-		}
-	}
-	return lineStarts
-}
-
-// findLineNumber returns the 1-indexed line number for the given position
-func findLineNumber(lineStarts []int, pos int) int {
-	for i := len(lineStarts) - 1; i >= 0; i-- {
-		if lineStarts[i] <= pos {
-			return i + 1
-		}
-	}
-	return 1
 }
 
 // IsRelativeImport returns true if the import source is a relative path

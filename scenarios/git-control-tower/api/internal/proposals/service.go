@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"git-control-tower/internal/clock"
 	"git-control-tower/internal/trailers"
 )
 
@@ -32,9 +33,7 @@ func NewService(store *Store) *Service {
 
 // WithClock replaces the clock for tests.
 func (s *Service) WithClock(now func() time.Time) *Service {
-	if now != nil {
-		s.now = now
-	}
+	clock.ApplyOverride(&s.now, now)
 	return s
 }
 

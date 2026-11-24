@@ -65,23 +65,14 @@ func (s agentReadConnectServer) ListRuns(ctx context.Context, req *connect.Reque
 	if err != nil {
 		return nil, agentManagerReadError(ctx, err)
 	}
+	expectedScope, scopeErr := resolveScopePath(repo.Path, "scenario", slug)
 	response := &agentreadsv1.ListRunsResponse{Runs: make([]*agentreadsv1.AgentRun, 0, min(limit, len(result.GetRuns())))}
 	for _, run := range result.GetRuns() {
-		if run.GetTag() != "gct-"+slug {
-			continue
+		matches, filterErr := s.server.agentRunMatchesListFilter(ctx, run, "gct-"+slug, expectedScope, scopeErr)
+		if filterErr != nil {
+			return nil, filterErr
 		}
-		if run.GetTaskId() == "" {
-			continue
-		}
-		task, taskErr := s.server.agentManagerClient.GetTask(ctx, run.GetTaskId())
-		if taskErr != nil {
-			if connect.CodeOf(taskErr) == connect.CodeNotFound {
-				continue
-			}
-			return nil, agentManagerReadError(ctx, taskErr)
-		}
-		expectedScope, scopeErr := resolveScopePath(repo.Path, "scenario", slug)
-		if scopeErr != nil || task.GetTask().GetScopePath() != expectedScope {
+		if !matches {
 			continue
 		}
 		response.Runs = append(response.Runs, runToProto(agentRunToAPI(run)))
@@ -91,6 +82,24 @@ func (s agentReadConnectServer) ListRuns(ctx context.Context, req *connect.Reque
 	}
 	response.Total = int32(len(response.Runs))
 	return connect.NewResponse(response), nil
+}
+
+func (s *Server) agentRunMatchesListFilter(ctx context.Context, run *ampb.Run, tag, expectedScope string, scopeErr error) (bool, error) {
+	if run == nil || run.GetTag() != tag || run.GetTaskId() == "" {
+		return false, nil
+	}
+	return s.agentRunTaskMatchesScope(ctx, run.GetTaskId(), expectedScope, scopeErr)
+}
+
+func (s *Server) agentRunTaskMatchesScope(ctx context.Context, taskID, expectedScope string, scopeErr error) (bool, error) {
+	task, err := s.agentManagerClient.GetTask(ctx, taskID)
+	if err != nil {
+		if connect.CodeOf(err) == connect.CodeNotFound {
+			return false, nil
+		}
+		return false, agentManagerReadError(ctx, err)
+	}
+	return scopeErr == nil && task.GetTask().GetScopePath() == expectedScope, nil
 }
 
 func (s agentReadConnectServer) GetRun(ctx context.Context, req *connect.Request[agentreadsv1.GetRunRequest]) (*connect.Response[agentreadsv1.AgentRun], error) {
@@ -224,21 +233,7 @@ func (s *Server) getGCTRun(ctx context.Context, runID, scenarioSlug, repoPath st
 }
 
 func (s *Server) agentReadContext(parent context.Context, repoID string, timeout time.Duration) (context.Context, context.CancelFunc, ResolvedRepo, error) {
-	ctx, cancel := context.WithTimeout(parent, timeout)
-	if s.capabilities == nil || !s.capabilities.IsAvailable(ctx, "agent-manager") {
-		cancel()
-		return nil, nil, ResolvedRepo{}, connect.NewError(connect.CodeUnavailable, errors.New("agent-manager is not available"))
-	}
-	if s.agentManagerClient == nil {
-		cancel()
-		return nil, nil, ResolvedRepo{}, connect.NewError(connect.CodeUnavailable, errors.New("agent-manager client is not configured"))
-	}
-	repo, err := s.resolveRepositorySelection(ctx, repoID)
-	if err != nil {
-		cancel()
-		return nil, nil, ResolvedRepo{}, err
-	}
-	return ctx, cancel, repo, nil
+	return s.ownerReadContext(parent, repoID, timeout, "agent-manager", s.agentManagerClient != nil)
 }
 
 func requiredRunID(raw string) (string, error) {

@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -62,12 +61,9 @@ func readRepoStatusSnapshot(ctx context.Context, git GitRunner, repoDir string) 
 }
 
 func getRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error) {
-	if deps.Git == nil {
-		return nil, fmt.Errorf("git runner is required")
-	}
-	repoDir := strings.TrimSpace(deps.RepoDir)
-	if repoDir == "" {
-		return nil, fmt.Errorf("repo dir is required")
+	repoDir, err := validateGitRepoDeps(deps.Git, deps.RepoDir)
+	if err != nil {
+		return nil, err
 	}
 
 	// Phase 1: git status (must complete before anything else).

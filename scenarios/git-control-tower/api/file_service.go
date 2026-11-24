@@ -2,11 +2,9 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/vrooli/api-core/pathfilter"
@@ -20,12 +18,9 @@ type FileDeps struct {
 
 // GetFileTree returns a list of files in the repository
 func GetFileTree(ctx context.Context, deps FileDeps, req FileTreeRequest) (*FileTreeResponse, error) {
-	if deps.Git == nil {
-		return nil, fmt.Errorf("git runner is required")
-	}
-	repoDir := strings.TrimSpace(deps.RepoDir)
-	if repoDir == "" {
-		return nil, fmt.Errorf("repo dir is required")
+	repoDir, err := validateGitRepoDeps(deps.Git, deps.RepoDir)
+	if err != nil {
+		return nil, err
 	}
 
 	// Apply defaults and limits

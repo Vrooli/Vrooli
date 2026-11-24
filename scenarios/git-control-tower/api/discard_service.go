@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
 )
@@ -20,12 +19,9 @@ func DiscardFiles(ctx context.Context, deps DiscardDeps, req DiscardRequest) (*D
 	if err := requireHumanMutation(ctx, "discard files"); err != nil {
 		return nil, err
 	}
-	if deps.Git == nil {
-		return nil, fmt.Errorf("git runner is required")
-	}
-	repoDir := strings.TrimSpace(deps.RepoDir)
-	if repoDir == "" {
-		return nil, fmt.Errorf("repo dir is required")
+	repoDir, err := validateGitRepoDeps(deps.Git, deps.RepoDir)
+	if err != nil {
+		return nil, err
 	}
 
 	if len(req.Paths) == 0 {
@@ -54,7 +50,7 @@ func DiscardFiles(ctx context.Context, deps DiscardDeps, req DiscardRequest) (*D
 		}, nil
 	}
 
-	err := deps.Git.Discard(ctx, repoDir, validPaths, req.Untracked)
+	err = deps.Git.Discard(ctx, repoDir, validPaths, req.Untracked)
 	if err != nil {
 		return &DiscardResponse{
 			Success:   false,

@@ -69,12 +69,9 @@ func PushToRemote(ctx context.Context, deps PushPullDeps, req PushRequest) (*Pus
 	if err := requireHumanMutation(ctx, "push to remote"); err != nil {
 		return nil, err
 	}
-	if deps.Git == nil {
-		return nil, fmt.Errorf("git runner is required")
-	}
-	repoDir := strings.TrimSpace(deps.RepoDir)
-	if repoDir == "" {
-		return nil, fmt.Errorf("repo dir is required")
+	repoDir, err := validateGitRepoDeps(deps.Git, deps.RepoDir)
+	if err != nil {
+		return nil, err
 	}
 
 	remote, branch := resolvePushTarget(ctx, deps, repoDir, req.Remote, req.Branch)
@@ -115,12 +112,9 @@ func PullFromRemote(ctx context.Context, deps PushPullDeps, req PullRequest) (*P
 	if err := requireHumanMutation(ctx, "pull from remote"); err != nil {
 		return nil, err
 	}
-	if deps.Git == nil {
-		return nil, fmt.Errorf("git runner is required")
-	}
-	repoDir := strings.TrimSpace(deps.RepoDir)
-	if repoDir == "" {
-		return nil, fmt.Errorf("repo dir is required")
+	repoDir, err := validateGitRepoDeps(deps.Git, deps.RepoDir)
+	if err != nil {
+		return nil, err
 	}
 
 	remote := req.Remote
@@ -131,7 +125,7 @@ func PullFromRemote(ctx context.Context, deps PushPullDeps, req PullRequest) (*P
 	branch := req.Branch
 
 	cred := lookupCredential(ctx, deps, remote)
-	err := deps.Git.Pull(ctx, repoDir, remote, branch, cred)
+	err = deps.Git.Pull(ctx, repoDir, remote, branch, cred)
 	if err != nil {
 		errStr := err.Error()
 		hasConflicts := strings.Contains(errStr, "CONFLICT") || strings.Contains(errStr, "conflict")
@@ -225,12 +219,9 @@ func RunUpstreamAction(ctx context.Context, deps PushPullDeps, req UpstreamActio
 	if err := requireHumanMutation(ctx, "upstream action"); err != nil {
 		return nil, err
 	}
-	if deps.Git == nil {
-		return nil, fmt.Errorf("git runner is required")
-	}
-	repoDir := strings.TrimSpace(deps.RepoDir)
-	if repoDir == "" {
-		return nil, fmt.Errorf("repo dir is required")
+	repoDir, err := validateGitRepoDeps(deps.Git, deps.RepoDir)
+	if err != nil {
+		return nil, err
 	}
 
 	action := strings.TrimSpace(strings.ToLower(req.Action))

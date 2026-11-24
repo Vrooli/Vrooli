@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -152,4 +153,84 @@ func TestShellCommandRunStreamKillsProcessGroupOnCancel(t *testing.T) {
 	if _, err := os.Stat(marker); err == nil {
 		t.Fatal("grandchild completed its work despite cancellation")
 	}
+}
+
+func TestShellCommandRunStreamWaitDelayBoundsEscapedPipeHolder(t *testing.T) {
+	if _, err := exec.LookPath("setsid"); err != nil {
+		t.Skip("setsid not available")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	pidCh := make(chan int, 1)
+	done := make(chan error, 1)
+	command := "setsid sh -c 'sleep 30' & echo ESCAPED=$!; wait"
+	go func() {
+		_, err := (ShellCommandRunner{}).RunStream(ctx, CommandRunRequest{Command: command, WorkingDirectory: t.TempDir()}, func(_, line string) {
+			if strings.HasPrefix(line, "ESCAPED=") {
+				if pid, err := strconv.Atoi(strings.TrimPrefix(line, "ESCAPED=")); err == nil {
+					pidCh <- pid
+				}
+			}
+		})
+		done <- err
+	}()
+	var pid int
+	select {
+	case pid = <-pidCh:
+	case <-time.After(5 * time.Second):
+		t.Fatal("never observed escaped child pid")
+	}
+	t.Cleanup(func() { _ = syscall.Kill(pid, syscall.SIGKILL) })
+	parentSession := processSession(t, os.Getpid())
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		session := processSessionOrZero(pid)
+		if session != 0 && session != parentSession {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("child %d did not escape into a separate session", pid)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	// The child is outside the command process group, so cancellation cannot
+	// close its inherited stdout. os/exec's WaitDelay must bound the copy wait.
+	cancelAt := time.Now()
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(shellCommandWaitDelay + 3*time.Second):
+		t.Fatal("RunStream remained blocked on an escaped descendant's output")
+	}
+	if elapsed := time.Since(cancelAt); elapsed < shellCommandWaitDelay-250*time.Millisecond {
+		t.Fatalf("RunStream returned in %s; escaped pipe holder did not exercise WaitDelay", elapsed)
+	}
+}
+
+func processSession(t *testing.T, pid int) int {
+	t.Helper()
+	if session := processSessionOrZero(pid); session != 0 {
+		return session
+	}
+	t.Fatalf("cannot read session for process %d", pid)
+	return 0
+}
+
+func processSessionOrZero(pid int) int {
+	data, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
+	if err != nil {
+		return 0
+	}
+	// comm is parenthesized and may contain spaces; fields after its final ')'
+	// begin with state, ppid, pgrp, session.
+	end := strings.LastIndexByte(string(data), ')')
+	if end < 0 {
+		return 0
+	}
+	fields := strings.Fields(string(data[end+1:]))
+	if len(fields) < 4 {
+		return 0
+	}
+	session, _ := strconv.Atoi(fields[3])
+	return session
 }

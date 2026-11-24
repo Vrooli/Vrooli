@@ -17,7 +17,7 @@ import type {
 
 // repoId is a numeric string in the UI (X-Repo-Id); the proto wants int64
 // (bigint in connect-es). 0n means "active repo" server-side.
-function toRepoId(repoId?: string | null): bigint {
+export function toProtoRepoId(repoId?: string | null): bigint {
   if (!repoId) return 0n;
   try {
     return BigInt(repoId);
@@ -38,7 +38,7 @@ export async function listBaselines(params: ListBaselinesParams, signal?: AbortS
     scenario: params.scenario,
     branch: params.branch ?? "",
     allBranches: params.allBranches ?? false,
-    repoId: toRepoId(params.repoId),
+    repoId: toProtoRepoId(params.repoId),
   }, ...(signal ? [{ signal }] : []));
   return res.baselines;
 }
@@ -55,7 +55,7 @@ export async function getBaseline(params: GetBaselineParams, signal?: AbortSigna
     scenario: params.scenario,
     name: params.name,
     branch: params.branch ?? "",
-    repoId: toRepoId(params.repoId),
+    repoId: toProtoRepoId(params.repoId),
   }, ...(signal ? [{ signal }] : []));
   return res.baseline;
 }
@@ -75,14 +75,14 @@ export async function diffBaseline(params: DiffBaselineParams): Promise<DiffResu
     scenario: params.scenario,
     name: params.name,
     branch: params.branch ?? "",
-    repoId: toRepoId(params.repoId),
+    repoId: toProtoRepoId(params.repoId),
   });
   const res = await baselinesClient.getDiffResult({
     scenario: params.scenario,
     name: params.name,
     branch: params.branch ?? "",
     runId: started.runId,
-    repoId: toRepoId(params.repoId),
+    repoId: toProtoRepoId(params.repoId),
     wait: true,
   });
   return res.diff;
@@ -107,7 +107,7 @@ export async function snapshotForBaseline(
     branch: params.branch ?? "",
     reason: params.reason ?? "",
     createdBy: params.createdBy ?? "ui",
-    repoId: toRepoId(params.repoId),
+    repoId: toProtoRepoId(params.repoId),
   });
 }
 
@@ -123,7 +123,7 @@ export async function deleteBaseline(params: DeleteBaselineParams): Promise<bool
     scenario: params.scenario,
     name: params.name,
     branch: params.branch ?? "",
-    repoId: toRepoId(params.repoId),
+    repoId: toProtoRepoId(params.repoId),
   });
   return res.deleted;
 }

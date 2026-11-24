@@ -1205,6 +1205,16 @@ closed stale statements from current work.
 
 ### Retained owner work
 
+- **GCT UI type-check is blocked by shared RCL collection contracts — 2026-11-23.**
+  `pnpm type-check` reports an implicit `open` type in the GCT `SwipeActions`
+  usage plus `items` resolving to `never` in `FileList`, `MobileFileSearch`,
+  and `ViewModeSelector`. The installed `Tabs/1` and `SwipeActions` declaration
+  routes those props through RCL's `ContractedComponent`; the shared RCL tree
+  currently has uncommitted public-contract tooling and generated declaration
+  changes. GCT's production Vite build succeeds, but it does not replace type
+  checking. Owner: React Component Library for contract inference; GCT should
+  rerun type-check after that owner repairs the source declaration. Do not add
+  casts or local duplicate component wrappers to conceal this boundary.
 - **Mutation safety is an invariant, not a new defect.** Keep path and authority
   checks at the owner boundary; see [AUTHORITY-MATRIX](AUTHORITY-MATRIX.md),
   [HUMAN-CONTROL-CONTRACT](HUMAN-CONTROL-CONTRACT.md), and

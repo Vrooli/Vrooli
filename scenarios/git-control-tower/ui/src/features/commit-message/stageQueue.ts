@@ -46,7 +46,7 @@ export function toQueuedStageSelection(entry: WorktreeSuggestionQueueEntry): Que
     paths: [...entry.paths],
     queuedAt: entry.createdAt,
     state: queueViewState(entry.state),
-    selectionId: entry.selectionId || entry.id,
+    selectionId: entry.selectionId || undefined,
     ...(entry.mode === StagedMessageMode.DEEP ? { suggestionMode: "deep" as const } : entry.mode === StagedMessageMode.QUICK ? { suggestionMode: "quick" as const } : {}),
     ...(entry.requestKey ? { requestKey: entry.requestKey } : {}),
     ...(entry.jobId ? { jobId: entry.jobId } : {}),

@@ -87,12 +87,9 @@ func CreateCommit(ctx context.Context, deps CommitDeps, req CommitRequest) (*Com
 // git commit. Callers must already hold a consumed human intent for their own
 // operation; CreateCommit and proposal apply each check theirs.
 func createAuthorizedCommit(ctx context.Context, deps CommitDeps, req CommitRequest) (*CommitResponse, error) {
-	if deps.Git == nil {
-		return nil, fmt.Errorf("git runner is required")
-	}
-	repoDir := strings.TrimSpace(deps.RepoDir)
-	if repoDir == "" {
-		return nil, fmt.Errorf("repo dir is required")
+	repoDir, err := validateGitRepoDeps(deps.Git, deps.RepoDir)
+	if err != nil {
+		return nil, err
 	}
 
 	message := strings.TrimSpace(req.Message)
