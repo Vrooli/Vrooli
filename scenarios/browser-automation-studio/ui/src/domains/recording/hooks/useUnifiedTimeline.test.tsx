@@ -70,6 +70,56 @@ describe('workspace timeline controller', () => {
     expect(result.current.entries[0]).toMatchObject({ entry: { id: 'journal-entry' } });
   });
 
+  it('reloads the saved journal for the same validated recording session after workspace remount', async () => {
+    const firstMount = renderHook(() => useWorkspaceTimeline({
+      mode: 'recording', sessionId: 'session', pages: [],
+    }));
+
+    await waitFor(() => expect(firstMount.result.current.entries).toHaveLength(1));
+    expect(firstMount.result.current.entries[0]).toMatchObject({ entry: { id: 'journal-entry' } });
+    vi.mocked(recordingApi.getTimeline).mockClear();
+    firstMount.unmount();
+
+    const reopenedWorkspace = renderHook(() => useWorkspaceTimeline({
+      mode: 'recording', sessionId: 'session', pages: [],
+    }));
+    await waitFor(() => expect(reopenedWorkspace.result.current.entries).toHaveLength(1));
+    expect(reopenedWorkspace.result.current.entries[0]).toMatchObject({ entry: { id: 'journal-entry' } });
+    expect(recordingApi.getTimeline).toHaveBeenCalledWith(
+      'session', expect.objectContaining({ limit: 100 }), expect.anything(),
+    );
+    reopenedWorkspace.unmount();
+  });
+
+  it('reopens persisted popup lifecycle events with page and opener ownership', async () => {
+    vi.mocked(recordingApi.getTimeline).mockResolvedValue({
+      success: true,
+      data: {
+        entries: [{
+          type: 'page_event',
+          pageId: 'popup-page',
+          pageEvent: {
+            id: 'popup-created', type: 'page_created', pageId: 'popup-page',
+            openerId: 'main-page', url: 'https://popup.test', timestamp: '2026-10-01T00:00:00Z',
+          },
+        }],
+        totalEntries: 1,
+        hasMore: false,
+      },
+    } as never);
+
+    const reopenedWorkspace = renderHook(() => useWorkspaceTimeline({
+      mode: 'recording', sessionId: 'session', pages: [],
+    }));
+    await waitFor(() => expect(reopenedWorkspace.result.current.entries).toHaveLength(1));
+    expect(reopenedWorkspace.result.current.entries[0]).toMatchObject({
+      type: 'page_event',
+      pageId: 'popup-page',
+      pageEvent: {id: 'popup-created', openerId: 'main-page'},
+    });
+    reopenedWorkspace.unmount();
+  });
+
   it('reports recording as idle or live from the active capture signal', () => {
     const { result, rerender } = renderHook(
       ({ isRecording }: { isRecording: boolean }) => useWorkspaceTimeline({

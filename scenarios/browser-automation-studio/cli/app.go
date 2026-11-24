@@ -30,7 +30,7 @@ type App struct {
 
 func NewApp() (*App, error) {
 	env := cliapp.StandardScenarioEnv(appName, cliapp.ScenarioEnvOptions{
-		ExtraAPIEnvVars: []string{"BROWSER_AUTOMATION_API_URL", "API_BASE_URL", "VITE_API_BASE_URL"},
+		ExtraAPIEnvVars: []string{"BROWSER_AUTOMATION_API_URL", "BAS_BROWSER_API_URL", "API_BASE_URL", "VITE_API_BASE_URL"},
 	})
 	sourceRoot := cliutil.ResolveSourceRoot(buildSourceRoot, env.SourceRootEnvVars...)
 	scenarioRoot := resolveScenarioRoot(sourceRoot)
@@ -46,7 +46,7 @@ func NewApp() (*App, error) {
 		Version:              appVersion,
 		Description:          "Browser Automation Studio CLI - Visual browser automation with AI workflows",
 		DefaultAPIBase:       defaultAPIBase,
-		ExtraAPIEnvVars:      []string{"BROWSER_AUTOMATION_API_URL", "API_BASE_URL", "VITE_API_BASE_URL"},
+		ExtraAPIEnvVars:      []string{"BROWSER_AUTOMATION_API_URL", "BAS_BROWSER_API_URL", "API_BASE_URL", "VITE_API_BASE_URL"},
 		BuildFingerprint:     buildFingerprint,
 		BuildTimestamp:       buildTimestamp,
 		BuildSourceRoot:      buildSourceRoot,

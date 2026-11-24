@@ -569,7 +569,7 @@
             },
             "tier-2-desktop": {
               "supported": true,
-              "notes": "Package the API-supervised TypeScript driver under dist/<variant>/server.js; reuse a compatible bundled browser via BROWSER_EXECUTABLE_PATH when possible"
+              "notes": "Package the API-supervised TypeScript driver under dist/<variant>/server.js; desktop bundles must stage an explicit SDA-admitted Playwright artifact through bundle/stage-browser-closure.mjs and validate the emitted closure manifest"
             }
           },
           "swappable_with": [
@@ -581,7 +581,7 @@
           ],
           "packaging_hints": [
             "Bundle playwright-driver/dist/<variant>/server.js, sibling browser scripts and runtime dependencies; the API sidecar supervisor owns its process",
-            "If not reusing Electron Chromium, include @playwright/browser-chromium per platform"
+            "Desktop browser acquisition is not performed by driver install/build scripts. Provision pinned rebrowser-playwright-core browsers.json artifacts through scenario-dependency-analyzer ownership; use bundle/stage-browser-closure.mjs online or bundle:offline-create / bundle:offline-install for verified build-input transfer, then package the staged resources/playwright asset directory. Linux, macOS and Windows layouts are fixture-tested; executable artifacts and runtime remain unqualified on every platform."
           ]
         },
         "minio": {

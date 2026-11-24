@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/browser-automation-studio/database"
 )
 
 func TestValidateAndNormalizePath(t *testing.T) {
@@ -230,5 +231,56 @@ func TestResolveFromFilesystemRoot_NestedPaths(t *testing.T) {
 	}
 	if result.Name != "dismiss-tutorial" {
 		t.Errorf("resolveFromFilesystemRoot() got name %q, want 'dismiss-tutorial'", result.Name)
+	}
+}
+
+func TestWorkflowPathContainmentSharedAcrossResolverCallers(t *testing.T) {
+	root := t.TempDir()
+	workflowJSON := `{"id":"` + uuid.NewString() + `","name":"shared-path-proof","definition_v2":{"nodes":[],"edges":[]}}`
+	for _, dir := range []string{filepath.Join(root, "actions"), filepath.Join(root, "workflows")} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "child.workflow.json"), []byte(workflowJSON), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	svc := &WorkflowService{}
+	ctx := context.Background()
+	callers := []struct {
+		name string
+		call func(rel, requested string) (string, error)
+	}{
+		{
+			name: "project workflow directory",
+			call: func(rel, requested string) (string, error) {
+				got, err := svc.resolveFromProjectDir(ctx, &database.ProjectIndex{FolderPath: root}, rel, requested)
+				if err != nil {
+					return "", err
+				}
+				return got.GetName(), nil
+			},
+		},
+		{
+			name: "filesystem root",
+			call: func(rel, requested string) (string, error) {
+				got, err := svc.resolveFromFilesystemRoot(ctx, root, rel, requested)
+				if err != nil {
+					return "", err
+				}
+				return got.GetName(), nil
+			},
+		},
+	}
+	for _, caller := range callers {
+		t.Run(caller.name, func(t *testing.T) {
+			if got, err := caller.call("child.workflow.json", "child.workflow.json"); err != nil || got != "shared-path-proof" {
+				t.Fatalf("valid workflow = %q, %v; want shared-path-proof", got, err)
+			}
+			if _, err := caller.call("../outside.workflow.json", "../outside.workflow.json"); err == nil || err.Error() != `invalid workflow path: "../outside.workflow.json"` {
+				t.Fatalf("traversal error = %v; want stable invalid workflow path error", err)
+			}
+		})
 	}
 }

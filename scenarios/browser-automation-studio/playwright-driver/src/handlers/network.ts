@@ -4,6 +4,8 @@ import { getNetworkMockParams } from '../types';
 import { normalizeError } from '../utils/errors';
 import { logger, scopedLog, LogContext } from '../utils';
 import { registerSessionCleanup } from '../session/cleanup-registry';
+import { authorizeNavigationTarget } from '../session/navigation-scope';
+import type { Route } from 'rebrowser-playwright';
 
 /** Internal params type returned by getNetworkMockParams */
 interface NetworkMockParams {
@@ -136,6 +138,20 @@ registerSessionCleanup('network-routes', clearSessionRoutes);
 export class NetworkHandler extends BaseHandler {
   getSupportedTypes(): string[] {
     return ['network-mock', 'network', 'mock', 'intercept'];
+  }
+
+  /** Page-level request routes run before context routes. Keep them from
+   * bypassing the context's admitted navigation scope when they continue,
+   * mock, or otherwise intercept a document navigation. */
+  private async denyOutOfScopeDocumentNavigation(
+    route: Route,
+    context: HandlerContext
+  ): Promise<boolean> {
+    const request = route.request();
+    if (!request.isNavigationRequest() || request.resourceType() !== 'document') return false;
+    if (authorizeNavigationTarget(context.permissionProfile, request.url())) return false;
+    await route.abort('blockedbyclient');
+    return true;
   }
 
   /**
@@ -310,6 +326,7 @@ export class NetworkHandler extends BaseHandler {
     });
 
     await page.route(urlPattern, async (route) => {
+      if (await this.denyOutOfScopeDocumentNavigation(route, context)) return;
       // Check if method matches (if specified)
       if (params.method && route.request().method() !== params.method.toUpperCase()) {
         await route.continue();
@@ -389,6 +406,7 @@ export class NetworkHandler extends BaseHandler {
     });
 
     await page.route(urlPattern, async (route) => {
+      if (await this.denyOutOfScopeDocumentNavigation(route, context)) return;
       // Check if method matches (if specified)
       if (params.method && route.request().method() !== params.method.toUpperCase()) {
         await route.continue();
@@ -442,6 +460,7 @@ export class NetworkHandler extends BaseHandler {
     });
 
     await page.route(urlPattern, async (route) => {
+      if (await this.denyOutOfScopeDocumentNavigation(route, context)) return;
       // Check if method matches (if specified)
       if (params.method && route.request().method() !== params.method.toUpperCase()) {
         await route.continue();
@@ -503,6 +522,7 @@ export class NetworkHandler extends BaseHandler {
     });
 
     await page.route(urlPattern, async (route) => {
+      if (await this.denyOutOfScopeDocumentNavigation(route, context)) return;
       // Check if method matches (if specified)
       if (params.method && route.request().method() !== params.method.toUpperCase()) {
         await route.continue();

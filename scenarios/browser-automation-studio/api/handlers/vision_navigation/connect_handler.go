@@ -7,11 +7,13 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
 	"connectrpc.com/connect"
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/automation/agentaccess"
 	aihandlers "github.com/vrooli/browser-automation-studio/handlers/ai"
 	"github.com/vrooli/browser-automation-studio/middleware"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
@@ -72,6 +74,26 @@ func validateNavigationTaskContract(msg *aiv1.StartNavigationRequest, navigatorT
 		return connect.NewError(connect.CodeFailedPrecondition, errors.New("selected navigator does not support enforced task contracts"))
 	}
 	return nil
+}
+
+func (s *service) resolveBrowserInferenceBinding(ctx context.Context, req *connect.Request[aiv1.StartNavigationRequest], sessionID string) (*vision.BrowserInferenceSessionBinding, error) {
+	tokens := req.Header().Values("X-Agent-Identity-Token")
+	grants := req.Header().Values("X-Vrooli-Browser-Grant-Receipt")
+	if len(tokens) == 0 && len(grants) == 0 {
+		return nil, nil
+	}
+	if len(tokens) != 1 || strings.TrimSpace(tokens[0]) == "" || len(grants) != 1 || strings.TrimSpace(grants[0]) == "" {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("one Agent Manager identity token and browser grant receipt are required"))
+	}
+	if s.deps.BrowserBindingResolver == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("browser run binding resolver is unavailable"))
+	}
+	ctx = agentaccess.WithBrowserAgentCredentials(ctx, strings.TrimSpace(tokens[0]), strings.TrimSpace(grants[0]))
+	binding, err := s.deps.BrowserBindingResolver.ResolveInferenceBinding(ctx, sessionID)
+	if err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("active browser session is not authorized for this Agent Manager run"))
+	}
+	return &vision.BrowserInferenceSessionBinding{RunID: binding.RunID, SessionID: binding.SessionID, GrantReceipt: binding.GrantReceipt}, nil
 }
 
 func buildNavigationPostconditions(items []*aiv1.NavigationPostcondition) ([]vision.NavigationPostcondition, error) {
@@ -223,6 +245,10 @@ func (s *service) StartNavigation(
 	if err != nil {
 		return nil, err
 	}
+	browserSessionBinding, err := s.resolveBrowserInferenceBinding(ctx, req, input.sessionID)
+	if err != nil {
+		return nil, err
+	}
 
 	source := vision.ClientSourceFromHeader(s.resolveClientSource(req, msg.GetClientSource()))
 
@@ -264,6 +290,7 @@ func (s *service) StartNavigation(
 		AccessToken:         accessToken,
 		AISource:            aiSource,
 		PrivacyConsentGrant: consentGrant,
+		BrowserSession:      browserSessionBinding,
 	}
 
 	handle, err := navigator.Navigate(ctx, navReq)
@@ -376,15 +403,16 @@ func navigationStatusToProto(session *vision.NavigationSession) *aiv1.GetNavigat
 	steps := make([]*aiv1.NavigationStep, 0, len(session.Steps))
 	for _, st := range session.Steps {
 		steps = append(steps, &aiv1.NavigationStep{
-			Index:       int32(st.Index),
-			ActionType:  st.ActionType,
-			Selector:    st.Selector,
-			Value:       st.Value,
-			Url:         st.URL,
-			Description: st.Description,
-			Success:     st.Success,
-			Error:       st.Error,
-			At:          timestamppb.New(st.At),
+			Index:            int32(st.Index),
+			ActionType:       st.ActionType,
+			Selector:         st.Selector,
+			Value:            st.Value,
+			Url:              st.URL,
+			Description:      st.Description,
+			Success:          st.Success,
+			Error:            st.Error,
+			At:               timestamppb.New(st.At),
+			InferenceReceipt: inferenceReceiptToProto(st.InferenceReceipt),
 		})
 	}
 	data, _ := structpb.NewStruct(session.ExtractedData)
@@ -402,6 +430,32 @@ func navigationStatusToProto(session *vision.NavigationSession) *aiv1.GetNavigat
 		Terminal:        session.Status.Terminal(),
 		Steps:           steps,
 	}
+}
+
+func inferenceReceiptToProto(receipt *vision.InferenceReceipt) *aiv1.AIInferenceReceipt {
+	if receipt == nil {
+		return nil
+	}
+	out := &aiv1.AIInferenceReceipt{
+		RootOperationId: receipt.RootOperationID, BillingOperationId: receipt.BillingOperationID, Source: receipt.Source, Provider: receipt.Provider,
+		Model: receipt.Model, ProviderCallsMade: receipt.ProviderCallsMade,
+		InputTokens: strconv.FormatInt(receipt.InputTokens, 10), OutputTokens: strconv.FormatInt(receipt.OutputTokens, 10),
+		InputTokensProvenance: receipt.InputTokensProvenance, OutputTokensProvenance: receipt.OutputTokensProvenance,
+		CostMicros: string(receipt.CostMicros), CostProvenance: receipt.CostProvenance,
+		CreditsCharged: string(receipt.CreditsCharged), AccountingStatus: receipt.AccountingStatus,
+	}
+	if receipt.Applied != nil {
+		out.Applied = &aiv1.AIInferenceAppliedSettings{
+			MaxOutputTokensEffective: receipt.Applied.MaxOutputTokensEffective,
+			MaxOutputTokensSource:    receipt.Applied.MaxOutputTokensSource,
+			TemperatureSupport:       receipt.Applied.TemperatureSupport,
+		}
+		if receipt.Applied.TemperatureSent != nil {
+			value := *receipt.Applied.TemperatureSent
+			out.Applied.TemperatureSent = &value
+		}
+	}
+	return out
 }
 
 // =============================================================================

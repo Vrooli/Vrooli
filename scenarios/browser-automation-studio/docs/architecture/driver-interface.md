@@ -351,4 +351,5 @@ Response -> SessionID, NavigationHandle
 - [DOC: docs/architecture/recording.md] - Manual recording architecture
 - [DOC: docs/architecture/ai-navigation.md] - AI navigation architecture
 - [DOC: docs/architecture/execution.md] - Workflow execution architecture
-- [DOC: docs/SYSTEM_ARCHITECTURE.md] - Complete system overview
+- [DOC: docs/concepts/ARCHITECTURE.md] - Authoritative architecture map
+- [DOC: docs/SYSTEM_ARCHITECTURE.md] - Architecture navigation index

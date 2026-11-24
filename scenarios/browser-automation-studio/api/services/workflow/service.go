@@ -54,21 +54,27 @@ type WorkflowVersionSummary struct {
 
 // WorkflowService handles workflow business logic
 type WorkflowService struct {
-	repo                  database.Repository
-	log                   *logrus.Logger
-	aiClient              ai.AIClient
-	executor              autoexec.Executor
-	engineFactory         autoengine.Factory
-	artifactRecorder      executionwriter.ExecutionWriter
-	planCompiler          autoexec.PlanCompiler
-	eventSinkFactory      func() autoevents.Sink
-	executionDataRoot     string
-	projectRoot           func(context.Context) (string, error)
-	sessionProfileService *sessionprofile.Service
-	syncLocks             sync.Map
-	filePathCache         sync.Map
-	executionCancels      sync.Map
-	projectSyncTimes      sync.Map
+	repo                       database.Repository
+	log                        *logrus.Logger
+	aiClient                   ai.AIClient
+	executor                   autoexec.Executor
+	engineFactory              autoengine.Factory
+	artifactRecorder           executionwriter.ExecutionWriter
+	planCompiler               autoexec.PlanCompiler
+	eventSinkFactory           func() autoevents.Sink
+	executionDataRoot          string
+	projectRoot                func(context.Context) (string, error)
+	sessionProfileService      *sessionprofile.Service
+	syncLocks                  sync.Map
+	filePathCache              sync.Map
+	executionCancels           sync.Map
+	projectSyncTimes           sync.Map
+	executionLifecycleMu       sync.Mutex
+	executionClosing           bool
+	executionAdmissions        int
+	executionAdmissionsDrained chan struct{}
+	executionSlotsInUse        int
+	maxConcurrentExecutions    int
 
 	// readinessResolver settles a run's opening navigation on the target
 	// scenario's declared surfaces instead of on navigation timing alone. It is
@@ -137,10 +143,11 @@ type ExecutionExportPreview struct {
 
 // WorkflowServiceOptions configures the workflow service's execution owners.
 type WorkflowServiceOptions struct {
-	Executor         autoexec.Executor
-	EngineFactory    autoengine.Factory
-	ArtifactRecorder executionwriter.ExecutionWriter
-	PlanCompiler     autoexec.PlanCompiler
+	MaxConcurrentExecutions int
+	Executor                autoexec.Executor
+	EngineFactory           autoengine.Factory
+	ArtifactRecorder        executionwriter.ExecutionWriter
+	PlanCompiler            autoexec.PlanCompiler
 	// AIClient must be explicitly injected by the application. A nil client
 	// keeps generation disabled instead of falling back to a provider-specific
 	// path outside AI Gateway.
@@ -171,18 +178,19 @@ func NewWorkflowServiceWithDeps(repo database.Repository, wsHub wsHub.HubInterfa
 	}
 
 	svc := &WorkflowService{
-		repo:                  repo,
-		log:                   log,
-		aiClient:              aiClient,
-		executor:              opts.Executor,
-		engineFactory:         opts.EngineFactory,
-		artifactRecorder:      opts.ArtifactRecorder,
-		planCompiler:          opts.PlanCompiler,
-		eventSinkFactory:      eventSinkFactory,
-		executionDataRoot:     strings.TrimSpace(opts.ExecutionDataRoot),
-		projectRoot:           opts.ProjectRoot,
-		sessionProfileService: opts.SessionProfileService,
-		executionAdmission:    opts.ExecutionAdmission,
+		repo:                    repo,
+		log:                     log,
+		aiClient:                aiClient,
+		executor:                opts.Executor,
+		engineFactory:           opts.EngineFactory,
+		artifactRecorder:        opts.ArtifactRecorder,
+		planCompiler:            opts.PlanCompiler,
+		eventSinkFactory:        eventSinkFactory,
+		executionDataRoot:       strings.TrimSpace(opts.ExecutionDataRoot),
+		projectRoot:             opts.ProjectRoot,
+		sessionProfileService:   opts.SessionProfileService,
+		executionAdmission:      opts.ExecutionAdmission,
+		maxConcurrentExecutions: opts.MaxConcurrentExecutions,
 	}
 
 	return svc

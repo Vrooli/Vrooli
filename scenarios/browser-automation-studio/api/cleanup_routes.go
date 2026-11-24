@@ -46,8 +46,8 @@ type exactPurgeApplyRequest struct {
 }
 
 func (s *ownerCleanupRoutes) exactPurgePreview(w http.ResponseWriter, r *http.Request) {
-	id, err := uuid.Parse(chi.URLParam(r, "executionID"))
-	if err != nil || id == uuid.Nil {
+	id, ok := parseExactPurgeExecutionID(chi.URLParam(r, "executionID"))
+	if !ok {
 		http.Error(w, "executionID must be a UUID", http.StatusBadRequest)
 		return
 	}
@@ -64,8 +64,8 @@ func (s *ownerCleanupRoutes) exactPurgePreview(w http.ResponseWriter, r *http.Re
 }
 
 func (s *ownerCleanupRoutes) exactPurgeApply(w http.ResponseWriter, r *http.Request) {
-	id, err := uuid.Parse(chi.URLParam(r, "executionID"))
-	if err != nil || id == uuid.Nil {
+	id, ok := parseExactPurgeExecutionID(chi.URLParam(r, "executionID"))
+	if !ok {
 		http.Error(w, "executionID must be a UUID", http.StatusBadRequest)
 		return
 	}
@@ -87,6 +87,11 @@ func (s *ownerCleanupRoutes) exactPurgeApply(w http.ResponseWriter, r *http.Requ
 		retention.ExactPurgePreview
 		Deleted bool `json:"deleted"`
 	}{ExactPurgePreview: result, Deleted: true})
+}
+
+func parseExactPurgeExecutionID(raw string) (uuid.UUID, bool) {
+	id, err := uuid.Parse(raw)
+	return id, err == nil && id != uuid.Nil
 }
 
 func exactPurgeStatus(err error) int {

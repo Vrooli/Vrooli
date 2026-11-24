@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -142,6 +143,8 @@ func (s *service) AnalyzeElements(
 	req *connect.Request[aiv1.AnalyzeElementsRequest],
 ) (*connect.Response[aiv1.AnalyzeElementsResponse], error) {
 	ctx = aihandlers.WithGatewayRootOperationID(ctx, requestRootOperationID(req.Header()))
+	receipts := aihandlers.NewGatewayInferenceReceiptCollector()
+	ctx = aihandlers.WithGatewayInferenceReceiptCollector(ctx, receipts)
 	if req.Msg.GetUrl() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errMissingURL)
 	}
@@ -151,14 +154,16 @@ func (s *service) AnalyzeElements(
 		return nil, mapHandlerError(err)
 	}
 
-	return connect.NewResponse(&aiv1.AnalyzeElementsResponse{
+	response := &aiv1.AnalyzeElementsResponse{
 		Success:       true,
 		Elements:      elementInfosToProto(result.Elements),
 		AiSuggestions: aiSuggestionsToProto(result.AISuggestions),
 		PageContext:   pageContextToProto(result.PageContext),
 		Screenshot:    result.Screenshot,
 		CapturedAt:    timestamppb.New(result.CapturedAt),
-	}), nil
+	}
+	response.InferenceReceipt = gatewayReceiptToProto(receipts.Receipt())
+	return connect.NewResponse(response), nil
 }
 
 // =============================================================================
@@ -195,6 +200,8 @@ func (s *service) AIAnalyzeElements(
 	req *connect.Request[aiv1.AIAnalyzeElementsRequest],
 ) (*connect.Response[aiv1.AIAnalyzeElementsResponse], error) {
 	ctx = aihandlers.WithGatewayRootOperationID(ctx, requestRootOperationID(req.Header()))
+	receipts := aihandlers.NewGatewayInferenceReceiptCollector()
+	ctx = aihandlers.WithGatewayInferenceReceiptCollector(ctx, receipts)
 	msg := req.Msg
 	if msg.GetUrl() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errMissingURL)
@@ -207,9 +214,39 @@ func (s *service) AIAnalyzeElements(
 	if err != nil {
 		return nil, mapHandlerError(err)
 	}
-	return connect.NewResponse(&aiv1.AIAnalyzeElementsResponse{
-		Suggestions: elementInfosToProto(suggestions),
-	}), nil
+	response := &aiv1.AIAnalyzeElementsResponse{Suggestions: elementInfosToProto(suggestions)}
+	if receipt := receipts.Receipt(); receipt != nil {
+		response.InferenceReceipt = gatewayReceiptToProto(receipt)
+	}
+	return connect.NewResponse(response), nil
+}
+
+func gatewayReceiptToProto(receipt *aihandlers.GatewayInferenceReceipt) *aiv1.AIInferenceReceipt {
+	if receipt == nil {
+		return nil
+	}
+	out := &aiv1.AIInferenceReceipt{
+		RootOperationId: receipt.RootOperationID, BillingOperationId: receipt.BillingOperationID, Source: receipt.Source, Provider: receipt.Provider,
+		Model: receipt.Model, ProviderCallsMade: receipt.ProviderCallsMade,
+		InputTokens: strconv.FormatInt(receipt.InputTokens, 10), OutputTokens: strconv.FormatInt(receipt.OutputTokens, 10),
+		InputTokensProvenance: receipt.InputTokensProvenance, OutputTokensProvenance: receipt.OutputTokensProvenance,
+		CostMicros: strconv.FormatInt(receipt.CostMicros, 10), CostProvenance: receipt.CostProvenance,
+		AccountingStatus: receipt.AccountingStatus,
+	}
+	if receipt.CreditsCharged != nil {
+		out.CreditsCharged = strconv.FormatInt(*receipt.CreditsCharged, 10)
+	}
+	if applied := receipt.Applied; applied != nil {
+		out.Applied = &aiv1.AIInferenceAppliedSettings{
+			MaxOutputTokensEffective: applied.MaxOutputTokensEffective,
+			MaxOutputTokensSource:    applied.MaxOutputTokensSource, TemperatureSupport: applied.TemperatureSupport,
+		}
+		if applied.TemperatureSent != nil {
+			value := *applied.TemperatureSent
+			out.Applied.TemperatureSent = &value
+		}
+	}
+	return out
 }
 
 func requestRootOperationID(header http.Header) string {

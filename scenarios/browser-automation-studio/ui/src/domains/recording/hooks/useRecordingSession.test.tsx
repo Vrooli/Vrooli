@@ -49,6 +49,27 @@ describe('recording session hook retires callbacks from a replaced identity', ()
     expect(await first).toBe('same-session'); expect(await second).toBe('same-session');
     expect(mocks.ready).toHaveBeenCalledTimes(1);
   });
+  it('reopens a saved recording profile with tab restoration enabled', async () => {
+    mocks.create.mockResolvedValue({
+      success: true,
+      data: { session_id: 'reopened-session', session_profile_id: 'saved-profile' },
+    });
+    const { result } = renderHook(() => useRecordingSession({ initialSessionId: null }));
+
+    await act(async () => {
+      expect(await result.current.ensureSession(undefined, 'saved-profile', null, true)).toBe('reopened-session');
+    });
+
+    expect(mocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionProfileId: 'saved-profile', restoreTabs: true }),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+    expect(result.current.sessionProfileId).toBe('saved-profile');
+    expect(mocks.store.setSession).toHaveBeenCalledWith(expect.objectContaining({
+      sessionId: 'reopened-session',
+      profileId: 'saved-profile',
+    }));
+  });
   it('keeps B creation and its shared promise when A later finalizes', async () => {
     const a = deferred<unknown>(); const b = deferred<unknown>(); mocks.create.mockReturnValueOnce(a.promise).mockReturnValueOnce(b.promise);
     const { result, rerender } = renderHook(({ profile }) => useRecordingSession({ initialSessionId: null, initialSessionProfileId: profile, onSessionReady: mocks.ready }), { initialProps: { profile: 'a' } });

@@ -8,11 +8,18 @@ type PipelineManagerStub = {
   replayPreview: jest.Mock;
 };
 
-function createSessionManager(pipelineManager?: PipelineManagerStub): SessionManager {
+function createSessionManager(pipelineManager?: PipelineManagerStub, permissionProfile?: Record<string, unknown>): SessionManager {
+  const session = { phase: 'ready', page: { url: () => 'https://example.com/' }, createdAt: new Date(), instructionCount: 0, spec: permissionProfile ? { permission_profile: permissionProfile } : undefined, pipelineManager } as unknown as ReturnType<SessionManager['getSession']>;
   return {
-    getSession: jest.fn(() => ({ pipelineManager }) as unknown as ReturnType<SessionManager['getSession']>),
+    getSession: jest.fn(() => session),
+    getSessionForLease: jest.fn((sessionId: string, executionID: string, leaseID: string) => {
+      if (sessionId !== 'session-123' || executionID !== 'owner' || leaseID !== 'lease') throw new Error('session not found');
+      return session;
+    }),
   } as unknown as SessionManager;
 }
+
+const owner = { execution_id: 'owner', lease_id: 'lease' };
 
 function createTimelineEntry(overrides?: Partial<TimelineEntry>): TimelineEntry {
   return {
@@ -43,7 +50,7 @@ describe('recording validation routes', () => {
       const req = createMockHttpRequest({
         method: 'POST',
         url: '/session/session-123/record/validate-selector',
-        body: {},
+        body: owner,
       });
       const res = createMockHttpResponse();
 
@@ -70,7 +77,7 @@ describe('recording validation routes', () => {
       const req = createMockHttpRequest({
         method: 'POST',
         url: '/session/session-123/record/validate-selector',
-        body: { selector: '#missing' },
+        body: { ...owner, selector: '#missing' },
       });
       const res = createMockHttpResponse();
 
@@ -88,6 +95,27 @@ describe('recording validation routes', () => {
   });
 
   describe('handleReplayPreview', () => {
+    it('denies approval-required replay before the pipeline can produce effects', async () => {
+      const pipelineManager = { validateSelector: jest.fn(), replayPreview: jest.fn() };
+      const profile = { effect: 'act', approval: 'every_action', view: true, control: true, url_allow: ['https://example.com/*'] };
+      const req = createMockHttpRequest({ method: 'POST', url: '/session/session-123/record/replay-preview', body: { ...owner, entries: [createTimelineEntry()] } });
+      const res = createMockHttpResponse();
+      await handleReplayPreview(req, res, 'session-123', createSessionManager(pipelineManager, profile), config);
+      expect(res.statusCode).toBe(403);
+      expect(pipelineManager.replayPreview).not.toHaveBeenCalled();
+    });
+
+    it('denies an out-of-scope recorded navigation before replay starts', async () => {
+      const pipelineManager = { validateSelector: jest.fn(), replayPreview: jest.fn() };
+      const profile = { effect: 'act', approval: 'none', view: true, control: true, url_allow: ['https://example.com/*'] };
+      const entry = { id: 'entry-nav', sequenceNum: 1, action: { type: 1, params: { case: 'navigate', value: { url: 'https://outside.example/path' } } } } as unknown as TimelineEntry;
+      const req = createMockHttpRequest({ method: 'POST', url: '/session/session-123/record/replay-preview', body: { ...owner, entries: [entry] } });
+      const res = createMockHttpResponse();
+      await handleReplayPreview(req, res, 'session-123', createSessionManager(pipelineManager, profile), config);
+      expect(res.statusCode).toBe(403);
+      expect(pipelineManager.replayPreview).not.toHaveBeenCalled();
+    });
+
     it('requires a non-empty entries array before calling the pipeline manager', async () => {
       const pipelineManager = {
         validateSelector: jest.fn(),
@@ -96,7 +124,7 @@ describe('recording validation routes', () => {
       const req = createMockHttpRequest({
         method: 'POST',
         url: '/session/session-123/record/replay-preview',
-        body: { entries: [] },
+        body: { ...owner, entries: [] },
       });
       const res = createMockHttpResponse();
 
@@ -142,7 +170,7 @@ describe('recording validation routes', () => {
       const req = createMockHttpRequest({
         method: 'POST',
         url: '/session/session-123/record/replay-preview',
-        body: { entries: [entry], limit: 3 },
+        body: { ...owner, entries: [entry], limit: 3 },
       });
       const res = createMockHttpResponse();
 
@@ -207,6 +235,7 @@ describe('recording validation routes', () => {
         method: 'POST',
         url: '/session/session-123/record/replay-preview',
         body: {
+          ...owner,
           entries,
           stop_on_failure: false,
           action_timeout: 250,

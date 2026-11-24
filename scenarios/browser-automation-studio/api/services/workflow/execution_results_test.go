@@ -33,6 +33,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/enums"
 	"github.com/vrooli/browser-automation-studio/internal/executionartifactlock"
+	recoveryservice "github.com/vrooli/browser-automation-studio/services/recovery"
 	uxcollector "github.com/vrooli/browser-automation-studio/services/uxmetrics/collector"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
@@ -572,10 +573,10 @@ func (s *retainedWorkflowEventSink) snapshot() []contracts.EventEnvelope {
 	return append([]contracts.EventEnvelope(nil), s.events...)
 }
 
-// [REQ:BAS-RH-J07] A real Go workflow cancellation retains an uncertain browser
-// outcome, closes the same execution lease and waits for driver resource cleanup.
-func TestStopExecutionRetainsUncertainOutcomeAndJoinsLeasedDriverClose(t *testing.T) {
-	t.Log("[REQ:BAS-RH-J07] canceled external effect remains uncertain and StopExecution joins leased-driver cleanup")
+// [REQ:BAS-RH-J07] API owner shutdown retains an uncertain browser outcome,
+// closes the same execution lease, and joins driver cleanup before returning.
+func TestWorkflowShutdownPersistsCancellationArtifactsAndRestartRecoversOrphan(t *testing.T) {
+	t.Log("[REQ:BAS-RH-J07] API shutdown joins canceled runner and artifacts; startup recovery reconciles an exact stale lease")
 	runEntered := make(chan struct{})
 	runCanceled := make(chan struct{})
 	closeEntered := make(chan struct{})
@@ -656,7 +657,8 @@ func TestStopExecutionRetainsUncertainOutcomeAndJoinsLeasedDriverClose(t *testin
 		return executor.NewSimpleExecutor(nil).Execute(ctx, request)
 	})
 	service.eventSinkFactory = func() events.Sink { return sink }
-	service.artifactRecorder = executionwriter.NewFileWriter(nil, nil, nil, executionwriter.NewStaticRoot(t.TempDir()))
+	artifactRoot := t.TempDir()
+	service.artifactRecorder = executionwriter.NewFileWriter(nil, nil, nil, executionwriter.NewStaticRoot(artifactRoot))
 	if got := invoke(context.Background(), false); got.err != nil || got.completed {
 		t.Fatalf("admit async workflow: %+v", got)
 	}
@@ -670,22 +672,22 @@ func TestStopExecutionRetainsUncertainOutcomeAndJoinsLeasedDriverClose(t *testin
 		t.Fatal("driver session start did not retain execution ownership")
 	}
 
-	stopStarted := time.Now()
-	stopResult := make(chan error, 1)
-	go func() { stopResult <- service.StopExecution(context.Background(), repo.index.ID) }()
+	shutdownStarted := time.Now()
+	shutdownResult := make(chan error, 1)
+	go func() { shutdownResult <- service.Shutdown(context.Background()) }()
 	select {
 	case <-runCanceled:
 	case <-time.After(time.Second):
-		t.Fatal("accepted cancellation did not interrupt the live instruction within1s")
+		t.Fatal("owner shutdown did not interrupt the live instruction within1s")
 	}
 	inputStoppedAt := time.Now()
 	select {
 	case <-closeEntered:
 	case <-time.After(time.Second):
-		t.Fatal("owned session close did not start within1s of StopExecution")
+		t.Fatal("owned session close did not start within1s of owner shutdown")
 	}
-	if time.Since(stopStarted) > time.Second {
-		t.Fatalf("StopExecution began driver teardown after %s", time.Since(stopStarted))
+	if time.Since(shutdownStarted) > time.Second {
+		t.Fatalf("owner shutdown began driver teardown after %s", time.Since(shutdownStarted))
 	}
 	closed := <-closedLease
 	if closed.executionID != executionID || closed.leaseID != "lease-owner-1" {
@@ -695,20 +697,20 @@ func TestStopExecutionRetainsUncertainOutcomeAndJoinsLeasedDriverClose(t *testin
 		t.Fatalf("before close acknowledgement: effects=%d live sessions=%d, want1/1", effects.Load(), liveSessions.Load())
 	}
 	select {
-	case err := <-stopResult:
-		t.Fatalf("StopExecution returned before driver close acknowledged resource cleanup: %v", err)
+	case err := <-shutdownResult:
+		t.Fatalf("owner shutdown returned before driver close acknowledged resource cleanup: %v", err)
 	default:
 	}
 
 	closeReleasedAt := time.Now()
 	close(releaseClose)
 	select {
-	case err := <-stopResult:
+	case err := <-shutdownResult:
 		if err != nil {
-			t.Fatalf("StopExecution after driver cleanup: %v", err)
+			t.Fatalf("owner shutdown after driver cleanup: %v", err)
 		}
 	case <-time.After(5 * time.Second):
-		t.Fatal("terminal cleanup did not finish within5s after driver close was released")
+		t.Fatal("owner shutdown did not finish within5s after driver close was released")
 	}
 	if repo.index.Status != database.ExecutionStatusCancelled || repo.index.CompletedAt == nil {
 		t.Fatalf("terminal receipt = status %s completed %v, want cancelled with completion time", repo.index.Status, repo.index.CompletedAt)
@@ -736,10 +738,60 @@ func TestStopExecutionRetainsUncertainOutcomeAndJoinsLeasedDriverClose(t *testin
 	if uncertain == nil || uncertain.Failure == nil || uncertain.Failure.Code != contracts.FailureCodeInstructionOutcomeUncertain || uncertain.Failure.Retryable {
 		t.Fatalf("last step evidence = %+v, want a retained non-retryable uncertain outcome", uncertain)
 	}
-	inputStoppedMS := float64(inputStoppedAt.Sub(stopStarted).Microseconds()) / 1000
+	resultPath := filepath.Join(artifactRoot, repo.index.ID.String(), "result.json")
+	resultBytes, err := os.ReadFile(resultPath)
+	if err != nil {
+		t.Fatalf("read persisted execution result after shutdown: %v", err)
+	}
+	var persistedTimeline map[string]any
+	if err := json.Unmarshal(resultBytes, &persistedTimeline); err != nil {
+		t.Fatalf("decode persisted execution result: %v", err)
+	}
+	entries, ok := persistedTimeline["entries"].([]any)
+	if !ok || len(entries) == 0 {
+		t.Fatalf("shutdown did not preserve timeline entries in result: %#v", persistedTimeline)
+	}
+	evidencePath := filepath.Join(artifactRoot, repo.index.ID.String(), "evidence.proto.json")
+	evidenceBytes, err := os.ReadFile(evidencePath)
+	if err != nil {
+		t.Fatalf("shutdown did not preserve evidence manifest: %v", err)
+	}
+	var evidenceManifest map[string]any
+	if err := json.Unmarshal(evidenceBytes, &evidenceManifest); err != nil {
+		t.Fatalf("decode persisted evidence manifest: %v", err)
+	}
+	if len(evidenceManifest) == 0 {
+		t.Fatal("shutdown left an empty evidence manifest")
+	}
+	inputStoppedMS := float64(inputStoppedAt.Sub(shutdownStarted).Microseconds()) / 1000
 	cleanupMS := float64(time.Since(closeReleasedAt).Microseconds()) / 1000
 	if inputStoppedMS > 1000 || cleanupMS > 5000 {
 		t.Fatalf("cancellation timings outside J07 band: inputStopped=%.2fms cleanup=%.2fms", inputStoppedMS, cleanupMS)
+	}
+
+	// A separate stale row and owner inventory model the next API process after
+	// an abrupt prior exit. Startup recovery finalizes the row, then the normal
+	// SessionReconciler closes only that exact stale owner/lease.
+	staleExecutionID := uuid.New()
+	staleWorkflowID := uuid.New()
+	staleRepo := &workflowRestartRepository{row: &database.ExecutionIndex{
+		ID: staleExecutionID, WorkflowID: staleWorkflowID, Status: database.ExecutionStatusRunning,
+		UpdatedAt: time.Now().UTC().Add(-time.Hour),
+	}}
+	staleDriver := &workflowRestartDriver{sessions: []driver.ObservedSession{{
+		ID: "restart-orphan", OwnerExecutionID: staleExecutionID.String(), LeaseID: "restart-lease",
+	}}}
+	recovered, err := recoveryservice.NewService(staleRepo, logrus.New(), t.TempDir()).RecoverInterruptedExecutions(context.Background())
+	if err != nil || recovered.Recovered != 1 || staleRepo.row.Status != database.ExecutionStatusFailed {
+		t.Fatalf("startup recovery = %#v row=%+v err=%v", recovered, staleRepo.row, err)
+	}
+	reconciler := recoveryservice.NewSessionReconciler(staleDriver, staleRepo, logrus.New(), recoveryservice.WithSessionTerminalGrace(0))
+	reconciled, err := reconciler.ReconcileOnce(context.Background())
+	if err != nil || reconciled.Closed != 1 || len(staleDriver.sessions) != 0 || len(staleDriver.closed) != 1 {
+		t.Fatalf("post-restart orphan reconciliation = %#v sessions=%#v closed=%#v err=%v", reconciled, staleDriver.sessions, staleDriver.closed, err)
+	}
+	if staleDriver.closed[0].ID != "restart-orphan" || staleDriver.closed[0].OwnerExecutionID != staleExecutionID.String() || staleDriver.closed[0].LeaseID != "restart-lease" {
+		t.Fatalf("restart reconciler closed wrong owner lease: %#v", staleDriver.closed[0])
 	}
 }
 
@@ -896,7 +948,7 @@ func TestListExecutionArtifactsDoesNotExposeCapturePath(t *testing.T) {
 	}
 
 	service := &WorkflowService{executionDataRoot: root}
-	artifacts, err := service.listExecutionArtifacts(context.Background(), executionID, "har")
+	artifacts, err := service.GetExecutionHarArtifacts(context.Background(), executionID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -940,6 +992,25 @@ func TestExecutionOutcomeDistinguishesCancellationFromFailure(t *testing.T) {
 				t.Fatalf("failure detail lost: %q", detail)
 			}
 		})
+	}
+}
+
+func TestCancellationPersistsExecutionFinalizationFailure(t *testing.T) {
+	cleanupFailure := &executor.ExecutionFinalizationError{Cause: errors.New("driver session close failed")}
+	_, repo, invoke := newCompletionFixture(t, "saved", func(context.Context, executor.Request) error {
+		return errors.Join(context.Canceled, cleanupFailure)
+	})
+
+	got := invoke(context.Background(), true)
+	wantDetail := "execution cancelled; finalization failed: driver session close failed"
+	if got.err != nil || !got.completed || got.status != basbase.ExecutionStatus_EXECUTION_STATUS_CANCELLED {
+		t.Fatalf("cancelled execution = %+v, want completed cancelled receipt", got)
+	}
+	if got.detail != wantDetail {
+		t.Fatalf("execution detail = %q, want %q", got.detail, wantDetail)
+	}
+	if repo.index.ErrorMessage != wantDetail {
+		t.Fatalf("durable execution error = %q, want %q", repo.index.ErrorMessage, wantDetail)
 	}
 }
 

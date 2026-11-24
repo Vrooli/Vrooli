@@ -12,6 +12,12 @@ import { buildStepOutcome, toDriverOutcome } from '../outcome';
 import { InvalidInstructionError } from '../utils';
 import { MAX_EXECUTED_INSTRUCTIONS_PER_SESSION } from '../constants';
 import type winston from 'winston';
+import { authorizeInstruction } from '../session/permission-policy';
+import { getInputParams } from '../proto';
+import { getFrameSwitchParams } from '../proto';
+import { getDocument } from '../handlers/base';
+
+const BAS_REFERENCE_SELECTOR = /^@bas-ref:(e[0-9]{1,90})$/;
 
 function withAudioCapability(outcome: unknown, session: SessionState): unknown {
   if (!outcome || typeof outcome !== 'object' || Array.isArray(outcome)) return outcome;
@@ -71,6 +77,65 @@ export async function handleSessionRun(
       return;
     }
     const session = sessionManager.getSessionForLease(sessionId, executionId, leaseId);
+    if (session.extensionOperationInFlight) {
+      sendJson(res, 409, { error: { code: 'SESSION_BUSY', message: 'Session cannot execute an instruction while an extension operation is in flight', kind: 'orchestration', retryable: false } });
+      return;
+    }
+    const action = validation.instruction.action as unknown as { params?: { value?: { selector?: string } } };
+    const requestedSelector = action?.params?.value?.selector;
+    if (typeof requestedSelector === 'string' && requestedSelector.startsWith('@bas-ref:')) {
+      const match = BAS_REFERENCE_SELECTOR.exec(requestedSelector);
+      const reference = match?.[1];
+      const target = reference ? session.accessibilityReferenceTargets?.get(reference) : undefined;
+      const currentPageId = session.pageBindings.getId(session.page);
+      if (!target || target.expiresAt <= Date.now() || target.pageId !== currentPageId || target.url !== session.page.url()) {
+        sendJson(res, 409, { error: { code: 'ACCESSIBILITY_REFERENCE_STALE', message: 'Accessibility reference is unknown, expired, or belongs to another page', kind: 'orchestration', retryable: true } });
+        return;
+      }
+      // Rewrite in the driver only; the public task contract contains the ref,
+      // while the selector remains private to this exact leased session.
+      action.params!.value!.selector = target.selector;
+    }
+    const typedInput = validation.instruction.action ? getInputParams(validation.instruction.action) : undefined;
+    if (session.spec?.permission_profile && typedInput) {
+      if (typedInput.isSensitive || await isSensitiveInputTarget(session.page, typedInput.selector)) {
+        sendJson(res, 403, { error: { code: 'BROWSER_PERMISSION_DENIED', message: 'raw sensitive input is unsupported; use the credential authority reference flow', kind: 'auth', retryable: false } });
+        return;
+      }
+    }
+    const frameSwitch = validation.instruction.action
+      ? getFrameSwitchParams(validation.instruction.action)
+      : undefined;
+    let permissionURL = session.page.url();
+    const selectedFrames = session.frameStack ?? [];
+    if (selectedFrames.length && !getNavigateTarget(validation.instruction) && frameSwitch?.action !== 'exit') {
+      try {
+        const selected = getDocument({
+          page: session.page,
+          frameStack: selectedFrames,
+        });
+        permissionURL = selected === session.page
+          ? session.page.url()
+          : (frameSwitch?.action === 'parent'
+              ? selectedFrames.at(-2)?.url() ?? session.page.url()
+              : selected.url());
+      } catch (error) {
+        sendJson(res, 403, { error: { code: 'BROWSER_PERMISSION_DENIED', message: error instanceof Error ? error.message : 'Selected frame is stale', kind: 'auth', retryable: false } });
+        return;
+      }
+    }
+    const permission = authorizeInstruction(
+      session.spec?.permission_profile,
+      validation.instruction,
+      permissionURL,
+      Date.now(),
+      session.createdAt.getTime(),
+      session.instructionCount,
+    );
+    if (!permission.allowed) {
+      sendJson(res, 403, { error: { code: 'BROWSER_PERMISSION_DENIED', message: permission.reason, kind: 'auth', retryable: false } });
+      return;
+    }
     const sequence = body.operation_sequence;
     if (typeof sequence !== 'number' || !Number.isSafeInteger(sequence) || sequence <= 0 ||
         typeof body.invocation_id !== 'string' || !body.invocation_id.trim() ||
@@ -81,7 +146,7 @@ export async function handleSessionRun(
     if (header !== undefined && header !== `${leaseId}:${sequence}`) {
       throw new InvalidInstructionError('X-Idempotency-Key must match lease_id:operation_sequence');
     }
-    if (!sessionManager.canAcceptInstructions(sessionId) || !sessionManager.setSessionPhase(sessionId, 'executing')) {
+    if (session.extensionOperationInFlight || !sessionManager.canAcceptInstructions(sessionId) || !sessionManager.setSessionPhase(sessionId, 'executing')) {
       sendJson(res, 409, { error: { code: 'SESSION_BUSY', message: `Session cannot execute an instruction while ${session.phase}`, kind: 'orchestration', retryable: false } });
       return;
     }
@@ -110,7 +175,8 @@ export async function handleSessionRun(
         if (page !== session.page) session.frameStack.length = 0;
         session.page = page;
       },
-      frameStack: session.frameStack,
+      frameStack: session.frameStack ?? [],
+      permissionProfile: session.spec?.permission_profile,
       tabStack: session.context.pages(),
       browserContext: session.context,
       config,
@@ -162,4 +228,23 @@ export async function handleSessionRun(
       }
     }
   }
+}
+
+function getNavigateTarget(instruction: Parameters<typeof authorizeInstruction>[1]): string | undefined {
+  const action = instruction.action;
+  if (!action) return undefined;
+  const params = action.params;
+  if (params?.case !== 'navigate') return undefined;
+  return params.value.url;
+}
+
+async function isSensitiveInputTarget(page: SessionState['page'], selector: string): Promise<boolean> {
+  if (!selector.trim()) return true;
+  return page.locator(selector).first().evaluate((element) => {
+    if (!(element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement)) return false;
+    const type = element instanceof HTMLInputElement ? element.type.toLowerCase() : '';
+    const sensitiveAutocomplete = new Set(['current-password', 'new-password', 'one-time-code', 'cc-name', 'cc-number', 'cc-exp', 'cc-exp-month', 'cc-exp-year', 'cc-csc']);
+    const autocomplete = (element.getAttribute('autocomplete') ?? '').toLowerCase().split(/\s+/);
+    return type === 'password' || type === 'hidden' || autocomplete.some((token) => sensitiveAutocomplete.has(token));
+  });
 }

@@ -367,83 +367,46 @@ func TestMergeConsecutiveActions_MixedActions(t *testing.T) {
 	}
 }
 
-func TestApplyActionRange_EmptySlice(t *testing.T) {
-	result := ApplyActionRange(nil, 0, 5)
-	if result != nil {
-		t.Errorf("Expected nil for nil input, got %v", result)
+func actionsOfTypes(types ...string) []driver.RecordedAction {
+	actions := make([]driver.RecordedAction, len(types))
+	for i, actionType := range types {
+		actions[i].ActionType = actionType
 	}
+	return actions
+}
 
-	result = ApplyActionRange([]driver.RecordedAction{}, 0, 5)
-	if len(result) != 0 {
-		t.Errorf("Expected empty slice, got %v", result)
+func assertActionRange(t *testing.T, actions []driver.RecordedAction, start, end int, want []string) {
+	t.Helper()
+	got := ApplyActionRange(actions, start, end)
+	if want == nil {
+		require.Nil(t, got)
+		return
 	}
+	require.Len(t, got, len(want))
+	for i, action := range got {
+		require.Equal(t, want[i], action.ActionType)
+	}
+}
+
+func TestApplyActionRange_EmptySlice(t *testing.T) {
+	assertActionRange(t, nil, 0, 5, nil)
+	assertActionRange(t, []driver.RecordedAction{}, 0, 5, []string{})
 }
 
 func TestApplyActionRange_ValidRange(t *testing.T) {
-	actions := []driver.RecordedAction{
-		{ActionType: "a"},
-		{ActionType: "b"},
-		{ActionType: "c"},
-		{ActionType: "d"},
-		{ActionType: "e"},
-	}
-
-	result := ApplyActionRange(actions, 1, 3)
-
-	if len(result) != 3 {
-		t.Fatalf("Expected 3 actions, got %d", len(result))
-	}
-	if result[0].ActionType != "b" || result[1].ActionType != "c" || result[2].ActionType != "d" {
-		t.Errorf("Expected [b,c,d], got %v", result)
-	}
+	assertActionRange(t, actionsOfTypes("a", "b", "c", "d", "e"), 1, 3, []string{"b", "c", "d"})
 }
 
 func TestApplyActionRange_ClampsNegativeStart(t *testing.T) {
-	actions := []driver.RecordedAction{
-		{ActionType: "a"},
-		{ActionType: "b"},
-		{ActionType: "c"},
-	}
-
-	result := ApplyActionRange(actions, -5, 1)
-
-	if len(result) != 2 {
-		t.Fatalf("Expected 2 actions, got %d", len(result))
-	}
-	if result[0].ActionType != "a" {
-		t.Errorf("Expected first action 'a', got %s", result[0].ActionType)
-	}
+	assertActionRange(t, actionsOfTypes("a", "b", "c"), -5, 1, []string{"a", "b"})
 }
 
 func TestApplyActionRange_ClampsEndBeyondLength(t *testing.T) {
-	actions := []driver.RecordedAction{
-		{ActionType: "a"},
-		{ActionType: "b"},
-		{ActionType: "c"},
-	}
-
-	result := ApplyActionRange(actions, 1, 100)
-
-	if len(result) != 2 {
-		t.Fatalf("Expected 2 actions, got %d", len(result))
-	}
-	if result[0].ActionType != "b" || result[1].ActionType != "c" {
-		t.Errorf("Expected [b,c], got %v", result)
-	}
+	assertActionRange(t, actionsOfTypes("a", "b", "c"), 1, 100, []string{"b", "c"})
 }
 
 func TestApplyActionRange_FullRange(t *testing.T) {
-	actions := []driver.RecordedAction{
-		{ActionType: "a"},
-		{ActionType: "b"},
-		{ActionType: "c"},
-	}
-
-	result := ApplyActionRange(actions, 0, 2)
-
-	if len(result) != 3 {
-		t.Errorf("Expected all 3 actions, got %d", len(result))
-	}
+	assertActionRange(t, actionsOfTypes("a", "b", "c"), 0, 2, []string{"a", "b", "c"})
 }
 
 func TestGenerateWorkflow_CreatesNodesAndEdges(t *testing.T) {

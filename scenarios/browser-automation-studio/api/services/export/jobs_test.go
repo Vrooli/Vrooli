@@ -63,6 +63,39 @@ func TestExportRunnerAdmissionFailureReleasesCapacity(t *testing.T) {
 	}
 }
 
+func TestExportRunnerAdmissionPanicReleasesCapacityAndDrain(t *testing.T) {
+	runner := NewJobRunner(1, time.Minute)
+	func() {
+		defer func() {
+			if recovered := recover(); recovered != "admission panic" {
+				t.Fatalf("panic was not propagated: %v", recovered)
+			}
+		}()
+		_ = runner.Start(t.Context(), uuid.New(), func(context.Context) error { panic("admission panic") }, func(context.Context) { t.Error("ran unpersisted job") })
+	}()
+
+	started := make(chan struct{})
+	ended := make(chan struct{})
+	if err := runner.Start(t.Context(), uuid.New(), func(context.Context) error { return nil }, func(ctx context.Context) {
+		close(started)
+		<-ctx.Done()
+		close(ended)
+	}); err != nil {
+		t.Fatal("panic leaked bounded capacity", err)
+	}
+	<-started
+	drain, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+	if err := runner.Drain(drain); err != nil {
+		t.Fatal("drain retained a panicked admission", err)
+	}
+	select {
+	case <-ended:
+	case <-drain.Done():
+		t.Fatal("worker cleanup did not finish after drain")
+	}
+}
+
 func TestExportRunnerDrainInterruptsAdmissionWithoutLocking(t *testing.T) {
 	runner := NewJobRunner(1, time.Minute)
 	entered := make(chan struct{})

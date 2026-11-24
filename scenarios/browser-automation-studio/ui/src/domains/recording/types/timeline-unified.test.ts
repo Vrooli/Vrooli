@@ -245,6 +245,25 @@ describe('recordingEntryToTimelineItem', () => {
     expect(result.pageEventType).toBe('page_closed');
   });
 
+  it('converts active page selection events correctly', () => {
+    const entry: RecordingTimelineEntry = {
+      type: 'page_event',
+      pageId: 'page-2',
+      pageEvent: {
+        id: 'selection-1',
+        type: 'page_activated',
+        pageId: 'page-2',
+        activePageId: 'page-2',
+        timestamp: '2024-01-01T12:00:00Z',
+      },
+    };
+
+    const result = recordingEntryToTimelineItem(entry);
+
+    expect(result.actionType).toBe('page_activated');
+    expect(result.pageEventType).toBe('page_activated');
+  });
+
   it('handles a proto entry without an action', () => {
     const entry: RecordingTimelineEntry = {
       type: 'action',

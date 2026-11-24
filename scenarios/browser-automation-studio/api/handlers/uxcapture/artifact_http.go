@@ -66,8 +66,8 @@ func MountArtifactHTTP(r chi.Router, capturesRoot string) {
 
 	r.Get("/ux-capture/bundles/{bundleID}/artifacts/*", func(w http.ResponseWriter, req *http.Request) {
 		bundleID := chi.URLParam(req, "bundleID")
-		parsedID, err := uuid.Parse(bundleID)
-		if err != nil || parsedID.String() != strings.ToLower(bundleID) {
+		bundleDir, err := bundleDirectory(capturesRoot, bundleID)
+		if err != nil {
 			http.NotFound(w, req)
 			return
 		}
@@ -80,12 +80,11 @@ func MountArtifactHTTP(r chi.Router, capturesRoot string) {
 			http.Error(w, "capture storage unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		root, err := filepath.Abs(filepath.Join(capturesRoot, "ux"))
+		bundleDir, err = filepath.Abs(bundleDir)
 		if err != nil {
 			http.NotFound(w, req)
 			return
 		}
-		bundleDir := filepath.Join(root, parsedID.String())
 		manifestPath := filepath.Join(bundleDir, "manifest.json")
 		manifestBytes, err := readRegularNoSymlink(manifestPath)
 		if err != nil {

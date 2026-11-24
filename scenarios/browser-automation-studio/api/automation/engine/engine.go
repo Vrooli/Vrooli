@@ -42,7 +42,7 @@ type SessionSpec struct {
 	Labels                map[string]string
 	Capabilities          contracts.CapabilityRequirement           // Required capabilities derived from plan.
 	FrameStreaming        *FrameStreamingConfig                     // Optional: enables live frame streaming during execution.
-	BrowserProfile        *sessionprofilepersistence.BrowserProfile // Optional: anti-detection and human-like behavior settings.
+	BrowserProfile        *sessionprofilepersistence.BrowserProfile // Optional requested signal and interaction settings; no site-specific detection outcome is implied.
 	StorageState          json.RawMessage                           // Optional: session profile's storage state (cookies, localStorage) for authenticated execution.
 	// FakeMicrophoneWav is an absolute WAV path served as a deterministic fake
 	// microphone. Requires a dedicated browser instance (Chromium launch flag).

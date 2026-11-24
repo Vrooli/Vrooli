@@ -33,7 +33,9 @@ import {
 } from '../../frame-streaming';
 import { streamRecordingEntry } from './callback-streaming';
 import { setupPageLifecycleListeners, pageEventCircuitBreaker } from './page-events';
-import { recordingOwner } from './recording-ownership';
+import { recordingOwner, recordingPermissionDenied, sendRecordingError } from './recording-ownership';
+import { requireSessionLease } from '../session-lease';
+import { getNavigateParams } from '../../proto';
 
 // =============================================================================
 // Recording Lifecycle Handlers
@@ -68,6 +70,11 @@ export async function handleRecordStart(
     const body = await parseJsonBody(req, config);
     const ownedSession = recordingOwner(body, sessionId, sessionManager);
     const session = ownedSession();
+    const permissionDenied = recordingPermissionDenied(session, 'recording_start');
+    if (permissionDenied) {
+      sendJson(res, 403, { error: { code: 'BROWSER_PERMISSION_DENIED', message: permissionDenied, kind: 'auth', retryable: false } });
+      return;
+    }
     sessionManager.updateActivity(sessionId);
     const request = body as unknown as StartRecordingRequest;
 
@@ -123,6 +130,11 @@ export async function handleRecordStart(
 
     const generation = pipelineManager.getGeneration() + 1;
     // Start recording with callback to buffer entries (using pipelineManager directly)
+    const startDenied = recordingPermissionDenied(ownedSession(), 'recording_start');
+    if (startDenied) {
+      sendJson(res, 403, { error: { code: 'BROWSER_PERMISSION_DENIED', message: startDenied, kind: 'auth', retryable: false } });
+      return;
+    }
     const recordingId = await pipelineManager.startRecording({
       sessionId,
       recordingId: request.recording_id,
@@ -237,7 +249,7 @@ export async function handleRecordStart(
       sendJson(res, 409, { error: 'RECORDING_START_SUPERSEDED', message: superseded.message });
       return;
     }
-    sendError(res, error as Error, `/session/${sessionId}/record/start`);
+    sendRecordingError(res, error as Error, `/session/${sessionId}/record/start`);
   }
 }
 
@@ -266,6 +278,11 @@ export async function handleRecordStop(
     const body = await parseJsonBody(req, {});
     const ownedSession = recordingOwner(body, sessionId, sessionManager);
     const session = ownedSession();
+    const permissionDenied = recordingPermissionDenied(session, 'recording_stop');
+    if (permissionDenied) {
+      sendJson(res, 403, { error: { code: 'BROWSER_PERMISSION_DENIED', message: permissionDenied, kind: 'auth', retryable: false } });
+      return;
+    }
     sessionManager.updateActivity(sessionId);
 
     // Get pipeline manager (single source of truth for recording state)
@@ -337,13 +354,20 @@ export async function handleRecordStop(
  * Returns current recording status for the session.
  */
 export function handleRecordStatus(
-  _req: IncomingMessage,
+  req: IncomingMessage,
   res: ServerResponse,
   sessionId: string,
   sessionManager: SessionManager
 ): void {
   try {
-    const session = sessionManager.getSession(sessionId);
+    const owner = requireSessionLease(req, res, sessionId, sessionManager);
+    if (!owner) return;
+    const session = owner.session;
+    const permissionDenied = recordingPermissionDenied(session, 'history_read');
+    if (permissionDenied) {
+      sendJson(res, 403, { error: { code: 'BROWSER_PERMISSION_DENIED', message: permissionDenied, kind: 'auth', retryable: false } });
+      return;
+    }
 
     // Use pipelineManager as single source of truth
     const pipelineManager = session.pipelineManager;
@@ -381,11 +405,25 @@ export function handleRecordActions(
   sessionManager: SessionManager
 ): void {
   try {
-    // Verify session exists
-    sessionManager.getSession(sessionId);
+    const owner = requireSessionLease(req, res, sessionId, sessionManager);
+    if (!owner) return;
+    const session = owner.session;
+    const permissionDenied = recordingPermissionDenied(session, 'history_read');
+    if (permissionDenied) {
+      sendJson(res, 403, { error: { code: 'BROWSER_PERMISSION_DENIED', message: permissionDenied, kind: 'auth', retryable: false } });
+      return;
+    }
 
     // Get buffered TimelineEntry objects (already proto format)
     const entries = getTimelineEntries(sessionId);
+    const outOfScope = entries.some(entry => {
+      const target = entry.action ? getNavigateParams(entry.action)?.url : undefined;
+      return target ? Boolean(recordingPermissionDenied(owner.session, 'history_read', target)) : false;
+    });
+    if (outOfScope) {
+      sendJson(res, 403, { error: { code: 'BROWSER_PERMISSION_DENIED', message: 'recorded history contains a URL outside the admitted scope', kind: 'auth', retryable: false } });
+      return;
+    }
 
     // Check for clear query param (parse URL manually since we don't have query parser)
     const url = new URL(req.url || '', `http://localhost`);
@@ -418,10 +456,25 @@ export async function handleRecordActionsAck(
 ): Promise<void> {
   try {
     const body = await parseJsonBody(req, config);
-    recordingOwner(body, sessionId, sessionManager)();
+    const owner = recordingOwner(body, sessionId, sessionManager)();
+    const permissionDenied = recordingPermissionDenied(owner, 'history_read');
+    if (permissionDenied) {
+      sendJson(res, 403, { error: { code: 'BROWSER_PERMISSION_DENIED', message: permissionDenied, kind: 'auth', retryable: false } });
+      return;
+    }
     const ids = body.entry_ids;
     if (!Array.isArray(ids) || ids.some((id) => typeof id !== 'string' || !id)) {
       throw new Error('entry_ids must be an array of nonempty entry identities');
+    }
+    const selected = new Set(ids as string[]);
+    const outOfScope = getTimelineEntries(sessionId).some((entry) => {
+      if (!selected.has(entry.id) || !entry.action) return false;
+      const target = getNavigateParams(entry.action)?.url;
+      return target ? Boolean(recordingPermissionDenied(owner, 'history_read', target)) : false;
+    });
+    if (outOfScope) {
+      sendJson(res, 403, { error: { code: 'BROWSER_PERMISSION_DENIED', message: 'recorded history contains a URL outside the admitted scope', kind: 'auth', retryable: false } });
+      return;
     }
     sessionManager.updateActivity(sessionId);
     acknowledgeTimelineEntries(sessionId, ids, true);

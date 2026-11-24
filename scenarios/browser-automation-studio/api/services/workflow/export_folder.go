@@ -2,8 +2,8 @@ package workflow
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -106,7 +106,7 @@ func (s *WorkflowService) exportVideoArtifacts(ctx context.Context, executionID 
 			}
 		}
 		srcPath := filepath.Join(srcDir, entry.Name())
-		if err := copyFile(srcPath, filepath.Join(destDir, entry.Name())); err != nil {
+		if _, err := storage.CopyArtifactFile(srcPath, filepath.Join(destDir, entry.Name())); err != nil {
 			return fmt.Errorf("copy video %q: %w", entry.Name(), err)
 		}
 		if storageClient != nil {
@@ -141,7 +141,7 @@ func (s *WorkflowService) exportAccessibilityArtifacts(ctx context.Context, exec
 		return fmt.Errorf("stat accessibility snapshot: %w", err)
 	}
 
-	if err := copyFile(srcPath, filepath.Join(outputDir, accessibilitySnapshotFile)); err != nil {
+	if _, err := storage.CopyArtifactFile(srcPath, filepath.Join(outputDir, accessibilitySnapshotFile)); err != nil {
 		return fmt.Errorf("copy accessibility snapshot: %w", err)
 	}
 	if storageClient != nil {
@@ -184,7 +184,7 @@ func (s *WorkflowService) exportPerformanceArtifacts(ctx context.Context, execut
 		if err := os.MkdirAll(destDir, 0o755); err != nil {
 			return fmt.Errorf("create performance dir: %w", err)
 		}
-		if err := copyFile(srcPath, filepath.Join(destDir, name)); err != nil {
+		if _, err := storage.CopyArtifactFile(srcPath, filepath.Join(destDir, name)); err != nil {
 			return fmt.Errorf("copy %s: %w", name, err)
 		}
 		if storageClient != nil {
@@ -196,24 +196,6 @@ func (s *WorkflowService) exportPerformanceArtifacts(ctx context.Context, execut
 		_ = info
 	}
 	return nil
-}
-
-// copyFile copies src to dst, truncating dst if it exists.
-func copyFile(src, dst string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	if _, err := io.Copy(out, in); err != nil {
-		out.Close()
-		return err
-	}
-	return out.Close()
 }
 
 // WriteExportPlan is the I/O half of ExportToFolder: it validates and
@@ -259,17 +241,18 @@ func WriteExportPlan(ctx context.Context, plan *ExportPlan, outputDir string, st
 		}
 		destPath := filepath.Join(outputDir, shot.RelPathNoExt+"."+ext)
 
-		outFile, err := os.Create(destPath)
-		if err != nil {
-			reader.Close()
-			return fmt.Errorf("failed to create screenshot file %s: %w", destPath, err)
-		}
-
-		_, err = io.Copy(outFile, reader)
-		reader.Close()
-		outFile.Close()
-		if err != nil {
-			return fmt.Errorf("failed to write screenshot %s: %w", destPath, err)
+		_, copyErr := storage.CopyArtifactReader(reader, destPath)
+		_ = reader.Close() // preserve the prior best-effort source-close behavior
+		if copyErr != nil {
+			var ownerErr *storage.ArtifactCopyError
+			if errors.As(copyErr, &ownerErr) && ownerErr.Operation == "close" {
+				// The previous implementation ignored the destination close error.
+				continue
+			}
+			if errors.As(copyErr, &ownerErr) && ownerErr.Operation == "create" {
+				return fmt.Errorf("failed to create screenshot file %s: %w", destPath, copyErr)
+			}
+			return fmt.Errorf("failed to write screenshot %s: %w", destPath, copyErr)
 		}
 	}
 

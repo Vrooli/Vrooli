@@ -13,6 +13,7 @@ import {
 
 const updateFrameStreamSettings = jest.fn();
 const getFrameStreamSettings = jest.fn();
+const ownedSession = { phase: 'ready', page: { url: () => 'https://example.com/' }, createdAt: new Date(), instructionCount: 0 };
 
 jest.mock('../../../src/frame-streaming', () => ({
   updateFrameStreamSettings: (...args: unknown[]) => updateFrameStreamSettings(...args),
@@ -39,9 +40,9 @@ describe('recording diagnostics routes', () => {
   ])('rejects malformed stream settings before invoking capture: %j', async (body) => {
     getFrameStreamSettings.mockReset().mockReturnValue({ quality: 65, fps: 30, currentFps: 0, scale: 'css', isStreaming: true, perfMode: false });
     updateFrameStreamSettings.mockResolvedValue(true);
-    const req = createMockHttpRequest({ method: 'POST', body });
+    const req = createMockHttpRequest({ method: 'POST', body: { ...body, execution_id: 'owner', lease_id: 'lease' } });
     const res = createMockHttpResponse();
-    await handleStreamSettings(req, res, 'test', { getSession: () => ({}) } as unknown as SessionManager, config);
+    await handleStreamSettings(req, res, 'test', { getSessionForLease: () => ownedSession } as unknown as SessionManager, config);
     expect(res.statusCode).toBe(400);
     expect(updateFrameStreamSettings).not.toHaveBeenCalled();
   });
@@ -52,11 +53,11 @@ describe('recording diagnostics routes', () => {
     const req = createMockHttpRequest({
       method: 'POST',
       url: '/session/test/record/stream-settings',
-      body: { quality: 70, fps: 25 },
+      body: { execution_id: 'owner', lease_id: 'lease', quality: 70, fps: 25 },
     });
     const res = createMockHttpResponse();
-    const sessionManager: Pick<SessionManager, 'getSession'> = {
-      getSession: () => ({} as ReturnType<SessionManager['getSession']>),
+    const sessionManager: Pick<SessionManager, 'getSessionForLease'> = {
+      getSessionForLease: () => ownedSession as ReturnType<SessionManager['getSession']>,
     };
 
     await handleStreamSettings(req, res, 'test', sessionManager as SessionManager, config);
@@ -65,6 +66,20 @@ describe('recording diagnostics routes', () => {
     const payload = res.getJSON();
     expect(payload.is_streaming).toBe(false);
     expect(payload.updated).toBe(false);
+    expect(updateFrameStreamSettings).not.toHaveBeenCalled();
+  });
+
+  it('denies out-of-scope stream control before updating the stream', async () => {
+    const session = { ...ownedSession, spec: { permission_profile: {
+      effect: 'act', approval: 'none', view: true, control: true, url_allow: ['https://other.example/*'],
+    } } } as ReturnType<SessionManager['getSession']>;
+    const manager: Pick<SessionManager, 'getSessionForLease'> = {
+      getSessionForLease: () => session,
+    };
+    const req = createMockHttpRequest({ method: 'POST', body: { execution_id: 'owner', lease_id: 'lease', quality: 70 } });
+    const res = createMockHttpResponse();
+    await handleStreamSettings(req, res, 'test', manager as SessionManager, config);
+    expect(res.statusCode).toBe(403);
     expect(updateFrameStreamSettings).not.toHaveBeenCalled();
   });
 
@@ -91,11 +106,11 @@ describe('recording diagnostics routes', () => {
     const req = createMockHttpRequest({
       method: 'POST',
       url: '/session/test/record/stream-settings',
-      body: { quality: 60, fps: 30, scale: 'device', perfMode: true },
+      body: { execution_id: 'owner', lease_id: 'lease', quality: 60, fps: 30, scale: 'device', perfMode: true },
     });
     const res = createMockHttpResponse();
-    const sessionManager: Pick<SessionManager, 'getSession'> = {
-      getSession: () => ({} as ReturnType<SessionManager['getSession']>),
+    const sessionManager: Pick<SessionManager, 'getSessionForLease'> = {
+      getSessionForLease: () => ownedSession as ReturnType<SessionManager['getSession']>,
     };
 
     await handleStreamSettings(req, res, 'test', sessionManager as SessionManager, config);
@@ -220,14 +235,15 @@ describe('recording diagnostics routes', () => {
   });
 
   it('returns errors when external URL test prerequisites are missing', async () => {
-    const sessionManager: Pick<SessionManager, 'getSession'> = {
-      getSession: () => ({ page: { url: jest.fn().mockReturnValue('about:blank') } } as ReturnType<SessionManager['getSession']>),
+    const session = { phase: 'ready', page: { url: jest.fn().mockReturnValue('about:blank') } } as ReturnType<SessionManager['getSession']>;
+    const sessionManager: Pick<SessionManager, 'getSessionForLease'> = {
+      getSessionForLease: () => session,
     };
 
     const req = createMockHttpRequest({
       method: 'POST',
       url: '/session/test/record/external-url-test',
-      body: {},
+      body: { execution_id: 'owner', lease_id: 'lease' },
     });
     const res = createMockHttpResponse();
 
@@ -252,17 +268,19 @@ describe('recording diagnostics routes', () => {
       goto: jest.fn().mockResolvedValue(undefined),
     };
 
-    const sessionManager: Pick<SessionManager, 'getSession'> = {
-      getSession: () => ({
+    const session = {
+        phase: 'ready',
         page,
         recordingInitializer: {},
-      } as ReturnType<SessionManager['getSession']>),
+      } as ReturnType<SessionManager['getSession']>;
+    const sessionManager: Pick<SessionManager, 'getSessionForLease'> = {
+      getSessionForLease: () => session,
     };
 
     const req = createMockHttpRequest({
       method: 'POST',
       url: '/session/test/record/external-url-test',
-      body: { test_url: 'https://example.com' },
+      body: { execution_id: 'owner', lease_id: 'lease', test_url: 'https://example.com' },
     });
     const res = createMockHttpResponse();
 
@@ -271,5 +289,18 @@ describe('recording diagnostics routes', () => {
     expect(res.statusCode).toBe(200);
     expect(res.getJSON().success).toBe(true);
     expect(page.goto).toHaveBeenCalled();
+  });
+
+  it('denies out-of-scope external URL injection before the test runner', async () => {
+    const page = { url: jest.fn().mockReturnValue('https://example.com') };
+    const session = { phase: 'ready', createdAt: new Date(), instructionCount: 0, page, recordingInitializer: {}, spec: { permission_profile: {
+      effect: 'act', approval: 'none', view: true, control: true, url_allow: ['https://example.com/*'],
+    } } } as unknown as ReturnType<SessionManager['getSession']>;
+    const manager: Pick<SessionManager, 'getSessionForLease'> = { getSessionForLease: () => session };
+    const req = createMockHttpRequest({ method: 'POST', body: { execution_id: 'owner', lease_id: 'lease', test_url: 'https://outside.example/' } });
+    const res = createMockHttpResponse();
+    await handleRecordExternalUrlTest(req, res, 'test', manager as SessionManager, config);
+    expect(res.statusCode).toBe(403);
+    expect(runExternalUrlInjectionTest).not.toHaveBeenCalled();
   });
 });

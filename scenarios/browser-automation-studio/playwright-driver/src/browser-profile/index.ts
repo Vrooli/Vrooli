@@ -1,7 +1,8 @@
 /**
  * Browser Profile Module
  *
- * Anti-detection and human-like behavior configuration for browser automation.
+ * Browser signal adjustment and interaction timing configuration. These
+ * settings do not qualify site-specific detection or access outcomes.
  */
 
 // Re-export types

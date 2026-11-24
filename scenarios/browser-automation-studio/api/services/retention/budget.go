@@ -162,7 +162,7 @@ func (s *Service) EnforceEvidenceBudget(ctx context.Context, name string, budget
 			if name == "captures" {
 				return s.captureEligible(ctx, filepath.Base(path), path)
 			}
-			id, err := uuid.Parse(filepath.Base(path))
+			id, err := parseExecutionDirectoryID(path)
 			if err != nil {
 				return false, nil
 			}
@@ -183,7 +183,7 @@ func (s *Service) EnforceEvidenceBudget(ctx context.Context, name string, budget
 			removeWithEvidence := func(lockCtx context.Context) error {
 				return WithInactiveEvidence([]string{path, "execution:" + filepath.Base(path)}, func() error {
 					if name == "recordings" {
-						id, err := uuid.Parse(filepath.Base(path))
+						id, err := parseExecutionDirectoryID(path)
 						if err != nil {
 							return err
 						}
@@ -207,7 +207,7 @@ func (s *Service) EnforceEvidenceBudget(ctx context.Context, name string, budget
 			if name != "recordings" {
 				return removeWithEvidence(ctx)
 			}
-			id, err := uuid.Parse(filepath.Base(path))
+			id, err := parseExecutionDirectoryID(path)
 			if err != nil {
 				return err
 			}
@@ -218,6 +218,10 @@ func (s *Service) EnforceEvidenceBudget(ctx context.Context, name string, budget
 		return coreRetention.Result{}, err
 	}
 	return pruner.Prune(ctx, budget)
+}
+
+func parseExecutionDirectoryID(path string) (uuid.UUID, error) {
+	return uuid.Parse(filepath.Base(path))
 }
 
 func (s *Service) EnforceEvidenceBudgets(ctx context.Context, budgets map[string]coreRetention.Budget, keep int) error {

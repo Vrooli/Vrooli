@@ -87,6 +87,22 @@ func TestBuildExportPlan_PlansScreenshotCopies(t *testing.T) {
 	require.Contains(t, plan.Screenshots[0].RelPathNoExt, "screenshots/step-01-")
 }
 
+func TestBuildExportPlanSanitizesScreenshotFilenameThroughExportOwner(t *testing.T) {
+	timeline := &export.ExecutionTimeline{
+		ExecutionID: uuid.New(),
+		Status:      "completed",
+		Frames: []export.TimelineFrame{{
+			NodeID:     "../private\x00shot",
+			Screenshot: &export.TimelineScreenshot{URL: "/api/v1/screenshots/obj-123", ContentType: "image/png"},
+		}},
+	}
+
+	plan, err := BuildExportPlan(timeline, "Flow", "")
+	require.NoError(t, err)
+	require.Len(t, plan.Screenshots, 1)
+	require.Equal(t, "screenshots/step-01-..-privateshot", plan.Screenshots[0].RelPathNoExt)
+}
+
 func TestBuildExportPlan_DefaultsWorkflowName(t *testing.T) {
 	timeline := &export.ExecutionTimeline{ExecutionID: uuid.New(), Status: "completed"}
 	plan, err := BuildExportPlan(timeline, "", "")

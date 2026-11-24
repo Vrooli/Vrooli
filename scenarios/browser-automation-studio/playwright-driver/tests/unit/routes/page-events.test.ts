@@ -191,6 +191,39 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
     } finally {cleanup();}
   });
 
+  it('retries an unacknowledged popup event unchanged before publishing navigation', async () => {
+    jest.useFakeTimers();
+    const f = fixture();
+    const firstAttempt = createDeferred<void>();
+    fetchMock.mockImplementationOnce(async () => {
+      firstAttempt.resolve();
+      return { ok: false, status: 503, statusText: 'temporary journal outage' } as Response;
+    });
+    const { cleanup } = f.setup();
+    const opening = f.open();
+    try {
+      await firstAttempt.promise;
+      f.page.url = (): string => 'https://fixture.invalid/popup-next';
+      const navigation = (f.page.listeners('framenavigated')[0] as (frame: unknown) => Promise<void>)(f.frame);
+      await Promise.resolve();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(pageEventBodies(fetchMock).map(event => event.eventType)).toEqual(['created']);
+
+      await jest.advanceTimersByTimeAsync(1_000);
+      await opening;
+      await navigation;
+      const events = pageEventBodies(fetchMock);
+      expect(events.map(event => event.eventType)).toEqual(['created', 'created', 'navigated']);
+      expect(fetchMock.mock.calls[0]?.[1]?.body).toEqual(fetchMock.mock.calls[1]?.[1]?.body);
+      expect(events[0]?.driverPageId).toBe(events[1]?.driverPageId);
+      expect(events[1]?.driverPageId).toBe(events[2]?.driverPageId);
+      expect(events[2]?.url).toBe('https://fixture.invalid/popup-next');
+    } finally {
+      cleanup();
+      jest.useRealTimers();
+    }
+  });
+
   it('records the exact opener identity for a restored popup', async () => {
     const opener = fixture();
     const popup = fixture();

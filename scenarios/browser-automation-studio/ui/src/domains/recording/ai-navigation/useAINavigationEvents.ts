@@ -52,6 +52,7 @@ const handleStepEvent = (
     currentUrl: event.currentUrl,
     goalAchieved: event.goalAchieved,
     tokensUsed: event.tokensUsed,
+    inferenceReceipt: event.inferenceReceipt,
     durationMs: event.durationMs,
     error: event.error,
     timestamp: new Date(event.timestamp),

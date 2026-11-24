@@ -3,7 +3,7 @@
   "name": "browser-automation-studio.setpoint-read",
   "version": "2",
   "helpers": {
-    "program": "1"
+    "program": "2"
   },
   "purpose": "Read every row of browser-automation-studio's improve setpoint in one submission and report each as in band, out of band, or unavailable, without estimating; preserve bounded child identity and quality causes for the external-friction row.",
   "inputs": {
@@ -97,6 +97,7 @@
         "invalid_input",
         "deadline_exceeded",
         "binding_error",
+        "invalid_response",
         "kernel_runtime",
         "no_governed_binding",
         "remote_error"

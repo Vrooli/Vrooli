@@ -33,7 +33,7 @@ import type {
 } from './types';
 import type { BrowserAction, DoneAction, RequestHumanAction } from '../action/types';
 import { detectCaptcha } from '../detection/captcha-detector';
-import type { TokenUsage, ElementLabel } from '../vision-client/types';
+import type { InferenceReceipt, TokenUsage, ElementLabel } from '../vision-client/types';
 import { extractInteractiveElements, formatElementLabelsForPrompt } from '../screenshot/annotate';
 import { logger } from '../../utils';
 import {
@@ -47,6 +47,7 @@ import {
 } from './loop-detection';
 
 import { AI_DEFAULTS } from '../config';
+import { trimConversationHistory } from './conversation-history';
 import {
   isScreenshotBlockedByCaptcha,
   isGoalAchieved,
@@ -180,7 +181,12 @@ export function createVisionAgent(
 
           // Step delay (for rate limiting)
           if (cfg.stepDelayMs > 0 && stepNumber > 1) {
-            await delay(cfg.stepDelayMs);
+            await delay(cfg.stepDelayMs, signal);
+            if (checkAbort()) {
+              status = 'aborted';
+              error = 'Navigation aborted by user';
+              break;
+            }
           }
 
           // Get current URL (before any operations that might fail)
@@ -392,6 +398,7 @@ export function createVisionAgent(
             goalAchieved: boolean;
             confidence: number;
             tokensUsed: TokenUsage;
+            inferenceReceipt?: InferenceReceipt;
           };
 
           try {
@@ -468,6 +475,7 @@ export function createVisionAgent(
               screenshot,
               currentUrl,
               tokensUsed: analysisResult.tokensUsed,
+              inferenceReceipt: analysisResult.inferenceReceipt,
               durationMs: Date.now() - stepStartTime,
               goalAchieved: true,
               elementLabels,
@@ -504,6 +512,7 @@ export function createVisionAgent(
               screenshot,
               currentUrl,
               tokensUsed: analysisResult.tokensUsed,
+              inferenceReceipt: analysisResult.inferenceReceipt,
               durationMs: Date.now() - stepStartTime,
               goalAchieved: false,
               awaitingHuman: true,
@@ -569,6 +578,7 @@ export function createVisionAgent(
               screenshot,
               currentUrl,
               tokensUsed: analysisResult.tokensUsed,
+              inferenceReceipt: analysisResult.inferenceReceipt,
               durationMs: Date.now() - stepStartTime,
               goalAchieved: false,
               elementLabels,
@@ -611,6 +621,7 @@ export function createVisionAgent(
               screenshot,
               currentUrl,
               tokensUsed: analysisResult.tokensUsed,
+              inferenceReceipt: analysisResult.inferenceReceipt,
               durationMs: Date.now() - stepStartTime,
               goalAchieved: false,
               error: loopCheck.reason,
@@ -648,6 +659,7 @@ export function createVisionAgent(
             screenshot,
             currentUrl,
             tokensUsed: analysisResult.tokensUsed,
+            inferenceReceipt: analysisResult.inferenceReceipt,
             durationMs: Date.now() - stepStartTime,
             goalAchieved: false,
             error: executionResult.error,
@@ -658,7 +670,12 @@ export function createVisionAgent(
 
           // Delay after action to let page settle (configurable via postActionSettleMs)
           if (cfg.postActionSettleMs > 0) {
-            await delay(cfg.postActionSettleMs);
+            await delay(cfg.postActionSettleMs, signal);
+            if (checkAbort()) {
+              status = 'aborted';
+              error = 'Navigation aborted by user';
+              break;
+            }
           }
         }
 
@@ -800,46 +817,6 @@ function updateConversationHistory(
 }
 
 /**
- * PERFORMANCE: Trim conversation history to prevent context overflow.
- * Keeps the system message and goal, plus the most recent messages.
- */
-function trimConversationHistory(
-  history: ConversationMessageInterface[],
-  maxMessages: number
-): void {
-  if (history.length <= maxMessages) {
-    return;
-  }
-
-  // Find the indices of system message and goal (usually first 2 messages)
-  let systemAndGoalEnd = 0;
-  for (let i = 0; i < history.length && i < 3; i++) {
-    const entry = history[i];
-    if (!entry) {
-      continue;
-    }
-    if (entry.role === 'system') {
-      systemAndGoalEnd = i + 1;
-    } else if (i === 1 && entry.role === 'user' && entry.content.startsWith('Goal:')) {
-      systemAndGoalEnd = i + 1;
-    }
-  }
-
-  // Calculate how many messages to keep after system/goal
-  const messagesAfterSystemGoal = maxMessages - systemAndGoalEnd;
-  if (messagesAfterSystemGoal <= 0) {
-    return; // Can't trim without removing system/goal
-  }
-
-  // Remove old messages, keeping system/goal at the start and recent at the end
-  const messagesToRemove = history.length - maxMessages;
-  if (messagesToRemove > 0) {
-    // Remove from after systemAndGoalEnd
-    history.splice(systemAndGoalEnd, messagesToRemove);
-  }
-}
-
-/**
  * Build system prompt for the vision model.
  */
 function buildSystemPrompt(): string {
@@ -940,8 +917,22 @@ async function safeEmit(
 /**
  * Simple delay helper.
  */
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function delay(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    if (ms <= 0 || signal?.aborted) {
+      resolve();
+      return;
+    }
+    let timer: ReturnType<typeof setTimeout>;
+    const finish = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', finish);
+      resolve();
+    };
+    timer = setTimeout(finish, ms);
+    signal?.addEventListener('abort', finish, { once: true });
+    if (signal?.aborted) finish();
+  });
 }
 
 /**

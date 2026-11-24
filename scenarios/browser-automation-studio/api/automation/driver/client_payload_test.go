@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -117,7 +118,7 @@ func TestUpdateStreamSettingsPreservesFractionalCurrentFPS(t *testing.T) {
 
 	client, err := NewClientWithURL(server.URL)
 	require.NoError(t, err)
-	response, err := client.UpdateStreamSettings(context.Background(), "session", &UpdateStreamSettingsRequest{})
+	response, err := client.UpdateStreamSettings(context.Background(), "session", "owner", "lease", &UpdateStreamSettingsRequest{})
 	require.NoError(t, err)
 	assert.InDelta(t, 22.28, response.CurrentFPS, 0.001)
 }
@@ -159,7 +160,7 @@ func TestRecordingPullRejectsMalformedTimelineWithoutDestructiveRead(t *testing.
 	}))
 	client, err := NewClientWithURL(server.URL)
 	require.NoError(t, err)
-	_, err = client.GetRecordedActions(context.Background(), "session")
+	_, err = client.GetRecordedActions(context.Background(), "session", "execution", "lease")
 	require.ErrorContains(t, err, "parse recorded entry")
 }
 
@@ -169,7 +170,7 @@ func TestRecordingPullRetainsTypedCanonicalEntries(t *testing.T) {
 	}))
 	client, err := NewClientWithURL(server.URL)
 	require.NoError(t, err)
-	response, err := client.GetRecordedActions(context.Background(), "session")
+	response, err := client.GetRecordedActions(context.Background(), "session", "execution", "lease")
 	require.NoError(t, err)
 	require.Len(t, response.TimelineEntries, 1)
 	assert.Equal(t, "00000000-0000-4000-8000-000000000001", response.TimelineEntries[0].GetId())
@@ -338,9 +339,58 @@ func TestGetFrameRejectsInvalidReceipts(t *testing.T) {
 			server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _ = json.NewEncoder(w).Encode(frame) }))
 			client, err := NewClientWithURL(server.URL, WithoutCircuitBreaker())
 			require.NoError(t, err)
-			result, err := client.GetFrame(context.Background(), "preview", "")
+			result, err := client.GetFrame(context.Background(), "preview", "execution", "lease", "")
 			require.Error(t, err)
 			assert.Nil(t, result)
 		})
 	}
+}
+
+func TestFrameAndScreenshotRoutesBindImmutableLease(t *testing.T) {
+	var screenshotBody map[string]any
+	var frameQuery url.Values
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/session/owned/record/screenshot":
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&screenshotBody))
+			_, _ = w.Write([]byte(`{"session_id":"owned","screenshot":"data:image/png;base64,aQ=="}`))
+		case "/session/owned/record/frame":
+			frameQuery = r.URL.Query()
+			_, _ = w.Write([]byte(`{"session_id":"owned","image":"data:image/jpeg;base64,aQ==","mime":"image/jpeg","width":1,"height":1,"captured_at":"now","content_hash":"hash"}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	client, err := NewClientWithURL(server.URL, WithoutCircuitBreaker())
+	require.NoError(t, err)
+	_, err = client.CaptureScreenshot(context.Background(), "owned", "exec-owner", "lease-exact", &CaptureScreenshotRequest{Format: "png"})
+	require.NoError(t, err)
+	_, err = client.GetFrame(context.Background(), "owned", "exec-owner", "lease-exact", "page_id=page-1")
+	require.NoError(t, err)
+	assert.Equal(t, "exec-owner", screenshotBody["execution_id"])
+	assert.Equal(t, "lease-exact", screenshotBody["lease_id"])
+	assert.Equal(t, "exec-owner", frameQuery.Get("execution_id"))
+	assert.Equal(t, "lease-exact", frameQuery.Get("lease_id"))
+	assert.Equal(t, "page-1", frameQuery.Get("page_id"))
+}
+
+func TestRecordingReadRoutesBindImmutableLease(t *testing.T) {
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "execution-owner", r.Header.Get(SessionExecutionHeader))
+		assert.Equal(t, "lease-exact", r.Header.Get(SessionLeaseHeader))
+		switch r.URL.Path {
+		case "/session/owned/record/status":
+			_, _ = w.Write([]byte(`{"session_id":"owned","is_recording":false,"action_count":0}`))
+		case "/session/owned/record/actions":
+			_, _ = w.Write([]byte(`{"session_id":"owned","entries":[]}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	client, err := NewClientWithURL(server.URL, WithoutCircuitBreaker())
+	require.NoError(t, err)
+	_, err = client.GetRecordingStatus(context.Background(), "owned", "execution-owner", "lease-exact")
+	require.NoError(t, err)
+	_, err = client.GetRecordedActions(context.Background(), "owned", "execution-owner", "lease-exact")
+	require.NoError(t, err)
 }

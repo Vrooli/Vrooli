@@ -2,10 +2,13 @@ package render
 
 import (
 	"bytes"
-	"github.com/vrooli/browser-automation-studio/internal/testutil/videofixture"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/vrooli/browser-automation-studio/internal/testutil/videofixture"
+	"github.com/vrooli/browser-automation-studio/storage"
 )
 
 func TestRawRecordingRequiresDecodableMatchingMedia(t *testing.T) {
@@ -39,9 +42,43 @@ func TestRawRecordingRequiresDecodableMatchingMedia(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer media.Cleanup()
+			if got, want := media.ContentType, "video/"+test.format; got != want {
+				t.Fatalf("content type=%q, want %q", got, want)
+			}
 			actual, err := os.ReadFile(media.Path)
 			if err != nil || !bytes.Equal(actual, test.data) {
 				t.Fatal("raw source bytes changed", err)
+			}
+		})
+	}
+}
+
+func TestRecordedContainerValidationUsesSharedStorageSniffer(t *testing.T) {
+	for _, tc := range []struct {
+		name, extension, wantSniff string
+		data                       []byte
+	}{
+		{name: "webm renamed mp4", extension: ".mp4", wantSniff: "video/webm", data: videofixture.WebM()},
+		{name: "mp4 renamed webm", extension: ".webm", wantSniff: "video/mp4", data: videofixture.MP4()},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "recording"+tc.extension)
+			if err := os.WriteFile(path, tc.data, 0600); err != nil {
+				t.Fatal(err)
+			}
+			file, err := os.Open(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			gotSniff := storage.SniffContentType(file)
+			if err := file.Close(); err != nil {
+				t.Fatal(err)
+			}
+			if gotSniff != tc.wantSniff {
+				t.Fatalf("shared storage sniffer=%q, want %q", gotSniff, tc.wantSniff)
+			}
+			if err := validateRecordedMedia(t.Context(), path); err == nil || !strings.Contains(err.Error(), "recorded container does not match") {
+				t.Fatalf("mismatched recording validation error=%v", err)
 			}
 		})
 	}

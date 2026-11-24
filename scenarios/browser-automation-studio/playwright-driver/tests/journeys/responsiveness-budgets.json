@@ -1,0 +1,37 @@
+{
+  "J26": {
+    "setup_to_ready_ms": 30000,
+    "click_to_paint_ms": 2000,
+    "tab_switch_to_first_frame_ms": 3000,
+    "event_fanout_ms": 1500,
+    "event_bytes": 65536
+  },
+  "J27": {
+    "setup_to_ready_ms": 30000,
+    "click_to_paint_ms": 3000,
+    "tab_switch_to_first_frame_ms": 3000,
+    "event_fanout_ms": 1500,
+    "event_bytes": 65536
+  },
+  "J28": {
+    "setup_to_ready_ms": 30000,
+    "click_to_paint_ms": 5000,
+    "tab_switch_to_first_frame_ms": 3000,
+    "event_fanout_ms": 1500,
+    "event_bytes": 65536
+  },
+  "J29": {
+    "setup_to_ready_ms": 30000,
+    "click_to_paint_ms": 3000,
+    "tab_switch_to_first_frame_ms": 3000,
+    "event_fanout_ms": 1500,
+    "event_bytes": 65536
+  },
+  "J30": {
+    "setup_to_ready_ms": 30000,
+    "click_to_paint_ms": 3000,
+    "tab_switch_to_first_frame_ms": 3000,
+    "event_fanout_ms": 1500,
+    "event_bytes": 65536
+  }
+}

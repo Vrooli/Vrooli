@@ -26,9 +26,10 @@
  * @module session/browser-manager
  */
 
-import { existsSync, statSync } from 'fs';
+import { accessSync, constants, existsSync, realpathSync, statSync } from 'fs';
 import { isAbsolute } from 'path';
 import type { Browser } from 'rebrowser-playwright';
+import type { BrowserBackend } from '../types/session';
 import { playwrightProvider } from '../playwright';
 import type { Config } from '../config';
 import { logger, metrics } from '../utils';
@@ -39,7 +40,7 @@ import {
   type AudioStrategy,
   type HostAudioCapability,
 } from './audio';
-import { BrowserPool } from './browser-pool';
+import { BrowserPool, NonRetryableBrowserLaunchError } from './browser-pool';
 import { createAndroidCDPProxy } from './android-cdp-proxy';
 
 // =============================================================================
@@ -51,13 +52,16 @@ import { createAndroidCDPProxy } from './android-cdp-proxy';
  */
 export interface BrowserStatus {
   healthy: boolean;
+  /** Whether the version below came from a currently connected browser process. */
+  runtime_identity_status?: 'reported' | 'unavailable';
   error?: string;
+  family?: 'chromium';
   version?: string;
   audioCapability?: HostAudioCapability;
 }
 
 /** Pool key for the ordinary host-device browser with no fake media. */
-const DEFAULT_BROWSER_KEY = 'host_device\u0000';
+const DEFAULT_BROWSER_KEY = getBrowserPoolKey();
 
 // =============================================================================
 // BrowserManager
@@ -136,23 +140,28 @@ export class BrowserManager {
    */
   getBrowserStatus(): BrowserStatus {
     if (!this.browserVerified) {
-      return { healthy: false, error: 'Browser not yet verified' };
+      return { healthy: false, runtime_identity_status: 'unavailable', error: 'Browser not yet verified' };
     }
 
     if (this.browserError) {
-      return { healthy: false, error: this.browserError };
+      return { healthy: false, runtime_identity_status: 'unavailable', error: this.browserError };
     }
 
     const defaultBrowser = this.pool.get(DEFAULT_BROWSER_KEY);
     if (defaultBrowser) {
       return {
         healthy: true,
+        runtime_identity_status: 'reported',
+        family: 'chromium',
         version: defaultBrowser.version(),
         audioCapability: this.audioCapability,
       };
     }
 
-    return { healthy: true, audioCapability: this.audioCapability };
+    // A successful earlier launch is not evidence of a currently serving
+    // binary. Idle eviction or a process exit can remove the default browser;
+    // keep readiness separate from the unavailable live identity.
+    return { healthy: true, runtime_identity_status: 'unavailable', audioCapability: this.audioCapability };
   }
 
   /**
@@ -170,15 +179,24 @@ export class BrowserManager {
    */
   async getBrowser(
     fakeMicrophoneWav?: string,
-    audioStrategy: AudioStrategy = 'host_device'
+    audioStrategy: AudioStrategy = 'host_device',
+    allowExtensionDebugging = false,
+    extensionIsolationKey = '',
+    backend: BrowserBackend = 'managed'
   ): Promise<Browser> {
     const wavPath = fakeMicrophoneWav?.trim() ?? '';
-    const key = getBrowserPoolKey(wavPath, audioStrategy);
+    const executablePath = backend === 'installed'
+      ? resolveInstalledExecutablePath(this.config.browser.executablePath)
+      : this.config.browser.executablePath || undefined;
+    const key = getBrowserPoolKey(wavPath, audioStrategy, allowExtensionDebugging, extensionIsolationKey, backend, executablePath);
+    if (allowExtensionDebugging && !extensionIsolationKey.trim()) {
+      throw new Error('extension debugging requires a session-specific browser pool key');
+    }
     if (wavPath) {
       this.validateFakeMicrophoneWav(wavPath);
     }
 
-    const browser = await this.pool.getOrLaunch(key, () => this.launchBrowserInternal(key));
+    const browser = await this.pool.getOrLaunch(key, () => this.launchBrowserInternal(key, executablePath, backend));
     this.updatePoolMetrics();
     return browser;
   }
@@ -221,14 +239,23 @@ export class BrowserManager {
    * This allows switching between rebrowser-playwright (anti-detection)
    * and standard playwright in the future. See src/playwright/ for details.
    */
-  private async launchBrowserInternal(poolKey: string): Promise<Browser> {
+  private async launchBrowserInternal(poolKey: string, executablePath?: string, backend: BrowserBackend = 'managed'): Promise<Browser> {
     // Per-session fake media wins; the process-level env knob
     // (BAS_FAKE_MICROPHONE_FILE) remains as the default-browser fallback for
     // dedicated qualification drivers.
-    const [, fakeMicrophoneKey = ''] = poolKey.split('\u0000', 2);
-    const fakeMicrophoneFile = fakeMicrophoneKey || this.config.browser.fakeMicrophoneFile;
+    const [, fakeMicrophoneKey = '', extensionDebuggingKey = ''] = poolKey.split('\u0000', 3);
     const [strategy] = poolKey.split('\u0000', 1) as [AudioStrategy];
+    const extensionDebugging = extensionDebuggingKey.startsWith('enabled:');
+    const extensionIsolationKey = extensionDebugging ? extensionDebuggingKey.slice('enabled:'.length) : '';
+    const fakeMicrophoneFile = fakeMicrophoneKey || this.config.browser.fakeMicrophoneFile;
     const args = [...this.config.browser.args, ...getAudioLaunchArgs(strategy)];
+    if (extensionDebugging && extensionIsolationKey) {
+      // Chromium exposes Extensions.loadUnpacked only through the DevTools
+      // pipe when this security-sensitive switch is enabled. Keep the switch
+      // off normal browsers and isolate each extension-enabled session in its
+      // own BAS-owned browser process so installs cannot bleed across leases.
+      args.push('--enable-unsafe-extension-debugging');
+    }
     if (fakeMicrophoneFile) {
       // Chromium still performs its normal getUserMedia capture path. These
       // flags only replace the physical device and permission prompt with a
@@ -241,7 +268,7 @@ export class BrowserManager {
     }
     logger.info('browser: launching', {
       headless: this.config.browser.headless,
-      executablePath: this.config.browser.executablePath || 'auto',
+      executablePath: executablePath || 'auto',
       provider: playwrightProvider.name,
       capabilities: playwrightProvider.capabilities,
       fakeMicrophone: Boolean(fakeMicrophoneFile),
@@ -250,13 +277,28 @@ export class BrowserManager {
 
     const browser = await playwrightProvider.chromium.launch({
       headless: this.config.browser.headless,
-      executablePath: this.config.browser.executablePath || undefined,
+      executablePath,
       args,
     });
 
+    let version: string;
+    if (backend === 'installed') {
+      try {
+        version = browser.version();
+        validateInstalledBrowserVersion(version);
+      } catch {
+        await browser.close().catch(() => undefined);
+        throw new NonRetryableBrowserLaunchError(
+          'installed browser did not report a valid Chromium version'
+        );
+      }
+    } else {
+      version = browser.version();
+    }
     logger.info('browser: launched', {
-      version: browser.version(),
+      version,
       provider: playwrightProvider.name,
+      backend,
     });
     return browser;
   }
@@ -311,6 +353,12 @@ export class BrowserManager {
     metrics.browserPoolMaxIdleSeconds.set(usage.maxIdleSeconds);
   }
 
+  /** True only when one managed browser/context is the entire driver-owned
+   * browser pool. Used to keep process-tree measurements session attributable. */
+  canAttributeProcessTree(browser: Browser): boolean {
+    return this.pool.ownsExclusiveContext(browser);
+  }
+
   /** Start the pool's idle grace period when a caller's browser work ends. */
   markPoolUsedNow(): void {
     this.pool.markUsed();
@@ -348,9 +396,40 @@ export class BrowserManager {
 /** Chromium launch configuration is process-wide, so every launch axis is keyed. */
 export function getBrowserPoolKey(
   fakeMicrophoneWav = '',
-  strategy: AudioStrategy = 'host_device'
+  strategy: AudioStrategy = 'host_device',
+  allowExtensionDebugging = false,
+  extensionIsolationKey = '',
+  backend: BrowserBackend = 'managed',
+  executablePath = ''
 ): string {
-  return `${strategy}\u0000${fakeMicrophoneWav}`;
+  const extensionKey = allowExtensionDebugging
+    ? `enabled:${extensionIsolationKey.trim()}`
+    : 'disabled';
+  return `${strategy}\u0000${fakeMicrophoneWav}\u0000${extensionKey}\u0000${backend}\u0000${executablePath}`;
+}
+
+/** Resolve only an explicitly configured, existing executable; never search or download. */
+export function resolveInstalledExecutablePath(configuredPath?: string): string {
+  const candidate = configuredPath?.trim() ?? '';
+  if (!candidate || !isAbsolute(candidate)) {
+    throw new Error('installed-binary backend requires an absolute BROWSER_EXECUTABLE_PATH');
+  }
+  let resolved: string;
+  try {
+    resolved = realpathSync(candidate);
+    if (!statSync(resolved).isFile()) throw new Error('not a regular file');
+    accessSync(resolved, constants.X_OK);
+  } catch {
+    throw new Error('configured BROWSER_EXECUTABLE_PATH is missing or not executable');
+  }
+  return resolved;
+}
+
+/** Require an owner-observed Chromium version before creating any session context. */
+export function validateInstalledBrowserVersion(version: string): void {
+  if (!/^\d+\.\d+(?:\.\d+){1,2}$/.test(version.trim())) {
+    throw new NonRetryableBrowserLaunchError('installed browser did not report a valid Chromium version');
+  }
 }
 
 /**

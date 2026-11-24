@@ -187,6 +187,38 @@ func TestService_GetMetrics_Happy(t *testing.T) {
 // Proxy 4xx -> InvalidArgument
 // ---------------------------------------------------------------------------
 
+func TestService_ProxyDataRoutesShareErrorMapping(t *testing.T) {
+	client := newClientForTest(t, &recordingProxy{err: &handlers.ObservabilityProxyError{StatusCode: 404, Body: []byte("not found")}})
+	cases := []struct {
+		name string
+		call func() error
+	}{
+		{name: "snapshot", call: func() error {
+			_, err := client.GetObservability(context.Background(), connect.NewRequest(&observabilityv1.GetObservabilityRequest{}))
+			return err
+		}},
+		{name: "refresh", call: func() error {
+			_, err := client.RefreshObservability(context.Background(), connect.NewRequest(&observabilityv1.RefreshObservabilityRequest{}))
+			return err
+		}},
+		{name: "sessions", call: func() error {
+			_, err := client.GetSessionList(context.Background(), connect.NewRequest(&observabilityv1.GetSessionListRequest{}))
+			return err
+		}},
+		{name: "metrics", call: func() error {
+			_, err := client.GetMetrics(context.Background(), connect.NewRequest(&observabilityv1.GetMetricsRequest{}))
+			return err
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.call()
+			require.Error(t, err)
+			assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+		})
+	}
+}
+
 func TestService_ProxyError_MapsTo4xx(t *testing.T) {
 	proxy := &recordingProxy{err: &handlers.ObservabilityProxyError{StatusCode: 404, Body: []byte("not found")}}
 	client := newClientForTest(t, proxy)
@@ -222,10 +254,17 @@ func TestService_DebugMode_RoundTrip(t *testing.T) {
 	getResp, err := client.GetDebugMode(context.Background(), connect.NewRequest(&observabilityv1.GetDebugModeRequest{}))
 	require.NoError(t, err)
 	assert.True(t, getResp.Msg.GetEnabled())
+	assert.Equal(t, setResp.Msg.GetComponents(), getResp.Msg.GetComponents())
+	assert.Equal(t, setResp.Msg.GetExpiresAt(), getResp.Msg.GetExpiresAt())
 
 	// Disable.
 	disResp, err := client.SetDebugMode(context.Background(), connect.NewRequest(&observabilityv1.SetDebugModeRequest{Enabled: false}))
 	require.NoError(t, err)
 	assert.False(t, disResp.Msg.GetEnabled())
 	assert.Empty(t, disResp.Msg.GetExpiresAt())
+	getDisabled, err := client.GetDebugMode(context.Background(), connect.NewRequest(&observabilityv1.GetDebugModeRequest{}))
+	require.NoError(t, err)
+	assert.False(t, getDisabled.Msg.GetEnabled())
+	assert.Empty(t, getDisabled.Msg.GetComponents())
+	assert.Empty(t, getDisabled.Msg.GetExpiresAt())
 }

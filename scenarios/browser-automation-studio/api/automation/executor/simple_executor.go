@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -24,6 +23,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/config"
 	credentialuse "github.com/vrooli/browser-automation-studio/internal/credentialuse"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
+	"github.com/vrooli/browser-automation-studio/storage"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 )
@@ -244,7 +244,9 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) (err error) {
 			}
 			closeCtx, closeCancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
 			defer closeCancel()
-			err = errors.Join(err, closeSessionWithArtifacts(closeCtx, session, req.Plan, req.Recorder))
+			if closeErr := closeSessionWithArtifacts(closeCtx, session, req.Plan, req.Recorder); closeErr != nil {
+				err = errors.Join(err, &ExecutionFinalizationError{Cause: closeErr})
+			}
 		}
 	}()
 
@@ -642,9 +644,7 @@ func (e *SimpleExecutor) maybeRestoreTabs(ctx context.Context, req Request, eng 
 
 	orderedTabs := append([]sessionprofilepersistence.TabState(nil), req.OpenTabs...)
 	sort.SliceStable(orderedTabs, func(i, j int) bool { return orderedTabs[i].Order < orderedTabs[j].Order })
-	if len(orderedTabs) > sessionprofilepersistence.MaxRestoredTabs {
-		orderedTabs = orderedTabs[:sessionprofilepersistence.MaxRestoredTabs]
-	}
+	orderedTabs = sessionprofilepersistence.LimitRestoredTabs(orderedTabs)
 	tabs := make([]sessionprofilepersistence.TabState, 0, len(orderedTabs))
 	for _, tab := range orderedTabs {
 		url := strings.TrimSpace(tab.URL)
@@ -1138,6 +1138,26 @@ type sessionArtifactDownloader interface {
 	DownloadArtifact(ctx context.Context, path string) (*driver.ArtifactDownload, error)
 }
 
+// ExecutionFinalizationError marks artifact/session teardown failure so the
+// workflow owner can retain it when cancellation is also the terminal cause.
+type ExecutionFinalizationError struct {
+	Cause error
+}
+
+func (e *ExecutionFinalizationError) Error() string {
+	if e == nil || e.Cause == nil {
+		return "execution finalization failed"
+	}
+	return e.Cause.Error()
+}
+
+func (e *ExecutionFinalizationError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Cause
+}
+
 // Finalization is part of the execution outcome. Persist available evidence even
 // when another artifact fails, while retaining every failure in the returned error.
 func closeSessionWithArtifacts(ctx context.Context, session engine.EngineSession, plan contracts.ExecutionPlan, recorder executionwriter.ExecutionWriter) error {
@@ -1223,12 +1243,7 @@ func downloadSessionArtifact(ctx context.Context, downloader sessionArtifactDown
 	if err != nil {
 		return "", "", nil, err
 	}
-	if _, err := io.Copy(tmpFile, download.Reader); err != nil {
-		_ = tmpFile.Close()
-		_ = os.Remove(tmpFile.Name())
-		return "", "", nil, err
-	}
-	if err := tmpFile.Close(); err != nil {
+	if _, err := storage.CopyReaderToOpenFile(download.Reader, tmpFile); err != nil {
 		_ = os.Remove(tmpFile.Name())
 		return "", "", nil, err
 	}

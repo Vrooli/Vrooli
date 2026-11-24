@@ -28,7 +28,7 @@ func (s *service) GetExecutionMetrics(
 	if err := requireProTier(ctx); err != nil {
 		return nil, err
 	}
-	executionID, err := uuid.Parse(req.Msg.GetExecutionId())
+	executionID, err := parseExecutionID(req.Msg.GetExecutionId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidExecutionID)
 	}
@@ -57,7 +57,7 @@ func (s *service) GetStepMetrics(
 	if err := requireProTier(ctx); err != nil {
 		return nil, err
 	}
-	executionID, err := uuid.Parse(req.Msg.GetExecutionId())
+	executionID, err := parseExecutionID(req.Msg.GetExecutionId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidExecutionID)
 	}
@@ -90,7 +90,7 @@ func (s *service) ComputeExecutionMetrics(
 	if err := requireProTier(ctx); err != nil {
 		return nil, err
 	}
-	executionID, err := uuid.Parse(req.Msg.GetExecutionId())
+	executionID, err := parseExecutionID(req.Msg.GetExecutionId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidExecutionID)
 	}
@@ -141,6 +141,10 @@ func (s *service) GetWorkflowAggregate(
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(&uxmetricsv1.GetWorkflowAggregateResponse{Aggregate: payload}), nil
+}
+
+func parseExecutionID(raw string) (uuid.UUID, error) {
+	return uuid.Parse(raw)
 }
 
 func requireProTier(ctx context.Context) error {

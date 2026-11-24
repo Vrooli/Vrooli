@@ -157,8 +157,14 @@ func (h *Handler) NavigateRecordingSession(w http.ResponseWriter, r *http.Reques
 		h.respondError(w, apiErr)
 		return
 	}
-	pages.UpdatePageInfo(pageID, resp.URL, resp.Title, resp.FaviconURL)
-	h.wsHub.BroadcastPageEvent(sessionID, &domain.PageEvent{ID: uuid.New(), Type: domain.PageEventNavigated, PageID: pageID, URL: resp.URL, Title: resp.Title, FaviconURL: resp.FaviconURL, Timestamp: time.Now()})
+	observedAt := time.Now()
+	if err := pages.UpdatePageInfoAt(pageID, resp.URL, resp.Title, resp.FaviconURL, observedAt, func(event *domain.PageEvent) error {
+		return h.recordModeService.AddTimelinePageEvent(ctx, sessionID, event)
+	}); err != nil {
+		h.respondError(w, ErrServiceUnavailable.WithMessage("Browser change occurred but recording was not committed").WithDetails(map[string]string{"error": err.Error()}))
+		return
+	}
+	h.wsHub.BroadcastPageEvent(sessionID, &domain.PageEvent{ID: domain.StablePageEventID(pageID, domain.PageEventNavigated, observedAt), Type: domain.PageEventNavigated, PageID: pageID, DriverPageID: pages.GetDriverPageID(pageID), ActivePageID: pages.GetActivePageID(), URL: resp.URL, Title: resp.Title, FaviconURL: resp.FaviconURL, Timestamp: observedAt})
 
 	h.respondSuccess(w, http.StatusOK, NavigateRecordingResponse{URL: resp.URL, Title: resp.Title, CanGoBack: resp.CanGoBack, CanGoForward: resp.CanGoForward, StatusCode: resp.StatusCode, Screenshot: resp.Screenshot})
 }

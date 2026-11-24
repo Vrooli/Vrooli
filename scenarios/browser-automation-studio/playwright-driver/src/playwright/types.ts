@@ -3,21 +3,18 @@
  *
  * Defines the interface for swappable Playwright implementations.
  * This abstraction allows switching between:
- * - rebrowser-playwright: Anti-detection patches, isolated context evaluation
+ * - rebrowser-playwright: Selected signal patches, isolated context evaluation
  * - playwright: Standard behavior, main context evaluation
  *
  * ## Quick Decision Guide
  *
- * Use `rebrowser-playwright` when:
- * - Recording on production websites with bot detection
- * - Running automations that need to appear human
- * - Accessing protected sites that block standard Playwright
+ * Choose a provider by API compatibility and task behavior. Detection claims
+ * require a dated, per-mode, per-site challenge corpus; none is supplied here.
  *
  * Use `playwright` when:
  * - Debugging recording issues (simpler execution model)
  * - Testing in controlled environments
  * - Need Firefox/WebKit support
- * - Don't need to evade bot detection
  *
  * ## Environment Configuration
  *
@@ -50,13 +47,13 @@ export type PlaywrightProviderName = 'rebrowser-playwright' | 'playwright';
  * - History API (pushState, replaceState) can be wrapped successfully
  * - Can access page's global variables
  * - Event listeners work as expected
- * - Detectable by bot detection scripts
+ * - Page code shares the JavaScript world with injected code; detection behavior is unqualified
  *
  * **ISOLATED Context**: A separate JavaScript world created by Playwright.
  * - Cannot access MAIN world variables directly
  * - History API wrapping doesn't affect the page
  * - Protects automation from page interference
- * - Harder for bot detection to find
+ * - Separate JavaScript world limits direct access to page globals; browser-level detection remains unqualified
  *
  * ## Why This Matters for Recording
  *
@@ -101,13 +98,13 @@ export interface PlaywrightCapabilities {
   exposeBindingIsolated: boolean;
 
   /**
-   * Whether the provider includes anti-detection patches.
+   * Whether BAS configures provider-specific browser-signal adjustments.
    *
-   * - true (rebrowser-playwright): Hides automation markers, passes bot checks
-   * - false (playwright): navigator.webdriver=true, easily detected
+   * - true: BAS has selected signal-adjustment code paths for the provider
+   * - false: those BAS adjustment paths are absent for the provider
    *
-   * Use rebrowser-playwright for production recording to avoid blocking.
-   * Use standard playwright for testing (faster, simpler debugging).
+   * This compatibility flag does not report whether a site detects or accepts
+   * the browser. Preserve it for API compatibility until callers migrate.
    */
   hasAntiDetection: boolean;
 }
@@ -128,7 +125,7 @@ export interface PlaywrightCapabilities {
  * | page.evaluate() context   | ISOLATED             | MAIN       | Configurable|
  * | exposeBinding() context   | ISOLATED             | MAIN       | N/A         |
  * | History API wrapping      | Only via HTML inject | Works      | Full control|
- * | Anti-detection patches    | Yes                  | No         | Manual      |
+ * | BAS signal patches        | Yes                  | No         | Manual      |
  * | CDP access                | Full                 | Full       | Native      |
  * | Service worker support    | Full                 | Full       | Full        |
  * | Multi-browser support     | Chromium only        | All        | Chromium    |

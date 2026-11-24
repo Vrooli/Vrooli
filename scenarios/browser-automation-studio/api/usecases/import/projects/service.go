@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/internal/projectid"
 	"github.com/vrooli/browser-automation-studio/usecases/import/shared"
 	basprojects "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/projects"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -426,7 +427,7 @@ func (s *Service) Import(ctx context.Context, req *ImportProjectRequest) (*share
 
 	// Try to use ID from metadata if available
 	if meta != nil && strings.TrimSpace(meta.Id) != "" {
-		if parsed, parseErr := uuid.Parse(strings.TrimSpace(meta.Id)); parseErr == nil {
+		if parsed, parseErr := projectid.Parse(meta.Id); parseErr == nil {
 			// Check if this ID is already in use
 			byID, _ := s.projecter.GetProjectByID(ctx, parsed)
 			if byID == nil {

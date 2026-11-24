@@ -95,7 +95,7 @@ describe('served feature inventory interaction contract', () => {
     assert.deepEqual(calls[0], { path: 'blank-element.png', clip: { x: 10, y: 20, width: 80, height: 30 } });
   });
 
-  it('writes measured diffs only when generated cards pass the shared checker', async () => {
+  it('writes measured diffs only when every generated card is usable', async () => {
     const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../..');
     const script = path.join(repo, 'scenarios/browser-automation-studio/playwright-driver/scripts/feature-inventory.mjs');
     const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'bas-feature-diff-test-'));
@@ -123,7 +123,7 @@ describe('served feature inventory interaction contract', () => {
       await fs.rm(outPath);
       const rejected = spawnSync('node', [script, 'diff', beforePath, afterPath, outPath], { encoding: 'utf8' });
       assert.notEqual(rejected.status, 0);
-      assert.match(rejected.stderr, /failed shared validation/);
+      assert.match(rejected.stderr, /is not usable: title is empty/);
       await assert.rejects(fs.access(outPath));
     } finally {
       await fs.rm(temp, { recursive: true, force: true });

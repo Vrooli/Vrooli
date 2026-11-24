@@ -390,10 +390,25 @@ func (r *SQLiteRepository) GetTimeline(ctx context.Context, query TimelineQuery)
 	baseQuery := `
 		SELECT id, type, timestamp, session_id, page_id, sequence, action_json, page_event_json
 		FROM timeline_entries
-		WHERE session_id = $1
-	`
-	args := []interface{}{query.SessionID}
-	paramNum := 2 // Next placeholder number
+		WHERE `
+	args := make([]interface{}, 0, len(query.SessionIDs)+5)
+	paramNum := 1
+	if len(query.SessionIDs) > 0 {
+		baseQuery += `session_id IN (`
+		for i, sessionID := range query.SessionIDs {
+			if i > 0 {
+				baseQuery += ","
+			}
+			baseQuery += fmt.Sprintf("$%d", paramNum)
+			args = append(args, sessionID)
+			paramNum++
+		}
+		baseQuery += `)`
+	} else {
+		baseQuery += fmt.Sprintf("session_id = $%d", paramNum)
+		args = append(args, query.SessionID)
+		paramNum++
+	}
 
 	if query.PageID != nil {
 		baseQuery += fmt.Sprintf(` AND page_id = $%d`, paramNum)
@@ -420,7 +435,11 @@ func (r *SQLiteRepository) GetTimeline(ctx context.Context, query TimelineQuery)
 		baseQuery += `)`
 	}
 
-	baseQuery += fmt.Sprintf(` ORDER BY sequence ASC, id ASC LIMIT $%d OFFSET $%d`, paramNum, paramNum+1)
+	order := `sequence ASC, id ASC`
+	if len(query.SessionIDs) > 0 {
+		order = `timestamp ASC, session_id ASC, sequence ASC, id ASC`
+	}
+	baseQuery += fmt.Sprintf(` ORDER BY %s LIMIT $%d OFFSET $%d`, order, paramNum, paramNum+1)
 	args = append(args, query.Limit+1, query.Offset)
 
 	rows, err := r.db.QueryContext(ctx, baseQuery, args...)
@@ -453,7 +472,22 @@ func (r *SQLiteRepository) GetTimeline(ctx context.Context, query TimelineQuery)
 	}
 
 	// Get total count
-	total, err := r.CountTimelineEntries(ctx, query.SessionID)
+	var total int
+	if len(query.SessionIDs) == 0 {
+		total, err = r.CountTimelineEntries(ctx, query.SessionID)
+	} else {
+		countQuery := `SELECT COUNT(*) FROM timeline_entries WHERE session_id IN (`
+		countArgs := make([]interface{}, 0, len(query.SessionIDs))
+		for i, sessionID := range query.SessionIDs {
+			if i > 0 {
+				countQuery += ","
+			}
+			countQuery += fmt.Sprintf("$%d", i+1)
+			countArgs = append(countArgs, sessionID)
+		}
+		countQuery += `)`
+		err = r.db.QueryRowContext(ctx, countQuery, countArgs...).Scan(&total)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("count timeline entries: %w", err)
 	}

@@ -143,10 +143,7 @@ func (s *Service) protectedRecordingIDs(ctx context.Context, wanted map[string]s
 	protected := make(map[string]struct{})
 	if wanted != nil {
 		for raw := range wanted {
-			if !strings.HasPrefix(raw, "recording:") {
-				continue
-			}
-			id, err := uuid.Parse(strings.TrimPrefix(raw, "recording:"))
+			id, err := parseRecordingCleanupID(raw)
 			if err != nil {
 				continue
 			}
@@ -309,10 +306,7 @@ func orphanRecordingWantedCandidates(root string, protected map[string]struct{},
 	cutoff := now.Add(-time.Duration(minAgeSeconds) * time.Second)
 	all := make([]CleanupItem, 0, len(wanted))
 	for raw := range wanted {
-		if !strings.HasPrefix(raw, "recording:") {
-			continue
-		}
-		id, err := uuid.Parse(strings.TrimPrefix(raw, "recording:"))
+		id, err := parseRecordingCleanupID(raw)
 		if err != nil {
 			continue
 		}
@@ -416,7 +410,7 @@ func orphanRecordingCandidates(ctx context.Context, root string, protected map[s
 	}
 	all := make([]CleanupItem, 0, len(candidates))
 	for _, candidate := range candidates {
-		id, _ := uuid.Parse(strings.TrimPrefix(candidate.ID, "recording:"))
+		id, _ := parseRecordingCleanupID(candidate.ID)
 		bytes, ok := estimatedBytes[id]
 		if !ok {
 			var sizeErr error

@@ -141,8 +141,7 @@ def step_classify():  # CLASSIFY · every reading is count or filter in the kern
             scenario="browser-automation-studio", window_days=7
         )
         child_meta = friction_handle.meta()
-        friction = friction_handle.head(1)
-        digest = friction[0] if friction else {}
+        digest = program.child_envelope(friction_handle, invalid_class="invalid_response", where="collect:external-friction")
         digest_signals = digest.get("signals") or {}
         recurring = digest_signals.get("recurring_count")
         quality_causes = []
@@ -150,6 +149,7 @@ def step_classify():  # CLASSIFY · every reading is count or filter in the kern
             quality_causes.append("child_status_" + str(digest.get("status") or "missing"))
         if recurring is None:
             quality_causes.append("missing_recurring_count")
+        envelope["errors"].extend(issue for issue in digest.get("errors", []) if issue.get("class") == "invalid_response")
         valid = digest.get("status") == "ok" and recurring is not None
         envelope["signals"]["source_details"]["external-friction"] = {
             "child_reference": {

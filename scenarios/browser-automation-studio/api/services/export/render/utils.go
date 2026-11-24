@@ -2,20 +2,8 @@ package render
 
 import (
 	"fmt"
-	"os"
 	"strings"
 )
-
-// sanitizeFilename removes path separators and null bytes from a filename.
-func sanitizeFilename(value string) string {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return "browser-automation-replay"
-	}
-	trimmed = strings.ReplaceAll(trimmed, string(os.PathSeparator), "-")
-	trimmed = strings.ReplaceAll(trimmed, "\x00", "")
-	return trimmed
-}
 
 // defaultFilename generates a default filename for a replay export based on the execution ID.
 func defaultFilename(spec *ReplayMovieSpec, extension string) string {

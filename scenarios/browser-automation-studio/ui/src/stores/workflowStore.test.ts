@@ -12,6 +12,7 @@ import {
   WorkflowVersionSchema,
 } from '@vrooli/proto-types/browser-automation-studio/v1/api/service_pb';
 import { ActionType } from '@vrooli/proto-types/browser-automation-studio/v1/actions/action_pb';
+import { AssertionMode } from '@vrooli/proto-types/browser-automation-studio/v1/base/shared_pb';
 import { useWorkflowStore } from '@stores/workflowStore';
 import type { Node, Edge } from 'reactflow';
 import { fetchJsonResponse, installFetchMock, type FetchMock } from '@/test-utils';
@@ -109,6 +110,16 @@ const navigateAction = (url: string) => ({
 const clickAction = (selector: string) => ({
   type: ActionType.CLICK,
   params: { case: 'click' as const, value: { selector } },
+});
+
+const assertExistsAction = (selector: string) => ({
+  type: ActionType.ASSERT,
+  params: { case: 'assert' as const, value: { selector, mode: AssertionMode.EXISTS } },
+});
+
+const screenshotAction = () => ({
+  type: ActionType.SCREENSHOT,
+  params: { case: 'screenshot' as const, value: { fullPage: true } },
 });
 
 describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
@@ -235,6 +246,104 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
       expect(getWorkflowMock).toHaveBeenCalledWith({ workflowId: 'workflow-1', version: undefined });
     });
 
+    it('reopens the seeded Demo Smoke Workflow from its saved revision', async () => {
+      const workflowId = 'demo-smoke-workflow';
+      const baseFlow = {
+        nodes: [
+          { id: '11111111-1111-1111-1111-111111111111', position: { x: 0, y: 0 }, action: navigateAction('https://example.com/') },
+          { id: '22222222-2222-2222-2222-222222222222', position: { x: 320, y: 0 }, action: assertExistsAction('body') },
+          { id: '33333333-3333-3333-3333-333333333333', position: { x: 640, y: 0 }, action: screenshotAction() },
+        ],
+        edges: [
+          { id: '33333333-3333-3333-3333-333333333333', source: '11111111-1111-1111-1111-111111111111', target: '22222222-2222-2222-2222-222222222222' },
+          { id: '44444444-4444-4444-4444-444444444444', source: '22222222-2222-2222-2222-222222222222', target: '33333333-3333-3333-3333-333333333333' },
+        ],
+      };
+      const savedFlow = {
+        nodes: [
+          ...baseFlow.nodes,
+          { id: 'recheck-body', position: { x: 960, y: 0 }, action: assertExistsAction('body') },
+        ],
+        edges: [
+          ...baseFlow.edges,
+          { id: 'edge-3', source: '33333333-3333-3333-3333-333333333333', target: 'recheck-body' },
+        ],
+      };
+      const responseFor = (version: number, flowDefinition: typeof baseFlow) =>
+        create(GetWorkflowResponseSchema, {
+          workflow: makeSummary({
+            id: workflowId,
+            projectId: 'seed-project',
+            name: 'Demo Smoke Workflow',
+            folderPath: '/demo',
+            version,
+            flowDefinition,
+          }),
+        } as Parameters<typeof create>[1]);
+
+      // The existing `open-demo-workflow` acceptance fixture selects this seeded workflow.
+      getWorkflowMock.mockResolvedValueOnce(responseFor(1, baseFlow));
+      await act(async () => {
+        await useWorkflowStore.getState().loadWorkflow(workflowId);
+      });
+      expect(useWorkflowStore.getState().currentWorkflow?.name).toBe('Demo Smoke Workflow');
+      expect(useWorkflowStore.getState().nodes).toHaveLength(3);
+
+      const currentNodes = useWorkflowStore.getState().nodes;
+      await act(async () => {
+        useWorkflowStore.getState().updateWorkflow({
+          nodes: [
+            ...currentNodes,
+            { id: 'recheck-body', position: { x: 960, y: 0 }, action: { type: 'ACTION_TYPE_ASSERT', assert: { selector: 'body', mode: 'ASSERTION_MODE_EXISTS' } } } as Node,
+          ],
+          edges: [
+            ...useWorkflowStore.getState().edges,
+            { id: 'edge-3', source: '33333333-3333-3333-3333-333333333333', target: 'recheck-body' },
+          ] as Edge[],
+        });
+      });
+      updateWorkflowMock.mockResolvedValueOnce(create(UpdateWorkflowResponseSchema, {
+        workflow: makeSummary({
+          id: workflowId,
+          projectId: 'seed-project',
+          name: 'Demo Smoke Workflow',
+          folderPath: '/demo',
+          version: 2,
+          flowDefinition: savedFlow,
+        }),
+      } as Parameters<typeof create>[1]));
+      await act(async () => {
+        await useWorkflowStore.getState().saveWorkflow({ source: 'manual', changeDescription: 'Persist editor change' });
+      });
+      expect(updateWorkflowMock).toHaveBeenCalledWith(expect.objectContaining({ workflowId, expectedVersion: 1 }));
+      expect(useWorkflowStore.getState().currentWorkflow?.version).toBe(2);
+      expect(useWorkflowStore.getState().isDirty).toBe(false);
+
+      // Closing the editor discards local state. Reopening by workflow ID must read the saved revision.
+      useWorkflowStore.setState({ currentWorkflow: null, nodes: [], edges: [], isDirty: false });
+      getWorkflowMock.mockResolvedValueOnce(responseFor(2, savedFlow));
+      await act(async () => {
+        await useWorkflowStore.getState().loadWorkflow(workflowId);
+      });
+
+      const reopened = useWorkflowStore.getState();
+      expect(getWorkflowMock).toHaveBeenNthCalledWith(2, { workflowId, version: undefined });
+      expect(reopened.currentWorkflow?.name).toBe('Demo Smoke Workflow');
+      expect(reopened.currentWorkflow?.version).toBe(2);
+      expect(reopened.nodes.map((node) => node.id)).toEqual([
+        '11111111-1111-1111-1111-111111111111',
+        '22222222-2222-2222-2222-222222222222',
+        '33333333-3333-3333-3333-333333333333',
+        'recheck-body',
+      ]);
+      expect(reopened.edges.map((edge) => [edge.source, edge.target])).toEqual([
+        ['11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222'],
+        ['22222222-2222-2222-2222-222222222222', '33333333-3333-3333-3333-333333333333'],
+        ['33333333-3333-3333-3333-333333333333', 'recheck-body'],
+      ]);
+      expect(reopened.isDirty).toBe(false);
+    });
+
     it('creates workflow successfully [REQ:BAS-WORKFLOW-PERSIST-CRUD]', async () => {
       const newWorkflow = {
         id: 'new-workflow-id',
@@ -341,6 +450,76 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
       expect(state.isDirty).toBe(false);
       expect(state.isSaving).toBe(false);
       expect(state.currentWorkflow?.version).toBe(2);
+    });
+
+    it('keeps edits made while a save is in flight and saves them against the returned version', async () => {
+      const workflow = {
+        id: 'workflow-save-race', projectId: 'project-1', name: 'Save race', description: '',
+        folderPath: '/workflows', version: 1, createdAt: new Date(), updatedAt: new Date(),
+        flowDefinition: { nodes: [], edges: [] },
+        nodes: [{ id: 'node-1', position: { x: 0, y: 0 }, action: { type: 'ACTION_TYPE_CLICK', click: { selector: '.first' } } }] as Node[],
+        edges: [] as Edge[], tags: [], lastChangeSource: 'manual', lastChangeDescription: '',
+      };
+      useWorkflowStore.setState({ currentWorkflow: workflow, nodes: workflow.nodes, edges: [], isDirty: true });
+
+      let resolveFirstSave!: (response: ReturnType<typeof create>) => void;
+      updateWorkflowMock.mockReturnValueOnce(new Promise((resolve) => { resolveFirstSave = resolve; }));
+      let firstSave!: Promise<void>;
+      act(() => { firstSave = useWorkflowStore.getState().saveWorkflow(); });
+      expect(updateWorkflowMock).toHaveBeenCalledTimes(1);
+
+      const newerNode = {
+        id: 'node-2', position: { x: 320, y: 0 },
+        action: { type: 'ACTION_TYPE_ASSERT', assert: { selector: '.ready', mode: 'ASSERTION_MODE_EXISTS' } },
+      } as Node;
+      act(() => { useWorkflowStore.getState().updateWorkflow({ nodes: [...workflow.nodes, newerNode] }); });
+
+      const firstRequest = updateWorkflowMock.mock.calls[0][0] as {
+        workflowId: string; name: string; folderPath: string; flowDefinition: unknown;
+      };
+      resolveFirstSave(create(UpdateWorkflowResponseSchema, {
+        workflow: makeSummary({
+          id: firstRequest.workflowId, projectId: 'project-1', name: firstRequest.name,
+          folderPath: firstRequest.folderPath, version: 2,
+          flowDefinition: firstRequest.flowDefinition as { nodes?: unknown[]; edges?: unknown[] },
+        }),
+      } as Parameters<typeof create>[1]));
+      await act(async () => { await firstSave; });
+
+      expect(useWorkflowStore.getState().currentWorkflow?.version).toBe(2);
+      expect(useWorkflowStore.getState().nodes.map((node) => node.id)).toEqual(['node-1', 'node-2']);
+      expect(useWorkflowStore.getState().isDirty).toBe(true);
+
+      updateWorkflowMock.mockImplementationOnce(async (input: {
+        workflowId: string; name: string; folderPath: string; flowDefinition: unknown;
+      }) => create(UpdateWorkflowResponseSchema, {
+        workflow: makeSummary({
+          id: input.workflowId, projectId: 'project-1', name: input.name,
+          folderPath: input.folderPath, version: 3,
+          flowDefinition: input.flowDefinition as { nodes?: unknown[]; edges?: unknown[] },
+        }),
+      } as Parameters<typeof create>[1]));
+      await act(async () => { await useWorkflowStore.getState().saveWorkflow(); });
+      expect(updateWorkflowMock.mock.calls[1][0]).toEqual(expect.objectContaining({ workflowId: workflow.id, expectedVersion: 2 }));
+      expect(useWorkflowStore.getState().currentWorkflow?.version).toBe(3);
+      expect(useWorkflowStore.getState().nodes.map((node) => node.id)).toEqual(['node-1', 'node-2']);
+      expect(useWorkflowStore.getState().isDirty).toBe(false);
+
+      const savedRequest = updateWorkflowMock.mock.calls[1][0] as {
+        workflowId: string; name: string; folderPath: string; flowDefinition: unknown;
+      };
+      getWorkflowMock.mockResolvedValueOnce(create(GetWorkflowResponseSchema, {
+        workflow: makeSummary({
+          id: savedRequest.workflowId, projectId: 'project-1', name: savedRequest.name,
+          folderPath: savedRequest.folderPath, version: 3,
+          flowDefinition: savedRequest.flowDefinition as { nodes?: unknown[]; edges?: unknown[] },
+        }),
+      } as Parameters<typeof create>[1]));
+      useWorkflowStore.setState({ currentWorkflow: null, nodes: [], edges: [], isDirty: false });
+      await act(async () => { await useWorkflowStore.getState().loadWorkflow(workflow.id); });
+      expect(useWorkflowStore.getState().currentWorkflow?.version).toBe(3);
+      expect(useWorkflowStore.getState().nodes.map((node) => node.id)).toEqual(['node-1', 'node-2']);
+      expect(useWorkflowStore.getState().isDirty).toBe(false);
     });
 
     it('deletes workflow successfully [REQ:BAS-WORKFLOW-PERSIST-CRUD]', async () => {

@@ -16,6 +16,15 @@ import (
 	"github.com/vrooli/browser-automation-studio/internal/testutil"
 )
 
+func newMockFileRepository() (*FileRepository, *MockFileSystem) {
+	files := NewMockFileSystem()
+	repo := NewFileRepositoryWithConfig("/data", nil, FileRepositoryConfig{
+		Authority:  testutil.ProfileCredentialAuthority,
+		FileSystem: files,
+	})
+	return repo, files
+}
+
 // [REQ:BAS-RH-J14] Caller-controlled IDs never address sibling files.
 func TestFileRepositoryRejectsPathsBeforeIO(t *testing.T) {
 	operations := map[string]func(*FileRepository, ProfileID) error{
@@ -103,11 +112,7 @@ func TestFileRepositoryCommitUsesOneDocument(t *testing.T) {
 }
 
 func TestFileRepository_Get(t *testing.T) {
-	mockFS := NewMockFileSystem()
-	repo := NewFileRepositoryWithConfig("/data", nil, FileRepositoryConfig{
-		Authority:  testutil.ProfileCredentialAuthority,
-		FileSystem: mockFS,
-	})
+	repo, mockFS := newMockFileRepository()
 
 	// Create a profile in the mock filesystem
 	profile := &SessionProfile{
@@ -200,11 +205,7 @@ func TestFileRepositoryKeepsSensitiveStateOutOfProfileJSON(t *testing.T) {
 }
 
 func TestFileRepository_List(t *testing.T) {
-	mockFS := NewMockFileSystem()
-	repo := NewFileRepositoryWithConfig("/data", nil, FileRepositoryConfig{
-		Authority:  testutil.ProfileCredentialAuthority,
-		FileSystem: mockFS,
-	})
+	repo, _ := newMockFileRepository()
 
 	// Create multiple profiles with different timestamps
 	now := time.Now().UTC()
@@ -237,11 +238,7 @@ func TestFileRepository_List(t *testing.T) {
 }
 
 func TestFileRepository_Create(t *testing.T) {
-	mockFS := NewMockFileSystem()
-	repo := NewFileRepositoryWithConfig("/data", nil, FileRepositoryConfig{
-		Authority:  testutil.ProfileCredentialAuthority,
-		FileSystem: mockFS,
-	})
+	repo, mockFS := newMockFileRepository()
 
 	now := time.Now().UTC()
 	profile := &SessionProfile{
@@ -291,11 +288,7 @@ func TestFileRepository_Create(t *testing.T) {
 }
 
 func TestFileRepository_Delete(t *testing.T) {
-	mockFS := NewMockFileSystem()
-	repo := NewFileRepositoryWithConfig("/data", nil, FileRepositoryConfig{
-		Authority:  testutil.ProfileCredentialAuthority,
-		FileSystem: mockFS,
-	})
+	repo, mockFS := newMockFileRepository()
 
 	// Create a profile first
 	profile := &SessionProfile{
@@ -336,11 +329,7 @@ func TestFileRepository_Delete(t *testing.T) {
 }
 
 func TestFileRepository_ReadError(t *testing.T) {
-	mockFS := NewMockFileSystem()
-	repo := NewFileRepositoryWithConfig("/data", nil, FileRepositoryConfig{
-		Authority:  testutil.ProfileCredentialAuthority,
-		FileSystem: mockFS,
-	})
+	repo, mockFS := newMockFileRepository()
 
 	// Create a profile so stat passes but read fails
 	mockFS.SetFile("/data/read-error.json", []byte(`{"id":"read-error"}`))
@@ -357,11 +346,7 @@ func TestFileRepository_ReadError(t *testing.T) {
 }
 
 func TestFileRepository_WriteError(t *testing.T) {
-	mockFS := NewMockFileSystem()
-	repo := NewFileRepositoryWithConfig("/data", nil, FileRepositoryConfig{
-		Authority:  testutil.ProfileCredentialAuthority,
-		FileSystem: mockFS,
-	})
+	repo, mockFS := newMockFileRepository()
 
 	profile := &SessionProfile{
 		ID:        "write-error",
@@ -381,11 +366,7 @@ func TestFileRepository_WriteError(t *testing.T) {
 }
 
 func TestFileRepository_ListReadDirError(t *testing.T) {
-	mockFS := NewMockFileSystem()
-	repo := NewFileRepositoryWithConfig("/data", nil, FileRepositoryConfig{
-		Authority:  testutil.ProfileCredentialAuthority,
-		FileSystem: mockFS,
-	})
+	repo, mockFS := newMockFileRepository()
 
 	// Inject ReadDir error
 	mockFS.ReadDirErr = errors.New("cannot read directory")
@@ -399,11 +380,7 @@ func TestFileRepository_ListReadDirError(t *testing.T) {
 }
 
 func TestFileRepository_ConcurrentWrites(t *testing.T) {
-	mockFS := NewMockFileSystem()
-	repo := NewFileRepositoryWithConfig("/data", nil, FileRepositoryConfig{
-		Authority:  testutil.ProfileCredentialAuthority,
-		FileSystem: mockFS,
-	})
+	repo, _ := newMockFileRepository()
 
 	// Create initial profile
 	now := time.Now().UTC()
@@ -449,11 +426,7 @@ func TestFileRepository_ConcurrentWrites(t *testing.T) {
 }
 
 func TestFileRepository_CreateSetsDefaultTimestamps(t *testing.T) {
-	mockFS := NewMockFileSystem()
-	repo := NewFileRepositoryWithConfig("/data", nil, FileRepositoryConfig{
-		Authority:  testutil.ProfileCredentialAuthority,
-		FileSystem: mockFS,
-	})
+	repo, _ := newMockFileRepository()
 
 	// Profile with only UpdatedAt set
 	profile := &SessionProfile{

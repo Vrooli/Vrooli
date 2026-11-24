@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -194,6 +195,118 @@ func TestCloseRecordingSession_Success(t *testing.T) {
 
 	if mockService.LastSessionID != sessionID {
 		t.Fatalf("expected session ID %q, got %q", sessionID, mockService.LastSessionID)
+	}
+}
+
+type recordingProfileJourneyService struct {
+	*MockRecordModeService
+	storageState  json.RawMessage
+	openPages     []*domain.Page
+	activePageID  uuid.UUID
+	createdConfig *livecapture.SessionConfig
+	restoredTabs  []persistence.TabState
+}
+
+func (s *recordingProfileJourneyService) GetStorageState(context.Context, string) (json.RawMessage, error) {
+	return s.storageState, nil
+}
+
+func (s *recordingProfileJourneyService) GetOpenPages(string) ([]*domain.Page, uuid.UUID, error) {
+	return s.openPages, s.activePageID, nil
+}
+
+func (s *recordingProfileJourneyService) CreateSession(ctx context.Context, cfg *livecapture.SessionConfig) (*livecapture.SessionResult, error) {
+	s.createdConfig = cfg
+	return s.MockRecordModeService.CreateSession(ctx, cfg)
+}
+
+func (s *recordingProfileJourneyService) RestoreTabs(ctx context.Context, sessionID string, tabs []persistence.TabState) (*livecapture.TabRestorationResult, error) {
+	s.restoredTabs = append([]persistence.TabState(nil), tabs...)
+	restored := make([]livecapture.RestoredTab, 0, len(tabs)-1)
+	for index, tab := range tabs {
+		if index == 0 {
+			continue
+		}
+		restored = append(restored, livecapture.RestoredTab{PageID: fmt.Sprintf("restored-%d", index), URL: tab.URL, Title: tab.Title, IsActive: tab.IsActive})
+	}
+	return &livecapture.TabRestorationResult{
+		InitialURL:   tabs[0].URL,
+		InitialTitle: tabs[0].Title,
+		Tabs:         restored,
+	}, nil
+}
+
+// [REQ:BAS-RH-J01] Closing the Record Mode workspace snapshots storage/tabs;
+// opening it with the same profile restores that saved state.
+func TestRecordingProfileCloseAndReopenRestoresSavedState(t *testing.T) {
+	handler, mockService, tempDir, _ := createTestHandlerWithRecordMode(t)
+	t.Cleanup(func() { _ = os.RemoveAll(tempDir) })
+	profile, err := handler.sessionProfileService.CreateProfile("Record Mode reopen journey")
+	if err != nil {
+		t.Fatalf("create profile: %v", err)
+	}
+	const oldSessionID = "record-mode-before-close"
+	storageState := json.RawMessage(`{"cookies":[{"name":"session","value":"fixture"}],"origins":[]}`)
+	firstPageID, secondPageID := uuid.New(), uuid.New()
+	openPages := []*domain.Page{
+		{ID: firstPageID, URL: "https://example.com/", Title: "Example", Status: domain.PageStatusActive},
+		{ID: secondPageID, URL: "https://example.com/docs", Title: "Docs", Status: domain.PageStatusActive},
+	}
+	journey := &recordingProfileJourneyService{
+		MockRecordModeService: mockService,
+		storageState:          storageState,
+		openPages:             openPages,
+		activePageID:          secondPageID,
+	}
+	handler.recordModeService = journey
+	handler.sessionProfileService.SetActiveSession(oldSessionID, string(profile.ID))
+
+	closeRequest := httptest.NewRequest(http.MethodPost, "/api/v1/recordings/live/session/"+oldSessionID+"/close", nil)
+	closeContext := chi.NewRouteContext()
+	closeContext.URLParams.Add("sessionId", oldSessionID)
+	closeRequest = closeRequest.WithContext(context.WithValue(closeRequest.Context(), chi.RouteCtxKey, closeContext))
+	closeResponse := httptest.NewRecorder()
+	handler.CloseRecordingSession(closeResponse, closeRequest)
+	if closeResponse.Code != http.StatusOK {
+		t.Fatalf("close status = %d: %s", closeResponse.Code, closeResponse.Body.String())
+	}
+	savedProfile, err := handler.sessionProfileService.GetProfile(profile.ID)
+	if err != nil {
+		t.Fatalf("read saved profile: %v", err)
+	}
+	if !reflect.DeepEqual(savedProfile.StorageState, storageState) {
+		t.Fatalf("saved storage state = %s, want %s", savedProfile.StorageState, storageState)
+	}
+	wantTabs := []persistence.TabState{
+		{URL: "https://example.com/", Title: "Example", Order: 0},
+		{URL: "https://example.com/docs", Title: "Docs", IsActive: true, Order: 1},
+	}
+	if !reflect.DeepEqual(savedProfile.OpenTabs, wantTabs) {
+		t.Fatalf("saved tabs = %#v, want %#v", savedProfile.OpenTabs, wantTabs)
+	}
+
+	reopenRequest := httptest.NewRequest(http.MethodPost, "/api/v1/recordings/live/session", strings.NewReader(fmt.Sprintf(`{"session_profile_id":%q,"restore_tabs":true}`, profile.ID)))
+	reopenRequest.Header.Set("Content-Type", "application/json")
+	reopenResponse := httptest.NewRecorder()
+	handler.CreateRecordingSession(reopenResponse, reopenRequest)
+	if reopenResponse.Code != http.StatusOK {
+		t.Fatalf("reopen status = %d: %s", reopenResponse.Code, reopenResponse.Body.String())
+	}
+	if journey.createdConfig == nil || !reflect.DeepEqual(journey.createdConfig.StorageState, storageState) {
+		t.Fatalf("reopened storage state = %#v, want %s", journey.createdConfig, storageState)
+	}
+	if journey.createdConfig.ProfileID != string(profile.ID) {
+		t.Fatalf("reopened profile binding = %q, want %q", journey.createdConfig.ProfileID, profile.ID)
+	}
+	if !reflect.DeepEqual(journey.restoredTabs, wantTabs) {
+		t.Fatalf("restored tabs = %#v, want %#v", journey.restoredTabs, wantTabs)
+	}
+	var response CreateRecordingSessionResponse
+	if err := json.Unmarshal(reopenResponse.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode reopen response: %v", err)
+	}
+	if response.SessionID == "" {
+		t.Fatalf("reopen response omitted session ID: %s", reopenResponse.Body.String())
 	}
 }
 

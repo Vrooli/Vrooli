@@ -11,7 +11,7 @@ import {
 } from '@vrooli/proto-types/browser-automation-studio/v1/actions/action_pb';
 
 type MockRoute = {
-  request: () => { method: () => string; url: () => string; headers: () => Record<string, string> };
+  request: () => { method: () => string; url: () => string; headers: () => Record<string, string>; isNavigationRequest: () => boolean; resourceType: () => string };
   fulfill: jest.Mock;
   continue: jest.Mock;
   abort: jest.Mock;
@@ -95,6 +95,8 @@ describe('NetworkHandler', () => {
         method: () => 'GET',
         url: () => 'https://example.com/api',
         headers: () => ({ accept: 'application/json' }),
+        isNavigationRequest: () => false,
+        resourceType: () => 'fetch',
       }),
       fulfill: jest.fn().mockResolvedValue(undefined),
       continue: jest.fn().mockResolvedValue(undefined),
@@ -110,6 +112,47 @@ describe('NetworkHandler', () => {
       contentType: 'application/json',
       body: JSON.stringify({ ok: true }),
     }));
+  });
+
+  it('keeps page-level response mocks from bypassing admitted document URL scope', async () => {
+    context.permissionProfile = {
+      effect: 'act',
+      approval: 'none',
+      control: true,
+      view: true,
+      url_allow: ['https://allowed.test/*'],
+      url_deny: [],
+    };
+    const instruction = {
+      index: 0,
+      nodeId: 'scope-denial',
+      ...createNetworkInstruction({
+        operation: NetworkMockOperation.MOCK,
+        urlPattern: 'outside.test/*',
+        statusCode: 200,
+        body: 'mocked',
+      }),
+      params: {},
+    };
+    await handler.execute(instruction, context);
+    const routeHandler = mockPage.route.mock.calls[0]?.[1];
+    const mockRoute: MockRoute = {
+      request: () => ({
+        method: () => 'GET',
+        url: () => 'https://outside.test/landing',
+        headers: () => ({}),
+        isNavigationRequest: () => true,
+        resourceType: () => 'document',
+      }),
+      fulfill: jest.fn().mockResolvedValue(undefined),
+      continue: jest.fn().mockResolvedValue(undefined),
+      abort: jest.fn().mockResolvedValue(undefined),
+      fetch: jest.fn(),
+    };
+    await routeHandler?.(mockRoute as unknown as Parameters<typeof routeHandler>[0]);
+    expect(mockRoute.abort).toHaveBeenCalledWith('blockedbyclient');
+    expect(mockRoute.fulfill).not.toHaveBeenCalled();
+    expect(mockRoute.continue).not.toHaveBeenCalled();
   });
 
   it('returns idempotent result when registering same mock twice', async () => {
@@ -154,7 +197,9 @@ describe('NetworkHandler', () => {
       request: () => ({
         method: () => 'POST',
         url: () => 'https://example.com/api',
-        headers: () => ({}) ,
+        headers: () => ({}),
+        isNavigationRequest: () => false,
+        resourceType: () => 'fetch',
       }),
       fulfill: jest.fn().mockResolvedValue(undefined),
       continue: jest.fn().mockResolvedValue(undefined),

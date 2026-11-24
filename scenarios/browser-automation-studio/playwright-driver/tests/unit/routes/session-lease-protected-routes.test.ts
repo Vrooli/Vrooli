@@ -7,6 +7,7 @@ import { handleSessionStorageState } from '../../../src/routes/session-storage';
 import {
   handleSessionServiceWorkers,
   handleSessionServiceWorkersDelete,
+  handleSessionServiceWorkerDelete,
 } from '../../../src/routes/session-service-workers';
 
 const ownerHeaders = {
@@ -95,5 +96,97 @@ describe('lease-protected session routes', () => {
     );
     expect(allowedDelete.statusCode).toBe(200);
     expect(unregisterAll).toHaveBeenCalledTimes(1);
+  });
+
+  it('checks every service-worker scope before bulk unregister and permits an in-scope worker', async () => {
+    const unregisterAll = jest.fn().mockResolvedValue(1);
+    const getWorkers = jest.fn().mockReturnValue([
+      { registrationId: 'registration-1', scopeURL: 'https://outside.example/app/', scriptURL: 'https://outside.example/sw.js', status: 'running' },
+    ]);
+    const session = {
+      page: { url: () => 'https://allowed.example/app/' },
+      createdAt: new Date(0),
+      instructionCount: 0,
+      spec: { permission_profile: { effect: 'act', approval: 'none', view: true, control: true, url_allow: ['https://allowed.example/*'] } },
+      serviceWorkerController: { getWorkers, getControl: jest.fn().mockReturnValue({ mode: 'allow' }), unregisterAll },
+    } as unknown as SessionState;
+    const manager = { getSessionForLease: jest.fn(() => session) } as never;
+
+    const denied = createMockHttpResponse();
+    await handleSessionServiceWorkersDelete(
+      createMockHttpRequest({ method: 'DELETE', headers: ownerHeaders }), denied, 'session-2', manager
+    );
+    expect(denied.statusCode).toBe(403);
+    expect(unregisterAll).not.toHaveBeenCalled();
+
+    getWorkers.mockReturnValue([
+      { registrationId: 'registration-1', scopeURL: 'https://allowed.example/app/', scriptURL: 'https://allowed.example/sw.js', status: 'running' },
+    ]);
+    const allowed = createMockHttpResponse();
+    await handleSessionServiceWorkersDelete(
+      createMockHttpRequest({ method: 'DELETE', headers: ownerHeaders }), allowed, 'session-2', manager
+    );
+    expect(allowed.statusCode).toBe(200);
+    expect(unregisterAll).toHaveBeenCalledTimes(1);
+  });
+
+  it('denies single service-worker deletion outside URL scope before controller effect', async () => {
+    const unregister = jest.fn().mockResolvedValue(true);
+    const session = {
+      page: { url: () => 'https://allowed.example/app/' },
+      createdAt: new Date(0),
+      instructionCount: 0,
+      spec: { permission_profile: { effect: 'act', approval: 'none', view: true, control: true, url_allow: ['https://allowed.example/*'] } },
+      serviceWorkerController: {
+        getWorkers: jest.fn(), getControl: jest.fn(), unregister,
+      },
+    } as unknown as SessionState;
+    const manager = { getSessionForLease: jest.fn(() => session) } as never;
+
+    const denied = createMockHttpResponse();
+    await handleSessionServiceWorkerDelete(
+      createMockHttpRequest({ method: 'DELETE', headers: ownerHeaders }),
+      denied,
+      'session-2',
+      encodeURIComponent('https://outside.example/app/'),
+      manager
+    );
+    expect(denied.statusCode).toBe(403);
+    expect(unregister).not.toHaveBeenCalled();
+
+    const allowed = createMockHttpResponse();
+    await handleSessionServiceWorkerDelete(
+      createMockHttpRequest({ method: 'DELETE', headers: ownerHeaders }),
+      allowed,
+      'session-2',
+      encodeURIComponent('https://allowed.example/app/'),
+      manager
+    );
+    expect(allowed.statusCode).toBe(200);
+    expect(unregister).toHaveBeenCalledTimes(1);
+    expect(unregister).toHaveBeenCalledWith('https://allowed.example/app/');
+  });
+
+  it('fails closed when the profile requires approval that the driver route cannot receive', async () => {
+    const unregister = jest.fn().mockResolvedValue(true);
+    const session = {
+      page: { url: () => 'https://allowed.example/app/' },
+      createdAt: new Date(0),
+      instructionCount: 0,
+      spec: { permission_profile: { effect: 'act', approval: 'every_action', view: true, control: true, url_allow: ['https://allowed.example/*'] } },
+      serviceWorkerController: { getWorkers: jest.fn(), getControl: jest.fn(), unregister },
+    } as unknown as SessionState;
+    const manager = { getSessionForLease: jest.fn(() => session) } as never;
+    const denied = createMockHttpResponse();
+
+    await handleSessionServiceWorkerDelete(
+      createMockHttpRequest({ method: 'DELETE', headers: ownerHeaders }),
+      denied,
+      'session-2',
+      encodeURIComponent('https://allowed.example/app/'),
+      manager
+    );
+    expect(denied.statusCode).toBe(403);
+    expect(unregister).not.toHaveBeenCalled();
   });
 });

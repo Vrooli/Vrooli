@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"mime"
 	"net/http"
 	"os"
@@ -53,7 +54,10 @@ func artifactURL(objectName string) string {
 	return fmt.Sprintf("/api/v1/artifacts/%s", strings.TrimPrefix(objectName, "/"))
 }
 
-func detectContentTypeFromFile(filePath string, fallback string) string {
+// DetectContentTypeFromFile uses an explicit fallback first, then the path
+// extension, and finally a bounded prefix sniff. Callers that need content
+// type inference over file-backed artifacts share this policy.
+func DetectContentTypeFromFile(filePath string, fallback string) string {
 	if fallback != "" {
 		return fallback
 	}
@@ -68,9 +72,14 @@ func detectContentTypeFromFile(filePath string, fallback string) string {
 		return ""
 	}
 	defer file.Close()
+	return SniffContentType(file)
+}
 
+// SniffContentType matches net/http's content-type detection using at most its
+// documented 512-byte sample from the caller's stream.
+func SniffContentType(reader io.Reader) string {
 	header := make([]byte, 512)
-	n, _ := file.Read(header)
+	n, _ := reader.Read(header)
 	if n == 0 {
 		return ""
 	}

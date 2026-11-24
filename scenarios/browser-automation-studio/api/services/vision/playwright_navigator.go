@@ -208,6 +208,9 @@ func (n *PlaywrightVisionNavigator) Navigate(ctx context.Context, req Navigation
 		"ai_source":             req.AISource,
 		"privacy_consent_grant": req.PrivacyConsentGrant,
 	}
+	if req.BrowserSession != nil {
+		driverReq["browser_session"] = req.BrowserSession
+	}
 
 	body, err := json.Marshal(driverReq)
 	if err != nil {
@@ -311,6 +314,14 @@ func (n *PlaywrightVisionNavigator) HandleStepCallback(ctx context.Context, even
 			session.HumanIntervention = nil
 		}
 		safeEvent.Action = safeAction
+		safeEvent.InferenceReceipt = nil
+		if event.InferenceReceipt != nil {
+			if event.InferenceReceipt.Matches(event.TokensUsed) {
+				safeEvent.InferenceReceipt = event.InferenceReceipt.Clone()
+			} else if n.log != nil {
+				n.log.Warn("vision_navigation_callback: dropped invalid or mismatched inference receipt")
+			}
+		}
 		safeEvent.CurrentURL = redactNavigationURL(event.CurrentURL)
 		safeEvent.Reasoning = redactNavigationText(event.Reasoning)
 		safeEvent.Error = redactNavigationText(event.Error)
@@ -360,6 +371,9 @@ func (n *PlaywrightVisionNavigator) HandleStepCallback(ctx context.Context, even
 			"tokensUsed":   event.TokensUsed,
 			"durationMs":   event.DurationMs,
 			"timestamp":    time.Now().UTC().Format(time.RFC3339),
+		}
+		if safeEvent.InferenceReceipt != nil {
+			wsEvent["inferenceReceipt"] = safeEvent.InferenceReceipt.Clone()
 		}
 		if event.Error != "" {
 			wsEvent["error"] = safeEvent.Error
@@ -488,12 +502,13 @@ func (n *PlaywrightVisionNavigator) GetSession(navigationID string) (*Navigation
 // redaction so history does not traverse the same payload a second time.
 func stepRecordFromEvent(event *NavigationStep, safeAction map[string]interface{}) NavigationStepRecord {
 	rec := NavigationStepRecord{
-		Index:       event.StepNumber,
-		URL:         event.CurrentURL,
-		Description: event.Reasoning,
-		Success:     event.Error == "",
-		Error:       event.Error,
-		At:          time.Now(),
+		Index:            event.StepNumber,
+		URL:              event.CurrentURL,
+		Description:      event.Reasoning,
+		Success:          event.Error == "",
+		Error:            event.Error,
+		InferenceReceipt: event.InferenceReceipt.Clone(),
+		At:               time.Now(),
 	}
 	if t, ok := safeAction["type"].(string); ok {
 		rec.ActionType = t

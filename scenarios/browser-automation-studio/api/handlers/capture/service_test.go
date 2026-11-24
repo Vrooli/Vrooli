@@ -20,6 +20,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	apiidentity "github.com/vrooli/api-core/identity"
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 	"google.golang.org/protobuf/proto"
 
 	actionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
@@ -29,6 +31,148 @@ import (
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	workflowsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 )
+
+type captureServiceAdmissionFixture struct {
+	principal apiidentity.Principal
+	err       error
+	calls     int
+	limit     bool
+}
+
+func (a *captureServiceAdmissionFixture) Admit(context.Context, http.Header) (apiidentity.Principal, func(), error) {
+	a.calls++
+	return a.principal, func() {}, a.err
+}
+
+func (a *captureServiceAdmissionFixture) Authenticate(context.Context, http.Header) (apiidentity.Principal, error) {
+	return a.principal, a.err
+}
+
+func (a *captureServiceAdmissionFixture) IsLimitError(error) bool { return a.limit }
+
+type captureHistoryStoreFixture struct{ record CaptureRequestRecord }
+
+func (s captureHistoryStoreFixture) Create(context.Context, CaptureRequestRecord) (CaptureRequestRecord, bool, error) {
+	return CaptureRequestRecord{}, false, errors.New("unused")
+}
+func (s captureHistoryStoreFixture) Get(context.Context, string) (CaptureRequestRecord, error) {
+	return s.record, nil
+}
+func (s captureHistoryStoreFixture) Complete(context.Context, string, string) error { return nil }
+func (s captureHistoryStoreFixture) Fail(context.Context, string, string) error     { return nil }
+
+func TestCaptureServiceRejectsMissingAndWrongServiceTokensBeforeExecution(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		token     string
+		wantCalls int
+	}{
+		{name: "missing token", wantCalls: 0},
+		{name: "wrong token", token: "Bearer bad", wantCalls: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			exec := &fakeExecutor{}
+			admission := &captureServiceAdmissionFixture{err: errors.New("service token rejected")}
+			_, srv := newTestServer(t, Deps{Executor: exec, ServiceAdmission: admission})
+			client := captureconnect.NewCaptureServiceClient(srv.Client(), srv.URL)
+			req := connect.NewRequest(&capturev1.CaptureRequest{Url: "https://example.com"})
+			if tc.token != "" {
+				req.Header().Set("Authorization", tc.token)
+			}
+			_, err := client.Capture(context.Background(), req)
+			require.Error(t, err)
+			require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+			require.Equal(t, tc.wantCalls, admission.calls)
+			require.Zero(t, exec.Calls, "authorization failure must happen before workflow execution")
+		})
+	}
+}
+
+func TestCaptureServiceRejectsOversizedRequestBeforeExecution(t *testing.T) {
+	exec := &fakeExecutor{}
+	client, _ := newTestServer(t, Deps{Executor: exec})
+	_, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{Url: "https://example.com/" + strings.Repeat("a", 70<<10)}))
+	require.Error(t, err)
+	require.Zero(t, exec.Calls, "oversized requests must be rejected before execution")
+}
+
+func TestCaptureServiceMapsBoundedLaneExhaustionToResourceExhausted(t *testing.T) {
+	exec := &fakeExecutor{}
+	admission := &captureServiceAdmissionFixture{err: errors.New("bounded service lane limit"), limit: true}
+	client, _ := newTestServer(t, Deps{Executor: exec, ServiceAdmission: admission})
+	req := connect.NewRequest(&capturev1.CaptureRequest{Url: "https://example.com"})
+	req.Header().Set("Authorization", "Bearer service-token")
+	_, err := client.Capture(context.Background(), req)
+	require.Error(t, err)
+	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err))
+	require.Zero(t, exec.Calls)
+}
+
+func TestCaptureServiceAdmitsVerifiedServiceAndRunsCapture(t *testing.T) {
+	exec := &fakeExecutor{}
+	principal := apiidentity.Principal{Kind: apiidentity.ActorService, Subject: "experience-manager-bas-capture", Verified: true, Issuer: "scenario-authenticator", Audience: "scenario-authenticator:browser-automation-studio", Scopes: []string{"browser-automation-studio:capture"}}
+	admission := &captureServiceAdmissionFixture{principal: principal}
+	mount := Module(Deps{Executor: exec, ServiceAdmission: admission, Logger: logrus.New(), CapturesRoot: t.TempDir()})
+	mux := http.NewServeMux()
+	mux.Handle(mount.Path, mount.Handler)
+	srv := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := monetization.WithUserIdentity(r.Context(), "stale-user@example.com")
+		ctx = monetization.WithSnapshot(ctx, &monetization.Snapshot{UserIdentity: "stale-user@example.com"})
+		mux.ServeHTTP(w, r.WithContext(ctx))
+	}))
+	t.Cleanup(srv.Close)
+	client := captureconnect.NewCaptureServiceClient(srv.Client(), srv.URL)
+	req := connect.NewRequest(&capturev1.CaptureRequest{Url: "https://example.com"})
+	req.Header().Set("Authorization", "Bearer service-token")
+	_, err := client.Capture(context.Background(), req)
+	require.NoError(t, err)
+	require.Equal(t, 1, admission.calls)
+	require.Equal(t, 1, exec.Calls)
+	require.Equal(t, 1, exec.SystemCaptureCalls, "verified service capture must use the isolated workflow admission path")
+	require.Empty(t, exec.LastUserIdentity, "service capture must not inherit a customer quota identity")
+	require.False(t, exec.HadEntitlement, "service capture must not inherit a customer entitlement snapshot")
+}
+
+func TestCaptureServiceKeepsOrdinaryAuthenticatedAccountPath(t *testing.T) {
+	exec := &fakeExecutor{}
+	admission := &captureServiceAdmissionFixture{err: errors.New("service lane must not be used for ordinary account")}
+	mount := Module(Deps{Executor: exec, ServiceAdmission: admission, Logger: logrus.New(), CapturesRoot: t.TempDir()})
+	mux := http.NewServeMux()
+	mux.Handle(mount.Path, mount.Handler)
+	srv := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := monetization.WithUserIdentity(r.Context(), "alice@example.com")
+		mux.ServeHTTP(w, r.WithContext(ctx))
+	}))
+	t.Cleanup(srv.Close)
+	client := captureconnect.NewCaptureServiceClient(srv.Client(), srv.URL)
+	_, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{Url: "https://example.com"}))
+	require.NoError(t, err)
+	require.Zero(t, admission.calls, "ordinary authenticated users must stay on normal workflow quota admission")
+	require.Equal(t, 1, exec.Calls)
+	require.Zero(t, exec.SystemCaptureCalls)
+}
+
+func TestCaptureHistoryRejectsCaptureOnlyPrincipalAndKeepsAuthenticatedLookup(t *testing.T) {
+	principal := apiidentity.Principal{Kind: apiidentity.ActorService, Subject: "experience-manager-bas-capture", Verified: true, Issuer: "scenario-authenticator", Audience: "scenario-authenticator:browser-automation-studio", Scopes: []string{"browser-automation-studio:capture"}}
+	admission := &captureServiceAdmissionFixture{principal: principal}
+	store := captureHistoryStoreFixture{record: CaptureRequestRecord{RequestToken: "known", ExecutionID: "execution-id", State: "completed", ResponseJSON: `{"executionId":"execution-id"}`}}
+	svc := &service{deps: Deps{ServiceAdmission: admission, RequestStore: store}}
+
+	serviceRequest := connect.NewRequest(&capturev1.GetCaptureByRequestTokenRequest{RequestToken: "known"})
+	serviceRequest.Header().Set("Authorization", "Bearer service-token")
+	_, err := svc.GetCaptureByRequestToken(context.Background(), serviceRequest)
+	require.Error(t, err)
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err), "capture-only service identity cannot read capture history")
+
+	userCtx := monetization.WithUserIdentity(context.Background(), "alice@example.com")
+	userRequest := connect.NewRequest(&capturev1.GetCaptureByRequestTokenRequest{RequestToken: "known"})
+	response, err := svc.GetCaptureByRequestToken(userCtx, userRequest)
+	require.NoError(t, err)
+	require.Equal(t, capturev1.GetCaptureByRequestTokenResponse_STATE_COMPLETED, response.Msg.GetState())
+	_, err = svc.GetCaptureByRequestToken(context.Background(), connect.NewRequest(&capturev1.GetCaptureByRequestTokenRequest{RequestToken: "known"}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err), "history lookup requires an ordinary authenticated account")
+}
 
 // newTestServer wires the service through the generated Connect HTTP
 // handler so tests exercise codec + header propagation in addition to

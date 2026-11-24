@@ -6,8 +6,9 @@
  *
  * ## Context Isolation Note
  *
- * With rebrowser-playwright, page.evaluate() runs in ISOLATED context
- * to evade bot detection. But the recording script runs in MAIN context
+ * With rebrowser-playwright, page.evaluate() runs in an ISOLATED context.
+ * This separation is a driver behavior; it does not establish a bot-detection
+ * outcome. The recording script runs in MAIN context
  * (injected via HTML). Window properties set in MAIN are NOT visible
  * from ISOLATED context.
  *

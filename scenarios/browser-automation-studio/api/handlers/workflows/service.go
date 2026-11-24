@@ -233,6 +233,9 @@ func (s *service) ExecuteWorkflow(
 				fmt.Errorf("%s (missing: %s)", seedErr.Error(), strings.Join(seedErr.MissingKeys, ", ")),
 			)
 		}
+		if errors.Is(err, workflowservice.ErrWorkflowExecutionCapacity) {
+			return nil, connect.NewError(connect.CodeResourceExhausted, err)
+		}
 		s.log().WithError(err).Error("execute workflow failed")
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -279,6 +282,9 @@ func (s *service) ExecuteAdhocWorkflow(
 				connect.CodeFailedPrecondition,
 				fmt.Errorf("%s (missing: %s)", seedErr.Error(), strings.Join(seedErr.MissingKeys, ", ")),
 			)
+		}
+		if errors.Is(err, workflowservice.ErrWorkflowExecutionCapacity) {
+			return nil, connect.NewError(connect.CodeResourceExhausted, err)
 		}
 		s.log().WithError(err).Error("execute adhoc workflow failed")
 		return nil, connect.NewError(connect.CodeInternal, err)

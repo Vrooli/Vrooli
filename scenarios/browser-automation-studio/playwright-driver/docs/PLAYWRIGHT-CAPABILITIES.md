@@ -1,5 +1,13 @@
 # Playwright Provider Capabilities Matrix
 
+> **Evidence limit (2026-11-21):** the driver pins `rebrowser-playwright`
+> 1.52.0. This document has no dated, sampled, per-mode challenge corpus, so
+> statements about detection compatibility are not qualification evidence. A
+> separate JavaScript world can reduce direct page-context exposure; it does
+> not make a browser indistinguishable or establish a pass rate. Use the
+> versioned behavior notes below as implementation leads only, and record the
+> exact driver/browser pair for any future comparison.
+
 This document explains the behavioral differences between playwright implementations
 and the architectural decisions made to work around them.
 
@@ -11,7 +19,7 @@ and the architectural decisions made to work around them.
 | `exposeBinding()` context | ISOLATED | MAIN | N/A |
 | `addInitScript()` context | MAIN | MAIN | N/A |
 | History API wrapping | Only via HTML injection | Works in evaluate | Full control |
-| Anti-detection | Built-in | Manual | Manual |
+| Detection evidence | Not qualified here | Not qualified here | Not qualified here |
 | Service workers | Full (headless=new) | Full | Full |
 | CDP access | Full | Full | Native |
 | Multi-browser | Chromium only | All browsers | Chromium only |
@@ -28,28 +36,35 @@ JavaScript "worlds" or contexts:
 - Can access and modify page globals (window, document)
 - Can wrap native APIs (History.pushState, fetch, etc.)
 - Event listeners work as expected
-- **Detectable**: Page scripts can find injected code
+- **Page visibility**: injected code in this world can be inspected by page code
 
 **ISOLATED Context**
 - A separate JavaScript world created by Playwright
 - Cannot access MAIN world variables directly
 - Cannot wrap native APIs (changes don't affect page)
 - Protects automation from page interference
-- **Stealth**: Page scripts cannot see automation code
+- **Page visibility**: separate worlds limit direct access to each other's
+  JavaScript globals; this does not hide browser-level automation signals or
+  guarantee that page behavior cannot reveal automation.
 
 ### Why rebrowser-playwright Uses Isolated Context
 
-rebrowser-playwright patches Playwright to run `page.evaluate()` in an isolated
-context to prevent bot detection. Websites detect automation by:
+The installed rebrowser version patches Playwright's execution context. The
+intended benefit is to avoid exposing some automation bindings directly in the
+page's main JavaScript world; this implementation detail is not a detection
+qualification. Websites and intermediary services can use signals beyond
+page globals, including browser behavior and network characteristics. For
+example, checks may include:
 
 1. **Checking for injected functions**: `window.__selenium_evaluate`, `cdc_` prefixes
 2. **Detecting wrapped APIs**: Modified History.pushState, overridden fetch
 3. **Finding Playwright globals**: `__playwright`, binding functions
 
 By running automation code in an isolated context, rebrowser-playwright:
-- Keeps the MAIN context pristine (no detectable modifications)
-- Prevents page scripts from finding automation code
-- Passes common bot detection checks
+- Keeps the page's MAIN JavaScript context separate from injected evaluation
+  code for the patched operations
+- Changes which page-world bindings are visible; other signals remain
+- Requires a dated, per-site challenge corpus before any detection claim
 
 ### The Problem for Recording
 
@@ -152,7 +167,7 @@ sessionStorage.setItem('__vrooli_recording_activation__', JSON.stringify({
 | Provider | Context | Implication |
 |----------|---------|-------------|
 | rebrowser-playwright | ISOLATED | Can't wrap History API, can't access page globals |
-| playwright | MAIN | Full access to page, but detectable |
+| playwright | MAIN | Full access to page; detection outcome is unqualified |
 
 **Code pattern:**
 ```typescript
@@ -187,12 +202,14 @@ if (provider.capabilities.exposeBindingIsolated) {
 
 | Provider | Detection Status |
 |----------|-----------------|
-| rebrowser-playwright | Passes most bot detection |
-| playwright | Easily detected (navigator.webdriver=true) |
+| rebrowser-playwright | Not qualified: no dated per-site corpus in this repository |
+| playwright | Not qualified: no dated per-site corpus in this repository |
 
 **When to use each:**
-- **rebrowser-playwright**: Production recording, live websites
-- **playwright**: Testing, debugging, controlled environments
+- **rebrowser-playwright**: Select only for compatibility-tested tasks; this
+  document does not establish detection performance.
+- **playwright**: Use as a conventional baseline where appropriate; this
+  document does not establish detection performance.
 
 ## Alternative Approaches
 
@@ -229,11 +246,12 @@ route interception workaround is working. CDP remains a fallback option.
 
 ### Why rebrowser-playwright + Workarounds?
 
-1. **Anti-detection is essential**: Recording on production websites
-   requires passing bot detection.
+1. **Site compatibility matters**: Some production sites challenge or block
+   automation. No provider's pass rate is established by this document.
 
-2. **Workarounds are working**: HTML injection and fetch-based
-   communication successfully record user actions.
+2. **Recording mechanisms have separate evidence**: HTML injection and
+   fetch-based communication are implementation paths for user-event capture;
+   they do not prove detection compatibility.
 
 3. **Playwright ecosystem benefits**: Selectors, waiting, error handling,
    multi-browser (future), and community support.
@@ -244,8 +262,10 @@ route interception workaround is working. CDP remains a fallback option.
 ### When to Reconsider
 
 - If route interception causes issues (service worker conflicts)
-- If bot detection evolves to detect our workarounds
-- If we need Firefox/WebKit support with anti-detection
+- When a dated per-site challenge corpus shows that a supported mode no longer
+  meets its task-specific compatibility target
+- If we need Firefox/WebKit support for a task family; qualify each mode
+  independently rather than assuming detection behavior transfers
 - If pure CDP libraries mature with better abstractions
 
 ## Critical: Route Handler Ordering

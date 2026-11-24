@@ -39,9 +39,41 @@ const request = {
 describe('AIGatewayVisionClient', () => {
   beforeEach(() => mockFetch.mockReset());
 
+  it('sends only the server-resolved active browser binding and reuses its LPBS reservation', async () => {
+    const valueJson = JSON.stringify({
+      action: { type: 'click', elementId: 1 }, reasoning: 'continue', goalAchieved: false, confidence: 0.9,
+    });
+    mockFetch
+      .mockResolvedValueOnce(fetchJsonResponse({ validated: true, valueJson, billingOperationId: 'lpbs-session-reservation' }))
+      .mockResolvedValueOnce(fetchJsonResponse({ validated: true, valueJson, billingOperationId: 'lpbs-session-reservation' }));
+    const client = new AIGatewayVisionClient({
+      gatewayUrl: 'http://ai-gateway.test',
+      browserSession: { runId: '87026a72-90ba-4e0b-9897-b2b09dc8a750', sessionId: 'bas-session-1', grantReceipt: 'opaque-grant' },
+    });
+    await client.analyze(request);
+    await client.analyze({ ...request, operationId: 'b'.repeat(64) });
+
+    const first = JSON.parse(mockFetch.mock.calls[0][1]?.body as string);
+    const second = JSON.parse(mockFetch.mock.calls[1][1]?.body as string);
+    expect(first.role).toBe('browser.extract');
+    expect(first.browserSession).toEqual({
+      runId: '87026a72-90ba-4e0b-9897-b2b09dc8a750', sessionId: 'bas-session-1', grantReceipt: 'opaque-grant',
+    });
+    expect(second.browserSession).toEqual({
+      runId: '87026a72-90ba-4e0b-9897-b2b09dc8a750', sessionId: 'bas-session-1', grantReceipt: 'opaque-grant', reservationId: 'lpbs-session-reservation',
+    });
+  });
+
   it('sends an ordered multimodal conversation to the gateway', async () => {
     mockFetch.mockResolvedValueOnce(
       fetchJsonResponse({
+        provider: 'lpbs',
+        model: 'provider/model-verified',
+        providerCallsMade: 1,
+        applied: {
+          maxOutputTokensEffective: 4096,
+          maxOutputTokensSource: 'OUTPUT_CAP_SOURCE_ROLE_POLICY',
+        },
         validated: true,
         valueJson: JSON.stringify({
           action: { type: 'click', elementId: 1 },
@@ -49,7 +81,16 @@ describe('AIGatewayVisionClient', () => {
           goalAchieved: false,
           confidence: 0.9,
         }),
-        usage: { inputTokens: '1200', outputTokens: '30' },
+        usage: {
+          inputTokens: '1200',
+          outputTokens: '30',
+          inputTokensProvenance: 'USAGE_PROVENANCE_PROVIDER_REPORTED',
+          outputTokensProvenance: 'USAGE_PROVENANCE_PROVIDER_REPORTED',
+          costMicros: '48',
+          costProvenance: 'USAGE_PROVENANCE_PROVIDER_REPORTED',
+          creditsCharged: '3',
+          accountingStatus: 'settled',
+        },
       })
     );
 
@@ -67,6 +108,25 @@ describe('AIGatewayVisionClient', () => {
       promptTokens: 1200,
       completionTokens: 30,
       totalTokens: 1230,
+    });
+    expect(result.inferenceReceipt).toEqual({
+      rootOperationId: request.operationId,
+      source: 'vrooli-credits',
+      providerCallsMade: 1,
+      provider: 'lpbs',
+      model: 'provider/model-verified',
+      inputTokens: 1200,
+      outputTokens: 30,
+      inputTokensProvenance: 'USAGE_PROVENANCE_PROVIDER_REPORTED',
+      outputTokensProvenance: 'USAGE_PROVENANCE_PROVIDER_REPORTED',
+      costMicros: '48',
+      costProvenance: 'USAGE_PROVENANCE_PROVIDER_REPORTED',
+      creditsCharged: '3',
+      accountingStatus: 'settled',
+      applied: {
+        maxOutputTokensEffective: 4096,
+        maxOutputTokensSource: 'OUTPUT_CAP_SOURCE_ROLE_POLICY',
+      },
     });
     const body = mockFetch.mock.calls[0][1]?.body as string;
     const payload = JSON.parse(body);
@@ -124,6 +184,27 @@ describe('AIGatewayVisionClient', () => {
       expect(error).toBeInstanceOf(VisionModelError);
       expect(error).toMatchObject({ code: 'OUTCOME_UNCERTAIN', retryable: false });
       expect((error as Error).message).toContain(`root_operation_id=${request.operationId}`);
+    }
+  });
+
+  it('preserves the actionable no-route category without suggesting a provider retry', async () => {
+    mockFetch.mockResolvedValueOnce(
+      fetchJsonResponse({
+        error: {
+          code: 'INFERENCE_ERROR_CODE_NO_ELIGIBLE_ROUTE',
+          message: 'select an available source; no provider was called',
+        },
+      })
+    );
+    const client = new AIGatewayVisionClient({ gatewayUrl: 'http://ai-gateway.test' });
+    try {
+      await client.analyze(request);
+      throw new Error('expected no eligible route');
+    } catch (error) {
+      expect(error).toBeInstanceOf(VisionModelError);
+      expect(error).toMatchObject({ code: 'NO_ELIGIBLE_ROUTE', retryable: false });
+      expect((error as Error).message).toContain('select an available source');
+      expect((error as Error).message).not.toContain('root_operation_id=');
     }
   });
 

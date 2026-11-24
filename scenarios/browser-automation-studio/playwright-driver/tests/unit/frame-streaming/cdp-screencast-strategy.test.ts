@@ -277,6 +277,76 @@ describe('CdpScreencastStrategy', () => {
     }
   });
 
+  it('acknowledges a late frame while its old capture is being replaced', async () => {
+    const cdp = createCdpSession();
+    const page = createCdpPage(cdp.session);
+    const socket = { readyState: 1, send: jest.fn() };
+    const handle = await new CdpScreencastStrategy().start(
+      () => page,
+      {
+        sessionId: 'replace-frame',
+        sourceForPage: sourceForSession('replace-frame'),
+        quality: 65,
+        targetFps: 30,
+        scale: 'css',
+        includePerfHeaders: false,
+      },
+      { isReady: () => true, getWebSocket: () => socket },
+      { onFrameSent: jest.fn(), onFrameSkipped: jest.fn() }
+    );
+
+    try {
+      jest.spyOn(page, 'viewportSize').mockReturnValue({ width: 900, height: 700 });
+      const resizing = handle.updateViewport?.(page);
+      cdp.session.emit('Page.screencastFrame', {
+        sessionId: 9,
+        metadata: {},
+        data: Buffer.from('retiring-frame').toString('base64'),
+      });
+
+      expect(cdp.send).toHaveBeenCalledWith('Page.screencastFrameAck', { sessionId: 9 });
+      await resizing;
+    } finally {
+      await handle.stop();
+    }
+  });
+
+  it('rejects oversized base64 frames before allocating a decoded image buffer', async () => {
+    const cdp = createCdpSession();
+    const page = createCdpPage(cdp.session);
+    const socket = { readyState: 1, bufferedAmount: 0, send: jest.fn() };
+    const stats: FrameStatsReporter = { onFrameSent: jest.fn(), onFrameSkipped: jest.fn() };
+    const handle = await new CdpScreencastStrategy().start(
+      () => page,
+      {
+        sessionId: 'oversized-frame',
+        sourceForPage: sourceForSession('oversized-frame'),
+        quality: 65,
+        targetFps: 30,
+        scale: 'css',
+        includePerfHeaders: false,
+      },
+      { isReady: () => true, getWebSocket: () => socket },
+      stats
+    );
+    const from = jest.spyOn(Buffer, 'from');
+    try {
+      const maxBase64FrameLength = Math.ceil((MAX_QUEUED_FRAME_BYTES * 4) / 3);
+      cdp.session.emit('Page.screencastFrame', {
+        sessionId: 2,
+        metadata: {},
+        data: 'A'.repeat(maxBase64FrameLength + 1),
+      });
+
+      expect(from).not.toHaveBeenCalled();
+      expect(socket.send).not.toHaveBeenCalled();
+      expect(stats.onFrameSkipped).toHaveBeenCalledWith('ws_backpressure');
+    } finally {
+      from.mockRestore();
+      await handle.stop();
+    }
+  });
+
   it('rejects unsupported physical-pixel capture before acquiring resources [REQ:BAS-RH-J23]', async () => {
     const { session: cdpSession } = createCdpSession();
     const newCDPSession = jest.fn().mockResolvedValue(cdpSession);

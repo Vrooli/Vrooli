@@ -102,6 +102,27 @@ describe('tab admission and session ownership [REQ:BAS-RH-J03]', () => {
     rerender();
     expect(onPageCreated).toHaveBeenCalledTimes(1);
   });
+  it('rebuilds popup, opener, and closed-page state from the same live owner after workspace remount', async () => {
+    const savedPages = [
+      page,
+      {...second, openerId: page.id, status: 'closed', closedAt: '2026-09-23T00:00:02Z'},
+    ];
+    const fetch = vi.fn(async () => new Response(JSON.stringify({pages: savedPages, activePageId: page.id})));
+    vi.stubGlobal('fetch', fetch);
+    useSessionStore.setState({sessionId: 'session', isValidated: true, pages: new Map(), activePageId: null});
+
+    const firstMount = renderHook(() => usePages({sessionId: 'session'}));
+    await act(async () => {await firstMount.result.current.refreshPages();});
+    firstMount.unmount();
+    useSessionStore.setState({pages: new Map(), activePageId: null});
+
+    const reopened = renderHook(() => usePages({sessionId: 'session'}));
+    await act(async () => {await reopened.result.current.refreshPages();});
+    expect(reopened.result.current.pageList.map(item => item.id)).toEqual(['target', 'second']);
+    expect(reopened.result.current.pages.get('second')).toMatchObject({openerId: 'target', status: 'closed'});
+    expect(reopened.result.current.openPages.map(item => item.id)).toEqual(['target']);
+    expect(fetch).toHaveBeenCalledTimes(4);
+  });
   it('discards an old page-list completion after switching sessions', async () => {
     const old = deferred<Response>();
     const current = {...page, id: 'current', sessionId: 'new-session'};

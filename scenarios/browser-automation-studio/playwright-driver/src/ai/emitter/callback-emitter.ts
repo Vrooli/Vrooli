@@ -4,7 +4,9 @@
  * STABILITY: STABLE CORE
  *
  * This module emits navigation step events to the API callback URL.
- * The API uses these events for timeline updates, credit deduction, and WebSocket broadcasting.
+ * The API uses these events for timeline updates and WebSocket broadcasting.
+ * Inference receipts travel for review/reconciliation only; LPBS settlement
+ * requires owner-attested evidence and never trusts this callback as authority.
  */
 
 import type { StepEmitterInterface } from '../vision-agent/types';
@@ -75,6 +77,7 @@ function stepToEvent(step: NavigationStep): NavigationStepEvent {
     annotatedScreenshot: step.annotatedScreenshot?.toString('base64'),
     currentUrl: step.currentUrl,
     tokensUsed: step.tokensUsed,
+    inferenceReceipt: step.inferenceReceipt,
     durationMs: step.durationMs,
     goalAchieved: step.goalAchieved,
     error: step.error,

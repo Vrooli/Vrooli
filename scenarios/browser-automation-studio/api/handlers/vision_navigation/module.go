@@ -9,8 +9,11 @@
 package vision_navigation
 
 import (
+	"context"
+
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/api-core/connectx"
+	"github.com/vrooli/browser-automation-studio/automation/agentaccess"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	aiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/ai/aiconnect"
 
@@ -31,11 +34,14 @@ type SessionTracker = vision.SessionTracker
 // the callback URL sent to playwright-driver (e.g. "http://127.0.0.1:8110").
 // When empty the handler falls back to the request Host header at call time.
 type Deps struct {
-	Logger              *logrus.Logger
-	Registry            *vision.NavigatorRegistry
-	Tracker             SessionTracker
-	CallbackBase        string
-	CredentialAuthority *credentialauthority.Authority
+	Logger                 *logrus.Logger
+	Registry               *vision.NavigatorRegistry
+	Tracker                SessionTracker
+	CallbackBase           string
+	CredentialAuthority    *credentialauthority.Authority
+	BrowserBindingResolver interface {
+		ResolveInferenceBinding(context.Context, string) (agentaccess.BrowserInferenceBinding, error)
+	}
 }
 
 // Module builds the VisionNavigationService Connect handler and returns it

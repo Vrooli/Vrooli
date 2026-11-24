@@ -57,8 +57,7 @@ def step_collect():  # COLLECT · schema validation of the draft (read effect)
     try:
         rows = browser_automation_studio.workflows.validate(workflow=flow, require_assertion=True, baseline_workflow_id=workflow_id, expected_version=expected_version).head(1)
     except Exception as exc:
-        status, klass = program.classify(exc)
-        return fail(status, klass, exc, "collect")
+        return program.fail_exception(exc, "collect")
     if not rows:
         return fail("failed", "binding_error", "validate returned no row", "collect")
     res = rows[0].get("result", rows[0])
@@ -74,8 +73,7 @@ def step_collect():  # COLLECT · schema validation of the draft (read effect)
             if handles["previous"].get("id") != workflow_id or handles["previous"].get("version") != expected_version:
                 return fail("failed", "version_conflict", "Repair baseline changed", "collect")
         except Exception as exc:
-            status, klass = program.classify(exc)
-            return fail(status, klass, exc, "collect")
+            return program.fail_exception(exc, "collect")
     return "classify"
 
 
@@ -94,8 +92,7 @@ def step_act():  # ACT · one ad hoc execution with wait
             kwargs["parameters"] = parameters
         rows = browser_automation_studio.workflows.execute_adhoc(**kwargs).head(1)
     except Exception as exc:
-        status, klass = program.classify(exc)
-        return fail(status, klass, exc, "act")
+        return program.fail_exception(exc, "act")
     if not rows:
         return fail("failed", "binding_error", "execute-adhoc returned no row", "act")
     r = rows[0]
@@ -155,8 +152,7 @@ def step_act():  # ACT · one ad hoc execution with wait
             envelope["signals"]["outcome"] = "verified_success"
             learn.note("preference", {"option_id": saved["id"] + "@" + str(saved["version"])})
     except Exception as exc:
-        status, klass = program.classify(exc)
-        return fail(status, klass, exc, "act:persist")
+        return program.fail_exception(exc, "act:persist")
     return "report"
 
 

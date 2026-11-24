@@ -33,6 +33,8 @@ export const pageEventCircuitBreaker: CircuitBreaker<string> = createCircuitBrea
 
 /** Timeout for page event callbacks (5 seconds) */
 const PAGE_EVENT_TIMEOUT_MS = 5_000;
+const PAGE_EVENT_RETRY_MS = 1_000;
+const MAX_PENDING_PAGE_EVENTS = 256;
 
 // =============================================================================
 // Page Event Functions
@@ -46,7 +48,7 @@ export async function sendPageEvent(
   callbackUrl: string,
   event: DriverPageEvent,
   routedTestMode = false
-): Promise<void> {
+): Promise<boolean> {
   // Check if we should attempt half-open (atomically claims the attempt)
   const attemptHalfOpen = pageEventCircuitBreaker.tryEnterHalfOpen(sessionId);
 
@@ -57,7 +59,7 @@ export async function sendPageEvent(
       eventType: event.eventType,
       driverPageId: event.driverPageId,
     });
-    return;
+    return false;
   }
 
   const controller = new AbortController();
@@ -86,6 +88,7 @@ export async function sendPageEvent(
       driverPageId: event.driverPageId,
       url: event.url,
     });
+    return true;
   } catch (err) {
     const circuitOpened = pageEventCircuitBreaker.recordFailure(sessionId);
     const errorMessage = err instanceof Error ? err.message : String(err);
@@ -97,6 +100,7 @@ export async function sendPageEvent(
       error: errorMessage,
       circuitOpen: circuitOpened,
     });
+    return false;
   } finally {
     clearTimeout(timeoutId);
   }
@@ -116,8 +120,55 @@ export function setupPageLifecycleListeners(
   routedTestMode = false
 ): { cleanup: () => void; ready: Promise<void> } {
   const context = session.context;
-  const send = (event: DriverPageEvent): Promise<void> =>
-    sendPageEvent(sessionId, pageCallbackUrl, event, routedTestMode);
+  type PendingPageEvent = { event: DriverPageEvent; resolve: () => void; reject: (error: Error) => void; attempting: boolean };
+  const pending: PendingPageEvent[] = [];
+  let deliveryActive = true;
+  let deliveryRunning = false;
+  let retryTimer: NodeJS.Timeout | undefined;
+  const drain = async (): Promise<void> => {
+    if (deliveryRunning || !deliveryActive) return;
+    deliveryRunning = true;
+    try {
+      while (deliveryActive && pending.length > 0) {
+        const item = pending[0];
+        if (!item) break;
+        item.attempting = true;
+        const acknowledged = await sendPageEvent(sessionId, pageCallbackUrl, item.event, routedTestMode);
+        item.attempting = false;
+        if (acknowledged) {
+          if (pending[0] === item) pending.shift();
+          item.resolve();
+          continue;
+        }
+        if (deliveryActive) {
+          // Retry the same serialized observation and timestamp. The BAS server
+          // journal's stable page-event ID makes a lost-response replay idempotent.
+          retryTimer = setTimeout(() => {
+            retryTimer = undefined;
+            void drain();
+          }, PAGE_EVENT_RETRY_MS);
+        } else {
+          if (pending[0] === item) pending.shift();
+          item.reject(new Error('recording stopped before page event acknowledgement'));
+        }
+        break;
+      }
+    } finally {
+      deliveryRunning = false;
+    }
+  };
+  const send = (event: DriverPageEvent): Promise<void> => new Promise((resolve, reject) => {
+    if (!deliveryActive) {
+      reject(new Error('recording page event delivery is closed'));
+      return;
+    }
+    if (pending.length >= MAX_PENDING_PAGE_EVENTS) {
+      reject(new Error(`recording page event queue exceeded ${MAX_PENDING_PAGE_EVENTS} pending events`));
+      return;
+    }
+    pending.push({ event: { ...event }, resolve, reject, attempting: false });
+    void drain();
+  });
   const listeners = new Map<Page, () => void>();
   let active = true;
   const reportError = (error: unknown): void => {
@@ -213,6 +264,17 @@ export function setupPageLifecycleListeners(
   void ready.catch(reportError);
   const cleanup = () => {
     active = false;
+    deliveryActive = false;
+    if (retryTimer) clearTimeout(retryTimer);
+    retryTimer = undefined;
+    const inFlight = pending.find((item) => item.attempting);
+    for (const item of [...pending]) {
+      if (item !== inFlight) {
+        const index = pending.indexOf(item);
+        if (index >= 0) pending.splice(index, 1);
+        item.reject(new Error('recording stopped before page event acknowledgement'));
+      }
+    }
     context.off('page', onNewPage);
     for (const detach of listeners.values()) detach();
     pageEventCircuitBreaker.cleanup(sessionId);

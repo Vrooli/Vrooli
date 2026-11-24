@@ -3,10 +3,12 @@
 package drills
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -128,20 +130,40 @@ func (s *service) RunDrill(ctx context.Context, req *connect.Request[drillv1.Run
 }
 
 func (s *service) post(ctx context.Context, path string, body any, out any) error {
-	raw, _ := json.Marshal(body)
-	r, err := http.NewRequestWithContext(ctx, http.MethodPost, s.deps.DriverURL+path, strings.NewReader(string(raw)))
+	return s.requestJSON(ctx, http.MethodPost, path, body, out, func(status int) error {
+		if status/100 != 2 {
+			return fmt.Errorf("driver %s returned %d", path, status)
+		}
+		return nil
+	})
+}
+
+// requestJSON is the single owner for failure-drill driver HTTP requests,
+// authorization headers, response closure, status checking and JSON decoding.
+func (s *service) requestJSON(ctx context.Context, method, path string, body, out any, checkStatus func(int) error) error {
+	var requestBody io.Reader
+	if body != nil {
+		raw, err := json.Marshal(body)
+		if err != nil {
+			return err
+		}
+		requestBody = bytes.NewReader(raw)
+	}
+	r, err := http.NewRequestWithContext(ctx, method, s.deps.DriverURL+path, requestBody)
 	if err != nil {
 		return err
 	}
-	r.Header.Set("Content-Type", "application/json")
+	if body != nil {
+		r.Header.Set("Content-Type", "application/json")
+	}
 	r.Header.Set("X-Playwright-Admin-Secret", s.deps.AdminSecret)
 	resp, err := s.deps.HTTPClient.Do(r)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode/100 != 2 {
-		return fmt.Errorf("driver %s returned %d", path, resp.StatusCode)
+	if err := checkStatus(resp.StatusCode); err != nil {
+		return err
 	}
 	if out != nil {
 		return json.NewDecoder(resp.Body).Decode(out)
@@ -168,21 +190,14 @@ func auditContains(events []faultAuditEvent, fault, event string) bool {
 }
 
 func (s *service) snapshot(ctx context.Context) (faultSnapshot, error) {
-	r, err := http.NewRequestWithContext(ctx, http.MethodGet, s.deps.DriverURL+"/test-control/faults", nil)
-	if err != nil {
-		return faultSnapshot{}, err
-	}
-	r.Header.Set("X-Playwright-Admin-Secret", s.deps.AdminSecret)
-	resp, err := s.deps.HTTPClient.Do(r)
-	if err != nil {
-		return faultSnapshot{}, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return faultSnapshot{}, fmt.Errorf("snapshot returned %d", resp.StatusCode)
-	}
 	var v faultSnapshot
-	if err := json.NewDecoder(resp.Body).Decode(&v); err != nil {
+	err := s.requestJSON(ctx, http.MethodGet, "/test-control/faults", nil, &v, func(status int) error {
+		if status != http.StatusOK {
+			return fmt.Errorf("snapshot returned %d", status)
+		}
+		return nil
+	})
+	if err != nil {
 		return faultSnapshot{}, err
 	}
 	return v, nil

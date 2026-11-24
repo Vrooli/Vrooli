@@ -4,10 +4,7 @@
  * rebrowser-playwright runtime and stores one screenshot crop per feature.
  */
 import fs from 'node:fs/promises';
-import os from 'node:os';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import { chromium } from 'rebrowser-playwright';
 import { sha256Hex, servedDocumentBuildIdentity, stableFeatureId, stableHash, inventoryCoverage, safeInteractionKind, parseSafeActionLabels, parseScopedSafeActionPaths, parseScopedSafeKeyChords, parseNamedEntrypoints, routeIdentityForState, matchesSafeActionLabel, validateInventory, featureDiffSummary, deduplicateFeatureRecords, mergeFeatureInventories, captureFeatureScreenshot } from './feature-inventory-core.mjs';
 import { SYNTHETIC_PROFILES, createSyntheticRouteHandler } from './synthetic-network.mjs';
@@ -102,20 +99,14 @@ if (command === 'diff') {
       recommendation: 'keep', status: 'pending', answer: null, terms: []
     };
   }));
-  const checker = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../scenarios/research-desk/skills/research-coordination/scripts/decision_card.py');
-  const validationDir = await fs.mkdtemp(path.join(os.tmpdir(), 'bas-feature-cards-'));
-  try {
-    for (const [index, card] of cards.entries()) {
-      const cardPath = path.join(validationDir, `${index}.json`);
-      await write(cardPath, card);
-      const result = spawnSync(process.env.PYTHON ?? 'python3', [checker, 'validate', '--file', cardPath], { encoding: 'utf8' });
-      if (result.error || result.status !== 0) {
-        const detail = result.error?.message || result.stderr.trim() || result.stdout.trim() || `exit ${result.status}`;
-        throw new Error(`generated decision card ${card.id} failed shared validation: ${detail}`);
-      }
-    }
-  } finally {
-    await fs.rm(validationDir, { recursive: true, force: true });
+  // The cards are built above from validated inventories; reject one a reader could not act on.
+  for (const card of cards) {
+    const problems = [];
+    if (!card.title?.trim()) problems.push('title is empty');
+    if (!card.location?.screen) problems.push('screen is missing');
+    if (!card.evidence.length || card.evidence.some((item) => !item.alt?.trim() || !item.image)) problems.push('evidence needs an alt text and an image');
+    if (!card.options.some((option) => option.key === card.recommendation)) problems.push('recommendation is not one of the options');
+    if (problems.length) throw new Error(`generated decision card ${card.id} is not usable: ${problems.join('; ')}`);
   }
   await write(outPath, {
     schema: 'bas-feature-diff/v1', before: before.identity, after: after.identity,

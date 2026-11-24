@@ -15,7 +15,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func setupTestDB(t *testing.T) (*DB, func()) {
+func setupTestDB(t *testing.T) *DB {
 	t.Helper()
 
 	tmpDir := t.TempDir()
@@ -43,17 +43,18 @@ func setupTestDB(t *testing.T) (*DB, func()) {
 		t.Fatalf("init schema: %v", err)
 	}
 
-	return wrapped, func() {
-		_ = sqlDB.Close()
-	}
+	t.Cleanup(func() { _ = sqlDB.Close() })
+	return wrapped
+}
+
+func setupTestRepository(t *testing.T) (Repository, context.Context) {
+	t.Helper()
+	db := setupTestDB(t)
+	return NewRepository(db, logrus.New()), t.Context()
 }
 
 func TestProjectCRUD(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	repo := NewRepository(db, logrus.New())
-	ctx := context.Background()
+	repo, ctx := setupTestRepository(t)
 
 	project := &ProjectIndex{
 		ID:         uuid.New(),
@@ -119,11 +120,7 @@ func TestProjectCRUD(t *testing.T) {
 }
 
 func TestWorkflowCRUD(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	repo := NewRepository(db, logrus.New())
-	ctx := context.Background()
+	repo, ctx := setupTestRepository(t)
 
 	projectID := uuid.New()
 	if err := repo.CreateProject(ctx, &ProjectIndex{ID: projectID, Name: "P1", FolderPath: "/p1"}); err != nil {
@@ -188,11 +185,7 @@ func TestWorkflowCRUD(t *testing.T) {
 }
 
 func TestExecutionCRUD(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	repo := NewRepository(db, logrus.New())
-	ctx := context.Background()
+	repo, ctx := setupTestRepository(t)
 
 	workflowID := uuid.New()
 	if err := repo.CreateWorkflow(ctx, &WorkflowIndex{ID: workflowID, Name: "W1", FolderPath: "/w1", Version: 1}); err != nil {
@@ -321,11 +314,7 @@ func TestConcurrentResumeAdmissionAllowsOnlyOneActiveChild(t *testing.T) {
 }
 
 func TestResumeAdmissionCanAdvanceAfterChildTerminates(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	repo := NewRepository(db, logrus.New())
-	ctx := context.Background()
+	repo, ctx := setupTestRepository(t)
 	workflowID := uuid.New()
 	if err := repo.CreateWorkflow(ctx, &WorkflowIndex{ID: workflowID, Name: "resume", FolderPath: "/resume", Version: 1}); err != nil {
 		t.Fatalf("CreateWorkflow: %v", err)
@@ -348,8 +337,7 @@ func TestResumeAdmissionCanAdvanceAfterChildTerminates(t *testing.T) {
 }
 
 func TestResumeAdmissionBackfillsActiveChildClaims(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 
 	repo := NewRepository(db, logrus.New())
 	ctx := context.Background()
@@ -385,10 +373,7 @@ func TestResumeAdmissionBackfillsActiveChildClaims(t *testing.T) {
 }
 
 func TestListLatestTerminalExecutionsPerWorkflow(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-	repo := NewRepository(db, logrus.New())
-	ctx := context.Background()
+	repo, ctx := setupTestRepository(t)
 	projectID := uuid.New()
 	if err := repo.CreateProject(ctx, &ProjectIndex{ID: projectID, Name: "retention", FolderPath: "/retention"}); err != nil {
 		t.Fatal(err)
@@ -517,11 +502,7 @@ func TestCreateExecutionSupportsLegacyTriggerTypeSchema(t *testing.T) {
 }
 
 func TestExecutionStatusUpdatePreservesResultPath(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	repo := NewRepository(db, logrus.New())
-	ctx := context.Background()
+	repo, ctx := setupTestRepository(t)
 
 	workflowID := uuid.New()
 	if err := repo.CreateWorkflow(ctx, &WorkflowIndex{ID: workflowID, Name: "W1", FolderPath: "/w1", Version: 1}); err != nil {
@@ -558,11 +539,7 @@ func TestExecutionStatusUpdatePreservesResultPath(t *testing.T) {
 }
 
 func TestExecutionResultPathUpdate(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	repo := NewRepository(db, logrus.New())
-	ctx := context.Background()
+	repo, ctx := setupTestRepository(t)
 
 	workflowID := uuid.New()
 	if err := repo.CreateWorkflow(ctx, &WorkflowIndex{ID: workflowID, Name: "W2", FolderPath: "/w2", Version: 1}); err != nil {
@@ -603,11 +580,7 @@ func TestExecutionResultPathUpdate(t *testing.T) {
 // addresses the data; this test pins the read path so a future change
 // to GetProjectsStats can't reintroduce the unsupported-Scan error.
 func TestGetProjectsStats_RoundTripsLastExecution(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	repo := NewRepository(db, logrus.New())
-	ctx := context.Background()
+	repo, ctx := setupTestRepository(t)
 
 	project := &ProjectIndex{ID: uuid.New(), Name: "Stats Project", FolderPath: "/stats/p"}
 	if err := repo.CreateProject(ctx, project); err != nil {
@@ -662,8 +635,7 @@ func TestGetProjectsStats_RoundTripsLastExecution(t *testing.T) {
 }
 
 func TestGetProjectsStatsAcceptsLegacyGoTimeString(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 
 	repo := NewRepository(db, logrus.New())
 	ctx := context.Background()
@@ -701,11 +673,7 @@ func TestGetProjectsStatsAcceptsLegacyGoTimeString(t *testing.T) {
 // executions must surface as a populated stats row with all counters
 // zero and LastExecution nil — not an absent map entry, not a 500.
 func TestGetProjectsStats_NoExecutionsLeavesLastExecutionNil(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	repo := NewRepository(db, logrus.New())
-	ctx := context.Background()
+	repo, ctx := setupTestRepository(t)
 
 	project := &ProjectIndex{ID: uuid.New(), Name: "Empty", FolderPath: "/empty"}
 	if err := repo.CreateProject(ctx, project); err != nil {
@@ -764,8 +732,7 @@ func TestParseTimestamp_AcceptsKnownLayouts(t *testing.T) {
 
 // [REQ:BAS-P0-101]
 func TestRetentionResumeLookupUsesIndexAfterSchemaUpgrade(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	// Simulate a database created before the retention lookup index existed.
 	if _, err := db.Exec("DROP INDEX IF EXISTS idx_executions_resumed_from_id"); err != nil {
 		t.Fatal(err)
@@ -798,10 +765,7 @@ func TestRetentionResumeLookupUsesIndexAfterSchemaUpgrade(t *testing.T) {
 }
 
 func TestCancelledExecutionIsDurableAndTerminal(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-	repo := NewRepository(db, logrus.New())
-	ctx := context.Background()
+	repo, ctx := setupTestRepository(t)
 	workflowID := uuid.New()
 	if err := repo.CreateWorkflow(ctx, &WorkflowIndex{ID: workflowID, Name: "Cancellation", FolderPath: "/cancel", Version: 1}); err != nil {
 		t.Fatal(err)
@@ -829,10 +793,7 @@ func TestCancelledExecutionIsDurableAndTerminal(t *testing.T) {
 }
 
 func TestExportWithoutWorkflowReadsBack(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-	repo := NewRepository(db, logrus.New())
-	ctx := context.Background()
+	repo, ctx := setupTestRepository(t)
 
 	workflowID := uuid.New()
 	if err := repo.CreateWorkflow(ctx, &WorkflowIndex{ID: workflowID, Name: "ExportParent", FolderPath: "/exports", Version: 1}); err != nil {
@@ -879,8 +840,7 @@ func TestExportWithoutWorkflowReadsBack(t *testing.T) {
 }
 
 func TestExportTerminalTransitionAndRestartRecovery(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
+	db := setupTestDB(t)
 	repo := NewRepository(db, logrus.New())
 	ctx := t.Context()
 	workflowID := uuid.New()

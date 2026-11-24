@@ -5,7 +5,6 @@ import (
 	"errors"
 	contractvalues "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -17,6 +16,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/enums"
 	"github.com/vrooli/browser-automation-studio/internal/protoconv"
+	exportservice "github.com/vrooli/browser-automation-studio/services/export"
 	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
@@ -29,7 +29,8 @@ const defaultSeedScenario = "browser-automation-studio"
 
 // service implements apiconnect.ExecutionsServiceHandler.
 type service struct {
-	deps Deps
+	deps            Deps
+	artifactCatalog *exportservice.ArtifactCatalog
 }
 
 func (s *service) log() *logrus.Logger { return s.deps.Logger }
@@ -112,49 +113,22 @@ func (s *service) ListExecutions(
 		}
 		out.Executions = append(out.Executions, pbExec)
 		if out.Exportability != nil {
-			out.Exportability[execIdx.ID.String()] = computeExportability(execIdx.ResultPath, s.deps.RecordingsRoot, execIdx.ID.String())
+			exportability, inspectErr := s.artifactCatalog.InspectExportability(ctx, execIdx.ResultPath, execIdx.ID)
+			if inspectErr != nil {
+				code := connect.CodeInternal
+				if errors.Is(inspectErr, context.Canceled) {
+					code = connect.CodeCanceled
+				} else if errors.Is(inspectErr, context.DeadlineExceeded) {
+					code = connect.CodeDeadlineExceeded
+				}
+				return nil, connect.NewError(code, inspectErr)
+			}
+			out.Exportability[execIdx.ID.String()] = exportability.Proto()
 		}
 	}
 	out.Total = int32(total)
 	out.HasMore = offset+len(out.Executions) < total
 	return connect.NewResponse(out), nil
-}
-
-// computeExportability mirrors the legacy lightweight filesystem probes used
-// by the REST handler. Keeping it inline avoids a dependency on the parent
-// handlers package.
-func computeExportability(resultPath, recordingsRoot, executionID string) *basapi.ExecutionExportability {
-	out := &basapi.ExecutionExportability{}
-	if strings.TrimSpace(resultPath) == "" {
-		return out
-	}
-	resultDir := filepath.Dir(resultPath)
-	timelinePath := filepath.Join(resultDir, "timeline.proto.json")
-	if info, err := os.Stat(timelinePath); err == nil && !info.IsDir() && info.Size() > 0 {
-		out.HasTimeline = true
-	}
-	screenshotsDir := filepath.Join(resultDir, "screenshots")
-	if entries, err := os.ReadDir(screenshotsDir); err == nil {
-		for _, entry := range entries {
-			if !entry.IsDir() {
-				out.HasScreenshots = true
-				break
-			}
-		}
-	}
-	if strings.TrimSpace(recordingsRoot) != "" && strings.TrimSpace(executionID) != "" {
-		videoDir := filepath.Join(recordingsRoot, executionID, "artifacts", "videos")
-		if entries, err := os.ReadDir(videoDir); err == nil {
-			for _, entry := range entries {
-				if !entry.IsDir() {
-					out.HasRecordedVideo = true
-					break
-				}
-			}
-		}
-	}
-	out.IsExportable = out.HasTimeline || out.HasRecordedVideo
-	return out
 }
 
 // ---------------------------------------------------------------------------

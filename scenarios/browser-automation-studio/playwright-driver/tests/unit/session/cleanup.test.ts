@@ -103,12 +103,10 @@ describe('SessionCleanup', () => {
       cleanup.start();
 
       // Fast-forward time by cleanup interval
-      jest.advanceTimersByTime(config.session.cleanupIntervalMs);
-      await Promise.resolve(); // Let promises settle
+      await jest.advanceTimersByTimeAsync(config.session.cleanupIntervalMs);
 
       // Fast-forward again - should still call cleanup
-      jest.advanceTimersByTime(config.session.cleanupIntervalMs);
-      await Promise.resolve();
+      await jest.advanceTimersByTimeAsync(config.session.cleanupIntervalMs);
 
       expect(cleanupSpy).toHaveBeenCalledTimes(2);
 
@@ -116,18 +114,44 @@ describe('SessionCleanup', () => {
     });
 
     it('should run multiple cleanup cycles', async () => {
-      const cleanupSpy = jest.spyOn(manager, 'cleanupIdleSessions');
+      const cleanupSpy = jest.spyOn(manager, 'cleanupIdleSessions').mockResolvedValue(undefined);
 
       cleanup.start();
 
-      // Fast-forward through 3 cycles
+      // Each async timer advance drains the cleanup promise before the next
+      // tick. A single Promise.resolve() can leave isCleanupInProgress set and
+      // accidentally test overlapping ticks instead of repeated completed runs.
       for (let i = 0; i < 3; i++) {
-        jest.advanceTimersByTime(config.session.cleanupIntervalMs);
-        await Promise.resolve();
+        await jest.advanceTimersByTimeAsync(config.session.cleanupIntervalMs);
       }
 
       expect(cleanupSpy).toHaveBeenCalledTimes(3);
 
+      cleanupSpy.mockRestore();
+    });
+
+    it('should let concurrent stop callers join one in-flight cleanup', async () => {
+      let completeCleanup!: () => void;
+      const cleanupFinished = new Promise<void>((resolve) => { completeCleanup = resolve; });
+      const cleanupSpy = jest.spyOn(manager, 'cleanupIdleSessions').mockReturnValue(cleanupFinished);
+      cleanup.start();
+      jest.advanceTimersByTime(config.session.cleanupIntervalMs);
+      expect(cleanupSpy).toHaveBeenCalledTimes(1);
+      expect(cleanup.isRunningCleanup()).toBe(true);
+
+      let firstStopped = false;
+      let secondStopped = false;
+      const firstStop = cleanup.stop().then(() => { firstStopped = true; });
+      const secondStop = cleanup.stop().then(() => { secondStopped = true; });
+      await Promise.resolve();
+      expect(firstStopped).toBe(false);
+      expect(secondStopped).toBe(false);
+
+      completeCleanup();
+      await Promise.all([firstStop, secondStop]);
+      expect(firstStopped).toBe(true);
+      expect(secondStopped).toBe(true);
+      expect(cleanup.isRunningCleanup()).toBe(false);
       cleanupSpy.mockRestore();
     });
   });

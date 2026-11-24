@@ -5,7 +5,7 @@ import type {
   UserAgentPreset,
 } from '@/domains/recording/types/types';
 
-/** Preset configurations for behavior and anti-detection settings */
+/** Presets for interaction behavior and legacy browser signal settings. */
 export const PRESET_CONFIGS: Record<
   ProfilePreset,
   { behavior: Partial<BehaviorSettings>; antiDetection: Partial<AntiDetectionSettings> }
@@ -174,22 +174,21 @@ export const PRESET_METADATA: {
   {
     id: 'stealth',
     name: 'Stealth',
-    description: 'Maximum anti-detection with natural human-like behavior. Best for sites with strict bot detection.',
-    recommended: true,
+    description: 'Legacy preset name for a group of browser signal and interaction settings. No detection guarantee.',
   },
   {
     id: 'balanced',
     name: 'Balanced',
-    description: 'Good anti-detection with reasonable speed. Suitable for most websites.',
+    description: 'A balanced group of browser signal and interaction settings; site compatibility is unqualified.',
   },
   {
     id: 'fast',
     name: 'Fast',
-    description: 'Minimal delays with basic anti-detection. Good for trusted internal tools.',
+    description: 'A faster group of browser signal and interaction settings; site compatibility is unqualified.',
   },
   {
     id: 'none',
     name: 'None',
-    description: 'No modifications. Raw automation speed for debugging or testing.',
+    description: 'No profile-level signal or interaction adjustments; provider behavior still applies.',
   },
 ];

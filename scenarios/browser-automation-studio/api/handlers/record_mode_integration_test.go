@@ -215,6 +215,15 @@ type journalIngressService struct {
 	afterCommit func()
 }
 
+type pageEventJournalService struct {
+	*MockRecordModeService
+	journal *recording.Service
+}
+
+func (s *pageEventJournalService) AddTimelinePageEvent(ctx context.Context, sessionID string, event *domain.PageEvent) error {
+	return s.journal.RecordPageEvent(ctx, sessionID, event)
+}
+
 func (s *journalIngressService) GetSession(string) (*autosession.Session, bool) {
 	return s.session, s.session != nil
 }
@@ -862,6 +871,252 @@ func TestDriverPageLifecycleTimestampsArePreserved(t *testing.T) {
 	assert.Equal(t, closedAt, *page.ClosedAt)
 	require.NotNil(t, hub.lastPageEvent["session"])
 	assert.Equal(t, closedAt, hub.lastPageEvent["session"].Timestamp)
+}
+
+func TestPopupLifecycleReplayCommitsOneOrderedPageJournal(t *testing.T) {
+	ctx := context.Background()
+	sess := &autosession.Session{}
+	sess.InitializePageTracking("https://main.test")
+	pages := sess.Pages()
+	pages.SetInitialPageDriverID("main-driver")
+	initialPageID := pages.GetInitialPageID()
+	repo := recordingmocks.NewMockRepository()
+	journal := recording.NewService(repo, recording.ServiceConfig{})
+	require.NoError(t, journal.RegisterSession(ctx, "session", recording.SessionConfig{}))
+	service := &pageEventJournalService{
+		MockRecordModeService: NewMockRecordModeService(),
+		journal:               journal,
+	}
+	service.OwnedSessions = map[string]*autosession.Session{"session": sess}
+	hub := NewTestRecordingHub(logrus.New())
+	h := &Handler{recordModeService: service, wsHub: hub, log: logrus.New()}
+	router := chi.NewRouter()
+	router.Post("/{sessionId}/page-event", h.ReceivePageEvent)
+	createdAt := time.Date(2026, 11, 19, 18, 0, 0, 0, time.UTC)
+	navigatedAt := createdAt.Add(time.Second)
+	closedAt := navigatedAt.Add(time.Second)
+	invoke := func(eventType string, timestamp time.Time, url string) *httptest.ResponseRecorder {
+		body, err := json.Marshal(domain.DriverPageEvent{
+			DriverPageID: "popup-driver", EventType: eventType, OpenerDriverPageID: "main-driver",
+			URL: url, Title: "Popup", Timestamp: timestamp.Format(time.RFC3339Nano),
+		})
+		require.NoError(t, err)
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/session/page-event", strings.NewReader(string(body))))
+		return response
+	}
+	for _, observation := range []struct {
+		typeName string
+		time     time.Time
+		url      string
+	}{
+		{typeName: "created", time: createdAt, url: "https://popup.test/start"},
+		{typeName: "navigated", time: navigatedAt, url: "https://popup.test/next"},
+		{typeName: "closed", time: closedAt, url: "https://popup.test/next"},
+	} {
+		for replay := 0; replay < 2; replay++ {
+			response := invoke(observation.typeName, observation.time, observation.url)
+			require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+		}
+	}
+	pageID := pages.GetPageIDByDriverID("popup-driver")
+	require.NotNil(t, pageID)
+	page, ok := pages.GetPage(*pageID)
+	require.True(t, ok)
+	require.Equal(t, initialPageID, *page.OpenerID)
+	require.Equal(t, domain.PageStatusClosed, page.Status)
+	timeline, err := journal.GetTimeline(ctx, persistence.TimelineQuery{SessionID: "session", Limit: 100})
+	require.NoError(t, err)
+	require.Len(t, timeline.Entries, 3, "replayed callbacks share stable journal identities")
+	assert.Equal(t, domain.StablePageEventID(*pageID, domain.PageEventCreated, createdAt), timeline.Entries[0].ID)
+	assert.Equal(t, domain.StablePageEventID(*pageID, domain.PageEventNavigated, navigatedAt), timeline.Entries[1].ID)
+	assert.Equal(t, domain.StablePageEventID(*pageID, domain.PageEventClosed, closedAt), timeline.Entries[2].ID)
+	assert.Equal(t, initialPageID, *timeline.Entries[0].PageEvent.OpenerID)
+	for i, entry := range timeline.Entries {
+		require.NotNil(t, entry.PageEvent)
+		assert.Equal(t, "popup-driver", entry.PageEvent.DriverPageID, "ordered event %d lost driver page identity", i)
+		assert.False(t, entry.PageEvent.IsInitial, "popup event %d was mislabeled initial", i)
+	}
+}
+
+func TestReceivePageEventCommitBeforeTrackerMutation(t *testing.T) {
+	ctx := context.Background()
+	createdAt := time.Date(2026, 11, 20, 12, 0, 0, 0, time.UTC)
+	created := domain.DriverPageEvent{SessionID: "session", DriverPageID: "popup-driver", EventType: "created", OpenerDriverPageID: "main-driver", URL: "https://popup.test/one", Title: "one", Timestamp: createdAt.Format(time.RFC3339Nano)}
+	fixture := func(t *testing.T) (*recordingmocks.MockRepository, *autosession.Session, func(domain.DriverPageEvent) *httptest.ResponseRecorder, func() *persistence.TimelineResponse, *TestRecordingHub) {
+		t.Helper()
+		repo := recordingmocks.NewMockRepository()
+		journal := recording.NewService(repo, recording.ServiceConfig{})
+		require.NoError(t, journal.RegisterSession(ctx, "session", recording.SessionConfig{}))
+		sess := &autosession.Session{}
+		sess.InitializePageTracking("https://main.test")
+		sess.Pages().SetInitialPageDriverID("main-driver")
+		service := &pageEventJournalService{MockRecordModeService: NewMockRecordModeService(), journal: journal}
+		service.OwnedSessions = map[string]*autosession.Session{"session": sess}
+		hub := NewTestRecordingHub(logrus.New())
+		h := &Handler{recordModeService: service, wsHub: hub, log: logrus.New()}
+		router := chi.NewRouter()
+		router.Post("/{sessionId}/page-event", h.ReceivePageEvent)
+		invoke := func(event domain.DriverPageEvent) *httptest.ResponseRecorder {
+			body, err := json.Marshal(event)
+			require.NoError(t, err)
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/session/page-event", strings.NewReader(string(body))))
+			return response
+		}
+		readTimeline := func() *persistence.TimelineResponse {
+			result, err := journal.GetTimeline(ctx, persistence.TimelineQuery{SessionID: "session"})
+			require.NoError(t, err)
+			return result
+		}
+		return repo, sess, invoke, readTimeline, hub
+	}
+
+	t.Run("initial observation journals the exact initial driver page before applying it", func(t *testing.T) {
+		repo, sess, invoke, readTimeline, hub := fixture(t)
+		at := createdAt.Add(-time.Minute)
+		initial := domain.DriverPageEvent{
+			SessionID: "session", DriverPageID: "main-driver", EventType: "initial",
+			URL: "https://main.test/observed", Title: "Observed main", Timestamp: at.Format(time.RFC3339Nano),
+		}
+		before, active := sess.Pages().Snapshot(false)
+		repo.AppendTimelineEntryErr = errors.New("initial journal unavailable")
+		failed := invoke(initial)
+		require.Equal(t, http.StatusServiceUnavailable, failed.Code, failed.Body.String())
+		after, activeAfter := sess.Pages().Snapshot(false)
+		require.Equal(t, before, after)
+		require.Equal(t, active, activeAfter)
+		require.Zero(t, readTimeline().TotalCount)
+		require.Zero(t, hub.GetBroadcastCount("session"), "failed append is not published")
+
+		repo.AppendTimelineEntryErr = nil
+		require.Equal(t, http.StatusOK, invoke(initial).Code)
+		timeline := readTimeline()
+		require.Equal(t, 1, timeline.TotalCount)
+		journaled := timeline.Entries[0].PageEvent
+		require.NotNil(t, journaled)
+		require.Equal(t, domain.PageEventCreated, journaled.Type)
+		require.Equal(t, "main-driver", journaled.DriverPageID)
+		require.True(t, journaled.IsInitial)
+		require.Equal(t, sess.Pages().GetInitialPageID(), journaled.PageID)
+		require.Equal(t, initial.URL, journaled.URL)
+		require.Equal(t, initial.Title, journaled.Title)
+		require.Equal(t, at, journaled.Timestamp)
+		updated, ok := sess.Pages().GetPage(journaled.PageID)
+		require.True(t, ok)
+		require.Equal(t, initial.URL, updated.URL)
+		require.Zero(t, hub.GetBroadcastCount("session"), "initial observation is not a duplicate UI creation")
+
+		require.Equal(t, http.StatusOK, invoke(initial).Code, "exact callback replay is idempotent")
+		require.Equal(t, 1, readTimeline().TotalCount)
+		conflict := initial
+		conflict.URL = "https://main.test/conflict"
+		beforeConflict, activeConflict := sess.Pages().Snapshot(false)
+		require.Equal(t, http.StatusServiceUnavailable, invoke(conflict).Code, "same event ID with a different observation must fail closed")
+		afterConflict, activeAfterConflict := sess.Pages().Snapshot(false)
+		require.Equal(t, beforeConflict, afterConflict)
+		require.Equal(t, activeConflict, activeAfterConflict)
+		require.Equal(t, 1, readTimeline().TotalCount)
+	})
+
+	t.Run("journal failure leaves registry unchanged", func(t *testing.T) {
+		repo, sess, invoke, readTimeline, _ := fixture(t)
+		repo.AppendTimelineEntryErr = errors.New("synthetic journal unavailable")
+		before, active := sess.Pages().Snapshot(false)
+		response := invoke(created)
+		require.Equal(t, http.StatusServiceUnavailable, response.Code, response.Body.String())
+		after, activeAfter := sess.Pages().Snapshot(false)
+		require.Equal(t, before, after)
+		require.Equal(t, active, activeAfter)
+		require.Nil(t, sess.Pages().GetPageIDByDriverID("popup-driver"))
+		require.Zero(t, readTimeline().TotalCount)
+		repo.AppendTimelineEntryErr = nil
+		require.Equal(t, http.StatusOK, invoke(created).Code)
+		require.Equal(t, 1, readTimeline().TotalCount)
+	})
+
+	t.Run("equal retry is idempotent and conflicting retry has zero registry effect", func(t *testing.T) {
+		_, sess, invoke, readTimeline, _ := fixture(t)
+		require.Equal(t, http.StatusOK, invoke(created).Code)
+		popupID := sess.Pages().GetPageIDByDriverID("popup-driver")
+		require.NotNil(t, popupID)
+		require.Equal(t, http.StatusOK, invoke(created).Code)
+		require.Equal(t, 1, readTimeline().TotalCount)
+		before, _ := sess.Pages().GetPage(*popupID)
+		conflict := created
+		conflict.URL = "https://popup.test/conflict"
+		response := invoke(conflict)
+		require.Equal(t, http.StatusServiceUnavailable, response.Code, response.Body.String())
+		after, _ := sess.Pages().GetPage(*popupID)
+		require.Equal(t, before, after)
+		require.Equal(t, 1, readTimeline().TotalCount)
+	})
+
+	t.Run("session and page identity mismatches are denied", func(t *testing.T) {
+		_, sess, invoke, readTimeline, _ := fixture(t)
+		foreign := created
+		foreign.SessionID = "foreign-session"
+		require.Equal(t, http.StatusBadRequest, invoke(foreign).Code)
+		require.Nil(t, sess.Pages().GetPageIDByDriverID("popup-driver"))
+		require.Zero(t, readTimeline().TotalCount)
+		require.Equal(t, http.StatusOK, invoke(created).Code)
+		popupID := sess.Pages().GetPageIDByDriverID("popup-driver")
+		require.NotNil(t, popupID)
+		stale := domain.DriverPageEvent{SessionID: "session", DriverPageID: "popup-driver", VrooliPageID: uuid.NewString(), EventType: "navigated", URL: "https://popup.test/stale", Timestamp: createdAt.Add(time.Second).Format(time.RFC3339Nano)}
+		require.Equal(t, http.StatusBadRequest, invoke(stale).Code)
+		page, _ := sess.Pages().GetPage(*popupID)
+		require.Equal(t, "https://popup.test/one", page.URL)
+		require.Equal(t, 1, readTimeline().TotalCount)
+	})
+
+	t.Run("late navigation after close is denied", func(t *testing.T) {
+		_, sess, invoke, readTimeline, _ := fixture(t)
+		require.Equal(t, http.StatusOK, invoke(created).Code)
+		popupID := sess.Pages().GetPageIDByDriverID("popup-driver")
+		require.NotNil(t, popupID)
+		closed := created
+		closed.EventType = "closed"
+		closed.Timestamp = createdAt.Add(time.Second).Format(time.RFC3339Nano)
+		require.Equal(t, http.StatusOK, invoke(closed).Code)
+		before, _ := sess.Pages().GetPage(*popupID)
+		late := created
+		late.EventType = "navigated"
+		late.URL = "https://popup.test/late"
+		late.Timestamp = createdAt.Add(2 * time.Second).Format(time.RFC3339Nano)
+		require.Equal(t, http.StatusBadRequest, invoke(late).Code)
+		after, _ := sess.Pages().GetPage(*popupID)
+		require.Equal(t, before, after)
+		require.Equal(t, 2, readTimeline().TotalCount)
+	})
+
+	t.Run("concurrent identical navigation callbacks commit once", func(t *testing.T) {
+		_, sess, invoke, readTimeline, _ := fixture(t)
+		require.Equal(t, http.StatusOK, invoke(created).Code)
+		navigation := domain.DriverPageEvent{SessionID: "session", DriverPageID: "popup-driver", EventType: "navigated", URL: "https://popup.test/two", Title: "two", Timestamp: createdAt.Add(time.Second).Format(time.RFC3339Nano)}
+		const workers = 8
+		start := make(chan struct{})
+		statuses := make(chan int, workers)
+		var wg sync.WaitGroup
+		for i := 0; i < workers; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				<-start
+				statuses <- invoke(navigation).Code
+			}()
+		}
+		close(start)
+		wg.Wait()
+		close(statuses)
+		for status := range statuses {
+			require.Equal(t, http.StatusOK, status)
+		}
+		require.Equal(t, 2, readTimeline().TotalCount)
+		popupID := sess.Pages().GetPageIDByDriverID("popup-driver")
+		page, ok := sess.Pages().GetPage(*popupID)
+		require.True(t, ok)
+		require.Equal(t, "https://popup.test/two", page.URL)
+	})
 }
 
 // [REQ:BAS-RH-J03] Close success reflects the browser, and repeated observations commit once.

@@ -15,12 +15,12 @@ interface BehaviorSectionProps {
 const mouseMovementOptions = [
   { value: 'linear' as MouseMovementStyle, label: 'Linear (Fast)' },
   { value: 'bezier' as MouseMovementStyle, label: 'Bezier (Smooth)' },
-  { value: 'natural' as MouseMovementStyle, label: 'Natural (Human-like)' },
+  { value: 'natural' as MouseMovementStyle, label: 'Natural Path' },
 ];
 
 const scrollStyleOptions = [
   { value: 'smooth' as ScrollStyle, label: 'Smooth (Continuous)' },
-  { value: 'stepped' as ScrollStyle, label: 'Stepped (Human-like)' },
+  { value: 'stepped' as ScrollStyle, label: 'Stepped Increments' },
 ];
 
 export function BehaviorSection({ behavior, onChange }: BehaviorSectionProps) {

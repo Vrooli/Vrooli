@@ -1,4 +1,4 @@
-import { createClient } from '@connectrpc/connect';
+import { Code, ConnectError, createClient } from '@connectrpc/connect';
 import { create } from '@bufbuild/protobuf';
 import { AIAnalyzeElementsRequestSchema, AIService } from '@vrooli/proto-types/browser-automation-studio/v1/ai/ai_pb';
 import type {
@@ -28,6 +28,28 @@ export const newGatewayRootOperationID = (): string => {
 export const analyzeElementsWithAI = (request: { url: string; intent: string }, rootOperationID: string) => {
   const headers = new Headers({ 'Idempotency-Key': rootOperationID });
   return aiClient.aIAnalyzeElements(create(AIAnalyzeElementsRequestSchema, request), { headers });
+};
+
+export const aiRequestErrorMessage = (error: unknown, fallback: string): string => {
+  if (
+    error instanceof ConnectError
+    && error.code === Code.FailedPrecondition
+    && error.metadata.get('X-Vrooli-AI-Gateway-Error-Code') === 'INFERENCE_ERROR_CODE_NO_ELIGIBLE_ROUTE'
+  ) {
+    const source = error.metadata.get('X-Vrooli-AI-Source');
+    const fundingBoundary = 'No inference was dispatched, and funding did not change.';
+    switch (source) {
+      case 'local':
+        return `No local route is eligible for this request. In Settings → Confidential data sharing, choose a configured remote source and grant consent, or ask the account owner to enable or upgrade an eligible route. ${fundingBoundary}`;
+      case 'own-key':
+        return `Your selected OpenRouter source has no eligible route for this request. Check the key and route in Settings → AI Settings, or choose another configured source in Settings → Confidential data sharing. If the account route is unavailable, ask the account owner to enable or upgrade it. ${fundingBoundary}`;
+      case 'vrooli-credits':
+        return `Vrooli AI credits has no eligible route for this request. Ask the account owner to enable or upgrade an eligible route, or choose your configured OpenRouter source in Settings → Confidential data sharing. ${fundingBoundary}`;
+      default:
+        return `No eligible route for the selected AI source. Choose another configured source in Settings → Confidential data sharing, or ask the account owner to enable or upgrade an eligible route. ${fundingBoundary}`;
+    }
+  }
+  return error instanceof Error ? error.message : fallback;
 };
 
 // =============================================================================

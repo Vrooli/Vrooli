@@ -16,6 +16,7 @@ import type {
   BrowserAction,
   TokenUsage,
 } from './types';
+import type { AIInferenceReceipt } from '@vrooli/proto-types/browser-automation-studio/v1/ai/ai_pb';
 
 export const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
@@ -148,6 +149,50 @@ const parseTokensUsed = (value: unknown): TokenUsage => {
   };
 };
 
+const exactUsageString = (value: unknown): string | undefined => {
+  if (typeof value === 'string' && /^\d+$/.test(value)) return value;
+  if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) return String(value);
+  return undefined;
+};
+
+const parseInferenceReceipt = (value: unknown): AIInferenceReceipt | undefined => {
+  if (!isRecord(value)) return undefined;
+  const rootOperationId = stringValue(value.rootOperationId);
+  const source = stringValue(value.source);
+  const inputTokens = exactUsageString(value.inputTokens);
+  const outputTokens = exactUsageString(value.outputTokens);
+  if (!rootOperationId || !source || inputTokens === undefined || outputTokens === undefined) return undefined;
+
+  const receipt: AIInferenceReceipt = {
+    $typeName: 'browser_automation_studio.v1.ai.AIInferenceReceipt',
+    rootOperationId,
+    billingOperationId: stringValue(value.billingOperationId) ?? '',
+    source,
+    provider: stringValue(value.provider) ?? '',
+    model: stringValue(value.model) ?? '',
+    providerCallsMade: numberValue(value.providerCallsMade) ?? 0,
+    inputTokens,
+    outputTokens,
+    inputTokensProvenance: stringValue(value.inputTokensProvenance) ?? '',
+    outputTokensProvenance: stringValue(value.outputTokensProvenance) ?? '',
+    costMicros: exactUsageString(value.costMicros) ?? '',
+    costProvenance: stringValue(value.costProvenance) ?? '',
+    creditsCharged: exactUsageString(value.creditsCharged) ?? '',
+    accountingStatus: stringValue(value.accountingStatus) ?? '',
+  };
+  if (isRecord(value.applied)) {
+    const temperature = numberValue(value.applied.temperatureSent);
+    receipt.applied = {
+      $typeName: 'browser_automation_studio.v1.ai.AIInferenceAppliedSettings',
+      maxOutputTokensEffective: numberValue(value.applied.maxOutputTokensEffective) ?? 0,
+      maxOutputTokensSource: stringValue(value.applied.maxOutputTokensSource) ?? '',
+      temperatureSent: temperature,
+      temperatureSupport: stringValue(value.applied.temperatureSupport) ?? '',
+    };
+  }
+  return receipt;
+};
+
 const applyActionDetails = (
   action: BrowserAction,
   details: Record<string, unknown>,
@@ -192,6 +237,7 @@ const parseStepEvent = (value: unknown): AINavigationStepEvent | null => {
   const currentUrl = stringValue(value.currentUrl) ?? '';
   const goalAchieved = booleanValue(value.goalAchieved) ?? false;
   const tokensUsed = parseTokensUsed(value.tokensUsed);
+  const inferenceReceipt = parseInferenceReceipt(value.inferenceReceipt);
   const durationMs = numberValue(value.durationMs) ?? 0;
   const error = stringValue(value.error);
 
@@ -205,6 +251,7 @@ const parseStepEvent = (value: unknown): AINavigationStepEvent | null => {
     currentUrl,
     goalAchieved,
     tokensUsed,
+    inferenceReceipt,
     durationMs,
     error,
     timestamp: eventTimestamp(value.timestamp),
@@ -299,6 +346,7 @@ export const statusStepToAINavigationStep = (step: {
   description: string;
   success: boolean;
   error: string;
+  inferenceReceipt?: AIInferenceReceipt;
   at?: unknown;
 }): AINavigationStep => {
   const actionType = actionTypes.has(step.actionType as BrowserAction['type'])
@@ -325,6 +373,7 @@ export const statusStepToAINavigationStep = (step: {
     currentUrl: step.url,
     goalAchieved: actionType === 'done' && step.success,
     tokensUsed: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+    inferenceReceipt: step.inferenceReceipt,
     durationMs: 0,
     error: step.error || undefined,
     timestamp,

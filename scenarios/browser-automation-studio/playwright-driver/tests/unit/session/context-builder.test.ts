@@ -52,6 +52,15 @@ describe('ContextBuilder', () => {
       expect(result.context).toBeDefined();
     });
 
+    it('leaves the default user agent to the serving browser engine', async () => {
+      const result = await buildContext(mockBrowser, sessionSpec, config);
+      const options = getNewContextOptions(mockBrowser);
+
+      expect(options?.userAgent).toBeUndefined();
+      expect(options?.extraHTTPHeaders).toBeUndefined();
+      expect(result.identityConfiguration.userAgent).toBeUndefined();
+    });
+
     it.each(['rest', 'hover', 'focus-visible', 'pressed', 'disabled'] as const)(
       'should apply declared interaction state %s to the browser context',
       async (interactionState) => {

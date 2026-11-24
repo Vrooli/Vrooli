@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -44,14 +45,6 @@ func newPlaywrightTestEngine(t *testing.T, server *httptest.Server) *engine.Play
 	return playwright
 }
 
-type priorNavigationState string
-
-const (
-	noNavigation     priorNavigationState = "none"
-	navigated        priorNavigationState = "navigated"
-	failedNavigation priorNavigationState = "failed_navigate"
-)
-
 func TestDecideLifecycleNavigationStateMatrix(t *testing.T) {
 	t.Parallel()
 
@@ -60,20 +53,22 @@ func TestDecideLifecycleNavigationStateMatrix(t *testing.T) {
 			name       string
 			boundary   executionBoundary
 			hasSession bool
-			prior      priorNavigationState
+			initial    navigationState
 			reset      bool
 		}{
-			{name: "start", boundary: executionStart, hasSession: false, prior: noNavigation, reset: true},
-			{name: "start_after_navigation", boundary: executionStart, hasSession: true, prior: navigated, reset: true},
-			{name: "between_live", boundary: betweenSteps, hasSession: true, prior: navigated, reset: false},
-			{name: "between_live_failed_navigation", boundary: betweenSteps, hasSession: true, prior: failedNavigation, reset: false},
-			{name: "between_missing_session", boundary: betweenSteps, hasSession: false, prior: navigated, reset: true},
-			{name: "end", boundary: executionEnd, hasSession: true, prior: navigated, reset: false},
+			{name: "start", boundary: executionStart, hasSession: false, reset: true},
+			{name: "start_after_navigation", boundary: executionStart, hasSession: true, initial: navigationState{hasNavigated: true}, reset: true},
+			{name: "start_after_failed_navigation", boundary: executionStart, hasSession: true, initial: navigationState{lastAttempt: &failedNavigateAttempt{nodeID: "navigate", summary: "network unavailable"}}, reset: true},
+			{name: "between_live", boundary: betweenSteps, hasSession: true, initial: navigationState{hasNavigated: true}, reset: false},
+			{name: "between_live_failed_navigation", boundary: betweenSteps, hasSession: true, initial: navigationState{lastAttempt: &failedNavigateAttempt{nodeID: "navigate", summary: "network unavailable"}}, reset: false},
+			{name: "between_missing_session", boundary: betweenSteps, hasSession: false, initial: navigationState{hasNavigated: true}, reset: true},
+			{name: "between_missing_session_after_failed_navigation", boundary: betweenSteps, hasSession: false, initial: navigationState{lastAttempt: &failedNavigateAttempt{nodeID: "navigate", summary: "network unavailable"}}, reset: true},
+			{name: "end", boundary: executionEnd, hasSession: true, initial: navigationState{hasNavigated: true}, reset: false},
 		} {
 			tc := tc
 			t.Run(string(mode)+"/"+tc.name, func(t *testing.T) {
 				t.Parallel()
-				state := navigationFor(tc.prior)
+				state := &navigationState{hasNavigated: tc.initial.hasNavigated, lastAttempt: tc.initial.lastAttempt}
 				decision := decideLifecycle(mode, tc.boundary, tc.hasSession)
 				if decision.ResetNavigation != tc.reset {
 					t.Fatalf("reset navigation = %t, want %t", decision.ResetNavigation, tc.reset)
@@ -84,26 +79,15 @@ func TestDecideLifecycleNavigationStateMatrix(t *testing.T) {
 				if tc.reset && (state.hasNavigated || state.lastAttempt != nil) {
 					t.Fatalf("reset decision left navigation state behind: %+v", state)
 				}
-				if !tc.reset && tc.prior == navigated && !state.hasNavigated {
+				if !tc.reset && tc.initial.hasNavigated && !state.hasNavigated {
 					t.Fatal("live session lost successful navigation between workflow steps")
 				}
-				if !tc.reset && tc.prior == failedNavigation && state.lastAttempt == nil {
-					t.Fatal("live session lost failed-navigation diagnosis between workflow steps")
+				if !tc.reset && tc.initial.lastAttempt != nil && (state.lastAttempt == nil || *state.lastAttempt != *tc.initial.lastAttempt) {
+					t.Fatalf("live session lost failed-navigation diagnosis between workflow steps: got=%+v want=%+v", state.lastAttempt, tc.initial.lastAttempt)
 				}
 			})
 		}
 	}
-}
-
-func navigationFor(prior priorNavigationState) *navigationState {
-	state := &navigationState{}
-	switch prior {
-	case navigated:
-		markNavigation(state)
-	case failedNavigation:
-		recordFailedNavigate(state, contracts.CompiledInstruction{NodeID: "navigate"}, "network unavailable")
-	}
-	return state
 }
 
 // These faults cross the public Execute boundary, not just the cleanup helper.
@@ -226,6 +210,9 @@ func TestFinalizationRetainsContextAfterCancellation(t *testing.T) {
 	err := executeFinalizationFixture(ctx, s, &stubExecutionWriter{})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "close also failed")
+	var finalizationErr *ExecutionFinalizationError
+	require.ErrorAs(t, err, &finalizationErr)
+	require.ErrorIs(t, err, finalizationErr.Cause)
 	require.Equal(t, "routed-test-storage", s.closeCtx.Value(storageKey{}))
 	require.NoError(t, s.closeContextErr)
 	deadline, ok := s.closeCtx.Deadline()
@@ -273,6 +260,13 @@ func TestFinalizationPersistsAvailableArtifactBytesAndFailures(t *testing.T) {
 			data, err := os.ReadFile(artifact.Path)
 			require.NoError(t, err)
 			require.Equal(t, expected.contents, string(data))
+			if i > 0 {
+				info, err := os.Stat(artifact.Path)
+				require.NoError(t, err)
+				if runtime.GOOS != "windows" {
+					require.Equal(t, os.FileMode(0o600), info.Mode().Perm(), "downloaded temp artifacts retain private creation mode")
+				}
+			}
 			importedPaths = append(importedPaths, artifact.Path)
 		}
 		require.Equal(t, 0, artifacts[0].Payload["page_index"])

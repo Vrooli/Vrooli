@@ -59,6 +59,22 @@ CREATE INDEX IF NOT EXISTS idx_executions_started_at ON executions(started_at DE
 -- Foreign-key checks during retention must not scan every execution per deletion.
 CREATE INDEX IF NOT EXISTS idx_executions_resumed_from_id ON executions(resumed_from_id);
 
+-- Durable idempotency claims for CaptureService.Capture. The token is owned
+-- by the caller; request_hash prevents accidental reuse for different input.
+-- execution_id is reserved before browser work begins so a lost response can
+-- be reconciled against the normal execution owner.
+CREATE TABLE IF NOT EXISTS capture_requests (
+    request_token TEXT PRIMARY KEY,
+    request_hash TEXT NOT NULL,
+    request_json TEXT NOT NULL,
+    execution_id TEXT NOT NULL UNIQUE,
+    state TEXT NOT NULL CHECK (state IN ('in_progress', 'completed', 'failed')),
+    response_json TEXT NOT NULL DEFAULT '',
+    error TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Admission claim prevents different API processes from resuming the same checkpoint concurrently.
 -- Claims advance to a new child only after the previous child reached a terminal state.
 CREATE TABLE IF NOT EXISTS execution_resume_claims (

@@ -608,36 +608,6 @@ func TestSizeLimitConstants(t *testing.T) {
 }
 
 // =============================================================================
-// BoundingBox Tests
-// =============================================================================
-
-func TestBoundingBox(t *testing.T) {
-	t.Run("can represent element position", func(t *testing.T) {
-		box := BoundingBox{
-			X:      100,
-			Y:      200,
-			Width:  300,
-			Height: 150,
-		}
-		assert.Equal(t, float64(100), box.X)
-		assert.Equal(t, float64(200), box.Y)
-		assert.Equal(t, float64(300), box.Width)
-		assert.Equal(t, float64(150), box.Height)
-	})
-
-	t.Run("can represent fractional positions", func(t *testing.T) {
-		box := BoundingBox{
-			X:      100.5,
-			Y:      200.75,
-			Width:  300.25,
-			Height: 150.125,
-		}
-		assert.Equal(t, 100.5, box.X)
-		assert.Equal(t, 200.75, box.Y)
-	})
-}
-
-// =============================================================================
 // EventEnvelope Tests
 // =============================================================================
 
@@ -906,63 +876,6 @@ func TestExecutionPlan_Structure(t *testing.T) {
 	})
 }
 
-// =============================================================================
-// CompiledInstruction Tests
-// =============================================================================
-
-func TestCompiledInstruction_Structure(t *testing.T) {
-	t.Run("can represent navigate instruction", func(t *testing.T) {
-		instr := CompiledInstruction{
-			Index:  0,
-			NodeID: "nav-1",
-			Action: &basactions.ActionDefinition{
-				Type: basactions.ActionType_ACTION_TYPE_NAVIGATE,
-				Params: &basactions.ActionDefinition_Navigate{
-					Navigate: &basactions.NavigateParams{Url: "https://example.com"},
-				},
-			},
-		}
-
-		assert.Equal(t, 0, instr.Index)
-		assert.Equal(t, basactions.ActionType_ACTION_TYPE_NAVIGATE, instr.Action.Type)
-		assert.Equal(t, "https://example.com", instr.Action.GetNavigate().Url)
-	})
-
-	t.Run("can include preload HTML", func(t *testing.T) {
-		instr := CompiledInstruction{
-			Index:  0,
-			NodeID: "click-1",
-			Action: &basactions.ActionDefinition{
-				Type: basactions.ActionType_ACTION_TYPE_CLICK,
-				Params: &basactions.ActionDefinition_Click{
-					Click: &basactions.ClickParams{Selector: "#button"},
-				},
-			},
-			PreloadHTML: "<button id=\"button\">Click</button>",
-		}
-
-		assert.NotEmpty(t, instr.PreloadHTML)
-	})
-
-	t.Run("can include context and metadata", func(t *testing.T) {
-		instr := CompiledInstruction{
-			Index:  0,
-			NodeID: "type-1",
-			Action: &basactions.ActionDefinition{
-				Type: basactions.ActionType_ACTION_TYPE_INPUT,
-				Params: &basactions.ActionDefinition_Input{
-					Input: &basactions.InputParams{Selector: "#input", Value: "hello"},
-				},
-			},
-			Context:  map[string]any{"previousStep": "nav-1"},
-			Metadata: map[string]string{"source": "recording"},
-		}
-
-		assert.Equal(t, "nav-1", instr.Context["previousStep"])
-		assert.Equal(t, "recording", instr.Metadata["source"])
-	})
-}
-
 func TestExecutionContractsRejectLegacyTypeParamsFields(t *testing.T) {
 	t.Parallel()
 
@@ -1013,39 +926,6 @@ func TestDOMSnapshot_Structure(t *testing.T) {
 		}
 
 		assert.True(t, snap.Truncated)
-	})
-}
-
-// =============================================================================
-// ConsoleLogEntry Tests
-// =============================================================================
-
-func TestConsoleLogEntry_Structure(t *testing.T) {
-	types := []string{"log", "warn", "error", "info", "debug"}
-
-	for _, logType := range types {
-		t.Run("supports "+logType+" type", func(t *testing.T) {
-			entry := ConsoleLogEntry{
-				Type:      logType,
-				Text:      "Test message",
-				Timestamp: time.Now().UTC(),
-			}
-
-			assert.Equal(t, logType, entry.Type)
-		})
-	}
-
-	t.Run("can include stack trace", func(t *testing.T) {
-		entry := ConsoleLogEntry{
-			Type:      "error",
-			Text:      "Uncaught TypeError",
-			Timestamp: time.Now().UTC(),
-			Stack:     "at foo.js:10:5\nat bar.js:20:3",
-			Location:  "foo.js:10:5",
-		}
-
-		assert.NotEmpty(t, entry.Stack)
-		assert.NotEmpty(t, entry.Location)
 	})
 }
 
@@ -1156,45 +1036,6 @@ func TestAssertionOutcome_Structure(t *testing.T) {
 		}
 
 		assert.True(t, outcome.Negated)
-	})
-}
-
-// =============================================================================
-// ConditionOutcome Tests
-// =============================================================================
-
-func TestConditionOutcome_Structure(t *testing.T) {
-	t.Run("can represent element existence check", func(t *testing.T) {
-		outcome := ConditionOutcome{
-			Type:     "element_exists",
-			Selector: "#login-form",
-			Outcome:  true,
-		}
-
-		assert.True(t, outcome.Outcome)
-	})
-
-	t.Run("can represent variable comparison", func(t *testing.T) {
-		outcome := ConditionOutcome{
-			Type:     "variable",
-			Operator: "equals",
-			Variable: "userCount",
-			Expected: 10,
-			Actual:   10,
-			Outcome:  true,
-		}
-
-		assert.Equal(t, "equals", outcome.Operator)
-	})
-
-	t.Run("can represent expression evaluation", func(t *testing.T) {
-		outcome := ConditionOutcome{
-			Type:       "expression",
-			Expression: "data.items.length > 0",
-			Outcome:    true,
-		}
-
-		assert.NotEmpty(t, outcome.Expression)
 	})
 }
 

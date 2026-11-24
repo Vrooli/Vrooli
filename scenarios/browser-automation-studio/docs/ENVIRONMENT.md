@@ -98,7 +98,6 @@ Keep inner timeouts smaller than outers to get actionable errors.
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `BAS_WS_CLIENT_SEND_BUFFER_SIZE` | Per-client JSON buffer | `256` |
-| `BAS_WS_CLIENT_BINARY_BUFFER_SIZE` | Per-client binary buffer | `120` |
 | `BAS_WS_CLIENT_READ_LIMIT` | Max client message size | `512` |
 | `BAS_RECORDING_DEFAULT_VIEWPORT_WIDTH` / `BAS_RECORDING_DEFAULT_VIEWPORT_HEIGHT` | Default viewport | `1280` / `720` |
 | `BAS_RECORDING_DEFAULT_STREAM_QUALITY` | JPEG quality 1-100 | `55` |

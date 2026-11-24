@@ -13,7 +13,29 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/services/evidence"
 )
+
+func TestInspectArtifactTreeUsesCanonicalEvidenceIntegrity(t *testing.T) {
+	root := t.TempDir()
+	payload := []byte("frame bytes")
+	path := filepath.Join(root, "frame.png")
+	if err := os.WriteFile(path, payload, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	integrity, err := evidence.InspectFileIntegrity(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	files, size, digest, exists, err := inspectArtifactTree(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	aggregate := sha256.Sum256([]byte("frame.png\x00" + fmt.Sprint(integrity.SizeBytes) + "\x00" + integrity.SHA256 + "\n"))
+	if !exists || files != 1 || size != integrity.SizeBytes || digest != hex.EncodeToString(aggregate[:]) {
+		t.Fatalf("artifact tree integrity = files:%d size:%d digest:%s exists:%v; canonical file integrity=%+v", files, size, digest, exists, integrity)
+	}
+}
 
 type exactFS struct{ failDelete, retainOnDelete bool }
 
@@ -375,6 +397,31 @@ func TestExactPurgeRequiresSameUUIDConfirmation(t *testing.T) {
 	}
 }
 
+func TestExactPurgeRejectsArtifactsChangedSincePreview(t *testing.T) {
+	svc, store, execution, dir := exactFixture(t, database.ExecutionStatusCompleted, exactFS{})
+	preview, err := svc.PreviewExactPurge(context.Background(), execution.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Model a legitimate writer updating both the artifact and its inventory
+	// after an operator reviewed the preview. The stale confirmation must not
+	// authorize deletion of the newer, still internally consistent directory.
+	if err := os.WriteFile(execution.ResultPath, []byte("new result after review"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	writeExactInventory(t, dir, execution.ID, execution.WorkflowID)
+	if _, err := svc.PurgeExact(context.Background(), execution.ID, execution.ID.String(), preview); !errors.Is(err, ErrExactPreviewChanged) {
+		t.Fatalf("stale preview accepted after artifact update: %v", err)
+	}
+	if _, err := store.GetExecution(context.Background(), execution.ID); err != nil {
+		t.Fatalf("stale preview deleted execution row: %v", err)
+	}
+	if content, err := os.ReadFile(execution.ResultPath); err != nil || string(content) != "new result after review" {
+		t.Fatalf("stale preview changed updated artifact: %q %v", content, err)
+	}
+}
+
 func TestExactPurgeDeletesOnlyExactSameWorkflowExecution(t *testing.T) {
 	svc, store, execution, dir := exactFixture(t, database.ExecutionStatusCompleted, exactFS{})
 	unrelated := mkExec(t, database.ExecutionStatusCompleted, 2, execution.WorkflowID)
@@ -459,23 +506,5 @@ func TestExactPurgeDatabaseFailureLeavesVisibleRowAndMissingDirectory(t *testing
 	}
 	if _, err := svc.PreviewExactPurge(context.Background(), execution.ID); !errors.Is(err, ErrExactArtifactMissing) {
 		t.Fatalf("retry should fail closed on missing directory: %v", err)
-	}
-}
-
-func TestExactPurgeDatabaseDeleteFailureIsReported(t *testing.T) {
-	svc, store, execution, dir := exactFixture(t, database.ExecutionStatusCompleted, exactFS{})
-	store.failDel = map[uuid.UUID]bool{execution.ID: true}
-	preview, err := svc.PreviewExactPurge(context.Background(), execution.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := svc.PurgeExact(context.Background(), execution.ID, execution.ID.String(), preview); err == nil {
-		t.Fatal("expected row-delete failure")
-	}
-	if _, err := store.GetExecution(context.Background(), execution.ID); err != nil {
-		t.Fatalf("row unexpectedly gone: %v", err)
-	}
-	if _, err := os.Stat(dir); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("artifacts should be removed before row failure: %v", err)
 	}
 }

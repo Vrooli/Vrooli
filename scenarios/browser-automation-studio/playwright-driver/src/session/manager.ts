@@ -59,9 +59,11 @@ import {
   buildContext,
 } from './manager-support';
 import { applySafeAreaInsets } from './context-builder';
+import { ensureNavigationScopeForPage } from './navigation-scope';
 import { RecordingPipelineManager, createRecordingContextInitializer } from '../recording';
 import { ServiceWorkerController } from '../service-worker';
 import { resolveInstrumentation, safeInvoke, type Instrumentation } from '../instrumentation';
+import { observeEffectiveIdentity } from './identity-evidence';
 
 /** Session admission and reuse decisions stay with the lifecycle owner. */
 function findByExecutionId(
@@ -194,6 +196,7 @@ type SessionCreationResult = {
   reused: boolean;
   createdAt: Date;
   actualViewport: ActualViewport;
+  identityEvidence?: SessionState['identityEvidence'];
 };
 
 const getErrorMessage = (error: unknown): string =>
@@ -418,6 +421,35 @@ export class SessionManager {
     spec: SessionSpec,
     reserveCapacity: () => void
   ): Promise<SessionCreationResult> {
+    const browserBackend = spec.browser_backend ?? 'managed';
+    if (browserBackend !== 'managed' && browserBackend !== 'installed') {
+      throw new InvalidInstructionError(`unsupported browser backend: ${String(browserBackend)}`);
+    }
+    if (browserBackend === 'installed' && spec.reuse_mode !== 'fresh') {
+      throw new InvalidInstructionError(
+        'installed-binary sessions require a fresh isolated browser context'
+      );
+    }
+    if (browserBackend === 'installed' && (spec.browser_profile || spec.app_target)) {
+      throw new InvalidInstructionError(
+        'installed-binary sessions do not support managed identity profiles or external app targets'
+      );
+    }
+    if (
+      browserBackend === 'installed' &&
+      (spec.storage_state !== undefined ||
+        (spec.permissions?.length ?? 0) > 0 ||
+        spec.fake_media !== undefined ||
+        spec.audio_device_evidence === true ||
+        spec.audio_playback_pause_ms !== undefined ||
+        spec.audio_playback_start_delay_ms !== undefined ||
+        spec.audio_playback_defer_start === true)
+    ) {
+      throw new InvalidInstructionError(
+        'installed-binary sessions do not accept restored browser state, direct permission grants, or managed audio settings'
+      );
+    }
+    spec = { ...spec, browser_backend: browserBackend };
     if (spec.app_target) validateAppTargetAdmission(spec, spec.app_target);
 
     // Idempotency: Check for existing session with same execution_id
@@ -463,6 +495,7 @@ export class SessionManager {
         reused: true,
         createdAt: existingByExecutionId.createdAt,
         actualViewport,
+        identityEvidence: existingByExecutionId.identityEvidence,
       };
     }
 
@@ -521,6 +554,7 @@ export class SessionManager {
           reused: true,
           createdAt: existingSession.createdAt,
           actualViewport,
+          identityEvidence: existingSession.identityEvidence,
         };
       }
     }
@@ -562,12 +596,49 @@ export class SessionManager {
     });
 
     const fakeMicrophoneWav = spec.fake_media?.microphone_wav?.trim();
-    // Prefer the explicit per-session request. Keep the environment switch as
-    // a compatibility seam for the dedicated operator qualification service,
-    // but do not make every BAS session mutate the host audio topology just
-    // because that process happens to share an environment.
-    const deviceEvidenceEnabled =
-      spec.audio_device_evidence === true || process.env.VROOLI_AUDIO_DEVICE_EVIDENCE === '1';
+    const profileAudioMode = spec.permission_profile?.audio_mode ?? '';
+    const deviceEvidenceEnabled = spec.audio_device_evidence === true;
+    if (spec.permission_profile) {
+      const hasAudioRequest =
+        Boolean(fakeMicrophoneWav) ||
+        deviceEvidenceEnabled ||
+        spec.audio_playback_pause_ms !== undefined ||
+        spec.audio_playback_start_delay_ms !== undefined ||
+        spec.audio_playback_defer_start === true;
+      if (hasAudioRequest && !profileAudioMode) {
+        throw new Error('managed session audio requires an Agent Manager audio_mode grant');
+      }
+      if (
+        profileAudioMode === 'fake_microphone' &&
+        (!fakeMicrophoneWav || deviceEvidenceEnabled || spec.audio_playback_defer_start === true)
+      ) {
+        throw new Error('fake_microphone mode requires only its approved fake-media fixture');
+      }
+      if (
+        profileAudioMode === 'pipewire_qualification' &&
+        (!fakeMicrophoneWav ||
+          !deviceEvidenceEnabled ||
+          spec.audio_playback_defer_start !== true ||
+          !spec.base_url)
+      ) {
+        throw new Error(
+          'pipewire_qualification mode requires a fixture, device evidence, deferred playback, and an application origin'
+        );
+      }
+      if (
+        profileAudioMode &&
+        profileAudioMode !== 'fake_microphone' &&
+        profileAudioMode !== 'pipewire_qualification'
+      ) {
+        throw new Error('unsupported managed-session audio mode');
+      }
+      if (
+        spec.audio_playback_pause_ms !== undefined &&
+        (spec.audio_playback_pause_ms < 0 || spec.audio_playback_pause_ms > 1000)
+      ) {
+        throw new Error('managed-session playback pause is outside the BAS limit');
+      }
+    }
     let audioPlaybackStop: (() => Promise<void>) | undefined;
     let audioPlaybackRestart: (() => Promise<void>) | undefined;
     let audioPlaybackFailure: string | undefined;
@@ -593,11 +664,33 @@ export class SessionManager {
         permissions.add('microphone');
         spec = { ...spec, permissions: [...permissions] };
       }
-      const audioCapability = await this.browserManager.getHostAudioCapability();
-      const audioStrategy: AudioStrategy = await this.browserManager.getAudioStrategy();
+      const installedBackend = spec.browser_backend === 'installed';
+      if (installedBackend && (fakeMicrophoneWav || deviceEvidenceEnabled || profileAudioMode)) {
+        throw new Error('installed-binary sessions do not support managed audio qualification');
+      }
+      // Audio detection calls getBrowser() and would start the managed default
+      // browser. Installed sessions skip that probe to preserve backend identity.
+      const audioCapability = installedBackend
+        ? {
+            outcome: 'detection_failed' as const,
+            currentTimeDelta: 0,
+            durationMs: 0,
+            reason: 'installed backend audio probe skipped',
+          }
+        : await this.browserManager.getHostAudioCapability();
+      const audioStrategy: AudioStrategy = installedBackend
+        ? 'host_device'
+        : await this.browserManager.getAudioStrategy();
       const browser = await this.browserManager.getBrowser(
         deviceEvidenceEnabled ? undefined : fakeMicrophoneWav,
-        audioStrategy
+        audioStrategy,
+        spec.permission_profile?.extension_install === true ||
+          spec.permission_profile?.extension_load === true,
+        spec.permission_profile?.extension_install === true ||
+          spec.permission_profile?.extension_load === true
+          ? `${spec.execution_id}:${sessionId}:${spec.session_profile_version ?? ''}`
+          : '',
+        spec.browser_backend ?? 'managed'
       );
       browserForCleanup = browser;
 
@@ -611,10 +704,13 @@ export class SessionManager {
         serviceWorkerController,
         recordingInitializer,
         actualViewport,
+        identityConfiguration,
       } = await buildContext(browser, spec, this.config, audioStrategy);
       contextForCleanup = context;
 
       const page = await context.newPage();
+      await ensureNavigationScopeForPage(page);
+      const identityEvidence = await observeEffectiveIdentity(page, browser, identityConfiguration);
       let audioDeviceEvidence: BrowserCaptureDeviceEvidence | undefined;
       if (deviceEvidenceEnabled) {
         if (!spec.base_url) {
@@ -627,6 +723,7 @@ export class SessionManager {
         // the session's normal initial page remains unchanged for the caller.
         const evidencePage = await context.newPage();
         try {
+          await ensureNavigationScopeForPage(evidencePage);
           await evidencePage.goto(spec.base_url, {
             waitUntil: 'domcontentloaded',
             timeout: 30_000,
@@ -732,6 +829,7 @@ export class SessionManager {
         ownerExecutionId: spec.execution_id,
         leaseId: uuidv4(),
         browser,
+        identityEvidence,
         audioCapability,
         audioStrategy,
         audioDeviceEvidence,
@@ -817,7 +915,22 @@ export class SessionManager {
           if (perfDir) {
             await injectWebVitalsObserver(context);
             const tracer = new PerformanceTracer(perfDir);
-            await tracer.start(page);
+            await tracer.start(page, {
+              captureId: spec.execution_id,
+              sessionId,
+              leaseId: session.leaseId,
+              rootPid: process.pid,
+              isExclusive: () => this.browserManager.canAttributeProcessTree(browser),
+              isLeaseActive: () => {
+                const current = this.sessions.get(sessionId);
+                return Boolean(
+                  current &&
+                  current.ownerExecutionId === spec.execution_id &&
+                  current.leaseId === session.leaseId &&
+                  !current.leaseReleasedAt
+                );
+              },
+            });
             session.perfTracer = tracer;
           } else {
             logger.warn(
@@ -861,7 +974,14 @@ export class SessionManager {
         await applySafeAreaInsets(page, actualViewport);
 
         // Return actualViewport from buildContext (includes source attribution)
-        return { sessionId, leaseId: session.leaseId, reused: false, createdAt, actualViewport };
+        return {
+          sessionId,
+          leaseId: session.leaseId,
+          reused: false,
+          createdAt,
+          actualViewport,
+          identityEvidence,
+        };
       } catch (error) {
         // The map insertion precedes several async initializers. A failed
         // initializer must release browser resources and capacity immediately.
@@ -1076,6 +1196,69 @@ export class SessionManager {
       executionId,
     });
     return true;
+  }
+
+  /**
+   * Read the Audio Tools qualification diagnostic from this exact session.
+   * Only two fixed product surfaces are supported; callers cannot supply JS.
+   */
+  async readAudioDiagnostics(
+    sessionId: string,
+    executionId: string,
+    leaseId: string,
+    surface: 'audio-tools' | 'swarm-manager'
+  ): Promise<unknown | null> {
+    const session = this.sessions.get(sessionId);
+    if (!session || session.ownerExecutionId !== executionId || session.leaseId !== leaseId) {
+      return null;
+    }
+    if (surface !== 'audio-tools' && surface !== 'swarm-manager') {
+      throw new InvalidInstructionError('unsupported audio diagnostic surface');
+    }
+    return session.page.evaluate((selectedSurface) => {
+      const interimSelector =
+        selectedSurface === 'swarm-manager'
+          ? '[data-testid="captures-quick-composer-interim"]'
+          : '[data-testid="dictation-interim-transcript"]';
+      const finalSelector =
+        selectedSurface === 'swarm-manager'
+          ? '[data-testid="captures-quick-input-submit"]'
+          : '[data-testid="dictation-final-transcript"]';
+      const interim = document.querySelector(interimSelector);
+      const style = interim ? window.getComputedStyle(interim) : null;
+      const rendered =
+        !!interim &&
+        !!style &&
+        style.display !== 'none' &&
+        style.visibility !== 'hidden' &&
+        interim.getClientRects().length > 0;
+      const diag =
+        (window as Window & { __VROOLI_AUDIO_STREAM_DIAGNOSTIC__?: { latest?: unknown } })
+          .__VROOLI_AUDIO_STREAM_DIAGNOSTIC__?.latest ?? null;
+      if (selectedSurface === 'swarm-manager') {
+        return {
+          diag,
+          final: (document.querySelector(finalSelector) as HTMLInputElement | null)?.value ?? '',
+          interim: rendered ? (interim?.textContent ?? '') : '',
+          coverage_visible: false,
+          export_available: false,
+          diagnostic_metadata_only:
+            !!diag && typeof diag === 'object' && !('audio' in diag) && !('transcript' in diag),
+        };
+      }
+      const details = document.querySelector('[data-testid="dictation-turn-details"]');
+      return {
+        diag,
+        final: document.querySelector(finalSelector)?.textContent ?? '',
+        interim: rendered ? (interim?.textContent ?? '') : '',
+        coverage_visible: !!details?.querySelector(
+          '[data-testid="dictation-turn-processed-status"]'
+        ),
+        export_available: !!details?.querySelector('[data-testid="dictation-export-diagnostic"]'),
+        diagnostic_metadata_only:
+          !!diag && typeof diag === 'object' && !('audio' in diag) && !('transcript' in diag),
+      };
+    }, surface);
   }
 
   /** Close only if this exact execution still owns the active lease. */

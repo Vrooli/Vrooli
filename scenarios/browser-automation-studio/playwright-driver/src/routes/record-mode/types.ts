@@ -86,6 +86,8 @@ export interface RecordingStatusResponse {
  */
 export interface ValidateSelectorRequest {
   selector: string;
+  execution_id: string;
+  lease_id: string;
 }
 
 export interface ValidateSelectorResponse {
@@ -100,6 +102,8 @@ export interface ValidateSelectorResponse {
  */
 export interface ReplayPreviewRequest {
   entries: TimelineEntry[];
+  execution_id: string;
+  lease_id: string;
   limit?: number;
   stop_on_failure?: boolean;
   action_timeout?: number;
@@ -171,8 +175,14 @@ export interface NavigationStateResponse {
  * POST /session/:id/record/screenshot
  */
 export interface ScreenshotRequest {
+  execution_id: string;
+  lease_id: string;
   full_page?: boolean;
   quality?: number;
+  format?: 'png' | 'jpeg';
+  test_id?: string;
+  wait_until?: 'networkidle';
+  settle_ms?: number;
 }
 
 export interface ScreenshotResponse {
@@ -183,7 +193,7 @@ export interface ScreenshotResponse {
 /**
  * POST /session/:id/record/input
  */
-export type PointerAction = 'move' | 'down' | 'up' | 'click';
+export type PointerAction = 'move' | 'down' | 'up' | 'click' | 'release';
 export type InputType = 'pointer' | 'keyboard' | 'wheel';
 
 export interface InputRequest {
@@ -255,6 +265,8 @@ export interface ViewportResponse {
  * Quality and FPS can be updated live. Scale changes require session restart.
  */
 export interface StreamSettingsRequest {
+  execution_id: string;
+  lease_id: string;
   /** JPEG quality 1-100 */
   quality?: number;
   /** Target FPS 1-60 */

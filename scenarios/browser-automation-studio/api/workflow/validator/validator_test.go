@@ -7,11 +7,17 @@ import (
 	"github.com/google/uuid"
 )
 
-func TestValidatorValidWorkflow(t *testing.T) {
-	v, err := NewValidator()
+func newTestValidator(t *testing.T) *Validator {
+	t.Helper()
+	validator, err := NewValidator()
 	if err != nil {
 		t.Fatalf("failed to init validator: %v", err)
 	}
+	return validator
+}
+
+func TestValidatorValidWorkflow(t *testing.T) {
+	v := newTestValidator(t)
 
 	workflow := map[string]any{
 		"metadata": map[string]any{
@@ -64,10 +70,7 @@ func TestValidatorStrictModeDoesNotPromoteStylisticWarnings(t *testing.T) {
 	// Strict mode is designed for schema/token-resolution problems only,
 	// not stylistic lint warnings (e.g. missing labels, edge sparsity).
 	// See shouldPromoteWarningInStrictMode() for the allowlist.
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	workflow := map[string]any{
 		"metadata": map[string]any{},
@@ -118,10 +121,7 @@ func TestValidatorStrictModeDoesNotPromoteStylisticWarnings(t *testing.T) {
 }
 
 func TestValidatorDetectsSchemaErrors(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	workflow := map[string]any{
 		"metadata": map[string]any{
@@ -159,10 +159,7 @@ func TestValidatorDetectsSchemaErrors(t *testing.T) {
 }
 
 func TestValidatorEvaluateRequiresExpression(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	workflow := map[string]any{
 		"nodes": []any{
@@ -196,10 +193,7 @@ func TestValidatorEvaluateRequiresExpression(t *testing.T) {
 }
 
 func TestValidatorScreenshotRequiresTarget(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	workflow := map[string]any{
 		"nodes": []any{
@@ -235,10 +229,7 @@ func TestValidatorScreenshotRequiresTarget(t *testing.T) {
 }
 
 func TestValidatorAllowsNodesWithoutPosition(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	workflow := map[string]any{
 		"nodes": []any{
@@ -274,10 +265,7 @@ func TestValidatorAllowsNodesWithoutPosition(t *testing.T) {
 }
 
 func TestValidatorSubflowWithWorkflowID(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	childID := uuid.New().String()
 	workflow := map[string]any{
@@ -320,10 +308,7 @@ func TestValidatorSubflowWithWorkflowID(t *testing.T) {
 }
 
 func TestValidatorRejectsWorkflowCallType(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	workflow := map[string]any{
 		"nodes": []any{
@@ -346,10 +331,7 @@ func TestValidatorRejectsWorkflowCallType(t *testing.T) {
 }
 
 func TestValidatorRejectsStoreAsField(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	// Playbook using deprecated "storeAs" instead of "storeResult"
 	workflow := map[string]any{
@@ -391,10 +373,7 @@ func TestValidatorRejectsStoreAsField(t *testing.T) {
 }
 
 func TestValidatorAcceptsStoreResultField(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	// Playbook using correct "storeResult" field
 	workflow := map[string]any{
@@ -448,10 +427,7 @@ func assertWarning(warnings []Issue, code string) bool {
 func TestValidatorPointerNodesRequireSelector(t *testing.T) {
 	for _, nodeType := range []string{"click", "hover", "focus", "blur"} {
 		t.Run(nodeType, func(t *testing.T) {
-			v, err := NewValidator()
-			if err != nil {
-				t.Fatalf("failed to init validator: %v", err)
-			}
+			v := newTestValidator(t)
 
 			workflow := map[string]any{
 				"nodes": []any{
@@ -477,10 +453,7 @@ func TestValidatorPointerNodesRequireSelector(t *testing.T) {
 }
 
 func TestValidatorDragDropValidation(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	tests := []struct {
 		name          string
@@ -560,10 +533,7 @@ func TestValidatorDragDropValidation(t *testing.T) {
 }
 
 func TestValidatorTypeNodeValidation(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	tests := []struct {
 		name        string
@@ -648,10 +618,7 @@ func TestValidatorTypeNodeValidation(t *testing.T) {
 }
 
 func TestValidatorKeyboardNodeValidation(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	tests := []struct {
 		name        string
@@ -739,10 +706,7 @@ func TestValidatorKeyboardNodeValidation(t *testing.T) {
 }
 
 func TestValidatorShortcutRequiresKeys(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	workflow := map[string]any{
 		"nodes": []any{
@@ -766,10 +730,7 @@ func TestValidatorShortcutRequiresKeys(t *testing.T) {
 }
 
 func TestValidatorSelectNodeValidation(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	tests := []struct {
 		name        string
@@ -854,10 +815,7 @@ func TestValidatorSelectNodeValidation(t *testing.T) {
 }
 
 func TestValidatorWaitNodeValidation(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	tests := []struct {
 		name        string
@@ -978,10 +936,7 @@ func TestValidatorWaitNodeValidation(t *testing.T) {
 }
 
 func TestValidatorExtractRequiresSelector(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	workflow := map[string]any{
 		"nodes": []any{
@@ -1005,10 +960,7 @@ func TestValidatorExtractRequiresSelector(t *testing.T) {
 }
 
 func TestValidatorAssertNodeValidation(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	tests := []struct {
 		name       string
@@ -1084,10 +1036,7 @@ func TestValidatorAssertNodeValidation(t *testing.T) {
 }
 
 func TestValidatorNavigateNodeValidation(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	tests := []struct {
 		name        string
@@ -1198,10 +1147,7 @@ func TestValidatorNavigateNodeValidation(t *testing.T) {
 }
 
 func TestValidatorLoopRequiresLoopType(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	workflow := map[string]any{
 		"nodes": []any{
@@ -1225,10 +1171,7 @@ func TestValidatorLoopRequiresLoopType(t *testing.T) {
 }
 
 func TestValidatorSubflowNodeValidation(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	tests := []struct {
 		name       string
@@ -1315,10 +1258,7 @@ func TestValidatorInvalidEdgeStructure(t *testing.T) {
 		{name: "missing endpoints", edge: map[string]any{"id": "incomplete-edge"}, code: "WF_EDGE_ENDPOINT_MISSING"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			v, err := NewValidator()
-			if err != nil {
-				t.Fatalf("failed to init validator: %v", err)
-			}
+			v := newTestValidator(t)
 			workflow := map[string]any{
 				"nodes": []any{map[string]any{
 					"id": "node", "type": "wait",
@@ -1360,10 +1300,7 @@ func TestValidatorInvalidNodeStructure(t *testing.T) {
 		}, code: "WF_NODE_TYPE_MISSING"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			v, err := NewValidator()
-			if err != nil {
-				t.Fatalf("failed to init validator: %v", err)
-			}
+			v := newTestValidator(t)
 			res, err := v.Validate(context.Background(), map[string]any{"nodes": tc.nodes, "edges": []any{}}, Options{})
 			if err != nil {
 				t.Fatalf("validation returned error: %v", err)
@@ -1381,10 +1318,7 @@ func TestValidatorInvalidNodeStructure(t *testing.T) {
 // ============================================================================
 
 func TestValidatorViewportSizeWarning(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	workflow := map[string]any{
 		"nodes": []any{
@@ -1416,10 +1350,7 @@ func TestValidatorViewportSizeWarning(t *testing.T) {
 }
 
 func TestValidatorEdgeSparsityWarning(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	workflow := map[string]any{
 		"nodes": []any{
@@ -1452,10 +1383,7 @@ func TestValidatorEdgeSparsityWarning(t *testing.T) {
 }
 
 func TestValidatorStatsComputation(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	workflow := map[string]any{
 		"metadata": map[string]any{
@@ -1516,10 +1444,7 @@ func TestValidatorStatsComputation(t *testing.T) {
 }
 
 func TestValidatorSelectorDuplicatesWarning(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	workflow := map[string]any{
 		"nodes": []any{
@@ -1553,10 +1478,7 @@ func TestValidatorSelectorDuplicatesWarning(t *testing.T) {
 // ============================================================================
 
 func TestValidatorContextCancellation(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
@@ -1566,7 +1488,7 @@ func TestValidatorContextCancellation(t *testing.T) {
 		"edges": []any{},
 	}
 
-	_, err = v.Validate(ctx, workflow, Options{})
+	_, err := v.Validate(ctx, workflow, Options{})
 	if err == nil {
 		t.Fatalf("expected error from cancelled context")
 	}
@@ -1580,10 +1502,7 @@ func TestValidatorContextCancellation(t *testing.T) {
 // ============================================================================
 
 func TestValidatorNilDefinition(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	res, err := v.Validate(context.Background(), nil, Options{})
 	if err != nil {
@@ -1629,10 +1548,7 @@ func TestSortIssues(t *testing.T) {
 // ============================================================================
 
 func TestValidateResolvedCleanWorkflow(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	// A fully resolved workflow should pass
 	workflow := map[string]any{
@@ -1668,10 +1584,7 @@ func TestValidateResolvedCleanWorkflow(t *testing.T) {
 }
 
 func TestValidateResolvedUnresolvedFixture(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	workflow := map[string]any{
 		"nodes": []any{
@@ -1700,10 +1613,7 @@ func TestValidateResolvedUnresolvedFixture(t *testing.T) {
 // as unresolved by ValidateResolved(), since they are resolved at compile time by BAS compiler.
 // This allows test-genie to pass @selector/ tokens through to BAS for native resolution.
 func TestValidateResolvedSelectorTokensAllowed(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	workflow := map[string]any{
 		"nodes": []any{
@@ -1729,10 +1639,7 @@ func TestValidateResolvedSelectorTokensAllowed(t *testing.T) {
 }
 
 func TestValidateResolvedUnresolvedSeed(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	workflow := map[string]any{
 		"nodes": []any{
@@ -1759,10 +1666,7 @@ func TestValidateResolvedUnresolvedSeed(t *testing.T) {
 }
 
 func TestValidateResolvedUnresolvedPlaceholder(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	workflow := map[string]any{
 		"nodes": []any{
@@ -1789,10 +1693,7 @@ func TestValidateResolvedUnresolvedPlaceholder(t *testing.T) {
 }
 
 func TestValidateResolvedUnresolvedTemplate(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	workflow := map[string]any{
 		"nodes": []any{
@@ -1819,10 +1720,7 @@ func TestValidateResolvedUnresolvedTemplate(t *testing.T) {
 }
 
 func TestValidateResolvedScenarioDestination(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	// Navigate with destinationType=scenario should flag unresolved scenario reference
 	workflow := map[string]any{
@@ -1851,10 +1749,7 @@ func TestValidateResolvedScenarioDestination(t *testing.T) {
 }
 
 func TestValidateResolvedMultipleIssues(t *testing.T) {
-	v, err := NewValidator()
-	if err != nil {
-		t.Fatalf("failed to init validator: %v", err)
-	}
+	v := newTestValidator(t)
 
 	workflow := map[string]any{
 		"nodes": []any{
@@ -1928,10 +1823,7 @@ func TestValidatorExecutionModeValidation(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			v, err := NewValidator()
-			if err != nil {
-				t.Fatalf("failed to init validator: %v", err)
-			}
+			v := newTestValidator(t)
 
 			metadata := map[string]any{"description": "execution mode case"}
 			if tc.mode != "" {

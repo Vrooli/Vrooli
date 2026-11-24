@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -58,6 +59,7 @@ func (s *Service) UnifiedRecordingService() *unifiedrecording.Service {
 
 // SessionConfig configures a new capture session.
 type SessionConfig struct {
+	ProfileID      string
 	ViewportWidth  int
 	ViewportHeight int
 	InitialURL     string
@@ -166,6 +168,7 @@ func (s *Service) CreateSession(ctx context.Context, cfg *SessionConfig) (result
 	// This ensures the recording_sessions table entry exists before any actions
 	// are recorded, satisfying the foreign key constraint on timeline_entries.
 	regCfg := unifiedrecording.SessionConfig{
+		ProfileID:      cfg.ProfileID,
 		ViewportWidth:  cfg.ViewportWidth,
 		ViewportHeight: cfg.ViewportHeight,
 	}
@@ -226,13 +229,39 @@ func (s *Service) navigateInitialPage(ctx context.Context, owner *session.Sessio
 	if pageID == nil || *pageID != initialID {
 		return nil, fmt.Errorf("initial navigation returned a different page: %s", resp.DriverPageID)
 	}
-	pages.UpdatePageInfo(initialID, resp.URL, resp.Title, resp.FaviconURL)
+	if err := pages.UpdatePageInfoAt(initialID, resp.URL, resp.Title, resp.FaviconURL, time.Now(), func(event *domain.PageEvent) error {
+		return s.AddTimelinePageEvent(ctx, owner.ID(), event)
+	}); err != nil {
+		return nil, fmt.Errorf("persist initial page metadata: %w", err)
+	}
 	return &HistoryEntryInfo{URL: resp.URL, Title: resp.Title}, nil
 }
 
 // CloseSession closes a capture session.
 func (s *Service) CloseSession(ctx context.Context, sessionID string) error {
-	return s.sessions.Close(ctx, sessionID)
+	_, hadLiveOwner := s.sessions.Get(sessionID)
+	closeErr := s.sessions.Close(ctx, sessionID)
+	if closeErr != nil && hadLiveOwner && !isGoneBrokerSessionError(closeErr) {
+		return closeErr
+	}
+	if s.unifiedRecordingSvc != nil {
+		if journalErr := s.unifiedRecordingSvc.CloseSession(ctx, sessionID); journalErr != nil {
+			return errors.Join(closeErr, journalErr)
+		}
+	}
+	return closeErr
+}
+
+func isGoneBrokerSessionError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var driverErr *driver.Error
+	if errors.As(err, &driverErr) && (driverErr.Status == http.StatusNotFound || strings.Contains(strings.ToUpper(driverErr.Message), "SESSION_NOT_FOUND")) {
+		return true
+	}
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "session closed") || strings.Contains(message, "session not found")
 }
 
 // GetStorageState retrieves storage state before closing (for session profiles).
@@ -603,12 +632,16 @@ func (s *Service) ClosePage(ctx context.Context, sessionID string, pageID uuid.U
 			}
 		}
 	}
-	event, err := pages.ClosePage(pageID)
+	event, err := pages.ClosePageAtPersist(pageID, time.Now(), func(event *domain.PageEvent) error {
+		return s.AddTimelinePageEvent(ctx, sessionID, event)
+	})
 	if err != nil {
 		return nil, err
 	}
 	if selected != nil {
-		if err := pages.SetActivePage(*selected); err != nil {
+		if err := pages.SetActivePageAt(*selected, time.Now(), func(event *domain.PageEvent) error {
+			return s.AddTimelinePageEvent(ctx, sessionID, event)
+		}); err != nil {
 			return nil, err
 		}
 	}
@@ -661,7 +694,9 @@ func (s *Service) activatePage(ctx context.Context, sess *session.Session, pageI
 	if !ok || current != sess {
 		return fmt.Errorf("browser page switched but session ownership changed: %s", sessionID)
 	}
-	return pages.SetActivePage(pageID)
+	return pages.SetActivePageAt(pageID, time.Now(), func(event *domain.PageEvent) error {
+		return s.AddTimelinePageEvent(ctx, sessionID, event)
+	})
 }
 
 // CreatePage creates a new page (tab) in the browser session.
@@ -689,9 +724,24 @@ func (s *Service) createPage(ctx context.Context, owner *session.Session, url st
 	if !ok || current != owner || owner.Pages() != pages {
 		return nil, fmt.Errorf("browser page created but session ownership changed: %s", sessionID)
 	}
-	page := pages.AddPage(&domain.Page{DriverPageID: result.DriverPageID, URL: result.URL, Title: result.Title})
-	pages.UpdatePageInfo(page.ID, result.URL, result.Title, result.FaviconURL)
-	if err := pages.SetActivePage(page.ID); err != nil {
+	faviconURL := ""
+	if result.FaviconURL != nil {
+		faviconURL = *result.FaviconURL
+	}
+	page, err := pages.AddPageAt(&domain.Page{DriverPageID: result.DriverPageID, URL: result.URL, Title: result.Title, FaviconURL: faviconURL}, time.Now(), func(event *domain.PageEvent) error {
+		return s.AddTimelinePageEvent(ctx, sessionID, event)
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := pages.UpdatePageInfoAt(page.ID, result.URL, result.Title, result.FaviconURL, time.Now(), func(event *domain.PageEvent) error {
+		return s.AddTimelinePageEvent(ctx, sessionID, event)
+	}); err != nil {
+		return nil, err
+	}
+	if err := pages.SetActivePageAt(page.ID, time.Now(), func(event *domain.PageEvent) error {
+		return s.AddTimelinePageEvent(ctx, sessionID, event)
+	}); err != nil {
 		return nil, err
 	}
 	page, _ = pages.GetPage(page.ID)
@@ -829,12 +879,57 @@ func (s *Service) GetTimeline(ctx context.Context, sessionID string, pageID *uui
 		return nil, unifiedrecording.ErrRepositoryUnavailable
 	}
 
-	// Build query for unified recording service
+	current, err := s.unifiedRecordingSvc.GetSession(ctx, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("resolve recording session owner: %w", err)
+	}
+	if current == nil || current.Status != domain.SessionStatusActive {
+		return nil, fmt.Errorf("recording session is not active: %s", sessionID)
+	}
+
+	// A restored browser gets a new session ID. Resume only the immediately
+	// preceding closed journal for the exact profile persisted on this active
+	// recording row. A competing active session makes the owner ambiguous.
+	var sessionIDs []string
+	if current.ProfileID != "" {
+		profileID := current.ProfileID
+		sessions, listErr := s.unifiedRecordingSvc.ListSessions(ctx, &profileID, 1000, 0)
+		if listErr != nil {
+			return nil, fmt.Errorf("resolve profile journal owner: %w", listErr)
+		}
+		foundCurrent := false
+		var previous *domain.RecordingSession
+		for _, candidate := range sessions {
+			if candidate.ID == sessionID {
+				foundCurrent = candidate.Status == domain.SessionStatusActive
+				continue
+			}
+			if candidate.Status == domain.SessionStatusActive {
+				return nil, fmt.Errorf("profile journal owner is ambiguous: another session is active for profile %s", profileID)
+			}
+			if candidate.Status == domain.SessionStatusClosed && candidate.CreatedAt.Before(current.CreatedAt) &&
+				(previous == nil || candidate.CreatedAt.After(previous.CreatedAt)) {
+				previous = candidate
+			}
+		}
+		if !foundCurrent {
+			return nil, fmt.Errorf("current recording session is not linked to profile %s", profileID)
+		}
+		if previous != nil {
+			sessionIDs = append(sessionIDs, previous.ID)
+		}
+	}
+	// Build a journal query for the active session and, if profile-bound, its
+	// immediately preceding closed continuation.
 	query := persistence.TimelineQuery{
 		SessionID: sessionID,
 		PageID:    pageID,
 		Limit:     limit,
 		Offset:    offset,
+	}
+	if current.ProfileID != "" {
+		sessionIDs = append(sessionIDs, sessionID)
+		query.SessionIDs = sessionIDs
 	}
 
 	resp, err := s.unifiedRecordingSvc.GetTimeline(ctx, query)
@@ -960,7 +1055,7 @@ func (s *Service) buildRecordingCallbacks() *session.RecordingCallbacks {
 
 			// Convert to domain.PageEvent
 			domainEvent := &domain.PageEvent{
-				ID:        uuid.New(),
+				ID:        domain.StablePageEventID(event.PageID, domain.PageEventType(event.Type), ts),
 				Type:      domain.PageEventType(event.Type),
 				PageID:    event.PageID,
 				URL:       event.URL,

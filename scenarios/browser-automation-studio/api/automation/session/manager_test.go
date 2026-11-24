@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"net/http"
 	"path/filepath"
@@ -14,9 +15,22 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
+	"github.com/vrooli/browser-automation-studio/internal/sessionpermission"
 	"github.com/vrooli/browser-automation-studio/internal/testutil/fakedriver"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 )
+
+type testPermissionAuthorizer struct{}
+
+func (testPermissionAuthorizer) Authorize(context.Context, sessionpermission.ActionRequest) error {
+	return nil
+}
+
+func TestCreateRequiresOpenAdmissionForPermissionScopedSessions(t *testing.T) {
+	manager := &Manager{}
+	_, err := manager.Create(context.Background(), Spec{Authorizer: testPermissionAuthorizer{}})
+	require.ErrorContains(t, err, "permission authorizer requires pre-open admission")
+}
 
 func TestManager_ApplyDefaults(t *testing.T) {
 	m := &Manager{defaultViewport: Viewport{Width: 1920, Height: 1080}}
@@ -196,6 +210,46 @@ func TestManager_DirectSessionCloseDeregistersSession(t *testing.T) {
 	}
 	if got := m.ActiveCount(); got != 0 {
 		t.Fatalf("active sessions after direct close = %d, want 0", got)
+	}
+}
+
+func TestManagerCarriesOwnerIdentityEvidenceIntoTheExactSession(t *testing.T) {
+	t.Parallel()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/session/start", func(w http.ResponseWriter, r *http.Request) {
+		_ = r.Body.Close()
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"session_id": "identity-evidence-session", "lease_id": "lease-1", "active_page_id": "page-1",
+			"identity_evidence": map[string]any{
+				"engine": "chromium", "engine_version": "140.0.7339.80", "engine_source": "playwright.browser",
+				"user_agent": map[string]any{"configured": "Chrome/120.0.0.0", "observed": "Chrome/120.0.0.0", "status": "mismatch", "source": "playwright.page.about_blank", "reason": "engine major mismatch"},
+				"locale":     map[string]any{"configured": "en-GB", "observed": "en-GB", "effective": "en-GB", "status": "effective", "source": "playwright.page.about_blank"},
+			},
+		})
+	})
+	srv := testutil.StartHTTPServer(t, mux)
+	client, err := driver.NewClientWithURL(srv.URL, driver.WithoutCircuitBreaker())
+	if err != nil {
+		t.Fatalf("create client: %v", err)
+	}
+	m := NewManagerWithClient(client)
+	sess, err := m.Create(context.Background(), Spec{ExecutionID: uuid.New(), WorkflowID: uuid.New(), Mode: ModeExecution})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	evidence := sess.IdentityEvidence()
+	if evidence == nil || evidence.Engine != "chromium" || evidence.EngineVersion != "140.0.7339.80" {
+		t.Fatalf("session omitted owner identity evidence: %#v", evidence)
+	}
+	if evidence.UserAgent.Status != "mismatch" || evidence.UserAgent.Effective != nil {
+		t.Fatalf("session represented mismatched UA as effective: %#v", evidence.UserAgent)
+	}
+	if evidence.Locale.Status != "effective" || evidence.Locale.Effective != "en-GB" {
+		t.Fatalf("session lost effective locale evidence: %#v", evidence.Locale)
+	}
+	evidence.Locale.Observed = "mutated"
+	if got := sess.IdentityEvidence().Locale.Observed; got != "en-GB" {
+		t.Fatalf("caller mutated immutable owner evidence, got %v", got)
 	}
 }
 
@@ -473,6 +527,15 @@ func TestManager_ReuseMode_Default(t *testing.T) {
 	}
 }
 
+func TestManager_BuildRequestCarriesAdmittedBrowserBackend(t *testing.T) {
+	m := &Manager{}
+	request := m.buildRequest(Spec{
+		ExecutionID: uuid.New(), WorkflowID: uuid.New(), Mode: ModeExecution,
+		ReuseMode: "fresh", BrowserBackend: "installed",
+	})
+	require.Equal(t, "installed", request.Options.BrowserBackend)
+}
+
 func TestManager_BuildRequestCarriesSessionProfileVersion(t *testing.T) {
 	m := &Manager{}
 	request := m.buildRequest(Spec{
@@ -684,6 +747,51 @@ func TestRepeatedStartPreservesTransportSequenceAcrossLiveHandles(t *testing.T) 
 	mu.Lock()
 	defer mu.Unlock()
 	require.Equal(t, []float64{18, 19, 20}, sequences, "start retries cannot fork/reset transport ownership")
+}
+
+func TestManagerRejectsReturnedSessionIDCollisionAndClosesOnlyNewLease(t *testing.T) {
+	var mu sync.Mutex
+	starts := 0
+	var closedExecution, closedLease string
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
+		switch request.URL.Path {
+		case "/session/start":
+			mu.Lock()
+			starts++
+			lease := fmt.Sprintf("lease-%d", starts)
+			mu.Unlock()
+			_ = json.NewEncoder(w).Encode(map[string]any{"session_id": "reused-session-id", "lease_id": lease})
+		case "/session/reused-session-id/close":
+			var body driver.CloseSessionRequest
+			if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			mu.Lock()
+			closedExecution, closedLease = body.ExecutionID, body.LeaseID
+			mu.Unlock()
+			_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
+		default:
+			http.NotFound(w, request)
+		}
+	}))
+	client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+	require.NoError(t, err)
+	manager := NewManagerWithClient(client)
+	firstExecution, secondExecution := uuid.New(), uuid.New()
+	first, err := manager.Create(context.Background(), Spec{ExecutionID: firstExecution, WorkflowID: uuid.New(), Mode: ModeExecution})
+	require.NoError(t, err)
+
+	_, err = manager.Create(context.Background(), Spec{ExecutionID: secondExecution, WorkflowID: uuid.New(), Mode: ModeExecution})
+	require.ErrorIs(t, err, errReturnedSessionLeaseCollision)
+	indexed, ok := manager.Get(first.ID())
+	require.True(t, ok, "the existing owner must remain indexed")
+	require.Same(t, first, indexed)
+	mu.Lock()
+	gotExecution, gotLease := closedExecution, closedLease
+	mu.Unlock()
+	require.Equal(t, secondExecution.String(), gotExecution)
+	require.Equal(t, "lease-2", gotLease)
 }
 
 func TestCreateForDrillIsBrokerOwnedAndClosesWithItsLease(t *testing.T) {

@@ -8,13 +8,16 @@ package capture
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
 	"buf.build/go/protovalidate"
+	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/api-core/connectx"
+	apiidentity "github.com/vrooli/api-core/identity"
 	capturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture"
 	captureconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture/captureconnect"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
@@ -52,6 +55,14 @@ type Executor interface {
 	) error
 }
 
+type systemCaptureExecutor interface {
+	ExecuteSystemCaptureAdhocWorkflowAPIWithOptions(
+		ctx context.Context,
+		req *basexecution.ExecuteAdhocRequest,
+		opts *workflow.ExecuteOptions,
+	) (*basexecution.ExecuteAdhocResponse, error)
+}
+
 // URLResolver resolves the `scenario=<slug>` shorthand to a base URL.
 // Implemented by *discovery.Resolver from packages/api-core. Optional —
 // when nil, shorthand URLs return InvalidArgument.
@@ -85,6 +96,8 @@ type ReadinessResolution = readiness.Resolution
 // are optional and default to DefaultProducerRegistry and package defaults.
 type Deps struct {
 	Executor            Executor
+	ServiceAdmission    ServiceCaptureAdmission
+	RequestStore        CaptureRequestStore
 	Storage             storage.StorageInterface
 	Resolver            URLResolver
 	ReadinessResolver   ReadinessProfileResolver
@@ -97,6 +110,14 @@ type Deps struct {
 	// bundles land in scenario-owned storage rather than the API process's
 	// working directory. Defaults to paths.ResolveCapturesRoot.
 	CapturesRoot string
+}
+
+// ServiceCaptureAdmission verifies and bounds accountless service captures.
+// Human captures continue through the workflow service's normal account path.
+type ServiceCaptureAdmission interface {
+	Authenticate(context.Context, http.Header) (apiidentity.Principal, error)
+	Admit(context.Context, http.Header) (apiidentity.Principal, func(), error)
+	IsLimitError(error) bool
 }
 
 // Module builds the CaptureService Connect handler and returns it
@@ -125,6 +146,6 @@ func Module(d Deps) connectx.ServiceMount {
 	if err != nil {
 		panic(fmt.Sprintf("initialize capture request validator: %v", err))
 	}
-	path, handler := captureconnect.NewCaptureServiceHandler(&service{deps: d, validator: validator})
+	path, handler := captureconnect.NewCaptureServiceHandler(&service{deps: d, validator: validator}, connect.WithReadMaxBytes(64<<10))
 	return connectx.ServiceMount{Path: path, Handler: handler}
 }

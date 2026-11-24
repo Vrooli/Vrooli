@@ -148,6 +148,55 @@ func TestModulePanicsWithoutCatalog(t *testing.T) {
 	})
 }
 
+func TestExportIDCallersShareInvalidIDContract(t *testing.T) {
+	h := newHarness(t)
+	cases := []struct {
+		name string
+		call func() error
+	}{
+		{name: "get", call: func() error {
+			_, err := h.client.GetExport(context.Background(), connect.NewRequest(&exportsv1.GetExportRequest{Id: "bad"}))
+			return err
+		}},
+		{name: "update", call: func() error {
+			_, err := h.client.UpdateExport(context.Background(), connect.NewRequest(&exportsv1.UpdateExportRequest{Id: "bad"}))
+			return err
+		}},
+		{name: "delete", call: func() error {
+			_, err := h.client.DeleteExport(context.Background(), connect.NewRequest(&exportsv1.DeleteExportRequest{Id: "bad"}))
+			return err
+		}},
+		{name: "status", call: func() error {
+			_, err := h.client.GetExportStatus(context.Background(), connect.NewRequest(&exportsv1.GetExportStatusRequest{Id: "bad"}))
+			return err
+		}},
+		{name: "caption", call: func() error {
+			_, err := h.client.GenerateExportCaption(context.Background(), connect.NewRequest(&exportsv1.GenerateExportCaptionRequest{Id: "bad"}))
+			return err
+		}},
+		{name: "reveal", call: func() error {
+			_, err := h.client.RevealExport(context.Background(), connect.NewRequest(&exportsv1.RevealExportRequest{Id: "bad"}))
+			return err
+		}},
+		{name: "open folder", call: func() error {
+			_, err := h.client.OpenExportFolder(context.Background(), connect.NewRequest(&exportsv1.OpenExportFolderRequest{Id: "bad"}))
+			return err
+		}},
+		{name: "cancel", call: func() error {
+			_, err := h.client.CancelExport(context.Background(), connect.NewRequest(&exportsv1.CancelExportRequest{Id: "bad"}))
+			return err
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.call()
+			require.Error(t, err)
+			require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+			require.ErrorContains(t, err, errInvalidExportID.Error())
+		})
+	}
+}
+
 // =============================================================================
 // CreateExport
 // =============================================================================

@@ -28,6 +28,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
+	"github.com/vrooli/browser-automation-studio/services/export"
 	exportsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
 )
 
@@ -169,6 +170,10 @@ func (r *ReplayRenderer) renderCapture(ctx context.Context, spec *ReplayMovieSpe
 
 	written := 0
 	for _, frame := range capture.Frames {
+		if err := ctx.Err(); err != nil {
+			cleanup()
+			return nil, err
+		}
 		data := strings.TrimSpace(frame.Data)
 		if data == "" {
 			continue
@@ -251,7 +256,7 @@ func (r *ReplayRenderer) renderCapture(ctx context.Context, spec *ReplayMovieSpe
 	if filename == "" {
 		filename = defaultFilename(spec, string(format))
 	}
-	filename = sanitizeFilename(filename)
+	filename = export.SanitizeFilename(filename, "browser-automation-replay")
 
 	return &RenderedMedia{
 		Path:        finalPath,

@@ -55,6 +55,33 @@ test('session fixture response is opt-in and never changes the base profile', ()
     'synthetic-session-0001');
 });
 
+test('Web Console showcase profile supplies only fictional workspace and transcript state', () => {
+  const showcase = SYNTHETIC_PROFILES['web-console-showcase'];
+  const read = (path) => JSON.parse(syntheticResponse(`http://localhost:3000${path}`, showcase).body);
+  const sessions = read('/vrooli.web_console.v1.sessions.SessionsService/List');
+  const layout = read('/vrooli.web_console.v1.workspace.WorkspaceService/GetLayout');
+  const transcript = read('/vrooli.web_console.v1.conversation.ConversationService/Get');
+  const codingBackup = read('/api/v1/coding-backup?harness=&session_id=synthetic-session-0001');
+
+  assert.deepEqual(sessions.sessions.map(({ id }) => id), [
+    'synthetic-session-0001', 'synthetic-session-0002', 'synthetic-session-0003',
+  ]);
+  assert.equal(layout.groups[0].isCollapsed, false);
+  assert.equal(layout.groups[1].isCollapsed, true);
+  assert.equal(layout.panes[1].manuallyUnread, true);
+  assert.equal(transcript.sessionId, 'synthetic-session-0001');
+  assert.equal(transcript.events.length, 2);
+  assert.equal(transcript.cursor.lastSeenSequence, 2);
+  assert.match(transcript.capture.summary, /^Synthetic transcript/);
+  assert.equal(read('/vrooli.web_console.v1.conversation.ConversationService/UpdateCursor').cursor.lastSeenSequence, 2);
+  assert.equal(codingBackup.limit.harness, 'codex');
+  assert.equal(showcase.responses['/vrooli.web_console.v1.sessions.SessionsService/List'].sessions[0].id,
+    'synthetic-session-0001');
+  assert.equal(syntheticResponse(
+    'http://localhost:3000/vrooli.web_console.v1.sessions.SessionsService/List', profile,
+  ).body, '{}');
+});
+
 test('synthetic event streams return the required media type and a bounded fixture', () => {
   const response = syntheticResponse('http://localhost:21233/api/v1/events/stream', SYNTHETIC_PROFILES['web-console'], 'eventsource');
   assert.match(response.contentType, /^text\/event-stream/);

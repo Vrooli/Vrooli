@@ -55,6 +55,7 @@ export class WebSocketConnectionManager {
   private readonly sessionId: string;
   private readonly reconnectDelayMs: number;
   private readonly routedTestMode: boolean;
+  private reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(options: WebSocketConnectionOptions) {
     this.sessionId = options.sessionId;
@@ -95,13 +96,26 @@ export class WebSocketConnectionManager {
    */
   connect(): void {
     if (!this.state.isActive) return;
+    this.clearReconnectTimer();
 
     try {
+      const previous = this.state.ws;
       const ws = this.routedTestMode
         ? new WS(this.state.url, { headers: { 'X-Vrooli-Test-Mode': '1' } })
         : new WS(this.state.url);
       this.state.ws = ws;
+      this.state.isReady = false;
       const ownsSocket = (): boolean => this.state.ws === ws;
+
+      // Replacing a connection must release the old transport. Its listeners
+      // are owner-fenced below, so its close event cannot schedule another retry.
+      if (previous && previous !== ws && previous.readyState < 2) {
+        try {
+          previous.close();
+        } catch {
+          // Continue with the new socket if the retired transport rejects close.
+        }
+      }
 
       ws.on('open', () => {
         if (!ownsSocket()) return;
@@ -118,12 +132,7 @@ export class WebSocketConnectionManager {
           sessionId: this.sessionId,
         });
 
-        // Reconnect if still active
-        if (this.state.isActive) {
-          setTimeout(() => {
-            if (this.state.isActive && ownsSocket()) this.connect();
-          }, this.reconnectDelayMs);
-        }
+        this.scheduleReconnect(ownsSocket);
       });
 
       ws.on('error', (err: Error) => {
@@ -140,10 +149,7 @@ export class WebSocketConnectionManager {
         error: err instanceof Error ? err.message : String(err),
       });
 
-      // Retry connection
-      if (this.state.isActive) {
-        setTimeout(() => this.connect(), this.reconnectDelayMs);
-      }
+      this.scheduleReconnect();
     }
   }
 
@@ -153,6 +159,7 @@ export class WebSocketConnectionManager {
   close(): void {
     this.state.isActive = false;
     this.state.isReady = false;
+    this.clearReconnectTimer();
 
     if (this.state.ws) {
       try {
@@ -162,6 +169,20 @@ export class WebSocketConnectionManager {
       }
       this.state.ws = null;
     }
+  }
+
+  private scheduleReconnect(isCurrent: () => boolean = () => true): void {
+    if (!this.state.isActive || this.reconnectTimer !== undefined) return;
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = undefined;
+      if (this.state.isActive && isCurrent()) this.connect();
+    }, this.reconnectDelayMs);
+  }
+
+  private clearReconnectTimer(): void {
+    if (this.reconnectTimer === undefined) return;
+    clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = undefined;
   }
 }
 

@@ -1,12 +1,12 @@
 ---
 name: "browser-automation-studio"
-description: "Run browser tasks with exact workflow selection, bounded navigation, validated workflow promotion and repair, and outcome-linked learning."
+description: "Author, find, execute, and improve typed BAS browser workflows, captures, and bounded intent navigation. For coding-agent access to a permissioned shared session, use the dedicated browser-agent-access skill."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
   schemaVersion: 1
   modes: ["tools"]
-  tags: ["automation", "workflow", "learning"]
+  tags: ["automation", "browser agent access", "browser session", "shared session", "workflow", "learning"]
   icon: "play"
   status: "active"
   revision: 56
@@ -26,6 +26,9 @@ metadata:
 Use BAS for captures, typed browser workflows, and bounded intent navigation.
 BAS owns execution and version history. The usage skill chooses the route;
 `browser-automation-studio-improve` regulates BAS itself.
+For a coding agent that needs a permissioned shared browser session, discover
+and read `browser-agent-access`; this skill focuses on BAS workflow authoring
+and execution.
 Scenario acceptance cases under `bas/` belong to `e2e-testing`.
 Roles and step rungs follow `path:docs/agent-system/SKILL_AUTHORING.md`.
 

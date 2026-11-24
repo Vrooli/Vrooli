@@ -1,6 +1,7 @@
 import { streamRecordingEntry } from '../../../src/routes/record-mode/callback-streaming';
 import { create } from '@bufbuild/protobuf';
 import { TimelineEntrySchema } from '../../../src/proto/recording';
+import { createNavigateTimelineEntry } from '../../../src/proto/recording';
 import { initRecordingBuffer, bufferTimelineEntry, getTimelineEntries, acknowledgeTimelineEntries, removeRecordingBuffer } from '../../../src/recording';
 import { handleRecordNavigate, handleRecordReload, handleRecordGoBack, handleRecordGoForward, handleRecordActions, handleRecordActionsAck, handleRecordStop } from '../../../src/routes/record-mode';
 import { handleRecordNavigationState, handleRecordNavigationStack } from '../../../src/routes/record-mode/recording-navigation';
@@ -28,8 +29,10 @@ const mockPage = {
   url: jest.fn().mockReturnValue('https://example.com'),
   title: jest.fn().mockResolvedValue('Example'),
 };
-const mockSessionManager: Pick<SessionManager, 'getSession'> = {
-  getSession: () => ({ page: mockPage } as unknown as ReturnType<SessionManager['getSession']>),
+const mockReadSession = { phase: 'ready', createdAt: new Date(), instructionCount: 0, page: mockPage } as unknown as ReturnType<SessionManager['getSession']>;
+const mockSessionManager: Pick<SessionManager, 'getSession' | 'getSessionForLease'> = {
+  getSession: () => mockReadSession,
+  getSessionForLease: () => mockReadSession,
 };
 
 describe('recording navigation ownership and browser history [REQ:BAS-RH-J17] [REQ:BAS-RH-J04]', () => {
@@ -411,7 +414,7 @@ describe('Record Mode Routes', () => {
     try {
       const read = (query = ''): ReturnType<typeof createMockHttpResponse> => {
         const res = createMockHttpResponse();
-        handleRecordActions(createMockHttpRequest({ url: `/session/${sessionId}/record/actions${query}` }), res, sessionId, mockSessionManager as SessionManager);
+        handleRecordActions(createMockHttpRequest({ url: `/session/${sessionId}/record/actions${query}`, headers: { 'x-bas-execution-id': 'owner', 'x-bas-session-lease-id': 'lease' } }), res, sessionId, mockSessionManager as SessionManager);
         return res;
       };
       expect(read().getJSON().count).toBe(1);
@@ -428,6 +431,25 @@ describe('Record Mode Routes', () => {
       expect(manager.getSessionForLease).toHaveBeenCalledWith(sessionId, 'owner', 'lease');
     } finally {
       acknowledgeTimelineEntries(sessionId, getTimelineEntries(sessionId).map((entry) => entry.id));
+      removeRecordingBuffer(sessionId);
+    }
+  });
+
+  it('denies returning recorded history with an out-of-scope navigation URL', () => {
+    const sessionId = 'history-scope-deny';
+    const session = { phase: 'ready', createdAt: new Date(), instructionCount: 0, page: { url: () => 'https://allowed.example/app' }, spec: { permission_profile: {
+      effect: 'observe', approval: 'none', view: true, control: false, history_read: true, url_allow: ['https://allowed.example/*'],
+    } } };
+    const manager = { getSessionForLease: () => session } as unknown as SessionManager;
+    initRecordingBuffer(sessionId);
+    bufferTimelineEntry(sessionId, createNavigateTimelineEntry('https://outside.example/path', { sessionId, sequenceNum: 1 }));
+    const res = createMockHttpResponse();
+    try {
+      handleRecordActions(createMockHttpRequest({ url: `/session/${sessionId}/record/actions`, headers: { 'x-bas-execution-id': 'owner', 'x-bas-session-lease-id': 'lease' } }), res, sessionId, manager);
+      expect(res.statusCode).toBe(403);
+      expect(res.getJSON().error.code).toBe('BROWSER_PERMISSION_DENIED');
+    } finally {
+      acknowledgeTimelineEntries(sessionId, getTimelineEntries(sessionId).map(entry => entry.id), true);
       removeRecordingBuffer(sessionId);
     }
   });

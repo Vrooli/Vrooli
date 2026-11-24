@@ -50,14 +50,18 @@ type DebugModeSnapshot struct {
 func GetDebugModeSnapshot() DebugModeSnapshot {
 	globalDebugMode.mu.RLock()
 	defer globalDebugMode.mu.RUnlock()
-	enabled := globalDebugMode.enabled && time.Now().Before(globalDebugMode.expiresAt)
+	return globalDebugMode.snapshotLocked()
+}
+
+func (s *DebugModeState) snapshotLocked() DebugModeSnapshot {
+	enabled := s.enabled && time.Now().Before(s.expiresAt)
 	out := DebugModeSnapshot{
 		Enabled:    enabled,
-		Components: append([]string(nil), globalDebugMode.components...),
+		Components: append([]string(nil), s.components...),
 	}
 	if enabled {
-		out.ExpiresAt = globalDebugMode.expiresAt
-		out.RemainingMins = int(time.Until(globalDebugMode.expiresAt).Minutes())
+		out.ExpiresAt = s.expiresAt
+		out.RemainingMins = int(time.Until(s.expiresAt).Minutes())
 	}
 	return out
 }
@@ -81,15 +85,7 @@ func SetDebugModeState(enabled bool, components []string, durationMinutes int) D
 		globalDebugMode.components = nil
 		globalDebugMode.expiresAt = time.Time{}
 	}
-	snap := DebugModeSnapshot{
-		Enabled:    globalDebugMode.enabled,
-		Components: append([]string(nil), globalDebugMode.components...),
-	}
-	if globalDebugMode.enabled {
-		snap.ExpiresAt = globalDebugMode.expiresAt
-		snap.RemainingMins = int(time.Until(globalDebugMode.expiresAt).Minutes())
-	}
-	return snap
+	return globalDebugMode.snapshotLocked()
 }
 
 // IsDebugEnabled checks whether debug mode is enabled for a named

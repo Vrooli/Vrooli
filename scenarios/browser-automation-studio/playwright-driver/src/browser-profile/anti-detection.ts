@@ -1,15 +1,16 @@
 /**
  * Anti-Detection Module
  *
- * Provides browser launch args and init scripts for bypassing bot detection.
+ * Applies selected browser-signal adjustments from the legacy profile API.
+ * No challenge corpus qualifies these adjustments as detection bypasses.
  *
  * ARCHITECTURE:
  * - Launch args: Built inline (simple conditionals)
  * - Init scripts: Composed from individual patches in ./patches.ts
  *
  * CONTROL SURFACE: See ./config.ts for default values and their tradeoffs.
- * The defaults are designed to make automated browsers appear as legitimate
- * user browsers, reducing detection by anti-bot systems.
+ * Defaults affect selected browser signals only. They do not make a session
+ * indistinguishable from a user or establish site-specific compatibility.
  *
  * CHANGE AXIS: New Anti-Detection Patch
  * Add new patches in ./patches.ts, not here. This module orchestrates.
@@ -24,7 +25,7 @@ import { composePatches } from './patches';
 export { getEnabledPatches } from './patches';
 
 /**
- * Build Chromium launch arguments for anti-detection.
+ * Build Chromium launch arguments for selected browser-signal adjustments.
  *
  * DECISION: Launch args vs init scripts
  * - Launch args: Apply before any page loads, affect all contexts

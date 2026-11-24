@@ -16,6 +16,7 @@ import {
   collectTrace,
   PERF_TRACE_FILE,
   PERF_WEB_VITALS_FILE,
+  BROWSER_PROCESS_TREE_FILE,
   PERF_TRACE_CATEGORIES,
   WEB_VITALS_GLOBAL,
   type TracingCDP,
@@ -144,6 +145,69 @@ describe('PerformanceTracer', () => {
 
     expect(cdp.detached).toBe(true);
     expect(cdp.sends.some((s) => s.method === 'IO.close')).toBe(true);
+  });
+
+  it('writes a capture/session/lease-bound process-tree artifact with the BAS performance capture', async () => {
+    const files = new Map<string, string>();
+    const dirs = new Map<string, string[]>();
+    const setProcess = (pid: number, ppid: number, start: number, cpu: number, rss: number) => {
+      const fields = Array.from({ length: 19 }, () => '0');
+      fields[0] = String(ppid);
+      fields[10] = String(cpu);
+      fields[18] = String(start);
+      files.set(`/proc/${pid}/stat`, `${pid} (bas driver) S ${fields.join(' ')}\n`);
+      files.set(`/proc/${pid}/status`, `VmRSS:\t${rss} kB\n`);
+      dirs.set(`/proc/${pid}/task`, [String(pid)]);
+      dirs.set(`/proc/${pid}/task/${pid}`, []);
+      files.set(`/proc/${pid}/task/${pid}/children`, '');
+    };
+    setProcess(10, 1, 100, 10, 100);
+    files.set('/proc/sys/kernel/random/boot_id', 'fixture-boot-id\n');
+    const proc = {
+      readFile: (file: string) => {
+        const value = files.get(file);
+        if (value === undefined) throw new Error(`missing ${file}`);
+        return value;
+      },
+      readDir: (directory: string) => {
+        const value = dirs.get(directory);
+        if (value === undefined) throw new Error(`missing ${directory}`);
+        return value;
+      },
+    };
+    const cdp = new FakeCDP({ traceEvents: [] });
+    const tracer = new PerformanceTracer(dir, () => Promise.resolve(asCDP(cdp)));
+    await tracer.start({} as Page, {
+      captureId: 'execution-capture-1', sessionId: 'session-1', leaseId: 'lease-1',
+      rootPid: 10, isExclusive: () => true, proc, platform: 'linux',
+    });
+    await new Promise((resolve) => setTimeout(resolve, 550));
+    await tracer.stop(fakePage(null));
+
+    const raw = await readFile(path.join(dir, BROWSER_PROCESS_TREE_FILE), 'utf8');
+    const sample = JSON.parse(raw) as {
+      status: string; contract: string; platform: string; cpu_clock_ticks_per_second: null;
+      cpu_clock_source: string; process_lifetime_accounting: string; process_lifetime_coverage_complete: boolean;
+      cpu_time_ms: number | null; peak_rss_bytes: number | null; reason: string;
+      capture_id: string; session_id: string; lease_id_sha256: string;
+      host_boot_id: string; root_start_ticks: string; scope: string;
+    };
+    expect(sample.status).toBe('unknown');
+    expect(sample.contract).toBe('bas.browser-process-tree.v2');
+    expect(sample.platform).toBe('linux');
+    expect(sample.cpu_clock_ticks_per_second).toBeNull();
+    expect(sample.cpu_clock_source).toBe('unavailable-from-current-owner');
+    expect(sample.process_lifetime_accounting).toBe('sampled-snapshot-only');
+    expect(sample.process_lifetime_coverage_complete).toBe(false);
+    expect(sample.cpu_time_ms).toBeNull();
+    expect(sample.peak_rss_bytes).toBeNull();
+    expect(sample.reason).toContain('short-lived process lifetimes');
+    expect(sample.capture_id).toBe('execution-capture-1');
+    expect(sample.session_id).toBe('session-1');
+    expect(sample.lease_id_sha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(sample.host_boot_id).toBe('fixture-boot-id');
+    expect(sample.root_start_ticks).toBe('100');
+    expect(sample.scope).toBe('bas-driver-plus-exclusive-broker-owned-browser-process-tree');
   });
 
   it('omits the web-vitals file when the page emitted no metrics', async () => {

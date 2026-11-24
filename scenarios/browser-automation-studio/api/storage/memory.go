@@ -113,7 +113,7 @@ func (m *MemoryStorage) StoreArtifactFromFile(ctx context.Context, executionID u
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 	objectName := artifactObjectName(executionID, label, filepath.Ext(filePath))
-	derivedType := detectContentTypeFromFile(filePath, contentType)
+	derivedType := DetectContentTypeFromFile(filePath, contentType)
 
 	m.mu.Lock()
 	m.objects[objectName] = memoryObject{

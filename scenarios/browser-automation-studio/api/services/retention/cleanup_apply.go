@@ -97,7 +97,7 @@ func (s *Service) ApplyCleanup(ctx context.Context, preview CleanupPreview, idem
 		}
 		remove := func(lockCtx context.Context) error {
 			if strings.HasPrefix(item.ID, "recording:") {
-				id, parseErr := uuid.Parse(strings.TrimPrefix(item.ID, "recording:"))
+				id, parseErr := parseRecordingCleanupID(item.ID)
 				if parseErr != nil {
 					return ErrInvalidCleanupPreview
 				}
@@ -123,7 +123,7 @@ func (s *Service) ApplyCleanup(ctx context.Context, preview CleanupPreview, idem
 		}
 		var err error
 		if strings.HasPrefix(item.ID, "recording:") {
-			executionID, parseErr := uuid.Parse(strings.TrimPrefix(item.ID, "recording:"))
+			executionID, parseErr := parseRecordingCleanupID(item.ID)
 			if parseErr != nil {
 				err = ErrInvalidCleanupPreview
 			} else {
@@ -192,7 +192,7 @@ func parseCleanupApplySelection(items []CleanupItem) (cleanupApplySelection, err
 		}
 		if strings.HasPrefix(item.ID, "recording:") {
 			selection.recordingIDs[item.ID] = struct{}{}
-			if id, err := uuid.Parse(strings.TrimPrefix(item.ID, "recording:")); err == nil {
+			if id, err := parseRecordingCleanupID(item.ID); err == nil {
 				selection.estimatedBytes[id] = item.Bytes
 			}
 			continue

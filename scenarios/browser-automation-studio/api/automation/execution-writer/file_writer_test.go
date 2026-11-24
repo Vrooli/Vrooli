@@ -84,10 +84,38 @@ func TestRecordCheckpointDoesNotRecreatePurgedExecutionArtifacts(t *testing.T) {
 	}
 }
 
+func TestFileWriterRefusesTerminalAndUnknownExecutionOwners(t *testing.T) {
+	for _, status := range []string{
+		database.ExecutionStatusCompleted,
+		database.ExecutionStatusFailed,
+		database.ExecutionStatusCancelled,
+		"unknown",
+	} {
+		t.Run(status, func(t *testing.T) {
+			root := t.TempDir()
+			id, workflowID := uuid.New(), uuid.New()
+			runDir := filepath.Join(root, id.String())
+			require.NoError(t, os.MkdirAll(runDir, 0o700))
+			partialPath := filepath.Join(runDir, ".tmp-unfinished-result")
+			require.NoError(t, os.WriteFile(partialPath, []byte("unfinished"), 0o600))
+			repo := &statusRecordingRepo{execution: &database.ExecutionIndex{ID: id, Status: status}}
+			writer := NewFileWriter(repo, nil, nil, NewStaticRoot(root))
+			err := writer.RecordCheckpoint(context.Background(), Checkpoint{
+				SchemaVersion: CheckpointVersion, ExecutionID: id, WorkflowID: workflowID,
+				LastStepIndex: 0, NodeID: "late-write", TotalSteps: 1,
+			})
+			require.ErrorContains(t, err, "artifact writes require a pending or running owner")
+			contents, readErr := os.ReadFile(partialPath)
+			require.NoError(t, readErr)
+			require.Equal(t, "unfinished", string(contents), "terminal/unknown writer must not touch abandoned temp files")
+		})
+	}
+}
+
 type noopRepo struct{}
 
 func (noopRepo) GetExecution(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {
-	return &database.ExecutionIndex{ID: id}, nil
+	return &database.ExecutionIndex{ID: id, Status: database.ExecutionStatusRunning}, nil
 }
 
 func (noopRepo) UpdateExecutionStatus(ctx context.Context, id uuid.UUID, status string, errorMessage *string, completedAt *time.Time, updatedAt time.Time) error {

@@ -108,6 +108,7 @@ type Handler struct {
 	storage               storage.StorageInterface
 	recordingService      archiveingestion.IngestionServiceInterface
 	recordModeService     RecordModeService // Live recording session management (interface for testability)
+	sessionBroker         *autosession.Manager
 	recordingsRoot        string
 	exportJobs            *exportservices.JobRunner
 	replayRenderer        replayRenderer
@@ -258,15 +259,16 @@ func InitDefaultDepsWithOptions(repo database.Repository, wsHub *wsHub.Hub, log 
 
 	// Create workflow service with dependencies
 	workflowSvc := workflow.NewWorkflowServiceWithDeps(repo, wsHub, log, workflow.WorkflowServiceOptions{
-		Executor:              autoExecutor,
-		EngineFactory:         autoEngineFactory,
-		ArtifactRecorder:      autoRecorder,
-		EventSinkFactory:      eventSinkFactory,
-		ExecutionDataRoot:     recordingsRoot,
-		ProjectRoot:           opts.ProjectRoot,
-		AIClient:              aiClient,
-		SessionProfileService: sessionProfileSvc,
-		ExecutionAdmission:    opts.EntitlementService,
+		MaxConcurrentExecutions: config.Load().Execution.MaxConcurrentExecutions,
+		Executor:                autoExecutor,
+		EngineFactory:           autoEngineFactory,
+		ArtifactRecorder:        autoRecorder,
+		EventSinkFactory:        eventSinkFactory,
+		ExecutionDataRoot:       recordingsRoot,
+		ProjectRoot:             opts.ProjectRoot,
+		AIClient:                aiClient,
+		SessionProfileService:   sessionProfileSvc,
+		ExecutionAdmission:      opts.EntitlementService,
 	})
 	// Declared-readiness settling for the opening navigation. Optional by
 	// design: if Experience Manager is unavailable every run falls back to
@@ -355,6 +357,7 @@ func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log 
 		storage:               deps.Storage,
 		recordingService:      deps.RecordingService,
 		recordModeService:     deps.RecordModeService,
+		sessionBroker:         deps.SessionBroker,
 		recordingsRoot:        deps.RecordingsRoot,
 		replayRenderer:        deps.ReplayRenderer,
 		exportJobs:            exportservices.NewJobRunner(2, 15*time.Minute),

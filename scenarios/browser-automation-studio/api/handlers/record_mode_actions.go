@@ -159,8 +159,8 @@ func (h *Handler) navigationResultPage(owner *autosession.Session, driverPageID 
 	return pages, *pageID, nil
 }
 
-// recordCompletedNavigation commits the common outcome of reload/back/forward.
-// Page metadata reflects the browser effect even if its journal commit fails.
+// recordCompletedNavigation commits the common outcome of reload/back/forward
+// before publishing page metadata into the in-memory tracker.
 func (h *Handler) recordCompletedNavigation(ctx context.Context, owner *autosession.Session, actionType string, receipt *driver.HistoryNavigationResponse) *APIError {
 	url, title := receipt.URL, receipt.Title
 	pages, pageID, apiErr := h.navigationResultPage(owner, receipt.DriverPageID)
@@ -169,7 +169,6 @@ func (h *Handler) recordCompletedNavigation(ctx context.Context, owner *autosess
 	}
 	sessionID := owner.ID()
 	now := time.Now()
-	pages.UpdatePageInfo(pageID, url, title, receipt.FaviconURL)
 	action := &driver.RecordedAction{
 		ID: uuid.NewString(), SessionID: sessionID,
 		Timestamp: now.Format(time.RFC3339Nano), ActionType: actionType,
@@ -182,10 +181,15 @@ func (h *Handler) recordCompletedNavigation(ctx context.Context, owner *autosess
 	if !ok || current != owner {
 		return ErrServiceUnavailable.WithMessage("Browser change was committed but recording ownership changed before publication")
 	}
+	if err := pages.UpdatePageInfoAt(pageID, url, title, receipt.FaviconURL, now, func(event *domain.PageEvent) error {
+		return h.recordModeService.AddTimelinePageEvent(ctx, sessionID, event)
+	}); err != nil {
+		return ErrServiceUnavailable.WithMessage("Browser change was recorded but page metadata was not committed").WithDetails(map[string]string{"error": err.Error()})
+	}
 	broadcast := h.wsHub.BroadcastTimelineEntry(sessionID, h.createTimelineEntry(action))
 	h.wsHub.BroadcastPageEvent(sessionID, &domain.PageEvent{
-		ID: uuid.New(), Type: domain.PageEventNavigated,
-		PageID: pageID, URL: url, Title: title, FaviconURL: receipt.FaviconURL, Timestamp: now,
+		ID: domain.StablePageEventID(pageID, domain.PageEventNavigated, now), Type: domain.PageEventNavigated,
+		PageID: pageID, DriverPageID: pages.GetDriverPageID(pageID), ActivePageID: pages.GetActivePageID(), URL: url, Title: title, FaviconURL: receipt.FaviconURL, Timestamp: now,
 	})
 	h.log.WithFields(map[string]interface{}{
 		"correlation_id": h.generateCorrelationID(sessionID),

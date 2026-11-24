@@ -20,7 +20,7 @@ import { InvalidInstructionError } from '../utils/errors';
 import type { Config } from '../config';
 import type { Metrics } from '../utils/metrics';
 import type winston from 'winston';
-import type { AppTargetSpec } from '../types/session';
+import type { AppTargetSpec, BrowserPermissionProfile } from '../types/session';
 import type { InteractionState } from '../session/interaction-state';
 
 // Import types from proto and outcome-builder
@@ -90,6 +90,8 @@ export interface HandlerContext {
   metrics: Metrics;
   /** Session identifier for logging and tracking */
   sessionId: string;
+  /** Trusted permission subset copied from the admitted session lease. */
+  permissionProfile?: BrowserPermissionProfile;
   /** The admitted target identity, when this is a controlled Electron run. */
   electronTarget?: AppTargetSpec;
   /** Semantic interaction state requested by a validation capture, if any. */
@@ -133,7 +135,7 @@ export interface HandlerContext {
 /** A selected document owns DOM operations; Page still owns physical input and capture. */
 export type BrowserDocument = Page | Frame;
 
-export function getDocument(context: HandlerContext): BrowserDocument {
+export function getDocument(context: Pick<HandlerContext, 'page' | 'frameStack'>): BrowserDocument {
   const frames = context.frameStack;
   if (!frames?.length) return context.page;
   let parent = context.page.mainFrame();

@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -10,11 +9,12 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	apiidentity "github.com/vrooli/api-core/identity"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/enums"
 	"github.com/vrooli/browser-automation-studio/services/readiness"
-	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
@@ -67,6 +67,24 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPI(ctx context.Context, req *base
 // ExecuteAdhocWorkflowAPIWithOptions executes a provided workflow definition without persisting it as a workflow index.
 // Artifacts are still recorded to disk using the standard recorder.
 func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context, req *basexecution.ExecuteAdhocRequest, opts *ExecuteOptions) (*basexecution.ExecuteAdhocResponse, error) {
+	return s.executeAdhocWorkflowAPIWithOptions(ctx, req, opts, false)
+}
+
+// ExecuteSystemCaptureAdhocWorkflowAPIWithOptions is the accountless entry
+// reserved for CaptureService after its exact service principal has been
+// authenticated. The ordinary adhoc route never receives this admission flag.
+func (s *WorkflowService) ExecuteSystemCaptureAdhocWorkflowAPIWithOptions(ctx context.Context, req *basexecution.ExecuteAdhocRequest, opts *ExecuteOptions) (*basexecution.ExecuteAdhocResponse, error) {
+	principal, ok := apiidentity.PrincipalFromContext(ctx)
+	if !ok || !principal.Verified || principal.Kind != apiidentity.ActorService ||
+		principal.Subject != "experience-manager-bas-capture" || principal.Issuer != "scenario-authenticator" ||
+		principal.Audience != "scenario-authenticator:browser-automation-studio" ||
+		len(principal.Scopes) != 1 || principal.Scopes[0] != "browser-automation-studio:capture" {
+		return nil, errors.New("verified BAS capture service principal is required")
+	}
+	return s.executeAdhocWorkflowAPIWithOptions(ctx, req, opts, true)
+}
+
+func (s *WorkflowService) executeAdhocWorkflowAPIWithOptions(ctx context.Context, req *basexecution.ExecuteAdhocRequest, opts *ExecuteOptions, systemCapture bool) (*basexecution.ExecuteAdhocResponse, error) {
 	if req == nil {
 		return nil, errors.New("request is nil")
 	}
@@ -75,6 +93,9 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 	}
 
 	executionID := uuid.New()
+	if opts != nil && opts.ExecutionID != nil {
+		executionID = *opts.ExecutionID
+	}
 	workflowID, err := s.ensureAdhocWorkflowIndex(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("ensure adhoc workflow index: %w", err)
@@ -137,47 +158,29 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 	}
 	wf.FlowDefinition = req.FlowDefinition
 
-	// Resolve session profile if provided for authenticated execution
-	var storageState json.RawMessage
-	var profileBrowserSettings *sessionprofilepersistence.BrowserProfile
-	var openTabs []sessionprofilepersistence.TabState
-	var sessionProfileVersion string
-	if sessionProfileID != "" && s.sessionProfileService != nil {
-		profile, err := s.sessionProfileService.GetProfile(sessionprofilepersistence.ProfileID(sessionProfileID))
-		if err != nil {
-			return nil, fmt.Errorf("session profile %s not found: %w", sessionProfileID, err)
-		}
-		storageState = profile.StorageState
-		profileBrowserSettings = profile.BrowserProfile
-		sessionProfileVersion = profileVersionForReuse(profile)
-
-		// Load open tabs if tab restoration is requested
-		if restoreTabs && len(profile.OpenTabs) > 0 {
-			openTabs = profile.OpenTabs
-		}
-
-		// Update usage tracking to keep profile LRU order current
-		if _, err := s.sessionProfileService.Touch(sessionprofilepersistence.ProfileID(sessionProfileID)); err != nil && s.log != nil {
-			s.log.WithError(err).WithField("session_profile_id", sessionProfileID).Warn("Failed to update session profile usage timestamp")
-		}
+	// Saved and ad-hoc executions resolve persisted state and browser-profile
+	// precedence through one owner so authenticated sessions behave identically.
+	sessionProfile, err := s.resolveExecutionSessionProfile(req.FlowDefinition, sessionProfileID, saveSessionProfileID, restoreTabs, execBrowserProfile)
+	if err != nil {
+		return nil, fmt.Errorf("session profile %s not found: %w", sessionProfileID, err)
 	}
-	if sessionProfileVersion == "" && saveSessionProfileID != "" {
-		sessionProfileVersion = profileVersionForReuse(&sessionprofilepersistence.SessionProfile{ID: sessionprofilepersistence.ProfileID(saveSessionProfileID)})
-	}
-
-	// Extract adhoc workflow's default browser profile and merge with execution override
-	// Priority order: execution params > session profile > workflow defaults
-	var workflowBrowserProfile *sessionprofilepersistence.BrowserProfile
-	if req.FlowDefinition != nil && req.FlowDefinition.Settings != nil && req.FlowDefinition.Settings.BrowserProfile != nil {
-		workflowBrowserProfile = sessionprofilepersistence.BrowserProfileFromProto(req.FlowDefinition.Settings.BrowserProfile)
-	}
-	// First merge workflow defaults with session profile defaults
-	baseBrowserProfile := sessionprofilepersistence.MergeBrowserProfiles(workflowBrowserProfile, profileBrowserSettings)
-	// Then merge with execution-level overrides (highest priority)
-	finalBrowserProfile := sessionprofilepersistence.MergeBrowserProfiles(baseBrowserProfile, execBrowserProfile)
-	hold, err := s.reserveExecution(ctx)
+	releaseAdmission, releaseSlot, err := s.beginExecutionAdmission()
 	if err != nil {
 		return nil, err
+	}
+	defer releaseAdmission()
+	slotTransferred := false
+	defer func() {
+		if !slotTransferred {
+			releaseSlot()
+		}
+	}()
+	var hold *monetization.QuotaHold
+	if !systemCapture {
+		hold, err = s.reserveExecution(ctx)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	execIndex := &database.ExecutionIndex{
@@ -202,7 +205,9 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 	}
 
 	// Use the standard async runner so status polling, stop requests, and result indexing work.
-	completion := s.startExecutionRunnerWithOptions(ctx, wf, executionID, store, params, env, artifactCfg, finalBrowserProfile, storageState, sessionProfileVersion, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError)
+	completion := s.startExecutionRunnerWithOptions(ctx, wf, executionID, store, params, env, artifactCfg, sessionProfile.browserProfile, sessionProfile.storageState, sessionProfile.sessionProfileVersion, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, sessionProfile.openTabs, navigationWaitUntil, continueOnError, releaseSlot)
+	slotTransferred = true
+	releaseAdmission()
 
 	if req.WaitForCompletion {
 		latest, err := s.waitForExecutionCompletion(ctx, executionID, completion)

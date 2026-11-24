@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	corestorage "github.com/vrooli/api-core/storage"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
@@ -199,12 +200,8 @@ func WriteWorkflowSummaryFile(project *database.ProjectIndex, wf *basapi.Workflo
 		indented = buf.Bytes()
 	}
 
-	tmp := targetAbs + ".tmp"
-	if err := os.WriteFile(tmp, indented, 0o644); err != nil {
-		return "", "", fmt.Errorf("failed to write workflow temp file: %w", err)
-	}
-	if err := os.Rename(tmp, targetAbs); err != nil {
-		return "", "", fmt.Errorf("failed to finalize workflow file write: %w", err)
+	if err := corestorage.WriteFileAtomic(targetAbs, indented, 0o644); err != nil {
+		return "", "", fmt.Errorf("failed to write workflow file: %w", err)
 	}
 	return targetAbs, filepath.ToSlash(targetRel), nil
 }

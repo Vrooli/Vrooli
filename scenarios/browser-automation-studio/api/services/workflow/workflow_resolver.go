@@ -110,10 +110,10 @@ func validateAndNormalizePath(workflowPath string) (string, error) {
 
 // resolveFromProjectDir resolves a workflow from the project's workflows directory.
 func (s *WorkflowService) resolveFromProjectDir(ctx context.Context, project *database.ProjectIndex, rel string, workflowPath string) (*basapi.WorkflowSummary, error) {
-	abs := filepath.Join(ProjectWorkflowsDir(project), rel)
 	base := ProjectWorkflowsDir(project)
-	if relCheck, err := filepath.Rel(base, abs); err != nil || strings.HasPrefix(relCheck, "..") {
-		return nil, fmt.Errorf("invalid workflow path: %q", workflowPath)
+	abs, err := resolvePathWithinRoot(base, rel, workflowPath)
+	if err != nil {
+		return nil, err
 	}
 
 	snapshot, err := ReadWorkflowSummaryFile(ctx, project, abs)
@@ -137,11 +137,9 @@ func (s *WorkflowService) resolveFromFilesystemRoot(ctx context.Context, project
 
 	// Use projectRoot directly as base (NOT projectRoot/workflows/)
 	base := projectRoot
-	abs := filepath.Join(base, rel)
-
-	// Security: validate path stays within base
-	if relCheck, err := filepath.Rel(base, abs); err != nil || strings.HasPrefix(relCheck, "..") {
-		return nil, fmt.Errorf("invalid workflow path: %q", workflowPath)
+	abs, err := resolvePathWithinRoot(base, rel, workflowPath)
+	if err != nil {
+		return nil, err
 	}
 
 	// Read file using synthetic project for compatibility
@@ -154,4 +152,15 @@ func (s *WorkflowService) resolveFromFilesystemRoot(ctx context.Context, project
 		return nil, database.ErrNotFound
 	}
 	return snapshot.Workflow, nil
+}
+
+// resolvePathWithinRoot joins a normalized workflow path to its allowed root
+// and rejects paths whose relative form escapes that root.
+func resolvePathWithinRoot(base, rel, workflowPath string) (string, error) {
+	abs := filepath.Join(base, rel)
+	relCheck, err := filepath.Rel(base, abs)
+	if err != nil || strings.HasPrefix(relCheck, "..") {
+		return "", fmt.Errorf("invalid workflow path: %q", workflowPath)
+	}
+	return abs, nil
 }

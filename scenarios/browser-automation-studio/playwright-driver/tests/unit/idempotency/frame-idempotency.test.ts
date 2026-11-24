@@ -21,6 +21,7 @@ describe('session-owned frame selection', () => {
     main = createMockFrame({
       page: jest.fn().mockReturnValue(page),
       isDetached: jest.fn().mockReturnValue(false),
+      url: jest.fn().mockReturnValue('https://fixture/start'),
     });
     page.mainFrame.mockReturnValue(main);
     const child = (parent: typeof main, url: string) =>
@@ -44,6 +45,7 @@ describe('session-owned frame selection', () => {
       sessionId: 'frame-fixture',
       frameStack: [],
     };
+    context.page.url = jest.fn().mockReturnValue('https://fixture/start');
   });
   const run = (params: Record<string, unknown>) =>
     handler.execute(createTypedInstruction('frame-switch', params), context);
@@ -59,6 +61,50 @@ describe('session-owned frame selection', () => {
     expect((await run({ action: 'enter', frameUrl: '/child' })).success).toBe(true);
     expect(getDocument(context)).toBe(left);
     expect(context.frameStack).toEqual([left]);
+  });
+  it('authorizes the actual frame URL against the admitted origin scope before selecting it', async () => {
+    main.childFrames.mockReturnValue([left]);
+    context.permissionProfile = {
+      effect: 'act', approval: 'none', control: true, view: true,
+      url_allow: ['https://fixture/*'],
+    };
+    expect((await run({ action: 'enter', frameUrl: '/child' })).success).toBe(true);
+    expect(context.frameStack).toEqual([left]);
+  });
+  it('denies an actual cross-origin child before it becomes the selected document', async () => {
+    main.childFrames.mockReturnValue([left]);
+    left.url.mockReturnValue('https://foreign.test/child');
+    context.permissionProfile = {
+      effect: 'act', approval: 'none', control: true, view: true,
+      url_allow: ['https://fixture/*'],
+    };
+    const result = await run({ action: 'enter', frameUrl: 'foreign.test' });
+    expect(result.success).toBe(false);
+    expect(result.error?.message).toMatch(/outside allowed scope/);
+    expect(context.frameStack).toEqual([]);
+  });
+  it('allows a cross-origin child only when the trusted profile explicitly allows its origin', async () => {
+    main.childFrames.mockReturnValue([left]);
+    left.url.mockReturnValue('https://foreign.test/child');
+    context.permissionProfile = {
+      effect: 'act', approval: 'none', control: true, view: true,
+      url_allow: ['https://fixture/*', 'https://foreign.test/*'],
+    };
+    expect((await run({ action: 'enter', frameUrl: 'foreign.test' })).success).toBe(true);
+    expect(getDocument(context)).toBe(left);
+  });
+  it('denies forged frame hints that do not resolve to an owner-observed child', async () => {
+    main.childFrames.mockReturnValue([left]);
+    left.frameElement = jest.fn().mockResolvedValue({
+      getAttribute: jest.fn().mockResolvedValue('actual-frame-id'),
+      dispose: jest.fn(),
+    }) as never;
+    context.permissionProfile = {
+      effect: 'act', approval: 'none', control: true, view: true,
+      url_allow: ['https://fixture/*'],
+    };
+    expect((await run({ action: 'enter', frameId: 'not-the-frame-id' })).success).toBe(false);
+    expect(context.frameStack).toEqual([]);
   });
   it('reselects the same unambiguous frame without adding depth', async () => {
     context.frameStack = [left];

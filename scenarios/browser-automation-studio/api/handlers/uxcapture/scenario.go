@@ -142,17 +142,8 @@ func MountScenarioHTTP(r chi.Router, client ScenarioCaptureClient, resolver Scen
 			writeError(w, http.StatusBadGateway, "Driver returned mismatched scenario source metadata")
 			return
 		}
-		if strings.TrimSpace(capturesRoot) == "" {
-			writeError(w, http.StatusInternalServerError, "BAS private capture storage is unavailable")
-			return
-		}
-		bundleDir, err := bundleDirectory(capturesRoot, manifest.ID)
-		if err != nil {
-			writeError(w, http.StatusBadGateway, "Driver returned an invalid UX capture bundle ID")
-			return
-		}
-		if err := bundle.WriteBundleWithArtifacts(bundleDir, manifest, payloads); err != nil {
-			writeError(w, http.StatusInternalServerError, "Could not persist the private capture bundle: "+err.Error())
+		if err := persistCaptureBundle(capturesRoot, manifest, payloads); err != nil {
+			respondCapturePersistenceError(w, err)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

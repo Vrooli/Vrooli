@@ -224,3 +224,34 @@ func TestApplyCleanupHonorsStorageRecoveryLock(t *testing.T) {
 }
 
 var _ database.Repository = (*evidenceRepository)(nil)
+
+func TestRecordingCleanupIDSharedAcrossPreviewAndApplySelection(t *testing.T) {
+	root := t.TempDir()
+	id := uuid.New()
+	dir := filepath.Join(root, id.String())
+	if err := os.Mkdir(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "result.json"), []byte("result"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	wantedID := recordingCleanupIDPrefix + id.String()
+	items, err := orphanRecordingCandidates(context.Background(), root, nil, 0, 0, 0, map[string]struct{}{wantedID: {}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || items[0].ID != wantedID {
+		t.Fatalf("preview items = %#v, want one item %q", items, wantedID)
+	}
+
+	selection, err := parseCleanupApplySelection(items)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := selection.recordingIDs[wantedID]; !ok {
+		t.Fatalf("apply selection lacks recording ID %q", wantedID)
+	}
+	if got := selection.estimatedBytes[id]; got != items[0].Bytes || got == 0 {
+		t.Fatalf("apply estimated bytes = %d, preview bytes = %d", got, items[0].Bytes)
+	}
+}

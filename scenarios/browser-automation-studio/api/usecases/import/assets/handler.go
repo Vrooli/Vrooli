@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/internal/httpresponse"
 )
 
 // MaxUploadSize is the maximum file size for asset uploads (10MB).
@@ -150,17 +151,10 @@ func (h *Handler) DeleteAsset(w http.ResponseWriter, r *http.Request) {
 
 // respondJSON writes a JSON response.
 func (h *Handler) respondJSON(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		h.log.WithError(err).Error("Failed to encode response")
-	}
+	httpresponse.WriteJSON(w, status, data, func(err error) { h.log.WithError(err).Error("Failed to encode response") })
 }
 
 // respondError writes an error response.
 func (h *Handler) respondError(w http.ResponseWriter, status int, message string) {
-	h.respondJSON(w, status, map[string]interface{}{
-		"error":   true,
-		"message": message,
-	})
+	httpresponse.WriteError(w, status, message, func(err error) { h.log.WithError(err).Error("Failed to encode response") })
 }

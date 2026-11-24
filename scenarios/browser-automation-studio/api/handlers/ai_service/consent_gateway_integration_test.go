@@ -17,6 +17,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/connectx"
+	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	aihandlers "github.com/vrooli/browser-automation-studio/handlers/ai"
 	"github.com/vrooli/browser-automation-studio/middleware"
 	monetization "github.com/vrooli/vrooli/packages/monetization-go"
@@ -49,7 +50,13 @@ func TestAIServiceForwardsConsentToGatewayRun(t *testing.T) {
 		}
 		encoded, err := json.Marshal("[]")
 		require.NoError(t, err)
-		return connect.NewResponse(&inferencev1.RunResponse{ValueJson: string(encoded), Validated: true}), nil
+		credits := int64(41)
+		return connect.NewResponse(&inferencev1.RunResponse{ValueJson: string(encoded), Validated: true,
+			Provider: "fixture-provider", Model: "fixture-model", ProviderCallsMade: 1,
+			Usage: &inferencev1.Usage{InputTokens: 19, OutputTokens: 7, CostMicros: 23,
+				InputTokensProvenance:  inferencev1.UsageProvenance_USAGE_PROVENANCE_PROVIDER_REPORTED,
+				OutputTokensProvenance: inferencev1.UsageProvenance_USAGE_PROVENANCE_GATEWAY_ESTIMATE,
+				CreditsCharged:         &credits, AccountingStatus: "settled"}}), nil
 	}}
 	gatewayPath, gatewayHandler := inferenceconnect.NewInferenceServiceHandler(gatewayService)
 	gatewayMux := http.NewServeMux()
@@ -63,7 +70,7 @@ func TestAIServiceForwardsConsentToGatewayRun(t *testing.T) {
 	automation := newServiceAutomationRunner()
 	screenshot := aihandlers.NewScreenshotHandler(log, aihandlers.WithScreenshotRunner(automation))
 	dom := aihandlers.NewDOMHandler(log, aihandlers.WithDOMRunner(automation))
-	elementAnalysis := aihandlers.NewElementAnalysisHandler(log, aihandlers.WithElementRunner(automation))
+	elementAnalysis := aihandlers.NewElementAnalysisHandler(log, aihandlers.WithElementRunner(automation), aihandlers.WithAIModelClient(modelClient))
 	aiAnalysis := aihandlers.NewAIAnalysisHandler(log, dom,
 		aihandlers.WithDOMExtractor(consentFixtureDOM{}),
 		aihandlers.WithAIAnalysisModelClient(modelClient),
@@ -84,7 +91,7 @@ func TestAIServiceForwardsConsentToGatewayRun(t *testing.T) {
 	t.Cleanup(basServer.Close)
 	client := aiconnect.NewAIServiceClient(basServer.Client(), basServer.URL)
 
-	remoteCall := func(token, receipt string) error {
+	remoteCall := func(token, receipt string) (*connect.Response[aiv1.AIAnalyzeElementsResponse], error) {
 		req := connect.NewRequest(&aiv1.AIAnalyzeElementsRequest{Url: "https://fixture.invalid", Intent: "find the search button"})
 		if token != "" {
 			req.Header().Set("Authorization", "Bearer "+token)
@@ -93,8 +100,7 @@ func TestAIServiceForwardsConsentToGatewayRun(t *testing.T) {
 		req.Header().Set("X-Vrooli-AI-Consent-Source", "own-key")
 		req.Header().Set("X-Vrooli-AI-Consent-Grant", receipt)
 		req.Header().Set("Idempotency-Key", "consent-ai-service-fixture-operation")
-		_, err := client.AIAnalyzeElements(context.Background(), req)
-		return err
+		return client.AIAnalyzeElements(context.Background(), req)
 	}
 	for _, attempt := range []struct {
 		name, token, receipt string
@@ -108,7 +114,7 @@ func TestAIServiceForwardsConsentToGatewayRun(t *testing.T) {
 	} {
 		t.Run(attempt.name+" reaches refusal before fake dispatch", func(t *testing.T) {
 			before := fakeRemoteDispatches.Load()
-			callErr := remoteCall(attempt.token, attempt.receipt)
+			_, callErr := remoteCall(attempt.token, attempt.receipt)
 			require.Error(t, callErr)
 			require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(callErr))
 			require.Equal(t, before, fakeRemoteDispatches.Load())
@@ -116,7 +122,20 @@ func TestAIServiceForwardsConsentToGatewayRun(t *testing.T) {
 	}
 	t.Run("selected source and active grant reach production caller", func(t *testing.T) {
 		before := fakeRemoteDispatches.Load()
-		require.NoError(t, remoteCall("fixture.signed.alice", "opaque-fixture-own-key-receipt"))
+		response, callErr := remoteCall("fixture.signed.alice", "opaque-fixture-own-key-receipt")
+		require.NoError(t, callErr)
+		receipt := response.Msg.GetInferenceReceipt()
+		require.NotNil(t, receipt)
+		require.NotEmpty(t, receipt.GetRootOperationId())
+		require.Equal(t, "own-key", receipt.GetSource())
+		require.Equal(t, "fixture-provider", receipt.GetProvider())
+		require.Equal(t, "fixture-model", receipt.GetModel())
+		require.EqualValues(t, 1, receipt.GetProviderCallsMade())
+		require.Equal(t, "19", receipt.GetInputTokens())
+		require.Equal(t, "7", receipt.GetOutputTokens())
+		require.Equal(t, "23", receipt.GetCostMicros())
+		require.Equal(t, "41", receipt.GetCreditsCharged())
+		require.Equal(t, "settled", receipt.GetAccountingStatus())
 		require.Equal(t, before+1, fakeRemoteDispatches.Load(), "valid exact-source consent dispatches once")
 		idx := len(observed) - 1
 		require.Equal(t, "own-key", observedHeaders[idx].Get("X-Vrooli-AI-Source"))
@@ -135,8 +154,10 @@ func TestAIServiceForwardsConsentToGatewayRun(t *testing.T) {
 		req := connect.NewRequest(&aiv1.AIAnalyzeElementsRequest{Url: "https://fixture.invalid", Intent: "local only"})
 		req.Header().Set("X-Vrooli-AI-Consent-Source", "local")
 		req.Header().Set("X-Vrooli-AI-Consent-Grant", "must-not-travel-with-local-source")
-		_, err := client.AIAnalyzeElements(context.Background(), req)
+		response, err := client.AIAnalyzeElements(context.Background(), req)
 		require.NoError(t, err)
+		require.NotNil(t, response.Msg.GetInferenceReceipt())
+		require.Equal(t, "local", response.Msg.GetInferenceReceipt().GetSource())
 		require.Len(t, observed, 8)
 		idx := len(observed) - 1
 		require.Equal(t, "local", observedHeaders[idx].Get("X-Vrooli-AI-Source"))
@@ -144,6 +165,29 @@ func TestAIServiceForwardsConsentToGatewayRun(t *testing.T) {
 		require.Empty(t, observedHeaders[idx].Get("X-Vrooli-AI-Consent-Grant"))
 		require.Equal(t, sharedv1.Profile_PROFILE_LOCAL_ONLY, observed[idx].GetProfile())
 		require.Equal(t, int64(1), fakeRemoteDispatches.Load(), "local requests must not dispatch remotely")
+	})
+
+	t.Run("AnalyzeElements response carries the same Gateway receipt", func(t *testing.T) {
+		automation.Outcomes = []autocontracts.StepOutcome{
+			{Success: true, NodeID: "analysis.evaluate", ExtractedData: map[string]any{"result": map[string]any{
+				"elements":    []any{map[string]any{"text": "Search", "tagName": "BUTTON", "type": "button"}},
+				"pageContext": map[string]any{"title": "Fixture", "url": "https://fixture.invalid", "hasSearch": true, "buttonCount": 1},
+			}}},
+			{Success: true, NodeID: "analysis.screenshot", Screenshot: &autocontracts.Screenshot{Data: []byte{0x89, 0x50, 0x4e, 0x47}}},
+		}
+		req := connect.NewRequest(&aiv1.AnalyzeElementsRequest{Url: "https://fixture.invalid"})
+		req.Header().Set("Authorization", "Bearer fixture.signed.alice")
+		req.Header().Set("X-Vrooli-AI-Consent-Source", "own-key")
+		req.Header().Set("X-Vrooli-AI-Consent-Grant", "opaque-fixture-own-key-receipt")
+		response, err := client.AnalyzeElements(context.Background(), req)
+		require.NoError(t, err)
+		receipt := response.Msg.GetInferenceReceipt()
+		require.NotNil(t, receipt)
+		require.Equal(t, "own-key", receipt.GetSource())
+		require.Equal(t, "fixture-provider", receipt.GetProvider())
+		require.Equal(t, "19", receipt.GetInputTokens())
+		require.Equal(t, "23", receipt.GetCostMicros())
+		require.Equal(t, int64(2), fakeRemoteDispatches.Load())
 	})
 }
 

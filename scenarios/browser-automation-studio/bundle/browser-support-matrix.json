@@ -1,0 +1,37 @@
+{
+  "schema_version": "v3",
+  "targets": {
+    "linux-x64": { "bundle_layout": "source-fixture-tested", "browser_artifact": "unqualified-no-provisioned-artifact", "clean_host": "unqualified-no-receipt", "lifecycle_contract": { "runtime_launch": "unqualified-no-receipt", "browser_task": "unqualified-no-receipt", "web_console_pane": "unqualified-no-receipt", "update_rollback": "unqualified-no-receipt", "uninstall": "unqualified-no-receipt" } },
+    "linux-arm64": { "bundle_layout": "unqualified-no-node", "browser_artifact": "unqualified-no-provisioned-artifact", "clean_host": "unqualified-no-receipt", "lifecycle_contract": { "runtime_launch": "unqualified-no-node", "browser_task": "unqualified-no-node", "web_console_pane": "unqualified-no-node", "update_rollback": "unqualified-no-node", "uninstall": "unqualified-no-node" } },
+    "darwin-x64": { "bundle_layout": "unqualified-no-node", "browser_artifact": "unqualified-no-provisioned-artifact", "clean_host": "unqualified-no-receipt", "lifecycle_contract": { "runtime_launch": "unqualified-no-node", "browser_task": "unqualified-no-node", "web_console_pane": "unqualified-no-node", "update_rollback": "unqualified-no-node", "uninstall": "unqualified-no-node" } },
+    "darwin-arm64": { "bundle_layout": "unqualified-no-node", "browser_artifact": "unqualified-no-provisioned-artifact", "clean_host": "unqualified-no-receipt", "lifecycle_contract": { "runtime_launch": "unqualified-no-node", "browser_task": "unqualified-no-node", "web_console_pane": "unqualified-no-node", "update_rollback": "unqualified-no-node", "uninstall": "unqualified-no-node" } },
+    "windows-x64": { "bundle_layout": "unqualified-no-node", "browser_artifact": "unqualified-no-provisioned-artifact", "clean_host": "unqualified-no-receipt", "lifecycle_contract": { "runtime_launch": "unqualified-no-node", "browser_task": "unqualified-no-node", "web_console_pane": "unqualified-no-node", "update_rollback": "unqualified-no-node", "uninstall": "unqualified-no-node" } },
+    "windows-arm64": { "bundle_layout": "unsupported-no-layout", "browser_artifact": "unsupported", "clean_host": "unsupported-no-layout", "lifecycle_contract": { "runtime_launch": "unsupported-no-layout", "browser_task": "unsupported-no-layout", "web_console_pane": "unsupported-no-layout", "update_rollback": "unsupported-no-layout", "uninstall": "unsupported-no-layout" } }
+  },
+  "private-hosted-worker": {
+    "status": "unsupported",
+    "owner_gap": "BAS BackendRemote rejects before local Session.Manager open; Agent Manager SandboxLauncher isolates agent processes but has no browser closure mount, browser run/grant/session binding, task/artifact receipt contract, or remote-worker teardown owner.",
+    "lifecycle_contract": {
+      "workspace_isolation": "unsupported-no-browser-task-owner",
+      "browser_closure_mount": "unsupported-no-browser-task-owner",
+      "run_grant_session_binding": "unsupported-no-browser-task-owner",
+      "network_effect_policy": "unsupported-no-browser-task-owner",
+      "resource_timeout_limits": "unsupported-no-browser-task-owner",
+      "artifact_integrity_receipt": "unsupported-no-browser-task-owner",
+      "completion_cancel_crash_teardown": "unsupported-no-browser-task-owner"
+    }
+  },
+  "delivery_channels": {
+    "online_acquisition": {
+      "status": "unsupported-no-governed-browser-source",
+      "owner": "scenario-dependency-analyzer",
+      "evidence": "No admitted browser resource or composite Playwright closure export exists."
+    },
+    "offline_transfer": {
+      "status": "source-fixture-tested-linux-x64",
+      "scope": "Deterministic archive and install fixtures run on linux-x64 only.",
+      "browser_artifact": "unqualified-no-provisioned-artifact",
+      "clean_host": "unqualified-no-receipt"
+    }
+  }
+}

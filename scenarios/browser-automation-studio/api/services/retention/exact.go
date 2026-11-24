@@ -18,6 +18,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/executionartifactlock"
 	"github.com/vrooli/browser-automation-studio/internal/executioninventory"
+	"github.com/vrooli/browser-automation-studio/services/evidence"
 )
 
 var (
@@ -495,20 +496,11 @@ func inspectExactFiles(root string) (map[string]exactDirectoryFile, error) {
 		if !safeInventoryPath(rel) || !executioninventory.IsOwnedPath(rel, executionID.String()) {
 			return errors.New("unsafe execution file path")
 		}
-		f, err := os.Open(path)
+		integrity, err := evidence.InspectFileIntegrity(path)
 		if err != nil {
 			return err
 		}
-		h := sha256.New()
-		n, copyErr := io.Copy(h, f)
-		closeErr := f.Close()
-		if copyErr != nil {
-			return copyErr
-		}
-		if closeErr != nil {
-			return closeErr
-		}
-		files[rel] = exactDirectoryFile{bytes: n, digest: hex.EncodeToString(h.Sum(nil))}
+		files[rel] = exactDirectoryFile{bytes: integrity.SizeBytes, digest: integrity.SHA256}
 		return nil
 	})
 	return files, err
@@ -647,24 +639,15 @@ func inspectArtifactTree(root string) (int, int64, string, bool, error) {
 		if !info.Mode().IsRegular() {
 			return errors.New("artifact tree contains a non-regular file")
 		}
-		f, err := os.Open(path)
+		integrity, err := evidence.InspectFileIntegrity(path)
 		if err != nil {
 			return err
-		}
-		h := sha256.New()
-		n, err := io.Copy(h, f)
-		closeErr := f.Close()
-		if err != nil {
-			return err
-		}
-		if closeErr != nil {
-			return closeErr
 		}
 		rel, err := filepath.Rel(root, path)
 		if err != nil {
 			return err
 		}
-		files = append(files, file{rel: filepath.ToSlash(rel), size: n, sum: hex.EncodeToString(h.Sum(nil))})
+		files = append(files, file{rel: filepath.ToSlash(rel), size: integrity.SizeBytes, sum: integrity.SHA256})
 		return nil
 	})
 	if err != nil {

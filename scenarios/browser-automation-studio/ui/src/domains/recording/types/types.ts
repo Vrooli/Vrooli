@@ -216,15 +216,12 @@ export interface RecordingSessionProfile {
 }
 
 // ============================================================================
-// Browser Profile Types - Anti-detection and Human-like Behavior Settings
+// Browser profile types - legacy signal fields and interaction timing
 // ============================================================================
 
 /**
- * Quality preset for browser profile.
- * - stealth: Maximum anti-detection, natural human behavior
- * - balanced: Good anti-detection, reasonable speed
- * - fast: Minimal delays, basic anti-detection
- * - none: No anti-detection or behavior modifications
+ * Legacy preset selector for browser profile settings. Names describe saved
+ * setting groups and do not imply site compatibility or detection outcomes.
  */
 export type ProfilePreset = 'stealth' | 'balanced' | 'fast' | 'none';
 
@@ -242,13 +239,13 @@ export type UserAgentPreset =
   | 'custom';
 
 /**
- * Mouse movement style for human-like behavior.
+ * Mouse movement path style.
  */
 export type MouseMovementStyle = 'linear' | 'bezier' | 'natural';
 
 /**
  * Scroll behavior style.
- * Must match API validation: smooth (continuous) or stepped (discrete, human-like).
+ * Must match API validation: smooth (continuous) or stepped (discrete).
  */
 export type ScrollStyle = 'smooth' | 'stepped';
 
@@ -273,7 +270,7 @@ export interface FingerprintSettings {
 }
 
 /**
- * Human-like behavior settings.
+ * Interaction timing and movement settings.
  */
 export interface BehaviorSettings {
   // Typing behavior - inter-keystroke delays
@@ -316,7 +313,8 @@ export interface BehaviorSettings {
 export type AdBlockingMode = 'none' | 'ads_only' | 'ads_and_tracking';
 
 /**
- * Anti-detection settings for bypassing bot detection.
+ * Legacy browser signal settings. Support varies by browser mode and version;
+ * these options do not guarantee a detection pass or site access.
  */
 export interface AntiDetectionSettings {
   disable_automation_controlled?: boolean;

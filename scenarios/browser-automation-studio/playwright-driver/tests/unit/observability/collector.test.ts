@@ -76,6 +76,8 @@ function createMockDeps(overrides: Partial<{
     }),
     getBrowserStatus: jest.fn().mockReturnValue({
       healthy: true,
+      runtime_identity_status: 'reported',
+      family: 'chromium',
       version: '120.0.6099.109',
       ...overrides.browserStatus,
     }),
@@ -213,6 +215,16 @@ describe('ObservabilityCollector', () => {
       expect(result.ready).toBe(false);
     });
 
+    it('keeps runtime readiness separate from a connected browser identity', async () => {
+      const deps = createMockDeps({
+        browserStatus: { healthy: true, runtime_identity_status: 'unavailable', family: undefined, version: undefined },
+      });
+      const collector = new ObservabilityCollector(deps);
+      const result = await collector.collect('quick');
+      expect(result.ready).toBe(true);
+      expect(result.summary.browser_connected).toBe(false);
+    });
+
     it('should include uptime and version', async () => {
       const deps = createMockDeps();
       const collector = new ObservabilityCollector(deps);
@@ -249,10 +261,27 @@ describe('ObservabilityCollector', () => {
 
       const browser = result.components?.browser;
       expect(browser?.status).toBe('healthy');
+      expect(browser?.runtime_identity_status).toBe('reported');
+      expect(browser?.family).toBe('chromium');
       expect(browser?.version).toBe('120.0.6099.109');
       expect(browser?.connected).toBe(true);
       expect(browser?.provider).toBe('rebrowser-playwright');
       expect(browser?.capabilities?.evaluate_isolated).toBe(true);
+    });
+
+    it('does not report a live connection or version when runtime identity is unavailable', async () => {
+      const deps = createMockDeps({
+        browserStatus: { healthy: true, runtime_identity_status: 'unavailable', family: undefined, version: undefined },
+      });
+      const collector = new ObservabilityCollector(deps);
+      const result = await collector.collect('standard');
+      const browser = result.components?.browser;
+      expect(browser?.status).toBe('healthy');
+      expect(browser?.runtime_identity_status).toBe('unavailable');
+      expect(browser?.connected).toBe(false);
+      expect(browser?.family).toBeUndefined();
+      expect(browser?.version).toBeUndefined();
+      expect(browser?.message).toContain('live runtime identity unavailable');
     });
 
     it('should include sessions component details', async () => {

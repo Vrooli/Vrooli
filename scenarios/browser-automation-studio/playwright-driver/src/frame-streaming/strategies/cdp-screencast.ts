@@ -1,4 +1,4 @@
-import { encodeFrame, sameFrameSource, type FrameSource } from '../frame';
+import { encodeFrame, sameFrameSource, sendQueuedFrame, type FrameSource } from '../frame';
 /**
  * CDP Screencast Strategy
  *
@@ -170,6 +170,13 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
         return false;
       const ws = wsProvider.getWebSocket();
       if (!ws || ws.readyState !== 1) return false;
+      // CDP supplies base64. Reject payloads that cannot fit the viewer's
+      // bounded outbound queue before decoding them into another large buffer.
+      const maxBase64FrameLength = Math.ceil((MAX_QUEUED_FRAME_BYTES * 4) / 3);
+      if (data.length > maxBase64FrameLength) {
+        statsReporter.onFrameSkipped('ws_backpressure');
+        return false;
+      }
       const decodeStart = performance.now();
       const buffer = Buffer.from(data, 'base64');
       const decodeMs = performance.now() - decodeStart;
@@ -190,11 +197,7 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
             }
           : undefined
       );
-      if ((ws.bufferedAmount ?? 0) + frame.length > MAX_QUEUED_FRAME_BYTES) {
-        statsReporter.onFrameSkipped('ws_backpressure');
-        return false;
-      }
-      ws.send(frame);
+      if (!sendQueuedFrame(ws, frame, () => statsReporter.onFrameSkipped('ws_backpressure'))) return false;
       const sentAt = performance.now();
       lastSentAt = sentAt;
       const intervalMs = 1000 / targetFps;
@@ -252,7 +255,17 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
     };
 
     const handleFrame = async (owner: Capture, event: ScreencastFrameEvent): Promise<void> => {
-      if (!owns(owner)) return;
+      if (!owns(owner)) {
+        // A generation can be retired before its listener is detached. Chrome
+        // still requires the event ACK while that capture is being drained.
+        try {
+          await ackWithTimeout(owner.cdp, event.sessionId, cdpConfig.ackTimeoutMs);
+        } catch {
+          // The retired capture is already being disposed; it no longer owns
+          // current-session ACK diagnostics.
+        }
+        return;
+      }
       cdpFrameCount++;
       const observedFrameCount = cdpFrameCount;
       const cdpTimestamp = event.metadata.timestamp;

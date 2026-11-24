@@ -1,10 +1,10 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 	"strings"
 
+	"github.com/vrooli/browser-automation-studio/internal/httpjson"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 )
 
@@ -26,7 +26,7 @@ func (h *Handler) HistoryCallback(w http.ResponseWriter, r *http.Request) {
 		Entry          sessionprofilepersistence.HistoryEntry `json:"entry"`
 		NavigationType string                                 `json:"navigation_type"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := httpjson.DecodeBounded(w, r, &req); err != nil {
 		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
 			"error": "Invalid JSON body: " + err.Error(),
 		}))

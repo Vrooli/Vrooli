@@ -85,6 +85,14 @@ export async function handleSessionStart(
     if (!options || typeof options !== 'object' || Array.isArray(options)) {
       throw new InvalidInstructionError('Missing or invalid session_options: must be an object');
     }
+    if (
+      Object.prototype.hasOwnProperty.call(options, 'browser_executable_path') ||
+      Object.prototype.hasOwnProperty.call(options, 'executable_path')
+    ) {
+      throw new InvalidInstructionError(
+        'Browser executable selection is owned by driver configuration; session requests cannot override it'
+      );
+    }
     if (!options.viewport || typeof options.viewport !== 'object') {
       throw new InvalidInstructionError(
         'Missing or invalid session_options.viewport: must be an object with width and height',
@@ -242,6 +250,7 @@ export async function handleSessionStart(
       created_at: createdAt.toISOString(),
       reused: reused || undefined, // Only include if true
       actual_viewport: actualViewport, // Report actual Playwright viewport
+      identity_evidence: current.identityEvidence,
       audio_device_evidence: current.audioDeviceEvidence,
     };
 

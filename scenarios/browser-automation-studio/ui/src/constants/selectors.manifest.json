@@ -125,6 +125,10 @@
       "testId": "workflow-creation-name-input",
       "selector": "[data-testid=\"workflow-creation-name-input\"]"
     },
+    "recording.workflowCreation.projectSelector": {
+      "testId": "recording-project-selector",
+      "selector": "[data-testid=\"recording-project-selector\"]"
+    },
     "recording.workflowCreation.submitButton": {
       "testId": "workflow-creation-submit-button",
       "selector": "[data-testid=\"workflow-creation-submit-button\"]"
@@ -1233,7 +1237,7 @@
     }
   },
   "sources": {
-    "ui/src/constants/selectors.ts": "0c3c4bcc5acdd7c784e87d51800237f7dd2c572717d914e1b2cf7a07199e74ec",
+    "ui/src/constants/selectors.ts": "fdc30994e017a252eb397cf2dbdd80d577dda72e1b7b6b32641b6071007cb954",
     "ui/src/consts/selectors.library.ts": "b61c4c116bffb9a5b26d8a0a886578cd4afe65500aaf9d5739745cafabdcdbf7"
   }
 }

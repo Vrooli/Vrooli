@@ -9,7 +9,7 @@
 
 import type { Page } from 'rebrowser-playwright';
 import type { BrowserAction } from '../action/types';
-import type { TokenUsage, ElementLabel } from '../vision-client/types';
+import type { InferenceReceipt, TokenUsage, ElementLabel } from '../vision-client/types';
 
 /**
  * Configuration for a navigation session.
@@ -89,6 +89,7 @@ export interface NavigationStep {
   annotatedScreenshot?: Buffer;
   currentUrl: string;
   tokensUsed: TokenUsage;
+  inferenceReceipt?: InferenceReceipt;
   durationMs: number;
   goalAchieved: boolean;
   error?: string;
@@ -297,6 +298,7 @@ export interface VisionAnalysisResponseInterface {
   goalAchieved: boolean;
   confidence: number;
   tokensUsed: TokenUsage;
+  inferenceReceipt?: InferenceReceipt;
   rawResponse?: string;
 }
 

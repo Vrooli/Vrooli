@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/google/uuid"
@@ -71,6 +72,21 @@ func TestMaybeRestoreTabsRejectsUnsupportedMultiPageRestore(t *testing.T) {
 	_, err := NewSimpleExecutor(nil).maybeRestoreTabs(context.Background(), req, nil, engine.SessionSpec{}, plain)
 	require.ErrorContains(t, err, "does not support restoring multiple profile tabs")
 	require.Empty(t, plain.navigated, "unsupported restore must fail before navigating")
+}
+
+func TestMaybeRestoreTabsUsesPersistenceOwnedLimitAfterStableOrdering(t *testing.T) {
+	session := &restorableProfileSession{initialID: "initial"}
+	req := Request{RestoreTabs: true, Plan: contracts.ExecutionPlan{ExecutionID: uuid.New()}}
+	for i := persistence.MaxRestoredTabs + 4; i > 0; i-- {
+		req.OpenTabs = append(req.OpenTabs, persistence.TabState{URL: fmt.Sprintf("https://tab-%02d.test", i), Order: i})
+	}
+	req.OpenTabs = append(req.OpenTabs, persistence.TabState{URL: "https://active.test", Order: 0, IsActive: true})
+	got, err := NewSimpleExecutor(nil).maybeRestoreTabs(context.Background(), req, nil, engine.SessionSpec{}, session)
+	require.NoError(t, err)
+	require.Same(t, session, got)
+	require.Equal(t, "https://active.test", session.navigated)
+	require.Len(t, session.created, persistence.MaxRestoredTabs-1)
+	require.Equal(t, "https://tab-19.test", session.created[len(session.created)-1], "cap is applied after stable Order sorting")
 }
 
 type profileRestoreSinglePageSession struct {

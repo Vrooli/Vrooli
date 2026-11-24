@@ -24,6 +24,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/readinessprofile"
 	actionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	contractv1 "github.com/vrooli/vrooli/packages/proto/gen/go/experience-manager/v1/contract"
 	contractconnect "github.com/vrooli/vrooli/packages/proto/gen/go/experience-manager/v1/contract/contract_v1connect"
@@ -129,7 +130,7 @@ func (r *experienceResolver) ResolveReadinessWaits(ctx context.Context, scenario
 	if err != nil {
 		return Resolution{}, err
 	}
-	var profile profileDocument
+	var profile readinessprofile.Profile
 	if err := json.Unmarshal([]byte(profileResult.ProfileJSON), &profile); err != nil {
 		return Resolution{}, fmt.Errorf("decode readiness profile: %w", err)
 	}
@@ -243,24 +244,7 @@ func escapeCSSString(value string) string {
 	return out.String()
 }
 
-type profileDocument struct {
-	Pages []struct {
-		Routes        []string `json:"routes"`
-		RuntimeRoutes []string `json:"runtimeRoutes"`
-		Regions       []struct {
-			ID       string `json:"id"`
-			Required bool   `json:"required"`
-			Binding  struct {
-				TestID   string `json:"testid"`
-				Selector string `json:"selector"`
-			} `json:"binding"`
-			Lifecycle struct {
-				Kind   string   `json:"kind"`
-				States []string `json:"states"`
-			} `json:"lifecycle"`
-		} `json:"regions"`
-	} `json:"pages"`
-}
+type profileDocument = readinessprofile.Profile
 
 // TerminalSelector turns an async surface binding into a selector matching any
 // of its declared terminal states. Waiting on the bare binding would accept the
@@ -311,67 +295,5 @@ func TerminalSelector(binding, kind string, states []string) string {
 // not match. A page whose runtime routes are query-free keeps the original
 // path-only behavior.
 func PageMatchesRoute(routes, runtimeRoutes []string, route string) bool {
-	if queryScoped(runtimeRoutes) {
-		requested := strings.SplitN(route, "#", 2)[0]
-		for _, candidate := range runtimeRoutes {
-			if candidate == requested {
-				return true
-			}
-		}
-		return false
-	}
-	return ContainsRoute(append(append([]string(nil), routes...), runtimeRoutes...), route)
-}
-
-// queryScoped reports whether a page's runtime routes are all query-qualified,
-// which is what marks its content as scoped to a query rather than to the path.
-func queryScoped(runtimeRoutes []string) bool {
-	if len(runtimeRoutes) == 0 {
-		return false
-	}
-	for _, candidate := range runtimeRoutes {
-		if !strings.Contains(candidate, "?") {
-			return false
-		}
-	}
-	return true
-}
-
-// ContainsRoute reports whether any declared route template matches the path
-// portion of route.
-func ContainsRoute(routes []string, route string) bool {
-	path := strings.SplitN(strings.SplitN(route, "#", 2)[0], "?", 2)[0]
-	for _, candidate := range routes {
-		if RouteTemplateMatches(candidate, path) {
-			return true
-		}
-	}
-	return false
-}
-
-// RouteTemplateMatches recognizes the colon-parameter shape authored in
-// experience page routes. It deliberately matches whole path segments only:
-// /assets/:id accepts /assets/Button but not /assets/Button/history, keeping
-// undeclared subroutes on the generic fallback path.
-func RouteTemplateMatches(template, path string) bool {
-	if template == path {
-		return true
-	}
-	templateParts := strings.Split(strings.Trim(template, "/"), "/")
-	pathParts := strings.Split(strings.Trim(path, "/"), "/")
-	if len(templateParts) != len(pathParts) {
-		return false
-	}
-	for index, part := range templateParts {
-		if strings.HasPrefix(part, ":") {
-			if strings.TrimPrefix(part, ":") == "" || pathParts[index] == "" {
-				return false
-			}
-			continue
-		}
-		if part != pathParts[index] {
-			return false
-		}
-	}
-	return true
+	return readinessprofile.PageMatchesRoute(readinessprofile.Page{Routes: routes, RuntimeRoutes: runtimeRoutes}, route)
 }

@@ -1,12 +1,26 @@
 import { randomUUID } from 'node:crypto';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { chromium, expect, type Page } from '@playwright/test';
+import { ProjectsService } from '@vrooli/proto-types/browser-automation-studio/v1/projects/project_pb';
+import { WorkflowsService } from '@vrooli/proto-types/browser-automation-studio/v1/api/service_pb';
 import {
   env,
+  canvasFrameSignature,
+  elapsedSinceMonotonic,
+  journeyResponsivenessBudget,
   measureJourney,
+  recordJourneyMeasurement,
+  recordJourneyRuntimeIdentity,
   recordJourneyReceipt,
+  recordNotApplicableResponsivenessMetric,
+  rpc,
   target,
+  trackJourneySocketTraffic,
   withJourneyResources,
   apiRoute,
+  waitForCanvasFrameChange,
 } from './support';
 
 jest.setTimeout(120000);
@@ -96,12 +110,30 @@ async function stableTimeline(sessionId: string): Promise<RecordingTimeline> {
 describe('[REQ:BAS-RH-J30] BAS concurrent workspace isolation', () => {
   it('keeps parallel workspace sessions and recording timelines isolated', () =>
     withJourneyResources(async (resources) => {
+      const projectFolder = await mkdtemp(join(tmpdir(), 'bas-j30-'));
+      resources.add('remove temporary J30 project directory', () =>
+        rm(projectFolder, { recursive: true, force: true })
+      );
+      const projectName = `J30 recorded workflows ${randomUUID()}`;
+      const { project } = await rpc(ProjectsService.method.createProject, {
+        name: projectName,
+        folderPath: projectFolder,
+      });
+      const projectId = project?.id ?? '';
+      if (!projectId) throw new Error('BAS did not create the J30 recording project');
+      resources.add('delete J30 recording project', () =>
+        rpc(ProjectsService.method.deleteProject, { id: projectId, deleteFiles: true })
+      );
+
       const browser = await chromium.launch({ headless: true });
       resources.add('close J30 UI browser', () => browser.close());
+      await recordJourneyRuntimeIdentity('J30', browser.version());
       const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
       resources.add('close J30 UI context', () => context.close());
       const firstPage = await context.newPage();
       const secondPage = await context.newPage();
+      const firstSocketTraffic = trackJourneySocketTraffic(firstPage);
+      const secondSocketTraffic = trackJourneySocketTraffic(secondPage);
       const sessions = new Set<string>();
       const closed = new Set<string>();
       const sessionReceipts: Promise<void>[] = [];
@@ -135,14 +167,25 @@ describe('[REQ:BAS-RH-J30] BAS concurrent workspace isolation', () => {
 
       const firstUrl = new URL(`/complex?owner=${randomUUID()}`, env.fixture).toString();
       const secondUrl = new URL(`/complex?owner=${randomUUID()}`, env.fixture).toString();
-      const firstSession = await openWorkspace(
-        firstPage,
-        `${env.ui}/record/new?url=${encodeURIComponent(firstUrl)}`
-      );
-      sessions.add(firstSession);
-      const secondSession = await openWorkspace(
-        secondPage,
-        `${env.ui}/record/new?url=${encodeURIComponent(secondUrl)}`
+      const { firstSession, secondSession } = await measureJourney(
+        'J30',
+        'isolation.workspaces_ready',
+        async () => {
+          const firstSession = await openWorkspace(
+            firstPage,
+            `${env.ui}/record/new?url=${encodeURIComponent(firstUrl)}`
+          );
+          sessions.add(firstSession);
+          const secondSession = await openWorkspace(
+            secondPage,
+            `${env.ui}/record/new?url=${encodeURIComponent(secondUrl)}`
+          );
+          sessions.add(secondSession);
+          await Promise.all([waitForFrame(firstPage), waitForFrame(secondPage)]);
+          return { firstSession, secondSession };
+        },
+        () => ({ workspace_count: 2 }),
+        { budgetMetrics: ['setup_to_ready_ms'] }
       );
       sessions.add(secondSession);
       expect(secondSession).not.toBe(firstSession);
@@ -163,24 +206,72 @@ describe('[REQ:BAS-RH-J30] BAS concurrent workspace isolation', () => {
       expect(secondPageId).toBeTruthy();
       expect(secondPageId).not.toBe(firstPageId);
 
-      await measureJourney(
-        'J30',
-        'isolation.first_frames',
-        async () => {
-          await Promise.all([waitForFrame(firstPage), waitForFrame(secondPage)]);
-          return true;
-        },
-        () => ({ session_ids: [firstSession, secondSession] })
-      );
       const [firstBefore, secondBefore] = await Promise.all([
         stableTimeline(firstSession),
         stableTimeline(secondSession),
       ]);
+      const canvasBeforeClick = await canvasFrameSignature(firstPage);
+      const firstTrafficBefore = firstSocketTraffic.snapshot(firstSession);
+      const secondTrafficBefore = secondSocketTraffic.snapshot(secondSession);
+      const eventStarted = process.hrtime.bigint();
+      await measureJourney(
+        'J30',
+        'isolation.click_to_paint',
+        async () => {
+          await clickRemoteCounter(firstPage);
+          return waitForCanvasFrameChange(
+            firstPage,
+            canvasBeforeClick,
+            journeyResponsivenessBudget('J30', 'click_to_paint_ms')
+          );
+        },
+        (signature) => ({ session_id: firstSession, frame_changed: Boolean(signature) }),
+        { budgetMetrics: ['click_to_paint_ms'] }
+      );
+      const eventDeadline = Date.now() + journeyResponsivenessBudget('J30', 'event_fanout_ms');
+      let firstTrafficAfter = firstSocketTraffic.snapshot(firstSession);
+      while (
+        Date.now() < eventDeadline &&
+        firstTrafficAfter.received_frames <= firstTrafficBefore.received_frames
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 25));
+        firstTrafficAfter = firstSocketTraffic.snapshot(firstSession);
+      }
+      const secondTrafficAfter = secondSocketTraffic.snapshot(secondSession);
+      const firstEventFrames =
+        firstTrafficAfter.received_frames - firstTrafficBefore.received_frames;
+      const firstEventBytes = firstTrafficAfter.received_bytes - firstTrafficBefore.received_bytes;
+      const secondEventFrames =
+        secondTrafficAfter.received_frames - secondTrafficBefore.received_frames;
+      expect(firstEventFrames).toBeGreaterThan(0);
+      expect(secondEventFrames).toBe(0);
+      if (firstTrafficAfter.last_received_at_ns === null)
+        throw new Error('J30 event has no receive timestamp');
+      const fanoutMs = elapsedSinceMonotonic(eventStarted, firstTrafficAfter.last_received_at_ns);
+      expect(firstEventBytes).toBeLessThanOrEqual(
+        journeyResponsivenessBudget('J30', 'event_bytes')
+      );
+      recordJourneyMeasurement('J30', 'isolation.event_fanout', fanoutMs, 'event_fanout_ms', {
+        receiving_session_id: firstSession,
+        unrelated_session_id: secondSession,
+        receiving_frames: firstEventFrames,
+        unrelated_frames: secondEventFrames,
+        received_bytes: firstEventBytes,
+      });
+      recordJourneyReceipt('J30', 'isolation.event_bytes', {
+        receiving_session_id: firstSession,
+        unrelated_session_id: secondSession,
+        receiving_frames: firstEventFrames,
+        unrelated_frames: secondEventFrames,
+        received_bytes: firstEventBytes,
+        event_bytes_budget: journeyResponsivenessBudget('J30', 'event_bytes'),
+        event_bytes_budget_met:
+          firstEventBytes <= journeyResponsivenessBudget('J30', 'event_bytes'),
+      });
       const isolationReceipt = await measureJourney(
         'J30',
         'isolation.interaction_scoped',
         async () => {
-          await clickRemoteCounter(firstPage);
           const firstAfter = await waitFor(
             () =>
               apiRoute<RecordingTimeline>(`/recordings/live/${firstSession}/timeline?limit=100`),
@@ -205,16 +296,63 @@ describe('[REQ:BAS-RH-J30] BAS concurrent workspace isolation', () => {
           second_timeline_unchanged: receipt.secondTimelineUnchanged,
         })
       );
+
+      // Turn the actual first-session recording into a saved artifact through BAS's UI form.
+      const workflowName = `J30 captured workflow ${randomUUID()}`;
+      await firstPage.getByTestId('timeline-create-workflow-button').click();
+      await firstPage.getByTestId('workflow-creation-name-input').fill(workflowName);
+      await firstPage.getByTestId('recording-project-selector').click();
+      await firstPage.getByRole('heading', { name: 'Select Project' }).waitFor({
+        state: 'visible',
+        timeout: 30000,
+      });
+      await firstPage.getByRole('button', { name: projectName, exact: true }).click();
+      await firstPage.getByTestId('workflow-creation-submit-button').click();
+      await firstPage.waitForURL(
+        (url) =>
+          url.pathname === `/projects/${projectId}` && Boolean(url.searchParams.get('preview')),
+        { timeout: 30000 }
+      );
+      closed.add(firstSession);
+      await firstPage.getByTestId('project-workflows-surface').waitFor({
+        state: 'visible',
+        timeout: 30000,
+      });
+      const workflowId = new URL(firstPage.url()).searchParams.get('preview') ?? '';
+      if (!workflowId)
+        throw new Error('BAS did not route to the workflow generated from J30 recording');
+      const { workflow } = await rpc(WorkflowsService.method.getWorkflow, { workflowId });
+      if (!workflow?.id || workflow.id !== workflowId)
+        throw new Error('BAS did not retain the J30 UI-generated workflow');
+      expect(workflow.flowDefinition?.nodes.length ?? 0).toBeGreaterThan(0);
+      resources.add('delete J30 UI-generated workflow', () =>
+        rpc(WorkflowsService.method.deleteWorkflow, { workflowId })
+      );
+      recordJourneyReceipt('J30', 'isolation.recording_artifact_saved', {
+        session_id: firstSession,
+        authoring_surface: 'record-mode-create-workflow',
+        workflow_id: workflowId,
+        project_id: projectId,
+        recorded_action_count: workflow.flowDefinition?.nodes.length ?? 0,
+      });
+
       recordJourneyReceipt('J30', 'isolation.owner_receipt', {
         session_ids: [firstSession, secondSession],
         page_ids: [firstPageId ?? '', secondPageId ?? ''],
         first_timeline_delta: isolationReceipt.firstTimelineDelta,
         second_timeline_unchanged: isolationReceipt.secondTimelineUnchanged,
       });
+      recordNotApplicableResponsivenessMetric(
+        'J30',
+        'isolation.tab_switch_not_sampled',
+        'tab_switch_to_first_frame_ms',
+        'The isolation journey opens two separate workspace pages and does not switch page selection within one recording session.'
+      );
       for (const [page, sessionId] of [
         [firstPage, firstSession],
         [secondPage, secondSession],
       ] as const) {
+        if (closed.has(sessionId)) continue;
         const closedResponse = page.waitForResponse(
           (response) => {
             const url = new URL(response.url());

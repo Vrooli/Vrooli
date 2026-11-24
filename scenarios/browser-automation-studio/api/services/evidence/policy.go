@@ -42,6 +42,13 @@ type Descriptor struct {
 	Redacted       bool
 }
 
+// FileIntegrity is the path-free integrity receipt shared by artifact owners.
+// It intentionally contains no filesystem location or classification policy.
+type FileIntegrity struct {
+	SizeBytes int64
+	SHA256    string
+}
+
 func Describe(kind, mediaType string, payload []byte, policy *basevidence.EvidencePolicy) Descriptor {
 	if policy == nil {
 		policy = DefaultPolicy()
@@ -61,13 +68,7 @@ func Describe(kind, mediaType string, payload []byte, policy *basevidence.Eviden
 // as evidence metadata. Callers must never serialize path into an exposed
 // manifest or replay package.
 func DescribeFile(kind, mediaType, path string, policy *basevidence.EvidencePolicy) (Descriptor, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return Descriptor{}, err
-	}
-	defer file.Close()
-	hash := sha256.New()
-	size, err := io.Copy(hash, file)
+	integrity, err := InspectFileIntegrity(path)
 	if err != nil {
 		return Descriptor{}, err
 	}
@@ -76,7 +77,26 @@ func DescribeFile(kind, mediaType, path string, policy *basevidence.EvidencePoli
 	}
 	kindEnum := KindFor(kind)
 	classification, retention, access := ClassificationFor(kindEnum, policy)
-	return Descriptor{Kind: kindEnum, MediaType: strings.TrimSpace(mediaType), SizeBytes: size, SHA256: hex.EncodeToString(hash.Sum(nil)), Classification: classification, Retention: retention, Access: access, Redacted: kindEnum == basevidence.ArtifactKind_ARTIFACT_KIND_HAR && policy.RedactHar}, nil
+	return Descriptor{Kind: kindEnum, MediaType: strings.TrimSpace(mediaType), SizeBytes: integrity.SizeBytes, SHA256: integrity.SHA256, Classification: classification, Retention: retention, Access: access, Redacted: kindEnum == basevidence.ArtifactKind_ARTIFACT_KIND_HAR && policy.RedactHar}, nil
+}
+
+// InspectFileIntegrity owns the single streaming file-read/size/digest effect
+// used by capture metadata and exact-retention verification.
+func InspectFileIntegrity(path string) (FileIntegrity, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return FileIntegrity{}, err
+	}
+	hash := sha256.New()
+	size, err := io.Copy(hash, file)
+	closeErr := file.Close()
+	if err != nil {
+		return FileIntegrity{}, err
+	}
+	if closeErr != nil {
+		return FileIntegrity{}, closeErr
+	}
+	return FileIntegrity{SizeBytes: size, SHA256: hex.EncodeToString(hash.Sum(nil))}, nil
 }
 
 func KindFor(kind string) basevidence.ArtifactKind {

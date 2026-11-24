@@ -1,6 +1,7 @@
 package uxcapture
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -70,6 +71,52 @@ func TestDeleteArtifactHTTPRefusesRetainedScenarioBundles(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, "ux", id)); err != nil {
 		t.Fatalf("retained scenario bundle was removed: %v", err)
+	}
+}
+
+func TestArtifactRoutesShareBundleIDValidation(t *testing.T) {
+	router := chi.NewRouter()
+	MountArtifactHTTP(router, t.TempDir())
+	for _, tc := range []struct {
+		name   string
+		method string
+		path   string
+	}{
+		{name: "delete", method: http.MethodDelete, path: "/ux-capture/bundles/not-a-uuid"},
+		{name: "artifact read", method: http.MethodGet, path: "/ux-capture/bundles/not-a-uuid/artifacts/page/frozen.html"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, httptest.NewRequest(tc.method, tc.path, nil))
+			if response.Code != http.StatusNotFound {
+				t.Fatalf("status=%d body=%s, want 404", response.Code, response.Body.String())
+			}
+		})
+	}
+}
+
+func TestArtifactReadValidatesBundleIDBeforeStorageAndPreservesBytesAndMIME(t *testing.T) {
+	noStorage := chi.NewRouter()
+	MountArtifactHTTP(noStorage, "")
+	invalid := httptest.NewRecorder()
+	noStorage.ServeHTTP(invalid, httptest.NewRequest(http.MethodGet, "/ux-capture/bundles/not-a-uuid/artifacts/page/frozen.html", nil))
+	if invalid.Code != http.StatusNotFound {
+		t.Fatalf("malformed bundle id status=%d body=%s, want 404 before storage readiness", invalid.Code, invalid.Body.String())
+	}
+	validIDWithoutStorage := httptest.NewRecorder()
+	noStorage.ServeHTTP(validIDWithoutStorage, httptest.NewRequest(http.MethodGet, "/ux-capture/bundles/11111111-1111-4111-8111-111111111111/artifacts/page/frozen.html", nil))
+	if validIDWithoutStorage.Code != http.StatusServiceUnavailable {
+		t.Fatalf("valid id without storage status=%d body=%s, want 503", validIDWithoutStorage.Code, validIDWithoutStorage.Body.String())
+	}
+
+	root := t.TempDir()
+	id, _, content := makeArtifactBundle(t, root)
+	response := artifactRequest(t, root, id, "page/frozen.html")
+	if response.Code != http.StatusOK || !bytes.Equal(response.Body.Bytes(), content) {
+		t.Fatalf("valid artifact response=%d %q, want exact %q", response.Code, response.Body.Bytes(), content)
+	}
+	if got := response.Header().Get("Content-Type"); got != "text/html; charset=utf-8" {
+		t.Fatalf("valid artifact MIME=%q, want declared text/html identity", got)
 	}
 }
 

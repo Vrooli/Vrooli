@@ -91,7 +91,20 @@ func (r *SessionReconciler) ReconcileOnce(ctx context.Context) (SessionReconcile
 		return SessionReconcileResult{}, fmt.Errorf("list driver sessions: %w", err)
 	}
 	result := SessionReconcileResult{Observed: len(sessions)}
-	for _, session := range sessions {
+	for index, session := range sessions {
+		if err := ctx.Err(); err != nil {
+			// Keep the partial accounting exact while avoiding more owner reads or
+			// force-close attempts after shutdown has canceled this recovery pass.
+			result.Skipped += len(sessions) - index
+			return result, err
+		}
+		// Recovery may force-close only a complete, durable lease identity. A
+		// missing session or lease ID cannot be repaired by guessing from the
+		// execution row, and must not reach the driver's administrative close.
+		if strings.TrimSpace(session.ID) == "" || strings.TrimSpace(session.OwnerExecutionID) == "" || strings.TrimSpace(session.LeaseID) == "" {
+			result.Skipped++
+			continue
+		}
 		ownerID, err := uuid.Parse(session.OwnerExecutionID)
 		if err != nil {
 			if r.reconcileOrphanedSoak(ctx, session, &result) {
@@ -101,6 +114,10 @@ func (r *SessionReconciler) ReconcileOnce(ctx context.Context) (SessionReconcile
 			continue
 		}
 		execution, err := r.repo.GetExecution(ctx, ownerID)
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			result.Skipped += len(sessions) - index
+			return result, ctxErr
+		}
 		if err != nil || execution == nil {
 			if r.reconcileOrphanedSoak(ctx, session, &result) {
 				continue
@@ -120,10 +137,15 @@ func (r *SessionReconciler) ReconcileOnce(ctx context.Context) (SessionReconcile
 			result.Skipped++
 			continue
 		}
+		if err := ctx.Err(); err != nil {
+			result.Skipped += len(sessions) - index
+			return result, err
+		}
 		if err := r.driver.ForceCloseSession(ctx, session.ID, session.OwnerExecutionID, session.LeaseID); err != nil {
 			if r.log != nil {
 				r.log.WithError(err).WithField("session_id", session.ID).Warn("terminal session reconciliation failed")
 			}
+			result.Skipped++
 			continue
 		}
 		result.Closed++
@@ -143,6 +165,7 @@ func (r *SessionReconciler) reconcileOrphanedSoak(ctx context.Context, session d
 		if r.log != nil {
 			r.log.WithError(err).WithField("session_id", session.ID).Warn("orphaned soak session reconciliation failed")
 		}
+		result.Skipped++
 		return true
 	}
 	result.Closed++

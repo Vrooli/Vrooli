@@ -291,6 +291,44 @@ describe('frame streaming manager', () => {
     const handle = await getStartedHandle();
     expect(handle.updateViewport).toHaveBeenCalledWith(fixturePage);
   });
+
+  it('serializes viewport changes behind capture settings updates', async () => {
+    startFrameStreaming('session-1', sessionProvider, baseOptions);
+    await flushPromises();
+    const handle = await getStartedHandle();
+    let applyQuality!: () => void;
+    handle.updateQuality.mockReturnValue(new Promise<void>((resolve) => { applyQuality = resolve; }));
+
+    const settings = updateFrameStreamSettings('session-1', { quality: 75 });
+    await flushPromises();
+    const viewport = updateFrameStreamViewport('session-1', fixturePage);
+    await flushPromises();
+
+    expect(handle.updateViewport).not.toHaveBeenCalled();
+    applyQuality();
+    await Promise.all([settings, viewport]);
+    expect(handle.updateViewport).toHaveBeenCalledTimes(1);
+    expect(handle.updateViewport).toHaveBeenCalledWith(fixturePage);
+  });
+
+  it('skips a queued viewport update after the session is stopped', async () => {
+    startFrameStreaming('session-1', sessionProvider, baseOptions);
+    await flushPromises();
+    const handle = await getStartedHandle();
+    let applyQuality!: () => void;
+    handle.updateQuality.mockReturnValue(new Promise<void>((resolve) => { applyQuality = resolve; }));
+
+    const settings = updateFrameStreamSettings('session-1', { quality: 75 });
+    await flushPromises();
+    const viewport = updateFrameStreamViewport('session-1', fixturePage);
+    const stopped = stopFrameStreaming('session-1');
+    applyQuality();
+
+    await Promise.all([settings, viewport, stopped]);
+    expect(handle.updateViewport).not.toHaveBeenCalled();
+    expect(getFrameStreamSettings('session-1')).toBeNull();
+  });
+
   describe('lifecycle ownership', () => {
     const deferred = <T>(): { promise: Promise<T>; resolve: (value: T) => void } => {
       let resolve!: (value: T) => void;

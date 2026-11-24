@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"os"
 
+	"browser-automation-studio/cli/agentaccess"
 	"browser-automation-studio/cli/ai"
 	"browser-automation-studio/cli/capture"
 	consumerdeclarations "browser-automation-studio/cli/consumer_declarations"
@@ -50,6 +51,7 @@ import (
 func CommandGroups(ctx *appctx.Context) []cliapp.CommandGroup {
 	return []cliapp.CommandGroup{
 		status.Commands(ctx),
+		agentaccess.Commands(ctx),
 		playbooks.Commands(ctx),
 		capture.Commands(ctx),
 		uxcapture.Commands(ctx),

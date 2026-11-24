@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"sync"
 
@@ -12,6 +13,8 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/domain"
+	"github.com/vrooli/browser-automation-studio/internal/sessionpermission"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 )
 
 // Session wraps a playwright driver session with mode-aware behavior.
@@ -19,7 +22,9 @@ type Session struct {
 	id                      string
 	executionID             string
 	leaseID                 string
+	browserBackend          string
 	mode                    Mode
+	appTarget               bool
 	client                  *driver.Client
 	mu                      sync.RWMutex
 	terminal                *terminalOperation
@@ -33,14 +38,58 @@ type Session struct {
 	// Multi-page tracking for recording sessions
 	pages               *PageTracker
 	initialDriverPageID string
+	activeDriverPageID  string
 
 	// ActualViewport is the viewport Playwright is actually using (may differ from requested)
 	// Includes source attribution for debugging (e.g., "fingerprint", "requested", "default")
-	actualViewport *driver.ActualViewport
+	actualViewport      *driver.ActualViewport
+	identityEvidence    *driver.IdentityEvidence
+	audioDeviceEvidence *driver.AudioDeviceEvidence
 
 	// Recording callbacks for unified action capture.
 	// When set, all actions (manual, AI, or playback) are reported through these callbacks.
-	recording *RecordingCallbacks
+	recording         *RecordingCallbacks
+	authorizer        sessionpermission.Authorizer
+	callerResolver    sessionpermission.CallerResolver
+	expectedCallerID  string
+	permissionProfile *sessionpermission.Profile
+}
+
+// AudioDeviceEvidence returns a copy of the driver-measured media-device
+// metadata for a specifically authorized PipeWire qualification session.
+func (s *Session) AudioDeviceEvidence() *driver.AudioDeviceEvidence {
+	if s == nil {
+		return nil
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.audioDeviceEvidence == nil {
+		return nil
+	}
+	copy := *s.audioDeviceEvidence
+	return &copy
+}
+
+// IdentityEvidence returns the immutable owner observation captured for this
+// lease. It is a receipt, not a caller-supplied identity assertion.
+func (s *Session) IdentityEvidence() *driver.IdentityEvidence {
+	if s == nil {
+		return nil
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.identityEvidence == nil {
+		return nil
+	}
+	raw, err := json.Marshal(s.identityEvidence)
+	if err != nil {
+		return nil
+	}
+	var clone driver.IdentityEvidence
+	if json.Unmarshal(raw, &clone) != nil {
+		return nil
+	}
+	return &clone
 }
 
 // terminalOperation owns one close/release attempt and its shared result.
@@ -58,6 +107,9 @@ type terminalOperation struct {
 func (s *Session) Run(ctx context.Context, instr contracts.CompiledInstruction) (contracts.StepOutcome, error) {
 	if s.mode == ModeRecording {
 		return contracts.StepOutcome{}, errors.New("cannot run instructions in recording-only mode")
+	}
+	if err := s.authorizeInstruction(ctx, instr); err != nil {
+		return contracts.StepOutcome{}, err
 	}
 	s.mu.Lock()
 	if s.terminal != nil {
@@ -92,7 +144,29 @@ func (s *Session) ForwardInput(ctx context.Context, input []byte) (*driver.Forwa
 	if s.isClosed() {
 		return nil, errors.New("session closed")
 	}
+	if err := s.AuthorizeAction(ctx, "input", "", ""); err != nil {
+		return nil, err
+	}
 	return s.client.ForwardInput(ctx, s.id, s.executionID, s.leaseID, input)
+}
+
+// ReleaseInput clears held pointer buttons and modifier keys after a stream
+// control receipt expires or is revoked. It is owner cleanup, not a new page
+// action; callers must already have resolved this exact live session lease.
+func (s *Session) ReleaseInput(ctx context.Context) error {
+	if s.isClosed() {
+		return errors.New("session closed")
+	}
+	for _, button := range []string{"left", "right", "middle", "back", "forward"} {
+		body, err := json.Marshal(map[string]any{"type": "pointer", "action": "release", "button": button, "modifiers": []string{}})
+		if err != nil {
+			return err
+		}
+		if _, err = s.client.ForwardInput(ctx, s.id, s.executionID, s.leaseID, body); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // StartRecording starts recording under this session's immutable lease.
@@ -104,6 +178,9 @@ func (s *Session) StartRecording(ctx context.Context, req *driver.StartRecording
 	if s.isClosed() {
 		return nil, errors.New("session closed")
 	}
+	if err := s.AuthorizeAction(ctx, "recording_start", "", ""); err != nil {
+		return nil, err
+	}
 	return s.client.StartRecording(ctx, s.id, s.executionID, s.leaseID, req)
 }
 
@@ -112,21 +189,73 @@ func (s *Session) StopRecording(ctx context.Context) (*driver.StopRecordingRespo
 	if s.isClosed() {
 		return nil, errors.New("session closed")
 	}
+	if err := s.AuthorizeAction(ctx, "recording_stop", "", ""); err != nil {
+		return nil, err
+	}
 	return s.client.StopRecording(ctx, s.id, s.executionID, s.leaseID)
 }
 
 // GetNavigationState reads the selected browser page under this immutable lease.
 func (s *Session) GetNavigationState(ctx context.Context, expectedPageID string) (*driver.NavigationStateResponse, error) {
+	return s.ReadNavigationState(ctx, "observe", expectedPageID, "")
+}
+
+// ReadNavigationState returns the selected page state after one owner-policy
+// decision for the logical operation that requested the read.
+func (s *Session) ReadNavigationState(ctx context.Context, permissionKind, expectedPageID, approvalReceipt string) (*driver.NavigationStateResponse, error) {
 	if s.isClosed() {
 		return nil, errors.New("session closed")
 	}
+	if expectedPageID == "" {
+		expectedPageID = s.currentDriverPageID()
+	}
+	if err := s.authorizeActionRequestForPage(ctx, sessionpermission.ActionRequest{Kind: permissionKind, ApprovalReceipt: approvalReceipt}, expectedPageID); err != nil {
+		return nil, err
+	}
 	return s.client.GetNavigationState(ctx, s.id, s.executionID, s.leaseID, expectedPageID)
+}
+
+// CaptureObservation obtains state and pixels as one logical permissioned
+// observation. The profile owner charges one observe admission; the subsequent
+// state and screenshot reads are the physical parts of that admitted result.
+func (s *Session) CaptureObservation(ctx context.Context, expectedPageID string) (*driver.NavigationStateResponse, *driver.CaptureScreenshotResponse, error) {
+	return s.CaptureObservationWithScreenshot(ctx, expectedPageID, driver.CaptureScreenshotRequest{Format: "png"})
+}
+
+// CaptureObservationWithScreenshot obtains page state and requested screenshot
+// pixels under one observe admission. TestID selects one stable DOM test target;
+// it is passed to the driver as data, never interpreted as a selector.
+func (s *Session) CaptureObservationWithScreenshot(ctx context.Context, expectedPageID string, screenshotRequest driver.CaptureScreenshotRequest) (*driver.NavigationStateResponse, *driver.CaptureScreenshotResponse, error) {
+	if s.isClosed() {
+		return nil, nil, errors.New("session closed")
+	}
+	if expectedPageID == "" {
+		expectedPageID = s.currentDriverPageID()
+	}
+	state, err := s.ReadNavigationState(ctx, "observe", expectedPageID, "")
+	if err != nil {
+		return nil, nil, err
+	}
+	if screenshotRequest.Format == "" {
+		screenshotRequest.Format = "png"
+	}
+	screenshot, err := s.client.CaptureScreenshot(ctx, s.id, s.executionID, s.leaseID, &screenshotRequest)
+	if err != nil {
+		return nil, nil, err
+	}
+	return state, screenshot, nil
 }
 
 // GetNavigationStack reads browser history under this immutable lease.
 func (s *Session) GetNavigationStack(ctx context.Context, expectedPageID string) (*driver.NavigationStackResponse, error) {
 	if s.isClosed() {
 		return nil, errors.New("session closed")
+	}
+	if err := s.AuthorizeAction(ctx, "history_read", "", ""); err != nil {
+		return nil, err
+	}
+	if expectedPageID == "" {
+		expectedPageID = s.currentDriverPageID()
 	}
 	return s.client.GetNavigationStack(ctx, s.id, s.executionID, s.leaseID, expectedPageID)
 }
@@ -145,13 +274,19 @@ func (s *Session) GetRecordedActionsResponse(ctx context.Context) (*driver.GetAc
 	if s.isClosed() {
 		return nil, errors.New("session closed")
 	}
-	return s.client.GetRecordedActions(ctx, s.id)
+	if err := s.AuthorizeAction(ctx, "history_read", "", ""); err != nil {
+		return nil, err
+	}
+	return s.client.GetRecordedActions(ctx, s.id, s.executionID, s.leaseID)
 }
 
 // AcknowledgeRecordedActions acknowledges durably committed entries under this lease.
 func (s *Session) AcknowledgeRecordedActions(ctx context.Context, ids []string) error {
 	if s.isClosed() {
 		return errors.New("session closed")
+	}
+	if err := s.AuthorizeAction(ctx, "history_read", "", ""); err != nil {
+		return err
 	}
 	return s.client.AcknowledgeRecordedActions(ctx, s.id, s.executionID, s.leaseID, ids)
 }
@@ -161,7 +296,10 @@ func (s *Session) GetRecordingStatus(ctx context.Context) (*driver.RecordingStat
 	if s.isClosed() {
 		return nil, errors.New("session closed")
 	}
-	return s.client.GetRecordingStatus(ctx, s.id)
+	if err := s.AuthorizeAction(ctx, "history_read", "", ""); err != nil {
+		return nil, err
+	}
+	return s.client.GetRecordingStatus(ctx, s.id, s.executionID, s.leaseID)
 }
 
 // CaptureScreenshotWithOptions captures a screenshot through this owned lease.
@@ -169,7 +307,10 @@ func (s *Session) CaptureScreenshotWithOptions(ctx context.Context, req *driver.
 	if s.isClosed() {
 		return nil, errors.New("session closed")
 	}
-	return s.client.CaptureScreenshot(ctx, s.id, req)
+	if err := s.AuthorizeAction(ctx, "screenshot", "", ""); err != nil {
+		return nil, err
+	}
+	return s.client.CaptureScreenshot(ctx, s.id, s.executionID, s.leaseID, req)
 }
 
 // GetFrame retrieves a frame through this owned lease.
@@ -177,7 +318,10 @@ func (s *Session) GetFrame(ctx context.Context, query string) (*driver.GetFrameR
 	if s.isClosed() {
 		return nil, errors.New("session closed")
 	}
-	return s.client.GetFrame(ctx, s.id, query)
+	if err := s.AuthorizeAction(ctx, "view", "", ""); err != nil {
+		return nil, err
+	}
+	return s.client.GetFrame(ctx, s.id, s.executionID, s.leaseID, query)
 }
 
 // UpdateStreamSettingsWithOptions preserves the driver's complete settings surface under this lease.
@@ -185,7 +329,10 @@ func (s *Session) UpdateStreamSettingsWithOptions(ctx context.Context, req *driv
 	if s.isClosed() {
 		return nil, errors.New("session closed")
 	}
-	return s.client.UpdateStreamSettings(ctx, s.id, req)
+	if err := s.AuthorizeAction(ctx, "control", "", ""); err != nil {
+		return nil, err
+	}
+	return s.client.UpdateStreamSettings(ctx, s.id, s.executionID, s.leaseID, req)
 }
 
 // ReplayPreview runs a non-persistent preview under this session owner.
@@ -193,7 +340,10 @@ func (s *Session) ReplayPreview(ctx context.Context, req *driver.ReplayPreviewRe
 	if s.isClosed() {
 		return nil, errors.New("session closed")
 	}
-	return s.client.ReplayPreview(ctx, s.id, req)
+	if err := s.AuthorizeAction(ctx, "replay_preview", "", ""); err != nil {
+		return nil, err
+	}
+	return s.client.ReplayPreview(ctx, s.id, s.executionID, s.leaseID, req)
 }
 
 // RouteRequest proxies an owned driver's session endpoint while retaining the
@@ -201,6 +351,26 @@ func (s *Session) ReplayPreview(ctx context.Context, req *driver.ReplayPreviewRe
 func (s *Session) RouteRequest(ctx context.Context, method, suffix string, body []byte, headers http.Header) (*http.Response, error) {
 	if s.isClosed() {
 		return nil, errors.New("session closed")
+	}
+	kind := ""
+	switch method + " " + suffix {
+	case http.MethodGet + " /record/debug":
+		kind = "observe"
+	case http.MethodPost + " /ai-navigate", http.MethodPost + " /ai-navigate/resume":
+		kind = "ai_navigate"
+	case http.MethodPost + " /ai-navigate/abort":
+		kind = "close"
+	case http.MethodPost + " /audio/restart":
+		kind = "audio_playback_restart"
+	case http.MethodPost + " /audio/stop":
+		kind = "audio_playback_stop"
+	case http.MethodPost + " /audio/diagnostics":
+		kind = "audio_observe"
+	default:
+		return nil, errors.New("session route is not an authorized operation")
+	}
+	if err := s.AuthorizeAction(ctx, kind, "", ""); err != nil {
+		return nil, err
 	}
 	return s.client.SessionRouteRequest(ctx, s.id, s.executionID, s.leaseID, method, suffix, body, headers)
 }
@@ -235,6 +405,9 @@ func (s *Session) Navigate(ctx context.Context, url string, opts ...NavigateOpti
 	if s.isClosed() {
 		return nil, errors.New("session closed")
 	}
+	if err := s.AuthorizeAction(ctx, "navigate", url, ""); err != nil {
+		return nil, err
+	}
 	req := &driver.NavigateRequest{URL: url}
 	for _, opt := range opts {
 		opt(req)
@@ -242,10 +415,149 @@ func (s *Session) Navigate(ctx context.Context, url string, opts ...NavigateOpti
 	return s.client.Navigate(ctx, s.id, s.executionID, s.leaseID, req)
 }
 
+// AuthorizeAction checks an operation against the session's injected grant
+// authority. The authority owns receipt validation and revocation state.
+// For non-navigation operations BAS resolves the selected page URL under this
+// same lease before asking the authority to make the decision.
+func (s *Session) AuthorizeAction(ctx context.Context, kind, targetURL, approvalReceipt string) error {
+	return s.AuthorizeActionRequest(ctx, sessionpermission.ActionRequest{Kind: kind, TargetURL: targetURL, ApprovalReceipt: approvalReceipt})
+}
+
+// AuthorizeActionRequest checks one logical operation under the immutable
+// session owner. Identity and current URL are resolved here; caller-provided
+// values for those fields are ignored.
+func (s *Session) AuthorizeActionRequest(ctx context.Context, request sessionpermission.ActionRequest) error {
+	return s.authorizeActionRequestForPage(ctx, request, "")
+}
+
+// authorizeActionRequestForPage binds observation authorization to the exact
+// selected page rather than implicitly using whichever page was most recent.
+func (s *Session) authorizeActionRequestForPage(ctx context.Context, request sessionpermission.ActionRequest, expectedPageID string) error {
+	s.mu.RLock()
+	authorizer := s.authorizer
+	callerResolver := s.callerResolver
+	expectedCallerID := s.expectedCallerID
+	s.mu.RUnlock()
+	if authorizer == nil {
+		return nil
+	}
+	if callerResolver == nil {
+		return errors.New("browser permission denied: trusted caller resolver unavailable")
+	}
+	callerID, err := callerResolver.BrowserCallerID(ctx)
+	if err != nil || callerID == "" {
+		return errors.New("browser permission denied: trusted caller identity unavailable")
+	}
+	if expectedCallerID == "" {
+		return errors.New("browser permission denied: trusted expected caller binding unavailable")
+	}
+	if callerID != expectedCallerID {
+		return errors.New("browser permission denied: session belongs to a different trusted caller")
+	}
+	currentURL := ""
+	if request.Kind != "navigate" && request.Kind != "close" {
+		if expectedPageID == "" {
+			expectedPageID = s.currentDriverPageID()
+		}
+		state, err := s.client.GetNavigationState(ctx, s.id, s.executionID, s.leaseID, expectedPageID)
+		if err != nil {
+			return fmt.Errorf("resolve current browser URL before authorization: %w", err)
+		}
+		currentURL = state.URL
+	}
+	return authorizer.Authorize(ctx, sessionpermission.ActionRequest{
+		SessionID: s.id, LeaseID: s.leaseID, OwnerID: s.executionID,
+		CallerID: callerID, Kind: request.Kind,
+		TargetURL: request.TargetURL, CurrentURL: currentURL,
+		ApprovalReceipt: request.ApprovalReceipt, CredentialID: request.CredentialID,
+		ExtensionID: request.ExtensionID, ExtensionPermission: request.ExtensionPermission,
+		TabID: request.TabID, ConsentReceipt: request.ConsentReceipt,
+	})
+}
+
+func (s *Session) authorizeInstruction(ctx context.Context, instr contracts.CompiledInstruction) error {
+	s.mu.RLock()
+	authorizer := s.authorizer
+	s.mu.RUnlock()
+	if authorizer == nil {
+		return nil
+	}
+	if instr.Action == nil {
+		return errors.New("browser permission denied: missing typed action")
+	}
+	if input := instr.Action.GetInput(); input != nil && input.GetIsSensitive() {
+		return errors.New("browser permission denied: raw sensitive input is unsupported; use the credential authority reference flow")
+	}
+	kind := permissionActionKind(instr.Action.GetType())
+	target := ""
+	if nav := instr.Action.GetNavigate(); nav != nil {
+		target = nav.GetUrl()
+	}
+	return s.AuthorizeAction(ctx, kind, target, instr.Metadata["authorization_receipt"])
+}
+
+func permissionActionKind(action basactions.ActionType) string {
+	switch action {
+	case basactions.ActionType_ACTION_TYPE_NAVIGATE:
+		return "navigate"
+	case basactions.ActionType_ACTION_TYPE_CLICK:
+		return "click"
+	case basactions.ActionType_ACTION_TYPE_INPUT:
+		return "input"
+	case basactions.ActionType_ACTION_TYPE_ASSERT:
+		return "assert"
+	case basactions.ActionType_ACTION_TYPE_EXTRACT:
+		return "extract"
+	case basactions.ActionType_ACTION_TYPE_SCREENSHOT:
+		return "screenshot"
+	case basactions.ActionType_ACTION_TYPE_EVALUATE:
+		return "evaluate"
+	default:
+		return "action"
+	}
+}
+
 // NavigateHistory applies reload/back/forward under this Session's immutable lease.
 func (s *Session) NavigateHistory(ctx context.Context, operation driver.HistoryNavigation, req *driver.HistoryNavigationRequest) (*driver.HistoryNavigationResponse, error) {
 	if s.isClosed() {
 		return nil, errors.New("session closed")
+	}
+	if s.hasAuthorizer() {
+		if req == nil {
+			req = &driver.HistoryNavigationRequest{}
+		}
+		pageID := req.ExpectedPageID
+		if pageID == "" {
+			pageID = s.currentDriverPageID()
+		}
+		target := ""
+		switch operation {
+		case driver.HistoryReload:
+			state, err := s.client.GetNavigationState(ctx, s.id, s.executionID, s.leaseID, pageID)
+			if err != nil {
+				return nil, err
+			}
+			target = state.URL
+		case driver.HistoryBack, driver.HistoryForward:
+			stack, err := s.GetNavigationStack(ctx, pageID)
+			if err != nil {
+				return nil, err
+			}
+			if operation == driver.HistoryBack && len(stack.BackStack) > 0 {
+				target = stack.BackStack[0].URL
+			}
+			if operation == driver.HistoryForward && len(stack.ForwardStack) > 0 {
+				target = stack.ForwardStack[0].URL
+			}
+		default:
+			return nil, errors.New("unsupported history navigation")
+		}
+		if target == "" {
+			return nil, errors.New("history destination unavailable for permission check")
+		}
+		if err := s.AuthorizeAction(ctx, "navigate", target, ""); err != nil {
+			return nil, err
+		}
 	}
 	return s.client.NavigateHistory(ctx, s.id, s.executionID, s.leaseID, operation, req)
 }
@@ -254,6 +566,9 @@ func (s *Session) NavigateHistory(ctx context.Context, operation driver.HistoryN
 func (s *Session) UpdateViewport(ctx context.Context, width, height int, expectedPageID string) (*driver.UpdateViewportResponse, error) {
 	if s.isClosed() {
 		return nil, errors.New("session closed")
+	}
+	if err := s.AuthorizeAction(ctx, "viewport_update", "", ""); err != nil {
+		return nil, err
 	}
 	return s.client.UpdateViewport(ctx, s.id, s.executionID, s.leaseID, &driver.UpdateViewportRequest{Width: width, Height: height, ExpectedPageID: expectedPageID})
 }
@@ -271,7 +586,10 @@ func (s *Session) CaptureScreenshot(ctx context.Context) (*Screenshot, error) {
 	if s.isClosed() {
 		return nil, errors.New("session closed")
 	}
-	resp, err := s.client.CaptureScreenshot(ctx, s.id, &driver.CaptureScreenshotRequest{
+	if err := s.AuthorizeAction(ctx, "screenshot", "", ""); err != nil {
+		return nil, err
+	}
+	resp, err := s.client.CaptureScreenshot(ctx, s.id, s.executionID, s.leaseID, &driver.CaptureScreenshotRequest{
 		Format:  "jpeg",
 		Quality: 85,
 	})
@@ -291,6 +609,9 @@ func (s *Session) GetStorageState(ctx context.Context) (json.RawMessage, error) 
 	if s.isClosed() {
 		return nil, errors.New("session closed")
 	}
+	if err := s.AuthorizeAction(ctx, "user_state_export", "", ""); err != nil {
+		return nil, err
+	}
 	return s.client.GetStorageState(ctx, s.id, s.executionID, s.leaseID)
 }
 
@@ -298,6 +619,9 @@ func (s *Session) GetStorageState(ctx context.Context) (json.RawMessage, error) 
 func (s *Session) GetServiceWorkers(ctx context.Context) (*driver.GetServiceWorkersResponse, error) {
 	if s.isClosed() {
 		return nil, errors.New("session closed")
+	}
+	if err := s.AuthorizeAction(ctx, "observe", "", ""); err != nil {
+		return nil, err
 	}
 	return s.client.GetServiceWorkers(ctx, s.id, s.executionID, s.leaseID)
 }
@@ -307,6 +631,20 @@ func (s *Session) UnregisterAllServiceWorkers(ctx context.Context) (*driver.Unre
 	if s.isClosed() {
 		return nil, errors.New("session closed")
 	}
+	workers, err := s.GetServiceWorkers(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if len(workers.Workers) == 0 {
+		if err := s.authorizeServiceWorkerUnregister(ctx, ""); err != nil {
+			return nil, err
+		}
+	}
+	for _, worker := range workers.Workers {
+		if err := s.authorizeServiceWorkerUnregister(ctx, worker.ScopeURL); err != nil {
+			return nil, err
+		}
+	}
 	return s.client.UnregisterAllServiceWorkers(ctx, s.id, s.executionID, s.leaseID)
 }
 
@@ -315,7 +653,27 @@ func (s *Session) UnregisterServiceWorker(ctx context.Context, scopeURL string) 
 	if s.isClosed() {
 		return nil, errors.New("session closed")
 	}
+	if err := s.authorizeServiceWorkerUnregister(ctx, scopeURL); err != nil {
+		return nil, err
+	}
 	return s.client.UnregisterServiceWorker(ctx, s.id, scopeURL, s.executionID, s.leaseID)
+}
+
+// authorizeServiceWorkerUnregister binds deletion to both the current owned
+// page and the exact registration scope. Bulk deletion calls this for every
+// registered scope before dispatching a single driver mutation.
+func (s *Session) authorizeServiceWorkerUnregister(ctx context.Context, scopeURL string) error {
+	pageID := s.currentDriverPageID()
+	kind := "service_worker_unregister"
+	if scopeURL == "" {
+		kind = "service_worker_unregister_all"
+	}
+	if err := s.authorizeActionRequestForPage(ctx, sessionpermission.ActionRequest{
+		Kind: kind, TargetURL: scopeURL,
+	}, pageID); err != nil {
+		return err
+	}
+	return nil
 }
 
 // DownloadArtifact streams a driver-managed artifact by path.
@@ -335,7 +693,10 @@ func (s *Session) ValidateSelector(ctx context.Context, selector string) (*drive
 	if s.isClosed() {
 		return nil, errors.New("session closed")
 	}
-	return s.client.ValidateSelector(ctx, s.id, &driver.ValidateSelectorRequest{
+	if err := s.AuthorizeAction(ctx, "observe", "", ""); err != nil {
+		return nil, err
+	}
+	return s.client.ValidateSelector(ctx, s.id, s.executionID, s.leaseID, &driver.ValidateSelectorRequest{
 		Selector: selector,
 	})
 }
@@ -345,7 +706,10 @@ func (s *Session) UpdateStreamSettings(ctx context.Context, quality, fps *int, s
 	if s.isClosed() {
 		return errors.New("session closed")
 	}
-	_, err := s.client.UpdateStreamSettings(ctx, s.id, &driver.UpdateStreamSettingsRequest{
+	if err := s.AuthorizeAction(ctx, "control", "", ""); err != nil {
+		return err
+	}
+	_, err := s.client.UpdateStreamSettings(ctx, s.id, s.executionID, s.leaseID, &driver.UpdateStreamSettingsRequest{
 		Quality: quality,
 		FPS:     fps,
 		Scale:   scale,
@@ -358,6 +722,9 @@ func (s *Session) CreatePage(ctx context.Context, url string) (*driver.CreatePag
 	if s.isClosed() {
 		return nil, errors.New("session closed")
 	}
+	if err := s.AuthorizeAction(ctx, "navigate", url, ""); err != nil {
+		return nil, err
+	}
 	return s.client.CreatePage(ctx, s.id, s.executionID, s.leaseID, url)
 }
 
@@ -366,6 +733,9 @@ func (s *Session) CreatePopupPage(ctx context.Context, url, openerPageID string)
 	if s.isClosed() {
 		return nil, errors.New("session closed")
 	}
+	if err := s.AuthorizeAction(ctx, "navigate", url, ""); err != nil {
+		return nil, err
+	}
 	return s.client.CreatePopupPage(ctx, s.id, s.executionID, s.leaseID, url, openerPageID)
 }
 
@@ -373,6 +743,9 @@ func (s *Session) CreatePopupPage(ctx context.Context, url, openerPageID string)
 func (s *Session) ClosePage(ctx context.Context, driverPageID string) (*driver.ClosePageResponse, error) {
 	if s.isClosed() {
 		return nil, errors.New("session closed")
+	}
+	if err := s.AuthorizeAction(ctx, "close_page", "", ""); err != nil {
+		return nil, err
 	}
 	return s.client.ClosePage(ctx, s.id, s.executionID, s.leaseID, driverPageID)
 }
@@ -394,13 +767,41 @@ func (s *Session) SetActivePage(ctx context.Context, driverPageID string) error 
 	if s.isClosed() {
 		return errors.New("session closed")
 	}
-	return s.client.SetActivePage(ctx, s.id, s.executionID, s.leaseID, driverPageID)
+	if err := s.AuthorizeAction(ctx, "view", "", ""); err != nil {
+		return err
+	}
+	if err := s.client.SetActivePage(ctx, s.id, s.executionID, s.leaseID, driverPageID); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	s.activeDriverPageID = driverPageID
+	s.mu.Unlock()
+	return nil
+}
+
+func (s *Session) currentDriverPageID() string {
+	s.mu.RLock()
+	pageID := s.activeDriverPageID
+	if pageID == "" {
+		pageID = s.initialDriverPageID
+	}
+	s.mu.RUnlock()
+	return pageID
+}
+
+func (s *Session) hasAuthorizer() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.authorizer != nil
 }
 
 // Reset resets the session to clean state.
 func (s *Session) Reset(ctx context.Context) error {
 	if s.isClosed() {
 		return errors.New("session closed")
+	}
+	if err := s.AuthorizeAction(ctx, "reset", "", ""); err != nil {
+		return err
 	}
 	return s.client.ResetSession(ctx, s.id, s.executionID, s.leaseID)
 }
@@ -415,6 +816,9 @@ func (s *Session) Close(ctx context.Context) error {
 // browser resource open. A released Session is terminal for this owner: only a
 // subsequent execution can acquire a new lease for the resource.
 func (s *Session) Release(ctx context.Context) error {
+	if err := s.AuthorizeAction(ctx, "handoff", "", ""); err != nil {
+		return err
+	}
 	_, err := s.finalize(ctx, true)
 	return err
 }
@@ -427,6 +831,11 @@ func (s *Session) CloseWithArtifacts(ctx context.Context) (*driver.CloseSessionR
 // finalize serializes close and release. A joining caller can stop waiting, but
 // only the first caller's context controls the driver request.
 func (s *Session) finalize(ctx context.Context, release bool) (*driver.CloseSessionResponse, error) {
+	if !release {
+		if err := s.AuthorizeAction(ctx, "close", "", ""); err != nil {
+			return nil, err
+		}
+	}
 	s.mu.Lock()
 	if pending := s.terminal; pending != nil {
 		s.mu.Unlock()

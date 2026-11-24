@@ -232,10 +232,23 @@ export function getFrameStreamSettings(sessionId: string): FrameStreamSettings |
 
 /** Refresh capture from the viewport already applied to this exact Page. */
 export async function updateFrameStreamViewport(sessionId: string, page: Page): Promise<void> {
+  const slot = slots.get(sessionId);
   const stream = currentStream(sessionId);
-  if (!stream?.strategyHandle?.isActive()) return;
-  await stream.strategyHandle.updateViewport?.(page);
-  if (currentStream(sessionId) !== stream) throw new Error('Frame stream was replaced during resize');
+  const handle = stream?.strategyHandle;
+  if (!slot || !stream || !handle?.isActive()) return;
+
+  // Viewport updates touch the same capture handle as settings changes and stop.
+  // Keep them in the session queue so resize cannot race a replacement or disposal.
+  const generation = slot.generation;
+  const update = slot.pending.then(async () => {
+    if (slot.generation !== generation || currentStream(sessionId) !== stream || !handle.isActive()) return;
+    await handle.updateViewport?.(page);
+    if (slot.generation !== generation || currentStream(sessionId) !== stream) {
+      throw new Error('Frame stream was replaced during resize');
+    }
+  });
+  slot.pending = update.then(() => {}, () => {});
+  return update;
 }
 
 // =============================================================================

@@ -12,17 +12,21 @@ import (
 
 	"github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/storage"
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 )
 
 // fakeExecutor records the last request it received and returns a
 // programmable canned response. Calls counts every invocation so dry-run
 // assertions can verify the executor was never reached.
 type fakeExecutor struct {
-	LastReq  *basexecution.ExecuteAdhocRequest
-	LastOpts *workflow.ExecuteOptions
-	Calls    int
-	Resp     *basexecution.ExecuteAdhocResponse
-	Err      error
+	LastReq            *basexecution.ExecuteAdhocRequest
+	LastOpts           *workflow.ExecuteOptions
+	Calls              int
+	SystemCaptureCalls int
+	LastUserIdentity   string
+	HadEntitlement     bool
+	Resp               *basexecution.ExecuteAdhocResponse
+	Err                error
 
 	// ExportCalls counts ExportToFolder invocations so tests can assert
 	// the harvest seam was (or was not) reached.
@@ -43,11 +47,13 @@ type fakeExecutor struct {
 }
 
 func (f *fakeExecutor) ExecuteAdhocWorkflowAPIWithOptions(
-	_ context.Context,
+	ctx context.Context,
 	req *basexecution.ExecuteAdhocRequest,
 	opts *workflow.ExecuteOptions,
 ) (*basexecution.ExecuteAdhocResponse, error) {
 	f.Calls++
+	f.LastUserIdentity = monetization.UserIdentityFromContext(ctx)
+	f.HadEntitlement = monetization.SnapshotFromContext(ctx) != nil
 	f.LastReq = req
 	f.LastOpts = opts
 	if f.Err != nil {
@@ -60,6 +66,15 @@ func (f *fakeExecutor) ExecuteAdhocWorkflowAPIWithOptions(
 		ExecutionId: uuid.NewString(),
 		Status:      basebase.ExecutionStatus_EXECUTION_STATUS_COMPLETED,
 	}, nil
+}
+
+func (f *fakeExecutor) ExecuteSystemCaptureAdhocWorkflowAPIWithOptions(
+	ctx context.Context,
+	req *basexecution.ExecuteAdhocRequest,
+	opts *workflow.ExecuteOptions,
+) (*basexecution.ExecuteAdhocResponse, error) {
+	f.SystemCaptureCalls++
+	return f.ExecuteAdhocWorkflowAPIWithOptions(ctx, req, opts)
 }
 
 func (f *fakeExecutor) ExportToFolder(

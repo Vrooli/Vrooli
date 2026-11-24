@@ -60,9 +60,17 @@ func (r *JobRunner) Start(inherited context.Context, id uuid.UUID, admit func(co
 	}
 	admission, admissionCancel := context.WithTimeout(inherited, 5*time.Second)
 	stop := context.AfterFunc(ctx, admissionCancel)
-	err := admit(admission)
-	stop()
-	admissionCancel()
+	err := func() (admissionErr error) {
+		defer func() {
+			stop()
+			admissionCancel()
+			if recovered := recover(); recovered != nil {
+				finish()
+				panic(recovered)
+			}
+		}()
+		return admit(admission)
+	}()
 	if err != nil {
 		finish()
 		return err

@@ -11,20 +11,34 @@ Driver compilation no longer invokes Playwright's browser downloader. The
 `pnpm browsers:ensure` script is verification-only and reports the expected
 revision and path. Browser bytes must be supplied by the governed dependency or
 artifact acquisition owner before a complete desktop bundle can be staged.
-That acquisition-to-bundle transfer is not implemented yet; a clean host install
-must therefore be treated as unqualified.
+Artifact staging and offline build-input transfer are now implemented for explicit,
+fixture-fed trees. SDA still has no browser artifact route, so a clean host install
+must remain unqualified.
 
 ## Support matrix
 
-| Target | Browser closure | Online install | Offline install/update | Status |
+| Target | Source layout | Real artifact | Clean-host install | Status |
 |---|---|---|---|---|
-| Linux x64 | Chromium under `resources/playwright` | Not qualified | Not qualified | Unqualified; no clean-host receipt |
-| Linux arm64 | No inspected closure | Not qualified | Not qualified | Unqualified; no node |
-| macOS x64 | No inspected closure | Not qualified | Not qualified | Unqualified; no node |
-| macOS arm64 | No inspected closure | Not qualified | Not qualified | Unqualified; no node |
-| Windows x64 | No inspected closure | Not qualified | Not qualified | Unqualified; no node |
-| Windows arm64 | No inspected closure | Not qualified | Not qualified | Unqualified; no node |
-| Private hosted worker | No worker artifact/identity binding | Not qualified | Not applicable | Unsupported in this increment |
+| Linux x64 | Fixture-tested | Unqualified; no SDA-provisioned artifact | Unqualified; no receipt | Unqualified |
+| Linux arm64 | Fixture-tested | Unqualified; no SDA-provisioned artifact | Unqualified; no receipt | Unqualified; no node |
+| macOS x64 | Fixture-tested | Unqualified; no SDA-provisioned artifact | Unqualified; no receipt | Unqualified; no node |
+| macOS arm64 | Fixture-tested | Unqualified; no SDA-provisioned artifact | Unqualified; no receipt | Unqualified; no node |
+| Windows x64 | Fixture-tested | Unqualified; no SDA-provisioned artifact | Unqualified; no receipt | Unqualified; no node |
+| Windows arm64 | Unsupported; no source layout | Unsupported | Unsupported | Unsupported |
+| Private hosted worker | Unsupported; no browser worker owner | Not applicable | Not applicable | Unsupported |
+
+The checked machine-readable source is [`../bundle/browser-support-matrix.json`](../../bundle/browser-support-matrix.json).
+Staging consumes that matrix and writes its exact non-qualification statuses into
+`browser-closure.json`; scenario-to-desktop rejects a closure that claims a
+qualified artifact or clean-host result. This records source capability separately
+from real receipts and prevents fixture layouts from being rendered as supported.
+
+For hosted workers, BAS `BackendRemote` currently rejects before invoking its
+local `Session.Manager`, including when an external capability report is supplied.
+Agent Manager's `SandboxLauncher` is an isolated coding-agent process path, not a
+browser task owner: it has no browser closure mount, BAS run/grant/session binding,
+browser task/artifact receipt, or remote browser teardown lifecycle. No second
+worker scheduler was added.
 
 The executable override is `BROWSER_EXECUTABLE_PATH`, matching the BAS driver.
 The Playwright cache contract is `PLAYWRIGHT_BROWSERS_PATH`; it names the

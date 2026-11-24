@@ -1,5 +1,5 @@
 import { handleRecordInput, handleRecordViewport } from '../../../src/routes/record-mode/recording-input';
-import { resetPageInputState, settlePageInput } from '../../../src/session/live-input';
+import { resetPageInputState, setPointerButtonDown, settlePageInput } from '../../../src/session/live-input';
 import { createMockHttpRequest, createMockHttpResponse, createMockPage, createTestConfig } from '../../helpers';
 import type { SessionManager } from '../../../src/session';
 import { updateFrameStreamViewport } from '../../../src/frame-streaming';
@@ -35,7 +35,7 @@ describe('recording input routes', () => {
       viewportSize: jest.fn().mockReturnValue({ width: 800, height: 600 }),
     });
     const pageBindings = new DriverPageBindings(); pageBindings.register(mockPage, 'selected-page');
-    const session = { phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease', page: mockPage, pageBindings } as ReturnType<SessionManager['getSession']>;
+    const session = { phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease', page: mockPage, pageBindings, createdAt: new Date(), instructionCount: 0 } as ReturnType<SessionManager['getSession']>;
     sessionManager = {
       getSession: (): ReturnType<SessionManager['getSession']> => session,
       getSessionForLease: (id: string, owner: string, lease: string): ReturnType<SessionManager['getSession']> => {
@@ -66,6 +66,71 @@ describe('recording input routes', () => {
       expect(manager.getSession).not.toHaveBeenCalled();
       expect(manager.updateActivity).not.toHaveBeenCalled();
     }
+  });
+
+  it('denies mutation under an observe-only profile and admits an in-scope act profile', async () => {
+    const session = sessionManager.getSession('test');
+    Object.assign(session, { spec: { permission_profile: {
+      effect: 'observe', approval: 'none', view: true, control: false, url_allow: ['https://example.com/*'],
+    } } });
+    const denied = createMockHttpResponse();
+    await handleRecordInput(createMockHttpRequest({ method: 'POST', body: {
+      execution_id: 'owner', lease_id: 'lease', type: 'pointer', action: 'click', x: 12, y: 34,
+    } }), denied, 'test', sessionManager as SessionManager, config);
+    expect(denied.statusCode).toBe(403);
+    expect(mockPage.mouse.click).not.toHaveBeenCalled();
+
+    Object.assign(session, { spec: { permission_profile: {
+      effect: 'act', approval: 'none', view: true, control: true, url_allow: ['https://example.com/*'],
+    } } });
+    const allowed = createMockHttpResponse();
+    await handleRecordInput(createMockHttpRequest({ method: 'POST', body: {
+      execution_id: 'owner', lease_id: 'lease', type: 'pointer', action: 'click', x: 12, y: 34,
+    } }), allowed, 'test', sessionManager as SessionManager, config);
+    expect(allowed.statusCode).toBe(200);
+    expect(mockPage.mouse.click).toHaveBeenCalledTimes(1);
+  });
+
+  it('allows exact-lease release cleanup after revocation but denies page input before effect', async () => {
+    const session = sessionManager.getSession('test');
+    Object.assign(session, { spec: { permission_profile: {
+      effect: 'observe', approval: 'none', view: true, control: false, url_allow: ['https://example.com/*'],
+    } } });
+    setPointerButtonDown(mockPage, 'left', true);
+
+    const release = createMockHttpResponse();
+    await handleRecordInput(createMockHttpRequest({ method: 'POST', body: {
+      execution_id: 'owner', lease_id: 'lease', type: 'pointer', action: 'release', button: 'left', modifiers: [],
+    } }), release, 'test', sessionManager as SessionManager, config);
+    expect(release.statusCode).toBe(200);
+    expect(mockPage.mouse.up).toHaveBeenCalledTimes(1);
+    expect(mockPage.mouse.move).not.toHaveBeenCalled();
+    expect(mockPage.keyboard.down).not.toHaveBeenCalled();
+
+    const click = createMockHttpResponse();
+    await handleRecordInput(createMockHttpRequest({ method: 'POST', body: {
+      execution_id: 'owner', lease_id: 'lease', type: 'pointer', action: 'click', x: 4, y: 8,
+    } }), click, 'test', sessionManager as SessionManager, config);
+    expect(click.statusCode).toBe(403);
+    expect(mockPage.mouse.click).not.toHaveBeenCalled();
+  });
+
+  it('denies stale-lease cleanup and malformed release modifiers before any input effect', async () => {
+    const stale = createMockHttpResponse();
+    await handleRecordInput(createMockHttpRequest({ method: 'POST', body: {
+      execution_id: 'wrong-owner', lease_id: 'old-lease', type: 'pointer', action: 'release', button: 'left', modifiers: [],
+    } }), stale, 'test', sessionManager as SessionManager, config);
+    expect(stale.statusCode).toBe(404);
+    expect(mockPage.mouse.up).not.toHaveBeenCalled();
+
+    const malformed = createMockHttpResponse();
+    await handleRecordInput(createMockHttpRequest({ method: 'POST', body: {
+      execution_id: 'owner', lease_id: 'lease', type: 'pointer', action: 'release', button: 'left', modifiers: ['Control'],
+    } }), malformed, 'test', sessionManager as SessionManager, config);
+    expect(malformed.statusCode).toBe(400);
+    expect(mockPage.mouse.up).not.toHaveBeenCalled();
+    expect(mockPage.mouse.move).not.toHaveBeenCalled();
+    expect(mockPage.keyboard.down).not.toHaveBeenCalled();
   });
 
   it.each(['down', 'up'] as const)('rejects a lease handoff before the second pointer %s operation', async (action) => {
@@ -311,6 +376,31 @@ describe('recording input routes', () => {
     expect(mockPage.keyboard.up).toHaveBeenCalledWith('Shift');
     expect(releaseOrder).toEqual(['pointer-up', 'modifier-up']);
     expect(upResponse.statusCode).toBe(200);
+  });
+
+  it('releases only buttons held by the previous control receipt without moving the pointer', async () => {
+    await handleRecordInput(createMockHttpRequest({ method: 'POST', body: {
+      execution_id: 'owner', lease_id: 'lease', type: 'pointer', action: 'down', button: 'right', modifiers: ['Shift'],
+    } }), createMockHttpResponse(), 'test', sessionManager as SessionManager, config);
+    mockPage.mouse.move.mockClear();
+    mockPage.mouse.up.mockClear();
+
+    const releaseResponse = createMockHttpResponse();
+    await handleRecordInput(createMockHttpRequest({ method: 'POST', body: {
+      execution_id: 'owner', lease_id: 'lease', type: 'pointer', action: 'release', button: 'right', modifiers: [],
+    } }), releaseResponse, 'test', sessionManager as SessionManager, config);
+
+    expect(mockPage.mouse.move).not.toHaveBeenCalled();
+    expect(mockPage.mouse.up).toHaveBeenCalledTimes(1);
+    expect(mockPage.mouse.up).toHaveBeenCalledWith({ button: 'right' });
+    expect(mockPage.keyboard.up).toHaveBeenCalledWith('Shift');
+    expect(releaseResponse.statusCode).toBe(200);
+
+    mockPage.mouse.up.mockClear();
+    await handleRecordInput(createMockHttpRequest({ method: 'POST', body: {
+      execution_id: 'owner', lease_id: 'lease', type: 'pointer', action: 'release', button: 'left', modifiers: [],
+    } }), createMockHttpResponse(), 'test', sessionManager as SessionManager, config);
+    expect(mockPage.mouse.up).not.toHaveBeenCalled();
   });
 
   it('releases pointer modifiers when pointer-up fails after a completed down', async () => {

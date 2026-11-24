@@ -3,6 +3,7 @@ package session
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -12,6 +13,69 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/browser-automation-studio/domain"
 )
+
+func TestNewPageTrackerFromEventsReplaysOrderedPageState(t *testing.T) {
+	t.Parallel()
+
+	sessionID := "recording-replay"
+	initialID, popupID := uuid.New(), uuid.New()
+	start := time.Date(2026, 11, 21, 12, 0, 0, 0, time.UTC)
+	closedAt := start.Add(4 * time.Second)
+	activePopup := popupID
+	events := []domain.PageEvent{
+		{ID: uuid.New(), Type: domain.PageEventCreated, PageID: initialID, DriverPageID: "driver-initial", IsInitial: true, URL: "https://start.test", Timestamp: start},
+		{ID: uuid.New(), Type: domain.PageEventCreated, PageID: popupID, DriverPageID: "driver-popup", URL: "https://popup.test", OpenerID: &initialID, Timestamp: start.Add(time.Second)},
+		{ID: uuid.New(), Type: domain.PageEventNavigated, PageID: popupID, DriverPageID: "driver-popup", URL: "https://popup.test/next", Title: "Popup next", Timestamp: start.Add(2 * time.Second)},
+		{ID: uuid.New(), Type: domain.PageEventActivated, PageID: popupID, DriverPageID: "driver-popup", ActivePageID: popupID, Timestamp: start.Add(3 * time.Second)},
+		{ID: uuid.New(), Type: domain.PageEventClosed, PageID: initialID, DriverPageID: "driver-initial", ActivePageID: activePopup, Timestamp: closedAt},
+	}
+
+	tracker, err := NewPageTrackerFromEvents(sessionID, events)
+	require.NoError(t, err)
+	assert.Equal(t, initialID, tracker.GetInitialPageID())
+	assert.Equal(t, popupID, tracker.GetActivePageID())
+	assert.Equal(t, "driver-popup", tracker.GetDriverPageID(popupID))
+	assert.Equal(t, popupID, *tracker.GetPageIDByDriverID("driver-popup"))
+	require.NotNil(t, tracker.GetPageIDByDriverID("driver-initial"))
+	assert.Equal(t, initialID, *tracker.GetPageIDByDriverID("driver-initial"))
+
+	initial, ok := tracker.GetPage(initialID)
+	require.True(t, ok)
+	assert.Equal(t, domain.PageStatusClosed, initial.Status)
+	require.NotNil(t, initial.ClosedAt)
+	assert.Equal(t, closedAt, *initial.ClosedAt)
+
+	popup, ok := tracker.GetPage(popupID)
+	require.True(t, ok)
+	assert.Equal(t, "https://popup.test/next", popup.URL)
+	assert.Equal(t, "Popup next", popup.Title)
+	assert.Equal(t, initialID, *popup.OpenerID)
+	assert.Equal(t, sessionID, popup.SessionID)
+}
+
+func TestNewPageTrackerFromEventsRejectsIncompleteOrInconsistentJournal(t *testing.T) {
+	t.Parallel()
+
+	initialID := uuid.New()
+	at := time.Date(2026, 11, 21, 12, 0, 0, 0, time.UTC)
+	validInitial := domain.PageEvent{ID: uuid.New(), Type: domain.PageEventCreated, PageID: initialID, IsInitial: true, Timestamp: at}
+
+	for _, tc := range []struct {
+		name   string
+		events []domain.PageEvent
+	}{
+		{name: "missing initial receipt", events: []domain.PageEvent{{ID: uuid.New(), Type: domain.PageEventCreated, PageID: uuid.New(), Timestamp: at}}},
+		{name: "navigation before create", events: []domain.PageEvent{{ID: uuid.New(), Type: domain.PageEventNavigated, PageID: initialID, Timestamp: at}, validInitial}},
+		{name: "unknown activation", events: []domain.PageEvent{validInitial, {ID: uuid.New(), Type: domain.PageEventActivated, PageID: uuid.New(), Timestamp: at.Add(time.Second)}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if tracker, err := NewPageTrackerFromEvents("recording-replay", tc.events); err == nil || tracker != nil {
+				t.Fatalf("replay accepted inconsistent journal: tracker=%v err=%v", tracker, err)
+			}
+		})
+	}
+}
 
 func TestNewPageTracker(t *testing.T) {
 	t.Parallel()
@@ -39,6 +103,167 @@ func TestNewPageTracker(t *testing.T) {
 	}
 	if initialPage.Status != domain.PageStatusActive {
 		t.Errorf("expected status 'active', got '%s'", initialPage.Status)
+	}
+}
+
+func TestInitialDriverObservationPersistsBeforeRegisteringIdentity(t *testing.T) {
+	pt := NewPageTracker("session-initial", "about:blank")
+	initialID := pt.GetInitialPageID()
+	at := time.Date(2026, 11, 21, 12, 0, 0, 0, time.UTC)
+	event := domain.DriverPageEvent{
+		SessionID: "session-initial", DriverPageID: "driver-initial", EventType: "initial",
+		URL: "https://example.test/", Title: "Example", Timestamp: at.Format(time.RFC3339Nano),
+	}
+	before, active := pt.Snapshot(false)
+	appendErr := fmt.Errorf("journal unavailable")
+	if observation, err := pt.ApplyDriverEvent("session-initial", event, at, func(*domain.PageEvent) error { return appendErr }); err == nil || observation != nil {
+		t.Fatalf("initial observation append failure result=(%+v,%v)", observation, err)
+	}
+	after, activeAfter := pt.Snapshot(false)
+	if !assert.Equal(t, before, after) || active != activeAfter || pt.GetPageIDByDriverID("driver-initial") != nil || pt.GetDriverPageID(initialID) != "" {
+		t.Fatal("failed initial observation changed tracker state or driver mapping")
+	}
+
+	var stored *domain.PageEvent
+	appendCalls := 0
+	persist := func(candidate *domain.PageEvent) error {
+		appendCalls++
+		if stored != nil && !reflect.DeepEqual(stored, candidate) {
+			return fmt.Errorf("conflicting replay")
+		}
+		if stored == nil {
+			copy := *candidate
+			stored = &copy
+		}
+		return nil
+	}
+	observation, err := pt.ApplyDriverEvent("session-initial", event, at, persist)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if observation == nil || observation.PageID != initialID || observation.DriverPageID != "driver-initial" || !observation.IsInitial {
+		t.Fatalf("initial page journal identity missing: %+v", observation)
+	}
+	if got := pt.GetPageIDByDriverID("driver-initial"); got == nil || *got != initialID || pt.GetDriverPageID(initialID) != "driver-initial" {
+		t.Fatal("initial mapping was not installed after successful journal append")
+	}
+	page, ok := pt.GetPage(initialID)
+	if !ok || page.URL != event.URL || page.Title != event.Title || page.DriverPageID != event.DriverPageID {
+		t.Fatalf("initial snapshot was not applied after append: %+v", page)
+	}
+	if _, err := pt.ApplyDriverEvent("session-initial", event, at, persist); err != nil {
+		t.Fatalf("exact replay failed: %v", err)
+	}
+	if appendCalls != 2 {
+		t.Fatalf("expected one initial append and one idempotent replay, got %d calls", appendCalls)
+	}
+	conflict := event
+	conflict.URL = "https://example.test/conflict"
+	beforeConflict, activeConflict := pt.Snapshot(false)
+	if _, err := pt.ApplyDriverEvent("session-initial", conflict, at, persist); err == nil {
+		t.Fatal("conflicting initial replay was accepted")
+	}
+	afterConflict, activeAfterConflict := pt.Snapshot(false)
+	if !assert.Equal(t, beforeConflict, afterConflict) || activeConflict != activeAfterConflict {
+		t.Fatal("conflicting initial replay mutated tracker state")
+	}
+}
+
+func TestActivePageSelectionCommitsBeforeTrackerMutation(t *testing.T) {
+	pt := NewPageTracker("session-selection", "about:blank")
+	page := pt.AddPage(&domain.Page{DriverPageID: "driver-second", URL: "https://second.test"})
+	initial := pt.GetActivePageID()
+	at := time.Date(2026, 11, 21, 13, 0, 0, 0, time.UTC)
+	appendErr := fmt.Errorf("journal unavailable")
+	if err := pt.SetActivePageAt(page.ID, at, func(*domain.PageEvent) error { return appendErr }); err == nil {
+		t.Fatal("selection append failure was accepted")
+	}
+	if got := pt.GetActivePageID(); got != initial {
+		t.Fatalf("append failure changed active page: got %s want %s", got, initial)
+	}
+	var stored *domain.PageEvent
+	appendCount := 0
+	persist := func(candidate *domain.PageEvent) error {
+		appendCount++
+		copy := *candidate
+		stored = &copy
+		return nil
+	}
+	if err := pt.SetActivePageAt(page.ID, at, persist); err != nil {
+		t.Fatal(err)
+	}
+	if stored == nil || stored.Type != domain.PageEventActivated || stored.PageID != page.ID || stored.ActivePageID != page.ID || stored.DriverPageID != "driver-second" {
+		t.Fatalf("selection journal missing stable page state: %+v", stored)
+	}
+	if got := pt.GetActivePageID(); got != page.ID {
+		t.Fatalf("selection was not applied after append: got %s want %s", got, page.ID)
+	}
+	if err := pt.SetActivePageAt(page.ID, at, persist); err != nil {
+		t.Fatalf("exact selection replay should be a no-op: %v", err)
+	}
+	if appendCount != 1 {
+		t.Fatalf("same selected page appended duplicate journal row: %d", appendCount)
+	}
+}
+
+func TestPageCloseJournalCarriesResultingActiveSelection(t *testing.T) {
+	pt := NewPageTracker("session-close-selection", "about:blank")
+	initial := pt.GetActivePageID()
+	other := pt.AddPage(&domain.Page{DriverPageID: "driver-second", URL: "https://second.test"})
+	// Select the added tab through the compatibility helper to establish state.
+	require.NoError(t, pt.SetActivePage(other.ID))
+	at := time.Date(2026, 11, 21, 13, 1, 0, 0, time.UTC)
+	appendErr := fmt.Errorf("journal unavailable")
+	if _, err := pt.ClosePageAtPersist(other.ID, at, func(*domain.PageEvent) error { return appendErr }); err == nil {
+		t.Fatal("close append failure was accepted")
+	}
+	page, ok := pt.GetPage(other.ID)
+	if !ok || page.Status != domain.PageStatusActive || pt.GetActivePageID() != other.ID {
+		t.Fatal("close append failure changed page lifecycle or active selection")
+	}
+	var stored *domain.PageEvent
+	event, err := pt.ClosePageAtPersist(other.ID, at, func(candidate *domain.PageEvent) error { stored = candidate; return nil })
+	require.NoError(t, err)
+	if stored == nil || stored.ActivePageID != initial || event.ActivePageID != initial || pt.GetActivePageID() != initial {
+		t.Fatalf("close journal did not capture resulting selection: stored=%+v event=%+v active=%s", stored, event, pt.GetActivePageID())
+	}
+}
+
+func TestPageReceiptJournalPrecedesIdentityRegistration(t *testing.T) {
+	pt := NewPageTracker("session-page-receipt", "about:blank")
+	at := time.Date(2026, 11, 21, 13, 2, 0, 0, time.UTC)
+	input := &domain.Page{DriverPageID: "driver-new", URL: "https://new.test", Title: "New", FaviconURL: "https://new.test/icon.ico"}
+	appendErr := fmt.Errorf("journal unavailable")
+	if page, err := pt.AddPageAt(input, at, func(*domain.PageEvent) error { return appendErr }); err == nil || page != nil {
+		t.Fatal("page receipt append failure was accepted")
+	}
+	if pt.GetPageIDByDriverID(input.DriverPageID) != nil || pt.PageCount() != 1 {
+		t.Fatal("failed page receipt append registered a partial page")
+	}
+	var stored *domain.PageEvent
+	page, err := pt.AddPageAt(input, at, func(event *domain.PageEvent) error { stored = event; return nil })
+	require.NoError(t, err)
+	if stored == nil || stored.PageID != page.ID || stored.DriverPageID != input.DriverPageID || stored.URL != input.URL || stored.Title != input.Title || stored.Timestamp != at {
+		t.Fatalf("page creation event lacks reconstruction identity: %+v", stored)
+	}
+	if id := pt.GetPageIDByDriverID(input.DriverPageID); id == nil || *id != page.ID {
+		t.Fatal("page identity was not published after journal append")
+	}
+}
+
+func TestPageMetadataJournalFailureLeavesSnapshotUnchanged(t *testing.T) {
+	pt := NewPageTracker("session-metadata", "https://before.test")
+	id := pt.GetInitialPageID()
+	before, ok := pt.GetPage(id)
+	require.True(t, ok)
+	appendErr := fmt.Errorf("journal unavailable")
+	favicon := "https://after.test/icon.ico"
+	err := pt.UpdatePageInfoAt(id, "https://after.test", "After", &favicon, time.Now(), func(*domain.PageEvent) error { return appendErr })
+	require.ErrorIs(t, err, appendErr)
+	after, ok := pt.GetPage(id)
+	require.True(t, ok)
+	if !reflect.DeepEqual(before, after) {
+		t.Fatalf("failed metadata append changed page snapshot: before=%+v after=%+v", before, after)
 	}
 }
 

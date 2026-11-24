@@ -20,6 +20,7 @@ describe('Session Reset Route', () => {
         addInitScript: jest.fn().mockResolvedValue(undefined),
         clearCookies: jest.fn().mockResolvedValue(undefined),
         clearPermissions: jest.fn().mockResolvedValue(undefined),
+        route: jest.fn().mockResolvedValue(undefined),
         pages: jest.fn().mockReturnValue([]),
         on: jest.fn(),
         off: jest.fn(),
@@ -80,6 +81,21 @@ describe('Session Reset Route', () => {
     await handleSessionReset(mockReq, mockRes, 'non-existent', sessionManager);
 
     expect(mockRes.statusCode).toBe(404);
+  });
+
+  it('denies an approval-required reset before session reset effects', async () => {
+    const profile = { effect: 'act' as const, approval: 'every_action' as const, control: true, view: true, url_allow: ['https://example.com/*'] };
+    const { sessionId, leaseId } = await sessionManager.startSession({
+      execution_id: 'exec-reset-approval', workflow_id: 'fixture', base_url: 'https://example.com',
+      viewport: { width: 640, height: 480 }, reuse_mode: 'fresh', required_capabilities: {}, permission_profile: profile,
+    });
+    const reset = jest.spyOn(sessionManager, 'resetSession');
+    const request = createMockHttpRequest({ method: 'POST', url: `/session/${sessionId}/reset`, body: { execution_id: 'exec-reset-approval', lease_id: leaseId } });
+    const response = createMockHttpResponse();
+    await handleSessionReset(request, response, sessionId, sessionManager);
+    expect(response.statusCode).toBe(403);
+    expect(response.getJSON().error.code).toBe('BROWSER_PERMISSION_DENIED');
+    expect(reset).not.toHaveBeenCalled();
   });
 
   it.each([false, true])('joins a current-owner reset and preserves failure=%s', async (fail) => {

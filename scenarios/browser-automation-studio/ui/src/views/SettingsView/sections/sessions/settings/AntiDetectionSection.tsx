@@ -25,67 +25,67 @@ const TOGGLES: { key: BooleanAntiDetectionKey; label: string; description: strin
   {
     key: 'disable_automation_controlled',
     label: 'Disable Automation Controlled Flag',
-    description: 'Removes browser automation indicators from window properties',
+    description: 'Requests a Chromium automation-feature adjustment; site compatibility is not guaranteed.',
   },
   {
     key: 'patch_navigator_webdriver',
     label: 'Patch navigator.webdriver',
-    description: 'Hides the webdriver property that indicates automation',
+    description: 'Requests an adjustment to navigator.webdriver; detection outcomes vary by site and browser mode.',
   },
   {
     key: 'patch_navigator_plugins',
     label: 'Patch navigator.plugins',
-    description: 'Spoofs browser plugins to appear as a real browser',
+    description: 'Requests an adjustment to the reported browser plugin list.',
   },
   {
     key: 'patch_navigator_languages',
     label: 'Patch navigator.languages',
-    description: 'Sets language preferences to match locale settings',
+    description: 'Requests a language-value adjustment to match the configured locale.',
   },
   {
     key: 'patch_webgl',
     label: 'Patch WebGL',
-    description: 'Modifies WebGL renderer and vendor strings',
+    description: 'Requests an adjustment to reported WebGL renderer details.',
   },
   {
     key: 'patch_canvas',
     label: 'Patch Canvas Fingerprint',
-    description: 'Adds noise to canvas fingerprinting attempts',
+    description: 'Requests an adjustment to canvas output.',
   },
   {
     key: 'patch_audio_context',
     label: 'Patch AudioContext',
-    description: 'Adds noise to audio processing output to prevent audio fingerprinting',
+    description: 'Requests an adjustment to AudioContext output.',
   },
   {
     key: 'headless_detection_bypass',
-    label: 'Headless Detection Bypass',
-    description: 'Bypasses checks for headless browser mode',
+    label: 'Headless Signal Adjustment',
+    description: 'Legacy option name. It does not guarantee that headless mode is accepted.',
   },
   {
     key: 'disable_webrtc',
     label: 'Disable WebRTC',
-    description: 'Prevents WebRTC from leaking real IP address',
+    description: 'Requests WebRTC disablement; may affect sites and does not replace network-policy checks.',
   },
   {
     key: 'patch_fonts',
     label: 'Patch Font Fingerprinting',
-    description: 'Returns only common system fonts to prevent font enumeration tracking',
+    description: 'Requests an adjustment to the fonts exposed to page scripts.',
   },
   {
     key: 'patch_screen_properties',
     label: 'Patch Screen Properties',
-    description: 'Spoofs screen dimensions and color depth to match viewport settings',
+    description: 'Requests screen properties matching the configured viewport.',
   },
   {
     key: 'patch_battery_api',
     label: 'Patch Battery API',
-    description: 'Returns consistent battery status to prevent power-based fingerprinting',
+    description: 'Requests a battery-status adjustment.',
   },
   {
     key: 'patch_connection_api',
     label: 'Patch Connection API',
-    description: 'Spoofs network type to appear as typical residential WiFi connection',
+    description: 'Requests a connection-type adjustment; it does not change the actual network path.',
   },
 ];
 
@@ -129,10 +129,10 @@ export function AntiDetectionSection({ antiDetection, onChange }: AntiDetectionS
         )}
       </FormFieldGroup>
 
-      {/* Bot Detection Bypass Section */}
+      {/* Browser signal adjustment controls */}
       <FormFieldGroup
-        title="Bot Detection Bypass"
-        description="These settings help bypass bot detection systems by making the browser appear more like a real user's browser."
+        title="Browser Signal Options"
+        description="Requests adjustments to selected browser signals. Support varies by browser mode and version; these controls do not guarantee site access or a detection outcome."
         className="pt-4 border-t border-gray-200 dark:border-gray-700"
       >
         <div className="space-y-3">

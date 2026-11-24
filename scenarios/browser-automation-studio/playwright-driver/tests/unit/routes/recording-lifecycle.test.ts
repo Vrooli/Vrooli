@@ -64,6 +64,46 @@ describe('recording acknowledgement ownership [REQ:BAS-RH-J17]', () => {
   });
 });
 
+describe('recording acknowledgement permission profile', () => {
+  it.each([
+    { name: 'history read is disabled', historyRead: false, target: 'https://allowed.example/path', allowed: false },
+    { name: 'selected entry URL is outside scope', historyRead: true, target: 'https://outside.example/path', allowed: false },
+    { name: 'history read and selected entry scope are allowed', historyRead: true, target: 'https://allowed.example/path', allowed: true },
+  ])('$name', async ({ historyRead, target, allowed }) => {
+    const sessionId = `ack-profile-${historyRead}-${target.includes('outside')}`;
+    const entry = createNavigateTimelineEntry(target, { sessionId, sequenceNum: 1 });
+    bufferTimelineEntry(sessionId, entry);
+    const session = {
+      id: sessionId,
+      ownerExecutionId: 'owner',
+      leaseId: 'lease',
+      phase: 'ready',
+      leaseReleasedAt: undefined,
+      createdAt: new Date(0),
+      instructionCount: 0,
+      page: { url: () => 'https://allowed.example/path' },
+      spec: {
+        permission_profile: {
+          effect: 'act', approval: 'none', control: true, view: true,
+          history_read: historyRead,
+          url_allow: ['https://allowed.example/*'], url_deny: [],
+        },
+      },
+    };
+    const manager = createSessionManager(session);
+    const body = { execution_id: 'owner', lease_id: 'lease', entry_ids: [entry.id] };
+    try {
+      const res = createMockHttpResponse();
+      await handleRecordActionsAck(createMockHttpRequest({ method: 'POST', body }), res, sessionId, manager, createTestConfig());
+      expect(res.statusCode).toBe(allowed ? 200 : 403);
+      expect(getTimelineEntries(sessionId).map(item => item.id)).toEqual(allowed ? [] : [entry.id]);
+      expect(manager.updateActivity).toHaveBeenCalledTimes(allowed ? 1 : 0);
+    } finally {
+      acknowledgeTimelineEntries(sessionId, [entry.id], true);
+    }
+  });
+});
+
 function createPipelineManager(overrides?: Partial<PipelineManagerStub>): PipelineManagerStub {
   return {
     getGeneration: jest.fn().mockReturnValue(1),
@@ -106,6 +146,7 @@ describe('recording lifecycle routes', () => {
       const req = createMockHttpRequest({
         method: 'GET',
         url: '/session/session-123/record/status',
+        headers: { 'x-bas-execution-id': 'owner', 'x-bas-session-lease-id': 'lease' },
       });
       const res = createMockHttpResponse();
 
@@ -126,6 +167,7 @@ describe('recording lifecycle routes', () => {
       const req = createMockHttpRequest({
         method: 'GET',
         url: '/session/session-idle/record/status',
+        headers: { 'x-bas-execution-id': 'owner', 'x-bas-session-lease-id': 'lease' },
       });
       const res = createMockHttpResponse();
 
@@ -141,6 +183,40 @@ describe('recording lifecycle routes', () => {
   });
 
   describe('handleRecordStop', () => {
+    it.each([
+      { name: 'control is disabled', profile: { effect: 'act', approval: 'none', control: false, view: true, history_read: true, url_allow: ['https://example.com/*'], url_deny: [] } },
+      { name: 'history receipt permission is disabled', profile: { effect: 'act', approval: 'none', control: true, view: true, history_read: false, url_allow: ['https://example.com/*'], url_deny: [] } },
+      { name: 'current URL is outside scope', profile: { effect: 'act', approval: 'none', control: true, view: true, history_read: true, url_allow: ['https://other.example/*'], url_deny: [] } },
+      { name: 'approval receipt channel is unavailable', profile: { effect: 'act', approval: 'every_action', control: true, view: true, history_read: true, url_allow: ['https://example.com/*'], url_deny: [] } },
+    ])('denies stop before recording effects when $name', async ({ profile }) => {
+      const pipelineManager = createPipelineManager({ isRecording: jest.fn().mockReturnValue(true), stopRecording: jest.fn().mockResolvedValue({ recordingId: 'record-1', actionCount: 3 }) });
+      const session = { phase: 'recording', ownerExecutionId: 'owner-1', leaseId: 'lease-1', leaseReleasedAt: undefined,
+        createdAt: new Date(0), instructionCount: 0, spec: { permission_profile: profile },
+        page: { url: () => 'https://example.com/app' }, pageLifecycleCleanup: jest.fn(), pipelineManager };
+      const manager = createSessionManager(session);
+      const res = createMockHttpResponse();
+      await handleRecordStop(createMockHttpRequest({ method: 'POST', body: { execution_id: 'owner-1', lease_id: 'lease-1' } }), res, 'recording-session', manager);
+      expect(res.statusCode).toBe(403);
+      expect(pipelineManager.stopRecording).not.toHaveBeenCalled();
+      expect(manager.updateActivity).not.toHaveBeenCalled();
+      expect(manager.setSessionPhase).not.toHaveBeenCalled();
+    });
+
+    it('allows a scoped, explicitly granted stop and returns its terminal receipt', async () => {
+      const profile = { effect: 'act', approval: 'none', control: true, view: true, history_read: true, url_allow: ['https://fixture.invalid/*'], url_deny: [] };
+      const pipelineManager = createPipelineManager({ isRecording: jest.fn().mockReturnValue(true), stopRecording: jest.fn().mockResolvedValue({ recordingId: 'record-1', actionCount: 3 }) });
+      const session = { phase: 'recording', ownerExecutionId: 'owner-1', leaseId: 'lease-1', leaseReleasedAt: undefined,
+        createdAt: new Date(0), instructionCount: 0, spec: { permission_profile: profile },
+        page: { url: () => 'https://fixture.invalid/app' }, pageLifecycleCleanup: jest.fn(), pipelineManager };
+      const manager = createSessionManager(session);
+      const res = createMockHttpResponse();
+      await handleRecordStop(createMockHttpRequest({ method: 'POST', body: { execution_id: 'owner-1', lease_id: 'lease-1' } }), res, 'recording-session', manager);
+      expect(res.statusCode).toBe(200);
+      expect(pipelineManager.stopRecording).toHaveBeenCalledTimes(1);
+      expect(manager.updateActivity).toHaveBeenCalledTimes(1);
+      expect(manager.setSessionPhase).toHaveBeenCalledWith('recording-session', 'ready');
+    });
+
     it('retains the committed result when stop is retried', async () => {
       const pipelineManager = createPipelineManager({
         getRecordingId: jest.fn().mockReturnValue('recording-previous'),

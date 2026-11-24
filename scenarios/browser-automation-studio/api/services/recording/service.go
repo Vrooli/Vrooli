@@ -268,6 +268,14 @@ func (s *Service) GetSession(ctx context.Context, id string) (*domain.RecordingS
 	return s.repo.GetSession(ctx, id)
 }
 
+// ListSessions returns durable recordings for one profile in repository order.
+func (s *Service) ListSessions(ctx context.Context, profileID *string, limit, offset int) ([]*domain.RecordingSession, error) {
+	if s.repo == nil {
+		return nil, ErrRepositoryUnavailable
+	}
+	return s.repo.ListSessions(ctx, profileID, limit, offset)
+}
+
 func (s *Service) SetOnAction(callback func(string, *persistence.UnifiedTimelineEntry)) {
 	s.notifyMu.Lock()
 	defer s.notifyMu.Unlock()

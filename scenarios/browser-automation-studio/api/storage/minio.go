@@ -197,7 +197,7 @@ func (m *MinIOClient) StoreArtifactFromFile(ctx context.Context, executionID uui
 		return nil, fmt.Errorf("failed to stat artifact file: %w", err)
 	}
 	objectName := artifactObjectName(executionID, label, filepath.Ext(filePath))
-	derivedType := detectContentTypeFromFile(filePath, contentType)
+	derivedType := DetectContentTypeFromFile(filePath, contentType)
 	source, err := os.Open(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open artifact file: %w", err)

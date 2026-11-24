@@ -1,7 +1,7 @@
 /**
  * Browser Profile Types
  *
- * Type definitions for anti-detection browser profiles.
+ * Type definitions for browser identity, behavior, and legacy signal settings.
  * These types mirror the Go types in api/services/archive-ingestion/session_profiles.go
  */
 
@@ -51,7 +51,7 @@ export type UserAgentPreset =
   | 'edge-win';
 
 /**
- * Behavior settings control human-like interaction patterns.
+ * Behavior settings control interaction timing and movement patterns.
  */
 export interface BehaviorSettings {
   // Typing behavior - inter-keystroke delays
@@ -109,7 +109,8 @@ export interface ProxySettings {
 }
 
 /**
- * Anti-detection settings control bot detection bypass techniques.
+ * Legacy browser-signal settings. Their support and effect depend on the
+ * selected browser mode and version; they do not guarantee detection results.
  */
 export interface AntiDetectionSettings {
   // Browser launch args
@@ -122,8 +123,8 @@ export interface AntiDetectionSettings {
   patch_navigator_languages?: boolean; // Ensure consistent languages
   patch_webgl?: boolean; // Spoof WebGL renderer/vendor
   patch_canvas?: boolean; // Add noise to canvas fingerprint
-  patch_audio_context?: boolean; // Add noise to AudioContext to prevent audio fingerprinting
-  headless_detection_bypass?: boolean; // Bypass headless detection
+  patch_audio_context?: boolean; // Request an AudioContext output adjustment
+  headless_detection_bypass?: boolean; // Legacy field name; no bypass guarantee
 
   // Additional fingerprinting protection
   patch_fonts?: boolean; // Spoof font enumeration to return common fonts only

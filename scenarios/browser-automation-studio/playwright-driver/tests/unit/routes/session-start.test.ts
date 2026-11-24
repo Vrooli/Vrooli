@@ -66,6 +66,27 @@ describe('Session Start Route', () => {
     expect(json.reused).toBeUndefined();
   });
 
+  it('rejects caller supplied browser executable path overrides', async () => {
+    const startSession = jest.spyOn(sessionManager, 'startSession');
+    const response = createMockHttpResponse();
+    await handleSessionStart(createMockHttpRequest({
+      body: {
+        execution_id: 'caller-path-override',
+        workflow_id: 'workflow',
+        session_options: {
+          viewport: { width: 1280, height: 720 },
+          reuse_mode: 'fresh',
+          frame_scale: 'css',
+          browser_backend: 'installed',
+          browser_executable_path: '/tmp/attacker-chrome',
+        },
+      },
+    }), response, sessionManager, config);
+    expect(response.statusCode).toBe(400);
+    expect(response.getJSON().error.message).toContain('driver configuration');
+    expect(startSession).not.toHaveBeenCalled();
+  });
+
   it('returns the current operation highwater on a repeated start', async () => {
     const body = {
       execution_id: 'same-owner',

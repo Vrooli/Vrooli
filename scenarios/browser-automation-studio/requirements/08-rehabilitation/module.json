@@ -310,8 +310,8 @@
     },
     {
       "id": "BAS-RH-J25",
-      "title": "local detectability and persistent sign-in continuity",
-      "description": "Given a deterministic local fingerprint fixture and an explicitly persistent profile, when interactive browsing observes browser signals and reopens its saved identity, then the fixture reports its documented observable properties, profile state stays isolated, stealth defaults apply only to interactive sessions, and authentication or challenge steps remain under operator control; external sign-in qualification uses only dedicated authorized test accounts.",
+      "title": "local browser signal fixture and persistent profile continuity",
+      "description": "Given a deterministic local browser-signal fixture and an explicitly persistent profile, when interactive browsing observes browser signals and reopens its saved profile, then the fixture reports its documented observable properties, profile state stays isolated, and defaults apply only to interactive sessions; this fixture does not qualify site-specific detection or access. Authentication or challenge steps remain under operator control; external sign-in qualification uses only dedicated authorized test accounts.",
       "status": "planned",
       "prd_ref": "OT-P0-005",
       "validation": [
@@ -327,7 +327,7 @@
           "ref": "playwright-driver/tests/unit/routes/session-start.test.ts",
           "phase": "unit",
           "status": "passed",
-          "notes": "Recording mode gets the stealth default; execution/hybrid modes do not, and explicit profiles are preserved."
+          "notes": "Recording mode gets the legacy stealth preset by default; execution/hybrid modes do not, and explicit profiles are preserved. No detection outcome is implied."
         },
         {
           "type": "test",

@@ -10,9 +10,10 @@
 import type { IncomingMessage, ServerResponse } from 'http';
 import type { SessionManager } from '../../session';
 import type { Config } from '../../config';
-import { parseJsonBody, sendJson, sendError } from '../../middleware';
+import { parseJsonBody, sendJson } from '../../middleware';
 import { logger, scopedLog, LogContext } from '../../utils';
 import { runExternalUrlInjectionTest } from '../../recording/testing/external-url-injection-test';
+import { recordingOwner, recordingPermissionDenied, sendRecordingError } from './recording-ownership';
 import { requireSessionLease } from '../session-lease';
 
 interface BrowserScriptState {
@@ -105,6 +106,11 @@ export async function handleRecordDebug(
     const owner = requireSessionLease(req, res, sessionId, sessionManager);
     if (!owner) return;
     const session = owner.session;
+    const permissionDenied = recordingPermissionDenied(session, 'observe');
+    if (permissionDenied) {
+      sendJson(res, 403, { error: { code: 'BROWSER_PERMISSION_DENIED', message: permissionDenied, kind: 'auth', retryable: false } });
+      return;
+    }
 
     // Server-side state (using pipelineManager as single source of truth)
     const pipelineManager = session.pipelineManager;
@@ -235,7 +241,7 @@ export async function handleRecordDebug(
 
     sendJson(res, 200, response);
   } catch (error) {
-    sendError(res, error as Error, `/session/${sessionId}/record/debug`);
+    sendRecordingError(res, error as Error, `/session/${sessionId}/record/debug`);
   }
 }
 
@@ -262,13 +268,20 @@ export async function handleRecordExternalUrlTest(
   config: Config
 ): Promise<void> {
   try {
-    const session = sessionManager.getSession(sessionId);
     const body = await parseJsonBody(req, config).catch(() => ({}));
+    const ownedSession = recordingOwner(body, sessionId, sessionManager);
+    const session = ownedSession();
     const request = body as { test_url?: string; timeout_ms?: number; return_to_original?: boolean };
 
     const testUrl = request.test_url ?? 'https://example.com';
     const timeoutMs = request.timeout_ms ?? 30000;
     const returnToOriginal = request.return_to_original ?? true;
+
+    const permissionDenied = recordingPermissionDenied(session, 'navigate', testUrl);
+    if (permissionDenied) {
+      sendJson(res, 403, { error: { code: 'BROWSER_PERMISSION_DENIED', message: permissionDenied, kind: 'auth', retryable: false } });
+      return;
+    }
 
     // Store original URL to navigate back after test
     const originalUrl = session.page.url();
@@ -291,6 +304,11 @@ export async function handleRecordExternalUrlTest(
     }
 
     // Run the external URL injection test
+    const beforeTestDenied = recordingPermissionDenied(ownedSession(), 'navigate', testUrl);
+    if (beforeTestDenied) {
+      sendJson(res, 403, { error: { code: 'BROWSER_PERMISSION_DENIED', message: beforeTestDenied, kind: 'auth', retryable: false } });
+      return;
+    }
     const result = await runExternalUrlInjectionTest(
       session.page,
       session.recordingInitializer,
@@ -303,6 +321,8 @@ export async function handleRecordExternalUrlTest(
     // Navigate back to original URL if requested and we were on a real page
     if (returnToOriginal && originalUrl && !originalUrl.startsWith('about:')) {
       try {
+        const restoreDenied = recordingPermissionDenied(ownedSession(), 'navigate', originalUrl);
+        if (restoreDenied) throw new Error(`BROWSER_PERMISSION_DENIED: ${restoreDenied}`);
         await session.page.goto(originalUrl, { timeout: 10000, waitUntil: 'domcontentloaded' });
         logger.debug(scopedLog(LogContext.RECORDING, 'returned to original URL after external test'), {
           sessionId,
@@ -351,6 +371,6 @@ export async function handleRecordExternalUrlTest(
 
     sendJson(res, 200, response);
   } catch (error) {
-    sendError(res, error as Error, `/session/${sessionId}/record/external-url-test`);
+    sendRecordingError(res, error as Error, `/session/${sessionId}/record/external-url-test`);
   }
 }

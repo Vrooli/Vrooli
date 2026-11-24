@@ -2,13 +2,13 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"os"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
+	"github.com/vrooli/browser-automation-studio/internal/httpjson"
 	"github.com/vrooli/browser-automation-studio/internal/protoconv"
 	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
 )
@@ -20,7 +20,7 @@ func (h *Handler) StartLiveRecording(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), recordModeTimeout)
 	defer cancel()
 	var req StartRecordingRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := httpjson.DecodeBounded(w, r, &req); err != nil {
 		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "Invalid JSON body: " + err.Error()}))
 		return
 	}

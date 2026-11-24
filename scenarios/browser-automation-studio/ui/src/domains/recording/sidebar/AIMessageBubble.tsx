@@ -427,7 +427,7 @@ function TimelineStep({ step, isRunning, isAborting, isLatest }: TimelineStepPro
               {formatDuration(step.durationMs)}
             </span>
           )}
-          {hasReasoning && (
+          {(hasReasoning || !!step.inferenceReceipt) && (
             <ChevronDownIcon className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
           )}
         </button>
@@ -453,6 +453,41 @@ function TimelineStep({ step, isRunning, isAborting, isLatest }: TimelineStepPro
                 </p>
                 <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
                   {step.reasoning}
+                </p>
+              </div>
+            )}
+
+            {step.inferenceReceipt && (
+              <div className="px-3 py-2 space-y-1 border-t border-gray-200 dark:border-gray-700 bg-blue-50/40 dark:bg-blue-900/10">
+                <p className="text-xs font-semibold text-blue-700 dark:text-blue-300">Gateway receipt · driver reported</p>
+                <p className="text-xs text-gray-700 dark:text-gray-300">
+                  Source: <span className="font-medium">{step.inferenceReceipt.source}</span>
+                  {step.inferenceReceipt.provider && ` · ${step.inferenceReceipt.provider}`}
+                  {step.inferenceReceipt.model && ` / ${step.inferenceReceipt.model}`}
+                </p>
+                <p className="text-xs text-gray-700 dark:text-gray-300">
+                  Tokens: {step.inferenceReceipt.inputTokens} input · {step.inferenceReceipt.outputTokens} output
+                </p>
+                {step.inferenceReceipt.providerCallsMade > 0 && (
+                  <p className="text-xs text-gray-700 dark:text-gray-300">Provider calls: {step.inferenceReceipt.providerCallsMade}</p>
+                )}
+                {step.inferenceReceipt.costMicros && (
+                  <p className="text-xs text-gray-700 dark:text-gray-300">
+                    Cost (micros): {step.inferenceReceipt.costMicros}
+                    {step.inferenceReceipt.costProvenance && ` · ${step.inferenceReceipt.costProvenance}`}
+                  </p>
+                )}
+                {step.inferenceReceipt.creditsCharged && (
+                  <p className="text-xs text-gray-700 dark:text-gray-300">Credits charged: {step.inferenceReceipt.creditsCharged}</p>
+                )}
+                {step.inferenceReceipt.accountingStatus && (
+                  <p className="text-xs text-gray-700 dark:text-gray-300">Gateway accounting: {step.inferenceReceipt.accountingStatus}</p>
+                )}
+                <p className="text-[11px] font-mono text-gray-500 dark:text-gray-400 break-all">
+                  Operation: {step.inferenceReceipt.rootOperationId}
+                </p>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                  Callback evidence is shown for review; it does not authorize settlement.
                 </p>
               </div>
             )}

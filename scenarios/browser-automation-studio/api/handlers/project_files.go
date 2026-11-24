@@ -3,8 +3,6 @@ package handlers
 import (
 	"context"
 	"errors"
-	"fmt"
-	"io"
 	"mime"
 	"net/http"
 	"os"
@@ -116,19 +114,13 @@ func (h *Handler) ServeProjectFile(w http.ResponseWriter, r *http.Request) {
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "open_file"}))
 		return
 	}
-	defer file.Close()
-
 	ext := filepath.Ext(absPath)
 	contentType := mime.TypeByExtension(ext)
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
 
-	w.Header().Set("Content-Type", contentType)
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", info.Size()))
-	w.Header().Set("Cache-Control", "private, max-age=60")
-
-	if _, err := io.Copy(w, file); err != nil {
+	streamHTTPResponse(w, file, contentType, info.Size(), "private, max-age=60", func(err error) {
 		h.log.WithError(err).WithField("path", relPath).Error("Failed to stream project file")
-	}
+	})
 }

@@ -1,4 +1,4 @@
-import { createMockHttpRequest, createMockHttpResponse, createTestConfig, createTypedInstruction, createMockPage, createMockContext } from '../../helpers';
+import { createMockHttpRequest, createMockHttpResponse, createTestConfig, createTypedInstruction, createMockPage, createMockContext, createMockFrame } from '../../helpers';
 import { handleSessionRun } from '../../../src/routes/session-run';
 import { SessionManager } from '../../../src/session';
 import { DriverPageBindings } from '../../../src/session/page-bindings';
@@ -45,6 +45,7 @@ describe('handleSessionRun', () => {
   const buildSession = (
     overrides?: Partial<{
       phase: SessionPhase;
+      extensionOperationInFlight: boolean;
       instructionReceipts: Map<number, {fingerprint: string; response: string}>;
       pipelineManager: { isRecording: jest.Mock<boolean, []> };
     }>
@@ -55,7 +56,7 @@ describe('handleSessionRun', () => {
     leaseReleasedAt: undefined as Date | undefined,
     phase: 'ready' as const,
     page: createMockPage(),
-    spec: { execution_id: 'exec-1', reuse_mode: 'fresh' as const },
+    spec: { execution_id: 'exec-1', reuse_mode: 'fresh' as const, browser_backend: 'managed' as const | 'installed' },
     createdAt: new Date(),
     lastUsedAt: new Date(),
     instructionCount: 0,
@@ -86,6 +87,162 @@ describe('handleSessionRun', () => {
       driverOutcome: { success: true }, success: true,
     } as never);
   });
+
+  it('resolves a short-lived opaque accessibility reference inside its exact leased session', async () => {
+    const session = buildSession();
+    session.pageBindings.getId = () => 'page-1';
+    const pageId = 'page-1';
+    session.accessibilityReferenceTargets = new Map([['e123', {
+      selector: 'button[data-testid="continue"]', pageId, url: session.page.url(), expiresAt: Date.now() + 5_000,
+    }]]);
+    const manager = buildSessionManager(session);
+    mockValidateInstruction.mockReturnValue({
+      valid: true,
+      instruction: createTypedInstruction('click', { selector: '@bas-ref:e123' }),
+    } as never);
+    const run = request(manager);
+    await run.done;
+    expect(run.res.statusCode).toBe(200);
+    const executed = mockExecuteInstruction.mock.calls[0][0] as unknown as { action: { params: { value: { selector: string } } } };
+    expect(executed.action.params.value.selector).toBe('button[data-testid="continue"]');
+  });
+
+  it.each(['managed', 'installed'] as const)(
+    '%s owner rejects stale opaque refs before browser effects', async (browser_backend) => {
+      const targets = [
+        ['unknown ref', undefined],
+        ['expired ref', { selector: '#unsafe', pageId: 'page-1', url: 'http://localhost', expiresAt: Date.now() - 1 }],
+        ['different page', { selector: '#unsafe', pageId: 'other-page', url: 'http://localhost', expiresAt: Date.now() + 5_000 }],
+        ['different URL', { selector: '#unsafe', pageId: 'page-1', url: 'https://other.example', expiresAt: Date.now() + 5_000 }],
+      ] as const;
+      for (const [_name, target] of targets) {
+        const session = buildSession();
+        session.pageBindings.getId = () => 'page-1';
+        session.spec.browser_backend = browser_backend;
+        if (target) session.accessibilityReferenceTargets = new Map([['e123', target]]);
+        const manager = buildSessionManager(session);
+        mockValidateInstruction.mockReturnValue({
+          valid: true,
+          instruction: createTypedInstruction('click', { selector: '@bas-ref:e123' }),
+        } as never);
+        const run = request(manager);
+        await run.done;
+        expect(run.res.statusCode).toBe(409);
+        expect(run.res.getJSON().error.code).toBe('ACCESSIBILITY_REFERENCE_STALE');
+        expect(mockExecuteInstruction).not.toHaveBeenCalled();
+      }
+    }
+  );
+
+  it.each(['managed', 'installed'] as const)(
+    '%s owner applies the same URL and effect policy before browser effects', async (browser_backend) => {
+      const deniedCases = [
+        { name: 'observe-only mutation', profile: { effect: 'observe', control: false, view: true, url_allow: ['https://safe.test/*'] }, url: 'https://safe.test/start', instruction: createTypedInstruction('click', {}) },
+        { name: 'denied navigation origin', profile: { effect: 'act', control: true, view: true, url_allow: ['https://safe.test/*'] }, url: 'https://safe.test/start', instruction: createTypedInstruction('navigate', { url: 'https://blocked.test/private' }) },
+        { name: 'redirected current origin', profile: { effect: 'act', control: true, view: true, url_allow: ['https://safe.test/*'] }, url: 'https://blocked.test/redirect', instruction: createTypedInstruction('click', {}) },
+      ] as const;
+      for (const denied of deniedCases) {
+        const session = buildSession();
+        session.spec.browser_backend = browser_backend;
+        session.spec.permission_profile = {
+          effect: denied.profile.effect as 'act' | 'observe', approval: 'none',
+          control: denied.profile.control, view: denied.profile.view,
+          url_allow: [...denied.profile.url_allow],
+        };
+        session.page.url = () => denied.url;
+        const manager = buildSessionManager(session);
+        mockValidateInstruction.mockReturnValue({ valid: true, instruction: denied.instruction } as never);
+        const run = request(manager);
+        await run.done;
+        expect(run.res.statusCode).toBe(403);
+        expect(run.res.getJSON().error.code).toBe('BROWSER_PERMISSION_DENIED');
+        expect(mockExecuteInstruction).not.toHaveBeenCalled();
+      }
+    }
+  );
+
+  it.each(['managed', 'installed'] as const)(
+    '%s owner shares API approval tiers and denies unverifiable receipts before effects', async (browser_backend) => {
+      const safeURL = 'https://shop.example.test/app/orders';
+      for (const tc of [
+        { name: 'safety-pass low-impact click remains supported', approval: 'safety_pass' as const, action: createTypedInstruction('click', {}), status: 200 },
+        { name: 'safety-pass high-impact input fails closed', approval: 'safety_pass' as const, action: createTypedInstruction('input', { selector: '#email', value: 'user@example.test' }), status: 403 },
+        { name: 'every-action click fails closed', approval: 'every_action' as const, action: createTypedInstruction('click', {}), status: 403 },
+      ]) {
+        mockExecuteInstruction.mockClear();
+        const session = buildSession();
+        session.spec.browser_backend = browser_backend;
+        session.spec.permission_profile = {
+          effect: 'act', approval: tc.approval, control: true, view: true,
+          url_allow: ['https://shop.example.test/*'],
+        };
+        session.page.url = () => safeURL;
+        session.page.locator = jest.fn().mockReturnValue({ first: () => ({ evaluate: async () => false }) }) as never;
+        const manager = buildSessionManager(session);
+        mockValidateInstruction.mockReturnValue({ valid: true, instruction: tc.action } as never);
+        const run = request(manager);
+        await run.done;
+        expect(run.res.statusCode).toBe(tc.status);
+        expect(mockExecuteInstruction).toHaveBeenCalledTimes(tc.status === 200 ? 1 : 0);
+        if (tc.status === 403) {
+          expect(run.res.getJSON().error.code).toBe('BROWSER_PERMISSION_DENIED');
+          expect(session.lastInstructionSequence).toBe(0);
+        }
+      }
+    }
+  );
+
+  it.each(['managed', 'installed'] as const)(
+    '%s owner checks the live selected frame origin before dispatch', async (browser_backend) => {
+      const page = createMockPage();
+      page.url = jest.fn().mockReturnValue('https://safe.test/top');
+      const main = createMockFrame({ page: jest.fn().mockReturnValue(page), isDetached: jest.fn().mockReturnValue(false) });
+      page.mainFrame.mockReturnValue(main);
+      const child = createMockFrame({
+        page: jest.fn().mockReturnValue(page),
+        parentFrame: jest.fn().mockReturnValue(main),
+        isDetached: jest.fn().mockReturnValue(false),
+        url: jest.fn().mockReturnValue('https://foreign.test/frame'),
+      });
+      const session = buildSession() as SessionState;
+      session.page = page;
+      session.frameStack = [child as never];
+      session.spec.browser_backend = browser_backend;
+      session.spec.permission_profile = {
+        effect: 'act', approval: 'none', control: true, view: true,
+        url_allow: ['https://safe.test/*'],
+      };
+      const manager = buildSessionManager(session);
+      const run = request(manager);
+      await run.done;
+      expect(run.res.statusCode).toBe(403);
+      expect(run.res.getJSON().error.code).toBe('BROWSER_PERMISSION_DENIED');
+      expect(mockExecuteInstruction).not.toHaveBeenCalled();
+
+      child.isDetached.mockReturnValue(true);
+      session.lastInstructionSequence = 0;
+      const stale = request(manager);
+      await stale.done;
+      expect(stale.res.statusCode).toBe(403);
+      expect(mockExecuteInstruction).not.toHaveBeenCalled();
+
+      child.isDetached.mockReturnValue(false);
+      child.page.mockReturnValue(createMockPage());
+      session.lastInstructionSequence = 0;
+      const forged = request(manager);
+      await forged.done;
+      expect(forged.res.statusCode).toBe(403);
+      expect(mockExecuteInstruction).not.toHaveBeenCalled();
+
+      child.page.mockReturnValue(page);
+      session.spec.permission_profile.url_allow.push('https://foreign.test/*');
+      session.lastInstructionSequence = 0;
+      const allowed = request(manager);
+      await allowed.done;
+      expect(allowed.res.statusCode).toBe(200);
+      expect(mockExecuteInstruction).toHaveBeenCalledTimes(1);
+    }
+  );
 
   it('returns the exact retained response without repeating effects or audio decoration', async () => {
     const session = buildSession({ pipelineManager: { isRecording: jest.fn().mockReturnValue(true) } });
@@ -203,6 +360,26 @@ describe('handleSessionRun', () => {
     expect(valid.res.statusCode).toBe(200);
   });
 
+  it('rejects marked raw secret input in permission-scoped sessions before effects', async () => {
+    const session = buildSession();
+    session.spec.permission_profile = {
+      effect: 'act', approval: 'none', control: true, view: true,
+      url_allow: ['https://shop.example.test/*'],
+    };
+    const manager = buildSessionManager(session);
+    const instruction = createTypedInstruction('input', { selector: '#password', value: 'raw-secret' });
+    if (instruction.action?.params.case === 'input') instruction.action.params.value.isSensitive = true;
+    mockValidateInstruction.mockReturnValue({
+      valid: true,
+      instruction,
+    } as never);
+    const result = request(manager);
+    await result.done;
+    expect(result.res.statusCode).toBe(403);
+    expect(result.res.getJSON().error.message).toMatch(/raw sensitive input is unsupported/);
+    expect(mockExecuteInstruction).not.toHaveBeenCalled();
+  });
+
   const request = (manager: SessionManager, headers = {}, body: Record<string, unknown> = {}) => {
     const res = createMockHttpResponse();
     const done = handleSessionRun(
@@ -223,6 +400,17 @@ describe('handleSessionRun', () => {
       expect(mockExecuteInstruction).not.toHaveBeenCalled();
     }
   );
+
+  it('rejects instruction execution while a managed extension operation owns the session', async () => {
+    const session = buildSession({ extensionOperationInFlight: true });
+    const manager = buildSessionManager(session);
+    const run = request(manager, { 'x-idempotency-key': 'lease-1:1' });
+    await run.done;
+    expect(run.res.statusCode).toBe(409);
+    expect(run.res.getJSON().error.code).toBe('SESSION_BUSY');
+    expect(mockExecuteInstruction).not.toHaveBeenCalled();
+    expect(manager.setSessionPhase).not.toHaveBeenCalled();
+  });
 
   it.each(['closing', 'resetting'] as const)(
     'rechecks admission when %s begins while the request body is arriving', async (phase) => {

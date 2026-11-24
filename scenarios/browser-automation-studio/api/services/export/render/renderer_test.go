@@ -140,6 +140,54 @@ func TestRenderCapture_ContiguousFrameNumbering(t *testing.T) {
 	}
 }
 
+type cancelAfterErrContext struct {
+	context.Context
+	cancelAt int
+	checks   int
+}
+
+func (c *cancelAfterErrContext) Err() error {
+	c.checks++
+	if c.checks >= c.cancelAt {
+		return context.Canceled
+	}
+	return nil
+}
+
+func TestRenderCaptureCancellationCleansStagedFrames(t *testing.T) {
+	frame := makeJPEGBase64(t, 64, 48)
+	r := newTestRenderer(t)
+	tmp := t.TempDir()
+	t.Setenv("TMPDIR", tmp)
+	encoder := &MockVideoEncoder{}
+	r.captureClient = &stubCaptureClient{response: &captureResponse{
+		Success: true,
+		FPS:     10,
+		Frames:  []captureFrame{{Index: 0, Data: frame}, {Index: 1, Data: frame}},
+	}}
+	r.videoEncoder = encoder
+	ctx := &cancelAfterErrContext{Context: context.Background(), cancelAt: 2}
+	spec := &ReplayMovieSpec{
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 100},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 200},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 100}},
+	}
+
+	if _, err := r.Render(ctx, spec, RenderFormatMP4, "cancelled.mp4"); err != context.Canceled {
+		t.Fatalf("render error = %v, want context cancellation", err)
+	}
+	if len(encoder.AssembleCalls) != 0 {
+		t.Fatal("encoder started after cancellation during frame staging")
+	}
+	entries, err := os.ReadDir(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("cancellation leaked replay staging tree: %v", entries)
+	}
+}
+
 func TestRenderCapture_AllEmptyFrames(t *testing.T) {
 	client := &stubCaptureClient{
 		response: &captureResponse{
@@ -483,5 +531,26 @@ func TestRenderCapture_RealEncoderAcceptsPNGAndJPEG(t *testing.T) {
 				t.Fatalf("export must fully decode: %v: %s", err, output)
 			}
 		})
+	}
+}
+
+func TestRenderCaptureSanitizesFilenameThroughExportOwner(t *testing.T) {
+	validFrame := makeJPEGBase64(t, 320, 240)
+	r := newTestRenderer(t)
+	r.captureClient = &stubCaptureClient{response: &captureResponse{Frames: []captureFrame{{Data: validFrame}}}}
+	r.videoEncoder = &MockVideoEncoder{}
+	spec := &ReplayMovieSpec{
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 100},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 100},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 100}},
+	}
+
+	media, err := r.renderCapture(t.Context(), spec, RenderFormatMP4, "../private\x00shot.mp4", 100)
+	if err != nil {
+		t.Fatalf("render capture: %v", err)
+	}
+	defer media.Cleanup()
+	if media.Filename != "..-privateshot.mp4" {
+		t.Fatalf("sanitized filename = %q, want %q", media.Filename, "..-privateshot.mp4")
 	}
 }

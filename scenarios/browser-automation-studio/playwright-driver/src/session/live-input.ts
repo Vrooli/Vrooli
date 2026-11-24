@@ -29,7 +29,7 @@ const MAX_INPUT_RECEIPTS = 256;
 const inputQueues = new WeakMap<Page, PageInputQueue>();
 const inputReceipts = new WeakMap<Page, Map<string, CachedInputReceipt>>();
 const heldPointerModifiers = new WeakMap<Page, Set<PointerModifier>>();
-const pointerDownPages = new WeakSet<Page>();
+const heldPointerButtons = new WeakMap<Page, Set<'left' | 'right' | 'middle' | 'back' | 'forward'>>();
 
 export class InputIDConflictError extends Error {
   constructor() {
@@ -170,12 +170,25 @@ export function getHeldPointerModifiers(page: Page): Set<PointerModifier> {
 }
 
 export function setPointerDown(page: Page, down: boolean): void {
-  if (down) pointerDownPages.add(page);
-  else pointerDownPages.delete(page);
+  // Kept for callers that do not know the button. A down bit is represented
+  // by the left button, the default for pointer input.
+  setPointerButtonDown(page, 'left', down);
+}
+
+export function setPointerButtonDown(page: Page, button: 'left' | 'right' | 'middle' | 'back' | 'forward', down: boolean): void {
+  const held = heldPointerButtons.get(page) ?? new Set<'left' | 'right' | 'middle' | 'back' | 'forward'>();
+  if (down) held.add(button);
+  else held.delete(button);
+  if (held.size > 0) heldPointerButtons.set(page, held);
+  else heldPointerButtons.delete(page);
+}
+
+export function isPointerButtonDown(page: Page, button: 'left' | 'right' | 'middle' | 'back' | 'forward'): boolean {
+  return heldPointerButtons.get(page)?.has(button) ?? false;
 }
 
 export function isPointerDown(page: Page): boolean {
-  return pointerDownPages.has(page);
+  return (heldPointerButtons.get(page)?.size ?? 0) > 0;
 }
 
 export async function resetPageInputState(page: Page): Promise<void> {
@@ -186,7 +199,7 @@ export async function resetPageInputState(page: Page): Promise<void> {
   if (held) await releasePointerModifiers(page, held);
   inputQueues.delete(page);
   inputReceipts.delete(page);
-  pointerDownPages.delete(page);
+  heldPointerButtons.delete(page);
   heldPointerModifiers.delete(page);
 }
 

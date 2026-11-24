@@ -2,15 +2,19 @@ package session
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
+	"github.com/vrooli/browser-automation-studio/internal/sessionpermission"
 )
 
 // Viewport is the driver's canonical width/height value used for defaults.
@@ -111,6 +115,63 @@ func NewManagerWithClient(client *driver.Client, opts ...Option) *Manager {
 
 // Create creates a new session with the given specification.
 func (m *Manager) Create(ctx context.Context, spec Spec) (*Session, error) {
+	spec.PermissionProfile = clonePermissionProfile(spec.PermissionProfile)
+	if spec.AudioMode != sessionpermission.AudioModeNone {
+		if spec.PermissionProfile == nil || spec.PermissionProfile.AudioMode != spec.AudioMode || spec.AppTarget != nil || spec.Mode == ModeRecording {
+			return nil, errors.New("audio session requires a matching Agent Manager audio mode on a managed execution session")
+		}
+		if strings.TrimSpace(spec.FakeMicrophoneWav) == "" || !filepath.IsAbs(spec.FakeMicrophoneWav) {
+			return nil, errors.New("audio session requires an owner-resolved absolute fixture path")
+		}
+		if spec.AudioPlaybackPauseMS < 0 || spec.AudioPlaybackPauseMS > 1000 || spec.AudioPlaybackStartDelayMS < 0 || spec.AudioPlaybackStartDelayMS > 5000 {
+			return nil, errors.New("audio playback timing is outside the BAS limit")
+		}
+		if spec.AudioMode == sessionpermission.AudioModePipeWire {
+			if !spec.AudioDeviceEvidence || !spec.AudioPlaybackDeferStart {
+				return nil, errors.New("PipeWire qualification requires device evidence and deferred fixture playback")
+			}
+		} else if spec.AudioMode == sessionpermission.AudioModeFakeMicrophone {
+			if spec.AudioDeviceEvidence || spec.AudioPlaybackPauseMS != 0 || spec.AudioPlaybackStartDelayMS != 0 || spec.AudioPlaybackDeferStart {
+				return nil, errors.New("fake-microphone mode cannot request host-device evidence or PipeWire playback controls")
+			}
+		} else {
+			return nil, errors.New("unsupported Agent Manager audio mode")
+		}
+	} else if spec.AudioDeviceEvidence || spec.AudioPlaybackPauseMS != 0 || spec.AudioPlaybackStartDelayMS != 0 || spec.AudioPlaybackDeferStart {
+		return nil, errors.New("audio controls require an Agent Manager audio mode")
+	}
+	permissionScoped := spec.Authorizer != nil || spec.OpenAuthorizer != nil || spec.OpenRequest != nil || spec.CallerResolver != nil || spec.PermissionProfile != nil
+	var expectedCallerID string
+	if permissionScoped {
+		if spec.Authorizer == nil || spec.OpenAuthorizer == nil || spec.OpenRequest == nil || spec.CallerResolver == nil || spec.PermissionProfile == nil {
+			return nil, errors.New("create session: permission authorizer requires pre-open admission")
+		}
+		if err := spec.PermissionProfile.Validate(); err != nil {
+			return nil, fmt.Errorf("create session: invalid browser permission profile: %w", err)
+		}
+		bound, ok := spec.Authorizer.(sessionpermission.ProfileBoundAuthorizer)
+		if !ok || !reflect.DeepEqual(bound.ProfileSnapshot(), *spec.PermissionProfile) {
+			return nil, errors.New("create session: driver permission profile must match the broker authorizer")
+		}
+		if strings.TrimSpace(spec.PermissionProfile.ID) == "" {
+			return nil, errors.New("create session: permission profile id is required")
+		}
+		callerID, err := spec.CallerResolver.BrowserCallerID(ctx)
+		if err != nil || callerID == "" {
+			return nil, errors.New("create session: trusted browser caller identity unavailable")
+		}
+		expectedCallerID = callerID
+		openRequest := *spec.OpenRequest
+		openRequest.OwnerID = spec.ExecutionID.String()
+		openRequest.CallerID = callerID
+		openRequest.ProfileID = spec.PermissionProfile.ID
+		if err := openRequest.Validate(*spec.PermissionProfile); err != nil {
+			return nil, fmt.Errorf("create session: invalid browser admission request: %w", err)
+		}
+		if err := spec.OpenAuthorizer.AuthorizeOpen(ctx, openRequest); err != nil {
+			return nil, fmt.Errorf("create session: browser admission denied: %w", err)
+		}
+	}
 	spec = m.applyDefaults(spec)
 	req := m.buildRequest(spec)
 
@@ -125,7 +186,46 @@ func (m *Manager) Create(ctx context.Context, spec Spec) (*Session, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create session: %w", err)
 	}
-	return m.adopt(resp, spec.ExecutionID.String(), spec.Mode, spec.Recording)
+	session, err := m.adoptCreated(resp, spec.ExecutionID.String(), spec.Mode, spec.Recording, spec.AppTarget != nil, spec.BrowserBackend)
+	if err != nil {
+		return nil, err
+	}
+	session.mu.Lock()
+	if session.authorizer != nil && !reflect.DeepEqual(session.permissionProfile, spec.PermissionProfile) {
+		session.mu.Unlock()
+		return nil, errors.New("create session: existing lease has a different permission profile")
+	}
+	if session.expectedCallerID != "" && expectedCallerID != "" && session.expectedCallerID != expectedCallerID {
+		session.mu.Unlock()
+		return nil, errors.New("create session: existing lease belongs to a different trusted caller")
+	}
+	if session.authorizer == nil {
+		session.authorizer = spec.Authorizer
+		session.permissionProfile = clonePermissionProfile(spec.PermissionProfile)
+	}
+	if session.expectedCallerID == "" {
+		session.expectedCallerID = expectedCallerID
+	}
+	session.callerResolver = spec.CallerResolver
+	session.mu.Unlock()
+	return session, nil
+}
+
+func clonePermissionProfile(profile *sessionpermission.Profile) *sessionpermission.Profile {
+	if profile == nil {
+		return nil
+	}
+	copy := *profile
+	copy.URLAllow = append([]string(nil), profile.URLAllow...)
+	copy.URLDeny = append([]string(nil), profile.URLDeny...)
+	copy.CredentialIDs = append([]string(nil), profile.CredentialIDs...)
+	if profile.ExtensionPermissions != nil {
+		copy.ExtensionPermissions = make(map[string][]string, len(profile.ExtensionPermissions))
+		for id, permissions := range profile.ExtensionPermissions {
+			copy.ExtensionPermissions[id] = append([]string(nil), permissions...)
+		}
+	}
+	return &copy
 }
 
 // CreateForDrill admits a session through the broker using the drill's
@@ -136,7 +236,25 @@ func (m *Manager) CreateForDrill(ctx context.Context, req *driver.CreateSessionR
 	if err != nil {
 		return nil, err
 	}
-	return m.adopt(resp, req.ExecutionID, ModeExecution, nil)
+	return m.adoptCreated(resp, req.ExecutionID, ModeExecution, nil, false, req.Options.BrowserBackend)
+}
+
+var errReturnedSessionLeaseCollision = errors.New("returned browser session id is already owned by another lease")
+
+// adoptCreated closes only the exact newly returned lease when a session-ID
+// collision prevents registration. The bounded detached close still runs if
+// the request was canceled after the driver created its session.
+func (m *Manager) adoptCreated(resp *driver.CreateSessionResponse, executionID string, mode Mode, recording *RecordingCallbacks, appTarget bool, browserBackend string) (*Session, error) {
+	session, err := m.adopt(resp, executionID, mode, recording, appTarget, browserBackend)
+	if err == nil || !errors.Is(err, errReturnedSessionLeaseCollision) {
+		return session, err
+	}
+	cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if _, cleanupErr := m.client.CloseSessionWithLease(cleanupCtx, resp.SessionID, executionID, resp.LeaseID); cleanupErr != nil {
+		return nil, errors.Join(err, fmt.Errorf("close unadopted browser session lease: %w", cleanupErr))
+	}
+	return nil, err
 }
 
 // ListObservedSessions provides recovery metadata without refreshing driver
@@ -150,13 +268,16 @@ func (m *Manager) ForceCloseSession(ctx context.Context, sessionID, expectedOwne
 	return m.client.ForceCloseSession(ctx, sessionID, expectedOwnerExecutionID, expectedLeaseID)
 }
 
-func (m *Manager) adopt(resp *driver.CreateSessionResponse, executionID string, mode Mode, recording *RecordingCallbacks) (*Session, error) {
+func (m *Manager) adopt(resp *driver.CreateSessionResponse, executionID string, mode Mode, recording *RecordingCallbacks, appTarget bool, browserBackend string) (*Session, error) {
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if existing := m.sessions[resp.SessionID]; existing != nil && existing.executionID == executionID && existing.leaseID == resp.LeaseID {
 		existing.mu.Lock()
 		defer existing.mu.Unlock()
+		if existing.browserBackend != browserBackend {
+			return nil, fmt.Errorf("create session: returned lease belongs to browser backend %q, not %q", existing.browserBackend, browserBackend)
+		}
 		if existing.terminal != nil {
 			return nil, fmt.Errorf("create session: returned lease is terminating")
 		}
@@ -165,16 +286,24 @@ func (m *Manager) adopt(resp *driver.CreateSessionResponse, executionID string, 
 		}
 		return existing, nil
 	}
+	if existing := m.sessions[resp.SessionID]; existing != nil {
+		return nil, fmt.Errorf("%w: session %q is already indexed to execution %q lease %q", errReturnedSessionLeaseCollision, resp.SessionID, existing.executionID, existing.leaseID)
+	}
 
 	session := &Session{
 		id:                      resp.SessionID,
 		initialDriverPageID:     resp.ActivePageID,
+		activeDriverPageID:      resp.ActivePageID,
 		lastInstructionSequence: resp.LastInstructionSequence,
 		executionID:             executionID,
 		leaseID:                 resp.LeaseID,
+		browserBackend:          browserBackend,
 		mode:                    mode,
+		appTarget:               appTarget,
 		client:                  m.client,
 		actualViewport:          resp.ActualViewport,
+		identityEvidence:        resp.IdentityEvidence,
+		audioDeviceEvidence:     resp.AudioDeviceEvidence,
 		recording:               recording,
 	}
 	session.onTerminal = func() {
@@ -234,12 +363,14 @@ func (m *Manager) buildRequest(spec Spec) *driver.CreateSessionRequest {
 				Height: spec.ViewportHeight,
 			},
 			ReuseMode:             spec.ReuseMode,
+			BrowserBackend:        spec.BrowserBackend,
 			FrameScale:            "css",
 			Labels:                spec.Labels,
 			SessionProfileVersion: spec.SessionProfileVersion,
 			BrowserProfile:        spec.BrowserProfile,
 			AppTarget:             spec.AppTarget,
 			ValidationContext:     spec.ValidationContext,
+			PermissionProfile:     spec.PermissionProfile,
 		},
 	}
 	if spec.FrameStreaming != nil && spec.FrameStreaming.Scale != "" {
@@ -286,6 +417,13 @@ func (m *Manager) buildRequest(spec Spec) *driver.CreateSessionRequest {
 		}
 		if spec.FakeMicrophoneWav != "" {
 			req.Options.FakeMedia = &driver.FakeMediaConfig{MicrophoneWav: spec.FakeMicrophoneWav}
+		}
+		if spec.AudioMode != sessionpermission.AudioModeNone {
+			req.Options.Permissions = []string{"microphone"}
+			req.Options.AudioDeviceEvidence = spec.AudioDeviceEvidence
+			req.Options.AudioPlaybackPauseMS = spec.AudioPlaybackPauseMS
+			req.Options.AudioPlaybackStartDelayMS = spec.AudioPlaybackStartDelayMS
+			req.Options.AudioPlaybackDeferStart = spec.AudioPlaybackDeferStart
 		}
 	}
 
@@ -406,6 +544,16 @@ func (m *Manager) RouteSessionRequest(ctx context.Context, sessionID, method, su
 		return nil, fmt.Errorf("session not found: %s", sessionID)
 	}
 	return owned.RouteRequest(ctx, method, suffix, body, headers)
+}
+
+// ManagedExtensionRequest forwards a Broker-authorized extension operation
+// only through the exact API-owned managed session owner/lease/profile.
+func (m *Manager) ManagedExtensionRequest(ctx context.Context, sessionID, ownerID, leaseID, profileID, permissionRef, callerID, method, suffix string, body []byte) (*http.Response, error) {
+	owned, ok := m.Get(sessionID)
+	if !ok {
+		return nil, fmt.Errorf("session not found: %s", sessionID)
+	}
+	return owned.ManagedExtensionRequest(ctx, ownerID, leaseID, profileID, permissionRef, callerID, method, suffix, body)
 }
 
 func resolveAPIHost() string {

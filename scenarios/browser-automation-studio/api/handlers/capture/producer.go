@@ -2,11 +2,11 @@ package capture
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/vrooli/browser-automation-studio/storage"
 	capturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture"
 )
 
@@ -168,28 +168,10 @@ func (p screenshotProducer) Produce(outDir string) ([]*capturev1.CaptureArtifact
 	}
 	primary := out[len(out)-1]
 	primary.Primary = true
-	if err := copyFile(primary.Path, filepath.Join(outDir, "screenshot.png")); err != nil {
+	if _, err := storage.CopyArtifactFile(primary.Path, filepath.Join(outDir, "screenshot.png")); err != nil {
 		return nil, fmt.Errorf("copy primary screenshot: %w", err)
 	}
 	return out, nil
-}
-
-func copyFile(source, destination string) error {
-	in, err := os.Open(source)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	out, err := os.Create(destination)
-	if err != nil {
-		return err
-	}
-	_, copyErr := io.Copy(out, in)
-	closeErr := out.Close()
-	if copyErr != nil {
-		return copyErr
-	}
-	return closeErr
 }
 
 // fileProducer exposes a single named file under outDir as the artifact
@@ -258,6 +240,19 @@ func (p performanceProducer) Produce(outDir string) ([]*capturev1.CaptureArtifac
 			Metadata: map[string]string{
 				"filename": "performance.web-vitals.json",
 				"artifact": "web-vitals",
+			},
+		})
+	}
+
+	processTreePath := filepath.Join(perfDir, "performance.process-tree.json")
+	if processTreeInfo, err := os.Stat(processTreePath); err == nil {
+		out = append(out, &capturev1.CaptureArtifact{
+			Type:      c,
+			Path:      processTreePath,
+			SizeBytes: processTreeInfo.Size(),
+			Metadata: map[string]string{
+				"filename": "performance.process-tree.json",
+				"artifact": "process-tree",
 			},
 		})
 	}

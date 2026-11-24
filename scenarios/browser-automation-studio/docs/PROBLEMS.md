@@ -80,7 +80,7 @@ Qualification status comes from the 24 preservation journeys in `requirements/08
 | ID | Area/owner | Open problem | Close when |
 | --- | --- | --- | --- |
 | BAS-RF-010 | API/runtime performance | Linux idle and workload memory are within budget. Windows private memory, controlled long soak, fixture-browser memory and historical multi-GiB heap attribution are unmeasured. | These are measured with PSS, heap and swap separated. |
-| BAS-RF-018 | Runtime/provider | Provider comments overpromise detection compatibility, and injection changes page behavior. Compatibility is unknown. | Versioned site/fixture results, challenge recovery and bounded claims. |
+| BAS-RF-018 | Runtime/provider | MB3 corrected provider/profile comments to state that browser-signal adjustments do not qualify detection results (2026-11-21). Injection still changes page behavior, and compatibility remains unknown. | Versioned site/fixture results, challenge recovery and bounded claims. |
 | BAS-RF-068 | AI suggestions | The response contract is enforced. The wider AI quality/grounding/replay corpus is unqualified. | A quality corpus exists. |
 | BAS-RF-071 | Security Health | Errors are at 0, but 357 warnings are untriaged, and production security posture is unqualified. | Warnings are triaged to fixed or accepted with reasons. |
 

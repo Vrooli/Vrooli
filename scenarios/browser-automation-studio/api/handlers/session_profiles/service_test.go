@@ -309,6 +309,23 @@ func TestUpdate_NotFound(t *testing.T) {
 // Delete
 // =============================================================================
 
+func TestUpdateAndDeleteShareProfileIDValidation(t *testing.T) {
+	repo := newFakeRepo()
+	client, cleanup := newTestServer(t, repo)
+	defer cleanup()
+
+	name := "new name"
+	_, updateErr := client.Update(context.Background(), connect.NewRequest(&sessionprofilesv1.UpdateSessionProfileRequest{Id: "not-a-uuid", Name: &name}))
+	_, deleteErr := client.Delete(context.Background(), connect.NewRequest(&sessionprofilesv1.DeleteSessionProfileRequest{Id: "not-a-uuid"}))
+	require.Error(t, updateErr)
+	require.Error(t, deleteErr)
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(updateErr))
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(deleteErr))
+	require.ErrorContains(t, updateErr, errInvalidProfileID.Error())
+	require.ErrorContains(t, deleteErr, errInvalidProfileID.Error())
+	require.Equal(t, 0, repo.Count(), "invalid IDs must not mutate the profile repository")
+}
+
 func TestDelete_InvalidID(t *testing.T) {
 	repo := newFakeRepo()
 	client, cleanup := newTestServer(t, repo)

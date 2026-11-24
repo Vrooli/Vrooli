@@ -13,20 +13,36 @@ import (
 // ResolveScenarioDir attempts to locate the absolute scenario root directory (scenarios/browser-automation-studio)
 // using repo-contract-backed repository discovery. Falls back to a best-effort path under cwd.
 func ResolveScenarioDir(log *logrus.Logger) string {
+	return resolveScenarioDir(log, "scenario")
+}
+
+func resolveScenarioDir(log *logrus.Logger, purpose string) string {
 	if root, err := repocontract.FindRepoRootFromEnvOrCWD(); err == nil {
 		if scenarioDir, resolveErr := repocontract.ResolveScenarioPath(root, scenarioRoot); resolveErr == nil {
 			return scenarioDir
 		} else if log != nil {
-			log.WithError(resolveErr).Warn("Failed to resolve scenario path from repo contract; falling back to cwd-derived path")
+			message := "Failed to resolve scenario path from repo contract; falling back to cwd-derived path"
+			if purpose != "scenario" {
+				message = fmt.Sprintf("Failed to resolve %s root from repo contract; falling back to cwd-derived path", purpose)
+			}
+			log.WithError(resolveErr).Warn(message)
 		}
 	} else if log != nil {
-		log.WithError(err).Warn("Failed to resolve repo root from repo contract; falling back to cwd-derived path")
+		message := "Failed to resolve repo root from repo contract; falling back to cwd-derived path"
+		if purpose != "scenario" {
+			message = fmt.Sprintf("Failed to resolve repo root for %s; falling back to cwd-derived path", purpose)
+		}
+		log.WithError(err).Warn(message)
 	}
 
 	cwd, err := os.Getwd()
 	if err != nil {
 		if log != nil {
-			log.WithError(err).Warn("Failed to resolve working directory; using relative scenario path")
+			message := "Failed to resolve working directory; using relative scenario path"
+			if purpose != "scenario" {
+				message = fmt.Sprintf("Failed to resolve working directory for %s root; using relative default", purpose)
+			}
+			log.WithError(err).Warn(message)
 		}
 		return filepath.Join("scenarios", scenarioRoot)
 	}
@@ -46,6 +62,25 @@ func ResolveScenarioDir(log *logrus.Logger) string {
 		return abs
 	}
 	return root
+}
+
+// resolveScenarioDataRoot applies the same environment, storage resolver,
+// repo-contract and cwd fallback rules to every BAS data directory.
+func resolveScenarioDataRoot(log *logrus.Logger, envName, purpose, subdir string) string {
+	if value := strings.TrimSpace(os.Getenv(envName)); value != "" {
+		if abs, err := filepath.Abs(value); err == nil {
+			return abs
+		}
+		if log != nil {
+			log.WithField("path", value).Warn("Using " + envName + " without normalization")
+		}
+		return value
+	}
+
+	if resolved := resolveScenarioStoragePath(subdir); resolved != "" {
+		return resolved
+	}
+	return filepath.Join(resolveScenarioDir(log, purpose), "data", subdir)
 }
 
 // ResolveProjectsRoot returns the absolute directory where project folders should live.

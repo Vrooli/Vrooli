@@ -4,17 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/google/uuid"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	"github.com/vrooli/browser-automation-studio/database"
+	exportservices "github.com/vrooli/browser-automation-studio/services/export"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
-	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // CheckpointState represents the execution state at a specific checkpoint.
@@ -84,12 +82,8 @@ func (s *WorkflowService) ExtractCheckpointState(ctx context.Context, executionI
 
 	// Compare the committed cursor with durable successful outcome evidence.
 	if execution.ResultPath != "" {
-		timeline, err := s.readExecutionTimelineForCheckpoint(execution.ResultPath)
+		timeline, err := exportservices.NewTimelineLoader(s.repo).LoadTimelineProto(ctx, executionID)
 		if err != nil {
-			// If timeline doesn't exist, return checkpoint with no steps completed
-			if os.IsNotExist(err) {
-				return checkpoint, nil
-			}
 			return nil, fmt.Errorf("read timeline: %w", err)
 		}
 
@@ -130,25 +124,6 @@ func (s *WorkflowService) ExtractCheckpointState(ctx context.Context, executionI
 	}
 
 	return checkpoint, nil
-}
-
-// readExecutionTimelineForCheckpoint reads the timeline.proto.json file.
-func (s *WorkflowService) readExecutionTimelineForCheckpoint(resultPath string) (*bastimeline.ExecutionTimeline, error) {
-	// The resultPath points to result.json, but we want timeline.proto.json
-	dir := filepath.Dir(resultPath)
-	timelinePath := filepath.Join(dir, "timeline.proto.json")
-
-	data, err := os.ReadFile(timelinePath)
-	if err != nil {
-		return nil, err
-	}
-
-	var timeline bastimeline.ExecutionTimeline
-	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(data, &timeline); err != nil {
-		return nil, fmt.Errorf("parse timeline: %w", err)
-	}
-
-	return &timeline, nil
 }
 
 // jsonValueMapToAnyMap converts a proto JsonValue map to a Go any map.

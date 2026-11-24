@@ -35,6 +35,10 @@ import path from 'node:path';
 import { logger, scopedLog, LogContext } from '../utils';
 import { createCDPSession, detachCDPSession } from '../session/cdp-session';
 import { WEB_VITALS_GLOBAL, WEB_VITALS_INIT_SCRIPT } from './web-vitals-script';
+import {
+  BROWSER_PROCESS_TREE_FILE,
+  BrowserProcessTreeCapture,
+} from './browser-process-tree-capture';
 
 /** Canonical artifact filenames the Go side reads back. */
 export const PERF_TRACE_FILE = 'performance.json';
@@ -67,7 +71,10 @@ export const PERF_TRACE_CATEGORIES = [
 export interface TracingCDP {
   send(method: 'Tracing.start', params: Record<string, unknown>): Promise<unknown>;
   send(method: 'Tracing.end'): Promise<unknown>;
-  send(method: 'IO.read', params: { handle: string; size?: number }): Promise<{ data: string; eof: boolean; base64Encoded?: boolean }>;
+  send(
+    method: 'IO.read',
+    params: { handle: string; size?: number }
+  ): Promise<{ data: string; eof: boolean; base64Encoded?: boolean }>;
   send(method: 'IO.close', params: { handle: string }): Promise<unknown>;
   send(method: string, params?: Record<string, unknown>): Promise<unknown>;
   on(event: 'Tracing.tracingComplete', cb: (payload: { stream?: string }) => void): void;
@@ -87,9 +94,9 @@ export interface VitalsPage {
  *
  * @param context anything with addInitScript (BrowserContext or Page)
  */
-export async function injectWebVitalsObserver(
-  context: { addInitScript(script: { content: string }): Promise<void> }
-): Promise<void> {
+export async function injectWebVitalsObserver(context: {
+  addInitScript(script: { content: string }): Promise<void>;
+}): Promise<void> {
   try {
     await context.addInitScript({ content: WEB_VITALS_INIT_SCRIPT });
   } catch (error) {
@@ -114,9 +121,13 @@ export class PerformanceTracer {
   private cdp?: CDPSession;
   private started = false;
   private stopped = false;
+  private processTreeCapture?: BrowserProcessTreeCapture;
 
   /** Test seam: override CDP creation (defaults to a real per-page session). */
-  constructor(outDir: string, private readonly cdpFactory: (page: Page) => Promise<CDPSession> = createCDPSession) {
+  constructor(
+    outDir: string,
+    private readonly cdpFactory: (page: Page) => Promise<CDPSession> = createCDPSession
+  ) {
     this.outDir = outDir;
   }
 
@@ -129,7 +140,10 @@ export class PerformanceTracer {
    * Start CDP tracing for the page. Best-effort: a failure leaves the tracer
    * inert (isActive() === false) and is logged, never thrown.
    */
-  async start(page: Page): Promise<void> {
+  async start(
+    page: Page,
+    processBinding?: Parameters<typeof BrowserProcessTreeCapture.start>[0]
+  ): Promise<void> {
     if (this.started) {
       return;
     }
@@ -144,6 +158,11 @@ export class PerformanceTracer {
         streamFormat: 'json',
       });
       this.started = true;
+      // Start the process window only after CDP confirms tracing is active.
+      // This keeps the sampler's measured window inside the owned capture.
+      if (processBinding) {
+        this.processTreeCapture = BrowserProcessTreeCapture.start(processBinding);
+      }
       logger.debug(scopedLog(LogContext.TELEMETRY, 'performance tracing started'), {
         categories: PERF_TRACE_CATEGORIES.length,
         outDir: this.outDir,
@@ -168,6 +187,21 @@ export class PerformanceTracer {
       return;
     }
     this.stopped = true;
+
+    if (this.processTreeCapture) {
+      try {
+        await mkdir(this.outDir, { recursive: true });
+        await writeFile(
+          path.join(this.outDir, BROWSER_PROCESS_TREE_FILE),
+          JSON.stringify(this.processTreeCapture.finish(), null, 2),
+          'utf8'
+        );
+      } catch (error) {
+        logger.warn(scopedLog(LogContext.TELEMETRY, 'process-tree measurement write failed'), {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
 
     // Read the web-vitals global first — it must be read while the page is
     // still alive (before context teardown).
@@ -243,7 +277,10 @@ export async function collectTrace(cdp: TracingCDP): Promise<string> {
   if (!streamHandle) {
     // No stream handle: the browser returned the trace some other way or
     // produced nothing. Emit a minimal valid trace document.
-    return JSON.stringify({ traceEvents: [], metadata: { source: 'vrooli-bas', note: 'empty-stream' } });
+    return JSON.stringify({
+      traceEvents: [],
+      metadata: { source: 'vrooli-bas', note: 'empty-stream' },
+    });
   }
 
   let out = '';

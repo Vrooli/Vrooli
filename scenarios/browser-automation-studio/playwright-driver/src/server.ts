@@ -389,6 +389,26 @@ function setupRoutes(
       metrics
     );
   });
+  router.get('/session/:id/accessibility-tree', async (req, res, params) => {
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) return;
+    await routes.handleSessionAccessibilityTree(req, res, sessionId, sessionManager);
+  });
+  router.get('/session/:id/app-monitor-metrics', async (req, res, params) => {
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) return;
+    await routes.handleSessionAppMonitorMetrics(req, res, sessionId, sessionManager);
+  });
+  router.post('/session/:id/app-monitor-capture/start', async (req, res, params) => {
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) return;
+    await routes.handleSessionAppMonitorCapture(req, res, sessionId, 'begin', sessionManager);
+  });
+  router.post('/session/:id/app-monitor-capture/finish', async (req, res, params) => {
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) return;
+    await routes.handleSessionAppMonitorCapture(req, res, sessionId, 'finish', sessionManager);
+  });
   router.get('/session/:id/storage-state', async (req, res, params) => {
     const sessionId = requireRouteParam(res, params, 'id');
     if (!sessionId) {
@@ -424,6 +444,45 @@ function setupRoutes(
     await routes.handleSessionServiceWorkerDelete(req, res, sessionId, scopeUrl, sessionManager);
   });
 
+  // Extension lifecycle calls are available only on permission-admitted,
+  // session-isolated managed Chromium processes. They never attach another
+  // browser or accept an extension supplied by an external browser session.
+  router.post('/session/:id/extensions/install', async (req, res, params) => {
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) return;
+    await routes.handleSessionExtensionInstall(req, res, sessionId, sessionManager, config);
+  });
+  router.post('/session/:id/extensions/load', async (req, res, params) => {
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) return;
+    await routes.handleSessionExtensionLoad(req, res, sessionId, sessionManager, config);
+  });
+  router.post('/session/:id/extensions/reload', async (req, res, params) => {
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) return;
+    await routes.handleSessionExtensionReload(req, res, sessionId, sessionManager, config);
+  });
+  router.post('/session/:id/extensions/unload', async (req, res, params) => {
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) return;
+    await routes.handleSessionExtensionUnload(req, res, sessionId, sessionManager, config);
+  });
+  router.post('/session/:id/extensions/validate', async (req, res, params) => {
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) return;
+    await routes.handleSessionExtensionValidate(req, res, sessionId, sessionManager, config);
+  });
+  router.get('/session/:id/extensions/inventory', async (req, res, params) => {
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) return;
+    await routes.handleSessionExtensionInventory(req, res, sessionId, sessionManager, config);
+  });
+  router.post('/session/:id/extensions/inventory', async (req, res, params) => {
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) return;
+    await routes.handleSessionExtensionInventory(req, res, sessionId, sessionManager, config);
+  });
+
   router.post('/session/:id/reset', async (req, res, params) => {
     const sessionId = requireRouteParam(res, params, 'id');
     if (!sessionId) {
@@ -447,6 +506,11 @@ function setupRoutes(
     const sessionId = requireRouteParam(res, params, 'id');
     if (!sessionId) return;
     await routes.handleSessionAudioStop(req, res, sessionId, sessionManager);
+  });
+  router.post('/session/:id/audio/diagnostics', async (req, res, params) => {
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) return;
+    await routes.handleSessionAudioDiagnostics(req, res, sessionId, sessionManager);
   });
   router.post('/session/:id/close', async (req, res, params) => {
     const sessionId = requireRouteParam(res, params, 'id');

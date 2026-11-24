@@ -10,6 +10,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/browser-automation-studio/automation/agentaccess"
 	"github.com/vrooli/browser-automation-studio/middleware"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
 
@@ -67,6 +68,20 @@ type fakeTracker struct {
 	resumeErr  error
 	lastAbort  string
 	lastResume string
+}
+
+type fakeBrowserBindingResolver struct {
+	binding agentaccess.BrowserInferenceBinding
+	err     error
+	called  int
+}
+
+func (r *fakeBrowserBindingResolver) ResolveInferenceBinding(_ context.Context, sessionID string) (agentaccess.BrowserInferenceBinding, error) {
+	r.called++
+	if r.binding.SessionID != "" && r.binding.SessionID != sessionID {
+		return agentaccess.BrowserInferenceBinding{}, errors.New("session mismatch")
+	}
+	return r.binding, r.err
 }
 
 func (f *fakeTracker) GetSession(navigationID string) (*vision.NavigationSession, bool) {
@@ -299,6 +314,35 @@ func TestStartNavigationCarriesGatewayConsentAndSignedSession(t *testing.T) {
 	require.Equal(t, "verified-session-token", nav.lastRequest.AccessToken)
 	require.Equal(t, "opaque-source-bound-receipt", nav.lastRequest.PrivacyConsentGrant)
 	require.Equal(t, nav.lastRequest.RootOperationID, response.Header().Get("X-Vrooli-Root-Operation-ID"))
+}
+
+func TestStartNavigationUsesOnlyBrokerResolvedBrowserBinding(t *testing.T) {
+	resolver := &fakeBrowserBindingResolver{binding: agentaccess.BrowserInferenceBinding{RunID: "87026a72-90ba-4e0b-9897-b2b09dc8a750", SessionID: "bas-session-1", GrantReceipt: "opaque-grant"}}
+	nav := &fakeNavigator{navType: vision.NavigatorPlaywright, available: true, clientSourcePolicy: vision.AllSourcesPolicy(), navigateID: "nav-bound"}
+	logger := logrus.New()
+	logger.SetOutput(testWriter{t})
+	svc := &service{deps: Deps{Logger: logger, Registry: newTestRegistry(t, nav), BrowserBindingResolver: resolver}}
+	req := connect.NewRequest(&aiv1.StartNavigationRequest{SessionId: "bas-session-1", Prompt: "inspect", Model: "local_first"})
+	req.Header().Set("X-Agent-Identity-Token", "signed-am-token")
+	req.Header().Set("X-Vrooli-Browser-Grant-Receipt", "opaque-grant")
+	_, err := svc.StartNavigation(context.Background(), req)
+	require.NoError(t, err)
+	require.Equal(t, 1, resolver.called)
+	require.Equal(t, &vision.BrowserInferenceSessionBinding{RunID: resolver.binding.RunID, SessionID: resolver.binding.SessionID, GrantReceipt: resolver.binding.GrantReceipt}, nav.lastRequest.BrowserSession)
+
+	partial := connect.NewRequest(&aiv1.StartNavigationRequest{SessionId: "bas-session-1", Prompt: "inspect", Model: "local_first"})
+	partial.Header().Set("X-Agent-Identity-Token", "signed-am-token")
+	_, err = svc.StartNavigation(context.Background(), partial)
+	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+	require.Equal(t, 1, resolver.called, "partial credentials must not reach the broker")
+
+	deniedResolver := &fakeBrowserBindingResolver{err: errors.New("not authorized")}
+	denied := &service{deps: Deps{Logger: logger, Registry: newTestRegistry(t, nav), BrowserBindingResolver: deniedResolver}}
+	forbidden := connect.NewRequest(&aiv1.StartNavigationRequest{SessionId: "bas-session-1", Prompt: "inspect", Model: "local_first"})
+	forbidden.Header().Set("X-Agent-Identity-Token", "signed-am-token")
+	forbidden.Header().Set("X-Vrooli-Browser-Grant-Receipt", "wrong-grant")
+	_, err = denied.StartNavigation(context.Background(), forbidden)
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
 }
 
 func TestStartNavigation_NavigateFailureMapsToUnavailable(t *testing.T) {
@@ -602,4 +646,37 @@ func TestNavigationStatusCarriesIndependentVerificationAndOutput(t *testing.T) {
 	require.False(t, result.VerifiedSuccess)
 	require.Equal(t, "postcondition_failed", result.VerificationError)
 	require.Equal(t, "driver_failed", result.Error)
+}
+
+func TestNavigationStatusCarriesExactGatewayInferenceReceipt(t *testing.T) {
+	temperature := 0.4
+	session := &vision.NavigationSession{
+		NavigationID: "nav", Status: vision.StatusCompleted,
+		Steps: []vision.NavigationStepRecord{{Index: 1, ActionType: "click", InferenceReceipt: &vision.InferenceReceipt{
+			RootOperationID: "operation-1", Source: "vrooli-credits", Provider: "provider-a", Model: "model-a",
+			ProviderCallsMade: 1, InputTokens: 12, OutputTokens: 4,
+			InputTokensProvenance: "provider", OutputTokensProvenance: "provider",
+			CostMicros: vision.ExactUsage("90071992547409931"), CostProvenance: "provider", CreditsCharged: vision.ExactUsage("17"), AccountingStatus: "settled",
+			Applied: &vision.InferenceAppliedSettings{MaxOutputTokensEffective: 321, MaxOutputTokensSource: "gateway", TemperatureSent: &temperature, TemperatureSupport: "supported"},
+		}}},
+	}
+
+	result := navigationStatusToProto(session)
+	require.Len(t, result.Steps, 1)
+	receipt := result.Steps[0].GetInferenceReceipt()
+	require.NotNil(t, receipt)
+	require.Equal(t, "operation-1", receipt.GetRootOperationId())
+	require.Equal(t, "vrooli-credits", receipt.GetSource())
+	require.Equal(t, "12", receipt.GetInputTokens())
+	require.Equal(t, "4", receipt.GetOutputTokens())
+	require.Equal(t, "90071992547409931", receipt.GetCostMicros())
+	require.Equal(t, "provider", receipt.GetInputTokensProvenance())
+	require.Equal(t, "provider", receipt.GetOutputTokensProvenance())
+	require.Equal(t, "provider", receipt.GetCostProvenance())
+	require.Equal(t, "17", receipt.GetCreditsCharged())
+	require.Equal(t, "settled", receipt.GetAccountingStatus())
+	require.Equal(t, int32(321), receipt.GetApplied().GetMaxOutputTokensEffective())
+	require.Equal(t, "gateway", receipt.GetApplied().GetMaxOutputTokensSource())
+	require.Equal(t, "supported", receipt.GetApplied().GetTemperatureSupport())
+	require.Equal(t, temperature, receipt.GetApplied().GetTemperatureSent())
 }

@@ -1,6 +1,7 @@
 package executionwriter
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -42,6 +43,120 @@ type purgeInventory struct {
 	WorkflowID       string                 `json:"workflow_id"`
 	Files            []purgeInventoryFile   `json:"files"`
 	ArtifactBindings []purgeArtifactBinding `json:"artifact_bindings"`
+}
+
+// ReadPurgeInventoryArtifactPaths reads writer-owned path references from an
+// already-open execution directory. Recovery uses this to avoid maintaining
+// a second, partial decoder for the writer's inventory contract.
+func ReadPurgeInventoryArtifactPaths(executionRoot *os.Root, executionID uuid.UUID) (map[string]struct{}, error) {
+	paths := make(map[string]struct{})
+	if executionRoot == nil || executionID == uuid.Nil {
+		return nil, fmt.Errorf("execution inventory read requires an open root and execution UUID")
+	}
+	info, err := executionRoot.Lstat(purgeInventoryFileName)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return paths, nil
+		}
+		return nil, fmt.Errorf("inspect execution artifact inventory: %w", err)
+	}
+	if !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 {
+		return nil, fmt.Errorf("execution artifact inventory is not a regular file")
+	}
+	file, err := executionRoot.Open(purgeInventoryFileName)
+	if err != nil {
+		return nil, fmt.Errorf("open execution artifact inventory: %w", err)
+	}
+	raw, readErr := io.ReadAll(file)
+	closeErr := file.Close()
+	if readErr != nil {
+		return nil, fmt.Errorf("read execution artifact inventory: %w", readErr)
+	}
+	if closeErr != nil {
+		return nil, fmt.Errorf("close execution artifact inventory: %w", closeErr)
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &fields); err != nil {
+		return nil, fmt.Errorf("decode execution artifact inventory: %w", err)
+	}
+	for _, required := range []string{"schema_version", "execution_id", "workflow_id", "files", "artifact_bindings"} {
+		if _, ok := fields[required]; !ok {
+			return nil, fmt.Errorf("execution artifact inventory is missing %s", required)
+		}
+	}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	var inventory purgeInventory
+	if err := decoder.Decode(&inventory); err != nil {
+		return nil, fmt.Errorf("decode execution artifact inventory: %w", err)
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		return nil, fmt.Errorf("decode execution artifact inventory: trailing content")
+	}
+	if inventory.SchemaVersion != "bas-execution-directory/v1" || inventory.ExecutionID != executionID.String() {
+		return nil, fmt.Errorf("execution artifact inventory identity is uncertain")
+	}
+	workflowID, err := uuid.Parse(inventory.WorkflowID)
+	if err != nil || workflowID == uuid.Nil {
+		return nil, fmt.Errorf("execution artifact inventory workflow identity is uncertain")
+	}
+	if inventory.Files == nil {
+		return nil, fmt.Errorf("execution artifact inventory file list is missing")
+	}
+	for _, entry := range inventory.Files {
+		path, err := validatedInventoryPath(entry.Path)
+		if err != nil {
+			return nil, err
+		}
+		if entry.Bytes < 0 || !validPurgeInventoryDigest(entry.SHA256) {
+			return nil, fmt.Errorf("execution artifact inventory file receipt is invalid")
+		}
+		paths[path] = struct{}{}
+	}
+	for _, binding := range inventory.ArtifactBindings {
+		if binding.ArtifactID == "" || binding.Bytes < 0 || !validPurgeInventoryDigest(binding.SHA256) {
+			return nil, fmt.Errorf("execution artifact inventory binding is invalid")
+		}
+		switch binding.Storage {
+		case "execution_file":
+			if binding.ObjectKey != "" {
+				return nil, fmt.Errorf("execution artifact inventory binding is ambiguous")
+			}
+			path, err := validatedInventoryPath(binding.Path)
+			if err != nil {
+				return nil, err
+			}
+			paths[path] = struct{}{}
+		case "external":
+			if binding.Path != "" || !executioninventory.IsExecutionObjectKey(binding.ObjectKey, executionID.String()) {
+				return nil, fmt.Errorf("execution artifact inventory external binding is invalid")
+			}
+		case "inline":
+			if binding.Path != "" || binding.ObjectKey != "" {
+				return nil, fmt.Errorf("execution artifact inventory inline binding is ambiguous")
+			}
+		default:
+			return nil, fmt.Errorf("execution artifact inventory binding storage is unknown")
+		}
+	}
+	return paths, nil
+}
+
+func validPurgeInventoryDigest(raw string) bool {
+	if len(raw) != sha256.Size*2 {
+		return false
+	}
+	_, err := hex.DecodeString(raw)
+	return err == nil
+}
+
+func validatedInventoryPath(raw string) (string, error) {
+	clean := filepath.ToSlash(filepath.Clean(filepath.FromSlash(raw)))
+	if raw == "" || strings.Contains(raw, `\`) || filepath.IsAbs(raw) || clean == "." || clean == ".." || strings.HasPrefix(clean, "../") || clean != raw {
+		return "", fmt.Errorf("execution artifact inventory path is invalid")
+	}
+	return clean, nil
 }
 
 // writePurgeInventory records the complete canonical directory file set after

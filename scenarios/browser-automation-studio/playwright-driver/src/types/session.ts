@@ -7,8 +7,45 @@ import type { PerformanceTracer, AccessibilitySnapshotter } from '../tracing';
 import type { AudioStrategy, HostAudioCapability } from '../session/audio';
 import type { BrowserCaptureDeviceEvidence } from '../session/audio/device-evidence';
 import type { DriverPageBindings } from '../session/page-bindings';
+import type { EffectiveIdentityEvidence } from '../session/identity-evidence';
+import type { AppMonitorTraceCapture } from '../tracing/app-monitor-capture';
 
 export type ReuseMode = 'fresh' | 'clean' | 'reuse';
+export type BrowserBackend = 'managed' | 'installed';
+
+/** API-resolved browser permission subset enforced again inside the driver. */
+export interface BrowserPermissionProfile {
+  /** Persisted Agent Manager profile identity copied by the BAS session owner. */
+  profile_id?: string;
+  profile_mode?: 'fresh' | 'isolated' | 'reuse' | 'user_attached' | 'remote';
+  effect: 'observe' | 'act' | 'unrestricted';
+  approval: 'none' | 'safety_pass' | 'every_action';
+  url_allow?: string[];
+  url_deny?: string[];
+  control?: boolean;
+  view?: boolean;
+  /** Explicit authority for reading browser history. */
+  history_read?: boolean;
+  /** True only for a managed session admitted to install scenario-built extensions. */
+  extension_install?: boolean;
+  /** True only for a managed session admitted to load an allowlisted extension. */
+  extension_load?: boolean;
+  /** True only for a managed session admitted to inspect extension metadata. */
+  extension_access?: boolean;
+  /** Explicit, narrow permission for App Monitor's fixed scalar metrics. */
+  app_monitor_metrics?: boolean;
+  /** Explicit, bounded permission for App Monitor's fixed sanitized trace. */
+  app_monitor_trace?: boolean;
+  app_monitor_trace_max_duration_ms?: number;
+  app_monitor_trace_max_bytes?: number;
+  /** Explicit extension IDs and permission/host match patterns approved for this lease. */
+  extension_permissions?: Record<string, string[]>;
+  /** Explicit Agent Manager run grant for microphone qualification. */
+  audio_mode?: 'fake_microphone' | 'pipewire_qualification';
+  /** Go time.Duration is encoded as integer nanoseconds. */
+  max_duration?: number;
+  max_actions?: number;
+}
 
 export interface SessionSpec {
   execution_id: string;
@@ -18,8 +55,12 @@ export interface SessionSpec {
     height: number;
   };
   reuse_mode: ReuseMode;
+  /** Trusted BAS-selected launch backend; installed requires configured executable path. */
+  browser_backend?: BrowserBackend;
   /** Stable BAS session-profile identity/revision; prevents cross-profile pooling. */
   session_profile_version?: string;
+  /** Immutable permission contract admitted for this session lease. */
+  permission_profile?: BrowserPermissionProfile;
   /** Preview bitmap scale, retained for this admitted lease. Defaults to CSS pixels. */
   frame_scale?: 'css' | 'device';
   /** Resolved preview stream configuration admitted with the current lease. */
@@ -89,7 +130,8 @@ export interface SessionSpec {
    * Defaults to 'allow' mode if not specified.
    */
   service_worker_control?: ServiceWorkerControl;
-  // Anti-detection and human-like behavior configuration
+  // Legacy signal-adjustment and interaction-timing configuration. No
+  // site-specific detection or access outcome is implied.
   browser_profile?: BrowserProfile;
   /**
    * Optional controlled Electron target supplied by scenario-to-desktop.
@@ -242,6 +284,8 @@ export interface SessionState {
   /** An admitted instruction remains reserved until its promise settles, even
    * if reset/close changes the lifecycle phase in the meantime. */
   instructionInFlight?: boolean;
+  /** Serializes extension lifecycle operations with browser instructions. */
+  extensionOperationInFlight?: boolean;
   /** Lifecycle teardown joins this before mutating or disposing browser state. */
   instructionSettlement?: Promise<void>;
   /** True when close interrupted an admitted operation; its effect is uncertain. */
@@ -254,6 +298,8 @@ export interface SessionState {
   leaseId: string;
   leaseReleasedAt?: Date;
   browser: Browser;
+  /** Identity facts captured by the owner before target navigation. */
+  identityEvidence?: EffectiveIdentityEvidence;
   /** True only for a session attached to a controlled external target. */
   externalTarget?: boolean;
   /** Audio delivery evidence selected for this session. */
@@ -297,6 +343,18 @@ export interface SessionState {
 
   /** SessionManager-owned runtime page stack and driver identity bindings. */
   pageBindings: DriverPageBindings;
+  /** Short-lived, current-page targets emitted only by the Broker accessibility observer. */
+  accessibilityReferenceTargets?: Map<
+    string,
+    {
+      selector: string;
+      pageId: string;
+      url: string;
+      expiresAt: number;
+      role?: string;
+      name?: string;
+    }
+  >;
 
   // Network mocking state
   activeMocks: Map<string, MockRoute>;
@@ -355,6 +413,9 @@ export interface SessionState {
    * it writes the CDP trace + web-vitals JSON into the perf artifact dir.
    */
   perfTracer?: PerformanceTracer;
+  /** One-shot, caller-authorized App Monitor trace capture. */
+  appMonitorTraceCapture?: AppMonitorTraceCapture;
+  appMonitorTraceCaptureId?: string;
 
   /**
    * Accessibility snapshotter for this session, present only when the session
@@ -394,7 +455,10 @@ export interface SessionMetrics {
 }
 
 /** API-resolved session configuration bound to the lease admitted for a start. */
-export type SessionOptions = Omit<SessionSpec, 'execution_id' | 'workflow_id' | 'frame_scale' | 'frame_streaming'> & {
+export type SessionOptions = Omit<
+  SessionSpec,
+  'execution_id' | 'workflow_id' | 'frame_scale' | 'frame_streaming'
+> & {
   frame_scale: 'css' | 'device';
   frame_streaming?: {
     url: string;
@@ -450,6 +514,8 @@ export interface StartSessionResponse {
    * May differ from requested dimensions due to browser profile fingerprint overrides.
    */
   actual_viewport?: ActualViewportResponse;
+  /** Owner-observed identity properties from the fresh, pre-navigation context. */
+  identity_evidence?: EffectiveIdentityEvidence;
   /** Present only for the opt-in PipeWire host-device qualification lane. */
   audio_device_evidence?: BrowserCaptureDeviceEvidence;
 }
@@ -516,6 +582,9 @@ export interface HealthResponse {
   /** Browser subsystem health */
   browser?: {
     healthy: boolean;
+    /** `reported` means version/family came from a currently connected browser. */
+    runtime_identity_status?: 'reported' | 'unavailable';
+    family?: 'chromium';
     version?: string;
     error?: string;
   };

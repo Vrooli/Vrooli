@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/internal/projectid"
 	"github.com/vrooli/browser-automation-studio/usecases/import/routines"
 	"github.com/vrooli/browser-automation-studio/usecases/import/shared"
 	basprojects "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/projects"
@@ -294,15 +295,7 @@ func (s *Service) Scan(ctx context.Context, req *ScanRequest) (*ScanResponse, er
 }
 
 func parseProjectID(raw string) (uuid.UUID, error) {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return uuid.UUID{}, fmt.Errorf("project_id is required")
-	}
-	id, err := uuid.Parse(raw)
-	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("invalid project_id")
-	}
-	return id, nil
+	return projectid.Parse(raw)
 }
 
 func resolveHomeDir() string {

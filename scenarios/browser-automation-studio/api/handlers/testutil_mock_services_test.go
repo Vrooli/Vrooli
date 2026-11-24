@@ -925,7 +925,7 @@ func (m *MockRecordModeService) StopRecording(ctx context.Context, sessionID str
 	}, nil
 }
 
-func (m *MockDriverClient) GetRecordingStatus(ctx context.Context, sessionID string) (*driver.RecordingStatusResponse, error) {
+func (m *MockDriverClient) GetRecordingStatus(ctx context.Context, sessionID, executionID, leaseID string) (*driver.RecordingStatusResponse, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -943,7 +943,7 @@ func (m *MockDriverClient) GetRecordingStatus(ctx context.Context, sessionID str
 	}, nil
 }
 
-func (m *MockDriverClient) GetRecordedActions(ctx context.Context, sessionID string) (*driver.GetActionsResponse, error) {
+func (m *MockDriverClient) GetRecordedActions(ctx context.Context, sessionID, executionID, leaseID string) (*driver.GetActionsResponse, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.GetRecordedActionsCalled = true
@@ -1015,7 +1015,7 @@ func (m *MockDriverClient) UpdateViewport(ctx context.Context, sessionID, execut
 	}, nil
 }
 
-func (m *MockDriverClient) UpdateStreamSettings(ctx context.Context, sessionID string, req *driver.UpdateStreamSettingsRequest) (*driver.UpdateStreamSettingsResponse, error) {
+func (m *MockDriverClient) UpdateStreamSettings(ctx context.Context, sessionID, executionID, leaseID string, req *driver.UpdateStreamSettingsRequest) (*driver.UpdateStreamSettingsResponse, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -1046,7 +1046,7 @@ func (m *MockDriverClient) UpdateStreamSettings(ctx context.Context, sessionID s
 	}, nil
 }
 
-func (m *MockDriverClient) ValidateSelector(ctx context.Context, sessionID string, req *driver.ValidateSelectorRequest) (*driver.ValidateSelectorResponse, error) {
+func (m *MockDriverClient) ValidateSelector(ctx context.Context, sessionID, executionID, leaseID string, req *driver.ValidateSelectorRequest) (*driver.ValidateSelectorResponse, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -1063,7 +1063,7 @@ func (m *MockDriverClient) ValidateSelector(ctx context.Context, sessionID strin
 	}, nil
 }
 
-func (m *MockDriverClient) ReplayPreview(ctx context.Context, sessionID string, req *driver.ReplayPreviewRequest) (*driver.ReplayPreviewResponse, error) {
+func (m *MockDriverClient) ReplayPreview(ctx context.Context, sessionID, executionID, leaseID string, req *driver.ReplayPreviewRequest) (*driver.ReplayPreviewResponse, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -1082,7 +1082,7 @@ func (m *MockDriverClient) ReplayPreview(ctx context.Context, sessionID string, 
 	}, nil
 }
 
-func (m *MockDriverClient) CaptureScreenshot(ctx context.Context, sessionID string, req *driver.CaptureScreenshotRequest) (*driver.CaptureScreenshotResponse, error) {
+func (m *MockDriverClient) CaptureScreenshot(ctx context.Context, sessionID, executionID, leaseID string, req *driver.CaptureScreenshotRequest) (*driver.CaptureScreenshotResponse, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -1097,7 +1097,7 @@ func (m *MockDriverClient) CaptureScreenshot(ctx context.Context, sessionID stri
 	}, nil
 }
 
-func (m *MockDriverClient) GetFrame(ctx context.Context, sessionID, queryParams string) (*driver.GetFrameResponse, error) {
+func (m *MockDriverClient) GetFrame(ctx context.Context, sessionID, executionID, leaseID, queryParams string) (*driver.GetFrameResponse, error) {
 	if m.GetFrameFunc != nil {
 		return m.GetFrameFunc(ctx, sessionID, queryParams)
 	}
@@ -1192,31 +1192,31 @@ func (m *MockRecordModeService) MockClient() *MockDriverClient {
 }
 
 func (m *MockRecordModeService) GetRecordingStatus(ctx context.Context, id string) (*driver.RecordingStatusResponse, error) {
-	return m.mockDriverClient.GetRecordingStatus(ctx, id)
+	return m.mockDriverClient.GetRecordingStatus(ctx, id, "owner", "lease")
 }
 
 func (m *MockRecordModeService) GetRecordedActions(ctx context.Context, id string) (*driver.GetActionsResponse, error) {
-	return m.mockDriverClient.GetRecordedActions(ctx, id)
+	return m.mockDriverClient.GetRecordedActions(ctx, id, "owner", "lease")
 }
 
 func (m *MockRecordModeService) CaptureScreenshot(ctx context.Context, id string, req *driver.CaptureScreenshotRequest) (*driver.CaptureScreenshotResponse, error) {
-	return m.mockDriverClient.CaptureScreenshot(ctx, id, req)
+	return m.mockDriverClient.CaptureScreenshot(ctx, id, "owner", "lease", req)
 }
 
 func (m *MockRecordModeService) UpdateStreamSettings(ctx context.Context, id string, req *driver.UpdateStreamSettingsRequest) (*driver.UpdateStreamSettingsResponse, error) {
-	return m.mockDriverClient.UpdateStreamSettings(ctx, id, req)
+	return m.mockDriverClient.UpdateStreamSettings(ctx, id, "mock-execution", "mock-lease", req)
 }
 
 func (m *MockRecordModeService) GetFrame(ctx context.Context, id, query string) (*driver.GetFrameResponse, error) {
-	return m.mockDriverClient.GetFrame(ctx, id, query)
+	return m.mockDriverClient.GetFrame(ctx, id, "owner", "lease", query)
 }
 
 func (m *MockRecordModeService) ValidateSelector(ctx context.Context, id string, req *driver.ValidateSelectorRequest) (*driver.ValidateSelectorResponse, error) {
-	return m.mockDriverClient.ValidateSelector(ctx, id, req)
+	return m.mockDriverClient.ValidateSelector(ctx, id, "mock-execution", "mock-lease", req)
 }
 
 func (m *MockRecordModeService) ReplayPreview(ctx context.Context, id string, req *driver.ReplayPreviewRequest) (*driver.ReplayPreviewResponse, error) {
-	return m.mockDriverClient.ReplayPreview(ctx, id, req)
+	return m.mockDriverClient.ReplayPreview(ctx, id, "mock-execution", "mock-lease", req)
 }
 
 func (m *MockRecordModeService) GetRecordingDebug(context.Context, string) (*http.Response, error) {

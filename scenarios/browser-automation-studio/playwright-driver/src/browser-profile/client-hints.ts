@@ -2,8 +2,8 @@
  * Client Hints Module
  *
  * Generates Client Hints headers (sec-ch-ua) to match user agent strings.
- * Client Hints are sent by Chromium-based browsers and their absence or
- * mismatch with the User-Agent is a strong bot detection signal.
+ * Client Hints are sent by Chromium-based browsers and can be compared with
+ * the User-Agent. No site-specific detection effect is implied here.
  */
 
 /**

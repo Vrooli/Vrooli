@@ -87,12 +87,21 @@ func TestNavigationSession_SetStatus_WakesSnapshotWaiters(t *testing.T) {
 
 func TestNavigationSession_Snapshot_IsolatesSteps(t *testing.T) {
 	live := &NavigationSession{}
-	live.RecordStep(NavigationStepRecord{ActionType: "click"})
+	temperature := 0.25
+	live.RecordStep(NavigationStepRecord{ActionType: "click", InferenceReceipt: &InferenceReceipt{
+		RootOperationID: "operation-1", CostMicros: ExactUsage("90071992547409931"),
+		Applied: &InferenceAppliedSettings{TemperatureSent: &temperature},
+	}})
 	snap := live.Snapshot()
 	live.RecordStep(NavigationStepRecord{ActionType: "type"})
 	live.Steps[0].ActionType = "mutated"
+	live.Steps[0].InferenceReceipt.CostMicros = ExactUsage("99")
+	*live.Steps[0].InferenceReceipt.Applied.TemperatureSent = 0.75
 	if len(snap.Steps) != 1 || snap.Steps[0].ActionType != "click" {
 		t.Errorf("snapshot leaked live mutations: %+v", snap.Steps)
+	}
+	if snap.Steps[0].InferenceReceipt.CostMicros != ExactUsage("90071992547409931") || *snap.Steps[0].InferenceReceipt.Applied.TemperatureSent != 0.25 {
+		t.Errorf("snapshot aliased mutable Gateway receipt: %+v", snap.Steps[0].InferenceReceipt)
 	}
 }
 

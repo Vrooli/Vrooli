@@ -40,7 +40,7 @@ func TestRecordingTimelineEntryPreservesRecordingContext(t *testing.T) {
 	action := &driver.RecordedAction{
 		ID: "recorded-1", SessionID: "session-7", SequenceNum: 3,
 		Timestamp: "2026-10-01T08:00:00Z", DurationMs: 15, ActionType: "navigate",
-		Confidence: 0.91, URL: "https://example.test", FrameID: "main",
+		Confidence: 0.91, URL: "https://example.test", FrameID: "child-frame", FramePath: []string{"#app-frame", "#payment-frame"},
 		Payload:     map[string]any{"targetUrl": "https://target.test"},
 		Selector:    &driver.SelectorSet{Primary: "#go", Candidates: []driver.SelectorCandidate{{Type: "css", Value: "#go", Confidence: 0.91, Specificity: 8}}},
 		ElementMeta: &driver.ElementMeta{TagName: "button", ID: "go", AriaLabel: "Go"},
@@ -57,7 +57,8 @@ func TestRecordingTimelineEntryPreservesRecordingContext(t *testing.T) {
 	require.Len(t, entry.Action.Metadata.SelectorCandidates, 1)
 	assert.Equal(t, "#go", entry.Action.Metadata.SelectorCandidates[0].Value)
 	assert.Equal(t, "https://example.test", entry.Telemetry.Url)
-	assert.Equal(t, "main", *entry.Telemetry.FrameId)
+	assert.Equal(t, "child-frame", *entry.Telemetry.FrameId)
+	assert.Equal(t, []string{"#app-frame", "#payment-frame"}, entry.Telemetry.FramePath)
 	assert.Equal(t, float64(1), entry.Telemetry.ElementBoundingBox.X)
 	assert.Equal(t, float64(2), entry.Telemetry.CursorPosition.X)
 	assert.Equal(t, "session-7", entry.Context.GetSessionId())

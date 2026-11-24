@@ -11,6 +11,7 @@ import type {
   ConversationMessage,
   GatewayProfile,
   TokenUsage,
+  InferenceReceipt,
   VisionAnalysisRequest,
   VisionAnalysisResponse,
   VisionModelClient,
@@ -37,19 +38,42 @@ export interface AIGatewayVisionClientConfig {
   aiSource?: 'local' | 'own-key' | 'vrooli-credits';
   /** Opaque source-scoped receipt issued by BAS consent UI/API. */
   privacyConsentGrant?: string;
+  /** Server-resolved BAS/AM binding for an active browser run. */
+  browserSession?: BrowserInferenceSessionBinding;
+}
+
+export interface BrowserInferenceSessionBinding {
+  runId: string;
+  sessionId: string;
+  grantReceipt: string;
+  reservationId?: string;
 }
 
 interface GatewayUsage {
   inputTokens?: number | string;
   outputTokens?: number | string;
+  costMicros?: number | string;
+  creditsCharged?: number | string;
+  accountingStatus?: string;
+  inputTokensProvenance?: string;
+  outputTokensProvenance?: string;
+  costProvenance?: string;
 }
 
 interface GatewayResponse {
   valueJson?: string;
+  billingOperationId?: string;
   usage?: GatewayUsage;
   provider?: string;
   model?: string;
   validated?: boolean;
+  providerCallsMade?: number;
+  applied?: {
+    temperatureSent?: number;
+    temperatureSupport?: string;
+    maxOutputTokensEffective?: number;
+    maxOutputTokensSource?: string;
+  };
   error?: {
     code?: string;
     message?: string;
@@ -81,6 +105,7 @@ interface GatewayRunRequest {
   privacyClass: 'PRIVACY_CLASS_CONFIDENTIAL';
   privacyProvenance: string;
   rootOperationId: string;
+  browserSession?: BrowserInferenceSessionBinding;
 }
 
 function routeSpec(profile: GatewayProfile): VisionModelSpec {
@@ -109,6 +134,11 @@ export function normalizeGatewayProfile(value?: string): GatewayProfile {
 function parseUsage(value: number | string | undefined): number {
   const parsed = typeof value === 'string' ? Number.parseInt(value, 10) : (value ?? 0);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+}
+
+function optionalExactUsage(value: number | string | undefined): number | string | undefined {
+  if (typeof value === 'string') return /^\d+$/.test(value) ? value : undefined;
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : undefined;
 }
 
 function detectMediaType(image: Buffer): string {
@@ -312,6 +342,7 @@ export class AIGatewayVisionClient implements VisionModelClient {
   private readonly authorization?: string;
   private readonly aiSource: 'local' | 'own-key' | 'vrooli-credits';
   private readonly privacyConsentGrant?: string;
+  private readonly browserSession?: BrowserInferenceSessionBinding;
 
   constructor(config: AIGatewayVisionClientConfig = {}) {
     this.gatewayUrl = (config.gatewayUrl ?? process.env.AI_GATEWAY_URL ?? '').replace(/\/$/, '');
@@ -323,6 +354,7 @@ export class AIGatewayVisionClient implements VisionModelClient {
     this.authorization = config.authorization;
     this.aiSource = config.aiSource ?? 'local';
     this.privacyConsentGrant = config.privacyConsentGrant;
+    this.browserSession = config.browserSession ? { ...config.browserSession } : undefined;
   }
 
   async analyze(request: VisionAnalysisRequest): Promise<VisionAnalysisResponse> {
@@ -330,12 +362,13 @@ export class AIGatewayVisionClient implements VisionModelClient {
       source: 'Browser Automation Studio vision navigation',
       schemaJson: ACTION_SCHEMA,
       instruction: gatewayInstruction(),
-      role: DEFAULT_ROLE,
+      role: this.browserSession ? 'browser.extract' : DEFAULT_ROLE,
       turns: buildTurns(request),
       profile: this.profile === 'remote_only' ? 'PROFILE_REMOTE_ONLY' : 'PROFILE_LOCAL_FIRST',
       privacyClass: 'PRIVACY_CLASS_CONFIDENTIAL',
       privacyProvenance: 'browser_automation_studio.vision_navigation',
       rootOperationId: request.operationId,
+      ...(this.browserSession ? { browserSession: { ...this.browserSession } } : {}),
     };
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
@@ -364,10 +397,18 @@ export class AIGatewayVisionClient implements VisionModelClient {
       }
       if (payload.error?.message) {
         const uncertain = payload.error.code === 'INFERENCE_ERROR_CODE_OUTCOME_UNCERTAIN';
+        const noEligibleRoute = payload.error.code === 'INFERENCE_ERROR_CODE_NO_ELIGIBLE_ROUTE';
+        const message = noEligibleRoute
+          ? payload.error.message
+          : `${payload.error.message}; root_operation_id=${request.operationId}`;
         throw new VisionModelError(
-          `${payload.error.message}; root_operation_id=${request.operationId}`,
-          uncertain ? 'OUTCOME_UNCERTAIN' : 'MODEL_UNAVAILABLE',
-          !uncertain
+          message,
+          uncertain
+            ? 'OUTCOME_UNCERTAIN'
+            : noEligibleRoute
+              ? 'NO_ELIGIBLE_ROUTE'
+              : 'MODEL_UNAVAILABLE',
+          !uncertain && !noEligibleRoute
         );
       }
       if (!payload.validated || !payload.valueJson) {
@@ -376,6 +417,16 @@ export class AIGatewayVisionClient implements VisionModelClient {
           'PARSE_ERROR'
         );
       }
+      if (this.browserSession && payload.billingOperationId) {
+        if (this.browserSession.reservationId && this.browserSession.reservationId !== payload.billingOperationId) {
+          throw new VisionModelError(
+            'AI Gateway returned a different LPBS session reservation; stop and reconcile this root operation',
+            'OUTCOME_UNCERTAIN',
+            false
+          );
+        }
+        this.browserSession.reservationId = payload.billingOperationId;
+      }
       const value = decodeValue(payload.valueJson);
       const tokensUsed: TokenUsage = {
         promptTokens: parseUsage(payload.usage?.inputTokens),
@@ -383,7 +434,24 @@ export class AIGatewayVisionClient implements VisionModelClient {
         totalTokens:
           parseUsage(payload.usage?.inputTokens) + parseUsage(payload.usage?.outputTokens),
       };
-      return { ...value, tokensUsed, rawResponse: payload.valueJson };
+      const inferenceReceipt: InferenceReceipt = {
+        rootOperationId: request.operationId,
+        billingOperationId: payload.billingOperationId,
+        source: this.aiSource,
+        providerCallsMade: payload.providerCallsMade,
+        provider: payload.provider,
+        model: payload.model,
+        inputTokens: tokensUsed.promptTokens,
+        outputTokens: tokensUsed.completionTokens,
+        inputTokensProvenance: payload.usage?.inputTokensProvenance,
+        outputTokensProvenance: payload.usage?.outputTokensProvenance,
+        costMicros: optionalExactUsage(payload.usage?.costMicros),
+        costProvenance: payload.usage?.costProvenance,
+        creditsCharged: optionalExactUsage(payload.usage?.creditsCharged),
+        accountingStatus: payload.usage?.accountingStatus,
+        applied: payload.applied,
+      };
+      return { ...value, tokensUsed, inferenceReceipt, rawResponse: payload.valueJson };
     } catch (error) {
       if (error instanceof VisionModelError) throw error;
       if (error instanceof Error && error.name === 'AbortError') {

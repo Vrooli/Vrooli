@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	corestorage "github.com/vrooli/api-core/storage"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
 	basprojects "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/projects"
@@ -99,12 +100,8 @@ func persistProjectProto(project *database.ProjectIndex, description string) err
 	}
 
 	target := projectMetadataPath(project.FolderPath)
-	tmp := target + ".tmp"
-	if err := os.WriteFile(tmp, indented, 0o644); err != nil {
-		return fmt.Errorf("write project metadata tmp: %w", err)
-	}
-	if err := os.Rename(tmp, target); err != nil {
-		return fmt.Errorf("finalize project metadata: %w", err)
+	if err := corestorage.WriteFileAtomic(target, indented, 0o644); err != nil {
+		return fmt.Errorf("write project metadata: %w", err)
 	}
 	return nil
 }

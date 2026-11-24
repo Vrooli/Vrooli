@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,6 +13,7 @@ import (
 	"time"
 
 	"github.com/vrooli/browser-automation-studio/services/media"
+	"github.com/vrooli/browser-automation-studio/storage"
 )
 
 // ConvertRecordedMedia owns its temporary conversion and preserves original bytes.
@@ -106,14 +106,15 @@ func validateRecordedMedia(ctx context.Context, input string) error {
 	}
 	var header [512]byte
 	n, readErr := file.Read(header[:])
-	closeErr := file.Close()
 	if readErr != nil && readErr != io.EOF {
+		_ = file.Close()
 		return readErr
 	}
+	closeErr := file.Close()
 	if closeErr != nil {
 		return closeErr
 	}
-	detected := http.DetectContentType(header[:n])
+	detected := storage.SniffContentType(bytes.NewReader(header[:n]))
 	extension := strings.ToLower(filepath.Ext(input))
 	if extension == ".mp4" && detected != "video/mp4" || extension == ".webm" && detected != "video/webm" {
 		return fmt.Errorf("recorded container does not match %s source extension", extension)

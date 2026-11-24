@@ -1,11 +1,19 @@
 package driver
 
 import (
+	"bytes"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
+	"image"
+	_ "image/jpeg"
+	_ "image/png"
 	"io"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/internal/sessionpermission"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 )
@@ -56,6 +64,33 @@ type ActualViewport struct {
 	Height int            `json:"height"`
 	Source ViewportSource `json:"source"`
 	Reason string         `json:"reason"`
+}
+
+// IdentityDimensionEvidence keeps the run-scoped request, page-visible
+// observation, and verified effective value separate. Effective is present
+// only when the owner observed a value consistent with its configuration.
+type IdentityDimensionEvidence struct {
+	Configured any    `json:"configured,omitempty"`
+	Observed   any    `json:"observed,omitempty"`
+	Effective  any    `json:"effective,omitempty"`
+	Status     string `json:"status"`
+	Source     string `json:"source"`
+	Reason     string `json:"reason,omitempty"`
+}
+
+// IdentityEvidence is captured by Playwright's existing session owner before
+// target navigation. Engine and version come directly from the owner; page
+// properties come from the blank page in the exact admitted context.
+type IdentityEvidence struct {
+	Engine            string                    `json:"engine"`
+	EngineVersion     string                    `json:"engine_version"`
+	EngineSource      string                    `json:"engine_source"`
+	UserAgent         IdentityDimensionEvidence `json:"user_agent"`
+	Locale            IdentityDimensionEvidence `json:"locale"`
+	Timezone          IdentityDimensionEvidence `json:"timezone"`
+	ColorScheme       IdentityDimensionEvidence `json:"color_scheme"`
+	DeviceScaleFactor IdentityDimensionEvidence `json:"device_scale_factor"`
+	Viewport          IdentityDimensionEvidence `json:"viewport"`
 }
 
 // FrameStreamingConfig configures live frame streaming for recording mode.
@@ -147,10 +182,11 @@ type CreateSessionRequest struct {
 // SessionOptions is the API-resolved, session-scoped configuration admitted
 // with a browser lease. Process/server settings remain in driver config.
 type SessionOptions struct {
-	Viewport   Viewport          `json:"viewport"`
-	ReuseMode  string            `json:"reuse_mode"`
-	FrameScale string            `json:"frame_scale"`
-	Labels     map[string]string `json:"labels,omitempty"`
+	Viewport       Viewport          `json:"viewport"`
+	BrowserBackend string            `json:"browser_backend,omitempty"`
+	ReuseMode      string            `json:"reuse_mode"`
+	FrameScale     string            `json:"frame_scale"`
+	Labels         map[string]string `json:"labels,omitempty"`
 	// SessionProfileVersion binds label-pooled contexts to a profile identity and revision.
 	SessionProfileVersion string `json:"session_profile_version,omitempty"`
 
@@ -169,7 +205,8 @@ type SessionOptions struct {
 	// Execution mode - artifact storage paths
 	ArtifactPaths *ArtifactPaths `json:"artifact_paths,omitempty"`
 
-	// Browser profile for anti-detection and human-like behavior
+	// Browser profile carrying requested signal and interaction settings; it
+	// does not establish site-specific detection or access outcomes.
 	BrowserProfile *sessionprofilepersistence.BrowserProfile `json:"browser_profile,omitempty"`
 
 	// Execution mode - deterministic fake media devices
@@ -177,8 +214,14 @@ type SessionOptions struct {
 
 	// Electron validation mode attaches to an existing target instead of
 	// launching a second browser.
-	AppTarget         *AppTarget         `json:"app_target,omitempty"`
-	ValidationContext *ValidationContext `json:"validation_context,omitempty"`
+	AppTarget                 *AppTarget                 `json:"app_target,omitempty"`
+	ValidationContext         *ValidationContext         `json:"validation_context,omitempty"`
+	PermissionProfile         *sessionpermission.Profile `json:"permission_profile,omitempty"`
+	Permissions               []string                   `json:"permissions,omitempty"`
+	AudioDeviceEvidence       bool                       `json:"audio_device_evidence,omitempty"`
+	AudioPlaybackPauseMS      int                        `json:"audio_playback_pause_ms,omitempty"`
+	AudioPlaybackStartDelayMS int                        `json:"audio_playback_start_delay_ms,omitempty"`
+	AudioPlaybackDeferStart   bool                       `json:"audio_playback_defer_start,omitempty"`
 }
 
 // FakeMediaConfig requests deterministic fake capture devices for a session.
@@ -205,11 +248,22 @@ func CreateSessionRequestFromUUID(executionID, workflowID uuid.UUID) *CreateSess
 
 // CreateSessionResponse is the response from creating a session.
 type CreateSessionResponse struct {
-	ActivePageID            string          `json:"active_page_id"`
-	LastInstructionSequence uint64          `json:"last_instruction_sequence"`
-	SessionID               string          `json:"session_id"`
-	LeaseID                 string          `json:"lease_id"`
-	ActualViewport          *ActualViewport `json:"actual_viewport,omitempty"`
+	ActivePageID            string               `json:"active_page_id"`
+	LastInstructionSequence uint64               `json:"last_instruction_sequence"`
+	SessionID               string               `json:"session_id"`
+	LeaseID                 string               `json:"lease_id"`
+	ActualViewport          *ActualViewport      `json:"actual_viewport,omitempty"`
+	IdentityEvidence        *IdentityEvidence    `json:"identity_evidence,omitempty"`
+	AudioDeviceEvidence     *AudioDeviceEvidence `json:"audio_device_evidence,omitempty"`
+}
+
+// AudioDeviceEvidence is metadata observed by the BAS driver when the
+// Agent-Manager-granted PipeWire qualification mode is requested.
+type AudioDeviceEvidence struct {
+	Enumerated    bool   `json:"enumerated"`
+	SelectedLabel string `json:"selectedLabel"`
+	SampleRate    int    `json:"sampleRate"`
+	ChannelCount  int    `json:"channelCount"`
 }
 
 // StartRecordingRequest is the request to start recording user actions.
@@ -397,7 +451,9 @@ type UpdateViewportResponse struct {
 
 // ValidateSelectorRequest is the request to validate a selector.
 type ValidateSelectorRequest struct {
-	Selector string `json:"selector"`
+	Selector    string `json:"selector"`
+	ExecutionID string `json:"execution_id,omitempty"`
+	LeaseID     string `json:"lease_id,omitempty"`
 }
 
 // ValidateSelectorResponse is the response from selector validation.
@@ -414,6 +470,8 @@ type ReplayPreviewRequest struct {
 	Limit         *int             `json:"limit,omitempty"`
 	StopOnFailure *bool            `json:"stop_on_failure,omitempty"`
 	ActionTimeout *int             `json:"action_timeout,omitempty"`
+	ExecutionID   string           `json:"execution_id,omitempty"`
+	LeaseID       string           `json:"lease_id,omitempty"`
 }
 
 // ActionResult represents the result of a single replayed action.
@@ -436,10 +494,12 @@ type ReplayPreviewResponse struct {
 
 // UpdateStreamSettingsRequest is the request to update stream settings.
 type UpdateStreamSettingsRequest struct {
-	Quality  *int   `json:"quality,omitempty"`
-	FPS      *int   `json:"fps,omitempty"`
-	Scale    string `json:"scale,omitempty"`
-	PerfMode *bool  `json:"perfMode,omitempty"`
+	Quality     *int   `json:"quality,omitempty"`
+	FPS         *int   `json:"fps,omitempty"`
+	Scale       string `json:"scale,omitempty"`
+	PerfMode    *bool  `json:"perfMode,omitempty"`
+	ExecutionID string `json:"execution_id,omitempty"`
+	LeaseID     string `json:"lease_id,omitempty"`
 }
 
 // UpdateStreamSettingsResponse is the response from updating stream settings.
@@ -457,8 +517,13 @@ type UpdateStreamSettingsResponse struct {
 
 // CaptureScreenshotRequest is the request to capture a screenshot.
 type CaptureScreenshotRequest struct {
-	Format  string `json:"format,omitempty"`
-	Quality int    `json:"quality,omitempty"`
+	ExecutionID string `json:"execution_id,omitempty"`
+	LeaseID     string `json:"lease_id,omitempty"`
+	Format      string `json:"format,omitempty"`
+	Quality     int    `json:"quality,omitempty"`
+	TestID      string `json:"test_id,omitempty"`
+	WaitUntil   string `json:"wait_until,omitempty"`
+	SettleMs    int    `json:"settle_ms,omitempty"`
 }
 
 // CaptureScreenshotResponse is the response from capturing a screenshot.
@@ -468,6 +533,56 @@ type CaptureScreenshotResponse struct {
 	Width      int    `json:"width"`
 	Height     int    `json:"height"`
 	CapturedAt string `json:"captured_at"`
+}
+
+// UnmarshalJSON normalizes the Playwright driver's historical data-URI
+// `screenshot` response to the typed Agent Access screenshot contract.
+func (r *CaptureScreenshotResponse) UnmarshalJSON(data []byte) error {
+	type wire CaptureScreenshotResponse
+	var payload struct {
+		wire
+		Screenshot string `json:"screenshot"`
+	}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return err
+	}
+	*r = CaptureScreenshotResponse(payload.wire)
+	encoded := r.Data
+	if encoded == "" {
+		encoded = payload.Screenshot
+	}
+	if strings.HasPrefix(encoded, "data:") {
+		header, body, ok := strings.Cut(encoded, ",")
+		if !ok || !strings.Contains(header, ";base64") {
+			return errors.New("driver screenshot data URI is invalid")
+		}
+		if r.MediaType == "" {
+			mediaType := strings.TrimPrefix(header, "data:")
+			r.MediaType, _, _ = strings.Cut(mediaType, ";")
+		}
+		encoded = body
+	}
+	if r.MediaType != "" && r.MediaType != "image/png" && r.MediaType != "image/jpeg" {
+		return errors.New("driver screenshot media type is unsupported")
+	}
+	if encoded != "" {
+		decoded, err := base64.StdEncoding.DecodeString(encoded)
+		if err != nil {
+			return errors.New("driver screenshot payload is not base64")
+		}
+		if r.Width <= 0 || r.Height <= 0 {
+			if config, _, err := image.DecodeConfig(bytes.NewReader(decoded)); err == nil {
+				if r.Width <= 0 {
+					r.Width = config.Width
+				}
+				if r.Height <= 0 {
+					r.Height = config.Height
+				}
+			}
+		}
+	}
+	r.Data = encoded
+	return nil
 }
 
 // FrameSource is the immutable driver ownership receipt captured with a frame.

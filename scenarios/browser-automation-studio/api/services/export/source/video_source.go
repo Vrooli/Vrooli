@@ -145,14 +145,6 @@ func videoFromArtifactContext(ctx context.Context, artifact executionwriter.Arti
 			}
 			if source != nil {
 				source.ArtifactID = artifact.ArtifactID
-				source.SHA256 = artifact.SHA256
-				source.SizeBytes = artifact.SizeBytes
-				if err := completeSourceReceipt(ctx, source); err != nil {
-					if source.Cleanup != nil {
-						source.Cleanup()
-					}
-					return nil, err
-				}
 				return source, nil
 			}
 		}
@@ -212,6 +204,68 @@ func videoFromArtifactContext(ctx context.Context, artifact executionwriter.Arti
 }
 
 const maxRecordingBytes int64 = 512 * 1024 * 1024
+
+type videoCopyReceipt struct {
+	SizeBytes int64
+	SHA256    string
+}
+
+var errVideoSourceTooLarge = errors.New("recording exceeds 512 MiB copy budget")
+
+// copyVideoSource owns bounded video materialization and computes the receipt
+// from the same bytes written to the private destination. The storage package
+// owns stream transfer and destination close; callers own path creation and
+// failed-path cleanup.
+func copyVideoSource(ctx context.Context, reader io.Reader, output *os.File) (videoCopyReceipt, error) {
+	return copyVideoSourceLimit(ctx, reader, output, maxRecordingBytes)
+}
+
+func copyVideoSourceLimit(ctx context.Context, reader io.Reader, output *os.File, limit int64) (videoCopyReceipt, error) {
+	hash := sha256.New()
+	size, err := storage.CopyReaderToOpenFile(
+		&cancelReader{ctx: ctx, reader: io.TeeReader(io.LimitReader(reader, limit+1), hash)},
+		output,
+	)
+	if err != nil {
+		return videoCopyReceipt{}, err
+	}
+	if err := ctx.Err(); err != nil {
+		return videoCopyReceipt{}, err
+	}
+	if size > limit {
+		return videoCopyReceipt{}, errVideoSourceTooLarge
+	}
+	if size == 0 {
+		return videoCopyReceipt{}, errors.New("recording must be a nonempty regular file within 512 MiB budget")
+	}
+	return videoCopyReceipt{SizeBytes: size, SHA256: hex.EncodeToString(hash.Sum(nil))}, nil
+}
+
+func validateVideoCopyFile(ctx context.Context, path string, receipt videoCopyReceipt) error {
+	file, err := openRegularRecording(ctx, path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return err
+	}
+	if info.Size() != receipt.SizeBytes {
+		return errors.New("materialized recording size differs from copied bytes")
+	}
+	return nil
+}
+
+func validateVideoCopyReceipt(receipt videoCopyReceipt, expectedHash string, expectedSize *int64) error {
+	if expectedSize != nil && receipt.SizeBytes != *expectedSize {
+		return errors.New("recorded artifact size differs from source bytes")
+	}
+	if expectedHash != "" && !strings.EqualFold(expectedHash, receipt.SHA256) {
+		return errors.New("recorded artifact hash differs from source bytes")
+	}
+	return nil
+}
 
 func completeSourceReceipt(ctx context.Context, source *VideoSource) error {
 	if source == nil || strings.TrimSpace(source.Path) == "" {
@@ -375,22 +429,27 @@ func downloadVideoFromStorage(parent context.Context, store storage.StorageInter
 	if err != nil {
 		return nil, err
 	}
-	if written, err := io.Copy(file, &cancelReader{ctx: ctx, reader: io.LimitReader(reader, maxRecordingBytes+1)}); err != nil || written > maxRecordingBytes {
-		if err == nil {
-			err = fmt.Errorf("recording exceeds 512 MiB budget")
-		}
-		_ = file.Close()
+	receipt, err := copyVideoSource(ctx, reader, file)
+	if errors.Is(err, errVideoSourceTooLarge) {
+		err = fmt.Errorf("recording exceeds 512 MiB budget")
+	}
+	if err == nil {
+		err = validateVideoCopyReceipt(receipt, artifact.SHA256, artifact.SizeBytes)
+	}
+	if err == nil {
+		err = validateVideoCopyFile(ctx, file.Name(), receipt)
+	}
+	if err != nil {
 		_ = os.Remove(file.Name())
 		return nil, err
 	}
-	if err := file.Close(); err != nil {
-		_ = os.Remove(file.Name())
-		return nil, err
-	}
+	size := receipt.SizeBytes
 
 	return &VideoSource{
 		Path:        file.Name(),
 		ContentType: contentType,
+		SHA256:      receipt.SHA256,
+		SizeBytes:   &size,
 		Cleanup:     func() { _ = os.Remove(file.Name()) },
 	}, nil
 }
@@ -407,6 +466,15 @@ func firstNonEmptyString(values ...string) string {
 // FreezeVideoSource copies verified bytes into a unique execution-owned directory.
 // Rendering never rereads a mutable original after its provenance was recorded.
 func FreezeVideoSource(ctx context.Context, original *VideoSource, assetsDir string) (*VideoSource, error) {
+	if original == nil {
+		return nil, errors.New("video source is required")
+	}
+	expected := *original
+	if expected.SHA256 == "" || expected.SizeBytes == nil {
+		if err := completeSourceReceipt(ctx, &expected); err != nil {
+			return nil, err
+		}
+	}
 	if err := os.MkdirAll(assetsDir, 0700); err != nil {
 		return nil, err
 	}
@@ -427,21 +495,25 @@ func FreezeVideoSource(ctx context.Context, original *VideoSource, assetsDir str
 		cleanup()
 		return nil, err
 	}
-	written, copyErr := io.Copy(output, &cancelReader{ctx: ctx, reader: io.LimitReader(input, maxRecordingBytes+1)})
-	err = errors.Join(copyErr, output.Close())
-	if err != nil || written > maxRecordingBytes {
+	receipt, err := copyVideoSource(ctx, input, output)
+	if errors.Is(err, errVideoSourceTooLarge) {
+		err = errors.New("recording exceeds 512 MiB freeze budget")
+	}
+	if err == nil {
+		err = validateVideoCopyReceipt(receipt, expected.SHA256, expected.SizeBytes)
+	}
+	if err == nil {
+		err = validateVideoCopyFile(ctx, path, receipt)
+	}
+	if err != nil {
 		cleanup()
-		if err == nil {
-			err = errors.New("recording exceeds 512 MiB freeze budget")
-		}
 		return nil, err
 	}
 	frozen := *original
 	frozen.Path = path
+	frozen.SHA256 = receipt.SHA256
+	size := receipt.SizeBytes
+	frozen.SizeBytes = &size
 	frozen.Cleanup = cleanup
-	if err = completeSourceReceipt(ctx, &frozen); err != nil {
-		cleanup()
-		return nil, err
-	}
 	return &frozen, nil
 }

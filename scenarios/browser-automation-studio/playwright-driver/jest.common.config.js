@@ -26,6 +26,12 @@ module.exports = {
   },
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    // Jest resolves test imports through CommonJS conditions, while the
+    // generated proto-types package intentionally exports only ESM/type
+    // targets. Resolve its source tree directly for this test process.
+    '^@vrooli/proto-types/(.*)$': '<rootDir>/../../../packages/proto/gen/typescript/$1',
+    '^@bufbuild/protobuf$': '<rootDir>/node_modules/@bufbuild/protobuf/dist/cjs/index.js',
+    '^@bufbuild/protobuf/(.*)$': '<rootDir>/node_modules/@bufbuild/protobuf/dist/cjs/$1/index.js',
   },
   // Transform ESM packages that Jest can't parse by default
   // @vrooli/proto-types and @bufbuild/protobuf use ESM syntax

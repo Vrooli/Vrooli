@@ -99,6 +99,7 @@ function createMockVisionClient(): VisionModelClientInterface & {
         goalAchieved: response.goalAchieved ?? false,
         confidence: response.confidence ?? 0.9,
         tokensUsed: response.tokensUsed ?? defaultTokens,
+        inferenceReceipt: response.inferenceReceipt,
         rawResponse: JSON.stringify(response.action),
       });
     },
@@ -456,6 +457,32 @@ describe('VisionAgent', () => {
       expect(result.error).toContain('aborted');
     });
 
+    it('does not start another observation when abort arrives during the step delay', async () => {
+      const mockClient = createMockVisionClient();
+      mockClient.setDefaultResponse({
+        action: { type: 'click', elementId: 1 },
+        reasoning: 'Clicking button',
+        goalAchieved: false,
+      });
+      const deps = createMockDeps({ visionClient: mockClient });
+      const agent = createVisionAgent(deps, { stepDelayMs: 10_000, postActionSettleMs: 0 });
+      const abortController = new AbortController();
+      const config = createNavConfig({
+        maxSteps: 5,
+        abortSignal: abortController.signal,
+        onStep: () => {
+          setTimeout(() => abortController.abort(), 20);
+          return Promise.resolve();
+        },
+      });
+
+      const result = await agent.navigate(config);
+
+      expect(result.status).toBe('aborted');
+      expect(mockClient.getCallCount()).toBe(1);
+      expect(deps.actionExecutor.getCalls()).toHaveLength(1);
+    });
+
     it('handles vision model errors', async () => {
       const mockClient = createMockVisionClient();
       mockClient.setFailMode(true, 'API rate limited');
@@ -519,6 +546,15 @@ describe('VisionAgent', () => {
         action: { type: 'click', elementId: 1 },
         reasoning: 'Clicking',
         goalAchieved: false,
+        inferenceReceipt: {
+          rootOperationId: 'b'.repeat(64),
+          source: 'vrooli-credits',
+          provider: 'lpbs',
+          model: 'provider/model-verified',
+          inputTokens: 1200,
+          outputTokens: 30,
+          accountingStatus: 'settled',
+        },
       });
       mockClient.queueResponse({
         action: { type: 'done', success: true, result: 'Done' },
@@ -554,6 +590,12 @@ describe('VisionAgent', () => {
       expect(firstStep.stepNumber).toBe(1);
       expect(firstStep.action.type).toBe('click');
       expect(firstStep.goalAchieved).toBe(false);
+      expect(firstStep.inferenceReceipt).toMatchObject({
+        source: 'vrooli-credits',
+        provider: 'lpbs',
+        model: 'provider/model-verified',
+        accountingStatus: 'settled',
+      });
 
       const secondStep = onStepCalls[1];
       if (!secondStep) {

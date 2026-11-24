@@ -215,7 +215,7 @@ export type TimelineEntryType = z.infer<typeof TimelineEntryTypeSchema>;
 /**
  * Page event types.
  */
-export const PageEventTypeSchema = z.enum(['page_created', 'page_navigated', 'page_closed']);
+export const PageEventTypeSchema = z.enum(['page_created', 'page_navigated', 'page_closed', 'page_activated']);
 
 export type PageEventType = z.infer<typeof PageEventTypeSchema>;
 
@@ -230,6 +230,9 @@ export const TimelinePageEventSchema = z.object({
   id: z.string(),
   type: PageEventTypeSchema,
   pageId: z.string(),
+  driverPageId: z.string().optional(),
+  isInitial: z.boolean().optional(),
+  activePageId: z.string().optional(),
   url: z.string().optional(),
   title: z.string().optional(),
   openerId: z.string().optional(),

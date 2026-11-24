@@ -52,6 +52,9 @@ export interface ComponentHealth {
 export interface BrowserComponent extends ComponentHealth {
   /** Chromium version (e.g., "120.0.6099.109") */
   version?: string;
+  /** Reported only when a browser process is currently connected. */
+  runtime_identity_status?: 'reported' | 'unavailable';
+  family?: 'chromium';
   /** Whether the browser process is connected */
   connected: boolean;
   /** Playwright provider being used */
@@ -331,6 +334,8 @@ export interface SessionSummary {
  */
 export interface BrowserStatusSummary {
   healthy: boolean;
+  runtime_identity_status?: 'reported' | 'unavailable';
+  family?: 'chromium';
   version?: string;
   error?: string;
 }

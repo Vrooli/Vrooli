@@ -46,6 +46,11 @@
   },
   "scripts": {
     "browsers:ensure": "node scripts/ensure-browsers.mjs",
+    "bundle:stage-browser": "node ../bundle/stage-browser-closure.mjs",
+    "bundle:offline-create": "node ../bundle/offline-closure.mjs package",
+    "bundle:offline-install": "node ../bundle/offline-closure.mjs install",
+    "bundle:offline-rollback": "node ../bundle/offline-closure.mjs rollback",
+    "bundle:offline-remove": "node ../bundle/offline-closure.mjs remove",
     "build": "node scripts/build.mjs",
     "build:profile": "node scripts/build.mjs --mode profile",
     "build:types": "tsc -p tsconfig.build.json --emitDeclarationOnly",

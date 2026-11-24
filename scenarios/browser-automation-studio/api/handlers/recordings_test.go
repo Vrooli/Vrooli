@@ -218,6 +218,41 @@ func TestServeRecordingAsset_PathTraversalAttempt(t *testing.T) {
 	}
 }
 
+func TestServeRecordingAsset_RejectsSymlinkEscape(t *testing.T) {
+	parent := t.TempDir()
+	recordingsRoot := filepath.Join(parent, "recordings")
+	executionID := uuid.New()
+	executionDir := filepath.Join(recordingsRoot, executionID.String())
+	if err := os.MkdirAll(executionDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	secretPath := filepath.Join(parent, "outside-secret.txt")
+	if err := os.WriteFile(secretPath, []byte("must-not-be-served"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(secretPath, filepath.Join(executionDir, "linked.txt")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	handler, _ := createTestHandlerWithRecordingService()
+	handler.recordingsRoot = recordingsRoot
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/recordings/assets/"+executionID.String()+"/linked.txt", nil)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("executionID", executionID.String())
+	rctx.URLParams.Add("*", "linked.txt")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	response := httptest.NewRecorder()
+
+	handler.ServeRecordingAsset(response, req)
+
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected escaped symlink denial, got %d: %s", response.Code, response.Body.String())
+	}
+	if strings.Contains(response.Body.String(), "must-not-be-served") {
+		t.Fatal("outside file contents were served through recording symlink")
+	}
+}
+
 func TestServeRecordingAsset_Success(t *testing.T) {
 	// Create temporary directory for test
 	tmpDir, err := os.MkdirTemp("", "recordings-test-*")

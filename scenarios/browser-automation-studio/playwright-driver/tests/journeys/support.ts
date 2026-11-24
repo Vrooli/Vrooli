@@ -5,6 +5,7 @@
  */
 import { randomUUID } from 'node:crypto';
 import { appendFileSync, readFileSync } from 'node:fs';
+import { expect, type Page } from '@playwright/test';
 import { join } from 'node:path';
 import {
   create,
@@ -31,6 +32,7 @@ import { WorkflowsService } from '@vrooli/proto-types/browser-automation-studio/
 import { createTypedInstruction } from '../helpers/instruction-factory';
 import type {
   CloseSessionRequest,
+  HealthResponse,
   SessionSpec,
   StartSessionRequest,
   StartSessionResponse,
@@ -51,7 +53,36 @@ type JourneyEvidenceRecord = {
   elapsed_ms?: number;
   facts?: JourneyEvidenceFacts;
   error_type?: string;
+  runtime_identity?: JourneyRuntimeIdentity;
 };
+export type JourneyRuntimeIdentity = {
+  browser_version: string;
+  driver_version: string;
+  driver_browser_version?: string;
+};
+
+export type ResponsivenessMetric =
+  | 'setup_to_ready_ms'
+  | 'click_to_paint_ms'
+  | 'tab_switch_to_first_frame_ms'
+  | 'event_fanout_ms'
+  | 'event_bytes';
+type JourneyID = 'J26' | 'J27' | 'J28' | 'J29' | 'J30';
+const responsivenessBudgets = JSON.parse(
+  readFileSync(join(__dirname, 'responsiveness-budgets.json'), 'utf8')
+) as Record<JourneyID, Record<ResponsivenessMetric, number>>;
+
+export function journeyResponsivenessBudget(
+  journeyId: JourneyID,
+  metric: ResponsivenessMetric
+): number {
+  const budget = responsivenessBudgets[journeyId]?.[metric];
+  if (!Number.isFinite(budget) || budget <= 0)
+    throw new Error(`Missing positive ${metric} budget for ${journeyId}`);
+  return budget;
+}
+
+const runtimeIdentityByJourney = new Map<string, JourneyRuntimeIdentity>();
 
 const fallbackEvidenceRunId = randomUUID();
 
@@ -68,8 +99,33 @@ function writeJourneyEvidence(
     run_id: process.env.BAS_JOURNEY_RUN_ID ?? fallbackEvidenceRunId,
     recorded_at: new Date().toISOString(),
     ...record,
+    runtime_identity: record.runtime_identity ?? runtimeIdentityByJourney.get(record.journey_id),
   };
   appendFileSync(evidenceFile, `${JSON.stringify(complete)}\n`, { encoding: 'utf8', mode: 0o600 });
+}
+
+/** Record the exact browser launched by the UI journey and BAS driver's reported release. */
+export async function recordJourneyRuntimeIdentity(
+  journeyId: string,
+  browserVersion: string
+): Promise<void> {
+  if (!browserVersion.trim()) throw new Error('Journey browser did not report a version');
+  const health = await driver<HealthResponse>('/health');
+  if (!health.driver_version?.trim())
+    throw new Error('BAS driver health did not report driver_version');
+  const identity: JourneyRuntimeIdentity = {
+    browser_version: browserVersion,
+    driver_version: health.driver_version,
+    driver_browser_version: health.browser?.version,
+  };
+  runtimeIdentityByJourney.set(journeyId, identity);
+  writeJourneyEvidence({
+    journey_id: journeyId,
+    event: 'runtime.identity',
+    kind: 'receipt',
+    outcome: 'ok',
+    runtime_identity: identity,
+  });
 }
 
 /** Time one BAS UI journey milestone with a monotonic clock and retain its result identity. */
@@ -77,20 +133,13 @@ export async function measureJourney<T>(
   journeyId: string,
   event: string,
   operation: () => Promise<T>,
-  facts?: (result: T) => JourneyEvidenceFacts
+  facts?: (result: T) => JourneyEvidenceFacts,
+  options?: { budgetMetrics?: ResponsivenessMetric[] }
 ): Promise<T> {
   const started = process.hrtime.bigint();
+  let result: T;
   try {
-    const result = await operation();
-    writeJourneyEvidence({
-      journey_id: journeyId,
-      event,
-      kind: 'timing',
-      outcome: 'ok',
-      elapsed_ms: Number(process.hrtime.bigint() - started) / 1_000_000,
-      facts: facts?.(result),
-    });
-    return result;
+    result = await operation();
   } catch (error) {
     writeJourneyEvidence({
       journey_id: journeyId,
@@ -102,6 +151,186 @@ export async function measureJourney<T>(
     });
     throw error;
   }
+  const elapsedMs = Number(process.hrtime.bigint() - started) / 1_000_000;
+  const budgetFacts: JourneyEvidenceFacts = {};
+  let budgetExceeded = false;
+  for (const metric of options?.budgetMetrics ?? []) {
+    const budgetMs = journeyResponsivenessBudget(journeyId as JourneyID, metric);
+    const met = elapsedMs <= budgetMs;
+    budgetFacts[`${metric}_budget_ms`] = budgetMs;
+    budgetFacts[`${metric}_budget_met`] = met;
+    budgetExceeded ||= !met;
+  }
+  writeJourneyEvidence({
+    journey_id: journeyId,
+    event,
+    kind: 'timing',
+    outcome: budgetExceeded ? 'failed' : 'ok',
+    elapsed_ms: elapsedMs,
+    facts: { ...facts?.(result), ...budgetFacts },
+    error_type: budgetExceeded ? 'ResponsivenessBudgetExceeded' : undefined,
+  });
+  if (budgetExceeded)
+    throw new Error(`${event} exceeded its responsiveness budget (${elapsedMs.toFixed(1)} ms)`);
+  return result;
+}
+
+/** Record a measurement whose clock is shared with an adjacent user action. */
+export function recordJourneyMeasurement(
+  journeyId: JourneyID,
+  event: string,
+  elapsedMs: number,
+  metric: ResponsivenessMetric,
+  facts: JourneyEvidenceFacts = {}
+): void {
+  const budget = journeyResponsivenessBudget(journeyId, metric);
+  const met = elapsedMs <= budget;
+  writeJourneyEvidence({
+    journey_id: journeyId,
+    event,
+    kind: 'timing',
+    outcome: met ? 'ok' : 'failed',
+    elapsed_ms: elapsedMs,
+    facts: { ...facts, [`${metric}_budget_ms`]: budget, [`${metric}_budget_met`]: met },
+    error_type: met ? undefined : 'ResponsivenessBudgetExceeded',
+  });
+  if (!met)
+    throw new Error(`${event} exceeded its responsiveness budget (${elapsedMs.toFixed(1)} ms)`);
+}
+
+export function recordNotApplicableResponsivenessMetric(
+  journeyId: JourneyID,
+  event: string,
+  metric: ResponsivenessMetric,
+  reason: string
+): void {
+  recordJourneyReceipt(journeyId, event, {
+    responsiveness_metric: metric,
+    sampled: false,
+    reason,
+    budget: journeyResponsivenessBudget(journeyId, metric),
+  });
+}
+
+export type JourneySocketSnapshot = {
+  received_frames: number;
+  received_bytes: number;
+  sent_frames: number;
+  sent_bytes: number;
+  last_received_at_ns: bigint | null;
+};
+type MutableSocketStats = { sessionId: string; snapshot: JourneySocketSnapshot };
+
+/** Capture counts and payload sizes only; never persist browser event contents. */
+export function trackJourneySocketTraffic(page: Page): {
+  snapshot(sessionId?: string): JourneySocketSnapshot;
+} {
+  const sockets: MutableSocketStats[] = [];
+  page.on('websocket', (socket) => {
+    const pathname = new URL(socket.url()).pathname;
+    const match = pathname.match(/\/ws\/sessions\/([^/]+)$/);
+    const stats: MutableSocketStats = {
+      sessionId: match ? decodeURIComponent(match[1] ?? '') : '',
+      snapshot: {
+        received_frames: 0,
+        received_bytes: 0,
+        sent_frames: 0,
+        sent_bytes: 0,
+        last_received_at_ns: null,
+      },
+    };
+    sockets.push(stats);
+    socket.on('framereceived', (payload) => {
+      stats.snapshot.received_frames += 1;
+      stats.snapshot.received_bytes += Buffer.byteLength(payload);
+      stats.snapshot.last_received_at_ns = process.hrtime.bigint();
+    });
+    socket.on('framesent', (payload) => {
+      stats.snapshot.sent_frames += 1;
+      stats.snapshot.sent_bytes += Buffer.byteLength(payload);
+    });
+  });
+  return {
+    snapshot(sessionId) {
+      const selected = sockets.filter((socket) => !sessionId || socket.sessionId === sessionId);
+      return selected.reduce<JourneySocketSnapshot>(
+        (total, socket) => ({
+          received_frames: total.received_frames + socket.snapshot.received_frames,
+          received_bytes: total.received_bytes + socket.snapshot.received_bytes,
+          sent_frames: total.sent_frames + socket.snapshot.sent_frames,
+          sent_bytes: total.sent_bytes + socket.snapshot.sent_bytes,
+          last_received_at_ns:
+            socket.snapshot.last_received_at_ns !== null &&
+            (total.last_received_at_ns === null ||
+              socket.snapshot.last_received_at_ns > total.last_received_at_ns)
+              ? socket.snapshot.last_received_at_ns
+              : total.last_received_at_ns,
+        }),
+        {
+          received_frames: 0,
+          received_bytes: 0,
+          sent_frames: 0,
+          sent_bytes: 0,
+          last_received_at_ns: null,
+        }
+      );
+    },
+  };
+}
+
+/** A low-cost sampled canvas fingerprint used to detect a newly painted frame. */
+export async function canvasFrameSignature(page: Page): Promise<string> {
+  return page
+    .locator('canvas:visible')
+    .first()
+    .evaluate((element) => {
+      const canvas = element as HTMLCanvasElement;
+      const context = canvas.getContext('2d');
+      if (!context || canvas.width <= 0 || canvas.height <= 0) return '';
+      const points = [
+        [0.15, 0.15],
+        [0.5, 0.15],
+        [0.85, 0.15],
+        [0.15, 0.5],
+        [0.5, 0.5],
+        [0.85, 0.5],
+        [0.15, 0.85],
+        [0.5, 0.85],
+        [0.85, 0.85],
+      ];
+      return (
+        `${canvas.width}x${canvas.height}:` +
+        points
+          .map(([x, y]) => {
+            const pixel = context.getImageData(
+              Math.floor(canvas.width * x),
+              Math.floor(canvas.height * y),
+              1,
+              1
+            ).data;
+            return `${pixel[0]},${pixel[1]},${pixel[2]},${pixel[3]}`;
+          })
+          .join(';')
+      );
+    });
+}
+
+export async function waitForCanvasFrameChange(
+  page: Page,
+  before: string,
+  timeoutMs: number
+): Promise<string> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const current = await canvasFrameSignature(page);
+    if (current && current !== before) return current;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error(`No visible canvas frame change within ${timeoutMs} ms`);
+}
+
+export function elapsedSinceMonotonic(startedAt: bigint, completedAt: bigint): number {
+  return Number(completedAt - startedAt) / 1_000_000;
 }
 
 /** Persist an exact browser/execution/profile receipt without page content or credentials. */
@@ -278,6 +507,52 @@ export const action = (type: string, params: Record<string, unknown>): ActionDef
             },
           })
         : (createTypedInstruction(type, params).action ?? create(ActionDefinitionSchema));
+
+/** Create a workflow through BAS's project and workflow editor UI, then return its route ID. */
+export async function createWorkflowThroughEditor(
+  page: Page,
+  projectId: string,
+  definitionJson: string
+): Promise<string> {
+  await page.goto(`${env.ui}/projects/${projectId}`, {
+    waitUntil: 'domcontentloaded',
+    timeout: 30000,
+  });
+  await page.getByTestId('app-ready').waitFor({ state: 'attached', timeout: 30000 });
+  await page.getByTestId('workflows-card-view-toggle').click();
+  await page.getByTestId('new-workflow-button').click();
+  await page.getByTestId('workflow-creation-visual-builder').click();
+  await page.waitForURL((url) => url.pathname.startsWith(`/projects/${projectId}/workflows/`), {
+    timeout: 30000,
+  });
+
+  await page.getByTestId('workflow-builder-canvas').waitFor({ state: 'visible', timeout: 30000 });
+  await page.getByTestId('workflow-builder-code-mode-button').click();
+  const editor = page.locator('[data-testid="workflow-builder-code-view"] .monaco-editor');
+  await editor.waitFor({ state: 'visible', timeout: 30000 });
+  await editor.click();
+  await page.keyboard.press('Control+A');
+  await page.keyboard.insertText(definitionJson);
+  await page.getByTestId('workflow-builder-code-apply-button').click();
+  await expect(page.getByTestId('workflow-builder-code-validation')).toContainText('Validated', {
+    timeout: 30000,
+  });
+
+  const workflowId = new URL(page.url()).pathname.split('/').at(-1) ?? '';
+  if (!workflowId) throw new Error('BAS workflow editor route did not include a workflow ID');
+  const parsedDefinition = JSON.parse(definitionJson) as { nodes?: unknown[] };
+  const expectedNodeCount = parsedDefinition.nodes?.length ?? 0;
+  await expect
+    .poll(
+      async () => {
+        const { workflow } = await rpc(WorkflowsService.method.getWorkflow, { workflowId });
+        return workflow?.flowDefinition?.nodes?.length ?? -1;
+      },
+      { timeout: 30000 }
+    )
+    .toBe(expectedNodeCount);
+  return workflowId;
+}
 
 export type Lease = {
   sessionId: string;

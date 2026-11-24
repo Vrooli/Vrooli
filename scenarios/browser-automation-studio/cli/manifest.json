@@ -817,7 +817,7 @@
             },
             {
               "name": "limit",
-              "description": "Maximum number of results (1–100)"
+              "description": "Maximum number of results (1\u2013100)"
             },
             {
               "name": "offset",
@@ -1715,6 +1715,36 @@
           }
         },
         {
+          "name": "wait-for",
+          "description": "Wait for one execution to reach a terminal state and return its durable receipt.",
+          "positionals": [
+            {
+              "name": "execution-id",
+              "required": true,
+              "description": "Execution UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "timeout-ms",
+              "required": true,
+              "description": "Maximum wait in milliseconds (1\u201375000)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionsService",
+            "method": "WaitForExecution"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "timeline",
           "description": "Fetch the proto timeline for an execution.",
           "positionals": [
@@ -2021,11 +2051,15 @@
               "description": "Execution UUID"
             }
           ],
-          "binding": { "kind": "local" },
+          "binding": {
+            "kind": "local"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
@@ -2045,11 +2079,15 @@
               "description": "Must exactly match the execution UUID"
             }
           ],
-          "binding": { "kind": "local" },
+          "binding": {
+            "kind": "local"
+          },
           "governance": {
             "effect": "destructive",
             "run_eligible": false,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         }
       ]
@@ -2787,6 +2825,441 @@
             "permissions": [
               "network:internal",
               "network:external"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "session",
+      "description": "Use the BAS-owned browser session broker through typed, permission-checked session operations.",
+      "commands": [
+        {
+          "name": "open",
+          "description": "Open a BAS session under the permission profile resolved from the trusted Agent Manager run context.",
+          "flags": [
+            {
+              "name": "backend",
+              "bind": {
+                "field": "backend"
+              }
+            },
+            {
+              "name": "start-url",
+              "bind": {
+                "field": "start_url"
+              }
+            },
+            {
+              "name": "reuse-mode",
+              "bind": {
+                "field": "reuse_mode"
+              }
+            },
+            {
+              "name": "viewport-width",
+              "bind": {
+                "field": "viewport_width"
+              }
+            },
+            {
+              "name": "viewport-height",
+              "bind": {
+                "field": "viewport_height"
+              }
+            },
+            {
+              "name": "consent-receipt",
+              "bind": {
+                "field": "consent_receipt"
+              }
+            },
+            {
+              "name": "tab-id",
+              "bind": {
+                "field": "tab_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BrowserSessionService",
+            "method": "OpenSession"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "observe",
+          "description": "Observe the current page through the BAS broker and its active permission profile.",
+          "flags": [
+            {
+              "name": "session-id",
+              "required": true,
+              "bind": {
+                "field": "session_id"
+              }
+            },
+            {
+              "name": "page-id",
+              "bind": {
+                "field": "page_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BrowserSessionService",
+            "method": "Observe"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "act",
+          "description": "Perform one typed action through the BAS broker and its active permission profile.",
+          "flags": [
+            {
+              "name": "session-id",
+              "required": true,
+              "bind": {
+                "field": "session_id"
+              }
+            },
+            {
+              "name": "instruction-index",
+              "bind": {
+                "field": "instruction_index"
+              }
+            },
+            {
+              "name": "node-id",
+              "bind": {
+                "field": "node_id"
+              }
+            },
+            {
+              "name": "action",
+              "description": "Typed ActionDefinition JSON object",
+              "bind": {
+                "field": "action"
+              }
+            },
+            {
+              "name": "target-url",
+              "bind": {
+                "field": "target_url"
+              }
+            },
+            {
+              "name": "approval-receipt",
+              "bind": {
+                "field": "approval_receipt"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BrowserSessionService",
+            "method": "Act"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "attach",
+          "description": "Attach to a session already owned by this BAS broker; this operation never starts a browser.",
+          "flags": [
+            {
+              "name": "session-id",
+              "required": true,
+              "bind": {
+                "field": "session_id"
+              }
+            },
+            {
+              "name": "permission-ref",
+              "required": true,
+              "bind": {
+                "field": "permission_ref"
+              }
+            },
+            {
+              "name": "tab-id",
+              "bind": {
+                "field": "tab_id"
+              }
+            },
+            {
+              "name": "consent-receipt",
+              "bind": {
+                "field": "consent_receipt"
+              }
+            },
+            {
+              "name": "approval-receipt",
+              "bind": {
+                "field": "approval_receipt"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BrowserSessionService",
+            "method": "AttachSession"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "read-trace",
+          "description": "Read the typed trace recorded by the BAS broker for this session.",
+          "flags": [
+            {
+              "name": "session-id",
+              "required": true,
+              "bind": {
+                "field": "session_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BrowserSessionService",
+            "method": "ReadTrace"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "promote-trace",
+          "description": "Promote an accepted broker trace into a durable, parameterized BAS workflow with explicit assertions.",
+          "flags": [
+            {
+              "name": "session-id",
+              "required": true,
+              "bind": {
+                "field": "session_id"
+              }
+            },
+            {
+              "name": "project-id",
+              "required": true,
+              "bind": {
+                "field": "project_id"
+              }
+            },
+            {
+              "name": "name",
+              "required": true,
+              "bind": {
+                "field": "name"
+              }
+            },
+            {
+              "name": "description",
+              "bind": {
+                "field": "description"
+              }
+            },
+            {
+              "name": "assertions",
+              "description": "Typed ActionDefinition assertion objects as a JSON array",
+              "bind": {
+                "field": "assertions"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BrowserSessionService",
+            "method": "PromoteTrace"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "draft-trace",
+          "description": "Compile a deterministic unsaved preview from the current BAS broker trace; this operation does not persist a workflow.",
+          "flags": [
+            {
+              "name": "session-id",
+              "required": true,
+              "bind": {
+                "field": "session_id"
+              }
+            },
+            {
+              "name": "name",
+              "required": true,
+              "bind": {
+                "field": "name"
+              }
+            },
+            {
+              "name": "description",
+              "bind": {
+                "field": "description"
+              }
+            },
+            {
+              "name": "assertions",
+              "description": "Typed ActionDefinition assertion objects as a JSON array",
+              "bind": {
+                "field": "assertions"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BrowserSessionService",
+            "method": "DraftTrace"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "close",
+          "description": "Close the exact session owned by the BAS broker.",
+          "flags": [
+            {
+              "name": "session-id",
+              "required": true,
+              "bind": {
+                "field": "session_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BrowserSessionService",
+            "method": "CloseSession"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "task",
+      "description": "Run a bounded typed action plan over an already-open BAS broker session.",
+      "commands": [
+        {
+          "name": "run-task",
+          "description": "Execute 1..25 typed actions on one existing broker session; every action is re-authorized and appended to its trace.",
+          "flags": [
+            {
+              "name": "session-id",
+              "required": true,
+              "bind": {
+                "field": "session_id"
+              }
+            },
+            {
+              "name": "instructions",
+              "required": true,
+              "description": "JSON array of typed RunTaskInstruction objects, each containing an ActionDefinition",
+              "bind": {
+                "field": "instructions"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BrowserSessionService",
+            "method": "RunTask"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "replay-flow",
+          "description": "Replay a saved trace-derived BAS workflow through the same existing broker session, with current permissions re-checked for every action.",
+          "flags": [
+            {
+              "name": "session-id",
+              "required": true,
+              "bind": {
+                "field": "session_id"
+              }
+            },
+            {
+              "name": "workflow-id",
+              "required": true,
+              "bind": {
+                "field": "workflow_id"
+              }
+            },
+            {
+              "name": "workflow-version",
+              "required": true,
+              "bind": {
+                "field": "workflow_version"
+              }
+            },
+            {
+              "name": "parameters",
+              "description": "JSON object of required string workflow parameters",
+              "bind": {
+                "field": "parameters"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BrowserSessionService",
+            "method": "ReplayWorkflow"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
             ]
           }
         }
@@ -3824,11 +4297,11 @@
             },
             {
               "name": "width",
-              "description": "Viewport width (320–2560; default 1280)"
+              "description": "Viewport width (320\u20132560; default 1280)"
             },
             {
               "name": "height",
-              "description": "Viewport height (240–1600; default 720)"
+              "description": "Viewport height (240\u20131600; default 720)"
             },
             {
               "name": "theme",
@@ -3845,6 +4318,53 @@
             "permissions": [
               "network:external",
               "filesystem:write"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "browser",
+      "flat": true,
+      "description": "Open and operate BAS-owned browser sessions with typed actions and common task vocabulary; discover harness adapters.",
+      "commands": [
+        {
+          "name": "browser",
+          "description": "Open, observe, act, task, attach, trace, draft or promote a trace, or close a BAS-owned session; list or qualify harnesses.",
+          "positionals": [
+            {
+              "name": "operation",
+              "required": true,
+              "description": "open|observe|act|task|attach|close|trace|draft-trace|promote-trace|harnesses|qualify"
+            }
+          ],
+          "flags": [
+            {
+              "name": "session",
+              "description": "Existing BAS browser session ID; required except for open and harnesses."
+            },
+            {
+              "name": "adapter",
+              "description": "Harness adapter ID; required for qualify."
+            },
+            {
+              "name": "request-file",
+              "description": "Strict JSON request file for open, attach, observe, act, task, draft-trace, or promote-trace (maximum 1 MiB)."
+            },
+            {
+              "name": "json",
+              "bool": true,
+              "description": "Emit the result as JSON."
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
             ]
           }
         }

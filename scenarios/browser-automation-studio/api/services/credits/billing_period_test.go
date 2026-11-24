@@ -66,52 +66,44 @@ func createTestServiceWithBillingCycle(t *testing.T, billingCycleStart int) (*Se
 	return svc, db, provider
 }
 
-func TestBillingPeriod_GetBillingMonth_CorrectFormat(t *testing.T) {
-	// Test the Entitlement.GetBillingMonth method directly
+func TestBillingPeriod_GetBillingMonth_CorrectStartDate(t *testing.T) {
 	testCases := []struct {
 		name              string
 		billingCycleStart int
 		date              time.Time
-		expectedFormat    string // Either "YYYY-MM-DD" or "YYYY-MM"
+		want              string
 	}{
 		{
-			name:              "custom day 15 before cycle",
+			name:              "custom cycle before start day",
 			billingCycleStart: 15,
 			date:              time.Date(2026, 1, 10, 12, 0, 0, 0, time.UTC),
-			expectedFormat:    "2006-01-02", // Custom cycle uses YYYY-MM-DD
+			want:              "2025-12-15",
 		},
 		{
-			name:              "custom day 15 after cycle",
+			name:              "custom cycle after start day",
 			billingCycleStart: 15,
 			date:              time.Date(2026, 1, 20, 12, 0, 0, 0, time.UTC),
-			expectedFormat:    "2006-01-02",
+			want:              "2026-01-15",
 		},
 		{
-			name:              "calendar month fallback",
+			name:              "invalid cycle falls back to calendar month",
 			billingCycleStart: 0,
 			date:              time.Date(2026, 1, 10, 12, 0, 0, 0, time.UTC),
-			expectedFormat:    "2006-01-02", // GetBillingMonth always returns start date
+			want:              "2026-01-01",
 		},
 		{
-			name:              "day 1 same as calendar",
+			name:              "day one matches calendar month",
 			billingCycleStart: 1,
 			date:              time.Date(2026, 1, 10, 12, 0, 0, 0, time.UTC),
-			expectedFormat:    "2006-01-02",
+			want:              "2026-01-01",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ent := &entitlement.Entitlement{
-				BillingCycleStart: tc.billingCycleStart,
-			}
-
-			billingMonth := ent.GetBillingMonth(tc.date)
-
-			// Verify the format
-			_, err := time.Parse(tc.expectedFormat, billingMonth)
-			if err != nil {
-				t.Errorf("GetBillingMonth returned invalid format: %s (expected %s format)", billingMonth, tc.expectedFormat)
+			ent := &entitlement.Entitlement{BillingCycleStart: tc.billingCycleStart}
+			if got := ent.GetBillingMonth(tc.date); got != tc.want {
+				t.Errorf("GetBillingMonth() = %q, want period start %q", got, tc.want)
 			}
 		})
 	}

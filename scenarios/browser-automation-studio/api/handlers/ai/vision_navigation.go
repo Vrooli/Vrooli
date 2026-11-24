@@ -85,14 +85,7 @@ func (h *VisionNavigationHandler) handleStepCallback(ctx context.Context, w http
 			h.log.WithError(err).Warn("vision_navigation_callback: failed to handle step")
 		}
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(map[string]interface{}{
-		"received": true,
-		"abort":    false,
-	}); err != nil {
-		h.log.WithError(err).Warn("vision_navigation_callback: failed to encode response")
-	}
+	h.writeCallbackAcknowledgement(w, true, "failed to encode response")
 }
 
 func (h *VisionNavigationHandler) handleCompleteCallback(ctx context.Context, w http.ResponseWriter, result *vision.NavigationResult) {
@@ -101,11 +94,19 @@ func (h *VisionNavigationHandler) handleCompleteCallback(ctx context.Context, w 
 			h.log.WithError(err).Warn("vision_navigation_callback: failed to handle complete")
 		}
 	}
+	h.writeCallbackAcknowledgement(w, false, "failed to encode completion response")
+}
+
+// writeCallbackAcknowledgement owns the response envelope shared by both
+// driver callback event callers while preserving their legacy payloads.
+func (h *VisionNavigationHandler) writeCallbackAcknowledgement(w http.ResponseWriter, includeAbort bool, encodeFailure string) {
+	acknowledgement := map[string]any{"received": true}
+	if includeAbort {
+		acknowledgement["abort"] = false
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(map[string]interface{}{
-		"received": true,
-	}); err != nil {
-		h.log.WithError(err).Warn("vision_navigation_callback: failed to encode completion response")
+	if err := json.NewEncoder(w).Encode(acknowledgement); err != nil {
+		h.log.WithError(err).Warn("vision_navigation_callback: " + encodeFailure)
 	}
 }

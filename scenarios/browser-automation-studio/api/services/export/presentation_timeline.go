@@ -42,7 +42,7 @@ func loadExecutionCaptureGeometry(execution *database.ExecutionIndex, out *Execu
 	if execution == nil || out == nil || strings.TrimSpace(execution.ResultPath) == "" {
 		return
 	}
-	raw, err := os.ReadFile(filepath.Join(filepath.Dir(execution.ResultPath), "execution.proto.json"))
+	raw, err := readArtifactSidecar(filepath.Join(filepath.Dir(execution.ResultPath), "execution.proto.json"))
 	if err != nil {
 		return
 	}
@@ -193,7 +193,7 @@ func loadTelemetryJSONSlice(path *string) ([]any, error) {
 	if path == nil || strings.TrimSpace(*path) == "" {
 		return nil, nil
 	}
-	raw, err := os.ReadFile(*path)
+	raw, err := readArtifactSidecar(*path)
 	if err != nil {
 		return nil, err
 	}
@@ -202,6 +202,12 @@ func loadTelemetryJSONSlice(path *string) ([]any, error) {
 		return nil, err
 	}
 	return entries, nil
+}
+
+// readArtifactSidecar is the shared file-read owner for export metadata sidecars.
+// Callers retain their distinct JSON/protojson decoding and best-effort policies.
+func readArtifactSidecar(path string) ([]byte, error) {
+	return os.ReadFile(path)
 }
 
 func telemetryArtifactToExport(kind string, artifact *bastelemetry.TelemetryArtifact, payload map[string]any) TimelineArtifact {

@@ -39,7 +39,9 @@ export const mapExecutionStatus = (
     return 'pending'; // default for unspecified
   }
   // String fallback with aliases for legacy compatibility
-  switch ((status ?? '').toLowerCase()) {
+  // Buf's Connect JSON encodes enums with their full shared names, while
+  // persisted legacy rows and UI fixtures use the short lifecycle name.
+  switch ((status ?? '').toLowerCase().replace(/^execution_status_/, '')) {
     case 'pending':
     case 'queued':
       return 'pending';

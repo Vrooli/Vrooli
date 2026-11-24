@@ -12,11 +12,24 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 )
 
+type blockingSessionInventory struct{ started chan struct{} }
+
+func (b blockingSessionInventory) ListObservedSessions(ctx context.Context) ([]driver.ObservedSession, error) {
+	close(b.started)
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+
+func (blockingSessionInventory) ForceCloseSession(context.Context, string, string, string) error {
+	return nil
+}
+
 type fakeSessionInventory struct {
 	sessions []driver.ObservedSession
 	closed   []string
 	owners   []string
 	leases   []string
+	onClose  func()
 }
 
 func (f *fakeSessionInventory) ListObservedSessions(context.Context) ([]driver.ObservedSession, error) {
@@ -27,6 +40,9 @@ func (f *fakeSessionInventory) ForceCloseSession(_ context.Context, id, ownerID,
 	f.closed = append(f.closed, id)
 	f.owners = append(f.owners, ownerID)
 	f.leases = append(f.leases, leaseID)
+	if f.onClose != nil {
+		f.onClose()
+	}
 	return nil
 }
 
@@ -57,6 +73,35 @@ func TestSessionReconciler_ForceClosesOnlyTerminalOwnersPastGrace(t *testing.T) 
 	require.Equal(t, []string{"terminal-lease"}, inventory.leases)
 }
 
+func TestSessionReconcilerStopsBeforeNextOwnerAfterContextCancellation(t *testing.T) {
+	firstID, secondID := uuid.New(), uuid.New()
+	now := time.Date(2026, 11, 21, 12, 0, 0, 0, time.UTC)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	inventory := &fakeSessionInventory{
+		sessions: []driver.ObservedSession{
+			{ID: "first-session", OwnerExecutionID: firstID.String(), LeaseID: "first-lease"},
+			{ID: "second-session", OwnerExecutionID: secondID.String(), LeaseID: "second-lease"},
+		},
+	}
+	inventory.onClose = cancel
+	repo := &fakeExecutionLookup{executions: map[uuid.UUID]*database.ExecutionIndex{
+		firstID:  {ID: firstID, Status: database.ExecutionStatusFailed, UpdatedAt: now.Add(-time.Minute)},
+		secondID: {ID: secondID, Status: database.ExecutionStatusFailed, UpdatedAt: now.Add(-time.Minute)},
+	}}
+	reconciler := newSessionReconciler(inventory, repo, logrus.New(), WithSessionTerminalGrace(0))
+	reconciler.now = func() time.Time { return now }
+
+	result, err := reconciler.ReconcileOnce(ctx)
+	require.ErrorIs(t, err, context.Canceled)
+	require.Equal(t, 2, result.Observed)
+	require.Equal(t, 1, result.Closed)
+	require.Equal(t, 1, result.Skipped)
+	require.Equal(t, []string{"first-session"}, inventory.closed)
+	require.Equal(t, []string{firstID.String()}, inventory.owners)
+	require.Equal(t, []string{"first-lease"}, inventory.leases)
+}
+
 func TestSessionReconciler_ClosesOnlyStaleUnknownAudioSoakOwners(t *testing.T) {
 	now := time.Date(2026, 7, 22, 12, 0, 0, 0, time.UTC)
 	old := now.Add(-(DefaultSoakOrphanGrace + time.Second)).Format(time.RFC3339Nano)
@@ -74,4 +119,26 @@ func TestSessionReconciler_ClosesOnlyStaleUnknownAudioSoakOwners(t *testing.T) {
 	require.Equal(t, 3, result.Observed)
 	require.Equal(t, 1, result.Closed)
 	require.Equal(t, []string{"stale-soak"}, inventory.closed)
+}
+
+func TestSessionReconcilerRunStopsAfterInFlightOwnerRequestIsCancelled(t *testing.T) {
+	started := make(chan struct{})
+	reconciler := newSessionReconciler(blockingSessionInventory{started: started}, &fakeExecutionLookup{executions: map[uuid.UUID]*database.ExecutionIndex{}}, logrus.New(), WithSessionReconcileInterval(time.Hour))
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		reconciler.Run(ctx)
+		close(done)
+	}()
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("reconciler did not begin its initial owner inventory request")
+	}
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("reconciler did not return after its in-flight owner request was cancelled")
+	}
 }

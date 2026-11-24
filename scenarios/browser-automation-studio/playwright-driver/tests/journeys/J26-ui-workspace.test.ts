@@ -3,7 +3,14 @@ import {
   apiRoute,
   env,
   measureJourney,
+  canvasFrameSignature,
+  elapsedSinceMonotonic,
+  waitForCanvasFrameChange,
+  journeyResponsivenessBudget,
+  recordJourneyMeasurement,
+  recordJourneyRuntimeIdentity,
   recordJourneyReceipt,
+  trackJourneySocketTraffic,
   withJourneyResources,
 } from './support';
 
@@ -63,9 +70,11 @@ describe('[REQ:BAS-RH-J26] BAS UI workspace lifecycle', () => {
     withJourneyResources(async (resources) => {
       const browser = await chromium.launch({ headless: true });
       resources.add('close BAS UI journey browser', () => browser.close());
+      await recordJourneyRuntimeIdentity('J26', browser.version());
       const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
       resources.add('close BAS UI journey context', () => context.close());
       const page = await context.newPage();
+      const socketTraffic = trackJourneySocketTraffic(page);
       const canvas = page.locator('canvas:visible').first();
       let sessionId = '';
       let sessionClosed = false;
@@ -120,7 +129,8 @@ describe('[REQ:BAS-RH-J26] BAS UI workspace lifecycle', () => {
           );
           return routedSessionId;
         },
-        (id) => ({ session_id: id })
+        (id) => ({ session_id: id, creation_surface: 'record-mode-ui' }),
+        { budgetMetrics: ['setup_to_ready_ms'] }
       );
 
       const firstPages = await waitFor(
@@ -132,6 +142,9 @@ describe('[REQ:BAS-RH-J26] BAS UI workspace lifecycle', () => {
 
       const fixtureUrl = new URL('/complex', env.fixture).toString();
       const address = page.getByTestId('browser-url-input');
+      const beforeSecondTab = await canvasFrameSignature(page);
+      const socketBeforeSecondTab = socketTraffic.snapshot(sessionId);
+      const secondTabStarted = process.hrtime.bigint();
       const pages = await measureJourney(
         'J26',
         'workspace.second_tab_ready',
@@ -139,15 +152,53 @@ describe('[REQ:BAS-RH-J26] BAS UI workspace lifecycle', () => {
           await page.getByRole('button', { name: 'Open new tab' }).click();
           await address.fill(fixtureUrl);
           await address.press('Enter');
-          return waitFor(
+          const result = await waitFor(
             () => apiRoute<RecordingPages>(`/recordings/live/${sessionId}/pages`),
             (result) =>
               result.pages?.length === 2 && result.pages.some(({ url }) => url === fixtureUrl),
             'second fixture tab in BAS page registry'
           );
+          await waitForCanvasFrameChange(
+            page,
+            beforeSecondTab,
+            journeyResponsivenessBudget('J26', 'click_to_paint_ms')
+          );
+          return result;
         },
-        (result) => ({ session_id: sessionId, page_count: result.pages.length })
+        (result) => ({ session_id: sessionId, page_count: result.pages.length }),
+        { budgetMetrics: ['click_to_paint_ms'] }
       );
+      const secondTabDeadline = Date.now() + journeyResponsivenessBudget('J26', 'event_fanout_ms');
+      let secondTabTraffic = socketTraffic.snapshot(sessionId);
+      while (
+        Date.now() < secondTabDeadline &&
+        secondTabTraffic.received_frames <= socketBeforeSecondTab.received_frames
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 25));
+        secondTabTraffic = socketTraffic.snapshot(sessionId);
+      }
+      const fanoutFrames = secondTabTraffic.received_frames - socketBeforeSecondTab.received_frames;
+      const fanoutBytes = secondTabTraffic.received_bytes - socketBeforeSecondTab.received_bytes;
+      expect(fanoutFrames).toBeGreaterThan(0);
+      if (secondTabTraffic.last_received_at_ns === null)
+        throw new Error('Recording event has no receive timestamp');
+      const fanoutMs = elapsedSinceMonotonic(
+        secondTabStarted,
+        secondTabTraffic.last_received_at_ns
+      );
+      expect(fanoutBytes).toBeLessThanOrEqual(journeyResponsivenessBudget('J26', 'event_bytes'));
+      recordJourneyMeasurement('J26', 'workspace.event_fanout', fanoutMs, 'event_fanout_ms', {
+        session_id: sessionId,
+        received_frames: fanoutFrames,
+        received_bytes: fanoutBytes,
+      });
+      recordJourneyReceipt('J26', 'workspace.event_bytes', {
+        session_id: sessionId,
+        received_frames: fanoutFrames,
+        received_bytes: fanoutBytes,
+        event_bytes_budget: journeyResponsivenessBudget('J26', 'event_bytes'),
+        event_bytes_budget_met: fanoutBytes <= journeyResponsivenessBudget('J26', 'event_bytes'),
+      });
       expect(pages.pages.map(({ url }) => url)).toEqual(
         expect.arrayContaining([publicUrl, fixtureUrl])
       );
@@ -184,7 +235,21 @@ describe('[REQ:BAS-RH-J26] BAS UI workspace lifecycle', () => {
         'J26',
         'workspace.iframe_timeline',
         async () => {
-          await page.getByRole('tablist').getByRole('tab').nth(1).click();
+          const beforeTabSwitch = await canvasFrameSignature(page);
+          await measureJourney(
+            'J26',
+            'workspace.tab_switch_to_first_frame',
+            async () => {
+              await page.getByRole('tablist').getByRole('tab').nth(1).click();
+              return waitForCanvasFrameChange(
+                page,
+                beforeTabSwitch,
+                journeyResponsivenessBudget('J26', 'tab_switch_to_first_frame_ms')
+              );
+            },
+            (signature) => ({ session_id: sessionId, frame_changed: Boolean(signature) }),
+            { budgetMetrics: ['tab_switch_to_first_frame_ms'] }
+          );
           await address.fill(frameUrl);
           await address.press('Enter');
           await waitFor(

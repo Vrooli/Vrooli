@@ -96,7 +96,7 @@ export function FingerprintSection({ fingerprint, onChange }: FingerprintSection
         <FormCheckbox
           checked={fingerprint.geolocation_enabled ?? false}
           onChange={(v) => onChange('geolocation_enabled', v)}
-          label="Enable geolocation spoofing"
+          label="Override reported geolocation"
           className="mb-3"
         />
         {fingerprint.geolocation_enabled && (

@@ -284,73 +284,17 @@ func TestWSHubSinkCloseExecutionStopsEnqueue(t *testing.T) {
 
 // blockingHub simulates a slow downstream consumer to trigger backpressure logic.
 type blockingHub struct {
-	mu      sync.Mutex
-	updates []any
+	stubHub
 	unblock chan struct{}
-	changed chan struct{}
 }
 
 func newBlockingHub() *blockingHub {
 	return &blockingHub{unblock: make(chan struct{})}
 }
 
-func (b *blockingHub) ServeWS(*websocket.Conn, *uuid.UUID) {}
-func (*blockingHub) IssueSessionStreamCookie(sessionID, _, _ string) (string, string, error) {
-	return wsHub.SessionStreamCookieName(sessionID), "test-stream-cookie", nil
-}
-func (*blockingHub) RevokeSessionStreamCookie(string) {}
-func (*blockingHub) ValidateSessionStreamCookie(_, value string) bool {
-	return value == "test-stream-cookie"
-}
-func (*blockingHub) ServeRecordingWS(*websocket.Conn, string, string) bool { return true }
-func (b *blockingHub) Run()                                                {}
-func (b *blockingHub) GetClientCount() int {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return len(b.updates)
-}
-
-func (b *blockingHub) Updates() []any {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	cp := make([]any, len(b.updates))
-	copy(cp, b.updates)
-	return cp
-}
-
-func (b *blockingHub) CloseExecution(executionID uuid.UUID) {
-	_ = executionID
-}
-
-func (b *blockingHub) BroadcastTimelineEntry(sessionID string, entry *bastimeline.TimelineEntry) wsHub.BroadcastResult {
-	return wsHub.BroadcastResult{}
-}
-
-func (b *blockingHub) BroadcastBinaryFrame(executionID string, data []byte) {}
-
-func (b *blockingHub) HasRecordingFrameSubscribers(sessionID string) bool { return false }
-
-func (b *blockingHub) BroadcastPerfStats(sessionID string, stats any) {}
-
-func (b *blockingHub) HasExecutionFrameSubscribers(executionID string) bool { return false }
-
-func (b *blockingHub) BroadcastExecutionFrame(executionID string, frame *wsHub.ExecutionFrame) {}
-
-func (b *blockingHub) BroadcastPageEvent(sessionID string, event any) {}
-
-func (b *blockingHub) BroadcastPageSwitch(sessionID, activePageID string) {}
-
-func (b *blockingHub) BroadcastExportProgress(progress *wsHub.ExportProgress) {}
-
 func (b *blockingHub) BroadcastEnvelope(event any) {
 	<-b.unblock
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	b.updates = append(b.updates, event)
-	if b.changed != nil {
-		close(b.changed)
-		b.changed = nil
-	}
+	b.stubHub.BroadcastEnvelope(event)
 }
 
 func TestWSHubSinkDropsTelemetryWhenBufferFull(t *testing.T) {
@@ -651,10 +595,6 @@ type updatesReader interface {
 
 func (s *stubHub) waitForUpdates(expected int, timeout time.Duration) []any {
 	return waitForUpdateSignal(&s.mu, &s.updates, &s.changed, expected, timeout)
-}
-
-func (b *blockingHub) waitForUpdates(expected int, timeout time.Duration) []any {
-	return waitForUpdateSignal(&b.mu, &b.updates, &b.changed, expected, timeout)
 }
 
 func waitForUpdateSignal(mu *sync.Mutex, updates *[]any, changed *chan struct{}, expected int, timeout time.Duration) []any {

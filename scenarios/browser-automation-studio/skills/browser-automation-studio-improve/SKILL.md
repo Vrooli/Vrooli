@@ -123,7 +123,7 @@ BAS has no `evals/*.json` corpus with a floor. Its closest fixed corpus is its o
 | Filing | README or PRD claims self-healing workflows while no executor-validated AI path exists (README: AI generation "lacks validation against a runnable executor") | ladder W0 against BAS: contract finding; the claim is narrowed or the executor validation is built | none directly; PRD text |
 | Actuator | executions and artifacts grow past the host budget | Curation: `browser-automation-studio executions retention-preview --max-age-days 14 --keep-latest 5`, then `executions retention-run --max-age-days 14 --keep-latest 5 --confirm`; retention env vars are not settable through `observability config-set` (W3 if a runtime knob is wanted) | failed-run-evidence unchanged; disk |
 | Actuator | `candidates` folder holds workflows never executed after authoring | Curation: run `browser-automation-studio.smoke-flow` on each; delete failing candidates older than one cycle with `workflows delete <id>` | pass-rate |
-| Filing | external-friction recurring fingerprint | Read the fingerprint's finding (`agent-manager usage friction`); if the command is BAS's, W3 here; if the fix is skill prose, `skill-improvement-suggestions` on the usage skill | external-friction |
+| Filing | external-friction recurring fingerprint | Read the fingerprint's finding (`agent-manager usage friction`); if the command is BAS's, W3 here; if the fix is skill prose, `skill-validation` on the usage skill | external-friction |
 | Filing | S3-share report figure below 0.5 | Promote the next `[S1]` leaf that recurs across agents into a program (candidate: the debug order as one read program); `workflows create` needs a governed binding first (W1 against BAS) | the report figure; pass-rate once the program runs |
 
 ### 6. Anti-gaming
@@ -169,4 +169,4 @@ A sensor unavailable for three cycles is a `docs/PROBLEMS.md` entry with the thr
 | pass-rate reads 0/0 | Window has no terminal executions | `browser-automation-studio executions list --limit 10` | The row is unavailable, not zero |
 | failed-run-evidence unreadable | `executions screenshots` refused for a purged execution | `executions retention-preview` | Sample the newest failed executions only; do not widen the sample |
 | `uxmetrics workflow-aggregate` returns an entitlement error | Pro-tier gate | `browser-automation-studio entitlement status` | The row stays pending_telemetry; not a BAS defect |
-| Two routes match one reading | A C4 defect | Run the divergence probe (`skill-validation` §3.3) | Add the discriminating predicate (scenario-local vs cross-scenario failures) |
+| Two routes match one reading | A C4 defect | Run the divergence probe (`skill-validation` §2) | Add the discriminating predicate (scenario-local vs cross-scenario failures) |

@@ -633,7 +633,13 @@ func (r *FileWriter) recordStepOutcomeLocked(ctx context.Context, plan contracts
 }
 
 func (r *FileWriter) withExecutionArtifactLock(ctx context.Context, executionID uuid.UUID, write func(context.Context) error) error {
-	if r == nil || r.root == nil {
+	if r == nil {
+		return write(ctx)
+	}
+	if r.root == nil {
+		if r.repo != nil {
+			return errors.New("execution artifact root is unavailable")
+		}
 		return write(ctx)
 	}
 	root, err := r.root.Root(ctx)
@@ -641,15 +647,22 @@ func (r *FileWriter) withExecutionArtifactLock(ctx context.Context, executionID 
 		return err
 	}
 	return executionartifactlock.WithLock(ctx, root, executionID, func(lockCtx context.Context) error {
-		if reader, ok := r.repo.(interface {
-			GetExecution(context.Context, uuid.UUID) (*database.ExecutionIndex, error)
-		}); ok {
+		if r.repo != nil {
+			reader, ok := r.repo.(interface {
+				GetExecution(context.Context, uuid.UUID) (*database.ExecutionIndex, error)
+			})
+			if !ok {
+				return errors.New("execution artifact owner status is unavailable")
+			}
 			entry, err := reader.GetExecution(lockCtx, executionID)
 			if err != nil {
 				return err
 			}
 			if entry == nil {
 				return database.ErrNotFound
+			}
+			if entry.Status != database.ExecutionStatusPending && entry.Status != database.ExecutionStatusRunning {
+				return fmt.Errorf("execution %s is %q; artifact writes require a pending or running owner", executionID, entry.Status)
 			}
 		}
 		return write(lockCtx)

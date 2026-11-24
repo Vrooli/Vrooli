@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import BrowserInspectorTab from './BrowserInspectorTab';
 import type { ElementInfo, ElementHierarchyEntry } from '@/types/elements';
 import { ResponsiveDialog } from '@shared/layout';
-import { aiClient, analyzeElementsWithAI, mapProtoElementInfo, mapProtoSelectionResult, newGatewayRootOperationID } from '@/api/ai';
+import { aiClient, aiRequestErrorMessage, analyzeElementsWithAI, mapProtoElementInfo, mapProtoSelectionResult, newGatewayRootOperationID } from '@/api/ai';
 
 // bytesToBase64 converts a Uint8Array (proto `bytes` field) into a standard
 // base64 string for use as a data URL.
@@ -258,8 +258,7 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
       }
     } catch (error) {
       logger.error('Failed to analyze with AI', { component: 'ElementPickerModal', action: 'handleAIAnalysis' }, error);
-      const message = error instanceof Error ? error.message : 'AI analysis failed';
-      toast.error(message);
+      toast.error(aiRequestErrorMessage(error, 'AI analysis failed'));
     } finally {
       setAiAnalyzing(false);
     }

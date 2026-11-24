@@ -512,8 +512,10 @@ export function loadConfig(): Config {
       //
       // Default includes:
       // - --headless=new: Uses new headless mode with full service worker support
-      // - --disable-blink-features=AutomationControlled: Hides automation detection signals
-      // These fix Google redirect loop issues caused by bot detection
+      // - --disable-blink-features=AutomationControlled: Changes one browser
+      //   automation signal; no general detection outcome is implied.
+      // These defaults were added for reported Google redirect-loop behavior;
+      // current site-specific effects are unqualified.
       args: [
         '--headless=new',
         '--disable-blink-features=AutomationControlled',

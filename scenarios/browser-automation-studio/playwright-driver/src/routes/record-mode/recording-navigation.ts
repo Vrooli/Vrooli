@@ -18,7 +18,7 @@ import { createCDPSession, detachCDPSession } from '../../session/cdp-session';
 import type { Config } from '../../config';
 import { parseJsonBody, sendJson, sendError } from '../../middleware';
 import { logger, SessionNotFoundError } from '../../utils';
-import { recordingOwner } from './recording-ownership';
+import { recordingOwner, recordingPermissionDenied, sendRecordingError } from './recording-ownership';
 import { verifyScriptInjection } from '../../recording';
 import { clearFrameCache } from '../../session/frame-cache';
 import { enqueuePageMutation } from '../../session/live-input';
@@ -103,8 +103,20 @@ function navigationHandler(operation: NavigationOperation): (
         if (!before || before.currentIndex + direction < 0 || before.currentIndex + direction >= before.entries.length) return noHistory();
         // Same-document navigation can succeed with a null Playwright response.
       }
+      const targetURL = operation === 'navigate'
+        ? normalizedUrl
+        : direction !== 0 && before
+          ? before.entries[before.currentIndex + direction]?.url
+          : page.url();
+      const permissionDenied = recordingPermissionDenied(session, 'navigate', targetURL);
+      if (permissionDenied) {
+        sendJson(res, 403, { error: { code: 'BROWSER_PERMISSION_DENIED', message: permissionDenied, kind: 'auth', retryable: false } });
+        return;
+      }
       await enqueuePageMutation(page, async () => {
         ownedPage();
+        const denied = recordingPermissionDenied(ownedSession(), 'navigate', targetURL);
+        if (denied) throw new Error(`BROWSER_PERMISSION_DENIED: ${denied}`);
         // Retire the prior frame epoch before the browser mutation. A reload
         // can keep URL and viewport stable, so completion-time invalidation is late.
         clearFrameCache(sessionId);
@@ -203,7 +215,7 @@ function navigationHandler(operation: NavigationOperation): (
       };
       sendJson(res, 200, response);
     } catch (error) {
-      sendError(res, error as Error, `/session/${sessionId}/record/${operation}`);
+      sendRecordingError(res, error as Error, `/session/${sessionId}/record/${operation}`);
     }
   };
 }
@@ -223,6 +235,11 @@ function navigationReadHandler(stack: boolean) {
       const query = Object.fromEntries(new URL(req.url ?? '', 'http://driver').searchParams);
       const ownedSession = recordingOwner(query, sessionId, sessionManager);
       const session = ownedSession();
+      const permissionDenied = recordingPermissionDenied(session, 'history_read');
+      if (permissionDenied) {
+        sendJson(res, 403, { error: { code: 'BROWSER_PERMISSION_DENIED', message: permissionDenied, kind: 'auth', retryable: false } });
+        return;
+      }
       const page = session.page;
       const pageId = session.pageBindings.getId(page);
       if (!pageId || query.expected_page_id !== pageId) {
@@ -239,6 +256,11 @@ function navigationReadHandler(stack: boolean) {
       assertCurrent();
       const history = await readBrowserHistory(page, assertCurrent);
       assertCurrent();
+      const outOfScope = history.entries.some(entry => recordingPermissionDenied(ownedSession(), 'history_read', entry.url));
+      if (outOfScope) {
+        sendJson(res, 403, { error: { code: 'BROWSER_PERMISSION_DENIED', message: 'history contains a URL outside the admitted scope', kind: 'auth', retryable: false } });
+        return;
+      }
       if (stack) {
         const entries = history.entries.map(({ url, title }) => ({ url, title }));
         sendJson(res, 200, {

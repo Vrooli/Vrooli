@@ -61,7 +61,8 @@ func (s *service) Update(
 	req *connect.Request[sessionprofilesv1.UpdateSessionProfileRequest],
 ) (*connect.Response[sessionprofilesv1.SessionProfileResponse], error) {
 	msg := req.Msg
-	if _, err := uuid.Parse(msg.GetId()); err != nil {
+	id, err := parseProfileID(msg.GetId())
+	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidProfileID)
 	}
 
@@ -71,7 +72,6 @@ func (s *service) Update(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errNothingToUpdate)
 	}
 
-	id := sessionprofilepersistence.ProfileID(msg.GetId())
 	var name *string
 	if hasName {
 		value := msg.GetName()
@@ -101,10 +101,11 @@ func (s *service) Delete(
 	_ context.Context,
 	req *connect.Request[sessionprofilesv1.DeleteSessionProfileRequest],
 ) (*connect.Response[sessionprofilesv1.DeleteSessionProfileResponse], error) {
-	if _, err := uuid.Parse(req.Msg.GetId()); err != nil {
+	id, err := parseProfileID(req.Msg.GetId())
+	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidProfileID)
 	}
-	if err := s.deps.Repo.DeleteProfile(sessionprofilepersistence.ProfileID(req.Msg.GetId())); err != nil {
+	if err := s.deps.Repo.DeleteProfile(id); err != nil {
 		return nil, mapStoreError(err)
 	}
 	return connect.NewResponse(&sessionprofilesv1.DeleteSessionProfileResponse{Id: req.Msg.GetId()}), nil
@@ -113,6 +114,13 @@ func (s *service) Delete(
 // =============================================================================
 // Helpers
 // =============================================================================
+
+func parseProfileID(raw string) (sessionprofilepersistence.ProfileID, error) {
+	if _, err := uuid.Parse(raw); err != nil {
+		return "", err
+	}
+	return sessionprofilepersistence.ProfileID(raw), nil
+}
 
 func toProto(p *sessionprofilepersistence.SessionProfile) *sessionprofilesv1.SessionProfile {
 	if p == nil {

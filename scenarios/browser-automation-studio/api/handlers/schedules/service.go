@@ -31,6 +31,16 @@ type service struct {
 	deps Deps
 }
 
+// parseScheduleUUID owns the Connect invalid-argument mapping shared by schedule IDs and
+// workflow IDs. Optional workflow filters keep their existing trimming at the call site.
+func parseScheduleUUID(raw string, invalidID error) (uuid.UUID, error) {
+	id, err := uuid.Parse(raw)
+	if err != nil {
+		return uuid.Nil, connect.NewError(connect.CodeInvalidArgument, invalidID)
+	}
+	return id, nil
+}
+
 // =============================================================================
 // Create
 // =============================================================================
@@ -40,9 +50,9 @@ func (s *service) Create(
 	req *connect.Request[schedulesv1.CreateScheduleRequest],
 ) (*connect.Response[schedulesv1.ScheduleMutationResponse], error) {
 	msg := req.Msg
-	workflowID, err := uuid.Parse(msg.GetWorkflowId())
+	workflowID, err := parseScheduleUUID(msg.GetWorkflowId(), errInvalidWorkflowID)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidWorkflowID)
+		return nil, err
 	}
 
 	name := strings.TrimSpace(msg.GetName())
@@ -126,9 +136,9 @@ func (s *service) ListByWorkflow(
 	ctx context.Context,
 	req *connect.Request[schedulesv1.ListByWorkflowRequest],
 ) (*connect.Response[schedulesv1.ListSchedulesResponse], error) {
-	workflowID, err := uuid.Parse(req.Msg.GetWorkflowId())
+	workflowID, err := parseScheduleUUID(req.Msg.GetWorkflowId(), errInvalidWorkflowID)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidWorkflowID)
+		return nil, err
 	}
 
 	schedules, err := s.deps.Repo.ListSchedules(ctx, &workflowID, req.Msg.GetActiveOnly(), int(req.Msg.GetLimit()), int(req.Msg.GetOffset()))
@@ -158,9 +168,9 @@ func (s *service) List(
 ) (*connect.Response[schedulesv1.ListSchedulesResponse], error) {
 	var workflowFilter *uuid.UUID
 	if raw := strings.TrimSpace(req.Msg.GetWorkflowId()); raw != "" {
-		id, err := uuid.Parse(raw)
+		id, err := parseScheduleUUID(raw, errInvalidWorkflowID)
 		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidWorkflowID)
+			return nil, err
 		}
 		workflowFilter = &id
 	}
@@ -193,9 +203,9 @@ func (s *service) Get(
 	ctx context.Context,
 	req *connect.Request[schedulesv1.GetScheduleRequest],
 ) (*connect.Response[schedulesv1.ScheduleResponse], error) {
-	scheduleID, err := uuid.Parse(req.Msg.GetScheduleId())
+	scheduleID, err := parseScheduleUUID(req.Msg.GetScheduleId(), errInvalidScheduleID)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidScheduleID)
+		return nil, err
 	}
 
 	schedule, err := s.deps.Repo.GetSchedule(ctx, scheduleID)
@@ -225,9 +235,9 @@ func (s *service) Update(
 	req *connect.Request[schedulesv1.UpdateScheduleRequest],
 ) (*connect.Response[schedulesv1.ScheduleMutationResponse], error) {
 	msg := req.Msg
-	scheduleID, err := uuid.Parse(msg.GetScheduleId())
+	scheduleID, err := parseScheduleUUID(msg.GetScheduleId(), errInvalidScheduleID)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidScheduleID)
+		return nil, err
 	}
 
 	schedule, err := s.deps.Repo.GetSchedule(ctx, scheduleID)
@@ -301,9 +311,9 @@ func (s *service) Delete(
 	ctx context.Context,
 	req *connect.Request[schedulesv1.DeleteScheduleRequest],
 ) (*connect.Response[schedulesv1.DeleteScheduleResponse], error) {
-	scheduleID, err := uuid.Parse(req.Msg.GetScheduleId())
+	scheduleID, err := parseScheduleUUID(req.Msg.GetScheduleId(), errInvalidScheduleID)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidScheduleID)
+		return nil, err
 	}
 	if err := s.deps.Repo.DeleteSchedule(ctx, scheduleID); err != nil {
 		if errors.Is(err, database.ErrNotFound) {
@@ -319,9 +329,9 @@ func (s *service) Toggle(
 	ctx context.Context,
 	req *connect.Request[schedulesv1.ToggleScheduleRequest],
 ) (*connect.Response[schedulesv1.ToggleScheduleResponse], error) {
-	scheduleID, err := uuid.Parse(req.Msg.GetScheduleId())
+	scheduleID, err := parseScheduleUUID(req.Msg.GetScheduleId(), errInvalidScheduleID)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidScheduleID)
+		return nil, err
 	}
 
 	schedule, err := s.deps.Repo.GetSchedule(ctx, scheduleID)
@@ -359,9 +369,9 @@ func (s *service) Trigger(
 	ctx context.Context,
 	req *connect.Request[schedulesv1.TriggerScheduleRequest],
 ) (*connect.Response[schedulesv1.TriggerScheduleResponse], error) {
-	scheduleID, err := uuid.Parse(req.Msg.GetScheduleId())
+	scheduleID, err := parseScheduleUUID(req.Msg.GetScheduleId(), errInvalidScheduleID)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidScheduleID)
+		return nil, err
 	}
 
 	schedule, err := s.deps.Repo.GetSchedule(ctx, scheduleID)
@@ -434,9 +444,9 @@ func (s *service) Occurrences(
 
 	var workflowFilter *uuid.UUID
 	if raw := strings.TrimSpace(req.Msg.GetWorkflowId()); raw != "" {
-		id, err := uuid.Parse(raw)
+		id, err := parseScheduleUUID(raw, errInvalidWorkflowID)
 		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidWorkflowID)
+			return nil, err
 		}
 		workflowFilter = &id
 	}

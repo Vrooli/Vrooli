@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/api-core/connectx"
 
+	exportservice "github.com/vrooli/browser-automation-studio/services/export"
 	"github.com/vrooli/browser-automation-studio/services/retention"
 	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api/apiconnect"
@@ -46,9 +47,8 @@ type Deps struct {
 	// SeedScheduler receives ScheduleExecutionSeedCleanup requests. When
 	// nil the RPC returns connect.CodeFailedPrecondition.
 	SeedScheduler SeedScheduler
-	// RecordingsRoot is consulted by include_exportability=true list
-	// requests to probe for a recorded video artifact. Empty means
-	// "skip the recorded-video probe".
+	// RecordingsRoot configures the canonical export artifact catalog used by
+	// include_exportability=true list requests. Empty skips video inspection.
 	RecordingsRoot string
 	// Retention runs execution-artifact retention sweeps. When nil the
 	// retention RPCs return connect.CodeFailedPrecondition.
@@ -65,7 +65,7 @@ func Module(d Deps) connectx.ServiceMount {
 	if d.Executor == nil {
 		panic("executions.Module requires Deps.Executor")
 	}
-	path, handler := apiconnect.NewExecutionsServiceHandler(&service{deps: d})
+	path, handler := apiconnect.NewExecutionsServiceHandler(&service{deps: d, artifactCatalog: exportservice.NewArtifactCatalog(d.RecordingsRoot)})
 	return connectx.ServiceMount{Path: path, Handler: handler}
 }
 

@@ -26,6 +26,8 @@ import {
 import { generateSilentSinkPatch, type AudioStrategy } from './audio';
 import { configureInteractionState } from './interaction-state';
 import { configureRoutedWebSockets } from './routed-websocket';
+import type { IdentityContextConfiguration } from './identity-evidence';
+import { installNavigationScopeGuard } from './navigation-scope';
 
 // Re-export for backward compatibility (canonical location is browser-profile)
 export { BEHAVIOR_SETTINGS_KEY } from '../browser-profile';
@@ -163,6 +165,7 @@ export async function buildContext(
   serviceWorkerController: ServiceWorkerController;
   recordingInitializer: RecordingContextInitializer;
   actualViewport: ActualViewport;
+  identityConfiguration: IdentityContextConfiguration;
 }> {
   // Resolve artifact paths using dedicated module (explicit decision logic)
   const effectiveCapabilities = spec.required_capabilities
@@ -260,11 +263,16 @@ export async function buildContext(
   // Determine device scale factor from profile
   const deviceScaleFactor = fingerprint.device_scale_factor || 2;
 
-  // Resolve user agent: profile > spec > default
-  const userAgent = spec.user_agent || resolveUserAgent(fingerprint);
+  // Respect explicit UA selection, but leave the default to the selected
+  // engine so the reported UA and serving browser version remain coherent.
+  const hasExplicitUserAgent = Boolean(
+    spec.user_agent || fingerprint.user_agent || fingerprint.user_agent_preset
+  );
+  const userAgent =
+    spec.user_agent || (hasExplicitUserAgent ? resolveUserAgent(fingerprint) : undefined);
 
-  // Generate Client Hints headers for Chromium browsers
-  const clientHints = generateClientHints(userAgent);
+  // Generate Client Hints headers only when BAS deliberately sets a UA.
+  const clientHints = userAgent ? generateClientHints(userAgent) : null;
 
   // Merge Client Hints with user-provided headers (user headers take precedence)
   const finalHeaders = mergeClientHintsWithHeaders(
@@ -358,6 +366,9 @@ export async function buildContext(
 
   // Create context
   const context = await browser.newContext(contextOptions);
+  // Bind the document navigation boundary to the admitted session profile at
+  // context creation. This also covers popups and iframe document requests.
+  await installNavigationScopeGuard(context, spec.permission_profile);
   await configureRoutedWebSockets(context, spec.browser_profile?.extra_headers);
   const storageOrigins = new Set(spec.storage_state?.origins.map(({ origin }) => origin));
   const rememberOrigin = (frame: Frame): void => {
@@ -414,7 +425,7 @@ export async function buildContext(
   // Log context options for diagnostic debugging
   logContextOptions(spec.execution_id, {
     viewport: contextOptions.viewport,
-    userAgent: userAgent.slice(0, 100),
+    userAgent: userAgent?.slice(0, 100),
     locale: contextOptions.locale,
     timezoneId: contextOptions.timezoneId,
     colorScheme: contextOptions.colorScheme,
@@ -424,7 +435,7 @@ export async function buildContext(
   });
 
   // Log Client Hints configuration
-  logClientHints(spec.execution_id, userAgent, clientHints);
+  if (userAgent) logClientHints(spec.execution_id, userAgent, clientHints);
 
   // Apply anti-detection patches
   const hasAntiDetection = Object.values(antiDetection).some(Boolean);
@@ -555,6 +566,14 @@ export async function buildContext(
     serviceWorkerController,
     recordingInitializer,
     actualViewport,
+    identityConfiguration: {
+      userAgent: contextOptions.userAgent,
+      locale: contextOptions.locale,
+      timezoneId: contextOptions.timezoneId,
+      colorScheme: contextOptions.colorScheme ?? undefined,
+      deviceScaleFactor: contextOptions.deviceScaleFactor ?? 1,
+      viewport: { width: viewportWidth, height: viewportHeight },
+    },
   };
 }
 

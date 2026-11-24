@@ -42,7 +42,7 @@ export const SECTION_GROUPS: SectionGroup[] = [
       { id: 'presets', label: 'Presets', icon: <Sparkles size={16} /> },
       { id: 'fingerprint', label: 'Fingerprint', icon: <Fingerprint size={16} /> },
       { id: 'behavior', label: 'Behavior', icon: <Zap size={16} /> },
-      { id: 'anti-detection', label: 'Anti-Detection', icon: <ShieldCheck size={16} /> },
+      { id: 'anti-detection', label: 'Browser Signals', icon: <ShieldCheck size={16} /> },
       { id: 'proxy', label: 'Proxy', icon: <Globe size={16} /> },
       { id: 'extra-headers', label: 'HTTP Headers', icon: <FileText size={16} /> },
     ],

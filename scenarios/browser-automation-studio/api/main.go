@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -22,13 +23,17 @@ import (
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/lpbsidentity"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	"github.com/vrooli/browser-automation-studio/automation/agentaccess"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
+	"github.com/vrooli/browser-automation-studio/automation/harness"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/handlers"
+	agentaccessconnect "github.com/vrooli/browser-automation-studio/handlers/agentaccess"
 	aihandlers "github.com/vrooli/browser-automation-studio/handlers/ai"
 	aiserviceconnect "github.com/vrooli/browser-automation-studio/handlers/ai_service"
 	captureconnect "github.com/vrooli/browser-automation-studio/handlers/capture"
@@ -98,6 +103,16 @@ const managedShutdownTimeout = 250 * time.Millisecond
 // must still have time to finish after that drain deadline expires.
 const managedCleanupTimeout = 15 * time.Second
 
+const maxConcurrentSystemCaptures = 2
+
+func mustCaptureServiceAdmission(logger *logrus.Logger) *agentaccess.CaptureServiceAdmission {
+	admission, err := agentaccess.NewCaptureServiceAdmission(agentaccess.CaptureServiceVerifier(), maxConcurrentSystemCaptures)
+	if err != nil {
+		logger.WithError(err).Fatal("BAS system capture admission unavailable")
+	}
+	return admission
+}
+
 func main() {
 	// Preflight checks - must be first, before any initialization
 	if preflight.Run(preflight.Config{
@@ -124,6 +139,26 @@ func main() {
 	if credentialAuthorityErr != nil {
 		log.WithError(credentialAuthorityErr).Warn("credential authority unavailable; credential provisioning disabled")
 	}
+	var browserEvidenceTokens agentaccess.BrowserEvidenceTokenSource
+	var browserTabConsentTokens agentaccess.BrowserEvidenceTokenSource
+	if credentialAuthority != nil {
+		identity, identityErr := credentialauthority.ParseIdentity(agentaccess.BrowserEvidenceReporterRole.CredentialIdentity("browser-automation-studio"))
+		if identityErr != nil {
+			log.WithError(identityErr).Warn("browser evidence service identity unavailable; trusted evidence disabled")
+		} else {
+			browserEvidenceTokens = agentaccess.BrowserEvidenceReporterRole.NewTokens("browser-automation-studio", func(context.Context) (string, error) {
+				return credentialAuthority.Require(identity, "credential")
+			})
+		}
+		tabConsentIdentity, tabConsentIdentityErr := credentialauthority.ParseIdentity(agentaccess.BrowserTabConsentBrokerRole.CredentialIdentity("browser-automation-studio"))
+		if tabConsentIdentityErr != nil {
+			log.WithError(tabConsentIdentityErr).Warn("browser tab consent service identity unavailable; selected-tab attach remains fail-closed")
+		} else {
+			browserTabConsentTokens = agentaccess.BrowserTabConsentBrokerRole.NewTokens("browser-automation-studio", func(context.Context) (string, error) {
+				return credentialAuthority.Require(tabConsentIdentity, "credential")
+			})
+		}
+	}
 	credentialClient, credentialClientErr := credentialclient.NewClient(credentialclient.ClientOptions{
 		Authority: credentialAuthority,
 		Descriptors: func() ([]credentialclient.CredentialRef, error) {
@@ -133,6 +168,12 @@ func main() {
 	if credentialClientErr != nil {
 		log.WithError(credentialClientErr).Warn("credential client unavailable; credential provisioning disabled")
 		credentialClient = nil
+	}
+	if credentialClient != nil {
+		callerTokens := lpbsidentity.GatewayCreditInference.NewTokens("browser-automation-studio", func(ctx context.Context) (string, error) {
+			return credentialClient.Resolve(ctx, lpbsidentity.GatewayCreditInference.CredentialIdentity("browser-automation-studio"), "credential")
+		})
+		aihandlers.SetDefaultGatewayCreditCallerAuthorization(callerTokens.Token)
 	}
 	var subscriptionResolver interface {
 		ResolveAt(context.Context, string) (credentialclient.ConsumerAccess, error)
@@ -181,12 +222,19 @@ func main() {
 	recoveryResult, recoveryErr := recoverySvc.RecoverInterruptedExecutions(recoverCtx)
 	recoverCancel()
 	if recoveryErr != nil {
-		log.WithError(recoveryErr).Fatal("Interrupted execution recovery failed; refusing to start")
+		fields := logrus.Fields{}
+		if recoveryResult != nil {
+			fields["artifact_temps_removed"] = recoveryResult.ArtifactTempsRemoved
+			fields["artifact_cleanup_failures"] = recoveryResult.ArtifactCleanupFailed
+		}
+		log.WithError(recoveryErr).WithFields(fields).Fatal("Interrupted execution recovery failed; refusing to start")
 	}
-	if recoveryResult.TotalActive > 0 {
+	if recoveryResult.TotalActive > 0 || recoveryResult.ArtifactTempsRemoved > 0 {
 		log.WithFields(logrus.Fields{
-			"recovered":    recoveryResult.Recovered,
-			"total_active": recoveryResult.TotalActive,
+			"recovered":                 recoveryResult.Recovered,
+			"total_active":              recoveryResult.TotalActive,
+			"artifact_temps_removed":    recoveryResult.ArtifactTempsRemoved,
+			"artifact_cleanup_failures": recoveryResult.ArtifactCleanupFailed,
 		}).Info("✅ Interrupted execution recovery completed")
 	}
 
@@ -318,11 +366,13 @@ func main() {
 	// Wire up WebSocket input forwarding for low-latency input events
 	// This allows the UI to send input via WebSocket instead of HTTP POST
 	hub.SetInputForwarder(handler.CreateInputForwarder())
+	hub.SetInputStateReleaser(handler.CreateInputStateReleaser())
 
 	// Initialize playwright-driver sidecar management
 	// This enables automatic restart on crashes, health monitoring, and recording recovery
 	var sidecarDeps *sidecar.Dependencies
 	var stopSessionReconciler context.CancelFunc
+	var sessionReconcilerDone chan struct{}
 	resolveCtx, resolveCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	gatewayURL, resolveErr := discovery.ResolveScenarioURLDefault(resolveCtx, "ai-gateway")
 	resolveCancel()
@@ -366,7 +416,11 @@ func main() {
 	if deps.SessionBroker != nil {
 		reconcilerCtx, cancelReconciler := context.WithCancel(context.Background())
 		stopSessionReconciler = cancelReconciler
-		go recovery.NewSessionReconciler(deps.SessionBroker, repo, log).Run(reconcilerCtx)
+		sessionReconcilerDone = make(chan struct{})
+		go func() {
+			defer close(sessionReconcilerDone)
+			recovery.NewSessionReconciler(deps.SessionBroker, repo, log).Run(reconcilerCtx)
+		}()
 	} else {
 		log.Warn("Session broker unavailable; terminal session reconciliation disabled")
 	}
@@ -413,12 +467,78 @@ func main() {
 	retentionPlanner := retention.NewService(repo, retention.OSFileSystem{}, recordingsEvidenceRoot, log).
 		WithCaptureRoot(capturesEvidenceRoot).
 		WithRecoveryLockPath(sharedRecoveryLockPath())
+	var accessBroker *agentaccess.Broker
+	var paneStreamReceipts *agentaccess.PaneStreamReceiptAuthority
+	var agentAccessHarnesses *harness.Registry
+	if deps.SessionBroker == nil {
+		log.Warn("Agent browser access services disabled: BAS session owner unavailable")
+	} else {
+		agentManagerURL := strings.TrimSpace(os.Getenv("AGENT_MANAGER_API_URL"))
+		if agentManagerURL == "" {
+			resolved, resolveErr := discovery.ResolveScenarioURLDefault(context.Background(), "agent-manager")
+			if resolveErr != nil {
+				log.WithError(resolveErr).Warn("Agent browser access will fail closed: Agent Manager URL unavailable")
+			} else {
+				agentManagerURL = resolved
+			}
+		}
+		runContext := &agentaccess.AgentManagerRunContext{BaseURL: agentManagerURL}
+		openAuthorizer := &agentaccess.AgentManagerOpenAuthorizer{BaseURL: agentManagerURL, Context: runContext}
+		tabConsent := &agentaccess.AgentManagerTabConsentAuthority{RunContext: runContext, ServiceTokens: browserTabConsentTokens}
+		profiles := &agentaccess.AgentManagerProfileResolver{RunContext: runContext, ConsentVerifier: tabConsent}
+		extensionArtifactURL := strings.TrimSpace(os.Getenv("SCENARIO_TO_EXTENSION_API_URL"))
+		if extensionArtifactURL == "" {
+			resolved, resolveErr := discovery.ResolveScenarioURLDefault(context.Background(), "scenario-to-extension")
+			if resolveErr != nil {
+				log.WithError(resolveErr).Warn("Browser extension lifecycle remains unavailable: scenario-to-extension artifact owner URL could not be resolved")
+			} else {
+				extensionArtifactURL = resolved
+			}
+		}
+		var extensionController agentaccess.ExtensionController
+		if extensionArtifactURL != "" {
+			controller, controllerErr := agentaccess.NewManagedExtensionController(deps.SessionBroker, extensionArtifactURL)
+			if controllerErr != nil {
+				log.WithError(controllerErr).Warn("Browser extension lifecycle remains unavailable: managed extension controller could not be initialized")
+			} else {
+				extensionController = controller
+			}
+		}
+		broker, brokerErr := agentaccess.NewBroker(deps.SessionBroker, profiles, openAuthorizer, runContext, extensionController)
+		if brokerErr != nil {
+			log.WithError(brokerErr).Error("Agent browser access services unavailable")
+		} else {
+			accessBroker = broker
+			accessBroker.SetTabConsentIssuer(tabConsent)
+			paneStreamReceipts = agentaccess.NewPaneStreamReceiptAuthority(accessBroker)
+			accessBroker.SetStreamAuthority(paneStreamReceipts, hub)
+			accessBroker.SetTrustedOpenContextResolver(runContext)
+			accessBroker.SetEvidenceRecorder(&agentaccess.AgentManagerEvidenceRecorder{RunContext: runContext, ServiceTokens: browserEvidenceTokens})
+			accessBroker.SetAudioFixtureResolver(agentaccess.NewVrooliAudioFixtureResolver(os.Getenv("VROOLI_ROOT")))
+			if extensionArtifactURL != "" {
+				artifactVerifier, verifierErr := agentaccess.NewScenarioToExtensionArtifactVerifier(extensionArtifactURL, nil)
+				if verifierErr != nil {
+					log.WithError(verifierErr).Warn("Browser extension install remains unavailable: scenario-to-extension artifact owner URL is invalid")
+				} else {
+					accessBroker.SetExtensionArtifactVerifier(artifactVerifier)
+				}
+			}
+			agentAccessHarnesses, brokerErr = harness.NewDefaultRegistry()
+			if brokerErr != nil {
+				log.WithError(brokerErr).Error("Agent browser harness registry unavailable")
+				agentAccessHarnesses = nil
+			}
+		}
+	}
+	captureServiceAdmission := mustCaptureServiceAdmission(log)
 	connectMounts := []connectx.ServiceMount{
 		readinessconnect.Module(readinessconnect.Deps{Reader: readinessservice.NewProfileReader(), Logger: log}),
 		consumerdeclarationsconnect.Module(consumerdeclarationsconnect.Deps{Logger: log}),
 		drillsconnect.Module(drillsconnect.Deps{AdminSecret: drillSecret, SessionBroker: deps.SessionBroker, Logger: log}),
 		captureconnect.Module(captureconnect.Deps{
 			Executor:          deps.ExecutionService,
+			ServiceAdmission:  captureServiceAdmission,
+			RequestStore:      captureconnect.NewSQLCaptureRequestStore(db.DB),
 			Storage:           deps.Storage,
 			Resolver:          discovery.NewResolver(discovery.ResolverConfig{}),
 			ReadinessResolver: captureconnect.NewReadinessProfileResolver(),
@@ -514,10 +634,11 @@ func main() {
 			Logger: log,
 		}),
 		visionnavconnect.Module(visionnavconnect.Deps{
-			Logger:              log,
-			Registry:            navigatorRegistry,
-			Tracker:             playwrightNav,
-			CredentialAuthority: credentialAuthority,
+			Logger:                 log,
+			Registry:               navigatorRegistry,
+			Tracker:                playwrightNav,
+			CredentialAuthority:    credentialAuthority,
+			BrowserBindingResolver: accessBroker,
 		}),
 	}
 	schemaMount, err := schemaconnect.Module(schemaconnect.Deps{Logger: log})
@@ -533,6 +654,9 @@ func main() {
 	connectMounts = append(connectMounts, basMeasuresMount)
 	if err := basmeasuresconnect.MountHTTP(r, db.Routed, time.Now); err != nil {
 		log.WithError(err).Fatal("failed to mount BAS measures registry")
+	}
+	if accessBroker != nil {
+		connectMounts = append(connectMounts, agentaccessconnect.Module(agentaccessconnect.Deps{Broker: accessBroker, Workflows: deps.CatalogService}))
 	}
 	connectx.RegisterChi(r, connectMounts...)
 
@@ -624,6 +748,37 @@ func main() {
 	r.Get("/ws/frames", handler.HandleDriverFrameStream)                // Shared recording and execution driver-frame ingress.
 
 	r.Route("/api/v1", func(r chi.Router) {
+		// Agent CLI/MCP and program clients share the established BAS session
+		// manager. Optional authority wiring is resolved from Agent Manager;
+		// every browser mode remains unqualified until an owner supplies live
+		// qualification receipts, and every operation fails closed on missing
+		// run context or profile authority.
+		if accessBroker == nil {
+			log.Warn("Agent browser access routes disabled: BAS session owner unavailable")
+		} else if agentAccessHarnesses == nil {
+			log.Warn("Agent browser REST routes disabled: harness registry unavailable; typed Connect service remains mounted")
+		} else {
+			fallbackInputForwarder := handler.CreateInputForwarder()
+			hub.SetInputForwarder(func(sessionID string, input map[string]any) (*driver.ForwardInputResponse, error) {
+				body, marshalErr := json.Marshal(input)
+				if marshalErr != nil {
+					return nil, marshalErr
+				}
+				if receipt, handled, inputErr := accessBroker.ForwardControlInput(sessionID, body); handled {
+					return receipt, inputErr
+				}
+				return fallbackInputForwarder(sessionID, input)
+			})
+			(&agentaccess.HTTPHandler{
+				Broker: accessBroker, Harnesses: agentAccessHarnesses, Workflows: deps.CatalogService,
+				EvidenceTokenVerifier: agentaccess.NewBrowserEvidenceTokenVerifier(),
+				BridgeOrigin:          os.Getenv("BAS_BROWSER_BRIDGE_ORIGIN"),
+				BridgeExtensionOrigin: os.Getenv("BAS_BROWSER_BRIDGE_EXTENSION_ORIGIN"),
+			}).RegisterRoutes(r)
+			agentaccess.RegisterPaneStreamReceiptRoutes(r, paneStreamReceipts, agentaccess.NewBrowserPaneIssuerTokenVerifier())
+			log.Info("Agent browser access routes mounted under /api/v1/browser")
+		}
+
 		r.Get("/ai/privacy-consent", aihandlers.PrivacyConsentHandler().ServeHTTP)
 		r.Post("/ai/privacy-consent", aihandlers.PrivacyConsentHandler().ServeHTTP)
 		r.Delete("/ai/privacy-consent/{id}", aihandlers.PrivacyConsentHandler().ServeHTTP)
@@ -1003,11 +1158,11 @@ func main() {
 		//
 		// RESTException: third_party_shape — binary media serve, not RPC.
 		// Tracked in docs/internal/REST_EXCEPTIONS.md.
-		r.Get("/screenshots/*", handler.ServeScreenshot)
+		r.Get("/screenshots/*", captureServiceAdmission.RejectServiceToken(http.HandlerFunc(handler.ServeScreenshot)))
 		// RESTException: third_party_shape — binary media serve, not RPC.
-		r.Get("/screenshots/thumbnail/*", handler.ServeThumbnail)
+		r.Get("/screenshots/thumbnail/*", captureServiceAdmission.RejectServiceToken(http.HandlerFunc(handler.ServeThumbnail)))
 		// RESTException: third_party_shape — binary media serve, not RPC.
-		r.Get("/artifacts/*", handler.ServeArtifact)
+		r.Get("/artifacts/*", captureServiceAdmission.RejectServiceToken(http.HandlerFunc(handler.ServeArtifact)))
 
 		// AI helper routes (preview-screenshot, link-preview, analyze-elements,
 		// element-at-coordinate, ai-analyze-elements, dom-tree) are served via
@@ -1130,35 +1285,32 @@ func main() {
 		ShutdownTimeout: managedShutdownTimeout,
 		CleanupTimeout:  managedCleanupTimeout,
 		Cleanup: func(ctx context.Context) error {
-			if err := handler.DrainExports(ctx); err != nil {
-				log.WithError(err).Error("Export shutdown exceeded its deadline")
+			plan := apiCleanupPlan{
+				drainExports:      handler.DrainExports,
+				cancelCheckpoints: cancelCheckpoints,
+				checkpointsDone:   checkpointsDone,
+				cancelReconciler:  stopSessionReconciler,
+				reconcilerDone:    sessionReconcilerDone,
 			}
-			cancelCheckpoints()
-			select {
-			case <-checkpointsDone:
-			case <-ctx.Done():
-				log.WithError(ctx.Err()).Error("Profile checkpoint shutdown exceeded its deadline")
-			}
-			if stopSessionReconciler != nil {
-				stopSessionReconciler()
-			}
-			// Stop the scheduler first to prevent new executions
 			if schedulerSvc != nil {
-				log.Info("Stopping scheduler...")
-				if err := schedulerSvc.StopContext(ctx); err != nil {
-					log.WithError(err).Error("Failed to stop scheduler cleanly")
+				plan.schedulerStop = schedulerSvc.StopContext
+			}
+			if shutdowner, ok := deps.ExecutionService.(interface{ Shutdown(context.Context) error }); ok {
+				plan.workflowShutdown = shutdowner.Shutdown
+			} else {
+				plan.workflowShutdown = func(context.Context) error {
+					return errors.New("workflow execution service does not expose shutdown ownership")
 				}
 			}
-			// Stop sidecar (stops playwright-driver and health monitor)
 			if sidecarDeps != nil && sidecarDeps.IsEnabled() {
-				log.Info("Stopping sidecar...")
-				if err := sidecarDeps.Stop(ctx); err != nil {
-					log.WithError(err).Error("Failed to stop sidecar cleanly")
-				}
+				plan.stopSidecar = sidecarDeps.Stop
 			}
-			// Close database connection
 			if db != nil {
-				db.Close()
+				plan.closeDatabase = db.Close
+			}
+			if err := runAPICleanup(ctx, plan); err != nil {
+				log.WithError(err).Error("API cleanup did not complete; process recovery will reconcile unresolved owners")
+				return err
 			}
 			log.Info("✅ Server stopped gracefully")
 			return nil

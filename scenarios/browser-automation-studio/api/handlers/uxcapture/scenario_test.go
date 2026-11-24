@@ -3,7 +3,9 @@ package uxcapture
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -57,6 +59,44 @@ func TestScenarioCaptureResolvesRunningAppRootWithoutRoute(t *testing.T) {
 	}
 	if len(client.request.AllowedOrigins) != 2 || client.request.AllowedOrigins[1] != "http://localhost:4322" {
 		t.Fatalf("expected UI and API origins to be allowlisted, got %+v", client.request.AllowedOrigins)
+	}
+}
+
+func TestCaptureEntrypointsSharePrivateBundlePersistenceOwner(t *testing.T) {
+	const id = "11111111-1111-4111-8111-111111111111"
+	publicRaw := json.RawMessage(`{"schema_version":"ux-capture.v1","id":"` + id + `","captured_at":"2026-11-14T05:00:00Z","source":{"kind":"url","url":"https://example.org/"},"session":{"id":"session-public","browser":"chromium"},"viewport":{"width":1280,"height":720},"lenses":{"L0":{"status":"absent"},"L1":{"status":"absent"},"L2":{"status":"absent"},"L3":{"status":"absent"},"L4":{"status":"absent"},"L5":{"status":"absent"},"L6":{"status":"absent"}},"privacy":{"redaction_status":"complete"},"artifacts":{}}`)
+	fileRaw := json.RawMessage(strings.Replace(string(publicRaw), `"kind":"url","url":"https://example.org/"`, `"kind":"file","filename":"mockup.html"`, 1))
+
+	tests := []struct {
+		name  string
+		path  string
+		body  string
+		mount func(*chi.Mux, string)
+	}{
+		{name: "public URL", path: "/ux-capture/public", body: `{"url":"https://example.org/"}`, mount: func(r *chi.Mux, root string) { MountHTTP(r, publicCaptureStub{raw: publicRaw}, root) }},
+		{name: "local HTML", path: "/ux-capture/file", body: `{"filename":"mockup.html","html":"<html>fixture</html>"}`, mount: func(r *chi.Mux, root string) { MountHTTP(r, publicCaptureStub{raw: fileRaw}, root) }},
+		{name: "scenario", path: "/ux-capture/scenario", body: `{"scenario":"git-control-tower"}`, mount: func(r *chi.Mux, root string) {
+			MountScenarioHTTP(r, &scenarioCaptureFixture{}, scenarioResolverFixture{ui: "http://localhost:4321", api: "http://localhost:4322"}, root)
+		}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			router := chi.NewMux()
+			tc.mount(router, root)
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, tc.path, strings.NewReader(tc.body)))
+			if response.Code != http.StatusCreated {
+				t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+			}
+			matches, err := filepath.Glob(filepath.Join(root, "ux", "*", "manifest.json"))
+			if err != nil || len(matches) != 1 {
+				t.Fatalf("persisted manifests=%v err=%v, want exactly one", matches, err)
+			}
+			if _, err := os.Stat(filepath.Join(filepath.Dir(matches[0]), "README.md")); err != nil {
+				t.Fatalf("bundle sidecar missing: %v", err)
+			}
+		})
 	}
 }
 

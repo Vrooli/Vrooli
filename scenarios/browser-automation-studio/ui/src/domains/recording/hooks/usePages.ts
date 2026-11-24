@@ -18,7 +18,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 export type PageStatus = 'active' | 'closed';
 
 /** Page event types from the server */
-export type PageEventType = 'page_created' | 'page_navigated' | 'page_closed';
+export type PageEventType = 'page_created' | 'page_navigated' | 'page_closed' | 'page_activated';
 
 /** Page representing a browser tab within a recording session */
 export interface Page {
@@ -43,6 +43,7 @@ export interface PageEvent {
   title?: string;
   faviconUrl?: string;
   openerId?: string;
+  activePageId?: string;
   timestamp: string;
 }
 
@@ -68,7 +69,7 @@ interface PageSwitchMessage {
   timestamp: string;
 }
 
-const pageEventTypes = new Set<PageEventType>(['page_created', 'page_navigated', 'page_closed']);
+const pageEventTypes = new Set<PageEventType>(['page_created', 'page_navigated', 'page_closed', 'page_activated']);
 
 const parsePage = (value: unknown): Page | null => {
   if (!isRecord(value)) return null;
@@ -162,6 +163,7 @@ const parsePageEvent = (value: unknown): PageEvent | null => {
         : typeof value.opener_id === 'string'
           ? value.opener_id
           : undefined,
+    activePageId: typeof value.activePageId === 'string' ? value.activePageId : undefined,
     timestamp,
   };
 };

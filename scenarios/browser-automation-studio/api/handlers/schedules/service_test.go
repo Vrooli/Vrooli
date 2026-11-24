@@ -113,6 +113,115 @@ func TestCreateInvalidWorkflowID(t *testing.T) {
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
 
+func TestScheduleUUIDParsingKeepsCallerSpecificConnectErrors(t *testing.T) {
+	now := time.Now()
+	cases := []struct {
+		name string
+		want string
+		call func(*harness) error
+	}{
+		{
+			name: "create workflow id",
+			want: "invalid workflow id",
+			call: func(h *harness) error {
+				_, err := h.client.Create(context.Background(), connect.NewRequest(&schedulesv1.CreateScheduleRequest{WorkflowId: " not-a-uuid ", Name: "x", CronExpression: "0 0 * * *"}))
+				return err
+			},
+		},
+		{
+			name: "list by workflow id",
+			want: "invalid workflow id",
+			call: func(h *harness) error {
+				_, err := h.client.ListByWorkflow(context.Background(), connect.NewRequest(&schedulesv1.ListByWorkflowRequest{WorkflowId: "not-a-uuid"}))
+				return err
+			},
+		},
+		{
+			name: "optional list workflow filter",
+			want: "invalid workflow id",
+			call: func(h *harness) error {
+				_, err := h.client.List(context.Background(), connect.NewRequest(&schedulesv1.ListSchedulesRequest{WorkflowId: "not-a-uuid"}))
+				return err
+			},
+		},
+		{
+			name: "get schedule id",
+			want: "invalid schedule id",
+			call: func(h *harness) error {
+				_, err := h.client.Get(context.Background(), connect.NewRequest(&schedulesv1.GetScheduleRequest{ScheduleId: "not-a-uuid"}))
+				return err
+			},
+		},
+		{
+			name: "update schedule id",
+			want: "invalid schedule id",
+			call: func(h *harness) error {
+				_, err := h.client.Update(context.Background(), connect.NewRequest(&schedulesv1.UpdateScheduleRequest{ScheduleId: "not-a-uuid"}))
+				return err
+			},
+		},
+		{
+			name: "delete schedule id",
+			want: "invalid schedule id",
+			call: func(h *harness) error {
+				_, err := h.client.Delete(context.Background(), connect.NewRequest(&schedulesv1.DeleteScheduleRequest{ScheduleId: "not-a-uuid"}))
+				return err
+			},
+		},
+		{
+			name: "toggle schedule id",
+			want: "invalid schedule id",
+			call: func(h *harness) error {
+				_, err := h.client.Toggle(context.Background(), connect.NewRequest(&schedulesv1.ToggleScheduleRequest{ScheduleId: "not-a-uuid"}))
+				return err
+			},
+		},
+		{
+			name: "trigger schedule id",
+			want: "invalid schedule id",
+			call: func(h *harness) error {
+				_, err := h.client.Trigger(context.Background(), connect.NewRequest(&schedulesv1.TriggerScheduleRequest{ScheduleId: "not-a-uuid"}))
+				return err
+			},
+		},
+		{
+			name: "optional occurrences workflow filter",
+			want: "invalid workflow id",
+			call: func(h *harness) error {
+				_, err := h.client.Occurrences(context.Background(), connect.NewRequest(&schedulesv1.OccurrencesRequest{
+					Start: timestamppb.New(now), End: timestamppb.New(now.Add(time.Hour)), WorkflowId: "not-a-uuid",
+				}))
+				return err
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.call(newHarness(t))
+			require.Error(t, err)
+			require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+			var connectErr *connect.Error
+			require.ErrorAs(t, err, &connectErr)
+			require.Equal(t, tc.want, connectErr.Message())
+		})
+	}
+}
+
+func TestOptionalWorkflowFiltersStillIgnoreWhitespaceOnlyValues(t *testing.T) {
+	h := newHarness(t)
+	list, err := h.client.List(context.Background(), connect.NewRequest(&schedulesv1.ListSchedulesRequest{WorkflowId: "  \t "}))
+	require.NoError(t, err)
+	require.Zero(t, list.Msg.GetTotal())
+
+	now := time.Now()
+	occurrences, err := h.client.Occurrences(context.Background(), connect.NewRequest(&schedulesv1.OccurrencesRequest{
+		Start: timestamppb.New(now), End: timestamppb.New(now.Add(time.Hour)), WorkflowId: "  \t ",
+	}))
+	require.NoError(t, err)
+	require.Empty(t, occurrences.Msg.GetOccurrences())
+}
+
 func TestCreateRejectsEmptyName(t *testing.T) {
 	h := newHarness(t)
 	wfID := uuid.New()

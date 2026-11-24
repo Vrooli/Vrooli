@@ -6,6 +6,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startJourneySite } from '../../../fixtures/journey-site/server.mjs';
+import { isActiveJourneyEngagement } from './engagement.mjs';
 import { resolveJourneyTarget } from './target.mjs';
 
 const SCENARIO = 'browser-automation-studio';
@@ -31,9 +32,7 @@ export default async function globalSetup() {
       run('git-control-tower', ['baseline', 'status', '--json'])
     );
     if (
-      !engagements.some(
-        (item) => item.Scenario === SCENARIO && item.Slug === engagement && item.Mode === instance
-      )
+      !engagements.some((item) => isActiveJourneyEngagement(item, SCENARIO, engagement, instance))
     ) {
       throw new Error(
         `shadow unavailable: engagement ${engagement} (${instance}) is not active for ${SCENARIO}`

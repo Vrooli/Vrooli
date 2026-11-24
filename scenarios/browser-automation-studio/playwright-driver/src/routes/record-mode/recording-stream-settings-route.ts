@@ -8,10 +8,11 @@
 import type { IncomingMessage, ServerResponse } from 'http';
 import type { SessionManager } from '../../session';
 import type { Config } from '../../config';
-import { parseJsonBody, sendJson, sendError } from '../../middleware';
+import { parseJsonBody, sendJson } from '../../middleware';
 import { logger, scopedLog, LogContext } from '../../utils';
 import { updateFrameStreamSettings, getFrameStreamSettings } from '../../frame-streaming';
 import type { StreamSettingsRequest, StreamSettingsResponse } from './types';
+import { recordingOwner, recordingPermissionDenied, sendRecordingError } from './recording-ownership';
 
 /**
  * Update stream settings endpoint
@@ -29,9 +30,14 @@ export async function handleStreamSettings(
   config: Config
 ): Promise<void> {
   try {
-    sessionManager.getSession(sessionId);
-
     const body = await parseJsonBody(req, config);
+    const ownedSession = recordingOwner(body, sessionId, sessionManager);
+    const session = ownedSession();
+    const permissionDenied = recordingPermissionDenied(session, 'viewport');
+    if (permissionDenied) {
+      sendJson(res, 403, { error: { code: 'BROWSER_PERMISSION_DENIED', message: permissionDenied, kind: 'auth', retryable: false } });
+      return;
+    }
     const request = body as unknown as StreamSettingsRequest;
     const invalidNumber = ['quality', 'fps'].some((key) =>
       body[key] !== undefined && (typeof body[key] !== 'number' || !Number.isFinite(body[key])));
@@ -74,6 +80,12 @@ export async function handleStreamSettings(
       });
     }
 
+    const current = ownedSession();
+    const recheckDenied = recordingPermissionDenied(current, 'viewport');
+    if (recheckDenied) {
+      sendJson(res, 403, { error: { code: 'BROWSER_PERMISSION_DENIED', message: recheckDenied, kind: 'auth', retryable: false } });
+      return;
+    }
     const updated = await updateFrameStreamSettings(sessionId, {
       quality: request.quality,
       fps: request.fps,
@@ -93,6 +105,6 @@ export async function handleStreamSettings(
     };
     sendJson(res, 200, response);
   } catch (error) {
-    sendError(res, error as Error, `/session/${sessionId}/record/stream-settings`);
+    sendRecordingError(res, error as Error, `/session/${sessionId}/record/stream-settings`);
   }
 }

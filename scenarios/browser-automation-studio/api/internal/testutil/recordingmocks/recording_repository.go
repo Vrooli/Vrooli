@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -129,6 +130,7 @@ func (r *MockRepository) ListSessions(ctx context.Context, profileID *string, li
 		}
 		result = append(result, s)
 	}
+	sort.Slice(result, func(i, j int) bool { return result[i].CreatedAt.After(result[j].CreatedAt) })
 	// Apply offset and limit
 	if offset >= len(result) {
 		return []*domain.RecordingSession{}, nil
@@ -239,29 +241,54 @@ func (r *MockRepository) GetTimeline(ctx context.Context, query persistence.Time
 	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	entries := r.entries[query.SessionID]
-	result := make([]persistence.UnifiedTimelineEntry, 0, len(entries))
-	for _, e := range entries {
-		// Apply filters
-		if query.PageID != nil && e.PageID != *query.PageID {
+	selected := make(map[string]bool)
+	if len(query.SessionIDs) > 0 {
+		for _, id := range query.SessionIDs {
+			selected[id] = true
+		}
+	} else {
+		selected[query.SessionID] = true
+	}
+	result := make([]persistence.UnifiedTimelineEntry, 0)
+	totalCount := 0
+	for sessionID, entries := range r.entries {
+		if !selected[sessionID] {
 			continue
 		}
-		if query.Since != nil && !e.Timestamp.After(*query.Since) {
-			continue
-		}
-		if len(query.EntryTypes) > 0 {
-			found := false
-			for _, t := range query.EntryTypes {
-				if e.Type == t {
-					found = true
-					break
-				}
-			}
-			if !found {
+		totalCount += len(entries)
+		for _, e := range entries {
+			// Apply filters
+			if query.PageID != nil && e.PageID != *query.PageID {
 				continue
 			}
+			if query.Since != nil && !e.Timestamp.After(*query.Since) {
+				continue
+			}
+			if len(query.EntryTypes) > 0 {
+				found := false
+				for _, t := range query.EntryTypes {
+					if e.Type == t {
+						found = true
+						break
+					}
+				}
+				if !found {
+					continue
+				}
+			}
+			result = append(result, *e)
 		}
-		result = append(result, *e)
+	}
+	if len(query.SessionIDs) > 0 {
+		sort.SliceStable(result, func(i, j int) bool {
+			if result[i].Timestamp.Equal(result[j].Timestamp) {
+				if result[i].SessionID == result[j].SessionID {
+					return result[i].Sequence < result[j].Sequence
+				}
+				return result[i].SessionID < result[j].SessionID
+			}
+			return result[i].Timestamp.Before(result[j].Timestamp)
+		})
 	}
 	query.ApplyDefaults()
 	if query.Offset >= len(result) {
@@ -276,7 +303,7 @@ func (r *MockRepository) GetTimeline(ctx context.Context, query persistence.Time
 	return &persistence.TimelineResponse{
 		Entries:    result,
 		HasMore:    hasMore,
-		TotalCount: len(entries),
+		TotalCount: totalCount,
 	}, nil
 }
 

@@ -68,6 +68,25 @@ describe('WebSocket connection manager', () => {
     expect(mockInstances.length).toBe(2);
   });
 
+  it('clears a scheduled reconnect when the manager closes', () => {
+    const manager = new WebSocketConnectionManager({
+      url: 'ws://localhost:1234/ws',
+      sessionId: 'session-1',
+      reconnectDelayMs: 10,
+    });
+
+    manager.connect();
+    const ws = mockInstances[0];
+    if (!ws) throw new Error('socket was not created');
+    ws.emit('close');
+    expect(jest.getTimerCount()).toBe(1);
+
+    manager.close();
+    expect(jest.getTimerCount()).toBe(0);
+    jest.advanceTimersByTime(10);
+    expect(mockInstances).toHaveLength(1);
+  });
+
   it('ignores a stale socket close after a replacement is ready', () => {
     const manager = new WebSocketConnectionManager({
       url: 'ws://localhost:1234/ws',
@@ -81,6 +100,8 @@ describe('WebSocket connection manager', () => {
     manager.connect();
     const replacement = mockInstances[1];
     if (!replacement) throw new Error('replacement socket was not created');
+    expect(first.close).toHaveBeenCalledTimes(1);
+    expect(manager.isReady()).toBe(false);
     replacement.readyState = 1;
     replacement.emit('open');
 

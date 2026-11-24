@@ -134,8 +134,7 @@ def step_collect():  # COLLECT · governed reads; each source degrades independe
         handles["wf"] = browser_automation_studio.workflows.list(limit=100)
         src["workflows_list"] = handles["wf"].count()
     except Exception as exc:
-        status, klass = program.classify(exc)
-        return fail(status, klass, exc, "collect")
+        return program.fail_exception(exc, "collect")
     if scenario:
         try:
             handles["wh"] = workflow_health.workflows.search(query=task, scenario=scenario, limit=k)
@@ -151,8 +150,9 @@ def step_collect():  # COLLECT · governed reads; each source degrades independe
         src["search_hub"] = handles["sh"].count()
     except Exception as exc:
         src["search_hub"] = None
-        status, klass = program.classify(exc)
-        envelope["errors"].append({"class": klass, "detail": f"search-hub: {str(exc)[:160]}", "where": "collect"})
+        issue = program.fail_exception(exc, "collect", detail_limit=200, record=False)
+        issue["detail"] = f"search-hub: {issue['detail'][:160]}"
+        envelope["errors"].append(issue)
     return "classify"
 
 

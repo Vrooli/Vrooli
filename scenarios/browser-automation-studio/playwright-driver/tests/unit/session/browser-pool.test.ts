@@ -1,8 +1,8 @@
 import { BrowserPool } from '../../../src/session/browser-pool';
 import type { Browser } from 'rebrowser-playwright';
 
-const browser = (connected = true): Browser =>
-  ({ isConnected: jest.fn(() => connected), contexts: jest.fn(() => []) }) as unknown as Browser;
+const browser = (connected = true, contextCount = 0): Browser =>
+  ({ isConnected: jest.fn(() => connected), contexts: jest.fn(() => Array.from({ length: contextCount }, () => ({}))) }) as unknown as Browser;
 
 interface Deferred<T> {
   promise: Promise<T>;
@@ -21,6 +21,22 @@ function deferred<T>(): Deferred<T> {
 }
 
 describe('BrowserPool', () => {
+  it('permits process attribution only for one owned browser and one context', async () => {
+    const pool = new BrowserPool();
+    const owned = browser(true, 1);
+    await pool.getOrLaunch('capture', jest.fn().mockResolvedValue(owned));
+    expect(pool.ownsExclusiveContext(owned)).toBe(true);
+
+    const sharedContext = browser(true, 2);
+    const otherPool = new BrowserPool();
+    await otherPool.getOrLaunch('shared', jest.fn().mockResolvedValue(sharedContext));
+    expect(otherPool.ownsExclusiveContext(sharedContext)).toBe(false);
+
+    const second = browser(true, 0);
+    await pool.getOrLaunch('other-browser', jest.fn().mockResolvedValue(second));
+    expect(pool.ownsExclusiveContext(owned)).toBe(false);
+  });
+
   it('shares one concurrent launch for a pool key', async () => {
     const pool = new BrowserPool();
     const launched = browser();

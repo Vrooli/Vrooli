@@ -114,6 +114,35 @@ func TestGetExecutionMetricsInvalidUUID(t *testing.T) {
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
 
+func TestExecutionMetricsCallersShareInvalidIDContract(t *testing.T) {
+	client := newTestClient(t, &fakeService{})
+	cases := []struct {
+		name string
+		call func() error
+	}{
+		{name: "get execution", call: func() error {
+			_, err := client.GetExecutionMetrics(context.Background(), connect.NewRequest(&uxmetricsv1.GetExecutionMetricsRequest{ExecutionId: "bad"}))
+			return err
+		}},
+		{name: "get step", call: func() error {
+			_, err := client.GetStepMetrics(context.Background(), connect.NewRequest(&uxmetricsv1.GetStepMetricsRequest{ExecutionId: "bad"}))
+			return err
+		}},
+		{name: "compute execution", call: func() error {
+			_, err := client.ComputeExecutionMetrics(context.Background(), connect.NewRequest(&uxmetricsv1.ComputeExecutionMetricsRequest{ExecutionId: "bad"}))
+			return err
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.call()
+			require.Error(t, err)
+			require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+			require.ErrorContains(t, err, errInvalidExecutionID.Error())
+		})
+	}
+}
+
 func TestGetExecutionMetricsNotFound(t *testing.T) {
 	client := newTestClient(t, &fakeService{})
 	_, err := client.GetExecutionMetrics(context.Background(), connect.NewRequest(&uxmetricsv1.GetExecutionMetricsRequest{

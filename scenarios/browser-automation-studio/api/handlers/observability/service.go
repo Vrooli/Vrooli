@@ -26,13 +26,13 @@ func (s *service) GetObservability(
 	ctx context.Context,
 	req *connect.Request[observabilityv1.GetObservabilityRequest],
 ) (*connect.Response[observabilityv1.GetObservabilityResponse], error) {
-	payload, err := s.deps.Proxy.FetchObservability(ctx, strings.TrimSpace(req.Msg.GetDepth()), req.Msg.GetNoCache())
+	depth := strings.TrimSpace(req.Msg.GetDepth())
+	noCache := req.Msg.GetNoCache()
+	pb, err := s.fetchStruct(ctx, func(ctx context.Context) (map[string]any, error) {
+		return s.deps.Proxy.FetchObservability(ctx, depth, noCache)
+	})
 	if err != nil {
-		return nil, s.mapProxyError(err)
-	}
-	pb, err := mapToStruct(payload)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, err
 	}
 	return connect.NewResponse(&observabilityv1.GetObservabilityResponse{Snapshot: pb}), nil
 }
@@ -41,13 +41,9 @@ func (s *service) RefreshObservability(
 	ctx context.Context,
 	_ *connect.Request[observabilityv1.RefreshObservabilityRequest],
 ) (*connect.Response[observabilityv1.RefreshObservabilityResponse], error) {
-	payload, err := s.deps.Proxy.FetchObservabilityRefresh(ctx)
+	pb, err := s.fetchStruct(ctx, s.deps.Proxy.FetchObservabilityRefresh)
 	if err != nil {
-		return nil, s.mapProxyError(err)
-	}
-	pb, err := mapToStruct(payload)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, err
 	}
 	return connect.NewResponse(&observabilityv1.RefreshObservabilityResponse{Result: pb}), nil
 }
@@ -60,13 +56,9 @@ func (s *service) GetSessionList(
 	ctx context.Context,
 	_ *connect.Request[observabilityv1.GetSessionListRequest],
 ) (*connect.Response[observabilityv1.GetSessionListResponse], error) {
-	payload, err := s.deps.Proxy.FetchObservabilitySessions(ctx)
+	pb, err := s.fetchStruct(ctx, s.deps.Proxy.FetchObservabilitySessions)
 	if err != nil {
-		return nil, s.mapProxyError(err)
-	}
-	pb, err := mapToStruct(payload)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, err
 	}
 	return connect.NewResponse(&observabilityv1.GetSessionListResponse{Result: pb}), nil
 }
@@ -75,13 +67,9 @@ func (s *service) GetMetrics(
 	ctx context.Context,
 	_ *connect.Request[observabilityv1.GetMetricsRequest],
 ) (*connect.Response[observabilityv1.GetMetricsResponse], error) {
-	payload, err := s.deps.Proxy.FetchObservabilityMetrics(ctx)
+	pb, err := s.fetchStruct(ctx, s.deps.Proxy.FetchObservabilityMetrics)
 	if err != nil {
-		return nil, s.mapProxyError(err)
-	}
-	pb, err := mapToStruct(payload)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, err
 	}
 	return connect.NewResponse(&observabilityv1.GetMetricsResponse{Result: pb}), nil
 }
@@ -116,6 +104,20 @@ func (s *service) SetDebugMode(
 	}
 	_ = ctx
 	return connect.NewResponse(snapshotToProto(snap)), nil
+}
+
+// fetchStruct owns the shared proxy-error mapping and map-to-proto conversion
+// used by every observability data route.
+func (s *service) fetchStruct(ctx context.Context, fetch func(context.Context) (map[string]any, error)) (*structpb.Struct, error) {
+	payload, err := fetch(ctx)
+	if err != nil {
+		return nil, s.mapProxyError(err)
+	}
+	pb, err := mapToStruct(payload)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return pb, nil
 }
 
 // ---------------------------------------------------------------------------

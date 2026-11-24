@@ -246,23 +246,48 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       }
       const nextFingerprint = computeWorkflowFingerprint(normalized, normalized.nodes, normalized.edges);
 
-      set((prevState) => ({
-        currentWorkflow: normalized,
-        nodes: normalized.nodes,
-        edges: normalized.edges,
-        workflows: prevState.workflows.map((workflow) =>
+      set((prevState) => {
+        const savedWorkflowList = prevState.workflows.map((workflow) =>
           workflow.id === normalized.id ? { ...workflow, ...normalized } : workflow
-        ),
-        isSaving: false,
-        isDirty: false,
-        lastSavedAt: new Date(),
-        lastSavedFingerprint: nextFingerprint,
-        draftFingerprint: nextFingerprint,
-        lastSaveError: null,
-        hasVersionConflict: false,
-        conflictWorkflow: null,
-        conflictMetadata: null,
-      }));
+        );
+
+        // The editor remains interactive while the request is in flight. A
+        // response for the captured snapshot must advance the server version,
+        // but must not replace edits made after that snapshot was sent.
+        if (prevState.currentWorkflow?.id !== normalized.id) {
+          return { workflows: savedWorkflowList };
+        }
+
+        const latestDraftFingerprint = computeWorkflowFingerprint(
+          prevState.currentWorkflow,
+          prevState.nodes,
+          prevState.edges,
+        );
+        const hasNewerDraft = latestDraftFingerprint !== fingerprint;
+
+        return {
+          currentWorkflow: hasNewerDraft
+            ? {
+                ...normalized,
+                ...prevState.currentWorkflow,
+                version: normalized.version,
+                updatedAt: normalized.updatedAt,
+              }
+            : normalized,
+          nodes: hasNewerDraft ? prevState.nodes : normalized.nodes,
+          edges: hasNewerDraft ? prevState.edges : normalized.edges,
+          workflows: savedWorkflowList,
+          isSaving: false,
+          isDirty: hasNewerDraft && latestDraftFingerprint !== nextFingerprint,
+          lastSavedAt: new Date(),
+          lastSavedFingerprint: nextFingerprint,
+          draftFingerprint: hasNewerDraft ? latestDraftFingerprint : nextFingerprint,
+          lastSaveError: null,
+          hasVersionConflict: false,
+          conflictWorkflow: null,
+          conflictMetadata: null,
+        };
+      });
     } catch (error) {
       const errorObj = error as { status?: unknown; message?: unknown };
       const status = typeof errorObj.status === 'number' ? errorObj.status : undefined;

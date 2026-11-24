@@ -820,19 +820,29 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
   stopExecution: async (executionId: string) => {
     try {
       await stopExecutionViaApi(executionId);
-
-      set((state) => ({
-        currentExecution:
-          state.currentExecution?.id === executionId
-            ? {
-                ...state.currentExecution,
-                status: 'cancelled' as const,
-                error: 'Execution cancelled by user',
-                currentStep: 'Stopped by user',
-                completedAt: new Date(),
-              }
-            : state.currentExecution,
-      }));
+      // StopExecution waits for the existing runner owner, but a normal finish
+      // can win the race before cancellation is observed. Read the durable row
+      // after the acknowledgement instead of inventing a local cancelled state.
+      const message = await getExecutionViaApi(executionId);
+      const authoritative = parseExecutionProto(executionMsgToJson(message));
+      let currentMatches = false;
+      set((state) => {
+        if (state.currentExecution?.id !== executionId) return {};
+        currentMatches = true;
+        return {
+          currentExecution: {
+            ...state.currentExecution,
+            status: authoritative.status,
+            error: authoritative.error,
+            completedAt: authoritative.completedAt ?? state.currentExecution.completedAt,
+            progress: authoritative.progress,
+            currentStep: authoritative.currentStep ?? state.currentExecution.currentStep,
+          },
+        };
+      });
+      if (currentMatches && ['completed', 'failed', 'cancelled'].includes(authoritative.status)) {
+        await get().refreshTimeline(executionId);
+      }
     } catch (error) {
       logger.error('Failed to stop execution', { component: 'ExecutionStore', action: 'stopExecution', executionId }, error);
       throw error;

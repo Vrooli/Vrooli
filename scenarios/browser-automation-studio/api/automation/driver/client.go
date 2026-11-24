@@ -61,8 +61,8 @@ var _ HTTPDoer = (*http.Client)(nil)
 // handlers to call driver methods directly without service-layer indirection.
 type ClientInterface interface {
 	// Recording operations
-	GetRecordingStatus(ctx context.Context, sessionID string) (*RecordingStatusResponse, error)
-	GetRecordedActions(ctx context.Context, sessionID string) (*GetActionsResponse, error)
+	GetRecordingStatus(ctx context.Context, sessionID, executionID, leaseID string) (*RecordingStatusResponse, error)
+	GetRecordedActions(ctx context.Context, sessionID, executionID, leaseID string) (*GetActionsResponse, error)
 
 	// Navigation operations
 	GetNavigationState(ctx context.Context, sessionID, executionID, leaseID, expectedPageID string) (*NavigationStateResponse, error)
@@ -70,15 +70,15 @@ type ClientInterface interface {
 
 	// Viewport and stream operations
 	UpdateViewport(ctx context.Context, sessionID, executionID, leaseID string, req *UpdateViewportRequest) (*UpdateViewportResponse, error)
-	UpdateStreamSettings(ctx context.Context, sessionID string, req *UpdateStreamSettingsRequest) (*UpdateStreamSettingsResponse, error)
+	UpdateStreamSettings(ctx context.Context, sessionID, executionID, leaseID string, req *UpdateStreamSettingsRequest) (*UpdateStreamSettingsResponse, error)
 
 	// Selector and replay operations
-	ValidateSelector(ctx context.Context, sessionID string, req *ValidateSelectorRequest) (*ValidateSelectorResponse, error)
-	ReplayPreview(ctx context.Context, sessionID string, req *ReplayPreviewRequest) (*ReplayPreviewResponse, error)
+	ValidateSelector(ctx context.Context, sessionID, executionID, leaseID string, req *ValidateSelectorRequest) (*ValidateSelectorResponse, error)
+	ReplayPreview(ctx context.Context, sessionID, executionID, leaseID string, req *ReplayPreviewRequest) (*ReplayPreviewResponse, error)
 
 	// Screenshot and frame operations
-	CaptureScreenshot(ctx context.Context, sessionID string, req *CaptureScreenshotRequest) (*CaptureScreenshotResponse, error)
-	GetFrame(ctx context.Context, sessionID, queryParams string) (*GetFrameResponse, error)
+	CaptureScreenshot(ctx context.Context, sessionID, executionID, leaseID string, req *CaptureScreenshotRequest) (*CaptureScreenshotResponse, error)
+	GetFrame(ctx context.Context, sessionID, executionID, leaseID, queryParams string) (*GetFrameResponse, error)
 }
 
 // ForwardInputResponse identifies the sequence the driver actually applied.
@@ -569,16 +569,16 @@ func (c *Client) StopRecording(ctx context.Context, sessionID, executionID, leas
 }
 
 // GetRecordingStatus gets the current recording status.
-func (c *Client) GetRecordingStatus(ctx context.Context, sessionID string) (*RecordingStatusResponse, error) {
+func (c *Client) GetRecordingStatus(ctx context.Context, sessionID, executionID, leaseID string) (*RecordingStatusResponse, error) {
 	var resp RecordingStatusResponse
-	if err := c.get(ctx, fmt.Sprintf("/session/%s/record/status", url.PathEscape(sessionID)), &resp); err != nil {
+	if err := c.getWithSessionOwner(ctx, fmt.Sprintf("/session/%s/record/status", url.PathEscape(sessionID)), executionID, leaseID, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
 // GetRecordedActions retrieves all recorded actions for a session.
-func (c *Client) GetRecordedActions(ctx context.Context, sessionID string) (*GetActionsResponse, error) {
+func (c *Client) GetRecordedActions(ctx context.Context, sessionID, executionID, leaseID string) (*GetActionsResponse, error) {
 	path := fmt.Sprintf("/session/%s/record/actions", url.PathEscape(sessionID))
 	var raw struct {
 		SessionID   string            `json:"session_id"`
@@ -586,7 +586,7 @@ func (c *Client) GetRecordedActions(ctx context.Context, sessionID string) (*Get
 		Actions     []RecordedAction  `json:"actions"`
 		Entries     []json.RawMessage `json:"entries"`
 	}
-	if err := c.get(ctx, path, &raw); err != nil {
+	if err := c.getWithSessionOwner(ctx, path, executionID, leaseID, &raw); err != nil {
 		return nil, err
 	}
 
@@ -746,47 +746,80 @@ func (c *Client) UpdateViewport(ctx context.Context, sessionID, executionID, lea
 }
 
 // ValidateSelector validates a selector on the current page.
-func (c *Client) ValidateSelector(ctx context.Context, sessionID string, req *ValidateSelectorRequest) (*ValidateSelectorResponse, error) {
+func (c *Client) ValidateSelector(ctx context.Context, sessionID, executionID, leaseID string, req *ValidateSelectorRequest) (*ValidateSelectorResponse, error) {
+	if err := validateSessionOwner(executionID, leaseID); err != nil {
+		return nil, err
+	}
+	owned := *req
+	owned.ExecutionID, owned.LeaseID = executionID, leaseID
 	var resp ValidateSelectorResponse
-	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/validate-selector", url.PathEscape(sessionID)), req, &resp); err != nil {
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/validate-selector", url.PathEscape(sessionID)), &owned, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
 // ReplayPreview replays recorded actions for testing.
-func (c *Client) ReplayPreview(ctx context.Context, sessionID string, req *ReplayPreviewRequest) (*ReplayPreviewResponse, error) {
+func (c *Client) ReplayPreview(ctx context.Context, sessionID, executionID, leaseID string, req *ReplayPreviewRequest) (*ReplayPreviewResponse, error) {
+	if err := validateSessionOwner(executionID, leaseID); err != nil {
+		return nil, err
+	}
+	owned := *req
+	owned.ExecutionID, owned.LeaseID = executionID, leaseID
 	var resp ReplayPreviewResponse
-	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/replay-preview", url.PathEscape(sessionID)), req, &resp); err != nil {
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/replay-preview", url.PathEscape(sessionID)), &owned, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
 // UpdateStreamSettings updates the stream settings for a session.
-func (c *Client) UpdateStreamSettings(ctx context.Context, sessionID string, req *UpdateStreamSettingsRequest) (*UpdateStreamSettingsResponse, error) {
+func (c *Client) UpdateStreamSettings(ctx context.Context, sessionID, executionID, leaseID string, req *UpdateStreamSettingsRequest) (*UpdateStreamSettingsResponse, error) {
+	if err := validateSessionOwner(executionID, leaseID); err != nil {
+		return nil, err
+	}
+	owned := *req
+	owned.ExecutionID, owned.LeaseID = executionID, leaseID
 	var resp UpdateStreamSettingsResponse
-	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/stream-settings", url.PathEscape(sessionID)), req, &resp); err != nil {
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/stream-settings", url.PathEscape(sessionID)), &owned, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
 // CaptureScreenshot captures a screenshot from the current page.
-func (c *Client) CaptureScreenshot(ctx context.Context, sessionID string, req *CaptureScreenshotRequest) (*CaptureScreenshotResponse, error) {
+func (c *Client) CaptureScreenshot(ctx context.Context, sessionID, executionID, leaseID string, req *CaptureScreenshotRequest) (*CaptureScreenshotResponse, error) {
+	if strings.TrimSpace(executionID) == "" || strings.TrimSpace(leaseID) == "" {
+		return nil, errors.New("screenshot capture requires execution ID and lease ID")
+	}
+	copy := *req
+	copy.ExecutionID, copy.LeaseID = executionID, leaseID
 	var resp CaptureScreenshotResponse
-	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/screenshot", url.PathEscape(sessionID)), req, &resp); err != nil {
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/screenshot", url.PathEscape(sessionID)), &copy, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
 // GetFrame retrieves the current frame from the session.
-func (c *Client) GetFrame(ctx context.Context, sessionID, queryParams string) (*GetFrameResponse, error) {
-	path := fmt.Sprintf("/session/%s/record/frame", url.PathEscape(sessionID))
-	if queryParams != "" {
-		path += "?" + queryParams
+func (c *Client) GetFrame(ctx context.Context, sessionID, executionID, leaseID, queryParams string) (*GetFrameResponse, error) {
+	if strings.TrimSpace(executionID) == "" || strings.TrimSpace(leaseID) == "" {
+		return nil, errors.New("frame capture requires execution ID and lease ID")
 	}
+	path := fmt.Sprintf("/session/%s/record/frame", url.PathEscape(sessionID))
+	query := url.Values{"execution_id": {executionID}, "lease_id": {leaseID}}
+	if queryParams != "" {
+		requested, err := url.ParseQuery(queryParams)
+		if err != nil || requested.Has("execution_id") || requested.Has("lease_id") {
+			return nil, errors.New("frame query contains invalid or reserved owner fields")
+		}
+		for key, values := range requested {
+			for _, value := range values {
+				query.Add(key, value)
+			}
+		}
+	}
+	path += "?" + query.Encode()
 	var resp GetFrameResponse
 	if err := c.get(ctx, path, &resp); err != nil {
 		return nil, err
@@ -1203,6 +1236,9 @@ func setSessionOwnerHeaders(headers http.Header, executionID, leaseID string) {
 }
 
 func (c *Client) getWithSessionOwner(ctx context.Context, path, executionID, leaseID string, response interface{}) error {
+	if err := validateSessionOwner(executionID, leaseID); err != nil {
+		return err
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
@@ -1332,10 +1368,20 @@ func (c *Client) doRequestInternal(req *http.Request, response interface{}, oper
 // Callers must still enter through automation/session's owned Session.
 func (c *Client) SessionRouteRequest(ctx context.Context, sessionID, executionID, leaseID, method, suffix string, body []byte, headers http.Header) (*http.Response, error) {
 	allowed := map[string]bool{
-		http.MethodGet + " /record/debug":        true,
-		http.MethodPost + " /ai-navigate":        true,
-		http.MethodPost + " /ai-navigate/abort":  true,
-		http.MethodPost + " /ai-navigate/resume": true,
+		http.MethodGet + " /record/debug":          true,
+		http.MethodPost + " /ai-navigate":          true,
+		http.MethodPost + " /ai-navigate/abort":    true,
+		http.MethodPost + " /ai-navigate/resume":   true,
+		http.MethodPost + " /extensions/install":   true,
+		http.MethodPost + " /extensions/load":      true,
+		http.MethodPost + " /extensions/reload":    true,
+		http.MethodPost + " /extensions/unload":    true,
+		http.MethodPost + " /extensions/validate":  true,
+		http.MethodGet + " /extensions/inventory":  true,
+		http.MethodPost + " /extensions/inventory": true,
+		http.MethodPost + " /audio/restart":        true,
+		http.MethodPost + " /audio/stop":           true,
+		http.MethodPost + " /audio/diagnostics":    true,
 	}
 	if strings.TrimSpace(sessionID) == "" || validateSessionOwner(executionID, leaseID) != nil || !allowed[method+" "+suffix] {
 		return nil, errors.New("invalid session route")

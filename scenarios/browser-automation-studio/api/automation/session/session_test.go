@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
+	"github.com/vrooli/browser-automation-studio/internal/sessionpermission"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 )
 
@@ -24,6 +25,199 @@ func completedTerminal() *terminalOperation {
 	done := make(chan struct{})
 	close(done)
 	return &terminalOperation{done: done}
+}
+
+type navigationHistoryAuthorizer struct {
+	requests []sessionpermission.ActionRequest
+	err      error
+}
+
+func (a *navigationHistoryAuthorizer) Authorize(_ context.Context, req sessionpermission.ActionRequest) error {
+	a.requests = append(a.requests, req)
+	return a.err
+}
+
+type navigationHistoryCaller struct{}
+
+func (navigationHistoryCaller) BrowserCallerID(context.Context) (string, error) {
+	return "run:history-test", nil
+}
+
+func TestGetNavigationStackAuthorizesHistoryWithTrustedCurrentURL(t *testing.T) {
+	var stackReads int
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/session/history-session/record/navigation-state":
+			_, _ = w.Write([]byte(`{"session_id":"history-session","url":"https://allowed.example/path","title":"Allowed"}`))
+		case "/session/history-session/record/navigation-stack":
+			stackReads++
+			_, _ = w.Write([]byte(`{"session_id":"history-session","current":{"url":"https://allowed.example/path","title":"Allowed"},"back_stack":[{"url":"https://allowed.example/prior"}]}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+	require.NoError(t, err)
+	authorizer := &navigationHistoryAuthorizer{}
+	owner := &Session{
+		id: "history-session", executionID: "exec-history", leaseID: "lease-history",
+		initialDriverPageID: "page-history", activeDriverPageID: "page-history", client: client,
+		authorizer: authorizer, callerResolver: navigationHistoryCaller{}, expectedCallerID: "run:history-test",
+	}
+
+	stack, err := owner.GetNavigationStack(context.Background(), "")
+	require.NoError(t, err)
+	require.Equal(t, 1, stackReads)
+	require.NotNil(t, stack.Current)
+	require.Len(t, authorizer.requests, 1)
+	require.Equal(t, "history_read", authorizer.requests[0].Kind)
+	require.Equal(t, "https://allowed.example/path", authorizer.requests[0].CurrentURL)
+	require.Equal(t, "run:history-test", authorizer.requests[0].CallerID)
+	require.Equal(t, "lease-history", authorizer.requests[0].LeaseID)
+}
+
+func TestBulkServiceWorkerUnregisterPreflightsEveryScopeBeforeEffect(t *testing.T) {
+	workerScope := "https://outside.example/app/"
+	var unregisterCalls atomic.Int32
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/session/sw-session/record/navigation-state":
+			_, _ = w.Write([]byte(`{"session_id":"sw-session","url":"https://allowed.example/app/","title":"Allowed"}`))
+		case "/session/sw-session/service-workers":
+			if r.Method == http.MethodDelete {
+				unregisterCalls.Add(1)
+				_, _ = w.Write([]byte(`{"session_id":"sw-session","unregistered_count":1}`))
+				return
+			}
+			_, _ = w.Write([]byte(`{"session_id":"sw-session","workers":[{"registrationId":"worker-1","scopeURL":"` + workerScope + `","scriptURL":"https://outside.example/sw.js","status":"running"}],"control":{"mode":"allow"}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+	require.NoError(t, err)
+	policy, err := sessionpermission.New(sessionpermission.Profile{
+		Effect: sessionpermission.EffectAct, Approval: sessionpermission.ApprovalNone,
+		View: true, Control: true, URLAllow: []string{"https://allowed.example/*"},
+	}, nil)
+	require.NoError(t, err)
+	owner := &Session{
+		id: "sw-session", executionID: "exec-sw", leaseID: "lease-sw", client: client,
+		initialDriverPageID: "page-sw", activeDriverPageID: "page-sw", authorizer: policy,
+		callerResolver: navigationHistoryCaller{}, expectedCallerID: "run:history-test",
+	}
+
+	_, err = owner.UnregisterAllServiceWorkers(context.Background())
+	require.ErrorIs(t, err, sessionpermission.ErrDenied)
+	require.Zero(t, unregisterCalls.Load(), "out-of-scope scope must deny before unregister-all")
+
+	workerScope = "https://allowed.example/app/"
+	_, err = owner.UnregisterAllServiceWorkers(context.Background())
+	require.NoError(t, err)
+	require.EqualValues(t, 1, unregisterCalls.Load())
+
+	requiringApproval, err := sessionpermission.New(sessionpermission.Profile{
+		Effect: sessionpermission.EffectAct, Approval: sessionpermission.ApprovalEveryAction,
+		View: true, Control: true, URLAllow: []string{"https://allowed.example/*"},
+	}, nil)
+	require.NoError(t, err)
+	owner.authorizer = requiringApproval
+	_, err = owner.UnregisterAllServiceWorkers(context.Background())
+	require.ErrorIs(t, err, sessionpermission.ErrDenied)
+	require.EqualValues(t, 1, unregisterCalls.Load(), "missing approval must deny before bulk deletion")
+}
+
+func TestSessionRejectsMissingExpectedCallerBeforeDriverRead(t *testing.T) {
+	reads := 0
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/session/unbound/record/navigation-state" {
+			reads++
+			_, _ = w.Write([]byte(`{"session_id":"unbound","url":"https://allowed.example/","title":"Allowed"}`))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+	require.NoError(t, err)
+	authorizer := &navigationHistoryAuthorizer{}
+	owner := &Session{id: "unbound", executionID: "exec-unbound", leaseID: "lease-unbound", initialDriverPageID: "page-unbound", activeDriverPageID: "page-unbound", client: client, authorizer: authorizer, callerResolver: navigationHistoryCaller{}}
+	_, err = owner.GetNavigationState(context.Background(), "page-unbound")
+	require.ErrorContains(t, err, "expected caller binding unavailable")
+	require.Zero(t, reads)
+	require.Empty(t, authorizer.requests)
+}
+
+func TestCaptureObservationChargesOneObserveAdmission(t *testing.T) {
+	stateReads, screenshotReads := 0, 0
+	var screenshotBody map[string]any
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/session/observe-session/record/navigation-state":
+			stateReads++
+			_, _ = w.Write([]byte(`{"session_id":"observe-session","url":"https://allowed.example/path","title":"Allowed"}`))
+		case "/session/observe-session/record/screenshot":
+			screenshotReads++
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&screenshotBody))
+			_, _ = w.Write([]byte(`{"data":"aW1hZ2U=","media_type":"image/png","width":1,"height":1,"captured_at":"now"}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+	require.NoError(t, err)
+	authorizer := &navigationHistoryAuthorizer{}
+	owner := &Session{
+		id: "observe-session", executionID: "exec-observe", leaseID: "lease-observe",
+		initialDriverPageID: "page-observe", activeDriverPageID: "page-observe", client: client,
+		authorizer: authorizer, callerResolver: navigationHistoryCaller{}, expectedCallerID: "run:history-test",
+	}
+	state, screenshot, err := owner.CaptureObservationWithScreenshot(context.Background(), "page-observe", driver.CaptureScreenshotRequest{Format: "png", TestID: "scene-canvas-pixels", WaitUntil: "networkidle", SettleMs: 250})
+	require.NoError(t, err)
+	require.Equal(t, "https://allowed.example/path", state.URL)
+	require.Equal(t, "aW1hZ2U=", screenshot.Data)
+	require.Len(t, authorizer.requests, 1)
+	require.Equal(t, "observe", authorizer.requests[0].Kind)
+	require.Equal(t, "https://allowed.example/path", authorizer.requests[0].CurrentURL)
+	require.Equal(t, 2, stateReads) // one admission URL read, one returned state read
+	require.Equal(t, 1, screenshotReads)
+	require.Equal(t, map[string]any{"execution_id": "exec-observe", "lease_id": "lease-observe", "format": "png", "test_id": "scene-canvas-pixels", "wait_until": "networkidle", "settle_ms": float64(250)}, screenshotBody)
+}
+
+func TestSensitiveTypedInputFailsClosedBeforeDriverExecution(t *testing.T) {
+	owner := &Session{authorizer: &navigationHistoryAuthorizer{}}
+	sensitive := true
+	instruction := contracts.CompiledInstruction{Action: &basactions.ActionDefinition{
+		Type: basactions.ActionType_ACTION_TYPE_INPUT,
+		Params: &basactions.ActionDefinition_Input{Input: &basactions.InputParams{
+			Selector: "#password", Value: "raw-secret", IsSensitive: &sensitive,
+		}},
+	}}
+	err := owner.authorizeInstruction(context.Background(), instruction)
+	require.ErrorContains(t, err, "raw sensitive input is unsupported")
+	require.Empty(t, owner.authorizer.(*navigationHistoryAuthorizer).requests)
+}
+
+func TestReleaseInputSendsOwnerBoundReleaseForEveryPointerButton(t *testing.T) {
+	var bodies []map[string]any
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+		bodies = append(bodies, body)
+		_ = json.NewEncoder(w).Encode(map[string]any{"status": "ok", "applied_sequence": len(bodies)})
+	}))
+	client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+	require.NoError(t, err)
+	owner := &Session{id: "release-session", executionID: "exec-release", leaseID: "lease-release", client: client}
+	require.NoError(t, owner.ReleaseInput(context.Background()))
+	require.Len(t, bodies, 5)
+	want := []string{"left", "right", "middle", "back", "forward"}
+	for i, button := range want {
+		require.Equal(t, "pointer", bodies[i]["type"])
+		require.Equal(t, "release", bodies[i]["action"])
+		require.Equal(t, button, bodies[i]["button"])
+		require.Equal(t, "exec-release", bodies[i]["execution_id"])
+		require.Equal(t, "lease-release", bodies[i]["lease_id"])
+	}
 }
 
 func TestCloseWithArtifactsOutcomes(t *testing.T) {
@@ -449,6 +643,45 @@ func TestSession_StopRecording_Success(t *testing.T) {
 	}
 }
 
+func TestSession_StopRecordingChecksGrantBeforeDriverMutation(t *testing.T) {
+	for _, historyRead := range []bool{false, true} {
+		t.Run(fmt.Sprintf("history_read_%t", historyRead), func(t *testing.T) {
+			var stops atomic.Int32
+			server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/session/rec-session/record/navigation-state":
+					_, _ = w.Write([]byte(`{"session_id":"rec-session","url":"https://allowed.example/app","title":"Allowed"}`))
+				case "/session/rec-session/record/stop":
+					stops.Add(1)
+					_, _ = w.Write([]byte(`{"recording_id":"record-1","session_id":"rec-session","action_count":2,"stopped_at":"2026-11-21T12:00:00Z"}`))
+				default:
+					http.NotFound(w, r)
+				}
+			}))
+			client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+			require.NoError(t, err)
+			policy, err := sessionpermission.New(sessionpermission.Profile{
+				Effect: sessionpermission.EffectAct, Approval: sessionpermission.ApprovalNone,
+				Control: true, View: true, HistoryRead: historyRead,
+				URLAllow: []string{"https://allowed.example/*"},
+			}, nil)
+			require.NoError(t, err)
+			sess := &Session{id: "rec-session", executionID: "record-owner", leaseID: "record-lease",
+				mode: ModeRecording, client: client, authorizer: policy,
+				callerResolver: navigationHistoryCaller{}, expectedCallerID: "run:history-test",
+				initialDriverPageID: "page-1", activeDriverPageID: "page-1"}
+			_, err = sess.StopRecording(context.Background())
+			if historyRead {
+				require.NoError(t, err)
+				require.EqualValues(t, 1, stops.Load())
+			} else {
+				require.ErrorIs(t, err, sessionpermission.ErrDenied)
+				require.Zero(t, stops.Load(), "denied stop must not reach the driver mutation")
+			}
+		})
+	}
+}
+
 // [REQ:BAS-RH-J17] Committed entries are acknowledged only under this Session's lease.
 func TestSession_AcknowledgeRecordedActions_Ownership(t *testing.T) {
 	var calls atomic.Int32
@@ -467,6 +700,40 @@ func TestSession_AcknowledgeRecordedActions_Ownership(t *testing.T) {
 	sess.terminal = completedTerminal()
 	require.EqualError(t, sess.AcknowledgeRecordedActions(context.Background(), []string{"committed"}), "session closed")
 	require.Equal(t, int32(1), calls.Load())
+}
+
+func TestSession_AcknowledgeRecordedActionsRequiresHistoryPermission(t *testing.T) {
+	var acknowledgements atomic.Int32
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/session/ack-session/record/navigation-state":
+			_, _ = w.Write([]byte(`{"session_id":"ack-session","url":"https://allowed.example/path","title":"Allowed"}`))
+		case "/session/ack-session/record/actions/ack":
+			acknowledgements.Add(1)
+			_, _ = w.Write([]byte(`{"entry_ids":["committed"]}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+	require.NoError(t, err)
+	authorizer := &navigationHistoryAuthorizer{err: sessionpermission.ErrDenied}
+	owner := &Session{
+		id: "ack-session", executionID: "ack-owner", leaseID: "ack-lease", mode: ModeRecording,
+		initialDriverPageID: "ack-page", activeDriverPageID: "ack-page", client: client,
+		authorizer: authorizer, callerResolver: navigationHistoryCaller{}, expectedCallerID: "run:history-test",
+	}
+
+	err = owner.AcknowledgeRecordedActions(context.Background(), []string{"committed"})
+	require.ErrorIs(t, err, sessionpermission.ErrDenied)
+	require.Zero(t, acknowledgements.Load(), "denial must precede timeline acknowledgement")
+	require.Len(t, authorizer.requests, 1)
+	require.Equal(t, "history_read", authorizer.requests[0].Kind)
+	require.Equal(t, "https://allowed.example/path", authorizer.requests[0].CurrentURL)
+
+	authorizer.err = nil
+	require.NoError(t, owner.AcknowledgeRecordedActions(context.Background(), []string{"committed"}))
+	require.EqualValues(t, 1, acknowledgements.Load())
 }
 
 func TestSession_GetRecordingStatus_Success(t *testing.T) {
@@ -490,7 +757,8 @@ func TestSession_GetRecordingStatus_Success(t *testing.T) {
 	}
 
 	sess := &Session{
-		id:     "rec-session",
+		id:          "rec-session",
+		executionID: "recording-owner", leaseID: "recording-lease",
 		mode:   ModeRecording,
 		client: client,
 	}
@@ -535,7 +803,8 @@ func TestSession_GetRecordedActions_Success(t *testing.T) {
 	}
 
 	sess := &Session{
-		id:     "rec-session",
+		id:          "rec-session",
+		executionID: "recording-owner", leaseID: "recording-lease",
 		mode:   ModeRecording,
 		client: client,
 	}
@@ -561,7 +830,7 @@ func TestSession_CaptureScreenshot_Success(t *testing.T) {
 	handler.HandleFunc("/session/ss-session/record/screenshot", func(w http.ResponseWriter, r *http.Request) {
 		_ = r.Body.Close()
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"data":       "base64encodeddata",
+			"data":       "YmFzZTY0ZW5jb2RlZGRhdGE=",
 			"media_type": "image/jpeg",
 			"width":      1920,
 			"height":     1080,
@@ -576,9 +845,8 @@ func TestSession_CaptureScreenshot_Success(t *testing.T) {
 	}
 
 	sess := &Session{
-		id:     "ss-session",
-		mode:   ModeRecording,
-		client: client,
+		id: "ss-session", executionID: "ss-owner", leaseID: "ss-lease",
+		mode: ModeRecording, client: client,
 	}
 
 	screenshot, err := sess.CaptureScreenshot(context.Background())
@@ -590,8 +858,8 @@ func TestSession_CaptureScreenshot_Success(t *testing.T) {
 		t.Fatal("expected non-nil screenshot")
 	}
 
-	if screenshot.Data != "base64encodeddata" {
-		t.Errorf("expected data 'base64encodeddata', got '%s'", screenshot.Data)
+	if screenshot.Data != "YmFzZTY0ZW5jb2RlZGRhdGE=" {
+		t.Errorf("expected base64 image data, got '%s'", screenshot.Data)
 	}
 
 	if screenshot.MediaType != "image/jpeg" {
@@ -803,9 +1071,8 @@ func TestSession_ValidateSelector_Success(t *testing.T) {
 	}
 
 	sess := &Session{
-		id:     "sel-session",
-		mode:   ModeRecording,
-		client: client,
+		id: "sel-session", executionID: "sel-owner", leaseID: "sel-lease",
+		mode: ModeRecording, client: client,
 	}
 
 	result, err := sess.ValidateSelector(context.Background(), "#my-button")

@@ -1,5 +1,12 @@
 import type { Browser } from 'rebrowser-playwright';
 
+export class NonRetryableBrowserLaunchError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'NonRetryableBrowserLaunchError';
+  }
+}
+
 export interface BrowserPoolUsage {
   browserCount: number;
   contextCount: number;
@@ -157,6 +164,19 @@ export class BrowserPool {
     return usage;
   }
 
+  /** A capture can attribute the whole driver subtree only while this is its
+   * single browser process and single context, with no concurrent launches. */
+  ownsExclusiveContext(browser: Browser): boolean {
+    if (this.closing || this.launches.size > 0 || this.evictions.size > 0) return false;
+    const active = [...this.browsers.values()].filter((candidate) => candidate.isConnected());
+    if (active.length !== 1 || active[0] !== browser) return false;
+    try {
+      return browser.contexts().length === 1;
+    } catch {
+      return false;
+    }
+  }
+
   /** Begin a fresh idle grace period after session/capture activity ends. */
   markUsed(now = Date.now()): void {
     for (const [key, browser] of this.browsers) {
@@ -204,7 +224,7 @@ export class BrowserPool {
     try {
       return await launch();
     } catch (error) {
-      if (this.closing || generation !== this.generation) throw error;
+      if (this.closing || generation !== this.generation || error instanceof NonRetryableBrowserLaunchError) throw error;
       return launch();
     }
   }

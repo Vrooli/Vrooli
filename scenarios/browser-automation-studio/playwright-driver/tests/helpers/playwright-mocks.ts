@@ -62,6 +62,7 @@ export function createMockPage(overrides?: Partial<Page>): jest.Mocked<Page> {
     screenshot: jest.fn().mockResolvedValue(Buffer.from('fake-screenshot')),
     content: jest.fn().mockResolvedValue('<html><body>Test</body></html>'),
     locator: jest.fn().mockReturnValue(mockLocator),
+    getByTestId: jest.fn().mockReturnValue(mockFirstLocator),
     $: jest.fn().mockResolvedValue({ boundingBox: jest.fn().mockResolvedValue({ x: 0, y: 0, width: 100, height: 50 }) }),
     $$: jest.fn().mockResolvedValue([]),
     evaluate: jest.fn().mockResolvedValue({ result: 'test' }),

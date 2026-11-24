@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	corestorage "github.com/vrooli/api-core/storage"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
@@ -80,12 +81,8 @@ func persistWorkflowVersionSnapshot(project *database.ProjectIndex, wf *basapi.W
 		indented = buf.Bytes()
 	}
 
-	tmp := target + ".tmp"
-	if err := os.WriteFile(tmp, indented, 0o644); err != nil {
-		return fmt.Errorf("write workflow version tmp: %w", err)
-	}
-	if err := os.Rename(tmp, target); err != nil {
-		return fmt.Errorf("finalize workflow version: %w", err)
+	if err := corestorage.WriteFileAtomic(target, indented, 0o644); err != nil {
+		return fmt.Errorf("write workflow version: %w", err)
 	}
 	return nil
 }

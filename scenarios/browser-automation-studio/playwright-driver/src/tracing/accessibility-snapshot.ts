@@ -157,6 +157,10 @@ export interface NormalizedAXNode {
   bounds?: { x: number; y: number; width: number; height: number };
   dom?: { testid?: string; tag?: string; attributes?: Record<string, string> };
   computedStyle?: Record<string, string>;
+  /** Ephemeral BAS reference; maps to a driver-private target for this page snapshot. */
+  ref?: string;
+  /** Internal join key only. It is deliberately non-enumerable in normalized output. */
+  backendDOMNodeId?: number;
   children: NormalizedAXNode[];
 }
 
@@ -319,6 +323,9 @@ export function normalizeAccessibilityTree(
 
     const kids = childrenOf();
     const out: NormalizedAXNode = { children: kids };
+    if (node.backendDOMNodeId != null) {
+      Object.defineProperty(out, 'backendDOMNodeId', { value: node.backendDOMNodeId, enumerable: false });
+    }
     const role = axString(node.role);
     const name = axString(node.name);
     const description = axString(node.description);

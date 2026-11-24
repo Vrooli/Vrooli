@@ -172,12 +172,6 @@ func (h *Handler) CloseRecordingPage(w http.ResponseWriter, r *http.Request) {
 	}
 	pageEvent := result.Event
 
-	// Store in timeline
-	if err := h.recordModeService.AddTimelinePageEvent(r.Context(), sessionID, pageEvent); err != nil {
-		h.respondError(w, ErrServiceUnavailable.WithMessage("Browser change occurred but recording was not committed").WithDetails(map[string]string{"error": err.Error()}))
-		return
-	}
-
 	// Broadcast page close via WebSocket
 	h.wsHub.BroadcastPageEvent(sessionID, pageEvent)
 
@@ -216,6 +210,10 @@ func (h *Handler) ReceivePageEvent(w http.ResponseWriter, r *http.Request) {
 		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{"field": "driverPageId"}))
 		return
 	}
+	if event.SessionID != "" && event.SessionID != sessionID {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "driver callback session does not match route"}))
+		return
+	}
 	occurredAt := driverPageEventTime(event.Timestamp)
 
 	sess, ok := h.recordModeService.GetSession(sessionID)
@@ -232,97 +230,28 @@ func (h *Handler) ReceivePageEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var pageEvent *domain.PageEvent
-
-	switch event.EventType {
-	case "created", "initial":
-		var openerID *uuid.UUID
-		if event.OpenerDriverPageID != "" {
-			openerID = pages.GetPageIDByDriverID(event.OpenerDriverPageID)
-		}
-
-		observed := &domain.Page{URL: event.URL, Title: event.Title, OpenerID: openerID, DriverPageID: event.DriverPageID, CreatedAt: occurredAt}
-		if event.FaviconURL != nil {
-			observed.FaviconURL = *event.FaviconURL
-		}
-		page := pages.AddPage(observed)
-		pageID := page.ID
-		if event.EventType == "initial" {
-			pages.UpdatePageInfo(pageID, event.URL, event.Title, event.FaviconURL)
-			if err := pages.SetActivePage(pageID); err != nil {
-				h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{"error": err.Error()}))
-				return
-			}
-			break
-		}
-
-		pageEvent = &domain.PageEvent{
-			ID:         uuid.New(),
-			Type:       domain.PageEventCreated,
-			PageID:     pageID,
-			URL:        event.URL,
-			Title:      event.Title,
-			FaviconURL: event.FaviconURL,
-			OpenerID:   openerID,
-			Timestamp:  occurredAt,
-		}
-
-		h.log.WithFields(map[string]interface{}{
-			"session_id":     sessionID,
-			"page_id":        pageID.String(),
-			"driver_page_id": event.DriverPageID,
-			"url":            event.URL,
-			"opener_page_id": openerID,
-		}).Info("New page created in recording session")
-
-	case "navigated":
-		vrooliPageID := pages.GetPageIDByDriverID(event.DriverPageID)
-		if vrooliPageID != nil {
-			pages.UpdatePageInfo(*vrooliPageID, event.URL, event.Title, event.FaviconURL)
-
-			pageEvent = &domain.PageEvent{
-				ID:         uuid.New(),
-				Type:       domain.PageEventNavigated,
-				PageID:     *vrooliPageID,
-				URL:        event.URL,
-				Title:      event.Title,
-				FaviconURL: event.FaviconURL,
-				Timestamp:  occurredAt,
-			}
-
-			h.log.WithFields(map[string]interface{}{
-				"session_id": sessionID,
-				"page_id":    vrooliPageID.String(),
-				"url":        event.URL,
-			}).Debug("Page navigated")
-		}
-
-	case "closed":
-		vrooliPageID := pages.GetPageIDByDriverID(event.DriverPageID)
-		if vrooliPageID != nil {
-			var err error
-			pageEvent, err = pages.ClosePageAt(*vrooliPageID, occurredAt)
-			if err != nil {
-				h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{"error": err.Error()}))
-				return
-			}
-
-			h.log.WithFields(map[string]interface{}{
-				"session_id": sessionID,
-				"page_id":    vrooliPageID.String(),
-			}).Info("Page closed in recording session")
-		}
-
+	if sess.ID() != "" && sess.ID() != sessionID {
+		h.respondError(w, ErrExecutionNotFound.WithMessage("Session owner does not match callback route"))
+		return
 	}
-
-	if pageEvent != nil {
-		// Store in timeline
-		if err := h.recordModeService.AddTimelinePageEvent(r.Context(), sessionID, pageEvent); err != nil {
-			h.respondError(w, ErrServiceUnavailable.WithMessage("Browser change occurred but recording was not committed").WithDetails(map[string]string{"error": err.Error()}))
+	var appendErr error
+	pageEvent, err := pages.ApplyDriverEvent(sessionID, event, occurredAt, func(candidate *domain.PageEvent) error {
+		appendErr = h.recordModeService.AddTimelinePageEvent(r.Context(), sessionID, candidate)
+		return appendErr
+	})
+	if err != nil {
+		if appendErr != nil {
+			h.respondError(w, ErrServiceUnavailable.WithMessage("Recording journal append failed; page registry unchanged").WithDetails(map[string]string{"error": err.Error()}))
 			return
 		}
-
-		// Broadcast via WebSocket
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": err.Error()}))
+		return
+	}
+	// Initial callbacks seed the durable timeline and driver mapping; they are
+	// not a second UI page creation because the initial page is already loaded
+	// from the session's page snapshot.
+	if pageEvent != nil && event.EventType != "initial" {
+		// Publish only after both the durable append and tracker update succeed.
 		h.wsHub.BroadcastPageEvent(sessionID, pageEvent)
 	}
 

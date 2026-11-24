@@ -26,10 +26,6 @@ envelope = {"program": "browser-automation-studio.do-task", "version": "6", "sta
 
 
 
-def child_result(handle):
-    return program.child_envelope(handle, invalid_class="invalid_response", where=envelope.get("phase", "collect"))
-
-
 def option_id(workflow_id, version):
     return str(workflow_id) + "@" + str(version)
 
@@ -127,7 +123,7 @@ def route_workflow():
     if not workflow_eligible(workflow_id, version):
         return program.fail("refused", "learning_ineligible", "Workflow revision is contradicted or its eligibility cannot be checked", "act", detail_limit=160)
     with learn.step("verify") as step:
-        child = child_result(lib.browser_automation_studio.smoke_flow(
+        child = program.child_envelope(lib.browser_automation_studio.smoke_flow(
             workflow_id=workflow_id, version=version, parameters=inputs.get("parameters", {}), postconditions=inputs.get("postconditions", []),
             effect_policy=inputs.get("effect_policy", "explicit"), extraction=inputs.get("extraction", [])))
         step.outcome(child_outcome(child), child.get("evidence", []))
@@ -152,7 +148,7 @@ def route_candidate():
     if "parameters" in inputs:
         author_inputs["parameters"] = inputs["parameters"]
     with learn.step("author") as step:
-        child = child_result(lib.browser_automation_studio.author_flow(**author_inputs))
+        child = program.child_envelope(lib.browser_automation_studio.author_flow(**author_inputs))
         step.outcome(child_outcome(child), child.get("evidence", []))
     adopt_child(child)
     signals = child.get("signals") or {}
@@ -182,7 +178,7 @@ def qualify_candidate(candidate):
     if "parameters" in inputs:
         author_inputs["parameters"] = inputs["parameters"]
     with learn.step("qualify-author") as step:
-        authored = child_result(lib.browser_automation_studio.author_flow(**author_inputs))
+        authored = program.child_envelope(lib.browser_automation_studio.author_flow(**author_inputs))
         step.outcome(child_outcome(authored), authored.get("evidence", []))
     signals = authored.get("signals") or {}
     workflow_id, version = signals.get("workflow_id"), signals.get("version")
@@ -191,7 +187,7 @@ def qualify_candidate(candidate):
         return None
     envelope["signals"]["qualified_workflow"] = {"workflow_id": workflow_id, "version": version}
     with learn.step("qualify-verify") as step:
-        verified = child_result(lib.browser_automation_studio.smoke_flow(
+        verified = program.child_envelope(lib.browser_automation_studio.smoke_flow(
             workflow_id=workflow_id, version=version, parameters=inputs.get("parameters", {}),
             postconditions=inputs.get("postconditions", []), effect_policy=inputs.get("effect_policy", "explicit"),
             extraction=inputs.get("extraction", [])))
@@ -238,7 +234,7 @@ def route_navigation():
     recalled = learn.recall(kinds=["target-note"], limit=5)
     kwargs["knowledge"] = json.dumps(recalled.get("notes", {}), sort_keys=True)[:4000]
     with learn.step("navigate") as navigate:
-        child = child_result(lib.browser_automation_studio.navigate_intent(**kwargs))
+        child = program.child_envelope(lib.browser_automation_studio.navigate_intent(**kwargs))
         navigate_status = child_outcome(child)
         navigate.outcome(navigate_status, child.get("evidence", []))
     adopt_child(child)
@@ -288,7 +284,7 @@ def route_navigation():
 
 def route_search():
     with learn.step("find") as find_step:
-        result = child_result(lib.browser_automation_studio.find_flows(task=task, scenario=inputs.get("scenario", ""), k=5))
+        result = program.child_envelope(lib.browser_automation_studio.find_flows(task=task, scenario=inputs.get("scenario", ""), k=5))
         child_status = result.get("status")
         find_status = (result.get("signals") or {}).get("outcome", "unknown")
         if child_status == "failed":

@@ -86,7 +86,7 @@ func BuildExportPlan(timeline *export.ExecutionTimeline, workflowName, execution
 		if frame.Screenshot.ContentType == "image/jpeg" {
 			fallbackExt = "jpg"
 		}
-		nodeID := sanitizeFilename(frame.NodeID)
+		nodeID := export.SanitizeFilename(frame.NodeID, "browser-automation-export")
 		plan.Screenshots = append(plan.Screenshots, PlannedScreenshot{
 			ObjectName:   objectName,
 			FallbackExt:  fallbackExt,

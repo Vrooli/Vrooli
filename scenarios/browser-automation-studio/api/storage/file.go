@@ -2,8 +2,7 @@ package storage
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -65,14 +64,11 @@ func (f *FileStorage) openObject(objectName string) (io.ReadCloser, *minio.Objec
 		file.Close()
 		return nil, nil, fmt.Errorf("failed to stat object: %w", err)
 	}
-	header := make([]byte, 512)
-	n, _ := file.Read(header)
+	contentType := SniffContentType(file)
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
 		file.Close()
 		return nil, nil, fmt.Errorf("failed to rewind object: %w", err)
 	}
-	contentType := http.DetectContentType(header[:n])
-
 	return file, &minio.ObjectInfo{
 		Key:         objectName,
 		Size:        info.Size(),
@@ -141,31 +137,27 @@ func (f *FileStorage) StoreArtifactFromFile(_ context.Context, executionID uuid.
 		return nil, fmt.Errorf("failed to ensure artifact directory: %w", err)
 	}
 
-	src, err := os.Open(filePath)
+	receipt, err := CopyArtifactFile(filePath, destPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open artifact file: %w", err)
-	}
-	defer src.Close()
-
-	dest, err := os.Create(destPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create artifact file: %w", err)
-	}
-	digest := sha256.New()
-	written, err := io.Copy(dest, io.TeeReader(src, digest))
-	if err != nil {
-		_ = dest.Close()
+		var copyErr *ArtifactCopyError
+		if errors.As(err, &copyErr) {
+			switch copyErr.Operation {
+			case "open":
+				return nil, fmt.Errorf("failed to open artifact file: %w", err)
+			case "create":
+				return nil, fmt.Errorf("failed to create artifact file: %w", err)
+			case "close":
+				return nil, fmt.Errorf("failed to finalize artifact file: %w", err)
+			}
+		}
 		return nil, fmt.Errorf("failed to copy artifact file: %w", err)
 	}
-	if err := dest.Close(); err != nil {
-		return nil, fmt.Errorf("failed to finalize artifact file: %w", err)
-	}
 
-	derivedType := detectContentTypeFromFile(filePath, contentType)
+	derivedType := DetectContentTypeFromFile(filePath, contentType)
 	return &ArtifactInfo{
 		URL:         artifactURL(objectName),
-		SizeBytes:   written,
-		SHA256:      hex.EncodeToString(digest.Sum(nil)),
+		SizeBytes:   receipt.SizeBytes,
+		SHA256:      receipt.SHA256,
 		ContentType: derivedType,
 		ObjectName:  objectName,
 		Path:        destPath,
@@ -255,6 +247,8 @@ func (f *FileStorage) GetBucketName() string {
 	return "screenshots-local"
 }
 
+var _ StorageInterface = (*FileStorage)(nil)
+
 func sanitizeStepName(name string) string {
 	name = strings.TrimSpace(name)
 	name = strings.ReplaceAll(name, "/", "-")
@@ -264,5 +258,3 @@ func sanitizeStepName(name string) string {
 	}
 	return name
 }
-
-var _ StorageInterface = (*FileStorage)(nil)

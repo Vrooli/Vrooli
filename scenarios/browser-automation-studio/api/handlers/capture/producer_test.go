@@ -180,14 +180,17 @@ func TestPerformanceProducer_TraceAndVitals(t *testing.T) {
 	require.NoError(t, os.MkdirAll(perfDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(perfDir, "performance.json"), []byte(`{"traceEvents":[]}`), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(perfDir, "performance.web-vitals.json"), []byte(`{"lcp":1}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(perfDir, "performance.process-tree.json"), []byte(`{"status":"unknown"}`), 0o644))
 
 	arts, err := performanceProducer{}.Produce(dir)
 	require.NoError(t, err)
-	require.Len(t, arts, 2)
+	require.Len(t, arts, 3)
 	require.Equal(t, capturev1.CaptureType_CAPTURE_TYPE_PERFORMANCE, arts[0].Type)
 	require.Equal(t, "cdp-trace", arts[0].Metadata["artifact"])
 	require.Positive(t, arts[0].SizeBytes)
 	require.Equal(t, "web-vitals", arts[1].Metadata["artifact"])
+	require.Equal(t, "process-tree", arts[2].Metadata["artifact"])
+	require.Equal(t, "performance.process-tree.json", arts[2].Metadata["filename"])
 	require.NotEqual(t, "true", arts[0].Metadata["unavailable"])
 }
 

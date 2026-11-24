@@ -16,6 +16,7 @@ import (
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/projectid"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basprojects "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/projects"
 )
@@ -40,7 +41,7 @@ type service struct {
 func (s *service) log() *logrus.Logger { return s.deps.Logger }
 
 func parseProjectID(raw string) (uuid.UUID, error) {
-	id, err := uuid.Parse(strings.TrimSpace(raw))
+	id, err := projectid.Parse(raw)
 	if err != nil {
 		return uuid.Nil, errInvalidProjectID
 	}

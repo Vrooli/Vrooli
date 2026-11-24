@@ -9,7 +9,7 @@ import { FC, memo, useCallback, useRef, useState } from 'react';
 import { Brain, Loader2, Wand2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { ElementInfo } from '@/types/elements';
-import { analyzeElementsWithAI, mapProtoElementInfo, newGatewayRootOperationID } from '@/api/ai';
+import { aiRequestErrorMessage, analyzeElementsWithAI, mapProtoElementInfo, newGatewayRootOperationID } from '@/api/ai';
 import { logger } from '@utils/logger';
 
 export interface AISuggestionsPanelProps {
@@ -97,8 +97,7 @@ const AISuggestionsPanel: FC<AISuggestionsPanelProps> = ({
         },
         error,
       );
-      const message = error instanceof Error ? error.message : 'AI suggestions failed';
-      toast.error(message);
+      toast.error(aiRequestErrorMessage(error, 'AI suggestions failed'));
     } finally {
       setIsLoading(false);
     }

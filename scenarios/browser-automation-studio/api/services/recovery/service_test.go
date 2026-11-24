@@ -12,11 +12,12 @@ import (
 )
 
 type mockRepo struct {
-	executions []*database.ExecutionIndex
-	updates    []statusUpdate
-	queries    []database.ExecutionQuery
-	listErr    error
-	updateErr  error
+	executions  []*database.ExecutionIndex
+	updates     []statusUpdate
+	queries     []database.ExecutionQuery
+	listErr     error
+	updateErr   error
+	afterUpdate func()
 }
 
 type statusUpdate struct {
@@ -74,6 +75,9 @@ func (m *mockRepo) UpdateExecutionStatus(ctx context.Context, id uuid.UUID, stat
 		completedAt:  completedAt,
 		updatedAt:    updatedAt,
 	})
+	if m.afterUpdate != nil {
+		m.afterUpdate()
+	}
 	return nil
 }
 
@@ -205,6 +209,33 @@ func TestRecoverInterruptedExecutionsCountsConcurrentTerminalTransitionAsSkipped
 	}
 }
 
+func TestRecoverInterruptedExecutionsStopsAndSkipsRemainingOwnersWhenCanceled(t *testing.T) {
+	firstID := uuid.New()
+	secondID := uuid.New()
+	ctx, cancel := context.WithCancel(context.Background())
+	repo := &mockRepo{
+		executions: []*database.ExecutionIndex{
+			{ID: firstID, WorkflowID: uuid.New(), Status: database.ExecutionStatusRunning},
+			{ID: secondID, WorkflowID: uuid.New(), Status: database.ExecutionStatusRunning},
+		},
+	}
+	repo.afterUpdate = cancel
+
+	result, err := NewService(repo, logrus.New(), t.TempDir()).RecoverInterruptedExecutions(ctx)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("RecoverInterruptedExecutions error = %v, want context.Canceled", err)
+	}
+	if result.TotalActive != 2 || result.Recovered != 1 || result.Skipped != 1 || result.Failed != 0 {
+		t.Fatalf("recovery result = %+v, want first owner recovered and second skipped", result)
+	}
+	if len(repo.updates) != 1 || repo.updates[0].id != firstID {
+		t.Fatalf("updates = %+v, want only first owner finalized", repo.updates)
+	}
+	if len(repo.queries) != 2 {
+		t.Fatalf("queries = %+v, want only active-owner discovery and no cleanup scan after cancellation", repo.queries)
+	}
+}
+
 func TestRecoverInterruptedExecutions_RecoversRecentRowsFromPreviousProcess(t *testing.T) {
 	t.Log("[REQ:BAS-RH-J07] recent running and pending executions are both recovered before serving work")
 	now := time.Now()
@@ -312,10 +343,11 @@ func TestRecoverInterruptedExecutions_FindsActiveRowsBeyondRecentHistory(t *test
 	if !updatedIDs[staleRunningID] || !updatedIDs[stalePendingID] || !updatedIDs[freshRunningID] {
 		t.Fatalf("expected all active rows updated, got %v", updatedIDs)
 	}
-	if len(repo.queries) != 2 ||
+	if len(repo.queries) != 3 ||
 		repo.queries[0].Status != database.ExecutionStatusRunning ||
 		repo.queries[1].Status != database.ExecutionStatusPending ||
-		repo.queries[0].Limit != 0 || repo.queries[1].Limit != 0 {
+		repo.queries[2].Status != database.ExecutionStatusFailed ||
+		repo.queries[0].Limit != 0 || repo.queries[1].Limit != 0 || repo.queries[2].Limit != 0 {
 		t.Fatalf("expected unbounded status-filtered recovery queries, got %+v", repo.queries)
 	}
 }

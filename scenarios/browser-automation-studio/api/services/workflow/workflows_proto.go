@@ -18,13 +18,21 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+func parseProjectID(raw string) (uuid.UUID, error) {
+	id, err := uuid.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("invalid project_id: %w", err)
+	}
+	return id, nil
+}
+
 func (s *WorkflowService) CreateWorkflow(ctx context.Context, req *basapi.CreateWorkflowRequest) (*basapi.CreateWorkflowResponse, error) {
 	if req == nil {
 		return nil, errors.New("request is nil")
 	}
-	projectID, err := uuid.Parse(strings.TrimSpace(req.ProjectId))
+	projectID, err := parseProjectID(req.ProjectId)
 	if err != nil {
-		return nil, fmt.Errorf("invalid project_id: %w", err)
+		return nil, err
 	}
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
@@ -137,9 +145,9 @@ func (s *WorkflowService) ListWorkflows(ctx context.Context, req *basapi.ListWor
 	var workflows []*database.WorkflowIndex
 	var err error
 	if req.ProjectId != nil && strings.TrimSpace(req.GetProjectId()) != "" {
-		projectID, parseErr := uuid.Parse(strings.TrimSpace(req.GetProjectId()))
+		projectID, parseErr := parseProjectID(req.GetProjectId())
 		if parseErr != nil {
-			return nil, fmt.Errorf("invalid project_id: %w", parseErr)
+			return nil, parseErr
 		}
 		if err := s.syncProjectWorkflows(ctx, projectID); err != nil {
 			return nil, err
@@ -174,13 +182,21 @@ func (s *WorkflowService) ListWorkflows(ctx context.Context, req *basapi.ListWor
 	}, nil
 }
 
+func parseWorkflowID(raw string) (uuid.UUID, error) {
+	id, err := uuid.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("invalid workflow_id: %w", err)
+	}
+	return id, nil
+}
+
 func (s *WorkflowService) GetWorkflowAPI(ctx context.Context, req *basapi.GetWorkflowRequest) (*basapi.GetWorkflowResponse, error) {
 	if req == nil {
 		return nil, errors.New("request is nil")
 	}
-	workflowID, err := uuid.Parse(strings.TrimSpace(req.WorkflowId))
+	workflowID, err := parseWorkflowID(req.WorkflowId)
 	if err != nil {
-		return nil, fmt.Errorf("invalid workflow_id: %w", err)
+		return nil, err
 	}
 
 	if req.Version != nil && req.GetVersion() > 0 {
@@ -215,9 +231,9 @@ func (s *WorkflowService) UpdateWorkflow(ctx context.Context, req *basapi.Update
 	if req == nil {
 		return nil, errors.New("request is nil")
 	}
-	workflowID, err := uuid.Parse(strings.TrimSpace(req.GetWorkflowId()))
+	workflowID, err := parseWorkflowID(req.GetWorkflowId())
 	if err != nil {
-		return nil, fmt.Errorf("invalid workflow_id: %w", err)
+		return nil, err
 	}
 
 	currentIndex, err := s.repo.GetWorkflow(ctx, workflowID)
@@ -302,9 +318,9 @@ func (s *WorkflowService) DeleteWorkflow(ctx context.Context, req *basapi.Delete
 	if req == nil {
 		return nil, errors.New("request is nil")
 	}
-	workflowID, err := uuid.Parse(strings.TrimSpace(req.WorkflowId))
+	workflowID, err := parseWorkflowID(req.WorkflowId)
 	if err != nil {
-		return nil, fmt.Errorf("invalid workflow_id: %w", err)
+		return nil, err
 	}
 	index, err := s.repo.GetWorkflow(ctx, workflowID)
 	if err != nil {

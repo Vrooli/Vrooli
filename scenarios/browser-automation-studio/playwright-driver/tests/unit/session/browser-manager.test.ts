@@ -38,12 +38,17 @@ jest.mock('../../../src/utils', () => ({
 }));
 
 import { chromium } from 'rebrowser-playwright';
+import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import type { Browser, BrowserContext, Page } from 'rebrowser-playwright';
 import { metrics } from '../../../src/utils';
 import {
   BrowserManager,
   createBrowserManager,
   getBrowserPoolKey,
+  resolveInstalledExecutablePath,
+  validateInstalledBrowserVersion,
 } from '../../../src/session/browser-manager';
 import { getAudioLaunchArgs } from '../../../src/session/audio';
 import type { Config } from '../../../src/config';
@@ -108,6 +113,7 @@ describe('BrowserManager', () => {
     it('returns not verified status', () => {
       const status = manager.getBrowserStatus();
       expect(status.healthy).toBe(false);
+      expect(status.runtime_identity_status).toBe('unavailable');
       expect(status.error).toBe('Browser not yet verified');
     });
   });
@@ -181,6 +187,7 @@ describe('BrowserManager', () => {
       const status = manager.getBrowserStatus();
       expect(status).toEqual({
         healthy: false,
+        runtime_identity_status: 'unavailable',
         error: 'Browser not yet verified',
       });
     });
@@ -192,6 +199,7 @@ describe('BrowserManager', () => {
       const status = manager.getBrowserStatus();
       expect(status).toEqual({
         healthy: false,
+        runtime_identity_status: 'unavailable',
         error: 'Launch failed',
       });
     });
@@ -204,6 +212,8 @@ describe('BrowserManager', () => {
       const status = manager.getBrowserStatus();
       expect(status).toEqual({
         healthy: true,
+        runtime_identity_status: 'reported',
+        family: 'chromium',
         version: '120.0.0.0',
       });
     });
@@ -217,7 +227,7 @@ describe('BrowserManager', () => {
       mockBrowser.isConnected.mockReturnValue(false);
 
       const status = manager.getBrowserStatus();
-      expect(status).toEqual({ healthy: true });
+      expect(status).toEqual({ healthy: true, runtime_identity_status: 'unavailable' });
     });
   });
 
@@ -368,6 +378,62 @@ describe('BrowserManager', () => {
     });
   });
 
+  describe('installed executable selection', () => {
+    let root: string;
+    let executable: string;
+
+    beforeEach(() => {
+      root = mkdtempSync(join(tmpdir(), 'bas-installed-browser-'));
+      executable = join(root, 'chrome');
+      writeFileSync(executable, 'test fixture; never executed');
+      chmodSync(executable, 0o755);
+    });
+
+    afterEach(() => rmSync(root, { recursive: true, force: true }));
+
+    it('requires an explicitly configured absolute executable and rejects broken paths', () => {
+      expect(() => resolveInstalledExecutablePath(undefined)).toThrow('absolute BROWSER_EXECUTABLE_PATH');
+      expect(() => resolveInstalledExecutablePath('relative/chrome')).toThrow('absolute BROWSER_EXECUTABLE_PATH');
+      expect(() => resolveInstalledExecutablePath(join(root, 'missing'))).toThrow('missing or not executable');
+      const directory = join(root, 'directory');
+      mkdirSync(directory);
+      expect(() => resolveInstalledExecutablePath(directory)).toThrow('missing or not executable');
+      const noExecute = join(root, 'no-execute');
+      writeFileSync(noExecute, 'fixture');
+      chmodSync(noExecute, 0o644);
+      expect(() => resolveInstalledExecutablePath(noExecute)).toThrow('missing or not executable');
+      const brokenLink = join(root, 'broken-link');
+      symlinkSync(join(root, 'absent-target'), brokenLink);
+      expect(() => resolveInstalledExecutablePath(brokenLink)).toThrow('missing or not executable');
+      expect(chromium.launch).not.toHaveBeenCalled();
+    });
+
+    it('uses only the configured executable and keeps installed and managed processes isolated', async () => {
+      const configured = { browser: { ...testConfig.browser, executablePath: executable } } as Config;
+      const configuredManager = new BrowserManager(configured);
+      await configuredManager.getBrowser(undefined, 'host_device', false, '', 'installed');
+      await configuredManager.getBrowser(undefined, 'host_device', false, '', 'managed');
+      const launchCalls = (chromium.launch as jest.MockedFunction<typeof chromium.launch>).mock.calls;
+      expect(launchCalls).toHaveLength(2);
+      expect(launchCalls[0]?.[0]?.executablePath).toBe(realpathSync(executable));
+      expect(launchCalls[1]?.[0]?.executablePath).toBe(executable);
+      expect(getBrowserPoolKey('', 'host_device', false, '', 'installed', executable)).not.toBe(
+        getBrowserPoolKey('', 'host_device', false, '', 'managed', executable)
+      );
+    });
+
+    it('validates the installed browser reported version before returning it', async () => {
+      const invalidBrowser = createMockBrowser({ version: 'unknown' });
+      (chromium.launch as jest.MockedFunction<typeof chromium.launch>).mockResolvedValueOnce(invalidBrowser);
+      const configuredManager = new BrowserManager({ browser: { ...testConfig.browser, executablePath: executable } } as Config);
+      await expect(configuredManager.getBrowser(undefined, 'host_device', false, '', 'installed')).rejects.toThrow('valid Chromium version');
+      expect(chromium.launch).toHaveBeenCalledTimes(1);
+      expect(invalidBrowser.close).toHaveBeenCalledTimes(1);
+      expect(() => validateInstalledBrowserVersion('140.0.7339.80')).not.toThrow();
+      expect(() => validateInstalledBrowserVersion('not-a-version')).toThrow('valid Chromium version');
+    });
+  });
+
   describe('shutdown', () => {
     it('closes the browser', async () => {
       await manager.getBrowser();
@@ -431,6 +497,15 @@ describe('getBrowserPoolKey', () => {
 
   it('separates host and synthetic strategies without fake media', () => {
     expect(getBrowserPoolKey('', 'host_device')).not.toBe(getBrowserPoolKey('', 'synthetic_sink'));
+  });
+
+  it('isolates extension-debugging Chromium by admitted BAS session', () => {
+    const ordinary = getBrowserPoolKey('', 'host_device');
+    const extensionA = getBrowserPoolKey('', 'host_device', true, 'session-a');
+    const extensionB = getBrowserPoolKey('', 'host_device', true, 'session-b');
+    expect(extensionA).not.toBe(ordinary);
+    expect(extensionB).not.toBe(ordinary);
+    expect(extensionA).not.toBe(extensionB);
   });
 });
 

@@ -57,6 +57,7 @@ import {
 import { BEHAVIOR_SETTINGS_KEY } from '../browser-profile';
 import type { BehaviorSettings } from '../types/browser-profile';
 import { requireSessionLease } from './session-lease';
+import { authorizeOperation } from '../session/permission-policy';
 
 /**
  * Request body for AI navigation.
@@ -72,6 +73,12 @@ interface AINavigateRequest {
   root_operation_id: string;
   ai_source: 'local' | 'own-key' | 'vrooli-credits';
   privacy_consent_grant?: string;
+  browser_session?: {
+    run_id: string;
+    session_id: string;
+    grant_receipt: string;
+    reservation_id?: string;
+  };
 }
 
 /**
@@ -183,6 +190,19 @@ export async function handleSessionAINavigate(
     });
     return;
   }
+  if (body.browser_session) {
+    const binding = body.browser_session;
+    if (
+      typeof binding !== 'object' ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(binding.run_id ?? '') ||
+      binding.session_id !== sessionId ||
+      !binding.grant_receipt || binding.grant_receipt.length > 512 || /[\r\n]/.test(binding.grant_receipt) ||
+      (binding.reservation_id !== undefined && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(binding.reservation_id))
+    ) {
+      sendJson(res, 400, { error: 'bad_request', message: 'browser_session binding is invalid' });
+      return;
+    }
+  }
   if (
     body.privacy_consent_grant &&
     (body.privacy_consent_grant.length > 16384 || /[\r\n]/.test(body.privacy_consent_grant))
@@ -248,6 +268,14 @@ export async function handleSessionAINavigate(
       authorization: body.ai_source === 'local' ? undefined : req.headers.authorization,
       aiSource: body.ai_source,
       privacyConsentGrant: body.privacy_consent_grant,
+      browserSession: body.browser_session
+        ? {
+            runId: body.browser_session.run_id,
+            sessionId: body.browser_session.session_id,
+            grantReceipt: body.browser_session.grant_receipt,
+            reservationId: body.browser_session.reservation_id,
+          }
+        : undefined,
     });
   } catch (err) {
     sendJson(res, 400, {
@@ -270,6 +298,23 @@ export async function handleSessionAINavigate(
 
   const actionExecutor = createActionExecutor({
     behaviorSettings,
+	authorize: async (page, action) => {
+	  const profile = session.spec?.permission_profile;
+	  const decision = authorizeOperation(
+	    profile,
+	    action.type,
+	    page.url(),
+	    action.type === 'navigate' ? action.url : undefined,
+	    Date.now(),
+	    session.createdAt.getTime(),
+	    session.instructionCount,
+	  );
+	  if (!decision.allowed) throw new Error(`BROWSER_PERMISSION_DENIED: ${decision.reason}`);
+	  // Vision actions have no per-action signed approval receipt channel yet.
+	  if (profile?.approval !== 'none' && !['wait', 'done'].includes(action.type)) {
+	    throw new Error('BROWSER_PERMISSION_DENIED: vision actions require an approval-capable broker adapter');
+	  }
+	},
   });
   const stepEmitter = createCallbackEmitter();
 

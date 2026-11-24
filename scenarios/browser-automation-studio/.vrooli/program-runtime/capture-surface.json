@@ -1,11 +1,11 @@
 {
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "browser-automation-studio.capture-surface",
-  "version": "1",
+  "version": "2",
   "helpers": {
     "program": "1"
   },
-  "purpose": "Capture one URL once and return durable screenshot and computed DOM-tree references tied to one BAS execution identity.",
+  "purpose": "Capture one URL once and return durable screenshot and normalized accessibility-tree references tied to one BAS execution identity.",
   "inputs": {
     "url": {
       "type": "string",
@@ -64,7 +64,7 @@
   ],
   "invariants": [
     "Exactly one capture execution is started per submission",
-    "Screenshot and computed snapshot artifacts share the returned execution identity",
+    "Screenshot and accessibility artifacts share the returned execution identity",
     "The envelope prints exactly once on every path",
     "No filesystem path is used as a cross-scenario artifact identity"
   ],
@@ -94,7 +94,7 @@
     "signals": {
       "artifact_id": "BAS execution identity",
       "screenshot_ref": "durable screenshot artifact reference",
-      "snapshot_ref": "durable computed DOM-tree artifact reference",
+      "accessibility_ref": "durable normalized accessibility-tree artifact reference",
       "url": "captured URL",
       "viewport": "resolved viewport input",
       "theme": "resolved theme",
@@ -102,7 +102,7 @@
       "captured_at": "capture completion time when supplied by BAS",
       "readiness": "bounded BAS readiness diagnostics",
       "screenshot_view_url": "BAS-owned relative HTTP retrieval path when supplied",
-      "snapshot_view_url": "BAS-owned relative HTTP retrieval path when supplied"
+      "accessibility_view_url": "BAS-owned relative HTTP retrieval path when supplied"
     },
     "errors": {
       "classes": [
@@ -117,7 +117,7 @@
         "binding_error",
         "kernel_runtime",
         "screenshot_failed",
-        "snapshot_failed",
+        "accessibility_failed",
         "driver_refused",
         "remote_error",
         "no_governed_binding"

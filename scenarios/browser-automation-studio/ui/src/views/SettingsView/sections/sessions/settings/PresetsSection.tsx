@@ -10,8 +10,8 @@ export function PresetsSection({ preset, onPresetChange }: PresetsSectionProps) 
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-600 dark:text-gray-400">
-        Choose a preset to quickly configure anti-detection and behavior settings. You can customize individual
-        settings in other tabs.
+        Choose a preset to configure interaction behavior and legacy browser signal options. Site compatibility is not
+        implied; you can customize individual settings in other tabs.
       </p>
       <div className="grid grid-cols-2 gap-4">
         {PRESET_METADATA.map((p) => (

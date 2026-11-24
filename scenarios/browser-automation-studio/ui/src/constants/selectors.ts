@@ -59,6 +59,7 @@ const literalSelectors = {
     },
     workflowCreation: {
       nameInput: "workflow-creation-name-input",
+      projectSelector: "recording-project-selector",
       submitButton: "workflow-creation-submit-button",
     },
   },

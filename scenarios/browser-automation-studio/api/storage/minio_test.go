@@ -25,6 +25,27 @@ import (
 )
 
 // setupMinIOContainer starts a MinIO testcontainer and returns connection details
+func setMinIOEnvironment(t *testing.T, endpoint, host, port, accessKey, secretKey, bucket string) {
+	t.Helper()
+	keys := []string{"MINIO_ENDPOINT", "MINIO_HOST", "MINIO_PORT", "MINIO_ACCESS_KEY", "MINIO_SECRET_KEY", "MINIO_BUCKET_NAME"}
+	values := []string{endpoint, host, port, accessKey, secretKey, bucket}
+	for i, key := range keys {
+		t.Setenv(key, values[i])
+	}
+}
+
+func newTestMinIOClient(t *testing.T, bucket string) *MinIOClient {
+	t.Helper()
+	endpoint, cleanup := setupMinIOContainer(t)
+	t.Cleanup(cleanup)
+	setMinIOEnvironment(t, endpoint, "", "", "minioadmin", "minioadmin", bucket)
+	log := logrus.New()
+	log.SetOutput(io.Discard)
+	client, err := NewMinIOClient(log)
+	require.NoError(t, err)
+	return client
+}
+
 func setupMinIOContainer(t *testing.T) (endpoint string, cleanup func()) {
 	integration.SkipShort(t, "MinIO testcontainer integration")
 
@@ -98,16 +119,7 @@ func TestNewMinIOClient(t *testing.T) {
 		endpoint, cleanup := setupMinIOContainer(t)
 		defer cleanup()
 
-		os.Setenv("MINIO_ENDPOINT", endpoint)
-		os.Setenv("MINIO_ACCESS_KEY", "minioadmin")
-		os.Setenv("MINIO_SECRET_KEY", "minioadmin")
-		os.Setenv("MINIO_BUCKET_NAME", "test-bucket")
-		defer func() {
-			os.Unsetenv("MINIO_ENDPOINT")
-			os.Unsetenv("MINIO_ACCESS_KEY")
-			os.Unsetenv("MINIO_SECRET_KEY")
-			os.Unsetenv("MINIO_BUCKET_NAME")
-		}()
+		setMinIOEnvironment(t, endpoint, "", "", "minioadmin", "minioadmin", "test-bucket")
 
 		client, err := NewMinIOClient(log)
 
@@ -122,16 +134,7 @@ func TestNewMinIOClient(t *testing.T) {
 		endpoint, cleanup := setupMinIOContainer(t)
 		defer cleanup()
 
-		os.Setenv("MINIO_ENDPOINT", endpoint)
-		os.Setenv("MINIO_ACCESS_KEY", "minioadmin")
-		os.Setenv("MINIO_SECRET_KEY", "minioadmin")
-		os.Setenv("MINIO_BUCKET_NAME", "auto-created-bucket")
-		defer func() {
-			os.Unsetenv("MINIO_ENDPOINT")
-			os.Unsetenv("MINIO_ACCESS_KEY")
-			os.Unsetenv("MINIO_SECRET_KEY")
-			os.Unsetenv("MINIO_BUCKET_NAME")
-		}()
+		setMinIOEnvironment(t, endpoint, "", "", "minioadmin", "minioadmin", "auto-created-bucket")
 
 		client, err := NewMinIOClient(log)
 
@@ -146,16 +149,7 @@ func TestNewMinIOClient(t *testing.T) {
 	})
 
 	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] fails with missing endpoint", func(t *testing.T) {
-		os.Unsetenv("MINIO_ENDPOINT")
-		os.Unsetenv("MINIO_PORT")
-		os.Setenv("MINIO_ACCESS_KEY", "minioadmin")
-		os.Setenv("MINIO_SECRET_KEY", "minioadmin")
-		os.Setenv("MINIO_BUCKET_NAME", "test-bucket")
-		defer func() {
-			os.Unsetenv("MINIO_ACCESS_KEY")
-			os.Unsetenv("MINIO_SECRET_KEY")
-			os.Unsetenv("MINIO_BUCKET_NAME")
-		}()
+		setMinIOEnvironment(t, "", "", "", "minioadmin", "minioadmin", "test-bucket")
 
 		client, err := NewMinIOClient(log)
 
@@ -165,15 +159,7 @@ func TestNewMinIOClient(t *testing.T) {
 	})
 
 	t.Run("fails with missing access key", func(t *testing.T) {
-		os.Setenv("MINIO_ENDPOINT", "localhost:9000")
-		os.Unsetenv("MINIO_ACCESS_KEY")
-		os.Setenv("MINIO_SECRET_KEY", "minioadmin")
-		os.Setenv("MINIO_BUCKET_NAME", "test-bucket")
-		defer func() {
-			os.Unsetenv("MINIO_ENDPOINT")
-			os.Unsetenv("MINIO_SECRET_KEY")
-			os.Unsetenv("MINIO_BUCKET_NAME")
-		}()
+		setMinIOEnvironment(t, "localhost:9000", "", "", "", "minioadmin", "test-bucket")
 
 		client, err := NewMinIOClient(log)
 
@@ -183,15 +169,7 @@ func TestNewMinIOClient(t *testing.T) {
 	})
 
 	t.Run("fails with missing secret key", func(t *testing.T) {
-		os.Setenv("MINIO_ENDPOINT", "localhost:9000")
-		os.Setenv("MINIO_ACCESS_KEY", "minioadmin")
-		os.Unsetenv("MINIO_SECRET_KEY")
-		os.Setenv("MINIO_BUCKET_NAME", "test-bucket")
-		defer func() {
-			os.Unsetenv("MINIO_ENDPOINT")
-			os.Unsetenv("MINIO_ACCESS_KEY")
-			os.Unsetenv("MINIO_BUCKET_NAME")
-		}()
+		setMinIOEnvironment(t, "localhost:9000", "", "", "minioadmin", "", "test-bucket")
 
 		client, err := NewMinIOClient(log)
 
@@ -201,15 +179,7 @@ func TestNewMinIOClient(t *testing.T) {
 	})
 
 	t.Run("fails with missing bucket name", func(t *testing.T) {
-		os.Setenv("MINIO_ENDPOINT", "localhost:9000")
-		os.Setenv("MINIO_ACCESS_KEY", "minioadmin")
-		os.Setenv("MINIO_SECRET_KEY", "minioadmin")
-		os.Unsetenv("MINIO_BUCKET_NAME")
-		defer func() {
-			os.Unsetenv("MINIO_ENDPOINT")
-			os.Unsetenv("MINIO_ACCESS_KEY")
-			os.Unsetenv("MINIO_SECRET_KEY")
-		}()
+		setMinIOEnvironment(t, "localhost:9000", "", "", "minioadmin", "minioadmin", "")
 
 		client, err := NewMinIOClient(log)
 
@@ -222,19 +192,7 @@ func TestNewMinIOClient(t *testing.T) {
 		endpoint, cleanup := setupMinIOContainer(t)
 		defer cleanup()
 
-		os.Unsetenv("MINIO_ENDPOINT")
-		os.Setenv("MINIO_HOST", "localhost")
-		os.Setenv("MINIO_PORT", endpoint[len("localhost:"):]) // Extract port from endpoint
-		os.Setenv("MINIO_ACCESS_KEY", "minioadmin")
-		os.Setenv("MINIO_SECRET_KEY", "minioadmin")
-		os.Setenv("MINIO_BUCKET_NAME", "test-bucket")
-		defer func() {
-			os.Unsetenv("MINIO_HOST")
-			os.Unsetenv("MINIO_PORT")
-			os.Unsetenv("MINIO_ACCESS_KEY")
-			os.Unsetenv("MINIO_SECRET_KEY")
-			os.Unsetenv("MINIO_BUCKET_NAME")
-		}()
+		setMinIOEnvironment(t, "", "localhost", endpoint[len("localhost:"):], "minioadmin", "minioadmin", "test-bucket")
 
 		client, err := NewMinIOClient(log)
 
@@ -244,25 +202,7 @@ func TestNewMinIOClient(t *testing.T) {
 }
 
 func TestMinIOClient_StoreScreenshot(t *testing.T) {
-	log := logrus.New()
-	log.SetOutput(io.Discard)
-
-	endpoint, cleanup := setupMinIOContainer(t)
-	defer cleanup()
-
-	os.Setenv("MINIO_ENDPOINT", endpoint)
-	os.Setenv("MINIO_ACCESS_KEY", "minioadmin")
-	os.Setenv("MINIO_SECRET_KEY", "minioadmin")
-	os.Setenv("MINIO_BUCKET_NAME", "screenshots-test")
-	defer func() {
-		os.Unsetenv("MINIO_ENDPOINT")
-		os.Unsetenv("MINIO_ACCESS_KEY")
-		os.Unsetenv("MINIO_SECRET_KEY")
-		os.Unsetenv("MINIO_BUCKET_NAME")
-	}()
-
-	client, err := NewMinIOClient(log)
-	require.NoError(t, err)
+	client := newTestMinIOClient(t, "screenshots-test")
 
 	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] stores screenshot successfully", func(t *testing.T) {
 		ctx := context.Background()
@@ -324,25 +264,7 @@ func TestMinIOClient_StoreScreenshot(t *testing.T) {
 }
 
 func TestMinIOClient_GetScreenshot(t *testing.T) {
-	log := logrus.New()
-	log.SetOutput(io.Discard)
-
-	endpoint, cleanup := setupMinIOContainer(t)
-	defer cleanup()
-
-	os.Setenv("MINIO_ENDPOINT", endpoint)
-	os.Setenv("MINIO_ACCESS_KEY", "minioadmin")
-	os.Setenv("MINIO_SECRET_KEY", "minioadmin")
-	os.Setenv("MINIO_BUCKET_NAME", "screenshots-get-test")
-	defer func() {
-		os.Unsetenv("MINIO_ENDPOINT")
-		os.Unsetenv("MINIO_ACCESS_KEY")
-		os.Unsetenv("MINIO_SECRET_KEY")
-		os.Unsetenv("MINIO_BUCKET_NAME")
-	}()
-
-	client, err := NewMinIOClient(log)
-	require.NoError(t, err)
+	client := newTestMinIOClient(t, "screenshots-get-test")
 
 	t.Run("[REQ:BAS-REPLAY-EXPORT-BUNDLE] retrieves stored screenshot", func(t *testing.T) {
 		ctx := context.Background()
@@ -392,25 +314,7 @@ func TestMinIOClient_GetScreenshot(t *testing.T) {
 }
 
 func TestMinIOClient_DeleteScreenshot(t *testing.T) {
-	log := logrus.New()
-	log.SetOutput(io.Discard)
-
-	endpoint, cleanup := setupMinIOContainer(t)
-	defer cleanup()
-
-	os.Setenv("MINIO_ENDPOINT", endpoint)
-	os.Setenv("MINIO_ACCESS_KEY", "minioadmin")
-	os.Setenv("MINIO_SECRET_KEY", "minioadmin")
-	os.Setenv("MINIO_BUCKET_NAME", "screenshots-delete-test")
-	defer func() {
-		os.Unsetenv("MINIO_ENDPOINT")
-		os.Unsetenv("MINIO_ACCESS_KEY")
-		os.Unsetenv("MINIO_SECRET_KEY")
-		os.Unsetenv("MINIO_BUCKET_NAME")
-	}()
-
-	client, err := NewMinIOClient(log)
-	require.NoError(t, err)
+	client := newTestMinIOClient(t, "screenshots-delete-test")
 
 	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] deletes screenshot successfully", func(t *testing.T) {
 		ctx := context.Background()
@@ -451,25 +355,7 @@ func TestMinIOClient_DeleteScreenshot(t *testing.T) {
 }
 
 func TestMinIOClient_ListExecutionScreenshots(t *testing.T) {
-	log := logrus.New()
-	log.SetOutput(io.Discard)
-
-	endpoint, cleanup := setupMinIOContainer(t)
-	defer cleanup()
-
-	os.Setenv("MINIO_ENDPOINT", endpoint)
-	os.Setenv("MINIO_ACCESS_KEY", "minioadmin")
-	os.Setenv("MINIO_SECRET_KEY", "minioadmin")
-	os.Setenv("MINIO_BUCKET_NAME", "screenshots-list-test")
-	defer func() {
-		os.Unsetenv("MINIO_ENDPOINT")
-		os.Unsetenv("MINIO_ACCESS_KEY")
-		os.Unsetenv("MINIO_SECRET_KEY")
-		os.Unsetenv("MINIO_BUCKET_NAME")
-	}()
-
-	client, err := NewMinIOClient(log)
-	require.NoError(t, err)
+	client := newTestMinIOClient(t, "screenshots-list-test")
 
 	t.Run("[REQ:BAS-REPLAY-EXPORT-BUNDLE] lists all screenshots for execution", func(t *testing.T) {
 		ctx := context.Background()
@@ -525,25 +411,7 @@ func TestMinIOClient_ListExecutionScreenshots(t *testing.T) {
 }
 
 func TestMinIOClient_StoreScreenshotFromFile(t *testing.T) {
-	log := logrus.New()
-	log.SetOutput(io.Discard)
-
-	endpoint, cleanup := setupMinIOContainer(t)
-	defer cleanup()
-
-	os.Setenv("MINIO_ENDPOINT", endpoint)
-	os.Setenv("MINIO_ACCESS_KEY", "minioadmin")
-	os.Setenv("MINIO_SECRET_KEY", "minioadmin")
-	os.Setenv("MINIO_BUCKET_NAME", "screenshots-file-test")
-	defer func() {
-		os.Unsetenv("MINIO_ENDPOINT")
-		os.Unsetenv("MINIO_ACCESS_KEY")
-		os.Unsetenv("MINIO_SECRET_KEY")
-		os.Unsetenv("MINIO_BUCKET_NAME")
-	}()
-
-	client, err := NewMinIOClient(log)
-	require.NoError(t, err)
+	client := newTestMinIOClient(t, "screenshots-file-test")
 
 	t.Run("stores screenshot from PNG file", func(t *testing.T) {
 		ctx := context.Background()
@@ -600,25 +468,7 @@ func TestMinIOClient_StoreScreenshotFromFile(t *testing.T) {
 }
 
 func TestMinIOClient_HelperMethods(t *testing.T) {
-	log := logrus.New()
-	log.SetOutput(io.Discard)
-
-	endpoint, cleanup := setupMinIOContainer(t)
-	defer cleanup()
-
-	os.Setenv("MINIO_ENDPOINT", endpoint)
-	os.Setenv("MINIO_ACCESS_KEY", "minioadmin")
-	os.Setenv("MINIO_SECRET_KEY", "minioadmin")
-	os.Setenv("MINIO_BUCKET_NAME", "helpers-test")
-	defer func() {
-		os.Unsetenv("MINIO_ENDPOINT")
-		os.Unsetenv("MINIO_ACCESS_KEY")
-		os.Unsetenv("MINIO_SECRET_KEY")
-		os.Unsetenv("MINIO_BUCKET_NAME")
-	}()
-
-	client, err := NewMinIOClient(log)
-	require.NoError(t, err)
+	client := newTestMinIOClient(t, "helpers-test")
 
 	t.Run("GetBucketName returns configured bucket", func(t *testing.T) {
 		bucketName := client.GetBucketName()
@@ -639,7 +489,7 @@ func TestMinIOClient_HelperMethods(t *testing.T) {
 		fakeClient := &MinIOClient{
 			client:     client.client,
 			bucketName: "non-existent-bucket-xyz",
-			log:        log,
+			log:        client.log,
 		}
 
 		ctx := context.Background()
@@ -652,25 +502,7 @@ func TestMinIOClient_HelperMethods(t *testing.T) {
 }
 
 func TestMinIOClient_ConcurrentOperations(t *testing.T) {
-	log := logrus.New()
-	log.SetOutput(io.Discard)
-
-	endpoint, cleanup := setupMinIOContainer(t)
-	defer cleanup()
-
-	os.Setenv("MINIO_ENDPOINT", endpoint)
-	os.Setenv("MINIO_ACCESS_KEY", "minioadmin")
-	os.Setenv("MINIO_SECRET_KEY", "minioadmin")
-	os.Setenv("MINIO_BUCKET_NAME", "concurrent-test")
-	defer func() {
-		os.Unsetenv("MINIO_ENDPOINT")
-		os.Unsetenv("MINIO_ACCESS_KEY")
-		os.Unsetenv("MINIO_SECRET_KEY")
-		os.Unsetenv("MINIO_BUCKET_NAME")
-	}()
-
-	client, err := NewMinIOClient(log)
-	require.NoError(t, err)
+	client := newTestMinIOClient(t, "concurrent-test")
 
 	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] handles concurrent uploads", func(t *testing.T) {
 		ctx := context.Background()

@@ -12,7 +12,7 @@
  */
 
 import type { VisionModelClient, VisionModelSpec } from './types';
-import { AIGatewayVisionClient, normalizeGatewayProfile } from './gateway';
+import { AIGatewayVisionClient, normalizeGatewayProfile, type BrowserInferenceSessionBinding } from './gateway';
 
 /**
  * Configuration for creating a vision client.
@@ -33,6 +33,7 @@ export interface VisionClientConfig {
   authorization?: string;
   aiSource?: 'local' | 'own-key' | 'vrooli-credits';
   privacyConsentGrant?: string;
+  browserSession?: BrowserInferenceSessionBinding;
 }
 
 /**
@@ -66,6 +67,7 @@ export function createVisionClient(config: VisionClientConfig): VisionModelClien
     authorization: config.authorization,
     aiSource: config.aiSource,
     privacyConsentGrant: config.privacyConsentGrant,
+    browserSession: config.browserSession,
   });
 }
 

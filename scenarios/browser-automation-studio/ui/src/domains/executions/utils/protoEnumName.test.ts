@@ -14,8 +14,19 @@ import {
   ActionTypeSchema,
 } from '@vrooli/proto-types/browser-automation-studio/v1/actions/action_pb';
 import { enumShortName } from './protoEnumName';
+import { mapExecutionStatus } from './mappers';
 
 describe('enumShortName', () => {
+  it.each([
+    ['EXECUTION_STATUS_PENDING', 'pending'],
+    ['EXECUTION_STATUS_RUNNING', 'running'],
+    ['EXECUTION_STATUS_COMPLETED', 'completed'],
+    ['EXECUTION_STATUS_FAILED', 'failed'],
+    ['EXECUTION_STATUS_CANCELLED', 'cancelled'],
+  ] as const)('maps Connect enum %s to %s', (input, expected) => {
+    expect(mapExecutionStatus(input)).toBe(expected);
+  });
+
   it('matches the deleted generated map values for execution status', () => {
     expect(enumShortName(ExecutionStatusSchema, ExecutionStatus.UNSPECIFIED)).toBe('unspecified');
     expect(enumShortName(ExecutionStatusSchema, ExecutionStatus.PENDING)).toBe('pending');

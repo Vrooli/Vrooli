@@ -99,15 +99,16 @@ const MaxRecordedSteps = 200
 // NavigationSession so a finished navigation can be replayed or turned into
 // a saved workflow.
 type NavigationStepRecord struct {
-	Index       int
-	ActionType  string
-	Selector    string
-	Value       string
-	URL         string
-	Description string
-	Success     bool
-	Error       string
-	At          time.Time
+	Index            int
+	ActionType       string
+	Selector         string
+	Value            string
+	URL              string
+	Description      string
+	Success          bool
+	Error            string
+	InferenceReceipt *InferenceReceipt
+	At               time.Time
 }
 
 // NavigationSession tracks the state of an active navigation.
@@ -189,6 +190,9 @@ func (s *NavigationSession) Snapshot() *NavigationSession {
 	if s.Steps != nil {
 		cp.Steps = make([]NavigationStepRecord, len(s.Steps))
 		copy(cp.Steps, s.Steps)
+		for i := range cp.Steps {
+			cp.Steps[i].InferenceReceipt = s.Steps[i].InferenceReceipt.Clone()
+		}
 	}
 	if s.HumanIntervention != nil {
 		hi := *s.HumanIntervention

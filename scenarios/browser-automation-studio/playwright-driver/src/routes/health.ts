@@ -98,7 +98,9 @@ export function handleHealth(
   const browserCheck: HealthCheck = browserStatus.healthy
     ? {
         status: 'pass',
-        message: `Chromium ${browserStatus.version || 'ready'}`,
+        message: browserStatus.runtime_identity_status === 'reported'
+          ? `Chromium ${browserStatus.version || 'ready'}`
+          : 'Chromium ready; live runtime identity unavailable',
       }
     : {
         status: 'fail',

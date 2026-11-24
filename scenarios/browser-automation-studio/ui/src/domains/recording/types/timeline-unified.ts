@@ -85,7 +85,7 @@ export type TimelineMode = 'recording' | 'execution';
 /**
  * Page event types for multi-tab recording.
  */
-export type PageEventType = 'page_created' | 'page_navigated' | 'page_closed';
+export type PageEventType = 'page_created' | 'page_navigated' | 'page_closed' | 'page_activated';
 
 /**
  * AI metadata for actions performed by AI navigation.

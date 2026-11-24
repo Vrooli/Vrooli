@@ -42,19 +42,34 @@ const (
 	PageEventCreated   PageEventType = "page_created"
 	PageEventNavigated PageEventType = "page_navigated"
 	PageEventClosed    PageEventType = "page_closed"
+	PageEventActivated PageEventType = "page_activated"
 )
 
 // PageEvent represents a page lifecycle event in the recording timeline.
 // These events are interleaved with actions to form a unified timeline.
 type PageEvent struct {
-	ID         uuid.UUID     `json:"id"`
-	Type       PageEventType `json:"type"`
-	PageID     uuid.UUID     `json:"pageId"`
-	URL        string        `json:"url,omitempty"`
-	Title      string        `json:"title,omitempty"`
-	FaviconURL *string       `json:"faviconUrl,omitempty"`
-	OpenerID   *uuid.UUID    `json:"openerId,omitempty"`
-	Timestamp  time.Time     `json:"timestamp"`
+	ID           uuid.UUID     `json:"id"`
+	Type         PageEventType `json:"type"`
+	PageID       uuid.UUID     `json:"pageId"`
+	DriverPageID string        `json:"driverPageId,omitempty"`
+	IsInitial    bool          `json:"isInitial,omitempty"`
+	URL          string        `json:"url,omitempty"`
+	Title        string        `json:"title,omitempty"`
+	FaviconURL   *string       `json:"faviconUrl,omitempty"`
+	OpenerID     *uuid.UUID    `json:"openerId,omitempty"`
+	ActivePageID uuid.UUID     `json:"activePageId,omitempty"`
+	Timestamp    time.Time     `json:"timestamp"`
+}
+
+// StablePageEventID preserves one lifecycle identity across callback replay.
+// Create and close events have one identity per page; navigations and active
+// page selections use their observation timestamp so distinct transitions stay distinct.
+func StablePageEventID(pageID uuid.UUID, eventType PageEventType, occurredAt time.Time) uuid.UUID {
+	key := string(eventType)
+	if eventType == PageEventNavigated || eventType == PageEventActivated {
+		key += ":" + occurredAt.UTC().Format(time.RFC3339Nano)
+	}
+	return uuid.NewSHA1(pageID, []byte(key))
 }
 
 // DriverPageEvent represents a page event received from the Playwright driver.
@@ -63,7 +78,7 @@ type DriverPageEvent struct {
 	SessionID          string  `json:"sessionId"`
 	DriverPageID       string  `json:"driverPageId"` // Playwright's internal ID
 	VrooliPageID       string  `json:"vrooliPageId"` // Our UUID (echoed back by driver)
-	EventType          string  `json:"eventType"`    // "created" | "navigated" | "closed"
+	EventType          string  `json:"eventType"`    // "initial" | "created" | "navigated" | "closed"
 	URL                string  `json:"url"`
 	Title              string  `json:"title"`
 	FaviconURL         *string `json:"faviconUrl,omitempty"`

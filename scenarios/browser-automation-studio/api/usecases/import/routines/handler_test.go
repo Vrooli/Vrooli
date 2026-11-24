@@ -48,6 +48,41 @@ func TestInspectRoutine_InvalidProjectID(t *testing.T) {
 	}
 }
 
+func TestImportRoutine_InvalidProjectID(t *testing.T) {
+	handler, _, _, _ := setupTestHandler(t)
+
+	r := chi.NewRouter()
+	handler.RegisterRoutes(r)
+
+	req := httptest.NewRequest(http.MethodPost, "/projects/invalid-uuid/routines/import", bytes.NewBufferString(`{"file_path":"/test.workflow.json"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status %d, got %d", http.StatusBadRequest, w.Code)
+	}
+}
+
+func TestRoutineRoutesRejectWhitespaceAroundProjectID(t *testing.T) {
+	handler, _, _, _ := setupTestHandler(t)
+	r := chi.NewRouter()
+	handler.RegisterRoutes(r)
+
+	projectID := uuid.New().String()
+	for _, route := range []string{"inspect", "import"} {
+		t.Run(route, func(t *testing.T) {
+			path := "/projects/%20" + projectID + "%20/routines/" + route
+			req := httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(`{"file_path":"/test.workflow.json"}`))
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+			if w.Code != http.StatusBadRequest {
+				t.Fatalf("whitespace-wrapped project ID returned %d; want %d", w.Code, http.StatusBadRequest)
+			}
+		})
+	}
+}
+
 func TestInspectRoutine_MissingFilePath(t *testing.T) {
 	handler, _, _, projecter := setupTestHandler(t)
 

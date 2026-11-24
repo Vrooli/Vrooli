@@ -6,7 +6,7 @@
  * - Session profiles and storage state
  * - Fingerprint configuration
  * - Behavior simulation
- * - Anti-detection settings
+ * - Browser signal settings (legacy anti_detection API fields)
  */
 
 export const SESSIONS_CONTENT = `
@@ -23,7 +23,7 @@ A **session** is a saved Playwright browser profile that includes:
 - **Cookies** - Authentication tokens, session identifiers, preferences
 - **LocalStorage** - Application data, user settings, cached information
 - **Browser Configuration** - Viewport size, user agent, timezone, and more
-- **Behavior Settings** - Human-like typing, mouse movement, and interaction patterns
+- **Behavior Settings** - Typing, pointer, scroll, and pause timing
 
 When you run a workflow with a session, it starts with all this saved state, so you don't need to log in again or reconfigure the browser.
 
@@ -58,7 +58,9 @@ To save login state to a session:
 
 ### Fingerprint Settings
 
-Fingerprinting controls how the browser identifies itself to websites. Configure these to match specific environments or bypass detection.
+Fingerprint settings request browser identity and device characteristics for a
+test environment. Support depends on the selected browser mode. Changing these
+values does not establish compatibility with a site's checks.
 
 #### Viewport
 Set the browser window dimensions:
@@ -76,7 +78,7 @@ Regional settings that affect date/time display and language:
 - **Timezone** - Time zone identifier (e.g., \`America/New_York\`, \`Europe/London\`)
 
 #### Geolocation
-Spoof GPS coordinates for location-based testing:
+Set test coordinates for location-based workflows:
 - **Latitude** - GPS latitude (-90 to 90)
 - **Longitude** - GPS longitude (-180 to 180)
 
@@ -88,9 +90,11 @@ Hardware characteristics reported to JavaScript:
 
 ---
 
-## Behavior Simulation
+## Interaction Timing
 
-Make browser interactions appear more human-like. These settings help avoid bot detection and create more realistic recordings.
+These settings change typing, pointer, scroll, and pause timing. They can make
+recorded interactions less uniform, but they do not make a session human or
+guarantee that a site will accept it.
 
 ### Typing Behavior
 
@@ -105,7 +109,7 @@ Make browser interactions appear more human-like. These settings help avoid bot 
 
 | Setting | Description |
 | --- | --- |
-| **Movement Style** | Linear (fast), Bezier (smooth curves), Natural (human-like) |
+| **Movement Style** | Linear (fast), Bezier (smooth curves), Natural (curved path) |
 | **Jitter** | Random deviation in pixels (adds organic feel) |
 | **Click Delay** | Min/max pause between clicks |
 
@@ -114,7 +118,7 @@ Make browser interactions appear more human-like. These settings help avoid bot 
 | Setting | Description |
 | --- | --- |
 | **Smooth** | Continuous scrolling animation |
-| **Stepped** | Discrete scroll increments (more human-like) |
+| **Stepped** | Discrete scroll increments |
 
 ### Micro-Pauses
 
@@ -124,26 +128,30 @@ Random brief pauses during interactions:
 
 ---
 
-## Anti-Detection Settings
+## Browser Signal Options
 
-These options help bypass automated bot detection systems. Enable them for testing against protected sites.
+The legacy \`anti_detection\` profile options request changes to selected browser
+signals. Their support and effect vary by browser mode and version. Sites can
+use other browser, network, and behavior signals, so these options do not
+guarantee access or a particular detection result. WebRTC changes can affect
+site functionality and do not replace network-policy checks.
 
-| Setting | What It Does |
+| Option | Requested change |
 | --- | --- |
-| **Disable Automation Flag** | Removes Chrome's automation indicator |
-| **Patch navigator.webdriver** | Hides the WebDriver property bots are detected by |
-| **Patch navigator.plugins** | Spoofs browser plugin list |
-| **Patch navigator.languages** | Matches language to locale setting |
-| **Patch WebGL Renderer** | Spoofs graphics card identity |
-| **Patch Canvas Fingerprint** | Adds noise to canvas rendering |
-| **Headless Detection Bypass** | Prevents headless browser detection |
-| **Disable WebRTC** | Prevents IP address leaks through WebRTC |
+| **Disable Automation Flag** | Adjust a Chrome automation launch feature |
+| **Patch navigator.webdriver** | Adjust the WebDriver property |
+| **Patch navigator.plugins** | Adjust the reported plugin list |
+| **Patch navigator.languages** | Adjust reported language values |
+| **Patch WebGL Renderer** | Adjust reported WebGL renderer details |
+| **Patch Canvas Fingerprint** | Adjust canvas output |
+| **Headless Detection Bypass** | Legacy option name; no bypass guarantee |
+| **Disable WebRTC** | Request WebRTC disablement; network behavior still needs separate validation |
 
 ### Presets
 
 Quick-apply common configurations:
-- **Default** - Standard Playwright settings, no anti-detection
-- **Stealth** - Maximum anti-detection, human-like behavior
+- **Default** - Standard Playwright settings
+- **Stealth** - Legacy preset name for a group of signal and interaction settings; no detection guarantee
 - **Mobile** - Mobile viewport and user agent
 - **Custom** - Your saved configurations
 
@@ -207,7 +215,7 @@ The session card shows:
 
 - Some sites expire sessions quickly
 - Check cookie expiration times in session storage view
-- The site may detect automation; try anti-detection settings
+- The site may block or challenge this browser mode. No profile option guarantees acceptance; use only a supported mode and report the site-specific outcome.
 
 ### Workflows Fail After Session Change
 

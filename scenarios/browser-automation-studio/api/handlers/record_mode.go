@@ -96,6 +96,7 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 
 	// Delegate to recordmode service
 	cfg := &livecapture.SessionConfig{
+		ProfileID:      profileID,
 		ViewportWidth:  req.ViewportWidth,
 		ViewportHeight: req.ViewportHeight,
 		InitialURL:     req.InitialURL,

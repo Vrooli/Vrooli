@@ -36,6 +36,7 @@ func TestPlaywrightNavigatorBroker_PreservesSessionRequestAndActionEvidence(t *t
 		AccessToken:         "signed-session-token",
 		AISource:            "vrooli-credits",
 		PrivacyConsentGrant: "opaque-consent-receipt",
+		BrowserSession:      &BrowserInferenceSessionBinding{RunID: "87026a72-90ba-4e0b-9897-b2b09dc8a750", SessionID: "session-owned-by-bas", GrantReceipt: "opaque-browser-grant"},
 	})
 	if err != nil {
 		t.Fatalf("Navigate: %v", err)
@@ -56,6 +57,10 @@ func TestPlaywrightNavigatorBroker_PreservesSessionRequestAndActionEvidence(t *t
 	}
 	if body["root_operation_id"] != "a14d8e7c0c014dbe8ad773ae25c8c781" || body["privacy_consent_grant"] != "opaque-consent-receipt" {
 		t.Fatalf("operation/consent evidence lost: %#v", body)
+	}
+	browserSession, ok := body["browser_session"].(map[string]any)
+	if !ok || browserSession["run_id"] != "87026a72-90ba-4e0b-9897-b2b09dc8a750" || browserSession["session_id"] != "session-owned-by-bas" || browserSession["grant_receipt"] != "opaque-browser-grant" {
+		t.Fatalf("broker-derived browser session binding was not forwarded: %#v", body["browser_session"])
 	}
 	if err := nav.HandleStepCallback(ctx, &NavigationStep{
 		NavigationID: "nav_broker_owner", StepNumber: 1,

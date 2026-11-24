@@ -1,7 +1,8 @@
 /**
- * Anti-Detection Patches
+ * Browser Signal Patches
  *
- * Individual, composable patch generators for anti-detection.
+ * Individual, composable patch generators for selected browser signals.
+ * These code paths do not establish a site-specific detection result.
  * Each patch is a named function that returns a JavaScript snippet (string)
  * to be injected into the browser context.
  *
@@ -65,10 +66,8 @@ export interface PatchRegistryEntry {
 // =============================================================================
 
 /**
- * Hide automation control while preserving the browser's boolean shape.
- *
- * DECISION: When navigator.webdriver is detected, the page may block automation.
- * This patch returns false on access and hides the property from enumeration.
+ * Adjust the reported navigator.webdriver value and property visibility.
+ * This does not establish a detection result or site acceptance.
  */
 export function generateWebdriverPatch(): string {
   return `
@@ -90,17 +89,16 @@ export function generateWebdriverPatch(): string {
 }
 
 /**
- * Spoof navigator.plugins and mimeTypes.
- *
- * DECISION: Empty plugins array indicates headless browser.
- * This patch spoofs common Chrome plugins to appear as regular browser.
+ * Adjust the reported navigator.plugins and mimeTypes values.
+ * This changes selected page-visible properties only; it does not establish
+ * browser identity or detection outcomes.
  */
 export function generatePluginsPatch(): string {
   const pluginsJson = JSON.stringify(DEFAULT_PLUGINS);
   const mimeTypesJson = JSON.stringify(DEFAULT_MIME_TYPES);
 
   return `
-    // Spoof plugins to look like a real browser (defaults from browser-profile/config.ts)
+    // Apply the configured plugin-list values (defaults from browser-profile/config.ts).
     Object.defineProperty(navigator, 'plugins', {
       get: () => {
         const pluginData = ${pluginsJson};
@@ -150,10 +148,7 @@ export function generatePluginsPatch(): string {
 }
 
 /**
- * Ensure consistent navigator.languages.
- *
- * DECISION: Mismatched language settings can indicate automation.
- * This patch ensures navigator.language and languages match the fingerprint locale.
+ * Set navigator language values from the configured profile locale.
  */
 export function generateLanguagesPatch(fingerprint: FingerprintSettings): string {
   const locale = fingerprint.locale || 'en-US';
@@ -174,14 +169,11 @@ export function generateLanguagesPatch(fingerprint: FingerprintSettings): string
 }
 
 /**
- * Spoof WebGL renderer and vendor strings.
- *
- * DECISION: WebGL renderer info can fingerprint the hardware.
- * This patch returns common Intel integrated graphics info.
+ * Adjust selected WebGL renderer and vendor strings.
  */
 export function generateWebGLPatch(): string {
   return `
-    // Spoof WebGL info (defaults from browser-profile/config.ts)
+    // Apply configured WebGL values (defaults from browser-profile/config.ts)
     const getParameterOriginal = WebGLRenderingContext.prototype.getParameter;
     WebGLRenderingContext.prototype.getParameter = function(parameter) {
       // UNMASKED_VENDOR_WEBGL
@@ -212,10 +204,7 @@ export function generateWebGLPatch(): string {
 }
 
 /**
- * Add noise to canvas fingerprint.
- *
- * DECISION: Canvas fingerprinting uses toDataURL/toBlob to identify browsers.
- * This patch adds minimal noise to prevent consistent fingerprinting.
+ * Apply a small randomized change to selected canvas outputs.
  */
 export function generateCanvasPatch(): string {
   return `
@@ -255,10 +244,7 @@ export function generateCanvasPatch(): string {
 }
 
 /**
- * Add noise to AudioContext fingerprint.
- *
- * DECISION: Audio fingerprinting uses AnalyserNode frequency data.
- * This patch adds minimal noise to prevent consistent fingerprinting.
+ * Apply small randomized changes to selected audio outputs.
  */
 export function generateAudioContextPatch(): string {
   return `
@@ -328,11 +314,11 @@ export function generateAudioContextPatch(): string {
 }
 
 /**
- * Bypass headless browser detection.
+ * Adjust selected properties commonly associated with headless configurations.
  *
- * DECISION: Headless browsers have detectable characteristics (hardwareConcurrency=0,
- * window dimensions matching viewport exactly, missing chrome object).
- * This patch overrides these properties to appear as regular browser.
+ * The function retains its legacy name. It adjusts selected properties and
+ * does not make the browser equivalent to a headed browser or guarantee site
+ * acceptance.
  */
 export function generateHeadlessBypassPatch(fingerprint: FingerprintSettings): string {
   const hardwareConcurrency = fingerprint.hardware_concurrency || HARDWARE_DEFAULTS.hardwareConcurrency;
@@ -350,7 +336,7 @@ export function generateHeadlessBypassPatch(fingerprint: FingerprintSettings): s
       configurable: true,
     });
 
-    // Ensure window dimensions are realistic (WINDOW_CHROME from config.ts)
+    // Apply configured window dimensions (WINDOW_CHROME from config.ts)
     Object.defineProperty(window, 'outerWidth', {
       get: () => window.innerWidth + ${WINDOW_CHROME.widthDelta},
       configurable: true,
@@ -368,7 +354,7 @@ export function generateHeadlessBypassPatch(fingerprint: FingerprintSettings): s
       window.chrome = { runtime: {} };
     }
 
-    // Spoof permissions API
+    // Adjust the notifications permission response
     const originalQuery = navigator.permissions?.query;
     if (originalQuery) {
       navigator.permissions.query = function(parameters) {
@@ -382,16 +368,13 @@ export function generateHeadlessBypassPatch(fingerprint: FingerprintSettings): s
 }
 
 /**
- * Override font detection to return common fonts only.
- *
- * DECISION: Font fingerprinting detects installed fonts via CSS.
- * This patch limits detection to common cross-platform fonts.
+ * Restrict positive document.fonts.check results to configured common fonts.
  */
 export function generateFontsPatch(): string {
   const fontsArray = Array.from(COMMON_FONTS);
 
   return `
-    // Override font detection to return common fonts only (COMMON_FONTS from config.ts)
+    // Apply configured common-font list (COMMON_FONTS from config.ts)
     const commonFonts = new Set(${JSON.stringify(fontsArray)});
 
     // Patch document.fonts.check to only confirm common fonts
@@ -412,10 +395,9 @@ export function generateFontsPatch(): string {
 }
 
 /**
- * Spoof screen dimensions to match viewport.
- *
- * DECISION: Screen dimensions that don't match viewport indicate automation.
- * This patch ensures screen properties are consistent with viewport.
+ * Adjust selected screen dimensions to match the configured viewport.
+ * This does not establish that the viewport or device identity matches a
+ * physical device or a site's expectations.
  */
 export function generateScreenPropertiesPatch(fingerprint: FingerprintSettings): string {
   const width = fingerprint.viewport_width || HARDWARE_DEFAULTS.viewportWidth;
@@ -423,7 +405,7 @@ export function generateScreenPropertiesPatch(fingerprint: FingerprintSettings):
   const availHeight = height - HARDWARE_DEFAULTS.taskbarHeight;
 
   return `
-    // Spoof screen dimensions to match viewport (HARDWARE_DEFAULTS from config.ts)
+    // Apply configured screen dimensions (HARDWARE_DEFAULTS from config.ts)
     Object.defineProperty(screen, 'width', { get: () => ${width}, configurable: true });
     Object.defineProperty(screen, 'height', { get: () => ${height}, configurable: true });
     Object.defineProperty(screen, 'availWidth', { get: () => ${width}, configurable: true });
@@ -434,14 +416,11 @@ export function generateScreenPropertiesPatch(fingerprint: FingerprintSettings):
 }
 
 /**
- * Return realistic battery status.
- *
- * DECISION: Battery API behavior differs in headless mode.
- * This patch returns typical plugged-in laptop status.
+ * Return configured battery status when the Battery API is available.
  */
 export function generateBatteryPatch(): string {
   return `
-    // Return realistic battery status (BATTERY_DEFAULTS from config.ts)
+    // Return configured battery status (BATTERY_DEFAULTS from config.ts)
     if (navigator.getBattery) {
       navigator.getBattery = function() {
         return Promise.resolve({
@@ -463,14 +442,12 @@ export function generateBatteryPatch(): string {
 }
 
 /**
- * Spoof network connection info.
- *
- * DECISION: Connection API can fingerprint network characteristics.
- * This patch returns typical residential WiFi connection.
+ * Adjust selected navigator.connection values; this does not change the
+ * actual network path or indicate a residential connection.
  */
 export function generateConnectionPatch(): string {
   return `
-    // Spoof network connection to appear as typical residential WiFi (CONNECTION_DEFAULTS from config.ts)
+    // Apply configured connection values (CONNECTION_DEFAULTS from config.ts)
     if (navigator.connection) {
       Object.defineProperty(navigator, 'connection', {
         get: () => ({
@@ -509,67 +486,67 @@ export function generateConnectionPatch(): string {
 export const PATCH_REGISTRY: PatchRegistryEntry[] = [
   {
     id: 'webdriver',
-    description: 'Remove navigator.webdriver property',
+    description: 'Adjust navigator.webdriver value and visibility',
     isEnabled: (a) => a.patch_navigator_webdriver === true,
     generate: () => generateWebdriverPatch(),
   },
   {
     id: 'plugins',
-    description: 'Spoof navigator.plugins and mimeTypes',
+    description: 'Adjust navigator.plugins and mimeTypes values',
     isEnabled: (a) => a.patch_navigator_plugins === true,
     generate: () => generatePluginsPatch(),
   },
   {
     id: 'languages',
-    description: 'Ensure consistent navigator.languages',
+    description: 'Set navigator.languages from profile locale',
     isEnabled: (a) => a.patch_navigator_languages === true,
     generate: (_, f) => generateLanguagesPatch(f),
   },
   {
     id: 'webgl',
-    description: 'Spoof WebGL renderer and vendor',
+    description: 'Adjust selected WebGL renderer and vendor values',
     isEnabled: (a) => a.patch_webgl === true,
     generate: () => generateWebGLPatch(),
   },
   {
     id: 'canvas',
-    description: 'Add noise to canvas fingerprint',
+    description: 'Adjust selected canvas outputs',
     isEnabled: (a) => a.patch_canvas === true,
     generate: () => generateCanvasPatch(),
   },
   {
     id: 'audio',
-    description: 'Add noise to AudioContext fingerprint',
+    description: 'Adjust selected AudioContext outputs',
     isEnabled: (a) => a.patch_audio_context === true,
     generate: () => generateAudioContextPatch(),
   },
   {
     id: 'headless',
-    description: 'Bypass headless browser detection',
+    description: 'Adjust selected properties for headless browser contexts',
     isEnabled: (a) => a.headless_detection_bypass === true,
     generate: (_, f) => generateHeadlessBypassPatch(f),
   },
   {
     id: 'fonts',
-    description: 'Override font detection',
+    description: 'Adjust the fonts exposed to page scripts',
     isEnabled: (a) => a.patch_fonts === true,
     generate: () => generateFontsPatch(),
   },
   {
     id: 'screen',
-    description: 'Spoof screen properties',
+    description: 'Adjust selected screen properties',
     isEnabled: (a) => a.patch_screen_properties === true,
     generate: (_, f) => generateScreenPropertiesPatch(f),
   },
   {
     id: 'battery',
-    description: 'Return realistic battery status',
+    description: 'Return configured battery status',
     isEnabled: (a) => a.patch_battery_api === true,
     generate: () => generateBatteryPatch(),
   },
   {
     id: 'connection',
-    description: 'Spoof network connection info',
+    description: 'Adjust selected navigator.connection values',
     isEnabled: (a) => a.patch_connection_api === true,
     generate: () => generateConnectionPatch(),
   },

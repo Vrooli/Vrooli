@@ -3,14 +3,11 @@ package paths
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/storage"
-	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 const scenarioRoot = "browser-automation-studio"
@@ -86,112 +83,12 @@ func (p *RecordingsRootProvider) FileRoots() *filerouting.RoutedRoots {
 
 // ResolveRecordingsRoot returns an absolute path for storing recording assets.
 func ResolveRecordingsRoot(log *logrus.Logger) string {
-	if value := strings.TrimSpace(os.Getenv("BAS_RECORDINGS_ROOT")); value != "" {
-		if abs, err := filepath.Abs(value); err == nil {
-			return abs
-		}
-		if log != nil {
-			log.WithField("path", value).Warn("Using BAS_RECORDINGS_ROOT without normalization")
-		}
-		return value
-	}
-
-	if resolved := resolveScenarioStoragePath("recordings"); resolved != "" {
-		return resolved
-	}
-
-	if root, err := repocontract.FindRepoRootFromEnvOrCWD(); err == nil {
-		if scenarioDir, resolveErr := repocontract.ResolveScenarioPath(root, scenarioRoot); resolveErr == nil {
-			return filepath.Join(scenarioDir, "data", "recordings")
-		} else if log != nil {
-			log.WithError(resolveErr).Warn("Failed to resolve recordings root from repo contract; falling back to cwd-derived path")
-		}
-	} else if log != nil {
-		log.WithError(err).Warn("Failed to resolve repo root for recordings; falling back to cwd-derived path")
-	}
-
-	cwd, err := os.Getwd()
-	if err != nil {
-		if log != nil {
-			log.WithError(err).Warn("Failed to resolve working directory for recordings root; using relative default")
-		}
-		return filepath.Join("scenarios", scenarioRoot, "data", "recordings")
-	}
-
-	absCwd, err := filepath.Abs(cwd)
-	if err == nil {
-		for dir := absCwd; dir != filepath.Dir(dir); dir = filepath.Dir(dir) {
-			parent := filepath.Dir(dir)
-			if filepath.Base(dir) == scenarioRoot && filepath.Base(parent) == "scenarios" {
-				recordings := filepath.Join(dir, "data", "recordings")
-				if abs, err := filepath.Abs(recordings); err == nil {
-					return abs
-				}
-				return recordings
-			}
-		}
-	}
-
-	root := filepath.Join(absCwd, "scenarios", scenarioRoot, "data", "recordings")
-	if abs, err := filepath.Abs(root); err == nil {
-		return abs
-	}
-	return root
+	return resolveScenarioDataRoot(log, "BAS_RECORDINGS_ROOT", "recordings", "recordings")
 }
 
 // ResolveSessionProfilesRoot returns an absolute path for storing persisted browser session profiles.
 func ResolveSessionProfilesRoot(log *logrus.Logger) string {
-	if value := strings.TrimSpace(os.Getenv("BAS_SESSION_PROFILES_ROOT")); value != "" {
-		if abs, err := filepath.Abs(value); err == nil {
-			return abs
-		}
-		if log != nil {
-			log.WithField("path", value).Warn("Using BAS_SESSION_PROFILES_ROOT without normalization")
-		}
-		return value
-	}
-
-	if resolved := resolveScenarioStoragePath("session-profiles"); resolved != "" {
-		return resolved
-	}
-
-	if root, err := repocontract.FindRepoRootFromEnvOrCWD(); err == nil {
-		if scenarioDir, resolveErr := repocontract.ResolveScenarioPath(root, scenarioRoot); resolveErr == nil {
-			return filepath.Join(scenarioDir, "data", "session-profiles")
-		} else if log != nil {
-			log.WithError(resolveErr).Warn("Failed to resolve session profiles root from repo contract; falling back to cwd-derived path")
-		}
-	} else if log != nil {
-		log.WithError(err).Warn("Failed to resolve repo root for session profiles; falling back to cwd-derived path")
-	}
-
-	cwd, err := os.Getwd()
-	if err != nil {
-		if log != nil {
-			log.WithError(err).Warn("Failed to resolve working directory for session profiles root; using relative default")
-		}
-		return filepath.Join("scenarios", scenarioRoot, "data", "session-profiles")
-	}
-
-	absCwd, err := filepath.Abs(cwd)
-	if err == nil {
-		for dir := absCwd; dir != filepath.Dir(dir); dir = filepath.Dir(dir) {
-			parent := filepath.Dir(dir)
-			if filepath.Base(dir) == scenarioRoot && filepath.Base(parent) == "scenarios" {
-				root := filepath.Join(dir, "data", "session-profiles")
-				if abs, err := filepath.Abs(root); err == nil {
-					return abs
-				}
-				return root
-			}
-		}
-	}
-
-	root := filepath.Join(absCwd, "scenarios", scenarioRoot, "data", "session-profiles")
-	if abs, err := filepath.Abs(root); err == nil {
-		return abs
-	}
-	return root
+	return resolveScenarioDataRoot(log, "BAS_SESSION_PROFILES_ROOT", "session profiles", "session-profiles")
 }
 
 func resolveScenarioStoragePath(rel string) string {

@@ -178,3 +178,18 @@ func TestDecodeWithReadError(t *testing.T) {
 		t.Error("expected error when reading fails")
 	}
 }
+
+func TestDecodeBoundedPreservesPermissiveDecoderContract(t *testing.T) {
+	type request struct {
+		Name string `json:"name"`
+	}
+	req := httptest.NewRequest("POST", "/", strings.NewReader(`{"name":"first","future":true}{"name":"second"}`))
+	w := httptest.NewRecorder()
+	var got request
+	if err := DecodeBounded(w, req, &got); err != nil {
+		t.Fatalf("DecodeBounded() error = %v", err)
+	}
+	if got.Name != "first" {
+		t.Fatalf("DecodeBounded() name = %q, want first value", got.Name)
+	}
+}

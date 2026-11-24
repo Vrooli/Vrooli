@@ -13,12 +13,12 @@ settle_ms = inputs.get("settle_ms", 500)
 device_scale_factor = inputs.get("device_scale_factor", 1)
 
 envelope = {
-    "program": "browser-automation-studio.capture-surface", "version": "1",
+    "program": "browser-automation-studio.capture-surface", "version": "2",
     "status": "failed", "phase": "validate",
     "inputs": {"url": url, "viewport": viewport, "theme": theme, "direction": direction,
                "wait_for": wait_for or None, "wait_until": wait_until, "settle_ms": settle_ms,
                "device_scale_factor": device_scale_factor},
-    "signals": {"artifact_id": None, "screenshot_ref": None, "snapshot_ref": None, "screenshot_view_url": None, "snapshot_view_url": None, "url": url,
+    "signals": {"artifact_id": None, "screenshot_ref": None, "accessibility_ref": None, "screenshot_view_url": None, "accessibility_view_url": None, "url": url,
                 "viewport": viewport, "theme": theme, "direction": direction,
                 "captured_at": None, "readiness": None},
     "errors": [], "evidence": []
@@ -68,8 +68,9 @@ def step_act():
         return fail("failed", "invalid_input", "wait_for selector cannot be combined with networkidle in one capture request", "act")
     profile = {"fingerprint": {"colorScheme": "no-preference" if theme == "system" else theme}}
     kwargs = {
-        "url": url, "capture": ["CAPTURE_TYPE_SCREENSHOT", "CAPTURE_TYPE_DOM_TREE"], "wait_for": readiness,
-        "device_scale_factor": float(device_scale_factor), "inline_dom_tree": True,
+        "url": url, "captures": ["CAPTURE_TYPE_SCREENSHOT", "CAPTURE_TYPE_ACCESSIBILITY"], "wait_for": readiness,
+        "inline_accessibility": True,
+        "device_scale_factor": float(device_scale_factor),
         "direction": direction, "browser_profile": profile
     }
     kwargs.update(dimensions_kwargs())
@@ -89,22 +90,22 @@ def step_act():
     envelope["signals"]["captured_at"] = meta.get("capturedAt") or meta.get("captured_at")
     envelope["signals"]["readiness"] = meta.get("readiness")
     screenshot = by_type.get("capture_type_screenshot") or by_type.get("screenshot")
-    snapshot = by_type.get("capture_type_dom_tree") or by_type.get("dom_tree")
+    accessibility = by_type.get("capture_type_accessibility") or by_type.get("accessibility")
     envelope["signals"]["screenshot_ref"] = (screenshot or {}).get("reference")
-    envelope["signals"]["snapshot_ref"] = (snapshot or {}).get("reference")
+    envelope["signals"]["accessibility_ref"] = (accessibility or {}).get("reference")
     envelope["signals"]["screenshot_view_url"] = ((screenshot or {}).get("metadata") or {}).get("view_url")
-    envelope["signals"]["snapshot_view_url"] = ((snapshot or {}).get("metadata") or {}).get("view_url")
+    envelope["signals"]["accessibility_view_url"] = ((accessibility or {}).get("metadata") or {}).get("view_url")
     if execution_id:
         envelope["evidence"].append("execution:" + str(execution_id))
     if envelope["signals"]["screenshot_ref"]:
         envelope["evidence"].append("screenshot:" + str(envelope["signals"]["screenshot_ref"]))
-    if envelope["signals"]["snapshot_ref"]:
-        envelope["evidence"].append("snapshot:" + str(envelope["signals"]["snapshot_ref"]))
+    if envelope["signals"]["accessibility_ref"]:
+        envelope["evidence"].append("accessibility:" + str(envelope["signals"]["accessibility_ref"]))
     if not envelope["signals"]["screenshot_ref"]:
         envelope["errors"].append({"class": "screenshot_failed", "detail": "capture returned no screenshot reference", "where": "act"})
-    if not envelope["signals"]["snapshot_ref"]:
-        envelope["errors"].append({"class": "snapshot_failed", "detail": "capture returned no computed snapshot reference", "where": "act"})
-    envelope["status"] = "ok" if not envelope["errors"] else ("partial" if envelope["signals"]["screenshot_ref"] or envelope["signals"]["snapshot_ref"] else "failed")
+    if not envelope["signals"]["accessibility_ref"]:
+        envelope["errors"].append({"class": "accessibility_failed", "detail": "capture returned no accessibility snapshot reference", "where": "act"})
+    envelope["status"] = "ok" if not envelope["errors"] else ("partial" if envelope["signals"]["screenshot_ref"] or envelope["signals"]["accessibility_ref"] else "failed")
     return "report"
 
 

@@ -5,6 +5,8 @@
  * These mirror the Go API types in vision_navigation.go
  */
 
+import type { AIInferenceReceipt } from '@vrooli/proto-types/browser-automation-studio/v1/ai/ai_pb';
+
 /**
  * Vision model specification for UI display.
  */
@@ -80,6 +82,7 @@ export interface AINavigationStepEvent {
   currentUrl: string;
   goalAchieved: boolean;
   tokensUsed: TokenUsage;
+  inferenceReceipt?: AIInferenceReceipt;
   durationMs: number;
   error?: string;
   timestamp: string;
@@ -170,6 +173,7 @@ export interface AINavigationStep {
   currentUrl: string;
   goalAchieved: boolean;
   tokensUsed: TokenUsage;
+  inferenceReceipt?: AIInferenceReceipt;
   durationMs: number;
   error?: string;
   timestamp: Date;

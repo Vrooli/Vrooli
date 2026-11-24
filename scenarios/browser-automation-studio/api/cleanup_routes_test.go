@@ -52,6 +52,28 @@ func (s *exactRouteStore) DeleteExecution(_ context.Context, id uuid.UUID) error
 	return nil
 }
 
+func TestExactPurgeRoutesShareExecutionIDValidation(t *testing.T) {
+	router := chi.NewRouter()
+	registerOwnerCleanupRoutes(router, nil)
+	for _, path := range []string{
+		"/api/v1/executions/not-a-uuid/purge-preview",
+		"/api/v1/executions/not-a-uuid/purge",
+		"/api/v1/executions/00000000-0000-0000-0000-000000000000/purge-preview",
+		"/api/v1/executions/00000000-0000-0000-0000-000000000000/purge",
+	} {
+		t.Run(path, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, path, nil))
+			if response.Code != http.StatusBadRequest {
+				t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+			}
+			if got := response.Body.String(); got != "executionID must be a UUID\n" {
+				t.Fatalf("body=%q", got)
+			}
+		})
+	}
+}
+
 func TestExactPurgeRoutesAreMetadataOnlyAndUUIDBound(t *testing.T) {
 	root, err := os.MkdirTemp("/tmp", "bas-cleanup-route-")
 	if err != nil {

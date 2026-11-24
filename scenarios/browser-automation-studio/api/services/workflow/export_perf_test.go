@@ -12,6 +12,23 @@ import (
 	"github.com/vrooli/browser-automation-studio/storage"
 )
 
+func TestWriteExportPlanDelegatesScreenshotFileEffectsToStorageOwner(t *testing.T) {
+	ctx := context.Background()
+	store := storage.NewMemoryStorage()
+	executionID := uuid.New()
+	want := []byte("screen capture payload")
+	shot, err := store.StoreScreenshot(ctx, executionID, "step", want, "image/png")
+	require.NoError(t, err)
+	plan := &ExportPlan{Screenshots: []PlannedScreenshot{{
+		ObjectName: shot.ObjectName, FallbackExt: "png", RelPathNoExt: filepath.Join("screenshots", "step-01-login"),
+	}}}
+	outDir := t.TempDir()
+	require.NoError(t, WriteExportPlan(ctx, plan, outDir, store))
+	got, err := os.ReadFile(filepath.Join(outDir, "screenshots", "step-01-login.png"))
+	require.NoError(t, err)
+	require.Equal(t, want, got)
+}
+
 // writePerfArtifacts seeds the driver-written perf files under the execution
 // artifact root the exporter reads from.
 func writePerfArtifacts(t *testing.T, root string, execID uuid.UUID, withVitals bool) {

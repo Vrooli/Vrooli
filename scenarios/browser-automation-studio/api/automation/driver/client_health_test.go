@@ -55,6 +55,25 @@ func TestSessionRouteRequestAllowsOnlyBrokerProxyRoutes(t *testing.T) {
 	require.Equal(t, 1, doer.calls)
 }
 
+func TestSessionRouteRequestAllowsOnlyTypedAudioPlaybackEndpoints(t *testing.T) {
+	doer := &sessionRouteDoer{}
+	client, err := NewClientWithURL("http://driver.test", WithHTTPClient(doer), WithoutCircuitBreaker())
+	require.NoError(t, err)
+	for _, suffix := range []string{"/audio/restart", "/audio/stop"} {
+		resp, err := client.SessionRouteRequest(context.Background(), "session-1", "execution-1", "lease-1", http.MethodPost, suffix, []byte(`{"execution_id":"execution-1","lease_id":"lease-1"}`), nil)
+		require.Error(t, err) // The fixture returns 404 after confirming owner route admission.
+		if resp != nil && resp.Body != nil {
+			resp.Body.Close()
+		}
+		require.Equal(t, "/session/session-1"+suffix, doer.request.URL.Path)
+		require.Equal(t, "execution-1", doer.request.Header.Get(SessionExecutionHeader))
+		require.Equal(t, "lease-1", doer.request.Header.Get(SessionLeaseHeader))
+	}
+	_, err = client.SessionRouteRequest(context.Background(), "session-1", "execution-1", "lease-1", http.MethodPost, "/audio/arbitrary", nil, nil)
+	require.Error(t, err)
+	require.Equal(t, 2, doer.calls)
+}
+
 func TestSessionRouteRequestRequiresOwnerLease(t *testing.T) {
 	doer := &sessionRouteDoer{}
 	client, err := NewClientWithURL("http://driver.test", WithHTTPClient(doer), WithoutCircuitBreaker())

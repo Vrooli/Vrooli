@@ -117,7 +117,12 @@ func TestBASExecutableLeaseAttackJourney(t *testing.T) {
 		fakeDispatches.Add(1)
 		encoded, encodeErr := json.Marshal("[]")
 		require.NoError(t, encodeErr)
-		return connect.NewResponse(&inferencev1.RunResponse{ValueJson: string(encoded), Validated: true}), nil
+		return connect.NewResponse(&inferencev1.RunResponse{ValueJson: string(encoded), Validated: true,
+			Provider: "fixture-hosted", Model: "fixture-hosted-model", ProviderCallsMade: 1,
+			Usage: &inferencev1.Usage{InputTokens: 11, OutputTokens: 3, CostMicros: 9,
+				InputTokensProvenance:  inferencev1.UsageProvenance_USAGE_PROVENANCE_PROVIDER_REPORTED,
+				OutputTokensProvenance: inferencev1.UsageProvenance_USAGE_PROVENANCE_GATEWAY_ESTIMATE,
+				AccountingStatus:       "settled"}}), nil
 	}}
 	gatewayPath, gatewayHandler := inferenceconnect.NewInferenceServiceHandler(gateway)
 	gatewayMux := http.NewServeMux()
@@ -152,18 +157,17 @@ func TestBASExecutableLeaseAttackJourney(t *testing.T) {
 		handler = middleware.NewEntitlementMiddleware(service, log, attackJourneyIdentitySettings{identity: identity}).InjectEntitlement(handler)
 		return httptest.NewServer(handler)
 	}
-	invoke := func(baseURL string) error {
+	invoke := func(baseURL string) (*connect.Response[aiv1.AIAnalyzeElementsResponse], error) {
 		client := aiconnect.NewAIServiceClient(http.DefaultClient, baseURL)
 		request := connect.NewRequest(&aiv1.AIAnalyzeElementsRequest{Url: "https://fixture.invalid", Intent: "find the primary action"})
 		request.Header().Set("Authorization", "Bearer "+sessionToken)
 		request.Header().Set("X-Vrooli-AI-Consent-Source", "vrooli-credits")
 		request.Header().Set("X-Vrooli-AI-Consent-Grant", "fixture-gateway-consent-receipt")
-		_, invokeErr := client.AIAnalyzeElements(context.Background(), request)
-		return invokeErr
+		return client.AIAnalyzeElements(context.Background(), request)
 	}
 
 	firstAPI := newBASAPI(newEntitlementService())
-	callErr := invoke(firstAPI.URL)
+	_, callErr := invoke(firstAPI.URL)
 	if callErr == nil || !strings.Contains(callErr.Error(), "ai feature entitlement") {
 		t.Fatalf("forged lease was accepted; call error = %v", callErr)
 	}
@@ -172,13 +176,22 @@ func TestBASExecutableLeaseAttackJourney(t *testing.T) {
 	leaseMu.Lock()
 	currentLease = signLease(issuerKey)
 	leaseMu.Unlock()
-	require.NoError(t, invoke(firstAPI.URL), "valid LPBS lease should pass the production BAS gate")
+	response, invokeErr := invoke(firstAPI.URL)
+	require.NoError(t, invokeErr, "valid LPBS lease should pass the production BAS gate")
 	require.EqualValues(t, 1, fakeDispatches.Load())
+	receipt := response.Msg.GetInferenceReceipt()
+	require.NotNil(t, receipt)
+	require.Equal(t, "vrooli-credits", receipt.GetSource())
+	require.Equal(t, "fixture-hosted", receipt.GetProvider())
+	require.Equal(t, "fixture-hosted-model", receipt.GetModel())
+	require.Equal(t, "11", receipt.GetInputTokens())
+	require.Equal(t, "9", receipt.GetCostMicros())
 	firstAPI.Close()
 	lpbs.Close() // The next API process must rely on the saved signed lease and separate trusted JWKS.
 
 	restartedAPI := newBASAPI(newEntitlementService())
 	t.Cleanup(restartedAPI.Close)
-	require.NoError(t, invoke(restartedAPI.URL), "fresh API service should restore its signed lease while LPBS is offline")
+	_, invokeErr = invoke(restartedAPI.URL)
+	require.NoError(t, invokeErr, "fresh API service should restore its signed lease while LPBS is offline")
 	require.EqualValues(t, 2, fakeDispatches.Load(), "offline restart must preserve the feature gate result")
 }

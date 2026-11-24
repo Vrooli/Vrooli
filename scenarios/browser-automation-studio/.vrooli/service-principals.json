@@ -1,0 +1,22 @@
+{
+  "principals": [
+    {
+      "name": "browser-automation-studio-agent-manager",
+      "resource": "agent-manager",
+      "audience": "scenario-authenticator:agent-manager",
+      "scopes": ["agent-manager:write"]
+    },
+    {
+      "name": "browser-automation-studio-browser-tab-consent",
+      "resource": "agent-manager",
+      "audience": "scenario-authenticator:agent-manager",
+      "scopes": ["agent-manager:browser-tab-consent"]
+    },
+    {
+      "name": "browser-automation-studio-lpbs-ai-inference",
+      "resource": "landing-page-business-suite",
+      "audience": "scenario-authenticator:landing-page-business-suite",
+      "scopes": ["lpbs:ai-inference.call"]
+    }
+  ]
+}

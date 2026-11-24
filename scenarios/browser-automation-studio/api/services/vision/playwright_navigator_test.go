@@ -268,6 +268,10 @@ func TestPlaywrightVisionNavigator_HandleStepCallback(t *testing.T) {
 				CompletionTokens: 50,
 				TotalTokens:      150,
 			},
+			InferenceReceipt: &InferenceReceipt{
+				RootOperationID: "operation-1", Source: "vrooli-credits", Provider: "provider-a", Model: "model-a",
+				ProviderCallsMade: 1, InputTokens: 100, OutputTokens: 50, CostMicros: ExactUsage("90071992547409931"), CreditsCharged: ExactUsage("17"),
+			},
 		}
 
 		err := nav.HandleStepCallback(t.Context(), step)
@@ -286,10 +290,21 @@ func TestPlaywrightVisionNavigator_HandleStepCallback(t *testing.T) {
 		if s.TotalTokens != 150 {
 			t.Errorf("TotalTokens = %d, want 150", s.TotalTokens)
 		}
+		if len(s.Steps) != 1 || s.Steps[0].InferenceReceipt == nil || s.Steps[0].InferenceReceipt.CostMicros != ExactUsage("90071992547409931") {
+			t.Errorf("step inference receipt was not retained exactly: %+v", s.Steps)
+		}
 
 		// Verify WebSocket broadcast
 		if wsHub.BroadcastEnvelopeCount() != 1 {
 			t.Errorf("broadcastCount = %d, want 1", wsHub.BroadcastEnvelopeCount())
+		}
+		wsEvent, ok := wsHub.LastBroadcastEnvelope().(map[string]interface{})
+		if !ok {
+			t.Fatalf("WebSocket event = %#v", wsHub.LastBroadcastEnvelope())
+		}
+		wsReceipt, ok := wsEvent["inferenceReceipt"].(*InferenceReceipt)
+		if !ok || wsReceipt.CostMicros != ExactUsage("90071992547409931") {
+			t.Errorf("WebSocket inference receipt = %#v", wsEvent["inferenceReceipt"])
 		}
 	})
 
@@ -327,6 +342,61 @@ func TestPlaywrightVisionNavigator_HandleStepCallback(t *testing.T) {
 			t.Errorf("Status = %v, want %v", s.Status, StatusAwaitingHuman)
 		}
 	})
+}
+
+func TestInferenceReceiptPreservesExactGatewayMoneyValues(t *testing.T) {
+	for _, costMicros := range []string{`"90071992547409931"`, `90071992547409931`} {
+		var receipt InferenceReceipt
+		payload := []byte(`{"rootOperationId":"operation-1","source":"vrooli-credits","inputTokens":12,"outputTokens":4,"costMicros":` + costMicros + `,"creditsCharged":"17"}`)
+		if err := json.Unmarshal(payload, &receipt); err != nil {
+			t.Fatalf("unmarshal exact receipt: %v", err)
+		}
+		if receipt.CostMicros != ExactUsage("90071992547409931") || receipt.CreditsCharged != ExactUsage("17") {
+			t.Fatalf("receipt rounded exact usage: %+v", receipt)
+		}
+	}
+
+	var receipt InferenceReceipt
+	if err := json.Unmarshal([]byte(`{"costMicros":-1}`), &receipt); err == nil {
+		t.Fatal("negative cost accepted as Gateway usage")
+	}
+}
+
+func TestPlaywrightVisionNavigatorDropsInvalidReceiptWithoutDroppingAction(t *testing.T) {
+	log := logrus.New()
+	log.SetOutput(io.Discard)
+	wsHub := hubmocks.New()
+	nav := NewPlaywrightVisionNavigator(log, WithPlaywrightHub(wsHub))
+	nav.mu.Lock()
+	nav.activeNavigations["nav_receipt_mismatch"] = &NavigationSession{
+		NavigationID: "nav_receipt_mismatch", SessionID: "session", Status: StatusNavigating,
+	}
+	nav.mu.Unlock()
+
+	err := nav.HandleStepCallback(t.Context(), &NavigationStep{
+		NavigationID: "nav_receipt_mismatch", StepNumber: 1,
+		Action: map[string]interface{}{"type": "click"}, TokensUsed: TokenUsage{PromptTokens: 12, CompletionTokens: 4, TotalTokens: 16},
+		InferenceReceipt: &InferenceReceipt{RootOperationID: "operation-1", Source: "vrooli-credits", InputTokens: 11, OutputTokens: 4},
+	})
+	if err != nil {
+		t.Fatalf("HandleStepCallback: %v", err)
+	}
+	nav.mu.RLock()
+	session := nav.activeNavigations["nav_receipt_mismatch"]
+	nav.mu.RUnlock()
+	if session.StepCount != 1 || len(session.Steps) != 1 {
+		t.Fatalf("invalid receipt suppressed browser action: steps=%d history=%+v", session.StepCount, session.Steps)
+	}
+	if session.Steps[0].InferenceReceipt != nil {
+		t.Fatalf("mismatched receipt was retained: %+v", session.Steps[0].InferenceReceipt)
+	}
+	wsEvent, ok := wsHub.LastBroadcastEnvelope().(map[string]interface{})
+	if !ok {
+		t.Fatalf("WebSocket event = %#v", wsHub.LastBroadcastEnvelope())
+	}
+	if _, exists := wsEvent["inferenceReceipt"]; exists {
+		t.Fatalf("mismatched receipt was broadcast: %+v", wsEvent["inferenceReceipt"])
+	}
 }
 
 func TestPlaywrightVisionNavigator_HandleCompleteCallback(t *testing.T) {

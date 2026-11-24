@@ -20,6 +20,7 @@ export {
   type VitalsPage,
 } from './performance-tracer';
 export { WEB_VITALS_GLOBAL, WEB_VITALS_INIT_SCRIPT } from './web-vitals-script';
+export { BROWSER_PROCESS_TREE_FILE, BROWSER_PROCESS_TREE_CONTRACT } from './browser-process-tree-capture';
 export {
   AccessibilitySnapshotter,
   normalizeAccessibilityTree,

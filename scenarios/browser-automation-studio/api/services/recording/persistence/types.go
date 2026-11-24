@@ -56,6 +56,10 @@ type TimelineQuery struct {
 	// SessionID is required - identifies which session to query.
 	SessionID string
 
+	// SessionIDs optionally selects a validated continuation across recording
+	// sessions that share one profile. When set, SessionID is ignored.
+	SessionIDs []string
+
 	// PageID optionally filters to a specific page.
 	PageID *uuid.UUID
 

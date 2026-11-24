@@ -3,16 +3,28 @@ import {
   handleRecordScreenshot,
 } from '../../../src/routes/record-mode/recording-frames';
 import { clearFrameCache, clearAllFrameCaches } from '../../../src/session/frame-cache';
-import { createMockHttpRequest, createMockHttpResponse, createMockPage, createTestConfig } from '../../helpers';
+import { createMockHttpRequest as baseMockRequest, createMockHttpResponse, createMockPage, createTestConfig } from '../../helpers';
 import type { SessionManager } from '../../../src/session';
 import { RECORDING_FRAME_CACHE_TTL_MS } from '../../../src/constants';
 import { DriverPageBindings } from '../../../src/session/page-bindings';
 
 describe('recording frame routes', () => {
+  const createMockHttpRequest = (options: Parameters<typeof baseMockRequest>[0] = {}) => {
+    const url = options.url ?? '';
+    if (url.includes('/record/frame')) {
+      const parsed = new URL(url, 'http://driver');
+      parsed.searchParams.set('execution_id', 'execution-a');
+      parsed.searchParams.set('lease_id', 'lease-a');
+      options = { ...options, url: `${parsed.pathname}?${parsed.searchParams.toString()}` };
+    } else if (url.includes('/record/screenshot')) {
+      options = { ...options, body: { ...(options.body as Record<string, unknown> ?? {}), execution_id: 'execution-a', lease_id: 'lease-a' } };
+    }
+    return baseMockRequest(options);
+  };
   const config = createTestConfig();
   let mockPage: ReturnType<typeof createMockPage>;
   let pageBindings: DriverPageBindings;
-  let sessionManager: Pick<SessionManager, 'getSession'>;
+  let sessionManager: Pick<SessionManager, 'getSession' | 'getSessionForLease'>;
   let nowSpy: jest.SpyInstance<number, []>;
 
   beforeEach(() => {
@@ -23,10 +35,15 @@ describe('recording frame routes', () => {
       url: jest.fn().mockReturnValue('https://example.com'),
     });
     pageBindings = new DriverPageBindings(); pageBindings.register(mockPage, 'page-a');
-    sessionManager = {
-      getSession: () => ({ id:'session-1',ownerExecutionId:'execution-a',leaseId:'lease-a',page:mockPage,
+    const session = { id:'session-1',phase:'ready',ownerExecutionId:'execution-a',leaseId:'lease-a',createdAt:new Date(),instructionCount:0,page:mockPage,
         spec:{execution_id:'execution-a',workflow_id:'fixture',reuse_mode:'fresh',viewport:{width:1024,height:768}},
-        pageBindings } as ReturnType<SessionManager['getSession']>),
+        pageBindings } as ReturnType<SessionManager['getSession']>;
+    sessionManager = {
+      getSession: () => session,
+      getSessionForLease: (_id, executionId, leaseId) => {
+        if (executionId !== 'execution-a' || leaseId !== 'lease-a') throw new Error('session not found');
+        return session;
+      },
     };
     nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1000);
   });
@@ -53,6 +70,103 @@ describe('recording frame routes', () => {
       quality: 70,
     });
     expect(res.statusCode).toBe(200);
+  });
+
+  it('honors the typed PNG screenshot format used by Broker observations', async () => {
+    const req = createMockHttpRequest({
+      method: 'POST',
+      url: '/session/session-1/record/screenshot',
+      body: { full_page: true, format: 'png' },
+    });
+    const res = createMockHttpResponse();
+
+    await handleRecordScreenshot(req, res, 'session-1', sessionManager as SessionManager, config);
+
+    expect(mockPage.screenshot).toHaveBeenCalledWith({ fullPage: true, type: 'png' });
+    expect(res.getJSON()).toMatchObject({
+      screenshot: `data:image/png;base64,${Buffer.from('frame-1').toString('base64')}`,
+    });
+    expect(res.statusCode).toBe(200);
+  });
+
+  it('captures a stable test-id target after network idle and bounded settle', async () => {
+    const req = createMockHttpRequest({
+      method: 'POST',
+      url: '/session/session-1/record/screenshot',
+      body: { format: 'png', test_id: 'scene-canvas', wait_until: 'networkidle', settle_ms: 250 },
+    });
+    const res = createMockHttpResponse();
+
+    await handleRecordScreenshot(req, res, 'session-1', sessionManager as SessionManager, config);
+
+    expect(mockPage.waitForLoadState).toHaveBeenCalledWith('networkidle');
+    expect(mockPage.getByTestId).toHaveBeenCalledWith('scene-canvas');
+    expect(mockPage.getByTestId('scene-canvas').waitFor).toHaveBeenCalledWith({ state: 'visible' });
+    expect(mockPage.waitForTimeout).toHaveBeenCalledWith(250);
+    expect(mockPage.getByTestId('scene-canvas').screenshot).toHaveBeenCalledWith({ type: 'png' });
+    expect(res.statusCode).toBe(200);
+  });
+
+  it('rejects invalid target identifiers and settle durations before capture', async () => {
+    for (const body of [
+      { test_id: "canvas' [x]", format: 'png' },
+      { test_id: 'scene-canvas', format: 'png', settle_ms: 5001 },
+    ]) {
+      const res = createMockHttpResponse();
+      await handleRecordScreenshot(createMockHttpRequest({ method: 'POST', url: '/session/session-1/record/screenshot', body }), res, 'session-1', sessionManager as SessionManager, config);
+      expect(res.statusCode).toBe(400);
+    }
+    expect(mockPage.getByTestId).not.toHaveBeenCalled();
+    expect(mockPage.screenshot).not.toHaveBeenCalled();
+  });
+
+  it('rejects unknown screenshot formats before capture', async () => {
+    const req = createMockHttpRequest({
+      method: 'POST',
+      url: '/session/session-1/record/screenshot',
+      body: { format: 'svg' },
+    });
+    const res = createMockHttpResponse();
+
+    await handleRecordScreenshot(req, res, 'session-1', sessionManager as SessionManager, config);
+
+    expect(res.statusCode).toBe(400);
+    expect(mockPage.screenshot).not.toHaveBeenCalled();
+  });
+
+  it('denies screenshot and frame reads outside the admitted page scope before capture', async () => {
+    const session = sessionManager.getSession('session-1');
+    Object.assign(session, { spec: { permission_profile: {
+      effect: 'act', approval: 'none', view: true, control: true, url_allow: ['https://other.example/*'],
+    } } });
+    const screenshot = createMockHttpResponse();
+    await handleRecordScreenshot(createMockHttpRequest({ method: 'POST', url: '/session/session-1/record/screenshot', body: {} }), screenshot, 'session-1', sessionManager as SessionManager, config);
+    const frame = createMockHttpResponse();
+    await handleRecordFrame(createMockHttpRequest({ method: 'GET', url: '/session/session-1/record/frame' }), frame, 'session-1', sessionManager as SessionManager, config);
+    expect(screenshot.statusCode).toBe(403);
+    expect(frame.statusCode).toBe(403);
+    expect(mockPage.screenshot).not.toHaveBeenCalled();
+  });
+
+  it('allows screenshot and frame reads inside the admitted page scope', async () => {
+    const session = sessionManager.getSession('session-1');
+    Object.assign(session, { spec: { permission_profile: {
+      effect: 'act', approval: 'none', view: true, control: true, url_allow: ['https://example.com/*'],
+    } } });
+    const screenshot = createMockHttpResponse();
+    await handleRecordScreenshot(createMockHttpRequest({ method: 'POST', url: '/session/session-1/record/screenshot', body: {} }), screenshot, 'session-1', sessionManager as SessionManager, config);
+    const frame = createMockHttpResponse();
+    await handleRecordFrame(createMockHttpRequest({ method: 'GET', url: '/session/session-1/record/frame' }), frame, 'session-1', sessionManager as SessionManager, config);
+    expect(screenshot.statusCode).toBe(200);
+    expect(frame.statusCode).toBe(200);
+    expect(mockPage.screenshot).toHaveBeenCalledTimes(2);
+  });
+
+  it('requires an exact execution and lease identity at screenshot routes', async () => {
+    const res = createMockHttpResponse();
+    await handleRecordScreenshot(baseMockRequest({ method: 'POST', url: '/session/session-1/record/screenshot', body: {} }), res, 'session-1', sessionManager as SessionManager, config);
+    expect(res.statusCode).toBe(400);
+    expect(mockPage.screenshot).not.toHaveBeenCalled();
   });
 
   it('shares one in-flight capture across eight identical preview reads [REQ:BAS-RH-J05]', async () => {
@@ -251,10 +365,11 @@ describe('recording frame routes', () => {
 
   // [REQ:BAS-RH-J05] [REQ:BAS-RH-J22] A preview belongs to its producing page.
   it('rejects a requested page that is no longer active before taking a screenshot', async () => {
-    const session = {id:'session-1',ownerExecutionId:'execution-a',leaseId:'lease-a',page:mockPage,
+    const session = {id:'session-1',phase:'ready',ownerExecutionId:'execution-a',leaseId:'lease-a',page:mockPage,
         spec:{execution_id:'execution-a',workflow_id:'fixture',reuse_mode:'fresh',viewport:{width:1024,height:768}},
       pageBindings} as ReturnType<SessionManager['getSession']>;
     sessionManager.getSession=()=>session;
+    sessionManager.getSessionForLease=()=>session;
     const req=createMockHttpRequest({method:'GET',url:'/session/session-1/record/frame?page_id=old-page'});
     const res=createMockHttpResponse();
     await handleRecordFrame(req,res,'session-1',sessionManager as SessionManager,config);
@@ -270,10 +385,11 @@ describe('recording frame routes', () => {
       title:jest.fn().mockResolvedValue('Blue'),url:jest.fn().mockReturnValue('https://fixture.test/blue'),
       viewportSize:jest.fn().mockReturnValue({width:1024,height:768})});
     pageBindings.register(blue,'page-b');
-    const session={id:'session-1',ownerExecutionId:'execution-a',leaseId:'lease-a',page:mockPage,
+    const session={id:'session-1',phase:'ready',ownerExecutionId:'execution-a',leaseId:'lease-a',page:mockPage,
         spec:{execution_id:'execution-a',workflow_id:'fixture',reuse_mode:'fresh',viewport:{width:1024,height:768}},
       pageBindings} as ReturnType<SessionManager['getSession']>;
     sessionManager.getSession=()=>session;
+    sessionManager.getSessionForLease=()=>session;
     const request=(pageId:string)=>createMockHttpRequest({method:'GET',url:`/session/session-1/record/frame?page_id=${pageId}`});
     const old=createMockHttpResponse();const pending=handleRecordFrame(request('page-a'),old,'session-1',sessionManager as SessionManager,config);
     await started;session.page=blue;clearFrameCache('session-1');finish(Buffer.from('red-frame'));await pending;

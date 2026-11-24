@@ -19,10 +19,8 @@ export class SessionCleanup {
   private intervalId: NodeJS.Timeout | null = null;
   /** Flag to prevent new cleanup work after stop() is called */
   private isStopped = false;
-  /** Track if cleanup is currently in progress */
-  private isCleanupInProgress = false;
-  /** Resolve function for waiting on in-flight cleanup during shutdown */
-  private cleanupCompleteResolver: (() => void) | null = null;
+  /** Shared promise lets every shutdown caller join the same cleanup operation. */
+  private cleanupInFlight: Promise<void> | null = null;
   /** Track when the last cleanup run completed */
   private lastRunAt: Date | null = null;
 
@@ -64,34 +62,29 @@ export class SessionCleanup {
     }
   }
 
-  private async runCleanup(): Promise<void> {
+  private runCleanup(): Promise<void> {
     // Guard: Don't start cleanup if stopped or another cleanup is in progress
     if (this.isStopped) {
-      return;
+      return Promise.resolve();
     }
 
-    if (this.isCleanupInProgress) {
+    if (this.cleanupInFlight) {
       logger.debug('cleanup: skipping, previous cleanup still in progress');
-      return;
+      return this.cleanupInFlight;
     }
 
-    this.isCleanupInProgress = true;
-    try {
-      await this.manager.cleanupIdleSessions();
-    } catch (error) {
+    const operation = this.manager.cleanupIdleSessions().catch((error) => {
       logger.error('cleanup: task error', {
         error: error instanceof Error ? error.message : String(error),
         hint: 'Cleanup may have failed to close some sessions',
       });
-    } finally {
-      this.isCleanupInProgress = false;
+    });
+    const tracked = operation.finally(() => {
       this.lastRunAt = new Date();
-      // Signal any waiting stop() call that cleanup is complete
-      if (this.cleanupCompleteResolver) {
-        this.cleanupCompleteResolver();
-        this.cleanupCompleteResolver = null;
-      }
-    }
+      if (this.cleanupInFlight === tracked) this.cleanupInFlight = null;
+    });
+    this.cleanupInFlight = tracked;
+    return tracked;
   }
 
   /**
@@ -115,12 +108,12 @@ export class SessionCleanup {
       this.intervalId = null;
     }
 
-    // If cleanup is in progress, wait for it to complete
-    if (this.isCleanupInProgress) {
+    // Every caller joins the same in-flight promise. Avoid a single resolver
+    // slot that lets a later stop() overwrite an earlier shutdown waiter.
+    const cleanup = this.cleanupInFlight;
+    if (cleanup) {
       logger.info('cleanup: waiting for in-flight cleanup to complete');
-      await new Promise<void>((resolve) => {
-        this.cleanupCompleteResolver = resolve;
-      });
+      await cleanup;
     }
 
     logger.info('cleanup: task stopped');
@@ -131,7 +124,7 @@ export class SessionCleanup {
    * Useful for graceful shutdown to wait for cleanup to complete.
    */
   isRunningCleanup(): boolean {
-    return this.isCleanupInProgress;
+    return this.cleanupInFlight !== null;
   }
 
   /**

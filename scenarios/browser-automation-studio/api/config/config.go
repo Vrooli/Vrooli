@@ -185,9 +185,18 @@ type DatabaseConfig struct {
 	RetryJitterFactor float64
 }
 
+// DefaultMaxConcurrentExecutions is the shared fallback for config and the
+// workflow owner when no explicit cap is supplied.
+const DefaultMaxConcurrentExecutions = 4
+
 // ExecutionConfig controls workflow execution timeout calculation.
 // Formula: base + (stepCount * perStep), clamped to [min, max]
 type ExecutionConfig struct {
+	// MaxConcurrentExecutions bounds workflow runners and browser sessions in
+	// this BAS API process. At capacity, new runs fail fast before persistence.
+	// Env: BAS_EXECUTION_MAX_CONCURRENT (default: 4)
+	MaxConcurrentExecutions int
+
 	// BaseTimeout is the minimum overhead for session setup, network round-trips, etc.
 	// Env: BAS_EXECUTION_BASE_TIMEOUT_MS (default: 30000)
 	BaseTimeout time.Duration
@@ -262,11 +271,6 @@ type WebSocketConfig struct {
 	// ClientSendBufferSize is the channel buffer size for outgoing JSON messages per client.
 	// Env: BAS_WS_CLIENT_SEND_BUFFER_SIZE (default: 256)
 	ClientSendBufferSize int
-
-	// ClientBinaryBufferSize is the maximum queued frame count per client.
-	// BinarySend also enforces a 12 MiB + 4 KiB byte budget including the active write.
-	// Env: BAS_WS_CLIENT_BINARY_BUFFER_SIZE (default: 120)
-	ClientBinaryBufferSize int
 
 	// ClientReadLimit is the maximum message size the client can send.
 	// Env: BAS_WS_CLIENT_READ_LIMIT (default: 512)
@@ -610,19 +614,20 @@ func loadFromEnv(reader envx.Reader) *Config {
 			RetryJitterFactor: parseFloat("BAS_DB_RETRY_JITTER_FACTOR", 0.25),
 		},
 		Execution: ExecutionConfig{
-			BaseTimeout:            parseDurationMs("BAS_EXECUTION_BASE_TIMEOUT_MS", 30000),
-			PerStepTimeout:         parseDurationMs("BAS_EXECUTION_PER_STEP_TIMEOUT_MS", 10000),
-			PerStepSubflowTimeout:  parseDurationMs("BAS_EXECUTION_PER_STEP_SUBFLOW_TIMEOUT_MS", 15000),
-			MinTimeout:             parseDurationMs("BAS_EXECUTION_MIN_TIMEOUT_MS", 90000),
-			MaxTimeout:             parseDurationMs("BAS_EXECUTION_MAX_TIMEOUT_MS", 270000),
-			ExplicitMaxTimeout:     parseDurationMs("BAS_EXECUTION_MAX_EXPLICIT_TIMEOUT_MS", 7200000),
-			MaxSubflowDepth:        parseInt("BAS_EXECUTION_MAX_SUBFLOW_DEPTH", 5),
-			DefaultEntryTimeout:    parseDurationMs("BAS_EXECUTION_DEFAULT_ENTRY_TIMEOUT_MS", 3000),
-			MinEntryTimeout:        parseDurationMs("BAS_EXECUTION_MIN_ENTRY_TIMEOUT_MS", 250),
-			DefaultRetryDelay:      parseDurationMs("BAS_EXECUTION_DEFAULT_RETRY_DELAY_MS", 750),
-			DefaultBackoffFactor:   parseFloat("BAS_EXECUTION_DEFAULT_BACKOFF_FACTOR", 1.5),
-			CompletionPollInterval: parseDurationMs("BAS_EXECUTION_COMPLETION_POLL_INTERVAL_MS", 250),
-			AdhocCleanupInterval:   parseDurationMs("BAS_EXECUTION_ADHOC_CLEANUP_INTERVAL_MS", 5000),
+			MaxConcurrentExecutions: parseInt("BAS_EXECUTION_MAX_CONCURRENT", DefaultMaxConcurrentExecutions),
+			BaseTimeout:             parseDurationMs("BAS_EXECUTION_BASE_TIMEOUT_MS", 30000),
+			PerStepTimeout:          parseDurationMs("BAS_EXECUTION_PER_STEP_TIMEOUT_MS", 10000),
+			PerStepSubflowTimeout:   parseDurationMs("BAS_EXECUTION_PER_STEP_SUBFLOW_TIMEOUT_MS", 15000),
+			MinTimeout:              parseDurationMs("BAS_EXECUTION_MIN_TIMEOUT_MS", 90000),
+			MaxTimeout:              parseDurationMs("BAS_EXECUTION_MAX_TIMEOUT_MS", 270000),
+			ExplicitMaxTimeout:      parseDurationMs("BAS_EXECUTION_MAX_EXPLICIT_TIMEOUT_MS", 7200000),
+			MaxSubflowDepth:         parseInt("BAS_EXECUTION_MAX_SUBFLOW_DEPTH", 5),
+			DefaultEntryTimeout:     parseDurationMs("BAS_EXECUTION_DEFAULT_ENTRY_TIMEOUT_MS", 3000),
+			MinEntryTimeout:         parseDurationMs("BAS_EXECUTION_MIN_ENTRY_TIMEOUT_MS", 250),
+			DefaultRetryDelay:       parseDurationMs("BAS_EXECUTION_DEFAULT_RETRY_DELAY_MS", 750),
+			DefaultBackoffFactor:    parseFloat("BAS_EXECUTION_DEFAULT_BACKOFF_FACTOR", 1.5),
+			CompletionPollInterval:  parseDurationMs("BAS_EXECUTION_COMPLETION_POLL_INTERVAL_MS", 250),
+			AdhocCleanupInterval:    parseDurationMs("BAS_EXECUTION_ADHOC_CLEANUP_INTERVAL_MS", 5000),
 			// Long-running governed workflows must remain queryable until the
 			// owning validation provider has collected terminal evidence. Keep
 			// the default retention above the explicit two-hour execution cap;
@@ -632,9 +637,9 @@ func loadFromEnv(reader envx.Reader) *Config {
 			HeartbeatInterval:    parseDurationMs("BAS_EXECUTION_HEARTBEAT_INTERVAL_MS", 2000),
 		},
 		WebSocket: WebSocketConfig{
-			ClientSendBufferSize:   parseInt("BAS_WS_CLIENT_SEND_BUFFER_SIZE", 256),
-			ClientBinaryBufferSize: parseInt("BAS_WS_CLIENT_BINARY_BUFFER_SIZE", 120),
-			ClientReadLimit:        parseInt64("BAS_WS_CLIENT_READ_LIMIT", 512),
+			ClientSendBufferSize: parseInt("BAS_WS_CLIENT_SEND_BUFFER_SIZE", 256),
+			// Enough for bounded 4 KiB UTF-8 text input plus its JSON envelope.
+			ClientReadLimit: parseInt64("BAS_WS_CLIENT_READ_LIMIT", 8192),
 		},
 		Events: EventsConfig{
 			PerExecutionBuffer: parseInt("BAS_EVENTS_PER_EXECUTION_BUFFER", 200),
@@ -732,6 +737,9 @@ func (c *Config) Validate() error {
 	}
 
 	// Execution validation
+	if c.Execution.MaxConcurrentExecutions < 1 {
+		return fmt.Errorf("MaxConcurrentExecutions must be at least 1, got %d", c.Execution.MaxConcurrentExecutions)
+	}
 	if c.Execution.MinTimeout > c.Execution.MaxTimeout {
 		return fmt.Errorf("MinTimeout (%v) cannot be greater than MaxTimeout (%v)", c.Execution.MinTimeout, c.Execution.MaxTimeout)
 	}

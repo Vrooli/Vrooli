@@ -1,11 +1,13 @@
 package source
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
 	"mime"
 	"os"
 	"path/filepath"
@@ -194,7 +196,184 @@ func TestResolveVideoSource_StorageURL(t *testing.T) {
 	if source.Cleanup == nil {
 		t.Fatalf("expected cleanup for downloaded video source")
 	}
+	wantHash := sha256.Sum256([]byte("fake-video-storage"))
+	if source.SHA256 != fmt.Sprintf("%x", wantHash) || source.SizeBytes == nil || *source.SizeBytes != int64(len("fake-video-storage")) {
+		t.Fatalf("download receipt = %s/%v, want %x/%d", source.SHA256, source.SizeBytes, wantHash, len("fake-video-storage"))
+	}
 	source.Cleanup()
+}
+
+func TestResolveVideoSource_StorageReceiptMismatchCleansTempFile(t *testing.T) {
+	store := storage.NewMemoryStorage()
+	data := []byte("verified bytes")
+	info, err := store.StoreArtifact(context.Background(), "recordings/video.webm", data, "video/webm")
+	if err != nil {
+		t.Fatal(err)
+	}
+	actualHash := fmt.Sprintf("%x", sha256.Sum256(data))
+	actualSize := int64(len(data))
+	badSize := int64(1)
+	for _, tc := range []struct {
+		name string
+		hash string
+		size *int64
+	}{
+		{name: "size", hash: actualHash, size: &badSize},
+		{name: "hash", hash: "stale", size: &actualSize},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			before, err := filepath.Glob(filepath.Join(os.TempDir(), "bas-recorded-video-*"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = ResolveVideoSourceContext(t.Context(), []executionwriter.ArtifactData{{
+				ArtifactType: "video",
+				StorageURL:   info.URL,
+				ContentType:  "video/webm",
+				SHA256:       tc.hash,
+				SizeBytes:    tc.size,
+			}}, store)
+			if err == nil {
+				t.Fatal("accepted storage video with mismatched declared receipt")
+			}
+			after, err := filepath.Glob(filepath.Join(os.TempDir(), "bas-recorded-video-*"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, path := range after {
+				found := false
+				for _, prior := range before {
+					if path == prior {
+						found = true
+						break
+					}
+				}
+				if !found {
+					_ = os.Remove(path)
+					t.Fatalf("failed storage receipt left a temp file: %s", path)
+				}
+			}
+		})
+	}
+}
+
+type byteCountReader struct {
+	reader *bytes.Reader
+	bytes  int64
+}
+
+func (r *byteCountReader) Read(p []byte) (int, error) {
+	n, err := r.reader.Read(p)
+	r.bytes += int64(n)
+	return n, err
+}
+
+func TestCopyVideoSourceProducesReceiptInOneBoundedPass(t *testing.T) {
+	const limit = 16
+	data := []byte("0123456789abcdef")
+	reader := &byteCountReader{reader: bytes.NewReader(data)}
+	file, err := os.CreateTemp(t.TempDir(), "video-copy-*.webm")
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := file.Name()
+	receipt, err := copyVideoSourceLimit(t.Context(), reader, file, limit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantHash := sha256.Sum256(data)
+	if reader.bytes != int64(len(data)) || receipt.SizeBytes != int64(len(data)) || receipt.SHA256 != fmt.Sprintf("%x", wantHash) {
+		t.Fatalf("read=%d receipt=%d/%s, want %d/%x", reader.bytes, receipt.SizeBytes, receipt.SHA256, len(data), wantHash)
+	}
+	written, err := os.ReadFile(path)
+	if err != nil || !bytes.Equal(written, data) {
+		t.Fatalf("copied bytes = %q, err=%v", written, err)
+	}
+}
+
+func TestCopyVideoSourceLimitUsesOnlyOneSentinelByte(t *testing.T) {
+	reader := &byteCountReader{reader: bytes.NewReader([]byte("0123456789"))}
+	file, err := os.CreateTemp(t.TempDir(), "video-copy-limit-*.webm")
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := file.Name()
+	_, err = copyVideoSourceLimit(t.Context(), reader, file, 4)
+	if !errors.Is(err, errVideoSourceTooLarge) {
+		t.Fatalf("copy error = %v, want size limit error", err)
+	}
+	if reader.bytes != 5 {
+		t.Fatalf("read %d bytes before rejecting, want limit plus one sentinel (5)", reader.bytes)
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("caller-owned path should remain available for cleanup: %v", err)
+	}
+}
+
+func TestCopyVideoSourceCancellationClosesDestination(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	file, err := os.CreateTemp(t.TempDir(), "video-copy-cancel-*.webm")
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := file.Name()
+	_, err = copyVideoSourceLimit(ctx, bytes.NewReader([]byte("payload")), file, 32)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("copy error = %v, want context cancellation", err)
+	}
+	if _, err := file.Write([]byte("after close")); err == nil {
+		t.Fatal("destination remained open after cancellation")
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("caller must retain cleanup ownership: %v", err)
+	}
+}
+
+func BenchmarkVideoSourceReceiptPasses(b *testing.B) {
+	fixture := bytes.Repeat([]byte("v"), 256*1024)
+	b.Run("copy-then-readback", func(b *testing.B) {
+		dir := b.TempDir()
+		b.ReportAllocs()
+		b.SetBytes(int64(len(fixture)))
+		for i := 0; i < b.N; i++ {
+			file, err := os.CreateTemp(dir, "video-baseline-*.webm")
+			if err != nil {
+				b.Fatal(err)
+			}
+			path := file.Name()
+			if _, err := io.Copy(file, bytes.NewReader(fixture)); err != nil {
+				b.Fatal(err)
+			}
+			if err := file.Close(); err != nil {
+				b.Fatal(err)
+			}
+			if err := completeSourceReceipt(b.Context(), &VideoSource{Path: path}); err != nil {
+				b.Fatal(err)
+			}
+			if err := os.Remove(path); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("copy-and-receipt", func(b *testing.B) {
+		dir := b.TempDir()
+		b.ReportAllocs()
+		b.SetBytes(int64(len(fixture)))
+		for i := 0; i < b.N; i++ {
+			file, err := os.CreateTemp(dir, "video-single-pass-*.webm")
+			if err != nil {
+				b.Fatal(err)
+			}
+			path := file.Name()
+			if _, err := copyVideoSource(b.Context(), bytes.NewReader(fixture), file); err != nil {
+				b.Fatal(err)
+			}
+			if err := os.Remove(path); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
 }
 
 func TestDetectVideoContentType(t *testing.T) {

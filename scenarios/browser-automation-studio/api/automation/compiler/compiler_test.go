@@ -54,26 +54,15 @@ func (c *compilerScenarioCLI) lookupPort(scenarioName, portName string) (int, er
 }
 
 // Helper to create a test workflow with proto types
-func makeTestWorkflow(id uuid.UUID, name string, nodes []*basworkflows.WorkflowNodeV2, edges []*basworkflows.WorkflowEdgeV2) *basapi.WorkflowSummary {
-	return &basapi.WorkflowSummary{
-		Id:   id.String(),
-		Name: name,
-		FlowDefinition: &basworkflows.WorkflowDefinitionV2{
-			Nodes: nodes,
-			Edges: edges,
-		},
+func makeTestWorkflow(id uuid.UUID, name string, nodes []*basworkflows.WorkflowNodeV2, edges []*basworkflows.WorkflowEdgeV2, settings ...*basworkflows.WorkflowSettingsV2) *basapi.WorkflowSummary {
+	definition := &basworkflows.WorkflowDefinitionV2{Nodes: nodes, Edges: edges}
+	if len(settings) > 0 {
+		definition.Settings = settings[0]
 	}
-}
-
-func makeTestWorkflowWithSettings(id uuid.UUID, name string, nodes []*basworkflows.WorkflowNodeV2, edges []*basworkflows.WorkflowEdgeV2, settings *basworkflows.WorkflowSettingsV2) *basapi.WorkflowSummary {
 	return &basapi.WorkflowSummary{
-		Id:   id.String(),
-		Name: name,
-		FlowDefinition: &basworkflows.WorkflowDefinitionV2{
-			Nodes:    nodes,
-			Edges:    edges,
-			Settings: settings,
-		},
+		Id:             id.String(),
+		Name:           name,
+		FlowDefinition: definition,
 	}
 }
 
@@ -318,7 +307,7 @@ func TestCompileWorkflowLoopExtractsBody(t *testing.T) {
 func TestCompileWorkflowEntryMetadata(t *testing.T) {
 	entrySelector := "[data-testid=app-ready]"
 	entrySelectorTimeout := int32(1500)
-	workflow := makeTestWorkflowWithSettings(
+	workflow := makeTestWorkflow(
 		uuid.New(),
 		"entry-flow",
 		[]*basworkflows.WorkflowNodeV2{
@@ -357,7 +346,7 @@ func TestCompileWorkflowEntryMetadata(t *testing.T) {
 
 func TestCompileWorkflowExecutionTimeoutMetadata(t *testing.T) {
 	timeoutMs := int32(3900000)
-	workflow := makeTestWorkflowWithSettings(
+	workflow := makeTestWorkflow(
 		uuid.New(),
 		"long-running-flow",
 		[]*basworkflows.WorkflowNodeV2{{Id: "a", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE, Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://example.com"}}}}},
@@ -825,7 +814,7 @@ func TestCompileWorkflow_ThreeNodeCycle(t *testing.T) {
 func TestCompileWorkflow_ViewportSettings(t *testing.T) {
 	viewportWidth := int32(1920)
 	viewportHeight := int32(1080)
-	workflow := makeTestWorkflowWithSettings(
+	workflow := makeTestWorkflow(
 		uuid.New(),
 		"viewport-flow",
 		[]*basworkflows.WorkflowNodeV2{
@@ -879,9 +868,29 @@ func TestCompileWorkflow_NoSettingsNoMetadata(t *testing.T) {
 }
 
 func TestCompileWorkflow_InvalidViewportDimensions(t *testing.T) {
+	t.Run("partial viewport dimensions", func(t *testing.T) {
+		width := int32(1920)
+		workflow := makeTestWorkflow(
+			uuid.New(),
+			"partial-viewport",
+			[]*basworkflows.WorkflowNodeV2{
+				{Id: "a", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE, Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://example.com"}}}},
+			},
+			[]*basworkflows.WorkflowEdgeV2{},
+			&basworkflows.WorkflowSettingsV2{ViewportWidth: &width},
+		)
+
+		plan, err := CompileWorkflow(workflow)
+		require.NoError(t, err)
+		if plan.Metadata != nil {
+			_, hasViewport := plan.Metadata["executionViewport"]
+			assert.False(t, hasViewport, "a width without a height must not create viewport metadata")
+		}
+	})
+
 	t.Run("zero viewport dimensions", func(t *testing.T) {
 		zeroVal := int32(0)
-		workflow := makeTestWorkflowWithSettings(
+		workflow := makeTestWorkflow(
 			uuid.New(),
 			"zero-viewport",
 			[]*basworkflows.WorkflowNodeV2{
@@ -905,7 +914,7 @@ func TestCompileWorkflow_InvalidViewportDimensions(t *testing.T) {
 
 	t.Run("negative viewport dimensions", func(t *testing.T) {
 		negative := int32(-1)
-		workflow := makeTestWorkflowWithSettings(
+		workflow := makeTestWorkflow(
 			uuid.New(),
 			"negative-viewport",
 			[]*basworkflows.WorkflowNodeV2{

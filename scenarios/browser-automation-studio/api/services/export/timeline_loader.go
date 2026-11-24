@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/google/uuid"
@@ -13,6 +14,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/enums"
 	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
+	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -58,6 +60,11 @@ func (l *TimelineLoader) LoadTimelineProto(ctx context.Context, executionID uuid
 
 	timelinePath := filepath.Join(filepath.Dir(execution.ResultPath), "timeline.proto.json")
 	raw, err := os.ReadFile(timelinePath)
+	if os.IsNotExist(err) {
+		// Older executions only persisted the proto-aligned result.json. Keep
+		// those records readable while timeline.proto.json remains authoritative.
+		raw, err = os.ReadFile(execution.ResultPath)
+	}
 	if err != nil {
 		if os.IsNotExist(err) {
 			return pb, nil
@@ -81,6 +88,53 @@ func (l *TimelineLoader) LoadTimelineProto(ctx context.Context, executionID uuid
 	parsed.StartedAt = pb.StartedAt
 	parsed.CompletedAt = pb.CompletedAt
 	return &parsed, nil
+}
+
+// LoadExecutionScreenshots projects screenshot rows from the canonical
+// persisted timeline. Legacy executions without timeline.proto.json are read
+// through LoadTimelineProto's result.json fallback.
+func (l *TimelineLoader) LoadExecutionScreenshots(ctx context.Context, executionID uuid.UUID) ([]*basexecution.ExecutionScreenshot, error) {
+	timeline, err := l.LoadTimelineProto(ctx, executionID)
+	if err != nil {
+		return nil, err
+	}
+
+	screenshots := make([]*basexecution.ExecutionScreenshot, 0, len(timeline.GetEntries()))
+	for _, entry := range timeline.GetEntries() {
+		if entry == nil || entry.GetTelemetry() == nil || entry.GetTelemetry().GetScreenshot() == nil {
+			continue
+		}
+		stepIndex := int32(0)
+		if entry.StepIndex != nil {
+			stepIndex = *entry.StepIndex
+		}
+		nodeID := ""
+		if entry.NodeId != nil {
+			nodeID = *entry.NodeId
+		}
+		screenshot := &basexecution.ExecutionScreenshot{
+			Screenshot: entry.GetTelemetry().GetScreenshot(),
+			StepIndex:  stepIndex,
+			NodeId:     nodeID,
+		}
+		if entry.GetAction() != nil && entry.GetAction().GetMetadata() != nil && entry.GetAction().GetMetadata().Label != nil {
+			label := strings.TrimSpace(*entry.GetAction().GetMetadata().Label)
+			if label != "" {
+				screenshot.StepLabel = &label
+			}
+		}
+		if entry.Timestamp != nil {
+			screenshot.Timestamp = entry.Timestamp
+		}
+		screenshots = append(screenshots, screenshot)
+	}
+	sort.Slice(screenshots, func(i, j int) bool {
+		if screenshots[i].StepIndex != screenshots[j].StepIndex {
+			return screenshots[i].StepIndex < screenshots[j].StepIndex
+		}
+		return screenshots[i].NodeId < screenshots[j].NodeId
+	})
+	return screenshots, nil
 }
 
 // LoadReplayPackage loads the writer-owned renderer-neutral package. A missing

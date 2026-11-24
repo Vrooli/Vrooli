@@ -14,6 +14,7 @@ import (
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/projectid"
 	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	project_filesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/project_files"
@@ -71,7 +72,7 @@ func workflowFolderPathFromRelPath(relPath string) string {
 }
 
 func parseProjectID(raw string) (uuid.UUID, error) {
-	id, err := uuid.Parse(strings.TrimSpace(raw))
+	id, err := projectid.Parse(raw)
 	if err != nil {
 		return uuid.Nil, errInvalidProjectID
 	}

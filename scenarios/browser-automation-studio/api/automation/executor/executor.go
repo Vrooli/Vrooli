@@ -56,7 +56,8 @@ type Request struct {
 	// See: config/artifact_profiles.go for available profiles and settings.
 	ArtifactConfig *config.ArtifactCollectionSettings
 
-	// BrowserProfile configures anti-detection and human-like behavior settings.
+	// BrowserProfile carries requested signal and interaction settings; it does
+	// not establish site-specific detection or access outcomes.
 	// When nil, the driver uses default settings (no special behaviors applied).
 	BrowserProfile *sessionprofilepersistence.BrowserProfile
 

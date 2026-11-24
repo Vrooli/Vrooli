@@ -189,6 +189,12 @@ function getActionIcon(actionType: string) {
           />
         </svg>
       );
+    case 'page_activated':
+      return (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14m-6-6l6 6-6 6" />
+        </svg>
+      );
     default:
       return (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -213,6 +219,8 @@ function formatActionType(actionType: string): string {
       return 'Tab navigated';
     case 'page_closed':
       return 'Tab closed';
+    case 'page_activated':
+      return 'Tab selected';
     default:
       // Capitalize first letter for action types
       return actionType.charAt(0).toUpperCase() + actionType.slice(1);

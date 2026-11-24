@@ -11,21 +11,22 @@
 import type { IncomingMessage, ServerResponse } from 'http';
 import type { SessionManager } from '../../session';
 import type { Config } from '../../config';
-import { parseJsonBody, sendJson, sendError } from '../../middleware';
+import { parseJsonBody, sendJson } from '../../middleware';
 import { SessionNotFoundError } from '../../utils';
 import {
   enqueueIdempotentInput,
   enqueuePageMutation,
   getHeldPointerModifiers,
   InputIDConflictError,
+  isPointerButtonDown,
   isPointerDown,
   releasePointerModifiers,
-  setPointerDown,
+  setPointerButtonDown,
   synchronizePointerModifiers,
 } from '../../session/live-input';
 import { updateFrameStreamViewport } from '../../frame-streaming';
 import type { InputRequest, PointerAction, ViewportRequest, ViewportResponse } from './types';
-import { recordingOwner } from './recording-ownership';
+import { recordingOwner, recordingPermissionDenied, sendRecordingError } from './recording-ownership';
 
 // =============================================================================
 // Input Handlers
@@ -60,11 +61,27 @@ export async function handleRecordInput(
 
     const ownedSession = recordingOwner(body, sessionId, sessionManager);
     const session = ownedSession();
+    // Release-only input is owner cleanup after a control receipt is revoked.
+    // It may only lift an already-held pointer button; it must never move the
+    // pointer or synchronize modifiers, and remains bound to the current lease.
+    const cleanupRelease = request.type === 'pointer' && request.action === 'release';
+    if (cleanupRelease && (
+      (request.modifiers !== undefined && (!Array.isArray(request.modifiers) || request.modifiers.length !== 0))
+      || (request.button !== undefined && !['left', 'right', 'middle', 'back', 'forward'].includes(request.button))
+    )) {
+      sendJson(res, 400, { error: 'INVALID_RELEASE', message: 'Release cleanup accepts only a pointer button and no modifiers' });
+      return;
+    }
+    const permissionDenied = cleanupRelease ? undefined : recordingPermissionDenied(session, 'input');
+    if (permissionDenied) {
+      sendJson(res, 403, { error: { code: 'BROWSER_PERMISSION_DENIED', message: permissionDenied, kind: 'auth', retryable: false } });
+      return;
+    }
     sessionManager.updateActivity(sessionId);
     const page = session.page;
     const modifiers = request.modifiers || [];
 
-    if (request.type === 'pointer' && !['move', 'down', 'up', 'click'].includes(request.action || 'move')) {
+    if (request.type === 'pointer' && !['move', 'down', 'up', 'click', 'release'].includes(request.action || 'move')) {
       sendJson(res, 400, { error: 'INVALID_ACTION', message: 'Unsupported pointer action' });
       return;
     }
@@ -90,7 +107,9 @@ export async function handleRecordInput(
       ([key]) => key !== 'execution_id' && key !== 'lease_id' && key !== 'input_id',
     ));
     const receipt = await enqueueIdempotentInput(page, request.input_id, JSON.stringify(inputPayload), async () => {
-      ownedSession();
+      const current = ownedSession();
+      const denied = cleanupRelease ? undefined : recordingPermissionDenied(current, 'input');
+      if (denied) throw new Error(`BROWSER_PERMISSION_DENIED: ${denied}`);
       switch (request.type) {
         case 'pointer': {
           const x = request.x ?? 0;
@@ -105,13 +124,15 @@ export async function handleRecordInput(
           let downCompleted = false;
 
           try {
-            await synchronizePointerModifiers(page, requested, held, ownedSession);
+            if (pointerAction !== 'release') {
+              await synchronizePointerModifiers(page, requested, held, ownedSession);
+            }
             if (pointerAction === 'move') {
               await page.mouse.move(x, y);
             } else if (pointerAction === 'down') {
               await page.mouse.move(x, y);
               ownedSession();
-              setPointerDown(page, true);
+              setPointerButtonDown(page, button, true);
               downAttempted = true;
               await page.mouse.down({ button });
               downCompleted = true;
@@ -119,21 +140,27 @@ export async function handleRecordInput(
               await page.mouse.move(x, y);
               ownedSession();
               await page.mouse.up({ button });
-              setPointerDown(page, false);
+              setPointerButtonDown(page, button, false);
+            } else if (pointerAction === 'release') {
+              ownedSession();
+              if (isPointerButtonDown(page, button)) {
+                await page.mouse.up({ button });
+                setPointerButtonDown(page, button, false);
+              }
             } else {
               await page.mouse.click(x, y, { button });
             }
           } catch (error) {
             if (pointerAction === 'down' && downAttempted && !downCompleted) {
               await page.mouse.up({ button }).catch(() => undefined);
-              setPointerDown(page, false);
+              setPointerButtonDown(page, button, false);
             }
             if (pointerAction === 'up') {
               // The browser may have applied the release before reporting a
               // transport error. Do not retain logical button ownership and
               // thereby suppress modifier recovery or leak it to the next
               // lease; retrying the uncertain button effect would be unsafe.
-              setPointerDown(page, false);
+              setPointerButtonDown(page, button, false);
             }
             throw error;
           } finally {
@@ -164,7 +191,7 @@ export async function handleRecordInput(
       sendJson(res, 409, { error: 'INPUT_ID_CONFLICT', message: error.message });
       return;
     }
-    sendError(res, error as Error, `/session/${sessionId}/record/input`);
+    sendRecordingError(res, error as Error, `/session/${sessionId}/record/input`);
   }
 }
 
@@ -185,6 +212,11 @@ export async function handleRecordViewport(
     const body = await parseJsonBody(req, config);
     const ownedSession = recordingOwner(body, sessionId, sessionManager);
     const session = ownedSession();
+      const permissionDenied = recordingPermissionDenied(session, 'viewport');
+      if (permissionDenied) {
+        sendJson(res, 403, { error: { code: 'BROWSER_PERMISSION_DENIED', message: permissionDenied, kind: 'auth', retryable: false } });
+        return;
+      }
     const page = session.page;
     const pageId = session.pageBindings.getId(page);
     if (!pageId || body.expected_page_id !== pageId) {
@@ -201,6 +233,8 @@ export async function handleRecordViewport(
     }
     await enqueuePageMutation(page, async () => {
       ownedPage();
+      const denied = recordingPermissionDenied(ownedSession(), 'viewport');
+      if (denied) throw new Error(`BROWSER_PERMISSION_DENIED: ${denied}`);
       await page.setViewportSize({width: Math.round(width), height: Math.round(height)});
       ownedPage();
       await updateFrameStreamViewport(sessionId, page);
@@ -213,6 +247,6 @@ export async function handleRecordViewport(
 
     sendJson(res, 200, response);
   } catch (error) {
-    sendError(res, error as Error, `/session/${sessionId}/record/viewport`);
+    sendRecordingError(res, error as Error, `/session/${sessionId}/record/viewport`);
   }
 }

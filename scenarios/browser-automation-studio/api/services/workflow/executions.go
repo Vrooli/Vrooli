@@ -35,9 +35,17 @@ import (
 // ExecuteWorkflow starts a workflow execution and returns the DB index record.
 // Detailed execution results are written to disk by the artifact recorder.
 func (s *WorkflowService) ExecuteWorkflow(ctx context.Context, workflowID uuid.UUID, parameters map[string]any) (*database.ExecutionIndex, error) {
-	if s == nil {
-		return nil, errors.New("workflow service not configured")
+	releaseAdmission, releaseSlot, err := s.beginExecutionAdmission()
+	if err != nil {
+		return nil, err
 	}
+	defer releaseAdmission()
+	slotTransferred := false
+	defer func() {
+		if !slotTransferred {
+			releaseSlot()
+		}
+	}()
 	getResp, err := s.GetWorkflowAPI(ctx, &basapi.GetWorkflowRequest{WorkflowId: workflowID.String()})
 	if err != nil {
 		return nil, err
@@ -74,12 +82,16 @@ func (s *WorkflowService) ExecuteWorkflow(ctx context.Context, workflowID uuid.U
 	}
 
 	// Manual flat parameters remain in @store/; other execution options use defaults.
-	s.startExecutionRunnerWithOptions(ctx, getResp.Workflow, exec.ID, parameters, nil, nil, nil, nil, nil, "", nil, "", "", "", false, nil, "", nil)
+	s.startExecutionRunnerWithOptions(ctx, getResp.Workflow, exec.ID, parameters, nil, nil, nil, nil, nil, "", nil, "", "", "", false, nil, "", nil, releaseSlot)
+	slotTransferred = true
 	return exec, nil
 }
 
 // ExecuteOptions contains optional settings for workflow execution.
 type ExecuteOptions struct {
+	// ExecutionID is reserved by an idempotent operation owner before dispatch.
+	// A nil value preserves the ordinary random-ID behavior.
+	ExecutionID *uuid.UUID
 	// Resume uses the ordinary admission and runner while preserving its origin.
 	ResumeAfterStep *int
 	ResumedFromID   *uuid.UUID
@@ -191,44 +203,23 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 		}
 	}
 
-	// Resolve session profile if provided for authenticated execution
-	var storageState json.RawMessage
-	var profileBrowserSettings *sessionprofilepersistence.BrowserProfile
-	var openTabs []sessionprofilepersistence.TabState
-	var sessionProfileVersion string
-	if sessionProfileID != "" && s.sessionProfileService != nil {
-		profile, err := s.sessionProfileService.GetProfile(sessionprofilepersistence.ProfileID(sessionProfileID))
-		if err != nil {
-			return nil, fmt.Errorf("session profile %s not found: %w", sessionProfileID, err)
-		}
-		storageState = profile.StorageState
-		profileBrowserSettings = profile.BrowserProfile
-		sessionProfileVersion = profileVersionForReuse(profile)
-
-		// Load open tabs if tab restoration is requested
-		if restoreTabs && len(profile.OpenTabs) > 0 {
-			openTabs = profile.OpenTabs
-		}
-
-		// Update usage tracking to keep profile LRU order current
-		if _, err := s.sessionProfileService.Touch(sessionprofilepersistence.ProfileID(sessionProfileID)); err != nil && s.log != nil {
-			s.log.WithError(err).WithField("session_profile_id", sessionProfileID).Warn("Failed to update session profile usage timestamp")
-		}
+	// Saved and ad-hoc executions resolve persisted state and browser-profile
+	// precedence through one owner so authenticated sessions behave identically.
+	sessionProfile, err := s.resolveExecutionSessionProfile(workflowSummary.FlowDefinition, sessionProfileID, saveSessionProfileID, restoreTabs, execBrowserProfile)
+	if err != nil {
+		return nil, fmt.Errorf("session profile %s not found: %w", sessionProfileID, err)
 	}
-	if sessionProfileVersion == "" && saveSessionProfileID != "" {
-		sessionProfileVersion = profileVersionForReuse(&sessionprofilepersistence.SessionProfile{ID: sessionprofilepersistence.ProfileID(saveSessionProfileID)})
+	releaseAdmission, releaseSlot, err := s.beginExecutionAdmission()
+	if err != nil {
+		return nil, err
 	}
-
-	// Extract workflow default browser profile and merge with execution override
-	// Priority order: execution params > session profile > workflow defaults
-	var workflowBrowserProfile *sessionprofilepersistence.BrowserProfile
-	if workflowSummary.FlowDefinition != nil && workflowSummary.FlowDefinition.Settings != nil && workflowSummary.FlowDefinition.Settings.BrowserProfile != nil {
-		workflowBrowserProfile = sessionprofilepersistence.BrowserProfileFromProto(workflowSummary.FlowDefinition.Settings.BrowserProfile)
-	}
-	// First merge workflow defaults with session profile defaults
-	baseBrowserProfile := sessionprofilepersistence.MergeBrowserProfiles(workflowBrowserProfile, profileBrowserSettings)
-	// Then merge with execution-level overrides (highest priority)
-	finalBrowserProfile := sessionprofilepersistence.MergeBrowserProfiles(baseBrowserProfile, execBrowserProfile)
+	defer releaseAdmission()
+	slotTransferred := false
+	defer func() {
+		if !slotTransferred {
+			releaseSlot()
+		}
+	}()
 	hold, err := s.reserveExecution(ctx)
 	if err != nil {
 		return nil, err
@@ -262,7 +253,9 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 		return nil, fmt.Errorf("commit workflow execution quota: %w", err)
 	}
 
-	completion := s.startExecutionRunnerWithOptions(ctx, workflowSummary, exec.ID, initialStore, initialParams, env, artifactCfg, finalBrowserProfile, storageState, sessionProfileVersion, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError)
+	completion := s.startExecutionRunnerWithOptions(ctx, workflowSummary, exec.ID, initialStore, initialParams, env, artifactCfg, sessionProfile.browserProfile, sessionProfile.storageState, sessionProfile.sessionProfileVersion, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, sessionProfile.openTabs, navigationWaitUntil, continueOnError, releaseSlot)
+	slotTransferred = true
+	releaseAdmission()
 
 	if req.WaitForCompletion {
 		latest, err := s.waitForExecutionCompletion(ctx, exec.ID, completion)
@@ -376,7 +369,8 @@ func executionParametersToMaps(p *basexecution.ExecutionParameters) (store map[s
 	settings := config.ResolveArtifactSettingsWithDefault(p.ArtifactConfig, config.Load().ArtifactLimits.DefaultProfile)
 	artifactCfg = &settings
 
-	// Extract browser profile for anti-detection and human-like behavior if provided
+	// Extract the requested browser profile settings if provided. These settings
+	// do not establish a site-specific detection or access outcome.
 	if p.BrowserProfile != nil {
 		browserProfile = sessionprofilepersistence.BrowserProfileFromProto(p.BrowserProfile)
 	}
@@ -435,7 +429,7 @@ func navigateWaitEventToString(e basactions.NavigateWaitEvent) string {
 	}
 }
 
-func (s *WorkflowService) startExecutionRunnerWithOptions(parent context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *sessionprofilepersistence.BrowserProfile, storageState json.RawMessage, sessionProfileVersion string, opts *ExecuteOptions, projectRoot string, startURL string, saveSessionProfileID string, restoreTabs bool, openTabs []sessionprofilepersistence.TabState, navigationWaitUntil string, continueOnError *bool) <-chan struct{} {
+func (s *WorkflowService) startExecutionRunnerWithOptions(parent context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *sessionprofilepersistence.BrowserProfile, storageState json.RawMessage, sessionProfileVersion string, opts *ExecuteOptions, projectRoot string, startURL string, saveSessionProfileID string, restoreTabs bool, openTabs []sessionprofilepersistence.TabState, navigationWaitUntil string, continueOnError *bool, releaseSlot func()) <-chan struct{} {
 	if coredb.IsTestMode(parent) {
 		browserProfile = withTestModeBrowserHeader(browserProfile)
 	}
@@ -447,6 +441,9 @@ func (s *WorkflowService) startExecutionRunnerWithOptions(parent context.Context
 	s.storeExecutionCancel(executionID, cancel, completion)
 	go func() {
 		defer func() {
+			if releaseSlot != nil {
+				releaseSlot()
+			}
 			close(completion)
 		}()
 		if err := s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, browserProfile, storageState, sessionProfileVersion, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError); err != nil && s.log != nil {
@@ -501,7 +498,7 @@ func detachedExecutionContext(parent context.Context) context.Context {
 
 // executeWorkflowAsyncWithOptions runs a workflow asynchronously with optional settings.
 // projectRoot is the absolute path to the project root for filesystem-based subflow resolution.
-// browserProfile configures anti-detection and human-like behavior settings for the execution.
+// browserProfile carries requested signal and interaction settings for the execution.
 // storageState contains cookies/localStorage from a session profile for authenticated execution.
 // saveSessionProfileID specifies where to save storage state after successful execution.
 // restoreTabs indicates whether to restore tabs from the session profile before execution.
@@ -817,18 +814,7 @@ func (s *WorkflowService) StopExecution(ctx context.Context, executionID uuid.UU
 	if !ok {
 		return errors.New("execution cancellation state is invalid")
 	}
-	if control.cancel != nil {
-		control.cancel()
-	}
-	if control.done == nil {
-		return nil
-	}
-	select {
-	case <-control.done:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
+	return cancelAndJoinExecutionOwners(ctx, map[uuid.UUID]executionControl{executionID: control})
 }
 
 // executionOutcome preserves successful completion in a stop race and uses
@@ -838,6 +824,10 @@ func executionOutcome(ctx context.Context, runErr error) (string, string) {
 		return database.ExecutionStatusCompleted, ""
 	}
 	if errors.Is(runErr, context.Canceled) || errors.Is(ctx.Err(), context.Canceled) {
+		var finalizationErr *autoexecutor.ExecutionFinalizationError
+		if errors.As(runErr, &finalizationErr) {
+			return database.ExecutionStatusCancelled, fmt.Sprintf("execution cancelled; finalization failed: %s", finalizationErr)
+		}
 		return database.ExecutionStatusCancelled, "execution cancelled"
 	}
 	return database.ExecutionStatusFailed, runErr.Error()

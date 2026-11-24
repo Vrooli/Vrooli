@@ -17,4 +17,13 @@ describe("InlineExecutionHeader", () => {
     expect(screen.getByTestId(selectors.executions.viewer.statusCompleted)).toHaveTextContent("Completed");
     expect(screen.getByTestId(selectors.heartbeat.indicator)).toHaveTextContent("Final heartbeat snapshot");
   });
+
+  it("shows the persisted completed state and removes stop after completion", () => {
+    renderWithProviders(
+      <InlineExecutionHeader status="completed" onStop={vi.fn()} onClose={vi.fn()} />,
+    );
+
+    expect(screen.getByTestId(selectors.executions.viewer.statusCompleted)).toHaveTextContent("Completed");
+    expect(screen.queryByTestId(selectors.executions.viewer.stopButton)).not.toBeInTheDocument();
+  });
 });

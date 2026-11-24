@@ -71,8 +71,34 @@ export interface VisionAnalysisResponse {
   /** Token usage for credit calculation */
   tokensUsed: TokenUsage;
 
+  /** Gateway-resolved inference and accounting fields retained for the run receipt. */
+  inferenceReceipt?: InferenceReceipt;
+
   /** Raw response for debugging */
   rawResponse?: string;
+}
+
+export interface InferenceReceipt {
+  rootOperationId: string;
+  billingOperationId?: string;
+  source: 'local' | 'own-key' | 'vrooli-credits';
+  providerCallsMade?: number;
+  provider?: string;
+  model?: string;
+  inputTokens: number;
+  outputTokens: number;
+  inputTokensProvenance?: string;
+  outputTokensProvenance?: string;
+  costMicros?: number | string;
+  costProvenance?: string;
+  creditsCharged?: number | string;
+  accountingStatus?: string;
+  applied?: {
+    temperatureSent?: number;
+    temperatureSupport?: string;
+    maxOutputTokensEffective?: number;
+    maxOutputTokensSource?: string;
+  };
 }
 
 /**
@@ -175,4 +201,5 @@ export type VisionErrorCode =
   | 'PARSE_ERROR'
   | 'NETWORK_ERROR'
   | 'OUTCOME_UNCERTAIN'
+  | 'NO_ELIGIBLE_ROUTE'
   | 'UNKNOWN';

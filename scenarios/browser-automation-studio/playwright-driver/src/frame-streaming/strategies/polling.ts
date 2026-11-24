@@ -15,7 +15,7 @@
  */
 
 import type { Page } from 'rebrowser-playwright';
-import { encodeFrame, sameFrameSource, type FrameSource } from '../frame';
+import { encodeFrame, sameFrameSource, sendQueuedFrame, type FrameSource } from '../frame';
 import { logger, scopedLog, LogContext, metrics } from '../../utils';
 import {
   createFpsController,
@@ -25,7 +25,7 @@ import {
   type FpsControllerState,
   type FpsControllerConfig,
 } from '../../fps';
-import { SCREENSHOT_TIMEOUT_MS, MAX_FRAME_FAILURES, MAX_QUEUED_FRAME_BYTES } from '../types';
+import { SCREENSHOT_TIMEOUT_MS, MAX_FRAME_FAILURES } from '../types';
 import type {
   FrameStreamingStrategy,
   StreamingStrategyConfig,
@@ -191,13 +191,10 @@ export class PollingStrategy implements FrameStreamingStrategy {
                 frame_bytes: buffer.length,
             } : undefined);
 
-            if ((ws.bufferedAmount ?? 0) + frameToSend.length > MAX_QUEUED_FRAME_BYTES) {
-              statsReporter.onFrameSkipped('ws_backpressure');
+            if (!sendQueuedFrame(ws, frameToSend, () => statsReporter.onFrameSkipped('ws_backpressure'))) {
               await sleepUntilNextFrame(loopStart, getIntervalMs(fpsState), abortController.signal);
               continue;
             }
-
-            ws.send(frameToSend);
             lastDelivered = { page, source, socket: ws, buffer };
 
             const wsSendTime = performance.now() - wsSendStart;

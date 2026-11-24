@@ -996,22 +996,34 @@ func probeVideoFrameCount(t *testing.T, videoPath string) int {
 	return n
 }
 
-func TestFFmpegIntegration_UniformFrames(t *testing.T) {
-	requireFFmpegTools(t)
-
-	dir := t.TempDir()
-	framesDir := filepath.Join(dir, "frames")
+// newFFmpegSequenceFixture owns the repeated filesystem setup shared by the
+// encoder integration cases. Case-specific frames and expected results stay
+// with each test so the fixture does not become an oracle.
+func newFFmpegSequenceFixture(t *testing.T) (dir, framesDir, pattern, outPath string) {
+	t.Helper()
+	dir = t.TempDir()
+	framesDir = filepath.Join(dir, "frames")
 	if err := os.MkdirAll(framesDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
+	return dir, framesDir, filepath.Join(framesDir, "frame-%05d.jpg"), filepath.Join(dir, "out.mp4")
+}
 
-	for i := 0; i < 10; i++ {
-		writeTestJPEGAt(t, filepath.Join(framesDir, fmt.Sprintf("frame-%05d.jpg", i)), 1280, 720)
+func writeUniformJPEGFrames(t *testing.T, framesDir string, count, width, height int) {
+	t.Helper()
+	for i := 0; i < count; i++ {
+		writeTestJPEGAt(t, filepath.Join(framesDir, fmt.Sprintf("frame-%05d.jpg", i)), width, height)
 	}
+}
+
+func TestFFmpegIntegration_UniformFrames(t *testing.T) {
+	requireFFmpegTools(t)
+
+	_, framesDir, pattern, outPath := newFFmpegSequenceFixture(t)
+	writeUniformJPEGFrames(t, framesDir, 10, 1280, 720)
 
 	encoder := NewFFmpegEncoder("ffmpeg")
-	outPath := filepath.Join(dir, "out.mp4")
-	if err := encoder.AssembleVideoFromSequence(t.Context(), filepath.Join(framesDir, "frame-%05d.jpg"), 25, outPath); err != nil {
+	if err := encoder.AssembleVideoFromSequence(t.Context(), pattern, 25, outPath); err != nil {
 		t.Fatalf("assemble failed: %v", err)
 	}
 
@@ -1032,11 +1044,7 @@ func TestFFmpegIntegration_UniformFrames(t *testing.T) {
 func TestFFmpegIntegration_InfoBarOutlier(t *testing.T) {
 	requireFFmpegTools(t)
 
-	dir := t.TempDir()
-	framesDir := filepath.Join(dir, "frames")
-	if err := os.MkdirAll(framesDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
+	_, framesDir, pattern, outPath := newFFmpegSequenceFixture(t)
 
 	// Frame 0: 50px taller (info bar at top)
 	writeTestJPEGAt(t, filepath.Join(framesDir, "frame-00000.jpg"), 1280, 770)
@@ -1045,8 +1053,7 @@ func TestFFmpegIntegration_InfoBarOutlier(t *testing.T) {
 	}
 
 	encoder := NewFFmpegEncoder("ffmpeg")
-	outPath := filepath.Join(dir, "out.mp4")
-	if err := encoder.AssembleVideoFromSequence(t.Context(), filepath.Join(framesDir, "frame-%05d.jpg"), 25, outPath); err != nil {
+	if err := encoder.AssembleVideoFromSequence(t.Context(), pattern, 25, outPath); err != nil {
 		t.Fatalf("assemble failed: %v", err)
 	}
 
@@ -1061,22 +1068,15 @@ func TestFFmpegIntegration_InfoBarOutlier(t *testing.T) {
 func TestFFmpegIntegration_ScrollbarWidthVariation(t *testing.T) {
 	requireFFmpegTools(t)
 
-	dir := t.TempDir()
-	framesDir := filepath.Join(dir, "frames")
-	if err := os.MkdirAll(framesDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
+	_, framesDir, pattern, outPath := newFFmpegSequenceFixture(t)
 
-	for i := 0; i < 8; i++ {
-		writeTestJPEGAt(t, filepath.Join(framesDir, fmt.Sprintf("frame-%05d.jpg", i)), 1280, 720)
-	}
+	writeUniformJPEGFrames(t, framesDir, 8, 1280, 720)
 	// Two frames with scrollbar reducing width
 	writeTestJPEGAt(t, filepath.Join(framesDir, "frame-00008.jpg"), 1263, 720)
 	writeTestJPEGAt(t, filepath.Join(framesDir, "frame-00009.jpg"), 1263, 720)
 
 	encoder := NewFFmpegEncoder("ffmpeg")
-	outPath := filepath.Join(dir, "out.mp4")
-	if err := encoder.AssembleVideoFromSequence(t.Context(), filepath.Join(framesDir, "frame-%05d.jpg"), 25, outPath); err != nil {
+	if err := encoder.AssembleVideoFromSequence(t.Context(), pattern, 25, outPath); err != nil {
 		t.Fatalf("assemble failed: %v", err)
 	}
 
@@ -1090,11 +1090,7 @@ func TestFFmpegIntegration_ScrollbarWidthVariation(t *testing.T) {
 func TestFFmpegIntegration_MixedVariation(t *testing.T) {
 	requireFFmpegTools(t)
 
-	dir := t.TempDir()
-	framesDir := filepath.Join(dir, "frames")
-	if err := os.MkdirAll(framesDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
+	_, framesDir, pattern, outPath := newFFmpegSequenceFixture(t)
 
 	writeTestJPEGAt(t, filepath.Join(framesDir, "frame-00000.jpg"), 1280, 770) // info bar
 	writeTestJPEGAt(t, filepath.Join(framesDir, "frame-00001.jpg"), 1280, 720) // normal
@@ -1106,8 +1102,7 @@ func TestFFmpegIntegration_MixedVariation(t *testing.T) {
 	writeTestJPEGAt(t, filepath.Join(framesDir, "frame-00007.jpg"), 1280, 720) // normal
 
 	encoder := NewFFmpegEncoder("ffmpeg")
-	outPath := filepath.Join(dir, "out.mp4")
-	if err := encoder.AssembleVideoFromSequence(t.Context(), filepath.Join(framesDir, "frame-%05d.jpg"), 25, outPath); err != nil {
+	if err := encoder.AssembleVideoFromSequence(t.Context(), pattern, 25, outPath); err != nil {
 		t.Fatalf("assemble failed: %v", err)
 	}
 
@@ -1123,11 +1118,7 @@ func TestFFmpegIntegration_MixedVariation(t *testing.T) {
 func TestFFmpegIntegration_SinglePixelJitter(t *testing.T) {
 	requireFFmpegTools(t)
 
-	dir := t.TempDir()
-	framesDir := filepath.Join(dir, "frames")
-	if err := os.MkdirAll(framesDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
+	_, framesDir, pattern, outPath := newFFmpegSequenceFixture(t)
 
 	// Alternating 720/721 height (simulates subpixel rendering jitter)
 	for i := 0; i < 10; i++ {
@@ -1139,8 +1130,7 @@ func TestFFmpegIntegration_SinglePixelJitter(t *testing.T) {
 	}
 
 	encoder := NewFFmpegEncoder("ffmpeg")
-	outPath := filepath.Join(dir, "out.mp4")
-	if err := encoder.AssembleVideoFromSequence(t.Context(), filepath.Join(framesDir, "frame-%05d.jpg"), 25, outPath); err != nil {
+	if err := encoder.AssembleVideoFromSequence(t.Context(), pattern, 25, outPath); err != nil {
 		t.Fatalf("assemble failed: %v", err)
 	}
 
@@ -1157,11 +1147,7 @@ func TestFFmpegIntegration_SinglePixelJitter(t *testing.T) {
 func TestFFmpegIntegration_OddDimensionsRoundToEven(t *testing.T) {
 	requireFFmpegTools(t)
 
-	dir := t.TempDir()
-	framesDir := filepath.Join(dir, "frames")
-	if err := os.MkdirAll(framesDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
+	_, framesDir, pattern, outPath := newFFmpegSequenceFixture(t)
 
 	// All frames have odd dimensions
 	for i := 0; i < 5; i++ {
@@ -1169,8 +1155,7 @@ func TestFFmpegIntegration_OddDimensionsRoundToEven(t *testing.T) {
 	}
 
 	encoder := NewFFmpegEncoder("ffmpeg")
-	outPath := filepath.Join(dir, "out.mp4")
-	if err := encoder.AssembleVideoFromSequence(t.Context(), filepath.Join(framesDir, "frame-%05d.jpg"), 25, outPath); err != nil {
+	if err := encoder.AssembleVideoFromSequence(t.Context(), pattern, 25, outPath); err != nil {
 		t.Fatalf("assemble failed: %v", err)
 	}
 
@@ -1188,19 +1173,14 @@ func TestFFmpegIntegration_OddDimensionsRoundToEven(t *testing.T) {
 func TestFFmpegIntegration_WithWatermark(t *testing.T) {
 	requireFFmpegTools(t)
 
-	dir := t.TempDir()
-	framesDir := filepath.Join(dir, "frames")
-	if err := os.MkdirAll(framesDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
+	_, framesDir, pattern, outPath := newFFmpegSequenceFixture(t)
 
 	for i := 0; i < 5; i++ {
 		writeTestJPEGAt(t, filepath.Join(framesDir, fmt.Sprintf("frame-%05d.jpg", i)), 1280, 720)
 	}
 
 	encoder := NewFFmpegEncoder("ffmpeg")
-	outPath := filepath.Join(dir, "out.mp4")
-	if err := encoder.AssembleVideoWithWatermark(t.Context(), filepath.Join(framesDir, "frame-%05d.jpg"), 25, outPath, "BAS Preview"); err != nil {
+	if err := encoder.AssembleVideoWithWatermark(t.Context(), pattern, 25, outPath, "BAS Preview"); err != nil {
 		t.Fatalf("assemble with watermark failed: %v", err)
 	}
 
@@ -1215,11 +1195,7 @@ func TestFFmpegIntegration_WithWatermark(t *testing.T) {
 func TestFFmpegIntegration_ConvertToMP4_EvenDimensions(t *testing.T) {
 	requireFFmpegTools(t)
 
-	dir := t.TempDir()
-	framesDir := filepath.Join(dir, "frames")
-	if err := os.MkdirAll(framesDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
+	dir, framesDir, pattern, _ := newFFmpegSequenceFixture(t)
 
 	// Create a source video with odd dimensions
 	for i := 0; i < 5; i++ {
@@ -1229,7 +1205,7 @@ func TestFFmpegIntegration_ConvertToMP4_EvenDimensions(t *testing.T) {
 	encoder := NewFFmpegEncoder("ffmpeg")
 	sourcePath := filepath.Join(dir, "source.mp4")
 	// First assemble a source video (this rounds to even already)
-	if err := encoder.AssembleVideoFromSequence(t.Context(), filepath.Join(framesDir, "frame-%05d.jpg"), 25, sourcePath); err != nil {
+	if err := encoder.AssembleVideoFromSequence(t.Context(), pattern, 25, sourcePath); err != nil {
 		t.Fatalf("source assemble failed: %v", err)
 	}
 
@@ -1419,12 +1395,8 @@ func sampleBottomPixels(t *testing.T, imgPath string, bottomRows int) (avgR, avg
 func TestFFmpegIntegration_BottomPixelConsistency_UniformFrames(t *testing.T) {
 	requireFFmpegTools(t)
 
-	dir := t.TempDir()
-	framesDir := filepath.Join(dir, "frames")
+	dir, framesDir, pattern, outPath := newFFmpegSequenceFixture(t)
 	extractDir := filepath.Join(dir, "extracted")
-	if err := os.MkdirAll(framesDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
 	if err := os.MkdirAll(extractDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -1435,8 +1407,7 @@ func TestFFmpegIntegration_BottomPixelConsistency_UniformFrames(t *testing.T) {
 	}
 
 	encoder := NewFFmpegEncoder("ffmpeg")
-	outPath := filepath.Join(dir, "out.mp4")
-	if err := encoder.AssembleVideoFromSequence(t.Context(), filepath.Join(framesDir, "frame-%05d.jpg"), 25, outPath); err != nil {
+	if err := encoder.AssembleVideoFromSequence(t.Context(), pattern, 25, outPath); err != nil {
 		t.Fatalf("assemble failed: %v", err)
 	}
 
@@ -1466,12 +1437,8 @@ func TestFFmpegIntegration_BottomPixelConsistency_UniformFrames(t *testing.T) {
 func TestFFmpegIntegration_BottomPixelConsistency_InfoBarVariation(t *testing.T) {
 	requireFFmpegTools(t)
 
-	dir := t.TempDir()
-	framesDir := filepath.Join(dir, "frames")
+	dir, framesDir, pattern, outPath := newFFmpegSequenceFixture(t)
 	extractDir := filepath.Join(dir, "extracted")
-	if err := os.MkdirAll(framesDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
 	if err := os.MkdirAll(extractDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -1514,8 +1481,7 @@ func TestFFmpegIntegration_BottomPixelConsistency_InfoBarVariation(t *testing.T)
 	}
 
 	encoder := NewFFmpegEncoder("ffmpeg")
-	outPath := filepath.Join(dir, "out.mp4")
-	if err := encoder.AssembleVideoFromSequence(t.Context(), filepath.Join(framesDir, "frame-%05d.jpg"), 25, outPath); err != nil {
+	if err := encoder.AssembleVideoFromSequence(t.Context(), pattern, 25, outPath); err != nil {
 		t.Fatalf("assemble failed: %v", err)
 	}
 
@@ -1557,12 +1523,8 @@ func TestFFmpegIntegration_BottomPixelConsistency_InfoBarVariation(t *testing.T)
 func TestFFmpegIntegration_BottomPixelConsistency_ScrollbarWidth(t *testing.T) {
 	requireFFmpegTools(t)
 
-	dir := t.TempDir()
-	framesDir := filepath.Join(dir, "frames")
+	dir, framesDir, pattern, outPath := newFFmpegSequenceFixture(t)
 	extractDir := filepath.Join(dir, "extracted")
-	if err := os.MkdirAll(framesDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
 	if err := os.MkdirAll(extractDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -1579,8 +1541,7 @@ func TestFFmpegIntegration_BottomPixelConsistency_ScrollbarWidth(t *testing.T) {
 	}
 
 	encoder := NewFFmpegEncoder("ffmpeg")
-	outPath := filepath.Join(dir, "out.mp4")
-	if err := encoder.AssembleVideoFromSequence(t.Context(), filepath.Join(framesDir, "frame-%05d.jpg"), 25, outPath); err != nil {
+	if err := encoder.AssembleVideoFromSequence(t.Context(), pattern, 25, outPath); err != nil {
 		t.Fatalf("assemble failed: %v", err)
 	}
 

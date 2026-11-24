@@ -34,20 +34,16 @@ var artifactRoots = map[string]struct{}{
 // IsOwnedPath accepts only known top-level files and known execution artifact
 // subtrees. The inventory file is generated after this check and is excluded.
 func IsOwnedPath(path string, executionIDs ...string) bool {
-	if path == "" || filepath.IsAbs(path) || strings.Contains(path, "\\") {
+	if !isCanonicalRelativePath(path) {
 		return false
 	}
-	clean := filepath.ToSlash(filepath.Clean(filepath.FromSlash(path)))
-	if clean != path || clean == "." || clean == ".." || strings.HasPrefix(clean, "../") {
-		return false
-	}
-	if _, ok := topLevelFiles[clean]; ok {
+	if _, ok := topLevelFiles[path]; ok {
 		return true
 	}
-	if !strings.HasPrefix(clean, "artifacts/") {
+	if !strings.HasPrefix(path, "artifacts/") {
 		return false
 	}
-	parts := strings.Split(clean, "/")
+	parts := strings.Split(path, "/")
 	if len(parts) < 3 {
 		return false
 	}
@@ -62,6 +58,9 @@ func IsOwnedPath(path string, executionIDs ...string) bool {
 
 // IsOwnedDirectory accepts only directories BAS may create under an execution.
 func IsOwnedDirectory(path string, executionIDs ...string) bool {
+	if !isCanonicalRelativePath(path) {
+		return false
+	}
 	if path == "artifacts" {
 		return true
 	}
@@ -86,14 +85,10 @@ func IsOwnedDirectory(path string, executionIDs ...string) bool {
 // It is for private purge ownership receipts; public evidence manifests must
 // continue to omit object keys entirely.
 func IsExecutionObjectKey(key, executionID string) bool {
-	if _, err := uuid.Parse(executionID); err != nil || executionID == "" || key == "" || strings.Contains(key, "\\") || filepath.IsAbs(key) {
+	if _, err := uuid.Parse(executionID); err != nil || executionID == "" || !isCanonicalRelativePath(key) {
 		return false
 	}
-	clean := filepath.ToSlash(filepath.Clean(filepath.FromSlash(key)))
-	if clean != key || clean == "." || clean == ".." || strings.HasPrefix(clean, "../") {
-		return false
-	}
-	parts := strings.Split(clean, "/")
+	parts := strings.Split(key, "/")
 	if len(parts) == 3 && parts[0] == "artifacts" && parts[1] == executionID {
 		return parts[2] != "" && parts[2] != "." && parts[2] != ".."
 	}
@@ -102,4 +97,12 @@ func IsExecutionObjectKey(key, executionID string) bool {
 	}
 	_, ok := artifactRoots[parts[2]]
 	return ok
+}
+
+func isCanonicalRelativePath(path string) bool {
+	if path == "" || filepath.IsAbs(path) || strings.Contains(path, "\\") {
+		return false
+	}
+	clean := filepath.ToSlash(filepath.Clean(filepath.FromSlash(path)))
+	return clean == path && clean != "." && clean != ".." && !strings.HasPrefix(clean, "../")
 }

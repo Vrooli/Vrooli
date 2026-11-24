@@ -62,3 +62,58 @@ func TestExecutionObjectKeysRequireCanonicalExecutionScope(t *testing.T) {
 		}
 	}
 }
+
+func TestOwnershipPredicatesRejectNonCanonicalPaths(t *testing.T) {
+	executionID := uuid.NewString()
+	cases := []struct {
+		name      string
+		path      string
+		directory string
+		objectKey string
+	}{
+		{name: "empty", path: "", directory: "", objectKey: ""},
+		{
+			name:      "absolute",
+			path:      "/artifacts/screenshots/step.png",
+			directory: "/artifacts/screenshots",
+			objectKey: "/" + executionID + "/artifacts/screenshots/step.png",
+		},
+		{
+			name:      "backslashes",
+			path:      `artifacts\screenshots\step.png`,
+			directory: `artifacts\screenshots`,
+			objectKey: executionID + `\artifacts\screenshots\step.png`,
+		},
+		{
+			name:      "repeated separators",
+			path:      "artifacts//screenshots/step.png",
+			directory: "artifacts//screenshots",
+			objectKey: executionID + "//artifacts/screenshots/step.png",
+		},
+		{
+			name:      "dot segment",
+			path:      "artifacts/./screenshots/step.png",
+			directory: "artifacts/./screenshots",
+			objectKey: executionID + "/artifacts/./screenshots/step.png",
+		},
+		{
+			name:      "traversal",
+			path:      "artifacts/screenshots/../foreign.png",
+			directory: "artifacts/screenshots/../foreign",
+			objectKey: executionID + "/artifacts/screenshots/../foreign.png",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if IsOwnedPath(tc.path, executionID) {
+				t.Errorf("noncanonical owned path accepted: %q", tc.path)
+			}
+			if IsOwnedDirectory(tc.directory, executionID) {
+				t.Errorf("noncanonical owned directory accepted: %q", tc.directory)
+			}
+			if IsExecutionObjectKey(tc.objectKey, executionID) {
+				t.Errorf("noncanonical object key accepted: %q", tc.objectKey)
+			}
+		})
+	}
+}

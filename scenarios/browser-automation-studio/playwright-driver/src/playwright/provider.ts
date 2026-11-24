@@ -2,12 +2,13 @@
  * Playwright Provider Implementation
  *
  * Configures the active playwright provider for the application.
- * Uses rebrowser-playwright by default for anti-detection capabilities.
+ * Uses rebrowser-playwright by default for its browser APIs and selected
+ * signal-adjustment code paths. No detection result is claimed.
  *
  * ## Environment Configuration
  *
  * Set PLAYWRIGHT_PROVIDER environment variable to switch providers:
- * - PLAYWRIGHT_PROVIDER=rebrowser-playwright (default) - Anti-detection, isolated context
+ * - PLAYWRIGHT_PROVIDER=rebrowser-playwright (default) - Selected signal patches, isolated context
  * - PLAYWRIGHT_PROVIDER=playwright - Standard behavior, main context
  *
  * ## Recording Implications by Provider
@@ -17,14 +18,14 @@
  * - exposeBinding() only works from ISOLATED context
  * - REQUIRES: HTML injection via route interception for recording script
  * - REQUIRES: fetch() to intercepted URL for event communication
- * - BENEFIT: Passes bot detection on production sites
+ * - Detection behavior is unqualified without a dated per-site corpus
  *
  * ### playwright (alternative)
  * - page.evaluate() runs in MAIN context
  * - exposeBinding() works from any context
  * - SIMPLER: addInitScript() works directly for recording
  * - SIMPLER: exposeBinding() works for event communication
- * - DRAWBACK: Easily detected as automation (navigator.webdriver=true)
+ * - Detection behavior is unqualified without a dated per-site corpus
  *
  * ## When to Switch Providers
  *
@@ -33,10 +34,8 @@
  * 2. You're testing in controlled environments that don't block automation
  * 3. You need Firefox/WebKit support (rebrowser-playwright is Chromium-only)
  *
- * Keep 'rebrowser-playwright' for:
- * 1. Production recording on live websites
- * 2. Sites with CloudFlare, Akamai, or other bot protection
- * 3. Recording user flows that will be replayed on protected sites
+ * Choose a provider for API compatibility and tested task behavior. Qualify
+ * detection separately for each supported mode and site.
  *
  * @module playwright/provider
  */
@@ -72,8 +71,9 @@ export function getConfiguredProviderName(): PlaywrightProviderName {
 export const PROVIDER_CAPABILITIES: Record<PlaywrightProviderName, PlaywrightCapabilities> = {
   'rebrowser-playwright': {
     /**
-     * rebrowser-playwright runs page.evaluate() in ISOLATED context
-     * to prevent bot detection. This means:
+     * rebrowser-playwright runs page.evaluate() in ISOLATED context. This
+     * driver behavior does not qualify any site-specific detection outcome.
+     * It means:
      * - Scripts can't wrap History API in the page
      * - Scripts can't access page's global variables
      * - Scripts are invisible to page's JavaScript
@@ -92,22 +92,18 @@ export const PROVIDER_CAPABILITIES: Record<PlaywrightProviderName, PlaywrightCap
     exposeBindingIsolated: true,
 
     /**
-     * rebrowser-playwright includes patches that:
-     * - Hide navigator.webdriver
-     * - Mask automation markers
-     * - Pass common bot detection checks
-     *
-     * This is essential for recording on production websites that
-     * block detected automation.
+     * rebrowser-playwright includes patches that adjust selected browser
+     * signals. This flag reports the presence of those mechanisms only; it
+     * does not report detection results or production-site compatibility.
      */
     hasAntiDetection: true,
   },
 
   playwright: {
     /**
-     * Standard playwright runs page.evaluate() in MAIN context.
-     * Scripts can wrap History API and access page globals.
-     * But they are visible to page's JavaScript (detectable).
+     * Standard Playwright runs page.evaluate() in the MAIN context. That
+     * affects page-global access; this alone does not establish a detection
+     * outcome.
      */
     evaluateIsolated: false,
 
@@ -118,8 +114,8 @@ export const PROVIDER_CAPABILITIES: Record<PlaywrightProviderName, PlaywrightCap
     exposeBindingIsolated: false,
 
     /**
-     * Standard playwright has no anti-detection.
-     * navigator.webdriver = true, easily detected.
+     * Standard Playwright does not include BAS's custom signal-adjustment
+     * patches. Its site-specific detection outcome is not qualified here.
      */
     hasAntiDetection: false,
   },
@@ -168,7 +164,8 @@ export function createPlaywrightProvider(name?: PlaywrightProviderName): Playwri
 /**
  * Active playwright provider instance.
  *
- * Uses rebrowser-playwright by default for anti-detection.
+ * Uses rebrowser-playwright by default for its documented driver behavior and
+ * selected signal adjustments; site-specific detection outcomes are unqualified.
  * The capabilities document the behavioral differences that affect
  * how the recording system must be implemented.
  *
@@ -210,9 +207,7 @@ export function logProviderConfig(): void {
       eventCommunication: provider.capabilities.exposeBindingIsolated
         ? 'fetch() to route-intercepted URL'
         : 'exposeBinding() directly',
-      botDetection: provider.capabilities.hasAntiDetection
-        ? 'Protected - passes most bot checks'
-        : 'Exposed - easily detected',
+      botDetection: 'Site-specific detection outcome is unqualified',
     },
   });
 }

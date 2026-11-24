@@ -3,6 +3,7 @@ package capture
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 )
@@ -41,18 +42,34 @@ func (c InlineAccessibilityConfig) withDefaults() InlineAccessibilityConfig {
 // absent file is the documented degraded contract (capture succeeded, AX
 // capture did not), surfaced as a typed error the caller logs and swallows.
 func (c InlineAccessibilityConfig) readInlineAccessibility(outDir string) (string, error) {
-	raw, err := os.ReadFile(filepath.Join(outDir, accessibilitySnapshotFile))
+	c = c.withDefaults()
+	file, err := os.Open(filepath.Join(outDir, accessibilitySnapshotFile))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", errors.New("accessibility.json absent (AX capture unavailable this run)")
 		}
 		return "", fmt.Errorf("read accessibility.json: %w", err)
 	}
-	if len(raw) == 0 {
+	defer file.Close()
+
+	snapshot, err := readInlineAccessibilityBounded(file, c.MaxBytes)
+	if err != nil {
+		return "", fmt.Errorf("read accessibility.json: %w", err)
+	}
+	if snapshot == "" {
 		return "", errors.New("accessibility.json is empty")
 	}
-	if len(raw) > c.MaxBytes {
-		raw = raw[:c.MaxBytes]
+	return snapshot, nil
+}
+
+func readInlineAccessibilityBounded(reader io.Reader, maxBytes int) (string, error) {
+	limited := io.LimitReader(reader, int64(maxBytes)+1)
+	raw, err := io.ReadAll(limited)
+	if err != nil {
+		return "", err
+	}
+	if len(raw) > maxBytes {
+		raw = raw[:maxBytes]
 	}
 	return string(raw), nil
 }

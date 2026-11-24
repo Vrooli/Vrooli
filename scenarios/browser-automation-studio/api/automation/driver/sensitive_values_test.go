@@ -77,7 +77,7 @@ func TestGetRecordedActionsRedactsBufferedTimelineWithoutRebuildingLegacyActions
 	client, err := NewClientWithURL(server.URL, WithoutCircuitBreaker())
 	require.NoError(t, err)
 
-	response, err := client.GetRecordedActions(t.Context(), "synthetic-session")
+	response, err := client.GetRecordedActions(t.Context(), "synthetic-session", "execution", "lease")
 	require.NoError(t, err)
 	require.Empty(t, response.Actions)
 	require.NotContains(t, string(response.Entries[0]), secret)

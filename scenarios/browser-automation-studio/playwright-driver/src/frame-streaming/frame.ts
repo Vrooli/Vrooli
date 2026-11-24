@@ -1,5 +1,21 @@
 import type { Page } from 'rebrowser-playwright';
 import type { SessionState } from '../types/session';
+import type { FrameWebSocket } from './types';
+import { MAX_QUEUED_FRAME_BYTES } from './types';
+
+/** The single owner for the bounded viewer-frame queue and its send side effect. */
+export function sendQueuedFrame(
+  socket: Pick<FrameWebSocket, 'bufferedAmount' | 'send'>,
+  packet: Buffer,
+  onBackpressure: () => void,
+): boolean {
+  if ((socket.bufferedAmount ?? 0) + packet.length > MAX_QUEUED_FRAME_BYTES) {
+    onBackpressure();
+    return false;
+  }
+  socket.send(packet);
+  return true;
+}
 
 /** Captured before asynchronous work; never relabel bytes with a newer owner. */
 export interface FrameSource {

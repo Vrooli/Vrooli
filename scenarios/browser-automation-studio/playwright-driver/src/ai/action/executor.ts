@@ -6,7 +6,7 @@
  * This module executes BrowserAction objects via Playwright.
  * It translates high-level actions into Playwright operations.
  *
- * Supports human-like typing behavior via BehaviorSettings:
+ * Supports configurable typing timing and variation via BehaviorSettings:
  * - Pre-typing delays (pause before starting to type)
  * - Character-by-character typing with variable delays
  * - Enhanced variance based on digraphs, shifted chars, etc.
@@ -54,8 +54,10 @@ export interface ActionExecutorConfig {
   actionTimeout?: number;
   /** Whether to wait for navigation after clicks */
   waitForNavigation?: boolean;
-  /** Behavior settings for human-like interactions */
+  /** Configurable timing and movement settings for interactions */
   behaviorSettings?: BehaviorSettings;
+	/** Optional session permission guard called before every physical browser action. */
+	authorize?: (page: Page, action: BrowserAction) => Promise<void> | void;
 }
 
 /**
@@ -80,6 +82,7 @@ export function createActionExecutor(
       let context: ActionExecutionContext | undefined;
 
       try {
+		if (config.authorize) await config.authorize(page, action);
         switch (action.type) {
           case 'click':
             await executeClick(page, action, elementLabels, actionTimeout);

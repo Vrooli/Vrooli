@@ -7,7 +7,7 @@ import path from 'node:path';
 import { handleSessionClose } from '../../../src/routes/session-close';
 import type { SessionSpec } from '../../../src/types';
 import { playwrightProvider } from '../../../src/playwright';
-import type { BrowserManager } from '../../../src/session/browser-manager';
+import { BrowserManager } from '../../../src/session/browser-manager';
 import { SessionManager } from '../../../src/session/manager';
 import { ServiceWorkerController } from '../../../src/service-worker';
 import { SessionNotFoundError, ResourceLimitError } from '../../../src/utils/errors';
@@ -163,6 +163,54 @@ describe('SessionManager', () => {
 
   describe('startSession', () => {
     const sessionSpec = createSessionSpec();
+
+    it('routes installed sessions through an isolated context without probing or launching managed Chromium', async () => {
+      const getBrowser = jest.spyOn(BrowserManager.prototype, 'getBrowser').mockResolvedValue(mockBrowser);
+      const managedProbe = jest.spyOn(BrowserManager.prototype, 'getHostAudioCapability').mockRejectedValue(new Error('managed probe must not run'));
+      const audioStrategy = jest.spyOn(BrowserManager.prototype, 'getAudioStrategy').mockRejectedValue(new Error('managed probe must not run'));
+      const result = await manager.startSession(createSessionSpec({
+        execution_id: 'installed-isolated',
+        reuse_mode: 'fresh',
+        browser_backend: 'installed',
+      }));
+      expect(result.reused).toBe(false);
+      expect(mockBrowser.newContext).toHaveBeenCalledTimes(1);
+      expect(getBrowser).toHaveBeenCalledWith(undefined, 'host_device', false, '', 'installed');
+      expect(managedProbe).not.toHaveBeenCalled();
+      expect(audioStrategy).not.toHaveBeenCalled();
+      await manager.closeSession(result.sessionId);
+      expect(mockContext.close).toHaveBeenCalled();
+      getBrowser.mockRestore();
+      managedProbe.mockRestore();
+      audioStrategy.mockRestore();
+    });
+
+    it.each([
+      { storage_state: { cookies: [{ name: 'session', value: 'secret' }], origins: [] }, permissions: undefined },
+      { storage_state: undefined, permissions: ['camera'] },
+    ])('rejects installed sessions with restored state or direct permission grants', async ({ storage_state, permissions }) => {
+      await expect(manager.startSession(createSessionSpec({
+        execution_id: 'installed-state-injection',
+        browser_backend: 'installed',
+        reuse_mode: 'fresh',
+        storage_state,
+        permissions,
+      }))).rejects.toThrow('do not accept restored browser state');
+      expect(launchSpy).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { reuse_mode: 'reuse' as const, browser_profile: undefined, reason: 'fresh isolated browser context' },
+      { reuse_mode: 'fresh' as const, browser_profile: { preset: 'stealth' as const }, reason: 'managed identity profiles' },
+    ])('rejects installed sessions with unsupported mode settings before browser access', async ({ reuse_mode, browser_profile, reason }) => {
+      await expect(manager.startSession(createSessionSpec({
+        execution_id: `installed-invalid-${reason}`,
+        browser_backend: 'installed',
+        reuse_mode,
+        browser_profile,
+      }))).rejects.toThrow(reason);
+      expect(launchSpy).not.toHaveBeenCalled();
+    });
 
     it('should create a new session', async () => {
       const result = await manager.startSession(sessionSpec);

@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { chromium, expect } from '@playwright/test';
-import { create } from '@bufbuild/protobuf';
+import { create, toJson } from '@bufbuild/protobuf';
 import { ArtifactKind } from '@vrooli/proto-types/browser-automation-studio/v1/evidence/evidence_pb';
 import { ExecutionStatus } from '@vrooli/proto-types/browser-automation-studio/v1/base/shared_pb';
 import {
@@ -17,9 +17,12 @@ import {
 } from '@vrooli/proto-types/browser-automation-studio/v1/workflows/definition_pb';
 import {
   action,
+  createWorkflowThroughEditor,
   env,
   measureJourney,
+  recordJourneyRuntimeIdentity,
   recordJourneyReceipt,
+  recordNotApplicableResponsivenessMetric,
   rpc,
   withJourneyResources,
 } from './support';
@@ -46,25 +49,32 @@ describe('[REQ:BAS-RH-J27] BAS UI execution history and artifacts', () => {
       const workflowName = `J27 UI execution ${randomUUID()}`;
       const startNode = randomUUID();
       const effectNode = randomUUID();
-      const { workflow } = await rpc(WorkflowsService.method.createWorkflow, {
-        projectId,
-        name: workflowName,
-        folderPath: 'workflows',
-        flowDefinition: create(WorkflowDefinitionV2Schema, {
-          metadata: { name: workflowName, executionMode: ExecutionMode.OBSERVER },
-          settings: { headless: true, timeoutMs: 30000 },
-          nodes: [
-            {
-              id: startNode,
-              action: action('navigate', { url: `${env.fixture}/`, timeoutMs: 20000 }),
-            },
-            { id: effectNode, action: action('click', { selector: '#counter' }) },
-          ],
-          edges: [{ id: randomUUID(), source: startNode, target: effectNode }],
-        }),
-      });
-      const workflowId = workflow?.id ?? '';
-      if (!workflowId) throw new Error('BAS did not create the J27 workflow');
+      const browser = await chromium.launch({ headless: true });
+      resources.add('close J27 UI browser', () => browser.close());
+      await recordJourneyRuntimeIdentity('J27', browser.version());
+      const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+      const definitionJson = JSON.stringify(
+        toJson(
+          WorkflowDefinitionV2Schema,
+          create(WorkflowDefinitionV2Schema, {
+            metadata: { name: workflowName, executionMode: ExecutionMode.OBSERVER },
+            settings: { headless: true, timeoutMs: 30000 },
+            nodes: [
+              {
+                id: startNode,
+                action: action('navigate', { url: `${env.fixture}/`, timeoutMs: 20000 }),
+              },
+              { id: effectNode, action: action('click', { selector: '#counter' }) },
+            ],
+            edges: [{ id: randomUUID(), source: startNode, target: effectNode }],
+          })
+        )
+      );
+      const workflowId = await createWorkflowThroughEditor(page, projectId, definitionJson);
+      const { workflow } = await rpc(WorkflowsService.method.getWorkflow, { workflowId });
+      if (!workflow?.id || workflow.id !== workflowId)
+        throw new Error('BAS did not retain the J27 editor workflow');
+      const editorWorkflowName = workflow.name || workflowName;
       resources.add('delete J27 workflow', () =>
         rpc(WorkflowsService.method.deleteWorkflow, { workflowId })
       );
@@ -95,9 +105,6 @@ describe('[REQ:BAS-RH-J27] BAS UI execution history and artifacts', () => {
         true
       );
 
-      const browser = await chromium.launch({ headless: true });
-      resources.add('close J27 UI browser', () => browser.close());
-      const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
       await measureJourney(
         'J27',
         'execution.viewer_ready',
@@ -107,7 +114,7 @@ describe('[REQ:BAS-RH-J27] BAS UI execution history and artifacts', () => {
             timeout: 30000,
           });
           await page.getByTestId('app-ready').waitFor({ state: 'attached', timeout: 30000 });
-          const row = page.getByText(workflowName, { exact: true });
+          const row = page.getByText(editorWorkflowName, { exact: true });
           await row.waitFor({ state: 'visible', timeout: 30000 });
           await row.click();
           await page.waitForURL(
@@ -123,7 +130,8 @@ describe('[REQ:BAS-RH-J27] BAS UI execution history and artifacts', () => {
           execution_id: execution.executionId,
           workflow_id: workflowId,
           status: 'COMPLETED',
-        })
+        }),
+        { budgetMetrics: ['setup_to_ready_ms'] }
       );
       const screenshot = page.getByTestId('execution-screenshot');
       const imageWidth = await measureJourney(
@@ -143,7 +151,8 @@ describe('[REQ:BAS-RH-J27] BAS UI execution history and artifacts', () => {
           execution_id: execution.executionId,
           artifact_kind: 'SCREENSHOT',
           image_width: width,
-        })
+        }),
+        { budgetMetrics: ['click_to_paint_ms', 'tab_switch_to_first_frame_ms'] }
       );
       recordJourneyReceipt('J27', 'execution.viewer_artifact_receipt', {
         execution_id: execution.executionId,
@@ -152,5 +161,17 @@ describe('[REQ:BAS-RH-J27] BAS UI execution history and artifacts', () => {
         screenshot_artifact_present: true,
         image_width: imageWidth,
       });
+      recordNotApplicableResponsivenessMetric(
+        'J27',
+        'execution.event_fanout_not_sampled',
+        'event_fanout_ms',
+        'This journey opens a completed execution and reads persisted artifacts; it does not trigger a live event fan-out.'
+      );
+      recordNotApplicableResponsivenessMetric(
+        'J27',
+        'execution.event_bytes_not_sampled',
+        'event_bytes',
+        'No live recording or execution event is produced while the completed artifact viewer is open.'
+      );
     }));
 });

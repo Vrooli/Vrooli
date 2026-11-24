@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/vrooli/browser-automation-studio/internal/testutil"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/require"
 
 	"github.com/vrooli/browser-automation-studio/database"
 	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
@@ -145,10 +147,14 @@ func (s *stubScheduler) Schedule(exec, scenario, token string) error {
 }
 
 func newTestService(t *testing.T, exec Executor, sched SeedScheduler) (apiconnect.ExecutionsServiceClient, func()) {
+	return newTestServiceWithRecordingsRoot(t, exec, sched, "")
+}
+
+func newTestServiceWithRecordingsRoot(t *testing.T, exec Executor, sched SeedScheduler, recordingsRoot string) (apiconnect.ExecutionsServiceClient, func()) {
 	t.Helper()
 	log := logrus.New()
 	log.SetLevel(logrus.ErrorLevel)
-	mount := Module(Deps{Executor: exec, SeedScheduler: sched, Logger: log})
+	mount := Module(Deps{Executor: exec, SeedScheduler: sched, RecordingsRoot: recordingsRoot, Logger: log})
 	srv := testutil.StartHTTPServer(t, mount.Handler)
 	client := apiconnect.NewExecutionsServiceClient(srv.Client(), srv.URL)
 	return client, srv.Close
@@ -287,6 +293,37 @@ func TestListExecutions_Success(t *testing.T) {
 	if got := len(resp.Msg.GetExecutions()); got != 2 {
 		t.Fatalf("expected 2 executions, got %d", got)
 	}
+}
+
+func TestListExecutionsExportabilityUsesCanonicalExportOwner(t *testing.T) {
+	root := t.TempDir()
+	resultDir := filepath.Join(t.TempDir(), "run")
+	resultPath := filepath.Join(resultDir, "result.json")
+	id := uuid.New()
+	require.NoError(t, os.MkdirAll(filepath.Join(resultDir, "screenshots"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(resultDir, "screenshots", "one.png"), []byte("png"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(resultDir, "timeline.proto.json"), []byte("timeline"), 0o600))
+	videoDir := filepath.Join(root, id.String(), "artifacts", "videos")
+	require.NoError(t, os.MkdirAll(videoDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(videoDir, "run.webm"), []byte("video"), 0o600))
+	exec := &stubExecutor{
+		listFn: func(context.Context, database.ExecutionQuery) ([]*database.ExecutionIndex, int, error) {
+			return []*database.ExecutionIndex{{ID: id, ResultPath: resultPath}}, 1, nil
+		},
+		hydrateFn: func(_ context.Context, e *database.ExecutionIndex) (*basexecution.Execution, error) {
+			return &basexecution.Execution{ExecutionId: e.ID.String()}, nil
+		},
+	}
+	client, stop := newTestServiceWithRecordingsRoot(t, exec, nil, root)
+	defer stop()
+	resp, err := client.ListExecutions(context.Background(), connect.NewRequest(&basapi.ListExecutionsRequest{IncludeExportability: true}))
+	require.NoError(t, err)
+	got := resp.Msg.GetExportability()[id.String()]
+	require.NotNil(t, got)
+	require.True(t, got.GetHasTimeline())
+	require.True(t, got.GetHasScreenshots())
+	require.True(t, got.GetHasRecordedVideo())
+	require.True(t, got.GetIsExportable())
 }
 
 func TestStopExecution(t *testing.T) {

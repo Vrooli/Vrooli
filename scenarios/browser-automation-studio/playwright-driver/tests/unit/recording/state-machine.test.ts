@@ -16,6 +16,42 @@ import {
   type PipelineVerification,
 } from '../../../src/recording';
 
+function pipelineState(
+  phase: RecordingPipelineState['phase'],
+  overrides: Partial<Omit<RecordingPipelineState, 'phase'>> = {}
+): RecordingPipelineState {
+  return { phase, totalGenerations: 0, ...overrides };
+}
+
+function initializedState(
+  phase: 'initializing' | 'verifying',
+  injectionAttempts: number
+): RecordingPipelineState {
+  return pipelineState(phase, {
+    initialization: { startedAt: 1, contextId: 'ctx', injectionAttempts },
+    loopDetection: { navigationHistory: [], isBreakingLoop: false, lastCheckedUrl: null },
+  });
+}
+
+function capturingState(
+  recording: Partial<NonNullable<RecordingPipelineState['recording']>> = {},
+  loopDetection?: RecordingPipelineState['loopDetection']
+): RecordingPipelineState {
+  return pipelineState('capturing', {
+    recording: {
+      sessionId: 's1',
+      recordingId: 'r1',
+      startedAt: 'started',
+      generation: 1,
+      actionCount: 5,
+      lastUrl: null,
+      ...recording,
+    },
+    ...(loopDetection ? { loopDetection } : {}),
+    totalGenerations: 1,
+  });
+}
+
 describe('RecordingStateMachine', () => {
   describe('createInitialState', () => {
     it('should create state with uninitialized phase', () => {
@@ -70,10 +106,7 @@ describe('RecordingStateMachine', () => {
       });
 
       it('should reject INITIALIZE from non-uninitialized phase', () => {
-        const state: RecordingPipelineState = {
-          phase: 'ready',
-          totalGenerations: 0,
-        };
+        const state = pipelineState('ready');
         const transition: RecordingTransition = { type: 'INITIALIZE', contextId: 'ctx-123' };
 
         const newState = recordingReducer(state, transition);
@@ -84,12 +117,7 @@ describe('RecordingStateMachine', () => {
 
     describe('INJECTION_COMPLETE transition', () => {
       it('should transition to verifying on success', () => {
-        const state: RecordingPipelineState = {
-          phase: 'initializing',
-          initialization: { startedAt: Date.now(), contextId: 'ctx', injectionAttempts: 0 },
-          loopDetection: { navigationHistory: [], isBreakingLoop: false, lastCheckedUrl: null },
-          totalGenerations: 0,
-        };
+        const state = initializedState('initializing', 0);
         const transition: RecordingTransition = { type: 'INJECTION_COMPLETE', success: true };
 
         const newState = recordingReducer(state, transition);
@@ -99,12 +127,7 @@ describe('RecordingStateMachine', () => {
       });
 
       it('should transition to error on failure', () => {
-        const state: RecordingPipelineState = {
-          phase: 'initializing',
-          initialization: { startedAt: Date.now(), contextId: 'ctx', injectionAttempts: 0 },
-          loopDetection: { navigationHistory: [], isBreakingLoop: false, lastCheckedUrl: null },
-          totalGenerations: 0,
-        };
+        const state = initializedState('initializing', 0);
         const transition: RecordingTransition = {
           type: 'INJECTION_COMPLETE',
           success: false,
@@ -132,12 +155,7 @@ describe('RecordingStateMachine', () => {
       };
 
       it('should transition to ready on successful verification', () => {
-        const state: RecordingPipelineState = {
-          phase: 'verifying',
-          initialization: { startedAt: Date.now(), contextId: 'ctx', injectionAttempts: 1 },
-          loopDetection: { navigationHistory: [], isBreakingLoop: false, lastCheckedUrl: null },
-          totalGenerations: 0,
-        };
+        const state = initializedState('verifying', 1);
         const transition: RecordingTransition = {
           type: 'VERIFICATION_COMPLETE',
           verification: goodVerification,
@@ -150,85 +168,43 @@ describe('RecordingStateMachine', () => {
         expect(newState.error).toBeUndefined();
       });
 
-      it('should transition to error if script not loaded', () => {
-        const state: RecordingPipelineState = {
-          phase: 'verifying',
-          totalGenerations: 0,
-        };
-        const badVerification: PipelineVerification = {
-          ...goodVerification,
-          scriptLoaded: false,
-        };
-        const transition: RecordingTransition = {
+      const failedVerifications: Array<{
+        name: string;
+        changes: Partial<PipelineVerification>;
+        errorCode: string;
+        recoverable?: boolean;
+      }> = [
+        {
+          name: 'script not loaded',
+          changes: { scriptLoaded: false },
+          errorCode: 'SCRIPT_NOT_LOADED',
+        },
+        {
+          name: 'wrong context',
+          changes: { inMainContext: false },
+          errorCode: 'WRONG_CONTEXT',
+          recoverable: false,
+        },
+        { name: 'no handlers', changes: { handlersCount: 0 }, errorCode: 'NO_HANDLERS' },
+        {
+          name: 'event route inactive',
+          changes: { eventRouteActive: false },
+          errorCode: 'EVENT_ROUTE_FAILED',
+          recoverable: true,
+        },
+      ];
+
+      it.each(failedVerifications)('should reject $name', ({ changes, errorCode, recoverable }) => {
+        const newState = recordingReducer(pipelineState('verifying'), {
           type: 'VERIFICATION_COMPLETE',
-          verification: badVerification,
-        };
-
-        const newState = recordingReducer(state, transition);
-
-        expect(newState.phase).toBe('error');
-        expect(newState.error?.code).toBe('SCRIPT_NOT_LOADED');
-      });
-
-      it('should transition to error if wrong context', () => {
-        const state: RecordingPipelineState = {
-          phase: 'verifying',
-          totalGenerations: 0,
-        };
-        const badVerification: PipelineVerification = {
-          ...goodVerification,
-          inMainContext: false,
-        };
-        const transition: RecordingTransition = {
-          type: 'VERIFICATION_COMPLETE',
-          verification: badVerification,
-        };
-
-        const newState = recordingReducer(state, transition);
-
-        expect(newState.phase).toBe('error');
-        expect(newState.error?.code).toBe('WRONG_CONTEXT');
-        expect(newState.error?.recoverable).toBe(false);
-      });
-
-      it('should transition to error if no handlers', () => {
-        const state: RecordingPipelineState = {
-          phase: 'verifying',
-          totalGenerations: 0,
-        };
-        const badVerification: PipelineVerification = {
-          ...goodVerification,
-          handlersCount: 0,
-        };
-        const transition: RecordingTransition = {
-          type: 'VERIFICATION_COMPLETE',
-          verification: badVerification,
-        };
-
-        const newState = recordingReducer(state, transition);
-
-        expect(newState.phase).toBe('error');
-        expect(newState.error?.code).toBe('NO_HANDLERS');
-      });
-
-      it('should transition to error if the event route is inactive', () => {
-        const state: RecordingPipelineState = {
-          phase: 'verifying',
-          totalGenerations: 0,
-        };
-        const badVerification: PipelineVerification = {
-          ...goodVerification,
-          eventRouteActive: false,
-        };
-
-        const newState = recordingReducer(state, {
-          type: 'VERIFICATION_COMPLETE',
-          verification: badVerification,
+          verification: { ...goodVerification, ...changes },
         });
 
         expect(newState.phase).toBe('error');
-        expect(newState.error?.code).toBe('EVENT_ROUTE_FAILED');
-        expect(newState.error?.recoverable).toBe(true);
+        expect(newState.error?.code).toBe(errorCode);
+        if (recoverable !== undefined) {
+          expect(newState.error?.recoverable).toBe(recoverable);
+        }
       });
 
       it('should allow a fresh verification from a recoverable error', () => {
@@ -348,18 +324,7 @@ describe('RecordingStateMachine', () => {
 
     describe('ACTION_CAPTURED transition', () => {
       it('should increment action count', () => {
-        const state: RecordingPipelineState = {
-          phase: 'capturing',
-          recording: {
-            sessionId: 's1',
-            recordingId: 'r1',
-            startedAt: new Date().toISOString(),
-            generation: 1,
-            actionCount: 5,
-            lastUrl: null,
-          },
-          totalGenerations: 1,
-        };
+        const state = capturingState();
         const transition: RecordingTransition = { type: 'ACTION_CAPTURED', actionType: 'click' };
 
         const newState = recordingReducer(state, transition);
@@ -367,11 +332,22 @@ describe('RecordingStateMachine', () => {
         expect(newState.recording?.actionCount).toBe(6);
       });
 
+      it('should return a changed state without mutating the previous state', () => {
+        const state = capturingState();
+
+        const newState = recordingReducer(state, {
+          type: 'ACTION_CAPTURED',
+          actionType: 'click',
+        });
+
+        expect(newState).not.toBe(state);
+        expect(newState.recording).not.toBe(state.recording);
+        expect(newState.recording?.actionCount).toBe(6);
+        expect(state.recording?.actionCount).toBe(5);
+      });
+
       it('should not change state if not capturing', () => {
-        const state: RecordingPipelineState = {
-          phase: 'ready',
-          totalGenerations: 0,
-        };
+        const state = pipelineState('ready');
         const transition: RecordingTransition = { type: 'ACTION_CAPTURED', actionType: 'click' };
 
         const newState = recordingReducer(state, transition);
@@ -382,18 +358,7 @@ describe('RecordingStateMachine', () => {
 
     describe('STOP_RECORDING transition', () => {
       it('should transition from capturing to stopping', () => {
-        const state: RecordingPipelineState = {
-          phase: 'capturing',
-          recording: {
-            sessionId: 's1',
-            recordingId: 'r1',
-            startedAt: new Date().toISOString(),
-            generation: 1,
-            actionCount: 10,
-            lastUrl: 'https://example.com',
-          },
-          totalGenerations: 1,
-        };
+        const state = capturingState({ actionCount: 10, lastUrl: 'https://example.com' });
         const transition: RecordingTransition = { type: 'STOP_RECORDING' };
 
         const newState = recordingReducer(state, transition);
@@ -427,18 +392,7 @@ describe('RecordingStateMachine', () => {
 
     describe('ERROR transition', () => {
       it('should transition to error from any phase', () => {
-        const state: RecordingPipelineState = {
-          phase: 'capturing',
-          recording: {
-            sessionId: 's1',
-            recordingId: 'r1',
-            startedAt: new Date().toISOString(),
-            generation: 1,
-            actionCount: 5,
-            lastUrl: null,
-          },
-          totalGenerations: 1,
-        };
+        const state = capturingState();
         const transition: RecordingTransition = {
           type: 'ERROR',
           code: 'PAGE_CLOSED',
@@ -454,10 +408,7 @@ describe('RecordingStateMachine', () => {
       });
 
       it('should mark recoverable errors correctly', () => {
-        const state: RecordingPipelineState = {
-          phase: 'capturing',
-          totalGenerations: 1,
-        };
+        const state = pipelineState('capturing', { totalGenerations: 1 });
         const transition: RecordingTransition = {
           type: 'ERROR',
           code: 'SCRIPT_NOT_READY',
@@ -538,23 +489,10 @@ describe('RecordingStateMachine', () => {
 
     describe('NAVIGATION transition', () => {
       it('should update navigation history', () => {
-        const state: RecordingPipelineState = {
-          phase: 'capturing',
-          recording: {
-            sessionId: 's1',
-            recordingId: 'r1',
-            startedAt: new Date().toISOString(),
-            generation: 1,
-            actionCount: 5,
-            lastUrl: 'https://example.com/page1',
-          },
-          loopDetection: {
-            navigationHistory: [],
-            isBreakingLoop: false,
-            lastCheckedUrl: null,
-          },
-          totalGenerations: 1,
-        };
+        const state = capturingState(
+          { lastUrl: 'https://example.com/page1' },
+          { navigationHistory: [], isBreakingLoop: false, lastCheckedUrl: null }
+        );
         const transition: RecordingTransition = {
           type: 'NAVIGATION',
           url: 'https://example.com/page2',
@@ -578,23 +516,10 @@ describe('RecordingStateMachine', () => {
           timestamp: Date.now() - i * 1000,
         }));
 
-        const state: RecordingPipelineState = {
-          phase: 'capturing',
-          recording: {
-            sessionId: 's1',
-            recordingId: 'r1',
-            startedAt: new Date().toISOString(),
-            generation: 1,
-            actionCount: 5,
-            lastUrl: null,
-          },
-          loopDetection: {
-            navigationHistory: history,
-            isBreakingLoop: false,
-            lastCheckedUrl: null,
-          },
-          totalGenerations: 1,
-        };
+        const state = capturingState(
+          {},
+          { navigationHistory: history, isBreakingLoop: false, lastCheckedUrl: null }
+        );
         const transition: RecordingTransition = {
           type: 'NAVIGATION',
           url: 'https://example.com/new',

@@ -94,7 +94,7 @@ func (s *service) GetExport(
 	ctx context.Context,
 	req *connect.Request[exportsv1.GetExportRequest],
 ) (*connect.Response[exportsv1.GetExportResponse], error) {
-	exportID, err := uuid.Parse(req.Msg.GetId())
+	exportID, err := parseExportID(req.Msg.GetId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidExportID)
 	}
@@ -211,7 +211,7 @@ func (s *service) UpdateExport(
 	req *connect.Request[exportsv1.UpdateExportRequest],
 ) (*connect.Response[exportsv1.UpdateExportResponse], error) {
 	msg := req.Msg
-	exportID, err := uuid.Parse(msg.GetId())
+	exportID, err := parseExportID(msg.GetId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidExportID)
 	}
@@ -299,7 +299,7 @@ func (s *service) DeleteExport(
 	ctx context.Context,
 	req *connect.Request[exportsv1.DeleteExportRequest],
 ) (*connect.Response[exportsv1.DeleteExportResponse], error) {
-	exportID, err := uuid.Parse(req.Msg.GetId())
+	exportID, err := parseExportID(req.Msg.GetId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidExportID)
 	}
@@ -350,7 +350,7 @@ func (s *service) GetExportStatus(
 	ctx context.Context,
 	req *connect.Request[exportsv1.GetExportStatusRequest],
 ) (*connect.Response[exportsv1.GetExportStatusResponse], error) {
-	exportID, err := uuid.Parse(req.Msg.GetId())
+	exportID, err := parseExportID(req.Msg.GetId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidExportID)
 	}
@@ -391,7 +391,7 @@ func (s *service) GenerateExportCaption(
 	ctx context.Context,
 	req *connect.Request[exportsv1.GenerateExportCaptionRequest],
 ) (*connect.Response[exportsv1.GenerateExportCaptionResponse], error) {
-	exportID, err := uuid.Parse(req.Msg.GetId())
+	exportID, err := parseExportID(req.Msg.GetId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidExportID)
 	}
@@ -458,7 +458,7 @@ func (s *service) RevealExport(
 	ctx context.Context,
 	req *connect.Request[exportsv1.RevealExportRequest],
 ) (*connect.Response[exportsv1.RevealExportResponse], error) {
-	exportID, err := uuid.Parse(req.Msg.GetId())
+	exportID, err := parseExportID(req.Msg.GetId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidExportID)
 	}
@@ -501,7 +501,7 @@ func (s *service) OpenExportFolder(
 	ctx context.Context,
 	req *connect.Request[exportsv1.OpenExportFolderRequest],
 ) (*connect.Response[exportsv1.OpenExportFolderResponse], error) {
-	exportID, err := uuid.Parse(req.Msg.GetId())
+	exportID, err := parseExportID(req.Msg.GetId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidExportID)
 	}
@@ -681,6 +681,10 @@ func jsonMapToStruct(m database.JSONMap) *structpb.Struct {
 	return pb
 }
 
+func parseExportID(raw string) (uuid.UUID, error) {
+	return uuid.Parse(raw)
+}
+
 func structToMap(s *structpb.Struct) map[string]any {
 	if s == nil {
 		return nil
@@ -693,7 +697,7 @@ func structToMap(s *structpb.Struct) map[string]any {
 func (s *service) CancelExport(ctx context.Context, req *connect.Request[exportsv1.CancelExportRequest]) (*connect.Response[exportsv1.CancelExportResponse], error) {
 	ctx, cancel := context.WithTimeout(ctx, constants.DefaultRequestTimeout)
 	defer cancel()
-	id, err := uuid.Parse(strings.TrimSpace(req.Msg.GetId()))
+	id, err := parseExportID(strings.TrimSpace(req.Msg.GetId()))
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidExportID)
 	}

@@ -4,7 +4,9 @@ package recovery
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -34,11 +36,15 @@ func NewService(repo RecoveryRepository, log *logrus.Logger, recordingsRoot stri
 
 // RecoveryResult captures how many previous-process executions were finalized.
 type RecoveryResult struct {
-	TotalActive int `json:"total_active"`
-	Recovered   int `json:"recovered"`
-	Failed      int `json:"failed"`
-	Skipped     int `json:"skipped"`
+	TotalActive           int `json:"total_active"`
+	Recovered             int `json:"recovered"`
+	Failed                int `json:"failed"`
+	Skipped               int `json:"skipped"`
+	ArtifactTempsRemoved  int `json:"artifact_temps_removed"`
+	ArtifactCleanupFailed int `json:"artifact_cleanup_failed"`
 }
+
+const interruptedExecutionErrorPrefix = "Execution interrupted due to service restart at "
 
 // RecoverInterruptedExecutions finalizes all rows left active by the previous
 // API process. Call this before serving requests or starting the scheduler so
@@ -53,13 +59,16 @@ func (s *Service) RecoverInterruptedExecutions(ctx context.Context) (*RecoveryRe
 
 	if len(activeExecutions) == 0 {
 		s.log.Info("No interrupted executions found during recovery")
-		return result, nil
+	} else {
+		s.log.WithField("count", len(activeExecutions)).Info("Found active executions from previous process")
 	}
-
-	s.log.WithField("count", len(activeExecutions)).Info("Found active executions from previous process")
 	recoveredAt := time.Now()
 
 	for _, exec := range activeExecutions {
+		if err := ctx.Err(); err != nil {
+			result.Skipped += len(activeExecutions) - result.Recovered - result.Failed - result.Skipped
+			return result, errors.Join(err, recoveryFailureSummary(result))
+		}
 		if exec == nil || exec.ID == uuid.Nil {
 			result.Failed++
 			continue
@@ -75,7 +84,7 @@ func (s *Service) RecoverInterruptedExecutions(ctx context.Context) (*RecoveryRe
 			}
 			exec = fresh
 			exec.Status = database.ExecutionStatusFailed
-			exec.ErrorMessage = fmt.Sprintf("Execution interrupted due to service restart at %s",
+			exec.ErrorMessage = fmt.Sprintf("%s%s", interruptedExecutionErrorPrefix,
 				recoveredAt.Format(time.RFC3339))
 			exec.CompletedAt = &recoveredAt
 			exec.UpdatedAt = recoveredAt
@@ -102,11 +111,25 @@ func (s *Service) RecoverInterruptedExecutions(ctx context.Context) (*RecoveryRe
 		}
 
 	}
+	if err := ctx.Err(); err != nil {
+		return result, errors.Join(err, recoveryFailureSummary(result))
+	}
+	cleanupErr := s.cleanupRecoveredArtifactTemps(ctx, result)
 	if result.Failed > 0 {
-		return result, fmt.Errorf("failed to recover %d of %d interrupted executions", result.Failed, result.TotalActive)
+		return result, errors.Join(fmt.Errorf("failed to recover %d of %d interrupted executions", result.Failed, result.TotalActive), cleanupErr)
+	}
+	if cleanupErr != nil {
+		return result, cleanupErr
 	}
 
 	return result, nil
+}
+
+func recoveryFailureSummary(result *RecoveryResult) error {
+	if result == nil || result.Failed == 0 {
+		return nil
+	}
+	return fmt.Errorf("failed to recover %d of %d interrupted executions", result.Failed, result.TotalActive)
 }
 
 // findActiveExecutions finds all rows that are still active. Startup recovery
@@ -121,4 +144,41 @@ func (s *Service) findActiveExecutions(ctx context.Context) ([]*database.Executi
 		active = append(active, activeExecutions...)
 	}
 	return active, nil
+}
+
+// cleanupRecoveredArtifactTemps removes only atomic-write staging files for
+// executions whose persisted service-restart failure proves the old writer was
+// abandoned. It runs under the same cross-process execution lock as writers,
+// then rechecks the owner row before touching the execution UUID directory.
+func (s *Service) cleanupRecoveredArtifactTemps(ctx context.Context, result *RecoveryResult) error {
+	failedExecutions, _, err := s.repo.ListExecutions(ctx, database.ExecutionQuery{Status: database.ExecutionStatusFailed})
+	if err != nil {
+		result.ArtifactCleanupFailed++
+		return fmt.Errorf("find recovered executions for artifact cleanup: %w", err)
+	}
+	var cleanupErrors []error
+	for _, execution := range failedExecutions {
+		if execution == nil || execution.ID == uuid.Nil || !strings.HasPrefix(execution.ErrorMessage, interruptedExecutionErrorPrefix) {
+			continue
+		}
+		removed := 0
+		lockErr := executionartifactlock.WithLock(ctx, s.recordingsRoot, execution.ID, func(lockCtx context.Context) error {
+			fresh, err := s.repo.GetExecution(lockCtx, execution.ID)
+			if err != nil {
+				return err
+			}
+			if fresh == nil || fresh.Status != database.ExecutionStatusFailed || !strings.HasPrefix(fresh.ErrorMessage, interruptedExecutionErrorPrefix) {
+				return nil
+			}
+			removed, err = removeAbandonedArtifactTempFiles(s.recordingsRoot, execution.ID)
+			return err
+		})
+		if lockErr != nil {
+			result.ArtifactCleanupFailed++
+			cleanupErrors = append(cleanupErrors, fmt.Errorf("cleanup artifacts for execution %s: %w", execution.ID, lockErr))
+			continue
+		}
+		result.ArtifactTempsRemoved += removed
+	}
+	return errors.Join(cleanupErrors...)
 }

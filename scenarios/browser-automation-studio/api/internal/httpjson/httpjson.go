@@ -27,6 +27,14 @@ func Decode(w http.ResponseWriter, r *http.Request, dst any) error {
 	return decode(w, r, dst, false)
 }
 
+// DecodeBounded applies the configured request-size limit while preserving
+// encoding/json's forward-compatible field and first-value behavior. Use it
+// when an existing public endpoint must retain its permissive JSON contract.
+func DecodeBounded(w http.ResponseWriter, r *http.Request, dst any) error {
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, MaxBodyBytes()))
+	return decoder.Decode(dst)
+}
+
 func DecodeAllowEmpty(w http.ResponseWriter, r *http.Request, dst any) error {
 	return decode(w, r, dst, true)
 }

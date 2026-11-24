@@ -25,7 +25,17 @@
         ]
       }
     },
-    "error_type": { "type": "string" }
+    "error_type": { "type": "string" },
+    "runtime_identity": {
+      "type": "object",
+      "required": ["browser_version", "driver_version"],
+      "properties": {
+        "browser_version": { "type": "string", "minLength": 1 },
+        "driver_version": { "type": "string", "minLength": 1 },
+        "driver_browser_version": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    }
   },
   "allOf": [
     {
@@ -35,6 +45,16 @@
     {
       "if": { "properties": { "kind": { "const": "receipt" } }, "required": ["kind"] },
       "then": { "not": { "required": ["elapsed_ms"] } }
+    },
+    {
+      "if": {
+        "properties": {
+          "journey_id": { "enum": ["J26", "J27", "J28", "J29", "J30"] },
+          "outcome": { "const": "ok" }
+        },
+        "required": ["journey_id", "outcome"]
+      },
+      "then": { "required": ["runtime_identity"] }
     }
   ],
   "additionalProperties": false

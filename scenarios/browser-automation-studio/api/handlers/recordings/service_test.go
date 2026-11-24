@@ -8,7 +8,6 @@ import (
 	"github.com/vrooli/browser-automation-studio/internal/testutil/sessionprofilemocks"
 	"net/http"
 	"os"
-	"sync"
 	"testing"
 	"time"
 
@@ -41,153 +40,29 @@ func TestGetStorageStateRejectsPathID(t *testing.T) {
 // Fakes
 // =============================================================================
 
-type fakeRepo struct {
-	mu       sync.Mutex
-	items    map[sessionprofilepersistence.ProfileID]*sessionprofilepersistence.SessionProfile
-	sessions map[string]string // profileID -> sessionID
-	storage  sessionprofile.MaskedStorageState
-	maskErr  error
+type recordingRepoFixture struct {
+	*sessionprofile.Service
+	store *sessionprofilemocks.MockRepository
 }
 
-func newFakeRepo() *fakeRepo {
-	return &fakeRepo{
-		items:    map[sessionprofilepersistence.ProfileID]*sessionprofilepersistence.SessionProfile{},
-		sessions: map[string]string{},
+func newRepoFixture() *recordingRepoFixture {
+	store := sessionprofilemocks.NewMockRepository()
+	return &recordingRepoFixture{
+		Service: sessionprofile.NewService(store, logrus.New()),
+		store:   store,
 	}
 }
 
-func (f *fakeRepo) put(p *sessionprofilepersistence.SessionProfile) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.items[p.ID] = p
+func (r *recordingRepoFixture) put(t *testing.T, profile *sessionprofilepersistence.SessionProfile) {
+	t.Helper()
+	require.NoError(t, r.store.Create(profile))
 }
 
-func (f *fakeRepo) GetProfile(id sessionprofilepersistence.ProfileID) (*sessionprofilepersistence.SessionProfile, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	p, ok := f.items[id]
-	if !ok {
-		return nil, errors.New("session profile not found")
-	}
-	return p, nil
-}
-
-func (f *fakeRepo) UpdateProfile(id sessionprofilepersistence.ProfileID, modify func(*sessionprofilepersistence.SessionProfile) error) (*sessionprofilepersistence.SessionProfile, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	p, ok := f.items[id]
-	if !ok {
-		return nil, errProfileNotFound
-	}
-	if err := modify(p); err != nil {
-		return nil, err
-	}
-	return p, nil
-}
-
-func (f *fakeRepo) UpdateStorageState(id sessionprofilepersistence.ProfileID, modify func(json.RawMessage) (json.RawMessage, error)) (*sessionprofilepersistence.SessionProfile, error) {
-	return f.UpdateProfile(id, func(profile *sessionprofilepersistence.SessionProfile) error {
-		state, err := modify(profile.StorageState)
-		if err != nil {
-			return err
-		}
-		profile.StorageState = state
-		return nil
-	})
-}
-
-func (f *fakeRepo) SaveStorageState(id sessionprofilepersistence.ProfileID, state []byte) (*sessionprofilepersistence.SessionProfile, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	p, ok := f.items[id]
-	if !ok {
-		return nil, errors.New("session profile not found")
-	}
-	p.StorageState = append([]byte(nil), state...)
-	return p, nil
-}
-
-func (f *fakeRepo) MaskStorageState(_ []byte) (*sessionprofile.MaskedStorageState, error) {
-	if f.maskErr != nil {
-		return nil, f.maskErr
-	}
-	out := f.storage
-	return &out, nil
-}
-
-func (f *fakeRepo) GetHistoryWithPruning(id sessionprofilepersistence.ProfileID) ([]sessionprofilepersistence.HistoryEntry, *sessionprofilepersistence.HistorySettings, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	p, ok := f.items[id]
-	if !ok {
-		return nil, nil, errors.New("session profile not found")
-	}
-	return p.History, p.HistorySettings, nil
-}
-
-func (f *fakeRepo) ClearHistory(id sessionprofilepersistence.ProfileID) (*sessionprofilepersistence.SessionProfile, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	p, ok := f.items[id]
-	if !ok {
-		return nil, errors.New("session profile not found")
-	}
-	p.History = nil
-	return p, nil
-}
-
-func (f *fakeRepo) DeleteHistoryEntry(id sessionprofilepersistence.ProfileID, entryID string) (*sessionprofilepersistence.SessionProfile, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	p, ok := f.items[id]
-	if !ok {
-		return nil, errors.New("session profile not found")
-	}
-	kept := make([]sessionprofilepersistence.HistoryEntry, 0, len(p.History))
-	found := false
-	for _, e := range p.History {
-		if e.ID == entryID {
-			found = true
-			continue
-		}
-		kept = append(kept, e)
-	}
-	if !found {
-		return nil, errors.New("entry not found")
-	}
-	p.History = kept
-	return p, nil
-}
-
-func (f *fakeRepo) UpdateHistorySettings(id sessionprofilepersistence.ProfileID, settings *sessionprofilepersistence.HistorySettings) (*sessionprofilepersistence.SessionProfile, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	p, ok := f.items[id]
-	if !ok {
-		return nil, errors.New("session profile not found")
-	}
-	if settings.MaxEntries < 0 || settings.MaxEntries > 10000 {
-		return nil, errors.New("maxEntries must be between 0 and 10000")
-	}
-	p.HistorySettings = settings
-	return p, nil
-}
-
-func (f *fakeRepo) ResolveSessionForProfile(profileID string) (string, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return f.sessions[profileID], nil
-}
-
-func (f *fakeRepo) SaveOpenTabs(id sessionprofilepersistence.ProfileID, tabs []sessionprofilepersistence.TabState) (*sessionprofilepersistence.SessionProfile, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	p, ok := f.items[id]
-	if !ok {
-		return nil, errors.New("session profile not found")
-	}
-	p.OpenTabs = tabs
-	return p, nil
+func (r *recordingRepoFixture) profile(t *testing.T, id string) *sessionprofilepersistence.SessionProfile {
+	t.Helper()
+	profile, err := r.GetProfile(sessionprofilepersistence.ProfileID(id))
+	require.NoError(t, err)
+	return profile
 }
 
 type fakeRecordMode struct {
@@ -279,7 +154,7 @@ func TestModule_PanicsOnMissingDeps(t *testing.T) {
 		Module(Deps{Logger: logrus.New()})
 	})
 	require.PanicsWithValue(t, "recordings.Module requires Deps.RecordMode", func() {
-		Module(Deps{Logger: logrus.New(), Repo: newFakeRepo()})
+		Module(Deps{Logger: logrus.New(), Repo: newRepoFixture()})
 	})
 }
 
@@ -288,14 +163,10 @@ func TestModule_PanicsOnMissingDeps(t *testing.T) {
 // =============================================================================
 
 func TestGetStorageState_HappyPath(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	p := newProfile("prof-1")
-	repo.put(p)
-	repo.storage = sessionprofile.MaskedStorageState{
-		Cookies: []sessionprofile.MaskedCookie{{Name: "sid", Value: "***", ValueMasked: true, Domain: "x.io"}},
-		Origins: []sessionprofile.MaskedOrigin{{Origin: "https://x.io", LocalStorage: []sessionprofile.MaskedLocalStorageItem{{Name: "k", Value: "v"}}}},
-		Stats:   sessionprofile.MaskedStorageStats{CookieCount: 1, LocalStorageCount: 1, OriginCount: 1},
-	}
+	p.StorageState = []byte(`{"cookies":[{"name":"sid","value":"secret","domain":"x.io","httpOnly":true}],"origins":[{"origin":"https://x.io","localStorage":[{"name":"k","value":"v"}]}]}`)
+	repo.put(t, p)
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 
@@ -307,7 +178,7 @@ func TestGetStorageState_HappyPath(t *testing.T) {
 }
 
 func TestGetStorageState_MissingProfileID(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 	_, err := client.GetStorageState(context.Background(), connect.NewRequest(&recordingsv1.GetStorageStateRequest{}))
@@ -316,7 +187,7 @@ func TestGetStorageState_MissingProfileID(t *testing.T) {
 }
 
 func TestGetStorageState_NotFound(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 	_, err := client.GetStorageState(context.Background(), connect.NewRequest(&recordingsv1.GetStorageStateRequest{ProfileId: "missing"}))
@@ -325,20 +196,20 @@ func TestGetStorageState_NotFound(t *testing.T) {
 }
 
 func TestClearAllStorage_HappyPath(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	p := newProfile("prof-1")
 	p.StorageState = []byte(`{"cookies":[{"name":"x","domain":"y.io"}],"origins":[]}`)
-	repo.put(p)
+	repo.put(t, p)
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 	resp, err := client.ClearAllStorage(context.Background(), connect.NewRequest(&recordingsv1.ClearAllStorageRequest{ProfileId: "prof-1"}))
 	require.NoError(t, err)
 	require.Equal(t, "cleared", resp.Msg.GetStatus())
-	require.JSONEq(t, `{"cookies":[],"origins":[]}`, string(p.StorageState))
+	require.JSONEq(t, `{"cookies":[],"origins":[]}`, string(repo.profile(t, string(p.ID)).StorageState))
 }
 
 func TestClearAllStorage_NotFound(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 	_, err := client.ClearAllStorage(context.Background(), connect.NewRequest(&recordingsv1.ClearAllStorageRequest{ProfileId: "ghost"}))
@@ -347,7 +218,7 @@ func TestClearAllStorage_NotFound(t *testing.T) {
 }
 
 func TestClearAllStorage_MissingProfileID(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 	_, err := client.ClearAllStorage(context.Background(), connect.NewRequest(&recordingsv1.ClearAllStorageRequest{}))
@@ -356,25 +227,25 @@ func TestClearAllStorage_MissingProfileID(t *testing.T) {
 }
 
 func TestClearAllCookies_RemovesCookiesKeepsOrigins(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	p := newProfile("p")
 	p.StorageState = []byte(`{"cookies":[{"name":"a","domain":"x"}],"origins":[{"origin":"o","localStorage":[{"name":"k","value":"v"}]}]}`)
-	repo.put(p)
+	repo.put(t, p)
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 	_, err := client.ClearAllCookies(context.Background(), connect.NewRequest(&recordingsv1.ClearAllCookiesRequest{ProfileId: "p"}))
 	require.NoError(t, err)
 	var st playwrightStorageState
-	require.NoError(t, json.Unmarshal(p.StorageState, &st))
+	require.NoError(t, json.Unmarshal(repo.profile(t, string(p.ID)).StorageState, &st))
 	require.Empty(t, st.Cookies)
 	require.Len(t, st.Origins, 1)
 }
 
 func TestDeleteCookiesByDomain_FiltersByDomain(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	p := newProfile("p")
 	p.StorageState = []byte(`{"cookies":[{"name":"a","domain":"x"},{"name":"b","domain":"y"}],"origins":[]}`)
-	repo.put(p)
+	repo.put(t, p)
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 
@@ -386,46 +257,46 @@ func TestDeleteCookiesByDomain_FiltersByDomain(t *testing.T) {
 	_, err = client.DeleteCookiesByDomain(context.Background(), connect.NewRequest(&recordingsv1.DeleteCookiesByDomainRequest{ProfileId: "p", Domain: "x"}))
 	require.NoError(t, err)
 	var st playwrightStorageState
-	require.NoError(t, json.Unmarshal(p.StorageState, &st))
+	require.NoError(t, json.Unmarshal(repo.profile(t, string(p.ID)).StorageState, &st))
 	require.Len(t, st.Cookies, 1)
 	require.Equal(t, "y", st.Cookies[0].Domain)
 }
 
 func TestDeleteCookie_RemovesSpecific(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	p := newProfile("p")
 	p.StorageState = []byte(`{"cookies":[{"name":"a","domain":"x"},{"name":"b","domain":"x"}],"origins":[]}`)
-	repo.put(p)
+	repo.put(t, p)
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 	_, err := client.DeleteCookie(context.Background(), connect.NewRequest(&recordingsv1.DeleteCookieRequest{ProfileId: "p", Domain: "x", Name: "a"}))
 	require.NoError(t, err)
 	var st playwrightStorageState
-	require.NoError(t, json.Unmarshal(p.StorageState, &st))
+	require.NoError(t, json.Unmarshal(repo.profile(t, string(p.ID)).StorageState, &st))
 	require.Len(t, st.Cookies, 1)
 	require.Equal(t, "b", st.Cookies[0].Name)
 }
 
 func TestClearAllLocalStorage_RemovesOriginsKeepsCookies(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	p := newProfile("p")
 	p.StorageState = []byte(`{"cookies":[{"name":"a","domain":"x"}],"origins":[{"origin":"o","localStorage":[]}]}`)
-	repo.put(p)
+	repo.put(t, p)
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 	_, err := client.ClearAllLocalStorage(context.Background(), connect.NewRequest(&recordingsv1.ClearAllLocalStorageRequest{ProfileId: "p"}))
 	require.NoError(t, err)
 	var st playwrightStorageState
-	require.NoError(t, json.Unmarshal(p.StorageState, &st))
+	require.NoError(t, json.Unmarshal(repo.profile(t, string(p.ID)).StorageState, &st))
 	require.Empty(t, st.Origins)
 	require.Len(t, st.Cookies, 1)
 }
 
 func TestDeleteLocalStorageByOrigin(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	p := newProfile("p")
 	p.StorageState = []byte(`{"cookies":[],"origins":[{"origin":"a","localStorage":[]},{"origin":"b","localStorage":[]}]}`)
-	repo.put(p)
+	repo.put(t, p)
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 	// missing origin → InvalidArgument
@@ -436,22 +307,22 @@ func TestDeleteLocalStorageByOrigin(t *testing.T) {
 	_, err = client.DeleteLocalStorageByOrigin(context.Background(), connect.NewRequest(&recordingsv1.DeleteLocalStorageByOriginRequest{ProfileId: "p", Origin: "a"}))
 	require.NoError(t, err)
 	var st playwrightStorageState
-	require.NoError(t, json.Unmarshal(p.StorageState, &st))
+	require.NoError(t, json.Unmarshal(repo.profile(t, string(p.ID)).StorageState, &st))
 	require.Len(t, st.Origins, 1)
 	require.Equal(t, "b", st.Origins[0].Origin)
 }
 
 func TestDeleteLocalStorageItem_RemovesAndPrunesEmptyOrigin(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	p := newProfile("p")
 	p.StorageState = []byte(`{"cookies":[],"origins":[{"origin":"o","localStorage":[{"name":"a","value":"1"},{"name":"b","value":"2"}]}]}`)
-	repo.put(p)
+	repo.put(t, p)
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 	_, err := client.DeleteLocalStorageItem(context.Background(), connect.NewRequest(&recordingsv1.DeleteLocalStorageItemRequest{ProfileId: "p", Origin: "o", Name: "a"}))
 	require.NoError(t, err)
 	var st playwrightStorageState
-	require.NoError(t, json.Unmarshal(p.StorageState, &st))
+	require.NoError(t, json.Unmarshal(repo.profile(t, string(p.ID)).StorageState, &st))
 	require.Len(t, st.Origins, 1)
 	require.Len(t, st.Origins[0].LocalStorage, 1)
 	require.Equal(t, "b", st.Origins[0].LocalStorage[0].Name)
@@ -459,7 +330,7 @@ func TestDeleteLocalStorageItem_RemovesAndPrunesEmptyOrigin(t *testing.T) {
 	// removing the last key prunes the origin
 	_, err = client.DeleteLocalStorageItem(context.Background(), connect.NewRequest(&recordingsv1.DeleteLocalStorageItemRequest{ProfileId: "p", Origin: "o", Name: "b"}))
 	require.NoError(t, err)
-	require.NoError(t, json.Unmarshal(p.StorageState, &st))
+	require.NoError(t, json.Unmarshal(repo.profile(t, string(p.ID)).StorageState, &st))
 	require.Empty(t, st.Origins)
 }
 
@@ -468,7 +339,7 @@ func TestDeleteLocalStorageItem_RemovesAndPrunesEmptyOrigin(t *testing.T) {
 // =============================================================================
 
 func TestGetServiceWorkers_NoActiveSession(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 	resp, err := client.GetServiceWorkers(context.Background(), connect.NewRequest(&recordingsv1.GetServiceWorkersRequest{ProfileId: "p"}))
@@ -479,8 +350,8 @@ func TestGetServiceWorkers_NoActiveSession(t *testing.T) {
 }
 
 func TestGetServiceWorkers_HappyPath(t *testing.T) {
-	repo := newFakeRepo()
-	repo.sessions["p"] = "sess-1"
+	repo := newRepoFixture()
+	repo.SetActiveSession("sess-1", "p")
 	rm := &fakeRecordMode{
 		swResp: &autodriver.GetServiceWorkersResponse{
 			SessionID: "sess-1",
@@ -498,8 +369,8 @@ func TestGetServiceWorkers_HappyPath(t *testing.T) {
 }
 
 func TestGetServiceWorkers_DriverError(t *testing.T) {
-	repo := newFakeRepo()
-	repo.sessions["p"] = "sess-1"
+	repo := newRepoFixture()
+	repo.SetActiveSession("sess-1", "p")
 	rm := &fakeRecordMode{swErr: errors.New("driver down")}
 	client, cleanup := newTestServer(t, repo, rm)
 	defer cleanup()
@@ -509,7 +380,7 @@ func TestGetServiceWorkers_DriverError(t *testing.T) {
 }
 
 func TestGetServiceWorkers_MissingProfileID(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 	_, err := client.GetServiceWorkers(context.Background(), connect.NewRequest(&recordingsv1.GetServiceWorkersRequest{}))
@@ -518,7 +389,7 @@ func TestGetServiceWorkers_MissingProfileID(t *testing.T) {
 }
 
 func TestClearAllServiceWorkers_NoActiveSession(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 	resp, err := client.ClearAllServiceWorkers(context.Background(), connect.NewRequest(&recordingsv1.ClearAllServiceWorkersRequest{ProfileId: "p"}))
@@ -527,7 +398,7 @@ func TestClearAllServiceWorkers_NoActiveSession(t *testing.T) {
 }
 
 func TestDeleteServiceWorker_NoActiveSession(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 	_, err := client.DeleteServiceWorker(context.Background(), connect.NewRequest(&recordingsv1.DeleteServiceWorkerRequest{ProfileId: "p", ScopeUrl: "https://x"}))
@@ -536,7 +407,7 @@ func TestDeleteServiceWorker_NoActiveSession(t *testing.T) {
 }
 
 func TestDeleteServiceWorker_MissingScopeURL(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 	_, err := client.DeleteServiceWorker(context.Background(), connect.NewRequest(&recordingsv1.DeleteServiceWorkerRequest{ProfileId: "p"}))
@@ -545,8 +416,8 @@ func TestDeleteServiceWorker_MissingScopeURL(t *testing.T) {
 }
 
 func TestDeleteServiceWorker_DriverError(t *testing.T) {
-	repo := newFakeRepo()
-	repo.sessions["p"] = "sess-1"
+	repo := newRepoFixture()
+	repo.SetActiveSession("sess-1", "p")
 	rm := &fakeRecordMode{deleteResp: &autodriver.UnregisterServiceWorkerResponse{SessionID: "sess-1", Error: "not registered"}}
 	client, cleanup := newTestServer(t, repo, rm)
 	defer cleanup()
@@ -620,14 +491,14 @@ func TestProfileScopedLiveOperationsRejectAmbiguousBindings(t *testing.T) {
 // =============================================================================
 
 func TestGetHistory_HappyPath(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	p := newProfile("p")
 	p.History = []sessionprofilepersistence.HistoryEntry{
 		{ID: "e2", URL: "https://b", Timestamp: "2025-01-02T00:00:00Z"},
 		{ID: "e1", URL: "https://a", Timestamp: "2025-01-01T00:00:00Z"},
 	}
-	p.HistorySettings = sessionprofilepersistence.DefaultHistorySettings()
-	repo.put(p)
+	p.HistorySettings = &sessionprofilepersistence.HistorySettings{MaxEntries: 2}
+	repo.put(t, p)
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 	resp, err := client.GetHistory(context.Background(), connect.NewRequest(&recordingsv1.GetHistoryRequest{ProfileId: "p"}))
@@ -640,7 +511,7 @@ func TestGetHistory_HappyPath(t *testing.T) {
 }
 
 func TestGetHistory_NotFound(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 	_, err := client.GetHistory(context.Background(), connect.NewRequest(&recordingsv1.GetHistoryRequest{ProfileId: "missing"}))
@@ -649,22 +520,22 @@ func TestGetHistory_NotFound(t *testing.T) {
 }
 
 func TestClearHistory_HappyPath(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	p := newProfile("p")
 	p.History = []sessionprofilepersistence.HistoryEntry{{ID: "e1"}}
-	repo.put(p)
+	repo.put(t, p)
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 	resp, err := client.ClearHistory(context.Background(), connect.NewRequest(&recordingsv1.ClearHistoryRequest{ProfileId: "p"}))
 	require.NoError(t, err)
 	require.Equal(t, "cleared", resp.Msg.GetStatus())
-	require.Empty(t, p.History)
+	require.Empty(t, repo.profile(t, string(p.ID)).History)
 }
 
 func TestDeleteHistoryEntry_NotFound(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	p := newProfile("p")
-	repo.put(p)
+	repo.put(t, p)
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 	_, err := client.DeleteHistoryEntry(context.Background(), connect.NewRequest(&recordingsv1.DeleteHistoryEntryRequest{ProfileId: "p", EntryId: "ghost"}))
@@ -673,7 +544,7 @@ func TestDeleteHistoryEntry_NotFound(t *testing.T) {
 }
 
 func TestDeleteHistoryEntry_MissingEntryID(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 	_, err := client.DeleteHistoryEntry(context.Background(), connect.NewRequest(&recordingsv1.DeleteHistoryEntryRequest{ProfileId: "p"}))
@@ -682,9 +553,9 @@ func TestDeleteHistoryEntry_MissingEntryID(t *testing.T) {
 }
 
 func TestUpdateHistorySettings_HappyPath(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	p := newProfile("p")
-	repo.put(p)
+	repo.put(t, p)
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 	resp, err := client.UpdateHistorySettings(context.Background(), connect.NewRequest(&recordingsv1.UpdateHistorySettingsRequest{
@@ -696,9 +567,9 @@ func TestUpdateHistorySettings_HappyPath(t *testing.T) {
 }
 
 func TestUpdateHistorySettings_OutOfRange(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	p := newProfile("p")
-	repo.put(p)
+	repo.put(t, p)
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 	_, err := client.UpdateHistorySettings(context.Background(), connect.NewRequest(&recordingsv1.UpdateHistorySettingsRequest{
@@ -710,7 +581,7 @@ func TestUpdateHistorySettings_OutOfRange(t *testing.T) {
 }
 
 func TestUpdateHistorySettings_MissingSettings(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 	_, err := client.UpdateHistorySettings(context.Background(), connect.NewRequest(&recordingsv1.UpdateHistorySettingsRequest{ProfileId: "p"}))
@@ -719,8 +590,8 @@ func TestUpdateHistorySettings_MissingSettings(t *testing.T) {
 }
 
 func TestNavigateToHistoryURL_HappyPath(t *testing.T) {
-	repo := newFakeRepo()
-	repo.sessions["p"] = "sess-1"
+	repo := newRepoFixture()
+	repo.SetActiveSession("sess-1", "p")
 	owner := uuid.New()
 	requests := make(chan map[string]any, 1)
 	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -753,8 +624,8 @@ func TestNavigateToHistoryURL_HappyPath(t *testing.T) {
 func TestNavigateToHistoryURL_NoSession(t *testing.T) {
 	for _, id := range []string{"", "orphaned-profile-binding"} {
 		t.Run(id, func(t *testing.T) {
-			repo := newFakeRepo()
-			repo.sessions["p"] = id
+			repo := newRepoFixture()
+			repo.SetActiveSession(id, "p")
 			client, cleanup := newTestServer(t, repo, nil)
 			defer cleanup()
 			_, err := client.NavigateToHistoryURL(context.Background(), connect.NewRequest(&recordingsv1.NavigateToHistoryURLRequest{ProfileId: "p", Url: "https://x"}))
@@ -765,7 +636,7 @@ func TestNavigateToHistoryURL_NoSession(t *testing.T) {
 }
 
 func TestNavigateToHistoryURL_MissingURL(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 	_, err := client.NavigateToHistoryURL(context.Background(), connect.NewRequest(&recordingsv1.NavigateToHistoryURLRequest{ProfileId: "p"}))
@@ -778,13 +649,13 @@ func TestNavigateToHistoryURL_MissingURL(t *testing.T) {
 // =============================================================================
 
 func TestGetSessionTabs_HappyPath(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	p := newProfile("p")
 	p.OpenTabs = []sessionprofilepersistence.TabState{
 		{URL: "https://a", Title: "A", IsActive: true, Order: 0},
 		{URL: "https://b", Title: "B", Order: 1},
 	}
-	repo.put(p)
+	repo.put(t, p)
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 	resp, err := client.GetSessionTabs(context.Background(), connect.NewRequest(&recordingsv1.GetSessionTabsRequest{ProfileId: "p"}))
@@ -794,7 +665,7 @@ func TestGetSessionTabs_HappyPath(t *testing.T) {
 }
 
 func TestGetSessionTabs_NotFound(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 	_, err := client.GetSessionTabs(context.Background(), connect.NewRequest(&recordingsv1.GetSessionTabsRequest{ProfileId: "ghost"}))
@@ -803,41 +674,41 @@ func TestGetSessionTabs_NotFound(t *testing.T) {
 }
 
 func TestClearSessionTabs_HappyPath(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	p := newProfile("p")
 	p.OpenTabs = []sessionprofilepersistence.TabState{{URL: "https://a", Order: 0}}
-	repo.put(p)
+	repo.put(t, p)
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 	resp, err := client.ClearSessionTabs(context.Background(), connect.NewRequest(&recordingsv1.ClearSessionTabsRequest{ProfileId: "p"}))
 	require.NoError(t, err)
 	require.Equal(t, "cleared", resp.Msg.GetStatus())
-	require.Empty(t, p.OpenTabs)
+	require.Empty(t, repo.profile(t, string(p.ID)).OpenTabs)
 }
 
 func TestDeleteSessionTab_HappyPath(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	p := newProfile("p")
 	p.OpenTabs = []sessionprofilepersistence.TabState{
 		{URL: "https://a", Order: 0},
 		{URL: "https://b", Order: 1},
 		{URL: "https://c", Order: 2},
 	}
-	repo.put(p)
+	repo.put(t, p)
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 	resp, err := client.DeleteSessionTab(context.Background(), connect.NewRequest(&recordingsv1.DeleteSessionTabRequest{ProfileId: "p", Order: 1}))
 	require.NoError(t, err)
 	require.Equal(t, "deleted", resp.Msg.GetStatus())
-	require.Len(t, p.OpenTabs, 2)
-	require.Equal(t, "https://a", p.OpenTabs[0].URL)
-	require.Equal(t, 0, p.OpenTabs[0].Order)
-	require.Equal(t, "https://c", p.OpenTabs[1].URL)
-	require.Equal(t, 1, p.OpenTabs[1].Order) // renumbered
+	require.Len(t, repo.profile(t, string(p.ID)).OpenTabs, 2)
+	require.Equal(t, "https://a", repo.profile(t, string(p.ID)).OpenTabs[0].URL)
+	require.Equal(t, 0, repo.profile(t, string(p.ID)).OpenTabs[0].Order)
+	require.Equal(t, "https://c", repo.profile(t, string(p.ID)).OpenTabs[1].URL)
+	require.Equal(t, 1, repo.profile(t, string(p.ID)).OpenTabs[1].Order) // renumbered
 }
 
 func TestDeleteSessionTabRepairsPopupOpenerOrders(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	p := newProfile("p")
 	rootOrder, childOrder := 0, 1
 	p.OpenTabs = []sessionprofilepersistence.TabState{
@@ -845,25 +716,25 @@ func TestDeleteSessionTabRepairsPopupOpenerOrders(t *testing.T) {
 		{URL: "https://popup", Order: 1, OpenerOrder: &rootOrder},
 		{URL: "https://nested-popup", Order: 2, OpenerOrder: &childOrder},
 	}
-	repo.put(p)
+	repo.put(t, p)
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 
 	_, err := client.DeleteSessionTab(context.Background(), connect.NewRequest(&recordingsv1.DeleteSessionTabRequest{ProfileId: "p", Order: 0}))
 	require.NoError(t, err)
-	require.Len(t, p.OpenTabs, 2)
-	require.Equal(t, "https://popup", p.OpenTabs[0].URL)
-	require.Nil(t, p.OpenTabs[0].OpenerOrder, "deleted opener must not be rebound to another saved tab")
-	require.Equal(t, "https://nested-popup", p.OpenTabs[1].URL)
-	require.NotNil(t, p.OpenTabs[1].OpenerOrder)
-	require.Equal(t, 0, *p.OpenTabs[1].OpenerOrder, "retained opener relationship follows renumbered parent")
+	require.Len(t, repo.profile(t, string(p.ID)).OpenTabs, 2)
+	require.Equal(t, "https://popup", repo.profile(t, string(p.ID)).OpenTabs[0].URL)
+	require.Nil(t, repo.profile(t, string(p.ID)).OpenTabs[0].OpenerOrder, "deleted opener must not be rebound to another saved tab")
+	require.Equal(t, "https://nested-popup", repo.profile(t, string(p.ID)).OpenTabs[1].URL)
+	require.NotNil(t, repo.profile(t, string(p.ID)).OpenTabs[1].OpenerOrder)
+	require.Equal(t, 0, *repo.profile(t, string(p.ID)).OpenTabs[1].OpenerOrder, "retained opener relationship follows renumbered parent")
 }
 
 func TestDeleteSessionTab_NotFound(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	p := newProfile("p")
 	p.OpenTabs = []sessionprofilepersistence.TabState{{URL: "https://a", Order: 0}}
-	repo.put(p)
+	repo.put(t, p)
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 	_, err := client.DeleteSessionTab(context.Background(), connect.NewRequest(&recordingsv1.DeleteSessionTabRequest{ProfileId: "p", Order: 99}))
@@ -873,7 +744,7 @@ func TestDeleteSessionTab_NotFound(t *testing.T) {
 }
 
 func TestDeleteSessionTab_MissingProfileID(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 	_, err := client.DeleteSessionTab(context.Background(), connect.NewRequest(&recordingsv1.DeleteSessionTabRequest{}))
@@ -884,27 +755,41 @@ func TestDeleteSessionTab_MissingProfileID(t *testing.T) {
 // A competing committed value is visible before transaction admission. Legacy
 // Get/Save callers receive their earlier snapshot and must not overwrite it.
 type concurrentProfileEdit struct {
-	*fakeRepo
+	*recordingRepoFixture
 	latest *sessionprofilepersistence.SessionProfile
 }
 
+func (r *concurrentProfileEdit) commitLatest(id sessionprofilepersistence.ProfileID) error {
+	_, err := r.recordingRepoFixture.UpdateProfile(id, func(current *sessionprofilepersistence.SessionProfile) error {
+		*current = *r.latest
+		return nil
+	})
+	return err
+}
+
 func (r *concurrentProfileEdit) GetProfile(id sessionprofilepersistence.ProfileID) (*sessionprofilepersistence.SessionProfile, error) {
-	old, err := r.fakeRepo.GetProfile(id)
+	old, err := r.recordingRepoFixture.GetProfile(id)
 	if err != nil {
 		return nil, err
 	}
-	r.put(r.latest)
+	if err := r.commitLatest(id); err != nil {
+		return nil, err
+	}
 	return old, nil
 }
 
 func (r *concurrentProfileEdit) UpdateProfile(id sessionprofilepersistence.ProfileID, modify func(*sessionprofilepersistence.SessionProfile) error) (*sessionprofilepersistence.SessionProfile, error) {
-	r.put(r.latest)
-	return r.fakeRepo.UpdateProfile(id, modify)
+	if err := r.commitLatest(id); err != nil {
+		return nil, err
+	}
+	return r.recordingRepoFixture.UpdateProfile(id, modify)
 }
 
 func (r *concurrentProfileEdit) UpdateStorageState(id sessionprofilepersistence.ProfileID, modify func(json.RawMessage) (json.RawMessage, error)) (*sessionprofilepersistence.SessionProfile, error) {
-	r.put(r.latest)
-	return r.fakeRepo.UpdateStorageState(id, modify)
+	if err := r.commitLatest(id); err != nil {
+		return nil, err
+	}
+	return r.recordingRepoFixture.UpdateStorageState(id, modify)
 }
 
 // [REQ:BAS-RH-J06] Targeted edits preserve a separately acknowledged addition.
@@ -916,22 +801,22 @@ func TestRecordingProfileEditsPreserveConcurrentAddition(t *testing.T) {
 			latest.StorageState = []byte(`{"cookies":[{"domain":"fixture.invalid","name":"remove","value":"old"},{"domain":"fixture.invalid","name":"keep","value":"new"}],"origins":[]}`)
 			old.OpenTabs = []sessionprofilepersistence.TabState{{URL: "https://fixture.invalid/remove", Order: 0}}
 			latest.OpenTabs = append(append([]sessionprofilepersistence.TabState(nil), old.OpenTabs...), sessionprofilepersistence.TabState{URL: "https://fixture.invalid/keep", Order: 1})
-			repo := &concurrentProfileEdit{fakeRepo: newFakeRepo(), latest: latest}
-			repo.put(old)
+			repo := &concurrentProfileEdit{recordingRepoFixture: newRepoFixture(), latest: latest}
+			repo.put(t, old)
 			client, closeServer := newTestServer(t, repo, nil)
 			defer closeServer()
 			if target == "cookie" {
 				_, err := client.DeleteCookie(context.Background(), connect.NewRequest(&recordingsv1.DeleteCookieRequest{ProfileId: "identity", Domain: "fixture.invalid", Name: "remove"}))
 				require.NoError(t, err)
 				var state playwrightStorageState
-				require.NoError(t, json.Unmarshal(latest.StorageState, &state))
+				require.NoError(t, json.Unmarshal(repo.profile(t, "identity").StorageState, &state))
 				require.Len(t, state.Cookies, 1)
 				require.Equal(t, "keep", state.Cookies[0].Name)
 				require.Equal(t, "new", state.Cookies[0].Value)
 			} else {
 				_, err := client.DeleteSessionTab(context.Background(), connect.NewRequest(&recordingsv1.DeleteSessionTabRequest{ProfileId: "identity", Order: 0}))
 				require.NoError(t, err)
-				require.Equal(t, []sessionprofilepersistence.TabState{{URL: "https://fixture.invalid/keep", Order: 0}}, latest.OpenTabs)
+				require.Equal(t, []sessionprofilepersistence.TabState{{URL: "https://fixture.invalid/keep", Order: 0}}, repo.profile(t, "identity").OpenTabs)
 			}
 		})
 	}
@@ -939,16 +824,16 @@ func TestRecordingProfileEditsPreserveConcurrentAddition(t *testing.T) {
 
 // Adversarial oracle: deleting a cookie cannot discard another authentication store.
 func TestCookieEditPreservesOtherAuthenticationState(t *testing.T) {
-	repo := newFakeRepo()
+	repo := newRepoFixture()
 	profile := newProfile("identity")
 	profile.StorageState = []byte(`{"cookies":[{"name":"remove","value":"old","domain":"fixture.invalid","path":"/","expires":-1,"httpOnly":false,"secure":true,"sameSite":"Lax"},{"name":"keep","value":"secret","domain":"fixture.invalid","path":"/","expires":-1,"httpOnly":false,"secure":true,"sameSite":"Lax","partitionKey":"https://fixture.invalid"}],"origins":[{"origin":"https://fixture.invalid","localStorage":[{"name":"identity","value":"local"}],"indexedDB":[{"name":"auth","version":1,"stores":[{"name":"tokens","records":[{"key":"session","value":"opaque-token"}]}]}]}]}`)
-	repo.put(profile)
+	repo.put(t, profile)
 	client, cleanup := newTestServer(t, repo, nil)
 	defer cleanup()
 	_, err := client.DeleteCookie(context.Background(), connect.NewRequest(&recordingsv1.DeleteCookieRequest{ProfileId: "identity", Domain: "fixture.invalid", Name: "remove"}))
 	require.NoError(t, err)
 	expected := `{"cookies":[{"name":"keep","value":"secret","domain":"fixture.invalid","path":"/","expires":-1,"httpOnly":false,"secure":true,"sameSite":"Lax","partitionKey":"https://fixture.invalid"}],"origins":[{"origin":"https://fixture.invalid","localStorage":[{"name":"identity","value":"local"}],"indexedDB":[{"name":"auth","version":1,"stores":[{"name":"tokens","records":[{"key":"session","value":"opaque-token"}]}]}]}]}`
-	require.JSONEq(t, expected, string(profile.StorageState), "a targeted cookie deletion must preserve other authentication state")
+	require.JSONEq(t, expected, string(repo.profile(t, string(profile.ID)).StorageState), "a targeted cookie deletion must preserve other authentication state")
 }
 
 // Minimal test projection for assertions about known cookie/localStorage fields.
@@ -1002,15 +887,15 @@ func TestLocalStorageEditsPreserveOpaqueState(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			repo := newFakeRepo()
+			repo := newRepoFixture()
 			profile := newProfile("identity")
 			profile.StorageState = []byte(fixture)
-			repo.put(profile)
+			repo.put(t, profile)
 			client, cleanup := newTestServer(t, repo, nil)
 			defer cleanup()
 			require.NoError(t, tc.edit(client))
 			var state map[string]json.RawMessage
-			require.NoError(t, json.Unmarshal(profile.StorageState, &state))
+			require.NoError(t, json.Unmarshal(repo.profile(t, string(profile.ID)).StorageState, &state))
 			require.JSONEq(t, `[{"name":"cookie","partitionKey":"partition"}]`, string(state["cookies"]))
 			require.Contains(t, string(state["futureRoot"]), "9007199254740993", "opaque integers must not pass through float64")
 			var origins []map[string]json.RawMessage
@@ -1031,30 +916,30 @@ func TestLocalStorageEditsPreserveOpaqueState(t *testing.T) {
 func TestMalformedTargetedStorageEditPreservesSnapshot(t *testing.T) {
 	for _, fixture := range []string{`{"cookies":"malformed","origins":[]}`, `{"cookies":[42],"origins":[]}`, `{"cookies":[null],"origins":[]}`} {
 		t.Run(fixture, func(t *testing.T) {
-			repo := newFakeRepo()
+			repo := newRepoFixture()
 			profile := newProfile("identity")
 			profile.StorageState = []byte(fixture)
-			repo.put(profile)
+			repo.put(t, profile)
 			client, cleanup := newTestServer(t, repo, nil)
 			defer cleanup()
 			_, err := client.DeleteCookie(context.Background(), connect.NewRequest(&recordingsv1.DeleteCookieRequest{ProfileId: "identity", Domain: "fixture.invalid", Name: "remove"}))
 			require.Error(t, err)
 			require.Equal(t, connect.CodeInternal, connect.CodeOf(err))
-			require.Equal(t, fixture, string(profile.StorageState))
+			require.Equal(t, fixture, string(repo.profile(t, string(profile.ID)).StorageState))
 		})
 	}
 	for _, fixture := range []string{`{"origins":"malformed"}`, `{"origins":[{"origin":"https://fixture.invalid","localStorage":"malformed"}]}`, `{"origins":[{"origin":"https://fixture.invalid","localStorage":[null]}]}`} {
 		t.Run(fixture, func(t *testing.T) {
-			repo := newFakeRepo()
+			repo := newRepoFixture()
 			profile := newProfile("identity")
 			profile.StorageState = []byte(fixture)
-			repo.put(profile)
+			repo.put(t, profile)
 			client, cleanup := newTestServer(t, repo, nil)
 			defer cleanup()
 			_, err := client.DeleteLocalStorageItem(context.Background(), connect.NewRequest(&recordingsv1.DeleteLocalStorageItemRequest{ProfileId: "identity", Origin: "https://fixture.invalid", Name: "remove"}))
 			require.Error(t, err)
 			require.Equal(t, connect.CodeInternal, connect.CodeOf(err))
-			require.Equal(t, fixture, string(profile.StorageState))
+			require.Equal(t, fixture, string(repo.profile(t, string(profile.ID)).StorageState))
 		})
 	}
 }

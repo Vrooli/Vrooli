@@ -48,7 +48,7 @@ The established `browser_automation_studio.v1` proto package prefix is retained 
 
 ## Documentation Architecture
 
-This document and [Domains](DOMAINS.md) are canonical. Operational procedures live in `docs/operations`; stable facts live in `docs/reference`; old plans are historical.
+This document and [Domains](DOMAINS.md) are canonical. `docs/SYSTEM_ARCHITECTURE.md` is the short route index to this map and the focused architecture spokes. Operational procedures live in `docs/operations`; stable facts live in `docs/reference`; old plans are historical.
 
 ## Cross-References
 

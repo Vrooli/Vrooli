@@ -6,6 +6,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@/test-utils';
 import { expectNoA11yViolations } from '@vrooli/api-base/testing';
 import userEvent from '@testing-library/user-event';
+import { create } from '@bufbuild/protobuf';
+import { AIInferenceReceiptSchema } from '@vrooli/proto-types/browser-automation-studio/v1/ai/ai_pb';
 import { AIMessageBubble } from './AIMessageBubble';
 import { createUserMessage, createAssistantMessage, createSystemMessage, type AIMessage } from './types';
 import type { AINavigationStep } from '../ai-navigation/types';
@@ -159,6 +161,35 @@ describe('AIMessageBubble', () => {
       render(<AIMessageBubble message={message} />);
 
       expect(screen.getByText('1,500 tokens used')).toBeInTheDocument();
+    });
+
+    it('shows an exact Gateway receipt as driver-reported evidence', async () => {
+      const user = userEvent.setup();
+      const message: AIMessage = {
+        ...createAssistantMessage('nav-1'),
+        status: 'completed',
+        steps: [{
+          ...mockStep,
+          inferenceReceipt: create(AIInferenceReceiptSchema, {
+            rootOperationId: 'operation-1',
+            source: 'vrooli-credits',
+            provider: 'provider-a',
+            model: 'model-a',
+            inputTokens: '12',
+            outputTokens: '4',
+            costMicros: '90071992547409931',
+            creditsCharged: '17',
+          }),
+        }],
+      };
+      render(<AIMessageBubble message={message} />);
+
+      await user.click(screen.getByRole('button', { name: /Click/ }));
+
+      expect(screen.getByText('Gateway receipt · driver reported')).toBeInTheDocument();
+      expect(screen.getByText('Cost (micros): 90071992547409931')).toBeInTheDocument();
+      expect(screen.getByText('Credits charged: 17')).toBeInTheDocument();
+      expect(screen.getByText(/does not authorize settlement/i)).toBeInTheDocument();
     });
   });
 

@@ -2,6 +2,9 @@ package capture
 
 import (
 	"context"
+	"crypto/sha256"
+	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +19,9 @@ import (
 	"buf.build/go/protovalidate"
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
+	apiidentity "github.com/vrooli/api-core/identity"
+	"github.com/vrooli/browser-automation-studio/database"
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
@@ -82,7 +88,35 @@ func (s *service) Capture(
 	req *connect.Request[capturev1.CaptureRequest],
 ) (*connect.Response[capturev1.CaptureResponse], error) {
 	start := s.deps.Now()
+	if s.deps.ServiceAdmission != nil {
+		authorization := strings.TrimSpace(req.Header().Get("Authorization"))
+		if authorization != "" {
+			principal, release, authErr := s.deps.ServiceAdmission.Admit(ctx, req.Header())
+			if authErr != nil {
+				if s.deps.ServiceAdmission.IsLimitError(authErr) {
+					return nil, connect.NewError(connect.CodeResourceExhausted, authErr)
+				}
+				return nil, connect.NewError(connect.CodeUnauthenticated, authErr)
+			}
+			defer release()
+			ctx = apiidentity.WithPrincipal(ctx, principal)
+			ctx = monetization.WithUserIdentity(ctx, "")
+			ctx = monetization.WithSnapshot(ctx, nil)
+		} else if monetization.UserIdentityFromContext(ctx) == "" {
+			return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("authenticated account or BAS capture service bearer required"))
+		}
+	}
 	msg := req.Msg
+	if strings.TrimSpace(msg.GetRequestToken()) != "" {
+		token, tokenErr := NormalizeRequestToken(msg.GetRequestToken())
+		if tokenErr != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, tokenErr)
+		}
+		if token != msg.GetRequestToken() {
+			msg = proto.Clone(msg).(*capturev1.CaptureRequest)
+			msg.RequestToken = token
+		}
+	}
 	plan, err := s.prepareCapture(ctx, msg)
 	if err != nil {
 		return nil, err
@@ -90,6 +124,54 @@ func (s *service) Capture(
 
 	if isDryRun(req.Header().Get("X-Dry-Run")) {
 		return dryRunResponse(msg, plan)
+	}
+	var operation *CaptureRequestRecord
+	if strings.TrimSpace(msg.GetRequestToken()) != "" {
+		if s.deps.RequestStore == nil {
+			return nil, connect.NewError(connect.CodeUnavailable, errors.New("capture request idempotency store is unavailable"))
+		}
+		token, tokenErr := NormalizeRequestToken(msg.GetRequestToken())
+		if tokenErr != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, tokenErr)
+		}
+		clone := proto.Clone(msg).(*capturev1.CaptureRequest)
+		clone.RequestToken = ""
+		canonical, marshalErr := (proto.MarshalOptions{Deterministic: true}).Marshal(clone)
+		if marshalErr != nil {
+			return nil, connect.NewError(connect.CodeInternal, marshalErr)
+		}
+		digest := sha256.Sum256(canonical)
+		requestJSON, marshalErr := protojson.Marshal(msg)
+		if marshalErr != nil {
+			return nil, connect.NewError(connect.CodeInternal, marshalErr)
+		}
+		reserved, _, reserveErr := s.deps.RequestStore.Create(ctx, CaptureRequestRecord{
+			RequestToken: token,
+			RequestHash:  hex.EncodeToString(digest[:]),
+			RequestJSON:  string(requestJSON),
+			ExecutionID:  uuid.NewString(),
+		})
+		if errors.Is(reserveErr, ErrRequestTokenConflict) {
+			return nil, connect.NewError(connect.CodeAlreadyExists, reserveErr)
+		}
+		if reserveErr != nil {
+			return nil, connect.NewError(connect.CodeInternal, reserveErr)
+		}
+		operation = &reserved
+		if reserved.State == "completed" {
+			var replay capturev1.CaptureResponse
+			if err := protojson.Unmarshal([]byte(reserved.ResponseJSON), &replay); err != nil {
+				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("decode stored capture response: %w", err))
+			}
+			return connect.NewResponse(&replay), nil
+		}
+		if reserved.State == "failed" {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New(reserved.Error))
+		}
+		plan.outDir = filepath.Join(s.deps.CapturesRoot, "requests", reserved.ExecutionID)
+		if err := os.MkdirAll(plan.outDir, 0o755); err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("prepare idempotent capture artifact directory: %w", err))
+		}
 	}
 
 	releaseEvidence := retention.BeginEvidenceActivity(filepath.Clean(plan.outDir))
@@ -100,8 +182,16 @@ func (s *service) Capture(
 	}
 	readiness := s.resolveCaptureReadiness(ctx, msg, adhocReq)
 	opts := captureExecutionOptions(plan.captures, msg)
-	execution, err := s.executeCapture(ctx, adhocReq, opts, plan.outDir)
+	var execution captureExecution
+	if operation != nil {
+		execution, err = s.executeCaptureWithReservedID(ctx, adhocReq, opts, plan.outDir, operation.ExecutionID)
+	} else {
+		execution, err = s.executeCapture(ctx, adhocReq, opts, plan.outDir)
+	}
 	if err != nil {
+		if operation != nil {
+			s.markRequestFailedIfTerminal(ctx, operation.RequestToken, operation.ExecutionID)
+		}
 		return nil, err
 	}
 	artifacts, inline, err := s.materializeCaptureArtifacts(ctx, msg, plan.captures, execution)
@@ -111,7 +201,7 @@ func (s *service) Capture(
 	inline.accessibilityJSON = s.readInlineAccessibility(msg, execution.outDir)
 	duration := s.deps.Now().Sub(start).Milliseconds()
 	timing := s.captureReadinessTiming(execution.outDir, readiness.selected)
-	return connect.NewResponse(&capturev1.CaptureResponse{
+	response := &capturev1.CaptureResponse{
 		ExecutionId:       execution.id,
 		OutDir:            execution.outDir,
 		Artifacts:         artifacts,
@@ -119,7 +209,163 @@ func (s *service) Capture(
 		AccessibilityJson: inline.accessibilityJSON,
 		Readiness: captureReadinessDiagnosticsWithTiming(msg.GetWaitFor(), readiness.selected,
 			readiness.outcome(timing), duration, readiness.fallbackReason, readiness.declaredResolution, timing),
-	}), nil
+	}
+	if operation != nil {
+		encoded, marshalErr := protojson.Marshal(response)
+		if marshalErr != nil {
+			return nil, connect.NewError(connect.CodeInternal, marshalErr)
+		}
+		if err := s.deps.RequestStore.Complete(ctx, operation.RequestToken, string(encoded)); err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+	}
+	return connect.NewResponse(response), nil
+}
+
+func (s *service) GetCaptureByRequestToken(ctx context.Context, req *connect.Request[capturev1.GetCaptureByRequestTokenRequest]) (*connect.Response[capturev1.GetCaptureByRequestTokenResponse], error) {
+	if s.deps.ServiceAdmission != nil {
+		if strings.TrimSpace(req.Header().Get("Authorization")) != "" {
+			principal, err := s.deps.ServiceAdmission.Authenticate(ctx, req.Header())
+			if err == nil && principal.Subject == "experience-manager-bas-capture" && principal.Audience == "scenario-authenticator:browser-automation-studio" && len(principal.Scopes) == 1 && principal.Scopes[0] == "browser-automation-studio:capture" {
+				return nil, connect.NewError(connect.CodePermissionDenied, errors.New("BAS capture-only service identity cannot read capture history"))
+			}
+		}
+		if monetization.UserIdentityFromContext(ctx) == "" {
+			return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("authenticated account required for capture history"))
+		}
+	}
+	if s.deps.RequestStore == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("capture request lookup is unavailable"))
+	}
+	token, err := NormalizeRequestToken(req.Msg.GetRequestToken())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	record, err := s.deps.RequestStore.Get(ctx, token)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("capture request token was not found"))
+	}
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	response := &capturev1.GetCaptureByRequestTokenResponse{ExecutionId: record.ExecutionID}
+	switch record.State {
+	case "in_progress":
+		response.State = capturev1.GetCaptureByRequestTokenResponse_STATE_IN_PROGRESS
+	case "completed":
+		response.State = capturev1.GetCaptureByRequestTokenResponse_STATE_COMPLETED
+		response.Capture = &capturev1.CaptureResponse{}
+		if err := protojson.Unmarshal([]byte(record.ResponseJSON), response.Capture); err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("decode stored capture response: %w", err))
+		}
+	case "failed":
+		response.State = capturev1.GetCaptureByRequestTokenResponse_STATE_FAILED
+		response.Error = record.Error
+	default:
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unknown capture request state %q", record.State))
+	}
+	return connect.NewResponse(response), nil
+}
+
+type captureExecutionReader interface {
+	GetExecution(context.Context, uuid.UUID) (*database.ExecutionIndex, error)
+	WaitForExecution(context.Context, uuid.UUID) (*database.ExecutionIndex, error)
+}
+
+func (s *service) executeWorkflow(ctx context.Context, req *basexecution.ExecuteAdhocRequest, opts *workflow.ExecuteOptions) (*basexecution.ExecuteAdhocResponse, error) {
+	principal, ok := apiidentity.PrincipalFromContext(ctx)
+	if ok && principal.Verified && principal.Kind == apiidentity.ActorService &&
+		principal.Subject == "experience-manager-bas-capture" &&
+		principal.Issuer == "scenario-authenticator" &&
+		principal.Audience == "scenario-authenticator:browser-automation-studio" &&
+		len(principal.Scopes) == 1 && principal.Scopes[0] == "browser-automation-studio:capture" {
+		executor, supported := s.deps.Executor.(systemCaptureExecutor)
+		if !supported {
+			return nil, connect.NewError(connect.CodeUnavailable, errors.New("system capture execution path is unavailable"))
+		}
+		return executor.ExecuteSystemCaptureAdhocWorkflowAPIWithOptions(ctx, req, opts)
+	}
+	return s.deps.Executor.ExecuteAdhocWorkflowAPIWithOptions(ctx, req, opts)
+}
+
+// executeCaptureWithReservedID resumes a prior token claim by looking up its
+// preallocated execution identity before deciding whether it needs to start a
+// workflow. The execution owner enforces ID uniqueness, so concurrent retries
+// cannot create a second execution for the same request token.
+func (s *service) executeCaptureWithReservedID(ctx context.Context, req *basexecution.ExecuteAdhocRequest, opts *workflow.ExecuteOptions, outDir, rawID string) (captureExecution, error) {
+	id, err := uuid.Parse(rawID)
+	if err != nil {
+		return captureExecution{}, fmt.Errorf("invalid reserved capture execution identity")
+	}
+	reader, ok := s.deps.Executor.(captureExecutionReader)
+	if !ok {
+		return captureExecution{}, connect.NewError(connect.CodeUnavailable, errors.New("execution lookup is required for idempotent captures"))
+	}
+	var latest *database.ExecutionIndex
+	latest, err = reader.GetExecution(ctx, id)
+	if errors.Is(err, database.ErrNotFound) {
+		opts.ExecutionID = &id
+		req.WaitForCompletion = false
+		started, startErr := s.executeWorkflow(ctx, req, opts)
+		if startErr != nil {
+			// Concurrent duplicate submissions can race between lookup and start.
+			// The execution UUID is unique, so if the other request won, join it.
+			latest, lookupErr := reader.GetExecution(ctx, id)
+			if lookupErr != nil {
+				return captureExecution{}, startErr
+			}
+			if latest == nil {
+				return captureExecution{}, startErr
+			}
+		} else if started.GetExecutionId() != id.String() {
+			return captureExecution{}, connect.NewError(connect.CodeInternal, errors.New("execution owner returned a different reserved identity"))
+		}
+	} else if err != nil {
+		return captureExecution{}, err
+	}
+	latest, err = reader.WaitForExecution(ctx, id)
+	if err != nil {
+		return captureExecution{}, err
+	}
+	if latest == nil {
+		return captureExecution{}, connect.NewError(connect.CodeInternal, errors.New("execution owner returned an empty capture result"))
+	}
+	if latest.Status != database.ExecutionStatusCompleted {
+		failure := strings.TrimSpace(latest.ErrorMessage)
+		if failure == "" {
+			failure = latest.Status
+		}
+		return captureExecution{}, connect.NewError(connect.CodeInternal, fmt.Errorf("capture execution %s finished %s: %s", id, latest.Status, failure))
+	}
+	if err := s.deps.Executor.ExportToFolder(ctx, id, outDir, s.deps.Storage); err != nil {
+		return captureExecution{}, connect.NewError(connect.CodeInternal, fmt.Errorf("export artifacts: %w", err))
+	}
+	return captureExecution{id: id.String(), uuid: id, outDir: outDir}, nil
+}
+
+func (s *service) markRequestFailedIfTerminal(ctx context.Context, token, rawID string) {
+	if s.deps.RequestStore == nil {
+		return
+	}
+	reader, ok := s.deps.Executor.(captureExecutionReader)
+	if !ok {
+		return
+	}
+	id, err := uuid.Parse(rawID)
+	if err != nil {
+		return
+	}
+	latest, err := reader.GetExecution(ctx, id)
+	if err != nil || latest == nil {
+		return
+	}
+	if latest.Status == database.ExecutionStatusFailed || latest.Status == database.ExecutionStatusCancelled {
+		detail := strings.TrimSpace(latest.ErrorMessage)
+		if detail == "" {
+			detail = latest.Status
+		}
+		_ = s.deps.RequestStore.Fail(ctx, token, detail)
+	}
 }
 
 type capturePlan struct {
@@ -308,8 +554,11 @@ func captureExecutionOptions(captures []capturev1.CaptureType, msg *capturev1.Ca
 }
 
 func (s *service) executeCapture(ctx context.Context, req *basexecution.ExecuteAdhocRequest, opts *workflow.ExecuteOptions, outDir string) (captureExecution, error) {
-	response, err := s.deps.Executor.ExecuteAdhocWorkflowAPIWithOptions(ctx, req, opts)
+	response, err := s.executeWorkflow(ctx, req, opts)
 	if err != nil {
+		if errors.Is(err, workflow.ErrWorkflowExecutionCapacity) {
+			return captureExecution{}, connect.NewError(connect.CodeResourceExhausted, fmt.Errorf("execute adhoc: %w", err))
+		}
 		return captureExecution{}, connect.NewError(connect.CodeInternal, fmt.Errorf("execute adhoc: %w", err))
 	}
 	execID := response.GetExecutionId()

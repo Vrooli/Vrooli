@@ -9,12 +9,13 @@ import { createHash } from 'crypto';
 import type { IncomingMessage, ServerResponse } from 'http';
 import type { SessionManager } from '../../session';
 import type { Config } from '../../config';
-import { parseJsonBody, sendJson, sendError } from '../../middleware';
+import { parseJsonBody, sendJson } from '../../middleware';
 import { RECORDING_FRAME_CACHE_TTL_MS } from '../../constants';
 import { captureFrameSource, sameFrameSource } from '../../frame-streaming/frame';
 import type { ScreenshotRequest, ScreenshotResponse, FrameResponse } from './types';
 import { getFrameCacheSlot, ownsFrameCacheSlot } from '../../session/frame-cache';
 import type { CapturedFrame, FrameCacheSlot } from '../../session/frame-cache';
+import { recordingOwner, recordingPermissionDenied, sendRecordingError } from './recording-ownership';
 
 // =============================================================================
 // Frame Cache Infrastructure
@@ -45,27 +46,66 @@ export async function handleRecordScreenshot(
   config: Config
 ): Promise<void> {
   try {
-    const session = sessionManager.getSession(sessionId);
     const body = await parseJsonBody(req, config);
+    const ownedSession = recordingOwner(body, sessionId, sessionManager);
+    const session = ownedSession();
+    const page = session.page;
+    const denied = recordingPermissionDenied(session, 'screenshot');
+    if (denied) {
+      sendJson(res, 403, { error: { code: 'BROWSER_PERMISSION_DENIED', message: denied, kind: 'auth', retryable: false } });
+      return;
+    }
     const request = body as unknown as ScreenshotRequest;
 
     const fullPage = request.full_page !== false;
+    const format = request.format ?? 'jpeg';
+    if (format !== 'png' && format !== 'jpeg') {
+      sendJson(res, 400, { error: { code: 'INVALID_SCREENSHOT_FORMAT', message: 'screenshot format must be png or jpeg' } });
+      return;
+    }
     const quality = request.quality ?? 70;
-
-    const buffer = await session.page.screenshot({
-      fullPage,
-      type: 'jpeg',
-      quality,
-    });
+    if (request.wait_until !== undefined && request.wait_until !== 'networkidle') {
+      sendJson(res, 400, { error: { code: 'INVALID_SCREENSHOT_WAIT', message: 'wait_until must be networkidle' } });
+      return;
+    }
+    if (request.settle_ms !== undefined && (!Number.isInteger(request.settle_ms) || request.settle_ms < 0 || request.settle_ms > 5000)) {
+      sendJson(res, 400, { error: { code: 'INVALID_SCREENSHOT_SETTLE', message: 'settle_ms must be an integer between 0 and 5000' } });
+      return;
+    }
+    let buffer: Buffer;
+    if (request.test_id !== undefined) {
+      if (!/^[A-Za-z0-9_.:-]{1,100}$/.test(request.test_id)) {
+        sendJson(res, 400, { error: { code: 'INVALID_SCREENSHOT_TARGET', message: 'test_id must be a bounded stable test identifier' } });
+        return;
+      }
+      if (request.wait_until === 'networkidle') { ownedSession(); await page.waitForLoadState('networkidle'); ownedSession(); }
+      const target = page.getByTestId(request.test_id);
+      await target.waitFor({ state: 'visible' });
+      if ((request.settle_ms ?? 0) > 0) { ownedSession(); await page.waitForTimeout(request.settle_ms!); ownedSession(); }
+      const recheck = recordingPermissionDenied(ownedSession(), 'screenshot');
+      if (recheck) { sendJson(res, 403, { error: { code: 'BROWSER_PERMISSION_DENIED', message: recheck, kind: 'auth', retryable: false } }); return; }
+      buffer = await target.screenshot({
+        type: format,
+        ...(format === 'jpeg' ? { quality } : {}),
+      });
+    } else {
+      const recheck = recordingPermissionDenied(ownedSession(), 'screenshot');
+      if (recheck) { sendJson(res, 403, { error: { code: 'BROWSER_PERMISSION_DENIED', message: recheck, kind: 'auth', retryable: false } }); return; }
+      buffer = await page.screenshot({
+        fullPage,
+        type: format,
+        ...(format === 'jpeg' ? { quality } : {}),
+      });
+    }
 
     const response: ScreenshotResponse = {
       session_id: sessionId,
-      screenshot: `data:image/jpeg;base64,${buffer.toString('base64')}`,
+      screenshot: `data:image/${format === 'jpeg' ? 'jpeg' : 'png'};base64,${buffer.toString('base64')}`,
     };
 
     sendJson(res, 200, response);
   } catch (error) {
-    sendError(res, error as Error, `/session/${sessionId}/record/screenshot`);
+    sendRecordingError(res, error as Error, `/session/${sessionId}/record/screenshot`);
   }
 }
 
@@ -84,7 +124,11 @@ export async function handleRecordFrame(
   _config: Config
 ): Promise<void> {
   try {
-    const session = sessionManager.getSession(sessionId);
+    const query = Object.fromEntries(new URL(req.url ?? '', 'http://driver').searchParams);
+    const ownedSession = recordingOwner(query, sessionId, sessionManager);
+    const session = ownedSession();
+    const denied = recordingPermissionDenied(session, 'screenshot');
+    if (denied) { sendJson(res, 403, { error: { code: 'BROWSER_PERMISSION_DENIED', message: denied, kind: 'auth', retryable: false } }); return; }
     const page = session.page;
     const source = captureFrameSource(session, page, 'recording');
     const url = new URL(req.url || '', 'http://localhost');
@@ -98,6 +142,7 @@ export async function handleRecordFrame(
     const pageUrl = page.url();
     const slot: FrameCacheSlot = getFrameCacheSlot(sessionId);
     const owns = (): boolean => {
+      try { ownedSession(); } catch { return false; }
       const currentViewport = page.viewportSize();
       return ownsFrameCacheSlot(sessionId, slot) && page.url() === pageUrl
         && currentViewport?.width === viewport?.width && currentViewport?.height === viewport?.height
@@ -149,6 +194,6 @@ export async function handleRecordFrame(
     };
     sendJson(res, 200, response);
   } catch (error) {
-    sendError(res, error as Error, `/session/${sessionId}/record/frame`);
+    sendRecordingError(res, error as Error, `/session/${sessionId}/record/frame`);
   }
 }

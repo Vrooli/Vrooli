@@ -214,9 +214,8 @@ describe('Provider Architecture Documentation', () => {
     expect(caps.exposeBindingIsolated).toBe(false);
   });
 
-  it('documents anti-detection trade-offs', () => {
-    // rebrowser-playwright has anti-detection, standard does not
-    // This is the main reason to use rebrowser-playwright for production
+  it('reports which provider has BAS signal-adjustment code paths', () => {
+    // This flag describes available code, not site detection outcomes.
     expect(PROVIDER_CAPABILITIES['rebrowser-playwright'].hasAntiDetection).toBe(true);
     expect(PROVIDER_CAPABILITIES['playwright'].hasAntiDetection).toBe(false);
   });

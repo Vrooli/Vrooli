@@ -34,6 +34,9 @@ func BuildRecordingTimelineEntry(action *driver.RecordedAction) *bastimeline.Tim
 	if action.FrameID != "" {
 		entry.Telemetry.FrameId = &action.FrameID
 	}
+	if len(action.FramePath) > 0 {
+		entry.Telemetry.FramePath = append([]string(nil), action.FramePath...)
+	}
 	if action.DurationMs > 0 {
 		duration := int32(action.DurationMs)
 		entry.DurationMs = &duration

@@ -164,6 +164,19 @@ func (m *mockHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	return nil, errors.New("mock not configured")
 }
 
+func startTestSession(t *testing.T, log *logrus.Logger, mock *mockHTTPClient) EngineSession {
+	t.Helper()
+	engine, err := newPlaywrightEngineForHTTPDoer("http://localhost:39400", mock, log)
+	if err != nil {
+		t.Fatalf("engine init: %v", err)
+	}
+	session, err := engine.StartSession(t.Context(), SessionSpec{ExecutionID: uuid.New(), WorkflowID: uuid.New()})
+	if err != nil {
+		t.Fatalf("start session: %v", err)
+	}
+	return session
+}
+
 func TestPlaywrightDriverError_Error(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -458,11 +471,7 @@ func TestPlaywrightSession_Run_ErrorCases(t *testing.T) {
 				return nil, errors.New("connection reset by peer")
 			},
 		}
-		engine, _ := newPlaywrightEngineForHTTPDoer("http://localhost:39400", mock, log)
-		session, _ := engine.StartSession(context.Background(), SessionSpec{
-			ExecutionID: uuid.New(),
-			WorkflowID:  uuid.New(),
-		})
+		session := startTestSession(t, log, mock)
 
 		_, err := session.Run(context.Background(), contracts.CompiledInstruction{
 			Index:  0,
@@ -494,11 +503,7 @@ func TestPlaywrightSession_Run_ErrorCases(t *testing.T) {
 				}, nil
 			},
 		}
-		engine, _ := newPlaywrightEngineForHTTPDoer("http://localhost:39400", mock, log)
-		session, _ := engine.StartSession(context.Background(), SessionSpec{
-			ExecutionID: uuid.New(),
-			WorkflowID:  uuid.New(),
-		})
+		session := startTestSession(t, log, mock)
 
 		_, err := session.Run(context.Background(), contracts.CompiledInstruction{
 			Index:  0,
@@ -530,11 +535,7 @@ func TestPlaywrightSession_Run_ErrorCases(t *testing.T) {
 				}, nil
 			},
 		}
-		engine, _ := newPlaywrightEngineForHTTPDoer("http://localhost:39400", mock, log)
-		session, _ := engine.StartSession(context.Background(), SessionSpec{
-			ExecutionID: uuid.New(),
-			WorkflowID:  uuid.New(),
-		})
+		session := startTestSession(t, log, mock)
 
 		_, err := session.Run(context.Background(), contracts.CompiledInstruction{
 			Index:  0,
@@ -567,11 +568,7 @@ func TestPlaywrightSession_Run_ErrorCases(t *testing.T) {
 				}, nil
 			},
 		}
-		engine, _ := newPlaywrightEngineForHTTPDoer("http://localhost:39400", mock, log)
-		session, _ := engine.StartSession(context.Background(), SessionSpec{
-			ExecutionID: uuid.New(),
-			WorkflowID:  uuid.New(),
-		})
+		session := startTestSession(t, log, mock)
 
 		_, err := session.Run(context.Background(), contracts.CompiledInstruction{
 			Index:  0,
@@ -608,11 +605,7 @@ func TestPlaywrightSession_Reset_ErrorCases(t *testing.T) {
 				}, nil
 			},
 		}
-		engine, _ := newPlaywrightEngineForHTTPDoer("http://localhost:39400", mock, log)
-		session, _ := engine.StartSession(context.Background(), SessionSpec{
-			ExecutionID: uuid.New(),
-			WorkflowID:  uuid.New(),
-		})
+		session := startTestSession(t, log, mock)
 
 		err := session.Reset(context.Background())
 		if err == nil {
@@ -637,11 +630,7 @@ func TestPlaywrightSession_Reset_ErrorCases(t *testing.T) {
 				return nil, errors.New("broken pipe")
 			},
 		}
-		engine, _ := newPlaywrightEngineForHTTPDoer("http://localhost:39400", mock, log)
-		session, _ := engine.StartSession(context.Background(), SessionSpec{
-			ExecutionID: uuid.New(),
-			WorkflowID:  uuid.New(),
-		})
+		session := startTestSession(t, log, mock)
 
 		err := session.Reset(context.Background())
 		if err == nil {
@@ -671,11 +660,7 @@ func TestPlaywrightSession_Close_ErrorCases(t *testing.T) {
 				}, nil
 			},
 		}
-		engine, _ := newPlaywrightEngineForHTTPDoer("http://localhost:39400", mock, log)
-		session, _ := engine.StartSession(context.Background(), SessionSpec{
-			ExecutionID: uuid.New(),
-			WorkflowID:  uuid.New(),
-		})
+		session := startTestSession(t, log, mock)
 
 		err := session.Close(context.Background())
 		if err == nil {
@@ -773,11 +758,7 @@ func TestPlaywrightEngine_Run_ContextCancellation(t *testing.T) {
 				}
 			},
 		}
-		engine, _ := newPlaywrightEngineForHTTPDoer("http://localhost:39400", mock, log)
-		session, _ := engine.StartSession(context.Background(), SessionSpec{
-			ExecutionID: uuid.New(),
-			WorkflowID:  uuid.New(),
-		})
+		session := startTestSession(t, log, mock)
 
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel() // Cancel immediately

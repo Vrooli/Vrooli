@@ -307,11 +307,7 @@ func applySessionState(profile *persistence.SessionProfile, state *persistence.S
 	if len(state.StorageState) > 0 {
 		profile.StorageState = state.StorageState
 	}
-	tabs := state.OpenTabs
-	if len(tabs) > persistence.MaxRestoredTabs {
-		tabs = tabs[:persistence.MaxRestoredTabs]
-	}
-	profile.OpenTabs = tabs
+	profile.OpenTabs = persistence.LimitRestoredTabs(state.OpenTabs)
 }
 
 // SaveStorageState persists the storage state and bumps last_used_at.
@@ -341,12 +337,7 @@ func (s *Service) UpdateStorageState(id persistence.ProfileID, modify func(json.
 // SaveOpenTabs persists the tab state for session restoration.
 func (s *Service) SaveOpenTabs(id persistence.ProfileID, tabs []persistence.TabState) (*persistence.SessionProfile, error) {
 	return s.UpdateProfile(id, func(profile *persistence.SessionProfile) error {
-		// Limit tabs to prevent resource exhaustion
-		if len(tabs) > persistence.MaxRestoredTabs {
-			tabs = tabs[:persistence.MaxRestoredTabs]
-		}
-
-		profile.OpenTabs = tabs
+		profile.OpenTabs = persistence.LimitRestoredTabs(tabs)
 		return nil
 	})
 }

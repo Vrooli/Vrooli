@@ -74,6 +74,62 @@ func TestSQLiteRepository_RoundTripsCanonicalTimelineEntry(t *testing.T) {
 	}
 }
 
+func TestSQLiteRepository_RoundTripsInitialPageDriverIdentityIdempotently(t *testing.T) {
+	repo, db := newTestRepo(t)
+	defer db.Close()
+	ctx := context.Background()
+	session := &domain.RecordingSession{ID: "initial-page-session", Status: domain.SessionStatusActive, CreatedAt: time.Now().UTC()}
+	if err := repo.CreateSession(ctx, session); err != nil {
+		t.Fatal(err)
+	}
+	pageID := uuid.New()
+	stamp := time.Date(2026, 11, 21, 12, 0, 0, 0, time.UTC)
+	favicon := "https://example.test/favicon.ico"
+	event := &domain.PageEvent{
+		ID: domain.StablePageEventID(pageID, domain.PageEventCreated, stamp), Type: domain.PageEventCreated,
+		PageID: pageID, DriverPageID: "driver-main", IsInitial: true, ActivePageID: pageID,
+		URL: "https://example.test/", Title: "Example", FaviconURL: &favicon, Timestamp: stamp,
+	}
+	entry := &UnifiedTimelineEntry{
+		ID: event.ID, Type: TimelineEntryTypePageEvent, Timestamp: stamp,
+		SessionID: session.ID, PageID: pageID, PageEvent: event,
+	}
+	inserted, err := repo.AppendTimelineEntry(ctx, entry)
+	if err != nil || !inserted {
+		t.Fatalf("append initial event: inserted=%t err=%v", inserted, err)
+	}
+	inserted, err = repo.AppendTimelineEntry(ctx, entry)
+	if err != nil || inserted {
+		t.Fatalf("exact initial replay: inserted=%t err=%v", inserted, err)
+	}
+	conflicting := *entry
+	conflictingEvent := *event
+	conflictingEvent.URL = "https://foreign.test/"
+	conflicting.PageEvent = &conflictingEvent
+	if _, err := repo.AppendTimelineEntry(ctx, &conflicting); err == nil {
+		t.Fatal("same journal identity with conflicting initial payload was accepted")
+	}
+	stored, err := repo.GetTimelineEntry(ctx, event.ID)
+	if err != nil || stored == nil || stored.PageEvent == nil {
+		t.Fatalf("read initial page event: entry=%+v err=%v", stored, err)
+	}
+	if stored.PageEvent.DriverPageID != "driver-main" || !stored.PageEvent.IsInitial || stored.PageEvent.PageID != pageID || stored.PageEvent.ActivePageID != pageID || stored.PageEvent.URL != event.URL || stored.PageEvent.Timestamp != stamp {
+		t.Fatalf("initial page identity changed across SQLite round trip: %+v", stored.PageEvent)
+	}
+
+	selectedAt := stamp.Add(time.Second)
+	selection := &domain.PageEvent{ID: domain.StablePageEventID(pageID, domain.PageEventActivated, selectedAt), Type: domain.PageEventActivated, PageID: pageID, DriverPageID: "driver-main", IsInitial: true, ActivePageID: pageID, Timestamp: selectedAt}
+	selectedEntry := &UnifiedTimelineEntry{ID: selection.ID, Type: TimelineEntryTypePageEvent, Timestamp: selectedAt, SessionID: session.ID, PageID: pageID, PageEvent: selection}
+	inserted, err = repo.AppendTimelineEntry(ctx, selectedEntry)
+	if err != nil || !inserted {
+		t.Fatalf("append active selection: inserted=%t err=%v", inserted, err)
+	}
+	stored, err = repo.GetTimelineEntry(ctx, selection.ID)
+	if err != nil || stored == nil || stored.PageEvent == nil || stored.PageEvent.Type != domain.PageEventActivated || stored.PageEvent.ActivePageID != pageID || stored.PageEvent.DriverPageID != "driver-main" {
+		t.Fatalf("active selection changed across SQLite round trip: entry=%+v err=%v", stored, err)
+	}
+}
+
 func TestSQLiteRepository_RejectsLegacyActionWritesButReadsStoredRows(t *testing.T) {
 	repo, db := newTestRepo(t)
 	defer db.Close()
@@ -550,6 +606,46 @@ func TestSQLiteRepository_GetTimeline_Filtering(t *testing.T) {
 			t.Errorf("expected 2 entries after timestamp, got %d", len(resp.Entries))
 		}
 	})
+}
+
+func TestSQLiteRepository_GetTimelineAcrossExplicitContinuationSessions(t *testing.T) {
+	repo, db := newTestRepo(t)
+	defer db.Close()
+	ctx := context.Background()
+	created := time.Now().UTC()
+	sessions := []*domain.RecordingSession{
+		{ID: "profile-a-before", ProfileID: "profile-a", Status: domain.SessionStatusClosed, CreatedAt: created},
+		{ID: "profile-a-restored", ProfileID: "profile-a", Status: domain.SessionStatusActive, CreatedAt: created.Add(time.Minute)},
+		{ID: "profile-b-unrelated", ProfileID: "profile-b", Status: domain.SessionStatusClosed, CreatedAt: created.Add(2 * time.Minute)},
+	}
+	for _, session := range sessions {
+		if err := repo.CreateSession(ctx, session); err != nil {
+			t.Fatalf("CreateSession(%s): %v", session.ID, err)
+		}
+	}
+
+	firstID, secondID, unrelatedID := uuid.New(), uuid.New(), uuid.New()
+	entries := []*UnifiedTimelineEntry{
+		{ID: firstID, Type: TimelineEntryTypeAction, Timestamp: created, SessionID: sessions[0].ID, PageID: uuid.New(), Sequence: 1, Entry: testCanonicalEntry(firstID, created)},
+		{ID: secondID, Type: TimelineEntryTypeAction, Timestamp: created.Add(time.Minute), SessionID: sessions[1].ID, PageID: uuid.New(), Sequence: 1, Entry: testCanonicalEntry(secondID, created.Add(time.Minute))},
+		{ID: unrelatedID, Type: TimelineEntryTypeAction, Timestamp: created.Add(2 * time.Minute), SessionID: sessions[2].ID, PageID: uuid.New(), Sequence: 1, Entry: testCanonicalEntry(unrelatedID, created.Add(2*time.Minute))},
+	}
+	for _, entry := range entries {
+		if _, err := repo.AppendTimelineEntry(ctx, entry); err != nil {
+			t.Fatalf("AppendTimelineEntry(%s): %v", entry.SessionID, err)
+		}
+	}
+
+	response, err := repo.GetTimeline(ctx, TimelineQuery{SessionIDs: []string{sessions[0].ID, sessions[1].ID}, Limit: 100})
+	if err != nil {
+		t.Fatalf("GetTimeline: %v", err)
+	}
+	if len(response.Entries) != 2 || response.TotalCount != 2 {
+		t.Fatalf("continuation returned %d entries / total %d, want 2 / 2", len(response.Entries), response.TotalCount)
+	}
+	if response.Entries[0].ID != firstID || response.Entries[1].ID != secondID {
+		t.Fatalf("continuation order/ownership = [%s %s], want [%s %s]", response.Entries[0].ID, response.Entries[1].ID, firstID, secondID)
+	}
 }
 
 func TestSQLiteRepository_PruneOldSessions(t *testing.T) {

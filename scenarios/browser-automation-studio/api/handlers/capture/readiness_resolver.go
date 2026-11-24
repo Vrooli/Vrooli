@@ -15,10 +15,6 @@ func NewReadinessProfileResolver() ReadinessProfileResolver {
 	return readiness.NewProfileResolver()
 }
 
-func containsRoute(routes []string, route string) bool {
-	return readiness.ContainsRoute(routes, route)
-}
-
 func terminalReadinessSelector(binding, kind string, states []string) string {
 	return readiness.TerminalSelector(binding, kind, states)
 }

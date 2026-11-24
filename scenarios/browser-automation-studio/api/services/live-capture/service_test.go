@@ -89,6 +89,7 @@ func TestService_GetTimelineReturnsPersistedProtoWithPageOwnership(t *testing.T)
 		ID: uuid.NewString(), SessionID: owner.ID(), SequenceNum: 3,
 		Timestamp:  time.Date(2026, 10, 1, 6, 0, 0, 0, time.UTC).Format(time.RFC3339Nano),
 		ActionType: "click", Confidence: 0.91, URL: "https://example.test/form",
+		FrameID: "payment-frame", FramePath: []string{"#checkout", "#payment"},
 		Selector: &driver.SelectorSet{Primary: "button#submit"},
 	}, pageID))
 
@@ -103,6 +104,8 @@ func TestService_GetTimelineReturnsPersistedProtoWithPageOwnership(t *testing.T)
 	assert.Equal(t, int32(1), entry.GetSequenceNum())
 	assert.Equal(t, "button#submit", entry.GetAction().GetClick().GetSelector())
 	assert.Equal(t, "https://example.test/form", entry.GetTelemetry().GetUrl())
+	assert.Equal(t, "payment-frame", entry.GetTelemetry().GetFrameId())
+	assert.Equal(t, []string{"#checkout", "#payment"}, entry.GetTelemetry().GetFramePath())
 	canonical := &bastimeline.TimelineEntry{Id: uuid.NewString(), SequenceNum: 8, Timestamp: timestamppb.New(time.Date(2026, 10, 1, 6, 1, 0, 0, time.UTC)), Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE, Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://example.test/next"}}}}
 	require.NoError(t, service.AddTimelineEntry(ctx, owner.ID(), canonical, pageID))
 	timeline, err = service.GetTimeline(ctx, owner.ID(), nil, 100, 0)
@@ -115,6 +118,123 @@ func TestService_GetTimelineReturnsPersistedProtoWithPageOwnership(t *testing.T)
 	assert.Equal(t, canonical.GetId(), persistedProto.GetId())
 	assert.Equal(t, int32(2), persistedProto.GetSequenceNum())
 	assert.Equal(t, "https://example.test/next", persistedProto.GetAction().GetNavigate().GetUrl())
+}
+
+func TestService_GetTimelineResumesOnlyThePreviousClosedJournalForTheProfile(t *testing.T) {
+	var starts atomic.Int32
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/session/start":
+			n := starts.Add(1)
+			id := "profile-a-old"
+			if n == 2 {
+				id = "profile-a-new"
+			} else if n == 3 {
+				id = "profile-b-old"
+			} else if n == 4 {
+				id = "profile-b-new"
+			} else if n == 5 {
+				id = "profile-a-competing"
+			} else if n == 6 {
+				id = "profile-c-gone"
+			} else if n == 7 {
+				id = "profile-d-driver-gone"
+			}
+			_, _ = fmt.Fprintf(w, `{"session_id":%q,"lease_id":%q,"active_page_id":%q}`, id, "lease-"+id, "page-"+id)
+		case "/session/profile-d-driver-gone/close":
+			http.Error(w, "SESSION_NOT_FOUND", http.StatusNotFound)
+		case "/session/profile-a-old/close", "/session/profile-a-new/close", "/session/profile-a-competing/close", "/session/profile-b-old/close", "/session/profile-b-new/close", "/session/profile-c-gone/close":
+			_, _ = w.Write([]byte(`{"success":true}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+	require.NoError(t, err)
+	manager := autosession.NewManagerWithClient(client)
+	repo := recordingmocks.NewMockRepository()
+	journal := recording.NewService(repo, recording.ServiceConfig{})
+	service := NewServiceWithManager(manager, logrus.New(), journal)
+	ctx := context.Background()
+
+	old, err := service.CreateSession(ctx, &SessionConfig{ProfileID: "profile-a"})
+	require.NoError(t, err)
+	oldID := old.SessionID
+	oldEntryID, newEntryID, otherEntryID := uuid.NewString(), uuid.NewString(), uuid.NewString()
+	require.NoError(t, service.AddTimelineAction(ctx, oldID, timelineAction(oldEntryID, oldID, time.Date(2026, 11, 19, 18, 0, 0, 0, time.UTC)), uuid.New()))
+	require.NoError(t, service.CloseSession(ctx, oldID))
+
+	restored, err := service.CreateSession(ctx, &SessionConfig{ProfileID: "profile-a"})
+	require.NoError(t, err)
+	require.NotEqual(t, oldID, restored.SessionID)
+	require.NoError(t, service.AddTimelineAction(ctx, restored.SessionID, timelineAction(newEntryID, restored.SessionID, time.Date(2026, 11, 19, 18, 1, 0, 0, time.UTC)), uuid.New()))
+
+	resumed, err := service.GetTimeline(ctx, restored.SessionID, nil, 100, 0)
+	require.NoError(t, err)
+	require.Len(t, resumed.Entries, 2)
+	assert.Equal(t, oldEntryID, timelineEntryID(t, resumed.Entries[0]))
+	assert.Equal(t, newEntryID, timelineEntryID(t, resumed.Entries[1]))
+	competing, err := service.CreateSession(ctx, &SessionConfig{ProfileID: "profile-a"})
+	require.NoError(t, err)
+	_, err = service.GetTimeline(ctx, restored.SessionID, nil, 100, 0)
+	assert.ErrorContains(t, err, "another session is active")
+	require.NoError(t, service.CloseSession(ctx, competing.SessionID))
+
+	otherOld, err := service.CreateSession(ctx, &SessionConfig{ProfileID: "profile-b"})
+	require.NoError(t, err)
+	require.NoError(t, service.AddTimelineAction(ctx, otherOld.SessionID, timelineAction(otherEntryID, otherOld.SessionID, time.Date(2026, 11, 19, 18, 2, 0, 0, time.UTC)), uuid.New()))
+	require.NoError(t, service.CloseSession(ctx, otherOld.SessionID))
+	otherCurrentID := uuid.NewString()
+	other, err := service.CreateSession(ctx, &SessionConfig{ProfileID: "profile-b"})
+	require.NoError(t, err)
+	require.NoError(t, service.AddTimelineAction(ctx, other.SessionID, timelineAction(otherCurrentID, other.SessionID, time.Date(2026, 11, 19, 18, 3, 0, 0, time.UTC)), uuid.New()))
+	otherTimeline, err := service.GetTimeline(ctx, other.SessionID, nil, 100, 0)
+	require.NoError(t, err)
+	require.Len(t, otherTimeline.Entries, 2)
+	assert.Equal(t, otherEntryID, timelineEntryID(t, otherTimeline.Entries[0]))
+	assert.Equal(t, otherCurrentID, timelineEntryID(t, otherTimeline.Entries[1]))
+
+	_, err = service.GetTimeline(ctx, oldID, nil, 100, 0)
+	assert.ErrorContains(t, err, "session not found")
+	_, err = service.GetTimeline(ctx, "stale-session-id", nil, 100, 0)
+	assert.ErrorContains(t, err, "session not found")
+
+	require.NoError(t, manager.Close(ctx, restored.SessionID))
+	require.NoError(t, journal.CloseSession(ctx, restored.SessionID))
+	_, err = service.GetTimeline(ctx, restored.SessionID, nil, 100, 0)
+	assert.ErrorContains(t, err, "session not found")
+
+	require.NoError(t, manager.Close(ctx, other.SessionID))
+	require.NoError(t, journal.CloseSession(ctx, other.SessionID))
+
+	vanished, err := service.CreateSession(ctx, &SessionConfig{ProfileID: "profile-c"})
+	require.NoError(t, err)
+	require.NoError(t, manager.Close(ctx, vanished.SessionID))
+	require.NoError(t, service.CloseSession(ctx, vanished.SessionID))
+	closedJournal, getErr := journal.GetSession(ctx, vanished.SessionID)
+	require.NoError(t, getErr)
+	assert.Equal(t, domain.SessionStatusClosed, closedJournal.Status)
+
+	driverGone, err := service.CreateSession(ctx, &SessionConfig{ProfileID: "profile-d"})
+	require.NoError(t, err)
+	require.NoError(t, service.CloseSession(ctx, driverGone.SessionID))
+	closedJournal, getErr = journal.GetSession(ctx, driverGone.SessionID)
+	require.NoError(t, getErr)
+	assert.Equal(t, domain.SessionStatusClosed, closedJournal.Status)
+}
+
+func timelineAction(id, sessionID string, at time.Time) *driver.RecordedAction {
+	return &driver.RecordedAction{
+		ID: id, SessionID: sessionID, SequenceNum: 1, Timestamp: at.Format(time.RFC3339Nano),
+		ActionType: "click", Selector: &driver.SelectorSet{Primary: "#continue"},
+	}
+}
+
+func timelineEntryID(t *testing.T, entry domain.TimelineEntry) string {
+	t.Helper()
+	var protoEntry bastimeline.TimelineEntry
+	require.NoError(t, protojson.Unmarshal(entry.Entry, &protoEntry))
+	return protoEntry.GetId()
 }
 
 func TestService_CreateSession_RequiresSessionManager(t *testing.T) {
@@ -558,7 +678,10 @@ func TestRestoreTabsInitialNavigationCarriesOwnership(t *testing.T) {
 	restoredSession, err := manager.Create(context.Background(), autosession.Spec{ExecutionID: owner, Mode: autosession.ModeRecording})
 	require.NoError(t, err)
 	restoredSession.InitializePageTracking("about:blank")
-	service := NewServiceWithManager(manager, logrus.New(), nil)
+	repo := recordingmocks.NewMockRepository()
+	journal := recording.NewService(repo, recording.ServiceConfig{})
+	require.NoError(t, journal.RegisterSession(context.Background(), restoredSession.ID(), recording.SessionConfig{}))
+	service := NewServiceWithManager(manager, logrus.New(), journal)
 	tabs := []sessionprofilepersistence.TabState{{URL: "https://saved.test", IsActive: true}}
 	restored, err := service.RestoreTabs(context.Background(), "restored", tabs)
 	require.NoError(t, err)
@@ -601,7 +724,10 @@ func TestCreatePageRegistersReceiptBeforeRecording(t *testing.T) {
 			if callbackFirst {
 				callbackID = pages.AddPage(&domain.Page{DriverPageID: "second-driver", URL: "about:blank"}).ID
 			}
-			service := NewServiceWithManager(manager, logrus.New(), nil)
+			repository := recordingmocks.NewMockRepository()
+			recordingService := recording.NewService(repository, recording.ServiceConfig{})
+			require.NoError(t, recordingService.RegisterSession(context.Background(), owner.ID(), recording.SessionConfig{}))
+			service := NewServiceWithManager(manager, logrus.New(), recordingService)
 			receipt, err := service.CreatePage(context.Background(), owner.ID(), "https://second.test")
 			require.NoError(t, err)
 			require.Equal(t, "second-driver", receipt.DriverPageID)
@@ -617,6 +743,61 @@ func TestCreatePageRegistersReceiptBeforeRecording(t *testing.T) {
 			require.True(t, ok)
 			require.Equal(t, "https://original.test", original.URL)
 			require.Equal(t, "https://second.test", pages.GetActivePage().URL)
+		})
+	}
+}
+
+func TestActivatePageCommitsSelectionBeforePublishingTrackerState(t *testing.T) {
+	for _, failJournal := range []bool{false, true} {
+		t.Run(fmt.Sprintf("journal-failure-%t", failJournal), func(t *testing.T) {
+			server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/session/start":
+					_, _ = w.Write([]byte(`{"session_id":"selection","lease_id":"lease","active_page_id":"driver-initial"}`))
+				case "/session/selection/record/active-page":
+					w.WriteHeader(http.StatusOK)
+					_, _ = w.Write([]byte(`{}`))
+				case "/session/selection/close":
+					_, _ = w.Write([]byte(`{"success":true}`))
+				default:
+					t.Errorf("unexpected driver request: %s", r.URL.Path)
+					w.WriteHeader(http.StatusNotFound)
+				}
+			}))
+			client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+			require.NoError(t, err)
+			manager := autosession.NewManagerWithClient(client)
+			owner, err := manager.Create(context.Background(), autosession.Spec{ExecutionID: uuid.New(), Mode: autosession.ModeRecording})
+			require.NoError(t, err)
+			defer func() { require.NoError(t, manager.Close(context.Background(), owner.ID())) }()
+			owner.InitializePageTracking("https://initial.test")
+			pages := owner.Pages()
+			pages.SetInitialPageDriverID("driver-initial")
+			initial := pages.GetInitialPageID()
+			target := pages.AddPage(&domain.Page{DriverPageID: "driver-target", URL: "https://target.test"})
+			repo := recordingmocks.NewMockRepository()
+			journal := recording.NewService(repo, recording.ServiceConfig{})
+			require.NoError(t, journal.RegisterSession(context.Background(), owner.ID(), recording.SessionConfig{}))
+			if failJournal {
+				repo.AppendTimelineEntryErr = errors.New("journal unavailable")
+			}
+			service := NewServiceWithManager(manager, logrus.New(), journal)
+			err = service.ActivatePage(context.Background(), owner.ID(), target.ID)
+			if failJournal {
+				require.ErrorContains(t, err, "journal unavailable")
+				require.Equal(t, initial, pages.GetActivePageID(), "failed append must leave selection unchanged")
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, target.ID, pages.GetActivePageID())
+			stored, err := repo.GetTimeline(context.Background(), persistence.TimelineQuery{SessionID: owner.ID()})
+			require.NoError(t, err)
+			require.Len(t, stored.Entries, 1)
+			event := stored.Entries[0].PageEvent
+			require.NotNil(t, event)
+			require.Equal(t, domain.PageEventActivated, event.Type)
+			require.Equal(t, target.ID, event.ActivePageID)
+			require.Equal(t, target.ID, event.PageID)
 		})
 	}
 }
@@ -684,7 +865,10 @@ func TestRestoreTabsPreservesLocationsAndSelection(t *testing.T) {
 			owner, err := manager.Create(context.Background(), autosession.Spec{ExecutionID: uuid.New(), Mode: autosession.ModeRecording})
 			require.NoError(t, err)
 			owner.InitializePageTracking("about:blank")
-			service := NewServiceWithManager(manager, logrus.New(), nil)
+			repo := recordingmocks.NewMockRepository()
+			journal := recording.NewService(repo, recording.ServiceConfig{})
+			require.NoError(t, journal.RegisterSession(context.Background(), owner.ID(), recording.SessionConfig{}))
+			service := NewServiceWithManager(manager, logrus.New(), journal)
 			saved := make([]sessionprofilepersistence.TabState, 3)
 			for i := range saved {
 				saved[i] = sessionprofilepersistence.TabState{URL: fmt.Sprintf("https://saved.test/%d", i), Title: "stale saved title", IsActive: i == tc.active, Order: i}
@@ -869,6 +1053,14 @@ func TestCreateSessionInitialNavigationReceipt(t *testing.T) {
 				assert.Equal(t, "Actual title", owner.Pages().GetActivePage().Title)
 				assert.Equal(t, "https://actual.test/icon.svg", owner.Pages().GetActivePage().FaviconURL)
 				assert.Equal(t, &HistoryEntryInfo{URL: "https://actual.test/final", Title: "Actual title"}, result.InitialNavigation)
+				stored, readErr := repo.GetTimeline(ctx, persistence.TimelineQuery{SessionID: result.SessionID})
+				require.NoError(t, readErr)
+				require.Len(t, stored.Entries, 1)
+				require.NotNil(t, stored.Entries[0].PageEvent)
+				assert.Equal(t, domain.PageEventNavigated, stored.Entries[0].PageEvent.Type)
+				assert.True(t, stored.Entries[0].PageEvent.IsInitial)
+				assert.Equal(t, "initial-page", stored.Entries[0].PageEvent.DriverPageID)
+				assert.Equal(t, stored.Entries[0].PageID, stored.Entries[0].PageEvent.ActivePageID)
 				return
 			}
 			assert.ErrorContains(t, err, "initial")

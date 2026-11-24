@@ -3,6 +3,7 @@ import type { HandlerInstruction } from '../types';
 import type { Frame } from 'rebrowser-playwright';
 import { getFrameSwitchParams } from '../types';
 import { DEFAULT_TIMEOUT_MS } from '../constants';
+import { authorizeOperation } from '../session/permission-policy';
 import {
   normalizeError,
   FrameNotFoundError,
@@ -97,6 +98,15 @@ export class FrameHandler extends BaseHandler {
           throw new InvalidInstructionError(
             'Frame target does not belong to the selected document'
           );
+        }
+        const framePermission = authorizeOperation(
+          context.permissionProfile,
+          'navigate',
+          current.url(),
+          target.url(),
+        );
+        if (!framePermission.allowed) {
+          throw new InvalidInstructionError(`Frame origin is outside allowed scope: ${framePermission.reason}`);
         }
         stack.push(target);
       } else {
