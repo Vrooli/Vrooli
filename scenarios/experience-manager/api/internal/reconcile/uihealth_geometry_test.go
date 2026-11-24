@@ -217,18 +217,31 @@ func TestUIHealthGeometryEvaluatorUsesConnectServiceEndpoint(t *testing.T) {
 	require.Equal(t, "home::/:default:mobile::", service.request.GetRunId())
 }
 
-func TestReconcileCapturesAddsSharedGeometryFindings(t *testing.T) {
+func TestReconcileCapturesDelegatesPageGeometryToExperience(t *testing.T) {
 	evaluator := &fixedGeometryEvaluator{findings: []spec.Finding{{Code: "visual_touch_target_too_small", Severity: spec.SeverityError, Message: "button is 36px"}}}
 	check := Check{Capturer: fakeCapturer{snapshot: passingSnapshot()}, GeometryEvaluator: evaluator, CaptureProfiles: testProfiles()}
 	findings := check.Run(context.Background(), activeReport("primary", spec.Binding{TestID: "primary-action"}))
+	require.Zero(t, evaluator.calls, "page geometry belongs to canonical experience")
+	require.NotContains(t, findings, evaluator.findings[0])
+}
+
+func TestReconcileCapturesRetainsComponentGeometryEvaluation(t *testing.T) {
+	evaluator := &fixedGeometryEvaluator{findings: []spec.Finding{{Code: "visual_touch_target_too_small", Severity: spec.SeverityError, Message: "button is 36px"}}}
+	check := Check{Capturer: fakeCapturer{snapshot: passingSnapshot()}, GeometryEvaluator: evaluator, CaptureProfiles: testProfiles()}
+	report := activeComponentReport("primary", spec.Binding{TestID: "primary-action"})
+	component := report.Spec.Components["button"]
+	component.FloorOptOuts = nil
+	report.Spec.Components["button"] = component
+	findings := check.Run(context.Background(), report)
 	require.Equal(t, 1, evaluator.calls)
 	require.Contains(t, findings, evaluator.findings[0])
 }
 
-func TestCanonicalGeometryOwnsBaselineFloorEvidenceAndHonorsOptOut(t *testing.T) {
-	page := pageWithBaselineClaims(spec.PageDocument{
+func TestCanonicalExperienceOwnsPageGeometryAndComponentEvaluatorHonorsOptOut(t *testing.T) {
+	page := spec.PageDocument{
 		Kind: "page", Archetype: "page", Page: spec.PageIdentity{ID: "home", Routes: []string{"/"}},
-	})
+		Claims: []spec.Claim{{ID: "overflow", Type: "no-document-horizontal-overflow", Tier: "machine"}},
+	}
 	target := CaptureTarget{Scenario: "demo", PageID: "home", Route: "/", StateID: "default", ViewportID: "desktop", ViewportWidth: 1280, ViewportHeight: 720}
 	snapshot := passingSnapshot()
 	overflow := []spec.Finding{{Code: "visual_viewport_overflow", Severity: spec.SeverityError, Message: "document exceeds viewport"}}
@@ -241,26 +254,76 @@ func TestCanonicalGeometryOwnsBaselineFloorEvidenceAndHonorsOptOut(t *testing.T)
 		}
 	}
 	require.NotNil(t, failedFloor)
-	require.Equal(t, "failed", failedFloor.Verdict)
-	require.Contains(t, failedFloor.Message, "document exceeds viewport")
+	require.Equal(t, "skipped", failedFloor.Verdict)
+	require.Contains(t, failedFloor.Message, "canonical experience phase")
 	for _, finding := range result.Findings {
-		require.NotEqual(t, spec.CodeFloorNoDocOverflow, finding.Code, "the old EXM floor finding must not duplicate ui-health")
+		require.NotContains(t, finding.Code, "experience.floor_", "retired EXM floor findings must not duplicate ui-health")
 	}
-	combined := append(append([]spec.Finding(nil), result.Findings...), overflow...)
-	require.Equal(t, 1, countFindingCode(combined, "visual_viewport_overflow"), "the canonical geometry result appears once")
+	require.NotContains(t, result.Findings, overflow[0], "EXM does not evaluate page geometry")
 
 	filtered := filterOptedOutGeometry(overflow, []spec.FloorOptOut{{Floor: "no-document-horizontal-overflow", Reason: "This route intentionally has a wide embedded canvas."}})
 	require.Empty(t, filtered, "an explicit floor waiver must suppress the corresponding shared result")
 	waived := reconcileActivePageWithGeometry("experience/pages/home.json", page, target, snapshot, filtered)
 	for _, evidence := range waived.Evidence {
 		if evidence.ClaimType == "no-document-horizontal-overflow" {
-			require.Equal(t, "passed", evidence.Verdict, "the opted-out claim is not independently re-evaluated")
+			require.Equal(t, "skipped", evidence.Verdict, "the opted-out claim remains delegated")
 		}
 	}
-	unmeasured := []spec.Finding{{Code: spec.CodeClaimUnverifiable, Severity: spec.SeverityInfo, Message: "shared geometry service unavailable"}}
-	claimEvidence, passed := evaluateGeometryFloorClaim(page, spec.Claim{ID: "overflow", Type: "no-document-horizontal-overflow"}, target, snapshot.Flatten(), unmeasured)
+	componentPage := page
+	componentPage.Kind = "experience-component"
+	claimEvidence, passed := evaluateGeometryFloorClaim(componentPage, spec.Claim{ID: "overflow", Type: "no-document-horizontal-overflow"}, target, snapshot.Flatten(), []spec.Finding{{Code: spec.CodeClaimUnverifiable, Severity: spec.SeverityInfo, Message: "shared geometry service unavailable"}})
 	require.False(t, passed)
-	require.Equal(t, "unverifiable", claimEvidence.Verdict, "a shared evaluator outage cannot turn geometry claims into passes")
+	require.Equal(t, "unverifiable", claimEvidence.Verdict, "component geometry outages cannot become passes")
+}
+
+func TestRetiredBaselineFloorMappingsPreserveCanonicalGeometryParity(t *testing.T) {
+	page := spec.PageDocument{Page: spec.PageIdentity{ID: "home"}}
+	target := CaptureTarget{Route: "/", StateID: "default", ViewportID: "mobile", ViewportWidth: 390, ViewportHeight: 844}
+	cases := []struct {
+		floor string
+		rule  string
+	}{
+		{floor: "no-document-horizontal-overflow", rule: "visual_viewport_overflow"},
+		{floor: "viewport-fill", rule: "visual_surface_does_not_fill_viewport"},
+		{floor: "chrome-pinned", rule: "visual_chrome_outside_viewport"},
+		{floor: "safe-area-tap-targets", rule: "visual_unsafe_edge_tap_zone"},
+		{floor: "single-line-chrome", rule: "visual_multiline_chrome_label"},
+		{floor: "tap-target-size", rule: "visual_touch_target_too_small"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.floor, func(t *testing.T) {
+			mappedRule, ok := baselineGeometryFloor(tc.floor)
+			require.True(t, ok, "every authored baseline floor has one canonical mapping")
+			require.Equal(t, tc.rule, mappedRule)
+			require.Equal(t, tc.rule, geometryRuleForFloor(tc.floor))
+			require.True(t, isBaselineFloorType(tc.floor))
+			claim := spec.Claim{ID: "legacy-" + tc.floor, Type: tc.floor}
+			canonicalFailure := []spec.Finding{{Code: tc.rule, Severity: spec.SeverityError, Message: "canonical geometry detected the legacy floor defect"}}
+			failed, passed := evaluateGeometryFloorClaim(page, claim, target, nil, canonicalFailure)
+			require.False(t, passed)
+			require.Equal(t, "failed", failed.Verdict)
+			require.Contains(t, failed.Message, "canonical geometry detected")
+
+			clean, passed := evaluateGeometryFloorClaim(page, claim, target, nil, []spec.Finding{})
+			require.True(t, passed)
+			require.Equal(t, "passed", clean.Verdict)
+
+			unmeasured, passed := evaluateGeometryFloorClaim(page, claim, target, nil, []spec.Finding{{
+				Code: spec.CodeClaimUnverifiable, Severity: spec.SeverityInfo, Message: "canonical geometry evidence was unavailable",
+			}})
+			require.False(t, passed)
+			require.Equal(t, "unverifiable", unmeasured.Verdict)
+
+			wrongRule, passed := evaluateGeometryFloorClaim(page, claim, target, nil, []spec.Finding{{
+				Code: "visual_vision_opinion", Severity: spec.SeverityError, Message: "unrelated advisory finding",
+			}})
+			require.True(t, passed, "an unrelated rule must not fail a legacy floor claim")
+			require.Equal(t, "passed", wrongRule.Verdict)
+		})
+	}
+	if _, ok := baselineGeometryFloor("unknown-floor"); ok || isBaselineFloorType("unknown-floor") || geometryRuleForFloor("unknown-floor") != "" {
+		t.Fatal("unknown floors must not be admitted into the canonical geometry pack")
+	}
 }
 
 func countFindingCode(findings []spec.Finding, code string) int {
@@ -276,7 +339,11 @@ func countFindingCode(findings []spec.Finding, code string) int {
 func TestReconcileSurfacesUnavailableSharedGeometryAsUnmeasured(t *testing.T) {
 	evaluator := &fixedGeometryEvaluator{err: errors.New("ui-health unavailable")}
 	check := Check{Capturer: fakeCapturer{snapshot: passingSnapshot()}, GeometryEvaluator: evaluator, CaptureProfiles: testProfiles()}
-	findings := check.Run(context.Background(), activeReport("primary", spec.Binding{TestID: "primary-action"}))
+	report := activeComponentReport("primary", spec.Binding{TestID: "primary-action"})
+	component := report.Spec.Components["button"]
+	component.FloorOptOuts = nil
+	report.Spec.Components["button"] = component
+	findings := check.Run(context.Background(), report)
 	require.Equal(t, 1, evaluator.calls)
 	var unavailable bool
 	for _, finding := range findings {

@@ -170,3 +170,42 @@ func TestFormatReportDigestFailure(t *testing.T) {
 		t.Fatalf("digest failure not surfaced:\n%s", out)
 	}
 }
+
+func TestFormatTrendEmptyAndPopulated(t *testing.T) {
+	empty := FormatTrend(&scoringv1.GetScoreTrendResponse{Scenario: "cli-health"})
+	if !strings.Contains(empty, "Score trend — cli-health") || !strings.Contains(empty, "No persisted snapshots yet.") {
+		t.Fatalf("empty trend output = %q", empty)
+	}
+
+	populated := FormatTrend(&scoringv1.GetScoreTrendResponse{
+		Scenario: "cli-health",
+		Snapshots: []*scoringv1.ScoreSnapshot{
+			{Score: 81, Classification: "strong", WorkingRung: "R3", Digest: "td:abc", CalculatedAt: timestamppb.New(time.Date(2026, 11, 20, 14, 5, 0, 0, time.UTC))},
+			{Score: 40, Classification: "partial", Importance: 0.75, ImportancePresent: true},
+		},
+	})
+	for _, want := range []string{"2026-11-20 14:05   81/100  strong             rung=R3 digest=td:abc", "unknown   40/100  partial            rung=clean digest=unknown importance=0.8"} {
+		if !strings.Contains(populated, want) {
+			t.Fatalf("trend output missing %q:\n%s", want, populated)
+		}
+	}
+}
+
+func TestFormatListEmptyAndPopulated(t *testing.T) {
+	empty := FormatList(&scoringv1.ListScoresResponse{})
+	if !strings.Contains(empty, "Scenario scores") || !strings.Contains(empty, "No persisted snapshots yet.") {
+		t.Fatalf("empty list output = %q", empty)
+	}
+
+	populated := FormatList(&scoringv1.ListScoresResponse{
+		Scores: []*scoringv1.ScoreRow{{
+			Scenario: "cli-health", Score: 81, Classification: "strong", WorkingRung: "R3", Priority: 6.25,
+		}},
+		NextPageToken: "cursor-next",
+	})
+	for _, want := range []string{"SCENARIO", "cli-health", "81/100", "strong", "R3", "6.2", "unknown", "Next page token: cursor-next"} {
+		if !strings.Contains(populated, want) {
+			t.Fatalf("list output missing %q:\n%s", want, populated)
+		}
+	}
+}

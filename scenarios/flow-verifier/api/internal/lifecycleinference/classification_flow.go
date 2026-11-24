@@ -236,7 +236,7 @@ func analyzeFunctionFlowCached(ctx context.Context, fn *ast.FuncDecl, source par
 			}
 			return true
 		}
-		if isSQLWriteSink(method) && isSQLReceiver(receiver, source, variableTypes, structFields, allFiles) && expressionListPersistsCandidateField(call.Args, source, allFiles, candidate, candidateImport, typeGraph, variables, structFields, variableTypes, persistedFieldValues, serializers) {
+		if isSQLWriteSink(call, method) && isSQLReceiver(receiver, source, variableTypes, structFields, allFiles) && expressionListPersistsCandidateField(call.Args, source, allFiles, candidate, candidateImport, typeGraph, variables, structFields, variableTypes, persistedFieldValues, serializers) {
 			flow.persistence = append(flow.persistence, flow.origins...)
 			flow.persistence = append(flow.persistence, sourceEvidence(source.fset, source.path, call, "candidate lifecycle field value or serialized containing record passed to database/sql."+method))
 			return true
@@ -496,13 +496,78 @@ func candidateFieldExcludedFromRecord(files []parsedSource, candidate Candidate)
 	return false
 }
 
-func isSQLWriteSink(method string) bool {
+func isSQLWriteSink(call *ast.CallExpr, method string) bool {
 	switch method {
 	case "Exec", "ExecContext":
-		return true
+		queryIndex := 0
+		if method == "ExecContext" {
+			queryIndex = 1
+		}
+		if queryIndex >= len(call.Args) {
+			return false
+		}
+		query, ok := call.Args[queryIndex].(*ast.BasicLit)
+		if !ok || query.Kind != token.STRING {
+			return false
+		}
+		statement, err := strconv.Unquote(query.Value)
+		if err != nil {
+			return false
+		}
+		keyword, ok := firstSQLKeyword(statement)
+		if !ok {
+			return false
+		}
+		// Exec/ExecContext describe an API shape, not a durable write. Only
+		// claim persistence for literal statements whose leading operation is a
+		// known row mutation. Queries, control statements, DDL, CTEs, and opaque
+		// SQL stay unknown until a parser or stronger source evidence exists.
+		switch keyword {
+		case "INSERT", "UPDATE", "DELETE", "REPLACE", "MERGE":
+			return true
+		default:
+			return false
+		}
 	default:
 		return false
 	}
+}
+
+func firstSQLKeyword(statement string) (string, bool) {
+	for len(statement) > 0 {
+		statement = strings.TrimLeft(statement, " \t\r\n\f")
+		if strings.HasPrefix(statement, "--") {
+			if newline := strings.IndexByte(statement, '\n'); newline >= 0 {
+				statement = statement[newline+1:]
+				continue
+			}
+			return "", false
+		}
+		if strings.HasPrefix(statement, "/*") {
+			end := strings.Index(statement[2:], "*/")
+			if end < 0 {
+				return "", false
+			}
+			statement = statement[end+4:]
+			continue
+		}
+		break
+	}
+	if statement == "" {
+		return "", false
+	}
+	end := 0
+	for end < len(statement) {
+		c := statement[end]
+		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '_') {
+			break
+		}
+		end++
+	}
+	if end == 0 {
+		return "", false
+	}
+	return strings.ToUpper(statement[:end]), true
 }
 
 func isSQLReadSink(method string) bool {

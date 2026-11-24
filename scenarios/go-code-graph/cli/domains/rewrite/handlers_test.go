@@ -17,6 +17,7 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 	cliapptest "github.com/vrooli/cli-core/cliapptest"
+	cliinternal "go-code-graph/cli/internal"
 
 	clitest "github.com/vrooli/cli-core/cliapptest"
 )
@@ -86,7 +87,7 @@ func TestPlan_ParsesOpsAndRenders(t *testing.T) {
 		},
 	}}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
-	h := newHandlers(core)
+	h := &handlers{client: cliinternal.NewGoCodeGraphClient(core)}
 
 	opsPath := writeOpsFile(t, `[
 		{"kind": "file_move", "from_path": "a.go", "to_path": "b.go"},
@@ -117,7 +118,7 @@ func TestPlan_ParsesOpsAndRenders(t *testing.T) {
 
 func TestPlan_RejectsEmptyOpsFile(t *testing.T) {
 	core := clitest.NewTestApp(t, connectAPI(t, &fakeService{}))
-	h := newHandlers(core)
+	h := &handlers{client: cliinternal.NewGoCodeGraphClient(core)}
 	opsPath := writeOpsFile(t, `[]`)
 	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "ops-file", Required: true}},
@@ -133,7 +134,7 @@ func TestPlan_RejectsEmptyOpsFile(t *testing.T) {
 
 func TestPlan_RejectsUnknownKind(t *testing.T) {
 	core := clitest.NewTestApp(t, connectAPI(t, &fakeService{}))
-	h := newHandlers(core)
+	h := &handlers{client: cliinternal.NewGoCodeGraphClient(core)}
 	opsPath := writeOpsFile(t, `[{"kind":"bogus"}]`)
 	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "ops-file", Required: true}},
@@ -159,7 +160,7 @@ func TestApply_RendersResultsAndDryRun(t *testing.T) {
 		DryRun: true,
 	}}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
-	h := newHandlers(core)
+	h := &handlers{client: cliinternal.NewGoCodeGraphClient(core)}
 	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "plan-id", Required: true}},
 		Flags:       []cliapp.Flag{{Name: "module-path", Required: true}},
@@ -193,7 +194,7 @@ func TestApply_SurfacesFailures(t *testing.T) {
 		},
 	}}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
-	h := newHandlers(core)
+	h := &handlers{client: cliinternal.NewGoCodeGraphClient(core)}
 	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "plan-id", Required: true}},
 		Flags:       []cliapp.Flag{{Name: "module-path", Required: true}},

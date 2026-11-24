@@ -3,7 +3,7 @@ import { readAudio } from "./audition-audio";
 import { fromJson } from "@bufbuild/protobuf";
 import { ListTakesResponseSchema } from "@vrooli/proto-types/music-tools/v1/composition/composition_pb";
 import { musicRestUrl } from "../api/client";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
 type Take = {
     id: string;
     job_id?: string;

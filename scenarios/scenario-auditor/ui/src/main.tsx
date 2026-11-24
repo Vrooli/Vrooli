@@ -1,3 +1,4 @@
+import { BaseStyles } from "@vrooli/react-component-library/BaseStyles/1.3.0";
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -54,7 +55,7 @@ ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter basename={routerBasename}>
-        <App />
+        <><BaseStyles /><App /></>
       </BrowserRouter>
     </QueryClientProvider>
   </React.StrictMode>,

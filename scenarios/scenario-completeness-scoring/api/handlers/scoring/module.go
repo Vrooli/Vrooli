@@ -27,6 +27,7 @@ func Module(scorer Scorer, snapshots SnapshotRepository, logger *log.Logger) mod
 		Name: "scoring",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
+			r.HandleFunc("/api/v1/search/scores", newSearchHandler(scorer)).Methods("POST")
 		},
 		Endpoints: Endpoints,
 	}
@@ -38,6 +39,43 @@ func Schema() string { return internalscoring.Schema() }
 // Endpoints describes the scoring module's public surface for codegen and
 // the global proto/Connect parity test.
 var Endpoints = []module.EndpointDescriptor{
+	{
+		ID:          "scoring_search",
+		Path:        "/api/v1/search/scores",
+		Method:      "POST",
+		Summary:     "Search cached maturity evidence for one scenario",
+		Description: "Search Hub adapter over one explicit scenario's cached GetScore result. The scenario scope must be supplied by Search Hub (scenario:<slug>); query relevance is deterministic token overlap with cached maturity evidence, independent of the composite score. It does not scan or infer a fleet target.",
+		Category:    "search",
+		Request: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"query":    "string (required, search text)",
+				"scenario": "string (required, one explicit scenario slug from scenario:<slug> scope)",
+				"limit":    "integer (optional, maximum 1)",
+			},
+		},
+		Response: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"query":        "string (echoed request query)",
+				"scenario":     "string (echoed explicit scope)",
+				"source":       "string",
+				"basis":        "string (cached_artifacts)",
+				"results":      "array<SearchScoreResult> (zero or one)",
+				"degradations": "array<SearchDegradation>",
+			},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Malformed JSON or unknown request fields"},
+		},
+		Examples: []module.Example{
+			{Name: "Search a scoped scenario's maturity evidence", Curl: "curl http://localhost:${API_PORT}/api/v1/search/scores -H 'Content-Type: application/json' -d '{\"query\":\"current maturity rung\",\"scenario\":\"scenario-completeness-scoring\",\"limit\":1}'"},
+		},
+		RESTException: &module.RESTException{
+			Reason: module.RESTReasonThirdPartyShape,
+			Note:   "Search Hub provider contract requires a compact query/scope/result JSON shape; the existing score semantics remain owned by ScoreService.GetScore.",
+		},
+	},
 	{
 		ID:          "scoring_get",
 		Path:        scoringconnect.ScoreServiceGetScoreProcedure,

@@ -28,8 +28,15 @@ var (
 )
 
 type moduleConfig struct {
+	capturer              reconcile.Capturer
 	evidenceRepository    reconcile.EvidenceRepository
 	attestationRepository attestation.Repository
+}
+
+// WithCapturer injects the outbound capture identity/client into structure
+// reconciliation. Production wiring must provide the scoped BAS token source.
+func WithCapturer(capturer reconcile.Capturer) Option {
+	return func(cfg *moduleConfig) { cfg.capturer = capturer }
 }
 
 // Option configures the validation module.
@@ -61,6 +68,7 @@ func Module(logger *log.Logger, repoRoot string, engine *checks.Engine, opts ...
 	}
 	if engine == nil {
 		engine = NewEngine(repoRoot, checks.RegistryDeps{
+			Capturer:              cfg.capturer,
 			EvidenceRepository:    cfg.evidenceRepository,
 			GeometryEvaluator:     reconcile.NewUIHealthGeometryEvaluator(),
 			AttestationRepository: cfg.attestationRepository,

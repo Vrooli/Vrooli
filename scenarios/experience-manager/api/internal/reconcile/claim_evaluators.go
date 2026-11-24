@@ -154,7 +154,7 @@ func evaluateSingleDominantActionClaim(page spec.PageDocument, claim spec.Claim,
 	if len(claim.Elements) == 0 {
 		return claimEvaluation{Unverifiable: "single-dominant-action requires declared action elements"}
 	}
-	minimum, ok := numericParam(claim.Params, "minimumAreaRatio", "minAreaRatio")
+	minimum, ok := spec.NumericParam(claim.Params, "minimumAreaRatio", "minAreaRatio")
 	if !ok || minimum < 1 {
 		minimum = 1.1
 	}
@@ -180,7 +180,7 @@ func evaluateSpacingClaim(page spec.PageDocument, claim spec.Claim, _ CaptureTar
 	if len(claim.Elements) != 2 {
 		return claimEvaluation{Unverifiable: "spacing requires exactly two declared elements"}
 	}
-	minimum, ok := numericParam(claim.Params, "minSeparation", "minGap")
+	minimum, ok := spec.NumericParam(claim.Params, "minSeparation", "minGap")
 	if !ok || minimum < 0 {
 		return claimEvaluation{Unverifiable: "spacing requires params.minSeparation"}
 	}
@@ -189,7 +189,7 @@ func evaluateSpacingClaim(page spec.PageDocument, claim spec.Claim, _ CaptureTar
 	if first == nil || second == nil {
 		return claimEvaluation{Unverifiable: "spacing requires both declared elements"}
 	}
-	axis := strings.ToLower(strings.TrimSpace(claimParamString(claim.Params, "axis")))
+	axis := strings.ToLower(strings.TrimSpace(spec.ParamString(claim.Params, "axis")))
 	if axis == "" {
 		axis = "inline"
 	}
@@ -221,11 +221,11 @@ func evaluateStateContrastClaim(page spec.PageDocument, claim spec.Claim, target
 	if len(claim.Elements) == 0 {
 		return claimEvaluation{Unverifiable: "state-contrast requires a declared control element"}
 	}
-	state := claimParamString(claim.Params, "state")
+	state := spec.ParamString(claim.Params, "state")
 	if state == "" {
 		state = target.StateID
 	}
-	minimum, ok := numericParam(claim.Params, "minContrastRatio", "minContrast")
+	minimum, ok := spec.NumericParam(claim.Params, "minContrastRatio", "minContrast")
 	if !ok || minimum < 1 {
 		return claimEvaluation{Unverifiable: "state-contrast requires params.minContrastRatio"}
 	}
@@ -237,7 +237,7 @@ func evaluateStateContrastClaim(page spec.PageDocument, claim spec.Claim, target
 	if appearance, exists := appearanceState(control, state); exists {
 		foreground, background = firstNonEmpty(appearance.Foreground, foreground), firstNonEmpty(appearance.Background, background)
 	}
-	backgroundRef := claimParamString(claim.Params, "background", "backgroundElement")
+	backgroundRef := spec.ParamString(claim.Params, "background", "backgroundElement")
 	if backgroundNode := findBoundNode(nodes, page.Bindings.Elements[backgroundRef], elementRole(page, backgroundRef)); backgroundNode != nil {
 		background = firstNonEmpty(computedStyleValue(backgroundNode, "background-color"), background)
 	}
@@ -267,7 +267,7 @@ func evaluateSizeParityClaim(page spec.PageDocument, claim spec.Claim, _ Capture
 				return claimEvaluation{Unverifiable: "floor-control-geometry requires a known data-control-size rung"}
 			}
 			tolerance := 1.0
-			if value, exists := numericParam(claim.Params, "tolerance"); exists {
+			if value, exists := spec.NumericParam(claim.Params, "tolerance"); exists {
 				tolerance = value
 			}
 			delta := math.Max(math.Abs(node.Bounds.Height-expected), math.Abs(node.Bounds.Width-expected))
@@ -290,7 +290,7 @@ func evaluateSizeParityClaim(page spec.PageDocument, claim spec.Claim, _ Capture
 		return claimEvaluation{Unverifiable: "size-parity requires both declared elements"}
 	}
 	tolerance := 1.0
-	if value, exists := numericParam(claim.Params, "tolerance"); exists {
+	if value, exists := spec.NumericParam(claim.Params, "tolerance"); exists {
 		tolerance = value
 	}
 	firstHeight, firstOK := nodeHeight(first)
@@ -584,7 +584,7 @@ func inspectTransitionProperties(page spec.PageDocument, claim spec.Claim, nodes
 
 func evaluateMotionDurationClaim(page spec.PageDocument, claim spec.Claim, target CaptureTarget, nodes []*AXNode) claimEvaluation {
 	maximum := 500.0
-	if value, ok := numericParam(claim.Params, "maxMs", "maximumMs"); ok {
+	if value, ok := spec.NumericParam(claim.Params, "maxMs", "maximumMs"); ok {
 		maximum = value
 	}
 	if target.MotionPreference == "reduce" {
@@ -776,36 +776,6 @@ func nodeHeight(node *AXNode) (float64, bool) {
 	return cssPixels(computedStyleValue(node, "height"))
 }
 
-func numericParam(params map[string]any, keys ...string) (float64, bool) {
-	for _, key := range keys {
-		switch value := params[key].(type) {
-		case float64:
-			return value, true
-		case float32:
-			return float64(value), true
-		case int:
-			return float64(value), true
-		case int64:
-			return float64(value), true
-		case json.Number:
-			parsed, err := value.Float64()
-			if err == nil {
-				return parsed, true
-			}
-		}
-	}
-	return 0, false
-}
-
-func claimParamString(params map[string]any, keys ...string) string {
-	for _, key := range keys {
-		if value, ok := params[key].(string); ok {
-			return strings.TrimSpace(value)
-		}
-	}
-	return ""
-}
-
 var colorComponentRE = regexp.MustCompile(`[-+]?(?:\d*\.\d+|\d+\.?\d*)%?`)
 
 func contrastRatio(foreground, background string) (float64, error) {
@@ -831,7 +801,7 @@ func evaluateChromeColorAgreementClaim(page spec.PageDocument, claim spec.Claim,
 	if len(claim.Elements) == 0 {
 		return claimEvaluation{Unverifiable: "chrome-color-agreement requires a declared status-bar element"}
 	}
-	referenceID := claimParamString(claim.Params, "reference")
+	referenceID := spec.ParamString(claim.Params, "reference")
 	if referenceID == "" {
 		return claimEvaluation{Unverifiable: "chrome-color-agreement requires params.reference"}
 	}
@@ -1019,7 +989,7 @@ func evaluateFontSizeClaim(page spec.PageDocument, claim spec.Claim, _ CaptureTa
 		return claimEvaluation{Unverifiable: "font-size requires at least one declared element"}
 	}
 	minimum := 16.0
-	if value, ok := numericParam(claim.Params, "minPx", "minimumPx", "minimum"); ok {
+	if value, ok := spec.NumericParam(claim.Params, "minPx", "minimumPx", "minimum"); ok {
 		minimum = value
 	}
 	for _, elementID := range claim.Elements {
@@ -1147,37 +1117,12 @@ func containsState(node *AXNode, state string) bool {
 	return false
 }
 
-func pageWithBaselineClaims(page spec.PageDocument) spec.PageDocument {
-	optedOut := map[string]bool{}
-	for _, optOut := range page.FloorOptOuts {
-		optedOut[optOut.Floor] = true
-	}
-	for _, floor := range floorClaimsForArchetype(page.Archetype, false) {
-		if optedOut[floor.Type] || hasClaimType(page, floor.Type) {
-			continue
-		}
-		page.Claims = append(page.Claims, floor)
-	}
-	return page
-}
-
-func baselineFloorClaims() []spec.Claim {
-	return []spec.Claim{
-		{ID: "floor-no-document-horizontal-overflow", Type: "no-document-horizontal-overflow", Statement: "The page never creates document-level horizontal scrolling at captured viewports.", Tier: "machine", States: []string{"default"}},
-		{ID: "floor-viewport-fill", Type: "viewport-fill", Statement: "The page surface fills the captured viewport instead of collapsing short content.", Tier: "machine", States: []string{"default"}},
-		{ID: "floor-chrome-pinned", Type: "chrome-pinned", Statement: "Application chrome remains inside the viewport at captured viewports.", Tier: "machine", States: []string{"default"}},
-		{ID: "floor-safe-area-tap-targets", Type: "safe-area-tap-targets", Statement: "Mobile tap targets stay outside unsafe device-edge interaction zones.", Tier: "machine", States: []string{"default"}, Viewports: []string{"mobile"}},
-		{ID: "floor-single-line-chrome", Type: "single-line-chrome", Statement: "Navigation and chrome labels render as single-line controls at captured viewports.", Tier: "machine", States: []string{"default"}},
-		{ID: "floor-tap-target-size", Type: "tap-target-size", Statement: "Mobile interactive controls expose comfortable touch targets.", Tier: "machine", States: []string{"default"}, Viewports: []string{"mobile"}},
-	}
-}
-
 func componentWithBaselineClaims(component spec.ComponentDocument) spec.ComponentDocument {
 	optedOut := map[string]bool{}
 	for _, optOut := range component.FloorOptOuts {
 		optedOut[optOut.Floor] = true
 	}
-	for _, floor := range floorClaimsForArchetype(component.Archetype, true) {
+	for _, floor := range componentFloorClaimsForArchetype(component.Archetype) {
 		if optedOut[floor.Type] || componentHasClaimType(component, floor.Type) {
 			continue
 		}
@@ -1205,29 +1150,19 @@ type floorSetDocument struct {
 	Archetypes map[string][]string `json:"archetypes"`
 }
 
-func floorClaimsForArchetype(archetype string, component bool) []spec.Claim {
+func componentFloorClaimsForArchetype(archetype string) []spec.Claim {
 	var document floorSetDocument
 	if err := json.Unmarshal(archetypeFloors, &document); err != nil {
-		if component {
-			return componentBaselineFloorClaims()
-		}
-		return baselineFloorClaims()
+		return componentBaselineFloorClaims()
 	}
 	key := strings.ToLower(strings.TrimSpace(archetype))
 	types, ok := document.Archetypes[key]
 	if !ok {
-		if component {
-			return componentBaselineFloorClaims()
-		}
-		return baselineFloorClaims()
+		return componentBaselineFloorClaims()
 	}
 	claims := make([]spec.Claim, 0, len(types))
 	for _, floorType := range types {
-		candidates := baselineFloorClaims()
-		if component {
-			candidates = componentBaselineFloorClaims()
-		}
-		for _, candidate := range candidates {
+		for _, candidate := range componentBaselineFloorClaims() {
 			if candidate.Type == floorType {
 				claims = append(claims, candidate)
 				break

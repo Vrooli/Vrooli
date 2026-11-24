@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/vrooli/cli-core/cliapp"
+	cliinternal "go-code-graph/cli/internal"
 )
 
 // GroupName is the manifest group name this package owns. Exported so
@@ -17,7 +18,7 @@ const GroupName = "rewrite"
 // Register builds the rewrite subcommand group from the embedded manifest
 // and wires Connect-RPC bindings to handlers in handlers.go.
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
-	h := newHandlers(core)
+	h := &handlers{client: cliinternal.NewGoCodeGraphClient(core)}
 	bindings := map[string]func(cliapp.RunContext) error{
 		"GoCodeGraphService.RewritePlan":  h.plan,
 		"GoCodeGraphService.RewriteApply": h.apply,

@@ -14,12 +14,14 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/servicetoken"
 )
 
 type BASCapturer struct {
 	Resolve       func(ctx context.Context) (string, error)
 	ResolveTarget func(ctx context.Context, target CaptureTarget) (string, error)
 	HTTPClient    *http.Client
+	Tokens        *servicetoken.Tokens
 }
 
 // CaptureAccessibility implements Capturer.
@@ -109,7 +111,15 @@ func (c BASCapturer) CaptureAccessibility(ctx context.Context, target CaptureTar
 		return Snapshot{}, fmt.Errorf("%w: create BAS capture request: %v", ErrCaptureUnavailable, err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := c.httpClient().Do(req)
+	if c.Tokens == nil {
+		return Snapshot{}, fmt.Errorf("%w: BAS capture service identity is unavailable", ErrCaptureUnavailable)
+	}
+	token, err := c.Tokens.Token(ctx)
+	if err != nil || strings.TrimSpace(token) == "" {
+		return Snapshot{}, fmt.Errorf("%w: BAS capture service identity is unavailable", ErrCaptureUnavailable)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, err := c.captureHTTPClient().Do(req)
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("%w: call BAS CaptureService: %v", ErrCaptureUnavailable, err)
 	}
@@ -321,5 +331,14 @@ func (c BASCapturer) httpClient() *http.Client {
 	// may drive several isolated browser sessions. Keep the default long
 	// enough for that matrix to finish; callers can still inject a tighter
 	// client for bounded operations and tests.
-	return &http.Client{Timeout: 10 * time.Minute}
+	return &http.Client{Timeout: 10 * time.Minute, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+}
+
+// captureHTTPClient prevents a redirected Capture call from carrying the
+// service bearer to a second BAS route or another host. Artifact reads use the
+// unauthenticated base client separately.
+func (c BASCapturer) captureHTTPClient() *http.Client {
+	client := *c.httpClient()
+	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	return &client
 }

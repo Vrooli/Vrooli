@@ -4,38 +4,30 @@ import (
 	"strings"
 
 	"experience-manager/internal/spec"
+	"github.com/vrooli/api-core/readinessprofile"
 )
 
-// claimFailureCode retains the authored floor claim code vocabulary for draft
-// calibration. Active geometry is evaluated by ui-health's artifact rules.
-func claimFailureCode(claimType string) string {
-	switch claimType {
-	case "no-document-horizontal-overflow":
-		return spec.CodeFloorNoDocOverflow
-	case "viewport-fill":
-		return spec.CodeFloorViewportFill
-	case "chrome-pinned":
-		return spec.CodeFloorChromePinned
-	case "safe-area-tap-targets":
-		return spec.CodeFloorSafeArea
-	case "single-line-chrome":
-		return spec.CodeFloorSingleLine
-	case "tap-target-size":
-		return spec.CodeFloorTapTargetSize
-	case "affordance-present":
-		return spec.CodeAffordanceMissing
-	default:
-		return spec.CodeClaimFailed
-	}
+func baselineGeometryFloor(floor string) (geometryRule string, ok bool) {
+	return readinessprofile.GeometryRuleForFloor(floor)
 }
 
 func isBaselineFloorType(claimType string) bool {
-	switch claimType {
-	case "no-document-horizontal-overflow", "viewport-fill", "chrome-pinned", "safe-area-tap-targets", "single-line-chrome", "tap-target-size":
-		return true
-	default:
-		return false
+	_, ok := baselineGeometryFloor(claimType)
+	return ok
+}
+
+func geometryRuleForFloor(floor string) string {
+	geometryRule, _ := baselineGeometryFloor(floor)
+	return geometryRule
+}
+
+// claimFailureCode maps non-geometry claims to their finding vocabulary. The
+// inherited geometry floors are emitted only by ui-health's canonical rules.
+func claimFailureCode(claimType string) string {
+	if claimType == "affordance-present" {
+		return spec.CodeAffordanceMissing
 	}
+	return spec.CodeClaimFailed
 }
 
 func axParents(nodes []*AXNode) map[*AXNode]*AXNode {

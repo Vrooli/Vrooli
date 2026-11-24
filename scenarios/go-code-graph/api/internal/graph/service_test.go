@@ -96,6 +96,9 @@ func TestServiceExtractMultipleGoMod(t *testing.T) {
 	if !errors.As(err, &ex) || ex.Kind != intgraph.ExtractErrorMultipleGoMod {
 		t.Fatalf("want ExtractErrorMultipleGoMod, got %#v", err)
 	}
+	if code := grapherrors.ErrorToConnectCode(err); code != connect.CodeInvalidArgument {
+		t.Fatalf("multiple go.mod files → InvalidArgument, got %v", code)
+	}
 }
 
 func TestServiceExtractGlobalConcurrencyCap(t *testing.T) {

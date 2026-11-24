@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"experience-manager/internal/spec"
+	"experience-manager/internal/testutil"
 )
 
 // TestLiveFleetAffordanceContract keeps the browser capture and the
@@ -22,7 +23,7 @@ func TestLiveFleetAffordanceContract(t *testing.T) {
 	if baseURL == "" || uiHealthURL == "" {
 		t.Skip("set EXPERIENCE_BAS_INTEGRATION_URL and EXPERIENCE_UI_HEALTH_INTEGRATION_URL to exercise the live fleet contract and geometry evaluators")
 	}
-	repoRoot := repoRoot(t)
+	repoRoot := testutil.RepoRoot(t)
 	report, err := spec.ParseScenario(filepath.Join(repoRoot, "scenarios", "experience-manager"))
 	if err != nil {
 		t.Fatalf("ParseScenario: %v", err)
@@ -49,7 +50,7 @@ func TestLiveFleetAffordanceContract(t *testing.T) {
 			if geometryErr != nil {
 				t.Fatalf("ui-health geometry evaluation: %v", geometryErr)
 			}
-			result := reconcileActivePageWithGeometry("experience/pages/fleet.json", pageWithBaselineClaims(page), target, snapshot, geometryFindings)
+			result := reconcileActivePageWithGeometry("experience/pages/fleet.json", page, target, snapshot, geometryFindings)
 			for _, finding := range result.Findings {
 				if (finding.Code == spec.CodeClaimFailed || finding.Code == spec.CodeAffordanceMissing) && strings.Contains(finding.Message, "debt-table-affordances") {
 					t.Fatalf("live fleet affordance claim failed for profile %q state %q: %+v", profile.MatrixID, target.StateID, finding)

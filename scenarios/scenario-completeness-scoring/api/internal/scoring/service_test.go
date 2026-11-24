@@ -8,7 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/freshness-go/runindex"
 	"github.com/vrooli/freshness-go/treedigest"
+	"scenario-completeness-scoring/internal/signals"
 )
 
 // writeFixtureScenario lays down a minimal real scenario tree: requirements
@@ -84,6 +86,37 @@ func stampRunIndex(t *testing.T, root string) {
 	}
 }
 
+func newFixtureService(scenariosRoot string, now func() time.Time) (*Service, error) {
+	options := []Option{WithScenariosRoot(scenariosRoot), WithImportance(nil)}
+	if now != nil {
+		options = append(options, WithClock(now))
+	}
+	svc, err := New(options...)
+	if err != nil {
+		return nil, err
+	}
+	svc.collectSignals = func(scenario, root string) signals.Snapshot {
+		return signals.Snapshot{
+			Scenario: scenario,
+			Root:     root,
+			Category: "utility",
+			Requirements: signals.RequirementsSignals{
+				Collected: true, Total: 2, Passing: 1, WithValidation: 2, AvgDepth: 1,
+			},
+			Phases: signals.PhaseSignals{Collected: true, Phases: map[string]signals.PhaseResult{
+				"unit": {Status: "passed"},
+			}},
+		}
+	}
+	svc.freshness.LoadRecords = func(root string) ([]runindex.RunRecord, error) {
+		return runindex.Load(filepath.Join(root, "coverage", "runs.index.json"))
+	}
+	svc.freshness.RequiredPhases = func() []string {
+		return []string{"structure", "docs", "unit", "business", "proto"}
+	}
+	return svc, nil
+}
+
 // TestGetScoreStalenessLoop is the end-to-end honesty check: a scenario
 // whose run index is stamped at the current digest reads fresh; editing any
 // source file flips every phase to stale with the copy-pastable refresh
@@ -96,9 +129,9 @@ func TestGetScoreStalenessLoop(t *testing.T) {
 	root := writeFixtureScenario(t, scenariosRoot, "fixture")
 	stampRunIndex(t, root)
 
-	svc, err := New(WithScenariosRoot(scenariosRoot), WithClock(func() time.Time {
+	svc, err := newFixtureService(scenariosRoot, func() time.Time {
 		return time.Date(2026, 6, 10, 12, 0, 0, 0, time.UTC)
-	}), WithImportance(nil))
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,7 +195,7 @@ func TestGetScoreAssemblesAllSections(t *testing.T) {
 	root := writeFixtureScenario(t, scenariosRoot, "fixture")
 	stampRunIndex(t, root)
 
-	svc, err := New(WithScenariosRoot(scenariosRoot), WithImportance(nil))
+	svc, err := newFixtureService(scenariosRoot, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -53,6 +53,27 @@ func TestCompositeFullMarksOnCleanSnapshot(t *testing.T) {
 	}
 }
 
+func TestCompositeSkippedPhaseDoesNotLowerPassingPhaseRate(t *testing.T) {
+	snap := cleanSnapshot()
+	snap.Phases.Phases["optional"] = signals.PhaseResult{Status: "skipped"}
+
+	comp := computeComposite(snap)
+	for _, group := range comp.Groups {
+		if group.ID != "quality" {
+			continue
+		}
+		for _, metric := range group.Metrics {
+			if metric.ID == "phase_pass_rate" {
+				if metric.Points != 15 {
+					t.Fatalf("phase pass points = %v, want 15 with ten passing phases and one skipped phase", metric.Points)
+				}
+				return
+			}
+		}
+	}
+	t.Fatal("quality phase_pass_rate metric missing from composite")
+}
+
 func TestClassificationBoundaries(t *testing.T) {
 	cases := []struct {
 		score int

@@ -5,8 +5,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"path/filepath"
-	"runtime"
 	"testing"
 
 	apidb "github.com/vrooli/api-core/database"
@@ -50,11 +48,7 @@ func TestSQLiteRepositoryAppendsAttestations(t *testing.T) { // [REQ:EXPERIEN-P1
 }
 
 func TestSQLiteRepositoryHasSingleWriteSeam(t *testing.T) { // [REQ:EXPERIEN-P1-004]
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve test path")
-	}
-	path := filepath.Join(filepath.Dir(file), "sqlite.go")
+	const path = "sqlite.go" // Go runs package tests from this source directory, including with -trimpath.
 	fset := token.NewFileSet()
 	fileAST, err := parser.ParseFile(fset, path, nil, 0)
 	if err != nil {

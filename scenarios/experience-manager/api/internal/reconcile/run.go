@@ -25,7 +25,7 @@ func (c Check) Run(ctx context.Context, report spec.Report) []spec.Finding {
 		capturer = BASCapturer{}
 	}
 	profiles := c.captureProfiles(report.TargetPath)
-	statusByPage := pageStatuses(report.Spec.Index.Pages)
+	statusByPage := spec.IndexPageStatuses(report.Spec.Index.Pages)
 	for pageID, page := range report.Spec.Pages {
 		status := statusByPage[pageID]
 		loc := "experience/pages/" + pageID + ".json"
@@ -34,7 +34,6 @@ func (c Check) Run(ctx context.Context, report spec.Report) []spec.Finding {
 			continue
 		}
 		findings = append(findings, floorWaiverFindings(loc, page.FloorOptOuts)...)
-		page = pageWithBaselineClaims(page)
 		if status != "active" || !hasMachineClaim(page) {
 			continue
 		}
@@ -58,7 +57,7 @@ func (c Check) Run(ctx context.Context, report spec.Report) []spec.Finding {
 		findings = append(findings, unverifiableOutOfMatrixFindings(loc, page, profiles)...)
 		findings = append(findings, unverifiableStateSetupFindings(loc, page)...)
 	}
-	statusByComponent := pageStatuses(report.Spec.Index.Components)
+	statusByComponent := spec.IndexPageStatuses(report.Spec.Index.Components)
 	for componentID, component := range report.Spec.Components {
 		status := statusByComponent[componentID]
 		loc := "experience/components/" + componentID + ".json"
@@ -121,7 +120,7 @@ func (c Check) reconcileCaptures(ctx context.Context, scenario, loc string, page
 			}
 			target.StateFingerprints = fingerprints
 			var sharedGeometry []spec.Finding
-			if c.GeometryEvaluator != nil {
+			if page.Kind == "experience-component" && c.GeometryEvaluator != nil {
 				var geometryErr error
 				sharedGeometry, geometryErr = c.GeometryEvaluator.EvaluateGeometry(ctx, scenario, target, snapshot)
 				if geometryErr != nil {
@@ -132,7 +131,7 @@ func (c Check) reconcileCaptures(ctx context.Context, scenario, loc string, page
 					}}
 				}
 				sharedGeometry = filterOptedOutGeometry(sharedGeometry, page.FloorOptOuts)
-			} else {
+			} else if page.Kind == "experience-component" {
 				sharedGeometry = []spec.Finding{{
 					Code: "visual_geometry_unmeasured", Severity: spec.SeverityInfo,
 					Message: "canonical ui-health geometry evaluator is not configured", Locations: []string{loc},
@@ -141,7 +140,7 @@ func (c Check) reconcileCaptures(ctx context.Context, scenario, loc string, page
 			}
 			result := reconcileActivePageWithGeometry(loc, page, target, snapshot, sharedGeometry, snapshots)
 			findings = append(findings, result.Findings...)
-			if c.GeometryEvaluator != nil {
+			if page.Kind == "experience-component" && c.GeometryEvaluator != nil {
 				findings = append(findings, sharedGeometry...)
 			}
 			findings = append(findings, c.persistEvidence(ctx, scenario, loc, page, target, snapshot, result.Evidence)...)

@@ -13,10 +13,10 @@ import {
   type StudioApplyResult,
 } from "../api/experience";
 import { PageFrame } from "../components/PageFrame";
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { Select } from "@vrooli/react-component-library/Select/1";
-import { Textarea } from "../components/ui/textarea";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1.1.1";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";

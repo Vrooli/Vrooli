@@ -6,6 +6,8 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+
+	"github.com/vrooli/api-core/database"
 )
 
 //go:embed schema.sql
@@ -16,7 +18,7 @@ func Schema() string { return schemaSQL }
 
 // EnsureMigrations upgrades existing evidence stores with the component
 // identity columns added after the original page-only projection.
-func EnsureMigrations(ctx context.Context, db SQLExecutor) error {
+func EnsureMigrations(ctx context.Context, db database.SQLTxExecutor) error {
 	// A fresh database has no evidence table yet; schema creation below owns
 	// that path. Existing databases must be migrated before strict schema
 	// validation inspects their declared columns.

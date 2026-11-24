@@ -1,6 +1,6 @@
 import type { FixResult } from "../lib/api";
 import { DiffViewer } from "./DiffViewer";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 
 export function DiffReviewModal({
   open,
@@ -50,7 +50,7 @@ export function DiffReviewModal({
           )}
         </div>
         <div className="p-6 border-t border-white/10 flex justify-end gap-3">
-          <Button variant="outline" size="sm" onClick={onCancel} disabled={applying}>
+          <Button variant="ghost" size="sm" onClick={onCancel} disabled={applying}>
             Cancel
           </Button>
           <Button size="sm" onClick={onApply} disabled={applying || uniqueResults.length === 0}>

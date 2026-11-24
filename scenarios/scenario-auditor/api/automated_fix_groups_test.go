@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"testing"
@@ -67,5 +69,47 @@ func TestLaunchAutomatedFixGroups(t *testing.T) {
 	}
 	if records[1].severity != "medium" || records[1].agentID != "agent-2" {
 		t.Errorf("second start record = %+v", records[1])
+	}
+}
+
+func TestLaunchAutomatedFixGroupsStopsAfterAcceptedCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	job := &automatedFixJob{
+		scenario: "demo", automationRunID: "run-8", status: "running",
+		ctx: ctx, cancel: cancel, stopCh: make(chan struct{}),
+	}
+
+	startCalls := 0
+	_, err := launchAutomatedFixGroups(
+		job,
+		[][]string{{"issue-1"}, {"issue-2"}},
+		"security", "vulnerabilities", agentActionVulnerabilityFix,
+		"test-model", nil,
+		map[string]string{},
+		func(ids []string, _ string) (string, string, map[string]string, error) {
+			return "prompt for " + ids[0], "Fix " + ids[0], nil, nil
+		},
+		func(ids []string) []string { return ids },
+		func(AgentStartConfig) (*AgentInfo, error) {
+			startCalls++
+			if startCalls == 1 {
+				if cancelErr := job.Cancel(); cancelErr != nil {
+					t.Fatalf("Cancel: %v", cancelErr)
+				}
+			}
+			return &AgentInfo{ID: fmt.Sprintf("agent-%d", startCalls)}, nil
+		},
+		func(string, string, string, string, int, string) AutomatedFixRecord { return AutomatedFixRecord{} },
+	)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("launch after accepted cancellation error = %v, want context.Canceled", err)
+	}
+	job.fail(err) // This is the worker's normal launch-error path.
+	if got := job.Snapshot().Status; got != "cancelled" {
+		t.Fatalf("terminal status after cancellation = %q, want cancelled", got)
+	}
+	if startCalls != 1 {
+		t.Fatalf("agent starts after cancellation = %d, want only the already-started agent", startCalls)
 	}
 }

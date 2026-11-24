@@ -12,8 +12,7 @@ import (
 // TestGetCurrentBrief_Success verifies current brief retrieval.
 // [REQ:LD-BRIEF-MORNING] [REQ:LD-BRIEF-EVENING] Handler returns appropriate brief.
 func TestGetCurrentBrief_Success(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	req := httptest.NewRequest("GET", "/api/v1/briefs/current", nil)
 	rr := httptest.NewRecorder()
@@ -40,8 +39,7 @@ func TestGetCurrentBrief_Success(t *testing.T) {
 // TestGetCurrentBrief_WithDomainActivity verifies brief includes domain sections.
 // [REQ:LD-BRIEF-CONSOLIDATE] Handler consolidates cross-domain data.
 func TestGetCurrentBrief_WithDomainActivity(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	// Register a domain and create events
 	h.registerTestDomain(t, "test-domain", "Test Domain")
@@ -70,8 +68,7 @@ func TestGetCurrentBrief_WithDomainActivity(t *testing.T) {
 // TestGetMorningBrief_Success verifies morning brief retrieval.
 // [REQ:LD-BRIEF-MORNING] Handler generates morning brief.
 func TestGetMorningBrief_Success(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	req := httptest.NewRequest("GET", "/api/v1/briefs/morning", nil)
 	rr := httptest.NewRecorder()
@@ -95,8 +92,7 @@ func TestGetMorningBrief_Success(t *testing.T) {
 // TestGetMorningBrief_WithDate verifies date parameter handling.
 // [REQ:LD-BRIEF-MORNING] Handler accepts date parameter.
 func TestGetMorningBrief_WithDate(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	req := httptest.NewRequest("GET", "/api/v1/briefs/morning?date=2026-03-10", nil)
 	rr := httptest.NewRecorder()
@@ -120,8 +116,7 @@ func TestGetMorningBrief_WithDate(t *testing.T) {
 // TestGetMorningBrief_InvalidDate verifies date validation.
 // [REQ:LD-BRIEF-MORNING] Handler validates date format.
 func TestGetMorningBrief_InvalidDate(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	req := httptest.NewRequest("GET", "/api/v1/briefs/morning?date=invalid", nil)
 	rr := httptest.NewRecorder()
@@ -136,8 +131,7 @@ func TestGetMorningBrief_InvalidDate(t *testing.T) {
 // TestGetEveningBrief_Success verifies evening brief retrieval.
 // [REQ:LD-BRIEF-EVENING] Handler generates evening brief.
 func TestGetEveningBrief_Success(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	req := httptest.NewRequest("GET", "/api/v1/briefs/evening", nil)
 	rr := httptest.NewRecorder()
@@ -161,8 +155,7 @@ func TestGetEveningBrief_Success(t *testing.T) {
 // TestGetEveningBrief_WithDate verifies date parameter handling.
 // [REQ:LD-BRIEF-EVENING] Handler accepts date parameter.
 func TestGetEveningBrief_WithDate(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	req := httptest.NewRequest("GET", "/api/v1/briefs/evening?date=2026-03-09", nil)
 	rr := httptest.NewRecorder()
@@ -186,8 +179,7 @@ func TestGetEveningBrief_WithDate(t *testing.T) {
 // TestGetEveningBrief_InvalidDate verifies date validation.
 // [REQ:LD-BRIEF-EVENING] Handler validates date format.
 func TestGetEveningBrief_InvalidDate(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	req := httptest.NewRequest("GET", "/api/v1/briefs/evening?date=not-a-date", nil)
 	rr := httptest.NewRecorder()
@@ -202,8 +194,7 @@ func TestGetEveningBrief_InvalidDate(t *testing.T) {
 // TestBriefConfig_Included verifies config is included in response.
 // [REQ:LD-BRIEF-MORNING] [REQ:LD-BRIEF-EVENING] Brief response includes config.
 func TestBriefConfig_Included(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	req := httptest.NewRequest("GET", "/api/v1/briefs/current", nil)
 	rr := httptest.NewRecorder()

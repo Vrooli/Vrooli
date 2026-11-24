@@ -23,11 +23,11 @@ var ErrUnknownScenario = errors.New("unknown scenario")
 // Service computes score payloads. The core path is filesystem-only: no
 // network, no subprocesses (OT-P0-001).
 type Service struct {
-	scenariosRoot string
-	signals       *signals.Service
-	freshness     *freshness.Service
-	importance    *importance.Service
-	now           func() time.Time
+	scenariosRoot  string
+	collectSignals func(scenario, root string) signals.Snapshot
+	freshness      *freshness.Service
+	importance     *importance.Service
+	now            func() time.Time
 }
 
 // Option configures a Service.
@@ -54,8 +54,8 @@ func WithImportance(reader *importance.Service) Option {
 // env override, else repo-contract discovery from the working directory.
 func New(opts ...Option) (*Service, error) {
 	s := &Service{
-		signals:   signals.NewService(),
-		freshness: freshness.New(),
+		collectSignals: signals.NewService().Collect,
+		freshness:      freshness.New(),
 		importance: importance.New(importance.Config{
 			Timeout: time.Second,
 		}),
@@ -96,7 +96,7 @@ func (s *Service) GetScore(scenario string) (Result, error) {
 		return Result{}, fmt.Errorf("%w: %q", ErrUnknownScenario, scenario)
 	}
 
-	snap := s.signals.Collect(scenario, root)
+	snap := s.collectSignals(scenario, root)
 	comp := computeComposite(snap)
 	mat := deriveMaturity(snap)
 	fresh := s.freshness.Check(scenario, root)

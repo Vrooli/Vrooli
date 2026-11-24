@@ -17,7 +17,7 @@ import (
 func DefaultSpec() *maturity.Spec {
 	return &maturity.Spec{
 		Provider: "experience-manager",
-		Phase:    "experience",
+		Phase:    "experience-contract",
 		Version:  "1.0.0",
 		Capabilities: []maturity.CapabilitySpec{
 			{
@@ -81,12 +81,6 @@ func DefaultSpec() *maturity.Spec {
 			spec.CodeBindingsUnjoined:    requiredManual("structure_reconciliation", "L1", spec.SeverityError, "A completed capture with zero joined bindings indicates broken document bindings."),
 			spec.CodeClaimUnproven:       requiredManual("structure_reconciliation", "L2", spec.SeverityWarning, "Evidence must be captured or the claim should be retiered deliberately."),
 			spec.CodeAttestationExpired:  requiredManual("manual_evidence", "L1", spec.SeverityWarning, "Refreshing manual evidence requires a human attestation."),
-			spec.CodeFloorNoDocOverflow:  requiredManualWithSkills("structure_reconciliation", "L2", spec.SeverityError, []string{"experience-spec-authoring", "ux"}, "Horizontal overflow remediation depends on the page's intended layout and content containment."),
-			spec.CodeFloorViewportFill:   requiredManualWithSkills("structure_reconciliation", "L2", spec.SeverityError, []string{"experience-spec-authoring", "ux"}, "Viewport-fill remediation requires shell/layout changes."),
-			spec.CodeFloorChromePinned:   requiredManualWithSkills("structure_reconciliation", "L2", spec.SeverityError, []string{"experience-spec-authoring", "ux"}, "Chrome pinning remediation requires layout and navigation decisions."),
-			spec.CodeFloorSafeArea:       requiredManualWithSkills("structure_reconciliation", "L2", spec.SeverityError, []string{"experience-spec-authoring", "ux"}, "Safe-area remediation requires mobile shell/layout changes."),
-			spec.CodeFloorSingleLine:     requiredManualWithSkills("structure_reconciliation", "L2", spec.SeverityError, []string{"experience-spec-authoring", "ux"}, "Single-line chrome remediation requires navigation content or responsive layout changes."),
-			spec.CodeFloorTapTargetSize:  requiredManualWithSkills("structure_reconciliation", "L2", spec.SeverityError, []string{"experience-spec-authoring", "ux"}, "Tap-target remediation requires component sizing or hit-area changes."),
 			spec.CodeOracleCaseUncovered: requiredManual("spec_contract", "L2", spec.SeverityError, "Restore a machine-checkable experience claim for every regression-oracle case."),
 			spec.CodeImportanceMismatch:  advisoryManual("perception_advisory", "L1", "Perception calibration is deferred to the P2 tier."),
 			spec.CodeGlanceJudgeMismatch: advisoryManual("perception_advisory", "L1", "Judge-based perception is deferred and non-gating."),
@@ -161,7 +155,7 @@ func (b *Builder) Build(scenario string, findings []spec.Finding) (*commonv1.Mat
 			Code:        f.Code,
 			Severity:    severityToken(f.Severity),
 			Message:     f.Message,
-			Location:    firstLocation(f.Locations),
+			Location:    spec.FirstLocation(f.Locations),
 			Remediation: f.Suggestion,
 			Phase:       b.spec.Phase,
 		}
@@ -191,11 +185,4 @@ func severityToken(s string) string {
 	default:
 		return "SEVERITY_UNSPECIFIED"
 	}
-}
-
-func firstLocation(locations []string) string {
-	if len(locations) == 0 {
-		return ""
-	}
-	return locations[0]
 }

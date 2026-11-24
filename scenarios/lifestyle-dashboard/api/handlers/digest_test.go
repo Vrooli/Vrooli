@@ -14,8 +14,7 @@ import (
 // TestGetCurrentDigest_ReturnsDigest tests that the current digest endpoint works.
 // [REQ:LD-DIGEST-WEEKLY]
 func TestGetCurrentDigest_ReturnsDigest(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	// Register a domain and create some events
 	h.registerTestDomain(t, "sleep", "Sleep Tracker")
@@ -50,8 +49,7 @@ func TestGetCurrentDigest_ReturnsDigest(t *testing.T) {
 // TestGetDigestByWeek_ReturnsDigestForSpecifiedWeek tests digest generation for a specific week.
 // [REQ:LD-DIGEST-WEEKLY]
 func TestGetDigestByWeek_ReturnsDigestForSpecifiedWeek(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	// Use last Monday
 	now := time.Now().UTC()
@@ -85,8 +83,7 @@ func TestGetDigestByWeek_ReturnsDigestForSpecifiedWeek(t *testing.T) {
 // TestGetDigestByWeek_MissingWeekStart returns validation error.
 // [REQ:LD-DIGEST-WEEKLY]
 func TestGetDigestByWeek_MissingWeekStart(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	// Request without week_start path value
 	req := httptest.NewRequest("GET", "/api/v1/digests/", nil)
@@ -102,8 +99,7 @@ func TestGetDigestByWeek_MissingWeekStart(t *testing.T) {
 // TestGetCurrentDigest_IncludesDomainChanges tests that domain changes are included.
 // [REQ:LD-DIGEST-WEEKLY]
 func TestGetCurrentDigest_IncludesDomainChanges(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	// Register multiple domains with events
 	h.registerTestDomain(t, "sleep", "Sleep Tracker")
@@ -134,8 +130,7 @@ func TestGetCurrentDigest_IncludesDomainChanges(t *testing.T) {
 // TestGetCurrentDigest_IncludesScoreTrend tests that score trend is included.
 // [REQ:LD-DIGEST-WEEKLY]
 func TestGetCurrentDigest_IncludesScoreTrend(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	h.registerTestDomain(t, "sleep", "Sleep Tracker")
 	h.createTestEvent(t, "sleep", "bedtime")
@@ -164,8 +159,7 @@ func TestGetCurrentDigest_IncludesScoreTrend(t *testing.T) {
 // TestGetCurrentDigest_IncludesHighlights tests that highlights are generated.
 // [REQ:LD-DIGEST-WEEKLY]
 func TestGetCurrentDigest_IncludesHighlights(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	req := httptest.NewRequest("GET", "/api/v1/digests/current", nil)
 	rr := httptest.NewRecorder()
@@ -190,8 +184,7 @@ func TestGetCurrentDigest_IncludesHighlights(t *testing.T) {
 // TestGetCurrentDigest_IncludesNextWeekFocus tests that next week focus is generated.
 // [REQ:LD-DIGEST-WEEKLY]
 func TestGetCurrentDigest_IncludesNextWeekFocus(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	req := httptest.NewRequest("GET", "/api/v1/digests/current", nil)
 	rr := httptest.NewRecorder()
@@ -216,8 +209,7 @@ func TestGetCurrentDigest_IncludesNextWeekFocus(t *testing.T) {
 // TestDigest_EmptyDatabase tests digest generation with no data.
 // [REQ:LD-DIGEST-WEEKLY]
 func TestDigest_EmptyDatabase(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	req := httptest.NewRequest("GET", "/api/v1/digests/current", nil)
 	rr := httptest.NewRecorder()

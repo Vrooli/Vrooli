@@ -112,19 +112,24 @@ question is tracked.
 genuine. If genuine, re-evaluate the template choice before claiming the
 scenario's provenance is healthy.
 
-### P-005 — Three extension rules are prose with no mechanical enforcement
+### P-005 — RESOLVED 2026-11-24 — Three extension rules are prose with no mechanical enforcement
 
-**Status:** open · **owner:** this scenario
+**Status:** resolved · **owner:** this scenario
 
 Extension rules 3 (never persist a verdict), 4 (never cache the setpoint or a
-derived set) and 6 (no actuation path) are the mitigations for the three
-highest-impact risks in `SECURITY.md`, and all three are currently enforced only
-by review. Each is the kind of invariant a well-meaning caching or convenience
-change erodes silently.
+derived set) and 6 (no actuation path) mitigated the three highest-impact risks
+in `SECURITY.md`, but were enforced only by review. The documented architecture
+test gap is now closed: owner tests assert that coverage has no SQL schema,
+registered coverage endpoints expose no mutating operation, and exported
+dependency-reader methods expose no mutating verb. Negative controls prove the
+endpoint/method guards reject mutating names.
 
-**Revisit trigger:** first vertical slice. Add architecture tests asserting that
-`coverage` owns no schema, that no setpoint write path exists, and that no dependency client exposes
-a mutating verb.
+**Verification:** `GOWORK=off go test ./handlers/coverage ./internal/sources`
+passes. The full API suite has unrelated failing portability and ladder tests
+because the live `bahmni-lite/linux` resource declares availability without an
+architecture in its deployment profile.
+
+**Refs:** `api/handlers/coverage/extension_rules_test.go`.
 
 ### P-006 — `secrets-manager` exposes no typed read surface
 

@@ -6,9 +6,9 @@ package cli
 import (
 	"testing"
 
-	"scenario-auditor/rules/testkit"
+	"scenario-auditor/internal/testutil"
 )
 
 func TestLightweightMainDocCases(t *testing.T) {
-	testkit.RunDocViolationCases(t, "lightweight_main.go", "cli/main.go", CheckLightweightMain)
+	testutil.RunDocViolationCases(t, "lightweight_main.go", "cli/main.go", CheckLightweightMain)
 }

@@ -61,7 +61,7 @@ func (BASReferenceCheck) Run(_ context.Context, report spec.Report) []spec.Findi
 			Suggestion: "Run experience-manager spec scaffold or add a BAS case with labels.spec_entry_id set to the page id.",
 		})
 	}
-	sortFindings(findings)
+	spec.SortFindings(findings)
 	return findings
 }
 
@@ -92,13 +92,4 @@ func loadCaseSpecRefs(root string) map[string][]string {
 
 func basCaseFiles(root string) []string {
 	return basrefs.CaseFiles(root)
-}
-
-func sortFindings(findings []spec.Finding) {
-	sort.Slice(findings, func(i, j int) bool {
-		if findings[i].Code != findings[j].Code {
-			return findings[i].Code < findings[j].Code
-		}
-		return strings.Join(findings[i].Locations, ",") < strings.Join(findings[j].Locations, ",")
-	})
 }

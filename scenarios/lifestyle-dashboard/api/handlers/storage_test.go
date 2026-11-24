@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -16,8 +15,7 @@ import (
 // TestGetStorageInfo_Success verifies storage info retrieval.
 // [REQ:LD-UI-STORAGE] Handler returns storage overview data.
 func TestGetStorageInfo_Success(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	req := httptest.NewRequest("GET", "/api/v1/storage", nil)
 	rr := httptest.NewRecorder()
@@ -45,8 +43,7 @@ func TestGetStorageInfo_Success(t *testing.T) {
 // TestGetStorageInfo_WithData verifies storage info with data.
 // [REQ:LD-UI-STORAGE] Handler returns accurate storage data.
 func TestGetStorageInfo_WithData(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	// Create test data
 	h.registerTestDomain(t, "storage-domain", "Storage Domain")
@@ -79,8 +76,7 @@ func TestGetStorageInfo_WithData(t *testing.T) {
 // TestGetStorageInfo_EventsByDomain verifies domain breakdown.
 // [REQ:LD-UI-STORAGE] Handler provides per-domain event counts.
 func TestGetStorageInfo_EventsByDomain(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	// Create multiple domains
 	h.registerTestDomain(t, "domain-a", "Domain A")
@@ -109,8 +105,7 @@ func TestGetStorageInfo_EventsByDomain(t *testing.T) {
 // TestCleanupEvents_ClearAll verifies clearing all events.
 // [REQ:LD-UI-STORAGE] Handler clears all events when no filters.
 func TestCleanupEvents_ClearAll(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	// Create test events
 	h.createTestEvent(t, "domain-1", "test")
@@ -118,11 +113,7 @@ func TestCleanupEvents_ClearAll(t *testing.T) {
 	h.createTestEvent(t, "domain-3", "test")
 
 	// Clear all - empty body
-	req := httptest.NewRequest("DELETE", "/api/v1/storage/events", bytes.NewBufferString("{}"))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	h.CleanupEvents(rr, req)
+	rr := jsonHandlerResponse(t, h.CleanupEvents, "DELETE", "/api/v1/storage/events", "{}")
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
@@ -144,8 +135,7 @@ func TestCleanupEvents_ClearAll(t *testing.T) {
 // TestCleanupEvents_ClearDomain verifies domain-specific cleanup.
 // [REQ:LD-UI-STORAGE] Handler clears only specified domains.
 func TestCleanupEvents_ClearDomain(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	// Create test events
 	h.createTestEvent(t, "keep-domain", "test")
@@ -154,11 +144,7 @@ func TestCleanupEvents_ClearDomain(t *testing.T) {
 
 	// Clear specific domain
 	body := `{"domains": ["clear-domain"]}`
-	req := httptest.NewRequest("DELETE", "/api/v1/storage/events", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	h.CleanupEvents(rr, req)
+	rr := jsonHandlerResponse(t, h.CleanupEvents, "DELETE", "/api/v1/storage/events", body)
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
@@ -189,8 +175,7 @@ func TestCleanupEvents_ClearDomain(t *testing.T) {
 // TestCleanupEvents_EmptyBody verifies empty body handling.
 // [REQ:LD-UI-STORAGE] Handler accepts empty body for clear all.
 func TestCleanupEvents_EmptyBody(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	h.createTestEvent(t, "test-domain", "test")
 
@@ -208,14 +193,9 @@ func TestCleanupEvents_EmptyBody(t *testing.T) {
 // TestCleanupEvents_InvalidJSON verifies JSON validation.
 // [REQ:LD-UI-STORAGE] Handler validates JSON body.
 func TestCleanupEvents_InvalidJSON(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
-	req := httptest.NewRequest("DELETE", "/api/v1/storage/events", bytes.NewBufferString("{invalid json"))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	h.CleanupEvents(rr, req)
+	rr := jsonHandlerResponse(t, h.CleanupEvents, "DELETE", "/api/v1/storage/events", "{invalid json")
 
 	if rr.Code != http.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d: %s", http.StatusBadRequest, rr.Code, rr.Body.String())
@@ -225,8 +205,7 @@ func TestCleanupEvents_InvalidJSON(t *testing.T) {
 // TestCleanupEvents_MultipleDomains verifies multiple domain cleanup.
 // [REQ:LD-UI-STORAGE] Handler clears multiple specified domains.
 func TestCleanupEvents_MultipleDomains(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	// Create test events
 	h.createTestEvent(t, "clear-1", "test")
@@ -235,11 +214,7 @@ func TestCleanupEvents_MultipleDomains(t *testing.T) {
 
 	// Clear multiple domains
 	body := `{"domains": ["clear-1", "clear-2"]}`
-	req := httptest.NewRequest("DELETE", "/api/v1/storage/events", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	h.CleanupEvents(rr, req)
+	rr := jsonHandlerResponse(t, h.CleanupEvents, "DELETE", "/api/v1/storage/events", body)
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())

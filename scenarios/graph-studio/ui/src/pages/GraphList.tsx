@@ -13,7 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from '../components/ui/card.tsx'
-import { Input } from '../components/ui/input.tsx'
+import { Input } from "@vrooli/react-component-library/Input/1.3.6"
 import { Select } from '../components/ui/select.tsx'
 import {
   Table,

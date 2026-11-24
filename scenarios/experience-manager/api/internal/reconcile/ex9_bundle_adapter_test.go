@@ -112,7 +112,6 @@ func TestEX9AdaptedSnapshotPreservesRetainedClaimsAndFloorWaivers(t *testing.T) 
 	report := activeReport("primary-action", spec.Binding{TestID: "primary-action"})
 	page := report.Spec.Pages["home"]
 	page.FloorOptOuts = []spec.FloorOptOut{{Floor: "viewport-fill", Reason: "This short fixture intentionally does not fill its viewport."}}
-	page = pageWithBaselineClaims(page)
 	result := reconcileActivePageWithGeometry("experience/pages/home.json", page, target, snapshot, []spec.Finding{})
 	require.Empty(t, result.Findings)
 	var claimEvidence *Evidence

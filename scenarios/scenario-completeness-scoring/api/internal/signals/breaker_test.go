@@ -1,6 +1,8 @@
 package signals
 
 import (
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -62,6 +64,44 @@ func TestBreakerHalfOpenAfterRetryInterval(t *testing.T) {
 				t.Fatalf("allow() after probe = %v, want %v", got, tt.wantAllowed)
 			}
 		})
+	}
+}
+
+func TestBreakerHalfOpenAdmitsOnlyOneConcurrentProbe(t *testing.T) {
+	clock := newFakeClock()
+	b := newBreaker(clock.now)
+	for i := 0; i < failureThreshold; i++ {
+		b.recordFailure()
+	}
+	clock.advance(retryInterval)
+
+	const callers = 64
+	start := make(chan struct{})
+	var allowed atomic.Int32
+	var ready sync.WaitGroup
+	var done sync.WaitGroup
+	ready.Add(callers)
+	done.Add(callers)
+	for i := 0; i < callers; i++ {
+		go func() {
+			defer done.Done()
+			ready.Done()
+			<-start
+			if b.allow() {
+				allowed.Add(1)
+			}
+		}()
+	}
+	ready.Wait()
+	close(start)
+	done.Wait()
+
+	if got := allowed.Load(); got != 1 {
+		t.Fatalf("concurrent half-open calls admitted %d probes, want exactly 1", got)
+	}
+	b.recordSuccess()
+	if !b.allow() {
+		t.Fatal("successful probe should close the breaker and admit normal calls")
 	}
 }
 

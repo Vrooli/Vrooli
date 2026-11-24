@@ -26,7 +26,7 @@ func (StateCoverageCheck) Run(_ context.Context, report spec.Report) []spec.Find
 		return nil
 	}
 	var findings []spec.Finding
-	refs := pageRefs(report.Spec.Index.Pages)
+	refs := spec.IndexPageRefsByID(report.Spec.Index.Pages)
 	for pageID, page := range report.Spec.Pages {
 		declared := map[string]bool{}
 		for _, state := range page.States {
@@ -49,7 +49,7 @@ func (StateCoverageCheck) Run(_ context.Context, report spec.Report) []spec.Find
 			})
 		}
 	}
-	sortFindings(findings)
+	spec.SortFindings(findings)
 	return findings
 }
 
@@ -86,14 +86,6 @@ func requiredDesignStates(scenarioDir string) []string {
 		if seen[state] {
 			out = append(out, state)
 		}
-	}
-	return out
-}
-
-func pageRefs(refs []spec.DocumentRef) map[string]spec.DocumentRef {
-	out := map[string]spec.DocumentRef{}
-	for _, ref := range refs {
-		out[ref.ID] = ref
 	}
 	return out
 }

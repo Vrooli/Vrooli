@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"experience-manager/internal/testutil"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,7 +30,7 @@ func TestParsedContractIdentityIncludesExtensionsAndDoesNotFollowLaterEdits(t *t
 }
 
 func TestConversationComponentContractsAreRegisteredAndValid(t *testing.T) {
-	report, err := ParseScenario(filepath.Join(repoRoot(t), "scenarios", "react-component-library"))
+	report, err := ParseScenario(filepath.Join(testutil.RepoRoot(t), "scenarios", "react-component-library"))
 	require.NoError(t, err)
 	names := map[string]bool{"approval-prompt": true, "collection-page": true, "composer-attachment-tray": true, "message": true, "message-list": true, "prompt-composer": true}
 	for name := range names {

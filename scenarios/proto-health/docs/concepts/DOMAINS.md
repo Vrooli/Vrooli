@@ -4,9 +4,9 @@ This document is the canonical map of product capabilities, bounded
 contexts, and ownership for this scenario. Keep it current whenever a
 domain is added, renamed, split, merged, or removed.
 
-`notes` is a worked example from the template, not product scope.
-Keep it as a reference until the first real domain is green, then
-delete it in the same change that proves the replacement pattern.
+The generated `notes` example has been removed. The active domains below
+own the shipped proto-health behavior; notes references in older tutorial
+material are historical examples, not runtime capabilities.
 
 
 Use this document to answer:
@@ -26,9 +26,8 @@ belong in [`DATA.md`](DATA.md).
 |---|---|---|---|---|---|---|
 | health | Report runtime readiness and dependency reachability. | Reporting / query | No product data. | API, UI | Starter scaffold health. | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/proto-health/v1/health/` |
 | impact | Compare proto contracts against baselines and report downstream file-level blast radius. | Advisory impact analysis | No persisted product data. | API, CLI | PROTO-SURFACES-008 | `api/internal/impact/`, `api/handlers/impact/`, `cli/domains/impact/`, `packages/proto/schemas/proto-health/v1/impact/` |
-| validation | Validate one scenario's proto contract structure and return stable findings. | Validator / findings producer | No persisted product data in v1. | API, CLI, UI, test-genie | PROTO-VAL-001, PROTO-VAL-002 | Planned: `api/internal/validation/`, `api/handlers/validation/`, `cli/domains/validation/`, `ui/src/features/validation/`, `packages/proto/schemas/proto-health/v1/validation/` |
-| protosurface | Read descriptor/repo facts and expose one scenario's proto inventory. | Fact surface / read model | No persisted product data in v1. | API, CLI, UI, downstream analyzers | PROTO-SURF-001, PROTO-SURF-002 | Planned: `api/internal/protosurface/`, `api/handlers/protosurface/`, `ui/src/features/protosurface/`, `packages/proto/schemas/proto-health/v1/protosurface/` |
-| notes | Worked CRUD reference with attachment upload exception. | CRUD / entity | Notes and attachment metadata. | API, CLI, UI | Template starter only. | `api/internal/notes/`, `api/handlers/notes/`, `cli/domains/notes/`, `ui/src/features/notes/`, `packages/proto/schemas/proto-health/v1/notes/` |
+| validation | Validate one scenario's proto contract structure and return stable findings. | Validator / findings producer | No persisted product data in v1. | API, CLI, UI, test-genie | PROTO-VAL-001, PROTO-VAL-002 | `api/internal/validation/`, `api/handlers/validation/`, `cli/domains/validate/`, `ui/src/features/proto-health/`, `packages/proto/schemas/scenario-validation/v1/` |
+| protosurface | Read descriptor/repo facts and expose one scenario's proto inventory. | Fact surface / read model | No persisted product data in v1. | API, CLI, UI, downstream analyzers | PROTO-SURF-001, PROTO-SURF-002 | `api/internal/protosurface/`, `api/handlers/validation/`, `cli/domains/describe/`, `ui/src/features/proto-health/`, `packages/proto/schemas/proto-health/v1/validation/` |
 
 ## Domain Details
 
@@ -48,25 +47,6 @@ belong in [`DATA.md`](DATA.md).
 - Requirements: starter scaffold health only.
 - Tests: handler, module, UI feature, and accessibility tests.
 - Related docs: [`../reference/api-endpoints.md`](../reference/api-endpoints.md).
-
-### notes
-
-- Purpose: demonstrate the expected vertical slice for a real domain.
-- Primary archetype: CRUD / entity.
-- Secondary traits: binary/blob attachment upload, upload workflow.
-- Owns: note records, attachment metadata, note validation, note
-  service/repository seams, UI note interactions, CLI notes commands.
-- Does not own: product scope for a generated scenario.
-- API: `api/internal/notes/`, `api/handlers/notes/`.
-- CLI: `cli/domains/notes/`.
-- UI: `ui/src/features/notes/`, `ui/src/api/notes.ts`.
-- Storage: domain-owned SQLite schema in `api/internal/notes/schema.sql`.
-- Requirements: template starter only; replace with PRD-specific
-  requirements.
-- Tests: repository, service, handler, CLI, UI, accessibility, and
-  workflow tests.
-- Related docs: [`FLOWS.md`](FLOWS.md), [`DATA.md`](DATA.md),
-  [`../internal/SEAMS.md`](../internal/SEAMS.md).
 
 ### impact
 
@@ -102,7 +82,7 @@ belong in [`DATA.md`](DATA.md).
 - API: `ScenarioValidationService.ValidateScenario` for descriptor-backed policy checks.
 - CLI: `proto-health validate scenario <name> --json` and the source-level
   `proto-health validate owner <owner> --json` check for pre-generation failures.
-- UI: planned per-scenario findings view.
+- UI: `ui/src/features/proto-health/ProtoHealthPanel.tsx`.
 - Storage: none required in v1.
 - Requirements: PROTO-VAL-001, PROTO-VAL-002.
 - Tests: table-driven checker tests over fake descriptor/repo facts.
@@ -119,9 +99,9 @@ belong in [`DATA.md`](DATA.md).
   signals, and transport-world facts.
 - Does not own: validation severity decisions or fleet graph
   computation.
-- API: planned `ProtoHealthService.DescribeScenarioProtos`.
-- CLI: planned `proto-health describe scenario <name> --json`.
-- UI: planned surface detail panels.
+- API: `ProtoHealthService.DescribeScenarioProtos`.
+- CLI: `proto-health describe scenario <name> --json`.
+- UI: `ui/src/features/proto-health/ProtoHealthPanel.tsx`.
 - Storage: none required in v1.
 - Requirements: PROTO-SURF-001, PROTO-SURF-002.
 - Tests: deterministic fixture-to-surface assertions.

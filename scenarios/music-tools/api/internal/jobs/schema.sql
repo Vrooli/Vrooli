@@ -1,6 +1,6 @@
 -- Jobs table — owned by internal/jobs/. Embedded by schema.go and applied via
 -- database.EnsureSchemas at boot through the modules.AllSchemas registry. Times
--- are RFC3339Nano strings (matching the time.Time round-trip in store.go).
+-- are fixed-width UTC strings so indexed text ordering matches chronology.
 -- Server-owned durable jobs: rows persist across client disconnects and survive
 -- restarts (recovery marks orphaned non-terminal jobs as failed/interrupted).
 CREATE TABLE IF NOT EXISTS jobs (
@@ -25,4 +25,10 @@ CREATE TABLE IF NOT EXISTS jobs (
 
 CREATE INDEX IF NOT EXISTS idx_jobs_state ON jobs(state);
 CREATE INDEX IF NOT EXISTS idx_jobs_created_at ON jobs(created_at DESC);
+
+-- Store-owned, idempotent startup migrations. Version 1 converts historical
+-- RFC3339Nano timestamps to the fixed-width UTC representation above.
+CREATE TABLE IF NOT EXISTS jobs_schema_migrations (
+  version INTEGER PRIMARY KEY
+);
 

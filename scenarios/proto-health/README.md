@@ -44,8 +44,9 @@ the standard full-stack Vrooli scenario shape:
 The generated scaffold is intentionally not the product. When you build
 the real UX, treat these as **placeholders** to replace:
 
-- The `notes` domain (proto, API, CLI, UI feature) — a worked vertical
-  slice meant to be copied once and then deleted.
+- The former generated `notes` domain has been removed. Current product
+  surfaces are proto validation, proto-surface inspection, impact analysis,
+  and runtime health.
 - The `AppShell` and the centered single-panel home page in `ui/src/`.
 - The bare-minimum settings surface (currently just locale switching).
 
@@ -65,8 +66,9 @@ an `EndpointDescriptor`, stop — use a proto service method instead.
 Codegen rejects literal Paths that lack an explicit `RESTException`
 tag; the four allowed REST reasons (multipart upload, webhook
 receiver, third-party shape, ops probe) are enumerated in
-`api/internal/module/module.go`. The notes attachments endpoint is
-the worked REST example.
+`api/internal/module/module.go`. Use its permitted REST reasons only for
+actual exceptions such as lifecycle health probes; the former notes upload
+example is retired and no notes endpoint is registered.
 
 [`docs/START-HERE.md`](docs/START-HERE.md) describes the replacement
 workflow in full.

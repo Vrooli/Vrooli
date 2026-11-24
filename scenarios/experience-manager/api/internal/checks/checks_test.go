@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"experience-manager/internal/spec"
+	"experience-manager/internal/testutil"
 )
 
 func TestRegistryContainsPhaseEightChecks(t *testing.T) {
@@ -55,7 +56,7 @@ func TestStateCoverageCheckEmitsMissingDesignState(t *testing.T) {
 	root := t.TempDir()
 	target := filepath.Join(root, "scenarios", "demo")
 	writeMinimalPageExperience(t, target, []string{"default"})
-	mustWrite(t, filepath.Join(target, "DESIGN.md"), `# Demo Design
+	testutil.WriteFile(t, filepath.Join(target, "DESIGN.md"), `# Demo Design
 
 ## UX-State Contract
 
@@ -136,12 +137,12 @@ func writeMinimalExperience(t *testing.T, scenarioDir string) {
 
 func writeMinimalPageExperience(t *testing.T, scenarioDir string, states []string) {
 	t.Helper()
-	mustWrite(t, filepath.Join(scenarioDir, "PRD.md"), "## Operational Targets\n- [ ] OT-P0-001 | Demo | Demo target\n")
+	testutil.WriteFile(t, filepath.Join(scenarioDir, "PRD.md"), "## Operational Targets\n- [ ] OT-P0-001 | Demo | Demo target\n")
 	stateDocs := make([]string, 0, len(states))
 	for _, state := range states {
 		stateDocs = append(stateDocs, `{"id":"`+state+`","description":"`+state+` state."}`)
 	}
-	mustWrite(t, filepath.Join(scenarioDir, "experience", "index.json"), `{
+	testutil.WriteFile(t, filepath.Join(scenarioDir, "experience", "index.json"), `{
   "kind": "experience-index",
   "contract": {"kind": "scenario-experience", "schema": "scenario-experience-spec/v1"},
   "schemaVersion": "1.0.0",
@@ -149,7 +150,7 @@ func writeMinimalPageExperience(t *testing.T, scenarioDir string, states []strin
   "pages": [{"id":"home","path":"pages/home.json","status":"active"}],
   "journeys": []
 }`)
-	mustWrite(t, filepath.Join(scenarioDir, "experience", "pages", "home.json"), `{
+	testutil.WriteFile(t, filepath.Join(scenarioDir, "experience", "pages", "home.json"), `{
   "kind": "experience-page",
   "schemaVersion": "1.0.0",
   "page": {"id":"home","title":"Home","routes":["/"],"purpose":"A sufficiently long purpose."},
@@ -158,14 +159,4 @@ func writeMinimalPageExperience(t *testing.T, scenarioDir string, states []strin
   "claims": [],
   "bindings": {"elements": {}}
 }`)
-}
-
-func mustWrite(t *testing.T, path, content string) {
-	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		t.Fatal(err)
-	}
 }

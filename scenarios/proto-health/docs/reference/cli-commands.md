@@ -20,7 +20,7 @@ RPC bindings, governance metadata) is declared in
 `cliapp.LoadFromManifest`, which:
 
 - builds each domain's `SubcommandGroup` from its manifest group
-- wires each command's `binding.method` (e.g. `NotesService.ListNotes`)
+- wires each command's declared `binding.method`
   to a handler registered in the domain's `register.go` bindings map
 - fails loudly on missing handlers, dead handlers, or unknown groups
 
@@ -38,9 +38,8 @@ manifest don't need hand-classified action-safety lists.
 `binding.kind` is normally `connect-rpc`. The `validate owner` command is a
 local source check because an invalid owner may have no generated descriptor;
 REST-exception
-commands (the canonical example is `notes attach`, which uses
-multipart upload) are appended to the loaded group outside the manifest
-path in the domain's `register.go` and documented in the manifest's
+commands are appended to the loaded group outside the manifest path in
+the owning domain's `register.go` and documented in the manifest's
 `omitted[]` array.
 
 For environment-variable precedence and CLI config-file shape, see
@@ -110,54 +109,27 @@ a descriptor for the owner.
 proto-health validate owner react-component-library --json
 ```
 
-## Scenario commands — `notes` (CRUD reference)
+## Proto-health domain commands
 
-The `notes` domain is the canonical worked example. Copy its layout
-when adding the first non-trivial domain to your scenario.
+The former generated `notes` commands have been removed. These commands
+are the current manifest-backed API:
 
-### `proto-health notes list`
+### `proto-health describe scenario <name>`
 
-List notes, newest-first. Calls the generated Connect-RPC
-`Notes/List` method. Uses the
-**data-retrieval contract**: `Summary → Results → Retrieval Hints`.
+Read one scenario's proto files, services, messages, imports, adoption,
+and transport facts.
 
 ```bash
-proto-health notes list
-proto-health notes list --json
+proto-health describe scenario proto-health --json
 ```
 
-### `proto-health notes create --title <title> [--body <body>]`
+### `proto-health impact scenario <scenario> [--against <scope>]`
 
-Create a note. Calls the generated Connect-RPC `Notes/Create` method. Uses the **mutation
-contract**: `Result → What Changed → Next Command`.
-
-```bash
-proto-health notes create --title "First note" --body "Hello world"
-```
-
-`--title` is required. `--body` is optional. Validation lives in the
-API service, so an empty title surfaces as an `invalid_argument`
-Connect error rather than a CLI-side check.
-
-### `proto-health notes get <id>`
-
-Fetch a note by id. Calls the generated Connect-RPC `Notes/Get` method.
+Compare a scenario's current proto contracts against a git baseline,
+scope, ref, or SHA.
 
 ```bash
-proto-health notes get abc123
-```
-
-A non-existent id surfaces as `not_found`; the CLI translates the
-typed Connect code to an actionable error message.
-
-### `proto-health notes attach <id> --file <path>`
-
-Attach a file to a note. This is the documented REST multipart
-exception because the request body contains opaque bytes. The response
-is proto-typed attachment metadata.
-
-```bash
-proto-health notes attach abc123 --file ./example.png
+proto-health impact scenario proto-health --against HEAD --json
 ```
 
 ## Output contracts

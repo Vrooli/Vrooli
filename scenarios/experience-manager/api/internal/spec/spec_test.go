@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"experience-manager/internal/testutil"
 	"github.com/santhosh-tekuri/jsonschema/v5"
 )
 
@@ -39,7 +40,7 @@ func TestReportCarriesParserContractFields(t *testing.T) {
 }
 
 func TestParseScenarioFixturesContractGreen(t *testing.T) { // [REQ:EXPERIEN-P0-001]
-	root := repoRoot(t)
+	root := testutil.RepoRoot(t)
 	for _, scenario := range []string{"experience-manager", "business-health", "web-console", "react-component-library"} {
 		t.Run(scenario, func(t *testing.T) {
 			report, err := ParseScenario(filepath.Join(root, "scenarios", scenario))
@@ -116,7 +117,7 @@ func TestV11AsyncPageStatesRequireARequiredAsyncRegion(t *testing.T) {
 }
 
 func TestScenarioExperienceDocumentsValidateAgainstJSONSchema(t *testing.T) { // [REQ:EXPERIEN-P0-001]
-	root := repoRoot(t)
+	root := testutil.RepoRoot(t)
 	schemaBytes, err := os.ReadFile(filepath.Join(root, ".vrooli", "schemas", "scenario-experience-spec.schema.json"))
 	if err != nil {
 		t.Fatalf("read experience schema: %v", err)
@@ -159,7 +160,7 @@ func TestScenarioExperienceDocumentsValidateAgainstJSONSchema(t *testing.T) { //
 }
 
 func TestParseScenarioPreservesSpikeExtensions(t *testing.T) {
-	report, err := ParseScenario(filepath.Join(repoRoot(t), "scenarios", "business-health"))
+	report, err := ParseScenario(filepath.Join(testutil.RepoRoot(t), "scenarios", "business-health"))
 	if err != nil {
 		t.Fatalf("ParseScenario: %v", err)
 	}
@@ -170,7 +171,7 @@ func TestParseScenarioPreservesSpikeExtensions(t *testing.T) {
 }
 
 func TestParseScenarioPreservesClaimExtensions(t *testing.T) {
-	report, err := ParseScenario(filepath.Join(repoRoot(t), "scenarios", "web-console"))
+	report, err := ParseScenario(filepath.Join(testutil.RepoRoot(t), "scenarios", "web-console"))
 	if err != nil {
 		t.Fatalf("ParseScenario: %v", err)
 	}
@@ -192,7 +193,7 @@ func TestParseScenarioPreservesClaimExtensions(t *testing.T) {
 }
 
 func TestParseScenarioComputesDepths(t *testing.T) {
-	report, err := ParseScenario(filepath.Join(repoRoot(t), "scenarios", "experience-manager"))
+	report, err := ParseScenario(filepath.Join(testutil.RepoRoot(t), "scenarios", "experience-manager"))
 	if err != nil {
 		t.Fatalf("ParseScenario: %v", err)
 	}
@@ -205,7 +206,7 @@ func TestParseScenarioComputesDepths(t *testing.T) {
 }
 
 func TestParseScenarioParsesComponentDocuments(t *testing.T) {
-	report, err := ParseScenario(filepath.Join(repoRoot(t), "scenarios", "react-component-library"))
+	report, err := ParseScenario(filepath.Join(testutil.RepoRoot(t), "scenarios", "react-component-library"))
 	if err != nil {
 		t.Fatalf("ParseScenario: %v", err)
 	}
@@ -227,7 +228,7 @@ func TestParseScenarioParsesComponentDocuments(t *testing.T) {
 func TestPortableLibraryContractsIgnoreRetiredBackups(t *testing.T) {
 	root := t.TempDir()
 	retired := filepath.Join(root, "library", ".retired", "archive", "experience-contract.json")
-	mustWrite(t, retired, `{"claims":[]}`)
+	testutil.WriteFile(t, retired, `{"claims":[]}`)
 
 	var report Report
 	checkPortableLibraryContracts(&report, root)
@@ -239,8 +240,8 @@ func TestPortableLibraryContractsIgnoreRetiredBackups(t *testing.T) {
 func TestParseScenarioFindsContractViolations(t *testing.T) { // [REQ:EXPERIEN-P0-001]
 	root := t.TempDir()
 	scenario := filepath.Join(root, "demo")
-	mustWrite(t, filepath.Join(scenario, "PRD.md"), "## Operational Targets\n- [ ] OT-P0-001 | Demo | Demo target\n")
-	mustWrite(t, filepath.Join(scenario, "experience", "index.json"), `{
+	testutil.WriteFile(t, filepath.Join(scenario, "PRD.md"), "## Operational Targets\n- [ ] OT-P0-001 | Demo | Demo target\n")
+	testutil.WriteFile(t, filepath.Join(scenario, "experience", "index.json"), `{
   "kind": "experience-index",
   "contract": {"kind": "scenario-experience", "schema": "scenario-experience-spec/v1"},
   "schemaVersion": "1.0.0",
@@ -249,7 +250,7 @@ func TestParseScenarioFindsContractViolations(t *testing.T) { // [REQ:EXPERIEN-P
   "journeys": [{"id":"journey","path":"journeys/journey.json","status":"active"}],
   "components": [{"id":"button","path":"components/button.json","status":"active"}]
 }`)
-	mustWrite(t, filepath.Join(scenario, "experience", "pages", "home.json"), `{
+	testutil.WriteFile(t, filepath.Join(scenario, "experience", "pages", "home.json"), `{
   "kind": "experience-page",
   "schemaVersion": "1.0.0",
   "page": {"id":"home","title":"Home","routes":["/"],"purpose":"A sufficiently long purpose.","prd_refs":["OT-P9-999"]},
@@ -261,13 +262,13 @@ func TestParseScenarioFindsContractViolations(t *testing.T) { // [REQ:EXPERIEN-P
   ],
   "bindings": {"elements": {"ghost-binding": {"testid":"ghost"}}}
 }`)
-	mustWrite(t, filepath.Join(scenario, "experience", "journeys", "journey.json"), `{
+	testutil.WriteFile(t, filepath.Join(scenario, "experience", "journeys", "journey.json"), `{
   "kind": "experience-journey",
   "schemaVersion": "1.0.0",
   "journey": {"id":"journey","title":"Journey","purpose":"A sufficiently long journey purpose."},
   "steps": [{"page":"home","state":"missing","intent":"A sufficiently long step intent."}]
 }`)
-	mustWrite(t, filepath.Join(scenario, "experience", "components", "button.json"), `{
+	testutil.WriteFile(t, filepath.Join(scenario, "experience", "components", "button.json"), `{
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
   "component": {"id":"button","title":"Button","purpose":"A sufficiently long component purpose.","examplesRef":"../../library/components/Button/versions/1.2.0/examples.json"},
@@ -471,7 +472,7 @@ func TestWrapperExtensionMustRemainAdditiveToCanonicalContract(t *testing.T) {
 func TestIndexParityFindingHasGoldenAssertion(t *testing.T) {
 	root := t.TempDir()
 	scenario := filepath.Join(root, "demo")
-	mustWrite(t, filepath.Join(scenario, "experience", "index.json"), `{
+	testutil.WriteFile(t, filepath.Join(scenario, "experience", "index.json"), `{
   "kind": "experience-index",
   "contract": {"kind": "scenario-experience", "schema": "scenario-experience-spec/v1"},
   "schemaVersion": "1.0.0",
@@ -479,7 +480,7 @@ func TestIndexParityFindingHasGoldenAssertion(t *testing.T) {
   "pages": [],
   "journeys": []
 }`)
-	mustWrite(t, filepath.Join(scenario, "experience", "pages", "home.json"), `{
+	testutil.WriteFile(t, filepath.Join(scenario, "experience", "pages", "home.json"), `{
   "kind": "experience-page",
   "schemaVersion": "1.0.0",
   "page": {"id":"home","title":"Home","routes":["/"],"purpose":"Home page."},
@@ -506,7 +507,7 @@ func TestIndexParityFindingHasGoldenAssertion(t *testing.T) {
 }
 
 func TestDoctrineRegistryTableMatchesAllFindingCodes(t *testing.T) {
-	doc, err := os.ReadFile(filepath.Join(repoRoot(t), "docs", "reference", "experience-alignment.md"))
+	doc, err := os.ReadFile(filepath.Join(testutil.RepoRoot(t), "docs", "reference", "experience-alignment.md"))
 	if err != nil {
 		t.Fatalf("read doctrine: %v", err)
 	}
@@ -533,7 +534,7 @@ func TestDoctrineRegistryTableMatchesAllFindingCodes(t *testing.T) {
 }
 
 func TestFindingDocsMatchAllFindingCodes(t *testing.T) {
-	dir := filepath.Join(repoRoot(t), "scenarios", "experience-manager", "docs", "findings")
+	dir := filepath.Join(testutil.RepoRoot(t), "scenarios", "experience-manager", "docs", "findings")
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		t.Fatalf("read finding docs: %v", err)
@@ -556,7 +557,7 @@ func TestAllFindingCodesAreUnique(t *testing.T) {
 }
 
 func TestProductionExperienceFindingLiteralsAreRegistered(t *testing.T) {
-	root := filepath.Join(repoRoot(t), "scenarios", "experience-manager", "api", "internal")
+	root := filepath.Join(testutil.RepoRoot(t), "scenarios", "experience-manager", "api", "internal")
 	re := regexp.MustCompile(`"((?:experience)\.[a-z_]+)"`)
 	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
@@ -592,34 +593,6 @@ func TestReportAddRejectsUnregisteredFindingCode(t *testing.T) {
 	}()
 	var report Report
 	report.add("experience.not_registered", SeverityWarning, "bad", "experience/index.json", "register the code")
-}
-
-func repoRoot(t *testing.T) string {
-	t.Helper()
-	dir, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	for {
-		if _, err := os.Stat(filepath.Join(dir, "VISION.md")); err == nil {
-			return dir
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			t.Fatal("repo root not found")
-		}
-		dir = parent
-	}
-}
-
-func mustWrite(t *testing.T, path, content string) {
-	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		t.Fatal(err)
-	}
 }
 
 func hasCode(findings []Finding, code string) bool {

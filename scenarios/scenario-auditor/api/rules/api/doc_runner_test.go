@@ -6,44 +6,44 @@ package api
 import (
 	"testing"
 
-	"scenario-auditor/rules/testkit"
+	"scenario-auditor/internal/testutil"
 )
 
 func runDocTestsViolations(t *testing.T, filename, defaultPath string, fn func([]byte, string) []Violation) {
 	t.Helper()
-	cases := testkit.LoadDocCases(t, filename)
+	cases := testutil.LoadDocCases(t, filename)
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.ID, func(t *testing.T) {
-			path := testkit.DefaultPath(tc, defaultPath)
+			path := testutil.DefaultPath(tc, defaultPath)
 			violations := fn([]byte(tc.Input), path)
-			testkit.EvaluateDocCase(t, tc, len(violations), collectMessages(violations), nil)
+			testutil.EvaluateDocCase(t, tc, len(violations), collectMessages(violations), nil)
 		})
 	}
 }
 
 func runDocTestsViolationsErr(t *testing.T, filename, defaultPath string, fn func([]byte, string) ([]Violation, error)) {
 	t.Helper()
-	cases := testkit.LoadDocCases(t, filename)
+	cases := testutil.LoadDocCases(t, filename)
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.ID, func(t *testing.T) {
-			path := testkit.DefaultPath(tc, defaultPath)
+			path := testutil.DefaultPath(tc, defaultPath)
 			violations, err := fn([]byte(tc.Input), path)
-			testkit.EvaluateDocCase(t, tc, len(violations), collectMessages(violations), err)
+			testutil.EvaluateDocCase(t, tc, len(violations), collectMessages(violations), err)
 		})
 	}
 }
 
 func runDocTestsRuleStruct(t *testing.T, filename, defaultPath string, fn func(string, string) ([]Violation, error)) {
 	t.Helper()
-	cases := testkit.LoadDocCases(t, filename)
+	cases := testutil.LoadDocCases(t, filename)
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.ID, func(t *testing.T) {
-			path := testkit.DefaultPath(tc, defaultPath)
+			path := testutil.DefaultPath(tc, defaultPath)
 			violations, err := fn(tc.Input, path)
-			testkit.EvaluateDocCase(t, tc, len(violations), collectMessages(violations), err)
+			testutil.EvaluateDocCase(t, tc, len(violations), collectMessages(violations), err)
 		})
 	}
 }

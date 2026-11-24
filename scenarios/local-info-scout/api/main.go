@@ -324,32 +324,6 @@ func sortByRelevance(places []Place) {
 	})
 }
 
-func fetchRealTimeData(req SearchRequest) []Place {
-	// Try to fetch from SearXNG if available
-	searxHost := os.Getenv("SEARXNG_HOST")
-	if searxHost == "" {
-		searxHost = "http://localhost:8280"
-	}
-
-	// Build search query
-	searchQuery := fmt.Sprintf("%s near lat:%f lon:%f", req.Query, req.Lat, req.Lon)
-	if req.Category != "" {
-		searchQuery = fmt.Sprintf("%s %s", req.Category, searchQuery)
-	}
-
-	// Try SearXNG search
-	searchURL := fmt.Sprintf("%s/search?q=%s&format=json&categories=map", searxHost, searchQuery)
-	resp, err := http.Get(searchURL)
-	if err != nil || resp.StatusCode != 200 {
-		return []Place{} // Return empty, will fallback to mock data
-	}
-	defer resp.Body.Close()
-
-	// For now, return empty as SearXNG integration would need more complex parsing
-	// In production, this would parse the search results and convert to Place objects
-	return []Place{}
-}
-
 func categoriesHandler(w http.ResponseWriter, r *http.Request) {
 	categories := []string{
 		"restaurants",

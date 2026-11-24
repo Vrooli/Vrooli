@@ -2,7 +2,7 @@
 // when calling external services.
 //
 // Production wires *http.Client directly — it satisfies Doer through
-// the compile-time assertion below. Tests substitute mocks.FakeDoer to
+// the compile-time assertion below. Tests substitute apihttptest.FakeDoer to
 // pin request shape and stub responses without touching the network.
 //
 // # Why ship the seam unwired in production

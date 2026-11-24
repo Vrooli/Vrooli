@@ -8,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from '../components/ui/card.tsx'
-import { Input } from '../components/ui/input.tsx'
+import { Input } from "@vrooli/react-component-library/Input/1.3.6"
 import { Label } from '../components/ui/label.tsx'
 import { Select } from '../components/ui/select.tsx'
 import { Switch } from '../components/ui/switch.tsx'

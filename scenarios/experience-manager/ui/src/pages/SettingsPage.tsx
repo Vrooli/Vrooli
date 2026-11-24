@@ -1,6 +1,6 @@
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
-import { Button } from "../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTranslation } from "../i18n";
 import { useTheme, type ThemeChoice } from "../theme/themeContext";
 

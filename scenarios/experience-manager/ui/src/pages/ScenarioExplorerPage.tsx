@@ -9,7 +9,7 @@ import {
   type ScenarioSpecPage,
 } from "../api/experience";
 import { PageFrame } from "../components/PageFrame";
-import { Button } from "../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { DataTable, type DataTableColumn } from "@vrooli/react-component-library/DataTable/1";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";

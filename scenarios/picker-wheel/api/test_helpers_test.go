@@ -8,7 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -21,12 +21,6 @@ type HealthResponse struct {
 	Timestamp time.Time `json:"timestamp"`
 	Readiness bool      `json:"readiness"`
 	Version   string    `json:"version"`
-}
-
-// TestLogger provides controlled logging during tests
-type TestLogger struct {
-	originalLogger *log.Logger
-	cleanup        func()
 }
 
 // setupTestLogger initializes the global logger for testing
@@ -44,34 +38,6 @@ func setupTestLogger() func() {
 	return func() {
 		log.SetOutput(originalOutput)
 		logger = originalLogger
-	}
-}
-
-// TestEnvironment manages isolated test environment
-type TestEnvironment struct {
-	TempDir    string
-	OriginalWD string
-	Cleanup    func()
-}
-
-// setupTestDirectory creates an isolated test environment with proper cleanup
-func setupTestDirectory(t *testing.T) *TestEnvironment {
-	tempDir, err := ioutil.TempDir("", "picker-wheel-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-
-	originalWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get working directory: %v", err)
-	}
-
-	return &TestEnvironment{
-		TempDir:    tempDir,
-		OriginalWD: originalWD,
-		Cleanup: func() {
-			os.RemoveAll(tempDir)
-		},
 	}
 }
 
@@ -120,6 +86,19 @@ func makeHTTPRequest(req HTTPTestRequest) (*http.Request, *httptest.ResponseReco
 	return httpReq, recorder, nil
 }
 
+// serveTestRequest sends a typed test request through the real API router.
+// Case inputs stay at each caller; only encoding, recorder and router wiring
+// are shared.
+func serveTestRequest(t *testing.T, req HTTPTestRequest) *httptest.ResponseRecorder {
+	t.Helper()
+	httpReq, response, err := makeHTTPRequest(req)
+	if err != nil {
+		t.Fatalf("prepare API test request: %v", err)
+	}
+	setupTestRouter().ServeHTTP(response, httpReq)
+	return response
+}
+
 // assertJSONResponse validates a JSON response
 func assertJSONResponse(t *testing.T, w *httptest.ResponseRecorder, expectedStatus int, target interface{}) {
 	t.Helper()
@@ -144,11 +123,8 @@ func assertErrorResponse(t *testing.T, w *httptest.ResponseRecorder, expectedSta
 		t.Errorf("Expected status %d, got %d", expectedStatus, w.Code)
 	}
 
-	if expectedContains != "" {
-		body := w.Body.String()
-		if body == "" || (expectedContains != "" && len(body) == 0) {
-			t.Errorf("Expected response body to contain '%s', got empty body", expectedContains)
-		}
+	if expectedContains != "" && !strings.Contains(w.Body.String(), expectedContains) {
+		t.Errorf("Expected response body to contain %q, got %q", expectedContains, w.Body.String())
 	}
 }
 
@@ -159,13 +135,17 @@ func setupTestRouter() *mux.Router {
 
 // initTestWheels initializes wheels for testing
 func initTestWheels() {
+	memoryMu.Lock()
+	defer memoryMu.Unlock()
 	wheels = getDefaultWheels()
 	history = []SpinResult{}
 }
 
 // resetTestState resets global state between tests
 func resetTestState() {
+	db = nil
+	memoryMu.Lock()
+	defer memoryMu.Unlock()
 	wheels = []Wheel{}
 	history = []SpinResult{}
-	db = nil
 }

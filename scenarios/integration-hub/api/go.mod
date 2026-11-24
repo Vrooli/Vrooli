@@ -8,8 +8,18 @@ require (
 )
 
 require (
+	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
+	github.com/vrooli/repo-contract-go v0.0.0 // indirect
+)
+
+require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1 // indirect
+	github.com/vrooli/api-core v0.0.0
 	google.golang.org/protobuf v1.36.11 // indirect
 )
 
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
+
+replace github.com/vrooli/api-core => ../../../packages/api-core
+
+replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go

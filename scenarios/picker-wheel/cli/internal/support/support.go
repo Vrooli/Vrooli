@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/cli-core/cliresponse"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
@@ -28,54 +29,14 @@ func ParseFlags(fs *flag.FlagSet, args []string) error {
 	return cliutil.ParseInterspersed(fs, args)
 }
 
-// Decode unmarshals body as the concrete shape expected by the caller.
-// If the response is a {success, data} envelope, the data field is unwrapped;
-// otherwise the raw body is decoded directly.
+// Decode delegates the shared response-body contract to cli-core.
 func Decode(body []byte, dest interface{}) error {
-	if raw, ok := unwrapEnvelope(body); ok {
-		if err := json.Unmarshal(raw, dest); err != nil {
-			return fmt.Errorf("parse response data: %w", err)
-		}
-		return nil
-	}
-	if err := json.Unmarshal(body, dest); err != nil {
-		return fmt.Errorf("parse response: %w", err)
-	}
-	return nil
+	return cliresponse.Decode(body, dest)
 }
 
-// EnvelopeMessage returns the "message" string if body is a
-// {success, data: {message}} envelope, else empty.
+// EnvelopeMessage delegates shared envelope decoding to cli-core.
 func EnvelopeMessage(body []byte) string {
-	raw, ok := unwrapEnvelope(body)
-	if !ok {
-		return ""
-	}
-	var wrapper struct {
-		Message string `json:"message"`
-	}
-	if err := json.Unmarshal(raw, &wrapper); err != nil {
-		return ""
-	}
-	return strings.TrimSpace(wrapper.Message)
-}
-
-func unwrapEnvelope(body []byte) (json.RawMessage, bool) {
-	trimmed := strings.TrimSpace(string(body))
-	if !strings.HasPrefix(trimmed, "{") {
-		return nil, false
-	}
-	var env struct {
-		Success *bool           `json:"success"`
-		Data    json.RawMessage `json:"data"`
-	}
-	if err := json.Unmarshal(body, &env); err != nil {
-		return nil, false
-	}
-	if env.Success == nil || len(env.Data) == 0 {
-		return nil, false
-	}
-	return env.Data, true
+	return cliresponse.EnvelopeMessage(body)
 }
 
 // BuildQuery returns url.Values with only non-empty trimmed values set.

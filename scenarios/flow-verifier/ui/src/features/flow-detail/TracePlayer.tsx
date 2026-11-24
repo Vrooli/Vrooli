@@ -1,6 +1,6 @@
 import { useEffect, useReducer } from "react";
 
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import type { FlowTrace } from "../../api/inventory";
 import { useTranslation } from "../../i18n";
 

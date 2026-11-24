@@ -13,6 +13,9 @@ func fixedService(digest string, digestErr error, records []runindex.RunRecord) 
 	return &Service{
 		ComputeDigest: func(string) (string, error) { return digest, digestErr },
 		LoadRecords:   func(string) ([]runindex.RunRecord, error) { return records, nil },
+		RequiredPhases: func() []string {
+			return []string{"structure", "docs", "unit", "business", "proto"}
+		},
 	}
 }
 

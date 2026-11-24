@@ -60,7 +60,7 @@ render:
 | Layer | File | What it owns |
 |---|---|---|
 | Wire contract | `packages/proto/schemas/scenario-completeness-scoring/v1/scoring/scoring.proto` | `service ScoreService`, `GetScoreRequest/Response`, and every payload sub-message (maturity, composite, freshness, recommendations, degradations) |
-| REST error envelope | `packages/proto/schemas/scenario-completeness-scoring/v1/errors/errors.proto` + `internal/httpx/errors.go::WriteError` | Typed body for any REST exception, with canonical codes (`invalid_request`, `not_found`, `internal`) |
+| REST errors | Endpoint handlers | REST errors follow each endpoint's response contract |
 | Domain types | `internal/scoring/service.go::{Result, ErrUnknownScenario}` (+ `internal/signals`, `internal/freshness` sub-results) | Domain-pure (no proto imports); the typed sentinel translates into a Connect error at the handler edge |
 | Signal collectors | `internal/signals/` (`Collector` interface, circuit-breaker registry) | Per-source artifact decoding; failures degrade, never crash |
 | Freshness | `internal/freshness/` (thin over `packages/freshness-go`) | Digest + per-phase verdicts; semantics owned by the shared package |

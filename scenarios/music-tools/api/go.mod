@@ -15,9 +15,11 @@ require (
 	modernc.org/sqlite v1.50.1
 )
 
+require golang.org/x/mod v0.41.0 // indirect
+
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260709200747-435963d16310.1 // indirect
-	connectrpc.com/connect v1.19.2 // indirect
+	connectrpc.com/connect v1.19.2
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect

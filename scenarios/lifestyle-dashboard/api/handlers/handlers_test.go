@@ -17,6 +17,7 @@ import (
 
 // setupTestDB creates an in-memory SQLite database with schema for testing.
 func setupTestDB(t *testing.T) *sql.DB {
+	t.Helper()
 	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
 		t.Fatalf("Failed to open test database: %v", err)
@@ -27,11 +28,13 @@ func setupTestDB(t *testing.T) *sql.DB {
 	if err := domain.InitSchema(db); err != nil {
 		t.Fatalf("Failed to initialize schema: %v", err)
 	}
+	t.Cleanup(func() { _ = db.Close() })
 	return db
 }
 
 // setupTestHandler creates a handler with SQLite repositories for testing.
-func setupTestHandler(t *testing.T) (*Handler, *sql.DB) {
+func setupTestHandler(t *testing.T) *Handler {
+	t.Helper()
 	db := setupTestDB(t)
 	eventRepo := repository.NewSQLiteEventRepository(db)
 	domainRepo := repository.NewSQLiteDomainRepository(db)
@@ -41,13 +44,26 @@ func setupTestHandler(t *testing.T) (*Handler, *sql.DB) {
 	scoreConfigRepo := repository.NewSQLiteScoreConfigRepository(db)
 	digestRepo := repository.NewSQLiteDigestRepository(db)
 	h := New(eventRepo, domainRepo, statsRepo, storageRepo, briefsRepo, scoreConfigRepo, digestRepo)
-	return h, db
+	return h
+}
+
+func jsonRequest(t *testing.T, method, path, body string) *http.Request {
+	t.Helper()
+	req := httptest.NewRequest(method, path, bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	return req
+}
+
+func jsonHandlerResponse(t *testing.T, handler http.HandlerFunc, method, path, body string) *httptest.ResponseRecorder {
+	t.Helper()
+	recorder := httptest.NewRecorder()
+	handler(recorder, jsonRequest(t, method, path, body))
+	return recorder
 }
 
 // TestNew_CreatesHandler verifies that New creates a valid Handler instance.
 func TestNew_CreatesHandler(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	if h == nil {
 		t.Fatal("Expected handler, got nil")
@@ -111,10 +127,7 @@ func TestWriteError_ReturnsErrorStructure(t *testing.T) {
 // Helper: create a test event directly via handler
 func (h *Handler) createTestEvent(t *testing.T, domainName, eventType string) {
 	body := `{"domain": "` + domainName + `", "event_type": "` + eventType + `", "payload": {}}`
-	req := httptest.NewRequest("POST", "/api/v1/events", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-	h.CreateEvent(rr, req)
+	rr := jsonHandlerResponse(t, h.CreateEvent, http.MethodPost, "/api/v1/events", body)
 	if rr.Code != http.StatusCreated {
 		t.Fatalf("Failed to create test event: %s", rr.Body.String())
 	}
@@ -123,10 +136,7 @@ func (h *Handler) createTestEvent(t *testing.T, domainName, eventType string) {
 // Helper: register a test domain directly via handler
 func (h *Handler) registerTestDomain(t *testing.T, name, displayName string) {
 	body := `{"name": "` + name + `", "display_name": "` + displayName + `"}`
-	req := httptest.NewRequest("POST", "/api/v1/domains", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-	h.RegisterDomain(rr, req)
+	rr := jsonHandlerResponse(t, h.RegisterDomain, http.MethodPost, "/api/v1/domains", body)
 	if rr.Code != http.StatusCreated {
 		t.Fatalf("Failed to register test domain: %s", rr.Body.String())
 	}

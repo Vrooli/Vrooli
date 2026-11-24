@@ -1,35 +1,23 @@
 package spec
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"sort"
+
+	"github.com/vrooli/api-core/readinessprofile"
 )
 
 // ReadinessProfile is the deterministic consumer projection of an authored
 // experience spec. It contains no selectors or lifecycle declarations not
 // already authored in the spec; consumers must never maintain a second
 // readiness registry.
-type ReadinessProfile struct {
-	Version  string                 `json:"version"`
-	Scenario string                 `json:"scenario"`
-	Pages    []ReadinessProfilePage `json:"pages"`
-}
-
-type ReadinessProfilePage struct {
-	ID            string                   `json:"id"`
-	Routes        []string                 `json:"routes"`
-	RuntimeRoutes []string                 `json:"runtimeRoutes,omitempty"`
-	Regions       []ReadinessProfileRegion `json:"regions"`
-}
-
-type ReadinessProfileRegion struct {
-	ID        string             `json:"id"`
-	Required  bool               `json:"required"`
-	Binding   Binding            `json:"binding"`
-	Component ComponentReference `json:"component"`
-	Lifecycle RegionLifecycle    `json:"lifecycle"`
-}
+// Keep the producer-facing names while sharing the serialized contract with
+// BAS, UI Health, and Workflow Health.
+type ReadinessProfile = readinessprofile.Profile
+type ReadinessProfilePage = readinessprofile.Page
+type ReadinessProfileRegion = readinessprofile.Region
 
 // BuildReadinessProfile resolves the authored page composition into a stable
 // route-oriented profile. It is pure and sorted, so downstream BAS, UI Health,
@@ -47,6 +35,10 @@ func BuildReadinessProfile(spec *ScenarioSpec) (ReadinessProfile, error) {
 	for _, pageID := range pageIDs {
 		page := spec.Pages[pageID]
 		out := ReadinessProfilePage{ID: page.Page.ID, Routes: append([]string(nil), page.Page.Routes...)}
+		for _, optOut := range page.FloorOptOuts {
+			out.GeometryOptOuts = append(out.GeometryOptOuts, optOut.Floor)
+		}
+		sort.Strings(out.GeometryOptOuts)
 		for _, state := range page.States {
 			if route := runtimeRoute(state.Setup); route != "" {
 				out.RuntimeRoutes = append(out.RuntimeRoutes, route)
@@ -55,12 +47,19 @@ func BuildReadinessProfile(spec *ScenarioSpec) (ReadinessProfile, error) {
 		sort.Strings(out.Routes)
 		sort.Strings(out.RuntimeRoutes)
 		for _, region := range page.Regions {
+			binding := page.Bindings.Regions[region.ID]
+			component, err := json.Marshal(region.Component)
+			if err != nil {
+				return ReadinessProfile{}, fmt.Errorf("encode readiness component %q: %w", region.ID, err)
+			}
 			out.Regions = append(out.Regions, ReadinessProfileRegion{
-				ID:        region.ID,
-				Required:  region.Required,
-				Binding:   page.Bindings.Regions[region.ID],
-				Component: region.Component,
-				Lifecycle: RegionLifecycle{Kind: region.Lifecycle.Kind, States: append([]string(nil), region.Lifecycle.States...)},
+				ID:       region.ID,
+				Required: region.Required,
+				Binding: readinessprofile.Binding{
+					TestID: binding.TestID, Selector: binding.Selector, Note: binding.Note,
+				},
+				Component: component,
+				Lifecycle: readinessprofile.Lifecycle{Kind: region.Lifecycle.Kind, States: append([]string(nil), region.Lifecycle.States...)},
 			})
 		}
 		sort.Slice(out.Regions, func(i, j int) bool { return out.Regions[i].ID < out.Regions[j].ID })

@@ -2,27 +2,23 @@ package reconcile
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/database"
 )
 
-// SQLExecutor is the narrow database surface the repository depends on.
-// Both *sql.DB in tests and *database.RoutedDB in production satisfy it.
-type SQLExecutor interface {
-	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
-	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
-	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
-	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
-}
+// SQLExecutor preserves the reconcile package's shared repository contract
+// name while API Core owns its transaction-capable method set.
+type SQLExecutor = database.SQLTxExecutor
 
 type sqliteRepository struct {
-	db SQLExecutor
+	db database.SQLTxExecutor
 }
 
 // NewSQLiteRepository constructs the production evidence repository.
-func NewSQLiteRepository(db SQLExecutor) EvidenceRepository {
+func NewSQLiteRepository(db database.SQLTxExecutor) EvidenceRepository {
 	return &sqliteRepository{db: db}
 }
 

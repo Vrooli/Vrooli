@@ -7,7 +7,7 @@ import type { FleetScenario } from "@vrooli/proto-types/experience-manager/v1/co
 import { fetchFleet } from "../api/experience";
 import { MetricCard } from "../components/MetricCard";
 import { PageFrame } from "../components/PageFrame";
-import { Button } from "../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { DataTable, type DataTableColumn, type DataTableFilter } from "@vrooli/react-component-library/DataTable/1";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";

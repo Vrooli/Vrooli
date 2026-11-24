@@ -344,18 +344,11 @@ func nativeReport(report spec.Report) *contractv1.ExperienceContractReport {
 			Code:        f.Code,
 			Severity:    f.Severity,
 			Message:     f.Message,
-			Location:    firstLocation(f.Locations),
+			Location:    spec.FirstLocation(f.Locations),
 			Remediation: f.Suggestion,
 		})
 	}
 	return out
-}
-
-func firstLocation(locations []string) string {
-	if len(locations) == 0 {
-		return ""
-	}
-	return locations[0]
 }
 
 func protoAttestation(a attestation.Attestation) *contractv1.ManualAttestation {

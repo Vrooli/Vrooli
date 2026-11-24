@@ -17,18 +17,57 @@ import (
 	"time"
 
 	"experience-manager/internal/spec"
+	"experience-manager/internal/testutil"
 
 	testdb "github.com/vrooli/api-core/databasetest"
 
 	apidb "github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/servicetoken"
 )
+
+func testBASCaptureTokens() *servicetoken.Tokens {
+	return servicetoken.New(servicetoken.Config{
+		Credential: func(context.Context) (string, error) { return "fixture-credential", nil },
+		Expect:     servicetoken.ExpectIdentity(basCapturePrincipal, basCaptureAudience, basCaptureScope),
+	}, servicetoken.WithExchanger(func(context.Context, string) (servicetoken.Exchanged, error) {
+		return servicetoken.Exchanged{
+			AccessToken: "bas-capture-test-token", ExpiresAt: time.Now().Add(time.Hour),
+			Subject: basCapturePrincipal, Audience: basCaptureAudience, Scopes: []string{basCaptureScope},
+		}, nil
+	}))
+}
+
+func TestBASCaptureFailsClosedWithoutExactServiceIdentity(t *testing.T) {
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests++
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+	resolve := func(context.Context) (string, error) { return server.URL, nil }
+	wrongTokens := servicetoken.New(servicetoken.Config{
+		Credential: func(context.Context) (string, error) { return "fixture-credential", nil },
+		Expect:     servicetoken.ExpectIdentity(basCapturePrincipal, basCaptureAudience, basCaptureScope),
+	}, servicetoken.WithExchanger(func(context.Context, string) (servicetoken.Exchanged, error) {
+		return servicetoken.Exchanged{AccessToken: "wrong-token", ExpiresAt: time.Now().Add(time.Hour),
+			Subject: basCapturePrincipal, Audience: basCaptureAudience, Scopes: []string{"browser-automation-studio:admin"}}, nil
+	}))
+	for _, capturer := range []BASCapturer{{Resolve: resolve}, {Resolve: resolve, Tokens: wrongTokens}} {
+		if _, err := capturer.CaptureAccessibility(context.Background(), CaptureTarget{Scenario: "demo", Route: "/"}); !errors.Is(err, ErrCaptureUnavailable) {
+			t.Fatalf("CaptureAccessibility error = %v, want fail-closed capture-unavailable", err)
+		}
+	}
+	if requests != 0 {
+		t.Fatalf("BAS received %d requests with absent or mismatched service identity", requests)
+	}
+}
 
 func TestBASCapturerLiveCaptureContract(t *testing.T) {
 	baseURL := strings.TrimSpace(os.Getenv("EXPERIENCE_BAS_INTEGRATION_URL"))
 	if baseURL == "" {
 		t.Skip("set EXPERIENCE_BAS_INTEGRATION_URL to exercise the live BAS CaptureService contract")
 	}
-	capturer := BASCapturer{Resolve: func(context.Context) (string, error) { return baseURL, nil }}
+	capturer := BASCapturer{Resolve: func(context.Context) (string, error) { return baseURL, nil }, Tokens: NewBASCaptureTokens()}
 	snapshot, err := capturer.CaptureAccessibility(context.Background(), CaptureTarget{
 		Scenario:       "landing-page-business-suite",
 		Route:          "/admin/login",
@@ -134,7 +173,7 @@ func (c *concurrentCapturer) CaptureAccessibility(_ context.Context, target Capt
 }
 
 func TestDraftCalibrationEmitsExpectedMatrixFailuresOnly(t *testing.T) { // [REQ:EXPERIEN-P0-003]
-	report, err := spec.ParseScenario(filepath.Join(repoRoot(t), "scenarios", "business-health"))
+	report, err := spec.ParseScenario(filepath.Join(testutil.RepoRoot(t), "scenarios", "business-health"))
 	if err != nil {
 		t.Fatalf("ParseScenario: %v", err)
 	}
@@ -774,7 +813,7 @@ func TestComponentSourceClaimsDetectRemovedInteractionContracts(t *testing.T) {
 }
 
 func TestCatalogComponentSourceClaimsPassForReleasedControls(t *testing.T) {
-	report, err := spec.ParseScenario(filepath.Join(repoRoot(t), "scenarios", "react-component-library"))
+	report, err := spec.ParseScenario(filepath.Join(testutil.RepoRoot(t), "scenarios", "react-component-library"))
 	if err != nil {
 		t.Fatalf("ParseScenario: %v", err)
 	}
@@ -917,7 +956,7 @@ func TestGenericCapabilityProbeEvaluatorsDiscriminate(t *testing.T) {
 	}
 }
 
-func TestBaselineFloorClaimsFailFromGeometry(t *testing.T) {
+func TestPageGeometryIsNotEvaluatedByExperienceContract(t *testing.T) {
 	report := activeReport("primary", spec.Binding{TestID: "primary-action"})
 	snapshot := passingSnapshot()
 	snapshot.Root.Bounds = &Bounds{Width: 430, Height: 700}
@@ -934,18 +973,22 @@ func TestBaselineFloorClaimsFailFromGeometry(t *testing.T) {
 		}},
 	})
 
+	evaluator := &fixedGeometryEvaluator{findings: []spec.Finding{
+		{Code: "visual_viewport_overflow", Severity: spec.SeverityError},
+		{Code: "visual_surface_does_not_fill_viewport", Severity: spec.SeverityError},
+		{Code: "visual_chrome_outside_viewport", Severity: spec.SeverityError},
+		{Code: "visual_unsafe_edge_tap_zone", Severity: spec.SeverityError},
+		{Code: "visual_multiline_chrome_label", Severity: spec.SeverityWarning},
+		{Code: "visual_touch_target_too_small", Severity: spec.SeverityError},
+	}}
 	findings := Check{
-		GeometryEvaluator: &fixedGeometryEvaluator{findings: []spec.Finding{
-			{Code: "visual_viewport_overflow", Severity: spec.SeverityError},
-			{Code: "visual_surface_does_not_fill_viewport", Severity: spec.SeverityError},
-			{Code: "visual_chrome_outside_viewport", Severity: spec.SeverityError},
-			{Code: "visual_unsafe_edge_tap_zone", Severity: spec.SeverityError},
-			{Code: "visual_multiline_chrome_label", Severity: spec.SeverityWarning},
-			{Code: "visual_touch_target_too_small", Severity: spec.SeverityError},
-		}},
-		Capturer:        fakeCapturer{snapshot: snapshot},
-		CaptureProfiles: []CaptureProfile{{ID: "mobile", Width: 390, Height: 844}},
+		GeometryEvaluator: evaluator,
+		Capturer:          fakeCapturer{snapshot: snapshot},
+		CaptureProfiles:   []CaptureProfile{{ID: "mobile", Width: 390, Height: 844}},
 	}.Run(context.Background(), report)
+	if evaluator.calls != 0 {
+		t.Fatalf("page geometry evaluator calls = %d, want 0", evaluator.calls)
+	}
 	for _, code := range []string{
 		"visual_viewport_overflow",
 		"visual_surface_does_not_fill_viewport",
@@ -954,21 +997,13 @@ func TestBaselineFloorClaimsFailFromGeometry(t *testing.T) {
 		"visual_multiline_chrome_label",
 		"visual_touch_target_too_small",
 	} {
-		if !hasCode(findings, code) {
-			t.Fatalf("missing %s in findings: %+v", code, findings)
+		if hasCode(findings, code) {
+			t.Fatalf("EXM duplicated canonical experience geometry %s: %+v", code, findings)
 		}
 	}
 }
 
-func TestArchetypeFloorSetIsAppliedWhenContractDeclaresNoFloors(t *testing.T) {
-	page := pageWithBaselineClaims(spec.PageDocument{Archetype: "overlay"})
-	if !hasClaimType(page, "chrome-pinned") || !hasClaimType(page, "single-line-chrome") {
-		t.Fatalf("overlay archetype did not receive its floor set: %+v", page.Claims)
-	}
-	if hasClaimType(page, "safe-area-tap-targets") {
-		t.Fatalf("overlay archetype received a page-only floor: %+v", page.Claims)
-	}
-
+func TestArchetypeFloorSetIsAppliedToComponentsOnly(t *testing.T) {
 	component := componentWithBaselineClaims(spec.ComponentDocument{Archetype: "primitive"})
 	if !componentHasClaimType(component, "tap-target-size") {
 		t.Fatalf("primitive component did not receive its floor set: %+v", component.Claims)
@@ -978,7 +1013,7 @@ func TestArchetypeFloorSetIsAppliedWhenContractDeclaresNoFloors(t *testing.T) {
 	}
 }
 
-func TestSafeAreaFloorRecognizesScenarioMobileNavControls(t *testing.T) {
+func TestPageSafeAreaGeometryIsDelegatedToExperience(t *testing.T) {
 	report := activeReport("primary", spec.Binding{TestID: "primary-action"})
 	snapshot := passingSnapshot()
 	snapshot.Root.Children = append(snapshot.Root.Children, AXNode{
@@ -994,17 +1029,18 @@ func TestSafeAreaFloorRecognizesScenarioMobileNavControls(t *testing.T) {
 		}},
 	})
 
+	evaluator := &fixedGeometryEvaluator{findings: []spec.Finding{{Code: "visual_unsafe_edge_tap_zone", Severity: spec.SeverityError, Message: "mobile chrome enters unsafe area"}}}
 	findings := Check{
-		GeometryEvaluator: &fixedGeometryEvaluator{findings: []spec.Finding{{Code: "visual_unsafe_edge_tap_zone", Severity: spec.SeverityError, Message: "mobile chrome enters unsafe area"}}},
+		GeometryEvaluator: evaluator,
 		Capturer:          fakeCapturer{snapshot: snapshot},
 		CaptureProfiles:   []CaptureProfile{{ID: "mobile", Width: 390, Height: 844}},
 	}.Run(context.Background(), report)
-	if !hasCode(findings, "visual_unsafe_edge_tap_zone") {
-		t.Fatalf("expected safe-area floor to catch scenario mobile nav controls, got %+v", findings)
+	if evaluator.calls != 0 || hasCode(findings, "visual_unsafe_edge_tap_zone") {
+		t.Fatalf("EXM evaluated page safe-area geometry (calls=%d, findings=%+v)", evaluator.calls, findings)
 	}
 }
 
-func TestBaselineFloorOptOutSuppressesOnlyNamedFloor(t *testing.T) {
+func TestPageGeometryOptOutRemainsAuthoredWithoutEXMEvaluation(t *testing.T) {
 	report := activeReport("primary", spec.Binding{TestID: "primary-action"})
 	page := report.Spec.Pages["home"]
 	page.FloorOptOuts = []spec.FloorOptOut{{
@@ -1015,19 +1051,20 @@ func TestBaselineFloorOptOutSuppressesOnlyNamedFloor(t *testing.T) {
 	snapshot := passingSnapshot()
 	snapshot.Root.Bounds = &Bounds{Width: 430, Height: 600}
 
+	evaluator := &fixedGeometryEvaluator{findings: []spec.Finding{
+		{Code: "visual_surface_does_not_fill_viewport", Severity: spec.SeverityError},
+		{Code: "visual_viewport_overflow", Severity: spec.SeverityError},
+	}}
 	findings := Check{
-		GeometryEvaluator: &fixedGeometryEvaluator{findings: []spec.Finding{
-			{Code: "visual_surface_does_not_fill_viewport", Severity: spec.SeverityError},
-			{Code: "visual_viewport_overflow", Severity: spec.SeverityError},
-		}},
-		Capturer:        fakeCapturer{snapshot: snapshot},
-		CaptureProfiles: []CaptureProfile{{ID: "mobile", Width: 390, Height: 844}},
+		GeometryEvaluator: evaluator,
+		Capturer:          fakeCapturer{snapshot: snapshot},
+		CaptureProfiles:   []CaptureProfile{{ID: "mobile", Width: 390, Height: 844}},
 	}.Run(context.Background(), report)
-	if hasCode(findings, "visual_surface_does_not_fill_viewport") {
-		t.Fatalf("viewport-fill opt-out was ignored: %+v", findings)
+	if evaluator.calls != 0 || hasCode(findings, "visual_surface_does_not_fill_viewport") || hasCode(findings, "visual_viewport_overflow") {
+		t.Fatalf("EXM evaluated page geometry instead of delegating opt-out to experience: calls=%d findings=%+v", evaluator.calls, findings)
 	}
-	if !hasCode(findings, "visual_viewport_overflow") {
-		t.Fatalf("opt-out suppressed unrelated floors: %+v", findings)
+	if !hasCode(findings, spec.CodeClaimUnproven) {
+		t.Fatalf("authored waiver evidence was lost: %+v", findings)
 	}
 }
 
@@ -1215,6 +1252,9 @@ func TestBASCapturerPreservesScenarioTargetForDeclaredReadiness(t *testing.T) {
 	artifactGETs := 0
 	mux := http.NewServeMux()
 	mux.HandleFunc("/browser_automation_studio.v1.capture.CaptureService/Capture", func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer bas-capture-test-token" {
+			t.Fatalf("Capture Authorization = %q, want BAS service bearer", got)
+		}
 		var req struct {
 			URL                 string `json:"url"`
 			InlineAccessibility bool   `json:"inlineAccessibility"`
@@ -1291,6 +1331,9 @@ func TestBASCapturerPreservesScenarioTargetForDeclaredReadiness(t *testing.T) {
 		})
 	})
 	mux.HandleFunc("/api/v1/artifacts/artifacts/capture-execution-1/capture-screenshot.png", func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "" {
+			t.Fatalf("artifact fetch unexpectedly carried Authorization: %q", got)
+		}
 		artifactGETs++
 		w.Header().Set("Content-Type", "image/png")
 		_, _ = io.WriteString(w, screenshotBytes)
@@ -1306,6 +1349,7 @@ func TestBASCapturerPreservesScenarioTargetForDeclaredReadiness(t *testing.T) {
 			return "http://localhost:21233" + target.Route, nil
 		},
 		HTTPClient: server.Client(),
+		Tokens:     testBASCaptureTokens(),
 	}
 	snapshot, err := capturer.CaptureAccessibility(context.Background(), CaptureTarget{
 		Scenario:         "web-console",
@@ -1365,7 +1409,7 @@ func TestBASArtifactFetchHonorsCallerCancellation(t *testing.T) {
 	defer cancel()
 	result := make(chan error, 1)
 	go func() {
-		_, err := (BASCapturer{Resolve: func(context.Context) (string, error) { return server.URL, nil }, HTTPClient: server.Client()}).CaptureAccessibility(ctx, CaptureTarget{Scenario: "demo", Route: "/"})
+		_, err := (BASCapturer{Resolve: func(context.Context) (string, error) { return server.URL, nil }, HTTPClient: server.Client(), Tokens: testBASCaptureTokens()}).CaptureAccessibility(ctx, CaptureTarget{Scenario: "demo", Route: "/"})
 		result <- err
 	}()
 	<-requestStarted
@@ -1500,24 +1544,6 @@ func allFloorOptOuts() []spec.FloorOptOut {
 		{Floor: "safe-area-tap-targets", Reason: "This fixture isolates authored viewport-scoped claim behavior."},
 		{Floor: "single-line-chrome", Reason: "This fixture isolates authored viewport-scoped claim behavior."},
 		{Floor: "tap-target-size", Reason: "This fixture isolates authored viewport-scoped claim behavior."},
-	}
-}
-
-func repoRoot(t *testing.T) string {
-	t.Helper()
-	dir, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	for {
-		if _, err := os.Stat(filepath.Join(dir, "VISION.md")); err == nil {
-			return dir
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			t.Fatal("repo root not found")
-		}
-		dir = parent
 	}
 }
 

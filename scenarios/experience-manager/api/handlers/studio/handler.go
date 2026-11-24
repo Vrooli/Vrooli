@@ -297,7 +297,7 @@ func protoFindings(findings []spec.Finding) []*contractv1.ExperienceFinding {
 			Code:        f.Code,
 			Severity:    f.Severity,
 			Message:     f.Message,
-			Location:    firstLocation(f.Locations),
+			Location:    spec.FirstLocation(f.Locations),
 			Remediation: f.Suggestion,
 		})
 	}
@@ -311,11 +311,4 @@ func status(findings []spec.Finding) string {
 		}
 	}
 	return "PASSED"
-}
-
-func firstLocation(locations []string) string {
-	if len(locations) == 0 {
-		return ""
-	}
-	return locations[0]
 }

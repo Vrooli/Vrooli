@@ -16,6 +16,7 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 	cliapptest "github.com/vrooli/cli-core/cliapptest"
+	cliinternal "go-code-graph/cli/internal"
 
 	clitest "github.com/vrooli/cli-core/cliapptest"
 )
@@ -74,7 +75,7 @@ func TestExtract_RendersSummary(t *testing.T) {
 		GraphHash:    "deadbeef",
 	}}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
-	h := newHandlers(core)
+	h := &handlers{client: cliinternal.NewGoCodeGraphClient(core)}
 	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "path", Required: true}},
 		Flags:       []cliapp.Flag{{Name: "include-vendor"}},
@@ -98,7 +99,7 @@ func TestExtract_RendersSummary(t *testing.T) {
 func TestExtract_PassesIncludeVendorFlag(t *testing.T) {
 	svc := &fakeService{extractResp: &graphv1.ExtractResponse{Graph: &commonv1.CodeGraph{}}}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
-	h := newHandlers(core)
+	h := &handlers{client: cliinternal.NewGoCodeGraphClient(core)}
 	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "path", Required: true}},
 		Flags:       []cliapp.Flag{{Name: "include-vendor"}},
@@ -114,7 +115,7 @@ func TestExtract_PassesIncludeVendorFlag(t *testing.T) {
 func TestExtract_PassesProfileAndPackagePatterns(t *testing.T) {
 	svc := &fakeService{extractResp: &graphv1.ExtractResponse{Graph: &commonv1.CodeGraph{}}}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
-	h := newHandlers(core)
+	h := &handlers{client: cliinternal.NewGoCodeGraphClient(core)}
 	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "path", Required: true}},
 		Flags: []cliapp.Flag{
@@ -138,7 +139,7 @@ func TestExtract_PassesProfileAndPackagePatterns(t *testing.T) {
 func TestExtract_SurfacesConnectErrors(t *testing.T) {
 	svc := &fakeService{extractErr: connect.NewError(connect.CodeInvalidArgument, io.ErrUnexpectedEOF)}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
-	h := newHandlers(core)
+	h := &handlers{client: cliinternal.NewGoCodeGraphClient(core)}
 	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "path", Required: true}},
 		Flags:       []cliapp.Flag{{Name: "include-vendor"}},

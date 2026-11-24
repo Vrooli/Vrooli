@@ -22,13 +22,7 @@ func TestGetWheelsHandler_DatabasePaths(t *testing.T) {
 			Path:   "/api/wheels",
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		var wheelsList []Wheel
 		assertJSONResponse(t, w, http.StatusOK, &wheelsList)
@@ -59,13 +53,7 @@ func TestCreateWheelHandler_DatabasePaths(t *testing.T) {
 			Body:   newWheel,
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		var createdWheel Wheel
 		assertJSONResponse(t, w, http.StatusOK, &createdWheel)
@@ -92,13 +80,7 @@ func TestCreateWheelHandler_DatabasePaths(t *testing.T) {
 			Body:   newWheel,
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		// Should still create the wheel
 		var createdWheel Wheel
@@ -129,13 +111,7 @@ func TestSpinHandler_EdgeCases(t *testing.T) {
 			Body:   spinRequest,
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		var result SpinResult
 		assertJSONResponse(t, w, http.StatusOK, &result)
@@ -163,13 +139,7 @@ func TestSpinHandler_EdgeCases(t *testing.T) {
 			Body:   spinRequest,
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		var result SpinResult
 		assertJSONResponse(t, w, http.StatusOK, &result)
@@ -193,13 +163,7 @@ func TestSpinHandler_EdgeCases(t *testing.T) {
 			Body:   spinRequest,
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		var result SpinResult
 		assertJSONResponse(t, w, http.StatusOK, &result)
@@ -225,13 +189,7 @@ func TestSpinHandler_EdgeCases(t *testing.T) {
 			Body:   spinRequest,
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		var result SpinResult
 		assertJSONResponse(t, w, http.StatusOK, &result)
@@ -277,13 +235,7 @@ func TestGetHistoryHandler_EdgeCases(t *testing.T) {
 			Path:   "/api/history",
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		var historyList []SpinResult
 		assertJSONResponse(t, w, http.StatusOK, &historyList)
@@ -317,13 +269,7 @@ func TestOptionValidation(t *testing.T) {
 			Body:   newWheel,
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		var createdWheel Wheel
 		assertJSONResponse(t, w, http.StatusOK, &createdWheel)
@@ -360,13 +306,7 @@ func TestWheelStructValidation(t *testing.T) {
 			Body:   newWheel,
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		var createdWheel Wheel
 		assertJSONResponse(t, w, http.StatusOK, &createdWheel)
@@ -403,13 +343,7 @@ func TestSpinResultStructure(t *testing.T) {
 			Body:   spinRequest,
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		var result SpinResult
 		assertJSONResponse(t, w, http.StatusOK, &result)
@@ -454,13 +388,7 @@ func TestHealthResponseStructure(t *testing.T) {
 			Path:   "/health",
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		// Verify JSON structure
 		var rawResponse map[string]interface{}
@@ -492,13 +420,7 @@ func TestCORSImplicit(t *testing.T) {
 			Path:   "/api/wheels",
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		// OPTIONS requests should be handled (may return 404 or 200 depending on CORS middleware)
 		// The important thing is it doesn't panic

@@ -1,19 +1,12 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
+	"regexp"
 	"testing"
 
-	_ "github.com/lib/pq"
+	"github.com/DATA-DOG/go-sqlmock"
 )
-
-// MockDB is a helper to create a test database connection
-func setupTestDB(t *testing.T) *sql.DB {
-	// Note: This is a mock test - in production, you'd connect to a real test database
-	// For now, we'll test the permission logic functions directly with mocked data
-	return nil
-}
 
 func TestGraphPermissions(t *testing.T) {
 	tests := []struct {
@@ -134,46 +127,30 @@ func TestGraphPermissions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Test permission logic directly
-			var got bool
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Fatalf("create SQL mock: %v", err)
+			}
+			defer db.Close()
 
-			// Check creator access
-			if tt.createdBy == tt.userID {
-				got = true
-			} else if tt.level == PermissionRead {
-				// Check read permissions
-				if tt.permissions.Public {
-					got = true
-				} else {
-					// Check allowed users
-					for _, allowedUser := range tt.permissions.AllowedUsers {
-						if allowedUser == tt.userID {
-							got = true
-							break
-						}
-					}
-					// Check editors (editors can also read)
-					if !got {
-						for _, editor := range tt.permissions.Editors {
-							if editor == tt.userID {
-								got = true
-								break
-							}
-						}
-					}
-				}
-			} else if tt.level == PermissionWrite {
-				// Check write permissions (only editors)
-				for _, editor := range tt.permissions.Editors {
-					if editor == tt.userID {
-						got = true
-						break
-					}
-				}
+			permissionsJSON, err := json.Marshal(tt.permissions)
+			if err != nil {
+				t.Fatalf("marshal permissions: %v", err)
+			}
+			mock.ExpectQuery(regexp.QuoteMeta("SELECT created_by, permissions\n\t\tFROM graphs\n\t\tWHERE id = $1")).
+				WithArgs("graph1").
+				WillReturnRows(sqlmock.NewRows([]string{"created_by", "permissions"}).AddRow(tt.createdBy, string(permissionsJSON)))
+
+			got, err := CheckGraphPermission(db, "graph1", tt.userID, tt.level)
+			if err != nil {
+				t.Fatalf("CheckGraphPermission() error = %v", err)
 			}
 
 			if got != tt.want {
 				t.Errorf("Permission check failed: got %v, want %v", got, tt.want)
+			}
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Errorf("SQL expectations: %v", err)
 			}
 		})
 	}

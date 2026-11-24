@@ -56,7 +56,7 @@ func (OracleCoverageCheck) Run(_ context.Context, report spec.Report) []spec.Fin
 			}
 		}
 	}
-	sortFindings(findings)
+	spec.SortFindings(findings)
 	return findings
 }
 

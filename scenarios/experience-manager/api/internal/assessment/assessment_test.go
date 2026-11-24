@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"experience-manager/internal/spec"
+	"experience-manager/internal/testutil"
 
 	maturity "github.com/vrooli/maturity-go/assessment"
 )
@@ -102,9 +103,10 @@ func TestBuildErrorsOnUnmappedExperienceFinding(t *testing.T) {
 
 func TestDefaultSpecMatchesTestGenieMaturityLadder(t *testing.T) {
 	var descriptor struct {
+		Phase    string        `json:"phase"`
 		Maturity maturity.Spec `json:"maturity"`
 	}
-	data, err := os.ReadFile(filepath.Join(repoRoot(t), "scenarios", "experience-manager", ".vrooli", "test-genie.json"))
+	data, err := os.ReadFile(filepath.Join(testutil.RepoRoot(t), "scenarios", "experience-manager", ".vrooli", "test-genie.json"))
 	if err != nil {
 		t.Fatalf("read test-genie descriptor: %v", err)
 	}
@@ -113,6 +115,9 @@ func TestDefaultSpecMatchesTestGenieMaturityLadder(t *testing.T) {
 	}
 	want := DefaultSpec()
 	got := descriptor.Maturity
+	if descriptor.Phase != want.Phase {
+		t.Fatalf("phase = %q, want %q", descriptor.Phase, want.Phase)
+	}
 	if got.Version != want.Version {
 		t.Fatalf("version = %q, want %q", got.Version, want.Version)
 	}
@@ -124,23 +129,5 @@ func TestDefaultSpecMatchesTestGenieMaturityLadder(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got.Fallback, want.Fallback) {
 		t.Fatalf("fallback drifted\n got: %#v\nwant: %#v", got.Fallback, want.Fallback)
-	}
-}
-
-func repoRoot(t *testing.T) string {
-	t.Helper()
-	dir, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	for {
-		if _, err := os.Stat(filepath.Join(dir, "VISION.md")); err == nil {
-			return dir
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			t.Fatal("repo root not found")
-		}
-		dir = parent
 	}
 }

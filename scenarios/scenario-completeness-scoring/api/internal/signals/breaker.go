@@ -51,14 +51,17 @@ func newBreaker(now func() time.Time) *breaker {
 }
 
 // allow reports whether the next call may proceed. An open breaker
-// transitions to half-open (and allows the call) once retry has elapsed.
+// transitions to half-open and grants that call as its single probe once
+// retry has elapsed; later calls wait for the probe to record an outcome.
 func (b *breaker) allow() bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	switch b.state {
-	case stateClosed, stateHalfOpen:
+	case stateClosed:
 		return true
+	case stateHalfOpen:
+		return false
 	case stateOpen:
 		if b.now().Sub(b.lastStateChange) >= b.retry {
 			b.state = stateHalfOpen

@@ -263,7 +263,7 @@ func TestSQLiteSnapshotRepositoryListPageLargeFixture(t *testing.T) {
 	if len(page.Snapshots) != 25 || !page.HasNext {
 		t.Fatalf("ListPage(large) metadata = len %d page %+v, want 25 with next page", len(page.Snapshots), page)
 	}
-	if elapsed > 500*time.Millisecond {
+	if !raceInstrumentationEnabled && elapsed > 500*time.Millisecond {
 		t.Fatalf("ListPage(large) took %s, want persisted page read under 500ms", elapsed)
 	}
 }

@@ -88,7 +88,9 @@ func main() {
 		healthH.Module(maintenancePinger{inner: db, compactor: compactor}, "experience-manager-api", "1.0.0"),
 		capabilitiesH.Module(repoRoot()),
 		studioH.Module(log.Default(), repoRoot(), studioH.WithDatabase(db)),
-		validationH.Module(log.Default(), repoRoot(), nil, validationH.WithDatabase(db)),
+		validationH.Module(log.Default(), repoRoot(), nil,
+			validationH.WithDatabase(db),
+			validationH.WithCapturer(reconcile.BASCapturer{Tokens: reconcile.NewBASCaptureTokens()})),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

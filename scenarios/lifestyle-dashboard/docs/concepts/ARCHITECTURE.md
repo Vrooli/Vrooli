@@ -1,192 +1,51 @@
-# Lifestyle Dashboard Architecture
+# Lifestyle Dashboard architecture
 
-## Overview
+The Lifestyle Dashboard is the owner of a shared event store and cross-domain views. Integrating scenarios register as domains and submit events through its HTTP API; the dashboard owns persistence, aggregation, briefs, score configuration, and weekly digests. Product scope and integration intent remain in the [PRD](../../PRD.md).
 
-Lifestyle Dashboard is a unified personal lifestyle intelligence platform that provides a shared data model, correlation engine, and analytics layer for domain-specific health scenarios.
+## Runtime and consumers
 
-## Mental Model
+- `api/main.go` resolves the scenario's `lifestyle.db` path through `api-core/storage`, builds the SQLite DSN, connects with one open connection and bounded retry, applies the embedded schema with `database.EnsureSchemas`, and starts the API Core server. The filename is a compatibility choice so existing scenario data continues to be found.
+- `api/main.go` constructs the SQLite repositories and injects them into `handlers.Handler`; `setupRoutes` owns the HTTP route table and maps `/api/v1` operations to handler methods. `/health` is also exposed for infrastructure checks.
+- `api/domain/types.go` owns the cross-domain event envelope and API domain types. Event payloads remain JSON so each source domain can evolve its event-specific fields without changing the shared envelope.
+- `api/repository/interfaces.go` defines persistence contracts; `api/repository/sqlite_*.go` implements them. Handlers own HTTP validation and response mapping; repositories own SQL and aggregation. `api/internal/lifestyle/schema.go` embeds `schema.sql` as the startup schema provider.
+- `ui/src/App.tsx` owns hash routes. Page components call `ui/src/lib/api.ts`, which resolves the scenario API base with `@vrooli/api-base`; the UI does not connect to SQLite. The same API client serves dashboard, domain, event, brief, score, storage, and digest views.
 
-```
-                          LIFESTYLE DASHBOARD
-┌─────────────────────────────────────────────────────────────┐
-│                        UI (React/Vite)                       │
-│  pages/ → Layout → components/dashboard/ → lib/api.ts       │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼ HTTP/JSON
-┌─────────────────────────────────────────────────────────────┐
-│                        API (Go/Gorilla)                      │
-│                                                             │
-│  ┌─────────────────────────────────────────────────────────┐ │
-│  │                    HANDLERS LAYER                        │ │
-│  │  handlers/events.go   - Event CRUD, queries              │ │
-│  │  handlers/domains.go  - Domain registration, health      │ │
-│  │  handlers/stats.go    - Timeline, summary aggregation    │ │
-│  └─────────────────────────────────────────────────────────┘ │
-│                              │                               │
-│                              ▼ interfaces                    │
-│  ┌─────────────────────────────────────────────────────────┐ │
-│  │                   REPOSITORY LAYER                       │ │
-│  │  repository/interfaces.go    - EventRepository, etc.     │ │
-│  │  repository/sqlite_events.go - SQLite implementation     │ │
-│  │  repository/sqlite_domains.go                            │ │
-│  │  repository/sqlite_stats.go                              │ │
-│  └─────────────────────────────────────────────────────────┘ │
-│                              │                               │
-│                              ▼                               │
-│  ┌─────────────────────────────────────────────────────────┐ │
-│  │                    DOMAIN LAYER                          │ │
-│  │  domain/types.go   - Event, Domain, Request/Response     │ │
-│  │  domain/schema.go  - SQLite table initialization         │ │
-│  └─────────────────────────────────────────────────────────┘ │
-│                              │                               │
-│                              ▼                               │
-│  ┌─────────────────────────────────────────────────────────┐ │
-│  │                    STORAGE (SQLite)                      │ │
-│  │  lifestyle.db - WAL mode, single-writer                  │ │
-│  └─────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────┘
-```
+## Domain and API boundaries
 
 ## Key Domain Concepts
 
 ### Events
-Cross-domain data points that flow into the dashboard from health scenarios:
-- **domain**: Source scenario (e.g., "nutrition", "sleep", "fitness")
-- **event_type**: Category within domain (e.g., "meal", "sleep_session", "workout")
-- **payload**: JSON data specific to the event type
-- **is_intervention**: Whether this represents an action taken
-- **hypothesis_id**: Link to correlation hypotheses
 
-See [CODE: api/domain/types.go#Event] for the type definition.
+An event keeps its source `domain`, `event_type`, timestamp, JSON payload, intervention flag, and optional hypothesis link. The dashboard stores and queries this shared envelope; event-specific interpretation stays with the producing domain.
 
 ### Domains
-Registered health/wellness scenarios that integrate with the dashboard:
-- **name**: Unique identifier (slug format)
-- **capabilities**: What the domain can track/provide
-- **health_url**: Endpoint for health checks
-- **status**: active | inactive | unhealthy
 
-See [CODE: api/domain/types.go#Domain] for the type definition.
+A registered domain describes a source scenario, its capabilities, and an optional health endpoint. Registration and health state belong to the dashboard; the source scenario owns the meaning and production of its events.
 
-### Statistics
-Aggregated views across domains:
-- **Timeline**: Event counts by day and domain
-- **Summary**: Total events, active domains, breakdown by source
+### Handler Layer
 
-See [CODE: api/handlers/stats.go] for the statistics handlers.
+The handler layer is the HTTP boundary and owns request validation and response mapping.
 
-## Architectural Boundaries
+### Presentation Layer
 
-### Entry Layer (UI + main.go)
-- React pages handle routing and user interaction [CODE: ui/src/App.tsx]
-- Go main.go handles configuration and wiring [CODE: api/main.go]
-- CORS middleware enables UI-API communication [CODE: api/main.go#corsMiddleware]
+Route registration in `api/main.go` dispatches to handlers; handlers depend on repository interfaces, not a database handle.
 
-### Presentation Layer (handlers/)
-- HTTP request/response handling [CODE: api/handlers/handlers.go]
-- Input validation and error formatting
-- Delegates to repository interfaces
+### Abstraction Layer
 
-### Abstraction Layer (repository/)
-- Defines storage contracts via interfaces [CODE: api/repository/interfaces.go]
-- SQLite implementations handle queries [CODE: api/repository/sqlite_events.go]
-- Custom `ErrNotFound` for not-found handling [CODE: api/repository/interfaces.go#ErrNotFound]
+The interfaces include separate event, domain, stats, storage, brief, score-configuration, and digest operations. Their current production implementation is SQLite; interface separation supports tests and keeps SQL out of handlers, but does not mean another backend currently exists.
 
-### Domain Layer (domain/)
-- Pure type definitions [CODE: api/domain/types.go]
-- No business logic, no dependencies
-- Schema initialization [CODE: api/domain/schema.go#InitSchema]
+### Aggregates and generated views
 
-### Infrastructure Layer (SQLite)
-- Single-file embedded database
-- WAL mode for concurrent reads
-- `api-core/database.Connect()` with retry [CODE: api/main.go:201]
+Timeline and summary queries aggregate events across domains. Score, briefs, and weekly digests are distinct derived views with their own repositories and API contracts; they are not additional event stores. Their implementation and product requirements are documented in the owning handlers, repositories, and [PRD](../../PRD.md).
 
-## Data Flow
+## Persistence and portability
 
-```
-1. UI page fetches data → lib/api.ts
-2. api.ts calls API endpoint → fetch()
-3. Handler parses request, validates
-4. Handler calls Repository method
-5. Repository executes SQL, maps to domain types
-6. Handler formats response, returns JSON
-7. UI receives and renders data
-```
+SQLite is an embedded, file-backed store. The call names the `lifestyle-dashboard` scenario and retained `lifestyle.db` filename. In a live lifecycle, the assigned `SCENARIO_DATA_DIR` determines the data directory; explicit storage-root overrides can redirect tests and standalone runs. The API Core SQLite storage seam builds the DSN and owns SQLite connection pragmas. The API limits the pool to one connection to respect SQLite's single-writer behavior. Do not infer WAL or other runtime tuning from old comments; inspect the active `api-core/storage` implementation and scenario configuration when changing this contract.
 
-## Design Decisions
+The [storage audit](../internal/STORAGE_AUDIT.md) preserves the historical ADR rationale and audit trail. Its implementation-status tables predate the current schema provider and path resolution, so treat `main.go`, `api-core/storage`, and the embedded schema as current behavior. Keep this architecture page as the ownership map; detailed storage findings and test seams remain in their focused references.
 
-### Why SQLite (not PostgreSQL)?
-- Single-user personal dashboard
-- Mobile/desktop deployment targets
-- Zero operational complexity
-- File-based backup/restore
-- See: docs/internal/STORAGE_AUDIT.md (ADR-001)
+## Change and validation route
 
-### Why Repository Pattern?
-- Handlers testable with mocks
-- Storage backend swappable
-- Clear separation of SQL from HTTP
-- See: docs/internal/STORAGE_AUDIT.md (ADR-002)
+Follow a change through the API route, handler, repository interface and SQLite implementation, plus every affected UI or integrating-scenario caller. Preserve the shared event envelope, domain ownership, existing database filename and distinct aggregate-view contracts. Validate API behavior with the API owner tests, UI behavior with the UI suite, and documentation links/contracts with the Lifestyle Dashboard `docs` phase.
 
-### Why api-core/database?
-- Consistent with Vrooli patterns
-- Automatic retry with backoff
-- Resolves auditor compliance
-- See: docs/internal/STORAGE_AUDIT.md (ADR-003)
-
-## Test Coverage
-
-| Package | Tests | Focus |
-|---------|-------|-------|
-| main | 22 | Integration (full API tests) |
-| domain | 4 | Type serialization |
-| handlers | 10 | Handler logic with mocks |
-| repository | 15 | Storage operations |
-
-## File Structure
-
-```
-api/
-├── main.go           # Server wiring, config, startup
-├── main_test.go      # Integration tests
-├── domain/
-│   ├── types.go      # Core entities
-│   ├── types_test.go
-│   └── schema.go     # Schema initialization
-├── handlers/
-│   ├── handlers.go   # Shared Handler struct
-│   ├── events.go
-│   ├── domains.go
-│   ├── stats.go
-│   └── handlers_test.go
-└── repository/
-    ├── interfaces.go     # Repository contracts
-    ├── sqlite_events.go
-    ├── sqlite_domains.go
-    ├── sqlite_stats.go
-    └── repository_test.go
-
-ui/src/
-├── App.tsx              # Router setup
-├── main.tsx             # Entry point
-├── components/
-│   ├── Layout.tsx       # Navigation shell
-│   ├── dashboard/       # Domain-specific components
-│   └── ui/              # shadcn/ui primitives
-├── pages/
-│   ├── DashboardPage.tsx
-│   ├── DomainsPage.tsx
-│   ├── EventsPage.tsx
-│   └── SettingsPage.tsx
-└── lib/
-    ├── api.ts           # API client
-    └── format.ts        # Formatting utilities
-```
-
-## Related Documentation
-
-- [STORAGE_AUDIT.md](../internal/STORAGE_AUDIT.md) - Storage architecture decisions
-- [PRD.md](../../PRD.md) - Product requirements
-- [PROGRESS.md](../PROGRESS.md) - Development history
+See [Quick Start](../QUICKSTART.md), the [storage audit](../internal/STORAGE_AUDIT.md), [test architecture](../internal/UNIT_TEST_ARCHITECTURE.md), [integration seams](../internal/SEAMS.md), and [temporal flows](../internal/TEMPORAL-FLOWS.md) for operational and specialized detail.

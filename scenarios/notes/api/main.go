@@ -266,13 +266,6 @@ func main() {
 	}
 }
 
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
-
 // notesSemanticMutationOperationID binds a shared-store idempotency key to
 // the durable trigger event created in the same Notes transaction. If a
 // vector write succeeds but its response is lost, retrying that source event

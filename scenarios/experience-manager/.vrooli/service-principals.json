@@ -1,0 +1,10 @@
+{
+  "principals": [
+    {
+      "name": "experience-manager-bas-capture",
+      "resource": "browser-automation-studio",
+      "audience": "scenario-authenticator:browser-automation-studio",
+      "scopes": ["browser-automation-studio:capture"]
+    }
+  ]
+}

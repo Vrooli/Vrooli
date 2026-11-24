@@ -75,7 +75,10 @@ func (r *SQLiteDomainRepository) GetByName(ctx context.Context, name string) (*d
 		return nil, err
 	}
 
-	json.Unmarshal([]byte(capabilities), &d.Capabilities)
+	d.Capabilities, err = decodeDomainCapabilities(d.Name, capabilities)
+	if err != nil {
+		return nil, err
+	}
 	if lastHealthAt.Valid {
 		d.LastHealthAt = &lastHealthAt.String
 	}
@@ -103,7 +106,10 @@ func (r *SQLiteDomainRepository) List(ctx context.Context) ([]domain.Domain, err
 		if err := rows.Scan(&d.Name, &d.DisplayName, &d.Description, &capabilities, &d.Status, &d.HealthURL, &lastHealthAt, &d.RegisteredAt, &d.UpdatedAt); err != nil {
 			continue
 		}
-		json.Unmarshal([]byte(capabilities), &d.Capabilities)
+		d.Capabilities, err = decodeDomainCapabilities(d.Name, capabilities)
+		if err != nil {
+			return nil, err
+		}
 		if lastHealthAt.Valid {
 			d.LastHealthAt = &lastHealthAt.String
 		}
@@ -111,6 +117,14 @@ func (r *SQLiteDomainRepository) List(ctx context.Context) ([]domain.Domain, err
 	}
 
 	return domains, rows.Err()
+}
+
+func decodeDomainCapabilities(name, raw string) ([]string, error) {
+	var capabilities []string
+	if err := json.Unmarshal([]byte(raw), &capabilities); err != nil {
+		return nil, fmt.Errorf("decode capabilities for domain %q: %w", name, err)
+	}
+	return capabilities, nil
 }
 
 // UpdateStatus updates a domain's status and last health check time.

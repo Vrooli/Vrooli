@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/database"
 )
 
 // Evidence retention.
@@ -90,7 +92,7 @@ WHERE id = ? AND checked_at < ? AND (
 // separate read-only connection, so a long scan never holds the API's single
 // writer connection) and deletes them through writer in bounded batches,
 // re-checking supersession for every row.
-func PruneSupersededEvidence(ctx context.Context, reader, writer SQLExecutor, policy EvidenceRetentionPolicy, now time.Time) (EvidenceRetentionResult, error) {
+func PruneSupersededEvidence(ctx context.Context, reader, writer database.SQLTxExecutor, policy EvidenceRetentionPolicy, now time.Time) (EvidenceRetentionResult, error) {
 	if policy.KeepPerClaim < 1 {
 		return EvidenceRetentionResult{}, fmt.Errorf("evidence retention: KeepPerClaim must be at least 1")
 	}
@@ -141,7 +143,7 @@ func PruneSupersededEvidence(ctx context.Context, reader, writer SQLExecutor, po
 	return result, nil
 }
 
-func supersededCandidates(ctx context.Context, reader SQLExecutor, keep int, cutoff string) ([]string, error) {
+func supersededCandidates(ctx context.Context, reader database.SQLTxExecutor, keep int, cutoff string) ([]string, error) {
 	rows, err := reader.QueryContext(ctx, supersededCandidatesSQL, keep, cutoff)
 	if err != nil {
 		return nil, fmt.Errorf("scan superseded evidence: %w", err)
@@ -161,7 +163,7 @@ func supersededCandidates(ctx context.Context, reader SQLExecutor, keep int, cut
 	return ids, nil
 }
 
-func deleteSupersededBatch(ctx context.Context, writer SQLExecutor, ids []string, cutoff string, keep int) (int64, error) {
+func deleteSupersededBatch(ctx context.Context, writer database.SQLTxExecutor, ids []string, cutoff string, keep int) (int64, error) {
 	tx, err := writer.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, fmt.Errorf("begin evidence retention batch: %w", err)
@@ -211,7 +213,7 @@ const ReleasePageBatch = 1024
 // bounded incremental_vacuum(batchPages) transactions, so the single API
 // connection is released between batches. On a file still in
 // auto_vacuum=NONE mode it returns at once having released nothing.
-func ReleaseFreePages(ctx context.Context, writer SQLExecutor, batchPages int64) (int64, error) {
+func ReleaseFreePages(ctx context.Context, writer database.SQLTxExecutor, batchPages int64) (int64, error) {
 	if batchPages <= 0 {
 		batchPages = ReleasePageBatch
 	}
@@ -250,7 +252,7 @@ func ReleaseFreePages(ctx context.Context, writer SQLExecutor, batchPages int64)
 	}
 }
 
-func incrementalVacuum(ctx context.Context, writer SQLExecutor, pages int64) error {
+func incrementalVacuum(ctx context.Context, writer database.SQLTxExecutor, pages int64) error {
 	rows, err := writer.QueryContext(ctx, fmt.Sprintf("PRAGMA incremental_vacuum(%d)", pages))
 	if err != nil {
 		return fmt.Errorf("incremental vacuum: %w", err)

@@ -1,6 +1,6 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import type { ScoreRow } from "../../api/scoring";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";

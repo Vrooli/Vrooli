@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -15,15 +14,10 @@ import (
 // TestCreateEvent_Success verifies event creation through handlers.
 // [REQ:LD-EVENT-STORAGE] Event persistence through handler layer.
 func TestCreateEvent_Success(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	body := `{"domain": "test-domain", "event_type": "test.created", "payload": {"value": 42}}`
-	req := httptest.NewRequest("POST", "/api/v1/events", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	h.CreateEvent(rr, req)
+	rr := jsonHandlerResponse(t, h.CreateEvent, "POST", "/api/v1/events", body)
 
 	if rr.Code != http.StatusCreated {
 		t.Errorf("Expected status %d, got %d: %s", http.StatusCreated, rr.Code, rr.Body.String())
@@ -44,15 +38,10 @@ func TestCreateEvent_Success(t *testing.T) {
 // TestCreateEvent_MissingDomain verifies validation for missing domain field.
 // [REQ:LD-EVENT-STORAGE] Event validation before persistence.
 func TestCreateEvent_MissingDomain(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	body := `{"event_type": "test.created", "payload": {}}`
-	req := httptest.NewRequest("POST", "/api/v1/events", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	h.CreateEvent(rr, req)
+	rr := jsonHandlerResponse(t, h.CreateEvent, "POST", "/api/v1/events", body)
 
 	if rr.Code != http.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d: %s", http.StatusBadRequest, rr.Code, rr.Body.String())
@@ -62,15 +51,10 @@ func TestCreateEvent_MissingDomain(t *testing.T) {
 // TestCreateEvent_MissingEventType verifies validation for missing event_type field.
 // [REQ:LD-EVENT-STORAGE] Event validation before persistence.
 func TestCreateEvent_MissingEventType(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	body := `{"domain": "test-domain", "payload": {}}`
-	req := httptest.NewRequest("POST", "/api/v1/events", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	h.CreateEvent(rr, req)
+	rr := jsonHandlerResponse(t, h.CreateEvent, "POST", "/api/v1/events", body)
 
 	if rr.Code != http.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d: %s", http.StatusBadRequest, rr.Code, rr.Body.String())
@@ -80,15 +64,10 @@ func TestCreateEvent_MissingEventType(t *testing.T) {
 // TestCreateEvent_InvalidJSON verifies error handling for malformed JSON.
 // [REQ:LD-EVENT-STORAGE] Event request parsing error handling.
 func TestCreateEvent_InvalidJSON(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	body := `{invalid json`
-	req := httptest.NewRequest("POST", "/api/v1/events", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	h.CreateEvent(rr, req)
+	rr := jsonHandlerResponse(t, h.CreateEvent, "POST", "/api/v1/events", body)
 
 	if rr.Code != http.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d: %s", http.StatusBadRequest, rr.Code, rr.Body.String())
@@ -98,8 +77,7 @@ func TestCreateEvent_InvalidJSON(t *testing.T) {
 // TestQueryEvents_NoFilters verifies listing all events without filters.
 // [REQ:LD-EVENT-STORAGE] Event retrieval without filters.
 func TestQueryEvents_NoFilters(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	// Create test events
 	h.createTestEvent(t, "domain-a", "event.a")
@@ -126,13 +104,11 @@ func TestQueryEvents_NoFilters(t *testing.T) {
 // TestGetEvent_Success verifies single event retrieval.
 // [REQ:LD-EVENT-STORAGE] Single event retrieval through handler layer.
 func TestGetEvent_Success(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	// Create a test event
 	body := `{"domain": "test-domain", "event_type": "test.event", "payload": {}}`
-	createReq := httptest.NewRequest("POST", "/api/v1/events", bytes.NewBufferString(body))
-	createReq.Header.Set("Content-Type", "application/json")
+	createReq := jsonRequest(t, "POST", "/api/v1/events", body)
 	createRR := httptest.NewRecorder()
 	h.CreateEvent(createRR, createReq)
 
@@ -165,8 +141,7 @@ func TestGetEvent_Success(t *testing.T) {
 // TestGetEvent_NotFound verifies 404 response for non-existent event.
 // [REQ:LD-EVENT-STORAGE] Event not found error handling.
 func TestGetEvent_NotFound(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	req := httptest.NewRequest("GET", "/api/v1/events/nonexistent-id", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "nonexistent-id"})
@@ -182,16 +157,11 @@ func TestGetEvent_NotFound(t *testing.T) {
 // TestCreateEvent_WithTimestamp verifies event creation with custom timestamp.
 // [REQ:LD-EVENT-STORAGE] Event creation with custom timestamp.
 func TestCreateEvent_WithTimestamp(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	customTimestamp := "2026-01-15T10:00:00Z"
 	body := `{"domain": "test-domain", "event_type": "test.event", "payload": {}, "timestamp": "` + customTimestamp + `"}`
-	req := httptest.NewRequest("POST", "/api/v1/events", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	h.CreateEvent(rr, req)
+	rr := jsonHandlerResponse(t, h.CreateEvent, "POST", "/api/v1/events", body)
 
 	if rr.Code != http.StatusCreated {
 		t.Errorf("Expected status %d, got %d: %s", http.StatusCreated, rr.Code, rr.Body.String())
@@ -209,15 +179,10 @@ func TestCreateEvent_WithTimestamp(t *testing.T) {
 // TestCreateEvent_WithInterventionFlag verifies event creation with intervention flag.
 // [REQ:LD-EVENT-STORAGE] Event creation with causality markers.
 func TestCreateEvent_WithInterventionFlag(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	body := `{"domain": "test-domain", "event_type": "intervention.applied", "payload": {}, "is_intervention": true}`
-	req := httptest.NewRequest("POST", "/api/v1/events", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	h.CreateEvent(rr, req)
+	rr := jsonHandlerResponse(t, h.CreateEvent, "POST", "/api/v1/events", body)
 
 	if rr.Code != http.StatusCreated {
 		t.Errorf("Expected status %d, got %d: %s", http.StatusCreated, rr.Code, rr.Body.String())
@@ -235,16 +200,11 @@ func TestCreateEvent_WithInterventionFlag(t *testing.T) {
 // TestCreateEvent_WithHypothesisID verifies event creation with hypothesis ID.
 // [REQ:LD-EVENT-STORAGE] Event creation with hypothesis correlation.
 func TestCreateEvent_WithHypothesisID(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	hypothesisID := "hypo-test-123"
 	body := `{"domain": "test-domain", "event_type": "test.event", "payload": {}, "hypothesis_id": "` + hypothesisID + `"}`
-	req := httptest.NewRequest("POST", "/api/v1/events", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	h.CreateEvent(rr, req)
+	rr := jsonHandlerResponse(t, h.CreateEvent, "POST", "/api/v1/events", body)
 
 	if rr.Code != http.StatusCreated {
 		t.Errorf("Expected status %d, got %d: %s", http.StatusCreated, rr.Code, rr.Body.String())

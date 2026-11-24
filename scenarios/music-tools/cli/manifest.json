@@ -97,10 +97,10 @@
           "description": "Queue a composition batch",
           "flags": [
             {"name": "style", "type": "string", "required": false, "description": "Style ID"},
-            {"name": "takes", "type": "number", "required": false, "description": "Number of takes"},
-            {"name": "duration", "type": "number", "required": false, "description": "Duration in seconds"},
-            {"name": "seed", "type": "number", "required": false, "description": "Optional repeatable base seed"},
-            {"name": "shift", "type": "number", "required": false, "description": "Optional ACE sampling shift"},
+            {"name": "takes", "type": "int", "required": false, "description": "Number of takes"},
+            {"name": "duration", "type": "int", "required": false, "description": "Duration in seconds"},
+            {"name": "seed", "type": "int", "required": false, "description": "Optional repeatable base seed"},
+            {"name": "shift", "type": "float", "required": false, "description": "Optional ACE sampling shift"},
             {"name": "vocal-language", "type": "string", "required": false, "description": "Optional model-declared sung language"}
           ],
           "binding": {

@@ -116,8 +116,3 @@ func clearCache() error {
 	}
 	return nil
 }
-
-// getRedisClient returns the Redis client (useful for testing)
-func getRedisClient() *redis.Client {
-	return redisClient
-}

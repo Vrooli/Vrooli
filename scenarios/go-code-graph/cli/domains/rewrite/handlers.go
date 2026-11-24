@@ -15,19 +15,9 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 )
 
-// handlers bundles the closure over *cliapp.ScenarioApp so each
-// RunCtx-func has typed access to the API client without re-resolving it.
+// handlers holds the Go Code Graph client used by rewrite commands.
 type handlers struct {
-	core   *cliapp.ScenarioApp
 	client graphconnect.GoCodeGraphServiceClient
-}
-
-func newHandlers(core *cliapp.ScenarioApp) *handlers {
-	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
-	return &handlers{
-		core:   core,
-		client: graphconnect.NewGoCodeGraphServiceClient(httpClient, baseURL),
-	}
 }
 
 // opsFileEntry models one entry in the JSON file consumed by

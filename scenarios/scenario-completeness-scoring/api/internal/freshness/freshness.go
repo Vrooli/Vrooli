@@ -63,8 +63,9 @@ type Result struct {
 // Service computes freshness results. The function fields are seams for
 // tests; production uses New().
 type Service struct {
-	ComputeDigest func(scenarioDir string) (string, error)
-	LoadRecords   func(scenarioDir string) ([]runindex.RunRecord, error)
+	ComputeDigest  func(scenarioDir string) (string, error)
+	LoadRecords    func(scenarioDir string) ([]runindex.RunRecord, error)
+	RequiredPhases func() []string
 }
 
 // New returns a Service bound to the real digest and run-index readers.
@@ -73,6 +74,7 @@ func New() *Service {
 		ComputeDigest: treedigest.Compute,
 		// This compatibility adapter is removed when this artifact consumer is
 		// migrated to the governed authority in its dedicated cutover phase.
+		RequiredPhases: requiredPhases,
 		LoadRecords: func(scenarioDir string) ([]runindex.RunRecord, error) {
 			artifactRoot, err := artifactpaths.ScenarioRootForDir(scenarioDir)
 			if err != nil {
@@ -121,7 +123,12 @@ func (s *Service) Check(scenarioName, root string) Result {
 		}
 	}
 
-	phases := requiredPhases()
+	var phases []string
+	if s.RequiredPhases != nil {
+		phases = s.RequiredPhases()
+	} else {
+		phases = requiredPhases()
+	}
 	var verdicts []sharedfresh.PhaseVerdict
 	if out.Digest == "" {
 		// No digest to compare against: every phase is unknown.

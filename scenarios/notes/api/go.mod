@@ -17,6 +17,7 @@ require (
 	github.com/vrooli/cli-core v0.0.0 // indirect
 	github.com/vrooli/envkit-go v0.0.0 // indirect
 	github.com/vrooli/repo-contract-go v0.0.0 // indirect
+	golang.org/x/sync v0.20.0 // indirect
 )
 
 replace github.com/vrooli/api-core => ../../../packages/api-core

@@ -117,7 +117,7 @@ export function GraphCanvas({ layout, target, className }: GraphCanvasProps) {
                 key={node.id}
                 data-testid={selectors.features.explorer.canvas.node({ id: node.id })}
                 tabIndex={0}
-                role="button"
+                role="group"
                 aria-label={ariaLabel}
                 className="focus:outline-none focus-visible:[&>rect]:stroke-app-primary"
               >

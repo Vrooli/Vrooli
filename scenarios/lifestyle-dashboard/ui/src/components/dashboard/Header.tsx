@@ -5,7 +5,7 @@
  * [REQ:LD-DASHBOARD-TIMELINE] - Dashboard header with status
  */
 import { Activity, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
-import { Button } from "../ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { StatusBadge } from "./StatusBadge";
 import type { HealthResponse } from "../../lib/api";
 
@@ -41,7 +41,7 @@ export function Header({ health, isLoading, onRefresh }: HeaderProps) {
               </div>
             )}
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={onRefresh}
               disabled={isLoading}

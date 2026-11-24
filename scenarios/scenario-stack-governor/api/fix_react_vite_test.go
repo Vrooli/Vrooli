@@ -145,11 +145,43 @@ func writeServiceJSONRaw(t *testing.T, path, content string) {
 	}
 }
 
-func TestFixReactVite_ReplacesNpmInstall(t *testing.T) {
-	scenarioName := "test-npm-replace"
-	root, sjPath := setupReactViteTestDir(t, scenarioName)
+func installedUIRun(t *testing.T, path string) string {
+	t.Helper()
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(content, &doc); err != nil {
+		t.Fatalf("decode service.json: %v", err)
+	}
+	lifecycle, _ := doc["lifecycle"].(map[string]any)
+	setup, _ := lifecycle["setup"].(map[string]any)
+	steps, _ := setup["steps"].([]any)
+	for _, value := range steps {
+		step, _ := value.(map[string]any)
+		if step["name"] == "install-ui-deps" {
+			run, _ := step["run"].(string)
+			return run
+		}
+	}
+	t.Fatal("service.json has no install-ui-deps step")
+	return ""
+}
 
-	writeServiceJSONRaw(t, sjPath, `{
+func TestFixReactVite_ReplacesNpmInstall(t *testing.T) {
+	const expectedRun = "cd ui && pnpm install --ignore-workspace"
+	cases := []struct {
+		name       string
+		scenario   string
+		input      string
+		expected   string
+		mustNotSee string
+	}{
+		{
+			name:     "plain command preserves surrounding document fields",
+			scenario: "test-npm-replace",
+			input: `{
   "version": "1.0.0",
   "service": {"name": "test"},
   "lifecycle": {
@@ -159,64 +191,20 @@ func TestFixReactVite_ReplacesNpmInstall(t *testing.T) {
       ]
     }
   }
-}`)
-
-	results := FixReactViteUIInstallsDependencies(t.Context(), root, scenarioName, false)
-
-	if len(results) != 1 {
-		t.Fatalf("expected 1 result, got %d", len(results))
-	}
-	if !results[0].Fixed {
-		t.Fatalf("expected fixed=true; error=%s", results[0].Error)
-	}
-
-	content, _ := os.ReadFile(sjPath)
-	text := string(content)
-	if !strings.Contains(text, "pnpm install --ignore-workspace") {
-		t.Error("expected pnpm install --ignore-workspace in fixed service.json")
-	}
-	// Check there's no standalone "npm install" (pnpm install contains "npm install" as substring).
-	if strings.Contains(text, "npm install") && !strings.Contains(text, "pnpm install") {
-		t.Error("npm install should have been replaced, but still present")
-	}
-}
-
-func TestFixReactVite_ReplacesNpmInstallWithFlags(t *testing.T) {
-	scenarioName := "test-npm-flags"
-	root, sjPath := setupReactViteTestDir(t, scenarioName)
-
-	writeServiceJSONRaw(t, sjPath, `{
-  "lifecycle": {
-    "setup": {
-      "steps": [
-        {"name": "install-ui-deps", "run": "cd ui && npm install --omit=dev"}
-      ]
-    }
-  }
-}`)
-
-	results := FixReactViteUIInstallsDependencies(t.Context(), root, scenarioName, false)
-
-	if !results[0].Fixed {
-		t.Fatalf("expected fixed=true; error=%s", results[0].Error)
-	}
-
-	content, _ := os.ReadFile(sjPath)
-	text := string(content)
-	if !strings.Contains(text, "pnpm install --ignore-workspace") {
-		t.Error("expected pnpm install --ignore-workspace")
-	}
-	// The entire run field should be replaced, not just npm->pnpm.
-	if strings.Contains(text, "--omit=dev") {
-		t.Error("old npm flags should not remain after full replacement")
-	}
-}
-
-func TestFixReactVite_ReplacesNpmInstallConditional(t *testing.T) {
-	scenarioName := "test-npm-conditional"
-	root, sjPath := setupReactViteTestDir(t, scenarioName)
-
-	writeServiceJSONRaw(t, sjPath, `{
+}`,
+			expected: expectedRun,
+		},
+		{
+			name:       "npm flags are replaced with the canonical command",
+			scenario:   "test-npm-flags",
+			input:      `{"lifecycle":{"setup":{"steps":[{"name":"install-ui-deps","run":"cd ui && npm install --omit=dev"}]}}}`,
+			expected:   expectedRun,
+			mustNotSee: "--omit=dev",
+		},
+		{
+			name:     "conditional shell command is replaced as one step",
+			scenario: "test-npm-conditional",
+			input: `{
   "lifecycle": {
     "setup": {
       "steps": [
@@ -224,21 +212,35 @@ func TestFixReactVite_ReplacesNpmInstallConditional(t *testing.T) {
       ]
     }
   }
-}`)
-
-	results := FixReactViteUIInstallsDependencies(t.Context(), root, scenarioName, false)
-
-	if !results[0].Fixed {
-		t.Fatalf("expected fixed=true; error=%s", results[0].Error)
+}`,
+			expected: expectedRun,
+		},
 	}
 
-	content, _ := os.ReadFile(sjPath)
-	text := string(content)
-	if !strings.Contains(text, "pnpm install --ignore-workspace") {
-		t.Error("expected pnpm install --ignore-workspace")
-	}
-	if strings.Contains(text, "npm install") && !strings.Contains(text, "pnpm install") {
-		t.Error("npm install should have been fully replaced")
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			root, serviceJSONPath := setupReactViteTestDir(t, tt.scenario)
+			writeServiceJSONRaw(t, serviceJSONPath, tt.input)
+
+			results := FixReactViteUIInstallsDependencies(t.Context(), root, tt.scenario, false)
+			if len(results) != 1 {
+				t.Fatalf("results = %d, want 1", len(results))
+			}
+			if !results[0].Fixed {
+				t.Fatalf("expected fixed=true; error=%s", results[0].Error)
+			}
+
+			content, err := os.ReadFile(serviceJSONPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if gotRun := installedUIRun(t, serviceJSONPath); gotRun != tt.expected {
+				t.Errorf("install run = %q, want %q", gotRun, tt.expected)
+			}
+			if tt.mustNotSee != "" && strings.Contains(string(content), tt.mustNotSee) {
+				t.Errorf("fixed service.json still contains %q", tt.mustNotSee)
+			}
+		})
 	}
 }
 

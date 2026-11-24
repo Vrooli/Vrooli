@@ -374,27 +374,27 @@ func checkStructuredClaimShape(report *Report, loc string, claim Claim) {
 		if len(claim.Elements) != 2 {
 			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("spacing claim %q must name exactly two elements", claim.ID), loc, "Name the two elements whose separation is part of the contract.")
 		}
-		if value, ok := numericParam(claim.Params, "minSeparation", "minGap"); !ok || value < 0 {
+		if value, ok := NumericParam(claim.Params, "minSeparation", "minGap"); !ok || value < 0 {
 			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("spacing claim %q must declare a non-negative params.minSeparation", claim.ID), loc, "Set params.minSeparation to the minimum CSS-pixel gap.")
 		}
 	case "state-contrast":
 		if len(claim.Elements) == 0 {
 			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("state-contrast claim %q must name a control element", claim.ID), loc, "Reference the element whose foreground must remain readable.")
 		}
-		if strings.TrimSpace(paramString(claim.Params, "state")) == "" {
+		if strings.TrimSpace(ParamString(claim.Params, "state")) == "" {
 			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("state-contrast claim %q must declare params.state", claim.ID), loc, "Name the interaction state being checked, such as hover.")
 		}
-		if strings.TrimSpace(paramString(claim.Params, "background", "backgroundElement")) == "" {
+		if strings.TrimSpace(ParamString(claim.Params, "background", "backgroundElement")) == "" {
 			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("state-contrast claim %q must declare params.background", claim.ID), loc, "Name the background element or color used for the contrast check.")
 		}
-		if value, ok := numericParam(claim.Params, "minContrastRatio", "minContrast"); !ok || value < 1 {
+		if value, ok := NumericParam(claim.Params, "minContrastRatio", "minContrast"); !ok || value < 1 {
 			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("state-contrast claim %q must declare params.minContrastRatio >= 1", claim.ID), loc, "Set the minimum WCAG contrast ratio.")
 		}
 	case "size-parity":
 		if len(claim.Elements) == 0 || len(claim.Elements) > 2 {
 			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("size-parity claim %q must name one control or exactly two elements", claim.ID), loc, "Name control for a documented size rung, or name the two elements whose heights must match.")
 		}
-		if value, ok := numericParam(claim.Params, "tolerance"); ok && value < 0 {
+		if value, ok := NumericParam(claim.Params, "tolerance"); ok && value < 0 {
 			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("size-parity claim %q tolerance must be non-negative", claim.ID), loc, "Use a non-negative CSS-pixel tolerance.")
 		}
 	case "differential":

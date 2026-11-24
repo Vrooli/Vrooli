@@ -177,14 +177,6 @@ func unverifiableStateSetupFindings(loc string, page spec.PageDocument) []spec.F
 	return findings
 }
 
-func pageStatuses(refs []spec.DocumentRef) map[string]string {
-	out := map[string]string{}
-	for _, ref := range refs {
-		out[ref.ID] = ref.Status
-	}
-	return out
-}
-
 func firstRoute(routes []string) string {
 	if len(routes) == 0 || strings.TrimSpace(routes[0]) == "" {
 		return "/"

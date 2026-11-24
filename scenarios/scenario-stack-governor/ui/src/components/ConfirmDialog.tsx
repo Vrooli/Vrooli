@@ -1,4 +1,4 @@
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 
 export function ConfirmDialog({
   open,
@@ -28,7 +28,7 @@ export function ConfirmDialog({
         <h3 className="text-lg font-semibold text-slate-50">{title}</h3>
         <p className="mt-2 text-sm text-slate-300">{message}</p>
         <div className="mt-6 flex justify-end gap-3">
-          <Button variant="outline" size="sm" onClick={onCancel}>
+          <Button variant="ghost" size="sm" onClick={onCancel}>
             {cancelLabel}
           </Button>
           <Button size="sm" onClick={onConfirm}>

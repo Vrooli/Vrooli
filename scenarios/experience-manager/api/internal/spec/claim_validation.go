@@ -317,7 +317,8 @@ func knownClaimType(t string) bool {
 	return t == "custom" || t == "manual-review" || claimtypes.IsKnown(t)
 }
 
-func paramString(params map[string]any, keys ...string) string {
+// ParamString returns the first string-valued claim parameter, trimmed.
+func ParamString(params map[string]any, keys ...string) string {
 	for _, key := range keys {
 		if value, ok := params[key].(string); ok {
 			return strings.TrimSpace(value)
@@ -326,7 +327,8 @@ func paramString(params map[string]any, keys ...string) string {
 	return ""
 }
 
-func numericParam(params map[string]any, keys ...string) (float64, bool) {
+// NumericParam returns the first supported numeric claim parameter.
+func NumericParam(params map[string]any, keys ...string) (float64, bool) {
 	for _, key := range keys {
 		switch value := params[key].(type) {
 		case float64:
@@ -381,7 +383,8 @@ func (r *Report) add(code, severity, message, location, suggestion string) {
 	})
 }
 
-func sortFindings(findings []Finding) {
+// SortFindings orders findings by code and then by their joined locations.
+func SortFindings(findings []Finding) {
 	sort.Slice(findings, func(i, j int) bool {
 		if findings[i].Code != findings[j].Code {
 			return findings[i].Code < findings[j].Code

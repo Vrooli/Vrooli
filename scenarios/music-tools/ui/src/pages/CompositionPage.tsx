@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { API_BASE } from "../api/client";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
 
 type Take = { id: string; style_id: string; blob_ref?: string; provenance?: { seed?: number } };
 

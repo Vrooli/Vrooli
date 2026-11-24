@@ -10,6 +10,8 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	schema "picker-wheel/internal/wheel"
@@ -48,11 +50,35 @@ type SpinResult struct {
 }
 
 var (
-	db      *sql.DB
-	wheels  []Wheel
-	history []SpinResult
-	logger  *slog.Logger
+	db                    *sql.DB
+	wheels                []Wheel
+	history               []SpinResult
+	logger                *slog.Logger
+	memoryMu              sync.RWMutex
+	memoryWheelIDSequence uint64
 )
+
+func appendInMemoryWheel(wheel Wheel) {
+	memoryMu.Lock()
+	wheels = append(wheels, wheel)
+	memoryMu.Unlock()
+}
+
+func snapshotInMemoryWheels() []Wheel {
+	memoryMu.RLock()
+	defer memoryMu.RUnlock()
+	return append([]Wheel(nil), wheels...)
+}
+
+func snapshotSpinHistory() []SpinResult {
+	memoryMu.RLock()
+	defer memoryMu.RUnlock()
+	return append([]SpinResult(nil), history...)
+}
+
+func newInMemoryWheelID() string {
+	return fmt.Sprintf("wheel_%d_%d", time.Now().UnixNano(), atomic.AddUint64(&memoryWheelIDSequence, 1))
+}
 
 func initDB() {
 	var err error
@@ -143,8 +169,14 @@ func getWheelsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if db == nil {
-		// Fallback to default wheels if no database
-		json.NewEncoder(w).Encode(getDefaultWheels())
+		// Without a database, return the same process-local collection that
+		// create/get/delete use. Preserve the preset fallback after test resets
+		// and for an empty in-memory store.
+		wheels := snapshotInMemoryWheels()
+		if len(wheels) == 0 {
+			wheels = getDefaultWheels()
+		}
+		json.NewEncoder(w).Encode(wheels)
 		return
 	}
 
@@ -160,9 +192,12 @@ func getWheelsHandler(w http.ResponseWriter, r *http.Request) {
 			"error", err,
 			"fallback", "in-memory wheels")
 		// Return in-memory wheels on any database error
-		wheels = getDefaultWheels()
+		fallback := getDefaultWheels()
+		memoryMu.Lock()
+		wheels = fallback
+		memoryMu.Unlock()
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(wheels)
+		json.NewEncoder(w).Encode(fallback)
 		return
 	}
 	defer rows.Close()
@@ -207,7 +242,8 @@ func createWheelHandler(w http.ResponseWriter, r *http.Request) {
 
 	if db == nil {
 		// Fallback to in-memory if no database
-		wheel.ID = fmt.Sprintf("wheel_%d", time.Now().Unix())
+		wheel.ID = newInMemoryWheelID()
+		appendInMemoryWheel(wheel)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(wheel)
 		return
@@ -231,8 +267,8 @@ func createWheelHandler(w http.ResponseWriter, r *http.Request) {
 			"error", err,
 			"wheel_name", wheel.Name)
 		// Fallback to in-memory on database error
-		wheel.ID = fmt.Sprintf("wheel_%d", time.Now().Unix())
-		wheels = append(wheels, wheel)
+		wheel.ID = newInMemoryWheelID()
+		appendInMemoryWheel(wheel)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(wheel)
@@ -248,13 +284,16 @@ func getWheelHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
+	memoryMu.RLock()
 	for _, wheel := range wheels {
 		if wheel.ID == id {
+			memoryMu.RUnlock()
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(wheel)
 			return
 		}
 	}
+	memoryMu.RUnlock()
 
 	http.Error(w, "Wheel not found", http.StatusNotFound)
 }
@@ -263,13 +302,16 @@ func deleteWheelHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
+	memoryMu.Lock()
 	for i, wheel := range wheels {
 		if wheel.ID == id {
 			wheels = append(wheels[:i], wheels[i+1:]...)
+			memoryMu.Unlock()
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
 	}
+	memoryMu.Unlock()
 
 	http.Error(w, "Wheel not found", http.StatusNotFound)
 }
@@ -307,7 +349,7 @@ func getHistoryHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fallback to in-memory history
-	json.NewEncoder(w).Encode(history)
+	json.NewEncoder(w).Encode(snapshotSpinHistory())
 }
 
 func getDefaultWheels() []Wheel {
@@ -369,12 +411,14 @@ func spinHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		// Fallback to in-memory wheels
 		if len(options) == 0 {
+			memoryMu.RLock()
 			for _, wheel := range wheels {
 				if wheel.ID == spinRequest.WheelID {
 					options = wheel.Options
 					break
 				}
 			}
+			memoryMu.RUnlock()
 		}
 	}
 
@@ -409,7 +453,9 @@ func spinHandler(w http.ResponseWriter, r *http.Request) {
 		Timestamp: time.Now(),
 	}
 
+	memoryMu.Lock()
 	history = append(history, result)
+	memoryMu.Unlock()
 
 	// Store in database if available
 	if db != nil {

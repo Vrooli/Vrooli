@@ -4,9 +4,9 @@
 files and committed proto descriptor artifacts. It does not need
 product persistence for `ValidateScenario` or `DescribeScenarioProtos`.
 
-The generated `notes` SQLite tables remain temporarily as template
-reference data. They are not proto-health product data and should be
-deleted when the first real domains replace the reference vertical.
+Proto-health has no domain-owned persistence. The former generated
+`notes` tables and attachment store were removed when the validation and
+proto-surface domains replaced that example.
 
 This document is the canonical data ownership and storage map for the
 scenario. Update it when domains add tables, files, blobs, external
@@ -36,15 +36,12 @@ domain needs them. Document those decisions in
 
 | Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
 |---|---|---|---|---|---|
-| Notes | notes | SQLite | `api/internal/notes/schema.sql` | Until deleted by future product behavior | Template reference data; remove with notes domain. |
-| Attachment metadata | notes | SQLite | `api/internal/notes/schema.sql` | Until parent note or attachment is deleted by future product behavior | Metadata only; bytes are stored through BlobStore. |
-| Attachment bytes | notes | Filesystem BlobStore by default | BlobStore implementation in notes handler module | Same lifecycle as metadata | Opaque bytes stay outside proto payloads. |
+| None. | n/a | n/a | n/a | n/a | Validation and proto-surface reads use repository files and committed descriptors. |
 
 ## Schema Map
 
 | Table/File/Object | Owner | Defined In | Used By |
 |---|---|---|---|
-| notes tables | notes | `api/internal/notes/schema.sql` | notes repository/service/handlers |
 | system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup |
 
 ## Migrations And Compatibility
@@ -67,7 +64,7 @@ backfills, add a scenario-specific migration plan here and update
 
 | Data | Delete Trigger | Retention Rule | Current Gap |
 |---|---|---|---|
-| Template notes data | Domain removal or future product delete behavior | Local development data only | Real scenarios must define product-specific deletion semantics. |
+| No domain-owned data. | n/a | n/a | Revisit when a product capability requires persistence. |
 
 ## Privacy Notes
 

@@ -35,12 +35,6 @@ const (
 	CodeClaimUnproven       = "experience.claim_unproven"
 	CodeImportanceMismatch  = "experience.importance_mismatch"
 	CodeGlanceJudgeMismatch = "experience.glance_judge_mismatch"
-	CodeFloorNoDocOverflow  = "experience.floor_no_document_horizontal_overflow"
-	CodeFloorViewportFill   = "experience.floor_viewport_fill"
-	CodeFloorChromePinned   = "experience.floor_chrome_pinned"
-	CodeFloorSafeArea       = "experience.floor_safe_area_tap_targets"
-	CodeFloorSingleLine     = "experience.floor_single_line_chrome"
-	CodeFloorTapTargetSize  = "experience.floor_tap_target_size"
 	CodeOracleCaseUncovered = "experience.oracle_case_uncovered"
 	SeverityError           = "SEVERITY_ERROR"
 	SeverityWarning         = "SEVERITY_WARNING"
@@ -85,12 +79,6 @@ var AllFindingCodes = []string{
 	CodeClaimUnproven,
 	CodeImportanceMismatch,
 	CodeGlanceJudgeMismatch,
-	CodeFloorNoDocOverflow,
-	CodeFloorViewportFill,
-	CodeFloorChromePinned,
-	CodeFloorSafeArea,
-	CodeFloorSingleLine,
-	CodeFloorTapTargetSize,
 	CodeOracleCaseUncovered,
 }
 
@@ -123,6 +111,14 @@ type Finding struct {
 	Message    string
 	Locations  []string
 	Suggestion string
+}
+
+// FirstLocation returns the primary location when one is available.
+func FirstLocation(locations []string) string {
+	if len(locations) == 0 {
+		return ""
+	}
+	return locations[0]
 }
 
 // ScenarioSpec is the parsed in-memory model for a target scenario's
@@ -179,6 +175,26 @@ type DocumentRef struct {
 	Path   string `json:"path"`
 	Title  string `json:"title"`
 	Status string `json:"status"`
+}
+
+// IndexPageRefsByID indexes references by their declared ID. If input contains
+// a duplicate ID, the last reference wins, matching map construction by callers.
+func IndexPageRefsByID(refs []DocumentRef) map[string]DocumentRef {
+	indexed := make(map[string]DocumentRef, len(refs))
+	for _, ref := range refs {
+		indexed[ref.ID] = ref
+	}
+	return indexed
+}
+
+// IndexPageStatuses returns each reference's current status keyed by ID. If
+// input contains a duplicate ID, the last status wins.
+func IndexPageStatuses(refs []DocumentRef) map[string]string {
+	indexed := make(map[string]string, len(refs))
+	for _, ref := range refs {
+		indexed[ref.ID] = ref.Status
+	}
+	return indexed
 }
 
 type PageDocument struct {
@@ -452,7 +468,7 @@ func ParseScenario(scenarioDir string) (Report, error) {
 	for id, component := range spec.Components {
 		report.ComponentDepths[id] = ComputeComponentDepth(component)
 	}
-	sortFindings(report.Findings)
+	SortFindings(report.Findings)
 	return report, nil
 }
 

@@ -6,7 +6,8 @@
   "scripts": {
     "start": "vrooli lifecycle protect -- node server.js",
     "dev": "vrooli lifecycle protect -- node server.js",
-    "build": "node scripts/build.mjs"
+    "build": "node scripts/build.mjs",
+    "test": "node --test tests/*.test.cjs"
   },
   "dependencies": {
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",

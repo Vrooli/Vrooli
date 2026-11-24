@@ -12,6 +12,7 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -745,6 +746,13 @@ func TestJobSetupRegistersOperationsBeforeManagerRecoveryStarts(t *testing.T) {
 }
 
 func TestACEGenerationRefusesModelWithUnverifiedRightsBeforeResourceCall(t *testing.T) {
+	// A context without the operator's standing acceptance of unverified
+	// local inference keeps this proof about the evidence gap, not the answer.
+	strictContext := filepath.Join(t.TempDir(), "strict-model-rights-context.json")
+	if err := os.WriteFile(strictContext, []byte(`{"schema_version":"1","context":{"id":"strict-test-context","version":"1","entity_scope":"operator-group","revenue_status":"pre_revenue","as_of":"2026-11-21","source":"operator_statement"}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("VROOLI_MODEL_RIGHTS_CONTEXT_PATH", strictContext)
 	state := testState(t)
 	defer state.JobManager.Close()
 	state.RightsEvaluator = models.NewCurrentRightsEvaluator()

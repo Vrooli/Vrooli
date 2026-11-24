@@ -77,6 +77,50 @@
       }
     },
     {
+      "id": "scoring_search",
+      "path": "/api/v1/search/scores",
+      "method": "POST",
+      "summary": "Search cached maturity evidence for one scenario",
+      "description": "Search Hub adapter over one explicit scenario's cached GetScore result. The scenario scope must be supplied by Search Hub (scenario:<slug>); query relevance is deterministic token overlap with cached maturity evidence, independent of the composite score. It does not scan or infer a fleet target.",
+      "category": "search",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "integer (optional, maximum 1)",
+          "query": "string (required, search text)",
+          "scenario": "string (required, one explicit scenario slug from scenario:<slug> scope)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "basis": "string (cached_artifacts)",
+          "degradations": "array<SearchDegradation>",
+          "query": "string (echoed request query)",
+          "results": "array<SearchScoreResult> (zero or one)",
+          "scenario": "string (echoed explicit scope)",
+          "source": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Malformed JSON or unknown request fields"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Search a scoped scenario's maturity evidence",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/search/scores -H 'Content-Type: application/json' -d '{\"query\":\"current maturity rung\",\"scenario\":\"scenario-completeness-scoring\",\"limit\":1}'"
+        }
+      ],
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "Search Hub provider contract requires a compact query/scope/result JSON shape; the existing score semantics remain owned by ScoreService.GetScore."
+      }
+    },
+    {
       "id": "scoring_get",
       "path": "/vrooli.scenario_completeness_scoring.v1.scoring.ScoreService/GetScore",
       "method": "POST",

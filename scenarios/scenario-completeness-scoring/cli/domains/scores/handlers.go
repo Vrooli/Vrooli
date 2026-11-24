@@ -10,6 +10,7 @@ import (
 
 	scoringv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-completeness-scoring/v1/scoring"
 	scoringconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-completeness-scoring/v1/scoring/scoring_v1connect"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -17,14 +18,12 @@ import (
 // handlers closes over the Connect client so each subcommand has typed API
 // access without re-resolving the base URL.
 type handlers struct {
-	core   *cliapp.ScenarioApp
 	client scoringconnect.ScoreServiceClient
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	return &handlers{
-		core:   core,
 		client: scoringconnect.NewScoreServiceClient(httpClient, baseURL),
 	}
 }
@@ -44,11 +43,7 @@ func (h *handlers) get(ctx cliapp.RunContext) error {
 		return fmt.Errorf("server returned no score response")
 	}
 
-	if ctx.JSON() {
-		return cliapp.PrintProtoJSON(ctx.Stdout(), resp.Msg)
-	}
-	_, err = fmt.Fprint(ctx.Stdout(), FormatReport(resp.Msg))
-	return err
+	return renderScoreResponse(ctx, resp.Msg, FormatReport)
 }
 
 func (h *handlers) trend(ctx cliapp.RunContext) error {
@@ -66,11 +61,7 @@ func (h *handlers) trend(ctx cliapp.RunContext) error {
 	if resp == nil || resp.Msg == nil {
 		return fmt.Errorf("server returned no score trend response")
 	}
-	if ctx.JSON() {
-		return cliapp.PrintProtoJSON(ctx.Stdout(), resp.Msg)
-	}
-	_, err = fmt.Fprint(ctx.Stdout(), FormatTrend(resp.Msg))
-	return err
+	return renderScoreResponse(ctx, resp.Msg, FormatTrend)
 }
 
 func (h *handlers) list(ctx cliapp.RunContext) error {
@@ -108,10 +99,16 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 	if resp == nil || resp.Msg == nil {
 		return fmt.Errorf("server returned no score list response")
 	}
+	return renderScoreResponse(ctx, resp.Msg, FormatList)
+}
+
+// renderScoreResponse keeps the human and proto-JSON output paths identical
+// across get, trend, and list while avoiding work when JSON output is selected.
+func renderScoreResponse[T proto.Message](ctx cliapp.RunContext, response T, human func(T) string) error {
 	if ctx.JSON() {
-		return cliapp.PrintProtoJSON(ctx.Stdout(), resp.Msg)
+		return cliapp.PrintProtoJSON(ctx.Stdout(), response)
 	}
-	_, err = fmt.Fprint(ctx.Stdout(), FormatList(resp.Msg))
+	_, err := fmt.Fprint(ctx.Stdout(), human(response))
 	return err
 }
 

@@ -43,7 +43,7 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Architecture Drift
 
-Use this section for deferred findings from `screaming-architecture-audit`. Do not create a standalone architecture-audit report unless the work is a migration handoff with a planned retirement path back into `ARCHITECTURE.md`, `SEAMS.md`, or this file.
+Use this section for deferred findings from `architecture-lenses`. Do not create a standalone architecture-audit report unless the work is a migration handoff with a planned retirement path back into `ARCHITECTURE.md`, `SEAMS.md`, or this file.
 
 | Area | Drift | Maturity Impact | Real Fix |
 |---|---|---|---|

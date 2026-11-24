@@ -2,7 +2,7 @@
 
 This document is the scenario's system map. It explains the invariant
 shape inherited from the `react-vite` template, then names the real
-`proto-health` domains that will replace the generated notes reference:
+`proto-health` domains that replaced the generated notes reference:
 `validation` and `protosurface`.
 
 Keep this file high-signal. Do not turn it into a warehouse for every
@@ -134,7 +134,7 @@ REST is allowed only for four enumerated reasons, defined as
 
 | Reason | When it applies |
 |---|---|
-| `RESTReasonMultipartUpload` | Opaque file bytes via `multipart/form-data`. The notes attachments endpoint is the worked example. |
+| `RESTReasonMultipartUpload` | Opaque file bytes via `multipart/form-data`; proto-health currently registers no multipart upload endpoint. |
 | `RESTReasonWebhookReceiver` | Endpoint shape is dictated by a third-party system (Stripe, GitHub, etc.) we do not own. |
 | `RESTReasonThirdPartyShape` | Request or response is an externally-defined contract (OAuth callbacks, OpenAPI passthrough). |
 | `RESTReasonOpsProbe` | Lifecycle systems, load balancers, and `curl` must reach the endpoint without a generated client (plain `GET /health`, static iframe-facing HTML wrappers). |
@@ -150,10 +150,8 @@ explicitly. There is no "internal endpoint, REST is fine" path —
 that rationalization is exactly what the validation pass prevents.
 
 Note: even for REST exceptions, the **payload shape** stays
-proto-typed wherever possible. The notes attachments handler returns
-the proto `UploadAttachmentResponse` message; only the request
-transport is multipart. Drift between API/UI/CLI is eliminated as
-long as the wire payload type is shared.
+proto-typed wherever possible. A future upload handler must return a
+shared proto message; no upload handler is currently registered.
 
 `proto-health` validates contracts in tiers:
 
@@ -184,9 +182,8 @@ long as the wire payload type is shared.
    coverage depends on the Code Facts support matrix; `proto-health`
    does not parse Go or TypeScript source.
 
-The generated `notes` domain remains in the scaffold as a reference
-vertical until `validation` and `protosurface` are implemented. It is
-not product scope.
+The generated `notes` example has been removed from the runtime. The
+active validation and proto-surface services own the product contract.
 
 ## Shared Infrastructure
 
@@ -244,15 +241,15 @@ temporal behavior, update [`FLOWS.md`](FLOWS.md).
 ## Architecture Maturity
 
 Generated scenarios start with a mature template shape and starter
-reference domains. `proto-health` has a real target map but has not yet
-replaced the notes reference in code.
+reference domains. `proto-health` removed the generated notes slice after
+validation and proto-surface implementations were available.
 
 | Area | Maturity | Evidence | Remaining Drift |
 |---|---|---|---|
-| API | Planned | Health + notes reference compile; PRD/requirements name validation and protosurface. | Implement descriptor reader, validation service, and surface fact RPC. |
-| UI | Planned | Template shell and typed API patterns exist. | Replace template dashboard/notes emphasis with proto-health fleet inspection. |
-| CLI | Planned | Template CLI manifest and command wiring exist. | Add `validate scenario` and `describe scenario`; keep notes as reference until replaced. |
-| Docs | Active | PRD, requirements, architecture, domains, seams, problems, and testing docs describe target state. | Keep docs synced as real domains land. |
+| API | Implemented | `api/internal/validation`, `api/internal/protosurface`, and their handlers have passing owner suites. | Expand only against current requirements. |
+| UI | Implemented | `ProtoHealthPanel` uses the typed proto-health clients; focused feature tests pass. | Keep current UI evidence and requirements aligned. |
+| CLI | Implemented | `validate`, `describe`, and `impact` groups are registered from the CLI manifest; full CLI suite passes. | Keep manifest, handler bindings, and protos synchronized. |
+| Docs | Active | PRD, requirements, architecture, domains, seams, problems, and testing docs describe current state. | Retire remaining historical notes examples when they misstate live behavior. |
 
 Use `docs/manifest.json` as the documentation contract. The declared
 `maturity` values are expected to be maintained by agents and later
@@ -265,7 +262,7 @@ when they are deliberate and durable.
 
 | Date | Deviation | Reason | Revisit Trigger |
 |---|---|---|---|
-| 2026-06-11 | Keep generated `notes` slice temporarily. | It remains the reference vertical until the first real domain is implemented. | Remove when `validation` and `protosurface` have their own API/CLI/UI/test examples. |
+| 2026-06-11 | Keep generated `notes` slice temporarily. | Historical decision; superseded when validation, protosurface, and impact shipped. | Resolved 2026-11-24; notes runtime files and schema are absent. |
 
 ## Documentation Architecture
 

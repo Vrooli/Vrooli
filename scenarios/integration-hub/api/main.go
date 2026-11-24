@@ -1,13 +1,12 @@
 package main
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
-	"time"
 
+	"github.com/vrooli/api-core/health"
 	commonv1connect "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1/commonv1connect"
 )
 
@@ -25,17 +24,7 @@ func main() {
 	}
 	hub := NewHub(store, cliCredentialStore{})
 	mux := http.NewServeMux()
-	buildIdentity := os.Getenv("VROOLI_BUILD_IDENTITY")
-	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"status":         "healthy",
-			"service":        "integration-hub",
-			"timestamp":      time.Now().UTC().Format(time.RFC3339),
-			"readiness":      true,
-			"build_identity": buildIdentity,
-		})
-	})
+	mux.HandleFunc("/health", healthHandler())
 	path, handler := commonv1connect.NewConnectionServiceHandler(hub)
 	mux.Handle(path, handler)
 	port := os.Getenv("API_PORT")
@@ -48,3 +37,7 @@ func main() {
 		log.Fatal(err)
 	}
 }
+
+// healthHandler serves /health through api-core/health so the response carries
+// the lifecycle build and start identity the control plane verifies on start.
+func healthHandler() http.HandlerFunc { return health.New("integration-hub").Handler() }

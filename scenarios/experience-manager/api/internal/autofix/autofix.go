@@ -74,7 +74,7 @@ func caseScaffoldFixer() autofix.Fixer {
 			return nil, nil
 		}
 		existing := caseRefs(root)
-		statuses := pageStatuses(report.Spec.Index.Pages)
+		statuses := spec.IndexPageStatuses(report.Spec.Index.Pages)
 		var candidates []autofix.Candidate
 		for _, pageID := range sortedPageIDs(report.Spec.Pages) {
 			if statuses[pageID] != "active" || existing[pageID] {
@@ -172,7 +172,7 @@ func bindingDriftFixer() autofix.Fixer {
 		if err != nil && report.Spec == nil {
 			return nil, nil
 		}
-		refs := pageRefByID(report.Spec.Index.Pages)
+		refs := spec.IndexPageRefsByID(report.Spec.Index.Pages)
 		var candidates []autofix.Candidate
 		for _, pageID := range sortedPageIDs(report.Spec.Pages) {
 			page := report.Spec.Pages[pageID]
@@ -368,22 +368,6 @@ func caseRefs(root string) map[string]bool {
 				out[id] = true
 			}
 		}
-	}
-	return out
-}
-
-func pageStatuses(refs []spec.DocumentRef) map[string]string {
-	out := map[string]string{}
-	for _, ref := range refs {
-		out[ref.ID] = ref.Status
-	}
-	return out
-}
-
-func pageRefByID(refs []spec.DocumentRef) map[string]spec.DocumentRef {
-	out := map[string]spec.DocumentRef{}
-	for _, ref := range refs {
-		out[ref.ID] = ref
 	}
 	return out
 }

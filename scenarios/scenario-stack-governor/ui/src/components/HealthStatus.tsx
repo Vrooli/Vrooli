@@ -1,5 +1,5 @@
 import { ArrowRight, Shield } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import type { Health } from "../lib/api";
 
 export function HealthStatus({
@@ -30,7 +30,7 @@ export function HealthStatus({
           <span className="text-slate-400">Status:</span> {data.status}
         </p>
       )}
-      <Button className="mt-3" variant="outline" size="sm" onClick={onRefresh}>
+      <Button className="mt-3" variant="ghost" size="sm" onClick={onRefresh}>
         Refresh <ArrowRight className="ml-2 h-4 w-4" />
       </Button>
     </div>

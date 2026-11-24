@@ -48,6 +48,28 @@ func persistAttempts(ctx context.Context, conn *sql.Conn, job Job) error {
 	require.Contains(t, got.Evidence[len(got.Evidence)-1].Text, "database/sql.ExecContext")
 }
 
+func TestClassifyPersistenceDoesNotTreatSQLControlExecAsDurableWrite(t *testing.T) {
+	root := t.TempDir()
+	write := sourceWriter(t, root)
+	write("scenarios/alpha/api/domain/state.go", `package domain
+type State string
+const Pending State = "pending"
+type Attempt struct { State State }
+`)
+	write("scenarios/alpha/api/domain/lock.go", `package domain
+import (
+  "context"
+  "database/sql"
+)
+func acquireLock(ctx context.Context, db *sql.DB, attempt Attempt) error {
+  _, err := db.ExecContext(ctx, "/* lock control */ SELECT pg_advisory_lock(1)", attempt.State)
+  return err
+}
+`)
+	got := lifecycleinference.NewPersistenceClassifier(root).Classify(lifecycleCandidate("alpha", "api/domain", "Attempt", "State"))
+	require.Equal(t, lifecycleinference.ClassUnknown, got.Class, "a constant SELECT used for lock/control flow does not persist the candidate state: "+got.Reason)
+}
+
 func TestClassifyPersistenceRecognizesExplicitResponseAndReadModel(t *testing.T) {
 	root := t.TempDir()
 	write := sourceWriter(t, root)

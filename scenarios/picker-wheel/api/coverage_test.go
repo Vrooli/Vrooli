@@ -32,13 +32,7 @@ func TestGetWheelsHandler_AdditionalCoverage(t *testing.T) {
 			Path:   "/api/wheels",
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		var wheelsList []Wheel
 		assertJSONResponse(t, w, http.StatusOK, &wheelsList)
@@ -74,13 +68,7 @@ func TestCreateWheelHandler_AdditionalCoverage(t *testing.T) {
 			Body:   newWheel,
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		var createdWheel Wheel
 		assertJSONResponse(t, w, http.StatusOK, &createdWheel)
@@ -112,13 +100,7 @@ func TestCreateWheelHandler_AdditionalCoverage(t *testing.T) {
 			Body:   newWheel,
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		var createdWheel Wheel
 		assertJSONResponse(t, w, http.StatusOK, &createdWheel)
@@ -152,13 +134,7 @@ func TestGetHistoryHandler_AdditionalCoverage(t *testing.T) {
 			Path:   "/api/history",
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		var historyList []SpinResult
 		assertJSONResponse(t, w, http.StatusOK, &historyList)
@@ -191,13 +167,7 @@ func TestSpinHandler_AdditionalCoverage(t *testing.T) {
 			Body:   spinRequest,
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		var result SpinResult
 		assertJSONResponse(t, w, http.StatusOK, &result)
@@ -225,13 +195,7 @@ func TestSpinHandler_AdditionalCoverage(t *testing.T) {
 			Body:   spinRequest,
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		var result SpinResult
 		assertJSONResponse(t, w, http.StatusOK, &result)
@@ -257,13 +221,7 @@ func TestSpinHandler_AdditionalCoverage(t *testing.T) {
 			Body:   spinRequest,
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		var result SpinResult
 		assertJSONResponse(t, w, http.StatusOK, &result)
@@ -301,13 +259,7 @@ func TestDeleteWheelHandler_AdditionalCoverage(t *testing.T) {
 			URLVars: map[string]string{"id": "custom-to-delete"},
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		if w.Code != http.StatusNoContent {
 			t.Errorf("Expected status %d, got %d", http.StatusNoContent, w.Code)
@@ -334,13 +286,7 @@ func TestGetWheelHandler_AdditionalCoverage(t *testing.T) {
 			URLVars: map[string]string{"id": "dinner-decider"},
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		var wheel Wheel
 		assertJSONResponse(t, w, http.StatusOK, &wheel)

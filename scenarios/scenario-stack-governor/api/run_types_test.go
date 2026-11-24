@@ -6,105 +6,36 @@ import (
 	"testing"
 )
 
-func TestComputeCounts_Mixed(t *testing.T) {
-	r := RuleResult{
-		Findings: []Finding{
-			{Level: "error", Message: "a"},
-			{Level: "warn", Message: "b"},
-			{Level: "error", Message: "c"},
-			{Level: "info", Message: "d"},
-			{Level: "warn", Message: "e"},
+func TestComputeCounts(t *testing.T) {
+	tests := []struct {
+		name                  string
+		findings              []Finding
+		initialErrors         int
+		initialWarnings       int
+		wantErrors, wantWarns int
+	}{
+		{
+			name: "mixed levels",
+			findings: []Finding{
+				{Level: "error", Message: "a"}, {Level: "warn", Message: "b"},
+				{Level: "error", Message: "c"}, {Level: "info", Message: "d"}, {Level: "warn", Message: "e"},
+			},
+			wantErrors: 2, wantWarns: 2,
 		},
+		{name: "all errors", findings: []Finding{{Level: "error", Message: "a"}, {Level: "error", Message: "b"}}, wantErrors: 2},
+		{name: "all warnings", findings: []Finding{{Level: "warn", Message: "a"}, {Level: "warn", Message: "b"}, {Level: "warn", Message: "c"}}, wantWarns: 3},
+		{name: "no findings"},
+		{name: "info only", findings: []Finding{{Level: "info", Message: "a"}, {Level: "info", Message: "b"}}},
+		{name: "recomputes instead of accumulating", initialErrors: 99, initialWarnings: 99, findings: []Finding{{Level: "error", Message: "a"}}, wantErrors: 1},
 	}
-	r.ComputeCounts()
-
-	if r.ErrorCount != 2 {
-		t.Errorf("expected ErrorCount=2, got %d", r.ErrorCount)
-	}
-	if r.WarnCount != 2 {
-		t.Errorf("expected WarnCount=2, got %d", r.WarnCount)
-	}
-}
-
-func TestComputeCounts_AllErrors(t *testing.T) {
-	r := RuleResult{
-		Findings: []Finding{
-			{Level: "error", Message: "a"},
-			{Level: "error", Message: "b"},
-		},
-	}
-	r.ComputeCounts()
-
-	if r.ErrorCount != 2 {
-		t.Errorf("expected ErrorCount=2, got %d", r.ErrorCount)
-	}
-	if r.WarnCount != 0 {
-		t.Errorf("expected WarnCount=0, got %d", r.WarnCount)
-	}
-}
-
-func TestComputeCounts_AllWarnings(t *testing.T) {
-	r := RuleResult{
-		Findings: []Finding{
-			{Level: "warn", Message: "a"},
-			{Level: "warn", Message: "b"},
-			{Level: "warn", Message: "c"},
-		},
-	}
-	r.ComputeCounts()
-
-	if r.ErrorCount != 0 {
-		t.Errorf("expected ErrorCount=0, got %d", r.ErrorCount)
-	}
-	if r.WarnCount != 3 {
-		t.Errorf("expected WarnCount=3, got %d", r.WarnCount)
-	}
-}
-
-func TestComputeCounts_NoFindings(t *testing.T) {
-	r := RuleResult{}
-	r.ComputeCounts()
-
-	if r.ErrorCount != 0 {
-		t.Errorf("expected ErrorCount=0, got %d", r.ErrorCount)
-	}
-	if r.WarnCount != 0 {
-		t.Errorf("expected WarnCount=0, got %d", r.WarnCount)
-	}
-}
-
-func TestComputeCounts_OnlyInfo(t *testing.T) {
-	r := RuleResult{
-		Findings: []Finding{
-			{Level: "info", Message: "a"},
-			{Level: "info", Message: "b"},
-		},
-	}
-	r.ComputeCounts()
-
-	if r.ErrorCount != 0 {
-		t.Errorf("expected ErrorCount=0, got %d", r.ErrorCount)
-	}
-	if r.WarnCount != 0 {
-		t.Errorf("expected WarnCount=0, got %d", r.WarnCount)
-	}
-}
-
-func TestComputeCounts_Resets(t *testing.T) {
-	r := RuleResult{
-		ErrorCount: 99,
-		WarnCount:  99,
-		Findings: []Finding{
-			{Level: "error", Message: "a"},
-		},
-	}
-	r.ComputeCounts()
-
-	if r.ErrorCount != 1 {
-		t.Errorf("expected ErrorCount=1, got %d", r.ErrorCount)
-	}
-	if r.WarnCount != 0 {
-		t.Errorf("expected WarnCount=0 (reset from 99), got %d", r.WarnCount)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := RuleResult{ErrorCount: tt.initialErrors, WarnCount: tt.initialWarnings, Findings: tt.findings}
+			r.ComputeCounts()
+			if r.ErrorCount != tt.wantErrors || r.WarnCount != tt.wantWarns {
+				t.Errorf("counts = errors:%d warnings:%d, want errors:%d warnings:%d", r.ErrorCount, r.WarnCount, tt.wantErrors, tt.wantWarns)
+			}
+		})
 	}
 }
 
@@ -152,36 +83,24 @@ func TestComputeCounts_MixedInfoAndErrorFailsRule(t *testing.T) {
 	}
 }
 
-func TestHasActionableFindings_Empty(t *testing.T) {
-	if hasActionableFindings(nil) {
-		t.Error("expected false for nil findings")
+func TestHasActionableFindings(t *testing.T) {
+	tests := []struct {
+		name     string
+		findings []Finding
+		want     bool
+	}{
+		{name: "nil", findings: nil},
+		{name: "empty", findings: []Finding{}},
+		{name: "info only", findings: []Finding{{Level: "info", Message: "note"}}},
+		{name: "error", findings: []Finding{{Level: "info", Message: "note"}, {Level: "error", Message: "problem"}}, want: true},
+		{name: "warning", findings: []Finding{{Level: "warn", Message: "caution"}}, want: true},
 	}
-	if hasActionableFindings([]Finding{}) {
-		t.Error("expected false for empty findings")
-	}
-}
-
-func TestHasActionableFindings_InfoOnly(t *testing.T) {
-	findings := []Finding{{Level: "info", Message: "note"}}
-	if hasActionableFindings(findings) {
-		t.Error("expected false for info-only findings")
-	}
-}
-
-func TestHasActionableFindings_WithError(t *testing.T) {
-	findings := []Finding{
-		{Level: "info", Message: "note"},
-		{Level: "error", Message: "problem"},
-	}
-	if !hasActionableFindings(findings) {
-		t.Error("expected true when error finding exists")
-	}
-}
-
-func TestHasActionableFindings_WithWarn(t *testing.T) {
-	findings := []Finding{{Level: "warn", Message: "caution"}}
-	if !hasActionableFindings(findings) {
-		t.Error("expected true when warn finding exists")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := hasActionableFindings(tt.findings); got != tt.want {
+				t.Errorf("hasActionableFindings() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 

@@ -426,6 +426,13 @@ func (job *automatedFixJob) isCancelled() bool {
 	return job.status == "cancelled"
 }
 
+func (job *automatedFixJob) contextErr() error {
+	if job.ctx == nil {
+		return nil
+	}
+	return job.ctx.Err()
+}
+
 func cloneLoopHistory(records []automationLoopRecord) []automationLoopRecord {
 	if len(records) == 0 {
 		return nil
@@ -756,8 +763,14 @@ type automatedFixStartRecorder func(string, string, string, string, int, string)
 func launchAutomatedFixGroups[T any](job *automatedFixJob, groups [][]T, violationType, issueKind, action, model string, metadata, severityByID map[string]string, buildPrompt automatedFixPromptBuilder[T], collectIDs automatedFixIssueIDCollector[T], startAgent automatedFixAgentStarter, recordStart automatedFixStartRecorder) ([]*AgentInfo, error) {
 	var agents []*AgentInfo
 	for index, group := range groups {
+		if err := job.contextErr(); err != nil {
+			return nil, err
+		}
 		prompt, label, promptMetadata, err := buildPrompt(group, "")
 		if err != nil {
+			return nil, err
+		}
+		if err := job.contextErr(); err != nil {
 			return nil, err
 		}
 		combinedMetadata := cloneStringMap(metadata)
@@ -977,6 +990,9 @@ func (job *automatedFixJob) waitForStandardsScan(jobID string) (*StandardsScanSt
 func (job *automatedFixJob) fail(err error) {
 	job.mu.Lock()
 	defer job.mu.Unlock()
+	if job.status == "completed" || job.status == "failed" || job.status == "cancelled" {
+		return
+	}
 	job.status = "failed"
 	job.errorMessage = err.Error()
 	job.message = "Automation failed"
@@ -987,7 +1003,7 @@ func (job *automatedFixJob) fail(err error) {
 func (job *automatedFixJob) complete(message string) {
 	job.mu.Lock()
 	defer job.mu.Unlock()
-	if job.status == "cancelled" {
+	if job.status == "completed" || job.status == "failed" || job.status == "cancelled" {
 		return
 	}
 	job.status = "completed"

@@ -236,6 +236,16 @@ func reconcileActivePageWithGeometry(loc string, page spec.PageDocument, target 
 		}
 		var claimEvidence Evidence
 		var ok bool
+		if isBaselineFloorType(claim.Type) && page.Kind != "experience-component" {
+			claimEvidence = Evidence{
+				PageID: page.Page.ID, Route: targetEvidenceRoute(page, target), StateID: target.StateID,
+				ViewportID: target.ViewportID, ViewportWidth: target.ViewportWidth, ViewportHeight: target.ViewportHeight,
+				ClaimID: claim.ID, ClaimType: claim.Type, Verdict: "skipped",
+				Message: "page geometry is evaluated by the canonical experience phase",
+			}
+			evidence = append(evidence, claimEvidence)
+			continue
+		}
 		if isBaselineFloorType(claim.Type) && geometry != nil {
 			claimEvidence, ok = evaluateGeometryFloorClaim(page, claim, target, nodes, geometry)
 		} else {
@@ -319,25 +329,6 @@ func evaluateGeometryFloorClaim(page spec.PageDocument, claim spec.Claim, target
 		evidence.AXNodeJSON = encodeAXNode(nodes[0])
 	}
 	return evidence, true
-}
-
-func geometryRuleForFloor(floor string) string {
-	switch floor {
-	case "no-document-horizontal-overflow":
-		return "visual_viewport_overflow"
-	case "viewport-fill":
-		return "visual_surface_does_not_fill_viewport"
-	case "chrome-pinned":
-		return "visual_chrome_outside_viewport"
-	case "safe-area-tap-targets":
-		return "visual_unsafe_edge_tap_zone"
-	case "single-line-chrome":
-		return "visual_multiline_chrome_label"
-	case "tap-target-size":
-		return "visual_touch_target_too_small"
-	default:
-		return ""
-	}
 }
 
 func unreachableEvidence(page spec.PageDocument, claim spec.Claim, target CaptureTarget, reason string) Evidence {
