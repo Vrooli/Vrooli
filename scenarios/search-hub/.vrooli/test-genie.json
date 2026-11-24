@@ -538,7 +538,7 @@
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "failure-topography-and-graceful-degradation"
+          "resilience-lenses"
         ],
         "fix_class": "external",
         "reason": "Provider or eval-store liveness must be restored before Search Hub can prove live eval maturity."
@@ -551,7 +551,7 @@
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "failure-topography-and-graceful-degradation"
+          "resilience-lenses"
         ],
         "fix_class": "manual",
         "reason": "An indexed (local_index/async) provider owns a rebuildable corpus; without a reindex endpoint Search Hub cannot reconcile or re-evaluate it. Reclassify as local_live if it computes results live."
@@ -564,7 +564,7 @@
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "failure-topography-and-graceful-degradation"
+          "resilience-lenses"
         ],
         "fix_class": "manual",
         "reason": "Production readiness requires a declared readiness posture; endpoint shape depends on the provider's live indexing architecture."
@@ -577,7 +577,7 @@
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "failure-topography-and-graceful-degradation"
+          "resilience-lenses"
         ],
         "fix_class": "manual",
         "reason": "Production readiness requires either config write-back or a validated pinned/non-writable reason; the descriptor must make that posture explicit."
@@ -630,7 +630,7 @@
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "failure-topography-and-graceful-degradation"
+          "resilience-lenses"
         ],
         "fix_class": "manual",
         "reason": "Production readiness requires empty-result degradation to stay within the provider's declared budget."
@@ -643,7 +643,7 @@
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "failure-topography-and-graceful-degradation"
+          "resilience-lenses"
         ],
         "fix_class": "manual",
         "reason": "Production readiness requires the live provider route to be reachable and not open-circuit."
@@ -656,7 +656,7 @@
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "required",
         "recommended_skill_ids": [
-          "failure-topography-and-graceful-degradation"
+          "resilience-lenses"
         ],
         "fix_class": "manual",
         "reason": "Production readiness requires repeated live routing to demonstrate hit yield."

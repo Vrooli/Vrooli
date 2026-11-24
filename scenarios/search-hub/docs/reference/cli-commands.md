@@ -89,6 +89,8 @@ search-hub configure api_base
 
 ## Scenario command — `query`
 
+Describe the task in one quoted natural-language request. Include constraints that affect the choice of tool. Search Hub keeps the full request and may also look up simpler capability phrases. Automatic routing can add one eligible local provider per phrase when its registry description matches. Explicit scopes stay in force. Use `--explain` to inspect routing. Check live readiness and operation-specific requirements with the selected owner when needed.
+
 `search-hub query "<text>"` searches the selected provider set. The CLI defaults
 to five results per provider to keep ordinary reads bounded; pass `--limit 10`
 or another positive limit when a deeper search is needed. Human output displays

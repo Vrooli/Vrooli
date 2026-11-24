@@ -19,6 +19,18 @@ func (c showAllResultsContext) BoolFlag(name string) bool {
 	return name == "show-all-results" && c.enabled
 }
 
+func TestEmptyQueryReportDistinguishesCoverageFromNoMatch(t *testing.T) {
+	h := &handlers{}
+	clean := h.queryReport(nil, &routingv1.QueryResponse{})
+	degraded := h.queryReport(nil, &routingv1.QueryResponse{Degraded: true})
+	if !strings.Contains(strings.Join(clean.RetrievalHints, " "), "broader capability phrase") {
+		t.Fatalf("clean no-match guidance = %v", clean.RetrievalHints)
+	}
+	if !strings.Contains(strings.Join(degraded.RetrievalHints, " "), "Coverage was incomplete") {
+		t.Fatalf("degraded no-match guidance = %v", degraded.RetrievalHints)
+	}
+}
+
 func TestOperationHintReadsBundleWithoutExecutingRetrievedCode(t *testing.T) {
 	msg := &routingv1.QueryResponse{Reranked: true, Ranked: []*routingv1.SearchHit{
 		{ProviderId: "program-runtime.library", Id: "device-control.do-task"},

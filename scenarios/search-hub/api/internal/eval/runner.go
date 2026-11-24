@@ -373,17 +373,18 @@ func labelCase(c *evalv1.EvalCase, top []*evalv1.ScoredHit, hits []*routingv1.Se
 
 func protoCaseToSearchCase(c *evalv1.EvalCase) aisearch.TestCase {
 	return aisearch.TestCase{
-		ID:                c.GetCaseId(),
-		Query:             c.GetQuery(),
-		Scope:             c.GetScope(),
-		Status:            c.GetStatus(),
-		Tags:              append([]string(nil), c.GetTags()...),
-		ExpectIDs:         append([]string(nil), c.GetExpectIds()...),
-		ExpectWithinTopK:  int(c.GetExpectWithinTopK()),
-		ExpectMinScore:    c.GetExpectMinScore(),
-		ExpectMaxScore:    c.GetExpectMaxScore(),
-		ExpectNoStrongHit: c.GetExpectNoStrongHit(),
-		Note:              c.GetNote(),
+		ID:                    c.GetCaseId(),
+		Query:                 c.GetQuery(),
+		Scope:                 c.GetScope(),
+		Status:                c.GetStatus(),
+		Tags:                  append([]string(nil), c.GetTags()...),
+		ExpectIDs:             append([]string(nil), c.GetExpectIds()...),
+		ExpectedIdentityField: c.GetExpectedIdentityField(),
+		ExpectWithinTopK:      int(c.GetExpectWithinTopK()),
+		ExpectMinScore:        c.GetExpectMinScore(),
+		ExpectMaxScore:        c.GetExpectMaxScore(),
+		ExpectNoStrongHit:     c.GetExpectNoStrongHit(),
+		Note:                  c.GetNote(),
 	}
 }
 

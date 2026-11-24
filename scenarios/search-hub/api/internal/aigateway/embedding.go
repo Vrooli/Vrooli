@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/ai-go/search"
@@ -25,17 +26,38 @@ type TaskEmbeddingClient struct {
 	queryPrefix       string
 	documentPrefix    string
 	privacySource     string
+	observer          EmbeddingObserver
 }
+
+// EmbeddingObservation contains only request metadata. It intentionally omits
+// text, provenance strings and vectors so owners can measure query/document
+// latency without retaining private content.
+type EmbeddingObservation struct {
+	Kind        string
+	Role        string
+	Model       string
+	Duration    time.Duration
+	VectorCount int
+	Failed      bool
+}
+
+// EmbeddingObserver is an optional owner-provided hook for recording the
+// client-visible duration of one typed gateway embedding operation.
+type EmbeddingObserver func(EmbeddingObservation)
 
 var _ aisearch.TaskEmbedder = (*TaskEmbeddingClient)(nil)
 
-func NewTaskEmbedder(resolve URLResolver, client connect.HTTPClient, role, expectedModel string, expectedDimension int, queryPrefix, documentPrefix, privacySource string) *TaskEmbeddingClient {
-	return &TaskEmbeddingClient{
+func NewTaskEmbedder(resolve URLResolver, client connect.HTTPClient, role, expectedModel string, expectedDimension int, queryPrefix, documentPrefix, privacySource string, observers ...EmbeddingObserver) *TaskEmbeddingClient {
+	e := &TaskEmbeddingClient{
 		resolve: resolve, client: client, role: strings.TrimSpace(role),
 		expectedModel: strings.TrimSpace(expectedModel), expectedDimension: expectedDimension,
 		queryPrefix: queryPrefix, documentPrefix: documentPrefix,
 		privacySource: strings.TrimSpace(privacySource),
 	}
+	if len(observers) > 0 {
+		e.observer = observers[0]
+	}
+	return e
 }
 
 func (e *TaskEmbeddingClient) Available(ctx context.Context) bool {
@@ -47,24 +69,34 @@ func (e *TaskEmbeddingClient) Available(ctx context.Context) bool {
 }
 
 func (e *TaskEmbeddingClient) Embed(ctx context.Context, text string) ([]float64, error) {
-	return e.embed(ctx, text)
+	return e.embed(ctx, "generic", text)
 }
 
 func (e *TaskEmbeddingClient) EmbedQuery(ctx context.Context, text string) ([]float64, error) {
-	return e.embed(ctx, e.queryPrefix+text)
+	return e.embed(ctx, "query", e.queryPrefix+text)
 }
 
 func (e *TaskEmbeddingClient) EmbedDocument(ctx context.Context, text string) ([]float64, error) {
-	return e.embed(ctx, e.documentPrefix+text)
+	return e.embed(ctx, "document", e.documentPrefix+text)
 }
 
-func (e *TaskEmbeddingClient) embed(ctx context.Context, text string) ([]float64, error) {
+func (e *TaskEmbeddingClient) embed(ctx context.Context, kind, text string) ([]float64, error) {
+	started := time.Now()
+	var resultErr error
+	vectorCount := 0
+	defer func() {
+		if e != nil && e.observer != nil {
+			e.observer(EmbeddingObservation{Kind: kind, Role: e.role, Model: e.expectedModel, Duration: time.Since(started), VectorCount: vectorCount, Failed: resultErr != nil})
+		}
+	}()
 	if e == nil || e.resolve == nil || e.role == "" || e.expectedModel == "" || e.expectedDimension <= 0 || e.privacySource == "" {
-		return nil, errors.New("AI Gateway embedding contract is incomplete")
+		resultErr = errors.New("AI Gateway embedding contract is incomplete")
+		return nil, resultErr
 	}
 	baseURL, err := e.resolve(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("resolve AI Gateway: %w", err)
+		resultErr = fmt.Errorf("resolve AI Gateway: %w", err)
+		return nil, resultErr
 	}
 	httpClient := e.client
 	if httpClient == nil {
@@ -79,20 +111,26 @@ func (e *TaskEmbeddingClient) embed(ctx context.Context, text string) ([]float64
 		PrivacyProvenance: e.privacySource,
 	}))
 	if err != nil {
-		return nil, fmt.Errorf("AI Gateway embedding request: %w", err)
+		resultErr = fmt.Errorf("AI Gateway embedding request: %w", err)
+		return nil, resultErr
 	}
 	if gatewayErr := response.Msg.GetError(); gatewayErr != nil {
-		return nil, fmt.Errorf("AI Gateway embedding refused request (code %s)", gatewayErr.GetCode().String())
+		resultErr = fmt.Errorf("AI Gateway embedding refused request (code %s)", gatewayErr.GetCode().String())
+		return nil, resultErr
 	}
 	if response.Msg.GetModel() != e.expectedModel {
-		return nil, fmt.Errorf("AI Gateway embedding model identity differs from the pinned recipe")
+		resultErr = errors.New("AI Gateway embedding model identity differs from the pinned recipe")
+		return nil, resultErr
 	}
 	if response.Msg.GetDimension() != int32(e.expectedDimension) || len(response.Msg.GetVectors()) != 1 {
-		return nil, errors.New("AI Gateway embedding dimensions or vector count differ from the pinned recipe")
+		resultErr = errors.New("AI Gateway embedding dimensions or vector count differ from the pinned recipe")
+		return nil, resultErr
 	}
 	values := response.Msg.GetVectors()[0].GetValues()
 	if len(values) != e.expectedDimension {
-		return nil, errors.New("AI Gateway embedding vector length differs from the pinned recipe")
+		resultErr = errors.New("AI Gateway embedding vector length differs from the pinned recipe")
+		return nil, resultErr
 	}
+	vectorCount = len(response.Msg.GetVectors())
 	return append([]float64(nil), values...), nil
 }

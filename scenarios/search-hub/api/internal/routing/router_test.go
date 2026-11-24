@@ -345,6 +345,20 @@ func TestQueryAutomaticallyUsesModelFreeRouting(t *testing.T) {
 	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "no LLM classifier")
 }
 
+func TestPublicQueryPreservesOriginalAndSearchesBothCompoundIntents(t *testing.T) {
+	r := routing.NewRouter(routing.Deps{
+		Lister: threeProviderLister(), Resolver: threeProviderResolver(), Doer: threeProviderDoer(),
+	})
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{
+		Query: "find a scenario and then run its tests", All: true, Explain: true,
+	})
+	require.NoError(t, err)
+	require.Len(t, resp.GetGroups(), 3, "supplemental retrieval keeps one group per original provider")
+	explanation := strings.Join(resp.GetRoutingExplanation(), "\n")
+	require.Contains(t, explanation, "supplemental local retrieval: find a scenario")
+	require.Contains(t, explanation, "supplemental local retrieval: run its tests")
+}
+
 func TestSemanticStrategyRanksEveryEligibleLeafBeforeBoundedSelection(t *testing.T) {
 	index := &orderedDescriptionIndex{order: []string{"swarm-manager.records", "cli-health.commands", "ui-health.surfaces"}}
 	strategy := routing.RetrievalStrategy{

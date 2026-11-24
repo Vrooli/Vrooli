@@ -173,10 +173,12 @@ func (s *Service) validateOrphanSuites(ctx context.Context, report *Report) {
 	}
 	suites, err := s.EvalStore.ListSuites(ctx, internaleval.ListSuitesFilter{})
 	if err != nil {
+		report.add(orphanSuiteScanUnavailable("EvalService.ListSuites", err))
 		return
 	}
 	providers, err := s.RegistryStore.List(ctx, internalregistry.ListFilter{})
 	if err != nil {
+		report.add(orphanSuiteScanUnavailable("RegistryStore.List", err))
 		return
 	}
 	registered := make(map[string]struct{}, len(providers))
@@ -195,6 +197,17 @@ func (s *Service) validateOrphanSuites(ctx context.Context, report *Report) {
 			Location:    "EvalService.ListSuites",
 			Remediation: "Register the provider from its scenario-owned .vrooli/search.json or run the explicit orphan-suite reaping command after review.",
 		})
+	}
+}
+
+func orphanSuiteScanUnavailable(location string, err error) Finding {
+	return Finding{
+		Code:        CodeEvalUnavailable,
+		Severity:    SeverityError,
+		Title:       "Orphan evaluation suite scan is unavailable",
+		Message:     fmt.Sprintf("cannot determine whether evaluation suites reference unregistered providers: %v", err),
+		Location:    location,
+		Remediation: "Restore Search Hub eval and registry storage, then rerun validation before certifying provider ownership.",
 	}
 }
 

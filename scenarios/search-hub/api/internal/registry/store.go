@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/schedule"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 
@@ -19,18 +20,6 @@ import (
 
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 )
-
-// SQLExecutor is the narrow database surface the store depends on. Declared at
-// the consumer per seam-discovery: both *sql.DB (used by store tests via
-// testutil/db.NewSQLite) and *database.RoutedDB (used in production by
-// main.go) satisfy it, so production wiring participates in per-request
-// routing without forcing the test fixture to wrap its handle.
-type SQLExecutor interface {
-	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
-	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
-	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
-	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
-}
 
 // CredentialAuthority is the existing Vrooli secure-store boundary. The
 // registry stores only non-secret witness metadata in SQLite; the encrypted
@@ -75,7 +64,7 @@ type Store interface {
 // sqliteStore is the production Store impl. Unexported so callers depend on
 // the Store interface and substitute the fake without reaching inside.
 type sqliteStore struct {
-	db            SQLExecutor
+	db            database.SQLTxExecutor
 	clock         schedule.Clock
 	credentials   CredentialAuthority
 	credentialID  credentialauthority.Identity
@@ -94,7 +83,7 @@ var controlTokenSetMu sync.Mutex
 // opened in main.go (*database.RoutedDB in production, *sql.DB in unit tests);
 // clk supplies created_at/updated_at timestamps so tests can advance time
 // deterministically.
-func NewSQLiteStore(db SQLExecutor, clk schedule.Clock) *sqliteStore {
+func NewSQLiteStore(db database.SQLTxExecutor, clk schedule.Clock) *sqliteStore {
 	credentials, err := credentialauthority.Default()
 	return NewSQLiteStoreWithCredentialAuthority(db, clk, credentials, err)
 }
@@ -102,7 +91,7 @@ func NewSQLiteStore(db SQLExecutor, clk schedule.Clock) *sqliteStore {
 // NewSQLiteStoreWithCredentialAuthority makes the credential boundary
 // injectable for tests while production uses NewSQLiteStore and the host's
 // canonical credential authority.
-func NewSQLiteStoreWithCredentialAuthority(db SQLExecutor, clk schedule.Clock, credentials CredentialAuthority, authorityErr error) *sqliteStore {
+func NewSQLiteStoreWithCredentialAuthority(db database.SQLTxExecutor, clk schedule.Clock, credentials CredentialAuthority, authorityErr error) *sqliteStore {
 	id, idErr := credentialauthority.ParseIdentity(controlTokenIdentity)
 	if authorityErr == nil {
 		authorityErr = idErr

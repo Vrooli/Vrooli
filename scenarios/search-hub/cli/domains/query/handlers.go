@@ -65,11 +65,15 @@ func (h *handlers) queryReport(ctx cliapp.OperationContext, msg *routingv1.Query
 	for _, g := range msg.GetGroups() {
 		totalHits += int(g.GetCount())
 	}
+	showAllResults := ctx != nil && ctx.BoolFlag("show-all-results")
+	showDiagnostics := showAllResults || (ctx != nil && ctx.BoolFlag("explain"))
 
 	summary := []string{
 		fmt.Sprintf("Searched %d corpora; %d total hit(s)%s.",
 			len(msg.GetGroups()), totalHits, degradedSummary(msg.GetGroups(), msg.GetDegraded())),
-		fmt.Sprintf("Latency: %dms. Ranking: %s (ordered by %s descending).", msg.GetLatencyMs(), rankingMode(msg.GetReranked()), orderedBy(msg)),
+	}
+	if showDiagnostics {
+		summary = append(summary, fmt.Sprintf("Latency: %dms. Ranking: %s (ordered by %s descending).", msg.GetLatencyMs(), rankingMode(msg.GetReranked()), orderedBy(msg)))
 	}
 	if len(msg.GetRoutingExplanation()) > 0 {
 		summary = append(summary, "Routing:")
@@ -83,8 +87,6 @@ func (h *handlers) queryReport(ctx cliapp.OperationContext, msg *routingv1.Query
 	// provenance/degradation detail beneath it. Pre-rerank (or on rerank
 	// degradation) we show the honest grouping alone.
 	resultsHeading := "Results by provider"
-	showAllResults := ctx != nil && ctx.BoolFlag("show-all-results")
-	showDiagnostics := showAllResults || (ctx != nil && ctx.BoolFlag("explain"))
 	visibleLimit := defaultVisibleHits
 	if showAllResults {
 		visibleLimit = 0
@@ -98,15 +100,24 @@ func (h *handlers) queryReport(ctx cliapp.OperationContext, msg *routingv1.Query
 			results = append(results, renderGroupSummaries(msg.GetGroups())...)
 		}
 	}
-	results = append(results, operationHints(msg)...)
+	if showDiagnostics {
+		results = append(results, operationHints(msg)...)
+	}
+	var hints []string
+	switch {
+	case totalHits == 0 && msg.GetDegraded():
+		hints = append(hints, "Coverage was incomplete. Check the owner directly or use --explain to see which routes failed.")
+	case totalHits == 0:
+		hints = append(hints, "Try a broader capability phrase, or use --group if you know the owner.")
+	case allWeak(msg.GetRanked()):
+		hints = append(hints, "The ranked matches are weak. Check the owner or ask a narrower question before relying on them.")
+	}
 
 	return cliapp.ListReport{
 		Summary:        summary,
 		ResultsHeading: resultsHeading,
 		Results:        results,
-		RetrievalHints: []string{
-			"Use `--explain` for routing and provider detail.",
-		},
+		RetrievalHints: hints,
 	}
 }
 
@@ -120,7 +131,7 @@ func operationHints(msg *routingv1.QueryResponse) []string {
 		return nil
 	}
 	hit := hits[0]
-	if hit.GetProviderId() != "program-runtime.library" || !programName.MatchString(hit.GetId()) {
+	if hit.GetConfidence().GetWeak() || hit.GetProviderId() != "program-runtime.library" || !programName.MatchString(hit.GetId()) {
 		return nil
 	}
 	lines := []string{"", "Read the top program and its owning skill:"}
@@ -263,6 +274,9 @@ func renderRankedLimit(hits []*routingv1.SearchHit, maxHits int) []string {
 			line += " — " + snippet
 		}
 		line += fmt.Sprintf(" [%s %s/%s]", confidenceBand(hit), truncate(hit.GetProviderId(), 64), truncate(provenance(hit), 120))
+		if intent := hit.GetMetadata().GetFields()["search_hub_intent_match"].GetStringValue(); intent != "" {
+			line += " · found via: " + truncate(intent, 65)
+		}
 		out = append(out, line)
 	}
 	if len(hits) > shown {
@@ -285,6 +299,9 @@ func formatHit(n int, hit *routingv1.SearchHit) string {
 	line += fmt.Sprintf(" [%s %s/%s]", confidenceBand(hit), truncate(hit.GetProviderGroup(), 64), truncate(provenance(hit), 120))
 	if locs := locationSummary(hit.GetLocations()); locs != "" {
 		line += " locations: " + locs
+	}
+	if intent := hit.GetMetadata().GetFields()["search_hub_intent_match"].GetStringValue(); intent != "" {
+		line += " · found via: " + truncate(intent, 65)
 	}
 	return line
 }

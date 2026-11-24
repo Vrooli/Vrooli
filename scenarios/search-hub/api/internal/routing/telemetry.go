@@ -129,8 +129,9 @@ func ResponseDegradeReasonWithSelection(selectionFallback, rerankerFailed bool, 
 }
 
 // ProviderTelemetry is one provider leg's telemetry projection. DegradeReason
-// is a closed category derived from ProviderResultGroup.Note; raw notes are not
-// persisted because they are freeform provider output.
+// is a closed category derived from the provider's typed degradation reason or,
+// failing that, ProviderResultGroup.Note; raw notes are not persisted because
+// they are freeform provider output.
 type ProviderTelemetry struct {
 	HitCount      int
 	LatencyMs     int64
@@ -166,7 +167,7 @@ func buildSample(query string, targets []*registryv1.ProviderDescriptor, resp *r
 		degraded := g.GetDegraded()
 		reason := ""
 		if degraded {
-			reason = classifyDegradeReason(g.GetNote())
+			reason = classifyGroupDegradeReason(g)
 		}
 		providerResults[g.GetProviderId()] = ProviderTelemetry{
 			HitCount:      n,
@@ -186,6 +187,37 @@ func buildSample(query string, targets []*registryv1.ProviderDescriptor, resp *r
 		Reranked:        resp.GetReranked(),
 		RerankerLeg:     resp.GetRerankerLeg(),
 		LatencyMs:       resp.GetLatencyMs(),
+	}
+}
+
+// classifyGroupDegradeReason prefers the reason the provider itself typed over
+// keywords in its free-form note. A provider that answers with a degraded leg
+// (its semantic index is unavailable, its deadline passed) is a different
+// failure from one that is unreachable or returned an HTTP error, and folding
+// the typed answer into "other" hid which one a reading was measuring.
+func classifyGroupDegradeReason(g *routingv1.ProviderResultGroup) string {
+	for _, degradation := range g.GetDegradations() {
+		if reason := classifyTypedDegradeReason(degradation.GetReason()); reason != "" {
+			return reason
+		}
+	}
+	return classifyDegradeReason(g.GetNote())
+}
+
+// classifyTypedDegradeReason maps a provider-declared degradation reason onto
+// the closed telemetry categories. Unrecognised reasons return "" so the note
+// classifier still gets a say.
+func classifyTypedDegradeReason(reason string) string {
+	reason = strings.ToLower(strings.TrimSpace(reason))
+	switch {
+	case reason == "":
+		return ""
+	case strings.Contains(reason, "deadline"), strings.Contains(reason, "timeout"):
+		return "timeout"
+	case strings.Contains(reason, "unavailable"), strings.Contains(reason, "mismatch"):
+		return "provider_leg_unavailable"
+	default:
+		return ""
 	}
 }
 

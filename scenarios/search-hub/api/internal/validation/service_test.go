@@ -2,6 +2,7 @@ package validation
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -143,6 +144,43 @@ func TestValidateScenarioDoesNotReportPairedSuiteAsOrphan(t *testing.T) {
 		if finding.Code == CodeEvalSuiteOrphaned {
 			t.Fatalf("paired suite incorrectly reported as orphan: %#v", finding)
 		}
+	}
+}
+
+func TestValidateScenarioDoesNotCertifyWhenOrphanSuiteScanFails(t *testing.T) {
+	root := t.TempDir()
+	writeSearchConfig(t, root, "demo", cleanSearchConfig("demo"))
+	service := New(root)
+	service.RegistryStore = fakeRegistryStore{providers: []*registryv1.ProviderDescriptor{{ProviderId: "demo.docs", ProviderGroup: "demo", Lifecycle: registryv1.Lifecycle_LIFECYCLE_PRODUCTION}}}
+	service.EvalStore = fakeEvalStore{err: errors.New("database unavailable")}
+
+	report, err := service.ValidateScenario("demo", "")
+	if err != nil {
+		t.Fatalf("ValidateScenario: %v", err)
+	}
+	requireFinding(t, report, CodeEvalUnavailable)
+	if report.Summary.Status() != "failed" {
+		t.Fatalf("status = %s, want failed when orphan-suite scan is unavailable", report.Summary.Status())
+	}
+}
+
+func TestValidateScenarioDoesNotCertifyWhenOrphanRegistryScanFails(t *testing.T) {
+	root := t.TempDir()
+	writeSearchConfig(t, root, "demo", cleanSearchConfig("demo"))
+	service := New(root)
+	service.RegistryStore = fakeRegistryStore{err: errors.New("registry unavailable")}
+	service.EvalStore = fakeEvalStore{}
+
+	report, err := service.ValidateScenario("demo", "")
+	if err != nil {
+		t.Fatalf("ValidateScenario: %v", err)
+	}
+	finding := requireFinding(t, report, CodeEvalUnavailable)
+	if finding.Location != "RegistryStore.List" {
+		t.Fatalf("finding location = %q, want RegistryStore.List", finding.Location)
+	}
+	if report.Summary.Status() != "failed" {
+		t.Fatalf("status = %s, want failed when orphan registry scan is unavailable", report.Summary.Status())
 	}
 }
 
@@ -1454,6 +1492,7 @@ type fakeEvalStore struct {
 
 type fakeRegistryStore struct {
 	providers []*registryv1.ProviderDescriptor
+	err       error
 }
 
 func (f fakeRegistryStore) Upsert(context.Context, *registryv1.ProviderDescriptor, string) (bool, string, error) {
@@ -1461,7 +1500,7 @@ func (f fakeRegistryStore) Upsert(context.Context, *registryv1.ProviderDescripto
 }
 
 func (f fakeRegistryStore) List(context.Context, internalregistry.ListFilter) ([]*registryv1.ProviderDescriptor, error) {
-	return f.providers, nil
+	return f.providers, f.err
 }
 
 func (f fakeRegistryStore) Get(_ context.Context, id string) (*registryv1.ProviderDescriptor, error) {

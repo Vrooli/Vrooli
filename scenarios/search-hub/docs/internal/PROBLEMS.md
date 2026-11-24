@@ -723,7 +723,7 @@ rows carried substrate evidence they did not record.
 
 **Refs:** Plan `search-hub-trustworthy-retrieval-and-honest-readiness`; fresh comprehensive validation was recorded during Phase 10.
 
-Use this section for deferred findings from `screaming-architecture-audit`.
+Use this section for deferred findings from `architecture-lenses`.
 Do not create a standalone architecture-audit report unless the work is
 a migration handoff with a planned retirement path back into
 `ARCHITECTURE.md`, `SEAMS.md`, or this file.

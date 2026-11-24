@@ -13,6 +13,7 @@ import (
 
 	"search-hub/internal/eval"
 	"search-hub/internal/experimentarms"
+	localmetrics "search-hub/internal/metrics"
 	"search-hub/internal/modules"
 	internalregistry "search-hub/internal/registry"
 	"search-hub/internal/server"
@@ -170,7 +171,8 @@ func main() {
 	// digest-bound rights identity come from resource-ollama policy; the encoder
 	// and peak estimator are owner implementations, never request fields.
 	var fleetAdmission aisearch.FleetAdmissionGate
-	fleetEncoder, encoderErr := experimentarms.NewTrustedOllamaFleetDescriptionEncoder(context.Background(), ollamapolicy.Resolver{})
+	embeddingTelemetry := localmetrics.NewEmbeddingTelemetryStore(db, schedule.System(), log.Default())
+	fleetEncoder, encoderErr := experimentarms.NewTrustedOllamaFleetDescriptionEncoder(context.Background(), ollamapolicy.Resolver{}, embeddingTelemetry.Observe)
 	if encoderErr != nil {
 		log.Printf("trusted Ollama fleet encoder remains unavailable: %v", encoderErr)
 	}
@@ -291,7 +293,12 @@ func main() {
 		// suite run rather than resetting the connection mid-fan-out (which would
 		// discard the immutable run record the harness exists to produce).
 		WriteTimeout: 15 * time.Minute,
-		Cleanup:      func(ctx context.Context) error { return db.Close() },
+		Cleanup: func(ctx context.Context) error {
+			if err := embeddingTelemetry.Close(ctx); err != nil {
+				return err
+			}
+			return db.Close()
+		},
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

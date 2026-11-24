@@ -3,6 +3,31 @@
   "description": "Cross-scenario 'do X' intents. Each case names the scenario whose leaf (skill, program or command) a cold agent should be shown. Cases are reviewed intents, not the current ranking: a failing case is a discoverability defect in the owning scenario's descriptions.",
   "cases": [
     {
+      "id": "design-ux-capability",
+      "owner": "prompt-manager",
+      "query": "design a UX",
+      "expect_types": ["skill"],
+      "expect_ids": ["experiential-ui-design"],
+      "tags": ["ux", "intent-pair"]
+    },
+    {
+      "id": "design-ux-fitness-tracker",
+      "owner": "prompt-manager",
+      "query": "create a UX design for a fitness tracker app",
+      "expect_types": ["skill"],
+      "expect_ids": ["experiential-ui-design"],
+      "tags": ["ux", "intent-pair"]
+    },
+    {
+      "id": "design-ux-compound",
+      "owner": "prompt-manager",
+      "query": "Design a UX for a fitness tracker and find a workflow for building a clickable prototype",
+      "types": "library,skill,command,doc",
+      "expect_types": ["skill"],
+      "expect_ids": ["experiential-ui-design"],
+      "tags": ["ux", "compound"]
+    },
+    {
       "id": "web-page-screenshot",
       "owner": "browser-automation-studio",
       "query": "take a screenshot of a web page",
@@ -21,7 +46,8 @@
     {
       "id": "browser-agent-session",
       "owner": "browser-automation-studio",
-      "query": "let a coding agent open a browser session, inspect pages, take actions, and save the successful steps as a reusable workflow",
+      "query": "I need instructions for an agent to inspect a website and interact with it through a permissioned browser session",
+      "expect_ids": ["browser-agent-access"],
       "expect_types": ["skill"],
       "tags": ["browser", "agent-access"]
     },

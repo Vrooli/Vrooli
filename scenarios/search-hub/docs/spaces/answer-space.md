@@ -20,6 +20,12 @@ each mapped to its owning provider, status, and best attainable basis. Coverage 
 is computed against the live `search-hub` provider registry — not stored here. The **Notes**
 column doubles as the gap registry.
 
+An active provider establishes a route to evidence. End-to-end answerability
+also requires a natural request to surface evidence from the relevant owners.
+For questions with multiple owners, review each required part of the answer.
+One good match for one part does not establish coverage for the whole question.
+Use federated evaluation to measure this separately from provider-direct recall.
+
 ## This Space
 
 | | |

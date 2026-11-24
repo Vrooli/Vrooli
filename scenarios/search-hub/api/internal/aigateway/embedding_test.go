@@ -29,6 +29,7 @@ func (g *embeddingGatewayStub) Embed(_ context.Context, request *connect.Request
 
 func TestTaskEmbeddingClientUsesTypedLocalConfidentialGatewayRequest(t *testing.T) {
 	stub := &embeddingGatewayStub{model: "pinned-embedding-model"}
+	var observations []EmbeddingObservation
 	path, handler := inferenceconnect.NewInferenceServiceHandler(stub)
 	mux := http.NewServeMux()
 	mux.Handle(path, handler)
@@ -39,6 +40,7 @@ func TestTaskEmbeddingClientUsesTypedLocalConfidentialGatewayRequest(t *testing.
 		func(context.Context) (string, error) { return server.URL, nil }, server.Client(),
 		"embedding.default", "pinned-embedding-model", 3, "query: ", "document: ",
 		"search_hub.provider_description_fleet.query_and_document_text",
+		func(observation EmbeddingObservation) { observations = append(observations, observation) },
 	)
 	vector, err := client.EmbedQuery(context.Background(), "private title")
 	require.NoError(t, err)
@@ -48,10 +50,17 @@ func TestTaskEmbeddingClientUsesTypedLocalConfidentialGatewayRequest(t *testing.
 	require.Equal(t, sharedv1.Profile_PROFILE_LOCAL_ONLY, stub.request.GetProfile())
 	require.Equal(t, sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL, stub.request.GetPrivacyClass())
 	require.Equal(t, "search_hub.provider_description_fleet.query_and_document_text", stub.request.GetPrivacyProvenance())
+	require.Len(t, observations, 1)
+	require.Equal(t, "query", observations[0].Kind)
+	require.Equal(t, "embedding.default", observations[0].Role)
+	require.Equal(t, "pinned-embedding-model", observations[0].Model)
+	require.Equal(t, 1, observations[0].VectorCount)
+	require.False(t, observations[0].Failed)
 }
 
 func TestTaskEmbeddingClientRejectsModelDriftAgainstPinnedRecipe(t *testing.T) {
 	stub := &embeddingGatewayStub{model: "different-model"}
+	var observation EmbeddingObservation
 	path, handler := inferenceconnect.NewInferenceServiceHandler(stub)
 	mux := http.NewServeMux()
 	mux.Handle(path, handler)
@@ -61,7 +70,11 @@ func TestTaskEmbeddingClientRejectsModelDriftAgainstPinnedRecipe(t *testing.T) {
 	client := NewTaskEmbedder(
 		func(context.Context) (string, error) { return server.URL, nil }, server.Client(),
 		"embedding.default", "pinned-embedding-model", 3, "query: ", "document: ", "owner.source",
+		func(value EmbeddingObservation) { observation = value },
 	)
 	_, err := client.Embed(context.Background(), "private title")
 	require.ErrorContains(t, err, "model identity differs from the pinned recipe")
+	require.Equal(t, "generic", observation.Kind)
+	require.True(t, observation.Failed)
+	require.Zero(t, observation.VectorCount)
 }

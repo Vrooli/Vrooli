@@ -52,7 +52,7 @@ Bands are targets. Readings are dated observations; re-read every cycle with `ru
 | eval-floors | `search-hub evals runs <suite_id> --limit 1` for every registered suite → `aggregate.passRate` vs the suite's floor | 0 suites below floor | 30 suites read; ≥ 19 below full pass; floors pending-baseline for every suite |
 | external-friction | `run agent-manager.friction-digest` with inputs `scenario=search-hub`, `window_days=7` → `recurring_count` | 0 recurring fingerprints with owner confidence `manifest-derived` | 5 recurring across 19 episodes in the last 40 runs (all created 2026-09-02); top fingerprint `command-failure` on `search-hub query`, 4 occurrences, `manifest-derived` — out of band |
 
-Report figure, not a setpoint row: `[S3]` leaves among rung-labelled leaves in the usage skill were 2 of 15 = 0.13 on 2026-09-02 (hand count). No sensor produces it; `skill-improvement-suggestions` E10 names the promotion candidates.
+Report figure, not a setpoint row: `[S3]` leaves among rung-labelled leaves in the usage skill were 2 of 15 = 0.13 on 2026-09-02 (hand count). No sensor produces it; `skill-validation` E10 names the promotion candidates.
 
 ### 3. Sensors
 
@@ -94,10 +94,10 @@ A `router.routing` incumbent run below its recorded precision is a stop for ever
 | Filing | degraded-query-rate above band | Read `insights` `substrate_degradation_reasons`: reranker-caused → W3 against search-hub (TEI resource health, Ollama fallback); provider-caused → the row above | degraded-query-rate |
 | Filing | federated-latency p95 above band | `insights` per-provider `latency_p95_ms`: one slow leg → file against its owner with the number; every leg slow → W3 against search-hub (per-provider timeout, fan-out bound) | federated-latency |
 | Actuator, then Filing | under-utilized-providers above 0 | Curation: for each retirement candidate, `providers list` lifecycle; `experimental` or `fixture` with zero hits → file against the owner to fix the corpus or retire the declaration; `production` → the descriptor misroutes → corpus-quality filing with sample queries | under-utilized-providers |
-| Filing | zero-result-rate above band | `insights` zero-result queries by provider: dominated by heartbeat or eval traffic → journal, no route; dominated by classifier picks that return nothing → routing-precision route; dominated by explicit `--type` misses → usage-skill token table (`skill-improvement-suggestions` on `search-hub`) | zero-result-rate |
+| Filing | zero-result-rate above band | `insights` zero-result queries by provider: dominated by heartbeat or eval traffic → journal, no route; dominated by classifier picks that return nothing → routing-precision route; dominated by explicit `--type` misses → usage-skill token table (`skill-validation` on `search-hub`) | zero-result-rate |
 | Filing, then Actuator | provider-reachability above 0 | `report-bug` against the unreachable provider's owner with `federation status` row; after they fix it, `search-hub federation repromote <provider_id>` once, journaled | provider-reachability |
 | Filing, then Actuator | eval-floors: a suite below its recorded floor | Owner's corpus regressed: file with `evals compare <baseline_run> <new_run>` output. If the suite has reviewed candidates, `evals promote <suite_id> --case <ids>` only for cases the owner reviewed | eval-floors |
-| Filing | external-friction recurring fingerprint | Read the fingerprint's finding (`agent-manager usage friction`); a `search-hub query` command failure caused by the stale CLI base is W3 against search-hub's CLI; a misuse of `--type` tokens is `skill-improvement-suggestions` on the usage skill | external-friction |
+| Filing | external-friction recurring fingerprint | Read the fingerprint's finding (`agent-manager usage friction`); a `search-hub query` command failure caused by the stale CLI base is W3 against search-hub's CLI; a misuse of `--type` tokens is `skill-validation` on the usage skill | external-friction |
 | Filing | S3-share report figure below 0.25 | Promote the next recurring `[S1]` leaf: the capture pair (query-record note + pin) is the candidate; author it under `.vrooli/program-runtime/` and relabel the leaf | the report figure |
 
 ### 6. Anti-gaming

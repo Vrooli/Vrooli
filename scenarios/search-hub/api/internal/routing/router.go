@@ -407,6 +407,10 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 	}
 	scenarioScope := groupScope{}
 	hasExplicit := backgroundEvaluation || req.GetAll() || len(nonEmpty(req.GetTypes())) > 0 || strings.TrimSpace(req.GetGroup()) != ""
+	var variants []string
+	if !backgroundEvaluation && !routingEvaluation && !isRecoveryProbe(ctx) {
+		variants = intentQueries(query)
+	}
 	// Automatic routing has a model-free lexical fallback, so it remains
 	// available even when both local inference resources are stopped.
 
@@ -487,6 +491,12 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		targets, selectionExplain, selectionFallback, selectorLeg, webShaped, selectedLeafCount, widenedLeafCount, fanoutBoundReached, routingIndexReason, selectionReason, routingTrace = r.autoSelect(qctx, autoCandidates, query, selectedStrategy)
 		autoExplain = append(qualityExplain, demotionExplain...)
 		autoExplain = append(autoExplain, selectionExplain...)
+		var added []string
+		targets, added = addIntentProviders(targets, autoCandidates, variants)
+		if len(added) > 0 {
+			widenedLeafCount += len(added)
+			autoExplain = append(autoExplain, "supplemental intent providers: "+strings.Join(added, ", "))
+		}
 		// The LLM classifier was removed from the interactive path. Preserve the
 		// legacy telemetry field as an explicit zero rather than charging lexical
 		// or cross-encoder selection to a retired model.
@@ -515,6 +525,33 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		fetchLimit = scenarioScopeFetchLimit(limit)
 	}
 	groups := r.fanOut(qctx, targets, query, fetchLimit, hasExplicit, scope)
+	if len(variants) > 0 {
+		localTargets, _ := partitionByScope(targets)
+		healthy := make(map[string]bool, len(groups))
+		for _, group := range groups {
+			healthy[group.GetProviderId()] = !group.GetDegraded()
+		}
+		supplementalTargets := make([]*registryv1.ProviderDescriptor, 0, len(localTargets))
+		for _, target := range localTargets {
+			if healthy[target.GetProviderId()] {
+				supplementalTargets = append(supplementalTargets, target)
+			}
+		}
+		intentCtx, cancelIntent := context.WithTimeout(qctx, 900*time.Millisecond)
+		for _, variant := range variants {
+			if intentCtx.Err() != nil || len(supplementalTargets) == 0 {
+				break
+			}
+			extra := r.fanOutWithEvidence(intentCtx, supplementalTargets, variant, min(fetchLimit, 3), hasExplicit, scope, false)
+			intent := ""
+			if len(variants) > 1 {
+				intent = variant
+			}
+			mergeIntentHits(groups, extra, int(fetchLimit)+3*len(variants), intent)
+			autoExplain = append(autoExplain, "supplemental local retrieval: "+variant)
+		}
+		cancelIntent()
+	}
 	groups = collapseDocumentHits(groups)
 	scenarioExamined := 0
 	if scenarioScope.Scenario != "" {
@@ -597,7 +634,7 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		if backgroundEvaluation {
 			resp.RoutingExplanation = []string{"background evaluation: explicit bounded fan-out; classifier and reranker bypassed"}
 		} else if hasExplicit {
-			resp.RoutingExplanation = explain(req, targets)
+			resp.RoutingExplanation = append(explain(req, targets), autoExplain...)
 		} else {
 			resp.RoutingExplanation = append(autoExplain, matchedProvidersLine(targets))
 		}
@@ -1510,6 +1547,10 @@ func resultsWeakness(groups []*routingv1.ProviderResultGroup, threshold float64)
 // fanOut queries every target concurrently (bounded by Concurrency) and returns
 // one group per target, ordered by provider_id for deterministic output.
 func (r *Router) fanOut(ctx context.Context, targets []*registryv1.ProviderDescriptor, query string, limit int32, explicit bool, scope string) []*routingv1.ProviderResultGroup {
+	return r.fanOutWithEvidence(ctx, targets, query, limit, explicit, scope, true)
+}
+
+func (r *Router) fanOutWithEvidence(ctx context.Context, targets []*registryv1.ProviderDescriptor, query string, limit int32, explicit bool, scope string, recordEvidence bool) []*routingv1.ProviderResultGroup {
 	if isRecoveryProbe(ctx) {
 		// The provider must be selected explicitly so a demoted leaf can be
 		// tested, but its result is automatic recovery evidence rather than an
@@ -1525,6 +1566,12 @@ func (r *Router) fanOut(ctx context.Context, targets []*registryv1.ProviderDescr
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
+			if !recordEvidence {
+				// Only providers that answered the original query are passed
+				// here. The supplemental deadline is not health evidence.
+				groups[i] = r.callProvider(ctx, t, query, limit, scope)
+				return
+			}
 			var probeClaimed uint64
 			if !isFailureRecoveryProbe(ctx) {
 				ok, note, claimed := r.providerBreakers.allowClaim(t.GetProviderId(), r.deps.Now())

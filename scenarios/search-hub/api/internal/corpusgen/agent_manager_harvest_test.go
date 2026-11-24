@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -79,15 +80,17 @@ func (f *agentManagerEventsFixture) GetRunEvents(_ context.Context, req *connect
 	return connect.NewResponse(response), nil
 }
 
-func runEvent(id, runID string, sequence int64, data domain.RunEvent_Data) *domain.RunEvent {
-	eventType := domain.RunEventType_RUN_EVENT_TYPE_UNSPECIFIED
-	switch data.(type) {
+func runEvent(id, runID string, sequence int64, data any) *domain.RunEvent {
+	event := &domain.RunEvent{Id: id, RunId: runID, Sequence: sequence}
+	switch data := data.(type) {
 	case *domain.RunEvent_Message:
-		eventType = domain.RunEventType_RUN_EVENT_TYPE_MESSAGE
+		event.EventType = domain.RunEventType_RUN_EVENT_TYPE_MESSAGE
+		event.Data = data
 	case *domain.RunEvent_MessageDeleted:
-		eventType = domain.RunEventType_RUN_EVENT_TYPE_MESSAGE_DELETED
+		event.EventType = domain.RunEventType_RUN_EVENT_TYPE_MESSAGE_DELETED
+		event.Data = data
 	}
-	return &domain.RunEvent{Id: id, RunId: runID, Sequence: sequence, EventType: eventType, Data: data}
+	return event
 }
 
 func serveAgentManagerEventFixture(t *testing.T, fixture *agentManagerEventsFixture) AgentManagerConnectReader {

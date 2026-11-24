@@ -48,7 +48,7 @@ var _ FleetDescriptionEncoder = (*TrustedOllamaFleetDescriptionEncoder)(nil)
 // the resource owner. It does not make an inference request. Construction
 // fails closed unless rights, runtime identity, exact artifact digest, and
 // dimensions all match the locally installed Nomic manifest evidence.
-func NewTrustedOllamaFleetDescriptionEncoder(ctx context.Context, resolver ollamapolicy.Resolver) (*TrustedOllamaFleetDescriptionEncoder, error) {
+func NewTrustedOllamaFleetDescriptionEncoder(ctx context.Context, resolver ollamapolicy.Resolver, observers ...aigateway.EmbeddingObserver) (*TrustedOllamaFleetDescriptionEncoder, error) {
 	resolved, err := resolver.ResolveRole(ctx, ollamaEmbeddingRole)
 	if err != nil {
 		return nil, fmt.Errorf("resolve trusted Ollama embedding role: %w", err)
@@ -60,6 +60,7 @@ func NewTrustedOllamaFleetDescriptionEncoder(ctx context.Context, resolver ollam
 		&http.Client{Timeout: 3 * time.Minute}, ollamaEmbeddingRole, resolved.Model, resolved.EmbeddingDimensions,
 		"search_query: ", "search_document: ",
 		"search_hub.provider_description_fleet.query_and_document_text",
+		observers...,
 	)
 	return newTrustedOllamaFleetDescriptionEncoder(resolved, embedder)
 }

@@ -38,14 +38,16 @@ Schemas are applied on startup through `api-core/database`'s
 | Data | Owning Domain | Storage | Source Of Truth | Retention | Status |
 |---|---|---|---|---|---|
 | Provider descriptors (`providers`) | registry | SQLite | `api/internal/registry/schema.sql` | Until deregistered | **Live — Phase 3.** Full descriptor persisted as a protojson blob plus projected filter columns (`provider_group`, `bucket`, `type`, `state`, `scope`). Includes remaining `CAPABILITY_GAP` stubs (no endpoint); `agent-manager.runs` is a live self-registered provider and no longer has a gap fixture. |
-| Per-query telemetry (`query_telemetry`, `query_telemetry_provider`) | metrics | SQLite | `api/internal/metrics/schema.sql` | Unbounded for v1 (rolling-window prune is a follow-up) | **Live — Phase 7.** Routed types, per-provider hit counts, total count, latency, degraded/zero-result/reranked flags. Query text is SHA-256 **hashed** before storage (no raw text). |
+| Per-query telemetry (`query_telemetry`, `query_telemetry_provider`) | metrics | SQLite | `api/internal/telemetry/schema.sql` | Unbounded for v1 (rolling-window prune is a follow-up) | **Live — Phase 7.** Routed types, per-provider hit counts, total count, latency, degraded/zero-result/reranked flags. Query text is SHA-256 **hashed** before storage (no raw text). |
+| Embedding operation telemetry (`embedding_telemetry`) | metrics | SQLite | `api/internal/telemetry/schema.sql` | Rolling 10,000-row bound | **Source-integrated; serving verification pending.** Typed Search Hub → AI Gateway embedding operations retain only operation kind, stable role/model labels, duration, vector count, outcome and timestamp. The bounded asynchronous observer stores no request text, provenance, vectors or raw errors. |
 
 ## Schema Map
 
 | Table/File/Object | Owner | Defined In | Used By | Status |
 |---|---|---|---|---|
 | `providers` table | registry | `api/internal/registry/schema.sql` | registry store/handlers, routing fan-out | Live — Phase 3 |
-| `query_telemetry` + `query_telemetry_provider` tables | metrics | `api/internal/metrics/schema.sql` | metrics store (Record via routing telemetry bridge) + Insights aggregates | Live — Phase 7 |
+| `query_telemetry` + `query_telemetry_provider` tables | metrics | `api/internal/telemetry/schema.sql` | metrics store (Record via routing telemetry bridge) + Insights aggregates | Live — Phase 7 |
+| `embedding_telemetry` table | metrics | `api/internal/telemetry/schema.sql` | metrics embedding observer and bounded owner reader | Source-integrated; serving verification pending |
 | system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup | Live |
 
 The router imports **no qdrant client** and defines **no corpus-content

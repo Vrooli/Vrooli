@@ -3,8 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 
 import type { QueryResponse } from "@vrooli/proto-types/search-hub/v1/routing/routing_pb";
 
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
