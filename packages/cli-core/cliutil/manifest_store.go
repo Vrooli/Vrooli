@@ -1,6 +1,7 @@
 package cliutil
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -33,6 +34,52 @@ func ReadFreshnessManifest(path string) (manifest FreshnessManifest, ok bool, er
 	}
 	if err := json.Unmarshal(data, &manifest); err != nil {
 		return FreshnessManifest{}, false, fmt.Errorf("parse freshness manifest %s: %w", path, err)
+	}
+	return manifest, true, nil
+}
+
+// readFreshnessManifestHead reads a manifest's header fields and watch
+// without its per-file entries, which dominate its size and are not needed to
+// evaluate the watch. It stops reading at the file list; the writer encodes
+// the watch before it.
+func readFreshnessManifestHead(path string) (FreshnessManifest, bool, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return FreshnessManifest{}, false, nil
+		}
+		return FreshnessManifest{}, false, err
+	}
+	defer file.Close()
+	malformed := func(err error) (FreshnessManifest, bool, error) {
+		return FreshnessManifest{}, false, fmt.Errorf("parse freshness manifest %s: %w", path, err)
+	}
+	decoder := json.NewDecoder(bufio.NewReaderSize(file, 64<<10))
+	if token, err := decoder.Token(); err != nil || token != json.Delim('{') {
+		return malformed(fmt.Errorf("not a JSON object"))
+	}
+	var manifest FreshnessManifest
+	fields := map[string]any{
+		"version": &manifest.Version, "check_type": &manifest.CheckType, "written_at_ns": &manifest.WrittenAtNS,
+		"digest": &manifest.Digest, "inputs": &manifest.Inputs, "key_inputs": &manifest.KeyInputs, "watch": &manifest.Watch,
+	}
+	for decoder.More() {
+		token, err := decoder.Token()
+		if err != nil {
+			return malformed(err)
+		}
+		key, _ := token.(string)
+		if key == "files" {
+			break
+		}
+		target, known := fields[key]
+		if !known {
+			var skipped json.RawMessage
+			target = &skipped
+		}
+		if err := decoder.Decode(target); err != nil {
+			return malformed(err)
+		}
 	}
 	return manifest, true, nil
 }

@@ -23,6 +23,22 @@ func TestInformationalInvocationRecognisesProbes(t *testing.T) {
 	}
 }
 
+// Antigravity's inventory probe (`agy --version`) is not a session either, but
+// only the exact forms its grammar defines: `agy -v` is a flag error, not a
+// version request, and anything else stays governed.
+func TestInformationalInvocationRecognisesAntigravityProbes(t *testing.T) {
+	for _, args := range [][]string{{"--version"}, {"--help"}, {"-h"}} {
+		if !informationalInvocation("agy", args) {
+			t.Fatalf("agy %v asks the binary a question and exits; it is not a session", args)
+		}
+	}
+	for _, args := range [][]string{nil, {"-v"}, {"-V"}, {"doctor"}, {"--version", "-p"}, {"acp", "--help"}} {
+		if informationalInvocation("agy", args) {
+			t.Fatalf("agy %v must be treated as a session", args)
+		}
+	}
+}
+
 // The set is closed on purpose: anything unrecognised stays governed, so a
 // new agent flag is contained and attributed until someone decides otherwise.
 func TestInformationalInvocationTreatsAnythingElseAsASession(t *testing.T) {
@@ -273,9 +289,10 @@ func TestSubcommandHelpRoutingUsesOnlyInformationalPath(t *testing.T) {
 	// Every registered harness is checked independently. A positional word is
 	// not a portable subcommand, and repeated/mixed flags are not qualified probes.
 	for _, agent := range []string{"codex", "claude", "opencode", "grok", "agy"} {
-		qualified := agent != "agy"
+		// agy's grammar (verified against 1.5.3) defines exact --help, -h and
+		// --version; its -v and -V are flag errors and stay governed below.
 		for _, flag := range []string{"--help", "-h", "--version"} {
-			cases = append(cases, invocationCase{agent, []string{flag}, qualified})
+			cases = append(cases, invocationCase{agent, []string{flag}, true})
 		}
 		for _, flag := range []string{"-v", "-V"} {
 			allowed := flag == "-V" && agent == "codex" || flag == "-v" && (agent == "claude" || agent == "opencode")

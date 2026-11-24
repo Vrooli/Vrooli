@@ -77,19 +77,7 @@ func (c *Client) streamChat(ctx context.Context, request ChatRequest, maxLineByt
 	if err != nil {
 		return nil, fmt.Errorf("encode stream request: %w", err)
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/chat/completions", bytes.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "text/event-stream")
-	if c.apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+c.apiKey)
-	}
-	if c.userAgent != "" {
-		req.Header.Set("User-Agent", c.userAgent)
-	}
-	response, err := c.httpClient.Do(req)
+	response, err := c.openRequest(ctx, http.MethodPost, "/chat/completions", body, http.Header{"Accept": []string{"text/event-stream"}}, false)
 	if err != nil {
 		return nil, &providererror.Error{Code: providererror.CodeUnreachable, Err: err}
 	}

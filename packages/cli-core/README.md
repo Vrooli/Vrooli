@@ -230,7 +230,7 @@ importing another governed package only for DTO reuse.
 ## Test Companions
 
 Shared-package consumer test helpers live in top-level `<pkg>test` sibling
-packages, documented in [Shared Package Testing](../../docs/agent-system/SHARED_PACKAGE_TESTING.md).
+packages, documented in [Shared Package Testing](../../docs/TESTING.md#shared-package-test-helpers).
 
 - `cliapptest` provides the convention-compliant import path for test
   `RunContext` constructors. The existing `cliapp.NewTestRunContext` exports
@@ -255,6 +255,31 @@ packages, documented in [Shared Package Testing](../../docs/agent-system/SHARED_
 - For flags/inputs, use `cliutil.JSONFlag`, `StringList`, `ParseCSV`, and `MergeArgs` instead of hand-rolled parsers; read files with `ReadFileString`.
 - Pretty-print JSON responses with `cliutil.PrintJSON` / `PrintJSONMap`.
 - Keep `NeedsAPI` set on commands so the stale-checker can trigger auto-rebuilds before API calls and `--auto-start` can recover a stopped scenario automatically. In agent-controlled contexts, `--auto-start` refuses lifecycle startup and reports the operator command to run outside the agent session.
+
+## Scenario CLI environment
+
+`StandardScenarioEnv` in `cliapp/scenario_env.go` owns the standard variable
+names and order. This table is generated from that function; scenario-specific
+`Extra*EnvVars` remain local additions and belong in the scenario's own
+configuration reference.
+
+Refresh or check the generated table from this package directory:
+
+```sh
+go run ./cmd/scenario-env-docgen --write
+go run ./cmd/scenario-env-docgen --check
+```
+
+<!-- scenario-cli-environment:start -->
+| Purpose | Standard variables (first matching) |
+|---|---|
+| API base URL | `<PREFIX>_API_BASE`, `<PREFIX>_API_URL` |
+| API port | `<PREFIX>_API_PORT` |
+| CLI config directory | `<PREFIX>_CONFIG_DIR`, `VROOLI_CLI_CONFIG_DIR` |
+| CLI source root | `VROOLI_CLI_SOURCE_ROOT`, `<PREFIX>_CLI_SOURCE_ROOT` |
+| API token | `<PREFIX>_API_TOKEN`, `VROOLI_API_TOKEN` |
+| HTTP timeout | `<PREFIX>_HTTP_TIMEOUT`, `VROOLI_HTTP_TIMEOUT` |
+<!-- scenario-cli-environment:end -->
 
 ## Command architecture primitives
 

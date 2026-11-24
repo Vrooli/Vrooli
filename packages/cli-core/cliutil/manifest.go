@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -33,17 +34,6 @@ type FileManifestEntry struct {
 	Explicit bool   `json:"explicit,omitempty"`
 }
 
-// DirectoryManifestEntry records the directories that contain recorded input
-// files. Their metadata lets a warm check detect additions and removals without
-// walking every input directory; a changed directory falls back to the full
-// enumerator so the file-set semantics remain unchanged.
-type DirectoryManifestEntry struct {
-	Rel      string   `json:"rel"`
-	Size     int64    `json:"size"`
-	MTimeNS  int64    `json:"mtime_ns"`
-	Children []string `json:"children,omitempty"`
-}
-
 // FreshnessManifest is the recorded freshness stamp written next to a build
 // artifact at setup success. Staleness becomes a manifest comparison (stat-cache
 // + selective re-hash) rather than a full mtime tree walk. The aggregate Digest
@@ -60,11 +50,18 @@ type FreshnessManifest struct {
 	// NOT the freshness decision input: EvaluateFreshness compares KeyInputs and
 	// per-file entries directly (so it can name the precise offender), never the
 	// aggregate. Retained as a single human-legible "what was this build" handle.
-	Digest      string                   `json:"digest"`
-	Inputs      []string                 `json:"inputs,omitempty"`
-	KeyInputs   map[string]string        `json:"key_inputs,omitempty"`
-	Files       []FileManifestEntry      `json:"files"`
-	Directories []DirectoryManifestEntry `json:"directories,omitempty"`
+	Digest    string            `json:"digest"`
+	Inputs    []string          `json:"inputs,omitempty"`
+	KeyInputs map[string]string `json:"key_inputs,omitempty"`
+	// Watch lets a warm check prove the input set and content unchanged from
+	// metadata alone, without re-enumerating. Absent when the enumeration was
+	// not fully observable; checks then enumerate. It is encoded before Files
+	// so a reader that needs only the watch can stop before the file list.
+	// WatchRecorded distinguishes that case from a manifest written before
+	// watches existed, which is worth restamping once.
+	Watch         *FreshnessWatch     `json:"watch,omitempty"`
+	WatchRecorded bool                `json:"watch_recorded,omitempty"`
+	Files         []FileManifestEntry `json:"files"`
 	// EnvSwitches lists the environment variable names the build's sources
 	// read as switches, so a pre-deploy report can name the switches a newer
 	// tree adds. It is a record of the build, never a freshness input.
@@ -90,21 +87,35 @@ func staleVerdict(reason, file string) FreshnessVerdict {
 // non-file keyed inputs (toolchain version, NODE_ENV, …). writtenAtNS stamps the
 // write time used by the racy-index re-hash rule; callers pass a real clock
 // value (time.Now().UnixNano()).
+//
+// The manifest carries a FreshnessWatch over everything the enumeration read.
+// The Go replace-closure derivation is observed as well, so a checker holding
+// the unexpanded input list can also skip that derivation (see
+// FreshnessWatch.ExpansionStable).
 func ComputeFreshnessManifest(spec FreshnessSpec, checkType string, keyInputs map[string]string, writtenAtNS int64) (FreshnessManifest, error) {
-	entries, err := collectFreshnessEntries(spec)
+	observer := newFreshnessObserver(spec)
+	observed := spec
+	observed.observer = observer
+	expansionStable := slices.Equal(WithGoReplaceFreshnessInputs(observed).Inputs, spec.Inputs)
+	entries, err := collectFreshnessEntries(observed)
 	if err != nil {
 		return FreshnessManifest{}, err
 	}
+	return newFreshnessManifest(spec, checkType, keyInputs, writtenAtNS, entries, observer.watch(spec, expansionStable)), nil
+}
+
+func newFreshnessManifest(spec FreshnessSpec, checkType string, keyInputs map[string]string, writtenAtNS int64, entries []FileManifestEntry, watch *FreshnessWatch) FreshnessManifest {
 	return FreshnessManifest{
-		Version:     freshnessManifestVersion,
-		CheckType:   strings.TrimSpace(checkType),
-		WrittenAtNS: writtenAtNS,
-		Digest:      aggregateManifestDigest(entries, keyInputs),
-		Inputs:      append([]string(nil), spec.Inputs...),
-		KeyInputs:   copyStringMap(keyInputs),
-		Files:       entries,
-		Directories: freshnessInputDirectories(spec, entries),
-	}, nil
+		Version:       freshnessManifestVersion,
+		CheckType:     strings.TrimSpace(checkType),
+		WrittenAtNS:   writtenAtNS,
+		Digest:        aggregateManifestDigest(entries, keyInputs),
+		Inputs:        append([]string(nil), spec.Inputs...),
+		KeyInputs:     copyStringMap(keyInputs),
+		Files:         entries,
+		Watch:         watch,
+		WatchRecorded: true,
+	}
 }
 
 // EvaluateFreshness compares the current input set against the recorded manifest
@@ -117,6 +128,9 @@ func ComputeFreshnessManifest(spec FreshnessSpec, checkType string, keyInputs ma
 //
 // A manifest with the wrong version is reported stale so callers bootstrap a
 // fresh stamp. Callers must verify the recorded check type against their own.
+//
+// When the manifest's watch still holds for this exact spec, the input set and
+// every file are proven unchanged from metadata alone and no enumeration runs.
 func EvaluateFreshness(spec FreshnessSpec, manifest FreshnessManifest, keyInputs map[string]string) (FreshnessVerdict, error) {
 	if manifest.Version != freshnessManifestVersion {
 		return staleVerdict("manifest version mismatch", ""), nil
@@ -124,8 +138,11 @@ func EvaluateFreshness(spec FreshnessSpec, manifest FreshnessManifest, keyInputs
 	if v := compareKeyInputs(manifest.KeyInputs, keyInputs); v.Stale {
 		return v, nil
 	}
+	if manifest.Watch.Holds(spec, manifest.WrittenAtNS) {
+		return FreshnessVerdict{Stale: false}, nil
+	}
 
-	current, err := statFreshnessInputsForManifest(spec, manifest)
+	current, err := statFreshnessInputs(spec)
 	if err != nil {
 		return FreshnessVerdict{}, err
 	}
@@ -256,66 +273,6 @@ func statFreshnessInputs(spec FreshnessSpec) (map[string]statEntry, error) {
 	})
 }
 
-// statFreshnessInputsForManifest enumerates current inputs for comparison.
-func statFreshnessInputsForManifest(spec FreshnessSpec, manifest FreshnessManifest) (map[string]statEntry, error) {
-	// Directory metadata recorded by older manifests does not cover empty
-	// subdirectories or newly expanded glob/closure inputs. Re-enumerate until
-	// a cache can prove it watches every directory and input pattern.
-	return statFreshnessInputs(spec)
-}
-
-func freshnessInputDirectories(spec FreshnessSpec, entries []FileManifestEntry) []DirectoryManifestEntry {
-	contextRoot := filepath.Clean(strings.TrimSpace(spec.ContextRoot))
-	if contextRoot == "" {
-		contextRoot = filepath.Clean(strings.TrimSpace(spec.SourceRoot))
-	}
-	seen := make(map[string]struct{})
-	directories := make([]DirectoryManifestEntry, 0, len(entries))
-	for _, entry := range entries {
-		rel := filepath.ToSlash(filepath.Dir(entry.Rel))
-		if rel == "." {
-			// The source root itself is still relevant for detecting a new
-			// top-level input file.
-		}
-		if _, ok := seen[rel]; ok {
-			continue
-		}
-		abs := filepath.Join(contextRoot, filepath.FromSlash(rel))
-		info, err := os.Stat(abs)
-		if err != nil || !info.IsDir() {
-			continue
-		}
-		seen[rel] = struct{}{}
-		entry := DirectoryManifestEntry{Rel: rel, Size: info.Size(), MTimeNS: info.ModTime().UnixNano()}
-		if rel == "." {
-			entry.Children, _ = freshnessDirectoryChildren(abs, spec)
-		}
-		directories = append(directories, entry)
-	}
-	sort.Slice(directories, func(i, j int) bool { return directories[i].Rel < directories[j].Rel })
-	return directories
-}
-
-func freshnessDirectoryChildren(dir string, spec FreshnessSpec) ([]string, error) {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, err
-	}
-	children := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		name := entry.Name()
-		if isBuildOutput(name) || hasSkippedSuffix(name, spec.SkipSuffixes) {
-			continue
-		}
-		if entry.IsDir() {
-			name += "/"
-		}
-		children = append(children, name)
-	}
-	sort.Strings(children)
-	return children, nil
-}
-
 func collectFreshnessEntries(spec FreshnessSpec) ([]FileManifestEntry, error) {
 	var err error
 	spec, err = withEmbeddedFreshnessInputs(spec)
@@ -373,6 +330,8 @@ func walkFreshnessInputs(spec FreshnessSpec, visit func(root, abs string, info f
 	skipSuffixes := append([]string(nil), spec.SkipSuffixes...)
 	inputs := trimNonEmpty(spec.Inputs)
 	if len(inputs) == 0 {
+		// Git's index and ignore rules decide this set; a watch cannot see them.
+		spec.observer.markUnwatchable()
 		files, _, err := EnumerateInputs(sourceRoot, []string{"."}, EnumerateDeps{})
 		if err != nil {
 			return err
@@ -415,11 +374,15 @@ func walkFreshnessInputs(spec FreshnessSpec, visit func(root, abs string, info f
 			matches = []string{filepath.Join(contextRoot, filepath.FromSlash(input.value))}
 		} else {
 			matches, err = expandDeclaredInputPaths(contextRoot, input.value)
+			if hasGlobPattern(input.value) {
+				spec.observer.globbed(filepath.Join(contextRoot, filepath.FromSlash(input.value)))
+			}
 		}
 		if err != nil {
 			return err
 		}
 		for _, match := range matches {
+			spec.observer.probed(match)
 			linkInfo, linkErr := os.Lstat(match)
 			if linkErr != nil {
 				if os.IsNotExist(linkErr) {
@@ -441,7 +404,7 @@ func walkFreshnessInputs(spec FreshnessSpec, visit func(root, abs string, info f
 				return err
 			}
 			if info.IsDir() {
-				if err := walkTreeInputs(contextRoot, match, skip, skipSuffixes, visit); err != nil {
+				if err := walkTreeInputs(contextRoot, match, skip, skipSuffixes, spec.observer, visit); err != nil {
 					return err
 				}
 				continue
@@ -493,7 +456,7 @@ func explicitlySkippedFile(rel string, skips []string) bool {
 	return false
 }
 
-func walkTreeInputs(root, start string, skip, skipSuffixes []string, visit func(root, abs string, info fs.FileInfo, isCompiled func() bool) error) error {
+func walkTreeInputs(root, start string, skip, skipSuffixes []string, observer *freshnessObserver, visit func(root, abs string, info fs.FileInfo, isCompiled func() bool) error) error {
 	return filepath.WalkDir(start, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -503,16 +466,17 @@ func walkTreeInputs(root, start string, skip, skipSuffixes []string, visit func(
 			return relErr
 		}
 		rel = filepath.ToSlash(rel)
-		if rel == "." {
-			return nil
-		}
 		if d.Type()&os.ModeSymlink != 0 {
 			return nil
 		}
-		if buildinfoSkipDir(root, rel) && d.IsDir() {
+		if rel != "." && buildinfoSkipDir(root, rel) && d.IsDir() {
 			return filepath.SkipDir
 		}
-		if d.IsDir() || buildinfoSkipFile(rel, skip) || hasSkippedSuffix(rel, skipSuffixes) {
+		if d.IsDir() {
+			observer.listed(path)
+			return nil
+		}
+		if rel == "." || buildinfoSkipFile(rel, skip) || hasSkippedSuffix(rel, skipSuffixes) {
 			return nil
 		}
 		info, infoErr := d.Info()
@@ -522,6 +486,9 @@ func walkTreeInputs(root, start string, skip, skipSuffixes []string, visit func(
 		if !info.Mode().IsRegular() {
 			return nil
 		}
+		// Record metadata before the visitor reads content: a write between the
+		// two then shows as changed metadata instead of hiding behind the hash.
+		observer.read(path, info)
 		return visit(root, path, info, magicPeek(path))
 	})
 }

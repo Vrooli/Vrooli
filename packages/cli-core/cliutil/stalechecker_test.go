@@ -19,6 +19,9 @@ func checkStaleForTest(t *testing.T, checker *StaleChecker) bool {
 	if checker.InstallName == "" {
 		checker.InstallName = checker.AppName
 	}
+	if checker.InstalledManifest == "" {
+		checker.InstalledManifest = filepath.Join(t.TempDir(), "installed.freshness.json")
+	}
 	controlPlane := filepath.Join(t.TempDir(), "vrooli")
 	if err := os.WriteFile(controlPlane, []byte("test executable"), 0o755); err != nil {
 		t.Fatal(err)

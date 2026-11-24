@@ -35,6 +35,7 @@ type ManifestCommand struct {
 	Aliases      []string              `json:"aliases,omitempty"`
 	Description  string                `json:"description,omitempty"`
 	NeedsAPI     *bool                 `json:"needs_api,omitempty"`
+	LatencyBound bool                  `json:"latency_bound,omitempty"` // see Command.LatencyBound
 	Positionals  []ManifestPositional  `json:"positionals,omitempty"`
 	Flags        []ManifestFlag        `json:"flags,omitempty"`
 	Binding      ManifestBinding       `json:"binding"`
@@ -395,6 +396,7 @@ func loadFromManifest(raw []byte, groupName string, bindings map[string]boundHan
 			Description:       c.Description,
 			NeedsAPI:          commandNeedsAPI,
 			NeedsAPIOverride:  c.NeedsAPI,
+			LatencyBound:      c.LatencyBound,
 			Args:              args,
 			RunCtx:            handler.run,
 			Architecture:      declared,

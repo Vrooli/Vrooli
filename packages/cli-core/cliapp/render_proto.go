@@ -8,18 +8,19 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// protoJSONOptions matches Connect-Go's wire format: snake_case field names so
-// machine consumers can round-trip through protojson.Unmarshal / fromJson, plus
-// indented output for readability when piped through tools like jq.
+// protoJSONOptions is the established CLI --json contract: protobuf field
+// names (snake_case) and indented output. Connect JSON uses the standard
+// protobuf lowerCamelCase names instead; ProtoListWithConnectJSONFlag exposes
+// that spelling as an explicit, additive consumer option.
 var protoJSONOptions = protojson.MarshalOptions{
 	UseProtoNames: true,
 	Multiline:     true,
 	Indent:        "  ",
 }
 
-// PrintProtoJSON marshals msg as canonical proto JSON to w. Field names match
-// the wire format every Connect-RPC client speaks, so the same `jq` queries
-// work against `cli foo list --json` and a direct `curl` of the API.
+// PrintProtoJSON marshals msg using the established CLI proto-name contract.
+// This is schema-shaped protobuf JSON, not the canonical lowerCamelCase JSON
+// spelling used by Connect's HTTP codec.
 func PrintProtoJSON(w io.Writer, msg proto.Message) error {
 	return printProtoJSONWithOptions(w, msg, protoJSONOptions)
 }
@@ -44,9 +45,10 @@ func printProtoJSONWithOptions(w io.Writer, msg proto.Message, options protojson
 // per-domain `<thing>JSON` ribbon that would otherwise re-derive the proto
 // shape with hand-typed structs.
 //
-// JSON consumers receive the proto wire shape — no `summary` / `retrieval_hints`
-// wrapper. Those are human affordances; machine consumers parse the typed
-// payload directly.
+// JSON consumers receive the protobuf message shape — no `summary` /
+// `retrieval_hints` wrapper. Those are human affordances; machine consumers
+// parse the typed payload directly. ProtoList uses the legacy snake_case
+// spelling; opt in to lowerCamelCase when matching a Connect JSON endpoint.
 func RenderProtoList(ctx RunContext, payload proto.Message, human ListReport) error {
 	return RenderProtoListWithJSONOptions(ctx, payload, human, protoJSONOptions)
 }

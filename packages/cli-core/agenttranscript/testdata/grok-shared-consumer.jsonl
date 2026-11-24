@@ -1,0 +1,3 @@
+{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"grok-shared-synthetic-session","update":{"sessionUpdate":"user_message_chunk","content":{"type":"text","text":"What does the shared Grok ACP fixture prove?"}}}}
+{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"grok-shared-synthetic-session","update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"The shared Grok ACP fixture proves groksharedsearch across independent transcript consumers."}}},"_meta":{"eventId":"grok-shared-assistant-1"}}
+{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"grok-shared-synthetic-session","update":{"sessionUpdate":"turn_completed","stop_reason":"end_turn"}}}

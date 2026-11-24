@@ -104,9 +104,32 @@ type ChatResult struct {
 	Usage Usage
 }
 
+// OpenRawRequest sends an already-encoded provider-compatible request and
+// returns the unclassified response for providers with extended payloads or
+// error contracts. The caller owns response decoding, status mapping, and
+// closing the response body. Shared bearer, user-agent, content-type, and HTTP
+// transport handling stay in this package.
+func (c *Client) OpenRawRequest(ctx context.Context, method, path string, payload []byte, headers http.Header) (*http.Response, error) {
+	return c.openRequest(ctx, method, path, payload, headers, true)
+}
+
 // ListModels fetches the provider's /models payload.
 func (c *Client) ListModels(ctx context.Context) ([]byte, error) {
 	return c.do(ctx, http.MethodGet, "/models", nil)
+}
+
+// ProbeAPIKey sends an authenticated GET to a provider-specific key-check
+// endpoint. It returns the HTTP status for the caller to interpret because
+// OpenAI-compatible providers do not share one key-probe response contract.
+// Request construction, bearer handling, transport and response closure stay
+// with this shared client.
+func (c *Client) ProbeAPIKey(ctx context.Context, path string) (int, error) {
+	response, err := c.OpenRawRequest(ctx, http.MethodGet, path, nil, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer response.Body.Close()
+	return response.StatusCode, nil
 }
 
 // Chat performs a chat completion.
@@ -162,28 +185,7 @@ func marshalRequest(request ChatRequest) ([]byte, error) {
 }
 
 func (c *Client) do(ctx context.Context, method, path string, body []byte) ([]byte, error) {
-	if c.baseURL == "" {
-		return nil, &providererror.Error{Code: providererror.CodeUnconfigured, Message: "provider base URL is required"}
-	}
-	url := c.baseURL + path
-	var reader io.Reader
-	if body != nil {
-		reader = bytes.NewReader(body)
-	}
-	req, err := http.NewRequestWithContext(ctx, method, url, reader)
-	if err != nil {
-		return nil, err
-	}
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-	if c.apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+c.apiKey)
-	}
-	if c.userAgent != "" {
-		req.Header.Set("User-Agent", c.userAgent)
-	}
-	response, err := c.httpClient.Do(req)
+	response, err := c.openRequest(ctx, method, path, body, nil, false)
 	if err != nil {
 		return nil, &providererror.Error{Code: providererror.CodeUnreachable, Err: err}
 	}
@@ -196,6 +198,33 @@ func (c *Client) do(ctx context.Context, method, path string, body []byte) ([]by
 		return nil, providererror.NewHTTP(response.StatusCode, response.Header.Get("Retry-After"), errorDetail(raw))
 	}
 	return raw, nil
+}
+
+func (c *Client) openRequest(ctx context.Context, method, path string, body []byte, headers http.Header, sendEmptyBearer bool) (*http.Response, error) {
+	if c.baseURL == "" {
+		return nil, &providererror.Error{Code: providererror.CodeUnconfigured, Message: "provider base URL is required"}
+	}
+	var reader io.Reader
+	if body != nil {
+		reader = bytes.NewReader(body)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, reader)
+	if err != nil {
+		return nil, err
+	}
+	if headers != nil {
+		req.Header = headers.Clone()
+	}
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	if c.apiKey != "" || sendEmptyBearer {
+		req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	}
+	if c.userAgent != "" {
+		req.Header.Set("User-Agent", c.userAgent)
+	}
+	return c.httpClient.Do(req)
 }
 
 func errorDetail(raw []byte) string {

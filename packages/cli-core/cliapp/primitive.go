@@ -72,6 +72,35 @@ func ProtoList[Resp proto.Message](
 	return protoListWithJSONOptions(call, report, protoJSONOptions)
 }
 
+// ProtoListWithConnectJSONFlag adds an opt-in JSON spelling for consumers
+// that share payloads with a Connect JSON endpoint. The named boolean flag
+// switches only the serializer's field-name policy to protobuf's standard
+// lowerCamelCase mapping; ordinary --json keeps ProtoList's established
+// UseProtoNames snake_case contract. The operation and human renderer remain
+// identical in either mode.
+//
+// Use this only when a command's API JSON contract has been checked against
+// the actual Connect codec. The opt-in keeps existing CLI scripts stable while
+// allowing a specific machine consumer to use the API's field names.
+func ProtoListWithConnectJSONFlag[Resp proto.Message](
+	call func(ctx OperationContext) (Resp, error),
+	report func(ctx OperationContext, resp Resp) ListReport,
+	flagName string,
+) PrimitiveHandler {
+	connectJSONOptions := protojson.MarshalOptions{Multiline: true, Indent: "  "}
+	return PrimitiveHandler{primitive: PrimitiveProtoList, Run: func(ctx RunContext) error {
+		resp, err := call(ctx)
+		if err != nil {
+			return err
+		}
+		options := protoJSONOptions
+		if ctx.BoolFlag(flagName) {
+			options = connectJSONOptions
+		}
+		return RenderProtoListWithJSONOptions(ctx, resp, report(ctx, resp), options)
+	}}
+}
+
 // ProtoListEmitUnpopulatedJSON is ProtoList with explicit zero-valued proto
 // fields in its machine-readable output. It is intended for diagnostic
 // responses where the presence of a zero is meaningful evidence (for example,
@@ -146,6 +175,28 @@ func ProtoMutation[Resp proto.Message](
 		resp, err := call(ctx)
 		if err != nil {
 			return err
+		}
+		return RenderProtoMutation(ctx, resp, report(ctx, resp))
+	}}
+}
+
+// ProtoMutationWithJSONRenderer is ProtoMutation with a domain-specific JSON
+// renderer for responses whose protobuf payload contains data already written
+// to local output files. The operation remains output-mode agnostic and the
+// primitive evidence remains proto_mutation; only post-operation rendering is
+// specialized. A nil json renderer preserves the canonical proto JSON output.
+func ProtoMutationWithJSONRenderer[Resp proto.Message](
+	call func(ctx OperationContext) (Resp, error),
+	report func(ctx OperationContext, resp Resp) MutationReport,
+	jsonRenderer func(ctx RunContext, resp Resp) error,
+) PrimitiveHandler {
+	return PrimitiveHandler{primitive: PrimitiveProtoMutation, Run: func(ctx RunContext) error {
+		resp, err := call(ctx)
+		if err != nil {
+			return err
+		}
+		if ctx.JSON() && jsonRenderer != nil {
+			return jsonRenderer(ctx, resp)
 		}
 		return RenderProtoMutation(ctx, resp, report(ctx, resp))
 	}}
@@ -232,6 +283,81 @@ func Action[Resp any](
 		}
 		return RenderAction(ctx, resp, report(ctx, resp))
 	}}
+}
+
+// ActionCustomRenderers is Action with separate human and JSON renderers for
+// legacy or domain-specific action output. The operation callback still runs
+// exactly once and cannot inspect output mode.
+func ActionCustomRenderers[Resp any](
+	call func(ctx OperationContext) (Resp, error),
+	human func(ctx RunContext, resp Resp) error,
+	json func(ctx RunContext, resp Resp) error,
+) PrimitiveHandler {
+	return PrimitiveHandler{primitive: PrimitiveAction, Run: func(ctx RunContext) error {
+		resp, err := call(ctx)
+		if err != nil {
+			return err
+		}
+		render := human
+		if ctx.JSON() {
+			render = json
+		}
+		if render == nil {
+			return fmt.Errorf("custom action renderer is required")
+		}
+		return render(ctx, resp)
+	}}
+}
+
+// ProtoCustom builds a renderer-separated single-call handler for proto RPCs
+// whose human presentation is domain-specific. JSON remains the canonical
+// proto JSON representation, while human receives the typed response and owns
+// only its presentation. The operation callback receives OperationContext, so
+// it cannot branch on --json. Declare architecture.primitive "action".
+//
+// This is intended for compact capability/status views that do not fit the
+// ListReport, MutationReport, or OperationalReport shapes. Commands with a
+// standard report should use the corresponding Proto* primitive instead.
+func ProtoCustom[Resp proto.Message](
+	call func(ctx OperationContext) (Resp, error),
+	human func(ctx RunContext, resp Resp) error,
+) PrimitiveHandler {
+	return ProtoCustomRenderers(call, human, nil)
+}
+
+// ProtoCustomRenderers is ProtoCustom with an optional JSON renderer. When
+// json is nil, canonical proto JSON is emitted. Supplying json supports legacy
+// commands whose machine-mode output is a domain-specific stream or text shape.
+// Both renderers run only after the same output-agnostic operation callback.
+func ProtoCustomRenderers[Resp proto.Message](
+	call func(ctx OperationContext) (Resp, error),
+	human func(ctx RunContext, resp Resp) error,
+	json func(ctx RunContext, resp Resp) error,
+) PrimitiveHandler {
+	return PrimitiveHandler{primitive: PrimitiveAction, Run: func(ctx RunContext) error {
+		resp, err := call(ctx)
+		if err != nil {
+			return err
+		}
+		if ctx.JSON() {
+			if json != nil {
+				return json(ctx, resp)
+			}
+			return PrintProtoJSON(ctx.Stdout(), resp)
+		}
+		if human == nil {
+			return fmt.Errorf("custom proto human renderer is required")
+		}
+		return human(ctx, resp)
+	}}
+}
+
+// Streaming builds a command handler for an intentionally long-lived stream
+// whose event lifecycle cannot be represented by a single request/response
+// primitive. It stamps streaming exception evidence without claiming renderer
+// separation. Declare architecture.exception.class "streaming".
+func Streaming(run func(RunContext) error) PrimitiveHandler {
+	return PrimitiveHandler{primitive: PrimitiveStreaming, Run: run}
 }
 
 // ContentAction is an action whose result is the content itself (artifact

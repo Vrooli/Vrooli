@@ -70,6 +70,47 @@ func FindCommand(tb testing.TB, groups []cliapp.SubcommandGroup, group, name str
 	return cliapp.Command{}
 }
 
+// RequireCommandGroups checks the complete expected group and subcommand names
+// produced by an aggregator. It detects omitted, extra, duplicate, and
+// misspelled registrations without making tests depend on manifest order.
+func RequireCommandGroups(tb testing.TB, groups []cliapp.SubcommandGroup, want map[string][]string) {
+	tb.Helper()
+	if len(groups) != len(want) {
+		tb.Fatalf("cliapptest: got %d command groups, want %d", len(groups), len(want))
+	}
+	seen := make(map[string]bool, len(groups))
+	for _, group := range groups {
+		expected, ok := want[group.Name]
+		if !ok {
+			tb.Fatalf("cliapptest: unexpected command group %q", group.Name)
+		}
+		if seen[group.Name] {
+			tb.Fatalf("cliapptest: duplicate command group %q", group.Name)
+		}
+		seen[group.Name] = true
+		commands := make(map[string]int, len(group.Subcommands))
+		for _, command := range group.Subcommands {
+			commands[command.Name]++
+		}
+		if len(commands) != len(expected) || len(group.Subcommands) != len(expected) {
+			tb.Fatalf("cliapptest: group %q commands = %v, want %v", group.Name, commandNames(group.Subcommands), expected)
+		}
+		for _, name := range expected {
+			if commands[name] != 1 {
+				tb.Fatalf("cliapptest: group %q commands = %v, want %v", group.Name, commandNames(group.Subcommands), expected)
+			}
+		}
+	}
+}
+
+func commandNames(commands []cliapp.Command) []string {
+	names := make([]string, 0, len(commands))
+	for _, command := range commands {
+		names = append(names, command.Name)
+	}
+	return names
+}
+
 // RunCommand parses argv through the production parser and invokes the command,
 // returning whatever it wrote to stdout.
 //

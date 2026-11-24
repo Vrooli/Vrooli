@@ -2,6 +2,7 @@ package cliapp
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -125,6 +126,42 @@ func TestProtoMutation_RendersMutationHumanAndProtoJSON(t *testing.T) {
 	}
 }
 
+func TestProtoMutationWithJSONRendererCanOmitLocallyWrittenPayload(t *testing.T) {
+	calls, reportCalls, jsonCalls := 0, 0, 0
+	ph := ProtoMutationWithJSONRenderer(
+		func(OperationContext) (*wrapperspb.BytesValue, error) {
+			calls++
+			return wrapperspb.Bytes([]byte("audio-payload")), nil
+		},
+		func(OperationContext, *wrapperspb.BytesValue) MutationReport {
+			reportCalls++
+			return MutationReport{Result: []string{"Wrote audio output."}}
+		},
+		func(ctx RunContext, resp *wrapperspb.BytesValue) error {
+			jsonCalls++
+			return PrintJSON(ctx.Stdout(), map[string]int{"bytes_written": len(resp.GetValue())})
+		},
+	)
+	if ph.Primitive() != PrimitiveProtoMutation {
+		t.Fatalf("ProtoMutationWithJSONRenderer evidence = %q, want proto_mutation", ph.Primitive())
+	}
+
+	human, err := runPrimitive(t, ph.Run, false)
+	if err != nil || !strings.Contains(human, "Wrote audio output.") {
+		t.Fatalf("human output = %q, err=%v", human, err)
+	}
+	jsonOut, err := runPrimitive(t, ph.Run, true)
+	if err != nil {
+		t.Fatalf("json render: %v", err)
+	}
+	if !strings.Contains(jsonOut, `"bytes_written": 13`) || strings.Contains(jsonOut, "audio-payload") || strings.Contains(jsonOut, "YXVkaW8tcGF5bG9hZA==") {
+		t.Fatalf("custom JSON output did not omit the locally written payload: %q", jsonOut)
+	}
+	if calls != 2 || reportCalls != 1 || jsonCalls != 1 {
+		t.Fatalf("calls=%d reportCalls=%d jsonCalls=%d, want 2/1/1", calls, reportCalls, jsonCalls)
+	}
+}
+
 func TestProtoOperational_RendersOperationalHumanAndProtoJSON(t *testing.T) {
 	ph := ProtoOperational(
 		func(ctx OperationContext) (*wrapperspb.StringValue, error) { return wrapperspb.String("ok"), nil },
@@ -193,6 +230,86 @@ func TestAction_RendersMutationHumanAndJSON(t *testing.T) {
 	}
 	if calls != 2 {
 		t.Fatalf("expected action call once per invocation, got %d", calls)
+	}
+}
+
+func TestProtoCustom_SeparatesSpecializedHumanFromProtoJSON(t *testing.T) {
+	calls, humanCalls := 0, 0
+	ph := ProtoCustom(
+		func(OperationContext) (*wrapperspb.StringValue, error) {
+			calls++
+			return wrapperspb.String("transcript"), nil
+		},
+		func(ctx RunContext, resp *wrapperspb.StringValue) error {
+			humanCalls++
+			_, err := fmt.Fprintf(ctx.Stdout(), "Transcript: %s\n", resp.GetValue())
+			return err
+		},
+	)
+	if ph.Primitive() != PrimitiveAction {
+		t.Fatalf("ProtoCustom evidence = %q, want action", ph.Primitive())
+	}
+	human, err := runPrimitive(t, ph.Run, false)
+	if err != nil || human != "Transcript: transcript\n" {
+		t.Fatalf("human output = %q, err=%v", human, err)
+	}
+	jsonOut, err := runPrimitive(t, ph.Run, true)
+	if err != nil {
+		t.Fatalf("JSON render: %v", err)
+	}
+	if strings.TrimSpace(jsonOut) != `"transcript"` || strings.Contains(jsonOut, "Transcript:") {
+		t.Fatalf("JSON output changed from proto JSON contract: %q", jsonOut)
+	}
+	if calls != 2 || humanCalls != 1 {
+		t.Fatalf("calls=%d human render calls=%d, want 2 and 1", calls, humanCalls)
+	}
+}
+
+func TestStreaming_RecordsLifecycleException(t *testing.T) {
+	ph := Streaming(func(ctx RunContext) error {
+		_, err := fmt.Fprintln(ctx.Stdout(), "stream complete")
+		return err
+	})
+	if ph.Primitive() != PrimitiveStreaming {
+		t.Fatalf("Streaming evidence = %q, want streaming", ph.Primitive())
+	}
+	for _, jsonMode := range []bool{false, true} {
+		out, err := runPrimitive(t, ph.Run, jsonMode)
+		if err != nil {
+			t.Fatalf("run json=%t: %v", jsonMode, err)
+		}
+		if out != "stream complete\n" {
+			t.Fatalf("run json=%t output = %q", jsonMode, out)
+		}
+	}
+}
+
+func TestActionCustomRenderers_KeepOperationOutputModeIndependent(t *testing.T) {
+	calls, humanCalls, jsonCalls := 0, 0, 0
+	ph := ActionCustomRenderers(
+		func(OperationContext) (string, error) { calls++; return "result", nil },
+		func(ctx RunContext, value string) error {
+			humanCalls++
+			_, err := fmt.Fprintln(ctx.Stdout(), "legacy:", value)
+			return err
+		},
+		func(ctx RunContext, value string) error {
+			jsonCalls++
+			_, err := fmt.Fprintln(ctx.Stdout(), "legacy:", value)
+			return err
+		},
+	)
+	if ph.Primitive() != PrimitiveAction {
+		t.Fatalf("ActionCustomRenderers evidence = %q, want action", ph.Primitive())
+	}
+	for _, jsonMode := range []bool{false, true} {
+		out, err := runPrimitive(t, ph.Run, jsonMode)
+		if err != nil || out != "legacy: result\n" {
+			t.Fatalf("json=%t output=%q err=%v", jsonMode, out, err)
+		}
+	}
+	if calls != 2 || humanCalls != 1 || jsonCalls != 1 {
+		t.Fatalf("calls=%d human=%d json=%d, want 2/1/1", calls, humanCalls, jsonCalls)
 	}
 }
 

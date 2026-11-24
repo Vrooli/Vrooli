@@ -1,5 +1,5 @@
-// Package agenttranscript is the single reader of the goal, context-size and
-// compaction records in Claude and Codex transcripts. Web Console and Agent
+// Package agenttranscript is the shared reader of goal, context-size and
+// compaction records in native harness transcripts and APIs. Web Console and Agent
 // Manager both import it and must not depend on each other, so it imports only
 // the standard library and adds nothing to any module's go.sum.
 //
@@ -22,8 +22,10 @@ import (
 
 // Harnesses whose transcripts this package reads, by harness ID.
 const (
-	HarnessClaude = "claude"
-	HarnessCodex  = "codex"
+	HarnessClaude   = "claude"
+	HarnessCodex    = "codex"
+	HarnessOpenCode = "opencode"
+	HarnessGrok     = "grok"
 )
 
 // Codex goal statuses that leave nothing running. Every other status holds a
@@ -300,45 +302,85 @@ func (t *GoalTracker) finish(objective, thread string) {
 }
 
 // LastContextTokens finds the request size of the newest response in buf:
-// Claude's main-thread assistant usage (input plus cache reads and writes) or
-// Codex's last_token_usage input. A report of zero is not a reading, so the
-// search carries on to the one before it.
+// Claude's main-thread assistant usage, Codex's last_token_usage input, or
+// OpenCode assistant usage (input plus cache reads and writes). A report of
+// zero is not a reading, so the search carries on to the one before it.
 func LastContextTokens(buf []byte, harness string) (int64, bool) {
+	tokens, _, found := LastContextUsage(buf, harness)
+	return tokens, found
+}
+
+// LastContextUsage returns the newest native prompt-context count and model
+// ID when the harness reports them. Model can be empty when that format does
+// not identify a model alongside usage.
+func LastContextUsage(buf []byte, harness string) (int64, string, bool) {
 	lines := bytes.Split(buf, []byte("\n"))
 	for i := len(lines) - 1; i >= 0; i-- {
 		var tokens int64
+		var model string
 		switch harness {
 		case HarnessClaude:
-			tokens = claudeContextTokens(lines[i])
+			tokens, model = claudeContextUsage(lines[i])
 		case HarnessCodex:
 			tokens = codexContextTokens(lines[i])
+		case HarnessOpenCode:
+			tokens, model, _ = OpenCodeUsage(lines[i])
 		}
 		if tokens > 0 {
-			return tokens, true
+			return tokens, model, true
 		}
 	}
-	return 0, false
+	return 0, "", false
+}
+
+// OpenCodeUsage reads the per-message native API record's selected model and
+// prompt-context usage. Output and reasoning tokens are excluded; cached read
+// and write tokens are included in the prompt context. A message without a
+// positive, reported count remains unknown.
+func OpenCodeUsage(info []byte) (tokens int64, model string, found bool) {
+	var message struct {
+		Role    string `json:"role"`
+		ModelID string `json:"modelID"`
+		Tokens  struct {
+			Input int64 `json:"input"`
+			Cache struct {
+				Read  int64 `json:"read"`
+				Write int64 `json:"write"`
+			} `json:"cache"`
+		} `json:"tokens"`
+	}
+	if json.Unmarshal(info, &message) != nil || message.Role != "assistant" {
+		return 0, "", false
+	}
+	tokens = message.Tokens.Input + message.Tokens.Cache.Read + message.Tokens.Cache.Write
+	if tokens <= 0 {
+		return 0, message.ModelID, false
+	}
+	return tokens, message.ModelID, true
 }
 
 func claudeContextTokens(line []byte) int64 {
+	tokens, _ := claudeContextUsage(line)
+	return tokens
+}
+
+func claudeContextUsage(line []byte) (int64, string) {
 	if !bytes.Contains(line, []byte(`"usage"`)) || !bytes.Contains(line, []byte(`"assistant"`)) {
-		return 0
+		return 0, ""
 	}
 	var entry struct {
 		Type        string `json:"type"`
 		IsSidechain bool   `json:"isSidechain"`
 		Message     struct {
-			Usage struct {
-				Input  int64 `json:"input_tokens"`
-				Read   int64 `json:"cache_read_input_tokens"`
-				Create int64 `json:"cache_creation_input_tokens"`
-			} `json:"usage"`
+			Model string      `json:"model"`
+			Usage ClaudeUsage `json:"usage"`
 		} `json:"message"`
 	}
 	if json.Unmarshal(line, &entry) != nil || entry.Type != "assistant" || entry.IsSidechain {
-		return 0
+		return 0, ""
 	}
-	return entry.Message.Usage.Input + entry.Message.Usage.Read + entry.Message.Usage.Create
+	usage := entry.Message.Usage
+	return int64(usage.InputTokens + usage.CacheReadInputTokens + usage.CacheCreationInputTokens), entry.Message.Model
 }
 
 func codexContextTokens(line []byte) int64 {

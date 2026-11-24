@@ -16,9 +16,11 @@ const (
 	guardModeStateFile = "guard-modes.json"
 	guardModeAuditFile = "guard-modes.audit.jsonl"
 	guardModeLockFile  = ".guard-modes.lock"
-	maxGuardModeTTL    = 7 * 24 * time.Hour
+	// MaxModeTTL bounds every log-only interval, from the terminal or from an
+	// answered decision. A permanent change belongs in the shipped policy.
+	MaxModeTTL         = 30 * 24 * time.Hour
+	maxGuardModeTTL    = MaxModeTTL
 	maxGuardModeAudits = 10000
-	restoreLockWait    = 500 * time.Millisecond
 	answerLockWait     = 5 * time.Second
 )
 
@@ -115,8 +117,8 @@ func (s *Store) SetLogOnlyFromAnswer(check CheckID, expiresAt time.Time, reason,
 	}
 	now := s.now()
 	expiresAt = expiresAt.UTC()
-	if !expiresAt.After(now) || expiresAt.After(now.Add(24*time.Hour)) {
-		return errors.New("answer-authorized expiry must be after now and within 24 hours")
+	if !expiresAt.After(now) || expiresAt.After(now.Add(MaxModeTTL)) {
+		return fmt.Errorf("answer-authorized expiry must be after now and within %s", MaxModeTTL)
 	}
 	reason, actor = strings.TrimSpace(reason), strings.TrimSpace(actor)
 	if reason == "" || actor == "" {
@@ -269,27 +271,31 @@ func (s *Store) Audit() ([]GuardModeAudit, error) {
 	return s.readAuditLocked()
 }
 
-func (s *Store) RestoreAll(hardStop HardStop, eventID string, now time.Time) ([]CheckID, error) {
+// ModeFor reports, without taking the store lock, the unexpired mode for one
+// check. The state file is only ever replaced by an atomic rename, so a hook
+// reads a whole state and concurrent agents never contend for the lock. A
+// missing file means no mode. A mode the journal has already ended may still
+// show until the next locked read rewrites the state.
+func (s *Store) ModeFor(check CheckID, now time.Time) (GuardMode, bool, error) {
 	if s == nil || strings.TrimSpace(s.Dir) == "" {
-		return nil, errors.New("guard mode directory is required")
+		return GuardMode{}, false, errors.New("guard mode directory is required")
 	}
-	var restored []CheckID
-	err := s.updateWithBusyRetry(restoreLockWait, func(state *guardModeState) error {
-		restored = nil
-		if len(state.Active) == 0 {
-			return nil
-		}
-		for check := range state.Active {
-			restored = append(restored, check)
-		}
-		sort.Slice(restored, func(i, j int) bool { return restored[i] < restored[j] })
-		if err := s.appendAuditLocked(GuardModeAudit{At: now.UTC(), Action: "restored", HardStop: hardStop, EventID: eventID, RestoredChecks: restored}); err != nil {
-			return err
-		}
-		state.Active = map[CheckID]GuardMode{}
-		return nil
-	})
-	return restored, err
+	data, err := os.ReadFile(filepath.Join(s.Dir, guardModeStateFile))
+	if errors.Is(err, os.ErrNotExist) {
+		return GuardMode{}, false, nil
+	}
+	if err != nil {
+		return GuardMode{}, false, err
+	}
+	var state guardModeState
+	if err := json.Unmarshal(data, &state); err != nil {
+		return GuardMode{}, false, fmt.Errorf("parse guard mode state: %w", err)
+	}
+	mode, ok := state.Active[check]
+	if !ok || !mode.ExpiresAt.After(now) {
+		return GuardMode{}, false, nil
+	}
+	return mode, true, nil
 }
 
 func (s *Store) updateWithBusyRetry(timeout time.Duration, mutate func(*guardModeState) error) error {

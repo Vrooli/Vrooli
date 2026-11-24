@@ -180,7 +180,7 @@ func TestSourcePackageDirsKeepsNestedCoveragePackages(t *testing.T) {
 	mustWriteFile(t, filepath.Join(root, "api", "internal", "ui", "coverage", "check.go"), "package coverage\n")
 	mustWriteFile(t, filepath.Join(root, "scenarios", "demo", "ui", "coverage", "report.go"), "package coverage\n")
 
-	got := sourcePackageDirs(root)
+	got := sourcePackageDirs(root, nil)
 	seen := make(map[string]bool, len(got))
 	for _, dir := range got {
 		rel, err := filepath.Rel(root, dir)

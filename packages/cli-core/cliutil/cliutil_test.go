@@ -413,6 +413,25 @@ func TestHTTPClientHeaderSourceInjectsHeaders(t *testing.T) {
 	}
 }
 
+func TestDoWithHeadersAreRequestLocal(t *testing.T) {
+	seen := make([]string, 0, 2)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen = append(seen, r.Header.Get("X-Short-Lived-Receipt"))
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	client := NewHTTPClient(HTTPClientOptions{BaseOptions: APIBaseOptions{DefaultBase: server.URL}})
+	if _, err := client.DoWithHeaders(context.Background(), http.MethodPost, "/managed", nil, nil, map[string]string{"X-Short-Lived-Receipt": "opaque"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.Do(http.MethodPost, "/ordinary", nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	if len(seen) != 2 || seen[0] != "opaque" || seen[1] != "" {
+		t.Fatalf("request-local header leaked: %#v", seen)
+	}
+}
+
 func TestHTTPClientHeaderSourceClearsWhenNil(t *testing.T) {
 	gotHeader := ""
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

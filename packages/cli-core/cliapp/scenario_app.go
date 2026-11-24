@@ -517,6 +517,15 @@ func (a *ScenarioApp) Request(method, path string, query url.Values, body interf
 	return a.APIClient.Request(method, a.APIPath(path), query, body)
 }
 
+// RequestWithHeaders performs one versioned API request with request-local
+// headers that are not retained on the shared CLI client.
+func (a *ScenarioApp) RequestWithHeaders(method, path string, query url.Values, body interface{}, headers map[string]string) ([]byte, error) {
+	if a.APIClient == nil {
+		a.APIClient = cliutil.NewAPIClient(a.HTTPClient, a.APIBaseOptions, a.tokenSource)
+	}
+	return a.APIClient.RequestWithHeaders(method, a.APIPath(path), query, body, headers)
+}
+
 // GetRoot performs a GET request against the scenario's root API base.
 func (a *ScenarioApp) GetRoot(path string, query url.Values) ([]byte, error) {
 	return a.rootRequest("GET", a.APIRootPath(path), query, nil)

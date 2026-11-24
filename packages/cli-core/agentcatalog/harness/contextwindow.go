@@ -11,19 +11,24 @@ import (
 	"time"
 )
 
-// Where a harness reports its model context windows.
+// Where a harness reports its model context windows. The suffix versions the
+// reader contract and its interpretation, not the upstream model. Bump it if
+// the native evidence shape or parser changes.
 const (
-	WindowSourceClaudeStatusline = "claude-statusline"
-	WindowSourceCodexModelsCache = "codex-models-cache"
+	WindowSourceClaudeStatusline = "claude-statusline/v1"
+	WindowSourceCodexModelsCache = "codex-models-cache/v1"
 )
 
 const (
 	// ModelWindowsEnv overrides the Claude status line's window record path.
 	ModelWindowsEnv = "VROOLI_CLAUDE_MODEL_WINDOWS"
 
-	maxWindowFileBytes = 16 << 20
-	maxRecordedModels  = 128
-	maxModelIDLength   = 128
+	maxWindowFileBytes   = 16 << 20
+	maxRecordedModels    = 128
+	maxModelIDLength     = 128
+	windowEvidenceMaxAge = 30 * 24 * time.Hour
+	windowHeartbeat      = 6 * time.Hour
+	windowClockSkew      = 5 * time.Minute
 )
 
 // ModelWindowRecordSchemaVersion is the stored context-window record format.
@@ -55,19 +60,24 @@ func DefaultModelWindowsPath() (string, error) {
 	return filepath.Join(home, ".vrooli", "state", "vrooli", "claude-code", "model-context-windows.json"), nil
 }
 
-// RecordModelWindow stores a reported window. The status line runs on every
-// render, so an unchanged value leaves the file alone. A concurrent writer can
-// lose an update, which the next render of that model restores.
+// RecordModelWindow stores a reported window. An unchanged value refreshes its
+// observation timestamp at most every six hours, so the reader can expire old
+// evidence without rewriting the file on every status-line render.
 func RecordModelWindow(path, model string, tokens int64, now time.Time) error {
 	model = strings.TrimSpace(model)
 	if path == "" || model == "" || len(model) > maxModelIDLength || tokens <= 0 {
 		return nil
 	}
 	record := readModelWindowRecord(path)
-	if record.Models[model].ContextWindowTokens == tokens {
+	if record.SchemaVersion != ModelWindowRecordSchemaVersion {
+		// Do not carry entries forward from an unknown record version. A current
+		// status-line observation safely starts a fresh v1 record for this model.
+		record = ModelWindowRecord{SchemaVersion: ModelWindowRecordSchemaVersion, Models: map[string]ModelWindow{}}
+	}
+	previous := record.Models[model]
+	if previous.ContextWindowTokens == tokens && !previous.ObservedAt.IsZero() && now.Sub(previous.ObservedAt) >= 0 && now.Sub(previous.ObservedAt) < windowHeartbeat {
 		return nil
 	}
-	record.SchemaVersion = ModelWindowRecordSchemaVersion
 	if record.Models == nil {
 		record.Models = map[string]ModelWindow{}
 	}
@@ -129,6 +139,10 @@ func readBounded(path string) ([]byte, error) {
 }
 
 func codexModelWindows(path string) map[string]int64 {
+	info, err := os.Stat(path)
+	if err != nil || !freshWindowEvidence(info.ModTime(), time.Now()) {
+		return nil
+	}
 	data, err := readBounded(path)
 	if err != nil {
 		return nil
@@ -170,9 +184,12 @@ func (d Descriptor) modelWindows() map[string]int64 {
 			return nil
 		}
 		record := readModelWindowRecord(path)
+		if record.SchemaVersion != ModelWindowRecordSchemaVersion {
+			return nil
+		}
 		windows := make(map[string]int64, len(record.Models))
 		for model, window := range record.Models {
-			if window.ContextWindowTokens > 0 {
+			if window.ContextWindowTokens > 0 && freshWindowEvidence(window.ObservedAt, time.Now()) {
 				windows[model] = window.ContextWindowTokens
 			}
 		}
@@ -186,6 +203,14 @@ func (d Descriptor) modelWindows() map[string]int64 {
 	default:
 		return nil
 	}
+}
+
+func freshWindowEvidence(observed, now time.Time) bool {
+	if observed.IsZero() {
+		return false
+	}
+	age := now.Sub(observed)
+	return age >= -windowClockSkew && age <= windowEvidenceMaxAge
 }
 
 // ContextWindowTokens returns the first reported window among modelIDs. Zero

@@ -8,6 +8,8 @@ import (
 	"net"
 	"net/url"
 	"strings"
+
+	"github.com/vrooli/cli-core/agentcatalog/harness"
 )
 
 // ModelSource describes a deliberate selection, not permission to spend. The
@@ -26,7 +28,10 @@ const ModelSourceEnvironment = "VROOLI_MODEL_SOURCE"
 
 // SupportsModelSource reports an implemented native adapter, not billing or
 // supplier permission. Eligibility is still evaluated by the inference door.
-func SupportsModelSource(runner string) bool { return runner == "opencode" || runner == "codex" }
+func SupportsModelSource(runner string) bool {
+	descriptor, ok := harness.Active().Lookup(runner)
+	return ok && descriptor.ModelSourceProtocol != "" && descriptor.ModelSourceLimitation == ""
+}
 
 func modelSourceFromEnvironment(environment []string) (*ModelSource, error) {
 	raw := environmentValue(environment, ModelSourceEnvironment)
@@ -67,6 +72,9 @@ func ResolveModelSource(runner string, source ModelSource, args, environment []s
 	if source.Kind != "local" && (source.SecretEnv == "" || environmentValue(environment, source.SecretEnv) == "") {
 		return nil, nil, errors.New("model source credential is unavailable")
 	}
+	if !SupportsModelSource(runner) {
+		return nil, nil, fmt.Errorf("%s has no qualified model source adapter", runner)
+	}
 	if source.SecretEnv != "" && !validSourceEnv(source.SecretEnv) {
 		return nil, nil, errors.New("invalid model source credential reference")
 	}
@@ -105,6 +113,30 @@ func ResolveModelSource(runner string, source ModelSource, args, environment []s
 		if source.SecretEnv != "" {
 			out = append(out, "-c", "model_providers.vrooli-source.env_key="+quote(source.SecretEnv))
 		}
+	case "grok":
+		// Grok discovers custom models from an OpenAI-compatible endpoint and
+		// routes inference to it. GROK_CONFIG supplies only the session default;
+		// no user file is changed and the token never enters config.
+		out = append(out, "--model", source.Model)
+		env = withEnvironmentValue(env, "GROK_MODELS_BASE_URL", strings.TrimRight(source.BaseURL, "/"))
+		config, err := json.Marshal(map[string]any{"models": map[string]any{"default": source.Model}})
+		if err != nil {
+			return nil, nil, err
+		}
+		env = withEnvironmentValue(env, "GROK_CONFIG", string(config))
+		if source.SecretEnv != "" {
+			// Grok validates its custom endpoint credential as an xAI-style key
+			// before sending it. The door accepts this namespaced transport form
+			// as an alias for the same scoped Vrooli session credential.
+			env = withEnvironmentValue(env, "XAI_API_KEY", "xai-"+environmentValue(environment, source.SecretEnv))
+		}
+	case "claude-code":
+		out = append(out, "--model", source.Model)
+		env = withEnvironmentValue(env, "ANTHROPIC_BASE_URL", strings.TrimRight(source.BaseURL, "/"))
+		env = withEnvironmentValue(env, "ANTHROPIC_API_KEY", environmentValue(environment, source.SecretEnv))
+	case "antigravity", "agy":
+		out = append(out, "--model", antigravityModelURI(source))
+		env = antigravitySourceEnvironment(source, env)
 	default:
 		return nil, nil, fmt.Errorf("%s has no qualified model source adapter", runner)
 	}

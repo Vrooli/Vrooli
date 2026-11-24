@@ -45,7 +45,10 @@ type FreshnessSpec struct {
 	Inputs      []string
 	// literalInputs holds discovered compiler assets without glob interpretation.
 	literalInputs []string
-	SkipFiles     []string
+	// observer, when set, records every filesystem object the enumeration
+	// consults so the result can carry a FreshnessWatch.
+	observer  *freshnessObserver
+	SkipFiles []string
 	// SkipSuffixes excludes files whose slash-path ends with any listed suffix
 	// from both the manifest and legacy fingerprint engines (e.g. "_test.go" so
 	// test edits never mark a compiled artifact stale).

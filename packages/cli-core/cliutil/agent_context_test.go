@@ -44,6 +44,23 @@ func TestIsAgentControlledContext(t *testing.T) {
 	}
 }
 
+func TestAmbientAgentEnvironmentSeparatesClaudeIdentityFromConfiguration(t *testing.T) {
+	keys := map[string]bool{}
+	for _, key := range AmbientAgentEnvironment() {
+		keys[key] = true
+	}
+	for _, key := range []string{"CLAUDECODE", EnvClaudeCodeSessionID, "CLAUDE_CODE_CHILD_SESSION", "CLAUDE_CODE_BRIDGE_SESSION_ID", "CLAUDE_CODE_REMOTE_SESSION_ID"} {
+		if !keys[key] {
+			t.Errorf("Claude identity marker %q missing from ambient environment", key)
+		}
+	}
+	for _, key := range []string{"CLAUDE_CONFIG_DIR", "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX", "CLAUDE_CODE_USE_FOUNDRY"} {
+		if keys[key] {
+			t.Errorf("user configuration %q must not be classified as ambient identity", key)
+		}
+	}
+}
+
 func TestIsAgentControlledContext_IgnoresExternalAgentSignals(t *testing.T) {
 	// Strict detector must NOT classify external agents — that's the
 	// whole point of the strict/broad split.

@@ -200,43 +200,6 @@ func TestSetLogOnlyFromAnswerMigratesLegacyAnswerAuditTombstones(t *testing.T) {
 	}
 }
 
-func TestRestoreAllRetriesLockContentionAndClearsActiveMode(t *testing.T) {
-	now := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
-	store := NewStore(t.TempDir())
-	store.Now = func() time.Time { return now }
-	if err := store.SetLogOnly(testEvaluatorID, now.Add(time.Hour), "test", "operator"); err != nil {
-		t.Fatal(err)
-	}
-	unlock, err := acquireFileLock(filepath.Join(store.Dir, guardModeLockFile))
-	if err != nil {
-		t.Fatal(err)
-	}
-	type result struct {
-		checks []CheckID
-		err    error
-	}
-	resultCh := make(chan result, 1)
-	go func() {
-		checks, restoreErr := store.RestoreAll(HardStopOutsideMessage, "hard-stop-event", now)
-		resultCh <- result{checks: checks, err: restoreErr}
-	}()
-	// Let RestoreAll observe the held lock before releasing it.
-	time.Sleep(15 * time.Millisecond)
-	unlock()
-	select {
-	case got := <-resultCh:
-		if got.err != nil || len(got.checks) != 1 || got.checks[0] != testEvaluatorID {
-			t.Fatalf("restore result checks=%v err=%v", got.checks, got.err)
-		}
-	case <-time.After(time.Second):
-		t.Fatal("RestoreAll did not resume after the contending lock was released")
-	}
-	active, err := store.Active(now)
-	if err != nil || len(active) != 0 {
-		t.Fatalf("mode remained active after restoration: active=%+v err=%v", active, err)
-	}
-}
-
 func TestAuditRetentionKeepsRecentEntriesAndActiveModeEnable(t *testing.T) {
 	dir := t.TempDir()
 	store := NewStore(dir)
@@ -283,5 +246,52 @@ func TestAuditRetentionKeepsRecentEntriesAndActiveModeEnable(t *testing.T) {
 	active, err := store.Active(now)
 	if err != nil || len(active) != 1 {
 		t.Fatalf("compacted audit broke active mode recovery: active=%+v err=%v", active, err)
+	}
+}
+
+// Hooks read one check's mode on every guard stop, so the read never waits
+// for the lock and never sees an expired mode.
+func TestModeForReadsStateWithoutTheLock(t *testing.T) {
+	now := time.Date(2026, 11, 20, 12, 0, 0, 0, time.UTC)
+	store := NewStore(t.TempDir())
+	store.Now = func() time.Time { return now }
+	if _, active, err := store.ModeFor(testEvaluatorID, now); err != nil || active {
+		t.Fatalf("empty store: active=%t err=%v", active, err)
+	}
+	if err := store.SetLogOnly(testEvaluatorID, now.Add(time.Hour), "test", "operator"); err != nil {
+		t.Fatal(err)
+	}
+	unlock, err := acquireFileLock(filepath.Join(store.Dir, guardModeLockFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer unlock()
+	if mode, active, err := store.ModeFor(testEvaluatorID, now); err != nil || !active || mode.Reason != "test" {
+		t.Fatalf("held lock must not block the read: mode=%+v active=%t err=%v", mode, active, err)
+	}
+	if _, active, _ := store.ModeFor("other:check", now); active {
+		t.Fatal("another check reported active")
+	}
+	if _, active, err := store.ModeFor(testEvaluatorID, now.Add(2*time.Hour)); err != nil || active {
+		t.Fatalf("expired mode reported active=%t err=%v", active, err)
+	}
+	if err := os.WriteFile(filepath.Join(store.Dir, guardModeStateFile), []byte("{"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := store.ModeFor(testEvaluatorID, now); err == nil {
+		t.Fatal("unparseable state must be reported")
+	}
+}
+
+// The operator's answer can relax a guard for up to 30 days, never longer.
+func TestAnswerIntervalIsBoundedByThirtyDays(t *testing.T) {
+	now := time.Date(2026, 11, 20, 12, 0, 0, 0, time.UTC)
+	store := NewStore(t.TempDir())
+	store.Now = func() time.Time { return now }
+	if err := store.SetLogOnlyFromAnswer("agent-guard:secret", now.Add(MaxModeTTL), "answer", "operator", "a-30d"); err != nil {
+		t.Fatalf("30-day answer refused: %v", err)
+	}
+	if err := store.SetLogOnlyFromAnswer("agent-guard:money", now.Add(MaxModeTTL+time.Hour), "answer", "operator", "a-31d"); err == nil {
+		t.Fatal("an answer beyond 30 days was accepted")
 	}
 }

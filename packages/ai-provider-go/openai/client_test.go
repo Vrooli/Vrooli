@@ -2,8 +2,11 @@ package openai
 
 import (
 	"context"
+	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/vrooli/ai-provider-go/providererror"
@@ -66,6 +69,83 @@ func TestErrorClassification(t *testing.T) {
 	}
 	if typed.Code != providererror.CodeRateLimited || typed.RetryAfter != "9" || typed.HTTPStatus != http.StatusTooManyRequests {
 		t.Fatalf("typed = %+v", typed)
+	}
+}
+
+func TestProbeAPIKeyUsesSharedAuthenticatedTransport(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/auth/key" {
+			t.Errorf("request = %s %s", r.Method, r.URL.Path)
+		}
+		if got := r.Header.Get("Authorization"); got != "Bearer sk-synthetic" {
+			t.Errorf("Authorization = %q", got)
+		}
+		if got := r.Header.Get("User-Agent"); got != "key-probe-test" {
+			t.Errorf("User-Agent = %q", got)
+		}
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte("probe response"))
+	}))
+	defer server.Close()
+
+	client := New(Config{BaseURL: server.URL, APIKey: "sk-synthetic", UserAgent: "key-probe-test"})
+	status, err := client.ProbeAPIKey(context.Background(), "/api/v1/auth/key")
+	if err != nil || status != http.StatusForbidden {
+		t.Fatalf("ProbeAPIKey() = (%d, %v), want (403, nil)", status, err)
+	}
+}
+
+func TestProbeAPIKeyPreservesCancellationWithoutLeakingKey(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	const key = "sk-synthetic-secret"
+	client := New(Config{BaseURL: "http://127.0.0.1", APIKey: key})
+	_, err := client.ProbeAPIKey(ctx, "/api/v1/auth/key")
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("ProbeAPIKey() error = %v, want canceled context", err)
+	}
+	if err != nil && strings.Contains(err.Error(), key) {
+		t.Fatalf("ProbeAPIKey() leaked key in error: %v", err)
+	}
+}
+
+func TestOpenRawRequestPreservesProviderOwnedPayloadAndResponse(t *testing.T) {
+	const requestBody = `{"model":"openai/model","tools":[{"type":"function"}],"stream":false}`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/chat/completions" {
+			t.Errorf("request = %s %s", r.Method, r.URL.Path)
+		}
+		if got := r.Header.Get("Authorization"); got != "Bearer sk-synthetic" {
+			t.Errorf("Authorization = %q", got)
+		}
+		if got := r.Header.Get("Content-Type"); got != "application/json" {
+			t.Errorf("Content-Type = %q", got)
+		}
+		if got := r.Header.Get("HTTP-Referer"); got != "https://fixture.example" {
+			t.Errorf("HTTP-Referer = %q", got)
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil || string(body) != requestBody {
+			t.Errorf("request body = %q, %v", body, err)
+		}
+		w.Header().Set("Retry-After", "7")
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		_, _ = w.Write([]byte("provider-specific error detail"))
+	}))
+	defer server.Close()
+
+	client := New(Config{BaseURL: server.URL, APIKey: "sk-synthetic"})
+	response, err := client.OpenRawRequest(context.Background(), http.MethodPost, "/api/v1/chat/completions", []byte(requestBody), http.Header{"HTTP-Referer": []string{"https://fixture.example"}})
+	if err != nil {
+		t.Fatalf("OpenRawRequest() error: %v", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusUnprocessableEntity || response.Header.Get("Retry-After") != "7" {
+		t.Fatalf("response = status %d headers %#v", response.StatusCode, response.Header)
+	}
+	body, err := io.ReadAll(response.Body)
+	if err != nil || string(body) != "provider-specific error detail" {
+		t.Fatalf("response body = %q, %v", body, err)
 	}
 }
 

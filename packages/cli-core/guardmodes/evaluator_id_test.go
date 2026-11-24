@@ -48,10 +48,6 @@ func TestLegacyActiveModeRemainsVisibleAndRestorableButCannotSuppress(t *testing
 	if err := store.Disable(RiskDependencyAdd, "operator", "cleanup"); err == nil {
 		t.Fatal("legacy mode became selectable for direct disable")
 	}
-	cleared, err := store.RestoreAll(HardStopOutsideMessage, "hard-stop", now)
-	if err != nil || len(cleared) != 1 || cleared[0] != RiskDependencyAdd {
-		t.Fatalf("legacy mode was not safely restorable: cleared=%v err=%v", cleared, err)
-	}
 	if _, err := os.Stat(filepath.Join(store.Dir, guardModeStateFile)); err != nil {
 		t.Fatal(err)
 	}

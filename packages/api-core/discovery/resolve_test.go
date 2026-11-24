@@ -1090,3 +1090,10 @@ func TestDemandDiscoveryScopesIndependentCallsAndVariants(t *testing.T) {
 		t.Fatalf("variant not resolved: %v %+v", commands, fixture.acquires)
 	}
 }
+
+func TestResolveScenarioURLDefaultNoCLIReportsFallbackDisabled(t *testing.T) {
+	_, err := ResolveScenarioURLDefaultNoCLI(context.Background(), "ac5-unknown-no-cli-fallback-target")
+	if err == nil || !strings.Contains(err.Error(), "no local CLI fallback") {
+		t.Fatalf("ResolveScenarioURLDefaultNoCLI() error = %v, want disabled CLI fallback", err)
+	}
+}

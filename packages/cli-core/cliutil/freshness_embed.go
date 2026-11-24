@@ -84,10 +84,12 @@ func withEmbeddedFreshnessInputs(spec FreshnessSpec) (FreshnessSpec, error) {
 				if !fs.ValidPath(pattern) || pattern == "." {
 					return spec, fmt.Errorf("invalid embed pattern %q in %s", pattern, source)
 				}
-				matches, err := filepath.Glob(filepath.Join(filepath.Dir(source), filepath.FromSlash(pattern)))
+				globPattern := filepath.Join(filepath.Dir(source), filepath.FromSlash(pattern))
+				matches, err := filepath.Glob(globPattern)
 				if err != nil {
 					return spec, err
 				}
+				spec.observer.globbed(globPattern)
 				for _, match := range matches {
 					err = filepath.WalkDir(match, func(file string, entry fs.DirEntry, err error) error {
 						if err != nil {
@@ -104,6 +106,8 @@ func withEmbeddedFreshnessInputs(spec FreshnessSpec) (FreshnessSpec, error) {
 							return nil
 						}
 						if entry.IsDir() {
+							// The listing (including a nested go.mod) decides what is embedded.
+							spec.observer.listed(file)
 							if file != match {
 								if _, err := os.Stat(filepath.Join(file, "go.mod")); err == nil {
 									return filepath.SkipDir
@@ -118,6 +122,7 @@ func withEmbeddedFreshnessInputs(spec FreshnessSpec) (FreshnessSpec, error) {
 						if !info.Mode().IsRegular() {
 							return nil
 						}
+						spec.observer.read(file, info)
 						rel, err := filepath.Rel(root, file)
 						if err != nil {
 							return err
@@ -125,6 +130,9 @@ func withEmbeddedFreshnessInputs(spec FreshnessSpec) (FreshnessSpec, error) {
 						if explicitlySkippedFile(filepath.ToSlash(rel), spec.SkipFiles) || hasSkippedSuffix(filepath.ToSlash(rel), spec.SkipSuffixes) {
 							active := explicit[filepath.Clean(source)]
 							if !active {
+								// The Go toolchain's build constraints decide this; a
+								// watch cannot see them.
+								spec.observer.markUnwatchable()
 								var err error
 								active, err = embedSourceActive(source, activePackages)
 								if err != nil {

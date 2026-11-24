@@ -46,11 +46,12 @@ func WithGoReplaceFreshnessInputs(spec FreshnessSpec) FreshnessSpec {
 	if contextRoot == "" {
 		contextRoot = sourceRoot
 	}
-	goModPath, ok := findGoMod(sourceRoot)
+	observer := spec.observer
+	goModPath, ok := findGoMod(sourceRoot, observer)
 	if !ok {
 		return spec
 	}
-	mainModule, replaces, err := parseGoModLocalReplaces(goModPath)
+	mainModule, replaces, err := parseGoModLocalReplaces(goModPath, observer)
 	if err != nil || len(replaces) == 0 && mainModule == "" {
 		return spec
 	}
@@ -80,7 +81,7 @@ func WithGoReplaceFreshnessInputs(spec FreshnessSpec) FreshnessSpec {
 	consider(goModPath)
 
 	scanned := map[string]bool{}
-	queue := sourcePackageDirs(sourceRoot)
+	queue := sourcePackageDirs(sourceRoot, observer)
 	for len(queue) > 0 {
 		dir := queue[0]
 		queue = queue[1:]
@@ -88,7 +89,7 @@ func WithGoReplaceFreshnessInputs(spec FreshnessSpec) FreshnessSpec {
 			continue
 		}
 		scanned[dir] = true
-		for _, importPath := range packageImports(dir) {
+		for _, importPath := range packageImports(dir, observer) {
 			module, target, ok := longestReplace(replaces, importPath)
 			if !ok {
 				continue
@@ -129,6 +130,7 @@ func WithGoReplaceFreshnessInputs(spec FreshnessSpec) FreshnessSpec {
 			}
 		}
 		if !nested {
+			observer.probed(path)
 			if _, err := os.Stat(path); err == nil {
 				added = append(added, path)
 			}
@@ -171,9 +173,10 @@ func cleanAbs(path string) string {
 	return abs
 }
 
-func findGoMod(dir string) (string, bool) {
+func findGoMod(dir string, observer *freshnessObserver) (string, bool) {
 	for {
 		candidate := filepath.Join(dir, "go.mod")
+		observer.probed(candidate)
 		if info, err := os.Stat(candidate); err == nil && info.Mode().IsRegular() {
 			return candidate, true
 		}
@@ -190,7 +193,7 @@ func findGoMod(dir string) (string, bool) {
 // or an absolute path as a filesystem path). Targets that do not exist are
 // dropped. cli-core has no golang.org/x/mod dependency; go.mod's replace
 // grammar is small enough to read line by line.
-func parseGoModLocalReplaces(goModPath string) (string, map[string]string, error) {
+func parseGoModLocalReplaces(goModPath string, observer *freshnessObserver) (string, map[string]string, error) {
 	data, err := os.ReadFile(goModPath)
 	if err != nil {
 		return "", nil, err
@@ -240,6 +243,7 @@ func parseGoModLocalReplaces(goModPath string) (string, map[string]string, error
 			target = filepath.Join(base, filepath.FromSlash(target))
 		}
 		target = filepath.Clean(target)
+		observer.probed(target)
 		if info, statErr := os.Stat(target); statErr != nil || !info.IsDir() {
 			continue
 		}
@@ -314,10 +318,11 @@ func pathWithin(root, target string) bool {
 
 // sourcePackageDirs lists every directory under root that holds Go source,
 // skipping the directories the freshness walk skips plus vendor and testdata.
-func sourcePackageDirs(root string) []string {
+func sourcePackageDirs(root string, observer *freshnessObserver) []string {
 	var dirs []string
 	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
+			observer.probed(path)
 			return nil
 		}
 		if d.IsDir() {
@@ -329,6 +334,7 @@ func sourcePackageDirs(root string) []string {
 			if path != root && (strings.HasPrefix(name, ".") || name == "vendor" || name == "testdata" || buildinfoSkipDir(root, filepath.ToSlash(rel))) {
 				return filepath.SkipDir
 			}
+			observer.listed(path)
 			return nil
 		}
 		if strings.HasSuffix(path, ".go") && !strings.HasSuffix(path, "_test.go") {
@@ -344,7 +350,8 @@ func sourcePackageDirs(root string) []string {
 // packageImports returns the imports of the non-test Go files in dir. Build
 // constraints are ignored, so a platform-specific import counts: freshness may
 // over-include an input but must never miss one.
-func packageImports(dir string) []string {
+func packageImports(dir string, observer *freshnessObserver) []string {
+	observer.listed(dir)
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil
@@ -357,6 +364,7 @@ func packageImports(dir string) []string {
 		if entry.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
 			continue
 		}
+		observer.probed(filepath.Join(dir, name))
 		for _, importPath := range fileImports(fset, filepath.Join(dir, name)) {
 			if !seen[importPath] {
 				seen[importPath] = true

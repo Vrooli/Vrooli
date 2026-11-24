@@ -852,6 +852,16 @@ func ResolveScenarioURLDefault(ctx context.Context, scenarioSlug string) (string
 	return DefaultResolver().ResolveScenarioURLDefault(ctx, scenarioSlug)
 }
 
+// ResolveScenarioURLDefaultNoCLI follows the normal discovery ladder but
+// disables its final host CLI fallback. Packaged applications can still use
+// lifecycle and runtime registry records without requiring a local Vrooli CLI.
+func ResolveScenarioURLDefaultNoCLI(ctx context.Context, scenarioSlug string) (string, error) {
+	resolver := NewResolver(ResolverConfig{CommandRunner: func(context.Context, string, ...string) ([]byte, error) {
+		return nil, errors.New("scenario URL lookup has no local CLI fallback")
+	}})
+	return resolver.ResolveScenarioURLDefault(ctx, scenarioSlug)
+}
+
 // ResolveScenarioURLDefaultForTarget is the convenience wrapper for an
 // explicit target.
 func ResolveScenarioURLDefaultForTarget(ctx context.Context, scenarioSlug string, target Target) (string, error) {

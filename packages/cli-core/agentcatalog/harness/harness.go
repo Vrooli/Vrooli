@@ -85,6 +85,9 @@ type Features struct {
 	Hooks               bool            `json:"hooks,omitempty"`
 }
 
+// ModelSourceProtocol names the endpoint wire protocol the native launcher can
+// route to a selected per-session model source. Empty means unsupported.
+
 // NativeArtifact names an upstream optional package and its executable. The
 // registry supplies the exact version and archive integrity; no install scripts run.
 type NativeArtifact struct {
@@ -104,18 +107,22 @@ type SignInProbe struct {
 // Descriptor is one harness. Resource comes from the manifest's name, which is
 // also the runner name; ID is the launcher agent ID.
 type Descriptor struct {
-	SignInProbe     *SignInProbe              `json:"sign_in_probe,omitempty"`
-	NativeArtifacts map[string]NativeArtifact `json:"native_artifacts,omitempty"`
-	Resource        string                    `json:"resource"`
-	ID              string                    `json:"id"`
-	Aliases         []string                  `json:"aliases,omitempty"`
-	Binary          string                    `json:"binary"`
-	DisplayName     string                    `json:"display_name"`
-	Icon            string                    `json:"icon"`
-	SessionEnv      []string                  `json:"session_env,omitempty"`
-	HomeIsolation   HomeIsolation             `json:"home_isolation"`
-	UsageWindows    []UsageWindow             `json:"usage_windows,omitempty"`
-	Features        Features                  `json:"features"`
+	SignInProbe         *SignInProbe              `json:"sign_in_probe,omitempty"`
+	NativeArtifacts     map[string]NativeArtifact `json:"native_artifacts,omitempty"`
+	Resource            string                    `json:"resource"`
+	ID                  string                    `json:"id"`
+	Aliases             []string                  `json:"aliases,omitempty"`
+	Binary              string                    `json:"binary"`
+	DisplayName         string                    `json:"display_name"`
+	Icon                string                    `json:"icon"`
+	SessionEnv          []string                  `json:"session_env,omitempty"`
+	HomeIsolation       HomeIsolation             `json:"home_isolation"`
+	UsageWindows        []UsageWindow             `json:"usage_windows,omitempty"`
+	Features            Features                  `json:"features"`
+	ModelSourceProtocol string                    `json:"model_source_protocol,omitempty"`
+	// ModelSourceLimitation explains why a native endpoint protocol cannot be
+	// selected safely by the installed harness implementation on this host.
+	ModelSourceLimitation string `json:"model_source_limitation,omitempty"`
 }
 
 // Set is an immutable collection of descriptors sorted by ID.
@@ -339,11 +346,15 @@ func Builtin() Set { return builtinOnce() }
 // repoMarker identifies a Vrooli checkout.
 const repoMarker = ".vrooli/repo-contract.json"
 
+// CatalogRootMarkerPath identifies a shipped declarative catalog without
+// pretending the application bundle is a complete Vrooli checkout.
+const CatalogRootMarkerPath = ".vrooli/harness-catalog.json"
+
 var activeByRoot sync.Map
 
-// Active is the snapshot overlaid with what the repository named by
+// Active is the snapshot overlaid with what the root named by
 // VROOLI_RESOURCE_ROOT or VROOLI_ROOT declares, so a new resource directory takes
-// effect without a rebuild. A root counts only if it holds the repository marker.
+// effect without a rebuild. A root must hold a repository or shipped-catalog marker.
 // This stops a stray variable, not a hostile one: a process that controls the
 // environment also controls PATH. Active never searches from the working
 // directory: a PATH shim runs in arbitrary project directories, and a resources/
@@ -361,7 +372,7 @@ func Active() Set {
 		if cached, ok := activeByRoot.Load(root); ok {
 			return cached.(Set)
 		}
-		if info, err := os.Stat(filepath.Join(root, filepath.FromSlash(repoMarker))); err != nil || info.IsDir() {
+		if !isCatalogRoot(root) {
 			continue
 		}
 		descriptors, _ := scan(root)
@@ -370,6 +381,16 @@ func Active() Set {
 		return set
 	}
 	return Builtin()
+}
+
+func isCatalogRoot(root string) bool {
+	for _, marker := range []string{repoMarker, CatalogRootMarkerPath} {
+		info, err := os.Stat(filepath.Join(root, filepath.FromSlash(marker)))
+		if err == nil && !info.IsDir() {
+			return true
+		}
+	}
+	return false
 }
 
 // overlay applies descriptors in resource order. One that answers to a name

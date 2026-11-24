@@ -25,6 +25,13 @@ func (s *StringList) Values() []string {
 	return out
 }
 
+// NewFlagSet creates a CLI flag set that reports parse errors to stderr.
+func NewFlagSet(name string) *flag.FlagSet {
+	fs := flag.NewFlagSet(name, flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	return fs
+}
+
 // ParseCSV splits a comma-separated list into trimmed values, dropping blanks.
 func ParseCSV(value string) []string {
 	if strings.TrimSpace(value) == "" {

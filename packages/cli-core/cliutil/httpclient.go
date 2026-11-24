@@ -474,6 +474,30 @@ func (h *HTTPClient) DoWithContext(ctx context.Context, method, path string, que
 	return data, nil
 }
 
+// DoWithHeaders performs one request with additional request-local headers.
+// The values are layered onto a cloned HTTPClient so they do not persist to
+// later commands or unrelated requests.
+func (h *HTTPClient) DoWithHeaders(ctx context.Context, method, path string, query url.Values, body interface{}, headers map[string]string) ([]byte, error) {
+	if h == nil {
+		return nil, errors.New("http client is nil")
+	}
+	clone := h.cloneWithTimeout(h.Timeout())
+	prior := clone.headerSource
+	clone.headerSource = func() map[string]string {
+		merged := make(map[string]string)
+		if prior != nil {
+			for key, value := range prior() {
+				merged[key] = value
+			}
+		}
+		for key, value := range headers {
+			merged[key] = value
+		}
+		return merged
+	}
+	return clone.DoWithContext(ctx, method, path, query, body)
+}
+
 // DoToWithContext streams a successful response body to dst instead of
 // buffering it in memory. Error bodies remain bounded and use the same typed
 // API error parser as DoWithContext.

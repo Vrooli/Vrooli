@@ -135,6 +135,7 @@ func TestLoadRejectsAnUnsafeOrAmbiguousDescriptor(t *testing.T) {
 		"unknown field":               strings.Replace(sixthBlock, `"icon":"sixth"`, `"icon":"sixth","surprise":true`, 1),
 		"bad limit kind":              strings.Replace(sixthBlock, `"kind":"env","key"`, `"kind":"shell","key"`, 1),
 		"unknown source":              strings.Replace(sixthBlock, `"provider_selection"`, `"context_window_source":"guess","provider_selection"`, 1),
+		"unversioned source":          strings.Replace(sixthBlock, `"provider_selection"`, `"context_window_source":"claude-statusline","provider_selection"`, 1),
 		"zero window":                 strings.Replace(sixthBlock, `"minutes":1440`, `"minutes":0`, 1),
 		"bad home":                    strings.Replace(sixthBlock, `"home_isolation":{"kind":"none"}`, `"home_isolation":{"kind":"env"}`, 1),
 		"shared dir climb":            strings.Replace(sixthBlock, `"home_isolation":{"kind":"none"}`, `"home_isolation":{"kind":"env","env":"X","state_dir":"x","layout":"mirror","shared_dir":"../x"}`, 1),
@@ -154,6 +155,15 @@ func TestLoadRejectsAnUnsafeOrAmbiguousDescriptor(t *testing.T) {
 				t.Fatal("Load accepted the descriptor")
 			}
 		})
+	}
+}
+
+func TestLoadRejectsDuplicateHarnessIDs(t *testing.T) {
+	root := t.TempDir()
+	writeManifest(t, root, "first", strings.NewReplacer(`"sixth-cli"`, `"first-cli"`, `"id":"sixth"`, `"id":"shared"`).Replace(sixthBlock))
+	writeManifest(t, root, "second", strings.NewReplacer(`"sixth-cli"`, `"second-cli"`, `"id":"sixth"`, `"id":"shared"`).Replace(sixthBlock))
+	if _, err := Load(root); err == nil {
+		t.Fatal("Load accepted duplicate harness IDs")
 	}
 }
 
@@ -269,7 +279,7 @@ func TestContextLimitOptionsNeverExceedTheWindowOrUndercutTheMinimum(t *testing.
 func TestRecordedClaudeWindowResolvesByExactModelAndSurvivesOtherModels(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "nested", "windows.json")
 	t.Setenv(ModelWindowsEnv, path)
-	now := time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)
+	now := time.Now().UTC()
 	for model, tokens := range map[string]int64{"claude-opus-5-5": 1000000, "claude-haiku-5-5": 200000} {
 		if err := RecordModelWindow(path, model, tokens, now); err != nil {
 			t.Fatal(err)
@@ -287,9 +297,9 @@ func TestRecordedClaudeWindowResolvesByExactModelAndSurvivesOtherModels(t *testi
 	}
 }
 
-func TestRecordModelWindowWritesOnlyOnChange(t *testing.T) {
+func TestRecordModelWindowRefreshesAnUnchangedValueOnHeartbeat(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "windows.json")
-	first := time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)
+	first := time.Now().UTC()
 	for _, write := range []struct {
 		tokens int64
 		at     time.Time
@@ -297,7 +307,8 @@ func TestRecordModelWindowWritesOnlyOnChange(t *testing.T) {
 	}{
 		{200000, first, first},
 		{200000, first.Add(time.Hour), first},
-		{1000000, first.Add(2 * time.Hour), first.Add(2 * time.Hour)},
+		{200000, first.Add(7 * time.Hour), first.Add(7 * time.Hour)},
+		{1000000, first.Add(8 * time.Hour), first.Add(8 * time.Hour)},
 	} {
 		if err := RecordModelWindow(path, "claude-sonnet-5-5", write.tokens, write.at); err != nil {
 			t.Fatal(err)
@@ -310,6 +321,40 @@ func TestRecordModelWindowWritesOnlyOnChange(t *testing.T) {
 	entries, err := os.ReadDir(filepath.Dir(path))
 	if err != nil || len(entries) != 1 {
 		t.Fatalf("temporary files were left behind: %v, %v", entries, err)
+	}
+}
+
+func TestStaleOrUnversionedClaudeWindowEvidenceIsUnknown(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "windows.json")
+	t.Setenv(ModelWindowsEnv, path)
+	now := time.Now().UTC()
+	claude := Descriptor{Features: Features{ContextWindowSource: WindowSourceClaudeStatusline}}
+	if err := RecordModelWindow(path, "sonnet", 200_000, now.Add(-windowEvidenceMaxAge-time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	if got := claude.ContextWindowTokens("sonnet"); got != 0 {
+		t.Fatalf("stale evidence remained known: %d", got)
+	}
+	if err := RecordModelWindow(path, "sonnet", 200_000, now); err != nil {
+		t.Fatal(err)
+	}
+	if got := claude.ContextWindowTokens("sonnet"); got != 200_000 {
+		t.Fatalf("heartbeat did not refresh unchanged evidence: %d", got)
+	}
+
+	// A record without its declared schema version is not interpreted as v1.
+	if err := os.WriteFile(path, []byte(`{"models":{"sonnet":{"context_window_tokens":200000,"observed_at":"`+now.Format(time.RFC3339Nano)+`"}}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := claude.ContextWindowTokens("sonnet"); got != 0 {
+		t.Fatalf("unversioned record was interpreted: %d", got)
+	}
+	if err := RecordModelWindow(path, "sonnet", 200_000, now); err != nil {
+		t.Fatal(err)
+	}
+	record := readModelWindowRecord(path)
+	if record.SchemaVersion != ModelWindowRecordSchemaVersion || claude.ContextWindowTokens("sonnet") != 200_000 {
+		t.Fatalf("current observation did not create a fresh v%d record: %+v", ModelWindowRecordSchemaVersion, record)
 	}
 }
 
@@ -352,10 +397,24 @@ func TestCodexWindowsComeFromTheCacheInCodexHome(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(home, "models_cache.json"), []byte(cache), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	cachePath := filepath.Join(home, "models_cache.json")
 	for model, want := range map[string]int64{"gpt-6-luna": 272000, "gpt-6.1-terra": 500000, "no-window": 0, "unlisted": 0} {
 		if got := codex.ContextWindowTokens(model); got != want {
 			t.Errorf("%s: got %d, want %d", model, got, want)
 		}
+	}
+	stale := time.Now().Add(-windowEvidenceMaxAge - time.Minute)
+	if err := os.Chtimes(cachePath, stale, stale); err != nil {
+		t.Fatal(err)
+	}
+	if got := codex.ContextWindowTokens("gpt-6-luna"); got != 0 {
+		t.Fatalf("stale cache remained known: %d", got)
+	}
+	if err := os.Chtimes(cachePath, time.Now(), time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if got := codex.ContextWindowTokens("gpt-6-luna"); got != 272000 {
+		t.Fatalf("fresh cache was not accepted: %d", got)
 	}
 	if err := os.WriteFile(filepath.Join(home, "models_cache.json"), []byte(`{"models":`), 0o644); err != nil {
 		t.Fatal(err)

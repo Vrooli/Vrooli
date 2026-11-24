@@ -150,6 +150,22 @@ func (c *APIClient) Request(method, path string, query url.Values, body interfac
 	return c.client.Do(method, path, query, body)
 }
 
+// RequestWithHeaders adds request-local application headers without mutating
+// the shared API client. Use it for short-lived, owner-issued relay receipts;
+// callers remain responsible for obtaining them from a trusted runtime source.
+func (c *APIClient) RequestWithHeaders(method, path string, query url.Values, body interface{}, headers map[string]string) ([]byte, error) {
+	if c.client == nil {
+		c.client = NewHTTPClient(HTTPClientOptions{})
+	}
+	if c.baseResolver != nil {
+		c.client.SetBaseOptions(c.baseResolver())
+	}
+	if c.tokenSource != nil {
+		c.client.SetToken(c.tokenSource())
+	}
+	return c.client.DoWithHeaders(context.Background(), method, path, query, body, headers)
+}
+
 // DownloadTo streams an API response into dst without buffering its payload in
 // memory. It preserves the API base, bearer token, identity, and invocation
 // headers while using an isolated HTTPClient copy for per-request setup.

@@ -23,6 +23,9 @@ const (
 	// PurposeWalletRecoveryPublicationReceipt binds a DBM-owned attestation to
 	// the exact off-host wallet-revocation snapshot and restore verification.
 	PurposeWalletRecoveryPublicationReceipt Purpose = "wallet-recovery-publication-receipt-v1"
+	// PurposeWalletRecoveryCommitAcknowledgement proves Treasury completed the
+	// exact DBM-pinned wallet rotation described by the signed acknowledgement.
+	PurposeWalletRecoveryCommitAcknowledgement Purpose = "wallet-recovery-commit-acknowledgement-v1"
 )
 
 // Purpose domain-separates a signature so evidence of one kind cannot be
@@ -30,7 +33,7 @@ const (
 type Purpose string
 
 func (p Purpose) Valid() bool {
-	return p == PurposeExperimentAuditReceipt || p == PurposeExperimentHoldoutReceipt || p == PurposeCloudEvidenceReceipt || p == PurposeWalletRecoveryPublicationReceipt
+	return p == PurposeExperimentAuditReceipt || p == PurposeExperimentHoldoutReceipt || p == PurposeCloudEvidenceReceipt || p == PurposeWalletRecoveryPublicationReceipt || p == PurposeWalletRecoveryCommitAcknowledgement
 }
 
 // SignatureEnvelope is stored alongside evidence, never instead of evidence.

@@ -1,6 +1,6 @@
 // Package teamattribution owns the descriptive team-knowledge header wire
 // contract. These fields describe a writer; they never confer authorization.
-// Semantics: docs/agent-system/RUNTIME_ATTRIBUTION.md.
+// Semantics: scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md.
 package teamattribution
 
 import (
@@ -31,7 +31,7 @@ const (
 
 var Kinds = []string{KindAgentMember, KindWriterSkill, KindOperatorDirect, KindExternal, KindLegacy, KindInvestigation}
 var SpawnOrigins = []string{SpawnOriginConversation, SpawnOriginHeartbeat, SpawnOriginOperatorCLI, SpawnOriginSwarmTask, SpawnOriginVisionWalk, SpawnOriginInvestigation, SpawnOriginLegacy, SpawnOriginUnknown}
-var ErrRequired = fmt.Errorf("X-Vrooli-Attribution header is required for mutating writes (canon: docs/agent-system/RUNTIME_ATTRIBUTION.md)")
+var ErrRequired = fmt.Errorf("X-Vrooli-Attribution header is required for mutating writes (canon: scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md)")
 
 type Info struct {
 	// Kind is the category of writer; required, closed vocabulary
@@ -109,7 +109,7 @@ func Validate(info Info, urlTeamID string) error {
 		// CreateRunResponse). Permitting null run_id for spawn_origin=heartbeat
 		// resolves that chicken-and-egg; future strengthening will overlay
 		// run_id from VROOLI_AGENT_IDENTITY_TOKEN claims at request time.
-		// Canon: docs/agent-system/RUNTIME_ATTRIBUTION.md § Env-var bridge.
+		// Canon: scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md § Env-var bridge.
 		if info.SpawnOrigin != SpawnOriginHeartbeat && info.SpawnOrigin != SpawnOriginConversation {
 			if info.RunID == nil || strings.TrimSpace(*info.RunID) == "" {
 				return fmt.Errorf("attribution: kind=agent-member with spawn_origin=%q requires run_id", info.SpawnOrigin)

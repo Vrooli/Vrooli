@@ -5,7 +5,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
+	"time"
 
 	"github.com/vrooli/envkit-go"
 )
@@ -26,11 +28,31 @@ type StaleChecker struct {
 	InstallName        string // declared scenario/resource name, never a build path
 	ReexecArgs         []string
 
+	// RefreshStateDir holds the per-CLI lock and log of background refreshes
+	// (default ~/.vrooli/cli-refresh).
+	RefreshStateDir string
+	// RefreshCooldown is the minimum time between background refresh launches
+	// for one CLI, so a refresh that keeps failing is not relaunched by every
+	// hook call (default 30s).
+	RefreshCooldown time.Duration
+
 	FingerprintFunc func(spec FreshnessSpec) (string, error)
 	LookPathFunc    func(file string) (string, error)
 	CommandRunner   func(cmd *exec.Cmd) error
 	Logger          func(format string, args ...interface{})
 	Reexec          func(executable string, args []string) error
+
+	// BackgroundStarter launches the detached refresh (default cmd.Start then
+	// release). Tests replace it to observe launches.
+	BackgroundStarter func(cmd *exec.Cmd) error
+
+	// InstalledManifest is the freshness manifest the installer wrote for this
+	// binary (default: next to the running executable). Its watch lets an
+	// unchanged tree be confirmed from metadata alone.
+	InstalledManifest string
+
+	// now stamps restamped manifests; tests move it to step past the racy window.
+	now func() time.Time
 }
 
 // NewStaleChecker builds a StaleChecker with common defaults. Provide the app
@@ -59,8 +81,32 @@ const debugStaleEnvVar = "VROOLI_CLI_DEBUG_STALE"
 // the deployed tree; the release pipeline already verified the binary.
 const artifactModeEnvVar = "VROOLI_CLI_ARTIFACT_MODE"
 
+// LatencyBoundEnvVar marks the whole invocation as latency-bound when truthy:
+// the stale checker then never waits on a rebuild (see CheckLatencyBound). It
+// is the escape hatch for callers that cannot declare the command (a wrapper
+// script, an ad-hoc hook); commands should prefer declaring themselves
+// latency-bound (cliapp.Command.LatencyBound / manifest latency_bound).
+const LatencyBoundEnvVar = "VROOLI_CLI_LATENCY_BOUND"
+
+// defaultRefreshCooldown spaces background refresh launches for one CLI.
+const defaultRefreshCooldown = 30 * time.Second
+
 // CheckAndMaybeRebuild returns true when the process was restarted after a rebuild.
+// When LatencyBoundEnvVar is truthy it behaves as CheckLatencyBound.
 func (c *StaleChecker) CheckAndMaybeRebuild() (bool, error) {
+	return c.check(truthy(os.Getenv(LatencyBoundEnvVar)))
+}
+
+// CheckLatencyBound is the stale check for a command that runs under a hard
+// time limit (coding-agent hooks, status lines). It never blocks on a rebuild,
+// never restarts the process and never fails the command: a stale CLI runs
+// as-is while a detached background refresh (at most one per CLI, serialized by
+// a lock file) brings the installed binary up to date for the next call.
+func (c *StaleChecker) CheckLatencyBound() {
+	_, _ = c.check(true)
+}
+
+func (c *StaleChecker) check(latencyBound bool) (bool, error) {
 	if strings.EqualFold(strings.TrimSpace(os.Getenv(artifactModeEnvVar)), "1") || strings.EqualFold(strings.TrimSpace(os.Getenv(artifactModeEnvVar)), "true") {
 		return false, nil
 	}
@@ -71,19 +117,42 @@ func (c *StaleChecker) CheckAndMaybeRebuild() (bool, error) {
 	if srcRoot == "" {
 		return false, nil
 	}
-	spec := c.freshnessSpec(srcRoot)
-
+	base := c.baseFreshnessSpec(srcRoot)
 	if executable, err := os.Executable(); err == nil {
-		spec.SkipFiles = append(spec.SkipFiles, filepath.Base(executable))
+		base.SkipFiles = append(base.SkipFiles, filepath.Base(executable))
 	}
 
-	fingerprint, err := c.fingerprint(spec)
+	// Common path: the installed manifest's watch proves that neither the
+	// replace closure nor any input changed since this binary's fingerprint
+	// was recorded, from one lstat per watched object.
+	installed, installedOK := c.readInstalledManifest()
+	if installedOK && installed.Watch != nil && installed.Watch.ExpansionStable && installed.Watch.Holds(base, installed.WrittenAtNS) {
+		return false, nil
+	}
+
+	writtenAt := c.clock().UnixNano()
+	observer := newFreshnessObserver(base)
+	observed := base
+	observed.observer = observer
+	spec := WithGoReplaceFreshnessInputs(observed)
+	fingerprint, entries, err := c.fingerprint(spec)
 	if err != nil {
 		c.log("Warning: unable to verify CLI freshness: %v\n", err)
 		return false, nil
 	}
 
 	if fingerprint == c.BuildFingerprint {
+		// Something the watch covers moved without changing the inputs (an
+		// excluded output, an editor's temporary file). Record the current
+		// state so the next invocation takes the common path again.
+		c.restampInstalledManifest(installed, installedOK, base, spec, entries, observer, writtenAt)
+		return false, nil
+	}
+	spec.observer = nil
+
+	if latencyBound {
+		c.dumpFreshnessDebug(spec)
+		c.refreshInBackground(spec)
 		return false, nil
 	}
 
@@ -106,30 +175,41 @@ func (c *StaleChecker) CheckAndMaybeRebuild() (bool, error) {
 	return restarted, nil
 }
 
-func (c *StaleChecker) autoRebuild(spec FreshnessSpec, currentFingerprint string) (bool, error) {
+// refreshCommand builds the capacity-admitted owner refresh command for this
+// CLI. Stdio is left for the caller: a synchronous rebuild streams it, a
+// background one redirects it to a log.
+func (c *StaleChecker) refreshCommand(spec FreshnessSpec) (*exec.Cmd, string, error) {
 	if _, err := c.lookPath()("go"); err != nil {
-		return false, fmt.Errorf("%s CLI is stale and the Go toolchain is unavailable: %w", c.appLabel(), err)
+		return nil, "", fmt.Errorf("%s CLI is stale and the Go toolchain is unavailable: %w", c.appLabel(), err)
 	}
 
 	repoRoot, ok := findRepositoryRoot(spec.SourceRoot, c.installerModule())
 	if !ok {
-		return false, fmt.Errorf("%s CLI is stale but its cli-core installer source root is unavailable", c.appLabel())
+		return nil, "", fmt.Errorf("%s CLI is stale but its cli-core installer source root is unavailable", c.appLabel())
 	}
 
 	executable, err := os.Executable()
 	if err != nil {
-		return false, fmt.Errorf("resolve running %s CLI path: %w", c.appLabel(), err)
+		return nil, "", fmt.Errorf("resolve running %s CLI path: %w", c.appLabel(), err)
 	}
 	controlPlane, err := c.controlPlaneBinary()
 	if err != nil {
-		return false, fmt.Errorf("%s CLI is stale; capacity-admitted refresh is unavailable: %w", c.appLabel(), err)
+		return nil, "", fmt.Errorf("%s CLI is stale; capacity-admitted refresh is unavailable: %w", c.appLabel(), err)
 	}
 	if c.InstallKind != "scenario" && c.InstallKind != "resource" || strings.TrimSpace(c.InstallName) == "" {
-		return false, fmt.Errorf("%s CLI is stale but has no declared scenario/resource install identity", c.appLabel())
+		return nil, "", fmt.Errorf("%s CLI is stale but has no declared scenario/resource install identity", c.appLabel())
 	}
 	cmd := exec.Command(controlPlane, "cli-refresh", c.InstallKind, c.InstallName, executable)
 	cmd.Dir = repoRoot
 	cmd.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil), envkit.ToolchainOptions{})
+	return cmd, executable, nil
+}
+
+func (c *StaleChecker) autoRebuild(spec FreshnessSpec, currentFingerprint string) (bool, error) {
+	cmd, executable, err := c.refreshCommand(spec)
+	if err != nil {
+		return false, err
+	}
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
@@ -172,11 +252,89 @@ func findRepositoryRoot(start, installerModule string) (string, bool) {
 	return "", false
 }
 
-func (c *StaleChecker) fingerprint(spec FreshnessSpec) (string, error) {
+// fingerprint returns the source fingerprint and, when cli-core computed it,
+// the per-file entries it hashed.
+func (c *StaleChecker) fingerprint(spec FreshnessSpec) (string, []FileManifestEntry, error) {
 	if c.FingerprintFunc != nil {
-		return c.FingerprintFunc(spec)
+		fingerprint, err := c.FingerprintFunc(spec)
+		return fingerprint, nil, err
 	}
-	return ComputeFreshnessFingerprint(spec)
+	if strings.TrimSpace(spec.SourceRoot) == "" {
+		return "", nil, fmt.Errorf("freshness source root must not be empty")
+	}
+	entries, err := collectFreshnessEntries(spec)
+	if err != nil {
+		return "", nil, err
+	}
+	return aggregateManifestDigest(entries, nil), entries, nil
+}
+
+func (c *StaleChecker) clock() time.Time {
+	if c.now != nil {
+		return c.now()
+	}
+	return time.Now()
+}
+
+func (c *StaleChecker) installedManifestPath() string {
+	if strings.TrimSpace(c.InstalledManifest) != "" {
+		return c.InstalledManifest
+	}
+	executable, err := os.Executable()
+	if err != nil {
+		return ""
+	}
+	return FreshnessManifestPath(executable)
+}
+
+// readInstalledManifest returns the installed manifest only when it describes
+// this binary's build. Per-file entries are not decoded: the watch decides the
+// common path, and a restamp records freshly hashed entries.
+func (c *StaleChecker) readInstalledManifest() (FreshnessManifest, bool) {
+	path := c.installedManifestPath()
+	if path == "" {
+		return FreshnessManifest{}, false
+	}
+	manifest, ok, err := readFreshnessManifestHead(path)
+	if err != nil || !ok || manifest.Version != freshnessManifestVersion || manifest.Digest != c.BuildFingerprint || len(manifest.KeyInputs) > 0 {
+		return FreshnessManifest{}, false
+	}
+	return manifest, true
+}
+
+// restampInstalledManifest rewrites the installed manifest after a full
+// enumeration confirmed the binary current. It writes only while the binary
+// at the executable path is the one running, so a process outliving a
+// reinstall never overwrites the new binary's manifest, and only for the input
+// list the installer recorded. Best effort: failure just repeats the full
+// check next time.
+func (c *StaleChecker) restampInstalledManifest(installed FreshnessManifest, installedOK bool, base, spec FreshnessSpec, entries []FileManifestEntry, observer *freshnessObserver, writtenAtNS int64) {
+	if entries == nil || (installedOK && !slices.Equal(installed.Inputs, spec.Inputs)) {
+		return
+	}
+	executable, err := os.Executable()
+	if err != nil || !runningExecutableIs(executable) {
+		return
+	}
+	path := c.installedManifestPath()
+	if path == "" {
+		return
+	}
+	if !installedOK {
+		// A manifest for another build (or none) must not be replaced unless it
+		// is absent; the installer owns that transition.
+		if _, present, _ := ReadFreshnessManifest(path); present {
+			return
+		}
+	}
+	checkType := installed.CheckType
+	if checkType == "" {
+		checkType = "cli"
+	}
+	manifest := newFreshnessManifest(spec, checkType, nil, writtenAtNS, entries, observer.watch(spec, slices.Equal(spec.Inputs, base.Inputs)))
+	if err := WriteFreshnessManifest(path, manifest); err != nil {
+		c.debugRefresh("freshness manifest restamp failed: %v\n", err)
+	}
 }
 
 func (c *StaleChecker) lookPath() func(string) (string, error) {
@@ -304,11 +462,17 @@ func truthy(value string) bool {
 // plus the local replace targets the CLI imports. Caller-provided inputs are
 // not baked, so the runtime must expand them itself to agree with the build.
 func (c *StaleChecker) freshnessSpec(srcRoot string) FreshnessSpec {
-	return WithGoReplaceFreshnessInputs(FreshnessSpec{
+	return WithGoReplaceFreshnessInputs(c.baseFreshnessSpec(srcRoot))
+}
+
+// baseFreshnessSpec is the spec before replace-closure expansion. For an
+// installed binary its inputs are the baked, already-expanded list.
+func (c *StaleChecker) baseFreshnessSpec(srcRoot string) FreshnessSpec {
+	return FreshnessSpec{
 		SourceRoot:  srcRoot,
 		ContextRoot: c.sourceContextRoot(srcRoot),
 		Inputs:      append([]string(nil), c.FreshnessInputs...),
-	})
+	}
 }
 
 func (c *StaleChecker) manifestSourcePath(contextRoot string) string {

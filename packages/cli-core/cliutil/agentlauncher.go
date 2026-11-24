@@ -3,6 +3,7 @@ package cliutil
 import (
 	"context"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -73,6 +74,14 @@ const (
 	// empty cgroup: a session `vrooli agent list` showed and the kernel had
 	// never heard of.
 	AgentSessionEnv = "VROOLI_AGENT_SESSION"
+
+	// SourceRunIDEnv names, as a non-secret locator, the Agent Manager run
+	// this session's provider usage is accounted to: the attached run the
+	// launcher opened, or the run that owns the identity a governed launch
+	// already holds. Quota feeds (for example the Claude statusline) record it
+	// so usage readings name a run whose physical presence is observed. It is
+	// attribution only and never authority; an unknown run leaves it unset.
+	SourceRunIDEnv = "VROOLI_SOURCE_RUN_ID"
 
 	defaultAgentManagerLauncherBase = "http://127.0.0.1:18800"
 
@@ -253,6 +262,7 @@ func launchNativeSession(ctx context.Context, request AgentLaunchRequest, comman
 	request.WorkingDir = launchContext.WorkingDir
 	request.Environment = PrepareLaunchEnvironment(request.Environment, launchContext)
 	harnessKind, binary := "command-session", command
+	forceWaitForModelSource := false
 	if command == "" {
 		harnessKind, binary, err = codingAgentSpec(request.Agent)
 		if err != nil {
@@ -346,6 +356,16 @@ func launchNativeSession(ctx context.Context, request AgentLaunchRequest, comman
 			if err != nil {
 				return LaunchResult{}, &AgentLaunchError{Agent: request.Agent, Err: err}
 			}
+			if descriptor, ok := harness.Active().Lookup(request.Agent); ok && descriptor.ModelSourceProtocol == "gemini-generate-content" {
+				var cleanup func()
+				var prepareErr error
+				environment, cleanup, prepareErr = prepareAntigravitySourceHome(*source, environment)
+				if prepareErr != nil {
+					return LaunchResult{}, &AgentLaunchError{Agent: request.Agent, Err: prepareErr}
+				}
+				defer cleanup()
+				forceWaitForModelSource = true
+			}
 		} else {
 			request.Args, environment = ApplyUsageMode(request.Agent, request.Args, environment)
 		}
@@ -380,7 +400,7 @@ func launchNativeSession(ctx context.Context, request AgentLaunchRequest, comman
 	// liveness (see attachedRunProcessAlive).
 	// Replacing this process would discard a caller's deadline/cancellation.
 	// A cancellable launch must retain its waiting wrapper.
-	willExec := command == "" && canExecReplace(ctx, request)
+	willExec := command == "" && !forceWaitForModelSource && canExecReplace(ctx, request)
 
 	// The scope is named from the harness session id before attachment, so the
 	// lease and cgroup use a stable name whether or not a run id is minted.
@@ -454,6 +474,13 @@ func launchNativeSession(ctx context.Context, request AgentLaunchRequest, comman
 	if warning := ceilingWarning(); warning != "" {
 		launchResult.CeilingWarning = warning
 		fmt.Fprintln(errorWriter(request), "vrooli: "+warning)
+	}
+	// A stale locator inherited from an unrelated caller must never survive a
+	// launch that cannot name its own run.
+	if runID := attach.sourceRunID(); runID != "" {
+		environment = withEnvironmentValue(environment, SourceRunIDEnv, runID)
+	} else {
+		environment = withoutEnvironmentValue(environment, SourceRunIDEnv)
 	}
 	if attach.token != "" {
 		environment = withEnvironmentValue(environment, AgentManagerIdentityTokenEnv, attach.token)
@@ -539,8 +566,12 @@ func lookPathInEnvironment(binary string, environment []string) (string, error) 
 // Unknown harness grammars stay governed. Arguments are exact tokens, with no
 // trimming, positional prompts, `--`, mixed or repeated informational tokens.
 func informationalInvocation(binary string, args []string) bool {
+	// agy (Antigravity) is included for its exact --help/-h/--version forms only;
+	// its -v is not a version flag. Leaving it out let vrooli-bridge-agent's
+	// 15-second `agy --version` inventory probe mint ~8,000 attached runs a day
+	// (observed 2026-11-14 through 2026-11-21).
 	switch binary {
-	case "codex", "claude", "opencode", "grok":
+	case "codex", "claude", "opencode", "grok", "agy":
 	default:
 		return false
 	}
@@ -789,6 +820,59 @@ func attachCodingAgent(parent context.Context, request AgentLaunchRequest, harne
 		attachment.failure = "malformed response"
 	}
 	return attachment
+}
+
+// sourceRunID is the run this launch is accounted to: the run attach opened,
+// or else the run named by the identity the session holds (a governed launch
+// that skipped attach, or an inherited identity). The token payload is read
+// as a label only; authority is always verified by Agent Manager.
+func (a codingAgentAttachment) sourceRunID() string {
+	if id := strings.TrimSpace(a.runID); isRunUUID(id) {
+		return id
+	}
+	if id := identityTokenRunID(a.token); isRunUUID(id) {
+		return id
+	}
+	return ""
+}
+
+// identityTokenRunID reads the run_id claim of an Agent Manager identity token
+// (base64url payload "." signature) without verifying it.
+func identityTokenRunID(token string) string {
+	payload, _, ok := strings.Cut(strings.TrimSpace(token), ".")
+	if !ok || payload == "" {
+		return ""
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(payload)
+	if err != nil {
+		return ""
+	}
+	var claims struct {
+		RunID string `json:"run_id"`
+	}
+	if json.Unmarshal(raw, &claims) != nil {
+		return ""
+	}
+	return strings.TrimSpace(claims.RunID)
+}
+
+func isRunUUID(value string) bool {
+	if len(value) != 36 {
+		return false
+	}
+	for i, r := range value {
+		switch i {
+		case 8, 13, 18, 23:
+			if r != '-' {
+				return false
+			}
+		default:
+			if !(r >= '0' && r <= '9' || r >= 'a' && r <= 'f' || r >= 'A' && r <= 'F') {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func detachCodingAgent(parent context.Context, request AgentLaunchRequest, runID, token string) error {

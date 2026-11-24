@@ -37,9 +37,16 @@ type Command struct {
 	// remain runnable without its scenario API. Prompt-time hooks use this for
 	// their fail-closed no-op path when the owning scenario is stopped.
 	NeedsAPIOverride *bool
-	Args             ArgSchema
-	Run              func(args []string) error
-	RunCtx           func(ctx RunContext) error
+	// LatencyBound marks a command that runs under a hard time limit (coding
+	// agent hooks, status lines). Such a command never waits for a stale-CLI
+	// rebuild: it runs the installed binary at once and a detached, deduplicated
+	// background refresh updates the binary for later calls. Declare it on every
+	// hook entry point; the cost of forgetting is a hook timeout after any
+	// shared-package change.
+	LatencyBound bool
+	Args         ArgSchema
+	Run          func(args []string) error
+	RunCtx       func(ctx RunContext) error
 	// Architecture declares the command's renderer-separated primitive class
 	// (or an explicit exception class for legitimate special cases). It is
 	// optional and additive: a zero value means "unclassified/legacy" and
@@ -343,7 +350,7 @@ func (a *App) run(args []string) error {
 		// command gets the same self-healing path as a known API command. This
 		// only adds freshness work to the error path; known non-API commands keep
 		// their existing fast path.
-		if restarted, staleErr := a.checkStaleAndMaybeRebuild(args); staleErr != nil {
+		if restarted, staleErr := a.checkStaleAndMaybeRebuild(args, false); staleErr != nil {
 			return staleErr
 		} else if restarted {
 			return nil
@@ -362,7 +369,7 @@ func (a *App) run(args []string) error {
 	}
 
 	if cmd.NeedsAPI && !nestedHelpDispatch {
-		if restarted, staleErr := a.checkStaleAndMaybeRebuild(args); staleErr != nil {
+		if restarted, staleErr := a.checkStaleAndMaybeRebuild(args, cmd.LatencyBound); staleErr != nil {
 			return staleErr
 		} else if restarted {
 			return nil
@@ -398,7 +405,7 @@ func (a *App) runSubcommand(group *SubcommandGroup, args []string, originalArgs 
 		if cmd == nil {
 			return fmt.Errorf("subcommand group %q declares DefaultSubcommand %q but no such subcommand exists", group.Name, group.DefaultSubcommand)
 		}
-		if restarted, staleErr := a.checkStaleAndMaybeRebuild(originalArgs); staleErr != nil {
+		if restarted, staleErr := a.checkStaleAndMaybeRebuild(originalArgs, cmd.LatencyBound); staleErr != nil {
 			return staleErr
 		} else if restarted {
 			return nil
@@ -408,7 +415,7 @@ func (a *App) runSubcommand(group *SubcommandGroup, args []string, originalArgs 
 	if cmd == nil {
 		// A stale binary can know the group but not a newly added leaf. Rebuild
 		// before returning a false-negative capability result.
-		if restarted, staleErr := a.checkStaleAndMaybeRebuild(originalArgs); staleErr != nil {
+		if restarted, staleErr := a.checkStaleAndMaybeRebuild(originalArgs, false); staleErr != nil {
 			return staleErr
 		} else if restarted {
 			return nil
@@ -427,7 +434,7 @@ func (a *App) runSubcommand(group *SubcommandGroup, args []string, originalArgs 
 	if cmd.NeedsAPIOverride != nil {
 		needsAPI = *cmd.NeedsAPIOverride
 	}
-	if restarted, staleErr := a.checkStaleAndMaybeRebuild(originalArgs); staleErr != nil {
+	if restarted, staleErr := a.checkStaleAndMaybeRebuild(originalArgs, cmd.LatencyBound); staleErr != nil {
 		return staleErr
 	} else if restarted {
 		return nil
@@ -445,8 +452,15 @@ func (a *App) runSubcommand(group *SubcommandGroup, args []string, originalArgs 
 	return a.dispatchCommand(strings.TrimSpace(a.opts.Name+" "+group.Name), *cmd, args[1:])
 }
 
-func (a *App) checkStaleAndMaybeRebuild(args []string) (bool, error) {
+// checkStaleAndMaybeRebuild refreshes a stale CLI before dispatch. A
+// latency-bound command never waits for the rebuild: it runs the current binary
+// and the refresh happens in the background (StaleChecker.CheckLatencyBound).
+func (a *App) checkStaleAndMaybeRebuild(args []string, latencyBound bool) (bool, error) {
 	if a.opts.StaleChecker == nil {
+		return false, nil
+	}
+	if latencyBound {
+		a.opts.StaleChecker.CheckLatencyBound()
 		return false, nil
 	}
 	a.opts.StaleChecker.ReexecArgs = append([]string(nil), args...)

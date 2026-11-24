@@ -203,6 +203,30 @@ func TestLastContextTokens(t *testing.T) {
 	}
 }
 
+func TestOpenCodeUsageUsesAssistantPromptAndCacheTokens(t *testing.T) {
+	info := []byte(`{"id":"m1","role":"assistant","modelID":"openai/gpt-6.1","tokens":{"input":120000,"output":500,"reasoning":40,"cache":{"read":10000,"write":2000}}}`)
+	tokens, model, found := OpenCodeUsage(info)
+	if !found || tokens != 132000 || model != "openai/gpt-6.1" {
+		t.Fatalf("got tokens=%d model=%q found=%v", tokens, model, found)
+	}
+	for _, raw := range [][]byte{
+		[]byte(`{"role":"user","tokens":{"input":120000}}`),
+		[]byte(`{"role":"assistant","modelID":"openai/gpt-6.1","tokens":{"input":0}}`),
+	} {
+		if tokens, _, found := OpenCodeUsage(raw); found || tokens != 0 {
+			t.Fatalf("unconfirmed usage must remain unknown: %s => %d,%v", raw, tokens, found)
+		}
+	}
+}
+
+func TestLastContextUsageCarriesReportedClaudeModel(t *testing.T) {
+	line := []byte(`{"type":"assistant","message":{"model":"claude-opus-4-1","usage":{"input_tokens":90,"cache_read_input_tokens":10,"cache_creation_input_tokens":5}}}`)
+	tokens, model, found := LastContextUsage(line, HarnessClaude)
+	if !found || tokens != 105 || model != "claude-opus-4-1" {
+		t.Fatalf("got tokens=%d model=%q found=%v", tokens, model, found)
+	}
+}
+
 func TestCompactionRecorded(t *testing.T) {
 	for _, tc := range []struct {
 		name    string

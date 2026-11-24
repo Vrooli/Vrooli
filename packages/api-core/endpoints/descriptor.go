@@ -102,11 +102,13 @@ type RESTProtoPayloads struct {
 // RESTPayload describes one payload role of a REST-exception endpoint.
 //
 //   - Transport: how the bytes travel — "connect", "json",
-//     "multipart/form-data", or "none" (no body for this role).
+//     "multipart/form-data", "websocket_binary", or "none" (no body for
+//     this role).
 //   - Conformance: how the body relates to the proto — "protojson" (a
-//     proto message encoded as JSON), "transport_only" (proto-typed but the
-//     transport is non-proto, e.g. multipart), "external_shape" (a
-//     third-party-dictated shape), or "none".
+//     proto message encoded as JSON), "proto_binary" (a protobuf binary
+//     envelope on a non-Connect stream upgrade), "transport_only" (proto-
+//     typed but the transport is non-proto, e.g. multipart), "external_shape"
+//     (a third-party-dictated shape), or "none".
 //   - ProtoFullName: the fully-qualified proto message when the role is
 //     proto-typed; omitted for "none".
 type RESTPayload struct {
