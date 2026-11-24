@@ -280,64 +280,6 @@
           }
         },
         {
-          "name": "variants",
-          "description": "List skill variants.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "SkillsService",
-            "method": "ListSkillVariants"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "action"
-          }
-        },
-        {
-          "name": "add-variant",
-          "description": "Add a skill variant.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "SkillsService",
-            "method": "CreateSkillVariant"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "action"
-          }
-        },
-        {
-          "name": "rm-variant",
-          "description": "Remove a skill variant.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "SkillsService",
-            "method": "DeleteSkillVariant"
-          },
-          "governance": {
-            "effect": "destructive",
-            "run_eligible": false,
-            "requires_confirmation": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "action"
-          }
-        },
-        {
           "name": "topology",
           "description": "Report skill packs and generated projection residency.",
           "binding": {
@@ -592,171 +534,6 @@
           },
           "architecture": {
             "primitive": "action"
-          }
-        }
-      ]
-    },
-    {
-      "name": "experiment",
-      "commands": [
-        {
-          "name": "list",
-          "description": "List experiments.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ExperimentsService",
-            "method": "ListExperiments"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "show",
-          "description": "Show an experiment.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ExperimentsService",
-            "method": "GetExperiment"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "create",
-          "description": "Create an experiment.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ExperimentsService",
-            "method": "CreateExperiment"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "start",
-          "description": "Start an experiment.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ExperimentsService",
-            "method": "StartExperiment"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "conclude",
-          "description": "Conclude an experiment.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ExperimentsService",
-            "method": "ConcludeExperiment"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "holdout",
-          "description": "Manage experiment holdout.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ExperimentsService",
-            "method": "RecordHoldoutReceipt"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "promote",
-          "description": "Promote an experiment.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ExperimentsService",
-            "method": "PromoteExperiment"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "outcomes",
-          "description": "Show experiment outcomes.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ExperimentsService",
-            "method": "ListOutcomes"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "report",
-          "description": "Report experiment results.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ExperimentsService",
-            "method": "GetExperimentReport"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "delete",
-          "description": "Delete an experiment.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ExperimentsService",
-            "method": "DeleteExperiment"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
           }
         }
       ]
@@ -1234,39 +1011,6 @@
           },
           "governance": {
             "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "import-cc",
-          "description": "Import Claude Code team data.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "TeamsService",
-            "method": "ImportClaudeCodeTeam"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:write",
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "export-cc",
-          "description": "Export Claude Code team data.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "TeamsService",
-            "method": "ExportClaudeCodeTeam"
-          },
-          "governance": {
-            "effect": "read",
             "run_eligible": true,
             "permissions": [
               "network:internal"
@@ -1828,44 +1572,6 @@
             "kind": "connect-rpc",
             "service": "TopicsService",
             "method": "ListTopicTree"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "test",
-      "commands": [
-        {
-          "name": "run",
-          "description": "Run skill tests.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "TestingService",
-            "method": "RunSkillTest"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:write",
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "history",
-          "description": "Show skill test history.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "TestingService",
-            "method": "ListSkillTestHistory"
           },
           "governance": {
             "effect": "read",
@@ -2567,22 +2273,6 @@
           }
         },
         {
-          "name": "orientation-cost",
-          "description": "Read member orientation-cost evidence.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "MemberflowService",
-            "method": "GetOrientationCost"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
           "name": "instruments",
           "description": "Read memberflow instruments.",
           "binding": {
@@ -2687,11 +2377,6 @@
         "reason": "Team aggregates are persisted and measured by team list."
       },
       {
-        "domain": "testing",
-        "stateful": true,
-        "reason": "Skill test results are durable entity-scoped history."
-      },
-      {
         "domain": "topics",
         "stateful": true,
         "reason": "Topic taxonomy rows are persisted and measured by topic list."
@@ -2735,26 +2420,6 @@
     ]
   },
   "omitted": [
-    {
-      "service": "ExperimentsService",
-      "method": "AssignExperiment",
-      "reason": "Assignment is a typed cross-scenario operation used by agent-manager; operators inspect assignments through experiment reports rather than invoking assignment directly."
-    },
-    {
-      "service": "ExperimentsService",
-      "method": "RecordAuditReceipt",
-      "reason": "Audit receipts are recorded by governed experiment consumers as execution evidence and are not an operator-authored CLI operation."
-    },
-    {
-      "service": "ExperimentsService",
-      "method": "RecordOutcome",
-      "reason": "Outcomes are submitted by experiment participants such as agent-manager and swarm-manager; the CLI exposes outcome inspection through experiment outcomes."
-    },
-    {
-      "service": "ExperimentsService",
-      "method": "UpdateExperiment",
-      "reason": "Experiment mutations are exposed as intent-specific start, conclude, holdout, and promote commands instead of an unsafe generic update command."
-    },
     {
       "service": "GraphService",
       "method": "GetHealthConfig",
@@ -2978,7 +2643,7 @@
     {
       "service": "SkillsService",
       "method": "GetSkillVariant",
-      "reason": "The API preserves variant detail reads for UI and generated-client consumers; the CLI has no standalone variant-show command."
+      "reason": "Removed: the feature protected no loop part and had no data; the handler returns unimplemented."
     },
     {
       "service": "SkillsService",
@@ -2993,12 +2658,12 @@
     {
       "service": "SkillsService",
       "method": "UpdateSkillVariant",
-      "reason": "The API preserves variant updates for UI and generated-client consumers; the CLI intentionally exposes only list, add, and remove variant operations."
+      "reason": "Removed: the feature protected no loop part and had no data; the handler returns unimplemented."
     },
     {
       "service": "TeamsService",
       "method": "ClearMessages",
-      "reason": "Team inbox messaging remains an internal heartbeat/UI workflow and is not exposed as a general CLI command."
+      "reason": "Removed: the feature protected no loop part and had no data; the handler returns unimplemented."
     },
     {
       "service": "TeamsService",
@@ -3008,12 +2673,12 @@
     {
       "service": "TeamsService",
       "method": "DeleteMessage",
-      "reason": "Team inbox messaging remains an internal heartbeat/UI workflow and is not exposed as a general CLI command."
+      "reason": "Removed: the feature protected no loop part and had no data; the handler returns unimplemented."
     },
     {
       "service": "TeamsService",
       "method": "DeleteOrgChartEdge",
-      "reason": "Organization-chart editing is consumed through the generated UI client and has no standalone CLI command."
+      "reason": "Removed: the feature protected no loop part and had no data; the handler returns unimplemented."
     },
     {
       "service": "TeamsService",
@@ -3028,7 +2693,7 @@
     {
       "service": "TeamsService",
       "method": "GetOrgChart",
-      "reason": "Organization-chart editing is consumed through the generated UI client and has no standalone CLI command."
+      "reason": "Removed: the feature protected no loop part and had no data; the handler returns unimplemented."
     },
     {
       "service": "TeamsService",
@@ -3038,12 +2703,12 @@
     {
       "service": "TeamsService",
       "method": "ListAvailableClaudeCodeTeams",
-      "reason": "Availability discovery is part of the interactive import flow; team import-cc is the governed CLI operation."
+      "reason": "Removed: the feature protected no loop part and had no data; the handler returns unimplemented."
     },
     {
       "service": "TeamsService",
       "method": "ListMessages",
-      "reason": "Team inbox messaging remains an internal heartbeat/UI workflow and is not exposed as a general CLI command."
+      "reason": "Removed: the feature protected no loop part and had no data; the handler returns unimplemented."
     },
     {
       "service": "TeamsService",
@@ -3058,12 +2723,12 @@
     {
       "service": "TeamsService",
       "method": "SendMessage",
-      "reason": "Team inbox messaging remains an internal heartbeat/UI workflow and is not exposed as a general CLI command."
+      "reason": "Removed: the feature protected no loop part and had no data; the handler returns unimplemented."
     },
     {
       "service": "TeamsService",
       "method": "SetOrgChart",
-      "reason": "Organization-chart editing is consumed through the generated UI client and has no standalone CLI command."
+      "reason": "Removed: the feature protected no loop part and had no data; the handler returns unimplemented."
     },
     {
       "service": "TeamsService",
@@ -3073,7 +2738,7 @@
     {
       "service": "TeamsService",
       "method": "UpdateOrgChartEdge",
-      "reason": "Organization-chart editing is consumed through the generated UI client and has no standalone CLI command."
+      "reason": "Removed: the feature protected no loop part and had no data; the handler returns unimplemented."
     },
     {
       "service": "TemplatesService",
@@ -3104,6 +2769,36 @@
       "service": "WorldService",
       "method": "StreamWorldFeed",
       "reason": "The world feed is a server stream consumed by the UI; the CLI reads runs through heartbeat commands."
+    },
+    {
+      "service": "SkillsService",
+      "method": "ListSkillVariants",
+      "reason": "Removed: the feature protected no loop part and had no data; the handler returns unimplemented."
+    },
+    {
+      "service": "SkillsService",
+      "method": "CreateSkillVariant",
+      "reason": "Removed: the feature protected no loop part and had no data; the handler returns unimplemented."
+    },
+    {
+      "service": "SkillsService",
+      "method": "DeleteSkillVariant",
+      "reason": "Removed: the feature protected no loop part and had no data; the handler returns unimplemented."
+    },
+    {
+      "service": "MemberflowService",
+      "method": "GetOrientationCost",
+      "reason": "Removed: the feature protected no loop part and had no data; the handler returns unimplemented."
+    },
+    {
+      "service": "TeamsService",
+      "method": "ImportClaudeCodeTeam",
+      "reason": "Removed: the feature protected no loop part and had no data; the handler returns unimplemented."
+    },
+    {
+      "service": "TeamsService",
+      "method": "ExportClaudeCodeTeam",
+      "reason": "Removed: the feature protected no loop part and had no data; the handler returns unimplemented."
     }
   ],
   "exceptions": [
@@ -3111,11 +2806,6 @@
       "command": "agent",
       "class": "passthrough",
       "reason": "Legacy top-level dispatcher preserves the established agent subcommand UX while every governed leaf uses a generated Connect client."
-    },
-    {
-      "command": "experiment",
-      "class": "passthrough",
-      "reason": "Legacy top-level dispatcher preserves the established experiment subcommand UX while every governed leaf uses a generated Connect client."
     },
     {
       "command": "member",
@@ -3136,11 +2826,6 @@
       "command": "team",
       "class": "passthrough",
       "reason": "Team is a multi-domain dispatcher spanning teams, heartbeat, and memberflow generated clients; its governed leaves remain separately declared."
-    },
-    {
-      "command": "test",
-      "class": "passthrough",
-      "reason": "Legacy top-level dispatcher preserves skill test run and history UX over the generated TestingService client."
     },
     {
       "command": "topic",

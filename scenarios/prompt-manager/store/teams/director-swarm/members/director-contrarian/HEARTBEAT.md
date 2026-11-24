@@ -1,7 +1,7 @@
 # Run Task: Director Contrarian
 
 ## Task Loop
-1. Read `path:docs/agent-system/TARGET_MODEL.md` §9, the deviation catalogue.
+1. Read `path:docs/agent-system/STANDING_TEAMS.md` "Reporting what moved".
 2. Inspect director-swarm's declared instrument, roster, addresses, and operating documents.
 3. Report the first deviation found, with the exact evidence path and a bounded recommendation to the structural owner.
 4. If no deviation is found, record a clean no-deviation result.

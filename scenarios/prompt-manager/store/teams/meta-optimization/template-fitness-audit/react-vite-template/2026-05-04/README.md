@@ -1,6 +1,6 @@
 # React-Vite Template Fitness — Measurement Harness
 
-**Created**: 2026-05-04 — iteration 1 of the multi-iteration program planned at `/home/matthalloran8/.claude/plans/thanks-for-the-postgres-wise-hearth.md`.
+**Created**: 2026-05-04 — iteration 1 of the multi-iteration program planned at `~/.claude/plans/thanks-for-the-postgres-wise-hearth.md`.
 
 **Slug**: `react-vite-template` (matches `docs/agent-system/REFERENCE_SCENARIOS.md` registry row).
 
@@ -75,5 +75,5 @@ If `git status packages/proto/` shows unexpected `D` entries, that's a prior ite
 
 - Strategic canon: [`docs/agent-system/REFERENCE_PATTERN_FITNESS.md`](../../../../../../../../docs/agent-system/REFERENCE_PATTERN_FITNESS.md)
 - Registry: [`docs/agent-system/REFERENCE_SCENARIOS.md`](../../../../../../../../docs/agent-system/REFERENCE_SCENARIOS.md) — `Last audit` column on the `reference-react-vite` row links here.
-- Iteration-1 plan: `/home/matthalloran8/.claude/plans/thanks-for-the-postgres-wise-hearth.md`
+- Iteration-1 plan: `~/.claude/plans/thanks-for-the-postgres-wise-hearth.md`
 - Lens skill: `prompt-manager skill read reference-pattern-fitness`

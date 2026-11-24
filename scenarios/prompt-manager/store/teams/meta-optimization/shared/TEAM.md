@@ -60,8 +60,8 @@ flowchart TB
 
 | Member | Audit lens | Primary work types |
 |---|---|---|
-| `team-agent-optimizer` | 10-layer team-member capability audit (`docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md`); team + agent file structure | `team-structure-change`, `agent-improvement`, `capability work item` |
-| `skill-optimizer` | Skill drift, usage telemetry, promotion-ladder progress (`docs/agent-system/PROMOTION_LADDER.md`); detects action-candidate + action-deprecation | `action-candidate`, `action-improvement`, `action-deprecation`, `meta-self-improvement` |
+| `team-agent-optimizer` | 10-layer team-member capability audit (`docs/agent-system/RULES.md`); team + agent file structure | `team-structure-change`, `agent-improvement`, `capability work item` |
+| `skill-optimizer` | Skill drift, usage telemetry, promotion-ladder progress (`docs/agent-system/SKILL_AUTHORING.md#promotion-ladder`); detects action-candidate + action-deprecation | `action-candidate`, `action-improvement`, `action-deprecation`, `meta-self-improvement` |
 | `run-introspector` | Recent agent-manager run telemetry; ground-truth on what actually happens vs. what's documented | `agent-improvement`, `meta-self-improvement`, `capability work item` |
 | `debt-curator` | The team's own typed evidence topics and shared artifacts; promotion + retirement candidates | `meta-self-improvement` |
 | `toolchain-validator` | Dev toolchain (development-toolchain-validator and fallbacks) against gold-star reference scenarios | `meta-self-improvement`, `capability work item` |

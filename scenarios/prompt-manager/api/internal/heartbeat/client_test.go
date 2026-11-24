@@ -35,7 +35,8 @@ func newTestClient(t *testing.T, server *httptest.Server) *AgentManagerClient {
 
 func TestHealth_ReturnsTrue(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"HEALTH_STATUS_HEALTHY"}`))
 	}))
 	defer srv.Close()
 
@@ -65,7 +66,9 @@ func TestHealth_ReturnsFalseFor503(t *testing.T) {
 
 func TestHealth_ReturnsFalseFor403(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`{"code":"permission_denied","message":"denied"}`))
 	}))
 	defer srv.Close()
 
@@ -854,11 +857,12 @@ func TestCreateTaskRefusesBodyResendingRedirectWithoutChangingOtherCalls(t *test
 				case "/redirected-task":
 					atomic.AddInt32(&redirected, 1)
 					_, _ = w.Write([]byte(`{"task":{"id":"second-task"}}`))
-				case "/health":
+				case apiconnect.AgentManagerServiceHealthProcedure:
 					http.Redirect(w, r, "/health-target", http.StatusFound)
 				case "/health-target":
 					atomic.AddInt32(&health, 1)
-					w.WriteHeader(http.StatusOK)
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = w.Write([]byte(`{"status":"HEALTH_STATUS_HEALTHY"}`))
 				default:
 					t.Errorf("unexpected request=%s %s", r.Method, r.URL.Path)
 				}

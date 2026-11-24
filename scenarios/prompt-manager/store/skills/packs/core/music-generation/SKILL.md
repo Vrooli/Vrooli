@@ -33,7 +33,7 @@ the harder production character while creating distinct original tracks per brie
 The October 29 Aquila trial is a newer positive reference: the operator liked all
 four 110-second instrumentals, preferred A and placed C second. Exact sources,
 briefs, model, actual seeds and feedback are in
-`path:/home/matthalloran8/.vrooli/research/topics/music-quality/runs/launch-instrumentals-20261029/README.md`.
+`~/.vrooli/research/topics/music-quality/runs/launch-instrumentals-20261029/README.md`.
 The briefs ask for distinctive hooks, interacting musical layers, rhythmic detail,
 phrase development and meaningful returns, not generic promotional background.
 Prompts, seeds and duration varied together; their individual effects are unknown.

@@ -45,7 +45,7 @@ These are the starting set. Recurring uncovered flaws become `framework-update` 
 
 You are this team's shape sensor. A loop cannot restructure itself, but it is the only thing that can observe its own error — so noticing belongs here and the restructure does not.
 
-Read `path:docs/agent-system/TARGET_MODEL.md` §9 (the deviation catalogue) and hold this team against it. This team owns the target model, so a deviation here is worse than elsewhere: the custodian is the example.
+Read `path:docs/agent-system/STANDING_TEAMS.md` "Reporting what moved" and hold this team against it. This team owns the target model, so a deviation here is worse than elsewhere: the custodian is the example.
 
 Check, in this order, and stop at the first one that fires:
 

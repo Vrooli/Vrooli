@@ -93,7 +93,7 @@ func DefaultIndependentCapabilities() Capabilities {
 func DefaultPeerCapabilities() Capabilities {
 	return Capabilities{
 		ShowOrgContext:           true,
-		InjectInbox:              true,
+		InjectInbox:              false,
 		AllowPeerTriggers:        true,
 		ShowTaskBoardGuidance:    true,
 		ShowKnowledgeLogGuidance: true,
@@ -104,7 +104,7 @@ func DefaultPeerCapabilities() Capabilities {
 func DefaultLeaderLedCapabilities(runtimeMode string) Capabilities {
 	return Capabilities{
 		ShowOrgContext:           true,
-		InjectInbox:              runtimeMode == RuntimeModeMultiProcess,
+		InjectInbox:              false,
 		AllowPeerTriggers:        false,
 		ShowTaskBoardGuidance:    true,
 		ShowKnowledgeLogGuidance: true,
@@ -125,7 +125,7 @@ func BuildCoordinationPreset(pattern, runtimeMode, leadAgentID string) (Coordina
 		return Coordination{
 			Pattern:       CoordinationPatternPeer,
 			ReportingMode: ReportingModeOrgChart,
-			MessagingMode: MessagingModeAsyncInbox,
+			MessagingMode: MessagingModeDisabled,
 			Capabilities:  DefaultPeerCapabilities(),
 		}, nil
 	case CoordinationPatternLeaderLed:
@@ -134,7 +134,7 @@ func BuildCoordinationPreset(pattern, runtimeMode, leadAgentID string) (Coordina
 			return Coordination{}, fmt.Errorf("leader-led teams require leadAgentId")
 		}
 
-		messagingMode := MessagingModeAsyncInbox
+		messagingMode := MessagingModeDisabled
 		if runtimeMode == RuntimeModeSingleProcess {
 			messagingMode = MessagingModeInSession
 		}
@@ -295,16 +295,8 @@ func ValidateFindings(contract Contract) []ValidationFinding {
 	return findings
 }
 
-func CoordinationSkillID(contract Contract) string {
-	switch contract.Coordination.Pattern {
-	case CoordinationPatternLeaderLed:
-		return "team-coordination-leader-led"
-	case CoordinationPatternPeer:
-		return "team-coordination-peer"
-	default:
-		return "team-coordination-independent"
-	}
-}
+// CoordinationSkillID is the one skill that explains every coordination pattern.
+const CoordinationSkillID = "team-coordination"
 
 func UsesSingleProcessInterop(contract Contract) bool {
 	return contract.Runtime.Mode == RuntimeModeSingleProcess && contract.Coordination.Pattern == CoordinationPatternLeaderLed
@@ -318,20 +310,12 @@ func UsesClaudeCodeRunner(contract Contract) bool {
 	return contract.Runtime.Mode == RuntimeModeSingleProcess
 }
 
-func MessagingUsesAsyncInbox(contract Contract) bool {
-	return contract.Coordination.MessagingMode == MessagingModeAsyncInbox
-}
-
 func MessagingUsesInSession(contract Contract) bool {
 	return contract.Coordination.MessagingMode == MessagingModeInSession
 }
 
 func MessagingEnabled(contract Contract) bool {
 	return contract.Coordination.MessagingMode != MessagingModeDisabled
-}
-
-func ShouldInjectInbox(contract Contract) bool {
-	return contract.Coordination.Capabilities.InjectInbox && MessagingUsesAsyncInbox(contract)
 }
 
 func ShouldShowOrgContext(contract Contract) bool {

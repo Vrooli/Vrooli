@@ -185,7 +185,7 @@ prompt-manager action create --name "…" --command '<argv with {{placeholders}}
 prompt-manager action create --name "…" --command '…' --apply                       # registers
 ```
 
-The governed transition is **retiring prose** in favor of an Action. Record the baseline, validation evidence, and operator disposition in the owning Swarm Manager work item; see `path:docs/agent-system/PROMOTION_LADDER.md`.
+The governed transition is **retiring prose** in favor of an Action. Record the baseline, validation evidence, and operator disposition in the owning Swarm Manager work item; see `path:docs/agent-system/SKILL_AUTHORING.md#promotion-ladder`.
 
 ## Graduation from Skills
 

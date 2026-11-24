@@ -12,7 +12,7 @@ import (
 
 func TestScanAll_RepositoryAndGeneratedPromptReferenceSources(t *testing.T) {
 	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte("prompt-manager skill read agent-system-audit\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte("prompt-manager skill read loop-audit\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	workflowPath := filepath.Join(root, "scenarios", "swarm-manager", ".vrooli", "agent-manager", "plan-author.json")
@@ -26,7 +26,7 @@ func TestScanAll_RepositoryAndGeneratedPromptReferenceSources(t *testing.T) {
 	s := NewScanner(
 		&mockAgentLister{agents: []store.Agent{{ID: "member-1"}}},
 		&mockTeamLister{teams: []store.Team{{ID: "team-1"}}},
-		&mockSkillLister{skills: []store.Skill{{ID: "agent-system-audit"}, {ID: "swarm-manager-workflow-plan-author"}, {ID: "writing-standards"}}},
+		&mockSkillLister{skills: []store.Skill{{ID: "loop-audit"}, {ID: "swarm-manager-workflow-plan-author"}, {ID: "writing-standards"}}},
 		&mockRelationStore{members: map[string][]store.TeamMemberRelation{"team-1": {{AgentID: "member-1"}}}},
 		nil,
 	)
@@ -43,7 +43,7 @@ func TestScanAll_RepositoryAndGeneratedPromptReferenceSources(t *testing.T) {
 		t.Fatalf("ScanAll: %v", err)
 	}
 	want := map[string]string{
-		"system:agents": "agent-system-audit",
+		"system:agents": "loop-audit",
 		"workflow:scenarios/swarm-manager/.vrooli/agent-manager/plan-author.json": "swarm-manager-workflow-plan-author",
 		"member-1": "writing-standards",
 	}
@@ -57,6 +57,51 @@ func TestScanAll_RepositoryAndGeneratedPromptReferenceSources(t *testing.T) {
 		}
 		if !found {
 			t.Errorf("missing %s -> %s CLI-read edge: %+v", from, to, edges)
+		}
+	}
+}
+
+func TestScanAll_DeclaredReadinessRemediationSkills(t *testing.T) {
+	root := t.TempDir()
+	policyPath := filepath.Join(root, "scenarios", "deployment-manager", "api", "readiness", "readiness-policy.json")
+	if err := os.MkdirAll(filepath.Dir(policyPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	policy := `{"items":[{"id":"one","remediation":{"skill":"readiness-signal"}},{"id":"two","remediation":{"skill":"work-scope"}},{"id":"three","remediation":{"skill":"readiness-signal"}},{"id":"four","remediation":{"skill":"not-in-registry"}}]}`
+	if err := os.WriteFile(policyPath, []byte(policy), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	otherJSON := filepath.Join(root, "scenarios", "deployment-manager", "api", "other.json")
+	if err := os.WriteFile(otherJSON, []byte(`{"remediation":{"skill":"ignored-skill"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s := NewScanner(
+		&mockAgentLister{}, &mockTeamLister{}, &mockSkillLister{skills: []store.Skill{
+			{ID: "readiness-signal"}, {ID: "work-scope"},
+		}}, nil, nil,
+	)
+	s.SetRepositoryRoot(root)
+	edges, err := s.ScanAll(context.Background())
+	if err != nil {
+		t.Fatalf("ScanAll: %v", err)
+	}
+	got := map[string]Edge{}
+	for _, edge := range edges {
+		if edge.Kind == EdgeDeclaredSkill {
+			got[edge.To] = edge
+		}
+	}
+	if len(got) != 3 {
+		t.Fatalf("declared readiness edges = %#v, want every nonempty owner declaration, including unresolved IDs", got)
+	}
+	for _, id := range []string{"readiness-signal", "work-scope", "not-in-registry"} {
+		edge, ok := got[id]
+		if !ok {
+			t.Errorf("missing declared skill edge to %q", id)
+			continue
+		}
+		if edge.From != "manifest:scenarios/deployment-manager/api/readiness/readiness-policy.json" || edge.SourceFile != "scenarios/deployment-manager/api/readiness/readiness-policy.json" {
+			t.Errorf("edge lost owner provenance: %+v", edge)
 		}
 	}
 }
@@ -567,26 +612,26 @@ func TestScanAll_Combined(t *testing.T) {
 
 // testValidIDs is a set of known skill IDs for testing.
 var testValidIDs = map[string]bool{
-	"screaming-architecture-audit": true,
+	"architecture-lenses": true,
 	"e2e-testing":                  true,
 	"cli-steer":                    true,
 	"api-steer":                    true,
 	"utils-unification":            true,
 	"knowledge-observatory-tools":  true,
-	"feature-scope":                true,
-	"platform-scope":               true,
+	"work-scope":                true,
+	"readiness-signal":               true,
 	"some-other-skill":             true,
 }
 
 func TestExtractRefsFromContent_CLIReadSingle(t *testing.T) {
-	content := "Use this: `prompt-manager skill read screaming-architecture-audit`"
+	content := "Use this: `prompt-manager skill read architecture-lenses`"
 	refs := extractRefsFromContent(content, testValidIDs)
 
 	if len(refs) != 1 {
 		t.Fatalf("expected 1 ref, got %d", len(refs))
 	}
-	if refs[0].skillID != "screaming-architecture-audit" {
-		t.Errorf("expected screaming-architecture-audit, got %s", refs[0].skillID)
+	if refs[0].skillID != "architecture-lenses" {
+		t.Errorf("expected architecture-lenses, got %s", refs[0].skillID)
 	}
 	if refs[0].edgeKind != EdgeCLIRead {
 		t.Errorf("expected cli-read, got %s", refs[0].edgeKind)
@@ -631,7 +676,7 @@ func TestExtractRefsFromContent_CLIReadMulti(t *testing.T) {
 }
 
 func TestExtractRefsFromContent_BoldListed(t *testing.T) {
-	content := "**screaming-architecture-audit** -- Architecture alignment tool"
+	content := "**architecture-lenses** -- Architecture alignment tool"
 	refs := extractRefsFromContent(content, testValidIDs)
 
 	if len(refs) != 1 {
@@ -670,14 +715,14 @@ func TestExtractRefsFromContent_PlaceholderExclusion(t *testing.T) {
 }
 
 func TestExtractRefsFromContent_PathRefRelative(t *testing.T) {
-	content := "See store/skills/packs/core/feature-scope/SKILL.md for details"
+	content := "See store/skills/packs/core/work-scope/SKILL.md for details"
 	refs := extractRefsFromContent(content, testValidIDs)
 
 	if len(refs) != 1 {
 		t.Fatalf("expected 1 ref, got %d", len(refs))
 	}
-	if refs[0].skillID != "feature-scope" {
-		t.Errorf("expected feature-scope, got %s", refs[0].skillID)
+	if refs[0].skillID != "work-scope" {
+		t.Errorf("expected work-scope, got %s", refs[0].skillID)
 	}
 	if refs[0].edgeKind != EdgePathRef {
 		t.Errorf("expected path-ref, got %s", refs[0].edgeKind)
@@ -685,14 +730,14 @@ func TestExtractRefsFromContent_PathRefRelative(t *testing.T) {
 }
 
 func TestExtractRefsFromContent_PathRefDirectory(t *testing.T) {
-	content := "Located at store/skills/packs/core/platform-scope/"
+	content := "Located at store/skills/packs/core/readiness-signal/"
 	refs := extractRefsFromContent(content, testValidIDs)
 
 	if len(refs) != 1 {
 		t.Fatalf("expected 1 ref, got %d", len(refs))
 	}
-	if refs[0].skillID != "platform-scope" {
-		t.Errorf("expected platform-scope, got %s", refs[0].skillID)
+	if refs[0].skillID != "readiness-signal" {
+		t.Errorf("expected readiness-signal, got %s", refs[0].skillID)
 	}
 }
 
@@ -700,8 +745,8 @@ func TestExtractRefsFromContent_MixedPatterns(t *testing.T) {
 	content := `# Agent Skills
 
 - **e2e-testing** -- End to end testing skill
-- Architecture: ` + "`prompt-manager skill read screaming-architecture-audit`" + `
-- See store/skills/packs/core/feature-scope/SKILL.md
+- Architecture: ` + "`prompt-manager skill read architecture-lenses`" + `
+- See store/skills/packs/core/work-scope/SKILL.md
 `
 	refs := extractRefsFromContent(content, testValidIDs)
 
@@ -719,11 +764,11 @@ func TestExtractRefsFromContent_MixedPatterns(t *testing.T) {
 	if !ids["e2e-testing"] {
 		t.Error("missing e2e-testing")
 	}
-	if !ids["screaming-architecture-audit"] {
-		t.Error("missing screaming-architecture-audit")
+	if !ids["architecture-lenses"] {
+		t.Error("missing architecture-lenses")
 	}
-	if !ids["feature-scope"] {
-		t.Error("missing feature-scope")
+	if !ids["work-scope"] {
+		t.Error("missing work-scope")
 	}
 }
 

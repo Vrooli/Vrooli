@@ -1,0 +1,39 @@
+{
+  "createdAt": "2026-11-19T00:00:00Z",
+  "description": "Author preview-first, resumable, self-testing operator scripts for destructive host maintenance, and promote recurring work to a CLI command or governed program when it earns that rung.",
+  "entry": "SKILL.md",
+  "icon": "terminal",
+  "id": "safe-operator-script",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "practice"
+  ],
+  "name": "safe-operator-script",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill read",
+      "bash -n",
+      "shellcheck"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 6,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "scripts",
+    "maintenance",
+    "safety",
+    "dry-run",
+    "operator",
+    "repair",
+    "resumable"
+  ],
+  "updatedAt": "2026-11-19T12:00:00Z"
+}

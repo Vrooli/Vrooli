@@ -93,7 +93,7 @@ func TestRule_OrphanOutput_NonKnowledgeIsNeverOrphan(t *testing.T) {
 	members := []MemberTopics{
 		mkMember("team-a", "writer", Topics{
 			Output: []OutputEntry{
-				{Prefix: "doctrine/*", DestinationKind: DestinationPORFile, DestinationPath: ptr("docs/agent-system/PRIMITIVES.md")},
+				{Prefix: "doctrine/*", DestinationKind: DestinationPORFile, DestinationPath: ptr("docs/agent-system/README.md#terms-beyond-rulesmd")},
 				{Prefix: "gaps/*", DestinationKind: DestinationBacklog},
 			},
 		}),

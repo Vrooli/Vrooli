@@ -157,41 +157,6 @@ export type Tag = z.infer<typeof TagSchema>
 export const TagArraySchema = z.array(TagSchema)
 
 /**
- * SkillTestRequest for testing skills with Ollama.
- */
-export const SkillTestRequestSchema = z.object({
-  model: z.string(),
-  inputVariables: z.record(z.string(), z.string()).optional(),
-  maxTokens: z.number().optional(),
-  temperature: z.number().optional(),
-})
-
-export type SkillTestRequest = z.infer<typeof SkillTestRequestSchema>
-
-/**
- * SkillTestResult from the testing domain.
- */
-export const SkillTestResultSchema = z.object({
-  id: z.string(),
-  skillId: z.string(),
-  model: z.string(),
-  inputVariables: z.record(z.string(), z.string()).optional(),
-  response: z.string(),
-  responseTime: z.number(),
-  tokenCount: z.number().optional(),
-  rating: z.number().optional(),
-  notes: z.string().optional(),
-  testedAt: z.string(),
-})
-
-export type SkillTestResult = z.infer<typeof SkillTestResultSchema>
-
-/**
- * Array of test results.
- */
-export const SkillTestResultArraySchema = z.array(SkillTestResultSchema)
-
-/**
  * UsageResponse from recording skill usage.
  */
 export const UsageResponseSchema = z.object({

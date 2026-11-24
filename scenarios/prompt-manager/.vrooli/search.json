@@ -8,7 +8,7 @@
       "provider_group": "prompt-manager",
       "bucket": "BUCKET_DO",
       "type": "skill",
-      "description": "High-traffic internal skills: reusable operating instructions, implementation guidance, debugging methods, and project workflows for agents working in Vrooli.",
+      "description": "Reusable operating instructions for coding agents working in Vrooli, including browser agent access, permissioned BAS sessions, implementation guidance, debugging methods, and project workflows.",
       "scope": "SCOPE_PROJECT",
       "class": "local_live",
       "index_timestamp_field": "finishedAt",

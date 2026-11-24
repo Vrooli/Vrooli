@@ -4,7 +4,6 @@ import (
 	"prompt-manager/cli/actions"
 	"prompt-manager/cli/agents"
 	"prompt-manager/cli/discover"
-	"prompt-manager/cli/experiments"
 	"prompt-manager/cli/goal"
 	"prompt-manager/cli/graph"
 	"prompt-manager/cli/internal/appctx"
@@ -14,7 +13,6 @@ import (
 	"prompt-manager/cli/skills"
 	"prompt-manager/cli/tags"
 	"prompt-manager/cli/teams"
-	"prompt-manager/cli/testing"
 	"prompt-manager/cli/topics"
 
 	"github.com/vrooli/api-core/spacecli"
@@ -30,13 +28,11 @@ func CommandGroups(ctx appctx.Context) []cliapp.CommandGroup {
 	groups = append(groups,
 		goal.Commands(ctx),
 		actions.Commands(ctx),
-		experiments.Commands(ctx),
 		tags.Commands(ctx),
 		members.Commands(ctx),
 		agents.Commands(ctx),
 		teams.Commands(ctx),
 		topics.Commands(ctx),
-		testing.Commands(ctx),
 		metadata.Commands(ctx),
 		search.Commands(ctx),
 		discover.Commands(ctx),

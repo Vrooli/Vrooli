@@ -42,7 +42,7 @@ export function KnowledgeLogView({ teamId, members, allAgents }: KnowledgeLogVie
   // the `caller` display string. Operators can attach an optional
   // freeform note (e.g., "acting-as researcher") via newCallerNote;
   // it is never used by validators. Canon:
-  // docs/agent-system/RUNTIME_ATTRIBUTION.md.
+  // scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md.
   const [newTopic, setNewTopic] = useState('')
   const [newContent, setNewContent] = useState('')
   const [newSource, setNewSource] = useState('')

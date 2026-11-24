@@ -11,7 +11,7 @@
 // not declared one. That predicate — not a release sequence — is what
 // keeps a team from being failed for a gap it cannot yet express.
 //
-// DOC: docs/agent-system/TOPICS_SCHEMA.md § Loop kinds.
+// DOC: scenarios/prompt-manager/docs/internal/TOPICS_SCHEMA.md § Loop kinds.
 package memberflow
 
 import (
@@ -21,7 +21,7 @@ import (
 
 // ledgerPrefixMarker identifies the coverage-ledger topic family by its
 // canonical naming shape, `<subject>-visited/<id>`. Registered in
-// docs/agent-system/TOPICS.md § Topic families.
+// scenarios/prompt-manager/docs/internal/TOPICS.md § Topic families.
 const ledgerPrefixMarker = "-visited/"
 
 // isLedgerPrefix reports whether a prefix follows the coverage-ledger

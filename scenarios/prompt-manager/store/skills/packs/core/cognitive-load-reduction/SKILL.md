@@ -23,10 +23,10 @@ metadata:
 Prioritize **making the code-craft layer of `scenarios/{{TARGET}}/` match the template's canonical shape**: file layout, function shape, naming, comment discipline, and local state flow. This skill governs the local readability that remains after structural audits have placed code correctly. The destination is "this scenario's code reads like the template's code," verified through `tidiness-manager` and routed to existing docs.
 
 Required reading (architectural context — set the stage before this skill applies):
-- `prompt-manager skill read screaming-architecture-audit` — folder/domain shape and product vocabulary.
-- `prompt-manager skill read temporal-flow-audit` — lifecycle and state-machine ownership.
-- `prompt-manager skill read seam-discovery-and-enforcement` — when indirection is justified.
-- `prompt-manager skill read decision-boundary-extraction` — when named decision helpers earn their indirection cost.
+- `prompt-manager skill read architecture-lenses` — folder/domain shape and product vocabulary.
+- `prompt-manager skill read resilience-lenses` — lifecycle and state-machine ownership.
+- `prompt-manager skill read architecture-lenses` — when indirection is justified.
+- `prompt-manager skill read architecture-lenses` — when named decision helpers earn their indirection cost.
 - `prompt-manager skill read knowledge-observatory-tools` — read and update scenario documentation through the canonical docs CLI.
 
 Required reading (programmatic enforcement substrate):
@@ -57,10 +57,10 @@ This skill is **post-architectural**. Structural problems are handed off to the 
 - proposing tidiness-manager check enhancements when a recurring manual finding could become programmatic
 
 **Out of scope (hand off):**
-- folder organized by tech bucket instead of domain → `screaming-architecture-audit`
-- temporal/lifecycle complexity (retries, cancellation, state machines) → `temporal-flow-audit`
-- whether an abstraction earns its keep across domains → `seam-discovery-and-enforcement`
-- whether a named decision helper earns its indirection cost → `decision-boundary-extraction`
+- folder organized by tech bucket instead of domain → `architecture-lenses`
+- temporal/lifecycle complexity (retries, cancellation, state machines) → `resilience-lenses`
+- whether an abstraction earns its keep across domains → `architecture-lenses`
+- whether a named decision helper earns its indirection cost → `architecture-lenses`
 - public API surface, transport, contracts → `api-steer`
 - dead code, stale config, abandoned files → `code-cleanup`
 - new product features, behavior changes, performance refactors
@@ -87,154 +87,36 @@ Do not treat the level as a score to inflate. Use it to identify the next concre
 
 ---
 
-### 3. Finding-Routing Table (No New Docs)
+### 3. Finding routing (no new docs)
 
-Every cog-load finding belongs to one of the existing audit docs. Never create a standalone cog-load report or a new file for these findings.
-
-| Finding | Routes to | Lens that ultimately owns it |
-|---|---|---|
-| Folder organized by tech bucket instead of domain | `ARCHITECTURE.md` | `screaming-architecture-audit` (hand off) |
-| File named `*_helper.go`, `*_utils.go`, `common/`, `manager/` | `ARCHITECTURE.md` vocabulary section | `screaming-architecture-audit` (hand off) |
-| Function exceeds length/complexity/nesting budgets | `PROBLEMS.md` "Complexity hotspots" with `path:` link | Cog-load (this skill) |
-| Buried happy path inside error pyramid | `PROBLEMS.md` "Control-flow hotspots" | Cog-load (this skill) |
-| Wrapper with one call site that adds no domain meaning | `SEAMS.md` (justify or collapse) | `seam-discovery-and-enforcement` (hand off) |
-| Named-decision helper challenged on indirection grounds | `SEAMS.md` cross-reference | `decision-boundary-extraction` (hand off) |
-| Ambient package-level state, hidden mutation, `init()` magic | `INVARIANTS.md` (ownership) + `PROBLEMS.md` if not yet fixed | Cog-load (this skill) |
-| Restateful comments (`// loops through items`) | Fix in code; no doc entry | Cog-load (this skill) |
-| Ambiguous local variable names (`x`, `tmp`, `data`, `obj`) | Fix in code; no doc entry | Cog-load (this skill) |
-| Recurring manual finding that could be a programmatic check | Open a tidiness-manager backlog entry | Tidiness-manager (capability promotion) |
-
-Rule: if the finding is structural, **stop here and hand off** to the audit that owns it. Do not paper over a screaming-architecture or seam-discipline problem with a local cog-load patch.
+Never create a standalone cog-load report; route each finding to an existing doc. Structural findings stop here and are handed off, never patched locally. Tech-bucket folders and `*_helper.go`, `*_utils.go`, `common/`, `manager/` names go to `ARCHITECTURE.md` (vocabulary section) and `architecture-lenses`. A one-call-site wrapper with no domain meaning, and a named-decision helper challenged on indirection, go to `SEAMS.md` (`architecture-lenses` §2, §6). Owned here: over-budget functions and buried happy paths go to `PROBLEMS.md` ("Complexity hotspots", "Control-flow hotspots") with a `path:` link; ambient package-level state, hidden mutation and `init()` magic go to `INVARIANTS.md` (ownership) plus `PROBLEMS.md` until fixed; restateful comments and ambiguous local names (`x`, `tmp`, `data`, `obj`) are fixed in code with no doc entry; a recurring manual finding that could be a check becomes a tidiness-manager backlog entry.
 
 ---
 
-### 4. The Code-Craft Dimensions
+### 4. The code-craft dimensions
 
-Each dimension below is a property of the code's local readability. For every dimension, this section names: signs of divergence from template shape, the rule, and the current programmatic check (if any) so you know what `tidiness-manager` already catches versus what still needs human reading.
+For each, the tidiness-manager light scan (`golangci-lint` and `eslint` configs) catches what is marked; the rest is human or smart-scan reading.
 
-#### 4.1 File shape
-
-**Signs of divergence:** files named `helpers.go`, `utils.go`, `common.go`, `base.go`; files mixing unrelated types; files where ordering is by edit history rather than dependency.
-
-**Rule:** Within a Go file, the canonical order is: types → constants → constructors → exported methods (in dependency order, mutators before readers) → unexported helpers (only when reused 2+ times in this file). Within a TypeScript module, the order is: types → constants/hooks → primary export → sub-helpers. Files are named after the domain noun, not after the mechanic.
-
-**Programmatic check:** banned-file-name check in tidiness-manager light scan. Within-file ordering is currently human-read; flag as a tidiness-manager enhancement candidate when you fix it manually.
-
-#### 4.2 Function shape
-
-**Signs of divergence:** functions over 60 lines; nesting deeper than 4 levels; happy path indented deeper than guard clauses; multiple unrelated responsibilities in one body; long sequential `if/else` chains where a switch or table lookup is clearer.
-
-**Rule:** Function bodies follow this order:
-1. **Guard clauses first** — return early on invalid input or impossible state.
-2. **Fetch dependencies** — pull what you need; wrap errors with operation name.
-3. **Happy path** — the longest, most prominent branch, unindented.
-4. **Return** — single return type, single value-construction site where possible.
-
-Budgets (enforced by tidiness-manager light scan):
-- Go: `funlen ≤ 60`, `gocognit ≤ 15`, `nestif ≤ 4`, `gocyclo ≤ 12`.
-- TS/UI: `complexity ≤ 10`, `max-lines-per-function ≤ 60`, `max-depth ≤ 4`.
-
-Exceptions are allowed when the natural shape genuinely exceeds a budget (typically: handlers that orchestrate many distinct steps, generated-code translation tables, exhaustive switches over a domain enum). Document each exception with `//nolint:<rule> // <one-sentence reason>` and add an entry to `PROBLEMS.md` under "Accepted code-craft exceptions" with the rationale.
-
-**Programmatic check:** budgets enforced by tidiness-manager light scan (golangci-lint + eslint configs). Guard-clause-first and happy-path-top ordering are currently human-read; smart-scan candidate.
-
-#### 4.3 Naming and intent signaling
-
-**Signs of divergence:** `manager`, `helper`, `util`, `utils`, `common`, `data`, `process`, `handle`, `do`, `misc`, `base`, `core` as bare suffixes/prefixes; local variables named `x`, `tmp`, `obj`, `result`, `val` when a domain noun is available; function names that describe mechanics (`filterList`, `processItems`) instead of intent (`selectEligibleNotes`, `markNotesArchived`); abbreviations that aren't industry-standard.
-
-**Rule:** Names communicate **intent and domain**, not mechanics. The banned-name list lives in `tidiness-manager` as the programmatic default; scenarios that need additional bans (e.g., domain words that are too generic locally) add a "Vocabulary discipline" subsection to `ARCHITECTURE.md`. A name should let the reader predict what the thing does without opening it.
-
-**Programmatic check:** banned-name list enforced by tidiness-manager light scan. Domain-vocabulary judgments (is `process` a verb the domain actually uses, or noise?) remain smart-scan + human territory.
-
-#### 4.4 Comment discipline
-
-**Signs of divergence:** comments that restate the code they sit next to (`// loop through items`, `// return the result`); commented-out code left in place "just in case"; comments describing what the *caller* does ("used by the upload flow"); documentation comments that explain the obvious from the signature.
-
-**Rule:** Comments should answer **why**, not **what**.
-- **Remove** comments that only restate the code, name the obvious from the signature, point at callers, or describe a now-removed branch.
-- **Keep** comments that document a non-obvious decision, a hidden constraint, an invariant reference, a workaround for a specific bug, or behavior that would surprise a future reader.
-- **Test for removability:** ask "would removing this comment confuse a future reader who already has the code in front of them?" If no, remove. If yes, keep — it earns its place.
-
-Do not delete comments simply to reduce comment density. The goal is signal-per-comment, not absence of comments. A scenario with twenty earned comments is in better shape than one with two restateful comments and silence elsewhere.
-
-**Programmatic check:** none today. Restateful-comment detection is a strong tidiness-manager smart-scan candidate; flag the opportunity when you do this manually.
-
-#### 4.5 Local state flow
-
-**Signs of divergence:** package-level `var` declarations outside `config/`; `init()` functions that register globals; functions that mutate receiver state in surprising ways; functions whose output depends on hidden ambient context the caller can't see; shared mutable maps/slices passed implicitly.
-
-**Rule:** A function's output is fully determined by its parameters (plus the receiver's *explicitly-passed-at-construction* dependencies). State mutation happens at well-named seams — `s.repo.Save(...)`, not `s.cache[k] = v` sprinkled mid-flow. Constructors take dependencies as named arguments; no global registries that things sneak into.
-
-**Programmatic check:** ambient-state detection is a tidiness-manager smart-scan candidate; partially covered today by lint rules against package-level mutables, but the deeper "hidden dependency" patterns remain manual.
-
-#### 4.6 Scattering and co-location
-
-**Signs of divergence:** a single behavior requires opening five-plus files in sequence to follow; helpers for one domain live in a generic `utils` package; sibling files that should be in one domain folder are split across the repo.
-
-**Rule:** If deleting the capability should delete the code, the code belongs with that capability's domain folder. Helpers used by exactly one domain stay domain-local. Helpers used by 2+ unrelated domains move to `internal/<substrate>/` (Go) or `lib/` (TS), with a justified seam entry.
-
-**Note:** Most scattering findings are actually screaming-architecture findings — hand them off. Cog-load owns the case where a single domain's own code is fragmented across files within the same folder for no reason (e.g., five 30-line files where two 80-line files would read more naturally).
-
-**Programmatic check:** cross-domain scattering is screaming-architecture's territory. Within-domain over-fragmentation is currently human-read.
+- **File shape.** Divergence: `helpers.go`, `utils.go`, `common.go`, `base.go`, files mixing unrelated types, ordering by edit history. Go order: types, constants, constructors, exported methods (dependency order, mutators before readers), unexported helpers (only when reused twice in the file). TypeScript: types, constants and hooks, primary export, sub-helpers. Name files after the domain noun. Banned file names are checked; within-file ordering is not.
+- **Function shape.** Divergence: over 60 lines, nesting over 4, happy path indented deeper than guards, mixed responsibilities, long `if/else` chains where a switch or table is clearer. Order: guard clauses first, fetch dependencies (wrap errors with the operation name), happy path unindented, one return. Budgets (checked): Go `funlen <= 60`, `gocognit <= 15`, `nestif <= 4`, `gocyclo <= 12`; TS `complexity <= 10`, `max-lines-per-function <= 60`, `max-depth <= 4`. Genuine exceptions (orchestrating handlers, generated translation tables, exhaustive enum switches) carry `//nolint:<rule> // <reason>` and a `PROBLEMS.md` entry under "Accepted code-craft exceptions".
+- **Naming.** Banned bare prefixes and suffixes (`manager`, `helper`, `util`, `common`, `data`, `process`, `handle`, `do`, `misc`, `base`, `core`; list lives in tidiness-manager, with scenario extensions in an `ARCHITECTURE.md` "Vocabulary discipline" subsection). Names state intent and domain, not mechanics (`selectEligibleNotes`, not `filterList`) so a reader can predict behavior without opening the thing. Whether a verb like `process` is real domain vocabulary is a human or smart-scan call.
+- **Comments.** Answer why, not what. Remove comments that restate code, name the obvious from the signature, point at callers or describe removed branches, and commented-out code. Keep non-obvious decisions, hidden constraints, invariant references, bug workarounds and surprises. Test: would removing it confuse a reader who has the code in front of them? Do not delete to cut density; twenty earned comments beat two restateful ones. Detection is a smart-scan candidate.
+- **Local state flow.** Divergence: package-level `var` outside `config/`, `init()` registering globals, surprising receiver mutation, hidden ambient inputs. Output is determined by parameters and constructor-passed dependencies; mutate at named seams (`s.repo.Save(...)`), never `s.cache[k] = v` mid-flow. Lint partly covers package-level mutables; hidden dependencies stay manual.
+- **Scattering and co-location.** If deleting the capability should delete the code, it belongs in that domain's folder; single-domain helpers stay local, helpers for two or more unrelated domains move to `internal/<substrate>/` or `lib/` with a seam entry. Cross-domain scattering is a screaming-architecture finding; cog-load owns a single domain fragmented across files for no reason (five 30-line files where two 80-line files read better).
 
 ---
 
 ### 5. Working with `tidiness-manager`
 
-Tidiness-manager is the substrate that makes this skill verifiable today and increasingly programmatic over time.
+`tidiness-manager scan {{TARGET}} --type light` is the fast static pass (L2 and L3 verification); `--type smart` is the AI-assisted pass for L3 and L4 hotspots lint cannot catch; `issues {{TARGET}}` lists tracked issues; `campaigns` starts or checks a campaign (`tidiness-manager --help` has the current surface). Trust scan output for what is enforced, and record a manual fix that could be programmatic (for example removing restateful comments by reading) as an enhancement candidate so recurring findings migrate into checks. If tidiness-manager is unavailable, fall back to `golangci-lint run` and `npm run lint` and note the gap in `PROBLEMS.md`.
 
-**Primary commands** (consult `tidiness-manager --help` for current surface):
+### 6. Safe refactoring
 
-```bash
-# Run the fast static-analysis pass; treat as L2/L3 verification.
-tidiness-manager scan {{TARGET}} --type light
+You may split long functions into units that each name a real domain operation, collapse wrappers that add no domain meaning, reorder code within a file, improve names and comments, and adjust tests to match clarified behavior without weakening coverage. You must preserve observable behavior, keep public interfaces stable where feasible (updating all call sites if not), never delete or loosen meaningful tests, prefer incremental steps over large rewrites, and never reverse an `architecture-lenses` outcome on local-readability grounds alone. Substantial redesign is recorded in `PROBLEMS.md`, not half-done here.
 
-# Run AI-assisted deeper analysis; surfaces L3/L4 hotspots that lint cannot catch.
-tidiness-manager scan {{TARGET}} --type smart
+### 7. Audit workflow
 
-# List currently-tracked issues for this scenario.
-tidiness-manager issues {{TARGET}}
-
-# Start or check a campaign.
-tidiness-manager campaigns
-```
-
-**Two-way relationship.** When you read a tidiness-manager scan, trust the output as the source of truth for what's currently enforced. When you make a manual cog-load fix that *could* be programmatic but isn't yet (e.g., you removed three restateful comments by reading the file), record that as a tidiness-manager enhancement candidate. Over time, recurring manual findings should migrate into tidiness-manager's check surface — that is how this skill becomes thinner and more deterministic.
-
-**When tidiness-manager is unavailable** (not running, not yet built for this stack), fall back to the underlying tools directly (`golangci-lint run`, `npm run lint`) and note the gap in `PROBLEMS.md` so the scenario can graduate to tidiness-manager coverage later.
-
----
-
-### 6. Safe Refactoring Guidelines
-
-You may:
-- split overly long functions into smaller, well-named units when each piece names a real domain operation
-- collapse wrappers that add no domain meaning at the call site
-- reorder code to bring related pieces closer together within a file
-- improve naming, comments, and lightweight documentation
-- adjust tests to match clarified behavior (without weakening coverage)
-
-You must:
-- preserve observable behavior and user-facing workflows
-- keep public interfaces stable where feasible; if you change them, update all call sites consistently
-- avoid deleting meaningful tests or relaxing their strictness to make changes pass
-- avoid large, high-risk rewrites in a single loop; prefer incremental steps that clearly improve clarity
-- never reverse a `decision-boundary-extraction` or `seam-discovery-and-enforcement` outcome on local-readability grounds alone — engage the prior audit's reasoning first
-
-If you discover an area that needs substantial redesign, record the candidate in `PROBLEMS.md` rather than partially rewriting it here.
-
----
-
-### 7. Audit Workflow
-
-1. **Confirm prerequisites.** Skim `ARCHITECTURE.md`, `SEAMS.md`, `INVARIANTS.md`. If the structural audits have not been run and the scenario is visibly fragmented, hand off — cog-load on a structurally broken scenario produces local polish that obscures the real problem.
-2. **Run tidiness-manager.** Start with `tidiness-manager scan {{TARGET}} --type light`. Treat any L2/L3 violations as the first work to address.
-3. **Read smart-scan results** (`--type smart`) for L4 dimensions and patterns lint cannot reach.
-4. **Walk the code-craft dimensions** in §4, focusing on the highest-impact divergences first: usually function shape and naming.
-5. **Route each finding** through §3's table. Structural findings → hand off. Local findings → fix or record in the appropriate existing doc.
-6. **Note enhancement candidates** for tidiness-manager when you find yourself doing the same manual check repeatedly.
-7. **Update existing docs** via `knowledge-observatory-tools`: complexity hotspots into `PROBLEMS.md`, ambient-state findings into `INVARIANTS.md`, justified-or-collapsed indirection into `SEAMS.md`, vocabulary discipline into `ARCHITECTURE.md` when scenario-local extensions are needed.
-8. **Verify maturity advancement.** Re-run the relevant tidiness-manager scan; confirm the level on the §2 ladder genuinely moved.
+Confirm prerequisites (skim `ARCHITECTURE.md`, `SEAMS.md`, `INVARIANTS.md`; if the structural audits were not run and the scenario is visibly fragmented, hand off); run the light scan and fix L2 and L3 violations first; read smart-scan results for L4; walk the §4 dimensions, function shape and naming first; route each finding through §3; note tidiness-manager enhancement candidates; update docs via `knowledge-observatory-tools`; re-run the scan and confirm the §2 level genuinely moved.
 
 ---
 
@@ -251,5 +133,5 @@ Avoid:
 - creating standalone cog-load report files or new docs under `docs/internal/`
 - bulk renames or reformatting that don't measurably reduce divergence from template shape
 - deleting comments that earn their place (the goal is signal-per-comment, not silence)
-- reversing prior audit outcomes (`decision-boundary-extraction`, `seam-discovery-and-enforcement`) on local-readability grounds without engaging their reasoning
+- reversing prior audit outcomes (`architecture-lenses`) on local-readability grounds without engaging their reasoning
 - claiming maturity advancement that the corresponding tidiness-manager scan cannot verify

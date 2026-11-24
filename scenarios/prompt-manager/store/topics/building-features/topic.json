@@ -6,9 +6,8 @@
   "description": "Building a new feature or capability: extracting decision boundaries, designing error semantics and recovery paths, and compressing the domain model.",
   "parentTopicId": "architecture",
   "skills": [
-    "decision-boundary-extraction",
-    "error-semantics-recovery-path-design",
-    "domain-clarity"
+    "architecture-lenses",
+    "resilience-lenses"
   ],
   "status": "active",
   "revision": 1,

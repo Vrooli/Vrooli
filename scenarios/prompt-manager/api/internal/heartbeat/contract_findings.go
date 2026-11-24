@@ -18,7 +18,7 @@
 // names a member reaches that member automatically; adding a rule does not
 // mean editing this file.
 //
-// DOC: docs/agent-system/TOPICS_SCHEMA.md
+// DOC: scenarios/prompt-manager/docs/internal/TOPICS_SCHEMA.md
 package heartbeat
 
 import (

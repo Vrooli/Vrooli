@@ -44,9 +44,7 @@ Nine read commands also declare live analytical measures: `action list`,
 | `prompt-manager agent` | Manage canonical agents (CRUD, soul, search) |
 | `prompt-manager member` | Deprecated avatar compatibility projection over agents |
 | `prompt-manager team` | Manage teams, heartbeat operations, handoffs, and task boards |
-| `prompt-manager experiment` | Manage governed skill/prompt A/B experiments (not open-ended research runs — see the Experiments scope note) |
 | `prompt-manager tag` | Manage tags |
-| `prompt-manager test` | Test skills with Ollama |
 | `prompt-manager search` | Search skills |
 | `prompt-manager discover` | Discover relevant skills and opt-in Action matches |
 | `prompt-manager discovery-gaps` | Clustered unmet-capability queries (discovery misses) |
@@ -222,7 +220,7 @@ prompt-manager skill read <identifier> [<identifier>...] [--lines START-END] [--
 
 **Example:**
 ```bash
-prompt-manager skill read ui-health domain-clarity --output=combined --format=markdown --copy
+prompt-manager skill read ui-health architecture-lenses --output=combined --format=markdown --copy
 prompt-manager skill read adaptive-research --lines 1-160
 prompt-manager skill read research/experience-engineering/present-ux-decisions
 ```
@@ -283,117 +281,6 @@ prompt-manager skill revert <id> <version> [--force]
 prompt-manager skill revert my-skill 2
 # Output: Reverted to version 2 (new version: 4)
 ```
-
-### prompt-manager skill variants
-
-List variants for a skill.
-
-```bash
-prompt-manager skill variants <id> [--json]
-```
-
-### prompt-manager skill add-variant
-
-Create a new variant for a skill.
-
-```bash
-prompt-manager skill add-variant <id> --name NAME --file FILE_PATH [--description TEXT] [--json]
-```
-
-### prompt-manager skill rm-variant
-
-Delete a variant.
-
-```bash
-prompt-manager skill rm-variant <id> <variant-id> [--force]
-```
-
----
-
-## Experiments
-
-[CODE: cli/experiments/experiments.go]
-
-> **Scope.** This command group governs **skill/prompt A/B experiments** — variant
-> arms per skill, outcome counts, holdout, and promote. It is **not** the home for
-> open-ended research or benchmark runs. For those (dataset studies, local
-> optimization trials, e.g. the runs under `~/vrooli-experiments/`), use the
-> `adaptive-research` / `local-experimentation` skills; their discovery handle is a
-> `vrooli-memory journal note --kind work-record` plus a row in
-> `docs/internal/research-experimentation/LEDGER.md`, not this registry.
-
-### prompt-manager experiment list
-
-List all experiments, optionally filtered by skill.
-
-```bash
-prompt-manager experiment list [--skill SKILL_ID] [--json]
-```
-
-### prompt-manager experiment show
-
-Show experiment details including outcome counts.
-
-```bash
-prompt-manager experiment show <experiment-id> [--json]
-```
-
-### prompt-manager experiment create
-
-Create a new experiment.
-
-```bash
-prompt-manager experiment create --skill SKILL_ID --name NAME [--hypothesis TEXT] --arm VARIANT:WEIGHT --arm VARIANT:WEIGHT [--json]
-```
-
-**Example:**
-```bash
-prompt-manager experiment create --skill swarm-manager-workshop --name "Concise test" --arm control:0.5 --arm concise-v1:0.5
-```
-
-### prompt-manager experiment start
-
-Start a draft experiment (transition to running).
-
-```bash
-prompt-manager experiment start <experiment-id>
-```
-
-### prompt-manager experiment conclude
-
-Conclude a running experiment with a recommended winner. This command never
-changes `SKILL.md`; a separately authorized holdout-confirmed promotion is
-required.
-
-```bash
-prompt-manager experiment conclude <experiment-id> <winner-variant-id> [--notes TEXT]
-```
-
-### prompt-manager experiment outcomes
-
-List raw outcomes for an experiment.
-
-```bash
-prompt-manager experiment outcomes <experiment-id> [--json]
-```
-
-### prompt-manager experiment report
-
-Show a per-arm aggregation report: serve counts, outcome counts, outcome status breakdown, success rate, and mean tokens used.
-
-```bash
-prompt-manager experiment report <experiment-id> [--json]
-```
-
-### prompt-manager experiment delete
-
-Delete an experiment and its outcomes.
-
-```bash
-prompt-manager experiment delete <experiment-id> [--force]
-```
-
----
 
 ## Tags
 
@@ -661,92 +548,6 @@ Replace the team's complete role-definition list from a JSON file. Use `[]` to c
 prompt-manager team roles-set <team-id> --file role-list.json [--json]
 ```
 
-### prompt-manager team org-list
-
-List org chart relationships.
-
-```bash
-prompt-manager team org-list <team-id> [--json]
-```
-
-### prompt-manager team org-set
-
-Set a reporting relationship (single-manager model).
-
-```bash
-prompt-manager team org-set <team-id> <report-id> <manager-id> [--json]
-```
-
-### prompt-manager team org-remove
-
-Remove a reporting relationship.
-
-```bash
-prompt-manager team org-remove <team-id> <report-id>
-```
-
-### prompt-manager team message-list
-
-List inbox messages for a team member.
-
-```bash
-prompt-manager team message-list <team-id> <agent-id> [--json]
-```
-
-### prompt-manager team message-send
-
-Send a message to a team member.
-
-```bash
-prompt-manager team message-send <team-id> <agent-id> --from=<agent-id> --content="..." [--file=path] [--json]
-```
-
-### prompt-manager team message-delete
-
-Delete a single inbox message.
-
-```bash
-prompt-manager team message-delete <team-id> <agent-id> <message-id>
-```
-
-### prompt-manager team message-clear
-
-Clear all inbox messages for a team member.
-
-```bash
-prompt-manager team message-clear <team-id> <agent-id>
-```
-
-### prompt-manager team import-cc
-
-Import a Claude Code team into prompt-manager.
-
-```bash
-prompt-manager team import-cc <team-name> [--json]
-```
-
-Reads the CC team config from `~/.claude/teams/{team-name}/config.json` and creates the corresponding PM team, agents, member relations, and org chart.
-
-**Example:**
-```bash
-prompt-manager team import-cc my-cc-team
-prompt-manager team import-cc my-cc-team --json
-```
-
-### prompt-manager team export-cc
-
-Export a prompt-manager team as a Claude Code team config.
-
-```bash
-prompt-manager team export-cc <team-id> [--json]
-```
-
-**Example:**
-```bash
-prompt-manager team export-cc engineering
-prompt-manager team export-cc engineering --json
-```
-
 ### prompt-manager team trigger
 
 Trigger heartbeats for an entire team.
@@ -956,48 +757,6 @@ prompt-manager graph health debugging
 
 Skill health includes command-reference diagnostics from CLI Health for
 Vrooli-owned commands detected in skill instructions.
-
----
-
-## Testing
-
-[CODE: cli/testing/testing.go]
-
-Test skills with Ollama LLM.
-
-### prompt-manager test run
-
-Execute a test against a skill.
-
-```bash
-prompt-manager test run <skill-id> [--model=llama3.2] [--vars=key=value,key2=value2] [--max-tokens=1000] [--temperature=0.7] [--json]
-```
-
-**Options:**
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--model` | `llama3.2` | Ollama model to use |
-| `--vars` | | Variables to substitute (key=value format) |
-| `--max-tokens` | `1000` | Maximum response tokens |
-| `--temperature` | `0.7` | Generation temperature |
-| `--json` | | Output as JSON |
-
-**Example:**
-```bash
-prompt-manager test run debugging --model=llama3.2 --vars="TARGET=src/auth/login.ts"
-# Output:
-# Testing skill debugging with llama3.2...
-# Test completed in 2500ms (450 tokens)
-# Response: Based on the debugging skill...
-```
-
-### prompt-manager test history
-
-View test history for a skill.
-
-```bash
-prompt-manager test history <skill-id> [--json]
-```
 
 ---
 

@@ -15,7 +15,7 @@ Pick one target and evaluate:
 
 Concrete current-state evidence is mandatory: quote the prose, cite usage, name the missing role, or cite run evidence.
 
-Question 2 has two kinds of evidence and you must check both. The first is output against volume — a team that ships little against a large roster and canon. The second is orientation cost (`path:docs/agent-system/FRAMEWORK_HEALTH.md` §"Team orientation cost"): a team whose roster, canon, topics, and work types grew in a cycle where its scenario coverage also grew. The second reading finds a productive team that is getting harder to work inside, which the first cannot see. Either reading routes to `team-capability-consolidation`. Orientation cost is banded as a trend, so read it against the previous `topic:framework-health-audit/<YYYY-MM-DD>` record; a first reading sets the baseline and is not a finding.
+Question 2 has two kinds of evidence and you must check both. The first is output against volume — a team that ships little against a large roster and canon. The second is orientation cost (`prompt-manager graph orientation-cost`): a team whose roster, canon, topics, and work types grew in a cycle where its scenario coverage also grew. The second reading finds a productive team that is getting harder to work inside, which the first cannot see. Either reading routes to `team-capability-consolidation`. Orientation cost is banded as a trend, so read it against the previous `topic:framework-health-audit/<YYYY-MM-DD>` record; a first reading sets the baseline and is not a finding.
 
 ## When To Run The System Audit
 
@@ -30,7 +30,7 @@ Score its Phase 4 (objective coverage) as a measurement only. The actuator for a
 
 ## Capability Architecture Audits
 
-Use `prompt-manager skill read team-member-capability-architecture-audit` when a member's capability is vague, workflow-heavy, repeatedly blocked, dependent on external/operator-fed signals, or missing an obvious skill/doc/tool surface. The skill carries the audit process; the ten layers, the score scale, and the smell catalogue are canon in `path:docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md`. Read them there.
+Use `prompt-manager skill read team-member-capability-architecture-audit` when a member's capability is vague, workflow-heavy, repeatedly blocked, dependent on external/operator-fed signals, or missing an obvious skill/doc/tool surface. The skill carries the audit process; the ten layers, the score scale, and the smell catalogue are canon in `path:docs/agent-system/RULES.md`. Read them there.
 
 Two judgments this lane adds on top of the scoring:
 

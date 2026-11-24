@@ -3,27 +3,23 @@
  */
 
 import { useState, useMemo } from 'react'
-import { Download, Plus, Power, Trash2, Upload, Users } from 'lucide-react'
+import { Plus, Power, Trash2, Users } from 'lucide-react'
 import { CollectionList } from '@vrooli/react-component-library/CollectionList/1'
 import type { RowAction } from '@vrooli/react-component-library/useCollection/1'
 import { cn } from '@/lib/utils'
 import { useTeamData } from '@/hooks/useTeamData'
 import { selectors } from '@/constants/selectors'
 import { buildDefaultCreateTeamRequest } from '@/lib/schemas'
-import * as teamService from '@/services/teamService'
-import { CCTeamImportModal } from './CCTeamImportModal'
 import type { HeartbeatControlStatus } from '@/services/heartbeatService'
 import type { Team } from '@/types/team'
 import { TeamModelHelp, TeamPurposeBadges, teamPresets, teamPurposeLabels, teamLifetimeLabels } from './TeamPurposePanel'
 
 function teamActions(
   onToggleEnabled: (id: string) => void,
-  onExport: (id: string, name: string) => void,
   onDelete: (id: string) => void,
 ): RowAction<Team>[] {
   return [
     { id: 'toggle', label: 'Toggle Team', icon: <Power />, onSelect: (rows) => rows[0] && onToggleEnabled(rows[0].id) },
-    { id: 'export', label: 'Export Claude Code Config', icon: <Download />, onSelect: (rows) => rows[0] && onExport(rows[0].id, rows[0].displayName) },
     { id: 'delete', label: 'Delete Team', icon: <Trash2 />, tone: 'destructive', separatorBefore: true, onSelect: (rows) => rows[0] && onDelete(rows[0].id) },
   ]
 }
@@ -46,21 +42,6 @@ interface TeamListPanelProps {
 }
 
 /**
- * Trigger a browser download of a JSON object.
- */
-function downloadJson(data: unknown, filename: string) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
-}
-
-/**
  * Team list panel for the sidebar.
  */
 export function TeamListPanel({
@@ -74,7 +55,7 @@ export function TeamListPanel({
   onToggleSelection,
   heartbeatControlStatus,
 }: TeamListPanelProps) {
-  const { teams, isLoading, isError, createTeam, deleteTeam, refetch } = useTeamData()
+  const { teams, isLoading, isError, createTeam, deleteTeam } = useTeamData()
   const [purposeFilter, setPurposeFilter] = useState('')
   const [lifetimeFilter, setLifetimeFilter] = useState('')
   const [stateFilter, setStateFilter] = useState('')
@@ -93,7 +74,6 @@ export function TeamListPanel({
         && (!stateFilter || (stateFilter === 'archived' ? team.archived : stateFilter === 'enabled' ? team.enabled && !team.archived : !team.enabled && !team.archived))
     })
   }, [teams, searchQuery, purposeFilter, lifetimeFilter, stateFilter])
-  const [importModalOpen, setImportModalOpen] = useState(false)
 
   const handleCreateTeam = async () => {
     setCreating(true)
@@ -112,28 +92,12 @@ export function TeamListPanel({
     await deleteTeam(id)
   }
 
-  const handleExportTeam = async (teamId: string, teamName: string) => {
-    try {
-      const data = await teamService.exportClaudeCodeTeam(teamId)
-      downloadJson(data, `${teamName}-cc-config.json`)
-    } catch (err) {
-      console.error('Export failed:', err)
-    }
-  }
-
-  const handleImported = (teamId: string) => {
-    refetch()
-    onSelectTeam(teamId)
-  }
-
-
   const actions = useMemo(
     () => teamActions(
       onToggleTeamEnabled ?? (() => {}),
-      (id, name) => void handleExportTeam(id, name),
       (id) => void handleDeleteTeam(id),
     ),
-    [deleteTeam, onToggleTeamEnabled, teamService.exportClaudeCodeTeam],
+    [deleteTeam, onToggleTeamEnabled],
   )
 
   const syncSelection = (keys: string[]) => {
@@ -244,7 +208,7 @@ export function TeamListPanel({
         />
       </div>
 
-      {/* Footer - New team + Import buttons (hidden in select mode) */}
+      {/* Footer - New team button (hidden in select mode) */}
       {!isSelectMode && (
         <div className="flex-shrink-0 px-3 py-3 border-t border-border space-y-2">
           <label className="block text-xs text-muted-foreground">New team preset
@@ -266,27 +230,8 @@ export function TeamListPanel({
             {creating ? 'Creating…' : 'New Team'}
           </button>
           {createError ? <p role="alert" className="text-xs text-destructive">{createError}</p> : null}
-          <button
-            type="button"
-            onClick={() => setImportModalOpen(true)}
-            className={cn(
-              'w-full flex items-center justify-center gap-2 px-3 py-2 text-sm',
-              'border border-border hover:bg-muted text-foreground rounded-lg transition-colors'
-            )}
-            data-testid={selectors.teams.importButton}
-          >
-            <Upload className="h-4 w-4" />
-            Import from Claude Code
-          </button>
         </div>
       )}
-
-      {/* Import modal */}
-      <CCTeamImportModal
-        open={importModalOpen}
-        onClose={() => setImportModalOpen(false)}
-        onImported={handleImported}
-      />
     </div>
   )
 }

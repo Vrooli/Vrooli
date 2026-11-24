@@ -33,6 +33,7 @@
     "team:personal-planner-delivery": "PERSONALPLAN",
     "team:rcl-prompt-manager-ux-design-campaign": "RCLPROMPTMAN",
     "team:unattended-self-improvement": "UNATTENDEDSE",
+    "team:vega-redesign-delivery": "VEGAREDESIGN",
     "topic:bug-inbox/*": "BUGINBOX",
     "topic:bug-investigation-report/*": "BUGINVESTIGA",
     "topic:bug-investigation-report/\u003cslug\u003e": "BUGREP",
@@ -91,7 +92,8 @@
     "external:report-bug",
     "team:rcl-prompt-manager-ux-design-campaign",
     "external:swarm-manager",
-    "team:unattended-self-improvement"
+    "team:unattended-self-improvement",
+    "team:vega-redesign-delivery"
   ],
   "readabilityEdges": [
     {

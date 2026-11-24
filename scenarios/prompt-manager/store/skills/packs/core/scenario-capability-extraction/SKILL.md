@@ -25,14 +25,14 @@ Extract mature product capabilities from one or more existing scenarios into a d
 
 Required reading:
 - `prompt-manager skill read scenario-generation`
-- `prompt-manager skill read screaming-architecture-audit boundary-of-responsibility-enforcement seam-discovery-and-enforcement decision-boundary-extraction`
+- `prompt-manager skill read architecture-lenses`
 - `templates/scenarios/react-vite/docs/START-HERE.md`
 - `templates/scenarios/react-vite/docs/concepts/ARCHITECTURE.md`
 - `templates/scenarios/react-vite/docs/concepts/DOMAINS.md`
 - `docs/agent-system/SKILL_AUTHORING.md`
 
 Optional reading:
-- `prompt-manager skill read interoperability-steer temporal-flow-audit cross-platform-readiness`
+- `prompt-manager skill read interoperability-steer resilience-lenses cross-platform-readiness`
 - Source scenario docs: `PRD.md`, `docs/concepts/*`, `docs/internal/SEAMS.md`, `docs/internal/PROBLEMS.md`, and `docs/internal/SWARM_MANAGER_WORK.md`
 
 ---
@@ -56,252 +56,27 @@ Use this when a feature or subsystem embedded in one or more scenarios is ready 
 
 ### **2. The Process**
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    SCENARIO CAPABILITY EXTRACTION                           │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│ Intake ─▶ Source Audit ─▶ Boundary Map ─▶ UI Archetypes ─▶ Generate Scenario │
-│   │            │              │              │                 │             │
-│   ▼            ▼              ▼              ▼                 ▼             │
-│ readiness   evidence     shared vs      required UI       extraction         │
-│ decision    dossier      app glue       surfaces          orientation        │
-│                                                                  │           │
-│                                                                  ▼           │
-│                 PRD + Requirements + Domains + Seams + Migration Plan        │
-│                                                                  │           │
-│                                                                  ▼           │
-│                         Implement, Adopt, Retire Source Copies               │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+Each phase has an exit gate; the artifacts accumulate in the target scenario's `docs/internal/EXTRACTION-SOURCES.md` (a temporary planning note before generation).
 
-### **Phase 1: Extraction Intake**
+**1. Intake.** Name the capability in product language; list source scenarios and known consumers; state why extraction is warranted now (a second or third scenario needs it, shared monetization or provider routing, stable source code, diverging duplicates, adoption friction); decide target id, display name, description, design kit and template (the normal generator unless a first-class template exists); record non-goals that stay source-specific. Exit: named target, source and consumer lists, rationale.
 
-**Entry criteria:** A capability candidate and at least one source scenario are known.
+**2. Source evidence audit.** Read each source's PRD, domains, architecture, seams, integrations, problems, decisions and requirements, and inspect the capability across API, CLI, UI, proto, storage, config, tests and docs. Inventory source paths, implemented behavior, proving tests, config and provider assumptions, risks and known bugs, source-specific vocabulary, and missing tests or stale docs. In multi-source extraction, mark conflicts rather than silently choosing one. Exit: you can say what exists, where, and what proves it works.
 
-**Actions:**
-1. Name the target capability in product language, not implementation language.
-2. List source scenarios and known consumer scenarios.
-3. State why extraction is warranted now:
-   - second/third scenario needs it,
-   - shared monetization/provider routing is needed,
-   - source scenario code is stable enough to generalize,
-   - duplicated implementations are diverging,
-   - adoption friction is blocking higher-level scenarios.
-4. Decide the target scenario ID, display name, description, initial design kit, and likely template. Use the normal scenario generator unless a more specific first-class template exists.
-5. Record non-goals: what must remain source-scenario-specific.
+**3. Boundary classification.** Classify each piece of behavior: shared capability core (target domains, API, CLI, UI), source integration glue (stays in the source and later calls the target), consumer adapter (target docs, examples, SDK or component surfaces), provider or resource boundary (target integrations, config, seams), migration-only compatibility (migration plan with a removal trigger), obsolete or debt (problem log, not ported). Exit: explicit enough that no implementer moves source code wholesale; durable tradeoffs go in `docs/internal/SWARM_MANAGER_WORK.md`.
 
-**Exit criteria:** The extraction has a named target scenario, source list, consumer list, and extraction rationale.
+**4. UI archetypes.** Every scenario has a UI, so an API-only capability still designs one. Pick archetypes that become PRD operational targets and requirements: Configuration Console (defaults, providers, credentials, flags, thresholds), Usage and History Dashboard (cost, latency, volume, fallbacks, audit), Adoption Management (consumer list, compatibility, setup checklist), Diagnostics Workbench (try-it, sample inputs, provider trace), Docs and Integration Viewer, Review or Moderation Queue, Catalog or Asset Browser. Default for infrastructure-like capabilities: Configuration Console, Usage Dashboard, Diagnostics Workbench and Docs Viewer, plus Adoption Management when consumer status matters day to day. Mark deferred surfaces P1, P2 or not-applicable.
 
-**Artifacts:** Intake section in `docs/internal/EXTRACTION-SOURCES.md` after generation, or a temporary planning note before generation.
+**5. Generate and wire.** `template-manager generate react-vite --id "<scenario-id>" --display-name "<Display Name>" --description "<one-line purpose>" --design "<kit-id>"`, follow the generated `docs/START-HERE.md`, create `docs/internal/EXTRACTION-SOURCES.md`, register it in `docs/manifest.json` under `internal` (`docType: extraction-sources`, `canonicalFor: ["extraction-provenance", "source-capability-evidence", "migration-context"]`, `maturity: active`, `requiredBy: ["oriented", "implemented"]`), and add an early extraction gate to `START-HERE.md` before the PRD gates (read the dossier, confirm sources and boundaries, use it as context for PRD, requirements, domains, seams, integrations and migration). Exit: the generated scenario cannot be oriented without confronting source evidence.
 
-### **Phase 2: Source Evidence Audit**
+**6. Synthesize.** Use the preserve-first PRD and requirements workflow from `scenario-generation`, seeding the PRD from the dossier (permanent capability, users and consumers, P0 to P2 targets, API, CLI and UI surfaces, provider and resource strategy, monetization and BYOK or local behavior, launch sequencing); give UI archetypes measurable requirements; update `docs/concepts/DOMAINS.md`, `INTEGRATIONS.md`, `FLOWS.md`, `docs/internal/SEAMS.md`, `SWARM_MANAGER_WORK.md` and `PROBLEMS.md`. Exit: an implementer can build from the target's own docs without the planning conversation.
 
-**Entry criteria:** Source scenario(s) are available to inspect.
+**7. Migration and adoption.** Phase it: build the core, prove parity against the source, migrate the first source, then other consumers, retire the source implementation, and record compatibility removal triggers. Pick the work shape per `docs/agent-system/SCENARIO_DEVELOPMENT.md#work-shapes`: bounded tasks for independent reviewable integrations, an adaptive mandate when source and target changes are coupled or ground truth is stale, a phased plan for a stable sequential route. Create Swarm Manager items only after the target docs can anchor execution. Exit: adoption has owners, phases, validation and cleanup triggers.
 
-**Actions:**
-1. Read each source scenario's PRD, domain map, architecture, seams, integrations, problems, decisions, and relevant requirements.
-2. Inspect source code for the capability across API, CLI, UI, proto/contracts, storage, config, tests, and docs.
-3. Build an evidence inventory:
-   - source paths,
-   - behavior currently implemented,
-   - tests that prove behavior,
-   - config/env/provider assumptions,
-   - operational risks and known bugs,
-   - source-specific product vocabulary,
-   - missing tests or stale docs.
-4. For multi-source extraction, compare behavior and mark conflicts rather than silently choosing one source.
+**8. Verify and hand off.** Run `template-manager orient <scenario-id>` while orientation is active, `make test` once implementation begins, and `vrooli scenario requirements validate <scenario-id> --json`. Check that the dossier exists and is registered, START-HERE references it, PRD and requirements include UI archetypes, the domain map names real target domains, integrations document source, consumer and provider contracts, and the migration plan names source cleanup. Append progress and known gaps to `docs/internal/PROGRESS.md`.
 
-**Exit criteria:** The agent can explain what exists today, where it lives, and what evidence proves it works.
+### **3. Extraction dossier**
 
-**Artifacts:** `docs/internal/EXTRACTION-SOURCES.md` source inventory.
-
-### **Phase 3: Boundary Classification**
-
-**Entry criteria:** Source evidence inventory exists.
-
-**Actions:**
-Classify every meaningful piece of behavior:
-
-| Classification | Meaning | Destination |
-|---|---|---|
-| Shared capability core | Product behavior the new scenario owns | Target scenario domains/API/CLI/UI |
-| Source integration glue | Behavior only meaningful inside a source scenario | Stays in source; later calls target scenario |
-| Consumer adapter | Code/config future adopters need | Target docs, examples, SDK/component surfaces |
-| Provider/resource boundary | Local/BYOK/subscription/third-party routing choice | Target integrations, config, seams |
-| Migration-only compatibility | Temporary bridge to preserve adoption | Target migration plan with removal trigger |
-| Obsolete/debt | Behavior not worth carrying forward | Record in the problem log; do not port |
-
-**Exit criteria:** The extraction boundary is explicit enough that an implementation agent will not blindly move source code wholesale.
-
-**Artifacts:** Boundary map in `docs/internal/EXTRACTION-SOURCES.md`; durable decisions in `docs/internal/SWARM_MANAGER_WORK.md` when tradeoffs matter.
-
-### **Phase 4: UI Archetype Selection**
-
-**Entry criteria:** Target capability and boundary map are known.
-
-**Actions:**
-Pick one or more UI archetypes. The selected archetypes become product scope and must be reflected in PRD operational targets and requirements.
-
-| UI Archetype | Use When | Typical Surfaces |
-|---|---|---|
-| Configuration Console | Operators must choose defaults, providers, credentials, feature flags, thresholds, or local vs subscription behavior | Settings, provider routing, credentials status, resource health |
-| Usage And History Dashboard | The capability has cost, latency, volume, credits, fallbacks, generated artifacts, or audit history | Recent requests, cost/credit usage, provider used, failure reasons |
-| Adoption Management | Other scenarios integrate with the capability and adoption status matters | Consumer list, version compatibility, integration health, setup checklist |
-| Diagnostics Workbench | Operators need to manually test or debug the capability | Try-it panel, sample inputs, output inspector, provider trace |
-| Docs / Integration Viewer | Adoption requires API/CLI/UI component guidance | Rendered docs, examples, schema links, copyable commands |
-| Review / Moderation Queue | The capability produces items requiring human approval | Pending items, decisions, acceptance/reject reasons |
-| Catalog / Asset Browser | The capability produces reusable assets or templates | Search, preview, metadata, export/use actions |
-
-**Default for extracted infrastructure-like capabilities:** Configuration Console + Usage Dashboard + Diagnostics Workbench + Docs / Integration Viewer. Add Adoption Management when consumer status is important to day-to-day operation.
-
-**Exit criteria:** The target scenario has a clear first UI shape and deferred UI surfaces are explicitly marked P1/P2 or not-applicable.
-
-**Artifacts:** UI section in `docs/internal/EXTRACTION-SOURCES.md`; PRD `UX & Branding`; UI requirements; domain map UI surfaces.
-
-### **Phase 5: Generate And Wire The Target Scenario**
-
-**Entry criteria:** Target identity, template, design kit, extraction boundary, and UI archetypes are selected.
-
-**Actions:**
-1. Generate the scenario through the project CLI:
-
-   ```bash
-   template-manager generate react-vite --id "<scenario-id>" --display-name "<Display Name>" --description "<one-line purpose>" --design "<kit-id>"
-   ```
-
-2. Follow the generated `docs/START-HERE.md` orientation protocol.
-3. Create `docs/internal/EXTRACTION-SOURCES.md` in the target scenario.
-4. Add the extraction document to the scenario's `docs/manifest.json` under `internal` with:
-   - `docType`: `extraction-sources`
-   - `canonicalFor`: `["extraction-provenance", "source-capability-evidence", "migration-context"]`
-   - `maturity`: `active`
-   - `requiredBy`: `["oriented", "implemented"]`
-5. Update the generated target scenario `docs/START-HERE.md` with an early extraction context gate before the PRD/requirements gates:
-   - read `docs/internal/EXTRACTION-SOURCES.md`,
-   - confirm source scenarios and boundary classification,
-   - use it as required context for PRD, requirements, domains, seams, integrations, and migration planning.
-
-**Exit criteria:** The generated target scenario cannot be oriented without confronting source evidence.
-
-**Artifacts:** Target scenario scaffold, extraction sources doc, manifest entry, START-HERE extraction gate.
-
-### **Phase 6: Synthesize PRD, Requirements, Domains, And Docs**
-
-**Entry criteria:** Target scenario exists and extraction context is wired into orientation.
-
-**Actions:**
-1. Use the preserve-first PRD + requirements workflow from `scenario-generation` (validate/fix a preserved baseline, or author with the business-health wizard).
-2. Generate or update PRD context from the extraction dossier:
-   - permanent capability,
-   - primary users/operators/consumer scenarios,
-   - P0/P1/P2 operational targets,
-   - API/CLI/UI deployment surfaces,
-   - provider/resource strategy,
-   - monetization/subscription/BYOK/local behavior,
-   - migration and launch sequencing.
-3. Generate requirements from the PRD and ensure UI archetypes have measurable requirements.
-4. Update:
-   - `docs/concepts/DOMAINS.md` for bounded contexts and UI/API/CLI surfaces,
-   - `docs/concepts/INTEGRATIONS.md` for source/consumer scenarios, providers, resources, and failure behavior,
-   - `docs/concepts/FLOWS.md` for stateful workflows,
-   - `docs/internal/SEAMS.md` for provider, transport, storage, and test substitution boundaries,
-   - `docs/internal/SWARM_MANAGER_WORK.md` for meaningful extraction tradeoffs,
-   - `docs/internal/PROBLEMS.md` for source drift, missing tests, and deferred migrations.
-
-**Exit criteria:** Future implementation agents can build the scenario from the target scenario's own PRD, requirements, and docs without needing the original planning conversation.
-
-**Artifacts:** PRD, requirements registry, domain map, integrations, seams, flows, decisions, problems.
-
-### **Phase 7: Migration And Adoption Plan**
-
-**Entry criteria:** Target scenario docs and requirements define the intended capability.
-
-**Actions:**
-1. Define phased migration:
-   - build target scenario core,
-   - prove parity against source behavior,
-   - migrate first source scenario,
-   - migrate additional consumers,
-   - remove or retire source implementation,
-   - document compatibility removal triggers.
-2. Decide the work shape for adoption (`docs/agent-system/SWARM_MANAGER_WORK.md` §Work shapes; plan shapes and execution modes in `docs/agent-system/SCENARIO_DEVELOPMENT.md`):
-   - Use bounded tasks when integrations are independent and reviewable in isolation.
-   - Use an adaptive mandate when source and target changes are coupled or ground truth is stale.
-   - Use a phased plan when there is a stable sequential route with handoffs; it runs sliced or in goal mode.
-3. Create or update Swarm Manager items only after the target scenario has enough docs to anchor execution.
-
-**Exit criteria:** Adoption is not left as an implicit "later"; it has owners, phases, validation, and cleanup triggers.
-
-**Artifacts:** Migration section in target docs, backlog items or initiative plan, progress/problem entries.
-
-### **Phase 8: Verification And Handoff**
-
-**Entry criteria:** Setup or implementation phase is complete enough to hand off.
-
-**Actions:**
-1. Run relevant checks:
-   - `template-manager orient <scenario-id>` while orientation is active,
-   - `make test` from the scenario once implementation begins,
-   - `vrooli scenario requirements validate <scenario-id> --json` (one command covers PRD linkage + requirements registry).
-2. Check the extraction contract:
-   - dossier exists and is registered,
-   - START-HERE references it,
-   - PRD and requirements include UI archetypes,
-   - domain map names real target domains,
-   - integrations document source/consumer/provider contracts,
-   - migration plan names source cleanup.
-3. Append progress and known gaps to target scenario docs.
-
-**Exit criteria:** The next agent can continue without rediscovering source evidence or asking why the scenario exists.
-
-**Artifacts:** Validation evidence, `docs/internal/PROGRESS.md`, final handoff.
-
----
-
-### **3. Extraction Dossier Template**
-
-Create this as `docs/internal/EXTRACTION-SOURCES.md` in the target scenario.
-
-```markdown
-# Extraction Sources
-
-## Purpose
-[Capability being extracted and why this scenario owns it.]
-
-## Source Scenarios
-| Scenario | Role | Relevant Paths | Evidence | Notes |
-|---|---|---|---|---|
-| ... | primary / secondary / reference | ... | tests/docs/behavior | ... |
-
-## Target Consumers
-| Scenario | Need | Required Contract | Adoption Phase |
-|---|---|---|---|
-| ... | ... | API/CLI/UI component/config | P0/P1/P2 |
-
-## Boundary Classification
-| Source Behavior | Classification | Target Destination | Source Fate |
-|---|---|---|---|
-| ... | shared core / glue / adapter / provider / migration-only / obsolete | ... | keep / migrate / remove / defer |
-
-## UI Archetypes
-| Archetype | Priority | Why It Fits | Primary Users | Requirements |
-|---|---|---|---|---|
-| Configuration Console | P0 | ... | operators | ... |
-
-## Parity Requirements
-| Existing Behavior | Source Evidence | Target Requirement | Validation |
-|---|---|---|---|
-| ... | ... | REQ-... | test/manual check |
-
-## Migration Plan
-1. ...
-
-## Open Questions
-| Question | Impact | Owner / Resolution Path |
-|---|---|---|
-| ... | ... | ... |
-```
+`docs/internal/EXTRACTION-SOURCES.md` holds: Purpose; Source Scenarios (scenario, primary, secondary or reference role, paths, evidence); Target Consumers (need, required contract, adoption phase); Boundary Classification (source behavior, classification, target destination, source fate: keep, migrate, remove or defer); UI Archetypes (priority, fit, users, requirements); Parity Requirements (existing behavior, evidence, target requirement, validation); Migration Plan; Open Questions (impact, owner or resolution path).
 
 ---
 
@@ -389,4 +164,4 @@ You must not:
 - Skip source evidence because the desired target seems obvious.
 - Copy source code wholesale without classifying boundaries.
 - Leave adoption and source cleanup implicit.
-- Add a new work shape or execution mode; the four shapes in `SWARM_MANAGER_WORK.md` and the two modes in `SCENARIO_DEVELOPMENT.md` cover extraction work.
+- Add a new work shape or execution mode; the four shapes in `SCENARIO_DEVELOPMENT.md` and the two modes in `SCENARIO_DEVELOPMENT.md` cover extraction work.

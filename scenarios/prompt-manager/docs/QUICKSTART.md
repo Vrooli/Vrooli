@@ -6,7 +6,6 @@ Get the prompt-manager scenario running in 5 minutes.
 
 - Go 1.21+
 - Node.js 18+
-- (Optional) Ollama for skill testing
 
 ## Start the Scenario
 
@@ -92,20 +91,6 @@ prompt-manager search debugging --text --json
 curl -X POST http://localhost:PORT/api/v1/skills \
   -H "Content-Type: application/json" \
   -d '{"name": "My Skill", "content": "...", "folder": "local"}'
-```
-
-### Test a Skill with Ollama
-
-Requires Ollama running with a model loaded.
-
-```bash
-# Via CLI
-./prompt-manager test run <skill-id> --model=llama3.2
-
-# Via API
-curl -X POST http://localhost:PORT/api/v1/skills/{id}/test \
-  -H "Content-Type: application/json" \
-  -d '{"model": "llama3.2"}'
 ```
 
 ### View Version History

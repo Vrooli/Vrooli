@@ -194,3 +194,42 @@ databases in addition to lease counters; a discarded request context can evade
 counter-based detection. Delete owned fixtures through the same routed target
 before clearing the lease. A successful native capture is evidence for that
 build and fixture scope, not a desktop package or real-agent execution claim.
+
+## Dress the demo world, then capture mechanically
+
+A presentation instance starts empty and empty is not the deliverable. Before any capture,
+write the demo world as product content design. For every storyboard surface, seed what a
+heavy, competent user's copy would hold after weeks, including the richest rendering
+surfaces in the UI source (markdown, code, diagrams, tables, charts, images, math, media,
+threads); one message with a table and a diagram beats fifty one-liners, and the default
+view shown three times is one capability. Populate through the product's own interfaces
+(CLI, API, UI) against the presentation instance, never live and never by writing into a
+database. With no write verb, find the ingestion surface the product itself uses (hooks,
+webhooks, file tailers, importers); ingestion is authenticated per instance, so read the
+instance's own secret (live's secret means the wrong instance). Author the content: names,
+titles, timestamps and text, varied ages, states and lengths, one invented organisation,
+project and repo across every surface; no `Session 1/2/3`, no lorem ipsum, no real
+customer, employee, host, node, path or repository (the operator's included). Rich data
+must not imply availability or performance the product lacks. Record surface, method,
+amount and command in `demo-world.md` and `sources.md`. A surface that cannot be populated
+(no seeding path, or a single-instance service such as the node fleet) is, in order,
+populated another way, cut, or shipped empty as a recorded defect.
+
+Mechanics. Interact read-only on live (never send input to sessions or create, delete or take
+over anything); on a presentation instance writing is the job, so confirm the port against
+`vrooli scenario status <scenario> --instance presentation`, not the browser tab. Drive
+puppeteer-core against `/usr/bin/google-chrome` and wait for `networkidle2` plus several
+seconds (`google-chrome --headless --screenshot` captures the loading fallback whatever
+`--timeout` says). Record motion with CDP `Page.startScreencast`, write each frame with its
+timestamp and join with ffmpeg concat into 30 fps H.264. The screencast emits a frame only
+when the page changes, so animate the scroll container's `scrollTop` with
+`requestAnimationFrame` and an ease for long travel; a wheel event is one jump. Warm up slow
+lazy renderers before recording and reset the workspace before every clip (selections, view
+modes, scroll and panel order persist). Record first, read each clip's duration, then build
+the timeline to the clips and snap cuts to strong cues; take a still from each clip's last
+frame for holds. Phone captures use 390x844 at scale 3. Read every capture back and the
+browser console (a missing follow-list dependency is a failed request, not a visible error).
+Keep every reject in `alternates/footage/` with a line on why. Measure highlight rings from
+the running page (`getBoundingClientRect`, scaled by the display ratio, in the layout the
+clip was shot in), ring only fixed chrome, and let a camera move carry attention on
+scrolling content.

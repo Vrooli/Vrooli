@@ -105,7 +105,7 @@ Paint/LCP from the same web-vitals capture:
 
 ### 4. World view React commits are cheap; remaining world risk is mostly render-loop/GPU-side
 
-- **What:** [WorldCanvas.tsx](../../ui/src/components/world/WorldCanvas.tsx) lines 134-177 subscribes to graphics, performance, selection, camera, furniture, decoration, and environment stores; lines 242-281 rebuild and publish agent positions when agent/furniture/seating state changes; lines 436-478 owns the Three.js canvas.
+- **What:** [WorldCanvas.tsx](../../ui/src/world/engine/WorldCanvas.tsx) lines 134-177 subscribes to graphics, performance, selection, camera, furniture, decoration, and environment stores; lines 242-281 rebuild and publish agent positions when agent/furniture/seating state changes; lines 436-478 owns the Three.js canvas.
 - **Evidence:** `WorldCanvas` committed only 16 times for 15.7 ms total, 981 μs average, and 6,000 μs max. This is not the bottleneck in the React Profiler trace.
 - **Hypothesis:** perceived world-view lag, if present, is more likely in R3F render-loop work, draw calls, materials, shadows, DPR, or pointer handlers than in React commit cost.
 - **Suggested next step:** run a world-specific GPU/render-loop audit with FPS and draw-call counters. Keep the current DPR/tier controls, and consider splitting overlay/UI state from the canvas owner only if future traces show React commits rising.

@@ -2,7 +2,7 @@
 // the prompt-manager CLI sends on every mutating API call.
 //
 // The contract — header name, env-var bridge, payload shape, conflict
-// policy — lives in docs/agent-system/RUNTIME_ATTRIBUTION.md (canon).
+// policy — lives in scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md (canon).
 // This package implements the requesting-side half (CLI → API). The
 // receiving side lives in api/heartbeat/handlers.go.
 //
@@ -25,7 +25,7 @@ import (
 
 // HeaderName is the HTTP header that carries structured attribution
 // from any client (CLI, SDK, UI) to prompt-manager's API. Mirrors the
-// canon in docs/agent-system/RUNTIME_ATTRIBUTION.md § HTTP header.
+// canon in scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md § HTTP header.
 const HeaderName = teamattribution.HeaderName
 
 // EnvVar is the per-process env var an agent-manager-spawned CLI reads

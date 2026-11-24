@@ -312,17 +312,6 @@ export const TeamSharedFileRenameRequestSchema = z.object({
 })
 export type TeamSharedFileRenameRequest = z.infer<typeof TeamSharedFileRenameRequestSchema>
 
-export const AvailableCCTeamSchema = z.object({
-  name: z.string(),
-  memberCount: z.number().int(),
-})
-export type AvailableCCTeam = z.infer<typeof AvailableCCTeamSchema>
-
-export const ImportCCRequestSchema = z.object({
-  teamName: z.string().min(1),
-})
-export type ImportCCRequest = z.infer<typeof ImportCCRequestSchema>
-
 export const ExclusiveMemberSchema = z.object({
   agentId: z.string(),
   displayName: z.string(),
@@ -335,8 +324,6 @@ export const ExclusiveMembersResponseSchema = z.object({
 })
 export type ExclusiveMembersResponse = z.infer<typeof ExclusiveMembersResponseSchema>
 
-export const ExportCCResponseSchema = z.unknown()
-export type ExportCCResponse = unknown
 
 // Keep these preset defaults aligned with api/teamconfig/config.go.
 export const DEFAULT_INDEPENDENT_CAPABILITIES: CoordinationCapabilities = {

@@ -10,7 +10,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Globe, Network, Settings, HelpCircle, BarChart3, Search, X, Menu, Users } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@vrooli/react-component-library/Button/2.2.14'
 import { selectors } from '@/constants/selectors'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { StatsBar } from './StatsBar'
@@ -96,8 +96,9 @@ export function ViewOverlay({
               {onOpenMobileSidebar && (
                 <div className="relative">
                   <Button
-                    variant="outline"
+                    variant="secondary"
                     size="icon"
+                    shape="square"
                     onClick={onOpenMobileSidebar}
                     className="h-8 w-8 bg-card/80 border-border hover:bg-muted"
                     title="Open sidebar"
@@ -113,8 +114,9 @@ export function ViewOverlay({
                 </div>
               )}
               <Button
-                variant="outline"
+                variant="secondary"
                 size="icon"
+                shape="square"
                 onClick={() => setActiveMobilePanel(activeMobilePanel === 'stats' ? null : 'stats')}
                 className="h-8 w-8 bg-card/80 border-border hover:bg-muted"
                 title="View stats"
@@ -124,8 +126,9 @@ export function ViewOverlay({
               </Button>
               {leftPanelContent && (
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="icon"
+                  shape="square"
                   onClick={() => setActiveMobilePanel(activeMobilePanel === 'left' ? null : 'left')}
                   className="h-8 w-8 bg-card/80 border-border hover:bg-muted"
                   title="Open queries"
@@ -135,8 +138,9 @@ export function ViewOverlay({
                 </Button>
               )}
               <Button
-                variant="outline"
+                variant="secondary"
                 size="icon"
+                shape="square"
                 onClick={() => setActiveMobilePanel(activeMobilePanel === 'agents' ? null : 'agents')}
                 className="h-8 w-8 bg-card/80 border-border hover:bg-muted"
                 title="Find agent"
@@ -160,8 +164,9 @@ export function ViewOverlay({
         {/* Top-right: view toggle + settings + help */}
         <div className="absolute top-4 right-4 pointer-events-auto flex flex-col gap-1">
           <Button
-            variant="outline"
+            variant="secondary"
             size="icon"
+            shape="square"
             onClick={() => onHomeViewChange?.(graphViewActive ? 'world' : 'graph')}
             className="h-8 w-8 bg-card/80 border-border hover:bg-muted"
             title={graphViewActive ? 'Switch to World View' : 'Switch to Graph View'}
@@ -170,8 +175,9 @@ export function ViewOverlay({
             {graphViewActive ? <Globe className="h-4 w-4" /> : <Network className="h-4 w-4" />}
           </Button>
           <Button
-            variant="outline"
+            variant="secondary"
             size="icon"
+            shape="square"
             onClick={() => setIsSettingsOpen(true)}
             className="h-8 w-8 bg-card/80 border-border hover:bg-muted"
             title={settingsTitle}
@@ -180,8 +186,9 @@ export function ViewOverlay({
             <Settings className="h-4 w-4" />
           </Button>
           <Button
-            variant="outline"
+            variant="secondary"
             size="icon"
+            shape="square"
             onClick={() => setIsHelpOpen(true)}
             className="h-8 w-8 bg-card/80 border-border hover:bg-muted"
             title={helpTitle}

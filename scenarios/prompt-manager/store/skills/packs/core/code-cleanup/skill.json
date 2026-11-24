@@ -15,7 +15,7 @@
   "icon": "trash2",
   "status": "active",
   "entry": "SKILL.md",
-  "defaultScope": "refactor-scope",
+  "defaultScope": "work-scope",
   "requires": {
     "scenarios": [
       "prompt-manager",

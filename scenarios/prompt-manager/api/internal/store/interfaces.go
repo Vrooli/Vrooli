@@ -57,86 +57,6 @@ type ActionStore interface {
 	Delete(ctx context.Context, id string) error
 }
 
-// VariantStore defines operations for skill variant storage
-type VariantStore interface {
-	// List returns all variants for a skill
-	List(ctx context.Context, skillID string) ([]Variant, error)
-
-	// Get retrieves a variant by skill ID and variant ID
-	Get(ctx context.Context, skillID, variantID string) (*Variant, error)
-
-	// GetWithContent retrieves a variant with its markdown content
-	GetWithContent(ctx context.Context, skillID, variantID string) (*Variant, string, error)
-
-	// Create creates a new variant for a skill
-	Create(ctx context.Context, skillID string, variant *Variant, content string) error
-
-	// Update updates an existing variant
-	Update(ctx context.Context, skillID, variantID string, updates *Variant, content *string) error
-
-	// Delete removes a variant
-	Delete(ctx context.Context, skillID, variantID string) error
-}
-
-// ExperimentStore defines operations for experiment storage
-type ExperimentStore interface {
-	// List returns all experiments
-	List(ctx context.Context) ([]Experiment, error)
-
-	// ListBySkill returns experiments for a specific skill
-	ListBySkill(ctx context.Context, skillID string) ([]Experiment, error)
-
-	// Get retrieves an experiment by ID
-	Get(ctx context.Context, experimentID string) (*Experiment, error)
-
-	// Create creates a new experiment
-	Create(ctx context.Context, experiment *Experiment) error
-
-	// Update updates an existing experiment
-	Update(ctx context.Context, experimentID string, experiment *Experiment) error
-
-	// Delete removes an experiment and its outcomes
-	Delete(ctx context.Context, experimentID string) error
-
-	// RecordOutcome appends an opaque outcome to the experiment's JSONL log
-	RecordOutcome(ctx context.Context, experimentID string, outcome ExperimentOutcome) error
-
-	// RecordServe appends a serve event (a variant selection) to the experiment's
-	// serve JSONL log, so served variants can later be attributed to outcomes
-	RecordServe(ctx context.Context, serve ExperimentServe) error
-
-	// ListServes returns all raw serve events for an experiment
-	ListServes(ctx context.Context, experimentID string) ([]ExperimentServe, error)
-
-	// CountServesByVariant returns serve counts grouped by variant ID
-	CountServesByVariant(ctx context.Context, experimentID string) (map[string]int, error)
-
-	// ListOutcomes returns all raw outcomes for an experiment
-	ListOutcomes(ctx context.Context, experimentID string) ([]ExperimentOutcome, error)
-
-	// CountOutcomesByVariant returns outcome counts grouped by variant ID
-	CountOutcomesByVariant(ctx context.Context, experimentID string) (map[string]int, error)
-}
-
-// ExperimentAssignmentStore is deliberately separate from ExperimentStore so
-// legacy read/report test doubles cannot accidentally claim dispatch-safe
-// assignment support. Production uses SQLiteExperimentStore for both.
-type ExperimentAssignmentStore interface {
-	GetAssignment(ctx context.Context, experimentID, idempotencyKey string) (*ExperimentAssignment, error)
-	CreateAssignment(ctx context.Context, assignment ExperimentAssignment) error
-	ListAssignments(ctx context.Context, experimentID string) ([]ExperimentAssignment, error)
-}
-
-type ExperimentExposureStore interface {
-	RecordExposure(context.Context, ExperimentExposure) error
-	ListExposures(context.Context, string) ([]ExperimentExposure, error)
-}
-
-type ExperimentAuditStore interface {
-	RecordAuditReceipt(context.Context, ExperimentAuditReceipt) error
-	GetAuditReceipt(context.Context, string) (*ExperimentAuditReceipt, error)
-}
-
 // AgentStore defines operations for agent storage
 type AgentStore interface {
 	// List returns all agents
@@ -181,17 +101,8 @@ type TeamStore interface {
 	// GetOrgChart returns the org chart for a team
 	GetOrgChart(ctx context.Context, teamID string) (*OrgChart, error)
 
-	// SetOrgChart sets the org chart for a team
-	SetOrgChart(ctx context.Context, teamID string, org *OrgChart) error
-
 	// GetMembers returns all members of a team
 	GetMembers(ctx context.Context, teamID string) ([]TeamMemberRelation, error)
-
-	// GetInbox returns the inbox for a team member
-	GetInbox(ctx context.Context, teamID, agentID string) (*TeamInbox, error)
-
-	// SetInbox stores the inbox for a team member
-	SetInbox(ctx context.Context, teamID, agentID string, inbox *TeamInbox) error
 }
 
 // TopicStore defines operations for topic storage
@@ -268,8 +179,6 @@ type IndexStore interface {
 type Store interface {
 	Skills() SkillStore
 	Actions() ActionStore
-	Variants() VariantStore
-	Experiments() ExperimentStore
 	Agents() AgentStore
 	Teams() TeamStore
 	Topics() TopicStore

@@ -25,26 +25,26 @@ This table is the machine-readable architecture authority. Paths describe the
 current implementation; planned package changes remain in the slice table
 below until their source directories exist.
 
-| Domain | Source Paths |
-|---|---|
-| actions | `api/internal/actions/**`, `api/handlers/actions/**` |
-| agents | `api/internal/agents/**`, `api/handlers/agents/**` |
-| aisearch | `api/internal/aisearch/**`, `api/handlers/aisearch/**` |
-| discovery | `api/handlers/discovery/**` |
-| graph | `api/internal/graph/**`, `api/handlers/graph/**` |
-| heartbeat | `api/internal/heartbeat/**`, `api/handlers/heartbeat/**` |
-| memberflow | `api/internal/memberflow/**`, `api/handlers/memberflow/**` |
-| metadata | `api/internal/ogmeta/**`, `api/handlers/metadata/**`, `api/handlers/ogmeta/**` |
-| metrics | `api/internal/metrics/**` |
-| search | `api/internal/search/**`, `api/handlers/search/**` |
-| skills | `api/internal/skills/**`, `api/handlers/skills/**` |
-| tags | `api/internal/tags/**`, `api/handlers/tags/**` |
-| teams | `api/internal/teams/**`, `api/handlers/teams/**` |
-| templates | `api/internal/templates/**`, `api/handlers/templates/**` |
-| testing | `api/internal/testing/**`, `api/handlers/testing/**` |
-| topics | `api/internal/topics/**`, `api/handlers/topics/**` |
-| worldscale | `api/internal/worldscale/**`, `api/handlers/worldscale/**` |
-| worldseats | `api/internal/worldseats/**`, `api/handlers/worldseats/**` |
+| Domain | Responsibility | Primary Archetype | Source Paths |
+|---|---|---|---|
+| actions | Action contracts, validation, preview, and governed execution. | orchestration | `api/internal/actions/**`, `api/handlers/actions/**` |
+| agents | Agent identity, files, soul, capabilities, and team membership reads. | crud | `api/internal/agents/**`, `api/handlers/agents/**` |
+| aisearch | Vector-backed search, discovery composition, and index reconciliation. | query | `api/internal/aisearch/**`, `api/handlers/aisearch/**` |
+| discovery | Budgeted capability discovery transport over AI search and topics. | aggregation | `api/handlers/discovery/**` |
+| graph | Relationship graph, health/config, and operating-map projection. | aggregation | `api/internal/graph/**`, `api/handlers/graph/**` |
+| heartbeat | Run/task orchestration, schedules, queues, and controls. | orchestration | `api/internal/heartbeat/**`, `api/handlers/heartbeat/**` |
+| memberflow | Member topic contracts, operating models, rules, and objectives. | orchestration | `api/internal/memberflow/**`, `api/handlers/memberflow/**` |
+| metadata | Open Graph metadata lookup. | query | `api/internal/ogmeta/**`, `api/handlers/metadata/**`, `api/handlers/ogmeta/**` |
+| metrics | Skill usage and rating persistence. | crud | `api/internal/metrics/**` |
+| search | Deterministic full-text entity and content search. | query | `api/internal/search/**`, `api/handlers/search/**` |
+| skills | Skill CRUD, sync, versions, variants, and experiment storage-facing types. | crud | `api/internal/skills/**`, `api/handlers/skills/**` |
+| tags | Tag taxonomy persistence. | crud | `api/internal/tags/**`, `api/handlers/tags/**` |
+| teams | Team CRUD, membership, roles, files, org chart, messaging, and external exchange. | crud | `api/internal/teams/**`, `api/handlers/teams/**` |
+| templates | Read-only agent file templates. | query | `api/internal/templates/**`, `api/handlers/templates/**` |
+| testing | Skill tests and durable result history. | validation | `api/internal/testing/**`, `api/handlers/testing/**` |
+| topics | Content taxonomy CRUD, matching, and accumulated skills. | crud | `api/internal/topics/**`, `api/handlers/topics/**` |
+| worldscale | Persisted world rendering scale configuration. | crud | `api/internal/worldscale/**`, `api/handlers/worldscale/**` |
+| worldseats | Persisted seat placement configuration. | crud | `api/internal/worldseats/**`, `api/handlers/worldseats/**` |
 
 ## Live directory inventory
 
@@ -164,7 +164,7 @@ Canonical leaves are listed; aliases use the same route. Route sets show the cur
 | `metadata` | fetch | `GET /api/v1/og-metadata` | `metadata` |
 | search flats | search, search-status, search-reconcile, search-reconcile-status, search-reconcile-cancel | generated `SearchService` and `AISearchService` | `search`/`aisearch` |
 | discovery flats | discover, discovery-gaps, discovery-metrics, skill-usage | generated `DiscoveryService` | `discovery` |
-| `graph` core | show, dump, node, regenerate, orphaned-skills, skillless-agents, empty-teams, unaffiliated-agents, cliless-skills, popular, circular-refs, health | `/api/v1/graph*` | `graph` |
+| `graph` core | show, dump, node, regenerate, orphaned-skills, skillless-agents, empty-teams, unaffiliated-agents, cliless-skills, popular, circular-refs, health | Connect `GraphService` | `graph` |
 | `graph` operating model | topics, runtime, rules, operating-model list/validate/diff/coverage, map, objectives, orientation-cost, instruments, audit, drain-status | topic graph, rules, operating models, objectives/instruments/drain routes; audit also performs local repository reads | bind server projections; explicitly omit local-only audit facets |
 | `space` | flat | local generated coverage document | omit as CLI-local projection unless a stable service consumer appears |
 
@@ -193,19 +193,6 @@ Generated from the 201 literal `HandleFunc` registrations at audit time. Handler
 | POST | `/api/v1/experiments/{eid}/holdout-receipt` | `experimentHandlers.RecordHoldoutReceipt` | experiment |
 | POST | `/api/v1/experiments/{eid}/promote` | `experimentHandlers.PromoteExperiment` | experiment |
 | GET | `/api/v1/experiments/{eid}/report` | `experimentHandlers.GetExperimentReport` | experiment |
-| GET | `/api/v1/graph` | `graphHandlers.GetGraph` | graph |
-| POST | `/api/v1/graph/regenerate` | `graphHandlers.Regenerate` | graph |
-| GET | `/api/v1/graph/orphans` | `graphHandlers.GetOrphans` | graph |
-| GET | `/api/v1/graph/skillless` | `graphHandlers.GetSkillless` | graph |
-| GET | `/api/v1/graph/empty-teams` | `graphHandlers.GetEmptyTeams` | graph |
-| GET | `/api/v1/graph/unaffiliated` | `graphHandlers.GetUnaffiliated` | graph |
-| GET | `/api/v1/graph/popular` | `graphHandlers.GetPopular` | graph |
-| GET | `/api/v1/graph/cycles` | `graphHandlers.GetCycles` | graph |
-| GET | `/api/v1/graph/health` | `graphHandlers.GetHealthScores` | graph |
-| GET | `/api/v1/graph/health-config` | `graphHandlers.GetHealthConfig` | graph |
-| PUT | `/api/v1/graph/health-config` | `graphHandlers.PutHealthConfig` | graph |
-| GET | `/api/v1/graph/nodes/{id}` | `graphHandlers.GetNode` | graph |
-| GET | `/api/v1/graph/nodes/{id}/edges` | `graphHandlers.GetNodeEdges` | graph |
 | GET | `/api/v1/config/budgets` | `aiSearchHandlers.GetBudgetConfig` | aisearch |
 | PUT | `/api/v1/config/budgets` | `aiSearchHandlers.PutBudgetConfig` | aisearch |
 | GET | `/api/v1/config/discover-filters` | `aiSearchHandlers.GetDiscoverFilterConfig` | aisearch |
@@ -220,7 +207,6 @@ Generated from the 201 literal `HandleFunc` registrations at audit time. Handler
 | GET | `/api/v1/instruments` | `memberFlowHandlers.GetInstruments` | memberflow |
 | GET | `/api/v1/topics/drain-status` | `memberFlowHandlers.GetDrainStatus` | memberflow |
 | GET | `/api/v1/operating-models` | `memberFlowHandlers.GetOperatingModels` | memberflow |
-| GET | `/api/v1/operating-models/map` | `graphHandlers.GetOperatingMap` | graph |
 | GET | `/api/v1/operating-models/validate` | `memberFlowHandlers.ValidateOperatingModelsHandler` | memberflow |
 | GET | `/api/v1/operating-models/diff` | `memberFlowHandlers.DiffOperatingModelsHandler` | memberflow |
 | GET | `/api/v1/operating-models/coverage` | `memberFlowHandlers.CoverageOperatingModelsHandler` | memberflow |

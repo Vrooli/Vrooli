@@ -71,6 +71,11 @@ one transition table per persisted status plus store-boundary enforcement remove
 bypasses and stopped stale run snapshots from overwriting proposal review (2026-11-12).
 Prior evidence: Swarm Manager review rounds now validate Gathering→Complete/Failed at the
 single file-store boundary and reject persisted terminal reversals (2026-11-12).
+Prior evidence: Client Rehearsal coding jobs now route stage and evaluation results through one
+transition owner; the direct failed-then-strict-pass writes and separate evaluation state guard
+were removed. Transition and invalid-state matrix tests pass; production is +22 net lines and burden-19
+top-20 membership remains unassigned (debt-reduction run `steward-free-host-maintainability-20261115/DR2`).
+Prior evidence: Scenario-to-Cloud deployment results now persist without changing status; operation completion is the sole terminal projector. A SQLite integration regression catches the success path persisting failed before attempting deployed; the handler reset, bool-selected result branch and duplicate status writers were deleted. Production +144/−60 (+84 net); owner unit/API Test Genie `20261116-042320-2d8f7f81` passes (debt-reduction run `steward-free-host-maintainability-20261115/DR2`).
 Prior evidence: Agent Manager workflow executions now route runtime status intents through
 one domain graph and reject illegal persisted edges at the status+version CAS boundary; the
 table and child-cancellation propagation have an exhaustive invalid-state regression (2026-11-12).
@@ -155,7 +160,7 @@ rg -N --no-filename -g '*.md' -g '!**/evidence/**' '^#{2,3} \S' docs scenarios/*
 tidiness-manager recommend-refactors <scenario> --limit 10            # ranked reduction candidates
 ```
 
-**Fix**: choose the owner with `docs/agent-system/LAYERS.md` (truth in Plan of Record,
+**Fix**: choose the owner with `docs/agent-system/README.md#where-does-this-paragraph-go` (truth in Plan of Record,
 judgment in skills, state in scenarios, shared code in `packages/`). Move every consumer to
 the owner. Delete the other copies. Write a retirement manifest: each deleted path and
 symbol, with the search that proves it is gone. Do not leave a fence or a sync job between
@@ -220,7 +225,7 @@ rg -n -g '*.md' '^\s*(On|As of) [0-9]{4}-[0-9]{2}-[0-9]{2}' docs
 others. Write in the present tense. Remove history from instruction docs; retain it only
 where it carries an unresolved obligation. Run the scenario's docs phase after editing.
 
-For a contradictory doc set: pick the one home per `docs/agent-system/LAYERS.md`, merge the
+For a contradictory doc set: pick the one home per `docs/agent-system/README.md#where-does-this-paragraph-go`, merge the
 true content into it, turn the others into one-line links or delete them, and fix inbound
 links. `knowledge-observatory-maintenance` owns the move and retirement mechanics.
 
@@ -232,7 +237,7 @@ or misread output. Friction digests and Agent Manager command-failure measures s
 **Fix**: change the owner, not the skill prose. Make the error message name the correct
 invocation. Accept the obvious spelling. Make the default output answer the common question.
 When the same clarification appears in several skills, move it into the CLI and delete it
-from the skills (`docs/agent-system/PROMOTION_LADDER.md`). Verify by running the bad
+from the skills (`docs/agent-system/SKILL_AUTHORING.md#promotion-ladder`). Verify by running the bad
 invocation before and after.
 
 Prior evidence: fixing `scenario setup --json` rejection and capacity-release syntax at the
@@ -251,7 +256,7 @@ prompt-manager graph orphaned-skills                          # unreferenced ski
 
 `orphaned-skills` shows missing references, not missing reads. Before retiring a skill,
 search the corpus for its id and check Agent Manager usage; follow
-`docs/agent-system/DEPRECATION_POLICY.md`.
+`docs/agent-system/RULES.md`.
 
 **Fix**: delete it, with a retirement manifest. Do not comment it out or keep it "in case".
 
@@ -344,12 +349,39 @@ rejected by the repository and transition graph (debt-reduction run `debt-crypto
 
 Prior evidence: Vrooli Bridge `EnrollmentAttempt.State` had terminal logic in both `Terminal()` and a SQL `IN ('created','running')` guard. `AttemptState` and `EnrollmentAttempt.TransitionState` now own terminal outcomes; creation is insert-only, scans reject unknown values, and completion uses exact-state CAS while preserving same-result idempotency and linked retry records. Invalid, stale, terminal and error-mapping regressions were authored. Source changes are +63 production, +62 tests and +5 docs; Go/Test Genie remain unrun below the host free-space floor, so runtime is unverified (debt-reduction run `steward-free-host-20261114`).
 
+## Evidence entry points and file coverage
+
+Several CLIs rebuild on first call and print build noise, which is not an error.
+
+- Team inboxes: `prompt-manager team knowledge-list <team> --topic-prefix=<declared-prefix> --last 1000` (prefix, severity and triage rules are in the team's `topics.json` and `scenarios/prompt-manager/docs/internal/TOPICS.md`; close resolved items through the owner command).
+- Agent friction: `agent-manager usage friction --status open`, `usage opportunities`, program `agent-manager.friction-digest`; write verdicts back with `usage friction-dismiss <fingerprint>` (after a fix or reviewed no-change verdict) or `usage friction-report <fingerprint>` (owner defect you did not fix; files to the scenario-qa bug inbox), passing the same `--since` you listed with.
+- Bugs and findings: `plan-manager log list --type bug_report` (many show sync failed and never reached the inbox) and `--type finding --triage candidate`; `swarm-manager captures list` (failed classifications are prey); `test-genie fleet status`, `runs findings --scenario <s>`.
+- Debt: `template-manager debt list` (fix the template, §10); `tidiness-manager scenarios list|issues list|recommend-refactors <s> --limit 10`, `quality-health audit run <s>` (read `tidiness` for detector precision; scanner output is not a reduction estimate); `knowledge-observatory knowledge-base health --scenario-name <s> --skip-external-links`; `git-control-tower review summary <s>`.
+- Prior work: `search-hub query "<territory> <lens>" --type record,library --limit 5`; `vrooli-memory recall recall "<query>" --scope agent-memory --limit 10`.
+
+File coverage with visited-tracker is optional; use it when several hunters split one large territory (exclusive claims) or the lens is a file-by-file sweep. Tag `eh-<hunt-id>-<territory-slug>` (add `-<lens>` for a second lens); `visited-tracker attention ensure-campaign --location "$(pwd)/<territory path>" --tag <tag> --patterns '<glob>' --max-files <files + 50%>` (one `--patterns` per glob; `--max-files` is fixed at creation; if `attention preview` says the pattern exceeds it, use a new tag with a larger `--max-files` or narrower `--location` or `--patterns`), then `attention preview --campaign-id <id> --limit 20`. Zero candidates or a scan error means the campaign is unusable (paths containing `data`, `build`, `tmp`, `out`, `dist`, `coverage` or `node_modules` are excluded, and a broken symlink aborts the scan): skip coverage for that territory and record the defect. Claim with a fresh UUID `--request-id`; complete `--outcome reviewed --evidence <summary>` before editing the file. Read progress from `attention preview`, not `coverage` or `campaigns list`, which ignore reviews, and stop when preview shows no unreviewed candidates.
+
 ## Related skills for depth
 
-`domain-clarity` (concept compression), `cognitive-load-reduction`, `seam-discovery-and-enforcement`,
-`invariant-discovery-and-enforcement`, `temporal-flow-audit`, `idempotency-replay-safety-hardening`,
-`error-semantics-recovery-path-design`, `storage-steer`, `scientific-debugging`,
+`architecture-lenses` (concept compression), `cognitive-load-reduction`, `resilience-lenses`, `storage-steer`, `scientific-debugging`,
 `documentation-health`, `knowledge-observatory-maintenance`. Load one when its lens is the
 round's lens; do not load them all.
 
 Prior evidence: Plan Manager `CandidateRevision.State` is a persisted independent child lifecycle. Replace permissive upsert with insert-only pending creation, a pending→applied/discarded/expired graph and transactional compare-and-swap; apply the canonical plan and applied candidate in the same SQLite transaction. Invalid-state, terminal-rewrite and injected rollback tests pass. Test Genie unit/API `20261114-134808-c22b3fd2` passed on the final single-statement CAS tree (unit L2→L3 retains `MISSING_INJECTABLE_SEAM`; API L1→L2 retains unstructured-logging findings). Earlier run `20261114-133622-3d19b19e` passed the first implementation before the 21-line store simplification. Production source changed +93/−20 and tests +79. The conditional single-statement CAS removed 21 lines from the initial store transition implementation while preserving error classification; overall production code remains +73 net, so this conversion improves transition safety and atomicity but does not claim net LOC reduction (debt-reduction run `steward-free-host-20261114`).
+
+## Lens questions
+
+Each lens is a question asked of every file in the territory (SKILL.md §9 names them).
+
+- **Implicit state machines:** which lifecycle hides in booleans, nullable timestamps, status strings and process existence, with no named states or transition owner?
+- **Double residency:** which concept, decision, constant or doc assertion has two homes?
+- **Unfinished migrations:** which old path still runs beside its replacement?
+- **Silent failure:** where does an error become a default, a log line or a "green"?
+- **Doc truth:** which doc says what the code does not do, says it twice, or describes the past?
+- **Agent friction:** which command, help text or error made an agent guess, retry or fail?
+- **Skills and prompts:** which contradicts canon, restates another, or steers toward caution, ceremony or the wrong owner?
+- **Test burden:** which tests pin implementation, hardcode cases a generator should make, or pass for the wrong reason?
+- **Dead weight:** what has no live caller or reader?
+- **Hidden ordering:** which steps need an order nothing enforces?
+- **Performance:** which hot path does N+1 reads or repeated scans?
+- **What we would not build today:** which part would we not create now, which three things are one thing, which subsystem could disappear if its one real consumer used an existing capability, and what change makes this category of bug impossible?

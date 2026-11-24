@@ -1,7 +1,6 @@
 package store
 
 import (
-	"encoding/json"
 	"github.com/vrooli/cli-core/teamattribution"
 	"time"
 
@@ -282,7 +281,7 @@ type Team struct {
 	Retention          *RetentionConfig        `json:"retention,omitempty"`
 	// AttributionValidFrom is the per-team Pillar 3 cutoff. Team-corpus
 	// entries written on or after this ISO-8601 date (YYYY-MM-DD) MUST
-	// carry runtime attribution conforming to docs/agent-system/RUNTIME_ATTRIBUTION.md;
+	// carry runtime attribution conforming to scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md;
 	// pre-cutoff entries are treated as kind="legacy" and skipped by
 	// ruleActualWriterUndeclared. The value is set at migration time
 	// by the cutover migration and may be widened retroactively
@@ -293,7 +292,7 @@ type Team struct {
 	// Policy carries opt-in per-team thresholds the runtime-attribution
 	// validators consult. Nil / omitted means "every default applies"; in
 	// particular, nil disables the per-week thresholds (external writes
-	// are tracked but never flagged). See docs/agent-system/RUNTIME_ATTRIBUTION.md
+	// are tracked but never flagged). See scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md
 	// § kind enum for the field-by-field semantics, and the TeamPolicy
 	// struct below for the active set.
 	Policy *TeamPolicy `json:"policy,omitempty"`
@@ -427,24 +426,6 @@ type ManagedTeamEdge struct {
 	Status        string `json:"status,omitempty"`
 }
 
-// TeamInbox stores inbound messages for a team member.
-type TeamInbox struct {
-	BaseEntity
-	TeamID   string        `json:"teamId"`
-	AgentID  string        `json:"agentId"`
-	Messages []TeamMessage `json:"messages"`
-}
-
-// TeamMessage represents a message sent between team members.
-type TeamMessage struct {
-	ID          string `json:"id"`
-	TeamID      string `json:"teamId"`
-	FromAgentID string `json:"fromAgentId"`
-	ToAgentID   string `json:"toAgentId"`
-	Content     string `json:"content"`
-	CreatedAt   string `json:"createdAt"`
-}
-
 // TeamMemberRelation represents a team-member relationship
 type TeamMemberRelation struct {
 	BaseEntity
@@ -488,159 +469,6 @@ type HistoryEntry struct {
 	Timestamp string `json:"timestamp"`
 	Action    string `json:"action"`
 	Summary   string `json:"summary"`
-}
-
-// Variant represents an alternative version of a skill's content for A/B testing.
-type Variant struct {
-	BaseEntity
-	ID          string `json:"id"`
-	SkillID     string `json:"skillId"`
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-	Entry       string `json:"entry"` // filename, e.g., "VARIANT.md"
-	Timestamps
-}
-
-// Experiment ties skill variants together for A/B testing with weighted traffic splitting.
-type Experiment struct {
-	BaseEntity
-	ID                       string             `json:"id"`
-	SkillID                  string             `json:"skillId"`
-	Name                     string             `json:"name"`
-	Hypothesis               string             `json:"hypothesis,omitempty"`
-	Protocol                 ExperimentProtocol `json:"protocol"`
-	Status                   string             `json:"status"` // draft, running, concluded
-	Arms                     []ExperimentArm    `json:"arms"`
-	StartedAt                *string            `json:"startedAt,omitempty"`
-	ConcludedAt              *string            `json:"concludedAt,omitempty"`
-	WinnerVariantID          *string            `json:"winnerVariantId,omitempty"`
-	PromotionWorkItemRef     string             `json:"promotionWorkItemRef,omitempty"`
-	HoldoutFindingsHash      string             `json:"holdoutFindingsHash,omitempty"`
-	HoldoutCompletedAt       string             `json:"holdoutCompletedAt,omitempty"`
-	HoldoutIdempotencyKey    string             `json:"holdoutIdempotencyKey,omitempty"`
-	HoldoutSignature         string             `json:"holdoutSignature,omitempty"` // historical development artifact only
-	HoldoutSignatureEnvelope json.RawMessage    `json:"holdoutSignatureEnvelope,omitempty"`
-	PromotedAt               string             `json:"promotedAt,omitempty"`
-	Notes                    string             `json:"notes,omitempty"`
-	Timestamps
-}
-
-// ExperimentProtocol is the immutable, pre-registered evidence contract for a
-// controlled experiment. Its explicit fields prevent promotion criteria from
-// being changed after results are known.
-type ExperimentProtocol struct {
-	Population                   string   `json:"population"`
-	RandomizationUnit            string   `json:"randomizationUnit"`
-	PrimaryMetric                string   `json:"primaryMetric"`
-	EffectThreshold              float64  `json:"effectThreshold"`
-	ProbabilityThreshold         float64  `json:"probabilityThreshold"`
-	CostNonInferiorityRatio      float64  `json:"costNonInferiorityRatio"`
-	Strata                       []string `json:"strata"`
-	ExposurePolicy               string   `json:"exposurePolicy"`
-	OutcomeCompletenessThreshold float64  `json:"outcomeCompletenessThreshold"`
-	Budget                       string   `json:"budget"`
-	StoppingRule                 string   `json:"stoppingRule"`
-	HoldoutRequired              bool     `json:"holdoutRequired"`
-	HoldoutPopulationHash        string   `json:"holdoutPopulationHash"`
-	PromotionAuthority           string   `json:"promotionAuthority"`
-	EvaluatorRubricHash          string   `json:"evaluatorRubricHash"`
-	EvaluatorAuthor              string   `json:"evaluatorAuthor"`
-	ProtocolHash                 string   `json:"protocolHash,omitempty"`
-}
-
-// ExperimentArm is one variant in an experiment with its traffic weight.
-type ExperimentArm struct {
-	VariantID string  `json:"variantId"` // "control" = original SKILL.md
-	Weight    float64 `json:"weight"`    // 0.0-1.0, arms must sum to 1.0
-}
-
-// ExperimentOutcome is the opaque outcome envelope stored per experiment.
-// Prompt-manager never parses Data — it belongs to the source system (e.g. swarm-manager).
-type ExperimentOutcome struct {
-	IdempotencyKey string                       `json:"idempotencyKey,omitempty"`
-	VariantID      string                       `json:"variantId"`
-	Source         string                       `json:"source"`        // e.g. "swarm-manager"
-	SchemaVersion  int                          `json:"schemaVersion"` // consumer-defined
-	RecordedAt     string                       `json:"recordedAt"`
-	Data           json.RawMessage              `json:"data"` // opaque to PM
-	Controlled     *ControlledExperimentOutcome `json:"controlled,omitempty"`
-}
-
-// ControlledExperimentOutcome is the typed, evaluator-bound primary evidence
-// projection. Data remains available for bounded auxiliary evidence, but a
-// controlled record is never interpreted from terminal run status alone.
-type ControlledExperimentOutcome struct {
-	AssignmentID         string `json:"assignmentId"`
-	ExecutionID          string `json:"executionId"`
-	EvaluatorAttemptID   string `json:"evaluatorAttemptId"`
-	EvaluatorRunID       string `json:"evaluatorRunId"`
-	Verdict              string `json:"verdict,omitempty"`
-	Success              *bool  `json:"success,omitempty"`
-	OutcomeStatus        string `json:"outcomeStatus"` // complete or incomplete
-	RubricHash           string `json:"rubricHash"`
-	EvaluatorPromptHash  string `json:"evaluatorPromptHash"`
-	StructuredSchemaHash string `json:"structuredSchemaHash"`
-	EvidenceHash         string `json:"evidenceHash,omitempty"`
-}
-
-// ExperimentAuditReceipt binds a qualitative audit to immutable quantitative
-// evidence. Signature is generated server-side over canonical fields.
-type ExperimentAuditReceipt struct {
-	ExperimentID         string          `json:"experimentId"`
-	ProtocolHash         string          `json:"protocolHash"`
-	SampledAssignmentIDs []string        `json:"sampledAssignmentIds"`
-	FindingsHash         string          `json:"findingsHash"`
-	ChallengeState       string          `json:"challengeState"`
-	AnomalyCount         int             `json:"anomalyCount"`
-	GamingCount          int             `json:"gamingCount"`
-	CompletedAt          string          `json:"completedAt"`
-	Signature            string          `json:"signature,omitempty"` // historical development artifact only
-	SignatureEnvelope    json.RawMessage `json:"signatureEnvelope,omitempty"`
-	IdempotencyKey       string          `json:"idempotencyKey"`
-}
-
-// ExperimentServe records that a variant was served for a skill read. It is the
-// serve-side counterpart to ExperimentOutcome: appended when blind serving (or an
-// explicit experiment) selects a variant, so a served variant can later be joined
-// to its outcome. Written to serve.jsonl beside outcomes.jsonl.
-type ExperimentServe struct {
-	ExperimentID string `json:"experimentId"`
-	SkillID      string `json:"skillId"`
-	VariantID    string `json:"variantId"`
-	Source       string `json:"source,omitempty"` // caller identity, e.g. "agent-manager"
-	ServedAt     string `json:"servedAt"`
-}
-
-// ExperimentAssignment is the immutable treatment receipt created before a
-// workflow child is dispatched. Content is stored with the receipt so retries
-// cannot observe a later variant edit or a different random draw.
-type ExperimentAssignment struct {
-	ExperimentID   string `json:"experimentId"`
-	SkillID        string `json:"skillId"`
-	VariantID      string `json:"variantId"`
-	ExecutionID    string `json:"executionId"`
-	NodeID         string `json:"nodeId"`
-	AttemptKey     string `json:"attemptKey"`
-	IdempotencyKey string `json:"idempotencyKey"`
-	Content        string `json:"content"`
-	ContentHash    string `json:"contentHash"`
-	AssignedAt     string `json:"assignedAt"`
-}
-
-// ExperimentExposure is a verified skill-read receipt issued from an active
-// workflow run. Identity fields are copied only after agent-manager validates
-// the signed token; callers cannot supply them in the read request body.
-type ExperimentExposure struct {
-	ExperimentID   string `json:"experimentId"`
-	VariantID      string `json:"variantId"`
-	RunID          string `json:"runId"`
-	ExecutionID    string `json:"executionId"`
-	NodeID         string `json:"nodeId"`
-	AttemptID      string `json:"attemptId"`
-	ReadSkillID    string `json:"readSkillId"`
-	Provenance     string `json:"provenance"`
-	ObservedAt     string `json:"observedAt"`
-	IdempotencyKey string `json:"idempotencyKey"`
 }
 
 // PackOrder represents the pack precedence configuration
@@ -949,7 +777,7 @@ type TeamTaskBoard struct {
 
 // Knowledge writer-kind enum. Closed vocabulary; new kinds require a
 // meta-optimization gated work item and a migration plan. The canon contract is
-// docs/agent-system/RUNTIME_ATTRIBUTION.md § kind enum.
+// scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md § kind enum.
 const (
 	// KnowledgeKindAgentMember is a team member's agent process running
 	// under agent-manager. Requires MemberID, TeamID, RunID on attribution.
@@ -981,7 +809,7 @@ var KnowledgeKinds = teamattribution.Kinds
 
 // Spawn-origin enum. Closed vocabulary; informational signal for triage and
 // curation (debt-curator joins on this to spot patterns), not a gating field.
-// The canon contract is docs/agent-system/RUNTIME_ATTRIBUTION.md
+// The canon contract is scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md
 // § spawn_origin enum.
 const (
 	// SpawnOriginHeartbeat — run was spawned by prompt-manager's heartbeat
@@ -1017,7 +845,7 @@ var SpawnOrigins = teamattribution.SpawnOrigins
 // post-cutoff knowledge entry. The API handler populates it at write time
 // from the X-Vrooli-Attribution HTTP header.
 //
-// The canon contract is docs/agent-system/RUNTIME_ATTRIBUTION.md
+// The canon contract is scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md
 // § The structured-attribution payload — that doc owns field semantics,
 // per-kind required-field rules, and the cryptographic-strengthening path.
 //
@@ -1033,7 +861,7 @@ type AttributionInfo = teamattribution.Info
 // API populates from the X-Vrooli-Attribution HTTP header. Caller is a
 // derived display string the API computes at write time — never accepted
 // as input. CallerNote is optional freeform context. The full contract is
-// docs/agent-system/RUNTIME_ATTRIBUTION.md.
+// scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md.
 //
 // Pre-cutover entries use kind=legacy with the original `by` field value
 // preserved on CallerNote. Post-cutover entries with kind=legacy are not
@@ -1047,7 +875,7 @@ type KnowledgeEntry struct {
 	Supersedes string `json:"supersedes,omitempty"`
 	// Caller is the human-readable display label derived at write time
 	// from Attribution. Format depends on Attribution.Kind (see
-	// docs/agent-system/RUNTIME_ATTRIBUTION.md § Derived display: caller).
+	// scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md § Derived display: caller).
 	// Persisted verbatim so list/search reads don't need to parse
 	// Attribution. NEVER accepted as input — clients send Attribution and
 	// the API derives Caller.

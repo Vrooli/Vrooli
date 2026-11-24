@@ -39,6 +39,7 @@
     "team:rcl-prompt-manager-ux-design-campaign": "RCLPROMPTMAN",
     "team:scenario-qa": "QA_IN",
     "team:unattended-self-improvement": "UNATTENDEDSE",
+    "team:vega-redesign-delivery": "VEGAREDESIGN",
     "topic:action-audit/*": "ACTIONAUDIT",
     "topic:action-audit/YYYY-MM-DD": "ACTIONAUD",
     "topic:action-visited/*": "ACTIONVISITE",
@@ -177,7 +178,8 @@
     "topic:toolchain-audit/YYYY-MM-DD",
     "topic:toolchain-audit/*",
     "member:toolchain-validator",
-    "team:unattended-self-improvement"
+    "team:unattended-self-improvement",
+    "team:vega-redesign-delivery"
   ],
   "readabilityEdges": [
     {

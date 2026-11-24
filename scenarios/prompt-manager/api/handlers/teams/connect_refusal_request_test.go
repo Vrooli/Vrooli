@@ -25,6 +25,8 @@ import (
 // prompt-manager:team/<id>, which is what the CLI prints.
 func TestRefusedTeamUpdateSurfacesTheRequestCommand(t *testing.T) {
 	t.Setenv("AGENT_MANAGER_AUTHORIZATION_URL", "")
+	// Run from inside an agent session, the live id would replace the placeholder.
+	t.Setenv("VROOLI_AGENT_SESSION", "")
 	const teamID = "desktop-packaging-delivery"
 	root := t.TempDir()
 	relations := store.NewFileRelationStore(root)

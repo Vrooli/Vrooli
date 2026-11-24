@@ -203,5 +203,5 @@ If the `report-friction` skill is itself buggy or ambiguous, file a `bug-inbox/p
 - `docs/scenario-qa/taxonomies/bug-report/README.md` — sister taxonomy for the bug-inbox flow; useful context for understanding why these are separate writer skills with separate destinations.
 - `scenarios/prompt-manager/store/skills/packs/core/report-bug/SKILL.md` — sister writer skill for code/scenario defects.
 - `scenarios/prompt-manager/store/skills/packs/core/conversation-friction-analysis/SKILL.md` — deeper post-hoc analysis skill; complementary, not a replacement for in-flight `report-friction`.
-- `docs/agent-system/INTAKE_PIPELINE.md` — the inbox-router-drain pattern; friction-inbox uses deterministic-prefix routing (no separate classifier).
-- `docs/agent-system/TOPICS_SCHEMA.md` § Universal-source intakes — the `source_team: "*"` semantics that make `friction-inbox/*` reachable from every team.
+- `scenarios/prompt-manager/docs/internal/INTAKE_PIPELINE.md` — the inbox-router-drain pattern; friction-inbox uses deterministic-prefix routing (no separate classifier).
+- `scenarios/prompt-manager/docs/internal/TOPICS_SCHEMA.md` § Universal-source intakes — the `source_team: "*"` semantics that make `friction-inbox/*` reachable from every team.

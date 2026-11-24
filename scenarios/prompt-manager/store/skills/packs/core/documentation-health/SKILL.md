@@ -2,13 +2,15 @@
 name: "documentation-health"
 description: "Ensure documentation quality, consistency, and bidirectional traceability between code and docs. Includes audit checklist and reference format standards."
 license: "CC-BY-4.0"
-metadata: {"kind": "skill", "schemaVersion": 1, "modes": ["steer", "documentation", "audits"], "tags": ["skill"], "icon": "filetext", "status": "active", "defaultScope": "architecture-scope", "targetDimensions": ["docs"], "requires": {"scenarios": ["prompt-manager", "test-genie"], "commands": ["prompt-manager skill", "prompt-manager skill read", "test-genie docs"]}, "origin": {"kind": "authored", "sourceUrl": "", "commit": "", "license": "", "checksum": "", "importedBy": "", "importedAt": "", "review": {"verdict": ""}}, "revision": 51, "createdAt": "2026-01-24T00:00:00Z", "updatedAt": "2026-09-30T12:00:00Z"}
+metadata: {"kind": "skill", "schemaVersion": 1, "modes": ["steer", "documentation", "audits"], "tags": ["skill"], "icon": "filetext", "status": "active", "defaultScope": "work-scope", "targetDimensions": ["docs"], "requires": {"scenarios": ["prompt-manager", "test-genie"], "commands": ["prompt-manager skill", "prompt-manager skill read", "test-genie docs"]}, "origin": {"kind": "authored", "sourceUrl": "", "commit": "", "license": "", "checksum": "", "importedBy": "", "importedAt": "", "review": {"verdict": ""}}, "revision": 51, "createdAt": "2026-01-24T00:00:00Z", "updatedAt": "2026-09-30T12:00:00Z"}
 ---
 For agent task knowledge and source applicability, load `prompt-manager skill read knowledge-observatory`. For cleanup, consolidation, reorganization, promotion, moves and retirement, load `prompt-manager skill read knowledge-observatory-maintenance`. This skill owns placement and code/document traceability; the maintenance skill owns dispositions and preservation judgment. The KO usage skill owns the single recall/capture loop. Use `knowledge-observatory-improve` for recurring retrieval or maintenance failures.
 
 ## Steer focus: Documentation Health
 
-> **Ladder position:** R2 (evolvable architecture — the docs map that keeps the system legible). See `prompt-manager skill read scenario-maturity-ladder` for rung context and `prompt-manager skill read improvement-do-and-dont` for what counts as a real improvement.
+**Scope mode: `architecture`.** Hold to that row of `work-scope` for this session.
+
+> **Ladder position:** R2 (evolvable architecture — the docs map that keeps the system legible). See `prompt-manager skill read scenario-work-ladder` for rung context and `prompt-manager skill read improvement-do-and-dont` for what counts as a real improvement.
 
 Prioritize **documentation quality, consistency, and bidirectional traceability** between code and documentation across this scenario.
 
@@ -37,10 +39,10 @@ This skill provides concrete patterns that ensure agents across multiple session
 
 ### **2. Documentation Hierarchy**
 
-Documentation should align with the mental model hierarchy used in screaming-architecture-audit:
+Documentation should align with the mental model hierarchy used in architecture-lenses:
 
 Required reading:
-- `prompt-manager skill read screaming-architecture-audit`
+- `prompt-manager skill read architecture-lenses`
 
 ```
                       PRD.md
@@ -297,14 +299,14 @@ Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION 
 
 | Skill | Focus | When to Use Together |
 |-------|-------|---------------------|
-| screaming-architecture-audit | Mental model alignment | Documentation-health provides the docs that screaming-architecture reads first |
+| architecture-lenses | Mental model alignment | Documentation-health provides the docs that screaming-architecture reads first |
 | ui-health | Code organization | Coherence patterns should be documented; docs should reference coherence decisions |
 | refactor | Code cleanup | After refactoring, update DOC: references and [CODE: ...] links |
 | code-cleanup | Dead code removal | Remove documentation for deleted code |
 
 **Recommended sequence:**
 1. **documentation-health** (audit) → understand documentation state
-2. **screaming-architecture-audit** → align architecture with documented mental model
+2. **architecture-lenses** → align architecture with documented mental model
 3. **refactor/code changes** → implement improvements
 4. **documentation-health** (update) → sync docs with code changes
 
@@ -374,7 +376,7 @@ migration, but new durable findings belong in an existing canonical document.
 | SEAMS.md | Always - core internal doc | Never skip |
 | PROBLEMS.md | Always - core internal doc | Never skip |
 | PROGRESS.md | Always - core internal doc | Never skip |
-| INVARIANTS.md | System has critical contracts or cross-cutting rules; also tracks unenforced-but-relied-on rules in Gaps section (see `invariant-discovery-and-enforcement`) | Simple CRUD with no invariants |
+| INVARIANTS.md | System has critical contracts or cross-cutting rules; also tracks unenforced-but-relied-on rules in Gaps section (see `architecture-lenses`) | Simple CRUD with no invariants |
 | ERROR-SEMANTICS.md | User-facing errors matter | Internal tooling only |
 | SECURITY-POSTURE.md | Security is a concern | Internal-only, no auth |
 | TEMPORAL-FLOWS.md | Async/concurrent operations, lifecycle flows, workflow maturity/spec status | Purely synchronous code |

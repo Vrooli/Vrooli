@@ -1,1 +1,0 @@
-Calibration treatment for the fixed alpha fixture: return exactly {"token":"alpha","quality":"good"}. Do not add prose.

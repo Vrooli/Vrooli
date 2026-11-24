@@ -3,10 +3,7 @@ package skills
 import (
 	"os"
 	"path/filepath"
-	"regexp"
 	"slices"
-	"strconv"
-	"strings"
 	"testing"
 
 	"prompt-manager/internal/store"
@@ -79,27 +76,6 @@ func TestSkillIDHasOneAuthoritativeSource(t *testing.T) {
 			}
 			sources[id] = match
 		}
-	}
-}
-
-func TestAgentsDocumentHasOneHeadingAndAllCriticalRules(t *testing.T) {
-	root := findRepoRoot(t)
-	data, err := os.ReadFile(filepath.Join(root, "AGENTS.md"))
-	if err != nil {
-		t.Fatalf("read AGENTS.md: %v", err)
-	}
-	content := string(data)
-	if got := strings.Count(content, "# AGENTS.md"); got != 1 {
-		t.Fatalf("AGENTS.md headings = %d, want 1", got)
-	}
-	for i := 1; i <= 7; i++ {
-		pattern := regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(strconv.Itoa(i)) + `\. `)
-		if !pattern.MatchString(content) {
-			t.Errorf("AGENTS.md is missing Critical Rule %d", i)
-		}
-	}
-	if !strings.Contains(content, "prompt-manager skill read program-runtime") {
-		t.Error("AGENTS.md must route recurring work through prompt-manager skill read program-runtime")
 	}
 }
 

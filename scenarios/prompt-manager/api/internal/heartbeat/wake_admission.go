@@ -66,12 +66,10 @@ func (p FileWakeSignalProvider) Snapshot(ctx context.Context, teamID, agentID st
 				}
 			}
 		case "inbox":
-			inbox, readErr := p.Store.GetInbox(ctx, teamID, agentID)
-			if readErr != nil {
-				return WakeSignal{}, readErr
-			}
-			payload, _ := json.Marshal(inbox)
-			values[source] = digest(payload)
+			// Retired: nothing writes member inboxes any more. The source stays
+			// accepted so stored heartbeat configurations remain valid; it never
+			// changes the wake signal.
+			values[source] = digest(nil)
 		case "corpus":
 			entries, readErr := p.Store.ListTeamCorpus(ctx, teamID, "", "", 256)
 			if readErr != nil {

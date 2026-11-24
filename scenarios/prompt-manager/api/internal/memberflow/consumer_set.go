@@ -3,7 +3,7 @@
 // 1.6, any other rule that needs to ask "does anyone read this prefix?")
 // delegates the consumer policy here.
 //
-// Three-pillar design context (see docs/agent-system/PRIMITIVES.md):
+// Three-pillar design context (see docs/agent-system/README.md#terms-beyond-rulesmd):
 // Pillar 1 (declared graph) is the validator-visible view of who reads /
 // writes what. The set aggregates every read-side declaration on every
 // member's topics.json: `intake[]` (drain), `required_read[]`
@@ -17,8 +17,8 @@
 // producer-side anchor, not a read claim, and is intentionally excluded
 // from the set so orphan_output's semantics stay clean.
 //
-// DOC: docs/agent-system/TOPICS_SCHEMA.md (declaration shapes),
-// docs/agent-system/PRIMITIVES.md (three-pillar architecture).
+// DOC: scenarios/prompt-manager/docs/internal/TOPICS_SCHEMA.md (declaration shapes),
+// docs/agent-system/README.md#terms-beyond-rulesmd (three-pillar architecture).
 package memberflow
 
 import "strings"

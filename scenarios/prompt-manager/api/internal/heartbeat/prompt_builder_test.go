@@ -218,9 +218,8 @@ func TestPromptBuilderUsesVolatilityOrderAndTaskOutsideContext(t *testing.T) {
 	team := newIndependentTestTeam("team-1", "Team One")
 	team.Coordination.Pattern = teamconfig.CoordinationPatternPeer
 	team.Coordination.ReportingMode = teamconfig.ReportingModeOrgChart
-	team.Coordination.MessagingMode = teamconfig.MessagingModeAsyncInbox
+	team.Coordination.MessagingMode = teamconfig.MessagingModeDisabled
 	team.Coordination.Capabilities.ShowOrgContext = true
-	team.Coordination.Capabilities.InjectInbox = true
 	if err := teamStore.Create(ctx, team); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
@@ -274,6 +273,14 @@ func TestPromptBuilderUsesVolatilityOrderAndTaskOutsideContext(t *testing.T) {
 	}
 	if strings.Contains(prompt, "HANDOFF") {
 		t.Fatal("healthy-looking prompt contains legacy handoff instructions")
+	}
+	if !strings.Contains(prompt, "Coordination guidance:") || !strings.Contains(prompt, "prompt-manager skill read "+teamconfig.CoordinationSkillID) {
+		t.Fatal("peer team prompt is missing the coordination guidance block")
+	}
+	for _, retired := range []string{"message-send", "message-list", "message-clear", "inbox messages", "# Team Inbox"} {
+		if strings.Contains(prompt, retired) {
+			t.Fatalf("prompt advertises the retired inbox channel (%q)", retired)
+		}
 	}
 	for _, tag := range []string{"<standing-rules>", "<operating-policy-team", "<operating-policy-member", "<topic-contract", "<responsibilities"} {
 		if !strings.Contains(prompt, tag) {
@@ -397,7 +404,7 @@ func TestBuildStructuredMatchesRenderedPromptContract(t *testing.T) {
 	if got := strings.Count(prompt, "Record durable continuity in your declared Source Ledger topics"); got != 1 {
 		t.Fatalf("task decision guidance rendered %d times, want once", got)
 	}
-	for _, want := range []string{"When scenario work needs improvement", "canonical `plan_ref`", "adaptive-improvement"} {
+	for _, want := range []string{"When scenario work needs improvement", "canonical `plan_ref`", "plan-backed review and run flow", "`sliced` or `goal` mode"} {
 		if !strings.Contains(prompt, want) {
 			t.Errorf("shared improvement decision tree missing %q", want)
 		}

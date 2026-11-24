@@ -8,7 +8,7 @@ metadata:
   modes: ["platform","hardening"]
   tags: ["platform","packages","testing","docs","compatibility"]
   status: "active"
-  defaultScope: "platform-scope"
+  defaultScope: "work-scope"
   revision: 1
   createdAt: "2026-02-10T00:00:00Z"
   updatedAt: "2026-02-10T00:00:00Z"
@@ -20,11 +20,13 @@ metadata:
 ---
 ## Platform focus: Package Hardening
 
+**Scope mode: `platform`.** Hold to that row of `work-scope` for this session.
+
 Harden `packages/{{PACKAGE}}/` for reliability and usability: stabilize contracts, improve default human output (when relevant), add tests and docs, and prove changes via a downstream compat set. Default posture is brownfield-safe and non-breaking.
 
 Required reading:
 - `docs/agent-system/SKILL_AUTHORING.md`
-- `prompt-manager skill read platform-scope`
+- `prompt-manager skill read work-scope`
 
 Optional reading:
 - `prompt-manager skill read platform-package-consumption-audit`

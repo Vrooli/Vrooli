@@ -133,8 +133,10 @@ func TestScreamingArchitectureGraduated(t *testing.T) {
 		t.Fatalf("screaming-architecture-audit must declare programmaticHome=test-genie:architecture, got: %v", pilot.ProgrammaticHome)
 	}
 
-	// The other 6 quality-auditor rotation skills must NOT have graduated yet.
+	// The other quality-auditor rotation skills (the merged lenses and the aliases that still forward to them) must NOT have graduated yet.
 	stillFrontier := []string{
+		"architecture-lenses",
+		"resilience-lenses",
 		"boundary-of-responsibility-enforcement",
 		"seam-discovery-and-enforcement",
 		"invariant-discovery-and-enforcement",

@@ -8,7 +8,7 @@ metadata:
   modes: ["steer","architecture"]
   tags: ["cli","cli-core","go","cross-platform","api-parity"]
   status: "active"
-  defaultScope: "architecture-scope"
+  defaultScope: "work-scope"
   programmaticHome: "cli-health:contracts"
   revision: 49
   createdAt: "2026-01-30T16:30:00-05:00"
@@ -20,6 +20,8 @@ metadata:
     kind: "authored"
 ---
 ## Steer focus: CLI Steer
+
+**Scope mode: `architecture`.** Hold to that row of `work-scope` for this session.
 
 Design and maintain scenario CLIs as **thin, proto-first wrappers over the scenario API** in `scenarios/{{TARGET}}/cli/`. The CLI is the developer's primary interface — every Connect-RPC method on the API should be reachable as a CLI command via a generated Connect client, with the four REST exceptions reserved for the same reasons enforced at the API.
 
@@ -118,71 +120,9 @@ All scenario CLIs use `cli-core` from `path:packages/cli-core/`.
 
 #### 4.2 Manifest-to-proto binding contract
 
-The CLI manifest is also the declaration consumed by generic Connect
-dispatchers. When a CLI argument name differs from the request field, declare
-the projection in the manifest instead of duplicating request construction in a
-handler:
+The CLI manifest is the declaration generic Connect dispatchers consume. When an argument name differs from the request field, declare `"bind": {"field": "schema_json", "kind": "json_file"}` on the flag or positional (`kind`: `raw_string`, `json_inline`, `json_file`) instead of building the request in a handler. Resolution ladder: explicit `bind.field`, exact name or alias match, one-level auto-descent into the request's single non-repeated message envelope, otherwise `binding.arg_unmapped`. An argument's identity is the proto field it populates; a convenient CLI name is no licence to feed an unrelated field.
 
-```json
-{
-  "name": "schema",
-  "required": true,
-  "bind": {"field": "schema_json", "kind": "json_file"}
-}
-```
-
-`bind` is valid on flags and positionals. Its `kind` is `raw_string`,
-`json_inline`, or `json_file`; `json_file` reads the argument as a path and
-decodes its JSON into the target field. The shared resolution ladder is:
-
-1. explicit `bind.field` override;
-2. exact argument/alias name match;
-3. one-level auto-descent into the request's single non-repeated message
-   envelope (for example, `role` → `request.role`);
-4. otherwise report `binding.arg_unmapped` at validation time.
-
-Top-level fields always win, and auto-descent never guesses among multiple
-envelopes. `program-runtime bindings describe <id>` shows the selected path;
-`bindings doctor` is the fleet-wide callability gate. Response construction is
-generic, but a scenario may retain a curated human renderer through
-`cliapp.ProtoBindingOptions.Render`.
-
-The identity rule is strict: the proto declares what the server accepts, the
-manifest declares how a human types it, and an argument's identity is the
-proto field it populates. A name that is convenient for a CLI is not permission
-to send its value to an unrelated field. Use the ladder above to resolve the
-field, then validate the meaning of the resulting mapping.
-
-The semantic gate reports four classes:
-
-- `binding.field_collision` — two or more arguments target one field, so one
-  value would overwrite another.
-- `binding.control_flag_bound` — a CLI control such as `json`, `format`,
-  `limit`, or `wait` is incorrectly sent as request data.
-- `binding.required_field_unpopulated` — a request payload field marked
-  required by its proto validation constraint has no supplying argument.
-- `binding.bind_where_rename_suffices` — an explicit bind is redundant because
-  the argument name already identifies the top-level field.
-
-The first three are errors; the last is a warning. Fix them by correcting the
-argument name/alias, removing the competing bind, or marking a genuinely
-request-data control flag or explicit decoder bind with a waiver.
-`bind_waiver` is a non-empty, per-argument explanation used only for a real
-exception, for example a `format` argument that selects a server-side output
-encoding or an argument that must retain an explicit file-aware decoder. It is
-not a way to suppress an arbitrary collision or required-field error. Run
-`program-runtime bindings doctor --json` for the fleet-wide counts and
-`program-runtime bindings describe <id>` for one resolved path.
-
-The general gate principle is: a metric that can be satisfied by declaring
-something arbitrary is incomplete. Every headline number needs a rule that
-makes the cheap path also the correct path.
-
-**Why cli-core matters:**
-- **Consistency** — all CLIs behave the same (flags, help, errors, output contracts)
-- **DRY** — Connect client construction, HTTP, config, env vars are solved once
-- **Anti-drift** — generated Connect clients prevent the CLI from drifting out of sync with API method names and shapes
-- **Auto-maintenance** — stale binaries rebuild themselves
+The semantic gate reports `binding.field_collision`, `binding.control_flag_bound` (a control such as `json`, `format`, `limit` or `wait` sent as request data) and `binding.required_field_unpopulated` as errors, and `binding.bind_where_rename_suffices` as a warning. Fix by correcting the name or alias or removing the competing bind; `bind_waiver` (a non-empty per-argument explanation) is only for a real exception, such as a `format` argument selecting a server-side encoding. `program-runtime bindings describe <id>` shows a resolved path and `bindings doctor --json` gives fleet counts. A scenario may keep a curated human renderer through `cliapp.ProtoBindingOptions.Render`.
 
 #### 4.1 CLI Implementation Decision Tree
 
@@ -247,55 +187,13 @@ The default is one CLI command per Connect-RPC method. REST exceptions map to sp
 
 ### 6. Environment Variables and Configuration
 
-Use `NewStandardScenarioApp()` by default. It already derives standard env wiring, default `status`, default `configure`, stale checking, and auto-start preflight.
+Use `NewStandardScenarioApp()` (`cliapp.StandardScenarioOptions`: name, version, description, build fingerprint, command groups); it derives env wiring, default `status` and `configure`, stale checking and auto-start preflight. Drop to `StandardScenarioEnv()` plus `NewScenarioApp()` only for lower-level control. Never add generic `API_PORT` to `ExtraAPIPortEnvVars`: it leaks ports across scenarios in web-console terminals; rely on `<SCENARIO>_API_PORT` and `DetectPortFromVrooli`.
 
-```go
-core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
-    Name:             appName,
-    Version:          appVersion,
-    Description:      "Example CLI",
-    ExtraAPIEnvVars:  []string{"API_BASE_URL", "VITE_API_BASE_URL"},
-    BuildFingerprint: buildFingerprint,
-    BuildTimestamp:   buildTimestamp,
-    BuildSourceRoot:  buildSourceRoot,
-    AllowAnonymous:   true,
-    CommandGroups:    domains.CommandGroups,
-    SubcommandGroups: domains.SubcommandGroups,
-})
-```
-
-Drop to `StandardScenarioEnv()` + `NewScenarioApp()` only when lower-level control is necessary.
-
-> **Warning:** Do NOT add generic `API_PORT` to `ExtraAPIPortEnvVars`. The generic variable causes cross-scenario port leakage when CLIs run inside web-console terminal sessions. Rely on the scenario-specific `<SCENARIO>_API_PORT` (generated automatically) and the `DetectPortFromVrooli` fallback instead.
-
-For scenario `test-genie`, the standard derivation yields:
-
-| Purpose | Env Vars (in precedence order) |
-|---|---|
-| API Base URL | `TEST_GENIE_API_BASE`, `TEST_GENIE_API_URL`, `VROOLI_API_BASE` |
-| API Port | `TEST_GENIE_API_PORT` |
-| API Token | `TEST_GENIE_API_TOKEN`, `VROOLI_API_TOKEN` |
-| Config Dir | `TEST_GENIE_CONFIG_DIR`, `VROOLI_CLI_CONFIG_DIR` |
-| HTTP Timeout | `TEST_GENIE_HTTP_TIMEOUT`, `VROOLI_HTTP_TIMEOUT` |
+Derived variables per scenario (`TEST_GENIE` shown): `<S>_API_BASE`/`<S>_API_URL`/`VROOLI_API_BASE`, `<S>_API_PORT`, `<S>_API_TOKEN`/`VROOLI_API_TOKEN`, `<S>_CONFIG_DIR`/`VROOLI_CLI_CONFIG_DIR`, `<S>_HTTP_TIMEOUT`/`VROOLI_HTTP_TIMEOUT`.
 
 #### 6.1 Resolution Precedence
 
-```
-API base URL resolution:
-1. --api-base flag
-2. Environment variables (from StandardScenarioEnv)
-3. Config file (api_base field)
-4. Port detection from Vrooli lifecycle
-5. ScenarioOptions.DefaultAPIBase
-```
-
-Config file structure:
-
-```json
-{ "api_base": "http://localhost:15001", "token": "optional-auth-token" }
-```
-
-XDG-compliant config location precedence (first found wins): `$<SCENARIO>_CONFIG_DIR/config.json`, `$XDG_CONFIG_HOME/vrooli/<scenario>/config.json`, `~/.vrooli/config/<scenario>/config.json`, `~/.config/vrooli/<scenario>/config.json`.
+API base URL: `--api-base` flag, then env vars, then the config file (`api_base`, `token`), then port detection from the Vrooli lifecycle, then `ScenarioOptions.DefaultAPIBase`. Config location, first found wins: `$<SCENARIO>_CONFIG_DIR/config.json`, `$XDG_CONFIG_HOME/vrooli/<scenario>/config.json`, `~/.vrooli/config/<scenario>/config.json`, `~/.config/vrooli/<scenario>/config.json`.
 
 ---
 
@@ -316,83 +214,11 @@ XDG-compliant config location precedence (first found wins): `$<SCENARIO>_CONFIG
 
 ### 8. Generated Connect Client Pattern (Default)
 
-For every proto-owned API method, the CLI consumes the generated Connect client. The canonical worked example lives at `path:templates/scenarios/react-vite/cli/domains/notes/handlers.go` — see the template-example callout near the top of this skill; the `notes` domain is a starter you delete when generating a new scenario.
-
-In the snippet below, `<domain>`, `<Domain>`, `<Resource>`, and `<Resources>` are placeholders. Substitute them with your scenario's actual domain identifiers (lowercase package / PascalCase service / singular & plural resource names).
-
-```go
-package <domain>
-
-import (
-    "context"
-    "fmt"
-
-    "connectrpc.com/connect"
-    <domain>v1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/<domain>"
-    <domain>connect "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/<domain>/<domain>_v1connect"
-
-    "github.com/vrooli/cli-core/cliapp"
-)
-
-type handlers struct {
-    core   *cliapp.ScenarioApp
-    client <domain>connect.<Domain>ServiceClient
-}
-
-func newHandlers(core *cliapp.ScenarioApp) *handlers {
-    httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
-    return &handlers{
-        core:   core,
-        client: <domain>connect.New<Domain>ServiceClient(httpClient, baseURL),
-    }
-}
-
-func (h *handlers) create(ctx cliapp.RunContext) error {
-    resp, err := h.client.Create<Resource>(context.Background(), connect.NewRequest(&<domain>v1.Create<Resource>Request{
-        // Set request fields from ctx.Flag(...) values.
-    }))
-    if err != nil {
-        return cliapp.WrapAPIError("create <resource>", err, nil)
-    }
-    if resp == nil || resp.Msg == nil || resp.Msg.<Resource> == nil {
-        return fmt.Errorf("server returned no <resource>")
-    }
-    return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-        Result:  []string{fmt.Sprintf("Created <resource> %s.", resp.Msg.<Resource>.Id)},
-        Changes: []string{format<Resource>(resp.Msg.<Resource>)},
-        NextCommand: []string{
-            fmt.Sprintf("`<domain> get %s` — show this <resource>", resp.Msg.<Resource>.Id),
-            "`<domain> list` — show all <resources>",
-        },
-    })
-}
-```
-
-Key points:
-- `cliapp.NewConnectHTTPClient(core)` resolves the base URL through the same precedence as the rest of cli-core, so `--api-base`, env vars, and config file all work transparently.
-- The generated client carries the proto-typed request/response messages — no `json.Unmarshal`, no field-name casing concerns, no manual proto-JSON options.
-- `cliapp.WrapAPIError` understands `*connect.Error`; pass extra context as the second positional argument.
-- `cliapp.RenderProtoList` and `cliapp.RenderProtoMutation` emit the proto-typed wire shape for `--json` consumers, and a human-friendly report otherwise.
+Every proto-owned API method is consumed through its generated Connect client; the worked example is `templates/scenarios/react-vite/cli/domains/notes/handlers.go` (a starter domain you delete on generation). A handler holds `core *cliapp.ScenarioApp` and `client <domain>connect.<Domain>ServiceClient` built from `cliapp.NewConnectHTTPClient(core)`, which resolves the base URL through the same precedence as the rest of cli-core. Call the typed request, wrap errors with `cliapp.WrapAPIError("<action>", err, nil)` (it understands `*connect.Error`), guard nil responses, and render with `cliapp.RenderProtoList` or `RenderProtoMutation` (proto-typed wire shape for `--json`, a human report otherwise, with `NextCommand` hints). No `json.Unmarshal`, casing handling or manual proto-JSON options.
 
 #### 8.1 REST-Exception Command Pattern
 
-For the four REST exceptions only — and only for the matching `RESTReason*` — fall back to `APIClient` / `UploadFile`:
-
-```go
-// multipart_upload exception
-func (h *handlers) attach(ctx cliapp.RunContext) error {
-    id := ctx.Positional("id")
-    file := ctx.Flag("file")
-    resp, err := cliapp.UploadFile(h.core, fmt.Sprintf("/<domain>/%s/attachments", id), "file", file, nil)
-    if err != nil {
-        return cliapp.WrapAPIError("attach file", err, nil)
-    }
-    // metadata is still proto-typed; parse via fromJson/protojson
-    ...
-}
-```
-
-If you find yourself reaching for `APIClient.Post` for an operation that has — or could have — a proto message, the right fix is to add the proto to the API, not to keep the REST shim. See `api-steer` §7.
+Only the four REST exceptions, for the matching `RESTReason*`, fall back to `APIClient` or `cliapp.UploadFile(h.core, path, "file", file, nil)`; response metadata stays proto-typed. Reaching for `APIClient.Post` on an operation that has or could have a proto message means adding the proto to the API (`api-steer` §7), not keeping the shim.
 
 ---
 
@@ -541,33 +367,7 @@ The top-level `cli` section is the platform contract. `lifecycle.setup` should p
 
 #### 13.1 Audit Commands
 
-```bash
-# CLI exists and is Go-based
-ls scenarios/{{TARGET}}/cli/
-file scenarios/{{TARGET}}/cli/*.go 2>/dev/null
-
-# Uses cli-core
-grep "cli-core" scenarios/{{TARGET}}/cli/go.mod
-
-# Positive signal: generated Connect clients in use
-rg "connectrpc\.com/connect|_v1connect|NewConnectHTTPClient" scenarios/{{TARGET}}/cli --type go
-
-# Red flag: raw APIClient calls outside REST-exception commands
-rg "APIClient\.(Get|Post|Put|Delete|Patch)" scenarios/{{TARGET}}/cli --type go
-
-# Red flag at the API side: hand-wired REST routes for proto-able operations
-rg "r\.HandleFunc|router\.(GET|POST|PUT|DELETE|PATCH)" scenarios/{{TARGET}}/api --type go
-
-# Command coverage vs API methods
-rg "Name:\s*\"" scenarios/{{TARGET}}/cli --type go
-rg "func \(s \*\w+Server\) [A-Z]\w+\(.*context.Context.*connect\.Request" scenarios/{{TARGET}}/api --type go
-
-# Bash scripts masquerading as CLI
-file scenarios/{{TARGET}}/cli/* | grep -i "shell\|bash\|script"
-
-# fs.Parse usage (should be cliutil.ParseInterspersed)
-rg "fs\.Parse\(" scenarios/{{TARGET}}/cli --type go
-```
+Run `rg` over `scenarios/{{TARGET}}/cli`. Positive: `connectrpc.com/connect|_v1connect|NewConnectHTTPClient`. Red flags: `APIClient\.(Get|Post|Put|Delete|Patch)` outside REST-exception commands, `fs\.Parse\(` (use `cliutil.ParseInterspersed`), bash scripts in `cli/`, missing `cli-core` in `go.mod`, and hand-wired REST routes in the API for proto-able operations. Compare command `Name:` entries against the API's Connect methods for coverage.
 
 #### 13.2 Red Flags
 
@@ -587,22 +387,7 @@ rg "fs\.Parse\(" scenarios/{{TARGET}}/cli --type go
 
 #### 13.3 Recording Findings
 
-Do not create a standalone `CLI_AUDIT.md`. Use `knowledge-observatory-tools` to record findings in stable docs:
-
-- `scenarios/{{TARGET}}/docs/concepts/ARCHITECTURE.md` — CLI surface map (domains, commands, Connect-client wiring), maturity by domain.
-- `scenarios/{{TARGET}}/docs/internal/SEAMS.md` — CLI seams (Connect client factory, `UploadFile` adapter, output renderers).
-- `scenarios/{{TARGET}}/docs/internal/PROBLEMS.md` — API-parity gaps, lingering `APIClient` calls that should move to Connect, missing dry-run support.
-
-One-off audit reports are acceptable only for a migration handoff; they should have a clear retirement path into the three stable docs above.
-
-Recommended architecture addition:
-
-```markdown
-## CLI Surface
-
-| Domain | Command Group | Backing RPC / REST Exception | Maturity | Notes |
-|---|---|---|---|---|
-```
+No standalone `CLI_AUDIT.md`. Use `knowledge-observatory-tools` to record in `docs/concepts/ARCHITECTURE.md` (CLI surface map and maturity), `docs/internal/SEAMS.md` (client factory, `UploadFile` adapter, renderers) and `docs/internal/PROBLEMS.md` (parity gaps, lingering `APIClient` calls, missing dry-run). A one-off report is acceptable only as a migration handoff with a retirement path into those docs.
 
 ---
 
@@ -616,30 +401,7 @@ Use the `visited-tracker-tools` skill with:
 
 ### 15. Dry-Run Support
 
-The `--dry-run` global flag is built into cli-core. When a user passes `--dry-run`, the CLI sets an `X-Dry-Run: true` header on every outbound request automatically — Connect-RPC included, REST exceptions included. **No CLI-side changes are needed per scenario.**
-
-The API side must honor it. For Connect-RPC handlers:
-
-1. Run full validation through `protovalidate` (invalid requests still fail normally).
-2. Before the first side effect, check the header (`cliutil.IsDryRun(ctx)` if importing cli-core, or read the header directly):
-   ```go
-   if isDryRun(ctx) {
-       return connect.NewResponse(&<domain>v1.Create<Resource>Response{
-           <Resource>: planned<Resource>,   // realistic, with id/timestamps
-           DryRun:     true,
-       }), nil
-   }
-   ```
-3. Return a realistic typed response so callers can verify the shape end to end.
-
-Conventions:
-- Include a `dry_run` field (or equivalent) in the proto response message so consumers can branch deterministically.
-- Use `connect.NewResponse` with the same response message type as a real call.
-- Run the same validation path as a real request.
-
-For REST handlers, apply the same `isDryRun` check before mutation and return a realistic typed response.
-
-For REST-exception endpoints, the same contract applies: short-circuit with a realistic JSON body that includes `"dry_run": true` and `http.StatusOK`.
+The `--dry-run` global flag is built into cli-core: it sets `X-Dry-Run: true` on every outbound request (Connect and REST exceptions), so the CLI needs no per-scenario change. The API must honor it: run full `protovalidate` validation, then before the first side effect check `cliutil.IsDryRun(ctx)` (or the header) and return a realistic typed response of the same message type with a `dry_run` field set (REST and REST-exception handlers return a realistic JSON body with `"dry_run": true` and 200).
 
 ---
 

@@ -4,6 +4,14 @@ Use conceptual footage to explain a relationship, introduce a physical metaphor,
 connect two proof moments or provide a deliberate visual payoff. Do not add it
 as filler or substitute it for the product. No required insert count or duration.
 
+## Hash-bound B-roll catalog and selection
+
+Validate catalog structure against `references/broll-catalog.schema.json`, then run `scripts/broll_library.py <catalog.json> --product aquila|vega --state <product-state> --role <role> [--claim <claim-id>] --out <receipt.json>` before composing. Catalog paths may be absolute or relative to the catalog. Each entry records its exact hash, dimensions, origin, rights state, proof scope, product and product state, editorial role, claim links, and capture/generation parameters. `licensed-with-receipt` entries require a `rights_receipt`; `owned-capture` entries require a `capture_receipt`. Every referenced source/derivation receipt is rehashed. The receipt gives deterministic metadata matches and reports catalog-derived candidate blockers, including a false eligibility flag, unresolved generated terms, concept-only scope, fixture or old-build states with unverified current relevance, or absent claim links. A passing receipt proves file identity and catalog completeness only; it is not a taste verdict, rights grant or proof that a linked claim is true.
+
+Keep four uses separate: `proof` must be the exact reviewed product capture; `opener` introduces product-relevant context or result; `breath`/`bridge` connects story functions briefly; `payoff` is the actual product result and next action. Generated material stays conceptual and has no claim IDs. Never let abstract B-roll stand in for an observed behavior. Select by exact product, state, role and requested claim metadata; rank by number of requested fields matched and sort ties by stable asset id. This ranks retrieval, not visual quality. Review claim coverage against the capture evidence and current product state.
+
+Unresolved terms remain unresolved and private. An internal candidate cannot be promoted as rights-cleared. Retain original source hashes before derivation and output hashes plus motion parameters after rendering. A re-render has a new output hash and needs its own review. The LV5 retained-plate catalog and receipt live at `~/.vrooli/research/topics/launch-video/work/LV5/broll-catalog.json` and the current topic run's `LV5/broll-audit.json`.
+
 ## Choose the medium from the shot's action
 
 | Needed result | Suitable medium | Evidence and limitation |

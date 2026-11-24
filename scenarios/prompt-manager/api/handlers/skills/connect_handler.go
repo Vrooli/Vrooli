@@ -24,13 +24,12 @@ import (
 type connectHandler struct {
 	skillsconnect.UnimplementedSkillsServiceHandler
 	legacy     *domain.Handlers
-	variants   *domain.VariantHandlers
 	imports    domain.ImportService
 	projection *projection.Service
 }
 
-func NewConnectMountWithProjection(legacy *domain.Handlers, variants *domain.VariantHandlers, imports domain.ImportService, projector *projection.Service) (string, http.Handler) {
-	return skillsconnect.NewSkillsServiceHandler(&connectHandler{legacy: legacy, variants: variants, imports: imports, projection: projector})
+func NewConnectMountWithProjection(legacy *domain.Handlers, imports domain.ImportService, projector *projection.Service) (string, http.Handler) {
+	return skillsconnect.NewSkillsServiceHandler(&connectHandler{legacy: legacy, imports: imports, projection: projector})
 }
 
 func (h *connectHandler) RefreshProjection(ctx context.Context, req *connect.Request[skillsv1.RefreshProjectionRequest]) (*connect.Response[skillsv1.RefreshProjectionResponse], error) {
@@ -51,12 +50,12 @@ func (h *connectHandler) RefreshProjection(ctx context.Context, req *connect.Req
 	return connect.NewResponse(out), nil
 }
 
-func NewConnectMount(legacy *domain.Handlers, variants *domain.VariantHandlers, imports ...domain.ImportService) (string, http.Handler) {
+func NewConnectMount(legacy *domain.Handlers, imports ...domain.ImportService) (string, http.Handler) {
 	var importer domain.ImportService
 	if len(imports) > 0 {
 		importer = imports[0]
 	}
-	return skillsconnect.NewSkillsServiceHandler(&connectHandler{legacy: legacy, variants: variants, imports: importer})
+	return skillsconnect.NewSkillsServiceHandler(&connectHandler{legacy: legacy, imports: importer})
 }
 
 func (h *connectHandler) ImportSkill(ctx context.Context, req *connect.Request[skillsv1.ImportSkillRequest]) (*connect.Response[skillsv1.ImportSkillResponse], error) {
@@ -333,65 +332,6 @@ func (h *connectHandler) RevertSkill(ctx context.Context, req *connect.Request[s
 		return nil, err
 	}
 	return connect.NewResponse(out), nil
-}
-
-func (h *connectHandler) ListSkillVariants(ctx context.Context, req *connect.Request[skillsv1.ListSkillVariantsRequest]) (*connect.Response[skillsv1.ListSkillVariantsResponse], error) {
-	result, err := h.variants.ListSkillVariants(ctx, req.Msg.GetSkillId())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, err)
-	}
-	out := &skillsv1.ListSkillVariantsResponse{}
-	if err := decodeSkillJSON(map[string]any{"variants": result}, out); err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(out), nil
-}
-
-func (h *connectHandler) GetSkillVariant(ctx context.Context, req *connect.Request[skillsv1.GetSkillVariantRequest]) (*connect.Response[skillsv1.GetSkillVariantResponse], error) {
-	result, err := h.variants.GetSkillVariant(ctx, req.Msg.GetSkillId(), req.Msg.GetVariantId())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, err)
-	}
-	out := &skillsv1.GetSkillVariantResponse{}
-	if err := decodeSkillJSON(map[string]any{"variant": result}, out); err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(out), nil
-}
-
-func (h *connectHandler) CreateSkillVariant(ctx context.Context, req *connect.Request[skillsv1.CreateSkillVariantRequest]) (*connect.Response[skillsv1.CreateSkillVariantResponse], error) {
-	result, err := h.variants.CreateSkillVariant(ctx, req.Msg.GetSkillId(), domain.CreateVariantRequest{ID: req.Msg.GetId(), Name: req.Msg.GetName(), Description: req.Msg.GetDescription(), Content: req.Msg.GetContent()})
-	if err != nil {
-		code := connect.CodeAlreadyExists
-		if err.Error() == "id, name, and content are required" {
-			code = connect.CodeInvalidArgument
-		}
-		return nil, connect.NewError(code, err)
-	}
-	out := &skillsv1.CreateSkillVariantResponse{}
-	if err := decodeSkillJSON(map[string]any{"variant": result}, out); err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(out), nil
-}
-
-func (h *connectHandler) UpdateSkillVariant(ctx context.Context, req *connect.Request[skillsv1.UpdateSkillVariantRequest]) (*connect.Response[skillsv1.UpdateSkillVariantResponse], error) {
-	result, err := h.variants.UpdateSkillVariant(ctx, req.Msg.GetSkillId(), req.Msg.GetVariantId(), domain.UpdateVariantRequest{Name: req.Msg.Name, Description: req.Msg.Description, Content: req.Msg.Content})
-	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, err)
-	}
-	out := &skillsv1.UpdateSkillVariantResponse{}
-	if err := decodeSkillJSON(map[string]any{"variant": result}, out); err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(out), nil
-}
-
-func (h *connectHandler) DeleteSkillVariant(ctx context.Context, req *connect.Request[skillsv1.DeleteSkillVariantRequest]) (*connect.Response[skillsv1.DeleteSkillVariantResponse], error) {
-	if err := h.variants.DeleteSkillVariant(ctx, req.Msg.GetSkillId(), req.Msg.GetVariantId()); err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, err)
-	}
-	return connect.NewResponse(&skillsv1.DeleteSkillVariantResponse{SkillId: req.Msg.GetSkillId(), VariantId: req.Msg.GetVariantId(), Deleted: true}), nil
 }
 
 func protoObject(message proto.Message) (map[string]any, error) {

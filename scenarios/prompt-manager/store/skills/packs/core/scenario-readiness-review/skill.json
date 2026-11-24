@@ -23,17 +23,19 @@
       "swarm-manager",
       "swarm-manager backlog",
       "test-genie",
-      "vrooli scenario"
+      "vrooli scenario",
+      "program-runtime library run"
     ],
     "scenarios": [
       "git-control-tower",
       "prompt-manager",
       "swarm-manager",
       "test-genie",
-      "vrooli"
+      "vrooli",
+      "program-runtime"
     ]
   },
-  "revision": 2,
+  "revision": 4,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -43,5 +45,5 @@
     "assessment",
     "readiness"
   ],
-  "updatedAt": "2026-03-24T00:00:00Z"
+  "updatedAt": "2026-11-24T06:45:00Z"
 }

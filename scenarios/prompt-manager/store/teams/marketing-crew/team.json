@@ -366,7 +366,7 @@
         }
       },
       "marketing-contrarian": {
-        "lane": "Challenge pending marketing proposals against the failure-mode framework and run stale work item hygiene. Also this team's shape sensor: hold the team against the target model's deviation catalogue and report deviations; never restructure.",
+        "lane": "Challenge pending marketing proposals against the failure-mode framework and run stale work item hygiene. Also this team's shape sensor: hold the team against the deviation list in `docs/agent-system/STANDING_TEAMS.md` and report deviations; never restructure.",
         "allowedWrites": [
           {
             "kind": "knowledge"

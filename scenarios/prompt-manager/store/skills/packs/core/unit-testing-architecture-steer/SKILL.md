@@ -37,7 +37,7 @@ In scope: co-located tests, reusable fixtures, dependency substitution,
 production-import guards, and repository/transport harnesses.
 
 Out of scope: changing product policy, certifying all scenario behavior, or
-reimplementing Unit Health checks. Use `seam-discovery-and-enforcement` for a
+reimplementing Unit Health checks. Use `architecture-lenses` for a
 missing dependency boundary and `requirements-traceability-steer` for evidence
 linkage.
 

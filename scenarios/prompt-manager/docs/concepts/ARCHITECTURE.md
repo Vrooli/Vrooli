@@ -182,7 +182,6 @@ api/
 ├── teams/           # Team management with roles, members, org charts
 ├── tags/            # Tag categorization
 ├── store/           # Storage layer (per-entity files)
-├── testing/         # LLM-based skill testing
 ├── search/          # Full-text and semantic search
 ├── metrics/         # Usage tracking
 └── ogmeta/          # URL metadata fetching

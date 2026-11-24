@@ -80,6 +80,43 @@ every click, create constant motion, or compete with simultaneous camera, cursor
 scroll and new text. Review a short encoded action-to-music passage before the
 whole render. Repeated similar lengths and identical easing do not establish rhythm.
 
+For a repeatable starting point, author a motion request beside the composition
+and compile it with `python3 scripts/motion_library.py motion-request.json
+--out motion-plan.json`. Start from `references/motion-plan.example.json`; keep
+both files in the frozen render inputs when they affect the composition. The
+versioned library resolves the selected cue map's BPM and first-beat phase into
+beat error, scene pacing, transition duration, type entrance/settled hold,
+camera travel bounds and easing. Apply these resolved values in the composition
+timeline and retain its cut times. Its `pacing_metrics` reports the declared
+sequence duration, scene/transition counts, measured cuts per minute, and the
+tempo-derived reference rate for the selected profile. The measured rate is a
+descriptive check against the authored boundaries; neither it nor the profile
+reference is a taste or quality verdict. `launch`, `product_story` and `explainer` are
+pace profiles, not music-genre prescriptions; choose by channel and story, then
+override per-scene camera/transition/hold values when proof or comprehension
+requires it. Optional `audio.beat_subdivision` accepts `1`, `2`, or `4` and
+sets the cut grid to a beat, half-beat, or quarter-beat. The composition binding
+receipt records each declared cut's grid offset; use it to check authored times,
+not as a substitute for listening. The compiler refuses gaps, overlaps,
+unreadable type holds, and transitions that consume a scene. It does not analyze
+audio, shift scene cuts, review the rendered frames, or certify musical fit. Keep
+using the reviewed cue sheet and run `scripts/text_entrance.py` on authored text
+in the rendered file.
+The composition binder also checks that its template consumes the compiled
+timing, transition, easing, and camera fields, and records the minimum text-visible
+hold left after both scene-boundary fades. This is a static timeline contract;
+rendered readability still requires frame review.
+
+Before a private render, keep a sequence packet manifest beside its plan. Run
+`python3 scripts/audit_sequence_packet.py sequence-packet.json --out
+sequence-packet-audit.json` to re-hash every declared input, report required
+missing artifacts, and bind the packet to exact bytes. A missing required shot
+keeps readiness `blocked`; an HTML composition is not a film. Record operation
+state as `not-started` only when this packet started no job, or `completed` with
+an owner cleanup receipt. A no-job cleanup result says only that this packet
+owns no resources; it is not a host-wide process or claim inventory. Renderer
+admission, playback, creative review and operator taste remain separate receipts.
+
 ## Work table
 
 | Checkpoint | Teaser | Flagship | Failure action |
@@ -187,6 +224,30 @@ music character when adopting the page's visual tone.
    These cannot satisfy the product-proof gate. Never generate counterfeit UI.
 
 ## Shot selection and motion
+
+Use `scripts/motion_library.py` as the shared timing/preset source when composing
+with HyperFrames. Do not fork its beat arithmetic or preset values into another
+recipe; keep effect-specific implementation (layers, masks, easing curves) in
+the composition code and reference the compiled plan there.
+
+For compositions with one DOM scene per plan scene, use
+`scripts/compile_motion_composition.py <template.html> <motion-plan.json>
+--out <new-composition.html> --receipt <new-binding-receipt.json>`. The template
+must declare matching `data-motion-scene` IDs in plan order, include the two
+plan placeholders, and consume the embedded JSON plan by ID. The compiler fails
+closed on duplicate/missing scene bindings, gaps, overlaps, or stale consumers.
+It binds plan, template and output hashes; it does not render or certify visual
+motion or audio fit. Each revision uses new output paths.
+
+For authored image-plane parallax, `scripts/parallax_masks.py <spec.json> --out
+<new-directory>` rasterizes two or three manual source-pixel polygons into
+grayscale masks and transparent cutouts from the exact plate. The receipt binds
+the plate, active-screen mask, polygon coordinates, output dimensions and each
+derived image/mask hash. It refuses polygons outside the source, active-screen
+overlap and layer overlap. This is authored masking, not segmentation or hidden
+pixel reconstruction; inspect every cutout against its source before importing
+it as Device Studio project media. Use the Device Studio layered-parallax shot
+mode for motion and keep its output SHA beside the HyperFrames inputs.
 
 Choose the recording's screen treatment with `screen-presentation.md` before
 polishing it. Include a full-size frame and short sample of the chosen browser/app

@@ -23,12 +23,7 @@ func ValidateOperatingModels(models []OperatingModelDocument, runtime OperatingG
 	}
 	for _, model := range filtered {
 		modelContext := NewOperatingModelRuleContext(model, runtime)
-		// Plan-of-record validation is a corpus operation with filesystem I/O.
-		// Compute it once per model and let the granular registry entries select
-		// their findings from that shared result. Individual rule identities must
-		// not turn one validation pass into N repeated disk walks.
-		planOfRecordFindings := ValidatePlanOfRecordManifestsForModels([]OperatingModelDocument{model}, runtime)
-		ctx := RuleContext{ModelContext: &modelContext, PlanOfRecordFindings: planOfRecordFindings}
+		ctx := RuleContext{ModelContext: &modelContext}
 		for _, rule := range registry.RulesForPass(RulePassModel) {
 			if rule.AppliesTo(ctx) {
 				addOperatingFindings(&result, rule.Check(ctx))

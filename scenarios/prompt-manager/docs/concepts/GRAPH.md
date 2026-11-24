@@ -37,6 +37,7 @@ CLI nodes are synthetic — they are created when a `code-usage` or `action-comm
 | `cli-read` | agent → skill | Agent reads skill via `prompt-manager skills read <id>` | Regex scan of agent markdown |
 | `bold-listed` | agent/skill → skill | Skill referenced as `**kebab-case-id**` in markdown | Regex scan |
 | `path-ref` | agent/skill → skill | Skill referenced via filesystem path (`store/skills/packs/...`) | Regex scan |
+| `declared-skill` | policy manifest → skill | Scenario policy declares an executable remediation skill | Structured `remediation.skill` in `api/readiness/readiness-policy.json` |
 | `default-scope` | skill → skill | Skill declares another as its `DefaultScope` | skill.json field |
 | `code-usage` | skill/agent → cli | Node references a CLI tool in its content | CLIDetector |
 | `action-use` | agent/team/skill → action | Node explicitly references or invokes an Action | `action:<id>` or `prompt-manager action run <id>` references |
@@ -73,11 +74,12 @@ The scanner uses structured stores plus focused regex patterns to extract edges:
 2. **Bold-listed IDs** — `**skill-id**` produces `bold-listed` edges
 3. **Filesystem paths** — `store/skills/packs/{pack}/{id}/SKILL.md` produces `path-ref` edges
 4. **Default scope** — `DefaultScope` field in `skill.json` produces `default-scope` edges
-5. **Action references** — `action:<id>` or `prompt-manager action run <id>` produces `action-use` edges when the Action exists
-6. **Action command contracts** — `action.json` command argv produces `action-command` edges from Action nodes to CLI nodes
-7. **Repository instructions** — root `AGENTS.md` contributes `cli-read` edges from `system:agents`; a `CLAUDE.md` symlink is intentionally not scanned separately.
-8. **Workflow definitions** — Swarm Manager's `.vrooli/agent-manager/*.json` definitions contribute `cli-read` edges from `run.promptRef.skillId`; API workflow prompt sources are scanned too. Both use a stable `workflow:<repository-relative-path>` source.
-9. **Generated member prompts** — the effective prompt assembled for every team member contributes `cli-read` edges from that member, so reachability reflects instructions delivered at runtime.
+5. **Declared remediation skills** — `remediation.skill` in scenario `api/readiness/readiness-policy.json` produces a `declared-skill` edge with the policy path as provenance. This is a structured owner call surface, not a prose match. Nonempty unresolved IDs remain visible as edge targets without adding synthetic skill nodes.
+6. **Action references** — `action:<id>` or `prompt-manager action run <id>` produces `action-use` edges when the Action exists
+7. **Action command contracts** — `action.json` command argv produces `action-command` edges from Action nodes to CLI nodes
+8. **Repository instructions** — root `AGENTS.md` contributes `cli-read` edges from `system:agents`; a `CLAUDE.md` symlink is intentionally not scanned separately.
+9. **Workflow definitions** — Swarm Manager's `.vrooli/agent-manager/*.json` definitions contribute `cli-read` edges from `run.promptRef.skillId`; API workflow prompt sources are scanned too. Both use a stable `workflow:<repository-relative-path>` source.
+10. **Generated member prompts** — the effective prompt assembled for every team member contributes `cli-read` edges from that member, so reachability reflects instructions delivered at runtime.
 
 Edges are deduplicated per `(skillID, edgeKind)` pair to prevent duplicates within the same file.
 
@@ -198,7 +200,7 @@ The queries above analyze the *relationship* graph — inferred edges scanned ou
 | `diff` | Where do the plan-of-record graph and runtime config disagree, in both directions? |
 | `coverage` | What did those assurances actually check? (relationship families, prompt sections, docs tables, gaps) |
 
-These parse `docs/<team>/operating/OPERATING_MODEL.md` rather than the store, and validate it against `team.json`, member `topics.json`, README links, and generated prompt sections. Contract canon — required sections, the typed Mermaid subset, relationship families, and the full validation-rule table — lives in [DOC: docs/agent-system/OPERATING_GRAPHS.md]. Use these verbs, not the relationship queries above, when auditing whether a team's declared contract matches how it actually runs.
+These parse `docs/<team>/operating/OPERATING_MODEL.md` rather than the store, and validate it against `team.json`, member `topics.json`, README links, and generated prompt sections. Contract canon — required sections, the typed Mermaid subset, relationship families, and the full validation-rule table — lives in [DOC: scenarios/prompt-manager/docs/internal/OPERATING_GRAPHS.md]. Use these verbs, not the relationship queries above, when auditing whether a team's declared contract matches how it actually runs.
 
 ## Index Persistence
 

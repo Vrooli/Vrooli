@@ -2,7 +2,7 @@ import React from 'react'
 import { copyToClipboard } from '@/lib/clipboard'
 import { motion } from 'framer-motion'
 import { AlertTriangle, RefreshCw, Bug, Copy, CheckCircle2 } from 'lucide-react'
-import { Button } from './ui/button'
+import { Button } from '@vrooli/react-component-library/Button/2.2.14'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { cn } from '@/lib/utils'
 
@@ -182,6 +182,8 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
                   className="flex flex-col sm:flex-row gap-3 pt-4 border-t"
                 >
                   <Button
+                    variant="primary"
+                    shape="pill"
                     onClick={this.handleReset}
                     className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
                   >
@@ -190,10 +192,11 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
                   </Button>
 
                   <Button
-                    variant="outline"
+                    variant="secondary"
+                    shape="pill"
                     onClick={this.handleCopyError}
                     className={cn(
-                      "flex-1 transition-all duration-200",
+                      "flex-1 border border-input bg-transparent hover:bg-accent hover:text-accent-foreground transition-all duration-200",
                       this.state.copied && "border-green-500 text-green-600 bg-green-50 dark:bg-green-950"
                     )}
                   >
@@ -211,9 +214,10 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
                   </Button>
 
                   <Button
-                    variant="outline"
+                    variant="secondary"
+                    shape="pill"
                     onClick={() => window.location.reload()}
-                    className="flex-1"
+                    className="flex-1 border border-input bg-transparent hover:bg-accent hover:text-accent-foreground"
                   >
                     <RefreshCw className="w-4 h-4 mr-2" />
                     Refresh Page

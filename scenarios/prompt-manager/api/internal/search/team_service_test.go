@@ -49,20 +49,8 @@ func (m *mockTeamStore) GetOrgChart(ctx context.Context, teamID string) (*store.
 	return &store.OrgChart{}, nil
 }
 
-func (m *mockTeamStore) SetOrgChart(ctx context.Context, teamID string, org *store.OrgChart) error {
-	return nil
-}
-
 func (m *mockTeamStore) GetMembers(ctx context.Context, teamID string) ([]store.TeamMemberRelation, error) {
 	return nil, nil
-}
-
-func (m *mockTeamStore) GetInbox(ctx context.Context, teamID, agentID string) (*store.TeamInbox, error) {
-	return &store.TeamInbox{}, nil
-}
-
-func (m *mockTeamStore) SetInbox(ctx context.Context, teamID, agentID string, inbox *store.TeamInbox) error {
-	return nil
 }
 
 type mockRelationStore struct {

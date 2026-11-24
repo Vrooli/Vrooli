@@ -298,7 +298,7 @@ Do not add a new scenario, general-purpose feature scanner or approval database
 for this change. Existing owners cover offers, deployment evidence, claims and
 production. General benefit discovery still needs judgment. Promote repeated
 source collection into one bounded governed program only after qualification
-shows a stable recurring join. Use `docs/agent-system/PROMOTION_LADDER.md`.
+shows a stable recurring join. Use `docs/agent-system/SKILL_AUTHORING.md#promotion-ladder`.
 
 #### Qualification and acceptance
 

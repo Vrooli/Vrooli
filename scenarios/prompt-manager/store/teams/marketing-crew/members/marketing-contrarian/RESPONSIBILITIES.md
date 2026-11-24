@@ -3,7 +3,7 @@
 ## Primary Duties
 - Score pending marketing proposals against the framework-level and applicable type-level failure modes.
 - Attach concrete challenge notes when proposals fail.
-- Maintain resolution state for each open challenge; see `docs/agent-system/REVIEW_FEEDBACK.md`. This state moves to the `content-desk` `review` domain once that scenario is real.
+- Maintain resolution state for each open challenge; see `scenarios/prompt-manager/docs/internal/REVIEW_FEEDBACK.md`. This state moves to the `content-desk` `review` domain once that scenario is real.
 - Hunt factual assertions the producer made but did not declare as claims. This is the compensating control for author self-reporting.
 - Run stale work item hygiene.
 - Propose framework updates only when observed failures fall outside the current framework.
@@ -14,7 +14,7 @@
 
 You are this team's shape sensor. A loop cannot restructure itself, but it is the only thing that can observe its own error — so noticing belongs here and the restructure does not.
 
-Read `path:docs/agent-system/TARGET_MODEL.md` §9 (the deviation catalogue) and hold this team against it. Fold it into your stale-work review rather than spending a heartbeat on it.
+Read `path:docs/agent-system/STANDING_TEAMS.md` "Reporting what moved" and hold this team against it. Fold it into your stale-work review rather than spending a heartbeat on it.
 
 Check, in this order, and stop at the first one that fires:
 

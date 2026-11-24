@@ -98,7 +98,7 @@ existing run report/friction evidence and exact failed operation; do not infer w
 duration or token totals. Change the approach when the evidence shows avoidable work, then
 finish the admitted outcome and its proof. Unavailable usage stays unknown. Ten unchanged
 outcome-metric entries request strategy review; do not use bookkeeping counts as the
-outcome metric. Native commission HARD STOP, explicit product requirements and actual
+outcome metric. The granted `execution_limits`, explicit product requirements and actual
 authority/safety boundaries remain applicable.
 
 ## Evidence placement
@@ -135,6 +135,6 @@ boundary or native stop with the unmet condition explicit.
 Never write ACCEPTED, change gates/directives, install external tools without the authorized
 owner, or weaken the product to make checks pass. Use returned owner/asset IDs and preserve
 native identity, permissions, generated-output and dependency routes. Read
-`path:docs/TESTING.md` for validation scope. At native HARD STOP, checkpoint the current result
-and return; time does not establish acceptance. For a lost run or allowance/refusal, use
+`path:docs/TESTING.md` for validation scope. At an `execution_limits` stop (including `max_slices`), checkpoint the current result
+and return; time does not establish acceptance, and falling behind pace is friction (R2), not a stop. For a lost run or allowance/refusal, use
 [recovery](recovery.md). Blocked means a missing decision, credential or approval; name it.

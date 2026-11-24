@@ -27,7 +27,7 @@ without a step list. The setpoint board is the progress report; the docs are
 the design; the mandate is the authority and the finish line.
 
 Required reading:
-- `path:docs/agent-system/SWARM_MANAGER_WORK.md` §"Work shapes" — when to
+- `path:docs/agent-system/SCENARIO_DEVELOPMENT.md#work-shapes` §"Work shapes" — when to
   choose `mandate` over `phased`. This skill does not restate that rule.
 - `prompt-manager skill read harness-goal-authoring` §"Shapes" B — the finish
   line a mandate must make writable.
@@ -209,6 +209,6 @@ improve skill and a setpoint program. Keep the rendered mirror under 300 lines.
 - **A band is undecided in the PRD.** Record `target: undecided` for that row
   and name the decision it waits on. The row is not required until decided.
 - **The scenario has no improve skill.** Stop. Author it first with
-  `improve-skill-authoring`; the mandate depends on it.
+  `scenario-skill-setup`; the mandate depends on it.
 - **The Work shapes rule says phased.** Use `implementation-plan-authoring`. A
   mandate over a clear route wastes the route.

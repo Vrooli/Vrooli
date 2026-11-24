@@ -11,6 +11,7 @@ import (
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/provenance"
+	actionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/actions"
 	actionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/actions/actions_v1connect"
 	agentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/agents"
 	agentsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/agents/agents_v1connect"
@@ -20,6 +21,9 @@ import (
 	discoveryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/discovery/discovery_v1connect"
 	heartbeatv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/heartbeat"
 	heartbeatconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/heartbeat/heartbeat_v1connect"
+	memberflowv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/memberflow"
+	memberflowconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/memberflow/memberflow_v1connect"
+	skillsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/skills"
 	skillsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/skills/skills_v1connect"
 	teamsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/teams"
 	teamsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/teams/teams_v1connect"
@@ -33,9 +37,18 @@ func (denyAuthority) AuthorizeOperation(context.Context, identity.Principal, str
 }
 
 func TestPreparationGrantAllowsOnlyKnownOrdinaryAndOwnerCheckedOperations(t *testing.T) { // [REQ:PM-TEAM-PREPARATION]
-	paths := []string{"/unknown.Service/NewMutation", "/teams/draft", "/vrooli.prompt_manager.v1.skills.SkillsService/CreateSkill"}
+	paths := []string{"/unknown.Service/NewMutation", "/teams/draft"}
 	// Enumerate actual generated owner surfaces: new RPCs default to denied.
-	for _, file := range []protoreflect.FileDescriptor{heartbeatv1.File_prompt_manager_v1_heartbeat_heartbeat_proto, teamsv1.File_prompt_manager_v1_teams_teams_proto, agentsv1.File_prompt_manager_v1_agents_agents_proto, discoveryv1.File_prompt_manager_v1_discovery_discovery_proto, aisearchv1.File_prompt_manager_v1_aisearch_aisearch_proto} {
+	for _, file := range []protoreflect.FileDescriptor{
+		actionsv1.File_prompt_manager_v1_actions_actions_proto,
+		agentsv1.File_prompt_manager_v1_agents_agents_proto,
+		aisearchv1.File_prompt_manager_v1_aisearch_aisearch_proto,
+		discoveryv1.File_prompt_manager_v1_discovery_discovery_proto,
+		heartbeatv1.File_prompt_manager_v1_heartbeat_heartbeat_proto,
+		memberflowv1.File_prompt_manager_v1_memberflow_memberflow_proto,
+		skillsv1.File_prompt_manager_v1_skills_skills_proto,
+		teamsv1.File_prompt_manager_v1_teams_teams_proto,
+	} {
 		services := file.Services()
 		for i := 0; i < services.Len(); i++ {
 			service := services.Get(i)
@@ -45,6 +58,8 @@ func TestPreparationGrantAllowsOnlyKnownOrdinaryAndOwnerCheckedOperations(t *tes
 		}
 	}
 	allowedPaths := map[string]bool{
+		actionsconnect.ActionsServiceListActionsProcedure:                    true,
+		actionsconnect.ActionsServiceGetActionProcedure:                      true,
 		discoveryconnect.DiscoveryServiceDiscoverProcedure:                   true,
 		aisearchconnect.AISearchServiceSearchSkillsProcedure:                 true,
 		teamsconnect.TeamsServiceListKnowledgeProcedure:                      true,
@@ -86,7 +101,13 @@ func TestPreparationGrantAllowsOnlyKnownOrdinaryAndOwnerCheckedOperations(t *tes
 		teamsconnect.TeamsServiceRemoveMemberProcedure:                       true,
 		// The boundary admits this declared owner-authorized route; SetTeamRoles
 		// still requires its exact team.manage target before replacing roles.
-		teamsconnect.TeamsServiceSetRolesProcedure: true,
+		teamsconnect.TeamsServiceSetRolesProcedure:                     true,
+		memberflowconnect.MemberflowServiceGetOperatingModelsProcedure: true,
+		skillsconnect.SkillsServiceReadSkillsProcedure:                 true,
+		skillsconnect.SkillsServiceListSkillsProcedure:                 true,
+		skillsconnect.SkillsServiceGetSkillProcedure:                   true,
+		skillsconnect.SkillsServiceSyncSkillsProcedure:                 true,
+		skillsconnect.SkillsServiceRefreshProjectionProcedure:          true,
 	}
 	for _, ingress := range []string{"interactive-grant", "mixed-interactive-grant", "request-authority"} {
 		for _, path := range paths {

@@ -2,7 +2,7 @@
 // the state of its domain, or an honest, dated hole where that scenario is not
 // yet built?
 //
-// The target model this sensor reads against is docs/agent-system/TARGET_MODEL.md.
+// The target model this sensor reads against is docs/agent-system/STANDING_TEAMS.md.
 // Two properties of the declaration are deliberate and easy to get wrong:
 //
 //  1. `status: "none"` is a *valid* value, not a failure. Four of six teams
@@ -15,7 +15,7 @@
 //     into a controller, which is the same boundary violation the target model
 //     forbids for instruments themselves.
 //
-// DOC: docs/agent-system/TARGET_MODEL.md § The instrument: six invariants
+// DOC: docs/agent-system/STANDING_TEAMS.md § The instrument: six invariants
 package memberflow
 
 import (
@@ -25,7 +25,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 )
@@ -64,9 +63,7 @@ type TeamInstrument struct {
 	Scenario  string `json:"scenario,omitempty"`
 	Archetype string `json:"archetype,omitempty"`
 	// CoversScenarios names the scenarios whose capability this instrument
-	// aggregates. It is the guard series for the orientation-cost band: a rise
-	// in orientation cost is only a defect when this grew in the same cycle.
-	// It replaced a proxy that counted operating-graph external nodes, which
+	// aggregates. It replaced a proxy that counted operating-graph external nodes, which
 	// resolved to `operator` and `vision-walk` rather than to scenarios.
 	CoversScenarios []string `json:"coversScenarios,omitempty"`
 	// GapMarker is a leading-YYYY-MM-DD rationale, required whenever status is
@@ -327,28 +324,4 @@ func (h *Handlers) GetInstruments(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, report)
-}
-
-// instrumentCoveredScenarios projects the declared coversScenarios sets, keyed
-// by team, for the orientation-cost guard series.
-func instrumentCoveredScenarios(declared map[string]*TeamInstrument) map[string][]string {
-	out := map[string][]string{}
-	for teamID, inst := range declared {
-		if inst == nil {
-			continue
-		}
-		seen := map[string]bool{}
-		var names []string
-		for _, s := range inst.CoversScenarios {
-			name := strings.TrimSpace(s)
-			if name == "" || seen[name] {
-				continue
-			}
-			seen[name] = true
-			names = append(names, name)
-		}
-		sort.Strings(names)
-		out[teamID] = names
-	}
-	return out
 }

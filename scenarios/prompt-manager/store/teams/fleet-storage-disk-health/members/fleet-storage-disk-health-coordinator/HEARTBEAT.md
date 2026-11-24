@@ -2,11 +2,11 @@
 
 Mission: Deliver the finite fleet storage and disk-health effort: system-monitor disk-wear monitoring and alerting proven against prompt-manager's write storm, then fix prompt-manager and prove the alert clears; and investigate and properly address every other open storage/host-health item recorded in the effort workspace.
 
-Work model: managed mixed investigation and implementation effort. Start at `/home/matthalloran8/.vrooli/plan-artifacts/efforts/fleet-storage-disk-health-2026-09-14/README.md`.
-- `/home/matthalloran8/.vrooli/plan-artifacts/efforts/fleet-storage-disk-health-2026-09-14/requirements.json`
-- `/home/matthalloran8/.vrooli/plan-artifacts/efforts/fleet-storage-disk-health-2026-09-14/handoffs/OPERATOR-ANSWERS.md`
-- `/home/matthalloran8/.vrooli/plan-artifacts/efforts/fleet-storage-disk-health-2026-09-14/handoffs/synthesis-2026-09-14.md`
-- `/home/matthalloran8/.vrooli/plan-artifacts/efforts/fleet-storage-disk-health-2026-09-14/effort.json`
+Work model: managed mixed investigation and implementation effort. Start at `~/.vrooli/plan-artifacts/efforts/fleet-storage-disk-health-2026-09-14/README.md`.
+- `~/.vrooli/plan-artifacts/efforts/fleet-storage-disk-health-2026-09-14/requirements.json`
+- `~/.vrooli/plan-artifacts/efforts/fleet-storage-disk-health-2026-09-14/handoffs/OPERATOR-ANSWERS.md`
+- `~/.vrooli/plan-artifacts/efforts/fleet-storage-disk-health-2026-09-14/handoffs/synthesis-2026-09-14.md`
+- `~/.vrooli/plan-artifacts/efforts/fleet-storage-disk-health-2026-09-14/effort.json`
 
 ## Current recovery point
 

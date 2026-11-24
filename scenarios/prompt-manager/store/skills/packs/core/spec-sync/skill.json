@@ -1,6 +1,6 @@
 {
   "createdAt": "2026-02-16T00:00:00Z",
-  "defaultScope": "audit-scope",
+  "defaultScope": "work-scope",
   "description": "Synchronize scenario specifications (PRD.md, requirements/, README.md, docs/) with actual implementation state. Ensures specs accurately reflect what the code does, enabling faithful scenario recreation after archiving.",
   "entry": "SKILL.md",
   "icon": "refreshcw",

@@ -1,6 +1,6 @@
 {
   "createdAt": "2026-05-02T03:51:50Z",
-  "defaultScope": "architecture-scope",
+  "defaultScope": "work-scope",
   "description": "Adopt multi-language support in a scenario UI: wire i18next through the typed strings.ts/selectors.ts registries, default tests to cimode, layer accessibility and locale-parity contracts on top, so adding new locales is a config change and tests don't drift when copy moves",
   "entry": "SKILL.md",
   "icon": "languages",

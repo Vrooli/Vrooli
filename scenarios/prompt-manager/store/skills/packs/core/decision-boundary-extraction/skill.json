@@ -1,6 +1,6 @@
 {
   "createdAt": "2025-01-15T00:00:00Z",
-  "description": "Extract and clarify decision logic from implementation details",
+  "description": "Merged into architecture-lenses (\u00a76 Decision boundary); read that.",
   "entry": "SKILL.md",
   "icon": "file-text",
   "id": "decision-boundary-extraction",
@@ -23,12 +23,12 @@
       "prompt-manager"
     ]
   },
-  "revision": 43,
+  "revision": 44,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
     "skill",
     "audit-technique"
   ],
-  "updatedAt": "2026-02-04T13:13:54Z"
+  "updatedAt": "2026-11-20T00:00:00Z"
 }

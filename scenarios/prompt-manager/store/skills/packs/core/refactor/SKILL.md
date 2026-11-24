@@ -21,7 +21,7 @@ metadata:
 ---
 ## Steer focus: Refactor & Structural Improvement
 
-> **Ladder position:** R2–R3 (evolvable architecture / features hardened). Large structural refactors — breaking import cycles, relocating packages, untangling coupling — are the *expected* move at R2; don't shrink them into cosmetic edits. See `prompt-manager skill read scenario-maturity-ladder` for rung context and `prompt-manager skill read improvement-do-and-dont` for what counts as a real improvement.
+> **Ladder position:** R2–R3 (evolvable architecture / features hardened). Large structural refactors — breaking import cycles, relocating packages, untangling coupling — are the *expected* move at R2; don't shrink them into cosmetic edits. See `prompt-manager skill read scenario-work-ladder` for rung context and `prompt-manager skill read improvement-do-and-dont` for what counts as a real improvement.
 
 Prioritize **code quality, structure, and maintainability** across this scenario’s implementation.
 Do **not** change the intended behavior, regress tests, or weaken safety guarantees; all changes must maintain or improve completeness.

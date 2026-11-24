@@ -18,7 +18,6 @@ import (
 	"strings"
 	"time"
 
-	"prompt-manager/internal/store"
 
 	"github.com/gorilla/mux"
 )
@@ -38,9 +37,6 @@ type Handlers struct {
 	metrics          MetricsService
 	aiIndexer        AISearchIndexer       // Optional: nil if AI search not available
 	graphInvalidator GraphInvalidator      // Optional: nil if graph not available
-	experimentStore  store.ExperimentStore // Optional: for variant-aware read
-	variantStore     store.VariantStore    // Optional: for variant-aware read
-	packSkillStore   store.SkillStore      // Optional: for variant-aware read (pack-based)
 	identityVerifier IdentityVerifier      // Optional: verifies workflow provenance on skill reads
 	readRecorder     *ReadRecorder         // Optional: records skill-read telemetry
 	usageReporter    *UsageReporter        // Optional: serves the per-skill usage report
@@ -97,13 +93,6 @@ func (h *Handlers) SetReadRecorder(recorder *ReadRecorder) {
 // SetUsageReporter sets the aggregator behind the per-skill usage report.
 func (h *Handlers) SetUsageReporter(reporter *UsageReporter) {
 	h.usageReporter = reporter
-}
-
-// SetExperimentStores sets the stores needed for variant-aware read.
-func (h *Handlers) SetExperimentStores(experiments store.ExperimentStore, variants store.VariantStore, skills store.SkillStore) {
-	h.experimentStore = experiments
-	h.variantStore = variants
-	h.packSkillStore = skills
 }
 
 // SetGraphInvalidator sets the graph invalidator.
@@ -709,8 +698,11 @@ func (h *Handlers) DeleteSkill(ctx context.Context, id string) error {
 		return fmt.Errorf("Skill not found")
 	}
 
-	// Only allow deletes from local/drafts
-	if !IsWritableFolder(folder) {
+	// The generic delete operation is only for disposable local/draft entries.
+	// Core skills need a separate retirement workflow that preserves lineage and
+	// checks callers/use evidence; treating core as merely writable here would
+	// bypass that workflow and irreversibly remove its history.
+	if folder != "local" && folder != "drafts" {
 		return fmt.Errorf("Cannot delete core skills")
 	}
 

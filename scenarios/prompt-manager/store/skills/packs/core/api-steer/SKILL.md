@@ -8,7 +8,7 @@ metadata:
   tags: ["api","proto","connect-rpc","contracts","steer","architecture"]
   modes: ["steer","architecture"]
   status: "active"
-  defaultScope: "architecture-scope"
+  defaultScope: "work-scope"
   revision: 49
   createdAt: "2026-01-30T13:13:00-05:00"
   updatedAt: "2026-02-06T23:12:28Z"
@@ -19,6 +19,8 @@ metadata:
     kind: "authored"
 ---
 ## Steer focus: API Steer
+
+**Scope mode: `architecture`.** Hold to that row of `work-scope` for this session.
 
 Prioritize **scenario APIs as stable, proto-first, Connect-RPC contracts** in `scenarios/{{TARGET}}/api/`. Treat the API as the canonical entrypoint into the scenario's core logic — every UI and CLI surface, and every other scenario, consumes it through generated typed clients. The four REST exceptions enumerated in `path:templates/scenarios/react-vite/api/internal/module/module.go` are the only escape hatch.
 
@@ -32,7 +34,7 @@ Read first when present:
 - `scenarios/{{TARGET}}/docs/internal/PROBLEMS.md` — unresolved API drift and deferred refactors.
 
 Optional context:
-- `prompt-manager skill read screaming-architecture-audit` — when API domain boundaries are unclear or shared infrastructure has absorbed product vocabulary.
+- `prompt-manager skill read architecture-lenses` — when API domain boundaries are unclear or shared infrastructure has absorbed product vocabulary.
 - `prompt-manager skill read cli-steer` — when designing API changes that the CLI must mirror.
 
 ---
@@ -52,7 +54,7 @@ Optional context:
 - shared API substrate (validation, auth interceptors, error translation, request context)
 
 **Out of scope:**
-- deep domain modeling (use `screaming-architecture-audit`)
+- deep domain modeling (use `architecture-lenses`)
 - proto package layering, casing, and generation workflow (use `interoperability-steer`)
 - UI rendering or CLI argument parsing (use `cli-steer`)
 - broad rewrites that change behavior without API-shape payoff
@@ -196,128 +198,30 @@ Rules:
 
 ### 8. Audit Workflow
 
-1. **Read the docs.** Start with `ARCHITECTURE.md`, `SEAMS.md`, `PROBLEMS.md`, and `.vrooli/endpoints.json`. Treat docs as claims to verify.
-2. **Inventory domains.** List every `handlers/<domain>/` package and its `Module` constructor.
-3. **Verify proto coverage.** Each domain should have a proto file under `packages/proto/schemas/{{SCENARIO_ID}}/v1/<domain>/` with one `service` block.
-4. **Verify Connect wiring.** Each `Module.Mount` should register a Connect handler (or a small number of them), not hand-wired `mux.Router` REST routes — except for the four exceptions.
-5. **Verify descriptor parity.** Every `EndpointDescriptor.Path` is either a Connect procedure path or carries a `RESTException` with a valid `Reason`. Run `cmd/gen-endpoints` and confirm `validateTransport` passes.
-6. **Assign maturity levels.** Score each domain independently using §2.
-7. **Find drift.** Look for the red flags in §9.
-8. **Improve incrementally.** Prefer one domain's lift from L2 → L3 over a broad cross-cutting refactor.
-9. **Update docs.** Put durable shape decisions in `ARCHITECTURE.md`, boundary/interceptor decisions in `SEAMS.md`, and unresolved drift in `PROBLEMS.md`.
+1. Read `ARCHITECTURE.md`, `SEAMS.md`, `PROBLEMS.md` and `.vrooli/endpoints.json` as claims to verify.
+2. Inventory every `handlers/<domain>/` package and its `Module` constructor; each domain has a proto under `packages/proto/schemas/{{SCENARIO_ID}}/v1/<domain>/` with one `service` block.
+3. Each `Module.Mount` registers Connect handlers, not hand-wired `mux.Router` routes (except the four exceptions), and every `EndpointDescriptor.Path` is a Connect procedure path or carries a `RESTException` with a valid `Reason`; `go run ./api/cmd/gen-endpoints --check` (`validateTransport`) passes.
+4. Score each domain independently (§2), find drift (§9), and lift one domain from L2 to L3 rather than refactor broadly.
+5. Record durable shape in `ARCHITECTURE.md`, boundary and interceptor decisions in `SEAMS.md`, unresolved drift in `PROBLEMS.md`.
 
-Audit commands:
-
-```bash
-# Connect service implementations and Module constructors
-rg "connectrpc\.com/connect|_v1connect" scenarios/{{TARGET}}/api --type go
-rg "module\.Module\{" scenarios/{{TARGET}}/api/handlers --type go
-
-# REST-exception tagging — every REST path should set one
-rg "RESTException\s*:\s*&module\.RESTException" scenarios/{{TARGET}}/api/handlers --type go
-
-# Hand-wired REST routes (red flag unless paired with a RESTException)
-rg "r\.HandleFunc|router\.(GET|POST|PUT|DELETE|PATCH)" scenarios/{{TARGET}}/api --type go
-
-# EndpointDescriptor paths — should be Connect procedure paths or REST exceptions
-rg "Path:\s*\"/api/v1/" scenarios/{{TARGET}}/api/handlers --type go
-
-# Proto-less domains (handlers package without a matching proto schema)
-fd -t d . scenarios/{{TARGET}}/api/handlers
-fd "\.proto$" packages/proto/schemas/{{SCENARIO_ID}}
-
-# Codegen gate — validateTransport must pass
-cd scenarios/{{TARGET}} && go run ./api/cmd/gen-endpoints --check
-
-# Domain logic leaking into transport
-rg "\bconnect\.|\bmux\." scenarios/{{TARGET}}/api/internal --type go
-```
+Useful `rg` probes over `scenarios/{{TARGET}}/api`: `connectrpc.com/connect|_v1connect` and `module\.Module\{` for Connect wiring; `RESTException\s*:\s*&module\.RESTException` for tagging; `r\.HandleFunc|router\.(GET|POST|PUT|DELETE|PATCH)` and `Path:\s*"/api/v1/` for hand-wired REST (red flags without a `RESTException`); `\bconnect\.|\bmux\.` under `internal` for transport leaking into domains; and `fd` for handler domains with no matching `.proto`.
 
 ---
 
 ### 9. Red Flags
 
-- A `handlers/<domain>/` package with no matching `packages/proto/schemas/{{SCENARIO_ID}}/v1/<domain>/`.
-- `Module.Mount` registering `r.HandleFunc("/api/v1/...", ...)` for an operation whose payload could be a proto message.
-- `EndpointDescriptor.Path` containing a hand-authored REST literal without a `RESTException`.
-- `RESTException.Reason` set to a string that is not one of the four `RESTReason*` constants.
-- Domain packages (`internal/<domain>/`) importing `connectrpc.com/connect` or `gorilla/mux`.
-- Hand-written types in UI or CLI that duplicate generated proto messages.
-- `.vrooli/endpoints.json` edited by hand (it must be regenerated from `Module.Endpoints`).
-- Mutating Connect methods that ignore the `X-Dry-Run` header.
-- New "misc" or "v2" services that have no domain vocabulary.
-- Method names that leak HTTP verbs (`PostNote`, `PutNote`).
+A `handlers/<domain>/` with no matching proto schema; `Module.Mount` registering `r.HandleFunc("/api/v1/...")` for an operation that could be a proto message; a hand-authored REST `EndpointDescriptor.Path` without a `RESTException`, or a `Reason` outside the four `RESTReason*` constants; domain packages importing `connectrpc.com/connect` or `gorilla/mux`; hand-written UI or CLI types duplicating proto messages; a hand-edited `.vrooli/endpoints.json` (regenerate from `Module.Endpoints`); mutating Connect methods that ignore `X-Dry-Run`; "misc" or "v2" services with no domain vocabulary; method names that leak HTTP verbs (`PostNote`, `PutNote`).
 
 ---
 
-### 10. Safe Refactoring Guidelines
+### 10. Safe Refactoring
 
-You may:
-- introduce a proto schema for a domain that currently has only REST handlers, and migrate the methods one at a time
-- rename Connect service methods to match the patterns in §5 (with deprecation aliases if external consumers exist)
-- extract a shared Connect interceptor for auth/request-context/error mapping
-- tag a legitimate REST exception with the correct `RESTReason*` and a clarifying `Note`
-- regenerate `.vrooli/endpoints.json` from `Module.Endpoints`
-
-You must:
-- preserve observable behavior and wire compatibility unless the user has approved a breaking change
-- keep `validateTransport` passing after every change
-- update `ARCHITECTURE.md`, `SEAMS.md`, or `PROBLEMS.md` to reflect the new shape
-- update CLI commands and UI clients when method names or shapes change (or record the follow-up in `PROBLEMS.md`)
-
-Challenge yourself before a move:
-- Does this make the domain's RPC surface easier to discover from the proto?
-- Does it remove a hand-authored REST literal or a hand-written type?
-- Would a second agent independently arrive at the same shape from the docs?
-
----
+You may add a proto schema for a REST-only domain and migrate methods one at a time, rename Connect methods to the §5 patterns (deprecation aliases if external consumers exist), extract a shared interceptor for auth, request context and error mapping, tag a legitimate REST exception with the right `RESTReason*` and a `Note`, and regenerate `.vrooli/endpoints.json`. You must preserve observable behavior and wire compatibility unless a breaking change is approved, keep `validateTransport` passing, update the architecture docs, and update CLI commands and UI clients when names or shapes change (or record the follow-up in `PROBLEMS.md`). Before a move ask whether it makes the RPC surface easier to discover from the proto, removes a hand-authored REST literal or hand-written type, and would be reached independently by a second agent from the docs.
 
 ### 11. Documentation
 
-Use `knowledge-observatory-tools` to read and update stable docs. Avoid creating `API_AUDIT.md` by default. One-off audit reports are acceptable only for a migration handoff; they should have a clear retirement path into `ARCHITECTURE.md`, `SEAMS.md`, or `PROBLEMS.md`.
-
-`ARCHITECTURE.md` should include:
-- the API surface map (domains, services, methods)
-- API maturity by domain
-- REST exceptions with their `RESTReason*` and justification
-- shared API substrate (interceptors, error mapping, pagination)
-
-`SEAMS.md` should include:
-- Connect interceptors (auth, request context, error translation)
-- repository/service seams within each domain
-- outbound integration adapters (covered jointly with `interoperability-steer`)
-
-`PROBLEMS.md` should include:
-- domains still on REST that should move to Connect
-- proto schemas that drift from runtime behavior
-- deprecation windows in progress
-
-Recommended architecture additions:
-
-```markdown
-## API Surface
-
-| Domain | Service | Methods | Maturity | Notes |
-|---|---|---|---|---|
-
-## REST Exceptions
-
-| Endpoint | Reason | Justification | Owner |
-|---|---|---|---|
-```
-
----
+Use `knowledge-observatory-tools`; avoid `API_AUDIT.md` (a one-off report is acceptable only for a migration handoff with a retirement path). `ARCHITECTURE.md` holds the API surface map (domain, service, methods, maturity), REST exceptions with `RESTReason*` and justification, and shared substrate (interceptors, error mapping, pagination); `SEAMS.md` holds interceptors, repository and service seams per domain, and outbound adapters (with `interoperability-steer`); `PROBLEMS.md` holds domains still on REST, proto drift from runtime behavior, and deprecation windows.
 
 ### **12. Output Expectations**
 
-By the end of this loop, the scenario API should:
-- expose every proto-owned operation as a Connect-RPC method via `Module.Endpoints`
-- carry a valid `RESTException` on every remaining REST endpoint
-- pass `validateTransport` in `cmd/gen-endpoints`
-- have a domain-aligned proto schema for every domain that exposes business logic
-- keep transport concerns out of `internal/<domain>/` packages
-- record unresolved drift in `PROBLEMS.md` rather than leaving it implicit
-
-Avoid superficial changes that rename files or shuffle handlers without improving proto/Connect coverage or the REST-exception story.
-
-Last updated: 2026-05-12
+The API exposes every proto-owned operation as a Connect-RPC method via `Module.Endpoints`, carries a valid `RESTException` on every remaining REST endpoint, passes `validateTransport`, has a domain-aligned proto for every business-logic domain, keeps transport out of `internal/<domain>/`, and records unresolved drift in `PROBLEMS.md`. Avoid superficial renames or handler shuffling that do not improve proto and Connect coverage or the REST-exception story.

@@ -21,16 +21,6 @@ import (
 	"github.com/vrooli/api-core/authn"
 )
 
-// defaultReadCCConfig reads a Claude Code team config from the standard location.
-func defaultReadCCConfig(teamName string) ([]byte, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return nil, fmt.Errorf("failed to determine home directory: %w", err)
-	}
-	configPath := filepath.Join(homeDir, ".claude", "teams", teamName, "config.json")
-	return os.ReadFile(configPath)
-}
-
 // GraphInvalidator allows triggering graph index invalidation.
 type GraphInvalidator interface {
 	Invalidate()
@@ -51,9 +41,6 @@ type Handlers struct {
 	heartbeatScheduler HeartbeatScheduler
 	graphInvalidator   GraphInvalidator
 	aiIndexer          AITeamIndexer
-	readCCConfig       func(teamName string) ([]byte, error) // Testing seam for CC config reader
-	listCCTeamDirs     func() ([]AvailableCCTeam, error)     // Testing seam for CC team listing
-	activeRunIDLookup  func(teamID, agentID string) (string, bool)
 }
 
 type createValidationError struct{ err error }
@@ -75,8 +62,6 @@ func NewHandlers(
 		relationStore:      relationStore,
 		indexStore:         indexStore,
 		heartbeatScheduler: heartbeatScheduler,
-		readCCConfig:       defaultReadCCConfig,
-		listCCTeamDirs:     defaultListCCTeamDirs,
 	}
 }
 
@@ -89,13 +74,6 @@ type HeartbeatScheduler interface {
 // SetHeartbeatScheduler attaches a scheduler after handlers are constructed.
 func (h *Handlers) SetHeartbeatScheduler(scheduler HeartbeatScheduler) {
 	h.heartbeatScheduler = scheduler
-}
-
-// SetActiveRunIDLookup binds verified agent messages to the registered owner run
-// already tracked by the heartbeat registry. Missing registry evidence fails
-// closed for verified agent callers; non-agent calls retain existing behavior.
-func (h *Handlers) SetActiveRunIDLookup(lookup func(teamID, agentID string) (string, bool)) {
-	h.activeRunIDLookup = lookup
 }
 
 // SetGraphInvalidator sets the graph invalidator.
@@ -703,113 +681,6 @@ func (h *Handlers) SetRoles(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(roles)
-}
-
-// GetOrgChart handles GET /teams/{id}/org - returns the org chart for a team.
-func (h *Handlers) GetOrgChart(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	vars := mux.Vars(r)
-	id := vars["id"]
-
-	// Verify team exists
-	if _, err := h.teamStore.Get(ctx, id); err != nil {
-		http.Error(w, "Team not found", http.StatusNotFound)
-		return
-	}
-
-	org, err := h.teamStore.GetOrgChart(ctx, id)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Convert to DTO response
-	resp := OrgChartResponse{
-		TeamID:           id,
-		Edges:            make([]OrgEdgeDTO, 0, len(org.Edges)),
-		ManagedTeamEdges: make([]ManagedTeamEdgeDTO, 0),
-	}
-	for _, edge := range org.Edges {
-		resp.Edges = append(resp.Edges, orgEdgeToDTO(edge))
-	}
-	for _, edge := range h.effectiveManagedTeamEdges(ctx, id) {
-		resp.ManagedTeamEdges = append(resp.ManagedTeamEdges, managedTeamEdgeToDTO(edge))
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(resp)
-}
-
-// SetOrgChart handles PUT /teams/{id}/org - sets the org chart for a team.
-func (h *Handlers) SetOrgChart(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	vars := mux.Vars(r)
-	id := vars["id"]
-
-	var req SetOrgChartRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	if _, err := h.teamStore.Get(ctx, id); err != nil {
-		http.Error(w, "Team not found", http.StatusNotFound)
-		return
-	}
-
-	if err := h.validateOrgChartEdges(ctx, id, req.Edges); err != nil {
-		if isValidationError(err) {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if err := h.validateManagedTeamEdges(ctx, id, req.ManagedTeamEdges); err != nil {
-		if isValidationError(err) {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	org, err := h.teamStore.GetOrgChart(ctx, id)
-	if err != nil {
-		org = &store.OrgChart{TeamID: id}
-	}
-	org.TeamID = id
-	org.Edges = make([]store.OrgEdge, 0, len(req.Edges))
-	for _, e := range req.Edges {
-		org.Edges = append(org.Edges, orgEdgeFromDTO(e))
-	}
-	// Member-level edits use the same endpoint. Preserve team-level edges when
-	// older clients omit the new field; an explicit empty array clears them.
-	if req.ManagedTeamEdges != nil {
-		org.ManagedTeamEdges = make([]store.ManagedTeamEdge, 0, len(req.ManagedTeamEdges))
-		for _, edge := range req.ManagedTeamEdges {
-			org.ManagedTeamEdges = append(org.ManagedTeamEdges, managedTeamEdgeFromDTO(edge, id))
-		}
-	}
-
-	if err := h.teamStore.SetOrgChart(ctx, id, org); err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Return the updated org chart
-	resp := OrgChartResponse{
-		TeamID:           id,
-		Edges:            req.Edges,
-		ManagedTeamEdges: req.ManagedTeamEdges,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(resp)
 }
 
 func (h *Handlers) ListTeamSharedFiles(ctx context.Context, id string) (TeamSharedFileListResponse, error) {

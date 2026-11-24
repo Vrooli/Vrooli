@@ -2923,7 +2923,7 @@ func (h *Handlers) DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 // AddKnowledge handles POST /teams/{id}/knowledge.
 //
 // Validates the X-Vrooli-Attribution header (canon:
-// docs/agent-system/RUNTIME_ATTRIBUTION.md), derives the display
+// scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md), derives the display
 // `Caller`, and persists the structured `Attribution` alongside the
 // entry. Mutating writes without the header are rejected with HTTP
 // 400; team_id mismatches between header and URL likewise return 400.

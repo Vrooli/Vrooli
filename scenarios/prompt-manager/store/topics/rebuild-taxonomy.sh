@@ -38,16 +38,16 @@ echo "==> Creating root + folders + leaves (parent before child)…"
 # Root development practices — always in view for any dev task.
 pm topic create --id development --name "Development" \
   --description "General software development on a Vrooli scenario: building, maintaining, refactoring, and shipping code. Root practices every task should keep in view." \
-  --skills "documentation-health,test,domain-clarity"
+  --skills "documentation-health,test,architecture-lenses"
 
 # Architecture & code structure (folder — its own pack plus the three leaves below).
 pm topic create --id architecture --name "Architecture & code structure" --parent development \
   --description "Architecture and code structure: where responsibilities live, the seams between components, the invariants the code relies on, and the vocabulary that names them." \
-  --skills "seam-discovery-and-enforcement,boundary-of-responsibility-enforcement,invariant-discovery-and-enforcement,screaming-architecture-audit,domain-clarity"
+  --skills "architecture-lenses"
 
 pm topic create --id building-features --name "Building features" --parent architecture \
   --description "Building a new feature or capability: extracting decision boundaries, designing error semantics and recovery paths, and compressing the domain model." \
-  --skills "decision-boundary-extraction,error-semantics-recovery-path-design,domain-clarity"
+  --skills "architecture-lenses,resilience-lenses"
 
 pm topic create --id refactoring-cleanup --name "Refactoring & cleanup" --parent architecture \
   --description "Refactoring and cleaning up existing code: restructuring, removing dead code and duplication, unifying utilities, and reducing cognitive load." \
@@ -68,15 +68,15 @@ pm topic create --id debugging-investigation --name "Debugging & investigation" 
 
 pm topic create --id reliability-resilience --name "Reliability & resilience" --parent development \
   --description "Reliability and resilience: graceful degradation under failure, idempotency and replay safety, interruption and progress continuity, evolution-axis resilience, and temporal ordering." \
-  --skills "failure-topography-and-graceful-degradation,idempotency-replay-safety-hardening,progress-continuity-interruption-resilience,change-axis-and-evolution-resilience-audit,temporal-flow-audit"
+  --skills "resilience-lenses,architecture-lenses"
 
 pm topic create --id frontend-ui --name "Frontend / UI" --parent development \
   --description "Frontend and UI work: UI health (coherence, stability, and interop), UX and experience architecture, navigation integrity, design-system migration, and internationalization." \
-  --skills "ui-health,ux,experience-architecture-audit,navigation-integrity-audit,ui-design-system-migration,ui-i18n-adoption"
+  --skills "ui-health,ux,architecture-lenses,ui-design-system-migration,ui-i18n-adoption"
 
 pm topic create --id configuration-observability --name "Configuration & observability" --parent development \
   --description "Configuration and observability: designing tunable control surfaces and levers, and the signal and feedback surfaces that make behavior visible and steerable." \
-  --skills "control-surface-tunable-levers-design,signal-and-feedback-surface-design"
+  --skills "architecture-lenses,resilience-lenses"
 
 pm topic create --id platform-storage-packaging --name "Platform, storage & packaging" --parent development \
   --description "Platform, storage, and packaging: storage-layer design and cross-platform readiness for deployment and distribution." \

@@ -12,7 +12,7 @@
  * After every action, the entry leaves the unrouted set — the inbox view is
  * the unrouted set by the inbox-router-drain invariant.
  *
- * DOC: docs/agent-system/INTAKE_PIPELINE.md
+ * DOC: scenarios/prompt-manager/docs/internal/INTAKE_PIPELINE.md
  */
 
 import { useCallback, useEffect, useState } from 'react'

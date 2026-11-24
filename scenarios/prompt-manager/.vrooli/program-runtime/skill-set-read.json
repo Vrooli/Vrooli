@@ -171,7 +171,7 @@
     }
   ],
   "rung": "S3",
-  "owner_skill": "skill-set-authoring",
+  "owner_skill": "scenario-skill-setup",
   "verbs": [
     "agent.collect",
     "ai.classify",

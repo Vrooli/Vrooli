@@ -10,7 +10,7 @@ metadata:
   icon: "users"
   status: "active"
   targetDimensions: ["accessibility","visual","ui"]
-  defaultScope: "refactor-scope"
+  defaultScope: "work-scope"
   revision: 50
   createdAt: "2025-01-15T00:00:00Z"
   updatedAt: "2026-02-17T17:17:26Z"
@@ -22,7 +22,9 @@ metadata:
 ---
 ## Steer focus: UX Improvement
 
-> **Ladder position:** R3 (features hardened — ui/visual/accessibility). See `prompt-manager skill read scenario-maturity-ladder` for rung context and `prompt-manager skill read improvement-do-and-dont` for what counts as a real improvement.
+**Scope mode: `refactor`.** Hold to that row of `work-scope` for this session.
+
+> **Ladder position:** R3 (features hardened — ui/visual/accessibility). See `prompt-manager skill read scenario-work-ladder` for rung context and `prompt-manager skill read improvement-do-and-dont` for what counts as a real improvement.
 
 Prioritize **user experience quality** across all interfaces in this scenario.
 Do **not** break functionality or regress tests; all changes must maintain or improve completeness.

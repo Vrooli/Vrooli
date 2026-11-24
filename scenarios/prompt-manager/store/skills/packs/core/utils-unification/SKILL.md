@@ -9,7 +9,7 @@ metadata:
   tags: ["skill"]
   icon: "merge"
   status: "active"
-  defaultScope: "refactor-scope"
+  defaultScope: "work-scope"
   revision: 48
   createdAt: "2026-01-26T00:00:00Z"
   updatedAt: "2026-02-07T01:05:12Z"
@@ -20,6 +20,8 @@ metadata:
     kind: "authored"
 ---
 ## Steer focus: Utils Unification
+
+**Scope mode: `refactor`.** Hold to that row of `work-scope` for this session.
 
 Prioritize **extracting, standardizing, and consolidating utilities** so shared logic is consistent, discoverable, and testable. The goal is to prevent duplication and drift while keeping utilities sharply scoped and aligned to screaming architecture.
 

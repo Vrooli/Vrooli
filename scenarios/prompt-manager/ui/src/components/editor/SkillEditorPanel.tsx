@@ -36,7 +36,7 @@ import { TagChipsEditor } from '../shared/TagChipsEditor'
 import { CrossReferencePanel } from './CrossReferencePanel'
 import { ThirdPartySkillPanel } from './ThirdPartySkillPanel'
 import { StartChatDialog } from '../chat/StartChatDialog'
-import { LineagePanel, type LineageTab } from './LineagePanel'
+import { LineagePanel } from './LineagePanel'
 import { PanelErrorBoundary } from '../PanelErrorBoundary'
 import { selectors } from '@/constants/selectors'
 
@@ -168,7 +168,6 @@ export function SkillEditorPanel({
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false)
   const [showChatDialog, setShowChatDialog] = useState(false)
   const [lineageOpen, setLineageOpen] = useState(false)
-  const [lineageTab, setLineageTab] = useState<LineageTab>('history')
   const [graphProjection, setGraphProjection] = useState<'relationships' | 'flow'>(() =>
     typeof window !== 'undefined' && localStorage.getItem('pm.graphProjection') === 'flow' ? 'flow' : 'relationships',
   )
@@ -471,15 +470,12 @@ export function SkillEditorPanel({
             </Suspense>
           </div>
 
-          {/* Right sidebar: lineage panel with tabs */}
+          {/* Right sidebar: version history panel */}
           {lineageOpen && (
             <div className="w-72 flex-shrink-0 border-l border-border overflow-hidden flex flex-col">
               <PanelErrorBoundary panelName="Lineage panel">
                 <LineagePanel
                   skillId={currentSkill.id}
-                  currentContent={formState.content}
-                  activeTab={lineageTab}
-                  onActiveTabChange={setLineageTab}
                   className="h-full"
                 />
               </PanelErrorBoundary>

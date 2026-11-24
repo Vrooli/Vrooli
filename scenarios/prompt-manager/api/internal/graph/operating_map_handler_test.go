@@ -8,7 +8,7 @@ import (
 )
 
 func TestGetOperatingMap_ServesSharedAssembler(t *testing.T) {
-	h := NewHandlers(&mockGraphIndexProvider{})
+	h := NewHandlers()
 	h.SetOperatingMapStore(staticOperatingMapProvider{mapResult: OperatingMap{Teams: []OperatingMapTeam{{ID: "team-a"}}}})
 	r := httptest.NewRecorder()
 	h.GetOperatingMap(r, httptest.NewRequest(http.MethodGet, "/operating-models/map", nil))

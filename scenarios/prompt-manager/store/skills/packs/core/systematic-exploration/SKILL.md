@@ -26,7 +26,7 @@ Required reading:
 - `docs/agent-system/SKILL_AUTHORING.md`
 
 Optional reading:
-- `prompt-manager skill read skill-authoring-practice`
+- `prompt-manager skill read skill-authoring`
 
 ---
 

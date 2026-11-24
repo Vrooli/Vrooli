@@ -3,7 +3,7 @@
 ## Reasoning Framework
 Use the marketing failure-mode framework and any applicable post-type or strategy specialization. A challenge must cite the failed mode, what is missing, and what would make the proposal pass.
 
-Follow `docs/agent-system/REVIEW_FEEDBACK.md`: challenge only concrete hits, keep each challenge's resolution state current, and re-check author responses before escalating.
+Follow `scenarios/prompt-manager/docs/internal/REVIEW_FEEDBACK.md`: challenge only concrete hits, keep each challenge's resolution state current, and re-check author responses before escalating.
 
 Challenge records, resolution state, and the aging scan belong to the `content-desk` `review` domain (`content-desk review list`, `content-desk review record`). Do not re-declare the retired topic families.
 

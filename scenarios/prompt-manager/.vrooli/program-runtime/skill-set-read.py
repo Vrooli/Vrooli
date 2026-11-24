@@ -15,7 +15,6 @@ the unknown proto field `projected` (2026-09-02); that is a failed read, so the 
 until the binding is repaired.
 """
 
-import json
 
 inputs = program.inputs()
 scenario = inputs["scenario"] if "scenario" in inputs else "program-runtime"
@@ -138,7 +137,7 @@ def step_classify():  # CLASSIFY · deterministic; in-kernel filters only
 
 def step_report():  # REPORT
     envelope["phase"] = "report"
-    print(json.dumps(envelope, sort_keys=True, separators=(",", ":")))
+    program.report(envelope)
     return None
 
 

@@ -201,7 +201,7 @@ If the owner route cannot represent a required direct notification, use
 permission. A source that exhausts its push bucket still gets every request stored; only device
 pushes pause until the bucket refills. Do not treat an ordinary repair wait as a human decision.
 When all remaining work waits on human decisions/external repair, wake
-supervision once, then park with `--timeout 72h`. Native pressure and timed stopping still apply;
+supervision once, then park with `--timeout 72h`. `execution_limits` still apply;
 a long park does not extend the commissioned budget.
 
 ## Validation targets and installs

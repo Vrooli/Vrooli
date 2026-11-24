@@ -141,9 +141,9 @@ do not invent an undisclosed checkpoint to satisfy provenance fields. Image
 Tools' normal lossless encoding can retain an owned PNG artifact; verify decoded
 pixel equality and keep the original generated output and encoding lineage.
 
-Use `image-tools.scene-preparation-stage` for bounded native stage submission,
-observation, cancellation, immutable preparation/review and optional Device
-Studio import. Retain its exact operation identity after an uncertain response.
+Use `image-tools.scene-preparation-stage` for bounded native stages, preparation
+review and optional Device Studio import. For `jobs get` → `jobs list`, run
+`program-runtime library run image-tools.scene-preparation-stage --input action=inspect-jobs --input job_id=<id> --input job_limit=10`; it verifies exact identity and caps recent jobs. Retain the ID after uncertain admission.
 The program does not choose acceptable masks, repair quality or scene motion.
 Preparation acceptance qualifies its stated source/geometry scope; it does not
 qualify a rendered camera move. Generated object meshes need an actual intake

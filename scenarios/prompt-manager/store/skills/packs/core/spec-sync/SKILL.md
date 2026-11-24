@@ -9,7 +9,7 @@ metadata:
   tags: ["skill"]
   icon: "refreshcw"
   status: "active"
-  defaultScope: "audit-scope"
+  defaultScope: "work-scope"
   revision: 1
   createdAt: "2026-02-16T00:00:00Z"
   updatedAt: "2026-02-16T00:00:00Z"
@@ -20,6 +20,8 @@ metadata:
     kind: "authored"
 ---
 ## Steer focus: Spec Sync
+
+**Scope mode: `audit`.** Hold to that row of `work-scope` for this session. Read-only: no source, config or test change; report findings.
 
 Synchronize **specification artifacts with actual implementation state** in `scenarios/{{TARGET}}/`, ensuring that PRD.md, requirements/, README.md, and docs/ accurately describe what the code does today.
 

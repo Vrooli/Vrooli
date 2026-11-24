@@ -39,7 +39,7 @@ import {
   Type,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Input } from '@/components/ui/input'
+import { Input } from "@vrooli/react-component-library/Input/1.3.6"
 import { toast } from '@/hooks/use-toast'
 import { useResizableSplitPanel } from '@/hooks/useResizableSplitPanel'
 import { useGlobalKeydown } from '@/hooks/useGlobalKeydown'
@@ -53,8 +53,8 @@ import { SkillContentEditor } from '../SkillContentEditor'
 import { FilePathMenu } from '../FilePathMenu'
 import { DropdownItem, ToolbarDropdown } from '../ToolbarDropdown'
 import { MarkdownRenderer } from '@/components/markdown'
-import { CopyIconButton } from '@vrooli/react-component-library/CopyIconButton/1.0.1'
-import { CollectionPage } from '@vrooli/react-component-library/CollectionPage/1.7.1'
+import { CopyIconButton } from '@vrooli/react-component-library/CopyIconButton/1.0.2'
+import { CollectionPage } from '@vrooli/react-component-library/CollectionPage/1.7.3'
 import { selectors } from '@/constants/selectors'
 
 interface TeamFilesTabProps {

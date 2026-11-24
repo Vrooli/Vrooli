@@ -40,6 +40,14 @@ func TestOrphanedSkills(t *testing.T) {
 	}
 }
 
+func TestOrphanedSkillsTreatsDeclaredReadinessRemediationAsInbound(t *testing.T) {
+	g := makeTestGraph()
+	g.Edges = append(g.Edges, Edge{From: "manifest:scenarios/deployment-manager/api/readiness/readiness-policy.json", To: "skill-z", Kind: EdgeDeclaredSkill})
+	if got := OrphanedSkills(g); len(got) != 0 {
+		t.Fatalf("declared remediation caller was ignored; orphan skills = %#v", got)
+	}
+}
+
 func TestSkilllessAgents(t *testing.T) {
 	g := makeTestGraph()
 	agents := SkilllessAgents(g)

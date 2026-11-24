@@ -9,12 +9,12 @@ metadata:
   tags: ["skill"]
   icon: "messagecircle"
   status: "active"
-  revision: 43
+  revision: 44
   createdAt: "2026-01-29T00:00:00Z"
-  updatedAt: "2026-02-04T13:13:54Z"
+  updatedAt: "2026-11-24T06:40:00Z"
   requires:
-    scenarios: ["git-control-tower", "prompt-manager", "swarm-manager", "vrooli"]
-    commands: ["git-control-tower", "prompt-manager work", "swarm-manager", "vrooli scenario"]
+    scenarios: ["git-control-tower", "prompt-manager", "swarm-manager", "app-issue-tracker", "vrooli", "program-runtime"]
+    commands: ["git-control-tower", "prompt-manager work", "swarm-manager", "vrooli scenario", "program-runtime library run"]
   origin:
     kind: "authored"
 ---
@@ -43,11 +43,8 @@ Mine commits, agent runs, backlog transitions, and issue resolutions from Vrooli
 
 ### **3. Prerequisites**
 
-Required scenarios (check with `vrooli scenario status`):
-- **git-control-tower** - commit history and audit logs
-- **agent-manager** - agent runs, events, costs
-- **swarm-manager** - backlog items and transitions
-- **app-issue-tracker** - issues and investigations
+Check the required scenarios in one bounded metadata-only call: `program-runtime library run program-runtime.supervision-sweep --input scenarios=git-control-tower,agent-manager,swarm-manager,app-issue-tracker`. Read `signals.scenarios` in request order; continue only for a complete row reporting `status=running` for each required scenario.
+Required sources: git-control-tower supplies commit history and audit logs, agent-manager supplies runs, events and costs, swarm-manager supplies backlog items and transitions, and app-issue-tracker supplies issues and investigations.
 
 Required reading (every run):
 - `docs/marketing/catalogs/post-types/text/dev-log.md` — type-level strategic canon (purpose, audience, conversion goal, voice rules, what→why framing, contrarian failure modes). **Load-bearing.**

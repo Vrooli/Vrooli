@@ -14,7 +14,7 @@
 // external-write threshold, which exists to name exactly which entries
 // crossed — keep it.
 //
-// DOC: docs/agent-system/TOPICS_SCHEMA.md
+// DOC: scenarios/prompt-manager/docs/internal/TOPICS_SCHEMA.md
 package memberflow
 
 import (

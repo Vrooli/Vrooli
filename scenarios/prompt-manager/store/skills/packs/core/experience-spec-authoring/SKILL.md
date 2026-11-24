@@ -10,7 +10,7 @@ metadata:
   topics: ["experience spec","ux contract","scenario experience","experience authoring","route experience","experience-manager"]
   icon: "layout-template"
   status: "active"
-  defaultScope: "architecture-scope"
+  defaultScope: "work-scope"
   revision: 3
   createdAt: "2026-07-05T00:00:00Z"
   updatedAt: "2026-10-25T00:00:00Z"
@@ -21,6 +21,8 @@ metadata:
     kind: "authored"
 ---
 # Experience Spec Authoring
+
+**Scope mode: `architecture`.** Hold to that row of `work-scope` for this session.
 
 ## Purpose
 

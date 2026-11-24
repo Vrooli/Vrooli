@@ -8,8 +8,7 @@ Environment variables and configuration options for prompt-manager.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `OLLAMA_ENABLED` | `false` | Enable skill testing through `resource-ollama gateway generate` |
-| `OLLAMA_GATEWAY_BIN` | `resource-ollama` | Gateway command used for Ollama-backed skill testing and AI search embeddings |
+| `OLLAMA_GATEWAY_BIN` | `resource-ollama` | Gateway command used for AI search embeddings |
 | `STORE_DIR` | `../store` | Path to the store directory containing skills, agents, teams, and relations |
 | `QDRANT_URL` | `http://localhost:6333` | Qdrant vector database URL for AI search |
 | `QDRANT_API_KEY` | (none) | API key for Qdrant authentication |
@@ -87,9 +86,9 @@ store/
 ```
 
 Store shapes are validated in Go, not by JSON Schema. `team.json` is enforced by
-[`api/teamcontract/contract.go`](../../api/teamcontract/contract.go); member
+[`api/internal/teamcontract/contract.go`](../../api/internal/teamcontract/contract.go); member
 `topics.json` and the operating-model contract by
-[`api/memberflow/`](../../api/memberflow/).
+[`api/internal/memberflow/`](../../api/internal/memberflow/).
 
 ### skill.json Format
 
@@ -165,27 +164,6 @@ Action commands should be argv-shaped and should not require shell parsing, pipe
 ```
 
 ## Optional Resources
-
-### Ollama (Skill Testing)
-
-Enable LLM-based skill testing:
-
-```bash
-# Install Ollama
-curl -fsSL https://ollama.ai/install.sh | sh
-
-# Pull a model
-ollama pull llama3.2
-
-# Enable gateway-backed skill testing
-export OLLAMA_ENABLED=true
-export OLLAMA_GATEWAY_BIN=resource-ollama
-```
-
-Test via CLI:
-```bash
-prompt-manager test run debugging --model=llama3.2
-```
 
 ### Qdrant (Semantic Search)
 

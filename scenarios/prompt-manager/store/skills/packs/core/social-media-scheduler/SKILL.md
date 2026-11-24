@@ -9,12 +9,12 @@ metadata:
   tags: ["skill","marketing","social-media","scheduling"]
   icon: "calendar"
   status: "active"
-  revision: 1
+  revision: 2
   createdAt: "2026-03-19T00:00:00Z"
-  updatedAt: "2026-03-19T00:00:00Z"
+  updatedAt: "2026-11-24T06:40:00Z"
   requires:
-    scenarios: ["vrooli"]
-    commands: ["vrooli scenario"]
+    scenarios: ["vrooli", "program-runtime"]
+    commands: ["vrooli scenario", "program-runtime library run"]
   origin:
     kind: "authored"
 ---
@@ -52,10 +52,7 @@ Schedule and manage content across multiple social media platforms with AI-power
 
 ### **2. Prerequisites**
 
-Check scenario status before use:
-```bash
-vrooli scenario status social-media-scheduler
-```
+Before use, run `program-runtime library run program-runtime.supervision-sweep --input scenarios=social-media-scheduler`; proceed only when the complete named row reports `status=running`.
 
 Required resources: PostgreSQL, Redis, MinIO, Ollama
 Optional: browser-automation-studio (for social verification screenshots)

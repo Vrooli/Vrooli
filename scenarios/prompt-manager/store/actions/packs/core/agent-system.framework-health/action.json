@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "agent-system.framework-health",
   "name": "Read Framework Health Sensors",
-  "description": "Run every framework-health sensor registered in docs/agent-system/FRAMEWORK_HEALTH.md and report each one's observed value against its deadband, with the actuator named for any sensor out of band. Covers operating-model contract validity, contract-mode coverage, graph/runtime drift, topic-flow declaration integrity, member-document conformance, prose/declaration coherence, cross-team coupling, and skill reachability. Read-only: it measures and reports, and changes nothing.",
+  "description": "Run every framework-health sensor registered in the audit collectors (`prompt-manager graph audit`) and report each one's observed value against its deadband, with the actuator named for any sensor out of band. Covers operating-model contract validity, contract-mode coverage, graph/runtime drift, topic-flow declaration integrity, member-document conformance, prose/declaration coherence, cross-team coupling, and skill reachability. Read-only: it measures and reports, and changes nothing.",
   "status": "active",
   "owner": {
     "type": "scenario",

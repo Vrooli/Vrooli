@@ -2,13 +2,10 @@ package store
 
 import (
 	"context"
-	"database/sql"
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 
-	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/filerouting"
 
 	// Registers the sqlite driver for every binary that links this package.
@@ -25,21 +22,19 @@ import (
 // FileStore is the seam between the three storage classes (Config,
 // RuntimeData, RuntimeCache) and the per-entity stores it composes. Each
 // per-entity store receives the class root it actually writes to: the index
-// store gets RuntimeCache; everything else (skills, actions, variants,
-// experiments, agents, teams, topics, relations) currently gets Config, with
+// store gets RuntimeCache; everything else (skills, actions,
+// agents, teams, topics, relations) currently gets Config, with
 // individual stores being retargeted to RuntimeData in later phases of the
 // runtime/config storage split (see docs/concepts/STORAGE_CLASSES.md).
 type FileStore struct {
-	roots       paths.Roots
-	skills      *FileSkillStore
-	actions     *FileActionStore
-	variants    *FileVariantStore
-	experiments ExperimentStore
-	agents      *FileAgentStore
-	teams       *FileTeamStore
-	topics      *FileTopicStore
-	relations   *FileRelationStore
-	indexes     *FileIndexStore
+	roots     paths.Roots
+	skills    *FileSkillStore
+	actions   *FileActionStore
+	agents    *FileAgentStore
+	teams     *FileTeamStore
+	topics    *FileTopicStore
+	relations *FileRelationStore
+	indexes   *FileIndexStore
 }
 
 // NewFileStore creates a new file-based store rooted at the given Roots.
@@ -63,24 +58,6 @@ func NewFileStore(roots paths.Roots, routedRoots ...*filerouting.RoutedRoots) (*
 		skillStore.scenarioRoots = []string{roots.ScenariosDir}
 		actionStore = NewRoutedFileActionStore(routedRoots[0])
 	}
-	variantStore := NewFileVariantStore(skillStore)
-	// Standalone store users (mostly unit tests) get a local RoutedDB. Runtime
-	// construction replaces this with the scenario database through
-	// SetExperimentStoreDatabase below before handlers are wired.
-	experimentDB, err := database.Open(context.Background(), database.Config{
-		Driver: database.DriverSQLite,
-		DSN:    filepath.Join(roots.RuntimeData, "store.sqlite"),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("open experiment database: %w", err)
-	}
-	if err := database.EnsureSchemas(context.Background(), experimentDB.Primary(), database.SchemaProviderFunc(ExperimentSchema)); err != nil {
-		return nil, fmt.Errorf("initialize experiment schema: %w", err)
-	}
-	experimentDB.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
-		return database.EnsureSchemas(ctx, pool, database.SchemaProviderFunc(ExperimentSchema))
-	})
-	experimentStore := NewSQLiteExperimentStore(experimentDB)
 	teamStore := NewFileTeamStore(roots.Config, roots.RuntimeData, relationStore, routedRoots...)
 	teamStore.repoRoot = roots.RepoRoot
 	agentStore := NewFileAgentStore(roots.Config)
@@ -97,28 +74,15 @@ func NewFileStore(roots paths.Roots, routedRoots ...*filerouting.RoutedRoots) (*
 	}
 
 	return &FileStore{
-		roots:       roots,
-		skills:      skillStore,
-		actions:     actionStore,
-		variants:    variantStore,
-		experiments: experimentStore,
-		agents:      agentStore,
-		teams:       teamStore,
-		topics:      topicStore,
-		relations:   relationStore,
-		indexes:     indexStore,
+		roots:     roots,
+		skills:    skillStore,
+		actions:   actionStore,
+		agents:    agentStore,
+		teams:     teamStore,
+		topics:    topicStore,
+		relations: relationStore,
+		indexes:   indexStore,
 	}, nil
-}
-
-// SetExperimentStoreDatabase replaces FileStore's experiment persistence with
-// the scenario-wide RoutedDB. It must be called during startup before handlers
-// are constructed, so experiment mutations share test-mode routing with every
-// other database-backed repository.
-func (s *FileStore) SetExperimentStoreDatabase(db *database.RoutedDB) {
-	if db == nil {
-		panic("experiment database is nil")
-	}
-	s.experiments = NewSQLiteExperimentStore(db)
 }
 
 // SetSourceLedger installs the shared source-ledger corpus client on the team
@@ -165,16 +129,6 @@ func (s *FileStore) Skills() SkillStore {
 // FileSkills returns the concrete file skill store (for adapters that need direct access)
 func (s *FileStore) FileSkills() *FileSkillStore {
 	return s.skills
-}
-
-// Variants returns the variant store
-func (s *FileStore) Variants() VariantStore {
-	return s.variants
-}
-
-// Experiments returns the experiment store
-func (s *FileStore) Experiments() ExperimentStore {
-	return s.experiments
 }
 
 // Agents returns the agent store
@@ -229,9 +183,7 @@ func ensureStoreDirectories(roots paths.Roots) {
 		filepath.Join(roots.Config, "topics"),
 		filepath.Join(roots.Config, "relations", "team-member"),
 	}
-	runtimeDataDirs := []string{
-		filepath.Join(roots.RuntimeData, "experiments"),
-	}
+	runtimeDataDirs := []string{}
 	cacheDirs := []string{
 		filepath.Join(roots.RuntimeCache, "indexes"),
 	}

@@ -88,3 +88,15 @@ Record fictional-data provenance in the report and share context. Respect the
 operator's rejection of persistent demo/mock badges. Narrow or omit a claim
 whose meaning would otherwise mislead. Reuse installed toolchains and write
 static build outputs only into the copied tree; no shared package provisioning.
+
+## Run HyperFrames as the managed host tool
+
+HyperFrames is a managed control-plane host tool (`internal/tools/hyperframes/README.md`).
+Use `vrooli host hyperframes` with complete local inputs and explicit Node, browser, FFmpeg
+and FFprobe identities, provisioned through SDA's `host-tool` surface
+(`docs/package-governance.md`), never raw package-manager installs, implicit `npx`
+downloads or scratch launchers. Qualify a tiny render, reuse and cancel, then a
+representative multi-video trial at the intended source dimensions before full films. A render
+receipt does not establish browser network isolation, so review local-only composition
+dependencies, and join the receipt and frozen snapshot per `plan-format.md`. Set
+`HYPERFRAMES_NO_TELEMETRY=1`; render locally, never on HyperFrames cloud, Lambda or Cloud Run.

@@ -1,6 +1,6 @@
 {
   "createdAt": "2026-01-30T13:13:00-05:00",
-  "defaultScope": "architecture-scope",
+  "defaultScope": "work-scope",
   "description": "Steers a scenario's API toward stable, proto-first, Connect-RPC contracts as the canonical entrypoint into its core logic, consumed by every UI, CLI, and other scenario through generated typed clients.",
   "entry": "SKILL.md",
   "id": "api-steer",

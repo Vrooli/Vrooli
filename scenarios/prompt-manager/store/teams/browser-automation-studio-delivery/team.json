@@ -1,4 +1,5 @@
 {
+  "archived": true,
   "coordination": {
     "pattern": "leader-led",
     "leadAgentId": "browser-automation-studio-orchestrator",
@@ -23,8 +24,8 @@
     "queuePolicy": "bounded-parallel",
     "maxConcurrentRuns": 3
   },
-  "id": "browser-automation-studio-delivery",
   "homePath": ".vrooli/work/delivery/browser-automation-studio-delivery",
+  "id": "browser-automation-studio-delivery",
   "instrument": {
     "status": "partial",
     "scenario": "agent-manager",
@@ -201,10 +202,10 @@
     }
   },
   "purpose": "delivery",
-  "revision": 11,
+  "revision": 12,
   "runtime": {
     "mode": "multi-process"
   },
   "schemaVersion": 1,
-  "updatedAt": "2026-10-24T03:15:34.545803Z"
+  "updatedAt": "2026-11-19T07:58:22Z"
 }

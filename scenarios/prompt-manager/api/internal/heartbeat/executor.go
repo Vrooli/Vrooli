@@ -319,15 +319,7 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 		}
 	}
 
-	contract := team.Contract()
-
-	// Build the prompt (single-process leader-led teams use Claude Code interop)
-	var prompt string
-	if teamconfig.UsesSingleProcessInterop(contract) {
-		prompt, err = e.promptBuilder.BuildTeamLeadPrompt(ctx, teamID, agentID, e.vrooliRoot)
-	} else {
-		prompt, err = e.BuildPrompt(ctx, teamID, agentID)
-	}
+	prompt, err := e.BuildPrompt(ctx, teamID, agentID)
 	if err != nil {
 		result.Error = fmt.Errorf("building prompt: %w", err)
 		result.Status = store.HeartbeatStatusFailed
@@ -410,7 +402,7 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 	// Environment carries VROOLI_PROMPT_MANAGER_ATTRIBUTION so the spawned
 	// agent's CLI inherits structured attribution and forwards it as the
 	// X-Vrooli-Attribution header on every API write (canon:
-	// docs/agent-system/RUNTIME_ATTRIBUTION.md § Env-var bridge).
+	// scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md § Env-var bridge).
 	runTag := fmt.Sprintf("heartbeat-%s-%s-%s", teamID, agentID, timestamp)
 	attribKey, attribValue := buildHeartbeatAttributionEnv(teamID, agentID)
 	// The idempotency key is derived from the durable dispatch attempt, so a

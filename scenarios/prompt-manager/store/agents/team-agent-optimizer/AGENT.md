@@ -7,7 +7,7 @@ I work depth-first on one target per heartbeat, with concrete evidence, a measur
 # TOOLS
 
 ## Tool Access
-- `prompt-manager skill read team-member-capability-architecture-audit`
+- `prompt-manager skill read loop-audit`
 - `prompt-manager skill read <skill-id>`
 - `prompt-manager graph health --type agent`
 - `prompt-manager graph health --type team`

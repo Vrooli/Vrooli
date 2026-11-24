@@ -39,14 +39,7 @@ def row(name, reading, unavailable=False, reason=None, sensor=None, target=None,
 
 
 def guarded(name):
-    """Wrap one sensor so a single failure becomes an unavailable row, not a failed board."""
-    sensor, call = SENSORS[name]
-    def run():
-        try:
-            return call()
-        except Exception as exc:
-            return exc
-    return run
+    return program.guarded(SENSORS[name][1])
 
 
 def step_validate():  # VALIDATE

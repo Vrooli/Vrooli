@@ -6,7 +6,7 @@
 // spends discovery budget on every call it loses. A raw read count cannot
 // distinguish that from a skill nobody needs.
 //
-// DOC: docs/agent-system/FRAMEWORK_HEALTH.md § Three reachability classes
+// DOC: docs/agent-system/SCENARIO_DEVELOPMENT.md § Retiring a scenario or capability (three reachability classes)
 package skills
 
 import (

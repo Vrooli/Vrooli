@@ -11,7 +11,7 @@ import (
 // exercised so any future field shape change breaks the test in the
 // kind-specific assertion that rendered the change visible.
 //
-// Pillar 3 contract: docs/agent-system/RUNTIME_ATTRIBUTION.md.
+// Pillar 3 contract: scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md.
 func TestKnowledgeEntry_RoundTrip_AllKindsPreserveFields(t *testing.T) {
 	memberID := "researcher"
 	teamID := "marketing-crew"
@@ -165,7 +165,7 @@ func TestKnowledgeEntry_RoundTrip_AllKindsPreserveFields(t *testing.T) {
 // fields might be present.
 //
 // If this test ever needs to allow `omitempty` on the pointer fields,
-// the canon contract has changed and docs/agent-system/RUNTIME_ATTRIBUTION.md
+// the canon contract has changed and scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md
 // must be updated alongside.
 func TestAttributionInfo_NilPointersMarshalAsNull(t *testing.T) {
 	a := AttributionInfo{
@@ -304,7 +304,7 @@ func TestSpawnOrigins_ConstantCoverage(t *testing.T) {
 // strings to the canon doc's vocabulary. Renaming a constant is a
 // migration; a casual rename here would silently break every legacy
 // entry's kind comparison. The exact wire strings live in
-// docs/agent-system/RUNTIME_ATTRIBUTION.md § kind enum.
+// scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md § kind enum.
 func TestKnowledgeKinds_StringValuesMatchCanon(t *testing.T) {
 	cases := map[string]string{
 		KnowledgeKindAgentMember:    "agent-member",

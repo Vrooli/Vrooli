@@ -22,7 +22,7 @@ metadata:
 ---
 ## Steer focus: Performance & Responsiveness
 
-> **Ladder position:** R3 (features hardened — performance/responsiveness). See `prompt-manager skill read scenario-maturity-ladder` for rung context and `prompt-manager skill read improvement-do-and-dont` for what counts as a real improvement.
+> **Ladder position:** R3 (features hardened — performance/responsiveness). See `prompt-manager skill read scenario-work-ladder` for rung context and `prompt-manager skill read improvement-do-and-dont` for what counts as a real improvement.
 
 Prioritize **runtime performance and perceived responsiveness** across this entire scenario.
 Do **not** break functionality or regress tests; all changes must maintain or improve completeness.

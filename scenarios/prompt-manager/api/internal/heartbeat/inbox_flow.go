@@ -6,7 +6,7 @@
 // + the taxonomy JSON sidecar). Skills, RESPONSIBILITIES.md, and
 // HEARTBEAT.md must NOT duplicate any content rendered here.
 //
-// DOC: docs/agent-system/INTAKE_PIPELINE.md
+// DOC: scenarios/prompt-manager/docs/internal/INTAKE_PIPELINE.md
 package heartbeat
 
 import (

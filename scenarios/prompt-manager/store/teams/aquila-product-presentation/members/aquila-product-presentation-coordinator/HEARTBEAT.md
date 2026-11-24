@@ -2,12 +2,12 @@
 
 Mission: Deliver a configurable Aquila bundle and app-specific marketing system while preserving Browser Automation Studio as a disabled, fully recoverable product profile; produce evidence-backed single-app, multi-app, Backdrop Studio, catalog, and recording-quality outcomes.
 
-Work model: existing phased Plan Manager execution. Start at `/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-configurable-product-presentation/README.md`.
-- `/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-configurable-product-presentation/handoffs/IMPLEMENTATION-CHECKPOINT.md`
-- `/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-configurable-product-presentation/handoffs/IMPLEMENTATION-PLAN.md`
-- `/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-configurable-product-presentation/findings/implementation-blueprint.md`
-- `/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-configurable-product-presentation/sources/IMPLEMENTATION-AUTHORIZATION.md`
-- `/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-configurable-product-presentation/requirements.json`
+Work model: existing phased Plan Manager execution. Start at `~/.vrooli/plan-artifacts/efforts/aquila-configurable-product-presentation/README.md`.
+- `~/.vrooli/plan-artifacts/efforts/aquila-configurable-product-presentation/handoffs/IMPLEMENTATION-CHECKPOINT.md`
+- `~/.vrooli/plan-artifacts/efforts/aquila-configurable-product-presentation/handoffs/IMPLEMENTATION-PLAN.md`
+- `~/.vrooli/plan-artifacts/efforts/aquila-configurable-product-presentation/findings/implementation-blueprint.md`
+- `~/.vrooli/plan-artifacts/efforts/aquila-configurable-product-presentation/sources/IMPLEMENTATION-AUTHORIZATION.md`
+- `~/.vrooli/plan-artifacts/efforts/aquila-configurable-product-presentation/requirements.json`
 
 ## Current recovery point
 

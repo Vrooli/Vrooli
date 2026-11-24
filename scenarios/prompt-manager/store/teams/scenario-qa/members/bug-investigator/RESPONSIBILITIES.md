@@ -13,7 +13,7 @@
 - [`docs/scenario-qa/README.md`](../../../../../../../docs/scenario-qa/README.md) — team plan-of-record overview; covers cross-team flow, member shape, work types.
 - [`docs/scenario-qa/taxonomies/bug-report/README.md`](../../../../../../../docs/scenario-qa/taxonomies/bug-report/README.md) — taxonomy: signal types, schemas, action-selection rules, evidence rules. Required reading before draining.
 - [`docs/scenario-qa/methods/investigation/README.md`](../../../../../../../docs/scenario-qa/methods/investigation/README.md) — technique registry; the Available Skills table below mirrors this.
-- [`docs/agent-system/INTAKE_PIPELINE.md`](../../../../../../../docs/agent-system/INTAKE_PIPELINE.md) — bug-inbox uses deterministic-prefix routing (no separate classifier skill); investigation includes classification as its first sub-step.
+- [`scenarios/prompt-manager/docs/internal/INTAKE_PIPELINE.md`](../../../../../docs/internal/INTAKE_PIPELINE.md) — bug-inbox uses deterministic-prefix routing (no separate classifier skill); investigation includes classification as its first sub-step.
 
 ## Available Skills
 

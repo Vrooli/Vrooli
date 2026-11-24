@@ -10,7 +10,7 @@ metadata:
   tags: ["measures","measures-go","measures-health","analytical-query","time-window","cqrs","event-log","read-model","manifest","measure-block","governance","auto-execution-gate","search-hub","analytics-product","semantic-parity","behavioral-probe","adoption","steer"]
   icon: "bar-chart"
   status: "active"
-  defaultScope: "architecture-scope"
+  defaultScope: "work-scope"
   programmaticHome: "measures-health:measures"
   revision: 4
   createdAt: "2026-06-08T00:00:00Z"
@@ -22,6 +22,8 @@ metadata:
     kind: "authored"
 ---
 ## Steer focus: Measures Adoption
+
+**Scope mode: `architecture`.** Hold to that row of `work-scope` for this session.
 
 Prioritize making analytical questions in `scenarios/{{TARGET}}/` answerable as declared, typed, parameterized Measures without changing the scenario's analytical meaning or degrading an existing operator analytics product. Build each Measure as a thin, auditable query over the scenario's authoritative analytical substrate.
 

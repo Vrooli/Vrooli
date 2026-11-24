@@ -112,7 +112,7 @@ Agent-maintained document tracking issues, debt, and cleanup history.
   helpers: `servertest.DecodeJSON` consumes fixture requests, whereas
   `apihttptest.MustDecodeJSON` consumes response bytes. PM's only remaining
   caller was its helper test. Removed the duplicate and changed that caller
-  to `apihttptest.MustDecodeJSON[T](t, recorder.Body.Bytes())`; kept the status and
+  to the generic `apihttptest.MustDecodeJSON` on `recorder.Body.Bytes()`; kept the status and
   decoded-value assertions. No forwarding wrapper, artificial request adapter,
   helper dependency or suppression was added. Updated `UNIT_TEST_ARCHITECTURE.md`
   to direct new response assertions to the shared implementation.

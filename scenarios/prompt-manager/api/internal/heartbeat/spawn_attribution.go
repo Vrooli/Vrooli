@@ -5,7 +5,7 @@
 // This file is the spawner-side mirror of
 // scenarios/prompt-manager/cli/internal/attribution — the CLI consumes the
 // env-var value verbatim as the X-Vrooli-Attribution HTTP header. The
-// canonical contract lives in docs/agent-system/RUNTIME_ATTRIBUTION.md
+// canonical contract lives in scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md
 // § Env-var bridge: VROOLI_PROMPT_MANAGER_ATTRIBUTION.
 //
 // Design rationale:

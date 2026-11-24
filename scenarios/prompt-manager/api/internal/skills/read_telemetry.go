@@ -12,7 +12,7 @@
 // returned often and read rarely is not popular — it is a search-precision
 // defect, and it costs discovery budget every time it is offered.
 //
-// DOC: docs/agent-system/FRAMEWORK_HEALTH.md § Three reachability classes
+// DOC: docs/agent-system/SCENARIO_DEVELOPMENT.md § Retiring a scenario or capability (three reachability classes)
 package skills
 
 import (

@@ -410,7 +410,7 @@
         }
       },
       "meta-contrarian": {
-        "lane": "Challenge stale, weak, or excessive open work items. Also this team's shape sensor: hold the team against the target model's deviation catalogue and report deviations; never restructure.",
+        "lane": "Challenge stale, weak, or excessive open work items. Also this team's shape sensor: hold the team against the deviation list in `docs/agent-system/STANDING_TEAMS.md` and report deviations; never restructure.",
         "allowedWrites": [
           {
             "kind": "knowledge"
@@ -607,7 +607,7 @@
     {
       "prefix": "framework-health-audit/YYYY-MM-DD",
       "status": "live",
-      "purpose": "Dated reading of every sensor in `path:docs/agent-system/FRAMEWORK_HEALTH.md` plus the findings that cycle produced, so framework health has a trend rather than a single current value."
+      "purpose": "Dated reading of every sensor `prompt-manager graph audit` collects plus the findings that cycle produced, so framework health has a trend rather than a single current value."
     },
     {
       "prefix": "team-visited/\u003cteam-id\u003e",

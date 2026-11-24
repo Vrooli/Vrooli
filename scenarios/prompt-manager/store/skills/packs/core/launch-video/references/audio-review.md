@@ -48,7 +48,7 @@ do not claim the new arrangement beat the reference.
 For the current Aquila brief, the operator liked all four original 110-second
 takes on 2026-10-29, with A preferred and C second. The source files, prompts,
 receipts and scoped feedback are retained in
-`path:/home/matthalloran8/.vrooli/research/topics/music-quality/runs/launch-instrumentals-20261029/README.md`.
+`~/.vrooli/research/topics/music-quality/runs/launch-instrumentals-20261029/README.md`.
 Use them as positive anchors, not guaranteed future output quality. Select a
 source long enough for the story and possible edits when feasible; repetition of
 a short source was explicitly reported as bland. Compare a complete candidate's
@@ -180,7 +180,7 @@ For this instrumental brief, explicitly request no singing, speech or vocal chop
 
 If several actual takes fail the listener’s brief, pause more prompt variations and audit the real model integration. Confirm the loaded checkpoint and planner, effective sampling settings, semantic-code generation and actual conditioning input. Separate correctness defects, supported tuning choices and an unproven model-quality ceiling. The October16 audit found that the wrapper’s default upstream random-seed mode ignored recorded requested seeds; large seeds also passed through a lossy float conversion. Historical requested seeds are not actual sampler provenance. A controlled comparison needs safe effective seeds and returned resolved evidence, with all other factors recorded. A resolved audio seed does not prove that the musical planner applied it. Trace the actual RNG consumer for each stochastic stage. Require matching returned semantic-code witnesses before attributing a same-brief sampler comparison to one changed parameter; differing witnesses make it confounded. The pinned single-item PyTorch planner ignored passed seeds even after the audio-seed flag was corrected, which the first live comparison exposed.
 
-Eight steps and guidance1 are expected for the inspected turbo model. Disabling caption rewriting does not disable its semantic-code planner. The supported timestep-shift default and a larger-model preset need real controlled comparison and listening; neither is an automatic quality pass. Count actual assembled tokenizer input before blaming truncation. Avoid new batch production until the next experiment tests a falsifiable cause. Root audit and pinned primary links: `path:/home/matthalloran8/.vrooli/plan-artifacts/efforts/video-toolchain-reliability-2026-10-16/research/music-ai-quality-audit.md`.
+Eight steps and guidance1 are expected for the inspected turbo model. Disabling caption rewriting does not disable its semantic-code planner. The supported timestep-shift default and a larger-model preset need real controlled comparison and listening; neither is an automatic quality pass. Count actual assembled tokenizer input before blaming truncation. Avoid new batch production until the next experiment tests a falsifiable cause. Root audit and pinned primary links: `~/.vrooli/plan-artifacts/efforts/video-toolchain-reliability-2026-10-16/research/music-ai-quality-audit.md`.
 
 
 ## Preferred local instrumental direction: Stable Audio 3
@@ -262,3 +262,53 @@ The October 29 follow-up added two fresh candidates that the operator liked as
 much as the initial four; the operator also confirmed that A works with the
 Aquila film pacing. Record this as a specific listening result, not publication
 approval or proof that every future generation will meet the same standard.
+
+## Launch-music bank commands
+
+The judged Music Library catalog is the launch-music bank. Reserve one liked, unused track with
+`music-library catalog reserve --purpose launch-video --project <project-id> --revision <revision-id> --consumer <stable-run-id>`
+and keep the reservation and consumer ids together. Audition the actual audio against the
+brief, commit as `draft` when bound to the current cut, release the lease if the cut is
+abandoned before commit, run `music-library catalog rollback --reservation <id> --consumer <id>`
+if abandoned after a draft commit, and mark accepted on delivery through the supported
+workflow. An explicit `--sha256` is a deliberate reuse decision, never an automatic fallback.
+The Music Tools pool is an unreviewed candidate queue and cannot supply a launch-ready track.
+Size the score to the edit with a practical buffer and record track and buffer in
+`audio-selection.md`. When the bank has no eligible track, or freshness is requested, read
+`music-tools styles default-get` and submit `music-tools compose --takes 3` (or a deliberate
+`--style <id>`), waiting with `music-tools jobs wait JOB_ID`. A generated take stays a
+candidate until its audio is reviewed and a listener likes it in Music Library; keep every
+candidate and receipt in `alternates/music/`. Describe the sound (rhythm, bass character,
+instruments), not the category; when a generator disappoints, read the prompt that reached
+the model, because a prompt-rewriter may have restated the brief toward the bland middle.
+If safe generation is unavailable, use licensed reuse or a disclosed silent timing rough,
+which is not the soundtrack deliverable.
+
+
+## Provenance sidecar and render lint
+
+For a portable, exact-hash audit across candidate banks, use the launch-video
+`music_bank.py` helper with a versioned manifest validated by
+`hype-bank.schema.json`. `audit` rehashes source WAVs and generation receipts,
+checks their Music Library paths/approvals, reports format and existing loudness
+measurements, preserves draft versus accepted use, and labels prompt BPM as intent
+rather than measured tempo. `query --tag launch-video --tag hype --approval liked
+--unused` filters the supplied Music Library export and the portable overlay;
+`unused` conservatively excludes any recorded use, including draft. `tag` writes a
+new exact-hash manifest revision with an explicit basis and never overwrites the
+current revision or mutates Music Library. A hype tag is editorial candidate
+taxonomy, not inferred operator feedback. Keep rights provenance and permitted
+scope explicit; a pass is private-assembly eligibility only and does not qualify
+public/commercial rights. For full exact-hash use, re-edit and regeneration policy,
+read `references/music-bank.md`.
+
+Before rendering a music-mode production, freeze exact inputs with
+`python3 scripts/workflow.py freeze <production.json> --out <snapshot> --music-bank
+<bank.json> --music-catalog <music-library-export.json> --music-selection
+<selection.json>`. This calls the same lint, refuses non-hype or ineligible hashes,
+requires `audio.source_sha256` and a WAV in `render_inputs` to match the exact
+selected hash, and snapshots the bank, catalog, selection and lint receipt alongside the media inputs.
+`workflow.py verify --snapshot <snapshot>` detects later mutation. The manifest
+remains an overlay and does not replace the Music Library supported
+reserve/commit/rollback/accept lifecycle; use its owner CLI for those durable
+state changes.

@@ -702,11 +702,11 @@ contract — `vrooli.prompt_manager.v1.graph.GraphService.GetHealthScores` — a
 returns the `(procedurePath, http.Handler)` pair mounted on the existing
 gorilla/mux router via `connectx.RegisterServices` in `api/main.go`. The handler
 (`api/graph/connect_handler.go`) owns no domain logic: it delegates to the same
-`graphIndexProvider` the REST `GET /api/v1/graph/health` handler reads and maps
-the domain `HealthScore`/`HealthMessage` onto their proto wire shapes.
+`graphIndexProvider` and maps the domain `HealthScore`/`HealthMessage` onto their
+proto wire shapes.
 
-This is **additive**: the legacy REST route stays live; prompt-manager's own
-CLI/UI are not migrated. The contract exists because
+The legacy REST `/api/v1/graph/*` routes are gone (their unrouted handlers were
+deleted 2026-11-15); the CLI reaches the graph through `GraphService`. The contract exists because
 meta-optimization-manager's Guide numerator consumes it as a typed
 `GraphServiceClient` over a discovery-resolved base URL (replacing a
 `prompt-manager graph health --json` CLI shell-out). Full proto/Connect adoption

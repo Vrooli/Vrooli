@@ -30,7 +30,6 @@ func TopicRuleCatalog() (RuleCatalog, error) {
 		runtime("drain_status_unavailable", SeverityWarning, "Drain status cannot be read, so intake health is unknown this cycle."),
 		runtime("topic_key_prefix_mismatch", SeverityWarning, "A live knowledge key does not match the prefix its member declares."),
 		runtime("topic_key_query_unavailable", SeverityWarning, "The knowledge key query failed, so prefix conformance is unknown this cycle."),
-		entry("prose_topic_leak", SeverityWarning, "Operator prose references an undeclared or impermissible topic."),
 		entry("member_doc_unreadable", SeverityError, "A required member document cannot be read."),
 		entry("member_doc_file_missing", SeverityError, "A required member document is absent."),
 		entry("member_doc_section_alias", SeverityError, "A member document uses an ambiguous section alias."),

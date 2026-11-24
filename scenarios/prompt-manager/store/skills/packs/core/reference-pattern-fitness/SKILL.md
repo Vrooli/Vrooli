@@ -23,18 +23,18 @@ metadata:
 
 Prioritize **whether an artifact intended to be copied is fit to be a copy source**.
 
-This lens applies only to a specific class of artifacts: templates (`path:templates/scenarios/<name>/`), reference scenarios registered in `docs/agent-system/REFERENCE_SCENARIOS.md`, and documented canonical examples inside scenarios (patterns marked "copy this for X" with a `REPLACING-X.md`-style guide).
+This lens applies only to a specific class of artifacts: templates (`path:templates/scenarios/<name>/`), reference scenarios registered in `scenarios/meta-optimization-manager/docs/reference/REFERENCE_SCENARIOS.md`, and documented canonical examples inside scenarios (patterns marked "copy this for X" with a `REPLACING-X.md`-style guide).
 
-Do **not** apply this lens to regular feature code in production scenarios — multiplier framing produces noise there. Use the relevant single-instance lens (`refactor`, `screaming-architecture-audit`, `decision-boundary-extraction`, etc.) instead.
+Do **not** apply this lens to regular feature code in production scenarios — multiplier framing produces noise there. Use the relevant single-instance lens (`refactor`, `architecture-lenses`, etc.) instead.
 
 This lens **runs after** the relevant single-instance lenses on the same artifact, not instead of them. Multiplier-framed findings are only correct given that the artifact is otherwise structurally sound.
 
 Required reading:
 
-- `docs/agent-system/REFERENCE_PATTERN_FITNESS.md` — strategic-canon home: when this lens applies, when it backfires, what the meta-contrarian challenges, the four sub-lenses, the worked example.
-- `docs/agent-system/REFERENCE_SCENARIOS.md` — registry of templates and references; confirm `{{TARGET}}` is registered before running this lens.
+- `scenarios/meta-optimization-manager/docs/reference/REFERENCE_PATTERN_FITNESS.md` — strategic-canon home: when this lens applies, when it backfires, what the meta-contrarian challenges, the four sub-lenses, the worked example.
+- `scenarios/meta-optimization-manager/docs/reference/REFERENCE_SCENARIOS.md` — registry of templates and references; confirm `{{TARGET}}` is registered before running this lens.
 - `prompt-manager skill read knowledge-observatory-tools` — typed knowledge integration; findings land under `template-fitness-audit/<artifact-slug>/<YYYY-MM-DD>`.
-- The single-instance lens(es) appropriate to `{{TARGET}}` — the auditor selects from `path:docs/scenario-qa/methods/audit/`. For CRUD-template audits: `screaming-architecture-audit`, `decision-boundary-extraction`, `utils-unification` are typical prerequisites.
+- The single-instance lens(es) appropriate to `{{TARGET}}` — the auditor selects from `path:docs/scenario-qa/methods/audit/`. For CRUD-template audits: `architecture-lenses`, `utils-unification` are typical prerequisites.
 
 ---
 
@@ -43,7 +43,7 @@ Required reading:
 Verify `{{TARGET}}` qualifies for this lens before doing any work:
 
 - Is `{{TARGET}}` a path under `path:templates/scenarios/`?
-- Is `{{TARGET}}` registered in `docs/agent-system/REFERENCE_SCENARIOS.md`?
+- Is `{{TARGET}}` registered in `scenarios/meta-optimization-manager/docs/reference/REFERENCE_SCENARIOS.md`?
 - Is `{{TARGET}}` a documented canonical example (e.g., a `REPLACING-X.md` guide exists describing it as "copy this for the first real X")?
 
 If **none** of the above hold, **stop**. Reroute to the relevant single-instance lens. The lens is wrong for regular feature code in production scenarios — using it there produces premature substrate findings and speculative-multiplier noise.
@@ -56,14 +56,14 @@ If `{{TARGET}}` qualifies, capture which category it falls into (template / refe
 
 The auditor selects the lens(es) appropriate to `{{TARGET}}` from `path:docs/scenario-qa/methods/audit/`:
 
-- `screaming-architecture-audit` — for any artifact with non-trivial structure
-- `boundary-of-responsibility-enforcement` — for artifacts mixing presentation/coordination/domain/integration
-- `seam-discovery-and-enforcement` — for artifacts with hard-to-test variation points
-- `decision-boundary-extraction` — for artifacts with branching/strategy logic
+- `architecture-lenses` — for any artifact with non-trivial structure
+- `architecture-lenses` — for artifacts mixing presentation/coordination/domain/integration
+- `architecture-lenses` — for artifacts with hard-to-test variation points
+- `architecture-lenses` — for artifacts with branching/strategy logic
 - `utils-unification` — for artifacts with shared logic that may have drifted
 - `cognitive-load-reduction` — for artifacts that are hard to read or navigate
 - `code-cleanup` — for artifacts accumulating dead code or stale TODOs
-- `invariant-discovery-and-enforcement` — for artifacts with implicit critical conditions
+- `architecture-lenses` — for artifacts with implicit critical conditions
 
 Produce findings under their respective typed audit records before this lens runs. The audit record for *this* lens (step 9) cites the prerequisite single-instance findings — without that citation, the multiplier findings rest on unverified ground and the meta-contrarian will block the proposal.
 
@@ -215,7 +215,7 @@ The lens does **not** produce code changes directly. Code changes flow through P
 
 ### **12. What This Lens Is Not**
 
-- **Not a single-instance code-quality audit.** Use `refactor`, `screaming-architecture-audit`, etc. for those.
+- **Not a single-instance code-quality audit.** Use `refactor`, `architecture-lenses`, etc. for those.
 - **Not a green-light to do substrate work without the third-repetition trigger.** Findings flag candidates; substrate work needs its own decision.
 - **Not applicable to feature code in production scenarios.** Stop at step 1 if the artifact doesn't qualify.
 - **Not a substitute for `scenario-auditor` / `test-genie` / `tidiness-manager`.** The standard tooling gates remain primary; this is the longer-cadence companion.

@@ -221,7 +221,7 @@ func extractCycle(path []string, target string) []string {
 // isSkillEdge returns true for edge kinds that represent skill references.
 func isSkillEdge(kind EdgeKind) bool {
 	switch kind {
-	case EdgeCLIRead, EdgeBoldListed, EdgeDefaultScope, EdgePathRef:
+	case EdgeCLIRead, EdgeBoldListed, EdgeDefaultScope, EdgePathRef, EdgeDeclaredSkill:
 		return true
 	default:
 		return false

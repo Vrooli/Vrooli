@@ -75,11 +75,11 @@ justified, and whether delivery and supervision are worth their total cost. It
 normally addresses the orchestrator, not the orchestrator's workers. It does not
 replace Director Swarm, change the accepted destination, or obtain authority
 from being called a supervisor. See the
-[supervision ownership contract](../../../../docs/agent-system/EFFORT_SUPERVISION.md#responsibilities-and-ownership).
+[supervision ownership contract](../../../../docs/agent-system/EFFORT_SUPERVISION.md).
 
 The department analogy does not mean "one team per objective." Objectives and
 teams are many-to-many; a distinct regulated domain, cadence, and failure mode
-justify a team. See [the target model](../../../../docs/agent-system/TARGET_MODEL.md#6-objectives-teams-and-members).
+justify a team. See [the target model](../../../../docs/agent-system/STANDING_TEAMS.md).
 
 ### Keep purpose, lifetime, authority, and execution separate
 
@@ -102,7 +102,7 @@ from diagnostic admission. Reconcile any existing repair assignment before
 dispatch and verify useful progress after recovery. Permission to coordinate
 owner recovery does not authorize the supervisor to edit source or effort files;
 its declared member write boundaries still apply. Follow
-[work routing and fallback](../../../../docs/agent-system/SWARM_MANAGER_WORK.md)
+[work routing and fallback](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md#work-shapes)
 for already-authorized work when a transitional execution route requires a
 human interaction; never fabricate an approval or bypass an actual denial.
 
@@ -399,7 +399,7 @@ Team: Review Squad
 
 ## Swarm Manager Integration: The Staging Layer
 
-Teams do not execute their plans directly. Instead, the member that found a signal files it once into the unified `swarm-manager` stream: raw observations use `swarm-manager captures create`, while shaped outcomes use `swarm-manager backlog create`. Material implementation work is then shaped through Plan Manager and receives one canonical `plan_ref`. The plan has a **shape**, `phased` or `mandate`, defined in [Scenario development](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md#grant-plan-shape-and-execution-mode). The operator grants the item and picks an **execution mode** in the Run dialog: `sliced` (one bounded worker run per slice with an independent review, through the `phased-plan-drain` workflow) or `goal` (one Agent Manager run that carries the finish line as a harness goal). Any shape runs under either mode. After execution, Swarm **finalization** restarts the scenario, checks health, gathers evidence, runs the review agent, and sets the item to done, needs_review, or follow-up. The operator disposition is read later with `swarm-manager backlog list --actor-id=<verified-profile-key>` and `swarm-manager backlog get`.
+Teams do not execute their plans directly. Instead, the member that found a signal files it once into the unified `swarm-manager` stream: raw observations use `swarm-manager captures create`, while shaped outcomes use `swarm-manager backlog create`. Material implementation work is then shaped through Plan Manager and receives one canonical `plan_ref`. The planned Plan Manager **shape** field (`phased` or `mandate`) is defined in [Scenario development](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md#grant-shape-and-mode); that field is not implemented, so current plans are phased. The operator grants the item and picks a supported **execution mode** in the Run dialog: `sliced` (one bounded worker run per slice with an independent review, through the `phased-plan-drain` workflow) or `goal` (one Agent Manager run that carries the finish line as a harness goal). Either mode is supported today; either plan shape is intended to use either mode when shape lands. After execution, Swarm **finalization** restarts the scenario, checks health, gathers evidence, runs the review agent, and sets the item to done, needs_review, or follow-up. The operator disposition is read later with `swarm-manager backlog list --actor-id=<verified-profile-key>` and `swarm-manager backlog get`.
 
 ```
 prompt-manager (teams analyze)          swarm-manager (staging/review)
@@ -407,7 +407,7 @@ prompt-manager (teams analyze)          swarm-manager (staging/review)
 │  Feature Team  → idea    │──┐         │ Backlog item + outcome       │
 │  QA Team       → fix     │──┼────────▶│          ↓                   │
 │  Other owner  → evidence │──┘         │ Plan Manager plan_ref        │
-└──────────────────────────┘            │   shape: phased | mandate    │
+└──────────────────────────┘            │   planned shape: phased | mandate │
                                         │          ↓                   │
                                         │ Operator grant + mode        │
                                         │   ├ sliced (workflow)        │
@@ -426,11 +426,11 @@ prompt-manager (teams analyze)          swarm-manager (staging/review)
 - Execution governance (manual/scheduled/yolo) controls when approved work runs
 - Plans are git-tracked, human-readable, and editable before committing to execution
 
-**Implementation status.** The backlog item today carries `execution_strategy`
-with the values `phased-plan-drain`, `adaptive-improvement`, and `goal-session`;
-the plan `shape` field does not exist yet. The interim mapping to the target
-vocabulary is in
-[SCENARIO_DEVELOPMENT.md](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md#implementation-status).
+**Implementation status (2026-11-16).** Swarm backlog items persist
+`execution_mode` (`sliced` by default or `goal`) and `operator_note`; goal mode
+starts one Agent Manager goal run. Plan Manager's `shape` field does not yet
+exist, so current plans are phased. See the canonical
+[implementation status](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md#implementation-status).
 
 Actions do not replace this staging layer. If a missing operation needs new scenario/resource/project behavior, the correct output is still a backlog item or `capability-work`. Once the CLI behavior exists and is stable, an Action can wrap it for future execution.
 
@@ -445,13 +445,7 @@ See the [swarm-manager work-authoring skill](../../store/skills/packs/core/swarm
 
 ## Coordination Skills
 
-Teams inject coordination guidance into agent prompts via dedicated skills. The resolved `coordination.pattern` determines which skill is referenced:
-
-| Coordination Pattern | Skill | Purpose |
-|----------------------|-------|---------|
-| `independent` | `team-coordination-independent` | Specialist-first execution with minimal coordination overhead |
-| `peer` | `team-coordination-peer` | Lateral coordination between teammates without a standing lead |
-| `leader-led` | `team-coordination-leader-led` | Explicit lead/report structure with delegated work and synthesis |
+Teams inject coordination guidance into agent prompts through the single `team-coordination` skill, which covers the `independent`, `peer` and `leader-led` patterns (the resolved `coordination.pattern` is named in the generated Operating Policy).
 
 Runtime mode and queue policy are resolved separately from coordination pattern:
 - `runtime.mode` decides whether the team runs as separate heartbeat processes or as a single Claude Code leader session.

@@ -5,10 +5,9 @@ import type { TeamDetails } from '@/types/team'
 import * as teamService from '@/services/teamService'
 import { TeamListPanel } from './TeamListPanel'
 
-vi.mock('@/services/teamService', () => ({ getTeams: vi.fn(), createTeam: vi.fn(), exportClaudeCodeTeam: vi.fn() }))
+vi.mock('@/services/teamService', () => ({ getTeams: vi.fn(), createTeam: vi.fn() }))
 vi.mock('@/stores/graphStore', () => ({ useGraphStore: { getState: () => ({ fetchHealthScores: vi.fn() }) } }))
 vi.mock('@/components/markdown/MarkdownRenderer', () => ({ MarkdownRenderer: () => null }))
-vi.mock('./CCTeamImportModal', () => ({ CCTeamImportModal: () => null }))
 function makeTeam(id: string, displayName: string, overrides: Partial<TeamDetails> = {}): TeamDetails {
   return {
     ...buildDefaultCreateTeamRequest(displayName),

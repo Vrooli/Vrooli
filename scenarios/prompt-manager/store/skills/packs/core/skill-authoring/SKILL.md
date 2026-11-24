@@ -1,6 +1,6 @@
 ---
 name: "skill-authoring"
-description: "Authoring guide for Steer skills: the {{TARGET}} placeholder rule, the steer opening template, and the maturity-source requirement for audit-shaped steer skills."
+description: "Authoring guide by skill kind: steer ({{TARGET}} rule, opening template, maturity source), practice, tools, platform, search and meta. Universal quality bars live in docs/agent-system/SKILL_AUTHORING.md."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
@@ -9,9 +9,9 @@ metadata:
   tags: ["skill","authoring"]
   icon: "fileedit"
   status: "active"
-  revision: 45
+  revision: 46
   createdAt: "2026-01-23T00:00:00Z"
-  updatedAt: "2026-10-20T00:00:00Z"
+  updatedAt: "2026-11-20T00:00:00Z"
   requires:
     scenarios: ["prompt-manager"]
     commands: ["prompt-manager"]
@@ -20,88 +20,47 @@ metadata:
 ---
 ## Meta focus: Skill Authoring
 
-Steer-specific authoring guidance. Universal authoring quality bars (intent statement, boundaries, convergence patterns, output expectations, troubleshooting section, anti-gaming, memory loop, registration) live in canon and are not restated here.
+Kind-specific authoring guidance. The universal quality bars (intent statement, boundaries, convergence patterns, troubleshooting section, anti-gaming, registration, the promotion ladder) are owned by `docs/agent-system/SKILL_AUTHORING.md`; cite them, never restate them (R7). A skill carries judgment a tool cannot hold, stays short, and names the friction it removes (R10).
 
-Required reading:
-- `docs/agent-system/SKILL_AUTHORING.md` — universal quality bars and authoring principles
-- `docs/agent-system/PRIMITIVES.md` — what skills are vs. agents / teams / Actions / CLIs
+Pick the kind from `modes[0]` and apply only its section.
 
----
+### Steer (`modes[0] = "steer"`)
 
-### 1. Category Scope
+Steers how one scenario is built or improved.
 
-In scope:
-- Authoring guidance unique to Steer skills (the `{{TARGET}}` rule, the steer opening template).
-
-Out of scope:
-- Universal authoring quality bars (`docs/agent-system/SKILL_AUTHORING.md`).
-- Per-category specifics for non-Steer categories (their own `skill-authoring-<category>` skills).
-- The promotion ladder and the layering rule (`docs/agent-system/PROMOTION_LADDER.md`, `docs/agent-system/LAYERS.md`).
-
----
-
-### 2. When to use this skill
-
-Use when authoring or updating a **Steer** skill (`modes[0] = "steer"`) — i.e., a skill that steers how some `path:scenarios/<scenario>/` is built or improved. For other categories use `skill-authoring-{platform,search,tools,practice,meta}`; for `contract` skills use `docs/agent-system/SKILL_AUTHORING.md` §"Contract skills: machine-invoked workflow prompts".
-
----
-
-### 3. Steer skills must target a specific scenario
-
-**Steer skills are always focused on a single scenario via the `{{TARGET}}` placeholder.** This is a hard requirement for all steer-mode skills.
-
-The `{{TARGET}}` placeholder gets substituted with the actual scenario name when the skill is applied. This ensures:
-
-- File paths reference the correct scenario (e.g., `scenarios/{{TARGET}}/ui/`, `scenarios/{{TARGET}}/api/`).
-- Audit commands search the right directories.
-- Documentation is written to the scenario's docs folder.
-- The agent stays focused on one scenario rather than making sweeping cross-repo changes.
-
-**Where to use `{{TARGET}}`:**
-
-- File paths: `scenarios/{{TARGET}}/ui/src/`
-- Audit commands: `rg "pattern" scenarios/{{TARGET}}/`
-- Documentation paths: `scenarios/{{TARGET}}/docs/internal/`
-- `visited-tracker` commands: `--location scenarios/{{TARGET}}`
-
----
-
-### 4. Steer-specific opening template
+- Always focus on one scenario through the `{{TARGET}}` placeholder: file paths (`scenarios/{{TARGET}}/ui/src/`), audit commands, documentation paths, `visited-tracker --location scenarios/{{TARGET}}`. Never hardcode a scenario name.
+- Open with the template below. Its first sentence answers "if I only read this, what would I prioritize?"
 
 ```markdown
 ## Steer focus: <Skill Name>
 
-Prioritize **<one-sentence outcome>** in `scenarios/{{TARGET}}/<area>/` with <specific posture / quality bar>.
+Prioritize **<one-sentence outcome>** in `scenarios/{{TARGET}}/<area>/` with <posture / quality bar>.
 
 Your goal is to <what changes>, rather than <what to avoid>.
 ```
 
-The first sentence answers: "If I only read this sentence, what would I prioritize?" (Per the universal intent-statement rule in `docs/agent-system/SKILL_AUTHORING.md`.)
+- Audit-shaped steer skills follow the destination-over-direction pattern owned by `SKILL_AUTHORING.md` (§"Destination over direction: maturity sources for audit-shaped skills"); apply it and restate none of it.
+- Declare `modes[0] = "steer"` in the `SKILL.md` frontmatter. Regenerate `skill.json` with `skill-sidecar-gen`; do not edit the sidecar.
 
----
+### Practice (`modes[0] = "practice"`)
 
-### 5. Steer-specific output expectations
+A repeatable methodology for a class of problems, applied to any codebase: no `{{TARGET}}`.
 
-When authoring or updating a Steer skill, you may:
+- Give the approach and its decision points. Use phases with entry and exit criteria only when they help.
+- Make it falsifiable: at least one point where a hypothesis is rejected and the flow routes back, not only forward. Choose the convergence form that fits (feedback loop, parallel tracks that synthesize, triage branches, condition table, exit checklist).
+- Retain evidence where the work already keeps it; no mandatory paperwork per application.
+- End with an anti-pattern table (`Anti-pattern | Why it fails | Better`) of this method's characteristic mistakes.
 
-- Add or update Steer skill files in `path:scenarios/prompt-manager/store/skills/packs/core/<skill-id>/`.
-- Create new Steer skill directories for genuinely new mental models (per the sprawl check in `docs/agent-system/SKILL_AUTHORING.md`).
+### Tools (`modes[0] = "tools"`)
 
-You **must:**
+How to use one tool, resource or scenario safely: prerequisites, safe defaults, key commands, verification, guardrails (never bypass lifecycle tooling, never mutate shared resources unverified). Keep the long tail under one section named exactly `Troubleshooting & Edge Cases`. A repeated troubleshooting entry becomes a CLI or tool improvement, not more prose. Reference content that `--help` already carries is deleted, not summarized. Scenario usage skills (decision tree, rung-labelled leaves, learning spine, in-use settings table) are covered in `scenario-skill-setup`. The long-form tools guide is `skill-authoring-tools`.
 
-- Include `{{TARGET}}` in file paths, audit commands, and documentation paths.
-- Cite canon (`docs/agent-system/<file>.md`) instead of restating universal quality bars.
-- Set `metadata.modes[0] = "steer"` in the authoritative `SKILL.md` frontmatter. Regenerate `skill.json` with `skill-sidecar-gen`; do not edit the generated sidecar.
+### Platform, search, meta
 
-You **must NOT:**
+- **Platform** (shared packages and contracts): compatibility first, additive by default, say what downstream consumers must run.
+- **Search** (where to find information): name the source of truth, the query that reaches it, and when to stop searching.
+- **Meta** (governing the skill system): state the decision the skill changes; do not add a rule a tool can enforce.
 
-- Hardcode scenario names in steer skills — always use `{{TARGET}}`.
-- Restate the universal authoring quality bars (intent statement, boundaries, etc.) — those live in `docs/agent-system/SKILL_AUTHORING.md`.
+### Before you add a skill
 
----
-
-### 6. Maturity-source requirement for audit-shaped steer skills
-
-Audit-shaped steer skills — as defined in `docs/agent-system/SKILL_AUTHORING.md` §"Destination over direction: maturity sources for audit-shaped skills" — **must** follow the destination-over-direction pattern. That section owns the four mandatory ingredients, the canonical exemplars, the provider-backed rules, and the greenfield exemption; apply it directly and restate none of it in the authored skill.
-
-No known operational edge cases for standard usage.
+Check for sprawl first: if an existing skill's job is nearly the same, extend or merge it. A new skill needs the friction it removes and the second occurrence that justifies it (R10). Judge the result with `skill-validation`.

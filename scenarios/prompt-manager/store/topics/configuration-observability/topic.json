@@ -6,8 +6,8 @@
   "description": "Configuration and observability: designing tunable control surfaces and levers, the signal and feedback surfaces that make behavior visible and steerable, and the measures (named, typed, parameterized analytical queries) a scenario declares so its persisted state is queryable and answerable — adding measures to a scenario, grading measure coverage, analytical-query adoption.",
   "parentTopicId": "development",
   "skills": [
-    "control-surface-tunable-levers-design",
-    "signal-and-feedback-surface-design",
+    "architecture-lenses",
+    "resilience-lenses",
     "measures-adoption"
   ],
   "status": "active",

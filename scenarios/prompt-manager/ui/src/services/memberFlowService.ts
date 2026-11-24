@@ -11,8 +11,8 @@
  * - PUT    /teams/{id}/knowledge/{knowledgeId}                    (promote: retag)
  * - DELETE /teams/{id}/knowledge/{knowledgeId}                    (drop)
  *
- * DOC: docs/agent-system/TOPICS_SCHEMA.md
- *      docs/agent-system/INTAKE_PIPELINE.md
+ * DOC: scenarios/prompt-manager/docs/internal/TOPICS_SCHEMA.md
+ *      scenarios/prompt-manager/docs/internal/INTAKE_PIPELINE.md
  */
 
 import { buildApiUrl } from '@vrooli/api-base'

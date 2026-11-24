@@ -415,7 +415,7 @@
         }
       },
       "monetization-contrarian": {
-        "lane": "Challenge monetization proposals against the seven failure modes and channel-activation guardrail; make skepticism visible without creating positive proposals. Also this team's shape sensor: hold the team against the target model's deviation catalogue and report deviations; never restructure.",
+        "lane": "Challenge monetization proposals against the seven failure modes and channel-activation guardrail; make skepticism visible without creating positive proposals. Also this team's shape sensor: hold the team against the deviation list in `docs/agent-system/STANDING_TEAMS.md` and report deviations; never restructure.",
         "allowedWrites": [
           {
             "kind": "knowledge"

@@ -506,6 +506,8 @@ def main():
     v.add_argument('--historical',action='store_true',help='Explicitly inspect a retained version-1/2 production')
     s=sub.add_parser('shots',help='Retrieve at most four shot recipes by intent')
     s.add_argument('intent');s.add_argument('--limit',type=int,default=4)
+    g=sub.add_parser('gate',help='Run LV3 exact-export checks with production and frozen cue plans')
+    g.add_argument('video',type=Path);g.add_argument('--plan',type=Path,required=True);g.add_argument('--cues',type=Path,required=True);g.add_argument('--out',type=Path,required=True)
     i=sub.add_parser('inspect',help='Decode, probe, and sample an exported file into a new directory')
     i.add_argument('video',type=Path);i.add_argument('--out',type=Path,required=True);i.add_argument('--at',default='')
     i.add_argument('--cuts',default='',help='Comma-separated cut times; samples before/on/after each cut')
@@ -520,6 +522,12 @@ def main():
             print(json.dumps({'stage':args.stage,'status':'fail' if errors else 'pass','errors':errors,
                               'limit':'Structural/media checks only; creative and factual review remain required.'},indent=2))
             return bool(errors)
+        if args.command=='gate':
+            from export_gates import run as run_export_gates
+            r=run_export_gates(args.video,args.plan,args.cues,args.out)
+            print(json.dumps({'status':r['status'],'results':r['results'],
+                              'receipt':str(args.out/'export-gates.json')},indent=2))
+            return 0 if r['status']=='pass' else 2
         if args.command in ('shots', 'examples'):
             if not 1 <= args.limit <= 12: raise ValueError('limit must be 1–12')
             catalog=json.loads((SKILL/'references'/('shots.json' if args.command == 'shots' else 'examples.json')).read_text())

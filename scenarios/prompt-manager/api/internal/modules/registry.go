@@ -7,7 +7,6 @@ import (
 	"prompt-manager/internal/skills"
 	"prompt-manager/internal/store"
 	"prompt-manager/internal/tags"
-	"prompt-manager/internal/testing"
 
 	"github.com/vrooli/api-core/database"
 )
@@ -19,8 +18,6 @@ func AllSchemas() []database.SchemaProvider {
 		database.SchemaProviderFunc(skillreads.Schema),
 		database.SchemaProviderFunc(objectives.Schema),
 		database.SchemaProviderFunc(tags.Schema),
-		database.SchemaProviderFunc(testing.Schema),
-		database.SchemaProviderFunc(store.ExperimentSchema),
 		database.SchemaProviderFunc(store.HeartbeatAttemptPublicationSchema),
 	}
 }

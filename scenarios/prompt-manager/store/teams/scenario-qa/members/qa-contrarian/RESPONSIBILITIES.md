@@ -26,7 +26,7 @@
 
 You are this team's shape sensor. A loop cannot restructure itself, but it is the only thing that can observe its own error — so noticing belongs here and the restructure does not.
 
-Read `path:docs/agent-system/TARGET_MODEL.md` §9 (the deviation catalogue) and hold this team against it. Fold it into your challenge lifecycle rather than spending a heartbeat on it.
+Read `path:docs/agent-system/STANDING_TEAMS.md` "Reporting what moved" and hold this team against it. Fold it into your challenge lifecycle rather than spending a heartbeat on it.
 
 Check, in this order, and stop at the first one that fires:
 

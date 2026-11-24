@@ -28,7 +28,7 @@ This skill supports the operator's stated intent: “we should be pointing a lar
 
 Use this method for model-role, retrieval, modality, desktop startup, and other repeatable performance or quality comparisons. Keep product acceptance criteria with the target owner. Use `local-experimentation` when a choice is expensive to reverse and needs controlled comparison; this skill governs the reusable unattended acquisition-to-cleanup lifecycle. Do not use this method to justify paid inference, unapproved terms, source-data deletion, or work beyond the active authority.
 
-The LM6 target is a durable `optimize` program in Program Runtime with target adapters. The first adapter covers model roles; the second covers desktop startup and DP1. LM8, LM10, and LM11 route through that same engine. The complete destination and showcase live in `/home/matthalloran8/.vrooli/research/topics/local-model-performance/MISSION.md` under LM6. This skill supplies judgment; it does not claim that the program or either adapter has executed.
+The LM6 target is a durable `optimize` program in Program Runtime with target adapters. The first adapter covers model roles; the second covers desktop startup and DP1. LM8, LM10, and LM11 route through that same engine. The complete destination and showcase live in `~/.vrooli/research/topics/local-model-performance/MISSION.md` under LM6. This skill supplies judgment; it does not claim that the program or either adapter has executed.
 
 ### 1. Define the comparison
 

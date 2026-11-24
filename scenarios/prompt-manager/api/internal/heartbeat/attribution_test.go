@@ -145,7 +145,7 @@ func TestValidateAttribution_AgentMemberMissingFields(t *testing.T) {
 		{
 			// run_id is strict for non-heartbeat origins; the rule is
 			// relaxed only for spawn_origin=heartbeat (see
-			// docs/agent-system/RUNTIME_ATTRIBUTION.md § Env-var bridge).
+			// scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md § Env-var bridge).
 			name: "missing run_id with non-heartbeat origin",
 			info: store.AttributionInfo{
 				Kind:        store.KnowledgeKindAgentMember,

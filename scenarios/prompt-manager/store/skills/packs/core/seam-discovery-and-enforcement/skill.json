@@ -1,6 +1,6 @@
 {
   "createdAt": "2025-01-15T00:00:00Z",
-  "description": "Find and strengthen module boundaries and integration points",
+  "description": "Merged into architecture-lenses (\u00a72 Seam discovery); read that.",
   "entry": "SKILL.md",
   "icon": "scissors",
   "id": "seam-discovery-and-enforcement",
@@ -10,7 +10,7 @@
     "steer",
     "architecture"
   ],
-  "name": "Testing Seam Discovery \u0026 Enforcement",
+  "name": "Testing Seam Discovery & Enforcement",
   "origin": {
     "kind": "authored"
   },
@@ -23,12 +23,12 @@
       "prompt-manager"
     ]
   },
-  "revision": 44,
+  "revision": 45,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
     "skill",
     "audit-technique"
   ],
-  "updatedAt": "2026-09-07T00:00:00Z"
+  "updatedAt": "2026-11-20T00:00:00Z"
 }

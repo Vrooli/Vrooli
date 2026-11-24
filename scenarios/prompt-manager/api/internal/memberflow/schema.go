@@ -8,7 +8,7 @@
 // counterpart to prose router skills and feeds the heartbeat builder's
 // generated Inbox Flow section.
 //
-// DOC: docs/agent-system/TOPICS_SCHEMA.md
+// DOC: scenarios/prompt-manager/docs/internal/TOPICS_SCHEMA.md
 package memberflow
 
 import (
@@ -48,7 +48,7 @@ func (k DestinationKind) Valid() bool {
 // home — which is why a sweep, and only a sweep, must declare a coverage
 // ledger (see ruleSweepWithoutLedger).
 //
-// DOC: docs/agent-system/TOPICS_SCHEMA.md § Loop kinds.
+// DOC: scenarios/prompt-manager/docs/internal/TOPICS_SCHEMA.md § Loop kinds.
 type LoopKind string
 
 const (
@@ -392,7 +392,7 @@ func topicSegmentsUnify(a, b string) bool {
 
 // Overlap reports whether two prefixes share at least one matchable topic.
 //
-// Semantics (matches docs/agent-system/TOPICS_SCHEMA.md):
+// Semantics (matches scenarios/prompt-manager/docs/internal/TOPICS_SCHEMA.md):
 //   - Equal prefixes always overlap.
 //   - "foo/*" overlaps "foo/bar" (the wildcard is wider).
 //   - "foo/bar/*" overlaps "foo/*" (the wildcard is wider).

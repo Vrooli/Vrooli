@@ -67,29 +67,6 @@ type MemberDTO struct {
 	Status      string   `json:"status"`
 }
 
-// TeamMessageDTO represents a message sent between team members.
-type TeamMessageDTO struct {
-	ID          string `json:"id"`
-	TeamID      string `json:"teamId"`
-	FromAgentID string `json:"fromAgentId"`
-	ToAgentID   string `json:"toAgentId"`
-	Content     string `json:"content"`
-	CreatedAt   string `json:"createdAt"`
-}
-
-// TeamInboxResponse is the API response for a team member inbox.
-type TeamInboxResponse struct {
-	TeamID   string           `json:"teamId"`
-	AgentID  string           `json:"agentId"`
-	Messages []TeamMessageDTO `json:"messages"`
-}
-
-// SendTeamMessageRequest is the request body for sending a team message.
-type SendTeamMessageRequest struct {
-	FromAgentID string `json:"fromAgentId"`
-	Content     string `json:"content"`
-}
-
 // CreateRequest is the request body for creating a team.
 type CreateRequest struct {
 	Purpose    string   `json:"purpose,omitempty"`
@@ -139,38 +116,6 @@ type UpdateMemberRequest struct {
 // SetRolesRequest is the request body for setting team roles.
 type SetRolesRequest struct {
 	Roles []RoleDTO `json:"roles"`
-}
-
-// OrgEdgeDTO represents a manager-report relationship in the org chart.
-type OrgEdgeDTO struct {
-	ManagerAgentID string `json:"managerAgentId"`
-	ReportAgentID  string `json:"reportAgentId"`
-}
-
-// OrgChartResponse is the API response for a team's org chart.
-type OrgChartResponse struct {
-	TeamID           string               `json:"teamId"`
-	Edges            []OrgEdgeDTO         `json:"edges"`
-	ManagedTeamEdges []ManagedTeamEdgeDTO `json:"managedTeamEdges,omitempty"`
-}
-
-type ManagedTeamEdgeDTO struct {
-	ManagerTeamID string `json:"managerTeamId"`
-	ManagedTeamID string `json:"managedTeamId"`
-	Relationship  string `json:"relationship,omitempty"`
-	AuthorityRef  string `json:"authorityRef,omitempty"`
-	Status        string `json:"status,omitempty"`
-}
-
-// SetOrgChartRequest is the request body for setting a team's org chart.
-type SetOrgChartRequest struct {
-	Edges            []OrgEdgeDTO         `json:"edges"`
-	ManagedTeamEdges []ManagedTeamEdgeDTO `json:"managedTeamEdges,omitempty"`
-}
-
-// UpdateOrgEdgeRequest is the request body for updating a single org chart edge.
-type UpdateOrgEdgeRequest struct {
-	ManagerAgentID string `json:"managerAgentId"`
 }
 
 // TeamSharedFileEntry represents a file or directory in a team's shared folder.

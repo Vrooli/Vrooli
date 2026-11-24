@@ -151,20 +151,8 @@ func (m *MockTeamStore) GetOrgChart(ctx context.Context, teamID string) (*store.
 	return nil, nil
 }
 
-func (m *MockTeamStore) SetOrgChart(ctx context.Context, teamID string, org *store.OrgChart) error {
-	return nil
-}
-
 func (m *MockTeamStore) GetMembers(ctx context.Context, teamID string) ([]store.TeamMemberRelation, error) {
 	return nil, nil
-}
-
-func (m *MockTeamStore) GetInbox(ctx context.Context, teamID, agentID string) (*store.TeamInbox, error) {
-	return nil, nil
-}
-
-func (m *MockTeamStore) SetInbox(ctx context.Context, teamID, agentID string, inbox *store.TeamInbox) error {
-	return nil
 }
 
 func TestList(t *testing.T) {

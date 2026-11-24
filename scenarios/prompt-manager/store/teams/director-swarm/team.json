@@ -240,7 +240,7 @@
         }
       },
       "director-contrarian": {
-        "lane": "Hold director-swarm against the target operating model's deviation catalogue and report the first deviation with evidence; never restructure.",
+        "lane": "Hold director-swarm against the deviation list in `docs/agent-system/STANDING_TEAMS.md` and report the first deviation with evidence; never restructure.",
         "allowedWrites": [
           {
             "kind": "knowledge"

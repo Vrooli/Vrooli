@@ -1,6 +1,6 @@
 {
   "createdAt": "2026-01-30T20:00:00-05:00",
-  "defaultScope": "architecture-scope",
+  "defaultScope": "work-scope",
   "description": "Steers scenarios toward engine-independent, per-domain storage architecture: schema embedded next to the code that interprets it (SchemaProvider/EnsureSchemas substrate in api-core/database), repository interfaces hide the engine, the same per-domain rule applies to Qdrant collections and Redis namespaces, and migrations follow a three-tier story (declarative greenfield, out-of-tree scripts for greenfield-with-data, versioned migrations only when production schema evolution earns them).",
   "entry": "SKILL.md",
   "id": "storage-steer",
@@ -33,7 +33,7 @@
       "vrooli"
     ]
   },
-  "revision": 51,
+  "revision": 52,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -55,5 +55,5 @@
   "targetDimensions": [
     "storage"
   ],
-  "updatedAt": "2026-06-22T00:00:00Z"
+  "updatedAt": "2026-11-20T00:00:00Z"
 }

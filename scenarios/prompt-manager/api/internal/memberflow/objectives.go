@@ -15,7 +15,6 @@
 // on team.json, so the join can be checked in both directions.
 //
 // DOC: docs/director-swarm/strategy/OBJECTIVES.md § The coverage rule
-// DOC: docs/agent-system/FRAMEWORK_HEALTH.md § Objective coverage
 package memberflow
 
 import (

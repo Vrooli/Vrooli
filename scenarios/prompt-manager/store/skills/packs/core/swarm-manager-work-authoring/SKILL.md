@@ -158,7 +158,7 @@ constraint), and then say why it is mandatory.
 Items filed by an automated loop (QA readiness sweeps, autofiler suggestions,
 scheduled audits) must bind to a **phase and rung**, never to an individual
 finding. A finding is a snapshot; a rung is re-measured. See
-`scenario-maturity-ladder` for R0–R4.
+`scenario-work-ladder` for R0–R4.
 
 ```
 Scenario <name> reaches R0 on <phase>: build green, no blocker or error findings.

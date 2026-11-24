@@ -45,7 +45,7 @@ type mapMember struct {
 func cmdMap(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("map", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output JSON")
-	write := fs.Bool("write", false, "Write docs/agent-system/MAP.md")
+	write := fs.Bool("write", false, "Write scenarios/prompt-manager/docs/internal/MAP.md")
 	depth := fs.String("depth", "team", "Detail level: team | member")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
@@ -72,7 +72,7 @@ func cmdMap(ctx appctx.Context, args []string) error {
 
 	rendered := renderOperatingMap(result, members)
 	if *write {
-		return os.WriteFile(filepath.Join("docs", "agent-system", "MAP.md"), []byte(rendered), 0o644)
+		return os.WriteFile(filepath.Join("scenarios", "prompt-manager", "docs", "internal", "MAP.md"), []byte(rendered), 0o644)
 	}
 	fmt.Print(rendered)
 	return nil

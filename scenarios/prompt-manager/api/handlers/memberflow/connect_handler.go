@@ -61,10 +61,6 @@ func (h *connectHandler) GetObjectives(ctx context.Context, req *connect.Request
 	return invokeSimple(ctx, req.Header(), h.serveObjectiveCoverage, "/objectives")
 }
 
-func (h *connectHandler) GetOrientationCost(ctx context.Context, req *connect.Request[memberflowv1.EmptyRequest]) (*connect.Response[memberflowv1.JsonResponse], error) {
-	return invokeSimple(ctx, req.Header(), h.legacy.GetOrientationCost, "/orientation-cost")
-}
-
 func (h *connectHandler) GetInstruments(ctx context.Context, req *connect.Request[memberflowv1.EmptyRequest]) (*connect.Response[memberflowv1.JsonResponse], error) {
 	return invokeSimple(ctx, req.Header(), h.legacy.GetInstruments, "/instruments")
 }

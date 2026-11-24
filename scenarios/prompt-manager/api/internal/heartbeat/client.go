@@ -8,9 +8,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/owneridentity"
 	"github.com/vrooli/api-core/provenance"
 
@@ -19,6 +22,7 @@ import (
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	commonpb "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -228,13 +232,18 @@ type GetRunResponse struct {
 
 // Health checks the agent-manager service health
 func (c *AgentManagerClient) Health(ctx context.Context) (bool, error) {
-	resp, err := c.doRequestWithRetry(ctx, "GET", "/health", nil)
-	if err != nil {
-		return false, err
+	var healthy bool
+	err := c.retryConnect(ctx, func(client apiconnect.AgentManagerServiceClient) error {
+		response, err := client.Health(ctx, connectRequest(ctx, &apipb.HealthRequest{}, createRunCaller(ctx)))
+		if err == nil {
+			healthy = response.Msg.GetStatus() == commonpb.HealthStatus_HEALTH_STATUS_HEALTHY
+		}
+		return err
+	})
+	if status, ok := statusCodeFromConnectError(err); ok && status == http.StatusForbidden {
+		return false, nil
 	}
-	defer resp.Body.Close()
-
-	return resp.StatusCode == http.StatusOK, nil
+	return healthy, err
 }
 
 // ResolveProfile reads the current unpaginated owner list. A positive exact
@@ -244,24 +253,19 @@ func (c *AgentManagerClient) ResolveProfile(ctx context.Context, key string) (*A
 	if key == "" || strings.TrimSpace(key) != key {
 		return nil, fmt.Errorf("profile key must be exact and nonempty")
 	}
-	resp, err := c.doRequestWithRetry(ctx, http.MethodGet, "/api/v1/profiles", nil)
+	var result *apipb.ListProfilesResponse
+	err := c.retryConnect(ctx, func(client apiconnect.AgentManagerServiceClient) error {
+		response, err := client.ListProfiles(ctx, connectRequest(ctx, &apipb.ListProfilesRequest{}, createRunCaller(ctx)))
+		if err == nil {
+			result = response.Msg
+		}
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, c.parseError(resp)
-	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read profile list: %w", err)
-	}
-	var result apipb.ListProfilesResponse
-	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(body, &result); err != nil {
-		return nil, fmt.Errorf("unsupported profile list: %w", err)
-	}
 	var match *AgentProfile
-	for _, profile := range result.Profiles {
+	for _, profile := range result.GetProfiles() {
 		if profile.GetProfileKey() != key {
 			continue
 		}
@@ -290,29 +294,27 @@ func (c *AgentManagerClient) CreateTask(ctx context.Context, task *Task) (*Task,
 	if err != nil {
 		return nil, NewDispatchRejectedError(fmt.Errorf("marshal request: %w", err))
 	}
-	resp, err := c.doRequest(ctx, http.MethodPost, "/api/v1/tasks", body)
-	if err != nil {
-		if IsDispatchRejected(err) {
-			return nil, err
-		}
-		return nil, NewDispatchUncertainError(err)
+	var wireRequest apipb.CreateTaskRequest
+	if err := unmarshalConnectRequest(body, &wireRequest); err != nil {
+		return nil, NewDispatchRejectedError(fmt.Errorf("invalid task request: %w", err))
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		if resp.StatusCode == http.StatusAccepted {
-			if cause, ok := approvalPendingResponse(resp); ok {
-				return nil, NewApprovalPendingError("creating_task", cause)
-			}
-			return nil, NewDispatchUncertainError(fmt.Errorf("task creation returned unrecognized 202 response"))
+	client, err := c.connectClient(ctx, true)
+	if err != nil {
+		return nil, NewDispatchRejectedError(err)
+	}
+	response, err := client.CreateTask(ctx, connectRequest(ctx, &wireRequest, createRunCaller(ctx)))
+	if err != nil {
+		if cause, pending := connectApprovalPending(err); pending {
+			return nil, NewApprovalPendingError("creating_task", cause)
 		}
-		cause := c.parseError(resp)
-		if resp.StatusCode >= http.StatusBadRequest && resp.StatusCode < http.StatusInternalServerError {
-			return nil, NewDispatchRejectedError(cause)
+		code := connect.CodeOf(err)
+		if code == connect.CodeInvalidArgument || code == connect.CodePermissionDenied || code == connect.CodeUnauthenticated || code == connect.CodeFailedPrecondition {
+			return nil, NewDispatchRejectedError(connectError(err))
 		}
-		return nil, NewDispatchUncertainError(cause)
+		return nil, NewDispatchUncertainError(connectError(err))
 	}
 	var result CreateTaskResponse
-	if err := c.parseResponse(resp, &result); err != nil {
+	if err := unmarshalConnectProjection(response.Msg, &result); err != nil {
 		return nil, NewDispatchUncertainError(err)
 	}
 	if result.Task == nil {
@@ -395,67 +397,54 @@ func (c *AgentManagerClient) CreateRun(ctx context.Context, req *CreateRunReques
 	if proof.authorization == "" && proof.runIdentity == "" && owneridentity.CreateRunCallerEnforced() {
 		return nil, NewDispatchRejectedError(fmt.Errorf("CreateRun caller proof is missing"))
 	}
-	body, err := json.Marshal(req)
+	request := *req
+	interactive := request.RunMode == "interactive"
+	if interactive {
+		request.RunMode = ""
+	}
+	body, err := json.Marshal(&request)
 	if err != nil {
 		return nil, NewDispatchRejectedError(fmt.Errorf("marshal request: %w", err))
 	}
-
-	// Request-local proof never falls back to anonymous retries or redirects.
-	resp, err := c.doRequest(ctx, "POST", "/api/v1/runs", body)
-	if err != nil {
-		// The request may have reached the owner before the transport failed.
-		return nil, NewDispatchUncertainError(err)
+	var wireRequest apipb.CreateRunRequest
+	if err := unmarshalConnectRequest(body, &wireRequest); err != nil {
+		return nil, NewDispatchRejectedError(fmt.Errorf("invalid run request: %w", err))
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		if resp.StatusCode == http.StatusAccepted {
-			if cause, ok := approvalPendingResponse(resp); ok {
-				return nil, NewApprovalPendingError("creating_run", redactCreateRunCallerError(cause, proof))
-			}
-			return nil, NewDispatchUncertainError(fmt.Errorf("run creation returned unrecognized 202 response"))
+	if interactive {
+		mode := domainpb.ExecutionMode_EXECUTION_MODE_INTERACTIVE
+		wireRequest.ExecutionMode = &mode
+	}
+	client, err := c.connectClient(ctx, true)
+	if err != nil {
+		return nil, NewDispatchRejectedError(err)
+	}
+	response, err := client.CreateRun(ctx, connectRequest(ctx, &wireRequest, proof))
+	if err != nil {
+		if cause, pending := connectApprovalPending(err); pending {
+			return nil, NewApprovalPendingError("creating_run", redactCreateRunCallerError(cause, proof))
 		}
-		safeError := redactCreateRunCallerError(c.parseError(resp), proof)
-		var ownerError *AgentManagerHTTPError
-		if errors.As(safeError, &ownerError) && ownerError != nil && resp.StatusCode == http.StatusConflict && ownerError.Code == "STATE_IDEMPOTENCY_REPLAY_CONFLICT" {
-			// Agent Manager emits this exact response only after locating the
-			// original run for the key and finding changed replay terms. Preserve
-			// the durable obligation so an operator can reconcile the live run.
+		safeError := redactCreateRunCallerError(connectError(err), proof)
+		code := connect.CodeOf(err)
+		// The owner compatibility handler maps REST 409 to FailedPrecondition
+		// without preserving its machine code. A 409 can mean the idempotency key
+		// already names a durable run, so keep the obligation for reconciliation.
+		if code == connect.CodeAlreadyExists || code == connect.CodeAborted || code == connect.CodeFailedPrecondition {
 			return nil, NewDispatchUncertainError(safeError)
 		}
-		return nil, NewDispatchRejectedError(safeError)
+		if code == connect.CodeInvalidArgument || code == connect.CodeUnauthenticated || code == connect.CodePermissionDenied {
+			return nil, NewDispatchRejectedError(safeError)
+		}
+		return nil, NewDispatchUncertainError(safeError)
 	}
 
 	var result CreateRunResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		// The owner answered successfully but the run identity is unreadable.
+	if err := unmarshalConnectProjection(response.Msg, &result); err != nil {
 		return nil, NewDispatchUncertainError(err)
 	}
 	if result.Run == nil || strings.TrimSpace(result.Run.ID) == "" {
 		return nil, NewDispatchUncertainError(fmt.Errorf("run creation returned no run identity"))
 	}
 	return result.Run, nil
-}
-
-// approvalPendingResponse recognizes the exact typed 202 contract used by
-// Agent Manager. Unknown 202 bodies are not treated as safe-to-retry because
-// their side effects are unspecified.
-func approvalPendingResponse(resp *http.Response) (error, bool) {
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("read approval response: %w", err), false
-	}
-	var result struct {
-		Status string `json:"status"`
-		Detail string `json:"detail"`
-	}
-	if json.Unmarshal(body, &result) != nil || result.Status != "approval_pending" {
-		return fmt.Errorf("unexpected 202 response: %s", strings.TrimSpace(string(body))), false
-	}
-	if result.Detail == "" {
-		result.Detail = "operator approval pending"
-	}
-	return fmt.Errorf("%s", result.Detail), true
 }
 
 // CreateRunDelegated uses explicitly provisioned authority for this request only.
@@ -467,35 +456,37 @@ func (c *AgentManagerClient) CreateRunDelegated(ctx context.Context, req *Create
 	if strings.TrimSpace(req.IdempotencyKey) == "" {
 		return nil, fmt.Errorf("delegated run requires an idempotency key")
 	}
-	body, err := json.Marshal(req)
+	request := *req
+	interactive := request.RunMode == "interactive"
+	if interactive {
+		request.RunMode = ""
+	}
+	body, err := json.Marshal(&request)
 	if err != nil {
 		return nil, fmt.Errorf("marshal delegated run request")
 	}
-	baseURL, err := c.resolveBaseURL(ctx)
+	var wireRequest apipb.CreateRunRequest
+	if err := unmarshalConnectRequest(body, &wireRequest); err != nil {
+		return nil, fmt.Errorf("invalid delegated run request")
+	}
+	if interactive {
+		mode := domainpb.ExecutionMode_EXECUTION_MODE_INTERACTIVE
+		wireRequest.ExecutionMode = &mode
+	}
+	client, err := c.connectClient(ctx, true)
 	if err != nil {
 		return nil, fmt.Errorf("resolve delegated run owner")
 	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/api/v1/runs", bytes.NewReader(body))
+	proof := createRunCallerProof{authorization: "Bearer " + ownerToken}
+	response, err := client.CreateRun(ctx, connectRequest(ctx, &wireRequest, proof))
 	if err != nil {
-		return nil, fmt.Errorf("create delegated run request")
-	}
-	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Accept", "application/json")
-	request.Header.Set("Authorization", "Bearer "+ownerToken)
-	client := *c.httpClient
-	// Even a same-origin redirect must not turn this CreateRun credential into
-	// authority for a different operation. Caller owns uncertain dispatch recovery.
-	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-	response, err := client.Do(request)
-	if err != nil {
+		if cause, pending := connectApprovalPending(err); pending {
+			return nil, NewApprovalPendingError("creating_run", redactCreateRunCallerError(cause, proof))
+		}
 		return nil, fmt.Errorf("delegated run transport failed; reconcile the original idempotency key")
 	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusCreated {
-		return nil, fmt.Errorf("delegated run refused: HTTP %d", response.StatusCode)
-	}
 	var result CreateRunResponse
-	if err := c.parseResponse(response, &result); err != nil || result.Run == nil || result.Run.ID == "" {
+	if err := unmarshalConnectProjection(response.Msg, &result); err != nil || result.Run == nil || result.Run.ID == "" {
 		return nil, fmt.Errorf("delegated run response unavailable; reconcile the original idempotency key")
 	}
 	return result.Run, nil
@@ -503,24 +494,22 @@ func (c *AgentManagerClient) CreateRunDelegated(ctx context.Context, req *Create
 
 // GetRun retrieves a run by ID
 func (c *AgentManagerClient) GetRun(ctx context.Context, runID string) (*Run, error) {
-	resp, err := c.doRequestWithRetry(ctx, "GET", fmt.Sprintf("/api/v1/runs/%s", runID), nil)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
+	var result *Run
+	err := c.retryConnect(ctx, func(client apiconnect.AgentManagerServiceClient) error {
+		response, err := client.GetRun(ctx, connectRequest(ctx, &apipb.GetRunRequest{RunId: runID}, createRunCaller(ctx)))
+		if err == nil {
+			var projection GetRunResponse
+			if decodeErr := unmarshalConnectProjection(response.Msg, &projection); decodeErr != nil {
+				return decodeErr
+			}
+			result = projection.Run
+		}
+		return err
+	})
+	if connect.CodeOf(err) == connect.CodeNotFound {
 		return nil, nil
 	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, c.parseError(resp)
-	}
-
-	var result GetRunResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return result.Run, nil
+	return result, err
 }
 
 // WaitForRun polls until a run reaches a terminal state
@@ -579,75 +568,119 @@ func (c *AgentManagerClient) StopRun(ctx context.Context, runID string) error {
 // afterSequence <= -1 and limit <= 0 are treated as "not set" and omitted
 // from the forwarded query string so that agent-manager applies its own defaults.
 func (c *AgentManagerClient) GetRunEvents(ctx context.Context, runID string, afterSequence int64, limit int) ([]byte, error) {
-	path := fmt.Sprintf("/api/v1/runs/%s/events", runID)
-	var params []string
+	request := &apipb.GetRunEventsRequest{RunId: runID}
 	if afterSequence >= 0 {
-		params = append(params, fmt.Sprintf("after_sequence=%d", afterSequence))
+		request.AfterSequence = &afterSequence
 	}
 	if limit > 0 {
-		params = append(params, fmt.Sprintf("limit=%d", limit))
+		value := int32(limit)
+		request.Limit = &value
 	}
-	if len(params) > 0 {
-		path += "?" + strings.Join(params, "&")
-	}
-	resp, err := c.doRequestWithRetry(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
+	var body []byte
+	err := c.retryConnect(ctx, func(client apiconnect.AgentManagerServiceClient) error {
+		response, err := client.GetRunEvents(ctx, connectRequest(ctx, request, createRunCaller(ctx)))
+		if err == nil {
+			body, err = (protojson.MarshalOptions{UseProtoNames: true}).Marshal(response.Msg)
+		}
+		return err
+	})
+	if connect.CodeOf(err) == connect.CodeNotFound {
 		return nil, fmt.Errorf("run %s not found", runID)
 	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, c.parseError(resp)
-	}
-
-	return io.ReadAll(resp.Body)
+	return body, err
 }
 
 // ListRuns retrieves runs with optional filtering.
 func (c *AgentManagerClient) ListRuns(ctx context.Context, opts ListRunsOptions) (*ListRunsResponse, error) {
-	path := "/api/v1/runs"
-	var params []string
-	if opts.Status != "" {
-		params = append(params, "status="+opts.Status)
+	// Investigation relationship filters are still REST-only: the owner RPC's
+	// ListRunsRequest does not define either filter, so Connect cannot preserve
+	// their meaning without silently broadening the query.
+	if opts.InvestigatesRunID != "" || opts.AppliesInvestigationRunID != "" {
+		return c.listRunsWithInvestigationFilters(ctx, opts)
 	}
-	if opts.TagPrefix != "" {
-		params = append(params, "tag_prefix="+opts.TagPrefix)
-	}
+	request := &apipb.ListRunsRequest{}
 	if opts.AgentProfileID != "" {
-		params = append(params, "agent_profile_id="+opts.AgentProfileID)
+		request.AgentProfileId = &opts.AgentProfileID
 	}
 	if opts.TaskID != "" {
-		params = append(params, "task_id="+opts.TaskID)
+		request.TaskId = &opts.TaskID
 	}
-	if opts.InvestigatesRunID != "" {
-		params = append(params, "investigates_run_id="+opts.InvestigatesRunID)
-	}
-	if opts.AppliesInvestigationRunID != "" {
-		params = append(params, "applies_investigation_run_id="+opts.AppliesInvestigationRunID)
+	if opts.TagPrefix != "" {
+		request.TagPrefix = &opts.TagPrefix
 	}
 	if opts.Limit > 0 {
-		params = append(params, fmt.Sprintf("limit=%d", opts.Limit))
+		value := int32(opts.Limit)
+		request.Limit = &value
 	}
 	if opts.Offset > 0 {
-		params = append(params, fmt.Sprintf("offset=%d", opts.Offset))
+		value := int32(opts.Offset)
+		request.Offset = &value
 	}
-	if len(params) > 0 {
-		path += "?" + strings.Join(params, "&")
+	if opts.Status != "" {
+		statusName := strings.ToUpper(opts.Status)
+		if !strings.HasPrefix(statusName, "RUN_STATUS_") {
+			statusName = "RUN_STATUS_" + statusName
+		}
+		value, ok := domainpb.RunStatus_value[statusName]
+		if !ok {
+			return nil, fmt.Errorf("unsupported Agent Manager run status %q", opts.Status)
+		}
+		status := domainpb.RunStatus(value)
+		request.Status = &status
 	}
+	var result *ListRunsResponse
+	err := c.retryConnect(ctx, func(client apiconnect.AgentManagerServiceClient) error {
+		response, err := client.ListRuns(ctx, connectRequest(ctx, request, createRunCaller(ctx)))
+		if err == nil {
+			var projection ListRunsResponse
+			if decodeErr := unmarshalConnectProjection(response.Msg, &projection); decodeErr != nil {
+				return decodeErr
+			}
+			result = &projection
+		}
+		return err
+	})
+	return result, err
+}
 
-	resp, err := c.doRequestWithRetry(ctx, "GET", path, nil)
+func (c *AgentManagerClient) listRunsWithInvestigationFilters(ctx context.Context, opts ListRunsOptions) (*ListRunsResponse, error) {
+	query := make(url.Values)
+	if opts.Status != "" {
+		query.Set("status", opts.Status)
+	}
+	if opts.TagPrefix != "" {
+		query.Set("tag_prefix", opts.TagPrefix)
+	}
+	if opts.AgentProfileID != "" {
+		query.Set("agent_profile_id", opts.AgentProfileID)
+	}
+	if opts.TaskID != "" {
+		query.Set("task_id", opts.TaskID)
+	}
+	if opts.InvestigatesRunID != "" {
+		query.Set("investigates_run_id", opts.InvestigatesRunID)
+	}
+	if opts.AppliesInvestigationRunID != "" {
+		query.Set("applies_investigation_run_id", opts.AppliesInvestigationRunID)
+	}
+	if opts.Limit > 0 {
+		query.Set("limit", strconv.Itoa(opts.Limit))
+	}
+	if opts.Offset > 0 {
+		query.Set("offset", strconv.Itoa(opts.Offset))
+	}
+	path := "/api/v1/runs"
+	if encoded := query.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+	resp, err := c.doRequestWithRetry(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-
 	if resp.StatusCode != http.StatusOK {
 		return nil, c.parseError(resp)
 	}
-
 	var result ListRunsResponse
 	if err := c.parseResponse(resp, &result); err != nil {
 		return nil, err
@@ -662,25 +695,16 @@ func (c *AgentManagerClient) GetEffortEnrollment(ctx context.Context, effortRef 
 	if strings.TrimSpace(effortRef) == "" {
 		return nil, errors.New("effort reference is required")
 	}
-	body, err := protojson.Marshal(&domainpb.GetEffortBoardRequest{EffortRef: strings.TrimSpace(effortRef), PageSize: 1})
-	if err != nil {
-		return nil, fmt.Errorf("marshal effort board request: %w", err)
-	}
-	resp, err := c.doRequestWithRetry(ctx, http.MethodPost, apiconnect.AgentManagerServiceGetEffortBoardProcedure, body)
+	var board *domainpb.EffortBoard
+	err := c.retryConnect(ctx, func(client apiconnect.AgentManagerServiceClient) error {
+		response, err := client.GetEffortBoard(ctx, connectRequest(ctx, &domainpb.GetEffortBoardRequest{EffortRef: strings.TrimSpace(effortRef), PageSize: 1}, createRunCaller(ctx)))
+		if err == nil {
+			board = response.Msg
+		}
+		return err
+	})
 	if err != nil {
 		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, c.parseError(resp)
-	}
-	responseBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read effort board: %w", err)
-	}
-	var board domainpb.EffortBoard
-	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(responseBody, &board); err != nil {
-		return nil, fmt.Errorf("decode effort board: %w", err)
 	}
 	for _, row := range board.GetRows() {
 		if enrollment := row.GetEnrollment(); enrollment != nil && enrollment.GetEffortRef() == strings.TrimSpace(effortRef) {
@@ -734,19 +758,19 @@ func (c *AgentManagerClient) CreateTypedInvestigation(ctx context.Context, reque
 // ListTypedInvestigations returns the owner's durable typed records without
 // projecting them into legacy Run values.
 func (c *AgentManagerClient) ListTypedInvestigations(ctx context.Context, limit int) ([]byte, error) {
-	path := "/api/v1/investigations"
+	request := &apipb.ListInvestigationsRequest{}
 	if limit > 0 {
-		path += fmt.Sprintf("?limit=%d", limit)
+		request.Limit = int32(limit)
 	}
-	resp, err := c.doRequestWithRetry(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, c.parseError(resp)
-	}
-	return io.ReadAll(resp.Body)
+	var result []byte
+	err := c.retryConnect(ctx, func(client apiconnect.AgentManagerServiceClient) error {
+		response, err := client.ListInvestigations(ctx, connectRequest(ctx, request, createRunCaller(ctx)))
+		if err == nil {
+			result, err = (protojson.MarshalOptions{UseProtoNames: true}).Marshal(response.Msg)
+		}
+		return err
+	})
+	return result, err
 }
 
 // CreateInvestigationApplyRun creates a run that applies an investigation's recommendations.

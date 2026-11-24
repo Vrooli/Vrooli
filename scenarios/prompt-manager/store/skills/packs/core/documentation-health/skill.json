@@ -1,6 +1,6 @@
 {
   "createdAt": "2026-01-24T00:00:00Z",
-  "defaultScope": "architecture-scope",
+  "defaultScope": "work-scope",
   "description": "Ensure documentation quality, consistency, and bidirectional traceability between code and docs. Includes audit checklist and reference format standards.",
   "entry": "SKILL.md",
   "icon": "filetext",

@@ -24,8 +24,6 @@ import type {
   TeamSharedFileRenameRequest,
   EffortWorkspaceListResponse,
   EffortWorkspaceContentResponse,
-  AvailableCCTeam,
-  ExportCCResponse,
   ExclusiveMember,
 } from '@/lib/schemas'
 
@@ -264,35 +262,4 @@ export async function renameTeamSharedFile(teamId: string, request: TeamSharedFi
  */
 export async function deleteTeamSharedFile(teamId: string, path: string): Promise<void> {
   await api.deleteTeamSharedFile(teamId, path)
-}
-
-/**
- * List available Claude Code teams on disk.
- */
-export async function listAvailableCCTeams(): Promise<AvailableCCTeam[]> {
-  try {
-    return await api.listAvailableCCTeams()
-  } catch (error) {
-    if (error instanceof ValidationError) {
-      console.warn('[teamService] Invalid API response for listAvailableCCTeams:', error.message)
-      return []
-    }
-    throw error
-  }
-}
-
-/**
- * Import a Claude Code team into prompt-manager.
- */
-export async function importClaudeCodeTeam(teamName: string): Promise<TeamDetails> {
-  const team = await api.importClaudeCodeTeam(teamName)
-  invalidateCache()
-  return team
-}
-
-/**
- * Export a prompt-manager team as Claude Code config.
- */
-export async function exportClaudeCodeTeam(teamId: string): Promise<ExportCCResponse> {
-  return api.exportClaudeCodeTeam(teamId)
 }

@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Launch-video multi-product pipeline manifest v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "product", "source_map", "source_map_sha256", "offer_signoff", "offer_signoff_sha256", "cuts"],
+  "properties": {
+    "schema": {"const": 2},
+    "product": {"enum": ["aquila", "vega", "mizar", "rigel", "pan"]},
+    "source_map": {"type": "string", "minLength": 1},
+    "source_map_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source_packet_intake": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+    },
+    "offer_signoff": {"type": "string", "minLength": 1},
+    "offer_signoff_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "host_cli": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+    },
+    "cuts": {
+      "type": "array", "minItems": 3, "maxItems": 4,
+        "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["channel", "plan", "plan_sha256", "gate_cues", "gate_cues_sha256", "sequence_manifest", "sequence_manifest_sha256", "snapshot_dir", "render_bundle", "composition", "tools"],
+        "properties": {
+          "channel": {"enum": ["landing", "x", "reddit", "vertical"]},
+          "plan": {"type": "string", "minLength": 1},
+          "plan_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "gate_cues": {"type": "string", "minLength": 1},
+          "gate_cues_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "sequence_manifest": {"type": "string", "minLength": 1},
+          "sequence_manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "snapshot_dir": {"type": "string", "minLength": 1},
+          "render_bundle": {"type": "string", "minLength": 1},
+          "composition": {"type": "string", "minLength": 1},
+          "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 1800},
+          "memory_mib": {"type": "integer", "minimum": 1024, "maximum": 16384},
+          "tools": {
+            "type": "object", "additionalProperties": false,
+            "required": ["node", "browser", "ffmpeg", "ffprobe"],
+            "properties": {
+              "node": {"$ref": "#/$defs/executable"},
+              "browser": {"$ref": "#/$defs/executable"},
+              "ffmpeg": {"$ref": "#/$defs/executable"},
+              "ffprobe": {"$ref": "#/$defs/executable"}
+            }
+          },
+          "music": {
+            "type": "object", "additionalProperties": false,
+            "required": ["bank", "catalog", "selection"],
+            "properties": {"bank": {"type": "string"}, "catalog": {"type": "string"}, "selection": {"type": "string"}}
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"product": {"enum": ["aquila", "mizar", "rigel", "pan"]}}, "required": ["product"]},
+      "then": {"required": ["source_packet_intake"], "properties": {"cuts": {"minItems": 4, "maxItems": 4}}}
+    }
+  ],
+  "$defs": {
+    "executable": {
+      "type": "object", "additionalProperties": false, "required": ["path", "sha256"],
+      "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+    }
+  }
+}

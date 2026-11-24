@@ -1,6 +1,6 @@
 {
   "createdAt": "2025-01-15T00:00:00Z",
-  "description": "Architecture alignment and refactoring - make the codebase express its purpose",
+  "description": "Merged into architecture-lenses (\u00a74 Screaming architecture); read that.",
   "entry": "SKILL.md",
   "icon": "building2",
   "id": "screaming-architecture-audit",
@@ -25,17 +25,13 @@
       "test-genie"
     ]
   },
-  "revision": 47,
+  "revision": 48,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
     "skill",
     "audit-technique"
   ],
-  "targetDimensions": [
-    "structure",
-    "cycles"
-  ],
   "targetToolId": "run-agent",
-  "updatedAt": "2026-09-08T00:00:00Z"
+  "updatedAt": "2026-11-20T00:00:00Z"
 }

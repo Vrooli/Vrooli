@@ -26,7 +26,7 @@
 ## Cross-references
 - [`docs/meta-optimization/README.md`](../../../../../../../docs/meta-optimization/README.md) — team plan-of-record overview; covers cross-team flow diagram and "why cross-team."
 - [`docs/meta-optimization/taxonomies/friction-report/README.md`](../../../../../../../docs/meta-optimization/taxonomies/friction-report/README.md) — taxonomy: scopes, severities, schemas, action-selection, evidence rules, "what is NOT friction" guard. Required reading before draining.
-- [`docs/agent-system/INTAKE_PIPELINE.md`](../../../../../../../docs/agent-system/INTAKE_PIPELINE.md) — friction-inbox uses deterministic-prefix routing (no separate classifier skill); the curator validates and routes.
+- [`scenarios/prompt-manager/docs/internal/INTAKE_PIPELINE.md`](../../../../../docs/internal/INTAKE_PIPELINE.md) — friction-inbox uses deterministic-prefix routing (no separate classifier skill); the curator validates and routes.
 - [`docs/scenario-qa/taxonomies/bug-report/README.md`](../../../../../../../docs/scenario-qa/taxonomies/bug-report/README.md) — sister universal observation flow; useful boundary reference.
 
 ## Available Skills

@@ -24,11 +24,9 @@ Analyze a goal-oriented conversation to identify friction points, attribute root
 
 Required reading:
 - `docs/agent-system/SKILL_AUTHORING.md`
-- `docs/agent-system/PROMOTION_LADDER.md`
 
 Optional reading:
 - `prompt-manager skill read skill-validation`
-- `prompt-manager skill read skill-improvement-suggestions`
 - `prompt-manager skill read cli-steer`
 
 ---
@@ -159,7 +157,7 @@ Ensure recommendations are:
 
 #### Step G: Retirement Mapping (Required for CLI-Operational Friction)
 
-Apply the canonical lifecycle from `docs/agent-system/PROMOTION_LADDER.md`.
+Apply the canonical lifecycle from `docs/agent-system/SKILL_AUTHORING.md#promotion-ladder`.
 
 For each systemic friction pattern tied to skill prose workarounds, classify:
 - `Keep` (durable policy/safety/ownership rule)
@@ -281,8 +279,7 @@ Produce this report:
 ### 9. Optional Follow-Through Skills
 
 Use based on recommendation type:
-- Skill correctness/coherence updates: `skill-validation`
-- Tooling/wording optimization: `skill-improvement-suggestions`
+- Skill correctness, coherence and wording updates: `skill-validation`
 - CLI output and UX upgrades: `cli-steer`
 
 ---

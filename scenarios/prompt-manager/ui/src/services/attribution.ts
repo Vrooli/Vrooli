@@ -1,7 +1,7 @@
 /**
  * Browser-side attribution helper.
  *
- * The full canon is docs/agent-system/RUNTIME_ATTRIBUTION.md. UI clients
+ * The full canon is scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md. UI clients
  * are always treated as `kind: "operator-direct"` (a human at a browser),
  * so this helper produces a single fixed payload — no env-var inheritance,
  * no per-call attribution construction.

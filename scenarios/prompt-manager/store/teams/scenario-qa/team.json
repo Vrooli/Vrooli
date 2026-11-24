@@ -188,7 +188,7 @@
         }
       },
       "qa-contrarian": {
-        "lane": "Read peer scenario-qa member outputs (bug-investigation-reports, audits, readiness backlog) and write Swarm Manager review evidence/* plus Swarm Manager review state/* entries citing specific failure modes from docs/scenario-qa/{investigation,audit}-techniques/. Does not generate positive-action proposals. Also this team's shape sensor: hold the team against the target model's deviation catalogue and report deviations; never restructure.",
+        "lane": "Read peer scenario-qa member outputs (bug-investigation-reports, audits, readiness backlog) and write Swarm Manager review evidence/* plus Swarm Manager review state/* entries citing specific failure modes from docs/scenario-qa/{investigation,audit}-techniques/. Does not generate positive-action proposals. Also this team's shape sensor: hold the team against the deviation list in `docs/agent-system/STANDING_TEAMS.md` and report deviations; never restructure.",
         "allowedWrites": [
           {
             "kind": "knowledge"

@@ -12,7 +12,7 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { Menu, X, Users, ChevronDown, ChevronUp, GripVertical, Folder, Power, MoreHorizontal, Trash2, PanelRightOpen, Eye, LayoutDashboard, Activity, UserPlus, LayoutGrid, Code, Archive } from 'lucide-react'
+import { Menu, X, Users, ChevronDown, ChevronUp, GripVertical, Folder, Power, MoreHorizontal, Trash2, PanelRightOpen, Eye, LayoutDashboard, Activity, UserPlus, Code, Archive } from 'lucide-react'
 import { TabList, TabTrigger } from '../shared/TabTrigger'
 import { cn, compactIdentityLabel } from '@/lib/utils'
 import type { TeamDetails, UpdateTeamRequest, TeamRole, TeamMember, AddMemberRequest, UpdateMemberRequest } from '@/types/team'
@@ -26,11 +26,8 @@ import { useIsCompactHeader, useIsMobile } from '@/hooks/useMediaQuery'
 import { useTeamEditorStore } from '@/hooks/useTeamEditorStore'
 import { useGlobalKeydown } from '@/hooks/useGlobalKeydown'
 import { useTopicsGraph } from '@/hooks/useTopicsGraph'
-import * as orgChartService from '@/services/orgChartService'
 
 import { ToolbarDropdown, DropdownItem } from './ToolbarDropdown'
-import { OrgChartPanel } from './OrgChartPanel'
-import { ManagedTeamsPanel } from './ManagedTeamsPanel'
 import { TopicsGraphPanel } from './TopicsGraphPanel'
 import { MemberDetailPanel } from './MemberDetailPanel'
 import type { MemberDetailSection } from './MemberDetailPanel'
@@ -47,46 +44,7 @@ import { useTeamContractors } from '@/services/effortService'
 
 export type MembersViewMode = 'graph' | 'code'
 
-/**
- * Graph sub-mode: hierarchy (managerId edges) vs topics (topics.json edges).
- * Auto-defaults from team.coordination.reportingMode:
- *   - 'none' → topics
- *   - anything else → hierarchy
- * Operator override (any explicit click) wins and persists per team.
- */
-export type GraphMode = 'hierarchy' | 'topics'
-
-export type LayoutDirection = 'TB' | 'LR'
-
 const MEMBERS_VIEW_STORAGE_KEY = 'pm.teamMembersViewMode'
-const GRAPH_MODE_STORAGE_PREFIX = 'pm.teamGraphMode.'
-const LAYOUT_DIRECTION_STORAGE_PREFIX = 'pm.teamLayoutDirection.'
-
-function readGraphMode(teamId: string): GraphMode | null {
-  if (typeof window === 'undefined') return null
-  const stored = localStorage.getItem(GRAPH_MODE_STORAGE_PREFIX + teamId)
-  return stored === 'hierarchy' || stored === 'topics' ? stored : null
-}
-
-function writeGraphMode(teamId: string, mode: GraphMode): void {
-  if (typeof window === 'undefined') return
-  localStorage.setItem(GRAPH_MODE_STORAGE_PREFIX + teamId, mode)
-}
-
-function readLayoutDirection(teamId: string): LayoutDirection {
-  if (typeof window === 'undefined') return 'TB'
-  const stored = localStorage.getItem(LAYOUT_DIRECTION_STORAGE_PREFIX + teamId)
-  return stored === 'LR' ? 'LR' : 'TB'
-}
-
-function writeLayoutDirection(teamId: string, dir: LayoutDirection): void {
-  if (typeof window === 'undefined') return
-  localStorage.setItem(LAYOUT_DIRECTION_STORAGE_PREFIX + teamId, dir)
-}
-
-function autoDefaultGraphMode(reportingMode: string | undefined): GraphMode {
-  return reportingMode === 'none' ? 'topics' : 'hierarchy'
-}
 
 interface TeamEditorPanelProps {
   /** Current team being edited */
@@ -172,7 +130,6 @@ export function TeamEditorPanel({
   className,
 }: TeamEditorPanelProps) {
   const teamId = team?.id
-  const teamReportingMode = team?.coordination.reportingMode
   const { contractors } = useTeamContractors(team?.effortRefs)
 
   // Active tab state
@@ -235,29 +192,6 @@ export function TeamEditorPanel({
     return stored === 'code' ? 'code' : 'graph'
   })
 
-  // Graph sub-mode (hierarchy vs topics) — per-team; auto-default derived
-  // from team.coordination.reportingMode unless an explicit pick is stored.
-  // Initialized to 'hierarchy' as a safe placeholder; the team-change effect
-  // immediately recomputes once `team` is known.
-  const [graphMode, setGraphMode] = useState<GraphMode>('hierarchy')
-
-  // Recompute graph-mode whenever the active team changes. Stored override
-  // (per-team) wins; otherwise auto-default from reportingMode.
-  useEffect(() => {
-    if (!teamId || !teamReportingMode) return
-    const stored = readGraphMode(teamId)
-    setGraphMode(stored ?? autoDefaultGraphMode(teamReportingMode))
-  }, [teamId, teamReportingMode])
-
-  // Hierarchy layout direction — per-team; default 'TB' (vertical).
-  const [layoutDirection, setLayoutDirection] = useState<LayoutDirection>('TB')
-
-  // Recompute layout direction on team change.
-  useEffect(() => {
-    if (!teamId) return
-    setLayoutDirection(readLayoutDirection(teamId))
-  }, [teamId])
-
   // Persist view mode preference
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -265,23 +199,9 @@ export function TeamEditorPanel({
     }
   }, [membersViewMode])
 
-  // Operator override: persists per-team and updates state.
-  const handleSetGraphMode = useCallback((mode: GraphMode) => {
-    setGraphMode(mode)
-    if (teamId) writeGraphMode(teamId, mode)
-  }, [teamId])
-
-  const handleSetLayoutDirection = useCallback((dir: LayoutDirection) => {
-    setLayoutDirection(dir)
-    if (teamId) writeLayoutDirection(teamId, dir)
-  }, [teamId])
-
   // Team editor store
   const selectedMemberId = useTeamEditorStore((state) => state.selectedMemberId)
   const setSelectedMemberId = useTeamEditorStore((state) => state.setSelectedMemberId)
-  const edges = useTeamEditorStore((state) => state.edges)
-  const setEdges = useTeamEditorStore((state) => state.setEdges)
-  const updateEdge = useTeamEditorStore((state) => state.updateEdge)
   const reset = useTeamEditorStore((state) => state.reset)
   const memberCount = team?.memberCount ?? team?.members.length ?? 0
 
@@ -351,47 +271,16 @@ export function TeamEditorPanel({
     snapCloseThreshold: 200,
   })
 
-  // Load org chart edges when team changes
+  // Reset editor state when the team changes (org-chart edges are no longer served).
   useEffect(() => {
-    if (!teamId) {
-      reset()
-      return
-    }
-
-    const loadEdges = async () => {
-      try {
-        const orgEdges = await orgChartService.getEdges(teamId)
-        setEdges(orgEdges)
-      } catch (error) {
-        console.error('[TeamEditorPanel] Failed to load org chart edges:', error)
-      }
-    }
-    void loadEdges()
-  }, [teamId, setEdges, reset])
+    if (!teamId) reset()
+  }, [teamId, reset])
 
   // Get selected member
   const selectedMember = useMemo(() => {
     if (!team || !selectedMemberId) return null
     return team.members.find((m) => m.agentId === selectedMemberId) ?? null
   }, [team, selectedMemberId])
-
-  const selectedMemberManagerId = useMemo(() => {
-    if (!selectedMemberId) return null
-    return edges.find((edge) => edge.reportId === selectedMemberId)?.managerId ?? null
-  }, [edges, selectedMemberId])
-
-  const selectedMemberManager = useMemo(() => {
-    if (!team || !selectedMemberManagerId) return null
-    return team.members.find((member) => member.agentId === selectedMemberManagerId) ?? null
-  }, [team, selectedMemberManagerId])
-
-  const selectedMemberReports = useMemo(() => {
-    if (!team || !selectedMemberId) return []
-    const reportIds = new Set(
-      edges.filter((edge) => edge.managerId === selectedMemberId).map((edge) => edge.reportId)
-    )
-    return team.members.filter((member) => reportIds.has(member.agentId))
-  }, [team, edges, selectedMemberId])
 
   // Get agent appearance for selected member
   const selectedMemberAppearance = useMemo(() => {
@@ -461,28 +350,6 @@ export function TeamEditorPanel({
     if (!team) return
     await onUpdate({ archived: !team.archived, enabled: team.archived ? false : false })
   }, [team, onUpdate])
-
-  // Handle edge update
-  const handleEdgeUpdate = useCallback(
-    async (agentId: string, managerId: string | null) => {
-      if (!team) return
-      if (managerId === agentId) return
-
-      const previousEdges = edges
-
-      // Update local state first
-      updateEdge(agentId, managerId)
-
-      try {
-        // Then sync to API
-        await orgChartService.updateEdge(team.id, agentId, { managerId })
-      } catch (error) {
-        console.error('[TeamEditorPanel] Failed to update org chart edge:', error)
-        setEdges(previousEdges)
-      }
-    },
-    [team, edges, updateEdge, setEdges]
-  )
 
   // Navigate to a member's heartbeat tab (from Info tab upcoming heartbeats)
   const handleNavigateToMemberHeartbeat = useCallback(
@@ -728,7 +595,6 @@ export function TeamEditorPanel({
           >
             {/* Content area */}
             <div className="flex-1 min-h-0 flex flex-col">
-              <ManagedTeamsPanel team={team} />
               {membersViewMode === 'code' && contractors.length > 0 && (
                 <div className="flex-shrink-0 border-b border-border bg-muted/20 px-3 py-2" data-testid="contractor-roster">
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Contractors · {contractors.length} runtime worker{contractors.length === 1 ? '' : 's'}</p>
@@ -737,58 +603,10 @@ export function TeamEditorPanel({
               )}
               {membersViewMode === 'graph' ? (
                 <>
-                  {/* Members-tab toolbar (graph mode toggle, layout direction, code view, add member) */}
+                  {/* Members-tab toolbar (code view, add member) */}
                   {!showDetailOnly && (
                     <div className="flex-shrink-0 flex items-center gap-2 px-2 py-1 border-b border-border bg-card/50">
-                      <div className="flex items-center gap-1">
-                        <span
-                          className="text-[10px] uppercase tracking-wide text-muted-foreground mr-1 select-none"
-                          aria-hidden="true"
-                        >
-                          Graph
-                        </span>
-                        <span
-                          className="h-3 w-px bg-border mr-1"
-                          aria-hidden="true"
-                        />
-                        {(['hierarchy', 'topics'] as const).map((mode) => (
-                          <button
-                            key={mode}
-                            type="button"
-                            onClick={() => handleSetGraphMode(mode)}
-                            className={cn(
-                              'px-2 py-0.5 text-xs rounded transition-colors',
-                              graphMode === mode
-                                ? 'bg-primary text-primary-foreground'
-                                : 'text-muted-foreground hover:bg-muted',
-                            )}
-                            data-testid={`graph-mode-${mode}`}
-                            aria-pressed={graphMode === mode}
-                          >
-                            {mode === 'hierarchy' ? 'Hierarchy' : 'Topics'}
-                          </button>
-                        ))}
-                      </div>
-
                       <div className="ml-auto flex items-center gap-2">
-                        {graphMode === 'hierarchy' && edges.length > 0 && (
-                          <button
-                            type="button"
-                            onClick={() => handleSetLayoutDirection(layoutDirection === 'TB' ? 'LR' : 'TB')}
-                            className={cn(
-                              'flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg',
-                              'bg-card border border-border text-foreground hover:bg-muted transition-colors',
-                            )}
-                            title={`Layout: ${layoutDirection === 'TB' ? 'Vertical' : 'Horizontal'}`}
-                            aria-label="Toggle layout direction"
-                            data-testid="hierarchy-layout-toggle"
-                          >
-                            <LayoutGrid className="h-3.5 w-3.5" />
-                            {!isMobile && (
-                              <span>{layoutDirection === 'TB' ? 'Layout: Vertical' : 'Layout: Horizontal'}</span>
-                            )}
-                          </button>
-                        )}
                         <button
                           type="button"
                           onClick={handleSwitchToCode}
@@ -825,11 +643,10 @@ export function TeamEditorPanel({
                     ref={containerRef}
                     className={cn('flex-1 min-h-0 flex relative', isResizing && 'select-none')}
                   >
-                    {/* Left panel: graph (Hierarchy | Topics) */}
+                    {/* Left panel: topics graph */}
                     {!showDetailOnly && (
                       <div className="flex-1 min-w-0 h-full">
-                        {graphMode === 'topics' ? (
-                          <TopicsGraphPanel
+                        <TopicsGraphPanel
                             teamId={team.id}
                             onSelectMember={(agentId) => {
                               setMemberSection('overview')
@@ -844,20 +661,6 @@ export function TeamEditorPanel({
                             }}
                             className="h-full"
                           />
-                        ) : (
-                          <OrgChartPanel
-                            team={team}
-                            contractors={contractors}
-                            edges={edges}
-                            allAgents={allAgents}
-                            selectedMemberId={selectedMemberId}
-                            onSelectMember={setSelectedMemberId}
-                            onEdgeUpdate={(agentId, managerId) => void handleEdgeUpdate(agentId, managerId)}
-                            onAddMember={() => setShowMemberPicker(true)}
-                            layoutDirection={layoutDirection}
-                            className="h-full"
-                          />
-                        )}
                       </div>
                     )}
 
@@ -903,8 +706,6 @@ export function TeamEditorPanel({
                           team={team}
                           member={selectedMember}
                           appearance={selectedMemberAppearance}
-                          manager={selectedMemberManager}
-                          directReports={selectedMemberReports}
                           section={memberSection}
                           onSectionChange={setMemberSection}
                           onUpdateMember={onUpdateMember}
@@ -921,7 +722,6 @@ export function TeamEditorPanel({
               ) : (
                 <TeamCodeView
                   team={team}
-                  edges={edges}
                   readOnly
                   onSwitchToGraph={handleSwitchToGraph}
                   className="h-full"

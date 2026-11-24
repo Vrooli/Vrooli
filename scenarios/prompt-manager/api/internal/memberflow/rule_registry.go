@@ -175,7 +175,6 @@ func (r *RuleRegistry) RulesForPass(pass RulePass) []Rule {
 func DefaultRuleRegistry() (*RuleRegistry, error) {
 	rules := append(DefaultOperatingGraphRules(), DefaultOperatingModelRules()...)
 	rules = append(rules, DefaultTopicRules()...)
-	rules = append(rules, DefaultPlanOfRecordRules()...)
 	catalog, err := DefaultRuleCatalog()
 	if err != nil {
 		return nil, err
@@ -201,12 +200,7 @@ func DefaultRuleCatalog() (RuleCatalog, error) {
 	if err != nil {
 		return nil, err
 	}
-	porCatalog, err := PlanOfRecordRuleCatalog()
-	if err != nil {
-		return nil, err
-	}
 	entries = append(entries, catalogEntries(topicCatalog)...)
-	entries = append(entries, catalogEntries(porCatalog)...)
 	entries = append(entries, catalogEntries(modelCatalog)...)
 	return NewRuleCatalog(entries...)
 }

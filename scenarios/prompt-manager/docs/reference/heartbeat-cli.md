@@ -87,7 +87,7 @@ instructions or registering `team:<id>` in Source Ledger does not enable schedul
 The bundled team `effort-supervision` is disabled. Its `effort-supervisor`
 member is an ordinary heartbeat (daily schedule, `--wake-admission=on-change
 --wake-sources=team,member,inbox`) on `prompt-manager/delivery-review`;
-orchestrators wake it with `team message-send` plus `team heartbeat-trigger`.
+orchestrators wake it with `team heartbeat-trigger`.
 
 ### prompt-manager team heartbeat-list
 

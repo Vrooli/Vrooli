@@ -334,14 +334,11 @@ func promptManagerCommandCatalog() map[string]promptManagerCommandGroup {
 		"show": read, "get": {Canonical: "show", Effect: EffectRead, Permissions: []string{"api:read"}},
 		"read": read, "cat": {Canonical: "read", Effect: EffectRead, Permissions: []string{"api:read"}},
 		"sync": read, "versions": read, "history": {Canonical: "versions", Effect: EffectRead, Permissions: []string{"api:read"}},
-		"variants": read, "variant": {Canonical: "variants", Effect: EffectRead, Permissions: []string{"api:read"}},
 		"add": write, "create": {Canonical: "add", Effect: EffectWrite, Permissions: []string{"api:write"}},
 		"update": write, "edit": {Canonical: "update", Effect: EffectWrite, Permissions: []string{"api:write"}},
 		"use": write, "copy": {Canonical: "use", Effect: EffectWrite, Permissions: []string{"api:write"}},
 		"rate": write, "revert": write, "restore": {Canonical: "revert", Effect: EffectWrite, Permissions: []string{"api:write"}},
-		"add-variant": write,
-		"delete":      destructive, "rm": {Canonical: "delete", Effect: EffectDestructive, Permissions: []string{"api:write"}},
-		"rm-variant": destructive,
+		"delete": destructive, "rm": {Canonical: "delete", Effect: EffectDestructive, Permissions: []string{"api:write"}},
 	}))
 	addGroup("action", []string{"actions"}, commandEntries(map[string]commandCatalogEntry{
 		"list": read, "ls": {Canonical: "list", Effect: EffectRead, Permissions: []string{"api:read"}},
@@ -350,14 +347,6 @@ func promptManagerCommandCatalog() map[string]promptManagerCommandGroup {
 		"create":   write, "add": {Canonical: "create", Effect: EffectWrite, Permissions: []string{"api:write"}},
 		"update": write, "edit": {Canonical: "update", Effect: EffectWrite, Permissions: []string{"api:write"}},
 		"run":    {Effect: EffectWrite, Permissions: []string{"api:write", "process:start"}},
-		"delete": destructive, "rm": {Canonical: "delete", Effect: EffectDestructive, Permissions: []string{"api:write"}},
-	}))
-	addGroup("experiment", []string{"experiments"}, commandEntries(map[string]commandCatalogEntry{
-		"list": read, "ls": {Canonical: "list", Effect: EffectRead, Permissions: []string{"api:read"}},
-		"show": read, "get": {Canonical: "show", Effect: EffectRead, Permissions: []string{"api:read"}},
-		"outcomes": read,
-		"create":   write, "add": {Canonical: "create", Effect: EffectWrite, Permissions: []string{"api:write"}},
-		"start": write, "conclude": write,
 		"delete": destructive, "rm": {Canonical: "delete", Effect: EffectDestructive, Permissions: []string{"api:write"}},
 	}))
 	addGroup("tag", []string{"tags"}, commandEntries(map[string]commandCatalogEntry{
@@ -382,10 +371,6 @@ func promptManagerCommandCatalog() map[string]promptManagerCommandGroup {
 		"delete": destructive, "rm": {Canonical: "delete", Effect: EffectDestructive, Permissions: []string{"api:write"}},
 	}))
 	addGroup("team", []string{"teams"}, teamCommandEntries(read, write, writeProcess, destructive))
-	addGroup("test", []string{"testing"}, commandEntries(map[string]commandCatalogEntry{
-		"run": writeProcess, "execute": {Canonical: "run", Effect: EffectWrite, Permissions: []string{"api:write", "process:start"}},
-		"history": read, "results": {Canonical: "history", Effect: EffectRead, Permissions: []string{"api:read"}},
-	}))
 	addGroup("metadata", nil, commandEntries(map[string]commandCatalogEntry{
 		"fetch": read, "get": {Canonical: "fetch", Effect: EffectRead, Permissions: []string{"api:read"}},
 	}))
@@ -426,19 +411,18 @@ func teamCommandEntries(read, write, writeProcess, destructive commandCatalogEnt
 	return commandEntries(map[string]commandCatalogEntry{
 		"list": read, "ls": {Canonical: "list", Effect: EffectRead, Permissions: []string{"api:read"}},
 		"show": read, "get": {Canonical: "show", Effect: EffectRead, Permissions: []string{"api:read"}},
-		"roles": read, "org-list": read, "message-list": read, "heartbeat-list": read, "heartbeat": read,
-		"heartbeat-logs": read, "responsibilities": read, "heartbeat-instructions": read, "export-cc": read,
+		"roles": read, "heartbeat-list": read, "heartbeat": read,
+		"heartbeat-logs": read, "responsibilities": read, "heartbeat-instructions": read,
 		"member-context": read, "search": read, "find": {Canonical: "search", Effect: EffectRead, Permissions: []string{"api:read"}},
 		"handoff-latest": read, "handoff-history": read, "task-list": read, "retention": read,
 		"create": write, "add": {Canonical: "create", Effect: EffectWrite, Permissions: []string{"api:write"}},
 		"update": write, "edit": {Canonical: "update", Effect: EffectWrite, Permissions: []string{"api:write"}},
 		"add-member": write, "update-member": write, "remove-member": write,
-		"org-set": write, "org-remove": write, "message-send": write,
 		"heartbeat-enable": write, "heartbeat-disable": write, "heartbeat-trigger": write,
-		"import-cc": write, "trigger": writeProcess, "task-add": write, "task-update": write,
+		"trigger": writeProcess, "task-add": write, "task-update": write,
 		"prune":  write,
 		"delete": destructive, "rm": {Canonical: "delete", Effect: EffectDestructive, Permissions: []string{"api:write"}},
-		"message-delete": destructive, "message-clear": destructive, "task-delete": destructive,
+		"task-delete": destructive,
 	})
 }
 

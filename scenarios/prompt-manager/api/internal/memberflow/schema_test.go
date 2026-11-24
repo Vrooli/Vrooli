@@ -9,7 +9,7 @@ import (
 func ptr(s string) *string { return &s }
 
 func TestTopicsValidate_ValidCanonical(t *testing.T) {
-	// The canonical worked example from docs/agent-system/TOPICS_SCHEMA.md.
+	// The canonical worked example from scenarios/prompt-manager/docs/internal/TOPICS_SCHEMA.md.
 	// Includes required_read and evidence_consumed so the canonical
 	// example exercises the full schema.
 	raw := `{
@@ -195,7 +195,7 @@ func TestOutputValidation(t *testing.T) {
 			entry: OutputEntry{
 				Prefix:          "doctrine/*",
 				DestinationKind: DestinationPORFile,
-				DestinationPath: ptr("docs/agent-system/PRIMITIVES.md"),
+				DestinationPath: ptr("docs/agent-system/README.md#terms-beyond-rulesmd"),
 			},
 		},
 		{
@@ -468,7 +468,7 @@ func TestRoundTripJSON(t *testing.T) {
 		},
 		Output: []OutputEntry{
 			{Prefix: "audience-scan/*", DestinationKind: DestinationKnowledge, Schema: "audience-scan"},
-			{Prefix: "doctrine/*", DestinationKind: DestinationPORFile, DestinationPath: ptr("docs/agent-system/PRIMITIVES.md")},
+			{Prefix: "doctrine/*", DestinationKind: DestinationPORFile, DestinationPath: ptr("docs/agent-system/README.md#terms-beyond-rulesmd")},
 		},
 		RaisesWorkItems:   true,
 		ExternalProducers: []string{"operator"},

@@ -46,7 +46,7 @@ finding into a controller decision; the operator resolves challenges.
 
 ## Team Shape Review
 
-Read `path:docs/agent-system/TARGET_MODEL.md` §9 and use this lane as the
+Read `path:docs/agent-system/STANDING_TEAMS.md` "Reporting what moved" and use this lane as the
 team's shape sensor. Item 1 is now satisfied: the instrument is declared live.
 Continue checking for multiple addresses, state in prose, and objective drift;
 report deviations through the friction route rather than restructuring here.

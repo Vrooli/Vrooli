@@ -3,7 +3,7 @@
 Skills proposed for archival. Maintained by `skill-optimizer` (skills) and `team-agent-optimizer` (agents/teams) — this file is the skill half.
 
 ## Staleness window
-See `docs/agent-system/DEPRECATION_POLICY.md` for the canonical rule. First-pass default: no reference in ≥60 days + not on a roadmap.
+Deleting stale material is a deliverable ([R8](../../../../../../docs/agent-system/RULES.md)), so a staleness window is a first-pass filter, not a brake. First-pass default: no reference in ≥60 days + not on a roadmap.
 
 ## Proposed for deprecation
 *(none)*

@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strings"
 
-	"prompt-manager/internal/interop"
 	"prompt-manager/internal/sourceledger"
 	"prompt-manager/internal/store"
 	"prompt-manager/internal/teamconfig"
@@ -211,13 +210,8 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 
 		sections = append(sections, agentSections...)
 
-		// Live inbox, Source Ledger wake, and contract findings form the volatile
-		// band. They must remain below every stable member section.
-		if teamconfig.ShouldInjectInbox(contract) {
-			if section := b.buildInboxSection(ctx, teamID, agentID); section != "" {
-				sections = append(sections, newPromptSection(promptSectionKindTeamInbox, "", section))
-			}
-		}
+		// Source Ledger wake and contract findings form the volatile band. They
+		// must remain below every stable member section.
 		ledgerHealthy := b.teamStore.HasSourceLedger()
 		if section, err := b.buildTeamContextWakeSection(ctx, teamID); err != nil {
 			sections = append(sections, newPromptSection(promptSectionKindContinuityFallback, "source-ledger:team:"+teamID, renderContinuityFallbackSection(teamID, err)))
@@ -333,14 +327,13 @@ func (b *PromptBuilder) buildTopicContractSection(teamID, agentID string) string
 // mode. Finite delivery uses its declared work owner; recurring stewardship
 // uses the instrument model. Neither presentation changes execution authority.
 const sharedDoctrineTargetModel = "## The target model\n\n" +
-	"Your team is a control loop: it regulates one domain against a setpoint it does not own, reads one instrument that does not decide for it, and should get *simpler* as the system around it gets more capable. Canon: `docs/agent-system/TARGET_MODEL.md`.\n\n" +
+	"Your team is a control loop: it regulates one domain against a setpoint it does not own, reads one instrument that does not decide for it, and should get *simpler* as the system around it gets more capable. Canon: `docs/agent-system/STANDING_TEAMS.md`.\n\n" +
 	"- **One address.** A team reads one instrument scenario for the state of its domain and what to do next. Members read different rows of one board, never different boards.\n" +
 	"- **The setpoint is owned elsewhere.** What *should* exist is declared by the scenario that owns the capability, never by the instrument that measures it.\n" +
 	"- **Capability is scored in four modes** — Answer (can we know it), Validate (can we check it), Guide (is there a skill), Act (can an agent invoke it).\n" +
-	"- **Three exits, and only three** — execute, observe, propose. The table above is that split. Observe is the cheapest and the most often skipped: it asks for no decision.\n" +
 	"- **Prose cites, never restates.** Team and member files name no current number, owner, or scenario that the board can report at read time.\n" +
 	"- **A skill's target length is a pointer.** Prose shrinks as the scenario behind it grows.\n\n" +
-	"**A deviation from this model is error, and reporting one is inside your lane.** If your team declares no instrument, or you were told to call more than one domain scenario to learn your own team's state, or a document asks you to hand-maintain records that carry a status and a lifecycle, or a rule says something *must* happen with nothing able to refuse when it does not, or a skill is long because the scenario behind it is thin — file it with `prompt-manager skill read report-friction`. One typed observation, no decision requested. The full catalogue is `TARGET_MODEL.md` §9.\n\n" +
+	"**A deviation from this model is error, and reporting one is inside your lane.** If your team declares no instrument, or you were told to call more than one domain scenario to learn your own team's state, or a document asks you to hand-maintain records that carry a status and a lifecycle, or a rule says something *must* happen with nothing able to refuse when it does not, or a skill is long because the scenario behind it is thin — file it with `prompt-manager skill read report-friction`. One typed observation, no decision requested.\n\n" +
 	"If your team's instrument is unavailable, say so in your continuity record and fall back to the manual path. Never silently skip the board.\n\n"
 
 func buildSharedDoctrineSection(includeHeartbeat bool, team *store.Team) string {
@@ -353,7 +346,7 @@ func buildSharedDoctrineSection(includeHeartbeat bool, team *store.Team) string 
 		section.WriteString("Use persistent storage only when information must survive this run.\n\n")
 		section.WriteString("| To record | Use | Notes |\n|---|---|---|\n")
 		section.WriteString("| Continuity for your next run | declared Source Ledger topic | Durable context, not a self-reported completion claim |\n")
-		section.WriteString("| Evidence, measurements, findings | `source-ledger journal note` in scope `team:<id>` | Typed-topic registry: `docs/agent-system/TOPICS.md` |\n")
+		section.WriteString("| Evidence, measurements, findings | `source-ledger journal note` in scope `team:<id>` | Typed-topic registry: `scenarios/prompt-manager/docs/internal/TOPICS.md` |\n")
 		section.WriteString("| Broken code or scenario behavior | `prompt-manager skill read report-bug` | Writes `bug-inbox/*` on `scenario-qa` |\n")
 		section.WriteString("| Something missing, confusing, or repeatedly worked around | `prompt-manager skill read report-friction` | Writes `friction-inbox/*` on `meta-optimization` |\n")
 		section.WriteString("| A raw observation for ordinary human-directed work | `swarm-manager captures create` | Read dispositions with `swarm-manager backlog list --actor-id=<verified-profile-key>` |\n")
@@ -362,7 +355,7 @@ func buildSharedDoctrineSection(includeHeartbeat bool, team *store.Team) string 
 		section.WriteString("Record what a later run needs in your declared Source Ledger topics. Confirm writes from `X-Vrooli-Attribution` receipts; do not treat your final response as proof that a write happened.\n\n")
 		section.WriteString("## When scenario work needs improvement\n\n")
 		section.WriteString("Use the smallest durable disposition supported by evidence:\n\n")
-		section.WriteString("1. A broken behavior or defect: read `prompt-manager skill read report-bug` and file the typed bug report.\n2. Missing, confusing, or repeated process friction: read `prompt-manager skill read report-friction`.\n3. A raw observation in ordinary human-directed work whose outcome is not shaped: use `swarm-manager captures create`; do not turn every observation into implementation work.\n4. A bounded, evidenced outcome in ordinary human-directed work: create or update one Swarm backlog item with the outcome, acceptance criteria, allowed paths, evidence source, and suggested owner skills.\n5. Material scenario development in ordinary human-directed work: shape the backlog item through `implementation-plan-authoring`/Plan Manager, bind its canonical `plan_ref`, and accept the current plan revision before asking for an adaptive grant.\n6. Successive repairs under one approved plan: propose the `adaptive-improvement` execution strategy. Swarm retains the reviewed grant and checkpoint; Agent Manager runs `scenario-improvement-campaign` only after operator approval. A goal states the outcome and points to the work package; it does not replace the plan.\n\n")
+		section.WriteString("1. A broken behavior or defect: read `prompt-manager skill read report-bug` and file the typed bug report.\n2. Missing, confusing, or repeated process friction: read `prompt-manager skill read report-friction`.\n3. A raw observation in ordinary human-directed work whose outcome is not shaped: use `swarm-manager captures create`; do not turn every observation into implementation work.\n4. A bounded, evidenced outcome in ordinary human-directed work: create or update one Swarm backlog item with the outcome, acceptance criteria, allowed paths, evidence source, and suggested owner skills.\n5. Material scenario development in ordinary human-directed work: shape the backlog item through `implementation-plan-authoring`/Plan Manager, bind its canonical `plan_ref` and acceptance contract, then use Swarm’s plan-backed review and run flow.\n6. Successive repairs under one accepted plan: keep the work in one Swarm plan-backed item with its scope, limits, grant and checkpoint. The operator starts runs in `sliced` or `goal` mode; Agent Manager runs `scenario-improvement-campaign` only after that approval. A goal states the outcome and points to the work package; it does not replace plan acceptance.\n\n")
 		section.WriteString(sharedDoctrineTargetModel)
 	}
 	section.WriteString("## Authority order — the world\n\n")
@@ -560,7 +553,7 @@ func (b *PromptBuilder) buildOperatingPolicyTeamSection(team *store.Team, teamCh
 	}
 	section.WriteString("\n")
 	if shouldIncludeCoordinationSkillReference(team) {
-		skillID := teamconfig.CoordinationSkillID(contract)
+		skillID := teamconfig.CoordinationSkillID
 		section.WriteString("Coordination guidance:\n```\n")
 		section.WriteString(fmt.Sprintf("prompt-manager skill read %s\n", skillID))
 		section.WriteString("```\n\n")
@@ -568,10 +561,8 @@ func (b *PromptBuilder) buildOperatingPolicyTeamSection(team *store.Team, teamCh
 	section.WriteString("Coordination rules:\n")
 	section.WriteString("- This prompt-manager team already exists. Do not create or import another team.\n")
 	section.WriteString("- Prefer the planning surface named in your team charter or heartbeat instructions before falling back to broad repo scans.\n")
-	if teamconfig.MessagingUsesAsyncInbox(contract) {
-		section.WriteString("- Team coordination uses asynchronous inbox messages that survive across heartbeat runs.\n")
-	} else if teamconfig.MessagingUsesInSession(contract) {
-		section.WriteString("- Coordinate with teammates using in-session subagent messaging, not durable inbox messages.\n")
+	if teamconfig.MessagingUsesInSession(contract) {
+		section.WriteString("- Coordinate with teammates using in-session subagent messaging.\n")
 	} else {
 		section.WriteString("- This team does not use agent-to-agent messaging by default. Stay within your own scope unless the heartbeat task tells you otherwise.\n")
 	}
@@ -810,16 +801,6 @@ func (b *PromptBuilder) buildAvailableStorageCommandsSection(team *store.Team, a
 	policy := buildMemberStoragePolicy(team, agentID, b.teamStore.StoreDir())
 	var lines []string
 
-	if teamconfig.MessagingUsesAsyncInbox(contract) {
-		lines = append(lines, "### Async Inbox")
-		lines = append(lines, "")
-		lines = append(lines, fmt.Sprintf("- Send a directive: `prompt-manager team message-send %s <recipient-agent-id> --from=<agent-id> --content \"...\"`", team.ID))
-		lines = append(lines, fmt.Sprintf("- List inbox messages: `prompt-manager team message-list %s <agent-id>`", team.ID))
-		lines = append(lines, fmt.Sprintf("- Delete a message: `prompt-manager team message-delete %s <agent-id> <message-id>`", team.ID))
-		lines = append(lines, fmt.Sprintf("- Clear inbox: `prompt-manager team message-clear %s <agent-id>`", team.ID))
-		lines = append(lines, "")
-	}
-
 	// Every block below is omitted when the member cannot use it. A command
 	// list that says a command is unavailable is pure prompt weight: the
 	// member cannot act on it, and its absence carries the same information.
@@ -856,87 +837,6 @@ func (b *PromptBuilder) buildAvailableStorageCommandsSection(team *store.Team, a
 	return "## Available Storage Commands\n\n" + strings.Join(lines, "\n")
 }
 
-// BuildTeamLeadPrompt constructs a prompt for leader-led single-process teams.
-// It loads the full team snapshot, converts to CC config, and generates spawn instructions.
-func (b *PromptBuilder) BuildTeamLeadPrompt(ctx context.Context, teamID, agentID, vrooliRoot string) (string, error) {
-	if b.teamStore == nil {
-		return "", fmt.Errorf("team store is not configured")
-	}
-
-	team, err := b.teamStore.Get(ctx, teamID)
-	if err != nil {
-		return "", fmt.Errorf("loading team: %w", err)
-	}
-
-	// Build snapshot
-	snapshot := &interop.PMTeamSnapshot{
-		Team: *team,
-	}
-
-	// Load members
-	members, err := b.teamStore.GetMembers(ctx, teamID)
-	if err == nil {
-		for _, rel := range members {
-			pm := interop.PMTeamMember{
-				Relation: rel,
-			}
-			if b.agentStore != nil {
-				if agent, err := b.agentStore.Get(ctx, rel.AgentID); err == nil {
-					pm.Agent = *agent
-				}
-			}
-			if resp, err := b.teamStore.GetResponsibilities(ctx, teamID, rel.AgentID); err == nil {
-				pm.Responsibilities = resp
-			}
-			if instr, err := b.teamStore.GetHeartbeatInstructions(ctx, teamID, rel.AgentID); err == nil {
-				pm.HeartbeatInstr = instr
-			}
-			snapshot.Members = append(snapshot.Members, pm)
-		}
-	}
-
-	// Load roles
-	if roles, err := b.teamStore.GetRoles(ctx, teamID); err == nil {
-		snapshot.Roles = roles.Roles
-	}
-
-	// Load org chart
-	if org, err := b.teamStore.GetOrgChart(ctx, teamID); err == nil {
-		snapshot.OrgEdges = org.Edges
-	}
-
-	// Convert to CC config
-	converter := interop.ClaudeCodeConverter{}
-	ccConfig, err := converter.FromPMTeam(snapshot)
-	if err != nil {
-		return "", fmt.Errorf("converting to CC config: %w", err)
-	}
-
-	// Generate spawn prompt
-	additionalCtx := ""
-	if agentID != "" {
-		if leadContext, err := b.Build(ctx, PromptBuildRequest{
-			TeamID:  teamID,
-			AgentID: agentID,
-		}); err == nil && strings.TrimSpace(leadContext) != "" {
-			additionalCtx = "## Lead Member Context\n\nApply this stored prompt-manager context in addition to the generic heartbeat instructions.\n\n" + leadContext
-		}
-	}
-	spawnCtx := interop.SpawnContext{
-		WorkingDir:    vrooliRoot,
-		VrooliRoot:    vrooliRoot,
-		TeamID:        teamID,
-		AdditionalCtx: additionalCtx,
-	}
-
-	prompt, err := converter.FormatSpawnPrompt(ccConfig, spawnCtx)
-	if err != nil {
-		return "", fmt.Errorf("generating spawn prompt: %w", err)
-	}
-
-	return prompt, nil
-}
-
 // buildInboxFlowSection generates the "Inbox Flow" prompt section from the
 // member's topics.json + the taxonomy registry. Returns empty when the
 // member declares no intake; in that case the caller skips the section.
@@ -955,36 +855,4 @@ func (b *PromptBuilder) buildInboxFlowSection(teamID, agentID string) string {
 		return ""
 	}
 	return RenderInboxFlow(in)
-}
-
-func (b *PromptBuilder) buildInboxSection(ctx context.Context, teamID, agentID string) string {
-	inbox, err := b.teamStore.GetInbox(ctx, teamID, agentID)
-	if err != nil || len(inbox.Messages) == 0 {
-		return ""
-	}
-
-	messages := make([]store.TeamMessage, len(inbox.Messages))
-	copy(messages, inbox.Messages)
-	sort.SliceStable(messages, func(i, j int) bool {
-		return messages[i].CreatedAt < messages[j].CreatedAt
-	})
-
-	resolveAgentLabel := func(id string) string {
-		agent, err := b.agentStore.Get(ctx, id)
-		if err != nil || agent.DisplayName == "" || agent.DisplayName == id {
-			return id
-		}
-		return fmt.Sprintf("%s (%s)", agent.DisplayName, id)
-	}
-
-	section := promptHeading(promptSectionKindTeamInbox) + "\n\n"
-	section += fmt.Sprintf("You have %d pending message(s):\n\n", len(messages))
-	for _, message := range messages {
-		fromLabel := resolveAgentLabel(message.FromAgentID)
-		section += fmt.Sprintf("## %s\n\n", message.ID)
-		section += fmt.Sprintf("From: %s\n", fromLabel)
-		section += fmt.Sprintf("Sent: %s\n\n", message.CreatedAt)
-		section += shiftMarkdownHeadings(message.Content, 3) + "\n\n"
-	}
-	return section
 }

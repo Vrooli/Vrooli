@@ -8,7 +8,7 @@ import (
 )
 
 // AttributionHeaderName is the transport header carrying the structured
-// attribution payload (canon: docs/agent-system/RUNTIME_ATTRIBUTION.md).
+// attribution payload (canon: scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md).
 const AttributionHeaderName = "X-Vrooli-Attribution"
 
 // AgentIdentityHeaderName carries the opaque agent-manager identity token.

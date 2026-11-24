@@ -9,7 +9,7 @@ metadata:
   tags: ["skill"]
   icon: "palette"
   status: "active"
-  defaultScope: "architecture-scope"
+  defaultScope: "work-scope"
   revision: 3
   createdAt: "2026-02-07T00:00:00Z"
   updatedAt: "2026-10-25T00:00:00Z"
@@ -21,13 +21,15 @@ metadata:
 ---
 ## Steer focus: UI Design System Migration
 
+**Scope mode: `architecture`.** Hold to that row of `work-scope` for this session.
+
 Prioritize migrating `scenarios/{{TARGET}}/ui/` to a **token-driven, primitive-owned design system** so major theme refreshes become low-risk and repeatable.
 
 Your goal is to reduce style coupling, preserve behavior, and converge on a UI where visual identity can be changed by updating tokens and primitive variants rather than rewriting surfaces.
 
 Required reading:
 - `docs/agent-system/SKILL_AUTHORING.md`
-- `prompt-manager skill read ui-health experience-architecture-audit`
+- `prompt-manager skill read ui-health architecture-lenses`
 - `prompt-manager skill read visited-tracker-tools`
 
 ---

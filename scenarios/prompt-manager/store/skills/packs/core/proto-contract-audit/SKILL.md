@@ -29,7 +29,7 @@ Required reading:
 - `packages/proto/STYLE_GUIDE.md` — canonical domain organization, version directory, shared bucket, and annotation registry.
 - `prompt-manager skill read interoperability-steer` — deep schema, serialization, discovery, and runtime boundary rules.
 - `prompt-manager skill read api-steer` — API transport decisions and REST exception discipline.
-- `prompt-manager skill read screaming-architecture-audit` — domain vocabulary alignment for scenario code shape.
+- `prompt-manager skill read architecture-lenses` — domain vocabulary alignment for scenario code shape.
 
 Read first when present:
 - `scenarios/{{TARGET}}/docs/concepts/ARCHITECTURE.md`
@@ -70,7 +70,7 @@ Use these results to prioritize fixes. The manual workflow below is for interpre
 - fleet import graph, dependency drift, dead-proto reachability across scenarios, and cross-scenario encapsulation rules; hand off to scenario-dependency-analyzer work
 - API resource modeling and REST exception design; hand off to `api-steer`
 - broad interop, runtime recovery, service discovery, and envelope semantics; hand off to `interoperability-steer`
-- code/domain relocation beyond what is required to make proto ownership clear; hand off to `screaming-architecture-audit`
+- code/domain relocation beyond what is required to make proto ownership clear; hand off to `architecture-lenses`
 
 ---
 
@@ -90,7 +90,7 @@ Walk these rows in order.
 |---|---|---|
 | `proto.gen_out_of_sync` | Run the governed scoped generator (`cd packages/proto && go run -mod=mod ./cmd/protogen generate --changed`), then re-run `go run -mod=mod ./cmd/protogen verify`. Use `make generate` only for an intentional full-fleet rebuild. | None |
 | `proto.package_mismatch` or `proto.version_naming` | Move/rename schema files to match `packages/proto/STYLE_GUIDE.md`; regenerate. | None |
-| `proto.cross_domain_import` | Move shared message(s) into `v1/shared/` or reconsider the domain boundary. | `screaming-architecture-audit` if code domains are also blurred |
+| `proto.cross_domain_import` | Move shared message(s) into `v1/shared/` or reconsider the domain boundary. | `architecture-lenses` if code domains are also blurred |
 | `proto.unsupported_annotation` | Remove deprecated `@layer`, `@domain`, `@imports`, or unsupported tags; keep only registry-backed annotations. | None |
 | `proto.hand_rolled_transport` | Migrate proto-owned calls to generated Connect handlers unless a REST exception applies. | `api-steer` for exception review |
 | `proto.stability_dishonest` | Align `@stability` with implementation and serving reality. | None |

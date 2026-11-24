@@ -23,6 +23,7 @@ const (
 	EdgeBoldListed    EdgeKind = "bold-listed"
 	EdgeDefaultScope  EdgeKind = "default-scope"
 	EdgePathRef       EdgeKind = "path-ref"
+	EdgeDeclaredSkill EdgeKind = "declared-skill"
 	EdgeMembership    EdgeKind = "membership"
 	EdgeCodeUsage     EdgeKind = "code-usage"
 	EdgeActionUse     EdgeKind = "action-use"

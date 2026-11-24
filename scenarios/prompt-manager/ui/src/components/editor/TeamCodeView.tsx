@@ -15,7 +15,6 @@ import { Network } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useResolvedTheme } from '@/hooks/use-theme'
 import type { TeamDetails } from '@/types/team'
-import type { OrgEdge } from '@/types/orgChart'
 
 // ============================================================================
 // Types
@@ -23,7 +22,6 @@ import type { OrgEdge } from '@/types/orgChart'
 
 interface TeamCodeViewProps {
   team: TeamDetails
-  edges: OrgEdge[]
   onTeamChange?: (updates: TeamYamlData) => void
   readOnly?: boolean
   onSwitchToGraph?: () => void
@@ -46,7 +44,6 @@ export interface TeamYamlData {
     name: string
     roles: string[]
     status: string
-    reportsTo?: string
   }>
 }
 
@@ -57,19 +54,7 @@ export interface TeamYamlData {
 /**
  * Convert team data to YAML-friendly structure.
  */
-function teamToYaml(team: TeamDetails, edges: OrgEdge[]): TeamYamlData {
-  // Build manager lookup: reportId -> managerId
-  const managerMap = new Map<string, string>()
-  edges.forEach((edge) => {
-    managerMap.set(edge.reportId, edge.managerId)
-  })
-
-  // Build member name lookup for readable reportsTo
-  const memberNames = new Map<string, string>()
-  team.members.forEach((m) => {
-    memberNames.set(m.agentId, m.displayName)
-  })
-
+function teamToYaml(team: TeamDetails): TeamYamlData {
   // Build role name lookup
   const roleNames = new Map<string, string>()
   team.roles.forEach((r) => {
@@ -84,18 +69,12 @@ function teamToYaml(team: TeamDetails, edges: OrgEdge[]): TeamYamlData {
       name: role.name,
       description: role.description,
     })),
-    members: team.members.map((member) => {
-      const managerId = managerMap.get(member.agentId)
-      const managerName = managerId ? memberNames.get(managerId) : undefined
-
-      return {
-        id: member.agentId,
-        name: member.displayName,
-        roles: member.roles.map((roleId) => roleNames.get(roleId) ?? roleId),
-        status: member.status,
-        reportsTo: managerName,
-      }
-    }),
+    members: team.members.map((member) => ({
+      id: member.agentId,
+      name: member.displayName,
+      roles: member.roles.map((roleId) => roleNames.get(roleId) ?? roleId),
+      status: member.status,
+    })),
   }
 }
 
@@ -144,7 +123,6 @@ function yamlToTeamUpdates(yamlContent: string): TeamYamlData | null {
                     .map((r: unknown) => r as string)
                 : [],
               status: typeof member.status === 'string' ? member.status : 'active',
-              reportsTo: typeof member.reportsTo === 'string' ? member.reportsTo : undefined,
             }
           })
         : [],
@@ -160,7 +138,6 @@ function yamlToTeamUpdates(yamlContent: string): TeamYamlData | null {
 
 export function TeamCodeView({
   team,
-  edges,
   onTeamChange,
   readOnly = false,
   onSwitchToGraph,
@@ -171,12 +148,12 @@ export function TeamCodeView({
 
   // Convert team to YAML string
   const yamlContent = useMemo(() => {
-    const yamlData = teamToYaml(team, edges)
+    const yamlData = teamToYaml(team)
     return YAML.stringify(yamlData, {
       indent: 2,
       lineWidth: 0, // Disable line wrapping
     })
-  }, [team, edges])
+  }, [team])
 
   // Track if content was externally updated
   const lastExternalContent = useRef(yamlContent)

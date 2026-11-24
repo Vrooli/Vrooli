@@ -1,6 +1,6 @@
 {
   "createdAt": "2026-01-30T16:30:00-05:00",
-  "defaultScope": "architecture-scope",
+  "defaultScope": "work-scope",
   "description": "Design and maintain scenario CLIs as thin, professional wrappers over the API using cli-core for cross-platform consistency",
   "entry": "SKILL.md",
   "id": "cli-steer",

@@ -37,7 +37,7 @@ Checked 2026-10-15. These are methods inputs, not copied recipe bodies.
 
 - [Wistia: purpose and duration](https://wistia.com/blog/optimal-video-length):
   observational hosted-video guidance; no universal optimum.
-- [X creative guidance](https://business.x.com/en/advertising/creative-best-practices):
+- X creative guidance (`https://business.x.com/en/advertising/creative-best-practices`, not a live link because the host returns 403 to automated link checks):
   paid-ad advice about early movement, branding and muted comprehension.
 - [Reddit creative guidance](https://www.business.reddit.com/copy-creative-best-practices):
   advertiser evidence for short/mobile assets; organic fit remains separate.

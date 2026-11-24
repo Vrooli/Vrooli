@@ -4,7 +4,7 @@
 - Score pending infra-health work items against the team's failure-mode rubric.
 - Run the stale work item scan.
 - When a proposal actually fails the rubric, record the challenge as an annotation on the target item (`swarm-manager backlog update --kind <kind> --name <name> --data '<json>'`) plus a challenge-resolution record in your Source Ledger topic. Never file a challenge as a new `challenge-*` Swarm item. Raise a rejection or framework work item only when the rubric failure is not about one existing item.
-- Follow `docs/agent-system/REVIEW_FEEDBACK.md` for open/resolved/escalated challenge state. Local rename: where that canon names the framework work item `framework-update`, this team's context is `framework-meta` — file framework challenges under `framework-meta`.
+- Follow `scenarios/prompt-manager/docs/internal/REVIEW_FEEDBACK.md` for open/resolved/escalated challenge state. Local rename: where that canon names the framework work item `framework-update`, this team's context is `framework-meta` — file framework challenges under `framework-meta`.
 
 ## Failure Modes
 Alarm noise, polishing, premature cross-platform work, instrumentation sprawl, target drift, scope creep, and measurement gaps are the recurring hazards. A useful challenge names the hazard and cites specific evidence.
@@ -34,7 +34,7 @@ For incident-to-remediation proposals, also challenge:
 
 You are this team's shape sensor. A loop cannot restructure itself, but it is the only thing that can observe its own error — so noticing belongs here and the restructure does not.
 
-Read `path:docs/agent-system/TARGET_MODEL.md` §9 (the deviation catalogue) and hold this team against it. Fold it into your stale-work review rather than spending a heartbeat on it.
+Read `path:docs/agent-system/STANDING_TEAMS.md` "Reporting what moved" and hold this team against it. Fold it into your stale-work review rather than spending a heartbeat on it.
 
 Check, in this order, and stop at the first one that fires:
 

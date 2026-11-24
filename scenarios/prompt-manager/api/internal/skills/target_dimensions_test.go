@@ -20,7 +20,7 @@ import (
 var steerSkillsWithDimensions = []string{
 	"progress", "ux", "refactor", "test", "security", "performance",
 	"polish", "documentation-health", "storage-steer",
-	"screaming-architecture-audit", "temporal-flow-audit",
+	"architecture-lenses", "resilience-lenses",
 }
 
 // TestSkillJSONRoundTripsTargetDimensions proves the new field survives the

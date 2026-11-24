@@ -9,12 +9,12 @@ metadata:
   tags: ["review","quality","git","assessment","readiness"]
   icon: "clipboard-check"
   status: "active"
-  revision: 3
+  revision: 4
   createdAt: "2026-03-20T00:00:00Z"
-  updatedAt: "2026-10-22T00:00:00Z"
+  updatedAt: "2026-11-24T06:45:00Z"
   requires:
-    scenarios: ["git-control-tower", "prompt-manager", "swarm-manager", "test-genie", "vrooli"]
-    commands: ["git-control-tower", "swarm-manager", "vrooli scenario"]
+    scenarios: ["git-control-tower", "prompt-manager", "swarm-manager", "test-genie", "vrooli", "program-runtime"]
+    commands: ["git-control-tower", "swarm-manager", "vrooli scenario", "program-runtime library run"]
   origin:
     kind: "authored"
 ---
@@ -61,8 +61,7 @@ Assess whether a scenario's uncommitted changes are ready to commit by querying 
 
 ### **3. Prerequisites**
 
-**Required scenario:**
-- **git-control-tower** — must be running (`vrooli scenario status git-control-tower`)
+Before the read-only review, run `program-runtime library run program-runtime.supervision-sweep --input scenarios=git-control-tower`; proceed only when the named row is complete and `status=running`.
 
 The review endpoint internally checks availability of integrated scenarios (tidiness-manager, scenario-auditor, test-genie, browser-automation-studio, workspace-sandbox). Partial assessments are returned when some integrations are unavailable — the `capabilities` field in the response indicates which are online.
 

@@ -1,6 +1,6 @@
 // Topics + drain-status subcommands for `prompt-manager graph`.
 //
-// DOC: docs/agent-system/TOPICS_SCHEMA.md
+// DOC: scenarios/prompt-manager/docs/internal/TOPICS_SCHEMA.md
 package graph
 
 import (
@@ -98,7 +98,7 @@ func cmdTopics(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("topics", flag.ContinueOnError)
 	team := fs.String("team", "", "Filter to one team")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	findingsOut := fs.String("findings-out", "", "Write findings JSON artifact to this path (empty disables the write). CI uses this for diff-against-previous-run telemetry; see docs/agent-system/RUNTIME_ATTRIBUTION.md.")
+	findingsOut := fs.String("findings-out", "", "Write findings JSON artifact to this path (empty disables the write). CI uses this for diff-against-previous-run telemetry; see scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md.")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
@@ -139,7 +139,7 @@ func cmdTopics(ctx appctx.Context, args []string) error {
 	if declarationErrors := countFindings(resp.Validation.Findings, kindDeclaration, severityError); declarationErrors > 0 {
 		// Returning a non-nil error makes the cliapp dispatcher exit
 		// with a non-zero status, matching the contract in
-		// docs/agent-system/TOPICS_SCHEMA.md.
+		// scenarios/prompt-manager/docs/internal/TOPICS_SCHEMA.md.
 		return fmt.Errorf("topics validation failed: %d declaration error(s)", declarationErrors)
 	}
 	return nil

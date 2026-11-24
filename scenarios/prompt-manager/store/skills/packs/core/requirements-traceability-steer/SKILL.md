@@ -10,7 +10,7 @@ metadata:
   tags: ["requirements","prd","traceability","business","operational-targets","validation-refs","req-tags","registry","drift","test-genie","business-phase","findings","ladder","steer"]
   icon: "link"
   status: "active"
-  defaultScope: "architecture-scope"
+  defaultScope: "work-scope"
   revision: 3
   createdAt: "2026-06-10T00:00:00Z"
   updatedAt: "2026-09-07T00:00:00Z"
@@ -21,6 +21,8 @@ metadata:
     kind: "authored"
 ---
 ## Steer focus: Requirements Traceability
+
+**Scope mode: `architecture`.** Hold to that row of `work-scope` for this session.
 
 Use `path:docs/testing/UNIT-TEST-AUTHORING.md` for test construction and oracle
 judgment. This skill reconciles evidence with requirements; a tag or validation

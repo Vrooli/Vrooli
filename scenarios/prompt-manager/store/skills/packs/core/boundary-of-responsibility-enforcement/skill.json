@@ -1,7 +1,6 @@
 {
   "createdAt": "2025-01-15T00:00:00Z",
-  "defaultScope": "architecture-scope",
-  "description": "Clarify and enforce module boundaries and responsibilities",
+  "description": "Merged into architecture-lenses (\u00a71 Boundary of responsibility); read that.",
   "entry": "SKILL.md",
   "icon": "box",
   "id": "boundary-of-responsibility-enforcement",
@@ -24,12 +23,12 @@
       "prompt-manager"
     ]
   },
-  "revision": 48,
+  "revision": 49,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
     "skill",
     "audit-technique"
   ],
-  "updatedAt": "2026-02-04T13:41:36Z"
+  "updatedAt": "2026-11-20T00:00:00Z"
 }

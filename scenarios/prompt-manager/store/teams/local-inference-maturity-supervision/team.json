@@ -42,25 +42,25 @@
         {
           "id": "local-inference-charter",
           "hub": {
-            "base": "repo-root",
-            "path": ".vrooli/work/delivery/local-inference-maturity/CHARTER.md"
+            "base": "external",
+            "path": "/home/matthalloran8/.vrooli/research/topics/local-model-performance/runs/delivery-transfer-20261111/goal-home-archive/CHARTER.md"
           },
           "paths": [
             {
-              "base": "repo-root",
-              "path": ".vrooli/work/delivery/local-inference-maturity/CHARTER.md"
+              "base": "external",
+              "path": "/home/matthalloran8/.vrooli/research/topics/local-model-performance/runs/delivery-transfer-20261111/goal-home-archive/CHARTER.md"
             },
             {
-              "base": "repo-root",
-              "path": ".vrooli/work/delivery/local-inference-maturity/STATUS.md"
+              "base": "external",
+              "path": "/home/matthalloran8/.vrooli/research/topics/local-model-performance/runs/delivery-transfer-20261111/goal-home-archive/STATUS.md"
             },
             {
-              "base": "repo-root",
-              "path": ".vrooli/work/delivery/local-inference-maturity/LOG.md"
+              "base": "external",
+              "path": "/home/matthalloran8/.vrooli/research/topics/local-model-performance/runs/delivery-transfer-20261111/goal-home-archive/LOG.md"
             },
             {
-              "base": "repo-root",
-              "path": ".vrooli/work/delivery/local-inference-maturity/FEEDBACK.md"
+              "base": "external",
+              "path": "/home/matthalloran8/.vrooli/research/topics/local-model-performance/runs/delivery-transfer-20261111/goal-home-archive/FEEDBACK.md"
             }
           ],
           "writePolicy": "operator destination; orchestrator maintains allocation and evidence",

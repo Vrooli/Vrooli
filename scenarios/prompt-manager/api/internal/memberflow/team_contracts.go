@@ -32,7 +32,7 @@ import (
 // shape (`attributionValidFrom`, `policy.flagExternalWritesPerWeek`). They
 // are kept as direct fields rather than nested under a Policy struct so
 // rules consume them without per-rule nil checks; absence on disk is
-// canonicalized to zero values here. See docs/agent-system/RUNTIME_ATTRIBUTION.md
+// canonicalized to zero values here. See scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md
 // § Per-team `attributionValidFrom` for the contract.
 type LoadedTeamContract struct {
 	TeamID     string

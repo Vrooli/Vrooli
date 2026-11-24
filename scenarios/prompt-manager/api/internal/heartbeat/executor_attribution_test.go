@@ -104,7 +104,7 @@ func TestExecute_PropagatesAttributionInCreateRunEnv(t *testing.T) {
 	// run_id is intentionally null at construction time: agent-manager
 	// assigns the run UUID after CreateRun returns, and the validator's
 	// heartbeat-relax permits this (canon:
-	// docs/agent-system/RUNTIME_ATTRIBUTION.md § Env-var bridge).
+	// scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md § Env-var bridge).
 	if info.RunID != nil {
 		t.Errorf("RunID = %v, want nil", info.RunID)
 	}

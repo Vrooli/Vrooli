@@ -39,9 +39,7 @@ type HeartbeatAttemptPage struct {
 // bounded event window. Limit and offset page the known attempts in that
 // window; they do not provide a stable cursor through all event history.
 func (s *FileTeamStore) ListHeartbeatAttemptPage(ctx context.Context, teamID, agentID, status, profileKey string, limit, offset int) (*HeartbeatAttemptPage, error) {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.ListHeartbeatAttemptPage(ctx, teamID, agentID, status, profileKey, limit, offset)
-	}
+	s = s.forContext(ctx)
 	if limit <= 0 {
 		limit = 100
 	}
@@ -156,9 +154,7 @@ func (s *FileTeamStore) listHeartbeatAttemptPageFromEvents(ctx context.Context, 
 // newest-attempt window, which is a diagnostic listing and may not contain old
 // active-owner history.
 func (s *FileTeamStore) ListHeartbeatAttemptsByRun(ctx context.Context, runID string) ([]HeartbeatAttempt, error) {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.ListHeartbeatAttemptsByRun(ctx, runID)
-	}
+	s = s.forContext(ctx)
 	runID = strings.TrimSpace(runID)
 	if runID == "" {
 		return nil, fmt.Errorf("run ID is required")

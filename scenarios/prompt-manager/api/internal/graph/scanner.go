@@ -3,6 +3,8 @@ package graph
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -181,7 +183,11 @@ func (s *Scanner) ScanAll(ctx context.Context) ([]Edge, error) {
 
 	// Scan repository-level instruction and workflow definitions. These are
 	// genuine references but are not owned by an individual store entity.
-	edges = append(edges, s.scanRepositoryReferences(validIDs)...)
+	repositoryEdges, err := s.scanRepositoryReferences(validIDs)
+	if err != nil {
+		return nil, err
+	}
+	edges = append(edges, repositoryEdges...)
 
 	// Generated prompt sections are the effective instructions received by
 	// members, so they must participate in reachability queries.
@@ -240,9 +246,9 @@ func (s *Scanner) ScanUnresolvedSkillReferences(ctx context.Context) ([]Unresolv
 	return unresolved, nil
 }
 
-func (s *Scanner) scanRepositoryReferences(validIDs map[string]bool) []Edge {
+func (s *Scanner) scanRepositoryReferences(validIDs map[string]bool) ([]Edge, error) {
 	if s.repositoryRoot == "" {
-		return nil
+		return nil, nil
 	}
 
 	var edges []Edge
@@ -276,7 +282,70 @@ func (s *Scanner) scanRepositoryReferences(validIDs map[string]bool) []Edge {
 			return nil
 		})
 	}
-	return edges
+	readinessEdges, err := s.scanDeclaredReadinessSkills()
+	if err != nil {
+		return nil, err
+	}
+	edges = append(edges, readinessEdges...)
+	return edges, nil
+}
+
+// scanDeclaredReadinessSkills extracts remediation.skill references from the
+// readiness policy manifests that define actual owner-provided remediation
+// routes. These are structured caller declarations, not prose token matches.
+func (s *Scanner) scanDeclaredReadinessSkills() ([]Edge, error) {
+	scenariosRoot := filepath.Join(s.repositoryRoot, "scenarios")
+	var edges []Edge
+	scenarios, err := os.ReadDir(scenariosRoot)
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("list scenario owners for readiness skill declarations: %w", err)
+	}
+	for _, scenario := range scenarios {
+		if !scenario.IsDir() {
+			continue
+		}
+		path := filepath.Join(scenariosRoot, scenario.Name(), "api", "readiness", "readiness-policy.json")
+		content, err := os.ReadFile(path)
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			return nil, fmt.Errorf("read readiness policy %s: %w", path, err)
+		}
+		var policy struct {
+			Items []struct {
+				Remediation struct {
+					Skill string `json:"skill"`
+				} `json:"remediation"`
+			} `json:"items"`
+		}
+		if err := json.Unmarshal(content, &policy); err != nil {
+			return nil, fmt.Errorf("decode readiness policy %s: %w", path, err)
+		}
+		rel, err := filepath.Rel(s.repositoryRoot, path)
+		if err != nil {
+			return nil, fmt.Errorf("resolve readiness policy path %s: %w", path, err)
+		}
+		sourceFile := filepath.ToSlash(rel)
+		seen := make(map[string]bool)
+		for _, item := range policy.Items {
+			id := strings.TrimSpace(item.Remediation.Skill)
+			if id == "" || seen[id] {
+				continue
+			}
+			seen[id] = true
+			edges = append(edges, Edge{
+				From:       "manifest:" + sourceFile,
+				To:         id,
+				Kind:       EdgeDeclaredSkill,
+				SourceFile: sourceFile,
+			})
+		}
+	}
+	return edges, nil
 }
 
 // workflowRoots returns every directory that can hold Agent Manager workflow

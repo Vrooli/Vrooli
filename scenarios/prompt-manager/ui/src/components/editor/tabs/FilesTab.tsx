@@ -36,7 +36,7 @@ import {
   MoreHorizontal,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Input } from '@/components/ui/input'
+import { Input } from "@vrooli/react-component-library/Input/1.3.6"
 import { toast } from '@/hooks/use-toast'
 import type { NormalizedAgentFormState } from '@/stores/agentEditorStore'
 import type { AgentFileEntry } from '@/types/agent'

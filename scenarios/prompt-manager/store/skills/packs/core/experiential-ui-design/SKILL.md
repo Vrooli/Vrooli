@@ -95,75 +95,26 @@ The 44px touch floor belongs to the library, not to call sites: `ControlBase` (s
 
 ### 2a. Build toward the current design target
 
-Keep one current target in the scenario's existing durable design document (§6):
-selected mockups, applicable amendments, retained capabilities and verified refinements.
-An atlas specifies the selected concept and its unamended details; it is not a command
-to reproduce an awkward artifact or remove useful behavior missing from a screenshot.
-Within product, safety and authority constraints, the latest applicable explicit user
-decision takes precedence over an older design choice. Resolve an actual conflict with
-a governing constraint explicitly. A question or agent preference is not user approval.
+Keep one current target in the scenario's existing durable design document (§6): selected mockups, applicable amendments, retained capabilities and verified refinements. An atlas specifies the selected concept; it is not a command to reproduce an awkward artifact or drop useful behavior a screenshot omits. Within product, safety and authority constraints, the latest explicit user decision beats an older design choice; a question or agent preference is not user approval.
 
-| Input | Action and authority |
+| Input | Action |
 | --- | --- |
-| Explicit user amendment, such as retaining bottom navigation | Preserve the request and provenance; update the current target and affected assignments/review criteria. No replacement atlas or repeat concept ratification is required for a clear in-scope amendment. |
-| Ordinary reversible refinement within the chosen concept and workflows | Use design judgment and verify it below. Record it as agent-authored; adopt when the evidence supports it. Do not require an operator decision for every spacing or component choice. |
-| Ambiguous alternatives with a consequential tradeoff, changed concept, removed capability or changed authority | Preserve the working behavior, investigate and present the specific unresolved choice to its owner. Do not silently select by taste or claim human approval. |
+| Explicit user amendment (for example, keep bottom navigation) | Preserve the request and provenance; update the target and affected assignments and review criteria. A clear in-scope amendment needs no new atlas or concept ratification. |
+| Ordinary reversible refinement within the concept and workflows | Use judgment, verify it, record it as agent-authored and adopt when evidence supports it; no operator decision per spacing or component choice. |
+| Ambiguous alternatives with a consequential tradeoff, changed concept, removed capability or changed authority | Keep the working behavior and put the specific unresolved choice to its owner; never select by taste or claim human approval. |
 
-Judge a proposed refinement against the same task, state, theme and viewport:
+Judge a refinement against the same task, state, theme and viewport:
 
-- **Task and hierarchy:** Does it make the main task clearer and reduce competing controls?
-  Keep primary and frequent actions easy to find; secondary tools can use a labelled menu.
-- **Task completeness and recovery:** Can users complete the approved task with realistic
-  data, see state and recover errors? For searchable lists, distinguish a bounded page from
-  an arbitrary total cap: search/filter the full authorized scope before pagination, expose
-  continuation and an honest end, and cover important lifecycle states including outstanding
-  work. A limitation banner does not repair unreachable records. Keep selection, query and
-  return context through drill-in. A collapsed editor and its expanded controls may be
-  complementary states, not alternative features.
-- **Composition:** Does the whole screen have a clear attention order? Prioritize the task
-  and distinguishing record content; subordinate routine freshness/scope metadata, use warning
-  emphasis for actionable exceptional conditions, and group related filters. Match spacing,
-  typography and density to that hierarchy across the product's surfaces.
-  Use familiar icon buttons for unambiguous compact actions such as menu, close and
-  overflow, with accessible names and adequate targets. Do not replace clear primary,
-  destructive or unfamiliar action labels with ambiguous symbols merely to reduce text.
-- **Component fit:** Prefer a suitable governed shared component over custom CSS copying
-  an obvious defect. Inspect its actual contract and behavior; library membership alone
-  does not establish suitability. Change published assets through their owner workflow.
-- **Access and device fit:** Verify keyboard/focus, labels, contrast, touch targets, zoom,
-  responsive behavior and safe areas. Inspect the actual scrolling panes with long real
-  content and machine identifiers; document width alone can miss inner overflow. Verify
-  a coherent focus indicator on composed controls. A flush drawer removes an unnecessary *outer gutter*;
-  it still needs readable inner padding and viewport inset handling.
-- **Evidence and tradeoff:** Show the concrete gain and any cost with before/after captures
-  and operated behavior. A cleaner screenshot alone cannot prove a better interaction. Operate a realistic
-  large dataset, older match, outstanding item, no-match and continuation failure when those
-  cases apply; a small attractive fixture and tests that enshrine a cap are insufficient.
+- **Task and hierarchy:** clearer main task, fewer competing controls; primary and frequent actions easy to find, secondary tools in a labelled menu.
+- **Completeness and recovery:** the task completes with realistic data, shows state and recovers errors. For searchable lists, search and filter the full authorized scope before pagination, expose continuation and an honest end, cover lifecycle states including outstanding work, and keep selection, query and return context through drill-in; a limitation banner does not repair unreachable records.
+- **Composition:** a clear attention order: task and distinguishing record content first, routine freshness and scope metadata subordinate, warning emphasis only for actionable exceptions, related filters grouped. Familiar icon buttons for unambiguous compact actions (menu, close, overflow) with accessible names; clear primary, destructive or unfamiliar actions keep their labels.
+- **Component fit:** prefer a suitable governed shared component over custom CSS copying a defect; inspect its actual contract, and change published assets through their owner workflow.
+- **Access and device fit:** keyboard and focus (a coherent indicator on composed controls), labels, contrast, touch targets, zoom, responsive behavior and safe areas; inspect the actual scrolling panes with long real content and machine identifiers; a flush drawer drops the outer gutter, not inner padding or inset handling.
+- **Evidence:** before and after captures plus operated behavior, with a realistic large dataset, an older match, an outstanding item, no-match and continuation failure where they apply; a cleaner screenshot or a small fixture does not prove a better interaction.
 
-Use the existing target's decision/amendment section, not another feedback manager. Give
-each material amendment/refinement a stable ID, source/author/date, affected surfaces and
-states, intended change and preserved behavior, rationale/tradeoff, evidence, disposition
-(proposed, adopted, rejected or superseded) and any superseded ID. Use descriptive or
-author-scoped IDs, check for duplicates during parallel edits, and preserve concurrent
-authored entries; do not race to allocate one shared sequential number. Preserve whether a
-decision is user-approved or agent-authored; do not relabel an untested proposal adopted.
-Record routine finishing adjustments together when they share a rationale. Use independent
-review for material refinement judgments within the existing acceptance route; don't add
-a human gate to routine execution. If verification disproves the benefit, revise or revert.
+Record each material amendment or refinement in the existing target's decision section (no separate feedback manager) with a descriptive or author-scoped stable ID (check duplicates during parallel edits, preserve concurrent entries, no shared sequential numbers), source, author, date, affected surfaces and states, intended change and preserved behavior, rationale and tradeoff, evidence, disposition (proposed, adopted, rejected, superseded) and any superseded ID. Keep user-approved and agent-authored distinct and never relabel an untested proposal adopted; batch routine finishing adjustments that share a rationale. Use independent review for material refinement judgments inside the existing acceptance route, add no human gate, and revise or revert if verification disproves the benefit. Send the target and IDs to the implementer and reviewer, reconcile active briefs and native completion predicates when acceptance changes, and verify receipt and application rather than counting a file write as adoption.
 
-Send the current target and applicable IDs to the actual implementer and reviewer. Reconcile
-active briefs and eligible native completion predicates when an amendment changes acceptance;
-verify receipt and application, rather than counting a feedback-file write as adoption.
-Keep worker-owned and native authority boundaries intact.
-
-Compare the served result against this effective target on desktop and phone for responsive
-web UIs, with applicable themes, states and accessibility checks. The existing comparison
-ledger records the source/build identity, reference, amendment/refinement ID, expected
-difference and remaining defect. An implemented, verified amendment or refinement is an
-expected difference and does not block completion. A missing requirement, unverified change
-or genuine defect remains open. Keep original images and decision history; update only
-representative mockups when useful. Do not require a full atlas regeneration or relax the
-whole product's quality bar merely to close a mismatch count.
+Compare the served result against the effective target on desktop and phone (applicable themes, states, accessibility), recording in the existing ledger the source and build identity, reference, amendment or refinement ID, expected difference and remaining defect. A verified amendment or refinement is an expected difference and does not block completion; a missing requirement, unverified change or genuine defect stays open. Keep original images and history, update only representative mockups when useful, and never demand full atlas regeneration or relax the quality bar to close a mismatch count.
 
 ### 3. Archetype model — classify each surface, then compose
 
@@ -195,7 +146,7 @@ This skill owns the ladder. Every rung is gated by a verifiable artifact, run ag
 
 The terminal "is it genuinely beautiful?" judgment has no mechanical oracle. The two human checkpoints establish the concept and selected mockups; §2a governs later amendments and refinements. L4 verifies the current target, operated behavior and comparison evidence; exact pixel-match totals are not a substitute for judgment.
 
-This L0–L4 ladder is the *experiential* axis; it is distinct from the R0–R4 scenario maturity ladder (`scenario-maturity-ladder`). A surface can be R3-mature yet L1 on experience.
+This L0–L4 ladder is the *experiential* axis; it is distinct from the R0–R4 scenario maturity ladder (`scenario-work-ladder`). A surface can be R3-mature yet L1 on experience.
 
 ### 5. Anti-gaming
 

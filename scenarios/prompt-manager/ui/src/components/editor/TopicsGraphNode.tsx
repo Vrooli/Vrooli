@@ -5,7 +5,7 @@
  * (external producers, PoR sinks, capability work registry,
  * skill proposals, backlog) using kind-specific styling.
  *
- * DOC: docs/agent-system/TOPICS_SCHEMA.md
+ * DOC: scenarios/prompt-manager/docs/internal/TOPICS_SCHEMA.md
  */
 
 import { memo } from 'react'

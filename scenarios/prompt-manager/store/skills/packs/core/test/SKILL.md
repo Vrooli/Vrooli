@@ -22,7 +22,7 @@ metadata:
 ---
 ## Steer focus: Test Suite Strengthening
 
-> **Ladder position:** R0 and R3 (runnable & green, then features hardened — coverage). Green-and-runnable is the floor; real coverage of critical behavior is the hardening. See `prompt-manager skill read scenario-maturity-ladder` for rung context and `prompt-manager skill read improvement-do-and-dont` for what counts as a real improvement.
+> **Ladder position:** R0 and R3 (runnable & green, then features hardened — coverage). Green-and-runnable is the floor; real coverage of critical behavior is the hardening. See `prompt-manager skill read scenario-work-ladder` for rung context and `prompt-manager skill read improvement-do-and-dont` for what counts as a real improvement.
 
 > **Provider & scorer:** the **unit-health** scenario is the canonical test-maturity provider behind Test Genie's `unit` phase — it owns test execution, coverage, test architecture, test quality, and the local-maturity score. This skill is the *remediation* loop, **not** the scorer. To see a scenario's current test maturity, failing/uncovered surfaces, and the next blocker, run the human report:
 >

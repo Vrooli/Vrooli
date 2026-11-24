@@ -387,18 +387,7 @@ func (m *mockFullTeamStore) GetOrgChart(ctx context.Context, teamID string) (*st
 	return &store.OrgChart{}, nil
 }
 
-func (m *mockFullTeamStore) SetOrgChart(ctx context.Context, teamID string, o *store.OrgChart) error {
-	return nil
-}
-
 func (m *mockFullTeamStore) GetMembers(ctx context.Context, teamID string) ([]store.TeamMemberRelation, error) {
 	return nil, nil
 }
 
-func (m *mockFullTeamStore) GetInbox(ctx context.Context, teamID, agentID string) (*store.TeamInbox, error) {
-	return &store.TeamInbox{}, nil
-}
-
-func (m *mockFullTeamStore) SetInbox(ctx context.Context, teamID, agentID string, inbox *store.TeamInbox) error {
-	return nil
-}

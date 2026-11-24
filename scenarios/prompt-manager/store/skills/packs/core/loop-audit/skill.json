@@ -1,0 +1,27 @@
+{
+  "createdAt": "2026-11-20T00:00:00Z",
+  "description": "A manager's check of one agent, team or workspace below it against the agent rules: observe its loop card, measure movement, prove its sensors, price its tooling, then fix the setup inside your authority and packet the rest.",
+  "entry": "SKILL.md",
+  "icon": "gauge",
+  "id": "loop-audit",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "practice"
+  ],
+  "name": "Loop Audit",
+  "origin": {
+    "kind": "authored"
+  },
+  "revision": 2,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "audit",
+    "manager",
+    "rules",
+    "cascading-control",
+    "workspace"
+  ],
+  "updatedAt": "2026-11-20T00:00:00Z"
+}

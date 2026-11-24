@@ -2,9 +2,8 @@
 # PoR coherence test — the dogfood lint for the agent-system canon.
 #
 # Asserts that:
-#   1. The canonical layer-mantra sentence appears exactly once under
-#      docs/agent-system/ (in LAYERS.md) and zero times under
-#      scenarios/prompt-manager/store/skills/.
+#   1. (retired 2026-11-20: the layer mantra and the framework-health sensor
+#      map were deleted with LAYERS.md and FRAMEWORK_HEALTH.md.)
 #   2. The two skills fully absorbed in Phase 1 (skill-principles,
 #      team-shared-docs-design) no longer exist as skill directories.
 #   3. The docs/meta-optimization/ folder is the friction-report canon hub
@@ -16,6 +15,8 @@
 #   4. No active SKILL.md or live team/agent config references the retired
 #      skill IDs. (Historical logs in *.jsonl and member last-handoff.md are
 #      exempt; they are immutable runtime traces.)
+#   5. Every section citation into docs/agent-system resolves to a heading
+#      (agent_system_section_refs_check.py).
 #
 # Run from repo root:
 #   bash scenarios/prompt-manager/test/agent_system_canon_test.sh
@@ -48,25 +49,6 @@ if command -v rg >/dev/null 2>&1; then
 else
     grep_files() { grep -rl "$@" 2>/dev/null; }
 fi
-
-# ---------------------------------------------------------------------------
-# 1. Layer mantra — exactly one PoR home, zero skill residue
-# ---------------------------------------------------------------------------
-
-mantra_in_por() {
-    local matches
-    matches=$(grep_files "Truth lives in Plan of Record" docs/agent-system/ | wc -l)
-    [[ "$matches" -eq 1 ]]
-}
-
-mantra_in_skills() {
-    local matches
-    matches=$(grep_files "Truth lives in Plan of Record" scenarios/prompt-manager/store/skills/ | wc -l)
-    [[ "$matches" -eq 0 ]]
-}
-
-check "Layer mantra appears in exactly one file under docs/agent-system/" mantra_in_por
-check "Layer mantra appears nowhere under scenarios/prompt-manager/store/skills/" mantra_in_skills
 
 # ---------------------------------------------------------------------------
 # 2. Absorbed skills are deleted
@@ -155,27 +137,24 @@ check "No active reference to team-shared-docs-design" no_active_refs_to "team-s
 # 5. Large-effort supervision front door and Swarm disposition boundary
 # ---------------------------------------------------------------------------
 
+# Protects: effort supervisors once read goal-home files as proof of admission and
+# re-launched unknown work (R6). grep -E, not rg: the test runs where rg is absent.
 supervisor_uses_owner_observation() {
-    rg -q 'agent-manager\.supervision-observation-read' \
-      scenarios/prompt-manager/store/agents/effort-supervisor/AGENT.md \
-      && rg -q 'unknown.*needs_review|needs_review.*blocked' \
-      scenarios/prompt-manager/store/skills/packs/core/large-effort-supervision/SKILL.md \
-      && rg -q 'authorized_by' \
-      scenarios/prompt-manager/store/skills/packs/core/large-effort-supervision/SKILL.md \
-      && rg -q 'selection' \
-      scenarios/prompt-manager/store/skills/packs/core/large-effort-supervision/SKILL.md \
-      && rg -q 'activeEpoch.*do not prove native admission' \
-      scenarios/prompt-manager/store/agents/effort-supervisor/AGENT.md
+    local sup=scenarios/prompt-manager/store/skills/packs/core/large-effort-supervision/SKILL.md
+    grep -q 'agent-manager\.supervision-observation-read' scenarios/prompt-manager/store/agents/effort-supervisor/AGENT.md \
+      && grep -Eq 'unknown.*needs_review|needs_review.*blocked' "$sup" \
+      && grep -q 'authorized_by' "$sup" \
+      && grep -q 'activeEpoch.*do not prove native admission' scenarios/prompt-manager/store/agents/effort-supervisor/AGENT.md
 }
 
+# Protects: orchestrators routing in-scope repairs out as new work, and the retired
+# delivery-team wording surviving the 2026-11-20 retirement (RULES.md construct table).
 orchestration_preserves_swarm_disposition() {
-    rg -q 'inside the approved effort destination' \
-      scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/SKILL.md \
-      && rg -q 'outside its approved scope' \
-      scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/SKILL.md \
-      && rg -q 'Swarm route' scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/SKILL.md \
-      && ! rg -q 'Delivery teams never use Swarm Manager' \
-      scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/SKILL.md
+    local orc=scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/SKILL.md
+    grep -q 'inside the approved destination stay with this effort' "$orc" \
+      && grep -q 'outside it to its owner' "$orc" \
+      && grep -q "Swarm Manager launches" "$orc" \
+      && ! grep -Eq 'Delivery teams (never|do not) use Swarm' "$orc"
 }
 
 check "Supervisor bootstrap points to the bounded owner observation and preserves unknown work" supervisor_uses_owner_observation
@@ -208,7 +187,7 @@ check "Orchestration distinguishes in-scope repair from new Swarm disposition" o
 # sensor that reported "not collected".
 #
 # The asymmetry is the point. A lens that *graduates* to a provider keeps both
-# its tag and its doc (screaming-architecture-audit is the worked case): the doc
+# its tag and its doc (architecture-lenses is the worked case): the doc
 # holds why the lens applied and what the contrarian challenged, which stays
 # worth reading after detection mechanizes. Direction 1 keeps that doc honest by
 # requiring its skill to still exist. Direction 2 stops requiring a doc the
@@ -306,65 +285,6 @@ for entry in "${TECHNIQUE_REGISTRIES[@]}"; do
 done
 
 # ---------------------------------------------------------------------------
-# Framework-health sensor map: the doc table and the Go registry are one list
-#
-# Every target's name lives in two homes — the FRAMEWORK_HEALTH.md sensor map
-# and a Go literal in cli/graph/audit.go — which is the double residency
-# LAYERS.md forbids. Generating one from the other is not practical while the
-# Observed column carries hand-written analysis, so this assertion holds them
-# equal instead: a row added to the doc without a collector is documentation of
-# a sensor that does not run, and a collector without a row is a reading no
-# canon accounts for.
-# ---------------------------------------------------------------------------
-
-AUDIT_GO="scenarios/prompt-manager/cli/graph/audit.go"
-FRAMEWORK_HEALTH="docs/agent-system/FRAMEWORK_HEALTH.md"
-
-audit_go_targets() {
-    grep -oE 'Target:[[:space:]]+"[^"]+"' "$AUDIT_GO" \
-        | sed -E 's/.*"([^"]+)"/\1/' | sort -u
-}
-
-framework_health_targets() {
-    # Only the sensor map table; FRAMEWORK_HEALTH.md holds other tables whose
-    # first column is not a target name.
-    awk '/^## Sensor map/{inmap=1; next} inmap && /^## /{exit} inmap && /^\|/{print}' "$FRAMEWORK_HEALTH" \
-        | grep -v '^| *Target *|' \
-        | grep -v '^|[ -]*|' \
-        | sed -E 's/^\|[[:space:]]*//; s/[[:space:]]*\|.*$//' \
-        | sed -E 's/^`//; s/`$//' \
-        | sed -E 's/[[:space:]]+$//' \
-        | grep -v '^$' | sort -u
-}
-
-sensor_map_in_sync() {
-    local in_go in_doc rc=0
-    in_go=$(audit_go_targets)
-    in_doc=$(framework_health_targets)
-    if [[ -z "$in_go" || -z "$in_doc" ]]; then
-        red "    could not extract targets (go=$(wc -l <<<"$in_go") doc=$(wc -l <<<"$in_doc")); check the parsers"
-        return 1
-    fi
-    while IFS= read -r name; do
-        [[ -z "$name" ]] && continue
-        if ! grep -qxF "$name" <<<"$in_doc"; then
-            red "    audit.go collects '$name' with no row in $FRAMEWORK_HEALTH"
-            rc=1
-        fi
-    done <<<"$in_go"
-    while IFS= read -r name; do
-        [[ -z "$name" ]] && continue
-        if ! grep -qxF "$name" <<<"$in_go"; then
-            red "    $FRAMEWORK_HEALTH declares '$name' with no collector in audit.go"
-            rc=1
-        fi
-    done <<<"$in_doc"
-    return "$rc"
-}
-
-check "Framework-health sensor map matches the audit collectors" sensor_map_in_sync
-
-# ---------------------------------------------------------------------------
 # 7. Supervision scope stays separated from generic heartbeats
 # ---------------------------------------------------------------------------
 #
@@ -390,6 +310,12 @@ supervision_scope_separated() {
 }
 
 check "Generic heartbeat cannot declare supervision scope" supervision_scope_separated
+
+# ---------------------------------------------------------------------------
+# 5. Section citations into docs/agent-system resolve
+# ---------------------------------------------------------------------------
+
+check "Section citations into docs/agent-system resolve to headings" python3 scenarios/prompt-manager/test/agent_system_section_refs_check.py
 
 # ---------------------------------------------------------------------------
 # Summary

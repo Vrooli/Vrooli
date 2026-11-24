@@ -73,7 +73,7 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 				Name:        "graph",
 				Aliases:     []string{"g"},
 				NeedsAPI:    true,
-				Description: "Relationship graph (show|dump|node|regenerate|orphaned-skills|skillless-agents|empty-teams|unaffiliated-agents|cliless-skills|popular|circular-refs|health|topics|operating-model|map|objectives|orientation-cost|instruments|audit|drain-status)",
+				Description: "Relationship graph (show|dump|node|regenerate|orphaned-skills|skillless-agents|empty-teams|unaffiliated-agents|cliless-skills|popular|circular-refs|health|topics|operating-model|map|objectives|instruments|audit|drain-status)",
 				Run: func(args []string) error {
 					return route(ctx, args)
 				},
@@ -127,8 +127,6 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdMap(ctx, subArgs)
 	case "objectives":
 		return cmdObjectives(ctx, subArgs)
-	case "orientation-cost":
-		return cmdOrientationCost(ctx, subArgs)
 	case "instruments":
 		return cmdInstruments(ctx, subArgs)
 	case "audit":
@@ -183,13 +181,11 @@ Subcommands:
   objectives [--json]                 Objective coverage from the objective
                                       authority, both directions, with the
                                       retained declarations as drift context
-  orientation-cost [--json]           Per-team orientation cost and its
-                                      components, read against scenario coverage
   instruments [--json]                Per-team instrument declaration: one
                                       address per team, or a dated hole
   drain-status [--team X] [--json]    Per-prefix queue depth (Phase 5)
   audit [--json] [--out PATH]         Framework-health sweep: every sensor in
-                                      FRAMEWORK_HEALTH.md read in one call`
+                                      the framework-health sensor map read in one call`
 }
 
 // cmdShow prints a summary of graph counts by type.

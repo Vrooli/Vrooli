@@ -2,7 +2,7 @@
 
 **Authored**: 2026-05-04, before Phase B baseline measurement and before Phase C/D substrate work.
 
-**Plan**: `/home/matthalloran8/.claude/plans/thanks-for-the-postgres-wise-hearth.md`.
+**Plan**: `~/.claude/plans/thanks-for-the-postgres-wise-hearth.md`.
 
 ## The claim
 
@@ -13,7 +13,7 @@ We believe the dominant cost in adding domains and endpoints to scenarios genera
 
 If we add to `cli-core`:
 - A declarative `ArgSchema` + `RunContext` + parser path (mirroring `internal/cli/commandtree`'s shape).
-- A generic `Call[Req, Resp proto.Message](app, method, path, req) (Resp, error)` helper.
+- A generic `Call` helper over request and response proto messages (takes app, method, path, and request; returns the response and an error).
 - An envelope-aware `WrapAPIError` + `DecodeEnvelope`.
 
 …and rewrite the template's notes domain on top, plus relocate `ApiError`/`decodeApiError` into `ui/src/lib/api.ts` with a shared `protoFetch<Req,Resp>` helper that `notes.ts` and `fetchHealth` both consume…

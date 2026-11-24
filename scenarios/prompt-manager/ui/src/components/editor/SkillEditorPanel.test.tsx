@@ -66,15 +66,9 @@ vi.mock('@/components/graph/GraphQueryPanel', () => ({
   GraphQueryPanel: () => <div />,
 }))
 
-// Mock lineage child panels to avoid their hook/network dependencies.
+// Mock the lineage child panel to avoid their hook/network dependencies.
 vi.mock('./tabs/VersionHistoryTab', () => ({
   VersionHistoryTab: () => <div data-testid="mock-history">history</div>,
-}))
-vi.mock('./VariantPanel', () => ({
-  VariantPanel: () => <div data-testid="mock-variants">variants</div>,
-}))
-vi.mock('./ExperimentPanel', () => ({
-  ExperimentPanel: () => <div data-testid="mock-experiments">experiments</div>,
 }))
 vi.mock('./CrossReferencePanel', () => ({
   CrossReferencePanel: () => <div data-testid="mock-xref" />,
@@ -287,31 +281,15 @@ describe('SkillEditorPanel', () => {
       render(<SkillEditorPanel {...defaultProps} currentSkill={skill} />)
       const toggle = screen.getByTestId('lineage-toggle')
       expect(toggle).toHaveAttribute('aria-expanded', 'false')
-      expect(screen.queryByTestId('lineage-tab-history')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('mock-history')).not.toBeInTheDocument()
     })
 
-    it('opens on click and shows three tabs', () => {
+    it('opens on click and shows the version history', () => {
       const skill = createTestSkill()
       render(<SkillEditorPanel {...defaultProps} currentSkill={skill} />)
       fireEvent.click(screen.getByTestId('lineage-toggle'))
       expect(screen.getByTestId('lineage-toggle')).toHaveAttribute('aria-expanded', 'true')
-      expect(screen.getByTestId('lineage-tab-history')).toBeInTheDocument()
-      expect(screen.getByTestId('lineage-tab-variants')).toBeInTheDocument()
-      expect(screen.getByTestId('lineage-tab-experiments')).toBeInTheDocument()
-    })
-
-    it('remembers last-selected tab across open/close within the session', () => {
-      const skill = createTestSkill()
-      render(<SkillEditorPanel {...defaultProps} currentSkill={skill} />)
-      fireEvent.click(screen.getByTestId('lineage-toggle'))
-      fireEvent.mouseDown(screen.getByTestId('lineage-tab-variants'))
-      expect(screen.getByTestId('lineage-tab-variants')).toHaveAttribute('data-state', 'active')
-      // close
-      fireEvent.click(screen.getByTestId('lineage-toggle'))
-      expect(screen.queryByTestId('lineage-tab-variants')).not.toBeInTheDocument()
-      // reopen — variants should still be active
-      fireEvent.click(screen.getByTestId('lineage-toggle'))
-      expect(screen.getByTestId('lineage-tab-variants')).toHaveAttribute('data-state', 'active')
+      expect(screen.getByTestId('mock-history')).toBeInTheDocument()
     })
   })
 

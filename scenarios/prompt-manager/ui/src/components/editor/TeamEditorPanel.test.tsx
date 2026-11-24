@@ -11,9 +11,6 @@ vi.mock('@/hooks/useTeamEditorStore', () => ({
   useTeamEditorStore: (selector: (value: Record<string, unknown>) => unknown) => selector({
     selectedMemberId: null,
     setSelectedMemberId: vi.fn(),
-    edges: [],
-    setEdges: vi.fn(),
-    updateEdge: vi.fn(),
     reset: vi.fn(),
   }),
 }))
@@ -27,7 +24,6 @@ vi.mock('@/hooks/useMediaQuery', () => ({ useIsCompactHeader: () => false, useIs
 vi.mock('@/hooks/useGlobalKeydown', () => ({ useGlobalKeydown: vi.fn() }))
 vi.mock('@/hooks/useTopicsGraph', () => ({ useTopicsGraph: () => ({ graph: null }) }))
 vi.mock('@/services/effortService', () => ({ useTeamContractors: () => ({ contractors: [] }) }))
-vi.mock('@/services/orgChartService', () => ({ getEdges: vi.fn().mockResolvedValue([]) }))
 vi.mock('./teamTabs', () => ({
   TeamDashboardTab: ({ onHealthChange }: { onHealthChange?: (health: 'running' | 'yellow') => void }) => {
     React.useEffect(() => onHealthChange?.(state.health), [onHealthChange])
@@ -37,8 +33,6 @@ vi.mock('./teamTabs', () => ({
   TeamPromptMatrixTab: () => null,
 }))
 vi.mock('./TeamActivityTab', () => ({ TeamActivityTab: () => null }))
-vi.mock('./OrgChartPanel', () => ({ OrgChartPanel: () => null }))
-vi.mock('./ManagedTeamsPanel', () => ({ ManagedTeamsPanel: () => null }))
 vi.mock('./TopicsGraphPanel', () => ({ TopicsGraphPanel: () => null }))
 vi.mock('./MemberDetailPanel', () => ({ MemberDetailPanel: () => null }))
 vi.mock('./TeamCodeView', () => ({ TeamCodeView: () => null }))

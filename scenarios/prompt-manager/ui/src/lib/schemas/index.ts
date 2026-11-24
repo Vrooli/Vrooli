@@ -35,9 +35,6 @@ export {
   UpdateSkillRequestSchema,
   TagSchema,
   TagArraySchema,
-  SkillTestRequestSchema,
-  SkillTestResultSchema,
-  SkillTestResultArraySchema,
   UsageResponseSchema,
   RatingResponseSchema,
   HealthResponseSchema,
@@ -48,8 +45,6 @@ export {
   type CreateSkillRequest,
   type UpdateSkillRequest,
   type Tag,
-  type SkillTestRequest,
-  type SkillTestResult,
   type UsageResponse,
   type RatingResponse,
   type HealthResponse,
@@ -273,9 +268,6 @@ export {
   TeamSharedFileWriteRequestSchema,
   TeamSharedFileCreateRequestSchema,
   TeamSharedFileRenameRequestSchema,
-  AvailableCCTeamSchema,
-  ImportCCRequestSchema,
-  ExportCCResponseSchema,
   ExclusiveMemberSchema,
   ExclusiveMembersResponseSchema,
   buildIndependentCoordination,
@@ -313,9 +305,6 @@ export {
   type TeamSharedFileWriteRequest,
   type TeamSharedFileCreateRequest,
   type TeamSharedFileRenameRequest,
-  type AvailableCCTeam,
-  type ImportCCRequest,
-  type ExportCCResponse,
   type ExclusiveMember,
   type ExclusiveMembersResponse,
 } from './team.schema'
@@ -356,30 +345,6 @@ export {
   type VersionsResponse,
   type RevertResponse,
 } from './version.schema'
-
-// Variant schemas
-export {
-  VariantSchema,
-  VariantArraySchema,
-  CreateVariantRequestSchema,
-  type Variant,
-  type CreateVariantRequest,
-} from './variant.schema'
-
-// Experiment schemas
-export {
-  ExperimentArmSchema,
-  ExperimentArmInputSchema,
-  ExperimentSchema,
-  ExperimentArraySchema,
-  CreateExperimentRequestSchema,
-  ConcludeExperimentRequestSchema,
-  type ExperimentArm,
-  type ExperimentArmInput,
-  type Experiment,
-  type CreateExperimentRequest,
-  type ConcludeExperimentRequest,
-} from './experiment.schema'
 
 // Graph schemas
 export {

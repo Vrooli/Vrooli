@@ -1,6 +1,6 @@
 {
   "createdAt": "2025-01-15T00:00:00Z",
-  "defaultScope": "refactor-scope",
+  "defaultScope": "work-scope",
   "description": "User experience quality across all interfaces",
   "entry": "SKILL.md",
   "icon": "users",

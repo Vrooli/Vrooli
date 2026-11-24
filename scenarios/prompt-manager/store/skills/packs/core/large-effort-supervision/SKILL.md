@@ -65,10 +65,10 @@ Slice budgets and estimates follow `large-effort-orchestration` §2: they inform
 and never stop workers, freeze source, force partial returns or refuse acceptance. Unknown
 usage does not establish waste.
 
-Agent Manager's native effort owner computes deliveryPressure and enforces the persisted operator
-commission. The rare judgment supervisor reads that same signal; it does not run a second clock,
-reset a budget, manufacture surface acceptance or replace timed stopping with another checklist.
-At a timed handback, audit the frozen delivery outcome and actual decision publication separately.
+Agent Manager's native effort owner enforces the persisted commission and its `execution_limits`
+(including `max_slices`). Pace against plan is a friction signal (R2), not a stop. The rare judgment
+supervisor reads the owner's signals; it does not run a second clock, reset a budget, manufacture
+surface acceptance or replace limit stops with another checklist. At a limit handback, audit the frozen delivery outcome and actual decision publication separately.
 An unassessed surface or unpublished question remains unverified. Real team activation remains a
 deliberate owner action after source/route qualification and retained-owner reconciliation.
 

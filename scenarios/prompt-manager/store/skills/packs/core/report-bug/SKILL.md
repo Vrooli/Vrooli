@@ -3,22 +3,13 @@ name: "report-bug"
 description: "Universal writer skill for filing a bug observation against any scenario, skill, member, or CLI command. Writes a bug-inbox/<signal-type>/<slug> entry on the scenario-qa team for the bug-investigator to drain."
 license: "CC-BY-4.0"
 metadata:
-  kind: "skill"
-  schemaVersion: 1
-  modes: ["tools"]
-  tags: ["skill","observability","bug-report","writer-skill"]
-  writes_to: ["bug-inbox/*"]
-  icon: "bug"
-  status: "active"
-  revision: 3
-  createdAt: "2026-05-03T00:00:00Z"
-  updatedAt: "2026-07-21T00:00:00Z"
   requires:
-    scenarios: ["prompt-manager", "vrooli"]
-    commands: ["prompt-manager team", "vrooli scenario"]
+    scenarios: []
+    commands: []
   origin:
-    kind: "authored"
+    kind: authored
 ---
+
 ## Tools focus: Report Bug
 
 Universal writer skill any agent on any team may invoke when they observe a bug — broken code, broken scenario behavior, prompt confusion, data-shape mismatch, unexpected error, or anything that looks defective. The skill writes a structured entry to `team:scenario-qa`'s `topic:bug-inbox/<signal-type>/<slug>` topic; the `literal:scenario-qa/bug-investigator` member drains the inbox, applies a registered investigation technique, and closes the entry with a `topic:bug-investigation-report/<slug>` audit-log entry.
@@ -107,6 +98,32 @@ test.
    the draft id until its repair publishes. Drafts are not bug reports and do
    not appear under `bug-inbox/*`.
 
+
+4. **Wake the owner on arrival.** Only after the published id and exact topic
+   are confirmed, pass the pointer to the steward's durable arrival dispatcher:
+
+   ```bash
+   python3 ~/.vrooli/portfolio/steward/bin/problem_dispatch.py arrival \
+     --id '<published knw-... id>' --topic 'bug-inbox/<signal-type>/<slug>'
+   ```
+
+   The dispatcher writes only the stable bug pointer and a write-ahead owner/day
+   intent into the existing `state/problems.json` before requesting the
+   heartbeat. The owner/day receipt is shared with the daily sweep, so the same
+   arrival cannot cause a second call that day. Report the returned run id and
+   status with the bug id. A `waiting` result means the team is paused or the
+   index is unavailable; an `unknown` result means an intent was persisted but
+   the response is ambiguous. In either case, preserve the published bug and
+   let the existing four-hour owner heartbeat or the next daily sweep recover
+   it. Never retry an `unknown` result or use `--force`. Drafts do not wake the
+   owner. If the dispatcher command cannot run, the published inbox entry stays
+   canonical and the existing scheduled heartbeat remains the fallback.
+
+The daily scenario-qa heartbeat is the reconciliation path for missed or
+unavailable arrival triggers. The dispatcher and owner both preserve the same
+published bug ID, so an interrupted arrival is not republished and a retry can
+resume without a second owner call or disposition.
+
 ---
 
 ### **4. Output expectations**
@@ -139,5 +156,5 @@ If the `report-bug` skill is itself buggy or ambiguous, file a `bug-inbox/prompt
 - `docs/scenario-qa/taxonomies/bug-report/README.md` — taxonomy (required reading).
 - `docs/scenario-qa/README.md` — scenario-qa team plan-of-record overview.
 - `docs/scenario-qa/methods/investigation/scientific-debugging.md` — the default investigation technique the bug-investigator applies; useful context for understanding why repro and root-cause-friendly framing matter.
-- `docs/agent-system/INTAKE_PIPELINE.md` — the inbox-router-drain pattern; bug-inbox uses deterministic-prefix routing (no separate classifier).
-- `docs/agent-system/TOPICS_SCHEMA.md` § Universal-source intakes — the `source_team: "*"` semantics that make `bug-inbox/*` reachable from every team.
+- `scenarios/prompt-manager/docs/internal/INTAKE_PIPELINE.md` — the inbox-router-drain pattern; bug-inbox uses deterministic-prefix routing (no separate classifier).
+- `scenarios/prompt-manager/docs/internal/TOPICS_SCHEMA.md` § Universal-source intakes — the `source_team: "*"` semantics that make `bug-inbox/*` reachable from every team.

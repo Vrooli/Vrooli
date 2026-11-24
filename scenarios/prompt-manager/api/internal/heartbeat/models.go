@@ -229,7 +229,7 @@ type TaskBoardResponse struct {
 // Identity is carried out-of-band on the X-Vrooli-Attribution header,
 // not on the request body. CallerNote is freeform context only —
 // it cannot override or contradict the header's attribution. The
-// canon contract is docs/agent-system/RUNTIME_ATTRIBUTION.md.
+// canon contract is scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md.
 type AddKnowledgeRequest struct {
 	Topic      string `json:"topic"`
 	Content    string `json:"content"`

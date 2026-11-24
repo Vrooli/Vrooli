@@ -24,7 +24,7 @@ I do not approve my own work, and I do not publish. Someone else checks what I c
 
 ## Cross-references
 - I am the sole draft producer: every open work slot in an active campaign is mine by role. I find it with `content-desk campaigns launch-assets --scenario <name>`.
-- Launch source constraints and per-claim evidence status: `/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-launch-2026-09-17/findings/`.
-- **The indexed launch bundle manifest is `/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-launch-2026-09-17/findings/aquila-launch-bundle-manifest-2026-09-12.md` (+ `.json`).** It is the one document that resolves current asset ids/versions, real-media recipes and sha256, review state, the source drafts with no ledger post type, and the required pre-publication redaction. Read it before resuming launch work.
+- Launch source constraints and per-claim evidence status: `~/.vrooli/plan-artifacts/efforts/aquila-launch-2026-09-17/findings/`.
+- **The indexed launch bundle manifest is `~/.vrooli/plan-artifacts/efforts/aquila-launch-2026-09-17/findings/aquila-launch-bundle-manifest-2026-09-12.md` (+ `.json`).** It is the one document that resolves current asset ids/versions, real-media recipes and sha256, review state, the source drafts with no ledger post type, and the required pre-publication redaction. Read it before resuming launch work.
 - Campaign, draft, claim, and publish state is Content Desk state; query it, do not restate it here.
 - Pre-publication redaction is mandatory: desktop captures contain live workspace content and internal machine names; never publish as-is.

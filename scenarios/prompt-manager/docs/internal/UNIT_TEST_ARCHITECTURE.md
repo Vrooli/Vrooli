@@ -57,7 +57,7 @@ Production code must not import `prompt-manager/internal/testutil/...`. Tests ma
 
 `httpx` is used by handler tests in `agents`, `teams`, `heartbeat`, and `worldscale`
 for recorder construction, JSON requests and route variables. For JSON response
-bytes, call `apihttptest.MustDecodeJSON[T](t, recorder.Body.Bytes())`; for status,
+bytes, call the generic `apihttptest.MustDecodeJSON` on `recorder.Body.Bytes()`; for status,
 call `apihttptest.AssertStatus(t, recorder.Result(), expected)`. Prefer the
 shared `MustUnmarshalProto` when the response has a protobuf schema. The separate
 `servertest.DecodeJSON` consumes fixture **requests**, not recorder responses;

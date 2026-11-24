@@ -4,7 +4,7 @@
 
 ## Features
 
-- **Skills Management**: Full CRUD, versioning, AI search, testing, and pack organization (core/local/drafts)
+- **Skills Management**: Full CRUD, versioning, AI search, and pack organization (core/local/drafts)
 - **Agents**: Entities with appearance, SOUL.md + agent files, capabilities, connectors, and heartbeat
 - **Teams**: Organizational units with roles, members, org chart, and shared docs
 - **3D World**: a diorama of the swarm where place is state (desks, team tables, commons), driven by the live run feed, with a HUD that makes the swarm actionable
@@ -59,7 +59,6 @@
 - **File-based Store**: Primary entity storage (store/skills/, store/agents/, store/teams/)
 - **SQLite**: Embedded storage for tags, metrics, and test history
 - **Qdrant** (optional): Vector database for semantic search
-- **Ollama** (optional): Local LLM for skill testing
 
 ### Storage Structure
 
@@ -85,7 +84,7 @@ Stable domains use generated Connect services under
 - `SkillsService`, `ActionsService`, and `TagsService` own authored capability state.
 - `SearchService`, `AISearchService`, and `DiscoveryService` own deterministic, semantic, and composed discovery.
 - `AgentsService` and `TeamsService` own identity, membership, team structure, files, roles, and exchange.
-- `TopicsService`, `TemplatesService`, `TestingService`, and `MetadataService` own supporting taxonomy, templates, skill tests, and link metadata.
+- `TopicsService`, `TemplatesService`, and `MetadataService` own supporting taxonomy, templates, and link metadata.
 - `WorldService` owns world preferences, per-scene layout overrides and the server-streamed swarm feed (`docs/concepts/WORLD-ARCHITECTURE.md`).
 
 Use the generated Go/TypeScript clients or the CLI instead of constructing
@@ -127,9 +126,6 @@ prompt-manager search <query> [--folder=...] [--tag=...]
 prompt-manager tag list
 prompt-manager tag create <name> [--color=...]
 
-# Testing (requires Ollama)
-prompt-manager test run <skill-id> [--model=...]
-prompt-manager test history <skill-id>
 ```
 
 ## Configuration
@@ -192,11 +188,6 @@ bash deployment/validate.sh
 - Similarity-based discovery
 - Related skill suggestions
 
-### Skill Testing (requires Ollama)
-- Test skills with local LLMs
-- Performance and quality metrics
-- Effectiveness ratings
-
 ## Use Cases
 
 - **Agent Swarms**: Coordinate teams of agents (Debug, Feature, QA, Refactor) that analyze codebases and produce plans
@@ -210,9 +201,8 @@ bash deployment/validate.sh
 
 ```
 CLI/UI → Go API → File Store (skills, agents, teams)
-                → SQLite (tags, metrics, test history)
+                → SQLite (tags, metrics)
                 → Qdrant (embeddings)
-                → Ollama (testing)
 ```
 
 All interfaces interact through the central Go API server, ensuring consistent data handling and business logic. The 3D world reads a deterministic simulation fed by WorldService's stream; see docs/concepts/WORLD-SIM.md.

@@ -8,7 +8,7 @@ metadata:
   modes: ["platform","audit"]
   tags: ["platform","packages","audit","compatibility"]
   status: "active"
-  defaultScope: "platform-scope"
+  defaultScope: "work-scope"
   revision: 1
   createdAt: "2026-02-10T00:00:00Z"
   updatedAt: "2026-02-10T00:00:00Z"
@@ -20,11 +20,13 @@ metadata:
 ---
 ## Platform focus: Package Consumption Audit
 
+**Scope mode: `platform`.** Hold to that row of `work-scope` for this session.
+
 Analyze how scenarios consume `packages/{{PACKAGE}}/`, identify repeated friction and contract drift, and produce a prioritized improvement backlog that makes the package more reliable and easier to use without breaking downstream consumers.
 
 Required reading:
 - `docs/agent-system/SKILL_AUTHORING.md`
-- `prompt-manager skill read platform-scope`
+- `prompt-manager skill read work-scope`
 
 Optional reading:
 - `prompt-manager skill read conversation-friction-analysis`

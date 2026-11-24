@@ -10,7 +10,7 @@ metadata:
   topics: ["prd authoring","write a prd","business contract","requirements bootstrap","prd overhaul","operational targets"]
   icon: "file-text"
   status: "active"
-  defaultScope: "architecture-scope"
+  defaultScope: "work-scope"
   revision: 2
   createdAt: "2026-07-02T00:00:00Z"
   updatedAt: "2026-07-21T00:00:00Z"
@@ -21,6 +21,8 @@ metadata:
     kind: "authored"
 ---
 # PRD Authoring
+
+**Scope mode: `architecture`.** Hold to that row of `work-scope` for this session.
 
 ## Purpose
 

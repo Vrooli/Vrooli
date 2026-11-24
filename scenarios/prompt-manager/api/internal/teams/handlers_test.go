@@ -13,7 +13,6 @@ import (
 
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/identity"
-	"github.com/vrooli/api-core/provenance"
 
 	"prompt-manager/internal/store"
 	"prompt-manager/internal/teamconfig"
@@ -29,7 +28,6 @@ type MockTeamStore struct {
 	teams                 map[string]*store.Team
 	roles                 map[string]*store.TeamRoles
 	orgChart              map[string]*store.OrgChart
-	inboxes               map[string]map[string]*store.TeamInbox
 	responsibilities      map[string]map[string]string // teamID -> agentID -> content
 	heartbeatInstructions map[string]map[string]string // teamID -> agentID -> content
 	err                   error                        // Inject errors for testing failure paths
@@ -40,24 +38,8 @@ func NewMockTeamStore() *MockTeamStore {
 		teams:                 make(map[string]*store.Team),
 		roles:                 make(map[string]*store.TeamRoles),
 		orgChart:              make(map[string]*store.OrgChart),
-		inboxes:               make(map[string]map[string]*store.TeamInbox),
 		responsibilities:      make(map[string]map[string]string),
 		heartbeatInstructions: make(map[string]map[string]string),
-	}
-}
-
-func TestValidateManagedTeamEdgesRejectsCyclesAndUnknownTeams(t *testing.T) {
-	storeMock := NewMockTeamStore()
-	storeMock.teams["supervisor"] = &store.Team{ID: "supervisor"}
-	storeMock.teams["delivery"] = &store.Team{ID: "delivery"}
-	storeMock.teams["worker"] = &store.Team{ID: "worker"}
-	storeMock.orgChart["delivery"] = &store.OrgChart{TeamID: "delivery", ManagedTeamEdges: []store.ManagedTeamEdge{{ManagerTeamID: "delivery", ManagedTeamID: "supervisor"}}}
-	h := &Handlers{teamStore: storeMock}
-	if err := h.validateManagedTeamEdges(context.Background(), "supervisor", []ManagedTeamEdgeDTO{{ManagedTeamID: "missing"}}); err == nil {
-		t.Fatal("expected unknown managed team to be rejected")
-	}
-	if err := h.validateManagedTeamEdges(context.Background(), "supervisor", []ManagedTeamEdgeDTO{{ManagedTeamID: "delivery"}}); err == nil {
-		t.Fatal("expected managed team cycle to be rejected")
 	}
 }
 
@@ -174,7 +156,6 @@ func (m *MockTeamStore) Delete(ctx context.Context, id string) error {
 	delete(m.teams, id)
 	delete(m.roles, id)
 	delete(m.orgChart, id)
-	delete(m.inboxes, id)
 	return nil
 }
 
@@ -211,51 +192,6 @@ func (m *MockTeamStore) SetRoles(ctx context.Context, teamID string, roles *stor
 		return fmt.Errorf("team not found: %s", teamID)
 	}
 	m.roles[teamID] = roles
-	return nil
-}
-
-// SetOrgChart sets org chart (mock implementation)
-func (m *MockTeamStore) SetOrgChart(ctx context.Context, teamID string, org *store.OrgChart) error {
-	if m.err != nil {
-		return m.err
-	}
-	if _, ok := m.teams[teamID]; !ok {
-		return fmt.Errorf("team not found: %s", teamID)
-	}
-	m.orgChart[teamID] = org
-	return nil
-}
-
-func (m *MockTeamStore) GetInbox(ctx context.Context, teamID, agentID string) (*store.TeamInbox, error) {
-	if m.err != nil {
-		return nil, m.err
-	}
-	if _, ok := m.teams[teamID]; !ok {
-		return nil, fmt.Errorf("team not found: %s", teamID)
-	}
-	if teamInbox, ok := m.inboxes[teamID]; ok {
-		if inbox, ok := teamInbox[agentID]; ok {
-			return inbox, nil
-		}
-	}
-	return &store.TeamInbox{
-		TeamID:   teamID,
-		AgentID:  agentID,
-		Messages: []store.TeamMessage{},
-	}, nil
-}
-
-func (m *MockTeamStore) SetInbox(ctx context.Context, teamID, agentID string, inbox *store.TeamInbox) error {
-	if m.err != nil {
-		return m.err
-	}
-	if _, ok := m.teams[teamID]; !ok {
-		return fmt.Errorf("team not found: %s", teamID)
-	}
-	if m.inboxes[teamID] == nil {
-		m.inboxes[teamID] = make(map[string]*store.TeamInbox)
-	}
-	m.inboxes[teamID][agentID] = inbox
 	return nil
 }
 
@@ -1331,299 +1267,7 @@ func TestSetRoles(t *testing.T) {
 
 // ============== OrgChart Tests ==============
 
-func TestGetOrgChart(t *testing.T) {
-	handlers, teamStore, _, _ := setupTestHandlers()
-
-	teamStore.teams["team-1"] = &store.Team{
-		ID:          "team-1",
-		DisplayName: "Test Team",
-	}
-	teamStore.orgChart["team-1"] = &store.OrgChart{
-		TeamID: "team-1",
-		Edges: []store.OrgEdge{
-			{ManagerAgentID: "manager-1", ReportAgentID: "dev-1"},
-			{ManagerAgentID: "manager-1", ReportAgentID: "dev-2"},
-		},
-	}
-
-	req := httptest.NewRequest("GET", "/teams/team-1/org", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "team-1"})
-	w := httptest.NewRecorder()
-
-	handlers.GetOrgChart(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
-	}
-
-	var response OrgChartResponse
-	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-
-	if response.TeamID != "team-1" {
-		t.Errorf("Expected team ID 'team-1', got '%s'", response.TeamID)
-	}
-
-	if len(response.Edges) != 2 {
-		t.Errorf("Expected 2 edges, got %d", len(response.Edges))
-	}
-}
-
-func TestGetOrgChartNotFound(t *testing.T) {
-	handlers, _, _, _ := setupTestHandlers()
-
-	req := httptest.NewRequest("GET", "/teams/nonexistent/org", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "nonexistent"})
-	w := httptest.NewRecorder()
-
-	handlers.GetOrgChart(w, req)
-
-	if w.Code != http.StatusNotFound {
-		t.Errorf("Expected status 404, got %d", w.Code)
-	}
-}
-
-func TestSetOrgChart(t *testing.T) {
-	handlers, teamStore, _, relationStore := setupTestHandlers()
-
-	teamStore.teams["team-1"] = &store.Team{
-		ID:          "team-1",
-		DisplayName: "Test Team",
-	}
-	_ = relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "manager-1"})
-	_ = relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "dev-1"})
-
-	body := SetOrgChartRequest{
-		Edges: []OrgEdgeDTO{
-			{ManagerAgentID: "manager-1", ReportAgentID: "dev-1"},
-		},
-	}
-	bodyBytes, _ := json.Marshal(body)
-
-	req := httptest.NewRequest("PUT", "/teams/team-1/org", bytes.NewReader(bodyBytes))
-	req = mux.SetURLVars(req, map[string]string{"id": "team-1"})
-	w := httptest.NewRecorder()
-
-	handlers.SetOrgChart(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
-	}
-}
-
-func TestSetOrgChartRejectsNonMember(t *testing.T) {
-	handlers, teamStore, _, relationStore := setupTestHandlers()
-
-	teamStore.teams["team-1"] = &store.Team{
-		ID:          "team-1",
-		DisplayName: "Test Team",
-	}
-	_ = relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "dev-1"})
-
-	body := SetOrgChartRequest{
-		Edges: []OrgEdgeDTO{
-			{ManagerAgentID: "manager-1", ReportAgentID: "dev-1"},
-		},
-	}
-	bodyBytes, _ := json.Marshal(body)
-
-	req := httptest.NewRequest("PUT", "/teams/team-1/org", bytes.NewReader(bodyBytes))
-	req = mux.SetURLVars(req, map[string]string{"id": "team-1"})
-	w := httptest.NewRecorder()
-
-	handlers.SetOrgChart(w, req)
-
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("Expected status 400, got %d: %s", w.Code, w.Body.String())
-	}
-}
-
-func TestUpdateOrgChartEdge(t *testing.T) {
-	handlers, teamStore, _, relationStore := setupTestHandlers()
-
-	teamStore.teams["team-1"] = &store.Team{
-		ID:          "team-1",
-		DisplayName: "Test Team",
-	}
-	teamStore.orgChart["team-1"] = &store.OrgChart{
-		TeamID: "team-1",
-		Edges: []store.OrgEdge{
-			{ManagerAgentID: "manager-1", ReportAgentID: "dev-1"},
-		},
-	}
-	_ = relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "manager-1"})
-	_ = relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "manager-2"})
-	_ = relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "dev-1"})
-
-	body := UpdateOrgEdgeRequest{ManagerAgentID: "manager-2"}
-	bodyBytes, _ := json.Marshal(body)
-
-	req := httptest.NewRequest("PUT", "/teams/team-1/org/edges/dev-1", bytes.NewReader(bodyBytes))
-	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "reportId": "dev-1"})
-	w := httptest.NewRecorder()
-
-	handlers.UpdateOrgChartEdge(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
-	}
-
-	org, _ := teamStore.GetOrgChart(context.Background(), "team-1")
-	if len(org.Edges) != 1 || org.Edges[0].ManagerAgentID != "manager-2" {
-		t.Errorf("Expected updated edge to manager-2, got %+v", org.Edges)
-	}
-}
-
-func TestDeleteOrgChartEdge(t *testing.T) {
-	handlers, teamStore, _, relationStore := setupTestHandlers()
-
-	teamStore.teams["team-1"] = &store.Team{
-		ID:          "team-1",
-		DisplayName: "Test Team",
-	}
-	teamStore.orgChart["team-1"] = &store.OrgChart{
-		TeamID: "team-1",
-		Edges: []store.OrgEdge{
-			{ManagerAgentID: "manager-1", ReportAgentID: "dev-1"},
-		},
-	}
-	_ = relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "manager-1"})
-	_ = relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "dev-1"})
-
-	req := httptest.NewRequest("DELETE", "/teams/team-1/org/edges/dev-1", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "reportId": "dev-1"})
-	w := httptest.NewRecorder()
-
-	handlers.DeleteOrgChartEdge(w, req)
-
-	if w.Code != http.StatusNoContent {
-		t.Errorf("Expected status 204, got %d: %s", w.Code, w.Body.String())
-	}
-
-	org, _ := teamStore.GetOrgChart(context.Background(), "team-1")
-	if len(org.Edges) != 0 {
-		t.Errorf("Expected org chart to be empty, got %+v", org.Edges)
-	}
-}
-
 // ============== Team Message Tests ==============
-
-func TestSendTeamMessage(t *testing.T) {
-	handlers, teamStore, _, relationStore := setupTestHandlers()
-
-	teamStore.teams["team-1"] = &store.Team{
-		ID:          "team-1",
-		DisplayName: "Test Team",
-	}
-	_ = relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "sender-1"})
-	_ = relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "recipient-1"})
-
-	body := SendTeamMessageRequest{
-		FromAgentID: "sender-1",
-		Content:     "Status update",
-	}
-	bodyBytes, _ := json.Marshal(body)
-
-	req := httptest.NewRequest("POST", "/teams/team-1/members/recipient-1/messages", bytes.NewReader(bodyBytes))
-	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "recipient-1"})
-	w := httptest.NewRecorder()
-
-	handlers.SendTeamMessage(w, req)
-
-	if w.Code != http.StatusCreated {
-		t.Errorf("Expected status 201, got %d: %s", w.Code, w.Body.String())
-	}
-
-	var message TeamMessageDTO
-	if err := json.NewDecoder(w.Body).Decode(&message); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-	if message.FromAgentID != "sender-1" || message.ToAgentID != "recipient-1" {
-		t.Errorf("Unexpected message payload: %+v", message)
-	}
-}
-
-func TestSendTeamMessageDirectRequiresExactRegisteredOwnerRunForVerifiedAgent(t *testing.T) {
-	cases := []struct {
-		name, teamID, senderID, callerRunID string
-		actor, verification                 string
-		principalOnly                       bool
-		lookup                              func(string, string) (string, bool)
-		wantErr                             bool
-	}{
-		{name: "exact registered member run", teamID: "team-1", senderID: "sender-1", callerRunID: "run-1", actor: provenance.ActorAgent, verification: provenance.VerificationVerified, lookup: func(team, agent string) (string, bool) { return "run-1", team == "team-1" && agent == "sender-1" }},
-		{name: "another member cannot be claimed", teamID: "team-1", senderID: "sender-2", callerRunID: "run-1", actor: provenance.ActorAgent, verification: provenance.VerificationVerified, lookup: func(team, agent string) (string, bool) { return "", team == "team-1" && agent == "sender-1" }, wantErr: true},
-		{name: "same member in another team is refused", teamID: "team-2", senderID: "sender-1", callerRunID: "run-1", actor: provenance.ActorAgent, verification: provenance.VerificationVerified, lookup: func(string, string) (string, bool) { return "", false }, wantErr: true},
-		{name: "stale run is refused", teamID: "team-1", senderID: "sender-1", callerRunID: "old-run", actor: provenance.ActorAgent, verification: provenance.VerificationVerified, lookup: func(string, string) (string, bool) { return "current-run", true }, wantErr: true},
-		{name: "missing registry entry is refused", teamID: "team-1", senderID: "sender-1", callerRunID: "run-1", actor: provenance.ActorAgent, verification: provenance.VerificationVerified, lookup: func(string, string) (string, bool) { return "", false }, wantErr: true},
-		{name: "missing registry is refused for verified agent", teamID: "team-1", senderID: "sender-1", callerRunID: "run-1", actor: provenance.ActorAgent, verification: provenance.VerificationVerified, wantErr: true},
-		{name: "unverified agent is refused", teamID: "team-1", senderID: "sender-1", callerRunID: "run-1", actor: provenance.ActorAgent, verification: provenance.VerificationAbsent, lookup: func(string, string) (string, bool) { return "run-1", true }, wantErr: true},
-		{name: "verified principal without run provenance is refused", teamID: "team-1", senderID: "sender-1", callerRunID: "run-1", principalOnly: true, lookup: func(string, string) (string, bool) { return "run-1", true }, wantErr: true},
-		{name: "verified operator retains legacy behavior", teamID: "team-1", senderID: "sender-1", actor: provenance.ActorOperator, verification: provenance.VerificationVerified, wantErr: false},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			h, teamStore, _, relations := setupTestHandlers()
-			teamStore.teams[tc.teamID] = &store.Team{ID: tc.teamID, DisplayName: "test"}
-			for _, member := range []string{"sender-1", "sender-2", "recipient-1"} {
-				_ = relations.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: tc.teamID, AgentID: member, Status: store.MemberStatusActive})
-			}
-			h.SetActiveRunIDLookup(tc.lookup)
-			ctx := provenance.NewContext(context.Background(), provenance.Provenance{Actor: tc.actor, VerificationStatus: tc.verification, RunID: tc.callerRunID})
-			if tc.principalOnly {
-				ctx = identity.WithPrincipal(ctx, identity.Principal{Kind: identity.ActorAgent, Subject: tc.callerRunID, Verified: true})
-			}
-			_, err := h.SendTeamMessageDirect(ctx, tc.teamID, "recipient-1", SendTeamMessageRequest{FromAgentID: tc.senderID, Content: "status"})
-			if (err != nil) != tc.wantErr {
-				t.Fatalf("SendTeamMessageDirect error=%v, wantErr=%v", err, tc.wantErr)
-			}
-			inbox, readErr := teamStore.GetInbox(context.Background(), tc.teamID, "recipient-1")
-			if readErr != nil {
-				t.Fatal(readErr)
-			}
-			wantMessages := 0
-			if !tc.wantErr {
-				wantMessages = 1
-			}
-			if len(inbox.Messages) != wantMessages {
-				t.Fatalf("inbox messages=%d, want %d", len(inbox.Messages), wantMessages)
-			}
-		})
-	}
-}
-
-func TestSendTeamMessageHTTPRejectsUnboundAgentWithoutAppending(t *testing.T) {
-	handlers, teamStore, _, relationStore := setupTestHandlers()
-	teamStore.teams["team-1"] = &store.Team{ID: "team-1", DisplayName: "Test Team"}
-	_ = relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "sender-1", Status: store.MemberStatusActive})
-	_ = relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "recipient-1", Status: store.MemberStatusActive})
-	handlers.SetActiveRunIDLookup(func(teamID, agentID string) (string, bool) {
-		return "current-run", teamID == "team-1" && agentID == "sender-1"
-	})
-
-	ctx := provenance.NewContext(context.Background(), provenance.Provenance{
-		Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "stale-run",
-	})
-	body, err := json.Marshal(SendTeamMessageRequest{FromAgentID: "sender-1", Content: "status"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	req := httptest.NewRequest(http.MethodPost, "/teams/team-1/members/recipient-1/messages", bytes.NewReader(body)).WithContext(ctx)
-	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "recipient-1"})
-	w := httptest.NewRecorder()
-	handlers.SendTeamMessage(w, req)
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("status=%d body=%s, want 403", w.Code, w.Body.String())
-	}
-	inbox, err := teamStore.GetInbox(context.Background(), "team-1", "recipient-1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(inbox.Messages) != 0 {
-		t.Fatalf("refused sender appended %d message(s)", len(inbox.Messages))
-	}
-}
 
 // ============== GetExclusiveMembers Tests ==============
 
@@ -1730,51 +1374,6 @@ func TestGetExclusiveMembersNoMembers(t *testing.T) {
 
 	if len(response.Members) != 0 {
 		t.Errorf("Expected 0 exclusive members, got %d", len(response.Members))
-	}
-}
-
-func TestListTeamMessages(t *testing.T) {
-	handlers, teamStore, _, relationStore := setupTestHandlers()
-
-	teamStore.teams["team-1"] = &store.Team{
-		ID:          "team-1",
-		DisplayName: "Test Team",
-	}
-	_ = relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "sender-1"})
-	_ = relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{TeamID: "team-1", AgentID: "recipient-1"})
-
-	inbox := &store.TeamInbox{
-		TeamID:  "team-1",
-		AgentID: "recipient-1",
-		Messages: []store.TeamMessage{
-			{
-				ID:          "msg-1",
-				TeamID:      "team-1",
-				FromAgentID: "sender-1",
-				ToAgentID:   "recipient-1",
-				Content:     "Hello",
-				CreatedAt:   "2026-02-01T00:00:00Z",
-			},
-		},
-	}
-	_ = teamStore.SetInbox(context.Background(), "team-1", "recipient-1", inbox)
-
-	req := httptest.NewRequest("GET", "/teams/team-1/members/recipient-1/messages", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "recipient-1"})
-	w := httptest.NewRecorder()
-
-	handlers.ListTeamMessages(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
-	}
-
-	var response TeamInboxResponse
-	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-	if len(response.Messages) != 1 || response.Messages[0].ID != "msg-1" {
-		t.Errorf("Expected 1 message, got %+v", response.Messages)
 	}
 }
 

@@ -6,7 +6,7 @@
 // instrument is in band as long as it says so with a date; a team that says
 // nothing is not, because silence cannot be aged.
 //
-// DOC: docs/agent-system/TARGET_MODEL.md § The instrument: six invariants
+// DOC: docs/agent-system/STANDING_TEAMS.md § The instrument: six invariants
 package graph
 
 import (

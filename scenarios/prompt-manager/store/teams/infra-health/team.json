@@ -246,7 +246,7 @@
         }
       },
       "infra-contrarian": {
-        "lane": "Challenge infra-health work items against the team failure-mode rubric and run the stale work item scan. Also this team's shape sensor: hold the team against the target model's deviation catalogue and report deviations; never restructure.",
+        "lane": "Challenge infra-health work items against the team failure-mode rubric and run the stale work item scan. Also this team's shape sensor: hold the team against the deviation list in `docs/agent-system/STANDING_TEAMS.md` and report deviations; never restructure.",
         "allowedWrites": [
           {
             "kind": "knowledge"

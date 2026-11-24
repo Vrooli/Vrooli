@@ -21,12 +21,13 @@ metadata:
   origin:
     kind: "authored"
 ---
+
 ## Steer focus: Tidiness
 
 Prioritize **making `scenarios/{{TARGET}}/` easier to maintain by reducing file/function bloat, duplication, technical-debt markers, stale cleanup queues, and campaign drift**. Use Tidiness Manager for maintainability findings; leave lint, type-safety, and strict config policy to Quality Health.
 
 Required reading:
-- `prompt-manager skill read scenario-maturity-ladder improvement-do-and-dont`
+- `prompt-manager skill read scenario-work-ladder improvement-do-and-dont`
 - `scenarios/tidiness-manager/README.md` - active Tidiness Manager scope and CLI entrypoints.
 - `scenarios/tidiness-manager/PRD.md` - maintainability and campaign goals.
 
@@ -61,7 +62,7 @@ Use recommendations to choose reduction candidates from current shared graph evi
 tidiness-manager recommend-refactors {{TARGET}} --limit 10
 ```
 
-The scan output owns tidiness findings. Recommendations rank estimated net production reduction and expose detector calibration. Treat unknown calibration as unknown; synthetic regression cases are not historical precision. Verify caller migration, owner tests and the measured whole-boundary reduction before recording a successful approach.
+The scan output owns tidiness findings. `recommend-refactors` ranks reduction opportunities by measured expected net lines when an exact calibration is available. A row reports precision and recall for a matched complete target frame. The detector summary lists scoped frames, response coverage and limits. Apply a frame to a recommendation only when its source and detector config match. Do not generalize target rates to other scenarios or the fleet. Keep missing precision and recall unknown; synthetic regressions are not historical measurements. Scenario Auditor findings retain their detector identity and are not reduction estimates. Verify caller migration, owner tests and the measured whole-boundary delta before recording a successful approach.
 
 Tidiness Manager gets source-file inventory and non-empty line counts from
 Code Facts `FILE_METRICS`, backed by its active catalog. A stale or unsupported
@@ -84,7 +85,7 @@ limits.
 
 **Out of scope:**
 - lint/type/static-quality contracts, strict config comments, and suppressions; hand off to `quality-health`
-- architecture-level domain relocation and import-cycle design; hand off to `screaming-architecture-audit`
+- architecture-level domain relocation and import-cycle design; hand off to `architecture-lenses`
 - test coverage or assertion quality; hand off to `test`
 - visual polish or copy refinement unless it removes actual maintenance risk; hand off to `polish`
 - large feature work that only happens to touch messy files; hand off to the relevant feature or scenario-maturity skill
@@ -112,10 +113,10 @@ Walk findings in this order.
 
 | Signal | Primary action | Handoff |
 |---|---|---|
-| Long file with mixed responsibilities | Split by existing domain/feature boundaries, preserving behavior and tests. | `screaming-architecture-audit` if ownership is unclear. |
+| Long file with mixed responsibilities | Split by existing domain/feature boundaries, preserving behavior and tests. | `architecture-lenses` if ownership is unclear. |
 | Complex function with clear sub-steps | Extract named helpers inside the owning domain; add or preserve tests for behavior. | `test` if no protective coverage exists. |
 | Duplication across one domain | Consolidate into a domain-local helper or type. | None |
-| Duplication across unrelated domains | Prefer leaving local unless a real shared abstraction already exists or the pattern is stable. | `screaming-architecture-audit` for shared-boundary decisions. |
+| Duplication across unrelated domains | Prefer leaving local unless a real shared abstraction already exists or the pattern is stable. | `architecture-lenses` for shared-boundary decisions. |
 | TODO/FIXME/HACK cluster | Resolve if small and current; otherwise convert to durable docs or issue notes with owner/context. | Relevant feature skill if the marker represents missing behavior. |
 | Open issue is stale after cleanup | Re-run scan, then resolve/ignore/reopen with notes. | None |
 | Finding is actually lint/type policy | Do not fix here; reroute to `quality-health`. | `quality-health` |
@@ -165,7 +166,7 @@ Do not create standalone tidiness audit reports by default; use the issue queue,
 | Scan reports static-quality/lint/type findings | Confirm the command used `--type tidiness`. | Old light/type-safety path or stale docs were used. | Re-run the tidiness scan; route static-quality work to Quality Health. |
 | Issue queue seems stale | `tidiness-manager issues list --scenario {{TARGET}}` retrieval hints | Stored issues predate current files. | Re-run scan, then resolve/ignore/reopen stale issues with notes. |
 | Recommendation command returns no candidates | Check whether scan data exists and whether filters are too strict. | Metrics have not been seeded or the scenario is already below thresholds. | Run `tidiness-manager scan {{TARGET}} --type tidiness` and retry with a broader limit. |
-| Cleanup requires broad domain relocation | Read `ARCHITECTURE.md` and `SEAMS.md`. | This is architecture drift, not simple tidiness. | Load `screaming-architecture-audit` before moving ownership boundaries. |
+| Cleanup requires broad domain relocation | Read `ARCHITECTURE.md` and `SEAMS.md`. | This is architecture drift, not simple tidiness. | Load `architecture-lenses` before moving ownership boundaries. |
 
 Repeated troubleshooting should become Tidiness Manager CLI output or a prompt-manager Action before this skill grows more operational prose.
 
@@ -186,3 +187,18 @@ Avoid:
 - moving files across domain boundaries without architecture justification
 - treating Quality Health findings as tidiness work
 - deleting TODO/FIXME/HACK markers without resolving or preserving the underlying context
+
+
+### Debt reduction loop and measured yield
+
+For a weekly fleet view, run the governed owner-backed ledger:
+
+```bash
+program-runtime library run program-runtime.weekly-debt-ledger --input window_start=YYYY-MM-DD --input window_end=YYYY-MM-DD --json
+```
+
+Use a seven-day half-open UTC window. Read the report's source coverage before acting: Code Facts owns production file line counts and source hashes; Template Manager owns template debt; the scenario roster comes from Flow Verifier; reductions count only complete `DR6_REDUCTION_RECEIPT` records with before/after revisions, a complete boundary, and validation references. Detector recommendations are leads; compare their source hash with the measured snapshot and do not treat estimates as landed savings. Unknown or partial sources stay unknown.
+
+Before selecting work, use `tidiness-manager recommend-refactors <scenario> --limit 10`, confirm the owning paths and callers, then make a behavior-preserving reduction sized to the defect. Validate with the owner's focused tests and relevant Test Genie phases. Record the whole boundary (production, tests, docs, config), added and deleted lines separately, source stream, controlled approach, before/after revisions, and validation run IDs in a `DR6_REDUCTION_RECEIPT` in the owning source ledger.
+
+Approach yield is maintained from validated receipts in the weekly ledger output. Current evidence is recorded in `research/topics/debt-reduction/runs/steward-free-host-maintainability-20261115/DR6/APPROACH-YIELD.md`; do not infer yield from recommendation counts or incomplete histories.

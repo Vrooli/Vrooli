@@ -1,0 +1,23 @@
+{
+  "createdAt": "2026-11-20T00:00:00Z",
+  "description": "Session constraints for one kind of change: feature, bugfix, refactor, architecture, platform or audit. Pick the row the task names; state which one you chose.",
+  "entry": "SKILL.md",
+  "id": "work-scope",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "scope"
+  ],
+  "name": "work-scope",
+  "origin": {
+    "kind": "authored"
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "scope",
+    "constraints"
+  ],
+  "updatedAt": "2026-11-20T00:00:00Z"
+}

@@ -29,18 +29,14 @@ import {
 } from '@vrooli/proto-types/prompt-manager/v1/actions/actions_pb'
 import {
   CreateSkillRequestSchema as CreateSkillRequestProtoSchema,
-  CreateSkillVariantRequestSchema as CreateSkillVariantRequestProtoSchema,
   DeleteSkillRequestSchema as DeleteSkillRequestProtoSchema,
-  DeleteSkillVariantRequestSchema as DeleteSkillVariantRequestProtoSchema,
   GetSkillRequestSchema as GetSkillRequestProtoSchema,
-  ListSkillVariantsRequestSchema as ListSkillVariantsRequestProtoSchema,
   ListSkillVersionsRequestSchema as ListSkillVersionsRequestProtoSchema,
   ListSkillsRequestSchema as ListSkillsRequestProtoSchema,
   RateSkillRequestSchema as RateSkillRequestProtoSchema,
   RecordSkillUsageRequestSchema as RecordSkillUsageRequestProtoSchema,
   RevertSkillRequestSchema as RevertSkillRequestProtoSchema,
   SkillSchema as SkillProtoSchema,
-  SkillVariantSchema as SkillVariantProtoSchema,
   SkillsService,
   UpdateSkillRequestSchema as UpdateSkillRequestProtoSchema,
 } from '@vrooli/proto-types/prompt-manager/v1/skills/skills_pb'
@@ -119,15 +115,11 @@ import {
   ListEffortWorkspacesRequestSchema,
   EffortWorkspaceContentSchema as EffortWorkspaceContentProtoSchema,
   DeleteTeamRequestSchema as DeleteTeamRequestProtoSchema,
-  ExportClaudeCodeTeamRequestSchema as ExportClaudeCodeTeamRequestProtoSchema,
-  ExportClaudeCodeTeamResponseSchema as ExportClaudeCodeTeamResponseProtoSchema,
   ExclusiveMembersResponseSchema as ExclusiveMembersResponseProtoSchema,
   GetExclusiveMembersRequestSchema as GetExclusiveMembersRequestProtoSchema,
   GetRolesRequestSchema as GetTeamRolesRequestProtoSchema,
   GetSharedFileRequestSchema as GetTeamSharedFileRequestProtoSchema,
   GetTeamRequestSchema as GetTeamRequestProtoSchema,
-  ImportClaudeCodeTeamRequestSchema as ImportClaudeCodeTeamRequestProtoSchema,
-  ListAvailableClaudeCodeTeamsRequestSchema as ListAvailableCCTeamsRequestProtoSchema,
   ListSharedFilesRequestSchema as ListTeamSharedFilesRequestProtoSchema,
   ListSharedFilesResponseSchema as ListTeamSharedFilesResponseProtoSchema,
   ListTeamsRequestSchema as ListTeamsRequestProtoSchema,
@@ -162,32 +154,10 @@ import {
   ListAgentFileTemplatesResponseSchema as ListAgentFileTemplatesResponseProtoSchema,
 } from '@vrooli/proto-types/prompt-manager/v1/templates/templates_pb'
 import {
-  TestingService,
-  ListSkillTestHistoryRequestSchema as ListSkillTestHistoryRequestProtoSchema,
-  RunSkillTestRequestSchema as RunSkillTestRequestProtoSchema,
-  SkillTestResponseSchema as SkillTestResponseProtoSchema,
-  SkillTestResultSchema as SkillTestResultProtoSchema,
-} from '@vrooli/proto-types/prompt-manager/v1/testing/testing_pb'
-import {
   MetadataService,
   FetchOpenGraphRequestSchema as FetchOpenGraphRequestProtoSchema,
   OpenGraphMetadataSchema as OpenGraphMetadataProtoSchema,
 } from '@vrooli/proto-types/prompt-manager/v1/metadata/metadata_pb'
-import {
-  ExperimentsService,
-  ListExperimentsRequestSchema,
-  GetExperimentRequestSchema,
-  CreateExperimentRequestSchema,
-  UpdateExperimentRequestSchema,
-  DeleteExperimentRequestSchema,
-  StartExperimentRequestSchema,
-  ConcludeExperimentRequestSchema,
-  ListOutcomesRequestSchema,
-  GetExperimentReportRequestSchema,
-  ExperimentSchema as ExperimentWireSchema,
-  ExperimentOutcomeSchema,
-  ExperimentReportSchema,
-} from '@vrooli/proto-types/prompt-manager/v1/experiments/experiments_pb'
 import {
   GraphService,
   GetGraphRequestSchema,
@@ -262,8 +232,6 @@ import {
   ActionRunResponseSchema,
   TagSchema,
   TagArraySchema,
-  SkillTestResultSchema,
-  SkillTestResultArraySchema,
   UsageResponseSchema,
   RatingResponseSchema,
   HealthResponseSchema,
@@ -307,8 +275,6 @@ import {
   TeamSharedFileContentResponseSchema,
   EffortWorkspaceListResponseSchema,
   EffortWorkspaceContentResponseSchema,
-  AvailableCCTeamSchema,
-  ExportCCResponseSchema,
   ExclusiveMembersResponseSchema,
   TopicSchema,
   TopicArraySchema,
@@ -321,17 +287,8 @@ import {
   type TopicMatchResponse,
   VersionsResponseSchema,
   RevertResponseSchema,
-  VariantSchema,
-  VariantArraySchema,
-  ExperimentSchema,
-  ExperimentArraySchema,
   type VersionsResponse,
   type RevertResponse,
-  type Variant,
-  type CreateVariantRequest,
-  type Experiment,
-  type CreateExperimentRequest,
-  type ConcludeExperimentRequest,
   type Skill,
   type CreateSkillRequest,
   type UpdateSkillRequest,
@@ -343,8 +300,6 @@ import {
   type ActionRunRequest,
   type ActionRunResponse,
   type Tag,
-  type SkillTestRequest,
-  type SkillTestResult,
   type UsageResponse,
   type RatingResponse,
   type HealthResponse,
@@ -399,8 +354,6 @@ import {
   type EffortWorkspaceContentResponse,
   type TeamSharedFileCreateRequest,
   type TeamSharedFileRenameRequest,
-  type AvailableCCTeam,
-  type ExportCCResponse,
   type ExclusiveMembersResponse,
 } from '@/lib/schemas'
 import type { SearchFilters, ActionFilters, Folder } from '@/types'
@@ -473,9 +426,7 @@ const agentsClient = createClient(AgentsService, connectTransport)
 const teamsClient = createClient(TeamsService, connectTransport)
 const topicsClient = createClient(TopicsService, connectTransport)
 const templatesClient = createClient(TemplatesService, connectTransport)
-const testingClient = createClient(TestingService, connectTransport)
 const metadataClient = createClient(MetadataService, connectTransport)
-const experimentsClient = createClient(ExperimentsService, connectTransport)
 const graphClient = createClient(GraphService, connectTransport)
 const memberflowClient = createClient(MemberflowService, connectTransport)
 const objectivesClient = createClient(ObjectivesService, connectTransport)
@@ -494,19 +445,6 @@ export async function connectSlice4Request(endpoint: string, options?: RequestIn
   const body = typeof options?.body === 'string' && options.body ? JSON.parse(options.body) as JsonValue : undefined
   const query = Object.fromEntries(parsed.searchParams.entries())
   const callOptions = options?.headers ? { headers: options.headers } : undefined
-
-  if (s[0] === 'experiments' || (s[0] === 'skills' && s[2] === 'experiments')) {
-    if (method === 'GET' && s[0] === 'skills') return { handled: true, data: (await experimentsClient.listExperiments(create(ListExperimentsRequestSchema, { skillId: s[1] }), callOptions)).experiments.map(v => toJson(ExperimentWireSchema, v)) }
-    if (method === 'GET' && s.length === 1) return { handled: true, data: (await experimentsClient.listExperiments(create(ListExperimentsRequestSchema), callOptions)).experiments.map(v => toJson(ExperimentWireSchema, v)) }
-    if (method === 'POST' && s.length === 1) return { handled: true, data: toJson(ExperimentWireSchema, await experimentsClient.createExperiment(fromJson(CreateExperimentRequestSchema, body ?? {}), callOptions)) }
-    if (method === 'GET' && s.length === 2) return { handled: true, data: toJson(ExperimentWireSchema, await experimentsClient.getExperiment(create(GetExperimentRequestSchema, { experimentId: s[1] }), callOptions)) }
-    if (method === 'PUT' && s.length === 2) return { handled: true, data: toJson(ExperimentWireSchema, await experimentsClient.updateExperiment(fromJson(UpdateExperimentRequestSchema, toProtoJson({ ...(body as object), experimentId: s[1] })), callOptions)) }
-    if (method === 'DELETE' && s.length === 2) { await experimentsClient.deleteExperiment(create(DeleteExperimentRequestSchema, { experimentId: s[1] }), callOptions); return { handled: true, data: {} } }
-    if (method === 'POST' && s[2] === 'start') return { handled: true, data: toJson(ExperimentWireSchema, await experimentsClient.startExperiment(create(StartExperimentRequestSchema, { experimentId: s[1] }), callOptions)) }
-    if (method === 'POST' && s[2] === 'conclude') return { handled: true, data: toJson(ExperimentWireSchema, await experimentsClient.concludeExperiment(fromJson(ConcludeExperimentRequestSchema, toProtoJson({ ...(body as object), experimentId: s[1] })), callOptions)) }
-    if (method === 'GET' && s[2] === 'outcomes') return { handled: true, data: (await experimentsClient.listOutcomes(create(ListOutcomesRequestSchema, { experimentId: s[1] }), callOptions)).outcomes.map(v => toJson(ExperimentOutcomeSchema, v)) }
-    if (method === 'GET' && s[2] === 'report') return { handled: true, data: toJson(ExperimentReportSchema, await experimentsClient.getExperimentReport(create(GetExperimentReportRequestSchema, { experimentId: s[1] }), callOptions)) }
-  }
 
   if (s[0] === 'graph') {
     if (method === 'GET' && s.length === 1) return { handled: true, data: toJson(GraphIndexSchema, await graphClient.getGraph(create(GetGraphRequestSchema), callOptions)) }
@@ -534,7 +472,6 @@ export async function connectSlice4Request(endpoint: string, options?: RequestIn
   if (method === 'GET' && s[0] === 'topics' && s[1] === 'rules') return { handled: true, data: plainValue((await memberflowClient.getRules(empty, callOptions)).data) }
   if (method === 'GET' && s[0] === 'topics' && s[1] === 'drain-status') return { handled: true, data: plainValue((await memberflowClient.getDrainStatus(empty, callOptions)).data) }
   if (method === 'GET' && s[0] === 'objectives') return { handled: true, data: plainValue((await memberflowClient.getObjectives(empty, callOptions)).data) }
-  if (method === 'GET' && s[0] === 'orientation-cost') return { handled: true, data: plainValue((await memberflowClient.getOrientationCost(empty, callOptions)).data) }
   if (method === 'GET' && s[0] === 'instruments') return { handled: true, data: plainValue((await memberflowClient.getInstruments(empty, callOptions)).data) }
   if (method === 'GET' && s[0] === 'operating-models') {
     const response = s[1] === 'map' ? await memberflowClient.getOperatingMap(empty, callOptions) : s[1] === 'validate' ? await memberflowClient.validateOperatingModels(empty, callOptions) : s[1] === 'diff' ? await memberflowClient.diffOperatingModels(empty, callOptions) : s[1] === 'coverage' ? await memberflowClient.getOperatingModelCoverage(empty, callOptions) : await memberflowClient.getOperatingModels(empty, callOptions)
@@ -877,58 +814,6 @@ class ApiClient {
     const response = await tagsClient.createTag(fromJson(CreateTagRequestProtoSchema, toProtoJson(tag)))
     if (!response.tag) throw new Error('TagsService.CreateTag returned no tag')
     return parseOrThrow(TagSchema, toJson(TagProtoSchema, response.tag), 'TagsService.CreateTag')
-  }
-
-  // Testing (requires Ollama)
-  async testSkill(id: string, request: SkillTestRequest): Promise<SkillTestResult> {
-    const response = await testingClient.runSkillTest(create(RunSkillTestRequestProtoSchema, {
-      skillId: id,
-      role: request.model,
-      variables: request.inputVariables ?? {},
-      maxTokens: request.maxTokens,
-      temperature: request.temperature,
-    }))
-    const wire = toJson(SkillTestResponseProtoSchema, response) as Record<string, JsonValue>
-    return parseOrThrow(SkillTestResultSchema, {
-      id: response.testId,
-      skillId: id,
-      model: response.role,
-      response: response.response,
-      responseTime: response.responseTime,
-      tokenCount: response.tokenCount,
-      testedAt: wire.testedAt,
-    }, 'TestingService.RunSkillTest')
-  }
-
-  async getTestHistory(id: string, limit?: number): Promise<SkillTestResult[]> {
-    const response = await testingClient.listSkillTestHistory(create(ListSkillTestHistoryRequestProtoSchema, {
-      skillId: id,
-      limit: limit ?? 0,
-    }))
-    const results = response.results.map((result) => {
-      const wire = toJson(SkillTestResultProtoSchema, result) as Record<string, JsonValue>
-      let inputVariables: Record<string, string> | undefined
-      if (result.inputVariables) {
-        try {
-          inputVariables = JSON.parse(result.inputVariables) as Record<string, string>
-        } catch {
-          inputVariables = undefined
-        }
-      }
-      return {
-        id: result.id,
-        skillId: result.skillId,
-        model: result.role,
-        inputVariables,
-        response: result.response ?? '',
-        responseTime: result.responseTime ?? 0,
-        tokenCount: result.tokenCount,
-        rating: result.rating,
-        notes: result.notes,
-        testedAt: wire.testedAt,
-      }
-    })
-    return parseOrThrow(SkillTestResultArraySchema, results, 'TestingService.ListSkillTestHistory')
   }
 
   async searchSkillResults(query: string, filters?: SearchFilters): Promise<SkillSearchResponse> {
@@ -1437,23 +1322,6 @@ class ApiClient {
     await teamsClient.deleteSharedFile(create(DeleteTeamSharedFileRequestProtoSchema, { teamId, path }))
   }
 
-  // Claude Code interop methods
-  async listAvailableCCTeams(): Promise<AvailableCCTeam[]> {
-    const response = await teamsClient.listAvailableClaudeCodeTeams(create(ListAvailableCCTeamsRequestProtoSchema))
-    return parseOrThrow(AvailableCCTeamSchema.array(), response.teams, 'TeamsService.ListAvailableClaudeCodeTeams')
-  }
-
-  async importClaudeCodeTeam(teamName: string): Promise<TeamDetails> {
-    const response = await teamsClient.importClaudeCodeTeam(create(ImportClaudeCodeTeamRequestProtoSchema, { teamName }))
-    return parseOrThrow(TeamDetailsSchema, toJson(TeamDetailsProtoSchema, response), 'TeamsService.ImportClaudeCodeTeam')
-  }
-
-  async exportClaudeCodeTeam(teamId: string): Promise<ExportCCResponse> {
-    const response = await teamsClient.exportClaudeCodeTeam(create(ExportClaudeCodeTeamRequestProtoSchema, { teamId }))
-    const wire = toJson(ExportClaudeCodeTeamResponseProtoSchema, response) as Record<string, JsonValue>
-    return parseOrThrow(ExportCCResponseSchema, wire.export, 'TeamsService.ExportClaudeCodeTeam')
-  }
-
   // Graph methods - aligned with api/graph/handlers.go
   async getGraph(): Promise<GraphResponse> {
     return this.request<GraphResponse>('/graph', undefined, GraphResponseSchema)
@@ -1622,70 +1490,6 @@ class ApiClient {
   async revertSkillVersion(skillId: string, version: number): Promise<RevertResponse> {
     const response = await skillsClient.revertSkill(create(RevertSkillRequestProtoSchema, { id: skillId, version }))
     return parseOrThrow(RevertResponseSchema, response, 'SkillsService.RevertSkill')
-  }
-
-  // Variant methods - aligned with api/skills/variant_handlers.go
-  async listVariants(skillId: string): Promise<Variant[]> {
-    const response = await skillsClient.listSkillVariants(create(ListSkillVariantsRequestProtoSchema, { skillId }))
-    return parseOrThrow(VariantArraySchema, response.variants.map(variant => toJson(SkillVariantProtoSchema, variant)), 'SkillsService.ListSkillVariants')
-  }
-
-  async createVariant(skillId: string, req: CreateVariantRequest): Promise<Variant> {
-    const request = fromJson(CreateSkillVariantRequestProtoSchema, toProtoJson({ ...req, skillId }))
-    const response = await skillsClient.createSkillVariant(request)
-    if (!response.variant) throw new Error('SkillsService.CreateSkillVariant returned no variant')
-    return parseOrThrow(VariantSchema, toJson(SkillVariantProtoSchema, response.variant), 'SkillsService.CreateSkillVariant')
-  }
-
-  async deleteVariant(skillId: string, variantId: string): Promise<void> {
-    await skillsClient.deleteSkillVariant(create(DeleteSkillVariantRequestProtoSchema, { skillId, variantId }))
-  }
-
-  // Experiment methods - aligned with api/skills/experiment_handlers.go
-  async listExperimentsBySkill(skillId: string): Promise<Experiment[]> {
-    return this.request<Experiment[]>(
-      `/skills/${encodeURIComponent(skillId)}/experiments`,
-      undefined,
-      ExperimentArraySchema
-    )
-  }
-
-  async getExperiment(experimentId: string): Promise<Experiment> {
-    return this.request<Experiment>(
-      `/experiments/${encodeURIComponent(experimentId)}`,
-      undefined,
-      ExperimentSchema
-    )
-  }
-
-  async createExperiment(req: CreateExperimentRequest): Promise<Experiment> {
-    return this.request<Experiment>(
-      '/experiments',
-      {
-        method: 'POST',
-        body: JSON.stringify(req),
-      },
-      ExperimentSchema
-    )
-  }
-
-  async startExperiment(experimentId: string): Promise<Experiment> {
-    return this.request<Experiment>(
-      `/experiments/${encodeURIComponent(experimentId)}/start`,
-      { method: 'POST' },
-      ExperimentSchema
-    )
-  }
-
-  async concludeExperiment(experimentId: string, req: ConcludeExperimentRequest): Promise<Experiment> {
-    return this.request<Experiment>(
-      `/experiments/${encodeURIComponent(experimentId)}/conclude`,
-      {
-        method: 'POST',
-        body: JSON.stringify(req),
-      },
-      ExperimentSchema
-    )
   }
 }
 

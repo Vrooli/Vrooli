@@ -18,8 +18,6 @@ import (
 	aisearchconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/aisearch/aisearch_v1connect"
 	discoveryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/discovery"
 	discoveryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/discovery/discovery_v1connect"
-	experimentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/experiments"
-	experimentsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/experiments/experiments_v1connect"
 	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/graph"
 	graphconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/graph/graph_v1connect"
 	heartbeatv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/heartbeat"
@@ -36,8 +34,6 @@ import (
 	tagsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/tags/tags_v1connect"
 	teamsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/teams"
 	teamsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/teams/teams_v1connect"
-	testingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/testing"
-	testingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/testing/testing_v1connect"
 	topicsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/topics"
 	topicsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/topics/topics_v1connect"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -74,23 +70,12 @@ func (r Runtime) connectRequest(method, path string, query url.Values, payload a
 	if len(segments) == 0 {
 		return nil, false, nil
 	}
-	if len(segments) == 3 && segments[0] == "skills" && (segments[2] == "test" || segments[2] == "test-history") {
-		client := testingconnect.NewTestingServiceClient(httpClient, baseURL)
-		return callTesting(ctx, client, method, segments, query, payload)
-	}
 
 	switch segments[0] {
-	case "experiments":
-		client := experimentsconnect.NewExperimentsServiceClient(httpClient, baseURL)
-		return callExperiments(ctx, client, method, segments, payload)
 	case "graph":
 		client := graphconnect.NewGraphServiceClient(httpClient, baseURL)
 		return callGraph(ctx, client, method, segments, query, payload)
 	case "skills":
-		if len(segments) == 3 && segments[2] == "experiments" {
-			client := experimentsconnect.NewExperimentsServiceClient(httpClient, baseURL)
-			return callExperiments(ctx, client, method, segments, payload)
-		}
 		client := skillsconnect.NewSkillsServiceClient(httpClient, baseURL)
 		return callSkills(ctx, client, method, segments, query, payload)
 	case "actions":
@@ -135,108 +120,12 @@ func (r Runtime) connectRequest(method, path string, query url.Values, payload a
 	case "discover", "discovery-gaps", "discovery-metrics", "skill-usage":
 		client := discoveryconnect.NewDiscoveryServiceClient(httpClient, baseURL)
 		return callDiscovery(ctx, client, method, segments, query, payload)
-	case "objectives", "orientation-cost", "instruments", "operating-models":
+	case "objectives", "instruments", "operating-models":
 		client := memberflowconnect.NewMemberflowServiceClient(httpClient, baseURL)
 		return callMemberflow(ctx, client, method, segments, payload)
 	case "tasks", "runs", "heartbeat-attempts", "heartbeats", "prompt-preview", "prompt-preview-structured":
 		client := heartbeatconnect.NewHeartbeatServiceClient(httpClient, baseURL)
 		return callHeartbeat(ctx, client, method, segments, query, payload)
-	default:
-		return nil, false, nil
-	}
-}
-
-func callExperiments(ctx context.Context, client experimentsconnect.ExperimentsServiceClient, method string, s []string, payload any) ([]byte, bool, error) {
-	if method == "GET" && len(s) == 3 && s[0] == "skills" && s[2] == "experiments" {
-		id := s[1]
-		resp, err := client.ListExperiments(ctx, connect.NewRequest(&experimentsv1.ListExperimentsRequest{SkillId: &id}))
-		return rpcBody(resp, "experiments", true, err)
-	}
-	if len(s) == 0 || s[0] != "experiments" {
-		return nil, false, nil
-	}
-	switch {
-	case method == "GET" && len(s) == 1:
-		resp, err := client.ListExperiments(ctx, connect.NewRequest(&experimentsv1.ListExperimentsRequest{}))
-		return rpcBody(resp, "experiments", true, err)
-	case method == "POST" && len(s) == 1:
-		req := &experimentsv1.CreateExperimentRequest{}
-		if err := unmarshalPayload(payload, req); err != nil {
-			return nil, true, err
-		}
-		resp, err := client.CreateExperiment(ctx, connect.NewRequest(req))
-		return rpcBody(resp, "", true, err)
-	case method == "GET" && len(s) == 2:
-		resp, err := client.GetExperiment(ctx, connect.NewRequest(&experimentsv1.GetExperimentRequest{ExperimentId: s[1]}))
-		return rpcBody(resp, "", true, err)
-	case method == "PUT" && len(s) == 2:
-		req := &experimentsv1.UpdateExperimentRequest{ExperimentId: s[1]}
-		if err := unmarshalPayload(payload, req); err != nil {
-			return nil, true, err
-		}
-		req.ExperimentId = s[1]
-		resp, err := client.UpdateExperiment(ctx, connect.NewRequest(req))
-		return rpcBody(resp, "", true, err)
-	case method == "DELETE" && len(s) == 2:
-		resp, err := client.DeleteExperiment(ctx, connect.NewRequest(&experimentsv1.DeleteExperimentRequest{ExperimentId: s[1]}))
-		return rpcBody(resp, "", true, err)
-	case method == "POST" && len(s) == 3 && s[2] == "start":
-		resp, err := client.StartExperiment(ctx, connect.NewRequest(&experimentsv1.StartExperimentRequest{ExperimentId: s[1]}))
-		return rpcBody(resp, "", true, err)
-	case method == "POST" && len(s) == 3 && s[2] == "conclude":
-		req := &experimentsv1.ConcludeExperimentRequest{ExperimentId: s[1]}
-		if err := unmarshalPayload(payload, req); err != nil {
-			return nil, true, err
-		}
-		req.ExperimentId = s[1]
-		resp, err := client.ConcludeExperiment(ctx, connect.NewRequest(req))
-		return rpcBody(resp, "", true, err)
-	case method == "GET" && len(s) == 3 && s[2] == "outcomes":
-		resp, err := client.ListOutcomes(ctx, connect.NewRequest(&experimentsv1.ListOutcomesRequest{ExperimentId: s[1]}))
-		return rpcBody(resp, "outcomes", true, err)
-	case method == "POST" && len(s) == 3 && s[2] == "outcomes":
-		req := &experimentsv1.RecordOutcomeRequest{ExperimentId: s[1]}
-		if err := unmarshalPayload(payload, req); err != nil {
-			return nil, true, err
-		}
-		req.ExperimentId = s[1]
-		resp, err := client.RecordOutcome(ctx, connect.NewRequest(req))
-		return rpcBody(resp, "", true, err)
-	case method == "POST" && len(s) == 3 && s[2] == "assignments":
-		req := &experimentsv1.AssignExperimentRequest{ExperimentId: s[1]}
-		if err := unmarshalPayload(payload, req); err != nil {
-			return nil, true, err
-		}
-		req.ExperimentId = s[1]
-		resp, err := client.AssignExperiment(ctx, connect.NewRequest(req))
-		return rpcBody(resp, "", true, err)
-	case method == "POST" && len(s) == 3 && s[2] == "audit-receipt":
-		req := &experimentsv1.RecordAuditReceiptRequest{ExperimentId: s[1]}
-		if err := unmarshalPayload(payload, req); err != nil {
-			return nil, true, err
-		}
-		req.ExperimentId = s[1]
-		resp, err := client.RecordAuditReceipt(ctx, connect.NewRequest(req))
-		return rpcBody(resp, "", true, err)
-	case method == "POST" && len(s) == 3 && s[2] == "holdout-receipt":
-		req := &experimentsv1.RecordHoldoutReceiptRequest{ExperimentId: s[1]}
-		if err := unmarshalPayload(payload, req); err != nil {
-			return nil, true, err
-		}
-		req.ExperimentId = s[1]
-		resp, err := client.RecordHoldoutReceipt(ctx, connect.NewRequest(req))
-		return rpcBody(resp, "", true, err)
-	case method == "POST" && len(s) == 3 && s[2] == "promote":
-		req := &experimentsv1.PromoteExperimentRequest{ExperimentId: s[1]}
-		if err := unmarshalPayload(payload, req); err != nil {
-			return nil, true, err
-		}
-		req.ExperimentId = s[1]
-		resp, err := client.PromoteExperiment(ctx, connect.NewRequest(req))
-		return rpcBody(resp, "", true, err)
-	case method == "GET" && len(s) == 3 && s[2] == "report":
-		resp, err := client.GetExperimentReport(ctx, connect.NewRequest(&experimentsv1.GetExperimentReportRequest{ExperimentId: s[1]}))
-		return rpcBody(resp, "", true, err)
 	default:
 		return nil, false, nil
 	}
@@ -330,8 +219,6 @@ func callMemberflow(ctx context.Context, client memberflowconnect.MemberflowServ
 		resp, err = client.GetDrainStatus(ctx, connect.NewRequest(&memberflowv1.EmptyRequest{}))
 	case method == "GET" && len(s) == 1 && s[0] == "objectives":
 		resp, err = client.GetObjectives(ctx, connect.NewRequest(&memberflowv1.EmptyRequest{}))
-	case method == "GET" && len(s) == 1 && s[0] == "orientation-cost":
-		resp, err = client.GetOrientationCost(ctx, connect.NewRequest(&memberflowv1.EmptyRequest{}))
 	case method == "GET" && len(s) == 1 && s[0] == "instruments":
 		resp, err = client.GetInstruments(ctx, connect.NewRequest(&memberflowv1.EmptyRequest{}))
 	case method == "GET" && len(s) == 1 && s[0] == "operating-models":
@@ -788,52 +675,6 @@ func callTeams(ctx context.Context, client teamsconnect.TeamsServiceClient, meth
 		}
 		resp, err := client.SetRoles(ctx, connect.NewRequest(&teamsv1.SetRolesRequest{TeamId: s[1], Roles: body.Roles}))
 		return rpcBody(resp, "roles", true, err)
-	case method == "GET" && len(s) == 3 && s[2] == "org":
-		resp, err := client.GetOrgChart(ctx, connect.NewRequest(&teamsv1.GetOrgChartRequest{TeamId: s[1]}))
-		return rpcBody(resp, "", true, err)
-	case method == "PUT" && len(s) == 5 && s[2] == "org" && s[3] == "edges":
-		var body struct {
-			ManagerAgentID string `json:"managerAgentId"`
-		}
-		if err := decodePayload(payload, &body); err != nil {
-			return nil, true, err
-		}
-		resp, err := client.UpdateOrgChartEdge(ctx, connect.NewRequest(&teamsv1.UpdateOrgChartEdgeRequest{TeamId: s[1], ReportAgentId: s[4], ManagerAgentId: body.ManagerAgentID}))
-		return rpcBody(resp, "", true, err)
-	case method == "DELETE" && len(s) == 5 && s[2] == "org" && s[3] == "edges":
-		resp, err := client.DeleteOrgChartEdge(ctx, connect.NewRequest(&teamsv1.DeleteOrgChartEdgeRequest{TeamId: s[1], ReportAgentId: s[4]}))
-		return rpcBody(resp, "", true, err)
-	case method == "GET" && len(s) == 5 && s[2] == "members" && s[4] == "messages":
-		resp, err := client.ListMessages(ctx, connect.NewRequest(&teamsv1.ListMessagesRequest{TeamId: s[1], AgentId: s[3]}))
-		return rpcBody(resp, "", true, err)
-	case method == "POST" && len(s) == 5 && s[2] == "members" && s[4] == "messages":
-		var body struct {
-			FromAgentID string `json:"fromAgentId"`
-			Content     string `json:"content"`
-		}
-		if err := decodePayload(payload, &body); err != nil {
-			return nil, true, err
-		}
-		resp, err := client.SendMessage(ctx, connect.NewRequest(&teamsv1.SendMessageRequest{TeamId: s[1], AgentId: s[3], FromAgentId: body.FromAgentID, Content: body.Content}))
-		return rpcBody(resp, "", true, err)
-	case method == "DELETE" && len(s) == 6 && s[2] == "members" && s[4] == "messages":
-		resp, err := client.DeleteMessage(ctx, connect.NewRequest(&teamsv1.DeleteMessageRequest{TeamId: s[1], AgentId: s[3], MessageId: s[5]}))
-		return rpcBody(resp, "", true, err)
-	case method == "DELETE" && len(s) == 5 && s[2] == "members" && s[4] == "messages":
-		resp, err := client.ClearMessages(ctx, connect.NewRequest(&teamsv1.ClearMessagesRequest{TeamId: s[1], AgentId: s[3]}))
-		return rpcBody(resp, "", true, err)
-	case method == "POST" && len(s) == 3 && s[1] == "import" && s[2] == "claude-code":
-		var body struct {
-			TeamName string `json:"teamName"`
-		}
-		if err := decodePayload(payload, &body); err != nil {
-			return nil, true, err
-		}
-		resp, err := client.ImportClaudeCodeTeam(ctx, connect.NewRequest(&teamsv1.ImportClaudeCodeTeamRequest{TeamName: body.TeamName}))
-		return rpcBody(resp, "", true, err)
-	case method == "GET" && len(s) == 4 && s[2] == "export" && s[3] == "claude-code":
-		resp, err := client.ExportClaudeCodeTeam(ctx, connect.NewRequest(&teamsv1.ExportClaudeCodeTeamRequest{TeamId: s[1]}))
-		return rpcBody(resp, "export", true, err)
 	default:
 		return nil, false, nil
 	}
@@ -877,25 +718,6 @@ func callTopics(ctx context.Context, client topicsconnect.TopicsServiceClient, m
 		}
 		resp, err := client.MatchTopics(ctx, connect.NewRequest(req))
 		return rpcBody(resp, "", true, err)
-	default:
-		return nil, false, nil
-	}
-}
-
-func callTesting(ctx context.Context, client testingconnect.TestingServiceClient, method string, s []string, query url.Values, payload any) ([]byte, bool, error) {
-	switch {
-	case method == "POST" && s[2] == "test":
-		req := &testingv1.RunSkillTestRequest{SkillId: s[1]}
-		if err := unmarshalPayload(payload, req); err != nil {
-			return nil, true, err
-		}
-		req.SkillId = s[1]
-		resp, err := client.RunSkillTest(ctx, connect.NewRequest(req))
-		return rpcBody(resp, "", true, err)
-	case method == "GET" && s[2] == "test-history":
-		limit, _ := strconv.ParseInt(query.Get("limit"), 10, 32)
-		resp, err := client.ListSkillTestHistory(ctx, connect.NewRequest(&testingv1.ListSkillTestHistoryRequest{SkillId: s[1], Limit: int32(limit)}))
-		return rpcBody(resp, "results", true, err)
 	default:
 		return nil, false, nil
 	}
@@ -1057,9 +879,6 @@ func callSkills(ctx context.Context, client skillsconnect.SkillsServiceClient, m
 	case method == "GET" && len(s) == 3 && s[2] == "versions":
 		resp, err := client.ListSkillVersions(ctx, connect.NewRequest(&skillsv1.ListSkillVersionsRequest{Id: s[1]}))
 		return rpcBody(resp, "", true, err)
-	case method == "GET" && len(s) == 3 && s[2] == "variants":
-		resp, err := client.ListSkillVariants(ctx, connect.NewRequest(&skillsv1.ListSkillVariantsRequest{SkillId: s[1]}))
-		return rpcBody(resp, "variants", true, err)
 	case method == "POST" && len(s) == 2 && s[1] == "read":
 		req := &skillsv1.ReadSkillsRequest{}
 		if err := unmarshalPayload(payload, req); err != nil {
@@ -1104,14 +923,6 @@ func callSkills(ctx context.Context, client skillsconnect.SkillsServiceClient, m
 		}
 		resp, err := client.RevertSkill(ctx, connect.NewRequest(&skillsv1.RevertSkillRequest{Id: s[1], Version: int32(version)}))
 		return rpcBody(resp, "", true, err)
-	case method == "POST" && len(s) == 3 && s[2] == "variants":
-		req := &skillsv1.CreateSkillVariantRequest{SkillId: s[1]}
-		if err := unmarshalPayload(payload, req); err != nil {
-			return nil, true, err
-		}
-		req.SkillId = s[1]
-		resp, err := client.CreateSkillVariant(ctx, connect.NewRequest(req))
-		return rpcBody(resp, "variant", true, err)
 	case method == "POST" && len(s) == 3 && s[2] == "use":
 		resp, err := client.RecordSkillUsage(ctx, connect.NewRequest(&skillsv1.RecordSkillUsageRequest{Id: s[1]}))
 		return rpcBody(resp, "", true, err)
@@ -1144,9 +955,6 @@ func callSkills(ctx context.Context, client skillsconnect.SkillsServiceClient, m
 		return rpcBody(resp, "", true, err)
 	case method == "DELETE" && len(s) == 2:
 		resp, err := client.DeleteSkill(ctx, connect.NewRequest(&skillsv1.DeleteSkillRequest{Id: s[1]}))
-		return rpcBody(resp, "", true, err)
-	case method == "DELETE" && len(s) == 4 && s[2] == "variants":
-		resp, err := client.DeleteSkillVariant(ctx, connect.NewRequest(&skillsv1.DeleteSkillVariantRequest{SkillId: s[1], VariantId: s[3]}))
 		return rpcBody(resp, "", true, err)
 	default:
 		return nil, false, nil

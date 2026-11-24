@@ -44,9 +44,9 @@ func TestDecodeUnmarshalsJSON(t *testing.T) {
 }
 
 func TestRPCBodyUnwrapsAnEmptyRepeatedFieldAsJSONArray(t *testing.T) {
-	body, handled, err := rpcBody(connect.NewResponse(&skillsv1.ListSkillVariantsResponse{}), "variants", true, nil)
+	body, handled, err := rpcBody(connect.NewResponse(&skillsv1.ListSkillsResponse{}), "skills", true, nil)
 	if err != nil {
-		t.Fatalf("unwrap empty variants: %v", err)
+		t.Fatalf("unwrap empty skills: %v", err)
 	}
 	if !handled || string(body) != "[]" {
 		t.Fatalf("body=%s handled=%t", body, handled)

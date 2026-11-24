@@ -1,0 +1,46 @@
+{
+  "createdAt": "2026-09-02T00:00:00Z",
+  "description": "Set up one scenario's skill roles: decide which roles are owed or requested, inventory real sensors and programs, author usage, improve and feature roles against an approved target, and declare the skill set. Optional roles are not fleet obligations.",
+  "entry": "SKILL.md",
+  "icon": "layers",
+  "id": "scenario-skill-setup",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "meta"
+  ],
+  "name": "scenario-skill-setup",
+  "origin": {
+    "kind": "authored"
+  },
+  "revision": 10,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "skill",
+    "authoring",
+    "skill-set",
+    "scenario",
+    "improve",
+    "setpoint",
+    "meta-optimization"
+  ],
+  "updatedAt": "2026-11-20T00:00:00Z",
+  "requires": {
+    "commands": [
+      "prompt-manager skill read",
+      "prompt-manager skill list",
+      "measures-health validate scenario",
+      "business-health matrix show",
+      "program-runtime bindings condition",
+      "program-runtime library search",
+      "prompt-manager skill-set validate",
+      "vrooli scenario test"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "measures-health",
+      "program-runtime"
+    ]
+  }
+}

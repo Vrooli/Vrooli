@@ -1,6 +1,6 @@
 {
   "createdAt": "2026-01-26T00:00:00Z",
-  "defaultScope": "refactor-scope",
+  "defaultScope": "work-scope",
   "description": "Extract, standardize, and consolidate shared utilities (React-specific or general) to prevent duplication and drift while improving discoverability and testability",
   "entry": "SKILL.md",
   "icon": "merge",

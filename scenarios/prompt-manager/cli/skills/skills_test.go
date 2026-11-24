@@ -58,9 +58,9 @@ func TestCommandsRegistersSkillCommand(t *testing.T) {
 	}
 }
 
-func TestUsageTextDocumentsReadAndVariants(t *testing.T) {
+func TestUsageTextDocumentsReadAndFilters(t *testing.T) {
 	text := usageText()
-	for _, want := range []string{"read", "variants", "--folder", "--tag", "--mode", "--without-programmatic-home", "--json"} {
+	for _, want := range []string{"read", "--folder", "--tag", "--mode", "--without-programmatic-home", "--json"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("usage text missing %q: %s", want, text)
 		}

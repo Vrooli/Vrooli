@@ -2,12 +2,12 @@
 
 Mission: Deliver the reviewed unattended self-improvement family: honest goal and sliced execution, interruption recovery, mandate plan shape, coherent operator surfaces and the dependent product launches.
 
-Work model: managed Plan Manager family. Start at `/home/matthalloran8/.vrooli/plan-artifacts/efforts/unattended-self-improvement/README.md`.
-- `/home/matthalloran8/.vrooli/plan-artifacts/efforts/unattended-self-improvement/handoffs/state.json`
-- `/home/matthalloran8/.vrooli/plan-artifacts/efforts/unattended-self-improvement/handoffs/OPERATOR-ANSWERS.md`
-- `/home/matthalloran8/.vrooli/plan-artifacts/efforts/unattended-self-improvement/requirements.json`
-- `/home/matthalloran8/.vrooli/plan-artifacts/efforts/unattended-self-improvement/effort.json`
-- `/home/matthalloran8/.vrooli/plan-artifacts/efforts/unattended-self-improvement/team/model-policy.json`
+Work model: managed Plan Manager family. Start at `~/.vrooli/plan-artifacts/efforts/unattended-self-improvement/README.md`.
+- `~/.vrooli/plan-artifacts/efforts/unattended-self-improvement/handoffs/state.json`
+- `~/.vrooli/plan-artifacts/efforts/unattended-self-improvement/handoffs/OPERATOR-ANSWERS.md`
+- `~/.vrooli/plan-artifacts/efforts/unattended-self-improvement/requirements.json`
+- `~/.vrooli/plan-artifacts/efforts/unattended-self-improvement/effort.json`
+- `~/.vrooli/plan-artifacts/efforts/unattended-self-improvement/team/model-policy.json`
 
 ## Current recovery point
 
@@ -15,7 +15,7 @@ Read the current entry section in the managed README above, then reconcile its d
 
 ## Task Loop
 
-1. Reconcile the exact effort `workspace:/home/matthalloran8/Vrooli#unattended-self-improvement`, current owner state, retained runs, applicable decisions and this workspace before proposing or admitting work. Read-only observation is not execution authority. Keep this team disabled until deliberate activation; do not start a driver from these instructions.
+1. Reconcile the exact effort `unattended-self-improvement` (the workspace-scoped effort id declared in `team.json`), current owner state, retained runs, applicable decisions and this workspace before proposing or admitting work. Read-only observation is not execution authority. Keep this team disabled until deliberate activation; do not start a driver from these instructions.
 2. Assess the whole remaining destination, including required behavior absent from visual references. Platform recovery and qualification; shape-and-story at the reviewed frontier; product launch after its declared dependencies. Keep the stricter existing one-child ceiling until the operator’s applicable decisions and reviewed graph are reconciled. Maintain the evolving allocation and handoff in the existing managed owner/checkpoint, without a second plan or delivery ledger.
 3. For approved execution, give each worker a substantial outcome with the mission, exact sources, ownership/dependencies, existing effect limits, focused checks and return format. Reuse native owner workflows. Use allowed concurrency only for independent work; do not split edits, screenshots or bookkeeping into separate workers.
 4. Review current source and returned evidence independently of the implementer. Use plan-manager families get 658a7312-060f-4b78-825c-7e951340477c --json and plan-manager exec status 9fcbfff1-b4ff-4672-b01a-695db028b03f --json. Read run results as evidence; completion of a run does not complete its plan or family. Unknown and partial remain explicit; neither a terminal run nor an old green suite is acceptance.

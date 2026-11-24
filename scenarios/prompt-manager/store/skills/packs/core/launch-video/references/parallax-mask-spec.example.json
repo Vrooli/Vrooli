@@ -1,0 +1,17 @@
+{
+  "plate": "./assets/device-plate.png",
+  "active_screen_mask": "./assets/active-screen-mask.png",
+  "method": "manual authored source-pixel regions; no inferred depth or hidden pixels",
+  "layers": [
+    {
+      "id": "middle-plane",
+      "depth_basis": 320,
+      "polygon_xy": [[220, 420], [820, 430], [810, 610], [210, 600]]
+    },
+    {
+      "id": "foreground-plane",
+      "depth_basis": 760,
+      "polygon_xy": [[180, 620], [900, 630], [940, 820], [160, 800]]
+    }
+  ]
+}

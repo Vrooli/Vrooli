@@ -216,14 +216,8 @@ func TestHelpersReflectResolvedPolicy(t *testing.T) {
 		},
 	}
 
-	if got := CoordinationSkillID(contract); got != "team-coordination-peer" {
-		t.Fatalf("unexpected coordination skill id: %s", got)
-	}
 	if !MessagingEnabled(contract) {
 		t.Fatal("expected messaging to be enabled")
-	}
-	if !ShouldInjectInbox(contract) {
-		t.Fatal("expected inbox injection to be enabled")
 	}
 	if !ShouldShowOrgContext(contract) {
 		t.Fatal("expected org context to be shown")
@@ -277,9 +271,6 @@ func TestHelpersReflectLeaderLedSingleProcessPolicy(t *testing.T) {
 	if err := Validate(contract); err != nil {
 		t.Fatalf("expected valid single-process leader-led contract, got error: %v", err)
 	}
-	if got := CoordinationSkillID(contract); got != "team-coordination-leader-led" {
-		t.Fatalf("unexpected coordination skill id: %s", got)
-	}
 	if !UsesSingleProcessInterop(contract) {
 		t.Fatal("expected single-process interop")
 	}
@@ -289,14 +280,8 @@ func TestHelpersReflectLeaderLedSingleProcessPolicy(t *testing.T) {
 	if !UsesClaudeCodeRunner(contract) {
 		t.Fatal("expected Claude Code runner")
 	}
-	if MessagingUsesAsyncInbox(contract) {
-		t.Fatal("did not expect async inbox messaging")
-	}
 	if !MessagingUsesInSession(contract) {
 		t.Fatal("expected in-session messaging")
-	}
-	if ShouldInjectInbox(contract) {
-		t.Fatal("did not expect inbox injection")
 	}
 }
 
@@ -317,5 +302,32 @@ func TestMetadataPurposeAndLifetimeAreIndependent(t *testing.T) {
 		if err := ValidateMetadata(tc.purpose, tc.lifetime, tc.refs); err == nil {
 			t.Errorf("invalid metadata accepted: %+v", tc)
 		}
+	}
+}
+
+func TestCoordinationPresetsDefaultToMessagingThatWorks(t *testing.T) {
+	for _, test := range []struct {
+		name, pattern, runtime, lead, wantMessaging string
+	}{
+		{"peer", CoordinationPatternPeer, RuntimeModeMultiProcess, "", MessagingModeDisabled},
+		{"leader-led multi-process", CoordinationPatternLeaderLed, RuntimeModeMultiProcess, "director", MessagingModeDisabled},
+		{"leader-led single-process", CoordinationPatternLeaderLed, RuntimeModeSingleProcess, "director", MessagingModeInSession},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			preset, err := BuildCoordinationPreset(test.pattern, test.runtime, test.lead)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if preset.MessagingMode != test.wantMessaging || preset.Capabilities.InjectInbox {
+				t.Fatalf("preset = messaging %q injectInbox %t, want %q and no inbox injection", preset.MessagingMode, preset.Capabilities.InjectInbox, test.wantMessaging)
+			}
+			execution, err := BuildExecutionConfig(test.runtime, QueuePolicyBoundedParallel, 2)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := Validate(Contract{Runtime: Runtime{Mode: test.runtime}, Coordination: preset, Execution: execution}); err != nil {
+				t.Fatalf("default preset does not validate: %v", err)
+			}
+		})
 	}
 }

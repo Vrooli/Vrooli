@@ -6,11 +6,8 @@
   "description": "Reliability and resilience: graceful degradation under failure, idempotency and replay safety, interruption and progress continuity, evolution-axis resilience, and temporal ordering.",
   "parentTopicId": "development",
   "skills": [
-    "failure-topography-and-graceful-degradation",
-    "idempotency-replay-safety-hardening",
-    "progress-continuity-interruption-resilience",
-    "change-axis-and-evolution-resilience-audit",
-    "temporal-flow-audit"
+    "resilience-lenses",
+    "architecture-lenses"
   ],
   "status": "active",
   "revision": 1,

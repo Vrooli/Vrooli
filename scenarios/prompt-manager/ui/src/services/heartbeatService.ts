@@ -361,7 +361,7 @@ export interface UpdateTaskRequest {
 // --- Knowledge types ---
 
 // AttributionInfo mirrors the API-side store.AttributionInfo. The canonical
-// contract lives in docs/agent-system/RUNTIME_ATTRIBUTION.md (the API Go
+// contract lives in scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md (the API Go
 // struct in scenarios/prompt-manager/api/store/models.go is the source of
 // truth). Optional pointer fields marshal as null over the wire; in
 // TypeScript we represent them as `string | null`.
@@ -405,7 +405,7 @@ export interface AddKnowledgeRequest {
   content: string
   // Identity is carried out-of-band on the X-Vrooli-Attribution header,
   // not on the request body. caller_note is freeform context only — see
-  // docs/agent-system/RUNTIME_ATTRIBUTION.md.
+  // scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md.
   caller_note?: string
   source?: string
   supersedes?: string
@@ -452,7 +452,7 @@ async function apiRequest<T>(
     // The API ignores this header on read-only endpoints and validates
     // it on mutating ones (POST /teams/{id}/knowledge etc.). Sending it
     // unconditionally keeps the request shape uniform. Canon:
-    // docs/agent-system/RUNTIME_ATTRIBUTION.md § HTTP header.
+    // scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md § HTTP header.
     ...operatorDirectAttributionHeaders(),
   }
   // Merge additional headers if provided

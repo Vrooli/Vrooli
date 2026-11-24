@@ -81,63 +81,6 @@ func TestWriterSkillRegistry_WritesToOnlyOnWriterTagged(t *testing.T) {
 	}
 }
 
-// TestBuildProseSkillIndex_ReadsTagsAndWritesTo is the focused unit test for
-// the bridge between skill.json and the prose scanner: the index must
-// surface both the writer-skill tag (via IsWriter) and the writes_to[]
-// payload (via WritesTo) as a single coherent record.
-func TestBuildProseSkillIndex_ReadsTagsAndWritesTo(t *testing.T) {
-	root := t.TempDir()
-
-	mk := func(rel, body string) {
-		path := filepath.Join(root, rel)
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	mk("scenarios/prompt-manager/store/skills/packs/core/writer-with-decl/skill.json",
-		`{"id":"writer-with-decl","tags":["skill","writer-skill"],"writes_to":["foo/*","bar/*"]}`)
-	mk("scenarios/prompt-manager/store/skills/packs/core/writer-without-decl/skill.json",
-		`{"id":"writer-without-decl","tags":["skill","writer-skill"]}`)
-	mk("scenarios/prompt-manager/store/skills/packs/core/generic-skill/skill.json",
-		`{"id":"generic-skill","tags":["skill","practice"]}`)
-	mk("scenarios/prompt-manager/store/skills/packs/core/malformed-skill/skill.json",
-		`{not valid json`)
-
-	idx := buildProseSkillIndex([]string{root})
-
-	cases := []struct {
-		id           string
-		wantInIndex  bool
-		wantIsWriter bool
-		wantWritesTo []string
-	}{
-		{"writer-with-decl", true, true, []string{"foo/*", "bar/*"}},
-		{"writer-without-decl", true, true, nil},
-		{"generic-skill", true, false, nil},
-		{"malformed-skill", false, false, nil},
-	}
-	for _, c := range cases {
-		entry, ok := idx[c.id]
-		if ok != c.wantInIndex {
-			t.Errorf("skill %q: in index = %v, want %v", c.id, ok, c.wantInIndex)
-			continue
-		}
-		if !ok {
-			continue
-		}
-		if entry.IsWriter != c.wantIsWriter {
-			t.Errorf("skill %q: IsWriter = %v, want %v", c.id, entry.IsWriter, c.wantIsWriter)
-		}
-		if !slices.Equal(entry.WritesTo, c.wantWritesTo) {
-			t.Errorf("skill %q: WritesTo = %v, want %v", c.id, entry.WritesTo, c.wantWritesTo)
-		}
-	}
-}
-
 // -----------------------------------------------------------------------------
 // helpers
 // -----------------------------------------------------------------------------

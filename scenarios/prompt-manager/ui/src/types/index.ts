@@ -21,8 +21,6 @@ export type {
   ActionRunRequest,
   ActionRunResponse,
   Tag,
-  SkillTestRequest,
-  SkillTestResult,
   SyncResponse,
   HealthResponse,
   UsageResponse,

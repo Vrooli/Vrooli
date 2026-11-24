@@ -5,7 +5,7 @@ Lead `rcl-prompt-manager-ux-design-campaign` to its product destination:
 Deliver the selected dependable React core, complete discoverable studio and safe component adoption and evolution in two real consumers.
 
 Read `prompt-manager skill read large-effort-orchestration`. The retained research case is
-`/home/matthalloran8/.vrooli/research/topics/design-to-implementation/cases/rcl/legacy-delivery/`; read its CHARTER, STATUS, open FEEDBACK and applicable LOG evidence.
+`~/.vrooli/research/topics/design-to-implementation/cases/rcl/legacy-delivery/`; read its CHARTER, STATUS, open FEEDBACK and applicable LOG evidence.
 The team registry and native effort board provide current owner/commission identity.
 
 Own the technical strategy, dependency-aware outcome allocation and independent acceptance.

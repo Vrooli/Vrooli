@@ -173,9 +173,7 @@ type TeamFileEntry struct {
 
 // List returns all teams
 func (s *FileTeamStore) List(ctx context.Context) ([]Team, error) {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.List(ctx)
-	}
+	s = s.forContext(ctx)
 	teamDirs, err := ListDirectories(s.teamsDir())
 	if err != nil {
 		return nil, fmt.Errorf("listing team directories: %w", err)
@@ -195,17 +193,13 @@ func (s *FileTeamStore) List(ctx context.Context) ([]Team, error) {
 
 // Get retrieves a team by ID
 func (s *FileTeamStore) Get(ctx context.Context, id string) (*Team, error) {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.Get(ctx, id)
-	}
+	s = s.forContext(ctx)
 	return s.loadTeam(id)
 }
 
 // Create creates a new team
 func (s *FileTeamStore) Create(ctx context.Context, team *Team) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.Create(ctx, team)
-	}
+	s = s.forContext(ctx)
 	if err := requireTeamIdentity(ctx); err != nil {
 		return err
 	}
@@ -281,9 +275,7 @@ func (s *FileTeamStore) Create(ctx context.Context, team *Team) error {
 
 // Update updates an existing team
 func (s *FileTeamStore) Update(ctx context.Context, id string, updates *Team) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.Update(ctx, id, updates)
-	}
+	s = s.forContext(ctx)
 	if err := AuthorizeTeamManagement(ctx, s, id); err != nil {
 		return err
 	}
@@ -430,9 +422,7 @@ func (s *FileTeamStore) Update(ctx context.Context, id string, updates *Team) er
 
 // Delete removes a team from both Config and RuntimeData roots.
 func (s *FileTeamStore) Delete(ctx context.Context, id string) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.Delete(ctx, id)
-	}
+	s = s.forContext(ctx)
 	if err := AuthorizeTeamManagement(ctx, s, id); err != nil {
 		return err
 	}
@@ -459,27 +449,21 @@ func (s *FileTeamStore) Delete(ctx context.Context, id string) error {
 
 // GetRoles returns role definitions for a team
 func (s *FileTeamStore) GetRoles(ctx context.Context, teamID string) (*TeamRoles, error) {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.GetRoles(ctx, teamID)
-	}
+	s = s.forContext(ctx)
 	rolesPath := filepath.Join(s.teamsDir(), teamID, "roles.json")
 	return LoadJSON[TeamRoles](rolesPath)
 }
 
 // GetOrgChart returns the org chart for a team
 func (s *FileTeamStore) GetOrgChart(ctx context.Context, teamID string) (*OrgChart, error) {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.GetOrgChart(ctx, teamID)
-	}
+	s = s.forContext(ctx)
 	orgPath := filepath.Join(s.teamsDir(), teamID, "org.json")
 	return LoadJSON[OrgChart](orgPath)
 }
 
 // GetMembers returns all members of a team
 func (s *FileTeamStore) GetMembers(ctx context.Context, teamID string) ([]TeamMemberRelation, error) {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.GetMembers(ctx, teamID)
-	}
+	s = s.forContext(ctx)
 	if s.relationStore == nil {
 		return nil, fmt.Errorf("relation store not configured")
 	}
@@ -488,9 +472,7 @@ func (s *FileTeamStore) GetMembers(ctx context.Context, teamID string) ([]TeamMe
 
 // SetRoles sets the role definitions for a team
 func (s *FileTeamStore) SetRoles(ctx context.Context, teamID string, roles *TeamRoles) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.SetRoles(ctx, teamID, roles)
-	}
+	s = s.forContext(ctx)
 	if err := AuthorizeTeamManagement(ctx, s, teamID); err != nil {
 		return err
 	}
@@ -506,75 +488,6 @@ func (s *FileTeamStore) SetRoles(ctx context.Context, teamID string, roles *Team
 
 	rolesPath := filepath.Join(s.teamsDir(), teamID, "roles.json")
 	return SaveJSON(rolesPath, roles)
-}
-
-// SetOrgChart sets the org chart for a team
-func (s *FileTeamStore) SetOrgChart(ctx context.Context, teamID string, org *OrgChart) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.SetOrgChart(ctx, teamID, org)
-	}
-	if err := AuthorizeTeamManagement(ctx, s, teamID); err != nil {
-		return err
-	}
-
-	// Verify team exists
-	if _, err := s.Get(ctx, teamID); err != nil {
-		return err
-	}
-
-	org.Kind = KindOrgChart
-	org.SchemaVersion = CurrentSchemaVersion
-	org.TeamID = teamID
-
-	orgPath := filepath.Join(s.teamsDir(), teamID, "org.json")
-	return SaveJSON(orgPath, org)
-}
-
-// GetInbox returns the inbox for a team member.
-func (s *FileTeamStore) GetInbox(ctx context.Context, teamID, agentID string) (*TeamInbox, error) {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.GetInbox(ctx, teamID, agentID)
-	}
-	// Verify team exists
-	if _, err := s.Get(ctx, teamID); err != nil {
-		return nil, err
-	}
-
-	inboxPath := filepath.Join(s.runtimeMemberDir(teamID, agentID), "inbox.json")
-	if !FileExists(inboxPath) {
-		return &TeamInbox{
-			BaseEntity: BaseEntity{
-				Kind:          KindTeamInbox,
-				SchemaVersion: CurrentSchemaVersion,
-			},
-			TeamID:   teamID,
-			AgentID:  agentID,
-			Messages: []TeamMessage{},
-		}, nil
-	}
-
-	return LoadJSON[TeamInbox](inboxPath)
-}
-
-// SetInbox stores the inbox for a team member.
-func (s *FileTeamStore) SetInbox(ctx context.Context, teamID, agentID string, inbox *TeamInbox) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.SetInbox(ctx, teamID, agentID, inbox)
-	}
-	if err := s.EnsureMemberDir(ctx, teamID, agentID); err != nil {
-		return err
-	}
-
-	inbox.Kind = KindTeamInbox
-	inbox.SchemaVersion = CurrentSchemaVersion
-	inbox.TeamID = teamID
-	inbox.AgentID = agentID
-	if inbox.Messages == nil {
-		inbox.Messages = []TeamMessage{}
-	}
-
-	inboxPath := filepath.Join(s.runtimeMemberDir(teamID, agentID), "inbox.json")
-	return SaveJSON(inboxPath, inbox)
 }
 
 // loadTeam loads a team from the teams directory
@@ -648,9 +561,7 @@ func (s *FileTeamStore) runtimeMemberDir(teamID, agentID string) string {
 // DeleteMemberData removes all stored files for a team member (heartbeat
 // config, inbox, logs, docs) from both Config and RuntimeData roots.
 func (s *FileTeamStore) DeleteMemberData(ctx context.Context, teamID, agentID string) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.DeleteMemberData(ctx, teamID, agentID)
-	}
+	s = s.forContext(ctx)
 	if _, err := s.Get(ctx, teamID); err != nil {
 		return err
 	}
@@ -673,9 +584,7 @@ func (s *FileTeamStore) DeleteMemberData(ctx context.Context, teamID, agentID st
 // (logs/ subdir) so subsequent runtime writes succeed. The Config member
 // directory is owned by the authored repo layout and is not created here.
 func (s *FileTeamStore) EnsureMemberDir(ctx context.Context, teamID, agentID string) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.EnsureMemberDir(ctx, teamID, agentID)
-	}
+	s = s.forContext(ctx)
 	if _, err := s.Get(ctx, teamID); err != nil {
 		return err
 	}
@@ -689,9 +598,7 @@ func (s *FileTeamStore) EnsureMemberDir(ctx context.Context, teamID, agentID str
 
 // GetResponsibilities reads the RESPONSIBILITIES.md content for a team member
 func (s *FileTeamStore) GetResponsibilities(ctx context.Context, teamID, agentID string) (string, error) {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.GetResponsibilities(ctx, teamID, agentID)
-	}
+	s = s.forContext(ctx)
 	// Verify team exists
 	if _, err := s.Get(ctx, teamID); err != nil {
 		return "", err
@@ -707,9 +614,7 @@ func (s *FileTeamStore) GetResponsibilities(ctx context.Context, teamID, agentID
 
 // SetResponsibilities writes the RESPONSIBILITIES.md content for a team member
 func (s *FileTeamStore) SetResponsibilities(ctx context.Context, teamID, agentID, content string) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.SetResponsibilities(ctx, teamID, agentID, content)
-	}
+	s = s.forContext(ctx)
 	if err := AuthorizeTeamManagement(ctx, s, teamID); err != nil {
 		return err
 	}
@@ -725,9 +630,7 @@ func (s *FileTeamStore) SetResponsibilities(ctx context.Context, teamID, agentID
 
 // GetHeartbeatInstructions reads the HEARTBEAT.md content for a team member
 func (s *FileTeamStore) GetHeartbeatInstructions(ctx context.Context, teamID, agentID string) (string, error) {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.GetHeartbeatInstructions(ctx, teamID, agentID)
-	}
+	s = s.forContext(ctx)
 	// Verify team exists
 	if _, err := s.Get(ctx, teamID); err != nil {
 		return "", err
@@ -743,9 +646,7 @@ func (s *FileTeamStore) GetHeartbeatInstructions(ctx context.Context, teamID, ag
 
 // SetHeartbeatInstructions writes the HEARTBEAT.md content for a team member
 func (s *FileTeamStore) SetHeartbeatInstructions(ctx context.Context, teamID, agentID, content string) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.SetHeartbeatInstructions(ctx, teamID, agentID, content)
-	}
+	s = s.forContext(ctx)
 	if err := AuthorizeTeamManagement(ctx, s, teamID); err != nil {
 		return err
 	}
@@ -761,9 +662,7 @@ func (s *FileTeamStore) SetHeartbeatInstructions(ctx context.Context, teamID, ag
 
 // GetHeartbeatConfig reads the heartbeat.json config for a team member
 func (s *FileTeamStore) GetHeartbeatConfig(ctx context.Context, teamID, agentID string) (*HeartbeatConfig, error) {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.GetHeartbeatConfig(ctx, teamID, agentID)
-	}
+	s = s.forContext(ctx)
 	// Verify team exists
 	if _, err := s.Get(ctx, teamID); err != nil {
 		return nil, err
@@ -786,9 +685,7 @@ func (s *FileTeamStore) GetHeartbeatConfig(ctx context.Context, teamID, agentID 
 // configuration handlers authorize team management before calling this shared
 // writer; an admitted run.create records its trigger without a second grant.
 func (s *FileTeamStore) SetHeartbeatConfig(ctx context.Context, teamID, agentID string, config *HeartbeatConfig) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.SetHeartbeatConfig(ctx, teamID, agentID, config)
-	}
+	s = s.forContext(ctx)
 
 	teamConfigMu.Lock()
 	defer teamConfigMu.Unlock()
@@ -816,9 +713,7 @@ func (s *FileTeamStore) SetHeartbeatConfig(ctx context.Context, teamID, agentID 
 
 // GetHeartbeatAdmissionState reads runtime-only wake admission evidence.
 func (s *FileTeamStore) GetHeartbeatAdmissionState(ctx context.Context, teamID, agentID string) (*HeartbeatAdmissionState, error) {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.GetHeartbeatAdmissionState(ctx, teamID, agentID)
-	}
+	s = s.forContext(ctx)
 	if _, err := s.Get(ctx, teamID); err != nil {
 		return nil, err
 	}
@@ -840,9 +735,7 @@ func (s *FileTeamStore) GetHeartbeatAdmissionState(ctx context.Context, teamID, 
 // It deliberately does not update heartbeat.json metadata or configuration
 // revision.
 func (s *FileTeamStore) SetHeartbeatAdmissionState(ctx context.Context, teamID, agentID string, state *HeartbeatAdmissionState) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.SetHeartbeatAdmissionState(ctx, teamID, agentID, state)
-	}
+	s = s.forContext(ctx)
 	if state == nil {
 		return fmt.Errorf("heartbeat admission state is required")
 	}
@@ -860,9 +753,7 @@ func (s *FileTeamStore) SetHeartbeatAdmissionState(ctx context.Context, teamID, 
 
 // DeleteHeartbeatConfig removes the heartbeat.json config for a team member
 func (s *FileTeamStore) DeleteHeartbeatConfig(ctx context.Context, teamID, agentID string) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.DeleteHeartbeatConfig(ctx, teamID, agentID)
-	}
+	s = s.forContext(ctx)
 	if err := AuthorizeTeamManagement(ctx, s, teamID); err != nil {
 		return err
 	}
@@ -875,9 +766,7 @@ func (s *FileTeamStore) DeleteHeartbeatConfig(ctx context.Context, teamID, agent
 
 // ListHeartbeatConfigs lists all heartbeat configs for a team
 func (s *FileTeamStore) ListHeartbeatConfigs(ctx context.Context, teamID string) ([]HeartbeatConfig, error) {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.ListHeartbeatConfigs(ctx, teamID)
-	}
+	s = s.forContext(ctx)
 	// Verify team exists
 	if _, err := s.Get(ctx, teamID); err != nil {
 		return nil, err
@@ -913,9 +802,7 @@ func (s *FileTeamStore) ListHeartbeatConfigs(ctx context.Context, teamID string)
 // ValidateHeartbeatRoster keeps the runtime schedule set equal to the authored
 // team roster. Both orphan schedules and silent roster members are errors.
 func (s *FileTeamStore) ValidateHeartbeatRoster(ctx context.Context, teamID string) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.ValidateHeartbeatRoster(ctx, teamID)
-	}
+	s = s.forContext(ctx)
 	if s.relationStore == nil {
 		return fmt.Errorf("validate heartbeat roster for %s: relation store not configured", teamID)
 	}
@@ -955,9 +842,7 @@ func (s *FileTeamStore) ValidateHeartbeatRoster(ctx context.Context, teamID stri
 
 // AppendHeartbeatAttempt appends a durable heartbeat dispatch attempt record.
 func (s *FileTeamStore) AppendHeartbeatAttempt(ctx context.Context, teamID string, entry *HeartbeatAttempt) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.AppendHeartbeatAttempt(ctx, teamID, entry)
-	}
+	s = s.forContext(ctx)
 	if s.attemptPublisher != nil {
 		return s.attemptPublisher.Capture(ctx, entry)
 	}
@@ -1063,17 +948,13 @@ func (s *FileTeamStore) GetMemberLogPath(teamID, agentID, timestamp string) stri
 // handlers and executors must use this rather than the legacy context-free
 // accessor, which remains for non-request compatibility callers.
 func (s *FileTeamStore) GetMemberLogPathForContext(ctx context.Context, teamID, agentID, timestamp string) string {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.GetMemberLogPathForContext(ctx, teamID, agentID, timestamp)
-	}
+	s = s.forContext(ctx)
 	return s.GetMemberLogPath(teamID, agentID, timestamp)
 }
 
 // ListMemberLogs lists all log files for a team member
 func (s *FileTeamStore) ListMemberLogs(ctx context.Context, teamID, agentID string) ([]string, error) {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.ListMemberLogs(ctx, teamID, agentID)
-	}
+	s = s.forContext(ctx)
 	logsDir := filepath.Join(s.runtimeMemberDir(teamID, agentID), "logs")
 	files, err := ListFiles(logsDir, "*.log")
 	if err != nil {
@@ -1094,9 +975,7 @@ func (s *FileTeamStore) ListMemberLogs(ctx context.Context, teamID, agentID stri
 // entries override config on the (rare) collision; the merge is alphabetical
 // by relative path.
 func (s *FileTeamStore) ListSharedFiles(ctx context.Context, teamID string) ([]TeamFileEntry, error) {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.ListSharedFiles(ctx, teamID)
-	}
+	s = s.forContext(ctx)
 	team, err := s.Get(ctx, teamID)
 	if err != nil {
 		return nil, err
@@ -1162,9 +1041,7 @@ func (s *FileTeamStore) ListSharedFiles(ctx context.Context, teamID string) ([]T
 
 // ReadSharedFile returns file content for a path within the team's shared folder.
 func (s *FileTeamStore) ReadSharedFile(ctx context.Context, teamID, relPath string) (string, error) {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.ReadSharedFile(ctx, teamID, relPath)
-	}
+	s = s.forContext(ctx)
 	team, err := s.Get(ctx, teamID)
 	if err != nil {
 		return "", err
@@ -1182,9 +1059,7 @@ func (s *FileTeamStore) ReadSharedFile(ctx context.Context, teamID, relPath stri
 // consumers. It uses the same team/path authority as ReadSharedFile and never
 // follows a path outside the team's configured shared roots.
 func (s *FileTeamStore) ReadSharedFileBytes(ctx context.Context, teamID, relPath string) ([]byte, bool, error) {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.ReadSharedFileBytes(ctx, teamID, relPath)
-	}
+	s = s.forContext(ctx)
 	team, err := s.Get(ctx, teamID)
 	if err != nil {
 		return nil, false, err
@@ -1216,9 +1091,7 @@ func (s *FileTeamStore) ReadSharedFileBytes(ctx context.Context, teamID, relPath
 
 // WriteSharedFile overwrites file content within the team's shared folder.
 func (s *FileTeamStore) WriteSharedFile(ctx context.Context, teamID, relPath, content string) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.WriteSharedFile(ctx, teamID, relPath, content)
-	}
+	s = s.forContext(ctx)
 	team, err := s.Get(ctx, teamID)
 	if err != nil {
 		return err
@@ -1234,9 +1107,7 @@ func (s *FileTeamStore) WriteSharedFile(ctx context.Context, teamID, relPath, co
 
 // CreateSharedFile creates a new file or directory within the team's shared folder.
 func (s *FileTeamStore) CreateSharedFile(ctx context.Context, teamID, relPath, content string, isDir bool) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.CreateSharedFile(ctx, teamID, relPath, content, isDir)
-	}
+	s = s.forContext(ctx)
 	team, err := s.Get(ctx, teamID)
 	if err != nil {
 		return err
@@ -1259,9 +1130,7 @@ func (s *FileTeamStore) CreateSharedFile(ctx context.Context, teamID, relPath, c
 
 // RenameSharedFile renames or moves a file within the team's shared folder.
 func (s *FileTeamStore) RenameSharedFile(ctx context.Context, teamID, fromPath, toPath string) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.RenameSharedFile(ctx, teamID, fromPath, toPath)
-	}
+	s = s.forContext(ctx)
 	team, err := s.Get(ctx, teamID)
 	if err != nil {
 		return err
@@ -1292,9 +1161,7 @@ func (s *FileTeamStore) RenameSharedFile(ctx context.Context, teamID, fromPath, 
 
 // DeleteSharedFile deletes a file or directory within the team's shared folder.
 func (s *FileTeamStore) DeleteSharedFile(ctx context.Context, teamID, relPath string) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.DeleteSharedFile(ctx, teamID, relPath)
-	}
+	s = s.forContext(ctx)
 	team, err := s.Get(ctx, teamID)
 	if err != nil {
 		return err
@@ -1390,9 +1257,7 @@ func (s *FileTeamStore) resolveSharedPath(team *Team, relPath string) (string, s
 
 // GetLastHandoff reads the last handoff markdown for a team member.
 func (s *FileTeamStore) GetLastHandoff(ctx context.Context, teamID, agentID string) (string, error) {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.GetLastHandoff(ctx, teamID, agentID)
-	}
+	s = s.forContext(ctx)
 	if s.ledger != nil {
 		cursor := ""
 		for {
@@ -1426,9 +1291,7 @@ func (s *FileTeamStore) GetLastHandoff(ctx context.Context, teamID, agentID stri
 
 // SetLastHandoff writes the last handoff markdown for a team member.
 func (s *FileTeamStore) SetLastHandoff(ctx context.Context, teamID, agentID, content string) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.SetLastHandoff(ctx, teamID, agentID, content)
-	}
+	s = s.forContext(ctx)
 	if s.ledger != nil {
 		body, err := encodeHandoff(HandoffEntry{AgentID: agentID, Content: content, Timestamp: time.Now().UTC().Format(time.RFC3339Nano)})
 		if err != nil {
@@ -1446,9 +1309,7 @@ func (s *FileTeamStore) SetLastHandoff(ctx context.Context, teamID, agentID, con
 
 // AppendHandoffHistory appends a handoff entry to the team's handoff history.
 func (s *FileTeamStore) AppendHandoffHistory(ctx context.Context, teamID string, entry *HandoffEntry) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.AppendHandoffHistory(ctx, teamID, entry)
-	}
+	s = s.forContext(ctx)
 	if s.ledger != nil {
 		body, err := encodeHandoff(*entry)
 		if err != nil {
@@ -1465,9 +1326,7 @@ func (s *FileTeamStore) AppendHandoffHistory(ctx context.Context, teamID string,
 
 // GetHandoffHistory reads handoff history entries, optionally filtered by agent and limited.
 func (s *FileTeamStore) GetHandoffHistory(ctx context.Context, teamID, agentID string, last int) ([]HandoffEntry, error) {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.GetHandoffHistory(ctx, teamID, agentID, last)
-	}
+	s = s.forContext(ctx)
 	if last > MaxHandoffHistoryEntries {
 		last = MaxHandoffHistoryEntries
 	}
@@ -1518,9 +1377,7 @@ func (s *FileTeamStore) GetHandoffHistory(ctx context.Context, teamID, agentID s
 // ClearHandoffHistory removes handoff history entries. If agentID is empty, all
 // entries are removed. Otherwise only entries for the given agent are removed.
 func (s *FileTeamStore) ClearHandoffHistory(ctx context.Context, teamID, agentID string) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.ClearHandoffHistory(ctx, teamID, agentID)
-	}
+	s = s.forContext(ctx)
 	if s.ledger != nil {
 		return fmt.Errorf("source-ledger handoff history is append-only; clearing is unsupported")
 	}
@@ -1542,9 +1399,7 @@ func (s *FileTeamStore) ClearHandoffHistory(ctx context.Context, teamID, agentID
 
 // ClearLastHandoff removes the last handoff file for a team member.
 func (s *FileTeamStore) ClearLastHandoff(ctx context.Context, teamID, agentID string) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.ClearLastHandoff(ctx, teamID, agentID)
-	}
+	s = s.forContext(ctx)
 	if s.ledger != nil {
 		return fmt.Errorf("source-ledger handoff snapshots are append-only; clearing is unsupported")
 	}
@@ -1559,9 +1414,7 @@ func (s *FileTeamStore) ClearLastHandoff(ctx context.Context, teamID, agentID st
 
 // GetTaskBoard reads the full task board for a team.
 func (s *FileTeamStore) GetTaskBoard(ctx context.Context, teamID string) (*TeamTaskBoard, error) {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.GetTaskBoard(ctx, teamID)
-	}
+	s = s.forContext(ctx)
 	path := filepath.Join(s.runtimeTeamsDir(), teamID, "shared", "tasks.json")
 	if !FileExists(path) {
 		return &TeamTaskBoard{Tasks: []TeamTask{}}, nil
@@ -1571,9 +1424,7 @@ func (s *FileTeamStore) GetTaskBoard(ctx context.Context, teamID string) (*TeamT
 
 // SaveTaskBoard writes the full task board for a team.
 func (s *FileTeamStore) SaveTaskBoard(ctx context.Context, teamID string, board *TeamTaskBoard) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.SaveTaskBoard(ctx, teamID, board)
-	}
+	s = s.forContext(ctx)
 	sharedDir := filepath.Join(s.runtimeTeamsDir(), teamID, "shared")
 	if err := os.MkdirAll(sharedDir, 0o755); err != nil {
 		return fmt.Errorf("creating shared directory: %w", err)
@@ -1584,9 +1435,7 @@ func (s *FileTeamStore) SaveTaskBoard(ctx context.Context, teamID string, board 
 
 // GetTask returns a single task by ID from the team's task board.
 func (s *FileTeamStore) GetTask(ctx context.Context, teamID, taskID string) (*TeamTask, error) {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.GetTask(ctx, teamID, taskID)
-	}
+	s = s.forContext(ctx)
 	board, err := s.GetTaskBoard(ctx, teamID)
 	if err != nil {
 		return nil, err
@@ -1601,9 +1450,7 @@ func (s *FileTeamStore) GetTask(ctx context.Context, teamID, taskID string) (*Te
 
 // UpdateTask performs an atomic read-modify-write on a single task.
 func (s *FileTeamStore) UpdateTask(ctx context.Context, teamID, taskID string, updater func(*TeamTask)) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.UpdateTask(ctx, teamID, taskID, updater)
-	}
+	s = s.forContext(ctx)
 	board, err := s.GetTaskBoard(ctx, teamID)
 	if err != nil {
 		return err
@@ -1626,9 +1473,7 @@ func (s *FileTeamStore) UpdateTask(ctx context.Context, teamID, taskID string, u
 
 // DeleteTask removes a task by ID from the team's task board.
 func (s *FileTeamStore) DeleteTask(ctx context.Context, teamID, taskID string) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.DeleteTask(ctx, teamID, taskID)
-	}
+	s = s.forContext(ctx)
 	board, err := s.GetTaskBoard(ctx, teamID)
 	if err != nil {
 		return err
@@ -1655,9 +1500,7 @@ func (s *FileTeamStore) DeleteTask(ctx context.Context, teamID, taskID string) e
 
 // AppendTeamCorpus appends durable team context to the team's source-ledger scope.
 func (s *FileTeamStore) AppendTeamCorpus(ctx context.Context, teamID string, entry *KnowledgeEntry) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.AppendTeamCorpus(ctx, teamID, entry)
-	}
+	s = s.forContext(ctx)
 	if s.ledger != nil {
 		body, err := encodeKnowledge(*entry)
 		if err != nil {
@@ -1689,9 +1532,7 @@ func (s *FileTeamStore) ListTeamCorpus(ctx context.Context, teamID, topicFilter,
 // and applies the topic, closure, and recency filters. Total reports the
 // number of matches before Last was applied.
 func (s *FileTeamStore) QueryTeamCorpus(ctx context.Context, teamID string, opts KnowledgeListOptions) (KnowledgeListResult, error) {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.QueryTeamCorpus(ctx, teamID, opts)
-	}
+	s = s.forContext(ctx)
 	var knowledge []KnowledgeEntry
 	closures := map[string]KnowledgeClosure{}
 	truncated := false
@@ -1790,9 +1631,7 @@ func filterTeamCorpus(knowledge []KnowledgeEntry, closures map[string]KnowledgeC
 // append-only, so closure is an appended closure record keyed by entry id;
 // the most recent closure record for an id wins.
 func (s *FileTeamStore) CloseTeamCorpus(ctx context.Context, teamID string, closure KnowledgeClosure) (KnowledgeEntry, error) {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.CloseTeamCorpus(ctx, teamID, closure)
-	}
+	s = s.forContext(ctx)
 	if err := ValidateKnowledgeClosure(&closure); err != nil {
 		return KnowledgeEntry{}, err
 	}
@@ -1835,9 +1674,7 @@ func (s *FileTeamStore) CloseTeamCorpus(ctx context.Context, teamID string, clos
 // Source Ledger scope. A nil result is intentional for isolated file-store
 // fixtures that do not attach the production ledger client.
 func (s *FileTeamStore) WakeTeamCorpus(ctx context.Context, teamID string) (sourceledger.WakeResult, error) {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.WakeTeamCorpus(ctx, teamID)
-	}
+	s = s.forContext(ctx)
 	if s.ledger == nil {
 		return sourceledger.WakeResult{}, nil
 	}
@@ -1846,9 +1683,7 @@ func (s *FileTeamStore) WakeTeamCorpus(ctx context.Context, teamID string) (sour
 
 // UpdateTeamCorpus updates a team-corpus entry by ID using the provided updater function.
 func (s *FileTeamStore) UpdateTeamCorpus(ctx context.Context, teamID, knowledgeID string, updater func(*KnowledgeEntry)) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.UpdateTeamCorpus(ctx, teamID, knowledgeID, updater)
-	}
+	s = s.forContext(ctx)
 	if s.ledger != nil {
 		current, err := s.QueryTeamCorpus(ctx, teamID, KnowledgeListOptions{IncludeClosed: true})
 		if err != nil {
@@ -1884,9 +1719,7 @@ func (s *FileTeamStore) UpdateTeamCorpus(ctx context.Context, teamID, knowledgeI
 
 // DeleteTeamCorpus removes a team-corpus entry by ID in fixture mode.
 func (s *FileTeamStore) DeleteTeamCorpus(ctx context.Context, teamID, knowledgeID string) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.DeleteTeamCorpus(ctx, teamID, knowledgeID)
-	}
+	s = s.forContext(ctx)
 	if s.ledger != nil {
 		return fmt.Errorf("source-ledger knowledge is append-only; file a superseding entry instead of deleting %s", knowledgeID)
 	}
@@ -1912,9 +1745,7 @@ func (s *FileTeamStore) DeleteTeamCorpus(ctx context.Context, teamID, knowledgeI
 // SaveBugDraft persists a private repairable intake draft. Drafts have their
 // own fixture store and are intentionally never returned by ListTeamCorpus.
 func (s *FileTeamStore) SaveBugDraft(ctx context.Context, teamID string, draft BugDraft) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.SaveBugDraft(ctx, teamID, draft)
-	}
+	s = s.forContext(ctx)
 	if s.ledger != nil {
 		data, err := json.Marshal(draft)
 		if err != nil {
@@ -1944,9 +1775,7 @@ func (s *FileTeamStore) SaveBugDraft(ctx context.Context, teamID string, draft B
 // GetBugDraft returns one private draft. It is intentionally a direct-id read;
 // there is no broad draft listing in the normal knowledge/inbox surface.
 func (s *FileTeamStore) GetBugDraft(ctx context.Context, teamID, id string) (BugDraft, error) {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.GetBugDraft(ctx, teamID, id)
-	}
+	s = s.forContext(ctx)
 	if s.ledger != nil {
 		entries, err := s.ledger.List(ctx, sourceLedgerScope(teamID), 500)
 		if err != nil {
@@ -1977,9 +1806,7 @@ func (s *FileTeamStore) GetBugDraft(ctx context.Context, teamID, id string) (Bug
 // DeleteBugDraft removes a draft only after its corresponding bug-inbox entry
 // has been durably appended.
 func (s *FileTeamStore) DeleteBugDraft(ctx context.Context, teamID, id string) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.DeleteBugDraft(ctx, teamID, id)
-	}
+	s = s.forContext(ctx)
 	if s.ledger != nil {
 		return fmt.Errorf("source-ledger bug drafts are append-only; close %s through the swarm-manager work item", id)
 	}
@@ -2013,9 +1840,7 @@ type PruneResult struct {
 // retention policy. Source Ledger team-corpus entries are append-only and are
 // deliberately excluded.
 func (s *FileTeamStore) PruneSharedState(ctx context.Context, teamID string) (*PruneResult, error) {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.PruneSharedState(ctx, teamID)
-	}
+	s = s.forContext(ctx)
 	team, err := s.Get(ctx, teamID)
 	if err != nil {
 		return nil, err

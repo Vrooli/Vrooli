@@ -131,7 +131,7 @@ fresh worker with a curated brief (`fork_turns=none` in Codex) and hand off thro
 effort files instead of carrying one worker across unrelated outcomes; when an outcome
 splits at a meaningful boundary, start the next part fresh. `agent-manager usage
 recommendations` shows where long workers cost the most. Preserve actual
-authority/safety limits, explicit product requirements and native commission HARD STOP.
+authority and safety limits, explicit product requirements and the commission's granted `execution_limits`.
 
 Assign one owner the complete user journey, including necessary shared shell, theme,
 API and fixture integration. Agree interfaces with genuinely live peers; release file
@@ -260,14 +260,16 @@ inventing progress. Keep the resume set (CHARTER + STATUS + open FEEDBACK) below
 do not automatically accept whole surfaces. Record each active unit with its stable
 ID and worker runs. Archive resolved history; never discard unresolved obligations.
 
-Read native deliveryPressure. ON TRACK pursues full intent; APPROACHING prioritizes
-remaining value; OVER explicitly defers optional work; CONVERGE secures coherent partial
-delivery; HARD STOP checkpoints and hands back. Required behavior and acceptance truth
-remain intact. The owner enforces admission/stop and freezes an outcome after terminal
-readback. A timed stop is a partial handback, not successful product acceptance.
-A stopped commission cannot restart itself. Disabling heartbeat does not pause the
-clock or retained execution. Native clock commands and thresholds are in
-`path:scenarios/agent-manager/docs/reference/effort-supervision.md`.
+Real limits are the granted `execution_limits` (tokens, wall seconds, turns, charge, children,
+retries, and `max_slices` in sliced mode): reaching one stops dispatch, and the owner then
+freezes the outcome after terminal readback. A native commission also has a granted deadline at
+twice its time target, which Agent Manager enforces (`scenarios/agent-manager/docs/reference/effort-supervision.md`).
+Planned pace is not a limit. Running behind it is
+a friction signal (R2, `docs/agent-system/RULES.md`) that names an owner and a fix: defer optional
+work, narrow the next slice, or change the approach, while required behavior and acceptance truth
+stay intact. A stop at a limit is a partial handback, not successful product acceptance. A stopped
+commission cannot restart itself, and disabling heartbeat does not pause retained execution.
+Native pressure readings are in `path:scenarios/agent-manager/docs/reference/effort-supervision.md`.
 
 ### Troubleshooting & Edge Cases
 
@@ -281,8 +283,8 @@ clock or retained execution. Native clock commands and thresholds are in
 
 Blocked means a decision, credential or approval you lack. Name it. Diagnosable friction
 is not blocked. Repairs inside the approved destination stay with this effort; file work
-outside it to its owner with `prompt-manager skill read report-bug`. Delivery teams do not
-use Swarm Manager. Preserve native identity,
+outside it to its owner with `prompt-manager skill read report-bug`. Swarm Manager launches
+runs only under a manager's grant (RULES.md). Preserve native identity,
 permissions, human-only choices and governed dependency/generation/lifecycle operations.
 Do not invent an extra grant, isolation or approval requirement from assignment wording.
 
@@ -294,7 +296,7 @@ it met, or that all remaining work waits on an operator or external return, run 
 challenger with the fixed brief in `LONG_EFFORT_DESIGN.md` §2a, the charter and LOG; continue
 with its top permitted route unless it returns `NONE`. If all remaining work requires a real
 operator/external return, keep it open and park. At a
-native timed stop, publish the honest handback. Record a work-record through the Memory
+limit stop, publish the honest handback. Record a work-record through the Memory
 contract and clean up authorized goal-only installs/processes on closure.
 
 | Avoid | Do instead |

@@ -13,7 +13,6 @@ import "fmt"
 const (
 	promptSectionKindAgentFile          = "agent-file"
 	promptSectionKindSharedDoctrine     = "shared-doctrine"
-	promptSectionKindTeamInbox          = "team-inbox"
 	promptSectionKindTeamWake           = "team-context-wake"
 	promptSectionKindChallengeReview    = "challenge-review"
 	promptSectionKindStorageMap         = "team-storage-map"
@@ -67,7 +66,6 @@ var promptSectionKinds = map[string]promptSectionKind{
 	// Anything member-specific belongs in a later section: a single varying byte
 	// here destroys the shared prefix this section exists to create.
 	promptSectionKindSharedDoctrine:     {Label: "Standing Rules", Heading: "# Standing Rules", Element: "standing-rules", Scope: promptScopeUniversal},
-	promptSectionKindTeamInbox:          {Label: "Team Inbox", Heading: "# Team Inbox", Element: "team-inbox", Scope: promptScopeVolatile},
 	promptSectionKindTeamWake:           {Label: "Team Context Wake", Heading: "# Team Context Wake", Element: "team-context-wake", Scope: promptScopeVolatile},
 	promptSectionKindChallengeReview:    {Label: "Challenge Review", Heading: "# Challenge Review", Element: "challenge-review", Scope: promptScopeVolatile},
 	promptSectionKindStorageMap:         {Label: "Storage Map", Heading: "# Storage Map", Element: "storage-map", Scope: promptScopeTeam},

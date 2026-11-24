@@ -1,6 +1,6 @@
 {
   "createdAt": "2026-01-23T00:00:00Z",
-  "description": "Authoring guide for Steer skills: the {{TARGET}} placeholder rule, the steer opening template, and the maturity-source requirement for audit-shaped steer skills.",
+  "description": "Authoring guide by skill kind: steer ({{TARGET}} rule, opening template, maturity source), practice, tools, platform, search and meta. Universal quality bars live in docs/agent-system/SKILL_AUTHORING.md.",
   "entry": "SKILL.md",
   "icon": "fileedit",
   "id": "skill-authoring",
@@ -10,7 +10,7 @@
     "meta",
     "steer"
   ],
-  "name": "Steer Skill Authoring",
+  "name": "Skill Authoring",
   "origin": {
     "kind": "authored"
   },
@@ -22,12 +22,12 @@
       "prompt-manager"
     ]
   },
-  "revision": 45,
+  "revision": 46,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
     "skill",
     "authoring"
   ],
-  "updatedAt": "2026-10-20T00:00:00Z"
+  "updatedAt": "2026-11-20T00:00:00Z"
 }

@@ -38,17 +38,10 @@ func cleanAuditContext(t *testing.T) *clitest.Context {
 		Rows:     []objectiveRow{{ID: "T1", Served: true}, {ID: "T2", GapMarker: "pending-capability"}},
 		Unserved: 1,
 	})
-	ctx.Respond("GET", "/orientation-cost", orientationCostReport{
-		Teams: []orientationCost{{TeamID: "alpha", Composite: 42, ScenarioCoverage: 1}},
-	})
 	ctx.Respond("GET", "/operating-models/coverage", operatingModelCoverageResponse{
 		Coverage: []operatingGraphCoverage{{Team: "alpha", Relationships: []operatingRelationshipCoverage{
 			{Relationship: "topic_read", RuntimeDeclared: 2, GraphShown: 2, Matched: 2},
 		}}},
-	})
-	concluded := "2026-08-01T00:00:00Z"
-	ctx.Respond("GET", "/experiments", []experimentLivenessRow{
-		{ID: "exp-1", Status: "concluded", ConcludedAt: &concluded},
 	})
 	stubCanonScript(t, "PASS one\nPassed: 9\nFailed: 0\n", nil)
 	return ctx
@@ -87,16 +80,12 @@ func TestCmdAuditCoversEveryFrameworkHealthTarget(t *testing.T) {
 		"Graph/runtime drift",
 		"Topic-flow declaration integrity",
 		"Member-document conformance",
-		"Prose/declaration coherence",
 		"Cross-team coupling visibility",
 		"Canon coherence",
 		"Objective coverage",
 		"Statically unreferenced skills",
 		"Skill conditioning quality",
-		"Skill-experiment loop liveness",
-		"PoR entropy",
 		"Instrument coverage",
-		"Team orientation cost",
 		"Discovery budget pressure",
 		"Prompt structure invariant",
 		"Catalogued rules with no finding",
@@ -128,14 +117,13 @@ func TestCmdAuditReportsUnsensoredTargetsRatherThanDroppingThem(t *testing.T) {
 	if report.OutOfBand != 0 {
 		t.Fatalf("clean fixtures should be in band, got %d out of band", report.OutOfBand)
 	}
-	// Seven targets are open-loop in FRAMEWORK_HEALTH today. Two were added with
-	// the sensor-map plan: the prompt structure invariant, enforced in the
+	// Five targets are open-loop: the prompt structure invariant, enforced in the
 	// heartbeat unit suite rather than by a corpus-wide CLI sensor, and the
-	// rules-with-no-finding trend, which cannot be banded from a single reading.
-	// The seventh is the open-loop count itself, which is a trend target for the
-	// same reason and therefore counts itself.
-	if report.Unsensored != 7 {
-		t.Fatalf("unsensored = %d, want 7", report.Unsensored)
+	// rules-with-no-finding trend, which cannot be banded from a single reading,
+	// plus three more trend or deferred targets, one of which is the open-loop
+	// count itself.
+	if report.Unsensored != 5 {
+		t.Fatalf("unsensored = %d, want 5", report.Unsensored)
 	}
 	// An unsensored target must name both the honest open-loop state and a dated
 	// marker for the work that closes it. The marker prevents an intentionally
@@ -284,34 +272,6 @@ func TestCmdAuditFlagsAnUnattachedTeam(t *testing.T) {
 	}
 }
 
-// Orientation cost must report every team, not the usual three-lead cap: the
-// record is what the next cycle diffs against, and a truncated one silently
-// drops teams out of the trend.
-func TestCmdAuditRecordsEveryTeamsOrientationCost(t *testing.T) {
-	ctx := cleanAuditContext(t)
-	ctx.Respond("GET", "/orientation-cost", orientationCostReport{Teams: []orientationCost{
-		{TeamID: "a"}, {TeamID: "b"}, {TeamID: "c"}, {TeamID: "d"}, {TeamID: "e"}, {TeamID: "f"},
-	}})
-	stdout, _, err := clitest.Output(t, func() error { return cmdAudit(ctx, []string{"--json"}) })
-	if err != nil {
-		t.Fatalf("cmdAudit: %v", err)
-	}
-	var report auditReport
-	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-	for _, tgt := range report.Targets {
-		if tgt.Target != "Team orientation cost" {
-			continue
-		}
-		if len(tgt.Detail) != 6 {
-			t.Fatalf("detail lines = %d, want 6 (one per team)", len(tgt.Detail))
-		}
-		return
-	}
-	t.Fatal("audit did not report Team orientation cost")
-}
-
 // writeBaseline runs one sweep and persists it, returning the artifact path the
 // next sweep bands against. Round-tripping through --out is deliberate: it
 // proves the two flags agree on a shape rather than testing a hand-built one.
@@ -350,70 +310,6 @@ func findTarget(t *testing.T, r auditReport, name string) auditTarget {
 	}
 	t.Fatalf("audit did not report %q", name)
 	return auditTarget{}
-}
-
-// A trend target is open-loop until a baseline arrives, then bands. This is the
-// whole point of --baseline: three targets reported pending-baseline forever
-// while the readings they needed were being written to a record nobody read.
-func TestCmdAuditBandsTrendTargetsAgainstBaseline(t *testing.T) {
-	ctx := cleanAuditContext(t)
-	baseline := writeBaseline(t, ctx)
-
-	report := auditWithBaseline(t, ctx, baseline)
-	tgt := findTarget(t, report, "Team orientation cost")
-	if tgt.Status != auditStatusInBand {
-		t.Fatalf("flat orientation cost should band in-band, got %q (%s)", tgt.Status, tgt.Observed)
-	}
-	if report.BaselineFrom == "" {
-		t.Fatal("a banded sweep must name the baseline it compared against")
-	}
-	if tgt.GapMarker != "" {
-		t.Fatalf("a banded target must drop the gap marker that asked for the baseline: %q", tgt.GapMarker)
-	}
-}
-
-// A rise only counts where the guard series also rose. Orientation cost that
-// grew while scenario coverage held flat is expected growth, and banding it
-// out would make the deadband fire on the thing it explicitly permits.
-func TestCmdAuditGuardSuppressesRiseWithoutCoverageGrowth(t *testing.T) {
-	ctx := cleanAuditContext(t)
-	baseline := writeBaseline(t, ctx)
-
-	// Composite climbs 42 -> 99; scenario coverage stays at 1.
-	ctx.Respond("GET", "/orientation-cost", orientationCostReport{
-		Teams: []orientationCost{{TeamID: "alpha", Composite: 99, ScenarioCoverage: 1}},
-	})
-	tgt := findTarget(t, auditWithBaseline(t, ctx, baseline), "Team orientation cost")
-	if tgt.Status != auditStatusInBand {
-		t.Fatalf("rise without coverage growth must stay in band, got %q (%s)", tgt.Status, tgt.Observed)
-	}
-
-	// Same rise, but coverage grew with it: now it is the defect the band names.
-	ctx.Respond("GET", "/orientation-cost", orientationCostReport{
-		Teams: []orientationCost{{TeamID: "alpha", Composite: 99, ScenarioCoverage: 5}},
-	})
-	tgt = findTarget(t, auditWithBaseline(t, ctx, baseline), "Team orientation cost")
-	if tgt.Status != auditStatusOutOfBand {
-		t.Fatalf("rise with coverage growth must be out of band, got %q (%s)", tgt.Status, tgt.Observed)
-	}
-	if len(tgt.Detail) == 0 || !strings.Contains(tgt.Detail[0], "42 → 99") {
-		t.Fatalf("out-of-band trend must name the movement, got %v", tgt.Detail)
-	}
-}
-
-// A team absent from the baseline is new, not a regression. Treating a first
-// reading as a rise would penalise declaring a team at all.
-func TestCmdAuditTreatsUnseenSeriesAsNewRatherThanRisen(t *testing.T) {
-	ctx := cleanAuditContext(t)
-	baseline := writeBaseline(t, ctx)
-	ctx.Respond("GET", "/orientation-cost", orientationCostReport{Teams: []orientationCost{
-		{TeamID: "alpha", Composite: 42, ScenarioCoverage: 1},
-		{TeamID: "brand-new", Composite: 9000, ScenarioCoverage: 99},
-	}})
-	tgt := findTarget(t, auditWithBaseline(t, ctx, baseline), "Team orientation cost")
-	if tgt.Status != auditStatusInBand {
-		t.Fatalf("a new series must not read as a regression, got %q (%s)", tgt.Status, tgt.Observed)
-	}
 }
 
 // The open-loop count is one of the rows it counts. Whether it counts itself
@@ -533,38 +429,6 @@ func TestCmdAuditTreatsUnparseableCanonOutputAsUncollected(t *testing.T) {
 	}
 }
 
-// With no experiments at all the loop is not live, and the deadband's "once the
-// loop is live" precondition is unmet. Reporting out-of-band would flag a
-// failure to conclude work nobody started.
-func TestCmdAuditTreatsAbsentExperimentLoopAsOpenLoop(t *testing.T) {
-	ctx := cleanAuditContext(t)
-	ctx.Respond("GET", "/experiments", []experimentLivenessRow{})
-	stdout, _, err := clitest.Output(t, func() error { return cmdAudit(ctx, []string{"--json"}) })
-	if err != nil {
-		t.Fatalf("cmdAudit: %v", err)
-	}
-	var report auditReport
-	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-	tgt := findTarget(t, report, "Skill-experiment loop liveness")
-	if tgt.Status != auditStatusNoSensor {
-		t.Fatalf("an unstarted loop is open-loop, not a failure; got %q (%s)", tgt.Status, tgt.Observed)
-	}
-	// A live loop that concludes nothing IS the defect the band names.
-	ctx.Respond("GET", "/experiments", []experimentLivenessRow{{ID: "exp-1", Status: "running"}})
-	stdout, _, err = clitest.Output(t, func() error { return cmdAudit(ctx, []string{"--json"}) })
-	if err != nil {
-		t.Fatalf("cmdAudit: %v", err)
-	}
-	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-	if tgt := findTarget(t, report, "Skill-experiment loop liveness"); tgt.Status != auditStatusOutOfBand {
-		t.Fatalf("a live loop concluding nothing must be out of band, got %q", tgt.Status)
-	}
-}
-
 // The coupling deadband names two clauses; the edge count only speaks to one.
 // Before this, the check was `len(edges) > 0`, which could detect nothing but
 // total collapse of the map while runtime-only rows accumulated unseen.
@@ -612,12 +476,12 @@ func TestCmdAuditComputesGapAgeFromMarkerDate(t *testing.T) {
 	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	// PoR entropy's marker is dated 2026-07-27: 14 days before the stubbed now.
-	tgt := findTarget(t, report, "PoR entropy")
-	if tgt.GapOpenedOn != "2026-07-27" {
-		t.Fatalf("gap_opened_on = %q, want 2026-07-27", tgt.GapOpenedOn)
+	// The prompt structure invariant's marker is dated 2026-07-31: 10 days before the stubbed now.
+	tgt := findTarget(t, report, "Prompt structure invariant")
+	if tgt.GapOpenedOn != "2026-07-31" {
+		t.Fatalf("gap_opened_on = %q, want 2026-07-31", tgt.GapOpenedOn)
 	}
-	if tgt.GapOpenDays != 14 {
+	if tgt.GapOpenDays != 10 {
 		t.Fatalf("gap_open_days = %d, want 14", tgt.GapOpenDays)
 	}
 	for _, other := range report.Targets {

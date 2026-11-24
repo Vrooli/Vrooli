@@ -3,9 +3,45 @@ from pathlib import Path
 import tempfile
 import unittest
 import workflow
+from unittest.mock import patch
 
 
 class WorkflowTests(unittest.TestCase):
+
+    def test_verify_can_join_composed_lv3_gates(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / 'film.mp4').write_bytes(b'exact film')
+            plan = root / 'production.json'
+            plan.write_text(json.dumps({'video': 'film.mp4', 'scenes': []}))
+            cues = root / 'gate-cues.json'
+            cues.write_text(json.dumps({'text_cues': []}))
+            inspect_report = {'sha256': workflow.digest(root / 'film.mp4'),
+                              'metadata': {'streams': [{'codec_type': 'video'}]}}
+            def run_gate(_video, _plan, _cues, output):
+                output.mkdir(parents=True)
+                receipt = output / 'export-gates.json'
+                receipt.write_text(json.dumps({'status': 'pass'}))
+                return {'status': 'pass'}
+            with patch.object(workflow, 'validate', return_value=[]), \
+                 patch.object(workflow, 'require_current_brief', return_value=[]), \
+                 patch.object(workflow, 'inspect', return_value=inspect_report), \
+                 patch('export_gates.run', side_effect=run_gate):
+                passed = workflow.verify(plan, root / 'verify-pass', gate_cues=cues)
+            self.assertEqual(passed['status'], 'pass')
+            self.assertTrue(Path(passed['export_gates_report']).is_file())
+            def fail_gate(_video, _plan, _cues, output):
+                output.mkdir(parents=True)
+                (output / 'export-gates.json').write_text(json.dumps({'status': 'fail'}))
+                return {'status': 'fail'}
+            with patch.object(workflow, 'validate', return_value=[]), \
+                 patch.object(workflow, 'require_current_brief', return_value=[]), \
+                 patch.object(workflow, 'inspect', return_value=inspect_report), \
+                 patch('export_gates.run', side_effect=fail_gate):
+                failed = workflow.verify(plan, root / 'verify-fail', gate_cues=cues)
+            self.assertEqual(failed['status'], 'fail')
+            self.assertIn('LV3 composed export gates failed', failed['errors'])
+
     def test_snapshot_detects_mutation_and_preserves_old_receipts(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

@@ -8,7 +8,7 @@ Choose one target by this ladder: high usage and longest absence, drift flag, to
 Discovery budget pressure has two distinct fixes:
 | Evidence | Disposition |
 |---|---|
-| One large skill dominates over-budget calls | Compress it or split it under PROMOTION_LADDER.md |
+| One large skill dominates over-budget calls | Compress it or split it under SKILL_AUTHORING.md |
 | A reasonable-size returned set is collectively heavy | Propose a router plus focused methods |
 
 Evaluate both efficiency (tokens, manual loops, conversion) and conditioning quality (focality, entropy, verifiability, attention economy). Choose existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune, improve, or graduate only from observed evidence.
@@ -31,5 +31,5 @@ Run prompt-manager discover "<operation>" --type all before proposing executable
 - Do not touch agents or teams directly; build scenarios; or create a new skill as an isolated meta-optimization output. Route gaps to the owning lane.
 ## Available Skills
 - skill-authoring-tools and skill-validation — move deterministic execution into Actions and validate quality.
-- SKILL_AUTHORING.md, PROMOTION_LADDER.md, and LAYERS.md — universal criteria, lifecycle, and layering.
+- SKILL_AUTHORING.md, SKILL_AUTHORING.md, and docs/agent-system/README.md — universal criteria, lifecycle, and layering.
 - visited-tracker-tools and documentation-health — rotation and durable audit snapshots.

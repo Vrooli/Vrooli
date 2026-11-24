@@ -1,6 +1,6 @@
 {
   "createdAt": "2026-02-07T00:00:00Z",
-  "defaultScope": "architecture-scope",
+  "defaultScope": "work-scope",
   "description": "Migrate scenario UIs to a token-driven design system with phased rollout, quality gates, and convergence tracking",
   "entry": "SKILL.md",
   "icon": "palette",

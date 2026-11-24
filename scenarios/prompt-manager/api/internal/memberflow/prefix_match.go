@@ -12,7 +12,7 @@
 // The rule is severity=warning, never error — a real entry under an
 // undeclared prefix is data, not a structural fault that breaks the system.
 //
-// DOC: docs/agent-system/TOPICS_SCHEMA.md
+// DOC: scenarios/prompt-manager/docs/internal/TOPICS_SCHEMA.md
 package memberflow
 
 import (

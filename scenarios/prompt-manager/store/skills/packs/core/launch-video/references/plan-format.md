@@ -314,6 +314,33 @@ python3 <skill-dir>/scripts/production.py inspect video-v2.mp4 --out inspection-
 The destination must be new. Reuse inspection output only for the exact same file
 hash. Keep intermediate renders, measured diagnostics, and alternatives.
 
+Run the LV3 composed export gates against the exact export and plan:
+
+```bash
+python3 <skill-dir>/scripts/production.py gate video-v2.mp4 \
+  --plan production.json --cues gate-cues.json --out gate-run-v2
+```
+
+`gate-cues.json` is a frozen JSON object. It must include `text_cues`, each with an
+ID, exact expected text, start/end seconds, and an `[x,y,width,height]` OCR region.
+Set `text_sample_every_frames` when the default 3-frame cadence is unsuitable.
+When `production.json` has `cta.qr: true`, also include `qr.times` and `qr.widths`
+from the planned stationary hold and set `qr.phone_simulation: true`; the composed
+gate fails closed without the documented synthetic transform. The command checks one-frame returns, repeated stationary
+flicker, exact-token OCR at a confidence threshold, export audio/scene signals,
+and optional QR playback. It writes separate receipts and fails closed when cues
+or plan/video identity are missing. The frame, OCR and audio checks decode the
+export, so admit enough host capacity before running them on a long film. To join
+the same gates to the normal production verify workflow, pass the frozen cues:
+
+```bash
+python3 <skill-dir>/scripts/workflow.py verify production.json \
+  --out delivery-review --gates-cues gate-cues.json
+```
+
+When `--gates-cues` is supplied, a failed LV3 receipt makes the delivery review
+fail and the aggregate receipt path is recorded in `workflow.json`.
+
 Final reviews declare `audio_status`: `auditioned-pass`, `unreviewed`, `fail`, or
 `not-applicable` (silent/still). Music/voice delivery requires `auditioned-pass`.
 Measured loudness and technical decode cannot satisfy listening review.

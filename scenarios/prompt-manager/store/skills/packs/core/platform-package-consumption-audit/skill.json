@@ -1,6 +1,6 @@
 {
   "createdAt": "2026-02-10T00:00:00Z",
-  "defaultScope": "platform-scope",
+  "defaultScope": "work-scope",
   "description": "Audit how scenarios consume a shared package, identify friction/inconsistency, and produce a prioritized package-level reliability backlog with verification plans.",
   "entry": "SKILL.md",
   "id": "platform-package-consumption-audit",

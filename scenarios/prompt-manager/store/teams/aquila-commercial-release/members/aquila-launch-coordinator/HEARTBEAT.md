@@ -2,10 +2,10 @@
 
 Mission: Deliver the finite Aquila/Web Console commercial release through validated desktop deployment, Landing Page Business Suite monetization, paid-journey evidence, operational support and independent go/no-go acceptance.
 
-Work model: managed mixed release effort. Start at `/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-commercial-release-2026-09-17/README.md`.
-- `/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-commercial-release-2026-09-17/requirements.json`
-- `/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-commercial-release-2026-09-17/sources/README.md`
-- `/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-commercial-release-2026-09-17/effort.json`
+Work model: managed mixed release effort. Start at `~/.vrooli/plan-artifacts/efforts/aquila-commercial-release-2026-09-17/README.md`.
+- `~/.vrooli/plan-artifacts/efforts/aquila-commercial-release-2026-09-17/requirements.json`
+- `~/.vrooli/plan-artifacts/efforts/aquila-commercial-release-2026-09-17/sources/README.md`
+- `~/.vrooli/plan-artifacts/efforts/aquila-commercial-release-2026-09-17/effort.json`
 
 ## Current recovery point
 

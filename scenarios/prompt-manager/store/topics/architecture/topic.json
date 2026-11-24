@@ -6,11 +6,7 @@
   "description": "Architecture and code structure: where responsibilities live, the seams between components, the invariants the code relies on, and the vocabulary that names them.",
   "parentTopicId": "development",
   "skills": [
-    "seam-discovery-and-enforcement",
-    "boundary-of-responsibility-enforcement",
-    "invariant-discovery-and-enforcement",
-    "screaming-architecture-audit",
-    "domain-clarity"
+    "architecture-lenses"
   ],
   "status": "active",
   "revision": 1,

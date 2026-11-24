@@ -10,7 +10,7 @@ func TestDefaultRuleRegistryRegistersEveryRegisteredRuleFamily(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DefaultRuleRegistry() error = %v", err)
 	}
-	want := len(DefaultOperatingGraphRules()) + len(DefaultOperatingModelRules()) + len(DefaultTopicRules()) + len(DefaultPlanOfRecordRules())
+	want := len(DefaultOperatingGraphRules()) + len(DefaultOperatingModelRules()) + len(DefaultTopicRules())
 	if got := len(registry.Rules()); got != want {
 		t.Fatalf("registered rules = %d, want %d", got, want)
 	}
@@ -23,7 +23,6 @@ func TestDefaultRuleCatalogExactlyMatchesDefaultRegistry(t *testing.T) {
 	}
 	rules := append(DefaultOperatingGraphRules(), DefaultOperatingModelRules()...)
 	rules = append(rules, DefaultTopicRules()...)
-	rules = append(rules, DefaultPlanOfRecordRules()...)
 	if _, err := NewRuleRegistryWithCatalog(catalog, rules...); err != nil {
 		t.Fatalf("default catalog and registry drifted: %v", err)
 	}
@@ -98,37 +97,6 @@ func TestTopicRegistryDefaultSeveritiesMatchRuleContracts(t *testing.T) {
 	}
 	for id := range want {
 		t.Errorf("tracked topic rule %q was not registered", id)
-	}
-}
-
-func TestDefaultRuleRegistryIncludesPlanOfRecordRuleAdapters(t *testing.T) {
-	registry, err := DefaultRuleRegistry()
-	if err != nil {
-		t.Fatalf("DefaultRuleRegistry() error = %v", err)
-	}
-	registered := map[string]Rule{}
-	for _, rule := range registry.Rules() {
-		registered[rule.ID()] = rule
-	}
-	for _, rule := range DefaultPlanOfRecordRules() {
-		registeredRule, ok := registered[rule.ID()]
-		if !ok {
-			t.Errorf("plan-of-record rule %q is not registered", rule.ID())
-			continue
-		}
-		if registeredRule.Group() != OperatingRuleGroupPlanOfRecord {
-			t.Errorf("plan-of-record rule %q group = %q, want %q", rule.ID(), registeredRule.Group(), OperatingRuleGroupPlanOfRecord)
-		}
-	}
-}
-
-func TestPlanOfRecordRuleCatalogExactlyMatchesRegistry(t *testing.T) {
-	catalog, err := PlanOfRecordRuleCatalog()
-	if err != nil {
-		t.Fatalf("PlanOfRecordRuleCatalog() error = %v", err)
-	}
-	if _, err := NewRuleRegistryWithCatalog(catalog, DefaultPlanOfRecordRules()...); err != nil {
-		t.Fatalf("catalog-enforced plan-of-record registry: %v", err)
 	}
 }
 

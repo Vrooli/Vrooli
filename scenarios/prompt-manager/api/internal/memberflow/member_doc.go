@@ -18,8 +18,8 @@ import (
 // and two members naming one concept differently is drift that no generated
 // section can correct.
 //
-// Canon: docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md §"Member document
-// contract". Rule catalog: docs/agent-system/TOPICS_SCHEMA.md §"Validation
+// Canon: docs/agent-system/RULES.md, the loop card; formerly "Member document
+// contract". Rule catalog: scenarios/prompt-manager/docs/internal/TOPICS_SCHEMA.md §"Validation
 // rules". The tables below are the machine copy of that canon; changing one
 // without the other is the drift these rules exist to prevent.
 
@@ -135,7 +135,7 @@ func checkMemberDoc(storeDir string, ref MemberRef, contract memberDocContract) 
 			Rule:     "member_doc_file_missing",
 			Severity: contract.AbsentSeverity,
 			Team:     ref.Team, Member: ref.Member,
-			Detail: fmt.Sprintf("member %q on team %q has no %s; see docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md §\"Member document contract\" for the required sections",
+			Detail: fmt.Sprintf("member %q on team %q has no %s; see docs/agent-system/RULES.md (the loop card) for the required first lines",
 				ref.Member, ref.Team, contract.File),
 		}}
 	}
@@ -150,7 +150,7 @@ func checkMemberDoc(storeDir string, ref MemberRef, contract memberDocContract) 
 				Rule:     "member_doc_section_alias",
 				Severity: SeverityError,
 				Team:     ref.Team, Member: ref.Member,
-				Detail: fmt.Sprintf("%s uses retired heading %q; rename it to %q (docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md §\"Retired aliases\")",
+				Detail: fmt.Sprintf("%s uses retired heading %q; rename it to %q",
 					contract.File, "## "+h, "## "+canonical),
 			})
 			// Count the alias against its canonical slot so a file
@@ -195,7 +195,7 @@ func checkMemberDoc(storeDir string, ref MemberRef, contract memberDocContract) 
 				Rule:     "member_doc_section_missing",
 				Severity: SeverityError,
 				Team:     ref.Team, Member: ref.Member,
-				Detail: fmt.Sprintf("%s is missing required section %q (docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md §\"Canonical section vocabulary\")",
+				Detail: fmt.Sprintf("%s is missing required section %q (docs/agent-system/RULES.md, the loop card)",
 					contract.File, "## "+h),
 			})
 		case memberDocRecommended:

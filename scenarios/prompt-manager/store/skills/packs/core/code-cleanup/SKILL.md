@@ -9,7 +9,7 @@ metadata:
   tags: ["skill","audit-technique"]
   icon: "trash2"
   status: "active"
-  defaultScope: "refactor-scope"
+  defaultScope: "work-scope"
   revision: 46
   createdAt: "2025-01-14T00:00:00Z"
   updatedAt: "2026-02-06T14:33:21Z"
@@ -20,6 +20,8 @@ metadata:
     kind: "authored"
 ---
 ## Steer focus: Code Cleanup
+
+**Scope mode: `refactor`.** Hold to that row of `work-scope` for this session.
 
 Prioritize **systematic removal of dead code, deprecated implementations, and backwards-compatibility cruft** across this scenario.
 Do **not** modify code in `path:packages/*` (shared code may have external consumers).

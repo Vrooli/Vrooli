@@ -2,7 +2,7 @@
 
 Audit of every filesystem read/write in `scenarios/prompt-manager/api/` against
 the three-class storage model defined in
-[`docs/concepts/STORAGE_CLASSES.md`](../concepts/STORAGE_CLASSES.md):
+[`docs/concepts/STORAGE_CLASSES.md`](../../../docs/concepts/STORAGE_CLASSES.md):
 
 - **Config** — authored, git-tracked, lives under repo `store/`.
 - **RuntimeData** — mutable application state, `api-core/storage` `ClassData`,

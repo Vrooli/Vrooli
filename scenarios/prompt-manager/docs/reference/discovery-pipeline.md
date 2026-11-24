@@ -23,7 +23,7 @@ Discover serves two opposite needs, selected by `--type`:
 | Mode | `--type` | Want | Callers |
 |---|---|---|---|
 | **Curated / plan-authoring** | `skill` (default) | the skill setup bundle for development work — strong direct matches **plus** the curated topic packs for that kind of work | `implementation-plan-authoring`, `ecosystem-fit` |
-| **Operational** | `all`, `action` | the *single best-matching* skill or action to avoid hand-rolling — pure relevance, no packs | the AGENTS.md "Discover → Use → Capture" reflex, `skill-improvement-suggestions`, meta-optimization, etc. |
+| **Operational** | `all`, `action` | the *single best-matching* skill or action to avoid hand-rolling — pure relevance, no packs | the AGENTS.md "Discover → Use → Capture" reflex, `skill-validation`, meta-optimization, etc. |
 
 **INVARIANT I8 — mode-aware ranking.** Curated-pack behavior (I1–I7 below)
 applies **only in skill mode**. In operational mode topics are **not**
@@ -110,7 +110,7 @@ self-declare topics). A leaf inherits its folder's and the root's skills via
 ancestors, deduped). So matching a leaf yields *leaf + folder + root* skills.
 
 - **Root** holds the always-relevant development practices
-  (`documentation-health`, `test`, `domain-clarity`).
+  (`documentation-health`, `test`, `architecture-lenses`).
 - **Folders** (only `Architecture & code structure` today) hold cross-cutting
   skills shared by their leaves and add one level of depth.
 - **Leaves** hold the skills specific to one kind of work.

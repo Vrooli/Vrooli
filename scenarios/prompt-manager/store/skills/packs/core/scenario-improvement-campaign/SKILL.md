@@ -34,7 +34,7 @@ Required reading:
 - `path:docs/agent-system/LONG_EFFORT_DESIGN.md` when the engagement runs for hours: its
   rules on turns, compaction and closure apply to this loop.
 
-Load `<scenario>-improve` for scenario-contract work. Load `scenario-maturity-ladder`
+Load `<scenario>-improve` for scenario-contract work. Load `scenario-work-ladder`
 for an explicit maturity review. Load implementation-plan execution when working
 an actual plan; it is not a prerequisite for every repair.
 
@@ -75,7 +75,7 @@ Read approved artifact contents and existing scenario problem evidence. Use
 declared sensor programs, owner reports, and relevant Test Genie findings. Keep
 observed behavior distinct from desired-state documentation.
 
-Use `skill-set-authoring` when setup is absent and setup work is authorized.
+Use `scenario-skill-setup` when setup is absent and setup work is authorized.
 An undecided product target still requires an operator decision.
 
 Treat the setpoint board as an observer, not as the mechanism that creates

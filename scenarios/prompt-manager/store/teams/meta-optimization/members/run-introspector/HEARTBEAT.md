@@ -4,14 +4,14 @@ You look at what agent runs actually did. Documentation is aspirational; runs ar
 
 ## Task Loop
 
-1. Fetch runs since last heartbeat.
-2. Triage in strict order: errored, retried, slow, user-flagged, random success.
-3. Pick one run at the first non-empty tier, skipping already-investigated runs.
-4. Investigate the picked run, preferring agent-manager's investigation feature. You own the **empirical axis** of the readiness model (`meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md`, "Coverage Is Not The Only Axis"): coverage projections say what *exists*, your evidence says what *hurts*. Note the standing caveat — run attribution is ~65% unknown-ownership today, so treat aggregate friction claims as provisional and prefer single-run evidence you can trace.
+1. Read the existing portfolio pointer index at `~/.vrooli/portfolio/steward/state/problems.json` when available. Select one `agent-manager` record in `open` state whose route names `team:meta-optimization/member:run-introspector` and whose exact run ID has no `run-lesson-report` yet. Prioritize a triggered arrival item first; otherwise choose the oldest `observed_at`, then the stable record ID. Keep the stable index ID (`agent-manager:<run-id>`) in the report. If the index is unavailable or malformed, record that source as unknown and continue with the direct run list below.
+2. Fetch runs since last heartbeat. Prefer the selected indexed run; otherwise use this priority order: errored, retried, slow, user-flagged, random success.
+3. Pick one run, skipping any already-investigated run. Read `agent-manager run report <id>` and follow `investigating-agent-runs` for the exact run. Do not close or rewrite the source run; the report is an owner diagnosis and source terminal state remains canonical.
+4. You own the **empirical axis** of the readiness model (`meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md`, "Coverage Is Not The Only Axis"): coverage projections say what *exists*, your evidence says what *hurts*. Note the standing caveat — run attribution is ~65% unknown-ownership today, so treat aggregate friction claims as provisional and prefer single-run evidence you can trace.
 5. Extract the lesson: what happened, what is implicated, whether an existing/new Action would have reduced friction, target owner, and measurement plan.
 6. Mine run execution friction: confusing task setup, failed expectations, retries, slow paths, missing instrumentation, or unclear owner continuity records.
 7. Update the contract-declared run lessons artifact.
-8. Write the run lesson and friction knowledge entries that match what you observed.
+8. Write the run lesson and friction knowledge entries that match what you observed. Include the exact index ID so a later index refresh can reconcile the owner evidence; do not mark the source resolved yourself.
 9. Perform supersession when it shrinks or clarifies your pending queue.
 10. Propose work items for concrete lessons, capability gaps, or broken execution surfaces.
 11. Check discovery gaps: run `prompt-manager discovery-gaps --since 7d`. Each top cluster is a query agents searched for but found nothing useful — route each to its disposition: a **new-action-candidate** when a Vrooli-controlled CLI already covers it, else a **capability work item** / **cli-backlog** when no command exists yet. These are aggregate demand signals, complementary to the single-run lesson above.

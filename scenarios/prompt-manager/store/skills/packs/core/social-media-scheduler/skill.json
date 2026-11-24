@@ -15,13 +15,15 @@
   },
   "requires": {
     "commands": [
-      "vrooli scenario"
+      "vrooli scenario",
+      "program-runtime library run"
     ],
     "scenarios": [
-      "vrooli"
+      "vrooli",
+      "program-runtime"
     ]
   },
-  "revision": 1,
+  "revision": 2,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -30,5 +32,5 @@
     "social-media",
     "scheduling"
   ],
-  "updatedAt": "2026-03-19T00:00:00Z"
+  "updatedAt": "2026-11-24T06:40:00Z"
 }

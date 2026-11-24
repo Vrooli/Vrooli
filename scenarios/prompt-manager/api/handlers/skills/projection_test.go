@@ -24,7 +24,7 @@ func TestProjectionConnectPreviewApplyAndConflict(t *testing.T) {
 	projector := &projection.Service{SourceRoot: source, Targets: []projection.Target{{Runtime: "fixture", Path: target}}, LoadPack: func() (projection.BasePack, error) {
 		return projection.BasePack{Skills: []string{"alpha"}, MaxSkills: 1, MaxTokens: 100}, nil
 	}}
-	_, handler := NewConnectMountWithProjection(nil, nil, nil, projector)
+	_, handler := NewConnectMountWithProjection(nil, nil, projector)
 	server := httptest.NewServer(handler)
 	defer server.Close()
 	client := skillsconnect.NewSkillsServiceClient(server.Client(), server.URL)

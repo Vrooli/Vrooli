@@ -1,18 +1,18 @@
 // Framework-health audit sweep: one command that reads every sensor named in
-// docs/agent-system/FRAMEWORK_HEALTH.md and reports each target's observed
+// docs/agent-system/RULES.md and reports each target's observed
 // value against its deadband.
 //
-// Why this exists: the agent-system-audit skill previously orchestrated eight
+// Why this exists: the audit skill previously orchestrated eight
 // separate commands and reconciled their differing output shapes by hand. That
 // spent the auditing agent's context on orchestration rather than judgment, and
 // every audit re-derived the same readings from scratch.
 //
 // Honesty rule: targets this command cannot observe in-process are still
 // emitted, with status `external` (needs a command outside the graph API) or
-// `no-sensor` (open-loop, per FRAMEWORK_HEALTH). Dropping them would let a
+// `no-sensor` (open-loop). Dropping them would let a
 // clean sweep read as full coverage when it is not.
 //
-// DOC: docs/agent-system/FRAMEWORK_HEALTH.md
+// DOC: docs/agent-system/RULES.md
 package graph
 
 import (
@@ -78,10 +78,6 @@ type auditTrend struct {
 	Metric string `json:"metric"`
 	// Values is keyed by entity, or by "" for a single scalar reading.
 	Values map[string]float64 `json:"values"`
-	// Guard, when set, is a second per-entity series that must also have risen
-	// for a rise in Values to count as a finding. Team orientation cost is only
-	// out of band when scenario coverage grew in the same cycle.
-	Guard map[string]float64 `json:"guard,omitempty"`
 	// Rising reports which direction is the defect. Every trend target today
 	// fails upward; the field exists so a future "should be climbing" target
 	// does not have to invert its Values to fit.
@@ -193,7 +189,7 @@ func cmdAudit(ctx appctx.Context, args []string) error {
 // A malformed or unreadable path IS an error. Silently degrading to "no
 // baseline" would report every trend target as pending-baseline while the
 // operator believed a comparison had happened, which is the dead-sensor shape
-// FRAMEWORK_HEALTH.md's deadband rule exists to prevent.
+// RULES.md's deadband rule exists to prevent.
 func loadAuditBaseline(path string) (auditBaseline, error) {
 	if path == "" {
 		return auditBaseline{}, nil
@@ -256,9 +252,6 @@ func applyBaseline(t auditTarget, prior auditBaseline) auditTarget {
 	}
 	summary := fmt.Sprintf("%s; %d of %d series rose against the %s baseline",
 		trendSummary(t.Trend), len(risen), len(t.Trend.Values), prior.from)
-	if t.Trend.Guard != nil {
-		summary += " (a rise counts only where the guard series also rose)"
-	}
 	t.Observed = summary
 	return t
 }
@@ -286,14 +279,6 @@ func trendRisen(now, was *auditTrend) []string {
 		}
 		if !moved {
 			continue
-		}
-		// The guard gates the finding, not the reading: a cost that rose while
-		// its guard series held flat is expected growth, not decay.
-		if now.Guard != nil {
-			guardPrev, guardSeen := was.Guard[k]
-			if !guardSeen || now.Guard[k] <= guardPrev {
-				continue
-			}
 		}
 		label := k
 		if label == "" {
@@ -330,8 +315,8 @@ func priorTrendUsable(prior auditBaseline, target, metric string) bool {
 	return ok && was.Trend != nil && was.Trend.Metric == metric
 }
 
-// auditCollectors returns one collector per FRAMEWORK_HEALTH target, in the
-// order the canon table lists them.
+// auditCollectors returns one collector per framework sensor-map target, in the
+// order this file lists them.
 func auditCollectors() []func(appctx.Context) auditTarget {
 	return []func(appctx.Context) auditTarget{
 		auditContractValidity,
@@ -339,16 +324,12 @@ func auditCollectors() []func(appctx.Context) auditTarget {
 		auditGraphRuntimeDrift,
 		auditTopicIntegrity,
 		auditMemberDocConformance,
-		auditProseCoherence,
 		auditCrossTeamCoupling,
 		auditCanonCoherence,
 		auditObjectiveCoverage,
 		auditInstrumentCoverage,
 		auditStaticallyUnreferencedSkills,
 		auditSkillConditioning,
-		auditExperimentLiveness,
-		auditPoREntropy,
-		auditTeamOrientationCost,
 		auditDiscoveryBudgetPressure,
 		auditPromptStructureInvariant,
 		auditRulesWithNoFinding,
@@ -413,7 +394,7 @@ func auditRulesWithNoFinding(ctx appctx.Context) auditTarget {
 // It is no-sensor for the same reason auditRulesWithNoFinding is, which means
 // it counts itself. That is correct rather than cute: an open-loop count with
 // no trend to read against is itself open-loop, and saying otherwise would be
-// the dead-sensor shape FRAMEWORK_HEALTH.md's deadband rule names.
+// the dead-sensor shape RULES.md's deadband rule names.
 func auditOpenLoopTargetCount(collected []auditTarget, prior auditBaseline) auditTarget {
 	t := auditTarget{
 		Target:   "Open-loop target count",
@@ -580,33 +561,6 @@ func auditMemberDocConformance(ctx appctx.Context) auditTarget {
 	return t
 }
 
-func auditProseCoherence(ctx appctx.Context) auditTarget {
-	t := auditTarget{
-		Target:   "Prose/declaration coherence",
-		Sensor:   "prompt-manager graph topics — prose_topic_leak warnings",
-		Deadband: "0 warnings on declaration-bearing surfaces",
-		Actuator: "framework-update — tighten the inferred-backtick matcher, then triage the residue",
-	}
-	resp, err := topicsAudit(ctx)
-	if err != nil {
-		return auditFailed(t, err)
-	}
-	leaks := 0
-	for _, f := range resp.Validation.Findings {
-		if f.Rule == "prose_topic_leak" {
-			leaks++
-		}
-	}
-	// The deadband is the target, not the current reading. A deadband set
-	// equal to the observation reports in-band while the defect stands and can
-	// only ever detect growth — the failure mode infra-contrarian's rubric
-	// names as "dead-sensor evidence" and "target drift", applied here to the
-	// framework's own sensor map.
-	t.Observed = fmt.Sprintf("%d warnings", leaks)
-	t.Status = auditBand(leaks == 0)
-	return t
-}
-
 func auditCrossTeamCoupling(ctx appctx.Context) auditTarget {
 	t := auditTarget{
 		Target:   "Cross-team coupling visibility",
@@ -644,8 +598,8 @@ func auditCrossTeamCoupling(ctx appctx.Context) auditTarget {
 }
 
 // auditStaticallyUnreferencedSkills reports and does not band. Static
-// reference is one of three reachability classes (FRAMEWORK_HEALTH
-// §"Three reachability classes, one sensor"); banding on it alone reported
+// reference is one of three reachability classes (docs/agent-system/SCENARIO_DEVELOPMENT.md,
+// "Retiring a scenario or capability"); banding on it alone reported
 // heavily-discovered skills as unreachable. The row returns to a band when the
 // sensor joins static references, discovery hits, and read counts.
 // discoveryMetricsResponse mirrors the fields of GET /discovery-metrics that
@@ -789,49 +743,6 @@ func stripANSI(s string) string {
 
 var ansiEscape = regexp.MustCompile(`\x1b\[[0-9;]*m`)
 
-// auditExperimentLiveness reads the experiment API directly.
-//
-// It was `external` on the grounds that experiment state is owned by the
-// experiment API rather than the relationship graph — but both are served by
-// the same prompt-manager API this context already talks to, so the split cost
-// a manual step and bought nothing.
-func auditExperimentLiveness(ctx appctx.Context) auditTarget {
-	t := auditTarget{
-		Target:   "Skill-experiment loop liveness",
-		Sensor:   "prompt-manager experiment list",
-		Deadband: "at least one concluded experiment per audit cycle once the loop is live",
-		Actuator: "skill-experiment-promotion",
-	}
-	var experiments []experimentLivenessRow
-	if err := ctx.GetWithQuery("/experiments", url.Values{}, &experiments); err != nil {
-		return auditFailed(t, err)
-	}
-	concluded := 0
-	for _, e := range experiments {
-		if e.ConcludedAt != nil && *e.ConcludedAt != "" {
-			concluded++
-		}
-	}
-	// The deadband carries a precondition the sensor must respect: "at least one
-	// concluded experiment per audit cycle **once the loop is live**". With no
-	// experiments at all the loop is not live, and calling that out-of-band
-	// would report a failure to conclude work nobody started. It is open-loop,
-	// which is what no-sensor is for.
-	if len(experiments) == 0 {
-		return openLoop(t, auditHonestyBaseline,
-			"no experiments exist, so the per-cycle conclusion rate has nothing to band",
-			"2026-08-10 — the loop is instrumented but has never run; band once the first experiment is created")
-	}
-	t.Observed = fmt.Sprintf("%d experiment(s), %d concluded", len(experiments), concluded)
-	t.Status = auditBand(concluded > 0)
-	for _, e := range experiments {
-		if e.ConcludedAt == nil || *e.ConcludedAt == "" {
-			t.Detail = appendCapped(t.Detail, fmt.Sprintf("%s: %s, not concluded", e.ID, e.Status))
-		}
-	}
-	return t
-}
-
 // experimentLivenessRow is the narrow projection this target needs. The full
 // shape lives in the experiments package; duplicating two fields here keeps the
 // graph package from importing a sibling command package for one count.
@@ -889,23 +800,12 @@ func auditObjectiveCoverage(ctx appctx.Context) auditTarget {
 func auditSkillConditioning(appctx.Context) auditTarget {
 	return openLoop(auditTarget{
 		Target:   "Skill conditioning quality",
-		Sensor:   "per-skill only: the divergence probe (skill-validation §3.3); no corpus-wide sweep exists",
+		Sensor:   "per-skill only: the divergence probe (skill-validation §2); no corpus-wide sweep exists",
 		Deadband: "0 unreviewed divergence regressions once the corpus sweep exists",
 		Actuator: "skill-improvement",
 	}, auditHonestyBaseline,
 		"the instrument is built, the sweep is not",
 		"2026-07-27 — build a corpus-wide divergence-probe sweep; blocked on a stable per-skill evaluation inventory")
-}
-
-func auditPoREntropy(appctx.Context) auditTarget {
-	return openLoop(auditTarget{
-		Target:   "PoR entropy",
-		Sensor:   "state-in-prose telemetry (not implemented)",
-		Deadband: "0 unclassified state-in-prose findings once telemetry exists",
-		Actuator: "framework-update",
-	}, auditHonestyTelemetry,
-		"state-in-prose is audited by judgment today",
-		"2026-07-27 — build state-in-prose telemetry; blocked on a stable document-state classification contract")
 }
 
 // auditInstrumentCoverage reads whether each team declares the one scenario it
@@ -922,7 +822,7 @@ func auditInstrumentCoverage(ctx appctx.Context) auditTarget {
 		Target:   "Instrument coverage",
 		Sensor:   "prompt-manager graph instruments",
 		Deadband: "every team declares an instrument or carries a dated gap marker; declarations are internally coherent",
-		Actuator: "team-capability-consolidation",
+		Actuator: "loop-audit",
 	}
 	var resp instrumentCoverageReport
 	if err := ctx.GetWithQuery("/instruments", url.Values{}, &resp); err != nil {
@@ -940,52 +840,6 @@ func auditInstrumentCoverage(ctx appctx.Context) auditTarget {
 		if len(team.Findings) == 0 && team.Instrument != nil && team.Instrument.Status != "live" {
 			t.Detail = appendCapped(t.Detail, fmt.Sprintf("%s declared %s since %s", team.TeamID, team.Instrument.Status, team.GapOpenedOn))
 		}
-	}
-	return t
-}
-
-// auditTeamOrientationCost reads the composite for every team.
-//
-// The band is a trend, so this collector cannot band a single sweep: a rise is
-// only a finding when it happened in a cycle where scenario coverage also rose,
-// and one reading holds no cycle. It therefore reports the composites and marks
-// the target `pending-baseline` until an audit record exists to diff against —
-// which is exactly what the audit-record step in FRAMEWORK_HEALTH exists for.
-func auditTeamOrientationCost(ctx appctx.Context) auditTarget {
-	t := auditTarget{
-		Target:    "Team orientation cost",
-		Sensor:    "prompt-manager graph orientation-cost",
-		Deadband:  "no team's orientation cost rises across an audit cycle in which its scenario coverage grew",
-		Actuator:  "team-capability-consolidation",
-		Status:    auditStatusNoSensor,
-		GapMarker: "2026-07-30 — the composite is built; supply the previous cycle's artifact with --baseline to band",
-	}
-	var resp orientationCostReport
-	if err := ctx.GetWithQuery("/orientation-cost", url.Values{}, &resp); err != nil {
-		return auditFailed(t, err)
-	}
-	t = openLoop(t, auditHonestyBaseline,
-		fmt.Sprintf("%d team composite(s) read; the band needs a prior audit record", len(resp.Teams)),
-		t.GapMarker)
-	// The deadband is conditional — a rise is only a finding when scenario
-	// coverage grew in the same cycle — so coverage rides along as the guard
-	// series rather than being re-derived from the Detail prose next cycle.
-	t.Trend = &auditTrend{
-		Metric:       "orientation_composite",
-		Values:       make(map[string]float64, len(resp.Teams)),
-		Guard:        make(map[string]float64, len(resp.Teams)),
-		RiseIsDefect: true,
-	}
-	// Every team's reading is appended, not capped to the usual three leads.
-	// For other targets Detail is a lead into a sensor the reader can re-run;
-	// here it is the payload the next cycle diffs against, and a truncated
-	// record would silently lose teams from the trend.
-	for _, team := range resp.Teams {
-		t.Trend.Values[team.TeamID] = float64(team.Composite)
-		t.Trend.Guard[team.TeamID] = float64(team.ScenarioCoverage)
-		t.Detail = append(t.Detail, fmt.Sprintf("%s composite=%d (members=%d canon=%d topics=%d) scenarios=%d",
-			team.TeamID, team.Composite, team.Components.Members, team.Components.CanonLines,
-			team.Components.Topics, team.ScenarioCoverage))
 	}
 	return t
 }

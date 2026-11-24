@@ -1,6 +1,6 @@
 {
   "createdAt": "2025-01-15T00:00:00Z",
-  "description": "Design observability and feedback mechanisms",
+  "description": "Merged into resilience-lenses (\u00a75 Signals and feedback); read that.",
   "entry": "SKILL.md",
   "icon": "radio",
   "id": "signal-and-feedback-surface-design",
@@ -10,7 +10,7 @@
     "steer",
     "observability"
   ],
-  "name": "Signal \u0026 Feedback Surface Design",
+  "name": "Signal & Feedback Surface Design",
   "origin": {
     "kind": "authored"
   },
@@ -23,11 +23,11 @@
       "prompt-manager"
     ]
   },
-  "revision": 43,
+  "revision": 44,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
     "skill"
   ],
-  "updatedAt": "2026-02-04T13:13:54Z"
+  "updatedAt": "2026-11-20T00:00:00Z"
 }

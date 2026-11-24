@@ -44,7 +44,7 @@ func NewApp() (*App, error) {
 			// Install the attribution header source so every API call
 			// carries X-Vrooli-Attribution. Lazy callback so per-test
 			// VROOLI_PROMPT_MANAGER_ATTRIBUTION overrides take effect.
-			// Canon: docs/agent-system/RUNTIME_ATTRIBUTION.md
+			// Canon: scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md
 			// § HTTP header.
 			core.HTTPClient.SetHeaderSource(attribution.HeaderMap)
 

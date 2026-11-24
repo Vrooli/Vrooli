@@ -1,6 +1,6 @@
 // Package main is the entry point for the prompt-manager API server.
 // This file is intentionally thin - it only handles server bootstrap and wiring.
-// All business logic lives in domain packages: skills/, metrics/, tags/, testing/.
+// All business logic lives in domain packages: skills/, metrics/, tags/.
 //
 // DOC: docs/concepts/ARCHITECTURE.md
 // DOC: docs/reference/api-endpoints.md
@@ -10,7 +10,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -27,7 +26,6 @@ import (
 	"prompt-manager/handlers/agents"
 	"prompt-manager/handlers/aisearch"
 	discoveryhandlers "prompt-manager/handlers/discovery"
-	"prompt-manager/handlers/experiments"
 	"prompt-manager/handlers/graph"
 	"prompt-manager/handlers/heartbeat"
 	"prompt-manager/handlers/memberflow"
@@ -40,7 +38,6 @@ import (
 	"prompt-manager/handlers/tags"
 	"prompt-manager/handlers/teams"
 	"prompt-manager/handlers/templates"
-	"prompt-manager/handlers/testing"
 	"prompt-manager/handlers/topics"
 	worldhandlers "prompt-manager/handlers/world"
 	"prompt-manager/internal/effortworkspace"
@@ -65,12 +62,10 @@ import (
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/receiptsigning"
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	measurelib "github.com/vrooli/measures-go"
 	searchregister "github.com/vrooli/searchregister-go"
-	credentialauthoritysigning "github.com/vrooli/vrooli/packages/credential-authority-go/receiptsigning"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -204,91 +199,6 @@ func matchesActionMeasure(pack, status, owner, ownerID string, tags []string, pa
 	return true
 }
 
-func receiptSignerFromRuntimeConfig() (receiptsigning.ReceiptSigner, bool, error) {
-	type manifestTrustSigning struct {
-		Provider           string `json:"provider"`
-		Identity           string `json:"identity"`
-		Field              string `json:"field"`
-		Address            string `json:"address"`
-		KeyName            string `json:"key_name"`
-		CredentialFile     string `json:"credential_file"`
-		LegacyVaultTransit *struct {
-			Address        string `json:"address"`
-			KeyName        string `json:"key_name"`
-			CredentialFile string `json:"credential_file"`
-		} `json:"legacy_vault_transit"`
-	}
-	type manifest struct {
-		TrustSigning *manifestTrustSigning `json:"trust_signing"`
-	}
-	scenarioDir := strings.TrimSpace(os.Getenv("VROOLI_SCENARIO_DIR"))
-	if scenarioDir == "" {
-		scenarioDir = filepath.Clean("..")
-	}
-	manifestBytes, err := os.ReadFile(filepath.Join(scenarioDir, ".vrooli", "service.json"))
-	if err == nil {
-		var service manifest
-		if err := json.Unmarshal(manifestBytes, &service); err != nil {
-			return nil, false, fmt.Errorf("parse trust signing lifecycle declaration: %w", err)
-		}
-		if service.TrustSigning != nil {
-			if service.TrustSigning.Provider == "development" {
-				return receiptsigning.NewDevelopmentSigner(), false, nil
-			}
-			if service.TrustSigning.Provider == receiptsigning.ModeCredentialAuthorityEd25519 {
-				config := receiptsigning.RuntimeConfig{
-					Version: receiptsigning.RuntimeConfigVersion,
-					Mode:    receiptsigning.ModeCredentialAuthorityEd25519,
-					CredentialAuthority: &receiptsigning.CredentialAuthorityRuntimeConfig{
-						Identity: service.TrustSigning.Identity,
-						Field:    service.TrustSigning.Field,
-					},
-				}
-				if legacy := service.TrustSigning.LegacyVaultTransit; legacy != nil {
-					config.LegacyVaultTransit = &receiptsigning.VaultTransitRuntimeConfig{Address: legacy.Address, KeyName: legacy.KeyName, CredentialFile: legacy.CredentialFile}
-				}
-				return credentialauthoritysigning.NewSignerFromRuntimeConfig(config)
-			}
-			if service.TrustSigning.Provider != "vault-transit" {
-				return nil, false, fmt.Errorf("unsupported trust signing lifecycle provider %q", service.TrustSigning.Provider)
-			}
-			return receiptsigning.NewSignerFromRuntimeConfig(receiptsigning.RuntimeConfig{Version: receiptsigning.RuntimeConfigVersion, Mode: "vault-transit", VaultTransit: &receiptsigning.VaultTransitRuntimeConfig{Address: service.TrustSigning.Address, KeyName: service.TrustSigning.KeyName, CredentialFile: service.TrustSigning.CredentialFile}})
-		}
-	}
-	// A missing declaration is retained only for old developer checkouts. New
-	// lifecycle manifests must declare trust_signing explicitly.
-	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
-	if err != nil {
-		return nil, false, fmt.Errorf("create receipt signing storage resolver: %w", err)
-	}
-	scenarioID, err := storage.ScenarioNamespace("prompt-manager")
-	if err != nil {
-		return nil, false, fmt.Errorf("resolve prompt-manager receipt signing namespace: %w", err)
-	}
-	path, err := resolver.Path(storage.Options{ScenarioID: scenarioID}, storage.ClassConfig, "receipt-signing.json")
-	if err != nil {
-		return nil, false, fmt.Errorf("resolve receipt signing runtime config: %w", err)
-	}
-	config, err := receiptsigning.LoadRuntimeConfig(path)
-	if os.IsNotExist(err) {
-		return receiptsigning.NewDevelopmentSigner(), false, nil
-	}
-	if err != nil {
-		return nil, false, fmt.Errorf("load receipt signing runtime config: %w", err)
-	}
-	var signer receiptsigning.ReceiptSigner
-	var production bool
-	if config.Mode == receiptsigning.ModeCredentialAuthorityEd25519 {
-		signer, production, err = credentialauthoritysigning.NewSignerFromRuntimeConfig(config)
-	} else {
-		signer, production, err = receiptsigning.NewSignerFromRuntimeConfig(config)
-	}
-	if err != nil {
-		return nil, false, fmt.Errorf("build receipt signer: %w", err)
-	}
-	return signer, production, nil
-}
-
 // discoverScenarioNames returns the names of every scenario directory
 // under the repo's scenarios/ folder. The scenarios path comes from the
 // repo contract (paths.Roots.ScenariosDir), not from climbing a storage
@@ -401,16 +311,9 @@ func main() {
 	}
 
 	// Configuration from environment
-	ollamaEnabled, ollamaConfigErr := resolveOllamaEnabled(os.Getenv)
-	if ollamaConfigErr != nil {
-		log.Printf("%v - skill testing will be disabled", ollamaConfigErr)
-	}
 	ollamaGatewayBin := strings.TrimSpace(os.Getenv("OLLAMA_GATEWAY_BIN"))
 	if ollamaGatewayBin == "" {
 		ollamaGatewayBin = "resource-ollama"
-	}
-	if !ollamaEnabled {
-		log.Println("OLLAMA_ENABLED not set to true - skill testing will be disabled")
 	}
 
 	// Storage configuration.
@@ -558,7 +461,6 @@ func main() {
 	}
 	fileStore.SetSourceLedger(ledger)
 	fileStore.SetEventsEndpoint(eventsBase)
-	fileStore.SetExperimentStoreDatabase(db)
 	heartbeatAttemptPublisher := store.NewHeartbeatAttemptPublisher(db, func(ctx context.Context) (string, error) {
 		return discovery.ResolveScenarioURLDefault(ctx, "vrooli-events")
 	})
@@ -569,13 +471,10 @@ func main() {
 	skillStoreAdapter := skills.NewStoreAdapter(fileStore.FileSkills(), store.NewFileContentIO())
 	metricsRepo := metrics.NewRepository(db)
 	tagsRepo := tags.NewRepository(db)
-	testingRepo := testing.NewRepository(db)
-	ollamaClient := testing.NewOllamaClient(ollamaEnabled, ollamaGatewayBin)
 
 	// Initialize handlers with interface adapters
 	metricsAdapter := skills.NewMetricsAdapter(metricsRepo)
 	skillHandlers := skills.NewHandlers(skillStoreAdapter, metricsAdapter, roots.Config)
-	testingHandlers := testing.NewHandlers(testingRepo, ollamaClient, skillStoreAdapter)
 	templateStore := templates.NewStore(roots.Config)
 	actionService := actions.NewService(fileStore.Actions(), actions.NewCLIHealthCommandResolver())
 	actionHandlers := actions.NewHandlers(actionService)
@@ -622,12 +521,8 @@ func main() {
 	// Set AI indexer on skill handlers for CRUD hook integration
 	skillHandlers.SetAIIndexer(aiSearchService)
 
-	// Set experiment stores on skill handlers for variant-aware read
-	skillHandlers.SetExperimentStores(fileStore.Experiments(), fileStore.Variants(), fileStore.Skills())
 	skillHandlers.SetIdentityVerifier(skills.NewAgentManagerIdentityVerifier(nil))
 
-	// Variant and experiment handlers
-	variantHandlers := skills.NewVariantHandlers(fileStore.Variants(), fileStore.Skills())
 	refreshTargets := append([]projection.Target(nil), projectionTargets...)
 	if len(refreshTargets) == 0 {
 		if target := strings.TrimSpace(os.Getenv("VROOLI_SKILL_PROJECTION_DIR")); target != "" {
@@ -637,20 +532,7 @@ func main() {
 	projector := &projection.Service{SourceRoot: projectSource, Targets: refreshTargets, Resolve: resolveProjectionSource, LoadPack: func() (projection.BasePack, error) {
 		return projection.LoadBasePack(filepath.Join(roots.RepoRoot, "scenarios", "prompt-manager", "store", "skills", "_base-pack.json"))
 	}}
-	skillsConnectPath, skillsConnectHandler := skills.NewConnectMountWithProjection(skillHandlers, variantHandlers, fileStore.FileSkills(), projector)
-	experimentHandlers := skills.NewExperimentHandlers(fileStore.Experiments(), fileStore.Variants(), fileStore.Skills())
-	experimentHandlers.SetWorkPublisher(skills.NewHTTPWorkPublisherFromEnv())
-	// Lifecycle/Secrets Manager writes a standard runtime config into the
-	// scenario config directory. Absent config is explicitly development-only;
-	// production config selects the credential-authority signer without an
-	// environment key.
-	receiptSigner, productionReceiptSigning, err := receiptSignerFromRuntimeConfig()
-	if err != nil {
-		panic(err)
-	}
-	experimentHandlers.SetReceiptSigner(receiptSigner)
-	experimentHandlers.SetProductionReceiptSigningRequired(productionReceiptSigning)
-	experimentsConnectPath, experimentsConnectHandler := experiments.NewConnectMount(experimentHandlers)
+	skillsConnectPath, skillsConnectHandler := skills.NewConnectMountWithProjection(skillHandlers, fileStore.FileSkills(), projector)
 
 	// Agent and team AI search vector stores
 	agentAICollection := collectionForDomain("AI_SEARCH_AGENT_COLLECTION", "agents")
@@ -760,7 +642,7 @@ func main() {
 			log.Printf("graph: startup rebuild failed: %v", err)
 		}
 	}()
-	graphHandlers := graph.NewHandlers(graphIndex, graphHealthConfigStore)
+	graphHandlers := graph.NewHandlers()
 
 	// Inject graph invalidator into mutation handlers
 	skillHandlers.SetGraphInvalidator(graphIndex)
@@ -838,7 +720,6 @@ func main() {
 	})
 	agentsConnectPath, agentsConnectHandler := agents.NewConnectMount(agentHandlers)
 	templatesConnectPath, templatesConnectHandler := templates.NewConnectMount(templateStore)
-	testingConnectPath, testingConnectHandler := testing.NewConnectMount(testingHandlers)
 	metadataConnectPath, metadataConnectHandler := metadata.NewConnectMount(ogmetaHandlers)
 	router := mux.NewRouter()
 	if !devrouting.RegisterWithFileRoots(gorillaMuxAdapter{router: router}, db, fileRoots) {
@@ -898,9 +779,7 @@ func main() {
 		connectx.ServiceMount{Path: skillSetValidationPath, Handler: skillSetValidationHandler},
 		connectx.ServiceMount{Path: agentsConnectPath, Handler: agentsConnectHandler},
 		connectx.ServiceMount{Path: templatesConnectPath, Handler: templatesConnectHandler},
-		connectx.ServiceMount{Path: testingConnectPath, Handler: testingConnectHandler},
 		connectx.ServiceMount{Path: metadataConnectPath, Handler: metadataConnectHandler},
-		connectx.ServiceMount{Path: experimentsConnectPath, Handler: experimentsConnectHandler},
 	)
 
 	// Graph Connect-RPC surface. This owns the complete graph contract, including
@@ -916,7 +795,7 @@ func main() {
 	teamHandlers.SetAIIndexer(aiSearchService)
 	// Member-flow (per-member topics.json) routes — declares each member's
 	// intake/output topic prefixes and feeds the team graph view.
-	// DOC: docs/agent-system/TOPICS_SCHEMA.md
+	// DOC: scenarios/prompt-manager/docs/internal/TOPICS_SCHEMA.md
 	// Objective authority: one owner for objective definitions, ordered team
 	// attachments, relation rules and acknowledgements. The generated Connect
 	// surface and every other client resolve through this service so they
@@ -1138,13 +1017,6 @@ func main() {
 	heartbeatHandlers.SetControlStore(heartbeatControlStore)
 	// Teams knowledge is owned by the heartbeat handler because it enforces
 	// runtime attribution and the publication rules for the shared corpus.
-	teamHandlers.SetActiveRunIDLookup(func(teamID, agentID string) (string, bool) {
-		run, ok := runRegistry.GetActiveRun(teamID, agentID)
-		if !ok || run == nil {
-			return "", false
-		}
-		return run.RunID, true
-	})
 	teamsConnectPath, teamsConnectHandler := teams.NewConnectMount(teamHandlers, heartbeatHandlers, effortWorkspaceStore)
 	connectx.RegisterServices(router, connectx.ServiceMount{Path: teamsConnectPath, Handler: teamsConnectHandler})
 	heartbeatConnectPath, heartbeatConnectHandler := heartbeat.NewConnectMount(heartbeatHandlers)
@@ -1203,9 +1075,6 @@ func main() {
 	log.Printf("Config root: %s", roots.Config)
 	log.Printf("Runtime data root: %s", roots.RuntimeData)
 	log.Printf("Runtime cache root: %s", roots.RuntimeCache)
-	if ollamaEnabled {
-		log.Printf("Ollama gateway: %s", ollamaGatewayBin)
-	}
 
 	authentication, err := authn.FromEnvironment(os.Getenv)
 	if err != nil {
@@ -1231,26 +1100,6 @@ func main() {
 	})); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
-}
-
-// resolveOllamaEnabled honors an explicit feature override and otherwise uses
-// the resource environment injected by the control plane. This keeps optional
-// Ollama dependencies disabled when absent without requiring scenarios to
-// duplicate resource state in a second environment flag.
-func resolveOllamaEnabled(getenv func(string) string) (bool, error) {
-	if raw := strings.TrimSpace(getenv("OLLAMA_ENABLED")); raw != "" {
-		enabled, err := strconv.ParseBool(raw)
-		if err != nil {
-			return false, fmt.Errorf("invalid OLLAMA_ENABLED=%q", raw)
-		}
-		return enabled, nil
-	}
-	for _, key := range []string{"OLLAMA_BASE_URL", "OLLAMA_URL", "OLLAMA_PORT"} {
-		if strings.TrimSpace(getenv(key)) != "" {
-			return true, nil
-		}
-	}
-	return false, nil
 }
 
 // buildTopicMatchFn creates a TopicMatchFunc that uses the AI search service

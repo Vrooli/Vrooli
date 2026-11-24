@@ -1,0 +1,23 @@
+{
+  "createdAt": "2026-11-20T00:00:00Z",
+  "description": "How a standing team member coordinates under the generated Operating Policy: independent, peer or leader-led.",
+  "entry": "SKILL.md",
+  "id": "team-coordination",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "agent"
+  ],
+  "name": "team-coordination",
+  "origin": {
+    "kind": "authored"
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "coordination",
+    "team"
+  ],
+  "updatedAt": "2026-11-20T00:00:00Z"
+}

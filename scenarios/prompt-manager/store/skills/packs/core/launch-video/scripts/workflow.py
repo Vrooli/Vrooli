@@ -16,11 +16,29 @@ from production import digest, inspect, validate
 from product_brief import require_current_brief
 
 
-def freeze(plan_file, output):
+def freeze(plan_file, output, music_bank=None, music_catalog=None, music_selection=None):
     raw_plan = plan_file.read_bytes()
     original = hashlib.sha256(raw_plan).hexdigest()
     plan = json.loads(raw_plan)
     root = plan_file.resolve().parent
+    supplied_music_args = (music_bank is not None, music_catalog is not None, music_selection is not None)
+    if any(supplied_music_args) and not all(supplied_music_args):
+        raise ValueError('banked music freeze requires --music-bank, --music-catalog, and --music-selection together')
+    if plan.get('audio', {}).get('mode') == 'music' and not all(supplied_music_args):
+        raise ValueError('music-mode production must pass exact-hash bank lint before render freeze')
+    music_lint = None
+    music_choice = None
+    if all(supplied_music_args):
+        from music_bank import lint as lint_music
+        music_lint = lint_music(music_bank, music_catalog, music_selection)
+        if music_lint.get('status') != 'pass':
+            raise ValueError('launch-music bank lint refused this render: ' + '; '.join(music_lint.get('reasons', [])))
+        music_choice = json.loads(music_selection.read_text())
+        audio = plan.get('audio', {})
+        if audio.get('mode') != 'music':
+            raise ValueError('banked music selection requires a music-mode production plan')
+        if audio.get('source_sha256') != music_choice.get('track_sha256'):
+            raise ValueError('production audio.source_sha256 must equal the linted exact track hash')
     entries = plan.get('render_inputs', [])
     if not 1 <= len(entries) <= 512:
         raise ValueError('declare 1–512 render_inputs files relative to production.json')
@@ -31,7 +49,7 @@ def freeze(plan_file, output):
     for name in entries:
         relative = Path(name)
         path = root / relative
-        if name == 'render-inputs.json' or relative.is_absolute() or '..' in relative.parts or path.is_symlink() or not path.is_file():
+        if name == 'render-inputs.json' or relative.parts[:1] == ('music-bank',) or relative.is_absolute() or '..' in relative.parts or path.is_symlink() or not path.is_file():
             raise ValueError(f'render input must be a regular relative file: {name}')
         if not path.resolve().is_relative_to(root):
             raise ValueError(f'render input escapes production root: {name}')
@@ -40,12 +58,41 @@ def freeze(plan_file, output):
         if total > 2 * 1024**3:
             raise ValueError('render snapshot exceeds 2 GiB; select a smaller production input set')
         records.append({'file': name, 'sha256': digest(path), 'bytes': size})
+    if music_choice is not None and not any(row['sha256'] == music_choice.get('track_sha256') for row in records):
+        raise ValueError('selected exact-hash music source is not present in production render_inputs')
+    if music_lint is not None:
+        policy_inputs = [
+            ('music-bank/bank.json', music_bank),
+            ('music-bank/catalog.json', music_catalog),
+            ('music-bank/selection.json', music_selection),
+        ]
+        for name, source in policy_inputs:
+            size = source.stat().st_size
+            total += size
+            if total > 2 * 1024**3:
+                raise ValueError('render snapshot plus music policy inputs exceeds 2 GiB')
+            records.append({'file': name, 'sha256': digest(source), 'bytes': size})
+        lint_bytes = (json.dumps(music_lint, indent=2) + '\n').encode()
+        total += len(lint_bytes)
+        if total > 2 * 1024**3:
+            raise ValueError('render snapshot plus music lint receipt exceeds 2 GiB')
+        records.append({'file': 'music-bank/lint.json', 'sha256': hashlib.sha256(lint_bytes).hexdigest(), 'bytes': len(lint_bytes)})
     output.mkdir(parents=True, exist_ok=False)
     for row in records:
         destination = output / row['file']
         destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(root / row['file'], destination)
-        if digest(destination) != row['sha256'] or digest(root / row['file']) != row['sha256']:
+        if row['file'] == 'music-bank/lint.json':
+            destination.write_bytes(lint_bytes)
+            source = destination
+        elif row['file'].startswith('music-bank/'):
+            source = {'music-bank/bank.json': music_bank,
+                      'music-bank/catalog.json': music_catalog,
+                      'music-bank/selection.json': music_selection}[row['file']]
+            shutil.copyfile(source, destination)
+        else:
+            source = root / row['file']
+            shutil.copyfile(source, destination)
+        if digest(destination) != row['sha256'] or digest(source) != row['sha256']:
             raise ValueError(f'input changed during snapshot: {row["file"]}')
     if digest(plan_file) != original:
         raise ValueError('plan changed during snapshot')
@@ -53,6 +100,15 @@ def freeze(plan_file, output):
               'plan_sha256': original, 'bytes': total, 'inputs': records,
               'instruction': 'Render from this snapshot. Never mutate snapshot inputs. Verify this receipt after render.',
               'limits': ['Only explicitly declared files are frozen', 'No creative, dependency or lifecycle certification']}
+    if music_lint is not None:
+        report['music_bank'] = {
+            'status': 'pass', 'track_sha256': music_choice.get('track_sha256'),
+            'project': music_choice.get('project'), 'scope': music_choice.get('scope'),
+            'classification': music_choice.get('classification'),
+            'lint_file': 'music-bank/lint.json',
+            'lint_sha256': hashlib.sha256(lint_bytes).hexdigest(),
+            'source_input_files': [row['file'] for row in records if row['sha256'] == music_choice.get('track_sha256')],
+        }
     (output / 'render-inputs.json').write_text(json.dumps(report, indent=2) + '\n')
     return report
 
@@ -69,6 +125,20 @@ def verify_snapshot(snapshot, plan_sha256=None):
             errors.append(f'unsafe snapshot input: {relative}')
         elif not path.is_file() or digest(path) != row['sha256']:
             errors.append(f'changed snapshot input: {relative}')
+    music = receipt.get('music_bank')
+    if music:
+        lint_path = snapshot / music.get('lint_file', '')
+        if not lint_path.is_file() or digest(lint_path) != music.get('lint_sha256'):
+            errors.append('music-bank lint receipt is missing or changed')
+        else:
+            try:
+                lint = json.loads(lint_path.read_text())
+                if lint.get('status') != 'pass' or lint.get('track_sha256') != music.get('track_sha256'):
+                    errors.append('music-bank lint receipt does not pass for the frozen exact hash')
+            except (ValueError, OSError):
+                errors.append('music-bank lint receipt is invalid JSON')
+        if not any(row.get('sha256') == music.get('track_sha256') for row in receipt.get('inputs', [])):
+            errors.append('banked music exact hash is absent from the frozen render inputs')
     return errors
 
 
@@ -91,7 +161,7 @@ def verify_render_bundle(snapshot, bundle):
     return errors
 
 
-def verify(plan_file, output, snapshot=None, render_bundle=None, historical=False):
+def verify(plan_file, output, snapshot=None, render_bundle=None, historical=False, gate_cues=None):
     original = digest(plan_file)
     plan = json.loads(plan_file.read_text())
     root = plan_file.resolve().parent
@@ -114,6 +184,13 @@ def verify(plan_file, output, snapshot=None, render_bundle=None, historical=Fals
             # Keep the submitted plan unchanged; retain this resolved delivery view.
             checked = dict(plan, technical_report=str((output / 'technical/inspection.json').resolve()))
             errors = validate(checked, root, 'deliver')
+            export_gate_receipt = None
+            if gate_cues is not None:
+                from export_gates import run as run_export_gates
+                gate_result = run_export_gates(root / plan['video'], plan_file, gate_cues, output / 'gates')
+                export_gate_receipt = str((output / 'gates/export-gates.json').resolve())
+                if gate_result.get('status') != 'pass':
+                    errors.append('LV3 composed export gates failed')
             if snapshot:
                 errors += verify_snapshot(snapshot, original)
             if render_bundle and snapshot:
@@ -123,6 +200,7 @@ def verify(plan_file, output, snapshot=None, render_bundle=None, historical=Fals
             result = {'status': 'fail' if errors else 'pass', 'stage': 'deliver', 'errors': errors,
                       'plan_sha256': original, 'video_sha256': inspection['sha256'],
                       'technical_report': checked['technical_report'],
+                      'export_gates_report': export_gate_receipt,
                       'limits': ['Review declarations remain subject to critique', 'No publication or new aesthetic acceptance']}
             (output / 'resolved-production.json').write_text(json.dumps(checked, indent=2) + '\n')
         except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as error:
@@ -135,11 +213,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest='command', required=True)
     f = sub.add_parser('freeze');f.add_argument('plan', type=Path);f.add_argument('--out', type=Path, required=True)
+    f.add_argument('--music-bank', type=Path);f.add_argument('--music-catalog', type=Path);f.add_argument('--music-selection', type=Path)
     v = sub.add_parser('verify');v.add_argument('plan', type=Path);v.add_argument('--out', type=Path, required=True);v.add_argument('--snapshot', type=Path);v.add_argument('--render-bundle', type=Path)
-    v.add_argument('--historical', action='store_true', help='Inspect a retained version-1/2 production')
+    v.add_argument('--historical', action='store_true', help='Inspect a retained version-1/2 production');v.add_argument('--gates-cues', type=Path, help='Run composed LV3 export gates with this frozen cue JSON')
     args = parser.parse_args()
     try:
-        result = freeze(args.plan, args.out) if args.command == 'freeze' else verify(args.plan, args.out, args.snapshot, args.render_bundle, args.historical)
+        result = freeze(args.plan, args.out, args.music_bank, args.music_catalog, args.music_selection) if args.command == 'freeze' else verify(args.plan, args.out, args.snapshot, args.render_bundle, args.historical, args.gates_cues)
         print(json.dumps({'status': result.get('status', 'pass'), 'receipt': str(args.out), 'errors': result.get('errors', [])}))
         return result.get('status') == 'fail'
     except (OSError, ValueError, KeyError, TypeError) as error:

@@ -56,7 +56,7 @@ type ValidationOptions struct {
 	// backing tree get this). When ScanRoots is empty AND RepoRoot is
 	// set, the scanner derives its targets from RepoRoot's
 	// `scenarios/prompt-manager/store/` and `docs/` subtrees per
-	// docs/agent-system/PROSE_SCAN_TARGETS.md. Tests that need a focused
+	// scenarios/prompt-manager/docs/internal/PROSE_SCAN_TARGETS.md. Tests that need a focused
 	// scan (e.g., a temp-dir fixture rooted somewhere other than the live
 	// repo) supply ScanRoots explicitly.
 	ScanRoots []string

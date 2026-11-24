@@ -113,7 +113,7 @@ rechecked. Final review also accepts the legacy safe-slug guard. Reported source
 identity and trusted member/run attribution remain separate.
 
 Evidence bundle (supporting snapshot, this document retains owning status):
-/home/matthalloran8/Documents/Codex/2026-10-02/task-11/i10-evidence/receipt.json. It contains exact source hashes, standalone/fidelity
+~/Documents/Codex/2026-10-02/task-11/i10-evidence/receipt.json. It contains exact source hashes, standalone/fidelity
 review, final isolated proof, compatibility proof and terminal Test Genie evidence.
 Isolated CLI SHA256: 4d32079aeb96bab836096512bc12f7495d6199bda4aacebd921f3efdfcfb6417.
 Ephemeral fixture receipt: knw-1790988191341217553 (not live knowledge).
@@ -181,7 +181,7 @@ owner-time claim follows. Native direct-task estimates/accounting remain unknown
 validation estimates and actual durations are retained separately, not summed
 participant-minute budgets. Stop this direct session with result retained.
 
-Final supporting receipt: /home/matthalloran8/Documents/Codex/2026-10-02/task-11/i10-evidence/receipt.json. The first candidate and
+Final supporting receipt: ~/Documents/Codex/2026-10-02/task-11/i10-evidence/receipt.json. The first candidate and
 first failed run are retained as superseded history. Native work journal initial
 entry eb88f8d6-6e93-46f5-8c7d-6b2b29abf9c9 is followed by a correction record.
 
@@ -302,7 +302,7 @@ released by that report. Runtime probe copy was removed; no UI source changed.
 - [x] Queue persistence to disk with crash recovery
 - [x] Scheduler routes heartbeats through TeamExecutionStore
 - [x] GET /teams/{id}/execution-status endpoint
-- [x] Three coordination skills: `team-coordination-independent`, `team-coordination-peer`, and `team-coordination-leader-led`
+- [x] One coordination skill, `team-coordination`, covering the independent, peer and leader-led patterns
 - [x] PromptBuilder injects coordination skill reference based on team coordination pattern
 - [x] Member context endpoint: GET /teams/{id}/members/{agentId}/context (excludes HEARTBEAT.md)
 - [x] CLI command: `prompt-manager team member-context <team-id> <agent-id>`

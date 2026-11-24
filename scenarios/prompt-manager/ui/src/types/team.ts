@@ -31,7 +31,4 @@ export type {
   TeamSharedFileWriteRequest,
   TeamSharedFileCreateRequest,
   TeamSharedFileRenameRequest,
-  AvailableCCTeam,
-  ImportCCRequest,
-  ExportCCResponse,
 } from '@/lib/schemas'

@@ -454,7 +454,10 @@ func (c *TeamExecutionContext) Enqueue(ctx context.Context, agentID, profileKey 
 		return nil, &MemberAlreadyQueuedError{TeamID: c.teamID, AgentID: agentID}
 	}
 	if hasRunning {
-		if err := previous.transition(ObligationRunning); err != nil {
+		// Validate on a copy: previous must stay the interrupted obligation so a
+		// failed durable replacement restores exactly what was retained.
+		replaced := previous
+		if err := replaced.transition(ObligationRunning); err != nil {
 			c.mu.Unlock()
 			return nil, fmt.Errorf("replace interrupted heartbeat preparation: %w", err)
 		}
@@ -1897,9 +1900,12 @@ func (c *TeamExecutionContext) reconcileRunningEntry(ctx context.Context, item q
 		OwnerStartedAt:           item.OwnerStartedAt,
 		OwnerStateSnapshots:      cloneRetainedOwnerStateSnapshots(item.OwnerStateSnapshots),
 	}
-	if err := base.transition(item.State); err != nil {
-		return runningEntry{}, false, nil
-	}
+	// Restoring a persisted obligation is not a lifecycle transition: the slot
+	// was already in item.State (validated above) before the restart. Routing it
+	// through transition() would start from the running state and reject any
+	// retained state the lifecycle only reaches from dispatch_uncertain, such as
+	// an incomplete dispatch_canceled_before_send tombstone, dropping the slot.
+	base.State = item.State
 	// A prior recovery already recorded a non-resolvable obligation. Preserve it
 	// without re-probing the owner: unknown reset waits must not poll.
 	needsOwnerRead := item.State == ObligationRunning || item.State == ObligationWatcherUnavailable || (item.State == ObligationDispatchUncertain && item.RunID != "")

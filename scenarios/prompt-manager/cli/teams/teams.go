@@ -72,52 +72,6 @@ type Member struct {
 	Status      string   `json:"status"`
 }
 
-// OrgEdge represents a manager-report relationship in the org chart.
-type OrgEdge struct {
-	ManagerAgentID string `json:"managerAgentId"`
-	ReportAgentID  string `json:"reportAgentId"`
-}
-
-// OrgChartResponse represents org chart data from the API.
-type OrgChartResponse struct {
-	TeamID string    `json:"teamId"`
-	Edges  []OrgEdge `json:"edges"`
-}
-
-// UpdateOrgEdgeRequest sets a member's manager.
-type UpdateOrgEdgeRequest struct {
-	ManagerAgentID string `json:"managerAgentId"`
-}
-
-// TeamDetailsWithOrg includes org chart data for JSON output.
-type TeamDetailsWithOrg struct {
-	TeamDetails
-	OrgChart *OrgChartResponse `json:"orgChart,omitempty"`
-}
-
-// TeamMessage represents a message between team members.
-type TeamMessage struct {
-	ID          string `json:"id"`
-	TeamID      string `json:"teamId"`
-	FromAgentID string `json:"fromAgentId"`
-	ToAgentID   string `json:"toAgentId"`
-	Content     string `json:"content"`
-	CreatedAt   string `json:"createdAt"`
-}
-
-// TeamInboxResponse represents an inbox listing.
-type TeamInboxResponse struct {
-	TeamID   string        `json:"teamId"`
-	AgentID  string        `json:"agentId"`
-	Messages []TeamMessage `json:"messages"`
-}
-
-// SendTeamMessageRequest is the request body for sending a message.
-type SendTeamMessageRequest struct {
-	FromAgentID string `json:"fromAgentId"`
-	Content     string `json:"content"`
-}
-
 type (
 	Runtime      = teamconfig.Runtime
 	Coordination = teamconfig.Coordination
@@ -234,7 +188,7 @@ type KnowledgeListResponse struct {
 //
 // Identity is carried out-of-band on the X-Vrooli-Attribution header
 // (set by cli-core's HTTPClient extra-header source — see app.go and
-// docs/agent-system/RUNTIME_ATTRIBUTION.md). The body never carries
+// scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md). The body never carries
 // caller identity. CallerNote is freeform context only — it cannot
 // override or contradict the header's attribution.
 type AddKnowledgeRequest struct {
@@ -560,7 +514,7 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 				Aliases:       []string{"teams", "t"},
 				NeedsAPI:      true,
 				PassHelpToRun: true,
-				Description:   "Manage teams (list|show|create|update|delete|knowledge-*|bug-*|friction-*|add-member|heartbeat-*|execution-status|retention|prune|import-cc|export-cc|trigger)",
+				Description:   "Manage teams (list|show|create|update|delete|knowledge-*|bug-*|friction-*|add-member|heartbeat-*|execution-status|retention|prune|trigger)",
 				Run: func(args []string) error {
 					return route(ctx, args)
 				},
@@ -619,20 +573,6 @@ func routeSubcommand(ctx appctx.Context, subcommand string, subArgs []string) er
 		return cmdRoles(ctx, subArgs)
 	case "roles-set":
 		return cmdRolesSet(ctx, subArgs)
-	case "org-list":
-		return cmdOrgList(ctx, subArgs)
-	case "org-set":
-		return cmdOrgSet(ctx, subArgs)
-	case "org-remove":
-		return cmdOrgRemove(ctx, subArgs)
-	case "message-list":
-		return cmdMessageList(ctx, subArgs)
-	case "message-send":
-		return cmdMessageSend(ctx, subArgs)
-	case "message-delete":
-		return cmdMessageDelete(ctx, subArgs)
-	case "message-clear":
-		return cmdMessageClear(ctx, subArgs)
 	case "heartbeat-list":
 		return cmdHeartbeatList(ctx, subArgs)
 	case "heartbeat-fleet-health":
@@ -659,10 +599,6 @@ func routeSubcommand(ctx appctx.Context, subcommand string, subArgs []string) er
 		return cmdResponsibilities(ctx, subArgs)
 	case "heartbeat-instructions":
 		return cmdHeartbeatInstructions(ctx, subArgs)
-	case "import-cc":
-		return cmdImportCC(ctx, subArgs)
-	case "export-cc":
-		return cmdExportCC(ctx, subArgs)
 	case "trigger":
 		return cmdTriggerTeam(ctx, subArgs)
 	case "prompt-preview":
@@ -737,13 +673,6 @@ Subcommands:
   remove-member <team-id> <agent-id> Remove a member from a team
   roles <team-id>                   List team roles
   roles-set <team-id> --file <path> Replace team roles from a JSON array
-  org-list <team-id>                List org chart edges
-  org-set <team-id> <report-id> <manager-id> Set reporting line
-  org-remove <team-id> <report-id>  Remove reporting line
-  message-list <team-id> <agent-id> List inbox messages for a member
-  message-send <team-id> <agent-id> Send a message to a member
-  message-delete <team-id> <agent-id> <message-id> Delete a message
-  message-clear <team-id> <agent-id> Clear all messages for a member
 
 Heartbeat Commands:
   heartbeat-list <team-id>                    List all heartbeat configs
@@ -793,9 +722,6 @@ Retention Commands:
   retention <team-id>                         Show effective retention config
   prune <team-id>                             Prune stale shared state
 
-Claude Code Interop Commands:
-  import-cc <team-name>                       Import a Claude Code team
-  export-cc <team-id>                         Export team as Claude Code config
   trigger <team-id>                           Trigger team using the configured team policy`
 }
 
@@ -863,23 +789,10 @@ func cmdShow(ctx appctx.Context, args []string) error {
 		return fmt.Errorf("failed to get team: %w", err)
 	}
 
-	var orgChart *OrgChartResponse
-	var orgErr error
-	var orgResp OrgChartResponse
-	if err := ctx.Get(fmt.Sprintf("/teams/%s/org", teamID), &orgResp); err == nil {
-		orgChart = &orgResp
-	} else {
-		orgErr = err
-	}
-
 	if *jsonOut {
-		resp := TeamDetailsWithOrg{
-			TeamDetails: team,
-			OrgChart:    orgChart,
-		}
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		return enc.Encode(resp)
+		return enc.Encode(team)
 	}
 
 	fmt.Printf("Name: %s\n", team.DisplayName)
@@ -932,28 +845,6 @@ func cmdShow(ctx appctx.Context, args []string) error {
 		}
 	}
 
-	if orgChart != nil && len(orgChart.Edges) > 0 {
-		memberNames := make(map[string]string, len(team.Members))
-		for _, m := range team.Members {
-			memberNames[m.AgentID] = m.DisplayName
-		}
-		fmt.Println("Org Chart:")
-		for _, edge := range orgChart.Edges {
-			managerName := memberNames[edge.ManagerAgentID]
-			if managerName == "" {
-				managerName = edge.ManagerAgentID
-			}
-			reportName := memberNames[edge.ReportAgentID]
-			if reportName == "" {
-				reportName = edge.ReportAgentID
-			}
-			fmt.Printf("  - %s -> %s\n", managerName, reportName)
-		}
-	} else if orgErr != nil {
-		fmt.Printf("Org Chart: unavailable (%v)\n", orgErr)
-	} else {
-		fmt.Println("Org Chart: none")
-	}
 	fmt.Printf("Created: %s\n", team.CreatedAt)
 	fmt.Printf("Updated: %s\n", team.UpdatedAt)
 	return nil
@@ -1426,234 +1317,6 @@ func cmdRolesSet(ctx appctx.Context, args []string) error {
 		return enc.Encode(updated)
 	}
 	fmt.Printf("Updated %d roles for team %s\n", len(updated), teamID)
-	return nil
-}
-
-func cmdOrgList(ctx appctx.Context, args []string) error {
-	fs := flag.NewFlagSet("org-list", flag.ContinueOnError)
-	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: team org-list <team-id>")
-	}
-	teamID := fs.Arg(0)
-
-	var org OrgChartResponse
-	if err := ctx.Get(fmt.Sprintf("/teams/%s/org", teamID), &org); err != nil {
-		return fmt.Errorf("failed to get org chart: %w", err)
-	}
-
-	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(org)
-	}
-
-	if len(org.Edges) == 0 {
-		fmt.Println("No reporting relationships defined")
-		return nil
-	}
-
-	var team TeamDetails
-	_ = ctx.Get(fmt.Sprintf("/teams/%s", teamID), &team)
-	memberNames := make(map[string]string, len(team.Members))
-	for _, m := range team.Members {
-		memberNames[m.AgentID] = m.DisplayName
-	}
-
-	fmt.Println("Org Chart:")
-	for _, edge := range org.Edges {
-		managerName := memberNames[edge.ManagerAgentID]
-		if managerName == "" {
-			managerName = edge.ManagerAgentID
-		}
-		reportName := memberNames[edge.ReportAgentID]
-		if reportName == "" {
-			reportName = edge.ReportAgentID
-		}
-		fmt.Printf("  - %s -> %s\n", managerName, reportName)
-	}
-	return nil
-}
-
-func cmdOrgSet(ctx appctx.Context, args []string) error {
-	fs := flag.NewFlagSet("org-set", flag.ContinueOnError)
-	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	if fs.NArg() < 3 {
-		return fmt.Errorf("usage: team org-set <team-id> <report-id> <manager-id>")
-	}
-	teamID := fs.Arg(0)
-	reportID := fs.Arg(1)
-	managerID := fs.Arg(2)
-
-	req := UpdateOrgEdgeRequest{ManagerAgentID: managerID}
-	var resp OrgEdge
-	if err := ctx.Put(fmt.Sprintf("/teams/%s/org/edges/%s", teamID, reportID), req, &resp); err != nil {
-		return fmt.Errorf("failed to update reporting line: %w", err)
-	}
-
-	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(resp)
-	}
-
-	fmt.Printf("Updated reporting line: %s reports to %s\n", reportID, managerID)
-	return nil
-}
-
-func cmdOrgRemove(ctx appctx.Context, args []string) error {
-	fs := flag.NewFlagSet("org-remove", flag.ContinueOnError)
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: team org-remove <team-id> <report-id>")
-	}
-	teamID := fs.Arg(0)
-	reportID := fs.Arg(1)
-
-	if err := ctx.Delete(fmt.Sprintf("/teams/%s/org/edges/%s", teamID, reportID)); err != nil {
-		return fmt.Errorf("failed to remove reporting line: %w", err)
-	}
-
-	fmt.Printf("Removed reporting line for %s\n", reportID)
-	return nil
-}
-
-func cmdMessageList(ctx appctx.Context, args []string) error {
-	fs := flag.NewFlagSet("message-list", flag.ContinueOnError)
-	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: team message-list <team-id> <agent-id>")
-	}
-	teamID := fs.Arg(0)
-	agentID := fs.Arg(1)
-
-	var inbox TeamInboxResponse
-	if err := ctx.Get(fmt.Sprintf("/teams/%s/members/%s/messages", teamID, agentID), &inbox); err != nil {
-		return fmt.Errorf("failed to list messages: %w", err)
-	}
-
-	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(inbox)
-	}
-
-	if len(inbox.Messages) == 0 {
-		fmt.Println("No messages found")
-		return nil
-	}
-
-	fmt.Printf("Messages for %s:\n", agentID)
-	for _, msg := range inbox.Messages {
-		fmt.Printf("  - [%s] from %s: %s\n", msg.ID, msg.FromAgentID, msg.Content)
-	}
-	return nil
-}
-
-func cmdMessageSend(ctx appctx.Context, args []string) error {
-	fs := flag.NewFlagSet("message-send", flag.ContinueOnError)
-	fromAgent := fs.String("from", "", "Sender agent ID")
-	content := fs.String("content", "", "Message content")
-	file := fs.String("file", "", "Read message content from file")
-	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: team message-send <team-id> <agent-id> --from=<agent-id> --content=\"...\"")
-	}
-	teamID := fs.Arg(0)
-	agentID := fs.Arg(1)
-
-	if *file != "" {
-		data, err := cliutil.ReadFileString(*file)
-		if err != nil {
-			return fmt.Errorf("failed to read file: %w", err)
-		}
-		*content = data
-	}
-
-	if strings.TrimSpace(*fromAgent) == "" {
-		return fmt.Errorf("from agent is required")
-	}
-	if strings.TrimSpace(*content) == "" {
-		return fmt.Errorf("content is required")
-	}
-
-	req := SendTeamMessageRequest{
-		FromAgentID: *fromAgent,
-		Content:     *content,
-	}
-
-	var resp TeamMessage
-	if err := ctx.Post(fmt.Sprintf("/teams/%s/members/%s/messages", teamID, agentID), req, &resp); err != nil {
-		return fmt.Errorf("failed to send message: %w", err)
-	}
-
-	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(resp)
-	}
-
-	fmt.Printf("Sent message to %s (%s)\n", agentID, resp.ID)
-	return nil
-}
-
-func cmdMessageDelete(ctx appctx.Context, args []string) error {
-	fs := flag.NewFlagSet("message-delete", flag.ContinueOnError)
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	if fs.NArg() < 3 {
-		return fmt.Errorf("usage: team message-delete <team-id> <agent-id> <message-id>")
-	}
-	teamID := fs.Arg(0)
-	agentID := fs.Arg(1)
-	messageID := fs.Arg(2)
-
-	if err := ctx.Delete(fmt.Sprintf("/teams/%s/members/%s/messages/%s", teamID, agentID, messageID)); err != nil {
-		return fmt.Errorf("failed to delete message: %w", err)
-	}
-
-	fmt.Printf("Deleted message %s\n", messageID)
-	return nil
-}
-
-func cmdMessageClear(ctx appctx.Context, args []string) error {
-	fs := flag.NewFlagSet("message-clear", flag.ContinueOnError)
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: team message-clear <team-id> <agent-id>")
-	}
-	teamID := fs.Arg(0)
-	agentID := fs.Arg(1)
-
-	if err := ctx.Delete(fmt.Sprintf("/teams/%s/members/%s/messages", teamID, agentID)); err != nil {
-		return fmt.Errorf("failed to clear messages: %w", err)
-	}
-
-	fmt.Printf("Cleared messages for %s\n", agentID)
 	return nil
 }
 
@@ -2914,105 +2577,6 @@ func cmdHeartbeatInstructions(ctx appctx.Context, args []string) error {
 	return nil
 }
 
-// ImportCCRequest is the request body for importing a Claude Code team.
-type ImportCCRequest struct {
-	TeamName string `json:"teamName"`
-}
-
-func cmdImportCC(ctx appctx.Context, args []string) error {
-	fs := flag.NewFlagSet("import-cc", flag.ContinueOnError)
-	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: team import-cc <team-name> [--json]")
-	}
-	teamName := fs.Arg(0)
-
-	req := ImportCCRequest{TeamName: teamName}
-	var team TeamDetails
-	if err := ctx.Post("/teams/import/claude-code", req, &team); err != nil {
-		return fmt.Errorf("failed to import CC team: %w", err)
-	}
-
-	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(team)
-	}
-
-	fmt.Printf("Imported team: %s [%s]\n", team.DisplayName, team.ID)
-	fmt.Printf("Members: %d\n", team.MemberCount)
-	for _, m := range team.Members {
-		fmt.Printf("  - %s (%s)\n", m.DisplayName, m.AgentID)
-	}
-	return nil
-}
-
-// CCExportResponse matches the ToolTeamConfig from the interop package.
-type CCExportResponse struct {
-	TeamName    string           `json:"teamName"`
-	Description string           `json:"description,omitempty"`
-	Members     []CCExportMember `json:"members"`
-}
-
-// CCExportMember represents a member in the CC export.
-type CCExportMember struct {
-	Name      string `json:"name"`
-	AgentType string `json:"agentType"`
-	Model     string `json:"model,omitempty"`
-	Mode      string `json:"mode,omitempty"`
-}
-
-func cmdExportCC(ctx appctx.Context, args []string) error {
-	fs := flag.NewFlagSet("export-cc", flag.ContinueOnError)
-	jsonOut := fs.Bool("json", false, "Output as JSON")
-	output := fs.String("output", "", "Write output to file path")
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: team export-cc <team-id> [--json] [--output=path]")
-	}
-	teamID := fs.Arg(0)
-
-	var resp CCExportResponse
-	if err := ctx.Get(fmt.Sprintf("/teams/%s/export/claude-code", teamID), &resp); err != nil {
-		return fmt.Errorf("failed to export CC team: %w", err)
-	}
-
-	data, err := json.MarshalIndent(resp, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal response: %w", err)
-	}
-
-	if *output != "" {
-		if err := os.WriteFile(*output, data, 0o644); err != nil {
-			return fmt.Errorf("failed to write file: %w", err)
-		}
-		fmt.Printf("Exported team %s to %s\n", teamID, *output)
-		return nil
-	}
-
-	if *jsonOut {
-		fmt.Println(string(data))
-		return nil
-	}
-
-	fmt.Printf("Team: %s\n", resp.TeamName)
-	if resp.Description != "" {
-		fmt.Printf("Description: %s\n", resp.Description)
-	}
-	fmt.Printf("Members: %d\n", len(resp.Members))
-	for _, m := range resp.Members {
-		fmt.Printf("  - %s (type: %s)\n", m.Name, m.AgentType)
-	}
-	return nil
-}
-
 // TriggerTeamResponse matches the heartbeat TriggerTeamResponse.
 type TriggerTeamResponse struct {
 	TeamID              string            `json:"teamId"`
@@ -3754,7 +3318,7 @@ func cmdKnowledgeAdd(ctx appctx.Context, args []string) error {
 
 	// --by is removed; identity now flows over the
 	// X-Vrooli-Attribution header (canon:
-	// docs/agent-system/RUNTIME_ATTRIBUTION.md). Defining the flag
+	// scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md). Defining the flag
 	// lets us emit a clean migration message instead of "flag
 	// provided but not defined".
 	by := fs.String("by", "", "[removed] use --caller-note for freeform context; identity is auto-attributed")
@@ -3763,7 +3327,7 @@ func cmdKnowledgeAdd(ctx appctx.Context, args []string) error {
 		return err
 	}
 	if strings.TrimSpace(*by) != "" {
-		return fmt.Errorf("--by is removed; identity is auto-attributed from the runtime context. Use --caller-note for freeform notes. See docs/agent-system/RUNTIME_ATTRIBUTION.md")
+		return fmt.Errorf("--by is removed; identity is auto-attributed from the runtime context. Use --caller-note for freeform notes. See scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md")
 	}
 	if fs.NArg() < 1 {
 		return fmt.Errorf("usage: team knowledge-add <team-id> --topic=\"...\" --content=\"...\" [--caller-note=\"...\"]")

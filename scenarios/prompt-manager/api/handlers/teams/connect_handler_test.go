@@ -3,7 +3,6 @@ package teams
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	repocontract "github.com/vrooli/repo-contract-go"
 	heartbeatv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/heartbeat"
 	heartbeatconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/heartbeat/heartbeat_v1connect"
@@ -19,7 +18,6 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/identity"
-	"github.com/vrooli/api-core/provenance"
 	teamsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/teams"
 	teamsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/teams/teams_v1connect"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -446,64 +444,3 @@ func TestNativeCLIConfiguresDisabledOnDemandReviewerThroughConnect(t *testing.T)
 	}
 }
 
-func TestSendMessageConnectBindsOwnerRunAndMapsRefusal(t *testing.T) {
-	ctx := context.Background()
-	root := t.TempDir()
-	relations := store.NewFileRelationStore(root)
-	teamStore := store.NewFileTeamStore(root, root, relations)
-	if err := teamStore.Create(ctx, fixtures.IndependentTeam("team-1", "Test Team")); err != nil {
-		t.Fatal(err)
-	}
-	for _, member := range []string{"sender-1", "recipient-1"} {
-		if err := relations.SetTeamMember(ctx, &store.TeamMemberRelation{TeamID: "team-1", AgentID: member, Status: store.MemberStatusActive}); err != nil {
-			t.Fatal(err)
-		}
-	}
-	legacy := domainteams.NewHandlers(teamStore, store.NewFileAgentStore(root), relations, nil, nil)
-	legacy.SetActiveRunIDLookup(func(teamID, agentID string) (string, bool) {
-		return "current-run", teamID == "team-1" && agentID == "sender-1"
-	})
-	_, mount := NewConnectMount(legacy)
-	runID := "stale-run"
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		caller := provenance.NewContext(r.Context(), provenance.Provenance{
-			Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: runID,
-		})
-		mount.ServeHTTP(w, r.WithContext(caller))
-	}))
-	defer server.Close()
-	client := teamsconnect.NewTeamsServiceClient(server.Client(), server.URL)
-	send := func() (*connect.Response[teamsv1.Message], error) {
-		return client.SendMessage(ctx, connect.NewRequest(&teamsv1.SendMessageRequest{
-			TeamId: "team-1", AgentId: "recipient-1", FromAgentId: "sender-1", Content: "status",
-		}))
-	}
-	_, err := send()
-	var connectErr *connect.Error
-	if !errors.As(err, &connectErr) || connectErr.Code() != connect.CodePermissionDenied {
-		t.Fatalf("stale SendMessage error=%v, want permission_denied", err)
-	}
-	inbox, err := teamStore.GetInbox(ctx, "team-1", "recipient-1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(inbox.Messages) != 0 {
-		t.Fatalf("refused sender appended %d message(s)", len(inbox.Messages))
-	}
-
-	runID = "current-run"
-	response, err := send()
-	if err != nil {
-		t.Fatalf("exact registered owner run SendMessage: %v", err)
-	}
-	if response.Msg.GetFromAgentId() != "sender-1" || response.Msg.GetToAgentId() != "recipient-1" {
-		t.Fatalf("message attribution = %+v", response.Msg)
-	}
-	inbox, err = teamStore.GetInbox(ctx, "team-1", "recipient-1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(inbox.Messages) != 1 {
-		t.Fatalf("exact owner run appended %d messages, want 1", len(inbox.Messages))
-	}
-}
