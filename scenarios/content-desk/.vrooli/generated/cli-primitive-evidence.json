@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "content-desk",
   "generator": "v1.0.0",
-  "manifest_hash": "816617963b5df426030d58facdca5da59f7f7dc88e06de0c9b76d2c83c1ecbb9",
+  "manifest_hash": "22fd9b1730d2c0507ebaa324f98b2edcf0130f952a6e2c157f6a790fc3448aa8",
   "commands": [
     {
       "path": "artifacts create",

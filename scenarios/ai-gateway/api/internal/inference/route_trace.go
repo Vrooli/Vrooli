@@ -39,10 +39,16 @@ func withRouteTrace(ctx context.Context) (context.Context, *routeTrace) {
 func executeTraced(ctx context.Context, adapter providers.Adapter, resolved providers.ResolvedRole, request providers.ExecutionRequest) (providers.ExecutionResult, error) {
 	started := time.Now()
 	execution, err := adapter.Execute(ctx, request)
-	if trace, _ := ctx.Value(routeTraceKey{}).(*routeTrace); trace != nil {
-		trace.attempt(adapter.Provider, request.Role, resolved, time.Since(started), execution.Timing)
-	}
+	traceAttempt(ctx, adapter.Provider, request.Role, resolved, time.Since(started), execution.Timing)
 	return execution, err
+}
+
+// traceAttempt adds one provider call to the trace ctx carries, if any. A
+// batched call records each request's share against that request's trace.
+func traceAttempt(ctx context.Context, provider, resourceRole string, resolved providers.ResolvedRole, took time.Duration, timing providers.ProviderTiming) {
+	if trace, _ := ctx.Value(routeTraceKey{}).(*routeTrace); trace != nil {
+		trace.attempt(provider, resourceRole, resolved, took, timing)
+	}
 }
 
 func (t *routeTrace) attempt(provider, resourceRole string, resolved providers.ResolvedRole, took time.Duration, timing providers.ProviderTiming) {

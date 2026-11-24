@@ -27,7 +27,20 @@
               "Provider agreement, model eligibility, trust and Vrooli customer pricing remain separate human decisions."
             ],
             "clause": "Terms §§4.3–4.4, 6.1–6.4, 7.3, 8.3–8.4, 11.1–11.3, 13.1, 15.2; reseller program",
-            "reason": "The official reseller page describes reselling limited keys through a seller's own channel, while the governing public offer explicitly requires separate authorization. This justifies a conditional proposal, not permission under standard terms."
+            "reason": "The official reseller page describes reselling limited keys through a seller's own channel, while the governing public offer explicitly requires separate authorization. This justifies a conditional proposal, not permission under standard terms.",
+            "source_anchors": [
+              {
+                "url": "https://relaymodels.com/offer",
+                "anchor": "Terms §§4.3–4.4, 6.1–6.4, 7.3, 8.3–8.4, 11.1–11.3, 13.1, 15.2; reseller program",
+                "document_date": "no visible date/version",
+                "observed_at": "2026-11-22",
+                "retrieval_status": "read_public_page",
+                "supports": "Terms §7.3 requires separate authorization for resale/public API distribution; provider processing and availability may change under §§8.3–8.4.",
+                "does_not_establish": "This source does not establish executed supplier approval or agreement, the exact Vrooli account entitlement, actual upstream serving provider/model rights, a live route, customer trust terms, or a human-approved price.",
+                "claim_ref": "separately_authorized_reseller_program_only",
+                "supplier_id": "relaymodels"
+              }
+            ]
           }
         ],
         "evidence": {

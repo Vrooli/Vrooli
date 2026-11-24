@@ -39,6 +39,15 @@ CREATE TABLE IF NOT EXISTS draft_project_refs (
   project_id TEXT NOT NULL
 );
 
+-- A successful create can be replayed after an ambiguous client response
+-- without creating a duplicate draft or reserving another campaign slot.
+CREATE TABLE IF NOT EXISTS draft_create_operations (
+  idempotency_key TEXT PRIMARY KEY,
+  request_fingerprint TEXT NOT NULL,
+  draft_id TEXT NOT NULL REFERENCES drafts(id),
+  created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS draft_revisions (
   id TEXT PRIMARY KEY,
   draft_id TEXT NOT NULL REFERENCES drafts(id),

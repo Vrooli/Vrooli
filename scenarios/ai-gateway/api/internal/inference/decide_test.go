@@ -2,6 +2,7 @@ package inference
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -37,7 +38,37 @@ func resolveKey(role string) string {
 }
 
 func decideKey(role string) string {
-	return "resource-ollaya gateway decide --role " + role + " --input-stdin --json --timeout 30s"
+	return "resource-ollaya gateway decide-batch --role " + role + " --input-stdin --json --timeout 30s --concurrency 4"
+}
+
+// batchOutput is a decision resource's batch answer: one result per output.
+func batchOutput(outputs ...string) string {
+	items := make([]string, len(outputs))
+	for index, output := range outputs {
+		items[index] = `{"result":` + output + `}`
+	}
+	return `{"results":[` + strings.Join(items, ",") + `]}`
+}
+
+// answersEveryState is a decision resource that answers each state of any
+// batch it is sent with output.
+func answersEveryState(output string) func(providers.Command) (providers.Result, bool) {
+	return func(command providers.Command) (providers.Result, bool) {
+		if !strings.Contains(command.String(), "gateway decide-batch ") {
+			return providers.Result{}, false
+		}
+		var batch struct {
+			States []json.RawMessage `json:"states"`
+		}
+		if err := json.Unmarshal([]byte(command.Stdin), &batch); err != nil {
+			return providers.Result{}, false
+		}
+		outputs := make([]string, len(batch.States))
+		for index := range outputs {
+			outputs[index] = output
+		}
+		return providers.Result{Stdout: batchOutput(outputs...)}, true
+	}
 }
 
 func (w *decisionWorld) resolves(role, locality string) *decisionWorld {
@@ -51,7 +82,7 @@ func (w *decisionWorld) refusesResolve(role, code string) *decisionWorld {
 }
 
 func (w *decisionWorld) answers(role, output string) *decisionWorld {
-	w.runner.Results[decideKey(role)] = providers.Result{Stdout: output}
+	w.runner.Results[decideKey(role)] = providers.Result{Stdout: batchOutput(output)}
 	return w
 }
 

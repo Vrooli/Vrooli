@@ -167,25 +167,37 @@ func ValidateState(state, stateJSON string) error {
 // systemOneBody renders the request in TypeSafe's System One wire format with
 // question and option order preserved; encoding/json maps would reorder both.
 func systemOneBody(request DecisionRequest) (string, error) {
-	var out bytes.Buffer
-	out.WriteString(`{"state":`)
-	if request.StateJSON != "" {
-		out.Write(bytes.TrimSpace([]byte(request.StateJSON)))
-	} else {
-		writeJSON(&out, request.State)
+	questions := systemOneQuestions(request.Questions)
+	body := `{"state":` + string(systemOneState(request)) + `,"questions":` + questions + `}`
+	if !json.Valid([]byte(body)) {
+		return "", fmt.Errorf("decision request did not encode to valid JSON")
 	}
-	out.WriteString(`,"questions":{`)
-	for index, question := range request.Questions {
+	return body, nil
+}
+
+// systemOneState is the request's state as the JSON value System One reads: a
+// caller's JSON state unchanged, otherwise the text as a JSON string.
+func systemOneState(request DecisionRequest) json.RawMessage {
+	if request.StateJSON != "" {
+		return json.RawMessage(bytes.TrimSpace([]byte(request.StateJSON)))
+	}
+	var out bytes.Buffer
+	writeJSON(&out, request.State)
+	return json.RawMessage(out.Bytes())
+}
+
+// systemOneQuestions is the System One question object, in the caller's order.
+func systemOneQuestions(questions []*inferencev1.DecisionQuestion) string {
+	var out bytes.Buffer
+	out.WriteByte('{')
+	for index, question := range questions {
 		if index > 0 {
 			out.WriteByte(',')
 		}
 		writeSystemOneQuestion(&out, question)
 	}
-	out.WriteString(`}}`)
-	if !json.Valid(out.Bytes()) {
-		return "", fmt.Errorf("decision request did not encode to valid JSON")
-	}
-	return out.String(), nil
+	out.WriteByte('}')
+	return out.String()
 }
 
 func writeSystemOneQuestion(out *bytes.Buffer, question *inferencev1.DecisionQuestion) {

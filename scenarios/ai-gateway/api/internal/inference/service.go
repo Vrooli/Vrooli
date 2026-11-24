@@ -391,6 +391,15 @@ func (s *Service) decide(ctx context.Context, request DecisionRequest) *inferenc
 }
 
 func (s *Service) decideValidated(ctx context.Context, request DecisionRequest) *inferencev1.DecideResponse {
+	if refusal := s.refuseDecision(request); refusal != nil {
+		return refusal
+	}
+	return s.decisions().DecideBatch(ctx, []DecisionItem{{Ctx: ctx, Request: request}}, s.run)[0]
+}
+
+// refuseDecision answers a request that must not reach the walk, or returns
+// nil when the request may be walked.
+func (s *Service) refuseDecision(request DecisionRequest) *inferencev1.DecideResponse {
 	if strings.TrimSpace(request.Role) == "" {
 		return decideError(&inferencev1.DecideResponse{Usage: &inferencev1.Usage{}}, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, "role is required", "role")
 	}
@@ -406,11 +415,15 @@ func (s *Service) decideValidated(ctx context.Context, request DecisionRequest) 
 	if err := ValidateState(request.State, request.StateJSON); err != nil {
 		return decisionRefusal(err)
 	}
-	repository, ok := s.repository.(DecisionRepository)
-	if !ok {
+	if s.decisions() == nil {
 		return decideError(&inferencev1.DecideResponse{Usage: &inferencev1.Usage{}}, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNAVAILABLE, "decision repository is unavailable", "decision")
 	}
-	return repository.Decide(ctx, request, s.run)
+	return nil
+}
+
+func (s *Service) decisions() DecisionRepository {
+	repository, _ := s.repository.(DecisionRepository)
+	return repository
 }
 
 // DecideBatch asks one question set about many states. Results are placed by
@@ -438,23 +451,33 @@ func (s *Service) DecideBatch(ctx context.Context, template DecisionRequest, ite
 		response.Results = []*inferencev1.DecideResponse{decisionRefusal(err)}
 		return response
 	}
+	// Each state keeps its own route event; the walk runs once for the batch,
+	// so every candidate it reaches is one resource command for all the states
+	// still unanswered, not one per state.
 	results := make([]*inferencev1.DecideResponse, len(items))
-	slots := make(chan struct{}, MaxBatchConcurrency)
-	var wait sync.WaitGroup
+	finishes := make([]func(routeOutcome), len(items))
+	walk := make([]DecisionItem, 0, len(items))
+	positions := make([]int, 0, len(items))
 	for index, item := range items {
-		wait.Add(1)
-		go func(index int, item DecisionRequest) {
-			defer wait.Done()
-			slots <- struct{}{}
-			defer func() { <-slots }()
-			request := template
-			request.State, request.StateJSON = item.State, item.StateJSON
-			itemCtx, finish := s.beginRoute(ctx, decideRoute(request))
-			results[index] = s.decideValidated(itemCtx, request)
-			finish(decideOutcome(results[index]))
-		}(index, item)
+		request := template
+		request.State, request.StateJSON = item.State, item.StateJSON
+		itemCtx, finish := s.beginRoute(ctx, decideRoute(request))
+		finishes[index] = finish
+		if refusal := s.refuseDecision(request); refusal != nil {
+			results[index] = refusal
+			continue
+		}
+		walk = append(walk, DecisionItem{Ctx: itemCtx, Request: request})
+		positions = append(positions, index)
 	}
-	wait.Wait()
+	if len(walk) > 0 {
+		for position, answered := range s.decisions().DecideBatch(ctx, walk, s.run) {
+			results[positions[position]] = answered
+		}
+	}
+	for index, finish := range finishes {
+		finish(decideOutcome(results[index]))
+	}
 	for _, result := range results {
 		addUsage(response.Usage, result.GetUsage())
 	}

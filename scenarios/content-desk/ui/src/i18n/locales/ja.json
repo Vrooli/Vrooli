@@ -119,7 +119,8 @@
       "saving": "保存中…",
       "savedDetail": "下書き {{id}} を保存しました。まだ下書きです。",
       "saveError": "下書きを保存できませんでした。",
-      "draftOnly": "下書きのみです。次の操作はすべてあなたが決めます。"
+      "draftOnly": "下書きのみです。次の操作はすべてあなたが決めます。",
+      "reviewDraft": "この下書きをレビュー"
     },
     "plan": {
       "eyebrow": "計画",
@@ -170,7 +171,10 @@
       "basis": "集計対象は現在の Content Desk の下書き、キャンペーン、プロジェクトです。これらの記録にはカレンダー期間や空き時間は含まれません。",
       "exactDraftPlanTitle": "レビュー済み下書きの計画",
       "returnToReview": "レビューに戻る",
-      "summaryLabel": "計画の概要"
+      "summaryLabel": "計画の概要",
+      "intentCurrent": "この意図は現在の下書き内容に一致しています。",
+      "intentStale": "この意図は以前の下書きリビジョンに保存されています。新しい文章を確認して希望日を再保存してください。",
+      "intentUnavailable": "現在の下書き基準を確認できません。保存済みの意図は未確認です。"
     },
     "review": {
       "title": "ドラフトを確認",

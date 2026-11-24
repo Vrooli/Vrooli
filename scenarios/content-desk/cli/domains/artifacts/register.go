@@ -42,7 +42,7 @@ func (h *handlers) listReport(_ cliapp.OperationContext, message *artifactsv1.Li
 }
 
 func (h *handlers) createCall(ctx cliapp.OperationContext) (*artifactsv1.CreateDraftResponse, error) {
-	response, err := h.client.CreateDraft(context.Background(), connect.NewRequest(&artifactsv1.CreateDraftRequest{CampaignId: ctx.Flag("campaign"), PostTypeId: ctx.Flag("post-type"), Body: ctx.Flag("body"), Channel: ctx.Flag("channel"), Format: ctx.Flag("format"), Lane: ctx.Flag("lane"), Sku: ctx.Flag("sku")}))
+	response, err := h.client.CreateDraft(context.Background(), connect.NewRequest(&artifactsv1.CreateDraftRequest{CampaignId: ctx.Flag("campaign"), PostTypeId: ctx.Flag("post-type"), Body: ctx.Flag("body"), Channel: ctx.Flag("channel"), Format: ctx.Flag("format"), Lane: ctx.Flag("lane"), Sku: ctx.Flag("sku"), IdempotencyKey: ctx.Flag("idempotency-key")}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("create draft", err, nil)
 	}

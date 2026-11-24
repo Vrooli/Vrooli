@@ -27,7 +27,31 @@
               "Wholesale rates, effective retail prices, settlement and commission are individually confirmed; public model prices are not partner wholesale rates or approved Vrooli customer prices."
             ],
             "clause": "Allgate Partner Program pages; Terms §§1, 3–6",
-            "reason": "The Partner Program expressly supports reviewed reseller/integrator downstream customer accounts, customer keys, per-model retail pricing and earnings, while the base Terms bar resale except through that program or written permission. Individual review and commercial terms are prerequisites, so this is a conditional proposal only."
+            "reason": "The Partner Program expressly supports reviewed reseller/integrator downstream customer accounts, customer keys, per-model retail pricing and earnings, while the base Terms bar resale except through that program or written permission. Individual review and commercial terms are prerequisites, so this is a conditional proposal only.",
+            "source_anchors": [
+              {
+                "url": "https://allgate.ai/partners",
+                "anchor": "Allgate Partner Program pages; Terms §§1, 3–6",
+                "document_date": "no visible date",
+                "observed_at": "2026-11-22",
+                "retrieval_status": "read_public_page",
+                "supports": "The Partner Program expressly supports reviewed reseller/integrator downstream customer accounts, customer keys, per-model retail pricing and earnings, while the base Terms bar resale except through that program or written permission. Individual review and commercial terms are prerequisites, so this is a conditional proposal only.",
+                "does_not_establish": "This source does not establish executed supplier approval or agreement, the exact Vrooli account entitlement, actual upstream serving provider/model rights, a live route, customer trust terms, or a human-approved price.",
+                "claim_ref": "approved_partner_program_with_individual_terms",
+                "supplier_id": "allgate"
+              },
+              {
+                "url": "https://api.allgate.ai/terms",
+                "anchor": "Terms §§1, 3–6",
+                "document_date": "2026-10-21",
+                "observed_at": "2026-11-22",
+                "retrieval_status": "read_public_page",
+                "supports": "Allgate Terms §3 allows resale only with express written permission or under its partner program; the public text requires that eligibility path.",
+                "does_not_establish": "This public source does not establish an executed agreement for Vrooli, account entitlement, exact model-level upstream rights, or an approved route.",
+                "claim_ref": "approved_partner_program_with_individual_terms",
+                "supplier_id": "allgate"
+              }
+            ]
           }
         ],
         "evidence": {
@@ -84,6 +108,25 @@
             "source_kind": "manual_policy",
             "confidence": "medium",
             "source": "https://api.allgate.ai/terms; §3 conditions resale on approved partner program or express written permission; catalog inclusion does not grant entitlement.",
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "allgate",
+                "model_id": "gemini-4-argon",
+                "url": "https://api.allgate.ai/terms",
+                "anchor": "§3 conditions resale on approved partner program or express written permission; catalog inclusion does not grant entitlement.",
+                "document_date": "2026-10-21",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
+          },
+          "identity": {
+            "source_kind": "manual_policy",
+            "confidence": "high",
+            "source": "https://api.allgate.ai/models; Allgate model catalog lists exact ID `gemini-4-argon`; catalog snapshot is dated 2026-11-05. Identity only; allowlist and serving provider are not established.",
             "observed_at": "2026-11-23"
           }
         }
@@ -126,6 +169,25 @@
             "source_kind": "manual_policy",
             "confidence": "medium",
             "source": "https://api.allgate.ai/terms; §3 conditions resale on approved partner program or express written permission; catalog inclusion does not grant entitlement.",
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "allgate",
+                "model_id": "claude-opus-5-5",
+                "url": "https://api.allgate.ai/terms",
+                "anchor": "§3 conditions resale on approved partner program or express written permission; catalog inclusion does not grant entitlement.",
+                "document_date": "2026-10-21",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
+          },
+          "identity": {
+            "source_kind": "manual_policy",
+            "confidence": "high",
+            "source": "https://api.allgate.ai/models; Allgate model catalog lists exact ID `claude-opus-5-5`; catalog snapshot is dated 2026-11-05. Identity only; allowlist and serving provider are not established.",
             "observed_at": "2026-11-23"
           }
         }
@@ -169,6 +231,25 @@
             "source_kind": "manual_policy",
             "confidence": "medium",
             "source": "https://api.allgate.ai/terms; §3 conditions resale on approved partner program or express written permission; catalog inclusion does not grant entitlement.",
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "allgate",
+                "model_id": "gpt-6-sol",
+                "url": "https://api.allgate.ai/terms",
+                "anchor": "§3 conditions resale on approved partner program or express written permission; catalog inclusion does not grant entitlement.",
+                "document_date": "2026-10-21",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
+          },
+          "identity": {
+            "source_kind": "manual_policy",
+            "confidence": "high",
+            "source": "https://api.allgate.ai/models; Allgate model catalog lists exact ID `gpt-6-sol`; catalog snapshot is dated 2026-11-05. Identity only; preserve the separate 272K upstream context discrepancy.",
             "observed_at": "2026-11-23"
           }
         }
@@ -212,6 +293,25 @@
             "source_kind": "manual_policy",
             "confidence": "medium",
             "source": "https://api.allgate.ai/terms; §3 conditions resale on approved partner program or express written permission; catalog inclusion does not grant entitlement.",
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "allgate",
+                "model_id": "MiniMax-M3",
+                "url": "https://api.allgate.ai/terms",
+                "anchor": "§3 conditions resale on approved partner program or express written permission; catalog inclusion does not grant entitlement.",
+                "document_date": "2026-10-21",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
+          },
+          "identity": {
+            "source_kind": "manual_policy",
+            "confidence": "high",
+            "source": "https://api.allgate.ai/models; Allgate model catalog lists exact ID `MiniMax-M3`; catalog snapshot is dated 2026-11-05. Identity only; preserve the separate 512K upstream context discrepancy.",
             "observed_at": "2026-11-23"
           }
         }
@@ -255,6 +355,25 @@
             "source_kind": "manual_policy",
             "confidence": "medium",
             "source": "https://api.allgate.ai/terms; §3 conditions resale on approved partner program or express written permission; catalog inclusion does not grant entitlement.",
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "allgate",
+                "model_id": "deepseek-flash",
+                "url": "https://api.allgate.ai/terms",
+                "anchor": "§3 conditions resale on approved partner program or express written permission; catalog inclusion does not grant entitlement.",
+                "document_date": "2026-10-21",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
+          },
+          "identity": {
+            "source_kind": "manual_policy",
+            "confidence": "high",
+            "source": "https://api.allgate.ai/models; Allgate model catalog lists exact ID `deepseek-flash`; catalog snapshot is dated 2026-11-05. Identity only; exact underlying DeepSeek version remains unresolved.",
             "observed_at": "2026-11-23"
           }
         }

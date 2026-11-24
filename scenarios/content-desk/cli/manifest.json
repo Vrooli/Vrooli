@@ -237,6 +237,11 @@
               "name": "sku",
               "required": true,
               "description": "SKU covered by this draft"
+            },
+            {
+              "name": "idempotency-key",
+              "required": false,
+              "description": "Stable key to recover an uncertain create request"
             }
           ],
           "binding": {

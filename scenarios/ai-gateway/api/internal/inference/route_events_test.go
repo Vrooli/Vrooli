@@ -169,6 +169,8 @@ func TestRouteEventOverheadUsesTheResourceReportedRuntime(t *testing.T) {
 		runtimeNS: int64(90 * time.Millisecond), admissionNS: int64(10 * time.Millisecond), runtimeKnown: true,
 	}, started, started.Add(250*time.Millisecond))
 	require.EqualValues(t, 250*time.Millisecond, ev.GetTotalDurationNs())
+	require.EqualValues(t, 90*time.Millisecond, ev.GetProviderRuntimeDurationNs(), "provider runtime field preserves the resource report")
+	require.EqualValues(t, 10*time.Millisecond, ev.GetProviderAdmissionWaitNs(), "provider admission field preserves the resource report")
 	require.EqualValues(t, 150*time.Millisecond, ev.GetOverheadDurationNs(), "total minus runtime and admission wait")
 	require.EqualValues(t, 250, ev.GetLatencyMs())
 }

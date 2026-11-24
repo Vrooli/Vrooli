@@ -26,7 +26,20 @@
               "Establish legal counterparty, actual SLA, data/trust scope, permitted Vrooli in-app/customer use and separate human rule/model/trust/price decisions."
             ],
             "clause": "Official white-label reseller program and API documentation; governing service terms not publicly readable in this source pass",
-            "reason": "Official reseller page explicitly describes own-brand model API resale, wholesale billing, customer keys and custom prices after approval. This supports a conditional proposal only; current service terms, underlying providers, model rights and live availability remain unverified."
+            "reason": "Official reseller page explicitly describes own-brand model API resale, wholesale billing, customer keys and custom prices after approval. This supports a conditional proposal only; current service terms, underlying providers, model rights and live availability remain unverified.",
+            "source_anchors": [
+              {
+                "url": "https://api.nexusapi.org/affiliate",
+                "anchor": "Official white-label reseller program and API documentation; governing service terms not publicly readable in this source pass",
+                "document_date": "no visible date; footer © 2026",
+                "observed_at": "2026-11-22",
+                "retrieval_status": "read_public_page",
+                "supports": "The affiliate page describes a reseller/white-label application flow, but does not expose governing service terms, upstream supplier, or model availability.",
+                "does_not_establish": "This source does not establish executed supplier approval or agreement, the exact Vrooli account entitlement, actual upstream serving provider/model rights, a live route, customer trust terms, or a human-approved price.",
+                "claim_ref": "approved_reseller_tier_and_written_scope_only",
+                "supplier_id": "nexusapi"
+              }
+            ]
           }
         ],
         "evidence": {

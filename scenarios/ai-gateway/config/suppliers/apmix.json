@@ -27,12 +27,37 @@
               "Current Business list prices and weighted-token multipliers are dynamic, tier-dependent, and not Vrooli customer prices; record approved quote, availability and human price/trust decisions separately."
             ],
             "clause": "Business account page / Business terms references; consumer Terms §§01–04",
-            "reason": "Public Business materials explicitly permit resale under separate business terms and distinguish this account type from prohibited consumer plans. Business terms and account/model entitlements are not fully public, so this remains proposal-only and conditional on reviewed agreement and separate approvals."
+            "reason": "Public Business materials explicitly permit resale under separate business terms and distinguish this account type from prohibited consumer plans. Business terms and account/model entitlements are not fully public, so this remains proposal-only and conditional on reviewed agreement and separate approvals.",
+            "source_anchors": [
+              {
+                "url": "https://business.apmix.ai/",
+                "anchor": "Business account page / Business terms references; consumer Terms §§01–04",
+                "document_date": "not stated on the reviewed official terms/catalog pages",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "Public Business materials explicitly permit resale under separate business terms and distinguish this account type from prohibited consumer plans. Business terms and account/model entitlements are not fully public, so this remains proposal-only and conditional on reviewed agreement and separate approvals.",
+                "does_not_establish": "This source does not establish executed supplier approval or agreement, the exact Vrooli account entitlement, actual upstream serving provider/model rights, a live route, customer trust terms, or a human-approved price.",
+                "claim_ref": "business_account_under_business_terms_only",
+                "supplier_id": "apmix"
+              },
+              {
+                "url": "https://apmix.ai/terms",
+                "anchor": "Terms §§01–04",
+                "document_date": "2026-11-18",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "Terms §01 describes forwarding requests to the provider serving the selected model; §02 restricts sharing/selling/renting account or keys and points to separate model-provider terms.",
+                "does_not_establish": "This public source does not establish an executed agreement for Vrooli, account entitlement, exact model-level upstream rights, or an approved route.",
+                "claim_ref": "business_account_under_business_terms_only",
+                "supplier_id": "apmix"
+              }
+            ]
           }
         ],
         "evidence": {
           "url": "https://business.apmix.ai/",
-          "read_at": "2026-11-23"
+          "read_at": "2026-11-23",
+          "document_date": "not stated on the reviewed official terms/catalog pages"
         },
         "review": {
           "status": "proposed"
@@ -84,7 +109,31 @@
             "source_kind": "manual_policy",
             "confidence": "medium",
             "source": "https://apmix.ai/docs; OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
-            "observed_at": "2026-11-23"
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "apmix",
+                "model_id": "grok-4.5",
+                "url": "https://apmix.ai/docs",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "not stated on this exact model-scope source",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              },
+              {
+                "supplier_id": "apmix",
+                "model_id": "grok-4.5",
+                "url": "https://apmix.ai/terms",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "2026-11-18",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
           },
           "identity": {
             "source_kind": "manual_policy",
@@ -134,7 +183,31 @@
             "source_kind": "manual_policy",
             "confidence": "medium",
             "source": "https://apmix.ai/docs; OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
-            "observed_at": "2026-11-23"
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "apmix",
+                "model_id": "qwen3.8-flash",
+                "url": "https://apmix.ai/docs",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "not stated on this exact model-scope source",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              },
+              {
+                "supplier_id": "apmix",
+                "model_id": "qwen3.8-flash",
+                "url": "https://apmix.ai/terms",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "2026-11-18",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
           },
           "identity": {
             "source_kind": "manual_policy",
@@ -184,7 +257,31 @@
             "source_kind": "manual_policy",
             "confidence": "medium",
             "source": "https://apmix.ai/docs; OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
-            "observed_at": "2026-11-23"
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "apmix",
+                "model_id": "glm-5.3-flash",
+                "url": "https://apmix.ai/docs",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "not stated on this exact model-scope source",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              },
+              {
+                "supplier_id": "apmix",
+                "model_id": "glm-5.3-flash",
+                "url": "https://apmix.ai/terms",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "2026-11-18",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
           },
           "identity": {
             "source_kind": "manual_policy",
@@ -234,7 +331,31 @@
             "source_kind": "manual_policy",
             "confidence": "medium",
             "source": "https://apmix.ai/docs; OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
-            "observed_at": "2026-11-23"
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "apmix",
+                "model_id": "glm-5.3",
+                "url": "https://apmix.ai/docs",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "not stated on this exact model-scope source",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              },
+              {
+                "supplier_id": "apmix",
+                "model_id": "glm-5.3",
+                "url": "https://apmix.ai/terms",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "2026-11-18",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
           },
           "identity": {
             "source_kind": "manual_policy",
@@ -284,7 +405,31 @@
             "source_kind": "manual_policy",
             "confidence": "medium",
             "source": "https://apmix.ai/docs; OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
-            "observed_at": "2026-11-23"
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "apmix",
+                "model_id": "glm-5.2",
+                "url": "https://apmix.ai/docs",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "not stated on this exact model-scope source",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              },
+              {
+                "supplier_id": "apmix",
+                "model_id": "glm-5.2",
+                "url": "https://apmix.ai/terms",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "2026-11-18",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
           },
           "identity": {
             "source_kind": "manual_policy",
@@ -334,7 +479,31 @@
             "source_kind": "manual_policy",
             "confidence": "medium",
             "source": "https://apmix.ai/docs; OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
-            "observed_at": "2026-11-23"
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "apmix",
+                "model_id": "qwen3.8-max",
+                "url": "https://apmix.ai/docs",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "not stated on this exact model-scope source",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              },
+              {
+                "supplier_id": "apmix",
+                "model_id": "qwen3.8-max",
+                "url": "https://apmix.ai/terms",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "2026-11-18",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
           },
           "identity": {
             "source_kind": "manual_policy",
@@ -384,7 +553,31 @@
             "source_kind": "manual_policy",
             "confidence": "medium",
             "source": "https://apmix.ai/docs; OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
-            "observed_at": "2026-11-23"
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "apmix",
+                "model_id": "claude-sonnet-4-6",
+                "url": "https://apmix.ai/docs",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "not stated on this exact model-scope source",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              },
+              {
+                "supplier_id": "apmix",
+                "model_id": "claude-sonnet-4-6",
+                "url": "https://apmix.ai/terms",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "2026-11-18",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
           },
           "identity": {
             "source_kind": "manual_policy",
@@ -434,7 +627,31 @@
             "source_kind": "manual_policy",
             "confidence": "medium",
             "source": "https://apmix.ai/docs; OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
-            "observed_at": "2026-11-23"
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "apmix",
+                "model_id": "grok-4.6",
+                "url": "https://apmix.ai/docs",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "not stated on this exact model-scope source",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              },
+              {
+                "supplier_id": "apmix",
+                "model_id": "grok-4.6",
+                "url": "https://apmix.ai/terms",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "2026-11-18",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
           },
           "identity": {
             "source_kind": "manual_policy",
@@ -484,7 +701,31 @@
             "source_kind": "manual_policy",
             "confidence": "medium",
             "source": "https://apmix.ai/docs; OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
-            "observed_at": "2026-11-23"
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "apmix",
+                "model_id": "kimi-k3",
+                "url": "https://apmix.ai/docs",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "not stated on this exact model-scope source",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              },
+              {
+                "supplier_id": "apmix",
+                "model_id": "kimi-k3",
+                "url": "https://apmix.ai/terms",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "2026-11-18",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
           },
           "identity": {
             "source_kind": "manual_policy",
@@ -534,7 +775,31 @@
             "source_kind": "manual_policy",
             "confidence": "medium",
             "source": "https://apmix.ai/docs; OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
-            "observed_at": "2026-11-23"
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "apmix",
+                "model_id": "grok-4.7",
+                "url": "https://apmix.ai/docs",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "not stated on this exact model-scope source",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              },
+              {
+                "supplier_id": "apmix",
+                "model_id": "grok-4.7",
+                "url": "https://apmix.ai/terms",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "2026-11-18",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
           },
           "identity": {
             "source_kind": "manual_policy",
@@ -584,7 +849,31 @@
             "source_kind": "manual_policy",
             "confidence": "medium",
             "source": "https://apmix.ai/docs; OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
-            "observed_at": "2026-11-23"
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "apmix",
+                "model_id": "gpt-6-sol",
+                "url": "https://apmix.ai/docs",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "not stated on this exact model-scope source",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              },
+              {
+                "supplier_id": "apmix",
+                "model_id": "gpt-6-sol",
+                "url": "https://apmix.ai/terms",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "2026-11-18",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
           },
           "identity": {
             "source_kind": "manual_policy",
@@ -634,7 +923,31 @@
             "source_kind": "manual_policy",
             "confidence": "medium",
             "source": "https://apmix.ai/docs; OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
-            "observed_at": "2026-11-23"
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "apmix",
+                "model_id": "gpt-6-luna",
+                "url": "https://apmix.ai/docs",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "not stated on this exact model-scope source",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              },
+              {
+                "supplier_id": "apmix",
+                "model_id": "gpt-6-luna",
+                "url": "https://apmix.ai/terms",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "2026-11-18",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
           },
           "identity": {
             "source_kind": "manual_policy",
@@ -684,7 +997,31 @@
             "source_kind": "manual_policy",
             "confidence": "medium",
             "source": "https://apmix.ai/docs; OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
-            "observed_at": "2026-11-23"
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "apmix",
+                "model_id": "gpt-6.1-sol",
+                "url": "https://apmix.ai/docs",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "not stated on this exact model-scope source",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              },
+              {
+                "supplier_id": "apmix",
+                "model_id": "gpt-6.1-sol",
+                "url": "https://apmix.ai/terms",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "2026-11-18",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
           },
           "identity": {
             "source_kind": "manual_policy",
@@ -734,7 +1071,31 @@
             "source_kind": "manual_policy",
             "confidence": "medium",
             "source": "https://apmix.ai/docs; OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
-            "observed_at": "2026-11-23"
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "apmix",
+                "model_id": "kimi-k2.8-preview",
+                "url": "https://apmix.ai/docs",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "not stated on this exact model-scope source",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              },
+              {
+                "supplier_id": "apmix",
+                "model_id": "kimi-k2.8-preview",
+                "url": "https://apmix.ai/terms",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "2026-11-18",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
           },
           "identity": {
             "source_kind": "manual_policy",
@@ -784,7 +1145,31 @@
             "source_kind": "manual_policy",
             "confidence": "medium",
             "source": "https://apmix.ai/docs; OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
-            "observed_at": "2026-11-23"
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "apmix",
+                "model_id": "minimax-m3.1-flash",
+                "url": "https://apmix.ai/docs",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "not stated on this exact model-scope source",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              },
+              {
+                "supplier_id": "apmix",
+                "model_id": "minimax-m3.1-flash",
+                "url": "https://apmix.ai/terms",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "2026-11-18",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
           },
           "identity": {
             "source_kind": "manual_policy",
@@ -834,7 +1219,31 @@
             "source_kind": "manual_policy",
             "confidence": "medium",
             "source": "https://apmix.ai/docs; OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
-            "observed_at": "2026-11-23"
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "apmix",
+                "model_id": "mimo-v2.6-flash",
+                "url": "https://apmix.ai/docs",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "not stated on this exact model-scope source",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              },
+              {
+                "supplier_id": "apmix",
+                "model_id": "mimo-v2.6-flash",
+                "url": "https://apmix.ai/terms",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "2026-11-18",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
           },
           "identity": {
             "source_kind": "manual_policy",
@@ -884,7 +1293,31 @@
             "source_kind": "manual_policy",
             "confidence": "medium",
             "source": "https://apmix.ai/docs; OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
-            "observed_at": "2026-11-23"
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "apmix",
+                "model_id": "mimo-v2.6-pro",
+                "url": "https://apmix.ai/docs",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "not stated on this exact model-scope source",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              },
+              {
+                "supplier_id": "apmix",
+                "model_id": "mimo-v2.6-pro",
+                "url": "https://apmix.ai/terms",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "2026-11-18",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
           },
           "identity": {
             "source_kind": "manual_policy",
@@ -934,7 +1367,31 @@
             "source_kind": "manual_policy",
             "confidence": "medium",
             "source": "https://apmix.ai/docs; OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
-            "observed_at": "2026-11-23"
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "apmix",
+                "model_id": "kimi-k3.1-pro",
+                "url": "https://apmix.ai/docs",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "not stated on this exact model-scope source",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              },
+              {
+                "supplier_id": "apmix",
+                "model_id": "kimi-k3.1-pro",
+                "url": "https://apmix.ai/terms",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "2026-11-18",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
           },
           "identity": {
             "source_kind": "manual_policy",
@@ -984,7 +1441,31 @@
             "source_kind": "manual_policy",
             "confidence": "medium",
             "source": "https://apmix.ai/docs; OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
-            "observed_at": "2026-11-23"
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "apmix",
+                "model_id": "deepseek-v4-pro-0813",
+                "url": "https://apmix.ai/docs",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "not stated on this exact model-scope source",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              },
+              {
+                "supplier_id": "apmix",
+                "model_id": "deepseek-v4-pro-0813",
+                "url": "https://apmix.ai/terms",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "2026-11-18",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
           },
           "identity": {
             "source_kind": "manual_policy",
@@ -1034,7 +1515,31 @@
             "source_kind": "manual_policy",
             "confidence": "medium",
             "source": "https://apmix.ai/docs; OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
-            "observed_at": "2026-11-23"
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "apmix",
+                "model_id": "deepseek-v4-flash-0731",
+                "url": "https://apmix.ai/docs",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "not stated on this exact model-scope source",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              },
+              {
+                "supplier_id": "apmix",
+                "model_id": "deepseek-v4-flash-0731",
+                "url": "https://apmix.ai/terms",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "2026-11-18",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
           },
           "identity": {
             "source_kind": "manual_policy",
@@ -1084,7 +1589,31 @@
             "source_kind": "manual_policy",
             "confidence": "medium",
             "source": "https://apmix.ai/docs; OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
-            "observed_at": "2026-11-23"
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "apmix",
+                "model_id": "hy4",
+                "url": "https://apmix.ai/docs",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "not stated on this exact model-scope source",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              },
+              {
+                "supplier_id": "apmix",
+                "model_id": "hy4",
+                "url": "https://apmix.ai/terms",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "2026-11-18",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
           },
           "identity": {
             "source_kind": "manual_policy",
@@ -1134,7 +1663,31 @@
             "source_kind": "manual_policy",
             "confidence": "medium",
             "source": "https://apmix.ai/docs; OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
-            "observed_at": "2026-11-23"
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "apmix",
+                "model_id": "deepseek-v4.1-flash-1017",
+                "url": "https://apmix.ai/docs",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "not stated on this exact model-scope source",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              },
+              {
+                "supplier_id": "apmix",
+                "model_id": "deepseek-v4.1-flash-1017",
+                "url": "https://apmix.ai/terms",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "2026-11-18",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
           },
           "identity": {
             "source_kind": "manual_policy",
@@ -1184,7 +1737,31 @@
             "source_kind": "manual_policy",
             "confidence": "medium",
             "source": "https://apmix.ai/docs; OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
-            "observed_at": "2026-11-23"
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "apmix",
+                "model_id": "hy4flash",
+                "url": "https://apmix.ai/docs",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "not stated on this exact model-scope source",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              },
+              {
+                "supplier_id": "apmix",
+                "model_id": "hy4flash",
+                "url": "https://apmix.ai/terms",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "2026-11-18",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
           },
           "identity": {
             "source_kind": "manual_policy",
@@ -1234,7 +1811,31 @@
             "source_kind": "manual_policy",
             "confidence": "medium",
             "source": "https://apmix.ai/docs; OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
-            "observed_at": "2026-11-23"
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "apmix",
+                "model_id": "deepseek-v4.1-flash-1017-abliterated",
+                "url": "https://apmix.ai/docs",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "not stated on this exact model-scope source",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              },
+              {
+                "supplier_id": "apmix",
+                "model_id": "deepseek-v4.1-flash-1017-abliterated",
+                "url": "https://apmix.ai/terms",
+                "anchor": "OpenAI-compatible Chat Completions/Responses and https://apmix.ai/terms; provider-specific policies apply",
+                "document_date": "2026-11-18",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
           },
           "identity": {
             "source_kind": "manual_policy",

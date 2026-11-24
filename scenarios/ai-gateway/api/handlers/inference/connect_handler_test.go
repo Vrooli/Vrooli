@@ -128,11 +128,15 @@ func (r *sourceCaptureRepository) Run(ctx context.Context, request inference.Pro
 	return inference.ProviderResult{ValueJSON: `{}`}, nil
 }
 
-func (r *sourceCaptureRepository) Decide(ctx context.Context, request inference.DecisionRequest, _ inference.TypedRunner) *inferencev1.DecideResponse {
-	r.sources = append(r.sources, providers.Source(ctx))
-	r.privacyProvenances = append(r.privacyProvenances, request.PrivacyProvenance)
-	r.pins = append(r.pins, request.PinResourceRole)
-	return &inferencev1.DecideResponse{Usage: &inferencev1.Usage{}}
+func (r *sourceCaptureRepository) DecideBatch(ctx context.Context, items []inference.DecisionItem, _ inference.TypedRunner) []*inferencev1.DecideResponse {
+	responses := make([]*inferencev1.DecideResponse, len(items))
+	for index, item := range items {
+		r.sources = append(r.sources, providers.Source(ctx))
+		r.privacyProvenances = append(r.privacyProvenances, item.Request.PrivacyProvenance)
+		r.pins = append(r.pins, item.Request.PinResourceRole)
+		responses[index] = &inferencev1.DecideResponse{Usage: &inferencev1.Usage{}}
+	}
+	return responses
 }
 
 type embeddingCaptureRepository struct{ requests []inference.EmbeddingRequest }

@@ -31,8 +31,7 @@ def step_collect():
           "flow_count":flows.count(),"truncated":flows.count()>5}
         envelope["status"]="ok"
     except Exception as exc:
-        status,klass=program.classify(exc)
-        return program.fail(status,klass,klass,"collect", detail_limit=160)
+        return program.fail_exception(exc, "collect", detail_limit=160)
     return "report"
 def step_act():
     return "report"
@@ -42,11 +41,4 @@ def step_report():
     print(envelope)
     return None
 STATES={"validate":step_validate,"collect":step_collect,"act":step_act,"report":step_report}
-state="validate"
-while state:
-    try:
-        state=STATES[state]()
-    except Exception as exc:
-        if state=="report":
-            raise
-        state=program.fail("failed","kernel_runtime",str(exc)[:160],state, detail_limit=160)
+program.run(STATES, "validate", detail_limit=160)

@@ -166,6 +166,7 @@ export const strings = {
       savedDetail: "pages.create.savedDetail",
       saveError: "pages.create.saveError",
       draftOnly: "pages.create.draftOnly",
+      reviewDraft: "pages.create.reviewDraft",
     },
     plan: {
       eyebrow: "pages.plan.eyebrow",
@@ -217,6 +218,9 @@ export const strings = {
       exactDraftPlanTitle: "pages.plan.exactDraftPlanTitle",
       returnToReview: "pages.plan.returnToReview",
       summaryLabel: "pages.plan.summaryLabel",
+      intentCurrent: "pages.plan.intentCurrent",
+      intentStale: "pages.plan.intentStale",
+      intentUnavailable: "pages.plan.intentUnavailable",
     },
     review: {
       title: "pages.review.title",

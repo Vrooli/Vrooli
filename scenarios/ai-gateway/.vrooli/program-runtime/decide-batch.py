@@ -5,8 +5,6 @@ decision model, credential-gated hosted models, LLM enum fallback), answer
 validation and accounting. This composition makes one batch request and keeps
 every item's answers, distribution, method and provider.
 """
-import json
-
 TYPES = {"choice": "DECISION_QUESTION_TYPE_CHOICE", "score": "DECISION_QUESTION_TYPE_SCORE",
          "noul": "DECISION_QUESTION_TYPE_NOUL"}
 ROLES = ("decide.fast", "decide.accurate")
@@ -223,4 +221,4 @@ except Exception as exc:
     envelope["errors"].append(error("invalid_input" if envelope["phase"] == "validate" else "kernel_runtime", exc, envelope["phase"]))
 finally:
     envelope["phase"] = "report"
-    print(json.dumps(envelope, allow_nan=False, separators=(",", ":")))
+    program.report(envelope)

@@ -3,7 +3,7 @@
   "name": "device-control.setpoint-read",
   "version": "2",
   "helpers": {
-    "program": "1"
+    "program": "2"
   },
   "purpose": "Read comparable agent effort and outcome cohorts without inventing baselines or treating absent measurements as zero.",
   "inputs": {

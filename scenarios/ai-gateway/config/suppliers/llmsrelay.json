@@ -27,7 +27,20 @@
               "No route is eligible until explicit written consent, actual reseller approval, exact agreement, and separate human approval of rule, models, trust and Vrooli price."
             ],
             "clause": "Terms §§4.1–4.5 and 8.2; official reseller guide, manual approval and separate wallet/key groups",
-            "reason": "Official reseller guide describes downstream customer keys, a management API and bundled SaaS use, but Terms require explicit written consent. Terms and reseller documentation conflict on Claude-only versus Codex/OpenAI model scope; therefore this is a conditional proposal only."
+            "reason": "Official reseller guide describes downstream customer keys, a management API and bundled SaaS use, but Terms require explicit written consent. Terms and reseller documentation conflict on Claude-only versus Codex/OpenAI model scope; therefore this is a conditional proposal only.",
+            "source_anchors": [
+              {
+                "url": "https://llmsrelay.com/terms-and-conditions/",
+                "anchor": "Terms §§4.1–4.5 and 8.2; official reseller guide, manual approval and separate wallet/key groups",
+                "document_date": "effective 2026-05-01; updated 2026-08-04; v4.0-2026-08-04",
+                "observed_at": "2026-11-22",
+                "retrieval_status": "read_public_page",
+                "supports": "Terms §8.2 requires explicit written consent for resale/redistribution; body/header date representations conflict and described service/model scope is narrower than some reseller-guide claims.",
+                "does_not_establish": "This source does not establish executed supplier approval or agreement, the exact Vrooli account entitlement, actual upstream serving provider/model rights, a live route, customer trust terms, or a human-approved price.",
+                "claim_ref": "manual_reseller_approval_and_explicit_written_consent_only",
+                "supplier_id": "llmsrelay"
+              }
+            ]
           }
         ],
         "evidence": {

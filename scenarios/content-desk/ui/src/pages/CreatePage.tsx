@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 
 import { Button } from "@vrooli/react-component-library/Button/2";
@@ -28,6 +28,8 @@ export function CreatePage() {
   const [body, setBody] = useState("");
   const [state, setState] = useState<"loading" | "ready" | "saving" | "saved" | "error">("loading");
   const [message, setMessage] = useState("");
+  const [savedDraftID, setSavedDraftID] = useState("");
+  const createOperations = useRef(new Map<string, string>());
 
   useEffect(() => {
     void posttypesClient.listPostTypes({}).then((response) => {
@@ -35,7 +37,7 @@ export function CreatePage() {
       setPostTypes(active);
       setPostTypeID(active[0]?.id ?? "");
       setState("ready");
-    }).catch((caught) => {
+    }).catch((caught: unknown) => {
       setMessage(caught instanceof Error ? caught.message : t(strings.pages.create.loadError));
       setState("error");
     });
@@ -75,15 +77,25 @@ export function CreatePage() {
     if (!postTypeID) return;
     setState("saving");
     try {
+      const projectId = projectID === "unassigned" ? "" : projectID;
+      const scope = JSON.stringify({ campaignId: "", projectId, postTypeId: postTypeID, body, channel: "x-twitter", format: "post" });
+      let idempotencyKey = createOperations.current.get(scope);
+      if (!idempotencyKey) {
+        idempotencyKey = crypto.randomUUID();
+        createOperations.current.set(scope, idempotencyKey);
+      }
       const response = await artifactsClient.createDraft({
         campaignId: "",
-        projectId: projectID === "unassigned" ? "" : projectID,
+        projectId,
         postTypeId: postTypeID,
         body,
         channel: "x-twitter",
         format: "post",
+        idempotencyKey,
       });
+      setSavedDraftID(response.draft?.id ?? "");
       setMessage(t(strings.pages.create.savedDetail, { id: response.draft?.id ?? "" }));
+      if (response.draft?.id) createOperations.current.delete(scope);
       setState("saved");
     } catch (caught) {
       setMessage(caught instanceof Error ? caught.message : t(strings.pages.create.saveError));
@@ -132,7 +144,7 @@ export function CreatePage() {
             <Button type="submit" disabled={state === "saving" || state === "loading" || body.trim().length === 0}>{state === "saving" ? t(strings.pages.create.saving) : t(strings.pages.create.save)}</Button>
             <span className="text-sm text-app-muted-foreground">{t(strings.pages.create.draftOnly)}</span>
           </div>
-          {state === "saved" ? <p role="status" className="text-sm text-app-primary">{message}</p> : null}
+          {state === "saved" ? <div role="status" className="space-y-2 text-sm text-app-primary"><p>{message}</p>{savedDraftID ? <Link className="inline-flex min-h-11 items-center rounded-control border border-app-border px-3 text-sm font-medium text-app-foreground hover:bg-app-muted" to={`/review?draft=${encodeURIComponent(savedDraftID)}`}>{t(strings.pages.create.reviewDraft)}</Link> : null}</div> : null}
           {state === "error" ? <p role="alert" className="text-sm text-app-danger">{message}</p> : null}
         </form> : null}
       </CardContent>

@@ -81,10 +81,20 @@ func main() {
 	// API. A 10s ceiling keeps a misconfigured/slow agent-manager from
 	// stalling startup indefinitely.
 	agentClient := agentmanager.New(agentmanager.Options{})
+	profileStatus := &agentmanager.ProfileStatus{}
+	profileCtx, profileCancel := context.WithCancel(context.Background())
 	initCtx, initCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	if resp, err := agentClient.Initialize(initCtx); err != nil {
+		profileStatus.Set(err)
 		log.Printf("agent-manager profile reconciliation failed (skill validation will fail until resolved): %v", err)
+		go func() {
+			agentmanager.RetryProfileInitialization(profileCtx, func(ctx context.Context) error {
+				_, err := agentClient.Initialize(ctx)
+				return err
+			}, profileStatus, log.Default())
+		}()
 	} else {
+		profileStatus.Set(nil)
 		log.Printf("agent-manager profiles reconciled: scenario=%s created=%d updated=%d unchanged=%d failed=%d",
 			resp.Scenario, resp.Created, resp.Updated, resp.Unchanged, resp.Failed)
 	}
@@ -116,7 +126,7 @@ func main() {
 
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
-		healthH.Module(db, "development-toolchain-validator-api", "1.0.0"),
+		healthH.Module(db, "development-toolchain-validator-api", "1.0.0", profileStatus),
 		goldenH.Module(db, schedule.System(), log.Default()),
 		manifestH.Module(db, schedule.System(), log.Default()),
 		reportH.Module(db, schedule.System(), skillCatalogSource, log.Default()),
@@ -145,6 +155,7 @@ func main() {
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
 		Cleanup: func(ctx context.Context) error {
+			profileCancel()
 			workerCancel()
 			return db.Close()
 		},

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -532,9 +533,34 @@ func (r *sqliteRepository) approve(ctx context.Context, id string, expected *Cur
 
 type sqliteRepository struct{ db SQLExecutor }
 
+func draftCreateFingerprint(draft Draft) (string, error) {
+	basis, err := json.Marshal(struct {
+		CampaignID, PostTypeID, Body, Channel, Format, Lane, SKU, ScenarioName, ProjectID string
+	}{draft.CampaignID, draft.PostTypeID, draft.Body, draft.Channel, draft.Format, draft.Lane, draft.SKU, draft.ScenarioName, draft.ProjectID})
+	if err != nil {
+		return "", fmt.Errorf("encode draft-create request: %w", err)
+	}
+	digest := sha256.Sum256(basis)
+	return hex.EncodeToString(digest[:]), nil
+}
+
 func NewSQLiteRepository(db SQLExecutor) Repository { return &sqliteRepository{db: db} }
 
 func (r *sqliteRepository) Create(ctx context.Context, draft Draft) (Draft, error) {
+	return r.create(ctx, draft, "")
+}
+
+// CreateIdempotent binds a create operation key to its exact payload and
+// returns the same durable draft on replay after an uncertain client response.
+func (r *sqliteRepository) CreateIdempotent(ctx context.Context, draft Draft, key string) (Draft, error) {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return Draft{}, fmt.Errorf("idempotency key is required")
+	}
+	return r.create(ctx, draft, key)
+}
+
+func (r *sqliteRepository) create(ctx context.Context, draft Draft, idempotencyKey string) (Draft, error) {
 	if draft.ID == "" {
 		draft.ID = uuid.NewString()
 	}
@@ -547,35 +573,53 @@ func (r *sqliteRepository) Create(ctx context.Context, draft Draft) (Draft, erro
 	if draft.ProjectID == "" {
 		draft.ProjectID = "unassigned"
 	}
-	if draft.ProjectID != "unassigned" {
-		var activeProjectExists int
-		if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM projects WHERE id = ? AND status = 'active'`, draft.ProjectID).Scan(&activeProjectExists); err != nil {
-			return Draft{}, fmt.Errorf("validate draft project: %w", err)
-		}
-		if activeProjectExists != 1 {
-			return Draft{}, fmt.Errorf("project %q is not registered", draft.ProjectID)
-		}
-	}
 	if draft.Channel == "" || draft.Format == "" {
 		return Draft{}, fmt.Errorf("new draft requires channel and format")
-	}
-	if draft.CampaignID == "" {
-		if strings.TrimSpace(draft.Body) == "" {
-			return Draft{}, fmt.Errorf("campaign-free draft requires post text")
-		}
-		var activePostTypeExists int
-		if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM post_types WHERE id = ? AND status = 'active'`, draft.PostTypeID).Scan(&activePostTypeExists); err != nil {
-			return Draft{}, fmt.Errorf("validate active post type: %w", err)
-		}
-		if activePostTypeExists != 1 {
-			return Draft{}, fmt.Errorf("campaign-free draft requires an active post type")
-		}
 	}
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return Draft{}, err
 	}
 	defer func() { _ = tx.Rollback() }()
+	if idempotencyKey != "" {
+		fingerprint, err := draftCreateFingerprint(draft)
+		if err != nil {
+			return Draft{}, err
+		}
+		var priorFingerprint, priorDraftID string
+		err = tx.QueryRowContext(ctx, `SELECT request_fingerprint, draft_id FROM draft_create_operations WHERE idempotency_key = ?`, idempotencyKey).Scan(&priorFingerprint, &priorDraftID)
+		if err == nil {
+			if priorFingerprint != fingerprint {
+				return Draft{}, fmt.Errorf("idempotency key was reused with a different draft-create request")
+			}
+			draft.ID = priorDraftID
+			return draft, nil
+		}
+		if !errors.Is(err, sql.ErrNoRows) {
+			return Draft{}, fmt.Errorf("read prior draft-create operation: %w", err)
+		}
+	}
+	if draft.ProjectID != "unassigned" {
+		var activeProjectExists int
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM projects WHERE id = ? AND status = 'active'`, draft.ProjectID).Scan(&activeProjectExists); err != nil {
+			return Draft{}, fmt.Errorf("validate draft project: %w", err)
+		}
+		if activeProjectExists != 1 {
+			return Draft{}, fmt.Errorf("project %q is not registered", draft.ProjectID)
+		}
+	}
+	if draft.CampaignID == "" {
+		if strings.TrimSpace(draft.Body) == "" {
+			return Draft{}, fmt.Errorf("campaign-free draft requires post text")
+		}
+		var activePostTypeExists int
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM post_types WHERE id = ? AND status = 'active'`, draft.PostTypeID).Scan(&activePostTypeExists); err != nil {
+			return Draft{}, fmt.Errorf("validate active post type: %w", err)
+		}
+		if activePostTypeExists != 1 {
+			return Draft{}, fmt.Errorf("campaign-free draft requires an active post type")
+		}
+	}
 	var postTypeExists int
 	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM post_types WHERE id = ?`, draft.PostTypeID).Scan(&postTypeExists); err != nil {
 		return Draft{}, fmt.Errorf("validate post type: %w", err)
@@ -606,6 +650,15 @@ func (r *sqliteRepository) Create(ctx context.Context, draft Draft) (Draft, erro
 	}
 	if _, err = tx.ExecContext(ctx, `INSERT INTO draft_project_refs (draft_id, project_id) VALUES (?, ?)`, draft.ID, draft.ProjectID); err != nil {
 		return Draft{}, fmt.Errorf("assign draft project: %w", err)
+	}
+	if idempotencyKey != "" {
+		fingerprint, err := draftCreateFingerprint(draft)
+		if err != nil {
+			return Draft{}, err
+		}
+		if _, err = tx.ExecContext(ctx, `INSERT INTO draft_create_operations (idempotency_key, request_fingerprint, draft_id, created_at) VALUES (?, ?, ?, ?)`, idempotencyKey, fingerprint, draft.ID, now); err != nil {
+			return Draft{}, fmt.Errorf("record draft-create operation: %w", err)
+		}
 	}
 	if err = tx.Commit(); err != nil {
 		return Draft{}, err

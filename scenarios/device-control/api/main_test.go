@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"testing"
@@ -90,6 +93,61 @@ func TestDesktopHelperLifecycleInventorySurfacesPendingReceiptAndStillBlocksExit
 	require.True(t, enumerated)
 	require.Equal(t, "completed", lifecycleWorkStatus(managedWork, "desktop-helper-process-exit"))
 	require.Empty(t, managedBlockers, "matching owner wait plus successful cleanup must release the blocker")
+}
+
+func TestMainRunsPreflightBeforeCompanionConfigValidation(t *testing.T) {
+	file, err := parser.ParseFile(token.NewFileSet(), "main.go", nil, 0)
+	require.NoError(t, err)
+	var mainFn *ast.FuncDecl
+	for _, decl := range file.Decls {
+		if fn, ok := decl.(*ast.FuncDecl); ok && fn.Name.Name == "main" {
+			mainFn = fn
+			break
+		}
+	}
+	require.NotNil(t, mainFn)
+	require.NotEmpty(t, mainFn.Body.List)
+
+	first, ok := mainFn.Body.List[0].(*ast.IfStmt)
+	require.True(t, ok, "preflight must be the first statement in main")
+	preflightCall := false
+	ast.Inspect(first.Cond, func(node ast.Node) bool {
+		call, ok := node.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		selector, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok || selector.Sel.Name != "Run" {
+			return true
+		}
+		owner, ok := selector.X.(*ast.Ident)
+		preflightCall = ok && owner.Name == "preflight"
+		return true
+	})
+	require.True(t, preflightCall, "first startup guard must call api-core preflight directly")
+	returns := false
+	ast.Inspect(first.Body, func(node ast.Node) bool {
+		if _, ok := node.(*ast.ReturnStmt); ok {
+			returns = true
+		}
+		return true
+	})
+	require.True(t, returns, "a preflight re-exec must stop the current startup")
+
+	configValidationAfterPreflight := false
+	for _, stmt := range mainFn.Body.List[1:] {
+		ast.Inspect(stmt, func(node ast.Node) bool {
+			call, ok := node.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			if ident, ok := call.Fun.(*ast.Ident); ok && ident.Name == "validateCompanionConfig" {
+				configValidationAfterPreflight = true
+			}
+			return true
+		})
+	}
+	require.True(t, configValidationAfterPreflight, "normal startup must continue validating companion configuration")
 }
 
 func lifecycleWorkStatus(work []*commonv1.LifecycleWorkItem, kind string) string {

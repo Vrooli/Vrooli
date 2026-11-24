@@ -49,30 +49,19 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
-### 2026-05-18 — agent-manager reconcile failure does not block boot
+### 2026-05-18 — agent-manager reconcile failure does not block boot — RESOLVED 2026-11-24
 
-**Symptom:** If agent-manager is unreachable at DTV startup, the API
-boots normally and only fails at the first skill-validation spawn
-(`verdict=run_failure`, error names the missing profile).
+**Symptom (resolved):** If agent-manager was unreachable at DTV startup, skill validations failed until an operator restarted DTV.
 
-**Root cause:** `main.go` logs the reconcile error and continues so DTV
-can still serve manifest/golden/report/staleness/tool-validation
-surfaces — none of which depend on agent-manager. A hard fail would
-take down 80% of the API for a degraded skill-validation path.
+**Root cause:** `main.go` made one bounded reconciliation call, logged its failure, and never retried. `/health` only observed SQLite and did not expose that the required Agent Manager profile was missing.
 
-**Workaround:** Operator must check the startup log line
-`agent-manager profile reconciliation failed: …`. If present, restart
-DTV after agent-manager is healthy, or accept that skill-tuple runs
-will fail until the next API restart picks up the reconciled profile.
+**Resolution:** DTV continues serving non-skill surfaces after startup failure and now retries profile reconciliation every 60 seconds with a 10-second attempt timeout until the required profile is reconciled or the API lifecycle ends. `/health` reports a functional `degraded` state with the reconciliation reason while the profile is unavailable, keeps HTTP 200/readiness true, and returns to `healthy` after recovery.
 
-**Real fix:** Add a background reconcile loop (e.g., retry every 60s
-until success) so the operator does not need to restart DTV. Track the
-reconcile state via `/health` so a degraded-but-up state is visible to
-upstream monitors.
+**Verified:** Deterministic regressions cover two failures followed by success, cancellation during the wait, degraded health without taking down the API, and healthy health after reconciliation. `GOWORK=off go test ./... -count=1` passes the complete API suite. Test Genie unit `20261124-050731-6a8df2d9` remains L1/FAIL because it reports API and CLI test-execution errors, UI type-check failure, and UI test-policy drift; the direct API suite is green and the broad run does not claim scenario readiness.
 
-**Owner:** unassigned.
+**Owner:** Development Toolchain Validator API maintainer.
 
-**Refs:** `path:scenarios/development-toolchain-validator/api/main.go` (Initialize block)
+**Refs:** `api/main.go`; `api/integrations/agent_manager/profile_reconcile.go`; `api/handlers/health/handler.go`; PT2 evidence `PT2-DTV-AGENT-PROFILE-RETRY-HEALTH.md`.
 
 ### 2026-05-18 — workspace-sandbox content fetch is stubbed
 

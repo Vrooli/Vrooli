@@ -378,7 +378,11 @@ func (r *browserContractRepository) Run(_ context.Context, request ProviderReque
 	return ProviderResult{ValueJSON: `{}`, Provider: "fixture", Model: "fixture-model"}, nil
 }
 
-func (r *browserContractRepository) Decide(_ context.Context, _ DecisionRequest, _ TypedRunner) *inferencev1.DecideResponse {
-	r.decideCalls++
-	return &inferencev1.DecideResponse{Usage: &inferencev1.Usage{}, Method: inferencev1.DecisionMethod_DECISION_METHOD_DECISION_MODEL}
+func (r *browserContractRepository) DecideBatch(_ context.Context, items []DecisionItem, _ TypedRunner) []*inferencev1.DecideResponse {
+	responses := make([]*inferencev1.DecideResponse, len(items))
+	for index := range items {
+		r.decideCalls++
+		responses[index] = &inferencev1.DecideResponse{Usage: &inferencev1.Usage{}, Method: inferencev1.DecisionMethod_DECISION_METHOD_DECISION_MODEL}
+	}
+	return responses
 }

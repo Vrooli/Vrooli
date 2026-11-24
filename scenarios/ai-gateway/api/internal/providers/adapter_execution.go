@@ -37,24 +37,37 @@ func (a Adapter) Execute(ctx context.Context, req ExecutionRequest) (ExecutionRe
 			return ExecutionResult{}, err
 		}
 	}
-	return ExecutionResult{OutputText: output, ExitCode: result.ExitCode, SpendAuthorization: spendAuthorization, Timing: reportedProviderTiming(output)}, nil
+	return ExecutionResult{OutputText: output, ExitCode: result.ExitCode, SpendAuthorization: spendAuthorization, Timing: reportedProviderTiming(a.Provider, output)}, nil
 }
 
 // reportedProviderTiming reads the timing a resource command reports beside
 // its answer (`admission_wait_ns`, `provider_duration_ns`). Output that is not
 // a JSON object, or that reports nothing, yields zero timing.
-func reportedProviderTiming(output string) ProviderTiming {
+func reportedProviderTiming(provider, output string) ProviderTiming {
 	if !strings.HasPrefix(output, "{") {
 		return ProviderTiming{}
 	}
 	var reported struct {
-		AdmissionWaitNS    int64 `json:"admission_wait_ns"`
-		ProviderDurationNS int64 `json:"provider_duration_ns"`
+		AdmissionWaitNS        int64 `json:"admission_wait_ns"`
+		ProviderDurationNS     int64 `json:"provider_duration_ns"`
+		RuntimeTotalDurationNS int64 `json:"runtime_total_duration_ns"`
+		TotalDurationNS        int64 `json:"total_duration_ns"`
 	}
 	if err := json.Unmarshal([]byte(output), &reported); err != nil {
 		return ProviderTiming{}
 	}
-	return ProviderTiming{AdmissionWaitNS: max(reported.AdmissionWaitNS, 0), RuntimeNS: max(reported.ProviderDurationNS, 0)}
+	runtimeNS := max(reported.ProviderDurationNS, 0)
+	if runtimeNS == 0 && provider == ProviderOllama {
+		// The Ollama generate command returns its own /api/generate total as
+		// total_duration_ns. Embedding already reports provider_duration_ns
+		// around the call; use runtime-reported totals only when that wrapper
+		// duration is absent, and never reinterpret another provider's fields.
+		runtimeNS = max(reported.RuntimeTotalDurationNS, 0)
+		if runtimeNS == 0 {
+			runtimeNS = max(reported.TotalDurationNS, 0)
+		}
+	}
+	return ProviderTiming{AdmissionWaitNS: max(reported.AdmissionWaitNS, 0), RuntimeNS: runtimeNS}
 }
 
 func (a Adapter) executeMetered(ctx context.Context, req ExecutionRequest) (ExecutionResult, error) {

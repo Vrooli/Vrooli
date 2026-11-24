@@ -286,12 +286,26 @@ func TestFactReadRacingAnInvalidationIsNotStored(t *testing.T) {
 }
 
 func TestReportedProviderTimingReadsResourceMeasurements(t *testing.T) {
-	timing := reportedProviderTiming(`{"embedding":[0.1],"admission_wait_ns":1200,"provider_duration_ns":91000000}`)
+	timing := reportedProviderTiming(ProviderOllama, `{"embedding":[0.1],"admission_wait_ns":1200,"provider_duration_ns":91000000,"total_duration_ns":92000000}`)
 	if timing != (ProviderTiming{AdmissionWaitNS: 1200, RuntimeNS: 91000000}) {
 		t.Fatalf("timing = %+v", timing)
 	}
+	for _, tc := range []struct {
+		output string
+		want   ProviderTiming
+	}{
+		{`{"response":"{}","total_duration_ns":42000000,"load_duration_ns":9000000,"eval_duration_ns":18000000}`, ProviderTiming{RuntimeNS: 42_000_000}},
+		{`{"response":"{}","runtime_total_duration_ns":37000000}`, ProviderTiming{RuntimeNS: 37_000_000}},
+	} {
+		if timing := reportedProviderTiming(ProviderOllama, tc.output); timing != tc.want {
+			t.Fatalf("Ollama generate output %s reported %+v; want %+v", tc.output, timing, tc.want)
+		}
+	}
+	if timing := reportedProviderTiming(ProviderOpenRouter, `{"total_duration_ns":42000000}`); timing != (ProviderTiming{}) {
+		t.Fatalf("non-Ollama provider timing = %+v; Ollama timing fields must not be inferred for other providers", timing)
+	}
 	for _, output := range []string{"plain text", `{"content":"no timing"}`, `{"provider_duration_ns":-5}`, `{broken`} {
-		if timing := reportedProviderTiming(output); timing != (ProviderTiming{}) {
+		if timing := reportedProviderTiming(ProviderOllama, output); timing != (ProviderTiming{}) {
 			t.Fatalf("output %q reported %+v; want zero timing", output, timing)
 		}
 	}

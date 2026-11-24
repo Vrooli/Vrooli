@@ -7,10 +7,7 @@ try:
     if not isinstance(inputs, dict) or set(inputs) - {"from", "to", "operation", "context_key"}:
         raise ValueError("Only explicit comparison selectors are accepted")
     learning = lib.vrooli_memory.compare_outcomes(scope="device-control-usage", **inputs)
-    rows = learning.head(1)
-    if not rows:
-        raise RuntimeError("Shared comparison returned no envelope")
-    child = rows[0]
+    child = program.child_envelope(learning, invalid_class="invalid_response", where="collect:memory-comparison")
     envelope["signals"]["rows"] = child.get("signals", {}).get("rows", [])
     envelope["errors"] = child.get("errors", [])[:5]
     envelope["evidence"] = child.get("evidence", [])[:10]

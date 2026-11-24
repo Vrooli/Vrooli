@@ -15,6 +15,9 @@ type FakeRunner struct {
 	Default    providers.Result
 	DefaultOK  bool
 	ErrorMatch func(providers.Command) error
+	// Respond answers a command no fixture names, before Default; it reports
+	// false to decline. It lets a fake resource answer from its stdin.
+	Respond func(providers.Command) (providers.Result, bool)
 }
 
 var _ providers.CommandRunner = (*FakeRunner)(nil)
@@ -34,6 +37,11 @@ func (f *FakeRunner) Run(_ context.Context, command providers.Command) (provider
 	}
 	if result, ok := f.Results[key]; ok {
 		return result, nil
+	}
+	if f.Respond != nil {
+		if result, ok := f.Respond(command); ok {
+			return result, nil
+		}
 	}
 	if f.DefaultOK {
 		return f.Default, nil

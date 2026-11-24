@@ -1,16 +1,9 @@
 # Integrations — Development Toolchain Validator
 
-This document is the canonical dependency contract for resources,
-other scenarios, and third-party services used by the scenario.
+## Purpose Of This Document
 
-
-Use this document to answer:
-
-- What does the scenario depend on?
-- Which dependencies are required versus optional?
-- Which domain uses each dependency?
-- What is the failure or degradation behavior?
-- Where is the dependency declared or configured?
+This guide records the validator's declared scenario dependencies and their
+startup requirements.
 
 ## Dependency Inventory
 
@@ -31,9 +24,11 @@ requires them.
 
 ## Scenario Dependencies
 
-| Scenario | Status | Reason | Contract |
-|---|---|---|---|
-| None yet. | not-applicable | Generated scenario is standalone. | Add when this scenario calls or composes another scenario. |
+| Scenario | Enabled | Required | Startup policy | Declared purpose and configuration | Degraded behavior |
+|---|---:|---:|---|---|---|
+| agent-manager | yes | yes | `must_start` | Spawns sandboxed skill runs; provides run summary + diff reference for skill validation. Its manifest config reconciles `.vrooli/agent-manager/default.json` and `.vrooli/agent-manager/divergence-probe.json`. | No degraded behavior declared. |
+| prompt-manager | yes | yes | `must_start` | Source of truth for skill catalog (id/version/content hash) mirrored by `skill_catalog`. | No degraded behavior declared. |
+| workspace-sandbox | yes | no | `try_start` | Reads sandbox diff content when content-rule manifest evaluation needs raw file content. | Degrades to a path-only verdict when unavailable. |
 
 ## Third-Party Services
 

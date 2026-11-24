@@ -61,6 +61,7 @@
     "errors": {
       "classes": [
         "scenario_unreachable",
+        "unresolved_name",
         "no_grant",
         "not_run_eligible",
         "inference_spend_exceeded",

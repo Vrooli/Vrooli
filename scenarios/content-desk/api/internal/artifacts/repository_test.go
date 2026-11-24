@@ -82,6 +82,51 @@ func TestCreateCampaignFreeDraftCanUseActiveProject(t *testing.T) {
 	}
 }
 
+func TestCreateIdempotentReplaysOneDurableDraftAndRejectsChangedPayload(t *testing.T) {
+	ctx := context.Background()
+	repo := newRepository(t).(*sqliteRepository)
+	input := Draft{PostTypeID: "dev-log", Body: "Exact campaign-free wording.", Channel: "x-twitter", Format: "post", ProjectID: "unassigned"}
+	first, err := repo.CreateIdempotent(ctx, input, "create-operation-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := repo.CreateIdempotent(ctx, input, "create-operation-1")
+	if err != nil {
+		t.Fatalf("replay create: %v", err)
+	}
+	if first.ID != second.ID {
+		t.Fatalf("replay draft ID = %q, original = %q", second.ID, first.ID)
+	}
+	changed := input
+	changed.Body = "Different wording"
+	if _, err := repo.CreateIdempotent(ctx, changed, "create-operation-1"); err == nil || !strings.Contains(err.Error(), "different draft-create request") {
+		t.Fatalf("changed payload reused key, err=%v", err)
+	}
+	drafts, err := repo.List(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(drafts) != 1 || drafts[0].ID != first.ID {
+		t.Fatalf("drafts after replay = %#v", drafts)
+	}
+	campaignInput := Draft{CampaignID: "campaign-1", PostTypeID: "dev-log", Body: "Campaign wording.", Channel: "x-twitter", Format: "thread"}
+	campaignDraft, err := repo.CreateIdempotent(ctx, campaignInput, "create-campaign-operation")
+	if err != nil {
+		t.Fatal(err)
+	}
+	campaignReplay, err := repo.CreateIdempotent(ctx, campaignInput, "create-campaign-operation")
+	if err != nil || campaignReplay.ID != campaignDraft.ID {
+		t.Fatalf("campaign create replay = %#v, err=%v", campaignReplay, err)
+	}
+	var reserved int
+	if err := repo.db.QueryRowContext(ctx, `SELECT reserved FROM campaign_slots WHERE campaign_id = 'campaign-1' AND channel = 'x-twitter' AND format = 'thread'`).Scan(&reserved); err != nil {
+		t.Fatal(err)
+	}
+	if reserved != 1 {
+		t.Fatalf("campaign reservations after replay = %d, want 1", reserved)
+	}
+}
+
 // [REQ:CONTENTD-P1-006]
 func TestRecordReleaseOutcomeIsAtomicAndIdempotent(t *testing.T) {
 	ctx := context.Background()

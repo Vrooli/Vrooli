@@ -26,7 +26,20 @@
               "Confirm data, privacy, node processing geography, support/SLA, security and abuse responsibilities in terms. Human provider rule, model scope, trust, agreement and Vrooli price approvals remain separate."
             ],
             "clause": "Official home Partner tier: referrals/white-label child accounts; custom terms; billed to master account",
-            "reason": "Official homepage names a potential white-label partner/child-account path and custom billing; the missing terms mean only a conditional proposal is defensible, not a resale entitlement."
+            "reason": "Official homepage names a potential white-label partner/child-account path and custom billing; the missing terms mean only a conditional proposal is defensible, not a resale entitlement.",
+            "source_anchors": [
+              {
+                "url": "https://opengonka.com/",
+                "anchor": "Official home Partner tier: referrals/white-label child accounts; custom terms; billed to master account",
+                "document_date": "no visible date",
+                "observed_at": "2026-11-22",
+                "retrieval_status": "content_unreadable",
+                "supports": "Current official homepage content was not readable in the reviewed response; no affirmative program claim is sourced here.",
+                "does_not_establish": "This source does not establish executed supplier approval or agreement, the exact Vrooli account entitlement, actual upstream serving provider/model rights, a live route, customer trust terms, or a human-approved price.",
+                "claim_ref": "partner_white_label_child_account_scope_only_after_written_terms",
+                "supplier_id": "open_gonka"
+              }
+            ]
           }
         ],
         "evidence": {

@@ -194,12 +194,16 @@ func (r UnavailableRepository) Run(context.Context, ProviderRequest) (ProviderRe
 	return ProviderResult{}, fmt.Errorf("%w: %s", ErrUnavailable, reason)
 }
 
-func (r UnavailableRepository) Decide(context.Context, DecisionRequest, TypedRunner) *inferencev1.DecideResponse {
+func (r UnavailableRepository) DecideBatch(_ context.Context, items []DecisionItem, _ TypedRunner) []*inferencev1.DecideResponse {
 	reason := strings.TrimSpace(r.Reason)
 	if reason == "" {
 		reason = "the inference role catalog is not loaded"
 	}
-	return decideError(&inferencev1.DecideResponse{Usage: &inferencev1.Usage{}}, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNAVAILABLE, reason, "")
+	responses := make([]*inferencev1.DecideResponse, len(items))
+	for index := range responses {
+		responses[index] = decideError(&inferencev1.DecideResponse{Usage: &inferencev1.Usage{}}, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNAVAILABLE, reason, "")
+	}
+	return responses
 }
 
 // StaticRepository is the phase-one seam implementation. It provides a

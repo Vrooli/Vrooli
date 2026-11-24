@@ -44,7 +44,20 @@ func (h handler) ListDrafts(ctx context.Context, _ *connect.Request[artifactsv1.
 }
 
 func (h handler) CreateDraft(ctx context.Context, request *connect.Request[artifactsv1.CreateDraftRequest]) (*connect.Response[artifactsv1.CreateDraftResponse], error) {
-	draft, err := h.repo.Create(ctx, internalartifacts.Draft{CampaignID: request.Msg.CampaignId, PostTypeID: request.Msg.PostTypeId, Body: request.Msg.Body, Channel: request.Msg.Channel, Format: request.Msg.Format, Lane: request.Msg.Lane, SKU: request.Msg.Sku, ScenarioName: request.Msg.ScenarioName, ProjectID: request.Msg.ProjectId})
+	input := internalartifacts.Draft{CampaignID: request.Msg.CampaignId, PostTypeID: request.Msg.PostTypeId, Body: request.Msg.Body, Channel: request.Msg.Channel, Format: request.Msg.Format, Lane: request.Msg.Lane, SKU: request.Msg.Sku, ScenarioName: request.Msg.ScenarioName, ProjectID: request.Msg.ProjectId}
+	var draft internalartifacts.Draft
+	var err error
+	if request.Msg.IdempotencyKey != "" {
+		creator, ok := h.repo.(interface {
+			CreateIdempotent(context.Context, internalartifacts.Draft, string) (internalartifacts.Draft, error)
+		})
+		if !ok {
+			return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("draft-create idempotency is unavailable"))
+		}
+		draft, err = creator.CreateIdempotent(ctx, input, request.Msg.IdempotencyKey)
+	} else {
+		draft, err = h.repo.Create(ctx, input)
+	}
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}

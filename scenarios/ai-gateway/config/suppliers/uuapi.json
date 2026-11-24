@@ -26,7 +26,20 @@
               "All agreement, provider rule, model scope, trust and Vrooli customer pricing decisions remain human-only; activation denied."
             ],
             "clause": "Official homepage channel reseller program (invitation-only); service Terms and pricing page had no readable content in this pass",
-            "reason": "Official public home identifies an invitation-only reseller program with a reseller console and channel commissions, enough to retain a conditional diligence candidate. No grant, contract or legal/route scope could be verified."
+            "reason": "Official public home identifies an invitation-only reseller program with a reseller console and channel commissions, enough to retain a conditional diligence candidate. No grant, contract or legal/route scope could be verified.",
+            "source_anchors": [
+              {
+                "url": "https://uuapi.net/",
+                "anchor": "Official homepage channel reseller program (invitation-only); service Terms and pricing page had no readable content in this pass",
+                "document_date": "no visible date; footer © 2026",
+                "observed_at": "2026-11-22",
+                "retrieval_status": "content_unreadable",
+                "supports": "Current official homepage content was not readable in the reviewed response; no affirmative program claim is sourced here.",
+                "does_not_establish": "This source does not establish executed supplier approval or agreement, the exact Vrooli account entitlement, actual upstream serving provider/model rights, a live route, customer trust terms, or a human-approved price.",
+                "claim_ref": "invitation_only_channel_reseller_program_after_written_scope_review",
+                "supplier_id": "uuapi"
+              }
+            ]
           }
         ],
         "evidence": {

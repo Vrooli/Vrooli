@@ -1,11 +1,13 @@
 package health_test
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"development-toolchain-validator/handlers/health"
@@ -111,5 +113,59 @@ func TestHealthHandler(t *testing.T) {
 
 			require.Equal(t, int64(1), pinger.Calls.Load(), "Pinger.PingContext call count")
 		})
+	}
+}
+
+type profileReadinessStub struct {
+	ready  bool
+	reason string
+}
+
+func (s *profileReadinessStub) ReadyStatus() (bool, string) { return s.ready, s.reason }
+
+func TestHealthReportsProfileReconciliationAsDegraded(t *testing.T) {
+	profiles := &profileReadinessStub{ready: false, reason: "agent-manager profile reconciliation failed: connection refused"}
+	h := health.NewHandler(health.Deps{
+		Pinger:        &databasetest.FakePinger{},
+		Service:       "development-toolchain-validator-api",
+		Version:       "1.0.0",
+		AgentProfiles: profiles,
+	})
+	recorder := httptest.NewRecorder()
+	h(recorder, httptest.NewRequest(http.MethodGet, "/health", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", recorder.Code)
+	}
+	var body struct {
+		Status     string `json:"status"`
+		Readiness  bool   `json:"readiness"`
+		Functional struct {
+			Healthy bool   `json:"healthy"`
+			Reason  string `json:"reason"`
+		} `json:"functional"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Status != "degraded" || !body.Readiness || body.Functional.Healthy || body.Functional.Reason != "agent-manager profile reconciliation failed: connection refused" {
+		t.Fatalf("unexpected response: %+v", body)
+	}
+	profiles.ready = true
+	profiles.reason = ""
+	recorder = httptest.NewRecorder()
+	h(recorder, httptest.NewRequest(http.MethodGet, "/health", nil))
+	body = struct {
+		Status     string `json:"status"`
+		Readiness  bool   `json:"readiness"`
+		Functional struct {
+			Healthy bool   `json:"healthy"`
+			Reason  string `json:"reason"`
+		} `json:"functional"`
+	}{}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode recovered response: %v", err)
+	}
+	if body.Status != "healthy" || !body.Functional.Healthy || body.Functional.Reason != "" {
+		t.Fatalf("health did not recover after profile reconciliation: %+v", body)
 	}
 }

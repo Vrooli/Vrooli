@@ -8,10 +8,6 @@ envelope = {"program": "device-control.do-task", "version": "1", "status": "fail
             "phase": "validate", "signals": {"outcome": "unknown"}, "errors": [], "evidence": []}
 
 
-def child_result(handle):
-    return program.child_envelope(handle, invalid_class="invalid_response", where=envelope.get("phase", "collect"))
-
-
 try:
     if not isinstance(inputs, dict):
         raise ValueError("Object inputs required")
@@ -24,7 +20,7 @@ try:
         raise ValueError("Saved flow requires an exact positive revision")
     envelope["phase"] = "collect"
     with learn.step("find") as find_step:
-        prepared = child_result(lib.device_control.prepare_task(
+        prepared = program.child_envelope(lib.device_control.prepare_task(
             device=inputs["device"], context_key=inputs["context_key"]))
         find_step.outcome((prepared.get("signals") or {}).get("outcome", "unknown"), prepared.get("evidence", []))
     if prepared.get("status") != "ok":
@@ -48,11 +44,11 @@ try:
         step_name = "replay" if inputs.get("flow_id") else "author"
         with learn.step(step_name) as flow_step:
             if inputs.get("flow_id"):
-                child = child_result(lib.device_control.replay_flow(
+                child = program.child_envelope(lib.device_control.replay_flow(
                     device_id=device_id, context_key=inputs["context_key"], actor=inputs["actor"],
                     flow_id=inputs["flow_id"], version=inputs["version"]))
             else:
-                child = child_result(lib.device_control.author_flow(
+                child = program.child_envelope(lib.device_control.author_flow(
                     device_id=device_id, context_key=inputs["context_key"], actor=inputs["actor"],
                     flow=inputs["flow"]))
             flow_step.outcome((child.get("signals") or {}).get("outcome", "unknown"), child.get("evidence", []))

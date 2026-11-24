@@ -26,7 +26,31 @@
               "Provider agreement/rule, exact models, trust and Vrooli price require separate human decisions; no route is enabled by this proposal."
             ],
             "clause": "Terms §§3, 4, 5, 7–8; Lifetime Terms §§6–8",
-            "reason": "Official Terms condition service resale on an Enterprise agreement; official lifetime terms state own-use only and describe an Enterprise reseller agreement. This supports a conditional Enterprise candidate only."
+            "reason": "Official Terms condition service resale on an Enterprise agreement; official lifetime terms state own-use only and describe an Enterprise reseller agreement. This supports a conditional Enterprise candidate only.",
+            "source_anchors": [
+              {
+                "url": "https://plugsky.com/legal/terms",
+                "anchor": "Terms §§3, 4, 5, 7–8; Lifetime Terms §§6–8",
+                "document_date": "effective 2026-06-20, version 1.0; lifetime terms effective 2026-10-16",
+                "observed_at": "2026-11-22",
+                "retrieval_status": "read_public_page",
+                "supports": "Terms §4 permits service resale/sublicense only as expressly allowed by an Enterprise agreement.",
+                "does_not_establish": "This source does not establish executed supplier approval or agreement, the exact Vrooli account entitlement, actual upstream serving provider/model rights, a live route, customer trust terms, or a human-approved price.",
+                "claim_ref": "enterprise_reseller_agreement_only",
+                "supplier_id": "plugsky"
+              },
+              {
+                "url": "https://plugsky.com/legal/lifetime-terms",
+                "anchor": "Lifetime Terms §§6–8",
+                "document_date": "2026-10-16",
+                "observed_at": "2026-11-22",
+                "retrieval_status": "read_public_page",
+                "supports": "Lifetime Terms §6–8 exclude resale/white-label rights absent the separate Enterprise agreement.",
+                "does_not_establish": "This public source does not establish an executed agreement for Vrooli, account entitlement, exact model-level upstream rights, or an approved route.",
+                "claim_ref": "enterprise_reseller_agreement_only",
+                "supplier_id": "plugsky"
+              }
+            ]
           }
         ],
         "evidence": {

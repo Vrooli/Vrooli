@@ -25,6 +25,7 @@ function groupCount(values: string[]): Array<[string, number]> {
 }
 
 type IntentSaveState = "idle" | "saving" | "saved" | "error";
+type IntentBasisState = "none" | "checking" | "current" | "stale" | "unavailable";
 
 function DraftIntentEditor({ draft, intent }: { draft: Draft; intent?: PublicationIntent }) {
   const { t } = useTranslation();
@@ -32,6 +33,7 @@ function DraftIntentEditor({ draft, intent }: { draft: Draft; intent?: Publicati
   const [date, setDate] = useState(activeIntent?.desiredLocalDate ?? "");
   const [daypart, setDaypart] = useState(activeIntent?.daypart ?? "");
   const [saveState, setSaveState] = useState<IntentSaveState>("idle");
+  const [basisState, setBasisState] = useState<IntentBasisState>(intent ? "checking" : "none");
   const [error, setError] = useState("");
   const operationKeys = useRef(new Map<string, string>());
 
@@ -40,7 +42,24 @@ function DraftIntentEditor({ draft, intent }: { draft: Draft; intent?: Publicati
     setDate(intent?.desiredLocalDate ?? "");
     setDaypart(intent?.daypart ?? "");
     setSaveState("idle");
-  }, [intent?.id, intent?.version, intent?.desiredLocalDate, intent?.daypart]);
+  }, [intent, intent?.id, intent?.version, intent?.desiredLocalDate, intent?.daypart]);
+
+  useEffect(() => {
+    let active = true;
+    if (!intent) {
+      setBasisState("none");
+      return () => { active = false; };
+    }
+    setBasisState("checking");
+    void artifactsClient.getDraftCurrentRevision({ id: draft.id }).then((response) => {
+      if (!active) return;
+      const current = response.currentRevision;
+      setBasisState(current && current.body === draft.body && current.revisionId === (intent.sourceRevisionId || "") ? "current" : "stale");
+    }).catch(() => {
+      if (active) setBasisState("unavailable");
+    });
+    return () => { active = false; };
+  }, [draft.id, draft.body, intent]);
 
   async function saveIntent() {
     setSaveState("saving");
@@ -67,7 +86,10 @@ function DraftIntentEditor({ draft, intent }: { draft: Draft; intent?: Publicati
         expectedIntentVersion: activeIntent?.version ?? 0n,
         idempotencyKey,
       });
-      if (response.intent) setActiveIntent(response.intent);
+      if (response.intent) {
+        setActiveIntent(response.intent);
+        setBasisState("current");
+      }
       setSaveState("saved");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : t(strings.pages.plan.saveError));
@@ -77,7 +99,7 @@ function DraftIntentEditor({ draft, intent }: { draft: Draft; intent?: Publicati
 
   return <article className="rounded-control border border-app-border p-3" data-testid={`draft-intent-${draft.id}`}>
     <div className="flex flex-wrap items-start justify-between gap-2"><div className="min-w-0"><h3 className="break-all font-medium">{draft.id}</h3><p className="text-sm text-app-muted-foreground">{draft.channel || t(strings.pages.plan.unspecified)} · {draft.status}</p></div>
-      {activeIntent ? <p className="text-sm text-app-muted-foreground">{t(strings.pages.plan.currentIntent, { date: activeIntent.desiredLocalDate, daypart: activeIntent.daypart || t(strings.pages.plan.anyDaypart) })}</p> : null}</div>
+      {activeIntent ? <div className="space-y-1 text-sm text-app-muted-foreground"><p>{t(strings.pages.plan.currentIntent, { date: activeIntent.desiredLocalDate, daypart: activeIntent.daypart || t(strings.pages.plan.anyDaypart) })}</p>{basisState === "current" ? <p data-testid={`intent-basis-${draft.id}`} role="status">{t(strings.pages.plan.intentCurrent)}</p> : null}{basisState === "stale" ? <p data-testid={`intent-basis-${draft.id}`} role="status" className="text-app-warning">{t(strings.pages.plan.intentStale)}</p> : null}{basisState === "unavailable" ? <p data-testid={`intent-basis-${draft.id}`} role="status">{t(strings.pages.plan.intentUnavailable)}</p> : null}</div> : null}</div>
     <p className="mt-2 whitespace-pre-wrap break-words text-sm">{draft.body}</p>
     <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(10rem,1fr)_minmax(9rem,0.7fr)_auto] sm:items-end">
       <label className="grid gap-1 text-sm"><span>{t(strings.pages.plan.desiredDate)}</span><Input type="date" value={date} onChange={(event) => { setDate(event.target.value); setSaveState("idle"); }} /></label>
@@ -95,7 +117,8 @@ export function PlanPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const focusedDraftId = searchParams.get("draft");
-  const returnToReview = searchParams.get("return")?.startsWith("/review?") ? searchParams.get("return")! : null;
+  const requestedReturn = searchParams.get("return");
+  const returnToReview = requestedReturn?.startsWith("/review?") ? requestedReturn : null;
   const [state, setState] = useState<LoadState>(() => import.meta.env.MODE === "test" ? "ready" : "loading");
   const [data, setData] = useState<PlanData>({ drafts: [], campaigns: [], projects: [], intents: [] });
   const [error, setError] = useState("");
@@ -157,7 +180,7 @@ export function PlanPage() {
     {state === "loading" ? <p aria-live="polite" className="text-sm text-app-muted-foreground">{t(strings.pages.plan.loading)}</p> : null}
     {state === "error" ? <section role="alert" className="rounded-control border border-app-danger/40 p-4"><p>{t(strings.pages.plan.loadError)} {error}</p><Button className="mt-3" variant="secondary" onClick={() => void refresh()}>{t(strings.pages.plan.retry)}</Button></section> : null}
     {state === "ready" ? <>
-      <section className="grid gap-4 lg:grid-cols-3" aria-label="Plan summary">
+      <section className="grid gap-4 lg:grid-cols-3" aria-label={t(strings.pages.plan.summaryLabel)}>
         <article className="rounded-panel border border-app-border bg-app-surface p-4"><p className="text-sm text-app-muted-foreground">{t(strings.pages.plan.draftWork)}</p><p className="mt-1 text-3xl font-semibold">{data.drafts.length}</p><p className="text-sm text-app-muted-foreground">{t(strings.pages.plan.allStatuses)}</p></article>
         <article className="rounded-panel border border-app-border bg-app-surface p-4"><p className="text-sm text-app-muted-foreground">{t(strings.pages.plan.campaigns)}</p><p className="mt-1 text-3xl font-semibold">{data.campaigns.length}</p><p className="text-sm text-app-muted-foreground">{t(strings.pages.plan.nativeCampaigns)}</p></article>
         <article className="rounded-panel border border-app-border bg-app-surface p-4"><p className="text-sm text-app-muted-foreground">{t(strings.pages.plan.unassignedWork)}</p><p className="mt-1 text-3xl font-semibold">{unassignedCount}</p><p className="text-sm text-app-muted-foreground">{t(strings.pages.plan.noProject)}</p></article>

@@ -100,11 +100,9 @@ func New(opts Options) *Client {
 var _ vrun.AgentManagerClient = (*Client)(nil)
 
 // Initialize asks agent-manager to reconcile DTV's profile sources
-// declared in .vrooli/service.json. Call once at startup before the
-// validation_run worker dispatches its first skill run. Failures here
-// are surfaced to main; the operator decides whether the scenario
-// should boot without a reconciled profile (today: it should not, the
-// dep is required).
+// declared in .vrooli/service.json. Main calls it during startup; if that
+// bounded attempt fails, a lifecycle-scoped retry loop keeps trying while
+// health reports skill-validation as degraded.
 func (c *Client) Initialize(ctx context.Context) (*apipb.ReconcileScenarioProfilesResponse, error) {
 	resp, err := c.reconcileScenarioProfiles(ctx, &apipb.ReconcileScenarioProfilesRequest{Scenario: ScenarioName})
 	if err != nil {

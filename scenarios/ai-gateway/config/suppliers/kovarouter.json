@@ -26,7 +26,31 @@
               "Provider agreement, provider rule, model scope, trust and Vrooli customer price remain separate human decisions."
             ],
             "clause": "KOVAR Terms §§1, 4, 5.7, 6.1, 6.3–6.4, 8.4, 10.1; Product Handbook disclaimer and partner scope",
-            "reason": "Official handbook describes partner-distributed and white-label routes, but says it is nonbinding; standard Terms require prior written reseller authorization and contain unresolved template placeholders. Conditional candidate only."
+            "reason": "Official handbook describes partner-distributed and white-label routes, but says it is nonbinding; standard Terms require prior written reseller authorization and contain unresolved template placeholders. Conditional candidate only.",
+            "source_anchors": [
+              {
+                "url": "https://kovar.ai/pricing",
+                "anchor": "KOVAR Terms §§1, 4, 5.7, 6.1, 6.3–6.4, 8.4, 10.1; Product Handbook disclaimer and partner scope",
+                "document_date": "Terms effective/last updated 2026-03-25; Handbook no visible date",
+                "observed_at": "2026-11-22",
+                "retrieval_status": "current_recheck_unavailable",
+                "supports": "Official handbook describes partner-distributed and white-label routes, but says it is nonbinding; standard Terms require prior written reseller authorization and contain unresolved template placeholders. Conditional candidate only.",
+                "does_not_establish": "This source does not establish executed supplier approval or agreement, the exact Vrooli account entitlement, actual upstream serving provider/model rights, a live route, customer trust terms, or a human-approved price.",
+                "claim_ref": "corrected_enterprise_or_channel_reseller_agreement_only",
+                "supplier_id": "kovarouter"
+              },
+              {
+                "url": "https://kovar.ai/terms",
+                "anchor": "Terms §§1, 4, 5.7, 6.1, 6.3–6.4, 8.4, 10.1",
+                "document_date": "prior review: 2026-03-25; current recheck failed",
+                "observed_at": "2026-11-22",
+                "retrieval_status": "current_recheck_unavailable",
+                "supports": "Prior reviewed text is retained only; current direct terms recheck returned an internal error, so this source has no fresh affirmative support.",
+                "does_not_establish": "This public source does not establish an executed agreement for Vrooli, account entitlement, exact model-level upstream rights, or an approved route.",
+                "claim_ref": "corrected_enterprise_or_channel_reseller_agreement_only",
+                "supplier_id": "kovarouter"
+              }
+            ]
           }
         ],
         "evidence": {

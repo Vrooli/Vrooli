@@ -14,13 +14,15 @@ contracts below describe the full-deployment adapter path.
 | SQLite | embedded storage | yes | health, routing evidence, operator settings | resolved by `api-core/storage` from the scenario id | Health reports unhealthy if unreachable; gateway can still preview from live resource state only if evidence persistence is disabled explicitly. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario must be managed through lifecycle commands. |
 | `resource-ollama` | Vrooli resource | conditional | providers, inventory, routing, smoke tests | role/policy/gateway CLI commands | Local routes become unavailable; profiles that require local inference fail with actionable diagnostics. |
+| `resource-ollaya` | Vrooli resource | conditional | decision providers, inventory, routing | role/policy/gateway decision CLI commands | Decision roles become unavailable or skip to another permitted decision candidate. |
 | `resource-openrouter` | Vrooli resource | conditional | providers, inventory, routing, smoke tests | role/policy/gateway CLI commands | Remote routes become unavailable; remote-only/hosted fallback profiles fail with actionable diagnostics. |
 | `resource-orcarouter` | Vrooli resource | conditional | providers, inventory, routing, smoke tests | role/policy/generate CLI commands | OrcaRouter candidates are skipped; other hosted routes continue. |
 | `resource-abliteration` | Vrooli resource | conditional | explicit research role only | role/policy/generate CLI commands | The explicit `research.unrestricted` role becomes unavailable; no default route is affected. |
 | `vrooli capacity` broker | local platform | optional | routing (local-route eligibility) | `vrooli capacity claim/release --json` CLI contract; footprint from explicit request metadata, never model-name inference | Consulted only when a request declares `metadata.required_vram_bytes`. Without a footprint, capacity is not gated. With a footprint, unavailable/errored admission is `unknown_capacity` and blocks the local candidate; profile policy may select a permitted remote fallback. Execution takes a fresh claim and requires a live claim ID plus sufficient granted bytes. Claims are released best-effort; a held claim falls back to its bounded TTL on crash/release failure. |
-| `test-genie` | scenario | yes for conformance phase | conformance | validation-provider phase contract | Conformance scans cannot run, but normal gateway operation may continue. |
-| `experience-manager` | scenario | yes for docs/UI validation | operator experience | `experience-manager spec validate ai-gateway --json` | Experience validation is unavailable; runtime is unaffected. |
-| `business-health` | scenario | yes for PRD/requirements validation | docs and maturity | business phase / requirements validator | Docs validation is unavailable; runtime is unaffected. |
+| `search-hub` | scenario | optional (`try_start`) | conformance readiness | Model-evaluation readiness source | Conformance reports missing readiness evidence; inference and routing remain available. |
+| `test-genie` | validation consumer, not a runtime dependency | provider conformance | Scenario conformance phase contract | Test Genie cannot exercise the provider phase when unavailable; Gateway operation remains available. |
+| `experience-manager` | documentation validator, not a runtime dependency | docs/UI validation | `experience-manager spec validate ai-gateway --json` | Experience validation is unavailable; runtime is unaffected. |
+| `business-health` | documentation validator, not a runtime dependency | PRD/requirements validation | business phase / requirements validator | Docs validation is unavailable; runtime is unaffected. |
 
 At least one text provider must be healthy for execution. Ollama, OpenRouter,
 and OrcaRouter may be present for cross-provider role comparison and
@@ -96,11 +98,12 @@ documents the reason:
 - model slug allowlists in AI Gateway
 - embedding dimension constants treated as provider truth
 
-## Scenario Dependencies
+## Scenario Dependencies and Consumers
 
 | Scenario | Status | Reason | Contract |
 |---|---|---|---|
-| test-genie | planned required | Runs the AI conformance phase. | Provider phase returns structured findings, severity, maturity, and fix guidance. |
+| search-hub | declared optional runtime dependency (`try_start`) | Supplies model-evaluation readiness evidence consumed by AI conformance. | If unavailable, conformance reports missing readiness evidence; normal inference remains available. |
+| test-genie | validation consumer, not a runtime dependency | Runs the AI conformance phase. | Provider phase returns structured findings, severity, maturity, and fix guidance. |
 | ai-model-orchestra-controller | superseded candidate | Historical routing/orchestration scenario. | Do not depend on it; use as migration reference only. |
 | ai-chatbot-manager | adjacent, not replacement | Product/chat interface management. | It should call AI Gateway for AI work once the gateway contract exists. |
 | image-tools | adjacent | Owns local/remote image model orchestration. | Coordinate cross-modal requests; do not absorb image provider logic. |

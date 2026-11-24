@@ -153,7 +153,8 @@
       "saving": "Saving…",
       "savedDetail": "Saved draft {{id}}. It is still a draft.",
       "saveError": "The draft could not be saved.",
-      "draftOnly": "Draft only; you decide every next step."
+      "draftOnly": "Draft only; you decide every next step.",
+      "reviewDraft": "Review this draft"
     },
     "plan": {
       "eyebrow": "Planning",
@@ -204,7 +205,10 @@
       "basis": "Summary basis: current native drafts, campaigns, and projects. No calendar window or time capacity is available from these reads.",
       "exactDraftPlanTitle": "Planning one reviewed draft",
       "returnToReview": "Return to review",
-      "summaryLabel": "Plan summary"
+      "summaryLabel": "Plan summary",
+      "intentCurrent": "This intention still matches the current draft wording.",
+      "intentStale": "This intention was saved for an earlier draft revision. Review the new wording and save the intended date again.",
+      "intentUnavailable": "The current draft basis could not be checked; the saved intention is not confirmed."
     },
     "review": {
       "title": "Review drafts",

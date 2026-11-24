@@ -82,6 +82,14 @@ func providerEntries(root string, inputs catalogInputs) (map[string]any, error) 
 }
 
 func resourceEntry(spec providers.ProviderSpec, policy, resourceData []byte) (map[string]any, error) {
+	if spec.ID == providers.ProviderOpenRouter {
+		if err := validateExactModelIdentityProvenance("resources/openrouter/model-policy.json", policy); err != nil {
+			return nil, err
+		}
+		if err := validateOpenRouterModelTermsScope("resources/openrouter/model-policy.json", policy); err != nil {
+			return nil, err
+		}
+	}
 	var resource struct {
 		Endpoint string `json:"endpoint"`
 		Ports    []struct {
@@ -107,6 +115,112 @@ func resourceEntry(spec providers.ProviderSpec, policy, resourceData []byte) (ma
 		entry["credential_field"] = resource.Credentials.Descriptors[0].Field
 	}
 	return entry, nil
+}
+
+type sourceTermsEvidence struct {
+	URL          string `json:"url"`
+	DocumentDate string `json:"document_date"`
+	ReadAt       string `json:"read_at"`
+}
+
+type sourceTermsPlanRule struct {
+	Plan          string              `json:"plan"`
+	UseClasses    map[string]string   `json:"use_classes"`
+	Conditions    []string            `json:"conditions"`
+	Clause        string              `json:"clause"`
+	Reason        string              `json:"reason"`
+	SourceAnchors []sourceScopeAnchor `json:"source_anchors"`
+}
+
+type sourceScopeAnchor struct {
+	SupplierID       string `json:"supplier_id"`
+	ModelID          string `json:"model_id"`
+	URL              string `json:"url"`
+	Anchor           string `json:"anchor"`
+	DocumentDate     string `json:"document_date"`
+	ObservedAt       string `json:"observed_at"`
+	RetrievalStatus  string `json:"retrieval_status"`
+	Supports         string `json:"supports"`
+	DoesNotEstablish string `json:"does_not_establish"`
+	ClaimRef         string `json:"claim_ref"`
+}
+
+func validateTermsEvidence(path string, evidence sourceTermsEvidence) error {
+	if !hasDirectHTTPSCatalogURL(evidence.URL) || !hasDocumentDateOrExplicitUnknown(evidence.DocumentDate) {
+		return fmt.Errorf("invalid supplier declaration %s: terms evidence needs a direct HTTPS source and a document date or explicit undated statement", path)
+	}
+	if _, err := time.Parse("2006-01-02", evidence.ReadAt); err != nil {
+		return fmt.Errorf("invalid supplier declaration %s: terms evidence read_at must use YYYY-MM-DD", path)
+	}
+	return nil
+}
+
+func validateTermsPlanRules(path string, rules []sourceTermsPlanRule) error {
+	if len(rules) == 0 {
+		return fmt.Errorf("invalid supplier declaration %s: terms must define at least one scoped plan rule", path)
+	}
+	for index, rule := range rules {
+		if strings.TrimSpace(rule.Plan) == "" || strings.TrimSpace(rule.Clause) == "" || strings.TrimSpace(rule.Reason) == "" || len(rule.Conditions) == 0 || len(rule.UseClasses) == 0 {
+			return fmt.Errorf("invalid supplier declaration %s: terms plan rule %d needs plan ID, clause, reason, use classes, and explicit conditions", path, index)
+		}
+		for useClass, permission := range rule.UseClasses {
+			if strings.TrimSpace(useClass) == "" || (permission != "allowed" && permission != "denied" && permission != "forbidden" && permission != "unverified") {
+				return fmt.Errorf("invalid supplier declaration %s: terms plan rule %d has invalid use-class decision %q=%q", path, index, useClass, permission)
+			}
+		}
+	}
+	return nil
+}
+
+func validateOpenRouterModelTermsScope(path string, policyJSON []byte) error {
+	var policy struct {
+		Provider struct {
+			Terms struct {
+				PlanRules []sourceTermsPlanRule `json:"plan_rules"`
+				Evidence  sourceTermsEvidence   `json:"evidence"`
+			} `json:"terms"`
+			HostedRoutes []json.RawMessage `json:"hosted_routes"`
+		} `json:"provider"`
+		Models map[string]struct {
+			Provenance struct {
+				Terms struct {
+					Source     string `json:"source"`
+					ObservedAt string `json:"observed_at"`
+				} `json:"terms"`
+			} `json:"provenance"`
+			Caveats []string `json:"caveats"`
+		} `json:"models"`
+	}
+	if err := json.Unmarshal(policyJSON, &policy); err != nil {
+		return fmt.Errorf("invalid OpenRouter model policy %s: %w", path, err)
+	}
+	if err := validateTermsEvidence(path, policy.Provider.Terms.Evidence); err != nil {
+		return err
+	}
+	if err := validateTermsPlanRules(path, policy.Provider.Terms.PlanRules); err != nil {
+		return err
+	}
+	if err := validateScopedTermAnchors(path, policyJSON); err != nil {
+		return err
+	}
+	if len(policy.Provider.HostedRoutes) != 0 {
+		return fmt.Errorf("invalid OpenRouter model policy %s: terms plan scope must exist and hosted routes must remain empty", path)
+	}
+	if len(policy.Models) == 0 {
+		return fmt.Errorf("invalid OpenRouter model policy %s: model-scope records are required", path)
+	}
+	for modelID, model := range policy.Models {
+		if !hasDirectHTTPSCatalogURL(model.Provenance.Terms.Source) {
+			return fmt.Errorf("invalid OpenRouter model policy %s: model %q needs a direct HTTPS model-terms scope source", path, modelID)
+		}
+		if _, err := time.Parse("2006-01-02", model.Provenance.Terms.ObservedAt); err != nil {
+			return fmt.Errorf("invalid OpenRouter model policy %s: model %q terms observed_at must use YYYY-MM-DD", path, modelID)
+		}
+		if !hasExplicitScopeUnknown(strings.Join(model.Caveats, " ")) {
+			return fmt.Errorf("invalid OpenRouter model policy %s: model %q must state an unresolved model-specific terms/right unknown", path, modelID)
+		}
+	}
+	return nil
 }
 
 func addSupplierEntries(root string, entries map[string]any) error {
@@ -193,6 +307,9 @@ func isValidSupplierMetadata(entry supplierDeclaration) bool {
 }
 
 func validateSupplierPolicy(path string, entry supplierDeclaration) error {
+	if err := validateSupplierSourceAndModelScope(path, entry.Policy); err != nil {
+		return err
+	}
 	var policyObject struct {
 		Provider struct {
 			ID    string `json:"id"`
@@ -211,6 +328,10 @@ func validateSupplierPolicy(path string, entry supplierDeclaration) error {
 					Source     string `json:"source"`
 					ObservedAt string `json:"observed_at"`
 				} `json:"catalog"`
+				Identity struct {
+					Source     string `json:"source"`
+					ObservedAt string `json:"observed_at"`
+				} `json:"identity"`
 			} `json:"provenance"`
 		} `json:"models"`
 	}
@@ -233,6 +354,9 @@ func validateSupplierPolicy(path string, entry supplierDeclaration) error {
 		if _, err := time.Parse("2006-01-02", model.Provenance.Catalog.ObservedAt); err != nil {
 			return fmt.Errorf("invalid supplier declaration %s: model %q needs catalog provenance observed_at in YYYY-MM-DD form", path, modelID)
 		}
+		if err := validateExactModelIdentitySource(path, modelID, model.Provenance.Identity.Source, model.Provenance.Identity.ObservedAt); err != nil {
+			return err
+		}
 	}
 	hasExecutableAuthority := len(policyObject.Provider.HostedRoutes) != 0 || len(policyObject.Provider.Agreements) != 0
 	if hasExecutableAuthority && reviewStatus != "approved" {
@@ -245,6 +369,222 @@ func validateSupplierPolicy(path string, entry supplierDeclaration) error {
 		if !proposalOnly {
 			return fmt.Errorf("invalid supplier declaration %s: endpoint-less suppliers must remain proposal-only without hosted routes or agreements", path)
 		}
+	}
+	return nil
+}
+
+func validateSupplierSourceAndModelScope(path string, policyJSON []byte) error {
+	var source struct {
+		Provider struct {
+			Terms struct {
+				PlanRules []sourceTermsPlanRule `json:"plan_rules"`
+				Evidence  sourceTermsEvidence   `json:"evidence"`
+			} `json:"terms"`
+		} `json:"provider"`
+		Models map[string]struct {
+			Provenance struct {
+				Terms struct {
+					Source     string `json:"source"`
+					ObservedAt string `json:"observed_at"`
+				} `json:"terms"`
+			} `json:"provenance"`
+			Caveats []string `json:"caveats"`
+		} `json:"models"`
+		Research struct {
+			Activation  string   `json:"activation"`
+			ModelReason string   `json:"model_reason"`
+			SourceScope string   `json:"source_scope"`
+			Evidence    []string `json:"evidence"`
+		} `json:"research"`
+	}
+	if err := json.Unmarshal(policyJSON, &source); err != nil {
+		return fmt.Errorf("invalid supplier declaration %s: decode source/scope records: %w", path, err)
+	}
+	if err := validateTermsEvidence(path, source.Provider.Terms.Evidence); err != nil {
+		return err
+	}
+	if err := validateTermsPlanRules(path, source.Provider.Terms.PlanRules); err != nil {
+		return err
+	}
+	if err := validateScopedTermAnchors(path, policyJSON); err != nil {
+		return err
+	}
+	if strings.TrimSpace(source.Research.Activation) == "" || strings.TrimSpace(source.Research.ModelReason) == "" || !hasExplicitScopeUnknown(source.Research.ModelReason) || strings.TrimSpace(source.Research.SourceScope) == "" || len(source.Research.Evidence) == 0 {
+		return fmt.Errorf("invalid supplier declaration %s: research needs activation boundary, model-scope reason, source scope, and evidence links", path)
+	}
+	for _, sourceURL := range source.Research.Evidence {
+		if !hasDirectHTTPSCatalogURL(sourceURL) {
+			return fmt.Errorf("invalid supplier declaration %s: research evidence must be direct HTTPS URLs", path)
+		}
+	}
+	for modelID, model := range source.Models {
+		if !hasDirectHTTPSCatalogURL(model.Provenance.Terms.Source) {
+			return fmt.Errorf("invalid supplier declaration %s: model %q needs a direct HTTPS model-scope terms source", path, modelID)
+		}
+		if _, err := time.Parse("2006-01-02", model.Provenance.Terms.ObservedAt); err != nil {
+			return fmt.Errorf("invalid supplier declaration %s: model %q terms provenance observed_at must use YYYY-MM-DD", path, modelID)
+		}
+		if len(model.Caveats) == 0 || !hasExplicitScopeUnknown(strings.Join(model.Caveats, " ")) {
+			return fmt.Errorf("invalid supplier declaration %s: model %q needs an explicit scope or unresolved-rights caveat", path, modelID)
+		}
+	}
+	return nil
+}
+
+func validateScopedTermAnchors(path string, policyJSON []byte) error {
+	var policy struct {
+		Provider struct {
+			ID    string `json:"id"`
+			Terms struct {
+				Evidence  sourceTermsEvidence   `json:"evidence"`
+				PlanRules []sourceTermsPlanRule `json:"plan_rules"`
+			} `json:"terms"`
+		} `json:"provider"`
+		Models map[string]struct {
+			Provenance struct {
+				Terms struct {
+					Source        string              `json:"source"`
+					ObservedAt    string              `json:"observed_at"`
+					SourceAnchors []sourceScopeAnchor `json:"source_anchors"`
+				} `json:"terms"`
+			} `json:"provenance"`
+		} `json:"models"`
+	}
+	if err := json.Unmarshal(policyJSON, &policy); err != nil {
+		return fmt.Errorf("invalid scoped terms anchors in %s: %w", path, err)
+	}
+	if policy.Provider.ID == "" {
+		policy.Provider.ID = "openrouter"
+	}
+	for _, rule := range policy.Provider.Terms.PlanRules {
+		if len(rule.SourceAnchors) == 0 {
+			return fmt.Errorf("invalid terms scope in %s: plan %q has no source anchors", path, rule.Plan)
+		}
+		hasPrimaryAnchor := false
+		for _, anchor := range rule.SourceAnchors {
+			if anchor.URL == policy.Provider.Terms.Evidence.URL && anchor.Anchor == rule.Clause && anchor.DocumentDate == policy.Provider.Terms.Evidence.DocumentDate {
+				hasPrimaryAnchor = true
+			}
+			if anchor.ClaimRef != rule.Plan || strings.TrimSpace(anchor.Anchor) == "" || strings.TrimSpace(anchor.Supports) == "" || !hasExplicitScopeUnknown(anchor.DoesNotEstablish) {
+				return fmt.Errorf("invalid terms scope in %s: plan %q has a mismatched or overconfident source anchor", path, rule.Plan)
+			}
+			if !hasDirectHTTPSCatalogURL(anchor.URL) || !hasDocumentDateOrExplicitUnknown(anchor.DocumentDate) {
+				return fmt.Errorf("invalid terms scope in %s: plan %q anchor needs direct URL and dated/explicitly undated source", path, rule.Plan)
+			}
+			if _, err := time.Parse("2006-01-02", anchor.ObservedAt); err != nil {
+				return fmt.Errorf("invalid terms scope in %s: plan %q anchor has invalid observed_at", path, rule.Plan)
+			}
+			if anchor.URL == policy.Provider.Terms.Evidence.URL && anchor.DocumentDate != policy.Provider.Terms.Evidence.DocumentDate {
+				return fmt.Errorf("invalid terms scope in %s: plan %q anchor date conflicts with the cited evidence page", path, rule.Plan)
+			}
+			if anchor.RetrievalStatus != "read_public_page" && anchor.RetrievalStatus != "content_unreadable" && anchor.RetrievalStatus != "current_recheck_unavailable" {
+				return fmt.Errorf("invalid terms scope in %s: plan %q has unknown retrieval status", path, rule.Plan)
+			}
+			if anchor.RetrievalStatus != "read_public_page" && !hasExplicitScopeUnknown(anchor.DoesNotEstablish+" "+anchor.Supports) {
+				return fmt.Errorf("invalid terms scope in %s: plan %q unavailable source must remain unresolved", path, rule.Plan)
+			}
+			if anchor.SupplierID != policy.Provider.ID {
+				return fmt.Errorf("invalid terms scope in %s: plan %q anchor supplier mismatch", path, rule.Plan)
+			}
+		}
+		if !hasPrimaryAnchor {
+			return fmt.Errorf("invalid terms scope in %s: plan %q must retain its exact primary source/page anchor", path, rule.Plan)
+		}
+	}
+	for modelID, model := range policy.Models {
+		terms := model.Provenance.Terms
+		if len(terms.SourceAnchors) == 0 {
+			return fmt.Errorf("invalid terms scope in %s: model %q has no source anchors", path, modelID)
+		}
+		for _, anchor := range terms.SourceAnchors {
+			if anchor.SupplierID != policy.Provider.ID || anchor.ModelID != modelID {
+				return fmt.Errorf("invalid terms scope in %s: model %q anchor identity mismatch", path, modelID)
+			}
+			if !hasDirectHTTPSCatalogURL(anchor.URL) || !strings.Contains(terms.Source, anchor.URL) {
+				return fmt.Errorf("invalid terms scope in %s: model %q anchor URL does not match the terms source", path, modelID)
+			}
+			if strings.TrimSpace(anchor.Anchor) == "" || strings.TrimSpace(anchor.Supports) == "" || !hasExplicitScopeUnknown(anchor.DoesNotEstablish) {
+				return fmt.Errorf("invalid terms scope in %s: model %q anchor must state supported scope and unresolved rights", path, modelID)
+			}
+			if _, err := time.Parse("2006-01-02", anchor.ObservedAt); err != nil || anchor.ObservedAt != terms.ObservedAt {
+				return fmt.Errorf("invalid terms scope in %s: model %q anchor observation does not match terms provenance", path, modelID)
+			}
+			if !hasDocumentDateOrExplicitUnknown(anchor.DocumentDate) {
+				return fmt.Errorf("invalid terms scope in %s: model %q anchor needs a dated or explicitly undated source", path, modelID)
+			}
+			if anchor.RetrievalStatus != "read_public_page" && anchor.RetrievalStatus != "content_unreadable" && anchor.RetrievalStatus != "current_recheck_unavailable" {
+				return fmt.Errorf("invalid terms scope in %s: model %q has unknown retrieval status", path, modelID)
+			}
+		}
+	}
+	return nil
+}
+
+func hasDocumentDateOrExplicitUnknown(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return false
+	}
+	if _, err := time.Parse("2006-01-02", value); err == nil {
+		return true
+	}
+	for index := 0; index+len("2006-01-02") <= len(value); index++ {
+		if _, err := time.Parse("2006-01-02", value[index:index+len("2006-01-02")]); err == nil {
+			return true
+		}
+	}
+	value = strings.ToLower(value)
+	for _, marker := range []string{"no visible date", "no effective date", "no date", "undated", "not stated", "not readable", "date unknown", "unknown date"} {
+		if strings.Contains(value, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasExplicitScopeUnknown(text string) bool {
+	text = strings.ToLower(text)
+	for _, marker := range []string{
+		"unknown", "unverified", "not established", "not proven", "not verified", "not disclosed", "not identified", "not confirmed", "not readable", "not evaluated", "not been evaluated", "not account-scoped", "not account scoped", "not the actual", "not actual", "does not establish", "do not establish", "does not identify", "do not identify", "does not prove", "do not prove", "does not grant", "do not grant", "does not authorize", "do not authorize", "unresolved", "remain separate", "may change", "remains conditional",
+	} {
+		if strings.Contains(text, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+func validateExactModelIdentityProvenance(path string, policy []byte) error {
+	var identityPolicy struct {
+		Models map[string]struct {
+			Provenance struct {
+				Identity struct {
+					Source     string `json:"source"`
+					ObservedAt string `json:"observed_at"`
+				} `json:"identity"`
+			} `json:"provenance"`
+		} `json:"models"`
+	}
+	if err := json.Unmarshal(policy, &identityPolicy); err != nil {
+		return fmt.Errorf("invalid model policy %s: %w", path, err)
+	}
+	if len(identityPolicy.Models) == 0 {
+		return fmt.Errorf("invalid model policy %s: exact model identity source gate requires at least one model", path)
+	}
+	for modelID, model := range identityPolicy.Models {
+		if err := validateExactModelIdentitySource(path, modelID, model.Provenance.Identity.Source, model.Provenance.Identity.ObservedAt); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateExactModelIdentitySource(path, modelID, source, observedAt string) error {
+	if !hasDirectHTTPSCatalogURL(source) || !strings.Contains(source, modelID) {
+		return fmt.Errorf("invalid model policy %s: model %q needs direct HTTPS identity provenance naming the exact ID", path, modelID)
+	}
+	if _, err := time.Parse("2006-01-02", observedAt); err != nil {
+		return fmt.Errorf("invalid model policy %s: model %q needs identity provenance observed_at in YYYY-MM-DD form", path, modelID)
 	}
 	return nil
 }

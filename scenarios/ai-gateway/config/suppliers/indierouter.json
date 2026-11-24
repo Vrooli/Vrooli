@@ -27,7 +27,31 @@
               "Record deployment/data/trust conditions and Vrooli's customer price as separate human decisions; public partner margin or model rates are not approvals."
             ],
             "clause": "IndieRouter Terms §§1–7 and 11; Partner Program tracks, tooling, and enrollment",
-            "reason": "The official Partner Program expressly permits own-brand resale, describes a white-label proxy and customer-workspace management API, and identifies a reseller track. Terms condition raw-capacity resale on a reseller agreement and state credits are nontransferable between organizations. This is only a conditional candidate; the specific agreement must resolve that interaction and exact customer funding model."
+            "reason": "The official Partner Program expressly permits own-brand resale, describes a white-label proxy and customer-workspace management API, and identifies a reseller track. Terms condition raw-capacity resale on a reseller agreement and state credits are nontransferable between organizations. This is only a conditional candidate; the specific agreement must resolve that interaction and exact customer funding model.",
+            "source_anchors": [
+              {
+                "url": "https://indierouter.ai/partners/",
+                "anchor": "IndieRouter Terms §§1–7 and 11; Partner Program tracks, tooling, and enrollment",
+                "document_date": "no visible date",
+                "observed_at": "2026-11-22",
+                "retrieval_status": "read_public_page",
+                "supports": "The official Partner Program expressly permits own-brand resale, describes a white-label proxy and customer-workspace management API, and identifies a reseller track. Terms condition raw-capacity resale on a reseller agreement and state credits are nontransferable between organizations. This is only a conditional candidate; the specific agreement must resolve that interaction and exact customer funding model.",
+                "does_not_establish": "This source does not establish executed supplier approval or agreement, the exact Vrooli account entitlement, actual upstream serving provider/model rights, a live route, customer trust terms, or a human-approved price.",
+                "claim_ref": "approved_reseller_partner_agreement_only",
+                "supplier_id": "indierouter"
+              },
+              {
+                "url": "https://indierouter.ai/terms/",
+                "anchor": "Terms §§1–7 and 11",
+                "document_date": "no effective date visible",
+                "observed_at": "2026-11-22",
+                "retrieval_status": "read_public_page",
+                "supports": "Terms §4 conditions raw-capacity resale on a reseller agreement; §7 leaves model licenses with their respective providers.",
+                "does_not_establish": "This public source does not establish an executed agreement for Vrooli, account entitlement, exact model-level upstream rights, or an approved route.",
+                "claim_ref": "approved_reseller_partner_agreement_only",
+                "supplier_id": "indierouter"
+              }
+            ]
           }
         ],
         "evidence": {
@@ -87,7 +111,26 @@
             "confidence": "medium",
             "source": "https://indierouter.ai/terms/ §4 requires a reseller agreement for resale of raw capacity; model-specific license and account/model scope remain unverified",
             "observed_at": "2026-11-23",
-            "sample_count": 0
+            "sample_count": 0,
+            "source_anchors": [
+              {
+                "supplier_id": "indierouter",
+                "model_id": "deepseek-v4-flash",
+                "url": "https://indierouter.ai/terms/",
+                "anchor": "model-specific license and account/model scope remain unverified",
+                "document_date": "no effective date visible",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
+          },
+          "identity": {
+            "source_kind": "manual_policy",
+            "confidence": "high",
+            "source": "https://indierouter.ai/models/; IndieRouter public model catalog lists exact catalog ID `deepseek-v4-flash`; identity only, not account availability or model-license rights.",
+            "observed_at": "2026-11-23"
           }
         }
       },
@@ -131,7 +174,26 @@
             "confidence": "medium",
             "source": "https://indierouter.ai/terms/ §4 requires a reseller agreement for resale of raw capacity; model-specific license and account/model scope remain unverified",
             "observed_at": "2026-11-23",
-            "sample_count": 0
+            "sample_count": 0,
+            "source_anchors": [
+              {
+                "supplier_id": "indierouter",
+                "model_id": "deepseek-v4.1-flash",
+                "url": "https://indierouter.ai/terms/",
+                "anchor": "model-specific license and account/model scope remain unverified",
+                "document_date": "no effective date visible",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
+          },
+          "identity": {
+            "source_kind": "manual_policy",
+            "confidence": "high",
+            "source": "https://indierouter.ai/models/; IndieRouter public model catalog lists exact catalog ID `deepseek-v4.1-flash`; identity only, not account availability or model-license rights.",
+            "observed_at": "2026-11-23"
           }
         }
       },
@@ -175,7 +237,26 @@
             "confidence": "medium",
             "source": "https://indierouter.ai/terms/ §4 requires a reseller agreement for resale of raw capacity; model-specific license and account/model scope remain unverified",
             "observed_at": "2026-11-23",
-            "sample_count": 0
+            "sample_count": 0,
+            "source_anchors": [
+              {
+                "supplier_id": "indierouter",
+                "model_id": "deepseek-v4.1-flash-1m",
+                "url": "https://indierouter.ai/terms/",
+                "anchor": "model-specific license and account/model scope remain unverified",
+                "document_date": "no effective date visible",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
+          },
+          "identity": {
+            "source_kind": "manual_policy",
+            "confidence": "high",
+            "source": "https://indierouter.ai/models/; IndieRouter public model catalog lists exact catalog ID `deepseek-v4.1-flash-1m`; identity only, not account availability or model-license rights.",
+            "observed_at": "2026-11-23"
           }
         }
       },
@@ -219,7 +300,26 @@
             "confidence": "medium",
             "source": "https://indierouter.ai/terms/ §4 requires a reseller agreement for resale of raw capacity; model-specific license and account/model scope remain unverified",
             "observed_at": "2026-11-23",
-            "sample_count": 0
+            "sample_count": 0,
+            "source_anchors": [
+              {
+                "supplier_id": "indierouter",
+                "model_id": "gemma-4-26b-a4b-it",
+                "url": "https://indierouter.ai/terms/",
+                "anchor": "model-specific license and account/model scope remain unverified",
+                "document_date": "no effective date visible",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
+          },
+          "identity": {
+            "source_kind": "manual_policy",
+            "confidence": "high",
+            "source": "https://indierouter.ai/models/; IndieRouter public model catalog lists exact catalog ID `gemma-4-26b-a4b-it`; identity only, not account availability or model-license rights.",
+            "observed_at": "2026-11-23"
           }
         }
       },
@@ -263,7 +363,26 @@
             "confidence": "medium",
             "source": "https://indierouter.ai/terms/ §4 requires a reseller agreement for resale of raw capacity; model-specific license and account/model scope remain unverified",
             "observed_at": "2026-11-23",
-            "sample_count": 0
+            "sample_count": 0,
+            "source_anchors": [
+              {
+                "supplier_id": "indierouter",
+                "model_id": "gemma-4-31b-it",
+                "url": "https://indierouter.ai/terms/",
+                "anchor": "model-specific license and account/model scope remain unverified",
+                "document_date": "no effective date visible",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
+          },
+          "identity": {
+            "source_kind": "manual_policy",
+            "confidence": "high",
+            "source": "https://indierouter.ai/models/; IndieRouter public model catalog lists exact catalog ID `gemma-4-31b-it`; identity only, not account availability or model-license rights.",
+            "observed_at": "2026-11-23"
           }
         }
       },
@@ -307,7 +426,26 @@
             "confidence": "medium",
             "source": "https://indierouter.ai/terms/ §4 requires a reseller agreement for resale of raw capacity; model-specific license and account/model scope remain unverified",
             "observed_at": "2026-11-23",
-            "sample_count": 0
+            "sample_count": 0,
+            "source_anchors": [
+              {
+                "supplier_id": "indierouter",
+                "model_id": "glm-5.3",
+                "url": "https://indierouter.ai/terms/",
+                "anchor": "model-specific license and account/model scope remain unverified",
+                "document_date": "no effective date visible",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
+          },
+          "identity": {
+            "source_kind": "manual_policy",
+            "confidence": "high",
+            "source": "https://indierouter.ai/models/; IndieRouter public model catalog lists exact catalog ID `glm-5.3`; identity only, not account availability or model-license rights.",
+            "observed_at": "2026-11-23"
           }
         }
       },
@@ -351,7 +489,26 @@
             "confidence": "medium",
             "source": "https://indierouter.ai/terms/ §4 requires a reseller agreement for resale of raw capacity; model-specific license and account/model scope remain unverified",
             "observed_at": "2026-11-23",
-            "sample_count": 0
+            "sample_count": 0,
+            "source_anchors": [
+              {
+                "supplier_id": "indierouter",
+                "model_id": "glm-5.3-flash",
+                "url": "https://indierouter.ai/terms/",
+                "anchor": "model-specific license and account/model scope remain unverified",
+                "document_date": "no effective date visible",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
+          },
+          "identity": {
+            "source_kind": "manual_policy",
+            "confidence": "high",
+            "source": "https://indierouter.ai/models/; IndieRouter public model catalog lists exact catalog ID `glm-5.3-flash`; identity only, not account availability or model-license rights.",
+            "observed_at": "2026-11-23"
           }
         }
       },
@@ -395,7 +552,26 @@
             "confidence": "medium",
             "source": "https://indierouter.ai/terms/ §4 requires a reseller agreement for resale of raw capacity; model-specific license and account/model scope remain unverified",
             "observed_at": "2026-11-23",
-            "sample_count": 0
+            "sample_count": 0,
+            "source_anchors": [
+              {
+                "supplier_id": "indierouter",
+                "model_id": "glm-5.3-flash-1m",
+                "url": "https://indierouter.ai/terms/",
+                "anchor": "model-specific license and account/model scope remain unverified",
+                "document_date": "no effective date visible",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
+          },
+          "identity": {
+            "source_kind": "manual_policy",
+            "confidence": "high",
+            "source": "https://indierouter.ai/models/; IndieRouter public model catalog lists exact catalog ID `glm-5.3-flash-1m`; identity only, not account availability or model-license rights.",
+            "observed_at": "2026-11-23"
           }
         }
       },
@@ -439,7 +615,26 @@
             "confidence": "medium",
             "source": "https://indierouter.ai/terms/ §4 requires a reseller agreement for resale of raw capacity; model-specific license and account/model scope remain unverified",
             "observed_at": "2026-11-23",
-            "sample_count": 0
+            "sample_count": 0,
+            "source_anchors": [
+              {
+                "supplier_id": "indierouter",
+                "model_id": "nemotron-3.5-super-vl-120b-a12b",
+                "url": "https://indierouter.ai/terms/",
+                "anchor": "model-specific license and account/model scope remain unverified",
+                "document_date": "no effective date visible",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
+          },
+          "identity": {
+            "source_kind": "manual_policy",
+            "confidence": "high",
+            "source": "https://indierouter.ai/models/; IndieRouter public model catalog lists exact catalog ID `nemotron-3.5-super-vl-120b-a12b`; identity only, not account availability or model-license rights.",
+            "observed_at": "2026-11-23"
           }
         }
       },
@@ -483,7 +678,26 @@
             "confidence": "medium",
             "source": "https://indierouter.ai/terms/ §4 requires a reseller agreement for resale of raw capacity; model-specific license and account/model scope remain unverified",
             "observed_at": "2026-11-23",
-            "sample_count": 0
+            "sample_count": 0,
+            "source_anchors": [
+              {
+                "supplier_id": "indierouter",
+                "model_id": "qwen3.8-27b-fp8",
+                "url": "https://indierouter.ai/terms/",
+                "anchor": "model-specific license and account/model scope remain unverified",
+                "document_date": "no effective date visible",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
+          },
+          "identity": {
+            "source_kind": "manual_policy",
+            "confidence": "high",
+            "source": "https://indierouter.ai/models/; IndieRouter public model catalog lists exact catalog ID `qwen3.8-27b-fp8`; identity only, not account availability or model-license rights.",
+            "observed_at": "2026-11-23"
           }
         }
       },
@@ -527,7 +741,26 @@
             "confidence": "medium",
             "source": "https://indierouter.ai/terms/ §4 requires a reseller agreement for resale of raw capacity; model-specific license and account/model scope remain unverified",
             "observed_at": "2026-11-23",
-            "sample_count": 0
+            "sample_count": 0,
+            "source_anchors": [
+              {
+                "supplier_id": "indierouter",
+                "model_id": "pplx-decider-v1.1",
+                "url": "https://indierouter.ai/terms/",
+                "anchor": "model-specific license and account/model scope remain unverified",
+                "document_date": "no effective date visible",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
+          },
+          "identity": {
+            "source_kind": "manual_policy",
+            "confidence": "high",
+            "source": "https://indierouter.ai/models/; IndieRouter public model catalog lists exact catalog ID `pplx-decider-v1.1`; identity only, not account availability or model-license rights.",
+            "observed_at": "2026-11-23"
           }
         }
       }

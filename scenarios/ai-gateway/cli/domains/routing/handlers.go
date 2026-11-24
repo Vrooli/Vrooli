@@ -3,6 +3,7 @@ package routing
 import (
 	"context"
 	"fmt"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	"ai-gateway/cli/domains/internal/gatewayreq"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 type handlers struct {
@@ -234,19 +236,12 @@ func (h *handlers) evidenceProfile(ctx cliapp.RunContext) error {
 	if limit < 1 || limit > 100 {
 		return fmt.Errorf("--limit must be between 1 and 100; the route-evidence API has a 100-row maximum")
 	}
-	resp, err := h.client.ListRouteEvidence(context.Background(), connect.NewRequest(&routingv1.ListRouteEvidenceRequest{
-		Limit:    limit,
-		Scenario: ctx.Flag("scenario"),
-	}))
+	events, window, err := routeEvidenceProfileEvents(h.client, ctx.Flag("input"), ctx.Flag("scenario"), limit)
 	if err != nil {
-		return cliapp.WrapAPIError("profile route evidence", err, nil)
+		return err
 	}
-	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no route evidence profile")
-	}
-	rows := profileEvidence(resp.Msg.GetEvents())
-	window := fmt.Sprintf("latest %d route events", len(resp.Msg.GetEvents()))
-	if len(resp.Msg.GetEvents()) == int(limit) {
+	rows := profileEvidence(events)
+	if len(events) == int(limit) {
 		window += " (possibly truncated at requested limit)"
 	}
 	if scenario := strings.TrimSpace(ctx.Flag("scenario")); scenario != "" {
@@ -255,20 +250,68 @@ func (h *handlers) evidenceProfile(ctx cliapp.RunContext) error {
 	if len(rows) == 0 {
 		return ctx.RenderList(cliapp.ListReport{
 			Summary:        []string{"No route evidence in " + window + "."},
-			ResultsHeading: "Per-role latency profile",
+			ResultsHeading: "Task/resource role and caller latency profile",
 			RetrievalHints: []string{"This profile includes end-to-end route latency only; it cannot attribute provider phases or queue wait."},
 		})
 	}
 	return ctx.RenderList(cliapp.ListReport{
-		Summary:        []string{"Per-role end-to-end latency for " + window + ". Nearest-rank p50/p95 are descriptive of this recent sample."},
-		ResultsHeading: "Role and model latency",
+		Summary:        []string{"Task/resource role and caller end-to-end latency for " + window + ". Nearest-rank p50/p95 are descriptive of this recent sample."},
+		ResultsHeading: "Task/resource role, caller, and model latency",
 		Results:        rows,
 		RetrievalHints: []string{"This is a bounded read of metadata-only route evidence, not a fixed quality-suite comparison. Queue, TTFT, load, prefill, decode, context and host/device peaks are unavailable."},
 	})
 }
 
+const maxRouteEvidenceReceiptBytes = 2 << 20
+
+// routeEvidenceProfileEvents returns one bounded source snapshot. A supplied
+// input receipt is decoded locally so raw evidence and its summary can be
+// retained and reproduced from the same exact event set.
+func routeEvidenceProfileEvents(client routingconnect.RoutingServiceClient, inputPath, scenario string, limit int32) ([]*routingv1.RouteEvidence, string, error) {
+	if strings.TrimSpace(inputPath) != "" {
+		raw, err := os.ReadFile(inputPath)
+		if err != nil {
+			return nil, "", fmt.Errorf("read route evidence receipt: %w", err)
+		}
+		if len(raw) > maxRouteEvidenceReceiptBytes {
+			return nil, "", fmt.Errorf("route evidence receipt exceeds %d byte limit", maxRouteEvidenceReceiptBytes)
+		}
+		var response routingv1.ListRouteEvidenceResponse
+		if err := protojson.Unmarshal(raw, &response); err != nil {
+			return nil, "", fmt.Errorf("decode route evidence receipt: %w", err)
+		}
+		events := response.GetEvents()
+		if len(events) > 100 {
+			return nil, "", fmt.Errorf("route evidence receipt has %d events; maximum is 100", len(events))
+		}
+		if strings.TrimSpace(scenario) != "" {
+			filtered := make([]*routingv1.RouteEvidence, 0, len(events))
+			for _, event := range events {
+				if event != nil && event.GetScenario() == scenario {
+					filtered = append(filtered, event)
+				}
+			}
+			events = filtered
+		}
+		if len(events) > int(limit) {
+			return nil, "", fmt.Errorf("route evidence receipt has %d matching events; requested limit is %d", len(events), limit)
+		}
+		return events, fmt.Sprintf("%d retained route events", len(events)), nil
+	}
+	resp, err := client.ListRouteEvidence(context.Background(), connect.NewRequest(&routingv1.ListRouteEvidenceRequest{
+		Limit: limit, Scenario: scenario,
+	}))
+	if err != nil {
+		return nil, "", cliapp.WrapAPIError("profile route evidence", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return nil, "", fmt.Errorf("server returned no route evidence profile")
+	}
+	return resp.Msg.GetEvents(), fmt.Sprintf("latest %d route events", len(resp.Msg.GetEvents())), nil
+}
+
 type evidenceProfileKey struct {
-	role, model, provider string
+	role, resourceRole, scenario, caller, model, provider string
 }
 
 type evidenceProfileBucket struct {
@@ -289,7 +332,14 @@ func profileEvidence(events []*routingv1.RouteEvidence) []string {
 		if strings.TrimSpace(role) == "" {
 			role = ev.GetRole()
 		}
-		key := evidenceProfileKey{role: shortLabel(role), model: shortLabel(ev.GetSelectedModel()), provider: shortLabel(ev.GetSelectedProvider())}
+		key := evidenceProfileKey{
+			role:         shortLabel(role),
+			resourceRole: shortLabel(ev.GetSelectedResourceRole()),
+			scenario:     shortLabel(ev.GetScenario()),
+			caller:       shortLabel(ev.GetCaller()),
+			model:        shortLabel(ev.GetSelectedModel()),
+			provider:     shortLabel(ev.GetSelectedProvider()),
+		}
 		bucket := buckets[key]
 		if bucket == nil {
 			bucket = &evidenceProfileBucket{stageNS: map[string][]int64{}, stageMissing: map[string]int{}}
@@ -327,6 +377,15 @@ func profileEvidence(events []*routingv1.RouteEvidence) []string {
 		if keys[i].role != keys[j].role {
 			return keys[i].role < keys[j].role
 		}
+		if keys[i].resourceRole != keys[j].resourceRole {
+			return keys[i].resourceRole < keys[j].resourceRole
+		}
+		if keys[i].scenario != keys[j].scenario {
+			return keys[i].scenario < keys[j].scenario
+		}
+		if keys[i].caller != keys[j].caller {
+			return keys[i].caller < keys[j].caller
+		}
 		if keys[i].model != keys[j].model {
 			return keys[i].model < keys[j].model
 		}
@@ -337,8 +396,8 @@ func profileEvidence(events []*routingv1.RouteEvidence) []string {
 		b := buckets[key]
 		values := append([]int64(nil), b.latencies...)
 		sort.Slice(values, func(i, j int) bool { return values[i] < values[j] })
-		lines = append(lines, fmt.Sprintf("role=%s model=%s provider=%s n=%d succeeded=%d failed=%d blocked=%d latency_ms[p50=%d p95=%d min=%d max=%d] stages_ns[%s] span=%s..%s",
-			labelOrUnknown(key.role), labelOrUnknown(key.model), labelOrUnknown(key.provider), len(values), b.succeeded, b.failed, b.blocked,
+		lines = append(lines, fmt.Sprintf("role=%s resource_role=%s scenario=%s caller=%s model=%s provider=%s n=%d succeeded=%d failed=%d blocked=%d latency_ms[p50=%d p95=%d min=%d max=%d] stages_ns[%s] span=%s..%s",
+			labelOrUnknown(key.role), labelOrUnknown(key.resourceRole), labelOrUnknown(key.scenario), labelOrUnknown(key.caller), labelOrUnknown(key.model), labelOrUnknown(key.provider), len(values), b.succeeded, b.failed, b.blocked,
 			nearestRank(values, 50), nearestRank(values, 95), values[0], values[len(values)-1], formatStageProfile(b), b.firstAt, b.lastAt))
 	}
 	return lines

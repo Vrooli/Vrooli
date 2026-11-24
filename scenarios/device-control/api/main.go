@@ -63,6 +63,11 @@ func scenarioStorageRoots() (storage.Paths, error) {
 }
 
 func main() {
+	// This must precede environment/config work so a stale-source rebuild can
+	// re-exec the binary before any startup behavior runs.
+	if preflight.Run(preflight.Config{ScenarioName: "device-control"}) {
+		return
+	}
 	processEnv := environment.OSReader{}
 	configPath := flag.String("config", "", "user-scoped companion configuration path")
 	flag.Parse()
@@ -70,11 +75,6 @@ func main() {
 		if err := validateCompanionConfig(*configPath); err != nil {
 			log.Fatalf("desktop companion configuration failed: %v", err)
 		}
-	}
-	// Preflight checks must run first so the binary can re-exec itself
-	// after a stale-source rebuild before any listeners are opened.
-	if preflight.Run(preflight.Config{ScenarioName: "device-control"}) {
-		return
 	}
 
 	db, err := database.Open(context.Background(), database.Config{

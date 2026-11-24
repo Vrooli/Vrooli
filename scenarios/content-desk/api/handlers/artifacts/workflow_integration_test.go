@@ -66,8 +66,17 @@ func TestCampaignFreeDraftReviewApprovalPlanAndQueueWorkflowPersists(t *testing.
 	reviewClient := reviewconnect.NewReviewServiceClient(http.DefaultClient, server.URL)
 	intentClient := intentsconnect.NewPublicationIntentServiceClient(http.DefaultClient, server.URL)
 
-	created, err := artifactClient.CreateDraft(ctx, connect.NewRequest(&artifactsv1.CreateDraftRequest{PostTypeId: "dev-log", Body: "Synthetic draft placeholder.", Channel: "linkedin", Format: "post"}))
+	createRequest := &artifactsv1.CreateDraftRequest{PostTypeId: "dev-log", Body: "Synthetic draft placeholder.", Channel: "linkedin", Format: "post", IdempotencyKey: "synthetic-workflow-create"}
+	created, err := artifactClient.CreateDraft(ctx, connect.NewRequest(createRequest))
 	require.NoError(t, err)
+	replayed, err := artifactClient.CreateDraft(ctx, connect.NewRequest(createRequest))
+	require.NoError(t, err)
+	require.Equal(t, created.Msg.Draft.Id, replayed.Msg.Draft.Id, "retry after an ambiguous response must recover the same persisted draft")
+	changedCreate := *createRequest
+	changedCreate.Body = "Different synthetic wording"
+	_, err = artifactClient.CreateDraft(ctx, connect.NewRequest(&changedCreate))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 	draft := created.Msg.Draft
 	require.Empty(t, draft.CampaignId)
 	require.Equal(t, "unassigned", draft.ProjectId)
@@ -107,6 +116,19 @@ func TestCampaignFreeDraftReviewApprovalPlanAndQueueWorkflowPersists(t *testing.
 	require.NoError(t, err)
 	require.Equal(t, "queued", release.Msg.ReleaseStatus)
 	require.Equal(t, 1, queue.calls, "only the local fake queue receives the handoff")
+
+	staleDraft, err := artifactClient.CreateDraft(ctx, connect.NewRequest(&artifactsv1.CreateDraftRequest{PostTypeId: "dev-log", Body: "Stale synthetic wording.", Channel: "linkedin", Format: "post"}))
+	require.NoError(t, err)
+	staleBasis, err := artifactClient.GetDraftCurrentRevision(ctx, connect.NewRequest(&artifactsv1.GetDraftCurrentRevisionRequest{Id: staleDraft.Msg.Draft.Id}))
+	require.NoError(t, err)
+	_, err = artifactClient.UpdateDraftBody(ctx, connect.NewRequest(&artifactsv1.UpdateDraftBodyRequest{Id: staleDraft.Msg.Draft.Id, Body: "New synthetic wording."}))
+	require.NoError(t, err)
+	_, err = reviewClient.RecordReviewRun(ctx, connect.NewRequest(&reviewv1.RecordReviewRunRequest{DraftId: staleDraft.Msg.Draft.Id, ExpectedRevisionId: staleBasis.Msg.CurrentRevision.RevisionId, ExpectedBody: staleBasis.Msg.CurrentRevision.Body, Verdicts: verdicts}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	beforeRestart, err := reviewClient.ListReviewRuns(ctx, connect.NewRequest(&reviewv1.ListReviewRunsRequest{}))
+	require.NoError(t, err)
+	require.Len(t, beforeRestart.Msg.ReviewRuns, 1, "a stale retry must not create a review receipt")
 	server.Close()
 
 	// Re-mount the scenario API over the same SQLite state to prove that the
@@ -121,6 +143,12 @@ func TestCampaignFreeDraftReviewApprovalPlanAndQueueWorkflowPersists(t *testing.
 	artifactClient = artifactsconnect.NewArtifactsServiceClient(http.DefaultClient, server.URL)
 	reviewClient = reviewconnect.NewReviewServiceClient(http.DefaultClient, server.URL)
 	intentClient = intentsconnect.NewPublicationIntentServiceClient(http.DefaultClient, server.URL)
+	replayedAfterRestart, err := artifactClient.CreateDraft(ctx, connect.NewRequest(createRequest))
+	require.NoError(t, err)
+	require.Equal(t, draft.Id, replayedAfterRestart.Msg.Draft.Id, "durable create operation key must recover the existing draft after API remount")
+	allDrafts, err := artifactClient.ListDrafts(ctx, connect.NewRequest(&artifactsv1.ListDraftsRequest{}))
+	require.NoError(t, err)
+	require.Len(t, allDrafts.Msg.Drafts, 2, "same-key create replay must not add a duplicate after API remount")
 	persisted, err := artifactClient.GetDraftCurrentRevision(ctx, connect.NewRequest(&artifactsv1.GetDraftCurrentRevisionRequest{Id: draft.Id}))
 	require.NoError(t, err)
 	require.Equal(t, "approved", persisted.Msg.CurrentRevision.Status)

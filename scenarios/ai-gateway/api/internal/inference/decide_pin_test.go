@@ -24,15 +24,16 @@ const bakeoffRole = "decide.bakeoff"
 // Ollaya role (Apache-style behavioral-restriction rights, exact manifest
 // identity, declared limits) unless a test scripts it otherwise.
 type bakeoff struct {
-	runner  *providermocks.FakeRunner
-	service *Service
-	enum    int
+	runner     *providermocks.FakeRunner
+	repository *ResourceRepository
+	service    *Service
+	enum       int
 }
 
 func newBakeoff(t *testing.T, roles ...string) *bakeoff {
 	t.Helper()
 	world := &bakeoff{runner: &providermocks.FakeRunner{Results: map[string]providers.Result{}, Errors: map[string]error{}, DefaultOK: true}}
-	world.runner.Default = providers.Result{Stdout: answeredOutput}
+	world.runner.Respond = answersEveryState(answeredOutput)
 	candidates := make([]rolecatalog.Candidate, 0, len(roles)+1)
 	for _, role := range roles {
 		world.qualifies(role, &providers.DecisionLimits{ContextTokens: 8192, MaxOptions: 255})
@@ -47,6 +48,7 @@ func newBakeoff(t *testing.T, roles ...string) *bakeoff {
 		{Provider: providers.ProviderOllaya, Locality: "local", CommandName: "resource-ollaya", Runner: world.runner},
 	}, fixtureRightsContext)
 	require.NoError(t, err)
+	world.repository = repository
 	world.service = NewService(repository)
 	return world
 }
@@ -92,7 +94,7 @@ func (w *bakeoff) dispatched() []string {
 	var roles []string
 	for _, command := range w.runner.Commands {
 		text := command.String()
-		if strings.Contains(text, "gateway decide --role ") {
+		if strings.Contains(text, "gateway decide-batch --role ") {
 			roles = append(roles, strings.Fields(strings.SplitN(text, "--role ", 2)[1])[0])
 		}
 	}
@@ -203,7 +205,7 @@ func TestPinAppliesToEveryItemOfABatch(t *testing.T) {
 		require.Nil(t, result.GetError(), "%+v", result.GetError())
 		require.Equal(t, "decide.local.kev", result.GetResourceRole())
 	}
-	require.Equal(t, []string{"decide.local.kev", "decide.local.kev"}, world.dispatched())
+	require.Equal(t, []string{"decide.local.kev"}, world.dispatched(), "one resource command answers every state of the batch")
 
 	bad := world.service.DecideBatch(context.Background(), pinned("nope; drop"), []DecisionRequest{{State: "x"}})
 	require.Len(t, bad.GetResults(), 1)
@@ -267,7 +269,7 @@ func TestMemoryAndLimitRefusalsAreStableWalkReasons(t *testing.T) {
 		t.Run(code, func(t *testing.T) {
 			world := newBakeoff(t, "decide.local", "decide.local.kev")
 			world.runner.ErrorMatch = func(command providers.Command) error {
-				if strings.Contains(command.String(), "gateway decide --role decide.local ") {
+				if strings.Contains(command.String(), "gateway decide-batch --role decide.local ") {
 					return &providers.CommandError{Code: code, Command: command.String(), ExitCode: 1}
 				}
 				return nil

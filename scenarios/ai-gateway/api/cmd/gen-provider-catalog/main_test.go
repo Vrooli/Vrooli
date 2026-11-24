@@ -183,7 +183,7 @@ func TestValidateServiceModelRoles(t *testing.T) {
 }
 
 func TestAddSupplierEntriesEnforcesSingleDeclarationOwner(t *testing.T) {
-	validSupplier := `{"id":"hosted-supplier","family":"openai-compatible","locality":"remote","endpoint":"https://example.invalid/v1","policy":{"roles":{}}}`
+	validSupplier := `{"id":"hosted-supplier","family":"openai-compatible","locality":"remote","endpoint":"https://example.invalid/v1","policy":` + string(ac2SupplierFixturePolicy("hosted-supplier", "proposed", "[]", "[]", "{}")) + `}`
 	t.Run("wrapperless supplier is accepted", func(t *testing.T) {
 		root := t.TempDir()
 		writeFixtureFile(t, root, "scenarios/ai-gateway/config/suppliers/hosted.json", validSupplier)
@@ -199,8 +199,8 @@ func TestAddSupplierEntriesEnforcesSingleDeclarationOwner(t *testing.T) {
 	tests := []struct {
 		name, content, path, want string
 	}{
-		{name: "registered provider even when not projected", content: `{"id":"ollaya","family":"openai-compatible","locality":"remote","endpoint":"https://example.invalid","policy":{}}`, path: "hosted.json", want: "duplicates registered provider declaration"},
-		{name: "resource backed declaration", content: `{"id":"unregistered-resource","family":"openai-compatible","locality":"remote","endpoint":"https://example.invalid","policy":{}}`, path: "hosted.json", want: "duplicates resource declaration"},
+		{name: "registered provider even when not projected", content: strings.ReplaceAll(validSupplier, "hosted-supplier", "ollaya"), path: "hosted.json", want: "duplicates registered provider declaration"},
+		{name: "resource backed declaration", content: strings.ReplaceAll(validSupplier, "hosted-supplier", "unregistered-resource"), path: "hosted.json", want: "duplicates resource declaration"},
 		{name: "invalid locality", content: `{"id":"hosted-supplier","family":"openai-compatible","locality":"regional","endpoint":"https://example.invalid","policy":{}}`, path: "hosted.json", want: "invalid supplier declaration"},
 		{name: "invalid policy JSON", content: `{"id":"hosted-supplier","family":"openai-compatible","locality":"remote","endpoint":"https://example.invalid","policy":not-json}`, path: "hosted.json", want: "invalid supplier declaration"},
 	}
@@ -516,7 +516,11 @@ func fixtureRoot(t *testing.T, roleCatalog string) string {
 		"ollama":{"type":"ollama","model_roles":["chat.default"]}
 	}}}`)
 	for _, provider := range []string{"ollama", "openrouter", "orcarouter", "abliteration", "pii-detector", "ollaya"} {
-		writeFixtureFile(t, root, filepath.Join("resources", provider, "model-policy.json"), `{"roles":{"chat.default":{}}}`)
+		policy := `{"roles":{"chat.default":{}}}`
+		if provider == "openrouter" {
+			policy = `{"roles":{"chat.default":{}},"provider":{"id":"openrouter","terms":{"plan_rules":[{"plan":"standard","clause":"Terms §7","reason":"Standard resale prohibited.","use_classes":{"in_app":"denied"},"conditions":["separate agreement required"],"source_anchors":[{"supplier_id":"openrouter","claim_ref":"standard","url":"https://openrouter.ai/terms","anchor":"Terms §7","document_date":"2026-08-31","observed_at":"2026-11-23","retrieval_status":"read_public_page","supports":"Standard resale prohibited.","does_not_establish":"enterprise rights remain unknown"}]}],"evidence":{"url":"https://openrouter.ai/terms","document_date":"2026-08-31","read_at":"2026-11-23"}},"hosted_routes":[]},"models":{"fixture-openrouter-model":{"caveats":["This model's upstream terms have not been evaluated."],"provenance":{"terms":{"source":"https://openrouter.ai/terms; upstream model terms unreviewed","observed_at":"2026-11-23","source_anchors":[{"supplier_id":"openrouter","model_id":"fixture-openrouter-model","url":"https://openrouter.ai/terms","anchor":"Terms §§5.1–5.2","document_date":"2026-08-31","observed_at":"2026-11-23","retrieval_status":"read_public_page","supports":"Model-specific terms apply.","does_not_establish":"model rights remain unknown"}]},"identity":{"source":"https://example.invalid/models/fixture-openrouter-model; exact fixture-openrouter-model ID","observed_at":"2026-11-23"}}}}}`
+		}
+		writeFixtureFile(t, root, filepath.Join("resources", provider, "model-policy.json"), policy)
 	}
 	for _, provider := range []string{"ollama", "openrouter", "orcarouter", "abliteration"} {
 		writeFixtureFile(t, root, filepath.Join("resources", provider, "resource.json"), `{"endpoint":"https://example.invalid"}`)

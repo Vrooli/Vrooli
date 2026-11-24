@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"sync"
 	"time"
 
 	"ai-gateway/internal/providers"
@@ -21,9 +22,22 @@ import (
 // to: schema gate, provider walk, local validation and repair included.
 type TypedRunner func(context.Context, ProviderRequest) *inferencev1.RunResponse
 
-// DecisionRepository walks a decision role's candidates.
+// DecisionRepository walks a decision role's candidates for a batch of states.
 type DecisionRepository interface {
-	Decide(context.Context, DecisionRequest, TypedRunner) *inferencev1.DecideResponse
+	DecideBatch(context.Context, []DecisionItem, TypedRunner) []*inferencev1.DecideResponse
+}
+
+var (
+	_ DecisionRepository = (*ResourceRepository)(nil)
+	_ DecisionRepository = UnavailableRepository{}
+)
+
+// DecisionItem is one state of a decision batch. Every item of one batch shares
+// the role, questions, profile, privacy and pin; only the state differs. Ctx is
+// the context the item's route event is traced in.
+type DecisionItem struct {
+	Ctx     context.Context
+	Request DecisionRequest
 }
 
 // candidateReasons are the stable walk codes a provider failure maps onto; any
@@ -44,30 +58,206 @@ const (
 	reasonNoEligibleRoute   = "no_eligible_route"
 )
 
-// Decide walks the role's candidates in catalog order and returns the first
-// complete, validated answer set. Every candidate gets a row: the ones that
-// could not serve here (credential absent, model not pulled, locality the
-// profile forbids) are skipped and say why; nothing about an absent hosted key
-// is an error.
+// Decide answers one request: a batch of one, so a single decision and a batch
+// walk the same path.
 func (r *ResourceRepository) Decide(ctx context.Context, request DecisionRequest, classify TypedRunner) *inferencev1.DecideResponse {
-	response := &inferencev1.DecideResponse{Usage: &inferencev1.Usage{}}
-	definition, ok := r.catalog.Roles[strings.TrimSpace(request.Role)]
+	return r.DecideBatch(ctx, []DecisionItem{{Ctx: ctx, Request: request}}, classify)[0]
+}
+
+// DecideBatch walks the role's candidates in catalog order for every state and
+// returns, per state, the first complete, validated answer set. Every
+// candidate gets a row on every state: the ones that could not serve here
+// (credential absent, model not pulled, locality the profile forbids) are
+// skipped and say why; nothing about an absent hosted key is an error.
+//
+// A candidate is dispatched once for all the states still unanswered when the
+// walk reaches it, so a batch of N states costs one resource command per
+// candidate tried, not N. A state the candidate could not answer falls through
+// to the next candidate on its own.
+func (r *ResourceRepository) DecideBatch(ctx context.Context, items []DecisionItem, classify TypedRunner) []*inferencev1.DecideResponse {
+	responses := make([]*inferencev1.DecideResponse, len(items))
+	for index := range responses {
+		responses[index] = &inferencev1.DecideResponse{Usage: &inferencev1.Usage{}}
+	}
+	if len(items) == 0 {
+		return responses
+	}
+	refuseAll := func(code inferencev1.InferenceErrorCode, message, construct string) []*inferencev1.DecideResponse {
+		for index := range responses {
+			responses[index] = decideError(responses[index], code, message, construct)
+		}
+		return responses
+	}
+	template := items[0].Request
+	definition, ok := r.catalog.Roles[strings.TrimSpace(template.Role)]
 	if !ok {
-		return decideError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNAVAILABLE, fmt.Sprintf("inference role %q is not declared", request.Role), "role")
+		return refuseAll(inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNAVAILABLE, fmt.Sprintf("inference role %q is not declared", template.Role), "role")
 	}
 	if !definition.IsDecision() {
-		return decideError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, fmt.Sprintf("inference role %q is a typed-value role; use Run", request.Role), "role")
+		return refuseAll(inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, fmt.Sprintf("inference role %q is a typed-value role; use Run", template.Role), "role")
 	}
-	candidates, err := walkCandidates(definition, request, r.adapters)
+	candidates, err := walkCandidates(definition, template, r.adapters)
 	if err != nil {
-		return decideError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, err.Error(), constructPinnedRole)
+		return refuseAll(inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, err.Error(), constructPinnedRole)
 	}
-	body, err := systemOneBody(request)
+	walk := make([]int, 0, len(items))
+	for index, item := range items {
+		if _, err := systemOneBody(item.Request); err != nil {
+			responses[index] = decideError(responses[index], inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, err.Error(), "questions")
+			continue
+		}
+		walk = append(walk, index)
+	}
+	batch := decisionBatch{items: items, responses: responses, walk: walk}
+	for _, candidate := range candidates {
+		r.decideCandidate(ctx, definition, template, candidate, classify, &batch)
+	}
+	for _, index := range walk {
+		responses[index] = finishDecision(items[index].Request, responses[index])
+	}
+	return responses
+}
+
+// decisionBatch is the walk's state: the items, their responses, and which
+// items are walking (an item refused before the walk never gets rows).
+type decisionBatch struct {
+	items     []DecisionItem
+	responses []*inferencev1.DecideResponse
+	walk      []int
+}
+
+// open adds candidate's row to every walking item and returns the items still
+// unanswered with their rows. An answered item records the candidate as not
+// attempted.
+func (b *decisionBatch) open(candidate rolecatalog.Candidate) ([]int, []*inferencev1.DecisionCandidate) {
+	var pending []int
+	var rows []*inferencev1.DecisionCandidate
+	for _, index := range b.walk {
+		row := &inferencev1.DecisionCandidate{Provider: candidate.Provider, ResourceRole: candidate.ResourceRole}
+		response := b.responses[index]
+		response.Candidates = append(response.Candidates, row)
+		if response.Method != inferencev1.DecisionMethod_DECISION_METHOD_UNSPECIFIED {
+			row.Status = inferencev1.DecisionCandidateStatus_DECISION_CANDIDATE_STATUS_NOT_ATTEMPTED
+			continue
+		}
+		pending, rows = append(pending, index), append(rows, row)
+	}
+	return pending, rows
+}
+
+func skipAll(rows []*inferencev1.DecisionCandidate, reason, detail string) {
+	for _, row := range rows {
+		skip(row, reason, detail)
+	}
+}
+
+func (r *ResourceRepository) decideCandidate(ctx context.Context, definition rolecatalog.InferenceRole, template DecisionRequest, candidate rolecatalog.Candidate, classify TypedRunner, batch *decisionBatch) {
+	pending, rows := batch.open(candidate)
+	if len(pending) == 0 {
+		return
+	}
+	if strings.HasPrefix(strings.TrimSpace(template.Role), "browser.") && !browserCandidateMatchesSource(providers.Source(ctx), candidate.Provider, "") {
+		skipAll(rows, reasonSourceNotSelected, "candidate is outside the caller-selected AI source")
+		return
+	}
+	if candidate.Provider == rolecatalog.ProviderGateway {
+		// The enum fallback is a typed run per state through the gateway's own
+		// walk; it has no batch form, so states run with the batch's bound.
+		slots := make(chan struct{}, MaxBatchConcurrency)
+		var wait sync.WaitGroup
+		for position, index := range pending {
+			wait.Add(1)
+			slots <- struct{}{}
+			go func(row *inferencev1.DecisionCandidate, item DecisionItem, response *inferencev1.DecideResponse) {
+				defer wait.Done()
+				defer func() { <-slots }()
+				r.decideByEnum(item.Ctx, item.Request, candidate, classify, row, response)
+			}(rows[position], batch.items[index], batch.responses[index])
+		}
+		wait.Wait()
+		return
+	}
+	r.decideByModel(ctx, definition, template, candidate, pending, rows, batch)
+}
+
+// decideByModel qualifies a decision-model candidate once for the batch (the
+// checks depend on the role and question set, never on a state), then asks it
+// about every pending state in one resource command.
+func (r *ResourceRepository) decideByModel(ctx context.Context, definition rolecatalog.InferenceRole, template DecisionRequest, candidate rolecatalog.Candidate, pending []int, rows []*inferencev1.DecisionCandidate, batch *decisionBatch) {
+	adapter, ok := r.adapters[strings.ToLower(strings.TrimSpace(candidate.Provider))]
+	if !ok {
+		skipAll(rows, providers.CodeUnconfigured, "adapter not configured")
+		return
+	}
+	resolved, err := adapter.ResolveRole(ctx, candidate.ResourceRole)
 	if err != nil {
-		return decideError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, err.Error(), "questions")
+		skipAll(rows, candidateReason(err), err.Error())
+		return
 	}
-	r.decideCandidates(ctx, definition, request, candidates, classify, body, response)
-	return finishDecision(request, response)
+	for _, row := range rows {
+		row.Locality = resolved.Locality
+	}
+	if strings.HasPrefix(strings.TrimSpace(template.Role), "browser.") && !browserCandidateMatchesSource(providers.Source(ctx), candidate.Provider, resolved.Locality) {
+		skipAll(rows, reasonSourceNotSelected, "resolved candidate is outside the caller-selected AI source")
+		return
+	}
+	providerRequest := ProviderRequest{Profile: template.Profile, PrivacyClass: template.PrivacyClass}
+	if !r.admitsRequest(ctx, providerRequest, candidate.Provider, resolved.Locality) {
+		skipAll(rows, reasonLocalityForbidden, fmt.Sprintf("profile %s forbids a %s candidate", template.Profile, resolved.Locality))
+		return
+	}
+	// The model's declared bounds are data the resource owns; a request outside
+	// them is skipped here instead of being dispatched to be refused.
+	if violation := limitsViolation(resolved.Limits, template.Questions); violation != "" {
+		skipAll(rows, providers.CodeLimitsExceeded, violation)
+		return
+	}
+	executionRole, expectedArtifactDigest := resolved, ""
+	if localModelRequiresRights(candidate.Provider, resolved) {
+		executionRole, expectedArtifactDigest, _, err = r.authorizeLocalCandidate(ctx, adapter, candidate.ResourceRole, resolved)
+		if err != nil {
+			skipAll(rows, providers.CodeUnconfigured, "local model rights or exact runtime identity could not be qualified: "+err.Error())
+			return
+		}
+	}
+	states := make([]json.RawMessage, len(pending))
+	for position, index := range pending {
+		states[position] = systemOneState(batch.items[index].Request)
+	}
+	started := time.Now()
+	results, err := adapter.ExecuteDecisionBatch(ctx, providers.ExecutionRequest{
+		Kind:                         sharedv1.RequestKind_REQUEST_KIND_DECISION,
+		Role:                         candidate.ResourceRole,
+		ExpectedModel:                executionRole.Model,
+		ExpectedArtifactDigest:       expectedArtifactDigest,
+		ExpectedRightsDecisionSHA256: executionRole.RightsDecisionSHA256,
+		ExpectedRightsEvaluatedAt:    executionRole.RightsEvaluatedAt,
+		ExpectedRightsReceiptSHA256:  executionRole.RightsReceiptSHA256,
+		ExpectedPolicyFileSHA256:     executionRole.PolicyFileSHA256,
+		Profile:                      template.Profile,
+		Timeout:                      definition.Timeout(),
+	}, systemOneQuestions(template.Questions), states)
+	took := time.Since(started)
+	// Each state's route event carries its share of the one command and, when
+	// the resource reported it, the state's own round trip to the model.
+	share := took / time.Duration(len(pending))
+	for position, index := range pending {
+		item, row := batch.items[index], rows[position]
+		if err != nil {
+			traceAttempt(item.Ctx, adapter.Provider, candidate.ResourceRole, resolved, share, providers.ProviderTiming{})
+			row.LatencyMs = took.Milliseconds()
+			fail(row, candidateReason(err), err.Error())
+			continue
+		}
+		result := results[position]
+		traceAttempt(item.Ctx, adapter.Provider, candidate.ResourceRole, resolved, share, providers.ProviderTiming{RuntimeNS: result.LatencyMS * int64(time.Millisecond)})
+		row.LatencyMs = result.LatencyMS
+		if result.Err != nil {
+			fail(row, candidateReason(result.Err), result.Err.Error())
+			continue
+		}
+		r.acceptDecisionOutput(item.Request, candidate, resolved, row, batch.responses[index], result.OutputText)
+	}
 }
 
 // walkCandidates is the candidates a request may be answered by. An ordinary
@@ -90,25 +280,6 @@ func walkCandidates(definition rolecatalog.InferenceRole, request DecisionReques
 	return nil, fmt.Errorf("pin_resource_role %q is not a candidate of role %q (declared: %s)", pin, request.Role, strings.Join(declared, ", "))
 }
 
-func (r *ResourceRepository) decideCandidates(ctx context.Context, definition rolecatalog.InferenceRole, request DecisionRequest, candidates []rolecatalog.Candidate, classify TypedRunner, body string, response *inferencev1.DecideResponse) {
-	for _, candidate := range candidates {
-		row := &inferencev1.DecisionCandidate{Provider: candidate.Provider, ResourceRole: candidate.ResourceRole}
-		response.Candidates = append(response.Candidates, row)
-		if strings.HasPrefix(strings.TrimSpace(request.Role), "browser.") && !browserCandidateMatchesSource(providers.Source(ctx), candidate.Provider, "") {
-			skip(row, reasonSourceNotSelected, "candidate is outside the caller-selected AI source")
-			continue
-		}
-		switch {
-		case response.Method != inferencev1.DecisionMethod_DECISION_METHOD_UNSPECIFIED:
-			row.Status = inferencev1.DecisionCandidateStatus_DECISION_CANDIDATE_STATUS_NOT_ATTEMPTED
-		case candidate.Provider == rolecatalog.ProviderGateway:
-			r.decideByEnum(ctx, request, candidate, classify, row, response)
-		default:
-			r.decideByModel(ctx, definition, request, candidate, body, row, response)
-		}
-	}
-}
-
 func finishDecision(request DecisionRequest, response *inferencev1.DecideResponse) *inferencev1.DecideResponse {
 	if response.Method != inferencev1.DecisionMethod_DECISION_METHOD_UNSPECIFIED {
 		finalizeUsage(response.Usage)
@@ -127,63 +298,6 @@ func finishDecision(request DecisionRequest, response *inferencev1.DecideRespons
 		message = "no eligible route is configured for this browser source and profile; select an available source or ask the account owner to enable or upgrade an eligible route. No model inference was dispatched and funding was not changed"
 	}
 	return decideError(response, code, message, construct)
-}
-
-func (r *ResourceRepository) decideByModel(ctx context.Context, definition rolecatalog.InferenceRole, request DecisionRequest, candidate rolecatalog.Candidate, body string, row *inferencev1.DecisionCandidate, response *inferencev1.DecideResponse) {
-	adapter, ok := r.adapters[strings.ToLower(strings.TrimSpace(candidate.Provider))]
-	if !ok {
-		skip(row, providers.CodeUnconfigured, "adapter not configured")
-		return
-	}
-	resolved, err := adapter.ResolveRole(ctx, candidate.ResourceRole)
-	if err != nil {
-		skip(row, candidateReason(err), err.Error())
-		return
-	}
-	row.Locality = resolved.Locality
-	if strings.HasPrefix(strings.TrimSpace(request.Role), "browser.") && !browserCandidateMatchesSource(providers.Source(ctx), candidate.Provider, resolved.Locality) {
-		skip(row, reasonSourceNotSelected, "resolved candidate is outside the caller-selected AI source")
-		return
-	}
-	providerRequest := ProviderRequest{Profile: request.Profile, PrivacyClass: request.PrivacyClass}
-	if !r.admitsRequest(ctx, providerRequest, candidate.Provider, resolved.Locality) {
-		skip(row, reasonLocalityForbidden, fmt.Sprintf("profile %s forbids a %s candidate", request.Profile, resolved.Locality))
-		return
-	}
-	// The model's declared bounds are data the resource owns; a request outside
-	// them is skipped here instead of being dispatched to be refused.
-	if violation := limitsViolation(resolved.Limits, request.Questions); violation != "" {
-		skip(row, providers.CodeLimitsExceeded, violation)
-		return
-	}
-	executionRole, expectedArtifactDigest := resolved, ""
-	if localModelRequiresRights(candidate.Provider, resolved) {
-		executionRole, expectedArtifactDigest, _, err = r.authorizeLocalCandidate(ctx, adapter, candidate.ResourceRole, resolved)
-		if err != nil {
-			skip(row, providers.CodeUnconfigured, "local model rights or exact runtime identity could not be qualified: "+err.Error())
-			return
-		}
-	}
-	started := time.Now()
-	execution, err := executeTraced(ctx, adapter, resolved, providers.ExecutionRequest{
-		Kind:                         sharedv1.RequestKind_REQUEST_KIND_DECISION,
-		Role:                         candidate.ResourceRole,
-		ExpectedModel:                executionRole.Model,
-		ExpectedArtifactDigest:       expectedArtifactDigest,
-		ExpectedRightsDecisionSHA256: executionRole.RightsDecisionSHA256,
-		ExpectedRightsEvaluatedAt:    executionRole.RightsEvaluatedAt,
-		ExpectedRightsReceiptSHA256:  executionRole.RightsReceiptSHA256,
-		ExpectedPolicyFileSHA256:     executionRole.PolicyFileSHA256,
-		Profile:                      request.Profile,
-		InputText:                    body,
-		Timeout:                      definition.Timeout(),
-	})
-	row.LatencyMs = time.Since(started).Milliseconds()
-	if err != nil {
-		fail(row, candidateReason(err), err.Error())
-		return
-	}
-	r.acceptDecisionOutput(request, candidate, resolved, row, response, execution.OutputText)
 }
 
 func (r *ResourceRepository) acceptDecisionOutput(request DecisionRequest, candidate rolecatalog.Candidate, resolved providers.ResolvedRole, row *inferencev1.DecisionCandidate, response *inferencev1.DecideResponse, outputText string) {

@@ -27,12 +27,48 @@
               "Obtain written wholesale rates and service/capacity commitments if required; public PAYG or Token Plan rates are not reseller rates, customer prices, or Vrooli approvals."
             ],
             "clause": "AI Reseller Program and White Label pages; Terms §§Pay-as-you-go credits and payment, Acceptable use, Model providers, Availability; Token Plan Terms §Fair use of a plan",
-            "reason": "Inferray publicly describes own-brand resale, custom packages, and negotiated wholesale rates; its FAQ says the reseller agreement defines what may be sold and at what rates. This is a conditional program candidate, not an activated account, agreement, model entitlement, or approved price."
+            "reason": "Inferray publicly describes own-brand resale, custom packages, and negotiated wholesale rates; its FAQ says the reseller agreement defines what may be sold and at what rates. This is a conditional program candidate, not an activated account, agreement, model entitlement, or approved price.",
+            "source_anchors": [
+              {
+                "url": "https://inferray.com/ai-reseller",
+                "anchor": "AI Reseller Program and White Label pages; Terms §§Pay-as-you-go credits and payment, Acceptable use, Model providers, Availability; Token Plan Terms §Fair use of a plan",
+                "document_date": "not stated on the reviewed official terms/catalog pages",
+                "observed_at": "2026-11-22",
+                "retrieval_status": "read_public_page",
+                "supports": "Inferray publicly describes own-brand resale, custom packages, and negotiated wholesale rates; its FAQ says the reseller agreement defines what may be sold and at what rates. This is a conditional program candidate, not an activated account, agreement, model entitlement, or approved price.",
+                "does_not_establish": "This source does not establish executed supplier approval or agreement, the exact Vrooli account entitlement, actual upstream serving provider/model rights, a live route, customer trust terms, or a human-approved price.",
+                "claim_ref": "written_ai_reseller_program_agreement_only",
+                "supplier_id": "inferray"
+              },
+              {
+                "url": "https://inferray.com/terms",
+                "anchor": "Terms: Acceptable Use, Model Providers, Availability",
+                "document_date": "2026-11-01",
+                "observed_at": "2026-11-22",
+                "retrieval_status": "read_public_page",
+                "supports": "Terms state third-party model providers have their own terms, forbid reseller access that obscures responsibility, and reserve service/model availability changes.",
+                "does_not_establish": "This public source does not establish an executed agreement for Vrooli, account entitlement, exact model-level upstream rights, or an approved route.",
+                "claim_ref": "written_ai_reseller_program_agreement_only",
+                "supplier_id": "inferray"
+              },
+              {
+                "url": "https://inferray.com/terms/token-plans",
+                "anchor": "Token Plan Terms: Fair use of a plan",
+                "document_date": "no date stated on reviewed page",
+                "observed_at": "2026-11-22",
+                "retrieval_status": "read_public_page",
+                "supports": "Token Plan Terms state fair-use limits for the plan; this does not establish resale rights.",
+                "does_not_establish": "This public source does not establish an executed agreement for Vrooli, account entitlement, exact model-level upstream rights, or an approved route.",
+                "claim_ref": "written_ai_reseller_program_agreement_only",
+                "supplier_id": "inferray"
+              }
+            ]
           }
         ],
         "evidence": {
           "url": "https://inferray.com/ai-reseller",
-          "read_at": "2026-11-22"
+          "read_at": "2026-11-22",
+          "document_date": "not stated on the reviewed official terms/catalog pages"
         },
         "review": {
           "status": "proposed"

@@ -122,3 +122,47 @@ func TestAgentManagerModelEvalExecutorReturnsRefusalReceiptWithoutSensitiveBody(
 		t.Fatalf("refusal result receipt=%+v err=%v", receipt, err)
 	}
 }
+
+func TestAgentManagerModelEvalReceiptRejectsTamperedBodyAndCaseSet(t *testing.T) {
+	cases := []agentManagerModelEvalCaseReceipt{{
+		SourceEventID: "11111111-1111-1111-1111-111111111111", SourceRunID: "22222222-2222-2222-2222-222222222222",
+		SourceSequence: 3, EventTimestamp: "2026-11-15T03:00:00Z", RequestID: "request",
+		TaskRole: "task", PolicyRole: "chat.default", Consumer: "agent-manager",
+		EffectiveModel: "installed", Locality: "local", RightsResult: "allowed",
+		CapacityClaimID: "claim", RequiredBytes: agentManagerMinClaimBytes, GrantedBytes: agentManagerMinClaimBytes,
+		Status: "succeeded",
+	}}
+	caseSetDigest, err := ownerCaseSetDigest(cases)
+	if err != nil {
+		t.Fatal(err)
+	}
+	valid := agentManagerModelEvalReceipt{
+		DecisionID: agentManagerModelEvalID, DecisionScope: agentManagerModelEvalScope,
+		CaseSetSHA256: caseSetDigest, Denominator: 1, Succeeded: 1, EffectiveModel: "installed",
+		DiskFreeBefore: agentManagerMinDiskBytes, DiskFreeAfter: agentManagerMinDiskBytes,
+		ArtifactHashBefore: strings.Repeat("a", 64), ArtifactHashAfter: strings.Repeat("b", 64), Cases: cases,
+	}
+	encoded := ownerReceiptResponse(t, "succeeded", valid)
+	var response agentManagerModelEvalResponse
+	if err := json.Unmarshal(encoded, &response); err != nil || response.Receipt == nil {
+		t.Fatalf("decode fixture receipt: receipt=%v err=%v", response.Receipt, err)
+	}
+	if err := validateAgentManagerModelEvalReceipt(*response.Receipt, response.State); err != nil {
+		t.Fatalf("valid owner receipt rejected: %v", err)
+	}
+
+	mutations := map[string]func(*agentManagerModelEvalReceipt){
+		"body length": func(r *agentManagerModelEvalReceipt) { r.ReceiptBytes++ },
+		"body digest": func(r *agentManagerModelEvalReceipt) { r.ReceiptSHA256 = strings.Repeat("0", 64) },
+		"case set":    func(r *agentManagerModelEvalReceipt) { r.CaseSetSHA256 = strings.Repeat("0", 64) },
+	}
+	for name, mutate := range mutations {
+		t.Run(name, func(t *testing.T) {
+			receipt := *response.Receipt
+			mutate(&receipt)
+			if err := validateAgentManagerModelEvalReceipt(receipt, response.State); err == nil {
+				t.Fatal("tampered owner receipt was accepted")
+			}
+		})
+	}
+}

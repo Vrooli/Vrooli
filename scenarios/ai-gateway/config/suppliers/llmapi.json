@@ -26,7 +26,31 @@
               "Provider agreement, supplier rule, model eligibility, trust and Vrooli price each require separate human review; keep all routes denied until then."
             ],
             "clause": "White-label offering; Terms §7(i), §§5–6, 12–13",
-            "reason": "Official white-label product expressly offers partner resale under own brand/domain/prices and model/customer controls, but standard Terms require prior written authorization. Candidate only for that documented custom agreement path."
+            "reason": "Official white-label product expressly offers partner resale under own brand/domain/prices and model/customer controls, but standard Terms require prior written authorization. Candidate only for that documented custom agreement path.",
+            "source_anchors": [
+              {
+                "url": "https://llmapi.ai/white-label/",
+                "anchor": "White-label offering; Terms §7(i), §§5–6, 12–13",
+                "document_date": "updated 2026-10-19; Terms date mismatch noted",
+                "observed_at": "2026-11-22",
+                "retrieval_status": "read_public_page",
+                "supports": "Official white-label product expressly offers partner resale under own brand/domain/prices and model/customer controls, but standard Terms require prior written authorization. Candidate only for that documented custom agreement path.",
+                "does_not_establish": "This source does not establish executed supplier approval or agreement, the exact Vrooli account entitlement, actual upstream serving provider/model rights, a live route, customer trust terms, or a human-approved price.",
+                "claim_ref": "white_label_agreement_with_prior_written_authorization_only",
+                "supplier_id": "llmapi"
+              },
+              {
+                "url": "https://llmapi.ai/terms/",
+                "anchor": "Terms §§5–7, 12–13; page date conflict: header Aug 4 2026, body June 12 2026",
+                "document_date": "2026-08-04 vs 2026-06-12 (conflict)",
+                "observed_at": "2026-11-22",
+                "retrieval_status": "read_public_page",
+                "supports": "Terms §7(i) prohibits reselling/redistributing/sublicensing service access absent prior written authorization; page date representations conflict.",
+                "does_not_establish": "This public source does not establish an executed agreement for Vrooli, account entitlement, exact model-level upstream rights, or an approved route.",
+                "claim_ref": "white_label_agreement_with_prior_written_authorization_only",
+                "supplier_id": "llmapi"
+              }
+            ]
           }
         ],
         "evidence": {

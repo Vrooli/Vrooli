@@ -52,7 +52,7 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 - `Service.execute` in `api/internal/control/execution.go` is still one function of about 940 lines dispatching 35 step kinds over shared local state. It is the largest remaining implicit state machine; extract a step runner with one method per kind before adding step kinds.
 - `api/internal/native/host/backend.go` (1.6k lines), `api/handlers/control/module.go` (1.1k) and `api/strategy/contract.go` (1k) were not split by concern.
-- Test Genie `api` phase reports `api_health.preflight_missing_or_late` at `api/main.go:76` (API preflight runs after startup work); not addressed.
+- **Resolved 2026-11-24:** stale-source preflight now runs as the first statement in `main`, before flag/config validation, database setup, or listener startup. `TestMainRunsPreflightBeforeCompanionConfigValidation` protects the direct-call ordering and early return; `GOWORK=off go test . -count=1` passes. Test Genie API phase `20261124-022156-2bc46dd6` passes with this source, and no longer reports `api_health.preflight_missing_or_late`.
 - Live devices on 2026-11-09: the moto phone was locked (screenshot and open report it with the unlock command), the Galaxy A03s was not reachable, and the TV's `Allow USB debugging` prompt had to be accepted once before its ADB transport became usable.
 - Screenshot on the TV takes about 6 s in `screencap` itself; cold first capture is about 23 s, warm about 15 s. `device state` on the TV is about 9 s because the Cast and Remote transports are slow to answer.
 - Most of the 929 docs-phase warnings are unmarked counts in `docs/internal/goal/device-control-maturity/` logs; they are historical records, not live claims.

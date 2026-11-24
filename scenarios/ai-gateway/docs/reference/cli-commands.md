@@ -110,6 +110,7 @@ current product-owned command surface is:
 | `routing preview --role <role>` | `RoutingService.PreviewRoute` | Explain selected/rejected candidates without inference side effects. |
 | `routing execute --role <role> --input <text>` | `RoutingService.ExecuteRoute` | Execute through the selected resource command and persist redacted evidence. |
 | `routing evidence-list [--scenario <scenario>]` | `RoutingService.ListRouteEvidence` | List recent metadata-only route evidence. |
+| `routing evidence-profile [--scenario <scenario>] [--limit 100] [--input <receipt.json>]` | `RoutingService.ListRouteEvidence` (unless `--input` is set) | Summarize end-to-end and observed route-stage latency by task/resource role, scenario, caller, model, and provider from one bounded metadata snapshot. |
 | `routing evidence-show <event-id>` | `RoutingService.GetRouteEvidence` | Inspect one route evidence event. |
 | `conformance scan --scenario <scenario>` | `ConformanceService.ScanScenario` | Run AI Gateway's native scanner and migration recommendations. |
 | `validation validate --scenario <scenario>` | `ScenarioValidationService.ValidateScenario` | Exercise the shared Test Genie provider contract. |
@@ -119,6 +120,19 @@ current product-owned command surface is:
 | `inference run-batch --role <role> --schema <path> --items <path>` | `InferenceService.RunBatch` | Run an ordered batch against one prompt and schema. |
 | `inference decide --questions <path> (--state <text> \| --state-json <path>) [--role decide.fast] [--pin-resource-role <role>]` | `InferenceService.Decide` | Answer typed choice/score/noul questions with a decision model; prints each distribution and the candidate walk. See [decisions.md](decisions.md). |
 | `inference decide-batch --questions <path> --items <path> [--role decide.fast] [--pin-resource-role <role>]` | `InferenceService.DecideBatch` | Answer one question set about up to 256 states in order. `--pin-resource-role` answers with exactly one declared candidate of the role or refuses with its typed reason; bake-offs use it on `decide.candidates`. |
+
+For a reproducible route profile, save one raw metadata response and derive the
+summary from that same receipt:
+
+```sh
+ai-gateway routing evidence-list --limit 100 --json > route-events.json
+ai-gateway routing evidence-profile --input route-events.json --json
+```
+
+`evidence-profile --input` reads the retained `ListRouteEvidenceResponse`
+locally, accepts at most 2 MiB and 100 events, and does not call the gateway.
+The profile preserves missing stage timings as unavailable. Raw API reads still
+return only the latest bounded window; keep the receipt used for any comparison.
 
 Common gateway request flags on `gateway validate`, `routing preview`,
 and `routing execute`:

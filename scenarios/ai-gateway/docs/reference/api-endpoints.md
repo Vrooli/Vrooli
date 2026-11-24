@@ -194,6 +194,7 @@ scenario.
 | **Request** | `ListRouteEvidenceRequest { limit: int32, scenario: string }` |
 | **Response** | `ListRouteEvidenceResponse { events: repeated RouteEvidence }` |
 | **CLI** | `ai-gateway routing evidence-list [--scenario <scenario>] [--limit 20]` |
+| **Profile** | `ai-gateway routing evidence-profile [--scenario <scenario>] [--limit 100] [--input <receipt.json>]` — bounded per-caller latency summary; `--input` replays one retained response locally. |
 
 #### `POST /vrooli.ai_gateway.v1.routing.RoutingService/GetRouteEvidence`
 

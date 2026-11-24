@@ -28,12 +28,37 @@
               "If the model requires payment, do not rely on projections or sample markups as supplier quote or Vrooli customer price; all trust, price and activation remain separate human decisions."
             ],
             "clause": "Official APInexGate Reseller Storefront and Reseller Gateway Guide; APInex Terms of Service page (substantive content unreadable in this pass)",
-            "reason": "Official APInex materials explicitly describe the upstream-key reseller use, customer credentials, wallets, retail markups and subscriptions. Because current service terms could not be read and model/operator rights remain unresolved, this is a denied conditional candidate only, not an approved supplier rule or serving entitlement."
+            "reason": "Official APInex materials explicitly describe the upstream-key reseller use, customer credentials, wallets, retail markups and subscriptions. Because current service terms could not be read and model/operator rights remain unresolved, this is a denied conditional candidate only, not an approved supplier rule or serving entitlement.",
+            "source_anchors": [
+              {
+                "url": "https://apinex.bond/developers/resell",
+                "anchor": "Official APInexGate Reseller Storefront and Reseller Gateway Guide; APInex Terms of Service page (substantive content unreadable in this pass)",
+                "document_date": "current substantive terms date not readable in public review",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "content_unreadable",
+                "supports": "Official APInex materials explicitly describe the upstream-key reseller use, customer credentials, wallets, retail markups and subscriptions. Because current service terms could not be read and model/operator rights remain unresolved, this is a denied conditional candidate only, not an approved supplier rule or serving entitlement.",
+                "does_not_establish": "This source does not establish executed supplier approval or agreement, the exact Vrooli account entitlement, actual upstream serving provider/model rights, a live route, customer trust terms, or a human-approved price.",
+                "claim_ref": "apinex_upstream_account_with_apinexgate_reseller_storefront",
+                "supplier_id": "apinex"
+              },
+              {
+                "url": "https://apinex.bond/legal/terms",
+                "anchor": "Terms page; substantive terms not readable in the reviewed response",
+                "document_date": "date not readable in public review",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "content_unreadable",
+                "supports": "The Terms URL was identified, but substantive terms were not readable in the current pass; this source provides no affirmative rights support.",
+                "does_not_establish": "This public source does not establish an executed agreement for Vrooli, account entitlement, exact model-level upstream rights, or an approved route.",
+                "claim_ref": "apinex_upstream_account_with_apinexgate_reseller_storefront",
+                "supplier_id": "apinex"
+              }
+            ]
           }
         ],
         "evidence": {
           "url": "https://apinex.bond/developers/resell",
-          "read_at": "2026-11-23"
+          "read_at": "2026-11-23",
+          "document_date": "current substantive terms date not readable in public review"
         },
         "review": {
           "status": "proposed"

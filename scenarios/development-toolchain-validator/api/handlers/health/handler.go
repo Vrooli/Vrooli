@@ -19,9 +19,17 @@ import (
 // are reported in the response envelope; Pinger backs the "database"
 // dependency check.
 type Deps struct {
-	Pinger  database.Pinger
-	Service string
-	Version string
+	Pinger        database.Pinger
+	Service       string
+	Version       string
+	AgentProfiles ProfileReadiness
+}
+
+// ProfileReadiness reports whether the required Agent Manager profile is
+// available. It is an optional functional check, so the API remains up while
+// exposing that skill validation is temporarily degraded.
+type ProfileReadiness interface {
+	ReadyStatus() (bool, string)
 }
 
 // NewHandler returns a handler that reports overall health, service
@@ -29,10 +37,16 @@ type Deps struct {
 // is registered as Critical: a failed ping flips the response to
 // status="unhealthy" with HTTP 503.
 func NewHandler(d Deps) http.HandlerFunc {
-	return apihealth.New(d.Service).
+	builder := apihealth.New(d.Service).
 		Version(d.Version).
 		Check(apihealth.Func("database", func(ctx context.Context) error {
 			return d.Pinger.PingContext(ctx)
-		}), apihealth.Critical).
-		Handler()
+		}), apihealth.Critical)
+	if d.AgentProfiles != nil {
+		builder.Functional(func(context.Context) apihealth.FunctionalStatus {
+			ready, reason := d.AgentProfiles.ReadyStatus()
+			return apihealth.FunctionalStatus{Healthy: ready, Reason: reason}
+		})
+	}
+	return builder.Handler()
 }

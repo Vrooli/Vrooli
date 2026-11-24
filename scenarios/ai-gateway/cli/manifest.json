@@ -731,7 +731,7 @@
         },
         {
           "name": "evidence-profile",
-          "description": "Summarize recent metadata-only route latency by task role, model, provider, and outcome",
+          "description": "Summarize metadata-only route latency by task/resource role, caller, model, provider, and outcome",
           "flags": [
             {
               "name": "scenario",
@@ -741,6 +741,10 @@
               "name": "limit",
               "description": "Maximum recent events to summarize (API maximum 100)",
               "default": "100"
+            },
+            {
+              "name": "input",
+              "description": "Optional retained ListRouteEvidence JSON receipt to summarize offline (maximum 100 events)"
             }
           ],
           "binding": {

@@ -20,11 +20,15 @@ func (*shadowDecisionRepository) Run(context.Context, ProviderRequest) (Provider
 	return ProviderResult{}, nil
 }
 
-func (r *shadowDecisionRepository) Decide(ctx context.Context, request DecisionRequest, _ TypedRunner) *inferencev1.DecideResponse {
-	r.decideCalls++
-	r.source = providers.Source(ctx)
-	r.request = request
-	return r.response
+func (r *shadowDecisionRepository) DecideBatch(ctx context.Context, items []DecisionItem, _ TypedRunner) []*inferencev1.DecideResponse {
+	responses := make([]*inferencev1.DecideResponse, len(items))
+	for index, item := range items {
+		r.decideCalls++
+		r.source = providers.Source(ctx)
+		r.request = item.Request
+		responses[index] = r.response
+	}
+	return responses
 }
 
 func TestEvaluateShadowDecisionKeepsGatewayCandidateSeparateFromTaskResult(t *testing.T) {

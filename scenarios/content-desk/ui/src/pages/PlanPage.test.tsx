@@ -111,7 +111,7 @@ describe("PlanPage", () => {
   });
 
   it("shows the current day intent and reuses its exact operation key on retry", async () => {
-    mocks.listPublicationIntents.mockResolvedValueOnce({ intents: [{ id: "intent-1", draftId: "d1", destination: "linkedin", desiredLocalDate: "2026-12-03", daypart: "", version: 3n }] });
+    mocks.listPublicationIntents.mockResolvedValueOnce({ intents: [{ id: "intent-1", draftId: "d1", destination: "linkedin", desiredLocalDate: "2026-12-03", daypart: "", sourceRevisionId: "rev-1", version: 3n }] });
     mocks.setPublicationIntent.mockRejectedValueOnce(new Error("temporary network error"));
     renderPlan();
     const editor = await screen.findByTestId("draft-intent-d1");
@@ -133,7 +133,7 @@ describe("PlanPage", () => {
     fireEvent.change(within(editor).getByLabelText(strings.pages.plan.desiredDate), { target: { value: "2026-12-03" } });
     fireEvent.change(within(editor).getByLabelText(strings.pages.plan.daypart), { target: { value: "afternoon" } });
     fireEvent.click(within(editor).getByRole("button", { name: strings.pages.plan.saveIntent }));
-    expect(await screen.findByRole("status")).toHaveTextContent(strings.pages.plan.intentSaved);
+    expect(await within(editor).findByText(strings.pages.plan.intentSaved)).toHaveAttribute("role", "status");
     expect(mocks.getDraftCurrentRevision).toHaveBeenCalledWith({ id: "d1" });
     expect(mocks.setPublicationIntent).toHaveBeenCalledWith(expect.objectContaining({
       draftId: "d1",
@@ -144,6 +144,26 @@ describe("PlanPage", () => {
       expectedBody: "A useful post",
       expectedIntentVersion: 0n,
     }));
+  });
+
+  it("marks a saved intention stale when its exact source revision no longer matches", async () => {
+    mocks.listPublicationIntents.mockResolvedValueOnce({ intents: [{ id: "intent-old", draftId: "d1", destination: "linkedin", desiredLocalDate: "2026-12-03", daypart: "morning", sourceRevisionId: "rev-before-edit", version: 1n }] });
+    renderPlan();
+    expect(await screen.findByTestId("intent-basis-d1")).toHaveTextContent(strings.pages.plan.intentStale);
+  });
+
+  it("marks a saved intention stale when wording differs even if the revision identifier matches", async () => {
+    mocks.listPublicationIntents.mockResolvedValueOnce({ intents: [{ id: "intent-old", draftId: "d1", destination: "linkedin", desiredLocalDate: "2026-12-03", daypart: "morning", sourceRevisionId: "rev-1", version: 1n }] });
+    mocks.getDraftCurrentRevision.mockResolvedValueOnce({ currentRevision: { body: "Changed wording", revisionId: "rev-1" } });
+    renderPlan();
+    expect(await screen.findByTestId("intent-basis-d1")).toHaveTextContent(strings.pages.plan.intentStale);
+  });
+
+  it("does not claim an intention is current when its basis read fails", async () => {
+    mocks.listPublicationIntents.mockResolvedValueOnce({ intents: [{ id: "intent-old", draftId: "d1", destination: "linkedin", desiredLocalDate: "2026-12-03", daypart: "morning", sourceRevisionId: "rev-1", version: 1n }] });
+    mocks.getDraftCurrentRevision.mockRejectedValueOnce(new Error("revision service offline"));
+    renderPlan();
+    expect(await screen.findByTestId("intent-basis-d1")).toHaveTextContent(strings.pages.plan.intentUnavailable);
   });
 
   it("does not write an intention when the draft body changed since the plan loaded", async () => {

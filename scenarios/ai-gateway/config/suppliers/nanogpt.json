@@ -26,7 +26,20 @@
               "Each model's provider terms and license remain separate gates."
             ],
             "clause": "Terms of Service, Using Our Services and Commercial Integrations and Downstream Users",
-            "reason": "Public terms explicitly permit resale as part of the customer's own service, subject to downstream obligations and model-provider restrictions. Proposed only; not approved."
+            "reason": "Public terms explicitly permit resale as part of the customer's own service, subject to downstream obligations and model-provider restrictions. Proposed only; not approved.",
+            "source_anchors": [
+              {
+                "url": "https://nano-gpt.com/legal/terms-of-service",
+                "anchor": "Terms of Service, Using Our Services and Commercial Integrations and Downstream Users",
+                "document_date": "2026-11-20",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "Public terms explicitly permit resale as part of the customer's own service, subject to downstream obligations and model-provider restrictions. Proposed only; not approved.",
+                "does_not_establish": "This source does not establish executed supplier approval or agreement, the exact Vrooli account entitlement, actual upstream serving provider/model rights, a live route, customer trust terms, or a human-approved price.",
+                "claim_ref": "pay_as_you_go",
+                "supplier_id": "nanogpt"
+              }
+            ]
           }
         ],
         "evidence": {
@@ -86,7 +99,20 @@
             "confidence": "medium",
             "source": "https://nano-gpt.com/legal/terms-of-service; terms last updated 2026-11-20; resale allowed subject to Model Provider terms and downstream obligations",
             "observed_at": "2026-11-23",
-            "sample_count": 0
+            "sample_count": 0,
+            "source_anchors": [
+              {
+                "supplier_id": "nanogpt",
+                "model_id": "z-ai/glm-5.3",
+                "url": "https://nano-gpt.com/legal/terms-of-service",
+                "anchor": "terms last updated 2026-11-20; resale allowed subject to Model Provider terms and downstream obligations",
+                "document_date": "2026-11-20",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
           },
           "license": {
             "source_kind": "manual_policy",
@@ -94,9 +120,27 @@
             "source": "https://huggingface.co/zai-org/GLM-5.3/blob/e0b07fd2751b42d5efa199cc02c2b271deadc516/LICENSE; pinned Z.AI license excludes mere relaying to models hosted by others from Model as a Service",
             "observed_at": "2026-11-23",
             "sample_count": 0
+          },
+          "identity": {
+            "source_kind": "manual_policy",
+            "confidence": "high",
+            "source": "https://nano-gpt.com/api; NanoGPT API documentation names exact model ID `z-ai/glm-5.3`; identity/API listing only, not hosted route rights or upstream serving identity.",
+            "observed_at": "2026-11-23"
           }
         }
       }
+    },
+    "research": {
+      "activation": "denied_until_model_provider_terms_actual_serving_provider_model_rights_and_human_decisions_are_verified",
+      "source_scope": "public official pages only",
+      "not_an_operator_approval": true,
+      "model_reason": "NanoGPT public terms permit customer resale subject to separate Model Provider terms, but actual serving provider, upstream API terms, license compatibility, account entitlement, and live route for the listed model remain unknown. The public model ID does not establish any of those rights.",
+      "evidence": [
+        "https://nano-gpt.com/legal/terms-of-service",
+        "https://nano-gpt.com/models",
+        "https://nano-gpt.com/api",
+        "https://huggingface.co/zai-org/GLM-5.3/blob/e0b07fd2751b42d5efa199cc02c2b271deadc516/LICENSE"
+      ]
     }
   }
 }

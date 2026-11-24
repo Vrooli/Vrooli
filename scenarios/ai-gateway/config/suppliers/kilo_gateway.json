@@ -26,7 +26,20 @@
               "Record current quote and route availability separately from public price/catalog data; trust, customer price, and rule approval remain separate human decisions."
             ],
             "clause": "Kilo Terms §§1(A), 3(B), 5(A), 5(C)(i), and 5(E); Kilo Gateway product/pricing page",
-            "reason": "Official terms expressly contemplate end-user access through a service using the Gateway API, while retaining a limited non-sublicensable license and downstream compliance duties. This supports a conditional candidate, not an established right to resell any model, plan credits, or upstream provider service."
+            "reason": "Official terms expressly contemplate end-user access through a service using the Gateway API, while retaining a limited non-sublicensable license and downstream compliance duties. This supports a conditional candidate, not an established right to resell any model, plan credits, or upstream provider service.",
+            "source_anchors": [
+              {
+                "url": "https://kilo.ai/terms",
+                "anchor": "Kilo Terms §§1(A), 3(B), 5(A), 5(C)(i), and 5(E); Kilo Gateway product/pricing page",
+                "document_date": "2026-11-02",
+                "observed_at": "2026-11-22",
+                "retrieval_status": "read_public_page",
+                "supports": "Terms §1(A) describes Gateway API integration in the customer’s service, while §5(E) limits authorized-user/artifact scope; neither grants underlying model rights.",
+                "does_not_establish": "This source does not establish executed supplier approval or agreement, the exact Vrooli account entitlement, actual upstream serving provider/model rights, a live route, customer trust terms, or a human-approved price.",
+                "claim_ref": "gateway_api_end_user_service_payg_scope_unresolved",
+                "supplier_id": "kilo_gateway"
+              }
+            ]
           }
         ],
         "evidence": {
@@ -49,9 +62,23 @@
         "provider": "Anthropic",
         "display_name": "Claude Sonnet 4.6",
         "family": "claude",
-        "capabilities": ["chat", "text_input", "text_output", "streaming"],
-        "modalities": {"input": ["text"], "output": ["text"]},
-        "endpoints": ["chat"],
+        "capabilities": [
+          "chat",
+          "text_input",
+          "text_output",
+          "streaming"
+        ],
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "endpoints": [
+          "chat"
+        ],
         "default_eligible": false,
         "use_case_notes": "Kilo Gateway documented model identity draft only; no serving route is approved.",
         "caveats": [
@@ -59,17 +86,60 @@
           "Verify route-specific Kilo and Anthropic terms, current entitlement, trust/data handling, quote, and human decisions before any route can be eligible."
         ],
         "provenance": {
-          "catalog": {"source_kind": "manual_policy", "confidence": "high", "source": "https://kilo.ai/docs/gateway/models-and-providers; Claude Sonnet 4.6 Gateway model ID anthropic/claude-sonnet-4.6", "observed_at": "2026-11-23"},
-          "terms": {"source_kind": "manual_policy", "confidence": "low", "source": "https://kilo.ai/terms; exact route, upstream model rights, and approved plan remain unresolved", "observed_at": "2026-11-23"}
+          "catalog": {
+            "source_kind": "manual_policy",
+            "confidence": "high",
+            "source": "https://kilo.ai/docs/gateway/models-and-providers; Claude Sonnet 4.6 Gateway model ID anthropic/claude-sonnet-4.6",
+            "observed_at": "2026-11-23"
+          },
+          "terms": {
+            "source_kind": "manual_policy",
+            "confidence": "low",
+            "source": "https://kilo.ai/terms; exact route, upstream model rights, and approved plan remain unresolved",
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "kilo_gateway",
+                "model_id": "anthropic/claude-sonnet-4.6",
+                "url": "https://kilo.ai/terms",
+                "anchor": "exact route, upstream model rights, and approved plan remain unresolved",
+                "document_date": "2026-11-02",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
+          },
+          "identity": {
+            "source_kind": "manual_policy",
+            "confidence": "high",
+            "source": "https://kilo.ai/docs/gateway/models-and-providers; Kilo Gateway Models & Providers docs list exact model ID `anthropic/claude-sonnet-4.6`; identity only and not upstream rights.",
+            "observed_at": "2026-11-23"
+          }
         }
       },
       "openai/gpt-5.4": {
         "provider": "OpenAI",
         "display_name": "GPT 5.4",
         "family": "gpt",
-        "capabilities": ["chat", "text_input", "text_output", "streaming"],
-        "modalities": {"input": ["text"], "output": ["text"]},
-        "endpoints": ["chat"],
+        "capabilities": [
+          "chat",
+          "text_input",
+          "text_output",
+          "streaming"
+        ],
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "endpoints": [
+          "chat"
+        ],
         "default_eligible": false,
         "use_case_notes": "Kilo Gateway documented model identity draft only; no serving route is approved.",
         "caveats": [
@@ -77,8 +147,37 @@
           "Verify route-specific Kilo and OpenAI terms, current entitlement, trust/data handling, quote, and human decisions before any route can be eligible."
         ],
         "provenance": {
-          "catalog": {"source_kind": "manual_policy", "confidence": "high", "source": "https://kilo.ai/docs/gateway/models-and-providers; GPT 5.4 Gateway model ID openai/gpt-5.4", "observed_at": "2026-11-23"},
-          "terms": {"source_kind": "manual_policy", "confidence": "low", "source": "https://kilo.ai/terms; exact route, upstream model rights, and approved plan remain unresolved", "observed_at": "2026-11-23"}
+          "catalog": {
+            "source_kind": "manual_policy",
+            "confidence": "high",
+            "source": "https://kilo.ai/docs/gateway/models-and-providers; GPT 5.4 Gateway model ID openai/gpt-5.4",
+            "observed_at": "2026-11-23"
+          },
+          "terms": {
+            "source_kind": "manual_policy",
+            "confidence": "low",
+            "source": "https://kilo.ai/terms; exact route, upstream model rights, and approved plan remain unresolved",
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "kilo_gateway",
+                "model_id": "openai/gpt-5.4",
+                "url": "https://kilo.ai/terms",
+                "anchor": "exact route, upstream model rights, and approved plan remain unresolved",
+                "document_date": "2026-11-02",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
+          },
+          "identity": {
+            "source_kind": "manual_policy",
+            "confidence": "high",
+            "source": "https://kilo.ai/docs/gateway/models-and-providers; Kilo Gateway Models & Providers docs list exact model ID `openai/gpt-5.4`; identity only and not upstream rights.",
+            "observed_at": "2026-11-23"
+          }
         }
       }
     },
