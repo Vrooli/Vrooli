@@ -2,15 +2,20 @@ package config_test
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
 	"tunnel-manager/handlers/config"
 	"tunnel-manager/internal/authz"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/connectx"
 	connectxtest "github.com/vrooli/api-core/connectxtest"
+	"github.com/vrooli/api-core/identity"
 
 	configv1 "github.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/config"
 	configconnect "github.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/config/config_v1connect"
@@ -279,19 +284,80 @@ func TestHandlerSetCloudflareCredentialsRequiresOperatorTokenWhenEnforced(t *tes
 		AccountId: "acct", TunnelId: "tun", ApiToken: "token",
 	}))
 	require.Error(t, err)
-	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
 	require.Zero(t, fake.setCalls, "denied credential write must not reach service")
+	req := connect.NewRequest(&configv1.SetCloudflareCredentialsRequest{ApiToken: "replacement"})
+	req.Header().Set("X-Vrooli-Operator-Token", "secret")
+	_, err = client.SetCloudflareCredentials(context.Background(), req)
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	require.Zero(t, fake.setCalls, "an unverified static header must not reach the credential store")
+}
+
+func TestHandlerStoredConnectorRefreshRequiresAuthorizationAndForwardsIntent(t *testing.T) {
+	for _, kind := range []identity.ActorKind{identity.ActorHuman, identity.ActorAgent} {
+		for _, rotate := range []bool{false, true} {
+			fake := &fakeService{}
+			handler := config.NewConnectHandler(config.Deps{Service: fake})
+			req := connect.NewRequest(&configv1.BootstrapCloudflareRequest{UseStoredApiToken: true, RotateConnectorToken: rotate})
+			_, err := handler.BootstrapCloudflare(context.Background(), req)
+			require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+			require.False(t, fake.bootstrapIn.UseStoredAPIToken)
+			principal := identity.Principal{Kind: kind, Subject: "owner-or-agent", Verified: true, Scopes: []string{"tunnel-manager:write"}, ExpiresAt: time.Now().Add(time.Minute)}
+			withoutScope := principal
+			withoutScope.Scopes = []string{"tunnel-manager:read"}
+			_, err = handler.BootstrapCloudflare(identity.WithPrincipal(context.Background(), withoutScope), req)
+			require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+			ctx := identity.WithPrincipal(context.Background(), principal)
+			_, err = handler.BootstrapCloudflare(ctx, req)
+			require.NoError(t, err)
+			require.True(t, fake.bootstrapIn.UseStoredAPIToken)
+			require.Equal(t, rotate, fake.bootstrapIn.RotateConnectorToken)
+			principal.ExpiresAt = time.Now().Add(-time.Minute)
+			_, err = handler.BootstrapCloudflare(identity.WithPrincipal(context.Background(), principal), req)
+			require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+		}
+	}
+}
+
+func TestStoredConnectorRefreshRequiresVerifiedHTTPIdentity(t *testing.T) {
+	fake := &fakeService{}
+	path, handler := configconnect.NewConfigServiceHandler(config.NewConnectHandler(config.Deps{Service: fake}))
+	mux := http.NewServeMux()
+	mux.Handle(path, handler)
+	provider := authn.NewPersonalLocalProviderWithSessionToken("fixture-session", "tunnel-manager:write")
+	server := httptest.NewServer(authn.Middleware(authn.Config{Providers: []authn.Provider{provider}})(mux))
+	t.Cleanup(server.Close)
+	client := configconnect.NewConfigServiceClient(server.Client(), server.URL)
+	req := connect.NewRequest(&configv1.BootstrapCloudflareRequest{UseStoredApiToken: true})
+	_, err := client.BootstrapCloudflare(context.Background(), req)
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	req.Header().Set("Authorization", "Bearer fixture-session")
+	_, err = client.BootstrapCloudflare(context.Background(), req)
+	require.NoError(t, err)
+	require.True(t, fake.bootstrapIn.UseStoredAPIToken)
+}
+
+func TestExternalBootstrapRequiresVerifiedCredentialWriter(t *testing.T) {
+	fake := &fakeService{}
+	handler := config.NewConnectHandler(config.Deps{Service: fake})
+	req := connect.NewRequest(&configv1.BootstrapCloudflareRequest{ApiToken: "fixture"})
+	_, err := handler.BootstrapCloudflare(context.Background(), req)
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	require.Empty(t, fake.bootstrapIn.APIToken)
+	ctx := identity.WithPrincipal(context.Background(), identity.Principal{Kind: identity.ActorHuman, Subject: "owner", Verified: true, Scopes: []string{"tunnel-manager:write"}})
+	_, err = handler.BootstrapCloudflare(ctx, req)
+	require.NoError(t, err)
+	require.Equal(t, "fixture", fake.bootstrapIn.APIToken)
 }
 
 func TestHandlerSetCloudflareCredentialsPassesWriteOnlyValues(t *testing.T) {
 	fake := &fakeService{credOut: internalconfig.CredentialStatus{Ready: true, Source: "credential-authority"}}
-	client := newClientWithAuthorizer(t, fake, authz.StaticTokenAuthorizer{Enforced: true, Token: "secret"})
+	handler := config.NewConnectHandler(config.Deps{Service: fake})
 	req := connect.NewRequest(&configv1.SetCloudflareCredentialsRequest{
 		AccountId: "acct", TunnelId: "tun", ApiToken: "secret-token",
 	})
-	req.Header().Set("Authorization", "Bearer secret")
-
-	resp, err := client.SetCloudflareCredentials(context.Background(), req)
+	ctx := identity.WithPrincipal(context.Background(), identity.Principal{Kind: identity.ActorAgent, Subject: "agent", Verified: true, Scopes: []string{"tunnel-manager:write"}})
+	resp, err := handler.SetCloudflareCredentials(ctx, req)
 	require.NoError(t, err)
 	require.Equal(t, internalconfig.CredentialUpdate{AccountID: "acct", TunnelID: "tun", APIToken: "secret-token"}, fake.setIn)
 	require.True(t, resp.Msg.Status.Ready)
@@ -306,17 +372,16 @@ func TestHandlerClearCloudflareCredentialsRequiresOperatorTokenWhenEnforced(t *t
 		Fields: []string{"api_token"},
 	}))
 	require.Error(t, err)
-	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
 	require.Zero(t, fake.clearCalls, "denied credential clear must not reach service")
 }
 
 func TestHandlerClearCloudflareCredentialsPassesFields(t *testing.T) {
 	fake := &fakeService{credOut: internalconfig.CredentialStatus{Source: "missing"}}
-	client := newClientWithAuthorizer(t, fake, authz.StaticTokenAuthorizer{Enforced: true, Token: "secret"})
+	handler := config.NewConnectHandler(config.Deps{Service: fake})
 	req := connect.NewRequest(&configv1.ClearCloudflareCredentialsRequest{Fields: []string{"api_token"}})
-	req.Header().Set("X-Vrooli-Operator-Token", "secret")
-
-	_, err := client.ClearCloudflareCredentials(context.Background(), req)
+	ctx := identity.WithPrincipal(context.Background(), identity.Principal{Kind: identity.ActorHuman, Subject: "owner", Verified: true, Scopes: []string{"tunnel-manager:write"}})
+	_, err := handler.ClearCloudflareCredentials(ctx, req)
 	require.NoError(t, err)
 	require.Equal(t, []string{"api_token"}, fake.clearIn)
 }

@@ -96,9 +96,10 @@ func newClientWithAuthorizer(t *testing.T, svc internalexposure.Service, authori
 }
 
 func TestHandlerExposeMapsTTLAndReturnsURL(t *testing.T) {
-	now := time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC)
+	zone := time.FixedZone("offset", -5*60*60)
+	expiresAt := time.Date(2026, 5, 4, 12, 0, 0, 0, zone)
 	fake := &fakeService{
-		exposeLease: internalexposure.Lease{ID: "l1", Scenario: "web-console", Status: internalexposure.LeaseActive, ExpiresAt: now},
+		exposeLease: internalexposure.Lease{ID: "l1", Scenario: "web-console", Status: internalexposure.LeaseActive, ExpiresAt: expiresAt},
 		exposeURL:   "https://web-console.example.invalid",
 	}
 	client := newClient(t, fake)
@@ -108,6 +109,9 @@ func TestHandlerExposeMapsTTLAndReturnsURL(t *testing.T) {
 	require.Equal(t, "https://web-console.example.invalid", resp.Msg.PublicUrl)
 	require.Equal(t, "l1", resp.Msg.Lease.Id)
 	require.Equal(t, exposurev1.LeaseStatus_LEASE_STATUS_ACTIVE, resp.Msg.Lease.Status)
+	require.Nil(t, resp.Msg.Lease.CreatedAt, "zero CreatedAt stays unset")
+	require.NotNil(t, resp.Msg.Lease.ExpiresAt)
+	require.Equal(t, expiresAt.UTC(), resp.Msg.Lease.ExpiresAt.AsTime(), "ExpiresAt is emitted in UTC")
 	require.Equal(t, time.Hour, fake.lastInput.TTL, "ttl_seconds converted to duration")
 }
 

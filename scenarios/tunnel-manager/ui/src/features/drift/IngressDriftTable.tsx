@@ -1,7 +1,7 @@
 import type { IngressEntry } from "@vrooli/proto-types/tunnel-manager/v1/config/config_pb";
 
 import { Button } from "../../components/ui/button";
-import { StatusBadge } from "../../components/ui/StatusBadge";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";

@@ -50,3 +50,13 @@ func TestToConnectErrorFallsBackToInternal(t *testing.T) {
 	err := ToConnectError(errors.New("boom"))
 	require.Equal(t, connect.CodeInternal, connect.CodeOf(err))
 }
+
+func TestDefaultLocalOperatorPreservesInjection(t *testing.T) {
+	if _, ok := DefaultLocalOperator(nil).(StaticTokenAuthorizer); !ok {
+		t.Fatalf("default authorizer type = %T, want StaticTokenAuthorizer", DefaultLocalOperator(nil))
+	}
+	injected := StaticTokenAuthorizer{Enforced: true, Token: "secret"}
+	if got := DefaultLocalOperator(injected); got != injected {
+		t.Fatal("DefaultLocalOperator replaced injected authorizer")
+	}
+}

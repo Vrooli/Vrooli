@@ -238,30 +238,44 @@ func (c *cloudflareBootstrapClient) ListAccounts(ctx context.Context, token stri
 }
 
 func (c *cloudflareBootstrapClient) ListTunnels(ctx context.Context, token, accountID string) ([]CloudflareTunnel, error) {
-	url := fmt.Sprintf("%s/accounts/%s/cfd_tunnel?is_deleted=false", c.baseURL, accountID)
-	body, err := c.do(ctx, http.MethodGet, url, token, nil)
-	if err != nil {
-		return nil, err
+	var tunnels []CloudflareTunnel
+	for page := 1; page <= 10000; page++ {
+		url := fmt.Sprintf("%s/accounts/%s/cfd_tunnel?is_deleted=false&page=%d&per_page=100", c.baseURL, accountID, page)
+		body, err := c.do(ctx, http.MethodGet, url, token, nil)
+		if err != nil {
+			return nil, err
+		}
+		var response struct {
+			Success    bool `json:"success"`
+			ResultInfo struct {
+				TotalCount *int `json:"total_count"`
+			} `json:"result_info"`
+			Result []struct {
+				ID        string  `json:"id"`
+				Name      string  `json:"name"`
+				DeletedAt *string `json:"deleted_at"`
+			} `json:"result"`
+		}
+		if err := json.Unmarshal(body, &response); err != nil {
+			return nil, fmt.Errorf("parse tunnels: %w", err)
+		}
+		if !response.Success {
+			return nil, fmt.Errorf("Cloudflare tunnels request was unsuccessful")
+		}
+		for _, tunnel := range response.Result {
+			tunnels = append(tunnels, CloudflareTunnel{ID: tunnel.ID, Name: tunnel.Name, Deleted: tunnel.DeletedAt != nil})
+		}
+		if response.ResultInfo.TotalCount != nil && len(tunnels) >= *response.ResultInfo.TotalCount {
+			return tunnels, nil
+		}
+		if response.ResultInfo.TotalCount == nil && len(response.Result) < 100 {
+			return tunnels, nil
+		}
+		if len(response.Result) == 0 {
+			return nil, fmt.Errorf("Cloudflare tunnel pagination ended before total count")
+		}
 	}
-	var response struct {
-		Success bool `json:"success"`
-		Result  []struct {
-			ID        string  `json:"id"`
-			Name      string  `json:"name"`
-			DeletedAt *string `json:"deleted_at"`
-		} `json:"result"`
-	}
-	if err := json.Unmarshal(body, &response); err != nil {
-		return nil, fmt.Errorf("parse tunnels: %w", err)
-	}
-	if !response.Success {
-		return nil, fmt.Errorf("Cloudflare tunnels request was unsuccessful")
-	}
-	tunnels := make([]CloudflareTunnel, 0, len(response.Result))
-	for _, tunnel := range response.Result {
-		tunnels = append(tunnels, CloudflareTunnel{ID: tunnel.ID, Name: tunnel.Name, Deleted: tunnel.DeletedAt != nil})
-	}
-	return tunnels, nil
+	return nil, fmt.Errorf("Cloudflare tunnel listing exceeds page limit")
 }
 
 func (c *cloudflareBootstrapClient) CreateTunnel(ctx context.Context, token, accountID, name string) (CloudflareTunnel, error) {
@@ -306,6 +320,28 @@ func (c *cloudflareBootstrapClient) ConnectorToken(ctx context.Context, token, a
 	return response.Result, nil
 }
 
+func (c *cloudflareBootstrapClient) RotateConnectorSecret(ctx context.Context, token, accountID, tunnelID, secret string) error {
+	payload, err := json.Marshal(map[string]string{"tunnel_secret": secret})
+	if err != nil {
+		return fmt.Errorf("encode tunnel rotation: %w", err)
+	}
+	url := fmt.Sprintf("%s/accounts/%s/cfd_tunnel/%s", c.baseURL, accountID, tunnelID)
+	data, err := c.do(ctx, http.MethodPatch, url, token, payload)
+	if err != nil {
+		return err
+	}
+	var response struct {
+		Success bool `json:"success"`
+	}
+	if err := json.Unmarshal(data, &response); err != nil {
+		return fmt.Errorf("parse tunnel rotation response: %w", err)
+	}
+	if !response.Success {
+		return fmt.Errorf("Cloudflare tunnel rotation was unsuccessful")
+	}
+	return nil
+}
+
 func (c *cloudflareBootstrapClient) do(ctx context.Context, method, url, token string, body []byte) ([]byte, error) {
 	var reader io.Reader
 	if body != nil {
@@ -327,7 +363,9 @@ func (c *cloudflareBootstrapClient) do(ctx context.Context, method, url, token s
 		return nil, err
 	}
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("Cloudflare API error %d: %s", resp.StatusCode, strings.TrimSpace(string(data)))
+		// Bootstrap responses may contain credential material; never forward
+		// provider response bodies into logs or operator-facing errors.
+		return nil, fmt.Errorf("Cloudflare API error %d", resp.StatusCode)
 	}
 	return data, nil
 }

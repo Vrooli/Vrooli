@@ -43,6 +43,9 @@ func (f *fakeBootstrapAPI) CreateTunnel(context.Context, string, string, string)
 func (f *fakeBootstrapAPI) ConnectorToken(context.Context, string, string, string) (string, error) {
 	return f.connector, f.connectorErr
 }
+func (f *fakeBootstrapAPI) RotateConnectorSecret(context.Context, string, string, string, string) error {
+	return nil
+}
 
 func TestBootstrapCloudflareAdoptsNamedTunnelAndWritesCompleteSet(t *testing.T) {
 	authority := &fakeAuthority{values: map[string]string{}}

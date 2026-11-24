@@ -23,3 +23,11 @@ type StructuredLogger interface {
 func Default() Logger {
 	return log.Default()
 }
+
+// DefaultLogger preserves an injected standard logger or supplies the process logger.
+func DefaultLogger(logger *log.Logger) *log.Logger {
+	if logger == nil {
+		return log.Default()
+	}
+	return logger
+}

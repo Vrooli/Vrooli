@@ -9,10 +9,11 @@ import (
 	"testing"
 
 	"tunnel-manager/internal/manifest"
-	"tunnel-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/apihttptest"
 )
 
-func newTestAccessClient(doer *mocks.FakeDoer) *cfAccessClient {
+func newTestAccessClient(doer *apihttptest.FakeDoer) *cfAccessClient {
 	return &cfAccessClient{
 		doer:      doer,
 		apiToken:  "tok",
@@ -71,7 +72,7 @@ func TestAssertBypassDecisionRefusals(t *testing.T) {
 }
 
 func TestEnsurePublicBypassCreatesWhenAbsent(t *testing.T) {
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	doer.AddResponse(200, []byte(`{"success":true,"result":[]}`))                                       // list: none ours
 	doer.AddResponse(200, []byte(`{"success":true,"result":{"id":"app9","policies":[{"id":"pol9"}]}}`)) // create
 
@@ -122,7 +123,7 @@ func TestEnsurePublicBypassCreatesWhenAbsent(t *testing.T) {
 }
 
 func TestEnsurePublicBypassIdempotentWhenOursExists(t *testing.T) {
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	// An app TM owns (name carries the marker) at the exact <host>/public domain.
 	doer.AddResponse(200, []byte(`{"success":true,"result":[
 		{"id":"appX","name":"web-console.example.invalid/public `+accessAppMarker+`","domain":"web-console.example.invalid/public","policies":[{"id":"polX"}]}
@@ -148,7 +149,7 @@ func TestEnsurePublicBypassIdempotentWhenOursExists(t *testing.T) {
 // Access app at the same <host>/public domain but WITHOUT the TM name marker
 // (operator-created) is left completely untouched — no DELETE is issued.
 func TestRemoveNeverClobbersForeignApp(t *testing.T) {
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	doer.AddResponse(200, []byte(`{"success":true,"result":[
 		{"id":"foreign1","name":"operator's own public app","domain":"web-console.example.invalid/public","policies":[{"id":"p"}]}
 	]}`))
@@ -167,7 +168,7 @@ func TestRemoveNeverClobbersForeignApp(t *testing.T) {
 }
 
 func TestRemovePublicBypassDeletesOurApp(t *testing.T) {
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	doer.AddResponse(200, []byte(`{"success":true,"result":[
 		{"id":"appDel","name":"web-console.example.invalid/public `+accessAppMarker+`","domain":"web-console.example.invalid/public","policies":[{"id":"polDel"}]}
 	]}`))
@@ -191,7 +192,7 @@ func TestRemovePublicBypassDeletesOurApp(t *testing.T) {
 }
 
 func TestRemovePublicBypassIdempotentWhenAbsent(t *testing.T) {
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	doer.AddResponse(200, []byte(`{"success":true,"result":[]}`)) // none
 
 	c := newTestAccessClient(doer)
@@ -267,19 +268,19 @@ func TestPlanAccessMatrix(t *testing.T) {
 }
 
 func TestNewCFAccessClientNilWithoutCreds(t *testing.T) {
-	if NewCFAccessClient(&mocks.FakeDoer{}, CFConfig{APIToken: "x"}) != nil {
+	if NewCFAccessClient(&apihttptest.FakeDoer{}, CFConfig{APIToken: "x"}) != nil {
 		t.Error("expected nil Access client when account id absent")
 	}
-	if NewCFAccessClient(&mocks.FakeDoer{}, CFConfig{AccountID: "a"}) != nil {
+	if NewCFAccessClient(&apihttptest.FakeDoer{}, CFConfig{AccountID: "a"}) != nil {
 		t.Error("expected nil Access client when token absent")
 	}
-	if NewCFAccessClient(&mocks.FakeDoer{}, CFConfig{APIToken: "x", AccountID: "a"}) == nil {
+	if NewCFAccessClient(&apihttptest.FakeDoer{}, CFConfig{APIToken: "x", AccountID: "a"}) == nil {
 		t.Error("expected a client when token+account present")
 	}
 }
 
 func TestResolveRuntimeBindingReadsPrimaryAppAndOrganization(t *testing.T) {
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	doer.AddResponse(200, []byte(`{"success":true,"result":[
 		{"id":"public","domain":"web-console.example.invalid/public","aud":"ignored"},
 		{"id":"primary","domain":"web-console.example.invalid","aud":"aud-primary"}
@@ -305,7 +306,7 @@ func TestResolveRuntimeBindingReadsPrimaryAppAndOrganization(t *testing.T) {
 
 func TestResolveRuntimeBindingUsesCentralTeamDomainWhenOrganizationReadIsForbidden(t *testing.T) {
 	t.Setenv("VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN", "https://central.example.com")
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	doer.AddResponse(200, []byte(`{"success":true,"result":[{"domain":"web.example.invalid/*","aud":"aud-primary"}]}`))
 	doer.AddResponse(403, []byte(`{"success":false,"errors":[{"code":10000,"message":"Authentication error"}]}`))
 
@@ -320,7 +321,7 @@ func TestResolveRuntimeBindingUsesCentralTeamDomainWhenOrganizationReadIsForbidd
 
 func TestResolveRuntimeBindingExplainsForbiddenOrganizationMetadata(t *testing.T) {
 	t.Setenv("VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN", "")
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	doer.AddResponse(200, []byte(`{"success":true,"result":[{"domain":"web.example.invalid/*","aud":"aud-primary"}]}`))
 	doer.AddResponse(403, []byte(`{"success":false,"errors":[{"code":10000,"message":"Authentication error"}]}`))
 
@@ -341,7 +342,7 @@ func TestResolveRuntimeBindingFailsForAmbiguousOrIncompletePrimaryApp(t *testing
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			doer := &mocks.FakeDoer{}
+			doer := &apihttptest.FakeDoer{}
 			doer.AddResponse(200, []byte(tc.body))
 			_, err := newTestAccessClient(doer).ResolveRuntimeBinding(context.Background(), "web.example.invalid")
 			if err == nil || !strings.Contains(err.Error(), tc.want) {

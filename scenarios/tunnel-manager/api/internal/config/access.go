@@ -70,27 +70,24 @@ const (
 // feature is simply disabled rather than erroring when unconfigured. Note the
 // account id is REQUIRED here (Access apps are account-scoped), unlike DNS.
 func NewCFAccessClient(doer httpc.Doer, cfg CFConfig) AccessClient {
-	if cfg.APIToken == "" || cfg.AccountID == "" {
+	client := newCFAccessClient(doer, cfg)
+	if client == nil {
 		return nil
 	}
-	if doer == nil {
-		doer = http.DefaultClient
-	}
-	base := cfg.BaseURL
-	if base == "" {
-		base = "https://api.cloudflare.com/client/v4"
-	}
-	return &cfAccessClient{
-		doer:      doer,
-		apiToken:  cfg.APIToken,
-		accountID: cfg.AccountID,
-		baseURL:   base,
-	}
+	return client
 }
 
 // NewCFAccessMetadataReader builds the read-only Access metadata client using
 // the same credential/configuration rules as the /public client.
 func NewCFAccessMetadataReader(doer httpc.Doer, cfg CFConfig) AccessMetadataReader {
+	client := newCFAccessClient(doer, cfg)
+	if client == nil {
+		return nil
+	}
+	return client
+}
+
+func newCFAccessClient(doer httpc.Doer, cfg CFConfig) *cfAccessClient {
 	if cfg.APIToken == "" || cfg.AccountID == "" {
 		return nil
 	}

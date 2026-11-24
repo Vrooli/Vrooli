@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"tunnel-manager/internal/testutil/mocks"
+	"github.com/vrooli/api-core/apihttptest"
 )
 
-func newTestDNSClient(doer *mocks.FakeDoer) *cfDNSClient {
+func newTestDNSClient(doer *apihttptest.FakeDoer) *cfDNSClient {
 	return &cfDNSClient{
 		doer:      doer,
 		apiToken:  "tok",
@@ -35,7 +35,7 @@ func TestApexOf(t *testing.T) {
 }
 
 func TestEnsureRecordCreatesWhenAbsent(t *testing.T) {
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	doer.AddResponse(200, []byte(`{"success":true,"result":[{"id":"zone1"}]}`)) // zone lookup
 	doer.AddResponse(200, []byte(`{"success":true,"result":[]}`))               // findRecord: none
 	doer.AddResponse(200, []byte(`{"success":true,"result":{"id":"rec9"}}`))    // create
@@ -79,7 +79,7 @@ func TestEnsureRecordCreatesWhenAbsent(t *testing.T) {
 }
 
 func TestEnsureRecordIdempotentWhenPresent(t *testing.T) {
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	doer.AddResponse(200, []byte(`{"success":true,"result":[{"id":"zone1"}]}`))
 	doer.AddResponse(200, []byte(`{"success":true,"result":[{"id":"recX","content":"tun123.cfargotunnel.com","type":"CNAME"}]}`))
 
@@ -100,7 +100,7 @@ func TestEnsureRecordIdempotentWhenPresent(t *testing.T) {
 }
 
 func TestRemoveRecordDeletesWhenFound(t *testing.T) {
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	doer.AddResponse(200, []byte(`{"success":true,"result":[{"id":"zone1"}]}`))
 	doer.AddResponse(200, []byte(`{"success":true,"result":[{"id":"recDel","content":"tun123.cfargotunnel.com"}]}`))
 	doer.AddResponse(200, []byte(`{"success":true}`)) // delete
@@ -123,7 +123,7 @@ func TestRemoveRecordDeletesWhenFound(t *testing.T) {
 }
 
 func TestRemoveRecordIdempotentWhenAbsent(t *testing.T) {
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	doer.AddResponse(200, []byte(`{"success":true,"result":[{"id":"zone1"}]}`))
 	doer.AddResponse(200, []byte(`{"success":true,"result":[]}`)) // no record
 
@@ -141,18 +141,18 @@ func TestRemoveRecordIdempotentWhenAbsent(t *testing.T) {
 }
 
 func TestNewCFDNSClientNilWithoutCreds(t *testing.T) {
-	if NewCFDNSClient(&mocks.FakeDoer{}, CFConfig{TunnelID: "t"}) == nil {
+	if NewCFDNSClient(&apihttptest.FakeDoer{}, CFConfig{TunnelID: "t"}) == nil {
 		// token missing -> nil expected
 	} else {
 		t.Error("expected nil DNS client when token absent")
 	}
-	if NewCFDNSClient(&mocks.FakeDoer{}, CFConfig{APIToken: "x", TunnelID: "t"}) == nil {
+	if NewCFDNSClient(&apihttptest.FakeDoer{}, CFConfig{APIToken: "x", TunnelID: "t"}) == nil {
 		t.Error("expected a client when token+tunnel present")
 	}
 }
 
 func TestEnsureManagedRecordCreatesARecord(t *testing.T) {
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	doer.AddResponse(200, []byte(`{"success":true,"result":[{"id":"zone1"}]}`))
 	doer.AddResponse(200, []byte(`{"success":true,"result":[]}`))
 	doer.AddResponse(200, []byte(`{"success":true,"result":{"id":"a1"}}`))
@@ -178,7 +178,7 @@ func TestEnsureManagedRecordCreatesARecord(t *testing.T) {
 }
 
 func TestEnsureManagedRecordRefusesConflict(t *testing.T) {
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	doer.AddResponse(200, []byte(`{"success":true,"result":[{"id":"zone1"}]}`))
 	doer.AddResponse(200, []byte(`{"success":true,"result":[{"id":"a1","content":"203.0.113.11","type":"A","proxied":false}]}`))
 	c := newTestDNSClient(doer)
@@ -202,7 +202,7 @@ func TestEnsureManagedRecordSupportsTXTAndMXPayloads(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			doer := &mocks.FakeDoer{}
+			doer := &apihttptest.FakeDoer{}
 			doer.AddResponse(200, []byte(`{"success":true,"result":[{"id":"zone1"}]}`))
 			doer.AddResponse(200, []byte(`{"success":true,"result":[]}`))
 			doer.AddResponse(200, []byte(`{"success":true,"result":{"id":"rec9"}}`))
@@ -234,7 +234,7 @@ func TestEnsureManagedRecordSupportsTXTAndMXPayloads(t *testing.T) {
 }
 
 func TestUpdateManagedRecordUsesPUTInPlace(t *testing.T) {
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	doer.AddResponse(200, []byte(`{"success":true,"result":[{"id":"zone1"}]}`))
 	doer.AddResponse(200, []byte(`{"success":true,"result":[{"id":"txt1","content":"old","type":"TXT"}]}`))
 	doer.AddResponse(200, []byte(`{"success":true,"result":{"id":"txt1"}}`))
@@ -252,7 +252,7 @@ func TestUpdateManagedRecordUsesPUTInPlace(t *testing.T) {
 }
 
 func TestEnsureSPFRecordRefusesLookupBudgetOverflow(t *testing.T) {
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	doer.AddResponse(200, []byte(`{"success":true,"result":[{"id":"zone1"}]}`))
 	doer.AddResponse(200, []byte(`{"success":true,"result":[{"id":"spf1","content":"v=spf1 include:one.example.invalid include:two.example.invalid include:three.example.invalid include:four.example.invalid include:five.example.invalid include:six.example.invalid include:seven.example.invalid include:eight.example.invalid include:nine.example.invalid include:ten.example.invalid -all","type":"TXT"}]}`))
 	for i := 0; i < 11; i++ {

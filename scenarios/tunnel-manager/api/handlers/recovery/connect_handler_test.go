@@ -66,27 +66,38 @@ func newClientWithAuthorizer(t *testing.T, svc internalrecovery.Service, authori
 }
 
 func TestHandlerGetStateMapsEnumAndZeroTimes(t *testing.T) {
+	zone := time.FixedZone("offset", -5*60*60)
+	lastCheck := time.Date(2026, 5, 4, 12, 0, 0, 0, zone)
+	nextRetry := time.Date(2026, 5, 4, 13, 0, 0, 0, zone)
 	client := newClient(t, &fakeService{state: internalrecovery.RecoveryState{
 		Status: internalrecovery.StatusCircuitOpen, ConsecFailures: 4,
+		LastCheck: lastCheck, NextRetryAfter: nextRetry,
 	}})
 	resp, err := client.GetState(context.Background(), connect.NewRequest(&recoveryv1.GetStateRequest{}))
 	require.NoError(t, err)
 	require.Equal(t, recoveryv1.RecoveryStatus_RECOVERY_STATUS_CIRCUIT_OPEN, resp.Msg.State.Status)
 	require.EqualValues(t, 4, resp.Msg.State.ConsecFailures)
 	require.True(t, resp.Msg.State.CircuitOpen)
-	require.Nil(t, resp.Msg.State.LastCheck, "zero time stays unset")
+	require.NotNil(t, resp.Msg.State.LastCheck)
+	require.Equal(t, lastCheck.UTC(), resp.Msg.State.LastCheck.AsTime(), "LastCheck is emitted in UTC")
+	require.Nil(t, resp.Msg.State.LastRecovery, "zero LastRecovery stays unset")
+	require.NotNil(t, resp.Msg.State.NextRetryAfter)
+	require.Equal(t, nextRetry.UTC(), resp.Msg.State.NextRetryAfter.AsTime(), "NextRetryAfter is emitted in UTC")
 }
 
 func TestHandlerRecoverMapsOutcome(t *testing.T) {
-	now := time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC)
+	zone := time.FixedZone("offset", -5*60*60)
+	createdAt := time.Date(2026, 5, 4, 12, 0, 0, 0, zone)
 	client := newClient(t, &fakeService{
 		recoverOut: internalrecovery.OutcomeSuccess,
-		recoverEvt: internalrecovery.RecoveryEvent{ID: "e1", Trigger: internalrecovery.TriggerManual, Action: internalrecovery.ActionRestart, Outcome: internalrecovery.OutcomeSuccess, CreatedAt: now},
+		recoverEvt: internalrecovery.RecoveryEvent{ID: "e1", Trigger: internalrecovery.TriggerManual, Action: internalrecovery.ActionRestart, Outcome: internalrecovery.OutcomeSuccess, CreatedAt: createdAt},
 	})
 	resp, err := client.Recover(context.Background(), connect.NewRequest(&recoveryv1.RecoverRequest{Force: true}))
 	require.NoError(t, err)
 	require.Equal(t, recoveryv1.EventOutcome_EVENT_OUTCOME_SUCCESS, resp.Msg.Outcome)
 	require.Equal(t, "e1", resp.Msg.Event.Id)
+	require.NotNil(t, resp.Msg.Event.CreatedAt)
+	require.Equal(t, createdAt.UTC(), resp.Msg.Event.CreatedAt.AsTime(), "event CreatedAt is emitted in UTC")
 }
 
 func TestHandlerRecoverRequiresOperatorTokenWhenEnforced(t *testing.T) {

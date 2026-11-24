@@ -119,9 +119,16 @@ func (f *fakeRepo) ActiveForScenario(_ context.Context, scenario string) (exposu
 	return exposure.Lease{}, exposure.ErrLeaseNotFound{ID: scenario}
 }
 
-func (f *fakeRepo) Update(_ context.Context, l exposure.Lease) (exposure.Lease, error) {
-	if _, ok := f.leases[l.ID]; !ok {
+func (f *fakeRepo) Save(_ context.Context, l exposure.Lease, expected exposure.Lease) (exposure.Lease, error) {
+	current, ok := f.leases[l.ID]
+	if !ok {
 		return exposure.Lease{}, exposure.ErrLeaseNotFound{ID: l.ID}
+	}
+	if current != expected {
+		return exposure.Lease{}, exposure.ErrLeaseWriteConflict{ID: l.ID, ExpectedStatus: expected.Status, CurrentStatus: current.Status}
+	}
+	if err := current.TransitionStatus(l.Status); err != nil {
+		return exposure.Lease{}, err
 	}
 	f.leases[l.ID] = l
 	return l, nil
@@ -329,6 +336,28 @@ func TestExtendLease_NotFound(t *testing.T) {
 	_, err := svc.ExtendLease(context.Background(), "ghost", time.Hour)
 	var nf exposure.ErrLeaseNotFound
 	require.ErrorAs(t, err, &nf)
+}
+
+func TestExtendLease_CannotResurrectExpiredOrRevokedLease(t *testing.T) {
+	for _, status := range []exposure.LeaseStatus{exposure.LeaseExpired, exposure.LeaseRevoked} {
+		t.Run(string(status), func(t *testing.T) {
+			repo := newFakeRepo()
+			svc, clk := newSvc(t, newFakeManifest(), repo, &fakeIngress{}, &fakeRunner{}, &fakePorts{}, nil)
+			lease, err := repo.Create(context.Background(), exposure.Lease{ID: "lease-" + string(status), Scenario: "svc", ExpiresAt: clk.Now(), Status: exposure.LeaseActive})
+			require.NoError(t, err)
+			expected := lease
+			require.NoError(t, lease.TransitionStatus(status))
+			_, err = repo.Save(context.Background(), lease, expected)
+			require.NoError(t, err)
+
+			_, err = svc.ExtendLease(context.Background(), lease.ID, time.Hour)
+			var invalid exposure.ErrInvalidLeaseTransition
+			require.ErrorAs(t, err, &invalid)
+			stored, readErr := repo.Get(context.Background(), lease.ID)
+			require.NoError(t, readErr)
+			require.Equal(t, status, stored.Status, "rejected extension must not change durable status")
+		})
+	}
 }
 
 func TestExpose_IngressFailurePropagates(t *testing.T) {

@@ -127,11 +127,10 @@ a glance:
 
 ## Multipart REST Exceptions
 
-Opaque file bytes are not proto payloads. Upload endpoints use REST
-multipart for bytes and return proto-typed metadata. These endpoints
-still use a stable error envelope through `internal/httpx.WriteError`;
-the UI maps `ApiError.code` through the same `errorMessage(...)`
-utility as Connect errors.
+Opaque file bytes are not proto payloads. Tunnel Manager currently has
+no multipart REST endpoint; active API errors use Connect-RPC. If a
+file-upload operation is added later, its route owner must define the
+response contract and focused error tests before exposing it.
 
 Use this split:
 

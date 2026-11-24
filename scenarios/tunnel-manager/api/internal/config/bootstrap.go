@@ -19,6 +19,7 @@ type CloudflareBootstrapAPI interface {
 	ListTunnels(context.Context, string, string) ([]CloudflareTunnel, error)
 	CreateTunnel(context.Context, string, string, string) (CloudflareTunnel, error)
 	ConnectorToken(context.Context, string, string, string) (string, error)
+	RotateConnectorSecret(context.Context, string, string, string, string) error
 }
 
 type CloudflareAccount struct{ ID string }
@@ -31,6 +32,8 @@ type CloudflareTunnel struct {
 
 type BootstrapRequest struct {
 	APIToken               string
+	UseStoredAPIToken      bool
+	RotateConnectorToken   bool
 	AccountID              string
 	TunnelID               string
 	TunnelName             string

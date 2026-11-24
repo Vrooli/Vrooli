@@ -2,12 +2,15 @@ package config
 
 import (
 	"context"
+	"errors"
 	"log"
+	"time"
 
 	"tunnel-manager/internal/authz"
 	internalconfig "tunnel-manager/internal/config"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/authn"
 
 	configv1 "github.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/config"
 )
@@ -69,12 +72,12 @@ func (h *connectHandler) VerifyCredentials(ctx context.Context, _ *connect.Reque
 }
 
 func (h *connectHandler) BootstrapCloudflare(ctx context.Context, req *connect.Request[configv1.BootstrapCloudflareRequest]) (*connect.Response[configv1.BootstrapCloudflareResponse], error) {
-	if err := h.deps.Authorizer.Authorize(ctx, authz.OperationConfigCredentials, req.Header()); err != nil {
-		return nil, authz.ToConnectError(err)
+	if err := requireCredentialWrite(ctx); err != nil {
+		return nil, err
 	}
 	result, err := h.deps.Service.BootstrapCloudflare(ctx, internalconfig.BootstrapRequest{
 		APIToken: req.Msg.ApiToken, AccountID: req.Msg.AccountId, TunnelID: req.Msg.TunnelId,
-		TunnelName: req.Msg.TunnelName, DryRun: req.Msg.DryRun,
+		TunnelName: req.Msg.TunnelName, DryRun: req.Msg.DryRun, UseStoredAPIToken: req.Msg.UseStoredApiToken, RotateConnectorToken: req.Msg.RotateConnectorToken,
 	})
 	if err != nil {
 		connectErr := internalconfig.ToConnectError(err)
@@ -90,8 +93,8 @@ func (h *connectHandler) BootstrapCloudflare(ctx context.Context, req *connect.R
 }
 
 func (h *connectHandler) SetCloudflareCredentials(ctx context.Context, req *connect.Request[configv1.SetCloudflareCredentialsRequest]) (*connect.Response[configv1.SetCloudflareCredentialsResponse], error) {
-	if err := h.deps.Authorizer.Authorize(ctx, authz.OperationConfigCredentials, req.Header()); err != nil {
-		return nil, authz.ToConnectError(err)
+	if err := requireCredentialWrite(ctx); err != nil {
+		return nil, err
 	}
 	status, err := h.deps.Service.SetCloudflareCredentials(ctx, internalconfig.CredentialUpdate{
 		AccountID: req.Msg.AccountId,
@@ -111,8 +114,8 @@ func (h *connectHandler) SetCloudflareCredentials(ctx context.Context, req *conn
 }
 
 func (h *connectHandler) ClearCloudflareCredentials(ctx context.Context, req *connect.Request[configv1.ClearCloudflareCredentialsRequest]) (*connect.Response[configv1.ClearCloudflareCredentialsResponse], error) {
-	if err := h.deps.Authorizer.Authorize(ctx, authz.OperationConfigCredentials, req.Header()); err != nil {
-		return nil, authz.ToConnectError(err)
+	if err := requireCredentialWrite(ctx); err != nil {
+		return nil, err
 	}
 	status, err := h.deps.Service.ClearCloudflareCredentials(ctx, req.Msg.Fields)
 	if err != nil {
@@ -125,6 +128,14 @@ func (h *connectHandler) ClearCloudflareCredentials(ctx context.Context, req *co
 	return connect.NewResponse(&configv1.ClearCloudflareCredentialsResponse{
 		Status: credentialStatusToProto(status),
 	}), nil
+}
+
+func requireCredentialWrite(ctx context.Context) error {
+	principal, err := authn.RequireCapability(ctx, "tunnel-manager:write")
+	if err != nil || !principal.IsVerified() || (!principal.ExpiresAt.IsZero() && !time.Now().Before(principal.ExpiresAt)) {
+		return connect.NewError(connect.CodePermissionDenied, errors.New("verified tunnel-manager write capability required"))
+	}
+	return nil
 }
 
 func (h *connectHandler) Sync(ctx context.Context, req *connect.Request[configv1.SyncRequest]) (*connect.Response[configv1.SyncResponse], error) {

@@ -4,7 +4,7 @@ import {
 } from "@vrooli/proto-types/tunnel-manager/v1/recovery/recovery_pb";
 
 import { strings } from "../../consts/strings";
-import type { BadgeTone } from "../../components/ui/StatusBadge";
+import type { StatusTone as BadgeTone } from "@vrooli/react-component-library/StatusBadge/1";
 
 type StatusKey = (typeof strings.recovery.status)[keyof typeof strings.recovery.status];
 type OutcomeKey = (typeof strings.recovery.outcome)[keyof typeof strings.recovery.outcome];

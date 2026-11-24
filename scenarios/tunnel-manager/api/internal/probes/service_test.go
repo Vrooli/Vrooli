@@ -7,7 +7,8 @@ import (
 
 	"tunnel-manager/internal/probes"
 	internalroutes "tunnel-manager/internal/routes"
-	"tunnel-manager/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/apihttptest"
 
 	"github.com/vrooli/api-core/scheduletest"
 
@@ -60,7 +61,7 @@ func sampleRoute(sub string, port int) internalroutes.Route {
 func TestRunProbes_StatusMappingAndPersistence(t *testing.T) {
 	routes := &fakeRoutes{routes: []internalroutes.Route{sampleRoute("agent-manager", 21100)}}
 	repo := &fakeRepo{}
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	// Probes run concurrently per route but internal precedes external in
 	// the goroutine, so call 1 = internal (200 → up), call 2 = external
 	// (500 → down).
@@ -93,7 +94,7 @@ func TestRunProbes_TimeoutAndSkipsDisabled(t *testing.T) {
 	disabled.Enabled = false
 	routes := &fakeRoutes{routes: []internalroutes.Route{enabled, disabled}}
 	repo := &fakeRepo{}
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	clk := scheduletest.New(time.Time{})
 
 	svc := probes.NewService(routes, repo, doer, clk)
@@ -123,7 +124,7 @@ func TestClassify_AllBranches(t *testing.T) {
 		{Subdomain: "drift", Internal: down(), External: up()},
 		{Subdomain: "scenario", Internal: down(), External: down()},
 	}}
-	svc := probes.NewService(&fakeRoutes{}, repo, &mocks.FakeDoer{}, scheduletest.New(time.Time{}))
+	svc := probes.NewService(&fakeRoutes{}, repo, &apihttptest.FakeDoer{}, scheduletest.New(time.Time{}))
 
 	got, err := svc.Classify(context.Background())
 	require.NoError(t, err)

@@ -4,6 +4,8 @@ import (
 	"context"
 	"log"
 
+	"tunnel-manager/internal/logging"
+
 	"tunnel-manager/internal/probes"
 
 	"connectrpc.com/connect"
@@ -22,9 +24,7 @@ type connectHandler struct {
 }
 
 func NewConnectHandler(d Deps) *connectHandler {
-	if d.Logger == nil {
-		d.Logger = log.Default()
-	}
+	d.Logger = logging.DefaultLogger(d.Logger)
 	return &connectHandler{deps: d}
 }
 

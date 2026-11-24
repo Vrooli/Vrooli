@@ -5,12 +5,12 @@ import (
 	"strings"
 	"testing"
 
-	"tunnel-manager/internal/testutil/mocks"
+	"github.com/vrooli/api-core/apihttptest"
 )
 
 // newTestVerifier builds a cfVerifier bound to a FakeDoer and the production
 // base URL (the FakeDoer ignores the URL and serves responses in call order).
-func newTestVerifier(doer *mocks.FakeDoer) *cfVerifier {
+func newTestVerifier(doer *apihttptest.FakeDoer) *cfVerifier {
 	return &cfVerifier{doer: doer, baseURL: "https://api.cloudflare.com/client/v4"}
 }
 
@@ -24,7 +24,7 @@ func checkByName(checks []CredentialCheck, name string) (CredentialCheck, bool) 
 }
 
 func TestVerifyHappyPathAllOK(t *testing.T) {
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	doer.AddResponse(200, []byte(`{"success":true}`))                                                 // token verify
 	doer.AddResponse(200, []byte(`{"success":true}`))                                                 // account
 	doer.AddResponse(200, []byte(`{"success":true}`))                                                 // tunnel
@@ -54,7 +54,7 @@ func TestVerifyHappyPathAllOK(t *testing.T) {
 }
 
 func TestVerifyMissingTokenSkipsNetwork(t *testing.T) {
-	doer := &mocks.FakeDoer{} // no responses queued: any HTTP call would error
+	doer := &apihttptest.FakeDoer{} // no responses queued: any HTTP call would error
 	v := newTestVerifier(doer)
 	got, err := v.Verify(context.Background(), CFConfig{AccountID: "a", TunnelID: "tun"}, []string{"example.invalid"}, false)
 	if err != nil {
@@ -77,7 +77,7 @@ func TestVerifyMissingTokenSkipsNetwork(t *testing.T) {
 }
 
 func TestVerifyExpiredTokenInvalid(t *testing.T) {
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	doer.AddResponse(401, []byte(`{"success":false}`)) // token verify rejected
 	v := newTestVerifier(doer)
 	got, _ := v.Verify(context.Background(), CFConfig{APIToken: "bad", AccountID: "a", TunnelID: "tun"}, []string{"example.invalid"}, false)
@@ -92,7 +92,7 @@ func TestVerifyExpiredTokenInvalid(t *testing.T) {
 }
 
 func TestVerifyDNSScopeInsufficient(t *testing.T) {
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	doer.AddResponse(200, []byte(`{"success":true}`))                                                 // token
 	doer.AddResponse(200, []byte(`{"success":true}`))                                                 // account
 	doer.AddResponse(200, []byte(`{"success":true}`))                                                 // tunnel
@@ -116,7 +116,7 @@ func TestVerifyDNSScopeInsufficient(t *testing.T) {
 }
 
 func TestVerifyZoneNotFoundInvalid(t *testing.T) {
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	doer.AddResponse(200, []byte(`{"success":true}`))                                                 // token
 	doer.AddResponse(200, []byte(`{"success":true}`))                                                 // account
 	doer.AddResponse(200, []byte(`{"success":true}`))                                                 // tunnel
@@ -137,7 +137,7 @@ func TestVerifyZoneNotFoundInvalid(t *testing.T) {
 }
 
 func TestVerifyTunnelInsufficientScope(t *testing.T) {
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	doer.AddResponse(200, []byte(`{"success":true}`))  // token
 	doer.AddResponse(200, []byte(`{"success":true}`))  // account
 	doer.AddResponse(403, []byte(`{"success":false}`)) // tunnel forbidden
@@ -155,7 +155,7 @@ func TestVerifyTunnelInsufficientScope(t *testing.T) {
 }
 
 func TestVerifyAccessOrganizationInsufficientScopeIsActionable(t *testing.T) {
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	doer.AddResponse(200, []byte(`{"success":true}`))                       // token
 	doer.AddResponse(200, []byte(`{"success":true}`))                       // account
 	doer.AddResponse(200, []byte(`{"success":true}`))                       // tunnel

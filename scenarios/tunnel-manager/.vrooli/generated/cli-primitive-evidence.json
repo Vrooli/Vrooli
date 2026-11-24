@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "tunnel-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "938346aa8828ee1faa2d9b03c25d341095357b64eaac154431a6237e42d7738e",
+  "manifest_hash": "8665ae74a3a2b9584a80e0035f208968dcfd40821c02a39abc73c8632ab2a1db",
   "commands": [
     {
       "path": "access status",

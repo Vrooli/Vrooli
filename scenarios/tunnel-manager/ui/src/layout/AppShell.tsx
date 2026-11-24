@@ -15,13 +15,15 @@ import { fetchHealth } from "../api/health";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { getCurrentLocale, getLocaleConfig, setLocale, SUPPORTED_LOCALES, useTranslation } from "../i18n";
-import { StatusBadge } from "../components/ui/StatusBadge";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import type { ThemeChoice } from "../theme/themeContext";
 import { THEME_CHOICE_LABEL } from "../theme/themeChoiceLabels";
 import { useTheme } from "../theme/useTheme";
 import { NAV_ITEMS } from "./navItems";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
+
+const PHONE_TAB_KEYS = new Set(["overview", "exposure", "recovery", "metrics"]);
 
 /**
  * Responsive app shell. CSS grid with a header row and a (sidebar | content)
@@ -54,7 +56,7 @@ export function AppShell() {
   return (
     <LibraryAppShell
       density="sidebar"
-      mobileNav="tabs"
+      mobileNav="menu-tabs"
       mainMode="scroll"
       brand={(
         <span className="flex min-w-0 flex-col">
@@ -75,6 +77,7 @@ export function AppShell() {
         current: item.end
           ? pathname === item.path
           : pathname === item.path || pathname.startsWith(`${item.path}/`),
+        mobile: PHONE_TAB_KEYS.has(item.key),
         testId: selectors.layout.sidebarLink({ key: item.key }),
       }))}
       utility={(

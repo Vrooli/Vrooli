@@ -4,7 +4,7 @@ import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { Mode, type ConfigReadiness, type DriftCounts } from "@vrooli/proto-types/tunnel-manager/v1/config/config_pb";
 
 import { QueryState } from "../../components/ui/QueryState";
-import { StatusBadge, type BadgeTone } from "../../components/ui/StatusBadge";
+import { StatusBadge, type StatusTone as BadgeTone } from "@vrooli/react-component-library/StatusBadge/1";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";

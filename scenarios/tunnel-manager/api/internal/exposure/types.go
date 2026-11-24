@@ -34,6 +34,56 @@ const (
 	LeaseRevoked LeaseStatus = "revoked"
 )
 
+var leaseTransitions = map[LeaseStatus]map[LeaseStatus]struct{}{
+	LeaseActive:  {LeaseActive: {}, LeaseExpired: {}, LeaseRevoked: {}},
+	LeaseExpired: {LeaseExpired: {}, LeaseRevoked: {}},
+	LeaseRevoked: {LeaseRevoked: {}},
+}
+
+// ErrInvalidLeaseTransition reports an illegal or unknown persisted lease
+// status edge. Lease status is owned here so callers cannot revive a lease
+// after reconciliation or operator revocation.
+type ErrInvalidLeaseTransition struct {
+	From LeaseStatus
+	To   LeaseStatus
+}
+
+// ErrInvalidLeaseState reports corrupt or unsupported persisted status data.
+type ErrInvalidLeaseState struct {
+	Status LeaseStatus
+}
+
+func (e ErrInvalidLeaseState) Error() string {
+	return fmt.Sprintf("invalid persisted lease status %q", e.Status)
+}
+
+func (e ErrInvalidLeaseTransition) Error() string {
+	return fmt.Sprintf("invalid lease status transition %q -> %q", e.From, e.To)
+}
+
+// TransitionStatus advances a lease through its persisted lifecycle. Repeating
+// the current state is allowed for metadata-only updates such as extension.
+func (l *Lease) TransitionStatus(next LeaseStatus) error {
+	if l == nil {
+		from := LeaseStatus("")
+		return ErrInvalidLeaseTransition{From: from, To: next}
+	}
+	allowed, known := leaseTransitions[l.Status]
+	if !known || !validLeaseStatus(next) {
+		return ErrInvalidLeaseTransition{From: l.Status, To: next}
+	}
+	if _, ok := allowed[next]; !ok {
+		return ErrInvalidLeaseTransition{From: l.Status, To: next}
+	}
+	l.Status = next
+	return nil
+}
+
+func validLeaseStatus(status LeaseStatus) bool {
+	_, ok := leaseTransitions[status]
+	return ok
+}
+
 // Tier values mirror the routes domain's tiers as plain strings for the
 // reconciled exposure view.
 const (

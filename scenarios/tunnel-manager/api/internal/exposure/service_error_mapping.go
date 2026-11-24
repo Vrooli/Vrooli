@@ -20,6 +20,14 @@ func ToConnectError(err error) error {
 	if errors.As(err, &notFound) {
 		return connect.NewError(connect.CodeNotFound, notFound)
 	}
+	var invalidTransition ErrInvalidLeaseTransition
+	if errors.As(err, &invalidTransition) {
+		return connect.NewError(connect.CodeFailedPrecondition, invalidTransition)
+	}
+	var transitionConflict ErrLeaseWriteConflict
+	if errors.As(err, &transitionConflict) {
+		return connect.NewError(connect.CodeFailedPrecondition, transitionConflict)
+	}
 	var portErr ErrPortUnresolved
 	if errors.As(err, &portErr) {
 		return connect.NewError(connect.CodeFailedPrecondition, portErr)

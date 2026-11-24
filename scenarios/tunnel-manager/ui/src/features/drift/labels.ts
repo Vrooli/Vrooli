@@ -4,7 +4,7 @@ import {
 } from "@vrooli/proto-types/tunnel-manager/v1/config/config_pb";
 
 import { strings } from "../../consts/strings";
-import type { BadgeTone } from "../../components/ui/StatusBadge";
+import type { StatusTone as BadgeTone } from "@vrooli/react-component-library/StatusBadge/1";
 
 type StateKey = (typeof strings.drift.state)[keyof typeof strings.drift.state];
 type SourceKey = (typeof strings.drift.source)[keyof typeof strings.drift.source];

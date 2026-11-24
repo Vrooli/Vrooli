@@ -23,3 +23,13 @@ func TestDefaultReturnsLogger(t *testing.T) {
 		t.Fatal("Default() returned nil")
 	}
 }
+
+func TestDefaultLoggerPreservesInjection(t *testing.T) {
+	injected := log.New(&bytes.Buffer{}, "injected:", 0)
+	if got := DefaultLogger(injected); got != injected {
+		t.Fatal("DefaultLogger replaced injected logger")
+	}
+	if DefaultLogger(nil) == nil {
+		t.Fatal("DefaultLogger(nil) = nil")
+	}
+}

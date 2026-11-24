@@ -1,12 +1,10 @@
 package exposure
 
 import (
-	"time"
-
+	"tunnel-manager/handlers/prototime"
 	"tunnel-manager/internal/exposure"
 
 	exposurev1 "github.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/exposure"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func leaseToProto(l exposure.Lease) *exposurev1.Lease {
@@ -14,8 +12,8 @@ func leaseToProto(l exposure.Lease) *exposurev1.Lease {
 		Id:            l.ID,
 		Scenario:      l.Scenario,
 		RequestedBy:   l.RequestedBy,
-		CreatedAt:     optionalTS(l.CreatedAt),
-		ExpiresAt:     optionalTS(l.ExpiresAt),
+		CreatedAt:     prototime.OptionalTimestamp(l.CreatedAt),
+		ExpiresAt:     prototime.OptionalTimestamp(l.ExpiresAt),
 		ExtendedCount: int32(l.ExtendedCount),
 		Status:        leaseStatusToProto(l.Status),
 	}
@@ -60,11 +58,4 @@ func leaseStatusFromProto(s exposurev1.LeaseStatus) exposure.LeaseStatus {
 	default:
 		return ""
 	}
-}
-
-func optionalTS(t time.Time) *timestamppb.Timestamp {
-	if t.IsZero() {
-		return nil
-	}
-	return timestamppb.New(t.UTC())
 }

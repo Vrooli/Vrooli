@@ -3,7 +3,6 @@
 This document records operator procedures for running, diagnosing,
 recovering, and maintaining the scenario.
 
-## Purpose Of This Document
 
 Use this document to answer:
 
@@ -190,6 +189,18 @@ lifecycle is authorized.
 If the breaker is open from prior testing, `tunnel-manager recovery run
 --force true` resets it. Restore the resource to its intended enabled state
 with `vrooli resource enable cloudflared` after the soak.
+
+## Rotating a compromised Cloudflare connector token
+
+Cloudflare's [tunnel token guidance](https://developers.cloudflare.com/tunnel/reference/tunnel-tokens/) requires rotation and disconnection of existing connections after compromise. Confirm an independent access path and a recovery plan first: four HA connections can belong to one connector, and disconnecting them can interrupt every exposed service.
+
+Credential mutations require a verified, unexpired `tunnel-manager:write` principal; the legacy optional static operator token alone is insufficient. Run `tunnel-manager config bootstrap --use-stored-api-token --rotate-connector-token --dry-run` to check tunnel visibility and the connector-token fetch path. This cannot prove Cloudflare write permission or future availability. Once recovery is ready, omit `--dry-run` to rotate the secret on Cloudflare and fetch and store the replacement in the credential authority; this does not disconnect or restart connectors. Cloudflare requires Tunnel Write or an equivalent connector write permission.
+
+If a rotation call fails or its outcome is uncertain, do **not** request a new rotation. Run `tunnel-manager config bootstrap --use-stored-api-token` to reconcile the durable rotation intent: it reapplies the same encrypted, previously chosen secret if the old connector remains current, and stores the matching replacement. If Cloudflare returns an independently changed connector, reconciliation stops for investigation. Startup also attempts recovery. Leave the existing connector running until recovery is ready; its old token cannot establish new connections after a successful rotation. A failed fetch does not overwrite the stored token. Coordinate out-of-band Cloudflare changes while an intent is pending.
+
+If both tunnel-manager and cloudflared are stopped while an intent is pending, normal startup cannot launch its required connector until reconciliation. From an independent local access path, run `vrooli scenario start tunnel-manager --best-effort` to start the API with the failed dependency reported. This also permits other dependency failures, so inspect the startup result and do not treat it as tunnel readiness. Startup retries failed reconciliation once per minute; inspect credential status and use the authenticated bootstrap command above to retry immediately. Then run `vrooli resource start cloudflared` through the control plane. Its launch guard rejects startup until the intent is cleared. Neither the best-effort start nor reconciliation automatically starts the connector afterward.
+
+The managed cloudflared resource materializes the authority-backed token at launch. Coordinate the documented Cloudflare connection cleanup and a controlled managed-resource restart, then verify `tunnel-manager tunnel status`, a fresh `tunnel-manager tunnel scrape`, and an external route. Connection cleanup may cause an outage even with a healthy current connector; it also terminates any unauthorized connector. Avoid putting either credential in shell history, process arguments, logs, or tickets.
 
 ## Escalation
 

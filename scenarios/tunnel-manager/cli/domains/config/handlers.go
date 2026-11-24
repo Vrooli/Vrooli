@@ -278,18 +278,29 @@ func formatCredentialCapabilities(capabilities []*configv1.CredentialCapability)
 }
 
 func (h *handlers) bootstrapCall(ctx cliapp.OperationContext) (*configv1.BootstrapCloudflareResponse, error) {
-	if !ctx.BoolFlag("api-token-stdin") {
-		return nil, fmt.Errorf("--api-token-stdin is required; provide the token on standard input so it never appears in argv")
+	stdin := ctx.BoolFlag("api-token-stdin")
+	stored := ctx.BoolFlag("use-stored-api-token")
+	if stdin == stored {
+		return nil, fmt.Errorf("choose exactly one of --api-token-stdin or --use-stored-api-token")
 	}
-	apiToken, err := readSecretFromStdin("Cloudflare API token")
-	if err != nil {
-		return nil, err
+	if ctx.BoolFlag("rotate-connector-token") && !stored {
+		return nil, fmt.Errorf("--rotate-connector-token requires --use-stored-api-token")
+	}
+	var apiToken string
+	if stdin {
+		var err error
+		apiToken, err = readSecretFromStdin("Cloudflare API token")
+		if err != nil {
+			return nil, err
+		}
 	}
 	request := &configv1.BootstrapCloudflareRequest{
-		ApiToken:   apiToken,
-		AccountId:  strings.TrimSpace(ctx.Flag("account-id")),
-		TunnelId:   strings.TrimSpace(ctx.Flag("tunnel-id")),
-		TunnelName: strings.TrimSpace(ctx.Flag("tunnel-name")),
+		ApiToken:             apiToken,
+		UseStoredApiToken:    stored,
+		RotateConnectorToken: ctx.BoolFlag("rotate-connector-token"),
+		AccountId:            strings.TrimSpace(ctx.Flag("account-id")),
+		TunnelId:             strings.TrimSpace(ctx.Flag("tunnel-id")),
+		TunnelName:           strings.TrimSpace(ctx.Flag("tunnel-name")),
 	}
 	request.DryRun = ctx.BoolFlag("dry-run")
 	resp, err := h.client.BootstrapCloudflare(context.Background(), connect.NewRequest(request))
@@ -313,6 +324,9 @@ func (h *handlers) bootstrapReport(ctx cliapp.OperationContext, msg *configv1.Bo
 		result = "Dry-run: " + result + " No credentials were written."
 	} else if msg.Written {
 		result += " Authority-backed credentials were written."
+		if ctx.BoolFlag("rotate-connector-token") {
+			result += " Tunnel secret rotated; existing connections remain active until disconnected or restarted."
+		}
 	}
 	return cliapp.MutationReport{Result: []string{result}}
 }

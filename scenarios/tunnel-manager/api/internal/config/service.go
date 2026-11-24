@@ -3,12 +3,19 @@ package config
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 
 	"tunnel-manager/internal/cmdrunner"
 	"tunnel-manager/internal/envreader"
@@ -182,6 +189,80 @@ type service struct {
 	deps Deps
 }
 
+// Serialize credential mutations across config service instances in this API
+// process. External authority writers are checked again before refresh commits.
+var credentialMutationMu sync.Mutex
+
+const rotationIntentField = "cloudflare-connector-rotation-intent"
+
+type rotationIntent struct {
+	AccountID      string `json:"account_id"`
+	TunnelID       string `json:"tunnel_id"`
+	PreviousDigest string `json:"previous_digest"`
+	Secret         string `json:"secret"`
+}
+
+func connectorDigest(token string) string {
+	sum := sha256.Sum256([]byte(strings.TrimSpace(token)))
+	return hex.EncodeToString(sum[:])
+}
+
+// Cloudflared's token wire format carries the account, tunnel, and base64
+// secret as fields a, t, and s. Never include decoded content in errors.
+func connectorMatchesIntent(token string, intent rotationIntent) bool {
+	candidates := []string{strings.TrimSpace(token)}
+	parts := strings.Split(strings.TrimSpace(token), ".")
+	if len(parts) >= 2 {
+		candidates = append(candidates, parts[1])
+	}
+	for _, candidate := range candidates {
+		for _, enc := range []*base64.Encoding{base64.StdEncoding, base64.RawStdEncoding, base64.URLEncoding, base64.RawURLEncoding} {
+			raw, err := enc.DecodeString(candidate)
+			if err != nil {
+				continue
+			}
+			var payload struct {
+				Account string `json:"a"`
+				Tunnel  string `json:"t"`
+				Secret  string `json:"s"`
+			}
+			if json.Unmarshal(raw, &payload) == nil && strings.EqualFold(payload.Account, intent.AccountID) && strings.EqualFold(payload.Tunnel, intent.TunnelID) && payload.Secret == intent.Secret {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (s *service) pendingRotation() (bool, error) {
+	if s.deps.BootstrapAuthority == nil {
+		return false, nil
+	}
+	identity, err := credentialauthority.ParseIdentity(cloudflareCredentialID)
+	if err != nil {
+		return false, err
+	}
+	_, err = s.deps.BootstrapAuthority.Resolve(identity, rotationIntentField)
+	if err == nil {
+		return true, nil
+	}
+	if !errors.Is(err, credentialauthority.ErrUnconfigured) {
+		return false, fmt.Errorf("read connector rotation intent: %w", err)
+	}
+	return false, nil
+}
+
+func (s *service) requireNoPendingRotation() error {
+	pending, err := s.pendingRotation()
+	if err != nil {
+		return err
+	}
+	if pending {
+		return fmt.Errorf("connector rotation is pending; refresh configured credentials before changing them")
+	}
+	return nil
+}
+
 // NewService constructs the production Service.
 func NewService(d Deps) Service {
 	if d.Runner == nil {
@@ -282,7 +363,19 @@ func metricsEndpointFromEnvironment(environment envreader.Reader) string {
 }
 
 func (s *service) GetCredentialStatus(ctx context.Context) (CredentialStatus, error) {
-	return s.credentialStatus(ctx)
+	status, err := s.credentialStatus(ctx)
+	if err != nil {
+		return CredentialStatus{}, err
+	}
+	pending, err := s.pendingRotation()
+	if err != nil {
+		return CredentialStatus{}, err
+	}
+	if pending {
+		status.Ready = false
+		status.MissingFields = append(status.MissingFields, "CLOUDFLARE_CONNECTOR_ROTATION_PENDING")
+	}
+	return status, nil
 }
 
 func (s *service) VerifyCredentials(ctx context.Context) (CredentialVerification, error) {
@@ -303,8 +396,157 @@ func (s *service) VerifyCredentials(ctx context.Context) (CredentialVerification
 }
 
 func (s *service) BootstrapCloudflare(ctx context.Context, request BootstrapRequest) (BootstrapResult, error) {
+	release, err := credentialauthority.AcquireCloudflareConnectorLock(ctx)
+	if err != nil {
+		return BootstrapResult{}, fmt.Errorf("acquire connector lifecycle lock: %w", err)
+	}
+	defer release()
+	credentialMutationMu.Lock()
+	defer credentialMutationMu.Unlock()
 	if s.deps.BootstrapAPI == nil || s.deps.BootstrapAuthority == nil {
 		return BootstrapResult{}, fmt.Errorf("Cloudflare bootstrap is not configured")
+	}
+	if request.RotateConnectorToken && !request.UseStoredAPIToken {
+		return BootstrapResult{}, fmt.Errorf("connector rotation requires stored credentials")
+	}
+	if !request.UseStoredAPIToken {
+		identity, err := credentialauthority.ParseIdentity(cloudflareCredentialID)
+		if err != nil {
+			return BootstrapResult{}, err
+		}
+		_, err = s.deps.BootstrapAuthority.Resolve(identity, rotationIntentField)
+		if err == nil {
+			return BootstrapResult{}, fmt.Errorf("connector rotation is pending; refresh configured credentials before bootstrap")
+		}
+		if !errors.Is(err, credentialauthority.ErrUnconfigured) {
+			return BootstrapResult{}, fmt.Errorf("read connector rotation intent: %w", err)
+		}
+	}
+	if request.UseStoredAPIToken {
+		if strings.TrimSpace(request.APIToken) != "" {
+			return BootstrapResult{}, fmt.Errorf("stored credential refresh cannot accept an API token")
+		}
+		if request.AccountID != "" || request.TunnelID != "" || request.TunnelName != "" {
+			return BootstrapResult{}, fmt.Errorf("stored credential refresh does not accept tunnel selection")
+		}
+		identity, err := credentialauthority.ParseIdentity(cloudflareCredentialID)
+		if err != nil {
+			return BootstrapResult{}, err
+		}
+		request.APIToken, _ = s.deps.BootstrapAuthority.Resolve(identity, "cloudflare-api-token")
+		request.AccountID, _ = s.deps.BootstrapAuthority.Resolve(identity, "cloudflare-account-id")
+		request.TunnelID, _ = s.deps.BootstrapAuthority.Resolve(identity, "cloudflare-tunnel-id")
+		if strings.TrimSpace(request.APIToken) == "" || strings.TrimSpace(request.AccountID) == "" || strings.TrimSpace(request.TunnelID) == "" {
+			return BootstrapResult{}, fmt.Errorf("stored API token, account id and tunnel id are required for connector refresh")
+		}
+		var intent rotationIntent
+		rawIntent, intentErr := s.deps.BootstrapAuthority.Resolve(identity, rotationIntentField)
+		if intentErr != nil && !errors.Is(intentErr, credentialauthority.ErrUnconfigured) {
+			return BootstrapResult{}, fmt.Errorf("read connector rotation intent: %w", intentErr)
+		}
+		if intentErr == nil {
+			if err := json.Unmarshal([]byte(rawIntent), &intent); err != nil || intent.AccountID != request.AccountID || intent.TunnelID != request.TunnelID || intent.PreviousDigest == "" || intent.Secret == "" {
+				return BootstrapResult{}, fmt.Errorf("pending rotation intent is invalid or targets different credentials")
+			}
+			if request.RotateConnectorToken {
+				return BootstrapResult{}, fmt.Errorf("rotation is pending; refresh without rotating to reconcile it")
+			}
+		}
+		if err := s.deps.BootstrapAPI.VerifyToken(ctx, request.APIToken); err != nil {
+			return BootstrapResult{}, fmt.Errorf("verify Cloudflare API token: %w", err)
+		}
+		tunnels, err := s.deps.BootstrapAPI.ListTunnels(ctx, request.APIToken, request.AccountID)
+		if err != nil {
+			return BootstrapResult{}, fmt.Errorf("confirm configured Cloudflare tunnel: %w", err)
+		}
+		found := false
+		for _, tunnel := range tunnels {
+			if !tunnel.Deleted && strings.EqualFold(strings.TrimSpace(tunnel.ID), strings.TrimSpace(request.TunnelID)) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return BootstrapResult{}, fmt.Errorf("configured Cloudflare tunnel is not visible")
+		}
+		result := BootstrapResult{AccountID: strings.TrimSpace(request.AccountID), TunnelID: strings.TrimSpace(request.TunnelID), Adopted: true}
+		var oldConnector string
+		if request.RotateConnectorToken {
+			// Verify the recovery fetch path before invalidating the old token.
+			var err error
+			oldConnector, err = s.deps.BootstrapAPI.ConnectorToken(ctx, request.APIToken, request.AccountID, request.TunnelID)
+			if err != nil || strings.TrimSpace(oldConnector) == "" {
+				return BootstrapResult{}, fmt.Errorf("connector token recovery preflight failed")
+			}
+		}
+		if request.DryRun {
+			if intentErr == nil {
+				return BootstrapResult{}, fmt.Errorf("connector rotation is pending; run refresh without dry-run to reconcile")
+			}
+			return result, nil
+		}
+		if request.RotateConnectorToken {
+			secret := make([]byte, 32)
+			if _, err := rand.Read(secret); err != nil {
+				return BootstrapResult{}, fmt.Errorf("generate tunnel secret: %w", err)
+			}
+			intent = rotationIntent{AccountID: request.AccountID, TunnelID: request.TunnelID, PreviousDigest: connectorDigest(oldConnector), Secret: base64.StdEncoding.EncodeToString(secret)}
+			pending, _ := json.Marshal(intent)
+			if err := s.deps.BootstrapAuthority.Put(identity, rotationIntentField, string(pending)); err != nil {
+				return BootstrapResult{}, fmt.Errorf("persist connector rotation intent: %w", err)
+			}
+			if err := s.deps.BootstrapAPI.RotateConnectorSecret(ctx, request.APIToken, request.AccountID, request.TunnelID, intent.Secret); err != nil {
+				return BootstrapResult{}, fmt.Errorf("rotation outcome may be uncertain; refresh the configured connector without rotating before any retry: %w", err)
+			}
+		}
+		if intentErr == nil {
+			current, err := s.deps.BootstrapAPI.ConnectorToken(ctx, request.APIToken, request.AccountID, request.TunnelID)
+			if err != nil {
+				return BootstrapResult{}, fmt.Errorf("inspect pending connector rotation: %w", err)
+			}
+			if !connectorMatchesIntent(current, intent) {
+				if connectorDigest(current) != intent.PreviousDigest {
+					return BootstrapResult{}, fmt.Errorf("Cloudflare connector changed independently; pending rotation requires operator reconciliation")
+				}
+				// Reapply the same durable desired secret only while the provider
+				// still returns the pre-rotation token.
+				if err := s.deps.BootstrapAPI.RotateConnectorSecret(ctx, request.APIToken, request.AccountID, request.TunnelID, intent.Secret); err != nil {
+					return BootstrapResult{}, fmt.Errorf("reconcile pending connector rotation: %w", err)
+				}
+			}
+		}
+		connector, err := s.deps.BootstrapAPI.ConnectorToken(ctx, request.APIToken, request.AccountID, request.TunnelID)
+		if err != nil {
+			return BootstrapResult{}, fmt.Errorf("fetch Cloudflare connector token; if rotation was requested, refresh without rotating before retry: %w", err)
+		}
+		if strings.TrimSpace(connector) == "" {
+			return BootstrapResult{}, fmt.Errorf("Cloudflare returned an empty connector token; after rotation, refresh without rotating before retry")
+		}
+		if request.RotateConnectorToken && strings.TrimSpace(connector) == strings.TrimSpace(oldConnector) {
+			return BootstrapResult{}, fmt.Errorf("Cloudflare returned the previous connector after rotation; refresh without rotating before retry")
+		}
+		if intentErr == nil && connectorDigest(connector) == intent.PreviousDigest {
+			return BootstrapResult{}, fmt.Errorf("rotation remains pending and Cloudflare still returns the previous connector; do not rotate again")
+		}
+		if (request.RotateConnectorToken || intentErr == nil) && !connectorMatchesIntent(connector, intent) {
+			return BootstrapResult{}, fmt.Errorf("Cloudflare connector does not match the pending rotation; intent retained for reconciliation")
+		}
+		for field, expected := range map[string]string{"cloudflare-api-token": request.APIToken, "cloudflare-account-id": request.AccountID, "cloudflare-tunnel-id": request.TunnelID} {
+			current, err := s.deps.BootstrapAuthority.Resolve(identity, field)
+			if err != nil || current != expected {
+				return BootstrapResult{}, fmt.Errorf("configured Cloudflare credentials changed during connector refresh")
+			}
+		}
+		if err := s.deps.BootstrapAuthority.Put(identity, "cloudflare-connector-token", strings.TrimSpace(connector)); err != nil {
+			return BootstrapResult{}, fmt.Errorf("store Cloudflare connector token; after rotation, refresh without rotating before retry: %w", err)
+		}
+		if request.RotateConnectorToken || intentErr == nil {
+			if err := s.deps.BootstrapAuthority.Delete(identity, rotationIntentField); err != nil {
+				return BootstrapResult{}, fmt.Errorf("connector stored but rotation intent remains pending; refresh without rotating to reconcile: %w", err)
+			}
+		}
+		result.Written = true
+		return result, nil
 	}
 	return BootstrapCloudflare(ctx, s.deps.BootstrapAPI, s.deps.BootstrapAuthority, request)
 }
@@ -322,6 +564,29 @@ func (s *service) BootstrapConfiguredCloudflare(ctx context.Context) (BootstrapR
 	if err != nil {
 		return BootstrapResult{}, err
 	}
+	_, intentErr := s.deps.BootstrapAuthority.Resolve(identity, rotationIntentField)
+	if intentErr == nil {
+		return s.BootstrapCloudflare(ctx, BootstrapRequest{UseStoredAPIToken: true})
+	}
+	if !errors.Is(intentErr, credentialauthority.ErrUnconfigured) {
+		return BootstrapResult{}, fmt.Errorf("read connector rotation intent: %w", intentErr)
+	}
+	release, err := credentialauthority.AcquireCloudflareConnectorLock(ctx)
+	if err != nil {
+		return BootstrapResult{}, fmt.Errorf("acquire connector lifecycle lock: %w", err)
+	}
+	_, intentErr = s.deps.BootstrapAuthority.Resolve(identity, rotationIntentField)
+	if intentErr == nil {
+		release()
+		return s.BootstrapCloudflare(ctx, BootstrapRequest{UseStoredAPIToken: true})
+	}
+	if !errors.Is(intentErr, credentialauthority.ErrUnconfigured) {
+		release()
+		return BootstrapResult{}, fmt.Errorf("read connector rotation intent: %w", intentErr)
+	}
+	defer release()
+	credentialMutationMu.Lock()
+	defer credentialMutationMu.Unlock()
 	apiToken, err := s.deps.BootstrapAuthority.Resolve(identity, "cloudflare-api-token")
 	if err != nil || strings.TrimSpace(apiToken) == "" {
 		return BootstrapResult{}, nil
@@ -375,6 +640,24 @@ func (s *service) routeApexes(ctx context.Context) []string {
 }
 
 func (s *service) SetCloudflareCredentials(ctx context.Context, values CredentialUpdate) (CredentialStatus, error) {
+	release, err := credentialauthority.AcquireCloudflareConnectorLock(ctx)
+	if err != nil {
+		return CredentialStatus{}, err
+	}
+	defer release()
+	credentialMutationMu.Lock()
+	defer credentialMutationMu.Unlock()
+	pending, err := s.pendingRotation()
+	if err != nil {
+		return CredentialStatus{}, err
+	}
+	if pending {
+		// A replacement API credential can restore access without changing the
+		// tunnel bound into the pending intent. Identity changes remain blocked.
+		if strings.TrimSpace(values.APIToken) == "" || strings.TrimSpace(values.AccountID) != "" || strings.TrimSpace(values.TunnelID) != "" {
+			return CredentialStatus{}, fmt.Errorf("connector rotation is pending; only API token replacement is allowed")
+		}
+	}
 	if s.deps.CredentialStore == nil {
 		return CredentialStatus{}, ErrInvalidConfig{Field: "credentials", Reason: "credential store is not configured"}
 	}
@@ -382,6 +665,16 @@ func (s *service) SetCloudflareCredentials(ctx context.Context, values Credentia
 }
 
 func (s *service) ClearCloudflareCredentials(ctx context.Context, keys []string) (CredentialStatus, error) {
+	release, err := credentialauthority.AcquireCloudflareConnectorLock(ctx)
+	if err != nil {
+		return CredentialStatus{}, err
+	}
+	defer release()
+	credentialMutationMu.Lock()
+	defer credentialMutationMu.Unlock()
+	if err := s.requireNoPendingRotation(); err != nil {
+		return CredentialStatus{}, err
+	}
 	if s.deps.CredentialStore == nil {
 		return CredentialStatus{}, ErrInvalidConfig{Field: "credentials", Reason: "credential store is not configured"}
 	}

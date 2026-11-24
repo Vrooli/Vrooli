@@ -1,12 +1,10 @@
 package recovery
 
 import (
-	"time"
-
+	"tunnel-manager/handlers/prototime"
 	"tunnel-manager/internal/recovery"
 
 	recoveryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/recovery"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // stateToProto converts the internal state snapshot into the wire shape.
@@ -19,9 +17,9 @@ func stateToProto(s recovery.RecoveryState) *recoveryv1.RecoveryState {
 		BackoffLevel:     int32(s.BackoffLevel),
 		FailedRecoveries: int32(s.FailedRecovery),
 		CircuitOpen:      s.CircuitIsOpen(),
-		LastCheck:        optionalTS(s.LastCheck),
-		LastRecovery:     optionalTS(s.LastRecovery),
-		NextRetryAfter:   optionalTS(s.NextRetryAfter),
+		LastCheck:        prototime.OptionalTimestamp(s.LastCheck),
+		LastRecovery:     prototime.OptionalTimestamp(s.LastRecovery),
+		NextRetryAfter:   prototime.OptionalTimestamp(s.NextRetryAfter),
 	}
 }
 
@@ -36,7 +34,7 @@ func eventToProto(e recovery.RecoveryEvent) *recoveryv1.RecoveryEvent {
 		Outcome:   outcomeToProto(e.Outcome),
 		Details:   e.Details,
 		Attempt:   int32(e.Attempt),
-		CreatedAt: optionalTS(e.CreatedAt),
+		CreatedAt: prototime.OptionalTimestamp(e.CreatedAt),
 	}
 }
 
@@ -66,13 +64,4 @@ func outcomeToProto(o recovery.EventOutcome) recoveryv1.EventOutcome {
 	default:
 		return recoveryv1.EventOutcome_EVENT_OUTCOME_UNSPECIFIED
 	}
-}
-
-// optionalTS maps a zero time.Time to nil (leaving the proto field
-// unset) and otherwise to a UTC timestamp.
-func optionalTS(t time.Time) *timestamppb.Timestamp {
-	if t.IsZero() {
-		return nil
-	}
-	return timestamppb.New(t.UTC())
 }

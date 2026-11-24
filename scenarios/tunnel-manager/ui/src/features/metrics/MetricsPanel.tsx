@@ -6,7 +6,7 @@ import { FailureClass } from "@vrooli/proto-types/tunnel-manager/v1/probes/probe
 
 import { Button } from "../../components/ui/button";
 import { QueryState } from "../../components/ui/QueryState";
-import { StatusBadge } from "../../components/ui/StatusBadge";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { formatDate } from "../../i18n/format";

@@ -1,10 +1,10 @@
 /**
- * StatusBadge tests — tone → token class mapping and content rendering.
+ * StatusBadge consumer contract — tone and visible status remain explicit.
  */
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 
-import { StatusBadge, type BadgeTone } from "./StatusBadge";
+import { StatusBadge, type StatusTone as BadgeTone } from "@vrooli/react-component-library/StatusBadge/1";
 
 // provider-free-exception: this pure presentational leaf has no provider dependency.
 
@@ -20,18 +20,15 @@ describe("StatusBadge", () => {
     expect(screen.getByTestId("badge")).toHaveTextContent("Healthy");
   });
 
-  it.each<[BadgeTone, string]>([
-    ["success", "text-app-success"],
-    ["danger", "text-app-danger"],
-    ["warning", "text-app-warning"],
-    ["info", "text-app-info"],
-    ["neutral", "text-app-muted-foreground"],
-  ])("maps the %s tone to its token class", (tone, expected) => {
+  it.each<BadgeTone>(["success", "danger", "warning", "info", "neutral"])("exposes the %s tone and shared indicator", (tone) => {
     render(
       <StatusBadge tone={tone} data-testid="badge">
         x
       </StatusBadge>,
     );
-    expect(screen.getByTestId("badge").className).toContain(expected);
+    const badge = screen.getByTestId("badge");
+    expect(badge).toHaveAttribute("data-rcl-status-badge");
+    expect(badge).toHaveAttribute("data-tone", tone);
+    expect(badge.querySelector("[data-rcl-status-badge-indicator]")).toBeInTheDocument();
   });
 });

@@ -49,6 +49,14 @@ func AllowLocalOperator() StaticTokenAuthorizer {
 	return StaticTokenAuthorizer{}
 }
 
+// DefaultLocalOperator preserves an injected authorizer or supplies the local default.
+func DefaultLocalOperator(authorizer Authorizer) Authorizer {
+	if authorizer == nil {
+		return AllowLocalOperator()
+	}
+	return authorizer
+}
+
 func FromEnv() StaticTokenAuthorizer {
 	enforced := truthyEnv("TUNNEL_MANAGER_AUTHZ_ENFORCED")
 	token, ok := lookupTrimmedEnv("TUNNEL_MANAGER_OPERATOR_TOKEN")

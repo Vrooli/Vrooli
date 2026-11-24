@@ -177,12 +177,16 @@ func (s *service) Expose(ctx context.Context, in ExposeInput) (Lease, string, in
 	existing, err := s.repo.ActiveForScenario(ctx, scenario)
 	switch {
 	case err == nil:
+		expected := existing
 		existing.ExpiresAt = now.Add(ttl)
 		existing.ExtendedCount++
 		if in.RequestedBy != "" {
 			existing.RequestedBy = in.RequestedBy
 		}
-		updated, uerr := s.repo.Update(ctx, existing)
+		if err := existing.TransitionStatus(LeaseActive); err != nil {
+			return Lease{}, "", 0, false, err
+		}
+		updated, uerr := s.repo.Save(ctx, existing, expected)
 		if uerr != nil {
 			return Lease{}, "", 0, false, uerr
 		}
@@ -216,10 +220,13 @@ func (s *service) ExtendLease(ctx context.Context, leaseID string, ttl time.Dura
 	if err != nil {
 		return Lease{}, err
 	}
+	expected := lease
 	lease.ExpiresAt = s.clock.Now().UTC().Add(ttl)
 	lease.ExtendedCount++
-	lease.Status = LeaseActive
-	return s.repo.Update(ctx, lease)
+	if err := lease.TransitionStatus(LeaseActive); err != nil {
+		return Lease{}, err
+	}
+	return s.repo.Save(ctx, lease, expected)
 }
 
 func (s *service) RevokeLease(ctx context.Context, leaseID string) (bool, error) {
@@ -230,8 +237,11 @@ func (s *service) RevokeLease(ctx context.Context, leaseID string) (bool, error)
 	if err != nil {
 		return false, err
 	}
-	lease.Status = LeaseRevoked
-	if _, err := s.repo.Update(ctx, lease); err != nil {
+	expected := lease
+	if err := lease.TransitionStatus(LeaseRevoked); err != nil {
+		return false, err
+	}
+	if _, err := s.repo.Save(ctx, lease, expected); err != nil {
 		return false, err
 	}
 	// Retract ingress unless the scenario is also CORE (stays exposed).
@@ -380,8 +390,11 @@ func (s *service) Reconcile(ctx context.Context) (int, int, error) {
 		if lease.ExpiresAt.After(now) {
 			continue
 		}
-		lease.Status = LeaseExpired
-		if _, uerr := s.repo.Update(ctx, lease); uerr != nil {
+		expected := lease
+		if err := lease.TransitionStatus(LeaseExpired); err != nil {
+			return coreEnsured, reaped, err
+		}
+		if _, uerr := s.repo.Save(ctx, lease, expected); uerr != nil {
 			return coreEnsured, reaped, uerr
 		}
 		reaped++

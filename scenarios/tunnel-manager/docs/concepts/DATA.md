@@ -19,7 +19,6 @@ required Postgres with an empty schema; this regen drops it. See the
 **SQLite only** decision in [`../internal/DECISIONS.md`](../internal/DECISIONS.md).
 Revisit only if a domain truly needs a shared relational store.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

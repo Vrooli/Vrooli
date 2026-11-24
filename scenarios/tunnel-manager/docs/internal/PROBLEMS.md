@@ -179,7 +179,7 @@ As of the Phase 7 follow-up reconciliation, PRD/requirements no longer mark the 
 
 ## Architecture Drift
 
-Use this section for deferred findings from `screaming-architecture-audit`.
+Use this section for deferred findings from `architecture-lenses`.
 Do not create a standalone architecture-audit report unless the work is
 a migration handoff with a planned retirement path back into
 `ARCHITECTURE.md`, `SEAMS.md`, or this file.
@@ -194,3 +194,10 @@ a migration handoff with a planned retirement path back into
 - [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
+## Work ladder
+
+- Rung: W3, scoped connector credential recovery.
+- Evidence: bootstrap could fetch a connector with an operator-supplied API token but could not refresh the configured connector from the authority-held token after a Cloudflare rotation. The exposed-token incident requires that recovery path.
+- Measure: focused config API and CLI regressions and Test Genie unit phase. Live rotation, connector restart, and forced disconnection remain unverified.
+- Measured: 2026-11-16.
+

@@ -9,7 +9,6 @@ domains plus one presentation boundary beside it (below). The old template examp
 removed; if `notes` reappears, treat it as regression unless a new PRD
 explicitly introduces that product scope.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

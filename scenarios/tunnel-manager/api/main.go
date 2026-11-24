@@ -21,6 +21,7 @@ import (
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/preflight"
@@ -132,9 +133,15 @@ func main() {
 	// request context so *database.RoutedDB routes the call to the
 	// installed test pool. Self-disables in production mode.
 	handler := apihttp.TestModeMiddleware(rootMux)
+	authConfig, err := authn.FromEnvironment(os.Getenv)
+	if err != nil {
+		log.Fatalf("authentication configuration failed: %v", err)
+	}
+	authConfig = authConfig.WithScenarioAuthenticator("tunnel-manager")
 
 	if err := apiserver.Run(apiserver.Config{
-		Handler: handler,
+		Handler:        handler,
+		Authentication: &authConfig,
 		Cleanup: func(ctx context.Context) error {
 			bootstrapStop(ctx)
 			for i := len(schedulerStops) - 1; i >= 0; i-- {
@@ -152,19 +159,36 @@ func startDerivedCredentialBootstrap(service internalconfig.Service, logger *log
 	if !ok {
 		return func(context.Context) {}
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		if _, err := bootstrapper.BootstrapConfiguredCloudflare(ctx); err != nil {
-			logger.Printf("derived credential bootstrap deferred: %v", err)
-		}
+		runDerivedCredentialBootstrap(ctx, bootstrapper, logger, time.Minute)
 	}()
 	return func(stopCtx context.Context) {
 		cancel()
 		select {
 		case <-done:
 		case <-stopCtx.Done():
+		}
+	}
+}
+
+func runDerivedCredentialBootstrap(ctx context.Context, bootstrapper internalconfig.DerivedCredentialBootstrapper, logger *log.Logger, retryInterval time.Duration) {
+	for {
+		attemptCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
+		_, err := bootstrapper.BootstrapConfiguredCloudflare(attemptCtx)
+		cancel()
+		if err == nil || ctx.Err() != nil {
+			return
+		}
+		logger.Printf("derived credential bootstrap deferred: %v", err)
+		timer := time.NewTimer(retryInterval)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return
+		case <-timer.C:
 		}
 	}
 }

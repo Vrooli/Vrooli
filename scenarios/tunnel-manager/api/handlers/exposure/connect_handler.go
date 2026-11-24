@@ -7,6 +7,7 @@ import (
 
 	"tunnel-manager/internal/authz"
 	"tunnel-manager/internal/exposure"
+	"tunnel-manager/internal/logging"
 
 	"connectrpc.com/connect"
 
@@ -25,12 +26,8 @@ type connectHandler struct {
 }
 
 func NewConnectHandler(d Deps) *connectHandler {
-	if d.Logger == nil {
-		d.Logger = log.Default()
-	}
-	if d.Authorizer == nil {
-		d.Authorizer = authz.AllowLocalOperator()
-	}
+	d.Logger = logging.DefaultLogger(d.Logger)
+	d.Authorizer = authz.DefaultLocalOperator(d.Authorizer)
 	return &connectHandler{deps: d}
 }
 

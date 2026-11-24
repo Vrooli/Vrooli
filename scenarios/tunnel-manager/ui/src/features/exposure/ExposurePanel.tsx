@@ -10,10 +10,10 @@ import type { RouteClassification } from "@vrooli/proto-types/tunnel-manager/v1/
 import { FailureClass, ProbeStatus } from "@vrooli/proto-types/tunnel-manager/v1/probes/probes_pb";
 
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { QueryState } from "../../components/ui/QueryState";
 import { RouteInventoryTable, type RouteInventoryRow } from "../../components/ui/RouteInventoryTable";
-import { StatusBadge, type BadgeTone } from "../../components/ui/StatusBadge";
+import { StatusBadge, type StatusTone as BadgeTone } from "@vrooli/react-component-library/StatusBadge/1";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { formatDate } from "../../i18n/format";

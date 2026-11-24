@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/api-core/apihttptest"
+
 	"tunnel-manager/internal/testutil/mocks"
 	"tunnel-manager/internal/tunnel"
 
@@ -42,7 +44,7 @@ func (f *fakeRepo) Latest(_ context.Context) (tunnel.MetricsSample, error) {
 	return f.latestOut, f.latestErr
 }
 
-func newService(t *testing.T, repo tunnel.MetricsRepository, runner *mocks.FakeCmdRunner, doer *mocks.FakeDoer) tunnel.Service {
+func newService(t *testing.T, repo tunnel.MetricsRepository, runner *mocks.FakeCmdRunner, doer *apihttptest.FakeDoer) tunnel.Service {
 	t.Helper()
 	clk := scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
 	return tunnel.NewService(repo, runner.Run, doer, clk, "")
@@ -53,7 +55,7 @@ func newService(t *testing.T, repo tunnel.MetricsRepository, runner *mocks.FakeC
 func TestGetStatus_Healthy(t *testing.T) {
 	repo := &fakeRepo{latestErr: tunnel.ErrNoMetrics{}}
 	runner := &mocks.FakeCmdRunner{Out: []byte(`{"success":true,"installed":true,"running":true,"healthy":true,"status":"running"}`)}
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	doer.AddResponse(200, nil) // /ready -> ok
 	svc := newService(t, repo, runner, doer)
 
@@ -73,7 +75,7 @@ func TestGetStatus_Healthy(t *testing.T) {
 func TestGetStatus_DegradedSystemdInactive(t *testing.T) {
 	repo := &fakeRepo{latestErr: tunnel.ErrNoMetrics{}}
 	runner := &mocks.FakeCmdRunner{Out: []byte(`{"success":true,"installed":true,"running":false,"healthy":false,"status":"stopped"}`)}
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	doer.AddResponse(200, nil) // /ready -> ok, so only the -50 resource penalty applies
 	svc := newService(t, repo, runner, doer)
 
@@ -88,7 +90,7 @@ func TestGetStatus_UnhealthyBothChecksFail(t *testing.T) {
 	sample := tunnel.MetricsSample{ID: "m1", HAConnections: 4}
 	repo := &fakeRepo{latestOut: sample}
 	runner := &mocks.FakeCmdRunner{Out: []byte(`{"success":true,"installed":true,"running":false,"healthy":false,"status":"stopped"}`)}
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	doer.AddResponse(503, nil) // /ready -> http_503 (not ok)
 	svc := newService(t, repo, runner, doer)
 
@@ -107,7 +109,7 @@ func TestGetStatus_UnhealthyBothChecksFail(t *testing.T) {
 func TestScrape_ParsesAndPersists(t *testing.T) {
 	repo := &fakeRepo{}
 	runner := &mocks.FakeCmdRunner{}
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	doer.AddResponse(200, []byte(`# HELP cloudflared_tunnel_ha_connections HA connections
 cloudflared_tunnel_ha_connections 4
 cloudflared_tunnel_request_errors_total 7
@@ -133,7 +135,7 @@ quic_client_smoothed_rtt 12.5
 
 func TestListMetrics_PassesWindow(t *testing.T) {
 	repo := &fakeRepo{}
-	svc := newService(t, repo, &mocks.FakeCmdRunner{}, &mocks.FakeDoer{})
+	svc := newService(t, repo, &mocks.FakeCmdRunner{}, &apihttptest.FakeDoer{})
 	from := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2026, 5, 2, 0, 0, 0, 0, time.UTC)
 

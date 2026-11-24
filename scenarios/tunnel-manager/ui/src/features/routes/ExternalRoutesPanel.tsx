@@ -7,9 +7,9 @@ import {
 } from "@vrooli/proto-types/tunnel-manager/v1/routes/routes_pb";
 
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { QueryState } from "../../components/ui/QueryState";
-import { StatusBadge, type BadgeTone } from "../../components/ui/StatusBadge";
+import { StatusBadge, type StatusTone as BadgeTone } from "@vrooli/react-component-library/StatusBadge/1";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";

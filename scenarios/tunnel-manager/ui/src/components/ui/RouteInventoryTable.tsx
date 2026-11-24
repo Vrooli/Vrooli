@@ -4,7 +4,7 @@ import type { RouteClassification } from "@vrooli/proto-types/tunnel-manager/v1/
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 
 import { Button } from "./button";
-import { StatusBadge, type BadgeTone } from "./StatusBadge";
+import { StatusBadge, type StatusTone as BadgeTone } from "@vrooli/react-component-library/StatusBadge/1";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { formatDate } from "../../i18n/format";

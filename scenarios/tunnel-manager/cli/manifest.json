@@ -326,6 +326,8 @@
           "description": "Adopt or create the named Cloudflare tunnel from one API token, then store all derived credentials",
           "flags": [
             {"name": "api-token-stdin", "bool": true, "description": "Read the Cloudflare API token from standard input; never place it in argv or shell history"},
+            {"name": "use-stored-api-token", "bool": true, "description": "Refresh only the configured connector token using the stored API token; cannot select another tunnel"},
+            {"name": "rotate-connector-token", "bool": true, "description": "Rotate the configured tunnel secret before refreshing; does not disconnect or restart connectors"},
             {"name": "account-id", "description": "Optional account id when the token can access multiple accounts"},
             {"name": "tunnel-id", "description": "Optional existing tunnel id to adopt"},
             {"name": "tunnel-name", "description": "Tunnel name to adopt or create (default vrooli)"},

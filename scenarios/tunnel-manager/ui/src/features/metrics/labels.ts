@@ -5,7 +5,7 @@ import {
 } from "@vrooli/proto-types/tunnel-manager/v1/probes/probes_pb";
 
 import { strings } from "../../consts/strings";
-import type { BadgeTone } from "../../components/ui/StatusBadge";
+import type { StatusTone as BadgeTone } from "@vrooli/react-component-library/StatusBadge/1";
 
 type KindKey = (typeof strings.metrics.kind)[keyof typeof strings.metrics.kind];
 type ProbeStatusKey = (typeof strings.metrics.probeStatus)[keyof typeof strings.metrics.probeStatus];

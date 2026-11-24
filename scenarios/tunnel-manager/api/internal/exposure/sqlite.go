@@ -41,10 +41,10 @@ INSERT INTO leases (id, scenario, requested_by, created_at, expires_at, extended
 VALUES (?, ?, ?, ?, ?, ?, ?)
 `
 
-	updateLeaseSQL = `
+	saveLeaseSQL = `
 UPDATE leases
-SET scenario = ?, requested_by = ?, expires_at = ?, extended_count = ?, status = ?
-WHERE id = ?
+SET requested_by = ?, expires_at = ?, extended_count = ?, status = ?
+WHERE id = ? AND scenario = ? AND requested_by = ? AND expires_at = ? AND extended_count = ? AND status = ?
 `
 )
 
@@ -57,6 +57,9 @@ func (s *sqliteRepository) Create(ctx context.Context, l Lease) (Lease, error) {
 	}
 	if l.Status == "" {
 		l.Status = LeaseActive
+	}
+	if !validLeaseStatus(l.Status) || l.Status != LeaseActive {
+		return Lease{}, ErrInvalidLeaseTransition{From: "", To: l.Status}
 	}
 	_, err := s.db.ExecContext(ctx, insertLeaseSQL,
 		l.ID, l.Scenario, l.RequestedBy,
@@ -95,20 +98,27 @@ func (s *sqliteRepository) ActiveForScenario(ctx context.Context, scenario strin
 	return l, nil
 }
 
-func (s *sqliteRepository) Update(ctx context.Context, l Lease) (Lease, error) {
-	res, err := s.db.ExecContext(ctx, updateLeaseSQL,
-		l.Scenario, l.RequestedBy, l.ExpiresAt.Format(leaseTimeFormat),
-		l.ExtendedCount, string(l.Status), l.ID,
+func (s *sqliteRepository) Save(ctx context.Context, l Lease, expected Lease) (Lease, error) {
+	if l.ID != expected.ID || l.Scenario != expected.Scenario || !validLeaseStatus(expected.Status) || !validLeaseStatus(l.Status) || !leaseStatusTransitionAllowed(expected.Status, l.Status) {
+		return Lease{}, ErrInvalidLeaseTransition{From: expected.Status, To: l.Status}
+	}
+	res, err := s.db.ExecContext(ctx, saveLeaseSQL,
+		l.RequestedBy, l.ExpiresAt.Format(leaseTimeFormat), l.ExtendedCount, string(l.Status),
+		l.ID, expected.Scenario, expected.RequestedBy, expected.ExpiresAt.Format(leaseTimeFormat), expected.ExtendedCount, string(expected.Status),
 	)
 	if err != nil {
-		return Lease{}, fmt.Errorf("update lease %q: %w", l.ID, err)
+		return Lease{}, fmt.Errorf("save lease %q: %w", l.ID, err)
 	}
 	n, err := res.RowsAffected()
 	if err != nil {
-		return Lease{}, fmt.Errorf("update lease %q rows affected: %w", l.ID, err)
+		return Lease{}, fmt.Errorf("save lease %q rows affected: %w", l.ID, err)
 	}
 	if n == 0 {
-		return Lease{}, ErrLeaseNotFound{ID: l.ID}
+		stored, readErr := s.Get(ctx, l.ID)
+		if readErr != nil {
+			return Lease{}, readErr
+		}
+		return Lease{}, ErrLeaseWriteConflict{ID: l.ID, ExpectedStatus: expected.Status, CurrentStatus: stored.Status}
 	}
 	return l, nil
 }
@@ -157,6 +167,9 @@ func scanLease(sc rowScanner) (Lease, error) {
 		return Lease{}, err
 	}
 	l.Status = LeaseStatus(statusRaw)
+	if !validLeaseStatus(l.Status) {
+		return Lease{}, ErrInvalidLeaseState{Status: l.Status}
+	}
 	created, err := time.Parse(leaseTimeFormat, createdRaw)
 	if err != nil {
 		return Lease{}, fmt.Errorf("parse created_at %q: %w", createdRaw, err)

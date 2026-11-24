@@ -10,8 +10,9 @@ import (
 	localdb "tunnel-manager/internal/database"
 	internalexposure "tunnel-manager/internal/exposure"
 	internalroutes "tunnel-manager/internal/routes"
-	"tunnel-manager/internal/testutil/mocks"
 	internaltunnel "tunnel-manager/internal/tunnel"
+
+	"github.com/vrooli/api-core/apihttptest"
 
 	db "github.com/vrooli/api-core/databasetest"
 
@@ -62,7 +63,7 @@ func TestIngressAdapter_ReconcileUsesConfiguredRemoteIngress(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	doer.AddResponse(200, []byte(`{"success":true,"result":{"config":{"ingress":[{"service":"http_status:404"}]}}}`)) // read ingress
 	doer.AddResponse(200, []byte(`{"success":true,"result":{}}`))                                                     // push ingress
 	// Reconcile (Sync prune=true) now also ensures the proxied CNAME on the

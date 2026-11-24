@@ -58,15 +58,28 @@ func TestSQLite_ActiveForScenario(t *testing.T) {
 	require.ErrorAs(t, err, &nf)
 }
 
-func TestSQLite_UpdateAndListByStatus(t *testing.T) {
+func TestSQLite_SaveAndListByStatus(t *testing.T) {
 	repo, clk := newRepo(t)
 	ctx := context.Background()
 	l, err := repo.Create(ctx, exposure.Lease{Scenario: "svc", ExpiresAt: clk.Now().Add(time.Hour), Status: exposure.LeaseActive})
 	require.NoError(t, err)
+	stale := l
 
-	l.Status = exposure.LeaseRevoked
-	_, err = repo.Update(ctx, l)
+	if err := l.TransitionStatus(exposure.LeaseRevoked); err != nil {
+		t.Fatal(err)
+	}
+	_, err = repo.Save(ctx, l, stale)
 	require.NoError(t, err)
+	_, err = repo.Save(ctx, stale, stale)
+	var conflict exposure.ErrLeaseWriteConflict
+	require.ErrorAs(t, err, &conflict, "stale metadata must not overwrite a committed transition")
+	expectedRevoked := l
+	_, err = repo.Save(ctx, stale, expectedRevoked)
+	var invalid exposure.ErrInvalidLeaseTransition
+	require.ErrorAs(t, err, &invalid, "the storage boundary must reject terminal-state resurrection")
+	stored, err := repo.Get(ctx, l.ID)
+	require.NoError(t, err)
+	require.Equal(t, exposure.LeaseRevoked, stored.Status)
 
 	active, err := repo.List(ctx, exposure.LeaseActive)
 	require.NoError(t, err)
@@ -76,9 +89,19 @@ func TestSQLite_UpdateAndListByStatus(t *testing.T) {
 	require.Len(t, revoked, 1)
 }
 
-func TestSQLite_UpdateNotFound(t *testing.T) {
+func TestSQLite_SaveNotFound(t *testing.T) {
 	repo, clk := newRepo(t)
-	_, err := repo.Update(context.Background(), exposure.Lease{ID: "ghost", ExpiresAt: clk.Now()})
+	ghost := exposure.Lease{ID: "ghost", ExpiresAt: clk.Now(), Status: exposure.LeaseActive}
+	_, err := repo.Save(context.Background(), exposure.Lease{ID: "ghost", ExpiresAt: clk.Now(), Status: exposure.LeaseRevoked}, ghost)
 	var nf exposure.ErrLeaseNotFound
 	require.ErrorAs(t, err, &nf)
+}
+
+func TestSQLite_CreateRejectsUnknownOrTerminalInitialStatus(t *testing.T) {
+	repo, clk := newRepo(t)
+	for _, status := range []exposure.LeaseStatus{"unknown", exposure.LeaseExpired, exposure.LeaseRevoked} {
+		_, err := repo.Create(context.Background(), exposure.Lease{Scenario: "svc", ExpiresAt: clk.Now().Add(time.Hour), Status: status})
+		var invalid exposure.ErrInvalidLeaseTransition
+		require.ErrorAs(t, err, &invalid, "new leases must begin active; got status %q", status)
+	}
 }
