@@ -2,18 +2,13 @@
 
 Browse, author, inspect and compose Vrooli's versioned React assets. The workbench separates visual components, hooks and supporting assets, renders declared stories, and exposes source-backed page verification. Start it with `make start` from this scenario directory.
 
-## Workbench redesign — D · Nocturne (implemented and served; governed capture pending)
+## Workbench — five destinations and one workspace model
 
-The operator selected **D · Nocturne** as the target workbench design on 2026-11-18. The target is a warm, dark editorial workbench with eleven pages: Home, Components, Component, Design, Review, Coverage, Capabilities, Activity, Settings, Create and Preview. It keeps the component's two working modes — **Fixtures** and **In context** — and moves the seven current asset tabs into an **Asset data** drawer.
+The workbench now has `num[sot]:five` primary destinations: **Start, Library, Design, Review, and Stats**. Start combines search, intent browsing, recent workspaces, curated templates, library pulse, and shortcuts. Coverage, Activity, and Capabilities are views inside Stats; Review remains the queue for findings that need a decision.
 
-The Nocturne shell, eleven page surfaces, component workspace, design studio and eight page templates are implemented in [`ui/src/workbench/`](ui/src/workbench/). The Design studio can compose, inspect, edit, duplicate and present those templates, and In context places the real component harness inside them where it can be dragged, resized and reset. Fixtures, layers and browser-local templates persist across a reload. The coverage report now persists its last verdict and reports an explicit “preparing” state instead of failing or rendering zero on a cold pass.
-This is **not yet a production-ready claim**. The governed capture service returns `503` on this host, so page/component pixel and accessibility evidence is not fresh; full phone journeys, durable activity attribution and the Create write path remain open. The full page map, component workspace, design system, data contracts, migration phases and feature-preservation ledger are in [docs/concepts/WORKBENCH-REDESIGN.md](docs/concepts/WORKBENCH-REDESIGN.md). The selected interactive prototype and the page-by-page decision review are in the experience-engineering operator experiment:
+Design work is stored as a **Workspace → Page → Display → State** aggregate. Curated templates are immutable workspace snapshots; using one forks an editable workspace. The studio supports composition, import of HTML/CSS regions, RCL component placement and replacement, revision history, state capture, and visual comparison. The current source for the eight-screen design study is retained with its matching styles, scripts, and reference image in the `rcl-eight-screen-workspace-20261121` experience-engineering operator experiment.
 
-```text
-~/.vrooli/research/topics/experience-engineering/operator-experiments/rcl-workbench-redesign-20261118/
-```
-
-Current behavior remains what the checked behavior register proves, not what the redesign promises.
+This describes implemented behavior, not a blanket production-readiness claim. Authenticated BAS capture and independent review of AI answers remain open evidence requirements; imported source interactions are not executed as native workspace behavior. See the [workbench implementation program](docs/internal/WORKBENCH-PROGRAM.md) for current evidence, migration boundaries, and unresolved work, and the [maturation prototype](docs/mockups/workbench-maturation.html) for the design reference.
 
 ## The asset loop
 
@@ -47,4 +42,5 @@ These rules are enforced at the boundaries named in the checked behavior registe
 - [Page/source reconciliation](docs/concepts/UI-SPEC-RECONCILIATION.md)
 - [Story contract](docs/concepts/STORY-CONTRACT.md)
 - [Known problems and evidence limits](docs/internal/PROBLEMS.md)
+- [Studio debt inventory](docs/studio/DEBT.md) and the [Nov 19 historical audit](docs/studio/DEBT-HISTORY-2026-11-19.md). Studio handoffs in `docs/studio/` are retained as historical context; current operating guidance lives in the workbench program and problems ledger.
 - [Design intent](DESIGN.md)

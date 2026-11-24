@@ -219,12 +219,9 @@ export default defineConfig(({ mode }): UserConfig => {
           "src/api/catalogGraph.ts",
           "src/api/componentTests.ts",
           "src/api/components.ts",
-          "src/api/deps.ts",
           "src/api/health.ts",
           "src/api/themes.ts",
-          "src/api/versionHistory.ts",
           "src/api/versionLedger.ts",
-          "src/api/versions.ts",
           "src/api/workflows.ts",
           "src/components/hooks/**",
           "src/components/services/**",
@@ -242,7 +239,7 @@ export default defineConfig(({ mode }): UserConfig => {
         isLibrary
           ? "../library/**/*.{test,spec}.{ts,tsx}"
           : "src/**/*.{test,spec}.{ts,tsx}",
-        ...(isLibrary ? [] : ["scripts/vite-plugin-asset-stamp.test.mjs"]),
+        ...(isLibrary ? [] : ["scripts/vite-plugin-asset-stamp.test.mjs", "scripts/sync-catalog.test.mjs"]),
       ],
       exclude: isLibrary ? [...configDefaults.exclude, ...coldReleaseTestFolders()] : configDefaults.exclude,
     },

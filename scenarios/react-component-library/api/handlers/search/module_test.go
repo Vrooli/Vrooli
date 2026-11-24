@@ -2,16 +2,19 @@ package search
 
 import (
 	"context"
+	"database/sql"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/databasetest"
+	"github.com/vrooli/api-core/storage"
 	searchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/search"
 	searchconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/search/search_v1connect"
 	domain "react-component-library/internal/search"
@@ -41,6 +44,41 @@ func newHandlerService(t *testing.T) (*Handler, *domain.Service) {
 		},
 	}))
 	return &Handler{Service: service}, service
+}
+
+func TestSearchUsesRequestRoutedDBPool(t *testing.T) {
+	ctx := context.Background()
+	primaryDSN, err := storage.SQLiteDSNAt(filepath.Join(t.TempDir(), "primary.db"), storage.SQLiteTuning{})
+	require.NoError(t, err)
+	routed, err := apidb.Open(ctx, apidb.Config{Driver: apidb.DriverSQLite, DSN: primaryDSN, MaxOpenConns: 1, MaxIdleConns: 1})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = routed.Close() })
+	ensureSchema := func(ctx context.Context, pool *sql.DB) error {
+		return apidb.EnsureSchemas(ctx, pool, apidb.SchemaProviderFunc(Schema))
+	}
+	require.NoError(t, ensureSchema(ctx, routed.Primary()))
+	routed.SetTestPoolInitializer(ensureSchema)
+	testDSN, err := storage.SQLiteDSNAt(filepath.Join(t.TempDir(), "test.db"), storage.SQLiteTuning{})
+	require.NoError(t, err)
+	require.NoError(t, routed.InstallTestPool(ctx, testDSN, "search-routing", time.Minute))
+
+	service := domain.NewService(routed, t.TempDir(), nil)
+	require.NoError(t, service.ReplaceDocuments(ctx, []domain.Document{{
+		SubjectID: "primary-only", Kind: searchv1.SearchKind_SEARCH_KIND_WORKSPACE,
+		Title: "Primary only", Body: "routing marker", Href: "/primary-only",
+	}}))
+	handler := NewHandler(service)
+	primaryResponse, err := handler.Search(ctx, connect.NewRequest(&searchv1.SearchRequest{Query: "routing marker"}))
+	require.NoError(t, err)
+	require.Len(t, primaryResponse.Msg.GetResults(), 1)
+	require.Equal(t, "workspace:primary-only", primaryResponse.Msg.Results[0].GetId())
+
+	testResponse, err := handler.Search(apidb.WithTestMode(ctx), connect.NewRequest(&searchv1.SearchRequest{Query: "routing marker"}))
+	require.NoError(t, err)
+	require.Empty(t, testResponse.Msg.GetResults(), "test-mode request must read the isolated routed pool")
+	status, err := handler.GetSearchStatus(apidb.WithTestMode(ctx), connect.NewRequest(&searchv1.GetSearchStatusRequest{}))
+	require.NoError(t, err)
+	require.Equal(t, int32(0), status.Msg.GetDocumentCount())
 }
 
 func TestEndpointsCoverEveryProcedure(t *testing.T) {
@@ -84,6 +122,26 @@ func TestSearchRPCsUseTheService(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int32(2), statusResponse.Msg.GetDocumentCount())
 	require.Equal(t, searchv1.SemanticLegState_SEMANTIC_LEG_STATE_DISABLED, statusResponse.Msg.GetSemanticLeg())
+}
+
+func TestAskRPCReportsUnavailableInsteadOfLexicalAnswer(t *testing.T) {
+	handler, _ := newHandlerService(t)
+	_, err := handler.Search(context.Background(), connect.NewRequest(&searchv1.SearchRequest{Query: "button", Ask: true}))
+	require.Error(t, err)
+	var connectErr *connect.Error
+	require.ErrorAs(t, err, &connectErr)
+	require.Equal(t, connect.CodeUnavailable, connectErr.Code())
+}
+
+func TestAskProviderFailureMapsToUnavailable(t *testing.T) {
+	err := searchConnectError(domain.ErrAskProviderUnavailable)
+	require.Error(t, err)
+	require.Equal(t, connect.CodeUnavailable, connect.CodeOf(err))
+}
+
+func TestAskInvalidModelAnswerMapsToUnavailableAndInvalidQuestionMapsToArgument(t *testing.T) {
+	require.Equal(t, connect.CodeUnavailable, connect.CodeOf(searchConnectError(domain.ErrAskInvalidAnswer)))
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(searchConnectError(domain.ErrAskInvalidQuery)))
 }
 
 func TestUninitializedIndexMapsToFailedPrecondition(t *testing.T) {

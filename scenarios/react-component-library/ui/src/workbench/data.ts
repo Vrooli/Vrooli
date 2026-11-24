@@ -1,6 +1,13 @@
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import type { CoverageReport, CoverageRow } from "@vrooli/proto-types/react-component-library/v1/catalog/catalog_pb";
-import { AssetKind, type Component, type ComponentVersion } from "@vrooli/proto-types/react-component-library/v1/components/components_pb";
+import type {
+  CoverageReport,
+  CoverageRow,
+} from "@vrooli/proto-types/react-component-library/v1/catalog/catalog_pb";
+import {
+  AssetKind,
+  type Component,
+  type ComponentVersion,
+} from "@vrooli/proto-types/react-component-library/v1/components/components_pb";
 
 import {
   componentsClient,
@@ -25,7 +32,16 @@ import { getCurrentLocale, i18n } from "../i18n";
 
 export { timestampToDate } from "../lib/timestamp";
 
-export type { CatalogAsset, Component, ComponentExperience, ComponentStory, ComponentTestReport, ComponentVersion, CoverageReport, CoverageRow };
+export type {
+  CatalogAsset,
+  Component,
+  ComponentExperience,
+  ComponentStory,
+  ComponentTestReport,
+  ComponentVersion,
+  CoverageReport,
+  CoverageRow,
+};
 
 export const wbKeys = {
   catalog: ["wb", "catalog"] as const,
@@ -33,7 +49,8 @@ export const wbKeys = {
   capabilities: ["wb", "capabilities"] as const,
   designScenarios: ["wb", "design-scenarios"] as const,
   designPages: (scenario: string) => ["wb", "design-pages", scenario] as const,
-  component: (id: string) => ["wb", "component", id] as const,
+  component: (id: string, version?: string) =>
+    version ? (["wb", "component", id, version] as const) : (["wb", "component", id] as const),
 };
 
 const CATALOG_LIMIT = 600;
@@ -51,8 +68,7 @@ export function useCatalog(): UseQueryResult<CatalogAsset[]> {
 
 /** A cold gate corpus reports that it is preparing, not that it failed. */
 export function isCoverageWarming(error: unknown): boolean {
-  const message =
-    error instanceof Error ? error.message : typeof error === "string" ? error : "";
+  const message = error instanceof Error ? error.message : typeof error === "string" ? error : "";
   return /warming|being prepared|preparing/i.test(message);
 }
 
@@ -87,7 +103,7 @@ export function useNextWork(limit = 12): UseQueryResult<ListNextWorkResponse> {
   });
 }
 
-/* ── Design pages (SketchService) ─────────────────────────────────────────── */
+/* ── Design pages (ExperienceService) ─────────────────────────────────────────── */
 
 export interface DesignScenario {
   scenario: string;
@@ -108,7 +124,7 @@ export interface DesignPage {
 
 async function sketchJSON<T>(method: string, body: Record<string, unknown>): Promise<T> {
   const response = await boundedFetch(
-    `${API_BASE}/vrooli.react_component_library.v1.sketch.SketchService/${method}`,
+    `${API_BASE}/vrooli.react_component_library.v1.experience.ExperienceService/${method}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -117,7 +133,9 @@ async function sketchJSON<T>(method: string, body: Record<string, unknown>): Pro
   );
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
-    throw new Error(`${method} failed (${response.status})${detail ? `: ${detail.slice(0, 180)}` : ""}`);
+    throw new Error(
+      `${method} failed (${response.status})${detail ? `: ${detail.slice(0, 180)}` : ""}`,
+    );
   }
   return (await response.json()) as T;
 }
@@ -149,6 +167,20 @@ export function useDesignPages(scenario: string | null): UseQueryResult<DesignPa
   });
 }
 
+export interface ExperienceAdoptionResult {
+  workspace?: { id: string; name: string };
+  receiptId: string;
+  sourceHash: string;
+  targetHash: string;
+  alreadyAdopted: boolean;
+  receiptJson: string;
+}
+
+/** Explicitly imports a composition-bearing page into the native workspace owner. */
+export function adoptExperiencePage(scenario: string, page: string): Promise<ExperienceAdoptionResult> {
+  return sketchJSON<ExperienceAdoptionResult>("AdoptExperiencePage", { scenario, page });
+}
+
 /* ── Component bundle ─────────────────────────────────────────────────────── */
 
 /**
@@ -178,9 +210,59 @@ export interface ComponentBundle {
   partial: string[];
 }
 
-function parseStories(rows: ComponentStory[], latestVersion: string): WorkbenchStory[] {
-  const preferred = rows.filter((row) => row.version === latestVersion);
-  const source = preferred.length > 0 ? preferred : [...rows].sort((left, right) => right.version.localeCompare(left.version));
+/** Fetch the data required by a component binding outside of a React render. */
+export async function loadComponentBundle(
+  id: string,
+  requestedVersion?: string,
+): Promise<ComponentBundle> {
+  const partial: string[] = [];
+  const asset = (await getCatalogAsset(id)).component;
+  if (!asset) throw new Error("Component not found");
+
+  const [versions, stories, experience, tests] = await Promise.allSettled([
+    componentsClient.listComponentVersions({ componentId: id, limit: 0 }),
+    listComponentStories({ componentId: id, version: requestedVersion, limit: 200 }),
+    getComponentExperience(id),
+    listComponentTestReports({ componentId: id, limit: 3 }),
+  ]);
+
+  if (versions.status === "rejected") partial.push("versions");
+  const flatStories =
+    stories.status === "fulfilled"
+      ? parseStories(stories.value.stories, asset.latestVersion || asset.version, requestedVersion)
+      : [];
+  if (stories.status === "rejected") partial.push("stories");
+  else if (flatStories.length === 0 && stories.value.stories.length > 0) partial.push("stories");
+  if (experience.status === "rejected") partial.push("experience");
+  if (tests.status === "rejected") partial.push("tests");
+
+  return {
+    asset,
+    versions:
+      versions.status === "fulfilled"
+        ? [...versions.value.versions].sort((left, right) =>
+            right.version.localeCompare(left.version, undefined, { numeric: true }),
+          )
+        : [],
+    stories: flatStories,
+    experience: experience.status === "fulfilled" ? experience.value : undefined,
+    testReports: tests.status === "fulfilled" ? tests.value : [],
+    partial,
+  };
+}
+
+function parseStories(
+  rows: ComponentStory[],
+  latestVersion: string,
+  requestedVersion?: string,
+): WorkbenchStory[] {
+  const preferred = rows.filter((row) => row.version === (requestedVersion || latestVersion));
+  const source =
+    preferred.length > 0
+      ? preferred
+      : requestedVersion
+        ? []
+        : [...rows].sort((left, right) => right.version.localeCompare(left.version));
   const seen = new Set<string>();
   const stories: WorkbenchStory[] = [];
   for (const row of source) {
@@ -216,49 +298,10 @@ function parseStories(rows: ComponentStory[], latestVersion: string): WorkbenchS
   return stories;
 }
 
-export function useComponentBundle(id: string): UseQueryResult<ComponentBundle> {
+export function useComponentBundle(id: string, version?: string): UseQueryResult<ComponentBundle> {
   return useQuery({
-    queryKey: wbKeys.component(id),
-    queryFn: async () => {
-      const partial: string[] = [];
-      const asset = (await getCatalogAsset(id)).component;
-      if (!asset) throw new Error("Component not found");
-
-      const [versions, stories, experience, tests] = await Promise.allSettled([
-        // ComponentsService owns the indexed release list for a library id.
-        // VersionsService addresses the version ledger by its own ids and
-        // returned an empty page here, which is why Versions rendered "0".
-        componentsClient.listComponentVersions({ componentId: id, limit: 0 }),
-        listComponentStories({ componentId: id, limit: 200 }),
-        getComponentExperience(id),
-        listComponentTestReports({ componentId: id, limit: 3 }),
-      ]);
-
-      if (versions.status === "rejected") partial.push("versions");
-      const flatStories =
-        stories.status === "fulfilled" ? parseStories(stories.value.stories, asset.latestVersion || asset.version) : [];
-      if (stories.status === "rejected") {
-        partial.push("stories");
-      } else if (flatStories.length === 0 && stories.value.stories.length > 0) {
-        partial.push("stories");
-      }
-      if (experience.status === "rejected") partial.push("experience");
-      if (tests.status === "rejected") partial.push("tests");
-
-      return {
-        asset,
-        versions:
-          versions.status === "fulfilled"
-            ? [...versions.value.versions].sort((left, right) =>
-                right.version.localeCompare(left.version, undefined, { numeric: true }),
-              )
-            : [],
-        stories: flatStories,
-        experience: experience.status === "fulfilled" ? experience.value : undefined,
-        testReports: tests.status === "fulfilled" ? tests.value : [],
-        partial,
-      };
-    },
+    queryKey: wbKeys.component(id, version),
+    queryFn: () => loadComponentBundle(id, version),
     staleTime: 20_000,
     retry: 0,
   });
@@ -291,9 +334,7 @@ export function formatRelative(date: Date | undefined): string {
   // API timestamps can be a few seconds ahead of the browser clock. "in 6
   // seconds" reads as a bug; treat the near future as now.
   if (seconds > -60 && seconds < 60) {
-    return i18n.isInitialized
-      ? i18n.t("common.justNow", { defaultValue: "just now" })
-      : "just now";
+    return i18n.isInitialized ? i18n.t("common.justNow", { defaultValue: "just now" }) : "just now";
   }
   const units: Array<[Intl.RelativeTimeFormatUnit, number]> = [
     ["year", 31_536_000],

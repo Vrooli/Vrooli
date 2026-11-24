@@ -5,7 +5,6 @@ package versions
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"log"
 
@@ -26,11 +25,11 @@ import (
 // Module wires the versions domain with an optional AdoptionResolver
 // so the diff endpoint can compare against adopted-copy bytes. Pass
 // nil resolver to disable adoption-side diffs.
-func Module(db *sql.DB, clk schedule.Clock, resolver versions.AdoptionResolver, logger *log.Logger) module.Module {
+func Module(db versions.SQLDB, clk schedule.Clock, resolver versions.AdoptionResolver, logger *log.Logger) module.Module {
 	return ModuleWithLedger(db, clk, resolver, logger, nil)
 }
 
-func ModuleWithLedger(db *sql.DB, clk schedule.Clock, resolver versions.AdoptionResolver, logger *log.Logger, ledger *versionledger.Repository, componentServices ...components.Service) module.Module {
+func ModuleWithLedger(db versions.SQLDB, clk schedule.Clock, resolver versions.AdoptionResolver, logger *log.Logger, ledger *versionledger.Repository, componentServices ...components.Service) module.Module {
 	repo := versions.NewSQLiteRepository(db, clk)
 	svc := versions.NewService(repo, resolver)
 	h := NewConnectHandler(Deps{
@@ -59,7 +58,7 @@ func ModuleWithLedger(db *sql.DB, clk schedule.Clock, resolver versions.Adoption
 // BuildService is the seam main.go calls to construct one
 // versions.Service that other layers (the components content-change
 // listener, the CLI handlers test) can share.
-func BuildService(db *sql.DB, clk schedule.Clock, resolver versions.AdoptionResolver) versions.Service {
+func BuildService(db versions.SQLDB, clk schedule.Clock, resolver versions.AdoptionResolver) versions.Service {
 	return versions.NewService(versions.NewSQLiteRepository(db, clk), resolver)
 }
 

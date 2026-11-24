@@ -117,34 +117,48 @@ func (h *handlers) reap(ctx cliapp.RunContext) error {
 	return h.cleanupVersions(ctx)
 }
 
-func (h *handlers) materialize(ctx cliapp.RunContext) error {
+func (h *handlers) materializeCall(ctx cliapp.OperationContext) (*versionsv1.MaterializeVersionResponse, error) {
 	componentID := ctx.Positional("component-id")
 	version := ctx.Positional("version")
 	all := ctx.BoolFlag("all")
 	if !all && (componentID == "" || version == "") {
-		return fmt.Errorf("provide <component-id> <version>, or --all")
+		return nil, fmt.Errorf("provide <component-id> <version>, or --all")
 	}
 	resp, err := h.lifecycleClient.MaterializeVersion(context.Background(), connect.NewRequest(&versionsv1.MaterializeVersionRequest{ComponentId: componentID, Version: version, All: all, Into: ctx.Flag("into")}))
 	if err != nil {
-		return cliapp.WrapAPIError("materialize versions", err, nil)
+		return nil, cliapp.WrapAPIError("materialize versions", err, nil)
 	}
-	results := make([]string, 0, len(resp.Msg.Versions))
-	for _, item := range resp.Msg.Versions {
-		results = append(results, fmt.Sprintf("%s@%s directory=%s already-present=%t", item.LibraryId, item.Version, item.Directory, item.AlreadyPresent))
+	if resp == nil || resp.Msg == nil {
+		return nil, fmt.Errorf("server returned no materialization response")
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Materialized %d version(s).", len(results))}, ResultsHeading: "Materialized versions", Results: results})
+	return resp.Msg, nil
 }
 
-func (h *handlers) reconcilePresence(ctx cliapp.RunContext) error {
+func (h *handlers) materializeReport(_ cliapp.OperationContext, msg *versionsv1.MaterializeVersionResponse) cliapp.ListReport {
+	results := make([]string, 0, len(msg.Versions))
+	for _, item := range msg.Versions {
+		results = append(results, fmt.Sprintf("%s@%s directory=%s already-present=%t", item.LibraryId, item.Version, item.Directory, item.AlreadyPresent))
+	}
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Materialized %d version(s).", len(results))}, ResultsHeading: "Materialized versions", Results: results}
+}
+
+func (h *handlers) reconcilePresenceCall(ctx cliapp.OperationContext) (*versionsv1.ReconcilePresenceResponse, error) {
 	componentID := ""
 	if ctx.FlagDeclared("component-id") {
 		componentID = ctx.Flag("component-id")
 	}
 	resp, err := h.lifecycleClient.ReconcilePresence(context.Background(), connect.NewRequest(&versionsv1.ReconcilePresenceRequest{ComponentId: componentID, Apply: ctx.BoolFlag("apply")}))
 	if err != nil {
-		return cliapp.WrapAPIError("reconcile version presence", err, nil)
+		return nil, cliapp.WrapAPIError("reconcile version presence", err, nil)
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Presence reconciliation: evict=%d materialize=%d unchanged=%d applied=%t.", len(resp.Msg.Evict), len(resp.Msg.Materialize), len(resp.Msg.Unchanged), resp.Msg.Applied)}, ResultsHeading: "Presence reconciliation", Results: append(renderCandidates(resp.Msg.Evict, "evict"), append(renderCandidates(resp.Msg.Materialize, "materialize"), renderCandidates(resp.Msg.Unchanged, "unchanged")...)...)})
+	if resp == nil || resp.Msg == nil {
+		return nil, fmt.Errorf("server returned no presence reconciliation response")
+	}
+	return resp.Msg, nil
+}
+
+func (h *handlers) reconcilePresenceReport(_ cliapp.OperationContext, msg *versionsv1.ReconcilePresenceResponse) cliapp.ListReport {
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Presence reconciliation: evict=%d materialize=%d unchanged=%d applied=%t.", len(msg.Evict), len(msg.Materialize), len(msg.Unchanged), msg.Applied)}, ResultsHeading: "Presence reconciliation", Results: append(renderCandidates(msg.Evict, "evict"), append(renderCandidates(msg.Materialize, "materialize"), renderCandidates(msg.Unchanged, "unchanged")...)...)}
 }
 
 func (h *handlers) importArchive(ctx cliapp.RunContext) error {

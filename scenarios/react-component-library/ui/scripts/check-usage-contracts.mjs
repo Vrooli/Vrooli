@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { Linter } from "eslint";
 import parser from "@typescript-eslint/parser";
@@ -12,6 +13,7 @@ const args = process.argv.slice(2);
 const rootsArg = args.indexOf("--roots");
 const allReactUIs = args.includes("--all-react-uis");
 const ratchetArg = args.indexOf("--ratchet-file");
+const checkCatalogCoverage = allReactUIs || ratchetArg >= 0;
 const reactScenarioRoots = () => fs.readdirSync(path.join(repo, "scenarios"), { withFileTypes: true })
   .filter((entry) => entry.isDirectory())
   .map((entry) => entry.name)
@@ -38,6 +40,33 @@ const config = [{
 }];
 const findings = [];
 let checkedFiles = 0;
+
+function catalogCoverageReport() {
+  const script = path.join(repo, "scenarios/react-component-library/ui/scripts/check-catalog-usage-contracts.mjs");
+  const run = spawnSync(process.execPath, [script, "--json"], {
+    cwd: repo,
+    encoding: "utf8",
+    maxBuffer: 8 * 1024 * 1024,
+  });
+  if (run.error)
+    return { status: "not-evaluated", eligible: 0, contracted: 0, errors: [`catalog coverage checker could not start: ${run.error.message}`] };
+  let report;
+  try {
+    report = JSON.parse(run.stdout);
+  } catch (error) {
+    return { status: "not-evaluated", eligible: 0, contracted: 0, errors: [`catalog coverage checker returned invalid JSON: ${error.message}`] };
+  }
+  const eligible = report.coverage?.eligible;
+  const contracted = report.coverage?.contracted;
+  const errors = Array.isArray(report.errors) ? report.errors : [];
+  const complete = run.status === 0 && Number.isInteger(eligible) && eligible > 0 && contracted === eligible && errors.length === 0;
+  return {
+    status: complete ? "passed" : run.status === null ? "not-evaluated" : "failed",
+    eligible: Number.isInteger(eligible) ? eligible : 0,
+    contracted: Number.isInteger(contracted) ? contracted : 0,
+    errors,
+  };
+}
 
 function walk(dir) {
   if (!fs.existsSync(dir)) return [];
@@ -76,6 +105,8 @@ const byContract = Object.fromEntries([...findings.reduce((counts, finding) => {
   return counts;
 }, new Map())].sort(([left], [right]) => left.localeCompare(right)));
 const fleet = { scenarios: scenarioRoots.length, files: checkedFiles, findings: findings.length, byContract };
+const catalogCoverage = checkCatalogCoverage ? catalogCoverageReport() : null;
+const catalogCoverageFailed = catalogCoverage !== null && catalogCoverage.status !== "passed";
 let ratchet = null;
 let ratchetFailed = false;
 if (ratchetArg >= 0) {
@@ -102,10 +133,12 @@ if (ratchetArg >= 0) {
   }
 }
 
-if (args.includes("--json")) console.log(JSON.stringify({ fleet, ratchet, findings }, null, 2));
+if (args.includes("--json")) console.log(JSON.stringify({ fleet, ratchet, catalogCoverage, findings }, null, 2));
 else {
   for (const finding of findings) console.log(`${finding.file}:${finding.line} ${finding.code}: ${finding.message}`);
   console.log(`Usage-contract fleet: ${fleet.scenarios} UI trees, ${fleet.files} source files, ${fleet.findings} findings.`);
+  if (catalogCoverage)
+    console.log(`Catalog usage-contract coverage ${catalogCoverage.status}: ${catalogCoverage.contracted}/${catalogCoverage.eligible} eligible assets.`);
   for (const [contract, count] of Object.entries(byContract)) console.log(`${contract}\t${count}`);
   if (ratchet) {
     console.log(`Fleet ratchet ${ratchet.status}: ${ratchet.baseline}`);
@@ -113,4 +146,4 @@ else {
     for (const failure of ratchet.failures) console.error(failure);
   }
 }
-if (ratchetArg >= 0 ? ratchetFailed : findings.length > 0) process.exitCode = 1;
+if (ratchetArg >= 0 ? ratchetFailed || catalogCoverageFailed : findings.length > 0 || catalogCoverageFailed) process.exitCode = 1;

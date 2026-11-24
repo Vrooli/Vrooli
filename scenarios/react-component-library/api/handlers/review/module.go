@@ -34,20 +34,46 @@ type Service interface {
 }
 
 // Handler adapts the review domain onto the generated Connect interface.
-type Handler struct{ service Service }
+type Handler struct {
+	service Service
+	ports   Ports
+}
 
 // NewHandler wires a service implementation.
 func NewHandler(service Service) *Handler { return &Handler{service: service} }
 
+// NewHandlerWithPorts mounts findings plus candidate acceptance and visual review
+// operations. The injected ports keep those workflows on their owning domains.
+func NewHandlerWithPorts(service Service, ports Ports) *Handler {
+	return &Handler{service: service, ports: ports}
+}
+
 // Module mounts ReviewService over the scenario database. Evidence projection
 // reads catalog_gate_evidence through the same pool the rest of the API uses.
-func Module(db *sql.DB) module.Module {
+// database is the request-aware SQL surface used by the review queue and its
+// evidence projector. *sql.DB remains useful for fixtures; production passes
+// api-core's RoutedDB so each request context selects its pool.
+type database interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+}
+
+func Module(db database) module.Module {
 	return ModuleFromService(domain.NewService(db, domain.NewEvidenceProjector(db)))
 }
 
 // ModuleFromService is the constructor tests and alternate stores use.
 func ModuleFromService(service Service) module.Module {
-	path, handler := reviewconnect.NewReviewServiceHandler(NewHandler(service))
+	return ModuleFromServiceWithPorts(service, Ports{})
+}
+
+// ModuleFromServiceWithPorts mounts ReviewService without routing through the
+// workspace candidate service handler. Acceptance and critique dependencies
+// stay explicit.
+func ModuleFromServiceWithPorts(service Service, ports Ports) module.Module {
+	path, handler := reviewconnect.NewReviewServiceHandler(NewHandlerWithPorts(service, ports))
 	return module.Module{
 		Name: "review",
 		Mount: func(router *mux.Router) {
@@ -357,4 +383,11 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "review",
 		Response:    &module.Schema{Type: "object", Properties: map[string]string{"summary": "ReviewSummary"}},
 	},
+	{ID: "candidate_accept_check", Path: reviewconnect.ReviewServiceCheckCandidateAcceptanceProcedure, Method: "POST", Summary: "Check current candidate, render, behavior, calibration and review evidence", Category: "review"},
+	{ID: "candidate_accept", Path: reviewconnect.ReviewServiceAcceptCandidateProcedure, Method: "POST", Summary: "Record an idempotent terminal acceptance decision", Category: "review"},
+	{ID: "acceptance_get", Path: reviewconnect.ReviewServiceGetAcceptanceProcedure, Method: "POST", Summary: "Read a recorded acceptance decision", Category: "review"},
+	{ID: "critique_list", Path: reviewconnect.ReviewServiceListCritiquesProcedure, Method: "POST", Summary: "List verified critiques for an exact candidate render", Category: "review"},
+	{ID: "critique_rubric", Path: reviewconnect.ReviewServiceGetCritiqueRubricProcedure, Method: "POST", Summary: "Read the versioned visual rubric and calibration status", Category: "review"},
+	{ID: "critique_record", Path: reviewconnect.ReviewServiceRecordCritiqueProcedure, Method: "POST", Summary: "Verify image evidence and record an attributed visual critique", Category: "review"},
+	{ID: "critique_get", Path: reviewconnect.ReviewServiceGetCritiqueProcedure, Method: "POST", Summary: "Read an immutable visual review fact", Category: "review"},
 }

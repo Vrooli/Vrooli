@@ -1,11 +1,9 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowDown, ArrowUp, Box, ChevronDown, ChevronRight, Component, Copy, Gauge, Grid3x3, LayoutTemplate, Minus, MousePointerClick, MoveVertical, Rows3, Shapes, Square, Tag, TextCursorInput, Trash2, Type, UserRound, Sparkles } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, Trash2 } from "lucide-react";
 
 import { useTranslation } from "../../i18n";
-import type { DesignDocument, DesignFrame } from "../designs";
-import { layerLabel, type TemplateNodeType } from "../templates/spec";
+import type { DesignDocument, DesignFrame } from "../design-types";
 import type { Coverage } from "./rcl";
-import { rclPrimitive } from "./rcl";
 import {
   ADDABLE_NODES,
   CONTAINER_TYPES,
@@ -13,30 +11,9 @@ import {
   type AddableNode,
   type LayerRow,
 } from "./model";
-import { cx } from "../cx";
 import { Chip } from "../primitives";
-
-const NODE_ICON: Partial<Record<TemplateNodeType, typeof Box>> = {
-  page: LayoutTemplate,
-  stack: Box,
-  row: Rows3,
-  grid: Grid3x3,
-  surface: Square,
-  card: Square,
-  text: Type,
-  button: MousePointerClick,
-  input: TextCursorInput,
-  stat: Gauge,
-  metric: Gauge,
-  icon: Sparkles,
-  avatar: UserRound,
-  chip: Tag,
-  meter: Gauge,
-  divider: Minus,
-  spacer: MoveVertical,
-  slot: Component,
-  swatch: Shapes,
-};
+import { StudioLayerTree } from "./StudioLayerTree";
+import type { LayerDropPosition } from "./layerMovement";
 
 export function StudioLayers({
   design,
@@ -47,6 +24,7 @@ export function StudioLayers({
   onToggleCollapse,
   onSelect,
   onMove,
+  onReparent,
   onDuplicate,
   onRemove,
   onAdd,
@@ -61,6 +39,7 @@ export function StudioLayers({
   onToggleCollapse: (id: string) => void;
   onSelect: (id: string) => void;
   onMove: (direction: -1 | 1) => void;
+  onReparent: (sourceId: string, targetId: string, position: LayerDropPosition) => void;
   onDuplicate: () => void;
   onRemove: () => void;
   onAdd: (entry: AddableNode, parentId: string) => void;
@@ -70,7 +49,8 @@ export function StudioLayers({
   const { t } = useTranslation();
   const [nameDraft, setNameDraft] = useState(design.name);
   const selected = rows.find((row) => row.node.id === selectedId);
-  const parent = selected && CONTAINER_TYPES.has(selected.node.type) ? selected.node : rows[0]?.node;
+  const parent =
+    selected && CONTAINER_TYPES.has(selected.node.type) ? selected.node : rows[0]?.node;
   const size = FRAME_SIZE[frame.device];
 
   useEffect(() => {
@@ -107,69 +87,13 @@ export function StudioLayers({
         </span>
       </div>
 
-      <div className="studio-tree" role="tree" aria-label={t("workbench.studio.layers", { defaultValue: "Layers" })}>
-        {rows.map((row) => {
-          const icon = NODE_ICON[row.node.type] ?? Box;
-          const Icon = icon;
-          const primitive = rclPrimitive(row.node.type);
-          const current = row.node.id === selectedId;
-          return (
-            <div
-              key={row.node.id}
-              className={cx("studio-tree-row", current && "is-selected")}
-              style={{ paddingLeft: `${6 + row.depth * 13}px` }}
-              role="treeitem"
-              aria-level={row.depth + 1}
-              aria-selected={current}
-              aria-expanded={row.hasChildren ? !row.collapsed : undefined}
-            >
-              {row.hasChildren ? (
-                <button
-                  type="button"
-                  className="studio-tree-caret"
-                  aria-label={
-                    row.collapsed
-                      ? t("workbench.studio.expand", { defaultValue: "Expand {{name}}", name: layerLabel(row.node) })
-                      : t("workbench.studio.collapse", { defaultValue: "Collapse {{name}}", name: layerLabel(row.node) })
-                  }
-                  onClick={() => onToggleCollapse(row.node.id)}
-                >
-                  {row.collapsed ? <ChevronRight aria-hidden size={11} /> : <ChevronDown aria-hidden size={11} />}
-                </button>
-              ) : (
-                <span className="studio-tree-caret" aria-hidden />
-              )}
-              <button
-                type="button"
-                className="studio-tree-select"
-                onClick={() => onSelect(row.node.id)}
-              >
-                <Icon aria-hidden size={12} className="studio-tree-icon" />
-                <span className="studio-tree-name">{layerLabel(row.node)}</span>
-                {row.node.type === "slot" ? (
-                  <span className="studio-tree-slot">
-                    {typeof row.node.props.role === "string"
-                      ? row.node.props.role
-                      : t("workbench.studio.slot", { defaultValue: "slot" })}
-                  </span>
-                ) : null}
-                {row.node.type === "slot" ? null : (
-                  <span className="studio-tree-type">{row.node.type}</span>
-                )}
-                {primitive ? (
-                  <span className="studio-tree-badge is-rcl" title={primitive}>
-                    {t("workbench.studio.badgeRcl", { defaultValue: "RCL" })}
-                  </span>
-                ) : CONTAINER_TYPES.has(row.node.type) ? null : (
-                  <span className="studio-tree-badge is-custom">
-                    {t("workbench.studio.custom", { defaultValue: "custom" })}
-                  </span>
-                )}
-              </button>
-            </div>
-          );
-        })}
-      </div>
+      <StudioLayerTree
+        rows={rows}
+        selectedId={selectedId}
+        onToggleCollapse={onToggleCollapse}
+        onSelect={onSelect}
+        onReparent={onReparent}
+      />
 
       <div className="studio-pane-foot">
         <div className="studio-add-row">
@@ -231,7 +155,9 @@ export function StudioLayers({
         </div>
 
         <div className="studio-legend">
-          <Chip tone="green">{t("workbench.studio.legendRcl", { defaultValue: "RCL-backed" })}</Chip>
+          <Chip tone="green">
+            {t("workbench.studio.legendRcl", { defaultValue: "RCL-backed" })}
+          </Chip>
           <Chip>{t("workbench.studio.legendCustom", { defaultValue: "Custom" })}</Chip>
           <Chip>
             {t("workbench.studio.layerCount", {

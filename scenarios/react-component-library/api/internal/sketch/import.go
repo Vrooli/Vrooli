@@ -5,16 +5,17 @@ import (
 	"fmt"
 	"strings"
 
-	"react-component-library/internal/catalogsearch"
+	"react-component-library/internal/search"
 )
 
-type ImportSearch interface {
-	SearchContext(context.Context, string, int, string, string, string) []catalogsearch.Result
-}
-type ImportCheck struct {
-	Tier    int
-	Matches []string
-}
+type (
+	ImportSearch = search.CatalogSearch
+	ImportCheck  struct {
+		Tier    int
+		Matches []string
+	}
+)
+
 type ImportItem struct {
 	Region       string
 	Tier         int
@@ -24,7 +25,7 @@ type ImportItem struct {
 type ImportResult struct {
 	Document  Document
 	Items     []ImportItem
-	Templates []catalogsearch.Result
+	Templates []search.CatalogResult
 }
 
 // Import proposes a composition from authored intent. Search candidates remain
@@ -73,12 +74,13 @@ func Import(ctx context.Context, snapshot Snapshot, search ImportSearch) (Import
 		if exactQuery == "" {
 			exactQuery = region.ID
 		}
-		exact := search.SearchContext(ctx, exactQuery, 20, "", "", "")
+		exactResult, exactFound, err := search.LookupCatalogID(ctx, exactQuery)
+		if err != nil {
+			return out, err
+		}
 		first := ImportCheck{Tier: 1}
-		for _, candidate := range exact {
-			if candidate.CatalogID == exactQuery {
-				first.Matches = append(first.Matches, candidate.CatalogID)
-			}
+		if exactFound {
+			first.Matches = append(first.Matches, exactResult.CatalogID)
 		}
 		item.Checks = append(item.Checks, first)
 		if len(first.Matches) > 0 {
@@ -86,7 +88,10 @@ func Import(ctx context.Context, snapshot Snapshot, search ImportSearch) (Import
 			item.Match = first.Matches[0]
 			item.State = "declared"
 		} else {
-			nearby := search.SearchContext(ctx, strings.TrimSpace(region.Note+" "+strings.ReplaceAll(region.ID, "-", " ")), 10, "", "", "")
+			nearby, err := search.SearchCatalog(ctx, strings.TrimSpace(region.Note+" "+strings.ReplaceAll(region.ID, "-", " ")), 10, "", "", "")
+			if err != nil {
+				return out, err
+			}
 			second := ImportCheck{Tier: 2}
 			for _, candidate := range nearby {
 				if candidate.Score > 0 && candidate.Kind != "page-template" {
@@ -119,7 +124,11 @@ func Import(ctx context.Context, snapshot Snapshot, search ImportSearch) (Import
 			unplaced[element] = true
 		}
 	}
-	out.Templates = search.SearchContext(ctx, snapshot.PagePurpose, 3, "page-template", "", "")
+	templates, err := search.SearchCatalog(ctx, snapshot.PagePurpose, 3, "page-template", "", "")
+	out.Templates = templates
+	if err != nil {
+		return out, err
+	}
 	if err := ctx.Err(); err != nil {
 		return out, err
 	}

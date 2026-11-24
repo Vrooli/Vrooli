@@ -3,7 +3,6 @@
 package themes
 
 import (
-	"database/sql"
 	"log"
 
 	"github.com/gorilla/mux"
@@ -17,7 +16,7 @@ import (
 
 // Module wires the themes domain. designs may be nil for installations
 // that disable scenario theme resolution.
-func Module(db *sql.DB, designs themes.DesignMDReader, logger *log.Logger) module.Module {
+func Module(db themes.Database, designs themes.DesignMDReader, logger *log.Logger) module.Module {
 	svc := BuildService(db, designs)
 	return ModuleFromService(svc, logger)
 }
@@ -40,7 +39,7 @@ func ModuleFromService(svc themes.Service, logger *log.Logger) module.Module {
 func Schema() string { return themes.Schema() }
 
 // BuildService constructs a themes.Service backed by SQLite.
-func BuildService(db *sql.DB, designs themes.DesignMDReader) themes.Service {
+func BuildService(db themes.Database, designs themes.DesignMDReader) themes.Service {
 	repo := themes.NewSQLiteRepository(db)
 	return themes.NewService(repo, designs)
 }

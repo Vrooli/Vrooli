@@ -1,11 +1,21 @@
 # Search and composition — findings and target model
 
-Status: **implemented slice; semantic/Ask leg remains.** One FTS5 search service
-now indexes catalog assets, page types, workspaces/pages/displays/states, commands
-and findings, and the same `SearchSurface` serves Start and ⌘K. The semantic leg
-is deliberately reported as disabled until the shared `packages/ai-go/search`
-adapter is wired. This document records the original findings, the target model,
-and the remaining migration.
+Status (2026-11-21): **unified workbench search and explicit Ask are implemented.**
+One FTS5 projection indexes catalog assets and their authored metadata, page
+types, workspaces/pages/displays/states, commands and findings; outcome-first
+lexical ranking fuses with `packages/ai-go/search`, and semantic fallback is
+reported as degraded while lexical results remain available. The same
+`internal/search.Service` powers Search, ranked import/proposal candidates and
+identity-only declared-ID lookup; proposal availability is resolved from a
+fresh canonical snapshot. `SearchSurface` serves Start and ⌘K with separate
+Search and Ask modes. Ask passes at most eight bounded indexed results to AI
+Gateway with LOCAL_ONLY routing and confidential privacy classification; the
+server rejects citations outside the supplied result set. A separate 8,000 ms
+p95 / 20-query latency gate exists. One live run passed, while a later run had
+one 25-second timeout (19/20 valid answers), so Ask latency reliability is not
+certified. Citation identity checks do not establish that each factual claim is
+supported; human-reviewed answer quality remains open. This document's original
+findings and target model record the migration history.
 The visual options are in [search-options.html](../mockups/search-options.html);
 the matured IA and workspace model are in
 [workbench-maturation.html](../mockups/workbench-maturation.html).
@@ -13,7 +23,11 @@ the matured IA and workspace model are in
 Behavioral claims below are current only where a source path or check is named.
 The recommendation is design intent.
 
-## What exists today
+## Discovery snapshot (pre-migration)
+
+The inventory and failures in this section describe the system before the
+workspace and unified-search migration. Keep them as rationale for the target
+model; they are not a description of the current workbench.
 
 There is one server search and four UI search surfaces. They do not share a result
 model, a ranking rule or a store.
@@ -46,7 +60,7 @@ The catalog already knows the answer. The UI cannot reach it.
 | Studio template | `/api/templates` + `studio_templates` | One `TemplateNode` tree, palette, display, radius | No revision, pages, displays, states, binding, assets or conflict handling; a duplicate store |
 | Design | `/api/designs` + `studio_designs` | Multiple frames, theme, options, revision, binding, assets | No workspace wrapper, pages, states, provenance or `realizes`; frames are viewports, not pages |
 | Experience page | `experience/pages/*.json` (14) | Per-scenario intent contract | No concrete composition link; `Design.scenario/page` is the only join |
-| Design page / scenario | `SketchService.ListDesignPages` | Scenario page inventory | Used by ⌘K as a stand-in for “pages” |
+| Design page / scenario | `ExperienceService.ListDesignPages` | Scenario page inventory | Used by ⌘K as a stand-in for “pages” |
 
 The search problem is downstream of this: there is no first-class, searchable
 **workspace/page/display/state** object for a flow that composes assets. Templates
@@ -228,8 +242,8 @@ duplicate search path. Page types link to pages/workspaces through `realizes`.
 
 ## Acceptance evidence
 
-- “landing page” returns `LandingPage` first, then workspaces/templates tagged or
-  bound to it, then composed assets — never every page type.
+- “landing page” returns its matching curated workspace first, then the matching
+  page type and composed assets — never every page type.
 - “onboarding flow” returns the Harbor workspace first, then its pages and state
   coverage, then the page type, pattern, assets and commands.
 - “validation error” returns the addressable state and its workspace/page/display.
@@ -262,7 +276,8 @@ on use.
 - Captures: `docs/mockups/assets/*.png`, 2026-11-19, 1440×900 and 390×844.
 - Options: [search-options.html](../mockups/search-options.html).
 - Maturing IA/model prototype: [workbench-maturation.html](../mockups/workbench-maturation.html) and [WORKBENCH-MATURATION.md](WORKBENCH-MATURATION.md).
-- Sources: `catalog/assets/templates/`, `api/internal/catalogsearch/index.go`,
+- Sources (discovery snapshot): `catalog/assets/templates/`,
+  `api/internal/catalogsearch/index.go`,
   `ui/src/workbench/WorkbenchShell.tsx`,
   `ui/src/workbench/pages/ComponentsPage.tsx`, `ui/src/workbench/designs.ts`,
   `api/internal/templates/types.go`, `experience/pages/`.

@@ -29,7 +29,8 @@ CREATE TABLE IF NOT EXISTS search_docs (
   availability TEXT NOT NULL DEFAULT 'available',
   badges_json TEXT NOT NULL DEFAULT '[]',
   relations_json TEXT NOT NULL DEFAULT '[]',
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  catalog_json TEXT NOT NULL DEFAULT '{}'
 );
 
 CREATE VIRTUAL TABLE IF NOT EXISTS search_fts USING fts5(
@@ -65,4 +66,4 @@ const (
 
 // projectionVersion is the current document projection. Bump it whenever the
 // shape of an indexed document changes (not when source content changes).
-const projectionVersion = "4"
+const projectionVersion = "7"

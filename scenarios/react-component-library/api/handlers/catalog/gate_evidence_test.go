@@ -38,7 +38,7 @@ func TestRunGateReadsWithoutChangingEvidenceAndRecordGatePersists(t *testing.T) 
 	database := dbtest.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(ctx, database, apidb.SchemaProviderFunc(catalogcoverage.Schema)))
 	store := catalogcoverage.NewEvidenceStore(database)
-	h := &handler{repoRoot: repoRoot, evidence: store, quarantined: map[string]bool{}, jobRunner: jobs.New(nil)}
+	h := &handler{repoRoot: repoRoot, evidence: store, quarantined: map[string]bool{}, jobRunner: jobs.New()}
 	readRequest := connect.NewRequest(&catalogv1.RunGateRequest{Gate: "release-provenance"})
 	readCtx := context.WithValue(ctx, skipCalibrationContextKey{}, true)
 

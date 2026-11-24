@@ -1,0 +1,346 @@
+package catalogvalidate
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+
+	"react-component-library/internal/assetrung"
+)
+
+type assetDoc struct {
+	Kind  string `json:"kind"`
+	Asset struct {
+		ID     string `json:"id"`
+		Kind   string `json:"kind"`
+		Slot   string `json:"slot"`
+		Target struct {
+			Maturity string `json:"maturity"`
+		} `json:"target"`
+		Targets []string `json:"targets"`
+	} `json:"asset"`
+	Dependencies struct {
+		Requires []struct {
+			Asset string `json:"asset"`
+		} `json:"requires"`
+		Suggests []struct {
+			Asset string `json:"asset"`
+		} `json:"suggests"`
+	} `json:"dependencies"`
+	RequiredCapabilities []string `json:"requiredCapabilities"`
+	Expects              []struct {
+		Capability string `json:"capability"`
+	} `json:"expects"`
+	Satisfies []string `json:"satisfies"`
+}
+
+type gateConfig struct {
+	ID        string   `json:"id"`
+	Rung      string   `json:"rung"`
+	Blocking  bool     `json:"blocking"`
+	AppliesTo []string `json:"appliesTo"`
+}
+
+type catalogConfig struct {
+	Domains []domainConfig `json:"domains"`
+	Gates   []gateConfig   `json:"gates"`
+}
+
+type domainConfig struct {
+	ID          string `json:"id"`
+	Order       int    `json:"order"`
+	Description string `json:"description"`
+}
+
+func crossRegistryFindings(repoRoot, catalogDir string) []Finding {
+	capabilities := loadCapabilityFacets(filepath.Join(repoRoot, "scenarios", "experience-manager", "capabilities"))
+	targets := loadTemplateTargets(repoRoot)
+	assets, _ := filepath.Glob(filepath.Join(catalogDir, "assets", "*", "*.json"))
+	byID := map[string]assetDoc{}
+	var docs []assetDoc
+	for _, path := range assets {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		var doc assetDoc
+		if json.Unmarshal(data, &doc) != nil || doc.Kind != "catalog-asset" {
+			continue
+		}
+		byID[doc.Asset.ID] = doc
+		docs = append(docs, doc)
+	}
+	var findings []Finding
+	findings = append(findings, domainOrderFindings(repoRoot, catalogDir)...)
+	findings = append(findings, slotVocabularyFindings(repoRoot, docs)...)
+	for _, doc := range docs {
+		if _, err := assetrung.Of(doc.Asset.Kind); err != nil {
+			findings = append(findings, Finding{Code: "catalog.unknown_kind", Severity: "error", Location: doc.Asset.ID, Message: fmt.Sprintf("asset %q has unrecognized kind %q", doc.Asset.ID, doc.Asset.Kind)})
+			continue
+		}
+		for _, target := range doc.Asset.Targets {
+			if !targets[target] {
+				findings = append(findings, Finding{Code: "catalog.target_missing", Severity: "error", Location: doc.Asset.ID, Message: fmt.Sprintf("target %q is not declared by any scenario template", target)})
+			}
+		}
+		for _, id := range doc.RequiredCapabilities {
+			if !capabilities[id]["promises"] {
+				findings = append(findings, Finding{Code: "catalog.required_capability_facet", Severity: "error", Location: doc.Asset.ID, Message: fmt.Sprintf("required capability %q is missing or does not carry the promises facet", id)})
+			}
+		}
+		for _, port := range doc.Expects {
+			if !capabilities[port.Capability]["port"] {
+				findings = append(findings, Finding{Code: "catalog.expected_port_facet", Severity: "error", Location: doc.Asset.ID, Message: fmt.Sprintf("expected capability %q is missing or does not carry the port facet", port.Capability)})
+			}
+		}
+		for _, id := range doc.Satisfies {
+			if !capabilities[id]["port"] {
+				findings = append(findings, Finding{Code: "catalog.satisfied_port_facet", Severity: "error", Location: doc.Asset.ID, Message: fmt.Sprintf("satisfied capability %q is missing or does not carry the port facet", id)})
+			}
+		}
+		for _, edge := range append(doc.Dependencies.Requires, doc.Dependencies.Suggests...) {
+			dep, ok := byID[edge.Asset]
+			if !ok {
+				findings = append(findings, Finding{Code: "catalog.dependency_missing", Severity: "error", Location: doc.Asset.ID, Message: fmt.Sprintf("dependency %q does not resolve to a catalog asset", edge.Asset)})
+				continue
+			}
+			// Generators consume composition recipes in order to emit assets;
+			// their dependency direction is intentionally outside the UI
+			// composition rank. All composing kinds still obey the one-way rank.
+			if doc.Asset.Kind != "generator" && rank(doc.Asset.Kind) < rank(dep.Asset.Kind) && containsRequires(doc, edge.Asset) {
+				findings = append(findings, Finding{Code: "catalog.dependency_rank", Severity: "error", Location: doc.Asset.ID, Message: fmt.Sprintf("requires dependency %q has higher rank than %q", edge.Asset, doc.Asset.Kind)})
+			}
+		}
+	}
+	findings = append(findings, cycleFindings(docs, byID)...)
+	findings = append(findings, vacuousFindings(repoRoot, docs)...)
+	return findings
+}
+
+// slotVocabularyFindings keeps catalog placement declarative. Catalog assets
+// target the template's published UI-manifest vocabulary; a new slot must be
+// added to that manifest before an asset can claim it. This is intentionally a
+// set-containment check, so adding a template slot never requires changing a
+// catalog validator allow-list.
+func slotVocabularyFindings(repoRoot string, docs []assetDoc) []Finding {
+	path := filepath.Join(repoRoot, "templates", "scenarios", "react-vite", "ui", "manifest.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return []Finding{{Code: "catalog.slot_manifest_unreadable", Severity: "error", Location: rel(repoRoot, path), Message: err.Error()}}
+	}
+	var manifest struct {
+		Slots map[string]json.RawMessage `json:"slots"`
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return []Finding{{Code: "catalog.slot_manifest_invalid", Severity: "error", Location: rel(repoRoot, path), Message: err.Error()}}
+	}
+	findings := make([]Finding, 0)
+	for _, doc := range docs {
+		slot := strings.TrimSpace(doc.Asset.Slot)
+		// Non-renderable assets intentionally have no scenario UI placement;
+		// their slot describes the absence of a UI surface rather than a
+		// template-manifest location.
+		if slot == "" || slot == "non-renderable" {
+			continue
+		}
+		if _, ok := manifest.Slots[slot]; ok {
+			continue
+		}
+		findings = append(findings, Finding{
+			Code:     "catalog.slot_not_in_ui_manifest",
+			Severity: "error",
+			Location: doc.Asset.ID,
+			Message:  fmt.Sprintf("catalog slot %q is not declared by templates/scenarios/react-vite/ui/manifest.json", slot),
+		})
+	}
+	return findings
+}
+
+func loadTemplateTargets(repoRoot string) map[string]bool {
+	out := map[string]bool{}
+	paths, _ := filepath.Glob(filepath.Join(repoRoot, "templates", "scenarios", "*", "ui", "manifest.json"))
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		var doc struct {
+			Targets []string `json:"targets"`
+		}
+		if json.Unmarshal(data, &doc) != nil {
+			continue
+		}
+		for _, target := range doc.Targets {
+			out[target] = true
+		}
+	}
+	return out
+}
+
+func containsRequires(doc assetDoc, id string) bool {
+	for _, e := range doc.Dependencies.Requires {
+		if e.Asset == id {
+			return true
+		}
+	}
+	return false
+}
+
+func rank(kind string) int {
+	rung, err := assetrung.Of(kind)
+	if err != nil {
+		return -1
+	}
+	return int(rung)
+}
+
+func domainOrderFindings(repoRoot, catalogDir string) []Finding {
+	data, err := os.ReadFile(filepath.Join(catalogDir, "config.json"))
+	if err != nil {
+		return nil
+	}
+	var config catalogConfig
+	if json.Unmarshal(data, &config) != nil {
+		return nil
+	}
+	byOrder := map[int][]domainConfig{}
+	var findings []Finding
+	for _, domain := range config.Domains {
+		if domain.Order <= 0 {
+			findings = append(findings, Finding{Code: "catalog.domain_order_invalid", Severity: "error", Location: rel(repoRoot, filepath.Join(catalogDir, "config.json")), Message: fmt.Sprintf("domain %q must declare an order greater than zero", domain.ID)})
+		}
+		byOrder[domain.Order] = append(byOrder[domain.Order], domain)
+	}
+	location := rel(repoRoot, filepath.Join(catalogDir, "config.json"))
+	for order, domains := range byOrder {
+		if order <= 0 || len(domains) < 2 {
+			continue
+		}
+		for _, domain := range domains {
+			findings = append(findings, Finding{Code: "catalog.domain_order_duplicate", Severity: "error", Location: location, Message: fmt.Sprintf("domain %q shares order %d with another domain", domain.ID, order)})
+		}
+	}
+	return findings
+}
+
+func cycleFindings(docs []assetDoc, byID map[string]assetDoc) []Finding {
+	graph := map[string][]string{}
+	for _, doc := range docs {
+		for _, edge := range doc.Dependencies.Requires {
+			if _, ok := byID[edge.Asset]; ok {
+				graph[doc.Asset.ID] = append(graph[doc.Asset.ID], edge.Asset)
+			}
+		}
+	}
+	state := map[string]int{}
+	var out []Finding
+	var visit func(string, []string)
+	visit = func(id string, path []string) {
+		if state[id] == 1 {
+			out = append(out, Finding{Code: "catalog.requires_cycle", Severity: "error", Location: id, Message: "requires dependency graph contains a cycle: " + strings.Join(append(path, id), " -> ")})
+			return
+		}
+		if state[id] == 2 {
+			return
+		}
+		state[id] = 1
+		for _, dep := range graph[id] {
+			visit(dep, append(path, id))
+		}
+		state[id] = 2
+	}
+	for id := range graph {
+		visit(id, nil)
+	}
+	return out
+}
+
+func loadCapabilityFacets(dir string) map[string]map[string]bool {
+	out := map[string]map[string]bool{}
+	paths, _ := filepath.Glob(filepath.Join(dir, "capabilities", "*.json"))
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		var doc struct {
+			Capabilities []struct {
+				ID     string   `json:"id"`
+				Facets []string `json:"facets"`
+			} `json:"capabilities"`
+		}
+		if json.Unmarshal(data, &doc) != nil {
+			continue
+		}
+		for _, cap := range doc.Capabilities {
+			if out[cap.ID] == nil {
+				out[cap.ID] = map[string]bool{}
+			}
+			for _, facet := range cap.Facets {
+				out[cap.ID][facet] = true
+			}
+		}
+	}
+	return out
+}
+
+func vacuousFindings(repoRoot string, docs []assetDoc) []Finding {
+	data, err := os.ReadFile(filepath.Join(repoRoot, "scenarios", "react-component-library", "catalog", "config.json"))
+	if err != nil {
+		return nil
+	}
+	var config catalogConfig
+	if json.Unmarshal(data, &config) != nil {
+		return nil
+	}
+	rungs := []string{"scaffolded", "implemented", "verified", "production-ready"}
+	rankRung := map[string]int{"scaffolded": 0, "implemented": 1, "verified": 2, "production-ready": 3}
+	var out []Finding
+	for _, doc := range docs {
+		target := doc.Asset.Target.Maturity
+		if rankRung[target] < 0 {
+			continue
+		}
+		for _, rung := range rungs[:rankRung[target]+1] {
+			// Fixtures intentionally jump from schema/type validity to their
+			// verified adversarial-case gate; there is no meaningful implemented
+			// fixture rung to make non-vacuous.
+			if doc.Asset.Kind == "fixture" && rung == "implemented" {
+				continue
+			}
+			applicable := false
+			for _, gate := range config.Gates {
+				if !gate.Blocking {
+					continue
+				}
+				if gate.Rung != rung {
+					continue
+				}
+				for _, kind := range gate.AppliesTo {
+					if kind == doc.Asset.Kind {
+						applicable = true
+					}
+				}
+			}
+			// A verified gate remains part of the production-ready bar. This is
+			// intentional for foundations and non-visual runtime assets whose
+			// production proof is the verified contract plus operational docs;
+			// they do not need a fictitious second copy of the same gate.
+			if !applicable && rung == "production-ready" {
+				for _, gate := range config.Gates {
+					if gate.Blocking && gate.Rung == "verified" && slices.Contains(gate.AppliesTo, doc.Asset.Kind) {
+						applicable = true
+						break
+					}
+				}
+			}
+			if !applicable {
+				out = append(out, Finding{Code: "catalog.vacuous_rung", Severity: "error", Location: doc.Asset.ID, Message: fmt.Sprintf("asset kind %q has no applicable blocking gate at rung %q", doc.Asset.Kind, rung)})
+			}
+		}
+	}
+	return out
+}

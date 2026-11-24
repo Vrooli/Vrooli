@@ -23,32 +23,39 @@ import (
 
 // Asset is one desired-state catalog entry.
 type Asset struct {
-	ID              string
-	Name            string
-	Description     string
-	DeclarationPath string
-	Regions         []string
-	RegionAccepts   map[string]string
-	Kind            string
-	Surface         string
-	Rung            assetrung.Rung
-	RungName        string
-	Domain          string
-	DomainOrder     int
-	Slot            string
-	Delivery        string
-	Targets         []string
-	Kits            []string
-	Priority        string
-	PinnedWeight    float64
-	Maturity        string
-	PlannedBy       string
-	Requires        []string
-	Suggests        []string
-	Expects         []string
-	Satisfies       []string
-	Capabilities    []string
-	States          []string
+	ID                 string
+	Name               string
+	Description        string
+	DeclarationPath    string
+	Regions            []string
+	RegionAccepts      map[string]string
+	Kind               string
+	Surface            string
+	Rung               assetrung.Rung
+	RungName           string
+	Domain             string
+	DomainOrder        int
+	Slot               string
+	Delivery           string
+	Targets            []string
+	Kits               []string
+	Priority           string
+	PinnedWeight       float64
+	Maturity           string
+	PlannedBy          string
+	Requires           []string
+	Suggests           []string
+	Expects            []string
+	Satisfies          []string
+	Capabilities       []string
+	States             []string
+	QualityGateOptOuts []QualityGateOptOut
+}
+
+// QualityGateOptOut is an explicit, reasoned exception to a kind default.
+type QualityGateOptOut struct {
+	Gate   string `json:"gate"`
+	Reason string `json:"reason"`
 }
 
 // Implementation is one on-disk component manifest.
@@ -112,9 +119,10 @@ type rawAsset struct {
 	Expects []struct {
 		Capability string `json:"capability"`
 	} `json:"expects"`
-	Satisfies            []string `json:"satisfies"`
-	RequiredCapabilities []string `json:"requiredCapabilities"`
-	RequiredStates       []string `json:"requiredStates"`
+	Satisfies            []string            `json:"satisfies"`
+	RequiredCapabilities []string            `json:"requiredCapabilities"`
+	RequiredStates       []string            `json:"requiredStates"`
+	QualityGateOptOuts   []QualityGateOptOut `json:"qualityGateOptOuts"`
 	Regions              []struct {
 		ID      string `json:"id"`
 		Accepts string `json:"accepts"`
@@ -244,8 +252,14 @@ func LoadCatalogContext(ctx context.Context, catalogDir string) ([]Asset, error)
 			Targets: raw.Asset.Targets, Kits: raw.Asset.Kits,
 			Priority: raw.Asset.Target.Priority, Maturity: raw.Asset.Target.Maturity, PlannedBy: raw.Asset.Target.PlannedBy,
 			Satisfies: raw.Satisfies, Capabilities: raw.RequiredCapabilities,
-			States:       raw.RequiredStates,
-			PinnedWeight: weights[raw.Asset.ID],
+			States:             raw.RequiredStates,
+			PinnedWeight:       weights[raw.Asset.ID],
+			QualityGateOptOuts: raw.QualityGateOptOuts,
+		}
+		for _, optOut := range asset.QualityGateOptOuts {
+			if strings.TrimSpace(optOut.Gate) == "" || len(strings.TrimSpace(optOut.Reason)) < 20 {
+				return nil, fmt.Errorf("catalog asset %s has a gate opt-out without a gate and a reason of at least 20 characters", path)
+			}
 		}
 		asset.RegionAccepts = map[string]string{}
 		for _, region := range raw.Regions {

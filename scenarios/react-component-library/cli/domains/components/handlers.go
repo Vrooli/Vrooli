@@ -14,6 +14,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	authoringconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/componentauthoring/componentauthoring_v1connect"
 	componentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components"
 	componentsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components/components_v1connect"
 	componenttestsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/componenttests"
@@ -25,9 +26,10 @@ import (
 // handlers bundles the closure over *cliapp.ScenarioApp + the generated
 // Connect-Go client, mirroring the cli/domains/notes/ shape.
 type handlers struct {
-	core       *cliapp.ScenarioApp
-	client     componentsconnect.ComponentsServiceClient
-	testClient componenttestsconnect.ComponentTestsServiceClient
+	core            *cliapp.ScenarioApp
+	client          componentsconnect.ComponentsServiceClient
+	authoringClient authoringconnect.ComponentAuthoringServiceClient
+	testClient      componenttestsconnect.ComponentTestsServiceClient
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
@@ -38,9 +40,10 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	// cancellation before the server can persist its report.
 	testHTTPClient, _ := cliapp.NewConnectHTTPClientWithTimeout(core, 20*time.Minute)
 	return &handlers{
-		core:       core,
-		client:     componentsconnect.NewComponentsServiceClient(httpClient, baseURL),
-		testClient: componenttestsconnect.NewComponentTestsServiceClient(testHTTPClient, baseURL),
+		core:            core,
+		client:          componentsconnect.NewComponentsServiceClient(httpClient, baseURL),
+		authoringClient: authoringconnect.NewComponentAuthoringServiceClient(httpClient, baseURL),
+		testClient:      componenttestsconnect.NewComponentTestsServiceClient(testHTTPClient, baseURL),
 	}
 }
 
@@ -311,7 +314,7 @@ func (h *handlers) init(ctx cliapp.RunContext) error {
 		}
 		req.InitialSource = string(body)
 	}
-	resp, err := h.client.InitializeComponent(context.Background(), connect.NewRequest(req))
+	resp, err := h.authoringClient.InitializeComponent(context.Background(), connect.NewRequest(req))
 	if err != nil {
 		return cliapp.WrapAPIError("initialize component", err, nil)
 	}
@@ -346,7 +349,7 @@ func (h *handlers) ingestCall(ctx cliapp.OperationContext) (*componentsv1.Ingest
 	if companions := ctx.Flag("companion-files"); companions != "" {
 		req.SourceFiles = splitCSV(companions)
 	}
-	resp, err := h.client.IngestComponent(context.Background(), connect.NewRequest(req))
+	resp, err := h.authoringClient.IngestComponent(context.Background(), connect.NewRequest(req))
 	if err != nil {
 		// A blocked harvest (FailedPrecondition) already names the dropped
 		// behaviors in its message; point the operator at the override.
@@ -404,7 +407,7 @@ func (h *handlers) versionCreate(ctx cliapp.RunContext) error {
 		}
 		req.ParityReport = report
 	}
-	resp, err := h.client.CreateComponentVersion(context.Background(), connect.NewRequest(req))
+	resp, err := h.authoringClient.CreateComponentVersion(context.Background(), connect.NewRequest(req))
 	if err != nil {
 		return cliapp.WrapAPIError("create component version", err, nil)
 	}
@@ -419,7 +422,7 @@ func (h *handlers) versionCreate(ctx cliapp.RunContext) error {
 }
 
 func (h *handlers) versionBeginCall(ctx cliapp.OperationContext) (*componentsv1.BeginComponentVersionResponse, error) {
-	resp, err := h.client.BeginComponentVersion(context.Background(), connect.NewRequest(&componentsv1.BeginComponentVersionRequest{
+	resp, err := h.authoringClient.BeginComponentVersion(context.Background(), connect.NewRequest(&componentsv1.BeginComponentVersionRequest{
 		Component: ctx.Positional("component"),
 		Bump:      ctx.Flag("bump"),
 		Version:   ctx.Flag("version"),
@@ -440,7 +443,7 @@ func (h *handlers) versionBeginReport(_ cliapp.OperationContext, msg *components
 }
 
 func (h *handlers) versionCheckCall(ctx cliapp.OperationContext) (*componentsv1.CheckComponentVersionResponse, error) {
-	resp, err := h.client.CheckComponentVersion(context.Background(), connect.NewRequest(&componentsv1.CheckComponentVersionRequest{
+	resp, err := h.authoringClient.CheckComponentVersion(context.Background(), connect.NewRequest(&componentsv1.CheckComponentVersionRequest{
 		Component: ctx.Positional("component"),
 		Version:   ctx.Flag("version"),
 	}))
@@ -481,7 +484,7 @@ func versionCheckOutcome(msg *componentsv1.CheckComponentVersionResponse) error 
 }
 
 func (h *handlers) versionPublishCall(ctx cliapp.OperationContext) (*componentsv1.PublishComponentVersionResponse, error) {
-	resp, err := h.client.PublishComponentVersion(context.Background(), connect.NewRequest(&componentsv1.PublishComponentVersionRequest{
+	resp, err := h.authoringClient.PublishComponentVersion(context.Background(), connect.NewRequest(&componentsv1.PublishComponentVersionRequest{
 		Component:               ctx.Positional("component"),
 		DraftVersion:            ctx.Flag("draft-version"),
 		Version:                 ctx.Flag("version"),
@@ -566,7 +569,7 @@ func (h *handlers) manifestUpdateCall(ctx cliapp.OperationContext) (*componentsv
 	if raw := ctx.Flag("replaced-by"); raw != "" {
 		req.ReplacedBy = splitCSV(raw)
 	}
-	resp, err := h.client.UpdateComponentManifest(context.Background(), connect.NewRequest(req))
+	resp, err := h.authoringClient.UpdateComponentManifest(context.Background(), connect.NewRequest(req))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("update component manifest", err, nil)
 	}
@@ -605,13 +608,13 @@ func readSourceArg(src string) ([]byte, error) {
 	return body, nil
 }
 
-// contentGet calls ComponentsService.GetComponentContent and prints the
+// contentGet calls ComponentAuthoringService.GetComponentContent and prints the
 // source body to stdout. Human output writes the body as-is so it can
 // be piped (e.g. `… content get <id> > Button.tsx`); --json emits the
 // proto wire shape with body, source_path, and sha256.
 func (h *handlers) contentGet(ctx cliapp.RunContext) error {
 	id := ctx.Positional("id")
-	resp, err := h.client.GetComponentContent(context.Background(), connect.NewRequest(&componentsv1.GetComponentContentRequest{Id: id}))
+	resp, err := h.authoringClient.GetComponentContent(context.Background(), connect.NewRequest(&componentsv1.GetComponentContentRequest{Id: id}))
 	if err != nil {
 		return cliapp.WrapAPIError(fmt.Sprintf("get content for component %q", id), err, nil)
 	}
@@ -655,7 +658,7 @@ func (h *handlers) stories(ctx cliapp.RunContext) error {
 }
 
 // contentSet reads <file> from disk (or "-" for stdin) and calls
-// ComponentsService.UpdateComponentContent. --expected-sha256 forwards
+// ComponentAuthoringService.UpdateComponentContent. --expected-sha256 forwards
 // the optimistic-concurrency guard.
 func (h *handlers) contentSetCall(ctx cliapp.OperationContext) (*componentsv1.UpdateComponentContentResponse, error) {
 	id := ctx.Positional("id")
@@ -676,7 +679,7 @@ func (h *handlers) contentSetCall(ctx cliapp.OperationContext) (*componentsv1.Up
 		Content:        string(body),
 		ExpectedSha256: ctx.Flag("expected-sha256"),
 	}
-	resp, err := h.client.UpdateComponentContent(context.Background(), connect.NewRequest(req))
+	resp, err := h.authoringClient.UpdateComponentContent(context.Background(), connect.NewRequest(req))
 	if err != nil {
 		return nil, cliapp.WrapAPIError(fmt.Sprintf("set content for component %q", id), err, nil)
 	}
@@ -779,7 +782,7 @@ func formatStory(story *componentsv1.ComponentStory) string {
 }
 
 func (h *handlers) retireCall(ctx cliapp.OperationContext) (*componentsv1.RetireComponentResponse, error) {
-	resp, err := h.client.RetireComponent(context.Background(), connect.NewRequest(&componentsv1.RetireComponentRequest{LibraryId: ctx.Positional("component"), Apply: ctx.BoolFlag("apply")}))
+	resp, err := h.authoringClient.RetireComponent(context.Background(), connect.NewRequest(&componentsv1.RetireComponentRequest{LibraryId: ctx.Positional("component"), Apply: ctx.BoolFlag("apply")}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("retire component", err, nil)
 	}

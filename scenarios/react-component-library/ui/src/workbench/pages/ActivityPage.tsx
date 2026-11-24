@@ -1,19 +1,14 @@
+import "../activity.css";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Activity, ArrowUpRight, CircleAlert, Filter, Search } from "lucide-react";
+import { NotificationBadge } from "@vrooli/react-component-library/NotificationBadge/1.0.5";
+import { Timeline } from "@vrooli/react-component-library/Timeline/1.0.10";
 
 import { getActivitySummary, listActivity, type ActivityEvent } from "../../api/activity";
 import { useTranslation } from "../../i18n";
 import { formatDay, formatNumber, formatTime } from "../data";
-import {
-  Banner,
-  Empty,
-  Kpi,
-  Panel,
-  PanelBody,
-  PanelHead,
-  Skeleton,
-} from "../primitives";
+import { Banner, Empty, Kpi, Panel, PanelBody, PanelHead, Skeleton } from "../primitives";
 
 /**
  * Activity is the append-only event log owned by ActivityService. It no longer
@@ -36,11 +31,8 @@ export function ActivityPage({ embedded = false }: { embedded?: boolean } = {}) 
     retry: 0,
   });
 
-  const rows = events.data ?? [];
-  const actions = useMemo(
-    () => [...new Set(rows.map((event) => event.action))].sort(),
-    [rows],
-  );
+  const rows = useMemo(() => events.data ?? [], [events.data]);
+  const actions = useMemo(() => [...new Set(rows.map((event) => event.action))].sort(), [rows]);
   const filtered = useMemo(() => {
     const needle = term.trim().toLowerCase();
     return rows.filter((event) => {
@@ -129,7 +121,9 @@ export function ActivityPage({ embedded = false }: { embedded?: boolean } = {}) 
       {events.isError ? (
         <Banner tone="red" icon={<CircleAlert aria-hidden size={16} />}>
           <b>
-            {t("workbench.activity.errorTitle", { defaultValue: "The activity service did not answer." })}
+            {t("workbench.activity.errorTitle", {
+              defaultValue: "The activity service did not answer.",
+            })}
           </b>{" "}
           {t("workbench.activity.errorBody", {
             defaultValue:
@@ -175,7 +169,15 @@ export function ActivityPage({ embedded = false }: { embedded?: boolean } = {}) 
       <div className="wb-activity-layout">
         <Panel>
           <PanelHead
-            title={t("workbench.activity.trail", { defaultValue: "Change trail" })}
+            title={
+              <NotificationBadge
+                value={filtered.length}
+                tone={filtered.length ? "info" : "neutral"}
+                badgeLabel={`${filtered.length} events in this view`}
+              >
+                {t("workbench.activity.trail", { defaultValue: "Change trail" })}
+              </NotificationBadge>
+            }
             meta={t("workbench.activity.trailMeta", { count: filtered.length })}
             actions={
               <span className="wb-muted-2" aria-hidden>
@@ -241,40 +243,54 @@ export function ActivityPage({ embedded = false }: { embedded?: boolean } = {}) 
 
         <Panel>
           <PanelHead
-            title={t("workbench.activity.actors", { defaultValue: "Actors and actions" })}
-            meta={t("workbench.activity.window", { defaultValue: "Last 7 days" })}
+            title={t("workbench.activity.recent", { defaultValue: "Recent events" })}
+            meta={t("workbench.activity.latestCount", { defaultValue: "Latest 6" })}
           />
           <PanelBody>
-            {week ? (
-              <>
-                {week.byActor.length === 0 ? (
-                  <p className="wb-muted wb-small">
-                    {t("workbench.activity.noActors", { defaultValue: "No actors in this window." })}
-                  </p>
-                ) : (
-                  week.byActor.map((entry) => (
-                    <div key={entry.actor} className="wb-row-between">
-                      <span>{entry.actor}</span>
+            <Timeline
+              state={events.isError ? "error" : "ready"}
+              events={filtered.slice(0, 6).map((event) => ({
+                label: `${event.action} · ${event.subjectId}`,
+                detail: event.actor,
+                date: formatTime(new Date(event.at)),
+              }))}
+            />
+            <details style={{ marginTop: 16 }}>
+              <summary>
+                {t("workbench.activity.actors", { defaultValue: "Actors and actions" })}
+              </summary>
+              {week ? (
+                <div className="wb-stack tight" style={{ marginTop: 10 }}>
+                  {week.byActor.length === 0 ? (
+                    <p className="wb-muted wb-small">
+                      {t("workbench.activity.noActors", {
+                        defaultValue: "No actors in this window.",
+                      })}
+                    </p>
+                  ) : (
+                    week.byActor.map((entry) => (
+                      <div key={entry.actor} className="wb-row-between">
+                        <span>{entry.actor}</span>
+                        <span className="wb-tag">{entry.count}</span>
+                      </div>
+                    ))
+                  )}
+                  {week.byAction.map((entry) => (
+                    <div key={entry.action} className="wb-row-between">
+                      <span className="wb-mono wb-small">{entry.action}</span>
                       <span className="wb-tag">{entry.count}</span>
                     </div>
-                  ))
-                )}
-                <div style={{ height: 12 }} />
-                {week.byAction.map((entry) => (
-                  <div key={entry.action} className="wb-row-between">
-                    <span className="wb-mono wb-small">{entry.action}</span>
-                    <span className="wb-tag">{entry.count}</span>
-                  </div>
-                ))}
-              </>
-            ) : (
-              <p className="wb-muted wb-small">
-                <ArrowUpRight aria-hidden size={12} />{" "}
-                {t("workbench.activity.summaryUnavailable", {
-                  defaultValue: "The summary is unavailable.",
-                })}
-              </p>
-            )}
+                  ))}
+                </div>
+              ) : (
+                <p className="wb-muted wb-small" style={{ marginTop: 10 }}>
+                  <ArrowUpRight aria-hidden size={12} />{" "}
+                  {t("workbench.activity.summaryUnavailable", {
+                    defaultValue: "The summary is unavailable.",
+                  })}
+                </p>
+              )}
+            </details>
           </PanelBody>
         </Panel>
       </div>

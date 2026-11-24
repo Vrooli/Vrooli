@@ -1,4 +1,5 @@
-import type { DesignDocument, DesignNewLayer, DesignPatchOperation } from "../designs";
+import type { DesignDocument } from "../design-types";
+import type { DesignNewLayer, DesignPatchOperation } from "./proposal";
 import { CONTAINER_TYPES, PALETTE_KEYS } from "./model";
 import type { TemplateNode, TemplateNodeType, TemplatePalette } from "../templates/spec";
 
@@ -85,7 +86,8 @@ export function applyPatch(
   const changed = new Set<string>();
   let sequence = 0;
   const idFactory =
-    options.idFactory ?? ((parentId, type, index) => `${parentId}.${type}-${Date.now().toString(36)}-${index}`);
+    options.idFactory ??
+    ((parentId, type, index) => `${parentId}.${type}-${Date.now().toString(36)}-${index}`);
 
   const totalNodes = () => {
     let count = 0;
@@ -112,7 +114,8 @@ export function applyPatch(
         const located = locate(index, operation.nodeId, fail);
         const text = operation.text;
         if (typeof text !== "string") throw problem("text is required");
-        if (!TEXT_TYPES.has(located.node.type)) fail(`layer type ${located.node.type} does not render text`);
+        if (!TEXT_TYPES.has(located.node.type))
+          fail(`layer type ${located.node.type} does not render text`);
         assertCopy(text, fail);
         located.node.props = { ...located.node.props, text };
         changed.add(located.node.id);
@@ -147,14 +150,22 @@ export function applyPatch(
       }
       case "addLayer": {
         const parent = locate(index, operation.parentId, fail);
-        if (!CONTAINER_TYPES.has(parent.node.type)) fail(`layer type ${parent.node.type} cannot own children`);
+        if (!CONTAINER_TYPES.has(parent.node.type))
+          fail(`layer type ${parent.node.type} cannot own children`);
         const newNode = operation.node;
         if (!newNode) throw problem("node is required");
-        const built = buildLayer(newNode, parent.node.id, idFactory, () => {
-          sequence += 1;
-          return sequence;
-        }, fail);
-        if (totalNodes() + countNodes(built) > MAX_NODES) fail(`the design would exceed ${MAX_NODES} layers`);
+        const built = buildLayer(
+          newNode,
+          parent.node.id,
+          idFactory,
+          () => {
+            sequence += 1;
+            return sequence;
+          },
+          fail,
+        );
+        if (totalNodes() + countNodes(built) > MAX_NODES)
+          fail(`the design would exceed ${MAX_NODES} layers`);
         if (parent.depth + 1 + layerDepth(newNode) > MAX_DEPTH) {
           fail(`the layer would nest deeper than ${MAX_DEPTH} levels`);
         }
@@ -166,7 +177,8 @@ export function applyPatch(
         const located = locate(index, operation.nodeId, fail);
         const parent = located.parent;
         if (!parent) throw problem("the page root cannot be removed");
-        if (located.node.type === "slot") fail("component slots are structural and cannot be removed");
+        if (located.node.type === "slot")
+          fail("component slots are structural and cannot be removed");
         parent.children = (parent.children ?? []).filter((child) => child.id !== located.node.id);
         changed.add(located.node.id);
         break;
@@ -176,14 +188,19 @@ export function applyPatch(
         const origin = located.parent;
         if (!origin) throw problem("the page root cannot be moved");
         const destination = locate(index, operation.parentId, fail);
-        if (!CONTAINER_TYPES.has(destination.node.type)) fail(`layer type ${destination.node.type} cannot own children`);
-        if (destination.node.id === located.node.id || isDescendant(index, destination.node.id, located.node.id)) {
+        if (!CONTAINER_TYPES.has(destination.node.type))
+          fail(`layer type ${destination.node.type} cannot own children`);
+        if (
+          destination.node.id === located.node.id ||
+          isDescendant(index, destination.node.id, located.node.id)
+        ) {
           fail("a layer cannot move into itself");
         }
         origin.children = (origin.children ?? []).filter((child) => child.id !== located.node.id);
         const list = destination.node.children ?? [];
         const at = operation.index ?? list.length;
-        if (!Number.isInteger(at) || at < 0 || at > list.length) fail(`index ${String(operation.index)} is outside the destination`);
+        if (!Number.isInteger(at) || at < 0 || at > list.length)
+          fail(`index ${String(operation.index)} is outside the destination`);
         const copy = [...list];
         copy.splice(at, 0, located.node);
         destination.node.children = copy;
@@ -245,10 +262,12 @@ function assertProp(
     return;
   }
   if (typeof value === "number") {
-    if (!Number.isFinite(value) || Math.abs(value) > 100_000) fail(`prop ${JSON.stringify(key)} is out of range`);
+    if (!Number.isFinite(value) || Math.abs(value) > 100_000)
+      fail(`prop ${JSON.stringify(key)} is out of range`);
     return;
   }
-  if (typeof value !== "boolean") fail(`prop ${JSON.stringify(key)} must be a string, number or boolean`);
+  if (typeof value !== "boolean")
+    fail(`prop ${JSON.stringify(key)} must be a string, number or boolean`);
 }
 
 function buildLayer(
@@ -258,7 +277,8 @@ function buildLayer(
   nextSequence: () => number,
   fail: (reason: string) => never,
 ): TemplateNode {
-  if (!ADDABLE_TYPES.has(source.type)) fail(`layer type ${source.type} cannot be added by a proposal`);
+  if (!ADDABLE_TYPES.has(source.type))
+    fail(`layer type ${source.type} cannot be added by a proposal`);
   if (Object.keys(source.props).length > 16) fail("a new layer may carry at most 16 props");
   for (const [key, value] of Object.entries(source.props)) {
     assertProp({ id: "", type: source.type, props: {} }, key, value, fail);
@@ -287,7 +307,11 @@ function countNodes(node: TemplateNode): number {
   return 1 + (node.children ?? []).reduce((total, child) => total + countNodes(child), 0);
 }
 
-function isDescendant(index: Map<string, Located>, candidateId: string, ancestorId: string): boolean {
+function isDescendant(
+  index: Map<string, Located>,
+  candidateId: string,
+  ancestorId: string,
+): boolean {
   let cursor = index.get(candidateId)?.parent;
   while (cursor) {
     if (cursor.id === ancestorId) return true;

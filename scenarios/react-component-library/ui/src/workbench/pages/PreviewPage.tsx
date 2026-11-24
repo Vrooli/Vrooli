@@ -1,3 +1,4 @@
+import "../preview.css";
 import { useLayoutEffect, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Copy, Monitor, Smartphone, Tablet } from "lucide-react";

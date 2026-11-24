@@ -18,11 +18,21 @@ import (
 const timestampFormat = time.RFC3339Nano
 
 type sqliteRepository struct {
-	db  *sql.DB
+	db  SQLDB
 	clk schedule.Clock
 }
 
-func NewSQLiteRepository(db *sql.DB, clk schedule.Clock) Repository {
+// SQLDB is the context-aware SQL surface used by workflow serving queries.
+// *sql.DB keeps repository fixtures simple; RoutedDB selects the pool from the
+// request context in production.
+type SQLDB interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+}
+
+func NewSQLiteRepository(db SQLDB, clk schedule.Clock) Repository {
 	if clk == nil {
 		clk = schedule.System()
 	}

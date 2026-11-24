@@ -129,8 +129,18 @@ const collect = (file, source) => {
     }
 
     if (ts.isPropertyAccessExpression(node)) {
-      const path = accessorPath(node);
-      if (path) accessors.add(path);
+      // A localized string can be used directly in a test or helper, e.g.
+      // `strings.copy.duplicate.replace(...)`. The outer `.replace` is a
+      // String method, not another catalog key; its receiver is still visited
+      // and recorded as the actual localized accessor.
+      const calledStringMethod =
+        ts.isCallExpression(node.parent) &&
+        node.parent.expression === node &&
+        accessorPath(node.expression) !== undefined;
+      if (!calledStringMethod) {
+        const path = accessorPath(node);
+        if (path) accessors.add(path);
+      }
     }
 
     if (ts.isCallExpression(node)) {

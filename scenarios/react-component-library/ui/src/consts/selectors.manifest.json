@@ -14,12 +14,12 @@
       "selector": "[data-testid=\"app-description\"]"
     },
     "app.shell": {
-      "testId": "app-shell",
-      "selector": "[data-testid=\"app-shell\"]"
+      "testId": "workbench-shell",
+      "selector": "[data-testid=\"workbench-shell\"]"
     },
     "app.main": {
-      "testId": "app-main",
-      "selector": "[data-testid=\"app-main\"]"
+      "testId": "workbench-shell-main",
+      "selector": "[data-testid=\"workbench-shell-main\"]"
     },
     "design": {
       "testId": "design",
@@ -32,6 +32,46 @@
     "designWorkspace": {
       "testId": "design-workspace",
       "selector": "[data-testid=\"design-workspace\"]"
+    },
+    "workspaceStudio.notice": {
+      "testId": "workspace-studio-notice",
+      "selector": "[data-testid=\"workspace-studio-notice\"]"
+    },
+    "workspaceStudio.capturePatchButton": {
+      "testId": "workspace-studio-capture-patch",
+      "selector": "[data-testid=\"workspace-studio-capture-patch\"]"
+    },
+    "workspaceStudio.capturePatchDialog": {
+      "testId": "workspace-studio-capture-patch-dialog",
+      "selector": "[data-testid=\"workspace-studio-capture-patch-dialog\"]"
+    },
+    "workspaceStudio.capturePatchFile": {
+      "testId": "workspace-studio-capture-patch-file",
+      "selector": "[data-testid=\"workspace-studio-capture-patch-file\"]"
+    },
+    "workspaceStudio.capturePatchEvidence": {
+      "testId": "workspace-studio-capture-patch-evidence",
+      "selector": "[data-testid=\"workspace-studio-capture-patch-evidence\"]"
+    },
+    "workbench.nav.start": {
+      "testId": "workbench-nav-start",
+      "selector": "[data-testid=\"workbench-nav-start\"]"
+    },
+    "workbench.nav.library": {
+      "testId": "workbench-nav-library",
+      "selector": "[data-testid=\"workbench-nav-library\"]"
+    },
+    "workbench.nav.design": {
+      "testId": "workbench-nav-design",
+      "selector": "[data-testid=\"workbench-nav-design\"]"
+    },
+    "workbench.nav.review": {
+      "testId": "workbench-nav-review",
+      "selector": "[data-testid=\"workbench-nav-review\"]"
+    },
+    "workbench.nav.stats": {
+      "testId": "workbench-nav-stats",
+      "selector": "[data-testid=\"workbench-nav-stats\"]"
     },
     "capabilities": {
       "testId": "capabilities-page",
@@ -1397,7 +1437,7 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "0a0cdebf44cc06ab9f69b4676359b3017d6b4caece5942aa6977b0b90b9ad7d7",
-    "ui/src/consts/selectors.ts": "c8ab757d6b9fbe69d9823a3baaeac6ea2ce74336ca3c523f2aa3188dce9a5743",
+    "ui/src/consts/selectors.ts": "cb54507a175b169fe43542da20ece105085846a5db0eb25fbadb873c552bc681",
     "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

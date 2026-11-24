@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import { cleanup } from "@testing-library/react";
 
 import { COMPONENT_STYLE_ID_ATTRIBUTE, useComponentStyles } from "./useComponentStyles";
-import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
-import { Card } from "@vrooli/react-component-library/Card/1";
+import { StatusBadge } from "../components/StatusBadge";
+import { Card } from "../components/Card";
 import { renderWithProviders as render } from "../test-utils";
 
 const CSS_A = "[data-probe-a] { color: red; }";
@@ -23,9 +23,9 @@ function sheets(id: string): HTMLStyleElement[] {
 }
 
 function librarySheets(name: string): HTMLStyleElement[] {
-  return Array.from(document.head.querySelectorAll<HTMLStyleElement>("style[data-rcl-sheet]")).filter(
-    (sheet) => sheet.dataset.rclSheet?.startsWith(name),
-  );
+  return Array.from(
+    document.head.querySelectorAll<HTMLStyleElement>("style[data-rcl-sheet]"),
+  ).filter((sheet) => sheet.dataset.rclSheet?.startsWith(name));
 }
 
 describe("useComponentStyles", () => {

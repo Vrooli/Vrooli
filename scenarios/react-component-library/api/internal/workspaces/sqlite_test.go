@@ -2,15 +2,19 @@ package workspaces
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
+	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/vrooli/api-core/database"
 	db "github.com/vrooli/api-core/databasetest"
 
 	workspacev1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/workspace"
@@ -19,8 +23,8 @@ import (
 func newTestRepository(t *testing.T) *SQLiteRepository {
 	t.Helper()
 	sqlDB := db.NewSQLite(t)
-	if _, err := sqlDB.ExecContext(context.Background(), Schema()); err != nil {
-		t.Fatalf("apply schema: %v", err)
+	if err := Migrate(context.Background(), sqlDB); err != nil {
+		t.Fatalf("migrate schema: %v", err)
 	}
 	repo := NewSQLiteRepository(sqlDB)
 	repo.now = func() time.Time { return time.Date(2026, 11, 19, 12, 0, 0, 0, time.UTC) }
@@ -71,6 +75,94 @@ func TestCreateSeedsDefaultComposition(t *testing.T) {
 	revisions, err := repo.Revisions(context.Background(), workspace.Id, 0)
 	require.NoError(t, err)
 	require.Len(t, revisions, 1, "create records its revision 1 snapshot")
+}
+
+func TestRepositoryRoutesMarkedRequestsToInstalledTestPool(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	routed, err := database.Open(ctx, database.Config{
+		Driver:       database.DriverSQLite,
+		DSN:          filepath.Join(dir, "primary.db"),
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = routed.Close() })
+
+	_, err = routed.ExecContext(ctx, Schema())
+	require.NoError(t, err)
+	routed.SetTestPoolInitializer(func(ctx context.Context, testPool *sql.DB) error {
+		_, err := testPool.ExecContext(ctx, Schema())
+		return err
+	})
+	require.NoError(t, routed.InstallTestPool(ctx, filepath.Join(dir, "test.db"), "workspace-test", 0))
+
+	repo := NewSQLiteRepository(routed)
+	requestCtx := database.WithTestMode(ctx)
+	created, err := repo.Create(requestCtx, &workspacev1.CreateWorkspaceRequest{Name: "Routed workspace"})
+	require.NoError(t, err)
+
+	_, err = repo.Get(ctx, created.GetId())
+	require.ErrorIs(t, err, ErrNotFound, "ordinary requests must continue to use the primary pool")
+	fromTestPool, err := repo.Get(requestCtx, created.GetId())
+	require.NoError(t, err, "marked requests must read from the installed test pool")
+	require.Equal(t, "Routed workspace", fromTestPool.GetName())
+}
+
+func TestCreateAllowsOnlyOneWorkspaceBindingPerExperiencePage(t *testing.T) {
+	repo := newTestRepository(t)
+	ctx := context.Background()
+	first, err := repo.Create(ctx, &workspacev1.CreateWorkspaceRequest{
+		Name: "Welcome composition", BindingScenario: "harbor", BindingPage: "welcome",
+	})
+	require.NoError(t, err)
+
+	_, err = repo.Create(ctx, &workspacev1.CreateWorkspaceRequest{
+		Name: "Duplicate composition", BindingScenario: "harbor", BindingPage: "welcome",
+	})
+	require.ErrorIs(t, err, ErrBindingConflict)
+	require.Contains(t, err.Error(), first.Id)
+
+	workspaces, err := repo.List(ctx, workspacev1.WorkspaceProvenance_WORKSPACE_PROVENANCE_UNSPECIFIED, "", 0)
+	require.NoError(t, err)
+	require.Len(t, workspaces, 1, "a failed adoption must not leave a second aggregate")
+}
+
+func TestConcurrentCreateForSameExperiencePageKeepsOneWorkspace(t *testing.T) {
+	repo := newTestRepository(t)
+	ctx := context.Background()
+	start := make(chan struct{})
+	errs := make(chan error, 2)
+	var wg sync.WaitGroup
+	for _, name := range []string{"First", "Second"} {
+		wg.Add(1)
+		go func(name string) {
+			defer wg.Done()
+			<-start
+			_, err := repo.Create(ctx, &workspacev1.CreateWorkspaceRequest{
+				Name: name, BindingScenario: "harbor", BindingPage: "welcome",
+			})
+			errs <- err
+		}(name)
+	}
+	close(start)
+	wg.Wait()
+	close(errs)
+	succeeded, conflicted := 0, 0
+	for err := range errs {
+		if err == nil {
+			succeeded++
+		} else if errors.Is(err, ErrBindingConflict) {
+			conflicted++
+		} else {
+			require.NoError(t, err)
+		}
+	}
+	require.Equal(t, 1, succeeded)
+	require.Equal(t, 1, conflicted)
+	rows, err := repo.List(ctx, workspacev1.WorkspaceProvenance_WORKSPACE_PROVENANCE_UNSPECIFIED, "", 0)
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
 }
 
 func TestCreateAssignsIDsAndNormalizesOrder(t *testing.T) {
@@ -222,6 +314,105 @@ func TestSaveReplacesNestedRowsBumpsRevisionAndSnapshots(t *testing.T) {
 	require.Contains(t, revisions[0].SnapshotJson, `"name":"Published"`)
 }
 
+func TestCapturedStateEvidenceSurvivesSaveAndReload(t *testing.T) {
+	repo := newTestRepository(t)
+	created, err := repo.Create(context.Background(), &workspacev1.CreateWorkspaceRequest{Name: "Capture fixture"})
+	require.NoError(t, err)
+
+	state := created.Pages[0].Displays[0].States[0]
+	state.Status = workspacev1.StateStatus_STATE_STATUS_CAPTURED
+	state.CaptureId = "bas-execution-42"
+	state.ScenarioDataJson = `{"schemaVersion":"bas-evidence/v1","executionId":"bas-execution-42","result":"passed"}`
+
+	saved, err := repo.Save(context.Background(), &workspacev1.SaveWorkspaceRequest{
+		Workspace: cloneWorkspace(created), BaseRevision: created.Revision,
+	})
+	require.NoError(t, err)
+	require.Equal(t, workspacev1.StateStatus_STATE_STATUS_CAPTURED, saved.Pages[0].Displays[0].States[0].Status)
+	require.Equal(t, "bas-execution-42", saved.Pages[0].Displays[0].States[0].CaptureId)
+	require.JSONEq(t, state.ScenarioDataJson, saved.Pages[0].Displays[0].States[0].ScenarioDataJson)
+
+	reloaded, err := repo.Get(context.Background(), saved.Id)
+	require.NoError(t, err)
+	require.Equal(t, workspacev1.StateStatus_STATE_STATUS_CAPTURED, reloaded.Pages[0].Displays[0].States[0].Status)
+	require.Equal(t, "bas-execution-42", reloaded.Pages[0].Displays[0].States[0].CaptureId)
+	require.JSONEq(t, state.ScenarioDataJson, reloaded.Pages[0].Displays[0].States[0].ScenarioDataJson)
+}
+
+func TestAttachCaptureEvidencePreservesScenarioDataAndCompositionEditsInvalidateIt(t *testing.T) {
+	repo := newTestRepository(t)
+	created, err := repo.Create(context.Background(), &workspacev1.CreateWorkspaceRequest{Name: "State capture"})
+	require.NoError(t, err)
+	state := created.Pages[0].Displays[0].States[0]
+	state.ScenarioDataJson = `{"schemaVersion":"scenario-data/v1","value":"kept"}`
+	created, err = repo.Save(context.Background(), &workspacev1.SaveWorkspaceRequest{Workspace: created, BaseRevision: created.Revision})
+	require.NoError(t, err)
+	state = created.Pages[0].Displays[0].States[0]
+
+	evidenceJSON := `{"schemaVersion":"rcl-workspace-state-capture/v1","screenshot":{"reference":"bas://exec/screenshot"},"accessibility":{"reference":"bas://exec/accessibility"}}`
+	captured, err := repo.AttachCaptureEvidence(context.Background(), created.Id, state.Id, created.Revision, "attempt-1", "rcl-state-token", "exec-42", evidenceJSON, "2026-11-20T12:00:00Z")
+	require.NoError(t, err)
+	require.Equal(t, workspacev1.StateStatus_STATE_STATUS_CAPTURED, captured.Pages[0].Displays[0].States[0].Status)
+	require.Equal(t, "exec-42", captured.Pages[0].Displays[0].States[0].CaptureId)
+	require.Equal(t, `{"schemaVersion":"scenario-data/v1","value":"kept"}`, captured.Pages[0].Displays[0].States[0].ScenarioDataJson)
+	stored, err := repo.GetCaptureEvidence(context.Background(), created.Id, state.Id)
+	require.NoError(t, err)
+	require.Equal(t, "rcl-state-token", stored.RequestToken)
+	require.JSONEq(t, evidenceJSON, stored.EvidenceJSON)
+	receipts, err := repo.ListCaptureReceipts(context.Background(), created.Id, state.Id)
+	require.NoError(t, err)
+	require.Len(t, receipts, 1)
+	require.Equal(t, "attempt-1", receipts[0].AttemptID)
+	require.Equal(t, int32(created.Revision), receipts[0].SourceRevision)
+	receiptID := receipts[0].ID
+	_, err = repo.db.ExecContext(context.Background(), `UPDATE workspace_capture_receipts SET capture_id='rewritten' WHERE id=?`, receiptID)
+	require.ErrorContains(t, err, "immutable")
+
+	captured.Pages[0].SpecJson = `{"type":"page","id":"changed","children":[]}`
+	updated, err := repo.Save(context.Background(), &workspacev1.SaveWorkspaceRequest{Workspace: captured, BaseRevision: captured.Revision})
+	require.NoError(t, err)
+	require.Equal(t, workspacev1.StateStatus_STATE_STATUS_READY, updated.Pages[0].Displays[0].States[0].Status)
+	require.Empty(t, updated.Pages[0].Displays[0].States[0].CaptureId)
+	_, err = repo.GetCaptureEvidence(context.Background(), created.Id, state.Id)
+	require.ErrorIs(t, err, sql.ErrNoRows, "a changed composition must not retain old BAS evidence")
+	receipts, err = repo.ListCaptureReceipts(context.Background(), created.Id, state.Id)
+	require.NoError(t, err)
+	require.Len(t, receipts, 1, "composition edits invalidate only the current projection, not capture history")
+	require.Equal(t, receiptID, receipts[0].ID)
+}
+
+func TestCaptureAttemptReplayFailureAndExplicitFreshAttempt(t *testing.T) {
+	repo := newTestRepository(t)
+	created, err := repo.Create(context.Background(), &workspacev1.CreateWorkspaceRequest{Name: "Attempt lifecycle"})
+	require.NoError(t, err)
+	stateID := created.Pages[0].Displays[0].States[0].Id
+
+	first, isNew, err := repo.BeginCaptureAttempt(context.Background(), created.Id, stateID, created.Revision, "attempt-1", "token-1")
+	require.NoError(t, err)
+	require.True(t, isNew)
+	require.Equal(t, "in_progress", first.State)
+	active, err := repo.GetActiveCaptureAttempt(context.Background(), created.Id, stateID, created.Revision)
+	require.NoError(t, err)
+	require.Equal(t, first.AttemptID, active.AttemptID)
+	require.Equal(t, first.RequestToken, active.RequestToken)
+	_, _, err = repo.BeginCaptureAttempt(context.Background(), created.Id, stateID, created.Revision, "attempt-2", "token-2")
+	require.ErrorIs(t, err, ErrCaptureInProgress)
+	require.NoError(t, repo.FinishCaptureAttempt(context.Background(), created.Id, stateID, created.Revision, "attempt-1", "failed", "producer failed"))
+	_, err = repo.GetActiveCaptureAttempt(context.Background(), created.Id, stateID, created.Revision)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+
+	replayed, isNew, err := repo.BeginCaptureAttempt(context.Background(), created.Id, stateID, created.Revision, "attempt-1", "token-1")
+	require.NoError(t, err)
+	require.False(t, isNew)
+	require.Equal(t, "failed", replayed.State)
+	require.Equal(t, "producer failed", replayed.Error)
+
+	second, isNew, err := repo.BeginCaptureAttempt(context.Background(), created.Id, stateID, created.Revision, "attempt-2", "token-2")
+	require.NoError(t, err)
+	require.True(t, isNew)
+	require.Equal(t, "in_progress", second.State)
+}
+
 func TestSaveRejectsStaleRevisionWithoutWriting(t *testing.T) {
 	repo := newTestRepository(t)
 	created, err := repo.Create(context.Background(), &workspacev1.CreateWorkspaceRequest{Name: "Base"})
@@ -297,9 +488,11 @@ func TestDeleteCascadesNestedRowsAndRevisions(t *testing.T) {
 func TestForkCopiesAggregateWithNewIdentity(t *testing.T) {
 	repo := newTestRepository(t)
 	created, err := repo.Create(context.Background(), &workspacev1.CreateWorkspaceRequest{
-		Name:       "Curated template",
-		Provenance: workspacev1.WorkspaceProvenance_WORKSPACE_PROVENANCE_CURATED,
-		Tags:       []string{"landing"},
+		Name:            "Curated template",
+		Provenance:      workspacev1.WorkspaceProvenance_WORKSPACE_PROVENANCE_CURATED,
+		Tags:            []string{"landing"},
+		BindingScenario: "landing-scenario",
+		BindingPage:     "landing",
 		Pages: []*workspacev1.WorkspacePage{{
 			Name:     "Landing",
 			Route:    "/",
@@ -321,6 +514,8 @@ func TestForkCopiesAggregateWithNewIdentity(t *testing.T) {
 	require.Equal(t, created.Id, fork.OriginWorkspaceId)
 	require.Equal(t, int32(1), fork.Revision)
 	require.Equal(t, []string{"landing"}, fork.Tags)
+	require.Empty(t, fork.BindingScenario, "independent forks must not claim the origin page's binding")
+	require.Empty(t, fork.BindingPage)
 
 	require.Len(t, fork.Pages, 1)
 	require.NotEqual(t, created.Pages[0].Id, fork.Pages[0].Id)
@@ -334,6 +529,8 @@ func TestForkCopiesAggregateWithNewIdentity(t *testing.T) {
 	origin, err := repo.Get(context.Background(), created.Id)
 	require.NoError(t, err)
 	require.Equal(t, workspacev1.WorkspaceProvenance_WORKSPACE_PROVENANCE_CURATED, origin.Provenance)
+	require.Equal(t, "landing-scenario", origin.BindingScenario, "forking must leave the origin binding intact")
+	require.Equal(t, "landing", origin.BindingPage)
 	require.Equal(t, created.Pages[0].Id, origin.Pages[0].Id)
 }
 
@@ -345,6 +542,42 @@ func TestForkUsesRequestedName(t *testing.T) {
 	fork, err := repo.Fork(context.Background(), created.Id, "  My fork  ")
 	require.NoError(t, err)
 	require.Equal(t, "My fork", fork.Name)
+}
+
+func TestForkDoesNotClaimSourceCaptureEvidence(t *testing.T) {
+	repo := newTestRepository(t)
+	created, err := repo.Create(context.Background(), &workspacev1.CreateWorkspaceRequest{
+		Name:       "Captured template",
+		Provenance: workspacev1.WorkspaceProvenance_WORKSPACE_PROVENANCE_CURATED,
+		Pages: []*workspacev1.WorkspacePage{{
+			Name: "Home",
+			Displays: []*workspacev1.WorkspaceDisplay{{
+				Device: workspacev1.DisplayDevice_DISPLAY_DEVICE_DESKTOP,
+				States: []*workspacev1.WorkspaceState{{
+					Name:      "Ready",
+					ArgsJson:  `{"spec":{"root":{}}}`,
+					Status:    workspacev1.StateStatus_STATE_STATUS_CAPTURED,
+					CaptureId: "capture-from-template",
+				}},
+			}},
+		}},
+	})
+	require.NoError(t, err)
+
+	fork, err := repo.Fork(context.Background(), created.GetId(), "")
+	require.NoError(t, err)
+	forkState := fork.GetPages()[0].GetDisplays()[0].GetStates()[0]
+	require.Equal(t, workspacev1.StateStatus_STATE_STATUS_READY, forkState.GetStatus())
+	require.Empty(t, forkState.GetCaptureId())
+	require.JSONEq(t, created.GetPages()[0].GetDisplays()[0].GetStates()[0].GetArgsJson(), forkState.GetArgsJson(), "fork keeps the authored variant")
+
+	// Forking is copy-on-use: clearing evidence on the copy does not mutate the
+	// curated source snapshot.
+	source, err := repo.Get(context.Background(), created.GetId())
+	require.NoError(t, err)
+	sourceState := source.GetPages()[0].GetDisplays()[0].GetStates()[0]
+	require.Equal(t, workspacev1.StateStatus_STATE_STATUS_CAPTURED, sourceState.GetStatus())
+	require.Equal(t, "capture-from-template", sourceState.GetCaptureId())
 }
 
 func TestListOrdersFiltersAndCounts(t *testing.T) {

@@ -16,7 +16,15 @@ import (
 // Services is intentionally unset. The capability registry is a separate
 // source; callers that want the section inject Providers.Services on the
 // returned value.
-func DBProviders(db *sql.DB) Providers {
+// Database is the query-only SQL surface used by the read providers. A
+// *sql.DB and api-core's RoutedDB satisfy it; production passes RoutedDB so
+// request contexts select the appropriate pool for each snapshot.
+type Database interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
+func DBProviders(db Database) Providers {
 	return Providers{
 		Overview: func(ctx context.Context) (OverviewCounts, error) {
 			return dbOverview(ctx, db)
@@ -30,7 +38,7 @@ func DBProviders(db *sql.DB) Providers {
 	}
 }
 
-func dbOverview(ctx context.Context, db *sql.DB) (OverviewCounts, error) {
+func dbOverview(ctx context.Context, db Database) (OverviewCounts, error) {
 	if db == nil {
 		return OverviewCounts{}, errors.New("library health database is not configured")
 	}
@@ -100,7 +108,7 @@ func dbOverview(ctx context.Context, db *sql.DB) (OverviewCounts, error) {
 	}
 }
 
-func dbQuality(ctx context.Context, db *sql.DB) ([]Metric, error) {
+func dbQuality(ctx context.Context, db Database) ([]Metric, error) {
 	if db == nil {
 		return nil, errors.New("library health database is not configured")
 	}
@@ -155,7 +163,7 @@ func dbQuality(ctx context.Context, db *sql.DB) ([]Metric, error) {
 	return metrics, nil
 }
 
-func dbActivity(ctx context.Context, db *sql.DB, days int) ([]Metric, error) {
+func dbActivity(ctx context.Context, db Database, days int) ([]Metric, error) {
 	if db == nil {
 		return nil, errors.New("library health database is not configured")
 	}
@@ -184,7 +192,7 @@ func dbActivity(ctx context.Context, db *sql.DB, days int) ([]Metric, error) {
 // publishedCount treats the components schema's released status as published.
 // A legacy or alternate schema with a boolean published column is supported;
 // if neither exists the count is unavailable rather than zero.
-func publishedCount(ctx context.Context, db *sql.DB) (int, bool, error) {
+func publishedCount(ctx context.Context, db Database) (int, bool, error) {
 	exists, err := tableExists(ctx, db, "component_versions")
 	if err != nil {
 		return 0, false, fmt.Errorf("inspect component_versions: %w", err)
@@ -216,7 +224,7 @@ func publishedCount(ctx context.Context, db *sql.DB) (int, bool, error) {
 	}
 }
 
-func countTable(ctx context.Context, db *sql.DB, table, query string) (int, bool, error) {
+func countTable(ctx context.Context, db Database, table, query string) (int, bool, error) {
 	exists, err := tableExists(ctx, db, table)
 	if err != nil {
 		return 0, false, err
@@ -231,7 +239,7 @@ func countTable(ctx context.Context, db *sql.DB, table, query string) (int, bool
 	return count, true, nil
 }
 
-func tableExists(ctx context.Context, db *sql.DB, table string) (bool, error) {
+func tableExists(ctx context.Context, db Database, table string) (bool, error) {
 	var count int
 	if err := db.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&count); err != nil {
@@ -240,7 +248,7 @@ func tableExists(ctx context.Context, db *sql.DB, table string) (bool, error) {
 	return count > 0, nil
 }
 
-func tableColumns(ctx context.Context, db *sql.DB, table string) (map[string]bool, error) {
+func tableColumns(ctx context.Context, db Database, table string) (map[string]bool, error) {
 	rows, err := db.QueryContext(ctx, `PRAGMA table_info(`+table+`)`)
 	if err != nil {
 		return nil, err

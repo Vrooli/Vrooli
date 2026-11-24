@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
@@ -22,12 +23,14 @@ import (
 	versionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/versions/versions_v1connect"
 
 	"react-component-library/handlers/versions"
+	"react-component-library/internal/adoptions"
 	"react-component-library/internal/components"
 	localdb "react-component-library/internal/database"
 	"react-component-library/internal/versionledger"
 	internalversions "react-component-library/internal/versions"
 
 	db "github.com/vrooli/api-core/databasetest"
+	"github.com/vrooli/api-core/storage"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/vrooli/api-core/schedule"
@@ -37,6 +40,47 @@ type fakeAdoptions struct{ content map[string]string }
 
 func (f *fakeAdoptions) ResolveAdoption(_ context.Context, id string) (string, error) {
 	return f.content[id], nil
+}
+
+type resolverAdoptions struct {
+	adoptions.Service
+	adoption adoptions.Adoption
+	err      error
+}
+
+func (f resolverAdoptions) Get(context.Context, string) (adoptions.Adoption, error) {
+	return f.adoption, f.err
+}
+
+type scenarioReaderFunc func(context.Context, string, string) ([]byte, error)
+
+func (f scenarioReaderFunc) Read(ctx context.Context, scenario, path string) ([]byte, error) {
+	return f(ctx, scenario, path)
+}
+
+func TestListenerAdapterRecordsSavedContentAndSurfacesDuplicateVersion(t *testing.T) {
+	_, svc := setupModule(t)
+	listener := &versions.ListenerAdapter{Service: svc}
+	component := components.Component{ID: "cmp-listener"}
+	err := listener.OnContentSaved(context.Background(), component, components.Content{Body: "// @version 1.0.0\nfirst"})
+	require.NoError(t, err)
+	err = listener.OnContentSaved(context.Background(), component, components.Content{Body: "// @version 1.0.0\nchanged"})
+	var collision internalversions.ErrVersionExists
+	require.ErrorAs(t, err, &collision)
+	require.Equal(t, "1.0.0", collision.Version)
+}
+
+func TestAdoptionResolverReadsResolvedScenarioPath(t *testing.T) {
+	var gotScenario, gotPath string
+	resolver := versions.AdoptionResolverFromService(resolverAdoptions{adoption: adoptions.Adoption{Scenario: "demo", AdoptedPath: "src/Button.tsx"}}, scenarioReaderFunc(func(_ context.Context, scenario, path string) ([]byte, error) {
+		gotScenario, gotPath = scenario, path
+		return []byte("adopted bytes"), nil
+	}))
+	content, err := resolver.ResolveAdoption(context.Background(), "adoption-1")
+	require.NoError(t, err)
+	require.Equal(t, "adopted bytes", content)
+	require.Equal(t, "demo", gotScenario)
+	require.Equal(t, "src/Button.tsx", gotPath)
 }
 
 func setupModule(t *testing.T) (*mux.Router, internalversions.Service) {
@@ -60,6 +104,36 @@ func TestModule_Shape(t *testing.T) {
 	r, _ := setupModule(t)
 	require.NotNil(t, r)
 	require.Len(t, versions.Endpoints, 17)
+}
+
+func TestVersionsUseRequestRoutedDBPool(t *testing.T) {
+	ctx := context.Background()
+	primaryDSN, err := storage.SQLiteDSNAt(filepath.Join(t.TempDir(), "routed-primary.db"), storage.SQLiteTuning{})
+	require.NoError(t, err)
+	routed, err := apidb.Open(ctx, apidb.Config{Driver: apidb.DriverSQLite, DSN: primaryDSN, MaxOpenConns: 1, MaxIdleConns: 1})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = routed.Close() })
+	ensureSchema := func(ctx context.Context, pool *sql.DB) error {
+		return apidb.EnsureSchemas(ctx, pool, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(components.Schema))
+	}
+	require.NoError(t, ensureSchema(ctx, routed.Primary()))
+	routed.SetTestPoolInitializer(ensureSchema)
+	testDSN, err := storage.SQLiteDSNAt(filepath.Join(t.TempDir(), "test.db"), storage.SQLiteTuning{})
+	require.NoError(t, err)
+	require.NoError(t, routed.InstallTestPool(ctx, testDSN, "versions-routing", time.Minute))
+	_, _, err = versions.BuildService(routed.Primary(), schedule.System(), nil).Record(ctx, internalversions.RecordInput{
+		ComponentID: "cmp-routed", Content: "// @version 1.0.0\nrouted primary",
+	})
+	require.NoError(t, err)
+
+	router := mux.NewRouter()
+	versions.Module(routed, schedule.System(), nil, log.New(io.Discard, "", 0)).Mount(router)
+	req := httptest.NewRequest(http.MethodPost, versionsconnect.VersionsServiceListVersionsProcedure, strings.NewReader(`{"component_id":"cmp-routed","limit":10}`)).WithContext(apidb.WithTestMode(ctx))
+	req.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, req)
+	require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+	require.NotContains(t, response.Body.String(), "routed primary", "test-mode request must read the isolated routed pool")
 }
 
 func TestModule_RecordListDiff(t *testing.T) {

@@ -1,0 +1,67 @@
+{
+  "success": true,
+  "verdict": "PASS",
+  "status": "passed",
+  "scenario": "react-component-library",
+  "runId": "20261122-151900-186bdf42",
+  "executionId": "20261122-151900-186bdf42",
+  "phaseSummary": {
+    "total": 1,
+    "passed": 0,
+    "failed": 0,
+    "skipped": 1,
+    "durationSeconds": 3
+  },
+  "phases": [
+    {
+      "name": "tidiness",
+      "status": "skipped",
+      "durationSeconds": 3,
+      "logPath": "",
+      "error": "",
+      "classification": "",
+      "remediation": "",
+      "runnabilityVerdict": "",
+      "runnabilityReason": "",
+      "observations": null
+    }
+  ],
+  "completeness": {
+    "score": 58,
+    "classification": "functional_incomplete",
+    "workingRung": "R0",
+    "trend": {
+      "previousScore": 0,
+      "delta": 1
+    },
+    "recommendations": [
+      {
+        "priority": "high",
+        "description": "Raise the requirement pass rate (125 total, 1 passing (1%))"
+      },
+      {
+        "priority": "high",
+        "description": "Close failing operational targets (24 total, 0 passing (0%))"
+      },
+      {
+        "priority": "high",
+        "description": "Fix the build/test baseline: the newest cached unit phase is not passing (run `test-genie execute \u003cscenario\u003e --preset quick`)"
+      }
+    ],
+    "staleEvidence": [
+      "business",
+      "docs",
+      "proto",
+      "structure",
+      "unit"
+    ]
+  },
+  "runHandle": {
+    "runId": "20261122-151900-186bdf42",
+    "scenario": "react-component-library",
+    "reattach": "test-genie runs wait --json react-component-library 20261122-151900-186bdf42",
+    "follow": "test-genie runs follow react-component-library 20261122-151900-186bdf42",
+    "logs": "test-genie runs logs react-component-library 20261122-151900-186bdf42",
+    "artifacts": "test-genie runs artifacts react-component-library 20261122-151900-186bdf42"
+  }
+}

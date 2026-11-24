@@ -3,6 +3,7 @@ package gates
 import (
 	"context"
 	"os"
+	"path/filepath"
 
 	"github.com/vrooli/api-core/database"
 	"react-component-library/internal/gatedb"
@@ -31,8 +32,18 @@ func openGateDB(ctx context.Context, path string) (*database.RoutedDB, error) {
 // with SQLITE_CANTOPEN. The gates create and discard these fixtures
 // repeatedly, so the sidecars have to go with them.
 func removeGateDB(path string) error {
+	absolute, err := filepath.Abs(path)
+	if err != nil {
+		return err
+	}
+	parent := filepath.Dir(absolute)
+	root, err := os.OpenRoot(parent)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
 	for _, suffix := range []string{"", "-wal", "-shm"} {
-		if err := os.Remove(path + suffix); err != nil && !os.IsNotExist(err) {
+		if err := root.Remove(filepath.Base(absolute) + suffix); err != nil && !os.IsNotExist(err) {
 			return err
 		}
 	}

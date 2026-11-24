@@ -64,7 +64,7 @@ func Retire(ctx context.Context, root string, repo components.Repository, librar
 	if err != nil {
 		return out, err
 	}
-	if err := persistJSON(pendingPath(root), pendingRetirement{Component: c, CatalogRelative: catalogRelative}); err != nil {
+	if err := persistJSON(root, pendingPath(root), pendingRetirement{Component: c, CatalogRelative: catalogRelative}); err != nil {
 		return out, err
 	}
 	failure := func(cause error) (Result, error) {
@@ -79,7 +79,7 @@ func Retire(ctx context.Context, root string, repo components.Repository, librar
 	activeSource := filepath.Dir(filepath.Join(libraryRoot(root), c.ManifestPath))
 	catalogArchive := out.Archive.SourceArchivePath + ".catalog.json"
 	if err = ctx.Err(); err == nil {
-		err = moveExclusive(catalogPath, catalogArchive)
+		err = moveExclusive(root, catalogPath, catalogArchive)
 	}
 	if err != nil {
 		return failure(err)
@@ -94,7 +94,7 @@ func Retire(ctx context.Context, root string, repo components.Repository, librar
 		return failure(err)
 	}
 	out.Retired = true
-	if err := persistJSON(out.Archive.SourceArchivePath+".receipt.json", out); err != nil {
+	if err := persistJSON(root, out.Archive.SourceArchivePath+".receipt.json", out); err != nil {
 		return out, err
 	}
 	if err := clearPending(root); err != nil {
@@ -128,17 +128,17 @@ func verifyCatalogPath(root, path string) error {
 	return nil
 }
 
-func moveExclusive(from, to string) error {
+func moveExclusive(root, from, to string) error {
 	if _, err := os.Lstat(to); err == nil {
 		return fmt.Errorf("retirement destination already exists: %s", to)
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	return os.Rename(from, to)
+	return renameInRoot(root, from, to)
 }
 
-func restoreMove(from, to string) error {
-	if err := moveExclusive(from, to); err != nil {
+func restoreMove(root, from, to string) error {
+	if err := moveExclusive(root, from, to); err != nil {
 		return fmt.Errorf("restore %s from %s: %w", to, from, err)
 	}
 	return nil

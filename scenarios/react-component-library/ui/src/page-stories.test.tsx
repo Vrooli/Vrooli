@@ -13,6 +13,16 @@ afterEach(() => {
 });
 
 describe("page story API state", () => {
+  it("leaves ordinary routes untouched and rejects unknown page story identifiers", () => {
+    expect(preparePageStory(new URLSearchParams("view=quality"))).toBeUndefined();
+    expect(() =>
+      preparePageStory(new URLSearchParams("__rcl_page_story=MissingPage&__rcl_story=default")),
+    ).toThrow("Unknown page story subject: MissingPage");
+    expect(() =>
+      preparePageStory(new URLSearchParams("__rcl_page_story=CoveragePage&__rcl_story=missing")),
+    ).toThrow("Unknown story for CoveragePage");
+  });
+
   it("supplies declared responses and prevents undeclared mutations", async () => {
     const original = vi.fn().mockResolvedValue(new Response("live"));
     const host = { fetch: original as typeof fetch };

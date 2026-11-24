@@ -45,7 +45,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "ui/src/test-utils/voiceInputButton.test.tsx",
+          "ref": "library/tests/components/VoiceInputButton/4.3.4/VoiceInputButton.behavior.test.tsx",
           "phase": "unit",
           "status": "failing"
         },

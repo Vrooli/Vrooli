@@ -10,6 +10,7 @@ import {
   layoutVerdicts,
   paintedShare,
   primaryActionVerdict,
+  summarizeChecks,
   stateAudit,
   underTargetButtons,
 } from "./checks";
@@ -86,5 +87,14 @@ describe("layout checks", () => {
     expect(primaryActionVerdict(1)).toBe("pass");
     expect(captureEvidenceVerdict(false)).toBe("unmeasured");
     expect(captureEvidenceVerdict(true)).toBe("pass");
+  });
+
+  it("keeps unmeasured checks out of the passing score", () => {
+    expect(summarizeChecks(["pass", "warn", "unmeasured", "fail"])).toEqual({
+      total: 4,
+      passed: 1,
+      needsReview: 3,
+      unmeasured: 1,
+    });
   });
 });

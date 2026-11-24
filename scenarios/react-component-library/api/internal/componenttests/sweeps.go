@@ -87,9 +87,22 @@ type SweepRepository interface {
 	Save(context.Context, Sweep) error
 }
 
-type SQLiteSweepRepository struct{ db *sql.DB }
+type SQLiteSweepRepository struct {
+	db interface {
+		ExecContext(context.Context, string, ...any) (sql.Result, error)
+		QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+		QueryRowContext(context.Context, string, ...any) *sql.Row
+		BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+	}
+}
 
-func NewSQLiteSweepRepository(db *sql.DB) *SQLiteSweepRepository {
+func NewSQLiteSweepRepository(db interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+},
+) *SQLiteSweepRepository {
 	return &SQLiteSweepRepository{db: db}
 }
 

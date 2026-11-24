@@ -1,7 +1,6 @@
 package workflows
 
 import (
-	"database/sql"
 	"log"
 
 	"github.com/gorilla/mux"
@@ -14,7 +13,7 @@ import (
 	"github.com/vrooli/api-core/schedule"
 )
 
-func Module(db *sql.DB, clk schedule.Clock, dispatcher internal.Dispatcher, logger *log.Logger) module.Module {
+func Module(db internal.SQLDB, clk schedule.Clock, dispatcher internal.Dispatcher, logger *log.Logger) module.Module {
 	svc := internal.NewService(internal.NewSQLiteRepository(db, clk), dispatcher)
 	path, h := workflowsconnect.NewWorkflowsServiceHandler(NewConnectHandler(svc, logger))
 	return module.Module{Name: "workflows", Mount: func(r *mux.Router) { connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: h}) }, Endpoints: Endpoints}
@@ -31,7 +30,7 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "workflows_promotion_readiness", Path: workflowsconnect.WorkflowsServiceGetPromotionReadinessProcedure, Method: "POST", Summary: "Read promotion readiness evidence", Category: "workflows"},
 }
 
-func ModuleWithReadiness(db *sql.DB, clk schedule.Clock, dispatcher internal.Dispatcher, readiness internal.PromotionReadinessReader, logger *log.Logger) module.Module {
+func ModuleWithReadiness(db internal.SQLDB, clk schedule.Clock, dispatcher internal.Dispatcher, readiness internal.PromotionReadinessReader, logger *log.Logger) module.Module {
 	svc := internal.NewService(internal.NewSQLiteRepository(db, clk), dispatcher, readiness)
 	path, h := workflowsconnect.NewWorkflowsServiceHandler(NewConnectHandler(svc, logger))
 	return module.Module{Name: "workflows", Mount: func(r *mux.Router) { connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: h}) }, Endpoints: Endpoints}

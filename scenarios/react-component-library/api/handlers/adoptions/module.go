@@ -21,6 +21,7 @@ import (
 	"github.com/vrooli/api-core/connectx"
 	repocontract "github.com/vrooli/repo-contract-go"
 
+	intakeconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/adoptionintake/adoptionintake_v1connect"
 	adoptionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/adoptions/adoptions_v1connect"
 
 	"github.com/vrooli/api-core/uimanifest"
@@ -35,7 +36,17 @@ import (
 // Module wires the adoptions domain using the production-default
 // scenarios root. Tests should use ModuleWithRoot to inject a temp
 // dir + a custom LibraryReader.
-func Module(db *sql.DB, clk schedule.Clock, library adoptions.LibraryReader, logger *log.Logger) module.Module {
+// sqlExecutor is the request-aware database surface used by adoption
+// repositories. *sql.DB remains compatible with fixtures; production passes
+// RoutedDB so request context selects the active pool.
+type sqlExecutor interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+}
+
+func Module(db sqlExecutor, clk schedule.Clock, library adoptions.LibraryReader, logger *log.Logger) module.Module {
 	root, err := defaultScenariosRoot()
 	if err != nil {
 		logger.Fatalf("adoptions scenarios root: %v", err)
@@ -45,7 +56,7 @@ func Module(db *sql.DB, clk schedule.Clock, library adoptions.LibraryReader, log
 
 // ModuleWithRoot is the explicit-injection variant used by tests and
 // callers that want to point the scenario-file reader at a custom path.
-func ModuleWithRoot(db *sql.DB, clk schedule.Clock, library adoptions.LibraryReader, scenariosRoot string, logger *log.Logger) module.Module {
+func ModuleWithRoot(db sqlExecutor, clk schedule.Clock, library adoptions.LibraryReader, scenariosRoot string, logger *log.Logger) module.Module {
 	svc, _ := BuildService(db, clk, library, scenariosRoot)
 	return ModuleFromService(svc, logger)
 }
@@ -86,11 +97,16 @@ func ModuleFromService(svc adoptions.Service, logger *log.Logger, opts ...Module
 	for _, opt := range opts {
 		opt(&deps)
 	}
-	connectPath, connectHandler := adoptionsconnect.NewAdoptionsServiceHandler(NewConnectHandler(deps))
+	core := NewConnectHandler(deps)
+	connectPath, connectHandler := adoptionsconnect.NewAdoptionsServiceHandler(core)
+	intakePath, intakeHandler := intakeconnect.NewAdoptionIntakeServiceHandler(adoptionIntakeHandler{port: core})
 	return module.Module{
 		Name: "adoptions",
 		Mount: func(r *mux.Router) {
-			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
+			connectx.RegisterServices(r,
+				connectx.ServiceMount{Path: connectPath, Handler: connectHandler},
+				connectx.ServiceMount{Path: intakePath, Handler: intakeHandler},
+			)
 		},
 		Endpoints: Endpoints,
 	}
@@ -103,7 +119,7 @@ func Schema() string { return adoptions.Schema() }
 // adoptions.Service that sibling modules can read from (e.g.,
 // versions resolves `adoption:<id>` diff sides through this service
 // and the returned ScenarioFileReader).
-func BuildService(db *sql.DB, clk schedule.Clock, library adoptions.LibraryReader, scenariosRoot string) (adoptions.Service, adoptions.ScenarioFileReader) {
+func BuildService(db sqlExecutor, clk schedule.Clock, library adoptions.LibraryReader, scenariosRoot string) (adoptions.Service, adoptions.ScenarioFileReader) {
 	repo := adoptions.NewSQLiteRepository(db, clk)
 	files := adoptions.NewFSScenarioFileReader(scenariosRoot)
 	svc := adoptions.NewService(repo, library, files, clk)
@@ -180,7 +196,7 @@ func defaultScenariosRoot() (string, error) {
 var Endpoints = []module.EndpointDescriptor{
 	{
 		ID:          "adoptions_list_scenarios",
-		Path:        adoptionsconnect.AdoptionsServiceListScenariosProcedure,
+		Path:        intakeconnect.AdoptionIntakeServiceListScenariosProcedure,
 		Method:      "POST",
 		Summary:     "List available scenarios for guided adoption workflows",
 		Description: "Returns scenario names discovered from the repository scenarios directory.",
@@ -191,7 +207,7 @@ var Endpoints = []module.EndpointDescriptor{
 	},
 	{
 		ID:          "adoptions_reconcile",
-		Path:        adoptionsconnect.AdoptionsServiceReconcileAdoptionsProcedure,
+		Path:        intakeconnect.AdoptionIntakeServiceReconcileAdoptionsProcedure,
 		Method:      "POST",
 		Summary:     "Backfill adoption records from on-disk provenance",
 		Description: "Scans scenario UI source read-only. Dry-run is default; apply writes only RCL adoption records without backlog reporting.",
@@ -473,7 +489,7 @@ var Endpoints = []module.EndpointDescriptor{
 	},
 	{
 		ID:          "adoptions_suggest",
-		Path:        adoptionsconnect.AdoptionsServiceSuggestAdoptionsProcedure,
+		Path:        intakeconnect.AdoptionIntakeServiceSuggestAdoptionsProcedure,
 		Method:      "POST",
 		Summary:     "Suggest catalog components a scenario should adopt",
 		Description: "Returns non-adopted catalog components using real UI inventory matches, design-style fit, and dependency compatibility. Every candidate carries human-readable reasons; no opaque score is emitted.",
@@ -487,7 +503,7 @@ var Endpoints = []module.EndpointDescriptor{
 	},
 	{
 		ID:          "adoptions_discover",
-		Path:        adoptionsconnect.AdoptionsServiceDiscoverAdoptionsProcedure,
+		Path:        intakeconnect.AdoptionIntakeServiceDiscoverAdoptionsProcedure,
 		Method:      "POST",
 		Summary:     "Discover header-less vendored copies by content similarity",
 		Description: "Walks scenario UI trees for source files with no @vrooliComponentSource header and scores each against every library component version (Sørensen–Dice line similarity). Read-only: candidates carry similarity evidence for operator review; ConfirmDiscovery performs any write.",
@@ -500,7 +516,7 @@ var Endpoints = []module.EndpointDescriptor{
 	},
 	{
 		ID:          "adoptions_confirm_discovery",
-		Path:        adoptionsconnect.AdoptionsServiceConfirmDiscoveryProcedure,
+		Path:        intakeconnect.AdoptionIntakeServiceConfirmDiscoveryProcedure,
 		Method:      "POST",
 		Summary:     "Confirm a discovery candidate and backfill its provenance",
 		Description: "Injects an @vrooliComponentSource header into a header-less scenario file and creates its adoption record, attributed to the named component + version. Refuses files that already carry a header or are already tracked.",

@@ -7,6 +7,7 @@ import {
 } from "@vrooli/proto-types/react-component-library/v1/components/components_pb";
 
 import { transport, authoringTransport } from "./client";
+import { ComponentAuthoringService } from "@vrooli/proto-types/react-component-library/v1/componentauthoring/component_authoring_pb";
 import type { ClaimMeasurement } from "@vrooli/proto-types/experience-manager/v1/contract/contract_pb";
 
 export const DesignAffinity = {
@@ -46,7 +47,7 @@ const baseComponentsClient = createClient(ComponentsService, transport);
 
 /** Mutating authoring calls share a longer deadline because checks compile
  * the story harness. Reads stay on the interactive transport. */
-const authoringComponentsClient = createClient(ComponentsService, authoringTransport);
+const authoringComponentsClient = createClient(ComponentAuthoringService, authoringTransport);
 
 export const componentsClient = baseComponentsClient as typeof baseComponentsClient & {
   validateStyleFit(input: ValidateStyleFitRequest): Promise<ValidateStyleFitResponse>;
@@ -311,6 +312,25 @@ export interface PublishComponentDraftResult {
   sourcePath: string;
   artifactPaths: string[];
   previewPath: string;
+}
+
+export async function initializeComponent(input: {
+  libraryId: string; slug: string; displayName: string; description: string;
+  tags: string[]; initialVersion: string; fileName: string; initialSource: string;
+}) {
+  return authoringComponentsClient.initializeComponent(input);
+}
+
+export async function ingestComponent(input: {
+  scenario: string; sourceFile: string; slug: string; displayName: string;
+  description: string; tags: string[]; slot: string; version: string;
+  sourceFiles: string[]; acceptBehaviorLoss: boolean; experienceContractPath: string;
+}) {
+  return authoringComponentsClient.ingestComponent(input);
+}
+
+export async function getComponentContent(input: { id: string; path?: string }) {
+  return authoringComponentsClient.getComponentContent({ id: input.id, path: input.path ?? "" });
 }
 
 export async function beginComponentDraft(

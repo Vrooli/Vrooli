@@ -4,10 +4,13 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 )
 
 // ErrPathEscape is returned when a component's SourcePath resolves to
@@ -99,7 +102,7 @@ func (s *FSContentStore) ReadPath(_ context.Context, c Component, path string) (
 	if err != nil {
 		return Content{}, err
 	}
-	raw, err := os.ReadFile(abs)
+	raw, err := readFileInRoot(s.root, abs)
 	if err != nil {
 		return Content{}, fmt.Errorf("read component content %q: %w", c.SourcePath, err)
 	}
@@ -129,7 +132,7 @@ func (s *FSContentStore) WritePath(_ context.Context, c Component, path string, 
 		return Content{}, err
 	}
 	if in.ExpectedSHA256 != "" {
-		existing, err := os.ReadFile(abs)
+		existing, err := readFileInRoot(s.root, abs)
 		if err != nil {
 			return Content{}, fmt.Errorf("read component content for guard %q: %w", c.SourcePath, err)
 		}
@@ -138,7 +141,10 @@ func (s *FSContentStore) WritePath(_ context.Context, c Component, path string, 
 			return Content{}, ErrContentConflict{Got: got, Expected: in.ExpectedSHA256}
 		}
 	}
-	if err := os.WriteFile(abs, []byte(in.Body), 0o600); err != nil {
+	if err := writeFileAtomicInRoot(s.root, abs, []byte(in.Body), 0o600); err != nil {
+		if isRootEscapeError(err) || hasSymlinkParent(s.root, abs) {
+			return Content{}, ErrPathEscape{SourcePath: c.SourcePath, Root: s.root}
+		}
 		return Content{}, fmt.Errorf("write component content %q: %w", c.SourcePath, err)
 	}
 	return Content{
@@ -174,15 +180,76 @@ func (s *FSContentStore) resolve(sourcePath string) (string, error) {
 	if cleaned == ".." || strings.HasPrefix(cleaned, ".."+string(filepath.Separator)) {
 		return "", ErrPathEscape{SourcePath: sourcePath, Root: s.root}
 	}
-	abs := filepath.Join(s.root, cleaned)
+	root, err := filepath.Abs(s.root)
+	if err != nil {
+		return "", fmt.Errorf("resolve component root: %w", err)
+	}
+	abs := filepath.Join(root, cleaned)
 	// Final guard: after Clean+Join, the absolute path must still sit
 	// under root. Defends against pathological inputs filepath.Clean
 	// didn't normalize the way we expected.
-	rel, err := filepath.Rel(s.root, abs)
+	rel, err := filepath.Rel(root, abs)
 	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return "", ErrPathEscape{SourcePath: sourcePath, Root: s.root}
 	}
 	return abs, nil
+}
+
+// readFileInRoot keeps reads anchored to the configured root just like writes.
+// Lexical resolution alone is insufficient because a component path may pass
+// through a symlink that is replaced after validation.
+func readFileInRoot(rootPath, absolutePath string) ([]byte, error) {
+	rootPath, err := filepath.Abs(rootPath)
+	if err != nil {
+		return nil, fmt.Errorf("resolve component root: %w", err)
+	}
+	abs, err := filepath.Abs(absolutePath)
+	if err != nil {
+		return nil, fmt.Errorf("resolve component path: %w", err)
+	}
+	relative, err := filepath.Rel(rootPath, abs)
+	if err != nil || relative == "." || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return nil, ErrPathEscape{SourcePath: absolutePath, Root: rootPath}
+	}
+	root, err := os.OpenRoot(rootPath)
+	if err != nil {
+		return nil, fmt.Errorf("open component root: %w", err)
+	}
+	defer root.Close()
+	file, err := root.Open(filepath.ToSlash(relative))
+	if err != nil {
+		if isRootEscapeError(err) {
+			return nil, ErrPathEscape{SourcePath: absolutePath, Root: rootPath}
+		}
+		return nil, err
+	}
+	defer file.Close()
+	return io.ReadAll(file)
+}
+
+func isRootEscapeError(err error) bool {
+	return errors.Is(err, syscall.EXDEV) || strings.Contains(err.Error(), "path escapes from parent")
+}
+
+func hasSymlinkParent(rootPath, absolutePath string) bool {
+	rootPath, err := filepath.Abs(rootPath)
+	if err != nil {
+		return false
+	}
+	relative, err := filepath.Rel(rootPath, absolutePath)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return false
+	}
+	for parent := filepath.Dir(relative); parent != "."; parent = filepath.Dir(parent) {
+		info, err := os.Lstat(filepath.Join(rootPath, parent))
+		if err != nil {
+			return false
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func digest(b []byte) string {

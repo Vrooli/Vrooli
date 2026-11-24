@@ -19,8 +19,19 @@ func ValidateStoryDistinctness(scope Scope) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	result := Result{Inspected: len(paths)}
+	result := Result{}
 	for _, path := range paths {
+		if isRetiredLibraryPath(path) {
+			continue
+		}
+		retired, err := isRetiredVersion(path)
+		if err != nil {
+			return Result{}, err
+		}
+		if retired {
+			continue
+		}
+		result.Inspected++
 		raw, readErr := os.ReadFile(path)
 		if readErr != nil {
 			return Result{}, readErr

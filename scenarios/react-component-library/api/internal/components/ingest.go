@@ -242,11 +242,7 @@ func resolveAliasCompanion(ctx context.Context, reader ScenarioSourceReader, sce
 	}
 	for _, prefix := range []string{"ui/src/", "src/", ""} {
 		base := prefix + rest
-		candidates := []string{base}
-		if path.Ext(base) == "" {
-			candidates = append(candidates, base+".ts", base+".tsx", path.Join(base, "index.ts"), path.Join(base, "index.tsx"))
-		}
-		for _, candidate := range candidates {
+		for _, candidate := range ingestSourceCandidates(base) {
 			if raw, err := reader.Read(ctx, scenario, candidate); err == nil {
 				return string(raw), true
 			}
@@ -315,16 +311,25 @@ func resolveRelativeIngestImport(ctx context.Context, reader ScenarioSourceReade
 	if strings.HasPrefix(base, "../") {
 		return "", fmt.Errorf("relative import %q escapes its scenario", specifier)
 	}
-	candidates := []string{base}
-	if path.Ext(base) == "" {
-		candidates = append(candidates, base+".ts", base+".tsx", path.Join(base, "index.ts"), path.Join(base, "index.tsx"))
-	}
-	for _, candidate := range candidates {
+	for _, candidate := range ingestSourceCandidates(base) {
 		if _, err := reader.Read(ctx, scenario, candidate); err == nil {
 			return candidate, nil
 		}
 	}
 	return "", fmt.Errorf("relative import %q from %q could not be read as a .ts/.tsx companion", specifier, dir)
+}
+
+// TypeScript module basenames may contain dots (for example
+// `selectors.library.ts`). An extensionless import to `selectors.library`
+// therefore has a path.Ext value even though it is not a .ts/.tsx file. Only
+// a recognized source extension should suppress TypeScript candidates.
+func ingestSourceCandidates(base string) []string {
+	candidates := []string{base}
+	ext := path.Ext(base)
+	if ext == ".ts" || ext == ".tsx" {
+		return candidates
+	}
+	return append(candidates, base+".ts", base+".tsx", path.Join(base, "index.ts"), path.Join(base, "index.tsx"))
 }
 
 func ingestFilesForVersion(unit []ComponentVersionFile, libraryID, displayName, description, version string, tags []string, scenario, sourceFile string) []ComponentVersionFile {

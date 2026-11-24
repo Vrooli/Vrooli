@@ -43,6 +43,25 @@ describe("RCL usage-contract ESLint rule", () => {
     expect(findings).toContain("primaryCount");
   });
 
+  it("checks required primary actions independently in each conditional collection branch", () => {
+    expect(
+      check(`
+        const actions = ready
+          ? [{ id: "next", label: "Next", onSelect: advance, primary: true }, { id: "back", label: "Back", onSelect: retreat }]
+          : [{ id: "back", label: "Back", onSelect: retreat, primary: true }];
+        const view = <OverlayActionBar actions={actions} />;
+      `),
+    ).toEqual([]);
+    expect(
+      check(`
+        const actions = ready
+          ? [{ id: "next", label: "Next", onSelect: advance, primary: true }]
+          : [{ id: "back", label: "Back", onSelect: retreat }];
+        const view = <OverlayActionBar actions={actions} />;
+      `),
+    ).toContain("primaryCount");
+  });
+
   it("flags custom overlay footers that rebuild shared action controls", () => {
     const findings = check(`
       function DrawerActions() { return <div><button>Save</button></div>; }

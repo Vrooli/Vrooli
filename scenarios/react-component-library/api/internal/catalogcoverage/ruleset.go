@@ -239,8 +239,28 @@ func ResolveRuleSetFor(catalogRoot string, asset Asset, definitions []GateDefini
 		return nil, err
 	}
 	optOut := make(map[string]bool, len(manifest.OptOuts))
-	for _, gate := range manifest.OptOuts {
-		optOut[gate.Gate] = true
+	known := make(map[string]GateDefinition, len(definitions))
+	for _, definition := range definitions {
+		known[definition.ID] = definition
+	}
+	for _, exception := range manifest.OptOuts {
+		definition, exists := known[exception.Gate]
+		if !exists {
+			return nil, fmt.Errorf("asset %q opts out of unknown gate %q", assetID, exception.Gate)
+		}
+		if len(strings.TrimSpace(exception.Reason)) < 20 {
+			return nil, fmt.Errorf("asset %q opt-out for gate %q requires a reason of at least 20 characters", assetID, exception.Gate)
+		}
+		if optOut[exception.Gate] {
+			return nil, fmt.Errorf("asset %q opts out of gate %q more than once", assetID, exception.Gate)
+		}
+		if !slices.Contains(definition.AppliesTo, asset.Kind) {
+			return nil, fmt.Errorf("asset %q cannot opt out of gate %q because it is not a kind default", assetID, exception.Gate)
+		}
+		if definition.Blocking && rungRank(AchievedRung(asset.Maturity)) >= rungRank(definition.Rung) {
+			return nil, fmt.Errorf("asset %q cannot opt out of blocking gate %q at target maturity %q", assetID, exception.Gate, asset.Maturity)
+		}
+		optOut[exception.Gate] = true
 	}
 	added := make(map[string]bool, len(manifest.Gates))
 	for _, gate := range manifest.Gates {
@@ -273,10 +293,8 @@ func ResolveRuleSetFor(catalogRoot string, asset Asset, definitions []GateDefini
 }
 
 type assetRuleOverrides struct {
-	Gates   []string `json:"qualityGates"`
-	OptOuts []struct {
-		Gate string `json:"gate"`
-	} `json:"qualityGateOptOuts"`
+	Gates   []string            `json:"qualityGates"`
+	OptOuts []QualityGateOptOut `json:"qualityGateOptOuts"`
 }
 
 func loadAssetRuleOverrides(catalogRoot, assetID string) (assetRuleOverrides, error) {

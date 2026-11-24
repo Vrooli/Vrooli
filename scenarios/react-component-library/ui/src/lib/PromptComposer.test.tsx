@@ -6,7 +6,7 @@ import {
   PromptComposer,
   type PromptComposerProps,
 } from "../../../library/components/PromptComposer/versions/1.0.4/PromptComposer";
-import { ComposerAttachmentTray } from "@vrooli/react-component-library/ComposerAttachmentTray/1.0.4";
+import { ComposerAttachmentTray } from "../../../library/components/ComposerAttachmentTray/versions/1.0.4/ComposerAttachmentTray";
 
 afterEach(cleanup);
 // Fixture attachment names and the library's own status copy, named once here
@@ -22,7 +22,15 @@ function Harness(props: Omit<PromptComposerProps, "value" | "onValueChange">) {
 describe("conversation send contract", () => {
   it("reorders attachments through keyboard-accessible actions", () => {
     const onReorder = vi.fn();
-    renderWithProviders(<ComposerAttachmentTray items={[{ id: "first", name: "Brief.pdf" }, { id: "second", name: "Notes.md" }]} onReorder={onReorder} />);
+    renderWithProviders(
+      <ComposerAttachmentTray
+        items={[
+          { id: "first", name: "Brief.pdf" },
+          { id: "second", name: "Notes.md" },
+        ]}
+        onReorder={onReorder}
+      />,
+    );
     fireEvent.click(screen.getByRole("button", { name: "Move Notes.md earlier" }));
     expect(onReorder).toHaveBeenCalledWith(["second", "first"]);
     expect(screen.getByText(reorderStatus)).toHaveAttribute("role", "status");
@@ -39,7 +47,12 @@ describe("conversation send contract", () => {
   });
   it("does not erase newer typing when an earlier submission completes", async () => {
     let resolve!: (accepted: boolean) => void;
-    const onSend = vi.fn(() => new Promise<boolean>(done => { resolve = done; }));
+    const onSend = vi.fn(
+      () =>
+        new Promise<boolean>((done) => {
+          resolve = done;
+        }),
+    );
     renderWithProviders(<Harness onSend={onSend} />);
     const input = screen.getByRole("textbox");
     fireEvent.keyDown(input, { key: "Enter" });
@@ -71,7 +84,16 @@ describe("conversation send contract", () => {
     expect(onSend).not.toHaveBeenCalled();
   });
   it("keeps failed and healthy attachments until the caller resolves them", () => {
-    renderWithProviders(<Harness onSend={vi.fn()} attachments={[{ id: "ok", name: "Brief.pdf", status: "success" }, { id: "failed", name: "Notes.md", status: "error" }]} onAttachmentRetry={vi.fn()} />);
+    renderWithProviders(
+      <Harness
+        onSend={vi.fn()}
+        attachments={[
+          { id: "ok", name: "Brief.pdf", status: "success" },
+          { id: "failed", name: "Notes.md", status: "error" },
+        ]}
+        onAttachmentRetry={vi.fn()}
+      />,
+    );
     expect(screen.getByText(briefName)).toBeVisible();
     expect(screen.getByText(notesName)).toBeVisible();
     expect(screen.getByRole("button", { name: "Send message" })).toBeDisabled();

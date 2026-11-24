@@ -1,7 +1,7 @@
 {
   "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "react-component-library",
-  "description": "Single source of truth for the react-component-library CLI command surface. Schema-validated against cli-manifest/v1; cross-validated against each domain's Connect-RPC proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest. ThemesService and DepsService are intentionally not covered (consumed by UI + adoption-validation only; no CLI surface today).",
+  "description": "Single source of truth for the react-component-library CLI command surface. Schema-validated against cli-manifest/v1; cross-validated against each domain's Connect-RPC proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest. ThemesService is used by the UI and DepsService supports dependency indexing and adoption validation; neither currently has a CLI command surface.",
   "groups": [
     {
       "name": "adoptions",
@@ -147,11 +147,17 @@
             },
             {
               "name": "candidate",
-              "description": "Optional first-adoption component ID; include its released token requirements before adoption or package import exists"
+              "description": "Optional first-adoption component ID; include its released token requirements before adoption or package import exists",
+              "bind": {
+                "field": "candidate_component_id"
+              }
             },
             {
               "name": "version",
-              "description": "Released candidate version; defaults to the component's latest version and requires --candidate"
+              "description": "Released candidate version; defaults to the component's latest version and requires --candidate",
+              "bind": {
+                "field": "candidate_version"
+              }
             }
           ],
           "binding": {
@@ -169,7 +175,7 @@
             ]
           },
           "architecture": {
-            "primitive": "proto_mutation"
+            "primitive": "action"
           }
         },
         {
@@ -203,7 +209,7 @@
             ]
           },
           "architecture": {
-            "primitive": "proto_mutation"
+            "primitive": "action"
           }
         },
         {
@@ -480,7 +486,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "ComponentsService",
+            "service": "ComponentAuthoringService",
             "method": "IngestComponent"
           },
           "governance": {
@@ -524,7 +530,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "ComponentsService",
+            "service": "ComponentAuthoringService",
             "method": "BeginComponentVersion"
           },
           "governance": {
@@ -557,7 +563,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "ComponentsService",
+            "service": "ComponentAuthoringService",
             "method": "CheckComponentVersion"
           },
           "governance": {
@@ -605,7 +611,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "ComponentsService",
+            "service": "ComponentAuthoringService",
             "method": "PublishComponentVersion"
           },
           "governance": {
@@ -627,7 +633,10 @@
             {
               "name": "component",
               "required": true,
-              "description": "Stable libraryId or catalog UUID"
+              "description": "Stable libraryId or catalog UUID",
+              "bind": {
+                "field": "component_id"
+              }
             }
           ],
           "flags": [
@@ -689,7 +698,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "ComponentsService",
+            "service": "ComponentAuthoringService",
             "method": "UpdateComponentManifest"
           },
           "governance": {
@@ -734,7 +743,10 @@
             {
               "name": "component",
               "required": true,
-              "description": "Stable libraryId"
+              "description": "Stable libraryId",
+              "bind": {
+                "field": "library_id"
+              }
             }
           ],
           "flags": [
@@ -746,7 +758,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "ComponentsService",
+            "service": "ComponentAuthoringService",
             "method": "RetireComponent"
           },
           "governance": {
@@ -789,7 +801,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "ComponentsService",
+            "service": "ComponentAuthoringService",
             "method": "UpdateComponentContent"
           },
           "governance": {
@@ -931,12 +943,12 @@
             {
               "name": "from",
               "required": true,
-              "description": "Source — @version value or adoption:<id>"
+              "description": "Source \u2014 @version value or adoption:<id>"
             },
             {
               "name": "to",
               "required": true,
-              "description": "Target — @version value or adoption:<id>"
+              "description": "Target \u2014 @version value or adoption:<id>"
             }
           ],
           "binding": {
@@ -1014,7 +1026,7 @@
             ]
           },
           "architecture": {
-            "primitive": "action"
+            "primitive": "proto_list"
           }
         },
         {
@@ -1071,7 +1083,7 @@
             "method": "ReconcilePresence"
           },
           "architecture": {
-            "primitive": "action"
+            "primitive": "proto_list"
           }
         },
         {
@@ -1574,12 +1586,14 @@
             {
               "name": "design",
               "required": true,
-              "description": "Design identity"
+              "description": "Design identity",
+              "local_only": true
             },
             {
               "name": "candidate",
               "required": true,
-              "description": "Exact saved candidate hash"
+              "description": "Exact saved candidate hash",
+              "local_only": true
             },
             {
               "name": "kit",
@@ -1598,7 +1612,10 @@
             },
             {
               "name": "state",
-              "description": "Declared preview state"
+              "description": "Declared preview state",
+              "bind": {
+                "field": "preview_state"
+              }
             },
             {
               "name": "missing-label",
@@ -1613,7 +1630,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "SketchService",
+            "service": "WorkspaceCandidateService",
             "method": "RenderCandidate"
           },
           "governance": {
@@ -1625,209 +1642,7 @@
             ]
           },
           "architecture": {
-            "primitive": "proto_list"
-          }
-        },
-        {
-          "name": "acceptance",
-          "description": "Read a durable acceptance decision without rechecking or dispatching",
-          "positionals": [],
-          "flags": [
-            {
-              "name": "scenario",
-              "required": true,
-              "description": "Owning scenario"
-            },
-            {
-              "name": "design",
-              "required": true,
-              "description": "Design identity"
-            },
-            {
-              "name": "id",
-              "required": true,
-              "description": "Acceptance operation ID"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "SketchService",
-            "method": "GetAcceptance"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal",
-              "filesystem:read"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          }
-        },
-        {
-          "name": "accept",
-          "description": "Record an acceptance decision; incomplete evidence yields needs_evidence",
-          "positionals": [],
-          "flags": [
-            {
-              "name": "scenario",
-              "required": true,
-              "description": "Scenario owning the candidate"
-            },
-            {
-              "name": "design",
-              "required": true,
-              "description": "Design identity"
-            },
-            {
-              "name": "candidate",
-              "required": true,
-              "description": "Exact saved candidate hash"
-            },
-            {
-              "name": "render-hash",
-              "required": true,
-              "description": "Exact render hash being reviewed"
-            },
-            {
-              "name": "kit",
-              "default": "vrooli-default",
-              "description": "Rendered design kit"
-            },
-            {
-              "name": "theme",
-              "default": "light",
-              "description": "Rendered theme"
-            },
-            {
-              "name": "direction",
-              "default": "ltr",
-              "description": "Rendered text direction"
-            },
-            {
-              "name": "state",
-              "description": "Declared preview state"
-            },
-            {
-              "name": "missing-label",
-              "default": "Missing region",
-              "description": "Missing-region label used for this render"
-            },
-            {
-              "name": "failed-label",
-              "default": "Failed region",
-              "description": "Failed-region label used for this render"
-            },
-            {
-              "name": "critique",
-              "repeatable": true,
-              "description": "Review ID; repeat to include multiple reviews"
-            },
-            {
-              "name": "actor",
-              "required": true,
-              "description": "Caller-declared decision actor; not independent review proof"
-            },
-            {
-              "name": "key",
-              "required": true,
-              "description": "Stable key; repeat identical inputs after a lost response"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "SketchService",
-            "method": "AcceptCandidate"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal",
-              "filesystem:read"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_mutation"
-          }
-        },
-        {
-          "name": "acceptance-check",
-          "description": "Resolve current acceptance requirements without publishing a decision",
-          "positionals": [],
-          "flags": [
-            {
-              "name": "scenario",
-              "required": true,
-              "description": "Scenario owning the candidate"
-            },
-            {
-              "name": "design",
-              "required": true,
-              "description": "Design identity"
-            },
-            {
-              "name": "candidate",
-              "required": true,
-              "description": "Exact saved candidate hash"
-            },
-            {
-              "name": "render-hash",
-              "required": true,
-              "description": "Exact render hash being reviewed"
-            },
-            {
-              "name": "kit",
-              "default": "vrooli-default",
-              "description": "Rendered design kit"
-            },
-            {
-              "name": "theme",
-              "default": "light",
-              "description": "Rendered theme"
-            },
-            {
-              "name": "direction",
-              "default": "ltr",
-              "description": "Rendered text direction"
-            },
-            {
-              "name": "state",
-              "description": "Declared preview state"
-            },
-            {
-              "name": "missing-label",
-              "default": "Missing region",
-              "description": "Missing-region label used for this render"
-            },
-            {
-              "name": "failed-label",
-              "default": "Failed region",
-              "description": "Failed-region label used for this render"
-            },
-            {
-              "name": "critique",
-              "repeatable": true,
-              "description": "Review ID; repeat to include multiple reviews"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "SketchService",
-            "method": "CheckCandidateAcceptance"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal",
-              "filesystem:read"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
+            "primitive": "action"
           }
         },
         {
@@ -1837,7 +1652,10 @@
           "flags": [
             {
               "name": "key",
-              "description": "Original idempotency key, including after a lost response"
+              "description": "Original idempotency key, including after a lost response",
+              "bind": {
+                "field": "idempotency_key"
+              }
             },
             {
               "name": "id",
@@ -1846,7 +1664,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "SketchService",
+            "service": "WorkspaceAssistService",
             "method": "GetSketchInference"
           },
           "governance": {
@@ -1858,7 +1676,7 @@
             ]
           },
           "architecture": {
-            "primitive": "proto_list"
+            "primitive": "action"
           }
         },
         {
@@ -1868,45 +1686,53 @@
             {
               "name": "target",
               "required": true,
-              "description": "Scenario/page"
+              "description": "Scenario/page",
+              "local_only": true
             }
           ],
           "flags": [
             {
               "name": "intent",
               "required": true,
-              "description": "Product outcome to design"
+              "description": "Product outcome to design",
+              "local_only": true
             },
             {
               "name": "user",
               "required": true,
               "repeatable": true,
-              "description": "Intended user; repeat for multiple users"
+              "description": "Intended user; repeat for multiple users",
+              "local_only": true
             },
             {
               "name": "task",
               "required": true,
               "repeatable": true,
-              "description": "Primary task; repeat for multiple tasks"
+              "description": "Primary task; repeat for multiple tasks",
+              "local_only": true
             },
             {
               "name": "design-source",
-              "description": "Optional scenario-relative design document"
+              "description": "Optional scenario-relative design document",
+              "local_only": true
             },
             {
               "name": "viewport",
               "repeatable": true,
-              "description": "phone, tablet or desktop; defaults to phone and desktop"
+              "description": "phone, tablet or desktop; defaults to phone and desktop",
+              "local_only": true
             },
             {
               "name": "platform",
               "default": "react-vite",
-              "description": "Target platform"
+              "description": "Target platform",
+              "local_only": true
             },
             {
               "name": "kit",
               "default": "vrooli-default",
-              "description": "Design kit"
+              "description": "Design kit",
+              "local_only": true
             },
             {
               "name": "candidate-limit",
@@ -1916,22 +1742,25 @@
             {
               "name": "allow-route-changes",
               "bool": true,
-              "description": "Explicitly disable route preservation"
+              "description": "Explicitly disable route preservation",
+              "local_only": true
             },
             {
               "name": "allow-behavior-changes",
               "bool": true,
-              "description": "Explicitly disable business-behavior preservation"
+              "description": "Explicitly disable business-behavior preservation",
+              "local_only": true
             },
             {
               "name": "key",
               "required": true,
-              "description": "Stable idempotency key; reuse only for identical inputs"
+              "description": "Stable idempotency key; reuse only for identical inputs",
+              "local_only": true
             }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "SketchService",
+            "service": "WorkspaceAssistService",
             "method": "InferSketch"
           },
           "governance": {
@@ -1943,7 +1772,7 @@
             ]
           },
           "architecture": {
-            "primitive": "proto_mutation"
+            "primitive": "action"
           }
         },
         {
@@ -1953,40 +1782,47 @@
             {
               "name": "target",
               "required": true,
-              "description": "Scenario/page"
+              "description": "Scenario/page",
+              "local_only": true
             }
           ],
           "flags": [
             {
               "name": "intent",
               "required": true,
-              "description": "Product outcome to design"
+              "description": "Product outcome to design",
+              "local_only": true
             },
             {
               "name": "user",
               "required": true,
               "repeatable": true,
-              "description": "Intended user; repeat for multiple users"
+              "description": "Intended user; repeat for multiple users",
+              "local_only": true
             },
             {
               "name": "task",
               "required": true,
               "repeatable": true,
-              "description": "Primary task; repeat for multiple tasks"
+              "description": "Primary task; repeat for multiple tasks",
+              "local_only": true
             },
             {
               "name": "design-source",
-              "description": "Optional scenario-relative design document"
+              "description": "Optional scenario-relative design document",
+              "local_only": true
             },
             {
               "name": "viewport",
               "repeatable": true,
-              "description": "phone, tablet or desktop; defaults to phone and desktop"
+              "description": "phone, tablet or desktop; defaults to phone and desktop",
+              "local_only": true
             },
             {
               "name": "platform",
               "default": "react-vite",
-              "description": "Target platform"
+              "description": "Target platform",
+              "local_only": true
             },
             {
               "name": "kit",
@@ -2001,17 +1837,19 @@
             {
               "name": "allow-route-changes",
               "bool": true,
-              "description": "Explicitly disable route preservation"
+              "description": "Explicitly disable route preservation",
+              "local_only": true
             },
             {
               "name": "allow-behavior-changes",
               "bool": true,
-              "description": "Explicitly disable business-behavior preservation"
+              "description": "Explicitly disable business-behavior preservation",
+              "local_only": true
             }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "SketchService",
+            "service": "WorkspaceAssistService",
             "method": "ProposeSketch"
           },
           "governance": {
@@ -2023,7 +1861,7 @@
             ]
           },
           "architecture": {
-            "primitive": "proto_list"
+            "primitive": "action"
           }
         },
         {
@@ -2033,12 +1871,13 @@
             {
               "name": "target",
               "required": true,
-              "description": "Scenario and page as <scenario>/<page>"
+              "description": "Scenario and page as <scenario>/<page>",
+              "local_only": true
             }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "SketchService",
+            "service": "ExperienceService",
             "method": "GetHistory"
           },
           "governance": {
@@ -2050,7 +1889,7 @@
             ]
           },
           "architecture": {
-            "primitive": "proto_list"
+            "primitive": "action"
           }
         },
         {
@@ -2060,12 +1899,13 @@
             {
               "name": "target",
               "required": true,
-              "description": "Scenario and page as <scenario>/<page>"
+              "description": "Scenario and page as <scenario>/<page>",
+              "local_only": true
             }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "SketchService",
+            "service": "ExperienceService",
             "method": "RecoverSketch"
           },
           "governance": {
@@ -2078,7 +1918,7 @@
             ]
           },
           "architecture": {
-            "primitive": "proto_mutation"
+            "primitive": "action"
           }
         },
         {
@@ -2088,12 +1928,13 @@
             {
               "name": "target",
               "required": true,
-              "description": "Scenario and page as <scenario>/<page>"
+              "description": "Scenario and page as <scenario>/<page>",
+              "local_only": true
             }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "SketchService",
+            "service": "ExperienceService",
             "method": "GetSketch"
           },
           "governance": {
@@ -2105,7 +1946,7 @@
             ]
           },
           "architecture": {
-            "primitive": "proto_list"
+            "primitive": "action"
           }
         },
         {
@@ -2115,17 +1956,20 @@
             {
               "name": "target",
               "required": true,
-              "description": "Scenario and page as <scenario>/<page>"
+              "description": "Scenario and page as <scenario>/<page>",
+              "local_only": true
             }
           ],
           "flags": [
             {
               "name": "template",
-              "description": "Catalog page-template asset id"
+              "description": "Catalog page-template asset id",
+              "local_only": true
             },
             {
               "name": "version",
-              "description": "Optional exact template version"
+              "description": "Optional exact template version",
+              "local_only": true
             },
             {
               "name": "viewport",
@@ -2134,7 +1978,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "SketchService",
+            "service": "ExperienceService",
             "method": "PutSketch"
           },
           "governance": {
@@ -2147,7 +1991,7 @@
             ]
           },
           "architecture": {
-            "primitive": "proto_mutation"
+            "primitive": "action"
           }
         },
         {
@@ -2157,12 +2001,13 @@
             {
               "name": "target",
               "required": true,
-              "description": "Scenario and page as <scenario>/<page>"
+              "description": "Scenario and page as <scenario>/<page>",
+              "local_only": true
             }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "SketchService",
+            "service": "ExperienceService",
             "method": "VerifySketch"
           },
           "governance": {
@@ -2184,7 +2029,8 @@
             {
               "name": "target",
               "required": true,
-              "description": "Scenario and page as <scenario>/<page>"
+              "description": "Scenario and page as <scenario>/<page>",
+              "local_only": true
             }
           ],
           "flags": [
@@ -2196,7 +2042,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "SketchService",
+            "service": "ExperienceService",
             "method": "ImportPage"
           },
           "governance": {
@@ -2209,7 +2055,7 @@
             ]
           },
           "architecture": {
-            "primitive": "proto_mutation"
+            "primitive": "action"
           }
         },
         {
@@ -2219,7 +2065,8 @@
             {
               "name": "target",
               "required": true,
-              "description": "Scenario and page as <scenario>/<page>"
+              "description": "Scenario and page as <scenario>/<page>",
+              "local_only": true
             },
             {
               "name": "region",
@@ -2244,7 +2091,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "SketchService",
+            "service": "ExperienceService",
             "method": "Place"
           },
           "governance": {
@@ -2257,7 +2104,7 @@
             ]
           },
           "architecture": {
-            "primitive": "proto_mutation"
+            "primitive": "action"
           }
         },
         {
@@ -2267,7 +2114,8 @@
             {
               "name": "target",
               "required": true,
-              "description": "Scenario and page as <scenario>/<page>"
+              "description": "Scenario and page as <scenario>/<page>",
+              "local_only": true
             },
             {
               "name": "region",
@@ -2293,7 +2141,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "SketchService",
+            "service": "ExperienceService",
             "method": "Placeholder"
           },
           "governance": {
@@ -2306,7 +2154,7 @@
             ]
           },
           "architecture": {
-            "primitive": "proto_mutation"
+            "primitive": "action"
           }
         },
         {
@@ -2316,7 +2164,8 @@
             {
               "name": "target",
               "required": true,
-              "description": "Scenario and page as <scenario>/<page>"
+              "description": "Scenario and page as <scenario>/<page>",
+              "local_only": true
             }
           ],
           "flags": [
@@ -2333,7 +2182,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "SketchService",
+            "service": "ExperienceService",
             "method": "AddNote"
           },
           "governance": {
@@ -2346,7 +2195,7 @@
             ]
           },
           "architecture": {
-            "primitive": "proto_mutation"
+            "primitive": "action"
           }
         },
         {
@@ -2356,7 +2205,8 @@
             {
               "name": "target",
               "required": true,
-              "description": "Scenario and page as <scenario>/<page>"
+              "description": "Scenario and page as <scenario>/<page>",
+              "local_only": true
             },
             {
               "name": "region",
@@ -2373,7 +2223,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "SketchService",
+            "service": "ExperienceService",
             "method": "Unplace"
           },
           "governance": {
@@ -2386,7 +2236,7 @@
             ]
           },
           "architecture": {
-            "primitive": "proto_mutation"
+            "primitive": "action"
           }
         },
         {
@@ -2396,7 +2246,8 @@
             {
               "name": "target",
               "required": true,
-              "description": "Scenario and page as <scenario>/<page>"
+              "description": "Scenario and page as <scenario>/<page>",
+              "local_only": true
             },
             {
               "name": "asset",
@@ -2412,7 +2263,8 @@
             {
               "name": "remap",
               "repeatable": true,
-              "description": "Region mapping as old=new"
+              "description": "Region mapping as old=new",
+              "local_only": true
             },
             {
               "name": "confirm-unplaced",
@@ -2427,7 +2279,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "SketchService",
+            "service": "ExperienceService",
             "method": "SetTemplate"
           },
           "governance": {
@@ -2440,7 +2292,7 @@
             ]
           },
           "architecture": {
-            "primitive": "proto_mutation"
+            "primitive": "action"
           }
         },
         {
@@ -2450,12 +2302,13 @@
             {
               "name": "target",
               "required": true,
-              "description": "Scenario and page as <scenario>/<page>"
+              "description": "Scenario and page as <scenario>/<page>",
+              "local_only": true
             }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "SketchService",
+            "service": "ExperienceService",
             "method": "BuildBrief"
           },
           "governance": {
@@ -2467,7 +2320,7 @@
             ]
           },
           "architecture": {
-            "primitive": "proto_list"
+            "primitive": "action"
           }
         }
       ]
@@ -2920,24 +2773,31 @@
             },
             {
               "name": "scope",
-              "description": "What the patch may touch: design, frame or layer (default design)"
+              "description": "What the patch may touch: design, frame or layer (default design)",
+              "local_only": true
             },
             {
               "name": "display",
-              "description": "Display id for frame or layer scope"
+              "description": "Display id for frame or layer scope",
+              "local_only": true
             },
             {
               "name": "node",
-              "description": "Layer id for layer scope"
+              "description": "Layer id for layer scope",
+              "local_only": true
             },
             {
               "name": "page",
-              "description": "Page id (default the first page)"
+              "description": "Page id (default the first page)",
+              "bind": {
+                "field": "page_id"
+              }
             },
             {
               "name": "state",
               "description": "display=<state> pair selecting the state on screen (repeat for more)",
-              "repeatable": true
+              "repeatable": true,
+              "local_only": true
             },
             {
               "name": "base-revision",
@@ -3304,6 +3164,233 @@
           "architecture": {
             "primitive": "proto_list"
           }
+        },
+        {
+          "name": "acceptance",
+          "description": "Read a durable acceptance decision without rechecking or dispatching",
+          "positionals": [],
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Owning scenario"
+            },
+            {
+              "name": "design",
+              "required": true,
+              "description": "Design identity",
+              "bind": {
+                "field": "design_id"
+              }
+            },
+            {
+              "name": "id",
+              "required": true,
+              "description": "Acceptance operation ID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReviewService",
+            "method": "GetAcceptance"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "accept",
+          "description": "Record an acceptance decision; incomplete evidence yields needs_evidence",
+          "positionals": [],
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario owning the candidate",
+              "local_only": true
+            },
+            {
+              "name": "design",
+              "required": true,
+              "description": "Design identity",
+              "local_only": true
+            },
+            {
+              "name": "candidate",
+              "required": true,
+              "description": "Exact saved candidate hash",
+              "local_only": true
+            },
+            {
+              "name": "render-hash",
+              "required": true,
+              "description": "Exact render hash being reviewed",
+              "local_only": true
+            },
+            {
+              "name": "kit",
+              "default": "vrooli-default",
+              "description": "Rendered design kit",
+              "local_only": true
+            },
+            {
+              "name": "theme",
+              "default": "light",
+              "description": "Rendered theme",
+              "local_only": true
+            },
+            {
+              "name": "direction",
+              "default": "ltr",
+              "description": "Rendered text direction",
+              "local_only": true
+            },
+            {
+              "name": "state",
+              "description": "Declared preview state",
+              "local_only": true
+            },
+            {
+              "name": "missing-label",
+              "default": "Missing region",
+              "description": "Missing-region label used for this render",
+              "local_only": true
+            },
+            {
+              "name": "failed-label",
+              "default": "Failed region",
+              "description": "Failed-region label used for this render",
+              "local_only": true
+            },
+            {
+              "name": "critique",
+              "repeatable": true,
+              "description": "Review ID; repeat to include multiple reviews",
+              "local_only": true
+            },
+            {
+              "name": "actor",
+              "required": true,
+              "description": "Caller-declared decision actor; not independent review proof"
+            },
+            {
+              "name": "key",
+              "required": true,
+              "description": "Stable key; repeat identical inputs after a lost response",
+              "bind": {
+                "field": "idempotency_key"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReviewService",
+            "method": "AcceptCandidate"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "acceptance-check",
+          "description": "Resolve current acceptance requirements without publishing a decision",
+          "positionals": [],
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario owning the candidate",
+              "local_only": true
+            },
+            {
+              "name": "design",
+              "required": true,
+              "description": "Design identity",
+              "local_only": true
+            },
+            {
+              "name": "candidate",
+              "required": true,
+              "description": "Exact saved candidate hash",
+              "local_only": true
+            },
+            {
+              "name": "render-hash",
+              "required": true,
+              "description": "Exact render hash being reviewed",
+              "bind": {
+                "field": "expected_render_hash"
+              }
+            },
+            {
+              "name": "kit",
+              "default": "vrooli-default",
+              "description": "Rendered design kit"
+            },
+            {
+              "name": "theme",
+              "default": "light",
+              "description": "Rendered theme"
+            },
+            {
+              "name": "direction",
+              "default": "ltr",
+              "description": "Rendered text direction"
+            },
+            {
+              "name": "state",
+              "description": "Declared preview state",
+              "local_only": true
+            },
+            {
+              "name": "missing-label",
+              "default": "Missing region",
+              "description": "Missing-region label used for this render"
+            },
+            {
+              "name": "failed-label",
+              "default": "Failed region",
+              "description": "Failed-region label used for this render"
+            },
+            {
+              "name": "critique",
+              "repeatable": true,
+              "description": "Review ID; repeat to include multiple reviews",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReviewService",
+            "method": "CheckCandidateAcceptance"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         }
       ]
     },
@@ -3439,6 +3526,34 @@
       {
         "domain": "builtin_themes",
         "reason": "Built-in theme definitions are configuration seed data, not historical progression facts."
+      },
+      {
+        "domain": "version_ledger",
+        "reason": "A replayable analytical projection over version facts; its status is read through the version ledger and derived from the underlying version and adoption records, so an independent row-count measure would reward projection volume rather than library progression."
+      },
+      {
+        "domain": "findings",
+        "reason": "The current decision backlog is measured through Review summary by severity and status; durable disposition changes are in Activity. Raw finding row count has no time window and would conflate open work with accepted or retired history."
+      },
+      {
+        "domain": "workspace_assets",
+        "reason": "These are workspace-owned media inventory records surfaced by workspace asset reads. Their row count is not an outcome measure; usage and visual evidence are reviewed against the owning workspace and state."
+      },
+      {
+        "domain": "workspace_revisions",
+        "reason": "Revision rows are immutable recovery snapshots surfaced by workspace revision history. Snapshot volume describes edit frequency, not quality or successful outcomes; activity and state validation provide those signals."
+      },
+      {
+        "domain": "workspace_state_capture_attempts",
+        "reason": "Capture attempts are retry and recovery evidence. Attempt volume alone cannot distinguish failed transport, authentication absence, or useful state coverage; capture readiness and receipts remain tied to the current workspace state."
+      },
+      {
+        "domain": "workspace_visual_comparisons",
+        "reason": "Visual comparison rows are revision-scoped review evidence. Their count is not a quality outcome and can increase from repeated comparisons without improving a workspace."
+      },
+      {
+        "domain": "workspaces",
+        "reason": "Workspace inventory and readiness are already exposed through the workspace index and Library Health. A second persisted-row measure would duplicate that current-state projection and would not measure the time-windowed creation or use outcome."
       }
     ]
   },
@@ -3447,11 +3562,16 @@
       "command": "preview populate-store",
       "class": "external_delegation",
       "reason": "The command owns a filesystem-backed preview-store plan and delegates every package mutation to scenario-dependency-analyzer rather than a Connect RPC."
+    },
+    {
+      "command": "preview capture",
+      "class": "external_delegation",
+      "reason": "The command captures released component preview images through the scenario capture tool and has no Connect RPC request."
     }
   ],
   "omitted": [
     {
-      "service": "AdoptionsService",
+      "service": "AdoptionIntakeService",
       "method": "ListScenarios",
       "reason": "Internal discovery helper; the promoted adoption workflow starts with preflight and link."
     },
@@ -3491,7 +3611,7 @@
       "reason": "Historical report operation is not a promoted workflow."
     },
     {
-      "service": "AdoptionsService",
+      "service": "AdoptionIntakeService",
       "method": "ReconcileAdoptions",
       "reason": "Reconciliation is an internal maintenance operation."
     },
@@ -3501,12 +3621,12 @@
       "reason": "Reconvergence is an internal maintenance operation."
     },
     {
-      "service": "AdoptionsService",
+      "service": "AdoptionIntakeService",
       "method": "DiscoverAdoptions",
       "reason": "Discovery is an internal suggestion substrate."
     },
     {
-      "service": "AdoptionsService",
+      "service": "AdoptionIntakeService",
       "method": "ConfirmDiscovery",
       "reason": "Discovery confirmation is an internal suggestion substrate."
     },
@@ -3516,7 +3636,7 @@
       "reason": "Path resolution is an internal adoption helper."
     },
     {
-      "service": "AdoptionsService",
+      "service": "AdoptionIntakeService",
       "method": "SuggestAdoptions",
       "reason": "Suggestions are consumed by the workbench UI."
     },
@@ -3531,17 +3651,17 @@
       "reason": "The promoted component list/get workflow accepts stable identities."
     },
     {
-      "service": "ComponentsService",
+      "service": "ComponentAuthoringService",
       "method": "InitializeComponent",
       "reason": "Initialization is an internal setup operation."
     },
     {
-      "service": "ComponentsService",
+      "service": "ComponentAuthoringService",
       "method": "CreateComponentVersion",
       "reason": "Version creation is composed by draft-begin."
     },
     {
-      "service": "ComponentsService",
+      "service": "ComponentAuthoringService",
       "method": "GetComponentContent",
       "reason": "Content reads are an internal editor helper."
     },
@@ -3728,12 +3848,12 @@
     {
       "service": "DepsService",
       "method": "ListDeclarations",
-      "reason": "Internal/UI-only surface. DepsService is consumed by the UI and the adoption-validation flow, not by the CLI. No deps CLI domain exists (cli/domains has only adoptions, components, preview, versions); the endpoint is intentionally omitted from CLI coverage, and promoting it would require authoring a net-new deps CLI domain + handlers, not wiring an existing hand-appended command. Documented intent in this manifest's description."
+      "reason": "API surface used by dependency indexing and adoption validation; no CLI domain currently consumes it. The endpoint is intentionally omitted from CLI coverage, and exposing it would require a new deps CLI domain and handlers."
     },
     {
       "service": "DepsService",
       "method": "ValidateAdoption",
-      "reason": "Internal/UI-only surface. Consumed by the UI adoption modal's deps-validation step, not the CLI. No deps CLI domain exists; promotion would require net-new handlers rather than wiring an existing command. Documented intent in this manifest's description."
+      "reason": "API surface for dependency compatibility checks; no CLI domain currently consumes it. The endpoint is intentionally omitted from CLI coverage."
     },
     {
       "service": "ThemesService",
@@ -3776,119 +3896,169 @@
       "reason": "Internal composition compiler surface. Use sketch render-candidate for exact saved design rendering with candidate-owned bindings and identity."
     },
     {
-      "service": "SketchService",
+      "service": "WorkspaceCaptureService",
       "method": "CaptureCandidate",
       "reason": "Candidate capture is an interactive workbench flow; the CLI exposes the composed sketch import and render workflows rather than raw capture lifecycle calls."
     },
     {
-      "service": "SketchService",
+      "service": "WorkspaceCandidateService",
       "method": "GetCandidate",
       "reason": "Candidate records are an internal workbench state surface; the CLI exposes saved sketches and the composed render-candidate workflow."
     },
     {
-      "service": "SketchService",
+      "service": "WorkspaceCandidateService",
       "method": "ListCandidates",
       "reason": "Candidate records are an internal workbench state surface; the CLI exposes saved sketches and the composed render-candidate workflow."
     },
     {
-      "service": "SketchService",
+      "service": "WorkspaceCandidateService",
       "method": "MapCandidateRegions",
       "reason": "Candidate region mapping is interactive workbench authoring; no standalone CLI authoring workflow exists."
     },
     {
-      "service": "SketchService",
+      "service": "WorkspaceCandidateService",
       "method": "PlaceCandidateAsset",
       "reason": "Candidate asset placement is interactive workbench authoring; the CLI placement command targets saved sketches."
     },
     {
-      "service": "SketchService",
+      "service": "WorkspaceAssistService",
       "method": "RefineCandidate",
       "reason": "Candidate refinement is interactive workbench authoring; no standalone CLI authoring workflow exists."
     },
     {
-      "service": "SketchService",
+      "service": "WorkspaceCandidateService",
       "method": "SaveCandidate",
       "reason": "Candidate persistence is an internal workbench transition; the CLI exposes the composed sketch save workflow."
     },
     {
-      "service": "SketchService",
+      "service": "WorkspaceCaptureService",
       "method": "AttachCapture",
       "reason": "Capture attachment belongs to the interactive workbench capture flow and is not a standalone CLI mutation."
     },
     {
-      "service": "SketchService",
+      "service": "WorkspaceCaptureService",
       "method": "CancelCapture",
       "reason": "Capture cancellation belongs to the interactive workbench capture flow and is not a standalone CLI mutation."
     },
     {
-      "service": "SketchService",
+      "service": "WorkspaceCaptureService",
       "method": "GetCapture",
       "reason": "Capture state is an internal workbench projection; the CLI exposes the composed sketch import workflow."
     },
     {
-      "service": "SketchService",
+      "service": "WorkspaceCaptureService",
       "method": "RetryCapture",
       "reason": "Capture retry belongs to the interactive workbench capture flow and is not a standalone CLI mutation."
     },
     {
-      "service": "SketchService",
+      "service": "WorkspaceCaptureService",
       "method": "GetCaptureScreenshot",
       "reason": "Capture screenshots are presented by the workbench and are not a standalone CLI output."
     },
     {
-      "service": "SketchService",
+      "service": "ReviewService",
       "method": "GetCritique",
       "reason": "Critique records are workbench evidence; the CLI does not expose a standalone critique inspection workflow."
     },
     {
-      "service": "SketchService",
+      "service": "ReviewService",
       "method": "ListCritiques",
       "reason": "Critique records are workbench evidence; the CLI does not expose a standalone critique listing workflow."
     },
     {
-      "service": "SketchService",
+      "service": "ReviewService",
       "method": "RecordCritique",
       "reason": "Critique recording is composed by the workbench/Test Genie validation flow and is not a standalone CLI mutation."
     },
     {
-      "service": "SketchService",
+      "service": "ReviewService",
       "method": "GetCritiqueRubric",
       "reason": "Critique rubric retrieval is an internal workbench/critic dependency, not a standalone CLI workflow."
     },
     {
-      "service": "SketchService",
+      "service": "ExperienceService",
       "method": "ListDesignPages",
       "reason": "Design-page discovery is consumed by the workbench; the CLI's sketch commands operate on explicit sketches."
     },
     {
-      "service": "SketchService",
+      "service": "WorkspaceCandidateService",
       "method": "RenderSketch",
       "reason": "The legacy raw render procedure is retained for API compatibility; the CLI exposes render-candidate, which binds rendering to a saved candidate and its identity."
     },
     {
-      "service": "CatalogService",
-      "method": "SearchAssets",
-      "reason": "The catalog search RPC serves the workbench's indexed picker; CLI discovery is provided by components list/get and catalog graph/readiness."
+      "service": "WorkspaceService",
+      "method": "ListWorkspaceAssets",
+      "reason": "Workspace asset metadata is a workbench-only projection; binary asset access remains available through library workflows."
     },
     {
-      "service": "CatalogService",
-      "method": "SearchStatus",
-      "reason": "Search index diagnostics are an internal workbench projection; no catalog-search CLI workflow is currently promoted."
+      "service": "WorkspaceService",
+      "method": "ListAllWorkspaceAssets",
+      "reason": "Cross-workspace asset reuse is a workbench-only operation."
     },
     {
-      "service": "CatalogService",
-      "method": "ReindexSearch",
-      "reason": "Search index rebuilding is an internal catalog maintenance operation; no standalone CLI mutation is currently promoted."
+      "service": "WorkspaceService",
+      "method": "CreateWorkspaceAsset",
+      "reason": "Asset uploads are managed in the visual workspace studio."
     },
     {
-      "service": "InventoryService",
-      "method": "ScanScenario",
-      "reason": "Scenario inventory is a shared provider contract used by adoption and sketch workflows; the CLI exposes those composed workflows rather than a raw inventory scan."
+      "service": "WorkspaceService",
+      "method": "DeleteWorkspaceAsset",
+      "reason": "Asset deletion is managed in the visual workspace studio."
     },
     {
-      "service": "InventoryService",
-      "method": "Scan",
-      "reason": "Subject inventory is a shared provider contract used by UI-health and workbench consumers; it is not a user-facing RCL CLI workflow."
+      "service": "WorkspaceService",
+      "method": "CaptureWorkspaceState",
+      "reason": "State capture is an interactive workbench evidence workflow."
+    },
+    {
+      "service": "WorkspaceService",
+      "method": "GetWorkspaceStateCapture",
+      "reason": "Capture evidence is consumed by the visual workbench."
+    },
+    {
+      "service": "WorkspaceService",
+      "method": "ListWorkspaceCaptureReceipts",
+      "reason": "Capture history is consumed by the visual workbench."
+    },
+    {
+      "service": "WorkspaceService",
+      "method": "ListWorkspaceSourceBaselines",
+      "reason": "Source baseline candidates and reviewer acceptance state are presented in the visual workbench so evidence status is visible beside each screen."
+    },
+    {
+      "service": "WorkspaceService",
+      "method": "CreateWorkspaceSourceBaseline",
+      "reason": "Candidate source screenshots are registered from the visual workbench, where their association with a specific screen is reviewed."
+    },
+    {
+      "service": "WorkspaceService",
+      "method": "AcceptWorkspaceSourceBaseline",
+      "reason": "Source acceptance is an explicit human review action in the visual workbench; a CLI workflow could obscure the image and acceptance context."
+    },
+    {
+      "service": "WorkspaceVisualComparisonService",
+      "method": "CompareWorkspaceCaptureReceipts",
+      "reason": "Visual comparisons are an interactive workbench review workflow."
+    },
+    {
+      "service": "WorkspaceVisualComparisonService",
+      "method": "ListWorkspaceVisualComparisons",
+      "reason": "Comparison history is consumed by the visual workbench."
+    },
+    {
+      "service": "WorkspaceVisualComparisonService",
+      "method": "CompareWorkspaceSourceBaseline",
+      "reason": "Source drift review is consumed by the visual workbench, where the accepted image and selected capture are shown with their heatmap."
+    },
+    {
+      "service": "WorkspaceVisualComparisonService",
+      "method": "ListWorkspaceSourceBaselineComparisons",
+      "reason": "Source drift history is consumed by the visual workbench with its source image, selected capture and heatmap."
+    },
+    {
+      "service": "ExperienceService",
+      "method": "AdoptExperiencePage",
+      "reason": "Page adoption is an interactive workbench flow that creates a workspace with reviewed source context; no standalone CLI workflow currently exists."
     }
   ]
 }

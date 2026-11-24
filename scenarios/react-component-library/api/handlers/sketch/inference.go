@@ -9,14 +9,17 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	sketchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/sketch"
+
+	"react-component-library/internal/designinference"
+
 	"connectrpc.com/connect"
 	"github.com/santhosh-tekuri/jsonschema/v5"
 	apidb "github.com/vrooli/api-core/database"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
-	sketchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/sketch"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/shared"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	"react-component-library/internal/designinference"
 )
 
 type inferredRequirement struct {
@@ -34,7 +37,7 @@ type inferredAlternatives struct {
 	Alternatives []inferredAlternative `json:"alternatives"`
 }
 
-func inferenceRequest(target *sketchv1.SketchTarget, proposal *sketchv1.ProposeSketchResponse) (designinference.Request, error) {
+func inferenceRequest(target *sharedv1.SketchTarget, proposal *sharedv1.ProposeSketchResponse) (designinference.Request, error) {
 	if len(proposal.Candidates) < 1 || len(proposal.Candidates) > 3 {
 		return designinference.Request{}, fmt.Errorf("inference requires one to three validated catalog alternatives")
 	}
@@ -63,8 +66,8 @@ func inferenceRequest(target *sketchv1.SketchTarget, proposal *sketchv1.ProposeS
 	type option struct {
 		Index    int                      `json:"candidateIndex"`
 		Title    string                   `json:"title"`
-		Template *sketchv1.AssetReference `json:"template"`
-		Regions  []*sketchv1.SketchRegion `json:"regions"`
+		Template *sharedv1.AssetReference `json:"template"`
+		Regions  []*sharedv1.SketchRegion `json:"regions"`
 	}
 	options := make([]option, 0, len(proposal.Candidates))
 	for i, c := range proposal.Candidates {
@@ -74,7 +77,7 @@ func inferenceRequest(target *sketchv1.SketchTarget, proposal *sketchv1.ProposeS
 		options = append(options, option{i, c.Title, c.Sketch.Template, c.Sketch.Regions})
 	}
 	source, err := json.Marshal(struct {
-		Intent               *sketchv1.DesignIntent `json:"intent"`
+		Intent               *sharedv1.DesignIntent `json:"intent"`
 		Candidates           []option               `json:"candidates"`
 		DesignSourceSections []sourceSection        `json:"designSourceSections"`
 	}{proposal.Candidates[0].Sketch.Intent, options, sections})
@@ -90,7 +93,7 @@ type sourceLine struct {
 	Text string `json:"text"`
 }
 
-func sourceLines(proposal *sketchv1.ProposeSketchResponse) []sourceLine {
+func sourceLines(proposal *sharedv1.ProposeSketchResponse) []sourceLine {
 	var out []sourceLine
 	if proposal.DesignSource != nil {
 		for i, line := range strings.Split(proposal.DesignSource.Content, "\n") {
@@ -109,7 +112,7 @@ type sourceSection struct {
 	Text      string `json:"text"`
 }
 
-func sourceSections(proposal *sketchv1.ProposeSketchResponse) []sourceSection {
+func sourceSections(proposal *sharedv1.ProposeSketchResponse) []sourceSection {
 	if proposal.DesignSource == nil {
 		return nil
 	}
@@ -170,8 +173,8 @@ func closeSchemaObjects(node map[string]any) {
 	}
 }
 
-func inferredProposal(request designinference.Request, response *inferencev1.RunResponse) (*sketchv1.ProposeSketchResponse, error) {
-	var base sketchv1.ProposeSketchResponse
+func inferredProposal(request designinference.Request, response *inferencev1.RunResponse) (*sharedv1.ProposeSketchResponse, error) {
+	var base sharedv1.ProposeSketchResponse
 	if err := protojson.Unmarshal(request.Context, &base); err != nil {
 		return nil, err
 	}
@@ -210,7 +213,7 @@ func inferredProposal(request designinference.Request, response *inferencev1.Run
 	if len(result.Alternatives) < 1 || len(result.Alternatives) > len(base.Candidates) || len(result.Alternatives) > 3 {
 		return nil, fmt.Errorf("invalid alternative count")
 	}
-	out := proto.Clone(&base).(*sketchv1.ProposeSketchResponse)
+	out := proto.Clone(&base).(*sharedv1.ProposeSketchResponse)
 	out.Candidates = nil
 	out.RetrievalMode = "governed-inference-over-lexical"
 	out.Diagnostics = append(out.Diagnostics, "Catalog alternatives were ranked by governed typed inference. Requirements are proposals, not source-conformance or acceptance evidence.")
@@ -221,7 +224,7 @@ func inferredProposal(request designinference.Request, response *inferencev1.Run
 			return nil, fmt.Errorf("invalid or duplicate catalog alternative")
 		}
 		seen[i] = true
-		candidate := proto.Clone(base.Candidates[i]).(*sketchv1.DesignProposal)
+		candidate := proto.Clone(base.Candidates[i]).(*sharedv1.DesignProposal)
 		if candidate.Sketch == nil {
 			return nil, fmt.Errorf("catalog alternative lacks a sketch")
 		}
@@ -284,7 +287,7 @@ func inferredProposal(request designinference.Request, response *inferencev1.Run
 			if quote != "" {
 				text += fmt.Sprintf("\nSource line %d: %s", lineNumber, quote)
 			}
-			candidate.Sketch.Notes = append(candidate.Sketch.Notes, &sketchv1.SketchNote{Scope: "page", Text: text})
+			candidate.Sketch.Notes = append(candidate.Sketch.Notes, &sharedv1.SketchNote{Scope: "page", Text: text})
 			candidate.Obligations = append(candidate.Obligations, text)
 		}
 		out.Candidates = append(out.Candidates, candidate)

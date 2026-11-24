@@ -3,6 +3,7 @@ package adoptions_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -24,8 +25,73 @@ func newAdoptionsDB(t *testing.T) (adoptions.Repository, *scheduletest.FakeClock
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(adoptions.Schema),
 	))
+	require.NoError(t, adoptions.EnsureMigrations(context.Background(), d))
 	clk := scheduletest.New(time.Date(2026, 5, 12, 10, 0, 0, 0, time.UTC))
 	return adoptions.NewSQLiteRepository(d, clk), clk
+}
+
+func TestEnsureMigrationsUpgradesLegacyModeAndRemovesOrphans(t *testing.T) {
+	ctx := context.Background()
+	d := db.NewSQLite(t)
+	legacySchema := strings.Replace(adoptions.Schema(), "  mode            TEXT NOT NULL DEFAULT 'copied',\n", "", 1)
+	require.NotEqual(t, adoptions.Schema(), legacySchema, "fixture must omit the legacy-missing mode column")
+	_, err := d.ExecContext(ctx, legacySchema)
+	require.NoError(t, err)
+	_, err = d.ExecContext(ctx, `INSERT INTO adoption_records (id, component_id, scenario, adopted_path, created_at) VALUES ('kept', 'cmp', 'demo', 'src/Kept.tsx', '2026-01-01T00:00:00Z')`)
+	require.NoError(t, err)
+	_, err = d.ExecContext(ctx, `INSERT INTO adoption_files (adoption_id, library_path, adopted_path) VALUES ('kept', 'Kept.tsx', 'src/Kept.tsx'), ('orphan', 'Gone.tsx', 'src/Gone.tsx')`)
+	require.NoError(t, err)
+
+	require.NoError(t, adoptions.EnsureMigrations(ctx, apidb.NewFromPrimary(d)))
+	var mode string
+	require.NoError(t, d.QueryRowContext(ctx, `SELECT mode FROM adoption_records WHERE id='kept'`).Scan(&mode))
+	require.Equal(t, string(adoptions.AdoptionModeCopied), mode)
+	var childRows int
+	require.NoError(t, d.QueryRowContext(ctx, `SELECT COUNT(*) FROM adoption_files WHERE adoption_id='kept'`).Scan(&childRows))
+	require.Equal(t, 1, childRows)
+	var orphanRows int
+	require.NoError(t, d.QueryRowContext(ctx, `SELECT COUNT(*) FROM adoption_files WHERE adoption_id='orphan'`).Scan(&orphanRows))
+	require.Zero(t, orphanRows)
+	require.NoError(t, adoptions.EnsureMigrations(ctx, d), "migration must be safe to rerun")
+}
+
+func TestSQLiteRepositoryConstructorHasNoMigrationSideEffects(t *testing.T) {
+	ctx := context.Background()
+	d := db.NewSQLite(t)
+	legacySchema := strings.Replace(adoptions.Schema(), "  mode            TEXT NOT NULL DEFAULT 'copied',\n", "", 1)
+	_, err := d.ExecContext(ctx, legacySchema)
+	require.NoError(t, err)
+	_, err = d.ExecContext(ctx, `INSERT INTO adoption_files (adoption_id, library_path, adopted_path) VALUES ('orphan', 'Gone.tsx', 'src/Gone.tsx')`)
+	require.NoError(t, err)
+
+	_ = adoptions.NewSQLiteRepository(d, scheduletest.New(time.Now()))
+	var modeColumns int
+	require.NoError(t, d.QueryRowContext(ctx, `SELECT COUNT(*) FROM pragma_table_info('adoption_records') WHERE name='mode'`).Scan(&modeColumns))
+	require.Zero(t, modeColumns, "repository construction must not add schema columns")
+	var orphanRows int
+	require.NoError(t, d.QueryRowContext(ctx, `SELECT COUNT(*) FROM adoption_files WHERE adoption_id='orphan'`).Scan(&orphanRows))
+	require.Equal(t, 1, orphanRows, "repository construction must not mutate the database")
+	require.NoError(t, adoptions.EnsureMigrations(ctx, d))
+	require.NoError(t, d.QueryRowContext(ctx, `SELECT COUNT(*) FROM pragma_table_info('adoption_records') WHERE name='mode'`).Scan(&modeColumns))
+	require.Equal(t, 1, modeColumns)
+	require.NoError(t, d.QueryRowContext(ctx, `SELECT COUNT(*) FROM adoption_files WHERE adoption_id='orphan'`).Scan(&orphanRows))
+	require.Zero(t, orphanRows)
+}
+
+func TestEnsureMigrationsPropagatesErrorsAndRollsBack(t *testing.T) {
+	ctx := context.Background()
+	d := db.NewSQLite(t)
+	legacySchema := strings.Replace(adoptions.Schema(), "  mode            TEXT NOT NULL DEFAULT 'copied',\n", "", 1)
+	_, err := d.ExecContext(ctx, legacySchema)
+	require.NoError(t, err)
+	_, err = d.ExecContext(ctx, `DROP TABLE adoption_files`)
+	require.NoError(t, err)
+
+	err = adoptions.EnsureMigrations(ctx, d)
+	require.ErrorContains(t, err, "remove orphaned adoption_files rows")
+	var modeColumns int
+	require.NoError(t, d.QueryRowContext(ctx, `SELECT COUNT(*) FROM pragma_table_info('adoption_records') WHERE name='mode'`).Scan(&modeColumns))
+	require.Zero(t, modeColumns, "failed migration must roll back the mode column addition")
 }
 
 func TestSQLiteRepository_CreateAndGet(t *testing.T) {

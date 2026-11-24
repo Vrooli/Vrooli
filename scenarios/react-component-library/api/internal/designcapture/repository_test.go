@@ -3,13 +3,17 @@ package designcapture
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 	dbtest "github.com/vrooli/api-core/databasetest"
+	"github.com/vrooli/api-core/storage"
 )
 
 func captureRequest() Request {
@@ -17,6 +21,39 @@ func captureRequest() Request {
 	digest := sha256.Sum256([]byte(html))
 	hash := strings.Repeat("a", 64)
 	return Request{Target: Target{Scenario: "demo", DesignID: "home", Revision: hash, RenderHash: hash, HTMLSHA256: hex.EncodeToString(digest[:]), InputsSHA256: hash, Kind: "preview", Kit: "vrooli-default", Theme: "light", Direction: "ltr"}, HTML: html, Width: 390, Height: 844}
+}
+
+func TestCaptureRepositoryUsesRequestRoutedDBPool(t *testing.T) {
+	ctx := context.Background()
+	primaryDSN, err := storage.SQLiteDSNAt(filepath.Join(t.TempDir(), "primary.db"), storage.SQLiteTuning{})
+	require.NoError(t, err)
+	routed, err := apidb.Open(ctx, apidb.Config{Driver: apidb.DriverSQLite, DSN: primaryDSN, MaxOpenConns: 1, MaxIdleConns: 1})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = routed.Close() })
+	ensureSchema := func(ctx context.Context, pool *sql.DB) error {
+		return apidb.EnsureSchemas(ctx, pool, apidb.SchemaProviderFunc(Schema))
+	}
+	require.NoError(t, ensureSchema(ctx, routed.Primary()))
+	routed.SetTestPoolInitializer(ensureSchema)
+	testDSN, err := storage.SQLiteDSNAt(filepath.Join(t.TempDir(), "test.db"), storage.SQLiteTuning{})
+	require.NoError(t, err)
+	require.NoError(t, routed.InstallTestPool(ctx, testDSN, "design-capture-routing", time.Minute))
+
+	repo := NewSQLiteRepository(routed)
+	request := captureRequest()
+	primary, err := repo.Create(ctx, "primary-attempt", request)
+	require.NoError(t, err)
+
+	_, err = repo.Get(apidb.WithTestMode(ctx), primary.ID)
+	require.ErrorIs(t, err, sql.ErrNoRows, "test-mode request must read the isolated routed pool")
+	testOp, err := repo.Create(apidb.WithTestMode(ctx), "test-attempt", request)
+	require.NoError(t, err)
+	_, err = repo.Get(ctx, testOp.ID)
+	require.ErrorIs(t, err, sql.ErrNoRows, "primary request must not see the test pool capture")
+
+	advanced, err := repo.Transition(apidb.WithTestMode(ctx), testOp.ID, testOp.Version, Dispatching, "", nil, "")
+	require.NoError(t, err)
+	require.Equal(t, testOp.Version+1, advanced.Version, "capture revisions advance within the selected pool")
 }
 
 func TestDurableCaptureIntentAndDispatchRecovery(t *testing.T) {

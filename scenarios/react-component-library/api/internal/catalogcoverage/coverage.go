@@ -134,10 +134,11 @@ type Report struct {
 	// Evidence census counts the latest result for each asset/target/gate
 	// observation. Unmeasured is intentionally visible beside pass and fail;
 	// it is not omitted from the score denominator.
-	PassEvidence       int
-	FailEvidence       int
-	UnmeasuredEvidence int
-	ByGate             map[string]ScoreBreakdown
+	PassEvidence           int
+	FailEvidence           int
+	UnmeasuredEvidence     int
+	QualityGateOptOutCount int
+	ByGate                 map[string]ScoreBreakdown
 	// ByTier rolls each blocking, asset-attributable gate into one of the three
 	// operator-facing quality tiers. Empty tiers remain absent, never green.
 	ByTier             map[string]ScoreBreakdown
@@ -275,6 +276,7 @@ func ComputeWithEvidence(assets []Asset, impls []Implementation, evidence []Gate
 	downstream := blockedCounts(assets)
 
 	for _, asset := range assets {
+		rep.QualityGateOptOutCount += len(asset.QualityGateOptOuts)
 		targets := asset.Targets
 		if len(targets) == 0 {
 			targets = []string{"react-vite"}
@@ -427,10 +429,12 @@ func achieved(asset Asset, target string, impl Implementation, gates []GateDefin
 	if len(gates) == 0 {
 		return RungScaffolded
 	}
-	results := map[string]string{}
+	results := map[string]GateEvidence{}
 	for _, item := range evidence {
 		if item.AssetID == asset.ID && item.Target == target && (item.Version == "" || item.Version == impl.Latest) {
-			results[item.Gate] = strings.ToLower(item.Result)
+			if current, ok := results[item.Gate]; !ok || item.RecordedAt > current.RecordedAt {
+				results[item.Gate] = item
+			}
 		}
 	}
 	current := RungScaffolded
@@ -443,7 +447,7 @@ func achieved(asset Asset, target string, impl Implementation, gates []GateDefin
 			if !gate.Blocking || !isAttributable(gate) || rungRank(gate.Rung) > rungRank(rung) || !contains(gate.AppliesTo, asset.Kind) {
 				continue
 			}
-			if results[gate.ID] != "pass" {
+			if !strings.EqualFold(strings.TrimSpace(results[gate.ID].Result), "pass") {
 				return current
 			}
 		}

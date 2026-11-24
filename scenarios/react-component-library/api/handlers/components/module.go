@@ -1,8 +1,11 @@
-// Package components is the HTTP-handler home for the components
-// domain. It exposes the generated Connect-RPC ComponentsService
+// Package components is the HTTP-handler home for the component registry and
+// authoring domains. It exposes generated Connect-RPC ComponentsService and
+// ComponentAuthoringService contracts
 // (proto schema: packages/proto/schemas/react-component-library/v1/components).
 //
-// RPCs (mounted at /vrooli.react_component_library.v1.components.ComponentsService/...):
+// Registry RPCs mount at /vrooli.react_component_library.v1.components.ComponentsService/...;
+// creation, release, and content-authoring RPCs mount at
+// /vrooli.react_component_library.v1.componentauthoring.ComponentAuthoringService/....
 //
 //	ListComponents          — filtered list (match / tag / limit)
 //	GetComponent            — fetch by primary id
@@ -11,6 +14,7 @@
 package components
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -22,6 +26,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 
+	authoringconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/componentauthoring/componentauthoring_v1connect"
 	componentsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components/components_v1connect"
 
 	"react-component-library/internal/components"
@@ -36,7 +41,14 @@ import (
 // Module wires the components domain into the API server using the
 // production-default source root. Tests should use ModuleWithRoot to
 // inject a temp dir.
-func Module(db *sql.DB, clk schedule.Clock, logger *log.Logger) module.Module {
+type sqlExecutor interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+}
+
+func Module(db sqlExecutor, clk schedule.Clock, logger *log.Logger) module.Module {
 	root, err := defaultSourceRoot()
 	if err != nil {
 		logger.Fatalf("components source root: %v", err)
@@ -46,7 +58,7 @@ func Module(db *sql.DB, clk schedule.Clock, logger *log.Logger) module.Module {
 
 // ModuleWithRoot is the explicit-injection variant used by tests and by
 // callers that want to point the indexer at a custom path.
-func ModuleWithRoot(db *sql.DB, clk schedule.Clock, sourceRoot string, logger *log.Logger) module.Module {
+func ModuleWithRoot(db sqlExecutor, clk schedule.Clock, sourceRoot string, logger *log.Logger) module.Module {
 	svc, repo := BuildService(db, clk, sourceRoot)
 	return ModuleFromService(svc, repo, sourceRoot, logger)
 }
@@ -98,11 +110,18 @@ func ModuleFromService(svc components.Service, repo components.Repository, sourc
 	for _, opt := range opts {
 		opt(&d)
 	}
-	connectPath, connectHandler := componentsconnect.NewComponentsServiceHandler(NewConnectHandler(d))
+	handler := NewConnectHandler(d)
+	connectPath, connectHandler := componentsconnect.NewComponentsServiceHandler(handler)
+	authoringPort := NewAuthoringConnectHandler(AuthoringDeps{
+		Service: d.Service, Authoring: d.Authoring, Repo: d.Repo,
+		SourceRoot: d.SourceRoot, Logger: d.Logger, Preview: d.Preview,
+	})
+	authoringPath, authoringHandler := authoringconnect.NewComponentAuthoringServiceHandler(authoringPort)
 	return module.Module{
 		Name: "components",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
+			connectx.RegisterServices(r, connectx.ServiceMount{Path: authoringPath, Handler: authoringHandler})
 		},
 		Endpoints: Endpoints,
 	}
@@ -121,7 +140,7 @@ func DefaultSourceRoot() (string, error) { return defaultSourceRoot() }
 // components.Service that multiple modules can read from. Keeps a
 // single Service per process so preview reads see the same content
 // the components handler does.
-func BuildService(db *sql.DB, clk schedule.Clock, sourceRoot string) (components.Service, components.Repository) {
+func BuildService(db sqlExecutor, clk schedule.Clock, sourceRoot string) (components.Service, components.Repository) {
 	repo := components.NewSQLiteRepository(db, clk)
 	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(sourceRoot))
 	components.SetTypeScriptChecker(svc, components.NewPackageTypeScriptChecker(sourceRoot))
@@ -148,11 +167,38 @@ func defaultSourceRoot() (string, error) {
 	}
 	path := filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "..", "library"))
 	path = existingSourceRoot(path)
-	err := os.MkdirAll(filepath.Join(path, "components"), 0o755)
-	if err != nil {
+	if err := ensureComponentsDirectory(path); err != nil {
 		return "", fmt.Errorf("create components root: %w", err)
 	}
 	return path, nil
+}
+
+// ensureComponentsDirectory creates the default component asset directory
+// while the source-root parent is held as an os.Root. The child path is
+// explicitly checked to remain one relative directory beneath that anchor.
+func ensureComponentsDirectory(sourceRoot string) error {
+	rootPath, err := filepath.Abs(sourceRoot)
+	if err != nil {
+		return fmt.Errorf("resolve source root: %w", err)
+	}
+	parent := filepath.Dir(rootPath)
+	child := filepath.Base(rootPath)
+	if child == "." || child == ".." || filepath.IsAbs(child) {
+		return fmt.Errorf("source root %q is not a contained child directory", sourceRoot)
+	}
+	relative, err := filepath.Rel(parent, filepath.Join(parent, child))
+	if err != nil || relative != child || filepath.IsAbs(relative) || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("source root %q escapes its parent", sourceRoot)
+	}
+	root, err := os.OpenRoot(parent)
+	if err != nil {
+		return fmt.Errorf("open source-root parent: %w", err)
+	}
+	defer root.Close()
+	if err := root.MkdirAll(filepath.ToSlash(filepath.Join(relative, "components")), 0o755); err != nil {
+		return err
+	}
+	return nil
 }
 
 func resolveConfiguredSourceRoot(path string) string {
@@ -279,7 +325,7 @@ var Endpoints = []module.EndpointDescriptor{
 	},
 	{
 		ID:          "components_initialize",
-		Path:        componentsconnect.ComponentsServiceInitializeComponentProcedure,
+		Path:        authoringconnect.ComponentAuthoringServiceInitializeComponentProcedure,
 		Method:      "POST",
 		Summary:     "Initialize a component",
 		Description: "Creates component.json plus an initial version TSX file under the Git-tracked library source root, indexes it, and returns the new registry row.",
@@ -303,7 +349,7 @@ var Endpoints = []module.EndpointDescriptor{
 	},
 	{
 		ID:          "components_ingest",
-		Path:        componentsconnect.ComponentsServiceIngestComponentProcedure,
+		Path:        authoringconnect.ComponentAuthoringServiceIngestComponentProcedure,
 		Method:      "POST",
 		Summary:     "Ingest a scenario component",
 		Description: "Copies a scenario-local TSX file into an indexed library component, creates a draft working version, and returns static de-scenario-ification findings.",
@@ -320,7 +366,7 @@ var Endpoints = []module.EndpointDescriptor{
 	},
 	{
 		ID:          "components_version_begin",
-		Path:        componentsconnect.ComponentsServiceBeginComponentVersionProcedure,
+		Path:        authoringconnect.ComponentAuthoringServiceBeginComponentVersionProcedure,
 		Method:      "POST",
 		Summary:     "Begin a mutable component draft",
 		Description: "Resolves a stable libraryId or UUID, computes the requested semver bump, copies the complete current version artifact set, indexes the draft, and returns its edit paths and preview path.",
@@ -334,7 +380,7 @@ var Endpoints = []module.EndpointDescriptor{
 	},
 	{
 		ID:          "components_version_check",
-		Path:        componentsconnect.ComponentsServiceCheckComponentVersionProcedure,
+		Path:        authoringconnect.ComponentAuthoringServiceCheckComponentVersionProcedure,
 		Method:      "POST",
 		Summary:     "Check one component version",
 		Description: "Runs source, dependency-closure, story-contract, enum-coverage, and preview-bundle checks for one explicit component version without scanning unrelated catalog assets.",
@@ -345,7 +391,7 @@ var Endpoints = []module.EndpointDescriptor{
 	},
 	{
 		ID:          "components_version_publish",
-		Path:        componentsconnect.ComponentsServicePublishComponentVersionProcedure,
+		Path:        authoringconnect.ComponentAuthoringServicePublishComponentVersionProcedure,
 		Method:      "POST",
 		Summary:     "Publish a validated component draft",
 		Description: "Checks the active draft, compiles its preview, preserves every version artifact, updates the release pointers, and rolls back the filesystem mutation if indexing fails.",
@@ -359,7 +405,7 @@ var Endpoints = []module.EndpointDescriptor{
 	},
 	{
 		ID:          "components_version_create",
-		Path:        componentsconnect.ComponentsServiceCreateComponentVersionProcedure,
+		Path:        authoringconnect.ComponentAuthoringServiceCreateComponentVersionProcedure,
 		Method:      "POST",
 		Summary:     "Create a component version",
 		Description: "Creates a new version folder for an existing component, updates component.json latest/draft pointers, indexes the library, and returns the version row.",
@@ -423,7 +469,7 @@ var Endpoints = []module.EndpointDescriptor{
 	},
 	{
 		ID:          "components_manifest_update",
-		Path:        componentsconnect.ComponentsServiceUpdateComponentManifestProcedure,
+		Path:        authoringconnect.ComponentAuthoringServiceUpdateComponentManifestProcedure,
 		Method:      "POST",
 		Summary:     "Update a component manifest",
 		Description: "Updates component.json metadata/latest/draft/deprecation fields, re-indexes the library, and returns the refreshed component row.",
@@ -446,7 +492,7 @@ var Endpoints = []module.EndpointDescriptor{
 	},
 	{
 		ID:          "components_retire",
-		Path:        componentsconnect.ComponentsServiceRetireComponentProcedure,
+		Path:        authoringconnect.ComponentAuthoringServiceRetireComponentProcedure,
 		Method:      "POST",
 		Summary:     "Preflight or retire a deprecated component",
 		Description: "Checks catalog and authored source consumers. Apply preserves history, withdraws source and catalog, and removes the registry entry with interrupted-operation recovery.",
@@ -456,7 +502,7 @@ var Endpoints = []module.EndpointDescriptor{
 	},
 	{
 		ID:          "components_content_get",
-		Path:        componentsconnect.ComponentsServiceGetComponentContentProcedure,
+		Path:        authoringconnect.ComponentAuthoringServiceGetComponentContentProcedure,
 		Method:      "POST",
 		Summary:     "Read a component's source file",
 		Description: "Returns the raw TSX content of the component's source file plus a SHA-256 digest. Path-traversal guard rejects rows whose source_path escapes the configured root.",
@@ -481,7 +527,7 @@ var Endpoints = []module.EndpointDescriptor{
 	},
 	{
 		ID:          "components_content_set",
-		Path:        componentsconnect.ComponentsServiceUpdateComponentContentProcedure,
+		Path:        authoringconnect.ComponentAuthoringServiceUpdateComponentContentProcedure,
 		Method:      "POST",
 		Summary:     "Write a component's source file",
 		Description: "Overwrites the component's TSX file in place. Pass expected_sha256 from a prior read for optimistic concurrency. Re-run `index` afterward if the @libraryId header changed.",
@@ -592,3 +638,5 @@ var Endpoints = []module.EndpointDescriptor{
 		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "component, story, asset, frame version, and region are required"}, {Status: 412, Code: "failed_precondition", Description: "frame or story cannot be persisted"}, {Status: 500, Code: "internal", Description: "Catalog or source write failure"}},
 	},
 }
+
+var _ authoringconnect.ComponentAuthoringServiceHandler = (*authoringConnectHandler)(nil)

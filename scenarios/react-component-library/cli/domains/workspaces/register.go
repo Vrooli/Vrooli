@@ -7,12 +7,17 @@ import (
 	"fmt"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"react-component-library/cli/internal/runtimeenv"
 )
 
 const GroupName = "workspaces"
 
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
-	h := newHandlers(core)
+	return registerWithRuntime(core, manifest, runtimeenv.System())
+}
+
+func registerWithRuntime(core *cliapp.ScenarioApp, manifest []byte, deps runtimeenv.Dependencies) (cliapp.SubcommandGroup, error) {
+	h := newHandlers(core, deps)
 	bindings := map[string]cliapp.PrimitiveHandler{
 		"WorkspaceService.ListWorkspaces":         cliapp.ProtoList(h.listCall, h.listReport),
 		"WorkspaceService.GetWorkspace":           cliapp.ProtoList(h.getCall, h.getReport),

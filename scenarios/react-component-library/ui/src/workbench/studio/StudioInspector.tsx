@@ -1,18 +1,27 @@
 import { Box, Frame as FrameIcon } from "lucide-react";
 
 import { useTranslation } from "../../i18n";
-import type { DesignDocument, DesignFrame } from "../designs";
-import { layerLabel, type TemplateNode, type TemplatePalette } from "../templates/spec";
+import type { DesignDocument, DesignFrame } from "../design-types";
+import {
+  layerLabel,
+  type TemplateNode,
+  type TemplateNodeType,
+  type TemplatePalette,
+} from "../templates/spec";
 import type { FrameAuditMap } from "./checks";
-import { TOUCH_TARGET_MIN, type StateAudit } from "./checks";
+import type { StateAudit } from "./checks";
 import { FRAME_SIZE, paletteTokens } from "./model";
-import { layerCount, rclPrimitive, type Coverage } from "./rcl";
+import { isRclLayer, layerCount, rclPrimitive, type Coverage } from "./rcl";
 import { Chip, Empty, Tabs } from "../primitives";
 import { NodeInspector } from "./NodeInspector";
 import { cx } from "../cx";
-import { VERDICT_ICON, VERDICT_KEY, type Verdict } from "../verdicts";
+import type { Verdict } from "../verdicts";
 import type { ProposalTransport, StudioProposal } from "./proposal";
 import { StudioAssist, type AssistScope } from "./StudioAssist";
+import { StudioNodeReplacement } from "./StudioNodeReplacement";
+import type { CatalogAsset } from "../data";
+import { StudioInspectorChecks } from "./StudioInspectorChecks";
+import { buildStudioInspectorCheckSummary } from "./studioInspectorCheckSummary";
 
 export type InspectorTab = "inspect" | "checks" | "ai";
 export type AiScope = AssistScope;
@@ -24,25 +33,6 @@ export interface StudioClaim {
   verdict: Verdict;
 }
 
-function VerdictRow({ verdict, label, detail }: { verdict: Verdict; label: string; detail: string }) {
-  const { t } = useTranslation();
-  const Icon = VERDICT_ICON[verdict];
-  return (
-    <div className={cx("studio-check", `is-${verdict}`)}>
-      <span className="studio-check-mark" aria-hidden>
-        <Icon size={12} />
-      </span>
-      <span className="studio-check-copy">
-        <b>{label}</b>
-        <small>{detail}</small>
-      </span>
-      <span className="studio-check-verdict">
-        {t(VERDICT_KEY[verdict], { defaultValue: verdict })}
-      </span>
-    </div>
-  );
-}
-
 export function StudioInspector({
   tab,
   onTab,
@@ -51,6 +41,12 @@ export function StudioInspector({
   theme,
   selected,
   onPropChange,
+  onReplaceNode,
+  catalogCandidates,
+  catalogLoading,
+  catalogFailed,
+  pendingCatalogAssetId,
+  onReplaceCatalogAsset,
   coverage,
   claims,
   frames,
@@ -71,6 +67,12 @@ export function StudioInspector({
   theme: TemplatePalette;
   selected: TemplateNode | null;
   onPropChange: (key: string, value: string | number | boolean) => void;
+  onReplaceNode: (type: TemplateNodeType) => void;
+  catalogCandidates: readonly CatalogAsset[];
+  catalogLoading: boolean;
+  catalogFailed: boolean;
+  pendingCatalogAssetId: string;
+  onReplaceCatalogAsset: (componentId: string) => void;
   coverage: Coverage;
   claims: StudioClaim[];
   frames: DesignFrame[];
@@ -79,7 +81,9 @@ export function StudioInspector({
   aiScope: AiScope;
   onAiScope: (scope: AiScope) => void;
   onSelectFrame: (id: string) => void;
-  onApplyProposal: (proposal: StudioProposal) => { ok: true } | { ok: false; reason: "stale" | "invalid"; detail: string };
+  onApplyProposal: (
+    proposal: StudioProposal,
+  ) => { ok: true } | { ok: false; reason: "stale" | "invalid"; detail: string };
   onApplied: (summary: string) => void;
   /**
    * AI assist is design-store backed. A surface that has no proposal endpoint
@@ -91,23 +95,27 @@ export function StudioInspector({
 }) {
   const { t } = useTranslation();
   const size = FRAME_SIZE[frame.device];
-  const primitive = selected ? rclPrimitive(selected.type) : null;
-  const overflowFrames = frames.filter((entry) => {
-    const audit = audits[entry.id];
-    return Boolean(audit?.measured && audit.overflow > 0);
+  const boundComponent =
+    selected?.type === "slot" && typeof selected.props.componentId === "string"
+      ? catalogCandidates.find((asset) => asset.id === selected.props.componentId)
+      : undefined;
+  const boundCatalogSlot = Boolean(selected && selected.type === "slot" && isRclLayer(selected));
+  const primitive = selected
+    ? (rclPrimitive(selected.type) ??
+      (boundCatalogSlot
+        ? boundComponent?.displayName ||
+          t("workbench.studio.catalogComponent", { defaultValue: "Catalog component" })
+        : null))
+    : null;
+  const checkSummary = buildStudioInspectorCheckSummary({
+    coverage,
+    audits,
+    frames,
+    stateGap,
+    selected,
+    claims,
   });
-  const measuredFrames = frames.filter((entry) => audits[entry.id]?.measured);
-  const targetAudits = frames.flatMap((entry) => (audits[entry.id]?.buttons ? [audits[entry.id]] : []));
-  const targetTotal = targetAudits.reduce((sum, audit) => sum + (audit?.buttons?.total ?? 0), 0);
-  const targetUnder = targetAudits.reduce((sum, audit) => sum + (audit?.buttons?.under ?? 0), 0);
-  const overflowVerdict = measuredFrames.length === 0 ? "unmeasured" : overflowFrames.length > 0 ? "fail" : "pass";
-  const targetVerdict = targetTotal === 0 ? "unmeasured" : targetUnder > 0 ? "warn" : "pass";
-  const stateVerdict = stateGap.missing.length > 0 ? "warn" : "pass";
-  const issueCount =
-    claims.filter((claim) => claim.verdict === "warn" || claim.verdict === "fail").length +
-    (overflowFrames.length > 0 ? 1 : 0) +
-    (targetUnder > 0 ? 1 : 0) +
-    (stateGap.missing.length > 0 ? 1 : 0);
+  const issueCount = checkSummary.checks.needsReview;
   const tokenPreview = paletteTokens(theme).filter((token) =>
     ["bg", "ink", "line", "accent"].includes(token.key),
   );
@@ -150,7 +158,11 @@ export function StudioInspector({
                 })}
           </small>
         </span>
-        {selected ? <Chip tone={primitive ? "green" : undefined}>{selected.type}</Chip> : null}
+        {selected ? (
+          <Chip tone={primitive ? "green" : undefined}>
+            {boundCatalogSlot ? primitive : selected.type}
+          </Chip>
+        ) : null}
       </div>
 
       <div className="studio-inspector-tabs">
@@ -178,6 +190,17 @@ export function StudioInspector({
             <>
               <div className="studio-inspector-section">
                 <NodeInspector node={selected} onChange={onPropChange} />
+              </div>
+              <div className="studio-inspector-section">
+                <StudioNodeReplacement
+                  node={selected}
+                  onReplace={onReplaceNode}
+                  catalogCandidates={catalogCandidates}
+                  catalogLoading={catalogLoading}
+                  catalogFailed={catalogFailed}
+                  pendingCatalogAssetId={pendingCatalogAssetId}
+                  onReplaceCatalogAsset={onReplaceCatalogAsset}
+                />
               </div>
               <div className="studio-inspector-section">
                 <span className="wb-caption">
@@ -260,112 +283,15 @@ export function StudioInspector({
         ) : null}
 
         {tab === "checks" ? (
-          <>
-            <div className="studio-inspector-section">
-              <div className="studio-score">
-                <span>
-                  <b>{claims.length + 3 - issueCount}</b>
-                  <small>
-                    {t("workbench.studio.checksPassing", {
-                      defaultValue: "{{passed}} of {{total}} checks pass",
-                      passed: claims.length + 3 - issueCount,
-                      total: claims.length + 3,
-                    })}
-                  </small>
-                </span>
-                <span className="studio-score-bar" aria-hidden>
-                  <i
-                    style={{
-                      width: `${Math.round(((claims.length + 3 - issueCount) / (claims.length + 3)) * 100)}%`,
-                    }}
-                  />
-                </span>
-              </div>
-            </div>
-
-            <div className="studio-inspector-section">
-              <span className="wb-caption">
-                {t("workbench.studio.layoutChecks", { defaultValue: "Layout" })}
-              </span>
-              <VerdictRow
-                verdict={overflowVerdict}
-                label={t("workbench.studio.checkOverflow", {
-                  defaultValue: "No horizontal overflow",
-                })}
-                detail={
-                  overflowFrames.length === 0
-                    ? t("workbench.studio.checkOverflowPass", {
-                        defaultValue: "Measured clean at {{count}} frames",
-                        count: frames.filter((entry) => audits[entry.id]?.measured).length,
-                      })
-                    : t("workbench.studio.checkOverflowFail", {
-                        defaultValue: "{{names}} overflow",
-                        names: overflowFrames.map((entry) => entry.name).join(", "),
-                      })
-                }
-              />
-              <VerdictRow
-                verdict={targetVerdict}
-                label={t("workbench.studio.checkTargets", {
-                  defaultValue: "Touch targets ≥ {{min}}",
-                  min: TOUCH_TARGET_MIN,
-                })}
-                detail={
-                  targetTotal === 0
-                    ? t("workbench.studio.checkTargetsUnmeasured", {
-                        defaultValue: "No interactive elements measured yet",
-                      })
-                    : t("workbench.studio.checkTargetsDetail", {
-                        defaultValue: "{{under}} of {{total}} buttons under {{min}}",
-                        under: targetUnder,
-                        total: targetTotal,
-                        min: TOUCH_TARGET_MIN,
-                      })
-                }
-              />
-              <VerdictRow
-                verdict={stateVerdict}
-                label={t("workbench.studio.checkStates", {
-                  defaultValue: "States are declared",
-                })}
-                detail={
-                  stateGap.missing.length === 0
-                    ? t("workbench.studio.checkStatesPass", {
-                        defaultValue: "{{count}} of {{count}} layers declare states",
-                        count: stateGap.total,
-                      })
-                    : t("workbench.studio.checkStatesGap", {
-                        defaultValue: "{{count}} missing · {{names}}",
-                        count: stateGap.missing.length,
-                        names: stateGap.missing.slice(0, 3).join(", "),
-                      })
-                }
-              />
-            </div>
-
-            <div className="studio-inspector-section">
-              <span className="wb-caption">
-                {t("workbench.studio.contractChecks", { defaultValue: "Composition claims" })}
-              </span>
-              {claims.map((claim) => (
-                <VerdictRow
-                  key={claim.id}
-                  verdict={claim.verdict}
-                  label={claim.label}
-                  detail={claim.detail}
-                />
-              ))}
-            </div>
-
-            <div className="studio-inspector-section">
-              <p className="studio-note">
-                {t("workbench.studio.checksNote", {
-                  defaultValue:
-                    "Layout checks measure the frames on this canvas. Contrast and capture evidence stay unmeasured until a real capture exists.",
-                })}
-              </p>
-            </div>
-          </>
+          <StudioInspectorChecks
+            summary={checkSummary}
+            claims={claims}
+            stateGap={stateGap}
+            selected={selected}
+            onSelectFrame={onSelectFrame}
+            onTab={onTab}
+            onReplaceNode={onReplaceNode}
+          />
         ) : null}
 
         {assist && propose && tab === "ai" ? (

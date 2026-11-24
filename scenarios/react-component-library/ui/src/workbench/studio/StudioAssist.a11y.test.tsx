@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { setLocale } from "../../i18n";
 import { expectNoA11yViolations } from "../../test-utils";
-import type { DesignDocument } from "../designs";
+import type { DesignDocument } from "../design-types";
 import { DEFAULT_TEMPLATE } from "../templates/library";
 import { StudioAssist } from "./StudioAssist";
 

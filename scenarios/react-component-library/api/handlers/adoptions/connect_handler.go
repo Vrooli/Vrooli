@@ -413,88 +413,19 @@ func (h *connectHandler) SuggestAdoptions(ctx context.Context, req *connect.Requ
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	componentsList, err := h.deps.Components.List(ctx, components.SearchQuery{Limit: 500})
+	componentsList, err := h.suggestionComponents(ctx, req.Msg.ComponentId)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	if componentID := strings.TrimSpace(req.Msg.ComponentId); componentID != "" {
-		componentsList = slices.DeleteFunc(componentsList, func(component components.Component) bool {
-			return component.ID != componentID
-		})
-		if len(componentsList) == 0 {
-			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("component %q not found", componentID))
-		}
-	}
-	assets, err := catalogcoverage.LoadCatalogContext(ctx, filepath.Join(h.deps.ScenariosRoot, "react-component-library", "catalog"))
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("read adoption candidate lifecycle: %w", err))
-	}
-	componentsList = activeSuggestionComponents(componentsList, assets)
-	limit := int(req.Msg.Limit)
-	if limit <= 0 {
-		limit = 50
+		return nil, err
 	}
 	result := make([]*adoptionsv1.AdoptionSuggestion, 0)
 	for _, scenario := range scenarios {
-		inventory, err := h.deps.Inventory.ScanScenario(ctx, connect.NewRequest(&inventoryv1.ScanScenarioRequest{Scenario: scenario}))
+		suggestions, err := h.suggestionsForScenario(ctx, scenario, componentsList)
 		if err != nil {
-			continue // scenarios without a compatible UI manifest are not candidates
+			return nil, err
 		}
-		adopted, err := h.deps.Service.List(ctx, adoptions.ListQuery{Scenario: scenario, Limit: 1024})
-		if err != nil {
-			return nil, adoptions.ToConnectError(err)
-		}
-		alreadyAdopted := make(map[string]bool, len(adopted))
-		for _, row := range adopted {
-			alreadyAdopted[row.ComponentID] = true
-		}
-		for _, component := range componentsList {
-			// A dependency materialized by another root adoption is already
-			// present in this scenario too. Suggestions must never ask an
-			// operator to adopt the same asset twice merely because its use is
-			// mediated rather than direct.
-			effective, err := h.deps.Service.ListEffective(ctx, component.ID, 1024)
-			if err != nil {
-				return nil, adoptions.ToConnectError(err)
-			}
-			for _, use := range effective {
-				if use.ParentAdoption.Scenario == scenario {
-					alreadyAdopted[component.ID] = true
-					break
-				}
-			}
-			if alreadyAdopted[component.ID] {
-				continue
-			}
-			for _, surface := range inventory.Msg.Surfaces {
-				match := suggestionMatch(component, surface.DisplayName, surface.FilePath)
-				if match == "" {
-					continue
-				}
-				version := firstVersion(component.LatestVersion, component.Version)
-				depVerdict, err := h.deps.Dependencies.ValidateAdoption(ctx, component.ID, version, scenario)
-				if err != nil || depVerdict.Kind == deps.VerdictBlock {
-					continue
-				}
-				style, err := h.deps.Components.ValidateStyleFit(ctx, component.ID, version, scenario)
-				if err != nil {
-					continue
-				}
-				reasons := []string{fmt.Sprintf("inventory surface %q matches %s", surface.FilePath, match)}
-				if style.Detail != "" {
-					reasons = append(reasons, style.Detail)
-				}
-				if depVerdict.Kind == deps.VerdictWarn {
-					reasons = append(reasons, "dependency compatibility has warnings")
-				} else {
-					reasons = append(reasons, "dependencies are compatible")
-				}
-				reasons = append([]string{"heuristic inventory candidate; review before using the separate adoption action"}, reasons...)
-				result = append(result, &adoptionsv1.AdoptionSuggestion{Scenario: scenario, ComponentId: component.ID, LibraryId: component.LibraryID, DisplayName: component.DisplayName, InventoryPath: surface.FilePath, Reasons: reasons, Classification: adoptionsv1.RecommendationClass_RECOMMENDATION_CLASS_HEURISTIC})
-				break
-			}
-		}
+		result = append(result, suggestions...)
 	}
+	limit := suggestionLimit(req.Msg.Limit)
 	sort.Slice(result, func(i, j int) bool {
 		if result[i].Scenario != result[j].Scenario {
 			return result[i].Scenario < result[j].Scenario
@@ -505,6 +436,113 @@ func (h *connectHandler) SuggestAdoptions(ctx context.Context, req *connect.Requ
 		result = result[:limit]
 	}
 	return connect.NewResponse(&adoptionsv1.SuggestAdoptionsResponse{Suggestions: result}), nil
+}
+
+func (h *connectHandler) suggestionComponents(ctx context.Context, requestedID string) ([]components.Component, error) {
+	candidates, err := h.deps.Components.List(ctx, components.SearchQuery{Limit: 500})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if componentID := strings.TrimSpace(requestedID); componentID != "" {
+		candidates = slices.DeleteFunc(candidates, func(component components.Component) bool {
+			return component.ID != componentID
+		})
+		if len(candidates) == 0 {
+			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("component %q not found", componentID))
+		}
+	}
+	assets, err := catalogcoverage.LoadCatalogContext(ctx, filepath.Join(h.deps.ScenariosRoot, "react-component-library", "catalog"))
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("read adoption candidate lifecycle: %w", err))
+	}
+	return activeSuggestionComponents(candidates, assets), nil
+}
+
+func (h *connectHandler) suggestionsForScenario(ctx context.Context, scenario string, candidates []components.Component) ([]*adoptionsv1.AdoptionSuggestion, error) {
+	inventory, err := h.deps.Inventory.ScanScenario(ctx, connect.NewRequest(&inventoryv1.ScanScenarioRequest{Scenario: scenario}))
+	if err != nil {
+		return nil, nil // scenarios without a compatible UI manifest are not candidates
+	}
+	adopted, err := h.deps.Service.List(ctx, adoptions.ListQuery{Scenario: scenario, Limit: 1024})
+	if err != nil {
+		return nil, adoptions.ToConnectError(err)
+	}
+	alreadyAdopted := make(map[string]bool, len(adopted))
+	for _, row := range adopted {
+		alreadyAdopted[row.ComponentID] = true
+	}
+	suggestions := make([]*adoptionsv1.AdoptionSuggestion, 0)
+	for _, component := range candidates {
+		present, err := h.componentAlreadyAdopted(ctx, component.ID, scenario, alreadyAdopted)
+		if err != nil {
+			return nil, err
+		}
+		if present {
+			continue
+		}
+		if suggestion := h.suggestionForSurfaces(ctx, component, scenario, inventory.Msg.Surfaces); suggestion != nil {
+			suggestions = append(suggestions, suggestion)
+		}
+	}
+	return suggestions, nil
+}
+
+func (h *connectHandler) componentAlreadyAdopted(ctx context.Context, componentID, scenario string, alreadyAdopted map[string]bool) (bool, error) {
+	// A dependency materialized by another root adoption is already present too.
+	effective, err := h.deps.Service.ListEffective(ctx, componentID, 1024)
+	if err != nil {
+		return false, adoptions.ToConnectError(err)
+	}
+	present := alreadyAdopted[componentID]
+	for _, use := range effective {
+		if use.ParentAdoption.Scenario == scenario {
+			alreadyAdopted[componentID] = true
+			present = true
+			break
+		}
+	}
+	return present, nil
+}
+
+func (h *connectHandler) suggestionForSurfaces(ctx context.Context, component components.Component, scenario string, surfaces []*inventoryv1.SurfaceRecord) *adoptionsv1.AdoptionSuggestion {
+	for _, surface := range surfaces {
+		match := suggestionMatch(component, surface.DisplayName, surface.FilePath)
+		if match == "" {
+			continue
+		}
+		version := firstVersion(component.LatestVersion, component.Version)
+		depVerdict, err := h.deps.Dependencies.ValidateAdoption(ctx, component.ID, version, scenario)
+		if err != nil || depVerdict.Kind == deps.VerdictBlock {
+			continue
+		}
+		style, err := h.deps.Components.ValidateStyleFit(ctx, component.ID, version, scenario)
+		if err != nil {
+			continue
+		}
+		return buildAdoptionSuggestion(component, scenario, surface.FilePath, match, style.Detail, depVerdict.Kind)
+	}
+	return nil
+}
+
+func buildAdoptionSuggestion(component components.Component, scenario, inventoryPath, match, styleDetail string, verdict deps.VerdictKind) *adoptionsv1.AdoptionSuggestion {
+	reasons := []string{fmt.Sprintf("inventory surface %q matches %s", inventoryPath, match)}
+	if styleDetail != "" {
+		reasons = append(reasons, styleDetail)
+	}
+	if verdict == deps.VerdictWarn {
+		reasons = append(reasons, "dependency compatibility has warnings")
+	} else {
+		reasons = append(reasons, "dependencies are compatible")
+	}
+	reasons = append([]string{"heuristic inventory candidate; review before using the separate adoption action"}, reasons...)
+	return &adoptionsv1.AdoptionSuggestion{Scenario: scenario, ComponentId: component.ID, LibraryId: component.LibraryID, DisplayName: component.DisplayName, InventoryPath: inventoryPath, Reasons: reasons, Classification: adoptionsv1.RecommendationClass_RECOMMENDATION_CLASS_HEURISTIC}
+}
+
+func suggestionLimit(requested int32) int {
+	if requested <= 0 {
+		return 50
+	}
+	return int(requested)
 }
 
 // Deprecated catalog assets remain addressable for history, but must not be

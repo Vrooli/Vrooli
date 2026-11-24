@@ -29,6 +29,24 @@ describe("DeviceFrame", () => {
     expect(container.querySelector(".df-home")).not.toBeNull();
   });
 
+  it("can omit status bar and island when the page already contains them", () => {
+    const { container } = renderWithProviders(
+      <DeviceFrame
+        device="phone"
+        width={390}
+        height={844}
+        label="Imported phone preview"
+        statusBar={false}
+        island={false}
+      >
+        <div>page</div>
+      </DeviceFrame>,
+    );
+    expect(container.querySelector(".df-status")).toBeNull();
+    expect(container.querySelector(".df-island")).toBeNull();
+    expect(container.querySelector(".df-home")).not.toBeNull();
+  });
+
   it("scales the logical viewport once", () => {
     const { container } = renderWithProviders(
       <DeviceFrame device="phone" width={390} height={844} scale={0.5} label="Phone preview">
@@ -45,7 +63,13 @@ describe("DeviceFrame", () => {
 
   it("exposes selection as a real button, not a clickable div", () => {
     const { container } = renderWithProviders(
-      <DeviceFrame device="phone" width={390} height={844} label="Phone preview" onSelect={() => {}}>
+      <DeviceFrame
+        device="phone"
+        width={390}
+        height={844}
+        label="Phone preview"
+        onSelect={() => {}}
+      >
         <div>page</div>
       </DeviceFrame>,
     );

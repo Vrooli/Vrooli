@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { DesignFrame } from "../designs";
+import type { DesignFrame } from "../design-types";
 import { node } from "../templates/spec";
 import {
   designCoverage,
@@ -41,6 +41,36 @@ describe("RCL coverage", () => {
       ratio: 3 / 5,
     });
     expect(layerCount(spec)).toBe(5);
+  });
+
+  it("does not claim BoundedMeter coverage for compact native meters", () => {
+    const compact = node("compact-meter", "meter", { value: 40, compact: true });
+    const page = node("page", "page", {}, [compact]);
+    expect(frameCoverage(page)).toEqual({
+      rcl: 0,
+      custom: 1,
+      total: 1,
+      ratio: 0,
+    });
+    expect(primitiveUsage([frame("compact", page)], "compact")).toEqual([]);
+
+    const regularPage = node("regular-page", "page", {}, [node("meter", "meter", { value: 60 })]);
+    expect(primitiveUsage([frame("regular", regularPage), frame("compact", page)], "regular")).toEqual([
+      { type: "meter", name: "BoundedMeter", count: 1, frames: 1 },
+    ]);
+  });
+
+  it("counts a live catalog component bound into a slot as RCL coverage", () => {
+    const bound = node("published-action", "slot", {
+      componentId: "asset-button",
+      storyId: "primary",
+    });
+    expect(frameCoverage(node("page", "page", {}, [bound]))).toEqual({
+      rcl: 1,
+      custom: 0,
+      total: 1,
+      ratio: 1,
+    });
   });
 
   it("returns an empty ratio for a frame with no layers", () => {

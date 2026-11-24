@@ -7,12 +7,22 @@
     "1.0.0",
     "1.0.3"
   ],
+  "description": "The locale-aware timestamp component updating at meaningful intervals and exposing the precise absolute time through accessible and hoverable detail.",
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "displayName": "RelativeTime",
   "draft": "",
   "evictedVersions": [
     "1.0.2",
     "1.0.0",
     "1.0.3"
   ],
-  "latest": "1.0.4",
-  "libraryId": "react-component-library:RelativeTime"
+  "latest": "1.0.5",
+  "libraryId": "react-component-library:RelativeTime",
+  "tags": []
 }

@@ -56,6 +56,13 @@ source of truth for identity or authorization.
 |---|---|---|---|
 | None by default | n/a | no | Add entries when resources or third-party APIs require secrets. |
 
+The security scan's `gitleaks` match at
+`library/components/PasswordInput/versions/2.0.3/story.tsx:62` is a false
+positive: the line renders an empty `PasswordInput` specimen and contains no
+credential or password value. That version is published, so it remains
+unchanged; the scanner finding is documented here rather than annotating or
+rewriting the release artifact.
+
 ## Threat Model
 
 | Risk | Impact | Mitigation | Status |

@@ -292,6 +292,10 @@ func TestStoryDistinctnessRejectsOneSpecimenForManyFrames(t *testing.T) {
 	if err := os.MkdirAll(storyDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
+	manifest := filepath.Join(filepath.Dir(filepath.Dir(storyDir)), "component.json")
+	if err := os.WriteFile(manifest, []byte(`{"catalogId":"components.fixture","assetKind":"component","latest":"1.0.0"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	contract := `{"schemaVersion":5,"kind":"component","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"one","name":"One","role":"anatomy","composition":{"specimen":{"module":"./story.tsx","export":"Shared"}},"expect":[{"kind":"visible","selector":"body"}]},{"id":"two","name":"Two","role":"boundary","composition":{"specimen":{"module":"./story.tsx","export":"Shared"}},"expect":[{"kind":"visible","selector":"body"}]},{"id":"three","name":"Three","role":"boundary","composition":{"specimen":{"module":"./story.tsx","export":"Shared"}},"expect":[{"kind":"visible","selector":"body"}]}]}`
 	if err := os.WriteFile(filepath.Join(storyDir, "story.json"), []byte(contract), 0o644); err != nil {
 		t.Fatal(err)

@@ -11,6 +11,11 @@ import (
 )
 
 func pruneLibraryOverlay(root string) error {
+	overlayRoot, err := os.OpenRoot(root)
+	if err != nil {
+		return err
+	}
+	defer overlayRoot.Close()
 	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
 		dir := filepath.Join(root, "scenarios", "react-component-library", "library", kind)
 		entries, err := os.ReadDir(dir)
@@ -18,7 +23,7 @@ func pruneLibraryOverlay(root string) error {
 			return err
 		}
 		for _, entry := range entries {
-			if err := os.Remove(filepath.Join(dir, entry.Name())); err != nil {
+			if err := overlayRemove(overlayRoot, filepath.Join(dir, entry.Name())); err != nil {
 				return err
 			}
 		}
@@ -27,6 +32,11 @@ func pruneLibraryOverlay(root string) error {
 }
 
 func linkScenarioOverlay(root, tmp string) error {
+	overlayRoot, err := os.OpenRoot(tmp)
+	if err != nil {
+		return err
+	}
+	defer overlayRoot.Close()
 	realScenario := filepath.Join(root, "scenarios", "react-component-library")
 	tmpScenario := filepath.Join(tmp, "scenarios", "react-component-library")
 	for _, path := range []string{"ui", "catalog/config.json", "catalog/weights.json", "catalog/version-shape.json", "templates", "harnesses", "data"} {
@@ -38,11 +48,11 @@ func linkScenarioOverlay(root, tmp string) error {
 			return err
 		}
 		dest := filepath.Join(tmpScenario, path)
-		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+		if err := overlayMkdirAll(overlayRoot, filepath.Dir(dest), 0o755); err != nil {
 			return err
 		}
 		if path == "ui" {
-			if err := copyUIOverlay(source, dest); err != nil {
+			if err := copyUIOverlayInRoot(overlayRoot, source, dest); err != nil {
 				return err
 			}
 			continue
@@ -59,13 +69,13 @@ func linkScenarioOverlay(root, tmp string) error {
 			}
 			continue
 		}
-		if err := os.Symlink(source, dest); err != nil {
+		if err := overlaySymlink(overlayRoot, source, dest); err != nil {
 			return err
 		}
 	}
 	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
 		destKind := filepath.Join(tmpScenario, "library", kind)
-		if err := os.MkdirAll(destKind, 0o755); err != nil {
+		if err := overlayMkdirAll(overlayRoot, destKind, 0o755); err != nil {
 			return err
 		}
 		entries, err := os.ReadDir(filepath.Join(realScenario, "library", kind))
@@ -73,13 +83,13 @@ func linkScenarioOverlay(root, tmp string) error {
 			return err
 		}
 		for _, entry := range entries {
-			if err := os.Symlink(filepath.Join(realScenario, "library", kind, entry.Name()), filepath.Join(destKind, entry.Name())); err != nil {
+			if err := overlaySymlink(overlayRoot, filepath.Join(realScenario, "library", kind, entry.Name()), filepath.Join(destKind, entry.Name())); err != nil {
 				return err
 			}
 		}
 	}
 	assetsRoot := filepath.Join(tmpScenario, "catalog", "assets")
-	if err := os.MkdirAll(assetsRoot, 0o755); err != nil {
+	if err := overlayMkdirAll(overlayRoot, assetsRoot, 0o755); err != nil {
 		return err
 	}
 	entries, err := os.ReadDir(filepath.Join(realScenario, "catalog", "assets"))
@@ -87,15 +97,15 @@ func linkScenarioOverlay(root, tmp string) error {
 		return err
 	}
 	for _, entry := range entries {
-		if err := os.Symlink(filepath.Join(realScenario, "catalog", "assets", entry.Name()), filepath.Join(assetsRoot, entry.Name())); err != nil {
+		if err := overlaySymlink(overlayRoot, filepath.Join(realScenario, "catalog", "assets", entry.Name()), filepath.Join(assetsRoot, entry.Name())); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func copyUIOverlay(source, dest string) error {
-	if err := os.MkdirAll(dest, 0o755); err != nil {
+func copyUIOverlayInRoot(root *os.Root, source, dest string) error {
+	if err := overlayMkdirAll(root, dest, 0o755); err != nil {
 		return err
 	}
 	entries, err := os.ReadDir(source)
@@ -110,7 +120,7 @@ func copyUIOverlay(source, dest string) error {
 				if err := copyFile(src, dst); err != nil {
 					return err
 				}
-			} else if err := os.WriteFile(dst, nil, 0o644); err != nil {
+			} else if err := overlayWriteFile(root, dst, nil, 0o644); err != nil {
 				return err
 			}
 			continue
@@ -121,7 +131,7 @@ func copyUIOverlay(source, dest string) error {
 			}
 			continue
 		}
-		if err := os.Symlink(src, dst); err != nil {
+		if err := overlaySymlink(root, src, dst); err != nil {
 			return err
 		}
 	}

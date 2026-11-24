@@ -2,18 +2,55 @@ package designinference
 
 import (
 	"context"
+	"database/sql"
 	"errors"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 	dbtest "github.com/vrooli/api-core/databasetest"
+	"github.com/vrooli/api-core/storage"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
+
+func TestInferenceRepositoryUsesRequestRoutedDBPool(t *testing.T) {
+	ctx := context.Background()
+	primaryDSN, err := storage.SQLiteDSNAt(filepath.Join(t.TempDir(), "primary.db"), storage.SQLiteTuning{})
+	require.NoError(t, err)
+	routed, err := apidb.Open(ctx, apidb.Config{Driver: apidb.DriverSQLite, DSN: primaryDSN, MaxOpenConns: 1, MaxIdleConns: 1})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = routed.Close() })
+	ensureSchema := func(ctx context.Context, pool *sql.DB) error {
+		return apidb.EnsureSchemas(ctx, pool, apidb.SchemaProviderFunc(Schema))
+	}
+	require.NoError(t, ensureSchema(ctx, routed.Primary()))
+	routed.SetTestPoolInitializer(ensureSchema)
+	testDSN, err := storage.SQLiteDSNAt(filepath.Join(t.TempDir(), "test.db"), storage.SQLiteTuning{})
+	require.NoError(t, err)
+	require.NoError(t, routed.InstallTestPool(ctx, testDSN, "design-inference-routing", time.Minute))
+
+	repo := NewSQLiteRepository(routed)
+	primary, err := repo.Create(ctx, "primary-attempt", request())
+	require.NoError(t, err)
+	_, err = repo.Get(apidb.WithTestMode(ctx), primary.ID)
+	require.ErrorIs(t, err, sql.ErrNoRows, "test-mode request must read the isolated routed pool")
+	testOp, err := repo.Create(apidb.WithTestMode(ctx), "test-attempt", request())
+	require.NoError(t, err)
+	_, err = repo.Get(ctx, testOp.ID)
+	require.ErrorIs(t, err, sql.ErrNoRows, "primary request must not see the test pool inference")
+
+	claimed, err := repo.Claim(apidb.WithTestMode(ctx), testOp.ID)
+	require.NoError(t, err)
+	require.True(t, claimed, "claim must update the pool selected by request context")
+	_, err = repo.Get(ctx, testOp.ID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+}
 
 type gatewayFunc func(context.Context, *connect.Request[inferencev1.RunRequest]) (*connect.Response[inferencev1.RunResponse], error)
 

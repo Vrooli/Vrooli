@@ -19,7 +19,9 @@ import (
 	"react-component-library/internal/modules"
 	"react-component-library/internal/server"
 
+	aisearch "github.com/vrooli/ai-go/search"
 	"github.com/vrooli/api-core/schedule"
+	searchregister "github.com/vrooli/searchregister-go"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -37,7 +39,6 @@ import (
 	componentsH "react-component-library/handlers/components"
 	componentTestsH "react-component-library/handlers/componenttests"
 	depsH "react-component-library/handlers/deps"
-	designsH "react-component-library/handlers/designs"
 	healthH "react-component-library/handlers/health"
 	inventoryH "react-component-library/handlers/inventory"
 	libraryhealthH "react-component-library/handlers/libraryhealth"
@@ -46,7 +47,6 @@ import (
 	reviewH "react-component-library/handlers/review"
 	searchH "react-component-library/handlers/search"
 	sketchH "react-component-library/handlers/sketch"
-	templatesH "react-component-library/handlers/templates"
 	themesH "react-component-library/handlers/themes"
 	versionsH "react-component-library/handlers/versions"
 	workflowsH "react-component-library/handlers/workflows"
@@ -56,6 +56,7 @@ import (
 	"github.com/vrooli/api-core/uimanifest"
 	"react-component-library/internal/availability"
 
+	workspacev1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/workspace"
 	activityInternal "react-component-library/internal/activity"
 	adoptionsInternal "react-component-library/internal/adoptions"
 	brandInternal "react-component-library/internal/brand"
@@ -63,15 +64,15 @@ import (
 	componentsInternal "react-component-library/internal/components"
 	componenttestsInternal "react-component-library/internal/componenttests"
 	depsInternal "react-component-library/internal/deps"
-	designsInternal "react-component-library/internal/designs"
 	experienceInternal "react-component-library/internal/experience"
+	experienceImportInternal "react-component-library/internal/experienceimport"
 	libraryhealthInternal "react-component-library/internal/libraryhealth"
 	reviewInternal "react-component-library/internal/review"
 	searchInternal "react-component-library/internal/search"
-	templatesInternal "react-component-library/internal/templates"
 	themesInternal "react-component-library/internal/themes"
 	versionledgerInternal "react-component-library/internal/versionledger"
 	workflowsInternal "react-component-library/internal/workflows"
+	workspacesInternal "react-component-library/internal/workspaces"
 )
 
 // workspaceActivityRecorder is the one adapter from the workspace aggregate's
@@ -85,8 +86,12 @@ import (
 type workspaceActivityRecorder struct {
 	store  *activityInternal.Store
 	search *searchInternal.Service
-	mu     sync.Mutex
-	timer  *time.Timer
+	logger interface {
+		Error(string, ...any)
+		Info(string, ...any)
+	}
+	mu    sync.Mutex
+	timer *time.Timer
 }
 
 func (r *workspaceActivityRecorder) Record(ctx context.Context, action, subjectID string, before, after []byte) error {
@@ -119,10 +124,14 @@ func (r *workspaceActivityRecorder) scheduleReindex() {
 	r.timer = time.AfterFunc(workspaceReindexDelay, func() {
 		count, _, err := r.search.Reindex(context.Background(), false)
 		if err != nil {
-			slog.Error("workspace search reindex failed", "error", err)
+			if r.logger != nil {
+				r.logger.Error("workspace search reindex failed", "error", err)
+			}
 			return
 		}
-		slog.Info("workspace search reindex complete", "documents", count)
+		if r.logger != nil {
+			r.logger.Info("workspace search reindex complete", "documents", count)
+		}
 	})
 }
 
@@ -212,22 +221,39 @@ func scenarioStorageRoots() (storage.Paths, error) {
 	return resolver.Resolve(storage.Options{ScenarioID: scenarioID})
 }
 
+type runtimeLoggers struct {
+	standard   *log.Logger
+	structured *slog.Logger
+}
+
 func main() {
-	// Preflight checks must run first so the binary can re-exec itself
-	// after a stale-source rebuild before any listeners are opened.
 	if preflight.Run(preflight.Config{ScenarioName: "react-component-library"}) {
 		return
 	}
 
+	loggers := runtimeLoggers{
+		standard:   log.New(os.Stderr, "", log.LstdFlags),
+		structured: slog.New(slog.NewTextHandler(os.Stderr, nil)),
+	}
+	if err := run(loggers); err != nil {
+		loggers.standard.Printf("react-component-library API stopped: %v", err)
+		os.Exit(1)
+	}
+}
+
+// run composes and serves the API with explicit logging dependencies. The
+// small main wrapper owns only process exit behavior; startup and background
+// work can be observed with substituted loggers.
+func run(loggers runtimeLoggers) error {
 	primaryFileRoots, err := scenarioStorageRoots()
 	if err != nil {
-		log.Fatalf("file storage configuration failed: %v", err)
+		return fmt.Errorf("file storage configuration failed: %w", err)
 	}
 	fileRoots := filerouting.New(primaryFileRoots)
 
 	dsn, err := sqliteDSN(fileRoots)
 	if err != nil {
-		log.Fatalf("sqlite configuration failed: %v", err)
+		return fmt.Errorf("sqlite configuration failed: %w", err)
 	}
 
 	db, err := database.Open(context.Background(), database.Config{
@@ -237,7 +263,7 @@ func main() {
 		MaxIdleConns: 1,
 	})
 	if err != nil {
-		log.Fatalf("Database connection failed: %v", err)
+		return fmt.Errorf("database connection failed: %w", err)
 	}
 	primaryDB := db.Primary()
 	// Catalog gates and evidence capture are jobs, not serving-path work. Give
@@ -250,7 +276,7 @@ func main() {
 		MaxIdleConns: 2,
 	})
 	if err != nil {
-		log.Fatalf("job database connection failed: %v", err)
+		return fmt.Errorf("job database connection failed: %w", err)
 	}
 	healthDB, err := database.Open(context.Background(), database.Config{
 		Driver:       database.DriverSQLite,
@@ -259,26 +285,25 @@ func main() {
 		MaxIdleConns: 1,
 	})
 	if err != nil {
-		log.Fatalf("health database connection failed: %v", err)
+		return fmt.Errorf("health database connection failed: %w", err)
 	}
 
 	if err := database.EnsureSchemas(context.Background(), primaryDB, modules.AllSchemas()...); err != nil {
-		log.Fatalf("schema initialization failed: %v", err)
+		return fmt.Errorf("schema initialization failed: %w", err)
 	}
-	if err := designsInternal.Migrate(context.Background(), primaryDB); err != nil {
-		log.Fatalf("designs schema migration failed: %v", err)
+	if err := adoptionsInternal.EnsureMigrations(context.Background(), db); err != nil {
+		return fmt.Errorf("adoptions schema migration failed: %w", err)
 	}
-	if err := templatesInternal.Migrate(context.Background(), primaryDB); err != nil {
-		log.Fatalf("templates schema migration failed: %v", err)
-	}
-	// The workspace aggregate is the replacement composition owner. Migrate
-	// imports legacy studio designs exactly once, guarded by
-	// workspace_migrations, so a design deleted after import cannot reappear.
+	// Workspace owns compositions. Its one-time migration imports legacy studio
+	// rows and uploads before dropping those source tables in the same
+	// transaction; new databases never create the retired schema.
 	if err := workspacesH.Migrate(context.Background(), primaryDB); err != nil {
-		log.Fatalf("workspace schema migration failed: %v", err)
+		return fmt.Errorf("workspace schema migration failed: %w", err)
 	}
-	activityStore := activityInternal.NewSQLiteStore(primaryDB)
-	healthProviders := libraryhealthInternal.DBProviders(primaryDB)
+	// Keep the routed handle so request contexts select the correct pool for
+	// activity reads and writes.
+	activityStore := activityInternal.NewSQLiteStore(db)
+	healthProviders := libraryhealthInternal.DBProviders(db)
 	capabilityRegistry := capabilitiesH.NewRegistry()
 	healthProviders.Services = func(ctx context.Context) ([]libraryhealthInternal.Metric, error) {
 		states := capabilityRegistry.Resolve(ctx)
@@ -295,15 +320,15 @@ func main() {
 		return metrics, nil
 	}
 	if err := componentsInternal.EnsureMigrations(context.Background(), primaryDB); err != nil {
-		log.Fatalf("components schema migration failed: %v", err)
+		return fmt.Errorf("components schema migration failed: %w", err)
 	}
 	if err := componenttestsInternal.NewSQLiteRepository(primaryDB).EnforcePayloadCeiling(context.Background()); err != nil {
-		log.Fatalf("component test payload retention failed: %v", err)
+		return fmt.Errorf("component test payload retention failed: %w", err)
 	}
 
 	sourceRoot, err := componentsH.DefaultSourceRoot()
 	if err != nil {
-		log.Fatalf("components source root: %v", err)
+		return fmt.Errorf("components source root: %w", err)
 	}
 	// The template shelf is reviewed JSON beside the library. A seed version
 	// bump applies a reviewed content change exactly once; a plain restart is a
@@ -311,27 +336,27 @@ func main() {
 	// confused with an imported one.
 	seedChanged := false
 	if seeded, err := workspacesH.SeedFromFile(context.Background(), primaryDB, filepath.Join(sourceRoot, "workspace-seeds.json")); err != nil {
-		slog.Error("workspace seed load failed", "error", err)
+		loggers.structured.Error("workspace seed load failed", "error", err)
 	} else if seeded.Inserted+seeded.Updated+seeded.Removed > 0 {
 		seedChanged = true
-		slog.Info("workspace seeds applied", "inserted", seeded.Inserted, "updated", seeded.Updated, "removed", seeded.Removed)
+		loggers.structured.Info("workspace seeds applied", "inserted", seeded.Inserted, "updated", seeded.Updated, "removed", seeded.Removed)
 	}
-	componentsSvc, componentsRepo := componentsH.BuildService(primaryDB, schedule.System(), sourceRoot)
+	componentsSvc, componentsRepo := componentsH.BuildService(db, schedule.System(), sourceRoot)
 	versionLedger := versionledgerInternal.NewRepository(primaryDB, sourceRoot)
 	if err := versionLedger.Rebuild(context.Background()); err != nil {
-		log.Fatalf("rebuild version ledger: %v", err)
+		return fmt.Errorf("rebuild version ledger: %w", err)
 	}
 
 	scenariosRoot, err := adoptionsH.DefaultScenariosRoot()
 	if err != nil {
-		log.Fatalf("adoptions scenarios root: %v", err)
+		return fmt.Errorf("adoptions scenarios root: %w", err)
 	}
 	componentsInternal.SetServiceJSONReader(componentsSvc, componentsInternal.NewFSServiceJSONReader(scenariosRoot))
-	adoptionsSvc, scenariosReader := adoptionsH.BuildService(primaryDB, schedule.System(), adoptionsH.LibraryFromComponents(componentsSvc), scenariosRoot)
+	adoptionsSvc, scenariosReader := adoptionsH.BuildService(db, schedule.System(), adoptionsH.LibraryFromComponents(componentsSvc), scenariosRoot)
 	if tokenReader, ok := scenariosReader.(adoptionsInternal.ScenarioTokenNamespaceReader); ok {
 		adoptionsInternal.SetTokenNamespaceReader(adoptionsSvc, tokenReader)
 	} else {
-		log.Fatalf("adoptions scenarios reader does not expose token namespace resolution")
+		return fmt.Errorf("adoptions scenarios reader does not expose token namespace resolution")
 	}
 	componentsInternal.SetScenarioSourceReader(componentsSvc, scenariosReader)
 
@@ -344,11 +369,11 @@ func main() {
 		if path := strings.TrimSpace(os.Getenv("RCL_SWARM_MANAGER_BIN")); path != "" {
 			reporter.BinaryPath = path
 		}
-		adoptionsInternal.SetDriftReporter(adoptionsSvc, reporter, log.Default())
+		adoptionsInternal.SetDriftReporter(adoptionsSvc, reporter, loggers.standard)
 	}
 
 	versionsResolver := versionsH.AdoptionResolverFromService(adoptionsSvc, scenariosReader)
-	versionsSvc := versionsH.BuildService(primaryDB, schedule.System(), versionsResolver)
+	versionsSvc := versionsH.BuildService(db, schedule.System(), versionsResolver)
 	var materializer componentsInternal.Materializer
 	if candidate, ok := componentsSvc.(componentsInternal.Materializer); ok {
 		materializer = candidate
@@ -361,7 +386,7 @@ func main() {
 	// fails (the file is already on disk).
 	componentsInternal.SetContentChangeListener(componentsSvc, &versionsH.ListenerAdapter{
 		Service: versionsSvc,
-		Logger:  log.Default(),
+		Logger:  loggers.standard,
 	})
 
 	// Wire the deps domain (req 10). Shares the adoptions scenarios
@@ -369,8 +394,8 @@ func main() {
 	// refresh does. depsObserver re-syncs declarations after every
 	// successful components Upsert so the registry stays in step with
 	// the on-disk @deps headers.
-	depsSvc := depsH.BuildService(primaryDB, depsInternal.NewFSPackageJSONReader(scenariosRoot))
-	depsObserver := &componentsDepsObserver{svc: depsSvc, logger: log.Default()}
+	depsSvc := depsH.BuildService(db, depsInternal.NewFSPackageJSONReader(scenariosRoot))
+	depsObserver := &componentsDepsObserver{svc: depsSvc, logger: loggers.standard}
 	// The registry is source-backed, so a fresh process must reconcile it before
 	// handlers that resolve catalog ids (component tests, previews, and
 	// adoptions) serve requests. Keep this on the same indexer and observer seam
@@ -379,11 +404,11 @@ func main() {
 	startupIndexer := componentsInternal.NewIndexer(componentsRepo, sourceRoot, nil)
 	startupIndexer.SetUpsertObserver(depsObserver)
 	if indexResult, indexErr := startupIndexer.Run(context.Background()); indexErr != nil {
-		slog.Error("startup component index failed", "error", indexErr)
+		loggers.structured.Error("startup component index failed", "error", indexErr)
 	} else if len(indexResult.Errors) > 0 {
-		slog.Info("startup component index completed", "errors", len(indexResult.Errors), "indexed", indexResult.Indexed, "deleted", indexResult.Deleted)
+		loggers.structured.Info("startup component index completed", "errors", len(indexResult.Errors), "indexed", indexResult.Indexed, "deleted", indexResult.Deleted)
 		for _, indexErr := range indexResult.Errors {
-			slog.Error("startup component index error", "error", indexErr)
+			loggers.structured.Error("startup component index error", "error", indexErr)
 		}
 	}
 	previewSvc := previewH.BuildServiceAtRoot(componentsSvc, depsSvc, filepath.Dir(scenariosRoot))
@@ -395,14 +420,14 @@ func main() {
 	// Wire the themes domain (req 12). Same scenariosRoot as adoptions
 	// + deps so the DESIGN.md reader walks the same tree. Seed the
 	// built-in themes table on first boot; idempotent on re-runs.
-	themesSvc := themesH.BuildService(primaryDB, themesInternal.NewFSDesignMDReader(scenariosRoot))
+	themesSvc := themesH.BuildService(db, themesInternal.NewFSDesignMDReader(scenariosRoot))
 	if err := themesSvc.EnsureBuiltinsSeeded(context.Background()); err != nil {
-		log.Fatalf("seed built-in themes: %v", err)
+		return fmt.Errorf("seed built-in themes: %w", err)
 	}
 	// Suggestions consume the same InventoryService.ScanScenario implementation
 	// as ui-health rather than maintaining a second filesystem interpretation.
 	inventoryScanner := inventoryH.NewConnectHandler(inventoryH.Deps{
-		Logger:        log.Default(),
+		Logger:        loggers.standard,
 		Adoptions:     inventoryH.AdoptionsServiceAdapter{Service: adoptionsSvc},
 		ManifestLoad:  uimanifest.NewFSLoader(filepath.Dir(scenariosRoot)),
 		ScenariosRoot: scenariosRoot,
@@ -421,95 +446,166 @@ func main() {
 	var searchSnapshotMu sync.Mutex
 	var searchSnapshot *availability.Snapshot
 	var searchSnapshotAt time.Time
-	searchAvailability := func(ctx context.Context, catalogID string) (bool, string, error) {
+	searchCatalogAvailability := func(ctx context.Context, catalogID string) (availability.Result, error) {
 		searchSnapshotMu.Lock()
 		if searchSnapshot == nil || time.Since(searchSnapshotAt) > time.Minute {
 			snapshot, err := availabilityFactory(ctx)
 			if err != nil {
 				searchSnapshotMu.Unlock()
-				return false, string(availability.Unavailable), err
+				return availability.Result{CatalogID: catalogID, State: availability.Unavailable}, err
 			}
 			searchSnapshot = snapshot
 			searchSnapshotAt = time.Now()
 		}
 		snapshot := searchSnapshot
 		searchSnapshotMu.Unlock()
-		result := snapshot.Resolve(ctx, catalogID, snapshot.Latest(catalogID))
-		return result.IsBuilt(), string(result.State), nil
+		return snapshot.Resolve(ctx, catalogID, snapshot.Latest(catalogID)), nil
+	}
+	searchAvailability := func(ctx context.Context, catalogID string) (bool, string, error) {
+		result, err := searchCatalogAvailability(ctx, catalogID)
+		return result.IsBuilt(), string(result.State), err
 	}
 	// sourceRoot is <scenario>/library; the scenario root is its parent. Search
 	// reads catalog/ from that root, not the repository's scenarios/ directory.
 	scenarioRoot := filepath.Dir(sourceRoot)
-	searchSvc := searchH.NewService(primaryDB, scenarioRoot, searchAvailability)
+	searchSvc := searchH.NewService(db, scenarioRoot, searchAvailability).WithAnswerer(searchInternal.NewGatewayAnswerer()).WithLogger(loggers.standard).WithCatalogAvailability(availabilityFactory)
+	searchConfigPath := filepath.Join(scenarioRoot, ".vrooli", "search.json")
+	searchFile, searchFileErr := aisearch.LoadSearchFile(searchConfigPath)
+	searchTuning, hasSearchTuning := aisearch.TuningConfig{}, false
+	if searchFileErr == nil {
+		provider, ok := searchFile.Provider("react-component-library.workbench")
+		if ok {
+			searchTuning, hasSearchTuning = provider.ResolvedTuning(), true
+		}
+	} else {
+		loggers.standard.Printf("[search] load search configuration failed; semantic leg degraded: %v", searchFileErr)
+	}
+	semanticCtx, cancelSemantic := context.WithTimeout(context.Background(), 5*time.Second)
+	searchOperational := aisearch.LoadConfig("REACT_COMPONENT_LIBRARY")
+	var semantic searchInternal.Semantic
+	if hasSearchTuning {
+		semantic, searchFileErr = searchInternal.NewAISemantic(semanticCtx, db, searchOperational, searchTuning, "react_component_library_workbench")
+	} else if searchFileErr == nil {
+		searchFileErr = fmt.Errorf("search provider react-component-library.workbench is missing")
+	}
+	cancelSemantic()
+	if semantic == nil {
+		semantic = searchInternal.UnavailableSemantic(searchFileErr)
+	}
+	searchSvc.WithSemantic(semantic)
+	if searchFileErr != nil {
+		loggers.standard.Printf("[search] semantic configuration degraded; lexical search remains available: %v", searchFileErr)
+	}
 	// A seed change is a content change the index has no other way to observe:
 	// the loader writes directly, not through the API recorder.
-	if count, indexedAt, err := searchSvc.Reindex(context.Background(), seedChanged); err != nil {
-		slog.Error("startup search index failed", "error", err)
-	} else {
-		slog.Info("startup search index complete", "documents", count, "indexed_at", indexedAt)
-	}
+	// Projection repair is intentionally detached from API readiness. A schema
+	// or seed change can require a full lexical rebuild; the API must still start
+	// and report search as indexing while that bounded work completes.
+	go func() {
+		if count, indexedAt, err := searchSvc.Reindex(context.Background(), seedChanged); err != nil {
+			loggers.structured.Error("startup search index failed", "error", err)
+		} else {
+			loggers.structured.Info("startup search index complete", "documents", count, "indexed_at", indexedAt)
+		}
+	}()
+	registrationCtx, cancelRegistration := context.WithCancel(context.Background())
+	go searchregister.Register(registrationCtx, searchregister.Config{
+		ScenarioID:     "react-component-library",
+		SearchFilePath: searchConfigPath,
+		Logger:         loggers.standard,
+	})
 	// Review projects ~14k findings from the evidence corpus. Warming it once at
 	// boot keeps the first Review view fast and makes the projection cost part
 	// of startup rather than a surprise on the first request.
-	reviewSvc := reviewInternal.NewService(primaryDB, reviewInternal.NewEvidenceProjector(primaryDB))
+	// Keep the routed database through the request path so review operations
+	// honor the per-request test pool selected by api-core.
+	reviewSvc := reviewInternal.NewService(db, reviewInternal.NewEvidenceProjector(db))
 	if _, err := reviewSvc.List(context.Background(), reviewInternal.Filter{}, 1, 0); err != nil {
-		slog.Error("startup review projection failed", "error", err)
+		loggers.structured.Error("startup review projection failed", "error", err)
 	} else {
-		slog.Info("startup review projection complete")
+		loggers.structured.Info("startup review projection complete")
 	}
-	workspaceRecorder := &workspaceActivityRecorder{store: activityStore, search: searchSvc}
-	srv := server.New(
-		server.Deps{Clock: schedule.System(), Logger: log.Default()},
-		capabilitiesH.Module(),
-		activityH.ModuleFromService(activityStore),
-		workspacesH.ModuleWithRecorderAndAssistant(primaryDB, workspaceRecorder,
-			inferenceInternal.NewService(inferenceInternal.NewSQLiteRepository(primaryDB))),
-		reviewH.ModuleFromService(reviewSvc),
-		searchH.ModuleWithService(searchSvc),
-		libraryhealthH.ModuleFromProviders(healthProviders),
-		pageH.Module(filepath.Dir(scenariosRoot)),
-		adoptionsH.ModuleFromService(
-			adoptionsSvc,
-			log.Default(),
-			adoptionsH.WithResolver(
-				adoptionsH.BuildResolver(filepath.Dir(scenariosRoot)),
-				&adoptionsH.IndexedSlotReader{Components: componentsSvc},
-				adoptionsH.LibraryFromComponents(componentsSvc),
-			),
-			adoptionsH.WithSuggestions(componentsSvc, depsSvc, inventoryScanner, scenariosRoot),
-		),
-		componentsH.ModuleFromService(componentsSvc, componentsRepo, sourceRoot, log.Default(), componentsH.WithIndexObserver(depsObserver), componentsH.WithExperienceReader(experienceInternal.NewReader(filepath.Dir(scenariosRoot))), componentsH.WithVersionLedger(versionLedger), componentsH.WithPreviewService(previewSvc), componentsH.WithPresenceReconciler(presenceReconciler)),
-		componentTestsH.ModuleWithGeneratedFixture(primaryDB, componentsSvc, adoptionsSvc, sourceRoot, log.Default()),
-		catalogH.ModuleWithCapture(filepath.Dir(scenariosRoot), jobDB.Primary(), componentsSvc, componentTestsH.NewBASCaptureExecutor(), compileAsset),
-		depsH.ModuleFromService(depsSvc, log.Default()),
-		brandH.Module(brandInternal.NewClient()),
-		designsH.Module(primaryDB),
-		templatesH.Module(primaryDB),
-		healthH.Module(healthDB.Primary(), "react-component-library-api", "1.0.0"),
-		inventoryH.Module(log.Default(), scenariosRoot, inventoryH.AdoptionsServiceAdapter{Service: adoptionsSvc}, uimanifest.NewFSLoader(filepath.Dir(scenariosRoot))),
-		previewH.ModuleFromService(previewSvc, componentsSvc, log.Default(), filepath.Dir(scenariosRoot)),
-		sketchH.ModuleWithCapture(filepath.Dir(scenariosRoot), log.Default(), sketchH.NewInventoryScannerAdapter(filepath.Dir(scenariosRoot), log.Default(), inventoryH.AdoptionsServiceAdapter{Service: adoptionsSvc}), fileRoots, availabilityFactory, componentsSvc, previewH.NewConnectHandler(previewH.Deps{Service: previewSvc, RepoRoot: filepath.Dir(scenariosRoot)}), sketchH.CaptureConfig{InferenceFor: func(ctx context.Context) (inferenceInternal.Repository, error) {
+	workspaceRecorder := &workspaceActivityRecorder{store: activityStore, search: searchSvc, logger: loggers.structured}
+	experienceWorkspaceRepo := workspacesInternal.NewSQLiteRepository(db)
+	captureConfig := sketchH.CaptureConfig{
+		InferenceFor: func(ctx context.Context) (inferenceInternal.Repository, error) {
 			pool, err := db.PoolForContext(ctx)
 			if err != nil {
 				return nil, err
 			}
 			return inferenceInternal.NewSQLiteRepository(pool), nil
-		}, CritiquesFor: func(ctx context.Context) (critiqueInternal.Repository, error) {
+		},
+		CritiquesFor: func(ctx context.Context) (critiqueInternal.Repository, error) {
 			pool, err := db.PoolForContext(ctx)
 			if err != nil {
 				return nil, err
 			}
 			return critiqueInternal.NewSQLiteRepository(pool), nil
-		}, RepositoryFor: func(ctx context.Context) (captureInternal.Repository, error) {
-			pool, err := db.PoolForContext(ctx)
+		},
+		RepositoryFor: func(ctx context.Context) (captureInternal.Repository, error) {
+			return captureInternal.NewSQLiteRepository(db), nil
+		},
+		Dispatcher: captureInternal.BASDispatcher{BASBaseURL: componenttestsInternal.NewBASCaptureExecutor().BASBaseURL, RCLTargetBaseURL: selfBaseURL()},
+		AdoptExperience: func(ctx context.Context, scenario, page string, source []byte) (*workspacev1.Workspace, string, string, string, string, bool, error) {
+			workspace, receipt, alreadyAdopted, err := experienceImportInternal.AdoptPage(ctx, experienceWorkspaceRepo, scenario, page, source)
 			if err != nil {
-				return nil, err
+				return nil, "", "", "", "", false, err
 			}
-			return captureInternal.NewSQLiteRepository(pool), nil
-		}, Dispatcher: captureInternal.BASDispatcher{BASBaseURL: componenttestsInternal.NewBASCaptureExecutor().BASBaseURL, RCLTargetBaseURL: selfBaseURL()}}),
-		themesH.ModuleFromService(themesSvc, log.Default()),
-		versionsH.ModuleWithLedger(primaryDB, schedule.System(), versionsResolver, log.Default(), versionLedger, componentsSvc),
-		workflowsH.ModuleWithReadiness(primaryDB, schedule.System(), workflowsInternal.NewAgentManagerDispatcher(), workflowsInternal.NewPromotionReadinessReader(componentsSvc, adoptionsSvc), log.Default()),
+			return workspace, receipt.ID, receipt.SourceHash, receipt.TargetHash, receipt.ReceiptJSON, alreadyAdopted, nil
+		},
+	}
+	sketchModule, acceptancePorts := sketchH.ModuleWithCaptureAndAcceptance(
+		filepath.Dir(scenariosRoot), loggers.standard,
+		sketchH.NewInventoryScannerAdapter(filepath.Dir(scenariosRoot), loggers.standard, inventoryH.AdoptionsServiceAdapter{Service: adoptionsSvc}),
+		fileRoots, availabilityFactory, componentsSvc,
+		previewH.NewConnectHandler(previewH.Deps{Service: previewSvc, RepoRoot: filepath.Dir(scenariosRoot)}), captureConfig, searchSvc,
+	)
+	reviewModule := reviewH.ModuleFromServiceWithPorts(reviewSvc, reviewH.Ports{
+		AcceptanceEvaluator: acceptancePorts.Evaluator,
+		AcceptanceStoreFor: func(ctx context.Context) (reviewH.AcceptanceStore, error) {
+			return acceptancePorts.StoreFor(ctx)
+		},
+		CritiquesFor:    acceptancePorts.CritiquesFor,
+		CapturesFor:     acceptancePorts.CapturesFor,
+		Screenshots:     acceptancePorts.Screenshots,
+		AcceptanceWrite: acceptancePorts.RecordWrite,
+	})
+	srv := server.New(
+		server.Deps{Clock: schedule.System(), Logger: loggers.standard},
+		capabilitiesH.Module(),
+		activityH.ModuleFromService(activityStore),
+		workspacesH.ModuleWithCapture(db, workspaceRecorder,
+			inferenceInternal.NewService(inferenceInternal.NewSQLiteRepository(primaryDB)), componenttestsInternal.NewBASCaptureExecutor()),
+		reviewModule,
+		searchH.ModuleWithService(searchSvc),
+		libraryhealthH.ModuleFromProviders(healthProviders),
+		pageH.Module(filepath.Dir(scenariosRoot)),
+		adoptionsH.ModuleFromService(
+			adoptionsSvc,
+			loggers.standard,
+			adoptionsH.WithResolver(
+				adoptionsH.BuildResolver(adoptionsH.ResolverRoots{
+					SourceRoot:       os.Getenv("VROOLI_SOURCE_ROOT"),
+					Root:             os.Getenv("VROOLI_ROOT"),
+					FallbackRepoRoot: filepath.Dir(scenariosRoot),
+				}),
+				&adoptionsH.IndexedSlotReader{Components: componentsSvc},
+				adoptionsH.LibraryFromComponents(componentsSvc),
+			),
+			adoptionsH.WithSuggestions(componentsSvc, depsSvc, inventoryScanner, scenariosRoot),
+		),
+		componentsH.ModuleFromService(componentsSvc, componentsRepo, sourceRoot, loggers.standard, componentsH.WithIndexObserver(depsObserver), componentsH.WithExperienceReader(experienceInternal.NewReader(filepath.Dir(scenariosRoot))), componentsH.WithVersionLedger(versionLedger), componentsH.WithPreviewService(previewSvc), componentsH.WithPresenceReconciler(presenceReconciler)),
+		componentTestsH.ModuleWithGeneratedFixture(db, componentsSvc, adoptionsSvc, sourceRoot, loggers.standard),
+		catalogH.ModuleWithCaptureAndLogger(filepath.Dir(scenariosRoot), jobDB, componentsSvc, componentTestsH.NewBASCaptureExecutor(), loggers.structured),
+		depsH.ModuleFromService(depsSvc, loggers.standard),
+		brandH.Module(brandInternal.NewClient()),
+		healthH.Module(healthDB.Primary(), "react-component-library-api", "1.0.0", os.Getenv("VROOLI_BUILD_IDENTITY")),
+		inventoryH.Module(loggers.standard, scenariosRoot, inventoryH.AdoptionsServiceAdapter{Service: adoptionsSvc}, uimanifest.NewFSLoader(filepath.Dir(scenariosRoot))),
+		previewH.ModuleFromService(previewSvc, componentsSvc, loggers.standard, filepath.Dir(scenariosRoot)),
+		sketchModule,
+		themesH.ModuleFromService(themesSvc, loggers.standard),
+		versionsH.ModuleWithLedger(db, schedule.System(), versionsResolver, loggers.standard, versionLedger, componentsSvc),
+		workflowsH.ModuleWithReadiness(db, schedule.System(), workflowsInternal.NewAgentManagerDispatcher(), workflowsInternal.NewPromotionReadinessReader(componentsSvc, adoptionsSvc), loggers.standard),
 	)
 
 	rootMux := http.NewServeMux()
@@ -525,13 +621,15 @@ func main() {
 		// truncated into an opaque unexpected EOF.
 		WriteTimeout: 12 * time.Minute,
 		Cleanup: func(ctx context.Context) error {
+			cancelRegistration()
 			_ = healthDB.Close()
 			_ = jobDB.Close()
 			return db.Close()
 		},
 	}); err != nil {
-		log.Fatalf("Server error: %v", err)
+		return fmt.Errorf("server error: %w", err)
 	}
+	return nil
 }
 
 // selfBaseURL is this API's own address. The browser loads a design capture's

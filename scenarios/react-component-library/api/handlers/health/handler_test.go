@@ -53,6 +53,7 @@ func TestHealthHandler(t *testing.T) {
 		wantReadiness  bool
 		wantConnected  bool
 		wantErrSubstr  string
+		buildIdentity  string
 	}{
 		{
 			name:           "ok",
@@ -61,6 +62,7 @@ func TestHealthHandler(t *testing.T) {
 			wantStatus:     "healthy",
 			wantReadiness:  true,
 			wantConnected:  true,
+			buildIdentity:  "sha256:test-health-build",
 		},
 		{
 			name:           "db_unreachable",
@@ -77,9 +79,10 @@ func TestHealthHandler(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			pinger := &databasetest.FakePinger{PingErr: tc.pingErr}
 			h := health.NewHandler(health.Deps{
-				Pinger:  pinger,
-				Service: "react-vite-test",
-				Version: "1.0.0",
+				Pinger:        pinger,
+				Service:       "react-vite-test",
+				Version:       "1.0.0",
+				BuildIdentity: tc.buildIdentity,
 			})
 			mod := module.Module{
 				Name: "health",
@@ -100,6 +103,9 @@ func TestHealthHandler(t *testing.T) {
 			require.Equal(t, tc.wantStatus, got.Status, "response.status")
 			require.Equal(t, "react-vite-test", got.Service, "response.service")
 			require.Equal(t, "1.0.0", got.Version, "response.version")
+			if tc.buildIdentity != "" {
+				require.Contains(t, string(body), tc.buildIdentity, "response.build_identity")
+			}
 			require.Equal(t, tc.wantReadiness, got.Readiness, "response.readiness")
 
 			dep, ok := got.Dependencies["database"]
@@ -112,4 +118,17 @@ func TestHealthHandler(t *testing.T) {
 			require.Equal(t, int64(1), pinger.Calls.Load(), "Pinger.PingContext call count")
 		})
 	}
+}
+
+func TestHealthModulePropagatesInjectedBuildIdentity(t *testing.T) {
+	mod := health.Module(&databasetest.FakePinger{}, "react-vite-test", "1.0.0", "sha256:module-build")
+	srv := server.New(
+		server.Deps{Clock: schedule.System(), Logger: log.New(io.Discard, "", 0)},
+		mod,
+	)
+	live := httpx.NewLiveServer(t, srv)
+
+	resp, body := live.Do(t, http.MethodGet, "/health", nil)
+	apihttptest.AssertStatus(t, resp, http.StatusOK)
+	require.Contains(t, string(body), `"build_identity":"sha256:module-build"`)
 }

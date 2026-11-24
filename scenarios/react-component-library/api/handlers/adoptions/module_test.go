@@ -3,7 +3,9 @@ package adoptions_test
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"io"
 	"log"
 	"net/http"
@@ -12,11 +14,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 
+	intakeconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/adoptionintake/adoptionintake_v1connect"
 	adoptionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/adoptions/adoptions_v1connect"
 
 	"react-component-library/handlers/adoptions"
@@ -25,6 +29,7 @@ import (
 	localdb "react-component-library/internal/database"
 
 	db "github.com/vrooli/api-core/databasetest"
+	"github.com/vrooli/api-core/storage"
 
 	"github.com/vrooli/api-core/schedule"
 )
@@ -88,6 +93,7 @@ func setupModule(t *testing.T) (*mux.Router, string, *stubLibrary) {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(internaladoptions.Schema),
 	))
+	require.NoError(t, internaladoptions.EnsureMigrations(context.Background(), d))
 	root := t.TempDir()
 	lib := &stubLibrary{
 		component: components.Component{ID: "cmp-btn", LibraryID: "rcl:Button", Version: "1.0.0", LatestVersion: "1.0.0"},
@@ -120,6 +126,43 @@ func TestModule_Shape(t *testing.T) {
 	}
 }
 
+func TestListAdoptionsUsesRequestRoutedDBPool(t *testing.T) {
+	ctx := context.Background()
+	primaryDSN, err := storage.SQLiteDSNAt(filepath.Join(t.TempDir(), "routed-primary.db"), storage.SQLiteTuning{})
+	require.NoError(t, err)
+	routed, err := apidb.Open(ctx, apidb.Config{Driver: apidb.DriverSQLite, DSN: primaryDSN, MaxOpenConns: 1, MaxIdleConns: 1})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = routed.Close() })
+	ensureSchema := func(ctx context.Context, pool *sql.DB) error {
+		return apidb.EnsureSchemas(ctx, pool, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(internaladoptions.Schema))
+	}
+	require.NoError(t, ensureSchema(ctx, routed.Primary()))
+	routed.SetTestPoolInitializer(ensureSchema)
+	testDSN, err := storage.SQLiteDSNAt(filepath.Join(t.TempDir(), "test.db"), storage.SQLiteTuning{})
+	require.NoError(t, err)
+	require.NoError(t, routed.InstallTestPool(ctx, testDSN, "adoptions-routing", time.Minute))
+	_, err = internaladoptions.NewSQLiteRepository(routed.Primary(), schedule.System()).Create(ctx, internaladoptions.CreateInput{
+		ID: "primary-only", ComponentID: "cmp-btn", LibraryID: "rcl:Button", Scenario: "demo", AdoptedPath: "components/Button/Button.tsx", AdoptedVersion: "1.0.0",
+	})
+	require.NoError(t, err)
+
+	router := mux.NewRouter()
+	adoptions.ModuleWithRoot(routed, schedule.System(), &stubLibrary{component: components.Component{ID: "cmp-btn", LibraryID: "rcl:Button"}}, t.TempDir(), log.New(io.Discard, "", 0)).Mount(router)
+	list := func(requestContext context.Context) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, adoptionsconnect.AdoptionsServiceListAdoptionsProcedure, strings.NewReader(`{}`)).WithContext(requestContext)
+		req.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, req)
+		return response
+	}
+	primaryResponse := list(ctx)
+	require.Equal(t, http.StatusOK, primaryResponse.Code, primaryResponse.Body.String())
+	require.Contains(t, primaryResponse.Body.String(), "primary-only")
+	testResponse := list(apidb.WithTestMode(ctx))
+	require.Equal(t, http.StatusOK, testResponse.Code, testResponse.Body.String())
+	require.NotContains(t, testResponse.Body.String(), "primary-only", "test-mode request must read the isolated routed pool")
+}
+
 func TestModule_CreateListRefreshDelete(t *testing.T) {
 	r, root, _ := setupModule(t)
 
@@ -149,6 +192,50 @@ func TestModule_CreateRejectsMissingComponent(t *testing.T) {
 	rw := callConnect(r, adoptionsconnect.AdoptionsServiceApplyAdoptionProcedure,
 		`{"component_id":"nope","scenario":"x","adopted_path":"p.tsx"}`)
 	require.Equal(t, http.StatusBadRequest, rw.Code, rw.Body.String())
+}
+
+func TestModule_DeleteRequiresConfirmationBeforeRemovingLastOwnedFile(t *testing.T) {
+	r, root, _ := setupModule(t)
+	scenarioDir := filepath.Join(root, "swarm-manager")
+	require.NoError(t, os.MkdirAll(scenarioDir, 0o755))
+	filePath := filepath.Join(scenarioDir, "Button.tsx")
+	require.NoError(t, os.WriteFile(filePath, []byte("X"), 0o600))
+
+	created := callConnect(r, adoptionsconnect.AdoptionsServiceApplyAdoptionProcedure,
+		`{"component_id":"cmp-btn","scenario":"swarm-manager","adopted_path":"Button.tsx","version":"1.0.0","replace_existing":true,"confirm_overwrite":true}`)
+	require.Equal(t, http.StatusOK, created.Code, created.Body.String())
+	var applyResponse struct {
+		Adoption struct {
+			ID string `json:"id"`
+		} `json:"adoption"`
+	}
+	require.NoError(t, json.Unmarshal(created.Body.Bytes(), &applyResponse))
+	require.NotEmpty(t, applyResponse.Adoption.ID)
+
+	deletePath := adoptionsconnect.AdoptionsServiceDeleteAdoptionProcedure
+	preview := callConnect(r, deletePath, `{"id":"`+applyResponse.Adoption.ID+`"}`)
+	require.Equal(t, http.StatusBadRequest, preview.Code, preview.Body.String())
+	require.Contains(t, preview.Body.String(), "Button.tsx")
+	require.FileExists(t, filePath, "unconfirmed deletion must leave the scenario file intact")
+
+	deleted := callConnect(r, deletePath, `{"id":"`+applyResponse.Adoption.ID+`","confirm_remove_files":true}`)
+	require.Equal(t, http.StatusOK, deleted.Code, deleted.Body.String())
+	require.Contains(t, deleted.Body.String(), `"removedFiles":["Button.tsx"]`)
+	require.NoFileExists(t, filePath)
+
+	listed := callConnect(r, adoptionsconnect.AdoptionsServiceListAdoptionsProcedure, `{"limit":10}`)
+	require.Equal(t, http.StatusOK, listed.Code, listed.Body.String())
+	require.NotContains(t, listed.Body.String(), applyResponse.Adoption.ID)
+}
+
+func TestModule_AdoptionIntakePathsHaveSingleOwner(t *testing.T) {
+	r, _, _ := setupModule(t)
+
+	intake := callConnect(r, intakeconnect.AdoptionIntakeServiceSuggestAdoptionsProcedure, `{}`)
+	require.Equal(t, http.StatusNotImplemented, intake.Code, intake.Body.String())
+
+	legacy := callConnect(r, "/vrooli.react_component_library.v1.adoptions.AdoptionsService/SuggestAdoptions", `{}`)
+	require.Equal(t, http.StatusNotFound, legacy.Code, legacy.Body.String())
 }
 
 func callConnect(r *mux.Router, path, body string) *httptest.ResponseRecorder {

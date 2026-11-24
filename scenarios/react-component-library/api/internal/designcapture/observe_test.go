@@ -1,10 +1,11 @@
 package designcapture
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"io"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"testing"
 
@@ -97,13 +98,15 @@ func TestAttachPersistsReceiptAndNeverRedispatches(t *testing.T) {
 func TestBASObserverReadsExistingProducerOnly(t *testing.T) {
 	raw, err := os.ReadFile("testdata/bas-target-timeline.json")
 	require.NoError(t, err)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		require.Equal(t, "/browser_automation_studio.v1.ExecutionsService/GetExecutionTimeline", r.URL.Path)
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write(raw)
-	}))
-	defer server.Close()
-	result, err := (BASDispatcher{BASBaseURL: server.URL}).Observe(context.Background(), Operation{State: Running, ProducerID: "bas-fixture", Version: 1, Request: captureRequest()})
+	doer := doerFunc(func(req *http.Request) (*http.Response, error) {
+		require.Equal(t, "/browser_automation_studio.v1.ExecutionsService/GetExecutionTimeline", req.URL.Path)
+		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": []string{"application/json"}}, Body: io.NopCloser(bytes.NewReader(raw))}, nil
+	})
+	result, err := (BASDispatcher{BASBaseURL: "http://bas.test", Client: doer}).Observe(context.Background(), Operation{State: Running, ProducerID: "bas-fixture", Version: 1, Request: captureRequest()})
 	require.NoError(t, err)
 	require.Equal(t, Completed, result.State)
 }
+
+type doerFunc func(*http.Request) (*http.Response, error)
+
+func (f doerFunc) Do(req *http.Request) (*http.Response, error) { return f(req) }

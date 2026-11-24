@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"time"
 
 	apiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	executionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
@@ -62,7 +63,7 @@ func (d BASDispatcher) ResolveScreenshot(ctx context.Context, op Operation, arti
 	req.Header.Set("Content-Type", "application/json")
 	client := d.Client
 	if client == nil {
-		client = http.DefaultClient
+		client = &http.Client{Timeout: 30 * time.Second}
 	}
 	response, err := client.Do(req)
 	if err != nil {

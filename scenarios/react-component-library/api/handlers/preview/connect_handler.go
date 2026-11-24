@@ -15,6 +15,7 @@ import (
 	"react-component-library/internal/preview"
 
 	previewv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/preview"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/shared"
 )
 
 // Deps wires the seams the Connect preview handler needs.
@@ -72,7 +73,7 @@ func toConnectError(err error) error {
 	return components.ToConnectError(err)
 }
 
-func (h *connectHandler) GetCompositionBundle(ctx context.Context, req *connect.Request[previewv1.GetCompositionBundleRequest]) (*connect.Response[previewv1.GetCompositionBundleResponse], error) {
+func (h *connectHandler) GetCompositionBundle(ctx context.Context, req *connect.Request[previewv1.GetCompositionBundleRequest]) (*connect.Response[sharedv1.GetCompositionBundleResponse], error) {
 	service, ok := h.deps.Service.(preview.CompositionService)
 	if !ok {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("composition bundling is unavailable"))
@@ -82,9 +83,9 @@ func (h *connectHandler) GetCompositionBundle(ctx context.Context, req *connect.
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	out := &previewv1.GetCompositionBundleResponse{Revision: bundle.Revision, Source: bundle.Source, Js: bundle.JS, Sha256: bundle.SHA256, Warnings: bundle.Warnings}
+	out := &sharedv1.GetCompositionBundleResponse{Revision: bundle.Revision, Source: bundle.Source, Js: bundle.JS, Sha256: bundle.SHA256, Warnings: bundle.Warnings}
 	for _, gap := range bundle.Gaps {
-		out.Gaps = append(out.Gaps, &previewv1.CompositionGap{Region: gap.Region, Code: gap.Code, Message: gap.Message, Required: gap.Required})
+		out.Gaps = append(out.Gaps, &sharedv1.CompositionGap{Region: gap.Region, Code: gap.Code, Message: gap.Message, Required: gap.Required})
 	}
 	return connect.NewResponse(out), nil
 }
@@ -106,7 +107,7 @@ func compositionInput(message *previewv1.GetCompositionBundleRequest) preview.Co
 	return input
 }
 
-func (h *connectHandler) RenderComposition(ctx context.Context, req *connect.Request[previewv1.RenderCompositionRequest]) (*connect.Response[previewv1.RenderCompositionResponse], error) {
+func (h *connectHandler) RenderComposition(ctx context.Context, req *connect.Request[previewv1.RenderCompositionRequest]) (*connect.Response[sharedv1.RenderCompositionResponse], error) {
 	input := compositionInput(req.Msg.GetComposition())
 	var fixtures []preview.CompositionFixture
 	for _, f := range req.Msg.GetFixtures() {
@@ -120,7 +121,7 @@ func (h *connectHandler) RenderComposition(ctx context.Context, req *connect.Req
 }
 
 // RenderPrepared lets the authored sketch adapter reuse this exact harness.
-func (h *connectHandler) RenderPrepared(ctx context.Context, prepared preview.PreparedComposition, options *previewv1.RenderCompositionRequest) (*connect.Response[previewv1.RenderCompositionResponse], error) {
+func (h *connectHandler) RenderPrepared(ctx context.Context, prepared preview.PreparedComposition, options *previewv1.RenderCompositionRequest) (*connect.Response[sharedv1.RenderCompositionResponse], error) {
 	service, ok := h.deps.Service.(preview.CompositionService)
 	if !ok {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("composition rendering unavailable"))
@@ -210,13 +211,13 @@ func (h *connectHandler) RenderPrepared(ctx context.Context, prepared preview.Pr
 	bundle.SHA256 = renderHash
 	document := documentFor("composition-" + renderHash)
 	htmlDigest := sha256.Sum256([]byte(document))
-	out := &previewv1.RenderCompositionResponse{
+	out := &sharedv1.RenderCompositionResponse{
 		Html: document, RenderHash: renderHash,
-		Target: &previewv1.CompositionRenderTarget{InputHashes: inputHashes, Revision: input.Revision, RenderHash: renderHash, HtmlSha256: hex.EncodeToString(htmlDigest[:]), InputsSha256: hex.EncodeToString(inputDigest[:]), Kind: "preview", Kit: kit, Theme: theme, Direction: direction},
-		Bundle: &previewv1.GetCompositionBundleResponse{Revision: bundle.Revision, Source: bundle.Source, Js: bundle.JS, Sha256: renderHash, Warnings: bundle.Warnings},
+		Target: &sharedv1.CompositionRenderTarget{InputHashes: inputHashes, Revision: input.Revision, RenderHash: renderHash, HtmlSha256: hex.EncodeToString(htmlDigest[:]), InputsSha256: hex.EncodeToString(inputDigest[:]), Kind: "preview", Kit: kit, Theme: theme, Direction: direction},
+		Bundle: &sharedv1.GetCompositionBundleResponse{Revision: bundle.Revision, Source: bundle.Source, Js: bundle.JS, Sha256: renderHash, Warnings: bundle.Warnings},
 	}
 	for _, gap := range bundle.Gaps {
-		out.Bundle.Gaps = append(out.Bundle.Gaps, &previewv1.CompositionGap{Region: gap.Region, Code: gap.Code, Message: gap.Message, Required: gap.Required})
+		out.Bundle.Gaps = append(out.Bundle.Gaps, &sharedv1.CompositionGap{Region: gap.Region, Code: gap.Code, Message: gap.Message, Required: gap.Required})
 	}
 	return connect.NewResponse(out), nil
 }

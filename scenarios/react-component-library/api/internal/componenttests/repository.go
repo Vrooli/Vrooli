@@ -21,9 +21,20 @@ type Repository interface {
 	List(context.Context, string, string, int) ([]Report, error)
 }
 
-type SQLiteRepository struct{ db *sql.DB }
+type SQLiteRepository struct {
+	db interface {
+		BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+		QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	}
+}
 
-func NewSQLiteRepository(db *sql.DB) *SQLiteRepository { return &SQLiteRepository{db: db} }
+func NewSQLiteRepository(db interface {
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+},
+) *SQLiteRepository {
+	return &SQLiteRepository{db: db}
+}
 
 // EnforcePayloadCeiling applies the same byte retention policy used after a
 // report write. Startup calls this once so an existing database also converges

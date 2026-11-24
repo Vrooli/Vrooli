@@ -22,7 +22,7 @@
     }
   ],
   "displayName": "BottomNavigation",
-  "draft": "",
+  "draft": "1.5.9-draft.1",
   "evictedVersions": [
     "1.3.6",
     "1.2.0",
@@ -33,7 +33,7 @@
     "1.5.1",
     "1.5.2"
   ],
-  "latest": "1.5.7",
+  "latest": "1.5.8",
   "libraryId": "react-component-library:BottomNav",
   "tags": []
 }

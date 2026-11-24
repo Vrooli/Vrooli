@@ -244,6 +244,28 @@
   text-transform: uppercase;
 }
 
+.hi-region-search {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid var(--wb-line);
+  border-radius: var(--wb-r-xs);
+  background: var(--wb-bg-2);
+  color: var(--wb-ink);
+  font: 11px/1.4 var(--wb-sans);
+}
+
+.hi-region-search:focus-visible {
+  outline: 2px solid var(--wb-signal);
+  outline-offset: 1px;
+}
+
+.hi-region-results {
+  margin: 0;
+  color: var(--wb-muted);
+  font: 10px/1.4 var(--wb-mono);
+}
+
 .hi-region-list {
   display: grid;
   overflow: auto;
@@ -307,6 +329,14 @@
 .hi-region-count {
   color: var(--wb-muted-2);
   font: 9px/1.4 var(--wb-mono);
+}
+
+.hi-region-empty {
+  margin: 0;
+  padding: 12px;
+  color: var(--wb-muted);
+  font-size: 11px;
+  line-height: 1.5;
 }
 
 .hi-name-field {

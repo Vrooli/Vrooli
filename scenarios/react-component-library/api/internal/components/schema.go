@@ -11,6 +11,14 @@ import (
 //go:embed schema.sql
 var schemaSQL string
 
+// migrationDB is the narrow SQL surface needed by the components startup
+// migration. Keeping the dependency structural lets startup use the primary
+// database handle without binding this domain to a concrete pool type.
+type migrationDB interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
 // Schema returns the components domain's SQL contribution. Applied by
 // database.EnsureSchemas via the modules.AllSchemas() registry.
 // Forward-only declarative — re-runs are no-ops (CREATE TABLE IF NOT
@@ -21,7 +29,7 @@ func Schema() string { return schemaSQL }
 // EnsureMigrations applies the additive brownfield part of the presence
 // change before indexes or readers refer to the new column. SQLite cannot
 // express ADD COLUMN IF NOT EXISTS, so the catalog is inspected explicitly.
-func EnsureMigrations(ctx context.Context, db *sql.DB) error {
+func EnsureMigrations(ctx context.Context, db migrationDB) error {
 	var count int
 	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM pragma_table_info('component_versions') WHERE name='presence'`).Scan(&count); err != nil {
 		return fmt.Errorf("inspect component_versions presence: %w", err)
@@ -40,7 +48,7 @@ func EnsureMigrations(ctx context.Context, db *sql.DB) error {
 	return nil
 }
 
-func ensureColumn(ctx context.Context, db *sql.DB, table, column, definition string) error {
+func ensureColumn(ctx context.Context, db migrationDB, table, column, definition string) error {
 	var count int
 	query := fmt.Sprintf("SELECT COUNT(*) FROM pragma_table_info('%s') WHERE name=?", table)
 	if err := db.QueryRowContext(ctx, query, column).Scan(&count); err != nil {

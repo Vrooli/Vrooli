@@ -724,7 +724,9 @@ func (s *service) InitializeComponent(ctx context.Context, in InitializeComponen
 	// The asset directory did not exist before this call (the store refuses an
 	// existing manifest), so a failed index removes exactly what was written.
 	abandon := func(cause error) (InitializeComponentResult, error) {
-		_ = os.RemoveAll(filepath.Join(s.source.Root(), filepath.Dir(manifestPath)))
+		if cleanupErr := removeAllInRoot(s.source.Root(), filepath.Join(s.source.Root(), filepath.Dir(manifestPath))); cleanupErr != nil {
+			return InitializeComponentResult{}, fmt.Errorf("%w (remove failed initialization files: %v)", cause, cleanupErr)
+		}
 		return InitializeComponentResult{}, cause
 	}
 	indexed, err := NewIndexer(s.repo, s.source.Root(), nil).Run(ctx)
@@ -914,13 +916,19 @@ func (s *service) CheckComponentVersion(ctx context.Context, componentID, versio
 func validateDraftUsageContract(root string, component Component, version string) error {
 	base := filepath.Join(root, componentAssetRoot(component), component.Slug, "versions")
 	latestPath := filepath.Join(base, component.LatestVersion, "usage-contract.json")
+	latestHasContract := true
 	if _, err := os.Stat(latestPath); os.IsNotExist(err) {
-		return nil
+		latestHasContract = false
 	} else if err != nil {
 		return fmt.Errorf("cannot inspect latest usage contract: %w", err)
 	}
 	draftPath := filepath.Join(base, version, "usage-contract.json")
 	body, err := os.ReadFile(draftPath)
+	if os.IsNotExist(err) && !latestHasContract {
+		// Preserve legacy assets that have not adopted a contract yet. If a
+		// draft introduces one, however, validate its identity before publish.
+		return nil
+	}
 	if err != nil {
 		return fmt.Errorf("usage-contract.json is missing or unreadable: %w", err)
 	}

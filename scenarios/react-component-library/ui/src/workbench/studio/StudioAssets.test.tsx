@@ -1,29 +1,24 @@
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { DesignAsset } from "../designs";
 import { renderWithProviders } from "../../test-utils";
 import { StudioAssets } from "./StudioAssets";
+import type { ReferenceUpload } from "./assets";
 
 const drawImage = vi.fn();
 let restoreToBlob: () => void = () => undefined;
 
-function makeAsset(overrides: Partial<DesignAsset> & { id: string }): DesignAsset {
+function makeAsset(overrides: Partial<ReferenceUpload> & { id: string }): ReferenceUpload {
   return {
-    designId: "design-1",
     name: "hero.png",
-    mime: "image/png",
     bytes: 4096,
-    width: 800,
-    height: 600,
     fidelity: "reference",
-    addedAt: "2026-11-19T12:00:00.000Z",
-    url: "/api/designs/design-1/assets/asset-1",
+    url: "/api/workspaces/ws-1/assets/asset-1",
     ...overrides,
   };
 }
 
-function renderAssets(assets: DesignAsset[], onImport = vi.fn()) {
+function renderAssets(assets: ReferenceUpload[], onImport = vi.fn()) {
   renderWithProviders(
     <StudioAssets
       assets={assets}

@@ -24,6 +24,8 @@ export interface DeviceFrameProps {
   guides?: boolean;
   /** Show the device status bar inside the frame. Defaults to true off desktop. */
   statusBar?: boolean;
+  /** Show the hardware island. Defaults to true on phones. */
+  island?: boolean;
   onSelect?: () => void;
   children: ReactNode;
 }
@@ -51,6 +53,7 @@ export function DeviceFrame({
   selected = false,
   guides = false,
   statusBar = DEFAULT_STATUS_BAR[device],
+  island = device === "phone",
   onSelect,
   children,
 }: DeviceFrameProps) {
@@ -88,7 +91,12 @@ export function DeviceFrame({
       ) : null}
 
       <div className="df-bezel" style={{ width: displayWidth, height: displayHeight }}>
-        <div className="df-viewport" aria-label={label} role="group" style={{ width: displayWidth, height: displayHeight }}>
+        <div
+          className="df-viewport"
+          aria-label={label}
+          role="group"
+          style={{ width: displayWidth, height: displayHeight }}
+        >
           <div className="df-content" style={contentStyle}>
             {statusBar ? (
               <div className="df-status" aria-hidden="true">
@@ -103,7 +111,7 @@ export function DeviceFrame({
             {children}
           </div>
 
-          {device === "phone" ? <span className="df-island" aria-hidden="true" /> : null}
+          {device === "phone" && island ? <span className="df-island" aria-hidden="true" /> : null}
           {device === "tablet" ? <span className="df-camera" aria-hidden="true" /> : null}
           {device !== "desktop" ? <span className="df-home" aria-hidden="true" /> : null}
 

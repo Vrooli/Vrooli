@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/vrooli/api-core/storage"
 	"react-component-library/internal/gates"
 )
 
@@ -46,9 +47,38 @@ func main() {
 		}
 		return
 	}
-	if err := os.WriteFile(*output, generated, 0o644); err != nil {
+	if err := writeGeneratedFile(*output, generated); err != nil {
 		fatal(err)
 	}
+}
+
+func writeGeneratedFile(output string, generated []byte) error {
+	absolute, err := filepath.Abs(output)
+	if err != nil {
+		return fmt.Errorf("resolve output path: %w", err)
+	}
+	directory, name := filepath.Dir(absolute), filepath.Base(absolute)
+	if !filepath.IsLocal(name) || name == "." {
+		return fmt.Errorf("invalid generated output path: %s", output)
+	}
+	mode := os.FileMode(0o644)
+	if info, err := os.Lstat(absolute); err == nil {
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("generated output is not a regular file: %s", absolute)
+		}
+		mode = info.Mode().Perm()
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("inspect generated output: %w", err)
+	}
+	root, err := os.OpenRoot(directory)
+	if err != nil {
+		return fmt.Errorf("open generated output directory: %w", err)
+	}
+	defer root.Close()
+	if err := storage.WriteFileAtomicInRoot(root, name, generated, mode); err != nil {
+		return fmt.Errorf("publish generated output: %w", err)
+	}
+	return nil
 }
 
 func fatal(err error) { fmt.Fprintln(os.Stderr, err); os.Exit(1) }

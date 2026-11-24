@@ -5,23 +5,26 @@ import (
 	"encoding/json"
 	"testing"
 
+	sketchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/sketch"
+
+	"react-component-library/internal/designinference"
+
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 	dbtest "github.com/vrooli/api-core/databasetest"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
-	sketchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/sketch"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/shared"
 	"google.golang.org/protobuf/proto"
-	"react-component-library/internal/designinference"
 )
 
 func TestInferredAlternativesPreserveExactCatalogIdentityAndGroundQuotes(t *testing.T) {
-	base := &sketchv1.ProposeSketchResponse{ContentHash: "page-hash", DesignSource: &sketchv1.DesignSourceSnapshot{Path: "DESIGN.md", ContentHash: "source-hash", Content: "Use dense rows. Preserve navigation."}, Candidates: []*sketchv1.DesignProposal{
-		{Title: "Collection", Sketch: &sketchv1.Sketch{Template: &sketchv1.AssetReference{Asset: "templates.collection-page", Version: "1.3.0"}, Notes: []*sketchv1.SketchNote{{Scope: "page", Text: "Authored note"}}}},
-		{Title: "Other", Sketch: &sketchv1.Sketch{Template: &sketchv1.AssetReference{Asset: "templates.other", Version: "2.0.0"}}},
+	base := &sharedv1.ProposeSketchResponse{ContentHash: "page-hash", DesignSource: &sharedv1.DesignSourceSnapshot{Path: "DESIGN.md", ContentHash: "source-hash", Content: "Use dense rows. Preserve navigation."}, Candidates: []*sharedv1.DesignProposal{
+		{Title: "Collection", Sketch: &sharedv1.Sketch{Template: &sharedv1.AssetReference{Asset: "templates.collection-page", Version: "1.3.0"}, Notes: []*sharedv1.SketchNote{{Scope: "page", Text: "Authored note"}}}},
+		{Title: "Other", Sketch: &sharedv1.Sketch{Template: &sharedv1.AssetReference{Asset: "templates.other", Version: "2.0.0"}}},
 	}}
 	before := proto.Clone(base)
-	request, err := inferenceRequest(&sketchv1.SketchTarget{Scenario: "demo", Page: "home"}, base)
+	request, err := inferenceRequest(&sharedv1.SketchTarget{Scenario: "demo", Page: "home"}, base)
 	require.NoError(t, err)
 	require.True(t, json.Valid([]byte(request.Schema)))
 	require.Equal(t, &designinference.Scope{Scenario: "demo", Page: "home"}, request.Scope)
@@ -55,7 +58,7 @@ func TestInferenceDispatchRefusesTestModeBeforeAnyGatewayOrRepositoryAccess(t *t
 
 func TestSourceSectionsKeepExactSpansAndIgnoreFencedHeadings(t *testing.T) {
 	content := "Preface\n## Layout\nUse dense rows.\n" + string([]byte{96, 96, 96}) + "\n## Example heading\n" + string([]byte{96, 96, 96}) + "\n## Layout\nPreserve context."
-	sections := sourceSections(&sketchv1.ProposeSketchResponse{DesignSource: &sketchv1.DesignSourceSnapshot{Content: content}})
+	sections := sourceSections(&sharedv1.ProposeSketchResponse{DesignSource: &sharedv1.DesignSourceSnapshot{Content: content}})
 	require.Len(t, sections, 3)
 	require.Equal(t, "L1 Document", sections[0].ID)
 	require.Equal(t, "L2 Layout", sections[1].ID)

@@ -3,7 +3,6 @@ package adoptions
 import (
 	"context"
 	"errors"
-	"os"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -193,17 +192,24 @@ func toProtoSource(s adoptions.ResolveSource) adoptionsv1.ResolveSource {
 	return adoptionsv1.ResolveSource_RESOLVE_SOURCE_UNSPECIFIED
 }
 
-// BuildResolver constructs a Resolver from a repo root. Prefers the
-// `VROOLI_SOURCE_ROOT` env var (set by the scenario lifecycle) when the
-// provided fallback is empty or unreadable — `runtime.Caller`-derived paths
-// can be unreliable in trimpath builds, but `VROOLI_SOURCE_ROOT` is always
-// set to the actual checkout root.
-func BuildResolver(fallbackRepoRoot string) *adoptions.Resolver {
-	repoRoot := fallbackRepoRoot
-	if env := os.Getenv("VROOLI_SOURCE_ROOT"); env != "" {
-		repoRoot = env
-	} else if env := os.Getenv("VROOLI_ROOT"); env != "" {
-		repoRoot = env
+// ResolverRoots supplies repository root candidates explicitly. SourceRoot
+// takes precedence over Root, which takes precedence over FallbackRepoRoot.
+// Keeping environment access at the composition boundary makes the resolver
+// deterministic in tests and callers that run multiple repositories.
+type ResolverRoots struct {
+	SourceRoot       string
+	Root             string
+	FallbackRepoRoot string
+}
+
+// BuildResolver constructs a Resolver from explicitly supplied root candidates.
+func BuildResolver(roots ResolverRoots) *adoptions.Resolver {
+	repoRoot := roots.FallbackRepoRoot
+	if roots.Root != "" {
+		repoRoot = roots.Root
+	}
+	if roots.SourceRoot != "" {
+		repoRoot = roots.SourceRoot
 	}
 	return adoptions.NewResolver(uimanifest.NewFSLoader(repoRoot), repoRoot)
 }

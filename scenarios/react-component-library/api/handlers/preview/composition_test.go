@@ -6,12 +6,14 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"react-component-library/internal/deps"
+	domain "react-component-library/internal/preview"
+
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	previewv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/preview"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/shared"
 	"google.golang.org/protobuf/types/known/structpb"
-	"react-component-library/internal/deps"
-	domain "react-component-library/internal/preview"
 )
 
 type compositionRenderService struct{ domain.Service }
@@ -25,7 +27,7 @@ func TestCompositionRenderIdentityTracksFixturesAndAppearance(t *testing.T) {
 	bindings, err := structpb.NewStruct(map[string]any{"$template": map[string]any{}, "$labels": map[string]any{"missing": "Missing", "failed": "Failed"}})
 	require.NoError(t, err)
 	request := &previewv1.RenderCompositionRequest{Composition: &previewv1.GetCompositionBundleRequest{Revision: "revision-a", Template: &previewv1.CompositionAsset{CatalogId: "templates.collection-page", Version: "1.0.7", Export: "CollectionPage"}}, Bindings: bindings, Kit: "none", Theme: "light", Direction: "ltr"}
-	render := func() *previewv1.RenderCompositionResponse {
+	render := func() *sharedv1.RenderCompositionResponse {
 		t.Helper()
 		r, e := h.RenderComposition(context.Background(), connect.NewRequest(request))
 		require.NoError(t, e)

@@ -34,7 +34,8 @@ func Collect[T any](ctx context.Context, db Querier, query string, args []any, c
 		}
 		return nil, withContext(context.Query, err)
 	}
-	return CollectRows(rows, checkClose, scan, contexts...)
+	defer rows.Close()
+	return collectRows(rows, checkClose, scan, contexts...)
 }
 
 // CollectRows applies the same lifecycle to a cursor that a caller already
@@ -42,6 +43,10 @@ func Collect[T any](ctx context.Context, db Querier, query string, args []any, c
 // names before scanning values.
 func CollectRows[T any](rows *sql.Rows, checkClose bool, scan func(Scanner) (T, error), contexts ...ErrorContext) ([]T, error) {
 	defer rows.Close()
+	return collectRows(rows, checkClose, scan, contexts...)
+}
+
+func collectRows[T any](rows *sql.Rows, checkClose bool, scan func(Scanner) (T, error), contexts ...ErrorContext) ([]T, error) {
 	var context ErrorContext
 	if len(contexts) > 0 {
 		context = contexts[0]

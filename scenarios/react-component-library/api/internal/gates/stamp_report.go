@@ -2,6 +2,7 @@ package gates
 
 import (
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -65,6 +66,20 @@ func (r StampReport) Measurable(assetID string) bool {
 	return r.State(assetID) != StampExemptPermanent
 }
 
+func readFileInRoot(rootPath, relativePath string) ([]byte, error) {
+	root, err := os.OpenRoot(rootPath)
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	file, err := root.Open(relativePath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	return io.ReadAll(file)
+}
+
 func LoadStampReport(root string) (StampReport, error) {
 	report := StampReport{States: map[string]StampState{}, Reasons: map[string]string{}}
 	resolver, err := corestorage.NewResolver(corestorage.ResolverConfig{AppID: "vrooli", Profile: corestorage.ProfileAuto})
@@ -77,25 +92,33 @@ func LoadStampReport(root string) (StampReport, error) {
 	if err != nil {
 		return report, err
 	}
-	raw, err := os.ReadFile(path)
+	raw, err := readFileInRoot(filepath.Dir(path), filepath.Base(path))
 	if err != nil {
 		if os.IsNotExist(err) {
 			// The UI build emits the report into its build output without
 			// learning the state-class location. The owning API promotes that
 			// payload into governed state on first use.
-			buildReport := filepath.Join(root, "ui", "dist", "asset-stamp-report.json")
-			raw, err = os.ReadFile(buildReport)
+			raw, err = readFileInRoot(root, filepath.Join("ui", "dist", "asset-stamp-report.json"))
 			if os.IsNotExist(err) {
 				return report, nil
 			}
 			if err != nil {
 				return report, err
 			}
-			if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+			if err := corestorage.EnsureDirectory(filepath.Dir(path), 0o750); err != nil {
 				return report, err
 			}
-			if err := os.WriteFile(path, raw, 0o600); err != nil {
+			stateRoot, err := os.OpenRoot(filepath.Dir(path))
+			if err != nil {
 				return report, err
+			}
+			writeErr := corestorage.WriteFileAtomicInRoot(stateRoot, filepath.Base(path), raw, 0o600)
+			closeErr := stateRoot.Close()
+			if writeErr != nil {
+				return report, writeErr
+			}
+			if closeErr != nil {
+				return report, closeErr
 			}
 		} else {
 			return report, err

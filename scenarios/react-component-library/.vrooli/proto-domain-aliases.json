@@ -1,5 +1,12 @@
 {
   "proto_to_handler": {
-    "workspace": "workspaces"
+    "adoptionintake": "adoptions",
+    "componentauthoring": "components",
+    "experience": "sketch",
+    "workspace": "workspaces",
+    "workspaceassist": "sketch",
+    "workspacecandidate": "sketch",
+    "workspacecapture": "sketch",
+    "workspacevisualcomparison": "workspaces"
   }
 }

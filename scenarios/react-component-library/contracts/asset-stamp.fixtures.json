@@ -3,14 +3,37 @@
   "version": 1,
   "cases": [
     {
+      "name": "preserves marker-like text in a string literal while stamping the JSX root",
+      "source": "export function MarkerExample() { const label = ' data-rcl-asset=\"literal.value\" '; return <main />; }",
+      "sourcePath": "library/components/MarkerExample/versions/1.0.0/MarkerExample.tsx",
+      "asset": "components.marker-example",
+      "version": "1.0.0",
+      "componentName": "MarkerExample",
+      "mustContain": [
+        "const label = ' data-rcl-asset=\"literal.value\" '",
+        "data-rcl-asset=\"components.marker-example\"",
+        "data-rcl-version=\"1.0.0\"",
+        "data-rcl-stamp=\"vite\""
+      ],
+      "mustNotContain": [],
+      "assetMarkerCount": 2
+    },
+    {
       "name": "stamps the owned root and removes forged authored markers",
       "source": "export function Card() { return (<div data-rcl-asset=\"forged\"><span data-rcl-asset=\"child\" /></div>); }",
       "sourcePath": "library/components/Card/versions/1.1.0/Card.tsx",
       "asset": "primitives.card",
       "version": "1.1.0",
       "componentName": "Card",
-      "mustContain": ["data-rcl-asset=\"primitives.card\"", "data-rcl-version=\"1.1.0\"", "data-rcl-stamp=\"vite\""],
-      "mustNotContain": ["forged", "data-rcl-asset=\"child\""],
+      "mustContain": [
+        "data-rcl-asset=\"primitives.card\"",
+        "data-rcl-version=\"1.1.0\"",
+        "data-rcl-stamp=\"vite\""
+      ],
+      "mustNotContain": [
+        "forged",
+        "data-rcl-asset=\"child\""
+      ],
       "assetMarkerCount": 1
     },
     {
@@ -20,7 +43,9 @@
       "asset": "services.live",
       "version": "1.0.0",
       "componentName": "Live",
-      "mustContain": ["data-rcl-asset=\"services.live\""],
+      "mustContain": [
+        "data-rcl-asset=\"services.live\""
+      ],
       "mustNotContain": [],
       "assetMarkerCount": 1
     },
@@ -31,7 +56,10 @@
       "asset": "motion.presence",
       "version": "1.0.0",
       "componentName": "Presence",
-      "mustContain": ["\"data-rcl-asset\": \"motion.presence\"", "\"data-rcl-version\": \"1.0.0\""],
+      "mustContain": [
+        "\"data-rcl-asset\": \"motion.presence\"",
+        "\"data-rcl-version\": \"1.0.0\""
+      ],
       "mustNotContain": [],
       "assetMarkerCount": 1
     },
@@ -42,7 +70,9 @@
       "asset": "fixtures.dynamic-after-helper",
       "version": "1.0.0",
       "componentName": "Helper",
-      "mustContain": ["\"data-rcl-asset\": \"fixtures.dynamic-after-helper\""],
+      "mustContain": [
+        "\"data-rcl-asset\": \"fixtures.dynamic-after-helper\""
+      ],
       "mustNotContain": [],
       "assetMarkerCount": 1
     },
@@ -53,8 +83,12 @@
       "asset": "fixtures.conditional-root",
       "version": "1.0.0",
       "componentName": "Conditional",
-      "mustContain": ["data-rcl-asset=\"fixtures.conditional-root\""],
-      "mustNotContain": ["forged"],
+      "mustContain": [
+        "data-rcl-asset=\"fixtures.conditional-root\""
+      ],
+      "mustNotContain": [
+        "forged"
+      ],
       "assetMarkerCount": 1
     },
     {
@@ -64,8 +98,13 @@
       "asset": "primitives.divider",
       "version": "1.0.0",
       "componentName": "Divider",
-      "mustContain": ["data-rcl-asset=\"primitives.divider\"", "/>"],
-      "mustNotContain": ["<hr className=\"rule\" data-rcl-asset=\"primitives.divider\" data-rcl-version=\"1.0.0\" data-rcl-stamp=\"vite\"/ >"],
+      "mustContain": [
+        "data-rcl-asset=\"primitives.divider\"",
+        "/>"
+      ],
+      "mustNotContain": [
+        "<hr className=\"rule\" data-rcl-asset=\"primitives.divider\" data-rcl-version=\"1.0.0\" data-rcl-stamp=\"vite\"/ >"
+      ],
       "assetMarkerCount": 1
     },
     {
@@ -75,8 +114,13 @@
       "asset": "controls.button",
       "version": "2.2.0",
       "componentName": "Button",
-      "mustContain": ["data-rcl-asset=\"controls.button\"", "<Pressable ref={ref} {...props}"],
-      "mustNotContain": ["ButtonProps data-rcl-asset"],
+      "mustContain": [
+        "data-rcl-asset=\"controls.button\"",
+        "<Pressable ref={ref} {...props}"
+      ],
+      "mustNotContain": [
+        "ButtonProps data-rcl-asset"
+      ],
       "assetMarkerCount": 1
     }
   ]

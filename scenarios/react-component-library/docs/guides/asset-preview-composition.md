@@ -277,7 +277,7 @@ wire contract or catalog format changes.
 
 ## Exact composition render targets
 
-`SketchService.RenderCandidate`, `SketchService.RenderSketch`, and
+`WorkspaceCandidateService.RenderCandidate`, `WorkspaceCandidateService.RenderSketch`, and
 `PreviewService.RenderComposition` return a `target` descriptor alongside HTML.
 The descriptor records the authored revision, render hash, SHA-256 of the exact
 returned HTML bytes, input hash, and resolved kit, theme, and direction. Its kind
@@ -323,7 +323,7 @@ readiness, and region geometry extraction.
 factory. It serves hash-verified bytes under a script-enabled opaque sandbox.
 A missing repository route or corrupted target returns an error.
 
-`SketchService.CaptureCandidate` now creates and dispatches a capture. Supply the
+`WorkspaceCaptureService.CaptureCandidate` now creates and dispatches a capture. Supply the
 same `render` request used by `RenderCandidate`, its `expected_render_hash`, a
 stable `idempotency_key`, and explicit `width`/`height`. The response contains the
 operation ID and BAS producer ID. `GetCapture` retrieves the persisted operation.
@@ -405,7 +405,7 @@ text containing “cancel” does not by itself establish cancellation.
 ## Inspect a captured screenshot
 
 For a completed operation, choose its `screenshot` artifact reference and call
-`SketchService.GetCaptureScreenshot` with `{ "id": "<operation-id>", "reference":
+`WorkspaceCaptureService.GetCaptureScreenshot` with `{ "id": "<operation-id>", "reference":
 "bas:<producer-id>:<artifact-id>" }`. The response provides the browser owner's
 image URL, dimensions, content type, and original reference. Fetch that URL to
 inspect the image. The Design workspace exposes the same operation as View
@@ -499,7 +499,7 @@ availability; an acceptance operation must revalidate its evidence.
 
 ## Record and retrieve a visual critique
 
-1. Call `SketchService.GetCritiqueRubric` to obtain the rubric, policy, dimensions,
+1. Call `ReviewService.GetCritiqueRubric` to obtain the rubric, policy, dimensions,
    anchors, and calibration status. `calibrated` is currently false.
 2. Inspect the actual captured image. Record the critic's identity and explicit
    limitations. Do not label a model review as independent human calibration.

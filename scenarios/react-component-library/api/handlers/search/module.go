@@ -21,6 +21,15 @@ import (
 	domain "react-component-library/internal/search"
 )
 
+// sqlExecutor keeps module wiring request-aware: RoutedDB selects the pool
+// from each RPC context while *sql.DB remains convenient for focused tests.
+type sqlExecutor interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+}
+
 // Handler adapts the search service to the generated Connect interface.
 type Handler struct {
 	Service *domain.Service
@@ -87,24 +96,35 @@ func (h Handler) Reindex(ctx context.Context, req *connect.Request[searchv1.Rein
 // being absent is a wiring/precondition problem, not an internal failure, and a
 // caller disconnect is not logged as a server fault.
 func searchConnectError(err error) error {
-	switch {
-	case err == nil:
+	if err == nil {
 		return nil
-	case errors.Is(err, context.Canceled):
-		return connect.NewError(connect.CodeCanceled, err)
-	case errors.Is(err, context.DeadlineExceeded):
-		return connect.NewError(connect.CodeDeadlineExceeded, err)
-	case errors.Is(err, domain.ErrNotConfigured):
-		return connect.NewError(connect.CodeUnavailable, err)
-	case errors.Is(err, domain.ErrIndexNotInitialized):
-		return connect.NewError(connect.CodeFailedPrecondition, err)
-	default:
-		message := strings.ToLower(err.Error())
-		if strings.Contains(message, "no such table") {
-			return connect.NewError(connect.CodeFailedPrecondition, err)
-		}
-		return connect.NewError(connect.CodeInternal, err)
 	}
+	for _, mapping := range searchConnectErrorMappings {
+		if errors.Is(err, mapping.cause) {
+			return connect.NewError(mapping.code, err)
+		}
+	}
+	message := strings.ToLower(err.Error())
+	if strings.Contains(message, "no such table") {
+		return connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	return connect.NewError(connect.CodeInternal, err)
+}
+
+type searchConnectErrorMapping struct {
+	cause error
+	code  connect.Code
+}
+
+var searchConnectErrorMappings = [...]searchConnectErrorMapping{
+	{cause: context.Canceled, code: connect.CodeCanceled},
+	{cause: context.DeadlineExceeded, code: connect.CodeDeadlineExceeded},
+	{cause: domain.ErrNotConfigured, code: connect.CodeUnavailable},
+	{cause: domain.ErrAskUnavailable, code: connect.CodeUnavailable},
+	{cause: domain.ErrAskProviderUnavailable, code: connect.CodeUnavailable},
+	{cause: domain.ErrAskInvalidQuery, code: connect.CodeInvalidArgument},
+	{cause: domain.ErrAskInvalidAnswer, code: connect.CodeUnavailable},
+	{cause: domain.ErrIndexNotInitialized, code: connect.CodeFailedPrecondition},
 }
 
 // Endpoints is the static descriptor set consumed by the endpoint inventory.
@@ -118,7 +138,7 @@ var Endpoints = []module.EndpointDescriptor{
 
 // Module wires the search service into the scenario server. scenarioRoot is the
 // scenario directory that contains catalog/, not the repository root.
-func Module(db *sql.DB, scenarioRoot string, availability domain.AvailabilityFunc) module.Module {
+func Module(db sqlExecutor, scenarioRoot string, availability domain.AvailabilityFunc) module.Module {
 	return ModuleWithService(domain.NewService(db, scenarioRoot, availability))
 }
 
@@ -141,11 +161,11 @@ func ModuleWithService(service *domain.Service) module.Module {
 func Schema() string { return domain.Schema() }
 
 // NewService re-exports the domain constructor for main wiring.
-func NewService(db *sql.DB, scenarioRoot string, availability domain.AvailabilityFunc) *domain.Service {
+func NewService(db sqlExecutor, scenarioRoot string, availability domain.AvailabilityFunc) *domain.Service {
 	return domain.NewService(db, scenarioRoot, availability)
 }
 
 // Reindex re-exports the boot reindex helper for main wiring.
-func Reindex(ctx context.Context, db *sql.DB, scenarioRoot string, availability domain.AvailabilityFunc, force bool) (int, time.Time, error) {
+func Reindex(ctx context.Context, db sqlExecutor, scenarioRoot string, availability domain.AvailabilityFunc, force bool) (int, time.Time, error) {
 	return domain.Reindex(ctx, db, scenarioRoot, availability, force)
 }

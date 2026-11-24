@@ -61,7 +61,7 @@ func TestBASCaptureExecutorUsesCanonicalComponentEvidenceBundle(t *testing.T) {
 		Width:        390, Height: 844, EvidenceProfile: "componenttests", RegionSelector: `[data-preview-capture-boundary="component-sheet"]`,
 	}, request)
 	for _, artifact := range result.Artifacts {
-		require.Contains(t, artifact.Reference, "/embedded/browser-automation-studio/ux-capture/bundles/44444444-4444-4444-8444-444444444444/artifacts/")
+		require.Contains(t, artifact.Reference, "/embedded/browser-automation-studio/api/v1/ux-capture/bundles/44444444-4444-4444-8444-444444444444/artifacts/")
 	}
 }
 
@@ -155,6 +155,8 @@ func TestBASInspectionUsesCanonicalCapturePath(t *testing.T) {
 	executor := BASCaptureExecutor{BASBaseURL: server.URL, HTTPClient: server.Client()}
 	inspection, err := executor.InspectProvider(context.Background())
 	require.NoError(t, err)
+	require.Equal(t, "/api/v1/ux-capture/scenario", uxScenarioCapturePath)
+	require.Equal(t, "/api/v1/ux-capture/bundles/", uxArtifactPathPrefix)
 	require.Equal(t, uxScenarioCapturePath, inspection.CapturePath)
 	require.Equal(t, "/health", gotPath)
 }
@@ -190,8 +192,8 @@ func TestCaptureScenarioURLUsesScenarioBundleAndStyleSample(t *testing.T) {
 }
 
 func TestBrowserVisibleBASArtifactPathUsesEmbeddedProxy(t *testing.T) {
-	got := browserVisibleBASArtifactPath("http://127.0.0.1:17116/ux-capture/bundles/id/artifacts/pixels/region.png")
-	require.Equal(t, "/embedded/browser-automation-studio/ux-capture/bundles/id/artifacts/pixels/region.png", got)
+	got := browserVisibleBASArtifactPath("http://127.0.0.1:17116/api/v1/ux-capture/bundles/id/artifacts/pixels/region.png")
+	require.Equal(t, "/embedded/browser-automation-studio/api/v1/ux-capture/bundles/id/artifacts/pixels/region.png", got)
 }
 
 func TestPageStoryCaptureUsesConcreteStoryRoute(t *testing.T) {
@@ -201,9 +203,50 @@ func TestPageStoryCaptureUsesConcreteStoryRoute(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "Design.tsx"), []byte("export function Design() { return null }"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "Design.story.json"), []byte(`{"schemaVersion":5,"kind":"page","route":"/design","environment":{"fixtures":[]},"stories":[{"id":"detail","name":"Detail","route":"/design/demo/page","role":"anatomy","expect":[{"kind":"text","value":"Design"}]}]}`), 0o644))
 	executor := BASCaptureExecutor{RCLUIBaseURL: "http://ui.test", PageSourceRoot: root, PageUIBaseURL: "http://ui.test"}
-	got, err := executor.storyURL("page:Design", "workspace", "detail")
+	got, err := executor.storyURL(context.Background(), "page:Design", "workspace", "detail")
 	require.NoError(t, err)
 	require.Equal(t, "http://ui.test/design/demo/page?__rcl_page_story=Design&__rcl_story=detail", got)
+}
+
+func TestBASCaptureExecutorResolvesRCLUIWhenItBecomesAvailable(t *testing.T) {
+	contents := componentCaptureArtifacts()
+	var request uxScenarioCaptureRequest
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&request))
+			_, _ = fmt.Fprint(w, componentCaptureResponse(contents))
+			return
+		}
+		artifactPath := strings.TrimPrefix(r.URL.Path, uxArtifactPathPrefix+"44444444-4444-4444-8444-444444444444/artifacts/")
+		_, _ = w.Write(contents[artifactPath])
+	}))
+	defer server.Close()
+
+	rclLookups := 0
+	executor := NewBASCaptureExecutorWithOptions(BASCaptureExecutorOptions{
+		LookupEnv: func(key string) string {
+			if key == "RCL_BAS_API_URL" || key == "BAS_API_URL" {
+				return server.URL
+			}
+			return ""
+		},
+		ResolveScenarioURL: func(_ context.Context, scenario, portKey string) (string, error) {
+			require.Equal(t, "react-component-library", scenario)
+			require.Equal(t, "UI_PORT", portKey)
+			rclLookups++
+			if rclLookups == 1 {
+				return "", errors.New("RCL UI is not running yet")
+			}
+			return "http://rcl-ui.test/", nil
+		},
+	})
+	require.Empty(t, executor.RCLUIBaseURL, "constructor discovery may run before the UI is ready")
+
+	result, err := executor.ExecuteStorySheet(context.Background(), "rcl:Button", "1.0.0", []string{"anatomy"})
+	require.NoError(t, err)
+	require.True(t, result.Passed)
+	require.Equal(t, 2, rclLookups)
+	require.Equal(t, "/preview/rcl:Button/harness.html?motion=reduce&runner=1&stories=anatomy&version=1.0.0", request.Route)
 }
 
 func TestNewBASCaptureExecutorUsesSelectedRuntimeAndExplicitOverrides(t *testing.T) {
@@ -228,6 +271,58 @@ func TestNewBASCaptureExecutorUsesSelectedRuntimeAndExplicitOverrides(t *testing
 	t.Setenv("RCL_BAS_API_URL", " http://rcl-bas-explicit.test/ ")
 	require.Equal(t, "http://rcl-bas-explicit.test", NewBASCaptureExecutor().BASBaseURL)
 	require.Equal(t, 1, calls)
+}
+
+func TestBASCaptureExecutorConstructionUsesInjectedEnvironmentDiscoveryAndHTTP(t *testing.T) {
+	env := map[string]string{"RCL_BAS_API_URL": "", "BAS_API_URL": "", "RCL_UI_BASE_URL": ""}
+	lookups := 0
+	client := &http.Client{Timeout: 17 * time.Second}
+	resolved := []string{}
+	executor := NewBASCaptureExecutorWithOptions(BASCaptureExecutorOptions{
+		LookupEnv: func(key string) string { lookups++; return env[key] },
+		ResolveScenarioURL: func(_ context.Context, scenario, portKey string) (string, error) {
+			resolved = append(resolved, scenario+":"+portKey)
+			return "http://" + scenario + ".test", nil
+		},
+		HTTPClient: client,
+	})
+	require.Equal(t, 3, lookups)
+	require.Equal(t, []string{"browser-automation-studio:API_PORT", "react-component-library:UI_PORT"}, resolved)
+	require.Equal(t, "http://browser-automation-studio.test", executor.BASBaseURL)
+	require.Equal(t, "http://react-component-library.test", executor.RCLUIBaseURL)
+	require.Same(t, client, executor.HTTPClient)
+
+	// Explicit URLs bypass discovery, while still using the injected environment.
+	env["RCL_BAS_API_URL"] = " http://explicit-bas.test/ "
+	env["RCL_UI_BASE_URL"] = " http://explicit-rcl.test/ "
+	explicit := NewBASCaptureExecutorWithOptions(BASCaptureExecutorOptions{LookupEnv: func(key string) string { return env[key] }, ResolveScenarioURL: func(context.Context, string, string) (string, error) {
+		t.Fatal("explicit addresses must not invoke discovery")
+		return "", nil
+	}})
+	require.Equal(t, "http://explicit-bas.test", explicit.BASBaseURL)
+	require.Equal(t, "http://explicit-rcl.test", explicit.RCLUIBaseURL)
+}
+
+func TestBASCaptureExecutorFallsBackToAllocatedLocalUIPort(t *testing.T) {
+	env := map[string]string{
+		"RCL_BAS_API_URL": "http://bas.test",
+		"BAS_API_URL":     "",
+		"RCL_UI_BASE_URL": "",
+		"UI_PORT":         "23906",
+	}
+	executor := NewBASCaptureExecutorWithOptions(BASCaptureExecutorOptions{
+		LookupEnv: func(key string) string { return env[key] },
+		ResolveScenarioURL: func(_ context.Context, scenario, portKey string) (string, error) {
+			require.Equal(t, "react-component-library", scenario)
+			require.Equal(t, "UI_PORT", portKey)
+			return "", errors.New("discovery unavailable")
+		},
+	})
+
+	require.Equal(t, "http://localhost:23906", executor.RCLUIBaseURL)
+	for _, invalid := range []string{"", "0", "65536", "23906/path", "not-a-port"} {
+		require.Empty(t, localUIBaseFromPort(invalid), "invalid UI_PORT %q must not be used", invalid)
+	}
 }
 
 func TestNewBASCaptureExecutorDoesNotGuessPortForMissingSelectedRuntime(t *testing.T) {

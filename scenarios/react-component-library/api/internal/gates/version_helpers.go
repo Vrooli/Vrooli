@@ -59,6 +59,10 @@ func isRetiredVersion(path string) (bool, error) {
 	return containsString(manifest.Deprecated, version) || containsString(manifest.Evicted, version), nil
 }
 
+func isRetiredLibraryPath(path string) bool {
+	return strings.Contains(filepath.ToSlash(filepath.Clean(path)), "/library/.retired/")
+}
+
 func semverLikeLess(left, right string) bool {
 	parse := func(value string) [3]int {
 		parts := strings.Split(value, ".")

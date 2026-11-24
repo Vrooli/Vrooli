@@ -115,7 +115,7 @@ func scaffoldExperienceContractFile(versionDir, kind, libraryID, displayName, ve
 	if err != nil {
 		return fmt.Errorf("encode experience contract scaffold: %w", err)
 	}
-	if err := os.WriteFile(path, append(raw, '\n'), 0o600); err != nil {
+	if err := writeFileAtomicInRoot(versionDir, path, append(raw, '\n'), 0o600); err != nil {
 		return fmt.Errorf("write experience contract scaffold %q: %w", path, err)
 	}
 	return nil

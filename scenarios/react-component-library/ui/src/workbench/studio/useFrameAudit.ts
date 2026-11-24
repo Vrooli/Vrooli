@@ -1,9 +1,59 @@
 import { useLayoutEffect, useRef, useState, type RefObject } from "react";
 
-import type { DesignFrame } from "../designs";
+import type { DesignFrame } from "../design-types";
 import { emptyAudit, type FrameAuditMap } from "./checks";
 import { rclPrimitive } from "./rcl";
 import type { TemplateNodeType } from "../templates/spec";
+
+export interface PaintedArea {
+  rcl: number;
+  total: number;
+}
+
+// Transformed typography can produce a couple of logical pixels of scroll
+// width even when its rendered content fits the page. Treat that tiny spill as
+// layout noise while keeping larger measured overflow visible to health checks.
+const FRAME_OVERFLOW_TOLERANCE = 2;
+
+/** Count a mapped component's full footprint once, including its authored children. */
+export function measurePaintedArea(
+  page: HTMLElement,
+  pageRect: DOMRect,
+  scale: number,
+): PaintedArea {
+  let rcl = 0;
+  let total = 0;
+  const factor = (scale || 1) * (scale || 1);
+  for (const node of Array.from(page.querySelectorAll<HTMLElement>("[data-node-id]"))) {
+    let ancestor =
+      node.parentElement?.closest<HTMLElement>("[data-node-id][data-node-type]") ?? null;
+    let insideRcl = false;
+    while (ancestor) {
+      const ancestorType = ancestor.dataset.nodeType as TemplateNodeType | undefined;
+      if (ancestorType && rclPrimitive(ancestorType)) {
+        insideRcl = true;
+        break;
+      }
+      ancestor =
+        ancestor.parentElement?.closest<HTMLElement>("[data-node-id][data-node-type]") ?? null;
+    }
+    if (insideRcl) continue;
+
+    const type = node.dataset.nodeType as TemplateNodeType | undefined;
+    const isRcl = Boolean(type && rclPrimitive(type));
+    if (node.querySelector("[data-node-id]") && !isRcl) continue;
+
+    const rect = node.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) continue;
+    const width = Math.min(rect.right, pageRect.right) - Math.max(rect.left, pageRect.left);
+    const height = Math.min(rect.bottom, pageRect.bottom) - Math.max(rect.top, pageRect.top);
+    if (width <= 0 || height <= 0) continue;
+    const area = (width * height) / factor;
+    total += area;
+    if (isRcl) rcl += area;
+  }
+  return { rcl, total };
+}
 
 /**
  * Measure the rendered frames, not the spec: horizontal overflow, real button
@@ -40,7 +90,9 @@ export function useFrameAudit(
         const page = host?.querySelector<HTMLElement>(".tpl-page") ?? null;
         const scale = scalesRef.current[frame.id] ?? 1;
         const measurable = Boolean(page && page.clientWidth > 0);
-        const overflow = page && measurable ? Math.max(0, page.scrollWidth - page.clientWidth) : 0;
+        const measuredOverflow = page ? page.scrollWidth - page.clientWidth : 0;
+        const overflow =
+          measurable && measuredOverflow > FRAME_OVERFLOW_TOLERANCE ? measuredOverflow : 0;
         const buttons = page ? Array.from(page.querySelectorAll<HTMLElement>("button")) : [];
         let counted = 0;
         let under = 0;
@@ -54,28 +106,15 @@ export function useFrameAudit(
         // Painted area: only leaves, so a card and its text are not counted
         // twice. Rects are clipped to the page and divided by the scale²
         // because the whole frame is rendered at one zoom.
-        let rclArea = 0;
-        let totalArea = 0;
+        let painted: PaintedArea | null = null;
         if (page && measurable) {
-          const pageRect = page.getBoundingClientRect();
-          for (const node of Array.from(page.querySelectorAll<HTMLElement>("[data-node-id]"))) {
-            if (node.querySelector("[data-node-id]")) continue;
-            const rect = node.getBoundingClientRect();
-            if (rect.width <= 0 || rect.height <= 0) continue;
-            const width = Math.min(rect.right, pageRect.right) - Math.max(rect.left, pageRect.left);
-            const height = Math.min(rect.bottom, pageRect.bottom) - Math.max(rect.top, pageRect.top);
-            if (width <= 0 || height <= 0) continue;
-            const area = (width * height) / ((scale || 1) * (scale || 1));
-            totalArea += area;
-            const type = node.dataset.nodeType as TemplateNodeType | undefined;
-            if (type && rclPrimitive(type)) rclArea += area;
-          }
+          painted = measurePaintedArea(page, page.getBoundingClientRect(), scale);
         }
 
         next[frame.id] = {
           overflow,
           buttons: counted > 0 ? { total: counted, under } : null,
-          painted: totalArea > 0 ? { rcl: rclArea, total: totalArea } : null,
+          painted: painted && painted.total > 0 ? painted : null,
           measured: measurable,
         };
       }

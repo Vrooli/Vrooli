@@ -82,10 +82,17 @@
       "validation": [
         {
           "type": "test",
-          "ref": "ui/src/features/components/ComponentEditor.test.tsx::renders example gallery iframes with named harness URLs",
+          "ref": "ui/src/catalog-draft-story-behavior.test.tsx",
           "phase": "unit",
           "status": "failing",
-          "notes": "UI test proves the gallery emits named harness URLs for indexed examples."
+          "notes": "Current catalog story behavior tests render named story specimens with their declared args."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/story-evaluator.test.ts",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The shared story evaluator tests prove declared expectations pass and fail against rendered output."
         },
         {
           "type": "test",

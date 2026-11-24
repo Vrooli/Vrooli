@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
+  AppShell as LibraryAppShell,
+  type AppShellLinkProps,
+  type AppShellNavItem,
+} from "@vrooli/react-component-library/AppShell/2";
+import {
   BarChart3,
   Bell,
   ClipboardCheck,
@@ -20,63 +25,77 @@ import { cx } from "./cx";
 import { SearchPalette } from "./search/SearchPalette";
 import { applyWorkbenchPreferences, readWorkbenchPreferences } from "./preferences";
 import { useBrand } from "./useBrand";
+import { selectors } from "../consts/selectors";
+import { useGlobalKeydown } from "../hooks/useGlobalKeydown";
 import "./brand.css";
 
-interface NavItem {
-  id: string;
-  href: string;
-  label: string;
-  short: string;
-  icon: ReactNode;
-  count?: number;
-  /** Supplemental hover/tooltip text; the visible label stays the destination. */
-  title?: string;
-}
-
 function isCurrent(pathname: string, href: string): boolean {
-  if (href === "/") return pathname === "/";
-  if (href === "/library") {
+  if (href === appRoutes.start) return pathname === appRoutes.start;
+  if (href === appRoutes.library) {
     return (
-      pathname === "/library" ||
-      pathname === "/components" ||
-      pathname === "/catalog" ||
+      pathname === appRoutes.library ||
+      pathname === appRoutes.components ||
+      pathname === appRoutes.assetCatalog ||
       pathname.startsWith("/assets/")
     );
   }
-  if (href === "/design") return pathname.startsWith("/design") || pathname.startsWith("/sketch/");
-  if (href === "/stats") {
+  if (href === appRoutes.design) {
+    return pathname.startsWith(appRoutes.design) || pathname.startsWith("/sketch/");
+  }
+  if (href === appRoutes.stats) {
     return (
-      pathname === "/stats" ||
-      pathname === "/coverage" ||
-      pathname === "/activity" ||
-      pathname === "/capabilities"
+      pathname === appRoutes.stats ||
+      pathname === appRoutes.coverage ||
+      pathname === appRoutes.activity ||
+      pathname === appRoutes.capabilities
     );
   }
   return pathname === href;
 }
 
 function crumbFor(pathname: string): { key: string; fallback: string } {
-  if (pathname === "/") return { key: "workbench.nav.start", fallback: "Start" };
-  if (pathname === "/library") return { key: "workbench.nav.library", fallback: "Library" };
-  if (pathname === "/components" || pathname === "/catalog") {
+  if (pathname === appRoutes.start) return { key: "workbench.nav.start", fallback: "Start" };
+  if (pathname === appRoutes.library) return { key: "workbench.nav.library", fallback: "Library" };
+  if (pathname === appRoutes.components || pathname === appRoutes.assetCatalog) {
     return { key: "workbench.nav.components", fallback: "Components" };
   }
   if (pathname.startsWith("/assets/")) {
     if (pathname.endsWith("/preview")) return { key: "workbench.nav.preview", fallback: "Preview" };
     return { key: "workbench.nav.component", fallback: "Component" };
   }
-  if (pathname.startsWith("/design") || pathname.startsWith("/sketch/")) {
+  if (pathname.startsWith(appRoutes.design) || pathname.startsWith("/sketch/")) {
     return { key: "workbench.nav.designShort", fallback: "Design" };
   }
-  if (pathname === "/review") return { key: "workbench.nav.review", fallback: "Review" };
-  if (pathname === "/stats") return { key: "workbench.nav.stats", fallback: "Stats" };
-  if (pathname === "/coverage") return { key: "workbench.nav.coverage", fallback: "Coverage" };
-  if (pathname === "/capabilities")
+  if (pathname === appRoutes.review) return { key: "workbench.nav.review", fallback: "Review" };
+  if (pathname === appRoutes.stats) return { key: "workbench.nav.stats", fallback: "Stats" };
+  if (pathname === appRoutes.coverage)
+    return { key: "workbench.nav.coverage", fallback: "Coverage" };
+  if (pathname === appRoutes.capabilities) {
     return { key: "workbench.nav.capabilities", fallback: "Capabilities" };
-  if (pathname === "/activity") return { key: "workbench.nav.activity", fallback: "Activity" };
-  if (pathname === "/settings") return { key: "workbench.nav.settings", fallback: "Settings" };
-  if (pathname === "/new") return { key: "workbench.nav.create", fallback: "New asset" };
+  }
+  if (pathname === appRoutes.activity)
+    return { key: "workbench.nav.activity", fallback: "Activity" };
+  if (pathname === appRoutes.settings)
+    return { key: "workbench.nav.settings", fallback: "Settings" };
+  if (pathname === appRoutes.create) return { key: "workbench.nav.create", fallback: "New" };
   return { key: "workbench.nav.notFound", fallback: "Not found" };
+}
+
+function RouterLink(item: AppShellNavItem, props: AppShellLinkProps) {
+  const { href, children, ...linkProps } = props;
+  const className = cx(item.id === "brand" ? "wb-brand" : "wb-nav-item", linkProps.className);
+  if (item.id === "brand") {
+    return (
+      <Link to={href} {...linkProps} className={className}>
+        {children}
+      </Link>
+    );
+  }
+  return (
+    <NavLink to={href} {...linkProps} className={className}>
+      {children}
+    </NavLink>
+  );
 }
 
 export function WorkbenchShell({ children }: { children?: ReactNode }) {
@@ -84,9 +103,9 @@ export function WorkbenchShell({ children }: { children?: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [commandOpen, setCommandOpen] = useState(false);
+  const gArmedAt = useRef(0);
   // The Start rail advertises these shortcuts, so the shell owns them. A
   // sequence is only armed when the person is not typing into a field.
-  const gArmedAt = useRef(0);
 
   const review = useQuery({
     queryKey: ["review", "summary"],
@@ -96,42 +115,60 @@ export function WorkbenchShell({ children }: { children?: ReactNode }) {
   const brand = useBrand().data ?? null;
   const openFindings = review.data?.open ?? 0;
 
-  const items: NavItem[] = [
+  const items: AppShellNavItem[] = [
     {
       id: "start",
       href: appRoutes.start,
       label: t("workbench.nav.start", { defaultValue: "Start" }),
-      short: t("workbench.nav.start", { defaultValue: "Start" }),
+      shortLabel: t("workbench.nav.start", { defaultValue: "Start" }),
       icon: <House aria-hidden size={17} />,
+      current: isCurrent(location.pathname, appRoutes.start),
+      testId: selectors.workbench.nav.start,
     },
     {
       id: "library",
       href: appRoutes.library,
       label: t("workbench.nav.library", { defaultValue: "Library" }),
-      short: t("workbench.nav.library", { defaultValue: "Library" }),
+      shortLabel: t("workbench.nav.library", { defaultValue: "Library" }),
       icon: <LayoutGrid aria-hidden size={17} />,
+      current: isCurrent(location.pathname, appRoutes.library),
+      testId: selectors.workbench.nav.library,
     },
     {
       id: "design",
       href: appRoutes.design,
       label: t("workbench.nav.designShort", { defaultValue: "Design" }),
-      short: t("workbench.nav.designShort", { defaultValue: "Design" }),
+      shortLabel: t("workbench.nav.designShort", { defaultValue: "Design" }),
       icon: <PenTool aria-hidden size={17} />,
+      current: isCurrent(location.pathname, appRoutes.design),
+      testId: selectors.workbench.nav.design,
     },
     {
       id: "review",
       href: appRoutes.review,
       label: t("workbench.nav.review", { defaultValue: "Review" }),
-      short: t("workbench.nav.review", { defaultValue: "Review" }),
+      shortLabel: t("workbench.nav.review", { defaultValue: "Review" }),
       icon: <ClipboardCheck aria-hidden size={17} />,
-      count: openFindings || undefined,
+      current: isCurrent(location.pathname, appRoutes.review),
+      badge: openFindings
+        ? {
+            value: openFindings,
+            label: t("workbench.nav.openFindings", {
+              defaultValue: "{{count}} open findings",
+              count: openFindings,
+            }),
+          }
+        : undefined,
+      testId: selectors.workbench.nav.review,
     },
     {
       id: "stats",
       href: appRoutes.stats,
       label: t("workbench.nav.stats", { defaultValue: "Stats" }),
-      short: t("workbench.nav.statsShort", { defaultValue: "Stats" }),
+      shortLabel: t("workbench.nav.statsShort", { defaultValue: "Stats" }),
       icon: <BarChart3 aria-hidden size={17} />,
+      current: isCurrent(location.pathname, appRoutes.stats),
+      testId: selectors.workbench.nav.stats,
     },
   ];
 
@@ -143,154 +180,94 @@ export function WorkbenchShell({ children }: { children?: ReactNode }) {
     applyWorkbenchPreferences(readWorkbenchPreferences());
   }, []);
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+  useGlobalKeydown((event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      setCommandOpen((open) => !open);
+      return;
+    }
+    if (event.key === "Escape") {
+      setCommandOpen(false);
+      return;
+    }
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+    const target = event.target;
+    if (
+      target instanceof HTMLElement &&
+      target.closest("input, textarea, select, [contenteditable='true']")
+    ) {
+      return;
+    }
+    const key = event.key.toLowerCase();
+    if (key === "g") {
+      gArmedAt.current = Date.now();
+      return;
+    }
+    if (Date.now() - gArmedAt.current < 1200) {
+      gArmedAt.current = 0;
+      if (key === "d") {
         event.preventDefault();
-        setCommandOpen((open) => !open);
+        void navigate(appRoutes.design);
         return;
       }
-      if (event.key === "Escape") {
-        setCommandOpen(false);
-        return;
-      }
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-      const target = event.target;
-      if (
-        target instanceof HTMLElement &&
-        target.closest("input, textarea, select, [contenteditable='true']")
-      ) {
-        return;
-      }
-      const key = event.key.toLowerCase();
-      if (key === "g") {
-        gArmedAt.current = Date.now();
-        return;
-      }
-      if (Date.now() - gArmedAt.current < 1200) {
-        gArmedAt.current = 0;
-        if (key === "d") {
-          event.preventDefault();
-          void navigate(appRoutes.design);
-          return;
-        }
-        if (key === "s") {
-          event.preventDefault();
-          void navigate(appRoutes.stats);
-          return;
-        }
-      }
-      if (key === "n") {
+      if (key === "s") {
         event.preventDefault();
-        void navigate(`${appRoutes.design}?new=1`);
+        void navigate(appRoutes.stats);
+        return;
       }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [navigate]);
+    }
+    if (key === "n") {
+      event.preventDefault();
+      void navigate(`${appRoutes.design}?new=1`);
+    }
+  });
 
   const go = (href: string) => {
     setCommandOpen(false);
     void navigate(href);
   };
-
   const crumb = crumbFor(location.pathname);
+  const workspaceStudio =
+    location.pathname === appRoutes.design && new URLSearchParams(location.search).has("workspace");
 
   return (
-    <div className="wb-root" data-workbench="nocturne" data-testid="workbench-shell">
-      <div className="wb-app">
-        <aside
-          className="wb-rail"
-          aria-label={t("workbench.nav.rail", { defaultValue: "Library navigation" })}
-        >
-          <Link
-            to={appRoutes.start}
-            className="wb-brand"
-            title={t("workbench.nav.home", { defaultValue: "Home" })}
-            aria-label={brand?.name ?? t("workbench.brand", { defaultValue: "React Component Library" })}
-          >
-            <span className={`wb-brand-mark${brand?.assigned ? "" : " is-fallback"}`} aria-hidden>
-              {brand?.assigned && brand.mark ? (
-                <img src={brand.mark} alt="" />
-              ) : (
-                <span className="wb-brand-mono">{t("workbench.identity.initials", { defaultValue: "RCL" })}</span>
-              )}
+    <div className="wb-root" data-workbench="nocturne">
+      <LibraryAppShell
+        brand={
+          <span className="wb-brand-text">
+            <span className="wb-brand-name">
+              {brand?.name ?? t("workbench.brand", { defaultValue: "React Component Library" })}
             </span>
-            <span className="wb-brand-text">
-              <span className="wb-brand-name">
-                {brand?.name ?? t("workbench.brand", { defaultValue: "React Component Library" })}
-              </span>
-              <small className="wb-brand-meta">
-                <i className={`wb-brand-dot${brand?.assigned ? " is-assigned" : ""}`} aria-hidden />
-                {brand?.assigned
-                  ? t("workbench.brandSource", { defaultValue: "Brand Manager" })
-                  : t("workbench.brandUnassigned", { defaultValue: "Brand not assigned" })}
-              </small>
-            </span>
-          </Link>
-
-          <nav
-            className="wb-nav"
-            aria-label={t("workbench.nav.label", { defaultValue: "Workbench" })}
-          >
-            {items.slice(0, 3).map((item) => (
-              <NavItemLink
-                key={item.id}
-                item={item}
-                current={isCurrent(location.pathname, item.href)}
-              />
-            ))}
-            <div className="wb-nav-label">
-              {t("workbench.nav.operations", { defaultValue: "Operations" })}
-            </div>
-            {items.slice(3).map((item) => (
-              <NavItemLink
-                key={item.id}
-                item={item}
-                current={isCurrent(location.pathname, item.href)}
-              />
-            ))}
-          </nav>
-
-          <div className="wb-rail-foot">
-            <button
-              type="button"
-              className="wb-btn primary wide"
-              onClick={() => go(appRoutes.create)}
-            >
-              <Plus aria-hidden size={15} />
-              {t("workbench.nav.newAsset", { defaultValue: "New asset" })}
-            </button>
-            <NavItemLink
-              item={{
-                id: "settings",
-                href: appRoutes.settings,
-                label: t("workbench.nav.settings", { defaultValue: "Settings" }),
-                short: t("workbench.nav.settings", { defaultValue: "Settings" }),
-                icon: <SettingsIcon aria-hidden size={17} />,
-              }}
-              current={isCurrent(location.pathname, appRoutes.settings)}
-            />
-            <div className="wb-identity">
-              <span className="wb-identity-mark" aria-hidden>
+            <small className="wb-brand-meta">
+              <i className={`wb-brand-dot${brand?.assigned ? " is-assigned" : ""}`} aria-hidden />
+              {brand?.assigned
+                ? t("workbench.brandSource", { defaultValue: "Brand Manager" })
+                : t("workbench.brandUnassigned", { defaultValue: "Brand not assigned" })}
+            </small>
+          </span>
+        }
+        brandMark={
+          <span className={`wb-brand-mark${brand?.assigned ? "" : " is-fallback"}`} aria-hidden>
+            {brand?.assigned && brand.mark ? (
+              <img src={brand.mark} alt="" />
+            ) : (
+              <span className="wb-brand-mono">
                 {t("workbench.identity.initials", { defaultValue: "RCL" })}
               </span>
-              <span>
-                <span className="wb-identity-name">
-                  {t("workbench.identity.name", { defaultValue: "Local workbench" })}
-                </span>
-                <span className="wb-identity-meta">
-                  {t("workbench.identity.meta", { defaultValue: "single user · local" })}
-                </span>
-              </span>
-            </div>
-          </div>
-        </aside>
-
-        <div className="wb-main">
-          <header className="wb-topbar">
+            )}
+          </span>
+        }
+        brandHref={appRoutes.start}
+        items={items}
+        density="sidebar"
+        mobileNav="tabs"
+        mainMode="fill"
+        header={
+          <div className="wb-topbar">
             <div className="wb-crumb">
-              <Link to={appRoutes.start}>{t("workbench.brand", { defaultValue: "React Component Library" })}</Link>
+              <Link to={appRoutes.start}>
+                {t("workbench.brand", { defaultValue: "React Component Library" })}
+              </Link>
               <span aria-hidden>/</span>
               <b>{t(crumb.key, { defaultValue: crumb.fallback })}</b>
             </div>
@@ -318,46 +295,55 @@ export function WorkbenchShell({ children }: { children?: ReactNode }) {
                 <Bell aria-hidden size={15} />
               </button>
             </div>
-          </header>
-
-          <main className="wb-view" id="workbench-main">
-            {children ?? <Outlet />}
-          </main>
-        </div>
-      </div>
-
-      <nav
-        className="wb-mobile-nav"
-        aria-label={t("workbench.nav.mobile", { defaultValue: "Workbench" })}
+          </div>
+        }
+        utility={
+          <div className="wb-shell-utility">
+            <Link
+              to={appRoutes.create}
+              className="wb-btn primary wide wb-shell-utility-new"
+              onClick={() => setCommandOpen(false)}
+            >
+              <Plus aria-hidden size={15} />
+              {t("workbench.nav.newAsset", { defaultValue: "New" })}
+            </Link>
+            <NavLink
+              to={appRoutes.settings}
+              className="wb-nav-item"
+              aria-current={isCurrent(location.pathname, appRoutes.settings) ? "page" : undefined}
+              onClick={() => setCommandOpen(false)}
+            >
+              <SettingsIcon aria-hidden size={17} />
+              <span>{t("workbench.nav.settings", { defaultValue: "Settings" })}</span>
+            </NavLink>
+            <div className="wb-identity">
+              <span className="wb-identity-mark" aria-hidden>
+                {t("workbench.identity.initials", { defaultValue: "RCL" })}
+              </span>
+              <span>
+                <span className="wb-identity-name">
+                  {t("workbench.identity.name", { defaultValue: "Local workbench" })}
+                </span>
+                <span className="wb-identity-meta">
+                  {t("workbench.identity.meta", { defaultValue: "single user · local" })}
+                </span>
+              </span>
+            </div>
+          </div>
+        }
+        renderLink={RouterLink}
+        onNavigate={(item) => go(item.href)}
+        navigationLabel={t("workbench.nav.label", { defaultValue: "Workbench" })}
+        mobileNavigationLabel={t("workbench.nav.mobile", { defaultValue: "Workbench" })}
+        sidebarStorageKey="react-component-library.workbench-sidebar-width"
+        sidebarResize={{ defaultSize: 236, min: 220, max: 320, adjacentMin: 480 }}
+        testId={selectors.app.shell}
+        className="wb-app-shell"
+        mainClassName={cx("wb-main", "wb-view", workspaceStudio && "is-workspace-studio")}
       >
-        {items.map((item) => (
-          <NavLink
-            key={item.id}
-            to={item.href}
-            aria-current={isCurrent(location.pathname, item.href) ? "page" : undefined}
-          >
-            {item.icon}
-            <span>{item.short}</span>
-          </NavLink>
-        ))}
-      </nav>
-
+        <>{children ?? <Outlet />}</>
+      </LibraryAppShell>
       <SearchPalette open={commandOpen} onClose={() => setCommandOpen(false)} />
     </div>
-  );
-}
-
-function NavItemLink({ item, current }: { item: NavItem; current: boolean }) {
-  return (
-    <Link
-      to={item.href}
-      title={item.title}
-      className={cx("wb-nav-item", current && "is-current")}
-      aria-current={current ? "page" : undefined}
-    >
-      {item.icon}
-      <span>{item.label}</span>
-      {typeof item.count === "number" ? <span className="wb-nav-count">{item.count}</span> : null}
-    </Link>
   );
 }

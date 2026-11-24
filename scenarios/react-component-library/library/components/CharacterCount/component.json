@@ -1,0 +1,24 @@
+{
+  "category": "uncategorized",
+  "deprecatedVersions": [],
+  "description": "Live character-count feedback and optional limit message for editable text controls",
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "displayName": "Character Count",
+  "draft": "",
+  "entry": "CharacterCount.tsx",
+  "kind": "control",
+  "latest": "0.1.0",
+  "libraryId": "react-component-library:CharacterCount",
+  "slot": "ui-primitive",
+  "supplemental": true,
+  "tags": [
+    "forms",
+    "feedback"
+  ]
+}

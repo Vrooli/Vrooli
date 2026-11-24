@@ -9,7 +9,6 @@ package health
 import (
 	"context"
 	"net/http"
-	"os"
 	"time"
 
 	"react-component-library/internal/database"
@@ -21,9 +20,10 @@ import (
 // are reported in the response envelope; Pinger backs the "database"
 // dependency check.
 type Deps struct {
-	Pinger  database.Pinger
-	Service string
-	Version string
+	Pinger        database.Pinger
+	Service       string
+	Version       string
+	BuildIdentity string
 }
 
 // NewHandler returns a handler that reports overall health, service
@@ -33,7 +33,7 @@ type Deps struct {
 func NewHandler(d Deps) http.HandlerFunc {
 	return apihealth.New(d.Service).
 		Version(d.Version).
-		BuildIdentity(os.Getenv("VROOLI_BUILD_IDENTITY")).
+		BuildIdentity(d.BuildIdentity).
 		Timeout(1*time.Second).
 		Check(apihealth.Func("database", func(ctx context.Context) error {
 			return d.Pinger.PingContext(ctx)

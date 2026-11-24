@@ -15,7 +15,11 @@
   position: relative;
   min-height: 100%;
   background:
-    radial-gradient(1200px 620px at 82% -12%, color-mix(in srgb, var(--t-accent) 8%, transparent), transparent 62%),
+    radial-gradient(
+      1200px 620px at 82% -12%,
+      color-mix(in srgb, var(--t-accent) 8%, transparent),
+      transparent 62%
+    ),
     var(--t-bg);
   color: var(--t-ink);
   font-family: var(--wb-sans);
@@ -27,6 +31,37 @@
 
 .tpl.is-preview {
   cursor: default;
+}
+
+.tpl-source-toggle {
+  position: absolute;
+  z-index: 20;
+  top: 6px;
+  right: 6px;
+  padding: 5px 8px;
+  border: 1px solid var(--wb-line-2);
+  border-radius: var(--wb-r-xs);
+  background: var(--wb-panel);
+  color: var(--wb-ink);
+  box-shadow: var(--wb-shadow-soft);
+  cursor: pointer;
+  font-size: 10px;
+}
+
+.tpl-page.has-source {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 844px;
+  padding: 0;
+}
+
+.tpl-source-frame {
+  display: block;
+  width: 100%;
+  height: 844px;
+  border: 0;
+  background: #f2efe6;
 }
 
 .tpl-page {
@@ -83,12 +118,12 @@
   align-content: start;
   gap: clamp(8px, 1.05cqw, 13px);
   min-width: 0;
-  padding: clamp(12px, 1.65cqw, 21px) !important;
-  border: 1px solid color-mix(in oklab, var(--t-line) 88%, transparent) !important;
-  border-radius: var(--t-radius) !important;
-  background: var(--t-surface) !important;
-  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 52%) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045) !important;
+  padding: var(--tpl-card-padding, clamp(12px, 1.65cqw, 21px));
+  border: 1px solid color-mix(in oklab, var(--t-line) 88%, transparent);
+  border-radius: var(--t-radius);
+  background: var(--t-surface);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 52%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
   color: var(--t-ink);
 }
 
@@ -100,6 +135,11 @@
 .tpl-text {
   min-width: 0;
   text-wrap: pretty;
+}
+
+.tpl-text.is-inline {
+  font: inherit;
+  line-height: inherit;
 }
 
 .tpl-text.is-display {
@@ -571,6 +611,38 @@
   border-radius: 4px;
 }
 
+.tpl[data-layer-dragging="true"] [data-canvas-drag-source="true"] {
+  opacity: 0.62;
+}
+
+.tpl [data-canvas-drop="before"],
+.tpl [data-canvas-drop="after"] {
+  outline: 2px dashed var(--wb-signal);
+  outline-offset: 2px;
+}
+
+.tpl [data-canvas-drop="inside"] {
+  box-shadow: inset 0 0 0 2px var(--wb-signal);
+}
+
+/* The RCL map is an editing lens: green outlines resolve to published shared
+   primitives, amber outlines are layout or custom layers. It leaves the
+   composition's pixels intact and does not appear in previews or captures. */
+.tpl[data-coverage-mode="true"] [data-rcl-coverage="rcl"] {
+  outline: 1px solid color-mix(in srgb, var(--wb-green) 84%, transparent);
+  outline-offset: -1px;
+}
+
+.tpl[data-coverage-mode="true"] [data-rcl-coverage="custom"] {
+  outline: 1px dashed color-mix(in srgb, var(--wb-signal) 78%, transparent);
+  outline-offset: -1px;
+}
+
+.tpl[data-coverage-mode="true"] [data-selected="true"] {
+  outline: 2px solid var(--wb-ice);
+  outline-offset: 2px;
+}
+
 .tpl.is-thumb [data-node-id],
 .tpl.is-preview [data-node-id] {
   outline: none !important;
@@ -599,7 +671,7 @@
   }
 
   .tpl-card {
-    padding: 13px !important;
+    padding: var(--tpl-card-padding, 13px);
   }
 
   .tpl-text.is-display {
@@ -645,7 +717,12 @@
   aspect-ratio: 1;
   border-radius: 50%;
   background:
-    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.18) 32%, transparent 62%),
+    radial-gradient(
+      circle at 34% 28%,
+      rgba(255, 255, 255, 0.9),
+      rgba(255, 255, 255, 0.18) 32%,
+      transparent 62%
+    ),
     linear-gradient(150deg, var(--t-surface), var(--t-surface-alt));
   box-shadow: 0 26px 50px rgba(0, 0, 0, 0.28);
 }
@@ -657,7 +734,9 @@
   background:
     radial-gradient(circle at 34% 24%, rgba(255, 255, 255, 0.75), transparent 38%),
     linear-gradient(155deg, var(--t-surface), var(--t-surface-alt));
-  box-shadow: inset -14px 0 26px rgba(0, 0, 0, 0.16), 0 26px 46px rgba(0, 0, 0, 0.26);
+  box-shadow:
+    inset -14px 0 26px rgba(0, 0, 0, 0.16),
+    0 26px 46px rgba(0, 0, 0, 0.26);
 }
 
 .tpl-art-shape.is-vase::before {
@@ -685,7 +764,14 @@
   width: 62%;
   aspect-ratio: 1;
   border-radius: 50%;
-  background: radial-gradient(circle, transparent 34%, var(--t-surface) 35% 46%, transparent 47% 58%, var(--t-surface-alt) 59% 70%, transparent 71%);
+  background: radial-gradient(
+    circle,
+    transparent 34%,
+    var(--t-surface) 35% 46%,
+    transparent 47% 58%,
+    var(--t-surface-alt) 59% 70%,
+    transparent 71%
+  );
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14) inset;
 }
 

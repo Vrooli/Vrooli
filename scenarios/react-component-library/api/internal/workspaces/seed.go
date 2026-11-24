@@ -36,7 +36,7 @@ type SeedResult struct {
 // idempotent: a workspace whose id already exists is left exactly as stored, so
 // a seed edit never overwrites a workspace someone may already be looking at.
 // Retiring a seed therefore requires deleting the row deliberately.
-func Seed(ctx context.Context, db *sql.DB, raw []byte) (SeedResult, error) {
+func Seed(ctx context.Context, db Database, raw []byte) (SeedResult, error) {
 	var file SeedFile
 	if err := json.Unmarshal(raw, &file); err != nil {
 		return SeedResult{}, fmt.Errorf("workspace seed is not valid JSON: %w", err)
@@ -122,7 +122,7 @@ func Seed(ctx context.Context, db *sql.DB, raw []byte) (SeedResult, error) {
 	return result, nil
 }
 
-func appliedSeedVersion(ctx context.Context, db *sql.DB) (int, error) {
+func appliedSeedVersion(ctx context.Context, db Database) (int, error) {
 	var version int
 	err := db.QueryRowContext(ctx, `SELECT version FROM workspace_seed_state WHERE id = 1`).Scan(&version)
 	if err == sql.ErrNoRows {

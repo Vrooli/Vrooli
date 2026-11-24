@@ -287,6 +287,13 @@
         ],
         "mode": "file-determined"
       },
+      "scenario-canonical-layer": {
+        "inputs": [
+          "library/**",
+          "scenarios/*/ui/src/**"
+        ],
+        "mode": "file-determined"
+      },
       "scenario-token-requirements": {
         "inputs": [
           "catalog/config.json",
@@ -323,6 +330,20 @@
         ],
         "mode": "file-determined"
       },
+      "story-args-fields": {
+        "inputs": [
+          "catalog/assets/**",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "story-coverage": {
+        "inputs": [
+          "catalog/assets/**",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
       "story-distinctness": {
         "inputs": [
           "catalog/assets/**",
@@ -351,7 +372,26 @@
         ],
         "mode": "file-determined"
       },
+      "stylesheet-key": {
+        "inputs": [
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "stylesheet-key-duplicate": {
+        "inputs": [
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
       "surface-discipline": {
+        "inputs": [
+          "catalog/config.json",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "token-fallback-literal": {
         "inputs": [
           "catalog/config.json",
           "library/**"
@@ -394,6 +434,13 @@
         ],
         "mode": "file-determined"
       },
+      "usage-contract": {
+        "inputs": [
+          "library/**",
+          "ui/scripts/check-catalog-usage-contracts.mjs"
+        ],
+        "mode": "file-determined"
+      },
       "utility-class": {
         "inputs": [
           "catalog/config.json",
@@ -403,7 +450,8 @@
       },
       "version-liveness": {
         "inputs": [
-          "library/**"
+          "library/**",
+          "library/tests/**"
         ],
         "mode": "file-determined"
       },
@@ -533,7 +581,8 @@
     "unavailable": "fail"
   },
   "runnability": {
-    "needsAPI": true
+    "needsAPI": true,
+    "needsUI": true
   },
   "runtimeClass": "execution",
   "scenario": "react-component-library",

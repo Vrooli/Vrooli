@@ -89,3 +89,80 @@ func TestHealthShowForwardsWindowAndNeverPrintsUnavailableAsZero(t *testing.T) {
 	require.Contains(t, out, "wired: 2/5")
 	require.Contains(t, out, "counts:")
 }
+
+func TestHealthParsingAndSectionClassificationEdges(t *testing.T) {
+	for _, tc := range []struct {
+		raw  string
+		want int32
+	}{{"", 0}, {" 0 ", 0}, {"2147483647", 2147483647}} {
+		got, err := parseNonNegativeInt32(tc.raw, "--activity-days")
+		require.NoError(t, err)
+		require.Equal(t, tc.want, got)
+	}
+	for _, raw := range []string{"-1", "2147483648", "7d"} {
+		_, err := parseNonNegativeInt32(raw, "--activity-days")
+		require.ErrorContains(t, err, "--activity-days must be a non-negative integer")
+	}
+
+	var rows []string
+	rows = appendSection(rows, "overview", nil)
+	rows = appendSection(rows, "unknown", &libraryhealthv1.HealthSection{Reason: "missing state"})
+	rows = appendSection(rows, "partial", &libraryhealthv1.HealthSection{
+		State:   libraryhealthv1.SectionState_SECTION_STATE_PARTIAL,
+		Metrics: []*libraryhealthv1.HealthMetric{{Key: "fallback", Value: 0, Detail: "measured"}, nil},
+	})
+	rows = appendSection(rows, "future", &libraryhealthv1.HealthSection{State: libraryhealthv1.SectionState(99)})
+	require.Equal(t, []string{
+		"overview: unavailable — no section returned",
+		"unknown: unknown — missing state",
+		"partial: partial — no reason supplied",
+		"  fallback: 0 — measured",
+		"future: unknown — unrecognized section state",
+	}, rows)
+	require.False(t, countsAreUsable(nil))
+	require.False(t, countsAreUsable(&libraryhealthv1.HealthSection{State: libraryhealthv1.SectionState_SECTION_STATE_UNAVAILABLE}))
+	require.True(t, countsAreUsable(&libraryhealthv1.HealthSection{State: libraryhealthv1.SectionState_SECTION_STATE_EMPTY}))
+	require.Equal(t, "unknown", sectionStateLabel(&libraryhealthv1.HealthSection{State: libraryhealthv1.SectionState(99)}))
+}
+
+func TestHealthShowRejectsUnavailableSnapshotAndRendersOptionalFields(t *testing.T) {
+	for name, response := range map[string]*libraryhealthv1.GetLibraryHealthResponse{
+		"nil response": nil,
+		"nil health":   {},
+	} {
+		t.Run(name, func(t *testing.T) {
+			mux := http.NewServeMux()
+			mux.Handle(libraryhealthconnect.LibraryHealthServiceGetLibraryHealthProcedure, connect.NewUnaryHandlerSimple(
+				libraryhealthconnect.LibraryHealthServiceGetLibraryHealthProcedure,
+				func(context.Context, *libraryhealthv1.GetLibraryHealthRequest) (*libraryhealthv1.GetLibraryHealthResponse, error) {
+					return response, nil
+				},
+			))
+			core := cliapptest.NewTestApp(t, mux)
+			group, err := Register(core, cliapptest.ReadManifest(t))
+			require.NoError(t, err)
+			command := cliapptest.FindCommand(t, []cliapp.SubcommandGroup{group}, GroupName, "show")
+			_, err = cliapptest.RunCommand(t, command, core)
+			require.ErrorContains(t, err, "server returned no library health snapshot")
+		})
+	}
+
+	mux := http.NewServeMux()
+	mux.Handle(libraryhealthconnect.LibraryHealthServiceGetLibraryHealthProcedure, connect.NewUnaryHandlerSimple(
+		libraryhealthconnect.LibraryHealthServiceGetLibraryHealthProcedure,
+		func(context.Context, *libraryhealthv1.GetLibraryHealthRequest) (*libraryhealthv1.GetLibraryHealthResponse, error) {
+			return &libraryhealthv1.GetLibraryHealthResponse{Health: &libraryhealthv1.LibraryHealth{
+				Quality: &libraryhealthv1.HealthSection{State: libraryhealthv1.SectionState_SECTION_STATE_AVAILABLE, Reason: "validated"},
+				Counts:  &libraryhealthv1.HealthOverview{Assets: 99},
+			}}, nil
+		},
+	))
+	core := cliapptest.NewTestApp(t, mux)
+	group, err := Register(core, cliapptest.ReadManifest(t))
+	require.NoError(t, err)
+	command := cliapptest.FindCommand(t, []cliapp.SubcommandGroup{group}, GroupName, "show")
+	out, err := cliapptest.RunCommand(t, command, core)
+	require.NoError(t, err)
+	require.Contains(t, out, "quality: available — validated")
+	require.NotContains(t, out, "counts:", "counts are omitted while overview is unavailable")
+}

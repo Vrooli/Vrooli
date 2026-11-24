@@ -91,7 +91,7 @@ The components domain owns authoring and indexing of Git-tracked source
 under `library/components/<slug>/`. The API writes source files and
 manifests; UI and CLI stay thin generated-client callers.
 
-### `POST /vrooli.react_component_library.v1.components.ComponentsService/InitializeComponent`
+### `POST /vrooli.react_component_library.v1.componentauthoring.ComponentAuthoringService/InitializeComponent`
 
 Create `component.json` plus `versions/<initial_version>/<file>.tsx`,
 run the indexer, and return the registry row.
@@ -103,7 +103,7 @@ run the indexer, and return the registry row.
 | **Errors** | `invalid_argument` — invalid slug/version/file/header<br>`already_exists` — duplicate library id or slug<br>`internal` — filesystem/index failure |
 | **CLI** | `react-component-library components init <slug>` |
 
-### `POST /vrooli.react_component_library.v1.components.ComponentsService/CreateComponentVersion`
+### `POST /vrooli.react_component_library.v1.componentauthoring.ComponentAuthoringService/CreateComponentVersion`
 
 Create a new version folder for an existing component, update the
 manifest's `latest` or `draft` pointer, re-index, and return the version
@@ -116,7 +116,7 @@ row.
 | **Errors** | `not_found` — component missing<br>`invalid_argument` — invalid version/file/header<br>`internal` — filesystem/index failure |
 | **CLI** | `react-component-library components version-create "<component-id>" "<version>"` |
 
-### `POST /vrooli.react_component_library.v1.components.ComponentsService/UpdateComponentManifest`
+### `POST /vrooli.react_component_library.v1.componentauthoring.ComponentAuthoringService/UpdateComponentManifest`
 
 Update display metadata and explicit version pointers in
 `component.json`, then re-index.

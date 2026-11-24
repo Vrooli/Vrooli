@@ -18,6 +18,7 @@ import (
 	workspaceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/workspace/workspace_v1connect"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"react-component-library/cli/internal/runtimeenv"
 )
 
 // handlers bundles the closure over *cliapp.ScenarioApp + the generated
@@ -25,13 +26,15 @@ import (
 type handlers struct {
 	core   *cliapp.ScenarioApp
 	client workspaceconnect.WorkspaceServiceClient
+	deps   runtimeenv.Dependencies
 }
 
-func newHandlers(core *cliapp.ScenarioApp) *handlers {
+func newHandlers(core *cliapp.ScenarioApp, deps runtimeenv.Dependencies) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	return &handlers{
 		core:   core,
 		client: workspaceconnect.NewWorkspaceServiceClient(httpClient, baseURL),
+		deps:   deps,
 	}
 }
 
@@ -626,7 +629,7 @@ func (h *handlers) assistCall(ctx cliapp.OperationContext) (*workspacev1.AssistW
 
 	key := strings.TrimSpace(ctx.Flag("idempotency-key"))
 	if key == "" {
-		key = fmt.Sprintf("assist-%d-%s", time.Now().UnixNano(), randomSuffix())
+		key = h.defaultIdempotencyKey()
 	}
 	resp, err := h.client.AssistWorkspace(context.Background(), connect.NewRequest(&workspacev1.AssistWorkspaceRequest{
 		Id:           id,
@@ -692,10 +695,16 @@ func (h *handlers) assistReport(ctx cliapp.OperationContext, msg *workspacev1.As
 
 // randomSuffix makes a default idempotency key distinct without depending on
 // crypto/rand being available in a stripped environment.
-func randomSuffix() string {
+func (h *handlers) defaultIdempotencyKey() string {
+	timestamp := h.deps.Clock.Now().UnixNano()
+	suffix := randomSuffix(h.deps.Clock.Now())
+	return fmt.Sprintf("assist-%d-%s", timestamp, suffix)
+}
+
+func randomSuffix(now time.Time) string {
 	const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789"
 	var builder strings.Builder
-	seed := time.Now().UnixNano()
+	seed := now.UnixNano()
 	for index := 0; index < 6; index++ {
 		builder.WriteByte(alphabet[int(seed>>(index*5))%len(alphabet)])
 	}

@@ -70,12 +70,30 @@ func connectAPI(t *testing.T, svc *versionsService) http.Handler {
 
 type lifecycleService struct {
 	versionsconnect.UnimplementedVersionLifecycleServiceHandler
-	planResp    *versionsv1.PlanCleanupResponse
-	cleanupResp *versionsv1.CleanupVersionsResponse
-	planCalls   int
-	cleanupReq  *versionsv1.CleanupVersionsRequest
-	archiveReq  *versionsv1.ImportArchiveRequest
-	recoverReq  *versionsv1.RecoverButton224Request
+	planResp       *versionsv1.PlanCleanupResponse
+	cleanupResp    *versionsv1.CleanupVersionsResponse
+	planCalls      int
+	cleanupReq     *versionsv1.CleanupVersionsRequest
+	archiveReq     *versionsv1.ImportArchiveRequest
+	recoverReq     *versionsv1.RecoverButton224Request
+	materializeReq *versionsv1.MaterializeVersionRequest
+	presenceReq    *versionsv1.ReconcilePresenceRequest
+	doctorCalls    int
+}
+
+func (s *lifecycleService) MaterializeVersion(_ context.Context, req *connect.Request[versionsv1.MaterializeVersionRequest]) (*connect.Response[versionsv1.MaterializeVersionResponse], error) {
+	s.materializeReq = req.Msg
+	return connect.NewResponse(&versionsv1.MaterializeVersionResponse{Versions: []*versionsv1.MaterializedVersion{{LibraryId: "button", Version: "1.0.0", Directory: "components/button/1.0.0"}}}), nil
+}
+
+func (s *lifecycleService) ReconcilePresence(_ context.Context, req *connect.Request[versionsv1.ReconcilePresenceRequest]) (*connect.Response[versionsv1.ReconcilePresenceResponse], error) {
+	s.presenceReq = req.Msg
+	return connect.NewResponse(&versionsv1.ReconcilePresenceResponse{Applied: req.Msg.GetApply()}), nil
+}
+
+func (s *lifecycleService) Doctor(_ context.Context, _ *connect.Request[versionsv1.DoctorRequest]) (*connect.Response[versionsv1.DoctorResponse], error) {
+	s.doctorCalls++
+	return connect.NewResponse(&versionsv1.DoctorResponse{}), nil
 }
 
 func (s *lifecycleService) PlanCleanup(_ context.Context, _ *connect.Request[versionsv1.PlanCleanupRequest]) (*connect.Response[versionsv1.PlanCleanupResponse], error) {
@@ -276,4 +294,27 @@ func TestRecoverButton224RequiresBundlePath(t *testing.T) {
 	h := newHandlers(core)
 	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "bundle"}}}, cliapptest.TestRunContextOptions{})
 	require.ErrorContains(t, h.recoverButton224(ctx), "--bundle is required")
+}
+
+func TestLifecycleCallsForwardOptionsToDedicatedOperations(t *testing.T) {
+	lifecycleSvc := &lifecycleService{}
+	core := clitest.NewTestApp(t, connectLifecycleAPI(t, &versionsService{}, lifecycleSvc))
+	h := newHandlers(core)
+	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "component-id"}, {Name: "version"}}, Flags: []cliapp.Flag{{Name: "all", Bool: true}, {Name: "into"}}}, cliapptest.TestRunContextOptions{Flags: map[string]string{"all": "true", "into": "out/path"}})
+	materialized, err := h.materializeCall(ctx)
+	require.NoError(t, err)
+	require.True(t, lifecycleSvc.materializeReq.GetAll())
+	require.Equal(t, "out/path", lifecycleSvc.materializeReq.GetInto())
+	require.Len(t, materialized.GetVersions(), 1)
+
+	presenceCtx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "component-id"}, {Name: "apply", Bool: true}}}, cliapptest.TestRunContextOptions{Flags: map[string]string{"component-id": "button", "apply": "true"}})
+	presence, err := h.reconcilePresenceCall(presenceCtx)
+	require.NoError(t, err)
+	require.Equal(t, "button", lifecycleSvc.presenceReq.GetComponentId())
+	require.True(t, presence.GetApplied())
+
+	doctor, err := h.doctorCall(cliapp.NewTestRunContext(cliapp.TestRunContextOptions{}))
+	require.NoError(t, err)
+	require.NotNil(t, doctor)
+	require.Equal(t, 1, lifecycleSvc.doctorCalls)
 }

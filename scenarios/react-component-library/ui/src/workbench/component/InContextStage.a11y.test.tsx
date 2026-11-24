@@ -52,7 +52,10 @@ function stage(overrides: { story?: WorkbenchStory; device?: "desktop" | "phone"
       asset={asset}
       story={overrides.story ?? story}
       version="1.2.0"
-      templateId={DEFAULT_TEMPLATE.id}
+      template={DEFAULT_TEMPLATE}
+      templates={[
+        { id: DEFAULT_TEMPLATE.id, name: DEFAULT_TEMPLATE.name, summary: DEFAULT_TEMPLATE.tagline },
+      ]}
       onTemplateChange={vi.fn()}
       device={overrides.device ?? "desktop"}
       onDeviceChange={vi.fn()}
@@ -105,7 +108,9 @@ describe("InContextStage accessibility", () => {
   it("exposes the state of the device switch and instrument toggles", async () => {
     await settledRender(stage());
 
-    const desktop = document.querySelector<HTMLButtonElement>(".wb-seg button[aria-pressed='true']");
+    const desktop = document.querySelector<HTMLButtonElement>(
+      ".wb-seg button[aria-pressed='true']",
+    );
     expect(desktop?.textContent).toBe("Desktop");
     const pressed = Array.from(document.querySelectorAll(".wb-seg button[aria-pressed]")).map(
       (button) => button.getAttribute("aria-pressed"),

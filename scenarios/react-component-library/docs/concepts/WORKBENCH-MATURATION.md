@@ -1,13 +1,19 @@
 # Workbench maturation — five places, one model
 
-Status: **implemented slice; legacy-owner deletion, BAS state capture and the
-semantic search leg remain.** The five destinations, workspace aggregate, unified search,
-server-owned Review/Activity, a paginated Review queue, the CLI surface,
-workspace assets/assist/HTML import, curated template seeds and composed Stats
-are implemented and served. The workspace studio renders the
-mature studio surfaces (page tabs, layers, system, canvas, inspector, status bar,
-present, undo/redo, autosave). Evidence and remaining gaps are in
-[WORKBENCH-PROGRAM.md](../internal/WORKBENCH-PROGRAM.md#0-delivery-status-2026-11-19).
+Status: **the five-destination workbench and workspace model are implemented;
+visual-source fidelity and adoption tooling are in progress.** The workspace
+aggregate, unified search, server-owned Review/Activity, paginated Review queue,
+CLI surface, workspace assets/assist/HTML import, curated workspace seeds and
+Stats are implemented. The studio has page tabs, layers, system, canvas,
+inspector, checks, status bar, present, undo/redo and autosave/conflict handling.
+The eight-screen study pass adds eight forkable phone workspaces, named
+HTML-region selection, a native RCL/custom canvas map, a searchable replacement
+picker with live catalog-component slots, and revision-scoped screenshot
+comparison with a heat map. Imported markup is mapped into editable layers while
+a sanitized source preview retains local CSS and inline styling. Scripts,
+external resources, and source interactions remain outside the editable model.
+Evidence and remaining work are in
+[WORKBENCH-PROGRAM.md](../internal/WORKBENCH-PROGRAM.md#0-delivery-status-2026-11-20).
 This is the information architecture and design model after the D · Nocturne
 workbench. It responds to the operator’s 2026-11-19 direction: keep the
 Start/search index and the phone composition, re-home Home’s modules instead of
@@ -141,7 +147,7 @@ and evidence.
 | Query | First | Then | Then |
 |---|---|---|---|
 | `onboarding flow` | **Harbor** workspace · 4 pages · 12 displays · 12 states | Pages and state coverage | OnboardingPage page type, OnboardingFlow pattern, assets, commands |
-| `landing page` | **LandingPage** page type | Workspaces/templates tagged or bound | Assets used, commands |
+| `landing page` | Matching curated workspace (for example, **Marlow**) | Matching page type and pages | Assets used, commands |
 | `validation error` | **Harbor / Profile / Phone / Validation error** | The containing page and workspace | Assets in the state, capture command |
 | `button` | **Button** asset | Workspaces/pages where it appears | Adopt/open/compare commands |
 
@@ -175,6 +181,10 @@ State     { id, name, args, scenario?, status, captureId? }
 ## Acceptance evidence
 
 - Five destinations at 1440, 390 and 320; the phone bottom navigation matches.
+- Start uses a phone-specific sequence: six catalog-derived browse cards, the
+  Continue workspace, then any remaining browse cards. Desktop keeps the full
+  browse grid and sidebar. Labels and counts continue to come from live catalog
+  and workspace data.
 - Every Home, Coverage, Activity and Capabilities module is reachable from Start,
   Library or Stats; the ledger is complete.
 - A workspace opens with pages, displays and states; switching a page, display and
@@ -195,8 +205,62 @@ State     { id, name, args, scenario?, status, captureId? }
 - Do page types become user-facing “page types” in the catalog, or stay internal
   archetypes?
 
-## Evidence limits
+## Visual-source and adoption status
 
-The prototype is static HTML/CSS in the Nocturne tokens, not the running app. It is
-not wired to the API or SQLite, and its counts are illustrative where the model does
-not exist. No product code or test suite changed. The current workbench is dark-only.
+- The eight screenshot concepts are available as individual, immutable curated
+  workspace seeds. Each has a phone display and can be forked through the normal
+  workspace flow; no separate template generator or authoring DSL is used. The
+  existing workspace node vocabulary was extended with compact metric and icon
+  nodes for details the published catalog does not yet cover. RCL primitives
+  render the button, input, card, stat, chip, meter, avatar and bound catalog
+  component layers. The illustrative
+  plant, jar, tarot and track artwork, plus the original interactive states, are
+  not exact in these compositions.
+- HTML import accepts an HTML/CSS selection or folder and lists explicitly named
+  regions first. It maps safe structure into editable layers, stores a sanitized
+  source view on the imported page, and switches between the original visual and
+  editable layers. The source view is isolated in a script-free sandbox with
+  external resources removed; source interactions remain inert. Safe inline SVG
+  artwork becomes bounded, sanitized image layers, and local sprite symbols are
+  expanded. Allowlisted local SVG presentation rules are copied into those
+  layers; external and executable CSS is discarded. Extracting a nested region
+  carries safe inherited color, typography, and custom properties from its
+  ancestors onto the region root, while non-inherited layout and background
+  styles remain with their original ancestors. Layout CSS remains in the styled
+  source view rather than being applied to the editable composition.
+- Selected layers can be replaced with best-match native RCL primitives,
+  layout patterns, or published catalog components. Catalog components bind
+  through the existing component-slot renderer and count as RCL coverage. Layer
+  rows support pointer and keyboard reordering/reparenting through edit history.
+- The canonical source bundle is in
+  `~/.vrooli/research/topics/experience-engineering/operator-experiments/rcl-eight-screen-workspace-20261121/data/eight-screens-source/`;
+  the original HTML entry is `index.html` and its supplied reference is
+  `data/reference-HTuJxm6XoAEn9YS.jpeg`. A recovered working copy is also kept
+  at `~/design-studies/eight-screens/`.
+  The native curated workspaces retain the source concepts and can be forked;
+  exact artwork and interactive states are available in the source view rather
+  than represented as native assets. Capture receipts can be compared for the
+  selected workspace state; screenshot difference, changed-pixel percentage and
+  heat map are recorded without changing component coverage.
+- The canvas RCL map outlines actual published primitive nodes in green and
+  custom/layout nodes in amber. The existing checks also report RCL layer share,
+  painted-area share when measured, overflow, touch targets, declared states and
+  composition claims. Ranked next steps use those findings to direct frame fixes,
+  state review, and best-match replacement for selected custom layers. The score
+  is a checklist summary, not an art-quality judgment; unmeasured evidence stays
+  unknown.
+- Replacing a selected layer searches/ranks native RCL primitives, layout
+  patterns and published catalog components. A selected catalog asset is loaded
+  at its published story and stored as a live component slot with authored
+  fallback content.
+- Revision history tracks composition edits, and BAS capture evidence is tied
+  to its source revision and invalidated when that revision changes. A stored
+  visual comparison shows the selected captures, changed-pixel percentage and
+  heat map so reviewers can judge how adoption or customization changed a screen.
+  The Visual drift panel can also compare a captured state against its stored
+  source image. Registering an uploaded image creates a candidate only; an
+  explicit reviewer action records its acceptance time and entered attribution.
+  A source locator is provenance text and is not fetched or independently verified.
+  Comparisons preserve the source image digest, accepted baseline id, capture
+  receipt id and heat map. The entered reviewer label is not an authenticated
+  account identity, and comparison evidence does not imply operator approval.

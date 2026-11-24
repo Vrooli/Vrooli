@@ -138,6 +138,54 @@ func TestBatchApplyBlockedItemRefusesWholeBatch(t *testing.T) {
 	require.Empty(t, mustListBatchRows(t, repo, "target"))
 }
 
+func TestBatchApplyRequiresConfirmationOnlyWhenExistingSourceDiffers(t *testing.T) {
+	component := batchAsset("button", "rcl:Button")
+	body := "export const Button = () => null;"
+	lib := &fakeLibrary{byID: map[string]components.Component{component.ID: component}, versions: map[string]components.ComponentVersion{
+		"button@1.0.0": batchVersion(component.ID, component.LibraryID, "1.0.0", "Button.tsx", body),
+	}}
+	target := "ui/src/components/Button.tsx"
+	provenance := "/**\n * @vrooliComponentSource rcl:Button\n */\n" + body
+
+	t.Run("identical source can be replaced without a second confirmation", func(t *testing.T) {
+		files := &fakeFiles{bytes: map[string][]byte{"target::" + target: []byte(provenance)}}
+		repo := adoptmocks.NewFakeRepository()
+		svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Unix(0, 0)))
+		result, err := svc.BatchApply(context.Background(), adoptions.BatchApplyInput{Items: []adoptions.BatchApplyItem{{
+			ComponentID: component.ID, Scenario: "target", AdoptedPath: target, ReplaceExisting: true,
+		}}})
+		require.NoError(t, err)
+		require.Len(t, result.Results, 1)
+		require.Len(t, mustListBatchRows(t, repo, "target"), 1)
+	})
+
+	t.Run("different source needs explicit overwrite confirmation", func(t *testing.T) {
+		files := &fakeFiles{bytes: map[string][]byte{"target::" + target: []byte("local implementation")}}
+		repo := adoptmocks.NewFakeRepository()
+		svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Unix(0, 0)))
+		_, err := svc.BatchApply(context.Background(), adoptions.BatchApplyInput{Items: []adoptions.BatchApplyItem{{
+			ComponentID: component.ID, Scenario: "target", AdoptedPath: target, ReplaceExisting: true,
+		}}})
+		var invalid adoptions.ErrInvalidAdoption
+		require.ErrorAs(t, err, &invalid)
+		require.Equal(t, "confirm_overwrite", invalid.Field)
+		require.Equal(t, "local implementation", string(files.bytes["target::"+target]))
+		require.Empty(t, mustListBatchRows(t, repo, "target"))
+	})
+}
+
+func TestBatchApplyRejectsEmptyAndIncompleteRequestsBeforeAccessingDependencies(t *testing.T) {
+	svc := adoptions.NewService(adoptmocks.NewFakeRepository(), &fakeLibrary{}, &fakeFiles{bytes: map[string][]byte{}}, scheduletest.New(time.Unix(0, 0)))
+	_, err := svc.BatchApply(context.Background(), adoptions.BatchApplyInput{})
+	var invalid adoptions.ErrInvalidAdoption
+	require.ErrorAs(t, err, &invalid)
+	require.Equal(t, "items", invalid.Field)
+
+	_, err = svc.BatchApply(context.Background(), adoptions.BatchApplyInput{Items: []adoptions.BatchApplyItem{{ComponentID: "cmp", Scenario: "target"}}})
+	require.ErrorAs(t, err, &invalid)
+	require.Equal(t, "component_id/scenario/adopted_path", invalid.Field)
+}
+
 func mustListBatchRows(t *testing.T, repo *adoptmocks.FakeRepository, scenario string) []adoptions.Adoption {
 	t.Helper()
 	rows, err := repo.List(context.Background(), adoptions.ListQuery{Scenario: scenario, Limit: 20})

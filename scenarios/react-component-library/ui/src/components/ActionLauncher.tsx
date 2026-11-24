@@ -5,7 +5,7 @@ import { type FormEvent, useEffect, useState } from "react";
 
 import { workflowsClient } from "../api/workflows";
 import { WorkflowKind } from "@vrooli/proto-types/react-component-library/v1/workflows/workflows_pb";
-import { adoptionsClient } from "../api/adoptions";
+import { adoptionIntakeClient } from "../api/adoptionIntake";
 import { listCatalogAssets } from "../api/components";
 import { useTranslation } from "../i18n";
 import { Button } from "@vrooli/react-component-library/Button/2";
@@ -114,7 +114,7 @@ export function ActionLauncher({
   const [targets, setTargets] = useState<string[]>([]);
   const scenarios = useQuery({
     queryKey: ["adoptions", "scenarios"],
-    queryFn: () => adoptionsClient.listScenarios({}),
+    queryFn: () => adoptionIntakeClient.listScenarios({}),
     staleTime: 30_000,
   });
   const assets = useQuery({

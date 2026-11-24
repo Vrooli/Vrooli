@@ -14,7 +14,7 @@
 # This Makefile is a thin wrapper. All user-facing output (status, banners,
 # colors) is owned by the `vrooli scenario` CLI itself.
 
-.PHONY: help start stop test logs status clean fmt fmt-go fmt-ui lint lint-go lint-ui check setup endpoints test-fleet-contract
+.PHONY: help start stop restart test logs status clean fmt fmt-go fmt-ui lint lint-go lint-ui check setup endpoints test-fleet-contract ask-latency test-ask-latency
 
 .DEFAULT_GOAL := help
 
@@ -28,6 +28,7 @@ help: ## Show the supported scenario entrypoints
 	@printf "Vrooli scenario entrypoints for %s\n\n" "$(SCENARIO_NAME)"
 	@printf "  make setup                      Run scenario setup lifecycle\n"
 	@printf "  make start                      Start the scenario\n"
+	@printf "  make restart                    Restart the scenario\n"
 	@printf "  make stop                       Stop the scenario\n"
 	@printf "  make restart                    Restart the scenario\n"
 	@printf "  make status                     Show scenario runtime status\n"
@@ -39,6 +40,9 @@ help: ## Show the supported scenario entrypoints
 
 start: ## Start the scenario
 	@vrooli scenario start "$(SCENARIO_NAME)"
+
+restart: ## Restart the scenario
+	@vrooli scenario restart "$(SCENARIO_NAME)"
 
 stop: ## Stop the scenario
 	@vrooli scenario stop "$(SCENARIO_NAME)"
@@ -54,6 +58,12 @@ test: ## Run scenario tests
 
 test-fleet-contract: ## Run the non-hermetic fleet contract check alone
 	@cd api && GOWORK=off go test -count=1 -p 1 -tags integration ./handlers/componenttests/ -run TestConsumerContractPhaseRunsActualFleetChecker
+
+ask-latency: ## Measure live explicit-Ask latency and citation integrity against the configured SLO
+	@python3 tools/ask_latency_gate.py
+
+test-ask-latency: ## Test the explicit-Ask latency gate without a live API
+	@cd tools && python3 -m unittest -v test_ask_latency_gate
 
 clean: ## Clean build artifacts
 	@rm -rf ui/dist 2>/dev/null || true

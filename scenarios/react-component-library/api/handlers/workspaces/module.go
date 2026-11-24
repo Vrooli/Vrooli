@@ -9,7 +9,6 @@ package workspaces
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"io/fs"
 	"log"
@@ -22,16 +21,19 @@ import (
 
 	workspacev1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/workspace"
 	workspaceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/workspace/workspace_v1connect"
+	visualconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/workspacevisualcomparison/workspacevisualcomparison_v1connect"
 
 	"react-component-library/internal/module"
 	domain "react-component-library/internal/workspaces"
 )
 
-// Handler serves the eight WorkspaceService RPCs over a Repository seam.
+// Handler serves the WorkspaceService RPCs over a Repository seam.
 type Handler struct {
 	repository domain.Repository
 	logger     *log.Logger
 	assistant  Assistant
+	capture    WorkspaceStateCaptureClient
+	comparer   VisualCompareRunner
 }
 
 // NewHandler wires a repository onto the Connect surface. A nil logger uses
@@ -45,22 +47,31 @@ func NewHandler(repository domain.Repository, logger *log.Logger) *Handler {
 
 // Module mounts the production workspace service over the scenario's primary
 // pool with activity recording disabled.
-func Module(db *sql.DB) module.Module {
+func Module(db domain.Database) module.Module {
 	return moduleFromRepository(domain.NewSQLiteRepository(db))
 }
 
 // ModuleWithRecorder mounts the service with the activity seam wired. main.go
 // uses this variant; the repository deliberately does not import the activity
 // package.
-func ModuleWithRecorder(db *sql.DB, recorder domain.Recorder) module.Module {
+func ModuleWithRecorder(db domain.Database, recorder domain.Recorder) module.Module {
 	return moduleFromRepository(domain.NewSQLiteRepository(db).WithRecorder(recorder))
 }
 
 // ModuleWithRecorderAndAssistant also wires the AI proposal seam. A nil
 // assistant is allowed: AssistWorkspace then reports Unavailable instead of
 // pretending assistance exists.
-func ModuleWithRecorderAndAssistant(db *sql.DB, recorder domain.Recorder, assistant Assistant) module.Module {
+func ModuleWithRecorderAndAssistant(db domain.Database, recorder domain.Recorder, assistant Assistant) module.Module {
 	handler := NewHandler(domain.NewSQLiteRepository(db).WithRecorder(recorder), nil).WithAssistant(assistant)
+	return moduleFromHandler(handler)
+}
+
+// ModuleWithCapture wires BAS as the sole browser owner for workspace-state
+// screenshots. Tests can inject a narrow fake without starting BAS.
+func ModuleWithCapture(db domain.Database, recorder domain.Recorder, assistant Assistant, capture WorkspaceStateCaptureClient) module.Module {
+	handler := NewHandler(domain.NewSQLiteRepository(db).WithRecorder(recorder), nil).WithAssistant(assistant)
+	handler.capture = capture
+	handler.comparer = NewBASImageToolsCompare()
 	return moduleFromHandler(handler)
 }
 
@@ -69,17 +80,39 @@ func ModuleFromRepository(repository domain.Repository, logger *log.Logger) modu
 	return moduleFromHandler(NewHandler(repository, logger))
 }
 
+// ModuleFromRepositoryWithCapture wires the BAS capture owner for composed-state
+// capture and supports deterministic handler tests without starting BAS.
+func ModuleFromRepositoryWithCapture(repository domain.Repository, logger *log.Logger, capture WorkspaceStateCaptureClient) module.Module {
+	handler := NewHandler(repository, logger)
+	handler.capture = capture
+	handler.comparer = NewBASImageToolsCompare()
+	return moduleFromHandler(handler)
+}
+
+// ModuleFromRepositoryWithCaptureAndComparer wires a deterministic comparison
+// seam for handler tests and alternate deployments.
+func ModuleFromRepositoryWithCaptureAndComparer(repository domain.Repository, logger *log.Logger, capture WorkspaceStateCaptureClient, comparer VisualCompareRunner) module.Module {
+	handler := NewHandler(repository, logger)
+	handler.capture = capture
+	handler.comparer = comparer
+	return moduleFromHandler(handler)
+}
+
 func moduleFromRepository(repository domain.Repository) module.Module {
 	return moduleFromHandler(NewHandler(repository, nil))
 }
 
 func moduleFromHandler(handler *Handler) module.Module {
 	connectPath, connectHandler := workspaceconnect.NewWorkspaceServiceHandler(handler)
+	visualPath, visualHandler := visualconnect.NewWorkspaceVisualComparisonServiceHandler(handler)
 	return module.Module{
 		Name: "workspaces",
 		Mount: func(router *mux.Router) {
 			mountAssets(router, handler)
+			mountStateCapture(router, handler)
+			mountVisualComparison(router, handler)
 			connectx.RegisterServices(router, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
+			connectx.RegisterServices(router, connectx.ServiceMount{Path: visualPath, Handler: visualHandler})
 		},
 		Endpoints: Endpoints,
 	}
@@ -88,7 +121,7 @@ func moduleFromHandler(handler *Handler) module.Module {
 // SeedFromFile loads the reviewed curated-workspace shelf. A missing file is a
 // legitimate fixture state and seeds nothing; a malformed file is an error so a
 // content mistake is visible instead of silently emptying the shelf.
-func SeedFromFile(ctx context.Context, db *sql.DB, path string) (domain.SeedResult, error) {
+func SeedFromFile(ctx context.Context, db domain.Database, path string) (domain.SeedResult, error) {
 	raw, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return domain.SeedResult{}, nil
@@ -103,7 +136,7 @@ func SeedFromFile(ctx context.Context, db *sql.DB, path string) (domain.SeedResu
 func Schema() string { return domain.Schema() }
 
 // Migrate re-exports internal/workspaces.Migrate for main.go's boot sequence.
-func Migrate(ctx context.Context, db *sql.DB) error { return domain.Migrate(ctx, db) }
+func Migrate(ctx context.Context, db domain.Database) error { return domain.Migrate(ctx, db) }
 
 func (h *Handler) ListWorkspaces(ctx context.Context, req *connect.Request[workspacev1.ListWorkspacesRequest]) (*connect.Response[workspacev1.ListWorkspacesResponse], error) {
 	summaries, err := h.repository.List(ctx, req.Msg.GetProvenance(), req.Msg.GetQuery(), req.Msg.GetLimit())
@@ -195,6 +228,9 @@ func (h *Handler) ListWorkspaceRevisions(ctx context.Context, req *connect.Reque
 // well-formed and retryable: the client lost an optimistic-concurrency race and
 // must rebase on the revision carried by ConflictError.Current.
 func (h *Handler) mapError(operation string, err error) error {
+	if errors.Is(err, domain.ErrBindingConflict) {
+		return connect.NewError(connect.CodeAlreadyExists, err)
+	}
 	var invalid *domain.InvalidError
 	if errors.As(err, &invalid) {
 		return connect.NewError(connect.CodeInvalidArgument, err)
@@ -205,6 +241,9 @@ func (h *Handler) mapError(operation string, err error) error {
 	}
 	if errors.Is(err, domain.ErrCurated) {
 		return connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	if errors.Is(err, domain.ErrSourceBaselineAsset) {
+		return connect.NewError(connect.CodeFailedPrecondition, errors.New("this image is referenced by source-baseline evidence and cannot be deleted"))
 	}
 	if errors.Is(err, domain.ErrNotFound) {
 		return connect.NewError(connect.CodeNotFound, err)
@@ -247,6 +286,9 @@ var connectEndpoints = []module.EndpointDescriptor{
 		Response:    &module.Schema{Type: "object", Properties: map[string]string{"workspace": "Workspace"}},
 		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "id is required"}, {Status: 404, Code: "not_found", Description: "No workspace with that id"}},
 	},
+	{ID: "workspaces_source_baselines_list", Path: workspaceconnect.WorkspaceServiceListWorkspaceSourceBaselinesProcedure, Method: "POST", Summary: "List source baseline candidates and accepted anchor", Category: "workspaces", Request: &module.Schema{Type: "object", Properties: map[string]string{"workspace_id": "string", "state_id": "string"}}, Response: &module.Schema{Type: "object", Properties: map[string]string{"candidates": "array<WorkspaceSourceBaseline>", "accepted": "WorkspaceSourceBaseline|null"}}},
+	{ID: "workspaces_source_baseline_create", Path: workspaceconnect.WorkspaceServiceCreateWorkspaceSourceBaselineProcedure, Method: "POST", Summary: "Register a reference image as a source baseline candidate", Category: "workspaces", Request: &module.Schema{Type: "object", Properties: map[string]string{"workspace_id": "string", "state_id": "string", "asset_id": "string", "source_locator": "string"}}, Response: &module.Schema{Type: "object", Properties: map[string]string{"baseline": "WorkspaceSourceBaseline (candidate)"}}},
+	{ID: "workspaces_source_baseline_accept", Path: workspaceconnect.WorkspaceServiceAcceptWorkspaceSourceBaselineProcedure, Method: "POST", Summary: "Record explicit human acceptance of a source baseline candidate", Category: "workspaces", Request: &module.Schema{Type: "object", Properties: map[string]string{"workspace_id": "string", "state_id": "string", "baseline_id": "string", "accepted_by": "string (human attribution)"}}, Response: &module.Schema{Type: "object", Properties: map[string]string{"baseline": "WorkspaceSourceBaseline (accepted)"}}},
 	{
 		ID:          "workspaces_create",
 		Path:        workspaceconnect.WorkspaceServiceCreateWorkspaceProcedure,
@@ -333,4 +375,11 @@ var connectEndpoints = []module.EndpointDescriptor{
 		Response:    &module.Schema{Type: "object", Properties: map[string]string{"revisions": "array<WorkspaceRevision>"}},
 		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "id is required"}, {Status: 404, Code: "not_found", Description: "No workspace with that id"}},
 	},
+	{ID: "workspaces_assets_list", Path: workspaceconnect.WorkspaceServiceListWorkspaceAssetsProcedure, Method: "POST", Summary: "List a workspace's reference assets", Category: "workspaces", Request: &module.Schema{Type: "object", Properties: map[string]string{"workspace_id": "string (required)"}}, Response: &module.Schema{Type: "object", Properties: map[string]string{"assets": "array<WorkspaceAsset>"}}},
+	{ID: "workspaces_assets_list_all", Path: workspaceconnect.WorkspaceServiceListAllWorkspaceAssetsProcedure, Method: "POST", Summary: "List reference assets across workspaces", Category: "workspaces", Response: &module.Schema{Type: "object", Properties: map[string]string{"assets": "array<WorkspaceAsset>"}}},
+	{ID: "workspaces_assets_create", Path: workspaceconnect.WorkspaceServiceCreateWorkspaceAssetProcedure, Method: "POST", Summary: "Upload a workspace reference asset", Category: "workspaces", Request: &module.Schema{Type: "object", Properties: map[string]string{"workspace_id": "string", "name": "string", "mime": "string", "data": "bytes", "fidelity": "string"}}, Response: &module.Schema{Type: "object", Properties: map[string]string{"asset": "WorkspaceAsset"}}},
+	{ID: "workspaces_assets_delete", Path: workspaceconnect.WorkspaceServiceDeleteWorkspaceAssetProcedure, Method: "POST", Summary: "Delete a workspace reference asset", Category: "workspaces", Request: &module.Schema{Type: "object", Properties: map[string]string{"workspace_id": "string", "asset_id": "string"}}, Response: &module.Schema{Type: "object", Properties: map[string]string{"deleted": "bool"}}},
+	{ID: "workspaces_capture_state", Path: workspaceconnect.WorkspaceServiceCaptureWorkspaceStateProcedure, Method: "POST", Summary: "Capture one composed workspace state", Category: "workspaces", Request: &module.Schema{Type: "object", Properties: map[string]string{"workspace_id": "string", "expected_revision": "int32", "page_id": "string", "display_id": "string", "state_id": "string", "attempt_id": "uuid"}}, Response: &module.Schema{Type: "object", Properties: map[string]string{"workspace_revision": "int32", "capture_id": "string", "evidence": "WorkspaceCaptureEvidence"}}},
+	{ID: "workspaces_capture_evidence_get", Path: workspaceconnect.WorkspaceServiceGetWorkspaceStateCaptureProcedure, Method: "POST", Summary: "Read current capture evidence for a state", Category: "workspaces", Request: &module.Schema{Type: "object", Properties: map[string]string{"workspace_id": "string", "state_id": "string"}}, Response: &module.Schema{Type: "object", Properties: map[string]string{"capture_id": "string", "evidence": "WorkspaceCaptureEvidence"}}},
+	{ID: "workspaces_capture_receipts_list", Path: workspaceconnect.WorkspaceServiceListWorkspaceCaptureReceiptsProcedure, Method: "POST", Summary: "List immutable capture receipts for a state", Category: "workspaces", Request: &module.Schema{Type: "object", Properties: map[string]string{"workspace_id": "string", "state_id": "string"}}, Response: &module.Schema{Type: "object", Properties: map[string]string{"receipts": "array<WorkspaceCaptureReceipt>"}}},
 }

@@ -14,11 +14,14 @@ const GroupName = "review"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]cliapp.PrimitiveHandler{
-		"ReviewService.ListFindings":      cliapp.ProtoList(h.findingsCall, h.findingsReport),
-		"ReviewService.GetFinding":        cliapp.ProtoList(h.findingCall, h.findingReport),
-		"ReviewService.RecordDisposition": cliapp.ProtoMutation(h.dispositionCall, h.dispositionReport),
-		"ReviewService.AssignFinding":     cliapp.ProtoMutation(h.assignCall, h.assignReport),
-		"ReviewService.GetReviewSummary":  cliapp.ProtoList(h.summaryCall, h.summaryReport),
+		"ReviewService.ListFindings":             cliapp.ProtoList(h.findingsCall, h.findingsReport),
+		"ReviewService.GetFinding":               cliapp.ProtoList(h.findingCall, h.findingReport),
+		"ReviewService.RecordDisposition":        cliapp.ProtoMutation(h.dispositionCall, h.dispositionReport),
+		"ReviewService.AssignFinding":            cliapp.ProtoMutation(h.assignCall, h.assignReport),
+		"ReviewService.GetReviewSummary":         cliapp.ProtoList(h.summaryCall, h.summaryReport),
+		"ReviewService.CheckCandidateAcceptance": cliapp.ProtoList(h.acceptanceCheckCall, h.acceptanceCheckReport),
+		"ReviewService.AcceptCandidate":          cliapp.ProtoMutation(h.acceptCall, h.acceptReport),
+		"ReviewService.GetAcceptance":            cliapp.ProtoList(h.acceptanceCall, h.acceptanceReport),
 	}
 	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)
 	if err != nil {

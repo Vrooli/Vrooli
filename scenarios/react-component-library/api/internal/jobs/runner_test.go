@@ -9,7 +9,7 @@ import (
 )
 
 func TestAcquireHonorsCancellationWhileBusy(t *testing.T) {
-	runner := New(nil)
+	runner := New()
 	if err := runner.Acquire(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -23,7 +23,7 @@ func TestAcquireHonorsCancellationWhileBusy(t *testing.T) {
 }
 
 func TestRunMatrixHonorsCancellationFromWork(t *testing.T) {
-	runner := New(nil)
+	runner := New()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var calls atomic.Int32
@@ -41,7 +41,7 @@ func TestRunMatrixHonorsCancellationFromWork(t *testing.T) {
 }
 
 func TestRunMatrixRunsEveryIndex(t *testing.T) {
-	runner := New(nil)
+	runner := New()
 	var calls atomic.Int32
 	if err := runner.RunMatrix(context.Background(), 5, 2, func(context.Context, int) error {
 		calls.Add(1)
@@ -55,7 +55,7 @@ func TestRunMatrixRunsEveryIndex(t *testing.T) {
 }
 
 func TestRunMatrixStopsProducerWhenWorkerFails(t *testing.T) {
-	runner := New(nil)
+	runner := New()
 	want := errors.New("gate failed")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -72,7 +72,7 @@ func TestRunMatrixStopsProducerWhenWorkerFails(t *testing.T) {
 }
 
 func TestAcquireReleaseAllowsNextMatrix(t *testing.T) {
-	runner := New(nil)
+	runner := New()
 	if err := runner.Acquire(context.Background()); err != nil {
 		t.Fatal(err)
 	}

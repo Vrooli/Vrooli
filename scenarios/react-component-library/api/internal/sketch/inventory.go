@@ -198,6 +198,13 @@ func (s *Store) pageInventory(ctx context.Context, scenario string) (DesignInven
 		if item.RegionCount > 0 {
 			item.Status = "region-declared"
 		}
+		// These pages still contain an active legacy composition. They must not
+		// be offered the intent-only adoption path, which creates a blank
+		// workspace and would otherwise hide the source composition behind a new
+		// binding. Keep that migration explicit until native render parity exists.
+		if snapshot.Document.Template != nil || snapshot.Document.Render != nil || len(snapshot.Document.Placements) > 0 || len(snapshot.Document.Unplaced) > 0 {
+			item.Status = "composition-present"
+		}
 		out.Pages = append(out.Pages, *item)
 	}
 	sort.Slice(out.Pages, func(i, j int) bool { return out.Pages[i].Page < out.Pages[j].Page })

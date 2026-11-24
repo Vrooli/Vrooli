@@ -26,9 +26,10 @@ function renderDialog(onImport = vi.fn(), onClose = vi.fn()) {
   return { ...result, onImport, onClose };
 }
 
-async function chooseFixture(name = "landing.html", source = fixture): Promise<void> {
-  const file = new File([source], name, { type: "text/html" });
-  fireEvent.change(screen.getByTestId("html-import-file"), { target: { files: [file] } });
+async function chooseFixture(name = "landing.html", source = fixture, css?: string): Promise<void> {
+  const files = [new File([source], name, { type: "text/html" })];
+  if (css) files.push(new File([css], "screens.css", { type: "text/css" }));
+  fireEvent.change(screen.getByTestId("html-import-file"), { target: { files } });
   await screen.findByTestId("html-import-counts");
 }
 
@@ -67,7 +68,11 @@ describe("HtmlImport accessibility", () => {
 
   it("renders a parsed document, warnings and the region chooser without axe violations", async () => {
     const { container, onImport } = renderDialog();
-    await chooseFixture();
+    await chooseFixture(
+      "landing.html",
+      fixture,
+      ".device { color: red; background-image: url(https://remote.test/bg.png); }",
+    );
 
     expect(screen.getByTestId("html-import-title")).toHaveTextContent("Landing page");
     expect(screen.getByTestId("html-import-counts")).toHaveTextContent(/layers/);
@@ -87,6 +92,9 @@ describe("HtmlImport accessibility", () => {
     expect(onImport).toHaveBeenCalledTimes(1);
     const [template, name] = onImport.mock.calls[0] ?? [];
     expect(template?.spec.type).toBe("page");
+    expect(template?.spec.props.sourceHtml).toContain("color: red");
+    expect(template?.spec.props.sourceHtml).toContain("Content-Security-Policy");
+    expect(template?.spec.props.sourceHtml).not.toContain("remote.test");
     expect(name).toBe("Landing page");
 
     await expectNoA11yViolations(container);
@@ -103,5 +111,45 @@ describe("HtmlImport accessibility", () => {
     expect(screen.getByTestId("html-import-error")).toHaveTextContent(/2 MiB/);
 
     await expectNoA11yViolations(container);
+  });
+
+  it("filters a dense bundle to a named screen and recovers from no matches", async () => {
+    const screens = Array.from(
+      { length: 8 },
+      (_, index) =>
+        `<article data-name="${index === 5 ? "money dark" : `screen ${index + 1}`}"><h1>Screen ${index + 1}</h1><p>Unique copy ${index + 1}</p><button>Continue ${index + 1}</button></article>`,
+    ).join("");
+    renderDialog();
+    await chooseFixture(
+      "screens.html",
+      `<!doctype html><html><head><title>Bundle</title></head><body>${screens}</body></html>`,
+    );
+
+    const search = screen.getByTestId("html-import-region-search");
+    const totalRegions = screen.getAllByTestId(/^html-import-region-region-/).length;
+    expect(search).toHaveAccessibleName("Search regions");
+    expect(screen.getByTestId("html-import-region-results")).toHaveTextContent(
+      /Showing \d+ of \d+ regions/,
+    );
+    fireEvent.change(search, { target: { value: "money dark" } });
+    const namedScreen = screen
+      .getAllByTestId(/^html-import-region-/)
+      .find((button) => button.textContent.toLowerCase().includes("money dark"));
+    if (!namedScreen) throw new Error("Expected the named screen region to match the search.");
+    expect(screen.getByTestId("html-import-region-results")).toHaveTextContent("Showing 1 of");
+    fireEvent.click(namedScreen);
+    expect(namedScreen).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.change(search, { target: { value: "nothing matches" } });
+    expect(screen.getByTestId("html-import-region-empty")).toHaveTextContent(
+      /No regions match this search/,
+    );
+    expect(screen.getByTestId("html-import-region-results")).toHaveTextContent("Showing 0 of");
+    fireEvent.change(search, { target: { value: "" } });
+    expect(screen.queryByTestId("html-import-region-empty")).not.toBeInTheDocument();
+    expect(screen.getByTestId("html-import-region-results")).toHaveTextContent(
+      `Showing ${totalRegions} of ${totalRegions} regions`,
+    );
+    expect(screen.getAllByTestId(/^html-import-region-region-/)).toHaveLength(totalRegions);
   });
 });

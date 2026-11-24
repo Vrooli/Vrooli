@@ -1,37 +1,410 @@
 # Problems — React Component Library
 
-## 2026-11-20 — Workbench program: current gaps
+## 2026-11-22 — Eight-screen source continuation
+
+The canonical source is
+`~/.vrooli/research/topics/experience-engineering/operator-experiments/rcl-eight-screen-workspace-20261121/data/eight-screens-source/index.html`;
+the supplied JPEG is retained beside it as `data/reference-HTuJxm6XoAEn9YS.jpeg`.
+The served-browser journey now uses that moved bundle, and a corrected v41
+comparison uses the actual eight v41 captures. A fresh uncached API suite and UI
+coverage run pass; lint and TypeScript/catalog checks pass with five existing
+published-catalog warnings. The imported-region mapper now preserves safe
+inherited typography, color, and custom properties. Removing one unreferenced
+region-node accessor brings UI function coverage to 85.05%, above its 85% floor.
+
+The journey verified selected-region import, editing, RCL replacement, layer
+reordering/reparenting, health rendering, and five destinations at 320/390 px.
+Its `CaptureWorkspaceState` request returned HTTP 504 because BAS requires an
+authenticated account. No admitted capture receipt or visual-drift history is
+available from this run; local screenshots and descriptive pixel comparisons
+are not substitutes. Seed version 42 now has a fresh local served contact
+sheet, but it is not a BAS receipt or operator visual acceptance. The importer
+split into facade, mapper, preview, and types modules passes its focused
+92-test suite. The fresh full UI run passes 1,164 tests across 178 files and
+meets coverage floors (91.82% statements, 85.02% branches, 85.17% functions).
+It first exposed stale English/generated string catalogs; their owning
+generators were run, after which full UI lint and type-check pass with five
+existing published-catalog warnings. Two affected brief-flow test files now
+use typed localized selectors and promise-returning mocks; their 63 focused
+tests pass. The standard production build and supported restart succeeded. See
+the journey report and v42 capture artifacts in the operator experiment, and
+the latest entry in [PROGRESS.md](PROGRESS.md).
+
+## 2026-11-22 — Current-source Test Genie receipt
+
+`make check` admitted Test Genie run `20261122-124253-457fa6e9`. Its terminal
+receipt is **FAIL**: 23 passed, six failed, one provider-unavailable, two not
+evaluated, and one skipped across 33 phases. The uncached full API suite, UI
+coverage, UI lint/type-check, and scenario lint completed independently. The
+full receipt is available through `test-genie runs artifacts react-component-library 20261122-124253-457fa6e9`.
+
+Current run findings include: performance score 0.61 against the 0.75 error
+threshold; three `COMPANION_REIMPLEMENTED` unit errors from the known
+signature-blind detector; 26 workflow cases requiring authenticated BAS;
+experience-contract provider failure; a tidiness budget error; a missing Stripe
+test receipt; Agent Manager provider unavailable; and component-tests not
+evaluated after a 1,201-second timeout. Experience was also not evaluated without
+an authenticated BAS capture. The docs phase passed, though it retains a large
+advisory backlog. `SuggestAdoptions` complexity (29) was repaired after this
+run by extracting cohesive helpers; focused adoptions Go tests and lint pass,
+but the terminal Test Genie receipt predates that change and a fresh full run has
+not been admitted.
+
+The performance-health Connect endpoint currently skips with `no browser UI
+surface`, and its CLI does not build because it references process-tree fields
+missing from its audit proto. `make -C packages/proto verify-committed-gen`
+passes, so the mismatch is in that neighboring scenario's source/contract, not
+generated artifact drift. This leaves the low Lighthouse score without a fresh
+owner-level audit breakdown. Stripe, BAS authentication, and the Agent Manager
+provider are outside RCL's current authority.
+
+## 2026-11-22 — Latest comprehensive and focused validation
+
+Test Genie run `20261122-051646-93f4b19c` is terminal **FAIL** (24 passed,
+seven failed, one provider-unavailable, one skipped). The failed phases are
+experience, unit, workflow, experience-contract, tidiness, Stripe-test-outcomes,
+and component-tests. Workflow errors require an authenticated BAS account;
+experience-contract and Stripe outcomes remain service-owned; the component
+test phase reports runner/configuration failures including an unset RCL UI base
+URL and missing persisted test reports. The run predates the latest source
+changes and is not a current-source readiness receipt.
+
+Current Unit Health plan `uh-20261122-053100-ef794468c214304fecaef0dd17af4a2c`
+reproduced three `COMPANION_REIMPLEMENTED` findings in review/sketch test
+adapters and no `MISSING_INJECTABLE_SEAM` findings. The UI render-policy finding
+reported by the older comprehensive run was fixed by using `renderWithProviders`
+in `useInContextMeasurements.test.tsx`; rerunning Unit Health cleared that
+finding. The three API companion findings remain tied to the signature-blind
+detector issue `knw-1795321584018789519`.
+
+The RCL component-test capture seam has two focused fixes with passing Go tests:
+execution-time discovery retries the RCL UI URL when startup happens before the
+UI is ready, and RCL now calls the BAS routes under `/api/v1`. Exact route
+assertions cover the capture endpoint and artifact path. A Test Genie phase run
+on the rebuilt RCL API (`20261122-062644-53c5a51a`, initially build
+`sha256:a18279f82619963a1cff5497899f20ce2d833ecf311dae6fa648809ae2626b6c`, later
+rebuilt as `sha256:b65650c804bfd63d75c827a7a0f9935fc2db08e45cb07cf94092d7691281b42a`) did
+not return a component-test verdict: it reached `NOT_EVALUATED` after its
+1,200-second timeout with only two observations and no findings payload. The
+preceding run `20261122-061503-9cbb4bf8` did return 404s because RCL used the
+root capture path; that source defect is corrected in the current build. Full
+catalog capture remains unverified because the owning phase exceeds its current
+timeout; focused Go coverage is current.
+
+A targeted live component test for Button `2.2.14` produced report
+`ctr_295c12808fed4a98_ad74667027088a3c1c82c189`: source and story-contract
+checks passed, all three BAS review sheets passed, and ten individual story
+results failed JSON decoding. The referenced frozen HTML shows BAS's phone
+redactor replacing a high-precision numeric `performance.mountMs` value with an
+unquoted `[REDACTED]` token. A separate one-story BAS capture of `primary`
+(`37025db4-109a-466e-b662-dac1369adb11`) returned valid result JSON and a
+console summary with zero errors, so the issue varies with timing data. This
+dependency defect is filed as
+`knw-1795330893801526706` (`bug-inbox/data-shape-mismatch/bas-redaction-corrupts-numeric-story-result-json`);
+RCL does not weaken its result validation or hide the failure. The targeted
+report confirms that the corrected `/api/v1` path is reachable, but component
+test certification remains open until BAS preserves structured numeric result
+data.
+
+Focused current-source work also made two visible flows more truthful: Start
+uses the unified SearchService page-type result for its Landing pages intent,
+and legacy component-context bookmarks require explicit confirmation before a
+browser-only draft is copied into a workspace. Start and component-context
+tests pass (18/18), along with UI type-check, focused lint, and string registry
+checks. The supported RCL lifecycle restart subsequently served the current UI
+and API build (`sha256:b65650c804bfd63d75c827a7a0f9935fc2db08e45cb07cf94092d7691281b42a`);
+no fresh screenshot or operator review of the corrected Start state has been
+recorded yet.
+
+## 2026-11-22 — Full validation continuation
+
+The API and CLI unit-command failures reported by the prior full run are fixed:
+API import tests now use local fixtures, and the committed CLI primitive
+evidence was regenerated from the current manifest. The Ask answer now uses
+human-readable prose and keeps stable IDs in citations; its 20-sample latency
+gate passed at p95 5.15 s against 8 s. Compact native meters no longer count as
+RCL asset adoption. Full Test Genie run `20261122-042810-9662df33` completed **FAIL** (24 passed,
+four failed, two provider-unavailable, two skipped, one not evaluated). It was
+admitted before the version-ledger rebuild and canvas changes and does not
+certify them. Failure classes include unit test-architecture findings, 26
+authenticated BAS workflow cases, an Experience Manager maturity-contract
+response, and missing Stripe outcome receipts;
+the run also skipped tidiness. Three `COMPANION_REIMPLEMENTED` unit findings
+were independently traced to signature-blind detector matches: each adapter
+embeds `databasetest.SliceRepo` and implements incompatible domain interface
+signatures rather than reimplementing its store. Focused review/sketch tests
+pass; the detector issue is recorded for unit-health as
+`knw-1795321584018789519`. Current focused checks pass: API components and
+search packages, 104 search/import/template UI tests, 10 App route tests, and
+the experienceimport receipt tests. Served-browser evidence exposed a blank
+Start search request that waited on semantic status and displayed a timeout.
+The UI now suppresses this
+request while idle; semantic readiness checks now have a 750 ms bound and a
+30-second cache. After two failed attempts, lifecycle operation
+`startop-ff1bee8e25cefe568f41cb5e664f07d8` succeeded with matching source and
+served build identity. Direct API/UI health and Start-route requests return
+HTTP 200; the API health phase took 55 seconds. The running source build includes the batched
+`versionledger.Rebuild`, which propagates SQL failures. Supported restarts
+`startop-da328dfb712ff9b9d4a3d098a7121da5` and
+`startop-936b9cd5216507847f693b66cefc4b96` served matching build identity; API
+health measured 22s and 18.6s, compared with 55s on the previous build. More
+observations are needed before claiming startup reliability. The three
+scenario-owned page sketches remain
+unsafe to delete until native render parity and persisted conversion receipts
+exist.
+Since that run, the CLI evidence was regenerated and `GOWORK=off go test ./...`
+passes; UI type-check and the focused workbench tests also pass. The current
+source still needs a supported lifecycle rebuild/startup check and a new
+comprehensive receipt after stabilization.
+
+## 2026-11-22 — Continuation status
+
+The earlier comprehensive Test Genie run, `20261122-013158-e43249f7`, completed
+**FAIL** before the focused changes recorded here. Consolidated focused run
+`20261122-022822-70e8452b` passes dependencies, docs, measures, programs,
+security, and skill-set phases. The docs phase had `num[sot]:809` warnings and
+`num[sot]:13` informational findings; this is not a clean-docs
+claim. The usage skill is now declared and validated, and the public intent query
+“find a reusable react component” returns it first. Fresh browser keyboard
+validation reached `num[sot]:five` destinations and reordered a workspace layer; the
+end-to-end journey remains partial because authenticated BAS capture returned
+504. The running API reports `num[sot]:821` indexed documents and a READY semantic leg;
+search, handler, and preview-seam focused Go tests pass. The program capture
+fixture remains visible as a warning because its BAS execution needs an
+authenticated account. The security exception matches only the empty specimen
+line in the immutable PasswordInput version; all default Gitleaks rules remain
+active. Fresh comprehensive `num[sot]:33`-phase run
+`20261122-022858-49a45c8e` completed **FAIL**: unit had two API test command
+errors plus three companion-helper shape findings; workflow had `num[sot]:26`
+cases blocked by missing BAS authentication; experience-contract and
+component-tests failed provider maturity-contract checks; tidiness and
+Stripe-test-outcomes each had one error. Focused phase PASS results do not
+override these full-run failures.
+
+Remaining evidence and debt include native parity for scenario-owned
+experience-page compositions, authenticated BAS capture and visual-drift
+receipts, independent Ask answer-quality review and repeated latency
+certification, a strict owner-attributed source-line ledger, program binding
+findings, and the unmatched experience-contract/Stripe outcomes phases. The
+Test Genie unit phase still reports three companion-helper shape matches in
+tests; current Unit Health reports no injectable-seam findings, and the matching
+test-type findings were filed for detector review. Keep the authenticated and
+human-review requirements unmet until their evidence is available.
+
+## 2026-11-21 — Workbench program: current gaps
+
+The last terminal full Test Genie run is `20261121-132723-0599033c`: FAIL (17
+passed, 14 failed, 1 skipped; experience was not evaluated). The full run
+`20261121-180053-62173067` completed FAIL; its experience phase is L0→L1 because authenticated BAS capture is unavailable. The latest API profile is 75.0%
+(28,569/38,092), meeting the 75% target. The self-hosting gate now measures
+36/265 against its unchanged floor of 36 after six real component adoptions in
+Activity and Capabilities. Fresh `go test ./...` passes in API and CLI, and
+`make lint-go` passes after formatting and test-adapter cleanup. The full UI
+suite passes at 163 files / 1,102 tests; `pnpm exec tsc --noEmit`, `pnpm lint`,
+and `pnpm build` pass. The previous UI coverage run measured 91.51% statements,
+85.03% branches, and 85.17% functions; current coverage awaits the new Test
+Genie run. `make check` passed lint and UI type/catalog phases and started
+Test Genie run `20261122-013158-e43249f7`; it was still in progress at
+`preparing:provider_readiness` on the last status read. Storage
+ validation now reports zero findings after rooted filesystem seams and RoutedDB routing for all previously reported SQL handles; isolation proof passes. The recovered source is
+`~/design-studies/eight-screens/index.html`; its complete experiment copy is
+`~/.vrooli/research/topics/experience-engineering/operator-experiments/rcl-eight-screen-workspace-20261121/data/eight-screens-source/index.html`.
+The original `experience/design-studies/eight-screens/index.html` path is gone.
+RCL is healthy on the current source build with matching source and served
+identity; its database seed receipt is version 39. Two supported restarts serve
+the `versionledger.Rebuild` batching change. The source tree is at version
+39: it adds bottom clearance to Run-before after the v37 contact sheet showed
+the Start CTA overlapping the bottom navigation. `workspaceSeeds.test.tsx`
+renders the public TemplateRenderer and asserts at least 30px clearance beyond
+the 58px nav. A local post-v39 contact sheet and descriptive comparison now exist in the
+experience-engineering research experiment; operator visual acceptance and an
+authenticated BAS capture/drift receipt remain open. The
+Run-after v37 reference comparison is a CSS-injected preview. The
+workbench's local tab strip now delegates to the published RCL Tabs asset, and
+its duplicate tab implementation and selectors are removed. Six further real
+RCL assets now serve Activity and Capabilities; self-hosting meets the reviewed
+floor at 36/265. Full UI suite passes at 163 files / 1,102 tests after the
+current changes; `pnpm build` passes,
+and `make restart` reports healthy with the API `/health` and UI route responding.
+The focused test now uses actual English labels because cimode translation keys
+are longer than Tabs' declared 24-character label contract. The
+Stats quality summary also now loads from the shared workbench stylesheet;
+before this fix, its summary text and “Open quality” link ran together because
+their only rules lived in the Design route's CSS. Desktop and phone Chromium
+captures after the fix show the metric and link on separate lines. The
+catalog generator also
+found two missing hash entries for a new Tabs draft; the owning generator added
+them, and `pnpm catalog:check` now passes. Two unit-health companion
+findings were reproduced as false positives because the domain critique
+repository has different method signatures from `databasetest.SliceRepo`; they
+were reported as `knw-1795280428233283567`. A separate storage analyzer false
+positive for the word “select” in an error string was reported as
+`knw-1795280701582202396`. The scenario-qa heartbeat trigger could not run
+because that team's heartbeats are globally paused by an operator hold. Current
+direct validation shows:
+
+- **Authenticated browser evidence is unavailable.** BAS capture and workflow
+  execution both report that an authenticated account is required. UI-driven
+  interaction and local Chromium screenshots remain useful evidence, but do not
+  count as BAS capture or drift receipts.
+- **Interrupted workspace capture attempts need same-token recovery.** A live
+  database inspection found 30 attempts still marked `in_progress`, including
+  requests whose browser call had already returned. The capture handler now
+  looks up the active attempt server-side and resumes it with its stored BAS
+  request token, even when a new tab sends a different session attempt ID. This
+  avoids creating a competing BAS workflow and preserves the original attempt
+  receipt identity. Existing records are preserved; the handler regression test
+  covers loss of the client attempt key. The service has restarted healthy on
+  this implementation, but an end-to-end BAS recovery remains unverified while
+  BAS requires an authenticated account.
+- **Asset adoption meets the reviewed floor; wider selected-core certification remains open.** The self-host gate sees 36/265 RCL assets against its unchanged floor of 36 after six real integrations into Activity and Capabilities. The eight imported design-study workspaces now include source-native Button nodes; Money-night measures 9.3% RCL share in its current editor view. That per-workspace ratio does not certify the full template collection or selected-core consumer requirements. API and UI coverage results remain historical until the current Test Genie run completes. Do not lower reviewed floors; add only semantically correct RCL usage and behavior coverage.
+- **Storage validation is clean.** The latest `storage-manager validate scenario react-component-library --json` run passes with zero findings. The remaining filesystem writers were moved to rooted or atomic seams, including generator output, component source-root creation, and temporary report cleanup; all seven captured SQL handles were removed through request-aware RoutedDB ports or narrow SQL interfaces. Isolation proof passes. The API self-hosting floor and broader Test Genie failures remain separate from storage validation.
+- **Ask answer quality still lacks independent review.** A repeated citation ID
+  previously caused HTTP 503; the answer decoder now deduplicates redundant IDs
+  in first-seen order while retaining strict rejection of unknown IDs and
+  malformed citation fields. Two sequential post-fix live 20-query gates pass
+  20/20 with unique citations resolving to supplied results, p95 2.88 s and
+  2.34 s against the 8 s target. Current metrics are in
+  `artifacts/ask-latency/2026-11-22-postfix-summary.md`. Broader repeated-run
+  certification and an independently reviewed answer denominator remain open;
+  do not weaken rights checks. Hybrid retrieval is a separate SLO.
+- **Scenario-wide certification is unresolved.** The latest retained 33-phase
+  run (`20261122-124253-457fa6e9`) completed **FAIL**: performance, unit,
+  workflow, experience-contract, tidiness, and Stripe-test-outcomes failed;
+  experience and component-tests were not evaluated, and agent-conformance was
+  unavailable. Workflow/BAS requires authentication, the performance receipt
+  has no owner breakdown, and provider-owned findings need their respective
+  owners. This run predates later source edits and does not certify the current
+  worktree; preserve those distinctions when reporting readiness.
 
 The workspace is now the studio's authoring model: assets, AI assist, HTML
 import, page/display/state editing, curated templates and forking all belong to
 it. These are the gaps that remain; none is hidden behind a passing UI.
 
-- **Legacy composition owners still exist.** `internal/designs`, `/api/designs`,
-  `internal/templates`, `/api/templates`, `studio_templates`, the browser-local
-  template shelf and the legacy studio remain. Workspace assets, assist and HTML
-  import are implemented, and `/design/:scenario/:page` opens the workspace that
-  owns a binding, so the old studio now survives for two specific jobs:
-  component-context authoring (`/design?template=…&component=…`, which needs the
-  live component slot to be stored on the workspace) and unbound experience
-  pages with no workspace yet. Deleting the stores requires those two flows.
-  Owner: program phase 2/6.
-- **Search semantic leg is disabled.** `SearchService` reports
-  `SEMANTIC_LEG_STATE_DISABLED`; lexical FTS5 is the only active leg. The
-  `Semantic` seam exists, but the shared `packages/ai-go/search` adapter,
-  citation packing and Ask mode are not wired. Owner: phase 3.
-- **State capture through the evidence pipeline is missing.** Region capture from
-  a reference image is implemented (it stores a `captured` asset). Rendering a
-  composed state through BAS into durable evidence, and setting
-  `WorkspaceState.status`/`capture_id` from it, is not. Owner: phase 2.
-- **AI assist needs a running gateway.** `AssistWorkspace` now exists and the
-  studio offers the AI tab, but this environment has no ai-gateway, so a live
-  proposal returns `Unavailable` honestly. Proposal application is covered by
-  handler and UI tests with a fake gateway. Owner: environment.
-- **Test-infra seams.** `unit-health` still reports `MISSING_INJECTABLE_SEAM`
-  for direct `os.Getenv`/`net/http` use in the API. It is pre-existing debt: the
-  workbench work did not widen it, but making those calls injectable is the next
-  unit-phase improvement. The non-hermetic fleet scan is now
-  `make test-fleet-contract`, so the fast suite has no cross-package scan race.
+- **Legacy experience-page composition has no native parity yet.** Supported
+  Switchboard dashboard and conversations pages can be explicitly adopted into
+  Workspace with an immutable recovery receipt; the original source page stays
+  intact. The converter verifies source bytes/revision, target aggregate/hash,
+  binding, state adapter, and retained contract evidence before persistence.
+  Agent-detail remains unsupported because its composition is a placeholder.
+  Source obligations are now inventoried and retained as evidence in ordinary
+  Workspace State data, but the importer does not execute them. Dashboard's
+  CollectionPage template has five render ports, empty bindings, and no
+  placements or explicit element-to-port mappings; the workspace renderer only
+  exposes empty slots and cannot execute the catalog template shell. The
+  conversations page also has interactive handlers, story fixtures, and
+  placements without equivalent native action semantics. Import and
+  PreviewService adapter tests prove recovery and request equivalence, not
+  native rendering, accessibility, or behavior parity. Keep source pages until
+  Workspace can render template exports/bindings/fixtures and explicitly map
+  the required behavior, then compare rendered output before any source
+  retirement.
+
+- **Full interactive journey certification remains incomplete.** A real Chromium
+  smoke now exercises Ctrl+K, G→Design, the five desktop destinations, phone
+  navigation at 390 px, and import of the exact “money dark” article from the
+  eight-screen HTML bundle after filtering 959 regions to one. These journeys
+  had no browser errors or horizontal overflow. Unit coverage and responsive
+  captures also exist. A live workspace smoke also created a temporary
+  workspace, imported “money dark” from the source bundle (1 of 959 regions),
+  added a phone display and second state, verified the persisted aggregate, and
+  deleted the temporary workspace. It recorded no browser errors. Authenticated
+  BAS state capture still needs an Agent
+  Manager/browser grant; the available BAS step interface does not send keyboard
+  input. The 320 px workspace inspector edit is now exercised in Chromium: the
+  mobile Inspect action opens the text inspector, accepts a changed value,
+  saves it, and stays within the viewport. This does not certify every phone
+  workflow or virtual-keyboard case; the broader interactive journey remains open.
+  During the follow-up, the Design index overflowed to 435 px at a 390 px
+  viewport when it rendered all 16 curated phone previews. The preview wrapper
+  now clips and scales the authored 390 px compositions; a served-source
+  Chromium smoke confirms document width is 390 px with all 16 previews.
+- **Eight-screen visual review remains open for interactive states and operator acceptance.**
+  The source bundle and supplied screenshot are retained in the
+  experience-engineering operator experiment under
+  `~/.vrooli/research/topics/experience-engineering/operator-experiments/rcl-eight-screen-workspace-20261121/data/`.
+  Seed version 43 updates Plant-day facts and thumbnails, Plant-night
+  composition/selection, and Phrase-practice navigation as ordinary editable
+  workspace data. Fresh local v43 captures cover all eight screens at 390×844;
+  the paired comparison reports descriptive MAE values, not a parity verdict.
+  The existing v41 contact sheet is local Playwright evidence. Its paired image
+  is mislabeled: it uses normalized v28 captures, so its MAE figures are
+  withdrawn as v41 evidence. No authenticated BAS receipt or operator visual
+  acceptance is recorded. Source-baseline persistence and
+  source-to-capture comparison now retain candidate/accepted status and
+  immutable history; authenticated capture remains outstanding.
+  Existing renderer/source tests prove specific structures and artwork, not
+  pixel parity or design quality. Retain custom nodes where no published RCL
+  component preserves both the source appearance and interaction semantics.
+- **Ask answer quality and broader live latency certification remain open.** A separate 8,000 ms p95 target and 20-sample minimum are configured in `.vrooli/search.json`; `make ask-latency` measures end-to-end explicit-Ask requests and citation integrity. Hybrid retrieval is separate: the latest recorded 100-query gate passed 100/100 at p95 370.4 ms against its 1,500 ms target. Earlier Ask runs include timeouts and provider failures and remain incident history. A repeated citation ID caused a current HTTP 503; the RCL answer decoder now deduplicates repeated IDs in first-seen order while retaining strict rejection of unknown IDs and malformed/missing fields. Two sequential post-fix 20-query runs pass 20/20 with unique citations resolving to supplied results, p95 2.88 s and 2.34 s against the 8 s target. See `artifacts/ask-latency/2026-11-22-postfix-summary.md`. These samples resolve the immediate reliability regression but do not close broader repeated-run certification, cold-path analysis, or the independently reviewed answer-quality denominator. Prompt and index evidence distinguish source screen regions from workspace displays and document candidate replacement; focused contract tests cover both. The hybrid search SLO does not certify generated Ask responses.
+- **The self-hosting gate remains below its floor; API coverage meets its floor.** The
+  latest full UI coverage run passes the unchanged 85% floors at 91.51% statements,
+  85.03% branches, and 85.17% functions. UI lint and type-check pass, with
+  four existing catalog warnings. The production UI build passes with the
+  existing oversized CodeEditor chunk warning. Full API coverage is 75.0%
+  (28,569/38,092),
+  meeting the 75% floor; focused version-ledger tests found and fixed a broken
+  relative/absolute path comparison that prevented retired-materialization
+  reclaim. The only API suite failure is
+  `TestLiveSelfHostingDoesNotRegressBelowReviewedFloor`, at 30 consumed RCL
+  assets out of the unchanged reviewed floor of 36 (265 assets implemented).
+  Added behavioral coverage exercises theme route/error mappings, sketch
+  verification, candidate/reference-asset routes, authored-quality gate
+  validators, catalog checks/evidence capture, adoption Reapply/BatchApply,
+  and locally owned calibration fixture materialization, candidate acceptance,
+  story-argument drift, version-shape gate behavior, source-root resolution,
+  stamp-report classification, screenshot-based visual-review evidence
+  revalidation, component-manifest updates, and version-presence reconciliation.
+  The committed 75% API floor is met.
+  The last completed comprehensive Test Genie run, `20261121-132723-0599033c`,
+  failed 14 phases, passed 17 and skipped 1; the newer run
+  `20261121-180053-62173067` completed FAIL; its experience phase reached L0→L1 with `runtime_skipped_bas_unavailable`.
+- **HTML import SVG paint references were dropped by contradictory sanitizer checks.**
+  A CSS `url(#local-id)` was intended to survive for SVG paint and reference
+  properties, but a preceding generic URL rejection removed it first. The
+  sanitizer now allows only a single local fragment URL on `clip-path`, `mask`,
+  `filter`, `fill`, or `stroke`; remote references and URLs on other properties
+  remain rejected. All 67 HTML import tests pass after the fix.
+- **Strict net-negative source-line gate remains open.** A fresh code-only
+  inventory of `scenarios/react-component-library` and
+  `packages/react-component-library` versus HEAD (excluding tests, docs,
+  generated files, and build output) is **+8,054 lines**: 7,592 tracked additions,
+  19,600 tracked deletions, and 20,062 lines in 126 untracked production-source
+  files. This is a shared-worktree measurement, not attributable to the
+  workbench task; the full feature worktree is not yet supported by an accepted
+  owner-by-owner replacement and deletion ledger.
+- **Proto-health cleanup — closed 2026-11-21.** The eight shared support
+  messages were moved into the canonical shared domain; descriptor comparison
+  confirmed all 26 moved messages retain field numbers, proto types, field
+  names, and JSON names, and all 160 Connect procedure paths remain unchanged.
+  `proto-health` reports zero findings, `buf lint` passes, and the breaking
+  check reports zero wire/JSON breaks and zero unreconciled consumers. The
+  independent `brand_get` REST payload declaration is included in generated
+  endpoint inventory, and `make endpoints` passes. Committed proto generation
+  verification also passes. Consumers importing the old message FQNs must
+  regenerate against the canonical shared package.
+- **Test-infra seams — closed 2026-11-20.** API startup/reindex and catalog
+  warning paths now receive logger dependencies; BAS dispatch, observer, Brand
+  and search code use injectable HTTP/logger seams. CLI time/environment access
+  is behind `runtimeenv` and scenario-root lookup accepts an injected resolver.
+  The `VisualDriftPanel` test now uses the canonical provider renderer, and the
+  component-context bookmark bridge ignores stale lookup completions. Latest
+  Unit Health plan-only run `uh-20261121-122253-f02585fbf5089ffc731c14d49da7faef`
+  reports zero findings across API, CLI, and UI. The run caught a direct Testing
+  Library render in a new `WorkspaceStudioPageContent` test, which now uses
+  `renderWithProviders`. Uncached API tests still stop at the reviewed
+  self-hosting floor; full UI lint, type-check, build, and coverage are recorded
+  above. The non-hermetic fleet scan remains
+  the explicit `make test-fleet-contract` integration check.
+- **SketchService is retired.** Its 11 remaining RPCs moved to
+  `WorkspaceAssistService` (four RPCs) and `WorkspaceCandidateService` (seven
+  RPCs), with all command names and callers retained. `ComponentsService` has
+  12 RPCs; its 10 authoring RPCs live in `ComponentAuthoringService`.
+  The five scenario and discovery operations moved from `AdoptionsService`
+  into `AdoptionIntakeService`, leaving 15 on AdoptionsService. All current
+  RCL services are now within the 16-RPC limit; CatalogService is at the
+  ceiling. See
+  [the legacy-owner audit](WORKBENCH-LEGACY-OWNERS-AUDIT.md#sketch-wire-message-consumer-map-and-migration-boundary).
 - **Actor identity is local.** Activity and dispositions record `local` unless a
   caller supplies an actor. Multi-user attribution remains out of scope until
   the platform identity seam is wired.
@@ -39,7 +412,21 @@ it. These are the gaps that remain; none is hidden behind a passing UI.
 **Environment note.** The installed `golangci-lint` was rebuilt with Go 1.26 on
 2026-11-20; `api` and `cli` both lint clean, so `make check` can run its Go gate.
 
-## 2026-11-18 — Workbench redesign discovery findings (open, with fixes landed)
+**Closed in the 2026-11-20 migration pass.** Legacy design/template APIs,
+repositories, browser shelf writes/fallbacks and SQLite source tables are retired.
+Startup imports workspace data and binary assets transactionally, keeps receipts,
+and drops source tables only after validation. Search semantic/Ask and
+workspace-state capture are implemented; focused Go tests and the dedicated BAS
+route check cover their failure and evidence boundaries. Capture rejects new
+work on curated workspaces before dispatch, refuses to substitute a missing
+pinned story, and verifies revision/state update counts before attaching the
+receipt; tests cover these failure boundaries.
+
+## 2026-11-18 — Workbench redesign discovery snapshot (historical)
+
+These are the observations from the redesign discovery run, not the current
+open-issue list. Fixes and remaining work were re-evaluated in the current
+2026-11-20 entry at the top of this file; retain this section as provenance.
 
 The D · Nocturne redesign preparation captured the served workbench and found these defects. They are recorded here because a redesign cannot fix a missing data contract by styling it. The 2026-11-18 implementation addressed the shell and page surface; the items marked **fixed** were repaired in source and need a served re-check.
 
@@ -55,7 +442,10 @@ The D · Nocturne redesign preparation captured the served workbench and found t
 
 Evidence: the captured current-state showcase and screenshots are in `~/.vrooli/research/topics/experience-engineering/operator-experiments/rcl-workbench-redesign-20261118/data/current/`. The target page map and data-contract dependencies are in [WORKBENCH-REDESIGN.md](../concepts/WORKBENCH-REDESIGN.md#data-and-contracts).
 
-## 2026-11-19 — Workbench implementation gaps (open)
+## 2026-11-19 — Workbench implementation snapshot (historical)
+
+This list predates workspace migration, state capture, and the current
+five-destination shell. Use the current 2026-11-20 entry above for live gaps.
 
 The D · Nocturne workbench is implemented in source, but these capabilities are deliberately not claimed yet:
 
@@ -274,7 +664,7 @@ separately scoped requirement before adding any execution semantics.
 
 ## Architecture Drift
 
-Use this section for deferred findings from `screaming-architecture-audit`.
+Use this section for deferred findings from `architecture-lenses`.
 Do not create a standalone architecture-audit report unless the work is
 a migration handoff with a planned retirement path back into
 `ARCHITECTURE.md`, `SEAMS.md`, or this file.
@@ -470,7 +860,7 @@ a migration handoff with a planned retirement path back into
 
 - Rung: W3 / R0 — one-asset verdict and final validation re-measurement
 - Evidence: W0 goal search returns the archived `react-component-library-adoption-integrity` and `design-language-foundation` goals; the current PRD targets remain compatible with the scenario work. Targeted catalog, preview, component-test, graph-reconciliation, and CLI package tests pass. `asset check controls.button --version 2.2.6 --json` returns `PUBLISHABLE`; three cached runs complete in approximately 0.22 seconds, and fresh Button rerun `ctr_11089f797b910cba` passes.
-- Blocker: The full server-owned run `20260903-014026-7e1c5531` finished 15/28 phases passed, 12 failed, 1 skipped. BAS was subsequently restored and the Button component rerun passed; the remaining API-suite failure is historical fallback-parity drift in immutable released sources. A re-anchored GCT baseline is ready, but the validation producer still reports `UNKNOWN` because its required `/home/matthalloran8/.vrooli/test-runs/react-component-library` workspace is not readable. The final machinery ceilings and fresh-agent proof remain open.
+- Blocker: The full server-owned run `20260903-014026-7e1c5531` finished 15/28 phases passed, 12 failed, 1 skipped. BAS was subsequently restored and the Button component rerun passed; the remaining API-suite failure is historical fallback-parity drift in immutable released sources. A re-anchored GCT baseline is ready, but the validation producer still reports `UNKNOWN` because its required `~/.vrooli/test-runs/react-component-library` workspace is not readable. The final machinery ceilings and fresh-agent proof remain open.
 - Measured: 2026-09-03.
 
 - Rung: W3 / R0 — semantic revision stability and test reuse
@@ -500,7 +890,7 @@ baseStyles. The same uncommitted edits violated the recorded release hashes and
 blocked `components draft-begin Tabs`.
 
 **Recovery:** All current Tabs files were copied to
-`/home/matthalloran8/.vrooli/data/react-component-library/recovery/tabs-stylesheet-rzzjesj6`.
+`~/.vrooli/data/react-component-library/recovery/tabs-stylesheet-rzzjesj6`.
 The three displaced source inodes and a SHA-256 receipt remain there. HEAD bytes
 were independently verified against existing attestations before restoring those
 three sources. No hashes were changed to bless drift, and no Git history/index
@@ -1045,3 +1435,64 @@ descending, distinguishes released, draft and indexed rows, and reads the
 selected immutable version's own source through `GetComponentVersionContent`.
 Verified on Button 2.2.14 (8 versions; selecting 2.2.9 shows its own SHA and
 `@version 2.2.9`).
+
+### Fixed — Start phone composition delayed continuation — 2026-11-20
+
+The 320 and 390 captures at `/tmp/rcl-final-start-320.png` and
+`/tmp/rcl-final-start-390.png` showed the desktop browse grid reflowed into eight
+asset-domain cards before the Continue action. The phone now presents the first
+six catalog-derived browse cards, Continue, then any remaining catalog cards;
+the desktop grid and sidebar retain their existing composition. This uses the
+existing `useIsMobile` breakpoint and keeps labels, counts, and workspace links
+server-backed. `StartPage.test.tsx` asserts all eight catalog domains remain
+reachable and the mobile DOM order places Continue between the first six and
+remaining cards. Focused StartPage tests (9/9), `pnpm type-check`, and `pnpm lint`
+pass. The production build is blocked before Vite by the existing
+`strings:catalog:check` mismatch (`en.json` out of date); no live phone journey
+was exercised in this slice.
+
+### Verified — shared hybrid search reaches the authoritative workbench index — 2026-11-22
+
+`TestSemanticRetrievalRunsThroughSharedHybridEngine` now runs an actual
+`ai-go/search` hybrid `Service` behind the RCL `SearchService`, checks that the
+asset-kind filter reaches the vector request, and verifies the semantic hit is
+reloaded from SQLite rather than trusting vector payload text. The full
+`go test ./internal/search -count=1` passes. The managed API reports 821 indexed
+documents and semantic state READY. Two additional live Ask gates passed 20/20
+with unique citations resolving to supplied result IDs (p95 7.91 s and 4.51 s
+against an 8 s target); the measured runs are retained under
+`artifacts/ask-latency/2026-11-22-semantic-slice-*.json`. The 7.91 s sample has
+little headroom. The citation contract has passed four post-fix 20-query gates;
+remaining work is independent human review of answer quality and longer-run
+latency certification, not an observed citation integrity defect.
+The semantic integration test now uses `ai-go/search/searchtest`'s shared
+Embedder and VectorStore companions; its query recorder is owned by that shared
+test package. Focused semantic tests, the race run, and the shared fake tests
+pass. Unit Health plan-only run
+`uh-20261122-140345-afdb776c87489f9c8f439a4a6416bf7b` reports 0 findings for
+the RCL API workspace (execution was not requested).
+The existing live hybrid owner gate separately passed 100/100 ordinary Search
+queries (p50 404.3 ms, p95 522.2 ms, max 850.4 ms; unchanged 1,500 ms target)
+and ranked the curated workspace first for `landing page`. Its retained summary
+is `artifacts/ask-latency/2026-11-22-hybrid-100-query-semantic-slice.json`.
+This hybrid retrieval gate does not call the answer model and does not close the
+independent human answer-quality review.
+
+### In progress — cohesion and tidiness debt reduction — 2026-11-22
+
+`api/internal/components/indexer.go` was 1,375 lines and combined scan
+orchestration with manifest projection, version/story readers, header parsing,
+and catalog metadata. It is now split into those cohesive files: the core is
+384 lines and no extracted production file exceeds 464 lines. This removes one
+file over the documented 500-line production threshold in the edited scope.
+The search and component Connect error mappers named by the tidiness report now
+use ordered mappings; their gocyclo scores are 5 and 4, with behavior tests
+passing in `go test ./handlers/search ./internal/components -count=1`.
+
+The fresh Test Genie run `20261122-151900-186bdf42` did not scan the source:
+tidiness-manager skipped after its graph-admission wait timed out. The receipt
+is retained at
+`artifacts/tidiness/2026-11-22-indexer-cohesion-provider-skipped.json`. The
+reported 63 long files versus baseline 41 is therefore not re-certified for the
+current checkout. The measurable result here is one fewer >500-line production
+file among these edits; a fresh whole-scenario metric is still unavailable.

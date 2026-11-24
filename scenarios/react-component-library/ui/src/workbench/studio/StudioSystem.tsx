@@ -1,7 +1,7 @@
 import { ChevronRight, Frame, Layers, Palette, Shapes } from "lucide-react";
 
 import { useTranslation } from "../../i18n";
-import type { DesignFrame } from "../designs";
+import type { DesignFrame } from "../design-types";
 import type { TemplatePalette, TemplateNodeType } from "../templates/spec";
 import { FRAME_SIZE, firstNodeOfType, paletteTokens } from "./model";
 import { layerCount, patternUsage, primitiveUsage, type Coverage } from "./rcl";

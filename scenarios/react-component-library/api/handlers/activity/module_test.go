@@ -2,6 +2,7 @@ package activity_test
 
 import (
 	"context"
+	"database/sql"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -10,9 +11,11 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
+	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/encoding/protojson"
 
 	db "github.com/vrooli/api-core/databasetest"
+	"github.com/vrooli/api-core/storage"
 	activityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/activity"
 	activityconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/activity/activity_v1connect"
 
@@ -29,6 +32,40 @@ func newRouter(t *testing.T) (*mux.Router, *domain.Store) {
 	router := mux.NewRouter()
 	activityhandler.ModuleFromService(store).Mount(router)
 	return router, store
+}
+
+func TestActivityUsesRequestRoutedDBPool(t *testing.T) {
+	ctx := context.Background()
+	dsn, err := storage.SQLiteDSNAt(t.TempDir()+"/primary.db", storage.SQLiteTuning{})
+	require.NoError(t, err)
+	routed, err := apidb.Open(ctx, apidb.Config{Driver: apidb.DriverSQLite, DSN: dsn, MaxOpenConns: 1, MaxIdleConns: 1})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = routed.Close() })
+	ensure := func(ctx context.Context, pool *sql.DB) error {
+		return apidb.EnsureSchemas(ctx, pool, apidb.SchemaProviderFunc(domain.Schema))
+	}
+	require.NoError(t, ensure(ctx, routed.Primary()))
+	routed.SetTestPoolInitializer(ensure)
+	testDSN, err := storage.SQLiteDSNAt(t.TempDir()+"/isolated.db", storage.SQLiteTuning{})
+	require.NoError(t, err)
+	require.NoError(t, routed.InstallTestPool(ctx, testDSN, "activity-routing", time.Minute))
+	store := domain.NewSQLiteStore(routed)
+	require.NoError(t, store.Record(ctx, domain.Event{ID: "primary-only", Actor: "ada", Action: "asset.publish", SubjectKind: "asset", SubjectID: "button"}))
+	router := mux.NewRouter()
+	activityhandler.Module(routed).Mount(router)
+	list := func(requestContext context.Context) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, activityconnect.ActivityServiceListActivityProcedure, strings.NewReader(`{}`)).WithContext(requestContext)
+		req.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, req)
+		return response
+	}
+	primary := list(ctx)
+	require.Equal(t, http.StatusOK, primary.Code, primary.Body.String())
+	require.Contains(t, primary.Body.String(), "primary-only")
+	isolated := list(apidb.WithTestMode(ctx))
+	require.Equal(t, http.StatusOK, isolated.Code, isolated.Body.String())
+	require.NotContains(t, isolated.Body.String(), "primary-only")
 }
 
 func call(router *mux.Router, path, body string) *httptest.ResponseRecorder {

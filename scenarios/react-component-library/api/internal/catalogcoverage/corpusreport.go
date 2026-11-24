@@ -16,6 +16,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/storage"
+
 	"react-component-library/internal/librarywalk"
 
 	"react-component-library/internal/components"
@@ -40,6 +43,16 @@ type CorpusReport struct {
 	InvariantCount int               `json:"invariantCount"`
 	Invariants     []CorpusInvariant `json:"invariants"`
 	VersionShapes  []ShapeRow        `json:"versionShapes,omitempty"`
+}
+
+// CorpusDB is the read-only query surface used by corpus measurements. Both
+// sql.DB and api-core's RoutedDB implement it; callers pass request contexts so
+// a shadow request measures its routed catalog.
+type CorpusDB interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
 }
 
 func boolPointer(value bool) *bool { return &value }
@@ -67,7 +80,10 @@ var corpusVersion = regexp.MustCompile(`^\d+\.\d+\.\d+$`)
 // measure; the caller chooses it, so a test measures its own fixture and only
 // the operator command reads the live catalog. A nil catalog reports those
 // invariants as failed measurements rather than guessing.
-func BuildCorpusReport(root string, catalog *sql.DB) (CorpusReport, error) {
+func BuildCorpusReport(ctx context.Context, root string, catalog CorpusDB) (CorpusReport, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	libraryRoot := filepath.Join(root, "scenarios", "react-component-library", "library")
 	totalVersions, totalLines, latestLines := 0, 0, 0
 	exact, stale, bare := 0, 0, 0
@@ -214,9 +230,9 @@ func BuildCorpusReport(root string, catalog *sql.DB) (CorpusReport, error) {
 	allowlist := countAllowlistEntries(filepath.Join(libraryRoot, "vacuous-allowlist.json"))
 	warmMatrixSeconds, singleAssetSeconds, timingMeasured := liveTimingMeasurements(root)
 	measurementFailed := !timingMeasured
-	zeroFindingFailures, matrixMeasured := liveMatrixFailures(root, catalog)
-	retentionCommands, retentionMeasured := retentionCommandCount(catalog, libraryRoot)
-	unreadableMirrors, mirrorsMeasured := countUnreadableMirrors(catalog)
+	zeroFindingFailures, matrixMeasured := liveMatrixFailures(ctx, root, catalog)
+	retentionCommands, retentionMeasured := retentionCommandCount(ctx, catalog, libraryRoot)
+	unreadableMirrors, mirrorsMeasured := countUnreadableMirrors(ctx, catalog)
 	zeroFindingFailuresFailed := !matrixMeasured
 	buildFailures, buildMeasured := liveBuildFailures(root)
 	buildFailuresFailed := !buildMeasured
@@ -351,7 +367,7 @@ func timeCLI(cli string, args []string, timeout time.Duration) (int, bool) {
 // matrix. The aggregate catalog API intentionally exposes only totals, so
 // using that API here would make it impossible to prove that every failing
 // cell has attributable findings.
-func liveMatrixFailures(root string, catalog *sql.DB) (int, bool) {
+func liveMatrixFailures(ctx context.Context, root string, catalog CorpusDB) (int, bool) {
 	if catalog == nil {
 		return 0, false
 	}
@@ -359,7 +375,7 @@ func liveMatrixFailures(root string, catalog *sql.DB) (int, bool) {
 	if err != nil {
 		return 0, false
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 	failures, err := CountMatrixFailures(ctx, repositoryRoot, catalog)
 	if err != nil || ctx.Err() != nil {
@@ -567,12 +583,12 @@ func countUngovernedReleases(libraryRoot string) int {
 	return missing
 }
 
-func countUnreadableMirrors(catalog *sql.DB) (int, bool) {
+func countUnreadableMirrors(ctx context.Context, catalog CorpusDB) (int, bool) {
 	if catalog == nil {
 		return 0, false
 	}
 	var count int
-	if err := catalog.QueryRow(`SELECT COUNT(*) FROM component_versions v WHERE v.presence = 'evicted' AND NOT EXISTS (SELECT 1 FROM component_version_files f WHERE f.version_id = v.id)`).Scan(&count); err != nil {
+	if err := catalog.QueryRowContext(ctx, `SELECT COUNT(*) FROM component_versions v WHERE v.presence = 'evicted' AND NOT EXISTS (SELECT 1 FROM component_version_files f WHERE f.version_id = v.id)`).Scan(&count); err != nil {
 		return 0, false
 	}
 	return count, true
@@ -580,12 +596,11 @@ func countUnreadableMirrors(catalog *sql.DB) (int, bool) {
 
 // retentionCommandCount runs the three retention reads against the catalog
 // and the report's own library tree, and counts the ones that succeed.
-func retentionCommandCount(catalog *sql.DB, libraryRoot string) (int, bool) {
+func retentionCommandCount(ctx context.Context, catalog CorpusDB, libraryRoot string) (int, bool) {
 	if catalog == nil {
 		return 0, false
 	}
 	repo := versionledger.NewRepository(catalog, libraryRoot)
-	ctx := context.Background()
 	count := 0
 	if _, err := repo.RetireCandidates(ctx, ""); err == nil {
 		count++
@@ -601,12 +616,25 @@ func retentionCommandCount(catalog *sql.DB, libraryRoot string) (int, bool) {
 
 // OpenLiveCatalogDatabase opens the operator's live catalog read-only. Only
 // the operator-facing corpus-report command calls it; everything below takes
-// the database as an argument.
-func OpenLiveCatalogDatabase() (*sql.DB, error) {
-	home, err := os.UserHomeDir()
+// the database as an argument. The operator report always targets the live
+// namespace, even when invoked from a shadow process.
+func OpenLiveCatalogDatabase() (*database.RoutedDB, error) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
 	if err != nil {
 		return nil, err
 	}
-	path := filepath.Join(home, ".vrooli/data/vrooli/react-component-library/react-component-library.db")
-	return sql.Open("sqlite", "file:"+path+"?mode=ro")
+	path, err := resolver.Path(storage.Options{ScenarioID: "react-component-library"}, storage.ClassData, "react-component-library.db")
+	if err != nil {
+		return nil, err
+	}
+	dsn, err := storage.SQLiteReadOnlyDSNAt(path)
+	if err != nil {
+		return nil, err
+	}
+	return database.Open(context.Background(), database.Config{
+		Driver:       database.DriverSQLite,
+		DSN:          dsn,
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
 }

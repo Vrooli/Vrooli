@@ -1,8 +1,8 @@
-import type { DesignFrame } from "../designs";
+import type { DesignFrame } from "../design-types";
 import { walk, type TemplateNode, type TemplateNodeType } from "../templates/spec";
 
 /**
- * Which TemplateNode types resolve to a published RCL primitive.
+ * Which TemplateNode types can resolve to a published RCL primitive.
  *
  * This mirrors the imports in TemplateRenderer: a layer earns the badge only
  * when the same composition renders the shared component, not a lookalike.
@@ -23,8 +23,26 @@ export function rclPrimitive(type: TemplateNodeType): string | null {
   return RCL_PRIMITIVES[type] ?? null;
 }
 
+/** Resolve a layer only when its renderer actually uses the published asset. */
+function primitiveForNode(node: TemplateNode): string | null {
+  // Compact meters are deliberately rendered as a lightweight native meter
+  // inside dense lists; they do not use the BoundedMeter component.
+  if (node.type === "meter" && node.props.compact === true) return null;
+  return rclPrimitive(node.type);
+}
+
+/** A published component bound into a slot is real RCL coverage, too. */
+export function isRclLayer(node: TemplateNode): boolean {
+  return Boolean(
+    primitiveForNode(node) ||
+      (node.type === "slot" &&
+        typeof node.props.componentId === "string" &&
+        node.props.componentId),
+  );
+}
+
 export interface Coverage {
-  /** Layers whose type maps to a published RCL primitive. */
+  /** Layers that the renderer actually resolves to a published RCL primitive. */
   rcl: number;
   /** Layers that are custom or layout-only. */
   custom: number;
@@ -47,7 +65,7 @@ export function frameCoverage(spec: TemplateNode): Coverage {
   for (const child of spec.children ?? []) {
     walk(child, (current) => {
       total += 1;
-      if (rclPrimitive(current.type)) rcl += 1;
+      if (isRclLayer(current)) rcl += 1;
     });
   }
   if (total === 0) return EMPTY;
@@ -87,7 +105,7 @@ export function primitiveUsage(frames: DesignFrame[], referenceFrameId: string):
   if (reference) {
     for (const child of reference.spec.children ?? []) {
       walk(child, (current) => {
-        if (!rclPrimitive(current.type)) return;
+        if (!primitiveForNode(current)) return;
         counts.set(current.type, (counts.get(current.type) ?? 0) + 1);
       });
     }
@@ -100,10 +118,12 @@ export function primitiveUsage(frames: DesignFrame[], referenceFrameId: string):
       type,
       name,
       count,
-      frames: frames.filter((frame) => containsType(frame.spec, type)).length,
+      frames: frames.filter((frame) => containsPrimitive(frame.spec, type)).length,
     });
   }
-  return result.sort((left, right) => right.count - left.count || left.name.localeCompare(right.name));
+  return result.sort(
+    (left, right) => right.count - left.count || left.name.localeCompare(right.name),
+  );
 }
 
 export interface PatternUse {
@@ -111,7 +131,14 @@ export interface PatternUse {
   count: number;
 }
 
-const PATTERN_TYPES = new Set<TemplateNodeType>(["stack", "row", "grid", "card", "surface", "slot"]);
+const PATTERN_TYPES = new Set<TemplateNodeType>([
+  "stack",
+  "row",
+  "grid",
+  "card",
+  "surface",
+  "slot",
+]);
 
 /** Grouping layers in one frame: the patterns an implementer would name. */
 export function patternUsage(spec: TemplateNode): PatternUse[] {
@@ -132,11 +159,11 @@ export function layerCount(spec: TemplateNode): number {
   return frameCoverage(spec).total;
 }
 
-function containsType(spec: TemplateNode, type: TemplateNodeType): boolean {
+function containsPrimitive(spec: TemplateNode, type: TemplateNodeType): boolean {
   let found = false;
   for (const child of spec.children ?? []) {
     walk(child, (current) => {
-      if (current.type === type) found = true;
+      if (current.type === type && primitiveForNode(current)) found = true;
     });
   }
   return found;

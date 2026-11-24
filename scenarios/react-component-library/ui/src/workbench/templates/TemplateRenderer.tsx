@@ -9,25 +9,16 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
-  type MouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
-import { Avatar } from "@vrooli/react-component-library/Avatar/1";
-import { BoundedMeter } from "@vrooli/react-component-library/BoundedMeter/1";
-import { Button } from "@vrooli/react-component-library/Button/2";
-import { Card } from "@vrooli/react-component-library/Card/1";
-import { Chip } from "@vrooli/react-component-library/Chip/1";
-import { Input } from "@vrooli/react-component-library/Input/1";
-import { Stat } from "@vrooli/react-component-library/Stat/1";
-
-import { TemplateIcon } from "./icons";
-
-import { API_BASE } from "../../api/client";
 import { cx } from "../cx";
 import { useTranslation } from "../../i18n";
+import { TemplateNodeRenderer, type NodeSlotContext } from "./TemplateNodeRenderer";
+import { TemplateSlotOverlay } from "./TemplateSlotOverlay";
+import { useTemplateCanvasLayerDrag } from "./useTemplateCanvasLayerDrag";
+import type { LayerDropPosition } from "../studio/layerMovement";
 import {
   DEFAULT_SLOT_HEIGHT,
   findSlot,
@@ -42,8 +33,14 @@ interface RenderProps {
   template: Template;
   spec: TemplateNode;
   slot?: ReactNode;
+  /** Renders per-node catalog bindings in authored slot positions. */
+  renderComponentSlot?: (node: TemplateNode) => ReactNode;
   selectedId?: string;
   onSelect?: (id: string) => void;
+  /** Reparents a layer when it is dragged onto another layer in the canvas. */
+  onMoveLayer?: (sourceId: string, targetId: string, position: LayerDropPosition) => void;
+  /** Paints a per-layer outline showing shared RCL primitives vs custom structure. */
+  coverageMode?: boolean;
   /** Preview hides selection affordances and edit chrome. */
   mode?: "canvas" | "preview" | "thumb";
   /** Enables moving and resizing the live component inside the page. */
@@ -53,31 +50,17 @@ interface RenderProps {
   onSlotPlacementChange?: (nodeId: string, placement: SlotPlacement) => void;
 }
 
-const toneClass = (tone: unknown): string => (typeof tone === "string" ? `is-${tone}` : "");
-
-function paddingStyle(pad: unknown): CSSProperties | undefined {
-  if (typeof pad === "number") return { padding: pad };
-  if (typeof pad === "string") return { padding: pad };
-  return undefined;
-}
-
-function gapStyle(gap: unknown, fallback = 12): CSSProperties {
-  return { gap: typeof gap === "number" ? gap : fallback };
-}
-
-interface SlotContext {
-  placed: boolean;
-  editing: boolean;
-  onDragStart: (event: ReactPointerEvent<HTMLElement>) => void;
-  onKeyMove: (event: ReactKeyboardEvent<HTMLElement>) => void;
-}
+type SlotContext = NodeSlotContext;
 
 export function TemplateRenderer({
   template,
   spec,
   slot,
+  renderComponentSlot,
   selectedId,
   onSelect,
+  onMoveLayer,
+  coverageMode = false,
   mode = "canvas",
   slotEditable = false,
   slotPlacement: controlledPlacement,
@@ -85,10 +68,12 @@ export function TemplateRenderer({
 }: RenderProps) {
   const { t } = useTranslation();
   const interactive = mode === "canvas" && Boolean(onSelect);
-  const rootRef = useRef<HTMLDivElement>(null);
+  const { rootRef, canvasDrag, onPointerDown, onPointerMove, onPointerUp, onClick } =
+    useTemplateCanvasLayerDrag({ spec, interactive, onSelect, onMoveLayer });
   const anchorRef = useRef<HTMLDivElement>(null);
   const [measured, setMeasured] = useState<SlotPlacement | undefined>(undefined);
   const [active, setActive] = useState<SlotPlacement | undefined>(undefined);
+  const [sourceView, setSourceView] = useState(false);
   const slotNode = useMemo(() => findSlot(spec), [spec]);
   const authored = slotPlacement(slotNode);
   const placement = controlledPlacement ?? active ?? authored;
@@ -104,6 +89,7 @@ export function TemplateRenderer({
       lastTemplate.current = template.id;
       setActive(undefined);
       setMeasured(undefined);
+      setSourceView(false);
     }
   }, [template.id]);
 
@@ -112,21 +98,12 @@ export function TemplateRenderer({
     lastControlled.current = controlledPlacement;
   }, [controlledPlacement]);
 
-  const handleClick = (event: MouseEvent<HTMLDivElement>) => {
-    if (!interactive) return;
-    const target = (event.target as HTMLElement).closest<HTMLElement>("[data-node-id]");
-    if (target?.dataset.nodeId) {
-      event.stopPropagation();
-      onSelect?.(target.dataset.nodeId);
-    }
-  };
-
   const scale = useCallback(() => {
     const root = rootRef.current;
     if (!root) return 1;
     const rect = root.getBoundingClientRect();
     return root.offsetWidth > 0 ? rect.width / root.offsetWidth : 1;
-  }, []);
+  }, [rootRef]);
 
   const measure = useCallback(() => {
     const root = rootRef.current;
@@ -141,7 +118,7 @@ export function TemplateRenderer({
       w: Math.max(80, anchorRect.width / factor),
       h: Math.max(24, anchorRect.height / factor || DEFAULT_SLOT_HEIGHT),
     });
-  }, [scale]);
+  }, [rootRef, scale]);
 
   // The anchor is the authored in-flow slot. Measure it only while the
   // component still sits in flow; once it is placed the anchor is a spacer.
@@ -269,16 +246,41 @@ export function TemplateRenderer({
       )}
       style={templateStyle(template)}
       data-template={template.id}
-      onClick={handleClick}
+      data-coverage-mode={coverageMode ? "true" : undefined}
+      data-layer-dragging={canvasDrag ? "true" : undefined}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+      onClick={onClick}
     >
-      {renderNode(
-        spec,
-        {
+      {typeof spec.props.sourceHtml === "string" && mode === "canvas" ? (
+        <button
+          type="button"
+          className="tpl-source-toggle"
+          aria-pressed={sourceView}
+          onClick={(event) => {
+            event.stopPropagation();
+            setSourceView((current) => !current);
+          }}
+        >
+          {sourceView
+            ? t("workbench.template.sourceViewLayers", { defaultValue: "Editable layers" })
+            : t("workbench.template.sourceViewOriginal", { defaultValue: "Original source" })}
+        </button>
+      ) : null}
+      <TemplateNodeRenderer
+        node={spec}
+        context={{
           template,
           slot,
+          renderComponentSlot,
           selectedId,
+          canvasDrag,
+          coverageMode,
           interactive,
           mode,
+          sourceView,
           slotContext,
           activeSlotId: slotNode?.id,
           labels: {
@@ -297,548 +299,36 @@ export function TemplateRenderer({
               defaultValue: "Image unavailable",
             }),
           },
-        },
-        anchorRef,
-      )}
+        }}
+        anchorRef={anchorRef}
+      />
       {showOverlay && placement ? (
-        <div
-          className={cx(
-            "tpl-slot-float",
-            slotEditable && "is-editable",
-            selectedId === slotNode?.id && "is-selected",
-          )}
-          data-node-id={slotNode?.id}
-          data-node-type="slot"
-          style={{
-            left: `min(${Math.round(placement.x)}px, calc(100% - ${Math.round(placement.w)}px))`,
-            top: Math.round(placement.y),
-            width: `min(${Math.round(placement.w)}px, 100%)`,
+        <TemplateSlotOverlay
+          nodeId={slotNode?.id}
+          placement={placement}
+          slot={slot}
+          editable={slotEditable}
+          selected={selectedId === slotNode?.id}
+          moveLabel={t("workbench.template.move", { defaultValue: "Move" })}
+          moveAriaLabel={t("workbench.template.moveComponent", {
+            defaultValue: "Move component on the page",
+          })}
+          resizeAriaLabel={t("workbench.template.resizeComponent", {
+            defaultValue: "Resize component",
+          })}
+          onDragStart={beginDrag}
+          onResizeStart={beginResize}
+          onKeyMove={onKeyMove}
+          onResizeKeyDown={(event) => {
+            const deltas: Record<string, number> = { ArrowLeft: -8, ArrowRight: 8 };
+            const delta = deltas[event.key];
+            if (delta === undefined) return;
+            event.preventDefault();
+            commit({ ...placement, w: placement.w + delta });
           }}
-        >
-          <div className="tpl-slot-float-body" style={{ height: placement.h }}>
-            {slot}
-          </div>
-          {slotEditable ? (
-            <>
-              <button
-                type="button"
-                className="tpl-slot-grip"
-                aria-label={t("workbench.template.moveComponent", {
-                  defaultValue: "Move component on the page",
-                })}
-                onPointerDown={beginDrag}
-                onKeyDown={onKeyMove}
-                onClick={(event) => event.stopPropagation()}
-              >
-                {t("workbench.template.move", { defaultValue: "Move" })}
-              </button>
-              <button
-                type="button"
-                className="tpl-slot-resize"
-                aria-label={t("workbench.template.resizeComponent", {
-                  defaultValue: "Resize component",
-                })}
-                onPointerDown={beginResize}
-                onKeyDown={(event) => {
-                  const deltas: Record<string, number> = { ArrowLeft: -8, ArrowRight: 8 };
-                  const delta = deltas[event.key];
-                  if (delta === undefined) return;
-                  event.preventDefault();
-                  commit({ ...placement, w: placement.w + delta });
-                }}
-              />
-              <span className="tpl-slot-size">
-                {Math.round(placement.w)} × {Math.round(placement.h)}
-              </span>
-            </>
-          ) : null}
-        </div>
+          onMoveClick={(event) => event.stopPropagation()}
+        />
       ) : null}
     </div>
   );
-}
-
-interface NodeContext {
-  template: Template;
-  slot?: ReactNode;
-  selectedId?: string;
-  interactive: boolean;
-  mode: "canvas" | "preview" | "thumb";
-  slotContext?: SlotContext;
-  /** The one slot that receives the live component; others show a placeholder. */
-  activeSlotId?: string;
-  labels: {
-    move: string;
-    moveAria: string;
-    placed: string;
-    slot: string;
-    unknownType: string;
-    imageEmpty: string;
-  };
-}
-
-function nodeAttrs(node: TemplateNode, ctx: NodeContext) {
-  return {
-    "data-node-id": node.id,
-    "data-node-type": node.type,
-    "data-selected": ctx.selectedId === node.id ? "true" : undefined,
-    className: cx(ctx.selectedId === node.id && "is-selected"),
-  };
-}
-
-function renderNode(
-  node: TemplateNode,
-  ctx: NodeContext,
-  anchorRef?: { current: HTMLDivElement | null },
-): ReactNode {
-  const props = node.props;
-  const children = node.children?.map((child) => renderNode(child, ctx, anchorRef));
-  const attrs = nodeAttrs(node, ctx);
-  const textAlign =
-    typeof props.align === "string" ? (props.align as CSSProperties["textAlign"]) : undefined;
-
-  switch (node.type) {
-    case "page":
-      return (
-        <div
-          key={node.id}
-          {...attrs}
-          className={cx("tpl-page", attrs.className)}
-          style={paddingStyle(props.pad)}
-        >
-          {children}
-        </div>
-      );
-
-    case "stack":
-      return (
-        <div
-          key={node.id}
-          {...attrs}
-          className={cx("tpl-stack", attrs.className)}
-          style={{
-            ...gapStyle(props.gap),
-            ...paddingStyle(props.pad),
-            alignItems: typeof props.align === "string" ? props.align : undefined,
-            justifyItems: typeof props.justify === "string" ? props.justify : undefined,
-            flexGrow: props.grow === true ? 1 : undefined,
-          }}
-        >
-          {children}
-        </div>
-      );
-
-    case "row":
-      return (
-        <div
-          key={node.id}
-          {...attrs}
-          className={cx(
-            "tpl-row",
-            props.wrap === true && "is-wrap",
-            props.border === true && "is-bordered",
-            attrs.className,
-          )}
-          style={{
-            ...gapStyle(props.gap, 10),
-            ...paddingStyle(props.pad),
-            alignItems: typeof props.align === "string" ? props.align : "center",
-            justifyContent: typeof props.justify === "string" ? props.justify : undefined,
-            minHeight: typeof props.h === "number" ? props.h : undefined,
-          }}
-        >
-          {children}
-        </div>
-      );
-
-    case "grid":
-      return (
-        <div
-          key={node.id}
-          {...attrs}
-          className={cx("tpl-grid", attrs.className)}
-          style={
-            {
-              ...gapStyle(props.gap),
-              ...paddingStyle(props.pad),
-              "--tpl-cols": typeof props.cols === "number" ? props.cols : 2,
-              alignItems: typeof props.align === "string" ? props.align : undefined,
-            } as CSSProperties
-          }
-        >
-          {children}
-        </div>
-      );
-
-    case "surface": {
-      const bg =
-        props.bg === "accent"
-          ? "var(--t-accent)"
-          : props.bg === "surfaceAlt"
-            ? "var(--t-surface-alt)"
-            : "var(--t-surface)";
-      const ink = props.bg === "accent" ? "var(--t-accent-ink)" : "var(--t-ink)";
-      return (
-        <div
-          key={node.id}
-          {...attrs}
-          className={cx("tpl-surface", attrs.className)}
-          style={{
-            ...paddingStyle(props.pad),
-            background: bg,
-            color: ink,
-            borderRadius: typeof props.radius === "number" ? props.radius : "var(--t-radius)",
-            minHeight: typeof props.h === "number" ? props.h : undefined,
-            position: "relative",
-            overflow: "hidden",
-          }}
-        >
-          {children}
-        </div>
-      );
-    }
-
-    case "text":
-      return (
-        <div
-          key={node.id}
-          {...attrs}
-          className={cx(
-            "tpl-text",
-            `is-${String(props.variant ?? "body")}`,
-            toneClass(props.tone),
-            attrs.className,
-          )}
-          style={{
-            textAlign,
-            flexGrow: props.grow === true ? 1 : undefined,
-            minWidth: 0,
-          }}
-        >
-          {typeof props.text === "string" ? props.text : null}
-        </div>
-      );
-
-    case "button":
-      return (
-        <span key={node.id} {...attrs} className={cx("tpl-control", attrs.className)}>
-          <Button
-            variant={
-              props.variant === "primary"
-                ? "primary"
-                : props.variant === "secondary"
-                  ? "secondary"
-                  : "ghost"
-            }
-            size={props.size === "sm" ? "sm" : "md"}
-            shape="square"
-            density="compact"
-          >
-            {typeof props.text === "string" ? props.text : null}
-          </Button>
-        </span>
-      );
-
-    case "input":
-      return (
-        <span key={node.id} {...attrs} className={cx("tpl-control", attrs.className)}>
-          <Input
-            aria-label={typeof props.placeholder === "string" ? props.placeholder : "Field"}
-            placeholder={typeof props.placeholder === "string" ? props.placeholder : undefined}
-            data-node-id={node.id}
-          />
-        </span>
-      );
-
-    case "card":
-      return (
-        <Card
-          key={node.id}
-          {...attrs}
-          className={cx("tpl-card", attrs.className)}
-          style={{
-            ...paddingStyle(props.pad),
-            borderRadius: typeof props.radius === "number" ? props.radius : "var(--t-radius)",
-            background: props.bg === "surfaceAlt" ? "var(--t-surface-alt)" : "var(--t-surface)",
-            boxShadow: props.elevated === true ? "0 18px 50px rgba(0,0,0,.14)" : undefined,
-          }}
-        >
-          {children}
-        </Card>
-      );
-
-    case "stat":
-      return (
-        <span key={node.id} {...attrs} className={cx("tpl-stat", attrs.className)}>
-          <Stat
-            label={typeof props.label === "string" ? props.label : undefined}
-            value={typeof props.value === "string" ? props.value : undefined}
-            trend={typeof props.detail === "string" ? props.detail : undefined}
-            trendTone={
-              props.tone === "red"
-                ? "negative"
-                : props.tone === "amber"
-                  ? "neutral"
-                  : props.tone === "green"
-                    ? "positive"
-                    : "neutral"
-            }
-            scale="card"
-            provenance="sample"
-          />
-        </span>
-      );
-
-    case "metric": {
-      const size = typeof props.size === "string" ? props.size : "md";
-      return (
-        <div
-          key={node.id}
-          {...attrs}
-          className={cx("tpl-metric", `is-${size}`, toneClass(props.tone), attrs.className)}
-        >
-          {typeof props.label === "string" ? (
-            <span className="tpl-metric-label">{props.label}</span>
-          ) : null}
-          <span className="tpl-metric-value">
-            {typeof props.prefix === "string" ? (
-              <span className="tpl-metric-prefix">{props.prefix}</span>
-            ) : null}
-            <b>{typeof props.value === "string" ? props.value : ""}</b>
-            {typeof props.frac === "string" ? (
-              <span className="tpl-metric-frac">{props.frac}</span>
-            ) : null}
-            {typeof props.suffix === "string" ? (
-              <span className="tpl-metric-suffix">{props.suffix}</span>
-            ) : null}
-          </span>
-          {typeof props.detail === "string" ? (
-            <span className="tpl-metric-detail">{props.detail}</span>
-          ) : null}
-        </div>
-      );
-    }
-
-    case "icon": {
-      const size = typeof props.size === "number" ? props.size : 16;
-      return (
-        <span
-          key={node.id}
-          {...attrs}
-          className={cx("tpl-icon", props.box === true && "is-boxed", toneClass(props.tone), attrs.className)}
-          style={{ width: size + 16, height: size + 16 }}
-        >
-          <TemplateIcon
-            name={typeof props.name === "string" ? props.name : "spark"}
-            size={size}
-          />
-        </span>
-      );
-    }
-
-    case "avatar":
-      return (
-        <span key={node.id} {...attrs} className={cx("tpl-control", attrs.className)}>
-          <Avatar
-            name={typeof props.name === "string" ? props.name : "Member"}
-            size={props.size === "lg" ? "lg" : props.size === "xs" ? "xs" : "sm"}
-            shape="circle"
-          />
-        </span>
-      );
-
-    case "chip":
-      return (
-        <span
-          key={node.id}
-          {...attrs}
-          className={cx("tpl-control tpl-chip", attrs.className)}
-          data-tone={typeof props.tone === "string" ? props.tone : undefined}
-        >
-          <Chip>{typeof props.text === "string" ? props.text : null}</Chip>
-        </span>
-      );
-
-    case "meter": {
-      const value = typeof props.value === "number" ? props.value : 0;
-      const clamped = Math.max(0, Math.min(100, value));
-      if (props.compact === true) {
-        // In a table row or a factor list the meter is a slim value, not a
-        // labelled control. The native meter keeps the semantics without the
-        // component's label/value chrome.
-        return (
-          <span
-            key={node.id}
-            {...attrs}
-            className={cx("tpl-meter-inline", attrs.className)}
-            role="meter"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Math.round(clamped)}
-            aria-label={
-              typeof props.label === "string" ? props.label : `${node.id} meter`
-            }
-            data-tone={typeof props.tone === "string" ? props.tone : undefined}
-          >
-            <span style={{ width: `${clamped}%` }} />
-          </span>
-        );
-      }
-      return (
-        <span key={node.id} {...attrs} className={cx("tpl-meter", attrs.className)}>
-          <BoundedMeter
-            label={typeof props.label === "string" ? props.label : undefined}
-            ariaLabel={`${typeof props.label === "string" ? props.label : "Composition"} meter · ${node.id}`}
-            value={typeof props.value === "number" ? props.value : 0}
-            max={100}
-            tone={
-              props.tone === "green"
-                ? "success"
-                : props.tone === "amber"
-                  ? "warning"
-                  : props.tone === "red"
-                    ? "danger"
-                    : "neutral"
-            }
-            valueText={`${typeof props.value === "number" ? props.value : 0}%`}
-          />
-        </span>
-      );
-    }
-
-    case "divider":
-      return (
-        <div
-          key={node.id}
-          {...attrs}
-          className={cx("tpl-divider", attrs.className)}
-          style={{ marginBlock: typeof props.space === "number" ? props.space : 8 }}
-        />
-      );
-
-    case "spacer":
-      return (
-        <div
-          key={node.id}
-          {...attrs}
-          aria-hidden
-          style={{ height: typeof props.h === "number" ? props.h : 16 }}
-        />
-      );
-
-    case "swatch": {
-      const tone =
-        props.tone === "accent"
-          ? "var(--t-accent)"
-          : props.tone === "secondary"
-            ? "var(--t-secondary)"
-            : props.tone === "line"
-              ? "var(--t-line)"
-              : "var(--t-surface-alt)";
-      const shape = typeof props.shape === "string" ? props.shape : undefined;
-      return (
-        <div
-          key={node.id}
-          {...attrs}
-          className={cx("tpl-swatch", attrs.className)}
-          data-shape={shape}
-          style={{
-            height: typeof props.h === "number" ? props.h : 48,
-            width: typeof props.w === "number" ? props.w : undefined,
-            flexGrow: props.grow === true ? 1 : undefined,
-            backgroundColor: tone,
-            borderRadius: typeof props.radius === "number" ? props.radius : 6,
-          }}
-        >
-          {shape ? (
-            <span className="tpl-art" aria-hidden>
-              <span className={`tpl-art-shape is-${shape}`} />
-            </span>
-          ) : null}
-        </div>
-      );
-    }
-
-    case "slot": {
-      const slotState = ctx.slotContext;
-      const placed = slotState?.placed ?? false;
-      const editing = slotState?.editing ?? false;
-      const activeSlot = !ctx.activeSlotId || ctx.activeSlotId === node.id;
-      const hasFallback = Boolean(children && children.length > 0);
-      return (
-        <div
-          key={node.id}
-          ref={activeSlot ? anchorRef : undefined}
-          {...attrs}
-          className={cx(
-            "tpl-slot",
-            activeSlot && ctx.slot ? "is-filled" : hasFallback ? "is-fallback" : "is-empty",
-            placed && "is-placed-anchor",
-            editing && !placed && "is-editable",
-            attrs.className,
-          )}
-          style={{ minHeight: typeof props.minH === "number" ? props.minH : 44 }}
-        >
-          {placed ? (
-            editing || ctx.mode === "canvas" ? (
-              <span className="tpl-slot-hint">{ctx.labels.placed}</span>
-            ) : null
-          ) : activeSlot ? (
-            (ctx.slot ?? (hasFallback ? children : null))
-          ) : hasFallback ? (
-            children
-          ) : null}
-          {editing && !placed && slotState ? (
-            <button
-              type="button"
-              className="tpl-slot-grip is-inline"
-              aria-label={ctx.labels.moveAria}
-              onPointerDown={slotState.onDragStart}
-              onKeyDown={slotState.onKeyMove}
-              onClick={(event) => event.stopPropagation()}
-            >
-              {ctx.labels.move}
-            </button>
-          ) : null}
-        </div>
-      );
-    }
-
-    case "image": {
-      const raw = typeof props.src === "string" ? props.src : "";
-      const src = raw.startsWith("/") ? `${API_BASE.replace(/\/$/, "")}${raw}` : raw;
-      const fit = props.fit === "contain" ? "contain" : "cover";
-      return (
-        <figure
-          key={node.id}
-          {...attrs}
-          className={cx("tpl-image", attrs.className)}
-          style={{ height: typeof props.h === "number" ? props.h : 220 }}
-        >
-          {src ? (
-            <img
-              src={src}
-              alt={typeof props.alt === "string" ? props.alt : ""}
-              loading="lazy"
-              style={{ objectFit: fit }}
-            />
-          ) : (
-            <span className="tpl-image-empty">{ctx.labels.imageEmpty}</span>
-          )}
-        </figure>
-      );
-    }
-
-    default: {
-      // A typo or an imported node type must be visible, not silently dropped:
-      // a blank region is much harder to diagnose than a labelled placeholder.
-      const copy = typeof props.text === "string" ? props.text : "";
-      return (
-        <div key={node.id} {...attrs} className={cx("tpl-unknown", attrs.className)} role="note">
-          <span>{ctx.labels.unknownType.replace("{{type}}", String(node.type))}</span>
-          {copy ? <span className="tpl-unknown-copy">{copy}</span> : null}
-        </div>
-      );
-    }
-  }
 }

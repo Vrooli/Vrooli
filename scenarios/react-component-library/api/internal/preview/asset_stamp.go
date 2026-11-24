@@ -69,15 +69,73 @@ func stampPreviewSource(source, sourcePath, asset, version, sourceSlot string) s
 }
 
 func stripPreviewMarkerAttributes(source string) string {
-	return previewMarkerAttribute.ReplaceAllStringFunc(source, func(match string) string {
+	matches := previewMarkerAttribute.FindAllStringIndex(source, -1)
+	if len(matches) == 0 {
+		return source
+	}
+	var cleaned strings.Builder
+	cleaned.Grow(len(source))
+	cursor := 0
+	for _, match := range matches {
+		start, end := match[0], match[1]
+		if insidePreviewLiteralOrComment(source, start) {
+			continue
+		}
+		cleaned.WriteString(source[cursor:start])
 		// Keep the delimiter consumed by the boundary-aware expression. This
 		// prevents a boolean marker before `>` from deleting the tag close,
-		// while still normalizing a marker followed by another attribute.
-		if strings.HasSuffix(match, ">") {
-			return ">"
+		// while normalizing a marker followed by another attribute.
+		if strings.HasSuffix(source[start:end], ">") {
+			cleaned.WriteByte('>')
+		} else {
+			cleaned.WriteByte(' ')
 		}
-		return " "
-	})
+		cursor = end
+	}
+	cleaned.WriteString(source[cursor:])
+	return cleaned.String()
+}
+
+// insidePreviewLiteralOrComment keeps marker-looking example text intact. The
+// stamp regex only owns source tokens outside quoted strings and comments; JSX
+// attribute names are outside their quoted values and remain eligible for
+// replacement. This is a narrow lexical guard, not a TypeScript parser.
+func insidePreviewLiteralOrComment(source string, offset int) bool {
+	var quote byte
+	for i := 0; i < offset; i++ {
+		current := source[i]
+		if quote != 0 {
+			if current == '\\' {
+				i++
+				continue
+			}
+			if current == quote {
+				quote = 0
+			}
+			continue
+		}
+		if current == '/' && i+1 < offset {
+			switch source[i+1] {
+			case '/':
+				i += 2
+				for i < offset && source[i] != '\n' {
+					i++
+				}
+				continue
+			case '*':
+				i += 2
+				for i+1 < offset && !(source[i] == '*' && source[i+1] == '/') {
+					i++
+				}
+				i++
+				continue
+			}
+		}
+		if current == '\'' || current == '"' || current == '`' {
+			quote = current
+		}
+	}
+	return quote != 0
 }
 
 func escapeAttribute(value string) string {

@@ -7,7 +7,7 @@ This file is the working contract for the studio rebuild. Read it before changin
 `ui/src/workbench/studio/`, or the designs API.
 
 Design reference (outside the repo, not committed):
-`/home/matthalloran8/design-studies/rcl-studio-options/index.html`
+`~/design-studies/rcl-studio-options/index.html`
 
 ## 1. Outcome
 

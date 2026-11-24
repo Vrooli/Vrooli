@@ -213,3 +213,47 @@ func TestLiveReconcileIsNotUniformlyManifestEmpty(t *testing.T) {
 		t.Fatalf("no implemented asset produced a measured verdict (manifest-empty=%d of %d): the dependency record the reconciler reads is missing", empty, len(report.Assets))
 	}
 }
+
+func TestRootedFilesystemHelpersContainSymlinkAndTraversal(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	if err := os.WriteFile(filepath.Join(outside, "secret.json"), []byte("secret"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(root, "escape")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if _, err := rootedReadFile(root, filepath.Join(root, "escape", "secret.json")); err == nil {
+		t.Fatal("rooted read followed an escaping symlink")
+	}
+	if err := rootedWriteFile(root, filepath.Join(root, "escape", "written.json"), []byte("bad"), 0o600); err == nil {
+		t.Fatal("rooted write followed an escaping symlink")
+	}
+	if err := rootedRemoveAll(root, filepath.Join(root, "..", filepath.Base(outside))); err == nil {
+		t.Fatal("rooted remove accepted a traversal path")
+	}
+	if _, err := rootedMkdirTemp(root, outside, "outside-"); err == nil {
+		t.Fatal("rooted temporary directory accepted an outside parent")
+	}
+}
+
+func TestWriteGraphProjectCreatesAndRemovesRootedProject(t *testing.T) {
+	uiDir := t.TempDir()
+	project, err := writeGraphProject(uiDir, []string{"../library/components/Button/versions/1.0.0/Button.tsx"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := rootedReadFile(uiDir, filepath.Join(project, "tsconfig.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "../library/components/Button/versions/1.0.0/Button.tsx") {
+		t.Fatalf("project config omitted source path: %s", data)
+	}
+	if err := rootedRemoveAll(uiDir, project); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(project); !os.IsNotExist(err) {
+		t.Fatalf("project cleanup error = %v", err)
+	}
+}

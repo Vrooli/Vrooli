@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Reachability-derived warm/cold version placement with durable, hash-verified recovery.",
-    "last_validated_at": "2026-08-26T23:56:57-04:00",
+    "last_validated_at": "2026-11-22T11:37:51-05:00",
     "module": "cold-version-tier",
     "prd_ref": "react-component-library-cold-version-tier-make-version",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "CVT-001",
       "title": "Evicted identity survives reindex",
-      "status": "in_progress",
+      "status": "complete",
       "category": "version-ledger",
       "criticality": "P0",
       "description": "An evicted version remains represented by its manifest declaration and component version/file rows after repeated indexing.",
@@ -20,14 +20,14 @@
           "type": "test",
           "ref": "api/internal/components/indexer_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "CVT-002",
       "title": "Evicted imports remain in the reachability graph",
-      "status": "in_progress",
+      "status": "complete",
       "category": "version-ledger",
       "criticality": "P0",
       "description": "Source imports from an evicted version are read from the durable file mirror and continue protecting their referenced versions.",
@@ -36,14 +36,14 @@
           "type": "test",
           "ref": "api/internal/versionledger/sqlite_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "CVT-003",
       "title": "Materialization is reversible and hash verified",
-      "status": "in_progress",
+      "status": "complete",
       "category": "storage",
       "criticality": "P0",
       "description": "Materializing an evicted version restores the complete file set byte-for-byte, is idempotent and concurrency-safe, and refuses a mismatched mirror.",
@@ -52,14 +52,14 @@
           "type": "test",
           "ref": "api/internal/components/content_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "CVT-004",
       "title": "Presence reconciliation is idempotent",
-      "status": "in_progress",
+      "status": "complete",
       "category": "version-ledger",
       "criticality": "P0",
       "description": "Reconciliation uses the reachability graph, applies only required moves, and leaves a second run with no pending changes.",
@@ -68,14 +68,14 @@
           "type": "test",
           "ref": "api/internal/versionledger/sqlite_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "CVT-005",
       "title": "Adoption materializes before recording",
-      "status": "in_progress",
+      "status": "complete",
       "category": "adoption",
       "criticality": "P0",
       "description": "Linking an evicted version restores it before writing the adoption, and materialization failure leaves no adoption record.",
@@ -84,20 +84,20 @@
           "type": "test",
           "ref": "api/internal/adoptions/lifecycle_hooks_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         },
         {
           "type": "test",
           "ref": "api/internal/adoptions/lifecycle_hooks_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "CVT-006",
       "title": "The ledger is portable",
-      "status": "in_progress",
+      "status": "complete",
       "category": "storage",
       "criticality": "P0",
       "description": "The identity and file mirror can be exported to a checksum-verified archive and imported into an empty database.",
@@ -106,14 +106,14 @@
           "type": "test",
           "ref": "api/internal/versionledger/archive_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "CVT-007",
       "title": "Report payload storage is byte bounded",
-      "status": "in_progress",
+      "status": "complete",
       "category": "evidence",
       "criticality": "P0",
       "description": "Component-test report retention enforces the declared aggregate payload ceiling while preserving rollup counters.",
@@ -122,14 +122,14 @@
           "type": "test",
           "ref": "api/internal/componenttests/repository_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "CVT-008",
       "title": "Raw story text nodes are rejected",
-      "status": "in_progress",
+      "status": "complete",
       "category": "catalog-contract",
       "criticality": "P1",
       "description": "Story contracts use plain text values and the grammar rejects legacy raw $text nodes.",
@@ -138,7 +138,7 @@
           "type": "test",
           "ref": "api/internal/components/story_contract_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     }

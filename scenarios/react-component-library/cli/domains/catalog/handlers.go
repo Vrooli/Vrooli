@@ -34,7 +34,7 @@ func (h *handlers) corpusReport(_ cliapp.RunContext) error {
 		return fmt.Errorf("open live catalog database: %w", err)
 	}
 	defer catalogDB.Close()
-	report, err := catalogcoverage.BuildCorpusReport(filepath.Join(root, "..", ".."), catalogDB)
+	report, err := catalogcoverage.BuildCorpusReport(context.Background(), filepath.Join(root, "..", ".."), catalogDB)
 	if err != nil {
 		return err
 	}

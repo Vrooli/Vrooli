@@ -2,7 +2,10 @@ package gates
 
 import (
 	"encoding/json"
+	"fmt"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"react-component-library/internal/components"
@@ -88,5 +91,120 @@ func TestStoryGrammarAssetScopeUsesCatalogIdentity(t *testing.T) {
 	}
 	if len(result.Findings) != 0 {
 		t.Fatalf("asset-scoped story grammar findings = %#v", result.Findings)
+	}
+}
+
+func TestValidateStoryCoverageUsesActiveImplementationAndContract(t *testing.T) {
+	root := t.TempDir()
+	assetDir := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Card")
+	versionDir := filepath.Join(assetDir, "versions", "1.0.0")
+	if err := os.MkdirAll(versionDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := `{"catalogId":"components.card","assetKind":"component","latest":"1.0.0"}`
+	if err := os.WriteFile(filepath.Join(assetDir, "component.json"), []byte(manifest), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	source := `type CardProps = { label?: string; disabled?: boolean; tone?: "quiet" | "loud"; }; export function Card(props: CardProps) { return props.label; }`
+	if err := os.WriteFile(filepath.Join(versionDir, "Card.tsx"), []byte(source), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	story := `{"schemaVersion":5,"kind":"component","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Default","role":"anatomy","args":{}}]}`
+	if err := os.WriteFile(filepath.Join(versionDir, "story.json"), []byte(story), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := ValidateStoryCoverage(Scope{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Inspected != 1 {
+		t.Fatalf("inspected = %d, want the active renderable asset", result.Inspected)
+	}
+	if len(result.Findings) == 0 {
+		t.Fatal("expected missing axis and boundary stories to be reported")
+	}
+	for _, finding := range result.Findings {
+		if finding.Code != "catalog.story_coverage_missing" {
+			t.Fatalf("unexpected finding: %+v", finding)
+		}
+	}
+}
+
+func TestValidateStoryCoverageSkipsOutOfScopeAndUnrenderableAssets(t *testing.T) {
+	root := t.TempDir()
+	for name, assetKind := range map[string]string{"Card": "component", "Token": "resource"} {
+		assetDir := filepath.Join(root, "scenarios", "react-component-library", "library", "components", name)
+		versionDir := filepath.Join(assetDir, "versions", "1.0.0")
+		if err := os.MkdirAll(versionDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		manifest := fmt.Sprintf(`{"catalogId":"components.%s","assetKind":%q,"latest":"1.0.0"}`, strings.ToLower(name), assetKind)
+		if err := os.WriteFile(filepath.Join(assetDir, "component.json"), []byte(manifest), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	result, err := ValidateStoryCoverage(Scope{Root: root, Assets: []string{"components.unknown"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Inspected != 0 || len(result.Findings) != 1 || result.Findings[0].Code != "catalog.gate_inspected_nothing" {
+		t.Fatalf("out-of-scope assets should report an empty measurement: %+v", result)
+	}
+}
+
+func TestValidateStoryCoverageAcceptsCompleteCapabilityStories(t *testing.T) {
+	root := t.TempDir()
+	assetDir := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Badge")
+	versionDir := filepath.Join(assetDir, "versions", "1.0.0")
+	if err := os.MkdirAll(versionDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(assetDir, "component.json"), []byte(`{"catalogId":"components.badge","assetKind":"component","latest":"1.0.0"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	source := `type BadgeProps = { label?: string; disabled?: boolean; tone?: "quiet" | "loud"; }; export function Badge(props: BadgeProps) { return props.label; }`
+	if err := os.WriteFile(filepath.Join(versionDir, "Badge.tsx"), []byte(source), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	story := `{"schemaVersion":5,"kind":"component","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"anatomy","name":"Anatomy","role":"anatomy","args":{}},{"id":"tone","name":"Tone","role":"axis","axis":"tone","args":{},"covers":{"tone":["quiet","loud"]}},{"id":"empty","name":"Empty","role":"boundary","args":{}},{"id":"overflow","name":"Overflow","role":"boundary","args":{}},{"id":"disabled","name":"Disabled","role":"boundary","args":{}}]}`
+	if err := os.WriteFile(filepath.Join(versionDir, "story.json"), []byte(story), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := ValidateStoryCoverage(Scope{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Inspected != 1 || len(result.Findings) != 0 {
+		t.Fatalf("complete story capability coverage should pass: %+v", result)
+	}
+}
+
+func TestValidateStoryCoverageSkipsMissingAndMalformedContracts(t *testing.T) {
+	root := t.TempDir()
+	for name, story := range map[string]string{"Missing": "", "Malformed": "{"} {
+		assetDir := filepath.Join(root, "scenarios", "react-component-library", "library", "components", name)
+		versionDir := filepath.Join(assetDir, "versions", "1.0.0")
+		if err := os.MkdirAll(versionDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		manifest := fmt.Sprintf(`{"catalogId":"components.%s","assetKind":"component","latest":"1.0.0"}`, strings.ToLower(name))
+		if err := os.WriteFile(filepath.Join(assetDir, "component.json"), []byte(manifest), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if story != "" {
+			if err := os.WriteFile(filepath.Join(versionDir, "story.json"), []byte(story), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+
+	result, err := ValidateStoryCoverage(Scope{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Inspected != 0 || len(result.Findings) != 1 || result.Findings[0].Code != "catalog.gate_inspected_nothing" {
+		t.Fatalf("missing and malformed contracts should not be measured: %+v", result)
 	}
 }

@@ -17,12 +17,20 @@ import (
 )
 
 type sqliteRepository struct {
-	db    *sql.DB
+	db    SQLDB
 	clock schedule.Clock
 }
 
+// SQLDB is the request-context-aware surface used by the repository. Both
+// *sql.DB and api-core's RoutedDB implement it.
+type SQLDB interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
 // NewSQLiteRepository constructs the production Repository.
-func NewSQLiteRepository(db *sql.DB, clk schedule.Clock) Repository {
+func NewSQLiteRepository(db SQLDB, clk schedule.Clock) Repository {
 	return &sqliteRepository{db: db, clock: clk}
 }
 

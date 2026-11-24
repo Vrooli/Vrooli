@@ -34,6 +34,59 @@ func TestResolveRuleSetIncludesKindAndAssetDeclarations(t *testing.T) {
 	}
 }
 
+func TestResolveRuleSetRequiresCountableValidOptOutReasons(t *testing.T) {
+	catalogRoot := filepath.Join(t.TempDir(), "catalog")
+	assetDir := filepath.Join(catalogRoot, "assets", "controls")
+	if err := os.MkdirAll(assetDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(assetDir, "button.json")
+	definitions := []GateDefinition{{ID: "responsive", Tier: "asset-quality", Rung: RungVerified, Blocking: true, AppliesTo: []string{"component"}}}
+	asset := Asset{ID: "controls.button", Kind: "component", Maturity: "implemented"}
+	write := func(optOuts string) {
+		t.Helper()
+		data := `{"asset":{"id":"controls.button"},"qualityGateOptOuts":` + optOuts + `}`
+		if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Run("valid opt-out resolves out of active checks", func(t *testing.T) {
+		write(`[{"gate":"responsive","reason":"This source-only asset has no rendered surface."}]`)
+		bindings, err := ResolveRuleSetFor(catalogRoot, asset, definitions)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, binding := range bindings {
+			if binding.GateID == "responsive" {
+				t.Fatal("opted-out gate remained active")
+			}
+		}
+	})
+	for name, value := range map[string]string{
+		"missing reason":    `[{"gate":"responsive"}]`,
+		"short reason":      `[{"gate":"responsive","reason":"not applicable"}]`,
+		"unknown gate":      `[{"gate":"missing","reason":"This gate does not exist in this catalog."}]`,
+		"not a default":     `[{"gate":"other","reason":"This source-only asset has no rendered surface."}]`,
+		"duplicate":         `[{"gate":"responsive","reason":"This source-only asset has no rendered surface."},{"gate":"responsive","reason":"The second declaration is a duplicate."}]`,
+		"blocking maturity": `[{"gate":"responsive","reason":"This source-only asset has no rendered surface."}]`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			current := definitions
+			currentAsset := asset
+			if name == "not a default" {
+				current = append(current, GateDefinition{ID: "other", Tier: "asset-quality", Rung: RungVerified, AppliesTo: []string{"primitive"}})
+			}
+			if name == "blocking maturity" {
+				currentAsset.Maturity = "verified"
+			}
+			write(value)
+			if _, err := ResolveRuleSetFor(catalogRoot, currentAsset, current); err == nil {
+				t.Fatal("invalid opt-out was accepted")
+			}
+		})
+	}
+}
+
 func TestResolveRuleSetRejectsUnknownAsset(t *testing.T) {
 	root, err := os.Getwd()
 	if err != nil {

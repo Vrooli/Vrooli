@@ -7,29 +7,33 @@ import (
 	"testing"
 
 	"react-component-library/internal/availability"
-	"react-component-library/internal/catalogcoverage"
-	"react-component-library/internal/catalogsearch"
+	"react-component-library/internal/search"
 )
 
-type proposalSearch []catalogsearch.Result
+type proposalSearch []search.CatalogResult
 
-func (p proposalSearch) SearchContext(context.Context, string, int, string, string, string) []catalogsearch.Result {
-	return p
+func (p proposalSearch) SearchCatalog(context.Context, string, int, string, string, string) ([]search.CatalogResult, error) {
+	return p, nil
+}
+
+func (p proposalSearch) LookupCatalogID(context.Context, string) (search.CatalogResult, bool, error) {
+	return search.CatalogResult{}, false, nil
 }
 
 func TestProposalFiltersCompatibilityAndPreservesAuthoredIntent(t *testing.T) {
-	var catalog []catalogcoverage.Asset
-	var search proposalSearch
+	var results proposalSearch
 	for i := 0; i < 6; i++ {
 		id := fmt.Sprintf("templates.page-%d", i)
-		catalog = append(catalog, catalogcoverage.Asset{ID: id, Name: id, Kind: "page-template", Regions: []string{"main"}, Targets: []string{"react-vite"}, Kits: []string{"vrooli-default"}, Capabilities: []string{"keyboard"}})
-		search = append(search, catalogsearch.Result{Document: catalogsearch.Document{CatalogID: id}, Availability: availability.Result{CatalogID: id, State: availability.Built, Version: "1.2.3"}})
+		results = append(results, search.CatalogResult{
+			CatalogMetadata: search.CatalogMetadata{CatalogID: id, Name: id, Kind: "page-template", Regions: []string{"main"}, Targets: []string{"react-vite"}, Kits: []string{"vrooli-default"}, RequiredCapabilities: []string{"keyboard"}},
+			Availability:    availability.Result{CatalogID: id, State: availability.Built, Version: "1.2.3"},
+		})
 	}
-	search[0].Availability.State = availability.Declared
-	catalog[1].Kits = []string{"other"}
+	results[0].Availability.State = availability.Declared
+	results[1].Kits = []string{"other"}
 	intent := DesignIntent{Intent: "Browse records", Users: []string{"operator"}, PrimaryTasks: []string{"find a record"}, Target: "react-vite", Kit: "vrooli-default", Viewports: []string{"phone", "desktop"}, RequiredCapabilities: []string{"keyboard"}}
 	snapshot := Snapshot{DeclaredRegions: []Region{{ID: "authored", Note: "Preserve context"}}, Document: Document{Notes: []Note{{Scope: "page", Text: "Keep routes"}}}}
-	got, err := Propose(context.Background(), snapshot, intent, 3, search, catalog)
+	got, err := Propose(context.Background(), snapshot, intent, 3, results)
 	if err != nil || len(got) != 3 {
 		t.Fatal("bounded compatible proposals missing", err, len(got))
 	}
@@ -45,7 +49,7 @@ func TestProposalFiltersCompatibilityAndPreservesAuthoredIntent(t *testing.T) {
 	}
 	disabled := false
 	intent.Constraints = &DesignConstraints{DesignSource: "path:docs/DESIGN.md", PreserveRoutes: &disabled, PreserveBusinessBehavior: &disabled}
-	constrained, err := Propose(context.Background(), snapshot, intent, 1, search, catalog)
+	constrained, err := Propose(context.Background(), snapshot, intent, 1, results)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +66,7 @@ func TestProposalFiltersCompatibilityAndPreservesAuthoredIntent(t *testing.T) {
 	}
 	for _, source := range []string{"../DESIGN.md", "/DESIGN.md", "docs/../../DESIGN.md", "https://example.com", ".", "docs\\DESIGN.md"} {
 		intent.Constraints = &DesignConstraints{DesignSource: source}
-		if _, err := Propose(context.Background(), snapshot, intent, 1, search, catalog); err == nil {
+		if _, err := Propose(context.Background(), snapshot, intent, 1, results); err == nil {
 			t.Errorf("accepted invalid source %q", source)
 		}
 	}
@@ -70,12 +74,12 @@ func TestProposalFiltersCompatibilityAndPreservesAuthoredIntent(t *testing.T) {
 	if snapshot.Document.Template != nil || snapshot.Document.Intent != nil {
 		t.Fatal("proposal mutated current page")
 	}
-	if _, err := Propose(context.Background(), snapshot, intent, 4, search, catalog); err == nil {
+	if _, err := Propose(context.Background(), snapshot, intent, 4, results); err == nil {
 		t.Fatal("unbounded candidates accepted")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, err := Propose(ctx, snapshot, intent, 3, search, catalog); err != context.Canceled {
+	if _, err := Propose(ctx, snapshot, intent, 3, results); err != context.Canceled {
 		t.Fatal("cancellation lost", err)
 	}
 }

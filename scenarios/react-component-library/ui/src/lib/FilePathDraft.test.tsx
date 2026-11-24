@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { FilePath } from "../../../library/components/FilePath/versions/1.0.4/FilePath";
+import { FilePath } from "../../../library/components/FilePath/versions/1.0.6/FilePath";
 import { renderWithProviders } from "../test-utils/renderWithProviders";
 
 const originalClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
@@ -15,10 +15,36 @@ afterEach(() => {
 });
 
 describe("FilePath draft", () => {
+  it("renders a wrapping inline link while copying the canonical path", async () => {
+    const canonicalPath = "/workspace/research/topics/example/MISSION.md";
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+
+    renderWithProviders(
+      <FilePath
+        path={canonicalPath}
+        presentation="inline"
+        displayText="~research/topics/example/MISSION.md"
+        href="/files/topics/example/MISSION.md"
+        showCopyButton
+      />,
+    );
+
+    const link = screen.getByRole("link", { name: "~research/topics/example/MISSION.md" });
+    expect(link.closest("[data-rcl-file-path]")?.tagName).toBe("SPAN");
+    expect(link).toHaveAttribute("href", "/files/topics/example/MISSION.md");
+    expect(link).toHaveAttribute("data-rcl-file-path-inline-label");
+    expect(screen.getByTestId("file-path.copy")).toHaveAttribute("aria-label", "Copy path");
+    expect(screen.queryByRole("button", { name: canonicalPath })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy path" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(canonicalPath));
+  });
+
   it("keeps its gesture-bound fallback when the asynchronous clipboard is unavailable", async () => {
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: undefined });
     const execCommand = vi.fn(() => {
-      expect(document.querySelector<HTMLTextAreaElement>('textarea[readonly]')?.value).toBe(
+      expect(document.querySelector<HTMLTextAreaElement>("textarea[readonly]")?.value).toBe(
         "/workspace/reports/today.csv",
       );
       return true;
@@ -30,6 +56,6 @@ describe("FilePath draft", () => {
     fireEvent.click(screen.getByRole("button", { name: "Copy path" }));
 
     await waitFor(() => expect(execCommand).toHaveBeenCalledWith("copy"));
-    expect(document.querySelector('textarea[readonly]')).toBeNull();
+    expect(document.querySelector("textarea[readonly]")).toBeNull();
   });
 });

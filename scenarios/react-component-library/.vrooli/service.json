@@ -6,7 +6,10 @@
       {
         "source": "skills/ux-capture/SKILL.md"
       }
-    ]
+    ],
+    "usage": {
+      "source": "skills/react-component-library/SKILL.md"
+    }
   },
   "storage": {
     "entries": {
@@ -17,8 +20,8 @@
         "regenerable": false,
         "rationale": "Scenario-owned durable data observed in the canonical data directory.",
         "budget": {
-          "max_bytes": "512MiB",
-          "rationale": "The durable SQLite database includes component-test evidence and currently measures about 299MiB; a 512MiB ceiling bounds the measured multi-stage payload workload while preserving rollup counters."
+          "max_bytes": "768MiB",
+          "rationale": "The canonical data directory measured 531929133 bytes on 2026-11-21; 768MiB leaves roughly 44% headroom for normal component-test evidence growth while retaining a binding ceiling."
         }
       },
       "gate_evidence": {
@@ -49,9 +52,9 @@
         "rung": "owned",
         "kind": "dir",
         "class": "data",
-        "path": "$USER_DATA_DIR/vrooli/react-component-library/retired",
+        "subpath": ".retired",
         "regenerable": false,
-        "rationale": "Cold release source is retained for immutable-version recovery until the governed reaper's retention window expires.",
+        "rationale": "Cold release source is retained in the component data root's .retired archive for immutable-version recovery until the governed reaper's retention window expires.",
         "budget": {
           "max_bytes": "64MiB",
           "rationale": "The retired source tier is currently about 19MiB; the ceiling bounds cold history while leaving room for normal release turnover."
@@ -115,6 +118,14 @@
   },
   "dependencies": {
     "scenarios": {
+      "ai-gateway": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "description": "Local-only structured inference for explicit Ask requests over the indexed workbench results.",
+        "degraded_behavior": "Lexical and semantic retrieval remain available; explicit Ask requests report that answer generation is unavailable.",
+        "startup_policy": "try_start"
+      },
       "agent-manager": {
         "type": "scenario",
         "enabled": true,
@@ -153,15 +164,69 @@
         "degraded_behavior": "Catalog and component APIs remain available; cross-scenario UI inventory integration is unavailable until ui-health is healthy.",
         "startup_policy": "try_start"
       },
+      "search-hub": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "description": "Optional federated search registry for RCL's workbench provider descriptor and evaluation corpus.",
+        "degraded_behavior": "RCL continues serving local FTS and semantic search; provider self-registration retries only during startup and resumes on the next boot.",
+        "startup_policy": "try_start"
+      },
       "code-facts": {
         "type": "scenario",
         "enabled": true,
         "required": true,
         "description": "Supplies the shared parsed TypeScript import graph required by the blocking graph-reconciled catalog gate.",
+        "degraded_behavior": "API startup is blocked until code-facts is healthy because the graph-reconciled catalog gate cannot safely pass without its import graph.",
         "startup_policy": "must_start"
+      },
+      "brand-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "description": "Optional brand assignments and token contract used by the RCL catalog and preview surfaces.",
+        "degraded_behavior": "The library remains available with its built-in neutral brand; assigned brand metadata and brand-specific token previews are unavailable.",
+        "startup_policy": "try_start"
+      },
+      "browser-automation-studio": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "description": "Optional authenticated browser capture provider for component and workspace evidence.",
+        "degraded_behavior": "Manual and static workflows remain available; authenticated captures and live visual evidence report unavailable.",
+        "startup_policy": "try_start",
+        "bundle_policy": "either"
+      },
+      "image-tools": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "description": "Optional image comparison and generated-reference provider for visual workspace review.",
+        "degraded_behavior": "Stored screenshots and workspace editing remain available; generated references, heatmaps, and visual comparisons report unavailable.",
+        "startup_policy": "try_start"
       }
     },
-    "resources": {}
+    "resources": {
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Optional vector store for semantic retrieval over the workbench search projection.",
+        "degraded_behavior": "SQLite FTS continues to serve keyword search; semantic retrieval reports degraded until Qdrant is available."
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Local embedding role used by ai-go/search through the Ollama resource gateway.",
+        "degraded_behavior": "SQLite FTS continues to serve search; semantic retrieval reports degraded until embeddings are available.",
+        "model_roles": [
+          "embedding.default"
+        ]
+      }
+    }
   },
   "generation": {
     "template": {

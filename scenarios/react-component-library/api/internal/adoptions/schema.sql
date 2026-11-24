@@ -44,10 +44,6 @@ CREATE INDEX IF NOT EXISTS idx_adoptions_scenario
 CREATE INDEX IF NOT EXISTS idx_adoptions_created_at
   ON adoption_records(created_at DESC);
 
--- Forward-only migration for databases created before adoption modes existed.
--- The repository also runs this defensively because SQLite has no portable
--- ADD COLUMN IF NOT EXISTS form.
-
 CREATE TABLE IF NOT EXISTS adoption_files (
   adoption_id              TEXT NOT NULL,
   library_path             TEXT NOT NULL,

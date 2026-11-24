@@ -32,6 +32,8 @@ interface FixtureFrameProps {
   version: string;
   override?: Record<string, unknown> | null;
   reloadKey?: number;
+  /** The last successfully saved source path and digest, used as a cache-buster. */
+  sourceRevision?: string;
   height?: number;
   /** Page tokens applied through the harness theme bridge, so the specimen
    * inherits the page's surface, ink and accents instead of a white box. */
@@ -47,10 +49,10 @@ interface FixtureFrameProps {
  * specimen: it mounts the same execution target the catalog captures, then
  * uses the documented override protocol to apply prop edits.
  *
- * Loading has a real failure path: the harness URL is probed for an HTTP
- * status before the iframe mounts, the iframe's own error event is handled, and
- * a specimen that never posts `preview-ready` fails after eight seconds. A
- * missing harness therefore reports what happened instead of spinning.
+ * A changed version, retry key or saved-source revision is staged in a hidden
+ * candidate frame. The last ready frame stays visible until the candidate has
+ * passed its readiness and override handshake, so a failed reload cannot blank
+ * a specimen that was already on screen.
  */
 export function FixtureFrame({
   assetId,
@@ -58,6 +60,7 @@ export function FixtureFrame({
   version,
   override,
   reloadKey = 0,
+  sourceRevision = "",
   height = 150,
   theme,
   onStatus,
@@ -65,28 +68,37 @@ export function FixtureFrame({
   title,
 }: FixtureFrameProps) {
   const { t } = useTranslation();
-  const frameRef = useRef<HTMLIFrameElement>(null);
+  const activeFrameRef = useRef<HTMLIFrameElement | null>(null);
+  const candidateFrameRef = useRef<HTMLIFrameElement | null>(null);
   const onStatusRef = useRef(onStatus);
   onStatusRef.current = onStatus;
   const statusRef = useRef<FixtureStatus>("loading");
   const mounted = useRef(true);
   const readyTimer = useRef<number | undefined>(undefined);
-  const [status, setStatus] = useState<FixtureStatus>("loading");
-  const [message, setMessage] = useState<string>("");
+  const [activeUrl, setActiveUrl] = useState("");
   const [probe, setProbe] = useState<"checking" | "ok" | "missing">("checking");
-  const [harnessStory, setHarnessStory] = useState<string>("");
-  const [harnessVersion, setHarnessVersion] = useState<string>("");
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const [status, setStatus] = useState<FixtureStatus>("loading");
+  const [message, setMessage] = useState("");
+  const [harnessStory, setHarnessStory] = useState("");
+  const [harnessVersion, setHarnessVersion] = useState("");
+  const activeUrlRef = useRef(activeUrl);
+  activeUrlRef.current = activeUrl;
+  const overrideRef = useRef(override);
+  overrideRef.current = override;
 
   const url = useMemo(() => {
     const next = new URL(
       `${API_BASE.replace(/\/$/, "")}/preview/${encodeURIComponent(assetId)}/harness.html`,
     );
-    next.searchParams.set("v", `${version}:${storyId}:${reloadKey}`);
+    next.searchParams.set("v", `${version}:${storyId}:${reloadKey}:${sourceRevision}`);
     next.searchParams.set("story", storyId);
     next.searchParams.set("version", version);
     next.searchParams.set("kit", "vrooli-default");
     return next.toString();
-  }, [assetId, reloadKey, storyId, version]);
+  }, [assetId, reloadKey, sourceRevision, storyId, version]);
+  const urlRef = useRef(url);
+  urlRef.current = url;
 
   const transition = useCallback((next: FixtureStatus, detail?: string) => {
     if (!mounted.current) return;
@@ -95,6 +107,15 @@ export function FixtureFrame({
     setMessage(detail ?? "");
     onStatusRef.current?.(next, detail);
   }, []);
+
+  const failCandidate = useCallback(
+    (failedURL: string, detail: string) => {
+      setProbe("missing");
+      setFailedUrl(failedURL);
+      transition("error", detail);
+    },
+    [transition],
+  );
 
   useEffect(() => {
     mounted.current = true;
@@ -105,12 +126,13 @@ export function FixtureFrame({
     };
   }, []);
 
-  // Probe the harness for a real status before mounting it. An iframe does not
-  // surface HTTP errors, so without this a 404 looks exactly like a slow load.
+  // Probe the next harness before mounting it. Existing ready content remains
+  // mounted while the candidate is checked and loaded.
   useEffect(() => {
     const controller = new AbortController();
     let cancelled = false;
     setProbe("checking");
+    setFailedUrl(null);
     transition("loading");
     const timer = window.setTimeout(() => controller.abort(), FIXTURE_TIMEOUT_MS);
 
@@ -119,14 +141,11 @@ export function FixtureFrame({
         if (cancelled) return;
         window.clearTimeout(timer);
         if (!response.ok) {
-          setProbe("missing");
-          transition(
-            "error",
-            t("workbench.component.fixtureHttp", {
-              defaultValue: "The preview harness returned HTTP {{status}}.",
-              status: response.status,
-            }),
-          );
+          const detail = t("workbench.component.fixtureHttp", {
+            defaultValue: "The preview harness returned HTTP {{status}}.",
+            status: response.status,
+          });
+          failCandidate(url, detail);
           return;
         }
         setProbe("ok");
@@ -134,9 +153,8 @@ export function FixtureFrame({
       .catch((error: unknown) => {
         if (cancelled) return;
         window.clearTimeout(timer);
-        setProbe("missing");
-        transition(
-          "error",
+        failCandidate(
+          url,
           controller.signal.aborted
             ? t("workbench.component.fixtureTimeout", {
                 defaultValue: "The preview harness did not answer within {{seconds}} seconds.",
@@ -154,11 +172,15 @@ export function FixtureFrame({
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [t, transition, url]);
+  }, [failCandidate, t, transition, url]);
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
-      if (event.source !== frameRef.current?.contentWindow) return;
+      const isCandidate = event.source === candidateFrameRef.current?.contentWindow;
+      const isCurrentActive =
+        event.source === activeFrameRef.current?.contentWindow &&
+        activeUrlRef.current === urlRef.current;
+      if (!isCandidate && !isCurrentActive) return;
       const data = event.data as {
         type?: string;
         id?: string;
@@ -171,29 +193,30 @@ export function FixtureFrame({
         setHarnessStory(data.story ?? "");
         setHarnessVersion(data.version ?? "");
         transition("ready");
+        if (!overrideRef.current) setActiveUrl(urlRef.current);
       } else if (data.type === "rcl-preview-props-applied") {
         transition("applied");
+        setActiveUrl(urlRef.current);
       } else if (data.type === "rcl-preview-props-error" || data.type === "preview-error") {
-        transition(
-          "error",
+        const detail =
           data.message ||
-            t("workbench.component.fixtureError", { defaultValue: "The specimen did not render." }),
-        );
+          t("workbench.component.fixtureError", { defaultValue: "The specimen did not render." });
+        failCandidate(urlRef.current, detail);
       }
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [assetId, t, transition]);
+  }, [assetId, failCandidate, t, transition]);
 
-  // A harness that loads but never announces itself is also a failure. The
-  // timer lives in a ref so unmount clears it even if the effect is mid-flight.
+  // A harness that loads but never announces itself is also a failure. Timeout
+  // the candidate only; the previously committed frame remains visible.
   useEffect(() => {
     if (probe !== "ok" || status !== "loading") return;
     readyTimer.current = window.setTimeout(() => {
       readyTimer.current = undefined;
       if (statusRef.current !== "loading") return;
-      transition(
-        "error",
+      failCandidate(
+        urlRef.current,
         t("workbench.component.fixtureTimeout", {
           defaultValue: "The preview harness did not answer within {{seconds}} seconds.",
           seconds: FIXTURE_TIMEOUT_MS / 1000,
@@ -204,11 +227,10 @@ export function FixtureFrame({
       window.clearTimeout(readyTimer.current);
       readyTimer.current = undefined;
     };
-  }, [probe, status, t, transition]);
+  }, [failCandidate, probe, status, t, transition]);
 
   // The harness exposes a token bridge (`rcl-theme-apply`) and a resolved
-  // colour-scheme bridge. Applying both is what makes the specimen sit on the
-  // page's surface rather than its own white document.
+  // colour-scheme bridge. Applying both makes the specimen inherit page tokens.
   const themeRef = useRef(theme);
   themeRef.current = theme;
   const applyTheme = useCallback((target: HTMLIFrameElement | null) => {
@@ -229,11 +251,11 @@ export function FixtureFrame({
 
   useEffect(() => {
     if (status !== "ready" && status !== "applied") return;
-    applyTheme(frameRef.current);
+    applyTheme(candidateFrameRef.current ?? activeFrameRef.current);
   }, [applyTheme, status, theme?.id, theme?.resolved, tokenSignature]);
 
   useEffect(() => {
-    const frame = frameRef.current;
+    const frame = candidateFrameRef.current;
     if (!frame || status === "loading" || status === "error") return;
     const story = harnessStory || storyId;
     const targetVersion = harnessVersion || version;
@@ -261,46 +283,73 @@ export function FixtureFrame({
     }
   }, [assetId, harnessStory, harnessVersion, override, status, storyId, version]);
 
-  // `error` and `load` are not delegated by React on an iframe, so a JSX
-  // `onError` never fires. A native listener is the only reliable failure
-  // signal; the load listener applies the theme before `preview-ready` lands.
+  // `error` and `load` do not delegate on iframe elements; native listeners
+  // are required. Candidate failures are discarded without replacing the
+  // active frame, while active-frame failures remain visible for recovery.
   useEffect(() => {
-    const frame = probe === "ok" ? frameRef.current : null;
-    if (!frame) return;
-    const onLoad = () => applyTheme(frame);
-    const onError = () =>
-      transition(
-        "error",
-        t("workbench.component.fixtureIframeError", {
-          defaultValue: "The preview harness could not be mounted.",
-        }),
-      );
-    frame.addEventListener("load", onLoad);
-    frame.addEventListener("error", onError);
-    return () => {
-      frame.removeEventListener("load", onLoad);
-      frame.removeEventListener("error", onError);
+    const frames = [activeFrameRef.current, candidateFrameRef.current].filter(
+      (frame, index, all): frame is HTMLIFrameElement =>
+        Boolean(frame) && all.indexOf(frame) === index,
+    );
+    const onLoad = (event: Event) => applyTheme(event.currentTarget as HTMLIFrameElement);
+    const onError = (event: Event) => {
+      const frame = event.currentTarget as HTMLIFrameElement;
+      const detail = t("workbench.component.fixtureIframeError", {
+        defaultValue: "The preview harness could not be mounted.",
+      });
+      if (frame === candidateFrameRef.current && urlRef.current !== activeUrlRef.current) {
+        failCandidate(urlRef.current, detail);
+      } else {
+        transition("error", detail);
+      }
     };
-  }, [applyTheme, probe, t, transition]);
+    frames.forEach((frame) => {
+      frame.addEventListener("load", onLoad);
+      frame.addEventListener("error", onError);
+    });
+    return () => {
+      frames.forEach((frame) => {
+        frame.removeEventListener("load", onLoad);
+        frame.removeEventListener("error", onError);
+      });
+    };
+  }, [activeUrl, applyTheme, failCandidate, probe, t, transition, url]);
 
-  const visible = status === "ready" || status === "applied";
-
+  const activeExists = Boolean(activeUrl);
+  const frameURLs = activeExists
+    ? [activeUrl, ...(probe === "ok" && failedUrl !== url && url !== activeUrl ? [url] : [])]
+    : probe === "ok" && failedUrl !== url
+      ? [url]
+      : [];
   return (
-    <span style={{ display: "block", height }} data-fixture-frame="" data-fixture-status={status}>
-      {!visible ? (
+    <span
+      style={{ display: "block", height, position: activeExists ? "relative" : undefined }}
+      data-fixture-frame=""
+      data-fixture-status={status}
+    >
+      {status === "error" ? (
         <span
-          className={`wb-fixture-state${status === "error" ? " is-error" : ""}`}
-          role={status === "error" ? "alert" : "status"}
+          className="wb-fixture-state is-error"
+          role="alert"
+          style={
+            activeExists
+              ? {
+                  position: "absolute",
+                  inset: "auto 6px 6px",
+                  zIndex: 1,
+                  height: "auto",
+                  borderRadius: 6,
+                }
+              : undefined
+          }
         >
           <span>
-            {status === "error"
-              ? message ||
-                t("workbench.component.fixtureError", {
-                  defaultValue: "The specimen did not render.",
-                })
-              : t("workbench.component.fixtureLoading", { defaultValue: "Loading specimen…" })}
+            {message ||
+              t("workbench.component.fixtureError", {
+                defaultValue: "The specimen did not render.",
+              })}
           </span>
-          {status === "error" && onRetry ? (
+          {onRetry ? (
             <button
               type="button"
               className="wb-btn ghost sm"
@@ -311,23 +360,39 @@ export function FixtureFrame({
             </button>
           ) : null}
         </span>
+      ) : !activeExists && status === "loading" ? (
+        <span className="wb-fixture-state" role="status">
+          <span>
+            {t("workbench.component.fixtureLoading", { defaultValue: "Loading specimen…" })}
+          </span>
+        </span>
       ) : null}
-      {probe === "ok" ? (
-        <iframe
-          ref={frameRef}
-          title={title}
-          src={url}
-          data-testid="fixture-iframe"
-          style={{
-            width: "100%",
-            height: "100%",
-            border: 0,
-            background: "transparent",
-            visibility: visible ? "visible" : "hidden",
-          }}
-          sandbox={SANDBOX}
-        />
-      ) : null}
+      {frameURLs.map((frameURL) => {
+        const isActive = frameURL === activeUrl;
+        const isCandidate = frameURL === url;
+        return (
+          <iframe
+            key={frameURL}
+            ref={(frame) => {
+              if (frameURL === activeUrl) activeFrameRef.current = frame;
+              if (isCandidate) candidateFrameRef.current = frame;
+            }}
+            title={title}
+            src={frameURL}
+            data-testid={isCandidate ? "fixture-iframe" : "fixture-active-iframe"}
+            style={{
+              width: "100%",
+              height: "100%",
+              border: 0,
+              background: "transparent",
+              visibility: isActive ? "visible" : "hidden",
+              position: isActive ? "relative" : "absolute",
+              inset: 0,
+            }}
+            sandbox={SANDBOX}
+          />
+        );
+      })}
     </span>
   );
 }

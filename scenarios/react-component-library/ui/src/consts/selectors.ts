@@ -6,7 +6,12 @@ import { librarySelectors } from "./selectors.library";
 
 export { librarySelectors };
 
-import { createSelectorRegistry, defineDynamicSelector, type LiteralSelectorTree, type DynamicSelectorTree } from "@vrooli/ui-selectors";
+import {
+  createSelectorRegistry,
+  defineDynamicSelector,
+  type LiteralSelectorTree,
+  type DynamicSelectorTree,
+} from "@vrooli/ui-selectors";
 export { createSelectorRegistry, defineDynamicSelector } from "@vrooli/ui-selectors";
 
 const literalSelectors = {
@@ -14,12 +19,28 @@ const literalSelectors = {
     title: "app-title",
     eyebrow: "app-eyebrow",
     description: "app-description",
-    shell: "app-shell",
-    main: "app-main",
+    shell: "workbench-shell",
+    main: "workbench-shell-main",
   },
   design: "design",
   designScenario: "design-scenario",
   designWorkspace: "design-workspace",
+  workspaceStudio: {
+    notice: "workspace-studio-notice",
+    capturePatchButton: "workspace-studio-capture-patch",
+    capturePatchDialog: "workspace-studio-capture-patch-dialog",
+    capturePatchFile: "workspace-studio-capture-patch-file",
+    capturePatchEvidence: "workspace-studio-capture-patch-evidence",
+  },
+  workbench: {
+    nav: {
+      start: "workbench-nav-start",
+      library: "workbench-nav-library",
+      design: "workbench-nav-design",
+      review: "workbench-nav-review",
+      stats: "workbench-nav-stats",
+    },
+  },
   capabilities: "capabilities-page",
   coverage: "coverage-page",
   settings: "settings-page",
@@ -410,7 +431,11 @@ const dynamicSelectorDefinitions = {
   },
 } satisfies DynamicSelectorTree;
 
-const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions, librarySelectors);
+const registry = createSelectorRegistry(
+  literalSelectors,
+  dynamicSelectorDefinitions,
+  librarySelectors,
+);
 
 export const selectors = registry.selectors;
 export type Selectors = typeof selectors;

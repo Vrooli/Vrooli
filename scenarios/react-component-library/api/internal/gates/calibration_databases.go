@@ -8,7 +8,6 @@ package gates
 import (
 	"context"
 	"encoding/json"
-	"os"
 	"path/filepath"
 )
 
@@ -46,7 +45,7 @@ func createPerformanceBudgetDatabase(targetPath, assetID string) error {
 }
 
 func createDifferentialCalibrationDatabase(targetPath, gate, assetID string) error {
-	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+	if err := calibrationMkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
 		return err
 	}
 	if err := removeGateDB(targetPath); err != nil {
@@ -57,10 +56,7 @@ func createDifferentialCalibrationDatabase(targetPath, gate, assetID string) err
 		return err
 	}
 	defer db.Close()
-	if _, err := db.ExecContext(context.Background(), `CREATE TABLE reconcile_evidence (id TEXT PRIMARY KEY, scenario TEXT NOT NULL, document_kind TEXT NOT NULL, component_id TEXT NOT NULL, example_name TEXT NOT NULL, state_id TEXT NOT NULL, ax_node_json TEXT NOT NULL, measurement_json TEXT NOT NULL, checked_at TEXT NOT NULL)`); err != nil {
-		return err
-	}
-	if _, err := db.ExecContext(context.Background(), `CREATE TABLE reconcile_evidence_viewports (evidence_id TEXT PRIMARY KEY, viewport_id TEXT NOT NULL, viewport_width INTEGER NOT NULL, viewport_height INTEGER NOT NULL)`); err != nil {
+	if err := createCalibrationEvidenceSchema(context.Background(), db, true); err != nil {
 		return err
 	}
 	contexts := []struct{ id, context, ax string }{}
@@ -88,7 +84,7 @@ func createDifferentialCalibrationDatabase(targetPath, gate, assetID string) err
 }
 
 func createCompositionCalibrationDatabase(targetPath, assetID string) error {
-	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+	if err := calibrationMkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
 		return err
 	}
 	if err := removeGateDB(targetPath); err != nil {
@@ -99,7 +95,7 @@ func createCompositionCalibrationDatabase(targetPath, assetID string) error {
 		return err
 	}
 	defer db.Close()
-	if _, err := db.ExecContext(context.Background(), `CREATE TABLE reconcile_evidence (id TEXT PRIMARY KEY, scenario TEXT NOT NULL, document_kind TEXT NOT NULL, component_id TEXT NOT NULL, example_name TEXT NOT NULL, state_id TEXT NOT NULL, ax_node_json TEXT NOT NULL, measurement_json TEXT NOT NULL, checked_at TEXT NOT NULL)`); err != nil {
+	if err := createCalibrationEvidenceSchema(context.Background(), db, false); err != nil {
 		return err
 	}
 	children := make([]map[string]any, 0, 40)

@@ -2,6 +2,7 @@ package search
 
 import (
 	"strings"
+	"unicode"
 
 	searchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/search"
 )
@@ -155,7 +156,7 @@ func AvailabilityLabel(text string) string {
 func kindPrior(text string) float64 {
 	switch text {
 	case kindWorkspace:
-		return 1.50
+		return 2.50
 	case kindPage:
 		return 1.35
 	case kindDisplay:
@@ -173,6 +174,44 @@ func kindPrior(text string) float64 {
 	default:
 		return 1.00
 	}
+}
+
+// prioritizeExactPageType removes unrelated page-type neighbors when the query
+// names a known page type. The concrete workspace realization still ranks by
+// the normal outcome-first prior, ahead of the reusable archetype.
+func prioritizeExactPageType(candidates []candidate, plan queryPlan) []candidate {
+	var exact bool
+	for _, cand := range candidates {
+		if KindText(cand.doc.Kind) == kindPageType && identifierTitle(cand.doc.Title) == plan.normalized {
+			exact = true
+			break
+		}
+	}
+	if !exact {
+		return candidates
+	}
+	out := candidates[:0]
+	for _, cand := range candidates {
+		if KindText(cand.doc.Kind) == kindPageType {
+			if identifierTitle(cand.doc.Title) != plan.normalized {
+				continue
+			}
+		}
+		out = append(out, cand)
+	}
+	return out
+}
+
+func identifierTitle(value string) string {
+	runes := []rune(value)
+	var normalized strings.Builder
+	for i, r := range runes {
+		if i > 0 && unicode.IsUpper(r) && (unicode.IsLower(runes[i-1]) || unicode.IsDigit(runes[i-1])) {
+			normalized.WriteRune(' ')
+		}
+		normalized.WriteRune(unicode.ToLower(r))
+	}
+	return strings.Join(tokenize(normalized.String()), " ")
 }
 
 // availabilityFactor rewards results a reader can open now without hiding

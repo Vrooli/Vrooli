@@ -13,6 +13,12 @@ import { useTranslation } from "../../i18n";
 import { WbButton } from "../primitives";
 import { useFocusTrap } from "../useFocusTrap";
 import {
+  RegionCaptureControls,
+  type RegionCaptureAspect,
+  type RegionCaptureDraft,
+  type RegionCaptureField,
+} from "./RegionCaptureControls";
+import {
   MIN_REGION,
   applyAspect,
   clampRegion,
@@ -23,90 +29,20 @@ import {
   type RegionBounds,
   type ResizeHandle,
 } from "./region";
+import { ASPECT_RATIOS, type DragState, type Point } from "./regionCaptureGeometry";
+import { RegionCaptureStage } from "./RegionCaptureStage";
+import { captureName, encodeRegion } from "./captureRegionImage";
 import "./region-capture.css";
 
-type AspectId = "free" | "1:1" | "4:3" | "16:9";
-type FieldKey = "x" | "y" | "w" | "h";
 type Phase = "idle" | "encoding" | "saving";
 
-const ASPECT_ORDER: readonly AspectId[] = ["free", "1:1", "4:3", "16:9"];
-const ASPECT_RATIOS: Record<AspectId, number | null> = {
-  free: null,
-  "1:1": 1,
-  "4:3": 4 / 3,
-  "16:9": 16 / 9,
-};
-const HANDLES: readonly ResizeHandle[] = ["nw", "ne", "sw", "se"];
 const KEY_STEP = 2;
-
-interface Point {
-  x: number;
-  y: number;
-}
-
-interface DragState {
-  mode: "new" | "move" | "resize";
-  pointerId: number;
-  start: Point;
-  origin: Region;
-  handle: ResizeHandle;
-}
-
-interface FieldDraft {
-  key: FieldKey;
-  value: string;
-}
 
 export interface RegionCaptureProps {
   /** The upload being cropped. The URL is already absolute. */
   asset: { id: string; name: string; url: string };
   onImport: (file: File, fidelity: "captured") => void | Promise<void>;
   onClose: () => void;
-}
-
-function percent(value: number, total: number): string {
-  if (total <= 0) return "0%";
-  return `${(value / total) * 100}%`;
-}
-
-function captureName(assetName: string): string {
-  const base = assetName.replace(/\.[^./\\]+$/, "");
-  return `capture-${base || "region"}.png`;
-}
-
-function encodeRegion(image: HTMLImageElement, region: Region): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const canvas = document.createElement("canvas");
-    canvas.width = region.w;
-    canvas.height = region.h;
-    const context = canvas.getContext("2d");
-    if (!context) {
-      reject(new Error("canvas-unavailable"));
-      return;
-    }
-    context.drawImage(
-      image,
-      region.x,
-      region.y,
-      region.w,
-      region.h,
-      0,
-      0,
-      region.w,
-      region.h,
-    );
-    try {
-      canvas.toBlob(
-        (blob) => {
-          if (blob) resolve(blob);
-          else reject(new Error("png-encode-failed"));
-        },
-        "image/png",
-      );
-    } catch (cause) {
-      reject(cause instanceof Error ? cause : new Error("png-encode-failed"));
-    }
-  });
 }
 
 /**
@@ -126,8 +62,8 @@ export function RegionCapture({ asset, onImport, onClose }: RegionCaptureProps) 
 
   const [natural, setNatural] = useState<RegionBounds | null>(null);
   const [region, setRegion] = useState<Region | null>(null);
-  const [aspect, setAspect] = useState<AspectId>("free");
-  const [draft, setDraft] = useState<FieldDraft | null>(null);
+  const [aspect, setAspect] = useState<RegionCaptureAspect>("free");
+  const [draft, setDraft] = useState<RegionCaptureDraft | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
   const [imageFailed, setImageFailed] = useState(false);
@@ -215,9 +151,7 @@ export function RegionCapture({ asset, onImport, onClose }: RegionCaptureProps) 
       setRegion(moveRegion(drag.origin, dx, dy, natural));
     } else {
       setRegion(
-        constrainRegion(
-          resizeRegion(drag.origin, drag.handle, dx, dy, natural, MIN_REGION),
-        ),
+        constrainRegion(resizeRegion(drag.origin, drag.handle, dx, dy, natural, MIN_REGION)),
       );
     }
   };
@@ -249,7 +183,7 @@ export function RegionCapture({ asset, onImport, onClose }: RegionCaptureProps) 
     );
   };
 
-  const chooseAspect = (id: AspectId) => {
+  const chooseAspect = (id: RegionCaptureAspect) => {
     setAspect(id);
     setDraft(null);
     if (!region || !natural) return;
@@ -261,7 +195,7 @@ export function RegionCapture({ asset, onImport, onClose }: RegionCaptureProps) 
     );
   };
 
-  const applyFieldValue = (key: FieldKey, value: number) => {
+  const applyFieldValue = (key: RegionCaptureField, value: number) => {
     if (!natural || !region) return;
     const next: Region = { ...region };
     if (key === "x") next.x = value;
@@ -269,13 +203,11 @@ export function RegionCapture({ asset, onImport, onClose }: RegionCaptureProps) 
     else if (key === "w") next.w = value;
     else next.h = value;
     setRegion(
-      key === "x" || key === "y"
-        ? clampRegion(next, natural, MIN_REGION)
-        : constrainRegion(next),
+      key === "x" || key === "y" ? clampRegion(next, natural, MIN_REGION) : constrainRegion(next),
     );
   };
 
-  const changeField = (key: FieldKey, raw: string) => {
+  const changeField = (key: RegionCaptureField, raw: string) => {
     setDraft({ key, value: raw });
     const value = Number.parseInt(raw, 10);
     if (raw.trim() !== "" && Number.isFinite(value)) applyFieldValue(key, value);
@@ -309,28 +241,16 @@ export function RegionCapture({ asset, onImport, onClose }: RegionCaptureProps) 
     }
   };
 
-  const fieldLabels: Record<FieldKey, string> = {
-    x: t("workbench.studio.regionX", { defaultValue: "X" }),
-    y: t("workbench.studio.regionY", { defaultValue: "Y" }),
-    w: t("workbench.studio.regionW", { defaultValue: "W" }),
-    h: t("workbench.studio.regionH", { defaultValue: "H" }),
-  };
-  const aspectLabels: Record<AspectId, string> = {
-    free: t("workbench.studio.aspectFree", { defaultValue: "Free" }),
-    "1:1": t("workbench.studio.aspectSquare", { defaultValue: "1:1" }),
-    "4:3": t("workbench.studio.aspectWide", { defaultValue: "4:3" }),
-    "16:9": t("workbench.studio.aspectCinema", { defaultValue: "16:9" }),
-  };
-
-  const marqueeValue = region && natural
-    ? t("workbench.studio.regionValue", {
-        defaultValue: "x {{x}}, y {{y}}, {{w}} by {{h}} pixels",
-        x: region.x,
-        y: region.y,
-        w: region.w,
-        h: region.h,
-      })
-    : "";
+  const marqueeValue =
+    region && natural
+      ? t("workbench.studio.regionValue", {
+          defaultValue: "x {{x}}, y {{y}}, {{w}} by {{h}} pixels",
+          x: region.x,
+          y: region.y,
+          w: region.w,
+          h: region.h,
+        })
+      : "";
 
   const regionCoversImage =
     region !== null &&
@@ -382,89 +302,51 @@ export function RegionCapture({ asset, onImport, onClose }: RegionCaptureProps) 
         <div className="rc-body">
           <p className="rc-intro">
             {t("workbench.studio.cropRegionHint", {
-              defaultValue: "Drag on the image to select a region. Arrow keys move it by 2 px; hold Shift to resize.",
+              defaultValue:
+                "Drag on the image to select a region. Arrow keys move it by 2 px; hold Shift to resize.",
             })}
           </p>
 
-          <div
-            ref={stageRef}
-            className="rc-stage"
-            data-testid="region-capture-stage"
-            onPointerDown={(event) => beginDrag(event, "new", "se")}
+          <RegionCaptureStage
+            asset={asset}
+            imageRef={imageRef}
+            stageRef={stageRef}
+            marqueeRef={marqueeRef}
+            natural={natural}
+            region={region}
+            imageFailed={imageFailed}
+            marqueeValue={marqueeValue}
+            regionCoversImage={regionCoversImage}
+            imageAlt={t("workbench.studio.cropImageAlt", {
+              defaultValue: "{{name}}, full image for region capture",
+              name: asset.name,
+            })}
+            marqueeLabel={t("workbench.studio.regionMarquee", {
+              defaultValue: "Selected region. Arrow keys move it; Shift plus arrow keys resize it.",
+            })}
+            loadingLabel={t("workbench.studio.regionLoadingImage", {
+              defaultValue: "Loading image…",
+            })}
+            onImageLoad={handleImageLoad}
+            onImageError={() => {
+              setImageFailed(true);
+              setNatural(null);
+              setRegion(null);
+            }}
+            onBeginDrag={beginDrag}
             onPointerMove={onStagePointerMove}
-            onPointerUp={endDrag}
-            onPointerCancel={endDrag}
+            onPointerEnd={endDrag}
             onLostPointerCapture={() => {
               dragRef.current = null;
             }}
-          >
-            <img
-              ref={imageRef}
-              className="rc-image"
-              src={asset.url}
-              alt={t("workbench.studio.cropImageAlt", {
-                defaultValue: "{{name}}, full image for region capture",
-                name: asset.name,
-              })}
-              draggable={false}
-              onLoad={handleImageLoad}
-              onError={() => {
-                setImageFailed(true);
-                setNatural(null);
-                setRegion(null);
-              }}
-              data-testid="region-capture-image"
-            />
-
-            {region && natural ? (
-              <div
-                ref={marqueeRef}
-                className="rc-marquee"
-                role="slider"
-                tabIndex={0}
-                aria-label={t("workbench.studio.regionMarquee", {
-                  defaultValue: "Selected region. Arrow keys move it; Shift plus arrow keys resize it.",
-                })}
-                aria-valuemin={0}
-                aria-valuemax={Math.max(natural.width, natural.height)}
-                aria-valuenow={region.w}
-                aria-valuetext={marqueeValue}
-                data-testid="region-capture-marquee"
-                style={{
-                  left: percent(region.x, natural.width),
-                  top: percent(region.y, natural.height),
-                  width: percent(region.w, natural.width),
-                  height: percent(region.h, natural.height),
-                }}
-                onKeyDown={onMarqueeKeyDown}
-                onPointerDown={(event) => {
-                  marqueeRef.current?.focus();
-                  beginDrag(event, regionCoversImage ? "new" : "move", "se");
-                }}
-              >
-                {HANDLES.map((handle) => (
-                  <span
-                    key={handle}
-                    className={`rc-handle rc-handle-${handle}`}
-                    aria-hidden="true"
-                    data-testid={`region-capture-handle-${handle}`}
-                    onPointerDown={(event) => beginDrag(event, "resize", handle)}
-                  />
-                ))}
-              </div>
-            ) : null}
-
-            {!natural && !imageFailed ? (
-              <span className="rc-loading" role="status">
-                {t("workbench.studio.regionLoadingImage", { defaultValue: "Loading image…" })}
-              </span>
-            ) : null}
-          </div>
+            onMarqueeKeyDown={onMarqueeKeyDown}
+          />
 
           {imageFailed ? (
             <p className="rc-error" role="alert" data-testid="region-capture-image-error">
               {t("workbench.studio.regionImageFailed", {
-                defaultValue: "This image could not be loaded for cropping. Close and try another asset.",
+                defaultValue:
+                  "This image could not be loaded for cropping. Close and try another asset.",
               })}
             </p>
           ) : null}
@@ -475,45 +357,16 @@ export function RegionCapture({ asset, onImport, onClose }: RegionCaptureProps) 
             </p>
           ) : null}
 
-          <div className="rc-controls">
-            <div className="rc-aspect-group" role="group" aria-label={t("workbench.studio.aspectGroup", { defaultValue: "Aspect ratio" })}>
-              {ASPECT_ORDER.map((id) => (
-                <button
-                  key={id}
-                  type="button"
-                  className="rc-aspect"
-                  aria-pressed={aspect === id}
-                  disabled={!region || imageFailed || busy}
-                  onClick={() => chooseAspect(id)}
-                  data-testid={`region-capture-aspect-${id}`}
-                >
-                  {aspectLabels[id]}
-                </button>
-              ))}
-            </div>
-
-            <div className="rc-fields">
-              {(["x", "y", "w", "h"] as const).map((key) => (
-                <label key={key} className="rc-field">
-                  <span>{fieldLabels[key]}</span>
-                  <input
-                    type="number"
-                    min={0}
-                    step={1}
-                    inputMode="numeric"
-                    value={draft?.key === key ? draft.value : (region?.[key] ?? 0)}
-                    disabled={!region || imageFailed || busy}
-                    onChange={(event) => changeField(key, event.target.value)}
-                    onBlur={commitDraft}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") event.currentTarget.blur();
-                    }}
-                    data-testid={`region-capture-${key}`}
-                  />
-                </label>
-              ))}
-            </div>
-          </div>
+          <RegionCaptureControls
+            aspect={aspect}
+            draft={draft}
+            imageFailed={imageFailed}
+            busy={busy}
+            region={region}
+            onChooseAspect={chooseAspect}
+            onChangeField={changeField}
+            onCommitDraft={commitDraft}
+          />
         </div>
 
         <footer className="rc-foot">

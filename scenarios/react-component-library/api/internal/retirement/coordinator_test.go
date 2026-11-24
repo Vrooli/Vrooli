@@ -143,6 +143,30 @@ func TestRetireRejectsWrongManifestAndConsumersBeforeMutation(t *testing.T) {
 	}
 }
 
+func TestRetirementFilesystemHelpersStayRooted(t *testing.T) {
+	root := t.TempDir()
+	external := t.TempDir()
+	if err := os.Symlink(external, filepath.Join(root, "linked")); err != nil {
+		t.Fatal(err)
+	}
+	if err := persistJSON(root, filepath.Join(root, "linked", "journal.json"), map[string]string{"state": "pending"}); err == nil {
+		t.Fatal("persistJSON wrote through a symlink outside the repository root")
+	}
+	if _, err := os.Stat(filepath.Join(external, "journal.json")); !os.IsNotExist(err) {
+		t.Fatalf("outside journal unexpectedly exists: %v", err)
+	}
+	source := filepath.Join(external, "source")
+	if err := os.WriteFile(source, []byte("preserve"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := moveExclusive(root, source, filepath.Join(root, "destination")); err == nil {
+		t.Fatal("moveExclusive accepted a source outside the repository root")
+	}
+	if got, err := os.ReadFile(source); err != nil || string(got) != "preserve" {
+		t.Fatalf("outside source changed: %q, %v", got, err)
+	}
+}
+
 func TestRetirementRecoveryAtMutationBoundaries(t *testing.T) {
 	for _, stage := range []string{"prepared", "source-moved", "catalog-moved", "registry-committed"} {
 		t.Run(stage, func(t *testing.T) {
@@ -151,7 +175,7 @@ func TestRetirementRecoveryAtMutationBoundaries(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := persistJSON(pendingPath(root), pendingRetirement{Component: repo.component, CatalogRelative: "navigation/old.json"}); err != nil {
+			if err := persistJSON(root, pendingPath(root), pendingRetirement{Component: repo.component, CatalogRelative: "navigation/old.json"}); err != nil {
 				t.Fatal(err)
 			}
 			if stage != "prepared" {
@@ -160,7 +184,7 @@ func TestRetirementRecoveryAtMutationBoundaries(t *testing.T) {
 				}
 			}
 			if stage == "catalog-moved" || stage == "registry-committed" {
-				if err := moveExclusive(catalog, archivePaths(root, repo.component).SourceArchivePath+".catalog.json"); err != nil {
+				if err := moveExclusive(root, catalog, archivePaths(root, repo.component).SourceArchivePath+".catalog.json"); err != nil {
 					t.Fatal(err)
 				}
 			}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { TEMPLATES, DEFAULT_TEMPLATE, templateById } from "./library";
+import { DEFAULT_TEMPLATE } from "./library";
 import {
   appendChild,
   clearSlotPlacement,
@@ -18,26 +18,18 @@ import {
   walk,
 } from "./spec";
 
-describe("template shelf", () => {
-  it("ships at least one template and a typed default", () => {
-    expect(TEMPLATES.length).toBeGreaterThanOrEqual(6);
-    expect(DEFAULT_TEMPLATE).toBe(TEMPLATES[0]);
-    expect(templateById(DEFAULT_TEMPLATE.id)?.name).toBe(DEFAULT_TEMPLATE.name);
-  });
-
-  it("gives every template a slot, a page root, and unique node ids", () => {
-    for (const template of TEMPLATES) {
-      const ids: string[] = [];
-      let slots = 0;
-      walk(template.spec, (current) => {
-        ids.push(current.id);
-        if (current.type === "slot") slots += 1;
-      });
-      expect(template.spec.type).toBe("page");
-      expect(slots).toBeGreaterThanOrEqual(1);
-      expect(new Set(ids).size).toBe(ids.length);
-      expect(template.slotHint.length).toBeGreaterThan(4);
-    }
+describe("workspace starter composition", () => {
+  it("is a typed page with a component slot and unique node ids", () => {
+    const ids: string[] = [];
+    let slots = 0;
+    walk(DEFAULT_TEMPLATE.spec, (current) => {
+      ids.push(current.id);
+      if (current.type === "slot") slots += 1;
+    });
+    expect(DEFAULT_TEMPLATE.spec.type).toBe("page");
+    expect(slots).toBeGreaterThanOrEqual(1);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(DEFAULT_TEMPLATE.slotHint.length).toBeGreaterThan(4);
   });
 
   it("resolves a palette and typography into CSS custom properties", () => {

@@ -135,11 +135,15 @@ labelled.
 ## 6. Deletion and budget gates
 
 The rehabilitation is not complete while duplicate owners remain. The following
-must be deleted, not hidden:
+must be deleted, not hidden. Legacy design and template owners were retired on
+2026-11-20: the migration imports rows and uploads, writes receipts, validates
+binding uniqueness, and drops old tables transactionally. Their API modules,
+repositories, and code-defined curated shelf are gone; the neutral blank-page
+starter is not a curated template.
 
-- `internal/templates`, `/api/templates`, `studio_templates`, the browser-local
-  template shelf and code-defined template constants, after workspace parity.
-- `internal/designs` and `studio_designs` after the workspace migration.
+- `internal/templates`, `/api/templates`, `studio_templates`, `internal/designs`,
+  `/api/designs`, `studio_designs`, and `studio_design_assets` — **closed**;
+  retain only the one-release local-cache bookmark reader for unsynced drafts.
 - Sketch composition storage after the intent/composition split.
 - Catalog-only search once one multi-source index serves Start and ⌘K.
 - Coverage, Capabilities and Activity as separate routes once Stats owns their

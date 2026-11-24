@@ -1,0 +1,356 @@
+/* ── Workspace rows (Design index) ────────────────────────────────────── */
+
+.wb-home-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Grid items default to `min-width: auto`; a long unbroken catalog id then
+ * widens the track past the viewport instead of ellipsizing inside the row. */
+.wb-home-list > li {
+  min-width: 0;
+}
+
+.wb-home-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--wb-line);
+  transition: background 140ms ease;
+}
+
+.wb-home-row:last-child {
+  border-bottom: 0;
+}
+
+.wb-home-row:hover {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.wb-home-row-copy {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.wb-home-row b {
+  display: block;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-home-row small {
+  display: block;
+  overflow: hidden;
+  color: var(--wb-muted-2);
+  font: 10px/1.4 var(--wb-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-home-thumb {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  place-items: center;
+  border: 1px solid var(--wb-line);
+  border-radius: 9px;
+  background: linear-gradient(160deg, #1b1721, #100d13);
+  color: var(--wb-muted);
+}
+
+.wb-signals {
+  display: grid;
+}
+
+.wb-signals li {
+  display: flex;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--wb-line);
+}
+
+.wb-signals li:last-child {
+  border-bottom: 0;
+}
+
+.wb-signals b {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.wb-signals small {
+  display: block;
+  margin-top: 2px;
+  color: var(--wb-muted-2);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.wb-signal-icon {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--wb-muted);
+}
+
+.wb-signal-icon.is-green {
+  background: var(--wb-green-soft);
+  color: var(--wb-green);
+}
+
+.wb-signal-icon.is-amber {
+  background: var(--wb-amber-soft);
+  color: var(--wb-amber);
+}
+
+.wb-signal-icon.is-ice {
+  background: var(--wb-ice-soft);
+  color: var(--wb-ice);
+}
+
+.wb-new-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.wb-new-card {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid var(--wb-line);
+  border-radius: 10px;
+  background: linear-gradient(180deg, #17131b, #100d13);
+}
+
+.wb-new-card:hover {
+  border-color: var(--wb-line-3);
+}
+
+.wb-new-card b {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-new-card small {
+  overflow: hidden;
+  color: var(--wb-muted-2);
+  font: 9px/1.4 var(--wb-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-new-art {
+  display: grid;
+  height: 48px;
+  place-items: center;
+  margin-bottom: 4px;
+  border-radius: 6px;
+  background: radial-gradient(120px 60px at 50% 20%, #251e22, #100d12);
+}
+
+.wb-new-art-bar {
+  width: 52%;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--wb-signal);
+  opacity: 0.9;
+}
+
+.wb-new-art-bar.is-draft {
+  background: var(--wb-muted-2);
+}
+
+/* Curated previews contain a real 390px phone composition. Keep that authored
+ * width inside the shelf card instead of letting it widen the phone page. */
+.wb-template-thumb {
+  display: block;
+  width: 100%;
+  height: 148px;
+  overflow: hidden;
+  position: relative;
+  border-radius: 6px;
+  background: radial-gradient(120px 60px at 50% 20%, #251e22, #100d12);
+  container-type: inline-size;
+}
+
+.wb-template-thumb-stage {
+  display: block;
+  width: 390px;
+  transform: scale(0.82);
+  transform-origin: top left;
+}
+
+.wb-design-paths {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.wb-design-paths > * {
+  min-width: 0;
+}
+
+.wb-design-recovery {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--wb-line-2);
+  border-left: 3px solid var(--wb-ice);
+  border-radius: 8px;
+  background: var(--wb-ice-soft);
+  color: var(--wb-ink);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.wb-design-recovery span {
+  color: var(--wb-muted);
+  overflow-wrap: anywhere;
+}
+
+.wb-design-template-choice {
+  grid-column: 1 / -1;
+  max-width: 540px;
+}
+
+.wb-design-path-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.wb-design-field {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: var(--wb-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.wb-design-field input,
+.wb-design-field textarea,
+.wb-design-field select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--wb-line-2);
+  border-radius: 7px;
+  background: var(--wb-surface-2);
+  color: var(--wb-ink);
+  padding: 8px 9px;
+  font: 12px/1.4 var(--wb-sans);
+}
+
+.wb-design-field textarea {
+  min-height: 62px;
+  resize: vertical;
+}
+
+.wb-design-selected-files {
+  margin: 0 0 12px;
+  padding: 9px 10px;
+  border: 1px solid var(--wb-line-2);
+  border-radius: 7px;
+  background: var(--wb-surface-2);
+  color: var(--wb-muted);
+  font-size: 11px;
+}
+
+.wb-design-selected-files ul {
+  display: grid;
+  gap: 3px;
+  margin: 5px 0 0;
+  padding-left: 18px;
+  color: var(--wb-ink);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 800px) {
+  .wb-design-paths,
+  .wb-design-path-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@container (max-width: 300px) {
+  .wb-template-thumb-stage {
+    transform: scale(0.68);
+  }
+}
+
+.wb-create-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 9px;
+  border: 1px dashed var(--wb-line-2);
+  border-radius: 9px;
+  color: var(--wb-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.wb-create-link:hover {
+  border-color: var(--wb-signal-line);
+  color: var(--wb-signal);
+}
+
+@media (max-width: 720px) {
+  /* A two-column template shelf leaves ~120px per card on a 320px phone,
+     where the actions and the preview cannot fit. One column is the honest
+     reading width. */
+  .wb-new-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .wb-home-row .wb-mono {
+    display: none;
+  }
+}
+
+@media (max-width: 560px) {
+  /* A workspace name, provenance chip and Open button cannot share one 320px
+     line without truncating the name to three characters. Put the name on its
+     own line and let the actions follow. */
+  .wb-home-row {
+    flex-wrap: wrap;
+    gap: 8px 10px;
+  }
+
+  .wb-home-row-copy {
+    flex: 1 1 100%;
+    order: -1;
+  }
+
+  .wb-home-row .wb-home-thumb {
+    display: none;
+  }
+
+  .wb-home-row > .wb-btn {
+    margin-left: auto;
+  }
+}

@@ -1,5 +1,6 @@
-// Package adoptions is the CLI's adoption-registry surface. Mirrors
-// the API's Connect-RPC AdoptionsService. Command surface loads from
+// Package adoptions is the CLI's adoption-registry surface. Its public
+// commands use AdoptionsService; intake workflows remain internal consumers
+// of AdoptionIntakeService. Command surface loads from
 // cli/manifest.json via cliapp.LoadFromManifest.
 package adoptions
 
@@ -18,8 +19,8 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"AdoptionsService.ListEffectiveAdoptions": cliapp.ProtoList(h.listEffectiveCall, h.listEffectiveReport),
 		"AdoptionsService.PreflightAdoption":      cliapp.ProtoList(h.preflightCall, h.preflightReport),
 		"obligations":                             {Run: h.obligations},
-		"AdoptionsService.SyncScenarioTokens":     {Run: h.syncTokens},
-		"AdoptionsService.PruneScenarioTokens":    {Run: h.pruneTokens},
+		"AdoptionsService.SyncScenarioTokens":     cliapp.ProtoCustom(h.syncTokensCall, h.syncTokensHuman),
+		"AdoptionsService.PruneScenarioTokens":    cliapp.ProtoCustom(h.pruneTokensCall, h.pruneTokensHuman),
 		"AdoptionsService.LinkAdoption":           cliapp.ProtoMutation(h.linkCall, h.linkReport),
 	}
 	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)

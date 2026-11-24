@@ -19,7 +19,7 @@ const findingColumns = `id, subject_kind, subject_id, gate, severity, status, me
 // Service is the review queue owner. It refreshes findings from a Projector,
 // but status and owner are human state: the upsert never overwrites them.
 type Service struct {
-	db        *sql.DB
+	db        queueStore
 	projector Projector
 	clock     func() time.Time
 	random    io.Reader
@@ -33,7 +33,7 @@ type Service struct {
 // NewService wires the durable queue to a projection source. A nil projector
 // leaves the stored queue untouched; that is useful for read-only consumers
 // and tests, not for production wiring.
-func NewService(db *sql.DB, projector Projector) *Service {
+func NewService(db queueStore, projector Projector) *Service {
 	return &Service{
 		db:        db,
 		projector: projector,

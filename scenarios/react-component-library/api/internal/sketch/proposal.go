@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"react-component-library/internal/catalogcoverage"
-	"react-component-library/internal/catalogsearch"
+	"react-component-library/internal/search"
 )
 
 type DesignConstraints struct {
@@ -29,13 +28,13 @@ type Proposal struct {
 	Title       string
 	Document    Document
 	Obligations []string
-	Template    catalogsearch.Result
+	Template    search.CatalogResult
 }
 
 // Propose retrieves bounded lexical alternatives. It never invents versions,
 // infers source bindings as facts, or invokes generated code. Executable ports
 // and fixtures remain explicit obligations until validated by the renderer.
-func Propose(ctx context.Context, snapshot Snapshot, intent DesignIntent, limit int, search ImportSearch, catalog []catalogcoverage.Asset) ([]Proposal, error) {
+func Propose(ctx context.Context, snapshot Snapshot, intent DesignIntent, limit int, search ImportSearch) ([]Proposal, error) {
 	if strings.TrimSpace(intent.Intent) == "" || len(intent.Intent) > 8000 {
 		return nil, fmt.Errorf("intent must contain 1 to 8000 characters")
 	}
@@ -82,36 +81,34 @@ func Propose(ctx context.Context, snapshot Snapshot, intent DesignIntent, limit 
 	constraints.PreserveRoutes = &preserveRoutes
 	constraints.PreserveBusinessBehavior = &preserveBehavior
 	intent.Constraints = &constraints
-	byID := map[string]catalogcoverage.Asset{}
-	for _, a := range catalog {
-		byID[a.ID] = a
-	}
 	query := intent.Intent + " " + strings.Join(intent.PrimaryTasks, " ")
-	matches := search.SearchContext(ctx, query, 40, "page-template", "", "")
+	matches, err := search.SearchCatalog(ctx, query, 40, "page-template", "", "")
+	if err != nil {
+		return nil, err
+	}
 	var out []Proposal
 	seen := map[string]bool{}
 	for _, match := range matches {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		a, ok := byID[match.CatalogID]
-		if !ok || seen[a.ID] || a.Kind != "page-template" || !match.Availability.IsBuilt() || match.Availability.CatalogID != a.ID || match.Availability.Version == "" {
+		if seen[match.CatalogID] || match.Kind != "page-template" || !match.Availability.IsBuilt() || match.Availability.CatalogID != match.CatalogID || match.Availability.Version == "" {
 			continue
 		}
-		if !includes(a.Targets, intent.Target) || !includes(a.Kits, intent.Kit) || len(a.Regions) == 0 {
+		if !includes(match.Targets, intent.Target) || !includes(match.Kits, intent.Kit) || len(match.Regions) == 0 {
 			continue
 		}
 		compatible := true
 		for _, capability := range intent.RequiredCapabilities {
-			if !includes(a.Capabilities, capability) {
+			if !includes(match.RequiredCapabilities, capability) {
 				compatible = false
 			}
 		}
 		if !compatible {
 			continue
 		}
-		seen[a.ID] = true
-		change, err := ChangeTemplate(snapshot.Document, AssetRef{Asset: a.ID, Version: match.Availability.Version}, a.Regions, nil)
+		seen[match.CatalogID] = true
+		change, err := ChangeTemplate(snapshot.Document, AssetRef{Asset: match.CatalogID, Version: match.Availability.Version}, match.Regions, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -153,7 +150,7 @@ func Propose(ctx context.Context, snapshot Snapshot, intent DesignIntent, limit 
 		} else {
 			obligations = append(obligations, "Business behavior preservation is explicitly disabled; review behavior changes before acceptance.")
 		}
-		out = append(out, Proposal{Title: a.Name, Document: doc, Template: match, Obligations: obligations})
+		out = append(out, Proposal{Title: match.Name, Document: doc, Template: match, Obligations: obligations})
 		if len(out) == limit {
 			break
 		}

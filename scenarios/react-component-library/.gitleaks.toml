@@ -1,0 +1,15 @@
+# Keep all default rules active. This exact line is an empty PasswordInput
+# control specimen; it contains neither a credential nor password data.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Empty PasswordInput contract specimen; immutable release source"
+condition = "AND"
+regexTarget = "line"
+paths = [
+  '''^library/components/PasswordInput/versions/2\.0\.3/story\.tsx$''',
+]
+regexes = [
+  '''^\s*<PasswordInput testId="story-bare" />\s*$''',
+]

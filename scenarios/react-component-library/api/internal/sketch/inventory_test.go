@@ -14,10 +14,11 @@ func TestInventoryIncludesMissingInvalidAndUnregisteredPages(t *testing.T) {
 		t.Fatal(err)
 	}
 	for name, content := range map[string]string{
-		"index.json":        `{"pages":[{"id":"good","path":"pages/good.json","title":"Good"},{"id":"missing","path":"pages/missing.json"},{"id":"bad","path":"pages/bad.json"}]}`,
-		"pages/good.json":   `{"page":{"title":"A good page","routes":["/good","/good/:id"]},"regions":[{"id":"body"}],"sketch":{"regions":[{"id":"body"},{"id":"footer"}]}}`,
-		"pages/bad.json":    `{"sketch":null}`,
-		"pages/orphan.json": `{"page":{"title":"Orphan"}}`,
+		"index.json":          `{"pages":[{"id":"good","path":"pages/good.json","title":"Good"},{"id":"missing","path":"pages/missing.json"},{"id":"bad","path":"pages/bad.json"}]}`,
+		"pages/good.json":     `{"page":{"title":"A good page","routes":["/good","/good/:id"]},"regions":[{"id":"body"}],"sketch":{"regions":[{"id":"body"},{"id":"footer"}]}}`,
+		"pages/composed.json": `{"page":{"title":"A composed page"},"sketch":{"template":{"asset":"templates.page"},"render":{"templateExport":"Page","regions":[{"id":"hero","slot":["hero"]}]}}}`,
+		"pages/bad.json":      `{"sketch":null}`,
+		"pages/orphan.json":   `{"page":{"title":"Orphan"}}`,
 	} {
 		if err := os.WriteFile(filepath.Join(experience, name), []byte(content), 0o600); err != nil {
 			t.Fatal(err)
@@ -27,7 +28,7 @@ func TestInventoryIncludesMissingInvalidAndUnregisteredPages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got.Pages) != 4 {
+	if len(got.Pages) != 5 {
 		t.Fatalf("page lost: %+v", got)
 	}
 	pages := map[string]DesignPage{}
@@ -39,6 +40,9 @@ func TestInventoryIncludesMissingInvalidAndUnregisteredPages(t *testing.T) {
 	}
 	if good := pages["good"]; good.Title != "A good page" || good.RegionCount != 2 || good.Route != "/good" || len(good.Routes) != 2 || good.ContentHash == "" {
 		t.Fatalf("wrong page projection: %+v", good)
+	}
+	if composed := pages["composed"]; composed.Status != "composition-present" {
+		t.Fatalf("active composition was offered as intent-only: %+v", composed)
 	}
 }
 

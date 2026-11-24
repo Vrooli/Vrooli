@@ -98,9 +98,17 @@ type Recorder interface {
 	Record(ctx context.Context, event Event) error
 }
 
+// Database is the SQL surface used by the activity log. RoutedDB implements
+// it and selects the request's pool from ctx; *sql.DB remains useful in tests.
+type Database interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
 // Store is the SQLite-backed activity owner.
 type Store struct {
-	db     *sql.DB
+	db     Database
 	clock  func() time.Time
 	random io.Reader
 }
@@ -108,7 +116,7 @@ type Store struct {
 var _ Recorder = (*Store)(nil)
 
 // NewSQLiteStore returns the durable store over the scenario's primary pool.
-func NewSQLiteStore(db *sql.DB) *Store {
+func NewSQLiteStore(db Database) *Store {
 	return &Store{db: db, clock: time.Now, random: rand.Reader}
 }
 

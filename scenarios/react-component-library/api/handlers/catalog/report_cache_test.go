@@ -223,7 +223,7 @@ func TestRevisionIndexTracksSourceAndDependents(t *testing.T) {
 
 func TestReportCachePersistsAndReloadsAcrossProcesses(t *testing.T) {
 	root := writeProbeTree(t)
-	path := filepath.Join(t.TempDir(), "coverage-report-v1.json")
+	path := filepath.Join(t.TempDir(), "reports", "coverage-report-v1.json")
 	first := &catalogcoverage.Report{Rows: []catalogcoverage.Row{{AssetID: "aperture", Name: "Aperture"}}}
 
 	cache := &reportCache{diskPath: path}
@@ -236,8 +236,19 @@ func TestReportCachePersistsAndReloadsAcrossProcesses(t *testing.T) {
 	if got != first {
 		t.Fatal("cold compute did not return its report")
 	}
-	if _, statErr := os.Stat(path); statErr != nil {
-		t.Fatalf("report was not persisted: %v", statErr)
+	fileInfo, statErr := os.Stat(path)
+	if statErr != nil {
+		t.Fatalf("report was not persisted at %s: %v", path, statErr)
+	}
+	if fileInfo.Mode().Perm() != 0o644 {
+		t.Fatalf("report mode = %04o, want 0644", fileInfo.Mode().Perm())
+	}
+	dirInfo, statErr := os.Stat(filepath.Dir(path))
+	if statErr != nil {
+		t.Fatalf("report directory was not created: %v", statErr)
+	}
+	if dirInfo.Mode().Perm() != 0o755 {
+		t.Fatalf("report directory mode = %04o, want 0755", dirInfo.Mode().Perm())
 	}
 
 	// A fresh process must answer from disk without running the corpus.

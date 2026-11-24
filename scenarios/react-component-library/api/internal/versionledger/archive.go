@@ -15,6 +15,7 @@ import (
 	"react-component-library/internal/sqliterows"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/storage"
 )
 
 const archiveSchemaVersion = 1
@@ -87,26 +88,46 @@ func (r *Repository) ExportArchive(ctx context.Context, path string) (ArchiveSum
 	if err != nil {
 		return ArchiveSummary{}, err
 	}
-	if err := os.MkdirAll(filepath.Dir(absolute), 0o755); err != nil {
-		return ArchiveSummary{}, err
-	}
-	temporary, err := os.CreateTemp(filepath.Dir(absolute), ".rcl-ledger-archive-")
-	if err != nil {
-		return ArchiveSummary{}, err
-	}
-	temporaryName := temporary.Name()
-	defer func() { _ = os.Remove(temporaryName) }()
-	if _, err := temporary.Write(output); err != nil {
-		_ = temporary.Close()
-		return ArchiveSummary{}, err
-	}
-	if err := temporary.Close(); err != nil {
-		return ArchiveSummary{}, err
-	}
-	if err := os.Rename(temporaryName, absolute); err != nil {
+	if err := writeArchiveAtomic(absolute, output); err != nil {
 		return ArchiveSummary{}, err
 	}
 	return archiveSummary(absolute, envelope), nil
+}
+
+// writeArchiveAtomic anchors publication at the nearest existing directory,
+// then creates the remaining path and atomically replaces the archive through
+// that open root. This preserves nested-path creation while containing races
+// and symlink traversal beneath the selected directory.
+func writeArchiveAtomic(absolute string, data []byte) error {
+	parent := filepath.Dir(absolute)
+	rootPath := parent
+	for {
+		info, err := os.Stat(rootPath)
+		if err == nil {
+			if !info.IsDir() {
+				return fmt.Errorf("archive parent %q is not a directory", rootPath)
+			}
+			break
+		}
+		if !os.IsNotExist(err) {
+			return err
+		}
+		next := filepath.Dir(rootPath)
+		if next == rootPath {
+			return err
+		}
+		rootPath = next
+	}
+	root, err := os.OpenRoot(rootPath)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	relative, err := filepath.Rel(rootPath, absolute)
+	if err != nil || !filepath.IsLocal(relative) {
+		return fmt.Errorf("archive path %q escapes its storage root", absolute)
+	}
+	return storage.WriteFileAtomicInRoot(root, relative, data, 0o644)
 }
 
 func (r *Repository) exportTable(ctx context.Context, table string) (archiveTable, error) {

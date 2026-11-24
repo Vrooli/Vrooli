@@ -111,6 +111,39 @@ type fakeFiles struct {
 	untagged   []adoptions.CandidateFile
 }
 
+type removableFakeFiles struct{ *fakeFiles }
+
+func (f *removableFakeFiles) Remove(_ context.Context, scenario, p string) error {
+	delete(f.bytes, scenario+"::"+p)
+	return nil
+}
+
+type fixedTokenMapping struct{ mapping adoptions.TokenMapping }
+
+func (f fixedTokenMapping) TokenMapping(context.Context, string) (adoptions.TokenMapping, error) {
+	return f.mapping, nil
+}
+
+func (f fixedTokenMapping) TokenNamespace(context.Context, string) (string, error) {
+	return f.mapping.Namespace, nil
+}
+
+type failingTokenMapping struct{}
+
+func (failingTokenMapping) TokenMapping(context.Context, string) (adoptions.TokenMapping, error) {
+	return adoptions.TokenMapping{}, errors.New("scenario token map unavailable")
+}
+
+func (failingTokenMapping) TokenNamespace(context.Context, string) (string, error) {
+	return "app", nil
+}
+
+type failingAdoptionGetRepository struct{ adoptions.Repository }
+
+func (r failingAdoptionGetRepository) Get(context.Context, string) (adoptions.Adoption, error) {
+	return adoptions.Adoption{}, errors.New("adoption registry unavailable")
+}
+
 func (f *fakeFiles) ScanUntagged(context.Context) ([]adoptions.CandidateFile, error) {
 	return append([]adoptions.CandidateFile(nil), f.untagged...), nil
 }
@@ -715,6 +748,108 @@ func TestService_Reapply_PersistsNewVersionAndSnapshot(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "1.1.0", got.AdoptedVersion)
 	require.Equal(t, sha("NEW\n"), got.AdoptedSnapshotSHA256)
+}
+
+func TestService_ReapplyProtectsLocalEditsAndAllowsDryRun(t *testing.T) {
+	repo := adoptmocks.NewFakeRepository()
+	component := components.Component{ID: "cmp", LibraryID: "rcl:Button", LatestVersion: "1.0.0"}
+	lib := &fakeLibrary{
+		byID: map[string]components.Component{"cmp": component},
+		versions: map[string]components.ComponentVersion{
+			"cmp@1.0.0": {ComponentID: "cmp", LibraryID: "rcl:Button", Version: "1.0.0", Content: "export const Button = () => null;", ContentSHA256: sha("source"), Files: []components.ComponentVersionFile{{Path: "Button.tsx", Content: "export const Button = () => null;", ContentSHA256: sha("source"), IsEntry: true}}},
+		},
+	}
+	files := &fakeFiles{bytes: map[string][]byte{"target::ui/src/Button.tsx": []byte("user's local edit")}}
+	repo.Seed(adoptions.Adoption{
+		ID: "adopt-local", ComponentID: "cmp", LibraryID: "rcl:Button", Scenario: "target", AdoptedPath: "ui/src/Button.tsx",
+		AdoptedVersion: "1.0.0", SourceSHA256: sha("source"), AdoptedSnapshotSHA256: sha("original"),
+	})
+	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Now()))
+
+	_, _, err := svc.Reapply(context.Background(), adoptions.ReapplyInput{ID: "adopt-local"})
+	var invalid adoptions.ErrInvalidAdoption
+	require.ErrorAs(t, err, &invalid)
+	require.Equal(t, "confirm_local_overwrite", invalid.Field)
+	require.Equal(t, "user's local edit", string(files.bytes["target::ui/src/Button.tsx"]))
+
+	row, path, err := svc.Reapply(context.Background(), adoptions.ReapplyInput{ID: "adopt-local", DryRun: true})
+	require.NoError(t, err)
+	require.Equal(t, "adopt-local", row.ID)
+	require.Empty(t, path)
+	require.Equal(t, "user's local edit", string(files.bytes["target::ui/src/Button.tsx"]), "dry run must not replace local content")
+
+	updated, written, err := svc.Reapply(context.Background(), adoptions.ReapplyInput{ID: "adopt-local", ConfirmLocalOverwrite: true})
+	require.NoError(t, err)
+	require.Equal(t, "adopt-local", updated.ID)
+	require.Equal(t, "target/ui/src/Button.tsx", written)
+	require.Contains(t, string(files.bytes["target::ui/src/Button.tsx"]), "export const Button")
+}
+
+func TestService_ReapplyRejectsBlankIDAndPropagatesTokenMapFailure(t *testing.T) {
+	ctx := context.Background()
+	svc := adoptions.NewService(adoptmocks.NewFakeRepository(), &fakeLibrary{}, &fakeFiles{bytes: map[string][]byte{}}, scheduletest.New(time.Now()))
+	_, _, err := svc.Reapply(ctx, adoptions.ReapplyInput{ID: "  "})
+	var invalid adoptions.ErrInvalidAdoption
+	require.ErrorAs(t, err, &invalid)
+	require.Equal(t, "id", invalid.Field)
+	getFailure := adoptions.NewService(failingAdoptionGetRepository{Repository: adoptmocks.NewFakeRepository()}, &fakeLibrary{}, &fakeFiles{bytes: map[string][]byte{}}, scheduletest.New(time.Now()))
+	_, _, err = getFailure.Reapply(ctx, adoptions.ReapplyInput{ID: "known-id"})
+	require.EqualError(t, err, "adoption registry unavailable")
+
+	repo := adoptmocks.NewFakeRepository()
+	repo.Seed(adoptions.Adoption{ID: "adopt-map", ComponentID: "cmp", LibraryID: "rcl:Button", Scenario: "target", AdoptedPath: "Button.tsx", AdoptedSnapshotSHA256: sha("source")})
+	lib := &fakeLibrary{byID: map[string]components.Component{"cmp": {ID: "cmp", LibraryID: "rcl:Button", Version: "1.0.0", LatestVersion: "1.0.0"}}, body: map[string]string{"cmp": "source"}}
+	files := &fakeFiles{bytes: map[string][]byte{"target::Button.tsx": []byte("source")}}
+	svc = adoptions.NewService(repo, lib, files, scheduletest.New(time.Now()))
+	adoptions.SetTokenNamespaceReader(svc, failingTokenMapping{})
+	_, _, err = svc.Reapply(ctx, adoptions.ReapplyInput{ID: "adopt-map", DryRun: true})
+	require.EqualError(t, err, "scenario token map unavailable")
+	require.Equal(t, "source", string(files.bytes["target::Button.tsx"]))
+}
+
+func TestService_ReapplyUpdatesContractTranslatesTokensAndRemovesOrphanedFiles(t *testing.T) {
+	repo := adoptmocks.NewFakeRepository()
+	component := components.Component{ID: "cmp", LibraryID: "rcl:Button", Slug: "PrimaryButton", LatestVersion: "1.1.0"}
+	oldVersion := components.ComponentVersion{
+		ComponentID: "cmp", LibraryID: "rcl:Button", Version: "1.0.0", ContentSHA256: sha("old"),
+		ExperienceContract: `{"contract":"old"}`,
+		Files: []components.ComponentVersionFile{
+			{Path: "Button.tsx", Content: `export const Button = () => <button className="bg-app-primary" />;`, ContentSHA256: sha("old"), IsEntry: true},
+			{Path: "old-helper.ts", Content: "export const oldHelper = true;", ContentSHA256: sha("helper")},
+			{Path: "old-unused.ts", Content: "export const oldUnused = true;", ContentSHA256: sha("unused")},
+		},
+	}
+	newVersion := components.ComponentVersion{
+		ComponentID: "cmp", LibraryID: "rcl:Button", Version: "1.1.0", ContentSHA256: sha("new"),
+		ExperienceContract: `{"contract":"new"}`,
+		Files:              []components.ComponentVersionFile{{Path: "Button.tsx", Content: `export const Button = () => <button className="bg-app-primary" />;`, ContentSHA256: sha("new"), IsEntry: true}},
+	}
+	lib := &fakeLibrary{byID: map[string]components.Component{"cmp": component}, versions: map[string]components.ComponentVersion{
+		"cmp@1.0.0": oldVersion,
+		"cmp@1.1.0": newVersion,
+	}}
+	files := &removableFakeFiles{fakeFiles: &fakeFiles{bytes: map[string][]byte{}}}
+	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Now()))
+	adoptions.SetTokenNamespaceReader(svc, fixedTokenMapping{mapping: adoptions.TokenMapping{
+		Namespace: "app",
+		Roles:     map[string]adoptions.TokenRoleMapping{"app-primary": {Target: "app-accent", CSSVariable: "--app-accent"}},
+	}})
+	created, err := svc.Apply(context.Background(), adoptions.ApplyInput{ComponentID: "cmp", Version: "1.0.0", Scenario: "target", AdoptedPath: "ui/src/Button.tsx"})
+	require.NoError(t, err)
+	require.Contains(t, created.Adoption.Files[1].AdoptedPath, "old-helper")
+	repo.Seed(adoptions.Adoption{ID: "other-owner", ComponentID: "other", Scenario: "target", AdoptedPath: "ui/src/Other.tsx", Files: []adoptions.AdoptionFile{{AdoptedPath: "ui/src/old-helper.ts"}}})
+
+	updated, written, err := svc.Reapply(context.Background(), adoptions.ReapplyInput{ID: created.Adoption.ID, Version: "1.1.0"})
+	require.NoError(t, err)
+	require.Equal(t, "target/ui/src/Button.tsx", written)
+	require.Equal(t, "1.1.0", updated.AdoptedVersion)
+	require.Len(t, updated.Files, 1)
+	require.Contains(t, files.bytes, "target::ui/src/old-helper.ts", "a file still owned by another adoption must be retained")
+	require.NotContains(t, files.bytes, "target::ui/src/old-unused.ts", "unshared orphan files should be removed")
+	require.Equal(t, `{"contract":"new"}`, string(files.bytes["target::experience/components/primary-button.json"]))
+	entry := string(files.bytes["target::ui/src/Button.tsx"])
+	require.Contains(t, entry, "bg-app-accent")
+	require.Contains(t, entry, "bg-app-primary->bg-app-accent")
 }
 
 func TestService_ReconcileDryRunAndApplyGroupsProvenanceWithoutReporter(t *testing.T) {

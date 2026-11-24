@@ -25,6 +25,8 @@ func TestComponentTestsAssessmentUsesCanonicalPresentationProjection(t *testing.
 	require.Empty(t, clean.GetPresentation().GetDocumentationTopics())
 
 	failed := componentTestsAssessment("react-component-library", false, []string{"zeta", "alpha"})
+	require.Equal(t, int32(2), failed.GetFindingsBySeverity()["FINDING_SEVERITY_ERROR"])
+	require.Equal(t, int32(2), failed.GetCapabilities()[0].GetFindingsBySeverity()["FINDING_SEVERITY_ERROR"])
 	require.Equal(t, []string{"COMPONENT_TEST_FAILED"}, failed.GetPresentation().GetBlockingFindingCodes())
 	require.Equal(t, []string{
 		"component-tests maturity next move",

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { DesignDocument } from "../designs";
+import type { DesignDocument } from "../design-types";
 import { applyPatch, PatchError } from "./patch";
 
 function node(
@@ -113,15 +113,15 @@ describe("applyPatch", () => {
   });
 
   it("rejects a patch that no longer matches the document", () => {
-    expect(() =>
-      applyPatch(sample(), [{ kind: "setText", nodeId: "missing", text: "x" }]),
-    ).toThrow(PatchError);
-    expect(() =>
-      applyPatch(sample(), [{ kind: "removeLayer", nodeId: "page" }]),
-    ).toThrow(/page root/);
-    expect(() =>
-      applyPatch(sample(), [{ kind: "removeLayer", nodeId: "kpi" }]),
-    ).toThrow(/structural/);
+    expect(() => applyPatch(sample(), [{ kind: "setText", nodeId: "missing", text: "x" }])).toThrow(
+      PatchError,
+    );
+    expect(() => applyPatch(sample(), [{ kind: "removeLayer", nodeId: "page" }])).toThrow(
+      /page root/,
+    );
+    expect(() => applyPatch(sample(), [{ kind: "removeLayer", nodeId: "kpi" }])).toThrow(
+      /structural/,
+    );
     expect(() =>
       applyPatch(sample(), [{ kind: "moveLayer", nodeId: "hero", parentId: "title" }]),
     ).toThrow(/cannot own children/);
@@ -154,5 +154,164 @@ describe("applyPatch", () => {
       text: "x",
     }));
     expect(() => applyPatch(sample(), operations)).toThrow(/1 to 8/);
+  });
+
+  it("rejects missing operations, invalid ids, and malformed operation fields", () => {
+    expect(() => applyPatch(sample(), [])).toThrow(/1 to 8/);
+    expect(() => applyPatch(sample(), [{ kind: "setText", nodeId: "bad id", text: "x" }])).toThrow(
+      /not a valid id/,
+    );
+    expect(() =>
+      applyPatch(sample(), [{ kind: "setText", nodeId: "title", text: undefined }]),
+    ).toThrow(/text is required/);
+    expect(() => applyPatch(sample(), [{ kind: "setText", nodeId: "hero", text: "x" }])).toThrow(
+      /does not render text/,
+    );
+    expect(() => applyPatch(sample(), [{ kind: "setProp", nodeId: "title" }])).toThrow(
+      /key is required/,
+    );
+    expect(() =>
+      applyPatch(sample(), [{ kind: "setProp", nodeId: "title", key: "title", value: undefined }]),
+    ).toThrow(/value is required/);
+    expect(() =>
+      applyPatch(sample(), [{ kind: "setTheme", key: "notAToken", value: "red" }]),
+    ).toThrow(/not a palette token/);
+    expect(() => applyPatch(sample(), [{ kind: "addLayer", parentId: "hero" }])).toThrow(
+      /node is required/,
+    );
+    expect(() => applyPatch(sample(), [{ kind: "futureOperation" } as never])).toThrow(
+      /unknown kind futureOperation/,
+    );
+  });
+
+  it("validates text, prop values, and theme colour formats at their boundaries", () => {
+    expect(() =>
+      applyPatch(sample(), [{ kind: "setText", nodeId: "title", text: "line\u0001break" }]),
+    ).toThrow(/control character/);
+    expect(() =>
+      applyPatch(sample(), [{ kind: "setText", nodeId: "title", text: "x".repeat(2001) }]),
+    ).toThrow(/exceeds 2000/);
+    expect(() =>
+      applyPatch(sample(), [{ kind: "setProp", nodeId: "title", key: "bad-key", value: "x" }]),
+    ).toThrow(/key .* is not allowed/);
+    expect(() =>
+      applyPatch(sample(), [{ kind: "setProp", nodeId: "title", key: "onClick", value: "x" }]),
+    ).toThrow(/cannot be set/);
+    expect(() =>
+      applyPatch(sample(), [{ kind: "setProp", nodeId: "title", key: "_private", value: "x" }]),
+    ).toThrow(/key .* is not allowed/);
+    expect(() =>
+      applyPatch(sample(), [{ kind: "setProp", nodeId: "title", key: "count", value: Infinity }]),
+    ).toThrow(/out of range/);
+    expect(() =>
+      applyPatch(sample(), [{ kind: "setProp", nodeId: "title", key: "count", value: 100001 }]),
+    ).toThrow(/out of range/);
+    expect(() =>
+      applyPatch(sample(), [
+        { kind: "setProp", nodeId: "title", key: "count", value: null as unknown as number },
+      ]),
+    ).toThrow(/must be a string, number or boolean/);
+    expect(() => applyPatch(sample(), [{ kind: "setTheme", key: "accent", value: "#xy" }])).toThrow(
+      /must be a hex colour or a colour name/,
+    );
+
+    const applied = applyPatch(sample(), [
+      { kind: "setText", nodeId: "title", text: "line\nwith\ttabs" },
+      { kind: "setProp", nodeId: "title", key: "enabled", value: true },
+      { kind: "setTheme", key: "accent", value: "coral" },
+    ]);
+    expect(applied.doc.frames[0]?.spec.children?.[0]?.children?.[0]?.props.text).toBe(
+      "line\nwith\ttabs",
+    );
+    expect(applied.doc.theme.accent).toBe("coral");
+  });
+
+  it("enforces add-layer size, depth, and placement constraints", () => {
+    expect(() =>
+      applyPatch(sample(), [
+        {
+          kind: "addLayer",
+          parentId: "hero",
+          node: {
+            type: "card",
+            props: Object.fromEntries(Array.from({ length: 17 }, (_, i) => [`p${i}`, i])),
+          },
+        },
+      ]),
+    ).toThrow(/at most 16 props/);
+    expect(() =>
+      applyPatch(sample(), [
+        {
+          kind: "addLayer",
+          parentId: "hero",
+          node: {
+            type: "card",
+            props: {},
+            children: Array.from({ length: 7 }, () => ({ type: "text" as const, props: {} })),
+          },
+        },
+      ]),
+    ).toThrow(/at most 6 children/);
+    expect(() =>
+      applyPatch(sample(), [
+        {
+          kind: "addLayer",
+          parentId: "hero",
+          node: {
+            type: "card",
+            props: {},
+            children: [{ type: "stack", props: {}, children: [{ type: "text", props: {} }] }],
+          },
+        },
+      ]),
+    ).toThrow(/only nest one level/);
+    const deepDoc = sample();
+    let cursor = deepDoc.frames[0]!.spec;
+    for (let depth = 2; depth <= 12; depth += 1) {
+      const child = node(`deep-${depth}`, "stack");
+      cursor.children = [child];
+      cursor = child;
+    }
+    expect(() =>
+      applyPatch(deepDoc, [
+        { kind: "addLayer", parentId: "deep-11", node: { type: "card", props: {} } },
+      ]),
+    ).toThrow(/nest deeper than 12/);
+
+    const fullDoc = sample();
+    fullDoc.frames[0]!.spec.children![0]!.children!.push(
+      ...Array.from({ length: 494 }, (_, index) => node(`extra-${index}`, "text")),
+    );
+    expect(() =>
+      applyPatch(fullDoc, [
+        { kind: "addLayer", parentId: "hero", node: { type: "text", props: {} } },
+      ]),
+    ).toThrow(/exceed 500 layers/);
+  });
+
+  it("rejects moves into descendants or outside a destination list", () => {
+    const nested = sample();
+    nested.frames[0]!.spec.children![0]!.children!.push(node("nested", "stack"));
+    expect(() =>
+      applyPatch(nested, [{ kind: "moveLayer", nodeId: "hero", parentId: "nested" }]),
+    ).toThrow(/move into itself/);
+    expect(() =>
+      applyPatch(sample(), [{ kind: "moveLayer", nodeId: "hero", parentId: "hero" }]),
+    ).toThrow(/move into itself/);
+    expect(() =>
+      applyPatch(sample(), [{ kind: "moveLayer", nodeId: "hero", parentId: "cta" }]),
+    ).toThrow(/cannot own children/);
+    expect(() =>
+      applyPatch(sample(), [{ kind: "moveLayer", nodeId: "title", parentId: "title" }]),
+    ).toThrow(/cannot own children/);
+    expect(() =>
+      applyPatch(sample(), [{ kind: "moveLayer", nodeId: "kpi", parentId: "hero", index: -1 }]),
+    ).toThrow(/outside the destination/);
+    expect(() =>
+      applyPatch(sample(), [{ kind: "moveLayer", nodeId: "kpi", parentId: "hero", index: 99 }]),
+    ).toThrow(/outside the destination/);
+    expect(() =>
+      applyPatch(sample(), [{ kind: "moveLayer", nodeId: "title", parentId: "hero", index: 0.5 }]),
+    ).toThrow(/outside the destination/);
   });
 });

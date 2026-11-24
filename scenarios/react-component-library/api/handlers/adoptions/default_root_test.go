@@ -72,6 +72,26 @@ func TestIndexedSlotReaderReadsSlotFromComponentIndex(t *testing.T) {
 	}
 }
 
+func TestBuildResolverUsesExplicitRootPrecedence(t *testing.T) {
+	tests := []struct {
+		name  string
+		roots ResolverRoots
+		want  string
+	}{
+		{name: "source root", roots: ResolverRoots{SourceRoot: "/source", Root: "/root", FallbackRepoRoot: "/fallback"}, want: "/source"},
+		{name: "root fallback", roots: ResolverRoots{Root: "/root", FallbackRepoRoot: "/fallback"}, want: "/root"},
+		{name: "repo fallback", roots: ResolverRoots{FallbackRepoRoot: "/fallback"}, want: "/fallback"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := BuildResolver(tt.roots)
+			if got.RepoRoot != tt.want {
+				t.Fatalf("BuildResolver(%+v).RepoRoot = %q; want %q", tt.roots, got.RepoRoot, tt.want)
+			}
+		})
+	}
+}
+
 // repoRootForTest finds the actual repo root from the test binary's CWD so
 // we can copy the canonical repo-contract.json fixture.
 func repoRootForTest(t *testing.T) string {

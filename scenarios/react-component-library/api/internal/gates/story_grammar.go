@@ -37,6 +37,9 @@ func ValidateStoryGrammar(scope Scope) (Result, error) {
 	result := Result{Inspected: len(paths)}
 	result.Inspected = 0
 	for _, path := range paths {
+		if isRetiredLibraryPath(path) {
+			continue
+		}
 		assetID := implementationName(path)
 		if !scopeReportsAsset(scope, assetID) {
 			continue

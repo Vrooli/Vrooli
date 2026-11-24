@@ -1,12 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, screen, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Code, ConnectError } from "@connectrpc/connect";
+import type { UseQueryResult } from "@tanstack/react-query";
 
 import {
   DisplayDevice,
   StateStatus,
   WorkspaceProvenance,
+  captureWorkspaceState,
   deleteWorkspaceAsset,
   forkWorkspace,
   getWorkspace,
@@ -15,17 +18,26 @@ import {
   uploadWorkspaceAsset,
   type Workspace,
   type WorkspaceAsset,
+  type WorkspaceSummary,
+  WorkspaceCaptureError,
 } from "../../api/workspaces";
-import { setLocale } from "../../i18n";
+import { i18n, setLocale } from "../../i18n";
+import { selectors } from "../../consts/selectors";
+import { strings } from "../../consts/strings";
 import { renderWithProviders } from "../../test-utils";
 import { proposeWorkspacePatch } from "../studio/workspaceAssist";
+import { readStateSpec, writeStateSpec } from "../workspaces/spec";
+import * as workspaceHook from "../workspaces/useWorkspaces";
+import { useComponentBundle } from "../data";
 import { WorkspaceStudioPage } from "./WorkspaceStudioPage";
+import App from "../../App";
 
 vi.mock("../../api/workspaces", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/workspaces")>();
   return {
     ...actual,
     getWorkspace: vi.fn(),
+    captureWorkspaceState: vi.fn(),
     saveWorkspace: vi.fn(),
     listWorkspaceAssets: vi.fn(),
     uploadWorkspaceAsset: vi.fn(),
@@ -35,18 +47,56 @@ vi.mock("../../api/workspaces", async (importOriginal) => {
 });
 
 vi.mock("../templates/TemplateRenderer", () => ({
-  TemplateRenderer: () => <div data-testid="template-renderer" />,
+  TemplateRenderer: ({ slot }: { slot?: ReactNode }) => (
+    <div data-testid="template-renderer">{slot}</div>
+  ),
+}));
+
+vi.mock("../data", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../data")>();
+  return { ...actual, useComponentBundle: vi.fn() };
+});
+
+vi.mock("../component/FixtureFrame", () => ({
+  FixtureFrame: ({
+    assetId,
+    storyId,
+    version,
+  }: {
+    assetId: string;
+    storyId: string;
+    version: string;
+  }) => (
+    <div data-testid="workspace-component-slot">
+      {assetId}/{storyId}@{version}
+    </div>
+  ),
 }));
 
 vi.mock("../studio/workspaceAssist", () => ({ proposeWorkspacePatch: vi.fn() }));
 
+// The capture-history panel has its own transport and focused tests. Keeping it
+// out of this editor test prevents its real Connect requests from generating
+// unrelated alerts when this suite verifies save conflicts.
+vi.mock("../studio/VisualDriftPanel", () => ({ VisualDriftPanel: () => null }));
+vi.mock("../studio/htmlImport", () => ({ htmlTemplate: vi.fn(), parseHtml: vi.fn() }));
+
+vi.mock("../workspaces/useWorkspaces", () => ({ useWorkspaces: vi.fn() }));
+vi.mock("../WorkbenchShell", async () => {
+  const { Outlet } = await import("react-router-dom");
+  return { WorkbenchShell: () => <Outlet /> };
+});
+
 const mockedGet = vi.mocked(getWorkspace);
+const mockedCaptureState = vi.mocked(captureWorkspaceState);
 const mockedSave = vi.mocked(saveWorkspace);
 const mockedListAssets = vi.mocked(listWorkspaceAssets);
 const mockedUploadAsset = vi.mocked(uploadWorkspaceAsset);
 const mockedDeleteAsset = vi.mocked(deleteWorkspaceAsset);
 const mockedPropose = vi.mocked(proposeWorkspacePatch);
 const mockedFork = vi.mocked(forkWorkspace);
+const mockedComponentBundle = vi.mocked(useComponentBundle);
+const mockedUseWorkspaces = vi.mocked(workspaceHook.useWorkspaces);
 
 function asset(overrides: Partial<WorkspaceAsset> = {}): WorkspaceAsset {
   return {
@@ -148,9 +198,40 @@ const workspace: Workspace = {
 beforeEach(async () => {
   await setLocale("en");
   mockedGet.mockResolvedValue(workspace);
-  mockedSave.mockImplementation((next) => Promise.resolve({ ...next, revision: next.revision + 1 }));
+  mockedCaptureState.mockResolvedValue({
+    workspaceRevision: 4,
+    captureId: "bas-exec-1",
+    evidence: {
+      schemaVersion: "rcl-workspace-state-capture/v1",
+      requestToken: "rcl-state-token",
+      attemptId: "attempt-1",
+      sourceRevision: 3,
+      pageId: "pg_welcome",
+      displayId: "dp_desktop",
+      stateId: "st_default",
+      executionId: "bas-exec-1",
+      capturedAt: "2026-11-20T12:00:00Z",
+      screenshot: {
+        reference: "bas://exec-1/screenshot",
+        width: 1180,
+        height: 780,
+        scope: "selected workspace composition",
+      },
+      accessibility: { reference: "bas://exec-1/accessibility", scope: "page-wide" },
+    },
+  });
+  mockedSave.mockImplementation((next) =>
+    Promise.resolve({ ...next, revision: next.revision + 1 }),
+  );
   mockedListAssets.mockResolvedValue([]);
   mockedDeleteAsset.mockResolvedValue(undefined);
+  mockedComponentBundle.mockReturnValue({
+    isLoading: false,
+    data: {
+      asset: { id: "cmp_button", latestVersion: "2.0.0", version: "2.0.0" },
+      stories: [{ id: "story_primary", name: "Primary", version: "1.4.0" }],
+    },
+  } as ReturnType<typeof useComponentBundle>);
 });
 
 afterEach(() => {
@@ -170,6 +251,180 @@ describe("WorkspaceStudioPage", () => {
     expect(screen.getByRole("button", { name: /Validation error/ })).toBeInTheDocument();
   });
 
+  it("captures the saved selected state and reloads captured status", async () => {
+    const latest: Workspace = {
+      ...workspace,
+      revision: 4,
+      pages: workspace.pages.map((page) => ({
+        ...page,
+        displays: page.displays.map((display) => ({
+          ...display,
+          states: display.states.map((entry) =>
+            entry.id === "st_default"
+              ? { ...entry, status: StateStatus.CAPTURED, captureId: "bas-exec-1" }
+              : entry,
+          ),
+        })),
+      })),
+    };
+    mockedGet.mockResolvedValueOnce(workspace).mockResolvedValueOnce(latest);
+    renderWithProviders(<WorkspaceStudioPage workspaceId="ws_harbor" />);
+    const capture = await screen.findByRole("button", { name: /Capture state/ });
+    await userEvent.click(capture);
+    await waitFor(() => expect(mockedCaptureState).toHaveBeenCalledTimes(1));
+    expect(mockedCaptureState).toHaveBeenCalledWith(
+      "ws_harbor",
+      expect.objectContaining({
+        expectedRevision: 3,
+        pageId: "pg_welcome",
+        displayId: "dp_desktop",
+        stateId: "st_default",
+        attemptId: expect.any(String),
+      }),
+    );
+    expect(await screen.findByRole("button", { name: /Capture again/ })).toBeInTheDocument();
+    expect(await screen.findByTestId(selectors.workspaceStudio.notice)).toBeInTheDocument();
+  });
+
+  it("keeps the attempt token after an unresolved response so a retry recovers the same capture", async () => {
+    mockedCaptureState
+      .mockRejectedValueOnce(
+        new WorkspaceCaptureError("Capture is still being reconciled.", "in_progress"),
+      )
+      .mockResolvedValueOnce({
+        workspaceRevision: 4,
+        captureId: "bas-exec-1",
+        evidence: {
+          schemaVersion: "rcl-workspace-state-capture/v1",
+          requestToken: "token",
+          attemptId: "attempt",
+          sourceRevision: 3,
+          pageId: "pg_welcome",
+          displayId: "dp_desktop",
+          stateId: "st_default",
+          executionId: "bas-exec-1",
+          capturedAt: "2026-11-20T12:00:00Z",
+          screenshot: {
+            reference: "bas://exec-1/screenshot",
+            width: 1180,
+            height: 780,
+            scope: "selected workspace composition",
+          },
+          accessibility: { reference: "bas://exec-1/accessibility", scope: "page-wide" },
+        },
+      });
+    renderWithProviders(<WorkspaceStudioPage workspaceId="ws_harbor" />);
+    const capture = await screen.findByRole("button", { name: /Capture state/ });
+    await userEvent.click(capture);
+    const pending = await screen.findByTestId(selectors.workspaceStudio.notice);
+    expect(pending).toHaveTextContent("Capture is still being reconciled.");
+    expect(pending.closest('[role="status"]')).toBeInTheDocument();
+    await userEvent.click(capture);
+    await waitFor(() => expect(mockedCaptureState).toHaveBeenCalledTimes(2));
+    expect(mockedCaptureState.mock.calls[1]?.[1].attemptId).toBe(
+      mockedCaptureState.mock.calls[0]?.[1].attemptId,
+    );
+  });
+
+  it("starts a fresh attempt after BAS reports a terminal failure", async () => {
+    mockedCaptureState
+      .mockRejectedValueOnce(new WorkspaceCaptureError("BAS capture failed.", "failed"))
+      .mockResolvedValueOnce({
+        workspaceRevision: 4,
+        captureId: "bas-exec-retry",
+        evidence: {
+          schemaVersion: "rcl-workspace-state-capture/v1",
+          requestToken: "token",
+          attemptId: "attempt",
+          sourceRevision: 3,
+          pageId: "pg_welcome",
+          displayId: "dp_desktop",
+          stateId: "st_default",
+          executionId: "bas-exec-retry",
+          capturedAt: "2026-11-20T12:00:00Z",
+          screenshot: {
+            reference: "bas://exec-retry/screenshot",
+            width: 1180,
+            height: 780,
+            scope: "selected workspace composition",
+          },
+          accessibility: { reference: "bas://exec-retry/accessibility", scope: "page-wide" },
+        },
+      });
+    renderWithProviders(<WorkspaceStudioPage workspaceId="ws_harbor" />);
+    const capture = await screen.findByRole("button", { name: /Capture state/ });
+    await userEvent.click(capture);
+    const failed = await screen.findByTestId(selectors.workspaceStudio.notice);
+    expect(failed).toHaveTextContent("BAS capture failed.");
+    expect(failed.closest('[role="status"]')).toBeInTheDocument();
+    await userEvent.click(capture);
+    await waitFor(() => expect(mockedCaptureState).toHaveBeenCalledTimes(2));
+    expect(mockedCaptureState.mock.calls[1]?.[1].attemptId).not.toBe(
+      mockedCaptureState.mock.calls[0]?.[1].attemptId,
+    );
+  });
+
+  it("keeps layer selection reachable and operable from the keyboard", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<WorkspaceStudioPage workspaceId="ws_harbor" />);
+    await screen.findByRole("tree", { name: /Layers/i });
+    const rows = screen.getAllByRole("treeitem");
+    const firstRow = rows[0];
+    if (!firstRow) throw new Error("The workspace canvas must expose its root layer");
+    const layerControl = firstRow.querySelector("button.studio-tree-select");
+    if (!(layerControl instanceof HTMLButtonElement)) {
+      throw new Error("Each layer must have a keyboard-operable selection button");
+    }
+
+    layerControl.focus();
+    expect(layerControl).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(firstRow).toHaveAttribute("aria-selected", "true");
+
+    const frames = document.querySelectorAll<HTMLButtonElement>(".studio-frame-select");
+    const secondaryFrame = frames[1];
+    if (!secondaryFrame) throw new Error("The workspace canvas must expose its alternate frame");
+    secondaryFrame.focus();
+    expect(secondaryFrame).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(secondaryFrame).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("reopens the component and story persisted on a workspace slot", async () => {
+    const slot = {
+      id: "root",
+      type: "page",
+      props: {},
+      children: [
+        {
+          id: "slot-primary",
+          type: "slot",
+          props: {
+            componentId: "cmp_button",
+            storyId: "story_primary",
+            componentVersion: "1.4.0",
+          },
+        },
+      ],
+    };
+    mockedGet.mockResolvedValue({
+      ...workspace,
+      pages: [
+        { ...workspace.pages[0]!, specJson: JSON.stringify(slot) },
+        ...workspace.pages.slice(1),
+      ],
+    });
+
+    renderWithProviders(<WorkspaceStudioPage workspaceId="ws_harbor" />);
+
+    await waitFor(() => expect(mockedComponentBundle).toHaveBeenCalledWith("cmp_button", "1.4.0"));
+    expect(screen.getAllByTestId("workspace-component-slot")).toHaveLength(2);
+    expect(screen.getAllByTestId("workspace-component-slot")[0]).toHaveTextContent(
+      "cmp_button/story_primary@1.4.0",
+    );
+    expect(mockedComponentBundle).toHaveBeenCalledWith("cmp_button", "1.4.0");
+  });
+
   it("adds a state to the active display and autosaves through the revision guard", async () => {
     renderWithProviders(<WorkspaceStudioPage workspaceId="ws_harbor" />);
     await screen.findByRole("tab", { name: /Welcome/ });
@@ -179,6 +434,54 @@ describe("WorkspaceStudioPage", () => {
     const [saved, revision] = mockedSave.mock.calls[0] ?? [];
     expect(revision).toBe(3);
     expect(saved?.pages[0]?.displays[0]?.states).toHaveLength(2);
+  });
+
+  it("clones the active composition into a new device display without its capture receipt", async () => {
+    const source = structuredClone(workspace);
+    const page = source.pages[0]!;
+    const desktop = page.displays[0]!;
+    page.displays = [desktop];
+    desktop.states[0] = {
+      ...desktop.states[0]!,
+      argsJson: '{"mode":"preview"}',
+      scenarioDataJson: '{"message":"Keep this composition"}',
+      status: StateStatus.CAPTURED,
+      captureId: "capture_source",
+    };
+    writeStateSpec(desktop.states[0], {
+      id: "source-root",
+      type: "page",
+      props: { css: "--accent: #cc6622" },
+      children: [],
+    });
+    mockedGet.mockResolvedValue(source);
+
+    renderWithProviders(<WorkspaceStudioPage workspaceId="ws_harbor" />);
+    await screen.findByRole("tab", { name: /Welcome/ });
+    await userEvent.click(screen.getByRole("button", { name: "Phone" }));
+    await waitFor(() => expect(mockedSave).toHaveBeenCalled(), { timeout: 3000 });
+
+    const saved = mockedSave.mock.calls[0]?.[0];
+    const phone = saved?.pages[0]?.displays.find((entry) => entry.device === DisplayDevice.PHONE);
+    expect(phone).toBeDefined();
+    if (!phone) throw new Error("New phone display was not saved");
+    expect(phone.states).toHaveLength(1);
+    const sourceState = desktop.states[0];
+    const clonedState = phone.states[0];
+    if (!clonedState) throw new Error("New phone display has no default state");
+    expect(clonedState).toMatchObject({
+      name: sourceState.name,
+      scenarioDataJson: '{"message":"Keep this composition"}',
+      status: StateStatus.DRAFT,
+      captureId: "",
+    });
+    expect(JSON.parse(clonedState.argsJson).mode).toBe("preview");
+    expect(clonedState.id).not.toBe(sourceState.id);
+    expect(readStateSpec(clonedState)).toMatchObject({
+      type: "page",
+      id: expect.not.stringMatching(/^source-root$/),
+      props: { css: "--accent: #cc6622" },
+    });
   });
 
   it("stops at a conflict instead of overwriting the other writer", async () => {
@@ -232,9 +535,7 @@ describe("WorkspaceStudioPage", () => {
     }
 
     await userEvent.click(screen.getByRole("button", { name: /Remove hero\.png/ }));
-    await waitFor(() =>
-      expect(mockedDeleteAsset).toHaveBeenCalledWith("ws_harbor", "asset_hero"),
-    );
+    await waitFor(() => expect(mockedDeleteAsset).toHaveBeenCalledWith("ws_harbor", "asset_hero"));
   });
 
   it("applies an AI proposal to the active state as one undoable save", async () => {
@@ -306,9 +607,7 @@ describe("WorkspaceStudioPage", () => {
     });
     renderWithProviders(<WorkspaceStudioPage workspaceId="ws_harbor" />);
 
-    expect(
-      await screen.findByRole("status", { name: /Curated template/i }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("status", { name: /Curated template/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Save workspace/ })).toBeDisabled();
     // Editing panes are inert; the canvas stays inspectable so the template can
     // be judged before forking.
@@ -317,6 +616,111 @@ describe("WorkspaceStudioPage", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /Fork to edit/ }));
     await waitFor(() => expect(mockedFork).toHaveBeenCalledWith("ws_harbor"));
+  });
+
+  it("explains that an EX9 capture is evidence beside an editable draft", async () => {
+    mockedGet.mockResolvedValue({
+      ...workspace,
+      tags: ["ex9-capture", "editable-reference"],
+      summary: "EX9 capture demo /incidents · build build-1 · viewport 1280×720",
+    });
+    renderWithProviders(<WorkspaceStudioPage workspaceId="ws_harbor" />);
+
+    expect(await screen.findByText(/EX9 capture demo \/incidents/)).toBeInTheDocument();
+    expect(screen.getByText(/L0 screenshot is captured evidence/i)).toBeInTheDocument();
+    expect(screen.getByText(/draft, not a composited screenshot/i)).toBeInTheDocument();
+  });
+
+  it("keeps the design brief visible while the page is being edited", async () => {
+    mockedGet.mockResolvedValue({
+      ...workspace,
+      tags: ["design-brief"],
+      summary: "Purpose: Review incidents · Target user: On-call engineer · Main action: Assign an incident",
+    });
+    renderWithProviders(<WorkspaceStudioPage workspaceId="ws_harbor" />);
+
+    expect(await screen.findByRole("status", { name: "Design brief" })).toBeInTheDocument();
+    expect(
+      screen.getByText(/Purpose: Review incidents · Target user: On-call engineer/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Keep the purpose, target user, and main action in view/),
+    ).toBeInTheDocument();
+  });
+
+  it("takes a brief through App routing into the persisted Studio brief banner", async () => {
+    const curatedSummary = {
+      $typeName: "vrooli.react_component_library.v1.workspace.WorkspaceSummary" as const,
+      id: "ws_curated",
+      name: "Reviewed starter",
+      summary: "A reviewed workspace template",
+      provenance: WorkspaceProvenance.CURATED,
+      tags: [],
+      bindingScenario: "",
+      bindingPage: "",
+      pageCount: 2,
+      displayCount: 2,
+      stateCount: 2,
+      revision: 1,
+      createdAt: "2026-11-21T00:00:00Z",
+      updatedAt: "2026-11-21T00:00:00Z",
+      originWorkspaceId: "",
+    } satisfies WorkspaceSummary;
+    mockedUseWorkspaces.mockReturnValue({
+      data: [curatedSummary],
+      error: null,
+      isError: false,
+      isLoading: false,
+    } as unknown as UseQueryResult<WorkspaceSummary[]>);
+
+    const forked = {
+      ...workspace,
+      id: "ws_brief",
+      name: "Incident review",
+      summary: "",
+      tags: [],
+      revision: 1,
+      originWorkspaceId: "ws_curated",
+    };
+    const savedBrief = {
+      ...forked,
+      tags: ["design-brief"],
+      summary:
+        "Reviewed RCL workspace template ws_curated@1. Purpose: Review incidents Target user: On-call engineer Main action: Assign an incident",
+    };
+    mockedFork.mockResolvedValue(forked);
+    mockedSave.mockImplementation((next) =>
+      Promise.resolve({ ...next, revision: next.revision + 1 }),
+    );
+    mockedGet.mockImplementation((id) => Promise.resolve(id === "ws_brief" ? savedBrief : workspace));
+
+    renderWithProviders(<App />, { routerEntries: ["/design"] });
+    await screen.findByTestId("design-index-page");
+    fireEvent.change(screen.getByLabelText(i18n.t(strings.workbench.designIndex.pageName)), {
+      target: { value: "Incident review" },
+    });
+    fireEvent.change(screen.getByLabelText(i18n.t(strings.workbench.designIndex.purposeLabel)), {
+      target: { value: "Review incidents" },
+    });
+    fireEvent.change(screen.getByLabelText(i18n.t(strings.workbench.designIndex.userLabel)), {
+      target: { value: "On-call engineer" },
+    });
+    fireEvent.change(screen.getByLabelText(i18n.t(strings.workbench.designIndex.actionLabel)), {
+      target: { value: "Assign an incident" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: i18n.t(strings.workbench.designIndex.buildFromBrief) }),
+    );
+
+    expect(await screen.findByRole("status", { name: "Design brief" })).toBeInTheDocument();
+    expect(
+      screen.getByText(/Purpose: Review incidents Target user: On-call engineer Main action: Assign an incident/),
+    ).toBeInTheDocument();
+    expect(mockedFork).toHaveBeenCalledTimes(1);
+    expect(mockedSave).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "ws_brief", tags: expect.arrayContaining(["design-brief"]) }),
+      1,
+    );
   });
 
   it("reports an unavailable workspace without pretending it loaded", async () => {

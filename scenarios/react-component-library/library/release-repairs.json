@@ -50,6 +50,13 @@
       "repairedSha256": "9654f9de4c8d480eb472933c2f73b8ad0adef05a8e666eb4a93b8ee25253eec8",
       "reason": "Story companion edited with OverlayActionBar.tsx; it describes the bytes that shipped later.",
       "recordedAt": "2026-11-19"
+    },
+    {
+      "path": "components/region-correction-provider/versions/0.1.0-draft.1/RegionCorrectionProvider.tsx",
+      "publishedSha256": "82475451d9a6d5be001668ac9dcf9ffdba1a844f7aeb3fc632cd167377a152f2",
+      "repairedSha256": "593f121074c559855b067a39cee8461648b1ca4cc1f0120a9aab89141b3e4cc8",
+      "reason": "Reviewed correction: the provider now treats host evidence as untrusted input, rejects evidence captured against a stale page build, and verifies the durable private-queue receipt before reporting submission success. Component tests cover malformed evidence, stale evidence, and receipt identity/payload. Preserve the original published digest and authorize only this exact corrected file.",
+      "recordedAt": "2026-11-21"
     }
   ]
 }

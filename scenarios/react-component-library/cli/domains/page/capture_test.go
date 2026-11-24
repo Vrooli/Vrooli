@@ -17,7 +17,21 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/cli-core/cliapp"
+	"react-component-library/cli/internal/runtimeenv"
 )
+
+type fixedClock time.Time
+
+func (clock fixedClock) Now() time.Time { return time.Time(clock) }
+
+type testEnvironment map[string]string
+
+func (environment testEnvironment) LookupEnv(key string) (string, bool) {
+	value, ok := environment[key]
+	return value, ok
+}
+
+var captureTestTime = time.Date(2026, time.November, 20, 12, 34, 56, 0, time.UTC)
 
 // fakeBAS serves the ux-capture HTTP surface. Dark captures return the same
 // pixels as light unless darkDiffers; blankPhone makes the phone view fail L0
@@ -99,9 +113,15 @@ func runCapture(t *testing.T, server *httptest.Server, args ...string) (string, 
 		return map[string]int{"UI_PORT": 1}, "2026-11-15T00:00:00Z", nil
 	}
 	t.Cleanup(func() { scenarioPorts = previousPorts })
-	h := captureHandlers{bas: func(context.Context) (basClient, error) {
-		return basClient{base: server.URL, http: server.Client()}, nil
-	}}
+	h := captureHandlers{
+		bas: func(context.Context) (basClient, error) {
+			return basClient{base: server.URL, http: server.Client()}, nil
+		},
+		deps: runtimeenv.Dependencies{
+			Clock:       fixedClock(captureTestTime),
+			Environment: testEnvironment{},
+		},
+	}
 	out := filepath.Join(t.TempDir(), "bundle")
 	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "scenario"}, {Name: "route"}, {Name: "step", Repeated: true}, {Name: "wait-selector"}, {Name: "url"}, {Name: "file"}, {Name: "views"}, {Name: "themes"}, {Name: "out"}}}
 	rc, err := cliapp.NewTestRunContextFromArgs(schema, append(args, "--out", out), nil, &bytes.Buffer{}, &bytes.Buffer{})
@@ -117,6 +137,8 @@ func TestCaptureWritesOneBundleWithEveryViewAndAnHonestThemeReport(t *testing.T)
 	require.NoError(t, err)
 	require.NoError(t, json.Unmarshal(raw, &set))
 	require.Equal(t, captureSetSchema, set.Schema)
+	require.Equal(t, captureTestTime.Format(time.RFC3339), set.CapturedAt)
+	require.Contains(t, set.ID, "20261120-123456")
 	require.True(t, strings.HasPrefix(set.ID, "uxc-image-tools-"))
 	require.Equal(t, "2026-11-15T00:00:00Z", set.Build["served_since"])
 	require.Len(t, set.Views, 4)
@@ -135,6 +157,17 @@ func TestCaptureWritesOneBundleWithEveryViewAndAnHonestThemeReport(t *testing.T)
 	require.Less(t, strings.Index(string(outline), "`n1`"), strings.Index(string(outline), "`n2`"), "outline reads top to bottom")
 }
 
+func TestCaptureAmbientEnvironmentIsInjectable(t *testing.T) {
+	environment := testEnvironment{
+		"RCL_BAS_API_BASE":    "https://bas.example.test/",
+		"RCL_UX_CAPTURE_ROOT": "/tmp/rcl-captures",
+	}
+	client, err := newBASClient(context.Background(), environment)
+	require.NoError(t, err)
+	require.Equal(t, "https://bas.example.test", client.base)
+	require.Equal(t, "/tmp/rcl-captures", captureRoot(environment))
+}
+
 func TestCaptureFailsWhenAViewHasNoUsablePixels(t *testing.T) {
 	out, err := runCapture(t, fakeBAS(t, true, true), "--scenario", "image-tools")
 	require.Error(t, err)
@@ -151,6 +184,142 @@ func TestParseViewsAcceptsPresetsAndSizes(t *testing.T) {
 	require.Equal(t, []view{{Name: "phone", Width: 390, Height: 844}, {Name: "1440x900", Width: 1440, Height: 900}}, views)
 	_, err = parseViews("watch")
 	require.Error(t, err)
+}
+
+func TestRedactedCaptureURLPreservesPublicIdentityAndRedactsSecrets(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  string
+		want string
+		ok   bool
+	}{
+		{name: "credentials rejected", raw: "https://user:secret@example.test/path?token=secret", ok: false},
+		{name: "relative URL rejected", raw: "/path?token=secret", ok: false},
+		{name: "unsupported scheme rejected", raw: "ftp://example.test/file", ok: false},
+		{name: "host required", raw: "https:///path", ok: false},
+		{name: "query and fragment redacted", raw: "https://example.test/path?token=secret&mode=full#private", want: "https://example.test/path?mode=%5BREDACTED%5D&token=%5BREDACTED%5D#%5BREDACTED%5D", ok: true},
+		{name: "empty query kept empty", raw: "http://example.test/path", want: "http://example.test/path", ok: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got, ok := redactedCaptureURL(test.raw)
+			require.Equal(t, test.ok, ok)
+			require.Equal(t, test.want, got)
+			if ok {
+				require.NotContains(t, got, "secret")
+				require.NotContains(t, got, "private")
+			}
+		})
+	}
+}
+
+func runRender(t *testing.T, server *httptest.Server, file string, args ...string) (string, error) {
+	t.Helper()
+	stdout := &bytes.Buffer{}
+	h := captureHandlers{bas: func(context.Context) (basClient, error) {
+		return basClient{base: server.URL, http: server.Client()}, nil
+	}}
+	schema := cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "file"}}, Flags: []cliapp.Flag{{Name: "views"}, {Name: "themes"}, {Name: "out"}}}
+	rc, err := cliapp.NewTestRunContextFromArgs(schema, append([]string{file}, args...), nil, stdout, &bytes.Buffer{})
+	require.NoError(t, err)
+	err = h.render(rc)
+	return stdout.String(), err
+}
+
+func renderBAS(t *testing.T, l0Status string) *httptest.Server {
+	t.Helper()
+	pixels := []byte("rendered pixels")
+	digest := sha256.Sum256(pixels)
+	var captureCount int
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			w.Header().Set("Content-Type", "image/png")
+			_, _ = w.Write(pixels)
+			return
+		}
+		var request map[string]any
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&request))
+		captureCount++
+		id := "00000000-0000-4000-8000-00000000000" + strconv.Itoa(captureCount)
+		l0 := map[string]string{"status": l0Status}
+		if l0Status != "present" {
+			l0["reason"] = "fixture has no usable pixels"
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"manifest": map[string]any{
+			"schema_version": "ux-capture.v1", "id": id,
+			"source":    map[string]any{"kind": "file", "filename": request["filename"]},
+			"session":   map[string]any{"id": "00000000-0000-4000-8000-000000000100"},
+			"viewport":  map[string]any{"width": request["width"], "height": request["height"]},
+			"theme":     request["theme"],
+			"privacy":   map[string]any{"redaction_status": "complete", "external": false, "ephemeral": false},
+			"lenses":    map[string]any{"L0": l0, "L1": map[string]string{"status": "present"}, "L2": map[string]string{"status": "present"}, "L3": map[string]string{"status": "absent", "reason": "fixture"}, "L4": map[string]string{"status": "absent", "reason": "fixture"}, "L5": map[string]string{"status": "absent", "reason": "fixture"}, "L6": map[string]string{"status": "absent", "reason": "fixture"}},
+			"artifacts": []map[string]any{{"kind": "pixels", "path": "pixels/p.png", "size_bytes": len(pixels), "sha256": hex.EncodeToString(digest[:])}},
+		}})
+	}))
+}
+
+func TestRenderWritesVerifiedPixelsForEachViewAndTheme(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "proposal.html")
+	require.NoError(t, os.WriteFile(file, []byte("<html>proposal</html>"), 0o600))
+	server := renderBAS(t, "present")
+	defer server.Close()
+	outPrefix := filepath.Join(dir, "verified")
+	stdout, err := runRender(t, server, file, "--views", "phone,desktop", "--themes", "light,dark", "--out", outPrefix)
+	require.NoError(t, err)
+	for _, suffix := range []string{"phone-light", "phone-dark", "desktop-light", "desktop-dark"} {
+		require.Equal(t, "rendered pixels", readFileString(t, outPrefix+"."+suffix+".png"))
+		require.Contains(t, stdout, outPrefix+"."+suffix+".png (BAS bundle ")
+	}
+}
+
+func TestRenderReportsUnusablePixelsAndContinuesOtherViews(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "proposal.html")
+	require.NoError(t, os.WriteFile(file, []byte("<html>proposal</html>"), 0o600))
+	server := renderBAS(t, "absent")
+	defer server.Close()
+	_, err := runRender(t, server, file, "--views", "phone,desktop")
+	require.ErrorContains(t, err, "render failed:")
+	require.ErrorContains(t, err, "phone-light: L0 absent: fixture has no usable pixels")
+	require.ErrorContains(t, err, "desktop-light: L0 absent: fixture has no usable pixels")
+	require.NoFileExists(t, filepath.Join(dir, "proposal.phone-light.png"))
+}
+
+func TestRenderValidatesInputBeforeCallingBAS(t *testing.T) {
+	server := renderBAS(t, "present")
+	defer server.Close()
+	dir := t.TempDir()
+	file := filepath.Join(dir, "proposal.html")
+	require.NoError(t, os.WriteFile(file, []byte("<html>proposal</html>"), 0o600))
+
+	_, err := runRender(t, server, filepath.Join(dir, "missing.html"))
+	require.ErrorContains(t, err, "no such file")
+	_, err = runRender(t, server, file, "--views", "watch")
+	require.ErrorContains(t, err, `view "watch"`)
+	_, err = runRender(t, server, file, "--themes", "auto")
+	require.ErrorContains(t, err, `theme "auto"`)
+}
+
+func TestRenderAggregatesBASCaptureFailures(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "browser unavailable", http.StatusBadGateway)
+	}))
+	defer server.Close()
+	dir := t.TempDir()
+	file := filepath.Join(dir, "proposal.html")
+	require.NoError(t, os.WriteFile(file, []byte("<html>proposal</html>"), 0o600))
+
+	_, err := runRender(t, server, file)
+	require.ErrorContains(t, err, "render failed:")
+	require.ErrorContains(t, err, "BAS capture HTTP 502: browser unavailable")
+}
+
+func readFileString(t *testing.T, path string) string {
+	t.Helper()
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+	return string(content)
 }
 
 func TestCaptureManifestRejectsCrossScenarioIdentity(t *testing.T) {

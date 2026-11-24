@@ -60,7 +60,7 @@ serving pool remains available to health and workbench RPCs.
 
 Evidence is retained under:
 
-`/home/matthalloran8/.vrooli/plan-artifacts/react-component-library-one-asset-one-verdict/`
+`~/.vrooli/plan-artifacts/react-component-library-one-asset-one-verdict/`
 
 | Check | Result | Evidence |
 | --- | --- | --- |
@@ -167,4 +167,4 @@ I27 = 1.0047 remains an honest non-blocking machinery-ceiling follow-up.
 - [Asset update flow](../guides/asset-update-flow.md)
 - [Asset derivation](ASSET-DERIVATION.md)
 - [Architecture](ARCHITECTURE.md)
-- Plan artifacts: `/home/matthalloran8/.vrooli/plan-artifacts/react-component-library-one-asset-one-verdict/`
+- Plan artifacts: `~/.vrooli/plan-artifacts/react-component-library-one-asset-one-verdict/`

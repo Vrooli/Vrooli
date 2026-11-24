@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	intakeconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/adoptionintake/adoptionintake_v1connect"
 	adoptionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/adoptions"
 	adoptionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/adoptions/adoptions_v1connect"
 
@@ -32,11 +33,74 @@ func TestLinkedImportPresentRecognizesPackageAdoption(t *testing.T) {
 	require.False(t, linkedImportPresent(root, "./Dialog/1.3.7"))
 }
 
+func TestResolveDurableFilesUsesTemplateAndScenarioOverrides(t *testing.T) {
+	root := t.TempDir()
+	scenario := "sample"
+	write := func(path, body string) {
+		t.Helper()
+		full := filepath.Join(root, filepath.FromSlash(path))
+		require.NoError(t, os.MkdirAll(filepath.Dir(full), 0o755))
+		require.NoError(t, os.WriteFile(full, []byte(body), 0o600))
+	}
+	write("scenarios/sample/.vrooli/service.json", `{"generation":{"template":{"id":"react-vite"}}}`)
+	write("templates/scenarios/react-vite/ui/manifest.json", `{"files":{"designTokens":{"path":"src/theme/{locale}/tokens.css"},"appEntry":{"path":"src/main.tsx"},"unknown":{"path":"ignored"}}}`)
+	write("scenarios/sample/.vrooli/ui-manifest.json", `{"files":{"designTokens":{"path":"src/theme/fr/tokens.css"},"selectorRegistry":{"path":"src/selectors.ts"}}}`)
+
+	got := resolveDurableFiles(root, scenario)
+	require.Equal(t, "src/theme/fr/tokens.css", got["designTokens"])
+	require.Equal(t, "src/main.tsx", got["appEntry"])
+	require.Equal(t, "ui/src/consts/selectors.library.ts", got["librarySelectors"])
+	require.Equal(t, "src/selectors.ts", got["selectorRegistry"])
+	require.NotContains(t, got, "unknown")
+}
+
+func TestResolveDurableFilesFallsBackOnMissingOrInvalidMetadata(t *testing.T) {
+	want := map[string]string{"designTokens": "ui/src/design-tokens.css", "librarySelectors": "ui/src/consts/selectors.library.ts", "selectorRegistry": "ui/src/consts/selectors.ts", "appEntry": "ui/src/main.tsx"}
+	for _, setup := range []func(*testing.T, string){
+		func(*testing.T, string) {},
+		func(t *testing.T, root string) {
+			path := filepath.Join(root, "scenarios/sample/.vrooli/service.json")
+			require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+			require.NoError(t, os.WriteFile(path, []byte("{"), 0o600))
+		},
+	} {
+		root := t.TempDir()
+		setup(t, root)
+		require.Equal(t, want, resolveDurableFiles(root, "sample"))
+	}
+}
+
+func TestStringsProviderWiredRequiresProviderMarker(t *testing.T) {
+	root := t.TempDir()
+	entry := filepath.Join(root, "main.tsx")
+	require.False(t, stringsProviderWired(entry))
+	require.NoError(t, os.WriteFile(entry, []byte("export function App() {}"), 0o600))
+	require.False(t, stringsProviderWired(entry))
+	require.NoError(t, os.WriteFile(entry, []byte("// vrooli:library-strings-provider start\n<App />"), 0o600))
+	require.True(t, stringsProviderWired(entry))
+}
+
+func TestFindRepoRootFromScenarioCLI(t *testing.T) {
+	root, err := findRepoRoot()
+	require.NoError(t, err)
+	require.DirExists(t, filepath.Join(root, "scenarios", "react-component-library", "api"))
+}
+
 type adoptionsService struct {
 	mu                sync.Mutex
 	listResp          *adoptionsv1.ListAdoptionsResponse
 	listScenariosResp *adoptionsv1.ListScenariosResponse
 	effectiveResp     *adoptionsv1.ListEffectiveAdoptionsResponse
+	effectiveReq      *adoptionsv1.ListEffectiveAdoptionsRequest
+	preflightReq      *adoptionsv1.PreflightAdoptionRequest
+	preflightResp     *adoptionsv1.PreflightAdoptionResponse
+	syncResp          *adoptionsv1.SyncScenarioTokensResponse
+	pruneReq          *adoptionsv1.PruneScenarioTokensRequest
+	pruneResp         *adoptionsv1.PruneScenarioTokensResponse
+	linkReq           *adoptionsv1.LinkAdoptionRequest
+	linkResp          *adoptionsv1.LinkAdoptionResponse
+	batchReq          *adoptionsv1.BatchApplyAdoptionsRequest
+	batchResp         *adoptionsv1.BatchApplyAdoptionsResponse
 	applyResp         *adoptionsv1.ApplyAdoptionResponse
 	reapplyResp       *adoptionsv1.ReapplyAdoptionResponse
 	deleteResp        *adoptionsv1.DeleteAdoptionResponse
@@ -101,30 +165,46 @@ func (s *adoptionsService) ListScenarios(_ context.Context, req *connect.Request
 	return connect.NewResponse(s.listScenariosResp), nil
 }
 
-func (s *adoptionsService) ListEffectiveAdoptions(_ context.Context, _ *connect.Request[adoptionsv1.ListEffectiveAdoptionsRequest]) (*connect.Response[adoptionsv1.ListEffectiveAdoptionsResponse], error) {
+func (s *adoptionsService) ListEffectiveAdoptions(_ context.Context, req *connect.Request[adoptionsv1.ListEffectiveAdoptionsRequest]) (*connect.Response[adoptionsv1.ListEffectiveAdoptionsResponse], error) {
+	s.effectiveReq = req.Msg
 	if s.effectiveResp == nil {
 		s.effectiveResp = &adoptionsv1.ListEffectiveAdoptionsResponse{}
 	}
 	return connect.NewResponse(s.effectiveResp), nil
 }
 
-func (s *adoptionsService) PreflightAdoption(_ context.Context, _ *connect.Request[adoptionsv1.PreflightAdoptionRequest]) (*connect.Response[adoptionsv1.PreflightAdoptionResponse], error) {
-	return connect.NewResponse(&adoptionsv1.PreflightAdoptionResponse{ComponentId: "cmp-btn", Scenario: "swarm-manager", Version: "1.0.0"}), nil
+func (s *adoptionsService) PreflightAdoption(_ context.Context, req *connect.Request[adoptionsv1.PreflightAdoptionRequest]) (*connect.Response[adoptionsv1.PreflightAdoptionResponse], error) {
+	s.preflightReq = req.Msg
+	if s.preflightResp == nil {
+		s.preflightResp = &adoptionsv1.PreflightAdoptionResponse{ComponentId: "cmp-btn", Scenario: "swarm-manager", Version: "1.0.0"}
+	}
+	return connect.NewResponse(s.preflightResp), nil
 }
 
 func (s *adoptionsService) SyncScenarioTokens(_ context.Context, req *connect.Request[adoptionsv1.SyncScenarioTokensRequest]) (*connect.Response[adoptionsv1.SyncScenarioTokensResponse], error) {
 	s.mu.Lock()
 	s.tokenSyncReqs = append(s.tokenSyncReqs, req.Msg)
 	s.mu.Unlock()
-	return connect.NewResponse(&adoptionsv1.SyncScenarioTokensResponse{}), nil
+	if s.syncResp == nil {
+		s.syncResp = &adoptionsv1.SyncScenarioTokensResponse{}
+	}
+	return connect.NewResponse(s.syncResp), nil
 }
 
-func (s *adoptionsService) PruneScenarioTokens(_ context.Context, _ *connect.Request[adoptionsv1.PruneScenarioTokensRequest]) (*connect.Response[adoptionsv1.PruneScenarioTokensResponse], error) {
-	return connect.NewResponse(&adoptionsv1.PruneScenarioTokensResponse{}), nil
+func (s *adoptionsService) PruneScenarioTokens(_ context.Context, req *connect.Request[adoptionsv1.PruneScenarioTokensRequest]) (*connect.Response[adoptionsv1.PruneScenarioTokensResponse], error) {
+	s.pruneReq = req.Msg
+	if s.pruneResp == nil {
+		s.pruneResp = &adoptionsv1.PruneScenarioTokensResponse{}
+	}
+	return connect.NewResponse(s.pruneResp), nil
 }
 
-func (s *adoptionsService) LinkAdoption(_ context.Context, _ *connect.Request[adoptionsv1.LinkAdoptionRequest]) (*connect.Response[adoptionsv1.LinkAdoptionResponse], error) {
-	return connect.NewResponse(&adoptionsv1.LinkAdoptionResponse{Adoption: sampleAdoption(), PackagePath: "file:../../../packages/react-component-library"}), nil
+func (s *adoptionsService) LinkAdoption(_ context.Context, req *connect.Request[adoptionsv1.LinkAdoptionRequest]) (*connect.Response[adoptionsv1.LinkAdoptionResponse], error) {
+	s.linkReq = req.Msg
+	if s.linkResp == nil {
+		s.linkResp = &adoptionsv1.LinkAdoptionResponse{Adoption: sampleAdoption(), PackagePath: "file:../../../packages/react-component-library"}
+	}
+	return connect.NewResponse(s.linkResp), nil
 }
 
 func (s *adoptionsService) EjectAdoption(_ context.Context, _ *connect.Request[adoptionsv1.EjectAdoptionRequest]) (*connect.Response[adoptionsv1.EjectAdoptionResponse], error) {
@@ -141,8 +221,12 @@ func (s *adoptionsService) ApplyAdoption(_ context.Context, req *connect.Request
 	return connect.NewResponse(s.applyResp), nil
 }
 
-func (s *adoptionsService) BatchApplyAdoptions(_ context.Context, _ *connect.Request[adoptionsv1.BatchApplyAdoptionsRequest]) (*connect.Response[adoptionsv1.BatchApplyAdoptionsResponse], error) {
-	return connect.NewResponse(&adoptionsv1.BatchApplyAdoptionsResponse{}), nil
+func (s *adoptionsService) BatchApplyAdoptions(_ context.Context, req *connect.Request[adoptionsv1.BatchApplyAdoptionsRequest]) (*connect.Response[adoptionsv1.BatchApplyAdoptionsResponse], error) {
+	s.batchReq = req.Msg
+	if s.batchResp == nil {
+		s.batchResp = &adoptionsv1.BatchApplyAdoptionsResponse{}
+	}
+	return connect.NewResponse(s.batchResp), nil
 }
 
 func (s *adoptionsService) ReapplyAdoption(_ context.Context, req *connect.Request[adoptionsv1.ReapplyAdoptionRequest]) (*connect.Response[adoptionsv1.ReapplyAdoptionResponse], error) {
@@ -229,8 +313,10 @@ func (s *adoptionsService) SuggestAdoptions(_ context.Context, req *connect.Requ
 func connectAPI(t *testing.T, svc *adoptionsService) http.Handler {
 	t.Helper()
 	path, handler := adoptionsconnect.NewAdoptionsServiceHandler(svc)
+	intakePath, intakeHandler := intakeconnect.NewAdoptionIntakeServiceHandler(svc)
 	mux := http.NewServeMux()
 	mux.Handle(path, handler)
+	mux.Handle(intakePath, intakeHandler)
 	return mux
 }
 
@@ -283,12 +369,110 @@ func TestTokensSync_ForwardsCandidateAndVersion(t *testing.T) {
 		Positionals: map[string]string{"scenario": "system-monitor"},
 		Flags:       map[string]string{"dry-run": "true", "candidate": "react-component-library:Chart", "version": "1.0.12"},
 	})
-	require.NoError(t, h.syncTokens(ctx))
+	_, err := h.syncTokensCall(ctx)
+	require.NoError(t, err)
 	require.Len(t, svc.tokenSyncReqs, 1)
 	require.Equal(t, "system-monitor", svc.tokenSyncReqs[0].Scenario)
 	require.True(t, svc.tokenSyncReqs[0].DryRun)
 	require.Equal(t, "react-component-library:Chart", svc.tokenSyncReqs[0].CandidateComponentId)
 	require.Equal(t, "1.0.12", svc.tokenSyncReqs[0].CandidateVersion)
+}
+
+func TestListEffectiveForwardsFiltersAndOmitsRowsWithoutParent(t *testing.T) {
+	svc := &adoptionsService{effectiveResp: &adoptionsv1.ListEffectiveAdoptionsResponse{Adoptions: []*adoptionsv1.EffectiveAdoption{
+		{SourceLibraryId: "rcl:Button", SourceVersion: "1.2.0", ParentAdoption: sampleAdoption()},
+		{SourceLibraryId: "rcl:Input", SourceVersion: "2.0.0", Mediated: true, ParentAdoption: &adoptionsv1.Adoption{Id: "parent-2", Scenario: "web-console"}},
+		{SourceLibraryId: "orphan", SourceVersion: "0.1.0"},
+	}}}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
+	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "component-id"}}, Flags: []cliapp.Flag{{Name: "limit"}}}, cliapptest.TestRunContextOptions{Positionals: map[string]string{"component-id": "catalog.asset"}, Flags: map[string]string{"limit": "17"}})
+	msg, err := newHandlers(core).listEffectiveCall(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "catalog.asset", svc.effectiveReq.ComponentId)
+	require.Equal(t, int32(17), svc.effectiveReq.Limit)
+	require.NoError(t, ctx.RenderList(newHandlers(core).listEffectiveReport(ctx, msg)))
+	require.Contains(t, out.String(), "Found 2 effective adoption(s).")
+	require.Contains(t, out.String(), "direct rcl:Button@1.2.0 via swarm-manager (ad-1)")
+	require.Contains(t, out.String(), "indirect rcl:Input@2.0.0 via web-console (parent-2)")
+	require.NotContains(t, out.String(), "orphan")
+}
+
+func TestPreflightCallForwardsInputsAndReportRendersWarnings(t *testing.T) {
+	svc := &adoptionsService{preflightResp: &adoptionsv1.PreflightAdoptionResponse{
+		ComponentId: "rcl:Button", Scenario: "web-console", Version: "1.4.0", Blocking: true,
+		RequiredTokens: []string{"color.primary"}, RequiredTokenPatterns: []string{"space.*"}, UnsatisfiedTokens: []string{"color.secondary"},
+		VersionStatus: "behind", MaturityRung: "R2", MaturityFloor: "R1", I18NVerdict: "pass", SelectorVerdict: "pass", Warnings: []string{"manual review required"},
+	}}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
+	h := newHandlers(core)
+	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "component-id"}, {Name: "scenario"}}, Flags: []cliapp.Flag{{Name: "version"}}}, cliapptest.TestRunContextOptions{Positionals: map[string]string{"component-id": "rcl:Button", "scenario": "web-console"}, Flags: map[string]string{"version": "1.4.0"}})
+	msg, err := h.preflightCall(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "rcl:Button", svc.preflightReq.ComponentId)
+	require.Equal(t, "web-console", svc.preflightReq.Scenario)
+	require.Equal(t, "1.4.0", svc.preflightReq.Version)
+	require.NoError(t, ctx.RenderList(h.preflightReport(ctx, msg)))
+	require.Contains(t, out.String(), "UNSATISFIED color.secondary")
+	require.Contains(t, out.String(), "manual review required")
+}
+
+func TestSyncAndPruneTokenCommandsRenderChangedSummaries(t *testing.T) {
+	svc := &adoptionsService{
+		syncResp:  &adoptionsv1.SyncScenarioTokensResponse{Scenario: "web-console", Added: []string{"color.primary"}, Changed: true},
+		pruneResp: &adoptionsv1.PruneScenarioTokensResponse{Scenario: "web-console", Removed: []string{"color.legacy"}, Retained: []string{"color.primary"}, Changed: true},
+	}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
+	h := newHandlers(core)
+	schema := cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "scenario"}}, Flags: []cliapp.Flag{{Name: "dry-run"}, {Name: "apply"}, {Name: "candidate"}, {Name: "version"}}}
+	ctx, out := cliapptest.NewCapturedRunContext(core, schema, cliapptest.TestRunContextOptions{Positionals: map[string]string{"scenario": "web-console"}, Flags: map[string]string{"dry-run": "false", "apply": "true", "candidate": "rcl:Button", "version": "1.2.0"}})
+	syncMsg, err := h.syncTokensCall(ctx)
+	require.NoError(t, err)
+	require.NoError(t, h.syncTokensHuman(ctx, syncMsg))
+	pruneMsg, err := h.pruneTokensCall(ctx)
+	require.NoError(t, err)
+	require.NoError(t, h.pruneTokensHuman(ctx, pruneMsg))
+	require.Equal(t, "web-console", svc.pruneReq.Scenario)
+	require.True(t, svc.pruneReq.Apply)
+	require.Contains(t, out.String(), "Token sync for web-console: added=1 changed=true")
+	require.Contains(t, out.String(), "color.primary")
+	require.Contains(t, out.String(), "Token prune for web-console: removed=1 changed=true")
+	require.Contains(t, out.String(), "color.legacy")
+}
+
+func TestLinkCallForwardsOptionsAndBuildsMutationReport(t *testing.T) {
+	svc := &adoptionsService{}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
+	h := newHandlers(core)
+	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "component-id"}, {Name: "scenario"}}, Flags: []cliapp.Flag{{Name: "version"}, {Name: "import-subpath"}, {Name: "confirm-existing"}}}, cliapptest.TestRunContextOptions{
+		Positionals: map[string]string{"component-id": "rcl:Button", "scenario": "web-console"},
+		Flags:       map[string]string{"version": "1.2.0", "import-subpath": "./Button/1.2.0", "confirm-existing": "true"},
+	})
+	msg, err := h.linkCall(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "rcl:Button", svc.linkReq.ComponentId)
+	require.Equal(t, "web-console", svc.linkReq.Scenario)
+	require.Equal(t, "1.2.0", svc.linkReq.Version)
+	require.Equal(t, "./Button/1.2.0", svc.linkReq.ImportSubpath)
+	require.True(t, svc.linkReq.ConfirmExisting)
+	report := h.linkReport(ctx, msg)
+	require.Contains(t, report.Result[0], "Linked ad-1 through file:")
+	require.Contains(t, report.Changes[0], "rcl:Button")
+}
+
+func TestBatchApplyForwardsItemsAndReportsOnlySuccessfulRows(t *testing.T) {
+	svc := &adoptionsService{batchResp: &adoptionsv1.BatchApplyAdoptionsResponse{
+		Results:            []*adoptionsv1.BatchApplyItemResult{{Adoption: sampleAdoption()}, {Adoption: nil}},
+		SharedDependencies: []string{"ui/src/shared.ts"},
+	}}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
+	h := newHandlers(core)
+	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{}, cliapptest.TestRunContextOptions{})
+	items := []*adoptionsv1.BatchApplyItem{{ComponentId: "rcl:Button", Scenario: "web-console", AdoptedPath: "ui/Button.tsx", Version: "1.2.0"}}
+	require.NoError(t, h.batchApply(ctx, items))
+	require.Len(t, svc.batchReq.Items, 1)
+	require.Equal(t, "ui/Button.tsx", svc.batchReq.Items[0].AdoptedPath)
+	require.Contains(t, out.String(), "Batch-applied 1 adoption(s); shared dependencies=1.")
+	require.Contains(t, out.String(), "rcl:Button")
 }
 
 func TestPreflightReportGuidesMissingCatalogEvidence(t *testing.T) {

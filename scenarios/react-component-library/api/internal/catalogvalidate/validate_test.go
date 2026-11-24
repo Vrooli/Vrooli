@@ -147,10 +147,7 @@ func TestVacuousAllowlistAcceptsEvictedContract(t *testing.T) {
 }
 
 func TestLiveCatalogValidation(t *testing.T) {
-	root, err := filepath.Abs(filepath.Join("..", "..", "..", "..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
+	root := scenarioRoot(t)
 	findings, err := New(root).Validate()
 	if err != nil {
 		t.Fatal(err)
@@ -161,10 +158,7 @@ func TestLiveCatalogValidation(t *testing.T) {
 }
 
 func TestLiveCatalogHasTypedFloorAndNoGateExtensions(t *testing.T) {
-	root, err := filepath.Abs(filepath.Join("..", "..", "..", "..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
+	root := scenarioRoot(t)
 	data, err := os.ReadFile(filepath.Join(root, "scenarios", "react-component-library", "catalog", "config.json"))
 	if err != nil {
 		t.Fatal(err)
@@ -186,6 +180,11 @@ func TestLiveCatalogHasTypedFloorAndNoGateExtensions(t *testing.T) {
 			}
 		}
 	}
+}
+
+func scenarioRoot(t *testing.T) string {
+	t.Helper()
+	return filepath.Join("..", "..", "..", "..", "..")
 }
 
 func TestCatalogSchemaRejectsMisspelledFloor(t *testing.T) {
@@ -258,10 +257,7 @@ func TestCatalogSchemaRequiresGateBlockingAndRunner(t *testing.T) {
 }
 
 func TestCalibrationCoverageMatchesGates(t *testing.T) {
-	root, err := filepath.Abs(filepath.Join("..", "..", "..", "..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
+	root := scenarioRoot(t)
 	configData, err := os.ReadFile(filepath.Join(root, "scenarios", "react-component-library", "catalog", "config.json"))
 	if err != nil {
 		t.Fatal(err)

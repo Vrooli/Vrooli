@@ -75,6 +75,12 @@ type usageContractFleetReport struct {
 		} `json:"comparisons"`
 		Failures []string `json:"failures"`
 	} `json:"ratchet"`
+	CatalogCoverage struct {
+		Status     string   `json:"status"`
+		Eligible   int      `json:"eligible"`
+		Contracted int      `json:"contracted"`
+		Errors     []string `json:"errors"`
+	} `json:"catalogCoverage"`
 	Findings []struct {
 		File    string `json:"file"`
 		Line    int    `json:"line"`
@@ -383,9 +389,11 @@ func (h *sharedHandler) validateConsumerContractFleet(ctx context.Context, req *
 			Assessment: assessment, FailureClassification: "system", Metrics: collector.Stop(),
 		}), nil
 	}
-	validReport := report.Fleet.Scenarios > 0 && report.Fleet.Files > 0 && report.Fleet.ByContract != nil && report.Findings != nil && strings.TrimSpace(report.Ratchet.Baseline) != "" && report.Ratchet.Comparisons != nil && report.Ratchet.Failures != nil && (report.Ratchet.Status == "passed" || report.Ratchet.Status == "failed")
-	if !validReport || (commandErr == nil && report.Ratchet.Status != "passed") || (commandErr != nil && report.Ratchet.Status != "failed") {
-		message := fmt.Sprintf("Fleet contract scan returned an inconsistent or incomplete report (scenarios=%d files=%d ratchet=%q baseline=%q, command error=%v)", report.Fleet.Scenarios, report.Fleet.Files, report.Ratchet.Status, report.Ratchet.Baseline, commandErr)
+	validCoverageStatus := report.CatalogCoverage.Status == "passed" || report.CatalogCoverage.Status == "failed" || report.CatalogCoverage.Status == "not-evaluated"
+	validReport := report.Fleet.Scenarios > 0 && report.Fleet.Files > 0 && report.Fleet.ByContract != nil && report.Findings != nil && strings.TrimSpace(report.Ratchet.Baseline) != "" && report.Ratchet.Comparisons != nil && report.Ratchet.Failures != nil && (report.Ratchet.Status == "passed" || report.Ratchet.Status == "failed") && validCoverageStatus && report.CatalogCoverage.Eligible > 0 && report.CatalogCoverage.Errors != nil
+	reportedFailure := report.Ratchet.Status == "failed" || report.CatalogCoverage.Status == "failed"
+	if !validReport || (commandErr == nil && reportedFailure) || (commandErr != nil && !reportedFailure) {
+		message := fmt.Sprintf("Fleet contract scan returned an inconsistent or incomplete report (scenarios=%d files=%d ratchet=%q baseline=%q catalog coverage=%q %d/%d, command error=%v)", report.Fleet.Scenarios, report.Fleet.Files, report.Ratchet.Status, report.Ratchet.Baseline, report.CatalogCoverage.Status, report.CatalogCoverage.Contracted, report.CatalogCoverage.Eligible, commandErr)
 		assessment := consumerContractAssessment(req.GetScenario(), false, []string{message})
 		collector.Gauge("usage_contract_fleet_available", 0)
 		return connect.NewResponse(&scenariovalidationv1.ValidateScenarioResponse{
@@ -394,10 +402,11 @@ func (h *sharedHandler) validateConsumerContractFleet(ctx context.Context, req *
 		}), nil
 	}
 
-	clean := report.Ratchet.Status == "passed"
+	clean := report.Ratchet.Status == "passed" && report.CatalogCoverage.Status == "passed"
 	findings := append([]string(nil), report.Ratchet.Failures...)
+	findings = append(findings, report.CatalogCoverage.Errors...)
 	if !clean && len(findings) == 0 {
-		findings = append(findings, "Fleet contract ratchet failed without reporting a reason.")
+		findings = append(findings, "Fleet usage-contract checks failed without reporting a reason.")
 	}
 	assessment := consumerContractAssessment(req.GetScenario(), clean, findings)
 	collector.Gauge("usage_contract_fleet_available", 1)
@@ -405,6 +414,8 @@ func (h *sharedHandler) validateConsumerContractFleet(ctx context.Context, req *
 	collector.Gauge("usage_contract_fleet_files", float64(report.Fleet.Files))
 	collector.Gauge("usage_contract_fleet_findings", float64(report.Fleet.Findings))
 	collector.Gauge("usage_contract_fleet_ratchet_passed", boolGauge(clean))
+	collector.Gauge("usage_contract_catalog_eligible", float64(report.CatalogCoverage.Eligible))
+	collector.Gauge("usage_contract_catalog_contracted", float64(report.CatalogCoverage.Contracted))
 	var native *anypb.Any
 	var reportMap map[string]any
 	if err := json.Unmarshal(output, &reportMap); err == nil {
@@ -430,35 +441,35 @@ func consumerContractAssessment(scenario string, clean bool, findings []string) 
 		phase    = consumerContractPhase
 	)
 	levels := []*commonv1.LocalMaturityLevel{
-		{Id: "L0", Name: "Fleet ratchet failed", StatusLabel: "Needs repair", CapabilitySummary: "The fleet contract scan or its downward-only ratchet failed.", NextUnlock: "Resolve reported contract violations or restore a valid fleet scan."},
-		{Id: "L1", Name: "Fleet ratchet passed", StatusLabel: "Ready", CapabilitySummary: "Every React UI in the governed fleet was scanned and no per-contract count exceeded its baseline."},
+		{Id: "L0", Name: "Fleet contract checks failed", StatusLabel: "Needs repair", CapabilitySummary: "The latest-asset coverage check or downward-only fleet ratchet failed.", NextUnlock: "Resolve reported contract gaps or restore a valid fleet scan."},
+		{Id: "L1", Name: "Fleet contract checks passed", StatusLabel: "Ready", CapabilitySummary: "Every eligible latest asset has a current contract, every React UI was scanned, and no per-contract count exceeded its baseline."},
 	}
 	current, next := "L1", ""
 	blocking := []string(nil)
 	if !clean {
 		current, next = "L0", "L1"
-		blocking = []string{"USAGE_CONTRACT_RATCHET_FAILED"}
+		blocking = []string{"USAGE_CONTRACT_CHECKS_FAILED"}
 	}
 	capability := &commonv1.CapabilityMaturityAssessment{
-		Id: "consumer_contracts", Label: "React Consumer Contracts", Description: "Fleet-wide static checks enforce each published component usage contract at its React call sites.",
+		Id: "consumer_contracts", Label: "React Consumer Contracts", Description: "Fleet-wide static checks require latest-asset contract coverage, enforce call-site use, and ratchet findings down.",
 		CurrentLevel: current, NextLevel: next, Levels: levels, CurrentSummary: levels[0].CapabilitySummary,
 		NextUnlock: levels[0].NextUnlock, Clean: clean, BlockingFindingCodes: blocking, PriorityRank: 1,
 	}
 	if clean {
 		capability.CurrentSummary = levels[1].CapabilitySummary
-		capability.NextUnlock = "No per-contract violation count exceeded its ratchet baseline."
+		capability.NextUnlock = "Latest-asset coverage is complete and no per-contract count exceeded its ratchet baseline."
 	}
 	assessment := &commonv1.MaturityAssessment{
 		Scenario: scenario, Provider: provider, Phase: phase, Version: "1.0.0",
 		Local:                     &commonv1.LocalMaturityAssessment{CurrentLevel: current, NextLevel: next, Levels: levels, Clean: clean, BlockingFindingCodes: blocking},
 		Capabilities:              []*commonv1.CapabilityMaturityAssessment{capability},
-		HighestPriorityCapability: &commonv1.PriorityFocus{CapabilityId: capability.Id, CapabilityLabel: capability.Label, CurrentLevel: current, NextLevel: next, Reason: "fleet usage-contract counts must not rise"},
+		HighestPriorityCapability: &commonv1.PriorityFocus{CapabilityId: capability.Id, CapabilityLabel: capability.Label, CurrentLevel: current, NextLevel: next, Reason: "latest-asset contracts must be complete and fleet counts must not rise"},
 	}
 	for _, message := range findings {
 		assessment.Findings = append(assessment.Findings, &commonv1.AssessmentFinding{
-			Code: "USAGE_CONTRACT_RATCHET_FAILED", Severity: "SEVERITY_ERROR", Title: "React consumer usage-contract ratchet failed",
-			Message: message, Location: "scenarios/react-component-library/ui/usage-contract-ratchet.json",
-			Remediation: "inspect the per-contract fleet report, fix the listed call sites, and update a baseline only when the change is intentional",
+			Code: "USAGE_CONTRACT_CHECKS_FAILED", Severity: "SEVERITY_ERROR", Title: "React consumer usage-contract checks failed",
+			Message: message, Location: "scenarios/react-component-library/ui/scripts/check-catalog-usage-contracts.mjs",
+			Remediation: "inspect the fleet coverage and violation reports, add a current usage contract for each eligible asset, fix listed call sites, and update a baseline only when the change is intentional",
 			Maturity:    &commonv1.FindingMaturity{LocalLevel: "L0", GlobalImpact: commonv1.GlobalImpact_GLOBAL_IMPACT_FOUNDATION_BLOCKER, Dimension: "tests", CleanRequirement: commonv1.CleanRequirement_CLEAN_REQUIREMENT_REQUIRED, CapabilityId: capability.Id},
 			FixClass:    "manual",
 		})
@@ -762,6 +773,7 @@ func canonicalComponentTestsPresentation(a *commonv1.MaturityAssessment) *common
 	if local == nil {
 		return nil
 	}
+	populateComponentTestSeverityCounts(a)
 	current := local.GetCurrentLevel()
 	currentLabel := ""
 	for _, level := range local.GetLevels() {
@@ -888,6 +900,49 @@ func canonicalComponentTestsPresentation(a *commonv1.MaturityAssessment) *common
 		}
 	}
 	return presentation
+}
+
+// populateComponentTestSeverityCounts keeps the shared maturity contract's
+// summary fields consistent with the findings this provider emits. This
+// provider currently emits structured severity labels in the
+// "SEVERITY_<LEVEL>" form; the shared contract uses the corresponding
+// "FINDING_SEVERITY_<LEVEL>" keys.
+func populateComponentTestSeverityCounts(a *commonv1.MaturityAssessment) {
+	if a == nil {
+		return
+	}
+	counts := make(map[string]int32)
+	for _, finding := range a.GetFindings() {
+		if finding == nil {
+			continue
+		}
+		counts[componentTestSeverityKey(finding.GetSeverity())]++
+	}
+	a.FindingsBySeverity = counts
+	for _, capability := range a.GetCapabilities() {
+		if capability == nil {
+			continue
+		}
+		capabilityCounts := make(map[string]int32)
+		for _, finding := range a.GetFindings() {
+			if finding == nil || finding.GetMaturity().GetCapabilityId() != capability.GetId() {
+				continue
+			}
+			capabilityCounts[componentTestSeverityKey(finding.GetSeverity())]++
+		}
+		capability.FindingsBySeverity = capabilityCounts
+	}
+}
+
+func componentTestSeverityKey(raw string) string {
+	severity := strings.TrimSpace(raw)
+	if strings.HasPrefix(severity, "SEVERITY_") {
+		return "FINDING_" + severity
+	}
+	if strings.HasPrefix(severity, "FINDING_SEVERITY_") {
+		return severity
+	}
+	return "FINDING_SEVERITY_" + strings.ToUpper(severity)
 }
 
 func sortedStrings(values []string) []string {

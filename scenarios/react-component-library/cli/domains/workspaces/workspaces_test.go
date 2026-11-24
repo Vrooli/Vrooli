@@ -7,7 +7,9 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
@@ -18,7 +20,19 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliapptest"
+	"react-component-library/cli/internal/runtimeenv"
 )
+
+type fixedWorkspaceClock time.Time
+
+func (clock fixedWorkspaceClock) Now() time.Time { return time.Time(clock) }
+
+type workspaceEnvironment map[string]string
+
+func (environment workspaceEnvironment) LookupEnv(key string) (string, bool) {
+	value, ok := environment[key]
+	return value, ok
+}
 
 func TestWorkspacesManifestCoverage(t *testing.T) {
 	raw := cliapptest.ReadManifest(t)
@@ -170,6 +184,152 @@ func TestWorkspacesAssistRejectsAMalformedStateFlag(t *testing.T) {
 	require.Contains(t, err.Error(), "--state must be display=<state>")
 }
 
+func TestWorkspaceDocumentReadersAcceptSupportedShapesAndRejectMalformedInput(t *testing.T) {
+	t.Run("workspace proto JSON", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "workspace.json")
+		require.NoError(t, os.WriteFile(path, []byte(`{"id":"ws-1","name":"Harbor"}`), 0o600))
+		got, err := readWorkspace(path)
+		require.NoError(t, err)
+		require.Equal(t, "ws-1", got.GetId())
+	})
+	t.Run("invalid workspace JSON", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "workspace.json")
+		require.NoError(t, os.WriteFile(path, []byte(`{"id":`), 0o600))
+		_, err := readWorkspace(path)
+		require.ErrorContains(t, err, "decode --workspace")
+	})
+	t.Run("bare page array", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "pages.json")
+		require.NoError(t, os.WriteFile(path, []byte(`[{"id":"pg-1","name":"Home"}]`), 0o600))
+		got, err := readWorkspacePages(path)
+		require.NoError(t, err)
+		require.Len(t, got, 1)
+		require.Equal(t, "pg-1", got[0].GetId())
+	})
+	t.Run("wrapped page array", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "pages.json")
+		require.NoError(t, os.WriteFile(path, []byte(`{"pages":[{"id":"pg-2"}]}`), 0o600))
+		got, err := readWorkspacePages(path)
+		require.NoError(t, err)
+		require.Equal(t, "pg-2", got[0].GetId())
+	})
+	tests := []struct{ name, body, want string }{
+		{"empty", "  ", "is empty"},
+		{"invalid JSON", "{", "decode --pages"},
+		{"invalid page proto", `[{"unknown":"field"}]`, "entry 0"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "pages.json")
+			require.NoError(t, os.WriteFile(path, []byte(tt.body), 0o600))
+			_, err := readWorkspacePages(path)
+			require.ErrorContains(t, err, tt.want)
+		})
+	}
+}
+
+func TestWorkspaceFormattingCoversNestedCompositionAndFallbacks(t *testing.T) {
+	require.Equal(t, []string{"(nil workspace)"}, formatWorkspaceLines(nil))
+	require.Equal(t, "(nil workspace)", formatWorkspaceSummary(nil))
+	workspace := seedTestWorkspace(workspacev1.WorkspaceProvenance_WORKSPACE_PROVENANCE_CURATED)
+	workspace.Name = " "
+	workspace.Summary = "A summary"
+	workspace.ThemeJson = `{"color":"blue"}`
+	workspace.OptionsJson = `{"density":"compact"}`
+	workspace.BindingPage = "home"
+	workspace.Pages = append(workspace.Pages, nil)
+	workspace.Pages[0].Route = ""
+	workspace.Pages[0].PageTypeId = ""
+	workspace.Pages[0].Displays[0].Device = workspacev1.DisplayDevice_DISPLAY_DEVICE_TABLET
+	workspace.Pages[0].Displays[0].States[0].Status = workspacev1.StateStatus_STATE_STATUS_READY
+	workspace.Pages[0].Displays[0].States = append(workspace.Pages[0].Displays[0].States, nil)
+	workspace.Pages[0].Displays = append(workspace.Pages[0].Displays, nil)
+	rows := formatWorkspaceLines(workspace)
+	require.Contains(t, rows[0], "(unnamed) (ws_harbor) | curated")
+	require.Contains(t, rows[0], "binding=home")
+	require.Contains(t, rows[1], "summary: A summary")
+	require.Contains(t, rows[2], "theme_json:")
+	require.Contains(t, rows[3], "options_json:")
+	require.Contains(t, strings.Join(rows, "\n"), `route=(none) type=(none)`)
+	require.Contains(t, strings.Join(rows, "\n"), "device=tablet")
+	require.Contains(t, strings.Join(rows, "\n"), "status=ready")
+	require.Equal(t, "only-page", bindingLabel("", "only-page"))
+	require.Equal(t, "only-scenario", bindingLabel("only-scenario", ""))
+	require.Equal(t, "", bindingLabel("", ""))
+	require.Equal(t, "fallback", nonEmpty("  ", "fallback"))
+}
+
+func TestWorkspaceFlagParsersCoverAliasesAndInvalidValues(t *testing.T) {
+	for raw, want := range map[string]workspacev1.WorkspaceProvenance{
+		"":                              workspacev1.WorkspaceProvenance_WORKSPACE_PROVENANCE_UNSPECIFIED,
+		"workspace-provenance-authored": workspacev1.WorkspaceProvenance_WORKSPACE_PROVENANCE_AUTHORED,
+		"curated":                       workspacev1.WorkspaceProvenance_WORKSPACE_PROVENANCE_CURATED,
+		"imported":                      workspacev1.WorkspaceProvenance_WORKSPACE_PROVENANCE_IMPORTED,
+		"forked":                        workspacev1.WorkspaceProvenance_WORKSPACE_PROVENANCE_FORKED,
+	} {
+		got, err := parseProvenance(raw)
+		require.NoError(t, err)
+		require.Equal(t, want, got)
+	}
+	_, err := parseProvenance("unknown")
+	require.ErrorContains(t, err, "--provenance must be one of")
+	require.Equal(t, []string{"a", "b"}, cleanValues([]string{" a ", "", "  ", "b"}))
+	require.Equal(t, "forked", provenanceLabel(workspacev1.WorkspaceProvenance_WORKSPACE_PROVENANCE_FORKED))
+	require.Equal(t, "unspecified", provenanceLabel(999))
+	require.Equal(t, "unspecified", deviceLabel(999))
+	require.Equal(t, "phone", deviceLabel(workspacev1.DisplayDevice_DISPLAY_DEVICE_PHONE))
+	require.Equal(t, "draft", stateStatusLabel(workspacev1.StateStatus_STATE_STATUS_DRAFT))
+	require.Equal(t, "unspecified", stateStatusLabel(999))
+}
+
+func TestWorkspaceReportsDescribeMutationsAndValidation(t *testing.T) {
+	h := &handlers{}
+	workspace := seedTestWorkspace(workspacev1.WorkspaceProvenance_WORKSPACE_PROVENANCE_AUTHORED)
+	ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{})
+	get := h.getReport(ctx, &workspacev1.GetWorkspaceResponse{Workspace: workspace})
+	require.Contains(t, get.Summary[0], "Harbor (ws_harbor) at revision 9")
+	require.Contains(t, get.RetrievalHints[0], "--base-revision 9")
+	created := h.createReport(ctx, &workspacev1.CreateWorkspaceResponse{Workspace: workspace})
+	require.Contains(t, created.Result[0], "Created workspace Harbor")
+	saved := h.saveReport(ctx, &workspacev1.SaveWorkspaceResponse{Workspace: workspace})
+	require.Contains(t, saved.NextCommand[0], "workspaces revisions ws_harbor")
+	forked := h.forkReport(ctx, &workspacev1.ForkWorkspaceResponse{Workspace: workspace})
+	require.Contains(t, forked.Result[0], "Forked workspace ws_curated_harbor")
+	ctx = cliapp.NewTestRunContext(cliapp.TestRunContextOptions{Schema: cliapp.ArgSchema{
+		Positionals: []cliapp.Positional{{Name: "id", Required: true}},
+	}, Positionals: map[string]string{"id": "ws_harbor"}})
+	for _, deleted := range []bool{true, false} {
+		report := h.deleteReport(ctx, &workspacev1.DeleteWorkspaceResponse{Deleted: deleted})
+		if deleted {
+			require.Contains(t, report.Result[0], "and its revisions were removed")
+		} else {
+			require.Contains(t, report.Result[0], "was not present")
+		}
+	}
+	revisions := h.revisionsReport(ctx, &workspacev1.ListWorkspaceRevisionsResponse{Revisions: []*workspacev1.WorkspaceRevision{
+		{Revision: 8, SnapshotJson: "{}"}, nil, {Revision: 7, Actor: "operator", CreatedAt: "now", SnapshotJson: `{"id":"ws_harbor"}`},
+	}})
+	require.Contains(t, revisions.Summary[0], "Found 2 revision(s)")
+	require.Contains(t, revisions.Results[0], "actor=(unattributed)")
+	require.Contains(t, revisions.Results[1], "actor=operator")
+	validation := h.validateReport(ctx, &workspacev1.ValidateWorkspaceResponse{
+		Valid: false, Issues: []*workspacev1.ValidationIssue{{Path: "pages[0]", Message: "missing display"}, nil},
+	})
+	require.Contains(t, validation.Summary[0], "2 validation issue(s)")
+	require.Equal(t, []string{"pages[0]: missing display"}, validation.Results)
+	valid := h.validateReport(ctx, &workspacev1.ValidateWorkspaceResponse{Valid: true})
+	require.Equal(t, "Workspace is valid.", valid.Summary[0])
+}
+
+func TestDefaultAssistIdempotencyKeyUsesInjectedClock(t *testing.T) {
+	fixedNow := time.Date(2026, time.November, 20, 12, 34, 56, 0, time.UTC)
+	h := handlers{deps: runtimeenv.Dependencies{
+		Clock:       fixedWorkspaceClock(fixedNow),
+		Environment: workspaceEnvironment{},
+	}}
+	require.Equal(t, "assist-1795178096000000000-iq6q8m", h.defaultIdempotencyKey())
+}
+
 func seedTestWorkspace(provenance workspacev1.WorkspaceProvenance) *workspacev1.Workspace {
 	return &workspacev1.Workspace{
 		Id:                "ws_harbor",
@@ -229,7 +389,12 @@ func TestExportSeedPromotesAWorkspaceIntoTheReviewedShelf(t *testing.T) {
 		},
 	))
 	core := cliapptest.NewTestApp(t, mux)
-	group, err := Register(core, rawManifest)
+	fixedNow := time.Date(2026, time.November, 20, 12, 34, 56, 0, time.UTC)
+	deps := runtimeenv.Dependencies{
+		Clock:       fixedWorkspaceClock(fixedNow),
+		Environment: workspaceEnvironment{"VROOLI_SCENARIO_ROOT": root},
+	}
+	group, err := registerWithRuntime(core, rawManifest, deps)
 	require.NoError(t, err)
 	command := cliapptest.FindCommand(t, []cliapp.SubcommandGroup{group}, GroupName, "export-seed")
 
@@ -260,6 +425,8 @@ func TestExportSeedPromotesAWorkspaceIntoTheReviewedShelf(t *testing.T) {
 	require.Equal(t, "Harbor", exported.GetName())
 	require.Equal(t, workspacev1.WorkspaceProvenance_WORKSPACE_PROVENANCE_CURATED, exported.GetProvenance())
 	require.Equal(t, int32(1), exported.GetRevision())
+	require.Equal(t, "2026-11-20T12:34:56.000Z", exported.GetCreatedAt())
+	require.Equal(t, exported.GetCreatedAt(), exported.GetUpdatedAt())
 	require.Empty(t, exported.GetOriginWorkspaceId())
 	require.Empty(t, exported.GetBindingScenario())
 	require.Len(t, exported.GetPages(), 1)

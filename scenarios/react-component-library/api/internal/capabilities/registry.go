@@ -121,11 +121,16 @@ func liveStatuses(ctx context.Context) (map[string]liveStatus, error) {
 func ReconcileDeclaredWithStatuses(declarations map[string][]string, statuses map[string]liveStatus, statusErr error) DeclaredCoverageReport {
 	capAssets := map[string][]string{}
 	for assetID, capabilityIDs := range declarations {
+		seen := make(map[string]struct{}, len(capabilityIDs))
 		for _, capabilityID := range capabilityIDs {
 			capabilityID = strings.TrimSpace(capabilityID)
 			if capabilityID == "" {
 				continue
 			}
+			if _, ok := seen[capabilityID]; ok {
+				continue
+			}
+			seen[capabilityID] = struct{}{}
 			capAssets[capabilityID] = append(capAssets[capabilityID], assetID)
 		}
 	}

@@ -76,10 +76,6 @@ const ICONS: Record<string, LucideIcon> = {
   zap: Zap,
 };
 
-export function isTemplateIcon(name: string): boolean {
-  return name in ICONS;
-}
-
 export function TemplateIcon({ name, size = 16 }: { name: string; size?: number }) {
   const Icon = ICONS[name] ?? Sparkles;
   return <Icon aria-hidden size={size} strokeWidth={1.7} />;

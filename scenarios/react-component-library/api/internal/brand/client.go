@@ -40,21 +40,51 @@ type Client struct {
 // way other cross-scenario calls do; BRAND_MANAGER_URL pins the address for a
 // deployment that needs it.
 func NewClient() *Client {
+	return NewClientWithOptions(ClientOptions{})
+}
+
+// ClientOptions exposes the environment and service-discovery boundaries used
+// during client construction. Tests can exercise deployment URL selection
+// without mutating process environment or the global discovery cache.
+type ClientOptions struct {
+	LookupEnv          func(string) string
+	ResolveScenarioURL func(context.Context, string) (string, error)
+}
+
+// NewClientWithOptions constructs a client with explicit bootstrap dependencies.
+// Nil options retain the production OS environment and scenario discovery.
+func NewClientWithOptions(options ClientOptions) *Client {
 	return &Client{
 		Scenario:   ScenarioName,
 		HTTPClient: &http.Client{Timeout: 3 * time.Second},
 		resolveBaseURL: func(ctx context.Context) (string, error) {
-			return ResolveBaseURL(ctx)
+			return ResolveBaseURLWithOptions(ctx, options)
 		},
 	}
 }
 
 // ResolveBaseURL locates Brand Manager, preferring an explicit override.
 func ResolveBaseURL(ctx context.Context) (string, error) {
-	if explicit := strings.TrimSpace(os.Getenv("BRAND_MANAGER_URL")); explicit != "" {
+	return ResolveBaseURLWithOptions(ctx, ClientOptions{})
+}
+
+// ResolveBaseURLWithOptions is the injectable variant used by tests and
+// alternate process bootstraps. An explicit URL always wins over discovery.
+func ResolveBaseURLWithOptions(ctx context.Context, options ClientOptions) (string, error) {
+	lookupEnv := options.LookupEnv
+	if lookupEnv == nil {
+		lookupEnv = os.Getenv
+	}
+	if explicit := strings.TrimSpace(lookupEnv("BRAND_MANAGER_URL")); explicit != "" {
 		return explicit, nil
 	}
-	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, brandManagerScenario)
+	resolve := options.ResolveScenarioURL
+	if resolve == nil {
+		resolve = func(ctx context.Context, scenario string) (string, error) {
+			return discovery.ResolveScenarioURLDefault(ctx, scenario)
+		}
+	}
+	baseURL, err := resolve(ctx, brandManagerScenario)
 	if err != nil {
 		return "", fmt.Errorf("brand: brand-manager is not reachable: %w", err)
 	}
@@ -75,7 +105,7 @@ func (c *Client) Resolve(ctx context.Context) (Brand, error) {
 	baseURL = strings.TrimRight(baseURL, "/")
 	httpClient := c.HTTPClient
 	if httpClient == nil {
-		httpClient = http.DefaultClient
+		httpClient = &http.Client{Timeout: 3 * time.Second}
 	}
 
 	assignments := assignmentsconnect.NewAssignmentsServiceClient(httpClient, baseURL)

@@ -271,7 +271,7 @@ function arrayFromExpression(expression, declarations, seen = new WeakSet()) {
       elements.push(...spread.elements);
       uncertain ||= spread.uncertain;
     }
-    return { node: expression, elements, count: elements.length, uncertain };
+    return { node: expression, elements, branches: [elements], count: elements.length, uncertain };
   }
   if (expression.type === "Identifier")
     return arrayFromExpression(declarations.get(expression.name), declarations, seen);
@@ -283,6 +283,7 @@ function arrayFromExpression(expression, declarations, seen = new WeakSet()) {
     return {
       node: expression,
       elements: branches.flatMap((branch) => branch.elements),
+      branches: branches.flatMap((branch) => branch.branches ?? [branch.elements]),
       count: Math.max(0, ...branches.map((branch) => branch.count)),
       uncertain: branches.some((branch) => branch.uncertain),
     };
@@ -314,6 +315,7 @@ function arrayFromExpression(expression, declarations, seen = new WeakSet()) {
     return {
       node: expression,
       elements: input.elements.map(() => mapped),
+      branches: (input.branches ?? [input.elements]).map((branch) => branch.map(() => mapped)),
       count: input.count,
       uncertain: input.uncertain,
     };
@@ -416,7 +418,6 @@ export default {
           });
       }
       if (contract.itemShape === "component-owned") return;
-      let primaries = 0;
       for (const [index, action] of actions.entries()) {
         const alternatives = objectAlternatives(action);
         if (alternatives.length === 0) continue;
@@ -507,16 +508,6 @@ export default {
             length,
             maximum: maximumLabelCharacters,
           });
-        if (contract.primaryField) {
-          const branchPrimaryCount = Math.max(
-            0,
-            ...alternatives.map(
-              (alternative) =>
-                propertyValue(alternative, contract.primaryField)?.value === true ? 1 : 0,
-            ),
-          );
-          primaries += branchPrimaryCount;
-        }
       }
       if (contract.mobileMaximumCount !== undefined) {
         const mobileField = contract.mobileField ?? "mobile";
@@ -538,11 +529,24 @@ export default {
             maximum: contract.mobileMaximumCount,
           });
       }
-      if (contract.primaryField && primaries !== contract.primaryCount)
+      const primaryCounts = (array.branches ?? [actions]).map((branch) =>
+        branch.reduce((count, action) => {
+          const alternatives = objectAlternatives(action);
+          return count + Math.max(
+            0,
+            ...alternatives.map(
+              (alternative) =>
+                propertyValue(alternative, contract.primaryField)?.value === true ? 1 : 0,
+            ),
+          );
+        }, 0),
+      );
+      const invalidPrimaryCount = primaryCounts.find((count) => count !== contract.primaryCount);
+      if (contract.primaryField && invalidPrimaryCount !== undefined)
         report(array.node, "primaryCount", {
           component: `${component}.${property}`,
           required: contract.primaryCount,
-          count: primaries,
+          count: invalidPrimaryCount,
         });
     };
     return {

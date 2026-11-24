@@ -16,6 +16,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	authoringconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/componentauthoring/componentauthoring_v1connect"
 	componentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components"
 	componentsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components/components_v1connect"
 
@@ -301,6 +302,8 @@ func connectAPI(t *testing.T, svc *componentsService) http.Handler {
 	path, handler := componentsconnect.NewComponentsServiceHandler(svc)
 	mux := http.NewServeMux()
 	mux.Handle(path, handler)
+	authoringPath, authoringHandler := authoringconnect.NewComponentAuthoringServiceHandler(svc)
+	mux.Handle(authoringPath, authoringHandler)
 	return mux
 }
 

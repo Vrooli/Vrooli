@@ -59,7 +59,7 @@
     },
     {
       "id": "adoptions_list_scenarios",
-      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ListScenarios",
+      "path": "/vrooli.react_component_library.v1.adoptionintake.AdoptionIntakeService/ListScenarios",
       "method": "POST",
       "summary": "List available scenarios for guided adoption workflows",
       "description": "Returns scenario names discovered from the repository scenarios directory.",
@@ -83,7 +83,7 @@
     },
     {
       "id": "adoptions_reconcile",
-      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ReconcileAdoptions",
+      "path": "/vrooli.react_component_library.v1.adoptionintake.AdoptionIntakeService/ReconcileAdoptions",
       "method": "POST",
       "summary": "Backfill adoption records from on-disk provenance",
       "description": "Scans scenario UI source read-only. Dry-run is default; apply writes only RCL adoption records without backlog reporting.",
@@ -556,7 +556,7 @@
     },
     {
       "id": "adoptions_suggest",
-      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/SuggestAdoptions",
+      "path": "/vrooli.react_component_library.v1.adoptionintake.AdoptionIntakeService/SuggestAdoptions",
       "method": "POST",
       "summary": "Suggest catalog components a scenario should adopt",
       "description": "Returns non-adopted catalog components using real UI inventory matches, design-style fit, and dependency compatibility. Every candidate carries human-readable reasons; no opaque score is emitted.",
@@ -589,7 +589,7 @@
     },
     {
       "id": "adoptions_discover",
-      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/DiscoverAdoptions",
+      "path": "/vrooli.react_component_library.v1.adoptionintake.AdoptionIntakeService/DiscoverAdoptions",
       "method": "POST",
       "summary": "Discover header-less vendored copies by content similarity",
       "description": "Walks scenario UI trees for source files with no @vrooliComponentSource header and scores each against every library component version (Sørensen–Dice line similarity). Read-only: candidates carry similarity evidence for operator review; ConfirmDiscovery performs any write.",
@@ -620,7 +620,7 @@
     },
     {
       "id": "adoptions_confirm_discovery",
-      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ConfirmDiscovery",
+      "path": "/vrooli.react_component_library.v1.adoptionintake.AdoptionIntakeService/ConfirmDiscovery",
       "method": "POST",
       "summary": "Confirm a discovery candidate and backfill its provenance",
       "description": "Injects an @vrooliComponentSource header into a header-less scenario file and creates its adoption record, attributed to the named component + version. Refuses files that already carry a header or are already tracked.",
@@ -679,7 +679,22 @@
       },
       "rest_exception": {
         "reason": "browser_surface",
-        "note": "The workbench shell fetches a small UI projection with a plain GET; the aggregate is owned and served by Brand Manager over Connect-RPC."
+        "note": "The workbench shell fetches a small UI projection with a plain GET; the aggregate is owned and served by Brand Manager over Connect-RPC.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "proto_full_name": "vrooli.react_component_library.v1.errors.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
       }
     },
     {
@@ -783,30 +798,6 @@
       "path": "/vrooli.react_component_library.v1.catalog.CatalogService/CaptureEvidence",
       "method": "POST",
       "summary": "Capture declared visual evidence",
-      "description": "",
-      "category": "catalog"
-    },
-    {
-      "id": "catalog_search",
-      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/SearchAssets",
-      "method": "POST",
-      "summary": "Search authored catalog assets",
-      "description": "",
-      "category": "catalog"
-    },
-    {
-      "id": "catalog_search_status",
-      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/SearchStatus",
-      "method": "POST",
-      "summary": "Read catalog search index status",
-      "description": "",
-      "category": "catalog"
-    },
-    {
-      "id": "catalog_search_reindex",
-      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/ReindexSearch",
-      "method": "POST",
-      "summary": "Rebuild the catalog search index",
       "description": "",
       "category": "catalog"
     },
@@ -933,7 +924,7 @@
     },
     {
       "id": "components_initialize",
-      "path": "/vrooli.react_component_library.v1.components.ComponentsService/InitializeComponent",
+      "path": "/vrooli.react_component_library.v1.componentauthoring.ComponentAuthoringService/InitializeComponent",
       "method": "POST",
       "summary": "Initialize a component",
       "description": "Creates component.json plus an initial version TSX file under the Git-tracked library source root, indexes it, and returns the new registry row.",
@@ -979,7 +970,7 @@
     },
     {
       "id": "components_ingest",
-      "path": "/vrooli.react_component_library.v1.components.ComponentsService/IngestComponent",
+      "path": "/vrooli.react_component_library.v1.componentauthoring.ComponentAuthoringService/IngestComponent",
       "method": "POST",
       "summary": "Ingest a scenario component",
       "description": "Copies a scenario-local TSX file into an indexed library component, creates a draft working version, and returns static de-scenario-ification findings.",
@@ -1027,7 +1018,7 @@
     },
     {
       "id": "components_version_begin",
-      "path": "/vrooli.react_component_library.v1.components.ComponentsService/BeginComponentVersion",
+      "path": "/vrooli.react_component_library.v1.componentauthoring.ComponentAuthoringService/BeginComponentVersion",
       "method": "POST",
       "summary": "Begin a mutable component draft",
       "description": "Resolves a stable libraryId or UUID, computes the requested semver bump, copies the complete current version artifact set, indexes the draft, and returns its edit paths and preview path.",
@@ -1064,7 +1055,7 @@
     },
     {
       "id": "components_version_check",
-      "path": "/vrooli.react_component_library.v1.components.ComponentsService/CheckComponentVersion",
+      "path": "/vrooli.react_component_library.v1.componentauthoring.ComponentAuthoringService/CheckComponentVersion",
       "method": "POST",
       "summary": "Check one component version",
       "description": "Runs source, dependency-closure, story-contract, enum-coverage, and preview-bundle checks for one explicit component version without scanning unrelated catalog assets.",
@@ -1096,7 +1087,7 @@
     },
     {
       "id": "components_version_publish",
-      "path": "/vrooli.react_component_library.v1.components.ComponentsService/PublishComponentVersion",
+      "path": "/vrooli.react_component_library.v1.componentauthoring.ComponentAuthoringService/PublishComponentVersion",
       "method": "POST",
       "summary": "Publish a validated component draft",
       "description": "Checks the active draft, compiles its preview, preserves every version artifact, updates the release pointers, and rolls back the filesystem mutation if indexing fails.",
@@ -1134,7 +1125,7 @@
     },
     {
       "id": "components_version_create",
-      "path": "/vrooli.react_component_library.v1.components.ComponentsService/CreateComponentVersion",
+      "path": "/vrooli.react_component_library.v1.componentauthoring.ComponentAuthoringService/CreateComponentVersion",
       "method": "POST",
       "summary": "Create a component version",
       "description": "Creates a new version folder for an existing component, updates component.json latest/draft pointers, indexes the library, and returns the version row.",
@@ -1240,7 +1231,7 @@
     },
     {
       "id": "components_manifest_update",
-      "path": "/vrooli.react_component_library.v1.components.ComponentsService/UpdateComponentManifest",
+      "path": "/vrooli.react_component_library.v1.componentauthoring.ComponentAuthoringService/UpdateComponentManifest",
       "method": "POST",
       "summary": "Update a component manifest",
       "description": "Updates component.json metadata/latest/draft/deprecation fields, re-indexes the library, and returns the refreshed component row.",
@@ -1283,7 +1274,7 @@
     },
     {
       "id": "components_retire",
-      "path": "/vrooli.react_component_library.v1.components.ComponentsService/RetireComponent",
+      "path": "/vrooli.react_component_library.v1.componentauthoring.ComponentAuthoringService/RetireComponent",
       "method": "POST",
       "summary": "Preflight or retire a deprecated component",
       "description": "Checks catalog and authored source consumers. Apply preserves history, withdraws source and catalog, and removes the registry entry with interrupted-operation recovery.",
@@ -1309,7 +1300,7 @@
     },
     {
       "id": "components_content_get",
-      "path": "/vrooli.react_component_library.v1.components.ComponentsService/GetComponentContent",
+      "path": "/vrooli.react_component_library.v1.componentauthoring.ComponentAuthoringService/GetComponentContent",
       "method": "POST",
       "summary": "Read a component's source file",
       "description": "Returns the raw TSX content of the component's source file plus a SHA-256 digest. Path-traversal guard rejects rows whose source_path escapes the configured root.",
@@ -1348,7 +1339,7 @@
     },
     {
       "id": "components_content_set",
-      "path": "/vrooli.react_component_library.v1.components.ComponentsService/UpdateComponentContent",
+      "path": "/vrooli.react_component_library.v1.componentauthoring.ComponentAuthoringService/UpdateComponentContent",
       "method": "POST",
       "summary": "Write a component's source file",
       "description": "Overwrites the component's TSX file in place. Pass expected_sha256 from a prior read for optimistic concurrency. Re-run `index` afterward if the @libraryId header changed.",
@@ -1738,330 +1729,6 @@
       ]
     },
     {
-      "id": "designs_list",
-      "path": "/api/designs",
-      "method": "GET",
-      "summary": "List designs",
-      "description": "Returns design summaries newest-updated first, including frame counts and the optional scenario/page binding. Optional scenario and page query params filter by exact binding.",
-      "category": "designs",
-      "response": {
-        "type": "object",
-        "properties": {
-          "designs": "array<DesignSummary>"
-        }
-      },
-      "rest_exception": {
-        "reason": "browser_surface",
-        "note": "The design studio edits opaque TemplateNode spec JSON with plain fetches and autosave; the document shape is owned by the client, so there is no generated Connect payload counterpart."
-      }
-    },
-    {
-      "id": "designs_create",
-      "path": "/api/designs",
-      "method": "POST",
-      "summary": "Create a design",
-      "description": "Persists a design at revision 1. The server assigns id, revision and updatedAt. name, frames and theme are required; frames:null means [] and theme:null means {}. options is optional design chrome: {radius?: number 0-48, display?: \"sans\"|\"serif\"}; absent or null means {}.",
-      "category": "designs",
-      "request": {
-        "type": "object",
-        "properties": {
-          "frames": "array<Frame> (required; null means [])",
-          "name": "string (required)",
-          "options": "{radius?: number 0-48, display?: \"sans\"|\"serif\"} (optional; null means {})",
-          "page": "string|null",
-          "scenario": "string|null",
-          "theme": "Theme (required; null means {})"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "design": "DesignDocument"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "name, frames or theme is missing, frames is not an array of objects, theme is not an object, or options is not an object with a valid radius/display"
-        }
-      ],
-      "rest_exception": {
-        "reason": "browser_surface",
-        "note": "The design studio edits opaque TemplateNode spec JSON with plain fetches and autosave; the document shape is owned by the client, so there is no generated Connect payload counterpart."
-      }
-    },
-    {
-      "id": "designs_get",
-      "path": "/api/designs/{id}",
-      "method": "GET",
-      "summary": "Get a design",
-      "description": "Returns the full design document, including opaque frame specs, theme, validated chrome options (always an object) and the optional scenario/page binding.",
-      "category": "designs",
-      "response": {
-        "type": "object",
-        "properties": {
-          "design": "DesignDocument"
-        }
-      },
-      "errors": [
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No design with that id"
-        }
-      ],
-      "rest_exception": {
-        "reason": "browser_surface",
-        "note": "The design studio edits opaque TemplateNode spec JSON with plain fetches and autosave; the document shape is owned by the client, so there is no generated Connect payload counterpart."
-      }
-    },
-    {
-      "id": "designs_save",
-      "path": "/api/designs/{id}",
-      "method": "PUT",
-      "summary": "Save a design",
-      "description": "Replaces the design document and bumps revision and updatedAt. name, frames and theme are required. options replaces the stored chrome and absent/null means {} (old clients keep working). Sending revision makes the save conditional: a stale revision returns 409 with the current document and writes nothing; omitting revision is last-write-wins.",
-      "category": "designs",
-      "request": {
-        "type": "object",
-        "properties": {
-          "frames": "array<Frame> (required; null means [])",
-          "name": "string (required)",
-          "options": "{radius?: number 0-48, display?: \"sans\"|\"serif\"} (optional; null or absent means {})",
-          "page": "string|null",
-          "revision": "integer (optional; enables optimistic concurrency)",
-          "scenario": "string|null",
-          "theme": "Theme (required; null means {})"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "design": "DesignDocument"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "name, frames or theme is missing, frames is not an array of objects, theme is not an object, or options is not an object with a valid radius/display"
-        },
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No design with that id"
-        },
-        {
-          "status": 409,
-          "code": "conflict",
-          "description": "revision did not match the stored revision; response also carries {design:DesignDocument}"
-        }
-      ],
-      "rest_exception": {
-        "reason": "browser_surface",
-        "note": "The design studio edits opaque TemplateNode spec JSON with plain fetches and autosave; the document shape is owned by the client, so there is no generated Connect payload counterpart."
-      }
-    },
-    {
-      "id": "designs_delete",
-      "path": "/api/designs/{id}",
-      "method": "DELETE",
-      "summary": "Delete a design",
-      "description": "Hard-deletes the design and its assets in one transaction. Deleting a missing design is success.",
-      "category": "designs",
-      "response": {
-        "type": "object"
-      },
-      "rest_exception": {
-        "reason": "browser_surface",
-        "note": "The design studio edits opaque TemplateNode spec JSON with plain fetches and autosave; the document shape is owned by the client, so there is no generated Connect payload counterpart."
-      }
-    },
-    {
-      "id": "designs_assist",
-      "path": "/api/designs/{id}/assist",
-      "method": "POST",
-      "summary": "Propose a design patch",
-      "description": "Sends the scoped design context through the durable design-inference service to the AI gateway and returns a validated, inert patch. Nothing is written: the studio applies the patch as one undoable command or discards it. The current revision is required so a proposal cannot be made against a stale document; a stale revision returns 409 with the current design. 422 means the model produced a patch this document cannot apply.",
-      "category": "designs",
-      "request": {
-        "type": "object",
-        "properties": {
-          "idempotencyKey": "string (required, 8-200 chars)",
-          "prompt": "string (required, 1-2000 chars)",
-          "revision": "integer (required)",
-          "scope": "{kind: design|frame|layer, frameId?, nodeId?}"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "operation": "{id,state,provider?,model?,detail?,inputTokens?,outputTokens?}",
-          "proposal": "{summary,operations[]}",
-          "revision": "integer"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Malformed prompt, scope, revision or idempotency key"
-        },
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No design with that id"
-        },
-        {
-          "status": 409,
-          "code": "conflict",
-          "description": "revision did not match the stored revision; response also carries {design:DesignDocument}"
-        },
-        {
-          "status": 422,
-          "code": "invalid_proposal",
-          "description": "The model returned a patch that is not applicable to this document"
-        },
-        {
-          "status": 502,
-          "code": "ai_failed",
-          "description": "The gateway refused or failed the request"
-        },
-        {
-          "status": 503,
-          "code": "ai_unavailable",
-          "description": "No assistant is configured or the gateway could not be reached"
-        }
-      ],
-      "rest_exception": {
-        "reason": "browser_surface",
-        "note": "The design studio edits opaque TemplateNode spec JSON with plain fetches and autosave; the document shape is owned by the client, so there is no generated Connect payload counterpart."
-      }
-    },
-    {
-      "id": "designs_assets_list",
-      "path": "/api/designs/{id}/assets",
-      "method": "GET",
-      "summary": "List a design's assets",
-      "description": "Returns upload metadata for one design, oldest first. Bytes are served by the per-asset route.",
-      "category": "designs",
-      "response": {
-        "type": "object",
-        "properties": {
-          "assets": "array<AssetMeta>"
-        }
-      },
-      "errors": [
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No design with that id"
-        }
-      ],
-      "rest_exception": {
-        "reason": "browser_surface",
-        "note": "The design studio edits opaque TemplateNode spec JSON with plain fetches and autosave; the document shape is owned by the client, so there is no generated Connect payload counterpart."
-      }
-    },
-    {
-      "id": "designs_assets_create",
-      "path": "/api/designs/{id}/assets",
-      "method": "POST",
-      "summary": "Upload a design asset",
-      "description": "Accepts a base64 image (png/jpeg/webp/gif/svg+xml, <=8 MiB decoded), stores the bytes in SQLite and returns the metadata with a byte-route url. Width/height are read from the image header; SVG and unknown formats report 0.",
-      "category": "designs",
-      "request": {
-        "type": "object",
-        "properties": {
-          "dataBase64": "string (required)",
-          "fidelity": "reference|captured (optional, default reference)",
-          "mime": "string (required image/*)",
-          "name": "string (required)"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "asset": "AssetMeta"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Empty name, non-image mime, invalid base64, decoded bytes over 8 MiB, or bad fidelity"
-        },
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No design with that id"
-        }
-      ],
-      "rest_exception": {
-        "reason": "browser_surface",
-        "note": "The design studio edits opaque TemplateNode spec JSON with plain fetches and autosave; the document shape is owned by the client, so there is no generated Connect payload counterpart."
-      }
-    },
-    {
-      "id": "designs_assets_get",
-      "path": "/api/designs/{id}/assets/{assetId}",
-      "method": "GET",
-      "summary": "Read design asset bytes",
-      "description": "Serves the raw image with its stored Content-Type, Cache-Control: private, max-age=3600 and an ETag equal to the asset id. If-None-Match returns 304.",
-      "category": "designs",
-      "response": {
-        "type": "binary",
-        "properties": {
-          "body": "raw image bytes"
-        }
-      },
-      "errors": [
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No asset with that id for that design"
-        }
-      ],
-      "rest_exception": {
-        "reason": "browser_surface",
-        "note": "The studio renders uploaded reference images directly in <img>/CSS; the byte route is browser-native and sets Content-Type, Cache-Control and ETag rather than returning a JSON envelope."
-      }
-    },
-    {
-      "id": "designs_assets_delete",
-      "path": "/api/designs/{id}/assets/{assetId}",
-      "method": "DELETE",
-      "summary": "Delete a design asset",
-      "description": "Deletes the asset scoped to that design. Idempotent; an asset belonging to another design is untouched.",
-      "category": "designs",
-      "response": {
-        "type": "object"
-      },
-      "rest_exception": {
-        "reason": "browser_surface",
-        "note": "The design studio edits opaque TemplateNode spec JSON with plain fetches and autosave; the document shape is owned by the client, so there is no generated Connect payload counterpart."
-      }
-    },
-    {
-      "id": "designs_assets_list_all",
-      "path": "/api/design-assets",
-      "method": "GET",
-      "summary": "List every design asset",
-      "description": "Returns metadata for every upload across designs, newest first, for the studio's 'view uploads from other designs' surface.",
-      "category": "designs",
-      "response": {
-        "type": "object",
-        "properties": {
-          "assets": "array<AssetMeta>"
-        }
-      },
-      "rest_exception": {
-        "reason": "browser_surface",
-        "note": "The design studio edits opaque TemplateNode spec JSON with plain fetches and autosave; the document shape is owned by the client, so there is no generated Connect payload counterpart."
-      }
-    },
-    {
       "id": "health",
       "path": "/health",
       "method": "GET",
@@ -2346,6 +2013,62 @@
       }
     },
     {
+      "id": "candidate_accept_check",
+      "path": "/vrooli.react_component_library.v1.review.ReviewService/CheckCandidateAcceptance",
+      "method": "POST",
+      "summary": "Check current candidate, render, behavior, calibration and review evidence",
+      "description": "",
+      "category": "review"
+    },
+    {
+      "id": "candidate_accept",
+      "path": "/vrooli.react_component_library.v1.review.ReviewService/AcceptCandidate",
+      "method": "POST",
+      "summary": "Record an idempotent terminal acceptance decision",
+      "description": "",
+      "category": "review"
+    },
+    {
+      "id": "acceptance_get",
+      "path": "/vrooli.react_component_library.v1.review.ReviewService/GetAcceptance",
+      "method": "POST",
+      "summary": "Read a recorded acceptance decision",
+      "description": "",
+      "category": "review"
+    },
+    {
+      "id": "critique_list",
+      "path": "/vrooli.react_component_library.v1.review.ReviewService/ListCritiques",
+      "method": "POST",
+      "summary": "List verified critiques for an exact candidate render",
+      "description": "",
+      "category": "review"
+    },
+    {
+      "id": "critique_rubric",
+      "path": "/vrooli.react_component_library.v1.review.ReviewService/GetCritiqueRubric",
+      "method": "POST",
+      "summary": "Read the versioned visual rubric and calibration status",
+      "description": "",
+      "category": "review"
+    },
+    {
+      "id": "critique_record",
+      "path": "/vrooli.react_component_library.v1.review.ReviewService/RecordCritique",
+      "method": "POST",
+      "summary": "Verify image evidence and record an attributed visual critique",
+      "description": "",
+      "category": "review"
+    },
+    {
+      "id": "critique_get",
+      "path": "/vrooli.react_component_library.v1.review.ReviewService/GetCritique",
+      "method": "POST",
+      "summary": "Read an immutable visual review fact",
+      "description": "",
+      "category": "review"
+    },
+    {
       "id": "search_query",
       "path": "/vrooli.react_component_library.v1.search.SearchService/Search",
       "method": "POST",
@@ -2379,7 +2102,7 @@
     },
     {
       "id": "sketch_infer",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/InferSketch",
+      "path": "/vrooli.react_component_library.v1.workspaceassist.WorkspaceAssistService/InferSketch",
       "method": "POST",
       "summary": "Dispatch governed typed design alternatives with durable idempotency",
       "description": "",
@@ -2387,7 +2110,7 @@
     },
     {
       "id": "sketch_inference_get",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetSketchInference",
+      "path": "/vrooli.react_component_library.v1.workspaceassist.WorkspaceAssistService/GetSketchInference",
       "method": "POST",
       "summary": "Read an existing design inference without redispatch",
       "description": "",
@@ -2395,7 +2118,7 @@
     },
     {
       "id": "candidate_refine",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/RefineCandidate",
+      "path": "/vrooli.react_component_library.v1.workspaceassist.WorkspaceAssistService/RefineCandidate",
       "method": "POST",
       "summary": "Refine an exact candidate within a recorded region scope and round budget",
       "description": "",
@@ -2403,7 +2126,7 @@
     },
     {
       "id": "capture_screenshot",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetCaptureScreenshot",
+      "path": "/vrooli.react_component_library.v1.workspacecapture.WorkspaceCaptureService/GetCaptureScreenshot",
       "method": "POST",
       "summary": "Resolve a verified capture screenshot through its browser owner",
       "description": "",
@@ -2411,47 +2134,15 @@
     },
     {
       "id": "capture_retry",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/RetryCapture",
+      "path": "/vrooli.react_component_library.v1.workspacecapture.WorkspaceCaptureService/RetryCapture",
       "method": "POST",
       "summary": "Start a new linked attempt of a terminal capture",
       "description": "",
       "category": "sketch"
     },
     {
-      "id": "critique_list",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/ListCritiques",
-      "method": "POST",
-      "summary": "List verified critiques of an exact candidate render",
-      "description": "",
-      "category": "sketch"
-    },
-    {
-      "id": "critique_rubric",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetCritiqueRubric",
-      "method": "POST",
-      "summary": "Read the versioned visual rubric and calibration status",
-      "description": "",
-      "category": "sketch"
-    },
-    {
-      "id": "critique_record",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/RecordCritique",
-      "method": "POST",
-      "summary": "Verify image evidence and record an attributed visual critique",
-      "description": "",
-      "category": "sketch"
-    },
-    {
-      "id": "critique_get",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetCritique",
-      "method": "POST",
-      "summary": "Read an immutable visual review fact",
-      "description": "",
-      "category": "sketch"
-    },
-    {
       "id": "capture_cancel",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/CancelCapture",
+      "path": "/vrooli.react_component_library.v1.workspacecapture.WorkspaceCaptureService/CancelCapture",
       "method": "POST",
       "summary": "Request cancellation of the existing capture producer",
       "description": "",
@@ -2459,7 +2150,7 @@
     },
     {
       "id": "capture_attach",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/AttachCapture",
+      "path": "/vrooli.react_component_library.v1.workspacecapture.WorkspaceCaptureService/AttachCapture",
       "method": "POST",
       "summary": "Verify and attach producer-owned capture evidence",
       "description": "",
@@ -2467,7 +2158,7 @@
     },
     {
       "id": "candidate_capture",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/CaptureCandidate",
+      "path": "/vrooli.react_component_library.v1.workspacecapture.WorkspaceCaptureService/CaptureCandidate",
       "method": "POST",
       "summary": "Capture an exact candidate render through BAS",
       "description": "",
@@ -2475,7 +2166,7 @@
     },
     {
       "id": "capture_get",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetCapture",
+      "path": "/vrooli.react_component_library.v1.workspacecapture.WorkspaceCaptureService/GetCapture",
       "method": "POST",
       "summary": "Read durable capture operation identity and state",
       "description": "",
@@ -2483,7 +2174,7 @@
     },
     {
       "id": "candidate_list",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/ListCandidates",
+      "path": "/vrooli.react_component_library.v1.workspacecandidate.WorkspaceCandidateService/ListCandidates",
       "method": "POST",
       "summary": "List verified saved candidate revisions for a page",
       "description": "",
@@ -2491,7 +2182,7 @@
     },
     {
       "id": "candidate_place_asset",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/PlaceCandidateAsset",
+      "path": "/vrooli.react_component_library.v1.workspacecandidate.WorkspaceCandidateService/PlaceCandidateAsset",
       "method": "POST",
       "summary": "Derive a candidate with an exact published region asset and story fixture",
       "description": "",
@@ -2499,7 +2190,7 @@
     },
     {
       "id": "candidate_map_regions",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/MapCandidateRegions",
+      "path": "/vrooli.react_component_library.v1.workspacecandidate.WorkspaceCandidateService/MapCandidateRegions",
       "method": "POST",
       "summary": "Derive an immutable candidate with explicit semantic port mappings",
       "description": "",
@@ -2507,39 +2198,15 @@
     },
     {
       "id": "candidate_save",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/SaveCandidate",
+      "path": "/vrooli.react_component_library.v1.workspacecandidate.WorkspaceCandidateService/SaveCandidate",
       "method": "POST",
       "summary": "Persist an immutable candidate without changing the page",
       "description": "",
       "category": "sketch"
     },
     {
-      "id": "candidate_accept_check",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/CheckCandidateAcceptance",
-      "method": "POST",
-      "summary": "Check whether an exact candidate meets current acceptance requirements",
-      "description": "",
-      "category": "sketch"
-    },
-    {
-      "id": "candidate_accept",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/AcceptCandidate",
-      "method": "POST",
-      "summary": "Record a terminal acceptance decision for an exact candidate",
-      "description": "",
-      "category": "sketch"
-    },
-    {
-      "id": "acceptance_get",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetAcceptance",
-      "method": "POST",
-      "summary": "Read a recorded acceptance decision for a candidate",
-      "description": "",
-      "category": "sketch"
-    },
-    {
       "id": "candidate_get",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetCandidate",
+      "path": "/vrooli.react_component_library.v1.workspacecandidate.WorkspaceCandidateService/GetCandidate",
       "method": "POST",
       "summary": "Read an exact immutable candidate",
       "description": "",
@@ -2547,7 +2214,7 @@
     },
     {
       "id": "candidate_render",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/RenderCandidate",
+      "path": "/vrooli.react_component_library.v1.workspacecandidate.WorkspaceCandidateService/RenderCandidate",
       "method": "POST",
       "summary": "Render an immutable candidate independently of current page edits",
       "description": "",
@@ -2555,7 +2222,7 @@
     },
     {
       "id": "sketch_propose",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/ProposeSketch",
+      "path": "/vrooli.react_component_library.v1.workspaceassist.WorkspaceAssistService/ProposeSketch",
       "method": "POST",
       "summary": "Propose bounded catalog-backed page alternatives",
       "description": "",
@@ -2563,7 +2230,7 @@
     },
     {
       "id": "sketch_render",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/RenderSketch",
+      "path": "/vrooli.react_component_library.v1.workspacecandidate.WorkspaceCandidateService/RenderSketch",
       "method": "POST",
       "summary": "Render an exact authored design revision",
       "description": "",
@@ -2571,7 +2238,7 @@
     },
     {
       "id": "design_pages",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/ListDesignPages",
+      "path": "/vrooli.react_component_library.v1.experience.ExperienceService/ListDesignPages",
       "method": "POST",
       "summary": "Discover scenario design pages and contract gaps",
       "description": "",
@@ -2579,7 +2246,7 @@
     },
     {
       "id": "sketch_history",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetHistory",
+      "path": "/vrooli.react_component_library.v1.experience.ExperienceService/GetHistory",
       "method": "POST",
       "summary": "Read immutable design revisions",
       "description": "",
@@ -2587,7 +2254,7 @@
     },
     {
       "id": "sketch_recover",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/RecoverSketch",
+      "path": "/vrooli.react_component_library.v1.experience.ExperienceService/RecoverSketch",
       "method": "POST",
       "summary": "Recover an interrupted page apply",
       "description": "",
@@ -2595,7 +2262,7 @@
     },
     {
       "id": "sketch_get",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetSketch",
+      "path": "/vrooli.react_component_library.v1.experience.ExperienceService/GetSketch",
       "method": "POST",
       "summary": "Read a scenario page sketch",
       "description": "",
@@ -2603,7 +2270,7 @@
     },
     {
       "id": "sketch_put",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/PutSketch",
+      "path": "/vrooli.react_component_library.v1.experience.ExperienceService/PutSketch",
       "method": "POST",
       "summary": "Write a scenario page sketch",
       "description": "",
@@ -2611,7 +2278,7 @@
     },
     {
       "id": "sketch_verify",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/VerifySketch",
+      "path": "/vrooli.react_component_library.v1.experience.ExperienceService/VerifySketch",
       "method": "POST",
       "summary": "Verify page regions against observed source",
       "description": "",
@@ -2619,7 +2286,7 @@
     },
     {
       "id": "sketch_import",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/ImportPage",
+      "path": "/vrooli.react_component_library.v1.experience.ExperienceService/ImportPage",
       "method": "POST",
       "summary": "Decompose a page through the catalog",
       "description": "",
@@ -2627,7 +2294,7 @@
     },
     {
       "id": "sketch_place",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/Place",
+      "path": "/vrooli.react_component_library.v1.experience.ExperienceService/Place",
       "method": "POST",
       "summary": "Place a catalog asset into a region",
       "description": "",
@@ -2635,7 +2302,7 @@
     },
     {
       "id": "sketch_placeholder",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/Placeholder",
+      "path": "/vrooli.react_component_library.v1.experience.ExperienceService/Placeholder",
       "method": "POST",
       "summary": "Record a genuinely new region need",
       "description": "",
@@ -2643,7 +2310,7 @@
     },
     {
       "id": "sketch_note",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/AddNote",
+      "path": "/vrooli.react_component_library.v1.experience.ExperienceService/AddNote",
       "method": "POST",
       "summary": "Add a scoped sketch note",
       "description": "",
@@ -2651,7 +2318,7 @@
     },
     {
       "id": "sketch_unplace",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/Unplace",
+      "path": "/vrooli.react_component_library.v1.experience.ExperienceService/Unplace",
       "method": "POST",
       "summary": "Move a placement to the unplaced set",
       "description": "",
@@ -2659,7 +2326,7 @@
     },
     {
       "id": "sketch_template",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/SetTemplate",
+      "path": "/vrooli.react_component_library.v1.experience.ExperienceService/SetTemplate",
       "method": "POST",
       "summary": "Swap a page template with an explicit remap",
       "description": "",
@@ -2667,133 +2334,11 @@
     },
     {
       "id": "sketch_brief",
-      "path": "/vrooli.react_component_library.v1.sketch.SketchService/BuildBrief",
+      "path": "/vrooli.react_component_library.v1.experience.ExperienceService/BuildBrief",
       "method": "POST",
       "summary": "Build an ordered implementation brief",
       "description": "",
       "category": "sketch"
-    },
-    {
-      "id": "templates_list",
-      "path": "/api/templates",
-      "method": "GET",
-      "summary": "List templates",
-      "description": "Returns the studio's template shelf newest-updated first. palette and spec are opaque JSON objects; local on the client still means authoring draft, not a published asset.",
-      "category": "templates",
-      "response": {
-        "type": "object",
-        "properties": {
-          "templates": "array<Template>"
-        }
-      },
-      "rest_exception": {
-        "reason": "browser_surface",
-        "note": "The design studio's template shelf saves opaque TemplateNode spec JSON with plain fetches and a fire-and-forget queue; the document shape is owned by the client, so there is no generated Connect payload counterpart."
-      }
-    },
-    {
-      "id": "templates_create",
-      "path": "/api/templates",
-      "method": "POST",
-      "summary": "Create a template",
-      "description": "Persists a shelf template. id is client-assigned and must match ^[a-z0-9][a-z0-9._-]{0,127}$; a duplicate id returns 409. name is required. tagline/category/palette/spec/display/radius default to '', {}, 'sans' and 14.",
-      "category": "templates",
-      "request": {
-        "type": "object",
-        "properties": {
-          "category": "string (<=80 chars)",
-          "display": "sans|serif",
-          "id": "string (required)",
-          "idea": "string",
-          "name": "string (required, 1-120 chars)",
-          "palette": "JSON object (<=8 KiB)",
-          "radius": "integer 0-48",
-          "slotHint": "string",
-          "spec": "JSON object (<=1 MiB)",
-          "tagline": "string (<=240 chars)"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "template": "Template"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "id/name missing or out of range, display not sans|serif, radius out of range, palette/spec not JSON objects or over their byte limit, or the body exceeds 2 MiB"
-        },
-        {
-          "status": 409,
-          "code": "conflict",
-          "description": "A template with that id already exists"
-        }
-      ],
-      "rest_exception": {
-        "reason": "browser_surface",
-        "note": "The design studio's template shelf saves opaque TemplateNode spec JSON with plain fetches and a fire-and-forget queue; the document shape is owned by the client, so there is no generated Connect payload counterpart."
-      }
-    },
-    {
-      "id": "templates_update",
-      "path": "/api/templates/{id}",
-      "method": "PUT",
-      "summary": "Replace a template",
-      "description": "Replaces every field of an existing template and bumps updatedAt. The path id is authoritative; a body id is ignored. Same validation and defaults as create.",
-      "category": "templates",
-      "request": {
-        "type": "object",
-        "properties": {
-          "category": "string (<=80 chars)",
-          "display": "sans|serif",
-          "idea": "string",
-          "name": "string (required, 1-120 chars)",
-          "palette": "JSON object (<=8 KiB)",
-          "radius": "integer 0-48",
-          "slotHint": "string",
-          "spec": "JSON object (<=1 MiB)",
-          "tagline": "string (<=240 chars)"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "template": "Template"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "name missing or out of range, display not sans|serif, radius out of range, palette/spec not JSON objects or over their byte limit, or the body exceeds 2 MiB"
-        },
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No template with that id"
-        }
-      ],
-      "rest_exception": {
-        "reason": "browser_surface",
-        "note": "The design studio's template shelf saves opaque TemplateNode spec JSON with plain fetches and a fire-and-forget queue; the document shape is owned by the client, so there is no generated Connect payload counterpart."
-      }
-    },
-    {
-      "id": "templates_delete",
-      "path": "/api/templates/{id}",
-      "method": "DELETE",
-      "summary": "Delete a template",
-      "description": "Hard-deletes the shelf template. Deleting a missing template is success, so a retried or cross-tab delete does not fail.",
-      "category": "templates",
-      "response": {
-        "type": "object"
-      },
-      "rest_exception": {
-        "reason": "browser_surface",
-        "note": "The design studio's template shelf saves opaque TemplateNode spec JSON with plain fetches and a fire-and-forget queue; the document shape is owned by the client, so there is no generated Connect payload counterpart."
-      }
     },
     {
       "id": "themes_list_builtin",
@@ -3229,6 +2774,74 @@
       ]
     },
     {
+      "id": "workspaces_source_baselines_list",
+      "path": "/vrooli.react_component_library.v1.workspace.WorkspaceService/ListWorkspaceSourceBaselines",
+      "method": "POST",
+      "summary": "List source baseline candidates and accepted anchor",
+      "description": "",
+      "category": "workspaces",
+      "request": {
+        "type": "object",
+        "properties": {
+          "state_id": "string",
+          "workspace_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "accepted": "WorkspaceSourceBaseline|null",
+          "candidates": "array<WorkspaceSourceBaseline>"
+        }
+      }
+    },
+    {
+      "id": "workspaces_source_baseline_create",
+      "path": "/vrooli.react_component_library.v1.workspace.WorkspaceService/CreateWorkspaceSourceBaseline",
+      "method": "POST",
+      "summary": "Register a reference image as a source baseline candidate",
+      "description": "",
+      "category": "workspaces",
+      "request": {
+        "type": "object",
+        "properties": {
+          "asset_id": "string",
+          "source_locator": "string",
+          "state_id": "string",
+          "workspace_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "baseline": "WorkspaceSourceBaseline (candidate)"
+        }
+      }
+    },
+    {
+      "id": "workspaces_source_baseline_accept",
+      "path": "/vrooli.react_component_library.v1.workspace.WorkspaceService/AcceptWorkspaceSourceBaseline",
+      "method": "POST",
+      "summary": "Record explicit human acceptance of a source baseline candidate",
+      "description": "",
+      "category": "workspaces",
+      "request": {
+        "type": "object",
+        "properties": {
+          "accepted_by": "string (human attribution)",
+          "baseline_id": "string",
+          "state_id": "string",
+          "workspace_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "baseline": "WorkspaceSourceBaseline (accepted)"
+        }
+      }
+    },
+    {
       "id": "workspaces_create",
       "path": "/vrooli.react_component_library.v1.workspace.WorkspaceService/CreateWorkspace",
       "method": "POST",
@@ -3478,57 +3091,53 @@
     },
     {
       "id": "workspaces_assets_list",
-      "path": "/api/workspaces/{id}/assets",
-      "method": "GET",
+      "path": "/vrooli.react_component_library.v1.workspace.WorkspaceService/ListWorkspaceAssets",
+      "method": "POST",
       "summary": "List a workspace's reference assets",
-      "description": "Returns upload metadata newest-first. Bytes are served by the per-asset route. A missing workspace is 404.",
+      "description": "",
+      "category": "workspaces",
+      "request": {
+        "type": "object",
+        "properties": {
+          "workspace_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "assets": "array<WorkspaceAsset>"
+        }
+      }
+    },
+    {
+      "id": "workspaces_assets_list_all",
+      "path": "/vrooli.react_component_library.v1.workspace.WorkspaceService/ListAllWorkspaceAssets",
+      "method": "POST",
+      "summary": "List reference assets across workspaces",
+      "description": "",
       "category": "workspaces",
       "response": {
         "type": "object",
         "properties": {
           "assets": "array<WorkspaceAsset>"
         }
-      },
-      "errors": [
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No workspace with that id"
-        }
-      ],
-      "rest_exception": {
-        "reason": "browser_surface",
-        "note": "Reference images are rendered directly by the browser and uploaded as a data URL. The list/create metadata travels with the same routes so one client owns uploads; failures still use the canonical JSON error envelope.",
-        "proto_payloads": {
-          "request": {
-            "transport": "none",
-            "conformance": "none"
-          },
-          "response": {
-            "transport": "json",
-            "conformance": "external_shape"
-          },
-          "error": {
-            "transport": "json",
-            "conformance": "external_shape"
-          }
-        }
       }
     },
     {
       "id": "workspaces_assets_create",
-      "path": "/api/workspaces/{id}/assets",
+      "path": "/vrooli.react_component_library.v1.workspace.WorkspaceService/CreateWorkspaceAsset",
       "method": "POST",
-      "summary": "Upload a reference asset",
-      "description": "Stores one image as a workspace reference. name is required; mime must be png, jpeg, webp, gif or svg+xml; decoded bytes are capped at 8 MiB; fidelity is reference (default) or captured. Dimensions are read from the header when the type carries them.",
+      "summary": "Upload a workspace reference asset",
+      "description": "",
       "category": "workspaces",
       "request": {
         "type": "object",
         "properties": {
-          "dataBase64": "string (required; bare base64 or data URL)",
-          "fidelity": "\"reference\"|\"captured\" (optional)",
-          "mime": "string (required)",
-          "name": "string (required)"
+          "data": "bytes",
+          "fidelity": "string",
+          "mime": "string",
+          "name": "string",
+          "workspace_id": "string"
         }
       },
       "response": {
@@ -3536,67 +3145,204 @@
         "properties": {
           "asset": "WorkspaceAsset"
         }
+      }
+    },
+    {
+      "id": "workspaces_assets_delete",
+      "path": "/vrooli.react_component_library.v1.workspace.WorkspaceService/DeleteWorkspaceAsset",
+      "method": "POST",
+      "summary": "Delete a workspace reference asset",
+      "description": "",
+      "category": "workspaces",
+      "request": {
+        "type": "object",
+        "properties": {
+          "asset_id": "string",
+          "workspace_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "deleted": "bool"
+        }
+      }
+    },
+    {
+      "id": "workspaces_capture_state",
+      "path": "/vrooli.react_component_library.v1.workspace.WorkspaceService/CaptureWorkspaceState",
+      "method": "POST",
+      "summary": "Capture one composed workspace state",
+      "description": "",
+      "category": "workspaces",
+      "request": {
+        "type": "object",
+        "properties": {
+          "attempt_id": "uuid",
+          "display_id": "string",
+          "expected_revision": "int32",
+          "page_id": "string",
+          "state_id": "string",
+          "workspace_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "capture_id": "string",
+          "evidence": "WorkspaceCaptureEvidence",
+          "workspace_revision": "int32"
+        }
+      }
+    },
+    {
+      "id": "workspaces_capture_evidence_get",
+      "path": "/vrooli.react_component_library.v1.workspace.WorkspaceService/GetWorkspaceStateCapture",
+      "method": "POST",
+      "summary": "Read current capture evidence for a state",
+      "description": "",
+      "category": "workspaces",
+      "request": {
+        "type": "object",
+        "properties": {
+          "state_id": "string",
+          "workspace_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "capture_id": "string",
+          "evidence": "WorkspaceCaptureEvidence"
+        }
+      }
+    },
+    {
+      "id": "workspaces_capture_receipts_list",
+      "path": "/vrooli.react_component_library.v1.workspace.WorkspaceService/ListWorkspaceCaptureReceipts",
+      "method": "POST",
+      "summary": "List immutable capture receipts for a state",
+      "description": "",
+      "category": "workspaces",
+      "request": {
+        "type": "object",
+        "properties": {
+          "state_id": "string",
+          "workspace_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "receipts": "array<WorkspaceCaptureReceipt>"
+        }
+      }
+    },
+    {
+      "id": "workspaces_visual_comparisons_create",
+      "path": "/vrooli.react_component_library.v1.workspacevisualcomparison.WorkspaceVisualComparisonService/CompareWorkspaceCaptureReceipts",
+      "method": "POST",
+      "summary": "Compare two captured workspace states",
+      "description": "",
+      "category": "workspaces",
+      "request": {
+        "type": "object",
+        "properties": {
+          "baseline_receipt_id": "string",
+          "current_receipt_id": "string",
+          "state_id": "string",
+          "workspace_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "comparison_id": "string",
+          "result_json": "DiffResult protojson"
+        }
       },
       "errors": [
         {
           "status": 400,
           "code": "invalid_argument",
-          "description": "Missing or invalid name/mime/dataBase64/fidelity, or bytes over 8 MiB"
+          "description": "Receipt ids are missing or identical"
         },
         {
           "status": 404,
           "code": "not_found",
-          "description": "No workspace with that id"
+          "description": "The selected receipt was not found"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "Image comparison is unavailable"
         }
-      ],
-      "rest_exception": {
-        "reason": "browser_surface",
-        "note": "Reference images are rendered directly by the browser and uploaded as a data URL. The list/create metadata travels with the same routes so one client owns uploads; failures still use the canonical JSON error envelope.",
-        "proto_payloads": {
-          "request": {
-            "transport": "json",
-            "conformance": "external_shape"
-          },
-          "response": {
-            "transport": "json",
-            "conformance": "external_shape"
-          },
-          "error": {
-            "transport": "json",
-            "conformance": "external_shape"
-          }
+      ]
+    },
+    {
+      "id": "workspaces_visual_comparisons_list",
+      "path": "/vrooli.react_component_library.v1.workspacevisualcomparison.WorkspaceVisualComparisonService/ListWorkspaceVisualComparisons",
+      "method": "POST",
+      "summary": "List visual comparisons for a workspace state",
+      "description": "",
+      "category": "workspaces",
+      "request": {
+        "type": "object",
+        "properties": {
+          "state_id": "string",
+          "workspace_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "comparisons": "array<WorkspaceVisualComparison>"
         }
       }
     },
     {
-      "id": "workspaces_assets_list_all",
-      "path": "/api/workspace-assets",
-      "method": "GET",
-      "summary": "List uploads across every workspace",
-      "description": "Returns metadata for uploads in any workspace, newest-first and bounded, so a reference already uploaded elsewhere can be found. Bytes remain scoped to the owning workspace.",
+      "id": "workspaces_source_visual_comparison_create",
+      "path": "/vrooli.react_component_library.v1.workspacevisualcomparison.WorkspaceVisualComparisonService/CompareWorkspaceSourceBaseline",
+      "method": "POST",
+      "summary": "Compare an accepted source image with a captured workspace state",
+      "description": "",
       "category": "workspaces",
+      "request": {
+        "type": "object",
+        "properties": {
+          "current_receipt_id": "string",
+          "state_id": "string",
+          "workspace_id": "string"
+        }
+      },
       "response": {
         "type": "object",
         "properties": {
-          "assets": "array<WorkspaceAsset>"
+          "comparison_id": "string",
+          "result_json": "DiffResult protojson",
+          "source_asset_id": "string",
+          "source_baseline_id": "string"
+        }
+      }
+    },
+    {
+      "id": "workspaces_source_visual_comparisons_list",
+      "path": "/vrooli.react_component_library.v1.workspacevisualcomparison.WorkspaceVisualComparisonService/ListWorkspaceSourceBaselineComparisons",
+      "method": "POST",
+      "summary": "List comparisons against accepted source baselines",
+      "description": "",
+      "category": "workspaces",
+      "request": {
+        "type": "object",
+        "properties": {
+          "state_id": "string",
+          "workspace_id": "string"
         }
       },
-      "rest_exception": {
-        "reason": "browser_surface",
-        "note": "Reference images are rendered directly by the browser and uploaded as a data URL. The list/create metadata travels with the same routes so one client owns uploads; failures still use the canonical JSON error envelope.",
-        "proto_payloads": {
-          "request": {
-            "transport": "json",
-            "conformance": "external_shape"
-          },
-          "response": {
-            "transport": "json",
-            "conformance": "external_shape"
-          },
-          "error": {
-            "transport": "json",
-            "conformance": "external_shape"
-          }
+      "response": {
+        "type": "object",
+        "properties": {
+          "comparisons": "array<WorkspaceSourceVisualComparison>"
         }
       }
     },
@@ -3605,7 +3351,7 @@
       "path": "/api/workspaces/{id}/assets/{assetId}",
       "method": "GET",
       "summary": "Read a reference asset's bytes",
-      "description": "Serves the stored image with its Content-Type, Cache-Control: private, max-age=3600 and an ETag equal to the asset id. If-None-Match returns 304.",
+      "description": "Serves the stored image with its Content-Type, private cache headers and an ETag equal to the asset id. If-None-Match returns 304.",
       "category": "workspaces",
       "response": {
         "type": "binary",
@@ -3622,7 +3368,7 @@
       ],
       "rest_exception": {
         "reason": "browser_surface",
-        "note": "The byte route is browser-native: it sets Content-Type, Cache-Control and an ETag and answers If-None-Match with 304. Wrapping the bytes in Connect JSON would force base64 on every image render.",
+        "note": "The browser renders image bytes directly with Content-Type, Cache-Control and ETag support; Connect JSON would base64 encode each image render.",
         "proto_payloads": {
           "request": {
             "transport": "none",
@@ -3633,46 +3379,90 @@
             "conformance": "external_shape"
           },
           "error": {
-            "transport": "json",
+            "transport": "text",
             "conformance": "external_shape"
           }
         }
       }
     },
     {
-      "id": "workspaces_assets_delete",
-      "path": "/api/workspaces/{id}/assets/{assetId}",
-      "method": "DELETE",
-      "summary": "Delete a reference asset",
-      "description": "Deletes the asset scoped to that workspace. Idempotent for an existing workspace; an asset belonging to another workspace is untouched.",
+      "id": "workspaces_capture_receipt_screenshot",
+      "path": "/api/workspaces/{id}/states/{stateId}/capture-receipts/{receiptId}/screenshot",
+      "method": "GET",
+      "summary": "Read the screenshot from a workspace capture receipt",
+      "description": "Serves the receipt screenshot as image bytes with private cache headers; artifact access is scoped to the owning workspace and state.",
       "category": "workspaces",
       "response": {
-        "type": "object",
+        "type": "binary",
         "properties": {
-          "status": "204 No Content"
+          "body": "screenshot bytes"
         }
       },
       "errors": [
         {
           "status": 404,
           "code": "not_found",
-          "description": "No workspace with that id"
+          "description": "No screenshot for that workspace capture receipt"
         }
       ],
       "rest_exception": {
         "reason": "browser_surface",
-        "note": "Reference images are rendered directly by the browser and uploaded as a data URL. The list/create metadata travels with the same routes so one client owns uploads; failures still use the canonical JSON error envelope.",
+        "note": "Screenshots are browser-rendered image artifacts; this endpoint streams bytes directly.",
         "proto_payloads": {
           "request": {
-            "transport": "json",
-            "conformance": "external_shape"
+            "transport": "none",
+            "conformance": "none"
           },
           "response": {
-            "transport": "json",
+            "transport": "binary",
             "conformance": "external_shape"
           },
           "error": {
-            "transport": "json",
+            "transport": "text",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "workspaces_visual_comparison_heatmap",
+      "path": "/api/workspaces/{id}/states/{stateId}/visual-comparisons/{comparisonId}/heatmap",
+      "method": "GET",
+      "summary": "Read a visual comparison heatmap",
+      "description": "Serves the heatmap PNG associated with the selected comparison; artifact lookup remains scoped to the workspace and state.",
+      "category": "workspaces",
+      "response": {
+        "type": "binary",
+        "properties": {
+          "body": "PNG heatmap bytes"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No heatmap for that comparison"
+        },
+        {
+          "status": 502,
+          "code": "bad_gateway",
+          "description": "Image Tools could not return the heatmap"
+        }
+      ],
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "Heatmaps are browser-rendered PNG artifacts; this endpoint streams bytes directly.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "binary",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "text",
             "conformance": "external_shape"
           }
         }

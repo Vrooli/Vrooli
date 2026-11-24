@@ -16,12 +16,17 @@ type ActiveActionContract =
   (typeof activeUsageContractLimits)["react-component-library:OverlayActionBar"];
 type OverlayActionTone = ActiveActionContract["optionalFieldEnums"]["tone"][number];
 
-const runtimeGlobal: typeof globalThis & {
-  process?: { env?: { NODE_ENV?: string } };
-} = globalThis;
-// Browser globals can omit Node's process/env despite Node typings.
-// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-const isDevelopment = runtimeGlobal.process?.env?.NODE_ENV !== "production";
+// Vite replaces DEV at build time. A browser with no Node `process` object is
+// not enough evidence that the running bundle is a development build.
+declare global {
+  interface ImportMetaEnv {
+    readonly DEV: boolean;
+  }
+  interface ImportMeta {
+    readonly env: ImportMetaEnv;
+  }
+}
+const isDevelopment = import.meta.env.DEV;
 
 export interface OverlayAction {
   id: string;
@@ -154,10 +159,10 @@ function warnContract(
       .find((frame) => !frame.includes("OverlayActionBar"))
       ?.trim();
     console.warn(
-      `[RCL usage contract] react-component-library:OverlayActionBar@1.0.1: ${violations.join("; ")}; call site: ${renderFrame ?? "unavailable (see page location)"}`,
+      `[RCL usage contract] react-component-library:OverlayActionBar@${OVERLAY_ACTION_BAR_CONTRACT.version}: ${violations.join("; ")}; call site: ${renderFrame ?? "unavailable (see page location)"}`,
       {
         component: "OverlayActionBar",
-        version: "1.0.1",
+        version: OVERLAY_ACTION_BAR_CONTRACT.version,
         count: actions.length,
         maxVisible,
       },

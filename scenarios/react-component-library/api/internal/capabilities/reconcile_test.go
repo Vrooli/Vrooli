@@ -46,3 +46,29 @@ func TestReconcileDeclaredFailsClosedWhenDerivationUnavailable(t *testing.T) {
 		t.Fatalf("unexpected unavailable row: %#v", row)
 	}
 }
+
+func TestReconcileDeclaredMarksUnknownCapabilitiesUnmeasuredAndDeduplicatesAssets(t *testing.T) {
+	report := ReconcileDeclaredWithStatuses(map[string][]string{
+		"asset-a": {" future-capability ", "future-capability", "  "},
+		"asset-b": {"future-capability"},
+	}, nil, nil)
+	if report.DeclarationCount != 2 || report.DeclaredAssetCount != 2 {
+		t.Fatalf("declaration and asset counts = %d/%d, want 2/2", report.DeclarationCount, report.DeclaredAssetCount)
+	}
+	if report.UncheckableAssetCount != 2 || report.UnmeasuredAssetCount != 2 {
+		t.Fatalf("uncheckable/unmeasured counts = %d/%d, want 2/2", report.UncheckableAssetCount, report.UnmeasuredAssetCount)
+	}
+	if len(report.Capabilities) != 1 {
+		t.Fatalf("capability rows = %d, want one deduplicated row", len(report.Capabilities))
+	}
+	row := report.Capabilities[0]
+	if row.Capability != "future-capability" || row.Title != "future-capability" || row.Status != "unmeasured" || !row.Unmeasured || row.Checkable {
+		t.Fatalf("unknown capability was not exposed as unmeasured: %#v", row)
+	}
+	if row.DeclaredAssetCount != 2 || len(row.AssetIDs) != 2 || row.AssetIDs[0] != "asset-a" || row.AssetIDs[1] != "asset-b" {
+		t.Fatalf("unknown capability asset membership = %#v", row.AssetIDs)
+	}
+	if len(row.Blockers) != 1 || row.Blockers[0] != "capability is not present in the live registry" {
+		t.Fatalf("unknown capability blocker = %#v", row.Blockers)
+	}
+}

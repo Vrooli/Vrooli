@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -18,6 +17,7 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 
+	"react-component-library/cli/internal/runtimeenv"
 	"react-component-library/cli/internal/scenariopath"
 )
 
@@ -71,7 +71,7 @@ func (h *handlers) exportSeedCall(ctx cliapp.RunContext) error {
 		return errors.New("--seed-id must start with ws_curated_ so the shelf's templates stay recognisable")
 	}
 
-	path, err := seedPath(ctx.Flag("file"))
+	path, err := seedPath(ctx.Flag("file"), h.deps.Environment)
 	if err != nil {
 		return err
 	}
@@ -94,7 +94,7 @@ func (h *handlers) exportSeedCall(ctx cliapp.RunContext) error {
 	snapshot.OriginWorkspaceId = ""
 	snapshot.BindingScenario = ""
 	snapshot.BindingPage = ""
-	now := time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
+	now := h.deps.Clock.Now().UTC().Format("2006-01-02T15:04:05.000Z")
 	snapshot.CreatedAt = now
 	snapshot.UpdatedAt = now
 	encoded, err := protojson.Marshal(snapshot)
@@ -153,8 +153,8 @@ func (h *handlers) exportSeedCall(ctx cliapp.RunContext) error {
 	})
 }
 
-func seedPath(flag string) (string, error) {
-	root, err := scenariopath.Find()
+func seedPath(flag string, environment runtimeenv.Environment) (string, error) {
+	root, err := scenariopath.FindWith(environment)
 	if err != nil {
 		return "", err
 	}

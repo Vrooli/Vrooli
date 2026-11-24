@@ -209,6 +209,12 @@ func (r *SQLiteRepository) DeleteWorkspaceAsset(ctx context.Context, workspaceID
 	if err := r.requireWritableWorkspace(ctx, r.db, workspaceID); err != nil {
 		return err
 	}
+	var referenced int
+	if err := r.db.QueryRowContext(ctx, `SELECT 1 FROM workspace_state_source_baselines WHERE workspace_id=? AND asset_id=? LIMIT 1`, workspaceID, assetID).Scan(&referenced); err == nil {
+		return ErrSourceBaselineAsset
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("check source baseline asset reference: %w", err)
+	}
 	if _, err := r.db.ExecContext(ctx,
 		`DELETE FROM workspace_assets WHERE id = ? AND workspace_id = ?`,
 		assetID, workspaceID); err != nil {

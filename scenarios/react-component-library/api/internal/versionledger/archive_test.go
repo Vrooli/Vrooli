@@ -77,6 +77,95 @@ VALUES ('rcl:Button', '1.0.0', 'archived', '2026-01-01T00:00:00Z');
 	require.Zero(t, replacedRows, "overwrite=true replaces the complete ledger archive")
 }
 
+func TestExportArchiveCreatesNestedPathAtomicallyWithoutFollowingDestinationSymlink(t *testing.T) {
+	database := archiveDatabase(t)
+	base := t.TempDir()
+	archivePath := filepath.Join(base, "new", "nested", "ledger.json")
+	_, err := NewRepository(database, t.TempDir()).ExportArchive(context.Background(), archivePath)
+	require.NoError(t, err)
+	require.FileExists(t, archivePath)
+
+	outside := filepath.Join(t.TempDir(), "outside.json")
+	require.NoError(t, os.WriteFile(outside, []byte("preserve me"), 0o600))
+	linkPath := filepath.Join(base, "new", "nested", "linked.json")
+	require.NoError(t, os.Symlink(outside, linkPath))
+	_, err = NewRepository(database, t.TempDir()).ExportArchive(context.Background(), linkPath)
+	require.NoError(t, err)
+	contents, err := os.ReadFile(outside)
+	require.NoError(t, err)
+	require.Equal(t, "preserve me", string(contents), "archive publication replaces the symlink entry instead of following it")
+	linkInfo, err := os.Lstat(linkPath)
+	require.NoError(t, err)
+	require.Zero(t, linkInfo.Mode()&os.ModeSymlink)
+}
+
+func TestImportArchiveRejectsMalformedArchivesAtomically(t *testing.T) {
+	ctx := context.Background()
+	// Export an empty, schema-backed database to obtain the canonical table
+	// columns, then corrupt one later table in each case. This exercises the
+	// archive boundary without relying on implementation-specific SQL strings.
+	source := archiveDatabase(t)
+	archivePath := filepath.Join(t.TempDir(), "ledger.json")
+	_, err := NewRepository(source, t.TempDir()).ExportArchive(ctx, archivePath)
+	require.NoError(t, err)
+	original, err := os.ReadFile(archivePath)
+	require.NoError(t, err)
+	var valid archiveEnvelope
+	require.NoError(t, json.Unmarshal(original, &valid))
+
+	tests := []struct {
+		name   string
+		mutate func(*archiveEnvelope)
+		want   string
+	}{
+		{"checksum", func(e *archiveEnvelope) { e.Checksum = "bad" }, "checksum mismatch"},
+		{"schema version", func(e *archiveEnvelope) { e.SchemaVersion++ }, "unsupported ledger archive schema version"},
+		{"invalid identifier", func(e *archiveEnvelope) { e.Tables["version_ledger"] = archiveTable{Columns: []string{"bad-name"}} }, "invalid archive column"},
+		{"row width", func(e *archiveEnvelope) {
+			table := e.Tables["version_ledger"]
+			table.Rows = [][]any{{"too", "short"}}
+			e.Tables["version_ledger"] = table
+		}, "archive row width mismatch"},
+		{"insert constraint", func(e *archiveEnvelope) {
+			table := e.Tables["version_ledger"]
+			table.Rows = [][]any{make([]any, len(table.Columns))}
+			e.Tables["version_ledger"] = table
+		}, "import version_ledger"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			envelope := valid
+			envelope.Tables = map[string]archiveTable{}
+			for name, table := range valid.Tables {
+				table.Columns = append([]string(nil), table.Columns...)
+				table.Rows = append([][]any(nil), table.Rows...)
+				envelope.Tables[name] = table
+			}
+			test.mutate(&envelope)
+			// Re-sign all but the checksum case so validation reaches the
+			// requested structural or database error.
+			if test.name != "checksum" {
+				body, marshalErr := json.Marshal(envelope.archiveBody)
+				require.NoError(t, marshalErr)
+				envelope.Checksum = digestArchive(body)
+			}
+			data, marshalErr := json.Marshal(envelope)
+			require.NoError(t, marshalErr)
+			path := filepath.Join(t.TempDir(), "malformed.json")
+			require.NoError(t, os.WriteFile(path, data, 0o600))
+
+			database := archiveDatabase(t)
+			_, insertErr := database.Exec(`INSERT INTO version_ledger (library_id, version, lifecycle_state, created_at) VALUES ('keep', '1.0.0', 'released', '2026-01-01T00:00:00Z')`)
+			require.NoError(t, insertErr)
+			_, importErr := NewRepository(database, t.TempDir()).ImportArchive(ctx, path, true)
+			require.ErrorContains(t, importErr, test.want)
+			var preserved int
+			require.NoError(t, database.QueryRow(`SELECT COUNT(*) FROM version_ledger WHERE library_id='keep'`).Scan(&preserved))
+			require.Equal(t, 1, preserved, "failed overwrite must roll back deletes and prior inserts")
+		})
+	}
+}
+
 func recoveryFixture() (PublishedReleaseBundle, releaseAttestation) {
 	entry := "export const Button = 'verified fixture'"
 	story := "export default { title: 'Button' }"

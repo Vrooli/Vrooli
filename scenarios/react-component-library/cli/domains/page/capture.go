@@ -33,6 +33,7 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 
 	repocontract "github.com/vrooli/repo-contract-go"
+	"react-component-library/cli/internal/runtimeenv"
 )
 
 const captureSetSchema = "ux-capture-set.v1"
@@ -394,8 +395,9 @@ var scenarioPorts = func(ctx context.Context, name string) (map[string]int, stri
 	return status.Scenario.Ports, status.Scenario.StartedAt, nil
 }
 
-func newBASClient(ctx context.Context) (basClient, error) {
-	base := strings.TrimRight(os.Getenv("RCL_BAS_API_BASE"), "/")
+func newBASClient(ctx context.Context, environment runtimeenv.Environment) (basClient, error) {
+	rawBase, _ := environment.LookupEnv("RCL_BAS_API_BASE")
+	base := strings.TrimRight(rawBase, "/")
 	if base == "" {
 		ports, _, err := scenarioPorts(ctx, "browser-automation-studio")
 		if err != nil {
@@ -406,8 +408,8 @@ func newBASClient(ctx context.Context) (basClient, error) {
 	return basClient{base: base, http: &http.Client{Timeout: 150 * time.Second}}, nil
 }
 
-func captureRoot() string {
-	if root := os.Getenv("RCL_UX_CAPTURE_ROOT"); root != "" {
+func captureRoot(environment runtimeenv.Environment) string {
+	if root, _ := environment.LookupEnv("RCL_UX_CAPTURE_ROOT"); root != "" {
 		return root
 	}
 	home, err := os.UserHomeDir()
@@ -498,7 +500,7 @@ func (h captureHandlers) capture(rc cliapp.RunContext) error {
 	if err != nil {
 		return err
 	}
-	now := time.Now()
+	now := h.deps.Clock.Now()
 	set := captureSet{Schema: captureSetSchema, CapturedAt: now.UTC().Format(time.RFC3339)}
 	route := defaultString(rc.Flag("route"), "/")
 	// Every branch below assigns both; declaring them avoids an ineffectual
@@ -555,7 +557,7 @@ func (h captureHandlers) capture(rc cliapp.RunContext) error {
 		request = map[string]any{"filename": filepath.Base(file), "html": string(html)}
 		set.ID = newCaptureID(strings.TrimSuffix(filepath.Base(file), filepath.Ext(file)), now)
 	}
-	out := defaultString(rc.Flag("out"), filepath.Join(captureRoot(), set.ID))
+	out := defaultString(rc.Flag("out"), filepath.Join(captureRoot(h.deps.Environment), set.ID))
 	for _, dir := range []string{"pixels", "page", "outline"} {
 		if err := os.MkdirAll(filepath.Join(out, dir), 0o755); err != nil {
 			return err
@@ -841,5 +843,6 @@ func defaultString(value, fallback string) string {
 }
 
 type captureHandlers struct {
-	bas func(context.Context) (basClient, error)
+	bas  func(context.Context) (basClient, error)
+	deps runtimeenv.Dependencies
 }

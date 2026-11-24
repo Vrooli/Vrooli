@@ -34,12 +34,21 @@ func archivePaths(root string, c components.Component) components.RetirementArch
 	return components.RetirementArchive{SourceArchivePath: base, SnapshotPath: base + ".snapshot.json"}
 }
 
-func persistJSON(path string, value any) error {
+func persistJSON(root, path string, value any) error {
 	data, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {
 		return err
 	}
-	if err := storage.WriteFileAtomic(path, append(data, '\n'), 0o600); err != nil {
+	relative, err := relativeToRoot(root, path)
+	if err != nil {
+		return err
+	}
+	opened, err := os.OpenRoot(root)
+	if err != nil {
+		return fmt.Errorf("open retirement root: %w", err)
+	}
+	defer opened.Close()
+	if err := storage.WriteFileAtomicInRoot(opened, relative, append(data, '\n'), 0o600); err != nil {
 		return err
 	}
 	return syncDirectory(filepath.Dir(path))
@@ -55,10 +64,56 @@ func syncDirectory(path string) error {
 }
 
 func clearPending(root string) error {
-	if err := os.Remove(pendingPath(root)); err != nil {
+	if err := removeInRoot(root, pendingPath(root)); err != nil {
 		return err
 	}
 	return syncDirectory(libraryRoot(root))
+}
+
+func relativeToRoot(root, path string) (string, error) {
+	root, err := filepath.Abs(root)
+	if err != nil {
+		return "", err
+	}
+	path, err = filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	relative, err := filepath.Rel(root, path)
+	if err != nil || !filepath.IsLocal(relative) {
+		return "", fmt.Errorf("retirement path escapes repository root: %s", path)
+	}
+	return filepath.ToSlash(relative), nil
+}
+
+func removeInRoot(root, path string) error {
+	relative, err := relativeToRoot(root, path)
+	if err != nil {
+		return err
+	}
+	opened, err := os.OpenRoot(root)
+	if err != nil {
+		return fmt.Errorf("open retirement root: %w", err)
+	}
+	defer opened.Close()
+	return opened.Remove(relative)
+}
+
+func renameInRoot(root, from, to string) error {
+	fromRelative, err := relativeToRoot(root, from)
+	if err != nil {
+		return err
+	}
+	toRelative, err := relativeToRoot(root, to)
+	if err != nil {
+		return err
+	}
+	opened, err := os.OpenRoot(root)
+	if err != nil {
+		return fmt.Errorf("open retirement root: %w", err)
+	}
+	defer opened.Close()
+	return opened.Rename(fromRelative, toRelative)
 }
 
 // recoverPending runs under the retirement lock. A registry row means the
@@ -124,10 +179,10 @@ func recoverPending(ctx context.Context, root string, repo components.Repository
 		if current.ID != c.ID {
 			return out, true, fmt.Errorf("retirement recovery registry identity changed")
 		}
-		if err := recoverMove(out.Archive.SourceArchivePath, active); err != nil {
+		if err := recoverMove(root, out.Archive.SourceArchivePath, active); err != nil {
 			return out, true, err
 		}
-		if err := recoverMove(out.CatalogArchivePath, catalog); err != nil {
+		if err := recoverMove(root, out.CatalogArchivePath, catalog); err != nil {
 			return out, true, err
 		}
 		if _, err := verifiedAssetRoot(root, c); err != nil {
@@ -192,14 +247,14 @@ func recoverPending(ctx context.Context, root string, repo components.Repository
 		if catalogDocument.Asset.ID != c.CatalogID {
 			return out, true, fmt.Errorf("retirement catalog archive identity mismatch")
 		}
-		if err := persistJSON(out.Archive.SourceArchivePath+".receipt.json", out); err != nil {
+		if err := persistJSON(root, out.Archive.SourceArchivePath+".receipt.json", out); err != nil {
 			return out, true, err
 		}
 	}
 	return out, true, clearPending(root)
 }
 
-func recoverMove(archive, active string) error {
+func recoverMove(root, archive, active string) error {
 	archiveInfo, archiveErr := os.Lstat(archive)
 	activeInfo, activeErr := os.Lstat(active)
 	if (archiveErr == nil && archiveInfo.Mode()&os.ModeSymlink != 0) || (activeErr == nil && activeInfo.Mode()&os.ModeSymlink != 0) {
@@ -209,7 +264,7 @@ func recoverMove(archive, active string) error {
 		return nil
 	}
 	if archiveErr == nil && os.IsNotExist(activeErr) {
-		if err := restoreMove(archive, active); err != nil {
+		if err := restoreMove(root, archive, active); err != nil {
 			return err
 		}
 		return errors.Join(syncDirectory(filepath.Dir(archive)), syncDirectory(filepath.Dir(active)))

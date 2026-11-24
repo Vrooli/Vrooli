@@ -3,6 +3,9 @@ package preview
 import (
 	"context"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
@@ -73,4 +76,45 @@ func TestPreviewBundle_PrintsJS(t *testing.T) {
 	require.Contains(t, body, "export const X = () => null;")
 	require.Contains(t, body, "1 warning(s) reported.")
 	require.Contains(t, body, "unused import")
+}
+
+func TestPreviewCaptureValidatesScopeAndPassesOptions(t *testing.T) {
+	core := clitest.NewTestApp(t, http.NewServeMux())
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "asset"}, {Name: "version"}, {Name: "all", Bool: true}, {Name: "refresh", Bool: true}}}
+	ctx, _ := cliapptest.NewCapturedRunContext(core, schema, cliapptest.TestRunContextOptions{})
+	err := (&handlers{}).capture(ctx)
+	require.ErrorContains(t, err, "requires --asset <library-id> or --all")
+
+	bin := t.TempDir()
+	python := filepath.Join(bin, "python3")
+	require.NoError(t, os.WriteFile(python, []byte("#!/bin/sh\nprintf 'captured one\\ncaptured two\\n'\n"), 0o700))
+	t.Setenv("PATH", bin)
+	ctx, output := cliapptest.NewCapturedRunContext(core, schema, cliapptest.TestRunContextOptions{Flags: map[string]string{
+		"asset": " button ", "version": " 1.2.0 ", "refresh": "true",
+	}})
+	require.NoError(t, (&handlers{}).capture(ctx))
+	body := output.String()
+	require.Contains(t, body, "Preview capture completed.")
+	require.Contains(t, body, "captured one")
+	require.Contains(t, body, "captured two")
+}
+
+func TestPreviewCaptureReturnsCommandOutputOnFailure(t *testing.T) {
+	core := clitest.NewTestApp(t, http.NewServeMux())
+	bin := t.TempDir()
+	python := filepath.Join(bin, "python3")
+	require.NoError(t, os.WriteFile(python, []byte("#!/bin/sh\necho capture-failed >&2\nexit 9\n"), 0o700))
+	t.Setenv("PATH", bin)
+	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "asset"}, {Name: "version"}, {Name: "all", Bool: true}, {Name: "refresh", Bool: true}}}, cliapptest.TestRunContextOptions{Flags: map[string]string{"all": "true"}})
+	err := (&handlers{}).capture(ctx)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "capture previews")
+	require.Contains(t, err.Error(), "capture-failed")
+}
+
+func TestBundleReportWithoutWarningsOnlyRendersBundleBody(t *testing.T) {
+	report := (&handlers{}).bundleReport(cliapp.NewTestRunContext(cliapp.TestRunContextOptions{}), &previewv1.GetPreviewBundleResponse{SourcePath: "src/Button.tsx", Sha256: "abc", Js: "export {}"})
+	require.Equal(t, []string{"Bundled src/Button.tsx (sha256=abc, 9 byte(s))."}, report.Summary)
+	require.Equal(t, []string{"export {}"}, report.Results)
+	require.False(t, strings.Contains(strings.Join(report.Summary, " "), "warning"))
 }

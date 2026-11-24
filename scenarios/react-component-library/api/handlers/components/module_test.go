@@ -2,6 +2,9 @@ package components_test
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
 	"io"
 	"log"
 	"net/http"
@@ -10,15 +13,19 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 
+	componentauthoringv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/componentauthoring"
 	componentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/storage"
 
+	authoringconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/componentauthoring/componentauthoring_v1connect"
 	componentsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components/components_v1connect"
 
 	"react-component-library/handlers/components"
@@ -26,6 +33,7 @@ import (
 	internalcomponents "react-component-library/internal/components"
 	localdb "react-component-library/internal/database"
 	"react-component-library/internal/experience"
+	"react-component-library/internal/versionledger"
 
 	db "github.com/vrooli/api-core/databasetest"
 
@@ -42,6 +50,25 @@ type presenceReconcilerRecorder struct{ calls int }
 func (r *presenceReconcilerRecorder) ReconcilePresence(context.Context, string, bool) error {
 	r.calls++
 	return nil
+}
+
+type presenceReconcilerFailure struct{ err error }
+
+func (r presenceReconcilerFailure) ReconcilePresence(context.Context, string, bool) error {
+	return r.err
+}
+
+type indexObserverRecorder struct {
+	calls int
+	err   error
+}
+
+func (o *indexObserverRecorder) Observe(_ context.Context, component internalcomponents.Component, _ internalcomponents.IndexManifestInput) error {
+	o.calls++
+	if component.LibraryID == "" {
+		return errors.New("observer received an unindexed component")
+	}
+	return o.err
 }
 
 func (f *fakeExperienceReader) Get(_ context.Context, component experience.Component) (experience.Snapshot, error) {
@@ -70,10 +97,78 @@ func setupModule(t *testing.T, opts ...components.ModuleOption) (*mux.Router, st
 	return r, root
 }
 
+func TestComponentsReadsRequestRoutedDBPool(t *testing.T) {
+	ctx := context.Background()
+	primaryDSN, err := storage.SQLiteDSNAt(filepath.Join(t.TempDir(), "primary.db"), storage.SQLiteTuning{})
+	require.NoError(t, err)
+	routed, err := apidb.Open(ctx, apidb.Config{Driver: apidb.DriverSQLite, DSN: primaryDSN, MaxOpenConns: 1, MaxIdleConns: 1})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = routed.Close() })
+	ensureSchema := func(ctx context.Context, pool *sql.DB) error {
+		return apidb.EnsureSchemas(ctx, pool, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(internalcomponents.Schema))
+	}
+	require.NoError(t, ensureSchema(ctx, routed.Primary()))
+	routed.SetTestPoolInitializer(ensureSchema)
+	testDSN, err := storage.SQLiteDSNAt(filepath.Join(t.TempDir(), "test.db"), storage.SQLiteTuning{})
+	require.NoError(t, err)
+	require.NoError(t, routed.InstallTestPool(ctx, testDSN, "components-routing", time.Minute))
+
+	_, primaryRepo := components.BuildService(routed.Primary(), schedule.System(), t.TempDir())
+	_, err = primaryRepo.Upsert(ctx, internalcomponents.UpsertInput{LibraryID: "rcl:routed", Slug: "Routed", DisplayName: "Routed"})
+	require.NoError(t, err)
+	root := t.TempDir()
+	service, repo := components.BuildService(routed, schedule.System(), root)
+	router := mux.NewRouter()
+	components.ModuleFromService(service, repo, root, log.New(io.Discard, "", 0)).Mount(router)
+
+	list := func(requestContext context.Context) *httptest.ResponseRecorder {
+		request := httptest.NewRequest(http.MethodPost, componentsconnect.ComponentsServiceListComponentsProcedure, strings.NewReader(`{}`)).WithContext(requestContext)
+		request.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		return response
+	}
+	primaryResponse := list(ctx)
+	require.Equal(t, http.StatusOK, primaryResponse.Code, primaryResponse.Body.String())
+	require.Contains(t, primaryResponse.Body.String(), "rcl:routed")
+	testResponse := list(apidb.WithTestMode(ctx))
+	require.Equal(t, http.StatusOK, testResponse.Code, testResponse.Body.String())
+	require.NotContains(t, testResponse.Body.String(), "rcl:routed", "request context must select the isolated routed pool")
+}
+
+type ingestScenarioReader map[string][]byte
+
+func (r ingestScenarioReader) Read(_ context.Context, _ string, sourcePath string) ([]byte, error) {
+	body, ok := r[sourcePath]
+	if !ok {
+		return nil, os.ErrNotExist
+	}
+	return body, nil
+}
+
+func setupIngestModule(t *testing.T, reader internalcomponents.ScenarioSourceReader) (*mux.Router, string) {
+	t.Helper()
+	d := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
+		apidb.SchemaProviderFunc(localdb.SystemSchema),
+		apidb.SchemaProviderFunc(internalcomponents.Schema),
+	))
+	root := t.TempDir()
+	svc, repo := components.BuildService(d, schedule.System(), root)
+	internalcomponents.SetScenarioSourceReader(svc, reader)
+	internalcomponents.SetTypeScriptChecker(svc, internalcomponents.TypeScriptCheckerFunc(func(context.Context, string, string, string, string) internalcomponents.TypeScriptCheckResult {
+		return internalcomponents.TypeScriptCheckResult{Passed: true, Message: "fixture TypeScript check passed"}
+	}))
+	m := components.ModuleFromService(svc, repo, root, log.New(io.Discard, "", 0))
+	r := mux.NewRouter()
+	m.Mount(r)
+	return r, root
+}
+
 func TestModule_AuthoringWorkflowUsesLibraryIDAndPublishesOnlyAfterCheck(t *testing.T) {
 	r, root := setupModule(t)
 
-	rw := callConnect(r, componentsconnect.ComponentsServiceInitializeComponentProcedure, `{
+	rw := callConnect(r, authoringconnect.ComponentAuthoringServiceInitializeComponentProcedure, `{
 		"slug":"Button",
 		"libraryId":"react-component-library:Button",
 		"displayName":"Button",
@@ -82,13 +177,13 @@ func TestModule_AuthoringWorkflowUsesLibraryIDAndPublishesOnlyAfterCheck(t *test
 	}`)
 	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
 
-	rw = callConnect(r, componentsconnect.ComponentsServiceBeginComponentVersionProcedure,
+	rw = callConnect(r, authoringconnect.ComponentAuthoringServiceBeginComponentVersionProcedure,
 		`{"component":"react-component-library:Button","bump":"minor"}`)
 	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
 	require.Contains(t, rw.Body.String(), `"version":"1.1.0-draft.1"`)
 	require.Contains(t, rw.Body.String(), `"previewPath":"/preview/react-component-library:Button/harness.html?version=1.1.0-draft.1"`)
 
-	rw = callConnect(r, componentsconnect.ComponentsServiceCheckComponentVersionProcedure,
+	rw = callConnect(r, authoringconnect.ComponentAuthoringServiceCheckComponentVersionProcedure,
 		`{"component":"react-component-library:Button"}`)
 	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
 	require.Contains(t, rw.Body.String(), `"passed":true`)
@@ -96,7 +191,7 @@ func TestModule_AuthoringWorkflowUsesLibraryIDAndPublishesOnlyAfterCheck(t *test
 	require.Contains(t, rw.Body.String(), `"verdict":"passed"`)
 	require.Contains(t, rw.Body.String(), `"stage":"typescript"`)
 
-	rw = callConnect(r, componentsconnect.ComponentsServicePublishComponentVersionProcedure,
+	rw = callConnect(r, authoringconnect.ComponentAuthoringServicePublishComponentVersionProcedure,
 		`{"component":"react-component-library:Button","changelogMd":"Focused authoring workflow"}`)
 	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
 	require.Contains(t, rw.Body.String(), `"version":"1.1.0"`)
@@ -107,10 +202,49 @@ func TestModule_AuthoringWorkflowUsesLibraryIDAndPublishesOnlyAfterCheck(t *test
 	require.NotContains(t, string(manifest), `1.1.0-draft.1`)
 }
 
+func TestModule_UpdateComponentManifestAppliesGovernedMetadata(t *testing.T) {
+	r, root := setupModule(t)
+	initialize := callConnect(r, authoringconnect.ComponentAuthoringServiceInitializeComponentProcedure, `{
+		"slug":"CallToAction",
+		"libraryId":"react-component-library:CallToAction",
+		"displayName":"Call to action",
+		"initialVersion":"1.0.0",
+		"initialSource":"export function CallToAction() { return <button>Continue</button>; }"
+	}`)
+	require.Equal(t, http.StatusOK, initialize.Code, initialize.Body.String())
+
+	updated := callConnect(r, authoringconnect.ComponentAuthoringServiceUpdateComponentManifestProcedure, `{
+		"componentId":"react-component-library:CallToAction",
+		"displayName":"Continue action",
+		"description":"A clear next step.",
+		"tags":["actions","primary"],
+		"retiredMajorAliases":["0"],
+		"dependencies":[]
+	}`)
+	require.Equal(t, http.StatusOK, updated.Code, updated.Body.String())
+	require.Contains(t, updated.Body.String(), `"displayName":"Continue action"`)
+
+	manifest, err := os.ReadFile(filepath.Join(root, "components", "CallToAction", "component.json"))
+	require.NoError(t, err)
+	var persisted struct {
+		DisplayName         string   `json:"displayName"`
+		Description         string   `json:"description"`
+		Tags                []string `json:"tags"`
+		RetiredMajorAliases []string `json:"retiredMajorAliases"`
+	}
+	require.NoError(t, json.Unmarshal(manifest, &persisted))
+	require.Equal(t, "Continue action", persisted.DisplayName)
+	require.Equal(t, "A clear next step.", persisted.Description)
+	require.Equal(t, []string{"actions", "primary"}, persisted.Tags)
+	require.Equal(t, []string{"0"}, persisted.RetiredMajorAliases)
+}
+
 func TestModule_Shape(t *testing.T) {
 	r, _ := setupModule(t)
 	require.NotNil(t, r)
-	require.Len(t, components.Endpoints, 22, "components ships registry, authoring, ingest, style fit, styles, content, versions, import resolution, stories, and Preview frame endpoints")
+	require.Len(t, components.Endpoints, 22, "the module documents every registry and authoring endpoint once")
+	require.Equal(t, 12, componentsv1.File_react_component_library_v1_components_components_proto.Services().ByName("ComponentsService").Methods().Len())
+	require.Equal(t, 10, componentauthoringv1.File_react_component_library_v1_componentauthoring_component_authoring_proto.Services().ByName("ComponentAuthoringService").Methods().Len())
 }
 
 func TestModule_IndexComponentsReconcilesUnlessSuppressed(t *testing.T) {
@@ -124,6 +258,52 @@ func TestModule_IndexComponentsReconcilesUnlessSuppressed(t *testing.T) {
 	rw = callConnect(r, componentsconnect.ComponentsServiceIndexComponentsProcedure, `{"noReconcile":true}`)
 	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
 	require.Equal(t, 1, recorder.calls, "the explicit no_reconcile diagnostic path must skip tier movement")
+}
+
+func TestModule_IndexComponentsReportsDeferredAndFailedPresenceReconciliation(t *testing.T) {
+	t.Run("deferred tier moves preserve successful index response", func(t *testing.T) {
+		reconciler := presenceReconcilerFailure{err: versionledger.ErrPresenceReconciliationIncomplete{Deferred: []string{"Button@1.0.0"}}}
+		r, root := setupModule(t, components.WithPresenceReconciler(reconciler))
+		writeButtonManifest(t, root, `/**
+ * @libraryId react-component-library:Button
+ * @version 1.0.0
+ */
+export const Button = () => null;
+`)
+		rw := callConnect(r, componentsconnect.ComponentsServiceIndexComponentsProcedure, `{}`)
+		require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+		require.Contains(t, rw.Body.String(), "1 version tier move(s) deferred")
+		require.Contains(t, rw.Body.String(), "Button@1.0.0")
+	})
+
+	t.Run("unexpected reconciliation failure fails the request", func(t *testing.T) {
+		r, root := setupModule(t, components.WithPresenceReconciler(presenceReconcilerFailure{err: errors.New("tier store offline")}))
+		writeButtonManifest(t, root, `/**
+ * @libraryId react-component-library:Button
+ * @version 1.0.0
+ */
+export const Button = () => null;
+`)
+		rw := callConnect(r, componentsconnect.ComponentsServiceIndexComponentsProcedure, `{}`)
+		require.Equal(t, http.StatusBadRequest, rw.Code, rw.Body.String())
+		require.Contains(t, rw.Body.String(), `"code":"failed_precondition"`)
+		require.Contains(t, rw.Body.String(), "tier store offline")
+	})
+}
+
+func TestModule_IndexComponentsSurfacesPostUpsertObserverFailures(t *testing.T) {
+	observer := &indexObserverRecorder{err: errors.New("dependency projection unavailable")}
+	r, root := setupModule(t, components.WithIndexObserver(observer))
+	writeButtonManifest(t, root, `/**
+ * @libraryId react-component-library:Button
+ * @version 1.0.0
+ */
+export const Button = () => null;
+`)
+	rw := callConnect(r, componentsconnect.ComponentsServiceIndexComponentsProcedure, `{}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+	require.Equal(t, 1, observer.calls)
+	require.Contains(t, rw.Body.String(), "dependency projection unavailable")
 }
 
 func TestModule_PersistPreviewFrameCreatesVersionPinnedDraftStory(t *testing.T) {
@@ -178,7 +358,7 @@ func TestModule_PersistPreviewFrameRejectsInvalidRegionBeforeCreatingDraft(t *te
 func TestModule_InitializeComponentRoundTrip(t *testing.T) {
 	r, root := setupModule(t)
 
-	rw := callConnect(r, componentsconnect.ComponentsServiceInitializeComponentProcedure, `{
+	rw := callConnect(r, authoringconnect.ComponentAuthoringServiceInitializeComponentProcedure, `{
 		"slug":"Header",
 		"libraryId":"react-component-library:Header",
 		"displayName":"Header",
@@ -197,10 +377,69 @@ func TestModule_InitializeComponentRoundTrip(t *testing.T) {
 	require.Contains(t, rw.Body.String(), `react-component-library:Header`)
 }
 
+func TestModule_CreateComponentVersionDraftRoute(t *testing.T) {
+	r, root := setupModule(t)
+	initialized := callConnect(r, authoringconnect.ComponentAuthoringServiceInitializeComponentProcedure, `{
+		"slug":"toast",
+		"libraryId":"react-component-library:toast",
+		"displayName":"Toast",
+		"initialVersion":"1.0.0"
+	}`)
+	require.Equal(t, http.StatusOK, initialized.Code, initialized.Body.String())
+
+	created := callConnect(r, authoringconnect.ComponentAuthoringServiceCreateComponentVersionProcedure, `{
+		"componentId":"react-component-library:toast",
+		"version":"1.1.0-draft.1",
+		"fromVersion":"1.0.0",
+		"intent":"COMPONENT_VERSION_INTENT_DRAFT",
+		"source":"export function Toast() { return <aside role=\"status\">Saved</aside>; }"
+	}`)
+	require.Equal(t, http.StatusOK, created.Code, created.Body.String())
+	require.Contains(t, created.Body.String(), `"version":"1.1.0-draft.1"`)
+	require.Contains(t, created.Body.String(), `"libraryId":"react-component-library:toast"`)
+	require.FileExists(t, filepath.Join(root, "components", "toast", "versions", "1.1.0-draft.1", "toast.tsx"))
+	require.Contains(t, created.Body.String(), `"sourcePath":"components/toast/versions/1.1.0-draft.1/toast.tsx"`)
+}
+
+func TestModule_IngestComponentCreatesDraftThroughConnect(t *testing.T) {
+	r, root := setupIngestModule(t, ingestScenarioReader{
+		"ui/src/components/Notice.tsx": []byte(`export function Notice() { return <aside role="status">Saved</aside>; }`),
+	})
+	rw := callConnect(r, authoringconnect.ComponentAuthoringServiceIngestComponentProcedure, `{
+		"scenario":"web-console",
+		"sourceFile":"ui/src/components/Notice.tsx",
+		"slug":"notice",
+		"displayName":"Notice",
+		"tags":["feedback"]
+	}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+	require.Contains(t, rw.Body.String(), `"libraryId":"react-component-library:notice"`)
+	require.Contains(t, rw.Body.String(), `"draftVersion":"0.1.0-draft.1"`)
+	require.Contains(t, rw.Body.String(), `"checklistPath":"docs/guides/de-scenario-ification-checklist.md"`)
+	require.FileExists(t, filepath.Join(root, "components", "notice", "versions", "0.1.0-draft.1", "Notice.tsx"))
+}
+
+func TestModule_IngestComponentRejectsUnacceptedBehaviorLoss(t *testing.T) {
+	r, root := setupIngestModule(t, ingestScenarioReader{
+		"ui/src/components/DrawerShell.tsx": []byte(`import { useFocusTrap } from "@/hooks/useFocusTrap"; export function DrawerShell() { useFocusTrap(); return <div role="dialog" aria-modal="true" />; }`),
+		"ui/src/hooks/useFocusTrap.ts":      []byte(`export function useFocusTrap() { window.addEventListener("keydown", () => {}); }`),
+	})
+	rw := callConnect(r, authoringconnect.ComponentAuthoringServiceIngestComponentProcedure, `{
+		"scenario":"web-console",
+		"sourceFile":"ui/src/components/DrawerShell.tsx",
+		"slug":"drawer-shell",
+		"displayName":"Drawer Shell"
+	}`)
+	require.Equal(t, http.StatusBadRequest, rw.Code, rw.Body.String())
+	require.Contains(t, rw.Body.String(), `"failed_precondition"`)
+	require.Contains(t, rw.Body.String(), "addEventListener")
+	require.NoFileExists(t, filepath.Join(root, "components", "drawer-shell", "component.json"))
+}
+
 func TestModule_InitializeComponentCanonicalizesProvidedHeader(t *testing.T) {
 	r, root := setupModule(t)
 
-	rw := callConnect(r, componentsconnect.ComponentsServiceInitializeComponentProcedure, `{
+	rw := callConnect(r, authoringconnect.ComponentAuthoringServiceInitializeComponentProcedure, `{
 		"slug":"code-block",
 		"libraryId":"react-component-library:code-block",
 		"displayName":"Code Block",
@@ -250,18 +489,32 @@ export const Button = () => null;
 	id := body[idStart : idStart+idEnd]
 	require.NotEmpty(t, id)
 
-	rw = callConnect(r, componentsconnect.ComponentsServiceGetComponentContentProcedure,
+	rw = callConnect(r, authoringconnect.ComponentAuthoringServiceGetComponentContentProcedure,
 		`{"id":"`+id+`"}`)
 	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
 	require.Contains(t, rw.Body.String(), "@libraryId")
 	require.Contains(t, rw.Body.String(), `"sha256"`)
 
-	rw = callConnect(r, componentsconnect.ComponentsServiceBeginComponentVersionProcedure,
+	rw = callConnect(r, componentsconnect.ComponentsServiceListComponentVersionsProcedure,
+		`{"componentId":"`+id+`"}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+	require.Contains(t, rw.Body.String(), `"version":"1.0.0"`)
+	rw = callConnect(r, componentsconnect.ComponentsServiceGetComponentVersionContentProcedure,
+		`{"componentId":"`+id+`","version":"1.0.0","path":"Button.tsx"}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+	require.Contains(t, rw.Body.String(), "@libraryId")
+	rw = callConnect(r, componentsconnect.ComponentsServiceListComponentStoriesProcedure,
+		`{"componentId":"`+id+`","version":"1.0.0"}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+	rw = callConnect(r, componentsconnect.ComponentsServiceListDesignStylesProcedure, `{}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+
+	rw = callConnect(r, authoringconnect.ComponentAuthoringServiceBeginComponentVersionProcedure,
 		`{"component":"react-component-library:Button","bump":"patch"}`)
 	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
 	require.Contains(t, rw.Body.String(), `"version":"1.0.1-draft.1"`)
 
-	rw = callConnect(r, componentsconnect.ComponentsServiceUpdateComponentContentProcedure,
+	rw = callConnect(r, authoringconnect.ComponentAuthoringServiceUpdateComponentContentProcedure,
 		`{"id":"`+id+`","content":"// rewritten\nexport const Button = () => null;\n"}`)
 	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
 	require.Contains(t, rw.Body.String(), `"sha256"`)
@@ -472,7 +725,7 @@ func callConnect(r *mux.Router, path, body string) *httptest.ResponseRecorder {
 }
 
 func TestManifestRetirementRejectsSetAndClear(t *testing.T) {
-	handler := components.NewConnectHandler(components.Deps{})
+	handler := components.NewAuthoringConnectHandler(components.AuthoringDeps{})
 	_, err := handler.UpdateComponentManifest(t.Context(), connect.NewRequest(&componentsv1.UpdateComponentManifestRequest{RetiredMajorAliases: []string{"1"}, ClearRetiredMajorAliases: true}))
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
@@ -510,7 +763,7 @@ func TestRetireHandlerPreflightThenApply(t *testing.T) {
 		require.NoError(t, os.WriteFile(path, []byte(data), 0o644))
 	}
 	repo := &retirementHandlerRepo{component: internalcomponents.Component{ID: "old", LibraryID: "library:Old", CatalogID: "navigation.old", Slug: "Old", ManifestPath: "components/Old/component.json"}}
-	h := components.NewConnectHandler(components.Deps{Repo: repo, SourceRoot: source})
+	h := components.NewAuthoringConnectHandler(components.AuthoringDeps{Repo: repo, SourceRoot: source})
 	_, err := h.RetireComponent(t.Context(), connect.NewRequest(&componentsv1.RetireComponentRequest{}))
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 	checked, err := h.RetireComponent(t.Context(), connect.NewRequest(&componentsv1.RetireComponentRequest{LibraryId: "library:Old"}))
@@ -530,4 +783,89 @@ func TestRetireHandlerPreflightThenApply(t *testing.T) {
 	require.FileExists(t, applied.Msg.CatalogArchivePath)
 	require.NoFileExists(t, manifest)
 	require.NoFileExists(t, catalog)
+}
+
+type failingExperienceReader struct{ err error }
+
+func (f failingExperienceReader) Get(context.Context, experience.Component) (experience.Snapshot, error) {
+	return experience.Snapshot{}, f.err
+}
+
+func TestModule_GetComponentIncludesExperienceFailsExplicitlyWhenUnavailable(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		option     components.ModuleOption
+		wantCode   string
+		wantStatus int
+	}{
+		{name: "reader not configured", wantCode: "failed_precondition", wantStatus: http.StatusBadRequest},
+		{name: "reader failure", option: components.WithExperienceReader(failingExperienceReader{err: os.ErrPermission}), wantCode: "internal", wantStatus: http.StatusInternalServerError},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var r *mux.Router
+			var root string
+			if tc.option == nil {
+				r, root = setupModule(t)
+			} else {
+				r, root = setupModule(t, tc.option)
+			}
+			writeButtonManifest(t, root, `/**
+ * @libraryId react-component-library:Button
+ * @version 1.0.0
+ */
+export const Button = () => null;
+`)
+			require.Equal(t, http.StatusOK, callConnect(r, componentsconnect.ComponentsServiceIndexComponentsProcedure, `{}`).Code)
+			lookup := callConnect(r, componentsconnect.ComponentsServiceGetComponentByLibraryIdProcedure, `{"libraryId":"react-component-library:Button"}`)
+			require.Equal(t, http.StatusOK, lookup.Code, lookup.Body.String())
+			body := lookup.Body.String()
+			idStart := strings.Index(body, `"id":"`) + len(`"id":"`)
+			idEnd := strings.Index(body[idStart:], `"`)
+			id := body[idStart : idStart+idEnd]
+			require.NotEmpty(t, id)
+
+			response := callConnect(r, componentsconnect.ComponentsServiceGetComponentProcedure, `{"id":"`+id+`","includeExperience":true}`)
+			require.Equal(t, tc.wantStatus, response.Code, response.Body.String())
+			require.Contains(t, response.Body.String(), `"code":"`+tc.wantCode+`"`)
+		})
+	}
+}
+
+func TestModule_ListPreviewFramesReportsCompatibilityAndFixtureChoices(t *testing.T) {
+	r, root := setupModule(t)
+	writePageFrameTestCatalog(t, root)
+	writePageManifest(t, root)
+
+	catalogRoot := filepath.Join(filepath.Dir(root), "catalog", "assets")
+	writeCatalogFrame := func(category, name, body string) {
+		t.Helper()
+		dir := filepath.Join(catalogRoot, category)
+		require.NoError(t, os.MkdirAll(dir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name+".json"), []byte(body), 0o600))
+	}
+	writeCatalogFrame("navigation", "app-shell", `{"kind":"catalog-asset","asset":{"id":"navigation.app-shell","kind":"navigation","targets":["react-vite"]},"regions":[{"id":"content","accepts":"data-display"}],"expects":[{"capability":"data-source"}]}`)
+	writeCatalogFrame("controls", "card-frame", `{"kind":"catalog-asset","asset":{"id":"controls.card-frame","kind":"component","targets":["react-vite"]},"regions":[{"id":"content"}]}`)
+	writeCatalogFrame("controls", "unsupported-frame", `{"kind":"catalog-asset","asset":{"id":"controls.unsupported-frame","kind":"component","targets":["other-target"]},"regions":[{"id":"content"}]}`)
+	writeCatalogFrame("fixtures", "records", `{"kind":"catalog-asset","asset":{"id":"fixtures.records","kind":"fixture"},"fixture":{"satisfies":{"capability":"data-source"}}}`)
+
+	appShellDir := filepath.Join(root, "components", "AppShell")
+	require.NoError(t, os.MkdirAll(filepath.Join(appShellDir, "versions", "1.0.0"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(appShellDir, "component.json"), []byte(`{"libraryId":"react-component-library:AppShell","catalogId":"navigation.app-shell","displayName":"AppShell","latest":"1.0.0"}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(appShellDir, "versions", "1.0.0", "AppShell.tsx"), []byte(`/**
+ * @libraryId react-component-library:AppShell
+ * @version 1.0.0
+ */
+export const AppShell = () => null;
+`), 0o600))
+
+	rw := callConnect(r, componentsconnect.ComponentsServiceIndexComponentsProcedure, `{}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+	rw = callConnect(r, componentsconnect.ComponentsServiceListPreviewFramesProcedure, `{"componentId":"react-component-library:Page"}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+	require.Contains(t, rw.Body.String(), `"asset":"navigation.page"`)
+	require.Contains(t, rw.Body.String(), `"asset":"navigation.app-shell"`)
+	require.Contains(t, rw.Body.String(), `"fixture":"fixtures.records"`)
+	require.Contains(t, rw.Body.String(), `"diagnosticCode":"subject_capability_mismatch"`)
+	require.Contains(t, rw.Body.String(), `"diagnosticCode":"not_canonical_frame"`)
+	require.Contains(t, rw.Body.String(), `"diagnosticCode":"unsupported_target"`)
 }

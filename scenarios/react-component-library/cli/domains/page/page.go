@@ -9,6 +9,7 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	pagev1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/page"
 	pageconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/page/page_v1connect"
+	"react-component-library/cli/internal/runtimeenv"
 )
 
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
@@ -21,7 +22,11 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		}
 		return result.Msg, nil
 	}
-	captures := captureHandlers{bas: newBASClient}
+	deps := runtimeenv.System()
+	captures := captureHandlers{
+		bas:  func(ctx context.Context) (basClient, error) { return newBASClient(ctx, deps.Environment) },
+		deps: deps,
+	}
 	return cliapp.LoadFromManifestPrimitives(manifest, "page", map[string]cliapp.PrimitiveHandler{
 		"PageService.Inspect": cliapp.ProtoList(call, inspectReport),
 		"capture":             {Run: captures.capture},

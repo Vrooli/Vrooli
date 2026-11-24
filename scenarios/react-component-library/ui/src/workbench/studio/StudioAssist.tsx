@@ -2,18 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { Sparkles, Wand2 } from "lucide-react";
 
 import { useTranslation } from "../../i18n";
-import type { DesignDocument, DesignFrame } from "../designs";
-import { findNode, type TemplateNode } from "../templates/spec";
+import type { DesignDocument, DesignFrame } from "../design-types";
+import type { TemplateNode } from "../templates/spec";
 import { layerLabel } from "../templates/spec";
 import { cx } from "../cx";
 import { Segmented, WbButton } from "../primitives";
 import { docSignature } from "./model";
-import {
-  DesignProposalError,
-  type DesignPatchOperation,
-  type ProposalTransport,
-  type StudioProposal,
-} from "./proposal";
+import { describeProposalOperation } from "./proposal-description";
+import { DesignProposalError, type ProposalTransport, type StudioProposal } from "./proposal";
 
 export type AssistScope = "layer" | "frame" | "design";
 
@@ -26,19 +22,6 @@ function requestKey(): string {
   } catch {
     return `assist-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
   }
-}
-
-function findAnywhere(doc: DesignDocument, id: string | undefined): TemplateNode | undefined {
-  if (!id) return undefined;
-  for (const frame of doc.frames) {
-    const found = findNode(frame.spec, id);
-    if (found) return found;
-  }
-  return undefined;
-}
-
-function clip(value: string, limit = 64): string {
-  return value.length > limit ? `${value.slice(0, limit - 1)}…` : value;
 }
 
 export function StudioAssist({
@@ -56,7 +39,9 @@ export function StudioAssist({
   selected: TemplateNode | undefined;
   scope: AssistScope;
   onScope: (scope: AssistScope) => void;
-  onApply: (proposal: StudioProposal) => { ok: true } | { ok: false; reason: "stale" | "invalid"; detail: string };
+  onApply: (
+    proposal: StudioProposal,
+  ) => { ok: true } | { ok: false; reason: "stale" | "invalid"; detail: string };
   onApplied: (summary: string) => void;
   /** The transport for this surface: design studio or workspace studio. */
   propose: ProposalTransport;
@@ -168,72 +153,6 @@ export function StudioAssist({
         ? (frame?.name ?? t("workbench.studio.nothing", { defaultValue: "Nothing selected" }))
         : design.name;
 
-  const describe = (operation: DesignPatchOperation): { title: string; detail?: string } => {
-    const target = findAnywhere(design, operation.nodeId);
-    const parent = findAnywhere(design, operation.parentId);
-    // A person reads layer names, not node ids. The id stays the identity the
-    // patch uses; only the description is humanised.
-    const nameOf = (node: TemplateNode | undefined, id: string | undefined) =>
-      node ? layerLabel(node) : (id ?? "");
-    switch (operation.kind) {
-      case "setText": {
-        const before = typeof target?.props.text === "string" ? target.props.text : "";
-        return {
-          title: t("workbench.studio.aiOpText", {
-            defaultValue: "Rewrite copy in {{layer}}",
-            layer: nameOf(target, operation.nodeId),
-          }),
-          detail: `${clip(before) || "—"} → ${clip(operation.text ?? "")}`,
-        };
-      }
-      case "setProp": {
-        const before = target?.props[operation.key ?? ""];
-        return {
-          title: t("workbench.studio.aiOpProp", {
-            defaultValue: "Set {{key}} on {{layer}}",
-            key: operation.key ?? "",
-            layer: nameOf(target, operation.nodeId),
-          }),
-          detail: `${String(before ?? "—")} → ${String(operation.value ?? "—")}`,
-        };
-      }
-      case "addLayer":
-        return {
-          title: t("workbench.studio.aiOpAdd", {
-            defaultValue: "Add {{type}} inside {{layer}}",
-            type: operation.node?.type ?? "",
-            layer: nameOf(parent, operation.parentId),
-          }),
-        };
-      case "removeLayer":
-        return {
-          title: t("workbench.studio.aiOpRemove", {
-            defaultValue: "Remove {{layer}}",
-            layer: nameOf(target, operation.nodeId),
-          }),
-          detail: target?.type,
-        };
-      case "moveLayer":
-        return {
-          title: t("workbench.studio.aiOpMove", {
-            defaultValue: "Move {{layer}} into {{parent}}",
-            layer: nameOf(target, operation.nodeId),
-            parent: nameOf(parent, operation.parentId),
-          }),
-        };
-      case "setTheme":
-        return {
-          title: t("workbench.studio.aiOpTheme", {
-            defaultValue: "Set {{key}}",
-            key: operation.key ?? "",
-          }),
-          detail: String(operation.value ?? ""),
-        };
-      default:
-        return { title: String(operation.kind) };
-    }
-  };
-
   const copyForError = (cause: unknown): string => {
     if (!(cause instanceof DesignProposalError)) {
       return cause instanceof Error
@@ -278,7 +197,9 @@ export function StudioAssist({
       </div>
 
       <div className="studio-inspector-section">
-        <span className="wb-caption">{t("workbench.studio.aiScope", { defaultValue: "Context to send" })}</span>
+        <span className="wb-caption">
+          {t("workbench.studio.aiScope", { defaultValue: "Context to send" })}
+        </span>
         <Segmented
           label={t("workbench.studio.aiScope", { defaultValue: "Context to send" })}
           value={scope}
@@ -305,7 +226,8 @@ export function StudioAssist({
           value={prompt}
           maxLength={2000}
           placeholder={t("workbench.studio.aiPlaceholder", {
-            defaultValue: "Make the headline specific to this page and soften the secondary action.",
+            defaultValue:
+              "Make the headline specific to this page and soften the secondary action.",
           })}
           onChange={(event) => setPrompt(event.target.value)}
           onKeyDown={(event) => {
@@ -341,7 +263,8 @@ export function StudioAssist({
         {busy ? (
           <p className="studio-note" role="status">
             {t("workbench.studio.aiWaiting", {
-              defaultValue: "A local model can take up to a minute. Nothing is applied until you accept the patch.",
+              defaultValue:
+                "A local model can take up to a minute. Nothing is applied until you accept the patch.",
             })}
           </p>
         ) : null}
@@ -353,7 +276,10 @@ export function StudioAssist({
       </div>
 
       {proposal ? (
-        <section className="studio-ai-proposal" aria-label={t("workbench.studio.aiProposal", { defaultValue: "Proposed patch" })}>
+        <section
+          className="studio-ai-proposal"
+          aria-label={t("workbench.studio.aiProposal", { defaultValue: "Proposed patch" })}
+        >
           <div className="studio-ai-proposal-head">
             <b>{proposal.summary}</b>
             <span className="studio-ai-model">
@@ -362,9 +288,12 @@ export function StudioAssist({
           </div>
           <ol className="studio-ai-ops">
             {proposal.operations.map((operation, index) => {
-              const copy = describe(operation);
+              const copy = describeProposalOperation(design, operation, t);
               return (
-                <li key={`${operation.kind}-${index}`} className={cx("studio-ai-op", `is-${operation.kind}`)}>
+                <li
+                  key={`${operation.kind}-${index}`}
+                  className={cx("studio-ai-op", `is-${operation.kind}`)}
+                >
                   <span>{copy.title}</span>
                   {copy.detail ? <small>{copy.detail}</small> : null}
                 </li>
@@ -395,7 +324,8 @@ export function StudioAssist({
           </div>
           <p className="studio-note">
             {t("workbench.studio.aiUndo", {
-              defaultValue: "Applied patches are one entry in the history stack, so Undo reverses the whole change.",
+              defaultValue:
+                "Applied patches are one entry in the history stack, so Undo reverses the whole change.",
             })}
           </p>
         </section>
@@ -403,4 +333,3 @@ export function StudioAssist({
     </div>
   );
 }
-

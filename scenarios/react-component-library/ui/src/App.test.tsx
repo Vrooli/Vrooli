@@ -3,37 +3,51 @@
  * workbench. The page-level contracts are covered by page stories; this file
  * proves the shell mounts once and each public route resolves to its page.
  */
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "./test-utils";
+import { selectors } from "./consts/selectors";
+import { setLocale } from "./i18n";
 
 const emitShortcutIntentMock = vi.fn();
+const useWorkspacesMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@vrooli/iframe-bridge", () => ({
   emitShortcutIntent: (...args: unknown[]) => emitShortcutIntentMock(...args),
 }));
 
-const fixtures = vi.hoisted(() => ({ asset: {
-  id: "asset-button",
-  libraryId: "react-component-library:Button",
-  displayName: "Button",
-  description: "The primary action control.",
-  version: "2.2.14",
-  latestVersion: "2.2.14",
-  slug: "Button",
-  slot: "ui-primitive",
-  catalogId: "controls.button",
-  catalogKind: "component",
-  catalogDomain: "controls",
-  assetKind: "ASSET_KIND_COMPONENT",
-  tags: ["control"],
-  metrics: { directAdoptionCount: 8, effectiveAdoptionCount: 80, versionCount: 2 },
-  dependencies: [],
-  designStyles: [],
-  updatedAt: "2026-11-18T12:00:00Z",
-  indexedAt: "2026-11-18T11:00:00Z",
-} }));
+vi.mock("./workbench/workspaces/useWorkspaces", () => ({
+  useWorkspaces: useWorkspacesMock,
+}));
+
+vi.mock("./workbench/pages/WorkspaceStudioPage", () => ({
+  WorkspaceStudioPage: () => <div data-testid="bound-workspace-studio" />,
+}));
+
+const fixtures = vi.hoisted(() => ({
+  asset: {
+    id: "asset-button",
+    libraryId: "react-component-library:Button",
+    displayName: "Button",
+    description: "The primary action control.",
+    version: "2.2.14",
+    latestVersion: "2.2.14",
+    slug: "Button",
+    slot: "ui-primitive",
+    catalogId: "controls.button",
+    catalogKind: "component",
+    catalogDomain: "controls",
+    assetKind: "ASSET_KIND_COMPONENT",
+    tags: ["control"],
+    metrics: { directAdoptionCount: 8, effectiveAdoptionCount: 80, versionCount: 2 },
+    dependencies: [],
+    designStyles: [],
+    updatedAt: "2026-11-18T12:00:00Z",
+    indexedAt: "2026-11-18T11:00:00Z",
+  },
+}));
 
 vi.mock("./api/components", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./api/components")>();
@@ -100,20 +114,14 @@ vi.mock("./api/componentTests", async (importOriginal) => {
   };
 });
 
-vi.mock("./api/versions", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./api/versions")>();
-  return {
-    ...actual,
-    versionsClient: {
-      ...actual.versionsClient,
-      listVersions: vi.fn().mockResolvedValue({ versions: [] }),
-    },
-  };
-});
-
 import App from "./App";
 
 describe("workbench routes", () => {
+  beforeEach(async () => {
+    await setLocale("en");
+    useWorkspacesMock.mockReturnValue({ data: [], isLoading: true, isError: false });
+  });
+
   afterEach(() => {
     cleanup();
     emitShortcutIntentMock.mockClear();
@@ -126,6 +134,31 @@ describe("workbench routes", () => {
       expect(screen.getByTestId("start-page")).toBeInTheDocument();
     });
     expect(screen.getAllByRole("link", { name: /library/i }).length).toBeGreaterThan(0);
+  });
+
+  it("opens the bookmarked component-context route when its query key is present", async () => {
+    renderWithProviders(<App />, { routerEntries: ["/design?component="] });
+    await screen.findByRole("alert");
+  });
+
+  it("routes scenario and page query parameters through the experience binding", async () => {
+    useWorkspacesMock.mockReturnValue({ data: [], isLoading: false, isError: false });
+    renderWithProviders(<App />, {
+      routerEntries: ["/design?scenario=example&page=overview"],
+    });
+    await screen.findByTestId("adopt-experience-page");
+  });
+
+  it("opens the workspace already bound to the requested experience page", async () => {
+    useWorkspacesMock.mockReturnValue({
+      data: [{ id: "ws-bound", bindingScenario: "example", bindingPage: "overview" }],
+      isLoading: false,
+      isError: false,
+    });
+    renderWithProviders(<App />, {
+      routerEntries: ["/design?scenario=example&page=overview"],
+    });
+    await screen.findByTestId("bound-workspace-studio");
   });
 
   it("redirects the legacy catalog route to Library", async () => {
@@ -152,11 +185,86 @@ describe("workbench routes", () => {
     renderWithProviders(<App />, { routerEntries: ["/"] });
     await waitFor(() => expect(screen.getByTestId("start-page")).toBeInTheDocument());
     const shell = screen.getByTestId("workbench-shell");
-    const libraryLink = screen.getAllByRole("link", { name: /library/i })[0];
-    if (!libraryLink) throw new Error("the shell must expose a library link");
+    const libraryLink = screen.getByTestId(selectors.workbench.nav.library);
     fireEvent.click(libraryLink);
     await waitFor(() => expect(screen.getByTestId("components-page")).toBeInTheDocument());
     expect(screen.getByTestId("workbench-shell")).toBe(shell);
+  });
+
+  it("keeps all five primary destinations available in desktop and mobile navigation", async () => {
+    renderWithProviders(<App />, { routerEntries: ["/"] });
+    await screen.findByTestId("start-page");
+
+    for (const destination of Object.values(selectors.workbench.nav)) {
+      expect(screen.getByTestId(destination)).toBeInTheDocument();
+      expect(screen.getByTestId(`${destination}-tab`)).toBeInTheDocument();
+    }
+    expect(screen.getByTestId(`${selectors.app.shell}-header`)).toBeInTheDocument();
+    expect(screen.getByTestId(`${selectors.app.shell}-tabs`)).toBeInTheDocument();
+  });
+
+  it("preserves active navigation for legacy route aliases", async () => {
+    renderWithProviders(<App />, { routerEntries: ["/catalog"] });
+    await screen.findByTestId("components-page");
+
+    expect(screen.getByTestId(selectors.workbench.nav.library)).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByTestId(`${selectors.workbench.nav.library}-tab`)).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+
+    cleanup();
+    renderWithProviders(<App />, { routerEntries: ["/coverage"] });
+    await screen.findByTestId("stats-page");
+    expect(screen.getByTestId(selectors.workbench.nav.stats)).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByTestId(`${selectors.workbench.nav.stats}-tab`)).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+  });
+
+  it("supports a keyboard-only journey across the primary workbench destinations", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<App />, { routerEntries: ["/"] });
+    await screen.findByTestId("start-page");
+
+    const visit = async (href: string, page: string) => {
+      const navId = Object.entries(selectors.workbench.nav).find(([, testId]) => {
+        const link = screen.queryByTestId(testId);
+        return link?.getAttribute("href") === href;
+      })?.[1];
+      const link = navId ? screen.getByTestId(navId) : null;
+      if (!link) throw new Error(`Missing workbench destination: ${href}`);
+      link.focus();
+      await user.keyboard("{Enter}");
+      await screen.findByTestId(page);
+    };
+
+    await visit("/library", "library-page");
+    await visit("/design", "design-index-page");
+    await visit("/review", "review-page");
+    await visit("/stats", "stats-page");
+  });
+
+  it("opens the command palette from the keyboard and traps focus until Escape", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<App />, { routerEntries: ["/"] });
+    await screen.findByTestId("start-page");
+
+    fireEvent.keyDown(window, { key: "k", ctrlKey: true });
+    const dialog = await screen.findByRole("dialog", { name: "Workbench search" });
+    const search = within(dialog).getByRole("searchbox", { name: "Search the library" });
+    await waitFor(() => expect(search).toHaveFocus());
+    await user.keyboard("{Shift>}{Tab}{/Shift}");
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog", { name: "Workbench search" })).not.toBeInTheDocument();
   });
 
   it("routes the legacy measurement URLs to their Stats views", async () => {

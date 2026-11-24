@@ -67,7 +67,7 @@
           }
         },
         {
-          "path": "/vrooli.react_component_library.v1.sketch.SketchService/ListDesignPages",
+          "path": "/vrooli.react_component_library.v1.experience.ExperienceService/ListDesignPages",
           "method": "POST",
           "status": 200,
           "body": {

@@ -1,5 +1,14 @@
 import { Button } from "@vrooli/react-component-library/Button/2";
 import type { ButtonProps } from "@vrooli/react-component-library/Button/2";
+import { ButtonGroup as RclButtonGroup } from "@vrooli/react-component-library/ButtonGroup/1.2.1";
+import {
+  FormField as RclFormField,
+  type FormFieldProps,
+} from "@vrooli/react-component-library/FormField/1.0.4";
+import { Badge as RclBadge } from "@vrooli/react-component-library/Badge/1";
+import { Skeleton as RclSkeleton } from "@vrooli/react-component-library/Skeleton/1";
+import { Switch as RclSwitch } from "@vrooli/react-component-library/Switch/1";
+import { Tabs as RclTabs } from "@vrooli/react-component-library/Tabs/1.3.6";
 import {
   type CSSProperties,
   type ReactElement,
@@ -7,7 +16,6 @@ import {
   cloneElement,
   isValidElement,
   useId,
-  useRef,
   type SelectHTMLAttributes,
   type InputHTMLAttributes,
   type TextareaHTMLAttributes,
@@ -116,10 +124,25 @@ export function Chip({
   active?: boolean;
   title?: string;
 }) {
+  const rclTone =
+    tone === "green"
+      ? "success"
+      : tone === "amber"
+        ? "warning"
+        : tone === "red"
+          ? "danger"
+          : tone === "ice" || tone === "violet"
+            ? "info"
+            : "neutral";
   return (
-    <span className={cx("wb-chip", active && "is-active", tone && `is-${tone}`)} title={title}>
+    <RclBadge
+      tone={rclTone}
+      role="presentation"
+      className={cx("wb-chip", active && "is-active", tone && `is-${tone}`)}
+      title={title}
+    >
       {children}
-    </span>
+    </RclBadge>
   );
 }
 
@@ -202,7 +225,14 @@ export function Skeleton({
   height?: number;
   width?: number | string;
 }) {
-  return <span className="wb-skeleton" style={{ display: "block", height, width }} aria-hidden />;
+  return (
+    <RclSkeleton
+      className="wb-skeleton"
+      style={{ display: "block", height, width }}
+      role="presentation"
+      aria-hidden="true"
+    />
+  );
 }
 
 export function Banner({
@@ -246,6 +276,18 @@ export function Field({
     isValidElement<{ id?: string }>(children) && !existing
       ? cloneElement(children as ReactElement<{ id?: string }>, { id })
       : children;
+  if (isValidElement(control)) {
+    return (
+      <RclFormField
+        label={label}
+        control={control as FormFieldProps["control"]}
+        id={id}
+        description={hint}
+        optionalLabel={null}
+        className="wb-field"
+      />
+    );
+  }
   return (
     <div className="wb-field">
       <label htmlFor={id}>{label}</label>
@@ -326,16 +368,7 @@ export function Toggle({
   onChange: (checked: boolean) => void;
   label: string;
 }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      className="wb-toggle"
-      onClick={() => onChange(!checked)}
-    />
-  );
+  return <RclSwitch checked={checked} aria-label={label} onCheckedChange={onChange} />;
 }
 
 export function Tabs<T extends string>({
@@ -344,57 +377,23 @@ export function Tabs<T extends string>({
   onChange,
   label,
 }: {
-  items: Array<{ id: T; label: ReactNode; count?: number }>;
+  items: Array<{ id: T; label: string; count?: number }>;
   value: T;
   onChange: (id: T) => void;
   label: string;
 }) {
-  const refs = useRef<Array<HTMLButtonElement | null>>([]);
-  const move = (index: number) => {
-    if (items.length === 0) return;
-    const next = (index + items.length) % items.length;
-    const item = items[next];
-    if (!item) return;
-    onChange(item.id);
-    refs.current[next]?.focus();
-  };
   return (
-    <div className="wb-tabs" role="tablist" aria-label={label}>
-      {items.map((item, index) => (
-        <button
-          key={item.id}
-          ref={(node) => {
-            refs.current[index] = node;
-          }}
-          type="button"
-          role="tab"
-          aria-selected={value === item.id}
-          tabIndex={value === item.id ? 0 : -1}
-          className="wb-tab"
-          onClick={() => onChange(item.id)}
-          onKeyDown={(event) => {
-            if (event.key === "ArrowRight") {
-              event.preventDefault();
-              move(index + 1);
-            } else if (event.key === "ArrowLeft") {
-              event.preventDefault();
-              move(index - 1);
-            } else if (event.key === "Home") {
-              event.preventDefault();
-              move(0);
-            } else if (event.key === "End") {
-              event.preventDefault();
-              move(items.length - 1);
-            }
-          }}
-        >
-          {item.label}
-          {typeof item.count === "number" ? (
-            <span className="wb-tab-count">{item.count}</span>
-          ) : null}
-        </button>
-      ))}
-    </div>
+    <RclTabs
+      ariaLabel={label}
+      active={value}
+      density="compact"
+      items={items.map((item) => ({
+        id: item.id,
+        label: item.label,
+        badge: typeof item.count === "number" ? item.count : undefined,
+      }))}
+      onChange={(id) => onChange(id as T)}
+    />
   );
 }
 
@@ -410,7 +409,7 @@ export function Segmented<T extends string>({
   label: string;
 }) {
   return (
-    <div className="wb-seg" role="group" aria-label={label}>
+    <RclButtonGroup className="wb-seg" label={label} variant="segmented" collapse="never">
       {items.map((item) => (
         <button
           key={item.id}
@@ -422,7 +421,7 @@ export function Segmented<T extends string>({
           {item.label}
         </button>
       ))}
-    </div>
+    </RclButtonGroup>
   );
 }
 

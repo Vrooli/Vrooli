@@ -22,7 +22,17 @@ func previewDependencyPopulateCommand(name, versionRange string) string {
 }
 
 func previewRuntimeStoreRoot(repoRoot string) string {
-	if root := strings.TrimSpace(os.Getenv(previewRuntimeStoreEnv)); root != "" {
+	return previewRuntimeStoreRootWithLookupEnv(repoRoot, os.Getenv)
+}
+
+// previewRuntimeStoreRootWithLookupEnv resolves the configured store root using
+// an explicit environment reader so callers can test deployment overrides
+// without mutating process-global environment state.
+func previewRuntimeStoreRootWithLookupEnv(repoRoot string, lookupEnv func(string) string) string {
+	if lookupEnv == nil {
+		lookupEnv = os.Getenv
+	}
+	if root := strings.TrimSpace(lookupEnv(previewRuntimeStoreEnv)); root != "" {
 		return root
 	}
 	return filepath.Join(repoRoot, "scenarios", "react-component-library", "tools", "preview-runtime")

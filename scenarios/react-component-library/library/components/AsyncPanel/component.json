@@ -17,7 +17,7 @@
     }
   ],
   "displayName": "Async Panel",
-  "draft": "",
+  "draft": "1.0.8-draft.1",
   "evictedVersions": [],
   "latest": "1.0.7",
   "libraryId": "react-component-library:AsyncPanel",

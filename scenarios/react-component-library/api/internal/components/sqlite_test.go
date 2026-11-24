@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -34,6 +36,18 @@ func newComponentsDB(t *testing.T) (components.Repository, func() time.Time) {
 	t.Helper()
 	_, repo, now := newComponentsRawDB(t)
 	return repo, now
+}
+
+type affinityQueryCounter struct {
+	*sql.DB
+	queries int
+}
+
+func (db *affinityQueryCounter) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	if strings.Contains(query, "FROM component_design_affinities") {
+		db.queries++
+	}
+	return db.DB.QueryContext(ctx, query, args...)
 }
 
 func TestSQLiteRepository_UpsertInsertsThenUpdates(t *testing.T) {
@@ -292,6 +306,38 @@ func TestSQLiteRepository_UpsertManifestPersistsDesignAffinitiesAndFilters(t *te
 	gotIDs := []string{got[0].LibraryID, got[1].LibraryID}
 	require.Contains(t, gotIDs, "react-component-library:Button")
 	require.Contains(t, gotIDs, "react-component-library:DataTable")
+}
+
+func TestSQLiteRepository_ListLoadsDesignAffinitiesInOneBatch(t *testing.T) {
+	d, _, _ := newComponentsRawDB(t)
+	counter := &affinityQueryCounter{DB: d}
+	clk := scheduletest.New(time.Date(2026, 5, 12, 10, 0, 0, 0, time.UTC))
+	repo := components.NewSQLiteRepository(counter, clk)
+	ctx := context.Background()
+	for i := 0; i < 25; i++ {
+		name := fmt.Sprintf("Card%02d", i)
+		_, err := repo.UpsertManifest(ctx, components.IndexManifestInput{
+			Manifest: components.ComponentManifest{
+				LibraryID: "react-component-library:" + name, Slug: name,
+				DisplayName: name, LatestVersion: "1.0.0",
+				DesignStyles: []components.ComponentDesignAffinity{{StyleID: "editorial", Affinity: components.DesignAffinityCompatible}},
+			},
+			Versions: []components.ComponentVersion{{
+				Version: "1.0.0", Status: components.VersionStatusReleased,
+				SourcePath: "components/" + name + "/versions/1.0.0/" + name + ".tsx", ContentSHA256: name,
+			}},
+		})
+		require.NoError(t, err)
+	}
+	counter.queries = 0
+
+	got, err := repo.List(ctx, components.SearchQuery{Limit: 100})
+	require.NoError(t, err)
+	require.Len(t, got, 25)
+	require.Equal(t, 1, counter.queries, "list must fetch affinities with one bounded query, not one query per asset")
+	for _, component := range got {
+		require.Equal(t, []components.ComponentDesignAffinity{{StyleID: "editorial", Affinity: components.DesignAffinityCompatible}}, component.DesignStyles)
+	}
 }
 
 func TestSQLiteRepository_UpsertManifestPersistsStories(t *testing.T) {

@@ -10,47 +10,72 @@ import (
 	workspacev1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/workspace"
 )
 
-// Migrate applies the workspaces schema and imports every legacy
-// studio_designs row that has not been imported yet.
+// Migrate applies the workspaces schema, imports legacy studio_designs and
+// studio_templates rows, installs the singular experience page binding index
+// after a diagnostic duplicate check, and retires their source tables.
 //
 // It is deliberately additive and idempotent: the schema text is re-applied
 // (every statement is IF NOT EXISTS) and workspace_migrations records each
-// source row by (source, source_id), so a second boot is a no-op. Nothing is
-// deleted here — the old table stays readable until the deletion ledger retires
-// it, and that is also the rollback window for this import.
-func Migrate(ctx context.Context, db *sql.DB) error {
+// source row by (source, source_id). Legacy tables are removed only inside the
+// same transaction that commits all successful imports and asset backfills, so
+// malformed rows or collisions leave the old data intact for repair.
+func Migrate(ctx context.Context, db Database) error {
 	if _, err := db.ExecContext(ctx, schemaSQL); err != nil {
 		return fmt.Errorf("apply workspaces schema: %w", err)
+	}
+	// Preserve the latest evidence already present on installs upgrading from
+	// the projection-only schema. The unique capture-operation key makes this
+	// backfill idempotent even though the generated receipt ID is fresh per run.
+	if _, err := db.ExecContext(ctx, `INSERT OR IGNORE INTO workspace_capture_receipts
+		(id,workspace_id,state_id,source_revision,capture_id,attempt_id,request_token,evidence_json,captured_at)
+		SELECT 'legacy_' || lower(hex(randomblob(16))),workspace_id,state_id,source_revision,capture_id,
+			COALESCE(NULLIF(json_extract(evidence_json,'$.attemptId'),''),'legacy'),request_token,evidence_json,captured_at
+		FROM workspace_state_capture_evidence`); err != nil {
+		return fmt.Errorf("backfill workspace capture receipts: %w", err)
 	}
 	exists, err := tableExists(ctx, db, "studio_designs")
 	if err != nil {
 		return err
 	}
-	if !exists {
-		return nil
-	}
-
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("migrate studio_designs: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	designs, err := loadLegacyDesigns(ctx, tx)
+	now := nowTimestamp()
+	if exists {
+		designs, err := loadLegacyDesigns(ctx, tx)
+		if err != nil {
+			return err
+		}
+		for _, design := range designs {
+			done, err := migrationRecorded(ctx, tx, "studio_designs", design.ID)
+			if err != nil {
+				return err
+			}
+			if done {
+				continue
+			}
+			if err := importLegacyDesign(ctx, tx, design, now); err != nil {
+				return fmt.Errorf("migrate studio_designs %q: %w", design.ID, err)
+			}
+		}
+	}
+	templates, err := loadLegacyTemplates(ctx, tx)
 	if err != nil {
 		return err
 	}
-	now := nowTimestamp()
-	for _, design := range designs {
-		done, err := migrationRecorded(ctx, tx, "studio_designs", design.ID)
+	for _, template := range templates {
+		done, err := migrationRecorded(ctx, tx, "studio_templates", template.ID)
 		if err != nil {
 			return err
 		}
 		if done {
 			continue
 		}
-		if err := importLegacyDesign(ctx, tx, design, now); err != nil {
-			return fmt.Errorf("migrate studio_designs %q: %w", design.ID, err)
+		if err := importLegacyTemplate(ctx, tx, template, now); err != nil {
+			return fmt.Errorf("migrate studio_templates %q: %w", template.ID, err)
 		}
 	}
 	// Repairs an install that imported a design before this package owned
@@ -59,8 +84,221 @@ func Migrate(ctx context.Context, db *sql.DB) error {
 	if err := backfillLegacyAssets(ctx, tx); err != nil {
 		return err
 	}
+	if err := enforceUniqueExperienceBinding(ctx, tx); err != nil {
+		return err
+	}
+	if err := retireLegacyTables(ctx, tx); err != nil {
+		return err
+	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("migrate studio_designs commit: %w", err)
+	}
+	return nil
+}
+
+func retireLegacyTables(ctx context.Context, tx *sql.Tx) error {
+	for _, table := range []string{"studio_design_assets", "studio_designs", "studio_templates"} {
+		exists, err := tableExists(ctx, tx, table)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			continue
+		}
+		if _, err := tx.ExecContext(ctx, "DROP TABLE "+table); err != nil {
+			return fmt.Errorf("retire legacy table %s: %w", table, err)
+		}
+	}
+	return nil
+}
+
+type legacyTemplate struct {
+	ID, Name, Tagline, Category string
+	Palette, Display            string
+	Radius                      int
+	Spec, CreatedAt, UpdatedAt  string
+}
+
+func loadLegacyTemplates(ctx context.Context, q queryer) ([]legacyTemplate, error) {
+	exists, err := tableExists(ctx, q, "studio_templates")
+	if err != nil || !exists {
+		return nil, err
+	}
+	rows, err := q.QueryContext(ctx, `SELECT id, name, COALESCE(tagline, ''), COALESCE(category, ''),
+		COALESCE(palette_json, '{}'), COALESCE(display, 'sans'), COALESCE(radius, 14),
+		COALESCE(spec_json, '{}'), COALESCE(created_at, ''), COALESCE(updated_at, '')
+		FROM studio_templates ORDER BY rowid`)
+	if err != nil {
+		return nil, fmt.Errorf("read studio_templates: %w", err)
+	}
+	defer rows.Close()
+	templates := make([]legacyTemplate, 0)
+	for rows.Next() {
+		var template legacyTemplate
+		if err := rows.Scan(&template.ID, &template.Name, &template.Tagline, &template.Category,
+			&template.Palette, &template.Display, &template.Radius, &template.Spec,
+			&template.CreatedAt, &template.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("scan studio_templates: %w", err)
+		}
+		templates = append(templates, template)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate studio_templates: %w", err)
+	}
+	return templates, nil
+}
+
+func importLegacyTemplate(ctx context.Context, q queryer, template legacyTemplate, now string) error {
+	name := strings.TrimSpace(template.Name)
+	if template.ID == "" || name == "" {
+		return fmt.Errorf("id and name are required")
+	}
+	if !jsonObject(template.Palette) {
+		return fmt.Errorf("palette_json and spec_json must be JSON objects")
+	}
+	spec, _, idea, err := unwrapLegacyTemplateSpec(template.Spec)
+	if err != nil {
+		return err
+	}
+	createdAt := template.CreatedAt
+	if strings.TrimSpace(createdAt) == "" {
+		createdAt = now
+	}
+	updatedAt := template.UpdatedAt
+	if strings.TrimSpace(updatedAt) == "" {
+		updatedAt = createdAt
+	}
+	workspaceID := "ws_curated_" + template.ID
+	display := strings.ToLower(strings.TrimSpace(template.Display))
+	if display != "serif" {
+		display = "sans"
+	}
+	radius := template.Radius
+	if radius < 0 || radius > 48 {
+		radius = 14
+	}
+	args, err := frameArgsJSON(spec)
+	if err != nil {
+		return err
+	}
+	workspace := &workspacev1.Workspace{
+		Id: workspaceID, Name: name, Summary: firstNonEmpty(strings.TrimSpace(template.Tagline), strings.TrimSpace(idea)),
+		Provenance: workspacev1.WorkspaceProvenance_WORKSPACE_PROVENANCE_CURATED,
+		Tags:       []string{strings.TrimSpace(template.Category)}, ThemeJson: template.Palette,
+		OptionsJson: fmt.Sprintf(`{"display":%q,"radius":%d}`, display, radius), Revision: 1,
+		CreatedAt: createdAt, UpdatedAt: updatedAt,
+		Pages: []*workspacev1.WorkspacePage{{Id: "pg_legacy_template_" + template.ID, Name: name, SpecJson: "{}", Displays: []*workspacev1.WorkspaceDisplay{{
+			Id: "dp_legacy_template_" + template.ID, Device: workspacev1.DisplayDevice_DISPLAY_DEVICE_DESKTOP,
+			Width: 1280, Height: 800, States: []*workspacev1.WorkspaceState{{
+				Id: "st_legacy_template_" + template.ID, Name: "Default", ArgsJson: args,
+				Status: workspacev1.StateStatus_STATE_STATUS_DRAFT,
+			}},
+		}}}},
+	}
+	if err := normalizeAggregate(workspace, false); err != nil {
+		return err
+	}
+	if err := invalidFromIssues(validationIssues(workspace)); err != nil {
+		return err
+	}
+	if err := insertWorkspace(ctx, q, workspace); err != nil {
+		return fmt.Errorf("workspace id %q conflicts with an existing workspace (legacy id %q): %w", workspaceID, template.ID, err)
+	}
+	if err := insertNested(ctx, q, workspace); err != nil {
+		return err
+	}
+	snapshot, err := marshalWorkspace(workspace)
+	if err != nil {
+		return err
+	}
+	if err := insertRevision(ctx, q, workspaceID, 1, snapshot, "migration", updatedAt); err != nil {
+		return err
+	}
+	if _, err := q.ExecContext(ctx, `INSERT INTO workspace_migrations
+		(source, source_id, workspace_id, migrated_at) VALUES ('studio_templates', ?, ?, ?)`, template.ID, workspaceID, now); err != nil {
+		return fmt.Errorf("record template migration: %w", err)
+	}
+	return nil
+}
+
+func jsonObject(raw string) bool {
+	var value map[string]json.RawMessage
+	return json.Unmarshal([]byte(raw), &value) == nil && value != nil
+}
+
+func unwrapLegacyTemplateSpec(raw string) (json.RawMessage, string, string, error) {
+	var document struct {
+		Spec     json.RawMessage `json:"spec"`
+		SlotHint string          `json:"slotHint"`
+		Idea     string          `json:"idea"`
+	}
+	if err := json.Unmarshal([]byte(raw), &document); err != nil {
+		return nil, "", "", fmt.Errorf("spec_json is not valid JSON: %w", err)
+	}
+	if document.Spec == nil {
+		if !jsonObject(raw) {
+			return nil, "", "", fmt.Errorf("spec_json must be a JSON object")
+		}
+		return json.RawMessage(raw), "", "", nil
+	}
+	if !jsonObject(string(document.Spec)) {
+		return nil, "", "", fmt.Errorf("spec_json.spec must be a JSON object")
+	}
+	return document.Spec, document.SlotHint, document.Idea, nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+// enforceUniqueExperienceBinding installs the one-composition-owner invariant
+// only after legacy imports have completed. Checking first produces a useful
+// startup diagnostic for existing duplicate bindings instead of SQLite's
+// opaque unique-index error during schema initialization.
+func enforceUniqueExperienceBinding(ctx context.Context, db queryer) error {
+	rows, err := db.QueryContext(ctx, `SELECT binding_scenario, binding_page, GROUP_CONCAT(id), COUNT(*)
+		FROM workspaces
+		WHERE binding_scenario <> '' AND binding_page <> ''
+		GROUP BY binding_scenario, binding_page
+		HAVING COUNT(*) > 1
+		ORDER BY binding_scenario, binding_page`)
+	if err != nil {
+		return fmt.Errorf("check workspace experience bindings: %w", err)
+	}
+	type duplicate struct {
+		scenario, page, ids string
+		count               int
+	}
+	duplicates := make([]duplicate, 0)
+	for rows.Next() {
+		var item duplicate
+		if err := rows.Scan(&item.scenario, &item.page, &item.ids, &item.count); err != nil {
+			rows.Close()
+			return fmt.Errorf("read duplicate workspace experience bindings: %w", err)
+		}
+		duplicates = append(duplicates, item)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return fmt.Errorf("iterate duplicate workspace experience bindings: %w", err)
+	}
+	rows.Close()
+	if len(duplicates) > 0 {
+		parts := make([]string, 0, len(duplicates))
+		for _, item := range duplicates {
+			parts = append(parts, fmt.Sprintf("%s/%s (%d workspaces: %s)", item.scenario, item.page, item.count, item.ids))
+		}
+		return fmt.Errorf("duplicate workspace experience bindings prevent one-owner index: %s; resolve these rows explicitly, then restart", strings.Join(parts, "; "))
+	}
+	if _, err := db.ExecContext(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS workspaces_binding_unique
+		ON workspaces (binding_scenario, binding_page)
+		WHERE binding_scenario <> '' AND binding_page <> ''`); err != nil {
+		return fmt.Errorf("install unique workspace experience binding index: %w", err)
 	}
 	return nil
 }
@@ -409,9 +647,9 @@ func importLegacyAssets(ctx context.Context, q queryer, designID, workspaceID st
 	}
 	for _, required := range []string{"id", "name", "mime", "data", "created_at"} {
 		if !columns[required] {
-			// A shape this import does not understand is left alone rather than
-			// half-copied; the legacy table still holds the bytes.
-			return nil
+			// The caller retires the legacy table only after a full successful
+			// import. Fail closed so unsupported shapes are never silently dropped.
+			return fmt.Errorf("legacy design asset table is missing required column %q", required)
 		}
 	}
 	bytesExpr := intColumn(columns, "bytes")

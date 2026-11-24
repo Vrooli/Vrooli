@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/storage"
 	"react-component-library/internal/adoptions"
 	"react-component-library/internal/components"
 	domain "react-component-library/internal/componenttests"
@@ -309,9 +310,9 @@ func removeRequiredSurfaceToken(path string) error {
 	if err != nil {
 		return err
 	}
-	mode := os.FileMode(0o644)
-	if info, statErr := os.Stat(path); statErr == nil {
-		mode = info.Mode().Perm()
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
 	}
 	lines := strings.SplitAfter(string(content), "\n")
 	kept := make([]string, 0, len(lines))
@@ -322,7 +323,7 @@ func removeRequiredSurfaceToken(path string) error {
 		}
 		kept = append(kept, line)
 	}
-	return os.WriteFile(path, []byte(strings.Join(kept, "")), mode)
+	return storage.WriteFileAtomic(path, []byte(strings.Join(kept, "")), info.Mode().Perm())
 }
 
 func contains(values []string, want string) bool {

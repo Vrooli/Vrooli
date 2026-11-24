@@ -2,9 +2,12 @@ package themes_test
 
 import (
 	"context"
+	"database/sql"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/database"
 
 	"react-component-library/internal/themes"
 
@@ -17,6 +20,38 @@ func newSQLiteThemeRepo(t *testing.T) themes.Repository {
 	_, err := sqlDB.ExecContext(context.Background(), themes.Schema())
 	require.NoError(t, err)
 	return themes.NewSQLiteRepository(sqlDB)
+}
+
+func TestRepositoryRoutesMarkedRequestsToInstalledTestPool(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	routed, err := database.Open(ctx, database.Config{
+		Driver:       database.DriverSQLite,
+		DSN:          filepath.Join(dir, "primary.db"),
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = routed.Close() })
+
+	_, err = routed.ExecContext(ctx, themes.Schema())
+	require.NoError(t, err)
+	routed.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
+		_, err := pool.ExecContext(ctx, themes.Schema())
+		return err
+	})
+	require.NoError(t, routed.InstallTestPool(ctx, filepath.Join(dir, "test.db"), "themes-test", 0))
+
+	repo := themes.NewSQLiteRepository(routed)
+	requestCtx := database.WithTestMode(ctx)
+	require.NoError(t, repo.UpsertBuiltin(requestCtx, themes.Theme{ID: "test-only", Name: "Test"}))
+
+	_, err = repo.GetBuiltin(ctx, "test-only")
+	var notFound themes.ErrThemeNotFound
+	require.ErrorAs(t, err, &notFound, "ordinary requests must continue to use the primary pool")
+	fromTestPool, err := repo.GetBuiltin(requestCtx, "test-only")
+	require.NoError(t, err, "marked requests must read from the installed test pool")
+	require.Equal(t, "Test", fromTestPool.Name)
 }
 
 func TestSQLite_UpsertAndGetBuiltin(t *testing.T) {

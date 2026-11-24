@@ -9,7 +9,9 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
+	"github.com/vrooli/api-core/apihttp"
 	executionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -19,7 +21,7 @@ import (
 type BASDispatcher struct {
 	BASBaseURL       string
 	RCLTargetBaseURL string
-	Client           *http.Client
+	Client           apihttp.Doer
 }
 
 func (d BASDispatcher) Start(ctx context.Context, op Operation) (string, error) {
@@ -73,7 +75,7 @@ func (d BASDispatcher) Start(ctx context.Context, op Operation) (string, error) 
 	req.Header.Set("Content-Type", "application/json")
 	client := d.Client
 	if client == nil {
-		client = http.DefaultClient
+		client = &http.Client{Timeout: 30 * time.Second}
 	}
 	response, err := client.Do(req)
 	if err != nil {

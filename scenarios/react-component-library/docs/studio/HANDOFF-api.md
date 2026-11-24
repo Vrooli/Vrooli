@@ -1,5 +1,10 @@
 # Handoff — designs persistence + brand (API stream)
 
+> Historical implementation notes. The design CRUD and storage described below
+> were retired on 2026-11-20 after the workspace migrator imported rows/assets
+> transactionally and dropped the legacy tables. See
+> [WORKBENCH-LEGACY-OWNERS-AUDIT.md](../internal/WORKBENCH-LEGACY-OWNERS-AUDIT.md).
+
 ## What landed
 
 - **Designs domain** (`api/internal/designs`, `api/handlers/designs`): SQLite-backed

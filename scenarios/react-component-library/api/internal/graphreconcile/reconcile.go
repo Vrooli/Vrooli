@@ -226,14 +226,14 @@ type (
 )
 
 func loadCatalog(dir string) ([]catalogAsset, error) {
-	paths, err := filepath.Glob(filepath.Join(dir, "assets", "*", "*.json"))
+	paths, err := rootedGlob(dir, filepath.Join(dir, "assets", "*", "*.json"))
 	if err != nil {
 		return nil, err
 	}
 	sort.Strings(paths)
 	var out []catalogAsset
 	for _, path := range paths {
-		data, err := os.ReadFile(path)
+		data, err := rootedReadFile(dir, path)
 		if err != nil {
 			return nil, err
 		}
@@ -266,13 +266,13 @@ func loadCatalog(dir string) ([]catalogAsset, error) {
 func loadImplementations(dir string) ([]implementation, error) {
 	var out []implementation
 	for _, root := range []string{"foundations", "hooks", "services", "primitives", "components"} {
-		paths, err := filepath.Glob(filepath.Join(dir, root, "*", "component.json"))
+		paths, err := rootedGlob(dir, filepath.Join(dir, root, "*", "component.json"))
 		if err != nil {
 			return nil, err
 		}
 		sort.Strings(paths)
 		for _, path := range paths {
-			data, err := os.ReadFile(path)
+			data, err := rootedReadFile(dir, path)
 			if err != nil {
 				return nil, err
 			}
@@ -329,7 +329,7 @@ func graphSourceFiles(libraryDir, uiDir string, impls []implementation) ([]strin
 			}
 			seen[version] = true
 			versionDir := filepath.Join(libraryDir, impl.Root, impl.Name, "versions", version)
-			entries, err := os.ReadDir(versionDir)
+			entries, err := rootedReadDir(libraryDir, versionDir)
 			if err != nil {
 				// A manifest pointing at a missing version directory is the
 				// conformance gate's finding to report, not this one's to fail on.
@@ -366,7 +366,7 @@ func graphSourceFiles(libraryDir, uiDir string, impls []implementation) ([]strin
 // inherited baseUrl and paths mappings — which resolve against the config that
 // declares them — pointing at the UI's node_modules.
 func writeGraphProject(uiDir string, files []string) (string, error) {
-	dir, err := os.MkdirTemp(uiDir, ".graph-project-*")
+	dir, err := rootedMkdirTemp(uiDir, uiDir, ".graph-project-")
 	if err != nil {
 		return "", err
 	}
@@ -381,11 +381,11 @@ func writeGraphProject(uiDir string, files []string) (string, error) {
 	}
 	encoded, err := json.MarshalIndent(document, "", "  ")
 	if err != nil {
-		os.RemoveAll(dir)
+		_ = rootedRemoveAll(uiDir, dir)
 		return "", err
 	}
-	if err := os.WriteFile(filepath.Join(dir, "tsconfig.json"), append(encoded, '\n'), 0o644); err != nil {
-		os.RemoveAll(dir)
+	if err := rootedWriteFile(uiDir, filepath.Join(dir, "tsconfig.json"), append(encoded, '\n'), 0o644); err != nil {
+		_ = rootedRemoveAll(uiDir, dir)
 		return "", err
 	}
 	return dir, nil
@@ -407,7 +407,7 @@ func extractImports(parent context.Context, repoRoot string, sourceImpls, allImp
 	if err != nil {
 		return nil, false, "", err
 	}
-	defer os.RemoveAll(project)
+	defer func() { _ = rootedRemoveAll(uiDir, project) }()
 	resolver := discovery.NewResolver(discovery.ResolverConfig{})
 	baseURL, err := resolver.ResolveScenarioURLDefault(ctx, "code-facts")
 	if err != nil {
@@ -455,7 +455,7 @@ func extractImports(parent context.Context, repoRoot string, sourceImpls, allImp
 		byName[impl.Name] = impl.CatalogID
 	}
 	for _, file := range files {
-		data, readErr := os.ReadFile(filepath.Join(uiDir, filepath.FromSlash(file)))
+		data, readErr := rootedReadFile(filepath.Join(filepath.Dir(uiDir), "library"), filepath.Join(uiDir, filepath.FromSlash(file)))
 		if readErr != nil {
 			return nil, false, "", readErr
 		}
@@ -524,7 +524,7 @@ func latestVersionLockDependencies(assetDir, latest string) ([]string, error) {
 		return nil, nil
 	}
 	lockPath := filepath.Join(assetDir, "versions", latest, "dependencies.json")
-	data, err := os.ReadFile(lockPath)
+	data, err := rootedReadFile(filepath.Dir(assetDir), lockPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil

@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/api-core/storage"
 	"react-component-library/internal/librarywalk"
 
 	"react-component-library/internal/catalogcoverage"
@@ -209,7 +210,7 @@ func savePersistedReport(path, fingerprint string, report *catalogcoverage.Repor
 	if path == "" || report == nil {
 		return
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := storage.EnsureDirectory(filepath.Dir(path), 0o755); err != nil {
 		return
 	}
 	payload, err := json.Marshal(persistedReport{
@@ -221,11 +222,7 @@ func savePersistedReport(path, fingerprint string, report *catalogcoverage.Repor
 	if err != nil {
 		return
 	}
-	temp := path + ".tmp"
-	if err := os.WriteFile(temp, payload, 0o644); err != nil {
-		return
-	}
-	_ = os.Rename(temp, path)
+	_ = storage.WriteFileAtomic(path, payload, 0o644)
 }
 
 // coverageCachePath is runtime data, never source. A missing HOME simply

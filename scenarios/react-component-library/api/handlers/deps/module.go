@@ -9,7 +9,6 @@
 package deps
 
 import (
-	"database/sql"
 	"log"
 
 	"github.com/gorilla/mux"
@@ -24,7 +23,7 @@ import (
 // Module wires the deps domain. pkgs may be nil for installations
 // that disable adoption validation — ValidateAdoption then returns
 // FailedPrecondition.
-func Module(db *sql.DB, pkgs deps.PackageJSONReader, logger *log.Logger) module.Module {
+func Module(db deps.SQLiteDB, pkgs deps.PackageJSONReader, logger *log.Logger) module.Module {
 	svc := BuildService(db, pkgs)
 	return ModuleFromService(svc, logger)
 }
@@ -48,7 +47,7 @@ func Schema() string { return deps.Schema() }
 
 // BuildService constructs a deps.Service backed by SQLite. pkgs may be
 // nil for callers that only use SyncForComponent / ListForComponent.
-func BuildService(db *sql.DB, pkgs deps.PackageJSONReader) deps.Service {
+func BuildService(db deps.SQLiteDB, pkgs deps.PackageJSONReader) deps.Service {
 	repo := deps.NewSQLiteRepository(db)
 	return deps.NewService(repo, pkgs)
 }

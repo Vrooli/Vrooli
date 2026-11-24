@@ -5,29 +5,33 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"react-component-library/internal/designcapture"
+	"react-component-library/internal/preview"
+	internal "react-component-library/internal/sketch"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 	dbtest "github.com/vrooli/api-core/databasetest"
 	previewv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/preview"
-	sketchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/sketch"
-	"react-component-library/internal/designcapture"
-	"react-component-library/internal/preview"
-	internal "react-component-library/internal/sketch"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/shared"
+	workspacecapturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/workspacecapture"
+	workspacecaptureconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/workspacecapture/workspacecapture_v1connect"
 )
 
 type captureRenderer struct{}
 
-func (captureRenderer) RenderPrepared(_ context.Context, p preview.PreparedComposition, _ *previewv1.RenderCompositionRequest) (*connect.Response[previewv1.RenderCompositionResponse], error) {
+func (captureRenderer) RenderPrepared(_ context.Context, p preview.PreparedComposition, _ *previewv1.RenderCompositionRequest) (*connect.Response[sharedv1.RenderCompositionResponse], error) {
 	bindings, _ := json.Marshal(p.Bindings)
 	html := "<main>exact fixture</main>" + string(bindings)
 	digest := sha256.Sum256([]byte(html))
 	hash := hex.EncodeToString(digest[:])
-	return connect.NewResponse(&previewv1.RenderCompositionResponse{Html: html, RenderHash: hash, Target: &previewv1.CompositionRenderTarget{Revision: p.Composition.Revision, RenderHash: hash, HtmlSha256: hash, InputsSha256: hash, Kind: "preview", Kit: "vrooli-default", Theme: "light", Direction: "ltr"}}), nil
+	return connect.NewResponse(&sharedv1.RenderCompositionResponse{Html: html, RenderHash: hash, Target: &sharedv1.CompositionRenderTarget{Revision: p.Composition.Revision, RenderHash: hash, HtmlSha256: hash, InputsSha256: hash, Kind: "preview", Kit: "vrooli-default", Theme: "light", Direction: "ltr"}}), nil
 }
 
 type captureDispatch struct {
@@ -71,8 +75,8 @@ func TestCaptureCandidateRequiresExactRenderAndPreservesRetry(t *testing.T) {
 	repo := designcapture.NewSQLiteRepository(db)
 	dispatcher := &captureDispatch{}
 	h := NewConnectHandler(Deps{Store: store, Renderer: captureRenderer{}, CapturesFor: func(context.Context) (designcapture.Repository, error) { return repo, nil }, CaptureDispatcher: dispatcher})
-	render := &sketchv1.RenderCandidateRequest{Candidate: &sketchv1.CandidateReference{Scenario: "demo", DesignId: "draft", Hash: candidate.Hash}, MissingLabel: "Missing", FailedLabel: "Failed"}
-	request := &sketchv1.CaptureCandidateRequest{Render: render, ExpectedRenderHash: "stale", IdempotencyKey: "capture-one", Width: 390, Height: 844}
+	render := &sharedv1.RenderCandidateRequest{Candidate: &sharedv1.CandidateReference{Scenario: "demo", DesignId: "draft", Hash: candidate.Hash}, MissingLabel: "Missing", FailedLabel: "Failed"}
+	request := &workspacecapturev1.CaptureCandidateRequest{Render: render, ExpectedRenderHash: "stale", IdempotencyKey: "capture-one", Width: 390, Height: 844}
 	_, err = h.CaptureCandidate(ctx, connect.NewRequest(request))
 	require.Equal(t, connect.CodeAborted, connect.CodeOf(err))
 	require.Zero(t, dispatcher.calls)
@@ -86,29 +90,29 @@ func TestCaptureCandidateRequiresExactRenderAndPreservesRetry(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, op.Msg.Id, retry.Msg.Id)
 	require.Equal(t, 1, dispatcher.calls)
-	read, err := h.GetCapture(ctx, connect.NewRequest(&sketchv1.GetCaptureRequest{Id: op.Msg.Id}))
+	read, err := h.GetCapture(ctx, connect.NewRequest(&workspacecapturev1.GetCaptureRequest{Id: op.Msg.Id}))
 	require.NoError(t, err)
 	require.Equal(t, "bas-fixture", read.Msg.ProducerId)
-	pending, err := h.CancelCapture(ctx, connect.NewRequest(&sketchv1.GetCaptureRequest{Id: op.Msg.Id}))
+	pending, err := h.CancelCapture(ctx, connect.NewRequest(&workspacecapturev1.GetCaptureRequest{Id: op.Msg.Id}))
 	require.NoError(t, err)
 	require.Equal(t, "cancel_requested", pending.Msg.State)
 	require.Equal(t, "bas-fixture", pending.Msg.ProducerId)
 	require.Equal(t, 1, dispatcher.cancellations)
-	attached, err := h.AttachCapture(ctx, connect.NewRequest(&sketchv1.GetCaptureRequest{Id: op.Msg.Id}))
+	attached, err := h.AttachCapture(ctx, connect.NewRequest(&workspacecapturev1.GetCaptureRequest{Id: op.Msg.Id}))
 	require.NoError(t, err)
 	require.Equal(t, "completed", attached.Msg.State)
 	require.Equal(t, "body", attached.Msg.Artifacts[1].Evidence.Regions[0].Region)
-	screenshot, err := h.GetCaptureScreenshot(ctx, connect.NewRequest(&sketchv1.GetCaptureScreenshotRequest{Id: op.Msg.Id, Reference: "bas:fixture:screenshot"}))
+	screenshot, err := h.GetCaptureScreenshot(ctx, connect.NewRequest(&workspacecapturev1.GetCaptureScreenshotRequest{Id: op.Msg.Id, Reference: "bas:fixture:screenshot"}))
 	require.NoError(t, err)
 	require.Equal(t, "http://bas.local/image.png", screenshot.Msg.Url)
 	require.Equal(t, int32(390), screenshot.Msg.Width)
-	_, err = h.GetCaptureScreenshot(ctx, connect.NewRequest(&sketchv1.GetCaptureScreenshotRequest{Id: op.Msg.Id, Reference: "bas:other:screenshot"}))
+	_, err = h.GetCaptureScreenshot(ctx, connect.NewRequest(&workspacecapturev1.GetCaptureScreenshotRequest{Id: op.Msg.Id, Reference: "bas:other:screenshot"}))
 	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
 
-	_, err = h.AttachCapture(ctx, connect.NewRequest(&sketchv1.GetCaptureRequest{Id: op.Msg.Id}))
+	_, err = h.AttachCapture(ctx, connect.NewRequest(&workspacecapturev1.GetCaptureRequest{Id: op.Msg.Id}))
 	require.NoError(t, err)
 	require.Equal(t, 1, dispatcher.observations)
-	terminal, err := h.CancelCapture(ctx, connect.NewRequest(&sketchv1.GetCaptureRequest{Id: op.Msg.Id}))
+	terminal, err := h.CancelCapture(ctx, connect.NewRequest(&workspacecapturev1.GetCaptureRequest{Id: op.Msg.Id}))
 	require.NoError(t, err)
 	require.Equal(t, "completed", terminal.Msg.State)
 	require.Equal(t, 1, dispatcher.cancellations)
@@ -125,7 +129,7 @@ func TestRetryCaptureHandlerRefusesTestModeAndUnknownOperation(t *testing.T) {
 	repo := designcapture.NewSQLiteRepository(db)
 	dispatcher := &captureDispatch{}
 	h := NewConnectHandler(Deps{CapturesFor: func(context.Context) (designcapture.Repository, error) { return repo, nil }, CaptureDispatcher: dispatcher})
-	request := connect.NewRequest(&sketchv1.RetryCaptureRequest{Id: "missing", IdempotencyKey: "new-attempt"})
+	request := connect.NewRequest(&workspacecapturev1.RetryCaptureRequest{Id: "missing", IdempotencyKey: "new-attempt"})
 	_, err := h.RetryCapture(apidb.WithTestMode(ctx), request)
 	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
 	_, err = h.RetryCapture(ctx, request)
@@ -156,14 +160,14 @@ func TestCaptureCandidateRejectsHashFromDifferentPreviewState(t *testing.T) {
 	repo := designcapture.NewSQLiteRepository(db)
 	dispatcher := &captureDispatch{}
 	h := NewConnectHandler(Deps{Store: store, Renderer: captureRenderer{}, CapturesFor: func(context.Context) (designcapture.Repository, error) { return repo, nil }, CaptureDispatcher: dispatcher})
-	render := &sketchv1.RenderCandidateRequest{Candidate: &sketchv1.CandidateReference{Scenario: "demo", DesignId: "states", Hash: candidate.Hash}, MissingLabel: "Missing", FailedLabel: "Failed"}
+	render := &sharedv1.RenderCandidateRequest{Candidate: &sharedv1.CandidateReference{Scenario: "demo", DesignId: "states", Hash: candidate.Hash}, MissingLabel: "Missing", FailedLabel: "Failed"}
 	initial, err := h.RenderCandidate(ctx, connect.NewRequest(render))
 	require.NoError(t, err)
 	render.PreviewState = "detail"
 	detail, err := h.RenderCandidate(ctx, connect.NewRequest(render))
 	require.NoError(t, err)
 	require.NotEqual(t, initial.Msg.RenderHash, detail.Msg.RenderHash)
-	request := &sketchv1.CaptureCandidateRequest{Render: render, ExpectedRenderHash: initial.Msg.RenderHash, IdempotencyKey: "detail", Width: 390, Height: 844}
+	request := &workspacecapturev1.CaptureCandidateRequest{Render: render, ExpectedRenderHash: initial.Msg.RenderHash, IdempotencyKey: "detail", Width: 390, Height: 844}
 	_, err = h.CaptureCandidate(ctx, connect.NewRequest(request))
 	require.Equal(t, connect.CodeAborted, connect.CodeOf(err))
 	require.Zero(t, dispatcher.calls)
@@ -175,4 +179,15 @@ func TestCaptureCandidateRejectsHashFromDifferentPreviewState(t *testing.T) {
 	render.PreviewState = "absent"
 	_, err = h.RenderCandidate(ctx, connect.NewRequest(render))
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+}
+
+func TestWorkspaceCaptureServiceConnectRegistration(t *testing.T) {
+	path, handler := workspacecaptureconnect.NewWorkspaceCaptureServiceHandler(NewConnectHandler(Deps{}))
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	client := workspacecaptureconnect.NewWorkspaceCaptureServiceClient(server.Client(), server.URL)
+	_, err := client.GetCapture(context.Background(), connect.NewRequest(&workspacecapturev1.GetCaptureRequest{Id: "missing"}))
+	require.Equal(t, connect.CodeUnavailable, connect.CodeOf(err))
+	require.Contains(t, path, "WorkspaceCaptureService")
 }

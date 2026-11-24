@@ -7,6 +7,10 @@ import {
   assetSearchForTab,
   assetStory,
   assetTestReportPath,
+  designPath,
+  libraryPath,
+  previewPath,
+  workspacePath,
 } from "./routes";
 
 describe("workspace route contract", () => {
@@ -29,6 +33,7 @@ describe("workspace route contract", () => {
       designScenario: "/design/:scenario",
       designPage: "/design/:scenario/:page",
       legacySketch: "/sketch/:scenario/:page",
+      workspaceCapture: "/workspace-capture/:id",
     });
   });
 
@@ -51,5 +56,27 @@ describe("workspace route contract", () => {
     expect(assetSearchForTab("versions", "ctr_1")).toBe("?tab=versions");
     expect(assetInfoTab(new URLSearchParams("tab=experience"))).toBe("experience");
     expect(assetStory(new URLSearchParams("story=loading"))).toBe("loading");
+  });
+
+  it("builds optional query and design route segments only when provided", () => {
+    expect(libraryPath()).toBe("/library");
+    expect(libraryPath("  buttons & forms  ")).toBe("/library?q=buttons%20%26%20forms");
+    expect(previewPath("asset 42")).toBe("/assets/asset%2042/preview");
+    expect(previewPath("asset 42", "loading story")).toBe(
+      "/assets/asset%2042/preview?story=loading+story",
+    );
+    expect(designPath()).toBe("/design");
+    expect(designPath("shop")).toBe("/design/shop");
+    expect(designPath("shop/name", "home page")).toBe("/design/shop%2Fname/home%20page");
+    expect(workspacePath("ws 1", { page: "home", display: "mobile", state: "empty" })).toBe(
+      "/design?workspace=ws+1&page=home&display=mobile&state=empty",
+    );
+    expect(workspacePath("ws 1")).toBe("/design?workspace=ws+1");
+    expect(assetPath("asset 42", { tab: "files", story: "details" })).toBe(
+      "/assets/asset%2042?tab=files&story=details",
+    );
+    expect(assetStory(new URLSearchParams("story=%20%20"))).toBeUndefined();
+    expect(assetSearchForTab("preview")).toBe("");
+    expect(assetSearchForTab("files", undefined, "details")).toBe("?tab=files&story=details");
   });
 });

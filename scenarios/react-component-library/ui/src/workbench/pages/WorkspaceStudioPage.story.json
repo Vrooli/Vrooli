@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 5,
+  "kind": "page",
+  "title": "Workspace design",
+  "route": "/design",
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    { "id": "index", "name": "Workspace index", "role": "anatomy", "route": "/design" },
+    {
+      "id": "workspace",
+      "name": "Workspace studio",
+      "role": "anatomy",
+      "route": "/design?workspace=seed-harbor"
+    },
+    {
+      "id": "bound-scenario",
+      "name": "Bound scenario redirect",
+      "role": "anatomy",
+      "route": "/design/example"
+    },
+    {
+      "id": "experience",
+      "name": "Experience adoption",
+      "role": "anatomy",
+      "route": "/design/example/home"
+    },
+    {
+      "id": "legacy-sketch",
+      "name": "Legacy sketch redirect",
+      "role": "anatomy",
+      "route": "/sketch/example/home"
+    }
+  ]
+}

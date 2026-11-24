@@ -94,6 +94,11 @@ func distPathMatchesAsset(path string, assets []string) bool {
 func distImportAllowed(packageRoot, importer, specifier string, declared map[string]bool, exports map[string]json.RawMessage) bool {
 	if strings.HasPrefix(specifier, ".") {
 		candidate := filepath.Clean(filepath.Join(filepath.Dir(importer), specifier))
+		distRoot := filepath.Join(packageRoot, "dist")
+		rel, err := filepath.Rel(distRoot, candidate)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return false
+		}
 		for _, suffix := range []string{"", ".js", ".d.ts"} {
 			if _, err := os.Stat(candidate + suffix); err == nil {
 				return true

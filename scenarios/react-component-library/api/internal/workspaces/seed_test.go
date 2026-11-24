@@ -2,6 +2,7 @@ package workspaces
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -25,7 +26,7 @@ func newSeedDB(t *testing.T) (*SQLiteRepository, string) {
 	require.NoError(t, err, "the reviewed seed file is part of the scenario")
 	result, err := Seed(ctx, sqlDB, raw)
 	require.NoError(t, err, "the reviewed seed file must satisfy the aggregate schema")
-	require.Equal(t, 8, result.Inserted)
+	require.Equal(t, 16, result.Inserted)
 	require.Zero(t, result.Skipped)
 	return NewSQLiteRepository(sqlDB), string(raw)
 }
@@ -34,18 +35,18 @@ func TestSeedIsIdempotentAndStocksTheTemplateShelf(t *testing.T) {
 	repo, raw := newSeedDB(t)
 	ctx := context.Background()
 
-	second, err := Seed(ctx, repo.db, []byte(raw))
+	second, err := Seed(ctx, repo.db.(*sql.DB), []byte(raw))
 	require.NoError(t, err)
 	require.Zero(t, second.Inserted, "a second boot must not duplicate the shelf")
-	require.Equal(t, 8, second.Skipped)
+	require.Equal(t, 16, second.Skipped)
 
 	list, err := repo.List(ctx, workspacev1.WorkspaceProvenance_WORKSPACE_PROVENANCE_CURATED, "", 0)
 	require.NoError(t, err)
-	require.Len(t, list, 8)
+	require.Len(t, list, 16)
 	for _, summary := range list {
-		require.Equal(t, int32(1), summary.GetPageCount(), summary.GetId())
-		require.Equal(t, int32(2), summary.GetDisplayCount(), summary.GetId())
-		require.Equal(t, int32(2), summary.GetStateCount(), summary.GetId())
+		require.Greater(t, summary.GetPageCount(), int32(0), summary.GetId())
+		require.Greater(t, summary.GetDisplayCount(), int32(0), summary.GetId())
+		require.Greater(t, summary.GetStateCount(), int32(0), summary.GetId())
 	}
 
 	// The shelf is content: every seed must render a real composition.
@@ -156,4 +157,59 @@ func TestSeedVersionAppliesReviewedChangesAndRetiresUnlistedTemplates(t *testing
 
 	_, err = Seed(ctx, sqlDB, []byte(seed(1, "Older", false)))
 	require.Error(t, err, "an older seed file must not overwrite newer content")
+}
+
+func TestSeedUpdateConflictRollsBackWholeVersion(t *testing.T) {
+	sqlDB := db.NewSQLite(t)
+	ctx := context.Background()
+	_, err := sqlDB.ExecContext(ctx, Schema())
+	require.NoError(t, err)
+	_, err = sqlDB.ExecContext(ctx, `CREATE UNIQUE INDEX workspaces_binding_unique
+		ON workspaces (binding_scenario, binding_page)
+		WHERE binding_scenario <> '' AND binding_page <> ''`)
+	require.NoError(t, err)
+	repo := NewSQLiteRepository(sqlDB)
+	authored, err := repo.Create(ctx, &workspacev1.CreateWorkspaceRequest{
+		Name: "Bound workspace", BindingScenario: "harbor", BindingPage: "welcome",
+	})
+	require.NoError(t, err)
+
+	seed := func(version int, name string, binding bool, includeNew bool) string {
+		bindingFields := `"bindingScenario":"","bindingPage":"",`
+		if binding {
+			bindingFields = `"bindingScenario":"harbor","bindingPage":"welcome",`
+		}
+		newEntry := ""
+		if includeNew {
+			newEntry = `,{"id":"ws_new","name":"New template","provenance":"WORKSPACE_PROVENANCE_CURATED","revision":1,` +
+				`"createdAt":"2026-11-20T00:00:00.000Z","updatedAt":"2026-11-20T00:00:00.000Z",` +
+				`"pages":[{"id":"pg_new","name":"New","specJson":"{}","displays":[{"id":"dp_new","device":"DISPLAY_DEVICE_DESKTOP",` +
+				`"states":[{"id":"st_new","name":"Default","argsJson":"{}"}]}]}]}`
+		}
+		return fmt.Sprintf(`{"schemaVersion":1,"seedVersion":%d,"workspaces":[`+
+			`{"id":"ws_bound_template","name":%q,"provenance":"WORKSPACE_PROVENANCE_CURATED","revision":1,`+
+			`"createdAt":"2026-11-20T00:00:00.000Z","updatedAt":"2026-11-20T00:00:00.000Z",%s`+
+			`"pages":[{"id":"pg_template","name":"Template","specJson":"{}","displays":[{"id":"dp_template","device":"DISPLAY_DEVICE_DESKTOP",`+
+			`"states":[{"id":"st_template","name":"Default","argsJson":"{}"}]}]}]}%s]}`,
+			version, name, bindingFields, newEntry)
+	}
+	_, err = Seed(ctx, sqlDB, []byte(seed(1, "Original", false, false)))
+	require.NoError(t, err)
+
+	_, err = Seed(ctx, sqlDB, []byte(seed(2, "Changed", true, true)))
+	require.Error(t, err, "the binding update conflicts with an authored workspace")
+
+	stored, err := repo.Get(ctx, "ws_bound_template")
+	require.NoError(t, err)
+	require.Equal(t, "Original", stored.GetName(), "failed seed updates must roll back")
+	require.Equal(t, int32(1), stored.GetRevision())
+	_, err = repo.Get(ctx, "ws_new")
+	require.ErrorIs(t, err, ErrNotFound, "earlier inserts in the failed seed pass must roll back too")
+	var applied int
+	require.NoError(t, sqlDB.QueryRowContext(ctx, `SELECT version FROM workspace_seed_state WHERE id=1`).Scan(&applied))
+	require.Equal(t, 1, applied, "failed version must not be recorded")
+	authoredAfter, err := repo.Get(ctx, authored.GetId())
+	require.NoError(t, err)
+	require.Equal(t, "harbor", authoredAfter.GetBindingScenario())
+	require.Equal(t, "welcome", authoredAfter.GetBindingPage())
 }

@@ -30,13 +30,20 @@ func TestConsumerContractPhaseRunsFleetCommandAndFailsClosed(t *testing.T) {
 	}{
 		{
 			name:       "fleet ratchet passes",
-			stdout:     `{"fleet":{"scenarios":114,"files":8801,"findings":25,"byContract":{"Overlay":25}},"ratchet":{"status":"passed","baseline":"scenarios/react-component-library/ui/usage-contract-ratchet.json","comparisons":{"Overlay":{"baseline":32,"current":25,"delta":-7}},"failures":[]},"findings":[]}`,
+			stdout:     `{"fleet":{"scenarios":114,"files":8801,"findings":25,"byContract":{"Overlay":25}},"ratchet":{"status":"passed","baseline":"scenarios/react-component-library/ui/usage-contract-ratchet.json","comparisons":{"Overlay":{"baseline":32,"current":25,"delta":-7}},"failures":[]},"catalogCoverage":{"status":"passed","eligible":102,"contracted":102,"errors":[]},"findings":[]}`,
 			exitCode:   0,
 			wantStatus: scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED,
 		},
 		{
 			name:             "ratchet increase is a test failure",
-			stdout:           `{"fleet":{"scenarios":114,"files":8801,"findings":33,"byContract":{"Overlay":33}},"ratchet":{"status":"failed","baseline":"scenarios/react-component-library/ui/usage-contract-ratchet.json","comparisons":{"Overlay":{"baseline":32,"current":33,"delta":1}},"failures":["Overlay increased from 32 to 33"]},"findings":[]}`,
+			stdout:           `{"fleet":{"scenarios":114,"files":8801,"findings":33,"byContract":{"Overlay":33}},"ratchet":{"status":"failed","baseline":"scenarios/react-component-library/ui/usage-contract-ratchet.json","comparisons":{"Overlay":{"baseline":32,"current":33,"delta":1}},"failures":["Overlay increased from 32 to 33"]},"catalogCoverage":{"status":"passed","eligible":102,"contracted":102,"errors":[]},"findings":[]}`,
+			exitCode:         1,
+			wantStatus:       scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED,
+			wantFailureClass: "test_failure",
+		},
+		{
+			name:             "missing latest contract is a test failure",
+			stdout:           `{"fleet":{"scenarios":114,"files":8801,"findings":3,"byContract":{"Card":1,"SettingsList":2}},"ratchet":{"status":"passed","baseline":"ratchet.json","comparisons":{},"failures":[]},"catalogCoverage":{"status":"failed","eligible":105,"contracted":99,"errors":["AppNotificationSettings: missing usage-contract.json for latest 1.0.6"]},"findings":[]}`,
 			exitCode:         1,
 			wantStatus:       scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED,
 			wantFailureClass: "test_failure",
@@ -86,6 +93,9 @@ func TestConsumerContractPhaseRunsFleetCommandAndFailsClosed(t *testing.T) {
 				require.True(t, response.Msg.GetAssessment().GetLocal().GetClean())
 			} else {
 				require.False(t, response.Msg.GetAssessment().GetLocal().GetClean())
+				if test.name == "missing latest contract is a test failure" {
+					require.Contains(t, response.Msg.GetAssessment().GetFindings()[0].GetMessage(), "AppNotificationSettings")
+				}
 			}
 		})
 	}

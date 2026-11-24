@@ -2,6 +2,7 @@ package review_test
 
 import (
 	"context"
+	"database/sql"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -10,6 +11,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
+	apidb "github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/storage"
 	"google.golang.org/protobuf/encoding/protojson"
 
 	db "github.com/vrooli/api-core/databasetest"
@@ -174,4 +177,40 @@ func TestErrorsMapToConnectCodes(t *testing.T) {
 	response = call(router, reviewconnect.ReviewServiceRecordDispositionProcedure, `{"id":"finding-1","decision":"DISPOSITION_DECISION_ACKNOWLEDGE","reason":"","actor":"ada"}`)
 	require.Equal(t, http.StatusBadRequest, response.Code)
 	require.Contains(t, response.Body.String(), `"code":"invalid_argument"`)
+}
+
+func TestModuleUsesRequestRoutedDBPool(t *testing.T) {
+	ctx := context.Background()
+	primaryDSN, err := storage.SQLiteDSNAt(t.TempDir()+"/review-primary.db", storage.SQLiteTuning{})
+	require.NoError(t, err)
+	routed, err := apidb.Open(ctx, apidb.Config{Driver: apidb.DriverSQLite, DSN: primaryDSN, MaxOpenConns: 1, MaxIdleConns: 1})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = routed.Close() })
+	ensureSchema := func(ctx context.Context, pool *sql.DB) error {
+		_, err := pool.ExecContext(ctx, domain.Schema())
+		return err
+	}
+	require.NoError(t, ensureSchema(ctx, routed.Primary()))
+	routed.SetTestPoolInitializer(ensureSchema)
+	testDSN, err := storage.SQLiteDSNAt(t.TempDir()+"/review-test.db", storage.SQLiteTuning{})
+	require.NoError(t, err)
+	require.NoError(t, routed.InstallTestPool(ctx, testDSN, "review-routing", time.Minute))
+	_, err = routed.Primary().ExecContext(ctx, `INSERT INTO findings (id, subject_kind, subject_id, gate, severity, status, message, evidence_json, created_at) VALUES ('primary-only', 'asset', 'button', 'accessibility', 'high', 'open', 'from primary pool', '{}', '2026-11-18T09:00:00Z')`)
+	require.NoError(t, err)
+
+	router := mux.NewRouter()
+	reviewhandler.Module(routed).Mount(router)
+	list := func(requestContext context.Context) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, reviewconnect.ReviewServiceListFindingsProcedure, strings.NewReader(`{}`)).WithContext(requestContext)
+		req.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, req)
+		return response
+	}
+	primaryResponse := list(ctx)
+	require.Equal(t, http.StatusOK, primaryResponse.Code, primaryResponse.Body.String())
+	require.Contains(t, primaryResponse.Body.String(), "primary-only")
+	testResponse := list(apidb.WithTestMode(ctx))
+	require.Equal(t, http.StatusOK, testResponse.Code, testResponse.Body.String())
+	require.NotContains(t, testResponse.Body.String(), "primary-only", "test-mode request must read the isolated routed pool")
 }

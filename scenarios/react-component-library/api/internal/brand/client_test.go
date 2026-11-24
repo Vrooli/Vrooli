@@ -140,6 +140,55 @@ func TestResolveUsesAbsoluteLogoPath(t *testing.T) {
 	require.Equal(t, logo, *brand.Mark)
 }
 
+func TestResolveBaseURLWithOptionsPrefersInjectedEnvironment(t *testing.T) {
+	lookups := 0
+	discoveries := 0
+	baseURL, err := ResolveBaseURLWithOptions(context.Background(), ClientOptions{
+		LookupEnv: func(key string) string {
+			lookups++
+			require.Equal(t, "BRAND_MANAGER_URL", key)
+			return "  http://brand-manager.test/  "
+		},
+		ResolveScenarioURL: func(context.Context, string) (string, error) {
+			discoveries++
+			return "http://discovered.test", nil
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "http://brand-manager.test/", baseURL)
+	require.Equal(t, 1, lookups)
+	require.Zero(t, discoveries, "an explicit deployment override must bypass discovery")
+}
+
+func TestResolveBaseURLWithOptionsUsesInjectedDiscovery(t *testing.T) {
+	lookups := 0
+	baseURL, err := ResolveBaseURLWithOptions(context.Background(), ClientOptions{
+		LookupEnv: func(string) string {
+			lookups++
+			return "  "
+		},
+		ResolveScenarioURL: func(_ context.Context, scenario string) (string, error) {
+			require.Equal(t, brandManagerScenario, scenario)
+			return "http://discovered.test", nil
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "http://discovered.test", baseURL)
+	require.Equal(t, 1, lookups)
+}
+
+func TestNewClientUsesInjectedBootstrapOptions(t *testing.T) {
+	client := NewClientWithOptions(ClientOptions{
+		LookupEnv: func(key string) string {
+			require.Equal(t, "BRAND_MANAGER_URL", key)
+			return "http://injected.test"
+		},
+	})
+	baseURL, err := client.resolveBaseURL(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "http://injected.test", baseURL)
+}
+
 func TestBrandJSONShape(t *testing.T) {
 	accent := "#123456"
 	payload := Brand{Assigned: true, Name: "Acme", Accent: &accent}

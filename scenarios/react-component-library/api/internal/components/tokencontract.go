@@ -24,7 +24,7 @@ type RequiredTokenClass string
 
 const (
 	RequiredTokenConsumerManaged RequiredTokenClass = "consumer-managed"
-	RequiredTokenBaseStyles      RequiredTokenClass = "base-styles-provided"
+	RequiredTokenBaseStyles      RequiredTokenClass = "base-styles-provided" // #nosec G101 -- this is a classification label, not a credential.
 	RequiredTokenUnknown         RequiredTokenClass = "unknown"
 )
 

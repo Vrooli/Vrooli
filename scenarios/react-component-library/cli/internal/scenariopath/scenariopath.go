@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/vrooli/cli-core/cliutil"
+	"react-component-library/cli/internal/runtimeenv"
 )
 
 // ScenarioName is the directory name under scenarios/.
@@ -19,13 +20,20 @@ const ScenarioName = "react-component-library"
 // shared resolver's answer. It returns the first directory that has both the
 // API module and the catalog config.
 func Find() (string, error) {
+	return FindWith(runtimeenv.System().Environment)
+}
+
+// FindWith resolves the scenario using the supplied environment reader.
+func FindWith(environment runtimeenv.Environment) (string, error) {
 	starts := make([]string, 0, 4)
 	if cwd, err := os.Getwd(); err == nil {
 		starts = append(starts, cwd)
 	}
 	for _, env := range []string{"VROOLI_SCENARIO_ROOT", "SCENARIO_PATH", "VROOLI_SOURCE_ROOT"} {
-		if value := filepath.Clean(os.Getenv(env)); value != "" && value != "." {
-			starts = append(starts, value)
+		if raw, _ := environment.LookupEnv(env); raw != "" {
+			if value := filepath.Clean(raw); value != "." {
+				starts = append(starts, value)
+			}
 		}
 	}
 	if resolved := cliutil.ResolveScenarioPath(ScenarioName); resolved != "" {

@@ -7,7 +7,6 @@ package activity
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"strings"
 
@@ -36,7 +35,7 @@ type Handler struct{ service Service }
 func NewHandler(service Service) *Handler { return &Handler{service: service} }
 
 // Module mounts ActivityService over the scenario database.
-func Module(db *sql.DB) module.Module {
+func Module(db domain.Database) module.Module {
 	return ModuleFromService(domain.NewSQLiteStore(db))
 }
 

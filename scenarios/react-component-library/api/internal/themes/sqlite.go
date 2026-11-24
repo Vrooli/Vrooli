@@ -13,10 +13,20 @@ import (
 )
 
 type sqliteRepository struct {
-	db *sql.DB
+	db Database
 }
 
-func NewSQLiteRepository(db *sql.DB) Repository {
+// Database is the narrow SQL surface needed by the theme repository. Both
+// *sql.DB and api-core's RoutedDB implement it; request contexts select the
+// pool when the routed implementation is used.
+type Database interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+}
+
+func NewSQLiteRepository(db Database) Repository {
 	return &sqliteRepository{db: db}
 }
 

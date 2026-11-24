@@ -3,6 +3,7 @@ package components
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -18,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/api-core/storage"
 	"react-component-library/internal/libspec"
 )
 
@@ -71,6 +73,160 @@ type sourceDesignAffinity struct {
 
 func (s *FSContentStore) Root() string { return s.root }
 
+// writeAtomic publishes a source artifact through api-core's rooted storage
+// seam. The absolute path is accepted only when it is lexically beneath the
+// store root, then all parent traversal and the final rename stay anchored to
+// the opened root even if an intermediate path is replaced with a symlink.
+func (s *FSContentStore) writeAtomic(path string, body []byte, mode os.FileMode) error {
+	return writeFileAtomicInRoot(s.root, path, body, mode)
+}
+
+func writeFileAtomicInRoot(rootPath, path string, body []byte, mode os.FileMode) error {
+	rootPath, err := filepath.Abs(rootPath)
+	if err != nil {
+		return fmt.Errorf("resolve source root: %w", err)
+	}
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(rootPath, path)
+	}
+	path, err = filepath.Abs(path)
+	if err != nil {
+		return fmt.Errorf("resolve source path: %w", err)
+	}
+	relative, err := filepath.Rel(rootPath, path)
+	if err != nil || relative == "." || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return ErrPathEscape{SourcePath: path, Root: rootPath}
+	}
+	root, err := os.OpenRoot(rootPath)
+	if err != nil {
+		return fmt.Errorf("open source root: %w", err)
+	}
+	defer root.Close()
+	if err := storage.WriteFileAtomicInRoot(root, filepath.ToSlash(relative), body, mode); err != nil {
+		return fmt.Errorf("write source artifact %q: %w", relative, err)
+	}
+	return nil
+}
+
+// rootedMutation applies a filesystem mutation through an open, containment-
+// enforcing root. The lexical check keeps callers from accidentally selecting
+// a sibling path; os.Root then protects every component from symlink escapes.
+func rootedMutation(rootPath, path string, mutate func(*os.Root, string) error) error {
+	rootPath, err := filepath.Abs(rootPath)
+	if err != nil {
+		return fmt.Errorf("resolve filesystem root: %w", err)
+	}
+	path, err = filepath.Abs(path)
+	if err != nil {
+		return fmt.Errorf("resolve filesystem path: %w", err)
+	}
+	relative, err := filepath.Rel(rootPath, path)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return ErrPathEscape{SourcePath: path, Root: rootPath}
+	}
+	root, err := os.OpenRoot(rootPath)
+	if err != nil {
+		return fmt.Errorf("open filesystem root: %w", err)
+	}
+	defer root.Close()
+	return mutate(root, filepath.ToSlash(relative))
+}
+
+func ensureDirectoryInRoot(rootPath, path string) error {
+	return rootedMutation(rootPath, path, func(root *os.Root, relative string) error { return root.MkdirAll(relative, 0o755) })
+}
+
+func renameInRoot(rootPath, source, destination string) error {
+	return rootedTwoPathMutation(rootPath, source, destination, func(root *os.Root, sourceRel, destinationRel string) error {
+		return root.Rename(sourceRel, destinationRel)
+	})
+}
+
+func linkInRoot(rootPath, source, destination string) error {
+	return rootedTwoPathMutation(rootPath, source, destination, func(root *os.Root, sourceRel, destinationRel string) error {
+		return root.Link(sourceRel, destinationRel)
+	})
+}
+
+func rootedTwoPathMutation(rootPath, source, destination string, mutate func(*os.Root, string, string) error) error {
+	rootPath, err := filepath.Abs(rootPath)
+	if err != nil {
+		return err
+	}
+	source, err = filepath.Abs(source)
+	if err != nil {
+		return err
+	}
+	destination, err = filepath.Abs(destination)
+	if err != nil {
+		return err
+	}
+	sourceRel, err := filepath.Rel(rootPath, source)
+	if err != nil {
+		return err
+	}
+	destinationRel, err := filepath.Rel(rootPath, destination)
+	if err != nil {
+		return err
+	}
+	if sourceRel == ".." || strings.HasPrefix(sourceRel, ".."+string(filepath.Separator)) {
+		return ErrPathEscape{SourcePath: source, Root: rootPath}
+	}
+	if destinationRel == ".." || strings.HasPrefix(destinationRel, ".."+string(filepath.Separator)) {
+		return ErrPathEscape{SourcePath: destination, Root: rootPath}
+	}
+	root, err := os.OpenRoot(rootPath)
+	if err != nil {
+		return fmt.Errorf("open filesystem root: %w", err)
+	}
+	defer root.Close()
+	return mutate(root, filepath.ToSlash(sourceRel), filepath.ToSlash(destinationRel))
+}
+
+func removeInRoot(rootPath, path string) error {
+	return rootedMutation(rootPath, path, func(root *os.Root, relative string) error { return root.Remove(relative) })
+}
+
+func removeAllInRoot(rootPath, path string) error {
+	return rootedMutation(rootPath, path, func(root *os.Root, relative string) error { return root.RemoveAll(relative) })
+}
+
+func createTempFileInRoot(rootPath, directory, prefix string, mode os.FileMode) (*os.File, string, error) {
+	rootPath, err := filepath.Abs(rootPath)
+	if err != nil {
+		return nil, "", err
+	}
+	directory, err = filepath.Abs(directory)
+	if err != nil {
+		return nil, "", err
+	}
+	root, err := os.OpenRoot(rootPath)
+	if err != nil {
+		return nil, "", fmt.Errorf("open filesystem root: %w", err)
+	}
+	defer root.Close()
+	relativeDir, err := filepath.Rel(rootPath, directory)
+	if err != nil || relativeDir == ".." || strings.HasPrefix(relativeDir, ".."+string(filepath.Separator)) {
+		return nil, "", ErrPathEscape{SourcePath: directory, Root: rootPath}
+	}
+	for attempt := 0; attempt < 10; attempt++ {
+		var token [12]byte
+		if _, err := rand.Read(token[:]); err != nil {
+			return nil, "", err
+		}
+		name := filepath.ToSlash(filepath.Join(relativeDir, prefix+hex.EncodeToString(token[:])+".tmp"))
+		file, err := root.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
+		if errors.Is(err, os.ErrExist) {
+			continue
+		}
+		if err != nil {
+			return nil, "", err
+		}
+		return file, name, nil
+	}
+	return nil, "", fmt.Errorf("could not reserve a unique temporary file")
+}
+
 // RestoreRetiredSource restores a version directory from the durable cold
 // source archive. This is a recovery path for databases whose file mirror was
 // lost after the version was evicted; it does not synthesize or alter bytes.
@@ -101,10 +257,10 @@ func (s *FSContentStore) RestoreRetiredSource(v ComponentVersion) (bool, error) 
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return false, fmt.Errorf("inspect retired source destination: %w", err)
 	}
-	if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
+	if err := ensureDirectoryInRoot(s.root, filepath.Dir(destination)); err != nil {
 		return false, fmt.Errorf("create retired source destination: %w", err)
 	}
-	if err := os.Rename(backup, destination); err != nil {
+	if err := renameInRoot(s.root, backup, destination); err != nil {
 		return false, fmt.Errorf("restore retired source: %w", err)
 	}
 	return true, nil
@@ -168,7 +324,7 @@ func (s *FSContentStore) Materialize(_ context.Context, v ComponentVersion, into
 	} else if statErr != nil && !os.IsNotExist(statErr) {
 		return MaterializeResult{}, fmt.Errorf("inspect materialization destination %q: %w", destination, statErr)
 	}
-	if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
+	if err := ensureDirectoryInRoot(root, filepath.Dir(destination)); err != nil {
 		return MaterializeResult{}, fmt.Errorf("create materialization parent: %w", err)
 	}
 	temporary, err := os.MkdirTemp(filepath.Dir(destination), ".vrooli-materialize-")
@@ -178,11 +334,11 @@ func (s *FSContentStore) Materialize(_ context.Context, v ComponentVersion, into
 	committed := false
 	defer func() {
 		if !committed {
-			_ = os.RemoveAll(temporary)
+			_ = removeAllInRoot(filepath.Dir(destination), temporary)
 		}
 	}()
 	for _, file := range v.Files {
-		if err := os.WriteFile(filepath.Join(temporary, file.Path), []byte(file.Content), 0o600); err != nil {
+		if err := writeFileAtomicInRoot(temporary, file.Path, []byte(file.Content), 0o600); err != nil {
 			return MaterializeResult{}, fmt.Errorf("write materialized file %q: %w", file.Path, err)
 		}
 	}
@@ -192,17 +348,17 @@ func (s *FSContentStore) Materialize(_ context.Context, v ComponentVersion, into
 		if backupErr != nil {
 			return MaterializeResult{}, fmt.Errorf("reserve materialization backup: %w", backupErr)
 		}
-		if removeErr := os.Remove(backupDir); removeErr != nil {
+		if removeErr := removeInRoot(filepath.Dir(destination), backupDir); removeErr != nil {
 			return MaterializeResult{}, fmt.Errorf("prepare materialization backup: %w", removeErr)
 		}
 		backup = backupDir
-		if renameErr := os.Rename(destination, backup); renameErr != nil {
+		if renameErr := renameInRoot(filepath.Dir(destination), destination, backup); renameErr != nil {
 			return MaterializeResult{}, fmt.Errorf("back up divergent materialization: %w", renameErr)
 		}
 	}
-	if err := os.Rename(temporary, destination); err != nil {
+	if err := renameInRoot(filepath.Dir(destination), temporary, destination); err != nil {
 		if backup != "" {
-			_ = os.Rename(backup, destination)
+			_ = renameInRoot(filepath.Dir(destination), backup, destination)
 		}
 		if os.IsExist(err) {
 			return MaterializeResult{Directory: filepath.ToSlash(destination), AlreadyPresent: true}, nil
@@ -211,7 +367,7 @@ func (s *FSContentStore) Materialize(_ context.Context, v ComponentVersion, into
 	}
 	committed = true
 	if backup != "" {
-		if err := os.RemoveAll(backup); err != nil {
+		if err := removeAllInRoot(filepath.Dir(destination), backup); err != nil {
 			return MaterializeResult{}, fmt.Errorf("remove repaired materialization backup: %w", err)
 		}
 	}
@@ -290,10 +446,10 @@ func (s *FSContentStore) InitializeComponent(_ context.Context, in InitializeCom
 			StyleID: "vrooli-default", Affinity: "native", Reason: "token-native operational-console baseline",
 		}},
 	}
-	if err := writeJSONFile(manifestAbs, mf); err != nil {
+	if err := s.writeJSONFile(manifestAbs, mf); err != nil {
 		return "", "", err
 	}
-	if err := os.MkdirAll(filepath.Dir(sourceAbs), 0o755); err != nil {
+	if err := ensureDirectoryInRoot(s.root, filepath.Dir(sourceAbs)); err != nil {
 		return "", "", fmt.Errorf("create component version dir: %w", err)
 	}
 	for _, file := range files {
@@ -309,12 +465,12 @@ func (s *FSContentStore) InitializeComponent(_ context.Context, in InitializeCom
 			body = StampStyleSheetVersions(body, libraryID, version)
 		}
 		path := filepath.Join(filepath.Dir(sourceAbs), file.Path)
-		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		if err := s.writeAtomic(path, []byte(body), 0o600); err != nil {
 			return "", "", fmt.Errorf("write component source %q: %w", filepath.ToSlash(filepath.Join(filepath.Dir(sourcePath), file.Path)), err)
 		}
 	}
 	if in.ScaffoldExamples {
-		if err := scaffoldStoryFile(filepath.Dir(sourceAbs)); err != nil {
+		if err := s.scaffoldStoryFile(filepath.Dir(sourceAbs)); err != nil {
 			return "", "", err
 		}
 		// Experience contracts belong to the scenario-level authority. Keep the
@@ -334,7 +490,7 @@ func (s *FSContentStore) InitializeComponent(_ context.Context, in InitializeCom
 			return "", "", err
 		}
 		if in.ParityReport != nil && repositoryRootFromLibrary(s.root) == "" {
-			if err := writeParityReport(filepath.Join(versionDir, "parity.json"), *in.ParityReport); err != nil {
+			if err := s.writeParityReport(filepath.Join(versionDir, "parity.json"), *in.ParityReport); err != nil {
 				return "", "", err
 			}
 		}
@@ -343,7 +499,7 @@ func (s *FSContentStore) InitializeComponent(_ context.Context, in InitializeCom
 			if formatErr != nil {
 				return "", "", fmt.Errorf("format experience contract: %w", formatErr)
 			}
-			if err := os.WriteFile(filepath.Join(versionDir, "experience-contract.json"), formatted, 0o600); err != nil {
+			if err := s.writeAtomic(filepath.Join(versionDir, "experience-contract.json"), formatted, 0o600); err != nil {
 				return "", "", fmt.Errorf("write version experience contract: %w", err)
 			}
 		}
@@ -428,7 +584,7 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 			return "", err
 		}
 	}
-	if err := os.MkdirAll(filepath.Dir(sourceAbs), 0o755); err != nil {
+	if err := ensureDirectoryInRoot(s.root, filepath.Dir(sourceAbs)); err != nil {
 		return "", fmt.Errorf("create component version dir: %w", err)
 	}
 	versionDir := filepath.Dir(sourceAbs)
@@ -436,7 +592,7 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 	var restoreLedger func() error
 	defer func() {
 		if !committed {
-			_ = os.RemoveAll(versionDir)
+			_ = removeAllInRoot(s.root, versionDir)
 			if restoreLedger != nil {
 				_ = restoreLedger()
 			}
@@ -474,7 +630,10 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 				return "", fmt.Errorf("format draft dependency lock: %w", formatErr)
 			}
 			body = string(append(formatted, '\n'))
-		} else if intent == VersionIntentDraft && file.Path == "usage-contract.json" {
+		} else if file.Path == "usage-contract.json" && (intent == VersionIntentDraft || intent == VersionIntentRelease) {
+			// A usage contract is version-owned data. Draft-begin stamps the
+			// prerelease identity; publication must stamp the immutable release
+			// identity too, or the latest-asset gate rejects the published copy.
 			var contract map[string]any
 			if err := json.Unmarshal([]byte(body), &contract); err != nil {
 				return "", fmt.Errorf("decode draft usage contract: %w", err)
@@ -498,7 +657,7 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 			}
 		}
 		path := filepath.Join(filepath.Dir(sourceAbs), file.Path)
-		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		if err := s.writeAtomic(path, []byte(body), 0o600); err != nil {
 			return "", fmt.Errorf("write component source %q: %w", filepath.ToSlash(filepath.Join(filepath.Dir(sourcePath), file.Path)), err)
 		}
 	}
@@ -506,7 +665,7 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 		return "", err
 	}
 	if in.ParityReport != nil && repositoryRootFromLibrary(s.root) == "" {
-		if err := writeParityReport(filepath.Join(filepath.Dir(sourceAbs), "parity.json"), *in.ParityReport); err != nil {
+		if err := s.writeParityReport(filepath.Join(filepath.Dir(sourceAbs), "parity.json"), *in.ParityReport); err != nil {
 			return "", err
 		}
 	}
@@ -516,12 +675,12 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 		if formatErr != nil {
 			return "", fmt.Errorf("format experience contract: %w", formatErr)
 		}
-		if err := os.WriteFile(filepath.Join(filepath.Dir(sourceAbs), "experience-contract.json"), formatted, 0o600); err != nil {
+		if err := s.writeAtomic(filepath.Join(filepath.Dir(sourceAbs), "experience-contract.json"), formatted, 0o600); err != nil {
 			return "", fmt.Errorf("write version experience contract: %w", err)
 		}
 	}
 	if in.ScaffoldExamples {
-		if err := scaffoldStoryFile(filepath.Dir(sourceAbs)); err != nil {
+		if err := s.scaffoldStoryFile(filepath.Dir(sourceAbs)); err != nil {
 			return "", err
 		}
 	}
@@ -672,12 +831,37 @@ func (s *FSContentStore) freezeReleaseDependencies(c Component, version string, 
 
 func (s *FSContentStore) resolveSourceDependency(name, requested string) (VersionLockDependency, error) {
 	ranks := map[string]int{"foundations": 1, "hooks": 2, "services": 2, "adapters": 2, "primitives": 3, "components": 4, "patterns": 5, "navigation": 5, "page-templates": 6}
-	for kind, rank := range ranks {
+	kinds := make([]string, 0, len(ranks))
+	for kind := range ranks {
+		kinds = append(kinds, kind)
+	}
+	sort.Strings(kinds)
+	type candidateManifest struct {
+		kind string
+		rank int
+		path string
+	}
+	var matches []candidateManifest
+	for _, kind := range kinds {
 		manifestPath := filepath.Join(s.root, kind, name, "component.json")
-		raw, err := os.ReadFile(manifestPath)
-		if os.IsNotExist(err) {
+		if _, err := os.Stat(manifestPath); os.IsNotExist(err) {
 			continue
+		} else if err != nil {
+			return VersionLockDependency{}, err
 		}
+		matches = append(matches, candidateManifest{kind: kind, rank: ranks[kind], path: manifestPath})
+	}
+	if len(matches) > 1 {
+		found := make([]string, len(matches))
+		for i := range matches {
+			found[i] = matches[i].kind
+		}
+		return VersionLockDependency{}, fmt.Errorf("ambiguous intra-library asset %s: found in %s", name, strings.Join(found, ", "))
+	}
+	if len(matches) == 1 {
+		match := matches[0]
+		kind, rank, manifestPath := match.kind, match.rank, match.path
+		raw, err := os.ReadFile(manifestPath)
 		if err != nil {
 			return VersionLockDependency{}, err
 		}
@@ -778,14 +962,14 @@ func (s *FSContentStore) recordReleasedVersionHashes(versionDir string) (func() 
 		return nil, err
 	}
 	formatted = append(formatted, '\n')
-	if err := os.WriteFile(ledgerPath, formatted, 0o600); err != nil {
+	if err := s.writeAtomic(ledgerPath, formatted, 0o600); err != nil {
 		return nil, err
 	}
 	return func() error {
 		if !ledgerExisted {
-			return os.Remove(ledgerPath)
+			return removeInRoot(s.root, ledgerPath)
 		}
-		return os.WriteFile(ledgerPath, original, 0o600)
+		return s.writeAtomic(ledgerPath, original, 0o600)
 	}, nil
 }
 
@@ -828,14 +1012,14 @@ func (s *FSContentStore) recordReleaseProvenance(c Component, version, draftVers
 		return nil, err
 	}
 	formatted = append(formatted, '\n')
-	if err := os.WriteFile(path, formatted, 0o600); err != nil {
+	if err := s.writeAtomic(path, formatted, 0o600); err != nil {
 		return nil, err
 	}
 	return func() error {
 		if !existed {
-			return os.Remove(path)
+			return removeInRoot(s.root, path)
 		}
-		return os.WriteFile(path, original, 0o600)
+		return s.writeAtomic(path, original, 0o600)
 	}, nil
 }
 
@@ -893,7 +1077,7 @@ func (s *FSContentStore) RollbackVersion(ctx context.Context, c Component, versi
 		return err
 	}
 	versionDir := filepath.Dir(resolvedGuard)
-	if err := os.RemoveAll(versionDir); err != nil {
+	if err := removeAllInRoot(s.root, versionDir); err != nil {
 		return fmt.Errorf("remove rolled-back version directory: %w", err)
 	}
 	return nil
@@ -912,7 +1096,7 @@ func (s *FSContentStore) RemoveVersion(_ context.Context, c Component, version s
 		return err
 	}
 	versionDir := filepath.Dir(resolvedGuard)
-	if err := os.RemoveAll(versionDir); err != nil {
+	if err := removeAllInRoot(s.root, versionDir); err != nil {
 		return fmt.Errorf("remove superseded version directory: %w", err)
 	}
 	return nil
@@ -941,25 +1125,25 @@ const scaffoldStoryJSON = `{
 }
 `
 
-func scaffoldStoryFile(versionDir string) error {
+func (s *FSContentStore) scaffoldStoryFile(versionDir string) error {
 	path := filepath.Join(versionDir, "story.json")
 	if _, err := os.Stat(path); err == nil {
 		return nil
 	} else if !os.IsNotExist(err) {
 		return fmt.Errorf("stat story scaffold %q: %w", path, err)
 	}
-	if err := os.WriteFile(path, []byte(scaffoldStoryJSON), 0o600); err != nil {
+	if err := s.writeAtomic(path, []byte(scaffoldStoryJSON), 0o600); err != nil {
 		return fmt.Errorf("write story scaffold %q: %w", path, err)
 	}
 	return nil
 }
 
-func writeParityReport(path string, report IngestParityReport) error {
+func (s *FSContentStore) writeParityReport(path string, report IngestParityReport) error {
 	raw, err := json.MarshalIndent(report, "", "  ")
 	if err != nil {
 		return fmt.Errorf("encode ingest parity report: %w", err)
 	}
-	if err := os.WriteFile(path, append(raw, '\n'), 0o600); err != nil {
+	if err := s.writeAtomic(path, append(raw, '\n'), 0o600); err != nil {
 		return fmt.Errorf("write ingest parity report %q: %w", path, err)
 	}
 	return nil
@@ -1145,7 +1329,7 @@ func (s *FSContentStore) UpdateManifest(_ context.Context, c Component, in Updat
 		}})
 	}
 
-	return writeManifestObject(abs, manifest, order)
+	return s.writeManifestObject(abs, manifest, order)
 }
 
 // ClearMaterializedEvictedMarker drops version from evictedVersions once its
@@ -1186,7 +1370,7 @@ func (s *FSContentStore) ClearMaterializedEvictedMarker(c Component, version str
 		return nil
 	}
 	setManifestField(manifest, &order, "evictedVersions", cleanTags(retained))
-	return writeManifestObject(abs, manifest, order)
+	return s.writeManifestObject(abs, manifest, order)
 }
 
 func componentManifestPath(c Component) string {
@@ -1214,15 +1398,12 @@ func readManifestObject(sourcePath, absolutePath string, allowMissing bool) (map
 	return manifest, order, nil
 }
 
-func writeManifestObject(absolutePath string, manifest map[string]json.RawMessage, order []string) error {
+func (s *FSContentStore) writeManifestObject(absolutePath string, manifest map[string]json.RawMessage, order []string) error {
 	encoded, err := marshalOrderedObject(manifest, order)
 	if err != nil {
 		return fmt.Errorf("encode component manifest: %w", err)
 	}
-	if err := os.MkdirAll(filepath.Dir(absolutePath), 0o755); err != nil {
-		return fmt.Errorf("create component manifest dir: %w", err)
-	}
-	if err := os.WriteFile(absolutePath, encoded, 0o600); err != nil {
+	if err := s.writeAtomic(absolutePath, encoded, 0o600); err != nil {
 		return fmt.Errorf("write component manifest: %w", err)
 	}
 	return nil
@@ -1356,16 +1537,13 @@ func (s *FSContentStore) resolveCreatable(sourcePath string) (string, error) {
 	return abs, nil
 }
 
-func writeJSONFile(abs string, value any) error {
+func (s *FSContentStore) writeJSONFile(abs string, value any) error {
 	raw, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {
 		return fmt.Errorf("encode component manifest: %w", err)
 	}
 	raw = append(raw, '\n')
-	if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
-		return fmt.Errorf("create component manifest dir: %w", err)
-	}
-	if err := os.WriteFile(abs, raw, 0o600); err != nil {
+	if err := s.writeAtomic(abs, raw, 0o600); err != nil {
 		return fmt.Errorf("write component manifest: %w", err)
 	}
 	return nil
@@ -1551,10 +1729,10 @@ func (s *FSContentStore) ArchiveComponentSource(c Component) (string, error) {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return "", err
 	}
-	if err := os.MkdirAll(filepath.Dir(archive), 0o755); err != nil {
+	if err := ensureDirectoryInRoot(s.root, filepath.Dir(archive)); err != nil {
 		return "", err
 	}
-	if err := os.Rename(filepath.Dir(manifestPath), archive); err != nil {
+	if err := renameInRoot(s.root, filepath.Dir(manifestPath), archive); err != nil {
 		return "", err
 	}
 	return archive, nil
@@ -1562,7 +1740,7 @@ func (s *FSContentStore) ArchiveComponentSource(c Component) (string, error) {
 
 // PersistComponentRetirementSnapshot publishes complete registry evidence before
 // any active source is moved. An existing different snapshot is never replaced.
-func (s *FSContentStore) PersistComponentRetirementSnapshot(snapshot componentRetirementSnapshot) (string, error) {
+func (s *FSContentStore) PersistComponentRetirementSnapshot(snapshot componentRetirementSnapshot) (publishedPath string, returnErr error) {
 	if strings.TrimSpace(snapshot.Component.LibraryID) == "" {
 		return "", fmt.Errorf("retirement snapshot requires a library identity")
 	}
@@ -1577,16 +1755,22 @@ func (s *FSContentStore) PersistComponentRetirementSnapshot(snapshot componentRe
 	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return "", err
 	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := ensureDirectoryInRoot(s.root, dir); err != nil {
 		return "", err
 	}
 	key := sha256.Sum256([]byte("asset:" + snapshot.Component.LibraryID))
 	target := filepath.Join(dir, "asset-"+hex.EncodeToString(key[:])+".snapshot.json")
-	tmp, err := os.CreateTemp(dir, ".snapshot-*")
+	tmp, tmpRelative, err := createTempFileInRoot(s.root, dir, ".snapshot-", 0o600)
 	if err != nil {
 		return "", err
 	}
-	defer os.Remove(tmp.Name())
+	tmpPath := filepath.Join(s.root, filepath.FromSlash(tmpRelative))
+	defer func() {
+		if cleanupErr := removeInRoot(s.root, tmpPath); cleanupErr != nil {
+			returnErr = errors.Join(returnErr, fmt.Errorf("remove temporary retirement snapshot: %w", cleanupErr))
+			publishedPath = ""
+		}
+	}()
 	if _, err = tmp.Write(data); err != nil {
 		tmp.Close()
 		return "", err
@@ -1598,7 +1782,7 @@ func (s *FSContentStore) PersistComponentRetirementSnapshot(snapshot componentRe
 	if err = tmp.Close(); err != nil {
 		return "", err
 	}
-	if err = os.Link(tmp.Name(), target); err != nil {
+	if err = linkInRoot(s.root, tmpPath, target); err != nil {
 		if errors.Is(err, os.ErrExist) {
 			info, statErr := os.Lstat(target)
 			if statErr != nil || !info.Mode().IsRegular() {

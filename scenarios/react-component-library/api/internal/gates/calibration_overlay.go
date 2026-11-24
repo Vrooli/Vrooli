@@ -6,6 +6,8 @@ package gates
 // therefore a failed calibration, not evidence of quality.
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -18,11 +20,23 @@ func fixturePath(root, gate string, fixture CalibrationFixture) string {
 }
 
 func materializeFixture(root, gate string, fixture CalibrationFixture) (string, func(), error) {
-	tmp, err := os.MkdirTemp("", "rcl-catalog-calibration-")
+	tmp, parentRoot, err := createCalibrationOverlayTemp()
 	if err != nil {
 		return "", func() {}, err
 	}
-	cleanup := func() { _ = os.RemoveAll(tmp) }
+	overlayRoot, err := os.OpenRoot(tmp)
+	if err != nil {
+		_ = parentRoot.RemoveAll(filepath.Base(tmp))
+		_ = parentRoot.Close()
+		return "", func() {}, err
+	}
+	cleanup := func() {
+		_ = overlayRoot.Close()
+		// Remove through the temp-directory root so an overlay symlink cannot
+		// redirect cleanup outside the private calibration tree.
+		_ = parentRoot.RemoveAll(filepath.Base(tmp))
+		_ = parentRoot.Close()
+	}
 	if err := linkScenarioOverlay(root, tmp); err != nil {
 		cleanup()
 		return "", func() {}, err
@@ -38,16 +52,16 @@ func materializeFixture(root, gate string, fixture CalibrationFixture) (string, 
 		}
 		if gate == "token-ramp-complete" || gate == "fallback-parity" || gate == "kit-compatibility" || gate == "affinity-compatible" {
 			baseStyles := filepath.Join(tmp, "scenarios", "react-component-library", "library", "foundations", "BaseStyles")
-			if err := os.Symlink(filepath.Join(root, "scenarios", "react-component-library", "library", "foundations", "BaseStyles"), baseStyles); err != nil {
+			if err := overlaySymlink(overlayRoot, filepath.Join(root, "scenarios", "react-component-library", "library", "foundations", "BaseStyles"), baseStyles); err != nil {
 				cleanup()
 				return "", func() {}, err
 			}
 			designTemplates := filepath.Join(tmp, "templates", "design")
-			if err := os.MkdirAll(filepath.Dir(designTemplates), 0o755); err != nil {
+			if err := overlayMkdirAll(overlayRoot, filepath.Dir(designTemplates), 0o755); err != nil {
 				cleanup()
 				return "", func() {}, err
 			}
-			if err := os.Symlink(filepath.Join(root, "templates", "design"), designTemplates); err != nil {
+			if err := overlaySymlink(overlayRoot, filepath.Join(root, "templates", "design"), designTemplates); err != nil {
 				cleanup()
 				return "", func() {}, err
 			}
@@ -55,7 +69,7 @@ func materializeFixture(root, gate string, fixture CalibrationFixture) (string, 
 	}
 	fixtureDir := filepath.Join(root, "scenarios", "react-component-library", "catalog", "calibration", gate)
 	assetDir := filepath.Join(tmp, "scenarios", "react-component-library", "catalog", "assets", "calibration")
-	if err := os.MkdirAll(assetDir, 0o755); err != nil {
+	if err := overlayMkdirAll(overlayRoot, assetDir, 0o755); err != nil {
 		cleanup()
 		return "", func() {}, err
 	}
@@ -69,12 +83,12 @@ func materializeFixture(root, gate string, fixture CalibrationFixture) (string, 
 		name := calibrationDirectoryName(fixture.AssetID)
 		componentDir := filepath.Join(tmp, "scenarios", "react-component-library", "library", "components", name)
 		versionDir := filepath.Join(componentDir, "versions", "1.0.0")
-		if err := os.MkdirAll(versionDir, 0o755); err != nil {
+		if err := overlayMkdirAll(overlayRoot, versionDir, 0o755); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}
 		manifest := fmt.Sprintf("{\"libraryId\":\"%s\",\"catalogId\":\"%s\",\"latest\":\"1.0.0\"}\n", name, fixture.AssetID)
-		if err := os.WriteFile(filepath.Join(componentDir, "component.json"), []byte(manifest), 0o644); err != nil {
+		if err := overlayWriteFile(overlayRoot, filepath.Join(componentDir, "component.json"), []byte(manifest), 0o644); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}
@@ -88,7 +102,7 @@ func materializeFixture(root, gate string, fixture CalibrationFixture) (string, 
 		}
 		if fixture.Mutation == "duplicate-stylesheet-key" {
 			duplicateDir := filepath.Join(componentDir, "versions", "1.0.0-copy")
-			if err := os.MkdirAll(duplicateDir, 0o755); err != nil {
+			if err := overlayMkdirAll(overlayRoot, duplicateDir, 0o755); err != nil {
 				cleanup()
 				return "", func() {}, err
 			}
@@ -101,7 +115,7 @@ func materializeFixture(root, gate string, fixture CalibrationFixture) (string, 
 				return "", func() {}, err
 			}
 			variant := strings.Replace(string(source), "`", "`.calibration-duplicate-variant{} ", 1)
-			if err := os.WriteFile(filepath.Join(duplicateDir, name+ext), []byte(variant), 0o644); err != nil {
+			if err := overlayWriteFile(overlayRoot, filepath.Join(duplicateDir, name+ext), []byte(variant), 0o644); err != nil {
 				cleanup()
 				return "", func() {}, err
 			}
@@ -110,7 +124,7 @@ func materializeFixture(root, gate string, fixture CalibrationFixture) (string, 
 			// Released history is not re-judged; the defect has to sit in the
 			// asset's active draft for a version-literal gate to see it.
 			manifest = fmt.Sprintf("{\"libraryId\":\"%s\",\"catalogId\":\"%s\",\"latest\":\"0.9.0\",\"draft\":\"1.0.0\"}\n", name, fixture.AssetID)
-			if err := os.WriteFile(filepath.Join(componentDir, "component.json"), []byte(manifest), 0o644); err != nil {
+			if err := overlayWriteFile(overlayRoot, filepath.Join(componentDir, "component.json"), []byte(manifest), 0o644); err != nil {
 				cleanup()
 				return "", func() {}, err
 			}
@@ -124,20 +138,20 @@ func materializeFixture(root, gate string, fixture CalibrationFixture) (string, 
 		// New-only gates must see the synthetic version as newly authored even
 		// when the repository policy cutoff is in the future relative to the
 		// test fixture's creation time.
-		if err := os.Chtimes(versionDir, time.Now(), time.Now()); err != nil {
+		if err := overlayChtimes(overlayRoot, versionDir, time.Now(), time.Now()); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}
 		if fixture.Mutation == "affinity-incompatible" {
 			manifest = fmt.Sprintf("{\"libraryId\":\"%s\",\"catalogId\":\"%s\",\"latest\":\"1.0.0\",\"designStyles\":[{\"styleId\":\"vrooli-default\",\"affinity\":\"native\"}]}\n", name, fixture.AssetID)
-			if err := os.WriteFile(filepath.Join(componentDir, "component.json"), []byte(manifest), 0o644); err != nil {
+			if err := overlayWriteFile(overlayRoot, filepath.Join(componentDir, "component.json"), []byte(manifest), 0o644); err != nil {
 				cleanup()
 				return "", func() {}, err
 			}
 		}
 		if fixture.Mutation == "field-ownership" {
 			manifest = fmt.Sprintf("{\"libraryId\":\"%s\",\"catalogId\":\"%s\",\"latest\":\"1.0.0\",\"description\":\"duplicated\"}\n", name, fixture.AssetID)
-			if err := os.WriteFile(filepath.Join(componentDir, "component.json"), []byte(manifest), 0o644); err != nil {
+			if err := overlayWriteFile(overlayRoot, filepath.Join(componentDir, "component.json"), []byte(manifest), 0o644); err != nil {
 				cleanup()
 				return "", func() {}, err
 			}
@@ -145,78 +159,78 @@ func materializeFixture(root, gate string, fixture CalibrationFixture) (string, 
 	}
 	if fixture.Mutation == "deprecated-import" {
 		controlDir := filepath.Join(tmp, "scenarios", "react-component-library", "library", "components", "ControlBase", "versions", "1.0.0")
-		if err := os.MkdirAll(controlDir, 0o755); err != nil {
+		if err := overlayMkdirAll(overlayRoot, controlDir, 0o755); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}
 		manifest := []byte(`{"libraryId":"react-component-library:ControlBase","catalogId":"react-component-library:ControlBase","latest":"1.0.1","deprecatedVersions":["1.0.0"]}` + "\n")
-		if err := os.WriteFile(filepath.Join(tmp, "scenarios", "react-component-library", "library", "components", "ControlBase", "component.json"), manifest, 0o644); err != nil {
+		if err := overlayWriteFile(overlayRoot, filepath.Join(tmp, "scenarios", "react-component-library", "library", "components", "ControlBase", "component.json"), manifest, 0o644); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}
-		if err := os.WriteFile(filepath.Join(controlDir, "ControlBase.tsx"), []byte("export const ControlBase = () => null;\n"), 0o644); err != nil {
+		if err := overlayWriteFile(overlayRoot, filepath.Join(controlDir, "ControlBase.tsx"), []byte("export const ControlBase = () => null;\n"), 0o644); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}
 	}
 	if fixture.Mutation == "consumer-pin" {
 		consumerPath := filepath.Join(tmp, "scenarios", "calibration-adopter", "ui", "src", "Consumer.tsx")
-		if err := os.MkdirAll(filepath.Dir(consumerPath), 0o755); err != nil {
+		if err := overlayMkdirAll(overlayRoot, filepath.Dir(consumerPath), 0o755); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}
 		name := calibrationDirectoryName(fixture.AssetID)
 		source := fmt.Sprintf("import { %s } from \"@vrooli/react-component-library/%s/9.9.9\";\nexport const Consumer = %s;\n", name, name, name)
-		if err := os.WriteFile(consumerPath, []byte(source), 0o644); err != nil {
+		if err := overlayWriteFile(overlayRoot, consumerPath, []byte(source), 0o644); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}
 	}
 	if fixture.Mutation == "scenario-token-requirements" {
 		tokenPath := filepath.Join(tmp, "templates", "design", "_base", "tokens.css")
-		if err := os.MkdirAll(filepath.Dir(tokenPath), 0o755); err != nil {
+		if err := overlayMkdirAll(overlayRoot, filepath.Dir(tokenPath), 0o755); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}
-		if err := os.WriteFile(tokenPath, []byte(":root {\n  /* @tier Expression */\n  --color-calibration: blue;\n}\n"), 0o644); err != nil {
+		if err := overlayWriteFile(overlayRoot, tokenPath, []byte(":root {\n  /* @tier Expression */\n  --color-calibration: blue;\n}\n"), 0o644); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}
 		assetDir := filepath.Join(tmp, "scenarios", "react-component-library", "library", "components", "CalibrationScenarioToken")
 		versionDir := filepath.Join(assetDir, "versions", "1.0.0")
-		if err := os.MkdirAll(versionDir, 0o755); err != nil {
+		if err := overlayMkdirAll(overlayRoot, versionDir, 0o755); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}
-		if err := os.WriteFile(filepath.Join(assetDir, "component.json"), []byte(`{"libraryId":"react-component-library:CalibrationScenarioToken"}`), 0o644); err != nil {
+		if err := overlayWriteFile(overlayRoot, filepath.Join(assetDir, "component.json"), []byte(`{"libraryId":"react-component-library:CalibrationScenarioToken"}`), 0o644); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}
-		if err := os.WriteFile(filepath.Join(versionDir, "CalibrationScenarioToken.tsx"), []byte(`export const CalibrationScenarioToken = () => <div style={{color: "var(--color-calibration)"}} />;`), 0o644); err != nil {
+		if err := overlayWriteFile(overlayRoot, filepath.Join(versionDir, "CalibrationScenarioToken.tsx"), []byte(`export const CalibrationScenarioToken = () => <div style={{color: "var(--color-calibration)"}} />;`), 0o644); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}
 		consumerDir := filepath.Join(tmp, "scenarios", "calibration-adopter", "ui", "src")
-		if err := os.MkdirAll(consumerDir, 0o755); err != nil {
+		if err := overlayMkdirAll(overlayRoot, consumerDir, 0o755); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}
-		if err := os.WriteFile(filepath.Join(consumerDir, "App.tsx"), []byte(`import { CalibrationScenarioToken } from "@vrooli/react-component-library/CalibrationScenarioToken";`), 0o644); err != nil {
+		if err := overlayWriteFile(overlayRoot, filepath.Join(consumerDir, "App.tsx"), []byte(`import { CalibrationScenarioToken } from "@vrooli/react-component-library/CalibrationScenarioToken";`), 0o644); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}
-		if err := os.WriteFile(filepath.Join(consumerDir, "design-tokens.css"), []byte(":root {\n/* rcl:tokens:begin */\n/* rcl:tokens:end */\n}\n"), 0o644); err != nil {
+		if err := overlayWriteFile(overlayRoot, filepath.Join(consumerDir, "design-tokens.css"), []byte(":root {\n/* rcl:tokens:begin */\n/* rcl:tokens:end */\n}\n"), 0o644); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}
 	}
 	if fixture.Mutation == "scenario-canonical-layer" {
 		consumerDir := filepath.Join(tmp, "scenarios", "calibration-adopter", "ui", "src")
-		if err := os.MkdirAll(consumerDir, 0o755); err != nil {
+		if err := overlayMkdirAll(overlayRoot, consumerDir, 0o755); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}
-		if err := os.WriteFile(filepath.Join(consumerDir, "App.tsx"), []byte(`import { Button } from "@vrooli/react-component-library/Button/1"; export const App = Button;`), 0o644); err != nil {
+		if err := overlayWriteFile(overlayRoot, filepath.Join(consumerDir, "App.tsx"), []byte(`import { Button } from "@vrooli/react-component-library/Button/1"; export const App = Button;`), 0o644); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}
@@ -225,24 +239,24 @@ func materializeFixture(root, gate string, fixture CalibrationFixture) (string, 
 		library := filepath.Join(tmp, "scenarios", "react-component-library", "library")
 		primitive := filepath.Join(library, "primitives", "CalibrationPrimitive")
 		component := filepath.Join(library, "components", "CalibrationComponent")
-		if err := os.MkdirAll(filepath.Join(primitive, "versions", "1.0.0"), 0o755); err != nil {
+		if err := overlayMkdirAll(overlayRoot, filepath.Join(primitive, "versions", "1.0.0"), 0o755); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}
-		if err := os.MkdirAll(filepath.Join(component, "versions", "1.0.0"), 0o755); err != nil {
+		if err := overlayMkdirAll(overlayRoot, filepath.Join(component, "versions", "1.0.0"), 0o755); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}
-		if err := os.WriteFile(filepath.Join(primitive, "component.json"), []byte(`{"libraryId":"react-component-library:CalibrationPrimitive"}`), 0o644); err != nil {
+		if err := overlayWriteFile(overlayRoot, filepath.Join(primitive, "component.json"), []byte(`{"libraryId":"react-component-library:CalibrationPrimitive"}`), 0o644); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}
-		if err := os.WriteFile(filepath.Join(component, "component.json"), []byte(`{"libraryId":"react-component-library:CalibrationComponent"}`), 0o644); err != nil {
+		if err := overlayWriteFile(overlayRoot, filepath.Join(component, "component.json"), []byte(`{"libraryId":"react-component-library:CalibrationComponent"}`), 0o644); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}
 		lock := []byte(`{"libraryId":"react-component-library:CalibrationPrimitive","version":"1.0.0","dependencies":[{"libraryId":"react-component-library:CalibrationComponent","version":"1.0.0"}]}`)
-		if err := os.WriteFile(filepath.Join(primitive, "versions", "1.0.0", "dependencies.json"), lock, 0o644); err != nil {
+		if err := overlayWriteFile(overlayRoot, filepath.Join(primitive, "versions", "1.0.0", "dependencies.json"), lock, 0o644); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}
@@ -250,15 +264,15 @@ func materializeFixture(root, gate string, fixture CalibrationFixture) (string, 
 	if fixture.Mutation == "release-provenance" {
 		library := filepath.Join(tmp, "scenarios", "react-component-library", "library")
 		asset := filepath.Join(library, "components", "CalibrationBypass")
-		if err := os.MkdirAll(filepath.Join(asset, "versions", "1.0.0"), 0o755); err != nil {
+		if err := overlayMkdirAll(overlayRoot, filepath.Join(asset, "versions", "1.0.0"), 0o755); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}
-		if err := os.WriteFile(filepath.Join(asset, "component.json"), []byte(`{"libraryId":"react-component-library:CalibrationBypass"}`), 0o644); err != nil {
+		if err := overlayWriteFile(overlayRoot, filepath.Join(asset, "component.json"), []byte(`{"libraryId":"react-component-library:CalibrationBypass"}`), 0o644); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}
-		if err := os.WriteFile(filepath.Join(library, "release-provenance.json"), []byte(`{"schemaVersion":1,"entries":[]}`), 0o644); err != nil {
+		if err := overlayWriteFile(overlayRoot, filepath.Join(library, "release-provenance.json"), []byte(`{"schemaVersion":1,"entries":[]}`), 0o644); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}
@@ -307,7 +321,7 @@ func materializeFixture(root, gate string, fixture CalibrationFixture) (string, 
 	}
 	if fixture.Test != "" {
 		testPath := filepath.Join(tmp, "scenarios", "calibration-adopter", "ui", "src", "components", "Calibration.test.tsx")
-		if err := os.MkdirAll(filepath.Dir(testPath), 0o755); err != nil {
+		if err := overlayMkdirAll(overlayRoot, filepath.Dir(testPath), 0o755); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}
@@ -319,12 +333,12 @@ func materializeFixture(root, gate string, fixture CalibrationFixture) (string, 
 	if fixture.Mutation == "conformance" && fixture.Source != "" {
 		uiDir := filepath.Join(tmp, "scenarios", "react-component-library", "ui", "src")
 		if info, err := os.Lstat(uiDir); err == nil && info.Mode()&os.ModeSymlink != 0 {
-			if err := os.Remove(uiDir); err != nil {
+			if err := overlayRemove(overlayRoot, uiDir); err != nil {
 				cleanup()
 				return "", func() {}, err
 			}
 		}
-		if err := os.MkdirAll(uiDir, 0o755); err != nil {
+		if err := overlayMkdirAll(overlayRoot, uiDir, 0o755); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}
@@ -335,10 +349,36 @@ func materializeFixture(root, gate string, fixture CalibrationFixture) (string, 
 	}
 	if fixture.Mutation == "harness-missing-implementation" {
 		missing := filepath.Join(tmp, "scenarios", "react-component-library", "harnesses", "showcase", "versions", "1.0.0", "Showcase.tsx")
-		if err := os.Remove(missing); err != nil {
+		if err := overlayRemoveAll(overlayRoot, missing); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}
 	}
 	return tmp, cleanup, nil
+}
+
+func createCalibrationOverlayTemp() (string, *os.Root, error) {
+	tempDir := os.TempDir()
+	parentRoot, err := os.OpenRoot(tempDir)
+	if err != nil {
+		return "", nil, err
+	}
+	for attempt := 0; attempt < 10; attempt++ {
+		var token [12]byte
+		if _, err := rand.Read(token[:]); err != nil {
+			_ = parentRoot.Close()
+			return "", nil, err
+		}
+		name := "rcl-catalog-calibration-" + hex.EncodeToString(token[:])
+		if err := parentRoot.Mkdir(name, 0o700); err != nil {
+			if os.IsExist(err) {
+				continue
+			}
+			_ = parentRoot.Close()
+			return "", nil, err
+		}
+		return filepath.Join(tempDir, name), parentRoot, nil
+	}
+	_ = parentRoot.Close()
+	return "", nil, fmt.Errorf("could not reserve a unique calibration overlay directory")
 }

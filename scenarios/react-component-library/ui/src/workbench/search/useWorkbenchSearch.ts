@@ -23,9 +23,9 @@ const DEBOUNCE_MS = 140;
  */
 export function useWorkbenchSearch(
   query: string,
-  options: { kinds?: SearchKind[]; limit?: number; enabled?: boolean } = {},
+  options: { kinds?: SearchKind[]; limit?: number; enabled?: boolean; ask?: boolean } = {},
 ): SearchState {
-  const { kinds, limit = 30, enabled = true } = options;
+  const { kinds, limit = 30, enabled = true, ask = false } = options;
   const [state, setState] = useState<SearchState>({
     response: null,
     results: [],
@@ -36,13 +36,15 @@ export function useWorkbenchSearch(
 
   useEffect(() => {
     if (!enabled) {
-      setState((current) => ({ ...current, loading: false }));
+      request.current += 1;
+      setState((current) => ({ ...current, loading: false, error: null }));
       return;
     }
     const sequence = ++request.current;
+    const controller = new AbortController();
     const timer = globalThis.setTimeout(() => {
       setState((current) => ({ ...current, loading: true, error: null }));
-      searchWorkbench({ query, kinds, limit })
+      searchWorkbench({ query, kinds, limit, ask }, { signal: controller.signal })
         .then((response) => {
           if (request.current !== sequence) return;
           setState({
@@ -53,7 +55,7 @@ export function useWorkbenchSearch(
           });
         })
         .catch((error: unknown) => {
-          if (request.current !== sequence) return;
+          if (controller.signal.aborted || request.current !== sequence) return;
           setState((current) => ({
             ...current,
             loading: false,
@@ -61,8 +63,11 @@ export function useWorkbenchSearch(
           }));
         });
     }, DEBOUNCE_MS);
-    return () => globalThis.clearTimeout(timer);
-  }, [query, kinds, limit, enabled]);
+    return () => {
+      globalThis.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [query, kinds, limit, enabled, ask]);
 
   return state;
 }

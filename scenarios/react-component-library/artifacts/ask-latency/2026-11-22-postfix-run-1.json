@@ -1,0 +1,169 @@
+{
+  "samples": 20,
+  "successful": 20,
+  "failed": 0,
+  "minimum_samples": 20,
+  "p50_ms": 1774.2773173376918,
+  "p95_ms": 2340.268591511995,
+  "max_ms": 3116.5977651253343,
+  "p95_target_ms": 8000.0,
+  "citation_contract": "all answer citations resolve to unique supplied result ids",
+  "timing_breakdown": {
+    "service_field": "SearchResponse.tookMs, measured before the AI Gateway answer call",
+    "search_and_status": {
+      "p50_ms": 380.0,
+      "p95_ms": 428.3,
+      "max_ms": 434
+    },
+    "post_search_residual": {
+      "p50_ms": 1390.275,
+      "p95_ms": 1934.1870000000006,
+      "max_ms": 2753.6
+    },
+    "samples_with_service_timing": 20
+  },
+  "measurements": [
+    {
+      "index": 1,
+      "query": "landing page",
+      "elapsed_ms": 1870.88,
+      "search_and_status_ms": 383,
+      "post_search_residual_ms": 1487.88
+    },
+    {
+      "index": 2,
+      "query": "plant care app",
+      "elapsed_ms": 2253.16,
+      "search_and_status_ms": 382,
+      "post_search_residual_ms": 1871.16
+    },
+    {
+      "index": 3,
+      "query": "dashboard",
+      "elapsed_ms": 1620.66,
+      "search_and_status_ms": 357,
+      "post_search_residual_ms": 1263.66
+    },
+    {
+      "index": 4,
+      "query": "settings panel",
+      "elapsed_ms": 3116.6,
+      "search_and_status_ms": 363,
+      "post_search_residual_ms": 2753.6
+    },
+    {
+      "index": 5,
+      "query": "checkout flow",
+      "elapsed_ms": 1815.83,
+      "search_and_status_ms": 355,
+      "post_search_residual_ms": 1460.83
+    },
+    {
+      "index": 6,
+      "query": "profile page",
+      "elapsed_ms": 1927.21,
+      "search_and_status_ms": 372,
+      "post_search_residual_ms": 1555.21
+    },
+    {
+      "index": 7,
+      "query": "analytics overview",
+      "elapsed_ms": 1808.46,
+      "search_and_status_ms": 371,
+      "post_search_residual_ms": 1437.46
+    },
+    {
+      "index": 8,
+      "query": "mobile navigation",
+      "elapsed_ms": 1853.02,
+      "search_and_status_ms": 394,
+      "post_search_residual_ms": 1459.02
+    },
+    {
+      "index": 9,
+      "query": "search results",
+      "elapsed_ms": 1501.35,
+      "search_and_status_ms": 381,
+      "post_search_residual_ms": 1120.35
+    },
+    {
+      "index": 10,
+      "query": "empty state",
+      "elapsed_ms": 1537.95,
+      "search_and_status_ms": 382,
+      "post_search_residual_ms": 1155.95
+    },
+    {
+      "index": 11,
+      "query": "loading indicator",
+      "elapsed_ms": 2263.06,
+      "search_and_status_ms": 372,
+      "post_search_residual_ms": 1891.06
+    },
+    {
+      "index": 12,
+      "query": "error message",
+      "elapsed_ms": 1937.38,
+      "search_and_status_ms": 428,
+      "post_search_residual_ms": 1509.38
+    },
+    {
+      "index": 13,
+      "query": "calendar view",
+      "elapsed_ms": 1740.09,
+      "search_and_status_ms": 397,
+      "post_search_residual_ms": 1343.09
+    },
+    {
+      "index": 14,
+      "query": "task manager",
+      "elapsed_ms": 1385.68,
+      "search_and_status_ms": 382,
+      "post_search_residual_ms": 1003.68
+    },
+    {
+      "index": 15,
+      "query": "finance app",
+      "elapsed_ms": 1477.94,
+      "search_and_status_ms": 404,
+      "post_search_residual_ms": 1073.94
+    },
+    {
+      "index": 16,
+      "query": "recipe organizer",
+      "elapsed_ms": 1424.88,
+      "search_and_status_ms": 374,
+      "post_search_residual_ms": 1050.88
+    },
+    {
+      "index": 17,
+      "query": "travel planner",
+      "elapsed_ms": 1665.25,
+      "search_and_status_ms": 359,
+      "post_search_residual_ms": 1306.25
+    },
+    {
+      "index": 18,
+      "query": "fitness tracker",
+      "elapsed_ms": 1476.98,
+      "search_and_status_ms": 367,
+      "post_search_residual_ms": 1109.98
+    },
+    {
+      "index": 19,
+      "query": "music player",
+      "elapsed_ms": 1433.96,
+      "search_and_status_ms": 379,
+      "post_search_residual_ms": 1054.96
+    },
+    {
+      "index": 20,
+      "query": "user onboarding",
+      "elapsed_ms": 2299.41,
+      "search_and_status_ms": 434,
+      "post_search_residual_ms": 1865.41
+    }
+  ],
+  "failures": [],
+  "passed": true
+}

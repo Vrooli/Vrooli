@@ -31,7 +31,17 @@ import (
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 )
 
-func Module(db *sql.DB, assets components.Service, sourceRoot string, logger *log.Logger) module.Module {
+// sqlExecutor is the request-aware database surface used by component tests.
+// Both *sql.DB and api-core RoutedDB satisfy it, preserving fixture callers
+// while production requests retain test-pool routing.
+type sqlExecutor interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+}
+
+func Module(db sqlExecutor, assets components.Service, sourceRoot string, logger *log.Logger) module.Module {
 	return ModuleWithExecutor(db, assets, sourceRoot, domain.NewBASCaptureExecutor(), logger)
 }
 
@@ -45,19 +55,19 @@ func NewBASCaptureExecutor() domain.StoryExecutor {
 
 // ModuleWithGeneratedFixture wires the provider-owned generated scenario
 // contract into the production Test Genie validation phase.
-func ModuleWithGeneratedFixture(db *sql.DB, assets components.Service, adoptionService adoptions.Service, sourceRoot string, logger *log.Logger) module.Module {
+func ModuleWithGeneratedFixture(db sqlExecutor, assets components.Service, adoptionService adoptions.Service, sourceRoot string, logger *log.Logger) module.Module {
 	return ModuleWithExecutorAndFixture(db, assets, sourceRoot, domain.NewBASCaptureExecutor(), NewGeneratedFixtureValidator(adoptionService, assets, sourceRoot, logger), logger)
 }
 
 // ModuleWithExecutor keeps the browser boundary explicit for module tests;
 // production always supplies the Chrome-backed executor above.
-func ModuleWithExecutor(db *sql.DB, assets components.Service, sourceRoot string, executor domain.StoryExecutor, logger *log.Logger) module.Module {
+func ModuleWithExecutor(db sqlExecutor, assets components.Service, sourceRoot string, executor domain.StoryExecutor, logger *log.Logger) module.Module {
 	return ModuleWithExecutorAndFixture(db, assets, sourceRoot, executor, nil, logger)
 }
 
 // ModuleWithExecutorAndFixture keeps both the browser and generated-fixture
 // boundaries explicit for module tests.
-func ModuleWithExecutorAndFixture(db *sql.DB, assets components.Service, sourceRoot string, executor domain.StoryExecutor, fixture GeneratedFixtureValidator, logger *log.Logger) module.Module {
+func ModuleWithExecutorAndFixture(db sqlExecutor, assets components.Service, sourceRoot string, executor domain.StoryExecutor, fixture GeneratedFixtureValidator, logger *log.Logger) module.Module {
 	svc := domain.NewService(domain.Runner{Assets: assets, Stories: assets, Executor: executor, Pages: func(ctx context.Context, id string) (components.PageStorySubject, error) {
 		return components.LoadPageStory(ctx, filepath.Dir(sourceRoot), id)
 	}, Revision: func(ctx context.Context, assetID, version string) (string, error) {

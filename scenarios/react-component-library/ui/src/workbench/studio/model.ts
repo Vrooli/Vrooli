@@ -1,4 +1,9 @@
-import type { CreateDesignInput, DesignDevice, DesignDocument, DesignFrame } from "../designs";
+import type {
+  DesignCompositionInput,
+  DesignDevice,
+  DesignDocument,
+  DesignFrame,
+} from "../design-types";
 import { DEFAULT_TEMPLATE } from "../templates/library";
 import type { Template, TemplateNode, TemplateNodeType, TemplatePalette } from "../templates/spec";
 
@@ -87,7 +92,7 @@ export function seedInput(
   template: Template,
   name?: string,
   binding: DesignBinding = {},
-): CreateDesignInput {
+): DesignCompositionInput {
   return {
     name: name ?? template.name,
     frames: seedFrames(template),
@@ -116,7 +121,7 @@ export function frameTemplate(doc: DesignDocument, frame: DesignFrame): Template
   };
 }
 
-export function duplicateInput(doc: DesignDocument, name: string): CreateDesignInput {
+export function duplicateInput(doc: DesignDocument, name: string): DesignCompositionInput {
   const stamp = Date.now().toString(36);
   const frames = doc.frames.map((frame) => {
     const id = `${frame.id}-copy-${stamp}`;

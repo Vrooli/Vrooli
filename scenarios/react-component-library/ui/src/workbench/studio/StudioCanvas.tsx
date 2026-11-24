@@ -3,14 +3,16 @@
  * frame". The frame label button beside it is the keyboard path, and the layer
  * tree is the complete keyboard path for selection. */
 import { useState, type ReactNode, type RefObject } from "react";
-import { Frame, Minus, Monitor, Plus, Ruler, Smartphone, Tablet, X } from "lucide-react";
+import { Frame, Layers3, Minus, Monitor, Plus, Ruler, Smartphone, Tablet, X } from "lucide-react";
 
 import { useTranslation } from "../../i18n";
-import type { DesignDevice, DesignDocument, DesignFrame } from "../designs";
+import type { DesignDevice, DesignDocument, DesignFrame } from "../design-types";
 import type { SlotPlacement } from "../templates/spec";
+import type { LayerDropPosition } from "./layerMovement";
 import { findSlot, slotPlacement } from "../templates/spec";
 import { ErrorBoundary } from "../../components/ErrorBoundary";
 import { DeviceFrame } from "../component/DeviceFrame";
+import { deviceChromeVisibility } from "../component/sourceDeviceChrome";
 import { TemplateRenderer } from "../templates/TemplateRenderer";
 import { DEVICE_KEY, DEVICE_NAME, FRAME_SIZE, frameTemplate } from "./model";
 import type { FrameAuditMap } from "./checks";
@@ -35,10 +37,12 @@ export function StudioCanvas({
   fitScale,
   audit,
   slot,
+  renderComponentSlot,
   slotEditable,
   onPlacementChange,
   onSelectFrame,
   onSelectNode,
+  onMoveLayer,
   onAddFrame,
   onRemoveFrame,
   scrollRef,
@@ -56,10 +60,17 @@ export function StudioCanvas({
   fitScale: number;
   audit: FrameAuditMap;
   slot: ReactNode;
+  renderComponentSlot?: (node: import("../templates/spec").TemplateNode) => ReactNode;
   slotEditable: boolean;
   onPlacementChange: (frameId: string, nodeId: string, placement: SlotPlacement) => void;
   onSelectFrame: (id: string) => void;
   onSelectNode: (frameId: string, id: string) => void;
+  onMoveLayer?: (
+    frameId: string,
+    sourceId: string,
+    targetId: string,
+    position: LayerDropPosition,
+  ) => void;
   onAddFrame: (device: DesignDevice) => void;
   onRemoveFrame: (id: string) => void;
   scrollRef: RefObject<HTMLDivElement>;
@@ -67,12 +78,17 @@ export function StudioCanvas({
 }) {
   const { t } = useTranslation();
   const [addOpen, setAddOpen] = useState(false);
+  const [coverageMode, setCoverageMode] = useState(false);
   const zoom = zoomOverride ?? fitScale;
 
   return (
     <main className="studio-canvas" data-experience-surface="design-workspace">
       <div className="studio-canvas-bar">
-        <div className="studio-zoom" role="group" aria-label={t("workbench.studio.zoom", { defaultValue: "Zoom" })}>
+        <div
+          className="studio-zoom"
+          role="group"
+          aria-label={t("workbench.studio.zoom", { defaultValue: "Zoom" })}
+        >
           <button
             type="button"
             className="studio-iconbtn"
@@ -109,6 +125,35 @@ export function StudioCanvas({
           <Ruler aria-hidden size={12} />
           {t("workbench.studio.guides", { defaultValue: "Guides" })}
         </button>
+
+        <button
+          type="button"
+          className={cx("studio-chip-btn", coverageMode && "is-active")}
+          aria-pressed={coverageMode}
+          aria-label={t("workbench.studio.coverageOverlay", {
+            defaultValue: "RCL and custom layer map",
+          })}
+          onClick={() => setCoverageMode((enabled) => !enabled)}
+        >
+          <Layers3 aria-hidden size={12} />
+          {t("workbench.studio.coverageOverlayShort", { defaultValue: "RCL map" })}
+        </button>
+        {coverageMode ? (
+          <span
+            className="studio-coverage-legend"
+            role="group"
+            aria-label={t("workbench.studio.coverageLegend", { defaultValue: "RCL map legend" })}
+          >
+            <span>
+              <i className="is-rcl" aria-hidden="true" />
+              {t("workbench.studio.legendRcl", { defaultValue: "RCL-backed" })}
+            </span>
+            <span>
+              <i className="is-custom" aria-hidden="true" />
+              {t("workbench.studio.legendCustom", { defaultValue: "Custom" })}
+            </span>
+          </span>
+        ) : null}
 
         <div className="studio-canvas-spacer" />
 
@@ -178,6 +223,7 @@ export function StudioCanvas({
             const scale = scales[frame.id] ?? fitScale;
             const Icon = DEVICE_ICON[frame.device];
             const placement = slotPlacement(findSlot(frame.spec));
+            const deviceChrome = deviceChromeVisibility(frame.spec);
             const frameAudit = audit[frame.id];
             return (
               <div
@@ -226,6 +272,8 @@ export function StudioCanvas({
                   scale={scale}
                   selected={active}
                   guides={guides}
+                  statusBar={deviceChrome.statusBar}
+                  island={deviceChrome.island}
                   label={t("workbench.studio.frameLabel", {
                     defaultValue: "{{name}} at {{width}} by {{height}}",
                     name: frame.name,
@@ -252,15 +300,25 @@ export function StudioCanvas({
                       }
                     >
                       <TemplateRenderer
-                      template={frameTemplate(design, frame)}
-                      spec={frame.spec}
-                      mode="canvas"
-                      selectedId={active ? (selectedId ?? undefined) : undefined}
-                      onSelect={(id) => onSelectNode(frame.id, id)}
-                      slot={slot}
-                      slotEditable={slotEditable}
-                      slotPlacement={placement}
-                      onSlotPlacementChange={(nodeId, next) => onPlacementChange(frame.id, nodeId, next)}
+                        template={frameTemplate(design, frame)}
+                        spec={frame.spec}
+                        mode="canvas"
+                        selectedId={active ? (selectedId ?? undefined) : undefined}
+                        onSelect={(id) => onSelectNode(frame.id, id)}
+                        onMoveLayer={
+                          onMoveLayer
+                            ? (sourceId, targetId, position) =>
+                                onMoveLayer(frame.id, sourceId, targetId, position)
+                            : undefined
+                        }
+                        coverageMode={coverageMode}
+                        slot={slot}
+                        renderComponentSlot={renderComponentSlot}
+                        slotEditable={slotEditable}
+                        slotPlacement={placement}
+                        onSlotPlacementChange={(nodeId, next) =>
+                          onPlacementChange(frame.id, nodeId, next)
+                        }
                       />
                     </ErrorBoundary>
                   </div>

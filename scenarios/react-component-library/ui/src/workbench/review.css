@@ -1,0 +1,165 @@
+/* ── Review ───────────────────────────────────────────────────────────────── */
+
+.wb-review-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 16px;
+  align-items: start;
+}
+
+/* Grid children default to `min-width: auto`, so one long mono string can
+ * widen a one-column phone layout past the viewport. Every page grid opts its
+ * children into shrinkable tracks. */
+.wb-review-layout > *,
+.wb-coverage-layout > *,
+.wb-activity-layout > *,
+.wb-create-layout > * {
+  min-width: 0;
+}
+
+.wb-board {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.wb-board-col {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-height: 340px;
+  padding: 10px;
+  border: 1px solid var(--wb-line);
+  border-radius: var(--wb-r);
+  background: #100d13;
+}
+
+.wb-board-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 4px 6px;
+  color: var(--wb-muted-2);
+  font: 9px/1.4 var(--wb-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.wb-finding {
+  display: grid;
+  gap: 6px;
+  padding: 11px;
+  border: 1px solid var(--wb-line);
+  border-radius: 10px;
+  background: var(--wb-surface);
+  text-align: left;
+}
+
+.wb-finding:hover {
+  border-color: var(--wb-line-3);
+}
+
+.wb-finding[aria-pressed="true"] {
+  border-color: var(--wb-signal);
+  box-shadow: 0 0 0 1px var(--wb-signal);
+}
+
+.wb-finding b {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.wb-finding small {
+  color: var(--wb-muted-2);
+  font: 9px/1.4 var(--wb-mono);
+}
+
+.wb-finding-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.wb-selected {
+  position: sticky;
+  top: 74px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--wb-line);
+  border-radius: var(--wb-r);
+  background: var(--wb-panel);
+}
+
+.wb-selected > * {
+  min-width: 0;
+}
+
+.wb-selected h2 {
+  margin: 0;
+  font-family: var(--wb-serif);
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.wb-evidence {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+
+.wb-evidence-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--wb-line);
+  border-radius: 8px;
+  background: #0d1018;
+  font-size: 11px;
+}
+
+.wb-evidence-row span:nth-child(2) {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: var(--wb-ink-2);
+  font-family: var(--wb-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 980px) {
+  .wb-review-layout,
+  .wb-coverage-layout,
+  .wb-activity-layout,
+  .wb-create-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 980px) {
+  .wb-board {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .wb-matrix-row {
+    grid-template-columns: 96px repeat(5, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .wb-matrix-cell {
+    min-height: 32px;
+  }
+}

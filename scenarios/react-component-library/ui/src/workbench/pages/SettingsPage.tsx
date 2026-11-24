@@ -1,3 +1,4 @@
+import "../settings.css";
 import { useEffect, useState } from "react";
 import { Check, Download, RotateCcw, ShieldCheck } from "lucide-react";
 

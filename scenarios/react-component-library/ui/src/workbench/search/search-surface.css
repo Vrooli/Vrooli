@@ -1,0 +1,94 @@
+/* SearchInput owns the semantic search field; keep its internals on the
+   workbench's existing inline Nocturne search treatment. */
+.wb-search [data-rcl-search-input] {
+  display: contents;
+  width: auto;
+}
+
+.wb-search [data-rcl-search-input-label] {
+  display: none;
+}
+
+.wb-search [data-rcl-search-input-field] {
+  box-sizing: border-box;
+  min-height: 0;
+  width: auto;
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  appearance: none;
+  color: var(--wb-ink);
+  padding: 0;
+  font: 13px/1.4 var(--wb-sans);
+}
+
+.wb-search [data-rcl-search-input-field]::placeholder {
+  color: var(--wb-muted-2);
+}
+
+.wb-search [data-rcl-search-input-field]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
+.wb-search-kind-filters {
+  max-width: 100%;
+  margin-top: 8px;
+}
+
+.wb-search-kind-filters [data-rcl-tabs] {
+  --color-border: var(--wb-line);
+  --color-surface: transparent;
+}
+
+.wb-search-kind-filters [data-rcl-tab] {
+  color: var(--wb-muted);
+}
+
+.wb-search-kind-filters [data-rcl-tab][aria-selected="true"] {
+  color: var(--wb-signal);
+}
+
+/* SearchResults owns list semantics while the workbench keeps its compact
+   command-row presentation and per-kind labels. */
+.wb-command-results [data-rcl-search-results] {
+  gap: 0;
+}
+
+.wb-command-results [data-rcl-search-results-header] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.wb-command-results [data-rcl-search-results-list] {
+  gap: 0;
+}
+
+.wb-command-results [data-rcl-search-results-item],
+.wb-command-results [data-rcl-search-results-item]:hover {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  overflow: visible;
+  transform: none;
+  transition: none;
+}
+
+.wb-command-results .wb-command-group {
+  gap: 3px;
+}
+
+.wb-command-results .wb-command-group-start {
+  margin-top: 14px;
+}

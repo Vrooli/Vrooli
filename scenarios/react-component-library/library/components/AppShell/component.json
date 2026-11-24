@@ -18,12 +18,12 @@
     }
   ],
   "displayName": "AppShell",
-  "draft": "",
+  "draft": "2.1.9-draft.1",
   "evictedVersions": [
     "2.1.1",
     "2.1.0"
   ],
-  "latest": "2.1.7",
+  "latest": "2.1.8",
   "libraryId": "react-component-library:AppShell",
   "tags": []
 }

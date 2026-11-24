@@ -235,6 +235,35 @@ func TestRetentionPassKeepsExactlyPinnedLeavesMaterialized(t *testing.T) {
 	}
 }
 
+func TestPurgeUnreadableVersionRequiresExplicitSafeRemoval(t *testing.T) {
+	f := newRetentionFixture(t)
+	f.release("Broken", "1.0.0", "released")
+	f.publish()
+	ctx := context.Background()
+	_, err := f.db.ExecContext(ctx, `
+CREATE TABLE component_version_kit_compatibility (version_id TEXT);
+CREATE TABLE component_version_required_token_patterns (version_id TEXT);
+CREATE TABLE component_version_required_tokens (version_id TEXT);
+CREATE TABLE component_version_parity_reports (version_id TEXT);
+CREATE TABLE component_stories (library_id TEXT, version TEXT);
+CREATE TABLE component_version_test_rollup (library_id TEXT, version TEXT);
+`)
+	require.NoError(t, err)
+	_, err = f.db.ExecContext(ctx, `UPDATE component_versions SET presence='evicted' WHERE id='Broken@1.0.0'`)
+	require.NoError(t, err)
+	repo := NewRepository(f.db, f.repoRoot)
+	require.ErrorContains(t, repo.PurgeUnreadableVersion(ctx, "react-component-library:Broken", "1.0.0", false), "explicit confirmation")
+	require.ErrorContains(t, repo.PurgeUnreadableVersion(ctx, "react-component-library:Broken", "1.0.0", true), "mirror has")
+	_, err = f.db.ExecContext(ctx, `DELETE FROM component_version_files WHERE version_id='Broken@1.0.0'`)
+	require.NoError(t, err)
+	require.NoError(t, repo.PurgeUnreadableVersion(ctx, "react-component-library:Broken", "1.0.0", true))
+	var count int
+	require.NoError(t, f.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM component_versions WHERE id='Broken@1.0.0'`).Scan(&count))
+	require.Zero(t, count)
+	require.NoError(t, f.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM version_ledger WHERE library_id='react-component-library:Broken' AND version='1.0.0'`).Scan(&count))
+	require.Zero(t, count)
+}
+
 // The retained-owner rule, observed one round at a time: while OldOwner@1.0.0
 // is on disk its exact pin keeps RetainedLeaf@1.0.0 out of the eviction set,
 // and once the owner is cold the pin is an ordinary edge again.

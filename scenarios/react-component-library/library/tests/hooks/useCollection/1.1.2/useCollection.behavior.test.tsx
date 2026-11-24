@@ -13,62 +13,151 @@ const rows: Row[] = [
   { id: "c", label: "Gamma" },
 ];
 const getKey = (row: Row) => row.id;
-const selectable = (row: Row) => row.disabled ? "Unavailable" : false;
+const selectable = (row: Row) => (row.disabled ? "Unavailable" : false);
 
-function Harness({ selected, onChange }: { selected?: string[]; onChange?: (keys: string[]) => void }) {
+function Harness({
+  selected,
+  onChange,
+}: {
+  selected?: string[];
+  onChange?: (keys: string[]) => void;
+}) {
   const collection = useCollection(rows, {
     getKey,
     selection: { mode: "multi", selected, onChange, selectable },
   });
-  return <div {...collection.getContainerProps()}>{collection.rows.map((row) => {
-    const state = collection.rowStateFor(row);
-    return <button key={row.id} {...collection.getRowProps(row)}>{row.label}:{String(state.selection.selected)}</button>;
-  })}</div>;
+  return (
+    <div {...collection.getContainerProps()}>
+      {collection.rows.map((row) => {
+        const state = collection.rowStateFor(row);
+        return (
+          <button key={row.id} {...collection.getRowProps(row)}>
+            {row.label}:{String(state.selection.selected)}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
-function ActionHarness({ onOpen = vi.fn(), getSearchText }: { onOpen?: (row: Row) => void; getSearchText?: (row: Row) => string }) {
+function ActionHarness({
+  onOpen = vi.fn(),
+  getSearchText,
+}: {
+  onOpen?: (row: Row) => void;
+  getSearchText?: (row: Row) => string;
+}) {
   const collection = useCollection(rows, {
     getKey,
     getSearchText,
     onOpen,
     actions: [
-      { id: "open", label: "Open", shortcut: "Enter", onSelect: (selected) => onOpen(selected[0]!) },
-      { id: "hidden", label: "Hidden", hidden: (row) => row.id === "a", onSelect: vi.fn() },
-      { id: "disabled", label: "Disabled", disabled: () => "Unavailable", onSelect: vi.fn() },
+      {
+        id: "open",
+        label: "Open",
+        shortcut: "Enter",
+        onSelect: (selected) => onOpen(selected[0]!),
+      },
+      {
+        id: "hidden",
+        label: "Hidden",
+        hidden: (row) => row.id === "a",
+        onSelect: vi.fn(),
+      },
+      {
+        id: "disabled",
+        label: "Disabled",
+        disabled: () => "Unavailable",
+        onSelect: vi.fn(),
+      },
     ],
     selection: { mode: "multi", enterOn: ["shortcut"] },
   });
-  return <div {...collection.getContainerProps()}>{collection.rows.map((row) => <button key={row.id} {...collection.getRowProps(row)}>{row.label}:{collection.cursorKey}</button>)}</div>;
+  return (
+    <div {...collection.getContainerProps()}>
+      {collection.rows.map((row) => (
+        <button key={row.id} {...collection.getRowProps(row)}>
+          {row.label}:{collection.cursorKey}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 function KeyboardEntryHarness() {
-  const collection = useCollection(rows, { getKey, selection: { mode: "none", enterOn: ["shortcut"] } });
-  return <div {...collection.getContainerProps()}>{collection.rows.map((row) => <button key={row.id} {...collection.getRowProps(row)}>{row.label}:{String(collection.rowStateFor(row).selection.selected)}</button>)}</div>;
+  const collection = useCollection(rows, {
+    getKey,
+    selection: { mode: "none", enterOn: ["shortcut"] },
+  });
+  return (
+    <div {...collection.getContainerProps()}>
+      {collection.rows.map((row) => (
+        <button key={row.id} {...collection.getRowProps(row)}>
+          {row.label}:{String(collection.rowStateFor(row).selection.selected)}
+        </button>
+      ))}
+    </div>
+  );
 }
 
-function BulkHarness({ announce, onOutcome }: { announce: (message: string) => void; onOutcome: (outcomes: unknown[]) => void }) {
+function BulkHarness({
+  announce,
+  onOutcome,
+}: {
+  announce: (message: string) => void;
+  onOutcome: (outcomes: unknown[]) => void;
+}) {
   const collection = useCollection(rows, {
     getKey,
     announce,
-    actions: [{
-      id: "archive",
-      label: "Archive",
-      bulk: true,
-      onSelect: async ([row]) => {
-        if (row?.id === "c") throw new Error("Gamma failed");
+    actions: [
+      {
+        id: "archive",
+        label: "Archive",
+        bulk: true,
+        onSelect: async ([row]) => {
+          if (row?.id === "c") throw new Error("Gamma failed");
+        },
       },
-    }],
+    ],
     selection: { mode: "multi" },
   });
-  return <div {...collection.getContainerProps()}>
-    {collection.rows.map((row) => <button key={row.id} {...collection.getRowProps(row)}>{row.label}</button>)}
-    <button type="button" onClick={async () => onOutcome(await collection.bulk.run("archive"))}>Run bulk</button>
-  </div>;
+  return (
+    <div {...collection.getContainerProps()}>
+      {collection.rows.map((row) => (
+        <button key={row.id} {...collection.getRowProps(row)}>
+          {row.label}
+        </button>
+      ))}
+      <button
+        type="button"
+        onClick={async () => onOutcome(await collection.bulk.run("archive"))}
+      >
+        Run bulk
+      </button>
+    </div>
+  );
 }
 
-function AnnounceHarness({ announce }: { announce: (message: string) => void }) {
-  const collection = useCollection(rows, { getKey, announce, selection: { mode: "multi" } });
-  return <div {...collection.getContainerProps()}>{collection.rows.map((row) => <button key={row.id} {...collection.getRowProps(row)}>{row.label}</button>)}</div>;
+function AnnounceHarness({
+  announce,
+}: {
+  announce: (message: string) => void;
+}) {
+  const collection = useCollection(rows, {
+    getKey,
+    announce,
+    selection: { mode: "multi" },
+  });
+  return (
+    <div {...collection.getContainerProps()}>
+      {collection.rows.map((row) => (
+        <button key={row.id} {...collection.getRowProps(row)}>
+          {row.label}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 function RequeryHarness() {
@@ -76,16 +165,78 @@ function RequeryHarness() {
   const collection = useCollection(rows, {
     getKey,
     query,
-    search: (row, value) => row.label.toLowerCase().includes(value.toLowerCase()),
+    search: (row, value) =>
+      row.label.toLowerCase().includes(value.toLowerCase()),
     selection: { mode: "multi" },
   });
-  return <>
-    <button type="button" onClick={() => setQuery("a")}>Filter</button>
-    <div {...collection.getContainerProps()}>{collection.rows.map((row) => <button key={row.id} {...collection.getRowProps(row)}>{row.label}:{String(collection.rowStateFor(row).selection.selected)}</button>)}</div>
-  </>;
+  return (
+    <>
+      <button type="button" onClick={() => setQuery("a")}>
+        Filter
+      </button>
+      <div {...collection.getContainerProps()}>
+        {collection.rows.map((row) => (
+          <button key={row.id} {...collection.getRowProps(row)}>
+            {row.label}:{String(collection.rowStateFor(row).selection.selected)}
+          </button>
+        ))}
+      </div>
+    </>
+  );
 }
 
 describe("useCollection", () => {
+  it("moves real focus with the keyboard cursor and reveals the destination", () => {
+    const reveal = vi.fn();
+    const items = [{ id: "a" }, { id: "b" }, { id: "c" }];
+    function FocusHarness() {
+      const collection = useCollection(items, { getKey, onRevealRow: reveal });
+      return (
+        <div {...collection.getContainerProps()}>
+          {items.map((item) => (
+            <div key={item.id} {...collection.getRowProps(item)}>
+              {item.id}
+              <input aria-label={`Edit ${item.id}`} />
+            </div>
+          ))}
+        </div>
+      );
+    }
+    render(<FocusHarness />);
+    const rowsInDom = screen.getAllByRole("listitem");
+    act(() => rowsInDom[0]!.focus());
+    fireEvent.keyDown(rowsInDom[0]!, { key: "ArrowDown" });
+    expect(rowsInDom[1]!).toHaveFocus();
+    expect(rowsInDom[1]!).toHaveAttribute("tabindex", "0");
+    expect(reveal).toHaveBeenCalledWith("b");
+    fireEvent.keyDown(rowsInDom[1]!, { key: "ArrowUp" });
+    expect(rowsInDom[0]!).toHaveFocus();
+  });
+
+  it("does not steal arrow keys from an embedded editor", () => {
+    const reveal = vi.fn();
+    const items = [{ id: "a" }, { id: "b" }, { id: "c" }];
+    function FocusHarness() {
+      const collection = useCollection(items, { getKey, onRevealRow: reveal });
+      return (
+        <div {...collection.getContainerProps()}>
+          {items.map((item) => (
+            <div key={item.id} {...collection.getRowProps(item)}>
+              {item.id}
+              <input aria-label={`Edit ${item.id}`} />
+            </div>
+          ))}
+        </div>
+      );
+    }
+    render(<FocusHarness />);
+    const editor = screen.getByRole("textbox", { name: "Edit a" });
+    act(() => editor.focus());
+    fireEvent.keyDown(editor, { key: "ArrowDown" });
+    expect(editor).toHaveFocus();
+    expect(reveal).not.toHaveBeenCalled();
+  });
+
   it("keeps disabled rows out of select-all and reports controlled selection", () => {
     const onChange = vi.fn();
     render(<Harness onChange={onChange} />);
@@ -111,12 +262,26 @@ describe("useCollection", () => {
         getKey,
         selection: { mode: "none", enterOn: ["long-press"], onChange },
       });
-      return <div {...collection.getContainerProps()}>{collection.rows.map((row) => <button key={row.id} {...collection.getRowProps(row)}>{row.label}:{String(collection.rowStateFor(row).selection.selected)}</button>)}</div>;
+      return (
+        <div {...collection.getContainerProps()}>
+          {collection.rows.map((row) => (
+            <button key={row.id} {...collection.getRowProps(row)}>
+              {row.label}:
+              {String(collection.rowStateFor(row).selection.selected)}
+            </button>
+          ))}
+        </div>
+      );
     }
     render(<LongPressHarness />);
     const row = screen.getAllByRole("listitem")[0];
     act(() => {
-      fireEvent.pointerDown(row, { pointerId: 1, pointerType: "touch", clientX: 10, clientY: 10 });
+      fireEvent.pointerDown(row, {
+        pointerId: 1,
+        pointerType: "touch",
+        clientX: 10,
+        clientY: 10,
+      });
       vi.advanceTimersByTime(450);
     });
     expect(screen.getByRole("listbox")).toBeTruthy();
@@ -160,7 +325,9 @@ describe("useCollection", () => {
 
   it("runs the primary action with one row and supports typeahead", () => {
     const onOpen = vi.fn();
-    render(<ActionHarness onOpen={onOpen} getSearchText={(row) => row.label} />);
+    render(
+      <ActionHarness onOpen={onOpen} getSearchText={(row) => row.label} />,
+    );
     const list = screen.getByRole("listbox");
     fireEvent.keyDown(list, { key: "g" });
     fireEvent.keyDown(list, { key: "Enter" });
@@ -170,8 +337,27 @@ describe("useCollection", () => {
   it("resolves hidden and disabled actions without running disabled work", () => {
     const onSelect = vi.fn();
     function ActionProbe() {
-      const collection = useCollection(rows, { getKey, actions: [{ id: "hidden", label: "Hidden", hidden: () => true, onSelect }, { id: "blocked", label: "Blocked", disabled: () => "Unavailable", onSelect }] });
-      return <>{collection.actionsFor(rows[0]).map((action) => <button key={action.id} onClick={() => void action.run()}>{action.label}:{action.disabledReason ?? "enabled"}</button>)}</>;
+      const collection = useCollection(rows, {
+        getKey,
+        actions: [
+          { id: "hidden", label: "Hidden", hidden: () => true, onSelect },
+          {
+            id: "blocked",
+            label: "Blocked",
+            disabled: () => "Unavailable",
+            onSelect,
+          },
+        ],
+      });
+      return (
+        <>
+          {collection.actionsFor(rows[0]).map((action) => (
+            <button key={action.id} onClick={() => void action.run()}>
+              {action.label}:{action.disabledReason ?? "enabled"}
+            </button>
+          ))}
+        </>
+      );
     }
     render(<ActionProbe />);
     expect(screen.queryByText(/Hidden/)).toBeNull();
@@ -182,7 +368,14 @@ describe("useCollection", () => {
   it("registers and unregisters row commands with the mount lifecycle", () => {
     const registry = createCommandRegistry();
     function CommandHarness() {
-      useCollection(rows, { getKey, commandRegistry: registry, registerCommands: true, actions: [{ id: "open", label: "Open", shortcut: "Enter", onSelect: vi.fn() }] });
+      useCollection(rows, {
+        getKey,
+        commandRegistry: registry,
+        registerCommands: true,
+        actions: [
+          { id: "open", label: "Open", shortcut: "Enter", onSelect: vi.fn() },
+        ],
+      });
       return null;
     }
     const view = render(<CommandHarness />);
@@ -219,8 +412,15 @@ describe("useCollection", () => {
     vi.useFakeTimers();
     render(<KeyboardEntryHarness />);
     const row = screen.getAllByRole("listitem")[0];
-    fireEvent.pointerDown(row, { pointerId: 1, pointerType: "touch", clientX: 10, clientY: 10 });
-    act(() => { vi.advanceTimersByTime(600); });
+    fireEvent.pointerDown(row, {
+      pointerId: 1,
+      pointerType: "touch",
+      clientX: 10,
+      clientY: 10,
+    });
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
     expect(screen.queryByRole("listbox")).toBeNull();
     fireEvent.pointerUp(row, { pointerId: 1, pointerType: "touch" });
     vi.useRealTimers();
@@ -229,14 +429,38 @@ describe("useCollection", () => {
   it("cancels a long-press when the pointer moves beyond the gesture tolerance", () => {
     vi.useFakeTimers();
     function MovableLongPressHarness() {
-      const collection = useCollection(rows, { getKey, selection: { mode: "none", enterOn: ["long-press"] } });
-      return <div {...collection.getContainerProps()}>{collection.rows.map((row) => <button key={row.id} {...collection.getRowProps(row)}>{row.label}:{String(collection.rowStateFor(row).selection.selected)}</button>)}</div>;
+      const collection = useCollection(rows, {
+        getKey,
+        selection: { mode: "none", enterOn: ["long-press"] },
+      });
+      return (
+        <div {...collection.getContainerProps()}>
+          {collection.rows.map((row) => (
+            <button key={row.id} {...collection.getRowProps(row)}>
+              {row.label}:
+              {String(collection.rowStateFor(row).selection.selected)}
+            </button>
+          ))}
+        </div>
+      );
     }
     render(<MovableLongPressHarness />);
     const row = screen.getAllByRole("listitem")[0];
-    fireEvent.pointerDown(row, { pointerId: 1, pointerType: "touch", clientX: 10, clientY: 10 });
-    fireEvent.pointerMove(row, { pointerId: 1, pointerType: "touch", clientX: 30, clientY: 10 });
-    act(() => { vi.advanceTimersByTime(600); });
+    fireEvent.pointerDown(row, {
+      pointerId: 1,
+      pointerType: "touch",
+      clientX: 10,
+      clientY: 10,
+    });
+    fireEvent.pointerMove(row, {
+      pointerId: 1,
+      pointerType: "touch",
+      clientX: 30,
+      clientY: 10,
+    });
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
     expect(screen.queryByRole("listbox")).toBeNull();
     fireEvent.pointerCancel(row, { pointerId: 1, pointerType: "touch" });
     vi.useRealTimers();
@@ -254,7 +478,15 @@ describe("useCollection", () => {
   });
 
   it("keeps the headless controller free of component and primitive imports", () => {
-    const source = readFileSync(resolve(process.cwd(), "../library/hooks/useCollection/versions/1.0.0/useCollection.ts"), "utf8");
-    expect(source).not.toMatch(/@vrooli\/react-component-library\/(components|primitives)\//);
+    const source = readFileSync(
+      resolve(
+        process.cwd(),
+        "../library/hooks/useCollection/versions/1.1.2/useCollection.ts",
+      ),
+      "utf8",
+    );
+    expect(source).not.toMatch(
+      /@vrooli\/react-component-library\/(components|primitives)\//,
+    );
   });
 });

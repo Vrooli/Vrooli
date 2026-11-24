@@ -1,21 +1,25 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CircleAlert, FileCode2, GitBranch, Play, RotateCw } from "lucide-react";
+import { CircleAlert, FileCode2 } from "lucide-react";
 
 import { ComponentVersionStatus } from "@vrooli/proto-types/react-component-library/v1/components/components_pb";
-import { getAssetRelationships } from "../../api/catalogGraph";
-import { runComponentTest } from "../../api/componentTests";
 import { useTranslation } from "../../i18n";
 import {
   assetAdoptions,
   formatRelative,
   timestampToDate,
-  wbKeys,
   type ComponentBundle,
 } from "../data";
-import { Banner, Chip, Empty, Skeleton, Tabs, WbButton } from "../primitives";
+import { Banner, Chip, Empty, Tabs } from "../primitives";
+import { AssetRelationshipsTab } from "./AssetRelationshipsTab";
+import { AssetTestEvidenceTab } from "./AssetTestEvidenceTab";
 import { SourceWorkbench } from "./SourceWorkbench";
 
-export type DrawerTab = "overview" | "source" | "versions" | "experience" | "tests" | "relationships";
+export type DrawerTab =
+  | "overview"
+  | "source"
+  | "versions"
+  | "experience"
+  | "tests"
+  | "relationships";
 
 export function AssetDataDrawer({
   bundle,
@@ -23,26 +27,38 @@ export function AssetDataDrawer({
   onTab,
   version,
   onVersion,
+  selectedTestReportID,
+  onSelectTestReport,
+  onSourceSaved,
 }: {
   bundle: ComponentBundle;
   tab: DrawerTab;
   onTab: (tab: DrawerTab) => void;
   version: string;
   onVersion: (version: string) => void;
+  selectedTestReportID?: string | null;
+  onSelectTestReport?: (reportID: string | null) => void;
+  onSourceSaved?: (version: string, filePath: string, sha256: string) => void;
 }) {
   const { t } = useTranslation();
   const versionRows = bundle.versions;
   const selectedVersion = versionRows.find((row) => row.version === version) ?? versionRows[0];
 
   return (
-    <section className="wb-drawer" aria-label={t("workbench.component.drawer", { defaultValue: "Asset data" })}>
+    <section
+      className="wb-drawer"
+      aria-label={t("workbench.component.drawer", { defaultValue: "Asset data" })}
+    >
       <div className="wb-drawer-tabs">
         <Tabs
           label={t("workbench.component.drawerTabs", { defaultValue: "Asset data sections" })}
           value={tab}
           onChange={onTab}
           items={[
-            { id: "overview", label: t("workbench.component.overview", { defaultValue: "Overview" }) },
+            {
+              id: "overview",
+              label: t("workbench.component.overview", { defaultValue: "Overview" }),
+            },
             { id: "source", label: t("workbench.component.source", { defaultValue: "Source" }) },
             {
               id: "versions",
@@ -59,21 +75,40 @@ export function AssetDataDrawer({
               label: t("workbench.component.tests", { defaultValue: "Tests" }),
               count: bundle.testReports.length,
             },
-            { id: "relationships", label: t("workbench.component.relationships", { defaultValue: "Relationships" }) },
+            {
+              id: "relationships",
+              label: t("workbench.component.relationships", { defaultValue: "Relationships" }),
+            },
           ]}
         />
       </div>
       <div className="wb-drawer-body">
         {tab === "overview" ? <OverviewTab bundle={bundle} /> : null}
         {tab === "source" ? (
-          <SourceTab bundle={bundle} version={selectedVersion?.version ?? version} onVersion={onVersion} />
+          <SourceTab
+            bundle={bundle}
+            version={selectedVersion?.version ?? version}
+            onVersion={onVersion}
+            onSaved={onSourceSaved}
+          />
         ) : null}
         {tab === "versions" ? (
-          <VersionsTab bundle={bundle} selected={selectedVersion?.version ?? version} onSelect={onVersion} />
+          <VersionsTab
+            bundle={bundle}
+            selected={selectedVersion?.version ?? version}
+            onSelect={onVersion}
+          />
         ) : null}
         {tab === "experience" ? <ExperienceTab bundle={bundle} /> : null}
-        {tab === "tests" ? <TestsTab bundle={bundle} version={selectedVersion?.version ?? version} /> : null}
-        {tab === "relationships" ? <RelationshipsTab bundle={bundle} /> : null}
+        {tab === "tests" ? (
+          <AssetTestEvidenceTab
+            bundle={bundle}
+            version={selectedVersion?.version ?? version}
+            selectedReportID={selectedTestReportID ?? null}
+            onSelectReport={onSelectTestReport}
+          />
+        ) : null}
+        {tab === "relationships" ? <AssetRelationshipsTab bundle={bundle} /> : null}
         {bundle.partial.length > 0 ? (
           <div style={{ marginTop: 14 }}>
             <Banner tone="amber" icon={<CircleAlert aria-hidden size={15} />}>
@@ -116,7 +151,10 @@ function OverviewTab({ bundle }: { bundle: ComponentBundle }) {
         {rows.map(([label, value]) => (
           <div key={label} className="wb-row-between" style={{ alignItems: "baseline", gap: 16 }}>
             <span className="wb-caption">{label}</span>
-            <span className="wb-mono wb-small" style={{ textAlign: "right", overflowWrap: "anywhere" }}>
+            <span
+              className="wb-mono wb-small"
+              style={{ textAlign: "right", overflowWrap: "anywhere" }}
+            >
               {value}
             </span>
           </div>
@@ -124,17 +162,23 @@ function OverviewTab({ bundle }: { bundle: ComponentBundle }) {
       </div>
       <div className="wb-stack tight">
         <div>
-          <span className="wb-caption">{t("workbench.component.tags", { defaultValue: "Tags" })}</span>
+          <span className="wb-caption">
+            {t("workbench.component.tags", { defaultValue: "Tags" })}
+          </span>
           <div className="wb-row" style={{ flexWrap: "wrap", marginTop: 6 }}>
             {asset.tags.length === 0 ? (
-              <span className="wb-muted wb-small">{t("workbench.component.noTags", { defaultValue: "No tags" })}</span>
+              <span className="wb-muted wb-small">
+                {t("workbench.component.noTags", { defaultValue: "No tags" })}
+              </span>
             ) : (
               asset.tags.map((tag) => <Chip key={tag}>{tag}</Chip>)
             )}
           </div>
         </div>
         <div>
-          <span className="wb-caption">{t("workbench.component.affinities", { defaultValue: "Design affinities" })}</span>
+          <span className="wb-caption">
+            {t("workbench.component.affinities", { defaultValue: "Design affinities" })}
+          </span>
           <div className="wb-row" style={{ flexWrap: "wrap", marginTop: 6 }}>
             {asset.designStyles.length === 0 ? (
               <span className="wb-muted wb-small">
@@ -150,7 +194,9 @@ function OverviewTab({ bundle }: { bundle: ComponentBundle }) {
           </div>
         </div>
         <div>
-          <span className="wb-caption">{t("workbench.component.deps", { defaultValue: "Declared dependencies" })}</span>
+          <span className="wb-caption">
+            {t("workbench.component.deps", { defaultValue: "Declared dependencies" })}
+          </span>
           <div className="wb-stack tight" style={{ marginTop: 6 }}>
             {asset.dependencies.length === 0 ? (
               <span className="wb-muted wb-small">
@@ -175,12 +221,16 @@ function SourceTab({
   bundle,
   version,
   onVersion,
+  onSaved,
 }: {
   bundle: ComponentBundle;
   version: string;
   onVersion: (version: string) => void;
+  onSaved?: (version: string, filePath: string, sha256: string) => void;
 }) {
-  return <SourceWorkbench bundle={bundle} version={version} onVersion={onVersion} />;
+  return (
+    <SourceWorkbench bundle={bundle} version={version} onVersion={onVersion} onSaved={onSaved} />
+  );
 }
 
 function VersionsTab({
@@ -195,7 +245,9 @@ function VersionsTab({
   const { t } = useTranslation();
   if (bundle.versions.length === 0) {
     return (
-      <Empty title={t("workbench.component.noVersions", { defaultValue: "No version history recorded" })}>
+      <Empty
+        title={t("workbench.component.noVersions", { defaultValue: "No version history recorded" })}
+      >
         {t("workbench.component.noVersionsBody", {
           defaultValue:
             "The versions owner returned no rows. This is shown as unavailable history, not as a release with no changes.",
@@ -253,9 +305,12 @@ function ExperienceTab({ bundle }: { bundle: ComponentBundle }) {
   const experience = bundle.experience;
   if (!experience) {
     return (
-      <Empty title={t("workbench.component.noExperience", { defaultValue: "No experience contract" })}>
+      <Empty
+        title={t("workbench.component.noExperience", { defaultValue: "No experience contract" })}
+      >
         {t("workbench.component.noExperienceBody", {
-          defaultValue: "This asset has no claim/evidence contract, so nothing is asserted about its states.",
+          defaultValue:
+            "This asset has no claim/evidence contract, so nothing is asserted about its states.",
         })}
       </Empty>
     );
@@ -274,7 +329,10 @@ function ExperienceTab({ bundle }: { bundle: ComponentBundle }) {
       </div>
       <div className="wb-row" style={{ flexWrap: "wrap" }}>
         {Object.entries(verdicts).map(([verdict, count]) => (
-          <Chip key={verdict} tone={verdict === "pass" ? "green" : verdict === "fail" ? "red" : "amber"}>
+          <Chip
+            key={verdict}
+            tone={verdict === "pass" ? "green" : verdict === "fail" ? "red" : "amber"}
+          >
             {verdict} · {count}
           </Chip>
         ))}
@@ -284,147 +342,23 @@ function ExperienceTab({ bundle }: { bundle: ComponentBundle }) {
           const evidence = experience.evidence.filter((row) => row.claimId === claim.id);
           const verdict = evidence[0]?.verdict ?? "unmeasured";
           return (
-            <div key={claim.id} className="wb-row-between" style={{ alignItems: "flex-start", gap: 12 }}>
+            <div
+              key={claim.id}
+              className="wb-row-between"
+              style={{ alignItems: "flex-start", gap: 12 }}
+            >
               <span style={{ minWidth: 0 }}>
                 <b className="wb-small">{claim.statement}</b>
                 <small className="wb-muted-2 wb-small" style={{ display: "block" }}>
                   {claim.type} · {claim.tier} · {claim.states.join(", ") || "no states"}
                 </small>
               </span>
-              <Chip tone={verdict === "pass" ? "green" : verdict === "fail" ? "red" : "amber"}>{verdict}</Chip>
+              <Chip tone={verdict === "pass" ? "green" : verdict === "fail" ? "red" : "amber"}>
+                {verdict}
+              </Chip>
             </div>
           );
         })}
-      </div>
-    </div>
-  );
-}
-
-function TestsTab({ bundle, version }: { bundle: ComponentBundle; version: string }) {
-  const { t } = useTranslation();
-  const queryClient = useQueryClient();
-  const run = useMutation({
-    mutationFn: () =>
-      runComponentTest({ componentId: bundle.asset.id, version, includeClosure: false }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: wbKeys.component(bundle.asset.id) });
-    },
-  });
-
-  return (
-    <div className="wb-stack">
-      <div className="wb-row-between">
-        <span className="wb-caption">
-          {t("workbench.component.testReports", { defaultValue: "Component test evidence" })}
-        </span>
-        <WbButton variant="ghost" size="sm" onClick={() => run.mutate()} disabled={run.isPending}>
-          {run.isPending ? <RotateCw aria-hidden size={13} /> : <Play aria-hidden size={13} />}
-          {run.isPending
-            ? t("workbench.component.running", { defaultValue: "Running…" })
-            : t("workbench.component.runTest", { defaultValue: "Run test" })}
-        </WbButton>
-      </div>
-      {run.isError ? (
-        <Banner tone="red" icon={<CircleAlert aria-hidden size={15} />}>
-          {run.error instanceof Error ? run.error.message : String(run.error)}
-        </Banner>
-      ) : null}
-      {bundle.testReports.length === 0 ? (
-        <Empty title={t("workbench.component.noTests", { defaultValue: "No component test evidence yet" })}>
-          {t("workbench.component.noTestsBody", {
-            defaultValue:
-              "A release without a current test report is not proven. Run the focused component test to produce one.",
-          })}
-        </Empty>
-      ) : (
-        bundle.testReports.map((report) => (
-          <div key={report.id} className="wb-panel" style={{ padding: 12 }}>
-            <div className="wb-row-between">
-              <span className="wb-mono wb-small">{report.id.slice(0, 12)}</span>
-              <Chip tone={report.verdict === "passed" ? "green" : report.verdict === "failed" ? "red" : "amber"}>
-                {report.verdict}
-              </Chip>
-              <span className="wb-small wb-muted-2">
-                {formatRelative(timestampToDate(report.createdAt))}
-              </span>
-            </div>
-            <div className="wb-stack tight" style={{ marginTop: 8 }}>
-              {report.results.slice(0, 8).map((result) => (
-                <div key={`${result.stage}:${result.subject}`} className="wb-checkrow">
-                  <span style={{ color: result.verdict === "passed" ? "var(--wb-green)" : "var(--wb-red)" }}>●</span>
-                  <span>{result.stage}</span>
-                  <b>{result.verdict}</b>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))
-      )}
-    </div>
-  );
-}
-
-function RelationshipsTab({ bundle }: { bundle: ComponentBundle }) {
-  const { t } = useTranslation();
-  const relationships = useQuery({
-    queryKey: ["wb", "relationships", bundle.asset.id],
-    queryFn: () => getAssetRelationships(bundle.asset.catalogId || bundle.asset.id),
-    staleTime: 60_000,
-    retry: 0,
-  });
-
-  if (relationships.isLoading) return <Skeleton height={100} />;
-  if (relationships.isError) {
-    return (
-      <Banner tone="amber" icon={<CircleAlert aria-hidden size={15} />}>
-        {t("workbench.component.relationshipsError", {
-          defaultValue: "The relationship owner did not return this asset's graph.",
-        })}
-      </Banner>
-    );
-  }
-  const data = relationships.data;
-  if (!data) {
-    return (
-      <Empty title={t("workbench.component.noRelationships", { defaultValue: "No relationships recorded" })}>
-        {t("workbench.component.noRelationshipsBody", {
-          defaultValue: "This asset has no declared dependencies or consumers in the catalog graph.",
-        })}
-      </Empty>
-    );
-  }
-  return (
-    <div className="wb-drawer-grid">
-      <div className="wb-stack tight">
-        <span className="wb-caption">{t("workbench.component.dependsOn", { defaultValue: "Depends on" })}</span>
-        {data.directDependencies.length === 0 ? (
-          <span className="wb-muted wb-small">{t("workbench.component.none", { defaultValue: "None" })}</span>
-        ) : (
-          data.directDependencies.map((node) => (
-            <div key={node.assetId} className="wb-row-between">
-              <span className="wb-small">{node.name}</span>
-              <span className="wb-tag">{node.rungName || node.kind}</span>
-            </div>
-          ))
-        )}
-      </div>
-      <div className="wb-stack tight">
-        <span className="wb-caption">
-          {t("workbench.component.consumers", {
-            defaultValue: "Consumers · {{count}}",
-            count: data.transitiveDependentCount,
-          })}
-        </span>
-        {data.directDependents.length === 0 ? (
-          <span className="wb-muted wb-small">{t("workbench.component.none", { defaultValue: "None" })}</span>
-        ) : (
-          data.directDependents.map((node) => (
-            <div key={node.assetId} className="wb-row-between">
-              <span className="wb-small">{node.name}</span>
-              <GitBranch aria-hidden size={12} style={{ color: "var(--wb-muted-2)" }} />
-            </div>
-          ))
-        )}
       </div>
     </div>
   );

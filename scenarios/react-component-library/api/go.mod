@@ -10,9 +10,11 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/stretchr/testify v1.12.1
+	github.com/vrooli/ai-go v0.0.0
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/platform-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
+	github.com/vrooli/searchregister-go v0.0.0-00010101000000-000000000000
 	github.com/vrooli/vrooli/packages/capability-registry-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	google.golang.org/protobuf v1.36.11
@@ -20,7 +22,10 @@ require (
 	modernc.org/sqlite v1.50.1
 )
 
-require go.yaml.in/yaml/v3 v3.0.5 // indirect
+require (
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
+	golang.org/x/sync v0.23.0 // indirect
+)
 
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260709200747-435963d16310.1 // indirect
@@ -57,3 +62,7 @@ replace github.com/vrooli/vrooli/packages/capability-registry-go => ../../../pac
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
 
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
+
+replace github.com/vrooli/ai-go => ../../../packages/ai-go
+
+replace github.com/vrooli/searchregister-go => ../../../packages/searchregister-go

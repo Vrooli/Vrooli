@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Per-component preview harness that executes real React inside an isolated iframe, wired via @vrooli/iframe-bridge.",
-    "last_validated_at": "2026-08-25T02:11:45-04:00",
+    "last_validated_at": "2026-11-22T11:37:51-05:00",
     "module": "live-preview-iframe-execution",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "PR-001",
       "title": "Per-component harness page renders the actual React component (not placeholder HTML)",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "preview",
       "criticality": "P0",
@@ -26,19 +26,19 @@
           "type": "test",
           "ref": "api/handlers/preview/module_test.go::TestModule_HarnessHTML",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Preview module tests prove the harness returns real same-origin HTML, inlines the bundled component module, includes runtime import maps, and posts preview-ready. TestModule_HarnessAcceptsLibraryID covers stable `libraryId` route IDs used by experience-component capture."
         }
       ]
     },
     {
       "id": "PR-002",
-      "title": "Reload-on-save: editor save triggers iframe NAV via the host bridge",
-      "status": "in_progress",
+      "title": "Reload-on-save: successful source save promotes a ready candidate iframe",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "preview",
       "criticality": "P0",
-      "description": "After the editor PUT succeeds, the UI invokes the host-side `@vrooli/iframe-bridge` NAV message to reload the harness. Warm reload latency target is \u003c 1s on a 50KB component on a developer-class machine.",
+      "description": "After the editor PUT succeeds, SourceWorkbench forwards a changed saved digest. ComponentPage passes the source path and digest as the FixtureFrame revision; FixtureFrame probes a hidden candidate and promotes it only after the harness posts identity-correlated preview-ready. Warm reload latency target is \u003c 1s on a 50KB component on a developer-class machine. The measured lifecycle begins after the successful save response and ends after candidate promotion.",
       "tags": [
         "preview",
         "iframe-bridge"
@@ -46,10 +46,31 @@
       "validation": [
         {
           "type": "test",
-          "ref": "ui/src/features/components/ComponentEditor.test.tsx::reloads the iframe when save returns a new sha256",
+          "ref": "ui/src/workbench/component/SourceWorkbench.test.tsx::saves with the read digest, then checks and publishes the draft",
           "phase": "unit",
-          "status": "failing",
-          "notes": "The editor iframe URL includes the returned sha/retry key as a cache-buster; saves that change content force a new harness navigation."
+          "status": "implemented",
+          "notes": "The editor forwards a changed saved SHA to the workbench only after the write succeeds. Separate source-workbench cases verify unchanged SHA does not trigger a preview revision and failed saves leave the callback untouched until retry succeeds."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/workbench/component/FixtureFrame.test.tsx::keeps the last ready specimen on a failed saved-source reload and recovers atomically",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The fixture URL cache key includes the saved source revision. Reloads are staged in a hidden candidate iframe; failed probes preserve the active specimen, and recovery promotes the candidate only after preview-ready. Warm reload measurement is recorded in requirements/03-live-preview-iframe-execution/evidence/PR-002-warm-reload-2026-11-21.json; authenticated BAS capture evidence remains separate."
+        },
+        {
+          "type": "test",
+          "ref": "tools/bench-preview-reload.py",
+          "phase": "performance",
+          "status": "implemented",
+          "notes": "Benchmark entry point; disposable runtime and temporary storage ensure the measured reload path cannot modify component or scenario source data."
+        },
+        {
+          "type": "test",
+          "ref": "requirements/03-live-preview-iframe-execution/evidence/PR-002-warm-reload-2026-11-21.json",
+          "phase": "performance",
+          "status": "implemented",
+          "notes": "Ran 5 warmups and 30 measured reloads using an exact 51,200-byte disposable source in a temporary root and SQLite database. The benchmark uses the production preview handler, esbuild bundler, runtime handler, and FixtureFrame; the save PUT is acknowledged in memory and does not write to the library or scenario API. Linux 7.0.0-30-generic x86_64, 32 logical CPUs, Python 3.12.3, Node 24.22.3, Chrome 150.0.7871.128: p50 233.2 ms, p95 250.2 ms, max 283.0 ms. The \u003c1s target passed. This is latency evidence only, not BAS capture evidence."
         }
       ]
     },

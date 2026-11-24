@@ -1,20 +1,14 @@
 import { useState } from "react";
-import { Check, CircleAlert, Copy, Play, RefreshCw, Sparkles } from "lucide-react";
+import { Check, Copy, Play, RefreshCw, Sparkles } from "lucide-react";
+import { CommandButton } from "@vrooli/react-component-library/CommandButton/1.0.9";
+import { ErrorState } from "@vrooli/react-component-library/ErrorState/1.1.3";
+import { HealthIndicator } from "@vrooli/react-component-library/HealthIndicator/1.0.5";
+import { StatusIndicator } from "@vrooli/react-component-library/StatusIndicator/1.0.5";
+import { Tooltip, TooltipParts } from "@vrooli/react-component-library/Tooltip/1.0.8";
 
 import { useTranslation } from "../../i18n";
 import { formatRelative, useCapabilities } from "../data";
-import {
-  Banner,
-  Chip,
-  Dot,
-  Empty,
-  Kpi,
-  Panel,
-  PanelBody,
-  PanelHead,
-  Skeleton,
-  WbButton,
-} from "../primitives";
+import { Chip, Empty, Kpi, Panel, PanelBody, PanelHead, Skeleton, WbButton } from "../primitives";
 
 export function CapabilitiesPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
@@ -26,6 +20,8 @@ export function CapabilitiesPage({ embedded = false }: { embedded?: boolean } = 
   const degraded = states.filter((state) => state.status === "degraded").length;
   const unavailable = states.filter((state) => state.status === "unavailable").length;
   const checked = states[0]?.checkedAt ? new Date(states[0].checkedAt) : undefined;
+  const overallHealth =
+    unavailable > 0 ? "blocked" : degraded > 0 ? "degraded" : states.length ? "healthy" : "unknown";
 
   const copy = async (command: string) => {
     try {
@@ -55,36 +51,43 @@ export function CapabilitiesPage({ embedded = false }: { embedded?: boolean } = 
           </p>
         </div>
         <div className="wb-actions">
+          <HealthIndicator state={overallHealth} />
           <Chip tone={unavailable > 0 ? "amber" : "green"}>
             {t("workbench.capabilities.checked", {
               defaultValue: "Checked {{age}}",
               age: formatRelative(checked),
             })}
           </Chip>
-          <WbButton
+          <CommandButton
             variant="ghost"
             size="md"
-            onClick={() => void capabilities.refetch()}
+            action={async () => {
+              await capabilities.refetch({ throwOnError: true });
+            }}
             disabled={capabilities.isFetching}
+            pendingLabel={t("workbench.capabilities.checking", { defaultValue: "Checking…" })}
+            successLabel={t("workbench.capabilities.checkedNow", { defaultValue: "Up to date" })}
+            errorLabel={t("workbench.capabilities.checkFailed", { defaultValue: "Check failed" })}
           >
             <RefreshCw aria-hidden size={14} />
             {t("workbench.capabilities.refresh", { defaultValue: "Re-check" })}
-          </WbButton>
+          </CommandButton>
         </div>
       </div>
 
       {capabilities.isError ? (
-        <Banner tone="red" icon={<CircleAlert aria-hidden size={16} />}>
-          <b>
-            {t("workbench.capabilities.errorTitle", {
-              defaultValue: "The capability registry did not answer.",
-            })}
-          </b>{" "}
-          {t("workbench.capabilities.errorBody", {
+        <ErrorState
+          title={t("workbench.capabilities.errorTitle", {
+            defaultValue: "The capability registry did not answer.",
+          })}
+          message={t("workbench.capabilities.errorBody", {
             defaultValue:
               "Recovery commands cannot be shown without the registry; nothing is assumed available.",
           })}
-        </Banner>
+          onRetry={async () => {
+            await capabilities.refetch();
+          }}
+        />
       ) : null}
 
       <div className="wb-kpis">
@@ -152,26 +155,33 @@ export function CapabilitiesPage({ embedded = false }: { embedded?: boolean } = 
               />
               <PanelBody>
                 <div className="wb-row" style={{ flexWrap: "wrap", marginBottom: 10 }}>
-                  <Chip
-                    tone={
-                      state.status === "available"
-                        ? "green"
-                        : state.status === "degraded"
-                          ? "amber"
-                          : "red"
-                    }
-                  >
-                    <Dot
-                      tone={
-                        state.status === "available"
-                          ? "green"
-                          : state.status === "degraded"
-                            ? "amber"
-                            : "red"
-                      }
-                    />
-                    {state.status}
-                  </Chip>
+                  <Tooltip>
+                    <TooltipParts.Trigger asChild>
+                      <button
+                        type="button"
+                        style={{
+                          border: 0,
+                          padding: 0,
+                          background: "transparent",
+                          color: "inherit",
+                          cursor: "help",
+                        }}
+                      >
+                        <StatusIndicator
+                          status={
+                            state.status === "available"
+                              ? "success"
+                              : state.status === "degraded"
+                                ? "pending"
+                                : "offline"
+                          }
+                          label={state.status}
+                          urgency={state.status === "unavailable" ? "actionable" : "informational"}
+                        />
+                      </button>
+                    </TooltipParts.Trigger>
+                    <TooltipParts.Content>{state.message}</TooltipParts.Content>
+                  </Tooltip>
                   {state.required ? (
                     <Chip tone="ice">
                       {t("workbench.capabilities.required", { defaultValue: "required" })}

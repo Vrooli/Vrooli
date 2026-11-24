@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -107,7 +108,7 @@ func interactiveElements(source string) []string {
 // TypeScript/ESLint boundary has executed successfully.
 func validateTypes(root string, assets []string) (Result, error) {
 	uiDir := filepath.Join(root, "scenarios", "react-component-library", "ui")
-	if _, err := os.Stat(filepath.Join(uiDir, "package.json")); err != nil {
+	if _, err := rootedRepoStat(root, filepath.Join(uiDir, "package.json")); err != nil {
 		if os.IsNotExist(err) {
 			return Result{Findings: []Finding{{
 				Code:        "catalog.types_zero_inputs",
@@ -135,7 +136,14 @@ func validateTypes(root string, assets []string) (Result, error) {
 	}
 	reportPath := reportFile.Name()
 	_ = reportFile.Close()
-	defer func() { _ = os.Remove(reportPath) }()
+	defer func() {
+		tempRoot, err := os.OpenRoot(os.TempDir())
+		if err != nil {
+			return
+		}
+		defer tempRoot.Close()
+		_ = tempRoot.Remove(filepath.Base(reportPath))
+	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
@@ -231,7 +239,7 @@ func catalogScopeNames(root string, assets []string) []string {
 	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
 		manifests, _ := librarywalk.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
 		for _, manifest := range manifests {
-			data, err := os.ReadFile(manifest)
+			data, err := rootedRepoReadFile(root, manifest)
 			if err != nil {
 				continue
 			}
@@ -251,6 +259,56 @@ func catalogScopeNames(root string, assets []string) []string {
 		return append([]string(nil), assets...)
 	}
 	return names
+}
+
+// rootedRepoPath translates a path produced from the caller's repository root
+// into the only form accepted by os.Root. Keeping this boundary here ensures
+// catalog metadata reads cannot follow a replaced symlink outside the repo.
+func rootedRepoPath(root, path string) (string, error) {
+	root, err := filepath.Abs(root)
+	if err != nil {
+		return "", err
+	}
+	path, err = filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	relative, err := filepath.Rel(root, path)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("path %q is outside repository root %q", path, root)
+	}
+	return filepath.ToSlash(relative), nil
+}
+
+func rootedRepoReadFile(root, path string) ([]byte, error) {
+	relative, err := rootedRepoPath(root, path)
+	if err != nil {
+		return nil, err
+	}
+	fsRoot, err := os.OpenRoot(root)
+	if err != nil {
+		return nil, err
+	}
+	defer fsRoot.Close()
+	file, err := fsRoot.Open(relative)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	return io.ReadAll(file)
+}
+
+func rootedRepoStat(root, path string) (os.FileInfo, error) {
+	relative, err := rootedRepoPath(root, path)
+	if err != nil {
+		return nil, err
+	}
+	fsRoot, err := os.OpenRoot(root)
+	if err != nil {
+		return nil, err
+	}
+	defer fsRoot.Close()
+	return fsRoot.Stat(relative)
 }
 
 // inspectedFromReport reads the file count the conformance script actually

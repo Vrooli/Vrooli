@@ -61,6 +61,11 @@ var Endpoints = []module.EndpointDescriptor{
 		RESTException: &module.RESTException{
 			Reason: module.RESTReasonBrowserSurface,
 			Note:   "The workbench shell fetches a small UI projection with a plain GET; the aggregate is owned and served by Brand Manager over Connect-RPC.",
+			ProtoPayloads: &module.RESTProtoPayloads{
+				Request:  module.RESTPayload{Transport: "none", Conformance: "none"},
+				Response: module.RESTPayload{Transport: "json", Conformance: "external_shape"},
+				Error:    module.RESTPayload{ProtoFullName: "vrooli.react_component_library.v1.errors.ErrorEnvelope", Transport: "json", Conformance: "protojson"},
+			},
 		},
 	},
 }

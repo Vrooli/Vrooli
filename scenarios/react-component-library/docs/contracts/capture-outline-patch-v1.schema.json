@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.local/schemas/rcl-capture-outline-patch-v1.schema.json",
+  "title": "RCL capture outline patch v1",
+  "description": "A bounded RCL composition edit bound to one captured outline region, source capture, and base revision.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "patch_id", "source", "target", "preview", "composition"],
+  "properties": {
+    "schema": { "const": "rcl.capture-outline-patch/v1" },
+    "patch_id": { "$ref": "#/$defs/id" },
+    "source": { "$ref": "#/$defs/source" },
+    "target": { "$ref": "#/$defs/target" },
+    "preview": { "$ref": "#/$defs/preview" },
+    "composition": { "$ref": "#/$defs/composition" }
+  },
+  "$defs": {
+    "id": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$" },
+    "component": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))[A-Za-z0-9][A-Za-z0-9._:@/-]*$" },
+    "digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "path": { "type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))[A-Za-z0-9._~!$&'()*+,;=@%/-]+$" },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": { "path": { "$ref": "#/$defs/path" }, "sha256": { "$ref": "#/$defs/digest" } }
+    },
+    "viewport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height"],
+      "properties": {
+        "width": { "type": "integer", "minimum": 1, "maximum": 10000 },
+        "height": { "type": "integer", "minimum": 1, "maximum": 10000 }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "scenario", "build_id", "route", "state_id", "data_id", "viewport", "image", "outline"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "scenario": { "$ref": "#/$defs/id" },
+        "build_id": { "$ref": "#/$defs/id" },
+        "route": { "type": "string", "minLength": 1, "maxLength": 1024, "pattern": "^/[A-Za-z0-9._~!$&'()*+,;=:@%/-]*$" },
+        "state_id": { "$ref": "#/$defs/id" },
+        "data_id": { "$ref": "#/$defs/id" },
+        "viewport": { "$ref": "#/$defs/viewport" },
+        "image": { "$ref": "#/$defs/evidence" },
+        "outline": { "$ref": "#/$defs/evidence" }
+      }
+    },
+    "preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "scenario", "build_id", "route", "state_id", "data_id", "viewport", "fidelity", "image"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "scenario": { "$ref": "#/$defs/id" },
+        "build_id": { "$ref": "#/$defs/id" },
+        "route": { "type": "string", "minLength": 1, "maxLength": 1024, "pattern": "^/[A-Za-z0-9._~!$&'()*+,;=:@%/-]*$" },
+        "state_id": { "$ref": "#/$defs/id" },
+        "data_id": { "$ref": "#/$defs/id" },
+        "viewport": { "$ref": "#/$defs/viewport" },
+        "fidelity": { "enum": ["composited", "rendered"] },
+        "image": { "$ref": "#/$defs/evidence" }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["region_id", "outline_node_id", "design_frame_id", "design_node_ids", "bounds"],
+      "properties": {
+        "region_id": { "$ref": "#/$defs/id" },
+        "outline_node_id": { "$ref": "#/$defs/id" },
+        "design_frame_id": { "$ref": "#/$defs/id" },
+        "design_node_ids": { "type": "array", "minItems": 1, "maxItems": 500, "uniqueItems": true, "items": { "$ref": "#/$defs/id" } },
+        "component_identity": { "$ref": "#/$defs/component" },
+        "bounds": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["x", "y", "width", "height"],
+          "properties": {
+            "x": { "type": "number", "minimum": 0, "maximum": 1 },
+            "y": { "type": "number", "minimum": 0, "maximum": 1 },
+            "width": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+            "height": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }
+          }
+        }
+      }
+    },
+    "operation": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false, "required": ["kind", "nodeId", "text"],
+          "properties": { "kind": { "const": "setText" }, "nodeId": { "$ref": "#/$defs/id" }, "text": { "type": "string", "maxLength": 2000 } }
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["kind", "nodeId", "key", "value"],
+          "properties": { "kind": { "const": "setProp" }, "nodeId": { "$ref": "#/$defs/id" }, "key": { "type": "string", "minLength": 1, "maxLength": 40 }, "value": { "type": ["string", "number", "boolean"] } }
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["kind", "parentId", "node"],
+          "properties": { "kind": { "const": "addLayer" }, "parentId": { "$ref": "#/$defs/id" }, "node": { "type": "object" } }
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["kind", "nodeId"],
+          "properties": { "kind": { "const": "removeLayer" }, "nodeId": { "$ref": "#/$defs/id" } }
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["kind", "nodeId", "parentId"],
+          "properties": { "kind": { "const": "moveLayer" }, "nodeId": { "$ref": "#/$defs/id" }, "parentId": { "$ref": "#/$defs/id" }, "index": { "type": "integer", "minimum": 0 } }
+        }
+      ]
+    },
+    "composition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["design_id", "base_revision", "operation_id", "summary", "operations"],
+      "properties": {
+        "design_id": { "$ref": "#/$defs/id" },
+        "base_revision": { "type": "integer", "minimum": 0 },
+        "operation_id": { "$ref": "#/$defs/id" },
+        "summary": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "operations": { "type": "array", "minItems": 1, "maxItems": 8, "items": { "$ref": "#/$defs/operation" } }
+      }
+    }
+  }
+}

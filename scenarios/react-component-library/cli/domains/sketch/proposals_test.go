@@ -7,21 +7,24 @@ import (
 	"sync"
 	"testing"
 
+	sketchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/sketch"
+
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliapptest"
-	previewv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/preview"
-	sketchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/sketch"
-	sketchconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/sketch/sketch_v1connect"
+	experienceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/experience/experience_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/shared"
+	workspaceassistconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/workspaceassist/workspaceassist_v1connect"
+	workspacecandidateconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/workspacecandidate/workspacecandidate_v1connect"
 )
 
 type proposalServer struct {
-	accepted       *sketchv1.AcceptCandidateRequest
-	acceptanceRead *sketchv1.GetAcceptanceRequest
-	sketchconnect.UnimplementedSketchServiceHandler
+	workspaceassistconnect.UnimplementedWorkspaceAssistServiceHandler
+	workspacecandidateconnect.UnimplementedWorkspaceCandidateServiceHandler
+	experienceconnect.UnimplementedExperienceServiceHandler
 	mu               sync.Mutex
-	proposed         *sketchv1.ProposeSketchRequest
+	proposed         *sharedv1.ProposeSketchRequest
 	inferred         *sketchv1.InferSketchRequest
 	recovered        *sketchv1.GetSketchInferenceRequest
 	gets, dispatches int
@@ -34,11 +37,11 @@ func (s *proposalServer) GetSketch(context.Context, *connect.Request[sketchv1.Ge
 	return connect.NewResponse(&sketchv1.GetSketchResponse{ContentHash: "current-revision"}), nil
 }
 
-func (s *proposalServer) ProposeSketch(_ context.Context, r *connect.Request[sketchv1.ProposeSketchRequest]) (*connect.Response[sketchv1.ProposeSketchResponse], error) {
+func (s *proposalServer) ProposeSketch(_ context.Context, r *connect.Request[sharedv1.ProposeSketchRequest]) (*connect.Response[sharedv1.ProposeSketchResponse], error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.proposed = r.Msg
-	return connect.NewResponse(&sketchv1.ProposeSketchResponse{ContentHash: r.Msg.ExpectedContentHash, RetrievalMode: "lexical"}), nil
+	return connect.NewResponse(&sharedv1.ProposeSketchResponse{ContentHash: r.Msg.ExpectedContentHash, RetrievalMode: "lexical"}), nil
 }
 
 func (s *proposalServer) InferSketch(_ context.Context, r *connect.Request[sketchv1.InferSketchRequest]) (*connect.Response[sketchv1.SketchInferenceOperation], error) {
@@ -58,9 +61,13 @@ func (s *proposalServer) GetSketchInference(_ context.Context, r *connect.Reques
 
 func proposalCommands(t *testing.T, s *proposalServer) (*cliapp.ScenarioApp, []cliapp.SubcommandGroup) {
 	t.Helper()
-	path, handler := sketchconnect.NewSketchServiceHandler(s)
+	assistPath, assistHandler := workspaceassistconnect.NewWorkspaceAssistServiceHandler(s)
+	candidatePath, candidateHandler := workspacecandidateconnect.NewWorkspaceCandidateServiceHandler(s)
+	experiencePath, experienceHandler := experienceconnect.NewExperienceServiceHandler(s)
 	mux := http.NewServeMux()
-	mux.Handle(path, handler)
+	mux.Handle(assistPath, assistHandler)
+	mux.Handle(candidatePath, candidateHandler)
+	mux.Handle(experiencePath, experienceHandler)
 	core := cliapptest.NewTestApp(t, mux)
 	manifest, err := os.ReadFile("../../manifest.json")
 	require.NoError(t, err)
@@ -101,42 +108,8 @@ func TestInferErrorProvidesRecoveryWithoutRepeatingDispatch(t *testing.T) {
 	require.Equal(t, 1, s.dispatches)
 }
 
-func (s *proposalServer) AcceptCandidate(_ context.Context, r *connect.Request[sketchv1.AcceptCandidateRequest]) (*connect.Response[sketchv1.AcceptanceDecision], error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.accepted = r.Msg
-	return connect.NewResponse(&sketchv1.AcceptanceDecision{Id: "acceptance-one", State: "needs_evidence"}), nil
-}
-
-func (s *proposalServer) GetAcceptance(_ context.Context, r *connect.Request[sketchv1.GetAcceptanceRequest]) (*connect.Response[sketchv1.AcceptanceDecision], error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.acceptanceRead = r.Msg
-	return connect.NewResponse(&sketchv1.AcceptanceDecision{Id: r.Msg.Id, State: "needs_evidence"}), nil
-}
-
-func TestAcceptanceCommandPreservesExactInputsAndSupportsReadOnlyRecovery(t *testing.T) {
-	s := &proposalServer{}
-	core, groups := proposalCommands(t, s)
-	out, err := cliapptest.RunCommand(t, cliapptest.FindCommand(t, groups, "sketch", "accept"), core, "--scenario", "demo", "--design", "home", "--candidate", "candidate-hash", "--render-hash", "render-hash", "--actor", "test-agent", "--key", "stable-key", "--critique", "review-one", "--critique", "review-two", "--state", "detail", "--json")
-	require.NoError(t, err)
-	require.Contains(t, out, "needs_evidence")
-	require.Equal(t, "stable-key", s.accepted.IdempotencyKey)
-	require.Equal(t, "test-agent", s.accepted.Actor)
-	require.Equal(t, "render-hash", s.accepted.Check.ExpectedRenderHash)
-	require.Equal(t, []string{"review-one", "review-two"}, s.accepted.Check.CritiqueIds)
-	require.Equal(t, "detail", s.accepted.Check.Render.PreviewState)
-	require.Equal(t, "vrooli-default", s.accepted.Check.Render.Kit)
-	out, err = cliapptest.RunCommand(t, cliapptest.FindCommand(t, groups, "sketch", "acceptance"), core, "--scenario", "demo", "--design", "home", "--id", "acceptance-one", "--json")
-	require.NoError(t, err)
-	require.Contains(t, out, "needs_evidence")
-	require.Equal(t, "acceptance-one", s.acceptanceRead.Id)
-	require.Zero(t, s.gets)
-	require.Zero(t, s.dispatches)
-}
-
-func (s *proposalServer) RenderCandidate(_ context.Context, r *connect.Request[sketchv1.RenderCandidateRequest]) (*connect.Response[previewv1.RenderCompositionResponse], error) {
-	return connect.NewResponse(&previewv1.RenderCompositionResponse{RenderHash: "rendered-" + r.Msg.Candidate.Hash}), nil
+func (s *proposalServer) RenderCandidate(_ context.Context, r *connect.Request[sharedv1.RenderCandidateRequest]) (*connect.Response[sharedv1.RenderCompositionResponse], error) {
+	return connect.NewResponse(&sharedv1.RenderCompositionResponse{RenderHash: "rendered-" + r.Msg.Candidate.Hash}), nil
 }
 
 func TestCandidateRenderCommandDoesNotRequireAcceptanceFlags(t *testing.T) {

@@ -17,18 +17,9 @@ vi.mock("../data", async (importOriginal) => {
   };
 });
 
-vi.mock("../designs", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../designs")>();
-  return {
-    ...actual,
-    listDesigns: vi.fn(),
-  };
-});
-
 import App from "../../App";
 import type { CapabilityDescription, ListNextWorkResponse } from "../../api/catalog";
 import * as data from "../data";
-import * as designs from "../designs";
 import { LibraryPage } from "./LibraryPage";
 
 function queryResult<T>(value: T | undefined): UseQueryResult<T> {
@@ -73,7 +64,6 @@ describe("LibraryPage", () => {
     vi.mocked(data.useDesignScenarios).mockReturnValue(queryResult([]));
     vi.mocked(data.useNextWork).mockReturnValue(queryResult<ListNextWorkResponse>(undefined));
     vi.mocked(data.useDesignPages).mockReturnValue(queryResult([]));
-    vi.mocked(designs.listDesigns).mockResolvedValue([]);
   });
 
   afterEach(() => {

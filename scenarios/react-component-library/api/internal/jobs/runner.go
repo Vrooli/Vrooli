@@ -3,19 +3,15 @@ package jobs
 
 import (
 	"context"
-	"database/sql"
 	"sync"
 )
 
-// Runner serializes heavyweight catalog jobs. The database is retained here
-// as the job-owned handle so future job implementations cannot accidentally
-// fall back to the serving pool.
+// Runner serializes heavyweight catalog jobs.
 type Runner struct {
-	db  *sql.DB
 	sem chan struct{}
 }
 
-func New(db *sql.DB) *Runner { return &Runner{db: db, sem: make(chan struct{}, 1)} }
+func New() *Runner { return &Runner{sem: make(chan struct{}, 1)} }
 
 // Acquire admits one matrix and honors cancellation while waiting. Callers
 // must pair a successful Acquire with Release.
@@ -35,13 +31,6 @@ func (r *Runner) Release() {
 	if r != nil {
 		<-r.sem
 	}
-}
-
-func (r *Runner) Database() *sql.DB {
-	if r == nil {
-		return nil
-	}
-	return r.db
 }
 
 // RunMatrix admits one bounded matrix and runs its indexes with a small

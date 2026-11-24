@@ -5,9 +5,10 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/vrooli/api-core/storage"
 )
 
 const maxReferenceAssetBytes int64 = 20 << 20
@@ -38,11 +39,11 @@ func SaveReferenceAsset(root, scenario, page, filename, mime string, src io.Read
 	}
 	storedName = id + ext
 	dir := filepath.Join(root, "scenarios", scenario, "data", "experience", "reference-assets", page)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
+	if err := storage.EnsureDirectory(dir, 0o700); err != nil {
 		return "", "", 0, err
 	}
 	path := filepath.Join(dir, storedName)
-	if err := os.WriteFile(path, data, 0o600); err != nil {
+	if err := storage.WriteFileAtomic(path, data, 0o600); err != nil {
 		return "", "", 0, err
 	}
 	return id, storedName, int64(len(data)), nil

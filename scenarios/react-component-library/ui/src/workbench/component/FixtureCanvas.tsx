@@ -15,6 +15,7 @@ export interface FixtureCanvasProps {
   asset: CatalogAsset;
   stories: WorkbenchStory[];
   version: string;
+  sourceRevision?: string;
   selectedId: string | null;
   onSelect: (story: WorkbenchStory) => void;
   positions: Record<string, FixturePosition>;
@@ -33,6 +34,7 @@ export function FixtureCanvas({
   asset,
   stories,
   version,
+  sourceRevision = "",
   selectedId,
   onSelect,
   positions,
@@ -176,6 +178,7 @@ export function FixtureCanvas({
                   assetId={asset.id}
                   storyId={story.id}
                   version={version}
+                  sourceRevision={sourceRevision}
                   override={overrides[story.id] ?? null}
                   reloadKey={reloads[story.id] ?? 0}
                   height={220}

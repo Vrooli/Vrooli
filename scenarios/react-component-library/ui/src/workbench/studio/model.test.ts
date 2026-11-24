@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { DesignDocument } from "../designs";
+import type { DesignDocument } from "../design-types";
 import { DEFAULT_TEMPLATE } from "../templates/library";
 import { node } from "../templates/spec";
 import {

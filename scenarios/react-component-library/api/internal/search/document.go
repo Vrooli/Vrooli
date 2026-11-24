@@ -31,6 +31,7 @@ type Document struct {
 	Badges       []string
 	Relations    []string
 	UpdatedAt    time.Time
+	Catalog      *CatalogMetadata
 }
 
 // DocumentID is the canonical projection id for one subject. It is what
@@ -106,6 +107,10 @@ func normalizeDocuments(docs []Document, now time.Time) ([]Document, error) {
 		doc.SubjectID = subject
 		doc.Title = title
 		doc.UpdatedAt = updated.UTC()
+		if doc.Catalog != nil {
+			catalog := *doc.Catalog
+			doc.Catalog = &catalog
+		}
 		if doc.Availability == searchv1.SearchAvailability_SEARCH_AVAILABILITY_UNSPECIFIED {
 			doc.Availability = searchv1.SearchAvailability_SEARCH_AVAILABILITY_AVAILABLE
 		}
@@ -117,6 +122,9 @@ func normalizeDocuments(docs []Document, now time.Time) ([]Document, error) {
 // writeDocuments is the single writer shared by Reindex and ReplaceDocuments.
 // The caller owns the transaction so the index swap is atomic.
 func writeDocuments(ctx context.Context, tx *sql.Tx, docs []Document, now time.Time, warnings string) error {
+	if err := ensureCatalogColumn(ctx, tx); err != nil {
+		return err
+	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM search_fts`); err != nil {
 		return fmt.Errorf("clear search_fts: %w", err)
 	}
@@ -125,8 +133,8 @@ func writeDocuments(ctx context.Context, tx *sql.Tx, docs []Document, now time.T
 	}
 	docStmt, err := tx.PrepareContext(ctx, `
 		INSERT INTO search_docs
-			(id, kind, subject_id, title, subtitle, body, href, availability, badges_json, relations_json, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+			(id, kind, subject_id, title, subtitle, body, href, availability, badges_json, relations_json, updated_at, catalog_json)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return fmt.Errorf("prepare search_docs insert: %w", err)
 	}
@@ -148,10 +156,18 @@ func writeDocuments(ctx context.Context, tx *sql.Tx, docs []Document, now time.T
 		if err != nil {
 			return fmt.Errorf("encode relations for %s: %w", doc.ID, err)
 		}
+		catalog := "{}"
+		if doc.Catalog != nil {
+			encoded, err := json.Marshal(doc.Catalog)
+			if err != nil {
+				return fmt.Errorf("encode catalog metadata for %s: %w", doc.ID, err)
+			}
+			catalog = string(encoded)
+		}
 		if _, err := docStmt.ExecContext(ctx,
 			doc.ID, kind, doc.SubjectID, doc.Title, doc.Subtitle, doc.Body, doc.Href,
 			AvailabilityText(doc.Availability), badges, relations,
-			doc.UpdatedAt.UTC().Format(time.RFC3339Nano),
+			doc.UpdatedAt.UTC().Format(time.RFC3339Nano), catalog,
 		); err != nil {
 			return fmt.Errorf("insert search document %s: %w", doc.ID, err)
 		}
@@ -169,6 +185,40 @@ func writeDocuments(ctx context.Context, tx *sql.Tx, docs []Document, now time.T
 		if err := setState(ctx, tx, key, value); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func ensureCatalogColumn(ctx context.Context, tx *sql.Tx) error {
+	rows, err := tx.QueryContext(ctx, `PRAGMA table_info(search_docs)`)
+	if err != nil {
+		return fmt.Errorf("inspect search_docs schema: %w", err)
+	}
+	hasCatalog := false
+	for rows.Next() {
+		var cid, notNull, primary int
+		var name, kind string
+		var defaultValue sql.NullString
+		if err := rows.Scan(&cid, &name, &kind, &notNull, &defaultValue, &primary); err != nil {
+			rows.Close()
+			return fmt.Errorf("scan search_docs schema: %w", err)
+		}
+		if name == "catalog_json" {
+			hasCatalog = true
+		}
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return fmt.Errorf("read search_docs schema: %w", err)
+	}
+	if err := rows.Close(); err != nil {
+		return fmt.Errorf("close search_docs schema: %w", err)
+	}
+	if hasCatalog {
+		return nil
+	}
+	if _, err := tx.ExecContext(ctx, `ALTER TABLE search_docs ADD COLUMN catalog_json TEXT NOT NULL DEFAULT '{}'`); err != nil {
+		return fmt.Errorf("add catalog metadata to search_docs: %w", err)
 	}
 	return nil
 }
@@ -237,4 +287,15 @@ var (
 	ErrNotConfigured = errors.New("search service is not configured")
 	// ErrIndexNotInitialized means the projection tables do not exist yet.
 	ErrIndexNotInitialized = errors.New("search index is not initialized")
+	// ErrAskUnavailable means explicit Ask mode has no answering provider wired.
+	// It prevents an Ask request from being silently answered as lexical search.
+	ErrAskUnavailable = errors.New("ask search is not configured")
+	// ErrAskInvalidQuery means the caller's question is outside the Ask contract.
+	ErrAskInvalidQuery = errors.New("ask question is invalid")
+	// ErrAskProviderUnavailable means an answering provider is configured but
+	// could not be reached or did not return a usable Gateway response.
+	ErrAskProviderUnavailable = errors.New("ask provider is unavailable")
+	// ErrAskInvalidAnswer means the model response could not be safely tied to
+	// the exact indexed evidence supplied for the request.
+	ErrAskInvalidAnswer = errors.New("ask answer is invalid")
 )

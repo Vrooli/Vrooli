@@ -54,6 +54,27 @@ func TestReadinessRunPrefersManifestIdentityOverStaleFindings(t *testing.T) {
 	}
 }
 
+func TestReadinessRunUsesIndexWhenManifestOmitsStartTime(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("VROOLI_STORAGE_ROOT", root)
+	dir := filepath.Join(root, "state", "vrooli", "react-component-library", "gates", "latest")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "manifest.json"), []byte(`{"run_id":"run-current","completed_at":"2026-08-26T12:01:00Z"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	index := `[{"run_id":"run-previous","started_at":"2026-08-25T12:00:00Z"},{"run_id":"run-current","started_at":"2026-08-26T11:55:00Z"}]`
+	if err := os.WriteFile(filepath.Join(root, "state", "vrooli", "react-component-library", "gates", "runs.index.json"), []byte(index), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	run := readinessRun(root)
+	if run.GetRunId() != "run-current" || run.GetStartedAt() != "2026-08-26T11:55:00Z" {
+		t.Fatalf("readiness run = %+v, want matching index start time", run)
+	}
+}
+
 func TestReadinessUsesMaturityAndBlastRadius(t *testing.T) {
 	report := &catalogcoverage.Report{
 		Rows: []catalogcoverage.Row{

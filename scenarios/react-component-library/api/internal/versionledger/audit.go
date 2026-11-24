@@ -1,6 +1,7 @@
 package versionledger
 
 import (
+	"context"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -10,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/vrooli/api-core/storage"
 	"react-component-library/internal/components"
 )
 
@@ -48,10 +50,17 @@ type LedgerRepairOptions struct {
 	PruneMissing bool
 }
 
+// AuditDatabase is the query capability needed to verify the durable mirror.
+// *sql.DB and api-core RoutedDB both implement it; RoutedDB selects a pool from
+// the supplied context.
+type AuditDatabase interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
 // AuditReleaseHashLedger checks authored-source entries without changing the
 // ledger or the working tree. root is the repository root.
 func AuditReleaseHashLedger(root string) (LedgerAudit, error) {
-	return auditReleaseHashLedger(root, nil)
+	return auditReleaseHashLedger(context.Background(), root, nil)
 }
 
 // AuditReleaseHashLedgerWithDatabase also verifies intentionally evicted
@@ -59,13 +68,24 @@ func AuditReleaseHashLedger(root string) (LedgerAudit, error) {
 // absent from the authored tree by design, so treating its source path as an
 // ordinary missing file would turn a successful retention operation into a
 // false ledger defect.
-func AuditReleaseHashLedgerWithDatabase(root string, db *sql.DB) (LedgerAudit, error) {
-	return auditReleaseHashLedger(root, db)
+func AuditReleaseHashLedgerWithDatabase(root string, db AuditDatabase) (LedgerAudit, error) {
+	return AuditReleaseHashLedgerWithDatabaseContext(context.Background(), root, db)
 }
 
-func auditReleaseHashLedger(root string, db *sql.DB) (LedgerAudit, error) {
-	ledgerPath := filepath.Join(root, "scenarios", "react-component-library", "library", "released-version-hashes.json")
-	data, err := os.ReadFile(ledgerPath)
+// AuditReleaseHashLedgerWithDatabaseContext preserves request-time routing when
+// db is api-core RoutedDB.
+func AuditReleaseHashLedgerWithDatabaseContext(ctx context.Context, root string, db AuditDatabase) (LedgerAudit, error) {
+	return auditReleaseHashLedger(ctx, root, db)
+}
+
+func auditReleaseHashLedger(ctx context.Context, root string, db AuditDatabase) (LedgerAudit, error) {
+	fsRoot, err := os.OpenRoot(root)
+	if err != nil {
+		return LedgerAudit{}, fmt.Errorf("open repository root: %w", err)
+	}
+	defer fsRoot.Close()
+	ledgerPath := filepath.Join("scenarios", "react-component-library", "library", "released-version-hashes.json")
+	data, err := fsRoot.ReadFile(ledgerPath)
 	if err != nil {
 		return LedgerAudit{}, fmt.Errorf("read release hash ledger: %w", err)
 	}
@@ -84,21 +104,25 @@ func auditReleaseHashLedger(root string, db *sql.DB) (LedgerAudit, error) {
 			continue
 		}
 		result := LedgerAuditEntry{Path: filepath.ToSlash(entry.Path), Asset: ledgerAsset(entry.Path)}
-		path := filepath.Join(root, "scenarios", "react-component-library", "library", filepath.FromSlash(entry.Path))
-		raw, readErr := os.ReadFile(path)
+		relative, pathErr := sourceRelativePath(entry.Path)
+		if pathErr != nil {
+			return LedgerAudit{}, fmt.Errorf("invalid release hash path %q: %w", entry.Path, pathErr)
+		}
+		path := filepath.Join("scenarios", "react-component-library", "library", relative)
+		raw, readErr := fsRoot.ReadFile(path)
 		if readErr != nil {
 			if db != nil {
-				status, found, statusErr := ledgerVersionStatus(db, entry.Path)
+				status, found, statusErr := ledgerVersionStatus(ctx, db, entry.Path)
 				if statusErr != nil {
 					return LedgerAudit{}, statusErr
 				}
 				if found && (strings.EqualFold(status, "released") || strings.EqualFold(status, "retired") || strings.EqualFold(status, "archived")) {
-					presence, presenceErr := ledgerVersionPresence(db, entry.Path)
+					presence, presenceErr := ledgerVersionPresence(ctx, db, entry.Path)
 					if presenceErr != nil {
 						return LedgerAudit{}, presenceErr
 					}
 					if strings.EqualFold(presence, "evicted") {
-						mirror, mirrorFound, mirrorErr := ledgerMirror(db, entry.Path)
+						mirror, mirrorFound, mirrorErr := ledgerMirror(ctx, db, entry.Path)
 						if mirrorErr != nil {
 							return LedgerAudit{}, mirrorErr
 						}
@@ -132,13 +156,13 @@ func auditReleaseHashLedger(root string, db *sql.DB) (LedgerAudit, error) {
 	return audit, nil
 }
 
-func ledgerVersionPresence(db *sql.DB, path string) (string, error) {
+func ledgerVersionPresence(ctx context.Context, db AuditDatabase, path string) (string, error) {
 	asset, version, ok := ledgerVersion(path)
 	if !ok {
 		return "", nil
 	}
 	var presence string
-	err := db.QueryRow(`SELECT presence FROM component_versions WHERE library_id=? AND version=?`, "react-component-library:"+asset, version).Scan(&presence)
+	err := db.QueryRowContext(ctx, `SELECT presence FROM component_versions WHERE library_id=? AND version=?`, "react-component-library:"+asset, version).Scan(&presence)
 	if err == sql.ErrNoRows {
 		return "", nil
 	}
@@ -158,16 +182,26 @@ func ledgerAsset(path string) string {
 // RepairReleaseHashLedger removes only entries whose owning version is gone
 // or retired, and re-records only files whose current bytes match the durable
 // mirror. All other defects are returned for human evidence review.
-func RepairReleaseHashLedger(root string, db *sql.DB, apply bool) (LedgerRepair, error) {
+func RepairReleaseHashLedger(root string, db AuditDatabase, apply bool) (LedgerRepair, error) {
 	return RepairReleaseHashLedgerWithOptions(root, db, apply, LedgerRepairOptions{})
 }
 
 // RepairReleaseHashLedgerWithOptions performs the safe repair flow and, when
 // explicitly requested, accepts current authored bytes whose provenance is
 // established outside the mirror (for example, a reviewed repository commit).
-func RepairReleaseHashLedgerWithOptions(root string, db *sql.DB, apply bool, options LedgerRepairOptions) (LedgerRepair, error) {
-	ledgerPath := filepath.Join(root, "scenarios/react-component-library/library/released-version-hashes.json")
-	data, err := os.ReadFile(ledgerPath)
+func RepairReleaseHashLedgerWithOptions(root string, db AuditDatabase, apply bool, options LedgerRepairOptions) (LedgerRepair, error) {
+	return RepairReleaseHashLedgerWithOptionsContext(context.Background(), root, db, apply, options)
+}
+
+// RepairReleaseHashLedgerWithOptionsContext uses ctx for request-time routing.
+func RepairReleaseHashLedgerWithOptionsContext(ctx context.Context, root string, db AuditDatabase, apply bool, options LedgerRepairOptions) (LedgerRepair, error) {
+	fsRoot, err := os.OpenRoot(root)
+	if err != nil {
+		return LedgerRepair{}, fmt.Errorf("open repository root: %w", err)
+	}
+	defer fsRoot.Close()
+	ledgerPath := filepath.Join("scenarios/react-component-library/library/released-version-hashes.json")
+	data, err := fsRoot.ReadFile(ledgerPath)
 	if err != nil {
 		return LedgerRepair{}, err
 	}
@@ -188,7 +222,7 @@ func RepairReleaseHashLedgerWithOptions(root string, db *sql.DB, apply bool, opt
 			kept = append(kept, entry)
 			continue
 		}
-		status, found, queryErr := ledgerVersionStatus(db, entry.Path)
+		status, found, queryErr := ledgerVersionStatus(ctx, db, entry.Path)
 		if queryErr != nil {
 			return LedgerRepair{}, queryErr
 		}
@@ -196,8 +230,12 @@ func RepairReleaseHashLedgerWithOptions(root string, db *sql.DB, apply bool, opt
 			repair.Pruned = append(repair.Pruned, filepath.ToSlash(entry.Path))
 			continue
 		}
-		path := filepath.Join(root, "scenarios/react-component-library/library", filepath.FromSlash(entry.Path))
-		raw, readErr := os.ReadFile(path)
+		relative, pathErr := sourceRelativePath(entry.Path)
+		if pathErr != nil {
+			return LedgerRepair{}, fmt.Errorf("invalid release hash path %q: %w", entry.Path, pathErr)
+		}
+		path := filepath.Join("scenarios/react-component-library/library", relative)
+		raw, readErr := fsRoot.ReadFile(path)
 		if readErr != nil {
 			if options.PruneMissing {
 				repair.Pruned = append(repair.Pruned, filepath.ToSlash(entry.Path))
@@ -213,7 +251,7 @@ func RepairReleaseHashLedgerWithOptions(root string, db *sql.DB, apply bool, opt
 			kept = append(kept, entry)
 			continue
 		}
-		mirror, mirrorFound, queryErr := ledgerMirror(db, entry.Path)
+		mirror, mirrorFound, queryErr := ledgerMirror(ctx, db, entry.Path)
 		if queryErr != nil {
 			return LedgerRepair{}, queryErr
 		}
@@ -236,38 +274,38 @@ func RepairReleaseHashLedgerWithOptions(root string, db *sql.DB, apply bool, opt
 		}
 		updated = append(updated, '\n')
 		tmp := ledgerPath + ".repair.tmp"
-		if err := os.WriteFile(tmp, updated, 0o600); err != nil {
+		if err := storage.WriteFileAtomicInRoot(fsRoot, tmp, updated, 0o600); err != nil {
 			return LedgerRepair{}, err
 		}
-		if err := os.Rename(tmp, ledgerPath); err != nil {
-			_ = os.Remove(tmp)
+		if err := fsRoot.Rename(tmp, ledgerPath); err != nil {
+			_ = fsRoot.Remove(tmp)
 			return LedgerRepair{}, err
 		}
 	}
 	return repair, nil
 }
 
-func ledgerVersionStatus(db *sql.DB, path string) (string, bool, error) {
+func ledgerVersionStatus(ctx context.Context, db AuditDatabase, path string) (string, bool, error) {
 	asset, version, ok := ledgerVersion(path)
 	if !ok {
 		return "", false, nil
 	}
 	var status string
-	err := db.QueryRow(`SELECT status FROM component_versions WHERE library_id=? AND version=?`, "react-component-library:"+asset, version).Scan(&status)
+	err := db.QueryRowContext(ctx, `SELECT status FROM component_versions WHERE library_id=? AND version=?`, "react-component-library:"+asset, version).Scan(&status)
 	if err == sql.ErrNoRows {
 		return "", false, nil
 	}
 	return status, err == nil, err
 }
 
-func ledgerMirror(db *sql.DB, path string) ([]byte, bool, error) {
+func ledgerMirror(ctx context.Context, db AuditDatabase, path string) ([]byte, bool, error) {
 	asset, version, ok := ledgerVersion(path)
 	if !ok {
 		return nil, false, nil
 	}
 	file := filepath.Base(path)
 	var content []byte
-	err := db.QueryRow(`SELECT f.content FROM component_version_files f JOIN component_versions v ON v.id=f.version_id WHERE v.library_id=? AND v.version=? AND f.path=?`, "react-component-library:"+asset, version, file).Scan(&content)
+	err := db.QueryRowContext(ctx, `SELECT f.content FROM component_version_files f JOIN component_versions v ON v.id=f.version_id WHERE v.library_id=? AND v.version=? AND f.path=?`, "react-component-library:"+asset, version, file).Scan(&content)
 	if err == sql.ErrNoRows {
 		return nil, false, nil
 	}

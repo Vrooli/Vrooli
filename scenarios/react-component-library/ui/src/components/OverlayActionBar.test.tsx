@@ -5,6 +5,10 @@ import {
   OverlayActionBar,
   type OverlayActionList,
 } from "../../../library/components/OverlayActionBar/versions/1.0.1/OverlayActionBar";
+import {
+  OverlayActionBar as DraftOverlayActionBar,
+  type OverlayActionList as DraftOverlayActionList,
+} from "../../../library/components/OverlayActionBar/versions/1.0.2-draft.1/OverlayActionBar";
 import { LibraryStringsProvider } from "../../../library/hooks/useLocale/versions/1.1.2/useLocale";
 import {
   fiveGermanOverlayActions,
@@ -60,6 +64,17 @@ describe("OverlayActionBar usage contract", () => {
     expect(warning).toHaveBeenCalledWith(
       expect.stringContaining("maximum is 4"),
       expect.any(Object),
+    );
+  });
+
+  it("reports the active draft version in contract warnings", () => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const draftActions = fiveGermanOverlayActions as unknown as DraftOverlayActionList;
+    renderWithProviders(<DraftOverlayActionBar actions={draftActions} />);
+
+    expect(warning).toHaveBeenCalledWith(
+      expect.stringContaining("react-component-library:OverlayActionBar@1.0.2-draft.1"),
+      expect.objectContaining({ version: "1.0.2-draft.1" }),
     );
   });
 

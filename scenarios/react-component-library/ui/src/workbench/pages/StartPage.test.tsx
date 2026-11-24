@@ -4,6 +4,7 @@ import type { UseQueryResult } from "@tanstack/react-query";
 import { useLocation } from "react-router-dom";
 
 import { renderWithProviders } from "../../test-utils";
+import { selectors } from "../../consts/selectors";
 
 vi.mock("../data", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../data")>();
@@ -22,6 +23,10 @@ vi.mock("../workspaces/useWorkspaces", () => ({
   useWorkspaces: vi.fn(),
 }));
 
+vi.mock("../../hooks/useMediaQuery", () => ({
+  useIsMobile: vi.fn(() => false),
+}));
+
 vi.mock("../search/useWorkbenchSearch", () => ({
   useWorkbenchSearch: vi.fn(),
 }));
@@ -36,16 +41,19 @@ vi.mock("../../api/review", async (importOriginal) => {
 
 import App from "../../App";
 import type { CapabilityDescription, ListNextWorkResponse } from "../../api/catalog";
-import { SearchAvailability, SearchKind, type SearchResult } from "../../api/search";
 import {
-  WorkspaceProvenance,
-  type WorkspaceSummary,
-} from "../../api/workspaces";
+  SearchAvailability,
+  SearchKind,
+  type SearchResponse,
+  type SearchResult,
+} from "../../api/search";
+import { WorkspaceProvenance, type WorkspaceSummary } from "../../api/workspaces";
 import { strings } from "../../consts/strings";
 import * as data from "../data";
 import * as reviewApi from "../../api/review";
 import * as searchHook from "../search/useWorkbenchSearch";
 import * as workspaceHook from "../workspaces/useWorkspaces";
+import * as mediaQueryHook from "../../hooks/useMediaQuery";
 import { StartPage } from "./StartPage";
 
 function queryResult<T>(
@@ -116,6 +124,20 @@ const searchResult: SearchResult = {
   relations: [],
 };
 
+const landingPageTypeResult: SearchResult = {
+  $typeName: "vrooli.react_component_library.v1.search.SearchResult",
+  id: "page-type:templates.landing-page",
+  kind: SearchKind.PAGE_TYPE,
+  title: "LandingPage",
+  subtitle: "templates/page-template",
+  snippet: "Regions: hero, proof, sections, conversion",
+  href: "/library?domain=templates&group=components&q=LandingPage",
+  score: 1,
+  availability: SearchAvailability.PLANNED,
+  badges: ["unavailable"],
+  relations: [],
+};
+
 function LocationProbe() {
   const location = useLocation();
   return (
@@ -128,22 +150,21 @@ function LocationProbe() {
 
 describe("StartPage", () => {
   beforeEach(() => {
+    vi.mocked(mediaQueryHook.useIsMobile).mockReturnValue(false);
     vi.mocked(data.useCatalog).mockReturnValue(queryResult(assets()));
     vi.mocked(data.useCoverage).mockReturnValue(queryResult<data.CoverageReport>(undefined));
-    vi.mocked(data.useCapabilities).mockReturnValue(
-      queryResult<CapabilityDescription>(undefined),
-    );
+    vi.mocked(data.useCapabilities).mockReturnValue(queryResult<CapabilityDescription>(undefined));
     vi.mocked(data.useDesignScenarios).mockReturnValue(queryResult([]));
     vi.mocked(data.useNextWork).mockReturnValue(queryResult<ListNextWorkResponse>(undefined));
     vi.mocked(data.useDesignPages).mockReturnValue(queryResult([]));
     vi.mocked(workspaceHook.useWorkspaces).mockReturnValue(queryResult(workspaces));
     vi.mocked(reviewApi.getReviewSummary).mockResolvedValue(null);
-    vi.mocked(searchHook.useWorkbenchSearch).mockReturnValue({
-      response: null,
+    vi.mocked(searchHook.useWorkbenchSearch).mockImplementation((query) => ({
+      response: query === "landing page" ? ({ total: 0 } as SearchResponse) : null,
       results: [],
       loading: false,
       error: null,
-    });
+    }));
   });
 
   afterEach(() => {
@@ -151,14 +172,62 @@ describe("StartPage", () => {
     vi.clearAllMocks();
   });
 
-  it("derives category cards from catalog domains", async () => {
+  it("shows outcome entry points before catalog domains", async () => {
     renderWithProviders(<StartPage />);
     expect(screen.getByTestId("start-page")).toBeInTheDocument();
 
     const cards = await screen.findAllByTestId("start-category-card");
-    expect(cards).toHaveLength(2);
+    expect(cards).toHaveLength(3);
     const controls = screen.getByRole("link", { name: /controls/i });
-    expect(controls).toHaveAttribute("href", "/library?q=controls");
+    expect(controls).toHaveAttribute("href", "/library?domain=controls&group=components");
+    expect(screen.getByRole("link", { name: /Workspaces/ })).toHaveAttribute("href", "/design");
+  });
+
+  it("places the hero and browse content in the main column beside the Start rail", () => {
+    renderWithProviders(<StartPage />);
+
+    const page = screen.getByTestId("start-page");
+    const layout = page.querySelector(".wb-start-layout");
+    const main = layout?.querySelector(":scope > .wb-start-main");
+    const hero = main?.querySelector(":scope > .wb-start-head");
+    const rail = screen.getByRole("complementary", { name: strings.workbench.start.rail });
+
+    expect(layout).not.toBeNull();
+    expect(main).not.toBeNull();
+    expect(hero).not.toBeNull();
+    expect(main?.firstElementChild).toBe(hero);
+    expect(within(main as HTMLElement).getByRole("heading", { level: 1 })).toBeInTheDocument();
+    expect(within(main as HTMLElement).getByRole("searchbox")).toBeInTheDocument();
+    expect(rail.parentElement).toBe(layout);
+    expect(main?.contains(rail)).toBe(false);
+  });
+
+  it("uses page types and tagged workspace data for outcome cards", () => {
+    const harbor: WorkspaceSummary = { ...workspaces[0]!, tags: ["onboarding"] };
+    vi.mocked(workspaceHook.useWorkspaces).mockReturnValue(queryResult([harbor]));
+    vi.mocked(searchHook.useWorkbenchSearch).mockImplementation((query) => ({
+      response: query === "landing page" ? ({ total: 1 } as SearchResponse) : null,
+      results: query === "landing page" ? [landingPageTypeResult] : [],
+      loading: false,
+      error: null,
+    }));
+
+    renderWithProviders(<StartPage />);
+
+    const landingCard = screen
+      .getByTestId("start-page")
+      .querySelector('[data-start-entry="landing-pages"]')!;
+    expect(landingCard).toHaveAttribute("data-entry-count", "1");
+    expect(landingCard).toHaveAttribute(
+      "href",
+      "/library?domain=templates&group=components&q=LandingPage",
+    );
+    const onboardingCard = screen
+      .getByTestId("start-page")
+      .querySelector('[data-start-entry="onboarding-flows"]')!;
+    expect(onboardingCard).toHaveAttribute("data-entry-count", "1");
+    expect(onboardingCard).toHaveAttribute("data-entry-pages", "4");
+    expect(onboardingCard).toHaveAttribute("href", "/design?workspace=ws_harbor");
   });
 
   it("opens the first search result's destination", async () => {
@@ -174,7 +243,7 @@ describe("StartPage", () => {
         <LocationProbe />
       </>,
     );
-    const input = screen.getByRole("textbox", { name: strings.workbench.search.label });
+    const input = screen.getByRole("searchbox", { name: strings.workbench.search.label });
     fireEvent.change(input, { target: { value: "button" } });
     fireEvent.keyDown(input, { key: "Enter" });
 
@@ -210,11 +279,114 @@ describe("StartPage", () => {
   it("lists existing workspaces with a continuation link", async () => {
     renderWithProviders(<StartPage />);
 
+    const continuation = await screen.findByTestId("start-continue-rail");
+    expect(within(continuation).getByText(WORKSPACE_NAME)).toBeInTheDocument();
+    expect(within(continuation).getAllByRole("link")[0]).toHaveAttribute(
+      "href",
+      "/design?workspace=ws_harbor",
+    );
     // The continuation rail and the recently-opened strip both name the
     // workspace; either is a correct place to see it.
     expect((await screen.findAllByText(WORKSPACE_NAME)).length).toBeGreaterThan(0);
+    expect(
+      screen.getByTestId("start-page").querySelector(".wb-start-recent-preview"),
+    ).toBeInTheDocument();
     const openLinks = screen.getAllByRole("link", { name: /workbench.start.openWorkspace/i });
     expect(openLinks[0]).toHaveAttribute("href", "/design?workspace=ws_harbor");
+  });
+
+  it("shows six intentional phone entry points before Continue and keeps catalog domains reachable", async () => {
+    const mobileAssets = Array.from({ length: 8 }, (_, index) => ({
+      ...assets()[0],
+      id: `asset-${index}`,
+      displayName: `Asset ${index}`,
+      catalogDomain: `domain-${index}`,
+      catalogId: `domain-${index}.asset`,
+    })) as data.CatalogAsset[];
+    const outcomes = [
+      {
+        ...assets()[0],
+        id: "asset-landing",
+        displayName: "LandingPage",
+        catalogId: "templates.landing-page",
+        catalogKind: "page-template",
+        catalogDomain: "templates",
+      },
+      {
+        ...assets()[0],
+        id: "asset-onboarding",
+        displayName: "OnboardingFlow",
+        catalogId: "patterns.onboarding-flow",
+        catalogDomain: "patterns",
+      },
+    ] as data.CatalogAsset[];
+    vi.mocked(data.useCatalog).mockReturnValue(queryResult([...mobileAssets, ...outcomes]));
+    vi.mocked(workspaceHook.useWorkspaces).mockReturnValue(
+      queryResult<WorkspaceSummary[]>([
+        { ...workspaces[0]!, tags: ["onboarding"] },
+        ...workspaces.slice(1),
+      ]),
+    );
+    vi.mocked(mediaQueryHook.useIsMobile).mockReturnValue(true);
+
+    renderWithProviders(<StartPage />);
+
+    const cards = await screen.findAllByTestId("start-category-card");
+    const primaryGrid = screen.getByTestId("start-intents-primary");
+    expect(within(primaryGrid).getAllByTestId("start-category-card")).toHaveLength(6);
+    expect(
+      within(primaryGrid)
+        .getAllByTestId("start-category-card")
+        .map((card) => card.getAttribute("data-start-entry")),
+    ).toEqual([
+      "landing-pages",
+      "onboarding-flows",
+      "workspaces",
+      "components",
+      "templates",
+      "actions",
+    ]);
+    expect(primaryGrid.querySelector('[data-start-entry="templates"]')).toHaveAttribute(
+      "href",
+      "/design#curated-templates",
+    );
+    expect(primaryGrid.querySelector('[data-start-entry="actions"]')).toHaveAttribute(
+      "href",
+      "/?commands=1",
+    );
+    const continuation = screen.getByTestId("start-continue");
+    const moreIntents = screen.getByTestId("start-intents-more");
+    expect(within(moreIntents).getAllByTestId("start-category-card")).toHaveLength(5);
+    expect(cards).toHaveLength(11);
+    expect(
+      primaryGrid.compareDocumentPosition(continuation) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      continuation.compareDocumentPosition(moreIntents) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("does not repeat the continuation workspace in the phone recent list", () => {
+    vi.mocked(mediaQueryHook.useIsMobile).mockReturnValue(true);
+    renderWithProviders(<StartPage />);
+
+    const workspaceLinks = screen
+      .getByTestId("start-page")
+      .querySelectorAll('a[href="/design?workspace=ws_harbor"]');
+    expect(workspaceLinks).toHaveLength(1);
+  });
+
+  it("clears the command browse URL with the search kind filter", async () => {
+    renderWithProviders(
+      <>
+        <App />
+        <LocationProbe />
+      </>,
+      { routerEntries: ["/?commands=1"] },
+    );
+
+    fireEvent.click(await screen.findByTestId("search-clear-kind-filter"));
+    await waitFor(() => expect(screen.getByTestId("location-probe")).toHaveTextContent("/"));
   });
 
   it("honours the shortcuts the Start rail advertises", async () => {
@@ -229,9 +401,7 @@ describe("StartPage", () => {
 
     fireEvent.keyDown(window, { key: "g" });
     fireEvent.keyDown(window, { key: "d" });
-    await waitFor(() =>
-      expect(screen.getByTestId("location-probe")).toHaveTextContent("/design"),
-    );
+    await waitFor(() => expect(screen.getByTestId("location-probe")).toHaveTextContent("/design"));
 
     fireEvent.keyDown(window, { key: "n" });
     await waitFor(() =>
@@ -246,7 +416,7 @@ describe("StartPage", () => {
         <LocationProbe />
       </>,
     );
-    const input = screen.getByRole("textbox", { name: strings.workbench.search.label });
+    const input = screen.getByRole("searchbox", { name: strings.workbench.search.label });
     input.focus();
     fireEvent.keyDown(input, { key: "g" });
     fireEvent.keyDown(input, { key: "d" });
@@ -257,7 +427,7 @@ describe("StartPage", () => {
     renderWithProviders(<App />, { routerEntries: ["/"] });
     await screen.findByTestId("start-page");
 
-    const rail = screen.getByRole("navigation", { name: strings.workbench.nav.label });
+    const rail = screen.getByTestId(`${selectors.app.shell}-navigation`);
     const railLinks = within(rail).getAllByRole("link");
     expect(railLinks).toHaveLength(5);
     expect(railLinks[0]).toHaveAttribute("aria-current", "page");
@@ -270,8 +440,12 @@ describe("StartPage", () => {
     ]);
     expect(within(rail).queryByText(strings.workbench.nav.settings)).not.toBeInTheDocument();
 
-    const mobile = screen.getByRole("navigation", { name: strings.workbench.nav.mobile });
-    expect(within(mobile).getAllByRole("link")).toHaveLength(5);
+    const mobile = screen.getByTestId(`${selectors.app.shell}-tabs`);
+    expect(
+      Object.values(selectors.workbench.nav).map((testId) =>
+        within(mobile).getByTestId(`${testId}-tab`),
+      ),
+    ).toHaveLength(5);
   });
 });
 

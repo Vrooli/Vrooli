@@ -2,6 +2,7 @@ package versions_test
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -79,6 +80,94 @@ func TestService_Record_RejectsMissingComponent(t *testing.T) {
 	_, _, err := svc.Record(context.Background(), versions.RecordInput{Content: "x"})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "component_id")
+}
+
+func TestService_Record_RejectsBlankComponentAndContent(t *testing.T) {
+	svc := versions.NewService(mocks.NewFakeRepository(), nil)
+	ctx := context.Background()
+
+	_, _, err := svc.Record(ctx, versions.RecordInput{ComponentID: " \t", Content: "body"})
+	var invalid versions.ErrInvalidVersion
+	require.ErrorAs(t, err, &invalid)
+	require.Equal(t, "component_id", invalid.Field)
+
+	_, _, err = svc.Record(ctx, versions.RecordInput{ComponentID: "cmp-1"})
+	require.ErrorAs(t, err, &invalid)
+	require.Equal(t, "content", invalid.Field)
+}
+
+func TestService_RecordDefaultsChangelogAndPropagatesRepositoryErrors(t *testing.T) {
+	ctx := context.Background()
+	repo := &recordingRepository{latestErr: errors.New("read failed")}
+	svc := versions.NewService(repo, nil)
+
+	_, _, err := svc.Record(ctx, versions.RecordInput{ComponentID: "cmp-1", Content: "body"})
+	require.EqualError(t, err, "read failed")
+	repo.latestErr = nil
+	repo.insertErr = errors.New("write failed")
+
+	_, _, err = svc.Record(ctx, versions.RecordInput{ComponentID: "cmp-1", Content: "body", ChangelogMD: "  "})
+	require.EqualError(t, err, "write failed")
+	require.Equal(t, "auto-recorded on save", repo.inserted.ChangelogMD)
+}
+
+func TestService_GetAndListForwardQueries(t *testing.T) {
+	ctx := context.Background()
+	repo := mocks.NewFakeRepository()
+	repo.Seed(versions.Version{ComponentID: "cmp-1", Version: "1.0.0", Content: "body"})
+	svc := versions.NewService(repo, nil)
+
+	got, err := svc.Get(ctx, "cmp-1", "1.0.0")
+	require.NoError(t, err)
+	require.Equal(t, "body", got.Content)
+
+	rows, err := svc.List(ctx, versions.ListQuery{ComponentID: "cmp-1", Limit: -1})
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+}
+
+func TestService_DiffValidationAndResolveFailures(t *testing.T) {
+	ctx := context.Background()
+	svc := versions.NewService(mocks.NewFakeRepository(), nil)
+	_, err := svc.Diff(ctx, versions.DiffInput{From: "v1", To: "v2"})
+	var invalid versions.ErrInvalidVersion
+	require.ErrorAs(t, err, &invalid)
+	require.Equal(t, "component_id", invalid.Field)
+
+	_, err = svc.Diff(ctx, versions.DiffInput{ComponentID: "cmp-1", From: "v1"})
+	require.ErrorAs(t, err, &invalid)
+	require.Equal(t, "from/to", invalid.Field)
+
+	_, err = svc.Diff(ctx, versions.DiffInput{ComponentID: "cmp-1", From: "adoption:x", To: "v2"})
+	require.ErrorContains(t, err, "no AdoptionResolver wired")
+
+	resolver := &stubAdoptions{err: errors.New("adoption unavailable")}
+	svc = versions.NewService(mocks.NewFakeRepository(), resolver)
+	_, err = svc.Diff(ctx, versions.DiffInput{ComponentID: "cmp-1", From: "adoption:x", To: "v2"})
+	require.EqualError(t, err, "adoption unavailable")
+}
+
+type recordingRepository struct {
+	latestErr error
+	insertErr error
+	inserted  versions.Version
+}
+
+func (r *recordingRepository) Latest(context.Context, string) (versions.Version, error) {
+	return versions.Version{}, r.latestErr
+}
+
+func (r *recordingRepository) Insert(_ context.Context, v versions.Version) (versions.Version, error) {
+	r.inserted = v
+	return versions.Version{}, r.insertErr
+}
+
+func (*recordingRepository) List(context.Context, versions.ListQuery) ([]versions.Version, error) {
+	return nil, nil
+}
+
+func (*recordingRepository) Get(context.Context, string, string) (versions.Version, error) {
+	return versions.Version{}, nil
 }
 
 func TestService_Diff_VersionToVersion(t *testing.T) {

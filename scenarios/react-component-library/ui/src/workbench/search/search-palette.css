@@ -1,0 +1,108 @@
+/* Global command/search palette. Tokens are owned by nocturne.css. */
+.wb-command-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 12vh 16px 16px;
+  background: rgba(4, 3, 7, 0.72);
+  backdrop-filter: blur(6px);
+}
+
+.wb-command-panel {
+  width: min(640px, 100%);
+  overflow: hidden;
+  border: 1px solid var(--wb-line-2);
+  border-radius: var(--wb-r);
+  background: var(--wb-panel);
+  box-shadow: var(--wb-shadow);
+}
+
+.wb-command-results {
+  display: grid;
+  gap: 14px;
+  max-height: min(52vh, 460px);
+  overflow: auto;
+  padding: 0 12px 12px;
+  /* A grid track defaults to max-content. A long result title would then widen
+     the whole surface past a 320px phone instead of truncating inside the row. */
+  min-width: 0;
+}
+
+.wb-command-group {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.wb-command-group > .wb-caption {
+  padding: 4px 10px;
+}
+
+.wb-command-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: var(--wb-r-xs);
+  background: none;
+  text-align: left;
+}
+
+.wb-command-row:hover,
+.wb-command-row:focus-visible,
+.wb-command-row[data-active="true"] {
+  background: rgba(255, 179, 92, 0.08);
+}
+
+.wb-command-row b {
+  display: block;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-command-row small {
+  display: block;
+  overflow: hidden;
+  color: var(--wb-muted-2);
+  font: 10px/1.4 var(--wb-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-command-icon {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  place-items: center;
+  border: 1px solid var(--wb-line);
+  border-radius: var(--wb-r-xs);
+  background: #0d1018;
+  color: var(--wb-muted);
+}
+
+.wb-command-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 14px;
+  border-top: 1px solid var(--wb-line);
+  color: var(--wb-muted-2);
+  font: 10px/1.4 var(--wb-mono);
+}
+
+.wb-command-foot span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}

@@ -12,6 +12,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	intakeconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/adoptionintake/adoptionintake_v1connect"
 	adoptionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/adoptions"
 	adoptionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/adoptions/adoptions_v1connect"
 
@@ -195,15 +196,17 @@ func findRepoRoot() (string, error) {
 // handlers bundles the closure over *cliapp.ScenarioApp + the
 // generated Connect-Go client. Mirrors cli/domains/components/.
 type handlers struct {
-	core   *cliapp.ScenarioApp
-	client adoptionsconnect.AdoptionsServiceClient
+	core         *cliapp.ScenarioApp
+	client       adoptionsconnect.AdoptionsServiceClient
+	intakeClient intakeconnect.AdoptionIntakeServiceClient
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	return &handlers{
-		core:   core,
-		client: adoptionsconnect.NewAdoptionsServiceClient(httpClient, baseURL),
+		core:         core,
+		client:       adoptionsconnect.NewAdoptionsServiceClient(httpClient, baseURL),
+		intakeClient: intakeconnect.NewAdoptionIntakeServiceClient(httpClient, baseURL),
 	}
 }
 
@@ -246,7 +249,7 @@ func (h *handlers) listReport(_ cliapp.OperationContext, msg *adoptionsv1.ListAd
 }
 
 func (h *handlers) listScenarios(ctx cliapp.RunContext) error {
-	resp, err := h.client.ListScenarios(context.Background(), connect.NewRequest(&adoptionsv1.ListScenariosRequest{}))
+	resp, err := h.intakeClient.ListScenarios(context.Background(), connect.NewRequest(&adoptionsv1.ListScenariosRequest{}))
 	if err != nil {
 		return cliapp.WrapAPIError("list selectable scenarios", err, nil)
 	}
@@ -346,23 +349,37 @@ func (h *handlers) preflightReport(_ cliapp.OperationContext, msg *adoptionsv1.P
 	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Preflight %s@%s for %s: blocking=%t", msg.ComponentId, msg.Version, msg.Scenario, msg.Blocking)}, ResultsHeading: "Adoptability verdict", Results: rows}
 }
 
-func (h *handlers) syncTokens(ctx cliapp.RunContext) error {
+func (h *handlers) syncTokensCall(ctx cliapp.OperationContext) (*adoptionsv1.SyncScenarioTokensResponse, error) {
 	resp, err := h.client.SyncScenarioTokens(context.Background(), connect.NewRequest(&adoptionsv1.SyncScenarioTokensRequest{
 		Scenario: ctx.Positional("scenario"), DryRun: ctx.Flag("dry-run") == "true",
 		CandidateComponentId: ctx.Flag("candidate"), CandidateVersion: ctx.Flag("version"),
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError("sync scenario tokens", err, nil)
+		return nil, cliapp.WrapAPIError("sync scenario tokens", err, nil)
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Token sync for %s: added=%d changed=%t", resp.Msg.Scenario, len(resp.Msg.Added), resp.Msg.Changed)}, ResultsHeading: "Added tokens", Results: resp.Msg.Added})
+	if resp == nil || resp.Msg == nil {
+		return nil, fmt.Errorf("server returned no token sync response")
+	}
+	return resp.Msg, nil
 }
 
-func (h *handlers) pruneTokens(ctx cliapp.RunContext) error {
+func (h *handlers) syncTokensHuman(ctx cliapp.RunContext, msg *adoptionsv1.SyncScenarioTokensResponse) error {
+	return ctx.RenderList(cliapp.ListReport{Summary: []string{fmt.Sprintf("Token sync for %s: added=%d changed=%t", msg.Scenario, len(msg.Added), msg.Changed)}, ResultsHeading: "Added tokens", Results: msg.Added})
+}
+
+func (h *handlers) pruneTokensCall(ctx cliapp.OperationContext) (*adoptionsv1.PruneScenarioTokensResponse, error) {
 	resp, err := h.client.PruneScenarioTokens(context.Background(), connect.NewRequest(&adoptionsv1.PruneScenarioTokensRequest{Scenario: ctx.Positional("scenario"), Apply: ctx.Flag("apply") == "true"}))
 	if err != nil {
-		return cliapp.WrapAPIError("prune scenario tokens", err, nil)
+		return nil, cliapp.WrapAPIError("prune scenario tokens", err, nil)
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Token prune for %s: removed=%d changed=%t", resp.Msg.Scenario, len(resp.Msg.Removed), resp.Msg.Changed)}, ResultsHeading: "Removed tokens", Results: resp.Msg.Removed})
+	if resp == nil || resp.Msg == nil {
+		return nil, fmt.Errorf("server returned no token prune response")
+	}
+	return resp.Msg, nil
+}
+
+func (h *handlers) pruneTokensHuman(ctx cliapp.RunContext, msg *adoptionsv1.PruneScenarioTokensResponse) error {
+	return ctx.RenderList(cliapp.ListReport{Summary: []string{fmt.Sprintf("Token prune for %s: removed=%d changed=%t", msg.Scenario, len(msg.Removed), msg.Changed)}, ResultsHeading: "Removed tokens", Results: msg.Removed})
 }
 
 func (h *handlers) linkCall(ctx cliapp.OperationContext) (*adoptionsv1.LinkAdoptionResponse, error) {
@@ -597,7 +614,7 @@ func (h *handlers) discover(ctx cliapp.RunContext) error {
 		}
 		req.Limit = int32(n)
 	}
-	resp, err := h.client.DiscoverAdoptions(context.Background(), connect.NewRequest(req))
+	resp, err := h.intakeClient.DiscoverAdoptions(context.Background(), connect.NewRequest(req))
 	if err != nil {
 		return cliapp.WrapAPIError("discover adoptions", err, nil)
 	}
@@ -624,7 +641,7 @@ func (h *handlers) confirmDiscovery(ctx cliapp.RunContext) error {
 		ComponentId: ctx.Positional("component-id"),
 		Version:     ctx.Positional("version"),
 	}
-	resp, err := h.client.ConfirmDiscovery(context.Background(), connect.NewRequest(req))
+	resp, err := h.intakeClient.ConfirmDiscovery(context.Background(), connect.NewRequest(req))
 	if err != nil {
 		return cliapp.WrapAPIError("confirm discovery", err, nil)
 	}

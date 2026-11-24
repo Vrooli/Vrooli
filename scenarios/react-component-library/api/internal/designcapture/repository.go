@@ -15,9 +15,17 @@ var schemaSQL string
 
 func Schema() string { return schemaSQL }
 
-type SQLiteRepository struct{ db *sql.DB }
+// Database is the narrow SQL surface used by capture persistence. Passing
+// api-core's RoutedDB keeps request context routing intact in production while
+// *sql.DB remains suitable for isolated fixtures.
+type Database interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
 
-func NewSQLiteRepository(db *sql.DB) *SQLiteRepository { return &SQLiteRepository{db: db} }
+type SQLiteRepository struct{ db Database }
+
+func NewSQLiteRepository(db Database) *SQLiteRepository { return &SQLiteRepository{db: db} }
 func (r *SQLiteRepository) Create(ctx context.Context, key string, request Request) (Operation, error) {
 	if len(key) < 1 || len(key) > 200 {
 		return Operation{}, fmt.Errorf("idempotency key must contain 1 to 200 bytes")

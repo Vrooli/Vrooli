@@ -15,6 +15,41 @@ import (
 	"github.com/vrooli/cli-core/cliapptest"
 )
 
+func TestSearchEnumLabelsCoverSupportedAndUnknownValues(t *testing.T) {
+	for value, want := range map[searchv1.SemanticLegState]string{
+		searchv1.SemanticLegState_SEMANTIC_LEG_STATE_READY:    "ready",
+		searchv1.SemanticLegState_SEMANTIC_LEG_STATE_DEGRADED: "degraded",
+		searchv1.SemanticLegState_SEMANTIC_LEG_STATE_DISABLED: "disabled",
+		searchv1.SemanticLegState(99):                         "unspecified",
+	} {
+		if got := semanticLegLabel(value); got != want {
+			t.Errorf("semanticLegLabel(%v)=%q, want %q", value, got, want)
+		}
+	}
+	for value, want := range map[searchv1.SearchKind]string{
+		searchv1.SearchKind_SEARCH_KIND_WORKSPACE: "workspace", searchv1.SearchKind_SEARCH_KIND_PAGE: "page",
+		searchv1.SearchKind_SEARCH_KIND_DISPLAY: "display", searchv1.SearchKind_SEARCH_KIND_STATE: "state",
+		searchv1.SearchKind_SEARCH_KIND_PAGE_TYPE: "page-type", searchv1.SearchKind_SEARCH_KIND_ASSET: "asset",
+		searchv1.SearchKind_SEARCH_KIND_COMMAND: "command", searchv1.SearchKind_SEARCH_KIND_EVIDENCE: "evidence",
+		searchv1.SearchKind(99): "unspecified",
+	} {
+		if got := searchKindLabel(value); got != want {
+			t.Errorf("searchKindLabel(%v)=%q, want %q", value, got, want)
+		}
+	}
+	for value, want := range map[searchv1.SearchAvailability]string{
+		searchv1.SearchAvailability_SEARCH_AVAILABILITY_AVAILABLE:   "available",
+		searchv1.SearchAvailability_SEARCH_AVAILABILITY_DRAFT:       "draft",
+		searchv1.SearchAvailability_SEARCH_AVAILABILITY_PLANNED:     "planned",
+		searchv1.SearchAvailability_SEARCH_AVAILABILITY_UNAVAILABLE: "unavailable",
+		searchv1.SearchAvailability(99):                             "",
+	} {
+		if got := availabilityLabel(value); got != want {
+			t.Errorf("availabilityLabel(%v)=%q, want %q", value, got, want)
+		}
+	}
+}
+
 func TestSearchManifestCoverage(t *testing.T) {
 	raw := cliapptest.ReadManifest(t)
 	cliapp.RequireProtoServiceCoverage(t, raw, searchv1.File_react_component_library_v1_search_search_proto, "SearchService")
@@ -110,4 +145,82 @@ func TestSearchStatusNeverClaimsSemanticSearchIsActive(t *testing.T) {
 	require.Contains(t, out, "semantic_leg: disabled")
 	require.Contains(t, out, "results are lexical only")
 	require.NotContains(t, out, "semantic search is active")
+}
+
+func TestSearchSuggestAndReindexCommands(t *testing.T) {
+	var gotSuggest *searchv1.SuggestRequest
+	var gotReindex *searchv1.ReindexRequest
+	mux := http.NewServeMux()
+	mux.Handle(searchconnect.SearchServiceSuggestProcedure, connect.NewUnaryHandlerSimple(
+		searchconnect.SearchServiceSuggestProcedure,
+		func(_ context.Context, req *searchv1.SuggestRequest) (*searchv1.SuggestResponse, error) {
+			gotSuggest = req
+			return &searchv1.SuggestResponse{Suggestions: []string{"dashboard shell", "dashboard card"}}, nil
+		},
+	))
+	mux.Handle(searchconnect.SearchServiceReindexProcedure, connect.NewUnaryHandlerSimple(
+		searchconnect.SearchServiceReindexProcedure,
+		func(_ context.Context, req *searchv1.ReindexRequest) (*searchv1.ReindexResponse, error) {
+			gotReindex = req
+			return &searchv1.ReindexResponse{DocumentCount: 12, IndexedAt: "2026-11-20T10:00:00Z"}, nil
+		},
+	))
+	core := cliapptest.NewTestApp(t, mux)
+	group, err := Register(core, cliapptest.ReadManifest(t))
+	require.NoError(t, err)
+
+	suggest := cliapptest.FindCommand(t, []cliapp.SubcommandGroup{group}, GroupName, "suggest")
+	out, err := cliapptest.RunCommand(t, suggest, core, "dash", "--limit", "2")
+	require.NoError(t, err)
+	require.Equal(t, "dash", gotSuggest.GetQuery())
+	require.Equal(t, int32(2), gotSuggest.GetLimit())
+	require.Contains(t, out, "dashboard shell")
+	require.Contains(t, out, "search query <term>")
+
+	reindex := cliapptest.FindCommand(t, []cliapp.SubcommandGroup{group}, GroupName, "reindex")
+	out, err = cliapptest.RunCommand(t, reindex, core, "--force")
+	require.NoError(t, err)
+	require.True(t, gotReindex.GetForce())
+	require.Contains(t, out, "Reindexed 12 document(s)")
+	require.Contains(t, out, "force=true")
+}
+
+func TestSearchKindNormalizationAndLimitBoundaries(t *testing.T) {
+	kind, err := parseSearchKind(" SEARCH_KIND_PAGE_TYPE ")
+	require.NoError(t, err)
+	require.Equal(t, searchv1.SearchKind_SEARCH_KIND_PAGE_TYPE, kind)
+	kind, err = parseSearchKind("")
+	require.NoError(t, err)
+	require.Equal(t, searchv1.SearchKind_SEARCH_KIND_UNSPECIFIED, kind)
+	_, err = parseSearchKind("not-a-kind")
+	require.ErrorContains(t, err, "--kind must be one of")
+
+	limit, err := parseLimit("2147483647")
+	require.NoError(t, err)
+	require.Equal(t, int32(2147483647), limit)
+	for _, raw := range []string{"-1", "2147483648", "many"} {
+		_, err = parseLimit(raw)
+		require.ErrorContains(t, err, "--limit must be a non-negative integer")
+	}
+}
+
+func TestSearchReportRendersResultMetadataAndDegradedStatus(t *testing.T) {
+	report := (&handlers{}).queryReport(nil, &searchv1.SearchResponse{
+		Query: "ui", Results: []*searchv1.SearchResult{
+			nil,
+			{
+				Id: "fallback-title", Kind: searchv1.SearchKind_SEARCH_KIND_PAGE_TYPE, Subtitle: "built-in", Score: 0.875,
+				Availability: searchv1.SearchAvailability_SEARCH_AVAILABILITY_DRAFT, Href: " /pages/type ",
+			},
+		},
+		Status: &searchv1.SearchStatus{Stale: true, LastError: " vector timeout ", SemanticLeg: searchv1.SemanticLegState_SEMANTIC_LEG_STATE_DEGRADED},
+	})
+	require.Contains(t, report.Results[0], "[page-type] fallback-title")
+	require.Contains(t, report.Results[0], "— built-in")
+	require.Contains(t, report.Results[0], "score 0.875")
+	require.Contains(t, report.Results[0], "[draft]")
+	require.Contains(t, report.Results[0], "→ /pages/type")
+	require.Contains(t, report.Results[1], "Semantic leg: degraded")
+	require.Contains(t, report.Summary[1], "stale=true")
+	require.Contains(t, report.Summary[1], "last-error=vector timeout")
 }

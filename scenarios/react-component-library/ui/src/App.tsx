@@ -4,6 +4,7 @@ import { Navigate, Route, Routes, useLocation, useParams } from "react-router-do
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useHostShortcutRelay } from "./hooks/useHostShortcutRelay";
 import { useTranslation } from "./i18n";
+import { strings } from "./consts/strings";
 import { WorkbenchShell } from "./workbench/WorkbenchShell";
 import { appRoutes, designPath, workspacePath, type StatsView } from "./routes";
 import { useWorkspaces } from "./workbench/workspaces/useWorkspaces";
@@ -20,8 +21,13 @@ const ComponentPage = lazy(() =>
 const DesignIndexPage = lazy(() =>
   import("./workbench/pages/DesignIndexPage").then((m) => ({ default: m.DesignIndexPage })),
 );
-const DesignStudioPage = lazy(() =>
-  import("./workbench/pages/DesignStudioPage").then((m) => ({ default: m.DesignStudioPage })),
+const AdoptExperiencePage = lazy(() =>
+  import("./workbench/pages/AdoptExperiencePage").then((m) => ({ default: m.AdoptExperiencePage })),
+);
+const ComponentContextRoute = lazy(() =>
+  import("./workbench/pages/ComponentContextRoute").then((m) => ({
+    default: m.ComponentContextRoute,
+  })),
 );
 const WorkspaceStudioPage = lazy(() =>
   import("./workbench/pages/WorkspaceStudioPage").then((m) => ({
@@ -43,6 +49,9 @@ const CreatePage = lazy(() =>
 const PreviewPage = lazy(() =>
   import("./workbench/pages/PreviewPage").then((m) => ({ default: m.PreviewPage })),
 );
+const WorkspaceStateCapturePage = lazy(() =>
+  import("./workbench/pages/WorkspaceStateCapturePage").then((m) => ({ default: m.WorkspaceStateCapturePage })),
+);
 const NotFoundPage = lazy(() =>
   import("./workbench/pages/NotFoundPage").then((m) => ({ default: m.NotFoundPage })),
 );
@@ -58,7 +67,9 @@ function RouteSkeleton() {
       style={{ color: "var(--wb-muted)" }}
     >
       <span className="wb-skeleton" style={{ display: "block", width: 180, height: 14 }} />
-      <span style={{ display: "block", marginTop: 12 }}>{t("route.loading", { defaultValue: "Loading…" })}</span>
+      <span style={{ display: "block", marginTop: 12 }}>
+        {t("route.loading", { defaultValue: "Loading…" })}
+      </span>
     </div>
   );
 }
@@ -102,23 +113,32 @@ function SketchRedirect() {
 /**
  * A page binding is the durable link between a scenario page and the workspace
  * that composes it. Looking it up lets the old `/design/:scenario/:page` URL
- * open the workspace studio once a workspace owns that page; the legacy studio
- * remains the fallback for pages that were never migrated.
+ * open the workspace studio once a workspace owns that page. An unbound
+ * experience page gets an explicit adoption screen; it never opens the legacy
+ * composition owner.
  */
 function BoundDesignRoute({ scenario, page }: { scenario: string; page: string }) {
+  const { t } = useTranslation();
   const workspaces = useWorkspaces();
   const bound = (workspaces.data ?? []).find(
     (entry) => entry.bindingScenario === scenario && entry.bindingPage === page,
   );
   if (bound) return <Navigate to={workspacePath(bound.id)} replace />;
   if (workspaces.isLoading) return <RouteSkeleton />;
-  return <DesignStudioPage />;
+  if (workspaces.isError) {
+    return (
+      <div className="wb-page" role="alert">
+        {t(strings.workbench.adopt.bindingUnavailable)}
+      </div>
+    );
+  }
+  return <AdoptExperiencePage />;
 }
 
 /**
- * `/design` is the workspace index, but existing component links still use
- * `/design?template=…&component=…`. Those query-addressed links belong to the
- * studio, so they keep resolving there instead of becoming dead ends.
+ * `/design` is the workspace index. A bookmarked component-context URL is
+ * converted into a fork of its matching curated workspace, with component
+ * identity saved into the workspace slot before opening the editor.
  */
 function DesignRoute() {
   const location = useLocation();
@@ -140,13 +160,14 @@ function DesignRoute() {
       </Page>
     );
   }
-  const studio = ["template", "component"].some((key) => search.has(key));
-  return <Page>{studio ? <DesignStudioPage /> : <DesignIndexPage />}</Page>;
+  const componentContext = search.has("component");
+  return <Page>{componentContext ? <ComponentContextRoute /> : <DesignIndexPage />}</Page>;
 }
 
 /** The path form of the same binding lookup. */
 function BoundDesignPage() {
   const { scenario = "", page = "" } = useParams<{ scenario?: string; page?: string }>();
+  if (!page) return <Navigate to={appRoutes.design} replace />;
   return (
     <Page>
       <BoundDesignRoute scenario={scenario} page={page} />
@@ -167,6 +188,10 @@ export default function App() {
           </Page>
         }
       />
+      <Route
+        path={appRoutes.workspaceCapture}
+        element={<Page><WorkspaceStateCapturePage /></Page>}
+      />
       <Route element={<WorkbenchShell />}>
         <Route
           path={appRoutes.start}
@@ -176,7 +201,14 @@ export default function App() {
             </Page>
           }
         />
-        <Route path={appRoutes.library} element={<Page><LibraryPage /></Page>} />
+        <Route
+          path={appRoutes.library}
+          element={
+            <Page>
+              <LibraryPage />
+            </Page>
+          }
+        />
         <Route path={appRoutes.components} element={<LibraryRedirect />} />
         <Route path={appRoutes.assetCatalog} element={<LibraryRedirect />} />
         <Route
@@ -200,7 +232,14 @@ export default function App() {
             </Page>
           }
         />
-        <Route path={appRoutes.stats} element={<Page><StatsPage /></Page>} />
+        <Route
+          path={appRoutes.stats}
+          element={
+            <Page>
+              <StatsPage />
+            </Page>
+          }
+        />
         <Route path={appRoutes.coverage} element={<StatsRedirect view="quality" />} />
         <Route path={appRoutes.capabilities} element={<StatsRedirect view="services" />} />
         <Route path={appRoutes.activity} element={<StatsRedirect view="activity" />} />

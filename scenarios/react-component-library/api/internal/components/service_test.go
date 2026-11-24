@@ -37,6 +37,33 @@ func TestVersionCheckFailureReportsActionableFindings(t *testing.T) {
 	require.NotContains(t, message, "source is present")
 }
 
+func TestToConnectErrorMapsTypedServiceErrors(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		code connect.Code
+	}{
+		{name: "not found", err: components.ErrComponentNotFound{IDOrLibraryID: "missing"}, code: connect.CodeNotFound},
+		{name: "invalid header", err: components.ErrInvalidHeader{Field: "slot"}, code: connect.CodeInvalidArgument},
+		{name: "already exists", err: components.ErrComponentAlreadyExists{LibraryID: "duplicate"}, code: connect.CodeAlreadyExists},
+		{name: "path escape", err: components.ErrPathEscape{SourcePath: "../outside"}, code: connect.CodeInvalidArgument},
+		{name: "content conflict", err: components.ErrContentConflict{Got: "current", Expected: "stale"}, code: connect.CodeFailedPrecondition},
+		{name: "released mutation", err: components.ErrReleasedVersionMutated{ComponentID: "button", Version: "1.0.0"}, code: connect.CodeFailedPrecondition},
+		{name: "parity waiver", err: components.ErrParityWaiverRequired{ComponentID: "button", Version: "1.0.0"}, code: connect.CodeFailedPrecondition},
+		{name: "behavior loss", err: components.ErrHarvestBehaviorLoss{Scenario: "demo", SourceFile: "Button.tsx"}, code: connect.CodeFailedPrecondition},
+		{name: "version checks", err: components.ErrVersionCheckFailed{LibraryID: "button", Version: "1.0.0"}, code: connect.CodeFailedPrecondition},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			mapped := components.ToConnectError(tc.err)
+			require.Equal(t, tc.code, connect.CodeOf(mapped))
+			require.Contains(t, mapped.Error(), tc.err.Error())
+		})
+	}
+
+	require.Equal(t, connect.CodeInternal, connect.CodeOf(components.ToConnectError(fmt.Errorf("unknown failure"))))
+}
+
 func TestPublishFreezesBareLibrarySpecifierAndDependencyLock(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	root := t.TempDir()
@@ -321,6 +348,80 @@ func TestService_GetAcceptsCatalogID(t *testing.T) {
 	byCatalogID, err := svc.Get(context.Background(), "controls.slider")
 	require.NoError(t, err)
 	require.Equal(t, created.ID, byCatalogID.ID)
+}
+
+func TestService_ReadsCurrentAndVersionedComponentEntries(t *testing.T) {
+	ctx := context.Background()
+	repo := mocks.NewFakeRepository()
+	root := t.TempDir()
+	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(root))
+	created, err := svc.InitializeComponent(ctx, components.InitializeComponentInput{
+		LibraryID: "react-component-library:ReadSurface", Slug: "ReadSurface", DisplayName: "Read Surface",
+		InitialVersion: "1.0.0", InitialSource: "export function ReadSurface() { return <button>ready</button>; }",
+		ScaffoldExamples: true,
+	})
+	require.NoError(t, err)
+
+	current, err := svc.GetContent(ctx, created.Component.ID)
+	require.NoError(t, err)
+	require.Contains(t, current.Body, "<button>ready</button>")
+	require.NotEmpty(t, current.SHA256)
+
+	story, err := svc.GetContentAt(ctx, "react-component-library:ReadSurface", "story.json")
+	require.NoError(t, err)
+	require.Contains(t, story.Body, `"schemaVersion"`)
+	require.Equal(t, "story.json", filepath.Base(story.SourcePath))
+
+	versions, err := svc.ListVersions(ctx, "react-component-library:ReadSurface", 10)
+	require.NoError(t, err)
+	require.Len(t, versions, 1)
+	require.Equal(t, "1.0.0", versions[0].Version)
+
+	version, err := svc.GetVersion(ctx, created.Component.ID, "1.0.0")
+	require.NoError(t, err)
+	require.Equal(t, versions[0].ID, version.ID)
+
+	versionContent, err := svc.GetVersionContent(ctx, "react-component-library:ReadSurface", "1.0.0")
+	require.NoError(t, err)
+	require.Equal(t, current.Body, versionContent.Body)
+
+	versionStory, err := svc.(interface {
+		GetVersionContentAt(context.Context, string, string, string) (components.Content, error)
+	}).GetVersionContentAt(ctx, created.Component.ID, "1.0.0", "story.json")
+	require.NoError(t, err)
+	require.Equal(t, story.Body, versionStory.Body)
+
+	stories, err := svc.ListStories(ctx, components.StoryQuery{ComponentID: "react-component-library:ReadSurface", Version: "1.0.0"})
+	require.NoError(t, err)
+	require.NotEmpty(t, stories)
+	require.Equal(t, created.Component.ID, stories[0].ComponentID)
+}
+
+func TestService_ReadOperationsReportMissingContentAndVersions(t *testing.T) {
+	ctx := context.Background()
+	repo := mocks.NewFakeRepository()
+	withoutContent := components.NewService(repo)
+	_, err := withoutContent.GetContent(ctx, "missing")
+	require.ErrorContains(t, err, "ContentStore")
+
+	root := t.TempDir()
+	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(root))
+	created, err := svc.InitializeComponent(ctx, components.InitializeComponentInput{
+		LibraryID: "react-component-library:MissingRead", Slug: "MissingRead", DisplayName: "Missing Read",
+		InitialVersion: "1.0.0", InitialSource: "export function MissingRead() { return null; }",
+		ScaffoldExamples: true,
+	})
+	require.NoError(t, err)
+
+	_, err = svc.GetContentAt(ctx, created.Component.ID, "../outside.tsx")
+	require.Error(t, err)
+	var pathEscape components.ErrPathEscape
+	require.ErrorAs(t, err, &pathEscape)
+
+	_, err = svc.GetVersion(ctx, created.Component.ID, "9.9.9")
+	require.Error(t, err)
+	_, err = svc.GetVersionContent(ctx, created.Component.ID, "9.9.9")
+	require.Error(t, err)
 }
 
 func TestService_UpdateManifestRepairsAuthoredComponentMissingFromIndex(t *testing.T) {

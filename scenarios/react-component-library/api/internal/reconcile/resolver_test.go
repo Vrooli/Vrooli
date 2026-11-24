@@ -229,10 +229,10 @@ func TestCatalogSelectorResolvesThroughRealImportedSource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// The catalog results surface lives in ComponentsPage; App.tsx only hosts
-	// the router. The fixture follows the imported source that owns the
-	// selector so the binding is proved against real bytes.
-	sourcePath := "ui/src/workbench/pages/ComponentsPage.tsx"
+	// The catalog results surface lives in ComponentsCatalogView; App.tsx and
+	// ComponentsPage compose route structure. Follow the imported source that
+	// owns the selector so the binding is proved against real bytes.
+	sourcePath := "ui/src/workbench/pages/ComponentsCatalogView.tsx"
 	r := Resolver{ScenariosRoot: filepath.Join(root, "scenarios"), ToolingRoot: root, Scanner: &fakeScanner{files: []ObservedFile{{Path: sourcePath, Provenance: ProvenanceCustom}}}}
 	results, err := r.Resolve(context.Background(), "react-component-library", "catalog-workspace")
 	if err != nil {

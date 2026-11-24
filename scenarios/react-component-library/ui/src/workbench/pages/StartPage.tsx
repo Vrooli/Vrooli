@@ -1,86 +1,29 @@
+import "../start.css";
 import { useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import {
-  ArrowRight,
-  ArrowUpRight,
-  Blocks,
-  Boxes,
-  CircleAlert,
-  Compass,
-  FileText,
-  FormInput,
-  LayoutTemplate,
-  Layers,
-  Sparkles,
-  Table2,
-  Workflow,
-} from "lucide-react";
+import { ArrowRight, CircleAlert } from "lucide-react";
 
 import { getReviewSummary } from "../../api/review";
-import { WorkspaceProvenance } from "../../api/workspaces";
+import { SearchKind } from "../../api/search";
 import { useTranslation } from "../../i18n";
-import { appRoutes, libraryPath, statsPath, workspacePath } from "../../routes";
-import {
-  assetDomain,
-  formatNumber,
-  formatPercent,
-  timestampToDate,
-  useCatalog,
-  useCoverage,
-} from "../data";
-import {
-  Banner,
-  Dot,
-  Empty,
-  Panel,
-  PanelHead,
-  Skeleton,
-} from "../primitives";
+import { useIsMobile } from "../../hooks/useMediaQuery";
+import { appRoutes, workspacePath } from "../../routes";
+import { useCatalog, useCoverage } from "../data";
+import { Banner, Dot, Empty, Skeleton } from "../primitives";
+import { StartPageRail } from "./StartPageRail";
 import { SearchSurface } from "../search/SearchSurface";
+import { useWorkbenchSearch } from "../search/useWorkbenchSearch";
 import { useWorkspaces } from "../workspaces/useWorkspaces";
+import { useStartPageEntries } from "./startPageEntries";
 
-/** The intent a domain usually serves. This is presentation, not data. */
-const DOMAIN_ICON: Record<string, typeof Boxes> = {
-  controls: Blocks,
-  data: Table2,
-  forms: FormInput,
-  navigation: Compass,
-  layout: LayoutTemplate,
-  feedback: Sparkles,
-  content: FileText,
-  motion: Workflow,
-};
-
-const SHORTCUTS = [
-  { key: "workbench.start.shortcutSearch", label: "Search everything", keys: "⌘K" },
-  { key: "workbench.start.shortcutNew", label: "New workspace", keys: "N" },
-  { key: "workbench.start.shortcutDesign", label: "Go to Design", keys: "G D" },
-  { key: "workbench.start.shortcutStats", label: "Go to Stats", keys: "G S" },
-] as const;
-
-/** A domain rendered as the intent it serves. The filter still uses the real
- * domain string, so the label is presentation on top of the catalog, not a
- * second taxonomy. */
-const DOMAIN_LABEL: Record<string, string> = {
-  controls: "Actions & controls",
-  "data-display": "Collections & data",
-  forms: "Forms & auth",
-  hooks: "Hooks & runtime",
-  legacy: "Legacy surface",
-  navigation: "Navigation & shell",
-  primitives: "Foundations",
-  uncategorized: "Uncategorised",
-};
-
-function labelForDomain(domain: string): string {
-  if (DOMAIN_LABEL[domain]) return DOMAIN_LABEL[domain];
-  return domain.replace(/[-_]/g, " ").replace(/^\w/, (letter) => letter.toUpperCase());
+function pageCount(count: number): string {
+  return count === 1 ? "1 page" : `${count} pages`;
 }
 
 function shortAgo(value: string): string {
-  const date = timestampToDate(value);
-  if (!date) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
   const seconds = Math.max(0, (Date.now() - date.getTime()) / 1000);
   if (seconds < 60) return "just now";
   if (seconds < 3600) return `${Math.round(seconds / 60)}m ago`;
@@ -88,17 +31,9 @@ function shortAgo(value: string): string {
   return `${Math.round(seconds / 86_400)}d ago`;
 }
 
-function pageCount(count: number): string {
-  return count === 1 ? "1 page" : `${count} pages`;
-}
-
-function iconForDomain(domain: string): typeof Boxes {
-  const lower = domain.toLowerCase();
-  for (const [key, icon] of Object.entries(DOMAIN_ICON)) {
-    if (lower.includes(key)) return icon;
-  }
-  return Boxes;
-}
+const MOBILE_COMMAND_FILTER = [SearchKind.COMMAND];
+const NO_SEARCH_KINDS: SearchKind[] = [];
+const LANDING_PAGE_TYPE_FILTER = [SearchKind.PAGE_TYPE];
 
 /**
  * Start is a way in, not a dashboard. It answers “what can I make or find?”
@@ -108,6 +43,8 @@ function iconForDomain(domain: string): typeof Boxes {
  */
 export function StartPage() {
   const { t } = useTranslation();
+  const isMobile = useIsMobile();
+  const [searchParams, setSearchParams] = useSearchParams();
   const catalog = useCatalog();
   const coverage = useCoverage();
   const workspaces = useWorkspaces();
@@ -116,67 +53,139 @@ export function StartPage() {
     queryFn: getReviewSummary,
     retry: 0,
   });
+  const commands = useWorkbenchSearch("", {
+    kinds: MOBILE_COMMAND_FILTER,
+    limit: 100,
+    enabled: isMobile,
+  });
+  // Page archetypes are indexed separately from the publishable asset catalog.
+  // Use the unified search owner so Start does not report a false empty state.
+  const landingTypes = useWorkbenchSearch("landing page", {
+    kinds: LANDING_PAGE_TYPE_FILTER,
+    limit: 20,
+  });
 
   const assets = useMemo(() => catalog.data ?? [], [catalog.data]);
-  const summaries = workspaces.data ?? [];
-  const curated = summaries.filter(
-    (workspace) => workspace.provenance === WorkspaceProvenance.CURATED,
+  const summaries = useMemo(() => workspaces.data ?? [], [workspaces.data]);
+  const translate = (key: string, options?: Record<string, string | number>) => {
+    const translated = t(key as never, options as never);
+    return typeof translated === "string" ? translated : translated.res;
+  };
+  const { curated, recent, browseEntries, mobilePrimaryIntents } = useStartPageEntries(
+    assets,
+    summaries,
+    commands,
+    landingTypes,
+    translate,
   );
-  const recent = summaries
-    .filter((workspace) => workspace.provenance !== WorkspaceProvenance.CURATED)
-    .slice(0, 3);
-  const openFindings = review.data?.open;
-  const report = coverage.data;
-  const production = report?.maturity?.productionReadyCoverage;
-
-  const intents = useMemo(() => {
-    const byDomain = new Map<string, { count: number; examples: string[] }>();
-    for (const asset of assets) {
-      const domain = assetDomain(asset);
-      const entry = byDomain.get(domain) ?? { count: 0, examples: [] };
-      entry.count += 1;
-      if (entry.examples.length < 3) entry.examples.push(asset.displayName);
-      byDomain.set(domain, entry);
-    }
-    return [...byDomain.entries()]
-      .sort(([leftName, left], [rightName, right]) =>
-        right.count === left.count ? leftName.localeCompare(rightName) : right.count - left.count,
-      )
-      .slice(0, 8)
-      .map(([domain, entry]) => ({ domain, ...entry }));
-  }, [assets]);
 
   const continuation = recent[0];
+  // On phones the continuation card is already the primary recent workspace.
+  // Keep the later list useful by showing only the remaining workspaces.
+  const recentlyOpened = isMobile && continuation ? recent.slice(1) : recent;
+  const primaryIntents = isMobile ? mobilePrimaryIntents : browseEntries;
+  const primaryIDs = new Set(mobilePrimaryIntents.map((entry) => entry.id));
+  const remainingIntents = isMobile
+    ? browseEntries.filter((entry) => !primaryIDs.has(entry.id))
+    : [];
+
+  const categoryCards = (items: typeof browseEntries) =>
+    items.map((intent) => {
+      const Icon = intent.Icon;
+      return (
+        <Link
+          key={intent.id}
+          to={intent.href}
+          className="wb-start-cat"
+          data-testid="start-category-card"
+          data-start-entry={intent.id}
+          data-entry-count={intent.countValue}
+          data-entry-pages={intent.pagesValue}
+        >
+          <span className="wb-start-cat-icon" aria-hidden>
+            <Icon size={15} />
+          </span>
+          <b>{intent.title}</b>
+          <span className="wb-start-cat-count">{intent.count}</span>
+          <span className="wb-start-cat-examples">
+            {Array.isArray(intent.examples) ? intent.examples.join(" · ") : intent.examples}
+          </span>
+        </Link>
+      );
+    });
+
+  const clearCommandFilter = () => {
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        next.delete("commands");
+        return next;
+      },
+      { replace: true },
+    );
+  };
+
+  const continueCard = continuation ? (
+    <div className="wb-start-continue" data-testid="start-continue">
+      <span className="wb-start-rail-kicker">
+        {t("workbench.start.continueLabel", { defaultValue: "Continue" })}
+      </span>
+      <b>{continuation.name}</b>
+      <small>
+        {t("workbench.start.recentMetaLine", {
+          defaultValue: "{{pages}} · {{updated}}",
+          pages: pageCount(continuation.pageCount),
+          updated: shortAgo(continuation.updatedAt),
+        })}
+      </small>
+      <div className="wb-start-continue-actions">
+        <Link to={workspacePath(continuation.id)} className="wb-btn primary sm">
+          {t("workbench.start.openWorkspaceShort", { defaultValue: "Open workspace" })}
+        </Link>
+        <Link to={appRoutes.design} className="wb-btn quiet sm">
+          {t("workbench.start.allWorkspaces", { defaultValue: "All" })}
+        </Link>
+      </div>
+    </div>
+  ) : null;
 
   return (
     <div className="wb-page wb-start" data-experience-surface="start" data-testid="start-page">
-      <header className="wb-start-head">
-        <p className="wb-start-kicker">
-          {catalog.isLoading
-            ? t("workbench.start.loadingKicker", { defaultValue: "The shared UI layer · loading…" })
-            : t("workbench.start.kicker", {
-                defaultValue: "The shared UI layer · {{count}} assets · {{workspaces}} workspaces",
-                count: assets.length,
-                workspaces: summaries.length,
-              })}
-        </p>
-        <h1 className="wb-start-h1">
-          {t("workbench.start.titleLead", { defaultValue: "Find the" })}{" "}
-          <em>{t("workbench.start.titleEmphasis", { defaultValue: "surface." })}</em>
-        </h1>
-        <p className="wb-start-lede">
-          {t("workbench.start.lede", {
-            defaultValue:
-              "Start from an intent, a workspace, an asset or a command. Nothing here requires a query.",
-          })}
-        </p>
-        <div className="wb-start-search">
-          <SearchSurface compact />
-        </div>
-      </header>
-
       <div className="wb-start-layout">
         <div className="wb-start-main">
+          <header className="wb-start-head">
+            <p className="wb-start-kicker">
+              {catalog.isLoading
+                ? t("workbench.start.loadingKicker", {
+                    defaultValue: "The shared UI layer · loading…",
+                  })
+                : t("workbench.start.kicker", {
+                    defaultValue:
+                      "The shared UI layer · {{count}} assets · {{workspaces}} workspaces",
+                    count: assets.length,
+                    workspaces: summaries.length,
+                  })}
+            </p>
+            <h1 className="wb-start-h1">
+              {t("workbench.start.titleLead", { defaultValue: "Find the" })}{" "}
+              <em>{t("workbench.start.titleEmphasis", { defaultValue: "surface." })}</em>
+            </h1>
+            <p className="wb-start-lede">
+              {t("workbench.start.lede", {
+                defaultValue:
+                  "Start from an intent, a workspace, an asset or a command. Nothing here requires a query.",
+              })}
+            </p>
+            <div className="wb-start-search">
+              <SearchSurface
+                compact
+                initialKinds={
+                  searchParams.get("commands") === "1" ? MOBILE_COMMAND_FILTER : NO_SEARCH_KINDS
+                }
+                onClearKinds={clearCommandFilter}
+              />
+            </div>
+          </header>
           <section aria-labelledby="start-intent-title">
             <div className="wb-start-section-head">
               <b id="start-intent-title">
@@ -207,7 +216,7 @@ export function StartPage() {
                     "Domains cannot be derived without it. The library is not shown as empty.",
                 })}
               </Banner>
-            ) : intents.length === 0 ? (
+            ) : browseEntries.length === 0 && !isMobile ? (
               <Empty
                 title={t("workbench.start.emptyCategoriesTitle", {
                   defaultValue: "No domains indexed yet",
@@ -226,223 +235,115 @@ export function StartPage() {
                 })}
               </Empty>
             ) : (
-              <div className="wb-start-catgrid">
-                {intents.map((intent) => {
-                  const Icon = iconForDomain(intent.domain);
-                  return (
-                    <Link
-                      key={intent.domain}
-                      to={libraryPath(intent.domain)}
-                      className="wb-start-cat"
-                      data-testid="start-category-card"
-                    >
-                      <span className="wb-start-cat-icon" aria-hidden>
-                        <Icon size={15} />
-                      </span>
-                      <b>{labelForDomain(intent.domain)}</b>
-                      <span className="wb-start-cat-count">
-                        {t("workbench.start.categoryCount", {
-                          defaultValue: "{{count}} assets · {{domain}}",
-                          count: intent.count,
-                          domain: intent.domain,
-                        })}
-                      </span>
-                      <span className="wb-start-cat-examples">{intent.examples.join(" · ")}</span>
-                    </Link>
-                  );
-                })}
+              <div className="wb-start-catgrid" data-testid="start-intents-primary">
+                {categoryCards(primaryIntents)}
               </div>
             )}
           </section>
 
-          <section aria-labelledby="start-recent-title">
-            <div className="wb-start-section-head">
-              <b id="start-recent-title">
-                {t("workbench.start.continue", { defaultValue: "Recently opened" })}
-              </b>
-              <span>
-                {t("workbench.start.recentMeta", { defaultValue: "This browser" })}
-              </span>
-            </div>
-            {workspaces.isLoading ? (
-              <div className="wb-start-strip" data-testid="start-designs-loading">
-                {Array.from({ length: 3 }).map((_, index) => (
-                  <Skeleton key={index} height={64} />
-                ))}
-              </div>
-            ) : workspaces.isError ? (
-              <Banner tone="amber" icon={<CircleAlert aria-hidden size={15} />}>
-                {t("workbench.start.designsUnavailable", {
-                  defaultValue:
-                    "The workspace list is unavailable. Open Design to retry the design service.",
-                })}
-              </Banner>
-            ) : recent.length === 0 ? (
-              <Empty
-                title={t("workbench.start.noDesigns", { defaultValue: "No workspaces yet" })}
-                action={
-                  <Link to={appRoutes.design} className="wb-btn ghost sm">
-                    {t("workbench.start.openDesignArchive", {
-                      defaultValue: "Open the design index",
-                    })}
-                  </Link>
-                }
-              >
-                {t("workbench.start.noDesignsBody", {
-                  defaultValue:
-                    "The design index lists workspaces and templates once the studio has created one.",
-                })}
-              </Empty>
-            ) : (
-              <div className="wb-start-strip">
-                {recent.map((workspace, index) => (
-                  <Link
-                    key={workspace.id}
-                    to={workspacePath(workspace.id)}
-                    className="wb-start-recent"
-                    aria-label={t("workbench.start.openWorkspace", {
-                      defaultValue: "Open workspace {{name}}",
-                      name: workspace.name,
-                    })}
-                  >
-                    <span
-                      className="wb-start-recent-art"
-                      data-tone={index % 3}
-                      aria-hidden
-                    >
-                      <Layers size={14} />
-                    </span>
-                    <span className="wb-start-recent-copy">
-                      <b>{workspace.name}</b>
-                      <small>
-                        {t("workbench.start.recentMetaLine", {
-                          defaultValue: "{{pages}} · {{updated}}",
-                          pages: pageCount(workspace.pageCount),
-                          updated: shortAgo(workspace.updatedAt),
-                        })}
-                      </small>
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </section>
-        </div>
+          {isMobile ? continueCard : null}
 
-        <aside className="wb-start-rail" aria-label={t("workbench.start.rail", { defaultValue: "Start sidebar" })}>
-          {continuation ? (
-            <div className="wb-start-continue">
-              <span className="wb-start-rail-kicker">
-                {t("workbench.start.continueLabel", { defaultValue: "Continue" })}
-              </span>
-              <b>{continuation.name}</b>
-              <small>
-                {t("workbench.start.recentMetaLine", {
-                  defaultValue: "{{pages}} · {{updated}}",
-                  pages: pageCount(continuation.pageCount),
-                  updated: shortAgo(continuation.updatedAt),
-                })}
-              </small>
-              <div className="wb-start-continue-actions">
-                <Link to={workspacePath(continuation.id)} className="wb-btn primary sm">
-                  {t("workbench.start.openWorkspaceShort", { defaultValue: "Open workspace" })}
-                </Link>
-                <Link to={appRoutes.design} className="wb-btn quiet sm">
-                  {t("workbench.start.allWorkspaces", { defaultValue: "All" })}
-                </Link>
-              </div>
-            </div>
+          {isMobile ? (
+            <>
+              {remainingIntents.length > 0 ? (
+                <section
+                  aria-labelledby="start-more-intents-title"
+                  data-testid="start-intents-more"
+                >
+                  <div className="wb-start-section-head">
+                    <b id="start-more-intents-title">
+                      {t("workbench.start.moreBrowseTitle", { defaultValue: "More to explore" })}
+                    </b>
+                  </div>
+                  <div className="wb-start-catgrid">{categoryCards(remainingIntents)}</div>
+                </section>
+              ) : null}
+            </>
           ) : null}
 
-          <Panel className="wb-start-pulse">
-            <PanelHead
-              title={t("workbench.start.pulse", { defaultValue: "Library pulse" })}
-              meta={t("workbench.start.pulseMeta", { defaultValue: "Live" })}
-            />
-            <div className="wb-start-pulse-rows">
-              <div className="wb-start-pulse-row">
-                <span>{t("workbench.start.kpiAssets", { defaultValue: "Assets" })}</span>
-                <b>{catalog.isError ? "—" : catalog.isLoading ? "…" : formatNumber(assets.length)}</b>
-              </div>
-              <div className="wb-start-pulse-row">
-                <span>{t("workbench.start.kpiProduction", { defaultValue: "Production ready" })}</span>
-                <b data-tone={production && production.ratio < 0.8 ? "warn" : undefined}>
-                  {coverage.isError ? "—" : production ? formatPercent(production.ratio) : "…"}
+          {recentlyOpened.length > 0 || !isMobile ? (
+            <section aria-labelledby="start-recent-title">
+              <div className="wb-start-section-head">
+                <b id="start-recent-title">
+                  {t("workbench.start.continue", { defaultValue: "Recently opened" })}
                 </b>
+                <span>{t("workbench.start.recentMeta", { defaultValue: "This browser" })}</span>
               </div>
-              <div className="wb-start-pulse-row">
-                <span>{t("workbench.start.openFindings", { defaultValue: "Open findings" })}</span>
-                <b data-tone={openFindings && openFindings > 0 ? "warn" : undefined}>
-                  {review.isError ? "—" : openFindings === undefined ? "…" : formatNumber(openFindings)}
-                </b>
-              </div>
-              <div className="wb-start-pulse-row">
-                <span>{t("workbench.start.kpiWorkspaces", { defaultValue: "Workspaces" })}</span>
-                <b>{workspaces.isError ? "—" : workspaces.isLoading ? "…" : formatNumber(summaries.length)}</b>
-              </div>
-            </div>
-            <Link to={statsPath("overview")} className="wb-btn quiet sm wb-start-rail-button">
-              {t("workbench.start.openStats", { defaultValue: "Open Stats" })}
-              <ArrowUpRight aria-hidden size={12} />
-            </Link>
-          </Panel>
-
-          <Panel className="wb-start-pulse">
-            <PanelHead
-              title={t("workbench.start.templates", { defaultValue: "Curated templates" })}
-              meta={formatNumber(curated.length)}
-            />
-            <div className="wb-start-template-list">
               {workspaces.isLoading ? (
-                <Skeleton height={48} />
-              ) : curated.length === 0 ? (
-                <p className="wb-start-rail-note">
-                  {t("workbench.start.noTemplatesBody", {
-                    defaultValue:
-                      "A curated template is a reviewed workspace snapshot. It forks on use and never changes the original.",
-                  })}
-                </p>
-              ) : (
-                curated.slice(0, 3).map((workspace, index) => (
-                  <Link
-                    key={workspace.id}
-                    to={workspacePath(workspace.id)}
-                    className="wb-start-template"
-                  >
-                    <span className="wb-start-template-thumb" data-tone={index % 3} aria-hidden>
-                      <span />
-                    </span>
-                    <span className="wb-start-template-copy">
-                      <b>{workspace.name}</b>
-                      <small>
-                        {t("workbench.start.templateMeta", {
-                          defaultValue: "{{pages}} · {{displays}}",
-                          pages: pageCount(workspace.pageCount),
-                          displays: workspace.displayCount === 1 ? "1 display" : `${workspace.displayCount} displays`,
-                        })}
-                      </small>
-                    </span>
-                  </Link>
-                ))
-              )}
-            </div>
-          </Panel>
-
-          <Panel className="wb-start-pulse">
-            <PanelHead
-              title={t("workbench.start.shortcuts", { defaultValue: "Shortcuts" })}
-              meta={t("workbench.start.keyboard", { defaultValue: "Keyboard" })}
-            />
-            <div className="wb-start-shortcuts">
-              {SHORTCUTS.map((shortcut) => (
-                <div key={shortcut.key} className="wb-start-shortcut">
-                  <span>{t(shortcut.key, { defaultValue: shortcut.label })}</span>
-                  <kbd>{shortcut.keys}</kbd>
+                <div className="wb-start-strip" data-testid="start-designs-loading">
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <Skeleton key={index} height={64} />
+                  ))}
                 </div>
-              ))}
-            </div>
-          </Panel>
-        </aside>
+              ) : workspaces.isError ? (
+                <Banner tone="amber" icon={<CircleAlert aria-hidden size={15} />}>
+                  {t("workbench.start.designsUnavailable", {
+                    defaultValue:
+                      "The workspace list is unavailable. Open Design to retry the design service.",
+                  })}
+                </Banner>
+              ) : recentlyOpened.length === 0 ? (
+                <Empty
+                  title={t("workbench.start.noDesigns", { defaultValue: "No workspaces yet" })}
+                  action={
+                    <Link to={appRoutes.design} className="wb-btn ghost sm">
+                      {t("workbench.start.openDesignArchive", {
+                        defaultValue: "Open the design index",
+                      })}
+                    </Link>
+                  }
+                >
+                  {t("workbench.start.noDesignsBody", {
+                    defaultValue:
+                      "The design index lists workspaces and templates once the studio has created one.",
+                  })}
+                </Empty>
+              ) : (
+                <div className="wb-start-strip">
+                  {recentlyOpened.map((workspace, index) => (
+                    <Link
+                      key={workspace.id}
+                      to={workspacePath(workspace.id)}
+                      className="wb-start-recent"
+                      aria-label={t("workbench.start.openWorkspace", {
+                        defaultValue: "Open workspace {{name}}",
+                        name: workspace.name,
+                      })}
+                    >
+                      <span className="wb-start-recent-art" data-tone={index % 3} aria-hidden>
+                        <span className="wb-start-recent-preview">
+                          <i />
+                          <i />
+                          <i />
+                        </span>
+                      </span>
+                      <span className="wb-start-recent-copy">
+                        <b>{workspace.name}</b>
+                        <small>
+                          {t("workbench.start.recentMetaLine", {
+                            defaultValue: "{{pages}} · {{updated}}",
+                            pages: pageCount(workspace.pageCount),
+                            updated: shortAgo(workspace.updatedAt),
+                          })}
+                        </small>
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </section>
+          ) : null}
+        </div>
+
+        <StartPageRail
+          catalog={catalog}
+          coverage={coverage}
+          review={review}
+          workspaces={workspaces}
+          summaries={summaries}
+          curated={curated}
+          continuation={isMobile ? undefined : continuation}
+        />
       </div>
 
       <p className="wb-start-foot">

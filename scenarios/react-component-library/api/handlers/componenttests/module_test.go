@@ -22,6 +22,7 @@ import (
 	localdb "react-component-library/internal/database"
 
 	db "github.com/vrooli/api-core/databasetest"
+	"github.com/vrooli/api-core/storage"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
@@ -85,6 +86,42 @@ func TestModuleFailsValidationBeforeSchedulingWhenExecutorUnavailable(t *testing
 	require.False(t, executor.called.Load())
 }
 
+func TestListComponentTestReportsUsesRequestRoutedDBPool(t *testing.T) {
+	ctx := context.Background()
+	primaryDSN, err := storage.SQLiteDSNAt(filepath.Join(t.TempDir(), "primary.db"), storage.SQLiteTuning{})
+	require.NoError(t, err)
+	requestDB, err := apidb.Open(ctx, apidb.Config{Driver: apidb.DriverSQLite, DSN: primaryDSN, MaxOpenConns: 1, MaxIdleConns: 1})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = requestDB.Close() })
+	ensureSchema := func(ctx context.Context, pool *sql.DB) error {
+		return apidb.EnsureSchemas(ctx, pool, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(internalcomponents.Schema))
+	}
+	require.NoError(t, ensureSchema(ctx, requestDB.Primary()))
+	requestDB.SetTestPoolInitializer(ensureSchema)
+	testDSN, err := storage.SQLiteDSNAt(filepath.Join(t.TempDir(), "test.db"), storage.SQLiteTuning{})
+	require.NoError(t, err)
+	require.NoError(t, requestDB.InstallTestPool(ctx, testDSN, "component-tests-routing", time.Minute))
+
+	primaryReports := domain.NewSQLiteRepository(requestDB.Primary())
+	require.NoError(t, primaryReports.Save(ctx, domain.Report{ID: "primary-only", RootComponentID: "rcl:Button", RootLibraryID: "rcl:Button", RootVersion: "1.0.0", CreatedAt: time.Now().UTC(), Verdict: domain.VerdictPassed}))
+	router := mux.NewRouter()
+	componenttests.ModuleWithExecutor(requestDB, nil, t.TempDir(), passingExecutor{}, log.New(io.Discard, "", 0)).Mount(router)
+
+	list := func(requestContext context.Context) *httptest.ResponseRecorder {
+		request := httptest.NewRequest(http.MethodPost, testsconnect.ComponentTestsServiceListComponentTestReportsProcedure, strings.NewReader(`{"componentId":"rcl:Button","version":"1.0.0"}`)).WithContext(requestContext)
+		request.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		return response
+	}
+	primaryResponse := list(ctx)
+	require.Equal(t, http.StatusOK, primaryResponse.Code, primaryResponse.Body.String())
+	require.Contains(t, primaryResponse.Body.String(), "primary-only")
+	testResponse := list(apidb.WithTestMode(ctx))
+	require.Equal(t, http.StatusOK, testResponse.Code, testResponse.Body.String())
+	require.NotContains(t, testResponse.Body.String(), "primary-only", "request context must route reads to the isolated test pool")
+}
+
 func TestValidateScenarioReportsSelectedBASRouteWithoutCapture(t *testing.T) {
 	var healthGets atomic.Int32
 	var capturePosts atomic.Int32
@@ -93,7 +130,7 @@ func TestValidateScenarioReportsSelectedBASRouteWithoutCapture(t *testing.T) {
 		case r.Method == http.MethodGet && r.URL.Path == "/health":
 			healthGets.Add(1)
 			w.WriteHeader(http.StatusOK)
-		case r.Method == http.MethodPost && r.URL.Path == "/ux-capture/scenario":
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/ux-capture/scenario":
 			capturePosts.Add(1)
 			w.WriteHeader(http.StatusInternalServerError)
 		default:
@@ -120,7 +157,7 @@ func TestValidateScenarioReportsSelectedBASRouteWithoutCapture(t *testing.T) {
 	require.NoError(t, anypb.UnmarshalTo(response.GetNativeDetail(), &detail, proto.UnmarshalOptions{}))
 	fields := detail.AsMap()
 	require.Equal(t, server.URL, fields["bas_base_url"])
-	require.Equal(t, "/ux-capture/scenario", fields["capture_path"])
+	require.Equal(t, "/api/v1/ux-capture/scenario", fields["capture_path"])
 	require.NotEmpty(t, fields["resolved_at"])
 	require.Equal(t, "healthy", fields["health_status"])
 	require.Equal(t, true, fields["inspection_only"])
@@ -137,7 +174,7 @@ func TestValidateScenarioInspectionOnlyDoesNotRunPopulatedCatalog(t *testing.T) 
 		case r.Method == http.MethodGet && r.URL.Path == "/health":
 			healthGets.Add(1)
 			w.WriteHeader(http.StatusOK)
-		case r.Method == http.MethodPost && r.URL.Path == "/ux-capture/scenario":
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/ux-capture/scenario":
 			capturePosts.Add(1)
 			w.WriteHeader(http.StatusBadGateway)
 			_, _ = w.Write([]byte(`{"error":"fixture capture unavailable"}`))

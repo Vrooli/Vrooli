@@ -65,6 +65,7 @@
   },
   "include": [
     "src",
+    "bench",
     "../library/components/BottomNav/versions/1.0.0/BottomNav.tsx",
     "../library/components/SidebarShell/versions/1.0.0/SidebarShell.tsx",
     "../library/components/ExperienceSurface/versions/1.0.0/ExperienceSurface.tsx"

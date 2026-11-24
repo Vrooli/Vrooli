@@ -15,7 +15,7 @@
     }
   ],
   "displayName": "App notification settings",
-  "draft": "",
+  "draft": "1.0.7-draft.1",
   "entry": "AppNotificationSettings.tsx",
   "evictedVersions": [
     "0.1.0",

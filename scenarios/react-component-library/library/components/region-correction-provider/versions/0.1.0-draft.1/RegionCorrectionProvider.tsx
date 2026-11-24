@@ -45,8 +45,24 @@ export interface RegionCorrectionEvidence {
   region: { id: string; node_id: string; label: string; component: string; evidence_id: string; crop: { path: string; sha256: string }; bounds: { x: number; y: number; width: number; height: number } };
 }
 
+export type RegionCorrectionEvent = RegionCorrectionEvidence & { text: string };
+
+/** Durable acknowledgment returned by the local UI Health correction intake. */
+export interface RegionCorrectionQueueReceipt {
+  schema: "ui-health.region-feedback-receipt/v1";
+  correction_id: string;
+  owner_scenario: string;
+  corpus: string;
+  status: "queued";
+  received_at: string;
+  event_sha256: string;
+  correction: RegionCorrectionEvent;
+}
+
 export interface ResolvedRegionCorrection {
   evidence: RegionCorrectionEvidence;
+  /** Host evidence resolver compares the capture build with the currently served page. */
+  freshness: "current" | "stale";
   /** Same-origin, locally served preview; never included in the submitted correction. */
   cropPreviewUrl: string;
 }
@@ -56,7 +72,7 @@ export interface RegionCorrectionProviderProps {
   /** Resolve identity and a locally stored crop from host instrumentation. Must not return UI text or form values. */
   resolveEvidence: (element: HTMLElement) => Promise<ResolvedRegionCorrection | null>;
   /** Route to the scenario owner and private local EX1 intake. */
-  submitCorrection: (input: RegionCorrectionEvidence & { text: string }) => Promise<void>;
+  submitCorrection: (input: RegionCorrectionEvent) => Promise<RegionCorrectionQueueReceipt>;
   shortcut?: string;
   disabled?: boolean;
 }
@@ -80,34 +96,82 @@ function explicitlyMarked(element: HTMLElement): boolean {
   return element.matches("[data-ux-feedback-target]");
 }
 
-const optional = <T,>(value: T): T | undefined => value;
 const stableId = (value: string): boolean => /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value);
 const digest = (value: string): boolean => /^[0-9a-f]{64}$/.test(value);
 const bundlePath = (value: string): boolean => Boolean(value && /^[A-Za-z0-9._~!$&'()*+,;=@%/-]+$/.test(value) && value.split("/").every((part) => part !== "" && part !== "." && part !== ".."));
 
-function validEvidence(value: ResolvedRegionCorrection | null): value is ResolvedRegionCorrection {
-  const evidence = value?.evidence;
-  if (!value || !evidence || typeof value.cropPreviewUrl !== "string" || !/^\/(?!\/)[^?#\s]+$/.test(value.cropPreviewUrl)) return false;
-  // Evidence can arrive from another build or a hand-edited packet, so the
-  // published type is a claim, not a guarantee. Widen the literal fields
-  // before validating them; otherwise the compiler proves the checks dead.
-  const schema: string = evidence.schema;
-  const kind: string = evidence.kind;
-  const storage: string = evidence.storage;
-  const isPrivate = optional(evidence.private);
-  if (schema !== REGION_CORRECTION_SCHEMA || kind !== "correction" || storage !== "local" || !isPrivate) return false;
-  if (!stableId(evidence.correction_id) || !stableId(evidence.owner_scenario) || !stableId(evidence.corpus)) return false;
-  const capture = optional(evidence.capture);
-  if (!capture || !stableId(capture.id) || !/^sha256:[0-9a-f]{64}$/.test(capture.build_id) || !/^\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]{0,1023}$/.test(capture.route) || !stableId(capture.state_id) || !stableId(capture.data_id)) return false;
-  const origin = optional(evidence.origin);
-  if (!origin || (origin.kind === "served-page" && (!stableId(origin.id) || origin.id !== capture.id)) || (origin.kind === "hub-packet" && (!stableId(origin.id) || !stableId(origin.attachment))) || !["served-page", "hub-packet"].includes(origin.kind)) return false;
-  if (!["captured", "composited", "rendered", "sketch"].includes(capture.fidelity) || !bundlePath(capture.image.path) || !digest(capture.image.sha256)) return false;
-  if (!Number.isInteger(capture.viewport.width) || capture.viewport.width < 1 || !Number.isInteger(capture.viewport.height) || capture.viewport.height < 1) return false;
-  const region = optional(evidence.region);
-  if (!region || !stableId(region.id) || !stableId(region.node_id) || !region.label.trim() || region.label.length > 256 || !stableId(region.component) || !stableId(region.evidence_id)) return false;
-  if (!bundlePath(region.crop.path) || !digest(region.crop.sha256)) return false;
-  const { x, y, width, height } = region.bounds;
+// Evidence crosses a host boundary. Its TypeScript declaration is not proof
+// that an older or miswired host returned a complete local, private v1 event.
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
+const asString = (value: unknown): string => typeof value === "string" ? value : "";
+const asNumber = (value: unknown): number => typeof value === "number" ? value : Number.NaN;
+const FIDELITIES = ["captured", "composited", "rendered", "sketch"] as const;
+const hasOnlyKeys = (value: Record<string, unknown>, keys: readonly string[], required: readonly string[] = keys): boolean =>
+  Object.keys(value).every((key) => keys.includes(key)) && required.every((key) => key in value);
+
+function validEvidence(value: unknown): value is ResolvedRegionCorrection {
+  if (!isRecord(value) || !hasOnlyKeys(value, ["evidence", "freshness", "cropPreviewUrl"]) || value.freshness !== "current") return false;
+  const preview = value.cropPreviewUrl;
+  if (typeof preview !== "string" || !/^\/(?!\/)[^?#\s]+$/.test(preview)) return false;
+  const evidence = value.evidence;
+  if (!isRecord(evidence) || !hasOnlyKeys(evidence, ["schema", "kind", "correction_id", "origin", "owner_scenario", "corpus", "storage", "private", "capture", "region"])) return false;
+  if (asString(evidence.schema) !== REGION_CORRECTION_SCHEMA || asString(evidence.kind) !== "correction") return false;
+  if (asString(evidence.storage) !== "local" || evidence.private !== true) return false;
+  if (!stableId(asString(evidence.correction_id)) || !stableId(asString(evidence.owner_scenario)) || !stableId(asString(evidence.corpus))) return false;
+
+  const capture = evidence.capture;
+  if (!isRecord(capture) || !hasOnlyKeys(capture, ["id", "build_id", "route", "state_id", "data_id", "fidelity", "viewport", "image"])) return false;
+  const captureID = asString(capture.id);
+  const route = asString(capture.route);
+  if (!stableId(captureID) || !/^sha256:[0-9a-f]{64}$/.test(asString(capture.build_id)) || !/^\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]{0,1023}$/.test(route)) return false;
+  if (!stableId(asString(capture.state_id)) || !stableId(asString(capture.data_id)) || !FIDELITIES.includes(asString(capture.fidelity) as typeof FIDELITIES[number])) return false;
+  const origin = evidence.origin;
+  if (!isRecord(origin) || !stableId(asString(origin.id))) return false;
+  const originKind = asString(origin.kind);
+  if (originKind === "served-page") {
+    if (!hasOnlyKeys(origin, ["kind", "id"]) || asString(origin.id) !== captureID) return false;
+  } else if (originKind === "hub-packet") {
+    if (!hasOnlyKeys(origin, ["kind", "id", "attachment"]) || !stableId(asString(origin.attachment))) return false;
+  } else return false;
+
+  const image = capture.image;
+  const viewport = capture.viewport;
+  if (!isRecord(image) || !hasOnlyKeys(image, ["path", "sha256"]) || !isRecord(viewport) || !hasOnlyKeys(viewport, ["width", "height"])) return false;
+  if (!bundlePath(asString(image.path)) || !digest(asString(image.sha256))) return false;
+  const viewportWidth = asNumber(viewport.width);
+  const viewportHeight = asNumber(viewport.height);
+  if (!Number.isInteger(viewportWidth) || viewportWidth < 1 || viewportWidth > 10000 || !Number.isInteger(viewportHeight) || viewportHeight < 1 || viewportHeight > 10000) return false;
+
+  const region = evidence.region;
+  if (!isRecord(region) || !hasOnlyKeys(region, ["id", "node_id", "label", "component", "evidence_id", "crop", "bounds"])) return false;
+  const label = asString(region.label);
+  if (!stableId(asString(region.id)) || !stableId(asString(region.node_id)) || !label.trim() || label.length > 256) return false;
+  if (!stableId(asString(region.component)) || !stableId(asString(region.evidence_id))) return false;
+  const crop = region.crop;
+  const bounds = region.bounds;
+  if (!isRecord(crop) || !hasOnlyKeys(crop, ["path", "sha256"]) || !isRecord(bounds) || !hasOnlyKeys(bounds, ["x", "y", "width", "height"])) return false;
+  if (!bundlePath(asString(crop.path)) || !digest(asString(crop.sha256))) return false;
+  const x = asNumber(bounds.x);
+  const y = asNumber(bounds.y);
+  const width = asNumber(bounds.width);
+  const height = asNumber(bounds.height);
   return [x, y, width, height].every(Number.isFinite) && x >= 0 && y >= 0 && width > 0 && height > 0 && x + width <= 1 && y + height <= 1;
+}
+
+function canonicalJSON(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJSON).join(",")}]`;
+  if (isRecord(value)) {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJSON(value[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function validReceipt(value: unknown, expected: RegionCorrectionEvent): value is RegionCorrectionQueueReceipt {
+  if (!isRecord(value) || !hasOnlyKeys(value, ["schema", "correction_id", "owner_scenario", "corpus", "status", "received_at", "event_sha256", "correction"])) return false;
+  if (value.schema !== "ui-health.region-feedback-receipt/v1" || value.status !== "queued") return false;
+  if (value.correction_id !== expected.correction_id || value.owner_scenario !== expected.owner_scenario || value.corpus !== expected.corpus) return false;
+  if (!/^[0-9a-f]{64}$/.test(asString(value.event_sha256)) || !Number.isFinite(Date.parse(asString(value.received_at)))) return false;
+  return canonicalJSON(value.correction) === canonicalJSON(expected);
 }
 
 export function RegionCorrectionProvider({ children, resolveEvidence, submitCorrection, shortcut = "u", disabled = false }: RegionCorrectionProviderProps) {
@@ -135,6 +199,10 @@ export function RegionCorrectionProvider({ children, resolveEvidence, submitCorr
     setNotice("");
     try {
       const resolved = await resolveEvidence(element);
+      if (isRecord(resolved) && resolved.freshness === "stale") {
+        setStatus("This page changed after its capture. Refresh the evidence before sending a correction.");
+        return;
+      }
       if (!validEvidence(resolved)) {
         setStatus("This part of the page has no complete capture identity yet. No correction was sent.");
         return;
@@ -213,24 +281,29 @@ export function RegionCorrectionProvider({ children, resolveEvidence, submitCorr
     void openFor(target);
   };
   const submit = async () => {
-    if (!evidence || message.trim().length < 3 || message.trim().length > 500) return;
+    if (!evidence || message.trim().length < 3 || message.trim().length > 500 || /[\r\n]/.test(message.trim())) return;
     setStatus("Sending correction…");
+    const correction: RegionCorrectionEvent = { ...evidence, text: message.trim() };
     try {
-      await submitCorrection({ ...evidence, text: message.trim() });
-      setNotice("Correction queued locally with its page evidence.");
+      const receipt = await submitCorrection(correction);
+      if (!validReceipt(receipt, correction)) {
+        setStatus("The local queue returned no matching receipt. Retrying the same correction ID is safe.");
+        return;
+      }
+      setNotice(`Correction ${receipt.correction_id} is queued for ${receipt.owner_scenario}.`);
       close();
     } catch {
-      setStatus("The correction was not sent. Keep this panel open and try again.");
+      setStatus("The correction was not confirmed. Retrying the same correction ID is safe.");
     }
   };
 
   // The provider root is a passive event-capture shell, not a control: the
   // only interactive elements are the launcher button and the dialog. Capture
   // listeners map a drag to a page region without taking focus.
-  // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/no-noninteractive-element-interactions
+  // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- pointer capture observes gestures, it does not make the wrapper interactive
   return <div data-rcl-region-correction-root onClickCapture={onClick} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={clearTimer} onPointerCancel={clearTimer} onContextMenu={(event) => { if (point.current) event.preventDefault(); }}>
     {children}
-    <StyleSheet libraryId="react-component-library:RegionCorrectionProvider" version="0.1.0-draft.1" css={correctionStyles} />
+      <StyleSheet libraryId="react-component-library:region-correction-provider" version="0.1.0-draft.1" css={correctionStyles} />
     {portal && createPortal(<div data-ux-provider-ui data-rcl-region-correction-launcher>
       {selecting && <p data-rcl-region-correction-instruction role="status">Tap a marked page region to attach its evidence.</p>}
       {status && !evidence && <p data-rcl-region-correction-feedback role="status">{status}</p>}
@@ -252,7 +325,7 @@ export function RegionCorrectionProvider({ children, resolveEvidence, submitCorr
           <label htmlFor="region-correction-text">One sentence about the problem</label>
           <textarea id="region-correction-text" value={message} maxLength={500} onChange={(event) => setMessage(event.target.value)} placeholder="What should change here?" />
           <p data-rcl-region-correction-status role="status">{status}</p>
-          <button data-rcl-region-correction-submit type="button" disabled={message.trim().length < 3 || message.trim().length > 500} onClick={() => void submit()}>Send correction</button>
+          <button data-rcl-region-correction-submit type="button" disabled={message.trim().length < 3 || message.trim().length > 500 || /[\r\n]/.test(message.trim())} onClick={() => void submit()}>Send correction</button>
           <p data-rcl-region-correction-shortcut>Shortcut: Shift + Alt + {shortcut.toUpperCase()} when a page region is focused.</p>
         </section>
       </div>, portal)}

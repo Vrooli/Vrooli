@@ -3,7 +3,6 @@ package review
 import (
 	"context"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -16,14 +15,14 @@ import (
 // findings. It reads another domain's table but writes nothing: catalog
 // coverage remains the owner of evidence, and Review owns the projected queue.
 type EvidenceProjector struct {
-	db    *sql.DB
+	db    queryPort
 	clock func() time.Time
 }
 
-// NewEvidenceProjector reads the scenario's primary pool. catalog_gate_evidence
-// is created by internal/catalogcoverage; a database that predates that schema
-// projects no findings rather than failing the Review surface.
-func NewEvidenceProjector(db *sql.DB) *EvidenceProjector {
+// NewEvidenceProjector reads catalog evidence through the supplied SQL query
+// port. Production wires the routed database so request contexts select the
+// correct pool. A database without catalog_gate_evidence projects no findings.
+func NewEvidenceProjector(db queryPort) *EvidenceProjector {
 	return &EvidenceProjector{db: db, clock: time.Now}
 }
 
@@ -202,7 +201,7 @@ func docsRefForGate(gate string) string {
 // tableColumns returns the column set for a table, or an empty map when the
 // table does not exist. Names are SQL identifiers from package constants, never
 // caller input.
-func tableColumns(ctx context.Context, db *sql.DB, table string) (map[string]bool, error) {
+func tableColumns(ctx context.Context, db queryPort, table string) (map[string]bool, error) {
 	rows, err := db.QueryContext(ctx, `PRAGMA table_info(`+table+`)`)
 	if err != nil {
 		return nil, err

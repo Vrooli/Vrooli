@@ -55,7 +55,15 @@ func (s *Service) catalogDocuments(ctx context.Context, now time.Time) ([]Docume
 				badges = append(badges, label)
 			}
 		}
+		catalog := &CatalogMetadata{
+			CatalogID: asset.ID, Name: asset.Name, Kind: asset.Kind, Slot: asset.Slot,
+			Domain: asset.Domain, Surface: asset.Surface, Description: asset.Description,
+			DeclarationPath: asset.DeclarationPath, RequiredCapabilities: append([]string(nil), asset.Capabilities...),
+			Regions: append([]string(nil), asset.Regions...), Targets: append([]string(nil), asset.Targets...), Kits: append([]string(nil), asset.Kits...),
+			Requires: append([]string(nil), asset.Requires...),
+		}
 		docs = append(docs, Document{
+			Catalog:      catalog,
 			ID:           DocumentID(kind, asset.ID),
 			SubjectID:    asset.ID,
 			Kind:         kind,
@@ -72,7 +80,10 @@ func (s *Service) catalogDocuments(ctx context.Context, now time.Time) ([]Docume
 }
 
 func catalogBody(asset catalogcoverage.Asset) string {
-	parts := []string{asset.Description}
+	parts := []string{
+		asset.Description,
+		"Custom-layer replacement workflow: select a custom layer in Design, search replacement candidates, then choose a semantically matching RCL primitive, layout pattern, or published catalog component. Container layers require a container-capable match. Replacement preserves layer identity and authored fallback content; review the candidate before applying it.",
+	}
 	if len(asset.Capabilities) > 0 {
 		parts = append(parts, "Capabilities: "+strings.Join(asset.Capabilities, ", "))
 	}
@@ -88,13 +99,13 @@ func catalogBody(asset catalogcoverage.Asset) string {
 
 func catalogHref(kind searchv1.SearchKind, name string) string {
 	if kind == searchv1.SearchKind_SEARCH_KIND_PAGE_TYPE {
-		return "/library?kind=page-template&q=" + url.QueryEscape(name)
+		return "/library?domain=templates&group=components&q=" + url.QueryEscape(name)
 	}
 	return "/library?q=" + url.QueryEscape(name)
 }
 
 type workspaceRecord struct {
-	id, name, provenance, tags, bindingScenario, bindingPage, updatedAt string
+	id, name, summary, provenance, tags, bindingScenario, bindingPage, updatedAt string
 }
 
 type pageRecord struct {
@@ -123,11 +134,43 @@ func (s *Service) workspaceDocuments(ctx context.Context, tx *sql.Tx, now time.T
 	if err != nil {
 		return nil, err
 	}
+	pages, err := readPages(ctx, tx)
+	if err != nil {
+		return nil, err
+	}
+	pageTypesByWorkspace := make(map[string][]string)
+	pageTypesSeen := make(map[string]map[string]bool)
+	for _, page := range pages {
+		pageTypeID := strings.TrimSpace(page.pageTypeID)
+		if pageTypeID == "" {
+			continue
+		}
+		if pageTypesSeen[page.workspaceID] == nil {
+			pageTypesSeen[page.workspaceID] = make(map[string]bool)
+		}
+		if pageTypesSeen[page.workspaceID][pageTypeID] {
+			continue
+		}
+		pageTypesSeen[page.workspaceID][pageTypeID] = true
+		pageTypesByWorkspace[page.workspaceID] = append(pageTypesByWorkspace[page.workspaceID], pageTypeID)
+	}
+	for workspaceID := range pageTypesByWorkspace {
+		sort.Strings(pageTypesByWorkspace[workspaceID])
+	}
 	for _, workspace := range workspaces {
 		title := textOr(workspace.name, workspace.id)
+		pageTypeIDs := pageTypesByWorkspace[workspace.id]
+		pageTypeTerms := make([]string, 0, len(pageTypeIDs))
+		relations := []string{"workspace:" + workspace.id}
+		for _, pageTypeID := range pageTypeIDs {
+			pageTypeTerms = append(pageTypeTerms, pageTypeID)
+			relations = append(relations, "page-type:"+pageTypeID)
+		}
 		body := joinNonEmpty("\n",
 			workspace.name,
+			workspace.summary,
 			workspace.tags,
+			strings.Join(pageTypeTerms, " "),
 			workspace.bindingScenario,
 			workspace.bindingPage,
 			"Workspace id: "+workspace.id,
@@ -146,15 +189,11 @@ func (s *Service) workspaceDocuments(ctx context.Context, tx *sql.Tx, now time.T
 			Href:         workspaceHref(workspace.id),
 			Availability: searchv1.SearchAvailability_SEARCH_AVAILABILITY_AVAILABLE,
 			Badges:       badges,
-			Relations:    []string{"workspace:" + workspace.id},
+			Relations:    relations,
 			UpdatedAt:    parseTimeOr(workspace.updatedAt, now),
 		})
 	}
 
-	pages, err := readPages(ctx, tx)
-	if err != nil {
-		return nil, err
-	}
 	workspaceByID := make(map[string]workspaceRecord, len(workspaces))
 	for _, workspace := range workspaces {
 		workspaceByID[workspace.id] = workspace
@@ -276,6 +315,7 @@ func readWorkspaces(ctx context.Context, tx *sql.Tx) ([]workspaceRecord, error) 
 	query := `SELECT ` + strings.Join([]string{
 		stringColumn(cols, "id"),
 		stringColumn(cols, "name"),
+		stringColumn(cols, "summary"),
 		stringColumn(cols, "provenance"),
 		stringColumn(cols, "tags_json"),
 		stringColumn(cols, "binding_scenario"),
@@ -290,7 +330,7 @@ func readWorkspaces(ctx context.Context, tx *sql.Tx) ([]workspaceRecord, error) 
 	out := make([]workspaceRecord, 0)
 	for rows.Next() {
 		var record workspaceRecord
-		if err := rows.Scan(&record.id, &record.name, &record.provenance, &record.tags,
+		if err := rows.Scan(&record.id, &record.name, &record.summary, &record.provenance, &record.tags,
 			&record.bindingScenario, &record.bindingPage, &record.updatedAt); err != nil {
 			return nil, fmt.Errorf("scan workspace for search: %w", err)
 		}
@@ -499,15 +539,15 @@ func commandDocuments(now time.Time) []Document {
 		id, label, group, shortcut, href, description string
 	}
 	commands := []command{
-		{"command.start", "Start", "Navigate", "", "/", "Search and browse the workbench front door."},
+		{"command.new-workspace", "New workspace", "Create", "N", "/design?new=1", "Start a new workspace in Design."},
+		{"command.go-design", "Go to Design", "Navigate", "G D", "/design", "Open the Design destination."},
+		{"command.go-stats", "Go to Stats", "Navigate", "G S", "/stats", "Open the Stats destination."},
+		{"command.settings", "Settings", "Settings", "", "/settings", "Open workbench settings."},
+		{"command.start", "Start", "Navigate", "", "/", "Open the workbench front door to search and browse."},
 		{"command.library", "Library", "Navigate", "", "/library", "Browse assets and page types."},
 		{"command.design", "Design", "Navigate", "", "/design", "Open workspaces, pages, displays and states."},
 		{"command.review", "Review", "Navigate", "", "/review", "Triage findings and evidence."},
 		{"command.stats", "Stats", "Navigate", "", "/stats", "Read quality, activity and service health."},
-		{"command.new", "New asset", "Create", "", "/new", "Create, extract or adopt an asset."},
-		{"command.settings", "Settings", "Settings", "", "/settings", "Open workbench settings."},
-		{"command.search", "Search", "Search", "⌘K", "/", "Focus the global search surface."},
-		{"command.reindex-search", "Reindex search", "Search", "", "/settings", "Rebuild the unified search index from its owned sources."},
 	}
 	docs := make([]Document, 0, len(commands))
 	for _, item := range commands {
@@ -521,7 +561,7 @@ func commandDocuments(now time.Time) []Document {
 			Kind:         searchv1.SearchKind_SEARCH_KIND_COMMAND,
 			Title:        item.label,
 			Subtitle:     joinNonEmpty(" · ", "Command", item.group),
-			Body:         joinNonEmpty("\n", item.label, item.group, item.description, item.href),
+			Body:         joinNonEmpty("\n", item.label, item.group, item.shortcut, item.description, item.href),
 			Href:         item.href,
 			Availability: searchv1.SearchAvailability_SEARCH_AVAILABILITY_AVAILABLE,
 			Badges:       badges,

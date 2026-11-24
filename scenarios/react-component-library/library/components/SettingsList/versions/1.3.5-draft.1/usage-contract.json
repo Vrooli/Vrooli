@@ -1,17 +1,7 @@
 {
   "children": {
     "allowedChildComponents": [
-      "SettingsListIntro",
-      "SettingsListGroup",
-      "SettingsListRow",
-      "Switch",
-      "Select",
-      "Checkbox",
-      "RadioGroup",
-      "Slider",
-      "Input",
-      "Button",
-      "MasterDetail"
+      "any-content-composition"
     ],
     "maximumCount": 32,
     "typicalCount": 8

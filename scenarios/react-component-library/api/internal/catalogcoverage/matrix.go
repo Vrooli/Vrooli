@@ -13,7 +13,11 @@ import (
 // CountMatrixFailures evaluates the corpus matrix in-process. It is used by
 // corpus reporting so measurement does not compile or launch a second copy of
 // the gate executable.
-func CountMatrixFailures(ctx context.Context, root string, database *sql.DB) (int, error) {
+func CountMatrixFailures(ctx context.Context, root string, database interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+},
+) (int, error) {
 	definitions, err := LoadGateDefinitions(filepath.Join(root, "scenarios", "react-component-library", "catalog", "config.json"))
 	if err != nil {
 		return 0, err

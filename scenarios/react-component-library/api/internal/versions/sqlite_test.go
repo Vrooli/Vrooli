@@ -123,6 +123,73 @@ func TestSQLiteRepository_List_RespectsLimitAndComponent(t *testing.T) {
 	}
 }
 
+func TestSQLiteRepository_ReadsRequiredContractsAndOptionalTimestamps(t *testing.T) {
+	ctx := context.Background()
+	d := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(ctx, d,
+		apidb.SchemaProviderFunc(localdb.SystemSchema),
+		apidb.SchemaProviderFunc(components.Schema),
+	))
+	repo := versions.NewSQLiteRepository(d, scheduletest.New(time.Date(2026, 5, 13, 10, 0, 0, 0, time.UTC)))
+	created := time.Date(2026, 5, 12, 10, 0, 0, 0, time.UTC)
+	released := created.Add(time.Hour)
+	row, err := repo.Insert(ctx, versions.Version{
+		ComponentID: "cmp-1", Version: "1.0.0", Content: "body", ContentSHA256: "sha",
+		CreatedAt: created, ReleasedAt: released,
+	})
+	require.NoError(t, err)
+	_, err = d.ExecContext(ctx, `INSERT INTO component_version_required_tokens(version_id, property) VALUES (?, ?), (?, ?)`, row.ID, "color", row.ID, "spacing")
+	require.NoError(t, err)
+	_, err = d.ExecContext(ctx, `INSERT INTO component_version_required_token_patterns(version_id, pattern) VALUES (?, ?), (?, ?)`, row.ID, "color-*", row.ID, "space-* ")
+	require.NoError(t, err)
+
+	got, err := repo.Get(ctx, "cmp-1", "1.0.0")
+	require.NoError(t, err)
+	require.Equal(t, []string{"color", "spacing"}, got.RequiredTokens)
+	require.Equal(t, []string{"color-*", "space-* "}, got.RequiredTokenPatterns)
+	require.True(t, got.CreatedAt.Equal(created))
+	require.True(t, got.ReleasedAt.Equal(released))
+
+	rows, err := repo.List(ctx, versions.ListQuery{ComponentID: "cmp-1", Limit: 10})
+	require.NoError(t, err)
+	require.Equal(t, got.RequiredTokens, rows[0].RequiredTokens)
+	require.Equal(t, got.RequiredTokenPatterns, rows[0].RequiredTokenPatterns)
+}
+
+func TestSQLiteRepository_InsertDefaultsAndRejectsDuplicateVersion(t *testing.T) {
+	repo, _ := newVersionsDB(t)
+	ctx := context.Background()
+	row, err := repo.Insert(ctx, versions.Version{ComponentID: "cmp-1", Version: "1.0.0", ContentSHA256: "sha"})
+	require.NoError(t, err)
+	require.Equal(t, row.RecordedAt, row.CreatedAt)
+	persisted, err := repo.Get(ctx, "cmp-1", "1.0.0")
+	require.NoError(t, err)
+	require.Equal(t, "materialized", persisted.Presence)
+
+	_, err = repo.Insert(ctx, versions.Version{ComponentID: "cmp-1", Version: "1.0.0", ContentSHA256: "other"})
+	var exists versions.ErrVersionExists
+	require.ErrorAs(t, err, &exists)
+	require.Equal(t, "cmp-1", exists.ComponentID)
+	require.Equal(t, "1.0.0", exists.Version)
+}
+
+func TestSQLiteRepository_GetRejectsMalformedStoredTimestamp(t *testing.T) {
+	ctx := context.Background()
+	d := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(ctx, d,
+		apidb.SchemaProviderFunc(localdb.SystemSchema),
+		apidb.SchemaProviderFunc(components.Schema),
+	))
+	repo := versions.NewSQLiteRepository(d, scheduletest.New(time.Date(2026, 5, 13, 10, 0, 0, 0, time.UTC)))
+	row, err := repo.Insert(ctx, versions.Version{ComponentID: "cmp-1", Version: "1.0.0", ContentSHA256: "sha"})
+	require.NoError(t, err)
+	_, err = d.ExecContext(ctx, `UPDATE component_versions SET indexed_at = 'not-a-time' WHERE id = ?`, row.ID)
+	require.NoError(t, err)
+
+	_, err = repo.Get(ctx, "cmp-1", "1.0.0")
+	require.ErrorContains(t, err, "parse recorded_at")
+}
+
 func TestServiceRecordReturnsTypedCollisionForContentChangeWithoutVersionBump(t *testing.T) {
 	repo, _ := newVersionsDB(t)
 	svc := versions.NewService(repo, nil)

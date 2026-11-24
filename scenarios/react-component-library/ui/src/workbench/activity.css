@@ -1,0 +1,149 @@
+/* ── Activity ─────────────────────────────────────────────────────────────── */
+
+.wb-activity-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 16px;
+  align-items: start;
+}
+
+.wb-trail {
+  display: grid;
+  min-width: 0;
+}
+
+/* Day groups are grid items; a long asset id must not widen the track. */
+.wb-trail > div {
+  min-width: 0;
+}
+
+.wb-day {
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--wb-line);
+  background: rgba(255, 255, 255, 0.015);
+  color: var(--wb-muted-2);
+  font: 9px/1.4 var(--wb-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.wb-event {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  min-width: 0;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--wb-line);
+}
+
+.wb-event:last-child {
+  border-bottom: 0;
+}
+
+.wb-event-icon {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--wb-muted);
+}
+
+.wb-event-icon.is-published {
+  background: var(--wb-green-soft);
+  color: var(--wb-green);
+}
+
+.wb-event-icon.is-draft {
+  background: var(--wb-amber-soft);
+  color: var(--wb-amber);
+}
+
+.wb-event-icon.is-indexed {
+  background: var(--wb-ice-soft);
+  color: var(--wb-ice);
+}
+
+.wb-event-icon.is-failed {
+  background: var(--wb-red-soft);
+  color: var(--wb-red);
+}
+
+.wb-event-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.wb-event-body b {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.wb-event-body small {
+  display: block;
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--wb-muted-2);
+  font: 10px/1.45 var(--wb-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-event-time {
+  color: var(--wb-muted-2);
+  font: 10px/1.4 var(--wb-mono);
+  white-space: nowrap;
+}
+
+.wb-week-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.wb-week-cell {
+  padding: 11px;
+  border: 1px solid var(--wb-line);
+  border-radius: 9px;
+  background: #100d13;
+}
+
+.wb-week-cell b {
+  display: block;
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.wb-week-cell span {
+  color: var(--wb-muted-2);
+  font: 9px/1.4 var(--wb-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.wb-actor {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 8px 0;
+  font-size: 12px;
+}
+
+.wb-actor-bar {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 5px;
+}
+
+.wb-actor-bar > span {
+  display: block;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--wb-signal);
+}

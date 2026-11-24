@@ -9,20 +9,23 @@ import (
 	"testing"
 	"time"
 
+	sketchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/sketch"
+
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/schedule"
 	"github.com/vrooli/api-core/storage"
 
 	"react-component-library/internal/catalogcoverage"
-	"react-component-library/internal/catalogsearch"
+	"react-component-library/internal/search"
 
-	"connectrpc.com/connect"
-	previewv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/preview"
-	sketchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/sketch"
-	sketchconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/sketch/sketch_v1connect"
 	"react-component-library/internal/preview"
 	internal "react-component-library/internal/sketch"
+
+	"connectrpc.com/connect"
+	experienceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/experience/experience_v1connect"
+	previewv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/preview"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/shared"
 )
 
 func TestWireEditsRequireExactRevisionAndPreserveRestoreData(t *testing.T) {
@@ -35,12 +38,12 @@ func TestWireEditsRequireExactRevisionAndPreserveRestoreData(t *testing.T) {
 	if err := os.WriteFile(path, []byte(`{"claims":[{"id":"preserve"}],"sketch":{"viewport":"desktop","x-extension":true}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	_, handler := sketchconnect.NewSketchServiceHandler(NewConnectHandler(Deps{Store: internal.NewStore(root)}))
+	_, handler := experienceconnect.NewExperienceServiceHandler(NewConnectHandler(Deps{Store: internal.NewStore(root)}))
 	server := httptest.NewServer(handler)
 	defer server.Close()
-	client := sketchconnect.NewSketchServiceClient(server.Client(), server.URL)
+	client := experienceconnect.NewExperienceServiceClient(server.Client(), server.URL)
 	ctx := context.Background()
-	target := &sketchv1.SketchTarget{Scenario: "demo", Page: "home"}
+	target := &sharedv1.SketchTarget{Scenario: "demo", Page: "home"}
 	initial, err := client.GetSketch(ctx, connect.NewRequest(&sketchv1.GetSketchRequest{Target: target}))
 	if err != nil {
 		t.Fatal(err)
@@ -130,7 +133,7 @@ func TestSketchMutationsUseLeaseAndNeverFallBackToLive(t *testing.T) {
 	clock := schedule.NewFake(time.Unix(100, 0))
 	roots.SetClock(clock)
 	handler := NewConnectHandler(Deps{Store: internal.NewStore(live), StoreFor: routedRepository(live, roots), RecordWrite: roots.RecordWrite})
-	target := &sketchv1.SketchTarget{Scenario: "demo", Page: "home"}
+	target := &sharedv1.SketchTarget{Scenario: "demo", Page: "home"}
 	ctx := database.WithTestMode(context.Background())
 	_, err := handler.GetSketch(ctx, connect.NewRequest(&sketchv1.GetSketchRequest{Target: target}))
 	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
@@ -146,7 +149,7 @@ func TestSketchMutationsUseLeaseAndNeverFallBackToLive(t *testing.T) {
 	if current.Msg.GetSketch().GetViewport() != "leased" {
 		t.Fatal("test request read live source")
 	}
-	written, err := handler.PutSketch(ctx, connect.NewRequest(&sketchv1.PutSketchRequest{Target: target, ExpectedContentHash: current.Msg.GetContentHash(), Sketch: &sketchv1.Sketch{Viewport: "edited"}}))
+	written, err := handler.PutSketch(ctx, connect.NewRequest(&sketchv1.PutSketchRequest{Target: target, ExpectedContentHash: current.Msg.GetContentHash(), Sketch: &sharedv1.Sketch{Viewport: "edited"}}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,7 +165,7 @@ func TestSketchMutationsUseLeaseAndNeverFallBackToLive(t *testing.T) {
 		t.Fatalf("write routing: %+v", stats)
 	}
 	clock.Advance(2 * time.Minute)
-	_, err = handler.PutSketch(ctx, connect.NewRequest(&sketchv1.PutSketchRequest{Target: target, ExpectedContentHash: written.Msg.GetContentHash(), Sketch: &sketchv1.Sketch{Viewport: "expired"}}))
+	_, err = handler.PutSketch(ctx, connect.NewRequest(&sketchv1.PutSketchRequest{Target: target, ExpectedContentHash: written.Msg.GetContentHash(), Sketch: &sharedv1.Sketch{Viewport: "expired"}}))
 	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("expired lease mutation: %v", err)
 	}
@@ -170,6 +173,16 @@ func TestSketchMutationsUseLeaseAndNeverFallBackToLive(t *testing.T) {
 	if err != nil || string(raw) != `{"sketch":{"viewport":"live"}}` {
 		t.Fatal("expired lease leaked to live tree")
 	}
+}
+
+type emptyCatalogSearch struct{}
+
+func (emptyCatalogSearch) SearchCatalog(context.Context, string, int, string, string, string) ([]search.CatalogResult, error) {
+	return nil, nil
+}
+
+func (emptyCatalogSearch) LookupCatalogID(context.Context, string) (search.CatalogResult, bool, error) {
+	return search.CatalogResult{}, false, nil
 }
 
 func TestImportDryRunConflictAndIdempotentPublication(t *testing.T) {
@@ -182,8 +195,8 @@ func TestImportDryRunConflictAndIdempotentPublication(t *testing.T) {
 	if err := os.WriteFile(path, original, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	h := NewConnectHandler(Deps{Store: internal.NewStore(root), ImportSearch: func(context.Context) (*catalogsearch.Index, error) { return catalogsearch.New(), nil }})
-	target := &sketchv1.SketchTarget{Scenario: "demo", Page: "home"}
+	h := NewConnectHandler(Deps{Store: internal.NewStore(root), ImportSearch: emptyCatalogSearch{}})
+	target := &sharedv1.SketchTarget{Scenario: "demo", Page: "home"}
 	preview, err := h.ImportPage(context.Background(), connect.NewRequest(&sketchv1.ImportPageRequest{Target: target}))
 	if err != nil {
 		t.Fatal(err)
@@ -238,7 +251,7 @@ func TestTemplateWireRequiresConfirmationAndRegionNotesUseDeclaredIdentity(t *te
 	h := NewConnectHandler(Deps{Store: store, Catalog: func(context.Context) ([]catalogcoverage.Asset, error) {
 		return []catalogcoverage.Asset{{ID: "templates.new", Kind: "page-template", Regions: []string{"main"}, RegionAccepts: map[string]string{"main": accepts}}, {ID: "controls.button", Domain: "controls"}}, nil
 	}})
-	target := &sketchv1.SketchTarget{Scenario: "demo", Page: "home"}
+	target := &sharedv1.SketchTarget{Scenario: "demo", Page: "home"}
 	note, err := h.AddNote(context.Background(), connect.NewRequest(&sketchv1.AddNoteRequest{Target: target, Scope: "semantic-region", Text: "Preserve this interaction", ExpectedContentHash: current.ContentHash}))
 	if err != nil {
 		t.Fatalf("authored region note refused: %v", err)
@@ -316,12 +329,12 @@ type renderProbe struct {
 	run   func()
 }
 
-func (p *renderProbe) RenderPrepared(_ context.Context, prepared preview.PreparedComposition, _ *previewv1.RenderCompositionRequest) (*connect.Response[previewv1.RenderCompositionResponse], error) {
+func (p *renderProbe) RenderPrepared(_ context.Context, prepared preview.PreparedComposition, _ *previewv1.RenderCompositionRequest) (*connect.Response[sharedv1.RenderCompositionResponse], error) {
 	p.calls++
 	if p.run != nil {
 		p.run()
 	}
-	return connect.NewResponse(&previewv1.RenderCompositionResponse{Html: "<main>fixture</main>", RenderHash: prepared.Composition.Revision}), nil
+	return connect.NewResponse(&sharedv1.RenderCompositionResponse{Html: "<main>fixture</main>", RenderHash: prepared.Composition.Revision}), nil
 }
 
 func TestRenderSketchRejectsStaleInputsAndConcurrentEdits(t *testing.T) {
@@ -340,7 +353,7 @@ func TestRenderSketchRejectsStaleInputsAndConcurrentEdits(t *testing.T) {
 	}
 	probe := &renderProbe{}
 	h := NewConnectHandler(Deps{Store: store, Renderer: probe})
-	request := &sketchv1.RenderSketchRequest{Target: &sketchv1.SketchTarget{Scenario: "demo", Page: "home"}, ExpectedContentHash: "stale", MissingLabel: "Missing", FailedLabel: "Failed"}
+	request := &sketchv1.RenderSketchRequest{Target: &sharedv1.SketchTarget{Scenario: "demo", Page: "home"}, ExpectedContentHash: "stale", MissingLabel: "Missing", FailedLabel: "Failed"}
 	_, err = h.RenderSketch(context.Background(), connect.NewRequest(request))
 	if connect.CodeOf(err) != connect.CodeAborted || probe.calls != 0 {
 		t.Fatal("stale request reached renderer", err)
@@ -386,7 +399,7 @@ func TestArchivedCandidateRenderIgnoresLaterPageEdits(t *testing.T) {
 		t.Fatal(err)
 	}
 	h := NewConnectHandler(Deps{Store: store, Renderer: &renderProbe{}})
-	result, err := h.RenderCandidate(context.Background(), connect.NewRequest(&sketchv1.RenderCandidateRequest{Candidate: &sketchv1.CandidateReference{Scenario: "demo", DesignId: candidate.DesignID, Hash: candidate.Hash}, MissingLabel: "Missing", FailedLabel: "Failed"}))
+	result, err := h.RenderCandidate(context.Background(), connect.NewRequest(&sharedv1.RenderCandidateRequest{Candidate: &sharedv1.CandidateReference{Scenario: "demo", DesignId: candidate.DesignID, Hash: candidate.Hash}, MissingLabel: "Missing", FailedLabel: "Failed"}))
 	if err != nil || result.Msg.RenderHash != candidate.Hash {
 		t.Fatal("archived render lost immutable identity", err)
 	}
@@ -435,17 +448,17 @@ func TestProposalReadsRoutedSourceAndRejectsStaleSourceHash(t *testing.T) {
 		Store:        internal.NewStore(t.TempDir()),
 		StoreFor:     func(context.Context) (internal.Repository, error) { return routed, nil },
 		Catalog:      func(context.Context) ([]catalogcoverage.Asset, error) { return nil, nil },
-		ImportSearch: func(context.Context) (*catalogsearch.Index, error) { return catalogsearch.New(), nil },
+		ImportSearch: emptyCatalogSearch{},
 	})
 	snapshot, err := routed.Read("demo", "home")
 	if err != nil {
 		t.Fatal(err)
 	}
-	request := &sketchv1.ProposeSketchRequest{
-		Target: &sketchv1.SketchTarget{Scenario: "demo", Page: "home"}, ExpectedContentHash: snapshot.ContentHash, CandidateLimit: 1,
-		Intent: &sketchv1.DesignIntent{
+	request := &sharedv1.ProposeSketchRequest{
+		Target: &sharedv1.SketchTarget{Scenario: "demo", Page: "home"}, ExpectedContentHash: snapshot.ContentHash, CandidateLimit: 1,
+		Intent: &sharedv1.DesignIntent{
 			Intent: "Browse", Users: []string{"Operator"}, PrimaryTasks: []string{"Find records"}, Target: "react-vite", Kit: "vrooli-default", Viewports: []string{"desktop"},
-			Constraints: &sketchv1.DesignConstraints{DesignSource: "path:DESIGN.md"},
+			Constraints: &sharedv1.DesignConstraints{DesignSource: "path:DESIGN.md"},
 		},
 	}
 	first, err := h.ProposeSketch(context.Background(), connect.NewRequest(request))

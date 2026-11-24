@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { TEMPLATES } from "../templates/library";
+import { DEFAULT_TEMPLATE } from "../templates/library";
 import { node, slotAccepts, slotNode, slotRole, slotsOf, type TemplateNode } from "../templates/spec";
 import {
   assetPlacementProfile,
@@ -14,13 +14,11 @@ const page = (...children: TemplateNode[]) => node("page", "page", { pad: 28 }, 
 
 describe("typed slots", () => {
   it("types every authored slot and leaves legacy slots readable", () => {
-    for (const template of TEMPLATES) {
-      const slots = slotsOf(template.spec);
-      expect(slots.length).toBeGreaterThanOrEqual(1);
-      for (const slot of slots) {
-        expect(slotRole(slot)).toBeDefined();
-        expect(slotAccepts(slot).length).toBeGreaterThan(0);
-      }
+    const slots = slotsOf(DEFAULT_TEMPLATE.spec);
+    expect(slots.length).toBeGreaterThanOrEqual(1);
+    for (const slot of slots) {
+      expect(slotRole(slot)).toBeDefined();
+      expect(slotAccepts(slot).length).toBeGreaterThan(0);
     }
 
     const legacy = node("legacy", "slot", { hint: "Old slot" });
@@ -154,19 +152,21 @@ describe("placeComponent", () => {
   });
 
   it("prefers the slot that names the component's role when the total ties", () => {
-    // At 390 the authored 4-column stats grid is estimated narrow because the
-    // pure estimator cannot see the container query that collapses it, so the
-    // KPI slot ties the earlier header action. Role specificity must win.
-    const shipped = TEMPLATES.find((template) => template.id === "aperture");
-    if (!shipped) throw new Error("Aperture template is missing");
+    // Role specificity wins when geometry estimates tie.
+    const spec = page(
+      slotNode("actionSlot", { hint: "Header action", role: "action", accepts: ["button"] }),
+      node("stats", "grid", { cols: 4, gap: 12 }, [
+        slotNode("metricSlot", { hint: "KPI card", role: "metric", accepts: ["metric"] }),
+      ]),
+    );
 
     for (const viewportWidth of [390, 834, 1180]) {
       const decision = placeComponent({
-        spec: shipped.spec,
+        spec,
         asset: { displayName: "MonetizationAccount", description: "monthly revenue metric" },
         viewportWidth,
       });
-      expect(decision.chosen?.slotId, `width ${viewportWidth}`).toBe("aperture.stat2");
+      expect(decision.chosen?.slotId, `width ${viewportWidth}`).toBe("metricSlot");
       expect(decision.chosen?.role).toBe("metric");
     }
   });

@@ -8,14 +8,17 @@ package gates
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/vrooli/api-core/storage"
 )
 
 func createSurfaceCalibrationDatabase(targetPath, assetID string) error {
-	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+	if err := calibrationMkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
 		return err
 	}
 	if err := removeGateDB(targetPath); err != nil {
@@ -26,10 +29,7 @@ func createSurfaceCalibrationDatabase(targetPath, assetID string) error {
 		return err
 	}
 	defer db.Close()
-	if _, err := db.ExecContext(context.Background(), `CREATE TABLE reconcile_evidence (id TEXT PRIMARY KEY, scenario TEXT NOT NULL, document_kind TEXT NOT NULL, component_id TEXT NOT NULL, example_name TEXT NOT NULL, state_id TEXT NOT NULL, ax_node_json TEXT NOT NULL, measurement_json TEXT NOT NULL, checked_at TEXT NOT NULL)`); err != nil {
-		return err
-	}
-	if _, err := db.ExecContext(context.Background(), `CREATE TABLE reconcile_evidence_viewports (evidence_id TEXT PRIMARY KEY, viewport_id TEXT NOT NULL, viewport_width INTEGER NOT NULL, viewport_height INTEGER NOT NULL)`); err != nil {
+	if err := createCalibrationEvidenceSchema(context.Background(), db, true); err != nil {
 		return err
 	}
 	ax := fmt.Sprintf(`{"dom":{"attributes":{"data-rcl-asset":%q}},"computedStyle":{"box-shadow":"0 1px 2px rgba(9, 18, 22, 0.06), 0 1px 3px rgba(9, 18, 22, 0.1)"}}`, assetID)
@@ -37,15 +37,57 @@ func createSurfaceCalibrationDatabase(targetPath, assetID string) error {
 	return err
 }
 
-func copyFile(source, dest string) error {
-	data, err := os.ReadFile(source)
+func calibrationMkdirAll(path string, mode os.FileMode) error {
+	absolute, err := filepath.Abs(path)
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+	rootPath := absolute
+	for {
+		if _, err := os.Stat(rootPath); err == nil {
+			break
+		} else if !os.IsNotExist(err) {
+			return err
+		}
+		parent := filepath.Dir(rootPath)
+		if parent == rootPath {
+			return fmt.Errorf("no existing ancestor for %q", absolute)
+		}
+		rootPath = parent
+	}
+	relative, err := filepath.Rel(rootPath, absolute)
+	if err != nil {
 		return err
 	}
-	return os.WriteFile(dest, data, 0o644)
+	root, err := os.OpenRoot(rootPath)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	return root.MkdirAll(relative, mode)
+}
+
+func copyFile(source, dest string) error {
+	sourceRoot, err := os.OpenRoot(filepath.Dir(source))
+	if err != nil {
+		return err
+	}
+	defer sourceRoot.Close()
+	input, err := sourceRoot.Open(filepath.Base(source))
+	if err != nil {
+		return err
+	}
+	defer input.Close()
+	data, err := io.ReadAll(input)
+	if err != nil {
+		return err
+	}
+	destRoot, err := os.OpenRoot(filepath.Dir(dest))
+	if err != nil {
+		return err
+	}
+	defer destRoot.Close()
+	return storage.WriteFileAtomicInRoot(destRoot, filepath.Base(dest), data, 0o644)
 }
 
 func calibrationDirectoryName(assetID string) string {
@@ -66,8 +108,17 @@ func calibrationDirectoryName(assetID string) string {
 // CalibrationFixtureNames is used by diagnostics and tests to make ownership
 // visible without exposing the internal fixture loader.
 func CalibrationFixtureNames(root string) ([]string, error) {
-	base := filepath.Join(root, "scenarios", "react-component-library", "catalog", "calibration")
-	entries, err := os.ReadDir(base)
+	rootFS, err := os.OpenRoot(root)
+	if err != nil {
+		return nil, err
+	}
+	defer rootFS.Close()
+	directory, err := rootFS.Open(filepath.Join("scenarios", "react-component-library", "catalog", "calibration"))
+	if err != nil {
+		return nil, err
+	}
+	defer directory.Close()
+	entries, err := directory.ReadDir(-1)
 	if err != nil {
 		return nil, err
 	}

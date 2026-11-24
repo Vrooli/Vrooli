@@ -14,7 +14,7 @@ import (
 
 // TestModule_Shape pins the public contract.
 func TestModule_Shape(t *testing.T) {
-	m := health.Module(&databasetest.FakePinger{}, "react-vite-test", "1.0.0")
+	m := health.Module(&databasetest.FakePinger{}, "react-vite-test", "1.0.0", "")
 
 	require.Equal(t, "health", m.Name)
 	require.NotNil(t, m.Mount)
@@ -27,7 +27,7 @@ func TestModule_Shape(t *testing.T) {
 // paths both route to the same handler. A regression that drops one
 // alias (forgot to register, typo) fails here, not in the e2e gate.
 func TestModule_BothAliasesReachable(t *testing.T) {
-	m := health.Module(&databasetest.FakePinger{}, "react-vite-test", "1.0.0")
+	m := health.Module(&databasetest.FakePinger{}, "react-vite-test", "1.0.0", "sha256:module-build")
 	r := mux.NewRouter()
 	m.Mount(r)
 
@@ -42,6 +42,8 @@ func TestModule_BothAliasesReachable(t *testing.T) {
 				"unexpected status; body=%s", rw.body.String())
 			require.Contains(t, rw.body.String(), `"status"`,
 				"response must include the status field")
+			require.Contains(t, rw.body.String(), "sha256:module-build",
+				"the composition-provided build identity must reach the response")
 		})
 	}
 }

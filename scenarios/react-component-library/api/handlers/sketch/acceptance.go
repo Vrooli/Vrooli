@@ -2,43 +2,49 @@ package sketch
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 
-	"google.golang.org/protobuf/encoding/protojson"
-
-	internal "react-component-library/internal/sketch"
-
 	"connectrpc.com/connect"
-	sketchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/sketch"
+
+	reviewv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/review"
 	"react-component-library/internal/designcapture"
 	"react-component-library/internal/designcritique"
+	internal "react-component-library/internal/sketch"
 )
 
-// CheckCandidateAcceptance resolves current facts itself. In particular, clients
-// cannot submit an assessment, a calibrated flag, or a behavioral pass boolean.
-// This preflight deliberately does not publish or imply an acceptance receipt.
-func (h *connectHandler) CheckCandidateAcceptance(ctx context.Context, req *connect.Request[sketchv1.CheckCandidateAcceptanceRequest]) (*connect.Response[sketchv1.CandidateAcceptanceCheck], error) {
-	render := req.Msg.GetRender()
-	if render == nil || strings.TrimSpace(req.Msg.GetExpectedRenderHash()) == "" || len(req.Msg.GetCritiqueIds()) > 16 {
+// ValidateAcceptanceCandidate resolves an immutable candidate before the Review
+// service prepares an idempotent acceptance receipt.
+func (h *connectHandler) ValidateAcceptanceCandidate(ctx context.Context, req *reviewv1.CheckCandidateAcceptanceRequest) error {
+	if req == nil || req.GetRender() == nil || req.GetRender().GetCandidate() == nil {
+		return connect.NewError(connect.CodeInvalidArgument, errors.New("candidate render is required"))
+	}
+	_, _, err := h.candidate(ctx, req.GetRender().GetCandidate())
+	return err
+}
+
+// EvaluateAcceptance resolves current facts from the candidate page, renderer,
+// critique records and producer-owned capture evidence. The Review handler calls
+// this only inside RecordAcceptance's transactional evaluation callback.
+func (h *connectHandler) EvaluateAcceptance(ctx context.Context, req *reviewv1.CheckCandidateAcceptanceRequest) (*reviewv1.CandidateAcceptanceCheck, error) {
+	render := req.GetRender()
+	if render == nil || strings.TrimSpace(req.GetExpectedRenderHash()) == "" || len(req.GetCritiqueIds()) > 16 {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("render, expected render hash, and at most sixteen critique IDs are required"))
 	}
-	h, c, err := h.candidate(ctx, render.GetCandidate())
+	h, candidate, err := h.candidate(ctx, render.GetCandidate())
 	if err != nil {
 		return nil, err
 	}
-	output := &sketchv1.CandidateAcceptanceCheck{Candidate: render.Candidate, PolicyVersion: internal.AcceptancePolicy}
+	output := &reviewv1.CandidateAcceptanceCheck{Candidate: render.GetCandidate(), PolicyVersion: internal.AcceptancePolicy}
 	row := func(code, status, detail string, evidence ...string) {
-		output.Requirements = append(output.Requirements, &sketchv1.AcceptanceRequirement{Code: code, Status: status, Detail: detail, EvidenceIds: evidence})
+		output.Requirements = append(output.Requirements, &reviewv1.AcceptanceRequirement{Code: code, Status: status, Detail: detail, EvidenceIds: evidence})
 	}
-	current, err := h.deps.Store.Read(render.Candidate.Scenario, c.Page)
+	current, err := h.deps.Store.Read(render.GetCandidate().GetScenario(), candidate.Page)
 	if err != nil {
 		return nil, h.connectError("CheckCandidateAcceptance", err)
 	}
-	if current.ContentHash != c.BaseHash {
+	if current.ContentHash != candidate.BaseHash {
 		row("page_freshness", "blocked", "The authored page changed after this candidate was created. Rebase and review the candidate.")
 	} else {
 		row("page_freshness", "passed", "The candidate still derives from the current authored page.", current.ContentHash)
@@ -50,7 +56,7 @@ func (h *connectHandler) CheckCandidateAcceptance(ctx context.Context, req *conn
 	} else {
 		output.RenderHash = rendered.Msg.GetRenderHash()
 		output.InputHashes = rendered.Msg.GetTarget().GetInputHashes()
-		if output.RenderHash != req.Msg.ExpectedRenderHash {
+		if output.RenderHash != req.GetExpectedRenderHash() {
 			row("render_freshness", "blocked", "Rendering inputs changed. Review a new capture of the current render.", output.RenderHash)
 		} else {
 			row("render_freshness", "passed", "Current rendering inputs match the reviewed render.", output.RenderHash)
@@ -69,7 +75,7 @@ func (h *connectHandler) CheckCandidateAcceptance(ctx context.Context, req *conn
 			row("render_completeness", "passed", "No required region is unresolved in the current generated render.", output.RenderHash)
 		}
 	}
-	if len(req.Msg.CritiqueIds) == 0 {
+	if len(req.GetCritiqueIds()) == 0 {
 		row("visual_review", "blocked", "Record an evidence-linked visual review of this exact candidate and render.")
 	} else {
 		resolver, ok := h.deps.CaptureDispatcher.(designcapture.ScreenshotResolver)
@@ -84,9 +90,9 @@ func (h *connectHandler) CheckCandidateAcceptance(ctx context.Context, req *conn
 			if e != nil {
 				return nil, connect.NewError(connect.CodeUnavailable, e)
 			}
-			target := designcritique.Target{Scenario: render.Candidate.Scenario, DesignID: c.DesignID, Revision: c.Hash, RenderHash: output.RenderHash}
+			target := designcritique.Target{Scenario: render.GetCandidate().GetScenario(), DesignID: candidate.DesignID, Revision: candidate.Hash, RenderHash: output.RenderHash}
 			seen := map[string]bool{}
-			for _, id := range req.Msg.CritiqueIds {
+			for _, id := range req.GetCritiqueIds() {
 				if id == "" || seen[id] {
 					return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("critique IDs must be nonempty and unique"))
 				}
@@ -113,89 +119,9 @@ func (h *connectHandler) CheckCandidateAcceptance(ctx context.Context, req *conn
 			}
 		}
 	}
-	// These are explicit unimplemented proof sources, not waived gates. Keeping
-	// them visible prevents the existing visual assessment from becoming a false
-	// acceptance path while the remaining producer integrations are completed.
+	// These proof sources remain explicitly unavailable, never waived.
 	row("behavior_evidence", "unavailable", "Acceptance still requires current producer-owned deterministic behavior and journey evidence.")
 	row("rubric_calibration", "unavailable", "The visual rubric has no versioned human-reviewed calibration corpus yet.")
 	row("independent_review", "unavailable", "Final demonstration acceptance requires an attributable independent review.")
-	return connect.NewResponse(output), nil
-}
-
-// AcceptCandidate records a terminal decision, including unmet requirements.
-// It does not select or apply a design; those operations require an accepted
-// receipt and their own current-input checks.
-func (h *connectHandler) AcceptCandidate(ctx context.Context, req *connect.Request[sketchv1.AcceptCandidateRequest]) (*connect.Response[sketchv1.AcceptanceDecision], error) {
-	check := req.Msg.GetCheck()
-	if check == nil || check.GetRender() == nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("acceptance check inputs are required"))
-	}
-	h, _, err := h.candidate(ctx, check.Render.GetCandidate())
-	if err != nil {
-		return nil, err
-	}
-	store, ok := h.deps.Store.(interface {
-		RecordAcceptance(context.Context, string, string, internal.AcceptanceIntent, func(context.Context) (internal.AcceptanceFacts, error)) (internal.AcceptanceDecision, error)
-	})
-	if !ok {
-		return nil, connect.NewError(connect.CodeUnavailable, errors.New("acceptance persistence unavailable"))
-	}
-	r := check.Render
-	intent := internal.AcceptanceIntent{DesignID: r.Candidate.DesignId, CandidateHash: r.Candidate.Hash, ExpectedRenderHash: check.ExpectedRenderHash, Actor: req.Msg.Actor, Kit: r.Kit, Theme: r.Theme, Direction: r.Direction, PreviewState: r.PreviewState, MissingLabel: r.MissingLabel, FailedLabel: r.FailedLabel, CritiqueIDs: append([]string{}, check.CritiqueIds...)}
-	evaluated := false
-	decision, err := store.RecordAcceptance(ctx, r.Candidate.Scenario, req.Msg.IdempotencyKey, intent, func(ctx context.Context) (internal.AcceptanceFacts, error) {
-		evaluated = true
-		result, e := h.CheckCandidateAcceptance(ctx, connect.NewRequest(check))
-		if e != nil {
-			return internal.AcceptanceFacts{}, e
-		}
-		facts := internal.AcceptanceFacts{PolicyVersion: result.Msg.PolicyVersion, CandidateHash: r.Candidate.Hash, RenderHash: result.Msg.RenderHash, InputHashes: result.Msg.InputHashes}
-		for _, row := range result.Msg.Requirements {
-			facts.Requirements = append(facts.Requirements, internal.AcceptanceRequirement{Code: row.Code, Status: row.Status, Detail: row.Detail, EvidenceIDs: row.EvidenceIds})
-		}
-		return facts, nil
-	})
-	if errors.Is(err, internal.ErrAcceptanceConflict) {
-		return nil, connect.NewError(connect.CodeAborted, err)
-	}
-	if err != nil {
-		return nil, h.connectError("AcceptCandidate", err)
-	}
-	if evaluated && h.deps.RecordWrite != nil {
-		h.deps.RecordWrite(ctx)
-	}
-	return acceptanceResponse(decision)
-}
-
-func (h *connectHandler) GetAcceptance(ctx context.Context, req *connect.Request[sketchv1.GetAcceptanceRequest]) (*connect.Response[sketchv1.AcceptanceDecision], error) {
-	h, err := h.forRequest(ctx)
-	if err != nil {
-		return nil, err
-	}
-	store, ok := h.deps.Store.(interface {
-		ReadAcceptance(string, string, string) (internal.AcceptanceDecision, error)
-	})
-	if !ok {
-		return nil, connect.NewError(connect.CodeUnavailable, errors.New("acceptance persistence unavailable"))
-	}
-	d, err := store.ReadAcceptance(req.Msg.Scenario, req.Msg.DesignId, req.Msg.Id)
-	if errors.Is(err, os.ErrNotExist) {
-		return nil, connect.NewError(connect.CodeNotFound, err)
-	}
-	if err != nil {
-		return nil, h.connectError("GetAcceptance", err)
-	}
-	return acceptanceResponse(d)
-}
-
-func acceptanceResponse(d internal.AcceptanceDecision) (*connect.Response[sketchv1.AcceptanceDecision], error) {
-	raw, err := json.Marshal(d)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	var response sketchv1.AcceptanceDecision
-	if err = protojson.Unmarshal(raw, &response); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	return connect.NewResponse(&response), nil
+	return output, nil
 }

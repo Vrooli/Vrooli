@@ -76,6 +76,12 @@
       "status": "active"
     },
     {
+      "id": "workspace-state-capture",
+      "path": "pages/workspace-state-capture.json",
+      "title": "Workspace state capture",
+      "status": "active"
+    },
+    {
       "id": "review",
       "path": "pages/review.json",
       "title": "Review queue",

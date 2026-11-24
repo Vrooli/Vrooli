@@ -1,0 +1,104 @@
+{
+  "reference": "docs/mockups/assets/eight-screens-reference.jpeg",
+  "captures": "docs/mockups/assets",
+  "normalization": "manual phone-panel crops resized to 390x844 with Lanczos",
+  "metric_limit": "Descriptive only; not a visual-quality score or acceptance threshold.",
+  "screens": [
+    {
+      "screen": "money-night",
+      "candidate": "money-night-v28.png",
+      "crop_box_px": [
+        25,
+        78,
+        170,
+        412
+      ],
+      "rgb_mean_absolute_error_0_255": 29.49,
+      "pixels_over_20_rgb_levels_percent": 28.06
+    },
+    {
+      "screen": "money-day",
+      "candidate": "money-day-v28.png",
+      "crop_box_px": [
+        176,
+        78,
+        319,
+        412
+      ],
+      "rgb_mean_absolute_error_0_255": 42.957,
+      "pixels_over_20_rgb_levels_percent": 36.93
+    },
+    {
+      "screen": "run-before",
+      "candidate": "run-before-v28.png",
+      "crop_box_px": [
+        320,
+        78,
+        460,
+        412
+      ],
+      "rgb_mean_absolute_error_0_255": 49.519,
+      "pixels_over_20_rgb_levels_percent": 47.56
+    },
+    {
+      "screen": "wind-down",
+      "candidate": "wind-down-v28.png",
+      "crop_box_px": [
+        460,
+        78,
+        604,
+        412
+      ],
+      "rgb_mean_absolute_error_0_255": 53.304,
+      "pixels_over_20_rgb_levels_percent": 61.71
+    },
+    {
+      "screen": "plant-day",
+      "candidate": "plant-day-v28.png",
+      "crop_box_px": [
+        607,
+        78,
+        743,
+        412
+      ],
+      "rgb_mean_absolute_error_0_255": 54.823,
+      "pixels_over_20_rgb_levels_percent": 58.3
+    },
+    {
+      "screen": "phrase-practice",
+      "candidate": "phrase-practice-v28.png",
+      "crop_box_px": [
+        746,
+        78,
+        883,
+        412
+      ],
+      "rgb_mean_absolute_error_0_255": 52.37,
+      "pixels_over_20_rgb_levels_percent": 60.01
+    },
+    {
+      "screen": "run-after",
+      "candidate": "run-after-v28.png",
+      "crop_box_px": [
+        887,
+        78,
+        1026,
+        412
+      ],
+      "rgb_mean_absolute_error_0_255": 38.242,
+      "pixels_over_20_rgb_levels_percent": 37.05
+    },
+    {
+      "screen": "plant-night",
+      "candidate": "plant-night-v28.png",
+      "crop_box_px": [
+        1028,
+        78,
+        1174,
+        412
+      ],
+      "rgb_mean_absolute_error_0_255": 52.09,
+      "pixels_over_20_rgb_levels_percent": 48.68
+    }
+  ]
+}

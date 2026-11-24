@@ -7,7 +7,6 @@ package libraryhealth
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 
 	"connectrpc.com/connect"
@@ -28,7 +27,7 @@ type Handler struct{ service *domain.Service }
 func NewHandler(service *domain.Service) *Handler { return &Handler{service: service} }
 
 // Module mounts LibraryHealthService with the default DB-backed providers.
-func Module(db *sql.DB) module.Module {
+func Module(db domain.Database) module.Module {
 	return ModuleFromProviders(domain.DBProviders(db))
 }
 

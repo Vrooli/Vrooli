@@ -20,7 +20,7 @@ import {
 import { useTranslation } from "../../i18n";
 import { appRoutes } from "../../routes";
 import { formatRelative } from "../data";
-import type { DesignDocument, DesignDevice } from "../designs";
+import type { DesignDocument, DesignDevice } from "../design-types";
 import type { CommandStack } from "./history";
 import { Segmented, WbButton } from "../primitives";
 import { cx } from "../cx";

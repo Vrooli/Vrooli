@@ -11,11 +11,14 @@ import (
 // Scope identifies the repository and, optionally, the assets a gate must
 // inspect. An empty Assets slice means the full corpus.
 type Scope struct {
-	Context  context.Context
-	Root     string
-	Assets   []string
-	Version  string
-	DB       *sql.DB
+	Context context.Context
+	Root    string
+	Assets  []string
+	Version string
+	DB      interface {
+		QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+		QueryRowContext(context.Context, string, ...any) *sql.Row
+	}
 	Revision func(string, string) (string, error)
 	Set      librarywalk.Set
 }

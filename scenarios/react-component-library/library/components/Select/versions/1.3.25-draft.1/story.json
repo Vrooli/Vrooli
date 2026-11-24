@@ -1,0 +1,168 @@
+{
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-select]"
+        }
+      ],
+      "id": "default",
+      "mode": "live",
+      "name": "Default",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "LongSelectedValue",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-select]"
+        }
+      ],
+      "id": "overflow",
+      "mode": "live",
+      "name": "Long selected value",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Placeholder",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-select]"
+        }
+      ],
+      "id": "placeholder",
+      "mode": "live",
+      "name": "Placeholder",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-select-listbox]"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-select-option]"
+        }
+      ],
+      "id": "open-options",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "selector": "[data-rcl-select]"
+          }
+        }
+      ],
+      "mode": "live",
+      "name": "Open options",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": { "specimen": { "export": "EmptyResults", "module": "./story.tsx" } },
+      "expect": [
+        { "kind": "visible", "selector": "[data-rcl-select]" },
+        { "kind": "visible", "selector": "[data-rcl-select-listbox]" }
+      ],
+      "id": "empty",
+      "interactions": [{ "kind": "click", "target": { "selector": "[data-rcl-select]" } }],
+      "mode": "live",
+      "name": "No available results",
+      "role": "boundary",
+      "states": ["empty"]
+    },
+    {
+      "args": {},
+      "composition": { "specimen": { "export": "RequestError", "module": "./story.tsx" } },
+      "expect": [
+        { "kind": "role", "name": "Team", "role": "button" },
+        { "kind": "role", "name": "Teams could not be loaded. Try again.", "role": "alert" },
+        { "kind": "attribute", "attribute": "aria-describedby", "selector": "[data-rcl-select]", "value": "team-load-error" }
+      ],
+      "id": "error",
+      "mode": "live",
+      "name": "Option request failed",
+      "role": "boundary",
+      "states": ["error"]
+    },
+    {
+      "args": {},
+      "composition": { "specimen": { "export": "LoadingOptions", "module": "./story.tsx" } },
+      "expect": [
+        { "kind": "role", "name": "Team", "role": "button" },
+        { "kind": "role", "name": "Loading teams…", "role": "status" },
+        { "kind": "attribute", "attribute": "aria-disabled", "selector": "[data-rcl-select]", "value": "true" }
+      ],
+      "id": "loading",
+      "mode": "live",
+      "name": "Options loading",
+      "role": "boundary",
+      "states": ["loading"]
+    },
+    {
+      "args": {},
+      "composition": { "specimen": { "export": "ManyResults", "module": "./story.tsx" } },
+      "expect": [
+        { "kind": "count", "selector": "[data-rcl-select-option]", "value": "10" }
+      ],
+      "id": "many",
+      "interactions": [{ "kind": "click", "target": { "selector": "[data-rcl-select]" } }],
+      "mode": "live",
+      "name": "Many available results",
+      "role": "boundary",
+      "states": ["overflow"]
+    },
+    {
+      "args": {},
+      "composition": { "specimen": { "export": "OneResult", "module": "./story.tsx" } },
+      "expect": [
+        { "kind": "count", "selector": "[data-rcl-select-option]", "value": "1" }
+      ],
+      "id": "one",
+      "interactions": [{ "kind": "click", "target": { "selector": "[data-rcl-select]" } }],
+      "mode": "live",
+      "name": "Single available result",
+      "role": "boundary"
+    }
+  ],
+  "title": "Select"
+}

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import {
   ChevronRight,
   Copy,
+  FileCheck2,
   FileUp,
   Monitor,
   Play,
@@ -17,8 +18,9 @@ import {
 } from "lucide-react";
 
 import { useTranslation } from "../../i18n";
+import { selectors } from "../../consts/selectors";
 import { appRoutes } from "../../routes";
-import type { DesignDevice } from "../designs";
+import type { DesignDevice } from "../design-types";
 import type { WorkspacePage } from "../../api/workspaces";
 import { Segmented } from "../primitives";
 import { cx } from "../cx";
@@ -36,6 +38,7 @@ export function WorkspaceTopBar({
   onAddPage,
   onDuplicatePage,
   onImportHtml,
+  onImportPatch,
   onRemovePage,
   canUndo,
   canRedo,
@@ -59,6 +62,8 @@ export function WorkspaceTopBar({
   onDuplicatePage: () => void;
   /** Opens the HTML import dialog. Optional so the bar stays reusable. */
   onImportHtml?: () => void;
+  /** Opens the exact capture-outline patch review/apply dialog. */
+  onImportPatch?: () => void;
   onRemovePage: () => void;
   canUndo: boolean;
   canRedo: boolean;
@@ -81,7 +86,9 @@ export function WorkspaceTopBar({
   return (
     <header className="studio-topbar">
       <div className="studio-crumbs">
-        <Link to={appRoutes.design}>{t("workbench.studio.workspaces", { defaultValue: "Workspaces" })}</Link>
+        <Link to={appRoutes.design}>
+          {t("workbench.studio.workspaces", { defaultValue: "Workspaces" })}
+        </Link>
         <ChevronRight aria-hidden size={12} />
         <b>{workspaceName}</b>
       </div>
@@ -93,21 +100,21 @@ export function WorkspaceTopBar({
           aria-label={t("workbench.workspace.pages", { defaultValue: "Pages" })}
         >
           {pages.map((page) => {
-          const current = page.id === activePageId;
-          return (
-            <span key={page.id} className={cx("studio-tab", current && "is-active")}>
-              {current && dirty ? <span className="studio-tab-dot" aria-hidden /> : null}
-              <button
-                type="button"
-                role="tab"
-                aria-selected={current}
-                className="studio-tab-name"
-                onClick={() => onSelectPage(page.id)}
-              >
-                <span>{page.name}</span>
-                <small>{page.displays.length}</small>
-              </button>
-            </span>
+            const current = page.id === activePageId;
+            return (
+              <span key={page.id} className={cx("studio-tab", current && "is-active")}>
+                {current && dirty ? <span className="studio-tab-dot" aria-hidden /> : null}
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={current}
+                  className="studio-tab-name"
+                  onClick={() => onSelectPage(page.id)}
+                >
+                  <span>{page.name}</span>
+                  <small>{page.displays.length}</small>
+                </button>
+              </span>
             );
           })}
         </div>
@@ -159,6 +166,19 @@ export function WorkspaceTopBar({
             onClick={onImportHtml}
           >
             <FileUp aria-hidden size={14} />
+          </button>
+        ) : null}
+        {onImportPatch ? (
+          <button
+            type="button"
+            className="studio-iconbtn"
+            aria-label={t("workbench.studio.importCapturePatch", { defaultValue: "Import capture outline patch" })}
+            title={t("workbench.studio.importCapturePatch", { defaultValue: "Import capture outline patch" })}
+            data-testid={selectors.workspaceStudio.capturePatchButton}
+            disabled={readOnly}
+            onClick={onImportPatch}
+          >
+            <FileCheck2 aria-hidden size={14} />
           </button>
         ) : null}
         <button

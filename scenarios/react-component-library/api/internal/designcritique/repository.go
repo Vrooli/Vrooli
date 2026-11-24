@@ -34,9 +34,19 @@ type Repository interface {
 	Get(context.Context, string) (Record, error)
 	List(context.Context, Target, string) ([]Record, string, error)
 }
-type SQLiteRepository struct{ db *sql.DB }
 
-func NewSQLiteRepository(db *sql.DB) *SQLiteRepository { return &SQLiteRepository{db: db} }
+// Database is the request-aware SQL surface used by critique persistence.
+// api-core's RoutedDB selects the appropriate pool from each operation's
+// context, while *sql.DB remains useful for isolated fixtures.
+type Database interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}
+
+type SQLiteRepository struct{ db Database }
+
+func NewSQLiteRepository(db Database) *SQLiteRepository { return &SQLiteRepository{db: db} }
 func identity(review Review) (string, []byte, error) {
 	if err := Validate(review); err != nil {
 		return "", nil, err

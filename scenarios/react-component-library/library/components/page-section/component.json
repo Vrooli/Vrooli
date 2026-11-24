@@ -1,0 +1,24 @@
+{
+  "catalogId": "primitives.section",
+  "category": "uncategorized",
+  "deprecatedVersions": [],
+  "description": "Semantic section with heading, optional note and actions for page content",
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "displayName": "Page Section",
+  "draft": "0.1.1-draft.1",
+  "entry": "PageSectionDraftSource.tsx",
+  "kind": "control",
+  "latest": "0.1.0",
+  "libraryId": "react-component-library:page-section",
+  "slot": "ui-pattern",
+  "tags": [
+    "layout",
+    "content"
+  ]
+}

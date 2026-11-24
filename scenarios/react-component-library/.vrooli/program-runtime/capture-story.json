@@ -5,7 +5,7 @@
   "helpers": {
     "program": "1"
   },
-  "purpose": "Capture each requested immutable story directly in RCL’s isolated Browser Automation Studio harness at the requested viewport and theme.",
+  "purpose": "Capture each requested immutable story directly in RCL\u2019s isolated Browser Automation Studio harness at the requested viewport and theme.",
   "inputs": {
     "asset_id": {
       "type": "string",
@@ -59,7 +59,9 @@
     {
       "id": "browser-automation-studio/capture/capture",
       "effect": "write",
-      "via": "binding"
+      "via": "binding",
+      "optional": true,
+      "note": "BAS is optional at startup and may be unavailable or unauthenticated; capture reports unavailable/partial while catalog and workspace authoring remain usable."
     }
   ],
   "outputs": {

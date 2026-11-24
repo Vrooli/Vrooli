@@ -29,6 +29,42 @@ func TestAllEndpoints_NonEmpty(t *testing.T) {
 	require.NotEmpty(t, got, "AllEndpoints must include at least the health endpoint")
 }
 
+func TestCatalogSearchIsOwnedOnlyByUnifiedSearchService(t *testing.T) {
+	byID := make(map[string]bool)
+	for _, endpoint := range modules.AllEndpoints() {
+		byID[endpoint.ID] = true
+	}
+	require.False(t, byID["catalog_search"], "catalog-only search endpoint must be retired")
+	require.False(t, byID["catalog_search_status"], "catalog-only search status must be retired")
+	require.False(t, byID["catalog_search_reindex"], "catalog-only reindex endpoint must be retired")
+	require.True(t, byID["search_query"], "unified SearchService remains the search owner")
+	require.True(t, byID["search_status"], "unified SearchService remains the index-status owner")
+	require.True(t, byID["search_reindex"], "unified SearchService remains the reindex owner")
+}
+
+func TestLegacyCompositionRoutesAndSchemasAreRetired(t *testing.T) {
+	for _, endpoint := range modules.AllEndpoints() {
+		require.NotEqual(t, "/api/designs", endpoint.Path,
+			"legacy design collection CRUD must not be registered")
+		require.NotContains(t, endpoint.Path, "/api/designs/",
+			"legacy design member and asset routes must not be registered")
+		require.NotEqual(t, "/api/design-assets", endpoint.Path,
+			"legacy aggregate asset route must not be registered")
+		require.NotEqual(t, "/api/templates", endpoint.Path,
+			"legacy template route must not be registered")
+	}
+
+	d := db.NewSQLite(t)
+	ctx := context.Background()
+	require.NoError(t, apidb.EnsureSchemas(ctx, d, modules.AllSchemas()...))
+	for _, table := range []string{"studio_designs", "studio_design_assets", "studio_templates"} {
+		var exists int
+		require.NoError(t, d.QueryRowContext(ctx,
+			`SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&exists))
+		require.Zero(t, exists, "retired legacy table %s must not be created on new databases", table)
+	}
+}
+
 // TestAllEndpoints_StableOrder pins the stable-order contract that the
 // diff-exit-code CI check on .vrooli/endpoints.json depends on. Two
 // consecutive calls must return slices with the same element order;

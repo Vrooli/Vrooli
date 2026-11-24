@@ -1,9 +1,9 @@
 import { useTranslation } from "../../i18n";
 import { formatRelative } from "../data";
-import type { DesignDocument } from "../designs";
+import type { DesignDocument } from "../design-types";
 import type { Coverage } from "./rcl";
 import { paintedShare, type FrameAuditMap } from "./checks";
-import type { SavedState } from "./useStudio";
+import type { SavedState } from "./persistence";
 import { Dot } from "../primitives";
 
 export function StudioStatusBar({
@@ -15,10 +15,7 @@ export function StudioStatusBar({
   saving,
   saveFailed,
   onRetrySave,
-  unavailable,
-  fallback,
   openCount,
-  openUnit = "design",
   issueCount,
   zoom,
   readOnly = false,
@@ -31,11 +28,7 @@ export function StudioStatusBar({
   saving: boolean;
   saveFailed: boolean;
   onRetrySave: () => void;
-  unavailable: number;
-  fallback: boolean;
   openCount: number;
-  /** What the count names: designs in a document shelf, pages in a workspace. */
-  openUnit?: "design" | "page";
   issueCount: number;
   zoom: number;
   /** A curated template is never saved; the bar says so instead of "Saved". */
@@ -45,13 +38,11 @@ export function StudioStatusBar({
   const state = readOnly
     ? "template"
     : saveFailed
-    ? "failed"
-    : saving
-      ? "saving"
-      : dirty
-        ? "draft"
-        : saved?.local
-          ? "local"
+      ? "failed"
+      : saving
+        ? "saving"
+        : dirty
+          ? "draft"
           : "saved";
   const area = paintedShare(audits);
 
@@ -59,7 +50,15 @@ export function StudioStatusBar({
     <footer className="studio-status">
       <span className="studio-status-state">
         <Dot
-          tone={state === "saved" ? "green" : state === "failed" ? "red" : state === "template" ? "ice" : "amber"}
+          tone={
+            state === "saved"
+              ? "green"
+              : state === "failed"
+                ? "red"
+                : state === "template"
+                  ? "ice"
+                  : "amber"
+          }
         />
         <b>
           {state === "template"
@@ -68,19 +67,14 @@ export function StudioStatusBar({
                 revision: doc.revision,
               })
             : state === "saved"
-            ? t("workbench.studio.savedRevision", {
-                defaultValue: "Saved · revision {{revision}}",
-                revision: saved?.revision ?? doc.revision,
-              })
-            : state === "saving"
-              ? t("workbench.studio.saving", { defaultValue: "Saving…" })
-              : state === "failed"
-                ? t("workbench.studio.saveFailed", { defaultValue: "Save failed" })
-                : state === "local"
-                  ? t("workbench.studio.savedLocally", {
-                      defaultValue: "Local draft · revision {{revision}}",
-                      revision: saved?.revision ?? doc.revision,
-                    })
+              ? t("workbench.studio.savedRevision", {
+                  defaultValue: "Saved · revision {{revision}}",
+                  revision: saved?.revision ?? doc.revision,
+                })
+              : state === "saving"
+                ? t("workbench.studio.saving", { defaultValue: "Saving…" })
+                : state === "failed"
+                  ? t("workbench.studio.saveFailed", { defaultValue: "Save failed" })
                   : t("workbench.studio.draft", { defaultValue: "Draft" })}
         </b>
         <span>
@@ -90,7 +84,7 @@ export function StudioStatusBar({
               ? formatRelative(new Date(saved.at))
               : t("workbench.studio.notSaved", { defaultValue: "not saved yet" })}
         </span>
-        {state === "failed" || state === "local" ? (
+        {state === "failed" ? (
           <button type="button" className="studio-status-retry" onClick={onRetrySave}>
             {t("workbench.studio.retrySave", { defaultValue: "Retry" })}
           </button>
@@ -101,47 +95,13 @@ export function StudioStatusBar({
         ·
       </span>
       <span className="studio-status-item studio-status-open">
-        {openUnit === "page"
-          ? openCount === 1
-            ? t("workbench.studio.pageCountOne", { defaultValue: "1 page" })
-            : t("workbench.studio.pageCountMany", {
-                defaultValue: "{{count}} pages",
-                count: openCount,
-              })
-          : openCount === 1
-            ? t("workbench.studio.openCountOne", { defaultValue: "1 design open" })
-            : t("workbench.studio.openCountMany", {
-                defaultValue: "{{count}} designs open",
-                count: openCount,
-              })}
+        {openCount === 1
+          ? t("workbench.studio.pageCountOne", { defaultValue: "1 page" })
+          : t("workbench.studio.pageCountMany", {
+              defaultValue: "{{count}} pages",
+              count: openCount,
+            })}
       </span>
-
-      {fallback ? (
-        <>
-          <span className="studio-status-sep" aria-hidden>
-            ·
-          </span>
-          <span className="studio-status-item studio-status-warn" role="status">
-            {t("workbench.studio.localDraft", {
-              defaultValue: "Local draft · API unavailable",
-            })}
-          </span>
-        </>
-      ) : null}
-
-      {unavailable > 0 ? (
-        <>
-          <span className="studio-status-sep" aria-hidden>
-            ·
-          </span>
-          <span className="studio-status-item studio-status-warn" role="status">
-            {t("workbench.studio.unavailable", {
-              defaultValue: "{{count}} designs could not be loaded",
-              count: unavailable,
-            })}
-          </span>
-        </>
-      ) : null}
 
       <span className="studio-status-spacer" />
 

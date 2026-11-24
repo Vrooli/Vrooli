@@ -257,6 +257,17 @@ func (s *Store) Read(scenario, page string) (Snapshot, error) {
 	return decodeSnapshot(raw)
 }
 
+// ReadPageSource returns the exact authored page bytes through the same
+// symlink-resistant path traversal used by other experience-page reads.
+func (s *Store) ReadPageSource(scenario, page string) ([]byte, error) {
+	root, name, err := s.openPages(scenario, page)
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	return root.ReadFile(name)
+}
+
 func (s *Store) Load(scenario, page string) (Document, error) {
 	snapshot, err := s.Read(scenario, page)
 	return snapshot.Document, err

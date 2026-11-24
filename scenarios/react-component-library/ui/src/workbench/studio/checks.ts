@@ -1,4 +1,4 @@
-import type { DesignFrame } from "../designs";
+import type { DesignFrame } from "../design-types";
 import { walk, type TemplateNode, type TemplateNodeType } from "../templates/spec";
 
 /** Minimum interactive height the studio checks against, in CSS pixels. */
@@ -141,6 +141,25 @@ export function paintedShare(audits: FrameAuditMap): AreaShare | null {
 
 export interface CheckVerdict {
   verdict: "pass" | "warn" | "fail" | "unmeasured";
+}
+
+export interface CheckSummary {
+  total: number;
+  passed: number;
+  needsReview: number;
+  unmeasured: number;
+}
+
+/** Only a measured `pass` counts as passing; missing evidence stays visible. */
+export function summarizeChecks(verdicts: readonly CheckVerdict["verdict"][]): CheckSummary {
+  const passed = verdicts.filter((verdict) => verdict === "pass").length;
+  const unmeasured = verdicts.filter((verdict) => verdict === "unmeasured").length;
+  return {
+    total: verdicts.length,
+    passed,
+    needsReview: verdicts.length - passed,
+    unmeasured,
+  };
 }
 
 export function layoutVerdicts(audit: FrameAudit | undefined, missingStates: number): {

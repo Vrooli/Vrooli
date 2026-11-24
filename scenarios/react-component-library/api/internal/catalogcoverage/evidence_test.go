@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"react-component-library/internal/gates"
 
@@ -24,6 +25,36 @@ func TestEvidenceStorePersistsAndListsRows(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	require.Equal(t, "rev-1", rows[0].SourceRevision)
+}
+
+func TestScoreHistoryCarriesForwardEvidenceAndMarksInstrumentMovement(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	writeAsset(t, root, "button", "Button", "")
+	scenarioRoot := filepath.Join(root, "scenarios", "react-component-library")
+	config := `{"gateTiers":[{"id":"release-integrity"},{"id":"asset-quality"},{"id":"consumer-use"}],"gates":[{"id":"served-validation","tier":"asset-quality","rung":"verified","blocking":true,"appliesTo":["component"]}]}`
+	require.NoError(t, os.WriteFile(filepath.Join(scenarioRoot, "catalog", "config.json"), []byte(config), 0o644))
+
+	database := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(ctx, database, apidb.SchemaProviderFunc(Schema)))
+	store := NewEvidenceStore(database)
+	now := time.Now().UTC()
+	firstRecordedAt := now.Add(-24 * time.Hour).Format(time.RFC3339Nano)
+	secondRecordedAt := now.Format(time.RFC3339Nano)
+	require.NoError(t, store.Save(ctx, []GateEvidence{
+		{AssetID: "controls.button", Target: "react-vite", Gate: "served-validation", Version: "1.0.0", Result: "fail", SourceRevision: "same-revision", RecordedAt: firstRecordedAt},
+		{AssetID: "controls.button", Target: "react-vite", Gate: "served-validation", Version: "1.0.0", Result: "pass", SourceRevision: "same-revision", RecordedAt: secondRecordedAt},
+	}))
+
+	history, err := store.ScoreHistory(ctx, root, "")
+	require.NoError(t, err)
+	require.Len(t, history, 2)
+	require.Equal(t, now.Add(-24*time.Hour).Format("2006-01-02"), history[0].RecordedAt)
+	require.Equal(t, now.Format("2006-01-02"), history[1].RecordedAt)
+	require.NotEqual(t, history[0].Score, history[1].Score, "the newer pass should change the served validation score")
+	require.Equal(t, history[0].SourceRevision, history[1].SourceRevision, "the source stayed fixed while the measured verdict changed")
+	require.Equal(t, 1, history[1].InstrumentMoved)
+	require.Contains(t, history[1].Events, ScoreHistoryEvent{Type: "instrument-moved", SourceRevision: history[1].SourceRevision})
 }
 
 func TestEvidenceStoreRecoversAfterCanceledSchemaProbe(t *testing.T) {
@@ -106,6 +137,42 @@ func TestMergedEvidenceTreatsStalePersistedRowsAsAbsent(t *testing.T) {
 			t.Fatalf("stale visual evidence survived merge: %+v", item)
 		}
 	}
+}
+
+func TestDeriveExperienceEvidenceReducesHistoryAndRequiresResponsiveMatrix(t *testing.T) {
+	root := t.TempDir()
+	writeAsset(t, root, "button", "Button", "")
+	definitions := []GateDefinition{
+		{ID: "interaction", ExperienceClaimTypes: []string{"element-presence"}},
+		{ID: "visual"},
+		{ID: "responsive", ExperienceMinimumViewports: 2},
+	}
+	captures := []ExperienceCapture{
+		{AssetID: "controls.button", Target: "react-vite", Version: "1.0.0", ClaimID: "primary", ClaimType: "element-presence", Verdict: "failed", Viewport: "320", CheckedAt: "2026-03-01T00:00:00Z", CaptureRef: "old.png"},
+		{AssetID: "controls.button", Target: "react-vite", Version: "1.0.0", ClaimID: "primary", ClaimType: "element-presence", Verdict: "passed", Viewport: "320", CheckedAt: "2026-03-02T00:00:00Z", CaptureRef: "new.png"},
+		{AssetID: "controls.button", Target: "react-vite", Version: "1.0.0", ClaimID: "primary", ClaimType: "element-presence", Verdict: "passed", Viewport: "390", CheckedAt: "2026-03-02T00:00:00Z", CaptureRef: "wide.png"},
+		{AssetID: "workbench.preview", Target: "react-vite", ClaimID: "other", ClaimType: "element-presence", Verdict: "passed", Viewport: "320", CheckedAt: "2026-03-02T00:00:00Z", CaptureRef: "preview.png"},
+	}
+	evidence, err := deriveExperienceEvidence(root, captures, definitions)
+	require.NoError(t, err)
+	byGate := map[string]GateEvidence{}
+	for _, item := range evidence {
+		byGate[item.Gate] = item
+	}
+	require.Equal(t, "pass", byGate["interaction"].Result, "newest claim observation must supersede historical failure")
+	require.Equal(t, "pass", byGate["visual"].Result, "two captured viewports should prove visual coverage")
+	require.Equal(t, "pass", byGate["responsive"].Result, "two captured viewports should prove responsive coverage")
+	require.Len(t, evidence, 3, "non-catalog captures must not enter the evidence join")
+
+	evidence, err = deriveExperienceEvidence(root, captures[:2], definitions)
+	require.NoError(t, err)
+	byGate = map[string]GateEvidence{}
+	for _, item := range evidence {
+		byGate[item.Gate] = item
+	}
+	require.Equal(t, "pass", byGate["visual"].Result)
+	_, responsiveMeasured := byGate["responsive"]
+	require.False(t, responsiveMeasured, "one viewport must not produce responsive evidence")
 }
 
 func TestCurrentRevisionAcceptsRepositoryAndLibraryRoots(t *testing.T) {

@@ -1,14 +1,10 @@
 {
   "app": {
-    "brand": "مكتبة المكوّنات",
     "title": "React Component Library"
   },
   "catalog": {
     "sourcePath": "مسار المصدر",
     "sourceScenario": "سيناريو المصدر"
-  },
-  "design": {
-    "title": "التصميم"
   },
   "errorBoundary": {
     "message": "حدث خطأ غير متوقع أثناء عرض الصفحة. حاول مرة أخرى، أو أعد تحميل الصفحة إذا استمرت المشكلة.",
@@ -32,13 +28,6 @@
     "unavailable": "Service temporarily unavailable.",
     "unimplemented": "Not yet implemented.",
     "unknown": "An unknown error occurred."
-  },
-  "nav": {
-    "browseAssets": "استعراض الأصول",
-    "capabilities": "جاهزية القدرات",
-    "closeDrawer": "إغلاق التنقل",
-    "coverage": "تغطية الكتالوج",
-    "inventory": "محتويات المكتبة"
   },
   "route": {
     "loading": "جارٍ التحميل…"

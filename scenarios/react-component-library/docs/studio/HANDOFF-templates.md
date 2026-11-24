@@ -1,5 +1,12 @@
 # Handoff — template shelf ownership
 
+> Historical handoff. Superseded on 2026-11-20: curated templates are workspace
+> aggregates in `library/workspace-seeds.json`; the legacy API/store and browser
+> authoring shelf described below are retired. The migration imports old rows,
+> then drops their tables transactionally. Only a read-only browser-cache reader
+> remains for unsynced component-context bookmarks during the URL compatibility
+> window.
+
 The studio's saved templates moved from `localStorage`-only to the scenario API.
 `ui/src/workbench/templates/local.ts` is still the only reader/writer of the
 shelf; the browser cache is now a first-paint cache plus an honest offline

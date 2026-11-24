@@ -5,20 +5,31 @@ import (
 	"reflect"
 	"testing"
 
-	"react-component-library/internal/catalogsearch"
+	"react-component-library/internal/search"
 )
 
 type importSearchFixture struct {
 	calls   []string
-	results map[string][]catalogsearch.Result
+	results map[string][]search.CatalogResult
 }
 
-func (f *importSearchFixture) SearchContext(_ context.Context, q string, _ int, kind, _, _ string) []catalogsearch.Result {
+func (f *importSearchFixture) SearchCatalog(_ context.Context, q string, _ int, kind, _, _ string) ([]search.CatalogResult, error) {
 	f.calls = append(f.calls, q)
 	if kind == "page-template" {
-		return nil
+		return nil, nil
 	}
-	return f.results[q]
+	return f.results[q], nil
+}
+
+func (f *importSearchFixture) LookupCatalogID(_ context.Context, id string) (search.CatalogResult, bool, error) {
+	for _, results := range f.results {
+		for _, result := range results {
+			if result.CatalogID == id {
+				return result, true, nil
+			}
+		}
+	}
+	return search.CatalogResult{}, false, nil
 }
 
 func TestImportPreservesIntentAndRequiresBothSearchesForGap(t *testing.T) {
@@ -49,7 +60,7 @@ func TestImportPreservesIntentAndRequiresBothSearchesForGap(t *testing.T) {
 
 func TestImportL0CreatesProposedRegionAndDoesNotPromoteSearchCandidates(t *testing.T) {
 	source := Snapshot{PagePurpose: "Review and resolve urgent requests.", PageElements: []string{"list"}}
-	search := &importSearchFixture{results: map[string][]catalogsearch.Result{"Review and resolve urgent requests. primary task": {{Document: catalogsearch.Document{CatalogID: "components.inbox", Kind: "component"}, Score: 3}}}}
+	search := &importSearchFixture{results: map[string][]search.CatalogResult{"Review and resolve urgent requests. primary task": {{CatalogMetadata: search.CatalogMetadata{CatalogID: "components.inbox", Kind: "component"}, Score: 3}}}}
 	got, err := Import(context.Background(), source, search)
 	if err != nil {
 		t.Fatal(err)

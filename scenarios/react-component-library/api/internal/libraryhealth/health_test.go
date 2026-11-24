@@ -4,11 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/vrooli/api-core/database"
 	db "github.com/vrooli/api-core/databasetest"
 )
 
@@ -99,6 +101,52 @@ func TestDBAvailableSections(t *testing.T) {
 	require.Contains(t, health.Services.Reason, "not configured")
 	require.Empty(t, health.Services.Metrics)
 	require.Equal(t, "2026-11-19T12:00:00.000000000Z", health.GeneratedAt)
+}
+
+func TestDBProvidersRouteMarkedRequestsToInstalledTestPool(t *testing.T) {
+	ctx := context.Background()
+	routed, err := database.Open(ctx, database.Config{
+		Driver:       database.DriverSQLite,
+		DSN:          filepath.Join(t.TempDir(), "primary.db"),
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = routed.Close() })
+
+	schema := []string{
+		`CREATE TABLE components (id TEXT PRIMARY KEY)`,
+		`CREATE TABLE component_versions (id TEXT PRIMARY KEY, status TEXT NOT NULL)`,
+		`CREATE TABLE workspaces (id TEXT PRIMARY KEY)`,
+		`CREATE TABLE findings (id TEXT PRIMARY KEY, status TEXT NOT NULL)`,
+		`CREATE TABLE catalog_gate_evidence (id TEXT PRIMARY KEY, result TEXT NOT NULL)`,
+		`CREATE TABLE activity_events (id TEXT PRIMARY KEY, actor TEXT NOT NULL, action TEXT NOT NULL, at TEXT NOT NULL)`,
+	}
+	for _, statement := range schema {
+		_, err = routed.ExecContext(ctx, statement)
+		require.NoError(t, err)
+	}
+	routed.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
+		for _, statement := range schema {
+			if _, err := pool.ExecContext(ctx, statement); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	require.NoError(t, routed.InstallTestPool(ctx, filepath.Join(t.TempDir(), "test.db"), "health-test", 0))
+
+	_, err = routed.ExecContext(ctx, `INSERT INTO components(id) VALUES ('primary-a'), ('primary-b')`)
+	require.NoError(t, err)
+	requestCtx := database.WithTestMode(ctx)
+	_, err = routed.ExecContext(requestCtx, `INSERT INTO components(id) VALUES ('test-only')`)
+	require.NoError(t, err)
+
+	service := NewService(DBProviders(routed))
+	primary := service.Get(ctx, 30)
+	testPool := service.Get(requestCtx, 30)
+	require.Equal(t, 2, primary.Counts.Assets)
+	require.Equal(t, 1, testPool.Counts.Assets, "request context must route the provider reads to the installed test pool")
 }
 
 func TestDBEmptyTablesAreMeasuredEmpty(t *testing.T) {

@@ -1,9 +1,50 @@
 package componenttests
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestRemoveRequiredSurfaceTokenUsesAtomicWriteAndPreservesMode(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "design-tokens.css")
+	if err := os.WriteFile(path, []byte(":root {\n  --color-surface: #fff;\n  --color-primary: #123;\n}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(path, 0o640); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := removeRequiredSurfaceToken(path); err != nil {
+		t.Fatalf("removeRequiredSurfaceToken: %v", err)
+	}
+
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(got), "--color-surface:") {
+		t.Fatalf("surface token remains in %q", got)
+	}
+	if !strings.Contains(string(got), "--color-primary: #123;") {
+		t.Fatalf("unrelated token was removed: %q", got)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := info.Mode().Perm(); got != 0o640 {
+		t.Fatalf("mode = %04o, want 0640", got)
+	}
+}
+
+func TestRemoveRequiredSurfaceTokenFailsWhenFixtureIsMissing(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "missing.css")
+	if err := removeRequiredSurfaceToken(path); !os.IsNotExist(err) {
+		t.Fatalf("removeRequiredSurfaceToken error = %v, want not-exist", err)
+	}
+}
 
 func TestFixtureNameIsStable(t *testing.T) {
 	first := fixtureName("positive")

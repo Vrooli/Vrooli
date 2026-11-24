@@ -18,8 +18,8 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"VersionsService.GetVersion":                 cliapp.ProtoList(h.showCall, h.showReport),
 		"VersionsService.DiffVersions":               cliapp.ProtoList(h.diffCall, h.diffReport),
 		"VersionLifecycleService.Doctor":             cliapp.ProtoList(h.doctorCall, h.doctorReport),
-		"VersionLifecycleService.MaterializeVersion": {Run: h.materialize},
-		"VersionLifecycleService.ReconcilePresence":  {Run: h.reconcilePresence},
+		"VersionLifecycleService.MaterializeVersion": cliapp.ProtoList(h.materializeCall, h.materializeReport),
+		"VersionLifecycleService.ReconcilePresence":  cliapp.ProtoList(h.reconcilePresenceCall, h.reconcilePresenceReport),
 		"reap":               {Run: h.reap},
 		"recover-button-224": {Run: h.recoverButton224},
 	}

@@ -13,11 +13,20 @@ import (
 // callers depend on the Repository interface — tests substitute the
 // fake without reaching inside the struct.
 type sqliteRepository struct {
-	db *sql.DB
+	db SQLiteDB
+}
+
+// SQLiteDB is the request-aware database surface used by the deps repository.
+// *sql.DB remains useful for fixtures; production supplies RoutedDB so reads
+// and writes select the pool from the operation context.
+type SQLiteDB interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
 }
 
 // NewSQLiteRepository constructs the production Repository.
-func NewSQLiteRepository(db *sql.DB) Repository {
+func NewSQLiteRepository(db SQLiteDB) Repository {
 	return &sqliteRepository{db: db}
 }
 

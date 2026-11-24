@@ -62,4 +62,47 @@ describe("api/client REST helpers", () => {
     await timedOut;
     vi.useRealTimers();
   });
+
+  it("returns successful responses when no caller signal is supplied", async () => {
+    const response = new Response("ok", { status: 200 });
+    fetchSpy.mockResolvedValueOnce(response);
+
+    await expect(boundedFetch("/api/v1/health")).resolves.toBe(response);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "/api/v1/health",
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+  });
+
+  it("removes a caller abort listener after a successful request", async () => {
+    const caller = new AbortController();
+    const response = new Response("ok", { status: 200 });
+    fetchSpy.mockResolvedValueOnce(response);
+
+    await expect(boundedFetch("/api/v1/health", { signal: caller.signal })).resolves.toBe(
+      response,
+    );
+    expect(caller.signal.aborted).toBe(false);
+  });
+
+  it("preserves a caller's abort error instead of rewriting it as a timeout", async () => {
+    const caller = new AbortController();
+    const abortError = new DOMException("caller canceled", "AbortError");
+    fetchSpy.mockImplementation((_input: RequestInfo | URL, init?: RequestInit) =>
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(abortError), { once: true });
+      }),
+    );
+
+    const request = boundedFetch("/api/v1/health", { signal: caller.signal });
+    caller.abort();
+    await expect(request).rejects.toBe(abortError);
+  });
+
+  it("preserves ordinary transport failures", async () => {
+    const failure = new TypeError("offline");
+    fetchSpy.mockRejectedValueOnce(failure);
+
+    await expect(boundedFetch("/api/v1/health")).rejects.toBe(failure);
+  });
 });

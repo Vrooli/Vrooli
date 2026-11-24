@@ -3,7 +3,7 @@ import { renderWithProviders } from "../../test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { setLocale } from "../../i18n";
-import type { DesignDocument } from "../designs";
+import type { DesignDocument } from "../design-types";
 import { DEFAULT_TEMPLATE } from "../templates/library";
 import { StudioStatusBar } from "./StudioStatusBar";
 
@@ -20,19 +20,17 @@ const doc: DesignDocument = {
 
 const coverage = { rcl: 1, custom: 2, total: 3, ratio: 1 / 3 };
 
-function bar(local: boolean) {
+function bar() {
   return (
     <StudioStatusBar
       doc={doc}
       coverage={coverage}
       audits={{}}
-      saved={{ revision: 3, at: Date.now(), signature: "sig", local }}
+      saved={{ revision: 3, at: Date.now(), signature: "sig" }}
       dirty={false}
       saving={false}
       saveFailed={false}
       onRetrySave={vi.fn()}
-      unavailable={0}
-      fallback={local}
       openCount={1}
       issueCount={0}
       zoom={1}
@@ -48,15 +46,8 @@ describe("studio status honesty", () => {
     vi.clearAllMocks();
   });
 
-  it("never calls a browser-only write saved", () => {
-    renderWithProviders(bar(true));
-    expect(screen.getByText(/Local draft · revision 3/)).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy();
-    expect(screen.queryByText(/Saved · revision/)).toBeNull();
-  });
-
   it("shows a durable server save as saved", () => {
-    renderWithProviders(bar(false));
+    renderWithProviders(bar());
     expect(screen.getByText(/Saved · revision 3/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
   });

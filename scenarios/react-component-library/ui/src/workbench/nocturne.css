@@ -57,7 +57,6 @@
   --wb-r-pill: 999px;
   --wb-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
   --wb-shadow-soft: 0 10px 34px rgba(0, 0, 0, 0.28);
-  --wb-rail: 236px;
   --wb-topbar: 62px;
 
   /* BaseStyles remap — makes shared RCL controls render in Nocturne. */
@@ -168,36 +167,21 @@
    Application shell
    ───────────────────────────────────────────────────────────────────────────*/
 
-.wb-app {
-  display: flex;
-  min-height: 100dvh;
+.wb-app-shell {
   background: var(--wb-bg);
 }
 
-.wb-rail {
-  position: sticky;
-  top: 0;
-  display: flex;
-  flex: 0 0 var(--wb-rail);
-  flex-direction: column;
-  width: var(--wb-rail);
-  height: 100dvh;
-  padding: 18px 14px;
-  border-right: 1px solid var(--wb-line);
-  background: linear-gradient(180deg, #0a0c12, #08090d 55%);
-}
-
-.wb-brand {
+.wb-root .wb-brand {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 8px 22px;
+  padding: 14px 10px 20px;
   font-size: 15px;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
 
-.wb-brand-mark {
+.wb-root .wb-brand-mark {
   display: grid;
   width: 30px;
   height: 30px;
@@ -209,26 +193,38 @@
   box-shadow: 0 0 24px rgba(255, 179, 92, 0.22);
 }
 
-.wb-brand small {
-  display: block;
-  margin-top: 1px;
+.wb-root .wb-brand-text {
+  display: grid;
+  min-width: 0;
+}
+
+.wb-root .wb-brand-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-root .wb-brand-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
   color: var(--wb-muted-2);
   font: 9px/1.3 var(--wb-mono);
-  letter-spacing: 0.14em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.wb-nav {
-  display: grid;
-  gap: 3px;
+.wb-root .wb-brand-dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--wb-muted-2);
 }
 
-.wb-nav-label {
-  margin: 20px 10px 8px;
-  color: var(--wb-muted-2);
-  font: 10px/1 var(--wb-mono);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+.wb-root .wb-brand-dot.is-assigned {
+  background: var(--wb-green);
 }
 
 .wb-nav-item {
@@ -263,22 +259,22 @@
   color: var(--wb-signal);
 }
 
-.wb-nav-count {
-  margin-left: auto;
-  padding: 2px 6px;
-  border: 1px solid var(--wb-line);
-  border-radius: 6px;
-  background: #111522;
-  color: var(--wb-muted-2);
-  font: 10px/1.4 var(--wb-mono);
-}
-
-.wb-rail-foot {
+.wb-shell-utility {
   display: grid;
   gap: 10px;
-  margin-top: auto;
-  padding-top: 14px;
-  border-top: 1px solid var(--wb-line);
+}
+
+.wb-shell-utility-new {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.wb-root .wb-brand-mono {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
 }
 
 .wb-identity {
@@ -348,7 +344,8 @@
   justify-content: space-between;
   gap: 16px;
   height: var(--wb-topbar);
-  flex: 0 0 var(--wb-topbar);
+  flex: 1 1 auto;
+  min-width: 0;
   padding: 0 22px;
   border-bottom: 1px solid var(--wb-line);
   background: rgba(8, 9, 13, 0.72);
@@ -366,9 +363,16 @@
 }
 
 .wb-crumb b {
+  min-width: 0;
   overflow: hidden;
   color: var(--wb-ink);
   font-weight: 600;
+  text-overflow: ellipsis;
+}
+
+.wb-crumb > a {
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
 }
 
@@ -441,6 +445,17 @@
 .wb-view {
   flex: 1;
   min-height: 0;
+  overflow-y: auto;
+}
+
+.wb-view.is-workspace-studio {
+  overflow: hidden;
+}
+
+.wb-root .wb-identity {
+  margin-top: 4px;
+  border-top: 1px solid var(--wb-line);
+  padding: 12px 6px 4px;
 }
 
 .wb-page {
@@ -869,6 +884,41 @@ button.wb-chip[aria-pressed="true"] {
   min-width: 0;
 }
 
+/* FormField supplies the stable label/control/description relationships. Keep
+   its composition visually aligned with the compact Nocturne workbench fields. */
+.wb-field[data-rcl-form-field] {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: inherit;
+}
+
+.wb-field[data-rcl-form-field] [data-rcl-form-field-label-row] {
+  display: contents;
+}
+
+.wb-field[data-rcl-form-field] [data-rcl-form-field-label] {
+  color: var(--wb-muted-2);
+  font: 10px/1.4 var(--wb-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.wb-field[data-rcl-form-field] [data-rcl-form-field-optional] {
+  display: none;
+}
+
+.wb-field[data-rcl-form-field] [data-rcl-form-field-control-slot] {
+  min-width: 0;
+}
+
+.wb-field[data-rcl-form-field] [data-rcl-form-field-description] {
+  color: var(--wb-muted-2);
+  font: 10px/1.4 var(--wb-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .wb-field > label,
 .wb-field > span,
 .wb-label {
@@ -939,86 +989,18 @@ button.wb-chip[aria-pressed="true"] {
   color: var(--wb-muted-2);
 }
 
-.wb-toggle {
-  position: relative;
-  display: inline-flex;
-  width: 42px;
-  height: 24px;
-  flex: none;
-  align-items: center;
-  padding: 3px;
-  border: 1px solid var(--wb-line-2);
-  border-radius: var(--wb-r-pill);
-  background: #0d1018;
-  transition:
-    background 160ms ease,
-    border-color 160ms ease;
-}
-
-.wb-toggle::after {
-  content: "";
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--wb-muted-2);
-  transition:
-    transform 160ms ease,
-    background 160ms ease;
-}
-
-.wb-toggle[aria-checked="true"] {
-  border-color: var(--wb-signal-line);
-  background: var(--wb-signal-soft);
-}
-
-.wb-toggle[aria-checked="true"]::after {
-  transform: translateX(18px);
-  background: var(--wb-signal);
-}
-
-.wb-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  border-bottom: 1px solid var(--wb-line);
-}
-
-.wb-tab {
-  white-space: nowrap;
-}
-
-.wb-tab {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 40px;
-  padding: 0 12px;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  background: none;
-  color: var(--wb-muted);
-  font-size: 13px;
-  font-weight: 550;
-  white-space: nowrap;
-}
-
-.wb-tab:hover {
-  color: var(--wb-ink);
-}
-
-.wb-tab[aria-selected="true"] {
-  border-bottom-color: var(--wb-signal);
-  color: var(--wb-ink);
-}
-
-.wb-tab-count {
-  color: var(--wb-muted-2);
-  font: 10px/1 var(--wb-mono);
-}
-
 .wb-seg {
   display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--wb-line);
+  border-radius: var(--wb-r-sm);
+  background: #0d1018;
+}
+
+.wb-seg[data-rcl-button-group][data-variant="segmented"] {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 0;
   padding: 3px;
   border: 1px solid var(--wb-line);
   border-radius: var(--wb-r-sm);
@@ -1121,6 +1103,41 @@ button.wb-chip[aria-pressed="true"] {
   gap: 14px;
 }
 
+/* Compact readout used by Stats and Library cards, independent of the Design
+   index route's stylesheet. */
+.wb-root .wb-health {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.wb-root .wb-health-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.wb-root .wb-health-copy b {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.wb-root .wb-health-copy span {
+  color: var(--wb-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.wb-root .wb-health-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  color: var(--wb-signal);
+  font-size: 11px;
+  font-weight: 600;
+}
+
 .wb-grid-3 {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1168,120 +1185,6 @@ button.wb-chip[aria-pressed="true"] {
   border: 0;
 }
 
-/* Command palette */
-.wb-command-layer {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 12vh 16px 16px;
-  background: rgba(4, 3, 7, 0.72);
-  backdrop-filter: blur(6px);
-}
-
-.wb-command-panel {
-  width: min(640px, 100%);
-  overflow: hidden;
-  border: 1px solid var(--wb-line-2);
-  border-radius: var(--wb-r);
-  background: var(--wb-panel);
-  box-shadow: var(--wb-shadow);
-}
-
-.wb-command-results {
-  display: grid;
-  gap: 14px;
-  max-height: min(52vh, 460px);
-  overflow: auto;
-  padding: 0 12px 12px;
-  /* A grid track defaults to max-content. A long result title would then widen
-     the whole surface past a 320px phone instead of truncating inside the row. */
-  min-width: 0;
-}
-
-.wb-command-group {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-}
-
-.wb-command-group > .wb-caption {
-  padding: 4px 10px;
-}
-
-.wb-command-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  min-width: 0;
-  min-height: 44px;
-  padding: 7px 10px;
-  border: 0;
-  border-radius: var(--wb-r-xs);
-  background: none;
-  text-align: left;
-}
-
-.wb-command-row:hover,
-.wb-command-row:focus-visible,
-.wb-command-row[data-active="true"] {
-  background: rgba(255, 179, 92, 0.08);
-}
-
-.wb-command-row b {
-  display: block;
-  overflow: hidden;
-  font-size: 13px;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.wb-command-row small {
-  display: block;
-  overflow: hidden;
-  color: var(--wb-muted-2);
-  font: 10px/1.4 var(--wb-mono);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.wb-command-icon {
-  display: grid;
-  width: 28px;
-  height: 28px;
-  flex: none;
-  place-items: center;
-  border: 1px solid var(--wb-line);
-  border-radius: var(--wb-r-xs);
-  background: #0d1018;
-  color: var(--wb-muted);
-}
-
-.wb-command-foot {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 9px 14px;
-  border-top: 1px solid var(--wb-line);
-  color: var(--wb-muted-2);
-  font: 10px/1.4 var(--wb-mono);
-}
-
-.wb-command-foot span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-/* Mobile bottom navigation */
-.wb-mobile-nav {
-  display: none;
-}
-
 @media (max-width: 1100px) {
   .wb-kpis {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1289,13 +1192,8 @@ button.wb-chip[aria-pressed="true"] {
 }
 
 @media (max-width: 900px) {
-  .wb-rail {
-    display: none;
-  }
-
   .wb-topbar {
     height: 54px;
-    flex-basis: 54px;
     padding: 0 14px;
   }
 
@@ -1322,42 +1220,17 @@ button.wb-chip[aria-pressed="true"] {
   .wb-grid-3 {
     grid-template-columns: minmax(0, 1fr);
   }
-
-  .wb-mobile-nav {
-    position: fixed;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    z-index: 40;
-    display: flex;
-    justify-content: space-around;
-    gap: 2px;
-    padding: 7px 8px calc(7px + env(safe-area-inset-bottom, 0px));
-    border-top: 1px solid var(--wb-line);
-    background: rgba(10, 12, 18, 0.94);
-    backdrop-filter: blur(16px);
-  }
-
-  .wb-mobile-nav a {
-    display: grid;
-    min-width: 52px;
-    place-items: center;
-    gap: 3px;
-    padding: 4px 6px;
-    border-radius: var(--wb-r-xs);
-    color: var(--wb-muted-2);
-    font-size: 9px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-  }
-
-  .wb-mobile-nav a[aria-current="page"] {
-    background: var(--wb-signal-soft);
-    color: var(--wb-signal);
-  }
 }
 
 @media (max-width: 560px) {
+  .wb-crumb {
+    flex: 1 1 0;
+  }
+
+  .wb-top-actions {
+    flex: 0 0 auto;
+  }
+
   /* A title, a count and an action cannot share 320px. Wrapping keeps the
      action reachable instead of pushing it past the viewport. */
   .wb-panel-head {
@@ -1387,12 +1260,8 @@ button.wb-chip[aria-pressed="true"] {
     flex: 1;
   }
 
-  /* Five labelled destinations at 320px overflowed when each label kept its
-     natural width. Equal-flex items shrink the labels instead of the page. */
-  .wb-mobile-nav a {
-    min-width: 0;
-    flex: 1 1 0;
-    padding: 4px 2px;
+  .wb-shell-utility {
+    display: none;
   }
 }
 
@@ -1489,4 +1358,30 @@ button.wb-chip[aria-pressed="true"] {
   background: #121018;
   color: var(--wb-muted-2);
   font: 9px/1.4 var(--wb-mono);
+}
+
+.wb-search-modes,
+.wb-search-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.wb-search-modes .wb-btn[aria-pressed="true"] {
+  color: var(--wb-text);
+  border-color: var(--wb-accent);
+}
+
+.wb-search-answer {
+  margin: 10px 0;
+  padding: 12px 14px;
+  border: 1px solid var(--wb-border);
+  border-radius: 12px;
+  background: var(--wb-panel-2);
+}
+
+.wb-search-answer p {
+  margin: 8px 0 10px;
+  line-height: 1.55;
 }

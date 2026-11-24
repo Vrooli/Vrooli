@@ -24,7 +24,7 @@ type ScenarioPaths struct {
 }
 
 const (
-	defaultTokenRampPath        = "ui/src/design-tokens.css"
+	defaultTokenRampPath        = "ui/src/design-tokens.css" // #nosec G101 -- this is a consumer source path, not a credential.
 	defaultSelectorRegistryPath = "ui/src/consts/selectors.ts"
 	defaultLibrarySelectorsPath = "ui/src/consts/selectors.library.ts"
 	defaultAppEntryPath         = "ui/src/main.tsx"

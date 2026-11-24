@@ -38,6 +38,12 @@ func TestModuleShape(t *testing.T) {
 	require.Len(t, brandH.Endpoints, 1)
 	require.Equal(t, "/api/brand", brandH.Endpoints[0].Path)
 	require.NotNil(t, brandH.Endpoints[0].RESTException)
+	payloads := brandH.Endpoints[0].RESTException.ProtoPayloads
+	require.NotNil(t, payloads)
+	require.Equal(t, "none", payloads.Request.Conformance)
+	require.Equal(t, "external_shape", payloads.Response.Conformance)
+	require.Equal(t, "protojson", payloads.Error.Conformance)
+	require.Equal(t, "vrooli.react_component_library.v1.errors.ErrorEnvelope", payloads.Error.ProtoFullName)
 }
 
 func TestAssignedBrandResponse(t *testing.T) {

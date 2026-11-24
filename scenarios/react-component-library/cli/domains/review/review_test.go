@@ -72,3 +72,54 @@ func TestReviewDispositionForwardsDecisionAndActor(t *testing.T) {
 	require.Contains(t, out, "Recorded accept-risk disposition on finding fnd-1.")
 	require.Contains(t, out, "fnd-1 [medium/accepted]")
 }
+
+func TestAcceptanceCommandsUseReviewServiceAndPreserveInputs(t *testing.T) {
+	var accepted *reviewv1.AcceptCandidateRequest
+	var checked *reviewv1.CheckCandidateAcceptanceRequest
+	var recovered *reviewv1.GetAcceptanceRequest
+	mux := http.NewServeMux()
+	mux.Handle(reviewconnect.ReviewServiceAcceptCandidateProcedure, connect.NewUnaryHandlerSimple(
+		reviewconnect.ReviewServiceAcceptCandidateProcedure,
+		func(_ context.Context, req *reviewv1.AcceptCandidateRequest) (*reviewv1.AcceptanceDecision, error) {
+			accepted = req
+			return &reviewv1.AcceptanceDecision{Id: "acceptance-one", State: "needs_evidence"}, nil
+		},
+	))
+	mux.Handle(reviewconnect.ReviewServiceCheckCandidateAcceptanceProcedure, connect.NewUnaryHandlerSimple(
+		reviewconnect.ReviewServiceCheckCandidateAcceptanceProcedure,
+		func(_ context.Context, req *reviewv1.CheckCandidateAcceptanceRequest) (*reviewv1.CandidateAcceptanceCheck, error) {
+			checked = req
+			return &reviewv1.CandidateAcceptanceCheck{}, nil
+		},
+	))
+	mux.Handle(reviewconnect.ReviewServiceGetAcceptanceProcedure, connect.NewUnaryHandlerSimple(
+		reviewconnect.ReviewServiceGetAcceptanceProcedure,
+		func(_ context.Context, req *reviewv1.GetAcceptanceRequest) (*reviewv1.AcceptanceDecision, error) {
+			recovered = req
+			return &reviewv1.AcceptanceDecision{Id: req.GetId(), State: "needs_evidence"}, nil
+		},
+	))
+	core := cliapptest.NewTestApp(t, mux)
+	group, err := Register(core, cliapptest.ReadManifest(t))
+	require.NoError(t, err)
+
+	out, err := cliapptest.RunCommand(t, cliapptest.FindCommand(t, []cliapp.SubcommandGroup{group}, GroupName, "accept"), core,
+		"--scenario", "demo", "--design", "home", "--candidate", "candidate-hash", "--render-hash", "render-hash",
+		"--actor", "test-agent", "--key", "stable-key", "--critique", "review-one", "--critique", "review-two", "--state", "detail", "--json")
+	require.NoError(t, err)
+	require.Contains(t, out, "needs_evidence")
+	require.Equal(t, "stable-key", accepted.GetIdempotencyKey())
+	require.Equal(t, "test-agent", accepted.GetActor())
+	require.Equal(t, []string{"review-one", "review-two"}, accepted.GetCheck().GetCritiqueIds())
+	require.Equal(t, "detail", accepted.GetCheck().GetRender().GetPreviewState())
+
+	_, err = cliapptest.RunCommand(t, cliapptest.FindCommand(t, []cliapp.SubcommandGroup{group}, GroupName, "acceptance-check"), core,
+		"--scenario", "demo", "--design", "home", "--candidate", "candidate-hash", "--render-hash", "render-hash", "--json")
+	require.NoError(t, err)
+	require.Equal(t, "render-hash", checked.GetExpectedRenderHash())
+
+	_, err = cliapptest.RunCommand(t, cliapptest.FindCommand(t, []cliapp.SubcommandGroup{group}, GroupName, "acceptance"), core,
+		"--scenario", "demo", "--design", "home", "--id", "acceptance-one", "--json")
+	require.NoError(t, err)
+	require.Equal(t, "acceptance-one", recovered.GetId())
+}

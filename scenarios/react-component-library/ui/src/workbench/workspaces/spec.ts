@@ -5,7 +5,7 @@ import type {
   WorkspaceState,
 } from "../../api/workspaces";
 import { DisplayDevice } from "../../api/workspaces";
-import type { DesignDevice, DesignDocument, DesignFrame, DesignOptions } from "../designs";
+import type { DesignDevice, DesignDocument, DesignFrame, DesignOptions } from "../design-types";
 import { DEVICE_NAME, FRAME_SIZE, rekeySpec } from "../studio/model";
 import { DEFAULT_TEMPLATE } from "../templates/library";
 import type { TemplateNode, TemplatePalette } from "../templates/spec";
@@ -93,7 +93,11 @@ export function pageComposition(page: WorkspacePage): TemplateNode {
   return DEFAULT_TEMPLATE.spec;
 }
 
-export function displaySpec(page: WorkspacePage, display: WorkspaceDisplay, stateId?: string): TemplateNode {
+export function displaySpec(
+  page: WorkspacePage,
+  display: WorkspaceDisplay,
+  stateId?: string,
+): TemplateNode {
   const state = display.states.find((entry) => entry.id === stateId) ?? display.states[0];
   return readStateSpec(state) ?? pageComposition(page);
 }
@@ -184,7 +188,6 @@ export function activeStateOf(
 ): WorkspaceState | undefined {
   if (!display) return undefined;
   return (
-    display.states.find((state) => state.id === stateByDisplay[display.id]) ??
-    display.states[0]
+    display.states.find((state) => state.id === stateByDisplay[display.id]) ?? display.states[0]
   );
 }

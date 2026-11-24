@@ -5,14 +5,15 @@ import {
   useRef,
   useState,
   type ChangeEvent,
-  type CSSProperties,
   type DragEvent,
 } from "react";
-import { FileUp, TriangleAlert, X } from "lucide-react";
+import { FileUp, X } from "lucide-react";
 
 import { useTranslation } from "../../i18n";
 import { WbButton } from "../primitives";
 import { useFocusTrap } from "../useFocusTrap";
+import { HtmlImportRegions } from "./HtmlImportRegions";
+import { HtmlImportOverview } from "./HtmlImportOverview";
 import type { Template } from "../templates/spec";
 import {
   HTML_LIMITS,
@@ -24,9 +25,6 @@ import {
 import "./html-import.css";
 
 type Phase = "empty" | "parsing" | "ready" | "no-content" | "error";
-
-/** Source tag shown on the whole-document row; data, not interface copy. */
-const WHOLE_TAG = "body";
 
 export interface HtmlImportProps {
   onClose: () => void;
@@ -50,10 +48,6 @@ function readFileText(file: File): Promise<string> {
   });
 }
 
-function depthStyle(depth: number): CSSProperties {
-  return { "--hi-depth": Math.min(depth, 8) } as CSSProperties;
-}
-
 /**
  * HTML import dialog. The source document is parsed in memory and becomes a new
  * custom design draft; it is reference material, never evidence, and no remote
@@ -64,9 +58,8 @@ export function HtmlImport({ onClose, onImport }: HtmlImportProps) {
   const { t } = useTranslation();
   const headingId = useId();
   const inputId = useId();
+  const bundleInputId = useId();
   const nameId = useId();
-  const warnId = useId();
-  const regionId = useId();
   const trapRef = useFocusTrap<HTMLDivElement>(true, onClose);
   const requestRef = useRef(0);
 
@@ -74,6 +67,7 @@ export function HtmlImport({ onClose, onImport }: HtmlImportProps) {
   const [fileName, setFileName] = useState<string | null>(null);
   const [fileSize, setFileSize] = useState<number | null>(null);
   const [parsed, setParsed] = useState<ParsedHtml | null>(null);
+  const [stylesheets, setStylesheets] = useState<string[]>([]);
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const [designName, setDesignName] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -92,7 +86,8 @@ export function HtmlImport({ onClose, onImport }: HtmlImportProps) {
       if (cause instanceof HtmlImportError) {
         if (cause.reason === "size") {
           return t("workbench.studio.htmlImportTooLarge", {
-            defaultValue: "{{name}} is larger than 2 MiB. Choose a smaller HTML file.",
+            defaultValue:
+              "{{name}} is larger than 2 MiB after including its local styles. Choose a smaller source bundle.",
             name,
           });
         }
@@ -111,24 +106,49 @@ export function HtmlImport({ onClose, onImport }: HtmlImportProps) {
     [t],
   );
 
-  const chooseFile = useCallback(
-    async (file: File | undefined) => {
-      if (!file) return;
+  const chooseFiles = useCallback(
+    async (selected: FileList | File[]) => {
+      const files = Array.from(selected);
       requestRef.current += 1;
       const request = requestRef.current;
-      setFileName(file.name);
-      setFileSize(file.size);
+      const htmlFile = files
+        .filter((file) => /\.html?$/i.test(file.name))
+        .sort(
+          (left, right) =>
+            Number(!/index\.html?$/i.test(left.name)) - Number(!/index\.html?$/i.test(right.name)),
+        )[0];
+      if (!htmlFile) {
+        setParsed(null);
+        setFileName(null);
+        setFileSize(null);
+        setStylesheets([]);
+        setSelectedRegion(null);
+        setPhase("error");
+        setError(
+          t("workbench.studio.htmlImportMissingHtml", {
+            defaultValue: "Choose a folder or selection that includes an HTML file.",
+          }),
+        );
+        return;
+      }
+      const cssFiles = files.filter((file) => /\.css$/i.test(file.name));
+      const supported = [htmlFile, ...cssFiles];
+      const sourceBytes = supported.reduce((total, file) => total + file.size, 0);
+      setFileName(htmlFile.name);
+      setFileSize(sourceBytes);
       setParsed(null);
+      setStylesheets([]);
       setSelectedRegion(null);
       setDesignName("");
       setError(null);
 
-      if (file.size > HTML_LIMITS.bytes) {
+      if (sourceBytes > HTML_LIMITS.bytes) {
         setPhase("error");
         setError(
           t("workbench.studio.htmlImportTooLarge", {
-            defaultValue: "{{name}} is larger than 2 MiB. Choose a smaller HTML file.",
-            name: file.name,
+            defaultValue:
+              "{{name}} is larger than 2 MiB after including its local styles. Choose a smaller source bundle.",
+            name: htmlFile.name,
           }),
         );
         return;
@@ -136,25 +156,29 @@ export function HtmlImport({ onClose, onImport }: HtmlImportProps) {
 
       setPhase("parsing");
       try {
-        const source = await readFileText(file);
+        const [source, css] = await Promise.all([
+          readFileText(htmlFile),
+          Promise.all(cssFiles.map(readFileText)),
+        ]);
         if (request !== requestRef.current) return;
-        const result = parseHtml(source, file.name);
+        const result = parseHtml(source, htmlFile.name, css);
         if (request !== requestRef.current) return;
         setParsed(result);
+        setStylesheets(css);
         setDesignName(result.title);
         setPhase(result.layers > 0 ? "ready" : "no-content");
       } catch (cause) {
         if (request !== requestRef.current) return;
         setPhase("error");
-        setError(explain(cause, file.name));
+        setError(explain(cause, htmlFile.name));
       }
     },
     [explain, t],
   );
 
   const onFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    void chooseFile(file);
+    const files = event.target.files;
+    if (files?.length) void chooseFiles(files);
     // Allow choosing the same file again after a refusal.
     event.target.value = "";
   };
@@ -162,13 +186,19 @@ export function HtmlImport({ onClose, onImport }: HtmlImportProps) {
   const onDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setDragActive(false);
-    void chooseFile(event.dataTransfer.files[0]);
+    void chooseFiles(event.dataTransfer.files);
   };
 
   const commit = () => {
     if (!parsed || phase !== "ready") return;
     const name = designName.trim() || parsed.title;
-    onImport(htmlTemplate(parsed, selectedRegion, name), name);
+    const template = htmlTemplate(
+      parsed,
+      selectedRegion,
+      name,
+      parsed.sourcePreview(selectedRegion, stylesheets),
+    );
+    onImport(template, name);
     onClose();
   };
 
@@ -207,7 +237,7 @@ export function HtmlImport({ onClose, onImport }: HtmlImportProps) {
           <p className="hi-intro">
             {t("workbench.studio.htmlImportIntro", {
               defaultValue:
-                "Choose an HTML file. Only text, headings and layout are converted; nothing is fetched.",
+                "Choose an HTML file with its local CSS, or a folder. The editable layers come from structure; a read-only source view keeps the original styling.",
             })}
           </p>
 
@@ -229,9 +259,26 @@ export function HtmlImport({ onClose, onImport }: HtmlImportProps) {
               id={inputId}
               className="hi-file"
               type="file"
-              accept=".html,.htm,text/html"
+              accept=".html,.htm,.css,text/html,text/css"
+              multiple
               onChange={onFileChange}
               data-testid="html-import-file"
+            />
+            <label className="hi-field-label" htmlFor={bundleInputId}>
+              {t("workbench.studio.htmlImportBundle", {
+                defaultValue: "Or choose a source folder",
+              })}
+            </label>
+            <input
+              id={bundleInputId}
+              className="hi-file"
+              type="file"
+              multiple
+              // Chromium exposes directory selection; other browsers keep the multi-file picker.
+              {...({ webkitdirectory: "", directory: "" } as Record<string, string>)}
+              accept=".html,.htm,.css,text/html,text/css"
+              onChange={onFileChange}
+              data-testid="html-import-bundle"
             />
             <p className="hi-hint">
               {t("workbench.studio.htmlImportHint", {
@@ -277,76 +324,14 @@ export function HtmlImport({ onClose, onImport }: HtmlImportProps) {
 
           {parsed !== null && (phase === "ready" || phase === "no-content") ? (
             <>
-              <div className="hi-summary">
-                <span className="hi-doc-title" data-testid="html-import-title">
-                  {parsed.title}
-                </span>
-                <span className="hi-counts" data-testid="html-import-counts">
-                  {t("workbench.studio.htmlImportCounts", {
-                    defaultValue: "{{layers}} layers · {{regions}} regions",
-                    layers: parsed.layers,
-                    regions: parsed.regions.length,
-                  })}
-                </span>
-              </div>
+              <HtmlImportOverview parsed={parsed} />
 
-              {parsed.warnings.length > 0 ? (
-                <section className="hi-warnings" aria-labelledby={warnId}>
-                  <h3 id={warnId} className="hi-warnings-title">
-                    <TriangleAlert aria-hidden size={12} />
-                    {t("workbench.studio.htmlImportWarnings", { defaultValue: "Warnings" })}
-                  </h3>
-                  <ul data-testid="html-import-warnings">
-                    {parsed.warnings.map((warning) => (
-                      <li key={warning}>{warning}</li>
-                    ))}
-                  </ul>
-                </section>
-              ) : null}
-
-              <div className="hi-regions" role="group" aria-labelledby={regionId}>
-                <h3 id={regionId} className="hi-regions-title">
-                  {t("workbench.studio.htmlImportRegions", {
-                    defaultValue: "Choose a region to import",
-                  })}
-                </h3>
-                <div className="hi-region-list">
-                  <button
-                    type="button"
-                    className="hi-region"
-                    aria-pressed={selectedRegion === null}
-                    onClick={() => setSelectedRegion(null)}
-                    data-testid="html-import-region-whole"
-                    style={depthStyle(0)}
-                  >
-                    <span className="hi-region-tag">{WHOLE_TAG}</span>
-                    <span className="hi-region-label">
-                      {t("workbench.studio.htmlImportWholeDocument", {
-                        defaultValue: "Whole document",
-                      })}
-                    </span>
-                    <span className="hi-region-count">{parsed.layers}</span>
-                  </button>
-                  {parsed.regions.map((region) => (
-                    <button
-                      key={region.id}
-                      type="button"
-                      className="hi-region"
-                      aria-pressed={selectedRegion === region.id}
-                      onClick={() => setSelectedRegion(region.id)}
-                      data-testid={`html-import-region-${region.id}`}
-                      style={depthStyle(region.depth)}
-                    >
-                      <span className="hi-region-tag">{region.tag}</span>
-                      <span className="hi-region-label">
-                        {region.label ||
-                          t("workbench.studio.htmlImportNoText", { defaultValue: "No text" })}
-                      </span>
-                      <span className="hi-region-count">{region.layers}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <HtmlImportRegions
+                regions={parsed.regions}
+                layers={parsed.layers}
+                selectedRegion={selectedRegion}
+                onSelectRegion={setSelectedRegion}
+              />
 
               <div className="hi-name-field">
                 <label className="hi-field-label" htmlFor={nameId}>

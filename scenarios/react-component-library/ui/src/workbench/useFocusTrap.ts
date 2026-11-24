@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useGlobalKeydown } from "../hooks/useGlobalKeydown";
 
 const FOCUSABLE = [
   "a[href]",
@@ -14,27 +15,24 @@ const FOCUSABLE = [
  * restores the trigger's focus on teardown. The workbench uses this for the
  * command palette, the design-studio phone sheets and Present mode.
  */
-export function useFocusTrap<T extends HTMLElement>(active: boolean, onClose?: () => void) {
+export function useFocusTrap<T extends HTMLElement>(
+  active: boolean,
+  onClose?: () => void,
+  initialFocusSelector?: string,
+) {
   const ref = useRef<T>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+  const focusable = () =>
+    Array.from(ref.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []).filter((element) => {
+      if (element.hidden) return false;
+      const style = getComputedStyle(element);
+      return style.display !== "none" && style.visibility !== "hidden";
+    });
 
-  useEffect(() => {
-    if (!active) return;
-    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const root = ref.current;
-    // offsetParent is null for a fixed-position sheet (and in jsdom for every
-    // element), so visibility comes from the computed box instead.
-    const focusable = () =>
-      Array.from(root?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []).filter((element) => {
-        if (element.hidden) return false;
-        const style = getComputedStyle(element);
-        return style.display !== "none" && style.visibility !== "hidden";
-      });
-    const first = focusable()[0];
-    first?.focus();
-
-    const onKeyDown = (event: KeyboardEvent) => {
+  useGlobalKeydown(
+    (event) => {
+      const root = ref.current;
       if (event.key === "Escape") {
         event.preventDefault();
         closeRef.current?.();
@@ -54,14 +52,22 @@ export function useFocusTrap<T extends HTMLElement>(active: boolean, onClose?: (
         event.preventDefault();
         firstItem.focus();
       }
-    };
+    },
+    { target: "document", enabled: active },
+  );
 
-    document.addEventListener("keydown", onKeyDown);
+  useEffect(() => {
+    if (!active) return;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const root = ref.current;
+    const preferred = initialFocusSelector
+      ? root?.querySelector<HTMLElement>(initialFocusSelector)
+      : undefined;
+    (preferred && focusable().includes(preferred) ? preferred : focusable()[0])?.focus();
     return () => {
-      document.removeEventListener("keydown", onKeyDown);
       previous?.focus();
     };
-  }, [active]);
+  }, [active, initialFocusSelector]);
 
   return ref;
 }

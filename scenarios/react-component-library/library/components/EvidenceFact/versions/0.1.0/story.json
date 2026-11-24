@@ -1,0 +1,41 @@
+{
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Last research write"
+        },
+        {
+          "kind": "text",
+          "value": "12 minutes ago"
+        },
+        {
+          "kind": "text",
+          "value": "Why?"
+        },
+        {
+          "kind": "text",
+          "value": "Unknown · no current configuration"
+        },
+        {
+          "attribute": "aria-expanded",
+          "kind": "attribute",
+          "selector": "[data-rcl-evidence-fact-toggle]",
+          "value": "false"
+        }
+      ],
+      "id": "default",
+      "name": "Evidence fact and collapsed source trail"
+    }
+  ]
+}

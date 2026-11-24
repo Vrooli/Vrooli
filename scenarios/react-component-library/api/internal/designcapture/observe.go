@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	apiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basev1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
@@ -67,7 +68,7 @@ func (d BASDispatcher) Observe(ctx context.Context, op Operation) (Observation, 
 	req.Header.Set("Content-Type", "application/json")
 	client := d.Client
 	if client == nil {
-		client = http.DefaultClient
+		client = &http.Client{Timeout: 30 * time.Second}
 	}
 	response, err := client.Do(req)
 	if err != nil {
@@ -205,7 +206,7 @@ func (d BASDispatcher) Cancel(ctx context.Context, op Operation) error {
 	req.Header.Set("Content-Type", "application/json")
 	client := d.Client
 	if client == nil {
-		client = http.DefaultClient
+		client = &http.Client{Timeout: 30 * time.Second}
 	}
 	response, err := client.Do(req)
 	if err != nil {

@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
+	"slices"
+	"strings"
 	"testing"
 )
 
@@ -75,6 +78,14 @@ func TestGateDefinitionsExposeAllThreeTiersAndRealBrowserInputs(t *testing.T) {
 		seen[definition.Tier]++
 		byID[definition.ID] = definition
 	}
+	if len(definitions) != 64 {
+		t.Fatalf("full gate corpus has %d definitions; expected the unchanged 64-gate corpus", len(definitions))
+	}
+	for tier, want := range map[string]int{"release-integrity": 23, "asset-quality": 35, "consumer-use": 6} {
+		if seen[tier] != want {
+			t.Errorf("full-corpus tier %q has %d gates, want %d", tier, seen[tier], want)
+		}
+	}
 	for _, tier := range []string{"release-integrity", "asset-quality", "consumer-use"} {
 		if seen[tier] == 0 {
 			t.Errorf("tier %q has no gates", tier)
@@ -87,6 +98,90 @@ func TestGateDefinitionsExposeAllThreeTiersAndRealBrowserInputs(t *testing.T) {
 	if !byID["accessibility"].RunnerConfig.RequireAxeResults {
 		t.Fatal("accessibility gate must require an actual axe-core result")
 	}
+}
+
+func TestOptOutReasonsAreCountedInCoverage(t *testing.T) {
+	assets := []Asset{{ID: "controls.button", Name: "Button", Kind: "component", Maturity: "verified", Targets: []string{"react-vite"}, QualityGateOptOuts: []QualityGateOptOut{{Gate: "responsive", Reason: "This source-only token asset has no rendered surface."}}}}
+	impls := []Implementation{{Name: "Button", Root: "components", CatalogID: "controls.button"}}
+	report := ComputeWithEvidence(assets, impls, nil, []GateDefinition{{ID: "responsive", Tier: "asset-quality", Rung: RungScaffolded, Blocking: true, AppliesTo: []string{"component"}}})
+	if report.QualityGateOptOutCount != 1 {
+		t.Fatalf("quality gate opt-out count = %d, want 1", report.QualityGateOptOutCount)
+	}
+}
+
+func TestFullCatalogGateClassificationAndOptOutCoverage(t *testing.T) {
+	assets, impls := live(t)
+	root := repoRoot(t)
+	catalogRoot := filepath.Join(root, "scenarios", "react-component-library", "catalog")
+	definitions, err := LoadGateDefinitions(filepath.Join(catalogRoot, "config.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(definitions) != 64 {
+		t.Fatalf("loaded %d current gates, want all 64", len(definitions))
+	}
+	var optOutCount int
+	for _, asset := range assets {
+		optOutCount += len(asset.QualityGateOptOuts)
+		got, err := ResolveRuleSetFor(catalogRoot, asset, definitions)
+		if err != nil {
+			t.Errorf("resolve current gate classification for %s: %v", asset.ID, err)
+			continue
+		}
+		want, err := legacyRuleBindings(catalogRoot, asset, definitions)
+		if err != nil {
+			t.Errorf("resolve pre-tier classification for %s: %v", asset.ID, err)
+			continue
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("gate classification changed for %s: got %+v, pre-tier %+v", asset.ID, got, want)
+		}
+	}
+	report := ComputeWithEvidence(assets, impls, nil, definitions)
+	if report.QualityGateOptOutCount != optOutCount {
+		t.Fatalf("full-catalog opt-out report count = %d, parsed declarations = %d", report.QualityGateOptOutCount, optOutCount)
+	}
+}
+
+// legacyRuleBindings models the pre-tier flat classifier. The three-tier
+// projection must preserve every asset/gate binding before any retired path
+// is removed from the corpus.
+func legacyRuleBindings(catalogRoot string, asset Asset, definitions []GateDefinition) ([]RuleBinding, error) {
+	overrides, err := loadAssetRuleOverrides(catalogRoot, asset.ID)
+	if err != nil {
+		return nil, err
+	}
+	optOut := map[string]bool{}
+	for _, item := range overrides.OptOuts {
+		optOut[item.Gate] = true
+	}
+	added := map[string]bool{}
+	for _, gate := range overrides.Gates {
+		added[gate] = true
+	}
+	out := []RuleBinding{}
+	for _, definition := range definitions {
+		if optOut[definition.ID] {
+			continue
+		}
+		if added[definition.ID] {
+			out = append(out, RuleBinding{GateID: definition.ID, Source: RuleSourceAsset, DeclaredIn: assetDeclarationPath(catalogRoot, asset.ID)})
+			continue
+		}
+		if !slices.Contains(definition.AppliesTo, asset.Kind) {
+			continue
+		}
+		source := RuleSourceKind
+		if appliesToAllKinds(definition.AppliesTo) {
+			source = RuleSourceUniversal
+		}
+		if definition.Attribution == "corpus" {
+			source = RuleSourceCorpus
+		}
+		out = append(out, RuleBinding{GateID: definition.ID, Source: source, DeclaredIn: filepath.Join("scenarios", "react-component-library", "catalog", "config.json")})
+	}
+	slices.SortFunc(out, func(a, b RuleBinding) int { return strings.Compare(a.GateID, b.GateID) })
+	return out, nil
 }
 
 // TestEveryRowIsAccountedFor is the integrity property of the join: no asset and
@@ -200,6 +295,24 @@ func TestCoverageDerivesMaturityFromEvidence(t *testing.T) {
 	partial := ComputeWithEvidence(assets, impls, []GateEvidence{{AssetID: "controls.button", Target: "react-vite", Gate: "types", Result: "pass"}, {AssetID: "controls.button", Target: "react-vite", Gate: "api", Result: "pass"}}, gates)
 	if got := partial.Rows[0].Achieved; got != RungImplemented {
 		t.Fatalf("partial evidence achieved %q, want implemented", got)
+	}
+}
+
+func TestCoverageUsesNewestEvidenceRegardlessOfInputOrder(t *testing.T) {
+	asset := Asset{ID: "controls.button", Name: "Button", Kind: "component", Maturity: "implemented", Targets: []string{"react-vite"}}
+	impl := Implementation{Name: "Button", CatalogID: asset.ID, Latest: "1.0.0"}
+	gates := []GateDefinition{{ID: "api", Rung: RungImplemented, Blocking: true, AppliesTo: []string{"component"}}}
+	newerFailure := GateEvidence{AssetID: asset.ID, Target: "react-vite", Gate: "api", Version: "1.0.0", Result: "fail", RecordedAt: "2026-02-02T00:00:00Z"}
+	olderPass := GateEvidence{AssetID: asset.ID, Target: "react-vite", Gate: "api", Version: "1.0.0", Result: "pass", RecordedAt: "2026-02-01T00:00:00Z"}
+	for _, evidence := range [][]GateEvidence{{olderPass, newerFailure}, {newerFailure, olderPass}} {
+		report := ComputeWithEvidence([]Asset{asset}, []Implementation{impl}, evidence, gates)
+		row := report.Rows[0]
+		if row.Achieved != RungScaffolded || row.AssetScore != 0 || len(row.FailedGates) != 1 {
+			t.Fatalf("newest failure was not authoritative (order %v): %+v", evidence, row)
+		}
+		if report.PassEvidence != 0 || report.FailEvidence != 1 {
+			t.Fatalf("evidence census should retain only the newest observation for a version: pass=%d fail=%d", report.PassEvidence, report.FailEvidence)
+		}
 	}
 }
 

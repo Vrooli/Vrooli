@@ -9,7 +9,7 @@ const { startWorkflow, listScenarios, listCatalogAssets } = vi.hoisted(() => ({
 }));
 
 vi.mock("../api/workflows", () => ({ workflowsClient: { startWorkflow } }));
-vi.mock("../api/adoptions", () => ({ adoptionsClient: { listScenarios } }));
+vi.mock("../api/adoptionIntake", () => ({ adoptionIntakeClient: { listScenarios } }));
 vi.mock("../api/components", () => ({ listCatalogAssets }));
 
 import { ActionLauncher } from "./ActionLauncher";

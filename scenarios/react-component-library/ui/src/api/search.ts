@@ -18,18 +18,24 @@ const reindexClient = createClient(SearchService, slowTransport);
 export { SearchAvailability, SearchKind, SemanticLegState };
 export type { SearchFacet, SearchResponse, SearchResult, SearchStatus };
 
-export async function searchWorkbench(input: {
-  query: string;
-  kinds?: SearchKind[];
-  limit?: number;
-  ask?: boolean;
-}): Promise<SearchResponse> {
-  return client.search({
-    query: input.query,
-    kinds: input.kinds ?? [],
-    limit: input.limit ?? 30,
-    ask: input.ask ?? false,
-  });
+export async function searchWorkbench(
+  input: {
+    query: string;
+    kinds?: SearchKind[];
+    limit?: number;
+    ask?: boolean;
+  },
+  options?: { signal?: AbortSignal },
+): Promise<SearchResponse> {
+  return client.search(
+    {
+      query: input.query,
+      kinds: input.kinds ?? [],
+      limit: input.limit ?? 30,
+      ask: input.ask ?? false,
+    },
+    options,
+  );
 }
 
 export async function suggestWorkbench(query: string, limit = 8): Promise<string[]> {

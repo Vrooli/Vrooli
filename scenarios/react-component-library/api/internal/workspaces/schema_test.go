@@ -25,12 +25,19 @@ func TestSchemaIsEnsureSchemasCompatible(t *testing.T) {
 	require.NoError(t, apidb.EnsureSchemas(ctx, sqlDB, provider), "re-applying the schema is a no-op")
 
 	for table, columns := range map[string][]string{
-		"workspaces":          {"id", "name", "summary", "provenance", "tags_json", "binding_scenario", "binding_page", "theme_json", "options_json", "origin_workspace_id", "revision", "created_at", "updated_at"},
-		"workspace_pages":     {"id", "workspace_id", "name", "route", "page_type_id", "sort_order", "spec_json"},
-		"workspace_displays":  {"id", "page_id", "device", "width", "height", "sort_order"},
-		"workspace_states":    {"id", "display_id", "name", "args_json", "scenario_data_json", "status", "capture_id", "sort_order"},
-		"workspace_revisions": {"id", "workspace_id", "revision", "snapshot_json", "actor", "created_at"},
-		"workspace_assets":    {"id", "workspace_id", "name", "mime", "bytes", "width", "height", "fidelity", "data", "created_at"},
+		"workspaces":                                  {"id", "name", "summary", "provenance", "tags_json", "binding_scenario", "binding_page", "theme_json", "options_json", "origin_workspace_id", "revision", "created_at", "updated_at"},
+		"workspace_pages":                             {"id", "workspace_id", "name", "route", "page_type_id", "sort_order", "spec_json"},
+		"workspace_displays":                          {"id", "page_id", "device", "width", "height", "sort_order"},
+		"workspace_states":                            {"id", "display_id", "name", "args_json", "scenario_data_json", "status", "capture_id", "sort_order"},
+		"workspace_state_capture_evidence":            {"workspace_id", "state_id", "request_token", "source_revision", "capture_id", "evidence_json", "captured_at"},
+		"workspace_capture_receipts":                  {"id", "workspace_id", "state_id", "source_revision", "capture_id", "attempt_id", "request_token", "evidence_json", "captured_at"},
+		"workspace_visual_comparisons":                {"id", "workspace_id", "state_id", "baseline_receipt_id", "current_receipt_id", "result_json", "heatmap_ref", "created_at"},
+		"workspace_state_source_baselines":            {"id", "workspace_id", "state_id", "asset_id", "sha256", "source_locator", "created_at"},
+		"workspace_state_source_baseline_acceptances": {"baseline_id", "workspace_id", "state_id", "accepted_by", "accepted_at", "acceptance_method"},
+		"workspace_source_visual_comparisons":         {"id", "workspace_id", "state_id", "source_baseline_id", "current_receipt_id", "result_json", "heatmap_ref", "created_at"},
+		"workspace_state_capture_attempts":            {"workspace_id", "state_id", "source_revision", "attempt_id", "request_token", "state", "error", "created_at", "updated_at"},
+		"workspace_revisions":                         {"id", "workspace_id", "revision", "snapshot_json", "actor", "created_at"},
+		"workspace_assets":                            {"id", "workspace_id", "name", "mime", "bytes", "width", "height", "fidelity", "data", "created_at"},
 		"workspace_migrations": {
 			"source", "source_id", "workspace_id",
 			"migrated_at",

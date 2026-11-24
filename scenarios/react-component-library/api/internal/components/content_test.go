@@ -89,6 +89,53 @@ func TestFSContentStore_PathEscape(t *testing.T) {
 	}
 }
 
+func TestFSContentStore_RootsReadsAndAtomicWritesAcrossSymlinks(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	if err := os.Symlink(outside, filepath.Join(root, "linked")); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+	store := NewFSContentStore(root)
+	if _, err := store.Read(context.Background(), Component{SourcePath: "linked/secret.tsx"}); err == nil {
+		t.Fatal("read through an escaping symlink succeeded")
+	} else {
+		var escape ErrPathEscape
+		if !errors.As(err, &escape) {
+			t.Fatalf("read through escaping symlink returned %T, want ErrPathEscape: %v", err, err)
+		}
+	}
+	if _, err := store.Write(context.Background(), Component{SourcePath: "linked/secret.tsx"}, WriteContentInput{Body: "outside"}); err == nil {
+		t.Fatal("write through an escaping symlink succeeded")
+	} else {
+		var escape ErrPathEscape
+		if !errors.As(err, &escape) {
+			t.Fatalf("write through escaping symlink returned %T, want ErrPathEscape: %v", err, err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(outside, "secret.tsx")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("outside target unexpectedly exists: %v", err)
+	}
+
+	// Replacing a symlink at the final file name is safe: atomic rename swaps
+	// the link itself and leaves its target untouched.
+	target := filepath.Join(outside, "target.tsx")
+	if err := os.WriteFile(target, []byte("outside"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, filepath.Join(root, "entry.tsx")); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+	if _, err := store.Write(context.Background(), Component{SourcePath: "entry.tsx"}, WriteContentInput{Body: "inside"}); err != nil {
+		t.Fatalf("atomic replace of final symlink: %v", err)
+	}
+	if got, err := os.ReadFile(target); err != nil || string(got) != "outside" {
+		t.Fatalf("outside symlink target changed: %q, %v", got, err)
+	}
+	if got, err := os.ReadFile(filepath.Join(root, "entry.tsx")); err != nil || string(got) != "inside" {
+		t.Fatalf("rooted file has wrong content: %q, %v", got, err)
+	}
+}
+
 func TestFSContentStore_ReadPath_AllowsExperienceContract(t *testing.T) {
 	root := t.TempDir()
 	versionDir := filepath.Join(root, "library", "primitives", "MorphingIcon", "versions", "2.0.7")
@@ -290,6 +337,30 @@ func TestFSContentStore_MaterializeAbortsOnHashMismatch(t *testing.T) {
 	}
 	if _, statErr := os.Stat(filepath.Join(root, "library/components/Button/versions/1.0.0")); !os.IsNotExist(statErr) {
 		t.Fatalf("hash failure created destination: %v", statErr)
+	}
+}
+
+func TestWriteFileAtomicInRootContainsWritesAndPreservesMode(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	if err := os.Symlink(outside, filepath.Join(root, "linked")); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+	if err := writeFileAtomicInRoot(root, "linked/escape.tsx", []byte("no"), 0o600); err == nil {
+		t.Fatal("write through symlink escaping the root succeeded")
+	}
+	if _, err := os.Stat(filepath.Join(outside, "escape.tsx")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("outside write unexpectedly exists: %v", err)
+	}
+	if err := writeFileAtomicInRoot(root, "components/Panel.tsx", []byte("export const Panel = null;\n"), 0o600); err != nil {
+		t.Fatalf("write rooted source: %v", err)
+	}
+	info, err := os.Stat(filepath.Join(root, "components", "Panel.tsx"))
+	if err != nil {
+		t.Fatalf("stat rooted source: %v", err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Fatalf("source mode = %04o, want 0600", got)
 	}
 }
 

@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { useFocusTrap } from "../useFocusTrap";
 import { SearchSurface } from "./SearchSurface";
+import "./search-palette.css";
 
 export interface SearchPaletteProps {
   open: boolean;
@@ -15,7 +16,7 @@ export interface SearchPaletteProps {
  */
 export function SearchPalette({ open, onClose }: SearchPaletteProps) {
   const { t } = useTranslation();
-  const layer = useFocusTrap<HTMLDivElement>(open, onClose);
+  const layer = useFocusTrap<HTMLDivElement>(open, onClose, "input");
 
   if (!open) return null;
 

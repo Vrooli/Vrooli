@@ -15,15 +15,15 @@ const GroupName = "components"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]cliapp.PrimitiveHandler{
-		"ComponentsService.RetireComponent":         cliapp.ProtoMutationOutcome(h.retireCall, h.retireReport, retireOutcome),
-		"ComponentsService.ListComponents":          cliapp.ProtoList(h.listCall, h.listReport),
-		"ComponentsService.GetComponent":            cliapp.ProtoList(h.getCall, h.getReport),
-		"ComponentsService.IngestComponent":         cliapp.ProtoMutation(h.ingestCall, h.ingestReport),
-		"ComponentsService.BeginComponentVersion":   cliapp.ProtoMutation(h.versionBeginCall, h.versionBeginReport),
-		"ComponentsService.CheckComponentVersion":   cliapp.ProtoListOutcome(h.versionCheckCall, h.versionCheckReport, versionCheckOutcome),
-		"ComponentsService.PublishComponentVersion": cliapp.ProtoMutation(h.versionPublishCall, h.versionPublishReport),
-		"ComponentsService.UpdateComponentContent":  cliapp.ProtoMutation(h.contentSetCall, h.contentSetReport),
-		"ComponentsService.UpdateComponentManifest": cliapp.ProtoMutation(h.manifestUpdateCall, h.manifestUpdateReport),
+		"ComponentAuthoringService.RetireComponent":         cliapp.ProtoMutationOutcome(h.retireCall, h.retireReport, retireOutcome),
+		"ComponentsService.ListComponents":                  cliapp.ProtoList(h.listCall, h.listReport),
+		"ComponentsService.GetComponent":                    cliapp.ProtoList(h.getCall, h.getReport),
+		"ComponentAuthoringService.IngestComponent":         cliapp.ProtoMutation(h.ingestCall, h.ingestReport),
+		"ComponentAuthoringService.BeginComponentVersion":   cliapp.ProtoMutation(h.versionBeginCall, h.versionBeginReport),
+		"ComponentAuthoringService.CheckComponentVersion":   cliapp.ProtoListOutcome(h.versionCheckCall, h.versionCheckReport, versionCheckOutcome),
+		"ComponentAuthoringService.PublishComponentVersion": cliapp.ProtoMutation(h.versionPublishCall, h.versionPublishReport),
+		"ComponentAuthoringService.UpdateComponentContent":  cliapp.ProtoMutation(h.contentSetCall, h.contentSetReport),
+		"ComponentAuthoringService.UpdateComponentManifest": cliapp.ProtoMutation(h.manifestUpdateCall, h.manifestUpdateReport),
 		"ComponentTestsService.RunComponentTest": cliapp.ProtoMutationOutcome(h.testCall, h.testReport, func(_ cliapp.OperationContext, resp *componenttestsv1.RunComponentTestResponse) error {
 			return testOutcome(resp)
 		}),

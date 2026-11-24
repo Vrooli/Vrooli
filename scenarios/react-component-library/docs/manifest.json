@@ -97,7 +97,6 @@
               "Further reading"
             ],
             "forbiddenPlaceholders": [
-              "[TODO]",
               "[Summarize]"
             ]
           }
@@ -125,11 +124,7 @@
             "generated"
           ],
           "completion": "required",
-          "validation": {
-            "forbiddenPlaceholders": [
-              "[TODO]"
-            ]
-          }
+          "validation": {}
         },
         {
           "path": "../PRD.md",
@@ -205,9 +200,6 @@
               "Intent",
               "Feedback & State",
               "Request Lifecycle"
-            ],
-            "forbiddenPlaceholders": [
-              "[TODO]"
             ]
           }
         }
@@ -248,7 +240,7 @@
           ],
           "completion": "required",
           "ownerSkills": [
-            "screaming-architecture-audit"
+            "architecture-lenses"
           ],
           "validation": {
             "requiredHeadings": [
@@ -258,9 +250,6 @@
               "System Boundaries",
               "Architecture maturity",
               "Cross-References"
-            ],
-            "forbiddenPlaceholders": [
-              "[TODO]"
             ],
             "requiredLinks": [
               "DOMAINS.md",
@@ -298,7 +287,7 @@
           ],
           "completion": "required",
           "ownerSkills": [
-            "screaming-architecture-audit"
+            "architecture-lenses"
           ],
           "validation": {
             "requiredHeadings": [
@@ -306,9 +295,6 @@
               "Domain Notes",
               "Non-Domains",
               "Cross-References"
-            ],
-            "forbiddenPlaceholders": [
-              "[TODO]"
             ],
             "requiredLinks": [
               "ARCHITECTURE.md",
@@ -345,7 +331,7 @@
           "completion": "conditional",
           "condition": "Required once a real domain has lifecycle states, retries, cancellation, stale-completion risk, or formal workflow invariants.",
           "ownerSkills": [
-            "temporal-flow-audit"
+            "resilience-lenses"
           ],
           "validation": {
             "requiredHeadings": [
@@ -354,9 +340,6 @@
               "Component Test Contracts",
               "Deferred Flows",
               "Cross-References"
-            ],
-            "forbiddenPlaceholders": [
-              "[TODO]"
             ],
             "allowNotApplicable": true
           }
@@ -391,9 +374,6 @@
             "requiredHeadings": [
               "Current and target ownership",
               "Decisions"
-            ],
-            "forbiddenPlaceholders": [
-              "[TODO]"
             ]
           }
         },
@@ -435,9 +415,6 @@
               "Current DoD status",
               "Follow-ups",
               "Cross-references"
-            ],
-            "forbiddenPlaceholders": [
-              "[TODO]"
             ]
           }
         },
@@ -477,9 +454,6 @@
               "Safe polygon",
               "Kernel decision table",
               "Authoring recipe"
-            ],
-            "forbiddenPlaceholders": [
-              "[TODO]"
             ]
           }
         },
@@ -520,9 +494,6 @@
               "Schema Map",
               "Migration Policy",
               "Cross-References"
-            ],
-            "forbiddenPlaceholders": [
-              "[TODO]"
             ]
           }
         },
@@ -560,9 +531,6 @@
               "Hook stories",
               "Migration invariant",
               "Cross-References"
-            ],
-            "forbiddenPlaceholders": [
-              "[TODO]"
             ]
           }
         },
@@ -607,9 +575,6 @@
               "Third-Party Services",
               "Failure Modes",
               "Cross-References"
-            ],
-            "forbiddenPlaceholders": [
-              "[TODO]"
             ],
             "requiredLinks": [
               "../reference/configuration.md"
@@ -684,9 +649,6 @@
               "Migration plan",
               "Acceptance"
             ],
-            "forbiddenPlaceholders": [
-              "[TODO]"
-            ],
             "requiredLinks": [
               "ARCHITECTURE.md",
               "FLOWS.md",
@@ -695,6 +657,62 @@
               "../internal/TESTING.md"
             ]
           }
+        },
+        {
+          "path": "concepts/SEARCH-AND-COMPOSITION.md",
+          "docType": "workbench-search-model",
+          "title": "Search and Composition",
+          "description": "Unified search behavior, searchable result model, and workspace composition relationships.",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "search-model",
+            "composition-model"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "concepts/WORKBENCH-MATURATION.md",
+          "docType": "workbench-maturation-model",
+          "title": "Workbench Maturation",
+          "description": "Five-destination information architecture, workspace model, and design direction.",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "workbench-ia",
+            "workspace-model"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "concepts/region-correction-provider.md",
+          "docType": "region-correction-provider",
+          "title": "Region Correction Provider",
+          "description": "Provider contract and correction flow for captured design regions.",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "region-correction"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         }
       ]
     },
@@ -747,9 +765,6 @@
               "Current Status",
               "Cross-References"
             ],
-            "forbiddenPlaceholders": [
-              "[TODO]"
-            ],
             "allowNotApplicable": true
           }
         },
@@ -792,9 +807,6 @@
               "Messaging",
               "Validation Experiments",
               "Cross-References"
-            ],
-            "forbiddenPlaceholders": [
-              "[TODO]"
             ],
             "allowNotApplicable": true
           }
@@ -846,9 +858,6 @@
               "Release Checklist",
               "Rollback",
               "Cross-References"
-            ],
-            "forbiddenPlaceholders": [
-              "[TODO]"
             ]
           }
         },
@@ -888,9 +897,6 @@
               "Maintenance Tasks",
               "Escalation",
               "Cross-References"
-            ],
-            "forbiddenPlaceholders": [
-              "[TODO]"
             ]
           }
         },
@@ -934,9 +940,6 @@
               "Alerts / Health",
               "Telemetry Gaps",
               "Cross-References"
-            ],
-            "forbiddenPlaceholders": [
-              "[TODO]"
             ]
           }
         }
@@ -984,9 +987,6 @@
               "Proto codegen",
               "When to add a new entry here",
               "Cross-references"
-            ],
-            "forbiddenPlaceholders": [
-              "[TODO]"
             ]
           }
         },
@@ -1024,9 +1024,6 @@
               "Shared harness inventory",
               "Local harness rules",
               "Migration and evidence"
-            ],
-            "forbiddenPlaceholders": [
-              "[TODO]"
             ]
           }
         }
@@ -1070,9 +1067,6 @@
               "Adding a new endpoint",
               "Cross-references"
             ],
-            "forbiddenPlaceholders": [
-              "[TODO]"
-            ],
             "requiredLinks": [
               "../../.vrooli/endpoints.json"
             ]
@@ -1110,9 +1104,6 @@
               "Output contracts",
               "Adding a new command",
               "Cross-references"
-            ],
-            "forbiddenPlaceholders": [
-              "[TODO]"
             ]
           }
         },
@@ -1150,9 +1141,6 @@
               "API-base resolution precedence",
               "Test/CI configuration",
               "Cross-references"
-            ],
-            "forbiddenPlaceholders": [
-              "[TODO]"
             ],
             "requiredLinks": [
               ".vrooli/service.json"
@@ -1203,6 +1191,39 @@
           "requiredBy": [
             "implemented"
           ]
+        },
+        {
+          "path": "reference/component-library-gaps.md",
+          "docType": "component-library-gaps",
+          "title": "Component library gaps",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "completion": "optional",
+          "description": "File-scoped evidence for scenario-owned UI surfaces that remain outside adopted component-library shell assets.",
+          "requiredBy": [
+            "implemented"
+          ]
+        },
+        {
+          "path": "mockups/assets/eight-screens-reference-v28.json",
+          "docType": "eight-screens-reference-capture-metadata",
+          "title": "Eight Screens Reference Capture Metadata",
+          "description": "Machine-readable metadata for the version 28 visual reference capture.",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "eight-screen-reference-capture"
+          ],
+          "maturity": "retired",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "optional"
         }
       ]
     },
@@ -1242,8 +1263,7 @@
           ],
           "completion": "required",
           "ownerSkills": [
-            "seam-discovery-and-enforcement",
-            "screaming-architecture-audit"
+            "architecture-lenses"
           ],
           "validation": {
             "requiredHeadings": [
@@ -1256,9 +1276,6 @@
               "What is NOT a seam",
               "API contract manifest",
               "Cross-references"
-            ],
-            "forbiddenPlaceholders": [
-              "[TODO]"
             ],
             "requiredLinks": [
               "../concepts/FLOWS.md"
@@ -1290,16 +1307,13 @@
           ],
           "completion": "required",
           "ownerSkills": [
-            "error-semantics-recovery-path-design"
+            "resilience-lenses"
           ],
           "validation": {
             "requiredHeadings": [
               "Proto-Typed Operations",
               "Sentinel Mapping",
               "Multipart REST Exceptions"
-            ],
-            "forbiddenPlaceholders": [
-              "[TODO]"
             ]
           }
         },
@@ -1339,9 +1353,6 @@
               "Document claim coverage",
               "Scenario-specific testing",
               "Cross-references"
-            ],
-            "forbiddenPlaceholders": [
-              "[TODO]"
             ],
             "requiredLinks": [
               "../concepts/FLOWS.md"
@@ -1387,9 +1398,6 @@
               "Security Gaps",
               "Cross-References"
             ],
-            "forbiddenPlaceholders": [
-              "[TODO]"
-            ],
             "allowNotApplicable": true
           }
         },
@@ -1431,9 +1439,6 @@
               "Regression Procedure",
               "Cross-References"
             ],
-            "forbiddenPlaceholders": [
-              "[TODO]"
-            ],
             "allowNotApplicable": true
           }
         },
@@ -1467,9 +1472,6 @@
               "Decision Log",
               "Superseded Decisions",
               "Cross-References"
-            ],
-            "forbiddenPlaceholders": [
-              "[TODO]"
             ]
           }
         },
@@ -1524,9 +1526,6 @@
               "Entries",
               "Architecture Drift",
               "Cross-references"
-            ],
-            "forbiddenPlaceholders": [
-              "[TODO]"
             ]
           }
         },
@@ -1577,9 +1576,6 @@
           "validation": {
             "requiredHeadings": [
               "Progress Log"
-            ],
-            "forbiddenPlaceholders": [
-              "[TODO]"
             ]
           }
         },
@@ -1597,6 +1593,349 @@
           "requiredBy": [
             "implemented"
           ]
+        },
+        {
+          "path": "internal/WORKBENCH-LEGACY-OWNERS-AUDIT.md",
+          "docType": "workbench-legacy-owner-audit",
+          "title": "Workbench Legacy Owners Audit",
+          "description": "Evidence and cutover conditions for retiring duplicate workbench stores and adapters.",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "legacy-owner-retirement"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/WORKBENCH-LINE-LEDGER-2026-11-21.md",
+          "docType": "workbench-source-line-ledger",
+          "title": "Workbench Line Ledger",
+          "description": "Owner-attributed source line changes for the workbench maturation effort.",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "source-line-ledger"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/WORKBENCH-PROGRAM.md",
+          "docType": "workbench-implementation-program",
+          "title": "Workbench Implementation Program",
+          "description": "Current architecture, delivery phases, acceptance evidence, risks, and deletion ledger.",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "workbench-delivery-program"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/goal/TARGETS.md",
+          "docType": "workbench-goal-targets",
+          "title": "Workbench Targets",
+          "description": "Authoritative targets and acceptance thresholds for the workbench goal.",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "workbench-targets"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "reports/usage-contract-fleet.md",
+          "docType": "usage-contract-fleet-report",
+          "title": "Usage Contract Fleet Report",
+          "description": "Inventory and validation results for component usage contracts.",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "usage-contract-fleet"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "studio/DEBT-HISTORY-2026-11-19.md",
+          "docType": "studio-debt-history-20261119",
+          "title": "Studio Debt History — 2026-11-19",
+          "description": "Historical debt audit; paths and findings are preserved as dated evidence.",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "historical-debt-audit"
+          ],
+          "maturity": "retired",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "studio/DEBT.md",
+          "docType": "studio-debt-inventory",
+          "title": "Studio Debt Inventory",
+          "description": "Verified open obligations and owners for the studio area.",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "studio-debt"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "studio/HANDOFF-ai.md",
+          "docType": "studio-ai-handoff",
+          "title": "Studio Handoff — Ai",
+          "description": "Historical handoff notes for the ai workstream.",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "studio-handoff-ai"
+          ],
+          "maturity": "retired",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "studio/HANDOFF-api.md",
+          "docType": "studio-api-handoff",
+          "title": "Studio Handoff — Api",
+          "description": "Historical handoff notes for the api workstream.",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "studio-handoff-api"
+          ],
+          "maturity": "retired",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "studio/HANDOFF-context.md",
+          "docType": "studio-context-handoff",
+          "title": "Studio Handoff — Context",
+          "description": "Historical handoff notes for the context workstream.",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "studio-handoff-context"
+          ],
+          "maturity": "retired",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "studio/HANDOFF-extract.md",
+          "docType": "studio-extract-handoff",
+          "title": "Studio Handoff — Extract",
+          "description": "Historical handoff notes for the extract workstream.",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "studio-handoff-extract"
+          ],
+          "maturity": "retired",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "studio/HANDOFF-html-import.md",
+          "docType": "studio-html-import-handoff",
+          "title": "Studio Handoff — Html-Import",
+          "description": "Historical handoff notes for the html-import workstream.",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "studio-handoff-html-import"
+          ],
+          "maturity": "retired",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "studio/HANDOFF-lint.md",
+          "docType": "studio-lint-handoff",
+          "title": "Studio Handoff — Lint",
+          "description": "Historical handoff notes for the lint workstream.",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "studio-handoff-lint"
+          ],
+          "maturity": "retired",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "studio/HANDOFF-options.md",
+          "docType": "studio-options-handoff",
+          "title": "Studio Handoff — Options",
+          "description": "Historical handoff notes for the options workstream.",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "studio-handoff-options"
+          ],
+          "maturity": "retired",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "studio/HANDOFF-region-capture.md",
+          "docType": "studio-region-capture-handoff",
+          "title": "Studio Handoff — Region-Capture",
+          "description": "Historical handoff notes for the region-capture workstream.",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "studio-handoff-region-capture"
+          ],
+          "maturity": "retired",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "studio/HANDOFF-studio.md",
+          "docType": "studio-studio-handoff",
+          "title": "Studio Handoff — Studio",
+          "description": "Historical handoff notes for the studio workstream.",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "studio-handoff-studio"
+          ],
+          "maturity": "retired",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "studio/HANDOFF-sync.md",
+          "docType": "studio-sync-handoff",
+          "title": "Studio Handoff — Sync",
+          "description": "Historical handoff notes for the sync workstream.",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "studio-handoff-sync"
+          ],
+          "maturity": "retired",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "studio/HANDOFF-templates.md",
+          "docType": "studio-templates-handoff",
+          "title": "Studio Handoff — Templates",
+          "description": "Historical handoff notes for the templates workstream.",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "studio-handoff-templates"
+          ],
+          "maturity": "retired",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "studio/PLAN.md",
+          "docType": "studio-archived-plan",
+          "title": "Studio Plan",
+          "description": "Historical studio implementation plan retained for audit context.",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "historical-studio-plan"
+          ],
+          "maturity": "retired",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "optional"
         }
       ]
     }

@@ -1,4 +1,5 @@
-import { act, fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { useState } from "react";
 import { renderWithProviders } from "../../test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -116,6 +117,71 @@ describe("FixtureFrame failure path", () => {
     expect(screen.queryByRole("status")).toBeNull();
   });
 
+  it("sends a scoped prop override and reports the harness schema rejection", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse("<html></html>", 200)));
+    const onStatus = vi.fn();
+    renderWithProviders(
+      <FixtureFrame
+        assetId="asset-1"
+        storyId="default"
+        version="1.0.0"
+        override={{ label: 3 }}
+        title="Specimen"
+        onStatus={onStatus}
+      />,
+    );
+
+    const frame = await screen.findByTestId<HTMLIFrameElement>("fixture-iframe");
+    const postMessage = vi.spyOn(frame.contentWindow!, "postMessage");
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: { type: "preview-ready", id: "asset-1", story: "default", version: "1.0.0" },
+          source: frame.contentWindow,
+        }),
+      );
+    });
+
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "rcl-preview-props-override",
+        componentId: "asset-1",
+        story: "default",
+        version: "1.0.0",
+        props: { label: 3 },
+      }),
+      "*",
+    );
+
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: { type: "rcl-preview-props-applied", id: "asset-1" },
+          source: frame.contentWindow,
+        }),
+      );
+    });
+    expect(frame.style.visibility).toBe("visible");
+
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: {
+            type: "rcl-preview-props-error",
+            id: "asset-1",
+            message: "label: Must be text.",
+          },
+          source: frame.contentWindow,
+        }),
+      );
+    });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("label: Must be text.");
+    expect(frame.style.visibility).toBe("visible");
+    expect(frame.closest("[data-fixture-frame]")).toHaveAttribute("data-fixture-status", "error");
+    expect(onStatus).toHaveBeenCalledWith("error", "label: Must be text.");
+  });
+
   it("ignores a ready message that came from another frame", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse("<html></html>", 200)));
     const { onStatus } = renderFrame();
@@ -172,5 +238,77 @@ describe("FixtureFrame failure path", () => {
     });
 
     expect(onStatus).not.toHaveBeenCalledWith("error", expect.anything());
+  });
+
+  it("keeps the last ready specimen on a failed saved-source reload and recovers atomically", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse("<html>initial</html>", 200))
+        .mockResolvedValueOnce(jsonResponse("not found", 404))
+        .mockResolvedValueOnce(jsonResponse("<html>recovered</html>", 200)),
+    );
+    const props = {
+      assetId: "asset-1",
+      storyId: "default",
+      version: "1.0.0",
+      title: "Specimen",
+      onStatus: vi.fn(),
+    };
+    function RevisionHarness() {
+      const [sourceRevision, setSourceRevision] = useState("Button.tsx:sha-initial");
+      return (
+        <>
+          <button type="button" onClick={() => setSourceRevision("Button.tsx:sha-failed")}>
+            Trigger failed reload
+          </button>
+          <button type="button" onClick={() => setSourceRevision("Button.tsx:sha-recovered")}>
+            Recover reload
+          </button>
+          <FixtureFrame {...props} sourceRevision={sourceRevision} />
+        </>
+      );
+    }
+    renderWithProviders(<RevisionHarness />);
+
+    const initial = await screen.findByTestId<HTMLIFrameElement>("fixture-iframe");
+    const initialURL = initial.src;
+    const initialSource = initial.contentWindow;
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: { type: "preview-ready", id: "asset-1", story: "default", version: "1.0.0" },
+          source: initialSource,
+        }),
+      );
+    });
+    await waitFor(() => expect(initial).toHaveStyle({ visibility: "visible" }));
+
+    fireEvent.click(screen.getByRole("button", { name: /Trigger failed reload/ }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("HTTP 404");
+    const preserved = screen.getByTestId<HTMLIFrameElement>("fixture-active-iframe");
+    expect(preserved.src).toBe(initialURL);
+    expect(preserved).toHaveStyle({ visibility: "visible" });
+    expect(screen.queryByTestId("fixture-iframe")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Recover reload/ }));
+    const candidate = await screen.findByTestId<HTMLIFrameElement>("fixture-iframe");
+    const recoveredSource = candidate.contentWindow;
+    expect(new URL(candidate.src).searchParams.get("v")).toContain("sha-recovered");
+    expect(screen.getByTestId("fixture-active-iframe")).toHaveStyle({ visibility: "visible" });
+    expect(candidate).toHaveStyle({ visibility: "hidden" });
+
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: { type: "preview-ready", id: "asset-1", story: "default", version: "1.0.0" },
+          source: recoveredSource,
+        }),
+      );
+    });
+
+    await waitFor(() => expect(candidate).toHaveStyle({ visibility: "visible" }));
+    expect(screen.queryByTestId("fixture-active-iframe")).not.toBeInTheDocument();
   });
 });

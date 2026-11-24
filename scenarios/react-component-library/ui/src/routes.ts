@@ -24,6 +24,8 @@ export const appRoutes = {
   settings: "/settings",
   create: "/new",
   design: "/design",
+  /** Read-only composition target used exclusively by BAS workspace captures. */
+  workspaceCapture: "/workspace-capture/:id",
   designScenario: "/design/:scenario",
   designPage: "/design/:scenario/:page",
   legacySketch: "/sketch/:scenario/:page",
@@ -61,6 +63,13 @@ export function workspacePath(
 export function libraryPath(query?: string): string {
   const term = query?.trim();
   return term ? `${appRoutes.library}?q=${encodeURIComponent(term)}` : appRoutes.library;
+}
+
+/** Library URL filtered by its real catalog domain and asset group. */
+export function libraryDomainPath(domain: string, group: string, query?: string): string {
+  const search = new URLSearchParams({ domain, group });
+  if (query?.trim()) search.set("q", query.trim());
+  return `${appRoutes.library}?${search.toString()}`;
 }
 
 export type AssetInfoTab =

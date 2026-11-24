@@ -3,6 +3,8 @@
 -- Idempotent: CREATE TABLE/INDEX IF NOT EXISTS so re-runs are no-ops and
 -- internal/workspaces.Migrate can safely re-apply the same text before it
 -- imports legacy studio_designs rows.
+-- Migrate installs the one-owner binding index after diagnosing duplicate
+-- legacy bindings, so schema initialization never picks a winner.
 --
 -- A workspace is the durable composition aggregate: pages own displays and
 -- displays own named states. spec_json/args_json/scenario_data_json are
@@ -38,6 +40,28 @@ CREATE INDEX IF NOT EXISTS workspaces_updated_at
 
 CREATE INDEX IF NOT EXISTS workspaces_provenance_updated_at
   ON workspaces (provenance, updated_at DESC);
+
+-- Retain exact legacy source and conversion evidence after adoption. These
+-- receipts intentionally have no workspace foreign key so recovery survives
+-- deletion of the converted workspace.
+CREATE TABLE IF NOT EXISTS workspace_conversion_receipts (
+  id TEXT PRIMARY KEY,
+  scenario TEXT NOT NULL,
+  page TEXT NOT NULL,
+  workspace_id TEXT NOT NULL,
+  source_hash TEXT NOT NULL,
+  target_hash TEXT NOT NULL,
+  receipt_json TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  UNIQUE (scenario, page)
+);
+CREATE INDEX IF NOT EXISTS idx_workspace_conversion_receipts_workspace
+  ON workspace_conversion_receipts (workspace_id, created_at DESC);
+CREATE TRIGGER IF NOT EXISTS workspace_conversion_receipts_no_update
+  BEFORE UPDATE ON workspace_conversion_receipts
+  BEGIN
+    SELECT RAISE(ABORT, 'workspace conversion receipts are immutable');
+  END;
 
 -- Pages, displays and states are owned rows of one aggregate. ON DELETE
 -- CASCADE makes delete a single statement and guarantees no nested row can
@@ -77,6 +101,126 @@ CREATE TABLE IF NOT EXISTS workspace_states (
   capture_id          TEXT NOT NULL DEFAULT '',
   sort_order          INTEGER NOT NULL DEFAULT 0
 );
+
+-- BAS artifact references are kept out of scenario_data_json, which remains
+-- scenario-owned payload. One row records the latest completed capture for a
+-- state; saves that change rendered composition invalidate these rows.
+CREATE TABLE IF NOT EXISTS workspace_state_capture_evidence (
+  workspace_id    TEXT NOT NULL,
+  state_id        TEXT NOT NULL,
+  request_token   TEXT NOT NULL,
+  source_revision INTEGER NOT NULL,
+  capture_id      TEXT NOT NULL,
+  evidence_json   TEXT NOT NULL,
+  captured_at     TEXT NOT NULL,
+  PRIMARY KEY (workspace_id, state_id)
+);
+CREATE INDEX IF NOT EXISTS idx_workspace_capture_request_token
+  ON workspace_state_capture_evidence (request_token);
+
+-- Successful capture operations have immutable receipts even though the table
+-- above remains the fast, current-evidence projection used by older clients.
+CREATE TABLE IF NOT EXISTS workspace_capture_receipts (
+  id              TEXT PRIMARY KEY,
+  workspace_id    TEXT NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE,
+  state_id        TEXT NOT NULL,
+  source_revision INTEGER NOT NULL,
+  capture_id      TEXT NOT NULL,
+  attempt_id      TEXT NOT NULL,
+  request_token   TEXT NOT NULL,
+  evidence_json   TEXT NOT NULL,
+  captured_at     TEXT NOT NULL,
+  UNIQUE (workspace_id, state_id, source_revision, attempt_id)
+);
+CREATE INDEX IF NOT EXISTS idx_workspace_capture_receipts_state
+  ON workspace_capture_receipts (workspace_id, state_id, captured_at DESC, id DESC);
+CREATE TRIGGER IF NOT EXISTS workspace_capture_receipts_no_update
+  BEFORE UPDATE ON workspace_capture_receipts
+  BEGIN
+    SELECT RAISE(ABORT, 'workspace capture receipts are immutable');
+  END;
+
+CREATE TABLE IF NOT EXISTS workspace_visual_comparisons (
+  id                  TEXT PRIMARY KEY,
+  workspace_id        TEXT NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE,
+  state_id            TEXT NOT NULL,
+  baseline_receipt_id TEXT NOT NULL REFERENCES workspace_capture_receipts (id) ON DELETE CASCADE,
+  current_receipt_id  TEXT NOT NULL REFERENCES workspace_capture_receipts (id) ON DELETE CASCADE,
+  result_json         TEXT NOT NULL,
+  heatmap_ref         TEXT NOT NULL DEFAULT '',
+  created_at          TEXT NOT NULL,
+  CHECK (baseline_receipt_id <> current_receipt_id)
+);
+CREATE INDEX IF NOT EXISTS idx_workspace_visual_comparisons_state
+  ON workspace_visual_comparisons (workspace_id, state_id, created_at DESC, id DESC);
+CREATE TRIGGER IF NOT EXISTS workspace_visual_comparisons_no_update
+  BEFORE UPDATE ON workspace_visual_comparisons
+  BEGIN
+    SELECT RAISE(ABORT, 'workspace visual comparisons are immutable');
+  END;
+
+-- Source screenshots are candidates until a separate explicit human action
+-- inserts an acceptance receipt. Baseline rows and acceptance records are
+-- immutable, keeping source identity and approval provenance auditable.
+CREATE TABLE IF NOT EXISTS workspace_state_source_baselines (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE,
+  state_id TEXT NOT NULL,
+  asset_id TEXT NOT NULL REFERENCES workspace_assets (id) ON DELETE RESTRICT,
+  sha256 TEXT NOT NULL CHECK (length(sha256) = 64 AND sha256 NOT GLOB '*[^0-9a-f]*'),
+  source_locator TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  UNIQUE (workspace_id, state_id, id)
+);
+CREATE INDEX IF NOT EXISTS idx_workspace_source_baselines_state
+  ON workspace_state_source_baselines (workspace_id, state_id, created_at DESC, id DESC);
+CREATE TRIGGER IF NOT EXISTS workspace_state_source_baselines_no_update
+  BEFORE UPDATE ON workspace_state_source_baselines
+  BEGIN SELECT RAISE(ABORT, 'workspace source baselines are immutable'); END;
+CREATE TABLE IF NOT EXISTS workspace_state_source_baseline_acceptances (
+  baseline_id TEXT PRIMARY KEY REFERENCES workspace_state_source_baselines (id) ON DELETE CASCADE,
+  workspace_id TEXT NOT NULL,
+  state_id TEXT NOT NULL,
+  accepted_by TEXT NOT NULL,
+  accepted_at TEXT NOT NULL,
+  acceptance_method TEXT NOT NULL DEFAULT 'explicit_human_action',
+  FOREIGN KEY (workspace_id, state_id, baseline_id)
+    REFERENCES workspace_state_source_baselines (workspace_id, state_id, id) ON DELETE CASCADE
+);
+CREATE TRIGGER IF NOT EXISTS workspace_source_baseline_acceptances_no_update
+  BEFORE UPDATE ON workspace_state_source_baseline_acceptances
+  BEGIN SELECT RAISE(ABORT, 'workspace source baseline acceptance is immutable'); END;
+CREATE TABLE IF NOT EXISTS workspace_source_visual_comparisons (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE,
+  state_id TEXT NOT NULL,
+  source_baseline_id TEXT NOT NULL REFERENCES workspace_state_source_baselines (id) ON DELETE CASCADE,
+  current_receipt_id TEXT NOT NULL REFERENCES workspace_capture_receipts (id) ON DELETE CASCADE,
+  result_json TEXT NOT NULL,
+  heatmap_ref TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_workspace_source_visual_comparisons_state
+  ON workspace_source_visual_comparisons (workspace_id, state_id, created_at DESC, id DESC);
+CREATE TRIGGER IF NOT EXISTS workspace_source_visual_comparisons_no_update
+  BEFORE UPDATE ON workspace_source_visual_comparisons
+  BEGIN SELECT RAISE(ABORT, 'workspace source visual comparisons are immutable'); END;
+
+CREATE TABLE IF NOT EXISTS workspace_state_capture_attempts (
+  workspace_id    TEXT NOT NULL,
+  state_id        TEXT NOT NULL,
+  source_revision INTEGER NOT NULL,
+  attempt_id      TEXT NOT NULL,
+  request_token   TEXT NOT NULL UNIQUE,
+  state           TEXT NOT NULL CHECK (state IN ('in_progress', 'completed', 'failed')),
+  error           TEXT NOT NULL DEFAULT '',
+  created_at      TEXT NOT NULL,
+  updated_at      TEXT NOT NULL,
+  PRIMARY KEY (workspace_id, state_id, source_revision, attempt_id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_workspace_capture_one_active_attempt
+  ON workspace_state_capture_attempts (workspace_id, state_id, source_revision)
+  WHERE state = 'in_progress';
 
 CREATE INDEX IF NOT EXISTS workspace_states_display
   ON workspace_states (display_id, sort_order, id);

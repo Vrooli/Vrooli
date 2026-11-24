@@ -11,6 +11,7 @@ package workspaces
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -25,6 +26,13 @@ var ErrNotFound = errors.New("workspace not found")
 // *ConflictError to obtain the workspace that is currently stored.
 var ErrConflict = errors.New("workspace revision conflict")
 
+// ErrBindingConflict means another workspace already owns this experience page.
+var ErrBindingConflict = errors.New("experience page is already bound to a workspace")
+
+// ErrCaptureInProgress prevents a second BAS execution from racing the active
+// token for the same state revision.
+var ErrCaptureInProgress = errors.New("another capture attempt is already in progress for this workspace state")
+
 // ErrInvalid reports an aggregate that cannot be persisted. Use errors.As with
 // *InvalidError to obtain the path-specific issues.
 var ErrInvalid = errors.New("invalid workspace")
@@ -33,6 +41,9 @@ var ErrInvalid = errors.New("invalid workspace")
 // reviewed template snapshots; using one forks it, so the shelf cannot drift
 // under everyone who already forked it.
 var ErrCurated = errors.New("curated workspace is immutable; fork it to edit")
+
+// ErrSourceBaselineAsset protects bytes still referenced by source drift evidence.
+var ErrSourceBaselineAsset = errors.New("asset is referenced by a source baseline")
 
 // ConflictError carries the stored aggregate so a client can rebase against
 // exactly the revision another writer won with. It unwraps to ErrConflict.
@@ -101,6 +112,145 @@ type Repository interface {
 	GetWorkspaceAsset(ctx context.Context, workspaceID, assetID string) (Asset, []byte, error)
 	CreateWorkspaceAsset(ctx context.Context, input AssetInput) (Asset, error)
 	DeleteWorkspaceAsset(ctx context.Context, workspaceID, assetID string) error
+	AttachCaptureEvidence(ctx context.Context, workspaceID, stateID string, baseRevision int32, attemptID, requestToken, captureID, evidenceJSON, capturedAt string) (*workspacev1.Workspace, error)
+	GetCaptureEvidence(ctx context.Context, workspaceID, stateID string) (CaptureEvidence, error)
+	ListCaptureReceipts(ctx context.Context, workspaceID, stateID string) ([]CaptureReceipt, error)
+	GetCaptureReceipt(ctx context.Context, workspaceID, stateID, receiptID string) (CaptureReceipt, error)
+	CreateVisualComparison(ctx context.Context, workspaceID, stateID, baselineReceiptID, currentReceiptID, resultJSON, heatmapRef, createdAt string) (VisualComparison, error)
+	ListVisualComparisons(ctx context.Context, workspaceID, stateID string) ([]VisualComparison, error)
+	GetVisualComparison(ctx context.Context, workspaceID, stateID, comparisonID string) (VisualComparison, error)
+	CreateSourceBaseline(ctx context.Context, workspaceID, stateID, assetID, sha256, sourceLocator, createdAt string) (SourceBaseline, error)
+	GetCurrentSourceBaseline(ctx context.Context, workspaceID, stateID string) (SourceBaseline, error)
+	ListSourceBaselines(ctx context.Context, workspaceID, stateID string) ([]SourceBaseline, error)
+	GetAcceptedSourceBaseline(ctx context.Context, workspaceID, stateID string) (SourceBaseline, error)
+	AcceptSourceBaseline(ctx context.Context, workspaceID, stateID, baselineID, acceptedBy, acceptedAt string) (SourceBaseline, error)
+	CreateSourceVisualComparison(ctx context.Context, item SourceVisualComparison) (SourceVisualComparison, error)
+	ListSourceVisualComparisons(ctx context.Context, workspaceID, stateID string) ([]SourceVisualComparison, error)
+	GetSourceVisualComparison(ctx context.Context, workspaceID, stateID, comparisonID string) (SourceVisualComparison, error)
+	CreateConversionReceipt(ctx context.Context, input ConversionReceiptInput) (ConversionReceipt, error)
+	GetConversionReceipt(ctx context.Context, scenario, page string) (ConversionReceipt, error)
+	CreateWorkspaceWithConversionReceipt(ctx context.Context, workspace *workspacev1.Workspace, input ConversionReceiptInput) (*workspacev1.Workspace, ConversionReceipt, error)
+	BeginCaptureAttempt(ctx context.Context, workspaceID, stateID string, sourceRevision int32, attemptID, requestToken string) (CaptureAttempt, bool, error)
+	GetActiveCaptureAttempt(ctx context.Context, workspaceID, stateID string, sourceRevision int32) (CaptureAttempt, error)
+	FinishCaptureAttempt(ctx context.Context, workspaceID, stateID string, sourceRevision int32, attemptID, state, detail string) error
+}
+
+// ErrConversionReceiptConflict indicates a source page already has a durable
+// receipt with different evidence. Receipts are immutable; callers must rerun
+// conversion and explicitly reconcile the existing adoption.
+var ErrConversionReceiptConflict = errors.New("conversion receipt conflicts with existing receipt")
+
+type ConversionReceiptConflictError struct {
+	Existing ConversionReceipt
+}
+
+func (e *ConversionReceiptConflictError) Error() string {
+	return fmt.Sprintf("%s: %s/%s is already attached to workspace %s", ErrConversionReceiptConflict, e.Existing.Scenario, e.Existing.Page, e.Existing.WorkspaceID)
+}
+func (e *ConversionReceiptConflictError) Unwrap() error { return ErrConversionReceiptConflict }
+
+type ConversionReceiptInput struct {
+	Scenario    string
+	Page        string
+	WorkspaceID string
+	SourceHash  string
+	TargetHash  string
+	ReceiptJSON string
+	CreatedAt   string
+}
+
+type ConversionReceipt struct {
+	ID          string `json:"id"`
+	Scenario    string `json:"scenario"`
+	Page        string `json:"page"`
+	WorkspaceID string `json:"workspaceId"`
+	SourceHash  string `json:"sourceHash"`
+	TargetHash  string `json:"targetHash"`
+	ReceiptJSON string `json:"receiptJson"`
+	CreatedAt   string `json:"createdAt"`
+}
+
+// Database is the narrow SQL surface the workspace repository needs. Both
+// *sql.DB and api-core's RoutedDB implement it, while tests can continue to
+// inject an ordinary SQLite pool. Transactions remain bound to the pool
+// selected from the request context by RoutedDB.BeginTx.
+type Database interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
+}
+
+type CaptureEvidence struct {
+	WorkspaceID    string `db:"workspace_id" json:"workspaceId"`
+	StateID        string `db:"state_id" json:"stateId"`
+	RequestToken   string `db:"request_token" json:"requestToken"`
+	SourceRevision int32  `db:"source_revision" json:"sourceRevision"`
+	CaptureID      string `db:"capture_id" json:"captureId"`
+	EvidenceJSON   string `db:"evidence_json" json:"-"`
+	CapturedAt     string `db:"captured_at" json:"capturedAt"`
+}
+
+// CaptureReceipt is an immutable record of one successful capture operation.
+// It remains addressable after a later capture replaces the current projection.
+type CaptureReceipt struct {
+	ID             string `db:"id" json:"id"`
+	WorkspaceID    string `db:"workspace_id" json:"workspaceId"`
+	StateID        string `db:"state_id" json:"stateId"`
+	SourceRevision int32  `db:"source_revision" json:"sourceRevision"`
+	CaptureID      string `db:"capture_id" json:"captureId"`
+	AttemptID      string `db:"attempt_id" json:"attemptId"`
+	EvidenceJSON   string `db:"evidence_json" json:"-"`
+	CapturedAt     string `db:"captured_at" json:"capturedAt"`
+}
+
+type VisualComparison struct {
+	ID                string `db:"id" json:"id"`
+	WorkspaceID       string `db:"workspace_id" json:"workspaceId"`
+	StateID           string `db:"state_id" json:"stateId"`
+	BaselineReceiptID string `db:"baseline_receipt_id" json:"baselineReceiptId"`
+	CurrentReceiptID  string `db:"current_receipt_id" json:"currentReceiptId"`
+	ResultJSON        string `db:"result_json" json:"-"`
+	HeatmapRef        string `db:"heatmap_ref" json:"heatmapRef"`
+	CreatedAt         string `db:"created_at" json:"createdAt"`
+}
+
+// SourceBaseline is an immutable, per-state image reference. Acceptance is a
+// separate immutable event so uploading an image can never imply approval.
+type SourceBaseline struct {
+	ID            string `json:"id"`
+	WorkspaceID   string `json:"workspaceId"`
+	StateID       string `json:"stateId"`
+	AssetID       string `json:"assetId"`
+	SHA256        string `json:"sha256"`
+	SourceLocator string `json:"sourceLocator"`
+	CreatedAt     string `json:"createdAt"`
+	AcceptedAt    string `json:"acceptedAt,omitempty"`
+	AcceptedBy    string `json:"acceptedBy,omitempty"`
+}
+
+type SourceVisualComparison struct {
+	ID               string `json:"comparisonId"`
+	WorkspaceID      string `json:"workspaceId"`
+	StateID          string `json:"stateId"`
+	SourceBaselineID string `json:"sourceBaselineId"`
+	SourceAssetID    string `json:"sourceAssetId"`
+	CurrentReceiptID string `json:"currentReceiptId"`
+	ResultJSON       string `json:"resultJson"`
+	HeatmapRef       string `json:"heatmapRef"`
+	CreatedAt        string `json:"createdAt"`
+}
+
+type CaptureAttempt struct {
+	WorkspaceID    string `db:"workspace_id" json:"workspaceId"`
+	StateID        string `db:"state_id" json:"stateId"`
+	SourceRevision int32  `db:"source_revision" json:"sourceRevision"`
+	AttemptID      string `db:"attempt_id" json:"attemptId"`
+	RequestToken   string `db:"request_token" json:"requestToken"`
+	State          string `db:"state" json:"state"`
+	Error          string `db:"error" json:"error,omitempty"`
+	CreatedAt      string `db:"created_at" json:"createdAt"`
+	UpdatedAt      string `db:"updated_at" json:"updatedAt"`
 }
 
 const (

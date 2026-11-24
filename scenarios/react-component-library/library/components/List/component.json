@@ -19,7 +19,7 @@
     }
   ],
   "displayName": "List",
-  "draft": "",
+  "draft": "1.2.1-draft.1",
   "evictedVersions": [
     "1.0.3",
     "1.0.1",
@@ -28,7 +28,7 @@
     "1.0.4",
     "1.0.5"
   ],
-  "latest": "1.0.7",
+  "latest": "1.2.0",
   "libraryId": "react-component-library:List",
   "tags": []
 }

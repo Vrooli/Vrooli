@@ -19,22 +19,22 @@ import (
 // callers depend on the Repository interface — tests substitute the
 // fake without reaching inside the struct.
 type sqliteRepository struct {
-	db    *sql.DB
+	db    repositoryDB
 	clock schedule.Clock
 }
 
-// NewSQLiteRepository constructs the production Repository.
-func NewSQLiteRepository(db *sql.DB, clk schedule.Clock) Repository {
-	// Existing scenario databases predate adoption modes. SQLite does not
-	// provide a portable ADD COLUMN IF NOT EXISTS, so the one-time migration
-	// is intentionally idempotent by accepting the duplicate-column result.
-	_, _ = db.Exec(`ALTER TABLE adoption_records ADD COLUMN mode TEXT NOT NULL DEFAULT 'copied'`)
-	// adoption_files is a soft-owned child table. Older Delete implementations
-	// removed only the parent row, leaving provenance ghosts that could keep an
-	// otherwise unused library version permanently materialized. Reconcile that
-	// historical state at construction while the transactional Delete below
-	// prevents it from returning.
-	_, _ = db.Exec(`DELETE FROM adoption_files WHERE NOT EXISTS (SELECT 1 FROM adoption_records WHERE adoption_records.id = adoption_files.adoption_id)`)
+// repositoryDB is the context-aware pool surface used by adoption queries.
+// Production supplies api-core's RoutedDB; *sql.DB remains valid for fixtures.
+type repositoryDB interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+}
+
+// NewSQLiteRepository constructs the production Repository. Startup schema
+// repair is explicit; callers must run EnsureMigrations after applying Schema.
+func NewSQLiteRepository(db repositoryDB, clk schedule.Clock) Repository {
 	return &sqliteRepository{db: db, clock: clk}
 }
 

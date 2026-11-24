@@ -38,12 +38,23 @@ var (
 // production receives BAS's screenshot, DOM, accessibility, console, network,
 // and performance artifacts from one browser session.
 type BASCaptureExecutor struct {
-	RCLUIBaseURL   string
-	BASBaseURL     string
-	HTTPClient     *http.Client
-	PageSourceRoot string
-	PageUIBaseURL  string
-	discoverBAS    bool
+	RCLUIBaseURL       string
+	BASBaseURL         string
+	HTTPClient         *http.Client
+	PageSourceRoot     string
+	PageUIBaseURL      string
+	discoverBAS        bool
+	resolveScenarioURL func(context.Context, string, string) (string, error)
+}
+
+// BASCaptureExecutorOptions are the process and network boundaries used while
+// constructing the executor. Production uses the OS environment and shared
+// scenario discovery; tests can supply deterministic values without mutating
+// process globals or the discovery cache.
+type BASCaptureExecutorOptions struct {
+	LookupEnv          func(string) string
+	ResolveScenarioURL func(context.Context, string, string) (string, error)
+	HTTPClient         *http.Client
 }
 
 // ReportFreshnessKey versions the canonical UX bundle evidence consumed by
@@ -53,8 +64,8 @@ func (BASCaptureExecutor) ReportFreshnessKey() string {
 }
 
 const (
-	uxScenarioCapturePath = "/ux-capture/scenario"
-	uxArtifactPathPrefix  = "/ux-capture/bundles/"
+	uxScenarioCapturePath = "/api/v1/ux-capture/scenario"
+	uxArtifactPathPrefix  = "/api/v1/ux-capture/bundles/"
 )
 
 // BASProviderInspection is the read-only observation of the BAS endpoint
@@ -71,23 +82,55 @@ type BASProviderInspection struct {
 }
 
 func NewBASCaptureExecutor() BASCaptureExecutor {
-	basBase := strings.TrimRight(strings.TrimSpace(os.Getenv("RCL_BAS_API_URL")), "/")
+	return NewBASCaptureExecutorWithOptions(BASCaptureExecutorOptions{})
+}
+
+func NewBASCaptureExecutorWithOptions(options BASCaptureExecutorOptions) BASCaptureExecutor {
+	lookupEnv := options.LookupEnv
+	if lookupEnv == nil {
+		lookupEnv = os.Getenv
+	}
+	resolve := options.ResolveScenarioURL
+	if resolve == nil {
+		resolver := discovery.NewResolver(discovery.ResolverConfig{})
+		resolve = resolver.ResolveScenarioURL
+	}
+	basBase := strings.TrimRight(strings.TrimSpace(lookupEnv("RCL_BAS_API_URL")), "/")
 	if basBase == "" {
-		basBase = strings.TrimRight(strings.TrimSpace(os.Getenv("BAS_API_URL")), "/")
+		basBase = strings.TrimRight(strings.TrimSpace(lookupEnv("BAS_API_URL")), "/")
 	}
 	discoverBAS := basBase == ""
 	if basBase == "" {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		basBase, _ = discovery.NewResolver(discovery.ResolverConfig{}).ResolveScenarioURL(ctx, "browser-automation-studio", "API_PORT")
+		basBase, _ = resolve(ctx, "browser-automation-studio", "API_PORT")
 	}
-	rclUIBase := strings.TrimRight(strings.TrimSpace(os.Getenv("RCL_UI_BASE_URL")), "/")
+	rclUIBase := strings.TrimRight(strings.TrimSpace(lookupEnv("RCL_UI_BASE_URL")), "/")
 	if rclUIBase == "" {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		rclUIBase, _ = discovery.NewResolver(discovery.ResolverConfig{}).ResolveScenarioURL(ctx, "react-component-library", "UI_PORT")
+		rclUIBase, _ = resolve(ctx, "react-component-library", "UI_PORT")
+		if strings.TrimSpace(rclUIBase) == "" {
+			rclUIBase = localUIBaseFromPort(lookupEnv("UI_PORT"))
+		}
 	}
-	return BASCaptureExecutor{RCLUIBaseURL: rclUIBase, BASBaseURL: basBase, HTTPClient: &http.Client{Timeout: 2 * time.Minute}, discoverBAS: discoverBAS}
+	client := options.HTTPClient
+	if client == nil {
+		client = &http.Client{Timeout: 2 * time.Minute}
+	}
+	return BASCaptureExecutor{RCLUIBaseURL: rclUIBase, BASBaseURL: basBase, HTTPClient: client, discoverBAS: discoverBAS, resolveScenarioURL: resolve}
+}
+
+// localUIBaseFromPort is a last-resort route to this scenario's UI when shared
+// discovery is unavailable. UI_PORT is allocated for the current process by
+// the Vrooli lifecycle, so accepting only a valid port keeps this fallback
+// bound to the local scenario instead of guessing a service address.
+func localUIBaseFromPort(raw string) string {
+	port, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil || port < 1 || port > 65535 {
+		return ""
+	}
+	return "http://localhost:" + strconv.Itoa(port)
 }
 
 // Probe confirms that the browser boundary is reachable before a sweep
@@ -189,7 +232,12 @@ func (e BASCaptureExecutor) basBaseURL(ctx context.Context) (string, error) {
 	if !e.discoverBAS {
 		return e.BASBaseURL, nil
 	}
-	base, err := discovery.NewResolver(discovery.ResolverConfig{}).ResolveScenarioURL(ctx, "browser-automation-studio", "API_PORT")
+	resolve := e.resolveScenarioURL
+	if resolve == nil {
+		resolver := discovery.NewResolver(discovery.ResolverConfig{})
+		resolve = resolver.ResolveScenarioURL
+	}
+	base, err := resolve(ctx, "browser-automation-studio", "API_PORT")
 	if err != nil {
 		return "", fmt.Errorf("BAS UX capture discovery: %w", err)
 	}
@@ -274,13 +322,10 @@ func (e BASCaptureExecutor) ExecuteStory(ctx context.Context, libraryID, version
 }
 
 func (e BASCaptureExecutor) ExecuteStoryWithGeometry(ctx context.Context, libraryID, version, storyID string, geometry *components.StoryGeometry) (StoryExecution, error) {
-	if strings.TrimSpace(e.RCLUIBaseURL) == "" {
-		return StoryExecution{}, ExecutorUnavailableError{Err: fmt.Errorf("RCL UI base URL is required")}
-	}
 	if strings.TrimSpace(e.BASBaseURL) == "" && !e.discoverBAS {
 		return StoryExecution{}, ExecutorUnavailableError{Err: fmt.Errorf("BAS UX capture base URL is required")}
 	}
-	storyURL, err := e.storyURL(libraryID, version, storyID)
+	storyURL, err := e.storyURL(ctx, libraryID, version, storyID)
 	if err != nil {
 		return StoryExecution{}, err
 	}
@@ -308,16 +353,13 @@ func storyViewport(geometry *components.StoryGeometry) basDimensions {
 }
 
 func (e BASCaptureExecutor) ExecuteStorySheet(ctx context.Context, libraryID, version string, storyIDs []string) (StoryExecution, error) {
-	if strings.TrimSpace(e.RCLUIBaseURL) == "" {
-		return StoryExecution{}, ExecutorUnavailableError{Err: fmt.Errorf("RCL UI base URL is required")}
-	}
 	if strings.TrimSpace(e.BASBaseURL) == "" && !e.discoverBAS {
 		return StoryExecution{}, ExecutorUnavailableError{Err: fmt.Errorf("BAS UX capture base URL is required")}
 	}
 	if len(storyIDs) == 0 {
 		return StoryExecution{}, fmt.Errorf("story sheet must contain at least one story")
 	}
-	base, err := e.storyURL(libraryID, version, "")
+	base, err := e.storyURL(ctx, libraryID, version, "")
 	if err != nil {
 		return StoryExecution{}, err
 	}
@@ -518,10 +560,10 @@ func (e BASCaptureExecutor) client() *http.Client {
 	if e.HTTPClient != nil {
 		return e.HTTPClient
 	}
-	return http.DefaultClient
+	return &http.Client{Timeout: 2 * time.Minute}
 }
 
-func (e BASCaptureExecutor) storyURL(libraryID, version, storyID string) (string, error) {
+func (e BASCaptureExecutor) storyURL(ctx context.Context, libraryID, version, storyID string) (string, error) {
 	if strings.HasPrefix(libraryID, components.PageStoryPrefix) {
 		if version != components.PageStoryVersion {
 			return "", fmt.Errorf("page stories use version workspace")
@@ -534,21 +576,16 @@ func (e BASCaptureExecutor) storyURL(libraryID, version, storyID string) (string
 			}
 			root = filepath.Join(repo, "scenarios", "react-component-library")
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
 		subject, err := components.LoadPageStory(ctx, root, libraryID)
 		if err != nil {
 			return "", err
 		}
 		uiBase := e.PageUIBaseURL
 		if uiBase == "" {
-			uiBase = e.RCLUIBaseURL
+			uiBase, err = e.rclUIBaseURL(ctx)
 		}
-		if uiBase == "" {
-			uiBase, err = discovery.NewResolver(discovery.ResolverConfig{}).ResolveScenarioURL(ctx, "react-component-library", "UI_PORT")
-			if err != nil {
-				return "", err
-			}
+		if err != nil {
+			return "", err
 		}
 		route := subject.Contract.Route
 		for _, story := range subject.Contract.Stories {
@@ -566,13 +603,9 @@ func (e BASCaptureExecutor) storyURL(libraryID, version, storyID string) (string
 		pageURL.RawQuery = query.Encode()
 		return pageURL.String(), nil
 	}
-	uiBase := strings.TrimRight(e.RCLUIBaseURL, "/")
-	if uiBase == "" {
-		var err error
-		uiBase, err = discovery.NewResolver(discovery.ResolverConfig{}).ResolveScenarioURL(context.Background(), "react-component-library", "UI_PORT")
-		if err != nil {
-			return "", fmt.Errorf("resolve RCL UI URL: %w", err)
-		}
+	uiBase, err := e.rclUIBaseURL(ctx)
+	if err != nil {
+		return "", err
 	}
 	base, err := url.Parse(uiBase + "/preview/" + url.PathEscape(libraryID) + "/harness.html")
 	if err != nil {
@@ -585,6 +618,28 @@ func (e BASCaptureExecutor) storyURL(libraryID, version, storyID string) (string
 	query.Set("motion", "reduce")
 	base.RawQuery = query.Encode()
 	return base.String(), nil
+}
+
+func (e BASCaptureExecutor) rclUIBaseURL(ctx context.Context) (string, error) {
+	if base := strings.TrimRight(strings.TrimSpace(e.RCLUIBaseURL), "/"); base != "" {
+		return base, nil
+	}
+	resolve := e.resolveScenarioURL
+	if resolve == nil {
+		resolver := discovery.NewResolver(discovery.ResolverConfig{})
+		resolve = resolver.ResolveScenarioURL
+	}
+	resolveCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	base, err := resolve(resolveCtx, "react-component-library", "UI_PORT")
+	if err != nil {
+		return "", ExecutorUnavailableError{Err: fmt.Errorf("RCL UI discovery: %w", err)}
+	}
+	base = strings.TrimRight(strings.TrimSpace(base), "/")
+	if base == "" {
+		return "", ExecutorUnavailableError{Err: fmt.Errorf("RCL UI discovery returned an empty URL")}
+	}
+	return base, nil
 }
 
 func decodeBASStoryResult(dom string) (StoryExecution, error) {
