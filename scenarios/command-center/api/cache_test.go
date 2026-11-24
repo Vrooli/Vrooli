@@ -81,6 +81,62 @@ func TestCache_MarkStaleMissingKeyIsNoop(t *testing.T) {
 	}
 }
 
+func TestCache_PutNeverRollsBackLastGoodObservation(t *testing.T) {
+	c := NewCache()
+	observed := time.Now().UTC().Truncate(time.Millisecond)
+	key := "swarm:/api/v1/stats:agent_stats"
+	latest := Envelope{
+		Data:          json.RawMessage(`{"value":2}`),
+		CachedAt:      observed,
+		ObservationAt: &observed,
+		Source:        "swarm",
+	}
+	if !c.Put(key, latest, time.Minute) {
+		t.Fatal("initial last-good observation was rejected")
+	}
+
+	olderAt := observed.Add(-time.Second)
+	older := Envelope{
+		Data:          json.RawMessage(`{"value":1}`),
+		CachedAt:      observed.Add(time.Second),
+		ObservationAt: &olderAt,
+		Source:        "swarm",
+	}
+	if c.Put(key, older, time.Minute) {
+		t.Fatal("out-of-order source response replaced the newer observation")
+	}
+	if c.Put(key, Envelope{Data: json.RawMessage(`{"value":0}`), CachedAt: observed.Add(2 * time.Second)}, time.Minute) {
+		t.Fatal("untimestamped response replaced a qualified last-good observation")
+	}
+
+	c.MarkStale(key, observed.Add(2*time.Second))
+	degraded, _, ok := c.Get(key)
+	if !ok || string(degraded.Data) != `{"value":2}` || degraded.ObservationAt == nil || !degraded.ObservationAt.Equal(observed) {
+		t.Fatalf("out-of-order refresh replaced last-good observation: %+v", degraded)
+	}
+	if degraded.StalenessTS == nil {
+		t.Fatal("failed refresh did not retain stale marker")
+	}
+
+	recoveredAt := observed.Add(3 * time.Second)
+	recovered := Envelope{
+		Data:          json.RawMessage(`{"value":3}`),
+		CachedAt:      recoveredAt,
+		ObservationAt: &recoveredAt,
+		Source:        "swarm",
+	}
+	if !c.Put(key, recovered, time.Minute) {
+		t.Fatal("newer recovery observation was rejected")
+	}
+	current, fresh, ok := c.Get(key)
+	if !ok || !fresh || string(current.Data) != `{"value":3}` || current.ObservationAt == nil || !current.ObservationAt.Equal(recoveredAt) {
+		t.Fatalf("recovered observation not installed: %+v fresh=%v ok=%v", current, fresh, ok)
+	}
+	if current.StalenessTS != nil {
+		t.Fatalf("recovery retained stale marker: %v", current.StalenessTS)
+	}
+}
+
 func TestTTLFor(t *testing.T) {
 	cases := []struct {
 		src  UpstreamSource

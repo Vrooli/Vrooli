@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/database"
 )
 
 // Store is the persistence surface for candidates.
@@ -26,21 +27,13 @@ type ErrNotFound struct{ ID string }
 
 func (e ErrNotFound) Error() string { return fmt.Sprintf("candidates: %q not found", e.ID) }
 
-// SQLExecutor is the narrow database surface the store depends on.
-type SQLExecutor interface {
-	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
-	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
-	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
-	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
-}
-
 type sqliteStore struct {
-	db    SQLExecutor
+	db    database.SQLTxExecutor
 	clock func() time.Time
 }
 
 // NewSQLiteStore constructs the production store.
-func NewSQLiteStore(db SQLExecutor, clock func() time.Time) Store {
+func NewSQLiteStore(db database.SQLTxExecutor, clock func() time.Time) Store {
 	if clock == nil {
 		clock = time.Now
 	}

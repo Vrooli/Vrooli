@@ -132,3 +132,5 @@ export function funnelCascade(): Scene {
     },
   };
 }
+
+export const compositionDefinition = { id: "funnel-cascade", create: funnelCascade, slots: slotManifest };

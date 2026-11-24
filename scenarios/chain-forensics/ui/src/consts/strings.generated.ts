@@ -24,6 +24,7 @@ export const strings = {
     nav: {
       dashboard: "layout.nav.dashboard",
       cases: "layout.nav.cases",
+      attention: "layout.nav.attention",
       settings: "layout.nav.settings",
     },
   },

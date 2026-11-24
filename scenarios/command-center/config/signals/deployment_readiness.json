@@ -1,7 +1,7 @@
 {
   "id": "deployment_readiness",
-  "label": "Deployment readiness",
-  "description": "Whether Deployment Manager has opened and anchored the readiness goal.",
+  "label": "Command Center readiness",
+  "description": "Latest recorded Deployment Manager readiness projection for the Command Center profile.",
   "unit": "count",
   "format": "integer",
   "kind": "panel",
@@ -28,7 +28,7 @@
   "source": {
     "team": "director-swarm",
     "binding": "scenario:deployment-manager",
-    "read": "/api/v1/readiness/state",
+    "read": "/api/v1/readiness/state?scenario=command-center",
     "select": "deployment_readiness",
     "ttlSeconds": 300,
     "integrationId": "deployment-manager",
@@ -38,21 +38,5 @@
     "expectedUnit": "count",
     "sourceTimePolicy": "producer_required"
   },
-  "coverage": "IN-REACH",
-  "sample": {
-    "value": 1,
-    "series": [
-      1
-    ],
-    "rows": [
-      {
-        "key": "readiness",
-        "label": "Readiness goal present",
-        "value": 1,
-        "share": 1,
-        "detail": "closed=false"
-      }
-    ],
-    "basis": "hand-authored structural sample, reviewed 2026-09-03"
-  }
+  "coverage": "NOW"
 }

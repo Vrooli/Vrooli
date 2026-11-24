@@ -1,16 +1,15 @@
 package generation
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/vrooli/ai-provider-go/openai"
 )
 
 // OpenRouterProvider connects to the OpenRouter API for TEXT facet generation
@@ -55,27 +54,6 @@ func (o *OpenRouterProvider) Available(_ context.Context) bool {
 	return o.APIKey != ""
 }
 
-type openRouterRequest struct {
-	Model       string              `json:"model"`
-	Messages    []openRouterMessage `json:"messages"`
-	Temperature float64             `json:"temperature,omitempty"`
-	MaxTokens   int                 `json:"max_tokens,omitempty"`
-}
-
-type openRouterMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
-}
-
-type openRouterResponse struct {
-	Choices []struct {
-		Message struct {
-			Content string `json:"content"`
-		} `json:"message"`
-	} `json:"choices"`
-	Model string `json:"model"`
-}
-
 // GenerateText calls OpenRouter's chat completion endpoint, resolving the role
 // to a concrete model first.
 func (o *OpenRouterProvider) GenerateText(ctx context.Context, req TextRequest) (TextResponse, error) {
@@ -88,43 +66,22 @@ func (o *OpenRouterProvider) GenerateText(ctx context.Context, req TextRequest) 
 		model = resolved
 	}
 
-	body := openRouterRequest{
+	client := openai.New(openai.Config{
+		ProviderName: "openrouter",
+		BaseURL:      o.BaseURL,
+		APIKey:       o.APIKey,
+		HTTPClient:   o.HTTPClient,
+	})
+	result, err := client.Chat(ctx, openai.ChatRequest{
 		Model:    model,
-		Messages: []openRouterMessage{{Role: "user", Content: req.Prompt}},
-	}
-	data, err := json.Marshal(body)
+		Messages: []openai.Message{{Role: "user", Content: req.Prompt}},
+	})
 	if err != nil {
-		return TextResponse{}, fmt.Errorf("marshal request: %w", err)
-	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, o.BaseURL+"/chat/completions", bytes.NewReader(data))
-	if err != nil {
-		return TextResponse{}, fmt.Errorf("create request: %w", err)
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer "+o.APIKey)
-
-	resp, err := o.HTTPClient.Do(httpReq)
-	if err != nil {
-		return TextResponse{}, fmt.Errorf("openrouter request: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return TextResponse{}, fmt.Errorf("openrouter returned %d: %s", resp.StatusCode, string(respBody))
-	}
-
-	var result openRouterResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return TextResponse{}, fmt.Errorf("decode response: %w", err)
-	}
-	if len(result.Choices) == 0 {
-		return TextResponse{}, fmt.Errorf("openrouter returned no choices")
+		return TextResponse{}, fmt.Errorf("openrouter chat: %w", err)
 	}
 
 	return TextResponse{
-		Text:     result.Choices[0].Message.Content,
+		Text:     result.Text,
 		Provider: "openrouter",
 		Model:    result.Model,
 	}, nil

@@ -272,7 +272,7 @@ export function AmbientCanvas({ composition, readings, forcedTier, quietRefs, se
 
   return (
     <div className={`cc-scene cc-scene-${state}`} data-testid="scene-canvas" data-scene-state={state} data-scene-tier={tier} data-composition={composition} aria-hidden="true">
-      <canvas ref={canvasRef} />
+      <canvas ref={canvasRef} data-testid="scene-canvas-pixels" />
       {state === "fallback" ? <div className="cc-scene-still" data-testid="scene-still" /> : null}
     </div>
   );

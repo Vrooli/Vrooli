@@ -70,6 +70,32 @@
     "summary_one": "1 notification",
     "summary_zero": "No notifications"
   },
+  "providerSetup": {
+    "akash": {
+      "title": "Akash",
+      "network": "Network:",
+      "effectMode": "Effect mode:",
+      "signerStatus": "Credential Authority signer:",
+      "priceStatus": "Price catalogue:",
+      "blockedReason": "Blocked reason:",
+      "notReported": "Not reported by Compute Manager",
+      "signerVerified": "Verified by Credential Authority",
+      "signerUnverified": "No verified signer status returned",
+      "priceFresh": "Fresh sourced price available",
+      "priceStale": "No fresh valid sourced price is available",
+      "priceMissing": "No price fact returned",
+      "blockedReasonMissing": "Compute Manager did not return a specific blocker reason",
+      "actionsDisabled": "Setup actions are disabled until Compute Manager returns verified prerequisites and an explicit live effect gate.",
+      "descriptorMissing": "Compute Manager has not returned an Akash provider descriptor or readiness record. Network, effect mode, signer verification, price status, and blocker are not available from the server.",
+      "noActions": "No setup, verification, or provider action is available; no readiness or cost is inferred.",
+      "noOffer": "No server-returned offer or region target is available for verification.",
+      "noPriceFact": "No price fact was returned by Compute Manager; no provider cost is inferred.",
+      "walletDescriptor": "Credential Authority descriptor",
+      "walletEntryStatus": "Secure entry status",
+      "walletIdentifierCaveat": "This descriptor is only an identifier. It does not prove the credential exists, belongs to a wallet, or can sign. Enter only an existing sandbox-2 wallet credential through secure Vrooli Onboarding; this step does not create or import a wallet.",
+      "secureEntryAction": "Open secure Vrooli Onboarding"
+    }
+  },
   "pages": {
     "dashboard": {
       "description": "The first thing an operator sees. Decide what belongs here before you ship.",
@@ -81,7 +107,8 @@
     "findings": { "title": "Open findings", "description": "Reconciliation findings requiring operator attention.", "kind": "Kind", "providerInstance": "Provider instance", "detail": "Detail", "error": "Unable to load findings.", "empty": "No open reconciliation findings." },
     "instance": { "title": "Instance details", "description": "Provider, reservation, and enrollment state for one instance.", "error": "Unable to load instance.", "loading": "Loading instance…", "state": "State", "address": "Address", "provider": "Provider"
     },
-    "request": { "title": "Request capacity", "description": "Choose a bounded machine lifetime before creating capacity.", "provider": "Provider", "region": "Region", "size": "Size", "lifetime": "Lifetime (seconds)", "estimate": "The estimate uses the provider minimum billable unit.", "submit": "Request capacity", "submitting": "Requesting capacity…", "success": "Capacity request accepted.", "error": "Capacity request failed. No machine was created.", "validation": "Choose a positive lifetime." },
+    "request": { "title": "Request capacity", "description": "Choose a provider offer and lifetime. The stored quote and cap decision are shown with the request result.", "provider": "Provider", "region": "Region", "size": "Size", "lifetime": "Lifetime (seconds)", "estimate": "A stored quote and cap decision are required before any provider call. Missing or stale price facts refuse the request.", "submit": "Request capacity", "submitting": "Requesting capacity…", "success": "The capacity request completed.", "error": "The request did not complete. Review the persisted quote and decision before retrying.", "validation": "Choose a positive lifetime.", "newRequest": "Start another request", "retryReceipt": "Reload quote receipt", "receiptHeading": "Stored quote and spend decision", "receiptKey": "Request reference", "quoteState": "Quote state", "decision": "Admission decision", "requestState": "Request state", "instance": "Created instance", "providerOffer": "Provider offer", "selection": "Selection", "serverCost": "Server per month", "ipv4Cost": "IPv4 per month", "totalCost": "Selected total per month", "cap": "Spend cap", "taxBasis": "Tax basis", "reason": "Reason", "source": "Price source", "sourceVersion": "Source version", "observed": "Observed", "expires": "Expires", "fresh": "Fresh", "expired": "Expired", "unknown": "Unknown", "priceUnavailable": "No verified provider price was stored. The amount remains unknown; no zero price is inferred.", "receiptMissing": "No stored receipt is available yet. Keep this request reference for a safe retry.", "receiptPending": "This request remains open and may need reconciliation. Do not start another request until it reaches a terminal state.", "receiptNote": "Admission is the cap decision; it does not by itself confirm a server was created. Reusing this request reference will not issue a duplicate create call." },
+    "adoption": { "title": "Adopt an existing VPS", "description": "Record an operator-owned VPS for Compute Manager. The host remains yours; this form never accepts an SSH password.", "intro": "Enter non-secret target and explicit monthly billing facts. The stored quote and cap decision are shown after submission.", "displayName": "Display name (optional)", "host": "Host address", "user": "SSH user", "monthlyCostMinor": "Monthly total in minor currency units", "currency": "ISO currency code", "taxBasis": "Tax basis (pre-tax or tax-inclusive)", "continueLabel": "Record adoption", "addressRequired": "Enter the VPS address.", "sshUserRequired": "Enter the SSH user.", "monthlyCostInvalid": "Enter a non-negative whole number of minor currency units.", "currencyInvalid": "Enter a three-letter ISO currency code.", "taxBasisRequired": "State whether the declared total is pre-tax or tax-inclusive.", "stateLabel": "Adoption status", "stateDraft": "Draft", "stateAwaitingSecret": "Waiting for secure first-touch credential", "stateCredentialStored": "Credential accepted by secure onboarding", "stateBridgeEnrolling": "Bridge enrollment pending verification", "stateReady": "Ready", "stateFailed": "Needs attention", "stateReleased": "Released", "monthlyCost": "Declared monthly total", "releaseSemantics": "Release removes only the Compute Manager record and Bridge attachment. It never deletes or changes your VPS.", "verificationPending": "Enrollment is not verified yet, so this host is not ready for deployment.", "minorUnits": "minor units", "createFailed": "Adoption could not be recorded. Retry with the same request reference after checking the stored decision.", "credentialStepUnavailable": "The secure first-touch onboarding destination is not enabled yet. No password was requested or sent.", "credentialStepAction": "Continue in secure onboarding", "quote": "Stored quote and admission", "admission": "Admission decision", "cap": "Monthly cap", "source": "Source", "sourceUnknown": "Unavailable", "observation": "Observed", "expires": "Expires" },
     "settings": {
       "description": "Preferences for this browser. Add every setting your scenario actually needs; nothing else in the shell duplicates one.",
       "localeHeading": "Language",

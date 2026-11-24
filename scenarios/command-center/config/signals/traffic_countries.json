@@ -1,78 +1,78 @@
 {
-  "id": "traffic_countries",
-  "label": "Traffic by country",
-  "description": "Ranked country breakdown of measured landing-page visitors.",
-  "unit": "count",
-  "format": "integer",
-  "kind": "panel",
-  "shape": "rows",
   "columns": {
+    "detail": {
+      "optional": true,
+      "type": "string"
+    },
     "key": {
       "type": "string"
     },
-    "value": {
-      "type": "number"
+    "label": {
+      "optional": true,
+      "type": "string"
     },
     "share": {
       "type": "number"
     },
-    "label": {
-      "type": "string",
-      "optional": true
-    },
-    "detail": {
-      "type": "string",
-      "optional": true
+    "value": {
+      "type": "number"
     }
   },
-  "source": {
-    "team": "monetization",
-    "binding": "scenario:landing-page-business-suite",
-    "read": "/landing_page_business_suite.v1.MetricsService/GetTrafficBreakdown?dimension=country&limit=6&window_days=30",
-    "select": "traffic_countries",
-    "ttlSeconds": 300,
-    "integrationId": "landing-page-business-suite",
-    "origin": "production",
-    "featureId": "traffic_countries",
-    "contractVersion": "analytics-traffic.v1",
-    "selector": "traffic_countries",
-    "expectedUnit": "count",
-    "sourceTimePolicy": "producer_required"
-  },
   "coverage": "IN-REACH",
-  "trust": "UNAVAILABLE",
+  "description": "Ranked country breakdown of measured landing-page visitors.",
   "empirical": "NONE",
+  "format": "integer",
+  "id": "traffic_countries",
+  "kind": "panel",
+  "label": "Traffic by country",
   "sample": {
-    "value": 840,
-    "series": [
-      840
-    ],
+    "basis": "hand-authored, illustrative country mix, reviewed 2026-09-03",
     "rows": [
       {
         "key": "US",
         "label": "United States",
-        "value": 420,
-        "share": 0.5
+        "share": 0.5,
+        "value": 420
       },
       {
         "key": "GB",
         "label": "United Kingdom",
-        "value": 210,
-        "share": 0.25
+        "share": 0.25,
+        "value": 210
       },
       {
         "key": "DE",
         "label": "Germany",
-        "value": 126,
-        "share": 0.15
+        "share": 0.15,
+        "value": 126
       },
       {
         "key": "CA",
         "label": "Canada",
-        "value": 84,
-        "share": 0.1
+        "share": 0.1,
+        "value": 84
       }
     ],
-    "basis": "hand-authored, illustrative country mix, reviewed 2026-09-03"
-  }
+    "series": [
+      840
+    ],
+    "value": 840
+  },
+  "shape": "rows",
+  "source": {
+    "binding": "scenario:landing-page-business-suite",
+    "contractVersion": "analytics-traffic.v1",
+    "expectedUnit": "count",
+    "featureId": "traffic_countries",
+    "integrationId": "landing-page-business-suite",
+    "origin": "production",
+    "read": "/landing_page_business_suite.v1.MetricsService/GetTrafficBreakdown?dimension=COUNTRY\u0026limit=6\u0026window_days=30",
+    "select": "traffic_countries",
+    "selector": "traffic_countries",
+    "sourceTimePolicy": "producer_required",
+    "team": "monetization",
+    "ttlSeconds": 300
+  },
+  "trust": "UNAVAILABLE",
+  "unit": "count"
 }

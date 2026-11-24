@@ -63,7 +63,15 @@ Three things, in order, that the UI must make true.
 |---|---|---|
 | Case workspace | `/` | What facts and evidence support this flow, and what is still unknown? |
 | Case review | `/cases/:id` | What is the source-linked timeline for this case? (Route added with the first UI slice.) |
+| Local attention | `/attention` | Which private packet versions were delivered to this machine, and what evidence grades and unresolved gaps do they carry? |
 | Settings | `/settings` | What changes behaviour for everything? |
+
+The local attention surface follows the evidence workbench concept as a
+review queue. Desktop keeps the private-case selector above the delivered
+packet list, with the packet hash, grades, caveats, and gaps readable together.
+Phones use the same ordered list as a single-column card feed with the case
+selector and delivery action before the receipts. The only write is a local,
+hash-bound receipt; the surface has no publish, notify, or contact action.
 
 ## Cross-References
 

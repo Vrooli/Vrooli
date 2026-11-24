@@ -107,3 +107,5 @@ export function flowCurrent(): Scene {
     },
   };
 }
+
+export const compositionDefinition = { id: "flow-current", create: flowCurrent, slots: slotManifest };

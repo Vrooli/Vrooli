@@ -27,10 +27,21 @@ describe("ReadingTile", () => {
     expect(container.querySelector("[data-rcl-freshness='cached']")).not.toBeNull();
     expect(screen.getByText("last good 4m ago · connection refused")).toBeInTheDocument();
   });
+  it("keeps the current operator target visible while showing a cached source value", () => {
+    const observedAt = new Date(Date.now() - 4 * 60_000).toISOString();
+    renderWithProviders(<ul><ReadingTile reading={reading({ coverage: "NOW", trust: "CACHED", value: 11, observedAt, sample: null, trustReason: "source unavailable", unit: "count", target: { direction: "up", bar: 120, barRef: "setpoint:live_swarm", distanceToTarget: 109 } })} /></ul>);
+    expect(screen.getByText("Target at least 120 count · 109 to go")).toBeInTheDocument();
+  });
+  it("shows a downward target as a maximum and reports when it is met", () => {
+    renderWithProviders(<ul><ReadingTile reading={reading({ coverage: "NOW", trust: "VALID", value: 8, unit: "count", target: { direction: "down", bar: 10, distanceToTarget: 0 } })} /></ul>);
+    expect(screen.getByText("Target at most 10 count · target met")).toBeInTheDocument();
+  });
   it("frames a silent sensor instead of showing a zero", () => {
     const { container } = renderWithProviders(<ul><ReadingTile reading={reading({ coverage: "NOW", trust: "UNAVAILABLE", sample: null, trustReason: "deadline exceeded" })} /></ul>);
     expect(container.querySelector("[data-reading]")).toHaveAttribute("data-ink", "unavailable");
-    expect(screen.getByText(/not answering · deadline exceeded/)).toBeInTheDocument();
+    const trustLine = screen.getByRole("group", { name: /Credits outstanding: UNAVAILABLE.*deadline exceeded/ });
+    expect(trustLine.querySelector("[data-qualifier]")).toHaveTextContent("source not answering");
+    expect(trustLine.querySelector("[data-qualifier]")).toHaveAttribute("title", expect.stringContaining("deadline exceeded"));
   });
   it("marks a production reading in a mixed room without exposing a URL", () => {
     const { container } = renderWithProviders(<ul><ReadingTile reading={reading({ origin: "production", origin_env: "production", origin_display: "Production instance" })} showOrigin /></ul>);

@@ -13,7 +13,6 @@
           "flags": [
             { "name": "host", "required": true, "description": "Reachable host address" },
             { "name": "user", "required": true, "description": "Onboarding user" },
-            { "name": "requested-by", "description": "Authenticated requester identity" },
             { "name": "region", "description": "Optional host region" },
             { "name": "size", "description": "Optional host size" }
           ],
@@ -194,5 +193,66 @@
     ]
   },
   "exceptions": [],
-  "omitted": []
+  "omitted": [
+    {
+      "service": "InstanceService",
+      "method": "SubmitAdoptionCredential",
+      "reason": "The one-time SSH password is accepted only through the Vrooli Onboarding write-only capability and must never be exposed as a terminal command."
+    },
+    {
+      "service": "InstanceService",
+      "method": "SnapshotInstance",
+      "reason": "Test-provider recovery operation is not an operator terminal workflow; use the product UI or owning test harness."
+    },
+    {
+      "service": "InstanceService",
+      "method": "ResetInstance",
+      "reason": "Test-provider recovery operation is not an operator terminal workflow; use the product UI or owning test harness."
+    },
+    {
+      "service": "InstanceService",
+      "method": "GetSpendReceipt",
+      "reason": "Persisted quote receipts are exposed in the Compute Manager product flow; the operator must not need terminal commands to inspect admission."
+    },
+    {
+      "service": "InstanceService",
+      "method": "AcquireInstance",
+      "reason": "Deployment Manager uses this exact-profile, service-authenticated stage; acquisition is not an operator terminal workflow."
+    },
+    {
+      "service": "InstanceService",
+      "method": "GetAcquireReceipt",
+      "reason": "Deployment Manager reads the persisted acquisition receipt by its stable key; operators inspect it through product status."
+    },
+    {
+      "service": "InstanceService",
+      "method": "EnrollInstance",
+      "reason": "Only the authenticated Deployment Manager lifecycle calls this Bridge enrollment stage; it is not a terminal workflow."
+    },
+    {
+      "service": "InstanceService",
+      "method": "GetEnrollmentReceipt",
+      "reason": "Deployment Manager reads Bridge enrollment status by stable key; operators inspect phone-readable product status."
+    },
+    {
+      "service": "SetupService",
+      "method": "BeginSetupStep",
+      "reason": "Provider-console decisions belong in the phone setup flow, not a terminal command."
+    },
+    {
+      "service": "SetupService",
+      "method": "ListProviders",
+      "reason": "Provider catalogue and readiness are exposed in the Compute Manager product UI, not a terminal command."
+    },
+    {
+      "service": "SetupService",
+      "method": "GetReadiness",
+      "reason": "Provider readiness is exposed in the Compute Manager product UI, not a terminal command."
+    },
+    {
+      "service": "SetupService",
+      "method": "VerifyProvider",
+      "reason": "Read-only provider probes are driven from the Compute Manager product flow, not by operator terminal commands."
+    }
+  ]
 }

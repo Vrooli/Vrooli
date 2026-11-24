@@ -71,30 +71,36 @@ func TestMeasureCheck_TierFull(t *testing.T) {
 	}
 }
 
-func TestMeasureCheck_Drift(t *testing.T) {
-	// Measure declares a param "ghost" that has no matching proto request field.
-	block := `{"intent":"i","questions":["q"],"params":{"ghost":{"default":"x"}},"result":{"kind":"scalar","value_field":"count"}}`
-	svc := newServiceWithMeasures(measureManifest(block), svcDoSurface(),
-		stubMeasureSchema{params: windowProtoParams()})
-	r, _ := svc.ValidateScenario(context.Background(), "s")
-	if r.Passed {
-		t.Fatalf("measure drift should fail")
+func TestMeasureCheck_InvalidParamContracts(t *testing.T) {
+	tests := []struct {
+		name        string
+		block       string
+		wantFinding string
+	}{
+		{
+			name: "proto drift",
+			// The declared ghost param has no matching proto request field.
+			block:       `{"intent":"i","questions":["q"],"params":{"ghost":{"default":"x"}},"result":{"kind":"scalar","value_field":"count"}}`,
+			wantFinding: CodeMeasureInvalid,
+		},
+		{
+			name:        "unknown parameter type",
+			block:       `{"intent":"i","questions":["q"],"params":{"window":{"type":"bogus"}},"result":{"kind":"scalar","value_field":"count"}}`,
+			wantFinding: CodeMeasureUnknownType,
+		},
 	}
-	if !findingHasCode(r.Findings, CodeMeasureInvalid) {
-		t.Fatalf("expected measure.invalid, got %+v", r.Findings)
-	}
-}
-
-func TestMeasureCheck_UnknownParamType(t *testing.T) {
-	block := `{"intent":"i","questions":["q"],"params":{"window":{"type":"bogus"}},"result":{"kind":"scalar","value_field":"count"}}`
-	svc := newServiceWithMeasures(measureManifest(block), svcDoSurface(),
-		stubMeasureSchema{params: windowProtoParams()})
-	r, _ := svc.ValidateScenario(context.Background(), "s")
-	if r.Passed {
-		t.Fatalf("unknown param type should fail")
-	}
-	if !findingHasCode(r.Findings, CodeMeasureUnknownType) {
-		t.Fatalf("expected measure.unknown_param_type, got %+v", r.Findings)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := newServiceWithMeasures(measureManifest(tt.block), svcDoSurface(),
+				stubMeasureSchema{params: windowProtoParams()})
+			r, _ := svc.ValidateScenario(context.Background(), "s")
+			if r.Passed {
+				t.Fatalf("invalid measure must fail")
+			}
+			if !findingHasCode(r.Findings, tt.wantFinding) {
+				t.Fatalf("expected %s, got %+v", tt.wantFinding, r.Findings)
+			}
+		})
 	}
 }
 

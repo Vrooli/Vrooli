@@ -20,12 +20,5 @@
     "expectedUnit": "currency",
     "sourceTimePolicy": "producer_required"
   },
-  "coverage": "IN-REACH",
-  "sample": {
-    "value": 0,
-    "series": [
-      0
-    ],
-    "basis": "authored posture placeholder; live Money Ledger reading required"
-  }
+  "coverage": "NOW"
 }

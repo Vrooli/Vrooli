@@ -21,6 +21,17 @@ CREATE TABLE IF NOT EXISTS forensic_packets (
 CREATE INDEX IF NOT EXISTS idx_forensic_packets_case_created
   ON forensic_packets(case_id, created_at DESC, sha256);
 
+CREATE TABLE IF NOT EXISTS local_attention_deliveries (
+  case_id TEXT NOT NULL,
+  packet_sha256 TEXT NOT NULL,
+  delivered_at TEXT NOT NULL,
+  PRIMARY KEY (case_id, packet_sha256),
+  FOREIGN KEY (case_id, packet_sha256) REFERENCES forensic_packets(case_id, sha256) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_local_attention_deliveries_delivered
+  ON local_attention_deliveries(delivered_at DESC, case_id);
+
 CREATE TABLE IF NOT EXISTS analyst_labels (
   id TEXT PRIMARY KEY,
   case_id TEXT NOT NULL,

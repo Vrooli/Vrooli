@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"chain-forensics/internal/httpc"
+
 	"github.com/vrooli/api-core/apihttptest"
 
 	"github.com/stretchr/testify/require"

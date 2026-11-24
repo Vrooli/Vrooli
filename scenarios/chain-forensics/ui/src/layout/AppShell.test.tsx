@@ -4,7 +4,7 @@
  * and that the landmarks a page relies on are present. Page content is
  * exercised in the per-page tests.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 

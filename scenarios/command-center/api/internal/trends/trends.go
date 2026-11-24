@@ -3,6 +3,7 @@ package trends
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"sync"
 	"time"
 )
@@ -68,6 +69,87 @@ func (m *memoryStore) Trend(_ context.Context, metric, source string, p Policy, 
 func (m *memoryStore) Close() error { return nil }
 
 type SQLiteStore struct{ db *sql.DB }
+
+// NewResilientStore keeps observations recorded during a temporary primary
+// store outage in process memory. Each later read/write retries those exact
+// rows before returning to the durable store; it never re-fetches a producer.
+func NewResilientStore(primary Store) Store {
+	return &resilientStore{primary: primary, pending: map[string]Observation{}}
+}
+
+type resilientStore struct {
+	mu      sync.Mutex
+	primary Store
+	pending map[string]Observation
+}
+
+func (s *resilientStore) Record(ctx context.Context, observation Observation) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.flush(ctx); err != nil {
+		s.retain(observation)
+		return nil
+	}
+	if err := s.primary.Record(ctx, observation); err != nil {
+		s.retain(observation)
+	}
+	return nil
+}
+
+func (s *resilientStore) retain(observation Observation) {
+	key := observationKey(observation)
+	if _, exists := s.pending[key]; !exists {
+		s.pending[key] = observation
+	}
+}
+
+func (s *resilientStore) Trend(ctx context.Context, metric, source string, policy Policy, at time.Time) (Result, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.flush(ctx); err != nil {
+		count := 0
+		for _, observation := range s.pending {
+			if observation.MetricID == metric && observation.Source == source {
+				count++
+			}
+		}
+		return Result{State: "provider_unavailable", Comparison: "previous_window", Observations: count}, nil
+	}
+	result, err := s.primary.Trend(ctx, metric, source, policy, at)
+	if err != nil {
+		return Result{}, err
+	}
+	return result, nil
+}
+
+func (s *resilientStore) flush(ctx context.Context) error {
+	if s.primary == nil {
+		return errors.New("trend primary store is unavailable")
+	}
+	for key, observation := range s.pending {
+		if err := s.primary.Record(ctx, observation); err != nil {
+			return err
+		}
+		delete(s.pending, key)
+	}
+	return nil
+}
+
+func (s *resilientStore) Close() error {
+	if s.primary == nil {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	flushErr := s.flush(ctx)
+	return errors.Join(flushErr, s.primary.Close())
+}
+
+func observationKey(o Observation) string {
+	return o.MetricID + "\x00" + o.Source + "\x00" + o.Observed.UTC().Format(time.RFC3339Nano)
+}
 
 func NewSQLiteStore(db *sql.DB) Store { return &SQLiteStore{db: db} }
 func (s *SQLiteStore) Record(ctx context.Context, o Observation) error {

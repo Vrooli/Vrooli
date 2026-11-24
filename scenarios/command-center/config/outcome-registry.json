@@ -40,6 +40,7 @@
         "swarm_throughput",
         "swarm_active_agents",
         "timing_stats",
+        "median_execution",
         "revenue_mrr",
         "revenue_today"
       ],
@@ -58,6 +59,10 @@
         },
         {
           "hero": "timing_stats",
+          "dwellSeconds": 12
+        },
+        {
+          "hero": "median_execution",
           "dwellSeconds": 12
         }
       ],
@@ -127,6 +132,7 @@
       "metricIds": [
         "throughput_stats",
         "timing_stats",
+        "median_execution",
         "scope_stats",
         "blocking_stats",
         "agent_stats",
@@ -143,6 +149,10 @@
         },
         {
           "hero": "timing_stats",
+          "dwellSeconds": 10
+        },
+        {
+          "hero": "median_execution",
           "dwellSeconds": 10
         },
         {
@@ -718,6 +728,29 @@
         "featureId": "timing_stats",
         "contractVersion": "legacy.v1",
         "selector": "timing_stats",
+        "expectedUnit": "minutes",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "NOW",
+      "shape": "scalar"
+    },
+    {
+      "id": "median_execution",
+      "label": "Median execution",
+      "description": "Median wall-clock minutes per agent execution; shown beside the mean so long outliers do not hide a typical run.",
+      "unit": "minutes",
+      "format": "minutes",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:swarm-manager",
+        "read": "/api/v1/stats",
+        "select": "median_execution",
+        "ttlSeconds": 30,
+        "integrationId": "swarm-manager",
+        "featureId": "median_execution",
+        "contractVersion": "legacy.v1",
+        "selector": "median_execution",
         "expectedUnit": "minutes",
         "sourceTimePolicy": "producer_required"
       },
@@ -1852,15 +1885,15 @@
     },
     {
       "id": "deployment_readiness",
-      "label": "Deployment readiness",
-      "description": "Whether Deployment Manager has opened and anchored the readiness goal.",
+      "label": "Command Center readiness",
+      "description": "Latest recorded Deployment Manager readiness projection for the Command Center profile.",
       "unit": "count",
       "format": "integer",
       "kind": "panel",
       "source": {
         "team": "director-swarm",
         "binding": "scenario:deployment-manager",
-        "read": "/api/v1/readiness/state",
+        "read": "/api/v1/readiness/state?scenario=command-center",
         "select": "deployment_readiness",
         "ttlSeconds": 300,
         "integrationId": "deployment-manager",
@@ -1870,23 +1903,7 @@
         "expectedUnit": "count",
         "sourceTimePolicy": "producer_required"
       },
-      "coverage": "IN-REACH",
-      "sample": {
-        "value": 1,
-        "series": [
-          1
-        ],
-        "rows": [
-          {
-            "key": "readiness",
-            "label": "Readiness goal present",
-            "value": 1,
-            "share": 1,
-            "detail": "closed=false"
-          }
-        ],
-        "basis": "hand-authored structural sample, reviewed 2026-09-03"
-      },
+      "coverage": "NOW",
       "shape": "rows",
       "columns": {
         "key": {

@@ -3,6 +3,60 @@
   "version": "1.0.0",
   "providers": [
     {
+      "provider_id": "architecture-cartographer.slice-anatomy",
+      "lifecycle": "experimental",
+      "provider_group": "architecture-cartographer",
+      "bucket": "BUCKET_KNOW",
+      "type": "domain",
+      "class": "local_live",
+      "scope": "SCOPE_PROJECT",
+      "description": "Scenario-scoped implementation slice evidence across proto, API handler, internal domain, CLI, and UI. Uses one cached graph snapshot and returns explicit DERIVED/PARTIAL attestation; no graph extraction or fleet sweep occurs in the search path.",
+      "routing_profile": {
+        "answer_spaces": ["slice_anatomy", "implementation_flow", "api_cli_ui_composition"],
+        "intents": ["explain", "locate", "identify_ownership", "verify_conformance"],
+        "positive_examples": [
+          "show the API CLI UI implementation slice for a scenario domain",
+          "how does the validation slice connect protocol handler internal command and UI files",
+          "which files and layer edges implement a domain end to end"
+        ],
+        "exclusions": ["fleet-wide scenario inventory", "runtime call graph", "symbol-level execution flow"]
+      },
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "architecture-cartographer",
+          "path": "/api/v1/slices/search",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"scope\":\"{{scope}}\",\"limit\":{{limit}}}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "config_writable": false,
+      "config_pinned_reason": "The experimental slice ranking and compact projection are owner-defined; no query tuning is exposed until direct and federated relevance is independently reviewed.",
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "id",
+        "score_field": "score",
+        "snippet_field": "text",
+        "title_field": "title",
+        "path_field": "path",
+        "locations_field": "paths",
+        "attestation_field": "slice.attestation",
+        "score_scale": "SCORE_SCALE_RAW"
+      },
+      "tests": {
+        "minimum": {"reviewed_positive": 2, "negative": 2},
+        "suite_id": "architecture-cartographer.slice-anatomy.primary",
+        "name": "Scenario-scoped domain slice anatomy (owner contract examples)",
+        "description": "Direct owner handler cases verify bounded per-scenario slice ranking and explicit partial attestation. These are source contract examples, not live provider-direct or federated grades.",
+        "cases": [
+          {"id": "search-hub-routing-slice", "query": "provider selection routing and bounded query fanout", "scope": "scenario:search-hub", "expect_ids": ["search-hub/routing"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "strong", "slice-anatomy"], "note": "The owner endpoint returns the cached Search Hub routing slice and its five rung evidence summary when a graph snapshot is available."},
+          {"id": "search-hub-eval-slice", "query": "independent retrieval grading and evaluation cases", "scope": "scenario:search-hub", "expect_ids": ["search-hub/eval"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "strong", "slice-anatomy"], "note": "This expected ID is owner contract evidence only; it has not been queried against a live Search Hub provider."},
+          {"id": "slice-negative-gibberish", "query": "quartz ferret submarine greenhouse", "scope": "scenario:search-hub", "expect_no_strong_hit": true, "expect_max_score": 0.3, "status": "reviewed", "tags": ["reviewed", "negative"]},
+          {"id": "slice-negative-unrelated", "query": "which domain computes lunar soil recipes", "scope": "scenario:search-hub", "expect_no_strong_hit": true, "expect_max_score": 0.3, "status": "reviewed", "tags": ["reviewed", "negative"]}
+        ]
+      }
+    },
+    {
       "provider_id": "architecture-cartographer.domain-map",
       "lifecycle": "production",
       "provider_group": "architecture-cartographer",

@@ -1,6 +1,6 @@
 # Instrument Model
 
-**Status:** contract canon for this scenario. Derived from `path:docs/agent-system/TARGET_MODEL.md`; that document is the authority, this one states how Command Center satisfies it.
+**Status:** contract canon for this scenario. Derived from `path:docs/agent-system/STANDING_TEAMS.md`; that document is the authority, this one states how Command Center satisfies it.
 
 ## What this scenario is
 
@@ -31,7 +31,7 @@ Three things follow directly.
 
 ## Naming
 
-`TARGET_MODEL.md` is explicit about vocabulary, and this scenario uses it:
+`STANDING_TEAMS.md` is explicit about vocabulary, and this scenario uses it:
 
 | Term | Meaning here |
 |---|---|
@@ -96,4 +96,4 @@ A fourth rule binds the instrument itself: **an instrument may not be the only s
 - [OUTCOME-TAXONOMY.md](OUTCOME-TAXONOMY.md) — why the room list is derived rather than authored here
 - [SOURCE-MAP.md](SOURCE-MAP.md) — the fleet's instrument maturity and what it means for each room
 - [PROVENANCE-MODEL.md](PROVENANCE-MODEL.md) — how a reading's honesty is rendered
-- `path:docs/agent-system/TARGET_MODEL.md` — the authority for everything above
+- `path:docs/agent-system/STANDING_TEAMS.md` — the authority for everything above

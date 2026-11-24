@@ -59,7 +59,7 @@ export interface Reading {
   ladder?: LadderReading;
   observedAt: string | null;
   ttlSeconds: number;
-  target: { direction: string; bar: number | null; barRef?: string } | null;
+  target: { direction: string; bar: number | null; barRef?: string; distanceToTarget?: number } | null;
   owner: string | null;
   whatIsNeeded: string | null;
   firstObservedMissing: string | null;

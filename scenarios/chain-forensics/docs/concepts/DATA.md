@@ -11,6 +11,7 @@
 | Label | Labels and clusters | Chain + address + label source + scope + observed-at | Preserve publisher and expiry/review status |
 | Cluster candidate | Labels and clusters | Rule ID/version + member occurrence/address | Hypothesis with evidence and counter-evidence |
 | Evidence packet | Case analysis | Case version + packet ID | Private local artifact; explicit export only |
+| Local attention delivery | Case analysis | Case ID + exact packet SHA-256 | SQLite receipt references the immutable packet; local readback only; no outbound notification or contact |
 
 Quantities are exact integer atomic units with an explicit asset and scale; do
 not round through floating point. A transaction occurrence is not an address

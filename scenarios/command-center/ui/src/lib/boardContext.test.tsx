@@ -2,12 +2,50 @@ import { MemoryRouter, useLocation } from "react-router-dom";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import { BoardController } from "../components/BoardController";
 import { renderWithProviders } from "../test-utils/renderWithProviders";
-vi.mock("./api", () => ({ fetchBoard: async () => ({ rooms: [{ id: "hive", title: "The Hive" }] }), fetchBoardSettings: async () => ({ cycleSeconds: 60, transition: "crossfade", rooms: [] }) }));
+const { fetchBoardSettingsMock } = vi.hoisted(() => ({ fetchBoardSettingsMock: vi.fn() }));
+vi.mock("./api", () => ({ fetchBoard: () => Promise.resolve({ rooms: [{ id: "hive", title: "The Hive" }] }), fetchBoardSettings: fetchBoardSettingsMock }));
 import { renderHook, act, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { parseSamples, useBoardController, useBoardProgress } from "./boardContext";
+import { useQueryClient } from "@tanstack/react-query";
+
+fetchBoardSettingsMock.mockResolvedValue({ cycleSeconds: 60, transition: "crossfade", rooms: [] });
 
 describe("board context", () => {
+  it("keeps the saved transition through a failed settings refresh", async () => {
+    function RefreshSettings() {
+      const queryClient = useQueryClient();
+      const board = useBoardController();
+      const location = useLocation();
+      return <><button onClick={() => void queryClient.invalidateQueries({ queryKey: ["board-settings"] })}>Refresh settings</button><button onClick={() => board.goTo("/settings")}>Open settings</button><output data-testid="current-location">{location.pathname}</output></>;
+    }
+    fetchBoardSettingsMock.mockReset()
+      .mockResolvedValue({ cycleSeconds: 60, transition: "crossfade", rooms: [] })
+      .mockResolvedValueOnce({ cycleSeconds: 75, transition: "cut", rooms: [] })
+      .mockRejectedValueOnce(new Error("settings source unavailable"));
+    const controller = initSpatialNav({ getGamepads: () => [], isVisible: () => true });
+    try {
+      renderWithProviders(<MemoryRouter initialEntries={["/hive"]}>
+        <BoardController><RefreshSettings /></BoardController>
+      </MemoryRouter>);
+      const boardRoot = await screen.findByLabelText("Board controls");
+      await vi.waitFor(() => expect(boardRoot).toHaveAttribute("data-board-transition", "cut"));
+      expect(boardRoot).toHaveAttribute("data-board-transition", "cut");
+      expect(boardRoot).toHaveStyle({ "--motion-room": "0ms" });
+      act(() => { screen.getByRole("button", { name: "Open settings" }).click(); });
+      expect(screen.getByTestId("current-location")).toHaveTextContent("/settings");
+
+      await act(async () => {
+        screen.getByRole("button", { name: "Refresh settings" }).click();
+        await vi.waitFor(() => expect(fetchBoardSettingsMock).toHaveBeenCalledTimes(2));
+      });
+      expect(boardRoot).toHaveAttribute("data-board-transition", "cut");
+      expect(boardRoot).toHaveStyle({ "--motion-room": "0ms" });
+    } finally {
+      controller.dispose();
+    }
+  });
+
   it("does not turn a settings room selection into a live-room navigation", async () => {
     function LocationProbe() {
       return <output data-testid="location">{useLocation().pathname}</output>;
@@ -39,7 +77,7 @@ it("shares board gamepad input while leaving focused buttons selectable", async 
   let buttonIndex = -1;
   const getGamepads = vi.fn(() => [{ id: 'board-controller', index: 0, connected: true,
     timestamp: 0, mapping: 'standard', axes: [0, 0],
-    vibrationActuator: { type: 'dual-rumble', effects: [], playEffect: async () => 'complete', reset: async () => 'complete' },
+    vibrationActuator: { type: 'dual-rumble', effects: [], playEffect: () => Promise.resolve('complete'), reset: () => Promise.resolve('complete') },
     buttons: Array.from({ length: 17 }, (_, index) => ({ pressed: index === buttonIndex, touched: false, value: index === buttonIndex ? 1 : 0 })),
   } as Gamepad]);
   const controller = initSpatialNav({ getGamepads, isVisible: () => true });

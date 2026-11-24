@@ -43,3 +43,19 @@ export function requestInstance(input: {
 }) {
   return instances.requestInstance(input);
 }
+
+export function fetchSpendReceipt(idempotencyKey: string) {
+  return instances.getSpendReceipt({ idempotencyKey });
+}
+
+export function adoptVPS(input: {
+  idempotencyKey: string;
+  host: string;
+  user: string;
+  displayName?: string;
+  monthlyCostMinor: bigint;
+  currency: string;
+  taxBasis: string;
+}) {
+  return instances.adoptInstance(input);
+}

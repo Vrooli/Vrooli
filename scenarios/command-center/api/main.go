@@ -48,7 +48,7 @@ func main() {
 	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(trends.Schema)); err != nil {
 		log.Fatalf("failed to initialize trend storage: %v", err)
 	}
-	srv := NewServerWithTrendStore(reg, trends.NewSQLiteStore(db))
+	srv := NewServerWithTrendStore(reg, trends.NewResilientStore(trends.NewSQLiteStore(db)))
 
 	if err := server.Run(server.Config{
 		Handler: srv.Handler(),

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/storage"
 	capreg "github.com/vrooli/vrooli/packages/capability-registry-go"
 )
 
@@ -69,13 +71,46 @@ func defaultBoardSettings() BoardSettings {
 	return BoardSettings{CycleSeconds: 60, Transition: "crossfade", Rooms: []BoardRoomMode{}}
 }
 
-func boardSettingsPath() string {
-	return filepath.Join(catalogDir(), "board.json")
+func boardSettingsPath() (string, error) {
+	// An explicit config root is retained for isolated tests and controlled
+	// deployments. Otherwise, persist operator settings in the lifecycle's
+	// per-instance config namespace rather than beside source catalogs.
+	if root := strings.TrimSpace(os.Getenv("COMMAND_CENTER_CONFIG_DIR")); root != "" {
+		return filepath.Join(root, "board.json"), nil
+	}
+	resolver, err := storage.NewResolver(storage.ResolverConfig{})
+	if err != nil {
+		return "", fmt.Errorf("resolve board settings storage: %w", err)
+	}
+	path, err := resolver.Path(storage.Options{ScenarioID: scenarioName}, storage.ClassConfig, "board.json")
+	if err != nil {
+		return "", fmt.Errorf("resolve board settings path: %w", err)
+	}
+	return path, nil
 }
 
 func readBoardSettings() (BoardSettings, error) {
 	settings := defaultBoardSettings()
-	raw, err := os.ReadFile(boardSettingsPath())
+	if err := ensureConfigRoot(); err != nil {
+		return settings, err
+	}
+	path, err := boardSettingsPath()
+	if err != nil {
+		return settings, err
+	}
+	raw, err := os.ReadFile(path)
+	if os.IsNotExist(err) && strings.TrimSpace(os.Getenv("COMMAND_CENTER_CONFIG_DIR")) == "" {
+		namespace, nsErr := storage.ResolveNamespace(storage.NamespaceConfig{FallbackScenario: scenarioName})
+		if nsErr != nil {
+			return settings, nsErr
+		}
+		// The old source-tree file remains a live-instance migration fallback.
+		// A shadow starts from safe defaults and never imports a live user's
+		// saved dashboard selection.
+		if namespace.IsLive() {
+			raw, err = os.ReadFile(filepath.Join(catalogDir(), "board.json"))
+		}
+	}
 	if os.IsNotExist(err) {
 		return settings, nil
 	}
@@ -98,8 +133,8 @@ func writeBoardSettings(settings BoardSettings) error {
 	if settings.CycleSeconds < 5 || settings.CycleSeconds > 3600 {
 		return fmt.Errorf("cycleSeconds must be between 5 and 3600")
 	}
-	if strings.TrimSpace(settings.Transition) == "" {
-		return fmt.Errorf("transition is required")
+	if settings.Transition != "crossfade" && settings.Transition != "cut" {
+		return fmt.Errorf("transition must be crossfade or cut")
 	}
 	seen := map[string]bool{}
 	for _, room := range settings.Rooms {
@@ -108,35 +143,59 @@ func writeBoardSettings(settings BoardSettings) error {
 		}
 		seen[room.ID] = true
 	}
-	dir := catalogDir()
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := ensureConfigRoot(); err != nil {
 		return err
 	}
-	tmp, err := os.CreateTemp(dir, ".board-settings-*")
+	path, err := boardSettingsPath()
 	if err != nil {
 		return err
 	}
-	tmpName := tmp.Name()
-	defer os.Remove(tmpName)
-	encoder := json.NewEncoder(tmp)
-	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(settings); err != nil {
-		_ = tmp.Close()
+	data, err := json.MarshalIndent(settings, "", "  ")
+	if err != nil {
 		return err
 	}
-	if err := tmp.Close(); err != nil {
+	data = append(data, '\n')
+	if err := storage.WriteFileAtomic(path, data, storage.DefaultFilePerm); err != nil {
 		return err
 	}
-	return os.Rename(tmpName, boardSettingsPath())
+	return nil
 }
 
 func (s *Server) registerBoardRoutes() {
 	s.router.HandleFunc("/api/v1/board", s.handleBoard).Methods("GET")
 	s.router.HandleFunc("/api/v1/board-settings", s.handleBoardSettings).Methods("GET", "PUT")
-	s.router.HandleFunc("/api/v1/rooms/{id}", s.handleRoom).Methods("GET")
-	s.router.HandleFunc("/api/v1/focus", s.handleFocus).Methods("GET")
-	s.router.HandleFunc("/api/v1/open-loop", s.handleOpenLoop).Methods("GET")
-	s.router.HandleFunc("/api/v1/capabilities/describe", s.handleDescribe).Methods("GET")
+	s.router.HandleFunc("/api/v1/rooms/{id}", requireConfigRoot(s.handleRoom)).Methods("GET")
+	s.router.HandleFunc("/api/v1/focus", requireConfigRoot(s.handleFocus)).Methods("GET")
+	s.router.HandleFunc("/api/v1/open-loop", requireConfigRoot(s.handleOpenLoop)).Methods("GET")
+	s.router.HandleFunc("/api/v1/capabilities/describe", requireConfigRoot(s.handleDescribe)).Methods("GET")
+}
+
+// orderBoardRooms applies explicit enablement and ordering while retaining
+// defaults for rooms omitted from an older partial settings file.
+func orderBoardRooms(rooms []Room, settings []BoardRoomMode) []Room {
+	if len(settings) == 0 {
+		return rooms
+	}
+	byID := make(map[string]Room, len(rooms))
+	for _, room := range rooms {
+		byID[room.ID] = room
+	}
+	ordered := make([]Room, 0, len(rooms))
+	configured := make(map[string]bool, len(settings))
+	for _, mode := range settings {
+		configured[mode.ID] = true
+		if room, ok := byID[mode.ID]; ok && mode.Enabled {
+			ordered = append(ordered, room)
+		}
+	}
+	for _, room := range rooms {
+		// Older partial settings may omit rooms; retain those defaults while
+		// preserving an explicit disabled choice.
+		if !configured[room.ID] {
+			ordered = append(ordered, room)
+		}
+	}
+	return ordered
 }
 
 func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request) {
@@ -146,27 +205,12 @@ func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request) {
 			rooms = append(rooms, Room{ID: id, Title: id})
 		}
 	}
-	if settings, err := readBoardSettings(); err == nil && len(settings.Rooms) > 0 {
-		byID := make(map[string]Room, len(rooms))
-		for _, room := range rooms {
-			byID[room.ID] = room
-		}
-		ordered := make([]Room, 0, len(rooms))
-		for _, mode := range settings.Rooms {
-			if mode.Enabled {
-				if room, ok := byID[mode.ID]; ok {
-					ordered = append(ordered, room)
-					delete(byID, mode.ID)
-				}
-			}
-		}
-		for _, room := range rooms {
-			if _, ok := byID[room.ID]; ok {
-				ordered = append(ordered, room)
-			}
-		}
-		rooms = ordered
+	settings, err := readBoardSettings()
+	if err != nil {
+		writeConfigReadError(w, err)
+		return
 	}
+	rooms = orderBoardRooms(rooms, settings.Rooms)
 	sources := s.integrationSources(r.Context())
 	confidence, rationale := "partial", "The denominator is derived from the checked-in outcome registry and is partial until the objective transmitter is readable."
 	if s.objectivesAvailable(r.Context()) {
@@ -179,6 +223,10 @@ func (s *Server) handleBoardSettings(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		settings, err := readBoardSettings()
 		if err != nil {
+			if isConfigRootUnavailable(err) {
+				writeConfigReadError(w, err)
+				return
+			}
 			writeError(w, http.StatusInternalServerError, "board_settings_read_failed", err.Error(), nil)
 			return
 		}
@@ -196,7 +244,20 @@ func (s *Server) handleBoardSettings(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_json", err.Error(), nil)
 		return
 	}
+	var trailing json.RawMessage
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		if err == nil {
+			writeError(w, http.StatusBadRequest, "invalid_json", "request body must contain one JSON value", nil)
+			return
+		}
+		writeError(w, http.StatusBadRequest, "invalid_json", err.Error(), nil)
+		return
+	}
 	if err := writeBoardSettings(settings); err != nil {
+		if isConfigRootUnavailable(err) {
+			writeConfigReadError(w, err)
+			return
+		}
 		writeError(w, http.StatusBadRequest, "board_settings_write_failed", err.Error(), nil)
 		return
 	}
@@ -210,28 +271,35 @@ func (s *Server) handleRoom(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 404, "room_not_found", "Unknown room: "+id, nil)
 		return
 	}
+	setpoint, err := s.readSetpoint()
+	if err != nil {
+		writeSetpointReadError(w, err)
+		return
+	}
 	hide := r.URL.Query().Get("samples") == "hide"
 	readings, sources := s.readings(r.Context(), entries)
+	applySetpoint(readings, setpoint)
 	if hide {
 		stripSamples(readings)
 	}
 	room := roomByID(s.registry, id)
 	resp := RoomReadings{Room: room, Readings: readings, Sources: sources}
 	if room.Category == "panorama" {
-		resp.Constellations = s.constellations(r.Context(), hide)
+		resp.Constellations = s.constellations(r.Context(), hide, setpoint)
 	}
 	writeJSON(w, 200, resp)
 }
 
 // constellations reads every room that is not itself a panorama. The room set
 // is the registry's, so a new room appears in the panorama with no code change.
-func (s *Server) constellations(ctx context.Context, hide bool) []Constellation {
+func (s *Server) constellations(ctx context.Context, hide bool, setpoint *Setpoint) []Constellation {
 	out := []Constellation{}
 	for _, room := range s.registry.Rooms {
 		if room.Category == "panorama" {
 			continue
 		}
 		readings, _ := s.readings(ctx, s.registry.Dashboard(room.ID))
+		applySetpoint(readings, setpoint)
 		if hide {
 			stripSamples(readings)
 		}
@@ -253,21 +321,33 @@ func (s *Server) handleFocus(w http.ResponseWriter, r *http.Request) {
 	for _, room := range s.registry.Rooms {
 		readings, _ := s.readings(r.Context(), s.registry.Dashboard(room.ID))
 		for _, m := range readings {
-			// Only a NOW cell has a sensor that can fail to answer; an
-			// IN-REACH or MISSING cell is a coverage finding, ranked below.
-			if m.Coverage != CoverageNow || (m.Trust != TrustUnavailable && m.Trust != TrustUntrusted) {
+			// Only NOW cells can report a producer outage. Any non-valid trust
+			// state is degraded, including a retained last-good CACHED value.
+			if m.Coverage != CoverageNow || m.Trust == TrustValid {
 				continue
 			}
 			owner := m.Source.Team
 			if owner == "" {
 				owner = "unknown-source"
 			}
-			key := "source-unavailable:" + owner
+			// An outcome owner may publish through several independent source
+			// surfaces, including multiple endpoints from one integration. Keep
+			// one finding per endpoint so one failure cannot hide another.
+			producer := first(m.Source.IntegrationID, string(m.UpstreamSource), m.Source.Binding)
+			if producer == "" {
+				producer = owner
+			}
+			source := m.UpstreamSource
+			if source == "" {
+				source = sourceFromBinding(m.Source.Binding)
+			}
+			endpoint := first(m.Source.Read, defaultPathFor(source))
+			key := "source-unavailable:" + owner + ":" + producer + ":" + endpoint
 			if seen[key] {
 				continue
 			}
 			seen[key] = true
-			entries = append(entries, FocusEntry{Kind: "source-unavailable", Owner: owner, MetricID: m.ID, Reason: "Source returned no trustworthy reading; investigate the source before expanding coverage.", RankReason: "Sensor-channel integrity outranks coverage breadth."})
+			entries = append(entries, FocusEntry{Kind: "source-unavailable", Owner: owner, MetricID: m.ID, Reason: "Source has no current trusted reading; a cached value is last-good only until the source recovers.", RankReason: "Sensor-channel integrity outranks coverage breadth."})
 		}
 	}
 	for _, m := range s.registry.Metrics {

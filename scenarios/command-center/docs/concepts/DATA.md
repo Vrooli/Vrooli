@@ -4,12 +4,14 @@
 
 ## Storage posture
 
-The P0 set is **filesystem and in-memory only**. There is no database.
+Most authored configuration remains filesystem-backed, and request-local
+buffers are in memory. Trusted trend history is the exception: it is stored in
+SQLite after the API initializes its database.
 
 - The **outcome registry** is checked-in versioned data.
 - The **setpoint** is a checked-in file, parsed per query, never written.
 - **Numerators are computed live and never stored** — invariant 4. A stale board is structurally impossible because there is nothing to go stale.
-- The per-source TTL cache holds the last upstream response so a failed fetch can degrade to `CACHED` rather than to nothing. It is a freshness buffer, not a store.
+- The per-reading TTL cache holds the last schema-qualified upstream observation. A transport failure or timestamped response that violates the reading's contract degrades that value to `CACHED`; invalid data never replaces it. It is a freshness buffer, not a store.
 
 Reading history is now a small, durable SQLite store via `api-core/storage`.
 Registry entries explicitly opt into history with `trendPolicy`; each trusted
@@ -21,10 +23,24 @@ readings, or metrics without an opt-in policy. The UI shows them beside the
 hero and at most two supporting readings. This keeps history recalculable as
 policy changes and prevents trend decoration from overwhelming the board.
 
+After startup, transient SQLite operation loss does not discard a newly
+qualified observation. The trend store queues that observation in process
+memory, exposes `provider_unavailable` for the trend, and retries the same row
+on a later read or write before calculating from SQLite again. This does not
+cover startup when SQLite cannot be opened, process restart during an outage,
+or long-term buffering on disk; no upstream reading is replayed to reconstruct
+the queued value.
+
 ## The registry
 
-`config/outcome-registry.json` is the single source of truth for metric
-bindings and gaps.
+`config/outcome-registry.json` holds the checked-in metric defaults, producer
+bindings, rooms and gaps. At startup, the API overlays the editable signal
+definitions in `config/signals/` and room presets in `config/rooms/` onto those
+defaults; the Settings UI writes those split catalog files. Add a new metric to
+both the registry and split signal catalog, then reference it from the split
+room presets that should use it. A registry metric without a matching signal
+file is a deployment defect, so the API catalog tests enforce one editable
+signal entry per runtime metric.
 
 ```json
 {
@@ -133,7 +149,7 @@ What the API composes per metric. This replaces `MetricEntry`, which carried six
     "instrumentArchetype": "production-ledger"
   },
 
-  "target": { "direction": "up", "bar": 1500, "barRef": "setpoint:forge.throughput" },
+  "target": { "direction": "up", "bar": 1500, "barRef": "setpoint:forge.throughput", "distanceToTarget": 216 },
 
   "owner": null,
   "whatIsNeeded": null,
@@ -145,6 +161,13 @@ What the API composes per metric. This replaces `MetricEntry`, which carried six
   "prediction": null
 }
 ```
+
+Room and dashboard reading routes join `target` from the selected
+`config/setpoint.json` on every request. For numeric readings, `distanceToTarget`
+is the non-negative remaining gap in the authored direction (`bar - value`
+for `up`, `value - bar` for `down`); it is omitted when no current numeric
+value is available. The API returns a safe error when the selected setpoint
+cannot be read or validated. Command Center never writes this file.
 
 Rules the shape enforces:
 

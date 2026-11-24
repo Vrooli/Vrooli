@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
-import { ExperienceSurface, type ExperienceSurfaceState } from "@vrooli/react-component-library/ExperienceSurface/1.0.3";
+import { ExperienceSurface, type ExperienceSurfaceState } from "@vrooli/react-component-library/ExperienceSurface/1.0.4";
 import { AmbientShell } from "../components/AmbientShell";
 import { FreshnessTimestamp } from "../components/FreshnessTimestamp";
 import { InkMark } from "@vrooli/react-component-library/ProvenanceInk/0.1.3";

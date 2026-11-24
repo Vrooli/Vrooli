@@ -1,8 +1,11 @@
 package search
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -11,19 +14,69 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	searchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli-health/v1/search"
 	searchconnect "github.com/vrooli/vrooli/packages/proto/gen/go/cli-health/v1/search/search_v1connect"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 type handlers struct {
-	core   *cliapp.ScenarioApp
-	client searchconnect.SearchServiceClient
+	core            *cliapp.ScenarioApp
+	client          searchconnect.SearchServiceClient
+	compositionHTTP connect.HTTPClient
+	compositionURL  string
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	return &handlers{
-		core:   core,
-		client: searchconnect.NewSearchServiceClient(httpClient, baseURL),
+		core: core, client: searchconnect.NewSearchServiceClient(httpClient, baseURL),
+		compositionHTTP: httpClient, compositionURL: strings.TrimRight(baseURL, "/"),
 	}
+}
+
+// compositionSearchCall queries the bounded CLI source-composition endpoint.
+func (h *handlers) compositionSearchCall(ctx cliapp.OperationContext) (*structpb.Struct, error) {
+	query := strings.TrimSpace(ctx.Positional("query"))
+	scenario := strings.TrimSpace(ctx.Positional("scenario"))
+	if query == "" || scenario == "" {
+		return nil, fmt.Errorf("query and scenario are required")
+	}
+	body, err := json.Marshal(map[string]string{"query": query, "scenario": scenario})
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, h.compositionURL+"/api/v1/cli-composition/search", bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := h.compositionHTTP.Do(req)
+	if err != nil {
+		return nil, cliapp.WrapAPIError("search CLI composition", err, nil)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("search CLI composition returned HTTP %d", resp.StatusCode)
+	}
+	var value map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&value); err != nil {
+		return nil, fmt.Errorf("decode CLI composition response: %w", err)
+	}
+	return structpb.NewStruct(value)
+}
+
+func (h *handlers) compositionSearchReport(_ cliapp.OperationContext, response *structpb.Struct) cliapp.ListReport {
+	body := response.AsMap()
+	raw, _ := body["results"].([]any)
+	results := make([]string, 0, len(raw))
+	for _, item := range raw {
+		hit, _ := item.(map[string]any)
+		results = append(results, fmt.Sprintf("%v — %v (%v; %v)", hit["title"], hit["text"], hit["attestation"], hit["evidence"]))
+	}
+	degradations, _ := body["degradations"].([]any)
+	for _, item := range degradations {
+		d, _ := item.(map[string]any)
+		results = append(results, fmt.Sprintf("degraded %v: %v", d["code"], d["message"]))
+	}
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d static CLI composition result(s); runtime dispatch remains unverified.", len(raw))}, ResultsHeading: "Composition evidence", Results: results}
 }
 
 // searchCall runs the SearchService.Search RPC. It is the operation half of the

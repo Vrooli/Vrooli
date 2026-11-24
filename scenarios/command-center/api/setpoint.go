@@ -3,7 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 )
 
 type SetpointBar struct {
@@ -19,6 +23,7 @@ type NotGradeable struct {
 	Reason   string `json:"reason"`
 }
 type Setpoint struct {
+	SchemaRef     string         `json:"$schema,omitempty"`
 	SchemaVersion string         `json:"schemaVersion"`
 	Bars          []SetpointBar  `json:"bars"`
 	NotGradeable  []NotGradeable `json:"notGradeable"`
@@ -38,13 +43,32 @@ func LoadSetpoint(path string, registry *Registry) (*Setpoint, error) {
 	if err := dec.Decode(&s); err != nil {
 		return nil, fmt.Errorf("parse setpoint: %w", err)
 	}
-	if s.SchemaVersion == "" {
-		return nil, fmt.Errorf("setpoint is missing schemaVersion")
+	var trailing json.RawMessage
+	if err := dec.Decode(&trailing); err != io.EOF {
+		if err == nil {
+			return nil, fmt.Errorf("parse setpoint: multiple JSON values")
+		}
+		return nil, fmt.Errorf("parse setpoint: trailing data: %w", err)
+	}
+	if s.SchemaVersion != "1.0.0" {
+		return nil, fmt.Errorf("unsupported setpoint schemaVersion %q", s.SchemaVersion)
 	}
 	bars := map[string]SetpointBar{}
 	for _, b := range s.Bars {
 		if b.MetricID == "" {
 			return nil, fmt.Errorf("setpoint bar missing metricId")
+		}
+		if b.Direction != "up" && b.Direction != "down" {
+			return nil, fmt.Errorf("setpoint bar %s has invalid direction %q", b.MetricID, b.Direction)
+		}
+		if strings.TrimSpace(b.Unit) == "" {
+			return nil, fmt.Errorf("setpoint bar %s is missing unit", b.MetricID)
+		}
+		if _, ok := numericReading(b.Bar); !ok {
+			return nil, fmt.Errorf("setpoint bar %s must be numeric", b.MetricID)
+		}
+		if _, ok := numericReading(b.AuthoredAgainst); !ok {
+			return nil, fmt.Errorf("setpoint bar %s is missing a numeric authoredAgainst value", b.MetricID)
 		}
 		if _, ok := bars[b.MetricID]; ok {
 			return nil, fmt.Errorf("duplicate setpoint bar %s", b.MetricID)
@@ -65,6 +89,19 @@ func LoadSetpoint(path string, registry *Registry) (*Setpoint, error) {
 		gradeable[n.MetricID] = true
 	}
 	if registry != nil {
+		metrics := make(map[string]MetricEntry, len(registry.Metrics))
+		for _, metric := range registry.Metrics {
+			metrics[metric.ID] = metric
+		}
+		for id, bar := range bars {
+			metric, ok := metrics[id]
+			if !ok {
+				return nil, fmt.Errorf("setpoint bar %s does not match a registered metric", id)
+			}
+			if strings.TrimSpace(bar.Unit) == "" || bar.Unit != metric.Unit {
+				return nil, fmt.Errorf("setpoint bar %s unit %q does not match metric unit %q", id, bar.Unit, metric.Unit)
+			}
+		}
 		for _, m := range registry.Metrics {
 			if effectiveCoverage(m) != CoverageNow {
 				continue
@@ -75,6 +112,47 @@ func LoadSetpoint(path string, registry *Registry) (*Setpoint, error) {
 		}
 	}
 	return &s, nil
+}
+
+func (s *Server) readSetpoint() (*Setpoint, error) {
+	if err := ensureConfigRoot(); err != nil {
+		return nil, err
+	}
+	return LoadSetpoint(filepath.Join(catalogDir(), "setpoint.json"), s.registry)
+}
+
+func applySetpoint(readings []MetricEntry, setpoint *Setpoint) {
+	bars := make(map[string]SetpointBar, len(setpoint.Bars))
+	for _, bar := range setpoint.Bars {
+		bars[bar.MetricID] = bar
+	}
+	for i := range readings {
+		readings[i].Target = nil
+		if bar, ok := bars[readings[i].ID]; ok {
+			target := &Target{Direction: bar.Direction, Bar: bar.Bar, BarRef: "setpoint:" + bar.MetricID}
+			if value, valueOK := numericReading(readings[i].Value); valueOK {
+				if threshold, thresholdOK := numericReading(bar.Bar); thresholdOK {
+					distance := threshold - value
+					if bar.Direction == "down" {
+						distance = value - threshold
+					}
+					if distance < 0 {
+						distance = 0
+					}
+					target.DistanceToTarget = &distance
+				}
+			}
+			readings[i].Target = target
+		}
+	}
+}
+
+func writeSetpointReadError(w http.ResponseWriter, err error) {
+	if isConfigRootUnavailable(err) {
+		writeConfigReadError(w, err)
+		return
+	}
+	writeError(w, http.StatusInternalServerError, "setpoint_invalid", "configured setpoint could not be read or validated", nil)
 }
 
 func equalJSON(a, b any) bool {

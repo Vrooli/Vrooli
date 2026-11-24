@@ -2,6 +2,7 @@ package domains
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -17,6 +18,77 @@ func TestCommandGroupsRegisterInstrumentAndIntegrationVerbs(t *testing.T) {
 	got := CommandGroups(nil)
 	if len(got) != 1 || len(got[0].Commands) != 10 {
 		t.Fatalf("unexpected flat command registration: %#v", got)
+	}
+}
+
+func TestFocusFiltersApplyKindAndOwnerTogether(t *testing.T) {
+	entries := []focusEntry{
+		{Kind: "no-instrument", Owner: "marketing-crew"},
+		{Kind: "source-unavailable", Owner: "marketing-crew"},
+		{Kind: "no-instrument", Owner: "scenario-qa"},
+	}
+	kind, owner, err := focusFilters([]string{"--kind", "no-instrument", "--owner=marketing-crew", "--json"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := filterFocusEntries(entries, kind, owner)
+	if len(got) != 1 || got[0].Kind != "no-instrument" || got[0].Owner != "marketing-crew" {
+		t.Fatalf("filtered focus entries = %#v", got)
+	}
+}
+
+func TestFocusFiltersRejectMissingValuesAndUnexpectedArguments(t *testing.T) {
+	for _, args := range [][]string{{"--kind"}, {"--owner", "--json"}, {"--room", "broadcast"}} {
+		if _, _, err := focusFilters(args); err == nil {
+			t.Errorf("focusFilters(%q) accepted an invalid argument", args)
+		}
+	}
+}
+
+func TestFocusCommandAppliesDeclaredKindFilter(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/focus" {
+			t.Fatalf("unexpected request: %s", r.URL.Path)
+		}
+		_, _ = w.Write([]byte(`{"generatedAt":"2026-11-23T12:00:00Z","entries":[{"kind":"no-instrument","owner":"marketing-crew","reason":"missing sensor","rankReason":"coverage"},{"kind":"source-unavailable","owner":"marketing-crew","reason":"source down","rankReason":"integrity"}]}`))
+	}))
+	defer server.Close()
+	app := &cliapp.ScenarioApp{APIClient: cliutil.NewAPIClient(
+		cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}),
+		func() cliutil.APIBaseOptions { return cliutil.APIBaseOptions{DefaultBase: server.URL} },
+		nil,
+	)}
+	groups := CommandGroups(app)
+	var focusCommand *cliapp.Command
+	for i := range groups[0].Commands {
+		command := &groups[0].Commands[i]
+		if command.Name == "focus" {
+			focusCommand = command
+			break
+		}
+	}
+	if focusCommand == nil {
+		t.Fatal("focus command was not registered")
+	}
+	oldStdout := os.Stdout
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = writer
+	runErr := focusCommand.Run([]string{"--kind", "no-instrument", "--json"})
+	_ = writer.Close()
+	os.Stdout = oldStdout
+	if runErr != nil {
+		t.Fatalf("run focus command: %v", runErr)
+	}
+	output, err := io.ReadAll(reader)
+	_ = reader.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(output), "source-unavailable") || !strings.Contains(string(output), `"kind":"no-instrument"`) {
+		t.Fatalf("focus did not apply kind filter: %s", output)
 	}
 }
 

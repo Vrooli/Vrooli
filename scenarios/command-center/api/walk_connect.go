@@ -12,8 +12,9 @@ import (
 )
 
 type walkConnectService struct {
-	server *Server
-	ledger journalconnect.JournalServiceClient
+	server             *Server
+	ledger             journalconnect.JournalServiceClient
+	resolveJournalBase func() string
 }
 
 func (s walkConnectService) Read(ctx context.Context, req *connect.Request[walkv1.ReadRequest]) (*connect.Response[walkv1.ReadResponse], error) {
@@ -25,19 +26,27 @@ func (s walkConnectService) Read(ctx context.Context, req *connect.Request[walkv
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("limit must be 1-100"))
 	}
 	// Reuse the board's owner-qualified reading path; never derive health from activity.
-	entries, _ := s.server.readings(ctx, s.server.registry.Metrics)
+	entries, sources := s.server.readings(ctx, s.server.registry.Metrics)
 	out := &walkv1.ReadResponse{GeneratedAt: time.Now().UTC().Format(time.RFC3339Nano), Total: int32(len(entries)), Truncated: len(entries) > limit}
 	for i, m := range entries {
 		if i >= limit {
 			break
 		}
-		out.Readings = append(out.Readings, walkReading(m))
+		source := m.UpstreamSource
+		if source == "" {
+			source = sourceFromBinding(m.Source.Binding)
+		}
+		out.Readings = append(out.Readings, walkReadingWithSource(m, sources[string(source)]))
 	}
 	return connect.NewResponse(out), nil
 }
 
 func walkReading(m MetricEntry) *walkv1.Reading {
-	r := &walkv1.Reading{Id: m.ID, Label: m.Label, Owner: m.Source.Team, Source: m.Source.Read, Coverage: string(m.Coverage), Trust: string(m.Trust), Empirical: string(m.Empirical), Unit: m.Unit, TtlSeconds: int32(m.TTLSeconds), Reason: m.TrustReason}
+	return walkReadingWithSource(m, sourceMetadata{})
+}
+
+func walkReadingWithSource(m MetricEntry, source sourceMetadata) *walkv1.Reading {
+	r := &walkv1.Reading{Id: m.ID, Label: m.Label, Owner: m.Source.Team, Source: m.Source.Read, Coverage: string(m.Coverage), Trust: string(m.Trust), Empirical: string(m.Empirical), Unit: m.Unit, TtlSeconds: int32(m.TTLSeconds), Reason: walkReason(m, source)}
 	if m.Owner != nil {
 		r.Owner = *m.Owner
 	}
@@ -58,4 +67,21 @@ func walkReading(m MetricEntry) *walkv1.Reading {
 		}
 	}
 	return r
+}
+
+func walkReason(m MetricEntry, source sourceMetadata) string {
+	if m.Trust == TrustCached {
+		return first(walkProviderReason(source)+"; showing last qualified observation", "source refresh is unresolved; showing last qualified observation")
+	}
+	if m.Trust == TrustUnavailable {
+		return first(walkProviderReason(source)+"; source observation is stale", "no currently qualified source observation; retry after the owner recovers")
+	}
+	return m.TrustReason
+}
+
+func walkProviderReason(source sourceMetadata) string {
+	if source.IntegrationStatus != "unavailable" {
+		return ""
+	}
+	return fmt.Sprintf("%s unavailable (%s)", first(source.IntegrationID, "source provider"), first(source.IntegrationReason, "upstream_unavailable"))
 }

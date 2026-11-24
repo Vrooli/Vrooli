@@ -2,6 +2,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } f
 import { useBeatHold, useCycleScale } from "../lib/boardContext";
 import { AUTOSCROLL_TIMING, scrollStops, visibleRange, type RowBox } from "../lib/fit";
 import { useLandscapeRoom, useReducedMotion } from "../lib/media";
+import "./AutoScroll.css";
 
 type Phase = "run" | "fading" | "return";
 
@@ -41,8 +42,9 @@ const sameGeometry = (a: Geometry | null, b: Geometry): boolean =>
 /**
  * A list that is tall by nature, shown on a screen that never scrolls. It
  * holds the first rows, steps up one row at a time, holds the end, fades back
- * to the top and holds the beat until it has made one full pass. A list that
- * fits never moves, and in portrait the page scrolls instead.
+ * to the top and holds the beat until it has made one full pass. Viewers can
+ * step through the rows after that pass without blocking the board cycle.
+ * A list that fits never moves, and in portrait the page scrolls instead.
  */
 export function AutoScroll({ children, rowSelector, countSelector, className, label, counter = true }: AutoScrollProps) {
   const reactId = useId();
@@ -144,6 +146,7 @@ export function AutoScroll({ children, rowSelector, countSelector, className, la
   const offset = overflowing && geometry ? geometry.stops[current] ?? 0 : 0;
   const end = overflowing && geometry ? geometry.stops[last] ?? 0 : 0;
   const range = overflowing && geometry ? visibleRange(geometry.counted, offset, geometry.viewport) : null;
+  const positionLabel = range ? `${range[0]}–${range[1]} of ${geometry?.counted.length ?? 0}` : `View ${current + 1} of ${last + 1}`;
   return (
     <div className={className ? `cc-autoscroll ${className}` : "cc-autoscroll"} data-overflowing={overflowing || undefined} data-read={read || undefined}>
       <div
@@ -166,7 +169,27 @@ export function AutoScroll({ children, rowSelector, countSelector, className, la
           or presence depended on what fitted, the counter would resize the
           viewport it is measured from and the geometry would never settle. A
           list that fits still shows no counter. */}
-      {counter && overflowing && geometry ? <span className="cc-autoscroll__position" data-testid="autoscroll-position" aria-hidden="true">{range ? `${range[0]}–${range[1]} of ${geometry.counted.length}` : "\u00A0"}</span> : null}
+      {overflowing && geometry ? (
+        <div className="cc-autoscroll__footer">
+          {read ? (
+            <>
+              <div className="cc-autoscroll__navigation" role="group" aria-label={`${label ?? "List"} navigation`}>
+                <button type="button" aria-label={`Previous ${label ?? "items"}`} disabled={current === 0} onClick={() => setStop((position) => Math.max(0, position - 1))}>
+                  <span aria-hidden="true">‹</span>
+                </button>
+                <button type="button" aria-label={`Next ${label ?? "items"}`} disabled={current >= last} onClick={() => setStop((position) => Math.min(last, position + 1))}>
+                  <span aria-hidden="true">›</span>
+                </button>
+              </div>
+              <span className="cc-autoscroll__position cc-autoscroll__footer-position" data-testid="autoscroll-position" role="status" aria-live="polite">
+                {counter ? positionLabel : `View ${current + 1} of ${last + 1}`}
+              </span>
+            </>
+          ) : counter ? (
+            <span className="cc-autoscroll__position" data-testid="autoscroll-position" aria-hidden="true">{range ? `${range[0]}–${range[1]} of ${geometry.counted.length}` : "\u00A0"}</span>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

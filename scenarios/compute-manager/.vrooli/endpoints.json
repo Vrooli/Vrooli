@@ -87,6 +87,77 @@
       "category": "instance"
     },
     {
+      "id": "instance_managed_acquire",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/AcquireInstance",
+      "method": "POST",
+      "summary": "Acquire approved deployment compute without Bridge enrollment",
+      "description": "",
+      "category": "instance",
+      "request": {
+        "type": "object",
+        "properties": {
+          "idempotency_key": "string (required; stable across retry)",
+          "lifetime_seconds": "int64 (optional; defaults to 24 hours)",
+          "profile_id": "string (web-console/staging)",
+          "region": "string (nbg1 or fsn1)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "instance": "Persisted exact Compute Manager instance",
+          "spend_receipt": "Persisted quote and admission receipt bound to the instance"
+        }
+      }
+    },
+    {
+      "id": "instance_managed_acquire_receipt",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/GetAcquireReceipt",
+      "method": "POST",
+      "summary": "Read the persisted deployment acquisition receipt",
+      "description": "",
+      "category": "instance"
+    },
+    {
+      "id": "instance_managed_enroll",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/EnrollInstance",
+      "method": "POST",
+      "summary": "Idempotently enroll an acquired instance with Bridge",
+      "description": "",
+      "category": "instance",
+      "request": {
+        "type": "object",
+        "properties": {
+          "acquisition_idempotency_key": "string (required)",
+          "idempotency_key": "string (required; stable across retry)",
+          "instance_id": "string (required; exact persisted Compute Manager instance)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "instance": "Persisted exact Compute Manager instance",
+          "receipt": "Persisted Bridge enrollment state and read-back identity"
+        }
+      }
+    },
+    {
+      "id": "instance_managed_enrollment_receipt",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/GetEnrollmentReceipt",
+      "method": "POST",
+      "summary": "Read Bridge enrollment state by stable idempotency key",
+      "description": "",
+      "category": "instance"
+    },
+    {
+      "id": "instance_spend_receipt",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/GetSpendReceipt",
+      "method": "POST",
+      "summary": "Read persisted spend quote and admission receipt",
+      "description": "",
+      "category": "instance"
+    },
+    {
       "id": "instance_list",
       "path": "/vrooli.compute_manager.v1.instance.InstanceService/ListInstances",
       "method": "POST",
@@ -117,6 +188,72 @@
       "summary": "Destroy a compute instance",
       "description": "",
       "category": "instance"
+    },
+    {
+      "id": "instance_snapshot",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/SnapshotInstance",
+      "method": "POST",
+      "summary": "Snapshot an instance for test recovery",
+      "description": "",
+      "category": "instance"
+    },
+    {
+      "id": "instance_reset",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/ResetInstance",
+      "method": "POST",
+      "summary": "Reset an instance to a test snapshot",
+      "description": "",
+      "category": "instance"
+    },
+    {
+      "id": "instance_adopt",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/AdoptInstance",
+      "method": "POST",
+      "summary": "Prepare an operator-owned VPS adoption",
+      "description": "Stores a non-secret target record and an explicit declared monthly quote through shared spend admission. Region, offer identity and owner identity are server-derived from the verified human caller. This call never accepts the SSH credential and remains pending until the secure Onboarding and Bridge first-touch evidence is verified.",
+      "category": "instance",
+      "request": {
+        "type": "object",
+        "properties": {
+          "currency": "string (required; ISO 4217 alpha code)",
+          "display_name": "string (optional)",
+          "host": "string (required; hostname or IP)",
+          "idempotency_key": "string (required; stable across retry)",
+          "monthly_cost_minor": "int64 (required; explicitly operator-declared monthly total in minor units)",
+          "tax_basis": "string (required; pre-tax or tax-inclusive)",
+          "user": "string (required; SSH user)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "instance": "Instance; adoption_state remains awaiting_secret until verified",
+          "spend_receipt": "Persisted line items, source, freshness and cap decision"
+        }
+      }
+    },
+    {
+      "id": "instance_adoption_first_touch",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/SubmitAdoptionCredential",
+      "method": "POST",
+      "summary": "Submit a one-time adopted-VPS credential through Onboarding",
+      "description": "Restricted to the dedicated Compute Manager adopted-VPS first-touch service principal. Forwards the request-scoped SSH password to Bridge and returns only persisted lifecycle and read-back evidence. The credential is never persisted or included in a response.",
+      "category": "instance",
+      "request": {
+        "type": "object",
+        "properties": {
+          "idempotency_key": "string (required; independent random key, not derived from the credential)",
+          "instance_id": "string (required)",
+          "ssh_password": "bytes (write-only, transient)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "evidence_verified": "boolean; true only after exact Bridge success read-back",
+          "instance": "Persisted adoption record and Bridge evidence status"
+        }
+      }
     },
     {
       "id": "intent_list",
@@ -189,6 +326,38 @@
       "summary": "Quarantine a reconciliation finding",
       "description": "",
       "category": "reconcile"
+    },
+    {
+      "id": "setup_list_providers",
+      "path": "/vrooli.compute_manager.v1.setup.SetupService/ListProviders",
+      "method": "POST",
+      "summary": "List provider setup catalogue",
+      "description": "",
+      "category": "setup"
+    },
+    {
+      "id": "setup_begin_step",
+      "path": "/vrooli.compute_manager.v1.setup.SetupService/BeginSetupStep",
+      "method": "POST",
+      "summary": "Ask the operator to confirm a provider setup step",
+      "description": "",
+      "category": "setup"
+    },
+    {
+      "id": "setup_readiness",
+      "path": "/vrooli.compute_manager.v1.setup.SetupService/GetReadiness",
+      "method": "POST",
+      "summary": "Read provider setup readiness and evidence",
+      "description": "",
+      "category": "setup"
+    },
+    {
+      "id": "setup_verify",
+      "path": "/vrooli.compute_manager.v1.setup.SetupService/VerifyProvider",
+      "method": "POST",
+      "summary": "Run read-only provider verification probes",
+      "description": "",
+      "category": "setup"
     }
   ]
 }

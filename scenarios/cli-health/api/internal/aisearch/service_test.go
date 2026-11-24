@@ -212,18 +212,18 @@ func TestCommandLexicalRescueBoostsExactLeadingLeaf(t *testing.T) {
 		{ID: "preview", Score: 0.20, Payload: map[string]any{"name": "preview"}},
 		{ID: "generate", Score: 0.05, Payload: map[string]any{"name": "generate"}},
 	}
-	commandLexicalRescue(hits, pkg.SearchQuery{Query: "generate a new scenario scaffold"})
+	commandLexicalRescue(hits, pkg.SearchQuery{Query: "generate a new scenario scaffold"}, pkg.FloorConfig{})
 	if hits[1].Score <= hits[0].Score {
 		t.Fatalf("exact leading leaf was not rescued: %+v", hits)
 	}
 
 	joined := []pkg.SearchResult{{ID: "setup", Score: 0.05, Payload: map[string]any{"name": "setup"}}}
-	commandLexicalRescue(joined, pkg.SearchQuery{Query: "set up the project"})
+	commandLexicalRescue(joined, pkg.SearchQuery{Query: "set up the project"}, pkg.FloorConfig{})
 	if joined[0].Score <= 0.05 {
 		t.Fatalf("joined leading phrase did not match setup: %+v", joined)
 	}
 	compound := []pkg.SearchResult{{ID: "set-suffix", Score: 0.05, Payload: map[string]any{"name": "api-source-set"}}}
-	commandLexicalRescue(compound, pkg.SearchQuery{Query: "set up the project"})
+	commandLexicalRescue(compound, pkg.SearchQuery{Query: "set up the project"}, pkg.FloorConfig{})
 	if compound[0].Score != 0.05 {
 		t.Fatalf("compound leaf suffix received a false lexical boost: %+v", compound[0])
 	}
@@ -231,7 +231,7 @@ func TestCommandLexicalRescueBoostsExactLeadingLeaf(t *testing.T) {
 
 func TestCommandLexicalRescueIgnoresGibberish(t *testing.T) {
 	hits := []pkg.SearchResult{{ID: "generate", Score: 0.05, Payload: map[string]any{"name": "generate"}}}
-	commandLexicalRescue(hits, pkg.SearchQuery{Query: "zzqxr florpnax"})
+	commandLexicalRescue(hits, pkg.SearchQuery{Query: "zzqxr florpnax"}, pkg.FloorConfig{})
 	if hits[0].Score != 0.05 {
 		t.Fatalf("gibberish unexpectedly received lexical boost: %+v", hits[0])
 	}
@@ -378,6 +378,42 @@ func TestService_AIMode_RerankReordersAndTruncates(t *testing.T) {
 	}
 	if resp.Results[0].FullPath != "demo charlie" {
 		t.Errorf("rerank winner should sort first, got %+v", resp.Results)
+	}
+}
+
+func TestService_HybridSearchKeepsExactLeafAcrossCrossEncoderFloor(t *testing.T) {
+	emb := &fakeEmbedder{available: true}
+	store := newFakeStore()
+	strong := mkResult("unrelated", 0.80)
+	exactLeaf := mkResult("generate", 0.10)
+	store.searchOut = []pkg.SearchResult{strong, exactLeaf}
+	rr := &fakeReranker{name: "cross-encoder:fake", available: true, scores: map[string]float64{
+		strong.ID:    0.80,
+		exactLeaf.ID: 0.10,
+	}}
+	svc := NewService(Options{
+		Embedder:      emb,
+		VectorStore:   store,
+		Discovery:     sampleCorpus(),
+		Parallelism:   2,
+		Sparse:        pkg.NewBM25SparseEncoder(),
+		RerankEnabled: true,
+		Reranker:      pkg.NewRerankerChain(rr),
+	})
+
+	resp, err := svc.Search(context.Background(), "generate a new scenario scaffold", 10, ModeAI)
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+	if resp.Method != "ai" || resp.Reranker != "cross-encoder:fake" {
+		t.Fatalf("search method/reranker = %q/%q, want ai/cross-encoder:fake", resp.Method, resp.Reranker)
+	}
+	paths := make([]string, 0, len(resp.Results))
+	for _, result := range resp.Results {
+		paths = append(paths, result.FullPath)
+	}
+	if len(paths) != 2 || paths[0] != "demo unrelated" || paths[1] != "demo generate" {
+		t.Fatalf("hybrid search result paths = %v, want [demo unrelated demo generate]", paths)
 	}
 }
 

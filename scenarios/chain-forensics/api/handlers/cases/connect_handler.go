@@ -424,6 +424,48 @@ func (h *Handler) ExportPrivatePacket(ctx context.Context, req *connect.Request[
 	return connect.NewResponse(&proto.ExportPrivatePacketResponse{SchemaVersion: saved.SchemaVersion, PacketJson: saved.JSON, Sha256: saved.SHA256}), nil
 }
 
+func (h *Handler) DeliverPrivatePacketToAttention(ctx context.Context, req *connect.Request[proto.DeliverPrivatePacketToAttentionRequest]) (*connect.Response[proto.AttentionDeliveryResponse], error) {
+	caseID := strings.TrimSpace(req.Msg.GetCaseId())
+	record, err := h.repo.Get(ctx, caseID)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	if !record.Case.Private {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("only private cases can be delivered to the local attention view"))
+	}
+	packet, err := forensics.BuildPrivatePacket(record.Case)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	if !strings.EqualFold(strings.TrimSpace(req.Msg.GetPacketSha256()), packet.SHA256) {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("packet hash is stale or does not match the current case; export the current packet first"))
+	}
+	if _, err := h.repo.SavePacket(ctx, packet); err != nil {
+		return nil, h.internal("DeliverPrivatePacketToAttention.SavePacket", err)
+	}
+	delivery, err := h.repo.DeliverPacketToAttention(ctx, caseID, packet.SHA256)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return connect.NewResponse(&proto.AttentionDeliveryResponse{Delivery: toAttentionDeliveryProto(delivery)}), nil
+}
+
+func (h *Handler) ListAttentionDeliveries(ctx context.Context, req *connect.Request[proto.ListAttentionDeliveriesRequest]) (*connect.Response[proto.ListAttentionDeliveriesResponse], error) {
+	deliveries, err := h.repo.ListAttentionDeliveries(ctx, int(req.Msg.GetLimit()))
+	if err != nil {
+		return nil, h.internal("ListAttentionDeliveries", err)
+	}
+	out := &proto.ListAttentionDeliveriesResponse{Deliveries: make([]*proto.AttentionDelivery, 0, len(deliveries))}
+	for _, delivery := range deliveries {
+		out.Deliveries = append(out.Deliveries, toAttentionDeliveryProto(delivery))
+	}
+	return connect.NewResponse(out), nil
+}
+
+func toAttentionDeliveryProto(delivery cases.AttentionDelivery) *proto.AttentionDelivery {
+	return &proto.AttentionDelivery{CaseId: delivery.CaseID, PacketSha256: delivery.PacketSHA256, DeliveredAt: timestamppb.New(delivery.DeliveredAt), PacketJson: delivery.PacketJSON}
+}
+
 func (h *Handler) AddAnalystLabel(ctx context.Context, req *connect.Request[proto.AddAnalystLabelRequest]) (*connect.Response[proto.AnalystLabelResponse], error) {
 	p := req.Msg.GetLabel()
 	if p == nil || strings.TrimSpace(p.GetCaseId()) == "" || strings.TrimSpace(p.GetSubject()) == "" || strings.TrimSpace(p.GetLabel()) == "" {
@@ -664,6 +706,8 @@ func chainToProto(c forensics.Chain) proto.Chain {
 		return proto.Chain_CHAIN_ARBITRUM
 	case forensics.ChainSolana:
 		return proto.Chain_CHAIN_SOLANA
+	case forensics.ChainTron:
+		return proto.Chain_CHAIN_TRON
 	}
 	return proto.Chain_CHAIN_UNSPECIFIED
 }
@@ -680,6 +724,8 @@ func chainFromProto(c proto.Chain) forensics.Chain {
 		return forensics.ChainArbitrum
 	case proto.Chain_CHAIN_SOLANA:
 		return forensics.ChainSolana
+	case proto.Chain_CHAIN_TRON:
+		return forensics.ChainTron
 	}
 	return ""
 }

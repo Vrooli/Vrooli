@@ -11,6 +11,7 @@ const literalSelectors = {
   dashboard: {
     metricList: "metric-list",
     sceneCanvas: "scene-canvas",
+    sceneCanvasPixels: "scene-canvas-pixels",
     sceneStill: "scene-still",
     roomHero: "room-hero",
     roomLegend: "room-legend",

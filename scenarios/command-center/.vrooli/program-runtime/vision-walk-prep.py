@@ -35,23 +35,6 @@ channel = inputs.get('channel', 'operator')
 kind_suffix = '-test' if channel == 'test' else ''
 
 
-def error_class(exc):
-    text = str(exc)
-    lowered = text.lower()
-    # The control-plane registry was busy, not the target scenario. Keeping this
-    # separate stops a retryable, self-inflicted race from being reported as a
-    # source outage the operator should act on.
-    if 'lease contention' in lowered or 'database is locked' in lowered:
-        return 'lease_contention'
-    if 'grant' in text or 'run eligible' in text or 'run_eligible' in text:
-        return 'refused'
-    if any(v in text.lower() for v in ('unreachable', 'connection refused', 'no running runtime', 'bridge unavailable')):
-        return 'scenario_unreachable'
-    if 'deadline' in text.lower():
-        return 'deadline_exceeded'
-    return 'binding_error'
-
-
 def timestamp(value):
     try:
         parsed = datetime.fromisoformat(value.replace('Z', '+00:00'))
@@ -105,8 +88,11 @@ def team_coverage():
     try:
         rows = prompt_manager.team.list().head(40)
     except Exception as exc:
-        klass = error_class(exc)
-        envelope['errors'].append({'class': klass, 'where': 'team_list', 'detail': clip(exc, 180)})
+        _, klass = program.classify(exc, owner=True)
+        failure = (program.deadline_refusal(exc, where='team_list')
+                   if klass == 'deadline_exceeded' else
+                   {'class': klass, 'detail': str(exc)[:240], 'where': 'team_list'})
+        envelope['errors'].append(failure)
         envelope['signals']['teams'] = {'status': 'unavailable', 'reason': klass,
                                         'read_scopes': list(DECLARED_TEAMS)}
         return list(DECLARED_TEAMS)
@@ -146,9 +132,12 @@ def collect():
         source = {'binding': binding, 'read_at': now.isoformat(), 'status': 'unavailable', 'rows': []}
         envelope['signals']['sources'][name] = source
         if isinstance(result, Exception):
-            klass = error_class(result)
+            _, klass = program.classify(result, owner=True)
+            failure = (program.deadline_refusal(result, where=name)
+                       if klass == 'deadline_exceeded' else
+                       {'class': klass, 'detail': str(result)[:240], 'where': name})
             source['reason'] = klass
-            envelope['errors'].append({'class': klass, 'where': name, 'detail': clip(result, 180)})
+            envelope['errors'].append(failure)
             continue
         try:
             meta = result.meta()

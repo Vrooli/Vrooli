@@ -21,6 +21,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		// any output-format branch. The primitive carries proof of proto_list that
 		// LoadFromManifestPrimitives reconciles against the manifest declaration.
 		"SearchService.Search": cliapp.ProtoList(h.searchCall, h.searchReport),
+		"composition-search":   cliapp.Action(h.compositionSearchCall, h.compositionSearchReport),
 		// status is declared architecture.primitive "operational" — backend
 		// availability rendered through the Status -> Triage -> Next Steps contract.
 		"SearchService.Status": cliapp.ProtoOperational(h.statusCall, h.statusReport),

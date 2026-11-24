@@ -26,7 +26,8 @@ export interface BoardControllerValue {
   selectBeat: (index: number) => void;
   /**
    * Keep the current beat on screen past its authored dwell while `holding`.
-   * A paged strip or an auto-scrolling list holds until it has been read once.
+   * A paged strip or auto-scrolling list holds through its automatic pass;
+   * manual inspection controls remain usable after the beat is released.
    */
   holdBeat: (id: string, holding: boolean) => void;
   /** The room reports each beat's reading time; a beat lasts that long, never less than its authored dwell. */

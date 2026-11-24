@@ -18,7 +18,7 @@ metadata:
 ---
 ## Practice focus: Command Center Customization
 
-Extend a Command Center board by editing data, never by editing the engine. Every board is a set of split config files — connectors, signals, rooms, themes, compositions, readouts — plus optional connector packs that carry bespoke visuals. The shipped settings surface edits the board's real section model: rooms cycle through ordered beats, each beat has a hero, dwell, layout, and compatible metric bindings. Add capability by adding a file and binding it; prove you added nothing to the operator's own board by the zero-visual-diff gate.
+Extend a Command Center board primarily through split config files for connectors, signals, rooms, themes, compositions, and readouts. A new visual needs a scene module and a composition definition; connector-specific visuals also join their pack. Keep the shared renderer generic, and change it only when a reusable engine behavior is missing. The shipped settings surface edits the real section model: ordered room beats with hero, dwell, layout, and compatible metric bindings. Add a new data capability through its catalog entry and binding; prove default-board changes with the zero-visual-diff gate.
 
 This is the *extend* skill. The base `command-center` skill *reads* the instrument; this one *changes what it renders*. Read the customization contract before you start: it owns the seam, the vocabulary, and the resolved design decisions.
 
@@ -70,7 +70,7 @@ The contract defines seven separately-swappable layers. This table is orientatio
 | Connector | `config/connectors/<id>.json` — base URL + auth ref + transport | — |
 | Signal | `config/signals/<id>.json` — one measurement (a connector + select path + TTL + shape) | a connector |
 | Theme | `config/themes/<id>.json` — palette tokens only, no geometry | — |
-| Composition | `config/compositions/<id>.json` (+ generated `.slots.json`) — animated background; declares slots, names no color | slots ← signals |
+| Composition | `config/compositions/<id>.json` plus a `.slots.json` sidecar checked against its scene definition — animated background; declares slots, names no color | slots ← signals |
 | Readout | `config/readouts/<id>.json` — a foreground tile keyed by a signal's `kind` | a signal |
 | Room | `config/rooms/<id>.json` — theme + composition + ordered beats + `bind` | theme, composition, signals |
 
@@ -159,16 +159,16 @@ An unbound slot does not break — it degrades to its `whenUnbound` visual (`dec
 
 **Entry:** you need a *new motion*, not a new palette — an animated background no existing composition provides.
 
-A composition is a geometry module. Its slot manifest JSON is **generated from the module**, so the module — not the JSON — is the source of truth.
+A composition module exports one definition that co-locates its `id`, scene factory, and slot manifest. `ui/src/scenes/index.ts` derives the runtime factories and parity map from engine definitions and enabled connector-pack definitions. The `.slots.json` catalog sidecar is maintained separately and checked against the module definition; it is not generated yet.
 
 **Actions:**
-1. Add a scene module under `ui/src/scenes/` that exports a `draw()` and a slot manifest (`{ <slotName>: { shape, role, whenUnbound, columns? } }`). Register it in `ui/src/scenes/index.ts`.
+1. Add a scene module under `ui/src/scenes/` with its scene factory and slot manifest (`{ <slotName>: { shape, role, whenUnbound, columns? } }`), then export `compositionDefinition` with its unique `id`, factory, and manifest. Register generic definitions in `ui/src/scenes/index.ts`; add connector-specific definitions to that connector's `ui/src/packs/<pack>.ts` composition list.
 2. **Name no color.** Draw with `palette.primary` / `palette.accent` / etc. passed in at draw time. A composition that hardcodes a color breaks the theme invariant (see anti-patterns).
 3. **Read only slots, never a global signal id.** Read `slot("<name>")`; never `read(data, "throughput_stats")`. All addressing lives in the room's `bind`.
 4. **Declare a `whenUnbound` for every slot** so an unbound composition degrades to a defined visual, not a blank frame.
 5. Respect the quiet-zone contract and the Full/Reduced/Still tier ladder in `UI-ARCHITECTURE.md`. The scene must render a correct first frame with no animation elapsed.
-6. Regenerate and verify the sidecar: `pnpm slots:check` (runs `slotManifests.test.ts`) proves the generated `.slots.json` matches the module's exported manifest. Drift here fails the build.
-7. **Bespoke vs. generic — decide before you register.** Use the table below. A composition specific to one connector's data (an earth-arc map, a release ladder) ships **inside that connector's pack** (`ui/src/packs/<pack>.ts` — its `compositions` and `readouts` maps), so it registers only when that connector is enabled and disappears from the picker when it is disabled. A generic composition (an orbital field, a funnel) ships in the engine catalog.
+6. Add `config/compositions/<id>.json` and `config/compositions/<id>.slots.json`, then run `pnpm slots:check` (runs `slotManifests.test.ts`) to prove the catalog sidecar matches the module's exported manifest. Keep the module manifest as the source of truth; update its sidecar when it changes. Drift here fails the check.
+7. **Bespoke vs. generic — decide before you register.** Use the table below. A composition specific to one connector's data (an earth-arc map, a release ladder) ships **inside that connector's pack** (`ui/src/packs/<pack>.ts` — its `compositions` list and `readouts` map), so it registers only when that connector is enabled and disappears from the picker when it is disabled. A generic composition (an orbital field, a funnel) ships in the engine catalog.
 
 | Question | If YES | If NO |
 |---|---|---|
@@ -181,7 +181,7 @@ A composition is a geometry module. Its slot manifest JSON is **generated from t
 - Swapping the room's theme recolors the scene with no scene edit (proves color-at-draw-time).
 - `pnpm test` and `pnpm type-check` pass.
 
-**Artifacts:** the scene module, its registration, its generated `.slots.json`, and — if bespoke — the pack entry.
+**Artifacts:** the scene module and its `compositionDefinition`, the catalog files and parity check, and — if bespoke — the pack entry.
 
 ---
 
@@ -193,7 +193,7 @@ A composition is a geometry module. Its slot manifest JSON is **generated from t
 | A composition names a color (`#8aa8ff`, `"cyan"`) | Breaks the zero-diff theme invariant; the room can no longer recolor it | Draw with the `palette` passed at draw time; name no color |
 | A new signal ships with no `sample` | Cannot be previewed; its coverage/trust ink cannot be checked; hides behind live data | Author a `sample` with a truthful `basis`; preview is the honesty check |
 | Binding a `scalar` signal to a `rows` slot to "make it fit" | Save-time validation error; or worse, a scene that reads a shape it cannot use | Match the signal shape to the slot shape; add a correctly-shaped signal if none fits |
-| Editing the `.slots.json` by hand | It is generated; the next build regenerates over your edit | Edit the module's exported manifest, then `pnpm slots:check` |
+| Editing `.slots.json` without updating the module | The catalog sidecar drifts from the renderer's source of truth | Update the module's manifest and mirror it in the sidecar, then run `pnpm slots:check` |
 | Adding a Vrooli-shaped composition to the engine catalog | Every third-party board then carries dead Vrooli code | Ship bespoke visuals in a connector pack that registers only when enabled |
 | "Improving" a default room's colors or beats while generalizing | Regresses instance zero; conflates two efforts | Keep generalization pixel-identical; take visual changes to a separate, DESIGN-governed effort |
 
@@ -205,7 +205,7 @@ Customization is investigative — you discover a connector's response shape, a 
 
 - Record durable findings (a connector's real response shape, a non-obvious bind, a tier-ladder constraint) in `path:scenarios/command-center/docs/internal/` alongside the existing `DECISIONS.md` / `PROBLEMS.md`. Do not create standalone `*_AUDIT.md` files.
 - New authored artifacts (a signal's provenance, a composition's slot rationale) belong in the file itself: a signal's `basis`, a `description`, a protective comment on a non-obvious slot.
-- When a customization pattern recurs across agents, that is the signal to promote it — a new preset, a CLI verb, or a pack — per `path:docs/agent-system/PROMOTION_LADDER.md`. Today there is no customization CLI verb; steps are file edits and local build gates. A recurring, stable edit path is the evidence that earns one.
+- When a customization pattern recurs across agents, that is the signal to promote it — a new preset, a CLI verb, or a pack — per `path:docs/agent-system/SKILL_AUTHORING.md#promotion-ladder`. Today there is no customization CLI verb; steps are file edits and local build gates. A recurring, stable edit path is the evidence that earns one.
 
 ---
 
@@ -217,12 +217,12 @@ You must:
 - Keep instance zero pixel-identical unless the task explicitly owns a DESIGN-governed visual change; route any default-file edit through the zero-diff harness.
 - Give every new signal an honest `coverage`, a `sourceTimePolicy`, and a `sample`.
 - Make every composition read slots and name no color.
-- Regenerate derived artifacts (`pnpm theme:generate`, `pnpm slots:check`) rather than hand-editing them.
+- Regenerate theme CSS with `pnpm theme:generate`. Keep each `.slots.json` sidecar aligned with its module definition and verify parity with `pnpm slots:check`.
 - Ship connector-specific visuals in a pack, not the engine.
 
 You must not:
 - Edit the rendering engine, the honesty model, or the tier ladder to make one board work.
-- Hand-edit generated files (`.slots.json`, theme CSS).
+- Hand-edit generated theme CSS.
 - Fake coverage or trust to make preview read green.
 
 ---
@@ -233,7 +233,7 @@ You must not:
 |---|---|---|
 | Settings "Save" stays disabled with a red message | `validateRoomBinding` rejected the room: a bound signal is unknown, its shape mismatches the slot, or a required column is missing | Read the message; it names the slot, signal, and reason. Match the shape or add the column to the signal. |
 | A new composition renders a blank background | A slot has no `whenUnbound`, or `draw()` threw on the first frame (e.g. a negative radius from a negative clock) | Declare `whenUnbound` for every slot; clamp time to non-negative; the engine falls back to the composed still on a failed draw. |
-| `pnpm slots:check` fails after editing a scene | The generated `.slots.json` no longer matches the module's exported manifest | Regenerate; never edit the sidecar by hand. The module export is the source of truth. |
+| `pnpm slots:check` fails after editing a scene | The `.slots.json` sidecar no longer matches the module's exported manifest | Compare both files, make the sidecar match the module export, then rerun the check. The module export is the source of truth. |
 | A new theme does not change any color | `pnpm theme:generate` was not run after adding the token file | Run it from `ui/`; the theme is inert until the CSS is regenerated. |
 | A bespoke readout/composition never appears in the picker | Its pack is not enabled | Enable the pack via `configureEnabledPacks` in `ui/src/scenes/index.ts`; a pack's visuals register only when its connector is enabled. |
 | A background stops reacting after a signal rename | The room's `bind` still points at the old signal id | Update the `bind` map; a composition addresses data only through the room's binding. |

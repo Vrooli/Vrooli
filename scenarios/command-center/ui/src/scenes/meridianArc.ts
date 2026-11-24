@@ -113,6 +113,8 @@ export function meridianArc(): Scene {
   };
 }
 
+export const compositionDefinition = { id: "meridian-arc", create: meridianArc, slots: slotManifest };
+
 function drawGreatCircleRoute(
   frame: Parameters<Scene["draw"]>[0],
   projection: ReturnType<typeof geoOrthographic>,

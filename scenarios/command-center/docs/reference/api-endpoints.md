@@ -151,8 +151,21 @@ Generated Connect RPC in `command-center/v1/walk/walk.proto` exposes `Read`,
 scope with separate operator/test kinds. Publish and Checkpoint are explicit
 writes of owned records only. Each requires a request key and predecessor id
 (empty for no predecessor). Invalid input is rejected; conflicting replay or
-predecessor returns `aborted`; downstream errors remain failures. Successful
-writes are read back before returning receipts. Exact retries resolve by request
-key before transition validation, even after a later transition. Source Ledger
-owns the atomic conditional append. No Command Center database or process-local
-lock is used as an authority for continuity.
+predecessor returns `aborted`; downstream errors remain failures. The Journal
+client resolves `SOURCE_LEDGER_BASE_URL` when explicitly configured, otherwise
+uses api-core scenario discovery on each request and falls back to
+`SOURCE_LEDGER_API_PORT`. A valid append receipt is checked against the
+requested kind/body; no follow-up read is needed on the normal path. On
+`unavailable` or `deadline_exceeded`, Command Center reads the same request key
+once and accepts only matching durable content. Exact retries resolve by
+request key before transition validation, even after a later transition.
+Source Ledger owns the atomic conditional append and durable store; no Command
+Center database or process-local lock is an authority for continuity. The
+opt-in cross-product integration test composes this runtime client with the
+production Journal Connect handler and file-backed SQLite (`go test -tags=crossproduct`
+in Source Ledger). The port-fallback case leaves `SOURCE_LEDGER_BASE_URL` empty,
+injects a deterministic api-core resolver failure, and proves the same consumer
+route selects the owner at `SOURCE_LEDGER_API_PORT`; it simulates handler
+reconstruction in-test, not the full scenario supervisor or served Command
+Center process. Peer/registry resolution and the live `vrooli scenario port`
+CLI remain unverified by that isolated case.

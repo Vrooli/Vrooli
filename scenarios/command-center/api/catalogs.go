@@ -56,9 +56,38 @@ func (s *Server) handleDeleteCatalogEntry(w http.ResponseWriter, r *http.Request
 		writeError(w, http.StatusBadRequest, "invalid_catalog_entry", "invalid catalog entry", nil)
 		return
 	}
+	if err := ensureConfigRoot(); err != nil {
+		writeConfigReadError(w, err)
+		return
+	}
 	path := filepath.Join(catalogDir(), name, id+".json")
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		if rootErr := ensureConfigRoot(); rootErr != nil {
+			writeConfigReadError(w, rootErr)
+			return
+		}
+		writeError(w, http.StatusNotFound, "catalog_entry_not_found", "catalog entry not found", nil)
+		return
+	}
+	var rooms []Room
+	if name == "rooms" {
+		var err error
+		rooms, err = roomCatalogMutation(id, nil)
+		if err != nil {
+			if isConfigRootUnavailable(err) {
+				writeConfigReadError(w, err)
+				return
+			}
+			writeError(w, http.StatusBadRequest, "catalog_invalid", err.Error(), nil)
+			return
+		}
+	}
 	if err := os.Remove(path); err != nil {
 		if os.IsNotExist(err) {
+			if rootErr := ensureConfigRoot(); rootErr != nil {
+				writeConfigReadError(w, rootErr)
+				return
+			}
 			writeError(w, http.StatusNotFound, "catalog_entry_not_found", "catalog entry not found", nil)
 		} else {
 			writeError(w, http.StatusInternalServerError, "catalog_delete_failed", err.Error(), nil)
@@ -66,10 +95,7 @@ func (s *Server) handleDeleteCatalogEntry(w http.ResponseWriter, r *http.Request
 		return
 	}
 	if name == "rooms" {
-		if err := s.reloadRoomCatalog(); err != nil {
-			writeError(w, http.StatusBadRequest, "catalog_invalid", err.Error(), nil)
-			return
-		}
+		s.registry.Rooms = rooms
 	}
 	if name == "signals" {
 		if err := LoadSplitSignalCatalog(s.registry); err != nil {
@@ -81,6 +107,10 @@ func (s *Server) handleDeleteCatalogEntry(w http.ResponseWriter, r *http.Request
 }
 
 func (s *Server) handleCatalogs(w http.ResponseWriter, _ *http.Request) {
+	if err := ensureConfigRoot(); err != nil {
+		writeConfigReadError(w, err)
+		return
+	}
 	result := map[string][]map[string]any{}
 	for name := range catalogNames {
 		result[name] = readCatalog(name)
@@ -120,6 +150,10 @@ func (s *Server) handleCatalog(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "catalog_not_found", "unknown catalog", nil)
 		return
 	}
+	if err := ensureConfigRoot(); err != nil {
+		writeConfigReadError(w, err)
+		return
+	}
 	writeJSON(w, http.StatusOK, readCatalog(name))
 }
 
@@ -128,6 +162,10 @@ func (s *Server) handleCatalogEntry(w http.ResponseWriter, r *http.Request) {
 	name, id := vars["catalog"], vars["id"]
 	if !catalogNames[name] || filepath.Base(id) != id || strings.Contains(id, "..") {
 		writeError(w, http.StatusBadRequest, "invalid_catalog_entry", "invalid catalog entry", nil)
+		return
+	}
+	if err := ensureConfigRoot(); err != nil {
+		writeConfigReadError(w, err)
 		return
 	}
 	var value map[string]any
@@ -140,13 +178,34 @@ func (s *Server) handleCatalogEntry(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "id_mismatch", fmt.Sprintf("body id must be %q", id), nil)
 		return
 	}
-	dir := filepath.Join(catalogDir(), name)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	var rooms []Room
+	if name == "rooms" {
+		var err error
+		rooms, err = roomCatalogMutation(id, value)
+		if err != nil {
+			if isConfigRootUnavailable(err) {
+				writeConfigReadError(w, err)
+				return
+			}
+			writeError(w, http.StatusBadRequest, "catalog_invalid", err.Error(), nil)
+			return
+		}
+	}
+	dir, err := ensureCatalogDirectory(name)
+	if err != nil {
+		if isConfigRootUnavailable(err) {
+			writeConfigReadError(w, err)
+			return
+		}
 		writeError(w, http.StatusInternalServerError, "catalog_write_failed", err.Error(), nil)
 		return
 	}
 	tmp, err := os.CreateTemp(dir, ".catalog-*")
 	if err != nil {
+		if rootErr := ensureConfigRoot(); rootErr != nil {
+			writeConfigReadError(w, rootErr)
+			return
+		}
 		writeError(w, http.StatusInternalServerError, "catalog_write_failed", err.Error(), nil)
 		return
 	}
@@ -163,14 +222,15 @@ func (s *Server) handleCatalogEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := os.Rename(tmp.Name(), filepath.Join(dir, id+".json")); err != nil {
+		if rootErr := ensureConfigRoot(); rootErr != nil {
+			writeConfigReadError(w, rootErr)
+			return
+		}
 		writeError(w, http.StatusInternalServerError, "catalog_write_failed", err.Error(), nil)
 		return
 	}
 	if name == "rooms" {
-		if err := s.reloadRoomCatalog(); err != nil {
-			writeError(w, http.StatusBadRequest, "catalog_invalid", err.Error(), nil)
-			return
-		}
+		s.registry.Rooms = rooms
 	}
 	if name == "signals" {
 		if err := LoadSplitSignalCatalog(s.registry); err != nil {
@@ -182,17 +242,9 @@ func (s *Server) handleCatalogEntry(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) reloadRoomCatalog() error {
-	rooms := make([]Room, 0)
-	for _, entry := range readCatalog("rooms") {
-		encoded, err := json.Marshal(entry)
-		if err != nil {
-			return err
-		}
-		var room Room
-		if err := json.Unmarshal(encoded, &room); err != nil {
-			return err
-		}
-		rooms = append(rooms, room)
+	rooms, err := decodeRoomCatalog(readCatalog("rooms"))
+	if err != nil {
+		return err
 	}
 	if len(rooms) > 0 {
 		s.registry.Rooms = rooms
@@ -200,21 +252,58 @@ func (s *Server) reloadRoomCatalog() error {
 	return nil
 }
 
+func roomCatalogMutation(id string, replacement map[string]any) ([]Room, error) {
+	if err := ensureConfigRoot(); err != nil {
+		return nil, err
+	}
+	entries := make([]map[string]any, 0)
+	found := false
+	for _, entry := range readCatalog("rooms") {
+		if entry["id"] == id {
+			found = true
+			if replacement != nil {
+				entries = append(entries, replacement)
+			}
+			continue
+		}
+		entries = append(entries, entry)
+	}
+	if replacement != nil && !found {
+		entries = append(entries, replacement)
+	}
+	rooms, err := decodeRoomCatalog(entries)
+	if err != nil {
+		return nil, err
+	}
+	if len(rooms) == 0 {
+		return nil, fmt.Errorf("at least one valid room must remain")
+	}
+	return rooms, nil
+}
+
+func decodeRoomCatalog(entries []map[string]any) ([]Room, error) {
+	rooms := make([]Room, 0, len(entries))
+	for _, entry := range entries {
+		encoded, err := json.Marshal(entry)
+		if err != nil {
+			return nil, err
+		}
+		var room Room
+		if err := json.Unmarshal(encoded, &room); err != nil {
+			return nil, err
+		}
+		rooms = append(rooms, room)
+	}
+	return rooms, nil
+}
+
 // LoadSplitRoomCatalog is the startup seam: the registry remains the
 // compatibility envelope for readings, while editable room presets own the
 // instance composition/theme/bind topology.
 func LoadSplitRoomCatalog(reg *Registry) error {
-	rooms := make([]Room, 0)
-	for _, entry := range readCatalog("rooms") {
-		encoded, err := json.Marshal(entry)
-		if err != nil {
-			return err
-		}
-		var room Room
-		if err := json.Unmarshal(encoded, &room); err != nil {
-			return err
-		}
-		rooms = append(rooms, room)
+	rooms, err := decodeRoomCatalog(readCatalog("rooms"))
+	if err != nil {
+		return err
 	}
 	if len(rooms) == 0 {
 		return fmt.Errorf("no split room catalog entries found")

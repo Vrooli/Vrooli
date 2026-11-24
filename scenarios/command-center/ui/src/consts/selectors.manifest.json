@@ -9,6 +9,10 @@
       "testId": "scene-canvas",
       "selector": "[data-testid=\"scene-canvas\"]"
     },
+    "dashboard.sceneCanvasPixels": {
+      "testId": "scene-canvas-pixels",
+      "selector": "[data-testid=\"scene-canvas-pixels\"]"
+    },
     "dashboard.sceneStill": {
       "testId": "scene-still",
       "selector": "[data-testid=\"scene-still\"]"
@@ -89,6 +93,6 @@
   "dynamicSelectors": {},
   "sources": {
     "ui/src/consts/selectors.library.ts": "65bd9b3ff10eeee3425671fdf0359627ed04d94f7dfc01f8f0a8ae42bb51a701",
-    "ui/src/consts/selectors.ts": "f4e57f008072d0e4daddd227e295db87077305be076de32bf50be6f07bfa5dc3"
+    "ui/src/consts/selectors.ts": "a6d6bbcff6e8f2c987e282df181a4307972b1a80e800a92095b065abe3842850"
   }
 }

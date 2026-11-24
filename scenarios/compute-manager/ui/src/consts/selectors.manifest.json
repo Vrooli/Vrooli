@@ -113,6 +113,50 @@
       "testId": "page-settings",
       "selector": "[data-testid=\"page-settings\"]"
     },
+    "adoption.form": {
+      "testId": "adoption-draft-form",
+      "selector": "[data-testid=\"adoption-draft-form\"]"
+    },
+    "adoption.displayName": {
+      "testId": "adoption-display-name",
+      "selector": "[data-testid=\"adoption-display-name\"]"
+    },
+    "adoption.host": {
+      "testId": "adoption-host",
+      "selector": "[data-testid=\"adoption-host\"]"
+    },
+    "adoption.user": {
+      "testId": "adoption-user",
+      "selector": "[data-testid=\"adoption-user\"]"
+    },
+    "adoption.monthlyCost": {
+      "testId": "adoption-monthly-cost",
+      "selector": "[data-testid=\"adoption-monthly-cost\"]"
+    },
+    "adoption.currency": {
+      "testId": "adoption-currency",
+      "selector": "[data-testid=\"adoption-currency\"]"
+    },
+    "adoption.taxBasis": {
+      "testId": "adoption-tax-basis",
+      "selector": "[data-testid=\"adoption-tax-basis\"]"
+    },
+    "adoption.submit": {
+      "testId": "adoption-draft-submit",
+      "selector": "[data-testid=\"adoption-draft-submit\"]"
+    },
+    "adoption.credentialStep": {
+      "testId": "adoption-credential-step",
+      "selector": "[data-testid=\"adoption-credential-step\"]"
+    },
+    "adoption.statusCard": {
+      "testId": "adoption-status-card",
+      "selector": "[data-testid=\"adoption-status-card\"]"
+    },
+    "adoption.status": {
+      "testId": "adoption-status",
+      "selector": "[data-testid=\"adoption-status\"]"
+    },
     "errorBoundary.root": {
       "testId": "error-boundary-root",
       "selector": "[data-testid=\"error-boundary-root\"]"
@@ -195,6 +239,6 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "7a2bdf752d9d1c1f14d1437f979d7134654bb2aed3261ba4bb4a0735628ba339",
-    "ui/src/consts/selectors.ts": "b7d22195d51209201e72c51e528142c892217a1a9ec60189b77a2095a6195db9"
+    "ui/src/consts/selectors.ts": "a4759bec4dab503187b36ae7c33b4ee49f7aabf91c7d2bab5fe16b1fdab8b9a7"
   }
 }

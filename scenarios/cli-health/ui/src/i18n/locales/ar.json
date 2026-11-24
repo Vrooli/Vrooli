@@ -5,7 +5,7 @@
     "eyebrow": "قالب السيناريو",
     "description": "واجهة المستخدم البدائية هذه بسيطة عن قصد. استبدلها بتجربة خاصة بالسيناريو مع الحفاظ على اتفاقيات التصميم (Tailwind + shadcn) وتوصيل API كما هو."
   },
-"errors": {
+  "errors": {
     "canceled": "Operation canceled.",
     "unknown": "An unknown error occurred.",
     "invalid_argument": "Invalid input: {{message}}",
@@ -34,7 +34,8 @@
   "nav": {
     "search": "بحث",
     "validate": "تحقق",
-    "status": "الحالة"
+    "status": "الحالة",
+    "composition": "التكوين"
   },
   "search": {
     "title": "بحث الأوامر",
@@ -82,5 +83,20 @@
     "yes": "نعم",
     "no": "لا",
     "never": "لا يوجد"
+  },
+  "composition": {
+    "title": "تكوين CLI",
+    "description": "افحص كيفية توصيل السيناريو بـ ScenarioApp ومجموعات الأوامر والبيان. النتائج أدلة مصدر ثابتة وليست إثباتاً وقت التشغيل.",
+    "queryLabel": "سؤال حول التكوين",
+    "queryPlaceholder": "كيف تم تكوين cli-health؟",
+    "scenarioLabel": "السيناريو",
+    "scenarioPlaceholder": "معرّف السيناريو",
+    "submit": "افحص التكوين",
+    "loading": "جارٍ قراءة أدلة المصدر…",
+    "error": "فشل بحث التكوين: {{message}}",
+    "empty": "لا يوجد تطابق قوي للتكوين.",
+    "attestation": "إثبات المصدر: {{value}}",
+    "score": "درجة التطابق: {{score}}",
+    "degraded": "متدهور {{code}}: {{message}}"
   }
 }

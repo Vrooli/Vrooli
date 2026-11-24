@@ -66,3 +66,4 @@ replace github.com/vrooli/platform-go => ../../../packages/platform-go
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 
 replace github.com/vrooli/cliresolve => ../../../packages/cliresolve
+

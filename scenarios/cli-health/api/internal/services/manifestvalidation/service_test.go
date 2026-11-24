@@ -63,6 +63,16 @@ func newServiceWith(loader ManifestLoader, schema SchemaValidator, protos ProtoL
 	return New(Deps{Manifests: loader, Schema: schema, Protos: protos})
 }
 
+func validateScenarioWithProto(t *testing.T, manifest []byte, surface ProtoSurface) Report {
+	t.Helper()
+	svc := newServiceWith(stubLoader{raw: manifest}, stubSchema{}, stubProto{surface: surface})
+	report, err := svc.ValidateScenario(context.Background(), "s")
+	if err != nil {
+		t.Fatalf("ValidateScenario: %v", err)
+	}
+	return report
+}
+
 // A genuinely proto-less scenario (no own proto surface) keeps the soft
 // skip-with-warning when it has no manifest.
 func TestValidateScenario_ManifestMissing_ProtoLess(t *testing.T) {
@@ -150,12 +160,7 @@ func TestValidateTarget_ProjectUsesProjectPipeline(t *testing.T) {
 }
 
 func TestValidateScenario_ManifestParseError(t *testing.T) {
-	svc := newServiceWith(
-		stubLoader{raw: []byte("not json")},
-		stubSchema{},
-		stubProto{surface: ProtoSurface{Services: []ProtoService{{Name: "Svc", Methods: []string{"Do"}}}}},
-	)
-	r, _ := svc.ValidateScenario(context.Background(), "s")
+	r := validateScenarioWithProto(t, []byte("not json"), ProtoSurface{Services: []ProtoService{{Name: "Svc", Methods: []string{"Do"}}}})
 	if r.Passed {
 		t.Fatalf("invalid JSON should fail")
 	}
@@ -197,39 +202,37 @@ func TestValidateScenario_ProtoBuildFailed(t *testing.T) {
 	}
 }
 
-func TestValidateScenario_BindingUnknownService(t *testing.T) {
-	svc := newServiceWith(
-		stubLoader{raw: []byte(validManifest)},
-		stubSchema{},
-		stubProto{surface: ProtoSurface{Services: []ProtoService{{Name: "Other", Methods: []string{"Do"}}}}},
-	)
-	r, _ := svc.ValidateScenario(context.Background(), "s")
-	if !findingHasCode(r.Findings, CodeBindingUnknownSvc) {
-		t.Fatalf("expected binding_unknown_service, got %+v", r.Findings)
+func TestValidateScenario_BindingMustResolveServiceAndMethod(t *testing.T) {
+	tests := []struct {
+		name        string
+		surface     ProtoSurface
+		wantFinding string
+	}{
+		{
+			name:        "unknown service",
+			surface:     ProtoSurface{Services: []ProtoService{{Name: "Other", Methods: []string{"Do"}}}},
+			wantFinding: CodeBindingUnknownSvc,
+		},
+		{
+			name:        "unknown method",
+			surface:     ProtoSurface{Services: []ProtoService{{Name: "Svc", Methods: []string{"Other"}}}},
+			wantFinding: CodeBindingUnknownMethod,
+		},
 	}
-}
-
-func TestValidateScenario_BindingUnknownMethod(t *testing.T) {
-	svc := newServiceWith(
-		stubLoader{raw: []byte(validManifest)},
-		stubSchema{},
-		stubProto{surface: ProtoSurface{Services: []ProtoService{{Name: "Svc", Methods: []string{"Other"}}}}},
-	)
-	r, _ := svc.ValidateScenario(context.Background(), "s")
-	if !findingHasCode(r.Findings, CodeBindingUnknownMethod) {
-		t.Fatalf("expected binding_unknown_method, got %+v", r.Findings)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := validateScenarioWithProto(t, []byte(validManifest), tt.surface)
+			if !findingHasCode(r.Findings, tt.wantFinding) {
+				t.Fatalf("expected %s, got %+v", tt.wantFinding, r.Findings)
+			}
+		})
 	}
 }
 
 func TestValidateScenario_OrphanMethod(t *testing.T) {
 	// Manifest binds Svc.Do, but proto declares Svc.Do AND Svc.Extra.
 	// Svc.Extra is neither bound nor omitted -> orphan.
-	svc := newServiceWith(
-		stubLoader{raw: []byte(validManifest)},
-		stubSchema{},
-		stubProto{surface: ProtoSurface{Services: []ProtoService{{Name: "Svc", Methods: []string{"Do", "Extra"}}}}},
-	)
-	r, _ := svc.ValidateScenario(context.Background(), "s")
+	r := validateScenarioWithProto(t, []byte(validManifest), ProtoSurface{Services: []ProtoService{{Name: "Svc", Methods: []string{"Do", "Extra"}}}})
 	if !findingHasCode(r.Findings, CodeProtoOrphanMethod) {
 		t.Fatalf("expected proto_orphan_method, got %+v", r.Findings)
 	}
@@ -238,38 +241,37 @@ func TestValidateScenario_OrphanMethod(t *testing.T) {
 	}
 }
 
-func TestValidateScenario_SharedBindingDoesNotRequireFullCoverage(t *testing.T) {
-	manifest := `{
+func TestValidateScenario_SharedAndOmittedBindingsAreCovered(t *testing.T) {
+	tests := []struct {
+		name     string
+		manifest string
+		surface  ProtoSurface
+	}{
+		{
+			name: "shared binding does not require full coverage",
+			manifest: `{
       "name": "fixture",
       "groups": [{"name":"validate","commands":[{"name":"scenario","binding":{"kind":"connect-rpc","service":"ScenarioValidationService","method":"ValidateScenario"},"governance":{"effect":"read","run_eligible":true}}]}]
-    }`
-	svc := newServiceWith(
-		stubLoader{raw: []byte(manifest)},
-		stubSchema{},
-		stubProto{surface: ProtoSurface{
-			Shared: []ProtoService{{Name: "ScenarioValidationService", Methods: []string{"ValidateScenario", "FutureSharedMethod"}}},
-		}},
-	)
-	r, _ := svc.ValidateScenario(context.Background(), "s")
-	if !r.Passed {
-		t.Fatalf("shared binding should pass without orphan coverage requirements; findings=%+v", r.Findings)
-	}
-}
-
-func TestValidateScenario_OmissionCoversOrphan(t *testing.T) {
-	manifest := `{
+    }`,
+			surface: ProtoSurface{Shared: []ProtoService{{Name: "ScenarioValidationService", Methods: []string{"ValidateScenario", "FutureSharedMethod"}}}},
+		},
+		{
+			name: "explicit omission covers orphan method",
+			manifest: `{
       "name": "fixture",
       "groups": [{"name":"g1","commands":[{"name":"do","binding":{"kind":"connect-rpc","service":"Svc","method":"Do"},"governance":{"effect":"read","run_eligible":true}}]}],
       "omitted": [{"service":"Svc","method":"Extra","reason":"internal-only"}]
-    }`
-	svc := newServiceWith(
-		stubLoader{raw: []byte(manifest)},
-		stubSchema{},
-		stubProto{surface: ProtoSurface{Services: []ProtoService{{Name: "Svc", Methods: []string{"Do", "Extra"}}}}},
-	)
-	r, _ := svc.ValidateScenario(context.Background(), "s")
-	if !r.Passed {
-		t.Fatalf("omitted entry should cover Svc.Extra; findings=%+v", r.Findings)
+			}`,
+			surface: ProtoSurface{Services: []ProtoService{{Name: "Svc", Methods: []string{"Do", "Extra"}}}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := validateScenarioWithProto(t, []byte(tt.manifest), tt.surface)
+			if !r.Passed {
+				t.Fatalf("binding coverage case should pass; findings=%+v", r.Findings)
+			}
+		})
 	}
 }
 
@@ -279,12 +281,7 @@ func TestValidateScenario_OrphanOmission(t *testing.T) {
       "groups": [{"name":"g1","commands":[{"name":"do","binding":{"kind":"connect-rpc","service":"Svc","method":"Do"},"governance":{"effect":"read","run_eligible":true}}]}],
       "omitted": [{"service":"Svc","method":"Ghost","reason":"stale"}]
     }`
-	svc := newServiceWith(
-		stubLoader{raw: []byte(manifest)},
-		stubSchema{},
-		stubProto{surface: ProtoSurface{Services: []ProtoService{{Name: "Svc", Methods: []string{"Do"}}}}},
-	)
-	r, _ := svc.ValidateScenario(context.Background(), "s")
+	r := validateScenarioWithProto(t, []byte(manifest), ProtoSurface{Services: []ProtoService{{Name: "Svc", Methods: []string{"Do"}}}})
 	if !findingHasCode(r.Findings, CodeOmissionOrphan) {
 		t.Fatalf("expected omission_orphan, got %+v", r.Findings)
 	}

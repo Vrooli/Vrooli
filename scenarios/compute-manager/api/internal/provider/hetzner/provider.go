@@ -58,12 +58,16 @@ type server struct {
 
 func (p *Provider) Create(ctx context.Context, spec provider.Spec) (provider.Instance, error) {
 	var body struct {
-		Name       string            `json:"name"`
-		ServerType string            `json:"server_type"`
-		Image      string            `json:"image"`
-		Location   string            `json:"location"`
-		UserData   string            `json:"user_data,omitempty"`
-		Labels     map[string]string `json:"labels,omitempty"`
+		Name       string `json:"name"`
+		ServerType string `json:"server_type"`
+		Image      string `json:"image"`
+		Location   string `json:"location"`
+		PublicNet  struct {
+			EnableIPv4 bool `json:"enable_ipv4"`
+			EnableIPv6 bool `json:"enable_ipv6"`
+		} `json:"public_net"`
+		UserData string            `json:"user_data,omitempty"`
+		Labels   map[string]string `json:"labels,omitempty"`
 	}
 	now := time.Now
 	if p.Now != nil {
@@ -71,6 +75,7 @@ func (p *Provider) Create(ctx context.Context, spec provider.Spec) (provider.Ins
 	}
 	body.Name = "vrooli-compute-" + strconv.FormatInt(now().UnixNano(), 10)
 	body.ServerType, body.Image, body.Location, body.UserData, body.Labels = spec.Size, spec.Image, spec.Region, spec.UserData, spec.Tags
+	body.PublicNet.EnableIPv4, body.PublicNet.EnableIPv6 = spec.IPv4, false
 	var out serverResponse
 	if err := p.do(ctx, http.MethodPost, "/servers", body, &out); err != nil {
 		return provider.Instance{}, err

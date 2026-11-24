@@ -7,6 +7,7 @@
   "metricIds": [
     "throughput_stats",
     "timing_stats",
+    "median_execution",
     "scope_stats",
     "blocking_stats",
     "agent_stats",
@@ -23,6 +24,10 @@
     },
     {
       "hero": "timing_stats",
+      "dwellSeconds": 10
+    },
+    {
+      "hero": "median_execution",
       "dwellSeconds": 10
     },
     {

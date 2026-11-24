@@ -1,8 +1,9 @@
 import { forwardRef, type CSSProperties } from "react";
 import type { Reading } from "../lib/api";
-import { InkMark, qualify, resolveReading } from "@vrooli/react-component-library/ProvenanceInk/0.1.3";
+import { InkMark, resolveReading } from "@vrooli/react-component-library/ProvenanceInk/0.1.3";
 import { lastOpening, ladderOf, openedBy, statusLabel, type LadderReading, type UnlockKind } from "../lib/ladder";
 import { AutoScroll } from "./AutoScroll";
+import { ReadingTrustLine } from "./ReadingTrustLine";
 
 const GROUPS: Array<{ kind: UnlockKind; title: string }> = [
   { kind: "ramp", title: "Ramps · how people get it" },
@@ -19,7 +20,6 @@ const summaryRank = (ladder: LadderReading): number => ladder.rungs[Math.min(4, 
  */
 export const ReachMapReadout = forwardRef<HTMLDivElement, { reading: Reading }>(function ReachMapReadout({ reading }, ref) {
   const resolution = resolveReading(reading);
-  const qualifier = qualify(reading, resolution);
   const resolved = ladderOf(reading);
   const ladder = resolved?.ladder;
   const rungIndex = new Map(ladder?.rungs.map((rung, index) => [rung.rank, index]) ?? []);
@@ -84,10 +84,7 @@ export const ReachMapReadout = forwardRef<HTMLDivElement, { reading: Reading }>(
           </div>
         </div>
       )}
-      <span className="cc-qualifier" data-qualifier data-tone={qualifier.tone}>
-        {resolved?.sampled && resolution.ink !== "none" ? <InkMark ink={resolution.ink}>illustrative</InkMark> : null}
-        {qualifier.text}
-      </span>
+      <ReadingTrustLine reading={reading} resolution={resolution} prefix={resolved?.sampled && resolution.ink !== "none" ? <InkMark ink={resolution.ink}>illustrative</InkMark> : null} />
     </div>
   );
 });

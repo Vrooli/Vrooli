@@ -89,6 +89,18 @@
       "testId": "forensic-cases-page",
       "selector": "[data-testid=\"forensic-cases-page\"]"
     },
+    "pages.attention": {
+      "testId": "forensic-attention-page",
+      "selector": "[data-testid=\"forensic-attention-page\"]"
+    },
+    "pages.attentionDeliverButton": {
+      "testId": "forensic-attention-deliver-button",
+      "selector": "[data-testid=\"forensic-attention-deliver-button\"]"
+    },
+    "pages.attentionDelivery": {
+      "testId": "forensic-attention-delivery",
+      "selector": "[data-testid=\"forensic-attention-delivery\"]"
+    },
     "pages.settings": {
       "testId": "page-settings",
       "selector": "[data-testid=\"page-settings\"]"
@@ -114,6 +126,7 @@
           "values": [
             "dashboard",
             "cases",
+            "attention",
             "settings"
           ]
         }
@@ -138,6 +151,6 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
-    "ui/src/consts/selectors.ts": "6556d8c17d5d294b35372c8db0380e768536390cbe436b40e4079dd7844ec8c8"
+    "ui/src/consts/selectors.ts": "4563d6d89fcb52da5dcbd30ca612c7b8c02dfd33cc9632a00057208b7aa9373a"
   }
 }

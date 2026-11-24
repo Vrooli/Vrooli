@@ -16,7 +16,7 @@
     "--color-surface": "rgba(22, 16, 54, 0.72)",
     "--color-foreground": "#ede8ff",
     "--color-muted-foreground": "#9a90c8",
-    "--color-primary": "#a06bff",
+    "--color-primary": "#a671ff",
     "--color-accent": "#d3b8ff",
     "--color-glow": "rgba(160, 107, 255, 0.5)",
     "--color-border": "rgba(160, 107, 255, 0.24)",

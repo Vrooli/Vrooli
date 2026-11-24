@@ -1,4 +1,4 @@
-import { DataTable, type DataTableColumn } from "@vrooli/react-component-library/DataTable/1.4.2";
+import { DataTable, type DataTableColumn } from "@vrooli/react-component-library/DataTable/1.4.8";
 import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
 import { useEffect, useState } from "react";
 

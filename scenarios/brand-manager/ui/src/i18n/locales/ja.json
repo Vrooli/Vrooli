@@ -30,9 +30,7 @@
   },
   "pages": {
     "dashboard": {
-      "title": "ダッシュボード",
-      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
-      "statPlaceholderLabel": "指標"
+      "title": "ダッシュボード"
     },
     "settings": {
       "title": "設定",

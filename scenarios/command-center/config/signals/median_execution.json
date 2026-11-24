@@ -1,0 +1,22 @@
+{
+  "id": "median_execution",
+  "label": "Median execution",
+  "description": "Median wall-clock minutes per agent execution; shown beside the mean so long outliers do not hide a typical run.",
+  "unit": "minutes",
+  "format": "minutes",
+  "shape": "scalar",
+  "source": {
+    "team": "director-swarm",
+    "binding": "scenario:swarm-manager",
+    "read": "/api/v1/stats",
+    "select": "median_execution",
+    "ttlSeconds": 30,
+    "integrationId": "swarm-manager",
+    "featureId": "median_execution",
+    "contractVersion": "legacy.v1",
+    "selector": "median_execution",
+    "expectedUnit": "minutes",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "NOW"
+}

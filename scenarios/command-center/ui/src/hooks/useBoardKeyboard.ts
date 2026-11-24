@@ -3,10 +3,10 @@ import { emitShortcutIntent } from "@vrooli/iframe-bridge";
 import type { BoardIntent } from "../lib/boardContext";
 
 const CYCLE_EXEMPT_PATHS = new Set(["/settings"]);
-const isEditableTarget = (target: EventTarget | null): boolean => {
-  const element = target as HTMLElement | null;
-  if (!element || typeof element.tagName !== "string") return false;
-  return element.tagName === "INPUT" || element.tagName === "TEXTAREA" || element.tagName === "SELECT" || element.isContentEditable;
+const isInteractiveTarget = (target: EventTarget | null): boolean => {
+  const element = target as Element | null;
+  if (!element || typeof element.closest !== "function") return false;
+  return element.closest("input, textarea, select, button, a[href], summary, [contenteditable]:not([contenteditable='false']), [role='button'], [role='link'], [role='checkbox'], [role='radio'], [role='slider'], [role='spinbutton'], [role='combobox'], [role='menuitem'], [role='switch']") !== null;
 };
 const KEY_INTENTS: Record<string, BoardIntent> = {
   arrowright: "navigate-right", arrowleft: "navigate-left", arrowup: "navigate-up", arrowdown: "navigate-down",
@@ -16,7 +16,7 @@ const KEY_INTENTS: Record<string, BoardIntent> = {
 export function useBoardKeyboard(path: string, rooms: { id: string }[], dispatch: (intent: BoardIntent) => void, goTo: (path: string) => void): void {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (CYCLE_EXEMPT_PATHS.has(path) || isEditableTarget(event.target)) return;
+      if (CYCLE_EXEMPT_PATHS.has(path) || isInteractiveTarget(event.target)) return;
       const key = event.key.toLowerCase();
       if (/^[1-9]$/.test(key)) { const room = rooms[Number(key) - 1]; if (room) { dispatch("reveal-controls"); goTo(`/${room.id}`); } return; }
       const intent = KEY_INTENTS[key];

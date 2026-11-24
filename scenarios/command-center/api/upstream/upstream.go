@@ -75,16 +75,9 @@ func NewLPBSResolved(resolve func() string, bearerToken string) Client {
 	return NewRESTResolved("lpbs", resolve, bearerToken)
 }
 
-// NewLPBSRemoteProfileResolved routes production reads through the local LPBS
-// remote-profile broker. The broker owns the deployed service credential; the
-// caller only supplies the local LPBS service credential and a profile tag.
-func NewLPBSRemoteProfileResolved(resolveBase, resolveServiceToken func() string, profileTag string) Client {
-	return &remoteProfileClient{
-		resolveBase:         resolveBase,
-		resolveServiceToken: resolveServiceToken,
-		profileTag:          profileTag,
-		http:                &http.Client{Timeout: 5 * time.Second},
-	}
+// NewLPBSRemoteProfileAuthorized accepts context-aware short-lived credentials.
+func NewLPBSRemoteProfileAuthorized(resolveBase func() string, authorize func(context.Context) (string, error), profileTag string) Client {
+	return &remoteProfileClient{resolveBase: resolveBase, authorize: authorize, profileTag: profileTag, http: &http.Client{Timeout: 5 * time.Second}}
 }
 
 func optionalFeatureSet(features []map[string]string) map[string]string {

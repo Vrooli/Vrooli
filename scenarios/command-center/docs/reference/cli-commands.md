@@ -161,8 +161,12 @@ more evidence instead of increasing every source limit.
 
 All three owner commands accept `--channel test` for isolated rehearsals. Test
 records cannot become operator state. Preserve the exact request key and payload
-when retrying an uncertain write; changing content under the same key is a
-conflict. A different predecessor is a conflict too. Reread and resolve intent
+when retrying an uncertain write. If Source Ledger committed an append but its
+reply was lost, Command Center looks up that same request key and returns the
+saved receipt. A noncommitted provider failure remains `Unavailable`; retry the
+same request after recovery. Changing content under the same key is a conflict.
+A different predecessor is a conflict too. Channels are exactly `operator` or
+`test`; any other value is rejected before reading or writing. Reread and resolve intent
 rather than changing the key to bypass it. Owner validation checks supplied
 structure and continuity; the prep skill still verifies source interpretation
 and decision relevance. Publication does not approve or execute a decision.

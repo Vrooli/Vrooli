@@ -6,7 +6,7 @@ import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { errorMessage } from "../../lib/errorMessage";
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { refineCandidate } from "../../api/candidates";
 import { uploadAsset } from "../../api/assets";
 import { MaskBrush } from "./MaskBrush";

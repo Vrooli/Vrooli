@@ -27,6 +27,7 @@ type Deps struct {
 	ProbeTimeout    time.Duration
 	PortURLResolver PortURLResolver
 	HTTPClient      *http.Client
+	Now             func() time.Time
 }
 
 func New(d Deps) *Service {
@@ -40,6 +41,7 @@ func New(d Deps) *Service {
 			Client:       d.HTTPClient,
 			Resolver:     d.PortURLResolver,
 			ProbeTimeout: timeout,
+			Now:          d.Now,
 		})
 	}
 	return &Service{repoRoot: d.RepoRoot, healthProbe: probe, probeTimeout: timeout}

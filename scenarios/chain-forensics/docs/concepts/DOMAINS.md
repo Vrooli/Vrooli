@@ -9,7 +9,7 @@ rewrite what a public source actually showed.
 
 | Domain | Primary Archetype | Responsibility | Owns | First implementation | Source Paths |
 |---|---|---|---|---|---|
-| Case analysis | service | Reconstruct a bounded question into a source-linked graph, grade edges, record gaps, and prepare a private evidence packet. | Typed case documents, claims, occurrences, flow edges, analyst labels and immutable packet receipts | Public 1HQ3 forfeiture reconstruction; private real-rug case remains open | `packages/chain-forensics/case.go`; `scenarios/chain-forensics/api/internal/cases/` |
+| Case analysis | service | Reconstruct a bounded question into a source-linked graph, grade edges, record gaps, prepare a private evidence packet, and deliver exact packet versions to local attention. | Typed case documents, claims, occurrences, flow edges, analyst labels, immutable packet receipts, and packet-hash-bound local delivery receipts | Public 1HQ3 forfeiture reconstruction; private real-rug case remains open | `packages/chain-forensics/case.go`; `scenarios/chain-forensics/api/internal/cases/` |
 | Source acquisition | service | Retrieve normalized observations from free, keyless public chain interfaces; preserve capture time, URL, response hash, and completeness. | BTC transaction/address pages, EVM receipt/wallet snapshots, Solana finalized signature pages or caller-supplied finalized transaction signatures; bounded provider caches | Served mempool.space BTC, Base JSON-RPC, and Solana JSON-RPC routes | `packages/chain-forensics/mempool_client.go`; `packages/chain-forensics/evm_client.go`; `packages/chain-forensics/solana_client.go` |
 | Protocol correlation | service | Decode token, launch, bridge, and service events and join matching occurrences across chains. | Versioned decoders, protocol identities, cross-chain correlation candidates | Deferred until the BTC source/event contract is stable | Future package protocol decoders |
 | Labels and clusters | service | Store sourced public labels and evaluate explainable deposit-cluster rules without turning them into identity claims. | Label provenance, rule versions, candidate membership, counter-evidence | Deferred; requires independently sourced exchange-deposit labels | Future private scenario label store |
@@ -56,9 +56,10 @@ unmet until the actual evaluator imports and tests this package.
 
 ## Non-domains
 
-- Case collection is not a public tip service: packet storage is local by
-  default, and there is no submission, publishing, contact, or attention-view
-  route.
+- Case collection is not a public tip service: packet storage and the
+  attention view are local by default. Local delivery creates a persisted
+  receipt bound to the current private packet hash; there is no notification,
+  publishing, or external contact route.
 - Public labels do not become person records. The product has no natural-person
   identity resolution domain.
 - Price and profit analytics are not part of flow quantity. Native units and

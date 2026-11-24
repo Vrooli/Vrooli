@@ -71,7 +71,7 @@
 
 Canon this scenario implements or depends on:
 
-- `docs/agent-system/TARGET_MODEL.md` — the instrument contract: the control chain, the six invariants, the four modes, the two archetypes, and the deviation catalogue.
+- `docs/agent-system/STANDING_TEAMS.md` — the instrument contract: the control chain, the six invariants, the four modes, the two archetypes, and the deviation catalogue.
 - `docs/director-swarm/evidence/OUTCOMES_CHARTER.md` — the outcome categories this board renders, the sensor map, and the gap-closure loop.
 - `docs/director-swarm/operating/OPERATING_MODEL.md` — the portfolio control loop this board's readings close, and the prediction ledger that scores against them.
 - `docs/director-swarm/strategy/OBJECTIVES.md` — the objective set every outcome category must trace upward to.

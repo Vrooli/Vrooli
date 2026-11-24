@@ -13,10 +13,10 @@ import (
 )
 
 type remoteProfileClient struct {
-	resolveBase         func() string
-	resolveServiceToken func() string
-	profileTag          string
-	http                *http.Client
+	resolveBase func() string
+	authorize   func(context.Context) (string, error)
+	profileTag  string
+	http        *http.Client
 }
 
 type remoteProfileList struct {
@@ -37,11 +37,15 @@ func (c *remoteProfileClient) Name() string { return "lpbs-remote-profile" }
 
 func (c *remoteProfileClient) Fetch(ctx context.Context, readPath string) (json.RawMessage, error) {
 	base := strings.TrimRight(strings.TrimSpace(c.resolveBase()), "/")
-	token := strings.TrimSpace(c.resolveServiceToken())
-	if base == "" || token == "" || strings.TrimSpace(c.profileTag) == "" {
+	authorization, err := c.serviceAuthorization(ctx)
+	authorization = strings.TrimSpace(authorization)
+	if base == "" || authorization == "" || strings.TrimSpace(c.profileTag) == "" {
 		return nil, ErrNotAvailable
 	}
-	profileID, err := c.findProfile(ctx, base, token)
+	if err != nil {
+		return nil, err
+	}
+	profileID, err := c.findProfile(ctx, base, authorization)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +62,7 @@ func (c *remoteProfileClient) Fetch(ctx context.Context, readPath string) (json.
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Authorization", authorization)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -75,12 +79,19 @@ func (c *remoteProfileClient) Fetch(ctx context.Context, readPath string) (json.
 	return json.RawMessage(result), nil
 }
 
-func (c *remoteProfileClient) findProfile(ctx context.Context, base, token string) (int64, error) {
+func (c *remoteProfileClient) serviceAuthorization(ctx context.Context) (string, error) {
+	if c.authorize != nil {
+		return c.authorize(ctx)
+	}
+	return "", ErrNotAvailable
+}
+
+func (c *remoteProfileClient) findProfile(ctx context.Context, base, authorization string) (int64, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/api/v1/admin/remote-profiles", nil)
 	if err != nil {
 		return 0, err
 	}
-	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Authorization", authorization)
 	resp, err := c.http.Do(req)
 	if err != nil {
 		return 0, fmt.Errorf("lpbs remote profile lookup: %w: %v", ErrNotAvailable, err)

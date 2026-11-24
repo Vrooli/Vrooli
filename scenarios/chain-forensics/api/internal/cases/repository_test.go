@@ -88,6 +88,41 @@ func TestSQLitePrivatePacketsPersistCanonicallyAndReplayIdempotently(t *testing.
 	require.ErrorAs(t, err, new(cases.ErrInvalid))
 }
 
+func TestLocalAttentionDeliveryIsPacketHashBoundIdempotentAndRestartReadable(t *testing.T) {
+	ctx := context.Background()
+	handle := db.NewSQLite(t)
+	_, err := handle.ExecContext(ctx, cases.Schema())
+	require.NoError(t, err)
+	clock := scheduletest.New(time.Date(2026, 11, 12, 12, 0, 0, 0, time.UTC))
+	repo := cases.NewSQLiteRepository(handle, clock)
+	doc, err := forensics.ExampleCase()
+	require.NoError(t, err)
+	doc.Gaps = append(doc.Gaps, "Exchange deposit cluster membership remains unresolved.")
+	_, err = repo.Import(ctx, doc)
+	require.NoError(t, err)
+	packet, err := forensics.BuildPrivatePacket(doc)
+	require.NoError(t, err)
+	_, err = repo.SavePacket(ctx, packet)
+	require.NoError(t, err)
+	first, err := repo.DeliverPacketToAttention(ctx, doc.ID, packet.SHA256)
+	require.NoError(t, err)
+	require.Equal(t, packet.SHA256, first.PacketSHA256)
+	require.Equal(t, packet.Bytes, first.PacketJSON)
+	clock.Advance(time.Minute)
+	replay, err := repo.DeliverPacketToAttention(ctx, doc.ID, packet.SHA256)
+	require.NoError(t, err)
+	require.Equal(t, first, replay, "delivery retries must not create a new receipt")
+
+	// A newly constructed repository over the same durable database can read
+	// the exact packet/hash receipt, proving the local handoff survives restart.
+	restarted := cases.NewSQLiteRepository(handle, clock)
+	deliveries, err := restarted.ListAttentionDeliveries(ctx, 10)
+	require.NoError(t, err)
+	require.Equal(t, []cases.AttentionDelivery{first}, deliveries)
+	_, err = restarted.DeliverPacketToAttention(ctx, doc.ID, "not-the-packet-hash")
+	require.ErrorAs(t, err, new(cases.ErrInvalid))
+}
+
 func TestSQLiteMergeCaptureAppendsAndReplaysWithoutRewritingEvidence(t *testing.T) {
 	ctx := context.Background()
 	handle := db.NewSQLite(t)

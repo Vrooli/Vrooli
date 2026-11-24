@@ -93,9 +93,10 @@ type CredentialRef struct {
 	Field     string `json:"field"`
 }
 type Target struct {
-	Direction string `json:"direction"`
-	Bar       any    `json:"bar"`
-	BarRef    string `json:"barRef,omitempty"`
+	Direction        string   `json:"direction"`
+	Bar              any      `json:"bar"`
+	BarRef           string   `json:"barRef,omitempty"`
+	DistanceToTarget *float64 `json:"distanceToTarget,omitempty"`
 }
 type Prediction struct {
 	Target                  any    `json:"target"`

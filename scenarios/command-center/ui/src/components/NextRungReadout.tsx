@@ -1,8 +1,9 @@
 import { forwardRef } from "react";
 import type { Reading } from "../lib/api";
-import { InkMark, qualify, resolveReading } from "@vrooli/react-component-library/ProvenanceInk/0.1.3";
+import { InkMark, resolveReading } from "@vrooli/react-component-library/ProvenanceInk/0.1.3";
 import { finishLabel, ladderOf, nextRung, rungsAfterNext, statusLabel, type LadderRung, type LadderWork } from "../lib/ladder";
 import { AutoScroll } from "./AutoScroll";
+import { ReadingTrustLine } from "./ReadingTrustLine";
 
 const THEN_COUNT = 3;
 /** Below the head, each of these is a row the details step through when the hero is too short to hold them all. */
@@ -28,7 +29,6 @@ function Opens({ rung }: { rung: LadderRung }) {
  */
 export const NextRungReadout = forwardRef<HTMLDivElement, { reading: Reading }>(function NextRungReadout({ reading }, ref) {
   const resolution = resolveReading(reading);
-  const qualifier = qualify(reading, resolution);
   const resolved = ladderOf(reading);
   const rung = resolved ? nextRung(resolved.ladder) : null;
   const after = resolved ? rungsAfterNext(resolved.ladder) : [];
@@ -90,10 +90,7 @@ export const NextRungReadout = forwardRef<HTMLDivElement, { reading: Reading }>(
         </>
       )}
       {rung ? null : gaps}
-      <span className="cc-qualifier" data-qualifier data-tone={qualifier.tone}>
-        {resolved?.sampled && resolution.ink !== "none" ? <InkMark ink={resolution.ink}>illustrative</InkMark> : null}
-        {qualifier.text}
-      </span>
+      <ReadingTrustLine reading={reading} resolution={resolution} prefix={resolved?.sampled && resolution.ink !== "none" ? <InkMark ink={resolution.ink}>illustrative</InkMark> : null} />
     </div>
   );
 });

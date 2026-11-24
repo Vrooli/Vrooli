@@ -3,6 +3,7 @@ package validation
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -17,6 +18,18 @@ type staticURLResolver struct {
 	url string
 	err error
 }
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) { return f(req) }
+
+type syntheticTimeoutError struct{}
+
+func (syntheticTimeoutError) Error() string   { return "synthetic network timeout" }
+func (syntheticTimeoutError) Timeout() bool   { return true }
+func (syntheticTimeoutError) Temporary() bool { return true }
+
+var _ net.Error = syntheticTimeoutError{}
 
 func (r staticURLResolver) ResolveScenarioURL(context.Context, string, string) (string, error) {
 	if r.err != nil {
@@ -81,22 +94,27 @@ func TestValidateScenarioAcceptsHealthyDegradedAndUnhealthyHealthPayloads(t *tes
 
 func TestValidateScenarioClassifiesHealthProbeFailures(t *testing.T) {
 	for _, tc := range []struct {
-		name      string
-		handler   http.HandlerFunc
-		timeout   time.Duration
-		wantClass string
-		wantCode  string
+		name           string
+		handler        http.HandlerFunc
+		transportErr   error
+		parentDeadline bool
+		timeout        time.Duration
+		wantClass      string
+		wantCode       string
 	}{
 		{
-			name: "timeout",
-			handler: func(w http.ResponseWriter, _ *http.Request) {
-				time.Sleep(80 * time.Millisecond)
-				w.Header().Set("Content-Type", "application/json")
-				_, _ = w.Write([]byte(healthJSON(health.StatusHealthy, true)))
-			},
-			timeout:   10 * time.Millisecond,
-			wantClass: "timeout",
-			wantCode:  CodeHealthProbeFailed,
+			name:         "timeout",
+			transportErr: syntheticTimeoutError{},
+			timeout:      200 * time.Millisecond,
+			wantClass:    "timeout",
+			wantCode:     CodeHealthProbeFailed,
+		},
+		{
+			name:           "parent deadline",
+			parentDeadline: true,
+			timeout:        200 * time.Millisecond,
+			wantClass:      "timeout",
+			wantCode:       CodeHealthProbeFailed,
 		},
 		{
 			name: "non-json",
@@ -119,10 +137,11 @@ func TestValidateScenarioClassifiesHealthProbeFailures(t *testing.T) {
 			wantCode:  CodeHealthProbeFailed,
 		},
 		{
-			name:      "unreachable",
-			timeout:   200 * time.Millisecond,
-			wantClass: "unreachable",
-			wantCode:  CodeHealthProbeFailed,
+			name:         "unreachable",
+			transportErr: fmt.Errorf("synthetic connection refused"),
+			timeout:      200 * time.Millisecond,
+			wantClass:    "unreachable",
+			wantCode:     CodeHealthProbeFailed,
 		},
 		{
 			name: "schema-invalid",
@@ -136,14 +155,25 @@ func TestValidateScenarioClassifiesHealthProbeFailures(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			probeURL := "http://127.0.0.1:1"
+			probeURL := "http://probe.test"
+			var client *http.Client
 			if tc.handler != nil {
 				server := httptest.NewServer(tc.handler)
 				defer server.Close()
 				probeURL = server.URL
+			} else {
+				client = &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+					return nil, tc.transportErr
+				})}
 			}
 
-			report := runLiveProbeValidation(t, probeURL, tc.timeout)
+			parentCtx := context.Background()
+			if tc.parentDeadline {
+				var cancel context.CancelFunc
+				parentCtx, cancel = context.WithDeadline(parentCtx, time.Now().Add(-time.Second))
+				defer cancel()
+			}
+			report := runLiveProbeValidationWithContext(t, parentCtx, probeURL, tc.timeout, client)
 			require.False(t, report.Passed)
 			require.Equal(t, tc.wantClass, report.Target.Health.FailureClass)
 			requireFinding(t, report, tc.wantCode)
@@ -151,7 +181,40 @@ func TestValidateScenarioClassifiesHealthProbeFailures(t *testing.T) {
 	}
 }
 
+func TestValidateScenarioHealthProbeMeasuresElapsedTimeWithInjectedClock(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(healthJSON(health.StatusHealthy, true)))
+	}))
+	defer server.Close()
+
+	started := time.Date(2026, time.January, 2, 3, 4, 5, 0, time.UTC)
+	times := []time.Time{started, started.Add(275 * time.Millisecond)}
+	index := 0
+	report := runLiveProbeValidationWithClock(t, context.Background(), server.URL, time.Second, nil, func() time.Time {
+		now := times[index]
+		index++
+		return now
+	})
+
+	require.True(t, report.Passed)
+	require.EqualValues(t, 275, report.Target.Health.ElapsedMillis)
+	require.Equal(t, len(times), index)
+}
+
 func runLiveProbeValidation(t *testing.T, baseURL string, timeout time.Duration) Report {
+	return runLiveProbeValidationWithClient(t, baseURL, timeout, nil)
+}
+
+func runLiveProbeValidationWithClient(t *testing.T, baseURL string, timeout time.Duration, client *http.Client) Report {
+	return runLiveProbeValidationWithContext(t, context.Background(), baseURL, timeout, client)
+}
+
+func runLiveProbeValidationWithContext(t *testing.T, ctx context.Context, baseURL string, timeout time.Duration, client *http.Client) Report {
+	return runLiveProbeValidationWithClock(t, ctx, baseURL, timeout, client, nil)
+}
+
+func runLiveProbeValidationWithClock(t *testing.T, ctx context.Context, baseURL string, timeout time.Duration, client *http.Client, now func() time.Time) Report {
 	t.Helper()
 	root := t.TempDir()
 	writeLiveProbeTarget(t, root, "api-app")
@@ -159,8 +222,10 @@ func runLiveProbeValidation(t *testing.T, baseURL string, timeout time.Duration)
 		RepoRoot:        root,
 		PortURLResolver: staticURLResolver{url: baseURL},
 		ProbeTimeout:    timeout,
+		HTTPClient:      client,
+		Now:             now,
 	})
-	report, err := svc.ValidateScenario(context.Background(), "api-app", "", true)
+	report, err := svc.ValidateScenario(ctx, "api-app", "", true)
 	require.NoError(t, err)
 	return report
 }

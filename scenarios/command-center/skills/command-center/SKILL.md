@@ -25,6 +25,7 @@ Use this skill for reading the instrument or choosing a morning walk capability.
 | Prepare a briefing for another agent or the operator | Read `prompt-manager skill read command-center-vision-walk-prep`. **[S0]** |
 | Conduct or resume the strategic conversation | Read `prompt-manager skill read morning-vision-walk`. **[S0]** |
 | Inspect measured outcomes without sample figures | Run `command-center walk read`. **[S1]** |
+| Inspect one room's live readings and operator-authored targets | Run `command-center room <room-id> --json`. **[S1]** |
 | Inspect ranked missing instrumentation | Run `command-center focus`. **[S1]** |
 | Review stale backlog, aging goals, and board anomaly signals for Director Swarm | Run `program-runtime library run command-center.portfolio-pulse`; branch on its status, quality, and errors, then make the disposition yourself. It is read-only and returns bounded evidence. **[S3]** |
 | Improve this instrument or its walk capabilities | Read `prompt-manager skill read command-center-improve`. **[S0]** |

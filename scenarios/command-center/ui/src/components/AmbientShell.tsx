@@ -1,8 +1,10 @@
-import { type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useLocation } from "react-router-dom";
 import { AmbientDisplayShell, type AmbientDisplayShellProps } from "./AmbientDisplayShell";
-import { ExperienceSurface } from "@vrooli/react-component-library/ExperienceSurface/1.0.3";
+import { ExperienceSurface } from "@vrooli/react-component-library/ExperienceSurface/1.0.4";
 import { INK_LABELS, InkSwatch } from "@vrooli/react-component-library/ProvenanceInk/0.1.3";
 import { useBoardController, useBoardProgress, type SamplesMode } from "../lib/boardContext";
+import "./AmbientShellMobile.css";
 
 interface AmbientShellProps {
   theme: string;
@@ -49,8 +51,19 @@ function CycledDisplayShell(props: Omit<AmbientDisplayShellProps, "progress" | "
 
 function ControlBar() {
   const board = useBoardController();
+  const location = useLocation();
   const visible = board.controlsVisible || board.helpVisible;
-  const current = board.rooms.findIndex((room) => window.location.pathname.endsWith(`/${room.id}`));
+  const current = board.rooms.findIndex((room) => location.pathname === `/${room.id}`);
+  const [roomAnnouncement, setRoomAnnouncement] = useState("");
+  const previousRoom = useRef<string | null>(null);
+  useEffect(() => {
+    const room = board.rooms[current];
+    if (!room) return;
+    if (previousRoom.current && previousRoom.current !== room.id) {
+      setRoomAnnouncement(`${room.title}, room ${current + 1} of ${board.rooms.length}`);
+    }
+    previousRoom.current = room.id;
+  }, [board.rooms, current]);
   return (
     <>
       {!visible ? <div className="cc-visually-hidden" data-testid="control-bar-controls" data-experience-surface="controls" data-experience-state="static" aria-hidden="true" /> : null}
@@ -58,9 +71,9 @@ function ControlBar() {
         <button type="button" className="cc-control" onClick={() => board.dispatch("page-prev")} aria-label="Previous room">‹</button>
         <button type="button" className="cc-control" onClick={() => board.dispatch("pause-cycle")} aria-label={board.paused ? "Resume cycle" : "Pause cycle"}>{board.paused ? "▶" : "❚❚"}</button>
         <button type="button" className="cc-control" onClick={() => board.dispatch("page-next")} aria-label="Next room">›</button>
-        <span className="cc-room-dots" role="list" aria-label="Rooms">
+        <span className="cc-room-dots" role="group" aria-label="Go to room">
           {board.rooms.map((room, i) => (
-            <button key={room.id} type="button" role="listitem" className={i === current ? "cc-room-dot cc-room-dot-current" : "cc-room-dot"} onClick={() => board.goTo(`/${room.id}`)} aria-label={room.title} aria-current={i === current ? "page" : undefined} />
+            <button key={room.id} type="button" className={i === current ? "cc-room-dot cc-room-dot-current" : "cc-room-dot"} onClick={() => board.goTo(`/${room.id}`)} aria-label={room.title} aria-current={i === current ? "page" : undefined} />
           ))}
         </span>
         <button type="button" className="cc-control cc-control-text" onClick={() => board.goTo("/focus")}>Focus</button>
@@ -79,6 +92,7 @@ function ControlBar() {
         <output className="cc-ack" data-testid={visible ? "control-bar-acknowledgement" : undefined} data-experience-surface={visible ? "acknowledgement" : undefined} data-experience-state={visible ? "ready" : undefined} aria-live="polite">{board.acknowledgement}</output>
       </nav>
       {!visible ? <output className="cc-visually-hidden" data-testid="control-bar-acknowledgement" data-experience-surface="acknowledgement" data-experience-state="ready" aria-live="polite">{board.acknowledgement}</output> : null}
+      <span className="cc-visually-hidden" data-testid="room-announcement" role="status" aria-live="polite">{roomAnnouncement}</span>
     </>
   );
 }

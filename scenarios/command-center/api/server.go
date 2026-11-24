@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -10,11 +12,13 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/lpbsidentity"
 	capabilityregistry "github.com/vrooli/vrooli/packages/capability-registry-go"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 
 	"command-center/internal/trends"
 	"command-center/upstream"
+	"github.com/vrooli/api-core/servicetoken"
 )
 
 // Server is the command-center HTTP aggregator.
@@ -106,26 +110,79 @@ func declaredFeatureSet(reg *Registry, integrationID, kind string) map[string]st
 
 func newLPBSClient(reg *Registry) upstream.Client {
 	if strings.ToLower(strings.TrimSpace(os.Getenv("COMMAND_CENTER_LPBS_ORIGIN"))) == "production" {
-		return upstream.NewLPBSRemoteProfileResolved(
+		remote := upstream.NewLPBSRemoteProfileAuthorized(
 			resolveLocalLPBSBaseURL,
-			func() string { return resolveLPBSServiceToken(reg) },
+			func(ctx context.Context) (string, error) { return lpbsRemoteProfileAuthorization(ctx, reg) },
 			"prod",
 		)
+		return lpbsProductionClient{remote: remote, analytics: newLPBSAnalyticsClient(reg)}
 	}
-	return upstream.NewDescriptorClient(connectorDescriptor("landing-page-business-suite", resolveLPBSBaseURL(reg), declaredFeatureSet(reg, "landing-page-business-suite", "lpbs"), func(req *http.Request) {
-		token := resolveLPBSReaderToken(reg)
-		if token != "" {
-			req.Header.Set("Authorization", "Bearer "+token)
+	return newLPBSAnalyticsClient(reg)
+}
+
+type lpbsProductionClient struct{ remote, analytics upstream.Client }
+
+func (c lpbsProductionClient) Name() string { return "landing-page-business-suite" }
+func (c lpbsProductionClient) Fetch(ctx context.Context, path string) (json.RawMessage, error) {
+	if strings.Contains(path, ".v1.MetricsService/") {
+		return c.analytics.Fetch(ctx, path)
+	}
+	return c.remote.Fetch(ctx, path)
+}
+
+func newLPBSAnalyticsClient(reg *Registry) upstream.Client {
+	descriptor := connectorDescriptor("landing-page-business-suite", resolveLPBSBaseURL(reg), declaredFeatureSet(reg, "landing-page-business-suite", "lpbs"), nil)
+	serviceTokens := lpbsAnalyticsTokens()
+	descriptor.AuthContext = func(ctx context.Context, req *http.Request) error {
+		// Production's local remote-profile broker uses a separate scoped role;
+		// analytics procedures use the read-only analytics principal below.
+		token, err := serviceTokens.Token(ctx)
+		if err != nil {
+			return err
 		}
-	}))
+		req.Header.Set("Authorization", "Bearer "+token)
+		return nil
+	}
+	return upstream.NewDescriptorClient(descriptor)
 }
 
-func resolveLPBSServiceToken(reg *Registry) string {
-	return resolveLPBSCredential(reg, "service-secret", "vrooli/landing-page-business-suite")
+func lpbsAnalyticsTokens() *servicetoken.Tokens {
+	return lpbsidentity.CommandCenterAnalytics.NewTokens("command-center", func(context.Context) (string, error) {
+		authority, err := credentialauthority.Default()
+		if err != nil {
+			return "", err
+		}
+		return authority.Require(credentialauthority.Identity(lpbsidentity.CommandCenterAnalytics.CredentialIdentity("command-center")), "credential")
+	})
 }
 
-func resolveLPBSReaderToken(reg *Registry) string {
-	return resolveLPBSCredential(reg, "metrics-reader-token", "vrooli/landing-page-business-suite")
+func lpbsRemoteProfileAuthorization(ctx context.Context, reg *Registry) (string, error) {
+	authority, err := credentialauthority.Default()
+	if err != nil {
+		return "", err
+	}
+	identity, err := credentialauthority.ParseIdentity(lpbsidentity.CommandCenterRemoteProfiles.CredentialIdentity("command-center"))
+	if err != nil {
+		return "", err
+	}
+	status := authority.Status(identity, "credential")
+	if string(status.ProviderState) != "available" {
+		return "", fmt.Errorf("LPBS remote profile authority unavailable")
+	}
+	if status.Configured {
+		if strings.TrimSpace(status.Version) == "" {
+			return "", fmt.Errorf("LPBS remote profile principal has no active version")
+		}
+		tokens := lpbsidentity.CommandCenterRemoteProfiles.NewTokens("command-center", func(ctx context.Context) (string, error) {
+			return authority.Require(identity, "credential")
+		})
+		return tokens.Authorization(ctx)
+	}
+	legacy := resolveLPBSCredential(reg, "service-secret", "vrooli/landing-page-business-suite")
+	if strings.TrimSpace(legacy) == "" {
+		return "", fmt.Errorf("LPBS bootstrap credential unavailable")
+	}
+	return "Bearer " + legacy, nil
 }
 
 func resolveLPBSCredential(reg *Registry, defaultField, defaultIdentity string) string {

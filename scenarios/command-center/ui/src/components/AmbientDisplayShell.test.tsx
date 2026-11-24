@@ -12,6 +12,9 @@ describe("cycle rail", () => { // [REQ:CC-P1-008] [REQ:CC-P1-017]
       </AmbientDisplayShell>,
     );
     const segments = [0, 1, 2].map((index) => screen.getByTestId(`beat-rail-${index}`));
+    expect(rail()).toHaveAttribute("role", "group");
+    expect(rail()).toHaveAttribute("aria-label", "Room sections");
+    expect(screen.getByRole("button", { name: "Show section 1" })).toBe(segments[0]);
     expect(segments[0]?.querySelector("span")?.style.transform).toBe("scaleX(1.000)");
     expect(segments[1]?.querySelector("span")?.style.transform).toBe("scaleX(0.500)");
     expect(segments[2]?.querySelector("span")?.style.transform).toBe("scaleX(0.000)");
@@ -25,7 +28,8 @@ describe("cycle rail", () => { // [REQ:CC-P1-008] [REQ:CC-P1-017]
       </AmbientDisplayShell>,
     );
     expect(rail()).toHaveAttribute("data-held");
-    expect(rail()).toHaveAttribute("aria-label", "Reading the held section");
+    expect(rail()).toHaveAttribute("aria-label", "Room sections");
+    expect(screen.getByRole("status")).toHaveTextContent("Reading the held section");
   });
 
   it("names the paused state ahead of the held state", () => {
@@ -34,7 +38,8 @@ describe("cycle rail", () => { // [REQ:CC-P1-008] [REQ:CC-P1-017]
         <div />
       </AmbientDisplayShell>,
     );
-    expect(rail()).toHaveAttribute("aria-label", "Cycle paused");
+    expect(rail()).toHaveAttribute("aria-label", "Room sections");
+    expect(screen.getByRole("status")).toHaveTextContent("Cycle paused");
     expect(rail()).toHaveAttribute("data-paused");
   });
 });

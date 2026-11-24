@@ -75,3 +75,5 @@ export function signalConstellation(): Scene {
     },
   };
 }
+
+export const compositionDefinition = { id: "signal-constellation", create: signalConstellation, slots: slotManifest };

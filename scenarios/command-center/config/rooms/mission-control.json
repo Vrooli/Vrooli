@@ -11,6 +11,7 @@
     "swarm_throughput",
     "swarm_active_agents",
     "timing_stats",
+    "median_execution",
     "revenue_mrr",
     "revenue_today"
   ],
@@ -29,6 +30,10 @@
     },
     {
       "hero": "timing_stats",
+      "dwellSeconds": 12
+    },
+    {
+      "hero": "median_execution",
       "dwellSeconds": 12
     }
   ],

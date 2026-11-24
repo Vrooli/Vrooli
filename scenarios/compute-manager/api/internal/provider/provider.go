@@ -24,6 +24,34 @@ type BillingFacts struct {
 	InboundCountsToward bool
 }
 
+// PriceFact is the catalogue-owned price observation consumed by spend
+// admission. Monetary values are integer minor currency units per month
+// (for example USD cents); server and IPv4 costs remain separate for audit.
+type PriceFact struct {
+	Provider      string    `json:"provider"`
+	OfferID       string    `json:"offer_id"`
+	Region        string    `json:"region"`
+	Size          string    `json:"size"`
+	Currency      string    `json:"currency"`
+	ServerMinor   int64     `json:"server_minor_per_month"`
+	IPv4Minor     int64     `json:"ipv4_minor_per_month"`
+	TaxBasis      string    `json:"tax_basis"`
+	SourceURL     string    `json:"source_url"`
+	SourceVersion string    `json:"source_version"`
+	ObservedAt    time.Time `json:"observed_at"`
+	ExpiresAt     time.Time `json:"expires_at"`
+	// ProvenanceJSON is an optional, versioned source/conversion audit payload.
+	// It is empty for catalogues whose monthly price is directly published.
+	ProvenanceJSON        string `json:"price_provenance_json,omitempty"`
+	ProvenanceFingerprint string `json:"price_provenance_fingerprint,omitempty"`
+}
+
+// PriceCatalogue is implemented by the provider catalogue owner. includeIPv4
+// selects the catalogue's standalone IPv4 price component when applicable.
+type PriceCatalogue interface {
+	LookupPrice(context.Context, string, string, string, bool) (PriceFact, error)
+}
+
 // BillingStatement is an optional provider accounting observation. It is
 // deliberately separate from Provider so lifecycle consumers still depend on
 // exactly four operations.
@@ -39,11 +67,28 @@ type BillingStatementSource interface {
 }
 
 type Spec struct {
-	Region   string
-	Size     string
-	Image    string
-	UserData string
-	Tags     map[string]string
+	Region           string
+	Size             string
+	IPv4             bool
+	Image            string
+	UserData         string
+	Memory           string
+	CPUs             int
+	SSHUser          string
+	SSHPort          int
+	Profile          string
+	SSHAuthorizedKey string
+	// AdoptedTarget is present only for the operator-owned adopted-vps source.
+	// It contains non-secret target metadata. First-touch credentials never
+	// enter this type or any provider-neutral persisted spec.
+	AdoptedTarget *AdoptedTarget
+	Tags          map[string]string
+}
+
+type AdoptedTarget struct {
+	Host        string
+	User        string
+	DisplayName string
 }
 
 type Instance struct {
@@ -52,8 +97,26 @@ type Instance struct {
 	Size      string
 	Image     string
 	Address   string
+	SSHUser   string
+	SSHPort   int
 	CreatedAt time.Time
 	Tags      map[string]string
+}
+
+// IntentRecoveryRequest carries only facts already persisted with a manager
+// intent. A provider may use these facts for exact, read-only reconciliation
+// when its remote inventory cannot carry the manager's intent tag.
+type IntentRecoveryRequest struct {
+	IntentID       string
+	IdempotencyKey string
+	Provider       string
+	Facts          map[string]string
+}
+
+// IntentRecoveryProvider reconciles one persisted intent by its exact target
+// coordinates. It must not broaden to owner-wide inventory or create a target.
+type IntentRecoveryProvider interface {
+	RecoverIntent(context.Context, IntentRecoveryRequest) (Instance, bool, error)
 }
 
 type Provider interface {
@@ -63,6 +126,15 @@ type Provider interface {
 	Describe(context.Context, string) (Instance, error)
 	List(context.Context) ([]Instance, error)
 	Destroy(context.Context, string) error
+}
+
+// SnapshotResetProvider is an optional test-provider capability. Production
+// cloud providers are not required to implement it; the shared lifecycle stays
+// create/describe/list/destroy so snapshots cannot accidentally become an
+// unpriced cloud operation.
+type SnapshotResetProvider interface {
+	Snapshot(context.Context, string, string) error
+	Reset(context.Context, string, string) error
 }
 
 // Registry is the provider selection boundary. Consumers select by the

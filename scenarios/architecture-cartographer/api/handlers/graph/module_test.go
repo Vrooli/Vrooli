@@ -13,13 +13,15 @@ func TestModule_Shape(t *testing.T) {
 	m := graphh.Module(&mocks.FakeService{})
 	require.Equal(t, "graph", m.Name)
 	require.NotNil(t, m.Mount)
-	require.Len(t, m.Endpoints, 10)
+	require.Len(t, m.Endpoints, 11)
 	require.Equal(t, "zones.show", m.Endpoints[7].ID)
 	require.Equal(t, "zones", m.Endpoints[7].Category)
 	require.Equal(t, "slice.show", m.Endpoints[8].ID)
 	require.Equal(t, "slice", m.Endpoints[8].Category)
-	require.Equal(t, "archetype.infer", m.Endpoints[9].ID)
-	require.Equal(t, "archetype", m.Endpoints[9].Category)
+	require.Equal(t, "slice.search", m.Endpoints[9].ID)
+	require.Equal(t, "slice", m.Endpoints[9].Category)
+	require.Equal(t, "archetype.infer", m.Endpoints[10].ID)
+	require.Equal(t, "archetype", m.Endpoints[10].Category)
 }
 
 func TestModule_SchemaPopulated(t *testing.T) {

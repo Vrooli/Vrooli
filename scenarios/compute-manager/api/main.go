@@ -18,13 +18,19 @@ import (
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/askreader"
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/eventbus"
+	"github.com/vrooli/api-core/eventpublisher"
 	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
 	_ "modernc.org/sqlite"
 
 	capsH "compute-manager/handlers/capabilities"
@@ -40,12 +46,19 @@ import (
 	"compute-manager/internal/intent"
 	"compute-manager/internal/meter"
 	"compute-manager/internal/provider"
+	"compute-manager/internal/provider/adoptedvps"
+	"compute-manager/internal/provider/akash"
+	akashclient "compute-manager/internal/provider/akash/client"
 	"compute-manager/internal/provider/digitalocean"
 	"compute-manager/internal/provider/hetzner"
+	qemuprovider "compute-manager/internal/provider/localqemu"
 	"compute-manager/internal/provision"
 	internalreconcile "compute-manager/internal/reconcile"
+	setup "compute-manager/internal/setup"
+	"compute-manager/internal/store"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
+	"github.com/vrooli/vrooli/packages/provider-effect-gate"
 )
 
 // scenarioStorageRoots resolves all filesystem storage classes once at
@@ -90,6 +103,12 @@ func main() {
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
+	if err := store.MigrateCompatibility(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("store compatibility migration failed: %v", err)
+	}
+	if err := setup.MigrateCompatibility(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("setup compatibility migration failed: %v", err)
+	}
 	primaryFileRoots, err := scenarioStorageRoots()
 	if err != nil {
 		log.Fatalf("file storage configuration failed: %v", err)
@@ -104,6 +123,33 @@ func main() {
 	if err != nil {
 		log.Fatalf("credential client configuration failed: %v", err)
 	}
+	eventbus.UsePublisherCredentials(func(ctx context.Context, source string) (string, error) {
+		return credentials.Resolve(ctx, eventpublisher.CredentialIdentity(source), eventpublisher.CredentialField)
+	})
+	decisionPublisher := eventbus.NewDiscoveredClient(context.Background())
+	setupCredential := func(ctx context.Context, field string) (string, error) {
+		return credentials.Resolve(ctx, "vrooli/compute-manager", field)
+	}
+	setupCredentialConfigured := func(ctx context.Context, field string) (bool, error) {
+		status, err := credentials.Status(ctx, "vrooli/compute-manager", field)
+		if err != nil {
+			return false, err
+		}
+		return status.Configured, nil
+	}
+	setupCatalog := setup.Catalog{Repo: setup.NewRepository(db.Primary()), Now: time.Now}
+	effects, err := effectgate.New(effectgate.Config{
+		Default: effectgate.Stub,
+		Modes: map[string]effectgate.Mode{
+			"hetzner": effectgate.Live, "digitalocean": effectgate.Live,
+			"adopted-vps": effectgate.Live, "local-qemu": effectgate.Live,
+			"akash": effectgate.Stub,
+		},
+	})
+	if err != nil {
+		log.Fatalf("provider effect gate configuration failed: %v", err)
+	}
+	setupModule := setup.NewModuleWithCredentialStatus(db.Primary(), setupCredential, setupCredentialConfigured, decisionPublisher)
 	cloudProvider := &hetzner.Provider{Now: time.Now, Token: func(ctx context.Context) (string, error) {
 		return credentials.Resolve(ctx, "vrooli/compute-manager", "hetzner-api-token")
 	}}
@@ -114,7 +160,62 @@ func main() {
 	if err := providers.Register(digitalOceanProvider); err != nil {
 		log.Fatalf("provider registry configuration failed: %v", err)
 	}
-	intents := intent.Service{Store: intent.SQLStore{DB: db.Primary()}, Provider: cloudProvider, Now: time.Now}
+	if err := providers.Register(&adoptedvps.Adapter{Now: time.Now}); err != nil {
+		log.Fatalf("provider registry configuration failed: %v", err)
+	}
+	var akashSandboxClient akash.SandboxClient
+	if cfg.AkashNetwork == akashclient.NetworkSandbox2 && cfg.AkashChainID != "" && cfg.AkashEndpoint != "" && cfg.AkashRPCEndpoint != "" && cfg.AkashProviderAddress != "" {
+		client, clientErr := akashclient.New(akashclient.Config{
+			Network: cfg.AkashNetwork, ChainID: cfg.AkashChainID, OwnerAddress: cfg.AkashProviderAddress,
+			RESTEndpoint: cfg.AkashEndpoint, RPCEndpoint: cfg.AkashRPCEndpoint,
+			CredentialRef: akash.TestnetWalletCredentialRef,
+		}, nil, nil)
+		if clientErr != nil {
+			slog.Warn("Akash sandbox client is not configured; provider remains unavailable", "error", clientErr)
+		} else {
+			akashSandboxClient = client
+		}
+	}
+	if err := providers.Register(&akash.Adapter{
+		Config: akash.Config{
+			Network: cfg.AkashNetwork, ChainID: cfg.AkashChainID, Endpoint: cfg.AkashEndpoint,
+			ProviderAddress: cfg.AkashProviderAddress, WalletCredentialRef: akash.TestnetWalletCredentialRef,
+		},
+		Gate: effects, SandboxClient: akashSandboxClient,
+	}); err != nil {
+		log.Fatalf("provider registry configuration failed: %v", err)
+	}
+	capacityBroker, capacityErr := sharedcapacity.NewBroker(context.Background(), "")
+	if capacityErr != nil {
+		slog.Error("local-QEMU capacity gate unavailable; local-QEMU stays fail-closed", "error", capacityErr)
+	} else {
+		defer capacityBroker.Close()
+	}
+	localQEMUProvider := &qemuprovider.Adapter{Roots: fileRoots, Now: time.Now, RequireCapacity: true}
+	if capacityBroker != nil {
+		localQEMUProvider.Admission = qemuprovider.NewBrokerAdmission(capacityBroker)
+	}
+	if err := localQEMUProvider.RecoverCapacity(context.Background()); err != nil {
+		slog.Error("local-QEMU capacity recovery failed; provider is disabled until owner reconciliation", "error", err)
+	}
+	defer func() {
+		if err := localQEMUProvider.CloseCapacity(); err != nil {
+			slog.Error("failed to release local-QEMU owner lock", "error", err)
+		}
+	}()
+	if err := providers.Register(localQEMUProvider); err != nil {
+		log.Fatalf("provider registry configuration failed: %v", err)
+	}
+	// Local-QEMU has no provider-side compute or IPv4 fee, but admission still
+	// requires a durable, exact offer fact. Declare the supported host offers
+	// through the catalogue owner at startup; LookupPrice itself remains read-
+	// only and refuses a missing or stale declaration.
+	for _, profile := range []string{"headless-linux", "desktop-linux"} {
+		if _, err := setupCatalog.RecordLocalQEMUOffer(context.Background(), profile); err != nil {
+			log.Fatalf("local-qemu price declaration failed for %s: %v", profile, err)
+		}
+	}
+	intents := intent.Service{Store: intent.SQLStore{DB: db.Primary()}, Provider: cloudProvider, Providers: providers, Now: time.Now}
 	lpbsBaseURL := cfg.LPBSBaseURL
 	if lpbsBaseURL == "" {
 		lpbsBaseURL, _ = discovery.ResolveScenarioURLDefault(context.Background(), "landing-page-business-suite")
@@ -124,16 +225,20 @@ func main() {
 		bridgeBaseURL, _ = discovery.ResolveScenarioURLDefault(context.Background(), "vrooli-bridge")
 	}
 	credits := &integration.LPBSCredits{BaseURL: lpbsBaseURL, Token: func(context.Context) (string, error) { return os.Getenv("COMPUTE_MANAGER_API_TOKEN"), nil }}
-	provisioner := &provision.Service{Intents: intents, Meter: meter.Service{Credits: credits, DB: db.Primary(), TenantCeilingMinutes: cfg.TenantCeilingMinutes, Now: time.Now}, Provider: cloudProvider, Providers: providers, Window: 24 * time.Hour, DB: db.Primary(), Mu: &sync.Mutex{}}
+	provisioner := &provision.Service{Intents: intents, Meter: meter.Service{Credits: credits, DB: db.Primary(), TenantCeilingMinutes: cfg.TenantCeilingMinutes, Now: time.Now}, MoneyCap: provision.MoneyCap{Currency: "USD", MonthlyMinor: 709, TaxBasis: "pre-tax"}, Provider: cloudProvider, Providers: providers, Prices: setupCatalog, Effects: effects, Window: 24 * time.Hour, DB: db.Primary(), Mu: &sync.Mutex{}}
 	bridge := &integration.BridgeClient{BaseURL: bridgeBaseURL, Token: func(context.Context) (string, error) { return os.Getenv("COMPUTE_MANAGER_API_TOKEN"), nil }}
 	workerCtx, stopWorkers := context.WithCancel(context.Background())
-	instanceModule, err := instanceH.NewModuleWithRuntimeProviders(providers, time.Now, &internalinstance.Repository{DB: db.Primary()}, provisioner, func(ctx context.Context, expiry time.Time) (string, error) {
+	firstTouchVerifier := authn.NewScenarioAuthenticatorProvider(authn.JWTConfig{Audience: "scenario-authenticator:compute-manager-adoption-first-touch", ExclusiveAudience: true, Kind: identity.ActorService})
+	deploymentLifecycleVerifier := authn.NewScenarioAuthenticatorProvider(authn.JWTConfig{Audience: "scenario-authenticator:compute-manager-deployment-lifecycle", ExclusiveAudience: true, Kind: identity.ActorService})
+	instanceModule, err := instanceH.NewModuleWithRuntimeProvidersAndLifecycleAuth(providers, time.Now, &internalinstance.Repository{DB: db.Primary()}, provisioner, func(ctx context.Context, expiry time.Time) (string, error) {
 		key, _, err := bridge.GetOnboardingPublicKey(ctx)
 		if err != nil {
 			return "", err
 		}
 		return enroll.RenderFirstBoot(key, expiry)
-	}, bridge)
+	}, bridge, firstTouchVerifier, func(ctx context.Context) (string, error) {
+		return discovery.ResolveScenarioURLDefault(ctx, "vrooli-onboarding")
+	}, deploymentLifecycleVerifier)
 	if err != nil {
 		log.Fatalf("instance module configuration failed: %v", err)
 	}
@@ -234,14 +339,19 @@ func main() {
 	if err != nil {
 		log.Fatalf("reconcile module configuration failed: %v", err)
 	}
+	authConfig, err := authn.FromEnvironment(os.Getenv)
+	if err != nil {
+		log.Fatalf("authentication configuration invalid: %v", err)
+	}
 	srv := server.New(
-		server.Deps{Clock: schedule.System(), Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default(), Auth: authConfig},
 		healthH.Module(db, "compute-manager-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
 		instanceModule,
 		intentModule,
 		meterModule,
 		reconcileModule,
+		setupModule,
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -249,6 +359,15 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
+	secret, secretErr := setup.ResolveWebhookSecret(credentialAuthority)
+	if secretErr != nil {
+		log.Printf("notification-hub resolution webhook unavailable: %v", secretErr)
+	} else if secret != "" {
+		reader := askreader.NewReader("compute-manager", func(ctx context.Context) (string, error) {
+			return credentials.Resolve(ctx, askreader.CredentialIdentity("compute-manager"), askreader.CredentialField)
+		})
+		rootMux.Handle(setup.DecisionWebhookPath, setup.DecisionWebhook(secret, reader, setup.NewRepository(db.Primary()), internalreconcile.InvoiceApprovalEffect{DB: db.Primary(), Reader: reader}))
+	}
 
 	rootMux.Handle("/", srv.Handler())
 

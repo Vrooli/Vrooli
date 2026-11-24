@@ -1,5 +1,4 @@
 """Read external binding health and outcome-linked learning; never invent a baseline."""
-import json
 inputs = program.inputs()
 envelope = {'program':'command-center.setpoint-read','version':'1','status':'ok','phase':'collect','inputs':{},'signals':{'rows':[]},'errors':[],'evidence':[]}
 def row(name,reading,target,in_band=None,reason=None):
@@ -28,4 +27,4 @@ row('external-friction',None,None,None,'read_elsewhere:agent-manager.friction-di
 row('briefing-quality',None,'12 phases; exact checkpoint; named source gaps',None,'read_elsewhere:command-center.vision-walk-prep')
 row('operator-usefulness',None,None,None,'pending_telemetry')
 envelope['phase']='report'
-print(json.dumps(envelope,separators=(',',':')))
+program.report(envelope)

@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent } from "@testing-library/react";
 import { renderWithProviders, screen } from "../../test-utils/renderWithProviders";
+import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import type { CatalogEntry, Catalogs } from "../../lib/api";
 import { AdvancedJson, CatalogForm } from "./CatalogForms";
 
@@ -124,22 +126,53 @@ describe("CatalogForm — fallback and default branches", () => {
 });
 
 describe("AdvancedJson", () => {
-  it("replaces the draft on valid JSON and rejects invalid or id-less input", () => {
+  it("keeps valid JSON edits intact and applies them only when explicitly committed", async () => {
+    const onReplace = vi.fn();
+    renderWithProviders(<AdvancedJson draft={{ id: "x", title: "A" }} onReplace={onReplace} />);
+    const editor = screen.getByLabelText("Advanced JSON editor");
+    const raw = '{"id":"x","title":"Alpha"}';
+
+    fireEvent.change(editor, { target: { value: raw } });
+    expect(editor).toHaveValue(raw);
+    expect(onReplace).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Apply JSON" })).toBeEnabled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Apply JSON" }));
+    expect(onReplace).toHaveBeenCalledWith({ id: "x", title: "Alpha" });
+    expect(editor).toHaveValue(JSON.stringify({ id: "x", title: "A" }, null, 2));
+  });
+
+  it("blocks malformed or id-less edits and lets the operator discard them", async () => {
     const onReplace = vi.fn();
     renderWithProviders(<AdvancedJson draft={{ id: "x", title: "A" }} onReplace={onReplace} />);
     const editor = screen.getByLabelText("Advanced JSON editor");
 
-    fireEvent.change(editor, { target: { value: '{"id":"x","title":"B"}' } });
-    expect(onReplace).toHaveBeenCalledWith({ id: "x", title: "B" });
-
-    onReplace.mockClear();
     fireEvent.change(editor, { target: { value: "{ not json" } });
     expect(onReplace).not.toHaveBeenCalled();
     expect(screen.getByRole("alert")).toHaveTextContent("Invalid JSON");
+    expect(screen.getByRole("button", { name: "Apply JSON" })).toBeDisabled();
 
-    onReplace.mockClear();
     fireEvent.change(editor, { target: { value: '{"title":"no id"}' } });
     expect(onReplace).not.toHaveBeenCalled();
     expect(screen.getByRole("alert")).toHaveTextContent("string id");
+
+    await userEvent.click(screen.getByRole("button", { name: "Discard JSON edits" }));
+    expect(editor).toHaveValue(JSON.stringify({ id: "x", title: "A" }, null, 2));
+    expect(onReplace).not.toHaveBeenCalled();
+  });
+
+  it("drops a pending raw buffer when another form edit replaces the draft", () => {
+    function Harness() {
+      const [draft, setDraft] = useState<CatalogEntry>({ id: "x", title: "A" });
+      return <><AdvancedJson draft={draft} onReplace={setDraft} /><button type="button" onClick={() => setDraft({ ...draft, title: "Form edit" })}>Edit title in form</button></>;
+    }
+    renderWithProviders(<Harness />);
+    const editor = screen.getByLabelText("Advanced JSON editor");
+    fireEvent.change(editor, { target: { value: '{"id":"x","title":"stale raw edit"}' } });
+    expect(editor).toHaveValue('{"id":"x","title":"stale raw edit"}');
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit title in form" }));
+    expect(editor).toHaveValue(JSON.stringify({ id: "x", title: "Form edit" }, null, 2));
+    expect(screen.getByRole("button", { name: "Apply JSON" })).toBeDisabled();
   });
 });

@@ -1,10 +1,5 @@
 package validation
 
-import (
-	"os"
-	"path/filepath"
-)
-
 // This file holds the deterministic CSS fixers. reduced-motion is the one
 // self-contained auto-fix among the asset/accessibility additions: the reduce
 // block is identical for every scenario, so it can be appended verbatim.
@@ -43,11 +38,7 @@ func fixReducedMotion(root string, apply bool) (Candidate, bool, error) {
 		After:       updated,
 	}
 	if apply {
-		abs := filepath.Join(root, filepath.FromSlash(designSystemCSSRel))
-		if err := os.MkdirAll(filepath.Dir(abs), 0o750); err != nil {
-			return Candidate{}, false, err
-		}
-		if err := os.WriteFile(abs, []byte(updated), 0o600); err != nil {
+		if err := writeScenarioFile(root, designSystemCSSRel, []byte(updated), 0o600); err != nil {
 			return Candidate{}, false, err
 		}
 		cand.Applied = true

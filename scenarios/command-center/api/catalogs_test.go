@@ -83,6 +83,18 @@ func TestSplitSignalCatalogOverlaysRegistryDefinitions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	split := readCatalog("signals")
+	if len(split) != len(reg.Metrics) {
+		t.Fatalf("split signals=%d registry metrics=%d; each runtime metric needs an editable catalog entry", len(split), len(reg.Metrics))
+	}
+	splitIDs := make(map[string]bool, len(split))
+	for _, signal := range split {
+		id, _ := signal["id"].(string)
+		if splitIDs[id] {
+			t.Errorf("duplicate split signal %q", id)
+		}
+		splitIDs[id] = true
+	}
 	if err := LoadSplitSignalCatalog(reg); err != nil {
 		t.Fatal(err)
 	}
@@ -90,6 +102,9 @@ func TestSplitSignalCatalogOverlaysRegistryDefinitions(t *testing.T) {
 		t.Fatalf("signals=%d, expected the complete signal catalog", len(reg.Metrics))
 	}
 	for _, signal := range reg.Metrics {
+		if !splitIDs[signal.ID] {
+			t.Errorf("registry metric %s has no editable split signal", signal.ID)
+		}
 		if signal.Shape == "" {
 			t.Errorf("signal %s lost its shape during overlay", signal.ID)
 		}
@@ -118,6 +133,9 @@ func TestAllVrooliConnectorSourcesHaveDescriptorCatalogEntries(t *testing.T) {
 		}
 		if entry.ID != id || entry.Transport != transport || len(entry.Paths) == 0 {
 			t.Errorf("connector %s = %#v, want transport %s and at least one path", id, entry, transport)
+		}
+		if id == "deployment-manager" && entry.Paths[0] != "/api/v1/readiness/state?scenario=command-center" {
+			t.Errorf("deployment-manager probe path = %q, want its profile-scoped readiness projection", entry.Paths[0])
 		}
 	}
 }

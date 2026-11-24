@@ -46,6 +46,19 @@ func TestBoardSettingsRoundTripAndPathGuard(t *testing.T) {
 	}
 }
 
+func TestOrderBoardRoomsHonorsExplicitDisabledAndPreservesUnconfiguredDefaults(t *testing.T) {
+	rooms := []Room{{ID: "alpha", Title: "Alpha"}, {ID: "beta", Title: "Beta"}, {ID: "gamma", Title: "Gamma"}}
+	settings := []BoardRoomMode{{ID: "alpha", Enabled: false}, {ID: "beta", Enabled: true}}
+	got := orderBoardRooms(rooms, settings)
+	ids := make([]string, 0, len(got))
+	for _, room := range got {
+		ids = append(ids, room.ID)
+	}
+	if strings.Join(ids, ",") != "beta,gamma" {
+		t.Fatalf("board rooms = %v, want enabled beta followed by unconfigured default gamma", ids)
+	}
+}
+
 func testRegistry() *Registry {
 	return &Registry{
 		Version: "1.0.0",
@@ -407,5 +420,28 @@ func TestPlausiblePanelRowsRequiresHonestShares(t *testing.T) {
 	}
 	if plausiblePanelRows(nil, 6, false) {
 		t.Fatal("empty panel accepted")
+	}
+}
+
+func TestPlausibleProgressRowsAllowsIndependentCompletionPercentages(t *testing.T) {
+	rows := []PanelRow{
+		{Key: "urgent", Label: "Urgent goal", Value: 3, Share: .3},
+		{Key: "steady", Label: "Steady goal", Value: 2, Share: .5},
+	}
+	if !plausibleProgressRows(rows, 6) {
+		t.Fatal("independent goal completion percentages should not need to sum to one")
+	}
+	if !plausibleProgressRows(nil, 6) {
+		t.Fatal("a measured empty goal set should be plausible")
+	}
+	if plausibleProgressRows(append(rows, PanelRow{Key: "over", Label: "Over-complete", Value: 2, Share: 1.2}), 6) {
+		t.Fatal("completion greater than 100% must be rejected")
+	}
+	tooMany := make([]PanelRow, 7)
+	for i := range tooMany {
+		tooMany[i] = PanelRow{Key: fmt.Sprintf("goal-%d", i), Label: "Goal", Value: 0, Share: 0}
+	}
+	if plausibleProgressRows(tooMany, 6) {
+		t.Fatal("progress panel must respect six-row display contract")
 	}
 }

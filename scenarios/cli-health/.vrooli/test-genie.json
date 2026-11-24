@@ -629,7 +629,7 @@
         "reason": "Choosing the correct primitive class and moving a handler onto it changes handler boundaries and requires scenario-specific judgment; cli-health flags the missing declaration but does not rewrite the handler.",
         "recommended_skill_ids": [
           "cli-steer",
-          "change-axis-and-evolution-resilience-audit"
+          "architecture-lenses"
         ]
       },
       "arch.primitive_unverified": {
@@ -643,7 +643,7 @@
         "reason": "A declared primitive is forgeable manifest text; reaching verified maturity requires building the handler with the matching cli-core primitive and registering it via LoadFromManifestPrimitives, which is scenario-specific handler work cli-health cannot perform.",
         "recommended_skill_ids": [
           "cli-steer",
-          "change-axis-and-evolution-resilience-audit"
+          "architecture-lenses"
         ]
       },
       "arch.primitive_mismatch": {
@@ -657,7 +657,7 @@
         "reason": "The declared primitive and the cli-core-observed primitive disagree — a contradiction between manifest and implementation; resolving which side is correct needs scenario-specific judgment.",
         "recommended_skill_ids": [
           "cli-steer",
-          "change-axis-and-evolution-resilience-audit"
+          "architecture-lenses"
         ]
       },
       "arch.metadata_invalid": {
@@ -684,7 +684,7 @@
         "reason": "A false special-case claim is a contradiction between declared and real command shape; resolving it (remove the exception or move the command) needs scenario-specific judgment.",
         "recommended_skill_ids": [
           "cli-steer",
-          "change-axis-and-evolution-resilience-audit"
+          "architecture-lenses"
         ]
       },
       "arch.evidence_malformed": {

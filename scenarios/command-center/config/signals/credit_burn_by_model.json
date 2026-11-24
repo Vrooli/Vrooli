@@ -1,50 +1,50 @@
 {
-  "id": "credit_burn_by_model",
-  "label": "Credit burn by model",
-  "description": "Producer-owned Business Digest reading.",
-  "unit": "count",
-  "format": "integer",
-  "kind": "panel",
-  "shape": "rows",
   "columns": {
+    "detail": {
+      "optional": true,
+      "type": "string"
+    },
     "key": {
       "type": "string"
     },
-    "value": {
-      "type": "number"
+    "label": {
+      "optional": true,
+      "type": "string"
     },
     "share": {
       "type": "number"
     },
-    "label": {
-      "type": "string",
-      "optional": true
-    },
-    "detail": {
-      "type": "string",
-      "optional": true
+    "value": {
+      "type": "number"
     }
   },
-  "source": {
-    "team": "monetization",
-    "binding": "scenario:landing-page-business-suite",
-    "read": "/api/v1/business-digest?window_days=30",
-    "select": "digest_credit_model",
-    "ttlSeconds": 300,
-    "integrationId": "landing-page-business-suite",
-    "origin": "production",
-    "featureId": "digest_credit_model",
-    "contractVersion": "business-digest.v1",
-    "selector": "digest_credit_model",
-    "expectedUnit": "count",
-    "sourceTimePolicy": "producer_required"
-  },
   "coverage": "IN-REACH",
+  "description": "Producer-owned Business Digest reading.",
+  "format": "integer",
+  "id": "credit_burn_by_model",
+  "kind": "panel",
+  "label": "Credit burn by model",
   "sample": {
-    "value": 0,
+    "basis": "hand-authored zero baseline; production validation pending",
     "series": [
       0
     ],
-    "basis": "hand-authored zero baseline; production validation pending"
-  }
+    "value": 0
+  },
+  "shape": "rows",
+  "source": {
+    "binding": "scenario:landing-page-business-suite",
+    "contractVersion": "business-digest.v1",
+    "expectedUnit": "count",
+    "featureId": "digest_credit_model",
+    "integrationId": "landing-page-business-suite",
+    "origin": "production",
+    "read": "/landing_page_business_suite.v1.BusinessDigestService/GetBusinessDigest?windowDays=30",
+    "select": "digest_credit_model",
+    "selector": "digest_credit_model",
+    "sourceTimePolicy": "producer_required",
+    "team": "monetization",
+    "ttlSeconds": 300
+  },
+  "unit": "count"
 }

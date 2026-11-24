@@ -1,4 +1,4 @@
-import { Activity, Search, ShieldCheck } from "lucide-react";
+import { Activity, GitBranch, Search, ShieldCheck } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { AppShell as LibraryAppShell } from "@vrooli/react-component-library/AppShell/2";
 
@@ -12,7 +12,7 @@ import {
   useTranslation,
 } from "../i18n";
 
-export type CliHealthTab = "search" | "validate" | "status";
+export type CliHealthTab = "search" | "validate" | "status" | "composition";
 
 type Props = {
   children: ReactNode;
@@ -24,6 +24,7 @@ const TABS: readonly { id: CliHealthTab; icon: typeof Search; testId: string }[]
   { id: "search", icon: Search, testId: selectors.nav.tabSearch },
   { id: "validate", icon: ShieldCheck, testId: selectors.nav.tabValidate },
   { id: "status", icon: Activity, testId: selectors.nav.tabStatus },
+  { id: "composition", icon: GitBranch, testId: selectors.nav.tabComposition },
 ];
 
 function Utility() {

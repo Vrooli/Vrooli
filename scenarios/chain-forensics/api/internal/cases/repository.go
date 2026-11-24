@@ -30,8 +30,95 @@ type Repository interface {
 	AddLabel(context.Context, AnalystLabel) (AnalystLabel, error)
 	ListLabels(context.Context, string) ([]AnalystLabel, error)
 	SavePacket(context.Context, chainforensics.PrivatePacket) (PacketRecord, error)
+	DeliverPacketToAttention(context.Context, string, string) (AttentionDelivery, error)
+	ListAttentionDeliveries(context.Context, int) ([]AttentionDelivery, error)
 	Revise(context.Context, string, time.Time, RevisionAdditions) (Record, CaseRevision, error)
 	ListRevisions(context.Context, string) ([]CaseRevision, error)
+}
+
+func (r *sqliteRepository) DeliverPacketToAttention(ctx context.Context, caseID, packetSHA256 string) (AttentionDelivery, error) {
+	if strings.TrimSpace(caseID) == "" || strings.TrimSpace(packetSHA256) == "" {
+		return AttentionDelivery{}, ErrInvalid{Field: "delivery", Reason: "case id and packet hash are required"}
+	}
+	packet, err := r.getPacket(ctx, caseID, packetSHA256)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return AttentionDelivery{}, ErrInvalid{Field: "packet_sha256", Reason: "packet must be exported and persisted before local delivery"}
+		}
+		return AttentionDelivery{}, err
+	}
+	var delivered string
+	err = r.db.QueryRowContext(ctx, `SELECT delivered_at FROM local_attention_deliveries WHERE case_id = ? AND packet_sha256 = ?`, caseID, packetSHA256).Scan(&delivered)
+	if err == nil {
+		stamp, parseErr := time.Parse(timestampLayout, delivered)
+		if parseErr != nil {
+			return AttentionDelivery{}, fmt.Errorf("parse attention delivery timestamp: %w", parseErr)
+		}
+		return AttentionDelivery{CaseID: caseID, PacketSHA256: packetSHA256, PacketJSON: packet.JSON, DeliveredAt: stamp}, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return AttentionDelivery{}, fmt.Errorf("read existing attention delivery: %w", err)
+	}
+	stamp := r.clock.Now().UTC()
+	_, err = r.db.ExecContext(ctx, `INSERT INTO local_attention_deliveries(case_id, packet_sha256, delivered_at) VALUES (?, ?, ?) ON CONFLICT(case_id, packet_sha256) DO NOTHING`, caseID, packetSHA256, stamp.Format(timestampLayout))
+	if err != nil {
+		return AttentionDelivery{}, fmt.Errorf("persist local attention delivery: %w", err)
+	}
+	// Read the committed timestamp back so a concurrent idempotent retry returns
+	// the first receipt time rather than its own attempted insert time.
+	if err := r.db.QueryRowContext(ctx, `SELECT delivered_at FROM local_attention_deliveries WHERE case_id = ? AND packet_sha256 = ?`, caseID, packetSHA256).Scan(&delivered); err != nil {
+		return AttentionDelivery{}, fmt.Errorf("read persisted local attention delivery: %w", err)
+	}
+	stamp, err = time.Parse(timestampLayout, delivered)
+	if err != nil {
+		return AttentionDelivery{}, fmt.Errorf("parse attention delivery timestamp: %w", err)
+	}
+	return AttentionDelivery{CaseID: caseID, PacketSHA256: packetSHA256, PacketJSON: packet.JSON, DeliveredAt: stamp}, nil
+}
+
+func (r *sqliteRepository) ListAttentionDeliveries(ctx context.Context, limit int) ([]AttentionDelivery, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 100
+	}
+	rows, err := r.db.QueryContext(ctx, `SELECT case_id, packet_sha256, delivered_at FROM local_attention_deliveries ORDER BY delivered_at DESC, case_id, packet_sha256 LIMIT ?`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list local attention deliveries: %w", err)
+	}
+	type deliveryRef struct {
+		caseID, digest string
+		deliveredAt    time.Time
+	}
+	refs := make([]deliveryRef, 0)
+	for rows.Next() {
+		var ref deliveryRef
+		var delivered string
+		if err := rows.Scan(&ref.caseID, &ref.digest, &delivered); err != nil {
+			_ = rows.Close()
+			return nil, fmt.Errorf("scan local attention delivery: %w", err)
+		}
+		ref.deliveredAt, err = time.Parse(timestampLayout, delivered)
+		if err != nil {
+			_ = rows.Close()
+			return nil, fmt.Errorf("parse attention delivery timestamp: %w", err)
+		}
+		refs = append(refs, ref)
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return nil, fmt.Errorf("iterate local attention deliveries: %w", err)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, fmt.Errorf("close local attention delivery rows: %w", err)
+	}
+	out := make([]AttentionDelivery, 0, len(refs))
+	for _, ref := range refs {
+		packet, err := r.getPacket(ctx, ref.caseID, ref.digest)
+		if err != nil {
+			return nil, fmt.Errorf("read delivered attention packet: %w", err)
+		}
+		out = append(out, AttentionDelivery{CaseID: ref.caseID, PacketSHA256: ref.digest, PacketJSON: packet.JSON, DeliveredAt: ref.deliveredAt})
+	}
+	return out, nil
 }
 
 func (r *sqliteRepository) SavePacket(ctx context.Context, packet chainforensics.PrivatePacket) (PacketRecord, error) {

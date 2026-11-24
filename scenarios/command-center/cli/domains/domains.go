@@ -60,6 +60,27 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 			return nil
 		}
 	}
+	focus := func(args []string) error {
+		kind, owner, err := focusFilters(args)
+		if err != nil {
+			return err
+		}
+		body, err := core.Get("/focus", nil)
+		if err != nil {
+			return err
+		}
+		var surface focusSurface
+		if err := json.Unmarshal(body, &surface); err != nil {
+			return fmt.Errorf("decode focus response: %w", err)
+		}
+		surface.Entries = filterFocusEntries(surface.Entries, kind, owner)
+		out, err := json.Marshal(surface)
+		if err != nil {
+			return fmt.Errorf("encode focus response: %w", err)
+		}
+		_, err = os.Stdout.Write(append(out, '\n'))
+		return err
+	}
 	room := func(args []string) error {
 		if len(args) == 0 || strings.HasPrefix(args[0], "-") {
 			return fmt.Errorf("room requires an id")
@@ -128,7 +149,63 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 	promote := func(args []string) error {
 		return runPromotion(core, args)
 	}
-	return []cliapp.CommandGroup{{Title: "Instrument reads", Commands: []cliapp.Command{{Name: "board", Description: "Show board shape", NeedsAPI: true, Run: read("/board")}, {Name: "room", Description: "Show one composed room", NeedsAPI: true, Run: room}, {Name: "focus", Description: "Show ranked findings", NeedsAPI: true, Run: read("/focus")}, {Name: "open-loop", Description: "Show dated open holes", NeedsAPI: true, Run: read("/open-loop")}, {Name: "describe", Description: "Describe the sensor space", NeedsAPI: true, Run: read("/capabilities/describe")}, {Name: "gaps", Description: "Show compatibility gaps", NeedsAPI: true, Run: read("/gaps")}, {Name: "integrations", Description: "Show lifecycle and feature state for declared integrations", NeedsAPI: true, Run: integrationList}, {Name: "integrations-refresh", Description: "Refresh declared integration state", NeedsAPI: true, Run: integrationRefresh}, {Name: "integration-action", Description: "Run a confirmed allowlisted integration action", NeedsAPI: true, Run: integrationAction}, {Name: "promote", Description: "Compare a Command Center reading with its producer and store promotion evidence", NeedsAPI: true, Run: promote}}}}
+	return []cliapp.CommandGroup{{Title: "Instrument reads", Commands: []cliapp.Command{{Name: "board", Description: "Show board shape", NeedsAPI: true, Run: read("/board")}, {Name: "room", Description: "Show one composed room", NeedsAPI: true, Run: room}, {Name: "focus", Description: "Show ranked findings", NeedsAPI: true, Run: focus}, {Name: "open-loop", Description: "Show dated open holes", NeedsAPI: true, Run: read("/open-loop")}, {Name: "describe", Description: "Describe the sensor space", NeedsAPI: true, Run: read("/capabilities/describe")}, {Name: "gaps", Description: "Show compatibility gaps", NeedsAPI: true, Run: read("/gaps")}, {Name: "integrations", Description: "Show lifecycle and feature state for declared integrations", NeedsAPI: true, Run: integrationList}, {Name: "integrations-refresh", Description: "Refresh declared integration state", NeedsAPI: true, Run: integrationRefresh}, {Name: "integration-action", Description: "Run a confirmed allowlisted integration action", NeedsAPI: true, Run: integrationAction}, {Name: "promote", Description: "Compare a Command Center reading with its producer and store promotion evidence", NeedsAPI: true, Run: promote}}}}
+}
+
+func filterFocusEntries(entries []focusEntry, kind, owner string) []focusEntry {
+	filtered := make([]focusEntry, 0, len(entries))
+	for _, entry := range entries {
+		if kind != "" && entry.Kind != kind {
+			continue
+		}
+		if owner != "" && entry.Owner != owner {
+			continue
+		}
+		filtered = append(filtered, entry)
+	}
+	return filtered
+}
+
+type focusEntry struct {
+	Kind       string `json:"kind"`
+	Owner      string `json:"owner"`
+	Reason     string `json:"reason"`
+	MetricID   string `json:"metricId,omitempty"`
+	RankReason string `json:"rankReason"`
+}
+
+type focusSurface struct {
+	GeneratedAt time.Time    `json:"generatedAt"`
+	Entries     []focusEntry `json:"entries"`
+}
+
+func focusFilters(args []string) (kind, owner string, err error) {
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "--json" {
+			continue
+		}
+		name, value, hasValue := strings.Cut(arg, "=")
+		if name != "--kind" && name != "--owner" {
+			return "", "", fmt.Errorf("unexpected focus argument %q", arg)
+		}
+		if !hasValue {
+			i++
+			if i >= len(args) || strings.HasPrefix(args[i], "-") {
+				return "", "", fmt.Errorf("%s requires a value", name)
+			}
+			value = args[i]
+		}
+		if strings.TrimSpace(value) == "" {
+			return "", "", fmt.Errorf("%s requires a value", name)
+		}
+		if name == "--kind" {
+			kind = value
+		} else {
+			owner = value
+		}
+	}
+	return kind, owner, nil
 }
 
 type promotionEvidence struct {

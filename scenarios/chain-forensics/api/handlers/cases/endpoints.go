@@ -10,6 +10,8 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "cases_import", Path: casesconnect.CasesServiceImportCaseProcedure, Method: "POST", Summary: "Import validated evidence case", Category: "cases"},
 	{ID: "cases_get", Path: casesconnect.CasesServiceGetCaseProcedure, Method: "POST", Summary: "Get forensic case", Category: "cases"},
 	{ID: "cases_private_packet", Path: casesconnect.CasesServiceExportPrivatePacketProcedure, Method: "POST", Summary: "Export a private packet locally", Category: "cases"},
+	{ID: "cases_attention_deliver", Path: casesconnect.CasesServiceDeliverPrivatePacketToAttentionProcedure, Method: "POST", Summary: "Deliver an exact private packet to the local attention view", Category: "cases"},
+	{ID: "cases_attention_list", Path: casesconnect.CasesServiceListAttentionDeliveriesProcedure, Method: "POST", Summary: "Read packets delivered to the local attention view", Category: "cases"},
 	{ID: "cases_add_label", Path: casesconnect.CasesServiceAddAnalystLabelProcedure, Method: "POST", Summary: "Add analyst label separately from chain evidence", Category: "cases"},
 	{ID: "cases_list_labels", Path: casesconnect.CasesServiceListAnalystLabelsProcedure, Method: "POST", Summary: "List analyst labels", Category: "cases"},
 	{ID: "cases_capture_evm", Path: casesconnect.CasesServiceCaptureEVMTransactionProcedure, Method: "POST", Summary: "Capture a public Ethereum, Base or Arbitrum transaction and transfer evidence into a case", Category: "cases"},

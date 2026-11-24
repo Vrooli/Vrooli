@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"math"
 	"net/http"
 	"os"
@@ -70,8 +69,14 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 			"Unknown dashboard id: "+id, nil)
 		return
 	}
+	setpoint, err := s.readSetpoint()
+	if err != nil {
+		writeSetpointReadError(w, err)
+		return
+	}
 
 	readings, sources := s.readings(r.Context(), entries)
+	applySetpoint(readings, setpoint)
 
 	writeJSON(w, http.StatusOK, dashboardResponse{
 		Dashboard:   id,
@@ -86,6 +91,7 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 func (s *Server) readings(ctx context.Context, entries []MetricEntry) ([]MetricEntry, map[string]sourceMetadata) {
 	out := make([]MetricEntry, len(entries))
 	copy(out, entries)
+	observations := s.fetchObservations(ctx, entries)
 	sources := map[string]sourceMetadata{}
 	integrations := map[string]capabilityStateView{}
 	for _, state := range s.integrationSnapshot(ctx, false).States {
@@ -129,7 +135,8 @@ func (s *Server) readings(ctx context.Context, entries []MetricEntry) ([]MetricE
 		if path == "" {
 			path = defaultPathFor(src)
 		}
-		env, err := s.fetchObservation(ctx, src, path, m.Source.TTLSeconds)
+		observation := observations[m.ID]
+		env, err := observation.envelope, observation.err
 		name := string(src)
 		if name == "" {
 			name = "none"
@@ -141,134 +148,28 @@ func (s *Server) readings(ctx context.Context, entries []MetricEntry) ([]MetricE
 		if env.Data != nil {
 			metadata.FromCache, metadata.StalenessTS = env.FromCache, env.StalenessTS
 		}
-		sources[name] = metadata
 		if env.Data == nil {
 			m.TrustReason = unavailableReason(err)
+			sources[name] = metadata
 			continue
 		}
-		selectorID := first(m.Source.Selector, m.Source.Select)
-		pick, known := selectors[selectorID]
-		panelPick, panelKnown := panelSelectors[selectorID]
-		ladderPick, ladderKnown := ladderSelectors[selectorID]
-		posturePick, postureKnown := postureSelectors[selectorID]
-		if !known && !panelKnown && !ladderKnown && !postureKnown {
-			m.Trust = TrustUntrusted
-			m.TrustReason = "no selector named " + selectorID
-			continue
-		}
-		var payload any
-		if json.Unmarshal(env.Data, &payload) != nil {
-			m.Trust = TrustUntrusted
-			m.TrustReason = "source returned a body that is not JSON"
-			continue
-		}
-		if version := sourceContractVersion(env.Data); version != "" && m.Source.ContractVersion != "" && version != m.Source.ContractVersion {
-			m.Trust = TrustUntrusted
-			m.TrustReason = "producer contract version " + version + " does not match expected " + m.Source.ContractVersion
-			continue
-		}
-		if unit := sourceUnit(env.Data, selectorID); unit != "" && !sameUnit(unit, m.Source.ExpectedUnit, m.Unit) {
-			m.Trust = TrustUntrusted
-			m.TrustReason = "producer unit " + unit + " does not match expected " + first(m.Source.ExpectedUnit, m.Unit)
-			continue
-		}
-		if strings.EqualFold(m.Kind, "ladder") {
-			if !ladderKnown {
-				m.Trust = TrustUntrusted
-				m.TrustReason = "no ladder selector named " + selectorID
-				continue
+		candidate, cacheable := qualifyMetricObservation(*m, env, err)
+		key := observationCacheKey(src, path, m.ID)
+		if cacheable && observation.commit {
+			candidate, env = commitQualifiedObservation(s.cache, key, *m, candidate, env, time.Duration(m.Source.TTLSeconds)*time.Second)
+			metadata.FromCache, metadata.StalenessTS = env.FromCache, env.StalenessTS
+		} else if !cacheable && !env.FromCache && err == nil {
+			// A timestamped response can still violate this reading's contract.
+			// Keep the previous qualified value and expose its degraded trust.
+			s.cache.MarkStale(key, time.Now().UTC())
+			if previous, _, ok := s.cache.Get(key); ok {
+				candidate, _ = qualifyMetricObservation(*m, previous, errors.New(candidate.TrustReason))
+				metadata.FromCache, metadata.StalenessTS = true, previous.StalenessTS
 			}
-			ladder, found := ladderPick(payload)
-			if !found {
-				m.Trust = TrustUntrusted
-				m.TrustReason = "ladder selector " + selectorID + " found no plausible schedule in the source payload"
-				continue
-			}
-			m.Ladder = ladder
-			m.Rows = ladderRows(ladder)
-			m.Value = float64(len(ladder.Rungs))
-			m.trustFromProducerTime(env, err)
-			continue
 		}
-		if strings.EqualFold(m.Kind, "posture") {
-			if !postureKnown {
-				m.Trust = TrustUntrusted
-				m.TrustReason = "no posture selector named " + selectorID
-				continue
-			}
-			posture, found := posturePick(payload)
-			if !found {
-				m.Trust = TrustUntrusted
-				m.TrustReason = "posture selector " + selectorID + " found no position in the source payload"
-				continue
-			}
-			m.Value = posture
-			m.trustFromProducerTime(env, err)
-			continue
-		}
-		if strings.EqualFold(m.Kind, "panel") || strings.EqualFold(m.Kind, "funnel") || strings.EqualFold(m.Kind, "leaderboard") {
-			if !panelKnown {
-				m.Trust = TrustUntrusted
-				m.TrustReason = "no panel selector named " + selectorID
-				continue
-			}
-			rows, found := panelPick(payload)
-			if !found {
-				m.Trust = TrustUntrusted
-				m.TrustReason = "panel selector " + selectorID + " found no rows in the source payload"
-				continue
-			}
-			if strings.EqualFold(m.Kind, "panel") && !plausiblePanelRows(rows, 6, true) {
-				m.Trust = TrustUntrusted
-				m.TrustReason = "panel selector " + selectorID + " returned implausible rows"
-				continue
-			}
-			m.Rows = rows
-			var panelTotal float64
-			for _, row := range rows {
-				panelTotal += row.Value
-			}
-			m.Value = panelTotal
-			m.trustFromProducerTime(env, err)
-			continue
-		}
-		value, found := pick(payload)
-		if !found {
-			m.Trust = TrustUntrusted
-			m.TrustReason = "selector " + selectorID + " found no number in the source payload"
-			continue
-		}
-		unit := first(m.Unit, m.Source.ExpectedUnit)
-		sampleSize := producerSampleSize(payload, selectorID)
-		if !plausibleMetricValue(value, unit, sampleSize) {
-			m.Trust = TrustUntrusted
-			m.TrustReason = "selector " + selectorID + " returned an implausible value for unit " + unit
-			continue
-		}
-		m.Value = value
-		if env.ObservationAt == nil {
-			m.Trust = TrustUntrusted
-			m.TrustReason = "producer did not supply observation time"
-			continue
-		}
-		observed := env.ObservationAt.UTC()
-		m.ObservedAt = &observed
-		now := time.Now().UTC()
-		age := now.Sub(observed)
-		switch {
-		case err == nil && !observed.After(now) && age <= time.Duration(m.TTLSeconds)*time.Second:
-			m.Trust = TrustValid
-		case observed.After(now):
-			m.Trust = TrustUntrusted
-			m.TrustReason = "producer observation time is in the future"
-		default:
-			// The source stopped answering, or the cached observation aged
-			// past its TTL. Either way the last good reading is served with
-			// its age, and coverage is untouched.
-			m.Trust = TrustCached
-			m.TrustReason = cachedReason(age, time.Duration(m.TTLSeconds)*time.Second, err)
-		}
-		if m.TrendPolicy != nil && m.TrendPolicy.Enabled && m.Trust == TrustValid && m.ObservedAt != nil {
+		sources[name] = metadata
+		*m = candidate
+		if m.Trust == TrustValid && m.TrendPolicy != nil && m.TrendPolicy.Enabled && m.ObservedAt != nil {
 			value, ok := numericReading(m.Value)
 			if ok && s.trendStore != nil {
 				_ = s.trendStore.Record(ctx, trends.Observation{MetricID: m.ID, Source: string(src), Value: value, Observed: *m.ObservedAt})
@@ -281,50 +182,6 @@ func (s *Server) readings(ctx context.Context, entries []MetricEntry) ([]MetricE
 	}
 	s.joinPredictions(out)
 	return out, sources
-}
-
-// trustFromProducerTime qualifies a structured reading (panel or ladder) by the
-// producer's observation time: valid inside its TTL, cached up to twice it,
-// unavailable after. A reading without producer time is never trusted.
-func (m *MetricEntry) trustFromProducerTime(env Envelope, err error) {
-	if env.ObservationAt == nil {
-		m.Trust = TrustUntrusted
-		m.TrustReason = "producer did not supply observation time"
-		return
-	}
-	observed := env.ObservationAt.UTC()
-	m.ObservedAt = &observed
-	now := time.Now().UTC()
-	age := now.Sub(observed)
-	switch {
-	case err == nil && !observed.After(now) && age <= time.Duration(m.TTLSeconds)*time.Second:
-		m.Trust = TrustValid
-	case observed.After(now):
-		m.Trust = TrustUntrusted
-		m.TrustReason = "producer observation time is in the future"
-	case age <= time.Duration(m.TTLSeconds*2)*time.Second:
-		m.Trust = TrustCached
-	default:
-		m.Trust = TrustUnavailable
-		m.TrustReason = "producer observation is stale"
-	}
-}
-
-func plausiblePanelRows(rows []PanelRow, limit int, exhaustive bool) bool {
-	if len(rows) == 0 {
-		return exhaustive
-	}
-	if len(rows) > limit {
-		return false
-	}
-	total := 0.0
-	for _, row := range rows {
-		if row.Key == "" || row.Label == "" || row.Value < 0 || row.Share < 0 || row.Share > 1 || math.IsNaN(row.Share) {
-			return false
-		}
-		total += row.Share
-	}
-	return !exhaustive || math.Abs(total-1) <= 0.02
 }
 
 func (s *Server) readingOrigin(binding SourceBinding) (string, string, string) {
@@ -350,63 +207,6 @@ func (s *Server) readingOrigin(binding SourceBinding) (string, string, string) {
 	return origin, "local", origin
 }
 
-const plausiblePercentSampleFloor = 100
-
-// plausibleMetricValue rejects values that are structurally inconsistent with
-// the declared unit. A sub-1 percent value with a meaningful sample is more
-// likely to be a 0..1 ratio accidentally labelled as a percent.
-func plausibleMetricValue(value float64, unit string, sampleSize int) bool {
-	if math.IsNaN(value) || math.IsInf(value, 0) {
-		return false
-	}
-	switch strings.ToLower(unit) {
-	case "count", "integer", "usd", "currency", "seconds", "minutes":
-		return value >= 0
-	case "percent", "%":
-		if value < 0 || value > 100 {
-			return false
-		}
-		return !(value > 0 && value < 1 && sampleSize >= plausiblePercentSampleFloor)
-	default:
-		return true
-	}
-}
-
-func producerSampleSize(payload any, selector string) int {
-	root, ok := payload.(map[string]any)
-	if !ok {
-		return 0
-	}
-	for _, key := range []string{"sample_size", "sampleSize"} {
-		if value, ok := root[key].(float64); ok && value >= 0 {
-			return int(value)
-		}
-	}
-	if samples, ok := root["sample_sizes"].(map[string]any); ok {
-		if value, ok := samples[selector].(float64); ok && value >= 0 {
-			return int(value)
-		}
-	}
-	return 0
-}
-
-func cachedReason(age, ttl time.Duration, err error) string {
-	if err != nil && age <= ttl {
-		return err.Error()
-	}
-	return fmt.Sprintf("observation age %s exceeds TTL %s", age.Round(time.Millisecond), ttl)
-}
-
-func unavailableReason(err error) string {
-	if err == nil {
-		return "observation is older than its TTL"
-	}
-	if errors.Is(err, upstream.ErrNotAvailable) {
-		return "source is not reachable or does not expose this surface"
-	}
-	return err.Error()
-}
-
 func sourceFromBinding(binding string) UpstreamSource {
 	if strings.Contains(binding, "swarm") {
 		return SourceSwarm
@@ -426,95 +226,8 @@ func sourceFromBinding(binding string) UpstreamSource {
 	return SourceNone
 }
 
-func (s *Server) fetchObservation(ctx context.Context, src UpstreamSource, path string, ttlSeconds int) (Envelope, error) {
-	client := s.clientFor(src)
-	if client == nil {
-		return Envelope{}, upstream.ErrNotAvailable
-	}
-	key := string(src) + ":" + path
-
-	// Serve fresh cache when available.
-	if env, fresh, ok := s.cache.Get(key); ok && fresh {
-		return env, nil
-	}
-
-	raw, err := client.Fetch(ctx, path)
-	if err != nil {
-		s.cache.MarkStale(key, time.Now().UTC())
-		if env, _, ok := s.cache.Get(key); ok {
-			return env, err
-		}
-		return Envelope{}, err
-	}
-
-	env := Envelope{
-		Data:      raw,
-		CachedAt:  time.Now().UTC(),
-		FromCache: false,
-		Source:    string(src),
-	}
-	env.ObservationAt = observationTime(raw)
-	ttl := TTLFor(src)
-	if ttlSeconds > 0 {
-		ttl = time.Duration(ttlSeconds) * time.Second
-	}
-	s.cache.Put(key, env, ttl)
-	return env, nil
-}
-
-func observationTime(raw json.RawMessage) *time.Time {
-	var v map[string]any
-	if json.Unmarshal(raw, &v) != nil {
-		return nil
-	}
-	for _, key := range []string{"observedAt", "observed_at", "observationTime", "timestamp", "generatedAt", "generated_at"} {
-		if value, ok := v[key].(string); ok {
-			if t, err := time.Parse(time.RFC3339, value); err == nil {
-				return ptrTime(t)
-			}
-		}
-	}
-	return nil
-}
-
-// sourceContractVersion and sourceUnit inspect optional metadata emitted by a
-// producer envelope. Older compatibility projections may omit these fields;
-// the binding's declared contract remains authoritative in that case. When a
-// producer does emit metadata, disagreement is deterministic evidence of an
-// incompatible observation and must not be presented as trustworthy.
-func sourceContractVersion(raw json.RawMessage) string {
-	var envelope struct {
-		ContractVersion      string `json:"contractVersion"`
-		ContractVersionSnake string `json:"contract_version"`
-	}
-	if json.Unmarshal(raw, &envelope) != nil {
-		return ""
-	}
-	return first(envelope.ContractVersion, envelope.ContractVersionSnake)
-}
-
-func sourceUnit(raw json.RawMessage, selector string) string {
-	var envelope struct {
-		Unit  string            `json:"unit"`
-		Units map[string]string `json:"units"`
-	}
-	if json.Unmarshal(raw, &envelope) != nil {
-		return ""
-	}
-	if unit := strings.TrimSpace(envelope.Units[selector]); unit != "" {
-		return unit
-	}
-	return strings.TrimSpace(envelope.Unit)
-}
-
-func sameUnit(actual string, expected ...string) bool {
-	actual = strings.ToLower(strings.TrimSpace(actual))
-	for _, candidate := range expected {
-		if candidate != "" && actual == strings.ToLower(strings.TrimSpace(candidate)) {
-			return true
-		}
-	}
-	return false
+func observationCacheKey(src UpstreamSource, path, metricID string) string {
+	return string(src) + ":" + path + ":" + metricID
 }
 
 func (s *Server) clientFor(src UpstreamSource) upstream.Client {

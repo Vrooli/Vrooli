@@ -89,9 +89,13 @@ func releaseLadder(payload any) (*LadderReading, bool) {
 	if !ok {
 		return nil, false
 	}
-	entries, ok := root["entries"].([]any)
-	if !ok || len(entries) == 0 {
-		return nil, false
+	entries := []any{}
+	if raw, present := root["entries"]; present {
+		var ok bool
+		entries, ok = raw.([]any)
+		if !ok {
+			return nil, false
+		}
 	}
 	ladder := &LadderReading{Rungs: []LadderRung{}, Enabling: []LadderWork{}, Unscheduled: []LadderNode{}, Reach: []LadderUnlock{}}
 	for _, raw := range objects(root["enabling"]) {
@@ -160,9 +164,11 @@ func releaseLadder(payload any) (*LadderReading, bool) {
 }
 
 // plausibleLadder refuses a schedule a producer could not legally emit: ranks
-// are positive and unique, and every rung names its deliverable.
+// are positive and unique, and every rung names its deliverable. An empty
+// schedule is valid: Offer Desk can have only unscheduled work or no ranked
+// deliverables yet.
 func plausibleLadder(rungs []LadderRung) bool {
-	if len(rungs) == 0 || len(rungs) > maxLadderRungs {
+	if len(rungs) > maxLadderRungs {
 		return false
 	}
 	for i, rung := range rungs {

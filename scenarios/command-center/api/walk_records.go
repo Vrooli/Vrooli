@@ -39,7 +39,13 @@ func (s walkConnectService) journal() journalconnect.JournalServiceClient {
 	if s.ledger != nil {
 		return s.ledger
 	}
-	return journalconnect.NewJournalServiceClient(&http.Client{Timeout: 90 * time.Second, Transport: provenance.ForwardingTransport{}}, resolveScenarioBaseURL("source-ledger", "SOURCE_LEDGER_BASE_URL", "SOURCE_LEDGER_API_PORT")())
+	baseURL := ""
+	if s.resolveJournalBase != nil {
+		baseURL = s.resolveJournalBase()
+	} else {
+		baseURL = resolveScenarioBaseURL("source-ledger", "SOURCE_LEDGER_BASE_URL", "SOURCE_LEDGER_API_PORT")()
+	}
+	return journalconnect.NewJournalServiceClient(&http.Client{Timeout: 90 * time.Second, Transport: provenance.ForwardingTransport{}}, baseURL)
 }
 
 // A journal kind is a label, not proof of authorship: any writer holding the scope can
@@ -139,16 +145,24 @@ func (s walkConnectService) replay(ctx context.Context, kind, key, body, channel
 func (s walkConnectService) appendWalk(ctx context.Context, kind, key, chain, body, channel string) (*connect.Response[walkv1.Receipt], error) {
 	r, err := s.journal().AppendEntry(ctx, connect.NewRequest(&journalv1.AppendEntryRequest{Scope: walkScope, Kind: kind, Body: body, RequestKey: "command-center/" + kind + "/" + key, ExpectedLatestId: &chain}))
 	if err != nil {
+		if connect.CodeOf(err) == connect.CodeUnavailable || connect.CodeOf(err) == connect.CodeDeadlineExceeded {
+			// Source Ledger commits request keys atomically. If the append reply is
+			// lost, reconcile that exact request before returning an ambiguous error.
+			found, readErr := s.journal().GetEntry(ctx, connect.NewRequest(&journalv1.GetEntryRequest{Scope: walkScope, RequestKey: "command-center/" + kind + "/" + key}))
+			if readErr == nil {
+				if found.Msg.GetEntry().GetBody() != body || found.Msg.GetEntry().GetKind() != kind {
+					return nil, conflictWalk("request key already names different content")
+				}
+				return receipt(found.Msg.GetEntry(), true, channel), nil
+			}
+		}
 		return nil, err
 	}
-	check, err := s.journal().GetEntry(ctx, connect.NewRequest(&journalv1.GetEntryRequest{Scope: walkScope, Id: r.Msg.Entry.Id}))
-	if err != nil {
-		return nil, err
+	entry := r.Msg.GetEntry()
+	if entry == nil || entry.GetId() == "" || entry.GetKind() != kind || entry.GetBody() != body {
+		return nil, connect.NewError(connect.CodeDataLoss, fmt.Errorf("append receipt differs from requested content"))
 	}
-	if check.Msg.Entry.Body != body {
-		return nil, connect.NewError(connect.CodeDataLoss, fmt.Errorf("receipt readback differs"))
-	}
-	return receipt(check.Msg.Entry, r.Msg.Existing, channel), nil
+	return receipt(entry, r.Msg.GetExisting(), channel), nil
 }
 
 func (s walkConnectService) Publish(ctx context.Context, r *connect.Request[walkv1.PublishRequest]) (*connect.Response[walkv1.Receipt], error) {

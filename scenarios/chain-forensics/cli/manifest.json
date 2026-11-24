@@ -589,5 +589,16 @@
     "domains": []
   },
   "exceptions": [],
-  "omitted": []
+  "omitted": [
+    {
+      "service": "CasesService",
+      "method": "DeliverPrivatePacketToAttention",
+      "reason": "The local attention view is a browser review surface; case packets are delivered there through the scenario UI, with no outbound or notification effect."
+    },
+    {
+      "service": "CasesService",
+      "method": "ListAttentionDeliveries",
+      "reason": "The persisted local attention queue is reviewed in the scenario UI and does not need a parallel CLI display."
+    }
+  ]
 }

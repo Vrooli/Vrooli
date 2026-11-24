@@ -1,0 +1,16 @@
+{
+  "principals": [
+    {
+      "name": "command-center-lpbs-analytics-reader",
+      "resource": "landing-page-business-suite",
+      "audience": "scenario-authenticator:landing-page-business-suite",
+      "scopes": ["lpbs:analytics.read"]
+    },
+    {
+      "name": "command-center-lpbs-profile-proxy",
+      "resource": "landing-page-business-suite",
+      "audience": "scenario-authenticator:landing-page-business-suite",
+      "scopes": ["lpbs:remote-profiles.proxy"]
+    }
+  ]
+}

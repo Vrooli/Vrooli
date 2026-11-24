@@ -21,6 +21,10 @@ describe("HeroReadout", () => {
     expect(screen.getByLabelText("58").closest("[data-figure]")).toHaveAttribute("data-ink", "solid");
     expect(screen.getByTestId("freshness-hairline")).toBeInTheDocument();
   });
+  it("shows the setpoint alongside the measured hero value", () => {
+    renderWithProviders(<HeroReadout reading={reading({ coverage: "NOW", trust: "VALID", value: 58, observedAt: new Date().toISOString(), sample: null, format: "integer", unit: "count", target: { direction: "up", bar: 100, barRef: "setpoint:revenue_mrr" } })} />);
+    expect(screen.getByText("Target at least 100 count")).toBeInTheDocument();
+  });
   it("says so when a room has nothing measured and illustrations are hidden", () => {
     renderWithProviders(<HeroReadout reading={null} emptyReason="Illustrative figures are hidden." />);
     expect(screen.getByText("No measured reading")).toBeInTheDocument();

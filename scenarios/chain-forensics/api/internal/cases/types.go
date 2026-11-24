@@ -34,6 +34,16 @@ type PacketRecord struct {
 	CreatedAt     time.Time
 }
 
+// AttentionDelivery is a durable local handoff receipt. The exact packet hash
+// is the identity of the delivered artifact; it does not imply sending or
+// notifying anyone outside this scenario.
+type AttentionDelivery struct {
+	CaseID       string
+	PacketSHA256 string
+	PacketJSON   []byte
+	DeliveredAt  time.Time
+}
+
 // RevisionAdditions appends evidence and supports explicit summary/gap
 // maintenance. Existing sources, claims, and observations cannot be replaced
 // or removed. Edges change only through explicit, history-preserving revisions.

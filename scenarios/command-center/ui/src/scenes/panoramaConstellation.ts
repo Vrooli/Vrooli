@@ -333,3 +333,5 @@ export function panoramaConstellation(): Scene {
     },
   };
 }
+
+export const compositionDefinition = { id: "panorama-constellation", create: panoramaConstellation, slots: slotManifest };

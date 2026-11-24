@@ -14,6 +14,19 @@ describe("LadderTile", () => {
     expect(container.querySelectorAll(".cc-ladder-tile__seg")).toHaveLength(5);
     expect(container.querySelector(".cc-ladder-tile__seg[data-next]")).not.toBeNull();
   });
+
+  it("keeps the retained ladder explicitly unavailable with its last-good age", () => {
+    const observedAt = new Date(Date.now() - 90 * 60_000).toISOString();
+    const { container } = renderWithProviders(<ul><LadderTile reading={ladderReading({
+      trust: "UNAVAILABLE", observedAt, value: 5, trustReason: "producer observation is stale",
+    })} /></ul>);
+    expect(screen.getByText("UNAVAILABLE", { selector: "strong" })).toBeInTheDocument();
+    const trustLine = screen.getByRole("group", { name: /Release ladder: UNAVAILABLE.*producer observation is stale · last good 2h ago/ });
+    expect(trustLine.querySelector("[data-qualifier]")).toHaveTextContent("source not answering · last good 2h ago");
+    expect(trustLine.querySelector("[data-qualifier]")).toHaveAttribute("title", expect.stringContaining("producer observation is stale"));
+    expect(screen.getByText("web-console")).toBeInTheDocument();
+    expect(container.querySelector("[data-reading-trust=UNAVAILABLE]")).not.toBeNull();
+  });
 });
 
 describe("PanelTile", () => {
@@ -39,5 +52,17 @@ describe("PanelTile", () => {
   it("marks measured rows as measured", () => {
     const { container } = renderWithProviders(<ul><PanelTile reading={makeReading({ kind: "panel", value: 12, rows: [{ key: "m", label: "Mobile", value: 12, share: 1 }] })} /></ul>);
     expect(container.querySelector("[data-reading]")).toHaveAttribute("data-provenance", "measured");
+  });
+
+  it("withholds current panel rows until an untrusted source can be verified", () => {
+    const { container } = renderWithProviders(<ul><PanelTile reading={makeReading({
+      kind: "panel", label: "Readiness", coverage: "NOW", trust: "UNTRUSTED", value: 0,
+      trustReason: "producer did not supply observation time", rows: [{ key: "missing", label: "Readiness goal missing", value: 0, share: 1 }],
+    })} /></ul>);
+    expect(screen.queryByText("Readiness goal missing")).toBeNull();
+    expect(container.querySelector(".cc-panel-tile__rows")).toBeNull();
+    expect(container.querySelector(".cc-panel-tile__empty")).toHaveTextContent("Not shown until the source reading can be verified.");
+    expect(screen.getByRole("group", { name: /Readiness: UNTRUSTED.*producer did not supply observation time/ })).toBeInTheDocument();
+    expect(container.querySelector("[data-qualifier]")).toHaveTextContent("no source time");
   });
 });

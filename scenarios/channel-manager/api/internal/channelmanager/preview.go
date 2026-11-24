@@ -62,7 +62,7 @@ func (s *Service) PreviewRelease(input PreviewInput) (PostPreview, error) {
 	}
 	if format == nil {
 		preview.BlockingErrors = append(preview.BlockingErrors, "media format is not supported by this platform")
-	} else if input.MediaWidth < format.MinWidth || input.MediaHeight < format.MinHeight || input.MediaWidth > format.MaxWidth || input.MediaHeight > format.MaxHeight {
+	} else if !format.TextOnly && (input.MediaWidth < format.MinWidth || input.MediaHeight < format.MinHeight || input.MediaWidth > format.MaxWidth || input.MediaHeight > format.MaxHeight) {
 		preview.BlockingErrors = append(preview.BlockingErrors, "media dimensions are outside platform descriptor limits")
 	} else if target, ok := parseAspectRatio(format.PreferredAspectRatio); ok && input.MediaWidth > 0 && input.MediaHeight > 0 {
 		actual := float64(input.MediaWidth) / float64(input.MediaHeight)

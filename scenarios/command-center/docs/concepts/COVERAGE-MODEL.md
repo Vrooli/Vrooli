@@ -4,7 +4,7 @@
 
 ## Purpose
 
-Invariant 3 of the instrument contract states the rule this document implements: *three axes, never merged.* `path:docs/agent-system/TARGET_MODEL.md` names them **coverage**, **condition** and **empirical**, and is explicit about why they must stay apart — "coverage sees only existence, and a capability that is built, green on every gate, and silently degrading reports as healthy supply on every surface."
+Invariant 3 of the instrument contract states the rule this document implements: *three axes, never merged.* `path:docs/agent-system/STANDING_TEAMS.md` names them **coverage**, **condition** and **empirical**, and is explicit about why they must stay apart — "coverage sees only existence, and a capability that is built, green on every gate, and silently degrading reports as healthy supply on every surface."
 
 Every number this board shows answers all three before it is allowed on screen:
 
@@ -16,7 +16,7 @@ Every number this board shows answers all three before it is allowed on screen:
 
 The three are independent. A metric can have a perfect sensor whose last three fetches failed. A metric can have a flawless cached value for a pipeline that was never built. A metric can be measured perfectly, on a fresh reading, and be going the wrong way. Folding any pair into one status makes both unreadable, which is exactly what the previous design did with a single `dataSource: live | partial | gap` field.
 
-**On naming.** This scenario calls the condition axis `trust`, because at this board's granularity condition is a property of a reading rather than of a capability: a source that answers with a stale value, an impossible value or a mismatched unit is a sensor-channel fault, and that is what the verdict records. The vocabulary follows `infrastructure-manager`'s trust verdicts rather than inventing a third set of words. Where this document says *trust*, `TARGET_MODEL.md` says *condition*.
+**On naming.** This scenario calls the condition axis `trust`, because at this board's granularity condition is a property of a reading rather than of a capability: a source that answers with a stale value, an impossible value or a mismatched unit is a sensor-channel fault, and that is what the verdict records. The vocabulary follows `infrastructure-manager`'s trust verdicts rather than inventing a third set of words. Where this document says *trust*, `STANDING_TEAMS.md` says *condition*.
 
 ## Axis 1 — Coverage
 
@@ -40,7 +40,7 @@ Does the supply that exists still work? At reading granularity: is this reading 
 | Verdict | Meaning |
 |---|---|
 | `VALID` | Observed inside the source's TTL, units agree, value is within a plausible domain. |
-| `CACHED` | The last trustworthy value, held past its TTL because the current fetch failed. Carries its age. |
+| `CACHED` | The last trustworthy value retained when a fetch fails or a new response violates this reading's timestamp, contract, selector, or shape. Carries its age and degradation reason. |
 | `UNAVAILABLE` | The source could not be read and there is no cached value. Carries the reason verbatim. |
 | `UNTRUSTED` | A reading arrived but cannot be believed — unit mismatch, an impossible value, or a source reporting a shelved sensor. |
 
@@ -105,9 +105,13 @@ profile to relay the exact read-only metrics procedure. The deployment
 credential handoff reconciles that profile whenever the deployed service
 credential rotates. No VPS-side credential provisioning is part of this flow.
 
-The `COMMAND_CENTER_LPBS_READER_TOKEN` environment variable remains available
-only for isolated test or short-lived local probe overrides; it is not the
-production setup path.
+Analytics procedures use the `command-center-lpbs-analytics-reader` service
+principal (`lpbs:analytics.read`). Its credential is read from credential
+authority and exchanged on demand; neither credential nor access token belongs
+in process environment or logs. Production remote-profile admin relay
+calls still temporarily use the LPBS `service-secret` credential because that
+broker has not yet migrated to the analytics principal; this fallback must not
+be used for analytics procedure requests.
 
 The command records the reading, direct producer response, origin, observed
 time, contract, and comparison verdict under the plan artifact promotion

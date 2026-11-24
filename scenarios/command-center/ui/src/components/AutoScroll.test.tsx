@@ -99,5 +99,34 @@ describe("AutoScroll", () => { // [REQ:CC-P1-017]
     expect(content()?.style.transform).toBe("");
     expect(holdBeat).not.toHaveBeenCalledWith(expect.any(String), true);
     expect(screen.queryByTestId("autoscroll-position")).toBeNull();
+    expect(screen.queryByRole("group", { name: "Rows navigation" })).toBeNull();
+  });
+
+  it("lets viewers inspect overflow rows after the timed pass releases the beat", () => {
+    const { content, holdBeat } = renderList(10);
+    advance(AUTOSCROLL_TIMING.holdStartMs);
+    for (let step = 0; step < 6; step += 1) advance(AUTOSCROLL_TIMING.stepMs);
+    advance(AUTOSCROLL_TIMING.holdEndMs);
+    advance(AUTOSCROLL_TIMING.fadeMs);
+    advance(AUTOSCROLL_TIMING.fadeMs);
+
+    expect(screen.getByRole("group", { name: "Rows navigation" })).toBeInTheDocument();
+    const previous = screen.getByRole("button", { name: "Previous Rows" });
+    const next = screen.getByRole("button", { name: "Next Rows" });
+    expect(previous).toBeDisabled();
+    expect(next).toBeEnabled();
+    expect(holdBeat.mock.lastCall?.[1]).toBe(false);
+
+    act(() => next.click());
+    expect(content()?.style.transform).toBe("translate3d(0, -50px, 0)");
+    expect(screen.getByRole("status")).toHaveTextContent("2–5 of 10");
+
+    for (let step = 0; step < 5; step += 1) act(() => next.click());
+    expect(next).toBeDisabled();
+    expect(content()?.style.transform).toBe("translate3d(0, -300px, 0)");
+    act(() => previous.click());
+    expect(content()?.style.transform).toBe("translate3d(0, -250px, 0)");
+    expect(next).toBeEnabled();
+
   });
 });

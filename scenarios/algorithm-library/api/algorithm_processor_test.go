@@ -128,14 +128,14 @@ func TestFormatExpectedOutput(t *testing.T) {
 }
 
 func TestGenerateRandomString(t *testing.T) {
-	str := generateRandomString(10)
-	assert.Len(t, str, 10)
-
-	// Should be different each time
-	str2 := generateRandomString(10)
-	assert.Len(t, str2, 10)
-	// This might fail very rarely but probability is extremely low
-	assert.NotEqual(t, str, str2)
+	const allowedCharacters = "abcdefghijklmnopqrstuvwxyz0123456789"
+	for _, length := range []int{0, 1, 10, 32} {
+		result := generateRandomString(length)
+		require.Len(t, result, length)
+		for _, character := range result {
+			assert.Contains(t, allowedCharacters, string(character))
+		}
+	}
 }
 
 func TestParseExecutionTime(t *testing.T) {

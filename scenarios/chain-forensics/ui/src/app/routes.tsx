@@ -8,6 +8,7 @@ import {
 import { AppShell } from "../layout/AppShell";
 import { DashboardPage } from "../pages/DashboardPage";
 import { CasesPage } from "../pages/CasesPage";
+import { AttentionPage } from "../pages/AttentionPage";
 import { SettingsPage } from "../pages/SettingsPage";
 import { ThemeProvider } from "../theme/ThemeProvider";
 
@@ -24,6 +25,7 @@ export const routes: RouteObject[] = [
     children: [
       { index: true, element: <DashboardPage /> },
       { path: "cases", element: <CasesPage /> },
+      { path: "attention", element: <AttentionPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },

@@ -189,9 +189,16 @@
         "logical_id": "vrooli/compute-manager",
         "field": "digitalocean-api-token",
         "label": "DigitalOcean API token",
-        "description": "Authorises DigitalOcean Droplet lifecycle calls. Resolved through credential-authority-go at call time and deliberately NOT injected into the process environment.",
+        "description": "Custom scopes for Droplet create/read/delete, required metadata reads, intent tags, and read-only invoice reconciliation. Setup probes use GET only. Resolved through Credential Authority at call time and never injected into the process environment.",
         "required": false,
         "obtain_url": "https://cloud.digitalocean.com/account/api/tokens"
+      },
+      {
+        "logical_id": "vrooli/compute-manager",
+        "field": "akash-testnet-wallet",
+        "label": "Akash sandbox-2 wallet signing credential",
+        "description": "Existing sandbox-2 wallet signing credential for a future authorized verification step. Enter it only through the secure Vrooli Onboarding credential flow. The descriptor URI does not prove the credential exists, is a wallet, or can sign.",
+        "required": false
       }
     ]
   },
@@ -228,9 +235,55 @@
   "environment": {
     "COMPUTE_MANAGER_LPBS_BASE_URL": "",
     "COMPUTE_MANAGER_BRIDGE_BASE_URL": "",
+    "COMPUTE_MANAGER_AKASH_NETWORK": "",
+    "COMPUTE_MANAGER_AKASH_CHAIN_ID": "",
+    "COMPUTE_MANAGER_AKASH_ENDPOINT": "",
+    "COMPUTE_MANAGER_AKASH_RPC_ENDPOINT": "",
+    "COMPUTE_MANAGER_AKASH_PROVIDER_ADDRESS": "",
     "COMPUTE_MANAGER_RECONCILE_INTERVAL": "15m",
     "COMPUTE_MANAGER_EXPIRY_INTERVAL": "1m",
     "COMPUTE_MANAGER_MINIMUM_BILLABLE_UNIT": "1h",
     "COMPUTE_MANAGER_TENANT_CEILING_MINUTES": "1440"
-  }
+  },
+  "hostTools": [
+    {
+      "name": "qemu",
+      "required": true,
+      "reason": "The local-QEMU compute path needs a real Linux VM for machine acquisition and fresh-host validation.",
+      "when": [
+        "setup",
+        "test"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "notes": "Install through Vrooli host requirements; do not use an ad-hoc package-manager command."
+    },
+    {
+      "name": "qemu-arm",
+      "required": true,
+      "reason": "The local-QEMU compute path needs a real arm64 Linux VM for architecture matrix cases.",
+      "when": [
+        "setup",
+        "test"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "notes": "Install through Vrooli host requirements; do not use an ad-hoc package-manager command."
+    },
+    {
+      "name": "cloud-localds",
+      "required": true,
+      "reason": "The local-QEMU compute path uses cloud-init to provision the VM user and SSH key.",
+      "when": [
+        "setup",
+        "test"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "notes": "Install through Vrooli host requirements; do not use an ad-hoc package-manager command."
+    }
+  ]
 }

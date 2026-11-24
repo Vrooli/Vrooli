@@ -31,6 +31,7 @@ func Module(logger *log.Logger, searcher Searcher, overrides *OverrideGate) modu
 		Name: "search",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
+			r.HandleFunc("/api/v1/cli-composition/search", CompositionSearchHTTPHandler()).Methods("POST")
 		},
 		Endpoints: Endpoints,
 	}

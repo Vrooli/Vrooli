@@ -1,70 +1,70 @@
 {
-  "id": "traffic_devices",
-  "label": "Traffic by device",
-  "description": "Ranked device-class breakdown of landing-page visitors.",
-  "unit": "count",
-  "format": "integer",
-  "kind": "panel",
-  "shape": "rows",
   "columns": {
+    "detail": {
+      "optional": true,
+      "type": "string"
+    },
     "key": {
       "type": "string"
     },
-    "value": {
-      "type": "number"
+    "label": {
+      "optional": true,
+      "type": "string"
     },
     "share": {
       "type": "number"
     },
-    "label": {
-      "type": "string",
-      "optional": true
-    },
-    "detail": {
-      "type": "string",
-      "optional": true
+    "value": {
+      "type": "number"
     }
   },
-  "source": {
-    "team": "marketing-crew",
-    "binding": "scenario:landing-page-business-suite",
-    "read": "/landing_page_business_suite.v1.MetricsService/GetTrafficBreakdown?dimension=device_class&limit=6&window_days=30",
-    "select": "traffic_devices",
-    "ttlSeconds": 300,
-    "integrationId": "landing-page-business-suite",
-    "origin": "production",
-    "featureId": "traffic_devices",
-    "contractVersion": "analytics-traffic.v1",
-    "selector": "traffic_devices",
-    "expectedUnit": "count",
-    "sourceTimePolicy": "producer_required"
-  },
   "coverage": "IN-REACH",
+  "description": "Ranked device-class breakdown of landing-page visitors.",
+  "format": "integer",
+  "id": "traffic_devices",
+  "kind": "panel",
+  "label": "Traffic by device",
   "sample": {
-    "value": 100,
-    "series": [
-      100
-    ],
+    "basis": "hand-authored structural sample, reviewed 2026-09-03",
     "rows": [
       {
         "key": "desktop",
         "label": "Desktop",
-        "value": 60,
-        "share": 0.6
+        "share": 0.6,
+        "value": 60
       },
       {
         "key": "mobile",
         "label": "Mobile",
-        "value": 35,
-        "share": 0.35
+        "share": 0.35,
+        "value": 35
       },
       {
         "key": "tablet",
         "label": "Tablet",
-        "value": 5,
-        "share": 0.05
+        "share": 0.05,
+        "value": 5
       }
     ],
-    "basis": "hand-authored structural sample, reviewed 2026-09-03"
-  }
+    "series": [
+      100
+    ],
+    "value": 100
+  },
+  "shape": "rows",
+  "source": {
+    "binding": "scenario:landing-page-business-suite",
+    "contractVersion": "analytics-traffic.v1",
+    "expectedUnit": "count",
+    "featureId": "traffic_devices",
+    "integrationId": "landing-page-business-suite",
+    "origin": "production",
+    "read": "/landing_page_business_suite.v1.MetricsService/GetTrafficBreakdown?dimension=DEVICE_CLASS\u0026limit=6\u0026window_days=30",
+    "select": "traffic_devices",
+    "selector": "traffic_devices",
+    "sourceTimePolicy": "producer_required",
+    "team": "marketing-crew",
+    "ttlSeconds": 300
+  },
+  "unit": "count"
 }

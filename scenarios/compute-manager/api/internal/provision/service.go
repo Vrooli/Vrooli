@@ -13,11 +13,18 @@ import (
 	"compute-manager/internal/intent"
 	"compute-manager/internal/meter"
 	"compute-manager/internal/provider"
+	"compute-manager/internal/provider/akash"
+	"github.com/vrooli/vrooli/packages/provider-effect-gate"
 )
 
 type Service struct {
-	Intents   intent.Service
-	Meter     meter.Service
+	Intents  intent.Service
+	Meter    meter.Service
+	Prices   PriceCatalog
+	MoneyCap MoneyCap
+	// Effects defaults to stub when absent. Every production source must have
+	// an explicit live setting before provision may cross its mutation boundary.
+	Effects   *effectgate.Gate
 	Provider  provider.Provider
 	Providers *provider.Registry
 	Window    time.Duration
@@ -112,9 +119,24 @@ func (s Service) create(ctx context.Context, req intent.Request, amount float64,
 	if selected == nil {
 		return intent.Record{}, provider.Instance{}, fmt.Errorf("provider is unavailable")
 	}
+	if req.Provider != "" && req.Provider != selected.Name() {
+		return intent.Record{}, provider.Instance{}, fmt.Errorf("requested provider %q does not match selected provider %q", req.Provider, selected.Name())
+	}
+	req.Provider = selected.Name()
+	// CD3's admitted selection always includes one IPv4 address; carry that
+	// exact selection through both the quote and provider request.
+	req.Spec.IPv4 = true
 	if s.Mu != nil {
 		s.Mu.Lock()
 		defer s.Mu.Unlock()
+	}
+	if req.IdempotencyKey == "" {
+		return intent.Record{}, provider.Instance{}, fmt.Errorf("idempotency key is required")
+	}
+	if existing, lookupErr := s.Intents.Store.GetByIDOrKey(ctx, req.IdempotencyKey); lookupErr == nil {
+		return existing, provider.Instance{}, fmt.Errorf("existing intent %q in state %q requires reconciliation; provider create was not repeated", req.IdempotencyKey, existing.State)
+	} else if !errors.Is(lookupErr, intent.ErrNotFound) {
+		return intent.Record{}, provider.Instance{}, fmt.Errorf("check idempotency key before spend admission: %w", lookupErr)
 	}
 	record, err := s.Intents.CreateIntent(ctx, req)
 	if err != nil {
@@ -122,6 +144,54 @@ func (s Service) create(ctx context.Context, req intent.Request, amount float64,
 	}
 	if record.State != intent.StateOpen {
 		return record, provider.Instance{}, nil
+	}
+	if s.DB == nil {
+		return record, provider.Instance{}, fmt.Errorf("spend admission unavailable: durable quote store is not configured")
+	}
+	var quote StoredQuote
+	if selected.Name() == "local-qemu" {
+		err = validateLocalQEMUSelection(req.Spec.Region, req.Spec.Size, req.Spec.Profile)
+	}
+	if err == nil {
+		quote, err = priceSelection(ctx, s.Prices, selected.Name(), req.Spec.Region, req.Spec.Size, req.IdempotencyKey, req.Spec.IPv4, s.MoneyCap, s.now())
+	}
+	if err == nil && selected.Name() == akash.Name {
+		err = akash.ValidateIntentBinding(quote.PriceProvenanceJSON, record.Spec)
+	}
+	if err != nil {
+		unavailable := StoredQuote{IdempotencyKey: req.IdempotencyKey, Provider: selected.Name(), Region: req.Spec.Region, Size: req.Spec.Size, IPv4: true, Term: "monthly", State: "refused_billing_facts", Reason: err.Error(), SourceVersion: "unavailable", CreatedAt: s.now()}
+		if storeErr := persistQuoteUnavailable(ctx, s.DB, &unavailable, s.MoneyCap); storeErr != nil {
+			err = errors.Join(err, storeErr)
+		}
+		record.ResolvedAt = s.now().UTC()
+		refusalErr := err
+		if transitionErr := s.Intents.Transition(ctx, &record, intent.StateRefused); transitionErr != nil {
+			refusalErr = errors.Join(refusalErr, fmt.Errorf("record refused intent: %w", transitionErr))
+		}
+		return record, provider.Instance{}, refusalErr
+	}
+	if s.Effects == nil || !s.Effects.AllowsMutation(selected.Name()) {
+		effect := effectgate.Stub
+		if s.Effects != nil {
+			effect = s.Effects.ModeFor(selected.Name())
+		}
+		quote.State = "refused_effect_gate"
+		quote.Reason = fmt.Sprintf("source effect gate is %q; provider call is disabled", effect)
+	}
+	newQuote, err := persistQuote(ctx, s.DB, &quote, s.MoneyCap)
+	if err != nil {
+		return record, provider.Instance{}, err
+	}
+	if !newQuote {
+		return record, provider.Instance{}, fmt.Errorf("existing stored quote for idempotency key %q requires reconciliation; provider create was not repeated", req.IdempotencyKey)
+	}
+	if quote.State != "approved" {
+		record.ResolvedAt = s.now().UTC()
+		refusalErr := fmt.Errorf("spend refused: %s", quote.Reason)
+		if transitionErr := s.Intents.Transition(ctx, &record, intent.StateRefused); transitionErr != nil {
+			refusalErr = errors.Join(refusalErr, fmt.Errorf("record refused intent: %w", transitionErr))
+		}
+		return record, provider.Instance{}, refusalErr
 	}
 	ceilingHold, err := s.Meter.AcquireCeilingHold(ctx, req.RequestedBy, amount, s.Window)
 	if err != nil {
@@ -184,6 +254,26 @@ func (s Service) create(ctx context.Context, req intent.Request, amount float64,
 		_, _ = s.DB.ExecContext(ctx, `UPDATE reservations SET instance_id=? WHERE id=?`, created.ID, reservation.ID)
 	}
 	return record, created, nil
+}
+
+func validateLocalQEMUSelection(region, size, profile string) error {
+	if region != "local" {
+		return fmt.Errorf("local-qemu requires exact host-local region 'local'")
+	}
+	if profile != "headless-linux" && profile != "desktop-linux" {
+		return fmt.Errorf("local-qemu profile %q is unsupported or missing", profile)
+	}
+	if size != profile {
+		return fmt.Errorf("local-qemu quote size %q must exactly match profile %q", size, profile)
+	}
+	return nil
+}
+
+func (s Service) now() time.Time {
+	if s.Now != nil {
+		return s.Now().UTC()
+	}
+	return time.Now().UTC()
 }
 
 func withIntentTag(tags map[string]string, intentID string) map[string]string {

@@ -593,6 +593,127 @@
           "negative": 1
         }
       }
+    },
+    {
+      "provider_id": "cli-health.composition",
+      "lifecycle": "experimental",
+      "provider_group": "cli-health",
+      "bucket": "BUCKET_KNOW",
+      "type": "anatomy",
+      "class": "local_live",
+      "scope": "SCOPE_SCENARIO",
+      "description": "Bounded source and manifest evidence for cli-core ScenarioApp and command-group composition within one named scenario. This is partial static evidence and does not prove runtime dispatch.",
+      "routing_profile": {
+        "answer_spaces": [
+          "cli_substrate_anatomy"
+        ],
+        "intents": [
+          "explain",
+          "identify_ownership",
+          "locate"
+        ],
+        "positive_examples": [
+          "how is cli-health ScenarioApp composed with command groups",
+          "which CLI subcommand groups are registered for cli-health"
+        ],
+        "exclusions": [
+          "runtime command availability",
+          "installed CLI help behavior",
+          "transitive handler execution"
+        ]
+      },
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "cli-health",
+          "path": "/api/v1/cli-composition/search",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"scenario\":\"cli-health\"}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "id",
+        "title_field": "title",
+        "score_field": "score",
+        "snippet_field": "text",
+        "path_field": "path",
+        "attestation_field": "attestation"
+      },
+      "performance": {
+        "p95_ms": 2500,
+        "minimum_samples": 1,
+        "telemetry_required": false
+      },
+      "scoring": {
+        "recall_at": 5,
+        "recall_target": 0.8,
+        "mrr_at": 3,
+        "deep_k": 20
+      },
+      "tests": {
+        "minimum": {
+          "reviewed_positive": 2,
+          "negative": 2
+        },
+        "suite_id": "cli-health.composition.primary",
+        "name": "CLI ScenarioApp and group composition (owner contract examples)",
+        "description": "Owner contract examples verify bounded source graph/manifest analysis only. They do not establish live provider-direct or federated retrieval.",
+        "cases": [
+          {
+            "id": "scenario-app-group-composition",
+            "query": "ScenarioApp command groups subcommand composition",
+            "expect_ids": [
+              "cli-health:cli-composition:scenario-app"
+            ],
+            "expect_within_top_k": 1,
+            "status": "reviewed",
+            "tags": [
+              "reviewed",
+              "strong",
+              "cli-substrate"
+            ]
+          },
+          {
+            "id": "registered-cli-groups",
+            "query": "which CLI subcommand groups are registered for cli-health",
+            "expect_ids": [
+              "cli-health:cli-composition:scenario-app"
+            ],
+            "expect_within_top_k": 1,
+            "status": "reviewed",
+            "tags": [
+              "reviewed",
+              "strong",
+              "cli-substrate"
+            ]
+          },
+          {
+            "id": "composition-negative-1",
+            "query": "underwater penguin invoice telescope",
+            "expect_no_strong_hit": true,
+            "expect_max_score": 0.2,
+            "status": "reviewed",
+            "tags": [
+              "reviewed",
+              "negative"
+            ]
+          },
+          {
+            "id": "composition-negative-2",
+            "query": "lunar chlorophyll gearbox",
+            "expect_no_strong_hit": true,
+            "expect_max_score": 0.2,
+            "status": "reviewed",
+            "tags": [
+              "reviewed",
+              "negative"
+            ]
+          }
+        ]
+      }
     }
   ]
 }

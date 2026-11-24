@@ -1,7 +1,9 @@
 import type { Reading } from "../lib/api";
+import { qualify, resolveReading } from "@vrooli/react-component-library/ProvenanceInk/0.1.3";
+import { ReadingTrustLine } from "./ReadingTrustLine";
 
 interface TileQualifierProps {
-  qualifier: { text: string; tone: string };
+  qualifier?: { text: string; tone: string };
   reading: Reading;
   /** The room mixes origins, so a non-local reading marks its own. */
   showOrigin?: boolean;
@@ -15,12 +17,11 @@ const originMark =(env: string): string => (env === "production" ? "PROD" : env.
  * hairline and the room's source strip, so its text stays in the accessibility
  * tree but is not drawn; every other state draws its reason on one line.
  */
-export function TileQualifier({ qualifier, reading, showOrigin = false }: TileQualifierProps) {
-  const live = qualifier.tone === "live";
+export function TileQualifier({ qualifier: authoredQualifier, reading, showOrigin = false }: TileQualifierProps) {
+  const qualifier = authoredQualifier ?? qualify(reading, resolveReading(reading));
+  const live = qualifier.tone === "live" && !(reading.coverage === "NOW" && reading.trust !== "VALID");
   const origin = showOrigin && reading.origin_env && reading.origin_env !== "local" ? reading.origin_env : null;
-  const text = live
-    ? <span className="cc-visually-hidden" data-qualifier data-tone={qualifier.tone}>{qualifier.text}</span>
-    : <span className="cc-qualifier" data-qualifier data-tone={qualifier.tone}>{qualifier.text}</span>;
+  const text = <ReadingTrustLine reading={reading} qualifier={qualifier} hideLive />;
   if (live && !origin) return text;
   return (
     <span className="cc-tile-qualifier" title={qualifier.text}>

@@ -1,6 +1,7 @@
 import {
   Home,
   Search,
+  Inbox,
   Settings,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -20,6 +21,7 @@ export interface NavItem {
   key:
     | "dashboard"
     | "cases"
+    | "attention"
     | "settings";
   /** Router path. */
   path: string;
@@ -34,6 +36,7 @@ export interface NavItem {
 export const NAV_ITEMS: readonly NavItem[] = [
   { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard, icon: <Home aria-hidden="true" /> },
   { key: "cases", path: "/cases", labelKey: strings.layout.nav.cases, icon: <Search aria-hidden="true" /> },
+  { key: "attention", path: "/attention", labelKey: strings.layout.nav.attention, icon: <Inbox aria-hidden="true" /> },
   { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings, icon: <Settings aria-hidden="true" /> },
 ];
 

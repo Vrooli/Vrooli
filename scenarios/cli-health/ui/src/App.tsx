@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { AppShell, type CliHealthTab } from "./components/AppShell";
 import { SearchPanel } from "./features/search/SearchPanel";
+import { CompositionPanel } from "./features/composition/CompositionPanel";
 import { StatusPanel } from "./features/status/StatusPanel";
 import { ValidatePanel } from "./features/validate/ValidatePanel";
 
@@ -13,6 +14,7 @@ export default function App() {
       {tab === "search" && <SearchPanel />}
       {tab === "validate" && <ValidatePanel />}
       {tab === "status" && <StatusPanel />}
+      {tab === "composition" && <CompositionPanel />}
     </AppShell>
   );
 }

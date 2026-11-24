@@ -5,7 +5,7 @@
     "eyebrow": "Scenario Template",
     "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place."
   },
-"errors": {
+  "errors": {
     "canceled": "Operation canceled.",
     "unknown": "An unknown error occurred.",
     "invalid_argument": "Invalid input: {{message}}",
@@ -34,7 +34,8 @@
   "nav": {
     "search": "Search",
     "validate": "Validate",
-    "status": "Status"
+    "status": "Status",
+    "composition": "Composition"
   },
   "search": {
     "title": "Command search",
@@ -82,5 +83,20 @@
     "yes": "yes",
     "no": "no",
     "never": "never"
+  },
+  "composition": {
+    "title": "CLI composition",
+    "description": "Inspect how a scenario wires cli-core ScenarioApp, command groups and manifest entries. Results are static source evidence, not runtime proof.",
+    "queryLabel": "Composition question",
+    "queryPlaceholder": "How is cli-health composed?",
+    "scenarioLabel": "Scenario",
+    "scenarioPlaceholder": "Scenario slug",
+    "submit": "Inspect composition",
+    "loading": "Reading source evidence…",
+    "error": "Composition query failed: {{message}}",
+    "empty": "No strong composition match.",
+    "attestation": "Source attestation: {{value}}",
+    "score": "Match score: {{score}}",
+    "degraded": "Degraded {{code}}: {{message}}"
   }
 }

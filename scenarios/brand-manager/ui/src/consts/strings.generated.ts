@@ -43,8 +43,6 @@ export const strings = {
   pages: {
     dashboard: {
       title: "pages.dashboard.title",
-      description: "pages.dashboard.description",
-      statPlaceholderLabel: "pages.dashboard.statPlaceholderLabel",
     },
     settings: {
       title: "pages.settings.title",

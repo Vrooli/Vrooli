@@ -66,6 +66,39 @@ func TestPrivatePacketEndpointPersistsPackagePacketBeforeReturningBytes(t *testi
 	require.Equal(t, packet.SHA256, persistedDigest)
 }
 
+func TestAttentionViewRequiresCurrentPacketHashAndReadsBackDeliveredPacket(t *testing.T) {
+	ctx := context.Background()
+	handle := db.NewSQLite(t)
+	_, err := handle.ExecContext(ctx, cases.Schema())
+	require.NoError(t, err)
+	repo := cases.NewSQLiteRepository(handle, scheduletest.New(testTime()))
+	doc, err := forensics.ExampleCase()
+	require.NoError(t, err)
+	doc.Gaps = append(doc.Gaps, "No sourced exchange-deposit cluster membership is established.")
+	_, err = repo.Import(ctx, doc)
+	require.NoError(t, err)
+	h := NewHandler(repo, log.New(io.Discard, "", 0))
+	packet, err := forensics.BuildPrivatePacket(doc)
+	require.NoError(t, err)
+	_, err = h.DeliverPrivatePacketToAttention(ctx, connect.NewRequest(&proto.DeliverPrivatePacketToAttentionRequest{CaseId: doc.ID, PacketSha256: "stale"}))
+	require.Error(t, err)
+	var connectErr *connect.Error
+	require.ErrorAs(t, err, &connectErr)
+	require.Equal(t, connect.CodeFailedPrecondition, connectErr.Code())
+
+	delivered, err := h.DeliverPrivatePacketToAttention(ctx, connect.NewRequest(&proto.DeliverPrivatePacketToAttentionRequest{CaseId: doc.ID, PacketSha256: packet.SHA256}))
+	require.NoError(t, err)
+	require.Equal(t, doc.ID, delivered.Msg.GetDelivery().GetCaseId())
+	require.Equal(t, packet.SHA256, delivered.Msg.GetDelivery().GetPacketSha256())
+	require.Equal(t, packet.Bytes, delivered.Msg.GetDelivery().GetPacketJson())
+
+	readback, err := h.ListAttentionDeliveries(ctx, connect.NewRequest(&proto.ListAttentionDeliveriesRequest{Limit: 10}))
+	require.NoError(t, err)
+	require.Len(t, readback.Msg.GetDeliveries(), 1)
+	require.Equal(t, packet.SHA256, readback.Msg.GetDeliveries()[0].GetPacketSha256())
+	require.Equal(t, packet.Bytes, readback.Msg.GetDeliveries()[0].GetPacketJson())
+}
+
 func TestReviseCaseEndpointUsesTypedAppendOnlyRequestAndExposesHistory(t *testing.T) {
 	ctx := context.Background()
 	handle := db.NewSQLite(t)

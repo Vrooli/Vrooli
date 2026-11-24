@@ -45,22 +45,6 @@ envelope = {
 signals = envelope['signals']
 
 
-def error_class(exc):
-    text = str(exc)
-    lowered = text.lower()
-    if 'lease contention' in lowered or 'database is locked' in lowered:
-        return 'lease_contention'
-    if 'grant' in text or 'run eligible' in text or 'run_eligible' in text:
-        return 'refused'
-    if any(v in lowered for v in ('unreachable', 'connection refused', 'no running runtime', 'bridge unavailable', 'invalid_port', 'vrooli_not_found')):
-        return 'scenario_unreachable'
-    if 'deadline' in lowered:
-        return 'deadline_exceeded'
-    if 'remote' in lowered or '5xx' in lowered or 'internal server error' in lowered:
-        return 'remote_error'
-    return 'binding_error'
-
-
 def clip(value, size=180):
     return str(value if value is not None else '')[:size]
 
@@ -76,9 +60,13 @@ def age_days(value):
 
 
 def record_failure(name, binding, exc):
-    klass = error_class(exc)
-    envelope['errors'].append({'class': klass, 'where': name, 'detail': clip(exc, 180)})
-    return klass
+    _, klass = program.classify(exc, owner=True, include_remote=True,
+                                extra_unreachable=('invalid_port', 'vrooli_not_found'))
+    failure = (program.deadline_refusal(exc, where=name, detail_limit=180)
+               if klass == 'deadline_exceeded' else
+               {'class': klass, 'detail': clip(exc, 180), 'where': name})
+    envelope['errors'].append(failure)
+    return failure['class']
 
 
 def untrusted_reading(trust):

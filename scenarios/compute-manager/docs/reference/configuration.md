@@ -52,18 +52,13 @@ returned to a UI or CLI client.
 
 ### Required at runtime, set by the lifecycle (exists today)
 
-| Variable | Range / format | Purpose |
-|---|---|---|
-| `API_PORT` | `15000-19999` | Port for the Go API server |
-| `UI_PORT` | `20000-24999` | Port for the production UI server (`ui/server.js`) |
+See the [canonical port allocation reference](../../../../docs/reference/port-allocation.md) for API and UI ranges and the full listener policy.
 
 If the scenario adds WebSocket channels on the existing API or UI server,
 do not add another `ports` entry. Declare an additional port only when the
 scenario starts a separate listener process.
 
-The canonical bands all sit below 32768 so Linux never hands out the
-ports as outbound source ports. See the project-level port allocation
-reference (`path:../../docs/reference/port-allocation.md`) for the full policy.
+
 
 ### Optional overrides (exists today)
 
@@ -85,13 +80,7 @@ lifecycle-provided `API_PORT`.
 id upper-cased with hyphens replaced by underscores. The following are
 recognised, in precedence order with first found winning:
 
-| Purpose | Variables |
-|---|---|
-| API base URL | `COMPUTE_MANAGER_API_BASE`, `COMPUTE_MANAGER_API_URL`, `VROOLI_API_BASE` |
-| API port | `COMPUTE_MANAGER_API_PORT` |
-| API token | `COMPUTE_MANAGER_API_TOKEN`, `VROOLI_API_TOKEN` |
-| Config dir | `COMPUTE_MANAGER_CONFIG_DIR`, `VROOLI_CLI_CONFIG_DIR` |
-| HTTP timeout | `COMPUTE_MANAGER_HTTP_TIMEOUT`, `VROOLI_HTTP_TIMEOUT` |
+The standard variable names and order come from `cliapp.StandardScenarioEnv`; see the [CLI Core scenario environment contract](../../../../packages/cli-core/README.md#scenario-cli-environment). Keep scenario-specific additions in this reference.
 
 > **Do not** set the un-prefixed `API_PORT` for a CLI invocation. When
 > CLIs run inside web-console terminals it leaks across scenarios. Use
@@ -184,7 +173,6 @@ two different numbers:
 Provider spend alerts are not configuration for this scenario at all.
 They send mail and stop nothing. The real ceiling is the one computed
 from our own meter.
-
 ## Service manifest (`.vrooli/service.json`)
 
 Single source of truth for everything the lifecycle needs to know. The

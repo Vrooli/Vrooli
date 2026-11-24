@@ -1,4 +1,4 @@
-import { DataTable, type DataTableColumn } from "@vrooli/react-component-library/DataTable/1.4.2";
+import { DataTable, type DataTableColumn } from "@vrooli/react-component-library/DataTable/1.4.8";
 import type { Instance } from "@vrooli/proto-types/compute-manager/v1/instance/instance_pb";
 
 import { selectors } from "../consts/selectors";

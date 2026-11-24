@@ -20,7 +20,7 @@ metadata:
 
 ### 1. Focus and scope
 
-Regulate the instrument and its morning walk capability. Improve judgment in skills, repeated composition in programs, and missing stable operations in their scenario owner. Do not change objectives, the operator's setpoint, team schedules, or upstream product state. `docs/agent-system/TARGET_MODEL.md` owns instrument boundaries; `docs/agent-system/SKILL_AUTHORING.md` owns the three-speed stack.
+Regulate the instrument and its morning walk capability. Improve judgment in skills, repeated composition in programs, and missing stable operations in their scenario owner. Do not change objectives, the operator's setpoint, team schedules, or upstream product state. `docs/agent-system/STANDING_TEAMS.md` owns instrument boundaries; `docs/agent-system/SKILL_AUTHORING.md` owns the three-speed stack.
 
 ### 2. Setpoint
 
@@ -49,6 +49,7 @@ The prep envelope reports phase count, readable/unavailable sources, stale or un
 | Evidence | Repair route | Next-cycle evidence |
 |---|---|---|
 | Binding unavailable or freshness drift | Owning scenario implementation/build through scenario-work-ladder | Same binding condition |
+| `total_scenarios` lacks a trustworthy reading | Read `GET /scenarios`; check `observed_at`, `discovery_failures`, and `total_scenarios`. The aggregate is omitted for partial discovery; never substitute a count of partial rows. Repair or restore the `vrooli-core` source, then rerun `command-center focus` and reread the metric. | Fresh producer timestamp and aggregate from a complete inventory |
 | Correct source responses but malformed or omitted briefing sections | Command Center program/test repair | Behavioral corpus plus prep envelope |
 | Repeated extra reads with stable joins | Promote composition into the owned program | Observed tool round trips for comparable attempts |
 | Program compensates for schema/recovery/attribution rules | Add the owner operation and remove the compensation | Owner test and simpler program |

@@ -188,39 +188,45 @@ func TestArchitectureRuntime_StaleExceptionIsInvalid(t *testing.T) {
 	}
 }
 
-func TestArchitectureRuntime_LiveExceptionIsClean(t *testing.T) {
-	m := manifestWith(
-		[]cliapp.ManifestCommand{cmd("list", "proto_list")},
-		[]cliapp.ManifestException{{Command: "execute", Class: "durable_run", Reason: "server-owned run"}},
-	)
-	obs := RuntimeObservation{Resolved: true, Commands: []RuntimeCommand{{Group: "", Name: "execute"}, {Group: "g1", Name: "list"}}}
-	got := architectureRuntimeFindings(m, obs, "cli/manifest.json")
-	if len(got) != 0 {
-		t.Fatalf("live declared exception should be clean, got %+v", got)
+func TestArchitectureRuntime_ExceptionPathResolution(t *testing.T) {
+	tests := []struct {
+		name      string
+		exception cliapp.ManifestException
+		command   RuntimeCommand
+		invalid   bool
+	}{
+		{
+			name:      "declared top-level exception",
+			exception: cliapp.ManifestException{Command: "execute", Class: "durable_run", Reason: "server-owned run"},
+			command:   RuntimeCommand{Group: "", Name: "execute"},
+		},
+		{
+			name:      "help section display does not change top-level identity",
+			exception: cliapp.ManifestException{Command: "execute", Class: "durable_run", Reason: "server-owned run"},
+			command:   RuntimeCommand{Group: "Suites", Name: "execute"},
+		},
+		{
+			name:      "grouped exception requires full path",
+			exception: cliapp.ManifestException{Command: "runs wait", Class: "streaming", Reason: "server stream"},
+			command:   RuntimeCommand{Group: "other", Name: "wait"},
+			invalid:   true,
+		},
 	}
-}
-
-func TestArchitectureRuntime_TopLevelExceptionMayAppearUnderHelpSection(t *testing.T) {
-	m := manifestWith(
-		[]cliapp.ManifestCommand{cmd("list", "proto_list")},
-		[]cliapp.ManifestException{{Command: "execute", Class: "durable_run", Reason: "server-owned run"}},
-	)
-	obs := RuntimeObservation{Resolved: true, Commands: []RuntimeCommand{{Group: "Suites", Name: "execute"}, {Group: "g1", Name: "list"}}}
-	got := architectureRuntimeFindings(m, obs, "cli/manifest.json")
-	if len(got) != 0 {
-		t.Fatalf("top-level exception exposed under a help display section should be clean, got %+v", got)
-	}
-}
-
-func TestArchitectureRuntime_GroupedExceptionRequiresFullPath(t *testing.T) {
-	m := manifestWith(
-		[]cliapp.ManifestCommand{cmd("list", "proto_list")},
-		[]cliapp.ManifestException{{Command: "runs wait", Class: "streaming", Reason: "server stream"}},
-	)
-	obs := RuntimeObservation{Resolved: true, Commands: []RuntimeCommand{{Group: "other", Name: "wait"}, {Group: "g1", Name: "list"}}}
-	got := architectureRuntimeFindings(m, obs, "cli/manifest.json")
-	if findingByCode(got, CodeArchMetadataInvalid) == nil {
-		t.Fatalf("grouped exception must require exact group path, got %+v", got)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := manifestWith(
+				[]cliapp.ManifestCommand{cmd("list", "proto_list")},
+				[]cliapp.ManifestException{tt.exception},
+			)
+			obs := RuntimeObservation{Resolved: true, Commands: []RuntimeCommand{tt.command, {Group: "g1", Name: "list"}}}
+			got := architectureRuntimeFindings(m, obs, "cli/manifest.json")
+			if tt.invalid && findingByCode(got, CodeArchMetadataInvalid) == nil {
+				t.Fatalf("grouped exception must require exact group path, got %+v", got)
+			}
+			if !tt.invalid && len(got) != 0 {
+				t.Fatalf("declared exception should be clean, got %+v", got)
+			}
+		})
 	}
 }
 

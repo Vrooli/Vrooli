@@ -20,9 +20,11 @@ import (
 
 type walkLedgerFake struct {
 	jc.UnimplementedJournalServiceHandler
-	mu      sync.Mutex
-	entries []*j.Entry
-	keys    map[string]*j.Entry
+	mu                       sync.Mutex
+	entries                  []*j.Entry
+	keys                     map[string]*j.Entry
+	failBeforeAppend         bool
+	loseAppendReplyAfterSave bool
 }
 
 func (f *walkLedgerFake) GetEntry(_ context.Context, r *connect.Request[j.GetEntryRequest]) (*connect.Response[j.GetEntryResponse], error) {
@@ -68,6 +70,9 @@ func (f *walkLedgerFake) appendForeign(kind, body string) *j.Entry {
 func (f *walkLedgerFake) AppendEntry(_ context.Context, r *connect.Request[j.AppendEntryRequest]) (*connect.Response[j.AppendEntryResponse], error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.failBeforeAppend {
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("synthetic Source Ledger outage before commit"))
+	}
 	if e := f.keys[r.Msg.RequestKey]; e != nil {
 		if e.Body != r.Msg.Body {
 			return nil, conflictWalk("key")
@@ -86,6 +91,10 @@ func (f *walkLedgerFake) AppendEntry(_ context.Context, r *connect.Request[j.App
 	e := &j.Entry{Id: fmt.Sprint(len(f.entries) + 1), Body: r.Msg.Body, Kind: r.Msg.Kind, CreatedAt: timestamppb.Now()}
 	f.entries = append(f.entries, e)
 	f.keys[r.Msg.RequestKey] = e
+	if f.loseAppendReplyAfterSave {
+		f.loseAppendReplyAfterSave = false
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("synthetic append reply loss after commit"))
+	}
 	return connect.NewResponse(&j.AppendEntryResponse{Entry: e}), nil
 }
 
@@ -145,6 +154,70 @@ func TestWalkCheckpointTransitionsReplayAndChannels(t *testing.T) { // [REQ:CC-P
 	state, e := s.State(ctx, connect.NewRequest(&walkv1.StateRequest{Channel: "operator"}))
 	if e != nil || state.Msg.Checkpoint != nil {
 		t.Fatal("test leaked to operator")
+	}
+}
+
+func TestWalkCheckpointReconcilesCommittedAppendAfterProviderReplyLoss(t *testing.T) {
+	s, ledger := walkTestLedger(t)
+	ledger.loseAppendReplyAfterSave = true
+	req := &walkv1.CheckpointRequest{Channel: "operator", RequestKey: "saved-attempt", WalkId: "walk-retained", State: "active", ResumePhase: "5.7", Content: "Keep this operator work exact ✓"}
+
+	first, err := s.Checkpoint(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		t.Fatalf("ambiguous append was not reconciled: %v", err)
+	}
+	if first.Msg.GetEntryId() == "" || !first.Msg.GetExisting() {
+		t.Fatalf("reconciliation receipt = %+v, want existing durable record", first.Msg)
+	}
+	state, err := s.State(context.Background(), connect.NewRequest(&walkv1.StateRequest{Channel: "operator"}))
+	if err != nil || state.Msg.GetCheckpoint().GetEntryId() != first.Msg.GetEntryId() {
+		t.Fatalf("retained checkpoint after lost reply = %+v, %v", state, err)
+	}
+	if state.Msg.GetCheckpoint().GetBody() == "" || !strings.Contains(state.Msg.GetCheckpoint().GetBody(), req.GetContent()) {
+		t.Fatal("the exact checkpoint content was not retained")
+	}
+	retry, err := s.Checkpoint(context.Background(), connect.NewRequest(req))
+	if err != nil || retry.Msg.GetEntryId() != first.Msg.GetEntryId() || !retry.Msg.GetExisting() {
+		t.Fatalf("same-key retry did not return the original receipt: %+v, %v", retry, err)
+	}
+	ledger.mu.Lock()
+	defer ledger.mu.Unlock()
+	if len(ledger.entries) != 1 {
+		t.Fatalf("ambiguous append created %d entries, want one", len(ledger.entries))
+	}
+}
+
+func TestWalkCheckpointKeepsRequestAcrossPrecommitProviderLossAndRejectsUnsupportedChannel(t *testing.T) {
+	s, ledger := walkTestLedger(t)
+	req := &walkv1.CheckpointRequest{Channel: "test", RequestKey: "retry-after-loss", WalkId: "rehearsal", State: "active", ResumePhase: "6", Content: "Rehearsal checkpoint"}
+	ledger.failBeforeAppend = true
+	if _, err := s.Checkpoint(context.Background(), connect.NewRequest(req)); connect.CodeOf(err) != connect.CodeUnavailable {
+		t.Fatalf("precommit provider loss = %v, want Unavailable", err)
+	}
+	ledger.mu.Lock()
+	if len(ledger.entries) != 0 {
+		ledger.mu.Unlock()
+		t.Fatal("failed append persisted a checkpoint")
+	}
+	ledger.failBeforeAppend = false
+	ledger.mu.Unlock()
+	if _, err := s.Checkpoint(context.Background(), connect.NewRequest(req)); err != nil {
+		t.Fatalf("same retained request did not recover: %v", err)
+	}
+	state, err := s.State(context.Background(), connect.NewRequest(&walkv1.StateRequest{Channel: "test"}))
+	if err != nil || !strings.Contains(state.Msg.GetCheckpoint().GetBody(), req.GetContent()) {
+		t.Fatalf("recovered request lost checkpoint content: %+v, %v", state, err)
+	}
+	bad := *req
+	bad.Channel = "production"
+	bad.RequestKey = "unsupported-channel"
+	if _, err := s.Checkpoint(context.Background(), connect.NewRequest(&bad)); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("unsupported channel = %v, want InvalidArgument", err)
+	}
+	ledger.mu.Lock()
+	defer ledger.mu.Unlock()
+	if len(ledger.entries) != 1 {
+		t.Fatalf("unsupported channel wrote data: %d entries", len(ledger.entries))
 	}
 }
 

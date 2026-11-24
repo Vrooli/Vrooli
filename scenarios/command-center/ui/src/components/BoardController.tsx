@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useGamepad } from "@vrooli/iframe-bridge/react";
@@ -6,6 +6,7 @@ import { useBoardKeyboard } from "../hooks/useBoardKeyboard";
 import { fetchBoard, fetchBoardSettings } from "../lib/api";
 import { BoardContext, BoardProgressContext, parseSamples, type BoardControllerValue, type BoardIntent, type BoardProgress, type SamplesMode } from "../lib/boardContext";
 import { beatPositionAtProgress, buildBeatDurations, progressAtBeat, remapProgress, roomNavigationSuffix, tickCycle } from "../lib/cycle";
+import { boardTransitionDuration } from "../lib/boardTransition";
 
 
 const IDLE_RESUME_MS = 20_000;
@@ -14,7 +15,6 @@ const MAX_HOLD_MS = 90_000;
 /** Backstop margin past a beat's reading time and the max hold, after which a stuck beat is released and skipped. */
 const BEAT_STALL_MARGIN_MS = 30_000;
 const CONTROLS_HIDE_MS = 4_000;
-const TRANSITION_MS = 900;
 
 /** Routes that are operator surfaces, not kiosk board rooms: the auto-cycle must
  *  never evict them, and board keyboard shortcuts must not fire while one is open. */
@@ -25,7 +25,7 @@ export function BoardController({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { data: board } = useQuery({ queryKey: ["board-shape"], queryFn: fetchBoard, staleTime: 30_000 });
-  const { data: boardSettings } = useQuery({ queryKey: ["board-settings"], queryFn: fetchBoardSettings ?? (async () => ({ cycleSeconds: 60, transition: "crossfade", rooms: [] })), staleTime: 30_000 });
+  const { data: boardSettings } = useQuery({ queryKey: ["board-settings"], queryFn: fetchBoardSettings, staleTime: 30_000 });
   const rooms = useMemo(() => board?.rooms ?? [], [board]);
   const currentRoom = useMemo(() => rooms.find((room) => location.pathname === `/${room.id}`), [location.pathname, rooms]);
   const [controlsVisible, setControlsVisible] = useState(false);
@@ -36,6 +36,8 @@ export function BoardController({ children }: { children: ReactNode }) {
   const [held, setHeld] = useState(false);
   const [transitioning, setTransitioning] = useState(false);
   const cycleSeconds = Math.max(5, Number(searchParams.get("cycle") ?? boardSettings?.cycleSeconds ?? 60) || 60);
+  const transition = boardSettings?.transition === "cut" ? "cut" : "crossfade";
+  const transitionDuration = boardTransitionDuration(transition);
   const [reading, setReading] = useState<{ roomId: string; seconds: number[] } | null>(null);
   const readingSeconds = reading && reading.roomId === currentRoom?.id ? reading.seconds : undefined;
   const beatDurations = useMemo(() => buildBeatDurations(currentRoom?.beats ?? [], cycleSeconds, readingSeconds), [currentRoom, cycleSeconds, readingSeconds]);
@@ -94,15 +96,20 @@ export function BoardController({ children }: { children: ReactNode }) {
   const goTo = useCallback((path: string) => {
     if (path === pathRef.current) return;
     cancelTransition();
-    setTransitioning(true);
     const isRoom = rooms.some((room) => path === `/${room.id}`);
     const suffix = isRoom ? roomNavigationSuffix(location.search) : location.search;
+    if (transitionDuration === 0) {
+      setTransitioning(false);
+      navigate(`${path}${suffix}`, { replace: isRoom });
+      return;
+    }
+    setTransitioning(true);
     // Rooms replace history so kiosk cycling never fills the back stack; operator
     // sub-pages (focus, open-loop, settings) push so the board stays one step back.
-    const navigationTimer = window.setTimeout(() => navigate(`${path}${suffix}`, { replace: isRoom }), TRANSITION_MS / 2);
-    const completionTimer = window.setTimeout(() => setTransitioning(false), TRANSITION_MS);
+    const navigationTimer = window.setTimeout(() => navigate(`${path}${suffix}`, { replace: isRoom }), transitionDuration / 2);
+    const completionTimer = window.setTimeout(() => setTransitioning(false), transitionDuration);
     transitionTimersRef.current = [navigationTimer, completionTimer];
-  }, [cancelTransition, location.search, navigate, rooms]);
+  }, [cancelTransition, location.search, navigate, rooms, transitionDuration]);
 
   const navigateRoom = useCallback((delta: number) => {
     if (!rooms.length) return;
@@ -249,8 +256,8 @@ export function BoardController({ children }: { children: ReactNode }) {
     return true;
   });
   useEffect(() => {
-    if (document.activeElement === document.body) gamepadRef.current?.focus();
-  }, []);
+    if (currentRoom && document.activeElement === document.body) gamepadRef.current?.focus();
+  }, [currentRoom]);
 
   useEffect(() => {
     const onTouchStart = (event: TouchEvent) => {
@@ -339,7 +346,7 @@ export function BoardController({ children }: { children: ReactNode }) {
   return (
     <BoardContext.Provider value={value}>
       <BoardProgressContext.Provider value={progressValue}>
-        <div ref={gamepadRef} tabIndex={0} aria-label="Board controls" data-board-root data-samples-mode={samples} data-paused={paused || undefined} onPointerDown={() => dispatch("reveal-controls")}>
+        <div ref={gamepadRef} tabIndex={currentRoom ? 0 : -1} aria-label={currentRoom ? "Board controls" : undefined} data-board-root data-board-transition={transition} style={{ "--motion-room": `${transitionDuration}ms` } as CSSProperties} data-samples-mode={samples} data-paused={paused || undefined} onPointerDown={() => dispatch("reveal-controls")}>
           {children}
         </div>
       </BoardProgressContext.Provider>

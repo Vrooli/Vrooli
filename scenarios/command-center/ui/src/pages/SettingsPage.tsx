@@ -5,6 +5,7 @@ import { ArrowLeft, Check, ChevronRight, Layers, LayoutGrid, Loader2, Palette, P
 import { Slider } from "@vrooli/react-component-library/Slider/1.2.4";
 import { deleteCatalogEntry, fetchBoardSettings, fetchCatalogs, saveBoardSettings, saveCatalogEntry, type BoardSettings, type CatalogEntry } from "../lib/api";
 import { validateRoomBinding } from "../lib/catalogs";
+import { matchesSavedDraft, removeSavedDrafts, saveCatalogBatch } from "../lib/catalogSaveBatch";
 import { AdvancedJson, CatalogForm } from "../components/settings/CatalogForms";
 import { SettingsPreview } from "../components/settings/SettingsPreview";
 import { CATALOG_SINGULAR, describeEntry, seedEntry, slugify, taskById, type ChainNode } from "../lib/settingsTasks";
@@ -35,6 +36,8 @@ type SaveState = "idle" | "saving" | "saved" | "error";
 export default function SettingsPage() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
+  const destination = params.get("destination");
+  const customizationHub = !params.get("mode") && !params.get("task") && !destination;
   const query = useQuery({ queryKey: ["catalogs"], queryFn: fetchCatalogs });
   const boardSettingsQuery = useQuery({ queryKey: ["board-settings"], queryFn: fetchBoardSettings, enabled: params.get("destination") === "board" });
   const catalogs = query.data ?? {};
@@ -42,7 +45,6 @@ export default function SettingsPage() {
   const mode = params.get("mode"); // "catalogs" → operator surface
   const task = taskById(params.get("task"));
   const catalogsMode = mode === "catalogs";
-  const destination = params.get("destination");
 
   const [drafts, setDrafts] = useState<Record<string, CatalogEntry>>({});
   const [newDraft, setNewDraft] = useState<{ catalog: string; entry: CatalogEntry } | null>(null);
@@ -50,6 +52,7 @@ export default function SettingsPage() {
   const [search, setSearch] = useState("");
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [savedMessage, setSavedMessage] = useState("Saved. Your changes are written as config and live on the board.");
 
   const setParam = (patch: Record<string, string | null>) => {
     const next = new URLSearchParams(params);
@@ -120,14 +123,28 @@ export default function SettingsPage() {
     const savable = pending.filter((change) => !change.error);
     if (!savable.length || hasBlocking) return;
     setSaveState("saving"); setSaveError(null);
-    try {
-      for (const change of savable) await saveCatalogEntry(change.catalog, change.entry);
-      await query.refetch();
-      const savedNew = newDraft && savable.some((change) => change.entry === newDraft.entry) ? newDraft.entry.id : null;
-      setDrafts({}); setNewDraft(null); setSaveState("saved");
+    const result = await saveCatalogBatch(savable, saveCatalogEntry);
+    if (result.saved.length) {
+      setDrafts((current) => removeSavedDrafts(current, result.saved));
+      setNewDraft((current) => matchesSavedDraft(current, result.saved) ? null : current);
+    }
+    const savedNew = newDraft && matchesSavedDraft(newDraft, result.saved) ? newDraft.entry.id : null;
+    if (result.failed) {
+      const detail = result.failed.error instanceof Error ? result.failed.error.message : "Save failed.";
+      const prefix = result.saved.length ? `Saved ${result.saved.length} change${result.saved.length === 1 ? "" : "s"}. ` : "";
+      setSaveState("error"); setSaveError(`${prefix}${result.failed.change.catalog} “${result.failed.change.entry.id}” could not be saved: ${detail}`);
       if (savedNew) setParam({ new: null, entry: savedNew });
+      return;
+    }
+    if (savedNew) setParam({ new: null, entry: savedNew });
+    try {
+      await query.refetch({ throwOnError: true });
+      setSaveState("saved");
+      setSavedMessage("Saved. Your changes are written as config and live on the board.");
     } catch (error) {
-      setSaveState("error"); setSaveError(error instanceof Error ? error.message : "Save failed.");
+      const detail = error instanceof Error ? error.message : "unknown error";
+      setSaveState("saved");
+      setSavedMessage(`Changes were saved, but the catalog could not be reloaded: ${detail}. Retry loading before continuing.`);
     }
   };
   const discardAll = () => { setDrafts({}); setNewDraft(null); setSaveState("idle"); if (params.get("new")) setParam({ new: null }); };
@@ -143,15 +160,15 @@ export default function SettingsPage() {
   const canCreate = catalogsMode ? ["rooms", "connectors"].includes(activeCatalog) : Boolean(task?.create);
 
   // ── States ────────────────────────────────────────────────────────────────
-  if (query.isLoading) return <main className="cc-cx" data-testid="settings-page"><Header title="Customize" onExit={() => navigate("/mission-control")} /><p role="status" className="cc-cx-status">Reading catalogs…</p></main>;
-  if (query.error) return <main className="cc-cx" data-testid="settings-page"><Header title="Customize" onExit={() => navigate("/mission-control")} /><p role="alert" className="cc-cx-error-block">Catalogs are unavailable: {query.error instanceof Error ? query.error.message : "unknown error"}.</p></main>;
+  if (!customizationHub && destination !== "board" && query.isLoading) return <main className="cc-cx" data-testid="settings-page"><Header title="Customize" onExit={() => navigate("/mission-control")} /><p role="status" className="cc-cx-status">Reading catalogs…</p></main>;
+  if (!customizationHub && destination !== "board" && query.error) return <main className="cc-cx" data-testid="settings-page"><Header title="Customize" onExit={() => navigate("/mission-control")} /><p role="alert" className="cc-cx-error-block">Catalogs are unavailable: {query.error instanceof Error ? query.error.message : "unknown error"}.</p></main>;
 
   // ── Hub ─────────────────────────────────────────────────────────────────────
   if (!task && !catalogsMode && !destination) {
     return (
       <main className="cc-cx" data-testid="settings-page">
         <Header eyebrow="Command Center / Customize" title="Shape the board" lede="Choose the part of the board you want to change. The screen follows the way the board actually renders." onExit={() => navigate("/mission-control")} />
-        <div className="cc-cx-destinations" aria-label="Customization destinations">
+        <nav className="cc-cx-destinations" aria-label="Customization destinations">
           {([
             { id: "rooms", title: "Rooms", copy: "Arrange the sections that cycle on the board.", Icon: LayoutGrid },
             { id: "looks", title: "Looks", copy: "Choose a palette without starting with code.", Icon: Palette },
@@ -161,7 +178,7 @@ export default function SettingsPage() {
           ] as Array<{ id: string; title: string; copy: string; Icon: typeof Palette }>).map(({ id, title, copy, Icon }) => <button key={id} type="button" className="cc-cx-destination" onClick={() => setParam({ destination: id, task: null, mode: id === "operator" ? "catalogs" : null, cat: id === "operator" ? "rooms" : null })}>
             <span className="cc-cx-destination-icon"><Icon size={20} strokeWidth={1.7} /></span><span><b>{title}</b><small>{copy}</small></span><ChevronRight size={18} />
           </button>)}
-        </div>
+        </nav>
       </main>
     );
   }
@@ -171,7 +188,10 @@ export default function SettingsPage() {
     if (destination === "rooms") return <RoomsDestination {...common} onExit={() => navigate("/mission-control")} />;
     if (destination === "looks") return <LooksDestination {...common} onExit={() => navigate("/mission-control")} />;
     if (destination === "signals") return <SignalsDestination catalogs={catalogs} onExit={() => navigate("/mission-control")} onAgent={(target) => void copyAgentPrompt(target)} />;
-    if (destination === "board") return <BoardSettingsDestination settings={boardSettingsQuery.data} rooms={catalogs.rooms ?? []} onExit={() => navigate("/mission-control")} onSave={async (value) => { await saveBoardSettings(value); await boardSettingsQuery.refetch(); }} />;
+    if (destination === "board") {
+      const boardRooms = catalogs.rooms?.length ? catalogs.rooms : (boardSettingsQuery.data?.rooms ?? []).map((room) => ({ id: room.id, title: room.id }));
+      return <BoardSettingsDestination settings={boardSettingsQuery.data} error={boardSettingsQuery.error} rooms={boardRooms} onExit={() => navigate("/mission-control")} onRetry={() => void boardSettingsQuery.refetch()} onSave={async (value) => { await saveBoardSettings(value); await boardSettingsQuery.refetch(); }} />;
+    }
   }
 
   const chain: ChainNode[] = describeEntry(activeCatalog, draft, catalogs);
@@ -264,7 +284,7 @@ export default function SettingsPage() {
           </button>
         </div>
       ) : saveState === "saved" ? (
-        <div className="cc-cx-savebar cc-cx-savebar--ok" role="status"><Check size={16} strokeWidth={2.4} /> Saved. Your changes are written as config and live on the board.</div>
+        <div className="cc-cx-savebar cc-cx-savebar--ok" role="status"><Check size={16} strokeWidth={2.4} /> {savedMessage}</div>
       ) : null}
     </main>
   );
@@ -355,10 +375,10 @@ function RoomsDestination({ catalogs, setParam, saveCatalog, refetch, onExit }: 
 }
 
 function RoomDestination({ catalogs, room, setParam, saveCatalog, refetch, onExit }: DestinationProps & { room: CatalogEntry }) {
-  const beats = Array.isArray(room.beats) ? room.beats as Record<string, unknown>[] : [];
   const [selected, setSelected] = useState(0);
   const [draft, setDraft] = useState(room);
-  const section = (Array.isArray(draft.beats) ? draft.beats as Record<string, unknown>[] : [])[selected] ?? { hero: "", dwellSeconds: 10 };
+  const beats = Array.isArray(draft.beats) ? draft.beats as Record<string, unknown>[] : [];
+  const section = beats[selected] ?? { hero: "", dwellSeconds: 10 };
   const patchSection = (changes: Record<string, unknown>) => { const next = [...(Array.isArray(draft.beats) ? draft.beats as Record<string, unknown>[] : [])]; next[selected] = { ...section, ...changes }; setDraft({ ...draft, beats: next }); };
   const save = async () => { await saveCatalog("rooms", draft); await refetch(); setParam({ room: null }); };
   const compositionId = String(section.composition ?? draft.composition ?? "");
@@ -408,13 +428,27 @@ function LooksDestination({ catalogs, setParam, saveCatalog, refetch, onExit }: 
 }
 
 function SignalsDestination({ catalogs, onExit, onAgent }: { catalogs: Record<string, CatalogEntry[]>; onExit: () => void; onAgent: (target: string) => void }) {
-  return <main className="cc-cx" data-testid="settings-signals"><DestinationHeader title="Signals & sources" copy="Every metric has a measurement kind, a renderer, and a source scenario. Choose a compatible metric when editing a section." onExit={onExit} onBack={() => window.history.back()} /><section className="cc-cx-destination-body"><div className="cc-cx-signal-table" role="table">{(catalogs.signals ?? []).map((signal) => <div className="cc-cx-signal-row" role="row" key={signal.id}><strong>{labelOf(signal)}</strong><span>{measurementLabel(String(signal.shape ?? ""))}</span><span>{String(signal.component ?? signal.kind ?? "Default readout")}</span><span>{String((signal.source as Record<string, unknown> | undefined)?.integrationId ?? "Local source")}</span></div>)}</div><button type="button" className="cc-cx-agent-link" onClick={() => onAgent("connect a new upstream source")}>Hand to an agent · new source</button></section></main>;
+  return <main className="cc-cx" data-testid="settings-signals"><DestinationHeader title="Signals & sources" copy="Every metric has a measurement kind, a renderer, and a source scenario. Choose a compatible metric when editing a section." onExit={onExit} onBack={() => window.history.back()} /><section className="cc-cx-destination-body"><p className="cc-cx-signal-scroll-hint" id="cc-cx-signal-scroll-hint">Swipe horizontally to see readout and source details.</p><div className="cc-cx-signal-table-scroll"><table className="cc-cx-signal-table" aria-describedby="cc-cx-signal-scroll-hint"><caption className="sr-only">Configured signals and their measurement and source details</caption><thead><tr><th scope="col">Signal</th><th scope="col">Measurement</th><th scope="col">Readout</th><th scope="col">Source</th></tr></thead><tbody>{(catalogs.signals ?? []).map((signal) => <tr key={signal.id}><th scope="row">{labelOf(signal)}</th><td>{measurementLabel(String(signal.shape ?? ""))}</td><td>{String(signal.component ?? signal.kind ?? "Default readout")}</td><td>{String((signal.source as Record<string, unknown> | undefined)?.integrationId ?? "Local source")}</td></tr>)}</tbody></table></div><button type="button" className="cc-cx-agent-link" onClick={() => onAgent("connect a new upstream source")}>Hand to an agent · new source</button></section></main>;
 }
 
-function BoardSettingsDestination({ settings, rooms, onExit, onSave }: { settings?: BoardSettings; rooms: CatalogEntry[]; onExit: () => void; onSave: (settings: BoardSettings) => Promise<void> }) {
+function BoardSettingsDestination({ settings, error, rooms, onExit, onRetry, onSave }: { settings?: BoardSettings; error: unknown; rooms: CatalogEntry[]; onExit: () => void; onRetry: () => void; onSave: (settings: BoardSettings) => Promise<void> }) {
   const [draft, setDraft] = useState<BoardSettings | null>(settings ?? null);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   useEffect(() => { if (settings) setDraft(settings); }, [settings]);
-  if (!draft) return <main className="cc-cx"><DestinationHeader title="Board settings" copy="Reading board settings…" onExit={onExit} /><p role="status" className="cc-cx-status">Reading board settings…</p></main>;
-  return <main className="cc-cx" data-testid="settings-board"><DestinationHeader title="Board settings" copy="Set the cycle rhythm and decide which rooms take a turn." onExit={onExit} onBack={() => window.history.back()} /><section className="cc-cx-destination-body"><div className="cc-cx-settings-grid"><div className="cc-field cc-cx-slider-field"><Slider label="Default dwell" description="The fallback time for sections without their own dwell." min={5} max={300} step={5} value={draft.cycleSeconds} formatValue={(value) => `${value} sec`} onChange={(value) => setDraft({ ...draft, cycleSeconds: value })} /></div><label className="cc-field"><span className="cc-field-label">Transition</span><select value={draft.transition} onChange={(event) => setDraft({ ...draft, transition: event.target.value })}><option value="crossfade">Crossfade</option><option value="cut">Cut</option></select></label></div><div className="cc-cx-room-toggles">{rooms.map((room) => <label key={room.id}><input type="checkbox" checked={draft.rooms.find((item) => item.id === room.id)?.enabled ?? true} onChange={(event) => setDraft({ ...draft, rooms: draft.rooms.map((item) => item.id === room.id ? { ...item, enabled: event.target.checked } : item) })} />{labelOf(room)}</label>)}</div><button type="button" className="cc-cx-primary" onClick={() => void onSave(draft).then(() => setSaved(true))}>Save board settings</button>{saved ? <p role="status" className="cc-cx-inline-status">Board settings saved.</p> : null}</section></main>;
+  if (!draft) return <main className="cc-cx"><DestinationHeader title="Board settings" copy={error ? "Saved board settings could not be loaded." : "Reading board settings…"} onExit={onExit} /><section className="cc-cx-destination-body">{error ? <><p role="alert" className="cc-cx-error-block">Saved board settings could not be loaded: {error instanceof Error ? error.message : "unknown error"}.</p><button type="button" className="cc-cx-primary" onClick={onRetry}>Retry</button></> : <p role="status" className="cc-cx-status">Reading board settings…</p>}</section></main>;
+  const save = async () => {
+    setSaving(true); setSaved(false); setSaveError(null);
+    try { await onSave(draft); setSaved(true); }
+    catch (error) { setSaveError(error instanceof Error ? error.message : "Save failed."); }
+    finally { setSaving(false); }
+  };
+  return <main className="cc-cx" data-testid="settings-board"><DestinationHeader title="Board settings" copy="Set the cycle rhythm and decide which rooms take a turn." onExit={onExit} onBack={() => window.history.back()} /><section className="cc-cx-destination-body"><div className="cc-cx-settings-grid"><div className="cc-field cc-cx-slider-field"><Slider label="Default dwell" description="The fallback time for sections without their own dwell." min={5} max={300} step={5} value={draft.cycleSeconds} formatValue={(value) => `${value} sec`} onChange={(value) => setDraft({ ...draft, cycleSeconds: value })} /></div><label className="cc-field"><span className="cc-field-label">Transition</span><select value={draft.transition} onChange={(event) => setDraft({ ...draft, transition: event.target.value })}><option value="crossfade">Crossfade</option><option value="cut">Cut</option></select></label></div><div className="cc-cx-room-toggles">{rooms.map((room) => <label key={room.id}><input type="checkbox" checked={draft.rooms.find((item) => item.id === room.id)?.enabled ?? true} onChange={(event) => {
+        const existing = draft.rooms.some((item) => item.id === room.id);
+        const nextRooms = existing
+          ? draft.rooms.map((item) => item.id === room.id ? { ...item, enabled: event.target.checked } : item)
+          : [...draft.rooms, { id: room.id, enabled: event.target.checked }];
+        setDraft({ ...draft, rooms: nextRooms });
+      }} />{labelOf(room)}</label>)}</div><button type="button" className="cc-cx-primary" disabled={saving} onClick={() => void save()}>{saving ? "Saving…" : "Save board settings"}</button>{saveError ? <p role="alert" className="cc-cx-error-block">Board settings were not saved: {saveError}</p> : null}{saved ? <p role="status" className="cc-cx-inline-status">Board settings saved.</p> : null}</section></main>;
 }

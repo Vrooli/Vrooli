@@ -1,4 +1,3 @@
-import json
 inputs = program.inputs()
 envelope = program.envelope('command-center.learning-read', '1', phase="validate", inputs={})
 handles={}
@@ -45,7 +44,7 @@ def step_act():
     return "report"
 def step_report():
     envelope["phase"]="report"
-    print(json.dumps(envelope,separators=(",",":")))
+    program.report(envelope)
     return None
 STATES={"validate":step_validate,"collect":step_collect,"act":step_act,"report":step_report}
 state="validate"

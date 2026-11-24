@@ -15,4 +15,9 @@ describe("catalog bind validation", () => {
     expect(validateRoomBinding({ composition: "demo", bind: { "secondary.0": "a", "secondary.1": "b" } }, catalogs)).toBeNull();
     expect(resolveSlotBindings("hive-lattice", ["a", "b"], { "secondary.0": "a", "secondary.1": "b" })).toMatchObject({ "secondary.0": "a", "secondary.1": "b" });
   });
+
+  it("rejects numbered variadic bindings beyond their declared capacity", () => {
+    const catalogs = { signals: [{ id: "a", shape: "scalar" }, { id: "b", shape: "scalar" }, { id: "c", shape: "scalar" }, { id: "d", shape: "scalar" }], compositions: [{ id: "demo", slots: { secondary: { shape: "scalar", variadic: true, maxItems: 3 } } }] };
+    expect(validateRoomBinding({ composition: "demo", bind: { "secondary.0": "a", "secondary.1": "b", "secondary.2": "c", "secondary.3": "d" } }, catalogs)).not.toBeNull();
+  });
 });

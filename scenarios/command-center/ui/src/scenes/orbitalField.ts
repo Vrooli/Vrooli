@@ -101,6 +101,8 @@ export function orbitalField(): Scene {
   };
 }
 
+export const compositionDefinition = { id: "orbital-field", create: orbitalField, slots: slotManifest };
+
 /**
  * The orbit rings stay put while the layout holds, yet stroking every full
  * ellipse each frame was most of this scene's cost. They are drawn once into a

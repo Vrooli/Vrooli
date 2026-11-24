@@ -64,9 +64,10 @@ type OpenStore interface {
 }
 
 type Service struct {
-	Store    Store
-	Provider provider.Provider
-	Now      func() time.Time
+	Store     Store
+	Provider  provider.Provider
+	Providers *provider.Registry
+	Now       func() time.Time
 }
 
 type Request struct {
@@ -76,49 +77,53 @@ type Request struct {
 	Spec           provider.Spec
 }
 
-// Create records the intent before invoking the provider. A lost provider
-// response intentionally leaves the intent open for reconciliation.
-func (s Service) Create(ctx context.Context, req Request) (Record, provider.Instance, error) {
-	record, err := s.CreateIntent(ctx, req)
-	if err != nil {
-		return Record{}, provider.Instance{}, err
-	}
-	if record.State != StateOpen {
-		return record, provider.Instance{}, nil
-	}
-	req.Spec.Tags = withIntentTag(req.Spec.Tags, record.ID)
-	return s.Fulfill(ctx, record, req.Spec)
-}
-
 // RecoverOpen matches provider resources carrying an intent tag to durable
 // open intents left behind by a lost create response. It never creates or
 // destroys a provider resource.
 func (s Service) RecoverOpen(ctx context.Context) ([]Record, error) {
 	store, ok := s.Store.(OpenStore)
-	if !ok || s.Provider == nil {
+	if !ok {
 		return nil, nil
 	}
 	open, err := store.ListOpen(ctx)
 	if err != nil {
 		return nil, err
 	}
-	observed, err := s.Provider.List(ctx)
-	if err != nil {
-		return nil, err
-	}
-	byIntent := make(map[string]provider.Instance)
-	for _, item := range observed {
-		if id := item.Tags["vrooli-intent-id"]; id != "" {
-			byIntent[id] = item
-		}
-	}
 	recovered := make([]Record, 0)
 	now := clock.System{}.Now
 	if s.Now != nil {
 		now = s.Now
 	}
+	observedByProvider := make(map[string]map[string]provider.Instance)
 	for _, record := range open {
-		item, found := byIntent[record.ID]
+		selected, selectErr := s.providerFor(record.Provider)
+		if selectErr != nil {
+			return recovered, selectErr
+		}
+		var item provider.Instance
+		var found bool
+		if reconciler, supported := selected.(provider.IntentRecoveryProvider); supported {
+			item, found, err = reconciler.RecoverIntent(ctx, recoveryRequest(record))
+			if err != nil {
+				return recovered, fmt.Errorf("recover intent %q with exact provider target: %w", record.ID, err)
+			}
+		} else {
+			byIntent, loaded := observedByProvider[record.Provider]
+			if !loaded {
+				observed, listErr := selected.List(ctx)
+				if listErr != nil {
+					return recovered, listErr
+				}
+				byIntent = make(map[string]provider.Instance)
+				for _, candidate := range observed {
+					if id := candidate.Tags["vrooli-intent-id"]; id != "" {
+						byIntent[id] = candidate
+					}
+				}
+				observedByProvider[record.Provider] = byIntent
+			}
+			item, found = byIntent[record.ID]
+		}
 		if !found {
 			continue
 		}
@@ -132,13 +137,28 @@ func (s Service) RecoverOpen(ctx context.Context) ([]Record, error) {
 	return recovered, nil
 }
 
-func withIntentTag(tags map[string]string, intentID string) map[string]string {
-	result := make(map[string]string, len(tags)+1)
-	for key, value := range tags {
-		result[key] = value
+func (s Service) providerFor(name string) (provider.Provider, error) {
+	if s.Providers != nil {
+		return s.Providers.Get(name)
 	}
-	result["vrooli-intent-id"] = intentID
-	return result
+	if s.Provider != nil && s.Provider.Name() == name {
+		return s.Provider, nil
+	}
+	return nil, fmt.Errorf("provider %q is unavailable for intent recovery", name)
+}
+
+func recoveryRequest(record Record) provider.IntentRecoveryRequest {
+	facts := make(map[string]string)
+	if selected, ok := record.Spec["akash_lease"].(map[string]any); ok {
+		for key, raw := range selected {
+			if value, ok := raw.(string); ok {
+				facts[key] = value
+			} else if value, ok := raw.(float64); ok {
+				facts[key] = fmt.Sprintf("%.0f", value)
+			}
+		}
+	}
+	return provider.IntentRecoveryRequest{IntentID: record.ID, IdempotencyKey: record.IdempotencyKey, Provider: record.Provider, Facts: facts}
 }
 
 // CreateIntent durably records the requested operation before any external
@@ -156,29 +176,33 @@ func (s Service) CreateIntent(ctx context.Context, req Request) (Record, error) 
 	if s.Now != nil {
 		now = s.Now
 	}
-	record, err := s.Store.Create(ctx, Record{IdempotencyKey: req.IdempotencyKey, RequestedBy: req.RequestedBy, Provider: req.Provider, Spec: map[string]any{"region": req.Spec.Region, "size": req.Spec.Size, "image": req.Spec.Image}, CreatedAt: now().UTC(), State: StateOpen})
+	spec := map[string]any{"region": req.Spec.Region, "size": req.Spec.Size, "ipv4": req.Spec.IPv4, "image": req.Spec.Image}
+	// Adopted targets are operator-owned facts needed to validate an exact
+	// replay after a lost response. Persist only non-secret connection metadata;
+	// credentials are deliberately not part of provider.Spec or intent JSON.
+	if target := req.Spec.AdoptedTarget; target != nil {
+		spec["adopted_target"] = map[string]any{
+			"host":         target.Host,
+			"user":         target.User,
+			"display_name": target.DisplayName,
+		}
+	}
+	if req.Provider == "akash" {
+		// This explicit allowlist is the durable intent-to-bid attribution used
+		// for exact lookup after a lost response. Do not persist arbitrary tags.
+		akashFacts := map[string]any{
+			"dseq": req.Spec.Tags["akash-dseq"], "gseq": req.Spec.Tags["akash-gseq"],
+			"oseq": req.Spec.Tags["akash-oseq"], "provider": req.Spec.Tags["akash-provider"],
+			"rate_amount": req.Spec.Tags["akash-rate-amount"], "rate_denom": req.Spec.Tags["akash-rate-denom"],
+			"lifetime_seconds": req.Spec.Tags["akash-lifetime-seconds"],
+		}
+		spec["akash_lease"] = akashFacts
+	}
+	record, err := s.Store.Create(ctx, Record{IdempotencyKey: req.IdempotencyKey, RequestedBy: req.RequestedBy, Provider: req.Provider, Spec: spec, CreatedAt: now().UTC(), State: StateOpen})
 	if err != nil {
 		return Record{}, err
 	}
 	return record, nil
-}
-
-// Fulfill calls the provider only after CreateIntent has succeeded.
-func (s Service) Fulfill(ctx context.Context, record Record, spec provider.Spec) (Record, provider.Instance, error) {
-	instance, err := s.Provider.Create(ctx, spec)
-	if err != nil {
-		return record, provider.Instance{}, err
-	}
-	record.InstanceID = instance.ID
-	now := clock.System{}.Now
-	if s.Now != nil {
-		now = s.Now
-	}
-	record.ResolvedAt = now().UTC()
-	if err := s.Transition(ctx, &record, StateFulfilled); err != nil {
-		return record, instance, err
-	}
-	return record, instance, nil
 }
 
 // Transition is the sole domain owner for persisted intent state changes.

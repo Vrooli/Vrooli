@@ -102,14 +102,7 @@ func loadIndexHTML(root string) (string, bool) { return readFile(root, indexHTML
 
 // writeIndexHTML writes ui/index.html.
 func writeIndexHTML(root, content string) error {
-	abs := filepath.Join(root, filepath.FromSlash(indexHTMLRel))
-	if err := os.MkdirAll(filepath.Dir(abs), 0o750); err != nil {
-		return fmt.Errorf("create ui dir: %w", err)
-	}
-	if err := os.WriteFile(abs, []byte(content), 0o600); err != nil {
-		return fmt.Errorf("write index.html: %w", err)
-	}
-	return nil
+	return writeScenarioFile(root, indexHTMLRel, []byte(content), 0o600)
 }
 
 // fixColorSystem creates a baseline design-token file when the scenario has none.
@@ -134,10 +127,7 @@ func fixColorSystem(root string, apply bool) (Candidate, bool, error) {
 		After:       defaultDesignSystemCSS,
 	}
 	if apply {
-		if err := os.MkdirAll(filepath.Dir(abs), 0o750); err != nil {
-			return Candidate{}, false, fmt.Errorf("create token dir: %w", err)
-		}
-		if err := os.WriteFile(abs, []byte(defaultDesignSystemCSS), 0o600); err != nil {
+		if err := writeScenarioFile(root, rel, []byte(defaultDesignSystemCSS), 0o600); err != nil {
 			return Candidate{}, false, fmt.Errorf("write design tokens: %w", err)
 		}
 		cand.Applied = true
@@ -173,11 +163,7 @@ func fixFavicon(root string, apply bool) (Candidate, bool, error) {
 		if err != nil {
 			return Candidate{}, false, fmt.Errorf("read logo: %w", err)
 		}
-		abs := filepath.Join(root, filepath.FromSlash(faviconRel))
-		if err := os.MkdirAll(filepath.Dir(abs), 0o750); err != nil {
-			return Candidate{}, false, fmt.Errorf("create public dir: %w", err)
-		}
-		if err := os.WriteFile(abs, data, 0o600); err != nil {
+		if err := writeScenarioFile(root, faviconRel, data, 0o600); err != nil {
 			return Candidate{}, false, fmt.Errorf("write favicon: %w", err)
 		}
 		injectFaviconLink(root, faviconRel, ext)

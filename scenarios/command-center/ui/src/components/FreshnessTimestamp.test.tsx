@@ -8,9 +8,18 @@ describe("FreshnessTimestamp", () => {
 
     expect(screen.getByText("Board generated:")).toBeInTheDocument();
     expect(screen.getByTestId("freshness-timestamp").querySelector("time")).toHaveAttribute("datetime", "2026-11-14T23:29:17.000Z");
+    expect(screen.getByTestId("freshness-timestamp").querySelector("time")).toHaveTextContent("Nov 14, 2026, 11:29 PM UTC");
   });
 
-  it("distinguishes a pending read from an absent or invalid observation time", () => {
+  it("normalizes an explicit producer offset before displaying it", () => {
+    renderWithProviders(<FreshnessTimestamp label="Source checked" value="2026-11-14T18:29:17-05:00" />);
+
+    const time = screen.getByTestId("freshness-timestamp").querySelector("time");
+    expect(time).toHaveAttribute("datetime", "2026-11-14T23:29:17.000Z");
+    expect(time).toHaveTextContent("Nov 14, 2026, 11:29 PM UTC");
+  });
+
+  it("requires an explicit timezone and distinguishes pending, absent, and invalid observation times", () => {
     const { rerender } = renderWithProviders(<FreshnessTimestamp label="Source checked" loading />);
     expect(screen.getByTestId("freshness-timestamp")).toHaveTextContent("Source checked: checking");
 
@@ -18,6 +27,9 @@ describe("FreshnessTimestamp", () => {
     expect(screen.getByTestId("freshness-timestamp")).toHaveTextContent("Source checked: unknown");
 
     rerender(<FreshnessTimestamp label="Source checked" value="not-a-date" />);
+    expect(screen.getByTestId("freshness-timestamp")).toHaveTextContent("Source checked: unknown");
+
+    rerender(<FreshnessTimestamp label="Source checked" value="2026-11-14T23:29:17" />);
     expect(screen.getByTestId("freshness-timestamp")).toHaveTextContent("Source checked: unknown");
   });
 });

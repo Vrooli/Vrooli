@@ -15,6 +15,7 @@ import (
 
 	"compute-manager/internal/middleware"
 	"compute-manager/internal/module"
+	"github.com/vrooli/api-core/authn"
 
 	"github.com/vrooli/api-core/schedule"
 
@@ -33,6 +34,7 @@ import (
 type Deps struct {
 	Clock  schedule.Clock
 	Logger *log.Logger
+	Auth   authn.Config
 }
 
 // Server is the wired HTTP application: cross-cutting deps + router
@@ -72,5 +74,5 @@ func New(d Deps, modules ...module.Module) *Server {
 // middleware. This is what main.go listens on and what
 // internal/testutil/httpx.NewLiveServer wraps for handler tests.
 func (s *Server) Handler() http.Handler {
-	return handlers.RecoveryHandler()(s.router)
+	return handlers.RecoveryHandler()(authn.Middleware(s.deps.Auth)(s.router))
 }

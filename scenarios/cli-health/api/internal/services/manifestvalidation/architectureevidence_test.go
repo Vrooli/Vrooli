@@ -109,53 +109,48 @@ func TestFilesystemArchitectureEvidence_PresentAndFresh(t *testing.T) {
 	}
 }
 
-func TestFilesystemArchitectureEvidence_MissingIsHonestNoEvidence(t *testing.T) {
-	ctx := writeScenario(t, provManifest, "") // no evidence file
-	p := NewFilesystemArchitectureEvidence(t.TempDir())
-	ev, err := p.Evidence(ctx, "demo")
-	if err != nil {
-		t.Fatalf("Evidence: %v", err)
-	}
-	if ev.Status != EvidenceArtifactOK {
-		t.Fatalf("missing artifact must be OK-with-no-primitives, got status %q", ev.Status)
-	}
-	if ev.Primitive("g1 list") != "" {
-		t.Fatalf("missing artifact must expose no primitives")
-	}
-}
-
-func TestFilesystemArchitectureEvidence_MalformedStatus(t *testing.T) {
-	ctx := writeScenario(t, provManifest, `{"schema":"other/v9","commands":[]}`)
-	p := NewFilesystemArchitectureEvidence(t.TempDir())
-	ev, err := p.Evidence(ctx, "demo")
-	if err != nil {
-		t.Fatalf("Evidence should not hard-error on malformed artifact: %v", err)
-	}
-	if ev.Status != EvidenceArtifactMalformed {
-		t.Fatalf("malformed artifact status = %q, want malformed", ev.Status)
-	}
-	if ev.Primitive("g1 list") != "" {
-		t.Fatalf("malformed artifact must not be trusted for evidence")
-	}
-}
-
-func TestFilesystemArchitectureEvidence_MissingManifestHashIsMalformed(t *testing.T) {
-	ctx := writeScenario(t, provManifest, `{
+func TestFilesystemArchitectureEvidence_UnusableArtifacts(t *testing.T) {
+	tests := []struct {
+		name          string
+		artifact      string
+		wantStatus    EvidenceArtifactStatus
+		wantPrimitive cliapp.PrimitiveClass
+	}{
+		{
+			name:       "missing is honest no evidence",
+			wantStatus: EvidenceArtifactOK,
+		},
+		{
+			name:       "wrong schema is malformed",
+			artifact:   `{"schema":"other/v9","commands":[]}`,
+			wantStatus: EvidenceArtifactMalformed,
+		},
+		{
+			name: "manifest hash is required",
+			artifact: `{
   "schema": "cli-primitive-evidence/v1",
   "scenario": "demo",
   "generator": "v1.0.0",
   "commands": [{"path":"g1 list","command":"list","observed_primitive":"proto_list"}]
-}`)
-	p := NewFilesystemArchitectureEvidence(t.TempDir())
-	ev, err := p.Evidence(ctx, "demo")
-	if err != nil {
-		t.Fatalf("Evidence should not hard-error on missing manifest hash: %v", err)
+			}`,
+			wantStatus: EvidenceArtifactMalformed,
+		},
 	}
-	if ev.Status != EvidenceArtifactMalformed {
-		t.Fatalf("missing manifest hash status = %q, want malformed", ev.Status)
-	}
-	if ev.Primitive("g1 list") != "" {
-		t.Fatalf("artifact without manifest hash must not be trusted for evidence")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := writeScenario(t, provManifest, tt.artifact)
+			p := NewFilesystemArchitectureEvidence(t.TempDir())
+			ev, err := p.Evidence(ctx, "demo")
+			if err != nil {
+				t.Fatalf("Evidence: %v", err)
+			}
+			if ev.Status != tt.wantStatus {
+				t.Fatalf("artifact status = %q, want %q", ev.Status, tt.wantStatus)
+			}
+			if got := ev.Primitive("g1 list"); got != tt.wantPrimitive {
+				t.Fatalf("unusable artifact primitive = %q, want %q", got, tt.wantPrimitive)
+			}
+		})
 	}
 }
 

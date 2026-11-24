@@ -1,49 +1,45 @@
-import type { Scene, SlotManifest } from "./engine";
-import { flowCurrent, slotManifest as flowCurrentSlots } from "./flowCurrent";
-import { hiveLattice, slotManifest as hiveLatticeSlots } from "./hiveLattice";
-import { ledgerRiver, slotManifest as ledgerRiverSlots } from "./ledgerRiver";
-import { orbitalField, slotManifest as orbitalFieldSlots } from "./orbitalField";
-import { panoramaConstellation, slotManifest as panoramaConstellationSlots } from "./panoramaConstellation";
-import { signalConstellation, slotManifest as signalConstellationSlots } from "./signalConstellation";
-import { conversionFunnel, slotManifest as conversionFunnelSlots } from "./conversionFunnel";
-import { slotManifest as meridianArcSlots } from "./meridianArc";
-import { slotManifest as funnelCascadeSlots } from "./funnelCascade";
-import { vrooliPack } from "../packs/vrooli";
+import type { CompositionDefinition, Scene, SlotManifest } from "./engine";
+import { compositionDefinition as conversionFunnel } from "./conversionFunnel";
+import { compositionDefinition as flowCurrent } from "./flowCurrent";
+import { compositionDefinition as hiveLattice } from "./hiveLattice";
+import { compositionDefinition as ledgerRiver } from "./ledgerRiver";
+import { compositionDefinition as orbitalField } from "./orbitalField";
+import { compositionDefinition as panoramaConstellation } from "./panoramaConstellation";
+import { compositionDefinition as signalConstellation } from "./signalConstellation";
 import { registerEnabledPacks } from "../packs/types";
+import { vrooliPack } from "../packs/vrooli";
 
-/** Generic engine compositions. Connector-specific compositions are registered below. */
-const engineCompositions: Record<string, () => Scene> = {
-  "orbital-field": orbitalField,
-  "hive-lattice": hiveLattice,
-  "flow-current": flowCurrent,
-  "ledger-river": ledgerRiver,
-  "signal-constellation": signalConstellation,
-  "panorama-constellation": panoramaConstellation,
-  "conversion-funnel": conversionFunnel,
-};
+/** Each scene module owns its id, factory, and slot contract as one definition. */
+const engineCompositions: CompositionDefinition[] = [
+  orbitalField,
+  hiveLattice,
+  flowCurrent,
+  ledgerRiver,
+  signalConstellation,
+  panoramaConstellation,
+  conversionFunnel,
+];
 
-export const compositionSlotManifests: Record<string, SlotManifest> = {
-  "orbital-field": orbitalFieldSlots,
-  "hive-lattice": hiveLatticeSlots,
-  "flow-current": flowCurrentSlots,
-  "ledger-river": ledgerRiverSlots,
-  "signal-constellation": signalConstellationSlots,
-  "panorama-constellation": panoramaConstellationSlots,
-  "conversion-funnel": conversionFunnelSlots,
-  "meridian-arc": meridianArcSlots,
-  "funnel-cascade": funnelCascadeSlots,
-};
+// Keep manifests available for parity checks even while a connector pack is
+// disabled; runtime scene factories still register only enabled-pack members.
+const allCompositionDefinitions = [...engineCompositions, ...vrooliPack.compositions];
+const compositionManifests: Record<string, SlotManifest> = {};
+for (const definition of allCompositionDefinitions) {
+  if (Object.prototype.hasOwnProperty.call(compositionManifests, definition.id)) throw new Error(`duplicate composition id "${definition.id}"`);
+  compositionManifests[definition.id] = definition.slots;
+}
+export const compositionSlotManifests = compositionManifests;
 
-export const compositions: Record<string, () => Scene> = {};
+export let compositions: Record<string, () => Scene> = {};
+const defaultScene = orbitalField.create;
 
 export function configureEnabledPacks(enabled: Set<string>): void {
   const registered = registerEnabledPacks({ readouts: {}, compositions: engineCompositions }, [vrooliPack], enabled);
-  for (const key of Object.keys(compositions)) delete compositions[key];
-  Object.assign(compositions, registered.compositions);
+  compositions = Object.fromEntries(registered.compositions.map(({ id, create }) => [id, create]));
 }
 
 // The shipped operator instance enables the Vrooli pack; a no-pack instance
 // can call configureEnabledPacks(new Set()) before mounting the board.
 configureEnabledPacks(new Set(["vrooli"]));
 
-export const createScene = (composition: string): Scene => (compositions[composition] ?? orbitalField)();
+export const createScene = (composition: string): Scene => (compositions[composition] ?? defaultScene)();

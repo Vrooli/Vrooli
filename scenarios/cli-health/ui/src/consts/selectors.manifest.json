@@ -176,6 +176,46 @@
     "status.reindexed": {
       "testId": "status-reindexed",
       "selector": "[data-testid=\"status-reindexed\"]"
+    },
+    "nav.tabComposition": {
+      "testId": "nav-tab-composition",
+      "selector": "[data-testid=\"nav-tab-composition\"]"
+    },
+    "composition.card": {
+      "testId": "composition-card",
+      "selector": "[data-testid=\"composition-card\"]"
+    },
+    "composition.query": {
+      "testId": "composition-query",
+      "selector": "[data-testid=\"composition-query\"]"
+    },
+    "composition.scenario": {
+      "testId": "composition-scenario",
+      "selector": "[data-testid=\"composition-scenario\"]"
+    },
+    "composition.submit": {
+      "testId": "composition-submit",
+      "selector": "[data-testid=\"composition-submit\"]"
+    },
+    "composition.loading": {
+      "testId": "composition-loading",
+      "selector": "[data-testid=\"composition-loading\"]"
+    },
+    "composition.error": {
+      "testId": "composition-error",
+      "selector": "[data-testid=\"composition-error\"]"
+    },
+    "composition.empty": {
+      "testId": "composition-empty",
+      "selector": "[data-testid=\"composition-empty\"]"
+    },
+    "composition.result": {
+      "testId": "composition-result",
+      "selector": "[data-testid=\"composition-result\"]"
+    },
+    "composition.degradation": {
+      "testId": "composition-degradation",
+      "selector": "[data-testid=\"composition-degradation\"]"
     }
   },
   "dynamicSelectors": {

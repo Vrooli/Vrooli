@@ -11,6 +11,8 @@ import { FindingsPage } from "../pages/FindingsPage";
 import { InstancePage } from "../pages/InstancePage";
 import { RequestCapacityPage } from "../pages/RequestCapacityPage";
 import { SettingsPage } from "../pages/SettingsPage";
+import { ProviderSetupPage } from "../pages/ProviderSetupPage";
+import { AdoptVPSPage } from "../pages/AdoptVPSPage";
 import { ThemeProvider } from "../theme/ThemeProvider";
 
 /**
@@ -29,6 +31,8 @@ export const routes: RouteObject[] = [
       { path: "instances/:id", element: <InstancePage /> },
       { path: "request", element: <RequestCapacityPage /> },
       { path: "settings", element: <SettingsPage /> },
+      { path: "setup", element: <ProviderSetupPage /> },
+      { path: "adopt", element: <AdoptVPSPage /> },
     ],
   },
 ];

@@ -103,3 +103,5 @@ export function hiveLattice(): Scene {
     },
   };
 }
+
+export const compositionDefinition = { id: "hive-lattice", create: hiveLattice, slots: slotManifest };

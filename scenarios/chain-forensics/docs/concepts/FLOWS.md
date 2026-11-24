@@ -20,6 +20,18 @@
 8. The operator may create a private packet. It is stored locally and has no
    publish, submit, or contact action.
 
+## Private local attention handoff
+
+1. The operator selects an existing private case in the attention view.
+2. The API builds and stores the canonical versioned packet, then compares its
+   hash with the requested current packet hash.
+3. A matching hash creates an idempotent SQLite delivery receipt keyed by case
+   ID and packet SHA-256. A stale hash is rejected and must be re-exported.
+4. The attention view reads the receipt and exact packet bytes back through
+   Connect. It renders grades, caveats, unresolved gaps, and the packet hash.
+5. This operation has no publish, notification, or contact side effect; the
+   receipt proves delivery to the local view only.
+
 ## Bridge correlation (deferred)
 
 The source-chain decoder emits a protocol message occurrence. A destination

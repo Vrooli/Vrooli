@@ -73,8 +73,11 @@
     "selector:manifest": "node scripts/generate-selector-manifest.mjs",
     "slots:check": "vitest run src/scenes/slotManifests.test.ts",
     "test": "vitest run",
+    "test:scripts": "node --test scripts/*.test.mjs",
+    "test:all": "pnpm test && pnpm test:scripts",
     "test:coverage": "vitest run --coverage",
     "theme:generate": "node scripts/generate-theme-css.mjs",
+    "theme:contrast": "node scripts/audit-theme-contrast.mjs",
     "type-check": "tsc --noEmit",
     "verify-room-bindings": "node scripts/verify-room-bindings.mjs",
     "visual:baseline": "node scripts/verify-visual-baseline.mjs"

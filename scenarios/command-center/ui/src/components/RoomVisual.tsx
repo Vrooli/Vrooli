@@ -22,6 +22,7 @@ import { hasValue, type BoardRoom, type Constellation, type Reading, type Source
 import type { SamplesMode } from "../lib/boardContext";
 import { pickHero } from "../lib/hero";
 import { resolveSlotBindings } from "../lib/catalogs";
+import { roomSurfaceStatus } from "../lib/roomSurface";
 
 function SupportingTile({ reading, showTrend, showOrigin }: { reading: Reading; showTrend: boolean; showOrigin: boolean }) {
   if (reading.kind === "ladder") return <LadderTile reading={reading} showOrigin={showOrigin} />;
@@ -73,7 +74,8 @@ export function RoomVisual({ roomId, room, beatIndex, readings, samples, constel
   const origins = new Set(visible.map((reading) => reading.origin_env || "local"));
   const showOrigin = origins.size > 1;
   const heroState: ExperienceSurfaceState = isLoading ? "loading" : error ? "error" : "ready";
-  const supportingState: ExperienceSurfaceState = isLoading ? "loading" : error ? "error" : supporting.length === 0 ? "empty" : Object.values(sources).some((meta) => meta.staleness_ts) ? "partial" : "ready";
+  const supportingStatus = roomSurfaceStatus(supporting, sources);
+  const supportingState: ExperienceSurfaceState = isLoading ? "loading" : error ? "error" : supportingStatus.state;
   const readingSeconds = useMemo(() => constellations || !readings.length ? [] : roomReadingSeconds(beats, visible), [beats, constellations, readings.length, visible]);
 
   useFitProbe(roomRef, `${roomId}:${beatIndex}:${samples}`, String(dataUpdatedAt));
@@ -90,7 +92,7 @@ export function RoomVisual({ roomId, room, beatIndex, readings, samples, constel
         {isLoading ? <div className="cc-loading" data-testid="loading"><span className="cc-loading-figure" aria-hidden="true">––</span><span>Reading {room.title}…</span></div> : constellations ? <SkyReadout ref={heroRef} constellations={constellations} /> : hero?.kind === "ladder" ? (layout === "wide" ? <ReachMapReadout ref={heroRef} reading={hero} /> : <NextRungReadout ref={heroRef} reading={hero} />) : hero?.kind === "panel" ? <PanelReadout reading={hero} /> : hero?.kind === "funnel" ? <FunnelReadout reading={hero} /> : hero?.kind === "leaderboard" ? <LeaderboardReadout reading={hero} /> : hero?.kind === "posture" ? <PostureReadout reading={hero} /> : <HeroReadout ref={heroRef} reading={hero} emptyReason={samples === "hide" ? "Illustrative figures are hidden. Nothing in this room is measured yet." : undefined} />}
         {constellations ? null : <span className="cc-hero-count" data-testid="room-measured-count">{measured} measured · {visible.length} {visible.length === 1 ? "signal" : "signals"}</span>}
       </ExperienceSurface>
-      <ExperienceSurface surfaceId="supporting" as="section" data-testid="room-supporting" className="cc-supporting-region" state={supportingState} statusMessage={error ? "Unable to load supporting readings." : undefined} aria-label="Supporting readings" data-omitted={stripless || undefined}>
+      <ExperienceSurface surfaceId="supporting" as="section" data-testid="room-supporting" className="cc-supporting-region" state={supportingState} statusMessage={error ? "Unable to load supporting readings." : supportingStatus.statusMessage} aria-label="Supporting readings" data-omitted={stripless || undefined}>
         {supporting.length > 0 ? <SupportingStrip ref={supportingRef}>{supporting.map((reading) => <SupportingTile key={reading.id} reading={reading} showTrend={supportingTrendIDs.has(reading.id)} showOrigin={showOrigin} />)}</SupportingStrip> : !isLoading && !stripless ? <p className="cc-empty" data-testid="metric-list-empty">No further readings in this room.</p> : null}
       </ExperienceSurface>
     </div>

@@ -2,8 +2,6 @@ package validation
 
 import (
 	"encoding/json"
-	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -25,15 +23,11 @@ func loadManifestForFix(root string) (rel string, obj map[string]any, present bo
 }
 
 func writeManifest(root, rel string, obj map[string]any) error {
-	abs := filepath.Join(root, filepath.FromSlash(rel))
 	out, err := json.MarshalIndent(obj, "", "  ")
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(abs), 0o750); err != nil {
-		return err
-	}
-	return os.WriteFile(abs, append(out, '\n'), 0o600)
+	return writeScenarioFile(root, rel, append(out, '\n'), 0o600)
 }
 
 // alignManifestName sets manifest name/short_name to want when an existing

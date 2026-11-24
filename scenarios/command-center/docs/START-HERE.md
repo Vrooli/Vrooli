@@ -43,7 +43,7 @@ Never run the binaries directly and never hardcode a port — the lifecycle mana
 
 This scenario implements contracts it does not own. When this documentation and one of these disagree, these win:
 
-- `path:docs/agent-system/TARGET_MODEL.md` — the instrument contract
+- `path:docs/agent-system/STANDING_TEAMS.md` — the instrument contract
 - `path:docs/director-swarm/evidence/OUTCOMES_CHARTER.md` — the outcome categories and the gap-closure loop
 - `path:docs/director-swarm/operating/OPERATING_MODEL.md` — the portfolio loop this board's readings close
 - `path:docs/director-swarm/strategy/OBJECTIVES.md` — what every category must trace upward to

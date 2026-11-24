@@ -10,28 +10,19 @@ import (
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/database"
 )
-
-// SQLExecutor is the narrow database surface sqliteRepository depends on.
-// Declared at the consumer per seam-discovery: both *sql.DB (used by repository
-// unit tests via testutil/db.NewSQLite) and *database.RoutedDB (used in
-// production by main.go) satisfy it.
-type SQLExecutor interface {
-	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
-	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
-	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
-}
 
 // sqliteRepository is the production impl of Repository. Unexported so callers
 // depend on the interface — tests substitute fakes without reaching inside the
 // struct.
 type sqliteRepository struct {
-	db    SQLExecutor
+	db    database.SQLExecutor
 	clock schedule.Clock
 }
 
 // NewSQLiteRepository constructs the production asset Repository.
-func NewSQLiteRepository(db SQLExecutor, clk schedule.Clock) Repository {
+func NewSQLiteRepository(db database.SQLExecutor, clk schedule.Clock) Repository {
 	return &sqliteRepository{db: db, clock: clk}
 }
 

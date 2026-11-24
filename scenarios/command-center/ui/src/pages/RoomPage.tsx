@@ -8,6 +8,7 @@ import { useBoardController } from "../lib/boardContext";
 import { fetchRoom, hasValue, type RoomResponse } from "../lib/api";
 import { nextMeasuredBeat } from "../lib/hero";
 import { readingsForBeat } from "../lib/beat";
+import { roomSurfaceStatus } from "../lib/roomSurface";
 
 export default function RoomPage() {
   const { roomId = "mission-control" } = useParams();
@@ -63,7 +64,10 @@ export default function RoomPage() {
   const index = board.rooms.findIndex((entry) => entry.id === roomId);
   const position = index >= 0 ? `ROOM ${index + 1} OF ${board.rooms.length}` : "ROOM";
   const sources = Object.entries(data?.sources ?? {});
-  const sourceState = sources.some(([, meta]) => meta.staleness_ts) ? "partial" : "ready";
+  const sourceStatus = roomSurfaceStatus(
+    data?.constellations?.flatMap((constellation) => constellation.readings) ?? readings,
+    data?.sources ?? {},
+  );
   // Origin is shown only where it differs: per tile in a mixed room, once in the source strip when every reading shares a non-local origin.
   const origins = new Set(visible.map((reading) => reading.origin_env || "local"));
   const sharedOrigin = origins.size === 1 && !origins.has("local") ? visible[0]?.origin_display || visible[0]?.origin_env : null;
@@ -75,16 +79,19 @@ export default function RoomPage() {
       position={position}
       legend={hasSamples}
       status={
-        <ExperienceSurface surfaceId="sources" as="div" data-testid="room-sources" className="cc-sources" state={sourceState} aria-label="Source availability">
+        <ExperienceSurface surfaceId="sources" as="div" data-testid="room-sources" className="cc-sources" state={sourceStatus.state} statusMessage={sourceStatus.statusMessage} aria-label="Source availability">
+          {sourceStatus.state === "partial" ? <span className="cc-source-attention" role="status">Partial readings</span> : null}
           {sources.length === 0 ? <span className="cc-source" data-answering="none">{isLoading ? "reading sources" : "no source read"}</span> : null}
           {sources.map(([name, meta]) => {
             const status = meta.staleness_ts ? "stale" : meta.integration_status ?? "available";
             const detail = meta.staleness_ts ? `last fetch failed ${meta.staleness_ts}` : meta.integration_reason_code ?? status;
-            // The dot carries the status; a source that did not answer still states why, in the source strip.
+            const visibleStatus = status === "available" || status === "stale" || status === "unavailable" ? status : "unknown";
+            const accessibleStatus = `${meta.integration_id ?? name}: ${visibleStatus}${detail !== status ? ` · ${detail}` : ""}`;
+            // Keep the strip scannable; the full producer reason remains available to assistive tech and on hover.
             return (
-              <span key={name} className="cc-source" data-answering={status} title={`${meta.integration_id ?? name} · ${detail}`}>
+              <span key={name} className="cc-source" data-answering={status} title={accessibleStatus} aria-label={accessibleStatus}>
                 <span className="cc-source-dot" aria-hidden="true" />{name}
-                <span className={status === "available" ? "cc-visually-hidden" : undefined}>: {status === "available" ? status : detail}</span>
+                <span>: {visibleStatus}</span>
               </span>
             );
           })}

@@ -1,70 +1,70 @@
 {
-  "id": "traffic_referrers",
-  "label": "Traffic by referrer",
-  "description": "Ranked referrer-kind breakdown of landing-page visitors.",
-  "unit": "count",
-  "format": "integer",
-  "kind": "panel",
-  "shape": "rows",
   "columns": {
+    "detail": {
+      "optional": true,
+      "type": "string"
+    },
     "key": {
       "type": "string"
     },
-    "value": {
-      "type": "number"
+    "label": {
+      "optional": true,
+      "type": "string"
     },
     "share": {
       "type": "number"
     },
-    "label": {
-      "type": "string",
-      "optional": true
-    },
-    "detail": {
-      "type": "string",
-      "optional": true
+    "value": {
+      "type": "number"
     }
   },
-  "source": {
-    "team": "marketing-crew",
-    "binding": "scenario:landing-page-business-suite",
-    "read": "/landing_page_business_suite.v1.MetricsService/GetTrafficBreakdown?dimension=referrer_kind&limit=6&window_days=30",
-    "select": "traffic_referrers",
-    "ttlSeconds": 300,
-    "integrationId": "landing-page-business-suite",
-    "origin": "production",
-    "featureId": "traffic_referrers",
-    "contractVersion": "analytics-traffic.v1",
-    "selector": "traffic_referrers",
-    "expectedUnit": "count",
-    "sourceTimePolicy": "producer_required"
-  },
   "coverage": "IN-REACH",
+  "description": "Ranked referrer-kind breakdown of landing-page visitors.",
+  "format": "integer",
+  "id": "traffic_referrers",
+  "kind": "panel",
+  "label": "Traffic by referrer",
   "sample": {
-    "value": 100,
-    "series": [
-      100
-    ],
+    "basis": "hand-authored structural sample, reviewed 2026-09-03",
     "rows": [
       {
         "key": "search",
         "label": "Search",
-        "value": 45,
-        "share": 0.45
+        "share": 0.45,
+        "value": 45
       },
       {
         "key": "referral",
         "label": "Referral",
-        "value": 30,
-        "share": 0.3
+        "share": 0.3,
+        "value": 30
       },
       {
         "key": "direct",
         "label": "Direct",
-        "value": 25,
-        "share": 0.25
+        "share": 0.25,
+        "value": 25
       }
     ],
-    "basis": "hand-authored structural sample, reviewed 2026-09-03"
-  }
+    "series": [
+      100
+    ],
+    "value": 100
+  },
+  "shape": "rows",
+  "source": {
+    "binding": "scenario:landing-page-business-suite",
+    "contractVersion": "analytics-traffic.v1",
+    "expectedUnit": "count",
+    "featureId": "traffic_referrers",
+    "integrationId": "landing-page-business-suite",
+    "origin": "production",
+    "read": "/landing_page_business_suite.v1.MetricsService/GetTrafficBreakdown?dimension=REFERRER_KIND\u0026limit=6\u0026window_days=30",
+    "select": "traffic_referrers",
+    "selector": "traffic_referrers",
+    "sourceTimePolicy": "producer_required",
+    "team": "marketing-crew",
+    "ttlSeconds": 300
+  },
+  "unit": "count"
 }

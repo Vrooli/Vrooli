@@ -14,7 +14,7 @@ Durable decisions for this scenario, newest first. A decision recorded here is b
 
 **Alternatives rejected.** Multi-tenant hosting and a connector marketplace (deferred until plugin-ramp telemetry proves demand); keeping compositions welded to rooms (already false — color is theme-driven at 250ms and readouts already dispatch on `kind`); gating the settings work behind the not-yet-shipped plugin ramp (Milestone 1 delivers the internal value standalone; Milestone 2 carries the skill and packaging).
 
-**Schema decisions (settled 2026-09-17, detail in `concepts/CUSTOMIZATION-MODEL.md`).** Composition slot manifest lives in the module export with the editor JSON generated from it; signal shapes stay `scalar|series|rows|meta` with `rows` carrying a declared column schema; connector packs are in-tree trusted code modules for M1 (sandboxed data-only format deferred to M2 under the plugin security baseline); the instance definition splits into per-catalog files (`themes/`, `compositions/`, `rooms/`, `connectors/`); the zero-diff gate is a purpose-built harness that pins the composition seed and freezes animation time to fixed sample points (a naive pixel diff flakes on animated, seeded scenes).
+**Schema decisions (settled 2026-09-17, detail in `concepts/CUSTOMIZATION-MODEL.md`).** Composition ID, factory, and slot manifest are now co-located in each module definition, with engine/pack runtime maps derived from those definitions. The original decision called for editor JSON generated from modules; current `.slots.json` sidecars are instead checked against the module export by `pnpm slots:check`, and generation remains future work. Signal shapes stay `scalar|series|rows|meta` with `rows` carrying a declared column schema; connector packs are in-tree trusted code modules for M1 (sandboxed data-only format deferred to M2 under the plugin security baseline); the instance definition splits into per-catalog files (`themes/`, `compositions/`, `rooms/`, `connectors/`); the zero-diff gate is a purpose-built harness that pins the composition seed and freezes animation time to fixed sample points (a naive pixel diff flakes on animated, seeded scenes).
 
 ---
 
@@ -59,7 +59,7 @@ evidence-gated, and missing operator inputs remain absent rather than zero.
 
 ## 2026-09-01 — Command Center becomes the Director Swarm instrument
 
-**Decision.** Command Center takes the full instrument shape defined in `path:docs/agent-system/TARGET_MODEL.md`: authored space joined live, a setpoint it reads but does not own, trust-qualified readings, one ranked surface, an open-loop self-report, and a describe endpoint. It becomes the team's single address, closing the `two addresses` deviation recorded in the team's own record on 2026-08-13.
+**Decision.** Command Center takes the full instrument shape defined in `path:docs/agent-system/STANDING_TEAMS.md`: authored space joined live, a setpoint it reads but does not own, trust-qualified readings, one ranked surface, an open-loop self-report, and a describe endpoint. It becomes the team's single address, closing the `two addresses` deviation recorded in the team's own record on 2026-08-13.
 
 **Why.** The team declares its instrument `partial` and names Command Center as the only viable candidate, because it owns none of what it would observe. The portfolio control loop runs open-loop today: the prediction ledger records falsifiable predictions against named Command Center metrics with horizon dates, and none can be scored because the payload carries labels and no values.
 

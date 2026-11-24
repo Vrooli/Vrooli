@@ -12,6 +12,7 @@
     "nav": {
       "dashboard": "Home",
       "cases": "Cases",
+      "attention": "Attention",
       "settings": "Settings"
     }
   },

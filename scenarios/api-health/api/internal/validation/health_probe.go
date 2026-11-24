@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -51,12 +52,14 @@ type HTTPHealthProbeDeps struct {
 	Client       *http.Client
 	Resolver     PortURLResolver
 	ProbeTimeout time.Duration
+	Now          func() time.Time
 }
 
 type httpHealthProbe struct {
 	client       *http.Client
 	resolver     PortURLResolver
 	probeTimeout time.Duration
+	now          func() time.Time
 }
 
 func NewHTTPHealthProbe(d HTTPHealthProbeDeps) HealthProbe {
@@ -72,7 +75,11 @@ func NewHTTPHealthProbe(d HTTPHealthProbeDeps) HealthProbe {
 	if timeout <= 0 {
 		timeout = 2 * time.Second
 	}
-	return httpHealthProbe{client: client, resolver: resolver, probeTimeout: timeout}
+	now := d.Now
+	if now == nil {
+		now = time.Now
+	}
+	return httpHealthProbe{client: client, resolver: resolver, probeTimeout: timeout, now: now}
 }
 
 func (p httpHealthProbe) Probe(ctx context.Context, target Target, timeout time.Duration) HealthProbeResult {
@@ -98,15 +105,11 @@ func (p httpHealthProbe) Probe(ctx context.Context, target Target, timeout time.
 		return result
 	}
 
-	start := time.Now()
+	start := p.now()
 	resp, err := p.client.Do(req)
-	result.ElapsedMillis = time.Since(start).Milliseconds()
+	result.ElapsedMillis = p.now().Sub(start).Milliseconds()
 	if err != nil {
-		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			result.FailureClass = "timeout"
-		} else {
-			result.FailureClass = "unreachable"
-		}
+		result.FailureClass = classifyHealthProbeError(ctx.Err(), err)
 		result.Error = err.Error()
 		return result
 	}
@@ -143,6 +146,17 @@ func (p httpHealthProbe) Probe(ctx context.Context, target Target, timeout time.
 		result.Error = strings.Join(result.SchemaViolations, "; ")
 	}
 	return result
+}
+
+func classifyHealthProbeError(ctxErr, probeErr error) string {
+	if errors.Is(ctxErr, context.DeadlineExceeded) || errors.Is(probeErr, context.DeadlineExceeded) {
+		return "timeout"
+	}
+	var networkErr net.Error
+	if errors.As(probeErr, &networkErr) && networkErr.Timeout() {
+		return "timeout"
+	}
+	return "unreachable"
 }
 
 func (p httpHealthProbe) healthURL(ctx context.Context, target Target) (string, error) {

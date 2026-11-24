@@ -174,9 +174,13 @@ func buildEngineFromBase(base pkg.ServiceOptions, opts Options) *engine {
 	base.TextFallback = commandTextFallback(opts.Discovery)
 	if hybrid {
 		// The sparse leg supplies exact-token candidates, while this bounded
-		// owner-side seam lets an exact command leaf survive the cross-encoder's
-		// absolute floor. Search Hub remains agnostic about command vocabulary.
-		base.PreFloorDecorate = commandLexicalRescue
+		// owner-side seam lets an exact command leaf survive the reranker's
+		// regime-specific relevance floor. Search Hub remains agnostic about
+		// command vocabulary.
+		floorOverride := base.Floor
+		base.PreFloorDecorate = func(hits []pkg.SearchResult, q pkg.SearchQuery) {
+			commandLexicalRescue(hits, q, floorOverride)
+		}
 	}
 	// Allow the engine to honor per-request query-time overrides. This is the
 	// INNER layer only (it still clamps every factor to its taxonomy range); the
@@ -411,9 +415,10 @@ func candidateText(payload map[string]any) string {
 // an operation rather than a command title. A leading query term matching the
 // command leaf is strong lexical evidence; a joined leading phrase handles
 // natural wording such as "set up" -> "setup". The bounded boost is scaled to
-// the score regime: RRF/DBSF scores are roughly 0.03, while cross-encoder scores
-// are 0..1 and need enough lift to clear the shared 0.35 garbage floor.
-func commandLexicalRescue(hits []pkg.SearchResult, q pkg.SearchQuery) {
+// the score regime: RRF/DBSF scores are roughly 0.03, while reranker scores
+// are 0..1. In the reranker regime it clears the strictest supported floor
+// cutoff without promoting the exact leaf above a stronger result.
+func commandLexicalRescue(hits []pkg.SearchResult, q pkg.SearchQuery, floorOverride pkg.FloorConfig) {
 	terms := tokenize(q.Query)
 	if len(terms) == 0 {
 		return
@@ -445,9 +450,36 @@ func commandLexicalRescue(hits []pkg.SearchResult, q pkg.SearchQuery) {
 		if maxScore <= 0.2 {
 			hits[i].Score += 0.36
 		} else {
-			hits[i].Score += 0.01
+			cutoff := commandRerankerFloorCutoff(maxScore, floorOverride)
+			rescuedScore := cutoff + 0.01
+			if hits[i].Score < rescuedScore {
+				hits[i].Score = rescuedScore
+			} else {
+				hits[i].Score += 0.01
+			}
 		}
 	}
+}
+
+// commandRerankerFloorCutoff uses the tighter cutoff of the supported reranker
+// regimes because this pre-floor hook does not receive the active leg. It shares
+// the scenario's floor overrides with the engine so explicit configuration stays
+// in effect; the extra margin keeps the rescued score above the floor's inclusive
+// boundary after floating-point arithmetic.
+func commandRerankerFloorCutoff(maxScore float64, override pkg.FloorConfig) float64 {
+	cutoffFor := func(leg string) float64 {
+		floor := pkg.FloorForMethodLeg("dense", leg, override)
+		cutoff := maxScore - floor.MaxGap
+		if floor.HardFloor > cutoff {
+			cutoff = floor.HardFloor
+		}
+		return cutoff
+	}
+	cutoff := cutoffFor("cross-encoder:lexical-rescue")
+	if llmCutoff := cutoffFor("llm:lexical-rescue"); llmCutoff > cutoff {
+		cutoff = llmCutoff
+	}
+	return cutoff
 }
 
 func commandLeafMatches(tokens []string, want string) bool {

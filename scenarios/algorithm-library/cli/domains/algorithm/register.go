@@ -438,7 +438,7 @@ func renderRawMutation(body []byte, title string, jsonOut bool) error {
 	if err := support.Decode(body, &generic); err != nil {
 		return err
 	}
-	changes := renderGeneric(generic)
+	changes := support.RenderGeneric(generic)
 	report := cliapp.MutationReport{
 		Result:  []string{title},
 		Changes: changes,
@@ -457,32 +457,12 @@ func renderRawList(body []byte, summary, heading string, jsonOut bool) error {
 	report := cliapp.ListReport{
 		Summary:        []string{summary},
 		ResultsHeading: heading,
-		Results:        renderGeneric(generic),
+		Results:        support.RenderGeneric(generic),
 	}
 	if jsonOut {
 		return cliapp.PrintReportJSON(os.Stdout, report)
 	}
 	return cliapp.RenderListReport(os.Stdout, report)
-}
-
-func renderGeneric(value interface{}) []string {
-	switch v := value.(type) {
-	case map[string]interface{}:
-		return support.MapRows(v)
-	case []interface{}:
-		if len(v) == 0 {
-			return []string{"(empty list)"}
-		}
-		rows := make([]string, 0, len(v))
-		for i, item := range v {
-			rows = append(rows, fmt.Sprintf("%d: %s", i, support.RenderValue(item)))
-		}
-		return rows
-	case nil:
-		return []string{"(empty payload)"}
-	default:
-		return []string{support.RenderValue(v)}
-	}
 }
 
 func parseSizes(raw string) ([]int, error) {

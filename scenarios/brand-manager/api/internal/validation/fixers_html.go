@@ -1,8 +1,7 @@
 package validation
 
 import (
-	"os"
-	"path/filepath"
+	"fmt"
 	"strings"
 
 	"brand-manager/internal/brandsurface"
@@ -178,12 +177,8 @@ const safeAreaInsetCSS = `
 `
 
 func appendSafeAreaInsetCSS(root string) error {
-	abs := filepath.Join(root, filepath.FromSlash(designSystemCSSRel))
 	existing, _ := readFile(root, designSystemCSSRel)
-	if err := os.MkdirAll(filepath.Dir(abs), 0o750); err != nil {
-		return err
-	}
-	return os.WriteFile(abs, []byte(existing+safeAreaInsetCSS), 0o600)
+	return writeScenarioFile(root, designSystemCSSRel, []byte(existing+safeAreaInsetCSS), 0o600)
 }
 
 // fixNameConsistency rewrites every present-but-mismatched name surface to
@@ -282,7 +277,9 @@ func fixTemplateResidue(root string, apply bool) (Candidate, bool, error) {
 			}
 		}
 		if hasViteAsset {
-			_ = os.Remove(filepath.Join(root, filepath.FromSlash(viteAsset)))
+			if err := removeScenarioFile(root, viteAsset); err != nil {
+				return Candidate{}, false, fmt.Errorf("remove template asset: %w", err)
+			}
 		}
 		cand.Applied = true
 	}

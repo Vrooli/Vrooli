@@ -17,6 +17,7 @@ func Module(svc graph.Service, domainsSvc ...domains.Service) module.Module {
 		Name: "graph",
 		Mount: func(r *mux.Router) {
 			r.PathPrefix(pattern).Handler(connectHandler)
+			r.Handle("/api/v1/slices/search", h.SearchSlicesHTTP()).Methods("POST")
 		},
 		Endpoints: Endpoints,
 	}

@@ -9,6 +9,10 @@ vi.mock("./controllers/useDomainsController", () => ({
   useExtractDomains: vi.fn(),
 }));
 
+vi.mock("../graph/controllers/useGraphController", () => ({
+  useGetDomainSlice: vi.fn(),
+}));
+
 vi.mock("./ConvergenceReport", () => ({
   ConvergenceReport: ({ scenario }: { scenario: string }) => (
     <div data-testid="convergence-report">{scenario}</div>
@@ -24,12 +28,14 @@ vi.mock("./BoundaryHealth", () => ({
 import { selectors } from "../../consts/selectors";
 import { renderWithProviders } from "../../test-utils";
 import { useExtractDomains, useGetDomainMap } from "./controllers/useDomainsController";
+import { useGetDomainSlice } from "../graph/controllers/useGraphController";
 import { DomainMapView } from "./DomainMapView";
 
 afterEach(() => {
   cleanup();
   vi.mocked(useGetDomainMap).mockReset();
   vi.mocked(useExtractDomains).mockReset();
+  vi.mocked(useGetDomainSlice).mockReset();
 });
 
 function mockDomainMap(state: Partial<ReturnType<typeof useGetDomainMap>>) {
@@ -44,6 +50,11 @@ function mockDomainMap(state: Partial<ReturnType<typeof useGetDomainMap>>) {
 }
 
 function mockExtract(state: Partial<ReturnType<typeof useExtractDomains>> = {}) {
+  vi.mocked(useGetDomainSlice).mockReturnValue({
+    isPending: false,
+    isError: false,
+    data: { rungs: [], layerEdges: [] },
+  } as never);
   const mutate = vi.fn();
   vi.mocked(useExtractDomains).mockReturnValue({
     isPending: false,
@@ -154,5 +165,29 @@ describe("DomainMapView", () => {
 
     await user.click(screen.getByTestId(selectors.features.domains.view.extractButton));
     expect(mutate).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders the selected domain's five-rung partial slice anatomy", () => {
+    mockExtract();
+    mockDomainMap({ data: { domainMap: {
+      domains: [{ name: "graph", paths: ["api/internal/graph"], archetypes: [], provenance: [DomainSource.API_MANIFEST] }],
+      sharedSubstrate: [], nonDomains: [], declarations: [],
+    } } as never });
+    vi.mocked(useGetDomainSlice).mockReturnValue({
+      isPending: false,
+      isError: false,
+      data: {
+        rungs: ["proto", "handler", "internal", "cli", "ui"].map((name) => ({ name, present: name === "handler", files: [{ path: `src/${name}.go` }], evidence: [], symbols: [] })),
+        layerEdges: [{ fromRung: "handler", toRung: "internal" }],
+      },
+    } as never);
+
+    renderWithProviders(<DomainMapView scenario="demo" />);
+
+    expect(screen.getByRole("region", { name: "Implementation slice anatomy" })).toHaveTextContent("DERIVED / PARTIAL");
+    expect(screen.getByText("proto · missing")).toBeInTheDocument();
+    expect(screen.getByText("handler · present")).toBeInTheDocument();
+    expect(screen.getByText("Layer edges: handler→internal")).toBeInTheDocument();
+    expect(useGetDomainSlice).toHaveBeenCalledWith("demo", "graph");
   });
 });

@@ -49,7 +49,10 @@ func (c integrationChecker) CheckResult(ctx context.Context) capreg.CheckResult 
 			actionLabel = first(actionLabel, "Review "+c.label)
 			operatorCommand = first(operatorCommand, "vrooli status --json")
 		}
-		return capreg.CheckResult{Status: capreg.StatusUnavailable, Message: err.Error(), ReasonCode: "upstream_unavailable", ActionKind: actionKind, ActionLabel: actionLabel, OperatorCommand: operatorCommand, FeatureStatus: featureStatuses(c.features, "unknown")}
+		// Connector errors can include resolved origins, query parameters or
+		// response bodies. Keep the public lifecycle projection stable and safe;
+		// detailed transport diagnostics belong in owner-side logs.
+		return capreg.CheckResult{Status: capreg.StatusUnavailable, Message: "health endpoint unavailable", ReasonCode: "upstream_unavailable", ActionKind: actionKind, ActionLabel: actionLabel, OperatorCommand: operatorCommand, FeatureStatus: featureStatuses(c.features, "unknown")}
 	}
 	statuses := featureStatuses(c.features, "unknown")
 	reasons := map[string]string{}

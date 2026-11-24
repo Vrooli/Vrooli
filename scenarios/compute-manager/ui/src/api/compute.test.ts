@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const clients = vi.hoisted(() => ({
-  instances: { listInstances: vi.fn(), getInstance: vi.fn(), requestInstance: vi.fn() },
+  instances: { listInstances: vi.fn(), getInstance: vi.fn(), requestInstance: vi.fn(), getSpendReceipt: vi.fn() },
   reconcile: { listFindings: vi.fn() },
 }));
 
@@ -12,7 +12,7 @@ vi.mock("@connectrpc/connect", () => ({
 }));
 vi.mock("./client", () => ({ transport: {} }));
 
-import { fetchInstance, fetchInstances, fetchOpenFindings, requestInstance } from "./compute";
+import { fetchInstance, fetchInstances, fetchOpenFindings, fetchSpendReceipt, requestInstance } from "./compute";
 
 describe("compute API wrappers", () => {
   beforeEach(() => {
@@ -27,6 +27,8 @@ describe("compute API wrappers", () => {
     expect(clients.instances.listInstances).toHaveBeenCalledWith({});
     expect(clients.reconcile.listFindings).toHaveBeenCalledWith({ status: "open" });
     expect(clients.instances.getInstance).toHaveBeenCalledWith({ id: "i-1" });
+    fetchSpendReceipt("request-1");
+    expect(clients.instances.getSpendReceipt).toHaveBeenCalledWith({ idempotencyKey: "request-1" });
   });
 
   it("forwards a capacity request unchanged", () => {

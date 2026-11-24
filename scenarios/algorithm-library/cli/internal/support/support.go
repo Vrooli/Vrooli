@@ -168,6 +168,27 @@ func extOf(path string) string {
 	return ""
 }
 
+// RenderGeneric formats JSON-decoded values for human-readable CLI reports.
+func RenderGeneric(value interface{}) []string {
+	switch v := value.(type) {
+	case map[string]interface{}:
+		return MapRows(v)
+	case []interface{}:
+		if len(v) == 0 {
+			return []string{"(empty list)"}
+		}
+		rows := make([]string, 0, len(v))
+		for i, item := range v {
+			rows = append(rows, fmt.Sprintf("%d: %s", i, RenderValue(item)))
+		}
+		return rows
+	case nil:
+		return []string{"(empty payload)"}
+	default:
+		return []string{RenderValue(v)}
+	}
+}
+
 // MapRows renders a map as sorted `key: value` lines for ListReport output.
 func MapRows(data map[string]interface{}) []string {
 	if len(data) == 0 {

@@ -36,6 +36,32 @@
       "system": "النظام"
     }
   },
+  "providerSetup": {
+    "akash": {
+      "title": "Akash",
+      "network": "الشبكة:",
+      "effectMode": "وضع التأثير:",
+      "signerStatus": "موقّع Credential Authority:",
+      "priceStatus": "كتالوج الأسعار:",
+      "blockedReason": "سبب الحظر:",
+      "notReported": "لم يُبلّغ Compute Manager عن ذلك",
+      "signerVerified": "تم التحقق عبر Credential Authority",
+      "signerUnverified": "لم يتم إرجاع حالة موقّع موثّق",
+      "priceFresh": "يتوفر سعر حديث وموثّق المصدر",
+      "priceStale": "لا يتوفر سعر حديث وموثّق صالح",
+      "priceMissing": "لم يُرجع أي حقيقة سعرية",
+      "blockedReasonMissing": "لم يُرجع Compute Manager سبباً محدداً للحظر",
+      "actionsDisabled": "إجراءات الإعداد معطلة حتى يعيد Compute Manager المتطلبات الموثّقة وبوابة تأثير مباشرة صريحة.",
+      "descriptorMissing": "لم يُرجع Compute Manager واصفاً لموفر Akash أو سجلاً للجاهزية. الشبكة ووضع التأثير والتحقق من الموقّع وحالة السعر وسبب الحظر غير متاحة من الخادم.",
+      "noActions": "لا تتوفر إجراءات إعداد أو تحقق أو موفر؛ لم تُستنتج الجاهزية أو التكلفة.",
+      "noOffer": "لا يتوفر هدف عرض أو منطقة مُعاد من الخادم للتحقق.",
+      "noPriceFact": "لم يُرجع Compute Manager حقيقة سعرية؛ لم تُستنتج تكلفة الموفر.",
+      "walletDescriptor": "واصف Credential Authority",
+      "walletEntryStatus": "حالة الإدخال الآمن",
+      "walletIdentifierCaveat": "هذا الواصف معرّف فقط. لا يثبت وجود بيانات الاعتماد أو انتماءها إلى محفظة أو قدرتها على التوقيع. أدخل بيانات اعتماد محفظة sandbox-2 موجودة فقط عبر Vrooli Onboarding الآمن؛ لا تنشئ محفظة أو تستوردها في هذه الخطوة.",
+      "secureEntryAction": "افتح Vrooli Onboarding الآمن"
+    }
+  },
   "pages": {
     "dashboard": {
       "title": "الرئيسية",
@@ -45,7 +71,8 @@
     "findings": { "title": "المشكلات المفتوحة", "description": "مشكلات المصالحة التي تتطلب انتباه المشغل.", "kind": "النوع", "providerInstance": "مثيل الموفر", "detail": "التفاصيل", "error": "تعذر تحميل المشكلات.", "empty": "لا توجد مشكلات مصالحة مفتوحة." },
     "instance": { "title": "تفاصيل المثيل", "description": "حالة الموفر والحجز والتسجيل لمثيل واحد.", "error": "تعذر تحميل المثيل.", "loading": "جار تحميل المثيل…", "state": "الحالة", "address": "العنوان", "provider": "الموفر"
     },
-    "request": { "title": "طلب سعة", "description": "اختر مدة محددة لعمر الآلة قبل إنشاء السعة.", "provider": "الموفر", "region": "المنطقة", "size": "الحجم", "lifetime": "العمر (بالثواني)", "estimate": "يستخدم التقدير الحد الأدنى لوحدة الفوترة لدى الموفر.", "submit": "طلب السعة", "submitting": "جار طلب السعة…", "success": "تم قبول طلب السعة.", "error": "فشل طلب السعة. لم يتم إنشاء آلة.", "validation": "اختر عمراً موجباً." },
+    "request": { "title": "طلب سعة", "description": "اختر مدة محددة لعمر الآلة قبل إنشاء السعة.", "provider": "الموفر", "region": "المنطقة", "size": "الحجم", "lifetime": "العمر (بالثواني)", "estimate": "يستخدم التقدير الحد الأدنى لوحدة الفوترة لدى الموفر.", "submit": "طلب السعة", "submitting": "جار طلب السعة…", "success": "تم قبول طلب السعة.", "error": "فشل طلب السعة. لم يتم إنشاء آلة.", "validation": "اختر عمراً موجباً.", "newRequest": "بدء طلب آخر", "retryReceipt": "إعادة تحميل إيصال العرض", "receiptHeading": "العرض المحفوظ وقرار الإنفاق", "receiptKey": "مرجع الطلب", "quoteState": "حالة العرض", "decision": "قرار القبول", "requestState": "حالة الطلب", "instance": "المثيل المنشأ", "providerOffer": "عرض الموفر", "selection": "الاختيار", "serverCost": "تكلفة الخادم شهرياً", "ipv4Cost": "تكلفة IPv4 شهرياً", "totalCost": "الإجمالي الشهري المحدد", "cap": "حد الإنفاق", "taxBasis": "أساس الضريبة", "reason": "السبب", "source": "مصدر السعر", "sourceVersion": "إصدار المصدر", "observed": "وقت الرصد", "expires": "ينتهي", "fresh": "حديث", "expired": "منتهي", "unknown": "غير معروف", "priceUnavailable": "لم يُحفظ سعر موثّق من الموفر. المبلغ غير معروف ولا يُفترض أنه صفر.", "receiptMissing": "لا يتوفر إيصال محفوظ بعد. احتفظ بمرجع الطلب لإعادة المحاولة بأمان.", "receiptPending": "لا يزال الطلب مفتوحاً وقد يحتاج إلى مصالحة. لا تبدأ طلباً آخر قبل وصوله إلى حالة نهائية.", "receiptNote": "قرار القبول يطبق الحد ولا يؤكد وحده إنشاء خادم. استخدام المرجع نفسه لن يكرر الإنشاء." },
+    "adoption": { "title": "اعتماد خادم VPS موجود", "description": "سجّل خادم VPS مملوكاً للمشغّل في Compute Manager. يبقى الخادم ملكك، ولا يقبل هذا النموذج كلمة مرور SSH.", "intro": "أدخل عنواناً غير سري وحقائق الفوترة الشهرية. سيظهر عرض السعر وقرار الحد بعد الإرسال.", "displayName": "اسم العرض (اختياري)", "host": "عنوان المضيف", "user": "مستخدم SSH", "monthlyCostMinor": "الإجمالي الشهري بوحدات العملة الصغرى", "currency": "رمز العملة ISO", "taxBasis": "أساس الضريبة (قبل الضريبة أو شاملها)", "continueLabel": "تسجيل الاعتماد", "addressRequired": "أدخل عنوان VPS.", "sshUserRequired": "أدخل مستخدم SSH.", "monthlyCostInvalid": "أدخل عدداً صحيحاً غير سالب بوحدات العملة الصغرى.", "currencyInvalid": "أدخل رمز عملة ISO من ثلاثة أحرف.", "taxBasisRequired": "حدد ما إذا كان الإجمالي قبل الضريبة أو شاملاً لها.", "stateLabel": "حالة الاعتماد", "stateDraft": "مسودة", "stateAwaitingSecret": "بانتظار بيانات الاعتماد الآمنة للاتصال الأول", "stateCredentialStored": "قَبِل الإعداد الآمن بيانات الاعتماد", "stateBridgeEnrolling": "تسجيل Bridge بانتظار التحقق", "stateReady": "جاهز", "stateFailed": "يتطلب الانتباه", "stateReleased": "تم التحرير", "monthlyCost": "الإجمالي الشهري المعلن", "releaseSemantics": "يزيل التحرير سجل Compute Manager ومرفق Bridge فقط. لا يحذف خادمك أو يغيّره.", "verificationPending": "لم يتم التحقق من التسجيل بعد، لذا هذا المضيف غير جاهز للنشر.", "minorUnits": "وحدات صغرى", "createFailed": "تعذر تسجيل الاعتماد. أعد المحاولة بنفس مرجع الطلب بعد مراجعة القرار المحفوظ.", "credentialStepUnavailable": "وجهة الإعداد الآمن للاتصال الأول غير مفعّلة بعد. لم تُطلب كلمة مرور ولم تُرسل.", "credentialStepAction": "المتابعة في الإعداد الآمن", "quote": "عرض السعر وقرار القبول المحفوظان", "admission": "قرار القبول", "cap": "الحد الشهري", "source": "المصدر", "sourceUnknown": "غير متاح", "observation": "وقت الرصد", "expires": "انتهاء الصلاحية" },
     "settings": {
       "title": "الإعدادات",
       "themeHeading": "المظهر",

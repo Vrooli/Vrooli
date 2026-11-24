@@ -15,7 +15,7 @@ Generalization draws one seam.
 - **The instrument engine** is domain-agnostic and ships with the scenario: the rendering pipeline, the honesty model, the board cycler, the catalogs of themes/compositions/readouts, and the generic connector runtime. It knows nothing about revenue, Vrooli, or director-swarm.
 - **An instance definition** is the data that makes one particular board: which connectors are wired, which signals they yield, which rooms exist, and how each room is themed, composed, and cycled. The operator's current board is **instance zero** — the first instance, not a special case.
 
-Today these are fused: Vrooli data sources are compiled Go clients, room→theme→composition is a code map, and scene→metric bindings are hardcoded ID strings. The effort moves the instance-specific facts out of code and into data, and leaves the engine holding only what is true for every instance.
+The target seam keeps source-specific ingestion and visual extensions out of the generic engine. The current implementation has already moved room, theme, signal, and binding definitions into catalogs and keeps producer clients in Go plus trusted visual extensions in an in-tree Vrooli pack. The remaining code-owned composition registration and verification gaps are listed in [Implementation status and remaining seam](#implementation-status-and-remaining-seam).
 
 ## Vocabulary
 
@@ -41,18 +41,18 @@ The rendering layer is further along than the vision implies. These properties a
 2. **Readouts are already a generic dispatch on the signal's `kind`**, not on room identity. The release-ladder is not "the forge's readout"; it is what any beat whose hero has `kind:"ladder"` renders. Room-to-readout is already a data fact.
 3. **Beats are already data-driven** from the board response (count, order, hero, per-beat composition, layout, dwell), with a code fallback.
 4. **Themes are already API-overridable** per room, with the code `THEMES` map only as a fallback.
-5. **Data-driven backgrounds already work.** Compositions already read live signals (throughput/blocking drive the forge sparks and dam; the focus metric's rows drive the broadcast great-circle arcs; conversion ratios drive the signal constellation). The binding exists; it is the *addressing* of that binding that is welded (next section).
+5. **Data-driven backgrounds use declared slots.** The room binding maps signal IDs to slot names; scenes read those slots (`flow-current` reads `throughput` and `blocking`, and `meridian-arc` reads `arcs`). Signal addresses therefore stay in room data. Keep manifest and sidecar consistency covered as the catalog grows.
 
-## What is welded — the actual refactor
+## Implementation status and remaining seam
 
-Four couplings, all mechanical rather than conceptual, stand between today and a data-driven engine.
+The original four-coupling inventory below is historical: the settings/catalog implementation has since moved much of this model into source. Do not restart those migrations. The current code has six room preset files, six theme token files, per-signal catalog files, typed room bindings, editable saved board settings, generic readout dispatch, and scene slots. The Forge scene reads `throughput` and `blocking` slots; it does not read `throughput_stats` or `blocking_stats` directly. Composition manifests have JSON sidecars and a parity test, and the build runs the slot check. These are implemented capabilities, not yet proof of a zero-diff generalized product.
 
-1. **Scene→signal addressing is hardcoded.** A composition reads its data by literal metric ID (`read(data, "throughput_stats")` inside `flowCurrent`). This is the central coupling. **Fix:** a composition declares abstract **slots**; a room **binds** a signal to each slot; the scene reads its slots, never a global ID. Then the same "dots-along-lines" background works for anyone's throughput-shaped signal.
-2. **Room→theme→composition is a code map + a fixed scene registry** keyed on the six room names. **Fix:** rooms become preset data; the scene registry becomes a catalog keyed by composition ID.
-3. **Themes and compositions are code/CSS lists.** Adding one means editing `scenes/index.ts`, adding a `.css` file, and adding a `THEMES` entry. **Fix:** theme = JSON design-token file; composition = a registered module declaring its slots.
-4. **The supporting strip has inline per-`kind` rendering** in places instead of delegating to readout components. **Fix:** a single readout registry maps `kind` → component for both hero and supporting positions.
+The remaining engineering work is narrower and should be measured against the shipped behavior:
 
-Nothing here changes what the operator sees; each is a lift from code-addressed to data-addressed with the current values as the first data.
+1. **Scene modules now own one composition definition.** Each definition co-locates its ID, factory, and slot manifest; the engine and connector packs register these definitions, and runtime factories and the parity map derive from them. This removes the former second TypeScript factory/manifest map. JSON sidecars remain separate catalog files checked against the module export by `pnpm slots:check`; a generator for those sidecars remains future work.
+2. **Connector execution is not a general pack runtime.** Config describes source descriptors and signals, while producer clients and the trusted in-tree Vrooli visualization pack remain implementation code. A user-authored third-party pack, isolated untrusted code, and standalone packaging are not shipped.
+3. **The render-preservation gate needs a current run.** A BAS-backed deterministic visual-baseline script, pinned sample times, and room baseline images exist. No successful run against the current served build is in this resumed work's evidence; BAS must be reachable to prove the gate. Do not equate the harness or stored images with a current pass.
+4. **Supporting readout behavior and catalogs need an end-to-end audit.** Generic kind dispatch exists, but verify every catalog kind in hero and supporting positions, with missing/unknown data, before claiming the registry fully replaces inline rendering.
 
 ## The catalogs
 
@@ -133,8 +133,8 @@ The skill is the plug-in's selling point: it is what makes the instrument extens
 
 Two shippable milestones, deliberately decoupled so the second never blocks the first.
 
-- **Milestone 1 — data-driven engine + settings.** Draw the seam, lift the four welded couplings to data, ship the four catalogs, build the settings page with sample-driven preview. Acceptance: the **zero visual diff** gate passes on the operator's instance. Delivers all the internal "production-ready, organized, extensible" value.
-- **Milestone 2 — skill + monetization packaging.** Author the customization skill, give Command Center a standalone install path (the universal prerequisite for any plugin monetization; see `path:docs/monetization/catalogs/channels/skill-registries.md`), and package for the scenario-to-plugin ramp. Gated on the ramp actually shipping — which is why it is a separate milestone.
+- **Milestone 1 — data-driven engine + settings.** The implementation now includes split catalogs, typed room/slot bindings, settings persistence, and sample-driven preview. Its acceptance remains open until the pinned **zero visual diff** gate passes on the operator's instance and the readout/catalog behaviors are checked end to end. This milestone delivers the internal "production-ready, organized, extensible" value without waiting for plugin packaging.
+- **Milestone 2 — agent workflow + monetization packaging.** A customization skill exists; its capability claims still need to be exercised against the shipped settings/catalog workflow. The standalone install path and scenario-to-plugin packaging remain open, and any paid bundle/pricing choice stays in operator-owned monetization canon. This milestone remains separate from internal dashboard usefulness and must align with `path:docs/monetization/catalogs/channels/skill-registries.md` and the plugin-ramp readiness.
 
 ## Resolved design decisions (2026-09-17)
 

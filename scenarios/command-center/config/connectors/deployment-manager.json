@@ -5,6 +5,6 @@
   "transport": "http-json",
   "baseUrlEnv": "DEPLOYMENT_MANAGER_BASE_URL",
   "paths": [
-    "/api/v1/readiness/state"
+    "/api/v1/readiness/state?scenario=command-center"
   ]
 }

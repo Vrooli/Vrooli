@@ -38,35 +38,5 @@
     "expectedUnit": "count",
     "sourceTimePolicy": "producer_required"
   },
-  "coverage": "IN-REACH",
-  "sample": {
-    "value": 6,
-    "series": [
-      6
-    ],
-    "rows": [
-      {
-        "key": "scenario-readiness",
-        "label": "Scenario readiness",
-        "value": 6,
-        "share": 0.6,
-        "detail": "4.0h–9.0h ETA"
-      },
-      {
-        "key": "traffic-instrument",
-        "label": "Traffic instrument",
-        "value": 3,
-        "share": 0.3,
-        "detail": "8.0h–16.0h ETA"
-      },
-      {
-        "key": "release-proof",
-        "label": "Release proof",
-        "value": 1,
-        "share": 0.1,
-        "detail": "2.0h–4.0h ETA"
-      }
-    ],
-    "basis": "hand-authored structural sample, reviewed 2026-09-03"
-  }
+  "coverage": "NOW"
 }

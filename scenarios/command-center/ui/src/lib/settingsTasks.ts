@@ -49,6 +49,36 @@ export function taskById(id: string | null | undefined): SettingsTask | undefine
 
 const str = (value: unknown): string => (typeof value === "string" ? value : "");
 const labelOf = (entry: CatalogEntry): string => str(entry.label) || str(entry.title) || entry.id;
+const recordOf = (value: unknown): Record<string, unknown> =>
+  value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+
+/** One catalog pass projects both directions of the room relationships. */
+function projectRoomRelationships(catalogs: Catalogs) {
+  const roomsByTheme = new Map<string, Map<string, string>>();
+  const roomsBySignal = new Map<string, Map<string, string>>();
+  for (const room of catalogs.rooms ?? []) {
+    const label = labelOf(room);
+    const themeId = str(room.theme);
+    if (themeId) {
+      const rooms = roomsByTheme.get(themeId) ?? new Map<string, string>();
+      rooms.set(room.id, label);
+      roomsByTheme.set(themeId, rooms);
+    }
+    const bindings = recordOf(room.bind);
+    // A room can bind the same signal into multiple slots, but its back-reference
+    // should list that room only once. Room IDs, rather than labels, are the key:
+    // two rooms are allowed to share a display name.
+    for (const signalId of new Set(Object.values(bindings).filter((value): value is string => typeof value === "string" && value.length > 0))) {
+      const rooms = roomsBySignal.get(signalId) ?? new Map<string, string>();
+      rooms.set(room.id, label);
+      roomsBySignal.set(signalId, rooms);
+    }
+  }
+  return {
+    roomsUsingTheme: (themeId: string) => [...(roomsByTheme.get(themeId)?.values() ?? [])],
+    roomsBindingSignal: (signalId: string) => [...(roomsBySignal.get(signalId)?.values() ?? [])],
+  };
+}
 
 export type NodeTone = "ok" | "warn" | "muted";
 export interface ChainNode {
@@ -61,17 +91,12 @@ export interface ChainNode {
 
 /** Count the rooms whose bind map points any slot at `signalId`. */
 export function roomsBindingSignal(signalId: string, catalogs: Catalogs): string[] {
-  return (catalogs.rooms ?? [])
-    .filter((room) => {
-      const bind = room.bind && typeof room.bind === "object" ? (room.bind as Record<string, unknown>) : {};
-      return Object.values(bind).includes(signalId);
-    })
-    .map(labelOf);
+  return projectRoomRelationships(catalogs).roomsBindingSignal(signalId);
 }
 
 /** Count the rooms painted by `themeId`. */
 export function roomsUsingTheme(themeId: string, catalogs: Catalogs): string[] {
-  return (catalogs.rooms ?? []).filter((room) => str(room.theme) === themeId).map(labelOf);
+  return projectRoomRelationships(catalogs).roomsUsingTheme(themeId);
 }
 
 /**
@@ -84,33 +109,36 @@ export function describeEntry(catalog: string, entry: CatalogEntry | undefined, 
     const themeId = str(entry.theme);
     const compositionId = str(entry.composition);
     const composition = (catalogs.compositions ?? []).find((item) => item.id === compositionId);
-    const slots = composition?.slots && typeof composition.slots === "object" ? (composition.slots as Record<string, { shape?: string }>) : {};
-    const bind = entry.bind && typeof entry.bind === "object" ? (entry.bind as Record<string, string>) : {};
-    const signals = catalogs.signals ?? [];
+    const slots = recordOf(composition?.slots);
+    const bind = recordOf(entry.bind);
+    const themes = catalogs.themes ?? [];
+    const themeExists = themes.some((theme) => theme.id === themeId);
+    const signalsById = new Map((catalogs.signals ?? []).map((signal) => [signal.id, signal]));
     const nodes: ChainNode[] = [
-      { label: themeId || "no theme", kind: "theme", tone: themeId ? "ok" : "warn" },
+      { label: !themeId ? "no theme" : themeExists ? themeId : `missing theme: ${themeId}`, kind: "theme", tone: themeExists ? "ok" : "warn" },
       { label: labelOf(entry), kind: "room", tone: "ok" },
-      { label: compositionId || "no composition", kind: "composition", tone: compositionId ? "ok" : "warn" },
+      { label: !compositionId ? "no composition" : composition ? compositionId : `missing composition: ${compositionId}`, kind: "composition", tone: composition ? "ok" : "warn" },
     ];
     for (const slot of Object.keys(slots)) {
-      const boundId = bind[slot];
-      const signal = signals.find((item) => item.id === boundId);
-      const shapeOk = !slots[slot]?.shape || !signal || signal.shape === slots[slot].shape;
+      const boundId = str(bind[slot]);
+      const signal = signalsById.get(boundId);
+      const expectedShape = str(recordOf(slots[slot]).shape);
+      const compatible = !expectedShape || signal?.shape === expectedShape;
       nodes.push(boundId
-        ? { label: signal ? labelOf(signal) : boundId, kind: `${slot} slot`, tone: shapeOk ? "ok" : "warn" }
+        ? { label: signal ? labelOf(signal) : `missing signal: ${boundId}`, kind: `${slot} slot`, tone: !signal || !compatible ? "warn" : "ok" }
         : { label: "unbound", kind: `${slot} slot`, tone: "muted" });
     }
     return nodes;
   }
   if (catalog === "themes") {
-    const rooms = roomsUsingTheme(entry.id, catalogs);
+    const rooms = projectRoomRelationships(catalogs).roomsUsingTheme(entry.id);
     return [
       { label: labelOf(entry), kind: "theme", tone: "ok" },
       { label: rooms.length ? `paints ${rooms.length} room${rooms.length === 1 ? "" : "s"}` : "paints no rooms yet", kind: rooms.join(", ") || "unused", tone: rooms.length ? "ok" : "muted" },
     ];
   }
   if (catalog === "signals") {
-    const rooms = roomsBindingSignal(entry.id, catalogs);
+    const rooms = projectRoomRelationships(catalogs).roomsBindingSignal(entry.id);
     return [
       { label: labelOf(entry), kind: "signal", tone: "ok" },
       { label: str(entry.shape) || "unknown shape", kind: "shape", tone: str(entry.shape) ? "ok" : "warn" },

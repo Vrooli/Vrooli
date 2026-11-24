@@ -18,6 +18,8 @@ import {
 } from "./controllers/useDomainsController";
 import { ConvergenceReport } from "./ConvergenceReport";
 import { BoundaryHealth } from "./BoundaryHealth";
+import { useGetDomainSlice } from "../graph/controllers/useGraphController";
+import { useState } from "react";
 
 export interface DomainMapViewProps {
   scenario: string;
@@ -120,6 +122,8 @@ export function DomainMapView({ scenario }: DomainMapViewProps) {
             <DomainMapTable domains={map.domains} scenario={scenario} />
           </section>
 
+          {map.domains.length > 0 && <DomainSliceAnatomy scenario={scenario} domains={map.domains} />}
+
           <section
             aria-labelledby="domains-shared-substrate-heading"
             data-testid={selectors.features.domains.sharedSubstrate.root}
@@ -185,6 +189,39 @@ export function DomainMapView({ scenario }: DomainMapViewProps) {
         </>
       )}
     </div>
+  );
+}
+
+function DomainSliceAnatomy({ scenario, domains }: { scenario: string; domains: readonly DerivedDomain[] }) {
+  const [domain, setDomain] = useState(domains[0]?.name ?? "");
+  const slice = useGetDomainSlice(scenario, domain);
+  return (
+    <section aria-labelledby="domain-slice-heading" className="flex flex-col gap-2">
+      <h4 id="domain-slice-heading" className="text-lg font-semibold">Implementation slice anatomy</h4>
+      <label className="flex items-center gap-2 text-sm">
+        <span>Domain</span>
+        <select aria-label="Slice domain" value={domain} onChange={(event) => setDomain(event.target.value)} className="rounded border border-app-border bg-app-surface px-2 py-1">
+          {domains.map((item) => <option key={item.name} value={item.name}>{item.name}</option>)}
+        </select>
+      </label>
+      {slice.isPending ? <p role="status">Loading slice…</p> : null}
+      {slice.isError ? <p role="alert">Slice anatomy unavailable: {slice.error instanceof Error ? slice.error.message : String(slice.error)}</p> : null}
+      {slice.data ? (
+        <div className="flex flex-col gap-2">
+          <p className="text-sm">Attestation: DERIVED / PARTIAL. Symbol-level links are not resolved in this view.</p>
+          <ol className="grid gap-2 md:grid-cols-2">
+            {slice.data.rungs.map((rung) => (
+              <li key={rung.name} className="rounded border border-app-border p-2">
+                <h5 className="font-medium">{rung.name} · {rung.present ? "present" : "missing"}</h5>
+                {rung.files.length > 0 && <ul className="mt-1 list-disc pl-5 font-mono text-xs">{rung.files.slice(0, 4).map((file) => <li key={file.path}>{file.path}</li>)}</ul>}
+                {rung.evidence.length > 0 && <p className="mt-1 text-xs text-app-muted-foreground">{rung.evidence.slice(0, 3).map((item) => item.value).join(" · ")}</p>}
+              </li>
+            ))}
+          </ol>
+          {slice.data.layerEdges.length > 0 && <p className="text-xs">Layer edges: {slice.data.layerEdges.slice(0, 8).map((edge) => `${edge.fromRung}→${edge.toRung}`).join(", ")}</p>}
+        </div>
+      ) : null}
+    </section>
   );
 }
 

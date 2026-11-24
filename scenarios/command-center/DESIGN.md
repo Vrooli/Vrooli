@@ -294,7 +294,7 @@ Never show blocking modal errors on an unattended TV. Use inline degraded states
 
 ## Accessibility and Safety
 
-This design is visually expressive, but it still needs accessible contrast, visible focus, keyboard/remote navigation, and reduced-motion support. Avoid tiny labels, low-contrast decorative text, hover-only controls, and color-only status.
+This design is visually expressive, but it still needs accessible contrast, visible focus, keyboard/remote navigation, and reduced-motion support. Avoid tiny labels, low-contrast decorative text, hover-only controls, and color-only status. Settings controls use a high-contrast focus indicator with separation from the control edge; settings data tables have named captions and scoped headers, and narrow viewports keep their horizontal scrolling inside the table region.
 
 Because this display may be visible publicly, avoid exposing secrets, private user data, raw tokens, stack traces, full local paths, or detailed financial/user records unless the scenario explicitly authorizes that surface.
 

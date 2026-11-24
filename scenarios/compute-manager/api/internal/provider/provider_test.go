@@ -71,6 +71,9 @@ func TestProviderSurfaceHasNoPauseOperation(t *testing.T) { // [REQ:COMPUTEM-P0-
 	if got := reflect.TypeOf((*Provider)(nil)).Elem().NumMethod(); got != 6 {
 		t.Fatalf("provider interface method count = %d, want lifecycle plus identity/billing methods", got)
 	}
+	if _, ok := any(&Fake{}).(SnapshotResetProvider); ok {
+		t.Fatal("ordinary provider unexpectedly acquired optional test snapshot/reset capability")
+	}
 }
 
 func TestScenarioProductionSurfaceHasNoPowerStateVerbs(t *testing.T) { // [REQ:COMPUTEM-P0-007]

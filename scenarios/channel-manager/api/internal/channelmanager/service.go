@@ -38,6 +38,7 @@ func (p Provenance) Valid() bool {
 
 type Platform struct {
 	ID                    string      `json:"id"`
+	ManualHandoffOnly     bool        `json:"manual_handoff_only"`
 	DailyCeiling          int         `json:"daily_ceiling"`
 	CaptionLimit          int         `json:"caption_limit"`
 	TitleLimit            int         `json:"title_limit"`
@@ -83,6 +84,7 @@ func (p RetryPolicy) Valid() error {
 // they must never be replaced with a guessed global maximum.
 type Format struct {
 	Kind                 string   `json:"kind"`
+	TextOnly             bool     `json:"text_only"`
 	MIMETypes            []string `json:"mime_types"`
 	MaxBytes             int64    `json:"max_bytes"`
 	BytesResolved        bool     `json:"bytes_resolved_per_identity"`
@@ -104,7 +106,7 @@ func (p Platform) Valid() error {
 		return fmt.Errorf("platform retry policy: %w", err)
 	}
 	for _, format := range p.Formats {
-		if format.Kind == "" || len(format.MIMETypes) == 0 || (!format.BytesResolved && format.MaxBytes < 1) || format.MinWidth < 1 || format.MinHeight < 1 || format.MaxWidth < format.MinWidth || format.MaxHeight < format.MinHeight || (!format.DurationResolved && format.MaxDurationSecs < 1) {
+		if format.Kind == "" || len(format.MIMETypes) == 0 || (!format.TextOnly && ((!format.BytesResolved && format.MaxBytes < 1) || format.MinWidth < 1 || format.MinHeight < 1 || format.MaxWidth < format.MinWidth || format.MaxHeight < format.MinHeight || (!format.DurationResolved && format.MaxDurationSecs < 1))) {
 			return fmt.Errorf("invalid platform format %q", format.Kind)
 		}
 	}
@@ -886,6 +888,9 @@ func (s *Service) AssignAutomation(identityID, profileKey, profileRef, workflowR
 		}
 	}
 	platform := s.platformFor(s.Identities[identityID])
+	if platform.ManualHandoffOnly {
+		return errors.New("platform is configured for manual handoff only")
+	}
 	for _, kind := range enabledKinds {
 		if !slices.Contains(platform.ActionKinds, kind) {
 			return fmt.Errorf("automation kind %q is not supported", kind)

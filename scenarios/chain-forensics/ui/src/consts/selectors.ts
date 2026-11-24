@@ -41,6 +41,9 @@ const literalSelectors = {
     dashboardHeader: "page-dashboard-header",
     dashboardPlaceholder: "page-dashboard-placeholder",
     cases: "forensic-cases-page",
+    attention: "forensic-attention-page",
+    attentionDeliverButton: "forensic-attention-deliver-button",
+    attentionDelivery: "forensic-attention-delivery",
     settings: "page-settings",
   },
   errorBoundary: {
@@ -60,6 +63,7 @@ const dynamicSelectorDefinitions = {
           values: [
             "dashboard",
             "cases",
+            "attention",
             "settings",
           ] as const,
         },

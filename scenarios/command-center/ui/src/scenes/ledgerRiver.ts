@@ -63,3 +63,5 @@ export function ledgerRiver(): Scene {
     },
   };
 }
+
+export const compositionDefinition = { id: "ledger-river", create: ledgerRiver, slots: slotManifest };

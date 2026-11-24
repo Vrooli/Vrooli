@@ -68,7 +68,18 @@ func fixPublicAssetConvention(root string, apply bool) (Candidate, bool, error) 
 	if workers.refusal != "" {
 		return Candidate{}, false, fmt.Errorf("public-asset-convention refused: %s", workers.refusal)
 	}
+	for rel := range workers.content {
+		if err := validateScenarioPath(root, rel); err != nil {
+			return Candidate{}, false, err
+		}
+	}
 	for _, rel := range o.rootFiles {
+		if err := validateScenarioPath(root, rel); err != nil {
+			return Candidate{}, false, err
+		}
+		if err := validateScenarioPath(root, publicSourcePath(rel)); err != nil {
+			return Candidate{}, false, err
+		}
 		if err := relocationConflict(root, rel); err != nil {
 			return Candidate{}, false, err
 		}
@@ -89,7 +100,7 @@ func fixPublicAssetConvention(root string, apply bool) (Candidate, bool, error) 
 	}
 	// 4) Repoint service-worker precache entries at the moved files.
 	for rel, content := range workers.content {
-		if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(rel)), []byte(content), 0o644); err != nil {
+		if err := writeScenarioFile(root, rel, []byte(content), 0o644); err != nil {
 			return Candidate{}, false, fmt.Errorf("write %s: %w", rel, err)
 		}
 	}
@@ -127,31 +138,28 @@ func publicSourcePath(rel string) string {
 // and removed, and a different one is refused, because the /public/ file is
 // the one being served and a stale root copy must not replace it.
 func relocateUnderPublic(root, rel string) error {
-	src := filepath.Join(root, filepath.FromSlash(rel))
-	dst := filepath.Join(root, filepath.FromSlash(publicSourcePath(rel)))
-	if src == dst {
+	dstRel := publicSourcePath(rel)
+	if filepath.Clean(filepath.FromSlash(rel)) == filepath.Clean(filepath.FromSlash(dstRel)) {
 		return nil
 	}
-	data, err := os.ReadFile(src)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return fmt.Errorf("read %s: %w", rel, err)
+	data, exists := readFile(root, rel)
+	if !exists {
+		return nil
 	}
 	if err := relocationConflict(root, rel); err != nil {
 		return err
 	}
-	if _, statErr := os.Stat(dst); statErr == nil {
-		return os.Remove(src) // identical to the served copy: redundant
+	destinationExists, err := scenarioFileExists(root, dstRel)
+	if err != nil {
+		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(dst), 0o750); err != nil {
-		return fmt.Errorf("create public dir: %w", err)
+	if destinationExists {
+		return removeScenarioFile(root, rel) // identical to the served copy: redundant
 	}
-	if err := os.WriteFile(dst, data, 0o600); err != nil {
-		return fmt.Errorf("write %s: %w", dst, err)
+	if err := writeScenarioFile(root, dstRel, []byte(data), 0o600); err != nil {
+		return fmt.Errorf("write %s: %w", dstRel, err)
 	}
-	return os.Remove(src)
+	return removeScenarioFile(root, rel)
 }
 
 // repointIndexHTMLPublic rewrites each non-canonical branding reference in

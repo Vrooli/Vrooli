@@ -17,13 +17,14 @@ export function AmbientDisplayShell({ theme, title, position, status, legend, sa
   }, [manageDocumentTheme, theme]);
   const bounded = Math.max(0, Math.min(1, progress));
   return <div className="cc-shell" data-theme={theme} data-rcl-ambient-shell>
-    <div className={beatCount > 0 ? "cc-cycle-rail cc-cycle-rail-segmented" : "cc-cycle-rail"} data-testid="cycle-rail" role="progressbar" aria-label={paused ? "Cycle paused" : held ? "Reading the held section" : "Cycle running"} aria-valuenow={Math.round(bounded * 100)} aria-valuemin={0} aria-valuemax={100} data-paused={paused || undefined} data-held={held || undefined}>
+    <div className={beatCount > 0 ? "cc-cycle-rail cc-cycle-rail-segmented" : "cc-cycle-rail"} data-testid="cycle-rail" role={beatCount > 0 ? "group" : "progressbar"} aria-label={beatCount > 0 ? "Room sections" : paused ? "Cycle paused" : held ? "Reading the held section" : "Cycle running"} aria-valuenow={beatCount === 0 ? Math.round(bounded * 100) : undefined} aria-valuemin={beatCount === 0 ? 0 : undefined} aria-valuemax={beatCount === 0 ? 100 : undefined} data-paused={paused || undefined} data-held={held || undefined}>
       {beatCount > 0 ? Array.from({ length: beatCount }, (_, index) => {
         const fill = index < beatIndex ? 1 : index === beatIndex ? Math.max(0, Math.min(1, beatProgress)) : 0;
         const width = beatDurations[index] ?? 1;
         return <button type="button" className="cc-cycle-rail-segment" data-testid={`beat-rail-${index}`} data-active={index === beatIndex || undefined} aria-label={`Show section ${index + 1}`} aria-current={index === beatIndex ? "step" : undefined} onClick={() => onBeatSelect?.(index)} style={{ flexGrow: width }} key={index}><span style={{ transform: `scaleX(${fill.toFixed(3)})` }} /></button>;
       }) : <span data-testid="room-cycle-rail" style={{ transform: `scaleX(${bounded.toFixed(3)})` }} />}
     </div>
+    {beatCount > 0 ? <span className="cc-visually-hidden" role="status" aria-live="polite">{paused ? "Cycle paused" : held ? "Reading the held section" : "Cycle running"}</span> : null}
     <header className="cc-eyebrow"><div className="cc-eyebrow-identity"><h1 className="cc-room-title">{title}</h1><span className="cc-eyebrow-line">{position}{paused ? " · PAUSED" : ""}</span></div><div className="cc-eyebrow-status">{status}<time className="cc-clock" dateTime={clock}>{new Date(clock).toLocaleTimeString()}</time></div></header>
     {children}{legend}{samples !== "mark" ? <span className="cc-mode-stamp" data-testid="samples-mode-stamp">samples {samples}</span> : null}
   </div>;

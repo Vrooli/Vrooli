@@ -12,6 +12,7 @@
     "nav": {
       "dashboard": "ホーム",
       "cases": "ケース",
+      "attention": "ローカルレビュー",
       "settings": "設定"
     }
   },

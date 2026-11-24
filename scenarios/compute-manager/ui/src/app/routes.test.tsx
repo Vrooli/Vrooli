@@ -31,6 +31,12 @@ describe("AppRouter", () => {
     expect(screen.getByTestId(selectors.pages.requestForm)).toBeInTheDocument();
   });
 
+  it("renders the adopted VPS form without a credential field", () => {
+    renderWithProviders(<TestAppRouter initialEntries={["/adopt"]} />, { withoutRouter: true });
+    expect(screen.getByTestId(selectors.adoption.form)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/password|secret|credential/i)).not.toBeInTheDocument();
+  });
+
   it("renders the findings and instance routes", () => {
     renderWithProviders(<TestAppRouter initialEntries={["/findings"]} />, { withoutRouter: true });
     expect(screen.getByTestId(selectors.pages.findings)).toBeInTheDocument();

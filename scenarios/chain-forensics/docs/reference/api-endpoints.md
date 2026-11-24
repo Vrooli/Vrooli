@@ -69,6 +69,18 @@ reference (see the fenced example below); `template-manager detemplate
 
 ## Adding a new endpoint
 
+### Cases — private local attention delivery
+
+`CasesService.DeliverPrivatePacketToAttention` accepts a `case_id` and the
+SHA-256 returned by `ExportPrivatePacket`. It verifies that the case is private
+and that the hash is the canonical packet for its current version, persists an
+idempotent local receipt bound to `(case_id, packet_sha256)`, and returns the
+exact saved packet bytes. A stale hash returns `FAILED_PRECONDITION`. No
+notification, publishing, or external contact occurs. `ListAttentionDeliveries`
+reads the persisted receipts and exact packet bytes for the local attention
+view. These operations intentionally have no CLI mirror; they are exercised
+through the scenario UI and the typed Connect API.
+
 ### Cases — append an evidence revision
 
 `CasesService.ReviseCase` accepts a typed `ReviseCaseRequest` containing

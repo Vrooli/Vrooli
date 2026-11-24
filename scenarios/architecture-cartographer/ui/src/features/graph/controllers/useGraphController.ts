@@ -17,7 +17,20 @@ export const graphKeys = {
   latestSnapshot: (scenario: string) =>
     [...graphKeys.all(), "latest", scenario] as const,
   domains: (scenario: string) => [...graphKeys.all(), "domains", scenario] as const,
+  slice: (scenario: string, domain: string) => [...graphKeys.all(), "slice", scenario, domain] as const,
 };
+
+export function useGetDomainSlice(scenario: string, domain: string, enabled = true) {
+  return useQuery({
+    queryKey: graphKeys.slice(scenario, domain),
+    queryFn: async () => {
+      const response = await graphClient.getSlice({ scenario, domain, snapshotId: "" });
+      if (!response.slice) throw new Error("No slice anatomy was returned");
+      return response.slice;
+    },
+    enabled: enabled && scenario.length > 0 && domain.length > 0,
+  });
+}
 
 export interface UseGetGraphSnapshotArgs {
   scenario: string;

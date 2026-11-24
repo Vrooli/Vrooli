@@ -141,7 +141,7 @@ func TestLPBSRemoteProfileRelaysProductionProcedure(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	client := NewLPBSRemoteProfileResolved(func() string { return srv.URL }, func() string { return "local-service" }, "prod")
+	client := NewLPBSRemoteProfileAuthorized(func() string { return srv.URL }, func(context.Context) (string, error) { return "Bearer local-service", nil }, "prod")
 	body, err := client.Fetch(context.Background(), "/api/v1/admin/dashboard/revenue")
 	if err != nil || string(body) != `{"total_revenue":12}` {
 		t.Fatalf("body=%s err=%v", body, err)

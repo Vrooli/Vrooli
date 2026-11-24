@@ -251,7 +251,7 @@
       "path": "/vrooli.architecture_cartographer.v1.campaign.CampaignService/ReauditCampaign",
       "method": "POST",
       "summary": "Reconcile a re-audit",
-      "description": "Reconciles a fresh findings set against the tracked set by stable id: absent→validated, present→stay, (re)appeared→regression.",
+      "description": "Reconciles a fresh findings set against the tracked set by stable id: absent\u2192validated, present\u2192stay, (re)appeared\u2192regression.",
       "category": "campaign"
     },
     {
@@ -315,7 +315,7 @@
       "path": "/vrooli.architecture_cartographer.v1.domains.DomainsService/ExtractDomains",
       "method": "POST",
       "summary": "Derive the domain map for a scenario",
-      "description": "Walks the domain-extraction ladder (DOMAINS.md → api/internal folders → cli groups) and returns the canonical derived domain map with per-source provenance.",
+      "description": "Walks the domain-extraction ladder (DOMAINS.md \u2192 api/internal folders \u2192 cli groups) and returns the canonical derived domain map with per-source provenance.",
       "category": "domains"
     },
     {
@@ -397,6 +397,42 @@
       "summary": "Show the implementation slice for one domain",
       "description": "Returns proto, handler, internal, CLI, and UI rungs with per-rung evidence for a derived domain.",
       "category": "slice"
+    },
+    {
+      "id": "slice.search",
+      "path": "/api/v1/slices/search",
+      "method": "POST",
+      "summary": "Search one scenario implementation slices",
+      "description": "Ranks domains inside one explicit scenario scope using cached graph evidence; returns bounded rung anatomy and DERIVED/PARTIAL attestation without extracting a graph.",
+      "category": "slice",
+      "request": {
+        "type": "object",
+        "properties": {
+          "query": "string",
+          "scope": "scenario:<slug>",
+          "limit": "integer (1-5)",
+          "snapshot_id": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "results": "array<SliceSearchHit>",
+          "degradations": "array<Degradation>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "message": "Query, scenario scope, limit, or snapshot scope is invalid."
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "message": "Domain map or requested graph snapshot is unavailable."
+        }
+      ]
     },
     {
       "id": "archetype.infer",

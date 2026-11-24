@@ -49,3 +49,5 @@ export function conversionFunnel(): Scene {
     frame.ctx.restore();
   }};
 }
+
+export const compositionDefinition = { id: "conversion-funnel", create: conversionFunnel, slots: slotManifest };

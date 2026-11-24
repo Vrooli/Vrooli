@@ -747,7 +747,7 @@ carry.
 - **The error taxonomy the failure-path tests assert on**: [`ERROR-HANDLING.md`](ERROR-HANDLING.md).
 - **What wave one of measurement can capture against the fake alone**: [`PERFORMANCE.md`](PERFORMANCE.md).
 - **Skill bundle for testing-related work** (load before substantial test changes):
-  use the prompt-manager skill reader for `seam-discovery-and-enforcement` and
+  use the prompt-manager skill reader for `architecture-lenses` and
   `unit-testing-architecture-steer`.
 - **Test runner used by CI and `vrooli scenario test`**: see
   `.github/workflows/test.yml` and `packages/cli-core/cmd/scenario_test.go`.

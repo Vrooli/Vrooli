@@ -1,70 +1,70 @@
 {
-  "id": "traffic_landing_paths",
-  "label": "Traffic by landing path",
-  "description": "Ranked landing-path breakdown of visitors.",
-  "unit": "count",
-  "format": "integer",
-  "kind": "panel",
-  "shape": "rows",
   "columns": {
+    "detail": {
+      "optional": true,
+      "type": "string"
+    },
     "key": {
       "type": "string"
     },
-    "value": {
-      "type": "number"
+    "label": {
+      "optional": true,
+      "type": "string"
     },
     "share": {
       "type": "number"
     },
-    "label": {
-      "type": "string",
-      "optional": true
-    },
-    "detail": {
-      "type": "string",
-      "optional": true
+    "value": {
+      "type": "number"
     }
   },
-  "source": {
-    "team": "marketing-crew",
-    "binding": "scenario:landing-page-business-suite",
-    "read": "/landing_page_business_suite.v1.MetricsService/GetTrafficBreakdown?dimension=landing_path&limit=6&window_days=30",
-    "select": "traffic_landing_paths",
-    "ttlSeconds": 300,
-    "integrationId": "landing-page-business-suite",
-    "origin": "production",
-    "featureId": "traffic_landing_paths",
-    "contractVersion": "analytics-traffic.v1",
-    "selector": "traffic_landing_paths",
-    "expectedUnit": "count",
-    "sourceTimePolicy": "producer_required"
-  },
   "coverage": "IN-REACH",
+  "description": "Ranked landing-path breakdown of visitors.",
+  "format": "integer",
+  "id": "traffic_landing_paths",
+  "kind": "panel",
+  "label": "Traffic by landing path",
   "sample": {
-    "value": 100,
-    "series": [
-      100
-    ],
+    "basis": "hand-authored structural sample, reviewed 2026-09-03",
     "rows": [
       {
         "key": "/",
         "label": "Home",
-        "value": 70,
-        "share": 0.7
+        "share": 0.7,
+        "value": 70
       },
       {
         "key": "/pricing",
         "label": "Pricing",
-        "value": 20,
-        "share": 0.2
+        "share": 0.2,
+        "value": 20
       },
       {
         "key": "/docs",
         "label": "Docs",
-        "value": 10,
-        "share": 0.1
+        "share": 0.1,
+        "value": 10
       }
     ],
-    "basis": "hand-authored structural sample, reviewed 2026-09-03"
-  }
+    "series": [
+      100
+    ],
+    "value": 100
+  },
+  "shape": "rows",
+  "source": {
+    "binding": "scenario:landing-page-business-suite",
+    "contractVersion": "analytics-traffic.v1",
+    "expectedUnit": "count",
+    "featureId": "traffic_landing_paths",
+    "integrationId": "landing-page-business-suite",
+    "origin": "production",
+    "read": "/landing_page_business_suite.v1.MetricsService/GetTrafficBreakdown?dimension=LANDING_PATH\u0026limit=6\u0026window_days=30",
+    "select": "traffic_landing_paths",
+    "selector": "traffic_landing_paths",
+    "sourceTimePolicy": "producer_required",
+    "team": "marketing-crew",
+    "ttlSeconds": 300
+  },
+  "unit": "count"
 }

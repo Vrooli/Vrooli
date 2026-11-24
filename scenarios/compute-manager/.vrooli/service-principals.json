@@ -1,0 +1,44 @@
+{
+  "principals": [
+    {
+      "name": "compute-manager-event-publisher",
+      "resource": "vrooli-events",
+      "audience": "scenario-authenticator:vrooli-events",
+      "scopes": [
+        "vrooli-events:publish"
+      ]
+    },
+    {
+      "name": "compute-manager-ask-reader",
+      "resource": "notification-hub-ask-reader",
+      "audience": "scenario-authenticator:notification-hub-ask-reader",
+      "scopes": [
+        "notification-hub:ask-read"
+      ]
+    },
+    {
+      "name": "compute-manager-adoption-first-touch",
+      "resource": "compute-manager-adoption-first-touch",
+      "audience": "scenario-authenticator:compute-manager-adoption-first-touch",
+      "scopes": [
+        "compute-manager:adopt"
+      ]
+    },
+    {
+      "name": "compute-manager-deployment-lifecycle",
+      "resource": "compute-manager-deployment-lifecycle",
+      "audience": "scenario-authenticator:compute-manager-deployment-lifecycle",
+      "scopes": [
+        "compute-manager:deployment-lifecycle"
+      ]
+    },
+    {
+      "name": "compute-manager-money-ledger-invoice-writer",
+      "resource": "money-ledger",
+      "audience": "scenario-authenticator:money-ledger",
+      "scopes": [
+        "money-ledger:compute-invoice"
+      ]
+    }
+  ]
+}

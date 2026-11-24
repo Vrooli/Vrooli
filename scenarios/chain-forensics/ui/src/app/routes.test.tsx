@@ -10,6 +10,13 @@ import { renderWithProviders } from "../test-utils";
 import { selectors } from "../consts/selectors";
 import { TestAppRouter } from "./routes";
 
+vi.mock("../api/cases", () => ({
+  casesClient: {
+    listCases: vi.fn().mockResolvedValue({ cases: [] }),
+    listAttentionDeliveries: vi.fn().mockResolvedValue({ deliveries: [] }),
+  },
+}));
+
 describe("AppRouter", () => {
   afterEach(() => {
     cleanup();
@@ -23,5 +30,10 @@ describe("AppRouter", () => {
   it("renders the settings page at /settings", () => {
     renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
     expect(screen.getByTestId(selectors.pages.settings)).toBeInTheDocument();
+  });
+
+  it("renders the local attention review route", async () => {
+    renderWithProviders(<TestAppRouter initialEntries={["/attention"]} />, { withoutRouter: true });
+    expect(await screen.findByTestId(selectors.pages.attention)).toBeInTheDocument();
   });
 });

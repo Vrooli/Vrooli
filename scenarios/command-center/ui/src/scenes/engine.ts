@@ -4,6 +4,13 @@ import { figureValue, resolveReading, type Ink } from "@vrooli/react-component-l
 
 export type SceneTier = "full" | "reduced";
 
+export type SceneFactory = () => Scene;
+export interface CompositionDefinition {
+  id: string;
+  create: SceneFactory;
+  slots: SlotManifest;
+}
+
 export type SlotShape = "scalar" | "series" | "rows" | "meta";
 export interface SlotColumn { type: string; optional?: boolean }
 export interface SlotDefinition {

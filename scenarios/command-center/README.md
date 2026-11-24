@@ -4,7 +4,7 @@
 
 It renders that answer as a **board**: full-bleed rooms, one per outcome category, designed to run unattended on a wall panel and to be equally correct on a desktop browser, a phone, and a gamepad-controlled TV.
 
-> **The documentation here describes a design the code does not yet implement.** The rewrite landed 2026-09-01; the code still implements the 2026-04 read-only kiosk aggregator. Every divergence is listed and dated in [docs/internal/PROBLEMS.md](docs/internal/PROBLEMS.md). Start at [docs/START-HERE.md](docs/START-HERE.md).
+> **Current implementation:** Command Center is the Director Swarm's operator and agent observability board. It reads typed board/room data, reports integration health, exposes scenario CLI/API entry points, and saves editable dashboard settings. Writes are limited to its own board configuration; operational producer data stays read-only. The old 2026-04 kiosk-aggregator warning is superseded. Open source, runtime, accessibility, and validation gaps remain tracked in [docs/internal/PROBLEMS.md](docs/internal/PROBLEMS.md); read [docs/START-HERE.md](docs/START-HERE.md) before changing a surface.
 
 ## What makes it an instrument rather than a dashboard
 
@@ -12,7 +12,7 @@ It renders that answer as a **board**: full-bleed rooms, one per outcome categor
 - **Two honesty axes, never merged.** Every reading carries *coverage* — is there a sensor at all — and *trust* — is this reading good right now. A source outage changes trust and never changes coverage.
 - **It always shows a figure.** Where a pipeline does not exist, the board renders an authored, reviewed, stamped sample in a material that says so from ten feet away. Never an empty slot, never a generated number.
 - **It counts what it cannot see.** Missing cells and unregistered outcomes are dated and age visibly, including this instrument's own blind spots.
-- **It surfaces and ranks; it never decides.** No write path of any kind. Sensor implies no authority.
+- **It surfaces and ranks operational data; it never decides or changes producer data.** Local board settings are editable through the Settings page and persisted as dashboard configuration. A sensor grant gives no authority over the system it observes.
 
 ## Documentation
 
@@ -52,7 +52,7 @@ Never run the binaries directly and never hardcode a port — the lifecycle mana
 
 ## Canon this scenario implements but does not own
 
-- `path:docs/agent-system/TARGET_MODEL.md` — the instrument contract
+- `path:docs/agent-system/STANDING_TEAMS.md` — the instrument contract
 - `path:docs/director-swarm/evidence/OUTCOMES_CHARTER.md` — the outcome categories and the gap-closure loop
 - `path:docs/director-swarm/operating/OPERATING_MODEL.md` — the portfolio loop these readings close
 - `path:docs/director-swarm/strategy/OBJECTIVES.md` — what every category traces upward to

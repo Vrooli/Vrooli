@@ -23,15 +23,35 @@ type cacheEntry struct {
 	ttl time.Duration
 }
 
-// Cache is a process-local map keyed by "source:path" strings.
+// Cache keeps the newest raw response per source/path and qualified values per
+// source/path/metric ID. Endpoint ordering and per-metric trust are separate:
+// a schema-invalid response can advance the source snapshot without replacing
+// a metric's last-good qualified value.
 type Cache struct {
-	mu      sync.RWMutex
-	entries map[string]cacheEntry
+	mu        sync.RWMutex
+	entries   map[string]cacheEntry
+	endpoints map[string]Envelope
 }
 
 // NewCache returns a ready-to-use cache.
 func NewCache() *Cache {
-	return &Cache{entries: make(map[string]cacheEntry)}
+	return &Cache{entries: make(map[string]cacheEntry), endpoints: make(map[string]Envelope)}
+}
+
+// CommitEndpoint retains the newest timestamped raw response for one
+// source/path. A slow request that finishes after a newer response uses the
+// newer snapshot for every metric in its board projection.
+func (c *Cache) CommitEndpoint(key string, env Envelope) Envelope {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if previous, ok := c.endpoints[key]; ok && previous.ObservationAt != nil &&
+		(env.ObservationAt == nil || env.ObservationAt.Before(*previous.ObservationAt)) {
+		previous.FromCache = true
+		return previous
+	}
+	env.FromCache = false
+	c.endpoints[key] = env
+	return env
 }
 
 // Get returns the current envelope (if any) plus whether it is still fresh.
@@ -50,12 +70,21 @@ func (c *Cache) Get(key string) (Envelope, bool, bool) {
 	return env, fresh, true
 }
 
-// Put stores a fresh envelope for the given key with the supplied TTL.
-func (c *Cache) Put(key string, env Envelope, ttl time.Duration) {
+// Put stores a fresh envelope for the given key with the supplied TTL. A
+// refresh may finish after a newer concurrent request; never let its older
+// producer timestamp replace the last-good snapshot. A qualified cache entry
+// also cannot be replaced by an untimestamped response.
+func (c *Cache) Put(key string, env Envelope, ttl time.Duration) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if previous, ok := c.entries[key]; ok && previous.env.ObservationAt != nil {
+		if env.ObservationAt == nil || env.ObservationAt.Before(*previous.env.ObservationAt) {
+			return false
+		}
+	}
 	env.FromCache = false
 	c.entries[key] = cacheEntry{env: env, ttl: ttl}
+	return true
 }
 
 // MarkStale flips the staleness timestamp on the cached entry so subsequent

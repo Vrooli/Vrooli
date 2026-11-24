@@ -1,56 +1,56 @@
 {
-  "id": "experiment_leaderboard",
-  "label": "Experiment leaderboard",
-  "description": "Producer-owned Business Digest reading.",
-  "unit": "count",
-  "format": "integer",
-  "kind": "leaderboard",
-  "shape": "series",
-  "source": {
-    "team": "monetization",
-    "binding": "scenario:landing-page-business-suite",
-    "read": "/api/v1/business-digest?window_days=30",
-    "select": "digest_experiment",
-    "ttlSeconds": 300,
-    "integrationId": "landing-page-business-suite",
-    "origin": "production",
-    "featureId": "digest_experiment",
-    "contractVersion": "business-digest.v1",
-    "selector": "digest_experiment",
-    "expectedUnit": "count",
-    "sourceTimePolicy": "producer_required"
-  },
   "coverage": "IN-REACH",
+  "description": "Producer-owned Business Digest reading.",
+  "format": "integer",
+  "id": "experiment_leaderboard",
+  "kind": "leaderboard",
+  "label": "Experiment leaderboard",
   "sample": {
-    "value": 50,
+    "basis": "authored structural sample; production validation pending",
+    "rows": [
+      {
+        "cta_clicks": 12,
+        "cta_trials": 50,
+        "denominator": 50,
+        "is_control": true,
+        "key": "control",
+        "label": "Control",
+        "rate": 0.36,
+        "value": 18,
+        "verdict": "EXPERIMENT_VERDICT_CONTROL"
+      },
+      {
+        "cta_clicks": 14,
+        "cta_trials": 50,
+        "denominator": 50,
+        "is_control": false,
+        "key": "variant-a",
+        "label": "Variant A",
+        "probability": 0.62,
+        "rate": 0.4,
+        "value": 20,
+        "verdict": "EXPERIMENT_VERDICT_INSUFFICIENT_DATA"
+      }
+    ],
     "series": [
       50
     ],
-    "rows": [
-      {
-        "key": "control",
-        "label": "Control",
-        "value": 18,
-        "denominator": 50,
-        "rate": 0.36,
-        "verdict": "EXPERIMENT_VERDICT_CONTROL",
-        "is_control": true,
-        "cta_clicks": 12,
-        "cta_trials": 50
-      },
-      {
-        "key": "variant-a",
-        "label": "Variant A",
-        "value": 20,
-        "denominator": 50,
-        "rate": 0.4,
-        "probability": 0.62,
-        "verdict": "EXPERIMENT_VERDICT_INSUFFICIENT_DATA",
-        "is_control": false,
-        "cta_clicks": 14,
-        "cta_trials": 50
-      }
-    ],
-    "basis": "authored structural sample; production validation pending"
-  }
+    "value": 50
+  },
+  "shape": "series",
+  "source": {
+    "binding": "scenario:landing-page-business-suite",
+    "contractVersion": "business-digest.v1",
+    "expectedUnit": "count",
+    "featureId": "digest_experiment",
+    "integrationId": "landing-page-business-suite",
+    "origin": "production",
+    "read": "/landing_page_business_suite.v1.BusinessDigestService/GetBusinessDigest?windowDays=30",
+    "select": "digest_experiment",
+    "selector": "digest_experiment",
+    "sourceTimePolicy": "producer_required",
+    "team": "monetization",
+    "ttlSeconds": 300
+  },
+  "unit": "count"
 }

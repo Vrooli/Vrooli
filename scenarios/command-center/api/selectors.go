@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"math"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -34,7 +36,7 @@ var selectors = map[string]selector{
 	"active_scenarios":        scenarioCount(func(s scenarioRow) bool { return s.Status == "running" }),
 	"scenario_health":         scenarioCount(func(s scenarioRow) bool { return s.Health == "healthy" }),
 	"scenario_health_detail":  scenarioCount(func(s scenarioRow) bool { return s.Health == "degraded" || s.Health == "unhealthy" }),
-	"total_scenarios":         scenarioCount(func(scenarioRow) bool { return true }),
+	"total_scenarios":         scenarioInventoryTotal,
 	"scenario_completeness":   scenarioCount(func(s scenarioRow) bool { return s.Status == "running" && s.Health == "healthy" }),
 	"scenario_ports":          scenarioCount(func(s scenarioRow) bool { return len(s.Ports) > 0 }),
 	"composite_portfolio":     scenarioCount(func(s scenarioRow) bool { return s.Status == "running" }),
@@ -46,6 +48,7 @@ var selectors = map[string]selector{
 	"swarm_active_agents":  number("agent", "total_executions"),
 	"agent_stats":          number("agent", "success_rate"),
 	"timing_stats":         number("agent", "avg_execution_minutes"),
+	"median_execution":     number("timing", "median_execution_minutes"),
 	"blocking_stats":       number("blocking", "currently_blocked"),
 	"dashboard_stats":      number("dashboard", "total_backlog_size"),
 	"composite_throughput": number("dashboard", "total_completed_all_time"),
@@ -58,14 +61,14 @@ var selectors = map[string]selector{
 	"cta_clicks":            number("cta_clicks"),
 	"scroll_depth":          number("scroll_depth"),
 	"variant_ab":            number("variant_ab"),
-	"revenue_mrr":           number("revenue", "mrr"),
-	"revenue_today":         number("revenue", "today"),
-	"revenue_rollup":        number("revenue", "month"),
-	"ai_cost_30d":           number("cost", "usd"),
+	"revenue_mrr":           scaledNumber(0.01, "mrr_minor"),
+	"revenue_today":         scaledNumber(0.01, "revenue_today_minor"),
+	"revenue_rollup":        scaledNumber(0.01, "revenue_window_minor"),
+	"ai_cost_30d":           scaledNumber(0.000001, "cost_micros"),
 	"credit_margin_30d":     creditMargin,
-	"subscriber_counts":     number("subscriptions", "active"),
-	"churn":                 number("subscriptions", "churned_30d"),
-	"credit_balances":       number("credits", "balance_total"),
+	"subscriber_counts":     number("active_subscriptions"),
+	"churn":                 number("subscriptions_churned_window"),
+	"credit_balances":       number("credit_balance_total"),
 	"credit_consumption":    number("credits", "burned_per_day"),
 	"usage_records":         number("usage", "records"),
 	"composite_revenue":     number("revenue", "mrr"),
@@ -86,7 +89,7 @@ var selectors = map[string]selector{
 	"digest_revenue_mrr":    number("revenue", "mrr"),
 	"digest_revenue_today":  number("revenue", "today"),
 	"digest_revenue_window": number("revenue", "month"),
-	"usage_operations_30d":  digestNumber("usage", "records"),
+	"usage_operations_30d":  number("usage_records_window"),
 }
 
 var postureSelectors = map[string]postureSelector{
@@ -135,11 +138,14 @@ func creditMargin(payload any) (float64, bool) {
 			creditRevenue = value / 100
 		}
 	}
-	cost, ok := walk(root, "cost", "usd")
+	costUSD, ok := scaledNumber(0.000001, "cost_micros")(payload)
 	if !ok {
-		return 0, false
+		cost, exists := walk(root, "cost", "usd")
+		if !exists {
+			return 0, false
+		}
+		costUSD, ok = asFloat(cost)
 	}
-	costUSD, ok := asFloat(cost)
 	return creditRevenue - costUSD, ok
 }
 
@@ -150,7 +156,10 @@ func revenueLinePanel(payload any) ([]PanelRow, bool) {
 	}
 	items, ok := root["revenue_by_line"].([]any)
 	if !ok {
-		return []PanelRow{}, true
+		if rows, exists := root["revenue_by_line"]; exists && rows == nil {
+			return []PanelRow{}, true
+		}
+		return nil, false
 	}
 	rows := make([]PanelRow, 0, len(items))
 	for _, raw := range items {
@@ -182,29 +191,41 @@ func offerPosture(payload any) (map[string]any, bool) {
 	if !ok {
 		return nil, false
 	}
-	field := func(m map[string]any, snake, camel string) (any, bool) {
-		if value, exists := m[camel]; exists {
-			return value, true
-		}
-		value, exists := m[snake]
-		return value, exists
-	}
-	for _, keys := range [][2]string{{"cash_minor", "cashMinor"}, {"burn_minor", "burnMinor"}, {"revenue_minor", "revenueMinor"}, {"runway_months", "runwayMonths"}, {"runway_available", "runwayAvailable"}} {
-		if _, exists := field(position, keys[0], keys[1]); !exists {
+	if partial, exists := position["partial"]; exists {
+		value, valid := partial.(bool)
+		if !valid || value {
 			return nil, false
 		}
 	}
-	cash, _ := field(position, "cash_minor", "cashMinor")
-	burn, _ := field(position, "burn_minor", "burnMinor")
-	revenue, _ := field(position, "revenue_minor", "revenueMinor")
-	runway, _ := field(position, "runway_months", "runwayMonths")
-	available, _ := field(position, "runway_available", "runwayAvailable")
-	gap, _ := field(root, "default_alive_gap", "defaultAliveGap")
-	source, _ := field(root, "posture_source", "postureSource")
-	age, _ := field(root, "posture_age_seconds", "postureAgeSeconds")
+	for _, key := range []string{"cashMinor", "burnMinor", "revenueMinor", "runwayMonths"} {
+		if _, valid := asFloat(position[key]); !valid {
+			return nil, false
+		}
+	}
+	if _, valid := position["runwayAvailable"].(bool); !valid {
+		return nil, false
+	}
+	currency, currencyOK := position["currency"].(string)
+	source, sourceOK := root["postureSource"].(string)
+	if !currencyOK || strings.TrimSpace(currency) == "" || !sourceOK || strings.TrimSpace(source) == "" {
+		return nil, false
+	}
+	gap, _ := root["defaultAliveGap"].(string)
+	age := float64(0)
+	if rawAge, ageExists := root["postureAgeSeconds"]; ageExists {
+		ageValue, valid := asFloat(rawAge)
+		if !valid || ageValue < 0 || math.Trunc(ageValue) != ageValue {
+			return nil, false
+		}
+		age = ageValue
+	}
+	cash, _ := asFloat(position["cashMinor"])
+	burn, _ := asFloat(position["burnMinor"])
+	revenue, _ := asFloat(position["revenueMinor"])
+	runway, _ := asFloat(position["runwayMonths"])
 	return map[string]any{
 		"cashMinor": cash, "burnMinor": burn, "revenueMinor": revenue,
-		"runwayMonths": runway, "runwayAvailable": available,
+		"runwayMonths": runway, "runwayAvailable": position["runwayAvailable"], "currency": currency,
 		"gap": gap, "source": source, "ageSeconds": age, "goals": root["goals"],
 	}, true
 }
@@ -340,6 +361,9 @@ func digestExperimentPanel(payload any) ([]PanelRow, bool) {
 	}
 	items, ok := experiment["arms"].([]any)
 	if !ok {
+		if arms, exists := experiment["arms"]; !exists || arms == nil {
+			return []PanelRow{}, true
+		}
 		return nil, false
 	}
 	total := 0.0
@@ -537,7 +561,11 @@ func goalProgressPanel(payload any) ([]PanelRow, bool) {
 	if !ok {
 		return nil, false
 	}
-	rows := make([]PanelRow, 0, len(items))
+	type candidate struct {
+		row      PanelRow
+		priority float64
+	}
+	rows := make([]candidate, 0, len(items))
 	for _, item := range items {
 		wrapped, ok := item.(map[string]any)
 		if !ok {
@@ -547,28 +575,66 @@ func goalProgressPanel(payload any) ([]PanelRow, bool) {
 		if !ok {
 			return nil, false
 		}
-		scope, _ := wrapped["scope"].(map[string]any)
+		status, statusOK := goal["status"].(string)
+		if !statusOK {
+			return nil, false
+		}
+		switch status {
+		case "achieved", "archived":
+			continue
+		case "active":
+		default:
+			return nil, false
+		}
+		scope, scopeOK := wrapped["scope"].(map[string]any)
 		name, nameOK := goal["name"].(string)
 		title, titleOK := goal["title"].(string)
-		completed, _ := scope["completed_count"].(float64)
-		if completed == 0 {
-			completed, _ = scope["completedCount"].(float64)
+		completed, completedOK := scope["completed_count"].(float64)
+		total, totalOK := scope["total"].(float64)
+		if !scopeOK || !nameOK || !titleOK || name == "" || title == "" || !completedOK || !totalOK || total < 0 || completed < 0 || completed > total || math.Trunc(total) != total || math.Trunc(completed) != completed {
+			return nil, false
 		}
-		total, _ := scope["total"].(float64)
-		if !nameOK || !titleOK || total <= 0 {
-			continue
+		priority, priorityOK := goal["priority"].(float64)
+		if !priorityOK || priority < 0 || priority > 10 || math.Trunc(priority) != priority {
+			return nil, false
 		}
 		detail := ""
-		if eta, ok := wrapped["eta"].(map[string]any); ok {
+		share := float64(0)
+		if total == 0 {
+			detail = "No scoped work"
+		} else {
+			share = completed / total
+		}
+		if total > 0 {
+			eta, ok := wrapped["eta"].(map[string]any)
+			if !ok {
+				eta = nil
+			}
 			if p50, ok := eta["p50_hours"].(float64); ok {
 				if p80, ok := eta["p80_hours"].(float64); ok {
 					detail = fmt.Sprintf("%.1fh–%.1fh ETA", p50, p80)
 				}
 			}
 		}
-		rows = append(rows, PanelRow{Key: name, Label: title, Value: completed, Share: completed / total, Detail: detail})
+		rows = append(rows, candidate{
+			row:      PanelRow{Key: name, Label: title, Value: completed, Share: share, Detail: detail},
+			priority: priority,
+		})
 	}
-	return rows, len(rows) > 0
+	sort.SliceStable(rows, func(i, j int) bool {
+		if rows[i].priority == rows[j].priority {
+			return rows[i].row.Key < rows[j].row.Key
+		}
+		return rows[i].priority < rows[j].priority
+	})
+	if len(rows) > 6 {
+		rows = rows[:6]
+	}
+	result := make([]PanelRow, len(rows))
+	for i, candidate := range rows {
+		result[i] = candidate.row
+	}
+	return result, true
 }
 
 func readinessPanel(payload any) ([]PanelRow, bool) {
@@ -576,9 +642,10 @@ func readinessPanel(payload any) ([]PanelRow, bool) {
 	if !ok {
 		return nil, false
 	}
-	goal, _ := root["goal_exists"].(bool)
-	if !goal {
-		goal, _ = root["goalExists"].(bool)
+	goal, goalOK := root["goal_exists"].(bool)
+	closed, closedOK := root["goal_closed"].(bool)
+	if !goalOK || !closedOK {
+		return nil, false
 	}
 	value := float64(0)
 	if goal {
@@ -588,7 +655,7 @@ func readinessPanel(payload any) ([]PanelRow, bool) {
 	if goal {
 		label = "Readiness goal present"
 	}
-	return []PanelRow{{Key: "readiness", Label: label, Value: value, Share: 1, Detail: fmt.Sprintf("closed=%t", root["goal_closed"])}}, true
+	return []PanelRow{{Key: "readiness", Label: label, Value: value, Share: 1, Detail: fmt.Sprintf("closed=%t", closed)}}, true
 }
 
 type scenarioRow struct {
@@ -602,6 +669,9 @@ func scenarioRows(payload any) ([]scenarioRow, bool) {
 	if !ok {
 		return nil, false
 	}
+	if !scenarioDiscoveryComplete(payload) {
+		return nil, false
+	}
 	items, ok := root["data"].([]any)
 	if !ok {
 		return nil, false
@@ -610,12 +680,36 @@ func scenarioRows(payload any) ([]scenarioRow, bool) {
 	for _, item := range items {
 		m, ok := item.(map[string]any)
 		if !ok {
-			continue
+			return nil, false
 		}
-		row := scenarioRow{}
-		row.Status, _ = m["status"].(string)
-		row.Health, _ = m["health_status"].(string)
-		row.Ports, _ = m["ports"].(map[string]any)
+		status, statusOK := m["status"].(string)
+		ports, portsOK := m["ports"].(map[string]any)
+		if !statusOK || (status != "running" && status != "stopped") || !portsOK {
+			return nil, false
+		}
+		for key, rawPort := range ports {
+			port, numberOK := rawPort.(float64)
+			if key == "" || !numberOK || port <= 0 || math.Trunc(port) != port {
+				return nil, false
+			}
+		}
+		healthValue, healthPresent := m["health_status"]
+		if !healthPresent {
+			return nil, false
+		}
+		health := ""
+		if status == "stopped" {
+			if healthValue != nil {
+				return nil, false
+			}
+		} else {
+			var healthOK bool
+			health, healthOK = healthValue.(string)
+			if !healthOK || (health != "running" && health != "healthy" && health != "degraded" && health != "unhealthy") {
+				return nil, false
+			}
+		}
+		row := scenarioRow{Status: status, Health: health, Ports: ports}
 		rows = append(rows, row)
 	}
 	return rows, true
@@ -635,6 +729,28 @@ func scenarioCount(keep func(scenarioRow) bool) selector {
 		}
 		return float64(n), true
 	}
+}
+
+func scenarioInventoryTotal(payload any) (float64, bool) {
+	rows, ok := scenarioRows(payload)
+	if !ok {
+		return 0, false
+	}
+	total, ok := integerNumber("total_scenarios")(payload)
+	return total, ok && total == float64(len(rows))
+}
+
+func scenarioDiscoveryComplete(payload any) bool {
+	root, ok := payload.(map[string]any)
+	if !ok {
+		return false
+	}
+	raw, exists := root["discovery_failures"]
+	if !exists {
+		return true
+	}
+	failures, ok := raw.([]any)
+	return ok && len(failures) == 0
 }
 
 func walk(payload any, path ...string) (any, bool) {
@@ -659,6 +775,25 @@ func number(path ...string) selector {
 			return 0, false
 		}
 		return asFloat(v)
+	}
+}
+
+func integerNumber(path ...string) selector {
+	base := number(path...)
+	return func(payload any) (float64, bool) {
+		value, ok := base(payload)
+		return value, ok && math.Trunc(value) == value
+	}
+}
+
+func scaledNumber(scale float64, path ...string) selector {
+	base := number(path...)
+	return func(payload any) (float64, bool) {
+		value, ok := base(payload)
+		if !ok {
+			return 0, false
+		}
+		return value * scale, true
 	}
 }
 

@@ -22,6 +22,12 @@
       "status": "active"
     },
     {
+      "id": "attention",
+      "path": "pages/attention.json",
+      "title": "Local attention",
+      "status": "active"
+    },
+    {
       "id": "settings",
       "path": "pages/settings.json",
       "title": "Settings",

@@ -117,7 +117,7 @@ the Vault resource/operator.
 
 ## Architecture Drift
 
-Use this section for deferred findings from `screaming-architecture-audit`.
+Use this section for deferred findings from `architecture-lenses`.
 
 ### 2026-07-29 — comprehensive validation is not yet a green acceptance gate
 

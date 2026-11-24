@@ -26,6 +26,10 @@ export function validateRoomBinding(room: Record<string, unknown>, catalogs: Rec
     const groupName = slot.split(".")[0] ?? slot;
     const groupSpec = slots[groupName] && typeof slots[groupName] === "object" ? slots[groupName] as Record<string, unknown> : undefined;
     const spec = directSpec ?? (groupSpec?.variadic === true ? groupSpec : {});
+    if (groupSpec?.variadic === true && typeof groupSpec.maxItems === "number") {
+      const itemCount = Object.keys(bind).filter((name) => name.startsWith(`${groupName}.`)).length;
+      if (itemCount > groupSpec.maxItems) return `Slot ${groupName} exceeds its maximum capacity of ${groupSpec.maxItems}.`;
+    }
     if (typeof spec.shape === "string" && signal.shape !== spec.shape) return `Signal ${target} has shape ${String(signal.shape)}; slot ${slot} requires ${spec.shape}.`;
     const columns = spec.columns && typeof spec.columns === "object" ? spec.columns as Record<string, unknown> : {};
     const declared = signal.columns && typeof signal.columns === "object" ? signal.columns as Record<string, unknown> : {};

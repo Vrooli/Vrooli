@@ -117,6 +117,18 @@
           }
         },
         {
+          "name": "composition-search",
+          "description": "Search bounded ScenarioApp and command-group source composition for one scenario",
+          "positionals": [
+            {"name":"query","required":true,"description":"Question about CLI ScenarioApp or command-group composition"},
+            {"name":"scenario","required":true,"description":"Scenario slug whose CLI source is inspected"}
+          ],
+          "binding": {"kind":"local","handler":"composition-search"},
+          "needs_api": true,
+          "governance": {"effect":"read","run_eligible":true,"permissions":["filesystem:read","network:internal"]},
+          "architecture": {"primitive":"action"}
+        },
+        {
           "name": "status",
           "description": "Report search backend availability (ollama, qdrant, indexed count)",
           "binding": {

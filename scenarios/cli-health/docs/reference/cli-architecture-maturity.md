@@ -68,7 +68,7 @@ five-rung ladder above is the implementable form.
 
 All codes belong to the `command_architecture` capability and the `contracts`
 dimension. `local_level_impact` is the rung the finding caps the capability at.
-Recommended skill: `cli-steer` (add `change-axis-and-evolution-resilience-audit`
+Recommended skill: `cli-steer` (add `architecture-lenses`
 for the drift-risk codes).
 
 The classifier emits six codes, and reuses one existing runtime code. Every
@@ -299,7 +299,7 @@ Each finding mapping carries `capability_id: "command_architecture"`,
 `dimension: "contracts"`, the `local_level_impact`, `global_impact`,
 `severity_default`, `clean_requirement`, and `fix_class`/`reason` from the
 inventory table, plus `recommended_skill_ids: ["cli-steer"]` (drift-risk codes
-also list `change-axis-and-evolution-resilience-audit`). The three gating codes
+also list `architecture-lenses`). The three gating codes
 (`arch.primitive_mismatch`, `arch.metadata_invalid`, `arch.claimed_maturity_violation`)
 set `severity_default: "SEVERITY_ERROR"` and `clean_requirement: "required"`; the
 rest are WARNING with `clean_requirement: "required"` (honest debt, non-failing).

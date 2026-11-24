@@ -105,6 +105,22 @@
       "category": "cases"
     },
     {
+      "id": "cases_attention_deliver",
+      "path": "/vrooli.chain_forensics.v1.cases.CasesService/DeliverPrivatePacketToAttention",
+      "method": "POST",
+      "summary": "Deliver an exact private packet to the local attention view",
+      "description": "",
+      "category": "cases"
+    },
+    {
+      "id": "cases_attention_list",
+      "path": "/vrooli.chain_forensics.v1.cases.CasesService/ListAttentionDeliveries",
+      "method": "POST",
+      "summary": "Read packets delivered to the local attention view",
+      "description": "",
+      "category": "cases"
+    },
+    {
       "id": "cases_add_label",
       "path": "/vrooli.chain_forensics.v1.cases.CasesService/AddAnalystLabel",
       "method": "POST",

@@ -25,6 +25,18 @@ locale: {
     tabSearch: "nav-tab-search",
     tabValidate: "nav-tab-validate",
     tabStatus: "nav-tab-status",
+    tabComposition: "nav-tab-composition",
+  },
+  composition: {
+    card: "composition-card",
+    query: "composition-query",
+    scenario: "composition-scenario",
+    submit: "composition-submit",
+    loading: "composition-loading",
+    error: "composition-error",
+    empty: "composition-empty",
+    result: "composition-result",
+    degradation: "composition-degradation",
   },
   search: {
     card: "search-card",

@@ -29,6 +29,7 @@ type Descriptor struct {
 	Transport   Transport
 	ResolveBase func() string
 	Auth        func(*http.Request)
+	AuthContext func(context.Context, *http.Request) error
 	TTL         time.Duration
 	Paths       []string
 	Features    map[string]string
@@ -91,7 +92,11 @@ func (c *descriptorClient) Fetch(ctx context.Context, path string) (json.RawMess
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	if c.descriptor.Auth != nil {
+	if c.descriptor.AuthContext != nil {
+		if err := c.descriptor.AuthContext(ctx, req); err != nil {
+			return nil, err
+		}
+	} else if c.descriptor.Auth != nil {
 		c.descriptor.Auth(req)
 	}
 	resp, err := c.http.Do(req)

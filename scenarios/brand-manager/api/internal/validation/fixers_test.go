@@ -3,6 +3,7 @@ package validation
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -167,6 +168,72 @@ func TestFaviconFixerUnavailableWithoutLogo(t *testing.T) {
 	f := mustFire(t, root, "has-favicon")
 	if f.AutofixAvailable {
 		t.Fatal("has-favicon must not advertise an autofix when there is no logo to derive from")
+	}
+}
+
+func TestThemeColorFixerDoesNotWriteThroughAnIndexSymlink(t *testing.T) {
+	root := fullyBrandedScenario(t)
+	outside := t.TempDir()
+	outsideIndex := filepath.Join(outside, "index.html")
+	original := `<!doctype html><html><head><title>Outside</title></head></html>`
+	if err := os.WriteFile(outsideIndex, []byte(original), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	index := filepath.Join(root, filepath.FromSlash(indexHTMLRel))
+	if err := os.Remove(index); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outsideIndex, index); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	_, _, err := BuildFixCandidates(root, []string{"theme-color-present"}, true)
+	if err == nil {
+		t.Fatal("fixer must refuse an index symlink that resolves outside the scenario")
+	}
+	if !strings.Contains(err.Error(), "symlink") {
+		t.Fatalf("error = %v, want a symlink refusal", err)
+	}
+	got, err := os.ReadFile(outsideIndex)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != original {
+		t.Fatalf("outside index changed through scenario symlink:\n%s", got)
+	}
+}
+
+func TestPublicAssetFixerDoesNotWriteThroughSymlinkedDestination(t *testing.T) {
+	root := rootAssetScenario(t)
+	outside := t.TempDir()
+	sentinel := filepath.Join(outside, "sentinel.txt")
+	if err := os.WriteFile(sentinel, []byte("outside-owned"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	publicDir := filepath.Join(root, "ui", "public", "public")
+	if err := os.Symlink(outside, publicDir); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	_, _, err := BuildFixCandidates(root, []string{"public-asset-convention"}, true)
+	if err == nil {
+		t.Fatal("fixer must refuse a public destination that resolves outside the scenario")
+	}
+	if !strings.Contains(err.Error(), "symlink") {
+		t.Fatalf("error = %v, want a symlink refusal", err)
+	}
+	entries, err := os.ReadDir(outside)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name() != "sentinel.txt" {
+		t.Fatalf("outside destination contents = %+v, want only the untouched sentinel", entries)
+	}
+	if data, err := os.ReadFile(sentinel); err != nil || string(data) != "outside-owned" {
+		t.Fatalf("outside sentinel changed: data=%q err=%v", data, err)
+	}
+	if !fileExists(t, root, "ui/public/favicon.svg") {
+		t.Fatal("refused apply must preserve the root asset")
 	}
 }
 

@@ -31,16 +31,15 @@ func TestSQLStoreRoundTripsIntentByIdempotencyKey(t *testing.T) { // [REQ:COMPUT
 	}
 }
 
-func TestServiceLeavesOpenIntentWhenCreateResponseIsLost(t *testing.T) { // [REQ:COMPUTEM-P0-002] [REQ:COMPUTEM-P0-001]
+func TestServiceRecordsOpenIntentBeforeProvisionAdmission(t *testing.T) { // [REQ:COMPUTEM-P0-002]
 	db := databasetest.NewSQLite(t)
 	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(func() string { return schema() })); err != nil {
 		t.Fatal(err)
 	}
-	fake := &provider.Fake{LoseCreateResponse: true}
-	svc := Service{Store: SQLStore{DB: db}, Provider: fake}
-	record, _, err := svc.Create(context.Background(), Request{IdempotencyKey: "lost-1", Provider: "fake", Spec: provider.Spec{Size: "small"}})
-	if !errors.Is(err, provider.ErrCreateResponseLost) {
-		t.Fatalf("Create error = %v", err)
+	svc := Service{Store: SQLStore{DB: db}}
+	record, err := svc.CreateIntent(context.Background(), Request{IdempotencyKey: "lost-1", Provider: "fake", Spec: provider.Spec{Size: "small"}})
+	if err != nil {
+		t.Fatal(err)
 	}
 	if record.State != StateOpen || record.ID == "" {
 		t.Fatalf("record = %+v, want open durable intent", record)
@@ -62,9 +61,13 @@ func TestServiceRecoversLostCreateByProviderIntentTag(t *testing.T) { // [REQ:CO
 	now := time.Date(2026, 9, 4, 3, 0, 0, 0, time.UTC)
 	fake := &provider.Fake{LoseCreateResponse: true, Now: func() time.Time { return now }}
 	svc := Service{Store: SQLStore{DB: db}, Provider: fake, Now: func() time.Time { return now }}
-	record, _, err := svc.Create(context.Background(), Request{IdempotencyKey: "recover-1", Provider: "fake", Spec: provider.Spec{Size: "small"}})
-	if !errors.Is(err, provider.ErrCreateResponseLost) || record.State != StateOpen {
-		t.Fatalf("create = record %+v, error %v; want open lost response", record, err)
+	record, err := svc.CreateIntent(context.Background(), Request{IdempotencyKey: "recover-1", Provider: "fake", Spec: provider.Spec{Size: "small"}})
+	if err != nil || record.State != StateOpen {
+		t.Fatalf("intent = record %+v, error %v; want open", record, err)
+	}
+	_, createErr := fake.Create(context.Background(), provider.Spec{Size: "small", Tags: map[string]string{"vrooli-intent-id": record.ID}})
+	if !errors.Is(createErr, provider.ErrCreateResponseLost) {
+		t.Fatalf("simulated uncertain provider result = %v", createErr)
 	}
 	recovered, err := svc.RecoverOpen(context.Background())
 	if err != nil {
@@ -79,6 +82,54 @@ func TestServiceRecoversLostCreateByProviderIntentTag(t *testing.T) { // [REQ:CO
 	}
 	if got.State != StateFulfilled || got.InstanceID != recovered[0].InstanceID {
 		t.Fatalf("stored recovered intent = %+v", got)
+	}
+}
+
+type exactRecoveryFixture struct {
+	recoverCalls int
+	listCalls    int
+	request      provider.IntentRecoveryRequest
+}
+
+func (*exactRecoveryFixture) Name() string                 { return "akash" }
+func (*exactRecoveryFixture) Facts() provider.BillingFacts { return provider.BillingFacts{} }
+func (*exactRecoveryFixture) Create(context.Context, provider.Spec) (provider.Instance, error) {
+	return provider.Instance{}, errors.New("unexpected create during recovery")
+}
+func (*exactRecoveryFixture) Describe(context.Context, string) (provider.Instance, error) {
+	return provider.Instance{}, errors.New("unexpected describe during recovery")
+}
+func (p *exactRecoveryFixture) List(context.Context) ([]provider.Instance, error) {
+	p.listCalls++
+	return nil, errors.New("owner-wide inventory is not an acceptable recovery path")
+}
+func (*exactRecoveryFixture) Destroy(context.Context, string) error {
+	return errors.New("unexpected destroy during recovery")
+}
+func (p *exactRecoveryFixture) RecoverIntent(_ context.Context, request provider.IntentRecoveryRequest) (provider.Instance, bool, error) {
+	p.recoverCalls++
+	p.request = request
+	return provider.Instance{ID: "akashref:fixture", Tags: map[string]string{"vrooli-intent-id": request.IntentID}}, true, nil
+}
+
+func TestServiceRecoversSelectedBidIntentByPersistedTupleWithoutOwnerList(t *testing.T) {
+	db := databasetest.NewSQLite(t)
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(func() string { return schema() })); err != nil {
+		t.Fatal(err)
+	}
+	selected := &exactRecoveryFixture{}
+	registry := provider.NewRegistry(selected)
+	service := Service{Store: SQLStore{DB: db}, Providers: registry, Now: func() time.Time { return time.Date(2026, 11, 24, 12, 0, 0, 0, time.UTC) }}
+	record, err := service.CreateIntent(context.Background(), Request{IdempotencyKey: "akash-intent-recovery-001", RequestedBy: "consumer", Provider: "akash", Spec: provider.Spec{Region: "sandbox-2", Size: "lease", Tags: map[string]string{"akash-dseq": "42", "akash-gseq": "2", "akash-oseq": "1", "akash-provider": "akash1provider", "akash-rate-amount": "0.025", "akash-rate-denom": "uakt", "akash-lifetime-seconds": "3600"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	recovered, err := service.RecoverOpen(context.Background())
+	if err != nil || len(recovered) != 1 || recovered[0].State != StateFulfilled || recovered[0].InstanceID != "akashref:fixture" {
+		t.Fatalf("recovered=%+v err=%v", recovered, err)
+	}
+	if selected.recoverCalls != 1 || selected.listCalls != 0 || selected.request.IntentID != record.ID || selected.request.Facts["dseq"] != "42" || selected.request.Facts["gseq"] != "2" || selected.request.Facts["rate_amount"] != "0.025" || selected.request.Facts["rate_denom"] != "uakt" {
+		t.Fatalf("exact provider recovery binding = %+v, recover=%d list=%d", selected.request, selected.recoverCalls, selected.listCalls)
 	}
 }
 

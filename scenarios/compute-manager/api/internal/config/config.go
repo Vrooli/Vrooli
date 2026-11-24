@@ -10,6 +10,11 @@ import (
 type Config struct {
 	LPBSBaseURL          string
 	BridgeBaseURL        string
+	AkashNetwork         string
+	AkashChainID         string
+	AkashEndpoint        string
+	AkashRPCEndpoint     string
+	AkashProviderAddress string
 	ReconcileInterval    time.Duration
 	ExpiryInterval       time.Duration
 	MinimumBillableUnit  time.Duration
@@ -27,6 +32,11 @@ func LoadWith(env envreader.Reader) (Config, error) {
 	c := Config{
 		LPBSBaseURL:          env.Getenv("COMPUTE_MANAGER_LPBS_BASE_URL"),
 		BridgeBaseURL:        env.Getenv("COMPUTE_MANAGER_BRIDGE_BASE_URL"),
+		AkashNetwork:         env.Getenv("COMPUTE_MANAGER_AKASH_NETWORK"),
+		AkashChainID:         env.Getenv("COMPUTE_MANAGER_AKASH_CHAIN_ID"),
+		AkashEndpoint:        env.Getenv("COMPUTE_MANAGER_AKASH_ENDPOINT"),
+		AkashRPCEndpoint:     env.Getenv("COMPUTE_MANAGER_AKASH_RPC_ENDPOINT"),
+		AkashProviderAddress: env.Getenv("COMPUTE_MANAGER_AKASH_PROVIDER_ADDRESS"),
 		ReconcileInterval:    15 * time.Minute,
 		ExpiryInterval:       time.Minute,
 		MinimumBillableUnit:  time.Hour,

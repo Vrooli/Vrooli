@@ -55,7 +55,7 @@ The inverse is also true and worth stating plainly: **this board makes the fleet
 - [INSTRUMENT-MODEL.md](INSTRUMENT-MODEL.md) — what an instrument is and what it owes
 - [COVERAGE-MODEL.md](COVERAGE-MODEL.md) § The third axis — how source maturity qualifies a coverage status
 - [OUTCOME-TAXONOMY.md](OUTCOME-TAXONOMY.md) — how these declarations become the board's shape
-- `path:docs/agent-system/TARGET_MODEL.md` § 9 — the deviation catalogue, including D1 "no instrument"
+- `path:docs/agent-system/STANDING_TEAMS.md` "Reporting what moved" — the deviation catalogue, including D1 "no instrument"
 # Operational source projection
 
 Command Center treats `.vrooli/service.json` as the runtime dependency
@@ -65,18 +65,39 @@ authority. The API projects its enabled scenario dependencies through
 
 | Integration | Read surface | Feature evidence | Failure meaning |
 |---|---|---|---|
-| `vrooli-core` | typed `ScenarioControlPlaneService.ListScenarios` (Connect); `/health` only for liveness | scenario inventory and health | control-plane availability |
-| `swarm-manager` | typed `StatsService.GetPortfolioStats` (Connect); `/health` only for liveness | throughput and agent statistics | producer availability and independently proven feature state |
+| `vrooli-core` | `GET /scenarios` (HTTP JSON), with producer `observed_at`; complete inventory also carries `total_scenarios` | scenario inventory and health; the total is omitted when discovery is partial | control-plane availability or incomplete discovery |
+| `swarm-manager` | typed `StatsService.GetPortfolioStats` (Connect); timestamped `GET /api/v1/goals` for scoped goal progress; `/health` for liveness | throughput, agent statistics, and prioritized goal progress | producer availability and independently qualified feature payload |
 | `landing-page-business-suite` | typed `MetricsService.GetAnalyticsSummary` (Connect); `/health` only for liveness | funnel and revenue selectors | producer availability; absent surface is not guessed |
 | `prompt-manager` | typed `MemberflowService.GetInstruments` transmitter | team instrument | owner guidance when the typed transmitter is unavailable |
 
-The Swarm and LPBS read paths above remain producer-owned aggregate projections.
-Their canonical aggregate reads use generated Connect contracts through
-producer-owned typed projections; REST is retained only for the operational
-health probe. A typed adapter rejects undeclared paths instead of falling back
-to an untyped producer surface. Swarm and LPBS carry producer-owned observation
-time through their generated responses. Prompt Manager's objective and
-instrument reads also use its generated Connect contract.
+The Vrooli inventory is a REST list projection. Partial scenario rows remain
+available to inventory consumers, but the producer omits the portfolio total
+when discovery reports failures. Command Center's five inventory and health
+counts require complete discovery and validate the native row shape: runtime
+status is `running` or `stopped`, stopped health is `null`, running health is a
+known health verdict, and assigned ports are positive integer values. The total
+selector also checks that the producer aggregate agrees with the complete row
+count. An invalid row or disagreement makes the affected reading untrusted and
+retains its last qualified value through the per-reading cache. Swarm's goal
+list is a producer-stamped JSON projection: the timestamp describes the
+computed list snapshot, including valid empty scopes and explicit priority
+zero. Its goal-progress selector preserves scoped progress, shows “No scoped
+work” for active goals with empty closures, and keeps ETA detail. Swarm
+portfolio stats and LPBS aggregate reads use generated Connect contracts
+through producer-owned typed projections; `/health` is used for operational
+liveness. A typed adapter rejects undeclared paths instead of falling back to
+an untyped producer surface. Prompt Manager's objective and instrument reads
+also use its generated Connect contract.
+
+Forge's Command Center readiness panel reads Deployment Manager's read-only
+`/api/v1/readiness/state?scenario=command-center` projection. The profile is
+part of the configured source path because the producer requires it. The
+response timestamp comes from the latest release projection's `updated_at`;
+when no release exists, the successful empty lookup is timestamped at query
+time. A failed source read retains the last schema-qualified panel through the
+per-reading cache, then marks that retained value unavailable after its TTL
+window. The panel is recorded release-side posture, not a live claim about an
+unqueried external goal.
 
 The browser calls Command Center only. Explicit integration reads use the
 generated TypeScript Connect client and shared protobuf response; the remaining

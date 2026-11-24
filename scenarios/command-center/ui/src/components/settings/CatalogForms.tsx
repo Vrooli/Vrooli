@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type { CatalogEntry, Catalogs } from "../../lib/api";
+import "./AdvancedJson.css";
 
 const str = (value: unknown): string => (typeof value === "string" ? value : "");
 const obj = (value: unknown): Record<string, unknown> => (value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {});
@@ -69,28 +70,43 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
 
 // ── Advanced JSON escape hatch (available for every catalog) ──────────────────
 
+type CatalogEntryParse = { entry: CatalogEntry; error: null } | { entry: null; error: string };
+
+function parseCatalogEntry(value: string): CatalogEntryParse {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return { entry: null, error: "Invalid JSON — form fields left unchanged." };
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed) || typeof (parsed as { id?: unknown }).id !== "string") {
+    return { entry: null, error: "Entry must be an object with a string id." };
+  }
+  return { entry: parsed as CatalogEntry, error: null };
+}
+
 export function AdvancedJson({ draft, onReplace }: { draft: CatalogEntry; onReplace: (next: CatalogEntry) => void }) {
   const canonical = useMemo(() => JSON.stringify(draft, null, 2), [draft]);
-  const [buffer, setBuffer] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState<{ draft: CatalogEntry; value: string } | null>(null);
+  const buffer = pending?.draft === draft ? pending.value : null;
+  const parsed = useMemo(() => buffer === null ? null : parseCatalogEntry(buffer), [buffer]);
+  const error = parsed?.error ?? null;
   const value = buffer ?? canonical;
-  const onChange = (next: string) => {
-    setBuffer(next);
-    try {
-      const parsed: unknown = JSON.parse(next);
-      if (!parsed || typeof parsed !== "object" || typeof (parsed as { id?: unknown }).id !== "string") { setError("Entry must be an object with a string id."); return; }
-      setError(null);
-      onReplace(parsed as CatalogEntry);
-      setBuffer(null);
-    } catch {
-      setError("Invalid JSON — form fields left unchanged.");
-    }
+  const apply = () => {
+    if (!parsed?.entry || buffer === canonical) return;
+    onReplace(parsed.entry);
+    setPending(null);
   };
   return (
     <details className="cc-settings-advanced">
       <summary>Advanced · raw JSON</summary>
-      <textarea aria-label="Advanced JSON editor" value={value} onChange={(event) => onChange(event.target.value)} spellCheck={false} />
+      <p className="cc-settings-advanced__help">Edit freely, then apply valid JSON. Form-field edits replace this pending text with the latest draft.</p>
+      <textarea aria-label="Advanced JSON editor" value={value} onChange={(event) => setPending({ draft, value: event.target.value })} spellCheck={false} />
       {error ? <p className="cc-settings-error" role="alert">{error}</p> : null}
+      <div className="cc-settings-advanced__actions">
+        <button type="button" onClick={() => setPending(null)} disabled={buffer === null}>Discard JSON edits</button>
+        <button type="button" onClick={apply} disabled={!parsed?.entry || buffer === canonical}>Apply JSON</button>
+      </div>
     </details>
   );
 }

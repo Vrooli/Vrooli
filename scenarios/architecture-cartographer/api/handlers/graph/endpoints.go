@@ -87,6 +87,24 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "slice",
 	},
 	{
+		ID:          "slice.search",
+		Path:        "/api/v1/slices/search",
+		Method:      "POST",
+		Summary:     "Search one scenario's implementation slices",
+		Description: "Ranks domain slices inside one explicit scenario scope and returns rung counts, source paths, layer edges, and the existing DERIVED/PARTIAL attestation. Uses cached graph evidence only.",
+		Category:    "slice",
+		Request: &module.Schema{Type: "object", Properties: map[string]string{
+			"query": "string (required)", "scope": "scenario:<slug> (required)", "limit": "integer (default 5, max 5)", "snapshot_id": "string (optional; must belong to scope)",
+		}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{
+			"results": "array<{id,title,score,text,path,paths,scenario,domain,snapshot_id,slice}>", "degradations": "array<Degradation>",
+		}},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Query, scenario scope, limit, or snapshot scope is invalid"},
+			{Status: 503, Code: "unavailable", Description: "Domain map or requested graph snapshot is unavailable"},
+		},
+	},
+	{
 		ID:          "archetype.infer",
 		Path:        graph_v1connect.GraphServiceInferArchetypeProcedure,
 		Method:      "POST",
