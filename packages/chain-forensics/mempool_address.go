@@ -37,11 +37,6 @@ type CapturedBitcoinAddressPage struct {
 	Source        Source
 }
 
-type addressPageCacheEntry struct {
-	page    CapturedBitcoinAddressPage
-	expires time.Time
-}
-
 // FetchAddressPage fetches one bounded page of confirmed address history from
 // the public mempool.space Esplora endpoint. Each page contains at most 25
 // transactions; callers may explicitly request a later page with NextAfterTxID.
@@ -58,47 +53,37 @@ func (c *MempoolClient) FetchAddressPage(ctx context.Context, address, afterTxID
 	if afterTxID != "" {
 		endpoint += "/" + afterTxID
 	}
-	c.mu.Lock()
-	if cached, ok := c.cachedAddressPageLocked(endpoint); ok {
-		c.mu.Unlock()
+	if cached, ok := c.addressPageCache.Get(endpoint, c.now()); ok {
 		return cached, nil
 	}
-	c.mu.Unlock()
 
 	c.requestMu.Lock()
 	defer c.requestMu.Unlock()
-	c.mu.Lock()
-	if cached, ok := c.cachedAddressPageLocked(endpoint); ok {
-		c.mu.Unlock()
+	if cached, ok := c.addressPageCache.Get(endpoint, c.now()); ok {
 		return cached, nil
 	}
-	c.mu.Unlock()
-	if !c.lastRequest.IsZero() {
-		remaining := time.Until(c.lastRequest.Add(c.minInterval))
-		if remaining > 0 {
-			timer := time.NewTimer(remaining)
-			defer timer.Stop()
-			select {
-			case <-ctx.Done():
-				return CapturedBitcoinAddressPage{}, ctx.Err()
-			case <-timer.C:
-			}
-		}
-	}
-	c.lastRequest = time.Now()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return CapturedBitcoinAddressPage{}, fmt.Errorf("create mempool address-history request: %w", err)
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "Vrooli-Chain-Forensics/0.1 (+https://github.com/Vrooli/Vrooli)")
+	release, err := sharedEndpointRateLimiter.Acquire(ctx, endpoint, c.minInterval)
+	if err != nil {
+		return CapturedBitcoinAddressPage{}, err
+	}
+	defer release()
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return CapturedBitcoinAddressPage{}, fmt.Errorf("fetch public Bitcoin address history: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return CapturedBitcoinAddressPage{}, &ProviderError{StatusCode: resp.StatusCode, RetryAfter: parseRetryAfter(resp.Header.Get("Retry-After"), c.now())}
+		retryAfter := parseRetryAfter(resp.Header.Get("Retry-After"), c.now())
+		if retryAfter > 0 {
+			sharedEndpointRateLimiter.DeferUntil(endpoint, c.now().Add(retryAfter))
+		}
+		return CapturedBitcoinAddressPage{}, &ProviderError{StatusCode: resp.StatusCode, RetryAfter: retryAfter}
 	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, mempoolAddressPageMaxBytes+1))
 	if err != nil {
@@ -140,42 +125,8 @@ func (c *MempoolClient) FetchAddressPage(ctx context.Context, address, afterTxID
 	if len(transactions) == mempoolAddressPageLimit {
 		page.NextAfterTxID = transactions[len(transactions)-1].TxID
 	}
-	c.mu.Lock()
-	c.evictAddressPagesLocked()
-	for len(c.addressPageCache) >= mempoolAddressCacheLimit {
-		oldest := c.addressPageOrder[0]
-		c.addressPageOrder = c.addressPageOrder[1:]
-		delete(c.addressPageCache, oldest)
-	}
-	c.addressPageCache[endpoint] = addressPageCacheEntry{page: cloneAddressPage(page), expires: c.now().Add(mempoolCacheTTL)}
-	c.addressPageOrder = append(c.addressPageOrder, endpoint)
-	c.mu.Unlock()
+	c.addressPageCache.Put(endpoint, page, c.now().Add(mempoolCacheTTL), c.now())
 	return cloneAddressPage(page), nil
-}
-
-func (c *MempoolClient) cachedAddressPageLocked(endpoint string) (CapturedBitcoinAddressPage, bool) {
-	entry, ok := c.addressPageCache[endpoint]
-	if !ok {
-		return CapturedBitcoinAddressPage{}, false
-	}
-	if !c.now().Before(entry.expires) {
-		delete(c.addressPageCache, endpoint)
-		return CapturedBitcoinAddressPage{}, false
-	}
-	return cloneAddressPage(entry.page), true
-}
-
-func (c *MempoolClient) evictAddressPagesLocked() {
-	kept := c.addressPageOrder[:0]
-	for _, key := range c.addressPageOrder {
-		entry, ok := c.addressPageCache[key]
-		if !ok || !c.now().Before(entry.expires) {
-			delete(c.addressPageCache, key)
-			continue
-		}
-		kept = append(kept, key)
-	}
-	c.addressPageOrder = kept
 }
 
 func cloneAddressPage(page CapturedBitcoinAddressPage) CapturedBitcoinAddressPage {
@@ -185,6 +136,14 @@ func cloneAddressPage(page CapturedBitcoinAddressPage) CapturedBitcoinAddressPag
 		page.Transactions[i] = cloneMempoolTransaction(page.Transactions[i])
 	}
 	return page
+}
+
+func addressPageCacheWeight(page CapturedBitcoinAddressPage) int64 {
+	weight := int64(len(page.Source.ResultBody)+len(page.Source.RawResponseBody)) + int64(len(page.Transactions))*512
+	for _, tx := range page.Transactions {
+		weight += int64(len(tx.Inputs)+len(tx.Outputs)) * 512
+	}
+	return weight
 }
 
 func validBitcoinTxID(txid string) bool {

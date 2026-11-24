@@ -26,17 +26,25 @@
             "in_app": "unverified",
             "harness_access": "unverified"
           },
-          "reason": "Carried from the frozen agent-connect research; supplier and model terms require operator review before hosted activation."
+          "conditions": [
+            "The current public Terms describe OrcaRouter as an OpenAI-compatible gateway that routes to upstream model providers at their published cost price, but do not grant downstream resale or white-label rights; keep in_app and harness_access unverified until a scoped written agreement is reviewed.",
+            "Terms §4 treats API keys as confidential credentials and requires that they not be shared, published, or transmitted through insecure channels; never provide an OrcaRouter account key to downstream users.",
+            "Terms §8 binds the account user to each upstream provider's policy. For each exact model, identify its serving provider and review that provider's terms and model license separately.",
+            "Terms §§3, 8 and 10 disclaim stable model availability, price and uninterrupted service; the public catalog, cost pass-through and best-effort failover do not establish a current quote or route entitlement."
+          ],
+          "clause": "Terms §§3–5, 8, 10; no downstream resale grant is stated in the current public text",
+          "reason": "The current public Terms establish an upstream model gateway and account-key confidentiality but no express downstream resale permission. Keep downstream use unresolved and ineligible unless scoped written terms and separate human approvals establish the exact path."
         }
       ],
       "evidence": {
-        "url": "path:resources/orcarouter/README.md",
-        "read_at": "2026-10-31"
+        "url": "https://www.orcarouter.ai/terms.html",
+        "document_date": "2026-04-18",
+        "read_at": "2026-11-23"
       },
       "review": {
         "status": "proposed"
       },
-      "effective_from": "2026-10-31",
+      "effective_from": "2026-04-18",
       "on_expiry": "deny"
     },
     "hosted_routes": []

@@ -206,21 +206,21 @@ func generate(ctx context.Context, client HTTPClient, runtime resourceenv.Runtim
 // GenerateImage performs the resource-owned OpenRouter image request. Callers
 // provide a policy-resolved model and prompt; credentials, base URL, transport,
 // and provider error handling remain inside this resource.
-func GenerateImage(ctx context.Context, client HTTPClient, runtime resourceenv.Runtime, creds auth.Credentials, model, prompt, inputFile string, outputCount int) ([]byte, error) {
+//
+// controls bounds what OpenRouter reserves for the request (see ImageControls).
+// The images endpoint has no cost or token bound, so a bounded request is sent
+// through chat completions with image modalities, where max_tokens is enforced;
+// the response is normalized back to the images-endpoint shape. A caller ceiling
+// that cannot be turned into a provider-enforced bound fails before any request
+// is sent.
+func GenerateImage(ctx context.Context, client HTTPClient, runtime resourceenv.Runtime, creds auth.Credentials, model, prompt, inputFile string, outputCount int, controls ImageControls) ([]byte, error) {
 	if client == nil {
 		client = http.DefaultClient
-	}
-	endpoint := config.ImagesEndpoint(runtime.APIBaseURL)
-	if endpoint == "" {
-		return nil, fmt.Errorf("OpenRouter images endpoint is required")
 	}
 	if strings.TrimSpace(model) == "" || strings.TrimSpace(prompt) == "" {
 		return nil, fmt.Errorf("image model and prompt are required")
 	}
-	payload := map[string]any{"model": model, "prompt": prompt}
-	if outputCount > 1 {
-		payload["n"] = outputCount
-	}
+	inputDataURL := ""
 	if strings.TrimSpace(inputFile) != "" {
 		image, err := os.ReadFile(inputFile)
 		if err != nil {
@@ -232,13 +232,50 @@ func GenerateImage(ctx context.Context, client HTTPClient, runtime resourceenv.R
 		// OpenRouter accepts provider-neutral input references. Keeping the
 		// encoding here makes image-to-image and instructed edits a resource
 		// capability instead of leaking provider transport into callers.
+		inputDataURL = "data:image/png;base64," + base64.StdEncoding.EncodeToString(image)
+	}
+	plan, err := planImageRequest(ctx, client, runtime, creds, model, outputCount, controls)
+	if err != nil {
+		return nil, err
+	}
+	if plan.viaChat {
+		endpoint := config.ChatCompletionsEndpoint(runtime.APIBaseURL)
+		if endpoint == "" {
+			return nil, fmt.Errorf("OpenRouter chat endpoint is required")
+		}
+		body, err := sendImageRequest(ctx, client, endpoint, creds, chatImagePayload(model, prompt, inputDataURL, controls, plan.reservation.MaxTokens), plan.reservation)
+		if err != nil {
+			return nil, err
+		}
+		return chatImageResponseAsImages(body, plan.reservation)
+	}
+	endpoint := config.ImagesEndpoint(runtime.APIBaseURL)
+	if endpoint == "" {
+		return nil, fmt.Errorf("OpenRouter images endpoint is required")
+	}
+	payload := map[string]any{"model": model, "prompt": prompt}
+	if outputCount > 1 {
+		payload["n"] = outputCount
+	}
+	if resolution := strings.TrimSpace(controls.Resolution); resolution != "" {
+		payload["resolution"] = resolution
+	}
+	if size := strings.TrimSpace(controls.Size); size != "" {
+		payload["size"] = size
+	}
+	if inputDataURL != "" {
 		payload["input_references"] = []any{map[string]any{
-			"type": "image_url",
-			"image_url": map[string]string{
-				"url": "data:image/png;base64," + base64.StdEncoding.EncodeToString(image),
-			},
+			"type":      "image_url",
+			"image_url": map[string]string{"url": inputDataURL},
 		}}
 	}
+	return sendImageRequest(ctx, client, endpoint, creds, payload, plan.reservation)
+}
+
+// sendImageRequest posts one image payload and classifies any failure. A refusal
+// states the reservation Vrooli asked for so an operator can tell a too-large
+// request from an exhausted key or account.
+func sendImageRequest(ctx context.Context, client HTTPClient, endpoint string, creds auth.Credentials, payload any, reservation *ImageReservation) ([]byte, error) {
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err
@@ -264,16 +301,7 @@ func GenerateImage(ctx context.Context, client HTTPClient, runtime resourceenv.R
 		}
 	}
 	if resp.StatusCode >= 400 {
-		var failure struct {
-			Error struct {
-				Message string `json:"message"`
-			} `json:"error"`
-		}
-		detail := ""
-		if json.Unmarshal(responseBody, &failure) == nil {
-			detail = strings.TrimSpace(failure.Error.Message)
-		}
-		return nil, newHTTPProviderError(resp.StatusCode, resp.Header.Get("Retry-After"), detail)
+		return nil, newHTTPProviderError(resp.StatusCode, resp.Header.Get("Retry-After"), describeImageRefusal(responseBody, reservation))
 	}
 	return responseBody, nil
 }

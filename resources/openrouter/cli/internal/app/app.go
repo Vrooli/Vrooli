@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"strconv"
@@ -156,12 +157,14 @@ func runImageGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, 
 	fs.SetOutput(io.Discard)
 	var role, promptFlag, promptFile, inputFile, resultFormat string
 	var count int
+	var maxCostUSD float64
 	fs.StringVar(&role, "role", "image.generate.default", "OpenRouter image policy role")
 	fs.StringVar(&promptFlag, "prompt", "", "Image prompt")
 	fs.StringVar(&promptFile, "prompt-file", "", "Read image prompt from file")
 	fs.StringVar(&inputFile, "input-file", "", "Optional source image for image-to-image or instructed editing")
 	fs.StringVar(&resultFormat, "result-format", "raw", "Image result format: raw or gateway-v1")
 	fs.IntVar(&count, "output-count", 1, "Number of image outputs")
+	fs.Float64Var(&maxCostUSD, "max-cost-usd", 0, "Caller USD ceiling for this request; bounds the provider's reserved maximum cost (0 = use the role's policy bound)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -171,7 +174,12 @@ func runImageGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, 
 	if err := validateImageResultFormat(resultFormat); err != nil {
 		return err
 	}
-	model, err := resolveRoleModel(role)
+	resolvedRole, err := resolveRolePolicy(role)
+	if err != nil {
+		return err
+	}
+	model := resolvedRole.Model
+	controls, err := imageControlsFor(resolvedRole, maxCostUSD)
 	if err != nil {
 		return err
 	}
@@ -185,7 +193,7 @@ func runImageGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, 
 	if err != nil {
 		return err
 	}
-	body, err := health.GenerateImage(context.Background(), http.DefaultClient, runtime, creds, model, prompt, inputFile, count)
+	body, err := health.GenerateImage(context.Background(), http.DefaultClient, runtime, creds, model, prompt, inputFile, count, controls)
 	if err != nil {
 		return err
 	}
@@ -195,6 +203,24 @@ func runImageGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, 
 	}
 	_, err = fmt.Fprintln(stdout, string(body))
 	return err
+}
+
+// imageControlsFor turns a resolved role and the caller's optional USD ceiling
+// into provider request controls. The role's request_defaults are the authority
+// for the default bound; the caller ceiling can only lower what OpenRouter reserves.
+func imageControlsFor(resolved policy.ResolvedPolicyModel, maxCostUSD float64) (health.ImageControls, error) {
+	if math.IsNaN(maxCostUSD) || math.IsInf(maxCostUSD, 0) || maxCostUSD < 0 {
+		return health.ImageControls{}, fmt.Errorf("max-cost-usd must be a finite, non-negative amount")
+	}
+	controls := health.ImageControls{MaxCostMicros: int64(math.Floor(maxCostUSD * 1_000_000))}
+	if defaults := resolved.RequestDefaults; defaults != nil {
+		controls.Resolution = defaults.Resolution
+		controls.Size = defaults.Size
+		if defaults.MaxTokens != nil {
+			controls.MaxOutputTokens = *defaults.MaxTokens
+		}
+	}
+	return controls, nil
 }
 
 func formatImageResponse(body []byte, resultFormat string) ([]byte, error) {
@@ -228,21 +254,6 @@ func resolveDefaultModel(role string) string {
 		return ""
 	}
 	return resolved.Model
-}
-
-// resolveRoleModel resolves a role to its concrete model slug, erroring on an
-// unknown role or unreadable policy. This is the authoritative path for the
-// generate command.
-func resolveRoleModel(role string) (string, error) {
-	p, _, err := policy.LoadDefaultFile(os.Getenv)
-	if err != nil {
-		return "", err
-	}
-	resolved, err := p.ResolveRole(strings.TrimSpace(role))
-	if err != nil {
-		return "", err
-	}
-	return resolved.Model, nil
 }
 
 func resolveRolePolicy(role string) (policy.ResolvedPolicyModel, error) {
@@ -408,6 +419,7 @@ func runGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, stdin
 		maxTokens                                                     int
 		responseFormat                                                string
 		inputJSONStdin                                                bool
+		byokJSONStdin                                                 bool
 		maxCostMicros                                                 int64
 		operationID, inputFingerprint, fundingRoute, referenceDigests string
 		providerOnly                                                  string
@@ -425,6 +437,7 @@ func runGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, stdin
 	fs.IntVar(&maxTokens, "max-tokens", 0, "Maximum completion tokens; omitted when <= 0 and the role declares no default")
 	fs.StringVar(&responseFormat, "response-format", "", "OpenAI-compatible response_format JSON object")
 	fs.BoolVar(&inputJSONStdin, "input-json-stdin", false, "Read {prompt,images:[{media_type,data_b64}]} from stdin")
+	fs.BoolVar(&byokJSONStdin, "byok-json-stdin", false, "Read a one-shot {api_key,role,prompt,max_tokens} BYOK request from stdin")
 	fs.Int64Var(&maxCostMicros, "max-cost-micros", 0, "Enforce an explicit total USD micro-ceiling for this single operation")
 	fs.StringVar(&operationID, "operation-id", "", "Immutable operation attempt ID bound to the spend authorization")
 	fs.StringVar(&inputFingerprint, "input-fingerprint", "", "Immutable request fingerprint bound to the spend authorization")
@@ -440,6 +453,18 @@ func runGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, stdin
 	}
 
 	runtime := resourceenv.Load()
+	var byokRequest oneShotBYOKRequest
+	if byokJSONStdin {
+		if promptFlag != "" || promptFile != "" || len(fs.Args()) > 0 || inputJSONStdin || strings.TrimSpace(model) != "" || strings.TrimSpace(role) != "" {
+			return fmt.Errorf("--byok-json-stdin cannot be combined with prompt or model flags")
+		}
+		var decodeErr error
+		byokRequest, decodeErr = decodeOneShotBYOK(stdin)
+		if decodeErr != nil {
+			return decodeErr
+		}
+		role, model, promptFlag, maxTokens = byokRequest.Role, byokRequest.Model, byokRequest.Prompt, byokRequest.MaxTokens
+	}
 	// Greenfield: the model is selected by policy role, not a concrete default.
 	// --model is an explicit advanced override; absent it, --role (defaulting to
 	// the resource default role) is resolved through the policy authority.
@@ -472,10 +497,15 @@ func runGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, stdin
 		return err
 	}
 
-	resolver := auth.NewResolver()
-	creds, err := resolver.Resolve(context.Background())
-	if err != nil {
-		return err
+	var creds auth.Credentials
+	if byokJSONStdin {
+		creds = auth.Credentials{APIKey: strings.TrimSpace(byokRequest.APIKey), Source: "one-shot-request"}
+	} else {
+		resolver := auth.NewResolver()
+		creds, err = resolver.Resolve(context.Background())
+		if err != nil {
+			return err
+		}
 	}
 
 	var responseFormatJSON json.RawMessage
@@ -554,6 +584,23 @@ func runGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, stdin
 	}
 	_, err = fmt.Fprintln(stdout, text)
 	return err
+}
+
+type oneShotBYOKRequest struct {
+	APIKey    string `json:"api_key"`
+	Role      string `json:"role,omitempty"`
+	Model     string `json:"model,omitempty"`
+	Prompt    string `json:"prompt"`
+	MaxTokens int    `json:"max_tokens"`
+}
+
+func decodeOneShotBYOK(stdin io.Reader) (oneShotBYOKRequest, error) {
+	var request oneShotBYOKRequest
+	data, err := io.ReadAll(io.LimitReader(stdin, 1<<20+1))
+	if err != nil || len(data) > 1<<20 || json.Unmarshal(data, &request) != nil || strings.TrimSpace(request.APIKey) == "" || strings.TrimSpace(request.Prompt) == "" || request.MaxTokens < 1 || request.MaxTokens > 4096 || (request.Role == "") == (request.Model == "") {
+		return oneShotBYOKRequest{}, fmt.Errorf("invalid BYOK request")
+	}
+	return request, nil
 }
 
 func runConfigure(app *cliapp.ResourceApp, args []string, stdout io.Writer) error {

@@ -95,7 +95,8 @@
       "goal_mode": false,
       "mcp": true,
       "hooks": true
-    }
+    },
+    "model_source_protocol": "openai-chat-completions"
   },
   "agent_hooks": {
     "document_scopes": [

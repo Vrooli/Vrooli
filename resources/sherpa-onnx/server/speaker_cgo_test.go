@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -31,6 +32,9 @@ func TestNativeSpeakerRuntimeSmoke(t *testing.T) {
 	}
 	native := runtime.(*nativeSpeakerRuntime)
 	defer native.Close()
+	if native.separator != nil {
+		t.Fatal("source separation model loaded before first separation request")
+	}
 	raw, err := os.ReadFile(wavPath)
 	if err != nil {
 		t.Fatal(err)
@@ -56,6 +60,9 @@ func TestNativeSpeakerRuntimeSmoke(t *testing.T) {
 	}
 	if len(cleaned) == 0 {
 		t.Fatal("source separation returned no samples")
+	}
+	if native.separator == nil {
+		t.Fatal("source separation model was not loaded on first use")
 	}
 	t.Logf("embedding_dim=%d separation_samples=%d selected_score=%.4f", len(embedding), len(cleaned), score)
 }
@@ -87,6 +94,10 @@ func TestNativeSpeakerHTTPContract(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	readyStatus, readyBody := speakerHTTPGet(t, server.URL+"/ready")
+	if readyStatus != http.StatusOK || !bytes.Contains(readyBody, []byte(`"speaker_model_loaded":true`)) || !bytes.Contains(readyBody, []byte(`"separation_model_loaded":false`)) {
+		t.Fatalf("initial readiness status=%d body=%s", readyStatus, readyBody)
+	}
 
 	status, _, body := speakerHTTPMultipart(t, http.MethodPost, server.URL+"/v1/profiles", map[string]string{
 		"profile_id": "http-contract", "display_name": "HTTP Contract", "label": "native",
@@ -94,6 +105,19 @@ func TestNativeSpeakerHTTPContract(t *testing.T) {
 	if status != http.StatusOK {
 		t.Fatalf("enroll status=%d body=%s", status, body)
 	}
+	configuredSeparatorDir := native.separatorDir
+	native.separatorDir = filepath.Join(t.TempDir(), "missing-separation-models")
+	status, _, body = speakerHTTPMultipart(t, http.MethodPost, server.URL+"/v1/extract", map[string]string{
+		"profile_id": "http-contract", "verify": "true",
+	}, audio)
+	if status != http.StatusServiceUnavailable || !bytes.Contains(body, []byte("source separation vocals model")) {
+		t.Fatalf("missing separation model status=%d body=%s", status, body)
+	}
+	readyStatus, readyBody = speakerHTTPGet(t, server.URL+"/ready")
+	if readyStatus != http.StatusOK || !bytes.Contains(readyBody, []byte(`"speaker_model_loaded":true`)) || !bytes.Contains(readyBody, []byte(`"separation_model_loaded":false`)) {
+		t.Fatalf("readiness after unavailable extraction status=%d body=%s", readyStatus, readyBody)
+	}
+	native.separatorDir = configuredSeparatorDir
 
 	status, _, body = speakerHTTPMultipart(t, http.MethodPost, server.URL+"/v1/verify", map[string]string{
 		"profile_id": "http-contract", "threshold": "0.5",
@@ -107,6 +131,10 @@ func TestNativeSpeakerHTTPContract(t *testing.T) {
 	}, audio)
 	if status != http.StatusOK || len(separated) == 0 || headers.Get("X-Duration-Ms") == "0" {
 		t.Fatalf("extract status=%d bytes=%d duration=%q", status, len(separated), headers.Get("X-Duration-Ms"))
+	}
+	readyStatus, readyBody = speakerHTTPGet(t, server.URL+"/ready")
+	if readyStatus != http.StatusOK || !bytes.Contains(readyBody, []byte(`"speaker_model_loaded":true`)) || !bytes.Contains(readyBody, []byte(`"separation_model_loaded":true`)) {
+		t.Fatalf("readiness after extraction status=%d body=%s", readyStatus, readyBody)
 	}
 	empty := &nativeSpeakerProfile{ID: "empty", ModelName: native.modelName, EmbeddingDim: native.modelDim, SampleRate: nativeSpeakerSampleRate}
 	if err := native.saveProfile(empty); err != nil {
@@ -134,6 +162,20 @@ func TestNativeSpeakerHTTPContract(t *testing.T) {
 	if status != http.StatusOK {
 		t.Fatalf("delete status=%d body=%s", status, body)
 	}
+}
+
+func speakerHTTPGet(t *testing.T, endpoint string) (int, []byte) {
+	t.Helper()
+	resp, err := http.Get(endpoint)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return resp.StatusCode, body
 }
 
 func speakerHTTPMultipart(t *testing.T, method, endpoint string, fields map[string]string, audio []byte) (int, http.Header, []byte) {

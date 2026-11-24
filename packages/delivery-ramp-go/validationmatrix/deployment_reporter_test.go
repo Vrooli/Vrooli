@@ -75,15 +75,20 @@ func (f *fakeDeploymentClient) ReportTargetVerdict(_ context.Context, request *c
 func TestDeploymentReporterPreservesGateAndEvidenceProvenance(t *testing.T) {
 	client := &fakeDeploymentClient{}
 	reporter := NewDeploymentReporter(client, "profile-1", "commit-1")
+	WithDeploymentIdentity("scenario-to-android", "scenario-to-android", "android", "android")(reporter)
 	gate := &domainv1.ReleaseGate{MatrixId: "matrix-1", Passed: true, Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_PASS, RequiredCellCount: 1, PassingCellCount: 1}
-	if err := reporter.ReportValidationGate(context.Background(), ReleaseVerdict{RunID: "run-1", MatrixID: "matrix-1", ScenarioName: "demo", ArtifactDigest: "sha256:artifact", Gate: gate, Evidence: validEvidence()}); err != nil {
+	verdict := ReleaseVerdict{RunID: "run-1", MatrixID: "matrix-1", ScenarioName: "demo", ArtifactDigest: "sha256:artifact", ArtifactRef: "android-debug:artifact", ProfileID: "profile-specific", GitCommit: "commit-specific", Targets: []TargetSelection{{Kind: TargetBridge, Descriptor: &domainv1.ValidationTargetDescriptor{TargetId: "android-physical-1", DisplayName: "Moto", Available: true}}}, Gate: gate, Evidence: validEvidence()}
+	if err := reporter.ReportValidationGate(context.Background(), verdict); err != nil {
 		t.Fatal(err)
 	}
-	if client.request.GetProfileId() != "profile-1" || client.request.GetGitCommitHash() != "commit-1" {
+	if client.request.GetProfileId() != "profile-specific" || client.request.GetGitCommitHash() != "commit-specific" {
 		t.Fatalf("release identity lost: %+v", client.request)
 	}
-	if client.request.GetVerdict().GetDisposition() != commonv1.Disposition_DISPOSITION_PASSED || client.request.GetVerdict().GetEvidenceClass() != "release-grade" || client.request.GetVerdict().GetRunId() != "run-1" || len(client.request.GetVerdict().GetRefs()) != 4 {
+	if client.request.GetVerdict().GetDisposition() != commonv1.Disposition_DISPOSITION_PASSED || client.request.GetVerdict().GetEvidenceClass() != "release-grade" || client.request.GetVerdict().GetRunId() != "run-1" || len(client.request.GetVerdict().GetRefs()) != 5 {
 		t.Fatalf("release verdict lost evidence: %+v", client.request.GetVerdict())
+	}
+	if client.request.GetVerdict().GetTarget().GetDeviceKind() != commonv1.DeviceKind_DEVICE_KIND_PHYSICAL || client.request.GetVerdict().GetTarget().GetOs() != "android" {
+		t.Fatalf("Android target identity was misclassified: %+v", client.request.GetVerdict().GetTarget())
 	}
 	for _, ref := range client.request.GetVerdict().GetRefs() {
 		if ref.GetCreatedAt() == nil || !ref.GetCreatedAt().IsValid() {
@@ -94,7 +99,7 @@ func TestDeploymentReporterPreservesGateAndEvidenceProvenance(t *testing.T) {
 	if err := json.Unmarshal([]byte(client.request.GetVerdict().GetDetail()), &detail); err != nil {
 		t.Fatal(err)
 	}
-	if detail["artifact_digest"] != "sha256:artifact" || detail["matrix_id"] != "matrix-1" {
+	if detail["artifact_digest"] != "sha256:artifact" || detail["artifact_ref"] != "android-debug:artifact" || detail["matrix_id"] != "matrix-1" || detail["target_id"] != "android-physical-1" {
 		t.Fatalf("release detail lost immutable identity: %v", detail)
 	}
 }

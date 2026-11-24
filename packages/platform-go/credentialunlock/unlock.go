@@ -138,8 +138,9 @@ func Listen(socket string) (net.Listener, error) {
 }
 
 // Serve answers requests until ctx ends or the listener closes. passphrase
-// returns the held value and whether one is held; the returned slice is
-// copied into the reply and never retained.
+// returns an owned copy of the held value and whether one is held. Serve
+// zeroes that copy after answering so the provider's retained value is the
+// only long-lived plaintext buffer.
 func Serve(ctx context.Context, listener net.Listener, passphrase func() ([]byte, bool)) error {
 	go func() {
 		<-ctx.Done()
@@ -173,8 +174,17 @@ func serveConn(conn net.Conn, self int, passphrase func() ([]byte, bool)) {
 	}
 	value, ok := passphrase()
 	if !ok || len(value) == 0 {
+		zeroSecret(value)
 		_ = json.NewEncoder(conn).Encode(response{Version: protocolVersion, Error: "the control plane has not delivered this node's store passphrase yet"})
 		return
 	}
-	_ = json.NewEncoder(conn).Encode(response{Version: protocolVersion, Passphrase: string(value)})
+	reply := response{Version: protocolVersion, Passphrase: string(value)}
+	zeroSecret(value)
+	_ = json.NewEncoder(conn).Encode(reply)
+}
+
+func zeroSecret(value []byte) {
+	for i := range value {
+		value[i] = 0
+	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -76,10 +77,14 @@ func (c *inProcessClient) Provision(_ context.Context, request ProvisionRequest)
 	if err != nil {
 		return ProvisionResponse{}, err
 	}
+	cleanupPending := false
 	if err := c.authority.ActivateCandidate(candidate); err != nil {
-		return ProvisionResponse{}, err
+		if !errors.Is(err, credentialauthority.ErrCandidateCleanupPending) {
+			return ProvisionResponse{}, err
+		}
+		cleanupPending = true
 	}
-	return ProvisionResponse{Identity: string(identity), Field: request.Field, Version: candidate.Version, Provider: c.authority.Provider(), Status: "provisioned"}, nil
+	return ProvisionResponse{Identity: string(identity), Field: request.Field, Version: candidate.Version, Provider: c.authority.Provider(), Status: "provisioned", CleanupPending: cleanupPending}, nil
 }
 
 func (c *inProcessClient) Hydrate(ctx context.Context, request HydrationRequest) (HydrationResponse, error) {

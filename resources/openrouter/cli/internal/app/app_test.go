@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/base64"
+	"math"
 	"os"
 	"strings"
 	"testing"
@@ -18,6 +19,22 @@ func TestResolvePromptPrefersFlag(t *testing.T) {
 	}
 	if got != "hello" {
 		t.Fatalf("resolvePrompt() = %q", got)
+	}
+}
+
+func TestDecodeOneShotBYOKRequestIsTypedBoundedAndRedacted(t *testing.T) {
+	request, err := decodeOneShotBYOK(strings.NewReader(`{"api_key":"private-key","role":"summarize.default","prompt":"hello","max_tokens":64}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if request.APIKey != "private-key" || request.Role != "summarize.default" {
+		t.Fatalf("request=%+v", request)
+	}
+	for _, bad := range []string{`{"api_key":"private-key","prompt":"hello","max_tokens":64}`, strings.Repeat("x", (1<<20)+1)} {
+		_, err := decodeOneShotBYOK(strings.NewReader(bad))
+		if err == nil || strings.Contains(err.Error(), "private-key") {
+			t.Fatalf("unsafe invalid request error: %v", err)
+		}
 	}
 }
 
@@ -97,5 +114,45 @@ func TestResolveImageInputRejectsRoleWithoutImageModality(t *testing.T) {
 	_, _, err := resolveImageInput(strings.NewReader(`{"prompt":"describe","images":[{"media_type":"image/png","data_b64":"aGVsbG8="}]}`), selected)
 	if err == nil || !strings.Contains(err.Error(), "image_input.capability_mismatch") {
 		t.Fatalf("expected typed capability mismatch, got %v", err)
+	}
+}
+
+func TestImageControlsForCarriesRoleBoundAndCallerCeiling(t *testing.T) {
+	maxTokens := 2048
+	resolved := policy.ResolvedPolicyModel{Model: "google/gemini-3-pro-image", RequestDefaults: &policy.RequestDefaults{Resolution: "1K", MaxTokens: &maxTokens}}
+	controls, err := imageControlsFor(resolved, 0.25)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if controls.Resolution != "1K" || controls.MaxOutputTokens != 2048 || controls.MaxCostMicros != 250_000 {
+		t.Fatalf("controls = %+v", controls)
+	}
+	bare, err := imageControlsFor(policy.ResolvedPolicyModel{}, 0)
+	if err != nil || bare.MaxOutputTokens != 0 || bare.MaxCostMicros != 0 {
+		t.Fatalf("bare controls = %+v err=%v", bare, err)
+	}
+	for _, bad := range []float64{-0.01, math.NaN(), math.Inf(1)} {
+		if _, err := imageControlsFor(resolved, bad); err == nil {
+			t.Fatalf("max-cost-usd %v accepted", bad)
+		}
+	}
+}
+
+// The shipped policy must bound every image role whose primary model is
+// token-priced at a premium: without request_defaults.max_tokens OpenRouter
+// reserves the endpoint's full completion allowance (several dollars).
+func TestShippedPolicyBoundsPremiumTokenPricedImageRoles(t *testing.T) {
+	p, err := policy.LoadFile("../../../model-policy.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, role := range []string{"image.edit.identity", "image.generate.quality"} {
+		resolved, err := p.ResolveRole(role)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if resolved.RequestDefaults == nil || resolved.RequestDefaults.MaxTokens == nil || *resolved.RequestDefaults.MaxTokens <= 0 || resolved.RequestDefaults.Resolution == "" {
+			t.Errorf("%s (%s) declares no output-token bound/resolution: %+v", role, resolved.Model, resolved.RequestDefaults)
+		}
 	}
 }

@@ -138,7 +138,7 @@ func containsValue(env Env, key, value string) bool {
 func TestIndependentOwnersDoNotInheritExecutionAttribution(t *testing.T) {
 	parent := Env{
 		"CODEX_AGENT_TAG=parent-run", "CLAUDE_AGENT_TAG=other-parent", "FUTURE_PROVIDER_AGENT_TAG=future-parent",
-		"VROOLI_RUN_ID=parent-run", "VROOLI_HARNESS_SESSION_ID=parent-session", "VROOLI_AGENT_MANAGER_STORE_ID=parent-store",
+		"VROOLI_RUN_ID=parent-run", "VROOLI_SOURCE_RUN_ID=parent-run", "VROOLI_HARNESS_SESSION_ID=parent-session", "VROOLI_AGENT_MANAGER_STORE_ID=parent-store",
 		"VROOLI_RUNTIME_INSTANCE_ID=serving-instance", "VROOLI_RUNTIME_GENERATION=serving-generation", "VROOLI_PROCESS_ID=serving-process",
 		"VROOLI_LIFECYCLE_MANAGED=true", "VROOLI_STEP=serve", "VROOLI_PHASE=develop", "LIFECYCLE_PHASE=develop",
 		"VROOLI_VARIANT=parent-variant", "VROOLI_STORAGE_NAMESPACE=parent-namespace",
@@ -147,7 +147,7 @@ func TestIndependentOwnersDoNotInheritExecutionAttribution(t *testing.T) {
 	}
 	for _, relationship := range []Relationship{Resource, ForeignScenario} {
 		got := ForChildWithPlatform(parent, relationship, Platform{})
-		for _, key := range []string{"CODEX_AGENT_TAG", "CLAUDE_AGENT_TAG", "FUTURE_PROVIDER_AGENT_TAG", "VROOLI_RUN_ID", "VROOLI_HARNESS_SESSION_ID", "VROOLI_AGENT_MANAGER_STORE_ID", "VROOLI_RUNTIME_INSTANCE_ID", "VROOLI_RUNTIME_GENERATION", "VROOLI_PROCESS_ID", "VROOLI_LIFECYCLE_MANAGED", "VROOLI_STEP", "VROOLI_PHASE", "LIFECYCLE_PHASE", "VROOLI_VARIANT", "VROOLI_STORAGE_NAMESPACE", "API_BASE_URL", "API_BASE", "WS_PORT", "VITE_API_BASE_URL"} {
+		for _, key := range []string{"CODEX_AGENT_TAG", "CLAUDE_AGENT_TAG", "FUTURE_PROVIDER_AGENT_TAG", "VROOLI_RUN_ID", "VROOLI_SOURCE_RUN_ID", "VROOLI_HARNESS_SESSION_ID", "VROOLI_AGENT_MANAGER_STORE_ID", "VROOLI_RUNTIME_INSTANCE_ID", "VROOLI_RUNTIME_GENERATION", "VROOLI_PROCESS_ID", "VROOLI_LIFECYCLE_MANAGED", "VROOLI_STEP", "VROOLI_PHASE", "LIFECYCLE_PHASE", "VROOLI_VARIANT", "VROOLI_STORAGE_NAMESPACE", "API_BASE_URL", "API_BASE", "WS_PORT", "VITE_API_BASE_URL"} {
 			if contains(got, key) {
 				t.Errorf("boundary %v inherited execution attribution %s", relationship, key)
 			}
@@ -165,7 +165,7 @@ func TestIndependentOwnersDoNotInheritExecutionAttribution(t *testing.T) {
 		}
 	}
 	delegated := ForChildWithPlatform(parent, DelegatedAgent, Platform{})
-	if !contains(delegated, "CODEX_AGENT_TAG") || !contains(delegated, "VROOLI_RUN_ID") || !contains(delegated, "VROOLI_HARNESS_SESSION_ID") || contains(delegated, "VROOLI_RUNTIME_INSTANCE_ID") {
+	if !contains(delegated, "CODEX_AGENT_TAG") || !contains(delegated, "VROOLI_RUN_ID") || !contains(delegated, "VROOLI_SOURCE_RUN_ID") || !contains(delegated, "VROOLI_HARNESS_SESSION_ID") || contains(delegated, "VROOLI_RUNTIME_INSTANCE_ID") {
 		t.Fatal("delegated launcher changed composed caller-session versus service ownership semantics")
 	}
 }

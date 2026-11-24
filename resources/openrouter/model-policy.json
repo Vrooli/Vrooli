@@ -171,6 +171,33 @@
         "sample_count": 1
       }
     },
+    "image.quality.judge": {
+      "model": "google/gemini-3.5-flash",
+      "fallbacks": [
+        "google/gemini-3.7-flash"
+      ],
+      "endpoint": "chat",
+      "required_capabilities": [
+        "chat",
+        "vision"
+      ],
+      "description": "Hosted visual judge for Image Tools output evaluation. Best agreement with human verdicts on the guinea-pig-v1 corpus (binary 12/12, pairwise 0.92-0.94, every miss a tie). A caller reaches it only by naming the hosted judge in its evaluation manifest.",
+      "preference": 66,
+      "request_defaults": {
+        "temperature": 0.0,
+        "max_tokens": 4000
+      },
+      "sampling_support": {
+        "temperature": "ignored"
+      },
+      "provenance": {
+        "source_kind": "manual_policy",
+        "confidence": "medium",
+        "source": "Image Tools quality-judge agreement run on the guinea-pig-v1 corpus, 2026-11-21",
+        "observed_at": "2026-11-21",
+        "sample_count": 15
+      }
+    },
     "extract.structured": {
       "model": "google/gemini-3.1-flash-lite-preview",
       "fallbacks": [
@@ -403,7 +430,9 @@
       "request_defaults": {
         "output_format": "png",
         "aspect_ratio": "1:1",
-        "quality": "high"
+        "quality": "high",
+        "resolution": "1K",
+        "max_tokens": 2048
       },
       "provenance": {
         "source_kind": "chatgpt_survey",
@@ -481,7 +510,9 @@
       "description": "Identity-preserving image-edit role for edits that must keep a subject's likeness or structure.",
       "preference": 150,
       "request_defaults": {
-        "output_format": "png"
+        "output_format": "png",
+        "resolution": "1K",
+        "max_tokens": 2048
       },
       "provenance": {
         "source_kind": "chatgpt_survey",
@@ -551,7 +582,8 @@
       "use_case_notes": "Flash-tier model with frontier-adjacent creative-writing quality; best quality-per-dollar prose rung. Accepts temperature and silently discards it (first-party Gemini 3.x behavior), so it cannot serve a temperature-controlled experiment.",
       "caveats": [
         "Gemini 3.x accepts sampling parameters and ignores them; a runtime probe would report success and be wrong.",
-        "Creative-writing placement rests on a wide-confidence-interval leaderboard sample and should be treated as provisional."
+        "Creative-writing placement rests on a wide-confidence-interval leaderboard sample and should be treated as provisional.",
+        "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; this record does not evaluate this model’s upstream terms, actual serving route, account entitlement, or downstream rights. Catalog identity does not establish these permissions."
       ],
       "provenance": {
         "catalog": {
@@ -560,6 +592,33 @@
           "source": "AI Gateway sampling-and-write-roles plan 2026-08-16 model survey; list price and leaderboard placement not re-verified against the live OpenRouter catalog",
           "observed_at": "2026-08-16",
           "sample_count": 0
+        },
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "high",
+          "source": "https://openrouter.ai/google/gemini-3.7-flash; official page title: Gemini 3.7 Flash - API Pricing & Benchmarks | OpenRouter; page body contained exact model ID; identity check only, existing capability/context/price provenance remains separate.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0
+        },
+        "terms": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "https://openrouter.ai/terms; §§5.1–5.2 require compliance with each model’s separate terms; model-specific upstream terms, serving route, entitlement and downstream rights have not been evaluated.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0,
+          "source_anchors": [
+            {
+              "supplier_id": "openrouter",
+              "model_id": "google/gemini-3.7-flash",
+              "url": "https://openrouter.ai/terms",
+              "anchor": "Terms §§5.1–5.2 plus the model-specific terms notice stated in the provenance source",
+              "document_date": "2026-08-31",
+              "observed_at": "2026-11-23",
+              "retrieval_status": "read_public_page",
+              "supports": "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; no model-specific upstream license conclusion is supplied here.",
+              "does_not_establish": "This source does not establish this exact model’s upstream license compatibility, Vrooli entitlement, account route availability, or downstream rights."
+            }
+          ]
         }
       }
     },
@@ -598,7 +657,8 @@
       "use_case_notes": "Frontier prose rung for the diversity lane, where candidate variety scales with model capability rather than with sampling settings.",
       "caveats": [
         "Rejects sampling parameters with a 400. Any role naming it must declare temperature support as rejected so the control is never sent.",
-        "Expensive per token; reserve for the k-candidate lane rather than ordinary single-draft writing."
+        "Expensive per token; reserve for the k-candidate lane rather than ordinary single-draft writing.",
+        "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; this record does not evaluate this model’s upstream terms, actual serving route, account entitlement, or downstream rights. Catalog identity does not establish these permissions."
       ],
       "provenance": {
         "catalog": {
@@ -607,6 +667,33 @@
           "source": "AI Gateway sampling-and-write-roles plan 2026-08-16 model survey; first-party Anthropic pricing, availability on this account not verified",
           "observed_at": "2026-08-16",
           "sample_count": 0
+        },
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "high",
+          "source": "https://openrouter.ai/anthropic/claude-fable-5; official page title: Claude Fable 5 - API Pricing & Benchmarks | OpenRouter; page body contained exact model ID; identity check only, existing capability/context/price provenance remains separate.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0
+        },
+        "terms": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "https://openrouter.ai/terms; §§5.1–5.2 require compliance with each model’s separate terms; model-specific upstream terms, serving route, entitlement and downstream rights have not been evaluated.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0,
+          "source_anchors": [
+            {
+              "supplier_id": "openrouter",
+              "model_id": "anthropic/claude-fable-5",
+              "url": "https://openrouter.ai/terms",
+              "anchor": "Terms §§5.1–5.2 plus the model-specific terms notice stated in the provenance source",
+              "document_date": "2026-08-31",
+              "observed_at": "2026-11-23",
+              "retrieval_status": "read_public_page",
+              "supports": "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; no model-specific upstream license conclusion is supplied here.",
+              "does_not_establish": "This source does not establish this exact model’s upstream license compatibility, Vrooli entitlement, account route availability, or downstream rights."
+            }
+          ]
         }
       }
     },
@@ -644,8 +731,38 @@
           "source": "ChatGPT 2026-06-30 OpenRouter list-price survey",
           "observed_at": "2026-06-30",
           "sample_count": 0
+        },
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "high",
+          "source": "https://openrouter.ai/bytedance-seed/seed-2.0-mini; official page title: Seed-2.0-Mini - API Pricing & Providers | OpenRouter; page body contained exact model ID; identity check only, existing capability/context/price provenance remains separate.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0
+        },
+        "terms": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "https://openrouter.ai/terms; §§5.1–5.2 require compliance with each model’s separate terms; model-specific upstream terms, serving route, entitlement and downstream rights have not been evaluated.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0,
+          "source_anchors": [
+            {
+              "supplier_id": "openrouter",
+              "model_id": "bytedance-seed/seed-2.0-mini",
+              "url": "https://openrouter.ai/terms",
+              "anchor": "Terms §§5.1–5.2 plus the model-specific terms notice stated in the provenance source",
+              "document_date": "2026-08-31",
+              "observed_at": "2026-11-23",
+              "retrieval_status": "read_public_page",
+              "supports": "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; no model-specific upstream license conclusion is supplied here.",
+              "does_not_establish": "This source does not establish this exact model’s upstream license compatibility, Vrooli entitlement, account route availability, or downstream rights."
+            }
+          ]
         }
-      }
+      },
+      "caveats": [
+        "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; this record does not evaluate this model’s upstream terms, actual serving route, account entitlement, or downstream rights. Catalog identity does not establish these permissions."
+      ]
     },
     "openai/gpt-oss-20b": {
       "provider": "openai",
@@ -682,8 +799,38 @@
           "source": "ChatGPT 2026-06-30 OpenRouter list-price survey",
           "observed_at": "2026-06-30",
           "sample_count": 0
+        },
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "high",
+          "source": "https://openrouter.ai/openai/gpt-oss-20b; official page title: gpt-oss-20b - API Pricing & Benchmarks | OpenRouter; page body contained exact model ID; identity check only, existing capability/context/price provenance remains separate.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0
+        },
+        "terms": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "https://openrouter.ai/terms; §§5.1–5.2 require compliance with each model’s separate terms; model-specific upstream terms, serving route, entitlement and downstream rights have not been evaluated.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0,
+          "source_anchors": [
+            {
+              "supplier_id": "openrouter",
+              "model_id": "openai/gpt-oss-20b",
+              "url": "https://openrouter.ai/terms",
+              "anchor": "Terms §§5.1–5.2 plus the model-specific terms notice stated in the provenance source",
+              "document_date": "2026-08-31",
+              "observed_at": "2026-11-23",
+              "retrieval_status": "read_public_page",
+              "supports": "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; no model-specific upstream license conclusion is supplied here.",
+              "does_not_establish": "This source does not establish this exact model’s upstream license compatibility, Vrooli entitlement, account route availability, or downstream rights."
+            }
+          ]
         }
-      }
+      },
+      "caveats": [
+        "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; this record does not evaluate this model’s upstream terms, actual serving route, account entitlement, or downstream rights. Catalog identity does not establish these permissions."
+      ]
     },
     "inception/mercury-2": {
       "provider": "inception",
@@ -721,8 +868,38 @@
           "source": "ChatGPT 2026-06-30 OpenRouter list-price survey",
           "observed_at": "2026-06-30",
           "sample_count": 0
+        },
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "high",
+          "source": "https://openrouter.ai/inception/mercury-2; official page title: Mercury 2 - API Pricing & Benchmarks | OpenRouter; page body contained exact model ID; identity check only, existing capability/context/price provenance remains separate.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0
+        },
+        "terms": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "https://openrouter.ai/terms; §§5.1–5.2 require compliance with each model’s separate terms; model-specific upstream terms, serving route, entitlement and downstream rights have not been evaluated.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0,
+          "source_anchors": [
+            {
+              "supplier_id": "openrouter",
+              "model_id": "inception/mercury-2",
+              "url": "https://openrouter.ai/terms",
+              "anchor": "Terms §§5.1–5.2 plus the model-specific terms notice stated in the provenance source",
+              "document_date": "2026-08-31",
+              "observed_at": "2026-11-23",
+              "retrieval_status": "read_public_page",
+              "supports": "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; no model-specific upstream license conclusion is supplied here.",
+              "does_not_establish": "This source does not establish this exact model’s upstream license compatibility, Vrooli entitlement, account route availability, or downstream rights."
+            }
+          ]
         }
-      }
+      },
+      "caveats": [
+        "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; this record does not evaluate this model’s upstream terms, actual serving route, account entitlement, or downstream rights. Catalog identity does not establish these permissions."
+      ]
     },
     "google/gemini-3.1-flash-lite-preview": {
       "provider": "google",
@@ -765,8 +942,38 @@
           "source": "ChatGPT 2026-06-30 OpenRouter list-price survey",
           "observed_at": "2026-06-30",
           "sample_count": 0
+        },
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "high",
+          "source": "https://openrouter.ai/google/gemini-3.1-flash-lite-preview; official page title: Gemini 3.1 Flash Lite Preview - API Pricing & Benchmarks | OpenRouter; page body contained exact model ID; identity check only, existing capability/context/price provenance remains separate.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0
+        },
+        "terms": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "https://openrouter.ai/terms; §§5.1–5.2 require compliance with each model’s separate terms; model-specific upstream terms, serving route, entitlement and downstream rights have not been evaluated.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0,
+          "source_anchors": [
+            {
+              "supplier_id": "openrouter",
+              "model_id": "google/gemini-3.1-flash-lite-preview",
+              "url": "https://openrouter.ai/terms",
+              "anchor": "Terms §§5.1–5.2 plus the model-specific terms notice stated in the provenance source",
+              "document_date": "2026-08-31",
+              "observed_at": "2026-11-23",
+              "retrieval_status": "read_public_page",
+              "supports": "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; no model-specific upstream license conclusion is supplied here.",
+              "does_not_establish": "This source does not establish this exact model’s upstream license compatibility, Vrooli entitlement, account route availability, or downstream rights."
+            }
+          ]
         }
-      }
+      },
+      "caveats": [
+        "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; this record does not evaluate this model’s upstream terms, actual serving route, account entitlement, or downstream rights. Catalog identity does not establish these permissions."
+      ]
     },
     "minimax/minimax-m3": {
       "provider": "minimax",
@@ -815,8 +1022,38 @@
           "source": "ChatGPT 2026-06-30 OpenRouter list-price survey",
           "observed_at": "2026-06-30",
           "sample_count": 0
+        },
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "high",
+          "source": "https://openrouter.ai/minimax/minimax-m3; official page title: MiniMax M3 - API Pricing & Benchmarks | OpenRouter; page body contained exact model ID; identity check only, existing capability/context/price provenance remains separate.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0
+        },
+        "terms": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "https://openrouter.ai/terms; §§5.1–5.2 require compliance with each model’s separate terms; model-specific upstream terms, serving route, entitlement and downstream rights have not been evaluated.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0,
+          "source_anchors": [
+            {
+              "supplier_id": "openrouter",
+              "model_id": "minimax/minimax-m3",
+              "url": "https://openrouter.ai/terms",
+              "anchor": "Terms §§5.1–5.2 plus the model-specific terms notice stated in the provenance source",
+              "document_date": "2026-08-31",
+              "observed_at": "2026-11-23",
+              "retrieval_status": "read_public_page",
+              "supports": "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; no model-specific upstream license conclusion is supplied here.",
+              "does_not_establish": "This source does not establish this exact model’s upstream license compatibility, Vrooli entitlement, account route availability, or downstream rights."
+            }
+          ]
         }
-      }
+      },
+      "caveats": [
+        "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; this record does not evaluate this model’s upstream terms, actual serving route, account entitlement, or downstream rights. Catalog identity does not establish these permissions."
+      ]
     },
     "qwen/qwen3.7-plus": {
       "provider": "qwen",
@@ -856,8 +1093,38 @@
           "source": "ChatGPT 2026-06-30 OpenRouter list-price survey",
           "observed_at": "2026-06-30",
           "sample_count": 0
+        },
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "high",
+          "source": "https://openrouter.ai/qwen/qwen3.7-plus; official page title: Qwen3.7 Plus - API Pricing & Benchmarks | OpenRouter; page body contained exact model ID; identity check only, existing capability/context/price provenance remains separate.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0
+        },
+        "terms": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "https://openrouter.ai/terms; §§5.1–5.2 require compliance with each model’s separate terms; model-specific upstream terms, serving route, entitlement and downstream rights have not been evaluated.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0,
+          "source_anchors": [
+            {
+              "supplier_id": "openrouter",
+              "model_id": "qwen/qwen3.7-plus",
+              "url": "https://openrouter.ai/terms",
+              "anchor": "Terms §§5.1–5.2 plus the model-specific terms notice stated in the provenance source",
+              "document_date": "2026-08-31",
+              "observed_at": "2026-11-23",
+              "retrieval_status": "read_public_page",
+              "supports": "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; no model-specific upstream license conclusion is supplied here.",
+              "does_not_establish": "This source does not establish this exact model’s upstream license compatibility, Vrooli entitlement, account route availability, or downstream rights."
+            }
+          ]
         }
-      }
+      },
+      "caveats": [
+        "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; this record does not evaluate this model’s upstream terms, actual serving route, account entitlement, or downstream rights. Catalog identity does not establish these permissions."
+      ]
     },
     "z-ai/glm-5.2": {
       "provider": "z-ai",
@@ -896,8 +1163,38 @@
           "source": "ChatGPT 2026-06-30 OpenRouter list-price survey",
           "observed_at": "2026-06-30",
           "sample_count": 0
+        },
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "high",
+          "source": "https://openrouter.ai/z-ai/glm-5.2; official page title: GLM 5.2 - API Pricing & Benchmarks | OpenRouter; page body contained exact model ID; identity check only, existing capability/context/price provenance remains separate.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0
+        },
+        "terms": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "https://openrouter.ai/terms; §§5.1–5.2 require compliance with each model’s separate terms; model-specific upstream terms, serving route, entitlement and downstream rights have not been evaluated.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0,
+          "source_anchors": [
+            {
+              "supplier_id": "openrouter",
+              "model_id": "z-ai/glm-5.2",
+              "url": "https://openrouter.ai/terms",
+              "anchor": "Terms §§5.1–5.2 plus the model-specific terms notice stated in the provenance source",
+              "document_date": "2026-08-31",
+              "observed_at": "2026-11-23",
+              "retrieval_status": "read_public_page",
+              "supports": "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; no model-specific upstream license conclusion is supplied here.",
+              "does_not_establish": "This source does not establish this exact model’s upstream license compatibility, Vrooli entitlement, account route availability, or downstream rights."
+            }
+          ]
         }
-      }
+      },
+      "caveats": [
+        "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; this record does not evaluate this model’s upstream terms, actual serving route, account entitlement, or downstream rights. Catalog identity does not establish these permissions."
+      ]
     },
     "moonshotai/kimi-k2.7-code": {
       "provider": "moonshotai",
@@ -935,8 +1232,38 @@
           "source": "ChatGPT 2026-06-30 OpenRouter list-price survey; slug inferred from provider naming, verify via /models",
           "observed_at": "2026-06-30",
           "sample_count": 0
+        },
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "high",
+          "source": "https://openrouter.ai/moonshotai/kimi-k2.7-code; official page title: Kimi K2.7 Code - API Pricing & Benchmarks | OpenRouter; page body contained exact model ID; identity check only, existing capability/context/price provenance remains separate.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0
+        },
+        "terms": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "https://openrouter.ai/terms; §§5.1–5.2 require compliance with each model’s separate terms; model-specific upstream terms, serving route, entitlement and downstream rights have not been evaluated.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0,
+          "source_anchors": [
+            {
+              "supplier_id": "openrouter",
+              "model_id": "moonshotai/kimi-k2.7-code",
+              "url": "https://openrouter.ai/terms",
+              "anchor": "Terms §§5.1–5.2 plus the model-specific terms notice stated in the provenance source",
+              "document_date": "2026-08-31",
+              "observed_at": "2026-11-23",
+              "retrieval_status": "read_public_page",
+              "supports": "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; no model-specific upstream license conclusion is supplied here.",
+              "does_not_establish": "This source does not establish this exact model’s upstream license compatibility, Vrooli entitlement, account route availability, or downstream rights."
+            }
+          ]
         }
-      }
+      },
+      "caveats": [
+        "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; this record does not evaluate this model’s upstream terms, actual serving route, account entitlement, or downstream rights. Catalog identity does not establish these permissions."
+      ]
     },
     "anthropic/claude-haiku-4.5": {
       "provider": "anthropic",
@@ -977,8 +1304,38 @@
           "source": "ChatGPT 2026-06-30 OpenRouter list-price survey",
           "observed_at": "2026-06-30",
           "sample_count": 0
+        },
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "high",
+          "source": "https://openrouter.ai/anthropic/claude-haiku-4.5; official page title: Claude Haiku 4.5 - API Pricing & Benchmarks | OpenRouter; page body contained exact model ID; identity check only, existing capability/context/price provenance remains separate.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0
+        },
+        "terms": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "https://openrouter.ai/terms; §§5.1–5.2 require compliance with each model’s separate terms; model-specific upstream terms, serving route, entitlement and downstream rights have not been evaluated.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0,
+          "source_anchors": [
+            {
+              "supplier_id": "openrouter",
+              "model_id": "anthropic/claude-haiku-4.5",
+              "url": "https://openrouter.ai/terms",
+              "anchor": "Terms §§5.1–5.2 plus the model-specific terms notice stated in the provenance source",
+              "document_date": "2026-08-31",
+              "observed_at": "2026-11-23",
+              "retrieval_status": "read_public_page",
+              "supports": "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; no model-specific upstream license conclusion is supplied here.",
+              "does_not_establish": "This source does not establish this exact model’s upstream license compatibility, Vrooli entitlement, account route availability, or downstream rights."
+            }
+          ]
         }
-      }
+      },
+      "caveats": [
+        "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; this record does not evaluate this model’s upstream terms, actual serving route, account entitlement, or downstream rights. Catalog identity does not establish these permissions."
+      ]
     },
     "google/gemini-3.5-flash": {
       "provider": "google",
@@ -1020,8 +1377,38 @@
           "source": "ChatGPT 2026-06-30 OpenRouter list-price survey",
           "observed_at": "2026-06-30",
           "sample_count": 0
+        },
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "high",
+          "source": "https://openrouter.ai/google/gemini-3.5-flash; official page title: Gemini 3.5 Flash - API Pricing & Benchmarks | OpenRouter; page body contained exact model ID; identity check only, existing capability/context/price provenance remains separate.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0
+        },
+        "terms": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "https://openrouter.ai/terms; §§5.1–5.2 require compliance with each model’s separate terms; model-specific upstream terms, serving route, entitlement and downstream rights have not been evaluated.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0,
+          "source_anchors": [
+            {
+              "supplier_id": "openrouter",
+              "model_id": "google/gemini-3.5-flash",
+              "url": "https://openrouter.ai/terms",
+              "anchor": "Terms §§5.1–5.2 plus the model-specific terms notice stated in the provenance source",
+              "document_date": "2026-08-31",
+              "observed_at": "2026-11-23",
+              "retrieval_status": "read_public_page",
+              "supports": "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; no model-specific upstream license conclusion is supplied here.",
+              "does_not_establish": "This source does not establish this exact model’s upstream license compatibility, Vrooli entitlement, account route availability, or downstream rights."
+            }
+          ]
         }
-      }
+      },
+      "caveats": [
+        "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; this record does not evaluate this model’s upstream terms, actual serving route, account entitlement, or downstream rights. Catalog identity does not establish these permissions."
+      ]
     },
     "openai/gpt-5.4": {
       "provider": "openai",
@@ -1063,8 +1450,38 @@
           "source": "ChatGPT 2026-06-30 OpenRouter list-price survey",
           "observed_at": "2026-06-30",
           "sample_count": 0
+        },
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "high",
+          "source": "https://openrouter.ai/openai/gpt-5.4; official page title: GPT-5.4 - API Pricing & Benchmarks | OpenRouter; page body contained exact model ID; identity check only, existing capability/context/price provenance remains separate.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0
+        },
+        "terms": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "https://openrouter.ai/terms; §§5.1–5.2 require compliance with each model’s separate terms; model-specific upstream terms, serving route, entitlement and downstream rights have not been evaluated.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0,
+          "source_anchors": [
+            {
+              "supplier_id": "openrouter",
+              "model_id": "openai/gpt-5.4",
+              "url": "https://openrouter.ai/terms",
+              "anchor": "Terms §§5.1–5.2 plus the model-specific terms notice stated in the provenance source",
+              "document_date": "2026-08-31",
+              "observed_at": "2026-11-23",
+              "retrieval_status": "read_public_page",
+              "supports": "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; no model-specific upstream license conclusion is supplied here.",
+              "does_not_establish": "This source does not establish this exact model’s upstream license compatibility, Vrooli entitlement, account route availability, or downstream rights."
+            }
+          ]
         }
-      }
+      },
+      "caveats": [
+        "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; this record does not evaluate this model’s upstream terms, actual serving route, account entitlement, or downstream rights. Catalog identity does not establish these permissions."
+      ]
     },
     "openai/gpt-5.4-mini": {
       "provider": "openai",
@@ -1103,8 +1520,38 @@
           "source": "ChatGPT 2026-06-30 OpenRouter list-price survey",
           "observed_at": "2026-06-30",
           "sample_count": 0
+        },
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "high",
+          "source": "https://openrouter.ai/openai/gpt-5.4-mini; official page title: GPT-5.4 Mini - API Pricing & Benchmarks | OpenRouter; page body contained exact model ID; identity check only, existing capability/context/price provenance remains separate.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0
+        },
+        "terms": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "https://openrouter.ai/terms; §§5.1–5.2 require compliance with each model’s separate terms; model-specific upstream terms, serving route, entitlement and downstream rights have not been evaluated.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0,
+          "source_anchors": [
+            {
+              "supplier_id": "openrouter",
+              "model_id": "openai/gpt-5.4-mini",
+              "url": "https://openrouter.ai/terms",
+              "anchor": "Terms §§5.1–5.2 plus the model-specific terms notice stated in the provenance source",
+              "document_date": "2026-08-31",
+              "observed_at": "2026-11-23",
+              "retrieval_status": "read_public_page",
+              "supports": "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; no model-specific upstream license conclusion is supplied here.",
+              "does_not_establish": "This source does not establish this exact model’s upstream license compatibility, Vrooli entitlement, account route availability, or downstream rights."
+            }
+          ]
         }
-      }
+      },
+      "caveats": [
+        "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; this record does not evaluate this model’s upstream terms, actual serving route, account entitlement, or downstream rights. Catalog identity does not establish these permissions."
+      ]
     },
     "bytedance-seed/seedream-4.5": {
       "provider": "bytedance-seed",
@@ -1140,8 +1587,38 @@
           "source": "ChatGPT 2026-06-30 OpenRouter image-API survey",
           "observed_at": "2026-06-30",
           "sample_count": 0
+        },
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "high",
+          "source": "https://openrouter.ai/bytedance-seed/seedream-4.5; official page title: Seedream 4.5 - Image Generation API Pricing | OpenRouter; page body contained exact model ID; identity check only, existing capability/context/price provenance remains separate.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0
+        },
+        "terms": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "https://openrouter.ai/terms; §§5.1–5.2 require compliance with each model’s separate terms; model-specific upstream terms, serving route, entitlement and downstream rights have not been evaluated.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0,
+          "source_anchors": [
+            {
+              "supplier_id": "openrouter",
+              "model_id": "bytedance-seed/seedream-4.5",
+              "url": "https://openrouter.ai/terms",
+              "anchor": "Terms §§5.1–5.2 plus the model-specific terms notice stated in the provenance source",
+              "document_date": "2026-08-31",
+              "observed_at": "2026-11-23",
+              "retrieval_status": "read_public_page",
+              "supports": "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; no model-specific upstream license conclusion is supplied here.",
+              "does_not_establish": "This source does not establish this exact model’s upstream license compatibility, Vrooli entitlement, account route availability, or downstream rights."
+            }
+          ]
         }
-      }
+      },
+      "caveats": [
+        "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; this record does not evaluate this model’s upstream terms, actual serving route, account entitlement, or downstream rights. Catalog identity does not establish these permissions."
+      ]
     },
     "sourceful/riverflow-v2.5-fast": {
       "provider": "sourceful",
@@ -1178,8 +1655,38 @@
           "source": "ChatGPT 2026-06-30 OpenRouter image-API survey",
           "observed_at": "2026-06-30",
           "sample_count": 0
+        },
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "high",
+          "source": "https://openrouter.ai/sourceful/riverflow-v2.5-fast; official page title: Riverflow V2.5 Fast - Image Generation API Pricing | OpenRouter; page body contained exact model ID; identity check only, existing capability/context/price provenance remains separate.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0
+        },
+        "terms": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "https://openrouter.ai/terms; §§5.1–5.2 require compliance with each model’s separate terms; model-specific upstream terms, serving route, entitlement and downstream rights have not been evaluated.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0,
+          "source_anchors": [
+            {
+              "supplier_id": "openrouter",
+              "model_id": "sourceful/riverflow-v2.5-fast",
+              "url": "https://openrouter.ai/terms",
+              "anchor": "Terms §§5.1–5.2 plus the model-specific terms notice stated in the provenance source",
+              "document_date": "2026-08-31",
+              "observed_at": "2026-11-23",
+              "retrieval_status": "read_public_page",
+              "supports": "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; no model-specific upstream license conclusion is supplied here.",
+              "does_not_establish": "This source does not establish this exact model’s upstream license compatibility, Vrooli entitlement, account route availability, or downstream rights."
+            }
+          ]
         }
-      }
+      },
+      "caveats": [
+        "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; this record does not evaluate this model’s upstream terms, actual serving route, account entitlement, or downstream rights. Catalog identity does not establish these permissions."
+      ]
     },
     "sourceful/riverflow-v2.5-pro": {
       "provider": "sourceful",
@@ -1216,8 +1723,38 @@
           "source": "ChatGPT 2026-06-30 OpenRouter image-API survey",
           "observed_at": "2026-06-30",
           "sample_count": 0
+        },
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "high",
+          "source": "https://openrouter.ai/sourceful/riverflow-v2.5-pro; official page title: Riverflow V2.5 Pro - Image Generation API Pricing | OpenRouter; page body contained exact model ID; identity check only, existing capability/context/price provenance remains separate.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0
+        },
+        "terms": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "https://openrouter.ai/terms; §§5.1–5.2 require compliance with each model’s separate terms; model-specific upstream terms, serving route, entitlement and downstream rights have not been evaluated.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0,
+          "source_anchors": [
+            {
+              "supplier_id": "openrouter",
+              "model_id": "sourceful/riverflow-v2.5-pro",
+              "url": "https://openrouter.ai/terms",
+              "anchor": "Terms §§5.1–5.2 plus the model-specific terms notice stated in the provenance source",
+              "document_date": "2026-08-31",
+              "observed_at": "2026-11-23",
+              "retrieval_status": "read_public_page",
+              "supports": "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; no model-specific upstream license conclusion is supplied here.",
+              "does_not_establish": "This source does not establish this exact model’s upstream license compatibility, Vrooli entitlement, account route availability, or downstream rights."
+            }
+          ]
         }
-      }
+      },
+      "caveats": [
+        "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; this record does not evaluate this model’s upstream terms, actual serving route, account entitlement, or downstream rights. Catalog identity does not establish these permissions."
+      ]
     },
     "google/gemini-3.1-flash-image": {
       "provider": "google",
@@ -1255,8 +1792,38 @@
           "source": "ChatGPT 2026-06-30 OpenRouter image-API survey",
           "observed_at": "2026-06-30",
           "sample_count": 0
+        },
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "high",
+          "source": "https://openrouter.ai/google/gemini-3.1-flash-image; official page title: Nano Banana 2 (Gemini 3.1 Flash Image) - Image Generation API Pricing | OpenRouter; page body contained exact model ID; identity check only, existing capability/context/price provenance remains separate.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0
+        },
+        "terms": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "https://openrouter.ai/terms; §§5.1–5.2 require compliance with each model’s separate terms; model-specific upstream terms, serving route, entitlement and downstream rights have not been evaluated.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0,
+          "source_anchors": [
+            {
+              "supplier_id": "openrouter",
+              "model_id": "google/gemini-3.1-flash-image",
+              "url": "https://openrouter.ai/terms",
+              "anchor": "Terms §§5.1–5.2 plus the model-specific terms notice stated in the provenance source",
+              "document_date": "2026-08-31",
+              "observed_at": "2026-11-23",
+              "retrieval_status": "read_public_page",
+              "supports": "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; no model-specific upstream license conclusion is supplied here.",
+              "does_not_establish": "This source does not establish this exact model’s upstream license compatibility, Vrooli entitlement, account route availability, or downstream rights."
+            }
+          ]
         }
-      }
+      },
+      "caveats": [
+        "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; this record does not evaluate this model’s upstream terms, actual serving route, account entitlement, or downstream rights. Catalog identity does not establish these permissions."
+      ]
     },
     "recraft/recraft-v4.1-utility": {
       "provider": "recraft",
@@ -1289,8 +1856,38 @@
           "source": "ChatGPT 2026-06-30 OpenRouter image-API survey",
           "observed_at": "2026-06-30",
           "sample_count": 0
+        },
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "high",
+          "source": "https://openrouter.ai/recraft/recraft-v4.1-utility; official page title: Recraft V4.1 Utility - Image Generation API Pricing | OpenRouter; page body contained exact model ID; identity check only, existing capability/context/price provenance remains separate.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0
+        },
+        "terms": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "https://openrouter.ai/terms; §§5.1–5.2 require compliance with each model’s separate terms; model-specific upstream terms, serving route, entitlement and downstream rights have not been evaluated.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0,
+          "source_anchors": [
+            {
+              "supplier_id": "openrouter",
+              "model_id": "recraft/recraft-v4.1-utility",
+              "url": "https://openrouter.ai/terms",
+              "anchor": "Terms §§5.1–5.2 plus the model-specific terms notice stated in the provenance source",
+              "document_date": "2026-08-31",
+              "observed_at": "2026-11-23",
+              "retrieval_status": "read_public_page",
+              "supports": "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; no model-specific upstream license conclusion is supplied here.",
+              "does_not_establish": "This source does not establish this exact model’s upstream license compatibility, Vrooli entitlement, account route availability, or downstream rights."
+            }
+          ]
         }
-      }
+      },
+      "caveats": [
+        "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; this record does not evaluate this model’s upstream terms, actual serving route, account entitlement, or downstream rights. Catalog identity does not establish these permissions."
+      ]
     },
     "recraft/recraft-v4.1-vector": {
       "provider": "recraft",
@@ -1326,8 +1923,38 @@
           "source": "ChatGPT 2026-06-30 OpenRouter image-API survey",
           "observed_at": "2026-06-30",
           "sample_count": 0
+        },
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "high",
+          "source": "https://openrouter.ai/recraft/recraft-v4.1-vector; official page title: Recraft V4.1 Vector - Image Generation API Pricing | OpenRouter; page body contained exact model ID; identity check only, existing capability/context/price provenance remains separate.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0
+        },
+        "terms": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "https://openrouter.ai/terms; §§5.1–5.2 require compliance with each model’s separate terms; model-specific upstream terms, serving route, entitlement and downstream rights have not been evaluated.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0,
+          "source_anchors": [
+            {
+              "supplier_id": "openrouter",
+              "model_id": "recraft/recraft-v4.1-vector",
+              "url": "https://openrouter.ai/terms",
+              "anchor": "Terms §§5.1–5.2 plus the model-specific terms notice stated in the provenance source",
+              "document_date": "2026-08-31",
+              "observed_at": "2026-11-23",
+              "retrieval_status": "read_public_page",
+              "supports": "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; no model-specific upstream license conclusion is supplied here.",
+              "does_not_establish": "This source does not establish this exact model’s upstream license compatibility, Vrooli entitlement, account route availability, or downstream rights."
+            }
+          ]
         }
-      }
+      },
+      "caveats": [
+        "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; this record does not evaluate this model’s upstream terms, actual serving route, account entitlement, or downstream rights. Catalog identity does not establish these permissions."
+      ]
     },
     "recraft/recraft-v4.1-pro-vector": {
       "provider": "recraft",
@@ -1363,8 +1990,38 @@
           "source": "ChatGPT 2026-06-30 OpenRouter image-API survey",
           "observed_at": "2026-06-30",
           "sample_count": 0
+        },
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "high",
+          "source": "https://openrouter.ai/recraft/recraft-v4.1-pro-vector; official page title: Recraft V4.1 Pro Vector - Image Generation API Pricing | OpenRouter; page body contained exact model ID; identity check only, existing capability/context/price provenance remains separate.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0
+        },
+        "terms": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "https://openrouter.ai/terms; §§5.1–5.2 require compliance with each model’s separate terms; model-specific upstream terms, serving route, entitlement and downstream rights have not been evaluated.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0,
+          "source_anchors": [
+            {
+              "supplier_id": "openrouter",
+              "model_id": "recraft/recraft-v4.1-pro-vector",
+              "url": "https://openrouter.ai/terms",
+              "anchor": "Terms §§5.1–5.2 plus the model-specific terms notice stated in the provenance source",
+              "document_date": "2026-08-31",
+              "observed_at": "2026-11-23",
+              "retrieval_status": "read_public_page",
+              "supports": "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; no model-specific upstream license conclusion is supplied here.",
+              "does_not_establish": "This source does not establish this exact model’s upstream license compatibility, Vrooli entitlement, account route availability, or downstream rights."
+            }
+          ]
         }
-      }
+      },
+      "caveats": [
+        "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; this record does not evaluate this model’s upstream terms, actual serving route, account entitlement, or downstream rights. Catalog identity does not establish these permissions."
+      ]
     },
     "black-forest-labs/flux.2-klein": {
       "provider": "black-forest-labs",
@@ -1398,8 +2055,39 @@
           "source": "ChatGPT 2026-06-30 OpenRouter image-API survey; slug inferred, verify via /images/models",
           "observed_at": "2026-06-30",
           "sample_count": 0
+        },
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "low",
+          "source": "https://openrouter.ai/black-forest-labs/flux.2-klein; direct official model-page audit returned 404 on 2026-11-23. Do not infer this record maps to black-forest-labs/flux.2-klein-4b.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0
+        },
+        "terms": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "https://openrouter.ai/terms; §§5.1–5.2 require compliance with each model’s separate terms; model-specific upstream terms, serving route, entitlement and downstream rights have not been evaluated.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0,
+          "source_anchors": [
+            {
+              "supplier_id": "openrouter",
+              "model_id": "black-forest-labs/flux.2-klein",
+              "url": "https://openrouter.ai/terms",
+              "anchor": "Terms §§5.1–5.2 plus the model-specific terms notice stated in the provenance source",
+              "document_date": "2026-08-31",
+              "observed_at": "2026-11-23",
+              "retrieval_status": "read_public_page",
+              "supports": "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; no model-specific upstream license conclusion is supplied here.",
+              "does_not_establish": "This source does not establish this exact model’s upstream license compatibility, Vrooli entitlement, account route availability, or downstream rights."
+            }
+          ]
         }
-      }
+      },
+      "caveats": [
+        "The direct OpenRouter model page returned 404 on 2026-11-23; the current identity is unverified. Do not assume the distinct flux.2-klein-4b page is an alias or replacement.",
+        "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; this record does not evaluate this model’s upstream terms, actual serving route, account entitlement, or downstream rights. Catalog identity does not establish these permissions."
+      ]
     },
     "black-forest-labs/flux.2-max": {
       "provider": "black-forest-labs",
@@ -1436,8 +2124,38 @@
           "source": "ChatGPT 2026-06-30 OpenRouter image-API survey; slug inferred, verify via /images/models",
           "observed_at": "2026-06-30",
           "sample_count": 0
+        },
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "high",
+          "source": "https://openrouter.ai/black-forest-labs/flux.2-max; official page title: FLUX.2 Max - Image Generation API Pricing | OpenRouter; page body contained exact model ID; identity check only, existing capability/context/price provenance remains separate.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0
+        },
+        "terms": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "https://openrouter.ai/terms; §§5.1–5.2 require compliance with each model’s separate terms; model-specific upstream terms, serving route, entitlement and downstream rights have not been evaluated.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0,
+          "source_anchors": [
+            {
+              "supplier_id": "openrouter",
+              "model_id": "black-forest-labs/flux.2-max",
+              "url": "https://openrouter.ai/terms",
+              "anchor": "Terms §§5.1–5.2 plus the model-specific terms notice stated in the provenance source",
+              "document_date": "2026-08-31",
+              "observed_at": "2026-11-23",
+              "retrieval_status": "read_public_page",
+              "supports": "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; no model-specific upstream license conclusion is supplied here.",
+              "does_not_establish": "This source does not establish this exact model’s upstream license compatibility, Vrooli entitlement, account route availability, or downstream rights."
+            }
+          ]
         }
-      }
+      },
+      "caveats": [
+        "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; this record does not evaluate this model’s upstream terms, actual serving route, account entitlement, or downstream rights. Catalog identity does not establish these permissions."
+      ]
     },
     "google/gemini-3-pro-image": {
       "provider": "google",
@@ -1476,8 +2194,38 @@
           "source": "ChatGPT 2026-06-30 OpenRouter image-API survey",
           "observed_at": "2026-06-30",
           "sample_count": 0
+        },
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "high",
+          "source": "https://openrouter.ai/google/gemini-3-pro-image; official page title: Nano Banana Pro (Gemini 3 Pro Image) - Image Generation API Pricing | OpenRouter; page body contained exact model ID; identity check only, existing capability/context/price provenance remains separate.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0
+        },
+        "terms": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "https://openrouter.ai/terms; §§5.1–5.2 require compliance with each model’s separate terms; model-specific upstream terms, serving route, entitlement and downstream rights have not been evaluated.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0,
+          "source_anchors": [
+            {
+              "supplier_id": "openrouter",
+              "model_id": "google/gemini-3-pro-image",
+              "url": "https://openrouter.ai/terms",
+              "anchor": "Terms §§5.1–5.2 plus the model-specific terms notice stated in the provenance source",
+              "document_date": "2026-08-31",
+              "observed_at": "2026-11-23",
+              "retrieval_status": "read_public_page",
+              "supports": "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; no model-specific upstream license conclusion is supplied here.",
+              "does_not_establish": "This source does not establish this exact model’s upstream license compatibility, Vrooli entitlement, account route availability, or downstream rights."
+            }
+          ]
         }
-      }
+      },
+      "caveats": [
+        "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; this record does not evaluate this model’s upstream terms, actual serving route, account entitlement, or downstream rights. Catalog identity does not establish these permissions."
+      ]
     },
     "openai/gpt-5.4-image-2": {
       "provider": "openai",
@@ -1515,8 +2263,38 @@
           "source": "ChatGPT 2026-06-30 OpenRouter image-API survey; slug inferred, verify via /images/models",
           "observed_at": "2026-06-30",
           "sample_count": 0
+        },
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "high",
+          "source": "https://openrouter.ai/openai/gpt-5.4-image-2; official page title: GPT-5.4 Image 2 - Image Generation API Pricing | OpenRouter; page body contained exact model ID; identity check only, existing capability/context/price provenance remains separate.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0
+        },
+        "terms": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "https://openrouter.ai/terms; §§5.1–5.2 require compliance with each model’s separate terms; model-specific upstream terms, serving route, entitlement and downstream rights have not been evaluated.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0,
+          "source_anchors": [
+            {
+              "supplier_id": "openrouter",
+              "model_id": "openai/gpt-5.4-image-2",
+              "url": "https://openrouter.ai/terms",
+              "anchor": "Terms §§5.1–5.2 plus the model-specific terms notice stated in the provenance source",
+              "document_date": "2026-08-31",
+              "observed_at": "2026-11-23",
+              "retrieval_status": "read_public_page",
+              "supports": "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; no model-specific upstream license conclusion is supplied here.",
+              "does_not_establish": "This source does not establish this exact model’s upstream license compatibility, Vrooli entitlement, account route availability, or downstream rights."
+            }
+          ]
         }
-      }
+      },
+      "caveats": [
+        "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; this record does not evaluate this model’s upstream terms, actual serving route, account entitlement, or downstream rights. Catalog identity does not establish these permissions."
+      ]
     },
     "x-ai/grok-imagine-image-quality": {
       "provider": "x-ai",
@@ -1553,8 +2331,38 @@
           "source": "ChatGPT 2026-06-30 OpenRouter image-API survey; slug inferred, verify via /images/models",
           "observed_at": "2026-06-30",
           "sample_count": 0
+        },
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "high",
+          "source": "https://openrouter.ai/x-ai/grok-imagine-image-quality; official page title: Grok Imagine Image Quality - API Pricing & Benchmarks | OpenRouter; page body contained exact model ID; identity check only, existing capability/context/price provenance remains separate.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0
+        },
+        "terms": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "https://openrouter.ai/terms; §§5.1–5.2 require compliance with each model’s separate terms; model-specific upstream terms, serving route, entitlement and downstream rights have not been evaluated.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0,
+          "source_anchors": [
+            {
+              "supplier_id": "openrouter",
+              "model_id": "x-ai/grok-imagine-image-quality",
+              "url": "https://openrouter.ai/terms",
+              "anchor": "Terms §§5.1–5.2 plus the model-specific terms notice stated in the provenance source",
+              "document_date": "2026-08-31",
+              "observed_at": "2026-11-23",
+              "retrieval_status": "read_public_page",
+              "supports": "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; no model-specific upstream license conclusion is supplied here.",
+              "does_not_establish": "This source does not establish this exact model’s upstream license compatibility, Vrooli entitlement, account route availability, or downstream rights."
+            }
+          ]
         }
-      }
+      },
+      "caveats": [
+        "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; this record does not evaluate this model’s upstream terms, actual serving route, account entitlement, or downstream rights. Catalog identity does not establish these permissions."
+      ]
     },
     "xingchen-agi/xing4.0-29b-a4b:free": {
       "provider": "xingchen-agi",
@@ -1590,7 +2398,8 @@
         "Catalog price and endpoint availability are time-sensitive; runtime use requires spend-authorized generation with a hard zero micro-dollar ceiling, all current price classes present and zero, and all max_price classes set to zero.",
         "The candidate's exact serving endpoint must be pinned to Phala; requests must require ZDR, deny data collection, and disable fallbacks.",
         "The first hosted A request returned HTTP 429 rate_limited; the frozen attempt is terminal and must not be retried.",
-        "The upstream Hugging Face model card declares Apache-2.0 for model weights; this does not change OpenRouter or provider service terms."
+        "The upstream Hugging Face model card declares Apache-2.0 for model weights; this does not change OpenRouter or provider service terms.",
+        "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; this record does not evaluate this model’s upstream terms, actual serving route, account entitlement, or downstream rights. Catalog identity does not establish these permissions."
       ],
       "provenance": {
         "catalog": {
@@ -1599,6 +2408,33 @@
           "source": "OpenRouter live models API and model page checked 2026-10-28; free pricing, text modality, context length, and serving provider Phala observed. Runtime cost/privacy controls remain enforced by the spend-authorized owner path.",
           "observed_at": "2026-10-28",
           "sample_count": 0
+        },
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "high",
+          "source": "https://openrouter.ai/xingchen-agi/xing4.0-29b-a4b:free; official page title: Xing4.0 29B A4B - API Pricing & Providers | OpenRouter; page body contained exact model ID; identity check only, existing capability/context/price provenance remains separate.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0
+        },
+        "terms": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "https://openrouter.ai/terms; §§5.1–5.2 require compliance with each model’s separate terms; model-specific upstream terms, serving route, entitlement and downstream rights have not been evaluated.",
+          "observed_at": "2026-11-23",
+          "sample_count": 0,
+          "source_anchors": [
+            {
+              "supplier_id": "openrouter",
+              "model_id": "xingchen-agi/xing4.0-29b-a4b:free",
+              "url": "https://openrouter.ai/terms",
+              "anchor": "Terms §§5.1–5.2 plus the model-specific terms notice stated in the provenance source",
+              "document_date": "2026-08-31",
+              "observed_at": "2026-11-23",
+              "retrieval_status": "read_public_page",
+              "supports": "OpenRouter Terms §§5.1–5.2 require compliance with each model’s separate terms; no model-specific upstream license conclusion is supplied here.",
+              "does_not_establish": "This source does not establish this exact model’s upstream license compatibility, Vrooli entitlement, account route availability, or downstream rights."
+            }
+          ]
         }
       }
     }
@@ -1702,20 +2538,40 @@
           "use_classes": {
             "own_account": "allowed",
             "bounded_feature": "unverified",
-            "in_app": "unverified",
-            "harness_access": "needs_written_approval"
+            "in_app": "forbidden",
+            "harness_access": "forbidden"
           },
-          "reason": "Carried from the frozen agent-connect research; supplier and model terms require operator review before hosted activation."
+          "conditions": [
+            "OpenRouter Terms of Service §7 prohibits reselling API access to Models or using the Service to develop a competing service; the standard pay-as-you-go account is not a downstream resale grant.",
+            "Terms of Service §§5.1–5.2 require account users and customers to comply with each Model's separate terms and do not establish blanket downstream model rights.",
+            "The public Enterprise Access Agreement is a distinct conditional path; its template is not evidence of an executed Vrooli agreement or Order Form. Keep it in its separate human-review packet and do not make any route eligible from this standard-account rule."
+          ],
+          "clause": "Terms of Service §§5.1–5.2, 7",
+          "reason": "The current public standard terms prohibit resale of model API access and development of a competing service. The standard account therefore denies downstream in-app and harness access. Any Enterprise end-customer path requires a separate executed agreement, Order Form, model scope, trust review and human decision.",
+          "source_anchors": [
+            {
+              "url": "https://openrouter.ai/terms",
+              "anchor": "Terms of Service §§5.1–5.2, 7",
+              "document_date": "2026-08-31",
+              "observed_at": "2026-11-23",
+              "retrieval_status": "read_public_page",
+              "supports": "The current public standard terms prohibit resale of model API access and development of a competing service. The standard account therefore denies downstream in-app and harness access. Any Enterprise end-customer path requires a separate executed agreement, Order Form, model scope, trust review and human decision.",
+              "does_not_establish": "OpenRouter standard terms do not establish an executed Enterprise resale agreement, this account’s eligibility, any model’s upstream license, or route entitlement.",
+              "claim_ref": "pay_as_you_go",
+              "supplier_id": "openrouter"
+            }
+          ]
         }
       ],
       "evidence": {
         "url": "https://openrouter.ai/terms",
-        "read_at": "2026-10-31"
+        "document_date": "2026-08-31",
+        "read_at": "2026-11-23"
       },
       "review": {
         "status": "proposed"
       },
-      "effective_from": "2026-10-31",
+      "effective_from": "2026-08-31",
       "on_expiry": "deny"
     },
     "hosted_routes": []

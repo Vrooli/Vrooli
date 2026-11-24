@@ -37,6 +37,9 @@ func (r Runtime) Evaluate(event ToolEvent) (Decision, error) {
 	started := time.Now()
 	decision, err := r.evaluate(event)
 	decision.EvaluationDurationMS = time.Since(started).Milliseconds()
+	if err == nil {
+		r.recordStop(event, decision, started)
+	}
 	return decision, err
 }
 
@@ -53,11 +56,12 @@ func (r Runtime) evaluate(event ToolEvent) (Decision, error) {
 		return Decision{}, fmt.Errorf("unsupported rollout profile %q", profile)
 	}
 	risk := ClassifyToolEvent(event)
-	if hardStop := hardStopForEvent(event); hardStop != "" {
-		return r.hardStopDecision(event, risk, hardStop, now)
-	}
-	if hasOpaqueExecution(event) && r.relaxationMayBeActive(now) {
-		return r.hardStopDecision(event, risk, HardStopUnknownEffect, now)
+	if match := detectHardStop(event); match.Class != "" {
+		// A guard the operator relaxed, or one an approved grant covers, lets
+		// the event continue to the remaining checks (deletion, providers).
+		if decision, stopped := r.hardStopDecision(event, risk, match, now); stopped {
+			return decision, nil
+		}
 	}
 	if reasons := operatorOnlyReasons(event, r.operatorEnv(event)); len(reasons) > 0 {
 		return operatorOnlyDecision(event, reasons), nil
@@ -126,13 +130,6 @@ func (r Runtime) evaluateRemoval(event ToolEvent, now time.Time) Decision {
 	}
 	ctx := resolve(event.WorkingDirectory)
 	targets := removalTargetsFor(event, removalEnv{WorkingDirectory: ctx.WorkingDirectory, Home: ctx.Home, Lookup: ctx.Lookup})
-	var restored []RiskClass
-	var restoreErr error
-	if outsideRepositoryDeletion(ctx, targets) {
-		restored, restoreErr = r.restoreGuardModes(HardStopOutsideDelete, event, now)
-		// The filesystem floor still owns the deletion verdict and explanation.
-		// The portfolio tripwire only withdraws temporary log-only modes.
-	}
 	rules, approval, degraded := r.pathRules(event, now)
 	ctx.Rules, ctx.ApprovalCommand = rules, approval
 	if ctx.Created == nil && r.creationEnabled() {
@@ -150,14 +147,6 @@ func (r Runtime) evaluateRemoval(event ToolEvent, now time.Time) Decision {
 	if len(degraded) > 0 {
 		decision.Degraded = true
 		decision.Evidence = append(decision.Evidence, degraded...)
-	}
-	if outsideRepositoryDeletion(ctx, targets) {
-		decision.Evidence = append(decision.Evidence, tripwireEvidence(HardStopOutsideDelete, restored, restoreErr))
-		if restoreErr != nil {
-			decision.Degraded = true
-			decision.Action = ActionDeny
-			decision.Reason = "outside-repository deletion was denied because temporary check restoration could not be confirmed"
-		}
 	}
 	return decision
 }

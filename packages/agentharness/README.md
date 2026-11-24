@@ -18,8 +18,9 @@ keeps list/audit read-only. The Steward may call
 `GuardModeStore.SetLogOnlyFromAnswer(check, expiresAt, reason, actor, answerID)`
 only after reading and validating the exact answered structural ask from
 Notification Hub; the answer ID is persisted as authorization evidence. See
-`docs/architecture/agent-policy-runtime.md` §"Temporary check modes and
-tripwires" for check IDs, expiry, audit, and detection limits.
+`docs/architecture/agent-policy-runtime.md` §"Agent guards" for the four
+guards, their policy file (`hard_stops.json`), grants, log-only modes and the
+guard event log the steward reads.
 
 The package is intentionally not scenario-adoptable: resource runtimes and
 internal platform commands are its only declared consumers.

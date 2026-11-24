@@ -22,7 +22,7 @@ import {
   type FocusGroupOptions,
   type SpatialNavOptions,
 } from './spatialNav.js';
-import { emitShortcutIntent } from './iframeBridgeChild.js';
+import { emitShortcutIntent } from './shortcutIntent.js';
 // Activation overlay is available as a standalone export for scenarios that
 // want an explicit "press any button" prompt.  It is NOT wired into
 // initSpatialNav — see `showActivationOverlay` in './activationOverlay.js'.

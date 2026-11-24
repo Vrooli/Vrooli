@@ -16,6 +16,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 	"unsafe"
 )
@@ -33,8 +35,9 @@ type nativeSTTStream struct {
 	segmentStart      int64
 	lastText          string
 	closed            bool
+	finished          bool
 	maxSegmentSamples int64
-	finishTailSamples int
+	finishTailMS      int
 }
 
 func newStreamingEngineFromEnv() (StreamingSTT, error) {
@@ -50,16 +53,13 @@ func newStreamingEngineFromEnv() (StreamingSTT, error) {
 	if err != nil {
 		return nil, fmt.Errorf("resolve streaming model directory: %w", err)
 	}
-	path := func(name, fallback string) string {
-		if value := os.Getenv(name); value != "" {
-			return value
-		}
-		return filepath.Join(modelDir, fallback)
-	}
-	encoder := path("SHERPA_ONNX_STREAMING_ENCODER", "encoder-epoch-99-avg-1-chunk-16-left-128.onnx")
-	decoder := path("SHERPA_ONNX_STREAMING_DECODER", "decoder-epoch-99-avg-1-chunk-16-left-128.onnx")
-	joiner := path("SHERPA_ONNX_STREAMING_JOINER", "joiner-epoch-99-avg-1-chunk-16-left-128.onnx")
-	tokens := path("SHERPA_ONNX_STREAMING_TOKENS", "tokens.txt")
+	encoder := resolveStreamingModelFile(modelDir, os.Getenv("SHERPA_ONNX_STREAMING_ENCODER"),
+		"encoder-epoch-99-avg-1-chunk-16-left-128.onnx", "encoder-epoch-99-avg-1.int8.onnx", "encoder.onnx")
+	decoder := resolveStreamingModelFile(modelDir, os.Getenv("SHERPA_ONNX_STREAMING_DECODER"),
+		"decoder-epoch-99-avg-1-chunk-16-left-128.onnx", "decoder-epoch-99-avg-1.onnx", "decoder.onnx")
+	joiner := resolveStreamingModelFile(modelDir, os.Getenv("SHERPA_ONNX_STREAMING_JOINER"),
+		"joiner-epoch-99-avg-1-chunk-16-left-128.onnx", "joiner-epoch-99-avg-1.int8.onnx", "joiner.onnx")
+	tokens := resolveStreamingModelFile(modelDir, os.Getenv("SHERPA_ONNX_STREAMING_TOKENS"), "tokens.txt")
 	for label, value := range map[string]string{"encoder": encoder, "decoder": decoder, "joiner": joiner, "tokens": tokens} {
 		if _, err := os.Stat(value); err != nil {
 			return nil, fmt.Errorf("streaming %s %q is unavailable: %w", label, value, err)
@@ -72,7 +72,14 @@ func newStreamingEngineFromEnv() (StreamingSTT, error) {
 	tokensC := C.CString(tokens)
 	providerC := C.CString(envOr("SHERPA_ONNX_PROVIDER", "cpu"))
 	decodingC := C.CString(envOr("SHERPA_ONNX_STREAMING_DECODING", "greedy_search"))
-	modelTypeC := C.CString(envOr("SHERPA_ONNX_STREAMING_MODEL_TYPE", "zipformer2"))
+	modelType := envOr("SHERPA_ONNX_STREAMING_MODEL_TYPE", "zipformer2")
+	if modelType == "auto" {
+		// An empty model type lets sherpa-onnx infer the online transducer
+		// implementation from the model metadata. Some older Zipformer
+		// checkpoints predate the Zipformer2 metadata fields.
+		modelType = ""
+	}
+	modelTypeC := C.CString(modelType)
 	defer C.free(unsafe.Pointer(encoderC))
 	defer C.free(unsafe.Pointer(decoderC))
 	defer C.free(unsafe.Pointer(joinerC))
@@ -144,16 +151,28 @@ func (e *nativeStreamingEngine) NewStream() (STTStream, error) {
 		return nil, fmt.Errorf("sherpa-onnx failed to create streaming session")
 	}
 	maxSeconds := envInt("SHERPA_ONNX_STREAMING_MAX_SEGMENT_SECONDS", 15)
-	finishTailMS := envInt("SHERPA_ONNX_STREAMING_FINISH_TAIL_MS", 1200)
-	if finishTailMS > 5000 {
-		finishTailMS = 5000
-	}
+	finishTailMS := boundedFinishTailMS(envNonNegativeInt("SHERPA_ONNX_STREAMING_FINISH_TAIL_MS", defaultStreamingFinishTailMS))
 	return &nativeSTTStream{
 		engine:            e,
 		stream:            stream,
 		maxSegmentSamples: int64(maxSeconds) * streamingSampleRate,
-		finishTailSamples: finishTailMS * streamingSampleRate / 1000,
+		finishTailMS:      finishTailMS,
 	}, nil
+}
+
+// envNonNegativeInt differs from envInt because zero is meaningful for the
+// finish tail: it disables synthetic padding and is useful for controlled
+// regression comparisons. Most runtime tuning values must stay positive.
+func envNonNegativeInt(name string, fallback int) int {
+	value := strings.TrimSpace(os.Getenv(name))
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil || parsed < 0 {
+		return fallback
+	}
+	return parsed
 }
 
 func (e *nativeStreamingEngine) Close() {
@@ -185,9 +204,6 @@ func (e *nativeStreamingEngine) punctuate(text string) (string, error) {
 }
 
 func (s *nativeSTTStream) AcceptPCM(pcm []byte) ([]STTEvent, error) {
-	if s.closed {
-		return nil, fmt.Errorf("streaming session is closed")
-	}
 	if len(pcm)%2 != 0 {
 		return nil, fmt.Errorf("PCM frame has odd byte length")
 	}
@@ -200,6 +216,12 @@ func (s *nativeSTTStream) AcceptPCM(pcm []byte) ([]STTEvent, error) {
 	}
 	s.engine.mu.Lock()
 	defer s.engine.mu.Unlock()
+	if s.closed {
+		return nil, fmt.Errorf("streaming session is closed")
+	}
+	if s.finished {
+		return nil, fmt.Errorf("streaming session is already finished")
+	}
 	if s.engine.recognizer == nil || s.stream == nil {
 		return nil, fmt.Errorf("streaming recognizer is closed")
 	}
@@ -209,23 +231,24 @@ func (s *nativeSTTStream) AcceptPCM(pcm []byte) ([]STTEvent, error) {
 }
 
 func (s *nativeSTTStream) Finish() ([]STTEvent, error) {
-	if s.closed {
-		return nil, nil
-	}
 	s.engine.mu.Lock()
 	defer s.engine.mu.Unlock()
+	if s.closed || s.finished {
+		return nil, nil
+	}
 	if s.engine.recognizer == nil || s.stream == nil {
 		return nil, fmt.Errorf("streaming recognizer is closed")
 	}
 	// Online decoders can drop the last words when the client ends directly
-	// after speech. Feed a short silent tail before InputFinished so the
+	// after speech. Feed a bounded silent tail before InputFinished so the
 	// decoder can settle its final tokens. Synthetic samples do not advance
 	// totalSamples, so returned transcript timestamps remain in client time.
-	if s.finishTailSamples > 0 {
-		tail := make([]float32, s.finishTailSamples)
+	finishOnlineInput(s.finishTailMS, streamingSampleRate, func(tail []float32) {
 		C.SherpaOnnxOnlineStreamAcceptWaveform(s.stream, C.int32_t(streamingSampleRate), (*C.float)(unsafe.Pointer(&tail[0])), C.int32_t(len(tail)))
-	}
-	C.SherpaOnnxOnlineStreamInputFinished(s.stream)
+	}, func() {
+		C.SherpaOnnxOnlineStreamInputFinished(s.stream)
+	})
+	s.finished = true
 	return s.collectLocked(true)
 }
 
@@ -271,11 +294,11 @@ func (s *nativeSTTStream) resetLocked() {
 }
 
 func (s *nativeSTTStream) Close() {
+	s.engine.mu.Lock()
+	defer s.engine.mu.Unlock()
 	if s.closed {
 		return
 	}
-	s.engine.mu.Lock()
-	defer s.engine.mu.Unlock()
 	if s.stream != nil {
 		C.SherpaOnnxDestroyOnlineStream(s.stream)
 		s.stream = nil

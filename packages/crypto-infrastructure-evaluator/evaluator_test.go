@@ -185,6 +185,50 @@ func TestSeededDeploymentSuiteRunsReproducibleLinkageAttacks(t *testing.T) {
 	}
 }
 
+func TestSeededSuiteSkipsUntimedOccurrencesAndReportsCoverageGap(t *testing.T) {
+	c, err := chainforensics.ExampleCase()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.Occurrences) < 2 {
+		t.Fatal("fixture needs at least two occurrences to test timestamp selection")
+	}
+	c.Occurrences[0].Timestamp = ""
+	deployments, err := SeededDeployments(c)
+	if err != nil {
+		t.Fatalf("seed using a later timestamped occurrence: %v", err)
+	}
+	if deployments[0].Attacks[0].TimeWindow.StartUTC == "" {
+		t.Fatal("seeded attack used an occurrence with no UTC timestamp")
+	}
+	r, err := EvaluateDeployment(c, deployments[0])
+	if err != nil {
+		t.Fatalf("evaluate packet with an untimed occurrence: %v", err)
+	}
+	attack := r.Attacks[0]
+	if attack.UnverifiableOccurrenceCount == 0 || !strings.Contains(attack.ResidualUncertainty, "excluded from this bounded window") {
+		t.Fatalf("untimed occurrence was not reported as excluded evidence: %+v", attack)
+	}
+	for _, id := range attack.MatchedOccurrences {
+		if id == c.Occurrences[0].ID {
+			t.Fatalf("untimed occurrence %q contributed a match", id)
+		}
+	}
+}
+
+func TestSeededDeploymentsRequiresAtLeastOneTimestampedOccurrence(t *testing.T) {
+	c, err := chainforensics.ExampleCase()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range c.Occurrences {
+		c.Occurrences[i].Timestamp = ""
+	}
+	if _, err := SeededDeployments(c); err == nil || !strings.Contains(err.Error(), "valid UTC timestamp") {
+		t.Fatalf("expected explicit timestamp requirement, got %v", err)
+	}
+}
+
 func TestEvaluateDeploymentFailsClosedOnMissingLayerAndAttackContext(t *testing.T) {
 	c, err := chainforensics.ExampleCase()
 	if err != nil {

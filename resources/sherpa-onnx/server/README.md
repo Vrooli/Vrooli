@@ -58,3 +58,22 @@ contract. The Zipformer model is English-only and is configured through
 `SHERPA_ONNX_STREAMING_MODEL_DIR`; its checksum-pinned data artifact is declared
 in the parent resource manifest. Final segments pass through the separately
 declared sherpa punctuation model, which restores punctuation and casing.
+The runtime admits at most four concurrent streaming sessions by default;
+`SHERPA_ONNX_STREAMING_MAX_SESSIONS` can set a value from 1 to 64. Excess
+connections receive a WebSocket error before a decoder session is allocated.
+
+When running the optional native model smoke tests, set
+`SHERPA_ONNX_STREAMING_MODEL_DIR`, `SHERPA_ONNX_STREAMING_TEST_WAV`, and
+`SHERPA_ONNX_STREAMING_EXPECT_FINAL_SUFFIX`. The last value must contain the
+expected final words of the fixture; the model and WebSocket smoke tests both
+assert it, so a transcript that recognizes the start but drops its tail cannot
+pass qualification. For the Kroko 2025 JFK fixture, the suffix is
+`your country.`. The native implementation feeds a bounded silence tail before
+marking input finished (default 1200 ms, configurable with
+`SHERPA_ONNX_STREAMING_FINISH_TAIL_MS`) to allow the online decoder to emit
+words whose acoustic evidence arrived at end-of-input. Set
+`SHERPA_ONNX_STREAMING_PACE_MS=100` to deliver each 3200-byte PCM packet on a
+100 ms cadence and report first-text wall time alongside the captured-audio
+boundary. Leave it unset for the faster-than-realtime smoke. This is native
+adapter timing evidence; it does not replace browser product-path latency or
+corpus qualification.

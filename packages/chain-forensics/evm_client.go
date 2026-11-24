@@ -12,14 +12,15 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 )
 
-const DefaultEthereumRPC = "https://ethereum-rpc.publicnode.com"
-const DefaultBaseRPC = "https://mainnet.base.org"
-const DefaultArbitrumRPC = "https://arb1.arbitrum.io/rpc"
+const (
+	DefaultEthereumRPC = "https://ethereum-rpc.publicnode.com"
+	DefaultBaseRPC     = "https://mainnet.base.org"
+	DefaultArbitrumRPC = "https://arb1.arbitrum.io/rpc"
+)
 
 type CapturedEVMTransaction struct {
 	Chain           Chain
@@ -33,6 +34,16 @@ type CapturedEVMTransaction struct {
 	RetrievedAt     time.Time
 }
 
+var sharedEVMTransactionCache = NewWeightedCaptureCache(256, defaultCaptureCacheMaxBytes, cloneCapturedEVM, evmTransactionCacheWeight)
+
+func evmTransactionCacheWeight(captured CapturedEVMTransaction) int64 {
+	weight := int64(len(captured.Logs)+len(captured.Occurrences)) * 512
+	for _, source := range captured.Sources {
+		weight += int64(len(source.ResultBody) + len(source.RawResponseBody))
+	}
+	return weight
+}
+
 // EVMRPCClient reads one transaction receipt and its containing block from a
 // caller-configured public JSON-RPC endpoint. It never submits a transaction.
 // Cache entries expire quickly because a recent receipt can be reorganized.
@@ -42,10 +53,7 @@ type EVMRPCClient struct {
 	now       func() time.Time
 	interval  time.Duration
 	cacheTTL  time.Duration
-	gate      sync.Mutex
-	last      time.Time
-	cacheMu   sync.Mutex
-	cache     map[string]CapturedEVMTransaction
+	cache     *CaptureCache[CapturedEVMTransaction]
 	requestID atomic.Uint64
 }
 
@@ -60,7 +68,7 @@ func NewEVMRPCClient(endpoint string, client *http.Client, now func() time.Time)
 	if now == nil {
 		now = time.Now
 	}
-	return &EVMRPCClient{endpoint: strings.TrimRight(endpoint, "/"), http: client, now: now, interval: 250 * time.Millisecond, cacheTTL: 30 * time.Second, cache: make(map[string]CapturedEVMTransaction)}, nil
+	return &EVMRPCClient{endpoint: strings.TrimRight(endpoint, "/"), http: client, now: now, interval: 250 * time.Millisecond, cacheTTL: 30 * time.Second, cache: sharedEVMTransactionCache}, nil
 }
 
 func (c *EVMRPCClient) FetchERC20Transfers(ctx context.Context, chain Chain, txHash string) (CapturedEVMTransaction, error) {
@@ -71,12 +79,9 @@ func (c *EVMRPCClient) FetchERC20Transfers(ctx context.Context, chain Chain, txH
 		return CapturedEVMTransaction{}, errors.New("transaction hash must be a 32-byte 0x-prefixed hash")
 	}
 	txHash = strings.ToLower(txHash)
-	key := string(chain) + ":" + txHash
-	c.cacheMu.Lock()
-	cached, ok := c.cache[key]
-	c.cacheMu.Unlock()
-	if ok && c.now().Before(cached.RetrievedAt.Add(c.cacheTTL)) {
-		return cloneCapturedEVM(cached), nil
+	key := c.endpoint + "|" + string(chain) + "|" + txHash
+	if cached, ok := c.cache.Get(key, c.now()); ok {
+		return cached, nil
 	}
 	receiptBody, receiptResponse, err := c.callCaptured(ctx, "eth_getTransactionReceipt", []any{txHash})
 	if err != nil {
@@ -169,24 +174,8 @@ func (c *EVMRPCClient) FetchERC20Transfers(ctx context.Context, chain Chain, txH
 		sources = append(sources, *txSource)
 	}
 	result := CapturedEVMTransaction{Chain: chain, TransactionHash: txHash, BlockHash: strings.ToLower(receipt.BlockHash), BlockNumber: blockNum, BlockTimestamp: timestamp, Logs: receipt.Logs, Occurrences: occ, Sources: sources, RetrievedAt: retrieved}
-	c.cacheMu.Lock()
-	for existingKey, existing := range c.cache {
-		if !c.now().Before(existing.RetrievedAt.Add(c.cacheTTL)) {
-			delete(c.cache, existingKey)
-		}
-	}
-	if len(c.cache) >= 256 {
-		var oldestKey string
-		var oldest time.Time
-		for existingKey, existing := range c.cache {
-			if oldest.IsZero() || existing.RetrievedAt.Before(oldest) {
-				oldestKey, oldest = existingKey, existing.RetrievedAt
-			}
-		}
-		delete(c.cache, oldestKey)
-	}
-	c.cache[key] = cloneCapturedEVM(result)
-	c.cacheMu.Unlock()
+	now := c.now()
+	c.cache.Put(key, result, now.Add(c.cacheTTL), now)
 	return result, nil
 }
 
@@ -196,20 +185,6 @@ func (c *EVMRPCClient) call(ctx context.Context, method string, params []any) ([
 }
 
 func (c *EVMRPCClient) callCaptured(ctx context.Context, method string, params []any) ([]byte, []byte, error) {
-	c.gate.Lock()
-	defer c.gate.Unlock()
-	if !c.last.IsZero() {
-		wait := time.Until(c.last.Add(c.interval))
-		if wait > 0 {
-			timer := time.NewTimer(wait)
-			defer timer.Stop()
-			select {
-			case <-ctx.Done():
-				return nil, nil, ctx.Err()
-			case <-timer.C:
-			}
-		}
-	}
 	id := c.requestID.Add(1)
 	body, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": id, "method": method, "params": params})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.endpoint, bytes.NewReader(body))
@@ -219,14 +194,22 @@ func (c *EVMRPCClient) callCaptured(ctx context.Context, method string, params [
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "Vrooli-Chain-Forensics/0.1")
-	c.last = c.now()
+	release, err := sharedEndpointRateLimiter.Acquire(ctx, c.endpoint, c.interval)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer release()
 	resp, err := c.http.Do(req)
 	if err != nil {
 		return nil, nil, fmt.Errorf("EVM RPC %s: %w", method, err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, nil, &ProviderError{StatusCode: resp.StatusCode, RetryAfter: parseRetryAfter(resp.Header.Get("Retry-After"), c.now())}
+		retryAfter := parseRetryAfter(resp.Header.Get("Retry-After"), c.now())
+		if retryAfter > 0 {
+			sharedEndpointRateLimiter.DeferUntil(c.endpoint, c.now().Add(retryAfter))
+		}
+		return nil, nil, &ProviderError{StatusCode: resp.StatusCode, RetryAfter: retryAfter}
 	}
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 	if err != nil {
@@ -268,6 +251,7 @@ func sourceForBody(id, name, endpoint, method string, at time.Time, body []byte,
 	}
 	return source
 }
+
 func cloneCapturedEVM(in CapturedEVMTransaction) CapturedEVMTransaction {
 	in.Logs = append([]EVMLog(nil), in.Logs...)
 	in.Occurrences = append([]Occurrence(nil), in.Occurrences...)

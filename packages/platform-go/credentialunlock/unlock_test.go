@@ -3,12 +3,14 @@
 package credentialunlock
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"net"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -32,7 +34,11 @@ func serve(t *testing.T, socket string, value []byte) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	go func() { _ = Serve(ctx, listener, func() ([]byte, bool) { return value, len(value) > 0 }) }()
+	go func() {
+		_ = Serve(ctx, listener, func() ([]byte, bool) {
+			return append([]byte(nil), value...), len(value) > 0
+		})
+	}()
 }
 
 // TestTheAgentHandsTheStorePassphraseToItsOwnUser is the reboot path: the
@@ -58,6 +64,58 @@ func TestAnAgentThatHoldsNothingYetIsUnavailable(t *testing.T) {
 	_, err := RequestPassphrase(context.Background(), socket)
 	if !errors.Is(err, ErrUnavailable) || !strings.Contains(err.Error(), "not delivered") {
 		t.Fatalf("err = %v, want unavailable naming the missing delivery", err)
+	}
+}
+
+func TestUnlockRecoversAfterDelayedDeliveryWithoutChangingProviderValue(t *testing.T) {
+	socket := shortSocket(t)
+	listener, err := Listen(socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	// Synthetic test-only bytes model the passphrase retained by the agent.
+	// The callback returns a fresh buffer because Serve owns and clears it.
+	retained := []byte("synthetic-node-store-passphrase")
+	var mu sync.Mutex
+	delivered := false
+	go func() {
+		_ = Serve(ctx, listener, func() ([]byte, bool) {
+			mu.Lock()
+			defer mu.Unlock()
+			if !delivered {
+				return nil, false
+			}
+			return append([]byte(nil), retained...), true
+		})
+	}()
+
+	if _, err := RequestPassphrase(context.Background(), socket); !errors.Is(err, ErrUnavailable) || !strings.Contains(err.Error(), "not delivered") {
+		t.Fatalf("before delivery RequestPassphrase error = %v, want unavailable", err)
+	}
+	if !bytes.Equal(retained, []byte("synthetic-node-store-passphrase")) {
+		t.Fatal("provider's retained value changed after an unavailable reply")
+	}
+
+	mu.Lock()
+	delivered = true
+	mu.Unlock()
+	got, err := RequestPassphrase(context.Background(), socket)
+	if err != nil || got != string(retained) {
+		t.Fatalf("after delivery RequestPassphrase() failed to recover: error=%v", err)
+	}
+	if !bytes.Equal(retained, []byte("synthetic-node-store-passphrase")) {
+		t.Fatal("serving the value changed the provider's retained value")
+	}
+}
+
+func TestZeroSecretClearsTheOwnedResponseBuffer(t *testing.T) {
+	value := []byte("synthetic-only-response-copy")
+	zeroSecret(value)
+	if !bytes.Equal(value, make([]byte, len(value))) {
+		t.Fatal("zeroSecret left bytes in the per-request response buffer")
 	}
 }
 

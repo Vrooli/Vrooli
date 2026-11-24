@@ -3,6 +3,8 @@ import { AlertTriangle, ArrowLeft, Check, FileText, FolderOpen, Loader2, Maximiz
 import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
 import { FilePath } from "@vrooli/react-component-library/FilePath/1";
+import { WorkspaceHeader } from "@vrooli/react-component-library/WorkspaceHeader/1";
+import { Button } from "@vrooli/react-component-library/Button/2";
 
 import { useFileViewerText } from "../i18n/context.js";
 import { strings } from "../i18n/strings.js";
@@ -44,6 +46,8 @@ export interface FileViewerProps {
   onFocus?: () => void;
   onRestore?: () => void;
   onResizeStart?: (event: PointerEvent<HTMLDivElement>) => void;
+  resizeValue?: { min: number; max: number; now: number };
+  onResizeByKeyboard?: (width: number) => void;
   /** Show the resolved path under the title. Default true. */
   showPath?: boolean;
 }
@@ -60,6 +64,8 @@ export function FileViewer({
   onFocus,
   onRestore,
   onResizeStart,
+  resizeValue,
+  onResizeByKeyboard,
   showPath = true,
 }: FileViewerProps) {
   const {
@@ -108,6 +114,7 @@ export function FileViewer({
 
   const listingRefreshing = status === "loadingListing" && Boolean(listing);
   const isLoading = status === "resolving" || status === "loadingText" || (status === "loadingListing" && !listingRefreshing);
+  const paneState = !open ? "closed" : status === "error" ? "error" : isLoading ? "loading" : status === "choosing" ? "blocked" : status === "unsupported" ? "unsupported" : "ready";
   const Renderer = model ? rendererForKind(model.kind) : null;
   const canGoBack = stack.length > 0;
 
@@ -179,9 +186,9 @@ export function FileViewer({
             <p>{error}</p>
             {requestedPath && <p className="mt-2 break-all text-xs text-red-200/80">{t(strings.viewer.requestedPrefix, { path: requestedPath })}</p>}
             <div className="mt-3 flex flex-wrap gap-2">
-              {requestedPath && <button type="button" onClick={onReopen} data-testid="file-preview-reopen" className="inline-flex items-center gap-1.5 rounded-lg border border-red-400/40 bg-red-500/10 px-2.5 py-1.5 text-xs font-medium text-red-200 transition hover:bg-red-500/20"><RotateCw className="h-3.5 w-3.5" />{t(strings.viewer.reopen)}</button>}
+              {requestedPath && <Button type="button" variant="secondary" onClick={onReopen} data-testid="file-preview-reopen"><RotateCw className="h-3.5 w-3.5" />{t(strings.viewer.reopen)}</Button>}
               {model?.canDownload && model.blobHref && <a href={model.blobHref} download={model.basename} data-testid="file-preview-error-download" className="inline-flex min-h-11 items-center rounded-lg border border-red-400/40 px-3 text-xs font-medium text-red-200">{t(strings.viewer.download)}</a>}
-              {canGoBack && <button type="button" onClick={onNavigateBack} data-testid="file-preview-error-back" className="inline-flex items-center gap-1.5 rounded-lg border border-red-400/40 bg-red-500/10 px-2.5 py-1.5 text-xs font-medium text-red-200 transition hover:bg-red-500/20"><ArrowLeft className="h-3.5 w-3.5" />{t(strings.viewer.directoryBack)}</button>}
+              {canGoBack && <Button type="button" variant="secondary" onClick={onNavigateBack} data-testid="file-preview-error-back"><ArrowLeft className="h-3.5 w-3.5" />{t(strings.viewer.directoryBack)}</Button>}
             </div>
           </div>
         </div>
@@ -195,14 +202,14 @@ export function FileViewer({
             <ul className="flex flex-col gap-2">
               {(state.candidates ?? []).map((candidate) => (
                 <li key={candidate.resolvedPath}>
-                  <button type="button" onClick={() => onChooseCandidate?.(candidate.resolvedPath)} data-testid="file-preview-candidate"
-                    className="flex w-full min-w-0 items-center gap-2 rounded-lg border border-fv-default bg-fv-surface-input px-3 py-2 text-start transition hover:bg-fv-surface-raised">
+                  <Button type="button" variant="secondary" onClick={() => onChooseCandidate?.(candidate.resolvedPath)} data-testid="file-preview-candidate"
+                    className="flex h-auto w-full min-w-0 items-center justify-start gap-2 whitespace-normal text-start">
                     <FileText className="h-4 w-4 shrink-0 text-fv-text-muted" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-fv-text-primary" dir="auto">{candidate.resolvedPath}</span>
                       <span className="block text-xs text-fv-text-muted">{basisLabel(candidate.resolutionBasis)}</span>
                     </span>
-                  </button>
+                  </Button>
                 </li>
               ))}
             </ul>
@@ -217,11 +224,11 @@ export function FileViewer({
               {state.search.foundPath ? <>
                 <Check className="h-4 w-4 shrink-0 text-green-400" />
                 <span className="min-w-0 flex-1 truncate text-fv-text-primary" dir="auto"><span className="font-medium">{state.search.relPath}</span> {t(strings.viewer.searchFound)}</span>
-                <button type="button" onClick={onOpenFoundMatch} data-testid="file-preview-open-found" className="shrink-0 rounded-lg bg-fv-accent px-2.5 py-1 font-medium text-white">{t(strings.viewer.searchOpen)}</button>
+                <Button type="button" onClick={onOpenFoundMatch} data-testid="file-preview-open-found" className="shrink-0">{t(strings.viewer.searchOpen)}</Button>
               </> : <>
                 <Search className="h-4 w-4 shrink-0 text-fv-text-muted" />
                 <span className="min-w-0 flex-1 truncate text-fv-text-muted" dir="auto">{t(strings.viewer.searchBrowse)} <span className="font-medium text-fv-text-secondary">{state.search.relPath}</span></span>
-                <button type="button" onClick={onCancelSearch} data-testid="file-preview-cancel-search" className="shrink-0 rounded-lg border border-fv-default px-2.5 py-1 text-fv-text-secondary">{t(strings.viewer.searchDismiss)}</button>
+                <Button type="button" variant="secondary" onClick={onCancelSearch} data-testid="file-preview-cancel-search" className="shrink-0">{t(strings.viewer.searchDismiss)}</Button>
               </>}
             </div>
           )}
@@ -238,18 +245,40 @@ export function FileViewer({
   if (presentation === "dock") {
     return (
       <aside data-testid="file-preview-dock" data-focus-mode={focusMode ? "true" : "false"} className="relative flex h-full min-h-0 min-w-0 flex-col border-s border-fv-default bg-fv-surface-base">
-        <div role="separator" aria-orientation="vertical" aria-label={t(strings.viewer.resizeViewer)} onPointerDown={onResizeStart} className="absolute -start-1 top-0 z-10 h-full w-2 cursor-col-resize touch-none hover:bg-fv-accent/40" />
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label={t(strings.viewer.resizeViewer)}
+          aria-valuemin={resizeValue?.min}
+          aria-valuemax={resizeValue?.max}
+          aria-valuenow={resizeValue?.now}
+          aria-valuetext={resizeValue ? `${resizeValue.now}px` : undefined}
+          tabIndex={!focusMode && resizeValue && onResizeByKeyboard ? 0 : -1}
+          aria-disabled={focusMode || !resizeValue || !onResizeByKeyboard}
+          onPointerDown={onResizeStart}
+          onKeyDown={(event) => {
+            if (focusMode || !resizeValue || !onResizeByKeyboard) return;
+            const direction = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1
+              : event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 0;
+            if (!direction) return;
+            event.preventDefault();
+            const step = event.shiftKey ? 96 : 24;
+            const width = Math.min(resizeValue.max, Math.max(resizeValue.min, resizeValue.now + direction * step));
+            if (width !== resizeValue.now) onResizeByKeyboard(width);
+          }}
+          className="absolute -start-1 top-0 z-10 h-full w-2 cursor-col-resize touch-none hover:bg-fv-accent/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-fv-accent"
+        />
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="shrink-0 border-b border-fv-default px-3 py-2">
+          <WorkspaceHeader as="div" title={titleEl} primaryAction={<span aria-label={`File preview state: ${paneState}`} className="rounded-full border border-fv-default px-2 py-1 text-xs text-fv-text-muted">{paneState}</span>}>
             <div className="flex min-w-0 items-start justify-between gap-2">
-              <div className="min-w-0 flex-1"><div className="text-sm font-semibold text-fv-text-primary">{titleEl}</div>{headerExtra}</div>
+              <div className="min-w-0 flex-1">{headerExtra}</div>
               <div className="flex shrink-0 items-center gap-1">{headerActions}
                 <IconButton onClick={focusMode ? onRestore : onFocus} data-testid="file-preview-focus-toggle" aria-label={focusMode ? t(strings.viewer.restoreSplit) : t(strings.viewer.focusViewer)} title={focusMode ? t(strings.viewer.restoreSplit) : t(strings.viewer.focusViewer)} surface="soft" shape="rounded" className="shrink-0">{focusMode ? <Minimize2 /> : <Maximize2 />}</IconButton>
                 <IconButton onClick={onClose} data-testid="file-preview-dock-close" aria-label={t(strings.viewer.closeAriaLabel)} surface="soft" shape="rounded" className="shrink-0">×</IconButton>
               </div>
             </div>
-          </div>
-          {navigation}
+            {navigation}
+          </WorkspaceHeader>
           <div className="min-h-0 flex-1 overflow-hidden">{content}</div>
           {footer && <div className="shrink-0 border-t border-fv-default">{footer}</div>}
         </div>
@@ -297,7 +326,7 @@ export function PreviewBreadcrumbs({ crumbs, onNavigate }: { crumbs: PathCrumb[]
     {crumbs.map((crumb, index) => <span key={crumb.path} className="flex shrink-0 items-center gap-0.5">
       {index > 0 && <span aria-hidden="true" className="text-fv-text-faint">/</span>}
       {index === crumbs.length - 1 ? <span ref={current} aria-current="location" className="px-2 font-medium text-fv-text-primary" dir="auto">{crumb.label}</span> :
-        <button type="button" onClick={() => { onNavigate(crumb.path); }} className="min-h-11 rounded px-2 outline-none hover:bg-fv-surface-input hover:text-fv-text-primary focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-fv-accent"><bdi>{crumb.label}</bdi></button>}
+        <Button type="button" variant="secondary" onClick={() => { onNavigate(crumb.path); }} className="min-h-11 shrink-0"><bdi>{crumb.label}</bdi></Button>}
     </span>)}
   </div>;
 }

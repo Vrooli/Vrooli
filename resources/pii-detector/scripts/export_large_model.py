@@ -22,7 +22,7 @@ names, config.json id2label, and the do_lower_case flag at load time, so this
 export needs no engine change — it is a pure model swap behind the NERModel seam.
 
 Usage:
-  python3 scripts/export_large_model.py --out <dir>
+  resource-pii-detector models export-large --out <new-dir>
   # then point the resource at it:
   #   PII_DETECTOR_MODEL_DIR=<dir> PII_DETECTOR_ONNX_FILE=model.onnx \
   #   PII_DETECTOR_MODEL=ab-ai/pii_model_based_on_distilbert
@@ -46,6 +46,17 @@ def sha256(path: str) -> str:
 
 
 def main() -> int:
+    # This exporter pulls pinned model artifacts into the shared Hugging Face
+    # cache and writes an ONNX build output. The resource CLI owns the complete
+    # disk reservation and samples those paths until this process exits.
+    if os.environ.get("PII_DETECTOR_MODEL_EXPORT_ADMITTED") != "true":
+        print(
+            "refusing unadmitted model download; use resource-pii-detector "
+            "models export-large --out <new-directory>",
+            file=sys.stderr,
+        )
+        return 2
+
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True, help="output directory for the staged model")
     ap.add_argument("--repo", default=REPO)

@@ -47,17 +47,18 @@ type Deployment struct {
 }
 
 type AttackResult struct {
-	ID                  string   `json:"id"`
-	Adversary           string   `json:"adversary"`
-	Layer               string   `json:"layer"`
-	Vantage             string   `json:"vantage"`
-	VantageKind         string   `json:"vantage_kind"`
-	TimeWindow          string   `json:"time_window"`
-	ObservedFields      []string `json:"observed_fields"`
-	MatchedOccurrences  []string `json:"matched_occurrences"`
-	EvidenceSources     []string `json:"evidence_sources"`
-	Outcome             string   `json:"outcome"`
-	ResidualUncertainty string   `json:"residual_uncertainty"`
+	ID                          string   `json:"id"`
+	Adversary                   string   `json:"adversary"`
+	Layer                       string   `json:"layer"`
+	Vantage                     string   `json:"vantage"`
+	VantageKind                 string   `json:"vantage_kind"`
+	TimeWindow                  string   `json:"time_window"`
+	ObservedFields              []string `json:"observed_fields"`
+	MatchedOccurrences          []string `json:"matched_occurrences"`
+	UnverifiableOccurrenceCount int      `json:"unverifiable_occurrence_count"`
+	EvidenceSources             []string `json:"evidence_sources"`
+	Outcome                     string   `json:"outcome"`
+	ResidualUncertainty         string   `json:"residual_uncertainty"`
 }
 
 type LinkabilityReport struct {
@@ -190,7 +191,11 @@ func EvaluateDeployment(c chainforensics.Case, d Deployment) (LinkabilityReport,
 		for _, occurrence := range c.Occurrences {
 			observedAt, parseErr := parseUTC(occurrence.Timestamp)
 			if parseErr != nil {
-				return LinkabilityReport{}, fmt.Errorf("case occurrence %q has invalid UTC timestamp for bounded linkage evaluation: %w", occurrence.ID, parseErr)
+				// An occurrence without a valid UTC timestamp cannot be tested
+				// against this bounded window. Keep it out of both positive and
+				// negative results, and report the excluded evidence explicitly.
+				result.UnverifiableOccurrenceCount++
+				continue
 			}
 			if !observedAt.Before(start) && !observedAt.After(end) && fieldsMatch(attack.ObservedFields, occurrence) {
 				result.MatchedOccurrences = append(result.MatchedOccurrences, occurrence.ID)
@@ -205,6 +210,9 @@ func EvaluateDeployment(c chainforensics.Case, d Deployment) (LinkabilityReport,
 		} else {
 			result.Outcome = "no_exact_field_link_found"
 			result.ResidualUncertainty = "No exact match was found for the tested fields and evidence window; untested fields, sources, or time windows may still link activity."
+		}
+		if result.UnverifiableOccurrenceCount > 0 {
+			result.ResidualUncertainty += fmt.Sprintf(" %d case occurrences with missing or invalid UTC timestamps were excluded from this bounded window and could not be classified.", result.UnverifiableOccurrenceCount)
 		}
 		r.Attacks = append(r.Attacks, result)
 	}
@@ -227,7 +235,16 @@ func SeededDeployments(c chainforensics.Case) ([]Deployment, error) {
 	if len(c.Occurrences) == 0 {
 		return nil, fmt.Errorf("seed case must contain at least one occurrence")
 	}
-	o := c.Occurrences[0]
+	var o *chainforensics.Occurrence
+	for i := range c.Occurrences {
+		if _, err := parseUTC(c.Occurrences[i].Timestamp); err == nil {
+			o = &c.Occurrences[i]
+			break
+		}
+	}
+	if o == nil {
+		return nil, fmt.Errorf("seed case must contain at least one occurrence with a valid UTC timestamp")
+	}
 	base := func(id string) Deployment {
 		d := Deployment{ID: id, EvidenceID: "seeded-fixture/v1"}
 		for _, name := range requiredLayers {

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/packages/capacity"
 	"github.com/vrooli/vrooli/resources/pii-detector/cli/internal/client"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -25,6 +26,10 @@ type Handlers struct {
 	Now     func() time.Time
 	Restart func(context.Context) error
 	Info    func(context.Context) (map[string]any, error)
+	// DiskAdmission is the shared capacity owner used by acquisition commands.
+	// The lazy production default avoids opening the ledger for read-only calls.
+	DiskAdmission capacity.DiskJobAdmitter
+	RunExporter  func(context.Context, string, string, string, string, []string) error
 }
 
 func Default() *Handlers {
@@ -56,6 +61,7 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 			{Name: "list", Description: "List the PII model catalog and roles", Usage: "resource-pii-detector models list [--json]", Run: h.List},
 			{Name: "status", Description: "Show the active model and live server identity", Usage: "resource-pii-detector models status [--json]", Run: h.Status},
 			{Name: "activate", Description: "Activate a policy model and restart the managed service", Usage: "resource-pii-detector models activate --model <id> [--role <role>] [--no-restart] [--json]", Run: h.Activate},
+			{Name: "export-large", Description: "Export the pinned large PII model under shared disk admission", Usage: "resource-pii-detector models export-large --out <new-directory> [--json]", Run: h.ExportLarge},
 		},
 	}
 }

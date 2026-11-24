@@ -1,6 +1,6 @@
 # sherpa-onnx native resource
 
-This resource owns the Vrooli HTTP adapter for sherpa-onnx Kokoro TTS,
+This resource owns the Vrooli HTTP adapter for optional sherpa-onnx Kokoro TTS,
 streaming Zipformer STT, speaker embeddings, and Spleeter source separation.
 cgo is confined to `server/`; scenarios and the control plane consume the
 HTTP/WebSocket contracts only.
@@ -17,6 +17,28 @@ STT, speaker verification, separation, and text post-processing data can be
 refreshed independently. Speaker profiles persist the active model name and
 embedding dimension; changing either returns `speaker_model_mismatch` and
 requires explicit re-enrollment.
+
+The default managed profile loads the 310 MB Zipformer streaming model, its
+punctuation model, and the 27 MB speaker-embedding model. The larger Spleeter
+source-separation model is lazy-loaded on the first `/v1/extract` request;
+until then readiness reports `speaker_model_loaded: true` and
+`separation_model_loaded: false`. Kokoro TTS is an on-demand group.
+`SHERPA_ONNX_TTS_ENABLED` defaults to `false`, so a streaming install does not
+also load the larger Kokoro model. The resource still exposes the TTS route
+when its Kokoro data is explicitly acquired and TTS is enabled.
+
+The upstream English 20M Zipformer (2023-02-17) is runtime-compatible as an
+explicit `SHERPA_ONNX_STREAMING_MODEL_DIR` override. The adapter discovers its
+int8 encoder and joiner plus fp32 decoder automatically. Set
+`SHERPA_ONNX_STREAMING_MODEL_TYPE=auto` for this older checkpoint; the managed
+310 MB profile continues to use `zipformer2`. It is not a default, and is
+available as the separately pinned, on-demand group
+`streaming-zipformer-en-20m-2023-02-17`. Its 127,887,156-byte upstream archive
+is pinned to SHA-256
+`9c559283e8498d3fe95913c79ca1cb454bb26281ac2b102b41306c7d752765d9`. Acquire
+it explicitly with `vrooli resource acquisition data sherpa-onnx --group streaming-zipformer-en-20m-2023-02-17`.
+The existing 310 MB model and managed default remain unchanged; this artifact
+has no quality-promotion claim.
 
 The current checkout contains a reproducible Linux amd64 adapter build path. The
 macOS and Windows files sometimes found under `server/` are development/stub
@@ -72,8 +94,17 @@ manifest with the managed release authority by default. Tar and gzip metadata
 are normalized, so identical target trees produce identical archive checksums.
 The publication metadata carries the archive checksum, signed tree checksum,
 layout, and both the canonical `entry_path` and compatibility `bin_path`.
-`PUBLICATION_URL` is optional for local staging; when supplied it must be an
-HTTPS base URL and is written into the handoff metadata. Use `SIGN=0` only for
-a local inspection stage; an unsigned stage is not deployable and does not
+`PUBLICATION_URL` and `UPSTREAM_PROVENANCE` are required when `SIGN=1`; both
+must come from the release owner. The former must be an HTTPS base URL. This
+prevents a signed release from carrying placeholder publication details or an
+invented upstream provenance claim. For local inspection, use `SIGN=0`; an
+unsigned stage is not deployable and does not
 justify changing the manifest's unsupported target claims. A local stage or
 archive is not publication evidence.
+
+Before signing, staging runs an offline validator against `resource.json`. It
+checks the declared bundle name, role, target, layout, entry path, tree digest,
+archive digest, and archive contents. Existing platform digests in
+`sha256_by_platform` must match the staged tree. To recheck a retained stage,
+run `make validate-stage OUT=/path/to/stage`; this does not publish or enable
+managed acquisition.

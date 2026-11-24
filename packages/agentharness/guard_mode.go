@@ -110,11 +110,8 @@ func (s *GuardModeStore) Audit() ([]GuardModeAudit, error) {
 	return out, nil
 }
 
-func (s *GuardModeStore) RestoreAll(hardStop HardStopClass, eventID string, now time.Time) ([]RiskClass, error) {
-	checks, err := s.core().RestoreAll(guardmodes.HardStop(hardStop), eventID, now)
-	out := make([]RiskClass, len(checks))
-	for i, check := range checks {
-		out[i] = RiskClass(check)
-	}
-	return out, err
+// ModeFor reads one check's unexpired mode without the store lock.
+func (s *GuardModeStore) ModeFor(check string, now time.Time) (GuardMode, bool, error) {
+	mode, ok, err := s.core().ModeFor(check, now)
+	return GuardMode{Check: RiskClass(mode.Check), Mode: mode.Mode, EnabledAt: mode.EnabledAt, ExpiresAt: mode.ExpiresAt, Actor: mode.Actor, Reason: mode.Reason, AuthorizationID: mode.AuthorizationID}, ok, err
 }

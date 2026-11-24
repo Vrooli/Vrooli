@@ -25,7 +25,7 @@ const (
 func MergeBridgeCorrelationEdges(c Case) Case {
 	out := c
 	out.Edges = append([]Edge(nil), c.Edges...)
-	for _, edge := range append(opStackWithdrawalEdges(c), arbitrumWithdrawalEdges(c)...) {
+	for _, edge := range append(append(append(opStackWithdrawalEdges(c), arbitrumWithdrawalEdges(c)...), wormholeTokenBridgeEdges(c)...), debridgeDLNEdges(c)...) {
 		found := false
 		for _, old := range out.Edges {
 			if old.ID == edge.ID {
@@ -41,8 +41,12 @@ func MergeBridgeCorrelationEdges(c Case) Case {
 }
 
 type receiptEnvelope struct {
-	TransactionHash string   `json:"transactionHash"`
-	Logs            []EVMLog `json:"logs"`
+	BlockHash        string   `json:"blockHash"`
+	BlockNumber      string   `json:"blockNumber"`
+	Status           string   `json:"status"`
+	TransactionHash  string   `json:"transactionHash"`
+	TransactionIndex string   `json:"transactionIndex"`
+	Logs             []EVMLog `json:"logs"`
 }
 
 func receiptSources(c Case) []struct {

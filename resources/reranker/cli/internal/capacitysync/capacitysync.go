@@ -67,7 +67,6 @@ func (h *Handlers) config() companion.Config {
 		Observer: h,
 		Exec:     h.Exec,
 		Interval: interval,
-		Priority: "service",
 		Log:      h.Stderr,
 	}
 }

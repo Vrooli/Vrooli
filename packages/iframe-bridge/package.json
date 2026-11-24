@@ -15,6 +15,14 @@
       "import": "./dist/iframeBridgeChild.js",
       "types": "./dist/iframeBridgeChild.d.ts"
     },
+    "./shortcut-intent": {
+      "import": "./dist/shortcutIntent.js",
+      "types": "./dist/shortcutIntent.d.ts"
+    },
+    "./storage-shim": {
+      "import": "./dist/storageShim.js",
+      "types": "./dist/storageShim.d.ts"
+    },
     "./spatial": {
       "import": "./dist/spatialNavBridge.js",
       "types": "./dist/spatialNavBridge.d.ts"

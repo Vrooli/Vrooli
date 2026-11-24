@@ -66,6 +66,16 @@ func TestEVMRPCClientCapturesReceiptAndBlockAndUsesBriefCache(t *testing.T) {
 	if len(second.Occurrences) != 1 || calls.Load() != 3 {
 		t.Fatalf("expected one receipt, block and transaction call across cache hit, calls=%d", calls.Load())
 	}
+	otherClient, err := NewEVMRPCClient(server.URL, nil, time.Now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := otherClient.FetchERC20Transfers(context.Background(), ChainBase, txHash); err != nil {
+		t.Fatal(err)
+	}
+	if calls.Load() != 3 {
+		t.Fatalf("same provider capture was not shared across clients, calls=%d", calls.Load())
+	}
 }
 
 func TestEVMRPCClientCapturesNativeValueOccurrence(t *testing.T) {

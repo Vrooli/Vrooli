@@ -136,6 +136,38 @@ describe("FileViewer chrome", () => {
     await waitFor(() => { expect(actions).toHaveBeenCalledWith(expect.objectContaining({ path: "/notes.ts", model: expect.objectContaining({ kind: "code" }), text: expect.objectContaining({ content: "const a = 1;" }) })); });
     expect(screen.queryByTestId("file-preview-path")).not.toBeInTheDocument();
   });
+
+  it("exposes a keyboard-operable dock separator with its current width", async () => {
+    const onResizeByKeyboard = vi.fn();
+    await openFile(createManifestPreviewSource({ scope: "ask:1", files, fetch: fetchText("const a = 1;") }), "notes.ts", {
+      resizeValue: { min: 320, max: 900, now: 640 },
+      onResizeByKeyboard,
+    });
+    const separator = screen.getByRole("separator", { name: strings.viewer.resizeViewer });
+    expect(separator).toHaveAttribute("tabindex", "0");
+    expect(separator).toHaveAttribute("aria-valuemin", "320");
+    expect(separator).toHaveAttribute("aria-valuemax", "900");
+    expect(separator).toHaveAttribute("aria-valuenow", "640");
+    expect(separator).toHaveAttribute("aria-valuetext", "640px");
+
+    fireEvent.keyDown(separator, { key: "ArrowRight" });
+    fireEvent.keyDown(separator, { key: "ArrowLeft", shiftKey: true });
+    expect(onResizeByKeyboard.mock.calls).toEqual([[664], [544]]);
+  });
+
+  it("disables the dock splitter while the viewer is in focus mode", async () => {
+    const onResizeByKeyboard = vi.fn();
+    await openFile(createManifestPreviewSource({ scope: "ask:1", files, fetch: fetchText("const a = 1;") }), "notes.ts", {
+      focusMode: true,
+      resizeValue: { min: 320, max: 900, now: 640 },
+      onResizeByKeyboard,
+    });
+    const separator = screen.getByRole("separator", { name: strings.viewer.resizeViewer });
+    expect(separator).toHaveAttribute("tabindex", "-1");
+    expect(separator).toHaveAttribute("aria-disabled", "true");
+    fireEvent.keyDown(separator, { key: "ArrowRight" });
+    expect(onResizeByKeyboard).not.toHaveBeenCalled();
+  });
 });
 
 describe("source scope", () => {

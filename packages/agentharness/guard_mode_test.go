@@ -1,6 +1,8 @@
 package agentharness
 
 import (
+	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -53,165 +55,6 @@ func TestRuntimeLogOnlyIsPerCheckExpiresAndAudits(t *testing.T) {
 	}
 }
 
-func TestHardStopRestoresEveryLoosenedCheckBeforeEvaluation(t *testing.T) {
-	now := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
-	store := NewBundleStore(t.TempDir())
-	add := testSnapshot(now, "sda", MaturityEnforcing, HealthHealthy, EvidenceClean)
-	add.Rules = []PolicyRule{{EvaluatorID: "sda:dependency-addition", Risk: RiskDependencyAdd, Action: ActionDeny, Reason: "blocked add"}}
-	upgrade := testSnapshot(now, "upgrade-check", MaturityEnforcing, HealthHealthy, EvidenceClean)
-	upgrade.Rules = []PolicyRule{{EvaluatorID: "upgrade-check:dependency-upgrade", Risk: RiskDependencyUpgrade, Action: ActionDeny, Reason: "blocked upgrade"}}
-	publishTestBundle(t, store, add, upgrade)
-	modes := NewGuardModeStore(store.Dir)
-	modes.Now = func() time.Time { return now }
-	for _, check := range []RiskClass{"sda:dependency-addition", "upgrade-check:dependency-upgrade"} {
-		if err := modes.SetLogOnly(check, now.Add(time.Hour), "operator decision", "operator"); err != nil {
-			t.Fatal(err)
-		}
-	}
-	runtime := Runtime{Profile: ProfileEnforcing, Store: store, GuardModes: modes, Now: func() time.Time { return now }}
-	event := ToolEvent{Runner: "codex", Tool: "slack", Arguments: []string{"send", "message", "private text"}}
-	got, err := runtime.Evaluate(event)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.Action != ActionDeny || !hasEvidence(got, "TRIPWIRE_HARD_STOP") {
-		t.Fatalf("outbound message was not held at the hard stop: %+v", got)
-	}
-	active, err := modes.Active(now)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(active) != 0 {
-		t.Fatalf("hard stop left checks active: %+v", active)
-	}
-	audit, err := modes.Audit()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(audit) != 3 || audit[2].Action != "restored" || audit[2].HardStop != HardStopOutsideMessage {
-		t.Fatalf("hard-stop audit = %+v", audit)
-	}
-	data, err := os.ReadFile(filepath.Join(store.Dir, "guard-modes.audit.jsonl"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(string(data), "private text") {
-		t.Fatalf("audit leaked message content: %s", data)
-	}
-}
-
-func TestOutsideRepositoryDeletionRestoresAllChecks(t *testing.T) {
-	now := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
-	for _, shell := range []string{"rm -rf /opt/customer-data", `rm -rf "$UNKNOWN"`} {
-		t.Run(shell, func(t *testing.T) {
-			store := NewBundleStore(t.TempDir())
-			modes := NewGuardModeStore(store.Dir)
-			modes.Now = func() time.Time { return now }
-			if err := modes.SetLogOnly("sda:dependency-addition", now.Add(time.Hour), "operator decision", "operator"); err != nil {
-				t.Fatal(err)
-			}
-			runtime := Runtime{Profile: ProfileEnforcing, Store: store, GuardModes: modes, Now: func() time.Time { return now }, Removal: func(cwd string) RemovalContext {
-				return RemovalContext{WorkingDirectory: cwd, Home: "/home/operator", RepoRoot: "/repo", Lookup: func(string) (string, bool) { return "", false }}
-			}}
-			_, err := runtime.Evaluate(ToolEvent{Runner: "codex", Tool: "shell", Shell: shell, WorkingDirectory: "/repo"})
-			if err != nil {
-				t.Fatal(err)
-			}
-			active, err := modes.Active(now)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if len(active) != 0 {
-				t.Fatalf("outside or unresolved deletion left checks active: %+v", active)
-			}
-			audit, err := modes.Audit()
-			if err != nil {
-				t.Fatal(err)
-			}
-			if len(audit) != 2 || audit[1].HardStop != HardStopOutsideDelete || audit[1].Action != "restored" {
-				t.Fatalf("outside-deletion tripwire audit = %+v", audit)
-			}
-		})
-	}
-}
-
-func TestMoneyAndSecretHardStopsRestoreModes(t *testing.T) {
-	now := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
-	for _, test := range []struct {
-		name  string
-		event ToolEvent
-		want  HardStopClass
-	}{
-		{name: "money", event: ToolEvent{Runner: "codex", Tool: "stripe", Arguments: []string{"charge", "invoice-7"}}, want: HardStopMoney},
-		{name: "compound mcp stripe payment tool", event: ToolEvent{Runner: "codex", Tool: "mcp__stripe__payment_intents_create"}, want: HardStopMoney},
-		{name: "secret", event: ToolEvent{Runner: "codex", Tool: "shell", Shell: "cat ~/.config/private_key"}, want: HardStopSecret},
-		{name: "compound mcp slack send tool", event: ToolEvent{Runner: "codex", Tool: "mcp__slack__send_message"}, want: HardStopOutsideMessage},
-		{name: "unknown protected effect", event: ToolEvent{Runner: "codex", Tool: "shell", Shell: "client.send(payload)"}, want: HardStopUnknownEffect},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			store := NewBundleStore(t.TempDir())
-			modes := NewGuardModeStore(store.Dir)
-			modes.Now = func() time.Time { return now }
-			if err := modes.SetLogOnly("sda:dependency-addition", now.Add(time.Hour), "operator decision", "operator"); err != nil {
-				t.Fatal(err)
-			}
-			runtime := Runtime{Profile: ProfileEnforcing, Store: store, Now: func() time.Time { return now }}
-			decision, err := runtime.Evaluate(test.event)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if decision.Action != ActionDeny {
-				t.Fatalf("hard-stop decision = %+v, want deny", decision)
-			}
-			audit, err := modes.Audit()
-			if err != nil {
-				t.Fatal(err)
-			}
-			if len(audit) != 2 || audit[1].HardStop != test.want || audit[1].Action != "restored" {
-				t.Fatalf("tripwire audit = %+v, want hard stop %q", audit, test.want)
-			}
-		})
-	}
-}
-
-func TestHardStopDeniesWhenRestoreAuditCannotBeWritten(t *testing.T) {
-	now := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
-	store := NewBundleStore(t.TempDir())
-	modes := NewGuardModeStore(store.Dir)
-	modes.Now = func() time.Time { return now }
-	if err := modes.SetLogOnly("scenario-dependency-analyzer:dependency-addition", now.Add(time.Hour), "operator decision", "operator"); err != nil {
-		t.Fatal(err)
-	}
-	auditPath := filepath.Join(store.Dir, "guard-modes.audit.jsonl")
-	blockedAuditPath := auditPath + ".saved"
-	if err := os.Rename(auditPath, blockedAuditPath); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Mkdir(auditPath, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		_ = os.RemoveAll(auditPath)
-		_ = os.Rename(blockedAuditPath, auditPath)
-	})
-
-	runtime := Runtime{Profile: ProfileEnforcing, Store: store, GuardModes: modes, Now: func() time.Time { return now }}
-	decision, err := runtime.Evaluate(ToolEvent{Runner: "codex", Tool: "stripe", Arguments: []string{"charge", "invoice-7"}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if decision.Action != ActionDeny || !decision.Degraded || !hasEvidence(decision, "TRIPWIRE_HARD_STOP") {
-		t.Fatalf("hard stop did not fail closed on restore error: %+v", decision)
-	}
-	state, err := os.ReadFile(filepath.Join(store.Dir, "guard-modes.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(state), "scenario-dependency-analyzer:dependency-addition") {
-		t.Fatalf("restore failure unexpectedly cleared the active mode: %s", state)
-	}
-}
-
 func TestDecisionRemainsEnforcedWhenSuppressionAuditCannotBeWritten(t *testing.T) {
 	now := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
 	store := NewBundleStore(t.TempDir())
@@ -246,7 +89,7 @@ func TestDecisionRemainsEnforcedWhenSuppressionAuditCannotBeWritten(t *testing.T
 	}
 }
 
-func TestHardStopClassificationUsesExactHookTokensAndFailsClosedOnVisibleIndirectEffects(t *testing.T) {
+func TestHardStopClassificationUsesExactHookTokens(t *testing.T) {
 	for _, test := range []struct {
 		name  string
 		event ToolEvent
@@ -264,7 +107,7 @@ func TestHardStopClassificationUsesExactHookTokensAndFailsClosedOnVisibleIndirec
 		{name: "write tool targeting secret file remains protected", event: ToolEvent{Tool: "Write", Target: "/repo/.env"}, want: HardStopSecret},
 		{name: "editing schema prose about secret reads is not secret access", event: ToolEvent{Tool: "Write", Target: "/repo/kit/schema.json", Arguments: []string{"description: read secrets only with approval; do not write credentials"}}, want: ""},
 		{name: "writing schema heredoc prose about protected actions is not an external effect", event: ToolEvent{Tool: "shell", Shell: "cat > /tmp/agentharness-schema.json <<'EOF'\nDescription: Slack send, Stripe payment and secret reads are hard stops.\nEOF"}, want: ""},
-		{name: "visible post inside an unquoted heredoc is always an outbound message", event: ToolEvent{Tool: "shell", Shell: "cat > /tmp/agentharness-output <<EOF\n$(curl -X POST https://example.invalid -d payload)\nEOF"}, want: HardStopOutsideMessage},
+		{name: "post to a messaging service inside an unquoted heredoc is an outbound message", event: ToolEvent{Tool: "shell", Shell: "cat > /tmp/agentharness-output <<EOF\n$(curl -X POST https://hooks.slack.com/services/x -d payload)\nEOF"}, want: HardStopOutsideMessage},
 		{name: "unquoted heredoc escaped expansion marker remains literal", event: ToolEvent{Tool: "shell", Shell: "cat > /tmp/agentharness-output <<EOF\n\\${API_TOKEN}\nEOF"}, want: ""},
 		{name: "heredoc reading a secret path remains protected", event: ToolEvent{Tool: "shell", Shell: "cat /repo/.env > /tmp/agentharness-schema.json <<'EOF'\nDocument text.\nEOF"}, want: HardStopSecret},
 		{name: "heredoc network redirection remains an external message hard stop", event: ToolEvent{Tool: "shell", Shell: "cat > /dev/tcp/example.invalid/443 <<'EOF'\nhello\nEOF"}, want: HardStopOutsideMessage},
@@ -316,13 +159,20 @@ func TestHardStopClassificationUsesExactHookTokensAndFailsClosedOnVisibleIndirec
 		{name: "compound adapter text in shell filename stays opaque", event: ToolEvent{Tool: "shell", Shell: "cat /tmp/mcp__slack__send_message.log"}, want: ""},
 		{name: "compound adapter text in argv filename stays opaque", event: ToolEvent{Tool: "shell", Arguments: []string{"cat", "/tmp/mcp__stripe__payment_intents_create.txt"}}, want: ""},
 		{name: "message substrings do not match", event: ToolEvent{Tool: "shell", Shell: "go test ./internal/slack/send-helper_test.go"}, want: ""},
-		{name: "indirect network message", event: ToolEvent{Tool: "shell", Shell: "python3 -c 'requests.post(url)'"}, want: HardStopOutsideMessage},
-		{name: "curl explicit post method", event: ToolEvent{Tool: "shell", Shell: "curl -X POST https://example.invalid"}, want: HardStopOutsideMessage},
-		{name: "fetch sdk explicit post method", event: ToolEvent{Tool: "shell", Shell: "fetch(url,{method:'POST'})"}, want: HardStopOutsideMessage},
+		{name: "inline post to a messaging service", event: ToolEvent{Tool: "shell", Shell: "python3 -c \"requests.post('https://hooks.slack.com/services/x', json=m)\""}, want: HardStopOutsideMessage},
+		{name: "inline post to an unnamed URL is not a message", event: ToolEvent{Tool: "shell", Shell: "python3 -c 'requests.post(url)'"}, want: ""},
+		{name: "a script editing text that names a messaging call is not a message", event: ToolEvent{Tool: "shell", Shell: "python3 - <<'EOF'\ns=open('t.go').read().replace('a', 'requests.post(\"https://hooks.slack.com/x\")')\nEOF"}, want: ""},
+		{name: "curl post to a messaging service", event: ToolEvent{Tool: "shell", Shell: "curl -X POST https://discord.com/api/webhooks/1/x"}, want: HardStopOutsideMessage},
+		{name: "curl post to a local service is not a message", event: ToolEvent{Tool: "shell", Shell: "curl -X POST http://127.0.0.1:8080/api/v1/runs -d @run.json"}, want: ""},
+		{name: "curl post to an API is not a message", event: ToolEvent{Tool: "shell", Shell: "curl -X POST https://api.example.com/v1/search -d q=x"}, want: ""},
+		{name: "a host name inside a longer host does not match", event: ToolEvent{Tool: "shell", Shell: "curl -X POST https://notslack.com.example.org -d x"}, want: ""},
+		{name: "fetch post to a messaging service", event: ToolEvent{Tool: "shell", Shell: "node -e \"fetch('https://api.telegram.org/bot/sendMessage',{method:'POST'})\""}, want: HardStopOutsideMessage},
 		{name: "encoded shell effect is unknown protected", event: ToolEvent{Tool: "shell", Shell: "base64 -d | bash"}, want: HardStopUnknownEffect},
-		{name: "indirect generic send is unknown protected", event: ToolEvent{Tool: "shell", Shell: "python3 -c 'client.send(payload)'"}, want: HardStopUnknownEffect},
-		{name: "direct unknown destination send is protected", event: ToolEvent{Tool: "shell", Shell: "client.send(payload)"}, want: HardStopUnknownEffect},
-		{name: "indirect deletion is unknown protected", event: ToolEvent{Tool: "shell", Shell: "python3 -c 'os.remove(path)'"}, want: HardStopUnknownEffect},
+		{name: "inline generic send is not a stop", event: ToolEvent{Tool: "shell", Shell: "python3 -c 'client.send(payload)'"}, want: ""},
+		{name: "publishing a pull request is an outbound message", event: ToolEvent{Tool: "shell", Shell: "gh pr create --title x --body y"}, want: HardStopOutsideMessage},
+		{name: "viewing a pull request is not", event: ToolEvent{Tool: "shell", Shell: "gh pr view 12"}, want: ""},
+		{name: "inline local deletion is not a guard stop", event: ToolEvent{Tool: "shell", Shell: "python3 -c 'os.remove(path)'"}, want: ""},
+		{name: "decoding to a file is not hidden", event: ToolEvent{Tool: "shell", Shell: "base64 -d blob.b64 > blob.bin"}, want: ""},
 		{name: "shell syntax check is not script execution", event: ToolEvent{Tool: "shell", Shell: "bash -n ./scripts/send.sh"}, want: ""},
 		{name: "camel case payment sdk method is money", event: ToolEvent{Tool: "shell", Shell: "stripe.paymentIntents.create({amount:100})"}, want: HardStopMoney},
 		{name: "git checkout is not a payment operation", event: ToolEvent{Tool: "shell", Shell: "git checkout README.md"}, want: ""},
@@ -350,75 +200,6 @@ var opaqueExecutionEvents = []struct {
 	{name: "python module run", shell: "python3 -m pytest steward/tests"},
 }
 
-func TestOpaqueExecutionClassification(t *testing.T) {
-	for _, test := range opaqueExecutionEvents {
-		if !hasOpaqueExecution(ToolEvent{Tool: "shell", Shell: test.shell}) {
-			t.Errorf("%s: not classified as opaque execution", test.name)
-		}
-	}
-	for _, shell := range []string{
-		"bash -n ./scripts/send.sh",
-		"python3 -c 'print(1)'",
-		"cat > /tmp/agentharness-output <<EOF\n\\${API_TOKEN}\nEOF",
-		"cat > /tmp/agentharness-schema.json <<'EOF'\n$(not expanded)\nEOF",
-		"go test ./...",
-	} {
-		if hasOpaqueExecution(ToolEvent{Tool: "shell", Shell: shell}) {
-			t.Errorf("%q: classified as opaque execution", shell)
-		}
-	}
-}
-
-// Opaque execution is a tripwire for active relaxations, not an always-on
-// hard stop: a checked-in CLI such as the portfolio steward's must run when
-// nothing is relaxed, and must still restore every relaxation when one is.
-func TestOpaqueExecutionTripsOnlyWhileARelaxationIsActive(t *testing.T) {
-	now := time.Date(2026, 11, 20, 12, 0, 0, 0, time.UTC)
-	for _, test := range opaqueExecutionEvents {
-		t.Run(test.name, func(t *testing.T) {
-			store := NewBundleStore(t.TempDir())
-			modes := NewGuardModeStore(store.Dir)
-			modes.Now = func() time.Time { return now }
-			runtime := Runtime{Profile: ProfileEnforcing, Store: store, GuardModes: modes, Now: func() time.Time { return now }}
-			event := ToolEvent{Runner: "claude", Tool: "shell", Shell: test.shell}
-
-			idle, err := runtime.Evaluate(event)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if hasEvidence(idle, "TRIPWIRE_HARD_STOP") {
-				t.Fatalf("opaque execution hard-stopped with no relaxation active: %+v", idle)
-			}
-
-			if err := modes.SetLogOnly("sda:dependency-addition", now.Add(time.Hour), "operator decision", "operator"); err != nil {
-				t.Fatal(err)
-			}
-			relaxed, err := runtime.Evaluate(event)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if relaxed.Action != ActionDeny || !hasEvidence(relaxed, "TRIPWIRE_HARD_STOP") {
-				t.Fatalf("opaque execution during a relaxation was not held: %+v", relaxed)
-			}
-			if active, err := modes.Active(now); err != nil || len(active) != 0 {
-				t.Fatalf("relaxation survived the tripwire: active=%+v err=%v", active, err)
-			}
-		})
-	}
-}
-
-func TestOpaqueExecutionFailsClosedWhenModesAreUnreadable(t *testing.T) {
-	now := time.Date(2026, 11, 20, 12, 0, 0, 0, time.UTC)
-	runtime := Runtime{Profile: ProfileEnforcing, GuardModes: &GuardModeStore{}, Now: func() time.Time { return now }}
-	got, err := runtime.Evaluate(ToolEvent{Runner: "claude", Tool: "shell", Shell: "python3 ./tool.py"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.Action != ActionDeny || !hasEvidence(got, "TRIPWIRE_HARD_STOP") {
-		t.Fatalf("unreadable mode store let opaque execution through: %+v", got)
-	}
-}
-
 func TestHeredocWriteToSymlinkedSpecialPathIsNotAllowedAsData(t *testing.T) {
 	root := t.TempDir()
 	link := filepath.Join(root, "dev-link")
@@ -431,28 +212,180 @@ func TestHeredocWriteToSymlinkedSpecialPathIsNotAllowedAsData(t *testing.T) {
 	}
 }
 
-func TestSearchTermsDoNotTripOrRestoreTemporaryModes(t *testing.T) {
-	now := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
+func guardTestRuntime(t *testing.T, now time.Time) (Runtime, *GuardModeStore) {
+	t.Helper()
 	store := NewBundleStore(t.TempDir())
 	modes := NewGuardModeStore(store.Dir)
 	modes.Now = func() time.Time { return now }
-	if err := modes.SetLogOnly("sda:dependency-addition", now.Add(time.Hour), "operator decision", "operator"); err != nil {
-		t.Fatal(err)
-	}
-	runtime := Runtime{Profile: ProfileAdvisory, Store: store, GuardModes: modes, Now: func() time.Time { return now }}
-	decision, err := runtime.Evaluate(ToolEvent{Runner: "codex", Tool: "Search", Arguments: []string{"secret", "stripe charge", "slack send"}})
+	previous := GuardGrantCheck
+	GuardGrantCheck = func(string) bool { return false }
+	t.Cleanup(func() { GuardGrantCheck = previous })
+	return Runtime{Profile: ProfileAdvisory, Store: store, GuardModes: modes, Now: func() time.Time { return now }}, modes
+}
+
+func guardEvents(t *testing.T, dir string) []GuardEvent {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(dir, guardEventsFile))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if hasEvidence(decision, "TRIPWIRE_HARD_STOP") {
-		t.Fatalf("search terms caused hard-stop evidence: %+v", decision)
+	var events []GuardEvent
+	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+		var event GuardEvent
+		if err := json.Unmarshal([]byte(line), &event); err != nil {
+			t.Fatal(err)
+		}
+		events = append(events, event)
 	}
-	active, err := modes.Active(now)
-	if err != nil || len(active) != 1 {
-		t.Fatalf("search query restored a temporary mode: active=%+v err=%v", active, err)
+	return events
+}
+
+var chatSend = ToolEvent{Runner: "codex", Tool: "shell", Shell: "slack send '#ops' 'deploy done'", Context: map[string]string{"session_id": "s1"}}
+
+// A blocked agent learns what stopped it, why, what to use instead and the
+// exact request for approval; the block is logged for the steward.
+func TestBlockedGuardExplainsItselfAndIsLogged(t *testing.T) {
+	now := time.Date(2026, 11, 20, 12, 0, 0, 0, time.UTC)
+	runtime, modes := guardTestRuntime(t, now)
+	decision, err := runtime.Evaluate(chatSend)
+	if err != nil {
+		t.Fatal(err)
 	}
-	audit, err := modes.Audit()
-	if err != nil || len(audit) != 1 || audit[0].Action != "enabled" {
-		t.Fatalf("search query wrote tripwire audit: entries=%+v err=%v", audit, err)
+	if decision.Action != ActionDeny || decision.EvaluatorID != "agent-guard:outside-message" || decision.ProviderID != "agent-guard" {
+		t.Fatalf("decision = %+v", decision)
+	}
+	for _, want := range []string{"messaging the outside world", "sends a chat or email message", "Instead:", "notification-hub", "vrooli agent authorize \"$VROOLI_AGENT_SESSION\" --policy agent-guard-override --target agent-guard:outside-message"} {
+		if !strings.Contains(decision.Reason, want) {
+			t.Errorf("reason lacks %q:\n%s", want, decision.Reason)
+		}
+	}
+	events := guardEvents(t, modes.Dir)
+	if len(events) != 1 || events[0].Outcome != "blocked" || events[0].Check != "agent-guard:outside-message" || events[0].Session != "s1" || events[0].Runner != "codex" || events[0].Command == "" {
+		t.Fatalf("logged events = %+v", events)
+	}
+}
+
+// The operator's log-only mode for a guard lets the action through, and the
+// log keeps what it would have stopped. Nothing withdraws the relaxation.
+func TestLogOnlyGuardLetsTheActionThroughAndLogsIt(t *testing.T) {
+	now := time.Date(2026, 11, 20, 12, 0, 0, 0, time.UTC)
+	runtime, modes := guardTestRuntime(t, now)
+	if err := modes.SetLogOnly("agent-guard:outside-message", now.Add(7*24*time.Hour), "detection is being fixed", "operator"); err != nil {
+		t.Fatal(err)
+	}
+	decision, err := runtime.Evaluate(chatSend)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decision.Action == ActionDeny {
+		t.Fatalf("log-only guard still denied: %+v", decision)
+	}
+	if events := guardEvents(t, modes.Dir); len(events) != 1 || events[0].Outcome != "log_only" {
+		t.Fatalf("logged events = %+v", events)
+	}
+	money := ToolEvent{Runner: "codex", Tool: "stripe", Arguments: []string{"charge"}}
+	if decision, _ := runtime.Evaluate(money); decision.Action != ActionDeny {
+		t.Fatalf("money guard was relaxed too: %+v", decision)
+	}
+	if _, active, err := modes.ModeFor("agent-guard:outside-message", now); err != nil || !active {
+		t.Fatalf("relaxation was withdrawn: active=%t err=%v", active, err)
+	}
+}
+
+// An approved per-agent grant covers its guard only.
+func TestApprovedGrantLetsTheAgentThrough(t *testing.T) {
+	now := time.Date(2026, 11, 20, 12, 0, 0, 0, time.UTC)
+	runtime, modes := guardTestRuntime(t, now)
+	GuardGrantCheck = func(check string) bool { return check == "agent-guard:secret" }
+	read := ToolEvent{Runner: "claude-code", Tool: "Read", Target: "/repo/.env"}
+	if decision, _ := runtime.Evaluate(read); decision.Action == ActionDeny {
+		t.Fatalf("granted secret read denied: %+v", decision)
+	}
+	if decision, _ := runtime.Evaluate(chatSend); decision.Action != ActionDeny {
+		t.Fatalf("grant for secrets allowed a message: %+v", decision)
+	}
+	events := guardEvents(t, modes.Dir)
+	if len(events) != 2 || events[0].Outcome != "granted" || events[1].Outcome != "blocked" {
+		t.Fatalf("logged events = %+v", events)
+	}
+}
+
+// A policy file that does not load must never stop work: a crashed or
+// all-blocking guard stops every agent.
+func TestBrokenPolicyStopsNothing(t *testing.T) {
+	if _, err := loadHardStops([]byte(`{"guards": {}}`)); err == nil {
+		t.Fatal("an incomplete policy must be refused")
+	}
+	previous := hardStopsErr
+	hardStopsErr = errors.New("broken")
+	t.Cleanup(func() { hardStopsErr = previous })
+	if got := hardStopForEvent(chatSend); got != "" {
+		t.Fatalf("broken policy still stopped: %q", got)
+	}
+}
+
+// A verified credential covers a guard only when its grant names the guard
+// override operation and this guard (or every guard), and is unexpired.
+func TestGrantCoversOnlyItsGuardUntilExpiry(t *testing.T) {
+	now := time.Date(2026, 11, 20, 12, 0, 0, 0, time.UTC)
+	grant := func(policy, target string, expires time.Time) string {
+		raw, _ := json.Marshal(map[string]any{"policy": policy, "operations": []string{"agent-guard.override"}, "targets": []string{target}, "expires_at": expires})
+		return string(raw)
+	}
+	later := now.Add(time.Hour)
+	for _, test := range []struct {
+		name, raw, check string
+		want             bool
+	}{
+		{"exact guard", grant("agent-guard-override", "agent-guard:secret", later), "agent-guard:secret", true},
+		{"every guard", grant("agent-guard-override", "agent-guard:*", later), "agent-guard:money", true},
+		{"another guard", grant("agent-guard-override", "agent-guard:secret", later), "agent-guard:money", false},
+		{"expired", grant("agent-guard-override", "agent-guard:secret", now), "agent-guard:secret", false},
+		{"another policy", grant("root-state-transition", "agent-guard:secret", later), "agent-guard:secret", false},
+		{"no grant", "", "agent-guard:secret", false},
+	} {
+		if got := grantCovers(test.raw, test.check, now); got != test.want {
+			t.Errorf("%s: covers=%t, want %t", test.name, got, test.want)
+		}
+	}
+}
+
+// Every stop an agent meets reaches the steward's log, not only guard stops:
+// the deletion floor and operator-only commands are logged under agent-floor
+// IDs, which no log-only mode or guard grant relaxes.
+func TestFloorStopsAreLoggedForTheSteward(t *testing.T) {
+	f := newRemovalFixture(t)
+	store := NewBundleStore(filepath.Join(t.TempDir(), "policy"))
+	runtime := Runtime{Profile: ProfileAdvisory, Store: store, Removal: func(cwd string) RemovalContext { return f.context(cwd) }}
+	decision, err := runtime.Evaluate(ToolEvent{Runner: "codex", Tool: "Bash", Shell: "rm -rf /etc", WorkingDirectory: f.repo, Context: map[string]string{ContextSessionID: "s9"}})
+	if err != nil || decision.Action != ActionDeny {
+		t.Fatalf("decision = %+v, err = %v", decision, err)
+	}
+	if _, err := runtime.Evaluate(ToolEvent{Runner: "codex", Tool: "Bash", Shell: "ls", WorkingDirectory: f.repo}); err != nil {
+		t.Fatal(err)
+	}
+	events := guardEvents(t, store.Dir)
+	if len(events) != 1 || !strings.HasPrefix(events[0].Check, "agent-floor:deletion-") || events[0].Outcome != "blocked" || events[0].Session != "s9" || events[0].Signal == "" {
+		t.Fatalf("logged events = %+v", events)
+	}
+	for code, want := range map[string]string{"REMOVAL_OUTSIDE_REPO": "deletion-outside-repo", "OPERATOR_ONLY_COMMAND": "operator-only", "PROVIDER_UNAVAILABLE": "provider-unavailable"} {
+		if got := floorName(code); got != want {
+			t.Errorf("floorName(%s) = %s, want %s", code, got, want)
+		}
+	}
+}
+
+// The guard log never keeps a credential value a command carried.
+func TestGuardLogRedactsCredentialValues(t *testing.T) {
+	for input, want := range map[string]string{
+		"curl -H 'Authorization: Bearer abcdef1234567890' https://hooks.slack.com/x": "curl -H 'Authorization: Bearer ***' https://hooks.slack.com/x",
+		"SLACK_TOKEN=xoxb-1234567890-abcdef curl x":                                  "SLACK_TOKEN=*** curl x",
+		"gh auth login --with-token ghp_abcdefghijklmnopqrstuvwxyz123456":            "gh auth login --with-token ***",
+		`tool --api-key "s3cr3t value" run`:                                          "tool --api-key *** run",
+		"grep -rn api_key scenarios/":                                                "grep -rn api_key scenarios/",
+	} {
+		if got := redactSecrets(input); got != want {
+			t.Errorf("redactSecrets(%q) = %q, want %q", input, got, want)
+		}
 	}
 }

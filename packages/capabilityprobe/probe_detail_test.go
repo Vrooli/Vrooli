@@ -130,6 +130,23 @@ func TestRunVersionBoundsEachCommandUnderACallerDeadline(t *testing.T) {
 	}
 }
 
+func TestRunVersionSeparatesStdoutFromSuccessfulStderr(t *testing.T) {
+	if _, err := exec.LookPath("sh"); err != nil {
+		t.Skip("sh is not available on this host")
+	}
+	script := filepath.Join(t.TempDir(), "warn-tool")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\nprintf 'v2.4.1\\n'\nprintf 'deprecated config\\n' >&2\n"), 0o755); err != nil { //nolint:gosec // executable fixture
+		t.Fatal(err)
+	}
+	output, err := runVersion(context.Background(), script, nil)
+	if err != nil {
+		t.Fatalf("runVersion: %v", err)
+	}
+	if output.Stdout != "v2.4.1\n" || output.Stderr != "deprecated config\n" {
+		t.Fatalf("output = %#v; want distinct version and warning streams", output)
+	}
+}
+
 // End to end: a tool that is an interpreted script reports the runtime, not a
 // shrug. The interpreter is deliberately absent from every managed directory.
 func TestProbeReportsAnInterpretedToolsMissingRuntime(t *testing.T) {

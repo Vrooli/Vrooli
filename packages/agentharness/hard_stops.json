@@ -1,0 +1,85 @@
+{
+  "about": "Agent guards: the actions an agent may not take without the operator. A command is judged on what it does (program names, flags, plain arguments, code it hands to an interpreter), never on words in its data (messages, search patterns, file contents). Matching is by exact lower-case word; a 'call' is a dotted name such as client.send. Each guard in 'guards' has a check ID. The operator can switch a guard to log-only (vrooli guard-mode, or the steward's inbox decision), and an agent can ask for a per-session grant (vrooli agent authorize --policy agent-guard-override --target <check ID>). Edit the lists here; the Go code only applies them. hard_stops_test.go and guard_visible_shell_test.go are the behaviour contract.",
+  "guards": {
+    "about": "What each guard protects, what the agent sees when it stops, and what to do instead. 'id' is the check ID used by guard modes, grants, the block log and the steward.",
+    "money": {
+      "id": "agent-guard:money",
+      "name": "spending money",
+      "why": "Payments, charges, purchases, invoices and refunds move real money.",
+      "instead": ["Spend through Treasury (`treasury`), which checks the signed mandate, amount and limits.", "For tests, use the provider's test mode through the owning scenario."]
+    },
+    "secret": {
+      "id": "agent-guard:secret",
+      "name": "reading credentials",
+      "why": "Key files, secret stores and other processes' environments hold credentials that must not leak into transcripts or messages.",
+      "instead": ["Let the owning CLI or scenario fetch the credential itself.", "Inspect credentials without values: `secrets-manager credentials list|status|doctor`."]
+    },
+    "outside_message": {
+      "id": "agent-guard:outside-message",
+      "name": "messaging the outside world",
+      "why": "Chat, email, social posts, PR or issue comments and pushes reach people outside Vrooli and cannot be taken back.",
+      "instead": ["Reach the operator through Notification Hub (`notification-hub conversations`).", "Write the message as a draft file and ask the operator to send it."]
+    },
+    "hidden_effect": {
+      "id": "agent-guard:hidden-effect",
+      "name": "running hidden commands",
+      "why": "Decoding text and running it as a command hides what it does from every check.",
+      "instead": ["Run the decoded command directly so the guard can read it."]
+    }
+  },
+  "shell": {
+    "about": "How a shell command line is read before judging it.",
+    "tools": ["shell", "bash", "sh", "zsh"],
+    "shell_programs": ["sh", "bash", "zsh", "dash", "ksh"],
+    "wrappers": ["timeout", "env", "sudo", "doas", "nice", "nohup", "exec", "command", "time", "stdbuf", "ionice", "builtin"],
+    "interpreters": ["python", "python2", "python3", "node", "nodejs", "deno", "bun", "ruby", "perl", "php", "pwsh", "powershell", "osascript"],
+    "interpreter_code_flags": ["-c", "-e", "-E", "--eval", "-p", "--print", "-pe", "-ne", "-Command", "-command", "--command", "-r"],
+    "remote_shell_carriers": ["eval", "ssh", "adb", "su", "runuser", "watch", "xargs", "parallel", "nsenter", "chroot", "flock", "script", "docker", "podman", "kubectl", "lxc", "vagrant"],
+    "readers": ["grep", "egrep", "fgrep", "rg", "ag", "ack", "head", "tail", "wc", "sort", "uniq", "cut", "cat", "tac", "less", "more", "ls", "echo", "printf", "tr", "column", "jq", "yq", "diff", "stat", "file", "basename", "dirname", "realpath", "readlink", "nl", "fold", "comm", "join", "paste", "rev", "seq", "date", "true", "false", "test", "[", "pwd", "which", "type"],
+    "environment_readers": ["cat", "tac", "tr", "strings", "head", "tail", "less", "more", "od", "xxd", "hexdump", "grep", "rg", "sed", "awk", "cut", "sort", "uniq", "cp", "base64", "xargs", "dd", "tee", "nl", "fold", "column", "jq"]
+  },
+  "effect_tools": {
+    "about": "Tools whose calls can act outside the agent; only these are judged for money, secrets and messages.",
+    "words": ["shell", "bash", "sh", "zsh", "pwsh", "powershell", "cmd", "command", "exec", "execute", "python", "python3", "node", "deno", "ruby", "perl", "curl", "wget", "http", "httpie", "fetch", "requests", "httpx", "axios", "stripe", "paypal", "square", "slack", "discord", "telegram", "whatsapp", "email", "smtp", "webhook", "sendgrid", "mailgun", "sendmail", "mutt", "payment", "purchase", "checkout", "billing"],
+    "calls": ["send", "reply", "dispatch", "deliver", "post", "put", "patch", "charge", "payment", "purchase", "create", "confirm", "remove", "unlink", "delete"]
+  },
+  "money": {
+    "about": "Moving money: payments, purchases, charges, invoices, refunds.",
+    "words": ["payment", "payments", "purchase", "purchases", "billing", "invoice", "charge", "charges", "refund", "refunds", "money-transfer", "wire-transfer", "buy-now", "stripe.charge", "stripe.payment_intents.create", "stripe.paymentintents.create"],
+    "checkout_words": ["checkout"],
+    "checkout_context": ["stripe", "paypal", "square", "shopify", "woocommerce", "payment", "payments", "purchase", "purchases", "billing", "charge", "charges", "invoice", "refund", "refunds"],
+    "calls": ["paymentintents.create", "payment_intents.create", "paymentintents.confirm", "payment_intents.confirm", "charges.create", "charges.update"]
+  },
+  "secrets": {
+    "about": "Reading or exposing credentials: key files, secret stores, another process's environment.",
+    "tools": ["password", "secret", "secrets", "credential", "credentials", "api_key", "api-key", "private_key", "private-key", "access_token", "refresh_token", "secretsmanager", "secretmanager", "vault"],
+    "tool_operations": ["read", "readfile", "get", "fetch", "open", "send"],
+    "operations": ["read", "readfile", "cat", "head", "tail", "less", "more", "open", "get-content", "getcontent", "write", "edit", "put", "post", "send", "source", "printenv", "env", "export", "curl", "wget", "http", "httpie", "fetch", "requests.get", "requests.post", "httpx.get", "httpx.post", "axios.get", "axios.post", "process.env", "os.environ", "getenv"],
+    "resources": [".env", ".env.local", ".env.production", ".ssh", "id_rsa", "id_ed25519", ".npmrc", ".netrc", "private_key", "private-key", "api_key", "api-key", "access_token", "refresh_token"],
+    "file_paths": [".env", ".env.local", ".env.production", ".ssh", "id_rsa", "id_ed25519", ".npmrc", ".netrc"],
+    "file_tools": ["read", "readfile", "open", "get-content", "getcontent", "write", "writefile", "edit", "multiedit", "notebookedit", "put", "patch", "apply_patch"],
+    "calls": ["password", "secret", "secrets", "credential", "credentials", "api_key", "private_key", "access_token", "refresh_token"]
+  },
+  "messages": {
+    "about": "Sending to people or systems outside: chat, email, PR/issue comments, pushes, and web requests that send data to a messaging service. Web requests to anything else (local services, APIs, registries) are not messages.",
+    "transports": ["slack", "discord", "telegram", "whatsapp", "email", "smtp", "webhook", "sendgrid", "mailgun", "sendmail", "mutt"],
+    "verbs": ["send", "reply", "dispatch", "deliver", "post-message", "post_message", "outbound-message", "outbound_message", "comment", "publish"],
+    "commands": ["send-message", "send_message", "send-email", "send_email", "sendmail", "mail"],
+    "calls": ["git.push", "gh.pr.comment", "gh.issue.comment"],
+    "web_clients": ["curl", "wget", "http", "httpie", "requests", "httpx", "axios", "fetch", "urllib", "smtplib"],
+    "web_client_programs": ["curl", "curlie", "wget", "http", "https", "httpie", "xh"],
+    "write_methods": ["post", "put", "patch"],
+    "body_flags": ["-d", "-F", "-T"],
+    "body_flag_prefixes": ["--data", "--json", "--form", "--upload-file", "--post-data", "--post-file", "--body-data"],
+    "comment_mutations": ["create", "add", "post", "send", "publish"],
+    "comment_objects": ["comment", "note"],
+    "command_sequences": ["gh pr create", "gh pr comment", "gh pr review", "gh issue create", "gh issue comment", "gh release create", "gh gist create", "git push"],
+    "message_hosts": ["hooks.slack.com", "slack.com", "discord.com", "discordapp.com", "api.telegram.org", "api.twilio.com", "api.sendgrid.com", "api.mailgun.net", "api.postmarkapp.com", "api.resend.com", "gmail.googleapis.com", "graph.microsoft.com", "graph.facebook.com", "api.twitter.com", "api.x.com", "api.linkedin.com", "oauth.reddit.com", "api.bsky.app", "api.github.com", "uploads.github.com", "gitlab.com", "smtp.gmail.com"],
+    "comment_providers": ["github", "gitlab"]
+  },
+  "hidden_effect": {
+    "about": "Hidden commands: text that is decoded and then run, so no check can read it.",
+    "decoders": ["base64"],
+    "encoded_command_flags": ["--encodedcommand"]
+  }
+}

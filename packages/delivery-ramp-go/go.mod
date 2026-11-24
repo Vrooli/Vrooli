@@ -3,6 +3,7 @@ module github.com/vrooli/vrooli/packages/delivery-ramp-go
 go 1.25.0
 
 require (
+	github.com/vrooli/cliresolve v0.0.0
 	connectrpc.com/connect v1.19.2
 	github.com/gorilla/mux v1.8.1
 	github.com/stretchr/testify v1.11.1
@@ -33,3 +34,5 @@ replace github.com/vrooli/cli-core => ../cli-core
 replace github.com/vrooli/envkit-go => ../envkit-go
 
 replace github.com/vrooli/repo-contract-go => ../repo-contract-go
+
+replace github.com/vrooli/cliresolve => ../cliresolve

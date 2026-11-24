@@ -66,6 +66,8 @@ resource-openrouter generate --role chat.quality --max-tokens 640 --prompt-file 
 
 # Gateway's normalized image envelope is opt-in; the default remains raw provider JSON.
 resource-openrouter images generate --result-format gateway-v1 --prompt "A blue circle"
+# Cap one request at $0.25; the provider reservation is bounded to fit.
+resource-openrouter images generate --role image.edit.identity --max-cost-usd 0.25 --input-file ./in.png --prompt "add a hat"
 
 # Multimodal requests use the standard-input JSON envelope; image bytes are
 # kept out of argv and logs.
@@ -88,6 +90,23 @@ resource-openrouter show-config --json
 returns a finite, nonnegative numeric `usage.cost`. An explicit zero is known;
 missing or malformed accounting is unknown and does not discard valid image
 bytes. `--json` controls CLI output formatting and does not select this envelope.
+
+### Image spend bound
+
+OpenRouter reserves a request's worst-case cost before it runs, and for
+token-priced image models that is several dollars (for `google/gemini-3-pro-image`,
+32768 tokens at $0.00012, about $3.93) although a real 1K/2K image costs about
+$0.14. The images endpoint takes no cost or token bound (unknown fields are
+dropped), so a bounded request is sent through chat completions with image
+modalities, where `max_tokens` is enforced, and the reply is normalized back to
+the images shape. The bound is the role's `request_defaults.max_tokens`, lowered
+to what `--max-cost-usd` buys at the model's current `image_output` price (read
+from the model's endpoint metadata, highest endpoint price). A model that cannot
+take a bound (images-endpoint only) is refused under `--max-cost-usd` unless its
+own worst case already fits; with no ceiling and no role bound the request is
+sent as before. A refusal reports the provider's `limit_source`/`reason` and the
+reservation that was requested, so "request too large" is distinguishable from
+"key or account limit".
 
 OpenRouter is the **policy authority** for model selection. Concrete OpenRouter
 model slugs live in exactly one place — [`model-policy.json`](model-policy.json).

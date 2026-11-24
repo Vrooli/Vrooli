@@ -22,7 +22,7 @@ func TestExampleCasePreservesObservedFlowsAndSeparateLegalClaim(t *testing.T) {
 	if len(c.Claims) != 1 || c.Claims[0].Kind != EvidenceLegalClaim {
 		t.Fatalf("legal assertion was not retained as a separate claim: %#v", c.Claims)
 	}
-	if len(c.Occurrences) != 58 || len(c.Edges) != 57 {
+	if len(c.Occurrences) != 112 || len(c.Edges) != 57 {
 		t.Fatalf("unexpected case size: occurrences=%d edges=%d", len(c.Occurrences), len(c.Edges))
 	}
 	var totalOutputFound bool

@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"sync"
 	"testing"
@@ -210,7 +211,19 @@ func TestFetchedLeaseIsPersistedForOfflineRestart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lease, err := Sign(Payload{UserIdentity: "user@example.com", Status: "active", NotAfter: time.Now().Add(time.Hour)}, "lease-key", key)
+	lease, err := Sign(Payload{
+		UserIdentity: "user@example.com",
+		Status:       "active",
+		Features:     []string{"workflow:run"},
+		Scopes:       []string{"workflow:execute"},
+		Limits:       []Limit{{Key: "runs", Value: 4}},
+		AppEntitlements: []AppEntitlement{{
+			AppKey: "demo", Status: "active", Features: []string{"workflow:run"}, Limits: []Limit{{Key: "runs", Value: 4}},
+		}},
+		Credits:      map[string]any{"remaining": float64(4), "ledger": []any{map[string]any{"kind": "grant"}}},
+		Subscription: map[string]any{"status": "active"},
+		NotAfter:     time.Now().Add(time.Hour),
+	}, "lease-key", key)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -234,9 +247,25 @@ func TestFetchedLeaseIsPersistedForOfflineRestart(t *testing.T) {
 	client.SetStore(store)
 	issuerKeys := &memoryIssuerKeyStore{}
 	client.SetIssuerKeyStore(issuerKeys)
-	if _, err := client.Get(context.Background(), "user@example.com"); err != nil {
+	got, err := client.Get(context.Background(), "user@example.com")
+	if err != nil {
 		t.Fatalf("initial fetch = %v", err)
 	}
+	got.Scopes[0] = "workflow:admin"
+	got.Features[0] = "workflow:admin"
+	got.Limits[0].Value = 99
+	got.AppEntitlements[0].Features[0] = "workflow:admin"
+	got.AppEntitlements[0].Limits[0].Value = 99
+	got.Credits.(map[string]any)["remaining"] = float64(0)
+	got.Credits.(map[string]any)["ledger"].([]any)[0].(map[string]any)["kind"] = "revoked"
+	got.Subscription.(map[string]any)["status"] = "cancelled"
+	cached, err := client.CachedAt("user@example.com", time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertCachedGrant(t, cached, []string{"workflow:execute"}, map[string]any{
+		"remaining": float64(4), "ledger": []any{map[string]any{"kind": "grant"}},
+	}, map[string]any{"status": "active"})
 	client = NewClient(server.URL, nil, nil)
 	client.SetStore(store)
 	client.SetIssuerKeyStore(issuerKeys)
@@ -465,6 +494,60 @@ func TestCachedLeaseBindingIsCheckedOffline(t *testing.T) {
 	}
 	if _, err := client.CachedForAt("user@example.com", LeaseBinding{InstallationID: "other-install"}, issued.Add(30*time.Minute)); !errors.Is(err, ErrLeaseBinding) {
 		t.Fatalf("wrong cached binding error = %v", err)
+	}
+}
+
+func TestCachedLeaseReadsReturnIndependentPayload(t *testing.T) {
+	issued := time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC)
+	client := NewClient("http://127.0.0.1:1", nil, nil)
+	client.cache["user@example.com"] = Payload{
+		UserIdentity: "user@example.com", Status: "active", NotAfter: issued.Add(time.Hour),
+		Scopes: []string{"demo:read"}, Features: []string{"workflow:run"}, Limits: []Limit{{Key: "runs", Value: 4}},
+		AppEntitlements: []AppEntitlement{{AppKey: "demo", Status: "active", Features: []string{"workflow:run"}, Limits: []Limit{{Key: "runs", Value: 4}}}},
+		Credits:         map[string]any{"ledger": []any{map[string]any{"kind": "grant"}}},
+	}
+	first, err := client.CachedAt("user@example.com", issued.Add(30*time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	first.Scopes[0] = "demo:admin"
+	first.Features[0] = "workflow:admin"
+	first.Limits[0].Value = 99
+	first.AppEntitlements[0].Features[0] = "workflow:admin"
+	first.AppEntitlements[0].Limits[0].Value = 99
+	first.Credits.(map[string]any)["ledger"].([]any)[0].(map[string]any)["kind"] = "revoked"
+
+	second, err := client.CachedAt("user@example.com", issued.Add(30*time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertCachedGrant(t, second, []string{"demo:read"}, map[string]any{
+		"ledger": []any{map[string]any{"kind": "grant"}},
+	}, nil)
+}
+
+func assertCachedGrant(t *testing.T, got Payload, scopes []string, credits, subscription any) {
+	t.Helper()
+	if !reflect.DeepEqual(got.Scopes, scopes) {
+		t.Errorf("cached scopes = %v, want %v", got.Scopes, scopes)
+	}
+	if !reflect.DeepEqual(got.Features, []string{"workflow:run"}) {
+		t.Errorf("cached features = %v, want [workflow:run]", got.Features)
+	}
+	if !reflect.DeepEqual(got.Limits, []Limit{{Key: "runs", Value: 4}}) {
+		t.Errorf("cached limits = %v, want runs=4", got.Limits)
+	}
+	wantEntitlement := []AppEntitlement{{
+		AppKey: "demo", Status: "active", Features: []string{"workflow:run"}, Limits: []Limit{{Key: "runs", Value: 4}},
+	}}
+	if !reflect.DeepEqual(got.AppEntitlements, wantEntitlement) {
+		t.Errorf("cached app entitlements = %v, want %v", got.AppEntitlements, wantEntitlement)
+	}
+	if !reflect.DeepEqual(got.Credits, credits) {
+		t.Errorf("cached credits = %#v, want %#v", got.Credits, credits)
+	}
+	if !reflect.DeepEqual(got.Subscription, subscription) {
+		t.Errorf("cached subscription = %#v, want %#v", got.Subscription, subscription)
 	}
 }
 

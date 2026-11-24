@@ -508,12 +508,26 @@ func (s *Service) finish(run *MatrixRun) error {
 	if err := s.store.Save(run); err != nil {
 		return err
 	}
-	if run.Gate != nil && s.reporter != nil {
+	shouldReport := run.Selection.DeploymentProfileID != "" || run.Selection.DeploymentGitCommit != ""
+	if dynamic, ok := s.reporter.(interface {
+		SupportsRunIdentity() bool
+		HasConfiguredIdentity() bool
+	}); ok && dynamic.SupportsRunIdentity() {
+		shouldReport = shouldReport || dynamic.HasConfiguredIdentity()
+	} else if s.reporter != nil {
+		shouldReport = true
+	}
+	if run.Gate != nil && s.reporter != nil && shouldReport {
 		var evidence []*domainv1.LayeredEvidence
 		for _, cell := range run.Matrix.GetCells() {
 			evidence = append(evidence, cell.GetEvidence()...)
 		}
-		err := s.reporter.ReportValidationGate(context.Background(), ReleaseVerdict{RunID: run.RunID, MatrixID: run.Matrix.GetMatrixId(), ScenarioName: run.Matrix.GetScenarioName(), ArtifactDigest: run.Matrix.GetArtifactDigest(), Gate: run.Gate, Evidence: evidence})
+		err := s.reporter.ReportValidationGate(context.Background(), ReleaseVerdict{
+			RunID: run.RunID, MatrixID: run.Matrix.GetMatrixId(), ScenarioName: run.Matrix.GetScenarioName(),
+			ArtifactDigest: run.Matrix.GetArtifactDigest(), ArtifactRef: run.Selection.Metadata["immutable_ref"],
+			ProfileID: run.Selection.DeploymentProfileID, GitCommit: run.Selection.DeploymentGitCommit,
+			Targets: append([]TargetSelection(nil), run.Selection.Targets...), Gate: run.Gate, Evidence: evidence,
+		})
 		run.ReleaseReport.ReportedAt = s.now()
 		if err != nil {
 			run.ReleaseReport.Error = err.Error()

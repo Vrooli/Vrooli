@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
+	"sync"
 )
 
 const streamingSampleRate = 16_000
@@ -36,6 +38,59 @@ type STTEvent struct {
 	Final       bool
 	StartSample int64
 	EndSample   int64
+}
+
+// limitedStreaming bounds per-session decoder state so a burst of websocket
+// clients cannot multiply the resident model's memory and CPU cost without
+// limit. The model itself remains shared by the wrapped engine.
+type limitedStreaming struct {
+	inner  StreamingSTT
+	mu     sync.Mutex
+	active int
+	limit  int
+}
+
+func limitStreaming(inner StreamingSTT, limit int) StreamingSTT {
+	if limit < 1 {
+		limit = 1
+	}
+	return &limitedStreaming{inner: inner, limit: limit}
+}
+
+func (e *limitedStreaming) NewStream() (STTStream, error) {
+	e.mu.Lock()
+	if e.active >= e.limit {
+		e.mu.Unlock()
+		return nil, fmt.Errorf("streaming session capacity reached (%d)", e.limit)
+	}
+	e.active++
+	e.mu.Unlock()
+	stream, err := e.inner.NewStream()
+	if err != nil {
+		e.release()
+		return nil, err
+	}
+	return &limitedSTTStream{STTStream: stream, release: e.release}, nil
+}
+
+func (e *limitedStreaming) release() {
+	e.mu.Lock()
+	if e.active > 0 {
+		e.active--
+	}
+	e.mu.Unlock()
+}
+
+func (e *limitedStreaming) Close() { e.inner.Close() }
+
+type limitedSTTStream struct {
+	STTStream
+	once    sync.Once
+	release func()
+}
+
+func (s *limitedSTTStream) Close() {
+	s.once.Do(func() { s.STTStream.Close(); s.release() })
 }
 
 // SpeakerRuntime is optional so TTS/STT can remain available when the larger
@@ -72,4 +127,15 @@ func envOr(name, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func envBool(name string, fallback bool) bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(name))) {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return fallback
+	}
 }

@@ -62,6 +62,7 @@ func newHandlerWithEncoderStreamingAndSpeaker(engine TTS, encoder Encoder, strea
 	h := &speechHandler{engine: engine, encoder: encoder, streaming: streaming, speaker: speaker}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", h.health)
+	mux.HandleFunc("/healthz/", h.health)
 	mux.HandleFunc("/v1/audio/voices", h.listVoices)
 	mux.HandleFunc("/v1/audio/speech", h.speech)
 	mux.HandleFunc("/v1/stream", h.stream)
@@ -76,28 +77,54 @@ func newHandlerWithEncoderStreamingAndSpeaker(engine TTS, encoder Encoder, strea
 	return mux
 }
 
-func (h *speechHandler) health(w http.ResponseWriter, _ *http.Request) {
+func (h *speechHandler) health(w http.ResponseWriter, r *http.Request) {
+	requestPath := strings.TrimPrefix(r.URL.Path, "/healthz")
+	requestPath = strings.Trim(requestPath, "/")
+	ttsReady := h.engine != nil && h.encoderReady()
+	sttReady := h.streaming != nil
+	speakerReady := h.speaker != nil
+	ready := ttsReady || sttReady || speakerReady
+	switch requestPath {
+	case "":
+	case "tts":
+		ready = ttsReady
+	case "stt":
+		ready = sttReady
+	case "speaker":
+		ready = speakerReady
+	default:
+		http.NotFound(w, r)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	ttsLoaded := h.engine != nil
 	streamingLoaded := h.streaming != nil
 	speakerLoaded := h.speaker != nil
-	encoderReady := true
-	if status, ok := h.encoder.(encoderReadiness); ok {
-		encoderReady = status.Ready()
-	}
-	if !encoderReady || !ttsLoaded {
+	encoderReady := h.encoderReady()
+	if !ready {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
 	status := "ok"
-	if !encoderReady || !ttsLoaded {
-		status = "degraded"
+	if !ready {
+		status = "unavailable"
 	}
 	_, _ = fmt.Fprintf(w, `{"status":%q,"tts_model_loaded":%t,"encoder_ready":%t,"streaming_model_loaded":%t,"speaker_model_loaded":%t}`, status, ttsLoaded, encoderReady, streamingLoaded, speakerLoaded)
+}
+
+func (h *speechHandler) encoderReady() bool {
+	if status, ok := h.encoder.(encoderReadiness); ok {
+		return status.Ready()
+	}
+	return true
 }
 
 func (h *speechHandler) listVoices(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	if h.engine == nil {
+		h.error(w, http.StatusServiceUnavailable, "TTS model is unavailable")
 		return
 	}
 	ids := make([]string, 0, len(voices))
@@ -111,6 +138,10 @@ func (h *speechHandler) listVoices(w http.ResponseWriter, r *http.Request) {
 func (h *speechHandler) speech(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	if h.engine == nil {
+		h.error(w, http.StatusServiceUnavailable, "TTS model is unavailable")
 		return
 	}
 	var req speechRequest

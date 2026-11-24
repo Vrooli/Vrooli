@@ -24,11 +24,11 @@ func TestProbeReportsReadyMissingAndUnknown(t *testing.T) {
 		}
 		return "/bin/" + command, nil
 	}
-	version := func(_ context.Context, path string, _ []string) (string, error) {
+	version := func(_ context.Context, path string, _ []string) (VersionOutput, error) {
 		if path == "/bin/unknown" {
-			return "", errors.New("failed")
+			return VersionOutput{}, errors.New("failed")
 		}
-		return "v1.2.3\n", nil
+		return VersionOutput{Stdout: "v1.2.3\n"}, nil
 	}
 	when := time.Date(2026, 8, 31, 12, 0, 0, 0, time.UTC)
 	got := ProbeWith(context.Background(), defs, look, version, func() time.Time { return when })
@@ -45,12 +45,23 @@ func TestProbeWithHonorsCallerDeadlineForHangingCommand(t *testing.T) {
 	defer cancel()
 	got := ProbeWith(ctx, []Definition{{Capability: "ai-cli", ID: "hung", Command: "hung"}},
 		func(string) (string, error) { return "/bin/hung", nil },
-		func(ctx context.Context, _ string, _ []string) (string, error) {
+		func(ctx context.Context, _ string, _ []string) (VersionOutput, error) {
 			<-ctx.Done()
-			return "", ctx.Err()
+			return VersionOutput{}, ctx.Err()
 		}, time.Now)
 	if len(got) != 1 || got[0].State != Unknown {
 		t.Fatalf("hanging command observation = %+v", got)
+	}
+}
+
+func TestProbeKeepsSuccessfulStderrOutOfVersion(t *testing.T) {
+	got := ProbeWith(context.Background(), []Definition{{Capability: "ai-cli", ID: "warn", Command: "warn"}},
+		func(string) (string, error) { return "/bin/warn", nil },
+		func(context.Context, string, []string) (VersionOutput, error) {
+			return VersionOutput{Stdout: "v2.4.1\n", Stderr: "config file is deprecated\n"}, nil
+		}, time.Now)
+	if len(got) != 1 || got[0].State != Ready || got[0].Version != "v2.4.1" || got[0].Detail != "config file is deprecated" {
+		t.Fatalf("observation = %+v; want clean version and retained warning", got)
 	}
 }
 

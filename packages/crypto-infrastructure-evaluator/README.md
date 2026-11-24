@@ -36,4 +36,8 @@ closed on missing layers or incomplete adversary/time-window context. CI2's
 full mission still requires measured deployment-specific inventories, the
 censored-network reachability test, and evidence from actual centralized,
 partial, and full deployment targets; seeded profiles do not close those
-targets.
+targets. An occurrence without a valid UTC timestamp is excluded from a bounded
+time-window attack and counted in `unverifiable_occurrence_count`; it can
+contribute to neither a match nor a no-match conclusion. Seeded profiles choose
+a timestamped occurrence deterministically and remain synthetic regression
+fixtures.

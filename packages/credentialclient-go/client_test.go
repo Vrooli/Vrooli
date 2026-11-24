@@ -15,8 +15,9 @@ import (
 )
 
 type testStore struct {
-	value  string
-	values map[string]string
+	value               string
+	values              map[string]string
+	failCandidateDelete bool
 }
 
 func (s *testStore) Put(service, key, value string) error {
@@ -24,7 +25,7 @@ func (s *testStore) Put(service, key, value string) error {
 		s.values = map[string]string{}
 	}
 	s.values[service+"\x00"+key] = value
-	if !strings.HasPrefix(key, "candidate/") {
+	if !strings.HasPrefix(key, "candidate/") && !strings.HasPrefix(key, "active-value/") && !strings.HasPrefix(key, "version/") {
 		s.value = value
 	}
 	return nil
@@ -33,19 +34,44 @@ func (s *testStore) Get(service, key string) (string, error) {
 	if value, ok := s.values[service+"\x00"+key]; ok {
 		return value, nil
 	}
-	if s.value == "" {
-		return "", securestore.ErrNotFound
+	if s.values == nil && s.value != "" && !strings.HasPrefix(key, "version/") && !strings.HasPrefix(key, "active-value/") && !strings.HasPrefix(key, "candidate/") {
+		return s.value, nil
 	}
-	return s.value, nil
+	return "", securestore.ErrNotFound
 }
 func (s *testStore) Delete(service, key string) error {
+	if s.failCandidateDelete && strings.HasPrefix(key, "candidate/") {
+		return securestore.ErrUnavailable
+	}
 	if s.values != nil {
 		delete(s.values, service+"\x00"+key)
 	}
-	if !strings.HasPrefix(key, "candidate/") {
+	if !strings.HasPrefix(key, "candidate/") && !strings.HasPrefix(key, "active-value/") && !strings.HasPrefix(key, "version/") {
 		s.value = ""
 	}
 	return nil
+}
+
+func TestProvisionReportsCommittedCandidateCleanupState(t *testing.T) {
+	store := &testStore{failCandidateDelete: true}
+	authority, err := credentialauthority.NewAuthority(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := NewInProcess(InProcessOptions{Authority: authority})
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := client.Provision(context.Background(), ProvisionRequest{Identity: "vrooli/test", Field: "api-key", Value: "synthetic-value"})
+	if err != nil {
+		t.Fatalf("committed activation reported as failure: %v", err)
+	}
+	if !response.CleanupPending || response.Version == "" || response.Status != "provisioned" {
+		t.Fatalf("missing metadata receipt: %+v", response)
+	}
+	if strings.Contains(response.Provider+response.Status, "synthetic-value") {
+		t.Fatal("response echoed credential")
+	}
 }
 
 func TestInProcessProvisionAndStatusNeverNeedsSubprocess(t *testing.T) {

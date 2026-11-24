@@ -15,9 +15,8 @@ import (
 )
 
 const (
-	resourceName     = "unstructured-io"
-	defaultPreferred = int64(1536 << 20)
-	intervalEnv      = "UNSTRUCTURED_IO_CAPACITY_SYNC_INTERVAL"
+	resourceName = "unstructured-io"
+	intervalEnv  = "UNSTRUCTURED_IO_CAPACITY_SYNC_INTERVAL"
 )
 
 var defaultInterval = tuning.CompanionCapacitySyncInterval()
@@ -51,15 +50,11 @@ func (h *Handlers) config() companion.Config {
 		interval = companion.PollInterval(h.GetEnv, intervalEnv, defaultInterval)
 	}
 	return companion.Config{
-		Resource:       resourceName,
-		ResourceKind:   "ram",
-		Observer:       h,
-		Exec:           h.Exec,
-		Interval:       interval,
-		Priority:       "service",
-		PreferredBytes: defaultPreferred,
-		FloorBytes:     defaultPreferred,
-		Log:            h.Stderr,
+		Resource: resourceName,
+		Observer: h,
+		Exec:     h.Exec,
+		Interval: interval,
+		Log:      h.Stderr,
 	}
 }
 

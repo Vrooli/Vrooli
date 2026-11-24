@@ -19,11 +19,8 @@ export {
   type LogCaptureOptions,
   type NetworkCaptureOptions,
   type StorageShimEntry,
-  emitShortcutIntent,
-  HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER,
-  type BridgeShortcutIntent,
-  type BridgeShortcutOutcome,
 } from './iframeBridgeChild.js';
+export { emitShortcutIntent, HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER, type BridgeShortcutIntent, type BridgeShortcutOutcome } from './shortcutIntent.js';
 
 // Spatial navigation (also available via `@vrooli/iframe-bridge/spatial`)
 export {

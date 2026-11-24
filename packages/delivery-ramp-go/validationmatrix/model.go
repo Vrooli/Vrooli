@@ -92,7 +92,12 @@ type CatalogSnapshot struct {
 }
 
 type MatrixSelection struct {
-	ScenarioName                   string                                  `json:"scenario_name"`
+	ScenarioName string `json:"scenario_name"`
+	// DeploymentProfileID and DeploymentGitCommit bind this run's terminal
+	// verdict to the deployment-manager evidence ledger. Both must be present
+	// together; they are optional for ordinary operator validation.
+	DeploymentProfileID            string                                  `json:"deployment_profile_id,omitempty"`
+	DeploymentGitCommit            string                                  `json:"deployment_git_commit,omitempty"`
 	Command                        string                                  `json:"command,omitempty"`
 	CommandArgs                    []string                                `json:"command_args,omitempty"`
 	ArtifactDigest                 string                                  `json:"artifact_digest"`
@@ -279,6 +284,10 @@ type ReleaseVerdict struct {
 	MatrixID       string
 	ScenarioName   string
 	ArtifactDigest string
+	ArtifactRef    string
+	ProfileID      string
+	GitCommit      string
+	Targets        []TargetSelection
 	Gate           *domainv1.ReleaseGate
 	Evidence       []*domainv1.LayeredEvidence
 }
@@ -348,6 +357,12 @@ func (s RerunSelector) matches(record *CellRecord) bool {
 func (s MatrixSelection) validate() error {
 	if strings.TrimSpace(s.ScenarioName) == "" || strings.TrimSpace(s.ArtifactDigest) == "" {
 		return fmt.Errorf("scenario name and artifact digest are required")
+	}
+	if (strings.TrimSpace(s.DeploymentProfileID) == "") != (strings.TrimSpace(s.DeploymentGitCommit) == "") {
+		return fmt.Errorf("deployment profile and git commit must be provided together")
+	}
+	if strings.TrimSpace(s.DeploymentProfileID) != "" && len(s.Targets) != 1 {
+		return fmt.Errorf("deployment-bound validation requires exactly one selected target")
 	}
 	switch s.DeploymentMode {
 	case "", "bundled", "proxy", "external-server", "cloud-api":

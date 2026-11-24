@@ -124,6 +124,9 @@ type ProvisionResponse struct {
 	Version  string `json:"version,omitempty"`
 	Provider string `json:"provider"`
 	Status   string `json:"status"`
+	// CleanupPending means activation committed but removal of the duplicate
+	// staged copy failed. It contains no credential material.
+	CleanupPending bool `json:"cleanup_pending,omitempty"`
 }
 
 // ExposureMode makes plaintext handling an explicit part of the runtime

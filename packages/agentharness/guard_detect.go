@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
 func (r Runtime) guardModeStore() *GuardModeStore {
@@ -17,161 +16,242 @@ func (r Runtime) guardModeStore() *GuardModeStore {
 	return NewGuardModeStore(r.Store.Dir)
 }
 
-// relaxationMayBeActive reports whether a temporary log-only mode may be
-// active. It reads the state file without the store lock, so concurrent hooks
-// never contend; an unreadable state file counts as active (fail closed).
-func (r Runtime) relaxationMayBeActive(now time.Time) bool {
-	store := r.guardModeStore()
-	if store == nil {
-		return false
-	}
-	active, err := store.core().MayHaveActive(now)
-	return err != nil || active
+// hardStopMatch is what a guard recognized: its class and a short, plain
+// description of the signal, which the agent, the block log and the steward
+// see. A signal never holds a secret value.
+type hardStopMatch struct {
+	Class  HardStopClass
+	Signal string
 }
 
-func (r Runtime) hardStopDecision(event ToolEvent, risk RiskClass, hardStop HardStopClass, now time.Time) (Decision, error) {
-	return r.hardStopDecisionValue(event, risk, hardStop, now), nil
-}
-
-func (r Runtime) hardStopDecisionValue(event ToolEvent, risk RiskClass, hardStop HardStopClass, now time.Time) Decision {
-	decision := Decision{ContractVersion: ContractVersion, EventID: event.EventID, Action: ActionDeny, Risk: risk, Degraded: false, Reason: "hard-stop action requires operator handling; temporary check relaxations were restored", Evidence: []Evidence{}}
-	restored, err := r.restoreGuardModes(hardStop, event, now)
-	decision.Evidence = append(decision.Evidence, tripwireEvidence(hardStop, restored, err))
-	if err != nil {
-		decision.Degraded = true
-		decision.Reason = "hard-stop action was denied; restoring temporary check modes failed and requires operator review"
-	}
-	return decision
-}
-
-func (r Runtime) restoreGuardModes(hardStop HardStopClass, event ToolEvent, now time.Time) ([]RiskClass, error) {
-	store := r.guardModeStore()
-	if store == nil {
-		return nil, nil
-	}
-	// RestoreAll reads and clears the active set under one store lock. Avoid a
-	// separate Active pre-read so an enable racing with this event cannot slip
-	// between inspection and restoration.
-	return store.RestoreAll(hardStop, event.EventID, now)
-}
-
-func tripwireEvidence(hardStop HardStopClass, restored []RiskClass, err error) Evidence {
-	facts := map[string]string{"hard_stop": string(hardStop), "restored_checks": strings.Join(riskClassStrings(restored), ",")}
-	message := "a hard-stop event restored all active temporary log-only modes"
-	severity := "warning"
-	if err != nil {
-		facts["restore_error"] = "restore audit/state write failed"
-		message = "hard-stop event detected, but restoration could not be confirmed"
-		severity = "error"
-	}
-	return Evidence{Code: "TRIPWIRE_HARD_STOP", Message: message, Source: "policy-runtime", Facts: facts, Severity: severity}
-}
-
-func riskClassStrings(risks []RiskClass) []string {
-	out := make([]string, len(risks))
-	for i, risk := range risks {
-		out[i] = string(risk)
-	}
-	return out
-}
-
-// hasOpaqueExecution reports hook events whose effects the hook cannot see:
-// a file-backed interpreter or shell script (the event carries the launcher
-// and path, not the code), or an unquoted here-document whose body expands
-// before the receiving command runs. A literal here-document file write is
-// data, not execution, and is classified by hardStopForEvent instead.
-//
-// These are tripwire inputs, not always-on hard stops. They exist so a hidden
-// action cannot slip past an active temporary log-only relaxation; the
-// runtime applies them only while one is active (see Runtime.evaluate).
-// Outside a relaxation the visible money, secret and outbound-message floor in
-// hardStopForEvent still applies to the command line itself.
-func hasOpaqueExecution(event ToolEvent) bool {
-	if _, _, ok := literalHereDocFileWrite(event); ok {
-		return false
-	}
-	return unquotedHereDocHasExpansion(event) || hasOpaqueScriptExecution(event)
-}
-
-// hardStopForEvent uses exact hook-visible tokens, never substring matches.
-// It records no command text or secret material in durable state or evidence.
+// hardStopForEvent reports the class of the guard an event trips, or "".
 func hardStopForEvent(event ToolEvent) HardStopClass {
+	return detectHardStop(event).Class
+}
+
+// detectHardStop uses exact hook-visible tokens, never substring matches, and
+// judges the acting text of a command rather than the words its data carries.
+func detectHardStop(event ToolEvent) hardStopMatch {
+	if hardStopsErr != nil {
+		return hardStopMatch{}
+	}
+	stop := func(class HardStopClass, signal string) hardStopMatch {
+		return hardStopMatch{Class: class, Signal: signal}
+	}
 	if header, target, ok := literalHereDocFileWrite(event); ok {
-		// A cat heredoc is a local file write: its body is data, not an action
-		// description to scan for payments, secrets or outbound messages. Keep
-		// explicit writes to a known secret path protected. A special or
-		// unresolved redirection endpoint remains a hard stop.
+		// A cat heredoc is a local file write: its body is data. Keep explicit
+		// writes to a credential path and to a network endpoint protected.
 		if isShellNetworkEndpoint(target) || isNetworkRedirection(event) {
-			return HardStopOutsideMessage
+			return stop(HardStopOutsideMessage, "writes to a network address")
 		}
 		if hasSensitiveResource(hookEventTokens(ToolEvent{Target: event.Target, Shell: header})) {
-			return HardStopSecret
+			return stop(HardStopSecret, "writes into a credential file")
 		}
 		if !ordinaryLocalFileTarget(target, event.WorkingDirectory) {
-			return HardStopUnknownEffect
+			return stop(HardStopUnknownEffect, "writes a here-document to a device or special file")
 		}
-		return ""
+		return hardStopMatch{}
 	}
 	if isNetworkRedirection(event) {
-		return HardStopOutsideMessage
+		return stop(HardStopOutsideMessage, "writes to a network address (/dev/tcp or /dev/udp)")
 	}
-	tokens := hookEventTokens(event)
+	acting := event
+	if hasHookToken(hookEventTokens(ToolEvent{Tool: event.Tool}), hardStops.Shell.Tools...) {
+		acting.Shell, _ = visibleShell(event.Shell)
+	}
+	tokens := hookEventTokens(acting)
 	toolTokens := hookEventTokens(ToolEvent{Tool: event.Tool})
 	if hasSensitiveOperationTarget(event) {
-		return HardStopSecret
+		return stop(HardStopSecret, "reads or writes a credential file")
+	}
+	if readsProcessEnvironment(acting.Shell) {
+		return stop(HardStopSecret, "reads another process's environment (/proc/*/environ)")
 	}
 	// Search tools report query terms and paths without performing the
 	// protected operation described by those terms.
-	if isSearchTool(event.Tool) || isNonEffectShellCommand(event) {
-		if hasSensitiveFilePath(hookEventTokens(ToolEvent{Target: event.Target})) && isReadLikeOperation(event) {
-			return HardStopSecret
+	if isSearchTool(event.Tool) || isNonEffectShellCommand(acting) {
+		if hasSensitiveFilePath(hookEventTokens(ToolEvent{Target: event.Target})) && isReadLikeOperation(event) ||
+			isNonEffectShellCommand(acting) && hasHookToken(tokens, "grep", "rg", "ripgrep", "ag", "ack", "findstr") && hasSensitiveFilePath(tokens) {
+			return stop(HardStopSecret, "searches inside a credential file")
 		}
-		if isNonEffectShellCommand(event) && hasHookToken(tokens, "grep", "rg", "ripgrep", "ag", "ack", "findstr") && hasSensitiveFilePath(tokens) {
-			return HardStopSecret
-		}
-		return ""
+		return hardStopMatch{}
 	}
 	activeEffect := hasProtectedEffectSemantics(event)
 	if isProviderCommentMutation(event.Tool) {
-		return HardStopOutsideMessage
+		return stop(HardStopOutsideMessage, "posts a GitHub or GitLab comment")
 	}
-	secretTool := hasHookToken(toolTokens, "password", "secret", "secrets", "credential", "credentials", "api_key", "api-key", "private_key", "private-key", "access_token", "refresh_token", "secretsmanager", "secretmanager", "vault")
-	secretOperation := hasHookToken(tokens, "read", "readfile", "cat", "head", "tail", "less", "more", "open", "get-content", "getcontent", "write", "edit", "put", "post", "send", "source", "printenv", "env", "export", "curl", "wget", "http", "httpie", "fetch", "requests.get", "requests.post", "httpx.get", "httpx.post", "axios.get", "axios.post", "process.env", "os.environ", "getenv")
-	secretOperation = secretOperation || hasQualifiedPrefix(tokens, "process", "env") || hasQualifiedPrefix(tokens, "os", "environ")
-	if isVaultReadCommand(event) || secretTool && hasHookToken(toolTokens, "read", "readfile", "get", "fetch", "open", "send") ||
-		activeEffect && (hasSensitiveResource(tokens) && secretOperation || hasQualifiedCall(tokens, "password", "secret", "secrets", "credential", "credentials", "api_key", "private_key", "access_token", "refresh_token") && secretOperation) {
-		return HardStopSecret
+	secrets, money, messages, hidden := hardStops.Secrets, hardStops.Money, hardStops.Messages, hardStops.HiddenEffect
+	// Paired signals (a reading program and a credential path, a chat tool
+	// and "send") must meet inside one simple command: `head x; touch y/.env`
+	// neither reads a credential nor sends anything.
+	commands := actingCommandTokens(event, acting, tokens)
+	inOneCommand := func(match func([]string) bool) bool {
+		for _, commandTokens := range commands {
+			if match(commandTokens) {
+				return true
+			}
+		}
+		return false
 	}
-	checkoutPayment := hasHookToken(tokens, "checkout") && hasHookToken(tokens, "stripe", "paypal", "square", "shopify", "woocommerce", "payment", "payments", "purchase", "purchases", "billing", "charge", "charges", "invoice", "refund", "refunds")
-	if activeEffect && (hasHookToken(tokens, "payment", "payments", "purchase", "purchases", "billing", "invoice", "charge", "charges", "refund", "refunds", "money-transfer", "wire-transfer", "buy-now", "stripe.charge", "stripe.payment_intents.create", "stripe.paymentintents.create") || checkoutPayment || hasQualifiedCall(tokens, "paymentintents.create", "payment_intents.create", "paymentintents.confirm", "payment_intents.confirm", "charges.create", "charges.update")) {
-		return HardStopMoney
+	readsCredential := func(t []string) bool {
+		operation := hasHookToken(t, secrets.Operations...) || hasQualifiedPrefix(t, "process", "env") || hasQualifiedPrefix(t, "os", "environ")
+		return operation && (hasSensitiveResource(t) || hasQualifiedCall(t, secrets.Calls...))
 	}
-	transport := hasHookToken(tokens, "slack", "discord", "telegram", "whatsapp", "email", "smtp", "webhook", "sendgrid", "mailgun", "sendmail", "mutt")
-	outbound := hasHookToken(tokens, "send", "reply", "dispatch", "deliver", "post-message", "post_message", "outbound-message", "outbound_message", "comment", "publish")
-	if activeEffect && (transport && outbound || hasHookToken(tokens, "send-message", "send_message", "send-email", "send_email", "sendmail", "mail")) {
-		return HardStopOutsideMessage
+	if isVaultReadCommand(event) || hasHookToken(toolTokens, secrets.Tools...) && hasHookToken(toolTokens, secrets.ToolOperations...) {
+		return stop(HardStopSecret, "reads from a secret store")
 	}
-	if activeEffect && hasHookToken(tokens, "git.push", "gh.pr.comment", "gh.issue.comment", "requests.post", "httpx.post", "axios.post", "fetch.post") {
-		return HardStopOutsideMessage
+	if activeEffect && inOneCommand(readsCredential) {
+		return stop(HardStopSecret, "reads or sends a credential")
 	}
-	if activeEffect && hasHookToken(tokens, "curl", "wget", "http", "httpie", "requests.post", "httpx.post", "axios.post", "fetch") && hasHookToken(tokens, "-d", "--data", "--data-raw", "--json", "--form", "-f", "post", "put", "patch") {
-		return HardStopOutsideMessage
+	checkout := inOneCommand(func(t []string) bool {
+		return hasHookToken(t, money.CheckoutWords...) && hasHookToken(t, money.CheckoutContext...)
+	})
+	if activeEffect && (hasHookToken(tokens, money.Words...) || checkout || hasQualifiedCall(tokens, money.Calls...)) {
+		return stop(HardStopMoney, "moves money (a payment, charge, purchase, invoice or refund)")
 	}
-	if activeEffect && hasQualifiedCall(tokens, "send", "reply", "dispatch", "deliver", "post", "put", "patch", "charge", "payment", "purchase", "secret", "password", "credential", "token", "remove", "unlink", "rmtree", "rmdir", "delete") {
-		return HardStopUnknownEffect
+	if activeEffect {
+		chat := inOneCommand(func(t []string) bool {
+			return hasHookToken(t, messages.Transports...) && hasHookToken(t, messages.Verbs...)
+		})
+		if chat || hasHookToken(tokens, messages.Commands...) {
+			return stop(HardStopOutsideMessage, "sends a chat or email message")
+		}
+		if sequence := publishingCommand(acting); sequence != "" {
+			return stop(HardStopOutsideMessage, "publishes outside Vrooli (`"+sequence+"`)")
+		}
+		if hasHookToken(tokens, messages.Calls...) {
+			return stop(HardStopOutsideMessage, "publishes outside Vrooli")
+		}
+		if host := messageHost(event); host != "" && sendsWebData(event, acting, tokens) {
+			return stop(HardStopOutsideMessage, "sends data to a messaging service ("+host+")")
+		}
 	}
-	indirect := hasHookToken(tokens, "eval", "exec", "base64", "--encodedcommand", "python", "python3", "node", "deno", "ruby", "perl", "pwsh", "powershell", "bash", "sh")
-	if activeEffect && indirect && hasHookToken(tokens, "send", "reply", "dispatch", "deliver", "post", "put", "patch", "charge", "payment", "purchase", "secret", "password", "credential", "token", "environ", "process.env", "os.environ") {
-		return HardStopUnknownEffect
+	// Hidden commands: text decoded and then run. A shell tool counts the
+	// programs its command line starts, never the tool's own name.
+	decodes := hasHookToken(tokens, hidden.EncodedCommandFlags...)
+	if hasHookToken(toolTokens, hardStops.Shell.Tools...) {
+		bases := shellCommandBases(acting.Shell)
+		decodes = decodes || hasHookToken(bases, hidden.Decoders...) && runsShellOrInterpreter(bases)
 	}
-	if activeEffect && hasHookToken(tokens, "base64", "--encodedcommand") && hasHookToken(tokens, "bash", "sh", "pwsh", "powershell", "python", "python3", "node", "eval", "exec") {
-		return HardStopUnknownEffect
+	if activeEffect && decodes {
+		return stop(HardStopUnknownEffect, "decodes text and runs it as a command")
+	}
+	return hardStopMatch{}
+}
+
+// actingCommandTokens splits a shell event's acting text into its simple
+// commands and tokenizes each; any other event is one command.
+func actingCommandTokens(event, acting ToolEvent, tokens []string) [][]string {
+	if !hasHookToken(hookEventTokens(ToolEvent{Tool: event.Tool}), hardStops.Shell.Tools...) || acting.Shell == "" {
+		return [][]string{tokens}
+	}
+	var commands [][]string
+	for _, line := range strings.Split(acting.Shell, "\n") {
+		for _, command := range splitShellCommands(line) {
+			commands = append(commands, hookEventTokens(ToolEvent{Shell: command, Target: event.Target}))
+		}
+	}
+	return commands
+}
+
+// runsShellOrInterpreter reports whether a command line starts a shell or an
+// interpreter that can run what an earlier stage decoded.
+func runsShellOrInterpreter(bases []string) bool {
+	for _, base := range bases {
+		if isOneOf(base, hardStops.Shell.ShellPrograms) || isInlineInterpreter(base) || base == "eval" {
+			return true
+		}
+	}
+	return false
+}
+
+// publishingCommand returns the first configured publishing command sequence
+// (such as "gh pr create") the acting text runs, or "".
+func publishingCommand(acting ToolEvent) string {
+	words := strings.Fields(strings.ToLower(strings.Join(append([]string{acting.Tool, acting.Shell}, acting.Arguments...), " ")))
+	for index := range words {
+		words[index] = strings.Trim(words[index], "'\"`;&|()")
+	}
+	for _, sequence := range hardStops.Messages.CommandSequences {
+		want := strings.Fields(sequence)
+		for start := 0; start+len(want) <= len(words); start++ {
+			if slicesEqual(words[start:start+len(want)], want) {
+				return sequence
+			}
+		}
 	}
 	return ""
 }
 
+func slicesEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for index := range a {
+		if a[index] != b[index] {
+			return false
+		}
+	}
+	return true
+}
+
+// messageHost returns the configured messaging host the event names, or "".
+// The whole event text counts here, literals included, because a URL is data
+// the request is about to act on.
+func messageHost(event ToolEvent) string {
+	text := strings.ToLower(strings.Join(append([]string{event.Tool, event.Shell, event.Target}, event.Arguments...), " "))
+	for _, host := range hardStops.Messages.MessageHosts {
+		for from := 0; ; {
+			index := strings.Index(text[from:], host)
+			if index < 0 {
+				break
+			}
+			start, end := from+index, from+index+len(host)
+			before, after := byte(' '), byte(' ')
+			if start > 0 {
+				before = text[start-1]
+			}
+			if end < len(text) {
+				after = text[end]
+			}
+			if !isHostByte(after) && (before == '.' || !isHostByte(before)) {
+				return host
+			}
+			from = end
+		}
+	}
+	return ""
+}
+
+func isHostByte(char byte) bool {
+	return char >= 'a' && char <= 'z' || char >= '0' && char <= '9' || char == '-' || char == '.'
+}
+
+// sendsWebData reports a web client (a program or an SDK) used with a body or
+// a write method. The client must be in the acting text: a script that only
+// edits text naming requests.post is not sending anything. The method may be a
+// literal, as in fetch(url, {method: 'POST'}).
+func sendsWebData(event, acting ToolEvent, tokens []string) bool {
+	messages := hardStops.Messages
+	raw := hookEventTokens(event)
+	if !hasHookToken(tokens, messages.WebClients...) && !hasQualifiedPrefixAny(tokens, messages.WebClients) {
+		return false
+	}
+	return hasDataSendFlag(acting.Shell) || hasHookToken(raw, messages.WriteMethods...) || hasQualifiedCall(raw, messages.WriteMethods...)
+}
+
+func hasQualifiedPrefixAny(tokens []string, prefixes []string) bool {
+	for _, token := range tokens {
+		head, _, ok := strings.Cut(token, ".")
+		if ok && isOneOf(head, prefixes) {
+			return true
+		}
+	}
+	return false
+}
+
 func hasSensitiveOperationTarget(event ToolEvent) bool {
-	readOrWrite := isReadLikeOperation(event) || hasHookToken(hookEventTokens(ToolEvent{Tool: event.Tool}), "write", "writefile", "edit", "put", "patch")
+	readOrWrite := isSearchTool(event.Tool) || hasHookToken(hookEventTokens(ToolEvent{Tool: event.Tool}), hardStops.Secrets.FileTools...)
 	if !readOrWrite {
 		return false
 	}
@@ -355,12 +435,7 @@ func sudoOptionTakesValue(option string) bool {
 }
 
 func isShellExecutable(base string) bool {
-	switch base {
-	case "sh", "bash", "zsh", "dash", "ksh":
-		return true
-	default:
-		return false
-	}
+	return isOneOf(base, hardStops.Shell.ShellPrograms)
 }
 
 func shellWords(command string) []string {
@@ -589,7 +664,7 @@ func splitShellCommands(script string) []string {
 }
 
 func isNetworkRedirection(event ToolEvent) bool {
-	if !hasHookToken(hookEventTokens(ToolEvent{Tool: event.Tool}), "shell", "bash", "sh", "zsh") {
+	if !hasHookToken(hookEventTokens(ToolEvent{Tool: event.Tool}), hardStops.Shell.Tools...) {
 		return false
 	}
 	shell := strings.TrimSpace(event.Shell)
@@ -729,7 +804,7 @@ func isShellNetworkEndpoint(path string) bool {
 // source or name a protected destination. Other commands remain fully scanned.
 func literalHereDocFileWrite(event ToolEvent) (string, string, bool) {
 	toolTokens := hookEventTokens(ToolEvent{Tool: event.Tool})
-	if !hasHookToken(toolTokens, "shell", "bash", "sh", "zsh") {
+	if !hasHookToken(toolTokens, hardStops.Shell.Tools...) {
 		return "", "", false
 	}
 	newline := strings.IndexByte(event.Shell, '\n')
@@ -776,43 +851,6 @@ func literalHereDocFileWrite(event ToolEvent) (string, string, bool) {
 	return "", "", false
 }
 
-func unquotedHereDocHasExpansion(event ToolEvent) bool {
-	toolTokens := hookEventTokens(ToolEvent{Tool: event.Tool})
-	if !hasHookToken(toolTokens, "shell", "bash", "sh", "zsh") {
-		return false
-	}
-	newline := strings.IndexByte(event.Shell, '\n')
-	if newline < 0 {
-		return false
-	}
-	header := event.Shell[:newline]
-	if !strings.Contains(header, "<<") || !strings.Contains(header, ">") || strings.ContainsAny(header, ";|&`$()") {
-		return false
-	}
-	fields := strings.Fields(header)
-	if len(fields) == 0 || !strings.EqualFold(filepath.Base(strings.Trim(fields[0], "'\"")), "cat") {
-		return false
-	}
-	marker := strings.Index(header, "<<") + 2
-	delimFields := strings.Fields(strings.TrimSpace(header[marker:]))
-	if len(delimFields) == 0 || strings.HasPrefix(delimFields[0], "'") || strings.HasPrefix(delimFields[0], `"`) {
-		return false
-	}
-	delimiter := strings.Trim(delimFields[0], "'\"")
-	if delimiter == "" {
-		return false
-	}
-	for _, line := range strings.Split(event.Shell[newline+1:], "\n") {
-		if line == delimiter {
-			return false
-		}
-		if hasUnescapedExpansion(line) {
-			return true
-		}
-	}
-	return false
-}
-
 func hereDocHasExpansion(lines []string) bool {
 	for _, line := range lines {
 		if hasUnescapedExpansion(line) {
@@ -834,49 +872,6 @@ func hasUnescapedExpansion(line string) bool {
 			continue
 		}
 		if char == '$' || char == '`' {
-			return true
-		}
-	}
-	return false
-}
-
-func hasOpaqueScriptExecution(event ToolEvent) bool {
-	return hasOpaqueScriptExecutionDepth(event, 0)
-}
-
-func hasOpaqueScriptExecutionDepth(event ToolEvent, depth int) bool {
-	if depth >= 4 {
-		return false
-	}
-	tool := strings.ToLower(filepath.Base(strings.Trim(event.Tool, "'\"")))
-	if !hasHookToken([]string{tool}, "shell", "bash", "sh", "zsh") {
-		return false
-	}
-	for _, command := range splitShellCommands(event.Shell) {
-		if nested := nestedShellScriptFromCommand(command); nested != "" && hasOpaqueScriptExecutionDepth(ToolEvent{Tool: "shell", Shell: nested}, depth+1) {
-			return true
-		}
-		fields := shellWords(command)
-		for index, field := range fields {
-			base := strings.ToLower(filepath.Base(strings.Trim(field, "'\"")))
-			if !hasHookToken([]string{base}, "python", "python2", "python3", "node", "deno", "ruby", "perl", "pwsh", "powershell", "bash", "sh", "zsh") {
-				continue
-			}
-			for _, arg := range fields[index+1:] {
-				if arg == "-n" || arg == "--check" {
-					break
-				}
-				if arg == "-c" || arg == "-e" || arg == "--eval" || arg == "-Command" || arg == "--command" {
-					break
-				}
-				if !strings.HasPrefix(arg, "-") {
-					return true
-				}
-			}
-		}
-	}
-	for _, nested := range shellSubstitutionScripts(event.Shell) {
-		if hasOpaqueScriptExecutionDepth(ToolEvent{Tool: "shell", Shell: nested}, depth+1) {
 			return true
 		}
 	}
@@ -950,18 +945,13 @@ func hasSpecialFilesystemEndpoint(path string) bool {
 
 func isProviderCommentMutation(tool string) bool {
 	tokens := hookEventTokens(ToolEvent{Tool: tool})
-	provider := hasHookToken(tokens, "github", "gitlab")
-	mutation := hasHookToken(tokens, "create", "add", "post", "send", "publish")
-	comment := hasHookToken(tokens, "comment", "note")
-	return provider && mutation && comment
+	messages := hardStops.Messages
+	return hasHookToken(tokens, messages.CommentProviders...) && hasHookToken(tokens, messages.CommentMutations...) && hasHookToken(tokens, messages.CommentObjects...)
 }
 
 func hasProtectedEffectSemantics(event ToolEvent) bool {
 	toolTokens := hookEventTokens(ToolEvent{Tool: event.Tool})
-	if hasHookToken(toolTokens, "shell", "bash", "sh", "zsh", "pwsh", "powershell", "cmd", "command", "exec", "execute", "python", "python3", "node", "deno", "ruby", "perl", "curl", "wget", "http", "httpie", "fetch", "requests", "httpx", "axios", "stripe", "paypal", "square", "slack", "discord", "telegram", "whatsapp", "email", "smtp", "webhook", "sendgrid", "mailgun", "sendmail", "mutt", "payment", "purchase", "checkout", "billing") {
-		return true
-	}
-	return hasQualifiedCall(toolTokens, "send", "reply", "dispatch", "deliver", "post", "put", "patch", "charge", "payment", "purchase", "create", "confirm", "remove", "unlink", "delete")
+	return hasHookToken(toolTokens, hardStops.EffectTools.Words...) || hasQualifiedCall(toolTokens, hardStops.EffectTools.Calls...)
 }
 
 func isNonEffectShellCommand(event ToolEvent) bool {
@@ -987,11 +977,11 @@ func isSearchTool(tool string) bool {
 }
 
 func hasSensitiveResource(tokens []string) bool {
-	return hasHookToken(tokens, ".env", ".env.local", ".env.production", ".ssh", "id_rsa", "id_ed25519", ".npmrc", ".netrc", "private_key", "private-key", "api_key", "api-key", "access_token", "refresh_token")
+	return hasHookToken(tokens, hardStops.Secrets.Resources...)
 }
 
 func hasSensitiveFilePath(tokens []string) bool {
-	return hasHookToken(tokens, ".env", ".env.local", ".env.production", ".ssh", "id_rsa", "id_ed25519", ".npmrc", ".netrc")
+	return hasHookToken(tokens, hardStops.Secrets.FilePaths...)
 }
 
 func isReadLikeOperation(event ToolEvent) bool {
@@ -1085,39 +1075,4 @@ func hasHookToken(tokens []string, candidates ...string) bool {
 		}
 	}
 	return false
-}
-
-func outsideRepositoryDeletion(ctx RemovalContext, targets []RemovalTarget) bool {
-	if len(targets) == 0 {
-		return false
-	}
-	if strings.TrimSpace(ctx.RepoRoot) == "" {
-		return true
-	}
-	zones := ctx.zones()
-	if zones.repo == "" {
-		return true
-	}
-	for _, target := range targets {
-		if target.Unresolved != "" {
-			return true
-		}
-		path := zones.targetPath(target)
-		if !pathWithinRoot(path, zones.repo, ctx.CaseInsensitive) {
-			return true
-		}
-	}
-	return false
-}
-
-func pathWithinRoot(path, root string, foldCase bool) bool {
-	path, root = filepath.Clean(path), filepath.Clean(root)
-	if foldCase {
-		path, root = strings.ToLower(path), strings.ToLower(root)
-	}
-	rel, err := filepath.Rel(root, path)
-	if err != nil {
-		return false
-	}
-	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
 }

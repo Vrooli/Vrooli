@@ -548,7 +548,9 @@ func ScopeChildren(ref ScopeRef) ([]ScopeRef, error) { return scopeChildren(ref)
 // server started from inside an agent session kept that session's scope alive
 // after the agent exited, and its tasks and memory stayed charged to the
 // agent slice for as long as it ran. Placement at birth is the fix; this is
-// the seam that performs it.
+// the seam that performs it. The kernel moves only the named process, never
+// its existing children, so a caller placing a process it started holds it
+// before exec (StartHeld) and adopts it before the target can fork.
 func AdoptIntoScope(spec AdoptSpec) (ScopeRef, string, error) {
 	if spec.PID <= 0 {
 		return ScopeRef{Kind: ScopeKindNone}, MethodNone, fmt.Errorf("platform: adopt needs a pid")

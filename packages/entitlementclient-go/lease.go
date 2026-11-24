@@ -323,9 +323,7 @@ func (c *Client) GetFor(ctx context.Context, identity string, binding LeaseBindi
 			storedErr = c.restore(ctx, identity, binding, now)
 		}
 	}
-	c.mu.RLock()
-	cached, ok := c.cache[identity]
-	c.mu.RUnlock()
+	cached, ok := c.cachedPayload(identity)
 	var cachedBindingErr error
 	if ok && now.UTC().Before(cached.NotAfter.UTC()) {
 		if err := validateLeaseBinding(cached, binding); err == nil {
@@ -462,7 +460,46 @@ func (c *Client) cachedPayload(identity string) (Payload, bool) {
 	c.mu.RLock()
 	payload, ok := c.cache[identity]
 	c.mu.RUnlock()
-	return payload, ok
+	if !ok {
+		return Payload{}, false
+	}
+	return clonePayload(payload), true
+}
+
+// clonePayload keeps callers from mutating grants after the signature has
+// been verified. The arbitrary credit and subscription fields are decoded
+// from JSON by VerifyFor, so cloning their JSON value tree is sufficient.
+func clonePayload(payload Payload) Payload {
+	payload.Scopes = append([]string(nil), payload.Scopes...)
+	payload.Features = append([]string(nil), payload.Features...)
+	payload.Limits = append([]Limit(nil), payload.Limits...)
+	payload.AppEntitlements = append([]AppEntitlement(nil), payload.AppEntitlements...)
+	for i := range payload.AppEntitlements {
+		payload.AppEntitlements[i].Features = append([]string(nil), payload.AppEntitlements[i].Features...)
+		payload.AppEntitlements[i].Limits = append([]Limit(nil), payload.AppEntitlements[i].Limits...)
+	}
+	payload.Credits = cloneJSONValue(payload.Credits)
+	payload.Subscription = cloneJSONValue(payload.Subscription)
+	return payload
+}
+
+func cloneJSONValue(value any) any {
+	switch value := value.(type) {
+	case map[string]any:
+		copy := make(map[string]any, len(value))
+		for key, nested := range value {
+			copy[key] = cloneJSONValue(nested)
+		}
+		return copy
+	case []any:
+		copy := make([]any, len(value))
+		for i, nested := range value {
+			copy[i] = cloneJSONValue(nested)
+		}
+		return copy
+	default:
+		return value
+	}
 }
 
 func (c *Client) restore(ctx context.Context, identity string, binding LeaseBinding, now time.Time) error {
@@ -514,7 +551,7 @@ func (c *Client) restore(ctx context.Context, identity string, binding LeaseBind
 	}
 	c.keys = keys
 	c.issuerKeysPersisted = true
-	c.cache[identity] = payload
+	c.cache[identity] = clonePayload(payload)
 	return nil
 }
 
@@ -587,7 +624,7 @@ func (c *Client) getWithAccess(ctx context.Context, identity, accessToken string
 			return Payload{}, fmt.Errorf("%w: persist verified lease: %v", ErrLeaseUnavailable, err)
 		}
 	}
-	c.cache[identity] = payload
+	c.cache[identity] = clonePayload(payload)
 	return payload, nil
 }
 

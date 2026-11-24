@@ -370,10 +370,14 @@ func (z *removalZones) floorDefault(path string, recursive, contents bool) (Deci
 			return ActionAllow, "repository-path", " is a single path in the repository"
 		}
 	}
+	// Check every root before any containment: one temporary root can sit inside
+	// another (a runtime home under /tmp), and must still not be deleted whole.
 	for _, temp := range z.temps {
 		if z.same(path, temp) {
 			return ActionAsk, "temporary-root", " is a shared temporary directory; deleting it needs the operator's confirmation"
 		}
+	}
+	for _, temp := range z.temps {
 		if z.within(path, temp) {
 			return ActionAllow, "temporary", " is in a temporary directory"
 		}

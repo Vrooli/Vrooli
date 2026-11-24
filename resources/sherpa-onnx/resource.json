@@ -77,6 +77,8 @@
   },
   "driver": "managed-service",
   "managed_service": {
+    "attach_health_check_on_unsupported_platform": true,
+    "minimum_data_groups": 1,
     "artifact_role": "managed-service",
     "provenance_class": "release-signed-vrooli-adapter",
     "provider_policy": {
@@ -100,12 +102,12 @@
     },
     "artifact": {
       "path": "server/sherpa-onnx-server",
-      "version": "1.13.2-vrooli.1",
+      "version": "1.13.2-vrooli.6",
       "layout": "dir",
       "entry_path": "server/sherpa-onnx-server",
       "bundle_artifact": "sherpa-onnx-server_${os}_${arch}",
       "sha256_by_platform": {
-        "linux-amd64": "bd90dac5c3f33dfdec4d9df7806c0572f409629d395d288c637c2f370cb1ac5f"
+        "linux-amd64": "96f3606d500423e7213e4f7494368ae0527d49fba21ac4074e1172720096f2d5"
       }
     },
     "acquisition": {
@@ -147,13 +149,16 @@
     },
     "attach_health_path": "/healthz",
     "environment": {
-      "RESOURCE_LISTEN_ADDR": "127.0.0.1:${RESOURCE_PORT_UPSTREAM}",
+      "RESOURCE_LISTEN_ADDR": "127.0.0.1:${RESOURCE_PORT_HTTP}",
+      "SHERPA_ONNX_TTS_ENABLED": "false",
       "SHERPA_ONNX_MODEL_DIR": "${RESOURCE_DATA_DIR}/models/kokoro/kokoro-int8-multi-lang-v1_0",
       "SHERPA_ONNX_PROVIDER": "cpu",
       "SHERPA_ONNX_THREADS": "2",
       "SHERPA_ONNX_STREAMING_MODEL_DIR": "${RESOURCE_DATA_DIR}/models/asr/sherpa-onnx-streaming-zipformer-en-2023-06-26",
       "SHERPA_ONNX_STREAMING_MODEL_TYPE": "zipformer2",
       "SHERPA_ONNX_STREAMING_MAX_SEGMENT_SECONDS": "15",
+      "SHERPA_ONNX_STREAMING_MAX_SESSIONS": "4",
+      "SHERPA_ONNX_STREAMING_FINISH_TAIL_MS": "1200",
       "SHERPA_ONNX_PUNCTUATION_MODEL_DIR": "${RESOURCE_DATA_DIR}/models/punctuation/sherpa-onnx-punct-ct-transformer-zh-en-vocab272727-2024-04-12-int8",
       "SHERPA_ONNX_SPEAKER_MODEL": "${RESOURCE_DATA_DIR}/models/speaker/3dspeaker_speech_eres2net_large_sv_zh-cn_3dspeaker_16k.onnx",
       "SHERPA_ONNX_SEPARATION_MODEL_DIR": "${RESOURCE_DATA_DIR}/models/separation/sherpa-onnx-spleeter-2stems-fp16",
@@ -167,6 +172,8 @@
       {
         "name": "kokoro-multi-lang-v1-0",
         "path": "models/kokoro",
+        "group": "kokoro-multi-lang-v1-0",
+        "acquisition_mode": "on-demand",
         "acquisition": {
           "kind": "url",
           "license": "Apache-2.0 Kokoro model and sherpa-onnx model packaging",
@@ -207,11 +214,34 @@
         "acquisition_mode": "on-demand"
       },
       {
-        "name": "streaming-zipformer-en-2023-06-26",
+        "name": "streaming-zipformer-en-20m-2023-02-17",
         "path": "models/asr",
+        "group": "streaming-zipformer-en-20m-2023-02-17",
+        "acquisition_mode": "on-demand",
         "acquisition": {
           "kind": "url",
-          "license": "Apache-2.0 sherpa-onnx runtime; CC BY 4.0 LibriSpeech-trained Zipformer model",
+          "license": "Apache-2.0 sherpa-onnx runtime and Zipformer model weights (upstream model card declares Apache-2.0)",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17.tar.bz2",
+              "sha256": "9c559283e8498d3fe95913c79ca1cb454bb26281ac2b102b41306c7d752765d9",
+              "archive": "tar.bz2",
+              "layout": "dir",
+              "bin_path": "sherpa-onnx-streaming-zipformer-en-20M-2023-02-17/tokens.txt"
+            }
+          ]
+        }
+      },
+      {
+        "name": "streaming-zipformer-en-2023-06-26",
+        "path": "models/asr",
+        "group": "streaming-zipformer-en-2023-06-26",
+        "acquisition": {
+          "kind": "url",
+          "license": "Apache-2.0 sherpa-onnx runtime and Zipformer model weights (upstream model card declares Apache-2.0)",
           "provenance": {
             "kind": "none"
           },
@@ -229,6 +259,7 @@
       {
         "name": "punctuation-ct-transformer-zh-en-2024-04-12-int8",
         "path": "models/punctuation",
+        "group": "streaming-zipformer-en-2023-06-26",
         "acquisition": {
           "kind": "url",
           "license": "Apache-2.0 sherpa-onnx runtime; model license as published by the upstream sherpa-onnx release",
@@ -249,6 +280,7 @@
       {
         "name": "speaker-eres2net-large-zh-cn-16k",
         "path": "models/speaker/3dspeaker_speech_eres2net_large_sv_zh-cn_3dspeaker_16k.onnx",
+        "group": "speaker-verification",
         "acquisition": {
           "kind": "url",
           "license": "Apache-2.0 sherpa-onnx runtime; 3D-Speaker model with VoxCeleb corpus condition as published by the upstream model release",
@@ -267,6 +299,8 @@
       {
         "name": "spleeter-2stems-fp16",
         "path": "models/separation",
+        "group": "source-separation",
+        "acquisition_mode": "on-demand",
         "acquisition": {
           "kind": "url",
           "license": "Apache-2.0 sherpa-onnx runtime; Spleeter model with its upstream training-data terms",

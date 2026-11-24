@@ -17,7 +17,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"sync"
 	"unsafe"
 )
@@ -112,18 +111,6 @@ func (e *nativeEngine) Close() {
 	if e.tts != nil {
 		C.SherpaOnnxDestroyOfflineTts(e.tts)
 		e.tts = nil
-	}
-}
-
-func envBool(name string, fallback bool) bool {
-	value := strings.ToLower(strings.TrimSpace(os.Getenv(name)))
-	switch value {
-	case "1", "true", "yes", "on":
-		return true
-	case "0", "false", "no", "off":
-		return false
-	default:
-		return fallback
 	}
 }
 

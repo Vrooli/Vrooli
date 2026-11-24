@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -22,7 +23,10 @@ func (contractStream) AcceptPCM([]byte) ([]STTEvent, error) {
 	return []STTEvent{{Text: "hello"}}, nil
 }
 func (contractStream) Finish() ([]STTEvent, error) {
-	return []STTEvent{{Text: "hello world", Final: true, EndSample: 16000}}, nil
+	// The sentinel suffix represents words emitted only by Finish after the
+	// client's end control message. Keeping the earlier partial deliberately
+	// shorter catches adapters that stop forwarding the final segment early.
+	return []STTEvent{{Text: "hello world final suffix", Final: true, EndSample: 16000}}, nil
 }
 func (contractStream) Close() {}
 
@@ -56,8 +60,18 @@ func TestStreamingWebSocketContract(t *testing.T) {
 		t.Fatalf("processed = %s", got)
 	}
 	writeMaskedFrame(t, conn, 0x1, []byte(`{"type":"end"}`))
-	if got := readJSONFrame(t, reader); !strings.Contains(got, `"type":"segment"`) {
-		t.Fatalf("segment = %s", got)
+	segment := readJSONFrame(t, reader)
+	if !strings.Contains(segment, `"type":"segment"`) {
+		t.Fatalf("segment = %s", segment)
+	}
+	var final struct {
+		Text string `json:"text"`
+	}
+	if err := json.Unmarshal([]byte(segment), &final); err != nil {
+		t.Fatalf("decode final segment %q: %v", segment, err)
+	}
+	if !strings.HasSuffix(final.Text, "final suffix") {
+		t.Fatalf("final segment text %q lost its final suffix", final.Text)
 	}
 	if got := readJSONFrame(t, reader); !strings.Contains(got, `"type":"done"`) {
 		t.Fatalf("done = %s", got)

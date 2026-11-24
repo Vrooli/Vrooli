@@ -117,8 +117,13 @@ func TestMempoolAddressPageAllowsLargeBoundedConsolidationAndRejectsOverLimit(t 
 		t.Fatalf("retained address source body has unexpected size %d", len(page.Source.ResultBody))
 	}
 
-	// Use a fresh client so the successful page cache cannot hide the over-limit response.
-	client, err = NewMempoolClient(server.URL, server.Client(), time.Now)
+	// Use a fresh provider origin so the shared address-page cache cannot hide
+	// the over-limit response.
+	overLimitServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprint(w, body)
+	}))
+	defer overLimitServer.Close()
+	client, err = NewMempoolClient(overLimitServer.URL, overLimitServer.Client(), time.Now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,8 +163,8 @@ func TestMempoolAddressPageCacheExpiresAndStaysBounded(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if len(client.addressPageCache) != mempoolAddressCacheLimit {
-		t.Fatalf("address page cache retained %d entries, want bound %d", len(client.addressPageCache), mempoolAddressCacheLimit)
+	if got := client.addressPageCache.Len(now); got != mempoolAddressCacheLimit {
+		t.Fatalf("address page cache retained %d entries, want bound %d", got, mempoolAddressCacheLimit)
 	}
 	before := calls.Load()
 	if _, err := client.FetchAddressPage(context.Background(), fixtureBitcoinAddress, firstCursor); err != nil {

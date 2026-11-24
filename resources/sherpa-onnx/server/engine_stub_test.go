@@ -5,6 +5,7 @@ package main
 import "testing"
 
 func TestUnavailableBuildFailsClosedAtStartup(t *testing.T) {
+	t.Setenv("SHERPA_ONNX_TTS_ENABLED", "true")
 	engine, err := newEngineFromEnv()
 	if err == nil {
 		if engine != nil {

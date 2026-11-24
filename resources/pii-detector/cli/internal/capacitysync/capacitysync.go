@@ -63,13 +63,11 @@ func (h *Handlers) config() companion.Config {
 		interval = companion.PollInterval(h.GetEnv, intervalEnv, defaultInterval)
 	}
 	return companion.Config{
-		Resource:     resourceName,
-		ResourceKind: "ram",
-		Observer:     h,
-		Exec:         h.Exec,
-		Interval:     interval,
-		Priority:     "service",
-		Log:          h.Stderr,
+		Resource: resourceName,
+		Observer: h,
+		Exec:     h.Exec,
+		Interval: interval,
+		Log:      h.Stderr,
 	}
 }
 

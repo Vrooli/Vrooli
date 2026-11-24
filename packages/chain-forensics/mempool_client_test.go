@@ -46,7 +46,11 @@ func TestMempoolClientCapturesAndCachesConfirmedTransaction(t *testing.T) {
 		t.Fatalf("capture provenance mismatch: %#v", first.Source)
 	}
 	first.Transaction.Outputs[0].Address = "caller-mutated"
-	second, err := client.FetchTransaction(context.Background(), fixtureTxID)
+	otherClient, err := NewMempoolClient(server.URL+"/api", server.Client(), func() time.Time { return now })
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := otherClient.FetchTransaction(context.Background(), fixtureTxID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +91,7 @@ func TestMempoolClientSurfacesRetryAfterWithoutRetrying(t *testing.T) {
 }
 
 func TestMempoolClientCacheExpiresAndStaysBounded(t *testing.T) {
-	var now = time.Date(2026, 11, 12, 12, 0, 0, 0, time.UTC)
+	now := time.Date(2026, 11, 12, 12, 0, 0, 0, time.UTC)
 	var calls atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
@@ -117,8 +121,8 @@ func TestMempoolClientCacheExpiresAndStaysBounded(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if len(client.cache) != mempoolCacheLimit {
-		t.Fatalf("cache retained %d entries, want bound %d", len(client.cache), mempoolCacheLimit)
+	if got := client.cache.Len(now); got != mempoolCacheLimit {
+		t.Fatalf("cache retained %d entries, want bound %d", got, mempoolCacheLimit)
 	}
 	if _, err := client.FetchTransaction(context.Background(), firstID); err != nil {
 		t.Fatal(err)

@@ -307,7 +307,7 @@
     {
       "name": "metrics",
       "container": 9000,
-      "host": 0
+      "host": 11454
     },
     {
       "name": "upstream",

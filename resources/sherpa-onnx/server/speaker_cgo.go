@@ -36,14 +36,16 @@ const (
 )
 
 type nativeSpeakerRuntime struct {
-	mu          sync.Mutex
-	profileMu   sync.Mutex
-	extractor   *C.SherpaOnnxSpeakerEmbeddingExtractor
-	separator   *C.SherpaOnnxOfflineSourceSeparation
-	modelName   string
-	profileDir  string
-	modelDim    int
-	serverStart time.Time
+	mu           sync.Mutex
+	profileMu    sync.Mutex
+	extractor    *C.SherpaOnnxSpeakerEmbeddingExtractor
+	separator    *C.SherpaOnnxOfflineSourceSeparation
+	separatorDir string
+	closed       bool
+	modelName    string
+	profileDir   string
+	modelDim     int
+	serverStart  time.Time
 }
 
 type nativeSpeakerClip struct {
@@ -84,17 +86,11 @@ func newSpeakerRuntimeFromEnv() (SpeakerRuntime, error) {
 			profileDir = filepath.Join(dataDir, "profiles")
 		}
 	}
-	if modelPath == "" || separatorDir == "" || profileDir == "" {
-		return nil, fmt.Errorf("speaker model, separation model, and profile directory must be configured")
+	if modelPath == "" || profileDir == "" {
+		return nil, fmt.Errorf("speaker model and profile directory must be configured")
 	}
-	for label, path := range map[string]string{
-		"speaker model":                  modelPath,
-		"separation vocals model":        filepath.Join(separatorDir, "vocals.fp16.onnx"),
-		"separation accompaniment model": filepath.Join(separatorDir, "accompaniment.fp16.onnx"),
-	} {
-		if _, err := os.Stat(path); err != nil {
-			return nil, fmt.Errorf("%s %q is unavailable: %w", label, path, err)
-		}
+	if _, err := os.Stat(modelPath); err != nil {
+		return nil, fmt.Errorf("speaker model %q is unavailable: %w", modelPath, err)
 	}
 	if err := os.MkdirAll(profileDir, 0o700); err != nil {
 		return nil, fmt.Errorf("create speaker profile directory: %w", err)
@@ -113,30 +109,13 @@ func newSpeakerRuntimeFromEnv() (SpeakerRuntime, error) {
 		return nil, fmt.Errorf("sherpa-onnx failed to load speaker embedding model %q", modelPath)
 	}
 
-	vocalsC := C.CString(filepath.Join(separatorDir, "vocals.fp16.onnx"))
-	accompanimentC := C.CString(filepath.Join(separatorDir, "accompaniment.fp16.onnx"))
-	separatorProviderC := C.CString(envOr("SHERPA_ONNX_PROVIDER", "cpu"))
-	var separatorConfig C.SherpaOnnxOfflineSourceSeparationConfig
-	separatorConfig.model.spleeter.vocals = vocalsC
-	separatorConfig.model.spleeter.accompaniment = accompanimentC
-	separatorConfig.model.num_threads = C.int32_t(envInt("SHERPA_ONNX_THREADS", 2))
-	separatorConfig.model.provider = separatorProviderC
-	separator := C.SherpaOnnxCreateOfflineSourceSeparation(&separatorConfig)
-	C.free(unsafe.Pointer(vocalsC))
-	C.free(unsafe.Pointer(accompanimentC))
-	C.free(unsafe.Pointer(separatorProviderC))
-	if separator == nil {
-		C.SherpaOnnxDestroySpeakerEmbeddingExtractor(extractor)
-		return nil, fmt.Errorf("sherpa-onnx failed to load source separation models")
-	}
-
 	runtime := &nativeSpeakerRuntime{
-		extractor:   extractor,
-		separator:   separator,
-		modelName:   envOr("SHERPA_ONNX_SPEAKER_MODEL_NAME", nativeSpeakerModelName),
-		profileDir:  profileDir,
-		modelDim:    int(C.SherpaOnnxSpeakerEmbeddingExtractorDim(extractor)),
-		serverStart: time.Now(),
+		extractor:    extractor,
+		separatorDir: separatorDir,
+		modelName:    envOr("SHERPA_ONNX_SPEAKER_MODEL_NAME", nativeSpeakerModelName),
+		profileDir:   profileDir,
+		modelDim:     int(C.SherpaOnnxSpeakerEmbeddingExtractorDim(extractor)),
+		serverStart:  time.Now(),
 	}
 	if runtime.modelDim <= 0 {
 		runtime.Close()
@@ -148,6 +127,7 @@ func newSpeakerRuntimeFromEnv() (SpeakerRuntime, error) {
 func (s *nativeSpeakerRuntime) Close() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.closed = true
 	if s.separator != nil {
 		C.SherpaOnnxDestroyOfflineSourceSeparation(s.separator)
 		s.separator = nil
@@ -180,14 +160,27 @@ func (s *nativeSpeakerRuntime) ServeHTTP(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *nativeSpeakerRuntime) ready(w http.ResponseWriter, _ *http.Request) {
-	s.writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "model_loaded": s.extractor != nil, "profile_store_ok": true, "temp_dir_ok": true, "speaker_model_loaded": s.extractor != nil, "separation_model_loaded": s.separator != nil})
+	s.mu.Lock()
+	speakerLoaded, separationLoaded := s.extractor != nil, s.separator != nil
+	s.mu.Unlock()
+	statusCode, status := http.StatusOK, "ok"
+	if !speakerLoaded {
+		statusCode, status = http.StatusServiceUnavailable, "unavailable"
+	}
+	s.writeJSON(w, statusCode, map[string]any{"status": status, "model_loaded": speakerLoaded, "profile_store_ok": true, "temp_dir_ok": true, "speaker_model_loaded": speakerLoaded, "separation_model_loaded": separationLoaded})
 }
 
 func (s *nativeSpeakerRuntime) info(w http.ResponseWriter, _ *http.Request) {
+	s.mu.Lock()
+	separationSampleRate := 0
+	if s.separator != nil {
+		separationSampleRate = int(C.SherpaOnnxOfflineSourceSeparationGetOutputSampleRate(s.separator))
+	}
+	s.mu.Unlock()
 	s.writeJSON(w, http.StatusOK, map[string]any{
 		"backend": "sherpa-onnx", "model": s.modelName, "device": envOr("SHERPA_ONNX_PROVIDER", "cpu"),
 		"sample_rate": nativeSpeakerSampleRate, "version": "native-v1", "embedding_dim": s.modelDim,
-		"score_agg": "max", "extraction_model": "spleeter-2stems-fp16", "extraction_sample_rate": C.SherpaOnnxOfflineSourceSeparationGetOutputSampleRate(s.separator),
+		"score_agg": "max", "extraction_model": "spleeter-2stems-fp16", "extraction_sample_rate": separationSampleRate,
 	})
 }
 
@@ -408,7 +401,11 @@ func (s *nativeSpeakerRuntime) extract(w http.ResponseWriter, r *http.Request) {
 	}
 	cleaned, score, err := s.separate(samples, sampleRate, profile.Clips)
 	if err != nil {
-		s.writeError(w, http.StatusBadRequest, err.Error(), "")
+		status := http.StatusBadRequest
+		if _, ok := err.(separationUnavailableError); ok {
+			status = http.StatusServiceUnavailable
+		}
+		s.writeError(w, status, err.Error(), "")
 		return
 	}
 	pcm := speakerPCM16(cleaned)
@@ -467,6 +464,9 @@ func (s *nativeSpeakerRuntime) embed(samples []float32) ([]float32, error) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.closed || s.extractor == nil {
+		return nil, fmt.Errorf("speaker runtime is closed")
+	}
 	stream := C.SherpaOnnxSpeakerEmbeddingExtractorCreateStream(s.extractor)
 	if stream == nil {
 		return nil, fmt.Errorf("create speaker embedding stream")
@@ -486,13 +486,62 @@ func (s *nativeSpeakerRuntime) embed(samples []float32) ([]float32, error) {
 	return copyCFloat(values), nil
 }
 
+type separationUnavailableError struct{ err error }
+
+func (e separationUnavailableError) Error() string { return e.err.Error() }
+
+// ensureSeparatorLocked initializes Spleeter only when extraction is first
+// requested. The caller holds mu, which also fences the C handle from Close.
+func (s *nativeSpeakerRuntime) ensureSeparatorLocked() error {
+	if s.closed || s.extractor == nil {
+		return fmt.Errorf("speaker runtime is closed")
+	}
+	if s.separator != nil {
+		return nil
+	}
+	if strings.TrimSpace(s.separatorDir) == "" {
+		return fmt.Errorf("source separation model directory is not configured")
+	}
+	vocalsPath := filepath.Join(s.separatorDir, "vocals.fp16.onnx")
+	accompanimentPath := filepath.Join(s.separatorDir, "accompaniment.fp16.onnx")
+	for label, path := range map[string]string{
+		"vocals":        vocalsPath,
+		"accompaniment": accompanimentPath,
+	} {
+		if _, err := os.Stat(path); err != nil {
+			return fmt.Errorf("source separation %s model %q is unavailable: %w", label, path, err)
+		}
+	}
+	vocalsC := C.CString(vocalsPath)
+	accompanimentC := C.CString(accompanimentPath)
+	providerC := C.CString(envOr("SHERPA_ONNX_PROVIDER", "cpu"))
+	var config C.SherpaOnnxOfflineSourceSeparationConfig
+	config.model.spleeter.vocals = vocalsC
+	config.model.spleeter.accompaniment = accompanimentC
+	config.model.num_threads = C.int32_t(envInt("SHERPA_ONNX_THREADS", 2))
+	config.model.provider = providerC
+	separator := C.SherpaOnnxCreateOfflineSourceSeparation(&config)
+	C.free(unsafe.Pointer(vocalsC))
+	C.free(unsafe.Pointer(accompanimentC))
+	C.free(unsafe.Pointer(providerC))
+	if separator == nil {
+		return fmt.Errorf("sherpa-onnx failed to load source separation models from %q", s.separatorDir)
+	}
+	s.separator = separator
+	return nil
+}
+
 func (s *nativeSpeakerRuntime) separate(samples []float32, sampleRate int, clips []nativeSpeakerClip) ([]float32, float64, error) {
 	if len(samples) == 0 {
 		return nil, 0, fmt.Errorf("audio is empty")
 	}
-	resampled := resampleSpeaker(samples, sampleRate, int(C.SherpaOnnxOfflineSourceSeparationGetOutputSampleRate(s.separator)))
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if err := s.ensureSeparatorLocked(); err != nil {
+		return nil, 0, separationUnavailableError{err: err}
+	}
+	outputSampleRate := int(C.SherpaOnnxOfflineSourceSeparationGetOutputSampleRate(s.separator))
+	resampled := resampleSpeaker(samples, sampleRate, outputSampleRate)
 	inputSamples := C.malloc(C.size_t(len(resampled)*2) * C.size_t(unsafe.Sizeof(C.float(0))))
 	if inputSamples == nil {
 		return nil, 0, fmt.Errorf("allocate source separation input")
@@ -511,7 +560,7 @@ func (s *nativeSpeakerRuntime) separate(samples []float32, sampleRate int, clips
 	channels := unsafe.Slice((**C.float)(inputPointers), 2)
 	channels[0] = (*C.float)(inputSamples)
 	channels[1] = (*C.float)(unsafe.Add(unsafe.Pointer(inputSamples), uintptr(len(resampled))*unsafe.Sizeof(C.float(0))))
-	output := C.SherpaOnnxOfflineSourceSeparationProcess(s.separator, (**C.float)(inputPointers), 2, C.int32_t(len(resampled)), C.int32_t(C.SherpaOnnxOfflineSourceSeparationGetOutputSampleRate(s.separator)))
+	output := C.SherpaOnnxOfflineSourceSeparationProcess(s.separator, (**C.float)(inputPointers), 2, C.int32_t(len(resampled)), C.int32_t(outputSampleRate))
 	if output == nil {
 		return nil, 0, fmt.Errorf("source separation failed")
 	}

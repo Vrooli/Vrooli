@@ -98,16 +98,13 @@ func TestObserveSurfacesALedgerError(t *testing.T) {
 	}
 }
 
-// Scenario: the companion declaration names the reranker and its tier.
+// Scenario: the companion declaration names the reranker; its tier and idle policy come from resource.json.
 func TestConfigDeclaresTheResource(t *testing.T) {
 	h := Default()
 	cfg := h.config()
 
 	if cfg.Resource != resourceName {
 		t.Fatalf("Resource = %q, want %q", cfg.Resource, resourceName)
-	}
-	if cfg.Priority != "service" {
-		t.Fatalf("Priority = %q, want service", cfg.Priority)
 	}
 	if cfg.Observer == nil {
 		t.Fatal("Observer is nil; the config must carry the reranker's own observation")

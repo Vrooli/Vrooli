@@ -97,6 +97,7 @@ const (
 	ChainBase     Chain = "base"
 	ChainArbitrum Chain = "arbitrum"
 	ChainSolana   Chain = "solana"
+	ChainTron     Chain = "tron"
 )
 
 type EvidenceKind string
@@ -132,28 +133,35 @@ type Source struct {
 	// RawResponseBody preserves the exact successful HTTP response envelope.
 	// ResultBody remains the provider's JSON-RPC result object, which keeps
 	// existing normalization and content identity stable.
-	RawResponseBody   []byte `json:"raw_response_body,omitempty"`
-	RawResponseSHA256 string `json:"raw_response_sha256,omitempty"`
+	RawResponseBody    []byte `json:"raw_response_body,omitempty"`
+	RawResponseSHA256  string `json:"raw_response_sha256,omitempty"`
+	SelectedBySourceID string `json:"selected_by_source_id,omitempty"`
 }
 
 type Occurrence struct {
-	ID            string       `json:"id"`
-	Chain         Chain        `json:"chain"`
-	Transaction   string       `json:"transaction_id"`
-	Block         uint64       `json:"block_height"`
-	Timestamp     string       `json:"timestamp"`
-	EventIndex    uint32       `json:"event_index"`
-	Direction     string       `json:"direction,omitempty"`
-	PreviousTx    string       `json:"previous_transaction_id,omitempty"`
-	PreviousIndex uint32       `json:"previous_output_index"`
-	From          string       `json:"from,omitempty"`
-	To            string       `json:"to,omitempty"`
-	Asset         string       `json:"asset"`
-	Atomic        string       `json:"atomic_quantity"`
-	Scale         uint32       `json:"scale"`
-	Kind          EvidenceKind `json:"kind"`
-	SourceID      string       `json:"source_id"`
+	ID            string `json:"id"`
+	Chain         Chain  `json:"chain"`
+	Transaction   string `json:"transaction_id"`
+	Block         uint64 `json:"block_height"`
+	Timestamp     string `json:"timestamp"`
+	EventIndex    uint32 `json:"event_index"`
+	Direction     string `json:"direction,omitempty"`
+	PreviousTx    string `json:"previous_transaction_id,omitempty"`
+	PreviousIndex uint32 `json:"previous_output_index"`
+	From          string `json:"from,omitempty"`
+	To            string `json:"to,omitempty"`
+	Asset         string `json:"asset"`
+	Atomic        string `json:"atomic_quantity"`
+	Scale         uint32 `json:"scale"`
+	// Measurement distinguishes exact transfer observations from net account
+	// balance deltas, which can combine fees, rent, and program effects.
+	Measurement string       `json:"measurement,omitempty"`
+	Account     string       `json:"account,omitempty"`
+	Kind        EvidenceKind `json:"kind"`
+	SourceID    string       `json:"source_id"`
 }
+
+const MeasurementNetBalanceDelta = "net_account_balance_delta"
 
 type Edge struct {
 	ID          string   `json:"id"`
@@ -175,19 +183,53 @@ type Claim struct {
 	Kind     EvidenceKind `json:"kind"`
 }
 
+// SolanaTokenAccountSnapshot is one finalized, owner-filtered inventory for
+// one SPL token program at the RPC context slot. Token account addresses are
+// distinct from their owner addresses; this record keeps both explicit.
+type SolanaTokenAccountSnapshot struct {
+	ID          string               `json:"id"`
+	Owner       string               `json:"owner"`
+	ProgramID   string               `json:"program_id"`
+	ContextSlot uint64               `json:"context_slot"`
+	SourceID    string               `json:"source_id"`
+	Accounts    []SolanaTokenAccount `json:"accounts"`
+}
+
+type SolanaTokenAccount struct {
+	Address        string `json:"address"`
+	Mint           string `json:"mint"`
+	Owner          string `json:"owner"`
+	ProgramID      string `json:"program_id"`
+	AtomicQuantity string `json:"atomic_quantity"`
+	Scale          uint32 `json:"scale"`
+	ScaleKnown     bool   `json:"scale_known"`
+}
+
 type Case struct {
-	ID              string              `json:"id"`
-	Title           string              `json:"title"`
-	Summary         string              `json:"summary"`
-	Private         bool                `json:"private"`
-	Sources         []Source            `json:"sources"`
-	Claims          []Claim             `json:"claims,omitempty"`
-	Occurrences     []Occurrence        `json:"occurrences"`
-	Edges           []Edge              `json:"edges"`
-	Gaps            []string            `json:"gaps"`
-	Counterexamples []string            `json:"counterexamples,omitempty"`
-	Disagreements   []string            `json:"source_disagreements,omitempty"`
-	WalletSnapshots []EVMWalletSnapshot `json:"wallet_snapshots,omitempty"`
+	ID                          string                       `json:"id"`
+	Title                       string                       `json:"title"`
+	Summary                     string                       `json:"summary"`
+	Private                     bool                         `json:"private"`
+	Sources                     []Source                     `json:"sources"`
+	Claims                      []Claim                      `json:"claims,omitempty"`
+	Occurrences                 []Occurrence                 `json:"occurrences"`
+	Edges                       []Edge                       `json:"edges"`
+	Gaps                        []string                     `json:"gaps"`
+	Counterexamples             []string                     `json:"counterexamples,omitempty"`
+	Disagreements               []string                     `json:"source_disagreements,omitempty"`
+	WalletSnapshots             []EVMWalletSnapshot          `json:"wallet_snapshots,omitempty"`
+	SolanaTokenAccountSnapshots []SolanaTokenAccountSnapshot `json:"solana_token_account_snapshots,omitempty"`
+	PumpInstructions            []PumpInstruction            `json:"pump_instructions,omitempty"`
+	UnresolvedPumpInstructions  []UnresolvedPumpInstruction  `json:"unresolved_pump_instructions,omitempty"`
+}
+
+// CaptureAdditions groups optional, independently typed records emitted by a
+// source reader so repositories can merge them atomically with source bytes.
+type CaptureAdditions struct {
+	WalletSnapshots             []EVMWalletSnapshot
+	SolanaTokenAccountSnapshots []SolanaTokenAccountSnapshot
+	PumpInstructions            []PumpInstruction
+	UnresolvedPumpInstructions  []UnresolvedPumpInstruction
 }
 
 var (
@@ -279,6 +321,59 @@ func Validate(c Case) error {
 			contracts[contract] = struct{}{}
 		}
 	}
+	solanaSnapshotIDs := make(map[string]struct{}, len(c.SolanaTokenAccountSnapshots))
+	for _, snapshot := range c.SolanaTokenAccountSnapshots {
+		if snapshot.ID == "" || !validSolanaPubkey(snapshot.Owner) || !knownSolanaTokenProgram(snapshot.ProgramID) || snapshot.ContextSlot == 0 || snapshot.SourceID == "" {
+			return fmt.Errorf("Solana token account snapshot %q has incomplete owner, program, slot, or source identity", snapshot.ID)
+		}
+		if _, exists := solanaSnapshotIDs[snapshot.ID]; exists {
+			return fmt.Errorf("duplicate Solana token account snapshot id %q", snapshot.ID)
+		}
+		solanaSnapshotIDs[snapshot.ID] = struct{}{}
+		if _, ok := sources[snapshot.SourceID]; !ok {
+			return fmt.Errorf("Solana token account snapshot %q references unknown source %q", snapshot.ID, snapshot.SourceID)
+		}
+		accountIDs := make(map[string]struct{}, len(snapshot.Accounts))
+		for _, account := range snapshot.Accounts {
+			if !validSolanaPubkey(account.Address) || !validSolanaPubkey(account.Mint) || account.Owner != snapshot.Owner || account.ProgramID != snapshot.ProgramID || !decimalPattern.MatchString(account.AtomicQuantity) || (account.ScaleKnown && account.Scale > 255) || (!account.ScaleKnown && account.Scale != 0) {
+				return fmt.Errorf("Solana token account snapshot %q has invalid token account %q", snapshot.ID, account.Address)
+			}
+			if _, exists := accountIDs[account.Address]; exists {
+				return fmt.Errorf("Solana token account snapshot %q repeats token account %q", snapshot.ID, account.Address)
+			}
+			accountIDs[account.Address] = struct{}{}
+		}
+	}
+	pumpIDs := make(map[string]struct{}, len(c.PumpInstructions)+len(c.UnresolvedPumpInstructions))
+	for _, instruction := range c.PumpInstructions {
+		if instruction.ID == "" || instruction.Transaction == "" || instruction.Slot == 0 || instruction.ProgramID != pumpProgramID || instruction.SourceID == "" || instruction.Kind != "create_v2" || instruction.DecoderVersion != pumpCreateV2DecoderVersion || !validSolanaPubkey(instruction.Mint) || !validSolanaPubkey(instruction.User) || !validSolanaPubkey(instruction.Creator) {
+			return fmt.Errorf("Pump instruction %q has incomplete identity, source, or unsupported decoder", instruction.ID)
+		}
+		if _, ok := sources[instruction.SourceID]; !ok {
+			return fmt.Errorf("Pump instruction %q references unknown source %q", instruction.ID, instruction.SourceID)
+		}
+		if _, exists := pumpIDs[instruction.ID]; exists {
+			return fmt.Errorf("duplicate Pump instruction id %q", instruction.ID)
+		}
+		pumpIDs[instruction.ID] = struct{}{}
+	}
+	for _, instruction := range c.UnresolvedPumpInstructions {
+		if instruction.ID == "" || instruction.Transaction == "" || instruction.Slot == 0 || instruction.ProgramID != pumpProgramID || instruction.SourceID == "" || strings.TrimSpace(instruction.Reason) == "" {
+			return fmt.Errorf("unresolved Pump instruction %q has incomplete identity, source, or reason", instruction.ID)
+		}
+		if _, ok := sources[instruction.SourceID]; !ok {
+			return fmt.Errorf("unresolved Pump instruction %q references unknown source %q", instruction.ID, instruction.SourceID)
+		}
+		if instruction.CandidateKind != "" {
+			if instruction.CandidateKind != "buy_exact_quote_in_v2" || instruction.DecoderVersion != pumpBuyExactQuoteInV2DecoderVersion || instruction.ExpectedDataLength != 25 || instruction.ObservedDataLength == 0 || instruction.ObservedDataLength == instruction.ExpectedDataLength {
+				return fmt.Errorf("unresolved Pump instruction %q has unsupported or inconsistent IDL candidate metadata", instruction.ID)
+			}
+		}
+		if _, exists := pumpIDs[instruction.ID]; exists {
+			return fmt.Errorf("duplicate Pump instruction id %q", instruction.ID)
+		}
+		pumpIDs[instruction.ID] = struct{}{}
+	}
 	for _, note := range append(append([]string{}, c.Counterexamples...), c.Disagreements...) {
 		if strings.TrimSpace(note) == "" {
 			return errors.New("counterexamples and source disagreements must not be blank")
@@ -288,11 +383,26 @@ func Validate(c Case) error {
 		if o.ID == "" || o.Transaction == "" || o.Asset == "" || !decimalPattern.MatchString(o.Atomic) {
 			return fmt.Errorf("occurrence %q has incomplete identity or invalid atomic quantity", o.ID)
 		}
-		if o.Chain != ChainBitcoin && o.Chain != ChainEthereum && o.Chain != ChainBase && o.Chain != ChainArbitrum && o.Chain != ChainSolana {
+		if o.Chain != ChainBitcoin && o.Chain != ChainEthereum && o.Chain != ChainBase && o.Chain != ChainArbitrum && o.Chain != ChainSolana && o.Chain != ChainTron {
 			return fmt.Errorf("occurrence %q has unsupported chain %q", o.ID, o.Chain)
 		}
 		if o.Kind != EvidenceObservation && o.Kind != EvidenceLegalClaim && o.Kind != EvidenceLabel && o.Kind != EvidenceDerivation {
 			return fmt.Errorf("occurrence %q has unknown evidence kind %q", o.ID, o.Kind)
+		}
+		if o.Measurement != "" && o.Measurement != MeasurementNetBalanceDelta && o.Measurement != MeasurementInstructionTransfer {
+			return fmt.Errorf("occurrence %q has unknown measurement %q", o.ID, o.Measurement)
+		}
+		if o.Measurement == MeasurementNetBalanceDelta && (o.Chain != ChainSolana || !validSolanaPubkey(o.Account)) {
+			return fmt.Errorf("occurrence %q net balance delta must identify a Solana account", o.ID)
+		}
+		if o.Measurement == MeasurementInstructionTransfer {
+			validAsset := o.Asset == "SOL" && o.Scale == 9
+			if strings.HasPrefix(o.Asset, "SPL:") {
+				validAsset = validSolanaPubkey(strings.TrimPrefix(o.Asset, "SPL:")) && o.Scale <= 255
+			}
+			if o.Chain != ChainSolana || o.Direction != "transfer" || !validSolanaPubkey(o.From) || !validSolanaPubkey(o.To) || o.Account != o.From || o.Atomic == "0" || !validAsset {
+				return fmt.Errorf("occurrence %q instruction transfer must identify a Solana source, destination, asset, positive amount, and scale", o.ID)
+			}
 		}
 		if _, ok := sources[o.SourceID]; !ok {
 			return fmt.Errorf("occurrence %q references unknown source %q", o.ID, o.SourceID)

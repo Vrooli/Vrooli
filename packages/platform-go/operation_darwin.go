@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 type darwinOwnedHost struct{}
@@ -142,8 +144,12 @@ func darwinOwnedPrivatePath(path string, directory bool) error {
 func nativeDarwinOwnedBackend() darwinOwnedBackend {
 	u, lookupErr := user.LookupId(strconv.Itoa(os.Getuid()))
 	root := ""
+	runtimeHome := ""
 	if lookupErr == nil {
-		root = filepath.Join(u.HomeDir, ".vrooli", "native-owned-launchd")
+		runtimeHome, _ = repocontract.VrooliUserRoot(u.HomeDir)
+		if runtimeHome != "" {
+			root = filepath.Join(runtimeHome, "native-owned-launchd")
+		}
 	}
 	prepare := func(create bool) error {
 		if lookupErr != nil {
@@ -166,7 +172,7 @@ func nativeDarwinOwnedBackend() darwinOwnedBackend {
 				break
 			}
 		}
-		for _, p := range []string{u.HomeDir, filepath.Join(u.HomeDir, ".vrooli"), root} {
+		for _, p := range []string{u.HomeDir, runtimeHome, root} {
 			st, e := os.Lstat(p)
 			if os.IsNotExist(e) && create && p != u.HomeDir {
 				if e = os.Mkdir(p, 0700); e != nil {

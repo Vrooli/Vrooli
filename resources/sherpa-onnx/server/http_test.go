@@ -24,6 +24,14 @@ type fakeEncoder struct {
 	err         error
 }
 
+type unreadyEncoder struct{}
+
+func (unreadyEncoder) Encode(context.Context, Audio, string) ([]byte, string, error) {
+	return nil, "", context.DeadlineExceeded
+}
+
+func (unreadyEncoder) Ready() bool { return false }
+
 func (f fakeEncoder) Encode(context.Context, Audio, string) ([]byte, string, error) {
 	return f.data, f.contentType, f.err
 }
@@ -59,6 +67,42 @@ func TestHealthRequiresTTSModelAndReportsItsState(t *testing.T) {
 				t.Fatalf("health = %d %s, want status %d and %s", w.Code, w.Body.String(), tc.wantStatus, tc.wantField)
 			}
 		})
+	}
+}
+
+func TestHealthSeparatesStreamingSTTFromOptionalTTS(t *testing.T) {
+	handler := newHandlerWithEncoderAndStreaming(nil, unreadyEncoder{}, contractStreaming{})
+	for _, tc := range []struct {
+		path       string
+		wantStatus int
+		wantField  string
+	}{
+		{path: "/healthz", wantStatus: http.StatusOK, wantField: `"streaming_model_loaded":true`},
+		{path: "/healthz/stt", wantStatus: http.StatusOK, wantField: `"encoder_ready":false`},
+		{path: "/healthz/tts", wantStatus: http.StatusServiceUnavailable, wantField: `"tts_model_loaded":false`},
+		{path: "/healthz/unknown", wantStatus: http.StatusNotFound},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			r := httptest.NewRequest(http.MethodGet, tc.path, nil)
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, r)
+			if w.Code != tc.wantStatus || (tc.wantField != "" && !strings.Contains(w.Body.String(), tc.wantField)) {
+				t.Fatalf("health %s = %d %s, want status %d and %s", tc.path, w.Code, w.Body.String(), tc.wantStatus, tc.wantField)
+			}
+		})
+	}
+
+	for _, path := range []string{"/v1/audio/voices", "/v1/audio/speech"} {
+		method := http.MethodGet
+		if path == "/v1/audio/speech" {
+			method = http.MethodPost
+		}
+		r := httptest.NewRequest(method, path, strings.NewReader(`{"input":"hello"}`))
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+		if w.Code != http.StatusServiceUnavailable {
+			t.Fatalf("%s without TTS model = %d, want 503", path, w.Code)
+		}
 	}
 }
 

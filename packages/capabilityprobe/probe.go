@@ -4,6 +4,7 @@
 package capabilityprobe
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"os"
@@ -56,8 +57,15 @@ var AITools = []Definition{
 
 type (
 	LookPath   func(string) (string, error)
-	RunVersion func(context.Context, string, []string) (string, error)
+	RunVersion func(context.Context, string, []string) (VersionOutput, error)
 )
+
+// VersionOutput keeps a tool's reported version separate from diagnostics it
+// writes to stderr. Some tools emit warnings on successful version checks.
+type VersionOutput struct {
+	Stdout string
+	Stderr string
+}
 
 const (
 	DefaultCommandTimeout = 3 * time.Second
@@ -178,13 +186,14 @@ func ProbeWith(ctx context.Context, definitions []Definition, lookPath LookPath,
 		}
 		item.Path = path
 		if version != nil {
-			value, err := version(probeCtx, path, definition.VersionArg)
+			output, err := version(probeCtx, path, definition.VersionArg)
 			if err != nil {
 				item.State = Unknown
-				item.Detail = versionFailureDetail(definition.Command, value, err)
+				item.Detail = versionFailureDetail(definition.Command, output.diagnosticText(), err)
 			} else {
 				item.State = Ready
-				item.Version = strings.TrimSpace(value)
+				item.Version = strings.TrimSpace(output.Stdout)
+				item.Detail = strings.TrimSpace(output.Stderr)
 			}
 		} else {
 			item.State = Ready
@@ -255,13 +264,24 @@ func firstLine(value string) string {
 // `if !hasDeadline` guard meant the per-command bound never applied on the only
 // path that uses it: one hanging tool could spend the entire probe budget and
 // leave every tool after it unreadable.
-func runVersion(ctx context.Context, path string, args []string) (string, error) {
+func runVersion(ctx context.Context, path string, args []string) (VersionOutput, error) {
 	commandCtx, cancel := context.WithTimeout(ctx, DefaultCommandTimeout)
 	defer cancel()
 	command := exec.CommandContext(commandCtx, path, args...)
 	command.Env = managedEnviron()
-	return stringOutput(command.CombinedOutput())
+	var stdout, stderr bytes.Buffer
+	command.Stdout = &stdout
+	command.Stderr = &stderr
+	err := command.Run()
+	return VersionOutput{Stdout: stdout.String(), Stderr: stderr.String()}, err
 }
 
-// stringOutput exists to keep the version runner's return shape explicit.
-func stringOutput(output []byte, err error) (string, error) { return string(output), err }
+func (output VersionOutput) diagnosticText() string {
+	if strings.TrimSpace(output.Stderr) == "" {
+		return output.Stdout
+	}
+	if strings.TrimSpace(output.Stdout) == "" {
+		return output.Stderr
+	}
+	return output.Stderr + "\n" + output.Stdout
+}

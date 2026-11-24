@@ -4,19 +4,28 @@ import (
 	"context"
 	"errors"
 	"io"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/capacity"
 )
 
-func TestConfigUsesMeasuredRAMClaim(t *testing.T) {
+func TestManifestDeclaresTheMeasuredRAMClaim(t *testing.T) {
 	h := &Handlers{Stderr: io.Discard, Exec: func(context.Context, string, ...string) ([]byte, error) { return nil, nil }, Interval: time.Second}
 	cfg := h.config()
-	if cfg.Resource != resourceName || cfg.ResourceKind != "ram" {
-		t.Fatalf("resource identity = %q/%q, want %q/ram", cfg.Resource, cfg.ResourceKind, resourceName)
+	if cfg.Resource != resourceName {
+		t.Fatalf("resource identity = %q, want %q", cfg.Resource, resourceName)
 	}
-	if cfg.PreferredBytes != defaultPreferred || cfg.FloorBytes != defaultPreferred {
-		t.Fatalf("RAM reservation = %d/%d, want %d/%d", cfg.PreferredBytes, cfg.FloorBytes, defaultPreferred, defaultPreferred)
+	spec, ok, err := capacity.LoadResourceClaimSpec(filepath.Join("..", "..", "..", "..", ".."), resourceName)
+	if err != nil || !ok {
+		t.Fatalf("LoadResourceClaimSpec = ok %v, err %v", ok, err)
+	}
+	cfg = cfg.WithClaimSpec(spec)
+	const want = int64(1536 << 20)
+	if cfg.ResourceKind != "ram" || cfg.PreferredBytes != want || cfg.FloorBytes != want {
+		t.Fatalf("RAM reservation = %s %d/%d, want ram %d/%d from resource.json", cfg.ResourceKind, cfg.PreferredBytes, cfg.FloorBytes, want, want)
 	}
 }
 

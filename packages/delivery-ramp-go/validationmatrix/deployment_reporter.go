@@ -34,6 +34,15 @@ type DeploymentReporter struct {
 	os       string
 }
 
+// SupportsRunIdentity marks the reporter as able to accept deployment identity
+// from an exact matrix request while leaving unrelated operator matrices
+// unreported.
+func (*DeploymentReporter) SupportsRunIdentity() bool { return true }
+
+func (r *DeploymentReporter) HasConfiguredIdentity() bool {
+	return r != nil && strings.TrimSpace(r.profile) != "" && strings.TrimSpace(r.commit) != ""
+}
+
 func NewDeploymentReporter(client DeploymentEvidenceClient, profileID, gitCommit string) *DeploymentReporter {
 	return &DeploymentReporter{client: client, profile: profileID, commit: gitCommit, producer: "delivery-ramp", ramp: "delivery-ramp", platform: "unknown", os: "unknown"}
 }
@@ -94,26 +103,43 @@ func (r *DeploymentReporter) ReportValidationGate(ctx context.Context, verdict R
 	if r == nil || r.client == nil {
 		return fmt.Errorf("deployment-manager evidence client is unavailable")
 	}
-	if strings.TrimSpace(r.profile) == "" || strings.TrimSpace(r.commit) == "" {
+	profile, commit := r.profile, r.commit
+	if strings.TrimSpace(verdict.ProfileID) != "" || strings.TrimSpace(verdict.GitCommit) != "" {
+		if strings.TrimSpace(verdict.ProfileID) == "" || strings.TrimSpace(verdict.GitCommit) == "" {
+			return fmt.Errorf("deployment profile and git commit must be provided together")
+		}
+		profile, commit = verdict.ProfileID, verdict.GitCommit
+	}
+	if strings.TrimSpace(profile) == "" || strings.TrimSpace(commit) == "" {
 		return fmt.Errorf("deployment-manager profile and git commit are required")
+	}
+	if len(verdict.Targets) > 1 {
+		return fmt.Errorf("deployment evidence requires one exact target per validation run")
 	}
 	disposition := commonv1.Disposition_DISPOSITION_FAILED
 	if verdict.Gate != nil && verdict.Gate.GetPassed() {
 		disposition = commonv1.Disposition_DISPOSITION_PASSED
 	}
-	detail, err := json.Marshal(struct {
+	detailData := struct {
 		Producer       string           `json:"producer"`
 		MatrixID       string           `json:"matrix_id"`
 		ScenarioName   string           `json:"scenario_name"`
 		ArtifactDigest string           `json:"artifact_digest"`
+		ArtifactRef    string           `json:"artifact_ref,omitempty"`
+		TargetID       string           `json:"target_id,omitempty"`
 		Gate           *ReleaseGateView `json:"gate"`
 	}{
 		Producer:       r.producer,
 		MatrixID:       verdict.MatrixID,
 		ScenarioName:   verdict.ScenarioName,
 		ArtifactDigest: verdict.ArtifactDigest,
+		ArtifactRef:    verdict.ArtifactRef,
 		Gate:           releaseGateView(verdict.Gate),
-	})
+	}
+	if len(verdict.Targets) == 1 && verdict.Targets[0].Descriptor != nil {
+		detailData.TargetID = verdict.Targets[0].Descriptor.GetTargetId()
+	}
+	detail, err := json.Marshal(detailData)
 	if err != nil {
 		return fmt.Errorf("encode matrix release detail: %w", err)
 	}
@@ -125,8 +151,23 @@ func (r *DeploymentReporter) ReportValidationGate(ctx context.Context, verdict R
 		}
 		refs = append(refs, &commonv1.EvidenceRef{Producer: r.producer, ArtifactId: evidence.GetEvidenceId(), Kind: evidence.GetKind().String(), Checksum: evidence.GetSha256(), CreatedAt: timestamppb.New(createdAt)})
 	}
-	target := &commonv1.EvidenceTarget{Ramp: r.ramp, Platform: r.platform, Os: r.os, DeviceKind: commonv1.DeviceKind_DEVICE_KIND_HOST}
-	_, err = r.client.ReportTargetVerdict(ctx, connect.NewRequest(&evidencev1.ReportTargetVerdictRequest{ProfileId: r.profile, GitCommitHash: r.commit, Verdict: &commonv1.TargetVerdict{Target: target, Disposition: disposition, Refs: refs, RunId: verdict.RunID, Detail: string(detail), EvidenceClass: "release-grade"}}))
+	if verdict.ArtifactRef != "" {
+		refs = append(refs, &commonv1.EvidenceRef{Producer: r.producer, ArtifactId: verdict.ArtifactRef, Kind: "android-apk", Checksum: verdict.ArtifactDigest, CreatedAt: timestamppb.New(createdAt)})
+	}
+	deviceKind := commonv1.DeviceKind_DEVICE_KIND_HOST
+	osName := r.os
+	if strings.EqualFold(r.platform, "android") {
+		osName = "android"
+		if len(verdict.Targets) == 1 && verdict.Targets[0].Descriptor != nil {
+			if strings.HasPrefix(verdict.Targets[0].Descriptor.GetTargetId(), "android:emulator:") {
+				deviceKind = commonv1.DeviceKind_DEVICE_KIND_EMULATOR
+			} else {
+				deviceKind = commonv1.DeviceKind_DEVICE_KIND_PHYSICAL
+			}
+		}
+	}
+	target := &commonv1.EvidenceTarget{Ramp: r.ramp, Platform: r.platform, Os: osName, DeviceKind: deviceKind}
+	_, err = r.client.ReportTargetVerdict(ctx, connect.NewRequest(&evidencev1.ReportTargetVerdictRequest{ProfileId: profile, GitCommitHash: commit, Verdict: &commonv1.TargetVerdict{Target: target, Disposition: disposition, Refs: refs, RunId: verdict.RunID, Detail: string(detail), EvidenceClass: "release-grade"}}))
 	if err != nil {
 		return fmt.Errorf("report matrix release verdict: %w", err)
 	}

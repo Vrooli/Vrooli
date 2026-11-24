@@ -4,7 +4,7 @@
   "package": {
     "name": "codex-rollout",
     "display_name": "github.com/vrooli/vrooli/packages/codex-rollout",
-    "description": "Bounded reader for Codex native rollout records and the operational usage they report.",
+    "description": "Bounded reader for Codex native rollout records: the operational usage they report, how each turn ended, and the turn-error table that classifies turn-ending errors and their recovery.",
     "kind": "go_runtime",
     "language": "go",
     "module_identifiers": [
